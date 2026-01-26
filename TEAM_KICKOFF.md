@@ -97,6 +97,41 @@ Reescriure completament l'aplicació amb una arquitectura modular, moderna i man
 
 ---
 
+## 🔒 Transparència i Dades Personals
+
+**⚠️ ÉS MOLT IMPORTANT:** Les dades personals dels membres de la colla són propietat de la colla i cal el seu permís explícit per utilitzar-les.
+
+### Què hem de fer abans de començar:
+
+1. **Demandar permís a la colla** per:
+   - Exportar les dades de l'aplicació actual (Appsistència)
+   - Utilitzar aquestes dades per crear la nova aplicació
+   - Migrar les dades personals dels membres a la nova base de dades
+
+2. **Ser transparents** sobre:
+   - Quines dades es migraran (noms, cognoms, alçades, etiquetes de posició, assistències històriques, etc.)
+   - On s'emmagatzemaran les dades (hosting, ubicació, backups)
+   - Qui tindrà accés a les dades (rols, permisos)
+   - Com es protegiran les dades personals (encriptació, seguretat, GDPR compliance)
+   - Política de retenció de dades
+
+3. **Obtenir consentiment explícit** abans de:
+   - Exportar cap dada de l'aplicació actual
+   - Crear la nova base de dades amb dades reals
+   - Començar la migració de dades
+   - Desplegar la nova aplicació amb dades reals
+
+### Consideracions Tècniques:
+
+- **Desenvolupament inicial:** Podem desenvolupar amb dades de prova (mock data) sense tocar dades reals
+- **Migració de dades:** Només després d'obtenir permís, planificar la migració segura
+- **GDPR Compliance:** Assegurar que la nova aplicació compleix amb la normativa de protecció de dades
+- **Transparència amb la colla:** Documentar clarament què fem amb les dades i com les protegim
+
+**Principi fonamental:** La transparència i el respecte per la privacitat de les dades personals és fonamental. No procedirem sense el permís explícit de la colla. Totes les decisions sobre dades personals seran transparents i acordades amb la colla.
+
+---
+
 ## 🆚 Situació Actual vs Nova Aplicació
 
 ### Comparativa: Dependència vs Propietat
@@ -2137,6 +2172,20 @@ test: afegir tests unitaris membres
 
 ## 📝 Pròxims Passos Immediats
 
+### 0. Permís per Dades Personals (PRIORITARI) 🔒
+
+**⚠️ ABANS DE COMENÇAR QUALSEVOL DESENVOLUPAMENT:**
+
+1. **Demandar permís a la colla** per exportar i utilitzar les dades de l'aplicació actual (Appsistència)
+2. **Explicar transparentment** quines dades es migraran i com es protegiran
+3. **Obtenir consentiment explícit** abans de procedir amb la migració de dades
+
+**Nota important:** Podem desenvolupar amb dades de prova (mock data) mentre esperem el permís. El desenvolupament inicial no requereix dades reals.
+
+**Principi:** La transparència i el respecte per la privacitat de les dades personals és fonamental. No procedirem sense el permís explícit de la colla.
+
+---
+
 ### ⚡ Decisions Clau a Prendre Primer
 
 Abans de començar, cal decidir:
@@ -2174,10 +2223,10 @@ Abans de començar, cal decidir:
 
 ## 📞 Contacte
 
-**Product Owner:** Llorenç Vaquer Gregori  
 **Colla:** Muixeranga de Barcelona  
 **GitHub:** (enllaç quan estigui públic)  
-**Documentació:** `/docs/prd/`
+**Documentació:** `/docs/prd/`  
+**Equip:** Comissió Tecnològica (equip transversal i autogestionat)
 
 ---
 
