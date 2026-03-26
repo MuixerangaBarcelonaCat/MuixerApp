@@ -1,0 +1,38 @@
+---
+description: Security and GDPR compliance requirements
+alwaysApply: false
+globs: apps/api/**/*.ts
+---
+
+# Security & GDPR
+
+## Personal Data Protection
+
+Members' personal data (name, email, phone, birth date, height) requires:
+
+- Explicit consent before collection
+- Encryption at rest for sensitive fields (email, phone)
+- Right to deletion (hard delete on request)
+- Data export capability (GDPR Article 20)
+- Audit log for data access
+
+## Authentication
+
+- Passwords: bcrypt cost 12+
+- JWT with refresh tokens
+- Rate limiting: 100 req/15min per IP on auth endpoints
+- Account lockout after 5 failed attempts
+
+## API Security
+
+- CORS: only known origins
+- Helmet.js for security headers
+- Input validation via class-validator on ALL endpoints
+- Never expose internal IDs in error messages
+- Never log personal data (mask in logs)
+
+## Secrets
+
+- NEVER commit `.env` files
+- All secrets via environment variables
+- Database connection string, JWT secret, FCM keys = env vars only

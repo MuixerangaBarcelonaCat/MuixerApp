@@ -1,0 +1,49 @@
+---
+description: Language conventions — Catalan UI, English code
+alwaysApply: true
+---
+
+# Language Conventions
+
+## Code (ALWAYS English)
+
+- Variable names, function names, class names: English
+- TypeScript interfaces, enums, DTOs: English
+- API endpoints and route paths: English
+- Database table and column names: English
+- Git commit messages: English (conventional commits)
+- Code comments: English
+
+## UI/UX (ALWAYS Catalan)
+
+- All user-facing text: Catalan (títols, botons, missatges, labels, placeholders)
+- Error messages shown to users: Catalan
+- Email/notification content: Catalan
+- Documentation for end-users: Catalan
+
+## Developer Documentation
+
+- Technical docs (specs, architecture): English preferred, Catalan acceptable
+- README and contributing guides: Catalan (target audience is the colla)
+
+## Examples
+
+```typescript
+// ✅ GOOD — English code, Catalan UI
+interface AttendanceStatus {
+  CONFIRMED = 'CONFIRMED',
+  DECLINED = 'DECLINED',
+  PENDING = 'PENDING',
+}
+
+const labels: Record<AttendanceStatus, string> = {
+  [AttendanceStatus.CONFIRMED]: 'Vinc',
+  [AttendanceStatus.DECLINED]: 'No vinc',
+  [AttendanceStatus.PENDING]: 'Pendent',
+};
+
+// ❌ BAD — Catalan in code
+interface EstatAssistencia {
+  PUC_ANAR = 'PUC_ANAR',
+}
+```

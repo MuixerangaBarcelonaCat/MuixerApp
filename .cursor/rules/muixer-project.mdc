@@ -1,0 +1,63 @@
+---
+description: MuixerApp project context, tech stack and architecture decisions
+alwaysApply: true
+---
+
+# MuixerApp — APPsistència 2.0
+
+Open-source attendance & figure management system for Muixerangues (human tower groups).
+
+## Tech Stack (Decided)
+
+- **Backend:** NestJS + TypeScript (strict)
+- **Frontend Dashboard:** Angular 20+ (standalone components, signals, OnPush)
+- **Mobile:** Angular PWA (no Ionic, no native apps)
+- **Database:** PostgreSQL on NeonDB (no local DB, connect remote in dev)
+- **Monorepo:** Nx workspace (`apps/api`, `apps/dashboard`, `apps/pwa`, `libs/shared`)
+- **ORM:** TypeORM (class-based entities with decorators)
+- **No Docker** in dev — run Node/Angular/NestJS directly
+
+## Architecture
+
+```
+apps/
+  api/          → NestJS backend (REST API)
+  dashboard/    → Angular admin web (desktop/tablet)
+  pwa/          → Angular PWA for members (mobile-first)
+libs/
+  shared/       → DTOs, interfaces, enums shared between apps
+```
+
+## Multi-tenant
+
+Initially built for Muixeranga de Barcelona. Designed to support multiple colles in the future (each with their own branding: logo, colors).
+
+## Data Source
+
+Legacy app at `muixerangadebarcelona.appsistencia.cat` has a PHP API. Data migration scripts extract from there. See `API_APPSISTENCIA.md` for endpoint documentation.
+
+## Current Status
+
+- **Active spec:** `docs/specs/2026-03-26-p0-p1-p2-vertical-slice-persons-design.md` (approved)
+- **Next step:** Write implementation plan, then scaffold and code
+- **Continuity doc:** `NEXT_STEPS.md`
+- **Roadmap:** `PROJECT_ROADMAP.md`
+
+## Terminology
+
+- **Membre**: gender-neutral for colla members. Never "casteller".
+- **Xicalla**: children (< 16). Never "canalla".
+- Code entity: `Person` (not `Casteller`, not `Membre`)
+
+## Sub-projects (Priority Order)
+
+| ID | Sub-project | Status |
+|----|-------------|--------|
+| P0 | Scaffold (Nx + NestJS + Angular + NeonDB) | Spec approved |
+| P1 | Auth + Users + Persons (entities, no login yet) | Spec approved |
+| P2 | Data Migration (extract from legacy API) | Spec approved |
+| P3 | Seasons + Events + Attendance | Pending |
+| P4 | Dashboard Web (Angular) | Pending |
+| P5 | PWA Mobile | Pending |
+| P6 | Figures/Canvas Module | Pending |
+| P7 | Notifications + Advanced Features | Pending |
