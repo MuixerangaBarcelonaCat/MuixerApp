@@ -3,6 +3,15 @@ dist
 .angular
 __screenshots__/
 
+# Nx
+.nx/cache/
+.nx/workspace-data/*.db
+.nx/workspace-data/*.db-shm
+.nx/workspace-data/*.db-wal
+.nx/workspace-data/*.lock
+.nx/workspace-data/d/
+nx
+
 # Environment variables
 .env
 .env.local
