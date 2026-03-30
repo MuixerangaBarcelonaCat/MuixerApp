@@ -9,11 +9,11 @@
 
 | ID | Sub-projecte | Estat | Spec | Pla | Codi | Notes |
 |----|-------------|-------|------|-----|------|-------|
-| P0 | Scaffold (Nx + NestJS + Angular + NeonDB) | 🟡 Spec aprovat | ✅ | ⚪ | ⚪ | |
-| P1 | Auth + Usuaris + Persones (entitats + CRUD, sense login) | 🟡 Spec aprovat | ✅ | ⚪ | ⚪ | Registre assistit per usuaris no experts |
-| P2 | Data Migration (API legacy → NeonDB) | 🟡 Spec aprovat | ✅ | ⚪ | ⚪ | Script extractor fet, falta importador |
+| P0 | Scaffold (Nx + NestJS + Angular + NeonDB) | ✅ Completat | ✅ | ✅ | ✅ | Monorepo funcional |
+| P1 | Auth + Usuaris + Persones (entitats + CRUD, sense login) | ✅ Completat | ✅ | ✅ | ✅ | Entitats i API REST funcionant |
+| P2 | Data Migration (API legacy → NeonDB) | 🟡 Estructura creada | ✅ | ✅ | 🟡 | Seed module creat, falta mapatge complet |
 | P3 | Temporades + Esdeveniments + Assistència | ⚪ Pendent | — | — | — | |
-| P4 | Dashboard Web (Angular) | ⚪ Pendent | — | — | — | |
+| P4 | Dashboard Web (Angular) | 🟡 Shell creat | — | — | 🟡 | Layout bàsic, falta UI completa |
 | P5 | PWA Mòbil | ⚪ Pendent | — | — | — | |
 | P6 | Mòdul Figures/Canvas | ⚪ Pendent | — | — | — | Part més complexa |
 | P7 | Notificacions + Features avançades | ⚪ Pendent | — | — | — | FCM, reports, notícies |

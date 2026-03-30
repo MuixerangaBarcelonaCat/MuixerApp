@@ -1,0 +1,64 @@
+---
+description: API response format conventions
+globs: apps/api/**/*.controller.ts
+alwaysApply: false
+---
+
+# API Response Format
+
+## Standard Response Envelope
+
+### Success (with data)
+
+```typescript
+{
+  data: T,
+  meta?: {
+    total: number,
+    page: number,
+    limit: number
+  }
+}
+```
+
+### Error
+
+```typescript
+{
+  statusCode: number,
+  message: string,
+  error: string
+}
+```
+
+## Pagination
+
+- **Defaults**: `page=1`, `limit=50`
+- **Max limit**: 100
+- **Query params**: Use `@Type(() => Number)` for numeric params
+
+## Controllers
+
+```typescript
+@Get()
+async findAll(@Query() filters: FilterDto) {
+  const { data, total } = await this.service.findAll(filters);
+  return {
+    data,
+    meta: { total, page: filters.page || 1, limit: filters.limit || 50 },
+  };
+}
+
+@Delete(':id')
+@HttpCode(HttpStatus.NO_CONTENT)
+async remove(@Param('id', ParseUUIDPipe) id: string) {
+  await this.service.softDelete(id);
+}
+```
+
+## Key Conventions
+
+- Use `ParseUUIDPipe` for `:id` params
+- Soft delete returns 204 No Content
+- List endpoints return `{ data, meta }` envelope
+- Single resource endpoints return the resource directly

@@ -532,11 +532,11 @@ Sidebar shows all planned sections. Only "Persones" is active. Others are greyed
 
 ### Person List View
 
-- Angular Material `mat-table` with `mat-paginator` and `mat-sort`
+- Spartan UI table (CDK-based) with Spartan pagination and CDK sort directives
 - Reactive search (signal-based, debounce 300ms) by alias/name/surname
 - Combinable filters: position, availability, active, xicalla, member
-- Position badges/chips with colors from Position.color
-- Responsive: table on desktop, cards on mobile
+- Position badges with colors from Position.color (Spartan Badge + Tailwind)
+- Responsive: table on desktop (>=lg), cards on mobile (<lg)
 - All UI text in Catalan
 
 ### Tech Approach

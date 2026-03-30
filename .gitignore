@@ -1,0 +1,22 @@
+node_modules
+dist
+.angular
+__screenshots__/
+
+# Environment variables
+.env
+.env.local
+
+# Data
+data/extracted/
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

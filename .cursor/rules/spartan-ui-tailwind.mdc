@@ -1,0 +1,44 @@
+---
+description: Spartan UI + Tailwind CSS conventions for dashboard and PWA
+globs: apps/dashboard/**/*.{ts,html,scss}, apps/pwa/**/*.{ts,html,scss}
+alwaysApply: false
+---
+
+# UI Framework: Spartan UI + Tailwind CSS
+
+## Stack
+- **Components**: Spartan UI (headless, Angular CDK-based)
+- **Styling**: Tailwind CSS (utility-first)
+- **Behavior**: Angular CDK (drag-drop, overlays, a11y, virtual scroll)
+- **NO Angular Material** — do not install or import @angular/material
+
+## Spartan UI Patterns
+- Import brain (behavior) and helm (UI) separately:
+  `import { BrnTableModule } from '@spartan-ng/brain/table';`
+  `import { HlmTableModule } from '@spartan-ng/ui-table-helm';`
+- Brain = logic/a11y, Helm = styled component
+- Components are copied into the project (full ownership)
+
+## Tailwind Conventions
+- Mobile-first: write base styles for mobile, override with sm:/md:/lg:/xl:
+- Use colla-theming CSS variables via Tailwind config:
+  `bg-colla-primary`, `text-colla-secondary`, etc.
+- No hardcoded colors for branding — always use CSS custom properties
+- Minimum touch target: `min-h-11 min-w-11` (44px) on interactive elements in mobile
+
+## Responsive Requirements
+- Sidebar: hidden <lg, visible ≥lg. Mobile uses Sheet (slide-over)
+- Tables: full table ≥lg, card layout <lg
+- Forms: single column <md, multi-column ≥md
+- All layouts must be tested at 320px, 768px, 1024px, 1440px
+
+## Component Structure
+
+```typescript
+@Component({
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [BrnTableModule, HlmTableModule],
+  host: { class: 'block' }, // Tailwind needs block display
+})
+```

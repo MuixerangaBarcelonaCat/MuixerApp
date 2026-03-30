@@ -34,14 +34,14 @@ Initially built for Muixeranga de Barcelona. Designed to support multiple colles
 
 ## Data Source
 
-Legacy app at `muixerangadebarcelona.appsistencia.cat` has a PHP API. Data migration scripts extract from there. See `API_APPSISTENCIA.md` for endpoint documentation.
+Legacy app at `muixerangadebarcelona.appsistencia.cat` has a PHP API. Data migration scripts extract from there. See `docs/API_APPSISTENCIA.md` for endpoint documentation.
 
 ## Current Status
 
-- **Active spec:** `docs/specs/2026-03-26-p0-p1-p2-vertical-slice-persons-design.md` (approved)
-- **Next step:** Write implementation plan, then scaffold and code
-- **Continuity doc:** `NEXT_STEPS.md`
-- **Roadmap:** `PROJECT_ROADMAP.md`
+- **Active spec:** `docs/specs/2026-03-26-p0-p1-p2-vertical-slice-persons-design.md` (approved & implemented)
+- **Implementation:** P0+P1+P2 vertical slice complete (scaffold + entities + basic UI)
+- **Continuity doc:** `docs/NEXT_STEPS.md`
+- **Roadmap:** `docs/PROJECT_ROADMAP.md`
 
 ## Terminology
 
@@ -53,11 +53,19 @@ Legacy app at `muixerangadebarcelona.appsistencia.cat` has a PHP API. Data migra
 
 | ID | Sub-project | Status |
 |----|-------------|--------|
-| P0 | Scaffold (Nx + NestJS + Angular + NeonDB) | Spec approved |
-| P1 | Auth + Users + Persons (entities, no login yet) | Spec approved |
-| P2 | Data Migration (extract from legacy API) | Spec approved |
+| P0 | Scaffold (Nx + NestJS + Angular + NeonDB) | ✅ Implemented |
+| P1 | Auth + Users + Persons (entities, no login yet) | ✅ Implemented |
+| P2 | Data Migration (extract from legacy API) | 🟡 Structure ready |
 | P3 | Seasons + Events + Attendance | Pending |
-| P4 | Dashboard Web (Angular) | Pending |
+| P4 | Dashboard Web (Angular) | 🟡 Shell created |
 | P5 | PWA Mobile | Pending |
 | P6 | Figures/Canvas Module | Pending |
 | P7 | Notifications + Advanced Features | Pending |
+
+## Key Documentation
+
+- **Roadmap**: `docs/PROJECT_ROADMAP.md`
+- **Current state**: `docs/NEXT_STEPS.md`
+- **Specs**: `docs/specs/`
+- **Legacy API**: `docs/API_APPSISTENCIA.md`
+- **Setup**: `README.md`
