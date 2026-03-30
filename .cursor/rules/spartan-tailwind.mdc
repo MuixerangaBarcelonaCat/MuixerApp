@@ -9,28 +9,69 @@ alwaysApply: false
 ## UI Stack
 
 - **Components**: Spartan UI (headless, CDK-based primitives)
-- **Styling**: Tailwind CSS utility classes
+- **Styling**: Tailwind CSS v3.4.x utility classes
 - **NO Angular Material** — never import `@angular/material/*`
+
+> **Important**: Utilitzem Tailwind CSS v3, NO v4. Veure `docs/TAILWIND_VERSION.md` per detalls.
 
 ## Theming
 
-Use CSS custom properties consumed via Tailwind config:
+### CSS Setup (Tailwind v3)
 
-```typescript
-// tailwind.config.js
-theme: {
-  extend: {
-    colors: {
-      colla: {
-        primary: 'var(--colla-primary)',
-        secondary: 'var(--colla-secondary)',
-      }
-    }
-  }
+```scss
+// apps/dashboard/src/styles.scss
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --colla-primary: #1B5E20;
+  --colla-secondary: #FDD835;
+  --colla-text-on-primary: #FFFFFF;
 }
+```
 
-// Usage in templates
-<button class="bg-colla-primary text-white">Button</button>
+### Tailwind Config
+
+```javascript
+// tailwind.config.js (arrel del projecte)
+module.exports = {
+  content: [
+    './apps/dashboard/src/**/*.{html,ts}',
+    './apps/pwa/src/**/*.{html,ts}',
+    './libs/**/*.{html,ts}',
+  ],
+  theme: {
+    extend: {
+      colors: {
+        colla: {
+          primary: 'var(--colla-primary)',
+          secondary: 'var(--colla-secondary)',
+          'text-on-primary': 'var(--colla-text-on-primary)',
+        },
+      },
+    },
+  },
+  plugins: [],
+};
+```
+
+### PostCSS Config
+
+```javascript
+// apps/dashboard/postcss.config.js
+module.exports = {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+};
+```
+
+### Usage in templates
+
+```html
+<button class="bg-colla-primary text-colla-text-on-primary">Button</button>
 ```
 
 ## Responsive Design

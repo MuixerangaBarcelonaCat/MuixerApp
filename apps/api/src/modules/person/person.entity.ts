@@ -17,22 +17,22 @@ export class Person {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   name: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   firstSurname: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   secondSurname: string | null;
 
-  @Column({ length: 20, unique: true })
+  @Column({ type: 'varchar', length: 20, unique: true })
   alias: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   email: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   phone: string | null;
 
   @Column({ type: 'date', nullable: true })
@@ -44,13 +44,13 @@ export class Person {
   @Column({ type: 'enum', enum: Gender, nullable: true })
   gender: Gender | null;
 
-  @Column({ default: false })
+  @Column({ type: 'boolean', default: false })
   isXicalla: boolean;
 
-  @Column({ default: true })
+  @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
-  @Column({ default: false })
+  @Column({ type: 'boolean', default: false })
   isMember: boolean;
 
   @Column({ type: 'enum', enum: AvailabilityStatus, default: AvailabilityStatus.AVAILABLE })
@@ -68,7 +68,7 @@ export class Person {
   @Column({ type: 'date', nullable: true })
   joinDate: Date | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   legacyId: string | null;
 
   @ManyToMany(() => Position)
@@ -78,7 +78,7 @@ export class Person {
   @ManyToOne(() => User, { nullable: true })
   managedBy: User | null;
 
-  @Column({ default: true })
+  @Column({ type: 'boolean', default: true })
   isMainAccount: boolean;
 
   @ManyToOne(() => Person, { nullable: true })

@@ -9,6 +9,12 @@ module.exports = {
       devtoolModuleFilenameTemplate: '[absolute-resource-path]',
     }),
   },
+  resolve: {
+    extensions: ['.ts', '.js'],
+    alias: {
+      '@muixer/shared': join(__dirname, '../../dist/libs/shared/index.js'),
+    },
+  },
   plugins: [
     new NxAppWebpackPlugin({
       target: 'node',

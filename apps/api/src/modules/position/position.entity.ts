@@ -6,19 +6,19 @@ export class Position {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ unique: true })
+  @Column({ type: 'varchar', unique: true })
   name: string;
 
-  @Column({ unique: true })
+  @Column({ type: 'varchar', unique: true })
   slug: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   shortDescription: string | null;
 
   @Column({ type: 'text', nullable: true })
   longDescription: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   color: string | null;
 
   @Column({ type: 'enum', enum: FigureZone, nullable: true })

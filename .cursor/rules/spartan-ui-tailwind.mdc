@@ -8,9 +8,11 @@ alwaysApply: false
 
 ## Stack
 - **Components**: Spartan UI (headless, Angular CDK-based)
-- **Styling**: Tailwind CSS (utility-first)
+- **Styling**: Tailwind CSS v3.4.x (utility-first)
 - **Behavior**: Angular CDK (drag-drop, overlays, a11y, virtual scroll)
 - **NO Angular Material** — do not install or import @angular/material
+
+> **Important**: Utilitzem Tailwind CSS v3, NO v4. Veure `docs/TAILWIND_VERSION.md`.
 
 ## Spartan UI Patterns
 - Import brain (behavior) and helm (UI) separately:
@@ -19,12 +21,14 @@ alwaysApply: false
 - Brain = logic/a11y, Helm = styled component
 - Components are copied into the project (full ownership)
 
-## Tailwind Conventions
+## Tailwind Conventions (v3)
 - Mobile-first: write base styles for mobile, override with sm:/md:/lg:/xl:
 - Use colla-theming CSS variables via Tailwind config:
   `bg-colla-primary`, `text-colla-secondary`, etc.
 - No hardcoded colors for branding — always use CSS custom properties
 - Minimum touch target: `min-h-11 min-w-11` (44px) on interactive elements in mobile
+- CSS directives: `@tailwind base;`, `@tailwind components;`, `@tailwind utilities;`
+- Config file: `tailwind.config.js` at project root (NOT `@theme` blocks)
 
 ## Responsive Requirements
 - Sidebar: hidden <lg, visible ≥lg. Mobile uses Sheet (slide-over)

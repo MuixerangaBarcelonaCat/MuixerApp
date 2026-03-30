@@ -1,1 +1,16 @@
-/* You can add global styles to this file, and also import other style files */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --colla-primary: #1B5E20;
+  --colla-secondary: #FDD835;
+  --colla-text-on-primary: #FFFFFF;
+  --colla-logo-url: url('/assets/logo-mxb.svg');
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}

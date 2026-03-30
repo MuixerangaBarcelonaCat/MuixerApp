@@ -17,6 +17,10 @@ El primer vertical slice està **implementat**:
 - ✅ Angular dashboard amb Tailwind CSS + routing
 - ✅ Shared library amb enums
 - ✅ Estructura de seed per importar dades
+- ✅ **Swagger/OpenAPI** documentació disponible a `/api/docs`
+- ✅ **Interceptor de latència** per monitorització de requests
+- ✅ **Tests unitaris** amb Jest (11 tests passing)
+- ✅ **Tailwind CSS v3** configurat (downgrade de v4 per compatibilitat amb Spartan UI)
 
 ### Què s'ha implementat?
 
@@ -88,10 +92,33 @@ Implementar el mapatge complet a `apps/api/src/modules/database/seeds/seed.comma
 ### 5. Verificar el vertical slice
 
 ```bash
-nx serve api          # http://localhost:3000/api
+# Build
+nx build shared       # Compilar shared library primer
+nx build api          # Compilar API
+
+# Executar
+node dist/apps/api/main.js  # http://localhost:3000/api
+                            # Swagger: http://localhost:3000/api/docs
+
+# Tests
+nx test api           # 11 tests passing
+
+# Dashboard (quan estigui implementat)
 nx serve dashboard    # http://localhost:4200
+
+# Seed (quan estigui implementat)
 nx run api:seed       # Importar dades
 ```
+
+### 6. Monitorització
+
+L'API inclou un interceptor de latència que registra automàticament:
+- Mètode HTTP + URL
+- Status code
+- Temps de resposta en ms
+- Errors amb stack trace
+
+Logs disponibles a la consola del servidor.
 
 ---
 
