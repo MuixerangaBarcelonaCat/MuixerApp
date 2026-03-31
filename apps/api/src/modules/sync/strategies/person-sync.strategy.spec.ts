@@ -38,11 +38,23 @@ describe('PersonSyncStrategy', () => {
   };
 
   beforeEach(async () => {
+    const qb = {
+      update: jest.fn(),
+      set: jest.fn(),
+      where: jest.fn(),
+      andWhere: jest.fn(),
+      execute: jest.fn().mockResolvedValue({ affected: 0 }),
+    };
+    qb.update.mockReturnValue(qb);
+    qb.set.mockReturnValue(qb);
+    qb.where.mockReturnValue(qb);
+    qb.andWhere.mockReturnValue(qb);
+
     const mockPersonRepo = {
       findOne: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
-      createQueryBuilder: jest.fn(),
+      createQueryBuilder: jest.fn(() => qb),
     };
 
     const mockPositionRepo = {

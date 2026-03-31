@@ -151,6 +151,40 @@ describe('PersonService', () => {
       expect(mockPersonRepository.createQueryBuilder).toHaveBeenCalledWith('person');
       expect(mockQueryBuilder.getCount).toHaveBeenCalled();
       expect(mockQueryBuilder.getMany).toHaveBeenCalled();
+      expect(mockQueryBuilder.orderBy).toHaveBeenCalledWith('person.alias', 'ASC');
+    });
+
+    it('should order by name DESC when sort params provided', async () => {
+      mockQueryBuilder.getCount.mockResolvedValue(0);
+      mockQueryBuilder.getMany.mockResolvedValue([]);
+
+      await service.findAll({ page: 1, limit: 10, sortBy: 'name', sortOrder: 'DESC' });
+
+      expect(mockQueryBuilder.orderBy).toHaveBeenCalledWith('person.name', 'DESC');
+    });
+
+    it('should order by shoulderHeight ASC', async () => {
+      mockQueryBuilder.getCount.mockResolvedValue(0);
+      mockQueryBuilder.getMany.mockResolvedValue([]);
+
+      await service.findAll({ page: 1, limit: 10, sortBy: 'shoulderHeight', sortOrder: 'ASC' });
+
+      expect(mockQueryBuilder.orderBy).toHaveBeenCalledWith(
+        'person.shoulderHeight',
+        'ASC',
+      );
+    });
+
+    it('should apply isActive filter', async () => {
+      mockQueryBuilder.getCount.mockResolvedValue(0);
+      mockQueryBuilder.getMany.mockResolvedValue([]);
+
+      await service.findAll({ page: 1, limit: 10, isActive: true });
+
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
+        'person.isActive = :isActive',
+        { isActive: true },
+      );
     });
   });
 

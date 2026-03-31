@@ -1,14 +1,14 @@
 # MuixerApp — Punt actual i pròxims passos
 
-> Última actualització: 30 de març de 2026
+> Última actualització: 31 de març de 2026
 
 ---
 
 ## On estem?
 
-### ✅ Fase completada: P0+P1+P2 Vertical Slice — Complet i Funcional
+### ✅ Fase completada: P0+P1+P2+P2.1 Vertical Slice — Complet i Funcional
 
-El primer vertical slice està **completament implementat i funcional**:
+El primer vertical slice amb totes les millores de dashboard està **completament implementat i funcional**:
 
 #### Backend
 - ✅ Nx monorepo configurat
@@ -21,19 +21,21 @@ El primer vertical slice està **completament implementat i funcional**:
 - ✅ **Endpoints activate/deactivate** per gestió manual
 - ✅ **Swagger/OpenAPI** documentació disponible a `/api/docs`
 - ✅ **Interceptor de latència** per monitorització de requests
-- ✅ **Tests unitaris** amb Jest (10/10 tests passing)
+- ✅ **Ordenació server-side** — `sortBy` + `sortOrder` amb whitelist estricta (`PERSON_SORT_COLUMN_MAP`)
+- ✅ **Tests** amb Jest (34/34 passing — PersonService, PersonController, PersonFilterDto, Sync, Position)
 
 #### Frontend
 - ✅ Angular 20+ dashboard amb arquitectura moderna
 - ✅ **DaisyUI v4 + Angular CDK** (migrat des de Spartan UI)
 - ✅ **Estructura de 3 fitxers** per components (TS/HTML/SCSS)
-- ✅ **Person List** amb taula (desktop) + cards (mòbil) + filtres + cerca
+- ✅ **Person List** — taula sempre (scroll horitzontal), ordenació per columnes, filtres, cerca, paginació configurable (25/50/100), selector columnes col·lapsable, filtre chips, skeleton loader
 - ✅ **Person Detail** amb vista responsive de 2 columnes
 - ✅ **Person Sync** amb EventSource + progress bar + log en temps real
 - ✅ **Layout responsive** amb sidebar + header + drawer mòbil
-- ✅ **Utils compartides** (color, date, person)
+- ✅ **Utils compartides** (color, date, person) + `formatShoulderHeight*` + `shoulderHeightRelativeTone`
 - ✅ Shared library amb enums
 - ✅ **Tailwind CSS v3 + DaisyUI v4** configurat (estable, 55 components)
+- ✅ **Tests** amb Vitest (16/16 passing — PersonListComponent, PersonService, person.util, http-params.util)
 
 ### Què s'ha implementat?
 
@@ -128,13 +130,25 @@ Després del primer sync real amb dades de producció:
 Dissenyar i especificar la següent fase del roadmap:
 
 - [ ] Dissenyar model de dades (Season, Event, Attendance)
-- [ ] Definir relacions entre entitats
-- [ ] Especificar endpoints API necessaris
-- [ ] Dissenyar UI per gestió d'events
-- [ ] Planificar sync strategy per Events
-- [ ] Crear spec tècnic aprovat
+- [ ] Definir relacions entre entitats (Person → Attendance → Event → Season)
+- [ ] Especificar endpoints API necessaris (`GET /seasons`, `GET /events`, `POST /events/:id/attendance`)
+- [ ] Dissenyar UI per gestió d'events (llista, detall, formulari d'assistència)
+- [ ] Planificar sync strategy per Events des de la legacy API
+- [ ] Crear spec tècnic aprovat a `docs/specs/`
 
 **Documentació:** `docs/PROJECT_ROADMAP.md`
+
+### 4. Deute tècnic identificat (per abordar durant P3/P4)
+
+| Ítem | Descripció | Prioritat |
+|------|-----------|-----------|
+| N+1 queries al sync | ~600 queries per 300 persones — substituir per bulk upsert TypeORM | Baixa |
+| Auth (JWT + Passport) | User module sense login real; ruta de login pendent | Alta (abans P3 en producció) |
+| E2E tests | Cap test Playwright/Cypress — falta cobertura de flux complet | Mitjana |
+| PersonDetail tests | Component sense tests unitaris | Baixa |
+| PersonSyncComponent tests | Component sense tests unitaris | Baixa |
+| Persistència filtre actius | El toggle d'alçada relativa no es persisteix entre sessions | Baixa |
+| `.nx/workspace-data/` al `.gitignore` | Cache de Nx podria pujar al repo per error | Immediata |
 
 ### 4. Executar l'aplicació
 
@@ -207,3 +221,11 @@ Logs disponibles a la consola del servidor.
 | **API Legacy** | [`docs/API_APPSISTENCIA.md`](API_APPSISTENCIA.md) | Endpoints legacy per migració |
 | **Rules** | [`.cursor/rules/`](../.cursor/rules/) | Regles per l'agent |
 | **Arxiu** | [`docs/archive/`](archive/) | Docs històrics obsolets |
+
+---
+
+## Branques actives
+
+| Branca | Descripció | Estat |
+|--------|-----------|-------|
+| `feat/vertical-slice-completion-sync-dashboard` | P2.1: Ordenació, alçada relativa, UX persones, tests complets | ✅ Llesta per merge |

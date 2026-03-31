@@ -120,7 +120,7 @@ export class LegacyApiClient {
     this.logger.debug(`Login response status: ${loginResp.status}`);
     
     // Update session cookie if new one is provided
-    const loginCookies = loginResp.headers['set-cookie'];
+    const loginCookies = loginResp.headers?.['set-cookie'];
     if (loginCookies) {
       const phpSessId = loginCookies.find((c) => c.startsWith('PHPSESSID='));
       if (phpSessId) {
@@ -142,7 +142,7 @@ export class LegacyApiClient {
     }
 
     // Step 3: Follow redirect to /home (or wherever it redirects)
-    const redirectLocation = loginResp.headers.location || '/home';
+    const redirectLocation = loginResp.headers?.location || '/home';
     this.logger.debug(`Following redirect to: ${redirectLocation}`);
 
     const homeResp = await this.client.get(redirectLocation, {

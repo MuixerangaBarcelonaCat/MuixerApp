@@ -39,15 +39,20 @@ export interface PaginatedResponse<T> {
   };
 }
 
+export type PersonSortOrder = 'ASC' | 'DESC';
+
 export interface PersonFilterParams {
   search?: string;
-  positionId?: string;
+  positionIds?: string[];
   availability?: AvailabilityStatus;
   isActive?: boolean;
   isXicalla?: boolean;
   isMember?: boolean;
   page?: number;
   limit?: number;
+  /** API sort field (see backend PERSON_SORT_BY_FIELDS) */
+  sortBy?: string;
+  sortOrder?: PersonSortOrder;
 }
 
 export interface SyncEvent {

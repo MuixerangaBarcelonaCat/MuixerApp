@@ -44,3 +44,52 @@ export function getOnboardingLabel(status: OnboardingStatus): string {
   };
   return labels[status] || status;
 }
+
+/** Baseline (cm) for relative shoulder height display (+/- from this value). */
+export const SHOULDER_HEIGHT_BASELINE_CM = 140;
+
+/**
+ * Absolute shoulder height for display (cm).
+ */
+export function formatShoulderHeightCm(value: number | null | undefined): string {
+  if (value === null || value === undefined) {
+    return '—';
+  }
+  return `${value} cm`;
+}
+
+/**
+ * Relative offset from baseline (e.g. +10, -5, 0).
+ */
+export function formatShoulderHeightRelative(
+  value: number | null | undefined,
+  baselineCm = SHOULDER_HEIGHT_BASELINE_CM,
+): string {
+  if (value === null || value === undefined) {
+    return '—';
+  }
+  const delta = value - baselineCm;
+  if (delta === 0) {
+    return '0';
+  }
+  return delta > 0 ? `+${delta}` : `${delta}`;
+}
+
+export type ShoulderHeightTone = 'positive' | 'negative' | 'zero' | 'empty';
+
+export function shoulderHeightRelativeTone(
+  value: number | null | undefined,
+  baselineCm = SHOULDER_HEIGHT_BASELINE_CM,
+): ShoulderHeightTone {
+  if (value === null || value === undefined) {
+    return 'empty';
+  }
+  const delta = value - baselineCm;
+  if (delta > 0) {
+    return 'positive';
+  }
+  if (delta < 0) {
+    return 'negative';
+  }
+  return 'zero';
+}

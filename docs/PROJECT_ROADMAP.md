@@ -11,9 +11,10 @@
 |----|-------------|-------|------|-----|------|-------|
 | P0 | Scaffold (Nx + NestJS + Angular + NeonDB) | ✅ Completat | ✅ | ✅ | ✅ | Monorepo funcional |
 | P1 | Auth + Usuaris + Persones (entitats + CRUD, sense login) | ✅ Completat | ✅ | ✅ | ✅ | Entitats i API REST funcionant |
-| P2 | Data Migration (API legacy → NeonDB) | 🟡 Estructura creada | ✅ | ✅ | 🟡 | Seed module creat, falta mapatge complet |
-| P3 | Temporades + Esdeveniments + Assistència | ⚪ Pendent | — | — | — | |
-| P4 | Dashboard Web (Angular) | 🟡 Shell creat | — | — | 🟡 | Layout bàsic, falta UI completa |
+| P2 | Data Migration (API legacy → NeonDB) | ✅ Completat | ✅ | ✅ | ✅ | Sync SSE complet, merge strategy implementada |
+| P2.1 | Dashboard Persons — UX i funcionalitats avançades | ✅ Completat | ✅ | ✅ | ✅ | Ordenació, alçada relativa, filtres, tests |
+| P3 | Temporades + Esdeveniments + Assistència | ⚪ Pendent | — | — | — | Pròxima fase prioritària |
+| P4 | Dashboard Web (Angular) — resta de features | 🔵 En curs | — | — | 🔵 | P4 persons complet, falta Events/Reports |
 | P5 | PWA Mòbil | ⚪ Pendent | — | — | — | |
 | P6 | Mòdul Figures/Canvas | ⚪ Pendent | — | — | — | Part més complexa |
 | P7 | Notificacions + Features avançades | ⚪ Pendent | — | — | — | FCM, reports, notícies |
@@ -81,9 +82,40 @@ P0 (Scaffold)
 
 ---
 
+## Convencions de Codi i UX
+
+| Aspecte | Decisió | Notes |
+|---------|---------|-------|
+| Idioma UI | Català | Tots els textos, botons, labels, missatges d'error |
+| Idioma codi | Anglès | Variables, funcions, enums, endpoints, commits |
+| Components Angular | 3 fitxers obligatoris | `.ts` + `.html` + `.scss` (cap template inline) |
+| Canvi de detecció | `OnPush` | Tots els components |
+| Estat reactiu | Signals (`signal`, `computed`, `effect`) | Evitar `BehaviorSubject` per estat local |
+| Estils | DaisyUI v4 + Tailwind v3 | Cap Tailwind v4 fins nova decisió |
+| Alçada d'espatlles | Baseline 140 cm | Display absolut (cm) o relatiu (+/-) configurable per usuari |
+
+---
+
+## Decisions sobre el Mòdul Persones (P2.1)
+
+Decisions preses durant la implementació de millores del dashboard de persones:
+
+| Decisió | Resultat |
+|---------|----------|
+| Filtres de llista | Mantenir "Actius"; eliminar botons "Membres" i "Xicalla" (filtrables via API si cal) |
+| Ordenació | Server-side, whitelist estricta de camps (protecció SQL injection) |
+| Vista mòbil | Taula sempre (scroll horitzontal), mai transformar en llista de targetes |
+| Alçada espatlles | Baseline 140 cm, toggle per sessió (no persistit), colors per tonalitat |
+| Selector de columnes | Col·lapsable per defecte; persistit en `localStorage` |
+| Paginació | Opcions 25/50/100 per pàgina |
+
+---
+
 ## Històric
 
 | Data | Acció |
 |------|-------|
 | Mar 2026 | Inici brainstorming P0. Decisions stack confirmades. |
 | 26 Mar 2026 | Spec P0+P1+P2 aprovat (`docs/specs/2026-03-26-p0-p1-p2-vertical-slice-persons-design.md`). |
+| 30 Mar 2026 | Spec Sync + Dashboard aprovat. Implementació SSE, merge strategy, Person List/Detail/Sync. |
+| 31 Mar 2026 | P2.1 completat: ordenació server-side, alçada relativa, UX persones, tests complets (34 API + 16 dashboard). |

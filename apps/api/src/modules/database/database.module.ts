@@ -1,5 +1,7 @@
-import { Module } from '@nestjs/common';
+import { Module, OnModuleInit } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import { Position } from '../position/position.entity';
 import { User } from '../user/user.entity';
 import { Person } from '../person/person.entity';
@@ -18,4 +20,10 @@ import { Person } from '../person/person.entity';
     }),
   ],
 })
-export class DatabaseModule {}
+export class DatabaseModule implements OnModuleInit {
+  constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
+
+  async onModuleInit(): Promise<void> {
+    await this.dataSource.query('CREATE EXTENSION IF NOT EXISTS unaccent');
+  }
+}

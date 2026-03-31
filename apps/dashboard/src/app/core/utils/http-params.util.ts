@@ -5,7 +5,13 @@ export function buildHttpParams(params: Record<string, unknown> | object): HttpP
 
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== null && value !== '') {
-      httpParams = httpParams.set(key, String(value));
+      if (Array.isArray(value)) {
+        value.forEach((val) => {
+          httpParams = httpParams.append(key, String(val));
+        });
+      } else {
+        httpParams = httpParams.set(key, String(value));
+      }
     }
   }
 

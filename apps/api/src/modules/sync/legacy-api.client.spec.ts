@@ -27,22 +27,34 @@ describe('LegacyApiClient', () => {
     jest.clearAllMocks();
   });
 
+  const loginSuccessMocks = () => {
+    mockAxiosInstance.get.mockResolvedValueOnce({
+      status: 200,
+      headers: { 'set-cookie': ['PHPSESSID=abc123; path=/'] },
+      data: '',
+    });
+    mockAxiosInstance.post.mockResolvedValueOnce({
+      status: 302,
+      headers: { location: '/home', 'set-cookie': [] },
+      data: '',
+    });
+    mockAxiosInstance.get.mockResolvedValueOnce({
+      status: 200,
+      headers: {},
+      data: '<html>tancar sessió</html>',
+    });
+  };
+
   describe('login', () => {
     it('should login successfully and store session cookie', async () => {
-      mockAxiosInstance.get.mockResolvedValueOnce({
-        headers: { 'set-cookie': ['PHPSESSID=abc123; path=/'] },
-      });
-
-      mockAxiosInstance.post.mockResolvedValueOnce({
-        data: '<html>tancar sessió</html>',
-      });
+      loginSuccessMocks();
 
       await client.login();
 
       expect(mockAxiosInstance.get).toHaveBeenCalledWith('/');
       expect(mockAxiosInstance.post).toHaveBeenCalledWith(
         '/',
-        expect.any(URLSearchParams),
+        expect.stringContaining('username=testuser'),
         expect.objectContaining({
           headers: expect.objectContaining({
             Cookie: 'PHPSESSID=abc123',
@@ -53,11 +65,21 @@ describe('LegacyApiClient', () => {
 
     it('should throw error if login fails (no "tancar" in response)', async () => {
       mockAxiosInstance.get.mockResolvedValueOnce({
+        status: 200,
         headers: {},
+        data: '',
       });
 
       mockAxiosInstance.post.mockResolvedValueOnce({
-        data: '<html>login failed</html>',
+        status: 302,
+        headers: { location: '/home' },
+        data: '',
+      });
+
+      mockAxiosInstance.get.mockResolvedValueOnce({
+        status: 200,
+        headers: {},
+        data: '<html>no logout button here</html>',
       });
 
       await expect(client.login()).rejects.toThrow('Login failed: "tancar" not found in response');
@@ -76,15 +98,10 @@ describe('LegacyApiClient', () => {
 
   describe('getCastellers', () => {
     it('should fetch and clean castellers data', async () => {
-      mockAxiosInstance.get.mockResolvedValueOnce({
-        headers: { 'set-cookie': ['PHPSESSID=abc123; path=/'] },
-      });
-
-      mockAxiosInstance.post.mockResolvedValueOnce({
-        data: '<html>tancar</html>',
-      });
+      loginSuccessMocks();
 
       mockAxiosInstance.get.mockResolvedValueOnce({
+        status: 200,
         data: {
           rows: [
             {
@@ -116,15 +133,10 @@ describe('LegacyApiClient', () => {
     });
 
     it('should strip HTML tags and entities', async () => {
-      mockAxiosInstance.get.mockResolvedValueOnce({
-        headers: { 'set-cookie': ['PHPSESSID=abc123; path=/'] },
-      });
-
-      mockAxiosInstance.post.mockResolvedValueOnce({
-        data: '<html>tancar</html>',
-      });
+      loginSuccessMocks();
 
       mockAxiosInstance.get.mockResolvedValueOnce({
+        status: 200,
         data: {
           rows: [
             {
@@ -143,15 +155,10 @@ describe('LegacyApiClient', () => {
     });
 
     it('should throw error if response format is invalid', async () => {
-      mockAxiosInstance.get.mockResolvedValueOnce({
-        headers: { 'set-cookie': ['PHPSESSID=abc123; path=/'] },
-      });
-
-      mockAxiosInstance.post.mockResolvedValueOnce({
-        data: '<html>tancar</html>',
-      });
+      loginSuccessMocks();
 
       mockAxiosInstance.get.mockResolvedValueOnce({
+        status: 200,
         data: { invalid: 'format' },
       });
 
