@@ -129,93 +129,26 @@ Monorepo:
 
 ---
 
-## 🎨 Migració a DaisyUI
+## 🎨 Stack UI: DaisyUI v4
 
-**Data:** 30 de març de 2026
-
-### Per què?
-
-Spartan UI estava en alpha (`0.0.1-alpha.656`) amb reestructuració de paquets i inestabilitat. DaisyUI v4 és estable, madur i perfecte per multi-tenant.
-
-### Beneficis
-
-- ✅ **Estabilitat** - Producció-ready, 55 components
-- ✅ **Zero JS** - Pure CSS, no runtime overhead
-- ✅ **Theming** - Multi-colla via `data-theme`
-- ✅ **Simplicitat** - No brain/helm split, només classes CSS
-- ✅ **Future-proof** - Path clar a DaisyUI v5 + Tailwind v4
-
-### Components Migrats
-
-Tots els components del dashboard (6 components):
-1. App (root)
-2. Sidebar
-3. Header
-4. Person List
-5. Person Detail
-6. Person Sync
-
-**Documentació:** `docs/DAISYUI_MIGRATION.md`
+- **DaisyUI v4.12.24** + **Tailwind CSS v3.4.19** (no v4, per compatibilitat amb PostCSS/Sass)
+- **Angular CDK v21.2.4** per overlays, a11y, drag-drop
+- Theming multi-colla via `data-theme` de DaisyUI
+- Tots els components segueixen l'**estructura obligatòria de 3 fitxers** (regla `.cursor/rules/angular-component-structure.mdc`)
 
 ---
 
-## 📁 Estructura de Components Angular
+## 📚 Documentació
 
-### Regla Obligatòria: 3 Fitxers
-
-**SEMPRE:**
-```
-component-name/
-├── component-name.component.ts    ← Lògica + Signals
-├── component-name.component.html  ← Template (DaisyUI + Tailwind)
-└── component-name.component.scss  ← Estils custom (mínim/buit)
-```
-
-**MAI:**
-- ❌ `template: \`...\`` inline
-- ❌ `styles: [\`...\`]` inline
-
-**Documentació:** `docs/ANGULAR_COMPONENT_STRUCTURE_MIGRATION.md`
-
----
-
-## 📚 Documentació Disponible
-
-### Guies Principals
-
-| Document | Descripció | Estat |
-|----------|------------|-------|
-| `README.md` | Setup i quick start | ✅ Actualitzat |
-| `PROJECT_ROADMAP.md` | Visió general i fases | ✅ Actualitzat |
-| `NEXT_STEPS.md` | Pròxims passos immediats | ✅ Actualitzat |
-| `CURRENT_STATUS.md` | Aquest document | ✅ Nou |
-
-### Documentació Tècnica
-
-| Document | Descripció | Estat |
-|----------|------------|-------|
-| `IMPLEMENTATION_STATUS.md` | Estat d'implementació detallat | ✅ Actualitzat |
-| `SYNC_MERGE_STRATEGY.md` | Regles de sincronització | ✅ Actualitzat |
-| `SYNC_IMPROVEMENTS_2026-03-30.md` | Millores de sync | ✅ Actualitzat |
-| `API_PERSON_ENDPOINTS.md` | Documentació API | ✅ Actualitzat |
-| `DAISYUI_MIGRATION.md` | Migració Spartan → DaisyUI | ✅ Actualitzat |
-| `ANGULAR_COMPONENT_STRUCTURE_MIGRATION.md` | Migració a 3 fitxers | ✅ Actualitzat |
-| `TAILWIND_VERSION.md` | Decisió Tailwind v3 | ✅ Actualitzat |
-| `VALIDATION_CHECKLIST.md` | Checklist de validació | ✅ Actualitzat |
-
-### Specs Tècniques
-
-| Document | Descripció | Estat |
-|----------|------------|-------|
-| `specs/2026-03-26-p0-p1-p2-vertical-slice-persons-design.md` | Spec original P0-P2 | ✅ Aprovat |
-| `specs/2026-03-30-vertical-slice-completion-sync-dashboard-design.md` | Spec sync + dashboard | ✅ Aprovat |
-
-### Documentació Obsoleta (Arxivada)
-
-Aquests documents ja NO són rellevants i s'han mogut a `docs/archive/`:
-
-- ❌ `SPARTAN_UI_MIGRATION.md` - Obsolet (mai completat, migrat a DaisyUI)
-- ❌ Qualsevol referència a Spartan UI
+| Document | Descripció |
+|----------|------------|
+| `docs/INDEX.md` | Índex complet de tota la documentació |
+| `docs/DATA_MODEL.md` | Entitats, camps, relacions i enums actuals |
+| `docs/SYNC_MERGE_STRATEGY.md` | Regles de sincronització (referència canònica) |
+| `docs/API_PERSON_ENDPOINTS.md` | Endpoints REST de Person |
+| `docs/VALIDATION_CHECKLIST.md` | Checklist de validació manual |
+| `docs/TROUBLESHOOTING.md` | Solucions a problemes comuns |
+| `docs/specs/` | Specs tècniques aprovades (P0-P2, Sync+Dashboard) |
 
 ---
 

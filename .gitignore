@@ -10,6 +10,10 @@ __screenshots__/
 .nx/workspace-data/*.db-wal
 .nx/workspace-data/*.lock
 .nx/workspace-data/d/
+.nx/workspace-data/file-map.json
+.nx/workspace-data/project-graph.json
+.nx/workspace-data/eslint-*.hash
+.nx/workspace-data/nx-files.nxt
 nx
 
 # Environment variables
