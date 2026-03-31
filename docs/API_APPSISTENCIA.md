@@ -18,7 +18,7 @@ Content-Type: application/x-www-form-urlencoded
 | Camp | Valor | Notes |
 |------|-------|-------|
 | `username` | `estadistiques` | Usuari |
-| `password` | `.AppEst.` | Contrasenya |
+| `password` | `xxxxxx` | Contrasenya |
 | `submitted` | `1` | Camp hidden obligatori |
 | `email_confirm` | *(buit)* | Honeypot antibot, cal enviar buit |
 | `phone` | *(buit)* | Honeypot antibot, cal enviar buit |

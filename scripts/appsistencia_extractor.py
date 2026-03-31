@@ -47,7 +47,7 @@ session.headers.update({
 })
 
 
-def login(username="estadistiques", password=".AppEst."):
+def login(username="estadistiques", password="xxxxxx"):
     session.get(f"{BASE_URL}/")
     resp = session.post(f"{BASE_URL}/", data={
         "username": username,
