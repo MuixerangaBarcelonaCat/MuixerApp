@@ -126,7 +126,9 @@ describe('PersonService', () => {
 
       const result = await service.create(createDto);
 
-      expect(result).toEqual(mockPerson);
+      expect(result.id).toBe('123');
+      expect(result.name).toBe('Test');
+      expect(result.alias).toBe('testuser');
       expect(mockPositionRepository.findByIds).toHaveBeenCalledWith([
         'pos1',
         'pos2',
@@ -149,6 +151,90 @@ describe('PersonService', () => {
       expect(mockPersonRepository.createQueryBuilder).toHaveBeenCalledWith('person');
       expect(mockQueryBuilder.getCount).toHaveBeenCalled();
       expect(mockQueryBuilder.getMany).toHaveBeenCalled();
+    });
+  });
+
+  describe('deactivate', () => {
+    it('should deactivate a person and update lastSyncedAt', async () => {
+      const mockPerson = {
+        id: '123',
+        name: 'Test',
+        alias: 'test',
+        isActive: true,
+        lastSyncedAt: null,
+      };
+      const deactivatedPerson = {
+        ...mockPerson,
+        isActive: false,
+        lastSyncedAt: expect.any(Date),
+      };
+
+      mockPersonRepository.findOne.mockResolvedValue(mockPerson);
+      mockPersonRepository.save.mockResolvedValue(deactivatedPerson);
+
+      const result = await service.deactivate('123');
+
+      expect(result.isActive).toBe(false);
+      expect(mockPersonRepository.findOne).toHaveBeenCalledWith({
+        where: { id: '123' },
+        relations: ['positions', 'mentor'],
+      });
+      expect(mockPersonRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: '123',
+          isActive: false,
+          lastSyncedAt: expect.any(Date),
+        }),
+      );
+    });
+
+    it('should throw NotFoundException when person not found', async () => {
+      mockPersonRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.deactivate('999')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('activate', () => {
+    it('should activate a person and update lastSyncedAt', async () => {
+      const mockPerson = {
+        id: '123',
+        name: 'Test',
+        alias: 'test',
+        isActive: false,
+        lastSyncedAt: new Date('2024-01-01'),
+      };
+      const activatedPerson = {
+        ...mockPerson,
+        isActive: true,
+        lastSyncedAt: expect.any(Date),
+      };
+
+      mockPersonRepository.findOne.mockResolvedValue(mockPerson);
+      mockPersonRepository.save.mockResolvedValue(activatedPerson);
+
+      const result = await service.activate('123');
+
+      expect(result.isActive).toBe(true);
+      expect(mockPersonRepository.findOne).toHaveBeenCalledWith({
+        where: { id: '123' },
+        relations: ['positions', 'mentor'],
+      });
+      expect(mockPersonRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: '123',
+          isActive: true,
+          lastSyncedAt: expect.any(Date),
+        }),
+      );
+    });
+
+    it('should throw NotFoundException when person not found', async () => {
+      mockPersonRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.activate('999')).rejects.toThrow(NotFoundException);
     });
   });
 });

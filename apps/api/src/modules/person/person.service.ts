@@ -1,10 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike } from 'typeorm';
+import { plainToInstance } from 'class-transformer';
 import { Person } from './person.entity';
 import { CreatePersonDto } from './dto/create-person.dto';
 import { UpdatePersonDto } from './dto/update-person.dto';
 import { PersonFilterDto } from './dto/person-filter.dto';
+import { PersonResponseDto } from './dto/person-response.dto';
 import { Position } from '../position/position.entity';
 
 @Injectable()
@@ -16,7 +18,7 @@ export class PersonService {
     private readonly positionRepository: Repository<Position>,
   ) {}
 
-  async findAll(filters: PersonFilterDto): Promise<{ data: Person[]; total: number }> {
+  async findAll(filters: PersonFilterDto): Promise<{ data: PersonResponseDto[]; total: number }> {
     const { search, positionId, availability, isActive, isXicalla, isMember, page = 1, limit = 50 } = filters;
 
     const queryBuilder = this.personRepository
@@ -59,10 +61,14 @@ export class PersonService {
       .take(limit)
       .getMany();
 
-    return { data, total };
+    const responseData = plainToInstance(PersonResponseDto, data, {
+      excludeExtraneousValues: true,
+    });
+
+    return { data: responseData, total };
   }
 
-  async findOne(id: string): Promise<Person> {
+  async findOne(id: string): Promise<PersonResponseDto> {
     const person = await this.personRepository.findOne({
       where: { id },
       relations: ['positions', 'mentor', 'managedBy'],
@@ -72,10 +78,12 @@ export class PersonService {
       throw new NotFoundException(`Person with ID ${id} not found`);
     }
 
-    return person;
+    return plainToInstance(PersonResponseDto, person, {
+      excludeExtraneousValues: true,
+    });
   }
 
-  async create(createPersonDto: CreatePersonDto): Promise<Person> {
+  async create(createPersonDto: CreatePersonDto): Promise<PersonResponseDto> {
     const { positionIds, mentorId, ...personData } = createPersonDto;
 
     const person = this.personRepository.create(personData);
@@ -85,14 +93,28 @@ export class PersonService {
     }
 
     if (mentorId) {
-      person.mentor = await this.findOne(mentorId);
+      const mentor = await this.personRepository.findOne({ where: { id: mentorId } });
+      if (!mentor) {
+        throw new NotFoundException(`Mentor with ID ${mentorId} not found`);
+      }
+      person.mentor = mentor;
     }
 
-    return this.personRepository.save(person);
+    const saved = await this.personRepository.save(person);
+    return plainToInstance(PersonResponseDto, saved, {
+      excludeExtraneousValues: true,
+    });
   }
 
-  async update(id: string, updatePersonDto: UpdatePersonDto): Promise<Person> {
-    const person = await this.findOne(id);
+  async update(id: string, updatePersonDto: UpdatePersonDto): Promise<PersonResponseDto> {
+    const person = await this.personRepository.findOne({
+      where: { id },
+      relations: ['positions', 'mentor'],
+    });
+
+    if (!person) {
+      throw new NotFoundException(`Person with ID ${id} not found`);
+    }
     const { positionIds, mentorId, ...personData } = updatePersonDto;
 
     Object.assign(person, personData);
@@ -106,15 +128,67 @@ export class PersonService {
     }
 
     if (mentorId !== undefined) {
-      person.mentor = mentorId ? await this.findOne(mentorId) : null;
+      if (mentorId) {
+        const mentor = await this.personRepository.findOne({ where: { id: mentorId } });
+        if (!mentor) {
+          throw new NotFoundException(`Mentor with ID ${mentorId} not found`);
+        }
+        person.mentor = mentor;
+      } else {
+        person.mentor = null;
+      }
     }
 
-    return this.personRepository.save(person);
+    const saved = await this.personRepository.save(person);
+    return plainToInstance(PersonResponseDto, saved, {
+      excludeExtraneousValues: true,
+    });
   }
 
   async softDelete(id: string): Promise<void> {
-    const person = await this.findOne(id);
+    const person = await this.personRepository.findOne({ where: { id } });
+    if (!person) {
+      throw new NotFoundException(`Person with ID ${id} not found`);
+    }
     person.isActive = false;
     await this.personRepository.save(person);
+  }
+
+  async deactivate(id: string): Promise<PersonResponseDto> {
+    const person = await this.personRepository.findOne({
+      where: { id },
+      relations: ['positions', 'mentor'],
+    });
+
+    if (!person) {
+      throw new NotFoundException(`Person with ID ${id} not found`);
+    }
+
+    person.isActive = false;
+    person.lastSyncedAt = new Date();
+
+    const saved = await this.personRepository.save(person);
+    return plainToInstance(PersonResponseDto, saved, {
+      excludeExtraneousValues: true,
+    });
+  }
+
+  async activate(id: string): Promise<PersonResponseDto> {
+    const person = await this.personRepository.findOne({
+      where: { id },
+      relations: ['positions', 'mentor'],
+    });
+
+    if (!person) {
+      throw new NotFoundException(`Person with ID ${id} not found`);
+    }
+
+    person.isActive = true;
+    person.lastSyncedAt = new Date();
+
+    const saved = await this.personRepository.save(person);
+    return plainToInstance(PersonResponseDto, saved, {
+      excludeExtraneousValues: true,
+    });
   }
 }

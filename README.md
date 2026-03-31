@@ -5,11 +5,11 @@ APPsistència 2.0 — Sistema de gestió d'assistència i figures per a Muixeran
 ## Stack Tecnològic
 
 - **Backend**: NestJS + TypeScript + TypeORM + PostgreSQL (NeonDB)
-- **Frontend Dashboard**: Angular 20+ (standalone, signals, OnPush) + Tailwind CSS v3 + Spartan UI
+- **Frontend Dashboard**: Angular 20+ (standalone, signals, OnPush) + Tailwind CSS v3 + DaisyUI + Angular CDK
 - **Mobile**: Angular PWA
 - **Monorepo**: Nx workspace
 
-> **Nota**: Utilitzem Tailwind CSS v3 (no v4) per compatibilitat amb Spartan UI i estabilitat.
+> **Nota**: Utilitzem Tailwind CSS v3 + DaisyUI v4 per estabilitat i compatibilitat.
 
 ## Estructura del Projecte
 

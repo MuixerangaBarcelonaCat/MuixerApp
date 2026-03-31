@@ -1,0 +1,305 @@
+---
+description: DaisyUI + Angular CDK + Tailwind CSS conventions for Angular apps
+globs: "apps/dashboard/**/*.{ts,html},apps/pwa/**/*.{ts,html}"
+alwaysApply: false
+---
+
+# DaisyUI + Angular CDK + Tailwind CSS
+
+## UI Stack
+
+- **Components**: DaisyUI v4 (semantic CSS classes, 55 components)
+- **Behavior**: Angular CDK (overlays, a11y, drag-drop, virtual scroll)
+- **Styling**: Tailwind CSS v3.4.x utility classes
+- **NO Angular Material** — never import `@angular/material/*`
+- **NO Spartan UI** — never import `@spartan-ng/*`
+
+> **Important**: Utilitzem Tailwind CSS v3 + DaisyUI v4. Veure `docs/TAILWIND_VERSION.md` per detalls.
+
+## Theming
+
+### Multi-Colla Theming with DaisyUI
+
+DaisyUI provides built-in theme support via `data-theme` attribute:
+
+```html
+<html data-theme="colla-barcelona">
+```
+
+Custom themes defined in `tailwind.config.js`:
+
+```javascript
+daisyui: {
+  themes: [
+    {
+      'colla-barcelona': {
+        'primary': '#1B5E20',
+        'secondary': '#FDD835',
+        'accent': '#37cdbe',
+        'neutral': '#3d4451',
+        'base-100': '#ffffff',
+      },
+    },
+    'light',
+    'dark',
+  ],
+}
+```
+
+Future colles add new theme objects. Switch themes at runtime by changing `data-theme` attribute.
+
+### CSS Variables (Legacy Support)
+
+Keep existing CSS variables for Tailwind utility compatibility:
+
+```scss
+:root {
+  --colla-primary: #1B5E20;
+  --colla-secondary: #FDD835;
+  --colla-text-on-primary: #FFFFFF;
+}
+```
+
+Use via Tailwind: `bg-colla-primary`, `text-colla-secondary`
+
+## Responsive Design
+
+- **Mobile-first**: Base styles = mobile, `lg:` prefix = desktop
+- **Breakpoints**: sm (640px), md (768px), lg (1024px), xl (1280px)
+- **Touch targets**: min 44x44px on mobile (`min-h-[44px] min-w-[44px]`)
+- **Tables**: Full table on ≥lg, card layout on <lg
+- **Forms**: Single column <md, multi-column ≥md
+- **Sidebar**: Hidden <lg (DaisyUI drawer), visible ≥lg
+
+## DaisyUI Component Patterns
+
+### Buttons
+
+```html
+<button class="btn btn-primary">Primary</button>
+<button class="btn btn-secondary">Secondary</button>
+<button class="btn btn-outline">Outline</button>
+<button class="btn btn-ghost">Ghost</button>
+<button class="btn btn-sm">Small</button>
+<button class="btn btn-lg">Large</button>
+```
+
+### Tables
+
+```html
+<div class="overflow-x-auto">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Position</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Joan García</td>
+        <td>Primeres</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+```
+
+Variants: `table-zebra`, `table-pin-rows`, `table-pin-cols`
+
+### Forms
+
+```html
+<label class="form-control w-full max-w-xs">
+  <div class="label">
+    <span class="label-text">Nom</span>
+  </div>
+  <input type="text" class="input input-bordered w-full" />
+</label>
+
+<select class="select select-bordered w-full max-w-xs">
+  <option disabled selected>Tria una posició</option>
+  <option>Primeres</option>
+  <option>Vents</option>
+</select>
+```
+
+### Badges
+
+```html
+<div class="badge badge-primary">Primary</div>
+<div class="badge badge-secondary">Secondary</div>
+<div class="badge badge-outline">Outline</div>
+```
+
+Dynamic colors with inline styles:
+
+```html
+<div class="badge" [style.backgroundColor]="position.color">
+  {{ position.name }}
+</div>
+```
+
+### Drawer (Mobile Sidebar)
+
+```html
+<div class="drawer lg:drawer-open">
+  <input id="main-drawer" type="checkbox" class="drawer-toggle" />
+  <div class="drawer-content">
+    <!-- Page content -->
+    <label for="main-drawer" class="btn btn-ghost lg:hidden">
+      <svg>...</svg>
+    </label>
+  </div>
+  <div class="drawer-side">
+    <label for="main-drawer" class="drawer-overlay"></label>
+    <ul class="menu p-4 w-80 bg-base-200">
+      <!-- Sidebar content -->
+    </ul>
+  </div>
+</div>
+```
+
+### Modal
+
+```html
+<dialog id="my-modal" class="modal">
+  <div class="modal-box">
+    <h3 class="font-bold text-lg">Modal Title</h3>
+    <p class="py-4">Modal content</p>
+    <div class="modal-action">
+      <form method="dialog">
+        <button class="btn">Tancar</button>
+      </form>
+    </div>
+  </div>
+</dialog>
+
+<!-- Open with -->
+<button class="btn" onclick="my-modal.showModal()">Open</button>
+```
+
+### Progress
+
+```html
+<progress class="progress progress-primary w-56" value="70" max="100"></progress>
+```
+
+### Divider
+
+```html
+<div class="divider">OR</div>
+```
+
+### Toast / Alert
+
+```html
+<div class="toast toast-top toast-end">
+  <div class="alert alert-info">
+    <span>New message arrived.</span>
+  </div>
+</div>
+```
+
+## When to Use Angular CDK
+
+DaisyUI handles styling. Use CDK for complex behavior:
+
+### CDK Overlay
+
+For programmatic modals, dropdowns, tooltips:
+
+```typescript
+import { Overlay, OverlayRef } from '@angular/cdk/overlay';
+import { ComponentPortal } from '@angular/cdk/portal';
+
+constructor(private overlay: Overlay) {}
+
+openDialog() {
+  const overlayRef = this.overlay.create({
+    positionStrategy: this.overlay.position().global().centerHorizontally().centerVertically(),
+    hasBackdrop: true,
+  });
+  const portal = new ComponentPortal(MyDialogComponent);
+  overlayRef.attach(portal);
+}
+```
+
+### CDK A11y (Accessibility)
+
+```typescript
+import { FocusTrap, FocusTrapFactory } from '@angular/cdk/a11y';
+
+@ViewChild('dialogElement') dialogElement!: ElementRef;
+private focusTrap!: FocusTrap;
+
+constructor(private focusTrapFactory: FocusTrapFactory) {}
+
+ngAfterViewInit() {
+  this.focusTrap = this.focusTrapFactory.create(this.dialogElement.nativeElement);
+  this.focusTrap.focusInitialElementWhenReady();
+}
+```
+
+### CDK Drag & Drop (for Canvas/Figure Module)
+
+```typescript
+import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
+
+<div cdkDropList (cdkDropListDropped)="drop($event)">
+  <div *ngFor="let item of items" cdkDrag>{{ item }}</div>
+</div>
+
+drop(event: CdkDragDrop<string[]>) {
+  moveItemInArray(this.items, event.previousIndex, event.currentIndex);
+}
+```
+
+## Component Structure
+
+**IMPORTANT**: See `angular-component-structure.mdc` for mandatory three-file structure.
+
+```typescript
+// example.component.ts
+import { Component, ChangeDetectionStrategy } from '@angular/core';
+import { CommonModule } from '@angular/common';
+
+@Component({
+  selector: 'app-example',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [CommonModule],
+  templateUrl: './example.component.html',
+  styleUrls: ['./example.component.css'],
+  host: { class: 'block' }, // Tailwind needs block display
+})
+export class ExampleComponent {}
+```
+
+```html
+<!-- example.component.html -->
+<button class="btn btn-primary">
+  Click me
+</button>
+```
+
+## Styling Rules
+
+- All visual styling via DaisyUI semantic classes + Tailwind utilities
+- No component-level SCSS except complex animations
+- Use `@apply` sparingly (prefer inline utilities)
+- Dynamic colors: `[style.backgroundColor]` binding or `bg-[var(--custom)]`
+- Catalan UI text per `muixer-language.mdc`
+
+## DaisyUI Components Available
+
+55 components including:
+
+- **Actions**: Button, Dropdown, Modal, Swap
+- **Data Display**: Badge, Card, Table, Stat, Timeline
+- **Data Input**: Checkbox, Input, Radio, Range, Select, Textarea, Toggle
+- **Layout**: Divider, Drawer, Footer, Hero, Join, Stack
+- **Navigation**: Breadcrumbs, Menu, Navbar, Pagination, Steps, Tabs
+- **Feedback**: Alert, Loading, Progress, Toast, Tooltip
+
+Full list: https://v4.daisyui.com/components

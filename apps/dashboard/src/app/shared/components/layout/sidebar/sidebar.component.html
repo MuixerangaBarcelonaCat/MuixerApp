@@ -1,0 +1,21 @@
+<aside class="flex flex-col bg-white border-r h-full">
+  <div class="p-4 border-b">
+    <h1 class="text-xl font-bold" style="color: var(--colla-primary)">MuixerApp</h1>
+  </div>
+  <nav class="flex-1 p-4">
+    <a 
+      routerLink="/persons" 
+      routerLinkActive="bg-colla-primary/10" 
+      class="block px-4 py-2 rounded hover:bg-gray-100 min-h-[44px] flex items-center"
+      (click)="linkClicked.emit()"
+    >
+      Persones
+    </a>
+    <div class="block px-4 py-2 text-gray-400 opacity-50 pointer-events-none">
+      Esdeveniments
+    </div>
+    <div class="block px-4 py-2 text-gray-400 opacity-50 pointer-events-none">
+      Reports
+    </div>
+  </nav>
+</aside>

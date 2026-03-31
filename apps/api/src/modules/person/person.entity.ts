@@ -71,6 +71,9 @@ export class Person {
   @Column({ type: 'varchar', nullable: true })
   legacyId: string | null;
 
+  @Column({ type: 'timestamp', nullable: true })
+  lastSyncedAt: Date | null;
+
   @ManyToMany(() => Position)
   @JoinTable({ name: 'person_positions' })
   positions: Position[];

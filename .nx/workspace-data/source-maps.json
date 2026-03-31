@@ -136,6 +136,14 @@
       "apps/dashboard/project.json",
       "nx/core/project-json"
     ],
+    "targets.serve.options": [
+      "apps/dashboard/project.json",
+      "nx/core/project-json"
+    ],
+    "targets.serve.options.proxyConfig": [
+      "apps/dashboard/project.json",
+      "nx/core/project-json"
+    ],
     "targets.serve.configurations.production": [
       "apps/dashboard/project.json",
       "nx/core/project-json"

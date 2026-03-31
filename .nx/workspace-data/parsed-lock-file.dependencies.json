@@ -8765,306 +8765,6 @@
     "type": "static"
   },
   {
-    "source": "npm:@spartan-ng/cli",
-    "target": "npm:tslib",
-    "type": "static"
-  },
-  {
-    "source": "npm:@spartan-ng/cli",
-    "target": "npm:@angular/core",
-    "type": "static"
-  },
-  {
-    "source": "npm:@spartan-ng/cli",
-    "target": "npm:@nx/angular",
-    "type": "static"
-  },
-  {
-    "source": "npm:@spartan-ng/cli",
-    "target": "npm:@nx/devkit",
-    "type": "static"
-  },
-  {
-    "source": "npm:@spartan-ng/cli",
-    "target": "npm:@nx/js",
-    "type": "static"
-  },
-  {
-    "source": "npm:@spartan-ng/cli",
-    "target": "npm:@nx/workspace",
-    "type": "static"
-  },
-  {
-    "source": "npm:@spartan-ng/cli",
-    "target": "npm:@phenomnomnominal/tsquery",
-    "type": "static"
-  },
-  {
-    "source": "npm:@spartan-ng/cli",
-    "target": "npm:@schematics/angular@20.3.9",
-    "type": "static"
-  },
-  {
-    "source": "npm:@spartan-ng/cli",
-    "target": "npm:enquirer",
-    "type": "static"
-  },
-  {
-    "source": "npm:@spartan-ng/cli",
-    "target": "npm:jsonc-eslint-parser",
-    "type": "static"
-  },
-  {
-    "source": "npm:@spartan-ng/cli",
-    "target": "npm:node-html-parser",
-    "type": "static"
-  },
-  {
-    "source": "npm:@spartan-ng/cli",
-    "target": "npm:nx",
-    "type": "static"
-  },
-  {
-    "source": "npm:@spartan-ng/cli",
-    "target": "npm:picocolors",
-    "type": "static"
-  },
-  {
-    "source": "npm:@spartan-ng/cli",
-    "target": "npm:postcss",
-    "type": "static"
-  },
-  {
-    "source": "npm:@spartan-ng/cli",
-    "target": "npm:postcss-selector-parser",
-    "type": "static"
-  },
-  {
-    "source": "npm:@spartan-ng/cli",
-    "target": "npm:semver@7.5.4",
-    "type": "static"
-  },
-  {
-    "source": "npm:@spartan-ng/cli",
-    "target": "npm:tailwind-merge",
-    "type": "static"
-  },
-  {
-    "source": "npm:@spartan-ng/cli",
-    "target": "npm:ts-morph",
-    "type": "static"
-  },
-  {
-    "source": "npm:@spartan-ng/cli",
-    "target": "npm:typescript",
-    "type": "static"
-  },
-  {
-    "source": "npm:@spartan-ng/cli",
-    "target": "npm:zod@3.23.8",
-    "type": "static"
-  },
-  {
-    "source": "npm:@angular-devkit/core@20.3.9",
-    "target": "npm:ajv@8.17.1",
-    "type": "static"
-  },
-  {
-    "source": "npm:@angular-devkit/core@20.3.9",
-    "target": "npm:ajv-formats",
-    "type": "static"
-  },
-  {
-    "source": "npm:@angular-devkit/core@20.3.9",
-    "target": "npm:jsonc-parser@3.3.1",
-    "type": "static"
-  },
-  {
-    "source": "npm:@angular-devkit/core@20.3.9",
-    "target": "npm:picomatch@4.0.3",
-    "type": "static"
-  },
-  {
-    "source": "npm:@angular-devkit/core@20.3.9",
-    "target": "npm:rxjs",
-    "type": "static"
-  },
-  {
-    "source": "npm:@angular-devkit/core@20.3.9",
-    "target": "npm:source-map",
-    "type": "static"
-  },
-  {
-    "source": "npm:@angular-devkit/schematics@20.3.9",
-    "target": "npm:@angular-devkit/core@20.3.9",
-    "type": "static"
-  },
-  {
-    "source": "npm:@angular-devkit/schematics@20.3.9",
-    "target": "npm:jsonc-parser@3.3.1",
-    "type": "static"
-  },
-  {
-    "source": "npm:@angular-devkit/schematics@20.3.9",
-    "target": "npm:magic-string@0.30.17",
-    "type": "static"
-  },
-  {
-    "source": "npm:@angular-devkit/schematics@20.3.9",
-    "target": "npm:ora@8.2.0",
-    "type": "static"
-  },
-  {
-    "source": "npm:@angular-devkit/schematics@20.3.9",
-    "target": "npm:rxjs",
-    "type": "static"
-  },
-  {
-    "source": "npm:@schematics/angular@20.3.9",
-    "target": "npm:@angular-devkit/core@20.3.9",
-    "type": "static"
-  },
-  {
-    "source": "npm:@schematics/angular@20.3.9",
-    "target": "npm:@angular-devkit/schematics@20.3.9",
-    "type": "static"
-  },
-  {
-    "source": "npm:@schematics/angular@20.3.9",
-    "target": "npm:jsonc-parser@3.3.1",
-    "type": "static"
-  },
-  {
-    "source": "npm:ajv@8.17.1",
-    "target": "npm:fast-deep-equal",
-    "type": "static"
-  },
-  {
-    "source": "npm:ajv@8.17.1",
-    "target": "npm:fast-uri",
-    "type": "static"
-  },
-  {
-    "source": "npm:ajv@8.17.1",
-    "target": "npm:json-schema-traverse",
-    "type": "static"
-  },
-  {
-    "source": "npm:ajv@8.17.1",
-    "target": "npm:require-from-string",
-    "type": "static"
-  },
-  {
-    "source": "npm:cli-cursor@5.0.0",
-    "target": "npm:restore-cursor@5.1.0",
-    "type": "static"
-  },
-  {
-    "source": "npm:log-symbols@6.0.0",
-    "target": "npm:chalk@5.6.2",
-    "type": "static"
-  },
-  {
-    "source": "npm:log-symbols@6.0.0",
-    "target": "npm:is-unicode-supported@1.3.0",
-    "type": "static"
-  },
-  {
-    "source": "npm:lru-cache@6.0.0",
-    "target": "npm:yallist@4.0.0",
-    "type": "static"
-  },
-  {
-    "source": "npm:magic-string@0.30.17",
-    "target": "npm:@jridgewell/sourcemap-codec",
-    "type": "static"
-  },
-  {
-    "source": "npm:onetime@7.0.0",
-    "target": "npm:mimic-function",
-    "type": "static"
-  },
-  {
-    "source": "npm:ora@8.2.0",
-    "target": "npm:chalk@5.6.2",
-    "type": "static"
-  },
-  {
-    "source": "npm:ora@8.2.0",
-    "target": "npm:cli-cursor@5.0.0",
-    "type": "static"
-  },
-  {
-    "source": "npm:ora@8.2.0",
-    "target": "npm:cli-spinners@2.9.2",
-    "type": "static"
-  },
-  {
-    "source": "npm:ora@8.2.0",
-    "target": "npm:is-interactive@2.0.0",
-    "type": "static"
-  },
-  {
-    "source": "npm:ora@8.2.0",
-    "target": "npm:is-unicode-supported@2.1.0",
-    "type": "static"
-  },
-  {
-    "source": "npm:ora@8.2.0",
-    "target": "npm:log-symbols@6.0.0",
-    "type": "static"
-  },
-  {
-    "source": "npm:ora@8.2.0",
-    "target": "npm:stdin-discarder@0.2.2",
-    "type": "static"
-  },
-  {
-    "source": "npm:ora@8.2.0",
-    "target": "npm:string-width@7.2.0",
-    "type": "static"
-  },
-  {
-    "source": "npm:ora@8.2.0",
-    "target": "npm:strip-ansi@7.2.0",
-    "type": "static"
-  },
-  {
-    "source": "npm:restore-cursor@5.1.0",
-    "target": "npm:onetime@7.0.0",
-    "type": "static"
-  },
-  {
-    "source": "npm:restore-cursor@5.1.0",
-    "target": "npm:signal-exit",
-    "type": "static"
-  },
-  {
-    "source": "npm:semver@7.5.4",
-    "target": "npm:lru-cache@6.0.0",
-    "type": "static"
-  },
-  {
-    "source": "npm:string-width@7.2.0",
-    "target": "npm:emoji-regex@10.6.0",
-    "type": "static"
-  },
-  {
-    "source": "npm:string-width@7.2.0",
-    "target": "npm:get-east-asian-width",
-    "type": "static"
-  },
-  {
-    "source": "npm:string-width@7.2.0",
-    "target": "npm:strip-ansi@7.2.0",
-    "type": "static"
-  },
-  {
-    "source": "npm:strip-ansi@7.2.0",
-    "target": "npm:ansi-regex@6.2.2",
-    "type": "static"
-  },
-  {
     "source": "npm:@swc-node/core",
     "target": "npm:@swc/core",
     "type": "static"
@@ -9232,31 +8932,6 @@
   {
     "source": "npm:@tokenizer/inflate",
     "target": "npm:token-types",
-    "type": "static"
-  },
-  {
-    "source": "npm:@ts-morph/common",
-    "target": "npm:fast-glob",
-    "type": "static"
-  },
-  {
-    "source": "npm:@ts-morph/common",
-    "target": "npm:minimatch@9.0.9",
-    "type": "static"
-  },
-  {
-    "source": "npm:@ts-morph/common",
-    "target": "npm:path-browserify",
-    "type": "static"
-  },
-  {
-    "source": "npm:brace-expansion@2.0.3",
-    "target": "npm:balanced-match@1.0.2",
-    "type": "static"
-  },
-  {
-    "source": "npm:minimatch@9.0.9",
-    "target": "npm:brace-expansion@2.0.3",
     "type": "static"
   },
   {
@@ -11455,6 +11130,16 @@
     "type": "static"
   },
   {
+    "source": "npm:css-selector-tokenizer",
+    "target": "npm:cssesc",
+    "type": "static"
+  },
+  {
+    "source": "npm:css-selector-tokenizer",
+    "target": "npm:fastparse",
+    "type": "static"
+  },
+  {
     "source": "npm:css-tree",
     "target": "npm:mdn-data",
     "type": "static"
@@ -11672,6 +11357,26 @@
   {
     "source": "npm:cssstyle",
     "target": "npm:lru-cache@11.2.7",
+    "type": "static"
+  },
+  {
+    "source": "npm:daisyui",
+    "target": "npm:css-selector-tokenizer",
+    "type": "static"
+  },
+  {
+    "source": "npm:daisyui",
+    "target": "npm:culori",
+    "type": "static"
+  },
+  {
+    "source": "npm:daisyui",
+    "target": "npm:picocolors",
+    "type": "static"
+  },
+  {
+    "source": "npm:daisyui",
+    "target": "npm:postcss-js",
     "type": "static"
   },
   {
@@ -15855,16 +15560,6 @@
     "type": "static"
   },
   {
-    "source": "npm:node-html-parser",
-    "target": "npm:css-select",
-    "type": "static"
-  },
-  {
-    "source": "npm:node-html-parser",
-    "target": "npm:he",
-    "type": "static"
-  },
-  {
     "source": "npm:node-schedule",
     "target": "npm:cron-parser",
     "type": "static"
@@ -19497,16 +19192,6 @@
   {
     "source": "npm:ts-loader",
     "target": "npm:source-map",
-    "type": "static"
-  },
-  {
-    "source": "npm:ts-morph",
-    "target": "npm:@ts-morph/common",
-    "type": "static"
-  },
-  {
-    "source": "npm:ts-morph",
-    "target": "npm:code-block-writer",
     "type": "static"
   },
   {

@@ -1,0 +1,278 @@
+<div class="space-y-4">
+  <!-- Header -->
+  <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+    <div>
+      <h2 class="text-2xl font-bold">Persones</h2>
+      <p class="text-sm text-base-content/70">Gestió de membres de la colla</p>
+    </div>
+    <button class="btn btn-primary" (click)="onSyncClick()">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+      </svg>
+      Sincronitzar
+    </button>
+  </div>
+
+  <!-- Filters -->
+  <div class="card bg-base-100 shadow">
+    <div class="card-body">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Search -->
+        <div class="form-control">
+          <label class="label" for="person-search">
+            <span class="label-text">Cerca</span>
+          </label>
+          <div class="relative">
+            <input
+              id="person-search"
+              type="text"
+              placeholder="Nom, alies..."
+              class="input input-bordered w-full pl-10"
+              [(ngModel)]="searchInput"
+              (ngModelChange)="onSearchChange($event)"
+            />
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 absolute left-3 top-1/2 -translate-y-1/2 text-base-content/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+        </div>
+
+        <!-- Position Filter -->
+        <div class="form-control">
+          <label class="label" for="position-filter">
+            <span class="label-text">Posició</span>
+          </label>
+          <select id="position-filter" class="select select-bordered w-full" [(ngModel)]="positionFilter" (ngModelChange)="onFilterChange()">
+            <option value="">Totes</option>
+            @for (pos of positions(); track pos.id) {
+              <option [value]="pos.id">{{ pos.name }}</option>
+            }
+          </select>
+        </div>
+
+        <!-- Toggle Filters -->
+        <div class="flex flex-wrap gap-2 items-end">
+          <button
+            class="btn btn-sm"
+            [class.btn-primary]="activeFilters().isActive === true"
+            [class.btn-outline]="activeFilters().isActive !== true"
+            (click)="toggleFilter('isActive', true)"
+          >
+            Actius
+          </button>
+          <button
+            class="btn btn-sm"
+            [class.btn-primary]="activeFilters().isMember === true"
+            [class.btn-outline]="activeFilters().isMember !== true"
+            (click)="toggleFilter('isMember', true)"
+          >
+            Membres
+          </button>
+          <button
+            class="btn btn-sm"
+            [class.btn-primary]="activeFilters().isXicalla === true"
+            [class.btn-outline]="activeFilters().isXicalla !== true"
+            (click)="toggleFilter('isXicalla', true)"
+          >
+            Xicalla
+          </button>
+        </div>
+
+        <!-- Clear Filters -->
+        <div class="flex items-end">
+          <button class="btn btn-ghost btn-sm" (click)="clearFilters()">
+            Netejar filtres
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  @if (loading()) {
+    <div class="card bg-base-100 shadow">
+      <div class="card-body items-center">
+        <span class="loading loading-spinner loading-lg"></span>
+        <p class="text-base-content/70">Carregant...</p>
+      </div>
+    </div>
+  }
+
+  <!-- Desktop Table (lg+) -->
+  @if (!loading() && persons().length > 0) {
+    <div class="hidden lg:block card bg-base-100 shadow overflow-x-auto">
+      <table class="table">
+        <thead>
+          <tr>
+            <th class="w-[200px]">Alies</th>
+            <th>Nom complet</th>
+            <th>Posicions</th>
+            <th class="w-[120px]">Disponibilitat</th>
+            <th class="w-[100px]">Actiu</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (person of persons(); track person.id) {
+            <tr class="hover cursor-pointer" (click)="onPersonClick(person.id)">
+              <td class="font-medium">{{ person.alias }}</td>
+              <td>{{ getFullName(person) }}</td>
+              <td>
+                <div class="flex flex-wrap gap-1">
+                  @for (pos of person.positions; track pos.id) {
+                    <div
+                      class="badge badge-sm"
+                      [style.backgroundColor]="pos.color"
+                      [style.color]="getContrastColor(pos.color)"
+                    >
+                      {{ pos.name }}
+                    </div>
+                  }
+                </div>
+              </td>
+              <td>
+                <div
+                  class="badge"
+                  [class.badge-success]="person.availability === 'AVAILABLE'"
+                  [class.badge-warning]="person.availability !== 'AVAILABLE'"
+                >
+                  {{ getAvailabilityLabel(person.availability) }}
+                </div>
+              </td>
+              <td>
+                <div
+                  class="badge"
+                  [class.badge-success]="person.isActive"
+                  [class.badge-error]="!person.isActive"
+                >
+                  {{ person.isActive ? 'Sí' : 'No' }}
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <!-- Mobile Cards (<lg) -->
+  @if (!loading() && persons().length > 0) {
+    <div class="lg:hidden space-y-4">
+      @for (person of persons(); track person.id) {
+        <div
+          class="card bg-base-100 shadow cursor-pointer hover:shadow-lg transition-shadow"
+          (click)="onPersonClick(person.id)"
+          (keydown.enter)="onPersonClick(person.id)"
+          (keydown.space)="onPersonClick(person.id)"
+          tabindex="0"
+          role="button"
+          [attr.aria-label]="'Veure detalls de ' + getFullName(person)"
+        >
+          <div class="card-body">
+            <div class="flex items-start justify-between mb-2">
+              <div>
+                <h3 class="card-title text-lg">{{ person.alias }}</h3>
+                <p class="text-sm text-base-content/70">{{ getFullName(person) }}</p>
+              </div>
+              <div
+                class="badge"
+                [class.badge-success]="person.isActive"
+                [class.badge-error]="!person.isActive"
+              >
+                {{ person.isActive ? 'Actiu' : 'Inactiu' }}
+              </div>
+            </div>
+            <div class="space-y-2">
+              <div class="flex flex-wrap gap-1">
+                @for (pos of person.positions; track pos.id) {
+                  <div
+                    class="badge badge-sm"
+                    [style.backgroundColor]="pos.color"
+                    [style.color]="getContrastColor(pos.color)"
+                  >
+                    {{ pos.name }}
+                  </div>
+                }
+              </div>
+              <div class="flex items-center gap-2 text-sm">
+                <span class="text-base-content/70">Disponibilitat:</span>
+                <div
+                  class="badge badge-sm"
+                  [class.badge-success]="person.availability === 'AVAILABLE'"
+                  [class.badge-warning]="person.availability !== 'AVAILABLE'"
+                >
+                  {{ getAvailabilityLabel(person.availability) }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Empty State -->
+  @if (!loading() && persons().length === 0) {
+    <div class="card bg-base-100 shadow">
+      <div class="card-body items-center">
+        <p class="text-base-content/70">No s'han trobat persones</p>
+      </div>
+    </div>
+  }
+
+  <!-- Pagination -->
+  @if (!loading() && totalPersons() > 0) {
+    <div class="card bg-base-100 shadow">
+      <div class="card-body">
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div class="text-sm text-base-content/70">
+            Mostrant {{ (page() - 1) * limit() + 1 }} - {{ Math.min(page() * limit(), totalPersons()) }} de {{ totalPersons() }}
+          </div>
+          <div class="join">
+            <!-- Previous button -->
+            <button
+              class="join-item btn btn-sm"
+              [disabled]="page() === 1"
+              (click)="previousPage()"
+              aria-label="Pàgina anterior"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            
+            <!-- Page numbers -->
+            @for (pageNum of pageNumbers(); track $index) {
+              @if (pageNum === 'ellipsis') {
+                <button class="join-item btn btn-sm btn-disabled" disabled aria-label="Més pàgines">
+                  ...
+                </button>
+              } @else {
+                <button
+                  class="join-item btn btn-sm"
+                  [class.btn-active]="pageNum === page()"
+                  (click)="goToPage(pageNum)"
+                  [attr.aria-label]="'Anar a pàgina ' + pageNum"
+                  [attr.aria-current]="pageNum === page() ? 'page' : null"
+                >
+                  {{ pageNum }}
+                </button>
+              }
+            }
+            
+            <!-- Next button -->
+            <button
+              class="join-item btn btn-sm"
+              [disabled]="page() === totalPages()"
+              (click)="nextPage()"
+              aria-label="Pàgina següent"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</div>

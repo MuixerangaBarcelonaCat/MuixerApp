@@ -1,0 +1,210 @@
+<div class="space-y-4">
+  <!-- Header -->
+  <div class="flex items-center gap-4">
+    <button class="btn btn-ghost btn-circle" (click)="goBack()">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+      </svg>
+    </button>
+    <div>
+      <h2 class="text-2xl font-bold">{{ person()?.alias }}</h2>
+      <p class="text-sm text-base-content/70">Detall del membre</p>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="card bg-base-100 shadow">
+      <div class="card-body items-center">
+        <span class="loading loading-spinner loading-lg"></span>
+        <p class="text-base-content/70">Carregant...</p>
+      </div>
+    </div>
+  }
+
+  @if (!loading() && person()) {
+    <div class="card bg-base-100 shadow">
+      <div class="card-body">
+        <!-- Main Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Column 1: Personal Info -->
+          <div class="space-y-4">
+            <h3 class="text-lg font-semibold pb-2 border-b">Informació Personal</h3>
+
+            <div>
+              <div class="label">
+                <span class="label-text text-xs text-base-content/70">Nom complet</span>
+              </div>
+              <p class="text-base">{{ getFullName(person()!) }}</p>
+            </div>
+
+            <div>
+              <div class="label">
+                <span class="label-text text-xs text-base-content/70">Alies</span>
+              </div>
+              <p class="text-base">{{ person()!.alias }}</p>
+            </div>
+
+            @if (person()!.email) {
+              <div>
+                <div class="label">
+                  <span class="label-text text-xs text-base-content/70">Email</span>
+                </div>
+                <p class="text-base">{{ person()!.email }}</p>
+              </div>
+            }
+
+            @if (person()!.phone) {
+              <div>
+                <div class="label">
+                  <span class="label-text text-xs text-base-content/70">Telèfon</span>
+                </div>
+                <p class="text-base">{{ person()!.phone }}</p>
+              </div>
+            }
+
+            @if (person()!.birthDate) {
+              <div>
+                <div class="label">
+                  <span class="label-text text-xs text-base-content/70">Data de naixement</span>
+                </div>
+                <p class="text-base">{{ formatDate(person()!.birthDate) }}</p>
+              </div>
+            }
+
+            @if (person()!.shoulderHeight) {
+              <div>
+                <div class="label">
+                  <span class="label-text text-xs text-base-content/70">Alçada espatlles (cm)</span>
+                </div>
+                <p class="text-base">{{ person()!.shoulderHeight }}</p>
+              </div>
+            }
+          </div>
+
+          <!-- Column 2: Colla Info -->
+          <div class="space-y-4">
+            <h3 class="text-lg font-semibold pb-2 border-b">Informació de la Colla</h3>
+
+            <div>
+              <div class="label">
+                <span class="label-text text-xs text-base-content/70">Posicions</span>
+              </div>
+              <div class="flex flex-wrap gap-2 mt-1">
+                @for (pos of person()!.positions; track pos.id) {
+                  <div
+                    class="badge"
+                    [style.backgroundColor]="pos.color"
+                    [style.color]="getContrastColor(pos.color)"
+                  >
+                    {{ pos.name }}
+                  </div>
+                }
+                @if (person()!.positions.length === 0) {
+                  <span class="text-sm text-base-content/50">Cap posició assignada</span>
+                }
+              </div>
+            </div>
+
+            <div>
+              <div class="label">
+                <span class="label-text text-xs text-base-content/70">Estat</span>
+              </div>
+              <div class="flex flex-wrap gap-2 mt-1">
+                <div
+                  class="badge"
+                  [class.badge-success]="person()!.isActive"
+                  [class.badge-error]="!person()!.isActive"
+                >
+                  {{ person()!.isActive ? 'Actiu' : 'Inactiu' }}
+                </div>
+                @if (person()!.isMember) {
+                  <div class="badge badge-secondary">Membre</div>
+                }
+                @if (person()!.isXicalla) {
+                  <div class="badge badge-secondary">Xicalla</div>
+                }
+              </div>
+            </div>
+
+            <div>
+              <div class="label">
+                <span class="label-text text-xs text-base-content/70">Disponibilitat</span>
+              </div>
+              <p class="text-base">
+                <span
+                  class="badge"
+                  [class.badge-success]="person()!.availability === 'AVAILABLE'"
+                  [class.badge-warning]="person()!.availability !== 'AVAILABLE'"
+                >
+                  {{ getAvailabilityLabel(person()!.availability) }}
+                </span>
+              </p>
+            </div>
+
+            <div>
+              <div class="label">
+                <span class="label-text text-xs text-base-content/70">Estat acollida</span>
+              </div>
+              <p class="text-base">
+                <span class="badge badge-outline">
+                  {{ getOnboardingLabel(person()!.onboardingStatus) }}
+                </span>
+              </p>
+            </div>
+
+            @if (person()!.shirtDate) {
+              <div>
+                <div class="label">
+                  <span class="label-text text-xs text-base-content/70">Data camisa</span>
+                </div>
+                <p class="text-base">{{ formatDate(person()!.shirtDate) }}</p>
+              </div>
+            }
+
+            @if (person()!.notes) {
+              <div>
+                <div class="label">
+                  <span class="label-text text-xs text-base-content/70">Observacions</span>
+                </div>
+                <p class="text-base whitespace-pre-wrap">{{ person()!.notes }}</p>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Metadata Footer (Collapsable) -->
+        <div class="divider"></div>
+        <div class="collapse collapse-arrow">
+          <input type="checkbox" [(ngModel)]="metadataExpanded" />
+          <div class="collapse-title text-sm font-medium text-base-content/70">
+            Metadades
+          </div>
+          <div class="collapse-content">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div>
+                <div class="label">
+                  <span class="label-text text-xs text-base-content/50">Creat</span>
+                </div>
+                <p class="text-base-content/90">{{ formatDateTime(person()!.createdAt) }}</p>
+              </div>
+              <div>
+                <div class="label">
+                  <span class="label-text text-xs text-base-content/50">Última actualització</span>
+                </div>
+                <p class="text-base-content/90">{{ formatDateTime(person()!.updatedAt) }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (!loading() && !person()) {
+    <div class="card bg-base-100 shadow">
+      <div class="card-body items-center">
+        <p class="text-base-content/70">Persona no trobada</p>
+      </div>
+    </div>
+  }
+</div>

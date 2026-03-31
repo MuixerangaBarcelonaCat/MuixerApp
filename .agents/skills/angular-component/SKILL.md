@@ -7,30 +7,35 @@ description: Create modern Angular standalone components following v20+ best pra
 
 Create standalone components for Angular v20+. Components are standalone by default—do NOT set `standalone: true`.
 
+## MANDATORY: Three-File Component Structure
+
+**NEVER** use inline `template:` or `styles:` in the `@Component` decorator.
+
+**ALWAYS** create three separate files:
+
+1. `*.component.ts` — Logic & Signals
+2. `*.component.html` — Template with DaisyUI & Tailwind
+3. `*.component.scss` — Custom styles (minimal or empty)
+
 ## Component Structure
 
 ```typescript
-import { Component, ChangeDetectionStrategy, input, output, computed } from '@angular/core';
+// user-card.component.ts
+import { Component, ChangeDetectionStrategy, input, output, computed, booleanAttribute } from '@angular/core';
+import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-user-card',
+  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [CommonModule],
+  templateUrl: './user-card.component.html',
+  styleUrls: ['./user-card.component.scss'],
   host: {
     'class': 'user-card',
     '[class.active]': 'isActive()',
     '(click)': 'handleClick()',
   },
-  template: `
-    <img [src]="avatarUrl()" [alt]="name() + ' avatar'" />
-    <h2>{{ name() }}</h2>
-    @if (showEmail()) {
-      <p>{{ email() }}</p>
-    }
-  `,
-  styles: `
-    :host { display: block; }
-    :host.active { border: 2px solid blue; }
-  `,
 })
 export class UserCard {
   // Required input
@@ -51,6 +56,26 @@ export class UserCard {
   
   handleClick() {
     this.selected.emit(this.name());
+  }
+}
+```
+
+```html
+<!-- user-card.component.html -->
+<img [src]="avatarUrl()" [alt]="name() + ' avatar'" class="w-16 h-16 rounded-full" />
+<h2 class="text-xl font-bold">{{ name() }}</h2>
+@if (showEmail()) {
+  <p class="text-sm text-base-content/70">{{ email() }}</p>
+}
+```
+
+```scss
+/* user-card.component.scss */
+:host {
+  display: block;
+  
+  &.active {
+    border: 2px solid oklch(var(--p));
   }
 }
 ```
@@ -101,8 +126,15 @@ this.selected.emit(item);
 Use the `host` object in `@Component`—do NOT use `@HostBinding` or `@HostListener` decorators.
 
 ```typescript
+// button.component.ts
+import { Component, ChangeDetectionStrategy, input, output, booleanAttribute } from '@angular/core';
+
 @Component({
   selector: 'app-button',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  templateUrl: './button.component.html',
+  styleUrls: ['./button.component.scss'],
   host: {
     // Static attributes
     'role': 'button',
@@ -123,7 +155,6 @@ Use the `host` object in `@Component`—do NOT use `@HostBinding` or `@HostListe
     '(keydown.enter)': 'onClick($event)',
     '(keydown.space)': 'onClick($event)',
   },
-  template: `<ng-content />`,
 })
 export class Button {
   variant = input<'primary' | 'secondary'>('primary');
@@ -140,31 +171,52 @@ export class Button {
 }
 ```
 
+```html
+<!-- button.component.html -->
+<ng-content />
+```
+
+```scss
+/* button.component.scss */
+/* Empty - all styling via host bindings and Tailwind */
+```
+
 ## Content Projection
 
 ```typescript
+// card.component.ts
+import { Component, ChangeDetectionStrategy } from '@angular/core';
+
 @Component({
   selector: 'app-card',
-  template: `
-    <header>
-      <ng-content select="[card-header]" />
-    </header>
-    <main>
-      <ng-content />
-    </main>
-    <footer>
-      <ng-content select="[card-footer]" />
-    </footer>
-  `,
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  templateUrl: './card.component.html',
+  styleUrls: ['./card.component.scss'],
 })
 export class Card {}
+```
 
-// Usage:
-// <app-card>
-//   <h2 card-header>Title</h2>
-//   <p>Main content</p>
-//   <button card-footer>Action</button>
-// </app-card>
+```html
+<!-- card.component.html -->
+<header>
+  <ng-content select="[card-header]" />
+</header>
+<main>
+  <ng-content />
+</main>
+<footer>
+  <ng-content select="[card-footer]" />
+</footer>
+```
+
+```html
+<!-- Usage: -->
+<app-card>
+  <h2 card-header>Title</h2>
+  <p>Main content</p>
+  <button card-footer>Action</button>
+</app-card>
 ```
 
 ## Lifecycle Hooks
@@ -199,8 +251,15 @@ Components MUST:
 - Maintain visible focus indicators
 
 ```typescript
+// toggle.component.ts
+import { Component, ChangeDetectionStrategy, input, output, booleanAttribute } from '@angular/core';
+
 @Component({
   selector: 'app-toggle',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  templateUrl: './toggle.component.html',
+  styleUrls: ['./toggle.component.scss'],
   host: {
     'role': 'switch',
     '[attr.aria-checked]': 'checked()',
@@ -210,7 +269,6 @@ Components MUST:
     '(keydown.enter)': 'toggle()',
     '(keydown.space)': 'toggle(); $event.preventDefault()',
   },
-  template: `<span class="toggle-track"><span class="toggle-thumb"></span></span>`,
 })
 export class Toggle {
   label = input.required<string>();
@@ -221,6 +279,13 @@ export class Toggle {
     this.checkedChange.emit(!this.checked());
   }
 }
+```
+
+```html
+<!-- toggle.component.html -->
+<span class="toggle-track">
+  <span class="toggle-thumb"></span>
+</span>
 ```
 
 ## Template Syntax
@@ -271,18 +336,46 @@ Do NOT use `ngClass` or `ngStyle`. Use direct bindings:
 Use `NgOptimizedImage` for static images:
 
 ```typescript
+// hero.component.ts
+import { Component, ChangeDetectionStrategy, input } from '@angular/core';
 import { NgOptimizedImage } from '@angular/common';
 
 @Component({
+  selector: 'app-hero',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [NgOptimizedImage],
-  template: `
-    <img ngSrc="/assets/hero.jpg" width="800" height="600" priority />
-    <img [ngSrc]="imageUrl()" width="200" height="200" />
-  `,
+  templateUrl: './hero.component.html',
+  styleUrls: ['./hero.component.scss'],
 })
 export class Hero {
   imageUrl = input.required<string>();
 }
 ```
 
-For detailed patterns, see [references/component-patterns.md](references/component-patterns.md).
+```html
+<!-- hero.component.html -->
+<img ngSrc="/assets/hero.jpg" width="800" height="600" priority />
+<img [ngSrc]="imageUrl()" width="200" height="200" />
+```
+
+## File Organization
+
+All three files must be in the same directory:
+
+```
+components/user-card/
+├── user-card.component.ts
+├── user-card.component.html
+└── user-card.component.scss
+```
+
+## When to Use Custom SCSS
+
+Keep `*.component.scss` minimal or empty. Use it ONLY for:
+- Complex animations not available in Tailwind
+- CSS Grid layouts requiring custom properties
+- Very specific `:host` styles
+- SCSS nesting, variables, or mixins (when beneficial)
+
+Most styling should use DaisyUI semantic classes + Tailwind utilities in the HTML template.

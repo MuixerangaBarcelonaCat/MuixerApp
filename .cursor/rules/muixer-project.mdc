@@ -10,11 +10,12 @@ Open-source attendance & figure management system for Muixerangues (human tower 
 ## Tech Stack (Decided)
 
 - **Backend:** NestJS + TypeScript (strict)
-- **Frontend Dashboard:** Angular 20+ (standalone components, signals, OnPush)
+- **Frontend Dashboard:** Angular 20+ (standalone components, signals, OnPush) + DaisyUI + Angular CDK
 - **Mobile:** Angular PWA (no Ionic, no native apps)
 - **Database:** PostgreSQL on NeonDB (no local DB, connect remote in dev)
 - **Monorepo:** Nx workspace (`apps/api`, `apps/dashboard`, `apps/pwa`, `libs/shared`)
 - **ORM:** TypeORM (class-based entities with decorators)
+- **Styling:** Tailwind CSS v3 + DaisyUI v4 (stable, semantic classes)
 - **No Docker** in dev — run Node/Angular/NestJS directly
 
 ## Architecture

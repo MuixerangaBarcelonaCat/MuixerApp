@@ -1,5 +1,7 @@
 # Angular Component Patterns
 
+**IMPORTANT**: All components MUST use the three-file structure (`.ts`, `.html`, `.scss`). See `angular-component-structure.mdc` for details.
+
 ## Table of Contents
 - [Model Inputs (Two-Way Binding)](#model-inputs-two-way-binding)
 - [View Queries](#view-queries)
@@ -13,22 +15,18 @@
 For two-way binding with `[(value)]` syntax:
 
 ```typescript
-import { Component, model } from '@angular/core';
+// slider.component.ts
+import { Component, ChangeDetectionStrategy, model, input } from '@angular/core';
 
 @Component({
   selector: 'app-slider',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  templateUrl: './slider.component.html',
+  styleUrls: ['./slider.component.scss'],
   host: {
     '(input)': 'onInput($event)',
   },
-  template: `
-    <input 
-      type="range" 
-      [value]="value()" 
-      [min]="min()" 
-      [max]="max()" 
-    />
-    <span>{{ value() }}</span>
-  `,
 })
 export class Slider {
   // Model creates both input and output
@@ -41,13 +39,24 @@ export class Slider {
     this.value.set(Number(target.value));
   }
 }
-
-// Usage: <app-slider [(value)]="sliderValue" />
 ```
 
-Required model:
+```html
+<!-- slider.component.html -->
+<input 
+  type="range" 
+  [value]="value()" 
+  [min]="min()" 
+  [max]="max()"
+  class="range range-primary"
+/>
+<span class="text-sm">{{ value() }}</span>
+```
 
 ```typescript
+// Usage: <app-slider [(value)]="sliderValue" />
+
+// Required model:
 value = model.required<number>();
 ```
 
@@ -56,17 +65,18 @@ value = model.required<number>();
 Query elements and components in the template:
 
 ```typescript
-import { Component, viewChild, viewChildren, ElementRef } from '@angular/core';
+// gallery.component.ts
+import { Component, ChangeDetectionStrategy, viewChild, viewChildren, ElementRef, input } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { ImageCard } from './image-card.component';
 
 @Component({
   selector: 'app-gallery',
-  template: `
-    <div #container class="gallery">
-      @for (image of images(); track image.id) {
-        <app-image-card [image]="image" />
-      }
-    </div>
-  `,
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [CommonModule, ImageCard],
+  templateUrl: './gallery.component.html',
+  styleUrls: ['./gallery.component.scss'],
 })
 export class Gallery {
   images = input.required<Image[]>();
@@ -82,30 +92,32 @@ export class Gallery {
 }
 ```
 
+```html
+<!-- gallery.component.html -->
+<div #container class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+  @for (image of images(); track image.id) {
+    <app-image-card [image]="image" />
+  }
+</div>
+```
+
 ## Content Queries
 
 Query projected content:
 
 ```typescript
-import { Component, contentChild, contentChildren, effect, signal } from '@angular/core';
+// tabs.component.ts
+import { Component, ChangeDetectionStrategy, contentChild, contentChildren, effect, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { Tab } from './tab.component';
 
 @Component({
   selector: 'app-tabs',
-  template: `
-    <div class="tab-headers">
-      @for (tab of tabs(); track tab.label()) {
-        <button
-          [class.active]="tab === activeTab()"
-          (click)="selectTab(tab)"
-        >
-          {{ tab.label() }}
-        </button>
-      }
-    </div>
-    <div class="tab-content">
-      <ng-content />
-    </div>
-  `,
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [CommonModule],
+  templateUrl: './tabs.component.html',
+  styleUrls: ['./tabs.component.scss'],
 })
 export class Tabs {
   // Query all projected Tab children
@@ -130,10 +142,36 @@ export class Tabs {
     this.activeTab.set(tab);
   }
 }
+```
+
+```html
+<!-- tabs.component.html -->
+<div class="tabs tabs-bordered">
+  @for (tab of tabs(); track tab.label()) {
+    <button
+      class="tab"
+      [class.tab-active]="tab === activeTab()"
+      (click)="selectTab(tab)"
+    >
+      {{ tab.label() }}
+    </button>
+  }
+</div>
+<div class="tab-content p-4">
+  <ng-content />
+</div>
+```
+
+```typescript
+// tab.component.ts
+import { Component, ChangeDetectionStrategy, input } from '@angular/core';
 
 @Component({
   selector: 'app-tab',
-  template: `<ng-content />`,
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  templateUrl: './tab.component.html',
+  styleUrls: ['./tab.component.scss'],
   host: {
     '[class.active]': 'isActive()',
     '[style.display]': 'isActive() ? "block" : "none"',
@@ -145,28 +183,40 @@ export class Tab {
 }
 ```
 
+```html
+<!-- tab.component.html -->
+<ng-content />
+```
+
 ## Dependency Injection in Components
 
 Use `inject()` function instead of constructor injection:
 
 ```typescript
-import { Component, inject } from '@angular/core';
+// dashboard.component.ts
+import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { Router } from '@angular/router';
+import { UserService } from '@core/services/user.service';
+import { Analytics } from '@core/services/analytics.service';
+import { APP_CONFIG } from '@core/config/app.config';
 
 @Component({
   selector: 'app-dashboard',
-  template: `...`,
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  templateUrl: './dashboard.component.html',
+  styleUrls: ['./dashboard.component.scss'],
 })
 export class Dashboard {
   private router = inject(Router);
-  private userService = inject(User);
+  private userService = inject(UserService);
   private config = inject(APP_CONFIG);
   
   // Optional injection
   private analytics = inject(Analytics, { optional: true });
   
   // Self-only injection
-  private localService = inject(Local, { self: true });
+  private localService = inject(LocalService, { self: true });
   
   navigateToProfile() {
     this.router.navigate(['/profile']);
@@ -179,17 +229,40 @@ export class Dashboard {
 ### Parent to Child (Inputs)
 
 ```typescript
-// Parent
+// parent.component.ts
+import { Component, ChangeDetectionStrategy, signal } from '@angular/core';
+import { Child } from './child.component';
+
 @Component({
-  template: `<app-child [data]="parentData()" [config]="config" />`,
+  selector: 'app-parent',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [Child],
+  templateUrl: './parent.component.html',
+  styleUrls: ['./parent.component.scss'],
 })
 export class Parent {
   parentData = signal({ name: 'Test' });
   config = { theme: 'dark' };
 }
+```
 
-// Child
-@Component({ selector: 'app-child' })
+```html
+<!-- parent.component.html -->
+<app-child [data]="parentData()" [config]="config" />
+```
+
+```typescript
+// child.component.ts
+import { Component, ChangeDetectionStrategy, input } from '@angular/core';
+
+@Component({
+  selector: 'app-child',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  templateUrl: './child.component.html',
+  styleUrls: ['./child.component.scss'],
+})
 export class Child {
   data = input.required<Data>();
   config = input<Config>();
@@ -199,10 +272,15 @@ export class Child {
 ### Child to Parent (Outputs)
 
 ```typescript
-// Child
+// child.component.ts
+import { Component, ChangeDetectionStrategy, output } from '@angular/core';
+
 @Component({
   selector: 'app-child',
-  template: `<button (click)="save()">Save</button>`,
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  templateUrl: './child.component.html',
+  styleUrls: ['./child.component.scss'],
 })
 export class Child {
   saved = output<Data>();
@@ -211,10 +289,25 @@ export class Child {
     this.saved.emit({ id: 1, name: 'Item' });
   }
 }
+```
 
-// Parent
+```html
+<!-- child.component.html -->
+<button class="btn btn-primary" (click)="save()">Desar</button>
+```
+
+```typescript
+// parent.component.ts
+import { Component, ChangeDetectionStrategy } from '@angular/core';
+import { Child } from './child.component';
+
 @Component({
-  template: `<app-child (saved)="onSaved($event)" />`,
+  selector: 'app-parent',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [Child],
+  templateUrl: './parent.component.html',
+  styleUrls: ['./parent.component.scss'],
 })
 export class Parent {
   onSaved(data: Data) {
@@ -223,12 +316,19 @@ export class Parent {
 }
 ```
 
+```html
+<!-- parent.component.html -->
+<app-child (saved)="onSaved($event)" />
+```
+
 ### Shared Service Pattern
 
 ```typescript
-// Shared state service
+// cart.service.ts
+import { Injectable, signal, computed } from '@angular/core';
+
 @Injectable({ providedIn: 'root' })
-export class Cart {
+export class CartService {
   private items = signal<CartItem[]>([]);
   
   readonly items$ = this.items.asReadonly();
@@ -244,23 +344,55 @@ export class Cart {
     this.items.update(items => items.filter(i => i.id !== id));
   }
 }
+```
 
-// Component A
-@Component({ template: `<button (click)="add()">Add</button>` })
+```typescript
+// product.component.ts
+import { Component, ChangeDetectionStrategy, inject, input } from '@angular/core';
+import { CartService } from '@core/services/cart.service';
+
+@Component({
+  selector: 'app-product',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  templateUrl: './product.component.html',
+  styleUrls: ['./product.component.scss'],
+})
 export class Product {
-  private cart = inject(Cart);
+  private cart = inject(CartService);
   product = input.required<Product>();
   
   add() {
     this.cart.addItem({ ...this.product(), quantity: 1 });
   }
 }
+```
 
-// Component B
-@Component({ template: `<span>Total: {{ cart.total() }}</span>` })
+```html
+<!-- product.component.html -->
+<button class="btn btn-primary" (click)="add()">Afegir al carret</button>
+```
+
+```typescript
+// cart-summary.component.ts
+import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
+import { CartService } from '@core/services/cart.service';
+
+@Component({
+  selector: 'app-cart-summary',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  templateUrl: './cart-summary.component.html',
+  styleUrls: ['./cart-summary.component.scss'],
+})
 export class CartSummary {
-  cart = inject(Cart);
+  cart = inject(CartService);
 }
+```
+
+```html
+<!-- cart-summary.component.html -->
+<span class="text-lg font-bold">Total: {{ cart.total() }}€</span>
 ```
 
 ## Dynamic Components
@@ -268,25 +400,40 @@ export class CartSummary {
 Using `@defer` for lazy loading:
 
 ```typescript
+// dashboard.component.ts
+import { Component, ChangeDetectionStrategy, input } from '@angular/core';
+import { HeavyChart } from './heavy-chart.component';
+import { Spinner } from '@shared/components/spinner.component';
+
 @Component({
-  template: `
-    @defer (on viewport) {
-      <app-heavy-chart [data]="chartData()" />
-    } @placeholder {
-      <div class="chart-placeholder">Loading chart...</div>
-    } @loading (minimum 500ms) {
-      <app-spinner />
-    } @error {
-      <p>Failed to load chart</p>
-    }
-  `,
+  selector: 'app-dashboard',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [HeavyChart, Spinner],
+  templateUrl: './dashboard.component.html',
+  styleUrls: ['./dashboard.component.scss'],
 })
 export class Dashboard {
   chartData = input.required<ChartData>();
 }
 ```
 
-Defer triggers:
+```html
+<!-- dashboard.component.html -->
+@defer (on viewport) {
+  <app-heavy-chart [data]="chartData()" />
+} @placeholder {
+  <div class="skeleton h-96 w-full"></div>
+} @loading (minimum 500ms) {
+  <app-spinner />
+} @error {
+  <div class="alert alert-error">
+    <span>Error carregant el gràfic</span>
+  </div>
+}
+```
+
+**Defer triggers:**
 - `on viewport` - When element enters viewport
 - `on idle` - When browser is idle
 - `on interaction` - On user interaction (click, focus)
@@ -296,25 +443,41 @@ Defer triggers:
 - `when condition` - When expression becomes true
 
 ```typescript
+// post.component.ts
+import { Component, ChangeDetectionStrategy, input } from '@angular/core';
+import { Comments } from './comments.component';
+
 @Component({
-  template: `
-    @defer (on interaction; prefetch on idle) {
-      <app-comments [postId]="postId()" />
-    } @placeholder {
-      <button>Load Comments</button>
-    }
-  `,
+  selector: 'app-post',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [Comments],
+  templateUrl: './post.component.html',
+  styleUrls: ['./post.component.scss'],
 })
 export class Post {
   postId = input.required<string>();
 }
 ```
 
+```html
+<!-- post.component.html -->
+@defer (on interaction; prefetch on idle) {
+  <app-comments [postId]="postId()" />
+} @placeholder {
+  <button class="btn btn-outline">Carregar comentaris</button>
+}
+```
+
 ## Attribute Directives on Components
 
 ```typescript
+// highlight.directive.ts
+import { Directive, input } from '@angular/core';
+
 @Directive({
   selector: '[appHighlight]',
+  standalone: true,
   host: {
     '[style.backgroundColor]': 'color()',
   },
@@ -322,30 +485,43 @@ export class Post {
 export class Highlight {
   color = input('yellow', { alias: 'appHighlight' });
 }
+```
 
-// Usage on component
+```typescript
+// page.component.ts
+import { Component, ChangeDetectionStrategy } from '@angular/core';
+import { Card } from './card.component';
+import { Highlight } from '@shared/directives/highlight.directive';
+
 @Component({
-  imports: [Highlight],
-  template: `<app-card appHighlight="lightblue" />`,
+  selector: 'app-page',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [Card, Highlight],
+  templateUrl: './page.component.html',
+  styleUrls: ['./page.component.scss'],
 })
 export class Page {}
+```
+
+```html
+<!-- page.component.html -->
+<app-card appHighlight="lightblue" />
 ```
 
 ## Error Boundaries
 
 ```typescript
+// error-boundary.component.ts
+import { Component, ChangeDetectionStrategy, signal, inject } from '@angular/core';
+import { ErrorHandler } from '@angular/core';
+
 @Component({
   selector: 'app-error-boundary',
-  template: `
-    @if (hasError()) {
-      <div class="error">
-        <h3>Something went wrong</h3>
-        <button (click)="retry()">Retry</button>
-      </div>
-    } @else {
-      <ng-content />
-    }
-  `,
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  templateUrl: './error-boundary.component.html',
+  styleUrls: ['./error-boundary.component.scss'],
 })
 export class ErrorBoundary {
   hasError = signal(false);
@@ -356,3 +532,37 @@ export class ErrorBoundary {
   }
 }
 ```
+
+```html
+<!-- error-boundary.component.html -->
+@if (hasError()) {
+  <div class="alert alert-error">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 shrink-0 stroke-current" fill="none" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+    <div>
+      <h3 class="font-bold">Alguna cosa ha anat malament</h3>
+      <button class="btn btn-sm btn-outline" (click)="retry()">Tornar a intentar</button>
+    </div>
+  </div>
+} @else {
+  <ng-content />
+}
+```
+
+---
+
+## Summary
+
+**Remember**: ALL components MUST follow the three-file structure:
+1. `*.component.ts` — Logic, signals, and component metadata
+2. `*.component.html` — Template with DaisyUI/Tailwind classes
+3. `*.component.scss` — Custom styles (minimal or empty, supports SCSS features)
+
+This ensures:
+- ✅ Clean separation of concerns
+- ✅ Better IDE support and syntax highlighting
+- ✅ Easier code review and collaboration
+- ✅ Consistent codebase structure
+- ✅ Maintainable and scalable code
+- ✅ SCSS features available (nesting, variables, mixins) when needed

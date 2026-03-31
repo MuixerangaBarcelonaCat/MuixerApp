@@ -16,7 +16,8 @@
     "strict": true,
     "baseUrl": ".",
     "paths": {
-      "@muixer/shared": ["libs/shared/src/index.ts"]
+      "@muixer/shared": ["libs/shared/src/index.ts"],
+      "@app/*": ["apps/dashboard/src/app/*"]
     }
   },
   "exclude": ["node_modules", "tmp"]

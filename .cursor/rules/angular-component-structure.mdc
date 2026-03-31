@@ -1,0 +1,226 @@
+---
+description: Angular component file structure conventions - ALWAYS use separate files
+globs: "apps/dashboard/**/*.component.ts,apps/pwa/**/*.component.ts"
+alwaysApply: true
+---
+
+# Angular Component File Structure
+
+## MANDATORY: Three-File Component Structure
+
+**NEVER** use inline `template:` or `styles:` in the `@Component` decorator.
+
+**ALWAYS** create three separate files for each component:
+
+### 1. `*.component.ts` — Logic & Signals
+
+Contains:
+- Component class with Angular logic
+- Signal-based inputs/outputs (`input()`, `output()`)
+- Computed signals (`computed()`)
+- Lifecycle hooks
+- Component metadata with `templateUrl` and `styleUrls`
+
+```typescript
+import { Component, ChangeDetectionStrategy, input, output, computed } from '@angular/core';
+import { CommonModule } from '@angular/common';
+
+@Component({
+  selector: 'app-person-card',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [CommonModule],
+  templateUrl: './person-card.component.html',
+  styleUrls: ['./person-card.component.scss'],
+  host: {
+    'class': 'block',
+    '[class.active]': 'isActive()',
+  },
+})
+export class PersonCardComponent {
+  // Signal inputs
+  person = input.required<Person>();
+  isActive = input(false);
+  
+  // Computed signals
+  fullName = computed(() => `${this.person().firstName} ${this.person().lastName}`);
+  
+  // Signal outputs
+  selected = output<Person>();
+  
+  onSelect() {
+    this.selected.emit(this.person());
+  }
+}
+```
+
+### 2. `*.component.html` — Template with DaisyUI & Tailwind
+
+Contains:
+- HTML structure
+- DaisyUI semantic classes (`btn`, `card`, `badge`, etc.)
+- Tailwind utility classes (`flex`, `gap-4`, `text-lg`, etc.)
+- Angular template syntax (`@if`, `@for`, signal bindings)
+
+```html
+<div class="card bg-base-100 shadow-xl">
+  <div class="card-body">
+    <h2 class="card-title">{{ fullName() }}</h2>
+    
+    @if (person().email) {
+      <p class="text-sm text-base-content/70">{{ person().email }}</p>
+    }
+    
+    <div class="card-actions justify-end">
+      <button class="btn btn-primary btn-sm" (click)="onSelect()">
+        Seleccionar
+      </button>
+    </div>
+  </div>
+</div>
+```
+
+### 3. `*.component.scss` — Custom Styles Only
+
+Contains:
+- **ONLY** styles that cannot be achieved with Tailwind/DaisyUI
+- Complex animations
+- CSS Grid layouts requiring custom properties
+- Very specific `:host` styles
+- SCSS variables, mixins, or nesting (if needed)
+
+**Keep this file minimal or empty.** Most components won't need custom styles.
+
+```scss
+/* Only if absolutely necessary */
+:host {
+  display: block;
+}
+
+/* Complex animation not available in Tailwind */
+@keyframes pulse-custom {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.custom-animation {
+  animation: pulse-custom 2s ease-in-out infinite;
+}
+
+/* SCSS nesting example (if needed) */
+.card {
+  &__header {
+    // Custom styles
+  }
+  
+  &__body {
+    // Custom styles
+  }
+}
+```
+
+## File Organization
+
+All three files must be in the **same directory**:
+
+```
+features/persons/components/person-card/
+├── person-card.component.ts
+├── person-card.component.html
+└── person-card.component.scss
+```
+
+## Why Separate Files?
+
+1. **Separation of Concerns**: Logic, structure, and style are independent
+2. **Readability**: Easier to navigate and understand each aspect
+3. **Tooling**: Better IDE support, syntax highlighting, and linting
+4. **Collaboration**: Multiple developers can work on different aspects
+5. **Maintainability**: Changes to template don't clutter TypeScript file
+6. **DaisyUI/Tailwind**: Templates can be long with utility classes
+
+## Examples
+
+### ❌ BAD — Inline Template & Styles
+
+```typescript
+@Component({
+  selector: 'app-person-list',
+  standalone: true,
+  template: `
+    <div class="overflow-x-auto">
+      <table class="table table-zebra">
+        <!-- ... long template ... -->
+      </table>
+    </div>
+  `,
+  styles: [`
+    :host { display: block; }
+    .custom-class { color: red; }
+  `],
+})
+export class PersonListComponent {}
+```
+
+### ✅ GOOD — Separate Files
+
+```typescript
+// person-list.component.ts
+@Component({
+  selector: 'app-person-list',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [CommonModule],
+  templateUrl: './person-list.component.html',
+  styleUrls: ['./person-list.component.scss'],
+})
+export class PersonListComponent {
+  persons = input.required<Person[]>();
+  selected = output<Person>();
+}
+```
+
+```html
+<!-- person-list.component.html -->
+<div class="overflow-x-auto">
+  <table class="table table-zebra">
+    <thead>
+      <tr>
+        <th>Nom</th>
+        <th>Cognoms</th>
+        <th>Email</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (person of persons(); track person.id) {
+        <tr (click)="selected.emit(person)">
+          <td>{{ person.firstName }}</td>
+          <td>{{ person.lastName }}</td>
+          <td>{{ person.email }}</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>
+```
+
+```scss
+/* person-list.component.scss */
+/* Empty or minimal — Tailwind handles everything */
+```
+
+## Migration from Inline Templates
+
+If you encounter inline templates, refactor immediately:
+
+1. Create `*.component.html` file
+2. Move template content from `template:` to HTML file
+3. Replace `template:` with `templateUrl: './component-name.component.html'`
+4. Create `*.component.scss` file (can be empty)
+5. Replace `styles:` with `styleUrls: ['./component-name.component.scss']`
+
+## Exceptions
+
+**NONE.** This rule applies to ALL components without exception.
+
+Even for tiny components (like a simple button wrapper), use separate files for consistency and future maintainability.

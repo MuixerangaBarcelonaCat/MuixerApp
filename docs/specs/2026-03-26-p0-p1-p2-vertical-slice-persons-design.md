@@ -532,10 +532,10 @@ Sidebar shows all planned sections. Only "Persones" is active. Others are greyed
 
 ### Person List View
 
-- Spartan UI table (CDK-based) with Spartan pagination and CDK sort directives
+- DaisyUI table with pagination and signal-based sorting
 - Reactive search (signal-based, debounce 300ms) by alias/name/surname
 - Combinable filters: position, availability, active, xicalla, member
-- Position badges with colors from Position.color (Spartan Badge + Tailwind)
+- Position badges with colors from Position.color (DaisyUI badge + Tailwind)
 - Responsive: table on desktop (>=lg), cards on mobile (<lg)
 - All UI text in Catalan
 

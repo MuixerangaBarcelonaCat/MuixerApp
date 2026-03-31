@@ -57,7 +57,10 @@
           "buildTarget": "dashboard:build:development"
         }
       },
-      "defaultConfiguration": "development"
+      "defaultConfiguration": "development",
+      "options": {
+        "proxyConfig": "apps/dashboard/proxy.conf.json"
+      }
     },
     "lint": {
       "executor": "@nx/eslint:lint"
