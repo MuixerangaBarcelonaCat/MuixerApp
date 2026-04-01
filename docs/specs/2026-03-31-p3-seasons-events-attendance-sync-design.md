@@ -38,7 +38,7 @@ P0-P2.1 delivered a complete vertical slice for **Persons**: sync from legacy, f
 | Assajos and actuacions are separate systems with different endpoints | Unified `Event` entity with type discriminator + JSONB metadata |
 | `temporada` is just a year number with no dates | `Season` with explicit start/end dates |
 | No way to exclude events from statistics | `countsForStatistics` flag per event (manifests, extra rehearsals) |
-| "Potser" means different things depending on context | Context-aware mapping: past events → ASSISTIT/NO_PRESENTAT, future → ANIRE |
+| "Potser" means different things depending on context | Context-aware mapping: past events → ATTENDED/NO_SHOW, future → COMMITTED |
 | No denormalized attendance counts | `attendanceSummary` JSONB for instant display including xicalla count |
 | No cross-event attendance overview | API supports filtering by season, date range, event type |
 | No distinction between regular declines and last-minute cancellations | Derived `isLastMinuteCancellation` from respondedAt vs event start time |
@@ -237,11 +237,11 @@ Denormalized JSONB on Event, recalculated after every attendance sync:
 
 ```typescript
 export interface AttendanceSummary {
-  confirmed: number;  // ANIRE count (pre-event state)
-  declined: number;   // NO_VAIG count
-  pending: number;    // PENDENT count (no response)
-  attended: number;   // ASSISTIT count (post-event, verified)
-  noShow: number;     // NO_PRESENTAT count (confirmed but didn't show)
+  confirmed: number;  // COMMITTED count (pre-event state)
+  declined: number;   // DECLINED count
+  pending: number;    // PENDING count (no response)
+  attended: number;   // ATTENDED count (post-event, verified)
+  noShow: number;     // NO_SHOW count (confirmed but didn't show)
   children: number;   // Xicalla count among confirmed+attended (person.isXicalla === true)
   total: number;      // Total unique persons with any attendance record
 }
@@ -306,8 +306,8 @@ export class Attendance {
 **Constraint:** `UNIQUE(person_id, event_id)` — one attendance record per person per event.
 
 **`isLastMinuteCancellation`**: Not stored — derived in the service/frontend:
-- `true` if `status === NO_VAIG AND respondedAt >= (event.date + event.startTime - 6 hours)` — this includes cancellations made less than 6h before, during, or after the event
-- `true` if `status === NO_PRESENTAT` (by definition, always a last-minute issue — signed up but never showed)
+- `true` if `status === DECLINED AND respondedAt >= (event.date + event.startTime - 6 hours)` — this includes cancellations made less than 6h before, during, or after the event
+- `true` if `status === NO_SHOW` (by definition, always a last-minute issue — signed up but never showed)
 
 ### 3.6 Enums (libs/shared)
 
@@ -321,11 +321,11 @@ export enum EventType {
 
 // attendance-status.enum.ts
 export enum AttendanceStatus {
-  PENDENT = 'PENDENT',           // No response
-  ANIRE = 'ANIRE',            // Committed to attend — "Aniré" (future events). Stronger than "Puc anar" — implies commitment.
-  NO_VAIG = 'NO_VAIG',          // Declined
-  ASSISTIT = 'ASSISTIT',        // Actually attended — verified via check-in (past events)
-  NO_PRESENTAT = 'NO_PRESENTAT', // Confirmed but didn't show up (past events, baixa sense avís)
+  PENDING = 'PENDING',           // No response
+  COMMITTED = 'COMMITTED',       // Committed to attend — "Aniré" (future events). Firm commitment.
+  DECLINED = 'DECLINED',         // Declined — "No vaig"
+  ATTENDED = 'ATTENDED',         // Actually attended — verified via check-in (past events)
+  NO_SHOW = 'NO_SHOW',          // Committed but didn't show up (past events, baixa sense avís)
   // Future (real-time check-in): CHECK_IN (transient state during event)
 }
 ```
@@ -363,33 +363,33 @@ The legacy API uses the same status labels ("Vinc", "No vinc", "Potser") for dif
 
 | Legacy `estat` | MuixerApp `AttendanceStatus` | Rationale |
 |---|---|---|
-| `"Vinc"` | `ASSISTIT` | Checked in via tablet → attended |
-| `"No vinc"` | `NO_VAIG` | Declined (may be last-minute — see §4.3) |
-| `"Potser"` | `NO_PRESENTAT` | Signed up but never checked in → baixa sense avís |
+| `"Vinc"` | `ATTENDED` | Checked in via tablet → attended |
+| `"No vinc"` | `DECLINED` | Declined (may be last-minute — see §4.3) |
+| `"Potser"` | `NO_SHOW` | Signed up but never checked in → baixa sense avís |
 
 **Future rehearsals** (event date + startTime > now):
 
 | Legacy `estat` | MuixerApp `AttendanceStatus` | Rationale |
 |---|---|---|
-| `"Potser"` | `ANIRE` | Signed up, intends to attend |
-| `"No vinc"` | `NO_VAIG` | Declined |
-| No record | `PENDENT` | No response |
+| `"Potser"` | `COMMITTED` | Signed up, intends to attend |
+| `"No vinc"` | `DECLINED` | Declined |
+| No record | `PENDING` | No response |
 
 **Past performances** (event date + startTime < now):
 
 | Legacy `estat` | MuixerApp `AttendanceStatus` | Rationale |
 |---|---|---|
-| `"Vinc"` | `ASSISTIT` | Confirmed and attended (no tablet check-in for actuacions) |
-| `"No vinc"` | `NO_VAIG` | Declined |
-| No record | `PENDENT` | Never responded |
+| `"Vinc"` | `ATTENDED` | Confirmed and attended (no tablet check-in for actuacions) |
+| `"No vinc"` | `DECLINED` | Declined |
+| No record | `PENDING` | Never responded |
 
 **Future performances** (event date + startTime > now):
 
 | Legacy `estat` | MuixerApp `AttendanceStatus` | Rationale |
 |---|---|---|
-| `"Vinc"` | `ANIRE` | Confirmed will attend |
-| `"No vinc"` | `NO_VAIG` | Declined |
-| No record | `PENDENT` | No response |
+| `"Vinc"` | `COMMITTED` | Confirmed will attend |
+| `"No vinc"` | `DECLINED` | Declined |
+| No record | `PENDING` | No response |
 
 ### 4.3 UI Labels vs Enum Values
 
@@ -397,39 +397,39 @@ Enum values are internal code identifiers (English, UPPER_SNAKE_CASE). The UI sh
 
 | `AttendanceStatus` | Label UI (pre-event) | Label UI (post-event) | Emoji |
 |---|---|---|---|
-| `PENDENT` | Sense resposta | Sense resposta | ⚪ |
-| `ANIRE` | Aniré | — | 🟢 |
-| `NO_VAIG` | No vaig | No va anar | 🔴 |
-| `ASSISTIT` | — | Assistit | ✅ |
-| `NO_PRESENTAT` | — | No presentat | ❌ |
+| `PENDING` | Sense resposta | Sense resposta | ⚪ |
+| `COMMITTED` | Aniré | — | 🟢 |
+| `DECLINED` | No vaig | No va anar | 🔴 |
+| `ATTENDED` | — | Assistit | ✅ |
+| `NO_SHOW` | — | No presentat | ❌ |
 
 Pre-event labels appear in future event attendance lists. Post-event labels appear in past event attendance lists. The transition is automatic based on whether `event.date + event.startTime < now`.
 
-### 4.4 Broken commitments (ANIRE → NO_VAIG)
+### 4.4 Broken commitments (COMMITTED → DECLINED)
 
-A member who first commits (`ANIRE`) and later changes to `NO_VAIG` is breaking a commitment — this is qualitatively different from someone who declines immediately. In P3.0 (sync from legacy), we **cannot track this** because the legacy only stores the final status, not the history of transitions.
+A member who first commits (`COMMITTED`) and later changes to `DECLINED` is breaking a commitment — this is qualitatively different from someone who declines immediately. In P3.0 (sync from legacy), we **cannot track this** because the legacy only stores the final status, not the history of transitions.
 
 **Future (P3.1+ with real-time attendance):** When members respond via the PWA, we will track status transitions by storing a `previousStatus` or an attendance log. This enables statistics like "% de compromisos trencats" alongside "% baixes d'última hora".
 
-For now, `isLastMinuteCancellation` partially covers this: if someone changes from ANIRE to NO_VAIG less than 6h before the event, it's captured as a last-minute cancellation regardless of whether it was a broken commitment.
+For now, `isLastMinuteCancellation` partially covers this: if someone changes from COMMITTED to DECLINED less than 6h before the event, it's captured as a last-minute cancellation regardless of whether it was a broken commitment.
 
-### 4.5 Manual NO_PRESENTAT marking (P3.1)
+### 4.5 Manual NO_SHOW marking (P3.1)
 
-In the legacy system, only rehearsals have automatic check-in (tablet). Performances have no detection mechanism. For P3.0, past `"Vinc"` maps to `ASSISTIT` for both types (best assumption from available data).
+In the legacy system, only rehearsals have automatic check-in (tablet). Performances have no detection mechanism. For P3.0, past `"Vinc"` maps to `ATTENDED` for both types (best assumption from available data).
 
-**Future (P3.1):** Add a `PATCH /api/events/:id/attendance/:attendanceId` endpoint so tècnica can manually mark `NO_PRESENTAT` on **both rehearsals and performances**. Use cases:
+**Future (P3.1):** Add a `PATCH /api/events/:id/attendance/:attendanceId` endpoint so tècnica can manually mark `NO_SHOW` on **both rehearsals and performances**. Use cases:
 
-- **Performance**: member said ANIRE but didn't show up — tècnica marks NO_PRESENTAT from dashboard
-- **Rehearsal**: tablet check-in failed or wasn't used — tècnica marks NO_PRESENTAT manually
-- **Figure planning**: a member assigned to a figure position who is NO_PRESENTAT is visually flagged (empty/red slot), helping tècnica quickly reassign positions
-- **Late arrival**: NO_PRESENTAT is reversible — if someone arrives late, tècnica can change the status back to ASSISTIT. The flow is `ANIRE → NO_PRESENTAT → ASSISTIT`, not a terminal state. This applies to both rehearsals and performances.
+- **Performance**: member said COMMITTED but didn't show up — tècnica marks NO_SHOW from dashboard
+- **Rehearsal**: tablet check-in failed or wasn't used — tècnica marks NO_SHOW manually
+- **Figure planning**: a member assigned to a figure position who is NO_SHOW is visually flagged (empty/red slot), helping tècnica quickly reassign positions
+- **Late arrival**: NO_SHOW is reversible — if someone arrives late, tècnica can change the status back to ATTENDED. The flow is `COMMITTED → NO_SHOW → ATTENDED`, not a terminal state. This applies to both rehearsals and performances.
 
 ### 4.6 Last-minute cancellation detection
 
 A **baixa d'última hora** is detected when:
 
-1. `status === NO_VAIG AND respondedAt >= (event.date + event.startTime - 6 hours)` — covers less than 6h before, during, or after the event
-2. `status === NO_PRESENTAT` — always last-minute (signed up but no-show)
+1. `status === DECLINED AND respondedAt >= (event.date + event.startTime - 6 hours)` — covers less than 6h before, during, or after the event
+2. `status === NO_SHOW` — always last-minute (signed up but no-show)
 
 This is **derived, not stored** (`isLastMinuteCancellation`). The service computes it from `respondedAt` and the event's datetime. Useful for future statistics (% baixes d'última hora, % mentiders).
 
@@ -440,27 +440,27 @@ This is **derived, not stored** (`isLastMinuteCancellation`). The service comput
   ┌──────────────────┐               ┌──────────────────┐
   │ Pre-event states │               │ Pre-event states │
   │                  │               │                  │
-  │  PENDENT ──────┐ │               │  PENDENT ──────┐ │
+  │  PENDING ──────┐ │               │  PENDING ──────┐ │
   │       │        │ │               │       │        │ │
   │       ▼        ▼ │               │       ▼        ▼ │
-  │    ANIRE    NO_VAIG              │    ANIRE    NO_VAIG
+  │    COMMITTED    DECLINED              │    COMMITTED    DECLINED
   │       │          │               │       │          │
   └───────┼──────────┘               └───────┼──────────┘
           │ (event happens)                  │ (event happens)
   ┌───────┼──────────┐               ┌───────┼──────────┐
   │       ▼          │               │       ▼          │
-  │  ┌─────────┐     │               │  ASSISTIT        │
-  │  │ CHECK-IN│     │               │  (if ANIRE,      │
+  │  ┌─────────┐     │               │  ATTENDED        │
+  │  │ CHECK-IN│     │               │  (if COMMITTED,      │
   │  │ (tablet)│     │               │   assumed P3.0)  │
   │  └────┬────┘     │               │                  │
-  │       ▼          │               │  NO_PRESENTAT    │
-  │  ASSISTIT        │               │  (P3.1: tècnica  │
+  │       ▼          │               │  NO_SHOW    │
+  │  ATTENDED        │               │  (P3.1: tècnica  │
   │                  │               │   marks manually)│
-  │  NO_PRESENTAT    │               │                  │
-  │  (ANIRE but no   │               │  PENDENT         │
+  │  NO_SHOW    │               │                  │
+  │  (COMMITTED but no   │               │  PENDING         │
   │   check-in)      │               │  (if no response)│
   │                  │               │                  │
-  │  NO_VAIG         │               │  NO_VAIG         │
+  │  DECLINED         │               │  DECLINED         │
   │  (unchanged)     │               │  (unchanged)     │
   └──────────────────┘               └──────────────────┘
 ```
@@ -733,33 +733,33 @@ private mapAttendanceStatus(
   if (eventType === EventType.ASSAIG) {
     if (isPastEvent) {
       // Past rehearsal: Vinc=attended, Potser=no-show, No vinc=declined
-      if (estat === 'Vinc') return AttendanceStatus.ASSISTIT;
-      if (estat === 'Potser') return AttendanceStatus.NO_PRESENTAT;
-      if (estat === 'No vinc') return AttendanceStatus.NO_VAIG;
-      return AttendanceStatus.PENDENT;
+      if (estat === 'Vinc') return AttendanceStatus.ATTENDED;
+      if (estat === 'Potser') return AttendanceStatus.NO_SHOW;
+      if (estat === 'No vinc') return AttendanceStatus.DECLINED;
+      return AttendanceStatus.PENDING;
     } else {
       // Future rehearsal: Potser=confirmed, No vinc=declined
-      if (estat === 'Potser') return AttendanceStatus.ANIRE;
-      if (estat === 'No vinc') return AttendanceStatus.NO_VAIG;
-      return AttendanceStatus.PENDENT;
+      if (estat === 'Potser') return AttendanceStatus.COMMITTED;
+      if (estat === 'No vinc') return AttendanceStatus.DECLINED;
+      return AttendanceStatus.PENDING;
     }
   }
 
   if (eventType === EventType.ACTUACIO) {
     if (isPastEvent) {
       // Past performance: Vinc=attended, No vinc=declined
-      if (estat === 'Vinc') return AttendanceStatus.ASSISTIT;
-      if (estat === 'No vinc') return AttendanceStatus.NO_VAIG;
-      return AttendanceStatus.PENDENT;
+      if (estat === 'Vinc') return AttendanceStatus.ATTENDED;
+      if (estat === 'No vinc') return AttendanceStatus.DECLINED;
+      return AttendanceStatus.PENDING;
     } else {
       // Future performance: Vinc=confirmed, No vinc=declined (no Potser)
-      if (estat === 'Vinc') return AttendanceStatus.ANIRE;
-      if (estat === 'No vinc') return AttendanceStatus.NO_VAIG;
-      return AttendanceStatus.PENDENT;
+      if (estat === 'Vinc') return AttendanceStatus.COMMITTED;
+      if (estat === 'No vinc') return AttendanceStatus.DECLINED;
+      return AttendanceStatus.PENDING;
     }
   }
 
-  return AttendanceStatus.PENDENT;
+  return AttendanceStatus.PENDING;
 }
 
 private isEventPast(event: Event): boolean {
@@ -778,13 +778,13 @@ private async recalculateSummary(eventId: string): Promise<void> {
   });
 
   const summary: AttendanceSummary = {
-    confirmed: attendances.filter(a => a.status === AttendanceStatus.ANIRE).length,
-    declined: attendances.filter(a => a.status === AttendanceStatus.NO_VAIG).length,
-    pending: attendances.filter(a => a.status === AttendanceStatus.PENDENT).length,
-    attended: attendances.filter(a => a.status === AttendanceStatus.ASSISTIT).length,
-    noShow: attendances.filter(a => a.status === AttendanceStatus.NO_PRESENTAT).length,
+    confirmed: attendances.filter(a => a.status === AttendanceStatus.COMMITTED).length,
+    declined: attendances.filter(a => a.status === AttendanceStatus.DECLINED).length,
+    pending: attendances.filter(a => a.status === AttendanceStatus.PENDING).length,
+    attended: attendances.filter(a => a.status === AttendanceStatus.ATTENDED).length,
+    noShow: attendances.filter(a => a.status === AttendanceStatus.NO_SHOW).length,
     children: attendances.filter(a =>
-      [AttendanceStatus.ANIRE, AttendanceStatus.ASSISTIT].includes(a.status)
+      [AttendanceStatus.COMMITTED, AttendanceStatus.ATTENDED].includes(a.status)
       && a.person.isXicalla
     ).length,
     total: attendances.length,
@@ -822,7 +822,7 @@ private async recalculateSummary(eventId: string): Promise<void> {
 | `legacyId` | ✅ Set once | ❌ Immutable | Traceability |
 | `lastSyncedAt` | ✅ NOW() | ✅ NOW() | Track sync |
 
-**Important:** Re-syncing correctly handles the transition from future to past. An event that was future on the last sync (Potser → ANIRE) and is now past will be re-mapped (Vinc → ASSISTIT, Potser → NO_PRESENTAT, etc.).
+**Important:** Re-syncing correctly handles the transition from future to past. An event that was future on the last sync (Potser → COMMITTED) and is now past will be re-mapped (Vinc → ATTENDED, Potser → NO_SHOW, etc.).
 
 ### 5.10 Estimated Legacy API Calls
 
@@ -959,7 +959,7 @@ No `legacyId`, `legacyType`, or `lastSyncedAt` in response.
   "data": [
     {
       "id": "uuid",
-      "status": "ASSISTIT",
+      "status": "ATTENDED",
       "respondedAt": "2026-03-26T18:52:00Z",
       "notes": null,
       "person": {
@@ -1117,8 +1117,8 @@ No Temporades page yet (seasons are read-only, used as a filter dropdown inside 
 ```
 
 **Attendance columns adapt based on event time:**
-- **Past events**: 🟢 = `attended` (ASSISTIT), 🔴 = `declined + noShow`, ⚪ = `pending`, 👶 = `children`
-- **Future events**: 🟢 = `confirmed` (ANIRE), 🔴 = `declined`, ⚪ = `pending`, 👶 = `children`
+- **Past events**: 🟢 = `attended` (ATTENDED), 🔴 = `declined + noShow`, ⚪ = `pending`, 👶 = `children`
+- **Future events**: 🟢 = `confirmed` (COMMITTED), 🔴 = `declined`, ⚪ = `pending`, 👶 = `children`
 
 **Features:**
 - **Tabs**: Assajos / Actuacions (filter by `eventType`)
@@ -1262,7 +1262,7 @@ export default [
 | Component | Test Type | Key Scenarios |
 |---|---|---|
 | `EventSyncStrategy` | Unit | Map legacy assaig → Event, map actuacio → Event, static season creation, merge rules (countsForStatistics not overwritten on re-sync), HTML stripping, event ID extraction from HTML |
-| `AttendanceSyncStrategy` | Unit | **Context-aware mapping**: past rehearsal (Vinc→ASSISTIT, Potser→NO_PRESENTAT, No vinc→NO_VAIG), future rehearsal (Potser→ANIRE), past performance (Vinc→ASSISTIT), future performance (Vinc→ANIRE). Person matching by alias. Summary recalculation including children count. |
+| `AttendanceSyncStrategy` | Unit | **Context-aware mapping**: past rehearsal (Vinc→ATTENDED, Potser→NO_SHOW, No vinc→DECLINED), future rehearsal (Potser→COMMITTED), past performance (Vinc→ATTENDED), future performance (Vinc→COMMITTED). Person matching by alias. Summary recalculation including children count. |
 | `EventService` | Unit | CRUD, filters (seasonId, eventType, dateRange, search, countsForStatistics), pagination, sorting with whitelist |
 | `AttendanceService` | Unit | List by event with status filter, recalculateSummary correctness |
 | `SeasonService` | Unit | List with event count, active season derivation |
@@ -1287,8 +1287,8 @@ export default [
 | 2 | Seasons created | 2 static seasons with correct dates |
 | 3 | Events assigned to correct season | Based on date cutoff (Sep 6, 2025) |
 | 4 | Attendance imported per event | Persons matched by alias |
-| 5 | Past rehearsal mapping | Vinc→ASSISTIT, Potser→NO_PRESENTAT, No vinc→NO_VAIG |
-| 6 | Future event mapping | Potser→ANIRE (rehearsal), Vinc→ANIRE (performance) |
+| 5 | Past rehearsal mapping | Vinc→ATTENDED, Potser→NO_SHOW, No vinc→DECLINED |
+| 6 | Future event mapping | Potser→COMMITTED (rehearsal), Vinc→COMMITTED (performance) |
 | 7 | attendanceSummary correct | Counts match actual attendance records, children count correct |
 | 8 | Tabs filter correctly | Assajos tab shows only ASSAIG, Actuacions only ACTUACIO |
 | 9 | Season filter works | Changing season filters events |
@@ -1328,7 +1328,7 @@ export default [
 
 This spec sets the foundation for:
 
-- **P3.1**: Event creation from dashboard + Season CRUD + manual attendance correction (tècnica marks NO_PRESENTAT on performances) + broken commitment tracking (ANIRE → NO_VAIG history) + basic statistics (% assistència, baixes última hora, compromisos trencats)
+- **P3.1**: Event creation from dashboard + Season CRUD + manual attendance correction (tècnica marks NO_SHOW on performances) + broken commitment tracking (COMMITTED → DECLINED history) + basic statistics (% assistència, baixes última hora, compromisos trencats)
 - **P3.2**: Check-in system (QR + tablet + manual) with real-time CHECK_IN status
 - **P5**: PWA member attendance response (Aniré / No vaig)
 - **P6**: Figure visualization with check-in status
