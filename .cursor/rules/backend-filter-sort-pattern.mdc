@@ -1,0 +1,82 @@
+---
+description: Reusable pattern for sort whitelist + filter DTOs in backend modules
+globs: "apps/api/**/*.dto.ts,apps/api/**/*.constants.ts"
+alwaysApply: false
+---
+
+# Backend Filter & Sort DTO Pattern
+
+## Sort Constants File (`constants/<entity>-sort.constants.ts`)
+
+Every filterable module needs a sort constants file with this exact structure:
+
+```typescript
+export const ENTITY_SORT_BY_FIELDS = ['field1', 'field2', 'date'] as const;
+export type EntitySortByField = (typeof ENTITY_SORT_BY_FIELDS)[number];
+
+export const ENTITY_SORT_COLUMN_MAP: Record<EntitySortByField, string> = {
+  field1: 'entity.field1',   // TypeORM QB alias.column
+  field2: 'entity.field2',
+  date: 'entity.date',
+};
+
+export const ENTITY_SORT_ORDER_VALUES = ['ASC', 'DESC'] as const;
+export type EntitySortOrder = (typeof ENTITY_SORT_ORDER_VALUES)[number];
+```
+
+## Filter DTO (`dto/<entity>-filter.dto.ts`)
+
+```typescript
+export class EntityFilterDto {
+  // --- Domain filters (enum, boolean, UUID, string) ---
+  @IsEnum(SomeEnum)
+  @IsOptional()
+  type?: SomeEnum;
+
+  @IsString()
+  @IsOptional()
+  search?: string;
+
+  @IsUUID('4')
+  @IsOptional()
+  relatedId?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  @Type(() => Boolean)
+  flag?: boolean;
+
+  // --- Pagination (always same) ---
+  @IsInt() @Min(1) @IsOptional() @Type(() => Number)
+  page?: number = 1;
+
+  @IsInt() @Min(1) @Max(100) @IsOptional() @Type(() => Number)
+  limit?: number = 50;
+
+  // --- Sort (reference constants) ---
+  @IsIn(ENTITY_SORT_BY_FIELDS) @IsOptional()
+  sortBy?: (typeof ENTITY_SORT_BY_FIELDS)[number];
+
+  @IsIn(ENTITY_SORT_ORDER_VALUES) @IsOptional() @Type(() => String)
+  sortOrder?: (typeof ENTITY_SORT_ORDER_VALUES)[number];
+}
+```
+
+## Service `resolveSortColumn()` Method
+
+```typescript
+private resolveSortColumn(sortBy?: string): string {
+  if (sortBy && sortBy in ENTITY_SORT_COLUMN_MAP) {
+    return ENTITY_SORT_COLUMN_MAP[sortBy as EntitySortByField];
+  }
+  return 'entity.defaultField'; // fallback
+}
+```
+
+## Key Rules
+
+- **Pagination defaults**: `page=1`, `limit=50`, max `100`
+- **Sort whitelist**: reject invalid `sortBy` via `@IsIn()` — never trust raw user input in `ORDER BY`
+- **`@Type(() => Number)`**: required on all numeric query params (query string is always string)
+- **Array params**: use `@Transform` to coerce scalar to array (see `positionIds` in PersonFilterDto)
+- **Spec file**: always test valid/invalid `sortBy` and `sortOrder` values

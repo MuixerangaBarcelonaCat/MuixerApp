@@ -251,7 +251,7 @@ Following the existing patterns in `person-sync.strategy.spec.ts`:
 - `**event.service.spec.ts`** — CRUD, all filters (seasonId, eventType, dateRange, search, countsForStatistics), pagination, sort whitelist
 - `**attendance.service.spec.ts`** — List by event, status filter, recalculate summary
 - `**season.service.spec.ts`** — List with event count
-- `**event.controller.spec.ts**` — Endpoint responses, DTO validation, legacyId exclusion
+- `**event.controller.spec.ts`** — Endpoint responses, DTO validation, legacyId exclusion
 - `**event-filter.dto.spec.ts**` — Validation of all filter params, sortBy whitelist
 
 ---

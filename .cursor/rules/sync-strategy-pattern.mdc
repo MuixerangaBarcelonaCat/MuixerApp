@@ -1,0 +1,71 @@
+---
+description: Sync strategy pattern for legacy API data import (Observable + SSE)
+globs: apps/api/**/sync/**/*.ts
+alwaysApply: false
+---
+
+# Sync Strategy Pattern
+
+## Contract
+
+Every sync strategy implements `SyncStrategy.execute(): Observable<SyncEvent>`.
+
+```typescript
+// Observable wrapper — async work inside, subscriber.next() for progress
+execute(): Observable<SyncEvent> {
+  return new Observable<SyncEvent>((subscriber) => {
+    this.runSync(subscriber).catch((error) => {
+      subscriber.next({ type: 'error', entity: 'sync', message: `Fatal error: ${error.message}` });
+      subscriber.complete();
+    });
+  });
+}
+```
+
+## SyncEvent Shape
+
+```typescript
+interface SyncEvent {
+  type: 'start' | 'progress' | 'error' | 'complete';
+  entity: string;       // 'sync', 'person', 'event', 'attendance', etc.
+  current?: number;     // progress index (1-based)
+  total?: number;       // total items
+  message: string;      // Catalan user-facing message
+  detail?: Record<string, unknown>; // counts, error info
+}
+```
+
+## Required Patterns
+
+1. **`isSyncing` guard** — private boolean, checked at start of `runSync()`, reset in `finally`
+2. **Login first** — `await this.legacyApiClient.login()` with try/catch emitting error event
+3. **Per-item progress** — emit `{ type: 'progress', entity, current, total, message }` for each row
+4. **Per-item errors** — catch per row, emit error event, continue (don't abort entire sync)
+5. **Complete event** — always emit with `detail` containing counts (`{ new, updated, errors, ... }`)
+6. **`subscriber.complete()`** — always called (in success path AND in catch)
+7. **`finally { this.isSyncing = false }`** — concurrency guard always released
+
+## SSE Controller Wiring
+
+```typescript
+@Get('entity-name')
+@Sse()
+syncEntityName(): Observable<MessageEvent> {
+  return this.strategy.execute().pipe(
+    map((event: SyncEvent) => ({ data: JSON.stringify(event) })),
+  );
+}
+```
+
+## Merge Rules (re-sync safety)
+
+- Fields owned by MuixerApp (e.g. `countsForStatistics`, `season` assignment) are **NEVER overwritten** on re-sync
+- `legacyId` is the immutable upsert key — match by `legacyId`, never by name/title
+- Strip HTML from legacy text fields before saving
+- Always set `lastSyncedAt = new Date()` on upsert
+
+## Naming
+
+- File: `*-sync.strategy.ts` in `modules/sync/strategies/`
+- Class: `*SyncStrategy` (e.g. `EventSyncStrategy`, `AttendanceSyncStrategy`)
+- Spec: `*-sync.strategy.spec.ts` in same directory

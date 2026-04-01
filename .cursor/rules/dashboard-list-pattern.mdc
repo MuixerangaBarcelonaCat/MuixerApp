@@ -1,0 +1,125 @@
+---
+description: Angular dashboard list component pattern (signals, filters, pagination, sort)
+globs: "apps/dashboard/**/components/*-list*"
+alwaysApply: false
+---
+
+# Dashboard List Component Pattern
+
+Standalone, OnPush, signals-based. Follow `PersonListComponent` structure exactly.
+
+## Signal State Structure
+
+```typescript
+// Search
+searchInput = '';                                   // two-way bound to input
+search = signal('');                                // debounced value
+private searchTimeout: ReturnType<typeof setTimeout> | undefined;
+
+// Filters
+activeFilters = signal<Partial<FilterParams>>({});  // domain-specific filters
+
+// Pagination
+page = signal(1);
+limit = signal(50);
+totalItems = signal(0);
+totalPages = computed(() => Math.ceil(this.totalItems() / this.limit()));
+
+// Sort
+sortBy = signal<string | undefined>(undefined);
+sortOrder = signal<SortOrder | undefined>(undefined);
+
+// Data
+items = signal<Item[]>([]);
+loading = signal(false);
+
+// Columns
+visibleColumnKeys = signal<string[]>(this.loadVisibleColumns());
+visibleColumns = computed(() => ALL_COLUMNS.filter(c => this.visibleColumnKeys().includes(c.key)));
+```
+
+## Column Definitions
+
+```typescript
+const STORAGE_KEY = '<entity>-list-visible-columns';
+
+export interface ColumnDef {
+  key: string;
+  label: string;            // Catalan
+  defaultVisible: boolean;
+  sortField?: string;       // maps to API sortBy; omit if not sortable
+}
+
+export const ALL_COLUMNS: ColumnDef[] = [
+  { key: 'title', label: 'Títol', defaultVisible: true, sortField: 'title' },
+  // ...
+];
+```
+
+## Debounced Search (300ms)
+
+```typescript
+onSearchChange(value: string) {
+  clearTimeout(this.searchTimeout);
+  this.searchTimeout = setTimeout(() => {
+    this.search.set(value);
+    this.page.set(1);      // always reset page on filter change
+    this.loadItems();
+  }, 300);
+}
+```
+
+## Sort Cycling: none → ASC → DESC → none
+
+```typescript
+onSortColumn(col: ColumnDef) {
+  if (!col.sortField) return;
+  const field = col.sortField;
+  if (this.sortBy() !== field) {
+    this.sortBy.set(field);
+    this.sortOrder.set('ASC');
+  } else if (this.sortOrder() === 'ASC') {
+    this.sortOrder.set('DESC');
+  } else {
+    this.sortBy.set(undefined);
+    this.sortOrder.set(undefined);
+  }
+  this.page.set(1);
+  this.loadItems();
+}
+```
+
+## Data Loading
+
+```typescript
+private loadItems() {
+  this.loading.set(true);
+  const sortBy = this.sortBy();
+  const sortOrder = this.sortOrder();
+  const filters: FilterParams = {
+    search: this.search() || undefined,
+    page: this.page(),
+    limit: this.limit(),
+    ...this.activeFilters(),
+    ...(sortBy && sortOrder ? { sortBy, sortOrder } : {}),
+  };
+  this.service.getAll(filters).subscribe({
+    next: (response) => {
+      this.items.set(response.data);
+      this.totalItems.set(response.meta.total);
+      this.loading.set(false);
+    },
+    error: () => this.loading.set(false),
+  });
+}
+```
+
+## Key Rules
+
+- **Reset page to 1** on every filter/sort/limit change
+- **Pagination limits**: whitelist `[25, 50, 100]`
+- **Column visibility**: persist to `localStorage` with `STORAGE_KEY`
+- **Ellipsis pagination**: show 1…[current-2..current+2]…last when totalPages > 12
+- **Row click**: `router.navigate(['/<entity>', id])`
+- **Sync button**: `router.navigate(['/<entity>/sync'])`
+- **UI text**: always Catalan (labels, buttons, messages)
