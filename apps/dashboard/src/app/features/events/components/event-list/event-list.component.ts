@@ -1,11 +1,40 @@
-import { Component, ChangeDetectionStrategy, computed, inject, signal, OnInit } from '@angular/core';
+import {
+  Component,
+  ChangeDetectionStrategy,
+  computed,
+  inject,
+  signal,
+  OnInit,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { EventService } from '../../services/event.service';
 import { SeasonService } from '../../services/season.service';
-import { EventListItem, EventFilterParams, Season, EventType } from '../../models/event.model';
+import {
+  EventListItem,
+  EventFilterParams,
+  Season,
+  EventType,
+  ColumnDef,
+  EventTimeFilter,
+} from '../../models/event.model';
 import { AttendanceSummary } from '@muixer/shared';
+
+export const ALL_EVENT_COLUMNS: ColumnDef[] = [
+  { key: 'date', label: 'Data', defaultVisible: true, sortField: 'date' },
+  { key: 'title', label: 'Títol', defaultVisible: true, sortField: 'title' },
+  { key: 'location', label: 'Lloc', defaultVisible: true, sortField: 'location' },
+  { key: 'startTime', label: 'Hora inici', defaultVisible: true },
+  { key: 'attendance', label: 'Assistència', defaultVisible: true },
+  { key: 'season', label: 'Temporada', defaultVisible: false },
+  { key: 'countsForStatistics', label: 'Estadístiques', defaultVisible: false },
+  { key: 'createdAt', label: 'Creat', defaultVisible: false, sortField: 'createdAt' },
+];
+
+function storageKey(eventType: EventType): string {
+  return `event-list-${eventType}-visible-columns`;
+}
 
 @Component({
   selector: 'app-event-list',
@@ -19,18 +48,21 @@ export class EventListComponent implements OnInit {
   private readonly eventService = inject(EventService);
   private readonly seasonService = inject(SeasonService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   readonly EventType = EventType;
+  readonly ALL_EVENT_COLUMNS = ALL_EVENT_COLUMNS;
   Math = Math;
 
   searchInput = '';
   private searchTimeout: ReturnType<typeof setTimeout> | undefined;
 
-  activeTab = signal<EventType>(EventType.ASSAIG);
+  eventType = signal<EventType>(EventType.ASSAIG);
   selectedSeasonId = signal<string | undefined>(undefined);
+  timeFilter = signal<EventTimeFilter>('all');
   selectedCountsForStats = signal<boolean | undefined>(undefined);
 
-  sortBy = signal<'date' | 'eventType' | 'title' | undefined>(undefined);
+  sortBy = signal<EventFilterParams['sortBy'] | undefined>(undefined);
   sortOrder = signal<'ASC' | 'DESC' | undefined>(undefined);
 
   search = signal('');
@@ -42,7 +74,26 @@ export class EventListComponent implements OnInit {
   seasons = signal<Season[]>([]);
   loading = signal(false);
 
+  visibleColumnKeys = signal<string[]>([]);
+
+  visibleColumns = computed(() => {
+    const keys = this.visibleColumnKeys();
+    return ALL_EVENT_COLUMNS.filter((c) => keys.includes(c.key));
+  });
+
   totalPages = computed(() => Math.ceil(this.totalEvents() / this.limit()));
+
+  pageTitle = computed(() =>
+    this.eventType() === EventType.ASSAIG ? 'Assajos' : 'Actuacions',
+  );
+
+  hasFilterChips = computed(() => {
+    const s = this.search().trim();
+    const tf = this.timeFilter() !== 'all';
+    const season = this.selectedSeasonId() !== undefined;
+    const stats = this.selectedCountsForStats() !== undefined;
+    return Boolean(s || tf || season || stats);
+  });
 
   pageNumbers = computed(() => {
     const total = this.totalPages();
@@ -61,6 +112,11 @@ export class EventListComponent implements OnInit {
   });
 
   ngOnInit() {
+    const type = this.route.snapshot.data['eventType'] as EventType;
+    if (type) {
+      this.eventType.set(type);
+    }
+    this.visibleColumnKeys.set(this.loadVisibleColumns(this.eventType()));
     this.loadSeasons();
     this.loadEvents();
   }
@@ -74,14 +130,14 @@ export class EventListComponent implements OnInit {
     }, 300);
   }
 
-  switchTab(tab: EventType) {
-    this.activeTab.set(tab);
+  onSeasonChange(seasonId: string) {
+    this.selectedSeasonId.set(seasonId || undefined);
     this.page.set(1);
     this.loadEvents();
   }
 
-  onSeasonChange(seasonId: string) {
-    this.selectedSeasonId.set(seasonId || undefined);
+  onTimeFilterChange(value: EventTimeFilter) {
+    this.timeFilter.set(value);
     this.page.set(1);
     this.loadEvents();
   }
@@ -94,29 +150,63 @@ export class EventListComponent implements OnInit {
     this.loadEvents();
   }
 
-  onSortColumn(field: 'date' | 'eventType' | 'title') {
-    const current = this.sortBy();
+  onSortColumn(col: ColumnDef) {
+    if (!col.sortField) return;
+    const field = col.sortField as EventFilterParams['sortBy'];
+    const currentField = this.sortBy();
     const currentOrder = this.sortOrder();
 
-    if (current !== field) {
+    if (currentField !== field) {
       this.sortBy.set(field);
       this.sortOrder.set('ASC');
     } else if (currentOrder === 'ASC') {
       this.sortOrder.set('DESC');
-    } else if (currentOrder === 'DESC') {
+    } else {
       this.sortBy.set(undefined);
       this.sortOrder.set(undefined);
-    } else {
-      this.sortBy.set(field);
-      this.sortOrder.set('ASC');
     }
     this.page.set(1);
     this.loadEvents();
   }
 
-  getSortIcon(field: string): string {
-    if (this.sortBy() !== field) return '↕';
-    return this.sortOrder() === 'ASC' ? '↑' : '↓';
+  sortStateForColumn(col: ColumnDef): 'none' | 'asc' | 'desc' {
+    if (!col.sortField || this.sortBy() !== col.sortField) return 'none';
+    return this.sortOrder() === 'DESC' ? 'desc' : 'asc';
+  }
+
+  clearFilters() {
+    this.searchInput = '';
+    this.search.set('');
+    this.selectedSeasonId.set(undefined);
+    this.timeFilter.set('all');
+    this.selectedCountsForStats.set(undefined);
+    this.page.set(1);
+    this.loadEvents();
+  }
+
+  clearSearchChip() {
+    this.searchInput = '';
+    this.search.set('');
+    this.page.set(1);
+    this.loadEvents();
+  }
+
+  clearTimeFilterChip() {
+    this.timeFilter.set('all');
+    this.page.set(1);
+    this.loadEvents();
+  }
+
+  clearSeasonChip() {
+    this.selectedSeasonId.set(undefined);
+    this.page.set(1);
+    this.loadEvents();
+  }
+
+  clearStatsChip() {
+    this.selectedCountsForStats.set(undefined);
+    this.page.set(1);
+    this.loadEvents();
   }
 
   goToPage(p: number) {
@@ -133,18 +223,33 @@ export class EventListComponent implements OnInit {
     this.goToPage(this.page() + 1);
   }
 
-  onLimitChange(value: number) {
-    this.limit.set(value);
+  onLimitChange(raw: string | number) {
+    const n = typeof raw === 'string' ? Number(raw) : raw;
+    if (![25, 50, 100].includes(n)) return;
+    this.limit.set(n);
     this.page.set(1);
     this.loadEvents();
   }
 
   navigateToEvent(id: string) {
-    this.router.navigate(['/events', id]);
+    const base = this.eventType() === EventType.ASSAIG ? '/rehearsals' : '/performances';
+    this.router.navigate([base, id]);
   }
 
   navigateToSync() {
-    this.router.navigate(['/events', 'sync']);
+    const base = this.eventType() === EventType.ASSAIG ? '/rehearsals' : '/performances';
+    this.router.navigate([base, 'sync']);
+  }
+
+  toggleColumn(key: string) {
+    const current = this.visibleColumnKeys();
+    const updated = current.includes(key) ? current.filter((k) => k !== key) : [...current, key];
+    this.visibleColumnKeys.set(updated);
+    this.saveVisibleColumns(this.eventType(), updated);
+  }
+
+  isColumnVisible(key: string): boolean {
+    return this.visibleColumnKeys().includes(key);
   }
 
   formatDate(dateStr: string): string {
@@ -167,10 +272,35 @@ export class EventListComponent implements OnInit {
     return isPast ? summary.declined + summary.noShow : summary.declined;
   }
 
+  getSeasonLabel(id: string | undefined): string {
+    if (!id) return '';
+    return this.seasons().find((s) => s.id === id)?.name ?? '';
+  }
+
+  timeFilterLabel(tf: EventTimeFilter): string {
+    if (tf === 'upcoming') return 'Propers';
+    if (tf === 'past') return 'Passats';
+    return 'Tots';
+  }
+
   private loadSeasons() {
     this.seasonService.getAll().subscribe({
-      next: (resp) => this.seasons.set(resp.data),
+      next: (resp) => {
+        this.seasons.set(resp.data);
+        this.selectActiveSeason(resp.data);
+        this.loadEvents();
+      },
     });
+  }
+
+  private selectActiveSeason(seasons: Season[]) {
+    const today = new Date().toISOString().slice(0, 10);
+    const active = seasons.find(
+      (s) => s.startDate <= today && s.endDate >= today,
+    );
+    if (active) {
+      this.selectedSeasonId.set(active.id);
+    }
   }
 
   private loadEvents() {
@@ -178,12 +308,14 @@ export class EventListComponent implements OnInit {
 
     const sortBy = this.sortBy();
     const sortOrder = this.sortOrder();
+    const timeFilter = this.timeFilter();
 
     const filters: EventFilterParams = {
-      eventType: this.activeTab(),
+      eventType: this.eventType(),
       search: this.search() || undefined,
       seasonId: this.selectedSeasonId(),
       countsForStatistics: this.selectedCountsForStats(),
+      timeFilter: timeFilter !== 'all' ? timeFilter : undefined,
       page: this.page(),
       limit: this.limit(),
       ...(sortBy && sortOrder ? { sortBy, sortOrder } : {}),
@@ -197,5 +329,19 @@ export class EventListComponent implements OnInit {
       },
       error: () => this.loading.set(false),
     });
+  }
+
+  private loadVisibleColumns(eventType: EventType): string[] {
+    try {
+      const stored = localStorage.getItem(storageKey(eventType));
+      if (stored) return JSON.parse(stored) as string[];
+    } catch {
+      // noop
+    }
+    return ALL_EVENT_COLUMNS.filter((c) => c.defaultVisible).map((c) => c.key);
+  }
+
+  private saveVisibleColumns(eventType: EventType, keys: string[]) {
+    localStorage.setItem(storageKey(eventType), JSON.stringify(keys));
   }
 }

@@ -3,6 +3,15 @@ import { EventType, AttendanceStatus, AttendanceSummary, RehearsalMetadata, Perf
 export { EventType, AttendanceStatus };
 export type { AttendanceSummary };
 
+export interface ColumnDef {
+  key: string;
+  label: string;
+  defaultVisible: boolean;
+  sortField?: string;
+}
+
+export type EventTimeFilter = 'upcoming' | 'past' | 'all';
+
 export interface SeasonRef {
   id: string;
   name: string;
@@ -44,8 +53,9 @@ export interface EventFilterParams {
   dateTo?: string;
   search?: string;
   countsForStatistics?: boolean;
-  sortBy?: 'date' | 'eventType' | 'title';
+  sortBy?: 'date' | 'title' | 'location' | 'startTime' | 'createdAt' | 'chronological';
   sortOrder?: 'ASC' | 'DESC';
+  timeFilter?: EventTimeFilter;
   page?: number;
   limit?: number;
 }

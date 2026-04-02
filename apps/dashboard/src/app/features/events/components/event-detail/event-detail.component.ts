@@ -22,6 +22,11 @@ type SyncState = 'idle' | 'running' | 'complete' | 'error';
 export class EventDetailComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+
+  private get listBase(): string {
+    const url = this.router.url;
+    return url.startsWith('/performances') ? '/performances' : '/rehearsals';
+  }
   private readonly eventService = inject(EventService);
   private readonly attendanceService = inject(AttendanceService);
 
@@ -95,7 +100,7 @@ export class EventDetailComponent implements OnInit, OnDestroy {
       },
       error: () => {
         this.loading.set(false);
-        this.router.navigate(['/events']);
+        this.router.navigate([this.listBase]);
       },
     });
   }
@@ -212,7 +217,7 @@ export class EventDetailComponent implements OnInit, OnDestroy {
   }
 
   goBack() {
-    this.router.navigate(['/events']);
+    this.router.navigate([this.listBase]);
   }
 
   formatDate(dateStr: string): string {

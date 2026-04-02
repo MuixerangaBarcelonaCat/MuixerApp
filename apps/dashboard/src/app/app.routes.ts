@@ -8,8 +8,13 @@ export const appRoutes: Route[] = [
       import('./features/persons/persons.routes').then((m) => m.personsRoutes),
   },
   {
-    path: 'events',
+    path: 'rehearsals',
     loadChildren: () =>
-      import('./features/events/events.routes').then((m) => m.eventsRoutes),
+      import('./features/events/events.routes').then((m) => m.rehearsalRoutes),
+  },
+  {
+    path: 'performances',
+    loadChildren: () =>
+      import('./features/events/events.routes').then((m) => m.performanceRoutes),
   },
 ];

@@ -1,1 +1,76 @@
-/* EventListComponent — Tailwind/DaisyUI handles all styling */
+:host {
+  display: block;
+}
+
+/* Scroll area: horizontal + vertical with sticky header / first column */
+.event-table-wrap {
+  max-height: min(70vh, 52rem);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.event-table {
+  width: max(100%, 600px);
+}
+
+/* Sticky thead */
+.event-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background-color: var(--fallback-b1, oklch(var(--b1)));
+  box-shadow: 0 1px 0 0 color-mix(in oklab, var(--fallback-bc, oklch(var(--bc))) 15%, transparent);
+}
+
+.event-table thead th.event-th {
+  vertical-align: bottom;
+}
+
+/* Sticky first column */
+.event-table thead th:first-child,
+.event-table tbody td.event-col-first {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background-color: var(--fallback-b1, oklch(var(--b1)));
+}
+
+.event-table thead th:first-child {
+  z-index: 4;
+}
+
+.event-table tbody tr:hover td.event-col-first {
+  background-color: color-mix(in oklab, var(--fallback-b2, oklch(var(--b2))) 60%, var(--fallback-b1, oklch(var(--b1))));
+}
+
+/* Past event rows — dimmed */
+.event-table tbody tr.event-row-past {
+  opacity: 0.65;
+}
+
+.event-table tbody tr.event-row-past:hover {
+  opacity: 1;
+}
+
+/* Separator row between upcoming and past */
+.event-table tbody tr.event-separator td {
+  border-top: 2px dashed color-mix(in oklab, var(--fallback-bc, oklch(var(--bc))) 15%, transparent);
+}
+
+/* Row "open" hint on last visible cell */
+.event-table tbody tr td:last-child {
+  position: relative;
+  padding-right: 1.5rem;
+}
+
+.event-table tbody tr:hover td:last-child::after {
+  content: '›';
+  position: absolute;
+  right: 0.35rem;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0.45;
+  font-size: 1.15rem;
+  line-height: 1;
+  pointer-events: none;
+}

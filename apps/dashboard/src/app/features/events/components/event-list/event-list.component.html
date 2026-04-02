@@ -1,178 +1,399 @@
-<div class="p-4 lg:p-6">
+<div class="space-y-4">
+
   <!-- Header -->
-  <div class="flex items-center justify-between mb-4">
-    <h1 class="text-2xl font-bold">Esdeveniments</h1>
-    <button class="btn btn-primary btn-sm gap-2" (click)="navigateToSync()">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+  <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+    <div>
+      <div class="flex flex-wrap items-baseline gap-2">
+        <h2 class="text-2xl font-bold">{{ pageTitle() }}</h2>
+        @if (!loading()) {
+          <span class="badge badge-lg badge-neutral font-normal">{{ totalEvents() }}</span>
+        }
+      </div>
+      <p class="text-sm text-base-content/70 mt-1">
+        {{ eventType() === EventType.ASSAIG ? 'Gestió dels assajos de la colla' : 'Gestió de les actuacions de la colla' }}
+      </p>
+    </div>
+    <button type="button" class="btn btn-primary min-h-[44px]" (click)="navigateToSync()">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
       </svg>
       Sincronitzar
     </button>
   </div>
 
-  <!-- Filters row -->
-  <div class="flex flex-wrap gap-3 mb-4">
-    <!-- Season filter -->
-    <select
-      class="select select-bordered select-sm"
-      [value]="selectedSeasonId() ?? ''"
-      (change)="onSeasonChange($any($event.target).value)"
-    >
-      <option value="">Totes les temporades</option>
-      @for (season of seasons(); track season.id) {
-        <option [value]="season.id">{{ season.name }}</option>
-      }
-    </select>
+  <!-- Filters card -->
+  <div class="card bg-base-100 shadow">
+    <div class="card-body gap-4">
+      <div class="flex flex-col xl:flex-row flex-wrap gap-4 xl:items-end">
 
-    <!-- Statistics filter -->
-    <select
-      class="select select-bordered select-sm"
-      (change)="onCountsForStatsChange($any($event.target).value)"
-    >
-      <option value="">Estadístiques: Tots</option>
-      <option value="true">Comptabilitzen</option>
-      <option value="false">No comptabilitzen</option>
-    </select>
+        <!-- Search -->
+        <div class="form-control flex-1 min-w-[min(100%,280px)]">
+          <label class="label pt-0" for="event-search">
+            <span class="label-text font-medium">Cerca</span>
+          </label>
+          <div class="relative">
+            <input
+              id="event-search"
+              type="search"
+              autocomplete="off"
+              placeholder="Títol o lloc..."
+              class="input input-bordered input-md w-full pl-10 min-h-[44px]"
+              [(ngModel)]="searchInput"
+              (ngModelChange)="onSearchChange($event)"
+            />
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 absolute left-3 top-1/2 -translate-y-1/2 text-base-content/40 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+        </div>
 
-    <!-- Search -->
-    <label class="input input-sm input-bordered flex items-center gap-2 flex-1 min-w-[200px]">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-      </svg>
-      <input
-        type="text"
-        class="grow"
-        placeholder="Cerca per títol o lloc..."
-        [(ngModel)]="searchInput"
-        (ngModelChange)="onSearchChange($event)"
-      />
-    </label>
-  </div>
+        <!-- Season filter -->
+        <div class="form-control w-full md:max-w-xs">
+          <label class="label pt-0">
+            <span class="label-text font-medium">Temporada</span>
+          </label>
+          <select
+            class="select select-bordered min-h-[44px]"
+            [value]="selectedSeasonId() ?? ''"
+            (change)="onSeasonChange($any($event.target).value)"
+            aria-label="Filtrar per temporada"
+          >
+            <option value="">Totes les temporades</option>
+            @for (season of seasons(); track season.id) {
+              <option [value]="season.id">{{ season.name }}</option>
+            }
+          </select>
+        </div>
 
-  <!-- Tabs -->
-  <div role="tablist" class="tabs tabs-bordered mb-4">
-    <button
-      role="tab"
-      class="tab"
-      [class.tab-active]="activeTab() === EventType.ASSAIG"
-      (click)="switchTab(EventType.ASSAIG)"
-    >
-      Assajos
-      @if (activeTab() === EventType.ASSAIG && totalEvents() > 0) {
-        <span class="badge badge-sm ml-2">{{ totalEvents() }}</span>
-      }
-    </button>
-    <button
-      role="tab"
-      class="tab"
-      [class.tab-active]="activeTab() === EventType.ACTUACIO"
-      (click)="switchTab(EventType.ACTUACIO)"
-    >
-      Actuacions
-      @if (activeTab() === EventType.ACTUACIO && totalEvents() > 0) {
-        <span class="badge badge-sm ml-2">{{ totalEvents() }}</span>
-      }
-    </button>
-  </div>
+        <!-- Quick time filter + stats filter + clear -->
+        <div class="flex flex-wrap gap-3 items-end">
+          <!-- Time filter buttons -->
+          <div class="form-control">
+            <label class="label pt-0">
+              <span class="label-text font-medium">Moment</span>
+            </label>
+            <div class="join">
+              <button
+                type="button"
+                class="join-item btn btn-sm min-h-[44px]"
+                [class.btn-primary]="timeFilter() === 'all'"
+                [class.btn-outline]="timeFilter() !== 'all'"
+                (click)="onTimeFilterChange('all')"
+              >Tots</button>
+              <button
+                type="button"
+                class="join-item btn btn-sm min-h-[44px]"
+                [class.btn-primary]="timeFilter() === 'upcoming'"
+                [class.btn-outline]="timeFilter() !== 'upcoming'"
+                (click)="onTimeFilterChange('upcoming')"
+              >Propers</button>
+              <button
+                type="button"
+                class="join-item btn btn-sm min-h-[44px]"
+                [class.btn-primary]="timeFilter() === 'past'"
+                [class.btn-outline]="timeFilter() !== 'past'"
+                (click)="onTimeFilterChange('past')"
+              >Passats</button>
+            </div>
+          </div>
 
-  <!-- Table -->
-  <div class="overflow-x-auto">
-    <table class="table table-zebra table-sm">
-      <thead>
-        <tr>
-          <th>
-            <button class="flex items-center gap-1 hover:text-primary" (click)="onSortColumn('date')">
-              Data {{ getSortIcon('date') }}
-            </button>
-          </th>
-          <th>
-            <button class="flex items-center gap-1 hover:text-primary" (click)="onSortColumn('title')">
-              Títol {{ getSortIcon('title') }}
-            </button>
-          </th>
-          <th>Lloc</th>
-          <th class="text-center" title="Assistits / Confirmats">
-            @if (activeTab() === EventType.ASSAIG) { ✅ } @else { 🟢 }
-          </th>
-          <th class="text-center" title="Declinen / No presentats">🔴</th>
-          <th class="text-center" title="Pendents">⚪</th>
-          <th class="text-center" title="Xicalla">👶</th>
-          <th>Temporada</th>
-        </tr>
-      </thead>
-      <tbody>
-        @if (loading()) {
-          @for (i of [1,2,3,4,5]; track i) {
-            <tr>
-              <td colspan="8">
-                <div class="skeleton h-6 w-full"></div>
-              </td>
-            </tr>
-          }
-        } @else if (events().length === 0) {
-          <tr>
-            <td colspan="8" class="text-center text-base-content/50 py-8">
-              Cap esdeveniment trobat
-            </td>
-          </tr>
-        } @else {
-          @for (event of events(); track event.id) {
-            <tr
-              class="hover cursor-pointer"
-              (click)="navigateToEvent(event.id)"
+          <!-- Stats filter -->
+          <div class="form-control">
+            <label class="label pt-0">
+              <span class="label-text font-medium">Estadístiques</span>
+            </label>
+            <select
+              class="select select-bordered select-sm min-h-[44px]"
+              (change)="onCountsForStatsChange($any($event.target).value)"
+              aria-label="Filtrar per estadístiques"
             >
-              <td class="whitespace-nowrap text-sm">{{ formatDate(event.date) }}</td>
-              <td class="font-medium">
-                {{ event.title }}
-                @if (!event.countsForStatistics) {
-                  <span class="badge badge-ghost badge-xs ml-1">Extra</span>
-                }
-              </td>
-              <td class="text-sm text-base-content/70 max-w-[160px] truncate">{{ event.location ?? '—' }}</td>
-              <td class="text-center text-sm font-mono">
-                {{ getConfirmedCount(event.attendanceSummary, isEventPast(event.date, event.startTime)) }}
-              </td>
-              <td class="text-center text-sm font-mono">
-                {{ getDeclinedCount(event.attendanceSummary, isEventPast(event.date, event.startTime)) }}
-              </td>
-              <td class="text-center text-sm font-mono">{{ event.attendanceSummary.pending }}</td>
-              <td class="text-center text-sm font-mono">{{ event.attendanceSummary.children }}</td>
-              <td class="text-sm text-base-content/60 whitespace-nowrap">{{ event.season?.name ?? '—' }}</td>
-            </tr>
-          }
-        }
-      </tbody>
-    </table>
-  </div>
+              <option value="">Totes</option>
+              <option value="true">Comptabilitzen</option>
+              <option value="false">No comptabilitzen</option>
+            </select>
+          </div>
 
-  <!-- Pagination -->
-  @if (totalEvents() > 0) {
-    <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
-      <div class="flex items-center gap-2 text-sm text-base-content/70">
-        <span>Mostrant {{ (page() - 1) * limit() + 1 }}–{{ Math.min(page() * limit(), totalEvents()) }} de {{ totalEvents() }}</span>
-        <select class="select select-xs select-bordered" [value]="limit()" (change)="onLimitChange(+$any($event.target).value)">
-          <option value="25">25</option>
-          <option value="50">50</option>
-          <option value="100">100</option>
-        </select>
-        <span>per pàgina</span>
+          <button type="button" class="btn btn-ghost btn-sm min-h-[44px]" (click)="clearFilters()">
+            Netejar filtres
+          </button>
+        </div>
       </div>
 
-      <div class="join">
-        <button class="join-item btn btn-xs" [disabled]="page() <= 1" (click)="previousPage()">←</button>
-        @for (p of pageNumbers(); track $index) {
-          @if (p === 'ellipsis') {
-            <button class="join-item btn btn-xs btn-disabled">…</button>
-          } @else {
-            <button
-              class="join-item btn btn-xs"
-              [class.btn-active]="p === page()"
-              (click)="goToPage(+p)"
-            >{{ p }}</button>
-          }
+      <!-- Column selector (collapsed by default) -->
+      <div class="collapse collapse-arrow bg-base-200/50 rounded-box border border-base-200">
+        <input type="checkbox" aria-label="Obrir selector de columnes" />
+        <div class="collapse-title text-sm font-medium py-3 min-h-0">
+          Columnes visibles ({{ visibleColumns().length }} de {{ ALL_EVENT_COLUMNS.length }})
+        </div>
+        <div class="collapse-content">
+          <div class="flex flex-wrap gap-1.5 pb-2">
+            @for (col of ALL_EVENT_COLUMNS; track col.key) {
+              <button
+                type="button"
+                class="btn btn-xs gap-1"
+                [class.btn-primary]="isColumnVisible(col.key)"
+                [class.btn-outline]="!isColumnVisible(col.key)"
+                (click)="toggleColumn(col.key)"
+              >
+                {{ col.label }}
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Active filter chips -->
+  @if (hasFilterChips()) {
+    <div class="flex flex-wrap items-center gap-2" aria-label="Filtres actius">
+      @if (search().trim()) {
+        <span class="badge badge-outline gap-1 pr-1">
+          Cerca: «{{ search() }}»
+          <button type="button" class="btn btn-ghost btn-xs btn-circle" (click)="clearSearchChip()" aria-label="Treure la cerca">✕</button>
+        </span>
+      }
+      @if (timeFilter() !== 'all') {
+        <span class="badge badge-outline gap-1 pr-1">
+          {{ timeFilterLabel(timeFilter()) }}
+          <button type="button" class="btn btn-ghost btn-xs btn-circle" (click)="clearTimeFilterChip()" aria-label="Treure el filtre de temps">✕</button>
+        </span>
+      }
+      @if (selectedSeasonId()) {
+        <span class="badge badge-outline gap-1 pr-1">
+          Temporada: {{ getSeasonLabel(selectedSeasonId()) }}
+          <button type="button" class="btn btn-ghost btn-xs btn-circle" (click)="clearSeasonChip()" aria-label="Treure el filtre de temporada">✕</button>
+        </span>
+      }
+      @if (selectedCountsForStats() !== undefined) {
+        <span class="badge badge-outline gap-1 pr-1">
+          {{ selectedCountsForStats() ? 'Comptabilitzen' : 'No comptabilitzen' }}
+          <button type="button" class="btn btn-ghost btn-xs btn-circle" (click)="clearStatsChip()" aria-label="Treure el filtre d'estadístiques">✕</button>
+        </span>
+      }
+    </div>
+  }
+
+  <!-- Loading skeleton -->
+  @if (loading()) {
+    <div class="card bg-base-100 shadow">
+      <div class="card-body space-y-3">
+        <div class="skeleton h-8 w-1/3 max-w-xs"></div>
+        @for (i of [1, 2, 3, 4, 5]; track i) {
+          <div class="skeleton h-10 w-full"></div>
         }
-        <button class="join-item btn btn-xs" [disabled]="page() >= totalPages()" (click)="nextPage()">→</button>
+        <p class="text-sm text-base-content/60">Carregant {{ pageTitle().toLowerCase() }}…</p>
       </div>
     </div>
   }
+
+  <!-- Table -->
+  @if (!loading() && events().length > 0) {
+    <div class="card bg-base-100 shadow overflow-x-auto event-table-wrap">
+      <table class="table table-sm event-table">
+        <thead>
+          <tr>
+            @for (col of visibleColumns(); track col.key) {
+              <th scope="col" class="event-th whitespace-nowrap">
+                @if (col.sortField) {
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-xs font-semibold normal-case h-auto min-h-0 py-1 px-1 gap-1 -ml-1"
+                    (click)="onSortColumn(col)"
+                  >
+                    <span>{{ col.label }}</span>
+                    @if (sortStateForColumn(col) === 'asc') {
+                      <span class="text-primary" aria-hidden="true">▲</span>
+                    } @else if (sortStateForColumn(col) === 'desc') {
+                      <span class="text-primary" aria-hidden="true">▼</span>
+                    } @else {
+                      <span class="opacity-30" aria-hidden="true">⇅</span>
+                    }
+                  </button>
+                } @else {
+                  {{ col.label }}
+                }
+              </th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (event of events(); track event.id; let i = $index) {
+            @let isPast = isEventPast(event.date, event.startTime);
+            @let prevEvent = events()[i - 1];
+            @let isSeparator = isPast && i > 0 && !isEventPast(prevEvent.date, prevEvent.startTime);
+
+            @if (isSeparator) {
+              <tr class="event-separator">
+                <td [attr.colspan]="visibleColumns().length" class="py-1 px-3 bg-base-200/60 text-xs font-semibold text-base-content/50 uppercase tracking-wider">
+                  Esdeveniments passats
+                </td>
+              </tr>
+            }
+
+            <tr
+              class="hover:bg-base-200/60 cursor-pointer transition-colors duration-150"
+              [class.event-row-past]="isPast"
+              [attr.title]="'Fes clic per veure el detall'"
+              (click)="navigateToEvent(event.id)"
+              (keydown.enter)="navigateToEvent(event.id)"
+              (keydown.space)="$event.preventDefault(); navigateToEvent(event.id)"
+              tabindex="0"
+              role="link"
+            >
+              @for (col of visibleColumns(); track col.key) {
+                @switch (col.key) {
+                  @case ('date') {
+                    <td class="whitespace-nowrap text-sm font-medium event-col-first">
+                      {{ formatDate(event.date) }}
+                      @if (isPast) {
+                        <span class="badge badge-ghost badge-xs ml-1 opacity-60">Passat</span>
+                      }
+                    </td>
+                  }
+                  @case ('title') {
+                    <td class="font-medium">
+                      {{ event.title }}
+                      @if (!event.countsForStatistics) {
+                        <span class="badge badge-ghost badge-xs ml-1">Extra</span>
+                      }
+                    </td>
+                  }
+                  @case ('location') {
+                    <td class="text-sm text-base-content/70 max-w-[200px] truncate whitespace-nowrap">
+                      {{ event.location ?? '—' }}
+                    </td>
+                  }
+                  @case ('startTime') {
+                    <td class="text-sm whitespace-nowrap">{{ event.startTime ?? '—' }}</td>
+                  }
+                  @case ('attendance') {
+                    <td>
+                      <div class="flex items-center gap-1.5 text-xs font-mono">
+                        <span class="badge badge-sm badge-success gap-1" [title]="isPast ? 'Assistits' : 'Confirmats'">
+                          {{ getConfirmedCount(event.attendanceSummary, isPast) }}
+                        </span>
+                        <span class="badge badge-sm badge-error gap-1" [title]="isPast ? 'Declinats / No presentats' : 'Declinats'">
+                          {{ getDeclinedCount(event.attendanceSummary, isPast) }}
+                        </span>
+                        <span class="badge badge-sm badge-ghost gap-1" title="Pendents">
+                          {{ event.attendanceSummary.pending }}
+                        </span>
+                        @if (event.attendanceSummary.children > 0) {
+                          <span class="text-base-content/50" title="Xicalla">·{{ event.attendanceSummary.children }}x</span>
+                        }
+                      </div>
+                    </td>
+                  }
+                  @case ('season') {
+                    <td class="text-sm text-base-content/60 whitespace-nowrap">
+                      {{ event.season?.name ?? '—' }}
+                    </td>
+                  }
+                  @case ('countsForStatistics') {
+                    <td class="text-sm whitespace-nowrap">
+                      <span
+                        class="badge badge-sm"
+                        [class.badge-success]="event.countsForStatistics"
+                        [class.badge-ghost]="!event.countsForStatistics"
+                      >
+                        {{ event.countsForStatistics ? 'Sí' : 'No' }}
+                      </span>
+                    </td>
+                  }
+                  @case ('createdAt') {
+                    <td class="text-sm whitespace-nowrap text-base-content/50">
+                      {{ formatDate(event.date) }}
+                    </td>
+                  }
+                }
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <!-- Empty state -->
+  @if (!loading() && events().length === 0) {
+    <div class="card bg-base-100 shadow">
+      <div class="card-body items-center text-center gap-2 py-10">
+        <p class="text-lg font-medium">Cap {{ eventType() === EventType.ASSAIG ? 'assaig' : 'actuació' }} trobat/da</p>
+        <p class="text-sm text-base-content/70 max-w-md">Prova d'ajustar la cerca o els filtres, o neteja'ls per veure-ho tot.</p>
+        <button type="button" class="btn btn-outline btn-sm mt-2" (click)="clearFilters()">Netejar filtres</button>
+      </div>
+    </div>
+  }
+
+  <!-- Pagination -->
+  @if (!loading() && totalEvents() > 0) {
+    <div class="card bg-base-100 shadow">
+      <div class="card-body py-4">
+        <div class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
+          <div class="flex flex-col sm:flex-row sm:items-center gap-3 text-sm text-base-content/80">
+            <span>
+              Mostrant <strong>{{ (page() - 1) * limit() + 1 }}</strong> – <strong>{{ Math.min(page() * limit(), totalEvents()) }}</strong>
+              de <strong>{{ totalEvents() }}</strong>
+            </span>
+            <label class="flex items-center gap-2">
+              <span class="whitespace-nowrap">Per pàgina</span>
+              <select
+                class="select select-bordered select-sm min-h-9"
+                [ngModel]="limit()"
+                (ngModelChange)="onLimitChange($event)"
+                aria-label="Resultats per pàgina"
+              >
+                <option [ngValue]="25">25</option>
+                <option [ngValue]="50">50</option>
+                <option [ngValue]="100">100</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="join justify-center lg:justify-end flex-wrap">
+            <button
+              type="button"
+              class="join-item btn btn-sm min-h-9"
+              [disabled]="page() === 1"
+              (click)="previousPage()"
+              aria-label="Pàgina anterior"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+
+            @for (pageNum of pageNumbers(); track $index) {
+              @if (pageNum === 'ellipsis') {
+                <button type="button" class="join-item btn btn-sm btn-disabled min-h-9" disabled aria-hidden="true">…</button>
+              } @else {
+                <button
+                  type="button"
+                  class="join-item btn btn-sm min-h-9"
+                  [class.btn-active]="pageNum === page()"
+                  (click)="goToPage(+pageNum)"
+                  [attr.aria-label]="'Anar a pàgina ' + pageNum"
+                  [attr.aria-current]="pageNum === page() ? 'page' : null"
+                >{{ pageNum }}</button>
+              }
+            }
+
+            <button
+              type="button"
+              class="join-item btn btn-sm min-h-9"
+              [disabled]="page() === totalPages()"
+              (click)="nextPage()"
+              aria-label="Pàgina següent"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
 </div>

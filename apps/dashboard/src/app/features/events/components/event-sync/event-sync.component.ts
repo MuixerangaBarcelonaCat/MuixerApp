@@ -10,8 +10,8 @@ import {
   AfterViewInit,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
-import { SyncEvent } from '../../models/event.model';
+import { Router, ActivatedRoute } from '@angular/router';
+import { SyncEvent, EventType } from '../../models/event.model';
 import { environment } from '../../../../../environments/environment';
 
 type SyncState = 'idle' | 'running' | 'complete' | 'error';
@@ -26,6 +26,12 @@ type SyncState = 'idle' | 'running' | 'complete' | 'error';
 })
 export class EventSyncComponent implements AfterViewInit {
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+
+  private get listBase(): string {
+    const type = this.route.snapshot.data['eventType'] as EventType | undefined;
+    return type === EventType.ACTUACIO ? '/performances' : '/rehearsals';
+  }
 
   @ViewChild('logContainer') logContainer!: ElementRef<HTMLDivElement>;
 
@@ -111,11 +117,11 @@ export class EventSyncComponent implements AfterViewInit {
   }
 
   goBack() {
-    this.router.navigate(['/events']);
+    this.router.navigate([this.listBase]);
   }
 
   goBackAndReload() {
-    this.router.navigate(['/events']).then(() => window.location.reload());
+    this.router.navigate([this.listBase]).then(() => window.location.reload());
   }
 
   getEventColorClass(type: string): string {

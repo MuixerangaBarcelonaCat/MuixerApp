@@ -12,7 +12,11 @@ import {
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { EventType } from '@muixer/shared';
-import { EVENT_SORT_BY_FIELDS, EVENT_SORT_ORDER_VALUES } from '../constants/event-sort.constants';
+import {
+  EVENT_SORT_BY_FIELDS,
+  EVENT_SORT_ORDER_VALUES,
+  EVENT_TIME_FILTER_VALUES,
+} from '../constants/event-sort.constants';
 
 export class EventFilterDto {
   @IsOptional()
@@ -64,4 +68,8 @@ export class EventFilterDto {
   @Max(100)
   @Type(() => Number)
   limit?: number = 25;
+
+  @IsOptional()
+  @IsIn(EVENT_TIME_FILTER_VALUES)
+  timeFilter?: (typeof EVENT_TIME_FILTER_VALUES)[number];
 }

@@ -26,10 +26,12 @@ describe('EventFilterDto', () => {
     expect(errors.some((e) => e.property === 'eventType')).toBe(true);
   });
 
-  it('accepts valid sortBy field', async () => {
-    const dto = valid({ sortBy: 'date' });
-    const errors = await validate(dto);
-    expect(errors).toHaveLength(0);
+  it('accepts valid sortBy fields', async () => {
+    for (const field of ['date', 'title', 'location', 'startTime', 'createdAt', 'chronological']) {
+      const dto = valid({ sortBy: field as never });
+      const errors = await validate(dto);
+      expect(errors).toHaveLength(0);
+    }
   });
 
   it('rejects invalid sortBy field (SQL injection protection)', async () => {
@@ -60,5 +62,19 @@ describe('EventFilterDto', () => {
     const dto = valid({ limit: 200 });
     const errors = await validate(dto);
     expect(errors.some((e) => e.property === 'limit')).toBe(true);
+  });
+
+  it('accepts valid timeFilter values', async () => {
+    for (const tf of ['upcoming', 'past', 'all']) {
+      const dto = valid({ timeFilter: tf as never });
+      const errors = await validate(dto);
+      expect(errors).toHaveLength(0);
+    }
+  });
+
+  it('rejects invalid timeFilter value', async () => {
+    const dto = valid({ timeFilter: 'invalid' as never });
+    const errors = await validate(dto);
+    expect(errors.some((e) => e.property === 'timeFilter')).toBe(true);
   });
 });

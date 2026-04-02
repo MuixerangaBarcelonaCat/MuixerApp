@@ -42,6 +42,7 @@ describe('EventService', () => {
       leftJoinAndSelect: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
+      addOrderBy: jest.fn().mockReturnThis(),
       skip: jest.fn().mockReturnThis(),
       take: jest.fn().mockReturnThis(),
       getCount: jest.fn().mockResolvedValue(0),
@@ -116,14 +117,47 @@ describe('EventService', () => {
       );
     });
 
-    it('defaults to DESC sort by date', async () => {
+    it('defaults to chronological smart sort when no sortBy given', async () => {
       await service.findAll({});
-      expect(eventQb.orderBy).toHaveBeenCalledWith('event.date', 'DESC');
+      expect(eventQb.orderBy).toHaveBeenCalledWith(
+        expect.stringContaining('CASE WHEN event.date >= CURRENT_DATE'),
+        'ASC',
+      );
+      expect(eventQb.addOrderBy).toHaveBeenCalledTimes(2);
     });
 
-    it('respects sortBy whitelist', async () => {
+    it('uses chronological sort when sortBy=chronological', async () => {
+      await service.findAll({ sortBy: 'chronological' });
+      expect(eventQb.orderBy).toHaveBeenCalledWith(
+        expect.stringContaining('CASE WHEN'),
+        'ASC',
+      );
+    });
+
+    it('respects sortBy whitelist — title ASC', async () => {
       await service.findAll({ sortBy: 'title', sortOrder: 'ASC' });
       expect(eventQb.orderBy).toHaveBeenCalledWith('event.title', 'ASC');
+    });
+
+    it('respects sortBy location', async () => {
+      await service.findAll({ sortBy: 'location', sortOrder: 'DESC' });
+      expect(eventQb.orderBy).toHaveBeenCalledWith('event.location', 'DESC');
+    });
+
+    it('applies timeFilter=upcoming', async () => {
+      await service.findAll({ timeFilter: 'upcoming' });
+      expect(eventQb.andWhere).toHaveBeenCalledWith('event.date >= CURRENT_DATE');
+    });
+
+    it('applies timeFilter=past', async () => {
+      await service.findAll({ timeFilter: 'past' });
+      expect(eventQb.andWhere).toHaveBeenCalledWith('event.date < CURRENT_DATE');
+    });
+
+    it('does not add date filter when timeFilter=all', async () => {
+      await service.findAll({ timeFilter: 'all' });
+      const calls: string[] = eventQb.andWhere.mock.calls.map((c: unknown[]) => c[0] as string);
+      expect(calls.some((c) => c.includes('CURRENT_DATE'))).toBe(false);
     });
   });
 
@@ -141,7 +175,7 @@ describe('EventService', () => {
       await expect(svc.findOne('missing-id')).rejects.toThrow(NotFoundException);
     });
 
-    it('returns detail item without legacyId', async () => {
+    it('returns detail item with legacyId included', async () => {
       const event = makeEvent();
       const eventRepo = { findOne: jest.fn().mockResolvedValue(event) };
       const mod = await Test.createTestingModule({
@@ -154,7 +188,7 @@ describe('EventService', () => {
       const svc = mod.get<EventService>(EventService);
       const result = await svc.findOne('evt-uuid');
       expect(result.id).toBe('evt-uuid');
-      expect((result as unknown as Record<string, unknown>)['legacyId']).toBeUndefined();
+      expect((result as unknown as Record<string, unknown>)['legacyId']).toBe('1');
     });
   });
 

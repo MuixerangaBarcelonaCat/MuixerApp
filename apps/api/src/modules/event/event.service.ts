@@ -10,6 +10,7 @@ import {
   type EventSortByField,
   type EventSortOrder,
 } from './constants/event-sort.constants';
+import { SelectQueryBuilder } from 'typeorm';
 
 @Injectable()
 export class EventService {
@@ -30,12 +31,10 @@ export class EventService {
       countsForStatistics,
       sortBy,
       sortOrder,
+      timeFilter,
       page = 1,
       limit = 25,
     } = filters;
-
-    const orderColumn = this.resolveSortColumn(sortBy);
-    const orderDirection: EventSortOrder = sortOrder === 'ASC' ? 'ASC' : 'DESC';
 
     const qb = this.eventRepository
       .createQueryBuilder('event')
@@ -47,6 +46,12 @@ export class EventService {
 
     if (eventType) {
       qb.andWhere('event.eventType = :eventType', { eventType });
+    }
+
+    if (timeFilter === 'upcoming') {
+      qb.andWhere('event.date >= CURRENT_DATE');
+    } else if (timeFilter === 'past') {
+      qb.andWhere('event.date < CURRENT_DATE');
     }
 
     if (dateFrom) {
@@ -70,8 +75,9 @@ export class EventService {
 
     const total = await qb.getCount();
 
+    this.applySort(qb, sortBy, sortOrder);
+
     const events = await qb
-      .orderBy(orderColumn, orderDirection)
       .skip((page - 1) * limit)
       .take(limit)
       .getMany();
@@ -118,9 +124,26 @@ export class EventService {
     return toDetailItem(saved);
   }
 
-  private resolveSortColumn(sortBy: EventSortByField | undefined): string {
-    if (!sortBy) return EVENT_SORT_COLUMN_MAP.date;
-    return EVENT_SORT_COLUMN_MAP[sortBy] ?? EVENT_SORT_COLUMN_MAP.date;
+  private applySort(
+    qb: SelectQueryBuilder<Event>,
+    sortBy: EventSortByField | undefined,
+    sortOrder: EventSortOrder | undefined,
+  ): void {
+    const direction: EventSortOrder = sortOrder === 'ASC' ? 'ASC' : 'DESC';
+
+    if (!sortBy || sortBy === 'chronological') {
+      // Smart chronological: upcoming first (nearest date), then past (most recent first)
+      qb.orderBy(
+        `CASE WHEN event.date >= CURRENT_DATE THEN 0 ELSE 1 END`,
+        'ASC',
+      )
+        .addOrderBy(`CASE WHEN event.date >= CURRENT_DATE THEN event.date END`, 'ASC', 'NULLS LAST')
+        .addOrderBy(`CASE WHEN event.date < CURRENT_DATE THEN event.date END`, 'DESC', 'NULLS LAST');
+      return;
+    }
+
+    const column = EVENT_SORT_COLUMN_MAP[sortBy] ?? 'event.date';
+    qb.orderBy(column, direction);
   }
 }
 
