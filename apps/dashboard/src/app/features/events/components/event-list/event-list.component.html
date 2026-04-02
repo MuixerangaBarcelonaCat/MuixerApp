@@ -1,0 +1,178 @@
+<div class="p-4 lg:p-6">
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-2xl font-bold">Esdeveniments</h1>
+    <button class="btn btn-primary btn-sm gap-2" (click)="navigateToSync()">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+      </svg>
+      Sincronitzar
+    </button>
+  </div>
+
+  <!-- Filters row -->
+  <div class="flex flex-wrap gap-3 mb-4">
+    <!-- Season filter -->
+    <select
+      class="select select-bordered select-sm"
+      [value]="selectedSeasonId() ?? ''"
+      (change)="onSeasonChange($any($event.target).value)"
+    >
+      <option value="">Totes les temporades</option>
+      @for (season of seasons(); track season.id) {
+        <option [value]="season.id">{{ season.name }}</option>
+      }
+    </select>
+
+    <!-- Statistics filter -->
+    <select
+      class="select select-bordered select-sm"
+      (change)="onCountsForStatsChange($any($event.target).value)"
+    >
+      <option value="">Estadístiques: Tots</option>
+      <option value="true">Comptabilitzen</option>
+      <option value="false">No comptabilitzen</option>
+    </select>
+
+    <!-- Search -->
+    <label class="input input-sm input-bordered flex items-center gap-2 flex-1 min-w-[200px]">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+      </svg>
+      <input
+        type="text"
+        class="grow"
+        placeholder="Cerca per títol o lloc..."
+        [(ngModel)]="searchInput"
+        (ngModelChange)="onSearchChange($event)"
+      />
+    </label>
+  </div>
+
+  <!-- Tabs -->
+  <div role="tablist" class="tabs tabs-bordered mb-4">
+    <button
+      role="tab"
+      class="tab"
+      [class.tab-active]="activeTab() === EventType.ASSAIG"
+      (click)="switchTab(EventType.ASSAIG)"
+    >
+      Assajos
+      @if (activeTab() === EventType.ASSAIG && totalEvents() > 0) {
+        <span class="badge badge-sm ml-2">{{ totalEvents() }}</span>
+      }
+    </button>
+    <button
+      role="tab"
+      class="tab"
+      [class.tab-active]="activeTab() === EventType.ACTUACIO"
+      (click)="switchTab(EventType.ACTUACIO)"
+    >
+      Actuacions
+      @if (activeTab() === EventType.ACTUACIO && totalEvents() > 0) {
+        <span class="badge badge-sm ml-2">{{ totalEvents() }}</span>
+      }
+    </button>
+  </div>
+
+  <!-- Table -->
+  <div class="overflow-x-auto">
+    <table class="table table-zebra table-sm">
+      <thead>
+        <tr>
+          <th>
+            <button class="flex items-center gap-1 hover:text-primary" (click)="onSortColumn('date')">
+              Data {{ getSortIcon('date') }}
+            </button>
+          </th>
+          <th>
+            <button class="flex items-center gap-1 hover:text-primary" (click)="onSortColumn('title')">
+              Títol {{ getSortIcon('title') }}
+            </button>
+          </th>
+          <th>Lloc</th>
+          <th class="text-center" title="Assistits / Confirmats">
+            @if (activeTab() === EventType.ASSAIG) { ✅ } @else { 🟢 }
+          </th>
+          <th class="text-center" title="Declinen / No presentats">🔴</th>
+          <th class="text-center" title="Pendents">⚪</th>
+          <th class="text-center" title="Xicalla">👶</th>
+          <th>Temporada</th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (loading()) {
+          @for (i of [1,2,3,4,5]; track i) {
+            <tr>
+              <td colspan="8">
+                <div class="skeleton h-6 w-full"></div>
+              </td>
+            </tr>
+          }
+        } @else if (events().length === 0) {
+          <tr>
+            <td colspan="8" class="text-center text-base-content/50 py-8">
+              Cap esdeveniment trobat
+            </td>
+          </tr>
+        } @else {
+          @for (event of events(); track event.id) {
+            <tr
+              class="hover cursor-pointer"
+              (click)="navigateToEvent(event.id)"
+            >
+              <td class="whitespace-nowrap text-sm">{{ formatDate(event.date) }}</td>
+              <td class="font-medium">
+                {{ event.title }}
+                @if (!event.countsForStatistics) {
+                  <span class="badge badge-ghost badge-xs ml-1">Extra</span>
+                }
+              </td>
+              <td class="text-sm text-base-content/70 max-w-[160px] truncate">{{ event.location ?? '—' }}</td>
+              <td class="text-center text-sm font-mono">
+                {{ getConfirmedCount(event.attendanceSummary, isEventPast(event.date, event.startTime)) }}
+              </td>
+              <td class="text-center text-sm font-mono">
+                {{ getDeclinedCount(event.attendanceSummary, isEventPast(event.date, event.startTime)) }}
+              </td>
+              <td class="text-center text-sm font-mono">{{ event.attendanceSummary.pending }}</td>
+              <td class="text-center text-sm font-mono">{{ event.attendanceSummary.children }}</td>
+              <td class="text-sm text-base-content/60 whitespace-nowrap">{{ event.season?.name ?? '—' }}</td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  @if (totalEvents() > 0) {
+    <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
+      <div class="flex items-center gap-2 text-sm text-base-content/70">
+        <span>Mostrant {{ (page() - 1) * limit() + 1 }}–{{ Math.min(page() * limit(), totalEvents()) }} de {{ totalEvents() }}</span>
+        <select class="select select-xs select-bordered" [value]="limit()" (change)="onLimitChange(+$any($event.target).value)">
+          <option value="25">25</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+        <span>per pàgina</span>
+      </div>
+
+      <div class="join">
+        <button class="join-item btn btn-xs" [disabled]="page() <= 1" (click)="previousPage()">←</button>
+        @for (p of pageNumbers(); track $index) {
+          @if (p === 'ellipsis') {
+            <button class="join-item btn btn-xs btn-disabled">…</button>
+          } @else {
+            <button
+              class="join-item btn btn-xs"
+              [class.btn-active]="p === page()"
+              (click)="goToPage(+p)"
+            >{{ p }}</button>
+          }
+        }
+        <button class="join-item btn btn-xs" [disabled]="page() >= totalPages()" (click)="nextPage()">→</button>
+      </div>
+    </div>
+  }
+</div>

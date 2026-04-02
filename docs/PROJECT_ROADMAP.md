@@ -13,7 +13,7 @@
 | P1 | Auth + Usuaris + Persones (entitats + CRUD, sense login) | ✅ Completat | ✅ | ✅ | ✅ | Entitats i API REST funcionant |
 | P2 | Data Migration (API legacy → NeonDB) | ✅ Completat | ✅ | ✅ | ✅ | Sync SSE complet, merge strategy implementada |
 | P2.1 | Dashboard Persons — UX i funcionalitats avançades | ✅ Completat | ✅ | ✅ | ✅ | Ordenació, alçada relativa, filtres, tests |
-| P3 | Temporades + Esdeveniments + Assistència | ⚪ Pendent | — | — | — | Pròxima fase prioritària |
+| P3 | Temporades + Esdeveniments + Assistència | ✅ Complet | [`docs/specs/2026-03-31-p3-seasons-events-attendance-sync-design.md`](docs/specs/2026-03-31-p3-seasons-events-attendance-sync-design.md) | — | `apps/api/src/modules/season/`, `event/`, `sync/strategies/event-sync.strategy.ts` | Season + Event + Attendance entities, API, sync + dashboard |
 | P4 | Dashboard Web (Angular) — resta de features | 🔵 En curs | — | — | 🔵 | P4 persons complet, falta Events/Reports |
 | P5 | PWA Mòbil | ⚪ Pendent | — | — | — | |
 | P6 | Mòdul Figures/Canvas | ⚪ Pendent | — | — | — | Part més complexa |

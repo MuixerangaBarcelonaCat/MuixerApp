@@ -1,12 +1,12 @@
 # MuixerApp — Punt actual i pròxims passos
 
-> Última actualització: 31 de març de 2026
+> Última actualització: 1 d'abril de 2026
 
 ---
 
 ## On estem?
 
-### ✅ Fase completada: P0+P1+P2+P2.1 Vertical Slice — Complet i Funcional
+### ✅ Fase completada: P0+P1+P2+P2.1+P3.0 Vertical Slice — Complet i Funcional
 
 El primer vertical slice amb totes les millores de dashboard està **completament implementat i funcional**:
 
@@ -22,7 +22,11 @@ El primer vertical slice amb totes les millores de dashboard està **completamen
 - ✅ **Swagger/OpenAPI** documentació disponible a `/api/docs`
 - ✅ **Interceptor de latència** per monitorització de requests
 - ✅ **Ordenació server-side** — `sortBy` + `sortOrder` amb whitelist estricta (`PERSON_SORT_COLUMN_MAP`)
-- ✅ **Tests** amb Jest (34/34 passing — PersonService, PersonController, PersonFilterDto, Sync, Position)
+- ✅ Entitats: Season, Event, Attendance amb TypeORM + JSONB metadata + attendanceSummary denormalitzat
+- ✅ CRUD complet per Season, Event, Attendance (GET, PATCH)
+- ✅ **EventSyncStrategy + AttendanceSyncStrategy** amb context-aware status mapping
+- ✅ **Sync /sync/events** i **/sync/all** SSE endpoints
+- ✅ **Tests** amb Jest (101/101 passing — Person + Season + Event + Attendance + Sync strategies)
 
 #### Frontend
 - ✅ Angular 20+ dashboard amb arquitectura moderna
@@ -35,7 +39,11 @@ El primer vertical slice amb totes les millores de dashboard està **completamen
 - ✅ **Utils compartides** (color, date, person) + `formatShoulderHeight*` + `shoulderHeightRelativeTone`
 - ✅ Shared library amb enums
 - ✅ **Tailwind CSS v3 + DaisyUI v4** configurat (estable, 55 components)
-- ✅ **Tests** amb Vitest (16/16 passing — PersonListComponent, PersonService, person.util, http-params.util)
+- ✅ **Event List** — tabs Assajos/Actuacions, filtres temporada/estadística/cerca, ordenació, paginació, columnes assistència
+- ✅ **Event Detail** — info, metadata per tipus, resum assistència + progress bar, llista assistència filtrable
+- ✅ **Event Sync** — SSE progress UI, resum de sincronització
+- ✅ Sidebar activat per Esdeveniments
+- ✅ **Tests** amb Vitest (22/22 passing — Person + EventService + AttendanceService + utils)
 
 ### Què s'ha implementat?
 
@@ -125,18 +133,27 @@ Després del primer sync real amb dades de producció:
 
 **Documentació:** `docs/SYNC_MERGE_STRATEGY.md`
 
-### 3. Preparar P3: Seasons + Events + Attendance
+### 3. ✅ P3: Seasons + Events + Attendance — COMPLET
 
-Dissenyar i especificar la següent fase del roadmap:
+Implementat a `docs/specs/2026-03-31-p3-seasons-events-attendance-sync-design.md`:
 
-- [ ] Dissenyar model de dades (Season, Event, Attendance)
-- [ ] Definir relacions entre entitats (Person → Attendance → Event → Season)
-- [ ] Especificar endpoints API necessaris (`GET /seasons`, `GET /events`, `POST /events/:id/attendance`)
-- [ ] Dissenyar UI per gestió d'events (llista, detall, formulari d'assistència)
-- [ ] Planificar sync strategy per Events des de la legacy API
-- [ ] Crear spec tècnic aprovat a `docs/specs/`
+- ✅ Entitats Season, Event, Attendance (TypeORM)
+- ✅ API REST completa (seasons, events, attendance per event)
+- ✅ LegacyApiClient estès (getAssajos, getActuacions, getAssistencies)
+- ✅ EventSyncStrategy + AttendanceSyncStrategy
+- ✅ Context-aware status mapping (past/future × assaig/actuació)
+- ✅ Dashboard: EventList + EventDetail + EventSync
+- ✅ 101/101 backend tests + 22/22 dashboard tests
 
-**Documentació:** `docs/PROJECT_ROADMAP.md`
+### 4. Pròxims passos: P3.1 i P4
+
+| Ítem | Prioritat | Descripció |
+|------|-----------|------------|
+| **Auth (JWT + Passport)** | Alta | Login real per accedir al dashboard |
+| **Validació manual P3** | Alta | Sync complet contra legacy API real |
+| **P4: Dashboard Web (avançat)** | Mitjana | Gràfics, estadístiques, reports |
+| **P5: PWA Mobile** | Baixa | Angular PWA per membres (confirmar assistència) |
+| **Notificacions** | Baixa | P7 del roadmap |
 
 ### 4. Deute tècnic identificat (per abordar durant P3/P4)
 

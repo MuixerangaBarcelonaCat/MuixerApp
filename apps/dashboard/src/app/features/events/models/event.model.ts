@@ -1,0 +1,74 @@
+import { EventType, AttendanceStatus, AttendanceSummary, RehearsalMetadata, PerformanceMetadata } from '@muixer/shared';
+
+export { EventType, AttendanceStatus };
+export type { AttendanceSummary };
+
+export interface SeasonRef {
+  id: string;
+  name: string;
+}
+
+export interface Season {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  description: string | null;
+  eventCount: number;
+}
+
+export interface EventListItem {
+  id: string;
+  eventType: EventType;
+  title: string;
+  date: string;
+  startTime: string | null;
+  location: string | null;
+  countsForStatistics: boolean;
+  attendanceSummary: AttendanceSummary;
+  season: SeasonRef | null;
+}
+
+export interface EventDetail extends EventListItem {
+  description: string | null;
+  locationUrl: string | null;
+  information: string | null;
+  metadata: RehearsalMetadata | PerformanceMetadata;
+  legacyId: string | null;
+}
+
+export interface EventFilterParams {
+  seasonId?: string;
+  eventType?: EventType;
+  dateFrom?: string;
+  dateTo?: string;
+  search?: string;
+  countsForStatistics?: boolean;
+  sortBy?: 'date' | 'eventType' | 'title';
+  sortOrder?: 'ASC' | 'DESC';
+  page?: number;
+  limit?: number;
+}
+
+export interface UpdateEventPayload {
+  countsForStatistics?: boolean;
+  seasonId?: string;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+  };
+}
+
+export interface SyncEvent {
+  type: 'start' | 'progress' | 'error' | 'complete';
+  entity: string;
+  current?: number;
+  total?: number;
+  message: string;
+  detail?: Record<string, unknown>;
+}

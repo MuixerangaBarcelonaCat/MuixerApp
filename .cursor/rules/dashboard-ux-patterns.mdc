@@ -1,0 +1,94 @@
+---
+description: UX and accessibility patterns for all Dashboard Angular components — responsive tables, filters, pagination, loading states, and visual hierarchy
+globs: apps/dashboard/**/*.ts,apps/dashboard/**/*.html,apps/dashboard/**/*.scss
+alwaysApply: false
+---
+
+# Dashboard UX Patterns
+
+## Responsive Tables
+
+- **Always use table layout** — never duplicate as mobile card view
+- Wrap tables in `overflow-x-auto` for horizontal scroll on small screens
+- Add `whitespace-nowrap` to key cells to prevent line breaks
+- First identifying column: `sticky left-0 z-[1] bg-base-100` to stay visible during horizontal scroll
+- `<thead>` must be sticky: `sticky top-0 z-10 bg-base-100`
+
+```html
+<!-- ✅ GOOD -->
+<div class="overflow-x-auto">
+  <table class="table table-zebra">
+    <thead class="sticky top-0 z-10 bg-base-100">…</thead>
+    <tbody>…</tbody>
+  </table>
+</div>
+
+<!-- ❌ BAD — separate mobile card view -->
+<div class="hidden lg:block"><!-- table --></div>
+<div class="lg:hidden"><!-- cards --></div>
+```
+
+## Sortable Column Headers
+
+- Clickable `<th>` toggles ASC → DESC → none
+- Show arrow indicators (▲/▼/neutral) next to sorted column
+- Always validate sortable columns against a backend whitelist
+- Add `cursor-pointer select-none` to sortable `<th>`
+
+## Filter Layout
+
+- Use `flex flex-wrap gap-*` for filters — not rigid grid
+- Search input is prominent (wider, primary visual weight)
+- Group: search + dropdowns + toggles + clear button in one wrapping row
+- Active filters displayed as dismissible badges/chips above the table
+- "Netejar filtres" button always visible when any filter is active
+
+## Collapsible Secondary Controls
+
+- Wrap non-essential controls (column visibility, display options) in DaisyUI `collapse` — closed by default
+- Show a summary count in the collapse title: `"Columnes visibles (8 de 12)"`
+
+```html
+<div class="collapse collapse-arrow bg-base-200/50 rounded-lg">
+  <input type="checkbox" />
+  <div class="collapse-title text-sm font-medium py-2 min-h-0">
+    Columnes visibles ({{ visibleCount() }} de {{ totalCount }})
+  </div>
+  <div class="collapse-content">…</div>
+</div>
+```
+
+## Visual Hierarchy
+
+- Record count badge next to page title: `"Persones (143)"`
+- Table rows: `hover cursor-pointer transition-colors` for clickable rows
+- Color-coded values when semantically meaningful (green = positive, red = negative)
+
+## Pagination
+
+- Include a per-page selector (25 / 50 / 100) — never hardcode page size
+- Show range info near controls: `"Mostrant X – Y de Z"`
+- Disable prev/next at boundaries
+
+## Loading & Empty States
+
+- Use skeleton loaders (`bg-base-300 animate-pulse rounded`) instead of spinners
+- Provide meaningful empty state messages (Catalan) with suggested actions
+
+```html
+<!-- ✅ Skeleton row -->
+<tr>
+  <td><div class="h-4 w-24 bg-base-300 animate-pulse rounded"></div></td>
+  <td><div class="h-4 w-32 bg-base-300 animate-pulse rounded"></div></td>
+</tr>
+
+<!-- ❌ Just a spinner -->
+<div class="flex justify-center"><span class="loading loading-spinner"></span></div>
+```
+
+## Accessibility Baseline
+
+- All interactive elements must be keyboard-navigable
+- Toggle inputs use `<label class="label cursor-pointer gap-2">` wrapping
+- Table headers use `scope="col"`, row headers use `scope="row"`
+- Buttons and toggles include descriptive text (no icon-only without `aria-label`)

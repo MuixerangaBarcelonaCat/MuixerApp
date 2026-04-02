@@ -1,20 +1,20 @@
 # Estat Actual del Projecte MuixerApp
 
-> **Última actualització:** 31 de març de 2026
+> **Última actualització:** 1 d'abril de 2026
 
 ---
 
 ## 🎯 Resum Executiu
 
-El projecte MuixerApp està en **fase de desenvolupament actiu** amb el vertical slice P0-P2 i les millores de dashboard P2.1 completats i funcionals. L'aplicació inclou:
+El projecte MuixerApp està en **fase de desenvolupament actiu** amb el vertical slice P0-P3 completat i funcional. L'aplicació inclou:
 
 - ✅ Backend NestJS amb API REST completa + ordenació server-side
-- ✅ Sistema de sincronització amb legacy API (SSE + Strategy pattern)
+- ✅ Sistema de sincronització amb legacy API (SSE + Strategy pattern) — Persons + Events + Attendance
 - ✅ Dashboard Angular amb DaisyUI v4 + Angular CDK
-- ✅ Gestió de persones amb filtres, cerca, paginació i **ordenació per columnes**
+- ✅ Gestió de persones, temporades, esdeveniments i assistència
 - ✅ Visualització d'alçada d'espatlles **absoluta i relativa** (+/- 140 cm)
 - ✅ Arquitectura de components moderna (signals, standalone, OnPush)
-- ✅ **Tests complets:** 34/34 backend + 16/16 dashboard passing
+- ✅ **Tests complets:** 101/101 backend + 22/22 dashboard passing
 
 ---
 
@@ -27,10 +27,12 @@ El projecte MuixerApp està en **fase de desenvolupament actiu** amb el vertical
 | **Person Module** | ✅ Complet | CRUD + filtres + cerca + paginació + activate/deactivate + **ordenació server-side** |
 | **Position Module** | ✅ Complet | CRUD + relacions M:N amb Person |
 | **User Module** | ✅ Bàsic | Entitat creada, CRUD bàsic (sense auth encara) |
-| **Sync Module** | ✅ Complet | LegacyApiClient + PersonSyncStrategy + SSE progress |
-| **Database** | ✅ Funcional | TypeORM + NeonDB PostgreSQL + migrations |
+| **Season Module** | ✅ Complet | CRUD + comptador d'esdeveniments |
+| **Event Module** | ✅ Complet | EventService + AttendanceService + EventController + filtres/paginació/ordenació |
+| **Sync Module** | ✅ Complet | LegacyApiClient + PersonSyncStrategy + EventSyncStrategy + AttendanceSyncStrategy + SSE |
+| **Database** | ✅ Funcional | TypeORM + NeonDB PostgreSQL + entitats Season/Event/Attendance |
 | **Swagger** | ✅ Funcional | Documentació interactiva a `/api/docs` |
-| **Tests** | ✅ 34/34 passing | PersonService + PersonController + PersonFilterDto + PositionService + Sync |
+| **Tests** | ✅ 101/101 passing | Person + Season + Event + Attendance + Sync strategies |
 
 **Endpoints disponibles:**
 - `GET /api/persons` - Llistar amb filtres
@@ -38,9 +40,16 @@ El projecte MuixerApp està en **fase de desenvolupament actiu** amb el vertical
 - `POST /api/persons` - Crear
 - `PATCH /api/persons/:id` - Actualitzar
 - `DELETE /api/persons/:id` - Soft delete
-- `PATCH /api/persons/:id/activate` - Activar
-- `PATCH /api/persons/:id/deactivate` - Desactivar
-- `GET /api/sync/persons` - Sincronització SSE
+- `PATCH /api/persons/:id/activate` - Activar / `PATCH /api/persons/:id/deactivate` - Desactivar
+- `GET /api/seasons` - Llistar temporades (amb event count)
+- `GET /api/seasons/:id` - Detall temporada
+- `GET /api/events` - Llistar esdeveniments (eventType, seasonId, dateFrom/To, search, countsForStatistics, sortBy, pagination)
+- `GET /api/events/:id` - Detall (inclou metadata + attendanceSummary)
+- `PATCH /api/events/:id` - Actualitzar (countsForStatistics, seasonId)
+- `GET /api/events/:id/attendance` - Llista assistència (status filter, search, pagination)
+- `GET /api/sync/persons` - Sincronització SSE (persones)
+- `GET /api/sync/events` - Sincronització SSE (events + assistència)
+- `GET /api/sync/all` - Sincronització SSE completa (persones → events → assistència)
 
 ### Dashboard (Angular 20+)
 
@@ -50,10 +59,13 @@ El projecte MuixerApp està en **fase de desenvolupament actiu** amb el vertical
 | **Person List** | ✅ Complet | Taula sempre (scroll horitzontal) + ordenació per columnes + filtres + cerca + paginació configurable |
 | **Person Detail** | ✅ Complet | Vista responsive 2 columnes |
 | **Person Sync** | ✅ Complet | EventSource + progress bar + log en temps real |
-| **Routing** | ✅ Funcional | Lazy loading per features |
-| **Services** | ✅ Complet | ApiService + PersonService |
+| **Event List** | ✅ Complet | Tabs Assajos/Actuacions, filtres temporada/estadística/cerca, ordenació, paginació, columnes assistència |
+| **Event Detail** | ✅ Complet | Info, metadata per tipus, resum assistència, llista assistència filtrable |
+| **Event Sync** | ✅ Complet | SSE progress UI — mirrors PersonSyncComponent |
+| **Routing** | ✅ Funcional | Lazy loading per features (persons + events) |
+| **Services** | ✅ Complet | ApiService + PersonService + EventService + AttendanceService + SeasonService |
 | **Utils** | ✅ Complet | Color, date, person utilities (incl. `formatShoulderHeight*`, `shoulderHeightRelativeTone`) |
-| **Tests** | ✅ 16/16 passing | PersonListComponent + PersonService + person.util + http-params.util |
+| **Tests** | ✅ 22/22 passing | PersonListComponent + PersonService + EventService + AttendanceService + person.util + http-params.util |
 
 **Stack UI:**
 - DaisyUI v4.12.24 (55 components CSS)
@@ -163,7 +175,7 @@ Monorepo:
 nx test api
 ```
 
-**Resultat:** 34/34 tests passing
+**Resultat:** 101/101 tests passing
 
 **Cobertura:**
 - `PersonService` — CRUD, filtres, paginació, ordenació (default/ASC/DESC), activate/deactivate
@@ -172,6 +184,13 @@ nx test api
 - `PositionService` — CRUD
 - `LegacyApiClient` — autenticació multi-step (GET session + POST login + redirect)
 - `PersonSyncStrategy` — create vs update, `deactivateMissingPersons`
+- `SeasonService` — llista amb event count, findOne, no exposa legacyId
+- `EventService` — CRUD, tots els filtres (seasonId, eventType, dateRange, search, countsForStatistics), paginació, ordenació whitelist
+- `AttendanceService` — llista per event, filtre per status, recalculateSummary (tots els estats incl. xicalla)
+- `EventController` — envoltura { data, meta }, delegació a services
+- `EventFilterDto` — validació tots els paràmetres, protecció whitelist sortBy
+- `EventSyncStrategy` — extractEventId, parseDate, stripHtml, assignació temporades, guàrdia concurrència
+- `AttendanceSyncStrategy` — mapAttendanceStatus (8 combinacions past/future × assaig/actuació × estats), parseTimestamp, match per alias/legacyId
 
 ### Frontend
 
@@ -179,11 +198,13 @@ nx test api
 nx test dashboard
 ```
 
-**Resultat:** 16/16 tests passing
+**Resultat:** 22/22 tests passing
 
 **Cobertura:**
 - `PersonListComponent` — inicialització, `onSortColumn` (3 estats), toggle `shoulderHeightRelative`
 - `PersonService` (Angular) — crides HTTP a `getAll` i `getPositions` amb params correctes
+- `EventService` (Angular) — `getAll` amb params, omissió de filtres buits, `getOne`, `update` (PATCH)
+- `AttendanceService` (Angular) — `getByEvent` amb eventId + filtre status
 - `person.util` — `getFullName`, `getAvailabilityLabel`, `getOnboardingLabel`, `formatShoulderHeightCm`, `formatShoulderHeightRelative`, `shoulderHeightRelativeTone`
 - `http-params.util` — `buildHttpParams` (arrays, omissió de null/undefined/buit)
 
@@ -302,15 +323,16 @@ Següent fase del roadmap:
 
 ## 🎉 Fites Aconseguides
 
-- ✅ **Vertical Slice P0-P2** — Complet i funcional
+- ✅ **Vertical Slice P0-P3** — Complet i funcional
 - ✅ **Migració a DaisyUI** — Stack UI estable
-- ✅ **Sistema de Sync** — SSE + Strategy pattern + Merge rules
+- ✅ **Sistema de Sync** — SSE + Strategy pattern (Persons + Events + Attendance)
 - ✅ **Dashboard Responsive** — Taula always-on amb scroll horitzontal
 - ✅ **Arquitectura Moderna** — Signals + Standalone + OnPush
-- ✅ **Documentació Exhaustiva** — 15+ documents tècnics
+- ✅ **Context-aware attendance mapping** — 4 branques past/future × assaig/actuació
+- ✅ **AttendanceSummary denormalized** — JSONB a Event per rendiment de llista
 - ✅ **Ordenació server-side** — Whitelist de camps, protecció SQL injection
 - ✅ **Alçada espatlles relativa** — Toggle absolut/relatiu amb codificació de color
-- ✅ **Suite de tests completa** — 34/34 API + 16/16 dashboard passing
+- ✅ **Suite de tests completa** — 101/101 API + 22/22 dashboard passing
 
 ---
 

@@ -5,6 +5,9 @@ import { DataSource } from 'typeorm';
 import { Position } from '../position/position.entity';
 import { User } from '../user/user.entity';
 import { Person } from '../person/person.entity';
+import { Season } from '../season/season.entity';
+import { Event } from '../event/event.entity';
+import { Attendance } from '../event/attendance.entity';
 
 @Module({
   imports: [
@@ -13,7 +16,7 @@ import { Person } from '../person/person.entity';
         type: 'postgres',
         url: process.env.DATABASE_URL,
         ssl: { rejectUnauthorized: false },
-        entities: [Position, User, Person],
+        entities: [Position, User, Person, Season, Event, Attendance],
         synchronize: process.env.NODE_ENV !== 'production',
         logging: process.env.NODE_ENV !== 'production',
       }),

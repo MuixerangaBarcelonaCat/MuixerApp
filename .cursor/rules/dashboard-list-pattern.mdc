@@ -1,6 +1,6 @@
 ---
 description: Angular dashboard list component pattern (signals, filters, pagination, sort)
-globs: "apps/dashboard/**/components/*-list*"
+globs: apps/dashboard/**/components/*-list*
 alwaysApply: false
 ---
 

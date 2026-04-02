@@ -1,6 +1,6 @@
 ---
 description: DaisyUI + Angular CDK + Tailwind CSS conventions for Angular apps
-globs: "apps/dashboard/**/*.{ts,html},apps/pwa/**/*.{ts,html}"
+globs: apps/dashboard/**/*.ts,apps/dashboard/**/*.html,apps/pwa/**/*.ts,apps/pwa/**/*.html
 alwaysApply: false
 ---
 
@@ -41,7 +41,7 @@ daisyui: {
       },
     },
     'light',
-    'dark',
+    // 'dark',
   ],
 }
 ```

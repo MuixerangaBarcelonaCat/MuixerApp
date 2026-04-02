@@ -4,49 +4,49 @@ overview: Implement P3.0 — Seasons, Events, and Attendance sync from legacy AP
 todos:
   - id: phase-1-shared
     content: "Phase 1: Add EventType, AttendanceStatus enums + AttendanceSummary, EventMetadata interfaces to libs/shared"
-    status: pending
+    status: completed
   - id: phase-2-entities
     content: "Phase 2: Create Season, Event, Attendance entities with TypeORM decorators. Register in AppModule."
-    status: pending
+    status: completed
   - id: phase-3-season-module
     content: "Phase 3a: SeasonModule — service + controller (GET /seasons, GET /seasons/:id)"
-    status: pending
+    status: completed
   - id: phase-3-event-module
     content: "Phase 3b: EventModule — EventService, AttendanceService, EventController with all filters/pagination/sort + DTOs"
-    status: pending
+    status: completed
   - id: phase-4-legacy-client
     content: "Phase 4a: Extend LegacyApiClient with getAssajos, getAssaigDetail, getActuacions, getActuacioDetail, getAssistencies"
-    status: pending
+    status: completed
   - id: phase-4-event-sync
     content: "Phase 4b: EventSyncStrategy — seasons, rehearsals, performances import with merge rules"
-    status: pending
+    status: completed
   - id: phase-4-attendance-sync
     content: "Phase 4c: AttendanceSyncStrategy — context-aware status mapping, alias matching, summary recalculation"
-    status: pending
+    status: completed
   - id: phase-4-sync-controller
     content: "Phase 4d: Extend SyncController + SyncModule with /sync/events and /sync/all endpoints"
-    status: pending
+    status: completed
   - id: phase-5-backend-tests
     content: "Phase 5: Backend tests — event-sync, attendance-sync, event.service, attendance.service, season.service, event.controller, event-filter.dto"
-    status: pending
+    status: completed
   - id: phase-6-dashboard-models
     content: "Phase 6a: Dashboard models + services (EventService, AttendanceService, SeasonService)"
-    status: pending
+    status: completed
   - id: phase-6-event-list
     content: "Phase 6b: EventListComponent — tabs, season filter, stats filter, search, sort, pagination, attendance columns"
-    status: pending
+    status: completed
   - id: phase-6-event-detail
     content: "Phase 6c: EventDetailComponent — info, metadata, attendance summary, attendance list with filters"
-    status: pending
+    status: completed
   - id: phase-6-event-sync
     content: "Phase 6d: EventSyncComponent — SSE progress UI mirroring PersonSyncComponent"
-    status: pending
+    status: completed
   - id: phase-6-routing
     content: "Phase 6e: Routing (app.routes.ts + events.routes.ts) + sidebar nav activation"
-    status: pending
+    status: completed
   - id: phase-7-tests-docs
     content: "Phase 7: Frontend tests (Vitest) + documentation updates (NEXT_STEPS, ROADMAP, CURRENT_STATUS, DATA_MODEL)"
-    status: pending
+    status: completed
 isProject: false
 ---
 
@@ -252,7 +252,7 @@ Following the existing patterns in `person-sync.strategy.spec.ts`:
 - `**attendance.service.spec.ts`** — List by event, status filter, recalculate summary
 - `**season.service.spec.ts`** — List with event count
 - `**event.controller.spec.ts`** — Endpoint responses, DTO validation, legacyId exclusion
-- `**event-filter.dto.spec.ts**` — Validation of all filter params, sortBy whitelist
+- `**event-filter.dto.spec.ts`** — Validation of all filter params, sortBy whitelist
 
 ---
 

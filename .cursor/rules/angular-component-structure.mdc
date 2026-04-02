@@ -1,6 +1,6 @@
 ---
 description: Angular component file structure conventions - ALWAYS use separate files
-globs: "apps/dashboard/**/*.component.ts,apps/pwa/**/*.component.ts"
+globs: apps/dashboard/**/*.component.ts,apps/pwa/**/*.component.ts
 alwaysApply: true
 ---
 

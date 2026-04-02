@@ -1,5 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios, { AxiosInstance } from 'axios';
+import {
+  LegacyAssaig,
+  LegacyAssaigDetail,
+  LegacyActuacio,
+  LegacyActuacioDetail,
+  LegacyAttendance,
+} from './interfaces/legacy-event.interface';
 
 export interface LegacyPerson {
   id: string;
@@ -216,6 +223,65 @@ export class LegacyApiClient {
     await this.delay(200);
 
     return cleaned;
+  }
+
+  async getAssajos(): Promise<LegacyAssaig[]> {
+    if (!this.sessionCookie) await this.login();
+    this.logger.log('Fetching assajos from legacy API...');
+    const resp = await this.client.get('/api/assajos', {
+      headers: { Cookie: this.sessionCookie || '' },
+    });
+    const rows = this.extractRows(resp.data, '/api/assajos');
+    await this.delay(200);
+    return rows as unknown as LegacyAssaig[];
+  }
+
+  async getAssaigDetail(eventId: string): Promise<LegacyAssaigDetail> {
+    if (!this.sessionCookie) await this.login();
+    const resp = await this.client.get(`/api/assajos/${eventId}`, {
+      headers: { Cookie: this.sessionCookie || '' },
+    });
+    await this.delay(100);
+    return resp.data as LegacyAssaigDetail;
+  }
+
+  async getActuacions(): Promise<LegacyActuacio[]> {
+    if (!this.sessionCookie) await this.login();
+    this.logger.log('Fetching actuacions from legacy API...');
+    const resp = await this.client.get('/api/actuacions', {
+      headers: { Cookie: this.sessionCookie || '' },
+    });
+    const rows = this.extractRows(resp.data, '/api/actuacions');
+    await this.delay(200);
+    return rows as unknown as LegacyActuacio[];
+  }
+
+  async getActuacioDetail(eventId: string): Promise<LegacyActuacioDetail> {
+    if (!this.sessionCookie) await this.login();
+    const resp = await this.client.get(`/api/actuacions/${eventId}`, {
+      headers: { Cookie: this.sessionCookie || '' },
+    });
+    await this.delay(100);
+    return resp.data as LegacyActuacioDetail;
+  }
+
+  async getAssistencies(eventId: string): Promise<LegacyAttendance[]> {
+    if (!this.sessionCookie) await this.login();
+    const resp = await this.client.get(`/api/assistencies/${eventId}`, {
+      headers: { Cookie: this.sessionCookie || '' },
+    });
+    const rows = this.extractRows(resp.data, `/api/assistencies/${eventId}`);
+    await this.delay(100);
+    return rows as unknown as LegacyAttendance[];
+  }
+
+  private extractRows(data: unknown, endpoint: string): Record<string, unknown>[] {
+    if (data && typeof data === 'object' && 'rows' in data) {
+      const rows = (data as { rows: unknown }).rows;
+      if (Array.isArray(rows)) return rows;
+    }
+    if (Array.isArray(data)) return data;
+    throw new Error(`Invalid response format from ${endpoint}`);
   }
 
   private stripHtml(text: string): string {

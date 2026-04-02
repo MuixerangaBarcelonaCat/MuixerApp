@@ -228,7 +228,7 @@ export class PersonSyncStrategy implements SyncStrategy {
   }
 
   private async createPerson(legacyPerson: LegacyPerson): Promise<boolean> {
-    const alias = this.deriveAlias(legacyPerson);
+    const alias = await this.deriveUniqueAlias(legacyPerson);
     const positions = await this.resolvePositions(legacyPerson.posicio);
     const isXicalla = this.deriveIsXicalla(legacyPerson.posicio);
 
@@ -290,6 +290,28 @@ export class PersonSyncStrategy implements SyncStrategy {
   private deriveAlias(legacyPerson: LegacyPerson): string {
     const alias = legacyPerson.mote || legacyPerson.nom;
     return alias.substring(0, 20);
+  }
+
+  private async deriveUniqueAlias(legacyPerson: LegacyPerson): Promise<string> {
+    const baseAlias = this.deriveAlias(legacyPerson);
+
+    const conflict = await this.personRepository.findOne({
+      where: { alias: baseAlias },
+    });
+    if (!conflict) return baseAlias;
+
+    const withSurname = `${legacyPerson.mote || legacyPerson.nom} ${legacyPerson.cognom1}`.substring(0, 20);
+    const conflict2 = await this.personRepository.findOne({
+      where: { alias: withSurname },
+    });
+    if (!conflict2) {
+      this.logger.warn(`Alias "${baseAlias}" already taken, using "${withSurname}" for legacyId ${legacyPerson.id}`);
+      return withSurname;
+    }
+
+    const withFull = `${legacyPerson.nom} ${legacyPerson.cognom1} ${legacyPerson.cognom2 || ''}`.trim().substring(0, 20);
+    this.logger.warn(`Alias "${baseAlias}" and "${withSurname}" taken, using "${withFull}" for legacyId ${legacyPerson.id}`);
+    return withFull;
   }
 
   private async resolvePositions(posicio: string): Promise<Position[]> {

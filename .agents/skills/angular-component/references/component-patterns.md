@@ -243,7 +243,7 @@ import { Child } from './child.component';
 })
 export class Parent {
   parentData = signal({ name: 'Test' });
-  config = { theme: 'dark' };
+  config = { theme: 'light' };
 }
 ```
 

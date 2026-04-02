@@ -6,9 +6,11 @@ import { PositionModule } from '../modules/position/position.module';
 import { UserModule } from '../modules/user/user.module';
 import { PersonModule } from '../modules/person/person.module';
 import { SyncModule } from '../modules/sync/sync.module';
+import { SeasonModule } from '../modules/season/season.module';
+import { EventModule } from '../modules/event/event.module';
 
 @Module({
-  imports: [DatabaseModule, PositionModule, UserModule, PersonModule, SyncModule],
+  imports: [DatabaseModule, PositionModule, UserModule, PersonModule, SyncModule, SeasonModule, EventModule],
   controllers: [AppController],
   providers: [AppService],
 })

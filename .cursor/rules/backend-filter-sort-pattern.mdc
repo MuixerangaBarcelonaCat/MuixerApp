@@ -1,6 +1,6 @@
 ---
 description: Reusable pattern for sort whitelist + filter DTOs in backend modules
-globs: "apps/api/**/*.dto.ts,apps/api/**/*.constants.ts"
+globs: apps/api/**/*.dto.ts,apps/api/**/*.constants.ts
 alwaysApply: false
 ---
 
