@@ -1,11 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios, { AxiosInstance } from 'axios';
+import * as XLSX from 'xlsx';
 import {
   LegacyAssaig,
   LegacyAssaigDetail,
   LegacyActuacio,
   LegacyActuacioDetail,
-  LegacyAttendance,
+  XlsxAttendanceRow,
 } from './interfaces/legacy-event.interface';
 
 export interface LegacyPerson {
@@ -265,14 +266,41 @@ export class LegacyApiClient {
     return resp.data as LegacyActuacioDetail;
   }
 
-  async getAssistencies(eventId: string): Promise<LegacyAttendance[]> {
+  async getAssistenciesXlsx(eventId: string): Promise<XlsxAttendanceRow[]> {
     if (!this.sessionCookie) await this.login();
-    const resp = await this.client.get(`/api/assistencies/${eventId}`, {
+
+    const resp = await this.client.get(`/assistencia-export/${eventId}`, {
       headers: { Cookie: this.sessionCookie || '' },
+      responseType: 'arraybuffer',
     });
-    const rows = this.extractRows(resp.data, `/api/assistencies/${eventId}`);
+
+    if (resp.status !== 200) {
+      throw new Error(`XLSX download failed for event ${eventId}: HTTP ${resp.status}`);
+    }
+
+    const workbook = XLSX.read(resp.data, { type: 'buffer', cellDates: false });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const raw: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
+
+    const rows: XlsxAttendanceRow[] = [];
+    for (const row of raw) {
+      const id = row[0];
+      // Skip header/section-separator rows (Id column = 'Id')
+      if (!id || id === 'Id') continue;
+
+      const estat = (row[3] as string | null) ?? null;
+      rows.push({
+        legacyPersonId: String(id),
+        personLabel: String(row[1] ?? ''),
+        notes: (row[2] as string | null) || null,
+        estat: estat as XlsxAttendanceRow['estat'],
+        instant: (row[4] as string | null) || null,
+      });
+    }
+
+    this.logger.log(`Parsed ${rows.length} rows from XLSX for event ${eventId}`);
     await this.delay(100);
-    return rows as unknown as LegacyAttendance[];
+    return rows;
   }
 
   private extractRows(data: unknown, endpoint: string): Record<string, unknown>[] {

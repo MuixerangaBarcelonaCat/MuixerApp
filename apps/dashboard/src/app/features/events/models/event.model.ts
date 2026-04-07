@@ -36,6 +36,7 @@ export interface EventListItem {
   countsForStatistics: boolean;
   attendanceSummary: AttendanceSummary;
   season: SeasonRef | null;
+  createdAt: string;
 }
 
 export interface EventDetail extends EventListItem {
@@ -43,7 +44,7 @@ export interface EventDetail extends EventListItem {
   locationUrl: string | null;
   information: string | null;
   metadata: RehearsalMetadata | PerformanceMetadata;
-  legacyId: string | null;
+  isSynced: boolean;
 }
 
 export interface EventFilterParams {

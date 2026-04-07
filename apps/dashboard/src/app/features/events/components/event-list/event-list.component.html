@@ -54,8 +54,8 @@
           </label>
           <select
             class="select select-bordered min-h-[44px]"
-            [value]="selectedSeasonId() ?? ''"
-            (change)="onSeasonChange($any($event.target).value)"
+            [ngModel]="selectedSeasonId() ?? ''"
+            (ngModelChange)="onSeasonChange($event)"
             aria-label="Filtrar per temporada"
           >
             <option value="">Totes les temporades</option>
@@ -303,7 +303,7 @@
                   }
                   @case ('createdAt') {
                     <td class="text-sm whitespace-nowrap text-base-content/50">
-                      {{ formatDate(event.date) }}
+                      {{ formatDate(event.createdAt) }}
                     </td>
                   }
                 }

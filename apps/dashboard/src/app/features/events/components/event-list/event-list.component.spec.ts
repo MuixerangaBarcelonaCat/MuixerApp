@@ -276,6 +276,41 @@ describe('EventListComponent', () => {
     });
   });
 
+  describe('formatDate', () => {
+    it('formats a date string correctly using ca-ES locale', () => {
+      const result = component.formatDate('2026-03-26');
+      expect(result).toMatch(/26/);
+      expect(result).toMatch(/2026/);
+    });
+
+    it('returns empty string for falsy input', () => {
+      expect(component.formatDate('')).toBe('');
+    });
+  });
+
+  describe('getConfirmedCount / getDeclinedCount', () => {
+    const summary = {
+      confirmed: 10, declined: 5, pending: 3,
+      attended: 20, noShow: 2, lateCancel: 1, children: 4, total: 40,
+    };
+
+    it('returns attended for past event (getConfirmedCount)', () => {
+      expect(component.getConfirmedCount(summary, true)).toBe(20);
+    });
+
+    it('returns confirmed for future event (getConfirmedCount)', () => {
+      expect(component.getConfirmedCount(summary, false)).toBe(10);
+    });
+
+    it('returns declined + noShow for past event (getDeclinedCount)', () => {
+      expect(component.getDeclinedCount(summary, true)).toBe(7);
+    });
+
+    it('returns only declined for future event (getDeclinedCount)', () => {
+      expect(component.getDeclinedCount(summary, false)).toBe(5);
+    });
+  });
+
   describe('navigation', () => {
     it('navigateToSync goes to /rehearsals/sync for ASSAIG', () => {
       component.navigateToSync();

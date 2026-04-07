@@ -4,7 +4,8 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { EventService } from '../../services/event.service';
 import { AttendanceService } from '../../services/attendance.service';
-import { EventDetail, EventType, AttendanceSummary, SyncEvent } from '../../models/event.model';
+import { SeasonService } from '../../services/season.service';
+import { EventDetail, EventType, AttendanceSummary, SyncEvent, Season } from '../../models/event.model';
 import { AttendanceItem, AttendanceFilterParams } from '../../models/attendance.model';
 import { AttendanceStatus, PerformanceMetadata, RehearsalMetadata } from '@muixer/shared';
 import { environment } from '../../../../../environments/environment';
@@ -29,6 +30,7 @@ export class EventDetailComponent implements OnInit, OnDestroy {
   }
   private readonly eventService = inject(EventService);
   private readonly attendanceService = inject(AttendanceService);
+  private readonly seasonService = inject(SeasonService);
 
   readonly EventType = EventType;
   readonly AttendanceStatus = AttendanceStatus;
@@ -49,6 +51,7 @@ export class EventDetailComponent implements OnInit, OnDestroy {
   isEditing = signal(false);
   editCountsForStats = signal(false);
   editSeasonId = signal<string | undefined>(undefined);
+  seasons = signal<Season[]>([]);
 
   syncState = signal<SyncState>('idle');
   syncMessage = signal('');
@@ -88,6 +91,9 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     const id = this.route.snapshot.paramMap.get('id');
     if (!id) return;
     this.loadEvent(id);
+    this.seasonService.getAll().subscribe({
+      next: (resp) => this.seasons.set(resp.data),
+    });
   }
 
   private loadEvent(id: string) {
@@ -176,7 +182,7 @@ export class EventDetailComponent implements OnInit, OnDestroy {
 
   syncAttendance() {
     const ev = this.event();
-    if (!ev || !ev.legacyId) return;
+    if (!ev || !ev.isSynced) return;
 
     this.syncState.set('running');
     this.syncMessage.set('Connectant...');
@@ -267,12 +273,13 @@ export class EventDetailComponent implements OnInit, OnDestroy {
   getSummaryForDisplay(summary: AttendanceSummary) {
     const past = this.isPast();
     return [
-      { label: past ? 'Assistit' : 'Aniré', value: past ? summary.attended : summary.confirmed, icon: past ? '✅' : '🟢' },
-      { label: past ? 'No presentat' : '', value: past ? summary.noShow : 0, icon: '❌', hidden: !past },
-      { label: past ? 'No va anar' : 'No vaig', value: summary.declined, icon: '🔴' },
-      { label: 'Pendents', value: summary.pending, icon: '⚪' },
-      { label: 'Xicalla', value: summary.children, icon: '👶' },
-      { label: 'Total', value: summary.total, icon: '#' },
+      { label: past ? 'Assistit' : 'Aniré', value: past ? summary.attended : summary.confirmed, icon: past ? '✅' : '🟢', hidden: false },
+      { label: 'No presentat', value: summary.noShow, icon: '🟡', hidden: !past },
+      { label: past ? 'No va anar' : 'No vaig', value: summary.declined, icon: '🔴', hidden: false },
+      { label: 'Baixes tardanes', value: summary.lateCancel, icon: '⚠️', hidden: !past || summary.lateCancel === 0 },
+      { label: past ? 'Sense resposta' : 'Pendents', value: summary.pending, icon: '⚪', hidden: false },
+      { label: 'Xicalla', value: summary.children, icon: '👶', hidden: false },
+      { label: 'Total', value: summary.total, icon: '#', hidden: false },
     ].filter((row) => !row.hidden);
   }
 }

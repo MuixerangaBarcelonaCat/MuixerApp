@@ -87,7 +87,7 @@ describe('EventSyncStrategy — merge rules', () => {
     const transport: string = '0';
     const metadata = {
       isHome: casa === '1',
-      colles: colles ? colles.split(',').map((c: string) => c.trim()).filter(Boolean) : [],
+      colles: colles ? colles.split(/ i |,/).map((c: string) => c.trim()).filter(Boolean) : [],
       hasBus: transport === '1',
     };
     expect(metadata.isHome).toBe(true);
@@ -95,9 +95,21 @@ describe('EventSyncStrategy — merge rules', () => {
     expect(metadata.hasBus).toBe(false);
   });
 
+  it('splits colles separated by " i " correctly', () => {
+    const colles = 'Jove Muixeranga de València i Castellers de Mollet';
+    const result = colles.split(/ i |,/).map((c: string) => c.trim()).filter(Boolean);
+    expect(result).toEqual(['Jove Muixeranga de València', 'Castellers de Mollet']);
+  });
+
+  it('splits colles with mixed separators', () => {
+    const colles = 'Colla A i Colla B, Colla C';
+    const result = colles.split(/ i |,/).map((c: string) => c.trim()).filter(Boolean);
+    expect(result).toEqual(['Colla A', 'Colla B', 'Colla C']);
+  });
+
   it('handles empty colles string gracefully', () => {
     const colles: string = '';
-    const result = colles ? colles.split(',').map((c: string) => c.trim()).filter(Boolean) : [];
+    const result = colles ? colles.split(/ i |,/).map((c: string) => c.trim()).filter(Boolean) : [];
     expect(result).toEqual([]);
   });
 });

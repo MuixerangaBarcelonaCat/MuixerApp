@@ -132,13 +132,14 @@ export class EventService {
     const direction: EventSortOrder = sortOrder === 'ASC' ? 'ASC' : 'DESC';
 
     if (!sortBy || sortBy === 'chronological') {
-      // Smart chronological: upcoming first (nearest date), then past (most recent first)
-      qb.orderBy(
-        `CASE WHEN event.date >= CURRENT_DATE THEN 0 ELSE 1 END`,
-        'ASC',
-      )
-        .addOrderBy(`CASE WHEN event.date >= CURRENT_DATE THEN event.date END`, 'ASC', 'NULLS LAST')
-        .addOrderBy(`CASE WHEN event.date < CURRENT_DATE THEN event.date END`, 'DESC', 'NULLS LAST');
+      // Smart chronological: upcoming first (nearest date), then past (most recent first).
+      // TypeORM cannot parse raw CASE WHEN in addOrderBy — use addSelect aliases instead.
+      qb.addSelect(`CASE WHEN event.date >= CURRENT_DATE THEN 0 ELSE 1 END`, 'sort_group')
+        .addSelect(`CASE WHEN event.date >= CURRENT_DATE THEN event.date END`, 'sort_asc')
+        .addSelect(`CASE WHEN event.date < CURRENT_DATE THEN event.date END`, 'sort_desc')
+        .orderBy('sort_group', 'ASC')
+        .addOrderBy('sort_asc', 'ASC', 'NULLS LAST')
+        .addOrderBy('sort_desc', 'DESC', 'NULLS LAST');
       return;
     }
 
@@ -162,6 +163,7 @@ export interface EventListItem {
   countsForStatistics: boolean;
   attendanceSummary: Record<string, number>;
   season: SeasonRef | null;
+  createdAt: Date;
 }
 
 export interface EventDetailItem extends EventListItem {
@@ -169,7 +171,7 @@ export interface EventDetailItem extends EventListItem {
   locationUrl: string | null;
   information: string | null;
   metadata: Record<string, unknown>;
-  legacyId: string | null;
+  isSynced: boolean;
 }
 
 function toSeasonRef(season: Season | null): SeasonRef | null {
@@ -188,6 +190,7 @@ function toListItem(event: Event): EventListItem {
     countsForStatistics: event.countsForStatistics,
     attendanceSummary: event.attendanceSummary as unknown as Record<string, number>,
     season: toSeasonRef(event.season),
+    createdAt: event.createdAt,
   };
 }
 
@@ -198,6 +201,6 @@ function toDetailItem(event: Event): EventDetailItem {
     locationUrl: event.locationUrl,
     information: event.information,
     metadata: event.metadata as unknown as Record<string, unknown>,
-    legacyId: event.legacyId,
+    isSynced: event.legacyId !== null,
   };
 }

@@ -18,6 +18,7 @@ const DEFAULT_ATTENDANCE_SUMMARY: AttendanceSummary = {
   pending: 0,
   attended: 0,
   noShow: 0,
+  lateCancel: 0,
   children: 0,
   total: 0,
 };

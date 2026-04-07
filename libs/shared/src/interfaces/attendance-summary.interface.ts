@@ -4,6 +4,7 @@ export interface AttendanceSummary {
   pending: number;
   attended: number;
   noShow: number;
+  lateCancel: number;
   children: number;
   total: number;
 }

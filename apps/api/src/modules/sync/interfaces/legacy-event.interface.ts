@@ -68,14 +68,15 @@ export interface LegacyActuacioDetail {
   hora_tancament: string;
 }
 
-export interface LegacyAttendance {
-  '0': string; // HTML — may contain person link/id
-  id_assistencia: string;
-  nom_casteller: string; // May contain HTML
-  estat: string; // "Vinc" | "No vinc" | "Potser"
-  instant: string; // "05/03/2026 12:59:18" DD/MM/YYYY HH:MM:SS
-  observacions: string;
-  import: string;
-  alimentacio: string | null;
-  intolerancies: string | null;
+/**
+ * Row parsed from /assistencia-export/{eventId} XLSX.
+ * Columns: Id | Persona | Comentari | Resposta | Instant | Acompanyants | Data naixement
+ * Section-separator rows (Id = 'Id') are filtered out before reaching this type.
+ */
+export interface XlsxAttendanceRow {
+  legacyPersonId: string;           // Col 0 — direct legacy person ID
+  personLabel: string;              // Col 1 — "Cognom, Nom / Alias"
+  notes: string | null;             // Col 2 — Comentari
+  estat: 'Vinc' | 'No vinc' | 'Potser' | null;  // Col 3 — null = sense resposta
+  instant: string | null;           // Col 4 — "DD/MM/YYYY HH:MM:SS" or null
 }

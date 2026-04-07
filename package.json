@@ -89,6 +89,7 @@
     "reflect-metadata": "^0.1.14",
     "rxjs": "^7.8.2",
     "tailwindcss": "^3.4.19",
-    "typeorm": "^0.3.28"
+    "typeorm": "^0.3.28",
+    "xlsx": "^0.18.5"
   }
 }

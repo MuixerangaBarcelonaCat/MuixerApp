@@ -18,7 +18,7 @@ const makeEvent = (overrides: Partial<Event> = {}): Event => ({
   information: null,
   countsForStatistics: true,
   metadata: {},
-  attendanceSummary: { confirmed: 0, declined: 0, pending: 0, attended: 69, noShow: 0, children: 11, total: 80 },
+  attendanceSummary: { confirmed: 0, declined: 0, pending: 0, attended: 69, noShow: 0, lateCancel: 0, children: 11, total: 80 },
   season: { id: 's1', name: 'Temporada 2025-2026' } as Season,
   legacyId: '1',
   legacyType: 'assaig',
@@ -41,6 +41,7 @@ describe('EventService', () => {
     eventQb = {
       leftJoinAndSelect: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
+      addSelect: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
       addOrderBy: jest.fn().mockReturnThis(),
       skip: jest.fn().mockReturnThis(),
@@ -119,19 +120,21 @@ describe('EventService', () => {
 
     it('defaults to chronological smart sort when no sortBy given', async () => {
       await service.findAll({});
-      expect(eventQb.orderBy).toHaveBeenCalledWith(
+      expect(eventQb.addSelect).toHaveBeenCalledWith(
         expect.stringContaining('CASE WHEN event.date >= CURRENT_DATE'),
-        'ASC',
+        'sort_group',
       );
+      expect(eventQb.orderBy).toHaveBeenCalledWith('sort_group', 'ASC');
       expect(eventQb.addOrderBy).toHaveBeenCalledTimes(2);
     });
 
     it('uses chronological sort when sortBy=chronological', async () => {
       await service.findAll({ sortBy: 'chronological' });
-      expect(eventQb.orderBy).toHaveBeenCalledWith(
+      expect(eventQb.addSelect).toHaveBeenCalledWith(
         expect.stringContaining('CASE WHEN'),
-        'ASC',
+        'sort_group',
       );
+      expect(eventQb.orderBy).toHaveBeenCalledWith('sort_group', 'ASC');
     });
 
     it('respects sortBy whitelist — title ASC', async () => {
@@ -175,7 +178,7 @@ describe('EventService', () => {
       await expect(svc.findOne('missing-id')).rejects.toThrow(NotFoundException);
     });
 
-    it('returns detail item with legacyId included', async () => {
+    it('returns detail item with isSynced=true and no legacyId', async () => {
       const event = makeEvent();
       const eventRepo = { findOne: jest.fn().mockResolvedValue(event) };
       const mod = await Test.createTestingModule({
@@ -188,7 +191,23 @@ describe('EventService', () => {
       const svc = mod.get<EventService>(EventService);
       const result = await svc.findOne('evt-uuid');
       expect(result.id).toBe('evt-uuid');
-      expect((result as unknown as Record<string, unknown>)['legacyId']).toBe('1');
+      expect(result.isSynced).toBe(true);
+      expect((result as unknown as Record<string, unknown>)['legacyId']).toBeUndefined();
+    });
+
+    it('returns isSynced=false for events without legacyId', async () => {
+      const event = makeEvent({ legacyId: null });
+      const eventRepo = { findOne: jest.fn().mockResolvedValue(event) };
+      const mod = await Test.createTestingModule({
+        providers: [
+          EventService,
+          { provide: getRepositoryToken(Event), useValue: eventRepo },
+          { provide: getRepositoryToken(Season), useValue: mockSeasonRepo },
+        ],
+      }).compile();
+      const svc = mod.get<EventService>(EventService);
+      const result = await svc.findOne('evt-uuid');
+      expect(result.isSynced).toBe(false);
     });
   });
 

@@ -228,7 +228,7 @@ export class EventSyncStrategy implements SyncStrategy {
     const title = this.stripHtml(actuacio.descripcio || detail.descripcio);
     const metadata: PerformanceMetadata = {
       isHome: detail.casa === '1',
-      colles: detail.colles ? detail.colles.split(',').map((c) => c.trim()).filter(Boolean) : [],
+      colles: detail.colles ? detail.colles.split(/ i |,/).map((c) => c.trim()).filter(Boolean) : [],
       hasBus: detail.transport === '1',
     };
 

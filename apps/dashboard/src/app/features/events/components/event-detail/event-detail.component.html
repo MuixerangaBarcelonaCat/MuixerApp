@@ -24,7 +24,7 @@
       </div>
       @if (!isEditing()) {
         <div class="flex gap-2">
-          @if (ev.legacyId) {
+          @if (ev.isSynced) {
             <button
               class="btn btn-outline btn-sm gap-1"
               [disabled]="syncState() === 'running'"
@@ -53,6 +53,22 @@
               <span class="label-text">Comptabilitza estadístiques</span>
               <input type="checkbox" class="toggle toggle-primary" [checked]="editCountsForStats()" (change)="editCountsForStats.set($any($event.target).checked)" />
             </label>
+            <div class="form-control">
+              <label class="label pt-0">
+                <span class="label-text">Temporada</span>
+              </label>
+              <select
+                class="select select-bordered select-sm"
+                [ngModel]="editSeasonId() ?? ''"
+                (ngModelChange)="editSeasonId.set($event || undefined)"
+                aria-label="Canviar temporada"
+              >
+                <option value="">Sense temporada</option>
+                @for (season of seasons(); track season.id) {
+                  <option [value]="season.id">{{ season.name }}</option>
+                }
+              </select>
+            </div>
           </div>
           <div class="card-actions justify-end mt-2">
             <button class="btn btn-ghost btn-sm" (click)="cancelEdit()">Cancel·lar</button>
