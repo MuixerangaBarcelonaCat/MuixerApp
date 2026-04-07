@@ -20,108 +20,99 @@
 
   <!-- Filters -->
   <div class="card bg-base-100 shadow">
-    <div class="card-body gap-4">
-      <div class="flex flex-col xl:flex-row flex-wrap gap-4 xl:items-end">
+    <div class="card-body py-3 px-4 gap-2">
+      <div class="flex flex-wrap items-center gap-2">
         <!-- Search -->
-        <div class="form-control flex-1 min-w-[min(100%,280px)]">
-          <label class="label pt-0" for="person-search">
-            <span class="label-text font-medium">Cerca</span>
-          </label>
-          <div class="relative">
-            <input
-              id="person-search"
-              type="search"
-              autocomplete="off"
-              placeholder="Nom, alies..."
-              class="input input-bordered input-md w-full pl-10 min-h-[44px]"
-              [(ngModel)]="searchInput"
-              (ngModelChange)="onSearchChange($event)"
-            />
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 absolute left-3 top-1/2 -translate-y-1/2 text-base-content/40 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
+        <div class="relative flex-1 min-w-[180px]">
+          <input
+            id="person-search"
+            type="search"
+            autocomplete="off"
+            placeholder="Cerca nom, alies..."
+            class="input input-bordered input-sm w-full pl-9 min-h-[36px]"
+            [(ngModel)]="searchInput"
+            (ngModelChange)="onSearchChange($event)"
+          />
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-base-content/40 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
         </div>
 
         <!-- Position Filter -->
-        <div class="form-control w-full md:max-w-xs">
-          <label class="label pt-0">
-            <span class="label-text font-medium">Posicions</span>
-          </label>
-          <details class="dropdown w-full">
-            <summary class="select select-bordered w-full flex items-center justify-between font-normal cursor-pointer min-h-[44px]">
-              <span class="truncate">
-                @if (selectedPositions().length === 0) {
-                  Totes
-                } @else {
-                  {{ selectedPositions().length }} seleccionades
-                }
-              </span>
-            </summary>
-            <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-full p-2 shadow max-h-60 overflow-y-auto mt-1 flex-nowrap">
-              @for (pos of positions(); track pos.id) {
-                <li>
-                  <label class="label cursor-pointer flex justify-start gap-3 py-1.5 px-2 hover:bg-base-200 rounded-lg">
-                    <input type="checkbox" class="checkbox checkbox-sm checkbox-primary"
-                           [checked]="selectedPositions().includes(pos.id)"
-                           (change)="togglePosition(pos.id)" />
-                    <span class="badge badge-sm border-0 font-medium" [style.backgroundColor]="pos.color" [style.color]="getContrastColor(pos.color)">
-                      {{ pos.name }}
-                    </span>
-                  </label>
-                </li>
+        <details class="dropdown">
+          <summary class="select select-bordered select-sm w-40 flex items-center font-normal cursor-pointer min-h-[36px]">
+            <span class="truncate text-sm">
+              @if (selectedPositions().length === 0) {
+                Posicions
+              } @else {
+                {{ selectedPositions().length }} posicions
               }
-            </ul>
-          </details>
-        </div>
-
-        <div class="flex flex-wrap gap-3 items-end">
-          <button
-            type="button"
-            class="btn btn-sm min-h-[44px]"
-            [class.btn-primary]="activeFilters().isActive === true"
-            [class.btn-outline]="activeFilters().isActive !== true"
-            (click)="toggleActiusFilter()"
-          >
-            Només actius
-          </button>
-
-          <label class="label cursor-pointer gap-2 border border-base-300 rounded-lg px-3 py-2 min-h-[44px] flex items-center">
-            <span class="label-text text-sm whitespace-nowrap">Alçada relativa (±{{ shoulderBaselineCm }})</span>
-            <input
-              type="checkbox"
-              class="toggle toggle-sm toggle-primary"
-              [checked]="shoulderHeightRelative()"
-              (change)="shoulderHeightRelative.set(!shoulderHeightRelative())"
-              aria-label="Mostrar alçada d'espatlles relativa al baseline"
-            />
-          </label>
-
-          <button type="button" class="btn btn-ghost btn-sm min-h-[44px]" (click)="clearFilters()">
-            Netejar filtres
-          </button>
-        </div>
-      </div>
-
-      <!-- Column selector (collapsed by default) -->
-      <div class="collapse collapse-arrow bg-base-200/50 rounded-box border border-base-200">
-        <input type="checkbox" aria-label="Obrir selector de columnes" />
-        <div class="collapse-title text-sm font-medium py-3 min-h-0">
-          Columnes visibles ({{ visibleColumns().length }} de {{ allColumns.length }})
-        </div>
-        <div class="collapse-content">
-          <div class="flex flex-wrap gap-1.5 pb-2">
-            @for (col of allColumns; track col.key) {
-              <button
-                type="button"
-                class="btn btn-xs gap-1"
-                [class.btn-primary]="isColumnVisible(col.key)"
-                [class.btn-outline]="!isColumnVisible(col.key)"
-                (click)="toggleColumn(col.key)"
-              >
-                {{ col.label }}
-              </button>
+            </span>
+          </summary>
+          <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-48 p-2 shadow max-h-60 overflow-y-auto mt-1 flex-nowrap">
+            @for (pos of positions(); track pos.id) {
+              <li>
+                <label class="label cursor-pointer flex justify-start gap-3 py-1.5 px-2 hover:bg-base-200 rounded-lg">
+                  <input type="checkbox" class="checkbox checkbox-sm checkbox-primary"
+                         [checked]="selectedPositions().includes(pos.id)"
+                         (change)="togglePosition(pos.id)" />
+                  <span class="badge badge-sm border-0 font-medium" [style.backgroundColor]="pos.color" [style.color]="getContrastColor(pos.color)">
+                    {{ pos.name }}
+                  </span>
+                </label>
+              </li>
             }
+          </ul>
+        </details>
+
+        <!-- Només actius -->
+        <button
+          type="button"
+          class="btn btn-sm min-h-[36px] h-9"
+          [class.btn-primary]="activeFilters().isActive === true"
+          [class.btn-outline]="activeFilters().isActive !== true"
+          (click)="toggleActiusFilter()"
+        >
+          Només actius
+        </button>
+
+        <!-- Alçada relativa -->
+        <label class="label cursor-pointer gap-2 border border-base-300 rounded-lg px-2.5 py-1.5 min-h-[36px] flex items-center">
+          <span class="label-text text-sm whitespace-nowrap">Alçada relativa (±{{ shoulderBaselineCm }})</span>
+          <input
+            type="checkbox"
+            class="toggle toggle-sm toggle-primary"
+            [checked]="shoulderHeightRelative()"
+            (change)="shoulderHeightRelative.set(!shoulderHeightRelative())"
+            aria-label="Mostrar alçada d'espatlles relativa al baseline"
+          />
+        </label>
+
+        <!-- Netejar filtres -->
+        <button type="button" class="btn btn-ghost btn-sm min-h-[36px] h-9" (click)="clearFilters()">
+          Netejar filtres
+        </button>
+
+        <!-- Column selector -->
+        <div class="collapse collapse-arrow bg-base-200/50 rounded-lg border border-base-200 ml-auto w-auto min-w-[200px]">
+          <input type="checkbox" aria-label="Obrir selector de columnes" />
+          <div class="collapse-title text-sm font-medium py-2 min-h-0 pr-8">
+            Columnes visibles ({{ visibleColumns().length }} de {{ allColumns.length }})
+          </div>
+          <div class="collapse-content">
+            <div class="flex flex-wrap gap-1.5 pb-2">
+              @for (col of allColumns; track col.key) {
+                <button
+                  type="button"
+                  class="btn btn-xs gap-1"
+                  [class.btn-primary]="isColumnVisible(col.key)"
+                  [class.btn-outline]="!isColumnVisible(col.key)"
+                  (click)="toggleColumn(col.key)"
+                >
+                  {{ col.label }}
+                </button>
+              }
+            </div>
           </div>
         </div>
       </div>

@@ -14,8 +14,8 @@
 | P2 | Data Migration (API legacy → NeonDB) | ✅ Completat | ✅ | ✅ | ✅ | Sync SSE complet, merge strategy implementada |
 | P2.1 | Dashboard Persons — UX i funcionalitats avançades | ✅ Completat | ✅ | ✅ | ✅ | Ordenació, alçada relativa, filtres, tests |
 | P3 | Temporades + Esdeveniments + Assistència | ✅ Complet | [`docs/specs/2026-03-31-p3-seasons-events-attendance-sync-design.md`](docs/specs/2026-03-31-p3-seasons-events-attendance-sync-design.md) | — | `apps/api/src/modules/season/`, `event/`, `sync/strategies/event-sync.strategy.ts` | Season + Event + Attendance entities, API, sync + dashboard |
-| P4 | Dashboard Web (Angular) — resta de features | 🔵 En curs | — | — | 🔵 | P4 persons complet, falta Events/Reports |
-| P5 | PWA Mòbil | ⚪ Pendent | — | — | — | |
+| P4 | Dashboard Web (Angular) — resta de features | 🔵 En curs | — | — | 🔵 | P4 persons complet, falta Events/Assistència manual/Reports |
+| P5 | PWA Mòbil | ⚪ Pendent | — | — | — | Inclou autogestió assistència per membres |
 | P6 | Mòdul Figures/Canvas | ⚪ Pendent | — | — | — | Part més complexa |
 | P7 | Notificacions + Features avançades | ⚪ Pendent | — | — | — | FCM, reports, notícies |
 
@@ -93,6 +93,40 @@ P0 (Scaffold)
 | Estat reactiu | Signals (`signal`, `computed`, `effect`) | Evitar `BehaviorSubject` per estat local |
 | Estils | DaisyUI v4 + Tailwind v3 | Cap Tailwind v4 fins nova decisió |
 | Alçada d'espatlles | Baseline 140 cm | Display absolut (cm) o relatiu (+/-) configurable per usuari |
+
+---
+
+## Decisions sobre el Mòdul Assistència (P4 + P5)
+
+### Edició manual per admins i tècnics (Dashboard — P4)
+
+El sync des del legacy és unidireccional i no pot detectar automàticament el cas "va dir que venia però no va aparèixer" (el legacy no té check-in real). Per cobrir-ho:
+
+| Feature | Rol | Descripció |
+|---------|-----|-----------|
+| Editar estat d'assistència | Admin, Tècnic | Canviar l'estat de qualsevol membre per a un event donat (p.ex. `ASSISTIT` → `NO_PRESENTAT`) |
+| Afegir/eliminar registres | Admin, Tècnic | Gestionar membres que no consten al legacy o events nous |
+| Editar notes | Admin, Tècnic | Afegir context per a cada registre d'assistència |
+| Llista de confirmats | Admin, Tècnic | Vista per planificar pinyes i figures amb els membres confirmats |
+
+**Regla de protecció:** quan un admin edita manualment un registre, s'activarà la flag `manuallyOverridden = true` a l'entitat `Attendance`. El sync no sobreescriurà registres amb aquesta flag activa.
+
+> Pendent: afegir columna `manuallyOverridden boolean DEFAULT false` a la migració de BD.
+
+### Autogestió per membres (PWA — P5)
+
+Els membres podran gestionar la seva pròpia assistència des de la PWA mòbil:
+
+| Feature | Descripció |
+|---------|-----------|
+| Confirmar assistència | Canviar el propi estat a `ANIRE` |
+| Cancel·lar assistència | Canviar el propi estat a `NO_VAIG` |
+| Marcar com a pendent | Deixar l'estat en `PENDENT` si no sap encara |
+| Afegir nota | Afegir context (p.ex. "Arribo tard") |
+
+Això permet que l'equip tècnic tingui la llista de confirmats actualitzada en temps real per organitzar les pinyes i figures.
+
+> Prerequisit: sistema d'autenticació (JWT + Passport) pendent de P1.
 
 ---
 

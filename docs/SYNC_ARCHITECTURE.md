@@ -127,6 +127,20 @@ amb l'estat actual (si algú canvia de "No vinc" a "Vinc", el comptador s'actual
 **Regla de notes:** les notes del XLSX s'escriuen **només si** el registre d'assistència no
 en té cap (`notes IS NULL`). Mai es sobreescriuen notes editades per l'equip.
 
+**Limitació — `noShow` (NO_PRESENTAT):** el legacy no fa check-in real. El camp `estat`
+de l'XLSX reflecteix la intenció declarada, no l'assistència física verificada. Per tant,
+el sync no pot detectar automàticament el cas "va dir Vinc però no va aparèixer":
+
+| Situació real | `estat` XLSX | Status sync | Correcte? |
+|---|---|---|---|
+| Va venir + havia dit Vinc | `Vinc` | `ASSISTIT` | ✅ |
+| No va venir + havia dit Vinc | `Vinc` | `ASSISTIT` ← | ❌ hauria de ser `NO_PRESENTAT` |
+| No va venir + havia dit Potser | `Potser` | `NO_PRESENTAT` | ✅ aproximació |
+
+**Solució:** els admins i tècnics podran corregir manualment l'estat d'assistència des
+del Dashboard (veure §7). El sync no sobreescriurà registres editats manualment un cop
+implementada la flag de protecció (`manuallyOverridden`).
+
 ---
 
 ## 3. Flux complet d'una sincronització (`GET /api/sync/events`)
@@ -188,3 +202,37 @@ El mòdul `sync/` sencer pot eliminar-se. Les temporades hauran de tenir un CRUD
 - [ ] Decidir si `legacyId` en events s'exposa al frontend (spec §6.2 diu que no)
 - [ ] Eliminar `getAssistencies()` i `LegacyAttendance` del codi
 - [ ] Migració per eliminar tots els camps `legacy*`
+
+---
+
+## 7. Edició manual d'assistència (Dashboard + PWA)
+
+El sync és unidireccional i té les limitacions descrites al §2.4. Per cobrir els casos que
+el legacy no pot resoldre automàticament, MuixerApp oferirà edició manual en dues capes:
+
+### 7.1 Dashboard — Admins i Tècnics
+
+Els usuaris amb rol `ADMIN` o `TECNIC` podran:
+
+- **Modificar l'estat** de qualsevol assistent a un event (p.ex. canviar `ASSISTIT` → `NO_PRESENTAT` per a les persones que van dir que vindrien però no van aparèixer).
+- **Afegir/eliminar** registres d'assistència manualment (per a persones que no consten al legacy o events nous creats directament a MuixerApp).
+- **Editar notes** per a cada assistent.
+- **Veure la llista de confirmats** per planificar les pinyes i figures amb les persones que se sap que assistiran.
+
+**Regla de protecció vs. sync:** quan un admin edita manualment un registre, s'activarà
+una flag `manuallyOverridden = true` a `Attendance`. El sync respectarà aquesta flag i **no
+sobreescriurà** l'estat editat manualment en re-sincronitzacions posteriors.
+
+### 7.2 PWA — Membres de la colla
+
+Els membres podran canviar el seu propi estat d'assistència des de la PWA mòbil:
+
+- Confirmar o cancel·lar assistència a un event (`ANIRE` / `NO_VAIG`).
+- Indicar dubte (`PENDENT`) si no saben encara.
+- Afegir una nota opcional (p.ex. "Arribo tard").
+
+Això permet que l'equip tècnic tingui una llista actualitzada de confirmats **en temps real**
+per organitzar les pinyes i figures abans de l'event.
+
+> ⚠️ Pendent d'implementar: requeriria el sistema d'autenticació (P1 auth) i les APIs
+> de modificació d'assistència (`PATCH /api/events/:id/attendances/:personId`).
