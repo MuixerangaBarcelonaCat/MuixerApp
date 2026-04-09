@@ -12,6 +12,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { Router, ActivatedRoute } from '@angular/router';
 import { SyncEvent, EventType } from '../../models/event.model';
+import { AuthService } from '../../../../core/auth/services/auth.service';
 import { environment } from '../../../../../environments/environment';
 
 type SyncState = 'idle' | 'running' | 'complete' | 'error';
@@ -27,6 +28,7 @@ type SyncState = 'idle' | 'running' | 'complete' | 'error';
 export class EventSyncComponent implements AfterViewInit {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly authService = inject(AuthService);
 
   private get listBase(): string {
     const type = this.route.snapshot.data['eventType'] as EventType | undefined;
@@ -64,11 +66,18 @@ export class EventSyncComponent implements AfterViewInit {
   }
 
   startSync() {
+    const token = this.authService.getAccessToken();
+    if (!token) {
+      this.syncState.set('error');
+      this.events.set([{ type: 'error', entity: 'auth', message: 'No s\'ha pogut obtenir el token d\'autenticació' }]);
+      return;
+    }
+
     this.syncState.set('running');
     this.events.set([]);
     this.summary.set(null);
 
-    const url = `${environment.apiUrl}/sync/events`;
+    const url = `${environment.apiUrl}/sync/events?token=${encodeURIComponent(token)}`;
     this.eventSource = new EventSource(url);
 
     this.eventSource.onmessage = (event) => {
@@ -128,6 +137,7 @@ export class EventSyncComponent implements AfterViewInit {
     switch (type) {
       case 'start': return 'text-info';
       case 'progress': return 'text-success';
+      case 'warn': return 'text-warning';
       case 'error': return 'text-error';
       case 'complete': return 'text-success font-bold';
       default: return 'text-base-content/60';

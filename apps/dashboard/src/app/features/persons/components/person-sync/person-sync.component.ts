@@ -2,6 +2,7 @@ import { Component, ChangeDetectionStrategy, computed, effect, inject, signal, E
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { SyncEvent } from '../../models/person.model';
+import { AuthService } from '../../../../core/auth/services/auth.service';
 import { environment } from '../../../../../environments/environment';
 
 type SyncState = 'idle' | 'running' | 'complete' | 'error';
@@ -15,6 +16,7 @@ type SyncState = 'idle' | 'running' | 'complete' | 'error';
 })
 export class PersonSyncComponent implements AfterViewInit {
   private readonly router = inject(Router);
+  private readonly authService = inject(AuthService);
 
   @ViewChild('logContainer') logContainer!: ElementRef<HTMLDivElement>;
 
@@ -47,11 +49,18 @@ export class PersonSyncComponent implements AfterViewInit {
   }
 
   startSync() {
+    const token = this.authService.getAccessToken();
+    if (!token) {
+      this.syncState.set('error');
+      this.events.set([{ type: 'error', entity: 'auth', message: 'No s\'ha pogut obtenir el token d\'autenticació' }]);
+      return;
+    }
+
     this.syncState.set('running');
     this.events.set([]);
     this.summary.set(null);
 
-    const url = `${environment.apiUrl}/sync/persons`;
+    const url = `${environment.apiUrl}/sync/persons?token=${encodeURIComponent(token)}`;
     this.eventSource = new EventSource(url);
 
     this.eventSource.onmessage = (event) => {
@@ -134,16 +143,12 @@ export class PersonSyncComponent implements AfterViewInit {
 
   getEventColorClass(type: string): string {
     switch (type) {
-      case 'start':
-        return 'text-info';
-      case 'progress':
-        return 'text-success';
-      case 'error':
-        return 'text-error';
-      case 'complete':
-        return 'text-success';
-      default:
-        return 'text-base-content/60';
+      case 'start': return 'text-info';
+      case 'progress': return 'text-success';
+      case 'warn': return 'text-warning';
+      case 'error': return 'text-error';
+      case 'complete': return 'text-success font-bold';
+      default: return 'text-base-content/60';
     }
   }
 }

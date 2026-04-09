@@ -25,18 +25,20 @@
       @if (!isEditing()) {
         <div class="flex gap-2">
           @if (ev.isSynced) {
-            <button
-              class="btn btn-outline btn-sm gap-1"
-              [disabled]="syncState() === 'running'"
-              (click)="syncAttendance()"
-            >
-              @if (syncState() === 'running') {
-                <span class="loading loading-spinner loading-xs"></span>
-                Sincronitzant...
-              } @else {
-                🔄 Sync Assistència
-              }
-            </button>
+            <div class="tooltip" [attr.data-tip]="!isAdmin() ? 'Només administradors poden sincronitzar' : ''">
+              <button
+                class="btn btn-outline btn-sm gap-1"
+                [disabled]="syncState() === 'running' || !isAdmin()"
+                (click)="syncAttendance()"
+              >
+                @if (syncState() === 'running') {
+                  <span class="loading loading-spinner loading-xs"></span>
+                  Sincronitzant...
+                } @else {
+                  🔄 Sync Assistència
+                }
+              </button>
+            </div>
           }
           <button class="btn btn-outline btn-sm" (click)="startEdit()">Editar</button>
         </div>

@@ -19,9 +19,12 @@ Members' personal data (name, email, phone, birth date, height) requires:
 ## Authentication
 
 - Passwords: bcrypt cost 12+
-- JWT with refresh tokens
+- JWT with refresh tokens (access: 15min, refresh: 7d dashboard / 30d PWA)
 - Rate limiting: 100 req/15min per IP on auth endpoints
 - Account lockout after 5 failed attempts
+- SSE endpoints: JWT via query param `?token=<jwt>` (EventSource limitation)
+  - Short-lived tokens mitigate query param exposure
+  - HTTPS enforced in production
 
 ## API Security
 

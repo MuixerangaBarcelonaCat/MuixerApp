@@ -5,6 +5,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map, startWith } from 'rxjs';
 import { SidebarComponent } from './shared/components/layout/sidebar/sidebar.component';
 import { HeaderComponent } from './shared/components/layout/header/header.component';
+import { UserChipComponent } from './shared/components/layout/user-chip/user-chip.component';
 
 @Component({
   standalone: true,
@@ -14,6 +15,7 @@ import { HeaderComponent } from './shared/components/layout/header/header.compon
     RouterModule,
     SidebarComponent,
     HeaderComponent,
+    UserChipComponent,
   ],
   selector: 'app-root',
   templateUrl: './app.html',

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Observable } from 'rxjs';
+import { Observable, Subscriber } from 'rxjs';
 import { Person } from '../../person/person.entity';
 import { Position } from '../../position/position.entity';
 import { LegacyApiClient, LegacyPerson } from '../legacy-api.client';
@@ -116,11 +116,12 @@ export class PersonSyncStrategy implements SyncStrategy {
       let newCount = 0;
       let updateCount = 0;
       let errorCount = 0;
+      let warnCount = 0;
 
       for (let i = 0; i < legacyPersons.length; i++) {
         const legacyPerson = legacyPersons[i];
         try {
-          const wasNew = await this.upsertPerson(legacyPerson);
+          const wasNew = await this.upsertPerson(legacyPerson, subscriber, () => warnCount++);
           if (wasNew) {
             newCount++;
             subscriber.next({
@@ -163,11 +164,12 @@ export class PersonSyncStrategy implements SyncStrategy {
 
       const deactivatedCount = await this.deactivateMissingPersons(legacyPersons);
 
+      const warnSuffix = warnCount > 0 ? `, ${warnCount} alias reassignats` : '';
       subscriber.next({
         type: 'complete',
         entity: 'sync',
-        message: `${legacyPersons.length} processades: ${newCount} noves, ${updateCount} actualitzades, ${deactivatedCount} desactivades, ${errorCount} errors`,
-        detail: { new: newCount, updated: updateCount, deactivated: deactivatedCount, errors: errorCount },
+        message: `${legacyPersons.length} processades: ${newCount} noves, ${updateCount} actualitzades, ${deactivatedCount} desactivades, ${errorCount} errors${warnSuffix}`,
+        detail: { new: newCount, updated: updateCount, deactivated: deactivatedCount, errors: errorCount, aliasWarnings: warnCount },
       });
 
       subscriber.complete();
@@ -214,21 +216,21 @@ export class PersonSyncStrategy implements SyncStrategy {
     }
   }
 
-  private async upsertPerson(legacyPerson: LegacyPerson): Promise<boolean> {
+  private async upsertPerson(legacyPerson: LegacyPerson, subscriber: Subscriber<SyncEvent>, onWarn: () => void): Promise<boolean> {
     const existing = await this.personRepository.findOne({
       where: { legacyId: legacyPerson.id },
       relations: ['positions'],
     });
 
     if (!existing) {
-      return this.createPerson(legacyPerson);
+      return this.createPerson(legacyPerson, subscriber, onWarn);
     } else {
-      return this.updatePerson(existing, legacyPerson);
+      return this.updatePerson(existing, legacyPerson, subscriber, onWarn);
     }
   }
 
-  private async createPerson(legacyPerson: LegacyPerson): Promise<boolean> {
-    const alias = await this.deriveUniqueAlias(legacyPerson);
+  private async createPerson(legacyPerson: LegacyPerson, subscriber: Subscriber<SyncEvent>, onWarn: () => void): Promise<boolean> {
+    const alias = await this.deriveUniqueAlias(legacyPerson, undefined, subscriber, onWarn);
     const positions = await this.resolvePositions(legacyPerson.posicio);
     const isXicalla = this.deriveIsXicalla(legacyPerson.posicio);
 
@@ -260,12 +262,14 @@ export class PersonSyncStrategy implements SyncStrategy {
   private async updatePerson(
     existing: Person,
     legacyPerson: LegacyPerson,
+    subscriber: Subscriber<SyncEvent>,
+    onWarn: () => void,
   ): Promise<boolean> {
     // Update identity fields (always sync from legacy)
     existing.name = legacyPerson.nom;
     existing.firstSurname = legacyPerson.cognom1;
     existing.secondSurname = legacyPerson.cognom2 || null;
-    existing.alias = this.deriveAlias(legacyPerson);
+    existing.alias = await this.deriveUniqueAlias(legacyPerson, existing.id, subscriber, onWarn);
     existing.email = legacyPerson.email || null;
     existing.phone = legacyPerson.telefon || null;
     existing.birthDate = this.parseDate(legacyPerson.data_naixement);
@@ -287,31 +291,59 @@ export class PersonSyncStrategy implements SyncStrategy {
     return false;
   }
 
-  private deriveAlias(legacyPerson: LegacyPerson): string {
-    const alias = legacyPerson.mote || legacyPerson.nom;
-    return alias.substring(0, 20);
+  private buildAliasCandidates(legacyPerson: LegacyPerson): string[] {
+    const base = (legacyPerson.mote || legacyPerson.nom).substring(0, 20);
+    const withSurname = `${legacyPerson.mote || legacyPerson.nom} ${legacyPerson.cognom1}`.substring(0, 20);
+    const withFull = `${legacyPerson.nom} ${legacyPerson.cognom1} ${legacyPerson.cognom2 || ''}`.trim().substring(0, 20);
+
+    const numbered = Array.from({ length: 8 }, (_, i) => `${base}_${i + 2}`.substring(0, 20));
+    return [base, withSurname, withFull, ...numbered];
   }
 
-  private async deriveUniqueAlias(legacyPerson: LegacyPerson): Promise<string> {
-    const baseAlias = this.deriveAlias(legacyPerson);
+  private async deriveUniqueAlias(
+    legacyPerson: LegacyPerson,
+    excludeId?: string,
+    subscriber?: Subscriber<SyncEvent>,
+    onWarn?: () => void,
+  ): Promise<string> {
+    const candidates = this.buildAliasCandidates(legacyPerson);
+    const base = (legacyPerson.mote || legacyPerson.nom).substring(0, 20);
 
-    const conflict = await this.personRepository.findOne({
-      where: { alias: baseAlias },
-    });
-    if (!conflict) return baseAlias;
+    for (const candidate of candidates) {
+      const qb = this.personRepository.createQueryBuilder('p').where('p.alias = :alias', { alias: candidate });
+      if (excludeId) {
+        qb.andWhere('p.id != :excludeId', { excludeId });
+      }
+      const conflict = await qb.getOne();
 
-    const withSurname = `${legacyPerson.mote || legacyPerson.nom} ${legacyPerson.cognom1}`.substring(0, 20);
-    const conflict2 = await this.personRepository.findOne({
-      where: { alias: withSurname },
-    });
-    if (!conflict2) {
-      this.logger.warn(`Alias "${baseAlias}" already taken, using "${withSurname}" for legacyId ${legacyPerson.id}`);
-      return withSurname;
+      if (!conflict) {
+        if (candidate !== base) {
+          const msg = `Alias "${base}" ja existeix (legacyId=${legacyPerson.id}), assignat "${candidate}"`;
+          this.logger.warn(msg);
+          onWarn?.();
+          subscriber?.next({
+            type: 'warn',
+            entity: 'person',
+            message: msg,
+            detail: { legacyId: legacyPerson.id, originalAlias: base, assignedAlias: candidate },
+          });
+        }
+        return candidate;
+      }
     }
 
-    const withFull = `${legacyPerson.nom} ${legacyPerson.cognom1} ${legacyPerson.cognom2 || ''}`.trim().substring(0, 20);
-    this.logger.warn(`Alias "${baseAlias}" and "${withSurname}" taken, using "${withFull}" for legacyId ${legacyPerson.id}`);
-    return withFull;
+    // Absolute fallback: use legacyId — guaranteed unique
+    const fallback = `id_${legacyPerson.id}`.substring(0, 20);
+    const msg = `Tots els alias ocupats (legacyId=${legacyPerson.id}), assignat "${fallback}"`;
+    this.logger.warn(msg);
+    onWarn?.();
+    subscriber?.next({
+      type: 'warn',
+      entity: 'person',
+      message: msg,
+      detail: { legacyId: legacyPerson.id, assignedAlias: fallback },
+    });
+    return fallback;
   }
 
   private async resolvePositions(posicio: string): Promise<Position[]> {

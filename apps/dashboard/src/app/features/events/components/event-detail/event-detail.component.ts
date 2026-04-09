@@ -5,9 +5,10 @@ import { FormsModule } from '@angular/forms';
 import { EventService } from '../../services/event.service';
 import { AttendanceService } from '../../services/attendance.service';
 import { SeasonService } from '../../services/season.service';
+import { AuthService } from '../../../../core/auth/services/auth.service';
 import { EventDetail, EventType, AttendanceSummary, SyncEvent, Season } from '../../models/event.model';
 import { AttendanceItem, AttendanceFilterParams } from '../../models/attendance.model';
-import { AttendanceStatus, PerformanceMetadata, RehearsalMetadata } from '@muixer/shared';
+import { AttendanceStatus, PerformanceMetadata, RehearsalMetadata, UserRole } from '@muixer/shared';
 import { environment } from '../../../../../environments/environment';
 
 type SyncState = 'idle' | 'running' | 'complete' | 'error';
@@ -23,6 +24,7 @@ type SyncState = 'idle' | 'running' | 'complete' | 'error';
 export class EventDetailComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly authService = inject(AuthService);
 
   private get listBase(): string {
     const url = this.router.url;
@@ -34,6 +36,8 @@ export class EventDetailComponent implements OnInit, OnDestroy {
 
   readonly EventType = EventType;
   readonly AttendanceStatus = AttendanceStatus;
+
+  isAdmin = computed(() => this.authService.userRole() === UserRole.ADMIN);
 
   event = signal<EventDetail | null>(null);
   loading = signal(true);
@@ -184,10 +188,23 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     const ev = this.event();
     if (!ev || !ev.isSynced) return;
 
+    if (!this.isAdmin()) {
+      this.syncState.set('error');
+      this.syncMessage.set('⛔ No tens permisos d\'administrador per executar la sincronització');
+      return;
+    }
+
+    const token = this.authService.getAccessToken();
+    if (!token) {
+      this.syncState.set('error');
+      this.syncMessage.set('⛔ No s\'ha pogut obtenir el token d\'autenticació');
+      return;
+    }
+
     this.syncState.set('running');
     this.syncMessage.set('Connectant...');
 
-    const url = `${environment.apiUrl}/sync/events/${ev.id}/attendance`;
+    const url = `${environment.apiUrl}/sync/events/${ev.id}/attendance?token=${encodeURIComponent(token)}`;
     this.syncEventSource = new EventSource(url);
 
     this.syncEventSource.onmessage = (msg) => {
@@ -204,8 +221,13 @@ export class EventDetailComponent implements OnInit, OnDestroy {
       }
     };
 
-    this.syncEventSource.onerror = () => {
-      this.syncMessage.set('Error de connexió amb el servidor');
+    this.syncEventSource.onerror = (err) => {
+      const target = err.target as EventSource;
+      if (target.readyState === EventSource.CLOSED) {
+        this.syncMessage.set('⛔ No tens permisos d\'administrador per executar la sincronització');
+      } else {
+        this.syncMessage.set('Error de connexió amb el servidor');
+      }
       this.syncState.set('error');
       this.closeSyncEventSource();
     };

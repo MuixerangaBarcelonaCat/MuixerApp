@@ -15,7 +15,7 @@ interface MessageEvent {
 
 @ApiTags('sync')
 @Controller('sync')
-@Roles(UserRole.TECHNICAL, UserRole.ADMIN)
+@Roles(UserRole.ADMIN)
 export class SyncController {
   constructor(
     private readonly personSyncStrategy: PersonSyncStrategy,

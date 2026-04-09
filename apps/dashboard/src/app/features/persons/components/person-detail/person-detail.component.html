@@ -74,9 +74,9 @@
             @if (person()!.shoulderHeight) {
               <div>
                 <div class="label">
-                  <span class="label-text text-xs text-base-content/70">Alçada</span>
+                  <span class="label-text text-xs text-base-content/70">Alçada espatlla (cm)</span>
                 </div>
-                <p class="text-base">{{ person()!.shoulderHeight }}</p>
+                <p class="text-base">{{ person()!.shoulderHeight }} ({{ formatShoulderHeightRelative(person()!.shoulderHeight) }})</p>
               </div>
             }
           </div>

@@ -5,7 +5,9 @@
     <input id="main-drawer" type="checkbox" class="drawer-toggle" [checked]="mobileMenuOpen()" />
     
     <div class="drawer-content flex flex-col">
-      <app-header (menuClicked)="mobileMenuOpen.set(true)" />
+      <app-header (menuClicked)="mobileMenuOpen.set(true)">
+        <app-user-chip />
+      </app-header>
       
       <main class="flex-1 overflow-y-auto p-4 lg:p-6 bg-base-200">
         <router-outlet />

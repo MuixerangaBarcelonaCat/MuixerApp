@@ -35,7 +35,7 @@ export const ALL_COLUMNS: ColumnDef[] = [
   { key: 'birthDate', label: 'Data naixement', defaultVisible: false, sortField: 'birthDate' },
   { key: 'shoulderHeight', label: 'Alçada', defaultVisible: false, sortField: 'shoulderHeight' },
   { key: 'positions', label: 'Posicions', defaultVisible: true },
-  { key: 'availability', label: 'Disponibilitat', defaultVisible: true, sortField: 'availability' },
+  { key: 'availability', label: 'Disponibilitat', defaultVisible: false, sortField: 'availability' },
   { key: 'onboardingStatus', label: 'Acollida', defaultVisible: false, sortField: 'onboardingStatus' },
   { key: 'isActive', label: 'Actiu', defaultVisible: true, sortField: 'isActive' },
   { key: 'isMember', label: 'Membre', defaultVisible: false, sortField: 'isMember' },

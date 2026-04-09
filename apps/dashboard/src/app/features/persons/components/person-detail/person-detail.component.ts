@@ -11,6 +11,7 @@ import {
   getContrastColor,
   formatDate,
   formatDateTime,
+  formatShoulderHeightRelative,
 } from '../../../../shared/utils';
 
 @Component({
@@ -36,6 +37,7 @@ export class PersonDetailComponent implements OnInit {
   readonly getContrastColor = getContrastColor;
   readonly formatDate = formatDate;
   readonly formatDateTime = formatDateTime;
+  readonly formatShoulderHeightRelative = formatShoulderHeightRelative;
 
   ngOnInit() {
     const id = this.route.snapshot.paramMap.get('id');

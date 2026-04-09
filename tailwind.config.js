@@ -23,17 +23,20 @@ module.exports = {
     themes: [
       {
         'colla-barcelona': {
-          'primary': '#1B5E20',
-          'secondary': '#FDD835',
-          'accent': '#37cdbe',
-          'neutral': '#3d4451',
-          'base-100': '#ffffff',
-          'base-200': '#f9fafb',
-          'base-300': '#e5e7eb',
-          'info': '#3abff8',
-          'success': '#36d399',
-          'warning': '#fbbd23',
-          'error': '#f87272',
+          "primary": "#1E3A8A",      // Blau profund (botons principals, links)
+          "secondary": "#111827",    // Negre suau (navbar, sidebar)
+          "accent": "#DC2626",       // Roig viu (CTA, highlights)
+
+          "neutral": "#374151",      // gris fosc per textos secundaris
+
+          "base-100": "#ffffff",     // fons principal
+          "base-200": "#F3F4F6",     // fons cards
+          "base-300": "#E5E7EB",     // separadors
+
+          "info": "#2563EB",         // blau més viu (alerts info)
+          "success": "#16A34A",
+          "warning": "#F59E0B",
+          "error": "#DC2626"
         },
       },
       'light',

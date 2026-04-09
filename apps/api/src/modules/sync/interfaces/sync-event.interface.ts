@@ -1,5 +1,5 @@
 export interface SyncEvent {
-  type: 'start' | 'progress' | 'error' | 'complete';
+  type: 'start' | 'progress' | 'warn' | 'error' | 'complete';
   entity: string;
   current?: number;
   total?: number;

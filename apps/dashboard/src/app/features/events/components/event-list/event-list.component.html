@@ -95,27 +95,27 @@
         <button type="button" class="btn btn-ghost btn-sm min-h-[36px] h-9" (click)="clearFilters()">
           Netejar filtres
         </button>
+      </div>
 
-        <!-- Column selector -->
-        <div class="collapse collapse-arrow bg-base-200/50 rounded-lg border border-base-200 ml-auto w-auto min-w-[200px]">
-          <input type="checkbox" aria-label="Obrir selector de columnes" />
-          <div class="collapse-title text-sm font-medium py-2 min-h-0 pr-8">
-            Columnes visibles ({{ visibleColumns().length }} de {{ ALL_EVENT_COLUMNS.length }})
-          </div>
-          <div class="collapse-content">
-            <div class="flex flex-wrap gap-1.5 pb-2">
-              @for (col of ALL_EVENT_COLUMNS; track col.key) {
-                <button
-                  type="button"
-                  class="btn btn-xs gap-1"
-                  [class.btn-primary]="isColumnVisible(col.key)"
-                  [class.btn-outline]="!isColumnVisible(col.key)"
-                  (click)="toggleColumn(col.key)"
-                >
-                  {{ col.label }}
-                </button>
-              }
-            </div>
+      <!-- Column selector (separate row) -->
+      <div class="collapse collapse-arrow bg-base-200/50 rounded-lg border border-base-200 w-auto min-w-[200px]">
+        <input type="checkbox" aria-label="Obrir selector de columnes" class="min-h-0" />
+        <div class="collapse-title text-sm font-medium py-2 min-h-0 pr-8">
+          Columnes visibles ({{ visibleColumns().length }} de {{ ALL_EVENT_COLUMNS.length }})
+        </div>
+        <div class="collapse-content">
+          <div class="flex flex-wrap gap-1.5 pb-2">
+            @for (col of ALL_EVENT_COLUMNS; track col.key) {
+              <button
+                type="button"
+                class="btn btn-xs gap-1"
+                [class.btn-primary]="isColumnVisible(col.key)"
+                [class.btn-outline]="!isColumnVisible(col.key)"
+                (click)="toggleColumn(col.key)"
+              >
+                {{ col.label }}
+              </button>
+            }
           </div>
         </div>
       </div>
