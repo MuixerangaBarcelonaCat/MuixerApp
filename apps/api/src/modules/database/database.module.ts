@@ -8,6 +8,7 @@ import { Person } from '../person/person.entity';
 import { Season } from '../season/season.entity';
 import { Event } from '../event/event.entity';
 import { Attendance } from '../event/attendance.entity';
+import { RefreshToken } from '../auth/entities/refresh-token.entity';
 
 @Module({
   imports: [
@@ -16,7 +17,7 @@ import { Attendance } from '../event/attendance.entity';
         type: 'postgres',
         url: process.env.DATABASE_URL,
         ssl: { rejectUnauthorized: false },
-        entities: [Position, User, Person, Season, Event, Attendance],
+        entities: [Position, User, Person, Season, Event, Attendance, RefreshToken],
         synchronize: process.env.NODE_ENV !== 'production',
         logging: process.env.NODE_ENV !== 'production',
       }),

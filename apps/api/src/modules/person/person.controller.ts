@@ -12,6 +12,8 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import { UserRole } from '@muixer/shared';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { PersonService } from './person.service';
 import { CreatePersonDto } from './dto/create-person.dto';
 import { UpdatePersonDto } from './dto/update-person.dto';
@@ -19,6 +21,7 @@ import { PersonFilterDto } from './dto/person-filter.dto';
 
 @ApiTags('persons')
 @Controller('persons')
+@Roles(UserRole.TECHNICAL, UserRole.ADMIN)
 export class PersonController {
   constructor(private readonly personService: PersonService) {}
 

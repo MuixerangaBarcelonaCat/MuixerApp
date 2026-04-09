@@ -7,11 +7,14 @@ import 'dotenv/config';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const cookieParser = require('cookie-parser');
 import { AppModule } from './app/app.module';
 import { LatencyInterceptor } from './common/interceptors/latency.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.use(cookieParser());
   
   const globalPrefix = 'api';
   app.setGlobalPrefix(globalPrefix);
@@ -26,8 +29,9 @@ async function bootstrap() {
     }),
   );
   
+  const corsOrigins = process.env.CORS_ORIGINS?.split(',').map((o) => o.trim()) ?? ['http://localhost:4200'];
   app.enableCors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:4200',
+    origin: corsOrigins,
     credentials: true,
   });
 

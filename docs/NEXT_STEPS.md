@@ -1,14 +1,14 @@
 # MuixerApp — Punt actual i pròxims passos
 
-> Última actualització: 1 d'abril de 2026
+> Última actualització: 9 d'abril de 2026
 
 ---
 
 ## On estem?
 
-### ✅ Fase completada: P0+P1+P2+P2.1+P3.0 Vertical Slice — Complet i Funcional
+### ✅ Fase completada: P0+P1+P2+P2.1+P3+P4.1 — Complet i Funcional
 
-El primer vertical slice amb totes les millores de dashboard està **completament implementat i funcional**:
+Vertical slice complet amb auth layer implementat. L'aplicació té **login real, guards globals i refresh token rotation**:
 
 #### Backend
 - ✅ Nx monorepo configurat
@@ -28,6 +28,19 @@ El primer vertical slice amb totes les millores de dashboard està **completamen
 - ✅ **Sync /sync/events** i **/sync/all** SSE endpoints
 - ✅ **Tests** amb Jest (101/101 passing — Person + Season + Event + Attendance + Sync strategies)
 
+#### Auth (P4.1)
+- ✅ **AuthModule** complet: JWT+Passport (local + jwt strategies)
+- ✅ **7 endpoints**: login, refresh, logout, logout-all, me, invite/accept, setup/user
+- ✅ **TokenService**: refresh token rotation amb detecció de reutilització + revocació per família
+- ✅ **Guards globals**: JwtAuthGuard + RolesGuard com APP_GUARD
+- ✅ **Decoradors**: `@Public()`, `@Roles()`, `@CurrentUser()`
+- ✅ **RefreshToken entity**: SHA-256 hash, family, clientType, expiresAt, usedAt, revokedAt
+- ✅ **User entity refactoritzat**: afegit `email` (unique), `person` OneToOne
+- ✅ **Person entity**: afegit `user` back-ref, eliminat `isMainAccount`
+- ✅ **Rate limiting**: `@nestjs/throttler` als endpoints auth
+- ✅ **Shared lib**: `ClientType` enum, `JwtPayload`/`UserProfile`/`PersonSummary` interfaces
+- ✅ **Tests** auth.service + token.service
+
 #### Frontend
 - ✅ Angular 20+ dashboard amb arquitectura moderna
 - ✅ **DaisyUI v4 + Angular CDK** (migrat des de Spartan UI)
@@ -43,7 +56,14 @@ El primer vertical slice amb totes les millores de dashboard està **completamen
 - ✅ **Event Detail** — info, metadata per tipus, resum assistència + progress bar, llista assistència filtrable
 - ✅ **Event Sync** — SSE progress UI, resum de sincronització
 - ✅ Sidebar activat per Esdeveniments
-- ✅ **Tests** amb Vitest (22/22 passing — Person + EventService + AttendanceService + utils)
+- ✅ **Auth Dashboard (P4.1)**:
+  - AuthService signal-based (`currentUser`, `isAuthenticated`, `userRole`)
+  - `authInterceptor`: Bearer header + 401→refresh→retry
+  - `authGuard` + `rolesGuard()` CanActivateFn
+  - `LoginComponent` (DaisyUI, 3 fitxers, UI en català)
+  - `APP_INITIALIZER` que intenta refresh a l'arrancar
+  - Totes les rutes protegides amb `authGuard` + `rolesGuard(TECHNICAL, ADMIN)`
+- ✅ **Tests** amb Vitest (22/22 passing — Person + EventService + AttendanceService + utils) + auth guards + interceptor + login component
 
 ### Què s'ha implementat?
 
@@ -58,14 +78,15 @@ El primer vertical slice amb totes les millores de dashboard està **completamen
 
 ```
 apps/
-  api/          → NestJS backend (Person, Position, User modules)
-  dashboard/    → Angular dashboard (layout shell + routing)
+  api/          → NestJS backend (Person, Position, User, Auth, Season, Event, Attendance, Sync)
+  dashboard/    → Angular dashboard (layout + auth + persons + events)
   pwa/          → PWA scaffold (buit)
 libs/
-  shared/       → Enums compartits
+  shared/       → Enums + interfaces compartides (UserRole, ClientType, JwtPayload, UserProfile...)
 docs/
-  specs/        → Spec tècnic aprovat
-  archive/      → Docs històrics (DATA_MODEL, TEAM_KICKOFF)
+  specs/        → Specs tècnics aprovats
+  AUTH_FLOW.md  → Fluxos d'autenticació (P4.1)
+  DATA_MODEL.md → Model de dades actualitzat
   PROJECT_ROADMAP.md
   NEXT_STEPS.md (aquest document)
   API_APPSISTENCIA.md
@@ -145,22 +166,22 @@ Implementat a `docs/specs/2026-03-31-p3-seasons-events-attendance-sync-design.md
 - ✅ Dashboard: EventList + EventDetail + EventSync
 - ✅ 101/101 backend tests + 22/22 dashboard tests
 
-### 4. Pròxims passos: P3.1 i P4
+### 4. Pròxims passos: P4.2+
 
 | Ítem | Prioritat | Descripció |
 |------|-----------|------------|
-| **Auth (JWT + Passport)** | Alta | Login real per accedir al dashboard |
-| **Validació manual P3** | Alta | Sync complet contra legacy API real |
-| **P4: Dashboard Web (avançat)** | Mitjana | Gràfics, estadístiques, reports |
-| **P5: PWA Mobile** | Baixa | Angular PWA per membres (confirmar assistència) |
-| **Notificacions** | Baixa | P7 del roadmap |
+| **Validació manual P4.1** | Alta | Provar login real, refresh, guards amb dades de producció |
+| **P4.2: Dashboard Events + Assistència** | Alta | Edició manual d'assistència, llista de confirmats, guards actius |
+| **P5: Mòdul Pinyes i Figures** | Mitjana | Canvas, templates, assignació de posicions |
+| **P6: PWA Mobile** | Baixa | Angular PWA per membres (confirmar assistència, login MEMBER) |
+| **P7: Notificacions** | Baixa | Reports, FCM, estadístiques |
 
 ### 4. Deute tècnic identificat (per abordar durant P3/P4)
 
 | Ítem | Descripció | Prioritat |
 |------|-----------|-----------|
 | N+1 queries al sync | ~600 queries per 300 persones — substituir per bulk upsert TypeORM | Baixa |
-| Auth (JWT + Passport) | User module sense login real; ruta de login pendent | Alta (abans P3 en producció) |
+| ~~Auth (JWT + Passport)~~ | ✅ Resolt a P4.1 | ~~Alta~~ |
 | E2E tests | Cap test Playwright/Cypress — falta cobertura de flux complet | Mitjana |
 | PersonDetail tests | Component sense tests unitaris | Baixa |
 | PersonSyncComponent tests | Component sense tests unitaris | Baixa |
@@ -235,6 +256,7 @@ Logs disponibles a la consola del servidor.
 
 | Document | Ubicació | Descripció |
 |----------|----------|------------|
+| **Auth Flow** | [`docs/AUTH_FLOW.md`](AUTH_FLOW.md) | Fluxos d'autenticació, components, env vars |
 | **API Legacy** | [`docs/API_APPSISTENCIA.md`](API_APPSISTENCIA.md) | Endpoints legacy per migració |
 | **Rules** | [`.cursor/rules/`](../.cursor/rules/) | Regles per l'agent |
 | **Arxiu** | [`docs/archive/`](archive/) | Docs històrics obsolets |

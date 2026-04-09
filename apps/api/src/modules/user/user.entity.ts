@@ -1,10 +1,25 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  OneToOne,
+  JoinColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import { UserRole } from '@muixer/shared';
+
+// Forward reference to avoid circular import — type only
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type PersonRef = any;
 
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @Column({ type: 'varchar', unique: true })
+  email: string;
 
   @Column({ type: 'varchar' })
   passwordHash: string;
@@ -32,4 +47,8 @@ export class User {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @OneToOne('Person', 'user', { nullable: true, eager: false })
+  @JoinColumn({ name: 'person_id' })
+  person: PersonRef | null;
 }

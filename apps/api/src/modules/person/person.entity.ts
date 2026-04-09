@@ -4,6 +4,7 @@ import {
   Column,
   ManyToMany,
   ManyToOne,
+  OneToOne,
   JoinTable,
   CreateDateColumn,
   UpdateDateColumn,
@@ -81,8 +82,8 @@ export class Person {
   @ManyToOne(() => User, { nullable: true })
   managedBy: User | null;
 
-  @Column({ type: 'boolean', default: true })
-  isMainAccount: boolean;
+  @OneToOne(() => User, 'person', { nullable: true })
+  user: User | null;
 
   @ManyToOne(() => Person, { nullable: true })
   mentor: Person | null;

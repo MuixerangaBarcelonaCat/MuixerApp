@@ -1,5 +1,7 @@
 import { Controller, Get, Patch, Param, Body, Query, ParseUUIDPipe } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
+import { UserRole } from '@muixer/shared';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { EventService } from './event.service';
 import { AttendanceService } from './attendance.service';
 import { EventFilterDto } from './dto/event-filter.dto';
@@ -8,6 +10,7 @@ import { AttendanceFilterDto } from './dto/attendance-filter.dto';
 
 @ApiTags('events')
 @Controller('events')
+@Roles(UserRole.TECHNICAL, UserRole.ADMIN)
 export class EventController {
   constructor(
     private readonly eventService: EventService,

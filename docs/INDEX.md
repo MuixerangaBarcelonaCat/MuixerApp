@@ -1,6 +1,6 @@
 # MuixerApp — Índex de Documentació
 
-> Última actualització: 31 de març de 2026
+> Última actualització: 9 d'abril de 2026
 
 ---
 
@@ -22,6 +22,12 @@
 | Document | Descripció |
 |----------|------------|
 | [DATA_MODEL.md](DATA_MODEL.md) | Entitats, camps, relacions i enums actuals |
+
+### Autenticació
+
+| Document | Descripció |
+|----------|------------|
+| [AUTH_FLOW.md](AUTH_FLOW.md) | Fluxos d'autenticació (login, refresh, logout), components, variables d'entorn |
 
 ### Sistema de Sincronització
 
@@ -51,6 +57,7 @@
 |----------|-------|------------|
 | [specs/2026-03-26-p0-p1-p2-vertical-slice-persons-design.md](specs/2026-03-26-p0-p1-p2-vertical-slice-persons-design.md) | ✅ Implementat | Disseny original del vertical slice P0+P1+P2 |
 | [specs/2026-03-30-vertical-slice-completion-sync-dashboard-design.md](specs/2026-03-30-vertical-slice-completion-sync-dashboard-design.md) | ✅ Implementat | Sync + dashboard UI complet |
+| [specs/2026-04-07-p4-1-auth-layer-design.md](specs/2026-04-07-p4-1-auth-layer-design.md) | ✅ Implementat | P4.1 Auth Layer (JWT+Passport, Dashboard login) |
 
 ---
 
@@ -88,5 +95,5 @@
 
 ---
 
-**Última actualització:** 31 de març de 2026  
-**Estat del projecte:** 🟢 Actiu — P0+P1+P2 completats
+**Última actualització:** 9 d'abril de 2026  
+**Estat del projecte:** 🟢 Actiu — P0 a P4.1 completats

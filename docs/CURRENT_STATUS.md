@@ -1,17 +1,18 @@
 # Estat Actual del Projecte MuixerApp
 
-> **Última actualització:** 1 d'abril de 2026
+> **Última actualització:** 9 d'abril de 2026
 
 ---
 
 ## 🎯 Resum Executiu
 
-El projecte MuixerApp està en **fase de desenvolupament actiu** amb el vertical slice P0-P3 completat i funcional. L'aplicació inclou:
+El projecte MuixerApp està en **fase de desenvolupament actiu** amb P0-P3 + P4.1 Auth Layer completats. L'aplicació inclou:
 
 - ✅ Backend NestJS amb API REST completa + ordenació server-side
 - ✅ Sistema de sincronització amb legacy API (SSE + Strategy pattern) — Persons + Events + Attendance
 - ✅ Dashboard Angular amb DaisyUI v4 + Angular CDK
 - ✅ Gestió de persones, temporades, esdeveniments i assistència
+- ✅ **Auth Layer complet**: JWT+Passport, refresh token rotation, guards globals, login page
 - ✅ Visualització d'alçada d'espatlles **absoluta i relativa** (+/- 140 cm)
 - ✅ Arquitectura de components moderna (signals, standalone, OnPush)
 - ✅ **Tests complets:** 101/101 backend + 22/22 dashboard passing
@@ -26,7 +27,8 @@ El projecte MuixerApp està en **fase de desenvolupament actiu** amb el vertical
 |-------|-------|------------|
 | **Person Module** | ✅ Complet | CRUD + filtres + cerca + paginació + activate/deactivate + **ordenació server-side** |
 | **Position Module** | ✅ Complet | CRUD + relacions M:N amb Person |
-| **User Module** | ✅ Bàsic | Entitat creada, CRUD bàsic (sense auth encara) |
+| **User Module** | ✅ Complet | Entitat amb email + OneToOne Person. Gestionat via AuthModule |
+| **Auth Module** | ✅ Complet | JWT+Passport, 7 endpoints, refresh rotation, guards globals, rate limiting |
 | **Season Module** | ✅ Complet | CRUD + comptador d'esdeveniments |
 | **Event Module** | ✅ Complet | EventService + AttendanceService + EventController + filtres/paginació/ordenació |
 | **Sync Module** | ✅ Complet | LegacyApiClient + PersonSyncStrategy + EventSyncStrategy + AttendanceSyncStrategy + SSE |
@@ -47,6 +49,13 @@ El projecte MuixerApp està en **fase de desenvolupament actiu** amb el vertical
 - `GET /api/events/:id` - Detall (inclou metadata + attendanceSummary)
 - `PATCH /api/events/:id` - Actualitzar (countsForStatistics, seasonId)
 - `GET /api/events/:id/attendance` - Llista assistència (status filter, search, pagination)
+- `POST /api/auth/login` - Login (email + password + clientType)
+- `POST /api/auth/refresh` - Rotar refresh token (cookie)
+- `POST /api/auth/logout` - Logout (revocar token actual)
+- `POST /api/auth/logout-all` - Revocar tots els tokens del user
+- `GET /api/auth/me` - Perfil de l'usuari autenticat
+- `POST /api/auth/invite/accept` - Acceptar invitació (onboarding)
+- `POST /api/auth/setup/user` - Bootstrap primer user (X-Setup-Token)
 - `GET /api/sync/persons` - Sincronització SSE (persones)
 - `GET /api/sync/events` - Sincronització SSE (events + assistència)
 - `GET /api/sync/all` - Sincronització SSE completa (persones → events → assistència)
@@ -62,8 +71,11 @@ El projecte MuixerApp està en **fase de desenvolupament actiu** amb el vertical
 | **Event List** | ✅ Complet | Tabs Assajos/Actuacions, filtres temporada/estadística/cerca, ordenació, paginació, columnes assistència |
 | **Event Detail** | ✅ Complet | Info, metadata per tipus, resum assistència, llista assistència filtrable |
 | **Event Sync** | ✅ Complet | SSE progress UI — mirrors PersonSyncComponent |
-| **Routing** | ✅ Funcional | Lazy loading per features (persons + events) |
-| **Services** | ✅ Complet | ApiService + PersonService + EventService + AttendanceService + SeasonService |
+| **Login Page** | ✅ Complet | DaisyUI form, email+password, UI en català, redirect a / on success |
+| **Auth Guards** | ✅ Complet | authGuard (CanActivateFn) + rolesGuard factory. Totes les rutes protegides |
+| **Auth Interceptor** | ✅ Complet | Bearer header + 401→refresh→retry + redirect /login on fail |
+| **Routing** | ✅ Funcional | Lazy loading per features (persons + events), protegit amb auth |
+| **Services** | ✅ Complet | AuthService (signals) + ApiService + PersonService + EventService + AttendanceService + SeasonService |
 | **Utils** | ✅ Complet | Color, date, person utilities (incl. `formatShoulderHeight*`, `shoulderHeightRelativeTone`) |
 | **Tests** | ✅ 22/22 passing | PersonListComponent + PersonService + EventService + AttendanceService + person.util + http-params.util |
 
@@ -159,11 +171,11 @@ Monorepo:
 |----------|------------|
 | `docs/INDEX.md` | Índex complet de tota la documentació |
 | `docs/DATA_MODEL.md` | Entitats, camps, relacions i enums actuals |
+| `docs/AUTH_FLOW.md` | Fluxos d'autenticació, components, env vars |
 | `docs/SYNC_MERGE_STRATEGY.md` | Regles de sincronització (referència canònica) |
-| `docs/API_PERSON_ENDPOINTS.md` | Endpoints REST de Person |
 | `docs/VALIDATION_CHECKLIST.md` | Checklist de validació manual |
 | `docs/TROUBLESHOOTING.md` | Solucions a problemes comuns |
-| `docs/specs/` | Specs tècniques aprovades (P0-P2, Sync+Dashboard) |
+| `docs/specs/` | Specs tècniques aprovades (P0-P2, Sync+Dashboard, P4.1 Auth) |
 
 ---
 
@@ -247,30 +259,25 @@ nx serve dashboard
 
 ## 🎯 Pròxims Passos Immediats
 
-### 1. Validació Manual (P2 final)
+### 1. Validació Manual P4.1
 
-Seguir checklist a `docs/VALIDATION_CHECKLIST.md`:
-- [ ] Executar sync complet
-- [ ] Verificar dades a dashboard
-- [ ] Provar filtres i cerca
-- [ ] Provar responsive (375px, 768px, 1024px)
-- [ ] Verificar activate/deactivate manual
+- [ ] Crear primer user via `POST /auth/setup/user` amb `SETUP_TOKEN`
+- [ ] Provar login al dashboard (`http://localhost:4200/login`)
+- [ ] Verificar guards: rutes protegides redirigeixen a login
+- [ ] Provar refresh automàtic (esperar expiració access token)
+- [ ] Provar logout / logout-all
+- [ ] Eliminar `SETUP_TOKEN` de `.env` un cop creat el primer user
 
-### 2. Ajustaments Post-Sync
+### 2. P4.2: Dashboard Events + Assistència
 
-Després del primer sync real:
-- [ ] Revisar mappings de camps
-- [ ] Ajustar regles de merge si cal
-- [ ] Verificar soft delete automàtic
-- [ ] Documentar anomalies
+- [ ] Edició manual d'assistència per tècnics
+- [ ] Llista de confirmats per planificar pinyes
+- [ ] Flag `manuallyOverridden` a Attendance
 
-### 3. P3: Seasons + Events + Attendance
+### 3. P5: Mòdul Pinyes i Figures
 
-Següent fase del roadmap:
-- [ ] Dissenyar entitats Season, Event, Attendance
-- [ ] Implementar CRUD
-- [ ] Afegir sync strategy per Events
-- [ ] Dashboard UI per Events
+- [ ] Canvas / drag-drop per posicions
+- [ ] Templates de figures reutilitzables
 
 **Documentació:** `docs/PROJECT_ROADMAP.md`
 
@@ -309,7 +316,9 @@ Següent fase del roadmap:
 
 ### Codi Clau
 
+- **Backend Auth:** `apps/api/src/modules/auth/`
 - **Backend Sync:** `apps/api/src/modules/sync/`
+- **Frontend Auth:** `apps/dashboard/src/app/core/auth/`
 - **Frontend Components:** `apps/dashboard/src/app/features/persons/`
 - **Shared Utils:** `apps/dashboard/src/app/shared/utils/`
 - **Rules:** `.cursor/rules/`
@@ -318,12 +327,13 @@ Següent fase del roadmap:
 
 - **P0-P2:** `docs/specs/2026-03-26-p0-p1-p2-vertical-slice-persons-design.md`
 - **Sync + Dashboard:** `docs/specs/2026-03-30-vertical-slice-completion-sync-dashboard-design.md`
+- **Auth Layer P4.1:** `docs/specs/2026-04-07-p4-1-auth-layer-design.md`
 
 ---
 
 ## 🎉 Fites Aconseguides
 
-- ✅ **Vertical Slice P0-P3** — Complet i funcional
+- ✅ **Vertical Slice P0-P3 + P4.1 Auth** — Complet i funcional
 - ✅ **Migració a DaisyUI** — Stack UI estable
 - ✅ **Sistema de Sync** — SSE + Strategy pattern (Persons + Events + Attendance)
 - ✅ **Dashboard Responsive** — Taula always-on amb scroll horitzontal
@@ -332,6 +342,7 @@ Següent fase del roadmap:
 - ✅ **AttendanceSummary denormalized** — JSONB a Event per rendiment de llista
 - ✅ **Ordenació server-side** — Whitelist de camps, protecció SQL injection
 - ✅ **Alçada espatlles relativa** — Toggle absolut/relatiu amb codificació de color
+- ✅ **Auth Layer (P4.1)** — JWT+Passport, refresh rotation, dashboard login, guards globals
 - ✅ **Suite de tests completa** — 101/101 API + 22/22 dashboard passing
 
 ---

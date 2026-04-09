@@ -1,9 +1,12 @@
 import { Controller, Get, Param, ParseUUIDPipe } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
+import { UserRole } from '@muixer/shared';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { SeasonService } from './season.service';
 
 @ApiTags('seasons')
 @Controller('seasons')
+@Roles(UserRole.TECHNICAL, UserRole.ADMIN)
 export class SeasonController {
   constructor(private readonly seasonService: SeasonService) {}
 

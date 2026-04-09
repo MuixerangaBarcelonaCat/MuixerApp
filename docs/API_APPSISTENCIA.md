@@ -43,7 +43,7 @@ BASE = "https://muixerangadebarcelona.appsistencia.cat"
 session.get(f"{BASE}/")  # Obtenir PHPSESSID
 resp = session.post(f"{BASE}/", data={
     "username": "estadistiques",
-    "password": ".AppEst.",
+    "password": "xxxxxx",
     "submitted": "1",
     "email_confirm": "",
     "phone": "",

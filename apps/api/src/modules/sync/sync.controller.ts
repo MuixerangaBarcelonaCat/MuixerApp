@@ -1,6 +1,8 @@
 import { Controller, Get, Param, ParseUUIDPipe, Sse } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Observable, concat, map } from 'rxjs';
+import { UserRole } from '@muixer/shared';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { PersonSyncStrategy } from './strategies/person-sync.strategy';
 import { EventSyncStrategy } from './strategies/event-sync.strategy';
 import { AttendanceSyncStrategy } from './strategies/attendance-sync.strategy';
@@ -13,6 +15,7 @@ interface MessageEvent {
 
 @ApiTags('sync')
 @Controller('sync')
+@Roles(UserRole.TECHNICAL, UserRole.ADMIN)
 export class SyncController {
   constructor(
     private readonly personSyncStrategy: PersonSyncStrategy,
