@@ -11,9 +11,12 @@ import { AuthService } from '../services/auth.service';
  *   rolesGuard(UserRole.TECHNICAL, UserRole.ADMIN)
  */
 export const rolesGuard = (...allowedRoles: UserRole[]): CanActivateFn =>
-  () => {
+  async () => {
     const auth = inject(AuthService);
     const router = inject(Router);
+
+    await auth.whenReady();
+
     const role = auth.userRole();
     if (role && allowedRoles.includes(role)) return true;
     return router.createUrlTree(['/login']);

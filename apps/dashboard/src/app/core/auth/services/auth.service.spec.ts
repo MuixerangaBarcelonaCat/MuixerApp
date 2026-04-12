@@ -36,6 +36,42 @@ describe('AuthService', () => {
 
   afterEach(() => http.verify());
 
+  describe('init (silent refresh)', () => {
+    it('authenticates silently when valid cookie exists', async () => {
+      const ready = service.init();
+
+      http.expectOne((r) => r.url.includes('/auth/refresh')).flush(mockAuthResponse);
+      await ready;
+
+      expect(service.isReady()).toBe(true);
+      expect(service.isAuthenticated()).toBe(true);
+      expect(service.currentUser()?.role).toBe(UserRole.TECHNICAL);
+      expect(service.getAccessToken()).toBe('access-jwt');
+    });
+
+    it('stays unauthenticated and marks ready when refresh fails', async () => {
+      const ready = service.init();
+
+      http
+        .expectOne((r) => r.url.includes('/auth/refresh'))
+        .flush({ message: 'Unauthorized' }, { status: 401, statusText: 'Unauthorized' });
+      await ready;
+
+      expect(service.isReady()).toBe(true);
+      expect(service.isAuthenticated()).toBe(false);
+    });
+
+    it('whenReady resolves after init completes', async () => {
+      service.init();
+      const readyPromise = service.whenReady();
+
+      http.expectOne((r) => r.url.includes('/auth/refresh')).flush(mockAuthResponse);
+      await readyPromise;
+
+      expect(service.isAuthenticated()).toBe(true);
+    });
+  });
+
   describe('login', () => {
     it('sets currentUser signal and stores access token in memory', () => {
       expect(service.isAuthenticated()).toBe(false);
@@ -58,9 +94,12 @@ describe('AuthService', () => {
 
   describe('logout', () => {
     it('clears currentUser signal on success', () => {
-      // Pre-populate state
-      (service as unknown as { _currentUser: { set: (v: unknown) => void } })._currentUser.set(mockProfile);
-      (service as unknown as { _accessToken: { set: (v: unknown) => void } })._accessToken.set('token');
+      (service as unknown as { _currentUser: { set: (v: unknown) => void } })._currentUser.set(
+        mockProfile,
+      );
+      (service as unknown as { _accessToken: { set: (v: unknown) => void } })._accessToken.set(
+        'token',
+      );
 
       service.logout().subscribe();
       http.expectOne((r) => r.url.includes('/auth/logout')).flush({});
@@ -70,40 +109,49 @@ describe('AuthService', () => {
     });
   });
 
-  describe('loadCurrentUser', () => {
-    it('resolves without error when refresh fails (no cookie)', () => {
-      let completed = false;
-      service.loadCurrentUser().subscribe({ complete: () => (completed = true) });
+  describe('refresh deduplication', () => {
+    it('shares a single HTTP call for concurrent refresh requests', () => {
+      let call1Done = false;
+      let call2Done = false;
 
-      http.expectOne((r) => r.url.includes('/auth/refresh')).flush(
-        { message: 'Unauthorized' },
-        { status: 401, statusText: 'Unauthorized' },
-      );
-
-      expect(completed).toBe(true);
-      expect(service.isAuthenticated()).toBe(false);
-    });
-
-    it('authenticates silently when valid cookie exists', () => {
-      service.loadCurrentUser().subscribe();
+      service.refresh().subscribe({ complete: () => (call1Done = true) });
+      service.refresh().subscribe({ complete: () => (call2Done = true) });
 
       http.expectOne((r) => r.url.includes('/auth/refresh')).flush(mockAuthResponse);
 
+      expect(call1Done).toBe(true);
+      expect(call2Done).toBe(true);
       expect(service.isAuthenticated()).toBe(true);
-      expect(service.currentUser()?.role).toBe(UserRole.TECHNICAL);
+    });
+
+    it('allows a new refresh after the previous one completes', () => {
+      service.refresh().subscribe();
+      http.expectOne((r) => r.url.includes('/auth/refresh')).flush(mockAuthResponse);
+
+      service.refresh().subscribe();
+      http.expectOne((r) => r.url.includes('/auth/refresh')).flush({
+        ...mockAuthResponse,
+        accessToken: 'new-access-jwt',
+      });
+
+      expect(service.getAccessToken()).toBe('new-access-jwt');
     });
   });
 
   describe('computed signals', () => {
     it('isAtLeastTechnical returns true for ADMIN', () => {
       const adminProfile: UserProfile = { ...mockProfile, role: UserRole.ADMIN };
-      (service as unknown as { _currentUser: { set: (v: unknown) => void } })._currentUser.set(adminProfile);
+      (service as unknown as { _currentUser: { set: (v: unknown) => void } })._currentUser.set(
+        adminProfile,
+      );
       expect(service.isAtLeastTechnical()).toBe(true);
     });
 
     it('isAtLeastTechnical returns false for MEMBER', () => {
       const memberProfile: UserProfile = { ...mockProfile, role: UserRole.MEMBER };
-      (service as unknown as { _currentUser: { set: (v: unknown) => void } })._currentUser.set(memberProfile);
+      (service as unknown as { _currentUser: { set: (v: unknown) => void } })._currentUser.set(
+        memberProfile,
+      );
       expect(service.isAtLeastTechnical()).toBe(false);
     });
   });

@@ -34,6 +34,12 @@ POST /auth/login                    →     LocalStrategy.validate()
 - `accessToken` → signal en memòria (`_accessToken` signal, mai localStorage)
 - `refreshToken` → cookie httpOnly `muixer_rt` (el browser la gestiona)
 
+**Silent refresh al bootstrap:**
+- `AuthService` constructor crida `POST /auth/refresh` automàticament
+- `isReady` signal (+ `whenReady()` Promise) indica quan la init ha acabat
+- Guards async esperen `whenReady()` abans de decidir → zero parpellejos
+- No es bloqueja el renderitzat de l'app (no `APP_INITIALIZER` bloquejant)
+
 ---
 
 ## 2. Request autenticat
@@ -139,10 +145,10 @@ POST /auth/invite/accept                →     AuthController.acceptInvite()
 
 | Fitxer | Responsabilitat |
 |--------|----------------|
-| `services/auth.service.ts` | Signal-based state: `currentUser`, `isAuthenticated`, `userRole`. Methods: login, refresh, logout, loadCurrentUser |
-| `interceptors/auth.interceptor.ts` | Afegeix `Bearer` header. 401 → refresh → retry. Refresh fail → redirect `/login` |
-| `guards/auth.guard.ts` | `CanActivateFn`: si no autenticat → redirect `/login` |
-| `guards/role.guard.ts` | `rolesGuard(...roles)`: factory que verifica `userRole()` ∈ allowedRoles |
+| `services/auth.service.ts` | Signal-based: `currentUser`, `isAuthenticated`, `isReady`, `userRole`. Constructor → silent refresh. `refresh()` dedup via `share()`. `whenReady()` Promise pels guards. |
+| `interceptors/auth.interceptor.ts` | Afegeix `Bearer` header. 401 → `refresh()` (dedup) → retry. Refresh fail → redirect `/login` |
+| `guards/auth.guard.ts` | `CanActivateFn` async: `await whenReady()` → si no autenticat → redirect `/login` |
+| `guards/role.guard.ts` | `rolesGuard(...roles)`: async factory, `await whenReady()` → verifica `userRole()` ∈ allowedRoles |
 | `models/auth.models.ts` | Interfaces: `LoginRequest`, `AuthResponse`, `UserProfile`, `PersonSummary` |
 
 ### Shared (`libs/shared/src/`)
@@ -176,5 +182,8 @@ POST /auth/invite/accept                →     AuthController.acceptInvite()
 - **Rotació obligatòria**: cada ús de refresh token genera un de nou i invalida l'anterior
 - **Detecció de reutilització**: si un token ja marcat com `used` es presenta, tota la família es revoca
 - **Rate limiting**: `@nestjs/throttler` als endpoints auth (10 req/60s per IP)
-- **Cookie segura**: `httpOnly`, `sameSite: strict`, `secure` en producció, `path: /api/auth`
+- **Cookie segura**: `httpOnly`, `sameSite: lax`, `secure` en producció, `path: /api/auth`
+  - `lax` (no `strict`) permet que el browser enviï la cookie en navegacions top-level des d'enllaços externs (WhatsApp → PWA)
 - **Access token en memòria**: mai `localStorage`, es perd al tancar pestanya (per disseny)
+- **Silent refresh**: al bootstrap, `AuthService` crida `/auth/refresh` automàticament. Un signal `isReady` i `whenReady()` Promise coordinen els guards perquè no redirigixin a `/login` abans que el refresh acabi.
+- **Refresh dedup**: crides concurrents a `refresh()` comparteixen un únic HTTP request via `share()`, evitant detecció de reutilització al backend.

@@ -1,7 +1,7 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { catchError, map, Observable, of, tap } from 'rxjs';
+import { catchError, finalize, map, Observable, of, share, tap } from 'rxjs';
 import { UserRole, ClientType } from '@muixer/shared';
 import { AuthResponse, LoginRequest, UserProfile } from '../models/auth.models';
 import { environment } from '../../../../environments/environment';
@@ -13,9 +13,18 @@ export class AuthService {
 
   private readonly _currentUser = signal<UserProfile | null>(null);
   private readonly _accessToken = signal<string | null>(null);
+  private readonly _isReady = signal(false);
+
+  private _readyResolve!: () => void;
+  private readonly _readyPromise = new Promise<void>((resolve) => {
+    this._readyResolve = resolve;
+  });
+
+  private _refreshInProgress$: Observable<void> | null = null;
 
   readonly currentUser = this._currentUser.asReadonly();
   readonly isAuthenticated = computed(() => this._currentUser() !== null);
+  readonly isReady = this._isReady.asReadonly();
   readonly userRole = computed(() => this._currentUser()?.role ?? null);
   readonly isAtLeastTechnical = computed(() =>
     [UserRole.TECHNICAL, UserRole.ADMIN].includes(this.userRole()!),
@@ -23,6 +32,21 @@ export class AuthService {
 
   getAccessToken(): string | null {
     return this._accessToken();
+  }
+
+  /**
+   * Triggers silent refresh and returns a Promise that resolves when done.
+   * Called from provideAppInitializer — NOT from the constructor,
+   * because HttpClient uses authInterceptor which injects AuthService back,
+   * causing NG0200 circular dependency if called during construction.
+   */
+  init(): Promise<void> {
+    this.silentRefresh();
+    return this._readyPromise;
+  }
+
+  whenReady(): Promise<void> {
+    return this._readyPromise;
   }
 
   clearState(): void {
@@ -43,8 +67,15 @@ export class AuthService {
       );
   }
 
+  /**
+   * Rotates the refresh token via httpOnly cookie.
+   * Concurrent callers share a single in-flight HTTP request
+   * to prevent token-reuse detection on the backend.
+   */
   refresh(): Observable<void> {
-    return this.http
+    if (this._refreshInProgress$) return this._refreshInProgress$;
+
+    this._refreshInProgress$ = this.http
       .post<AuthResponse>(`${environment.apiUrl}/auth/refresh`, {}, { withCredentials: true })
       .pipe(
         tap((res) => {
@@ -52,7 +83,13 @@ export class AuthService {
           this._currentUser.set(res.user);
         }),
         map(() => void 0),
+        finalize(() => {
+          this._refreshInProgress$ = null;
+        }),
+        share(),
       );
+
+    return this._refreshInProgress$;
   }
 
   logout(): Observable<void> {
@@ -83,12 +120,20 @@ export class AuthService {
       );
   }
 
-  loadCurrentUser(): Observable<void> {
-    return this.refresh().pipe(
-      catchError(() => {
-        this.clearState();
-        return of(void 0);
-      }),
-    );
+  private silentRefresh(): void {
+    this.refresh()
+      .pipe(
+        catchError(() => {
+          this.clearState();
+          return of(void 0);
+        }),
+        finalize(() => this.markReady()),
+      )
+      .subscribe();
+  }
+
+  private markReady(): void {
+    this._isReady.set(true);
+    this._readyResolve();
   }
 }

@@ -38,7 +38,7 @@ export class AuthController {
       clientType === ClientType.DASHBOARD ? JWT_REFRESH_TTL_DASHBOARD : JWT_REFRESH_TTL_PWA;
     res.cookie(this.tokenService.cookieName, token, {
       httpOnly: true,
-      sameSite: 'strict',
+      sameSite: 'lax',
       path: '/api/auth',
       maxAge: maxAge * 1000,
       secure: process.env['NODE_ENV'] === 'production',
