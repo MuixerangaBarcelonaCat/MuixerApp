@@ -28,6 +28,10 @@ export class ApiService {
     return this.http.post<T>(`${this.baseUrl}${path}`, body, options);
   }
 
+  protected put<T>(path: string, body: unknown, options?: HttpOptions): Observable<T> {
+    return this.http.put<T>(`${this.baseUrl}${path}`, body, options);
+  }
+
   protected patch<T>(path: string, body: unknown, options?: HttpOptions): Observable<T> {
     return this.http.patch<T>(`${this.baseUrl}${path}`, body, options);
   }

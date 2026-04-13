@@ -49,12 +49,29 @@ describe('EventService', () => {
     req.flush({});
   });
 
-  it('update sends PATCH to /events/:id', () => {
+  it('create sends POST to /events', () => {
+    const payload = { title: 'Nou assaig', eventType: EventType.ASSAIG, date: '2026-05-10' };
+    service.create(payload).subscribe();
+    const req = httpMock.expectOne(`${environment.apiUrl}/events`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual(payload);
+    req.flush({});
+  });
+
+  it('updateFull sends PUT to /events/:id', () => {
     const id = 'event-uuid-123';
-    service.update(id, { countsForStatistics: false }).subscribe();
+    service.updateFull(id, { countsForStatistics: false }).subscribe();
     const req = httpMock.expectOne(`${environment.apiUrl}/events/${id}`);
-    expect(req.request.method).toBe('PATCH');
+    expect(req.request.method).toBe('PUT');
     expect(req.request.body).toEqual({ countsForStatistics: false });
     req.flush({});
+  });
+
+  it('remove sends DELETE to /events/:id', () => {
+    const id = 'event-uuid-123';
+    service.remove(id).subscribe();
+    const req = httpMock.expectOne(`${environment.apiUrl}/events/${id}`);
+    expect(req.request.method).toBe('DELETE');
+    req.flush(null);
   });
 });

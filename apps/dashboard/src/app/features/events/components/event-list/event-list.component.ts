@@ -11,8 +11,10 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { EventService } from '../../services/event.service';
 import { SeasonService } from '../../services/season.service';
+import { EventFormModalComponent } from '../event-form-modal/event-form-modal.component';
 import {
   EventListItem,
+  EventDetail,
   EventFilterParams,
   Season,
   EventType,
@@ -40,7 +42,7 @@ function storageKey(eventType: EventType): string {
   selector: 'app-event-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, EventFormModalComponent],
   templateUrl: './event-list.component.html',
   styleUrls: ['./event-list.component.scss'],
 })
@@ -73,6 +75,7 @@ export class EventListComponent implements OnInit {
   totalEvents = signal(0);
   seasons = signal<Season[]>([]);
   loading = signal(false);
+  showCreateModal = signal(false);
 
   visibleColumnKeys = signal<string[]>([]);
 
@@ -239,6 +242,12 @@ export class EventListComponent implements OnInit {
   navigateToSync() {
     const base = this.eventType() === EventType.ASSAIG ? '/rehearsals' : '/performances';
     this.router.navigate([base, 'sync']);
+  }
+
+  onEventCreated(event: EventDetail) {
+    this.showCreateModal.set(false);
+    const base = this.eventType() === EventType.ASSAIG ? '/rehearsals' : '/performances';
+    this.router.navigate([base, event.id]);
   }
 
   toggleColumn(key: string) {

@@ -61,10 +61,20 @@ export interface EventFilterParams {
   limit?: number;
 }
 
-export interface UpdateEventPayload {
+export interface CreateEventPayload {
+  title: string;
+  eventType: EventType;
+  date: string;
+  startTime?: string;
+  location?: string;
+  locationUrl?: string;
+  description?: string;
+  information?: string;
   countsForStatistics?: boolean;
   seasonId?: string;
 }
+
+export type UpdateEventPayload = Partial<CreateEventPayload>;
 
 export interface PaginatedResponse<T> {
   data: T[];

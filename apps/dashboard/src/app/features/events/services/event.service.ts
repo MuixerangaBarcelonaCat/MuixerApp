@@ -6,6 +6,7 @@ import {
   EventListItem,
   EventDetail,
   EventFilterParams,
+  CreateEventPayload,
   UpdateEventPayload,
   PaginatedResponse,
 } from '../models/event.model';
@@ -23,7 +24,19 @@ export class EventService extends ApiService {
     return this.get<EventDetail>(`/events/${id}`);
   }
 
-  update(id: string, payload: UpdateEventPayload): Observable<EventDetail> {
-    return this.patch<EventDetail>(`/events/${id}`, payload);
+  create(payload: CreateEventPayload): Observable<EventDetail> {
+    return this.post<EventDetail>('/events', payload);
+  }
+
+  updateFull(id: string, payload: UpdateEventPayload): Observable<EventDetail> {
+    return this.put<EventDetail>(`/events/${id}`, payload);
+  }
+
+  remove(id: string): Observable<void> {
+    return this.delete<void>(`/events/${id}`);
+  }
+
+  syncFromLegacy(): Observable<void> {
+    return this.post<void>('/sync/events', {});
   }
 }

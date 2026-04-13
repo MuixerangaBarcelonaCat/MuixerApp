@@ -6,6 +6,7 @@ import { EventService } from '../../services/event.service';
 import { AttendanceService } from '../../services/attendance.service';
 import { SeasonService } from '../../services/season.service';
 import { AuthService } from '../../../../core/auth/services/auth.service';
+import { EventFormModalComponent } from '../event-form-modal/event-form-modal.component';
 import { EventDetail, EventType, AttendanceSummary, SyncEvent, Season } from '../../models/event.model';
 import { AttendanceItem, AttendanceFilterParams } from '../../models/attendance.model';
 import { AttendanceStatus, PerformanceMetadata, RehearsalMetadata, UserRole } from '@muixer/shared';
@@ -17,7 +18,7 @@ type SyncState = 'idle' | 'running' | 'complete' | 'error';
   selector: 'app-event-detail',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, EventFormModalComponent],
   templateUrl: './event-detail.component.html',
   styleUrls: ['./event-detail.component.scss'],
 })
@@ -52,10 +53,11 @@ export class EventDetailComponent implements OnInit, OnDestroy {
   attendanceSearchInput = '';
   private attendanceSearchTimeout: ReturnType<typeof setTimeout> | undefined;
 
-  isEditing = signal(false);
-  editCountsForStats = signal(false);
-  editSeasonId = signal<string | undefined>(undefined);
+  showEditModal = signal(false);
   seasons = signal<Season[]>([]);
+
+  deleting = signal(false);
+  deleteError = signal<string | null>(null);
 
   syncState = signal<SyncState>('idle');
   syncMessage = signal('');
@@ -115,6 +117,34 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     });
   }
 
+  onEventUpdated(updated: EventDetail) {
+    this.event.set(updated);
+    this.showEditModal.set(false);
+  }
+
+  deleteEvent() {
+    const ev = this.event();
+    if (!ev) return;
+    if (!confirm(`Segur que vols eliminar "${ev.title}"? Aquesta acció no es pot desfer.`)) return;
+
+    this.deleting.set(true);
+    this.deleteError.set(null);
+    this.eventService.remove(ev.id).subscribe({
+      next: () => {
+        this.deleting.set(false);
+        this.router.navigate([this.listBase]);
+      },
+      error: (err) => {
+        this.deleting.set(false);
+        if (err?.status === 409) {
+          this.deleteError.set('No es pot eliminar un event que té registres d\'assistència.');
+        } else {
+          this.deleteError.set('Error en eliminar l\'esdeveniment.');
+        }
+      },
+    });
+  }
+
   loadAttendance() {
     const ev = this.event();
     if (!ev) return;
@@ -156,32 +186,6 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     if (p < 1 || p > this.totalAttendancePages()) return;
     this.attendancePage.set(p);
     this.loadAttendance();
-  }
-
-  startEdit() {
-    const ev = this.event();
-    if (!ev) return;
-    this.editCountsForStats.set(ev.countsForStatistics);
-    this.editSeasonId.set(ev.season?.id);
-    this.isEditing.set(true);
-  }
-
-  cancelEdit() {
-    this.isEditing.set(false);
-  }
-
-  saveEdit() {
-    const ev = this.event();
-    if (!ev) return;
-    this.eventService.update(ev.id, {
-      countsForStatistics: this.editCountsForStats(),
-      seasonId: this.editSeasonId(),
-    }).subscribe({
-      next: (updated) => {
-        this.event.set(updated);
-        this.isEditing.set(false);
-      },
-    });
   }
 
   syncAttendance() {

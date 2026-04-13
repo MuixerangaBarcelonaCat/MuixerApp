@@ -9,7 +9,7 @@
       <span class="loading loading-spinner loading-lg"></span>
     </div>
   } @else if (event(); as ev) {
-    <!-- Title + edit -->
+    <!-- Title + actions -->
     <div class="flex items-start justify-between mb-6">
       <div>
         <h1 class="text-2xl font-bold">{{ ev.title }}</h1>
@@ -22,61 +22,43 @@
           }
         </div>
       </div>
-      @if (!isEditing()) {
-        <div class="flex gap-2">
-          @if (ev.isSynced) {
-            <div class="tooltip" [attr.data-tip]="!isAdmin() ? 'Només administradors poden sincronitzar' : ''">
-              <button
-                class="btn btn-outline btn-sm gap-1"
-                [disabled]="syncState() === 'running' || !isAdmin()"
-                (click)="syncAttendance()"
-              >
-                @if (syncState() === 'running') {
-                  <span class="loading loading-spinner loading-xs"></span>
-                  Sincronitzant...
-                } @else {
-                  🔄 Sync Assistència
-                }
-              </button>
-            </div>
+      <div class="flex gap-2 flex-wrap">
+        @if (ev.isSynced) {
+          <div class="tooltip" [attr.data-tip]="!isAdmin() ? 'Només administradors poden sincronitzar' : ''">
+            <button
+              class="btn btn-outline btn-sm gap-1"
+              [disabled]="syncState() === 'running' || !isAdmin()"
+              (click)="syncAttendance()"
+            >
+              @if (syncState() === 'running') {
+                <span class="loading loading-spinner loading-xs"></span>
+                Sincronitzant...
+              } @else {
+                🔄 Sync
+              }
+            </button>
+          </div>
+        }
+        <button class="btn btn-outline btn-sm" (click)="showEditModal.set(true)">Editar</button>
+        <button
+          class="btn btn-error btn-outline btn-sm"
+          [disabled]="deleting()"
+          (click)="deleteEvent()"
+        >
+          @if (deleting()) {
+            <span class="loading loading-spinner loading-xs"></span>
+          } @else {
+            Eliminar
           }
-          <button class="btn btn-outline btn-sm" (click)="startEdit()">Editar</button>
-        </div>
-      }
+        </button>
+      </div>
     </div>
 
-    <!-- Edit panel -->
-    @if (isEditing()) {
-      <div class="card bg-base-200 mb-6">
-        <div class="card-body p-4">
-          <h3 class="card-title text-base">Editar esdeveniment</h3>
-          <div class="flex flex-wrap gap-4 items-end">
-            <label class="label cursor-pointer gap-2">
-              <span class="label-text">Comptabilitza estadístiques</span>
-              <input type="checkbox" class="toggle toggle-primary" [checked]="editCountsForStats()" (change)="editCountsForStats.set($any($event.target).checked)" />
-            </label>
-            <div class="form-control">
-              <label class="label pt-0">
-                <span class="label-text">Temporada</span>
-              </label>
-              <select
-                class="select select-bordered select-sm"
-                [ngModel]="editSeasonId() ?? ''"
-                (ngModelChange)="editSeasonId.set($event || undefined)"
-                aria-label="Canviar temporada"
-              >
-                <option value="">Sense temporada</option>
-                @for (season of seasons(); track season.id) {
-                  <option [value]="season.id">{{ season.name }}</option>
-                }
-              </select>
-            </div>
-          </div>
-          <div class="card-actions justify-end mt-2">
-            <button class="btn btn-ghost btn-sm" (click)="cancelEdit()">Cancel·lar</button>
-            <button class="btn btn-primary btn-sm" (click)="saveEdit()">Desar</button>
-          </div>
-        </div>
+    <!-- Delete error -->
+    @if (deleteError()) {
+      <div class="alert alert-error mb-4 text-sm">
+        <span>{{ deleteError() }}</span>
+        <button class="btn btn-ghost btn-xs" (click)="deleteError.set(null)">✕</button>
       </div>
     }
 
@@ -296,5 +278,15 @@
         }
       </div>
     </div>
+
+    <!-- Edit event modal -->
+    @if (showEditModal()) {
+      <app-event-form-modal
+        [event]="ev"
+        [seasons]="seasons()"
+        (saved)="onEventUpdated($event)"
+        (closed)="showEditModal.set(false)"
+      />
+    }
   }
 </div>
