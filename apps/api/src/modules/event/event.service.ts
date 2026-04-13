@@ -1,9 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Event } from './event.entity';
+import { Attendance } from './attendance.entity';
 import { Season } from '../season/season.entity';
 import { EventFilterDto } from './dto/event-filter.dto';
+import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import {
   EVENT_SORT_COLUMN_MAP,
@@ -19,6 +21,8 @@ export class EventService {
     private readonly eventRepository: Repository<Event>,
     @InjectRepository(Season)
     private readonly seasonRepository: Repository<Season>,
+    @InjectRepository(Attendance)
+    private readonly attendanceRepository: Repository<Attendance>,
   ) {}
 
   async findAll(filters: EventFilterDto): Promise<{ data: EventListItem[]; total: number }> {
@@ -98,6 +102,35 @@ export class EventService {
     return toDetailItem(event);
   }
 
+  async create(dto: CreateEventDto): Promise<EventDetailItem> {
+    const event = this.eventRepository.create({
+      title: dto.title,
+      eventType: dto.eventType,
+      date: new Date(dto.date),
+      startTime: dto.startTime ?? null,
+      location: dto.location ?? null,
+      locationUrl: dto.locationUrl ?? null,
+      description: dto.description ?? null,
+      information: dto.information ?? null,
+      countsForStatistics: dto.countsForStatistics ?? true,
+    });
+
+    if (dto.seasonId) {
+      const season = await this.seasonRepository.findOne({ where: { id: dto.seasonId } });
+      if (!season) {
+        throw new NotFoundException(`Season with ID ${dto.seasonId} not found`);
+      }
+      event.season = season;
+    }
+
+    const saved = await this.eventRepository.save(event);
+    const withRelations = await this.eventRepository.findOne({
+      where: { id: saved.id },
+      relations: ['season'],
+    });
+    return toDetailItem(withRelations!);
+  }
+
   async update(id: string, dto: UpdateEventDto): Promise<EventDetailItem> {
     const event = await this.eventRepository.findOne({
       where: { id },
@@ -108,9 +141,14 @@ export class EventService {
       throw new NotFoundException(`Event with ID ${id} not found`);
     }
 
-    if (dto.countsForStatistics !== undefined) {
-      event.countsForStatistics = dto.countsForStatistics;
-    }
+    if (dto.title !== undefined) event.title = dto.title;
+    if (dto.date !== undefined) event.date = new Date(dto.date);
+    if (dto.startTime !== undefined) event.startTime = dto.startTime;
+    if (dto.location !== undefined) event.location = dto.location ?? null;
+    if (dto.locationUrl !== undefined) event.locationUrl = dto.locationUrl ?? null;
+    if (dto.description !== undefined) event.description = dto.description ?? null;
+    if (dto.information !== undefined) event.information = dto.information ?? null;
+    if (dto.countsForStatistics !== undefined) event.countsForStatistics = dto.countsForStatistics;
 
     if (dto.seasonId !== undefined) {
       const season = await this.seasonRepository.findOne({ where: { id: dto.seasonId } });
@@ -122,6 +160,26 @@ export class EventService {
 
     const saved = await this.eventRepository.save(event);
     return toDetailItem(saved);
+  }
+
+  async remove(id: string): Promise<void> {
+    const event = await this.eventRepository.findOne({ where: { id } });
+
+    if (!event) {
+      throw new NotFoundException(`Event with ID ${id} not found`);
+    }
+
+    const attendanceCount = await this.attendanceRepository.count({
+      where: { event: { id } },
+    });
+
+    if (attendanceCount > 0) {
+      throw new ConflictException(
+        'No es pot eliminar un event amb registres d\'assistència. Elimina primer els registres.',
+      );
+    }
+
+    await this.eventRepository.remove(event);
   }
 
   private applySort(

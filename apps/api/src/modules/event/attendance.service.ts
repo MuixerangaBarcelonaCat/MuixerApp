@@ -1,10 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { AttendanceStatus } from '@muixer/shared';
+import { AttendanceStatus, AttendanceSummary } from '@muixer/shared';
 import { Attendance } from './attendance.entity';
 import { Event } from './event.entity';
+import { Person } from '../person/person.entity';
 import { AttendanceFilterDto } from './dto/attendance-filter.dto';
+import { CreateAttendanceDto } from './dto/create-attendance.dto';
+import { UpdateAttendanceDto } from './dto/update-attendance.dto';
 
 @Injectable()
 export class AttendanceService {
@@ -13,6 +16,8 @@ export class AttendanceService {
     private readonly attendanceRepository: Repository<Attendance>,
     @InjectRepository(Event)
     private readonly eventRepository: Repository<Event>,
+    @InjectRepository(Person)
+    private readonly personRepository: Repository<Person>,
   ) {}
 
   async findByEvent(
@@ -54,6 +59,107 @@ export class AttendanceService {
     return { data: attendances.map(toAttendanceItem), total };
   }
 
+  async create(
+    eventId: string,
+    dto: CreateAttendanceDto,
+  ): Promise<{ attendance: AttendanceItem; summary: AttendanceSummary }> {
+    const event = await this.eventRepository.findOne({ where: { id: eventId } });
+    if (!event) {
+      throw new NotFoundException(`Event with ID ${eventId} not found`);
+    }
+
+    const person = await this.personRepository.findOne({
+      where: { id: dto.personId },
+      relations: ['positions'],
+    });
+    if (!person) {
+      throw new NotFoundException(`Person with ID ${dto.personId} not found`);
+    }
+
+    const existing = await this.attendanceRepository.findOne({
+      where: { event: { id: eventId }, person: { id: dto.personId } },
+    });
+    if (existing) {
+      throw new ConflictException('Aquesta persona ja té registre d\'assistència per aquest event');
+    }
+
+    const attendance = this.attendanceRepository.create({
+      status: dto.status,
+      notes: dto.notes ?? null,
+      respondedAt: new Date(),
+      event,
+      person,
+    });
+
+    const saved = await this.attendanceRepository.save(attendance);
+    const savedWithRelations = await this.attendanceRepository.findOne({
+      where: { id: saved.id },
+      relations: ['person', 'person.positions'],
+    });
+
+    await this.recalculateSummary(eventId);
+    const summary = await this.fetchSummary(eventId);
+
+    return { attendance: toAttendanceItem(savedWithRelations!), summary };
+  }
+
+  async update(
+    eventId: string,
+    attendanceId: string,
+    dto: UpdateAttendanceDto,
+  ): Promise<{ attendance: AttendanceItem; summary: AttendanceSummary }> {
+    const event = await this.eventRepository.findOne({ where: { id: eventId } });
+    if (!event) {
+      throw new NotFoundException(`Event with ID ${eventId} not found`);
+    }
+
+    const attendance = await this.attendanceRepository.findOne({
+      where: { id: attendanceId, event: { id: eventId } },
+      relations: ['person', 'person.positions'],
+    });
+    if (!attendance) {
+      throw new NotFoundException(`Attendance with ID ${attendanceId} not found`);
+    }
+
+    if (dto.status !== undefined) attendance.status = dto.status;
+    if (dto.notes !== undefined) attendance.notes = dto.notes;
+    attendance.respondedAt = new Date();
+
+    const saved = await this.attendanceRepository.save(attendance);
+    const savedWithRelations = await this.attendanceRepository.findOne({
+      where: { id: saved.id },
+      relations: ['person', 'person.positions'],
+    });
+
+    await this.recalculateSummary(eventId);
+    const summary = await this.fetchSummary(eventId);
+
+    return { attendance: toAttendanceItem(savedWithRelations!), summary };
+  }
+
+  async remove(
+    eventId: string,
+    attendanceId: string,
+  ): Promise<{ summary: AttendanceSummary }> {
+    const event = await this.eventRepository.findOne({ where: { id: eventId } });
+    if (!event) {
+      throw new NotFoundException(`Event with ID ${eventId} not found`);
+    }
+
+    const attendance = await this.attendanceRepository.findOne({
+      where: { id: attendanceId, event: { id: eventId } },
+    });
+    if (!attendance) {
+      throw new NotFoundException(`Attendance with ID ${attendanceId} not found`);
+    }
+
+    await this.attendanceRepository.remove(attendance);
+    await this.recalculateSummary(eventId);
+    const summary = await this.fetchSummary(eventId);
+
+    return { summary };
+  }
+
   async recalculateSummary(eventId: string): Promise<void> {
     const attendances = await this.attendanceRepository.find({
       where: { event: { id: eventId } },
@@ -66,6 +172,7 @@ export class AttendanceService {
       pending: attendances.filter((a) => a.status === AttendanceStatus.PENDENT).length,
       attended: attendances.filter((a) => a.status === AttendanceStatus.ASSISTIT).length,
       noShow: attendances.filter((a) => a.status === AttendanceStatus.NO_PRESENTAT).length,
+      lateCancel: 0,
       children: attendances.filter(
         (a) =>
           [AttendanceStatus.ANIRE, AttendanceStatus.ASSISTIT].includes(a.status) &&
@@ -75,6 +182,14 @@ export class AttendanceService {
     };
 
     await this.eventRepository.update(eventId, { attendanceSummary: summary });
+  }
+
+  private async fetchSummary(eventId: string): Promise<AttendanceSummary> {
+    const event = await this.eventRepository.findOne({
+      where: { id: eventId },
+      select: ['attendanceSummary'],
+    });
+    return event!.attendanceSummary;
   }
 }
 

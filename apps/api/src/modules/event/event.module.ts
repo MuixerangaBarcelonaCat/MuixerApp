@@ -10,6 +10,7 @@ import { AttendanceService } from './attendance.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Event, Attendance, Season, Person])],
+  // Event, Attendance, Season, Person all registered so services can inject their repos
   controllers: [EventController],
   providers: [EventService, AttendanceService],
   exports: [EventService, AttendanceService],

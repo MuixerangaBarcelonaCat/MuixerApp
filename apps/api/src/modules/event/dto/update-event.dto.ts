@@ -1,11 +1,4 @@
-import { IsBoolean, IsOptional, IsUUID } from 'class-validator';
+import { PartialType } from '@nestjs/swagger';
+import { CreateEventDto } from './create-event.dto';
 
-export class UpdateEventDto {
-  @IsOptional()
-  @IsBoolean()
-  countsForStatistics?: boolean;
-
-  @IsOptional()
-  @IsUUID('4')
-  seasonId?: string;
-}
+export class UpdateEventDto extends PartialType(CreateEventDto) {}

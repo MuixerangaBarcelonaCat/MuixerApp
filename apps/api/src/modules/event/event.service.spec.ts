@@ -3,6 +3,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { NotFoundException } from '@nestjs/common';
 import { EventService } from './event.service';
 import { Event } from './event.entity';
+import { Attendance } from './attendance.entity';
 import { Season } from '../season/season.entity';
 import { EventType } from '@muixer/shared';
 
@@ -37,6 +38,10 @@ describe('EventService', () => {
     findOne: jest.fn(),
   };
 
+  const mockAttendanceRepo = {
+    count: jest.fn().mockResolvedValue(0),
+  };
+
   beforeEach(async () => {
     eventQb = {
       leftJoinAndSelect: jest.fn().mockReturnThis(),
@@ -62,6 +67,7 @@ describe('EventService', () => {
         EventService,
         { provide: getRepositoryToken(Event), useValue: mockEventRepo },
         { provide: getRepositoryToken(Season), useValue: mockSeasonRepo },
+        { provide: getRepositoryToken(Attendance), useValue: mockAttendanceRepo },
       ],
     }).compile();
 
@@ -172,6 +178,7 @@ describe('EventService', () => {
           EventService,
           { provide: getRepositoryToken(Event), useValue: eventRepo },
           { provide: getRepositoryToken(Season), useValue: mockSeasonRepo },
+          { provide: getRepositoryToken(Attendance), useValue: mockAttendanceRepo },
         ],
       }).compile();
       const svc = mod.get<EventService>(EventService);
@@ -186,6 +193,7 @@ describe('EventService', () => {
           EventService,
           { provide: getRepositoryToken(Event), useValue: eventRepo },
           { provide: getRepositoryToken(Season), useValue: mockSeasonRepo },
+          { provide: getRepositoryToken(Attendance), useValue: mockAttendanceRepo },
         ],
       }).compile();
       const svc = mod.get<EventService>(EventService);
@@ -203,6 +211,7 @@ describe('EventService', () => {
           EventService,
           { provide: getRepositoryToken(Event), useValue: eventRepo },
           { provide: getRepositoryToken(Season), useValue: mockSeasonRepo },
+          { provide: getRepositoryToken(Attendance), useValue: mockAttendanceRepo },
         ],
       }).compile();
       const svc = mod.get<EventService>(EventService);
@@ -224,6 +233,7 @@ describe('EventService', () => {
           EventService,
           { provide: getRepositoryToken(Event), useValue: eventRepo },
           { provide: getRepositoryToken(Season), useValue: mockSeasonRepo },
+          { provide: getRepositoryToken(Attendance), useValue: mockAttendanceRepo },
         ],
       }).compile();
       const svc = mod.get<EventService>(EventService);
@@ -245,6 +255,7 @@ describe('EventService', () => {
           EventService,
           { provide: getRepositoryToken(Event), useValue: eventRepo },
           { provide: getRepositoryToken(Season), useValue: mockSeasonRepo },
+          { provide: getRepositoryToken(Attendance), useValue: mockAttendanceRepo },
         ],
       }).compile();
       const svc = mod.get<EventService>(EventService);
