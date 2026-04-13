@@ -25,4 +25,12 @@ export class PersonService extends ApiService {
   getPositions(): Observable<Position[]> {
     return this.get<Position[]>('/positions');
   }
+
+  createProvisional(alias: string): Observable<Person> {
+    return this.post<Person>('/persons/provisional', { alias });
+  }
+
+  update(id: string, payload: Partial<Person>): Observable<Person> {
+    return this.patch<Person>(`/persons/${id}`, payload);
+  }
 }

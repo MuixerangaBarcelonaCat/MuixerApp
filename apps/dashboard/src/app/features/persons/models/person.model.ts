@@ -20,6 +20,7 @@ export interface Person {
   shoulderHeight: number | null;
   isXicalla: boolean;
   isMember: boolean;
+  isProvisional?: boolean;
   availability: AvailabilityStatus;
   onboardingStatus: OnboardingStatus;
   shirtDate: string | null;
@@ -48,6 +49,7 @@ export interface PersonFilterParams {
   isActive?: boolean;
   isXicalla?: boolean;
   isMember?: boolean;
+  isProvisional?: boolean;
   page?: number;
   limit?: number;
   /** API sort field (see backend PERSON_SORT_BY_FIELDS) */

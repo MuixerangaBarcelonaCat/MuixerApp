@@ -20,6 +20,9 @@
           @if (!ev.countsForStatistics) {
             <span class="badge badge-ghost">No compta estadístiques</span>
           }
+          @if (isPast()) {
+            <span class="badge badge-neutral">Passat</span>
+          }
         </div>
       </div>
       <div class="flex gap-2 flex-wrap">
@@ -125,7 +128,6 @@
               <dt class="text-base-content/60 w-24 shrink-0">Estadística:</dt>
               <dd>{{ ev.countsForStatistics ? 'Sí ✅' : 'No ❌' }}</dd>
             </div>
-            <!-- Performance-specific metadata -->
             @if (performanceMetadata(); as meta) {
               @if (meta.isHome !== undefined) {
                 <div class="flex gap-2">
@@ -169,7 +171,6 @@
               </div>
             }
           </dl>
-          <!-- Progress bar -->
           @if (ev.attendanceSummary.total > 0) {
             <div class="mt-4">
               <div class="flex justify-between text-xs text-base-content/60 mb-1">
@@ -186,9 +187,19 @@
     <!-- Attendance list -->
     <div class="card bg-base-100 shadow">
       <div class="card-body p-4">
-        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
           <h2 class="card-title text-base">Llista d'Assistència</h2>
           <div class="flex flex-wrap gap-2">
+            <!-- Confirmed preset toggle -->
+            <button
+              type="button"
+              class="btn btn-sm"
+              [class.btn-primary]="confirmedFilterActive()"
+              [class.btn-ghost]="!confirmedFilterActive()"
+              (click)="toggleConfirmedFilter()"
+            >
+              {{ isPast() ? '✅ Assistits' : '🟢 Confirmats' }}
+            </button>
             <!-- Status filter -->
             <select
               class="select select-sm select-bordered"
@@ -211,8 +222,89 @@
                 (ngModelChange)="onAttendanceSearchChange($event)"
               />
             </label>
+            <!-- Add attendance toggle -->
+            <button
+              type="button"
+              class="btn btn-primary btn-sm"
+              (click)="showAddBar.set(!showAddBar()); addError.set(null)"
+            >
+              + Afegir membre
+            </button>
           </div>
         </div>
+
+        <!-- Add attendance bar -->
+        @if (showAddBar()) {
+          <div class="bg-base-200 rounded-box p-3 mb-3 space-y-3">
+            <!-- Status selector -->
+            <div class="flex flex-wrap gap-2 items-center">
+              <span class="text-sm font-medium">Estat:</span>
+              @for (status of [AttendanceStatus.ANIRE, AttendanceStatus.ASSISTIT, AttendanceStatus.NO_VAIG, AttendanceStatus.PENDENT]; track status) {
+                <button
+                  type="button"
+                  class="btn btn-xs"
+                  [class.btn-primary]="addStatus() === status"
+                  [class.btn-ghost]="addStatus() !== status"
+                  (click)="addStatus.set(status)"
+                >{{ getStatusLabel(status) }}</button>
+              }
+            </div>
+
+            <!-- Person search -->
+            <div class="flex flex-col gap-2">
+              <app-person-search-input
+                placeholder="Cerca persona del cens..."
+                [excludeIds]="attendingPersonIds()"
+                (selected)="onPersonSelected($event)"
+              />
+              @if (addingAttendance()) {
+                <div class="flex items-center gap-2 text-sm text-base-content/60">
+                  <span class="loading loading-spinner loading-xs"></span> Afegint...
+                </div>
+              }
+              @if (addError()) {
+                <div class="text-sm text-error">{{ addError() }}</div>
+              }
+            </div>
+
+            <!-- Add provisional divider -->
+            <div class="divider text-xs my-1">O crea una persona provisional</div>
+
+            <button
+              type="button"
+              class="btn btn-ghost btn-xs"
+              (click)="showAddProvisional.set(!showAddProvisional())"
+            >
+              + Persona nova (provisional)
+            </button>
+
+            @if (showAddProvisional()) {
+              <div class="flex items-center gap-2 flex-wrap">
+                <input
+                  type="text"
+                  class="input input-sm input-bordered flex-1 min-w-[160px]"
+                  placeholder="Àlies (ex: Joan)"
+                  [(ngModel)]="provisionalAlias"
+                  maxlength="19"
+                />
+                <button
+                  type="button"
+                  class="btn btn-sm btn-accent"
+                  [disabled]="!provisionalAlias.trim() || addingProvisional()"
+                  (click)="addProvisionalPerson()"
+                >
+                  @if (addingProvisional()) {
+                    <span class="loading loading-spinner loading-xs"></span>
+                  }
+                  Crear i afegir
+                </button>
+              </div>
+              @if (provisionalError()) {
+                <div class="text-sm text-error">{{ provisionalError() }}</div>
+              }
+            }
+          </div>
+        }
 
         <div class="overflow-x-auto">
           <table class="table table-sm">
@@ -239,14 +331,28 @@
               } @else {
                 @for (att of attendances(); track att.id) {
                   <tr>
-                    <td class="font-mono text-sm font-semibold">{{ att.person.alias }}</td>
+                    <td class="font-mono text-sm font-semibold">
+                      {{ att.person.alias }}
+                      @if (att.person.isProvisional) {
+                        <span class="badge badge-xs badge-warning ml-1">Prov.</span>
+                      }
+                    </td>
                     <td class="text-sm">{{ att.person.name }} {{ att.person.firstSurname }}</td>
                     <td>
-                      <span class="badge badge-sm" [ngClass]="getStatusBadgeClass(att.status)">
+                      <button
+                        type="button"
+                        class="badge badge-sm cursor-pointer hover:opacity-80 transition-opacity"
+                        [ngClass]="getStatusBadgeClass(att.status)"
+                        (click)="openAttendanceEdit(att)"
+                        [title]="'Editar assistència de ' + att.person.alias"
+                      >
                         {{ getStatusLabel(att.status) }}
-                      </span>
+                      </button>
                       @if (att.person.isXicalla) {
                         <span class="badge badge-ghost badge-xs ml-1">👶</span>
+                      }
+                      @if (att.notes) {
+                        <span class="badge badge-ghost badge-xs ml-1" [title]="att.notes">📝</span>
                       }
                     </td>
                     <td class="text-xs text-base-content/60">{{ formatDateTime(att.respondedAt) }}</td>
@@ -286,6 +392,18 @@
         [seasons]="seasons()"
         (saved)="onEventUpdated($event)"
         (closed)="showEditModal.set(false)"
+      />
+    }
+
+    <!-- Attendance edit modal -->
+    @if (editingAttendance()) {
+      <app-attendance-edit-modal
+        [attendance]="editingAttendance()!"
+        [eventId]="ev.id"
+        [isPast]="isPast()"
+        (saved)="onAttendanceSaved($event)"
+        (deleted)="onAttendanceDeleted($event)"
+        (closed)="editingAttendance.set(null)"
       />
     }
   }

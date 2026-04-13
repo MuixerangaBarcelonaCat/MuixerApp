@@ -5,11 +5,20 @@ import { FormsModule } from '@angular/forms';
 import { EventService } from '../../services/event.service';
 import { AttendanceService } from '../../services/attendance.service';
 import { SeasonService } from '../../services/season.service';
+import { PersonService } from '../../../persons/services/person.service';
 import { AuthService } from '../../../../core/auth/services/auth.service';
 import { EventFormModalComponent } from '../event-form-modal/event-form-modal.component';
+import { AttendanceEditModalComponent } from '../attendance-edit-modal/attendance-edit-modal.component';
+import { PersonSearchInputComponent } from '../../../../shared/components/forms/person-search-input/person-search-input.component';
 import { EventDetail, EventType, AttendanceSummary, SyncEvent, Season } from '../../models/event.model';
-import { AttendanceItem, AttendanceFilterParams } from '../../models/attendance.model';
+import {
+  AttendanceItem,
+  AttendanceFilterParams,
+  AttendanceCrudResponse,
+  AttendanceDeleteResponse,
+} from '../../models/attendance.model';
 import { AttendanceStatus, PerformanceMetadata, RehearsalMetadata, UserRole } from '@muixer/shared';
+import { Person } from '../../../persons/models/person.model';
 import { environment } from '../../../../../environments/environment';
 
 type SyncState = 'idle' | 'running' | 'complete' | 'error';
@@ -18,7 +27,7 @@ type SyncState = 'idle' | 'running' | 'complete' | 'error';
   selector: 'app-event-detail',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, FormsModule, EventFormModalComponent],
+  imports: [CommonModule, FormsModule, EventFormModalComponent, AttendanceEditModalComponent, PersonSearchInputComponent],
   templateUrl: './event-detail.component.html',
   styleUrls: ['./event-detail.component.scss'],
 })
@@ -34,6 +43,7 @@ export class EventDetailComponent implements OnInit, OnDestroy {
   private readonly eventService = inject(EventService);
   private readonly attendanceService = inject(AttendanceService);
   private readonly seasonService = inject(SeasonService);
+  private readonly personService = inject(PersonService);
 
   readonly EventType = EventType;
   readonly AttendanceStatus = AttendanceStatus;
@@ -59,6 +69,18 @@ export class EventDetailComponent implements OnInit, OnDestroy {
   deleting = signal(false);
   deleteError = signal<string | null>(null);
 
+  // Attendance management
+  editingAttendance = signal<AttendanceItem | null>(null);
+  showAddBar = signal(false);
+  showAddProvisional = signal(false);
+  addStatus = signal<AttendanceStatus>(AttendanceStatus.ANIRE);
+  addingAttendance = signal(false);
+  addError = signal<string | null>(null);
+  provisionalAlias = '';
+  addingProvisional = signal(false);
+  provisionalError = signal<string | null>(null);
+  confirmedFilterActive = signal(false);
+
   syncState = signal<SyncState>('idle');
   syncMessage = signal('');
   private syncEventSource: EventSource | null = null;
@@ -69,6 +91,14 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     const timeStr = ev.startTime ?? '23:59';
     return new Date(`${ev.date}T${timeStr}:00`) < new Date();
   });
+
+  // Default add-status based on whether event is past
+  defaultAddStatus = computed(() =>
+    this.isPast() ? AttendanceStatus.ASSISTIT : AttendanceStatus.ANIRE,
+  );
+
+  // IDs already in the attendance list to exclude from search
+  attendingPersonIds = computed(() => this.attendances().map((a) => a.person.id));
 
   totalAttendancePages = computed(() =>
     Math.ceil(this.totalAttendances() / this.attendanceLimit()),
@@ -108,6 +138,7 @@ export class EventDetailComponent implements OnInit, OnDestroy {
       next: (ev) => {
         this.event.set(ev);
         this.loading.set(false);
+        this.addStatus.set(this.defaultAddStatus());
         this.loadAttendance();
       },
       error: () => {
@@ -178,6 +209,16 @@ export class EventDetailComponent implements OnInit, OnDestroy {
 
   onAttendanceStatusFilter(value: string) {
     this.attendanceStatusFilter.set(value ? (value as AttendanceStatus) : undefined);
+    this.confirmedFilterActive.set(false);
+    this.attendancePage.set(1);
+    this.loadAttendance();
+  }
+
+  toggleConfirmedFilter() {
+    const isActive = !this.confirmedFilterActive();
+    this.confirmedFilterActive.set(isActive);
+    const status = this.isPast() ? AttendanceStatus.ASSISTIT : AttendanceStatus.ANIRE;
+    this.attendanceStatusFilter.set(isActive ? status : undefined);
     this.attendancePage.set(1);
     this.loadAttendance();
   }
@@ -186,6 +227,89 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     if (p < 1 || p > this.totalAttendancePages()) return;
     this.attendancePage.set(p);
     this.loadAttendance();
+  }
+
+  // --- Attendance CRUD ---
+
+  openAttendanceEdit(att: AttendanceItem) {
+    this.editingAttendance.set(att);
+  }
+
+  onAttendanceSaved(result: AttendanceCrudResponse) {
+    // Optimistic local update — no full reload needed
+    this.attendances.update((list) =>
+      list.map((a) => (a.id === result.attendance.id ? result.attendance : a)),
+    );
+    this.event.update((ev) => ev ? { ...ev, attendanceSummary: result.summary } : ev);
+    this.editingAttendance.set(null);
+  }
+
+  onAttendanceDeleted(result: AttendanceDeleteResponse) {
+    const deleted = this.editingAttendance();
+    this.attendances.update((list) => list.filter((a) => a.id !== deleted?.id));
+    this.totalAttendances.update((n) => n - 1);
+    this.event.update((ev) => ev ? { ...ev, attendanceSummary: result.summary } : ev);
+    this.editingAttendance.set(null);
+  }
+
+  onPersonSelected(person: Person) {
+    const ev = this.event();
+    if (!ev) return;
+    this.addingAttendance.set(true);
+    this.addError.set(null);
+
+    this.attendanceService
+      .create(ev.id, { personId: person.id, status: this.addStatus() })
+      .subscribe({
+        next: (result) => {
+          this.addingAttendance.set(false);
+          // Optimistic insert at start of list
+          this.attendances.update((list) => [result.attendance, ...list]);
+          this.totalAttendances.update((n) => n + 1);
+          this.event.update((e) => e ? { ...e, attendanceSummary: result.summary } : e);
+          this.showAddBar.set(false);
+        },
+        error: (err) => {
+          this.addingAttendance.set(false);
+          if (err?.status === 409) {
+            this.addError.set('Aquesta persona ja té un registre d\'assistència per aquest event.');
+          } else {
+            this.addError.set(err?.error?.message ?? 'Error en afegir l\'assistència');
+          }
+        },
+      });
+  }
+
+  addProvisionalPerson() {
+    const ev = this.event();
+    if (!ev || !this.provisionalAlias.trim()) return;
+    this.addingProvisional.set(true);
+    this.provisionalError.set(null);
+
+    this.personService.createProvisional(this.provisionalAlias.trim()).subscribe({
+      next: (person) => {
+        this.attendanceService
+          .create(ev.id, { personId: person.id, status: this.addStatus() })
+          .subscribe({
+            next: (result) => {
+              this.addingProvisional.set(false);
+              this.attendances.update((list) => [result.attendance, ...list]);
+              this.totalAttendances.update((n) => n + 1);
+              this.event.update((e) => e ? { ...e, attendanceSummary: result.summary } : e);
+              this.provisionalAlias = '';
+              this.showAddProvisional.set(false);
+            },
+            error: (err) => {
+              this.addingProvisional.set(false);
+              this.provisionalError.set(err?.error?.message ?? 'Error en afegir l\'assistència');
+            },
+          });
+      },
+      error: (err) => {
+        this.addingProvisional.set(false);
+        this.provisionalError.set(err?.error?.message ?? 'Error en crear la persona provisional');
+      },
+    });
   }
 
   syncAttendance() {
@@ -246,6 +370,7 @@ export class EventDetailComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.closeSyncEventSource();
+    clearTimeout(this.attendanceSearchTimeout);
   }
 
   goBack() {

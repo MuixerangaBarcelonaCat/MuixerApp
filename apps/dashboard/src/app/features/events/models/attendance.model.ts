@@ -1,4 +1,4 @@
-import { AttendanceStatus } from '@muixer/shared';
+import { AttendanceStatus, AttendanceSummary } from '@muixer/shared';
 
 export interface AttendancePosition {
   id: string;
@@ -12,6 +12,7 @@ export interface AttendancePerson {
   name: string;
   firstSurname: string;
   isXicalla: boolean;
+  isProvisional?: boolean;
   positions: AttendancePosition[];
 }
 
@@ -28,4 +29,24 @@ export interface AttendanceFilterParams {
   search?: string;
   page?: number;
   limit?: number;
+}
+
+export interface CreateAttendancePayload {
+  personId: string;
+  status: AttendanceStatus;
+  notes?: string;
+}
+
+export interface UpdateAttendancePayload {
+  status?: AttendanceStatus;
+  notes?: string | null;
+}
+
+export interface AttendanceCrudResponse {
+  attendance: AttendanceItem;
+  summary: AttendanceSummary;
+}
+
+export interface AttendanceDeleteResponse {
+  summary: AttendanceSummary;
 }
