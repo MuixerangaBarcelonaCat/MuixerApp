@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { PersonService } from './person.service';
 import { Person } from './person.entity';
 import { Position } from '../position/position.entity';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 
 describe('PersonService', () => {
   let service: PersonService;
@@ -269,6 +269,87 @@ describe('PersonService', () => {
       mockPersonRepository.findOne.mockResolvedValue(null);
 
       await expect(service.activate('999')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // --- createProvisional ---
+  describe('createProvisional', () => {
+    it('creates a provisional person with ~ prefix', async () => {
+      mockPersonRepository.findOne.mockResolvedValue(null);
+      const savedPerson = { id: 'prov-1', alias: '~Joan', name: 'Joan', firstSurname: '', isProvisional: true, isActive: true, positions: [] };
+      mockPersonRepository.create.mockReturnValue(savedPerson);
+      mockPersonRepository.save.mockResolvedValue(savedPerson);
+
+      await service.createProvisional('Joan');
+
+      expect(mockPersonRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ alias: '~Joan', isProvisional: true, isActive: true }),
+      );
+    });
+
+    it('throws ConflictException if ~ alias already exists', async () => {
+      const existing = { id: 'prov-1', alias: '~Joan' };
+      mockPersonRepository.findOne.mockResolvedValue(existing);
+
+      await expect(service.createProvisional('Joan')).rejects.toThrow(ConflictException);
+    });
+
+    it('truncates alias to 20 chars when prefixed', async () => {
+      mockPersonRepository.findOne.mockResolvedValue(null);
+      const alias = 'MoltLlargAliasXXXXXX'; // 20 chars → ~MoltLlargAliasXXXXX (20 chars)
+      const expected = `~${alias}`.slice(0, 20);
+      const savedPerson = { id: 'p', alias: expected, name: alias, firstSurname: '', isProvisional: true, isActive: true, positions: [] };
+      mockPersonRepository.create.mockReturnValue(savedPerson);
+      mockPersonRepository.save.mockResolvedValue(savedPerson);
+
+      await service.createProvisional(alias);
+
+      expect(mockPersonRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ alias: expected }),
+      );
+    });
+  });
+
+  // --- update provisional transitions ---
+  describe('update provisional', () => {
+    it('auto-prefixes ~ when demoting a regular person', async () => {
+      const regularPerson = { id: '1', alias: 'Joan', name: 'Joan', firstSurname: 'García', isProvisional: false, positions: [], mentor: null };
+      mockPersonRepository.findOne.mockResolvedValue(regularPerson);
+      mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
+
+      await service.update('1', { isProvisional: true });
+
+      expect(mockPersonRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ alias: '~Joan', isProvisional: true }),
+      );
+    });
+
+    it('throws BadRequestException when promoting without name', async () => {
+      const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: '', isProvisional: true, positions: [], mentor: null };
+      mockPersonRepository.findOne.mockResolvedValue(provisionalPerson);
+
+      await expect(service.update('1', { isProvisional: false, alias: 'JoanNou' }))
+        .rejects.toThrow(BadRequestException);
+    });
+
+    it('throws BadRequestException when promoting with ~ alias', async () => {
+      const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: 'García', isProvisional: true, positions: [], mentor: null };
+      mockPersonRepository.findOne.mockResolvedValue(provisionalPerson);
+
+      await expect(service.update('1', { isProvisional: false, name: 'Joan', firstSurname: 'García' }))
+        .rejects.toThrow(BadRequestException);
+    });
+
+    it('promotes provisional person when all fields provided', async () => {
+      const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: '', isProvisional: true, positions: [], mentor: null };
+      mockPersonRepository.findOne.mockResolvedValue(provisionalPerson);
+      mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
+
+      await service.update('1', { isProvisional: false, alias: 'JoanGarcia', name: 'Joan', firstSurname: 'García' });
+
+      expect(mockPersonRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ isProvisional: false, alias: 'JoanGarcia', firstSurname: 'García' }),
+      );
     });
   });
 });

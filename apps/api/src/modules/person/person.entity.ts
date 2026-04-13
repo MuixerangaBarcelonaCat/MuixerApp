@@ -54,6 +54,9 @@ export class Person {
   @Column({ type: 'boolean', default: false })
   isMember: boolean;
 
+  @Column({ type: 'boolean', default: false })
+  isProvisional: boolean;
+
   @Column({ type: 'enum', enum: AvailabilityStatus, default: AvailabilityStatus.AVAILABLE })
   availability: AvailabilityStatus;
 

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { plainToInstance } from 'class-transformer';
@@ -13,6 +13,9 @@ import {
   type PersonSortByField,
   type PersonSortOrder,
 } from './constants/person-sort.constants';
+
+const PROVISIONAL_PREFIX = '~';
+const MAX_ALIAS_LENGTH = 20;
 
 @Injectable()
 export class PersonService {
@@ -31,6 +34,7 @@ export class PersonService {
       isActive,
       isXicalla,
       isMember,
+      isProvisional,
       page = 1,
       limit = 50,
       sortBy,
@@ -79,6 +83,10 @@ export class PersonService {
 
     if (isMember !== undefined) {
       queryBuilder.andWhere('person.isMember = :isMember', { isMember });
+    }
+
+    if (isProvisional !== undefined) {
+      queryBuilder.andWhere('person.isProvisional = :isProvisional', { isProvisional });
     }
 
     const total = await queryBuilder.getCount();
@@ -144,6 +152,33 @@ export class PersonService {
     });
   }
 
+  /**
+   * Creates a provisional person with only an alias.
+   * The alias is automatically prefixed with "~" to avoid collisions with regular persons.
+   * Provisional persons appear in attendance but are excluded from the default census view.
+   */
+  async createProvisional(alias: string): Promise<PersonResponseDto> {
+    const provisionalAlias = `${PROVISIONAL_PREFIX}${alias}`.slice(0, MAX_ALIAS_LENGTH);
+
+    const existing = await this.personRepository.findOne({ where: { alias: provisionalAlias } });
+    if (existing) {
+      throw new ConflictException(`Ja existeix una persona provisional amb l'àlies "${alias}". Prova amb un altre.`);
+    }
+
+    const person = this.personRepository.create({
+      alias: provisionalAlias,
+      name: alias,
+      firstSurname: '',
+      isProvisional: true,
+      isActive: true,
+    });
+
+    const saved = await this.personRepository.save(person);
+    return plainToInstance(PersonResponseDto, saved, {
+      excludeExtraneousValues: true,
+    });
+  }
+
   async update(id: string, updatePersonDto: UpdatePersonDto): Promise<PersonResponseDto> {
     const person = await this.personRepository.findOne({
       where: { id },
@@ -153,7 +188,39 @@ export class PersonService {
     if (!person) {
       throw new NotFoundException(`Person with ID ${id} not found`);
     }
-    const { positionIds, mentorId, ...personData } = updatePersonDto;
+
+    const { positionIds, mentorId, isProvisional, ...personData } = updatePersonDto;
+
+    // Handle isProvisional transitions
+    if (isProvisional !== undefined) {
+      if (isProvisional === false && person.isProvisional === true) {
+        // Promotion: validate required fields are set
+        const name = personData.name ?? person.name;
+        const firstSurname = personData.firstSurname ?? person.firstSurname;
+        const alias = personData.alias ?? person.alias;
+
+        if (!name || name.trim() === '') {
+          throw new BadRequestException('Cal proporcionar un nom per promoure una persona provisional');
+        }
+        if (!firstSurname || firstSurname.trim() === '') {
+          throw new BadRequestException('Cal proporcionar un cognom per promoure una persona provisional');
+        }
+        if (alias.startsWith(PROVISIONAL_PREFIX)) {
+          throw new BadRequestException('Cal proporcionar un àlies definitiu (sense el prefix ~) per promoure una persona provisional');
+        }
+      }
+
+      if (isProvisional === true && person.isProvisional === false) {
+        // Demotion: auto-prefix alias with ~ if not already prefixed
+        const currentAlias = personData.alias ?? person.alias;
+        if (!currentAlias.startsWith(PROVISIONAL_PREFIX)) {
+          const prefixed = `${PROVISIONAL_PREFIX}${currentAlias}`.slice(0, MAX_ALIAS_LENGTH);
+          personData.alias = prefixed;
+        }
+      }
+
+      person.isProvisional = isProvisional;
+    }
 
     Object.assign(person, personData);
 

@@ -56,6 +56,9 @@ export class PersonResponseDto {
   isMember: boolean;
 
   @Expose()
+  isProvisional: boolean;
+
+  @Expose()
   availability: AvailabilityStatus;
 
   @Expose()

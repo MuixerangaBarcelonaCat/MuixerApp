@@ -33,6 +33,11 @@ export class PersonFilterDto {
   @Type(() => Boolean)
   isMember?: boolean;
 
+  @IsBoolean()
+  @IsOptional()
+  @Type(() => Boolean)
+  isProvisional?: boolean;
+
   @IsInt()
   @Min(1)
   @IsOptional()

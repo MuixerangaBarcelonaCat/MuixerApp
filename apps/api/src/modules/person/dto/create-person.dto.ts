@@ -11,6 +11,7 @@ import {
   IsUUID,
   IsArray,
   IsDateString,
+  Matches,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Gender, AvailabilityStatus, OnboardingStatus } from '@muixer/shared';
@@ -35,6 +36,7 @@ export class CreatePersonDto {
   @ApiProperty({ description: 'Àlies únic del membre', maxLength: 20 })
   @IsString()
   @MaxLength(20)
+  @Matches(/^[^~]/, { message: 'L\'àlies no pot començar amb el caràcter "~" (reservat per a persones provisionals)' })
   alias: string;
 
   @ApiPropertyOptional({ description: 'Email de contacte' })

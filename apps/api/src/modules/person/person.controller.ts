@@ -16,6 +16,7 @@ import { UserRole } from '@muixer/shared';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { PersonService } from './person.service';
 import { CreatePersonDto } from './dto/create-person.dto';
+import { CreateProvisionalPersonDto } from './dto/create-provisional-person.dto';
 import { UpdatePersonDto } from './dto/update-person.dto';
 import { PersonFilterDto } from './dto/person-filter.dto';
 
@@ -55,6 +56,15 @@ export class PersonController {
   @ApiResponse({ status: 400, description: 'Dades invàlides' })
   create(@Body() createPersonDto: CreatePersonDto) {
     return this.personService.create(createPersonDto);
+  }
+
+  @Post('provisional')
+  @ApiOperation({ summary: 'Crear una persona provisional (només àlies requerit)' })
+  @ApiResponse({ status: 201, description: 'Persona provisional creada' })
+  @ApiResponse({ status: 400, description: 'Àlies invàlid' })
+  @ApiResponse({ status: 409, description: 'Àlies ja en ús' })
+  createProvisional(@Body() dto: CreateProvisionalPersonDto) {
+    return this.personService.createProvisional(dto.alias);
   }
 
   @Patch(':id')
