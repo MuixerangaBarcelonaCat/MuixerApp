@@ -66,7 +66,8 @@ export class PersonListComponent {
 
   search = signal('');
   selectedPositions = signal<string[]>([]);
-  activeFilters = signal<Partial<PersonFilterParams>>({});
+  activeFilters = signal<Partial<PersonFilterParams>>({ isProvisional: false });
+  provisionalTab = signal<'cens' | 'provisionals' | 'tots'>('cens');
   page = signal(1);
   limit = signal(50);
 
@@ -238,6 +239,18 @@ export class PersonListComponent {
       this.page.set(pageNumber);
       this.loadPersons();
     }
+  }
+
+  setProvisionalTab(tab: 'cens' | 'provisionals' | 'tots') {
+    this.provisionalTab.set(tab);
+    const isProvisional: boolean | undefined =
+      tab === 'cens' ? false : tab === 'provisionals' ? true : undefined;
+    this.activeFilters.update((f) => {
+      const { isProvisional: _, ...rest } = f;
+      return isProvisional !== undefined ? { ...rest, isProvisional } : rest;
+    });
+    this.page.set(1);
+    this.loadPersons();
   }
 
   onPersonClick(id: string) {

@@ -6,10 +6,36 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
       </svg>
     </button>
-    <div>
-      <h2 class="text-2xl font-bold">{{ person()?.alias }}</h2>
+    <div class="flex-1">
+      <div class="flex items-center gap-2">
+        <h2 class="text-2xl font-bold">{{ person()?.alias }}</h2>
+        @if (person()?.isProvisional) {
+          <span class="badge badge-warning">Provisional</span>
+        }
+      </div>
       <p class="text-sm text-base-content/70">Detall del membre</p>
     </div>
+    @if (person()) {
+      <div class="flex items-center gap-2">
+        @if (provisionalToggleError()) {
+          <span class="text-xs text-error">{{ provisionalToggleError() }}</span>
+        }
+        <button
+          type="button"
+          class="btn btn-sm"
+          [class.btn-warning]="!person()!.isProvisional"
+          [class.btn-success]="person()!.isProvisional"
+          [disabled]="togglingProvisional()"
+          (click)="toggleProvisional()"
+        >
+          @if (togglingProvisional()) {
+            <span class="loading loading-spinner loading-xs"></span>
+          } @else {
+            {{ person()!.isProvisional ? 'Promoure a membre' : 'Marcar com a provisional' }}
+          }
+        </button>
+      </div>
+    }
   </div>
 
   @if (loading()) {

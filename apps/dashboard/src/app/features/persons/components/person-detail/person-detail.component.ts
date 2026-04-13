@@ -29,6 +29,8 @@ export class PersonDetailComponent implements OnInit {
   person = signal<Person | null>(null);
   loading = signal(false);
   metadataExpanded = false;
+  togglingProvisional = signal(false);
+  provisionalToggleError = signal<string | null>(null);
 
   // Expose utility functions for template
   readonly getFullName = getFullName;
@@ -48,6 +50,32 @@ export class PersonDetailComponent implements OnInit {
 
   goBack() {
     this.router.navigate(['/persons']);
+  }
+
+  toggleProvisional() {
+    const p = this.person();
+    if (!p || this.togglingProvisional()) return;
+
+    const newValue = !p.isProvisional;
+    if (newValue === false) {
+      // Promoting provisional to member requires real name/alias, so redirect to edit flow
+      if (!confirm('Per promoure una persona provisional a membre regular necessites confirmar que té nom, cognom i àlies definitius configurats.')) {
+        return;
+      }
+    }
+
+    this.togglingProvisional.set(true);
+    this.provisionalToggleError.set(null);
+    this.personService.update(p.id, { isProvisional: newValue }).subscribe({
+      next: (updated) => {
+        this.person.set(updated);
+        this.togglingProvisional.set(false);
+      },
+      error: (err) => {
+        this.togglingProvisional.set(false);
+        this.provisionalToggleError.set(err?.error?.message ?? 'Error en canviar l\'estat provisional');
+      },
+    });
   }
 
   private loadPerson(id: string) {

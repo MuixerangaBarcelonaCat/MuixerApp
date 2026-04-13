@@ -18,6 +18,28 @@
     </button>
   </div>
 
+  <!-- Provisional tabs -->
+  <div class="tabs tabs-boxed w-fit">
+    <button
+      type="button"
+      class="tab"
+      [class.tab-active]="provisionalTab() === 'cens'"
+      (click)="setProvisionalTab('cens')"
+    >Cens</button>
+    <button
+      type="button"
+      class="tab"
+      [class.tab-active]="provisionalTab() === 'provisionals'"
+      (click)="setProvisionalTab('provisionals')"
+    >Provisionals</button>
+    <button
+      type="button"
+      class="tab"
+      [class.tab-active]="provisionalTab() === 'tots'"
+      (click)="setProvisionalTab('tots')"
+    >Tots</button>
+  </div>
+
   <!-- Filters -->
   <div class="card bg-base-100 shadow">
     <div class="card-body py-3 px-4 gap-2">
@@ -201,7 +223,12 @@
               @for (col of visibleColumns(); track col.key) {
                 @switch (col.key) {
                   @case ('alias') {
-                    <td class="font-medium whitespace-nowrap bg-base-100">{{ person.alias }}</td>
+                    <td class="font-medium whitespace-nowrap bg-base-100">
+                      {{ person.alias }}
+                      @if (person.isProvisional) {
+                        <span class="badge badge-xs badge-warning ml-1">Provisional</span>
+                      }
+                    </td>
                   }
                   @case ('fullName') {
                     <td class="whitespace-nowrap">{{ getFullName(person) }}</td>
