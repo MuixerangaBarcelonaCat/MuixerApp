@@ -1,7 +1,7 @@
 # Model de Dades — MuixerApp
 
-> Última actualització: 9 d'abril de 2026  
-> Estat: P0–P3 implementat. P4.1 Auth Layer complet. P4.2+ pendent.
+> Última actualització: 12 d'abril de 2026  
+> Estat: P0–P3 implementat. P4.1 Auth Layer + P4.2 Events CRUD + Attendance complets.
 
 ---
 
@@ -26,6 +26,7 @@ Membre de la colla (qualsevol persona registrada al sistema, independentment del
 | `isXicalla` | `boolean` | `boolean` | No | Default `false`. Xicalla = < 16 anys |
 | `isActive` | `boolean` | `boolean` | No | Default `true`. Soft delete |
 | `isMember` | `boolean` | `boolean` | No | Default `false`. Soci de la colla |
+| `isProvisional` | `boolean` | `boolean` | No | Default `false`. Persona provisional (àlies amb prefix `~`) |
 | `availability` | `enum` | `AvailabilityStatus` | No | Default `AVAILABLE` |
 | `onboardingStatus` | `enum` | `OnboardingStatus` | No | Default `NOT_APPLICABLE` |
 | `notes` | `text` | `string \| null` | Sí | Notes internes (no sincronitza) |
@@ -41,6 +42,7 @@ Membre de la colla (qualsevol persona registrada al sistema, independentment del
 | `updatedAt` | `timestamp` | `Date` | No | Auto |
 
 > **Canvi P4.1**: Camp `isMainAccount` eliminat. La relació User↔Person ara és un `OneToOne` explícit via `user.person_id`.
+> **Canvi P4.2**: Afegit `isProvisional`. Les persones provisionals tenen àlies prefixat amb `~` (ex: `~Joan`). Promoció a regular valida que `name`, `firstSurname` no estiguin buits i l'àlies no comenci amb `~`.
 
 ---
 
@@ -202,6 +204,7 @@ erDiagram
         boolean isXicalla "default false"
         boolean isActive "default true"
         boolean isMember "default false"
+        boolean isProvisional "default false"
         enum availability "default AVAILABLE"
         enum onboardingStatus "default NOT_APPLICABLE"
         text notes "nullable"

@@ -1,7 +1,10 @@
-import { IsString, IsOptional, IsEnum, IsBoolean, IsInt, Min, Max, IsUUID, IsIn } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsInt, Min, Max, IsUUID, IsIn } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { AvailabilityStatus } from '@muixer/shared';
 import { PERSON_SORT_BY_FIELDS, PERSON_SORT_ORDER_VALUES } from '../constants/person-sort.constants';
+
+const toBool = ({ value }: { value: unknown }) =>
+  value === 'true' ? true : value === 'false' ? false : undefined;
 
 export class PersonFilterDto {
   @IsString()
@@ -18,24 +21,20 @@ export class PersonFilterDto {
   @IsOptional()
   availability?: AvailabilityStatus;
 
-  @IsBoolean()
   @IsOptional()
-  @Type(() => Boolean)
+  @Transform(toBool)
   isActive?: boolean;
 
-  @IsBoolean()
   @IsOptional()
-  @Type(() => Boolean)
+  @Transform(toBool)
   isXicalla?: boolean;
 
-  @IsBoolean()
   @IsOptional()
-  @Type(() => Boolean)
+  @Transform(toBool)
   isMember?: boolean;
 
-  @IsBoolean()
   @IsOptional()
-  @Type(() => Boolean)
+  @Transform(toBool)
   isProvisional?: boolean;
 
   @IsInt()

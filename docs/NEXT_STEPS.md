@@ -1,14 +1,14 @@
 # MuixerApp — Punt actual i pròxims passos
 
-> Última actualització: 9 d'abril de 2026
+> Última actualització: 12 d'abril de 2026
 
 ---
 
 ## On estem?
 
-### ✅ Fase completada: P0+P1+P2+P2.1+P3+P4.1 — Complet i Funcional
+### ✅ Fase completada: P0+P1+P2+P2.1+P3+P4.1+P4.2 — Complet i Funcional
 
-Vertical slice complet amb auth layer implementat. L'aplicació té **login real, guards globals i refresh token rotation**:
+Vertical slice complet amb auth layer i gestió d'events/assistència. L'aplicació té **login real, guards globals, CRUD complet d'events i assistència manual**:
 
 #### Backend
 - ✅ Nx monorepo configurat
@@ -23,7 +23,9 @@ Vertical slice complet amb auth layer implementat. L'aplicació té **login real
 - ✅ **Interceptor de latència** per monitorització de requests
 - ✅ **Ordenació server-side** — `sortBy` + `sortOrder` amb whitelist estricta (`PERSON_SORT_COLUMN_MAP`)
 - ✅ Entitats: Season, Event, Attendance amb TypeORM + JSONB metadata + attendanceSummary denormalitzat
-- ✅ CRUD complet per Season, Event, Attendance (GET, PATCH)
+- ✅ CRUD complet per Season, Event (GET/POST/PUT/DELETE), Attendance (GET/POST/PUT/DELETE)
+- ✅ **Persones provisionals**: `isProvisional` flag, prefix `~`, endpoint `POST /persons/provisional`, promoció/democió
+- ✅ **Recàlcul automàtic** `attendanceSummary` a cada operació CRUD d'assistència
 - ✅ **EventSyncStrategy + AttendanceSyncStrategy** amb context-aware status mapping
 - ✅ **Sync /sync/events** i **/sync/all** SSE endpoints
 - ✅ **Tests** amb Jest (101/101 passing — Person + Season + Event + Attendance + Sync strategies)
@@ -56,6 +58,15 @@ Vertical slice complet amb auth layer implementat. L'aplicació té **login real
 - ✅ **Event Detail** — info, metadata per tipus, resum assistència + progress bar, llista assistència filtrable
 - ✅ **Event Sync** — SSE progress UI, resum de sincronització
 - ✅ Sidebar activat per Esdeveniments
+- ✅ **Events + Attendance Dashboard (P4.2)**:
+  - Event Form Modal (crear/editar tots els camps)
+  - Attendance Edit Modal (estat + notes, eliminar amb confirmació)
+  - Afegir assistència: cercar persona o crear provisional inline
+  - Filtre de confirmats (ANIRE/ASSISTIT)
+  - Person List tabs Cens/Provisionals/Tots + badge provisional
+  - Person Detail: toggle provisional/regular
+  - Person Search Input component reutilitzable (shared)
+  - Optimistic UI updates per assistència
 - ✅ **Auth Dashboard (P4.1)**:
   - AuthService signal-based (`currentUser`, `isAuthenticated`, `userRole`)
   - `authInterceptor`: Bearer header + 401→refresh→retry
@@ -78,8 +89,8 @@ Vertical slice complet amb auth layer implementat. L'aplicació té **login real
 
 ```
 apps/
-  api/          → NestJS backend (Person, Position, User, Auth, Season, Event, Attendance, Sync)
-  dashboard/    → Angular dashboard (layout + auth + persons + events)
+  api/          → NestJS backend (Person, Position, User, Auth, Season, Event, Attendance, Sync) — Full CRUD + provisionals
+  dashboard/    → Angular dashboard (layout + auth + persons + events + attendance management)
   pwa/          → PWA scaffold (buit)
 libs/
   shared/       → Enums + interfaces compartides (UserRole, ClientType, JwtPayload, UserProfile...)
@@ -166,14 +177,23 @@ Implementat a `docs/specs/2026-03-31-p3-seasons-events-attendance-sync-design.md
 - ✅ Dashboard: EventList + EventDetail + EventSync
 - ✅ 101/101 backend tests + 22/22 dashboard tests
 
-### 4. Pròxims passos: P4.2+
+### 4. ✅ P4.2: Dashboard Events + Assistència — COMPLET
+
+Implementat a `docs/specs/2026-04-12-p4-2-dashboard-events-attendance-design.md`:
+
+- ✅ CRUD complet d'esdeveniments (crear, editar via modal, eliminar amb protecció 409)
+- ✅ CRUD complet d'assistència (afegir, editar estat/notes, eliminar)
+- ✅ Persones provisionals (crear, filtrar, promoure/degradar)
+- ✅ Components: EventFormModal, AttendanceEditModal, PersonSearchInput
+- ✅ Optimistic UI updates + recàlcul automàtic summary
+
+### 5. Pròxims passos: P5+
 
 | Ítem | Prioritat | Descripció |
 |------|-----------|------------|
-| **Validació manual P4.1** | Alta | Provar login real, refresh, guards amb dades de producció |
-| **P4.2: Dashboard Events + Assistència** | Alta | Edició manual d'assistència, llista de confirmats, guards actius |
-| **P5: Mòdul Pinyes i Figures** | Mitjana | Canvas, templates, assignació de posicions |
-| **P6: PWA Mobile** | Baixa | Angular PWA per membres (confirmar assistència, login MEMBER) |
+| **Validació manual P4.1 + P4.2** | Alta | Provar login, CRUD events, assistència, provisionals amb dades reals |
+| **P5: Mòdul Pinyes i Figures** | Alta | Canvas, templates, assignació de posicions |
+| **P6: PWA Mobile** | Mitjana | Angular PWA per membres (confirmar assistència, login MEMBER) |
 | **P7: Notificacions** | Baixa | Reports, FCM, estadístiques |
 
 ### 4. Deute tècnic identificat (per abordar durant P3/P4)
@@ -251,6 +271,7 @@ Logs disponibles a la consola del servidor.
 |----------|----------|------------|
 | **Spec P0-P2** | [`docs/specs/2026-03-26-p0-p1-p2-vertical-slice-persons-design.md`](specs/2026-03-26-p0-p1-p2-vertical-slice-persons-design.md) | Spec original |
 | **Spec Sync + Dashboard** | [`docs/specs/2026-03-30-vertical-slice-completion-sync-dashboard-design.md`](specs/2026-03-30-vertical-slice-completion-sync-dashboard-design.md) | Spec complet |
+| **Spec P4.2 Events + Attendance** | [`docs/specs/2026-04-12-p4-2-dashboard-events-attendance-design.md`](specs/2026-04-12-p4-2-dashboard-events-attendance-design.md) | Events CRUD + Attendance + Provisionals |
 
 ### Altres
 

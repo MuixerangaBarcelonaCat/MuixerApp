@@ -15,7 +15,7 @@
 | P2.1 | Dashboard Persons — UX i funcionalitats avançades | ✅ Completat | ✅ | ✅ | ✅ | Ordenació, alçada relativa, filtres, tests |
 | P3 | Temporades + Esdeveniments + Assistència | ✅ Completat | ✅ | — | ✅ | Season + Event + Attendance entities, API, sync + dashboard shell |
 | P4.1 | **Auth Layer** — JWT+Passport + refactor User/Person + Dashboard login | ✅ Completat | [`docs/specs/2026-04-07-p4-1-auth-layer-design.md`](docs/specs/2026-04-07-p4-1-auth-layer-design.md) | ✅ | ✅ | Flux complet: login, refresh rotation, guards globals, dashboard login page |
-| P4.2 | Dashboard Web — Events + Assistència manual | ⚪ Pendent | — | — | — | Depèn de P4.1 (guards actius) |
+| P4.2 | Dashboard Web — Events + Assistència manual | ✅ Completat | [`docs/specs/2026-04-12-p4-2-dashboard-events-attendance-design.md`](docs/specs/2026-04-12-p4-2-dashboard-events-attendance-design.md) | ✅ | ✅ | CRUD events + attendance, persones provisionals, optimistic UI |
 | P5 | Mòdul Pinyes i Figures | ⚪ Pendent | — | — | — | Canvas, templates reutilitzables, col·laboració tècnics |
 | P6 | PWA Mòbil | ⚪ Pendent | — | — | — | Diferit fins al tall. Estén l'auth de P4.1 als membres |
 | P7 | Informes + Notificacions + Features avançades | ⚪ Pendent | — | — | — | Reports d'assistència, FCM, estadístiques, notícies |
@@ -147,20 +147,21 @@ Person (membre de la colla)
 
 ## Decisions sobre el Mòdul Assistència (P4 + P6)
 
-### Edició manual per tècnics (Dashboard — P4.2)
+### ✅ Edició manual per tècnics (Dashboard — P4.2) — Implementat
 
 El sync des del legacy és unidireccional i no detecta automàticament "va dir que venia però no va aparèixer". Per cobrir-ho:
 
-| Feature | Rol | Descripció |
-|---------|-----|-----------|
-| Editar estat d'assistència | Tècnic, Admin | Canviar l'estat de qualsevol membre per a un event (p.ex. `ASSISTIT` → `NO_PRESENTAT`) |
-| Afegir/eliminar registres | Tècnic, Admin | Gestionar membres que no consten al legacy o events nous |
-| Editar notes | Tècnic, Admin | Afegir context per a cada registre d'assistència |
-| Llista de confirmats | Tècnic, Admin | Vista per planificar pinyes amb els membres confirmats |
+| Feature | Rol | Estat | Descripció |
+|---------|-----|-------|-----------|
+| CRUD esdeveniments | Tècnic, Admin | ✅ | Crear, editar (modal), eliminar (protecció 409 si té assistència) |
+| Editar estat d'assistència | Tècnic, Admin | ✅ | Modal per canviar estat + notes de qualsevol membre per a un event |
+| Afegir registres d'assistència | Tècnic, Admin | ✅ | Cercar persona existent o crear persona provisional inline |
+| Eliminar registres d'assistència | Tècnic, Admin | ✅ | Des del modal d'edició amb confirmació |
+| Llista de confirmats | Tècnic, Admin | ✅ | Toggle filtre per estat ANIRE/ASSISTIT |
+| Persones provisionals | Tècnic, Admin | ✅ | Creació ràpida amb prefix `~`, promoció/democió, filtre al llistat |
+| Recàlcul automàtic summary | — | ✅ | `attendanceSummary` es recalcula a cada operació CRUD |
 
-**Regla de protecció:** quan s'edita manualment, `manuallyOverridden = true` a `Attendance`. El sync no sobreescriu registres amb aquesta flag.
-
-> Pendent: afegir columna `manuallyOverridden boolean DEFAULT false` a la migració de BD.
+> **Decisió P4.2:** es va descartar el flag `manuallyOverridden` per simplificar el desenvolupament. Es reconsiderarà si cal en futures fases.
 
 ### Autogestió per membres (PWA — P6)
 
@@ -239,3 +240,5 @@ Cada sub-projecte genera:
 | 7 Abr 2026 | Reordenació roadmap: P4.1 Auth Layer (prerequisit seguretat), P5 Pinyes avançat, P6 PWA diferit. Decisions rols, model User/Person i estratègia auth documentades. |
 | 9 Abr 2026 | Spec P4.1 Auth Layer aprovada i escrita (`docs/specs/2026-04-07-p4-1-auth-layer-design.md`). |
 | 9 Abr 2026 | **P4.1 Auth Layer completat**: backend AuthModule (JWT+Passport, refresh rotation, 7 endpoints, guards globals), frontend AuthService (signals), interceptor (401→refresh→retry), guards, login page DaisyUI. Tests backend + frontend. |
+| 12 Abr 2026 | Spec P4.2 aprovada (`docs/specs/2026-04-12-p4-2-dashboard-events-attendance-design.md`). |
+| 12 Abr 2026 | **P4.2 Dashboard Events + Attendance completat**: CRUD events (POST/PUT/DELETE), CRUD attendance, persones provisionals (`isProvisional` + prefix `~`), Event Form Modal, Attendance Edit Modal, Person Search Input, tabs Cens/Provisionals al llistat, optimistic UI. |

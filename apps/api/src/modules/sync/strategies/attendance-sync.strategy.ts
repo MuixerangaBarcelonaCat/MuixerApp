@@ -133,43 +133,54 @@ export class AttendanceSyncStrategy {
   ): Promise<{ matched: number; unmatched: number; lateCancel: number }> {
     const rows = await this.legacyApiClient.getAssistenciesXlsx(event.legacyId!);
     const isPast = this.isEventPast(event);
-    let matched = 0;
+    const syncTimestamp = new Date();
+
+    // Use Map to deduplicate by personId (last entry wins — most recent response)
+    const attendanceMap = new Map<
+      string,
+      {
+        person: { id: string };
+        event: { id: string };
+        status: AttendanceStatus;
+        respondedAt: Date | null;
+        lastSyncedAt: Date;
+      }
+    >();
+
     let unmatched = 0;
 
     for (const row of rows) {
-      try {
-        const person = legacyIdMap.get(row.legacyPersonId);
-        if (!person) {
-          unmatched++;
-          this.logger.warn(`No person match for legacyPersonId=${row.legacyPersonId} (${row.personLabel})`);
-          continue;
-        }
-
-        const respondedAt = this.parseTimestamp(row.instant);
-        const status = this.mapAttendanceStatus(row.estat, event.eventType, isPast);
-
-        await this.attendanceRepository.upsert(
-          {
-            person: { id: person.id },
-            event: { id: event.id },
-            status,
-            respondedAt,
-            // notes: only set on CREATE — never overwrite user-edited notes on re-sync
-            lastSyncedAt: new Date(),
-          },
-          {
-            conflictPaths: ['person', 'event'],
-            skipUpdateIfNoValuesChanged: false,
-          },
-        );
-
-        matched++;
-      } catch (err) {
+      const person = legacyIdMap.get(row.legacyPersonId);
+      if (!person) {
         unmatched++;
-        this.logger.warn(`Attendance row error for event ${event.id}: ${(err as Error).message}`);
+        this.logger.warn(`No person match for legacyPersonId=${row.legacyPersonId} (${row.personLabel})`);
+        continue;
       }
+
+      const respondedAt = this.parseTimestamp(row.instant);
+      const status = this.mapAttendanceStatus(row.estat, event.eventType, isPast);
+
+      // Overwrites if duplicate — last entry wins
+      attendanceMap.set(person.id, {
+        person: { id: person.id },
+        event: { id: event.id },
+        status,
+        respondedAt,
+        lastSyncedAt: syncTimestamp,
+      });
     }
 
+    const attendanceBatch = Array.from(attendanceMap.values());
+
+    // Batch upsert all attendances in one query
+    if (attendanceBatch.length > 0) {
+      await this.attendanceRepository.upsert(attendanceBatch, {
+        conflictPaths: ['person', 'event'],
+        skipUpdateIfNoValuesChanged: false,
+      });
+    }
+
+    const matched = attendanceBatch.length;
     await this.updateNotesOnCreate(event.id, rows, legacyIdMap);
     const lateCancel = await this.recalculateSummary(event);
     return { matched, unmatched, lateCancel };
@@ -178,6 +189,7 @@ export class AttendanceSyncStrategy {
   /**
    * Sets notes only for newly created attendance records (no existing notes).
    * Preserves user-edited notes on re-sync per spec §5.9.
+   * Uses batch update with CASE expression for efficiency.
    */
   private async updateNotesOnCreate(
     eventId: string,
@@ -187,20 +199,38 @@ export class AttendanceSyncStrategy {
     const rowsWithNotes = rows.filter((r) => r.notes);
     if (rowsWithNotes.length === 0) return;
 
+    // Build person-to-notes map for valid rows
+    const notesMap = new Map<string, string>();
     for (const row of rowsWithNotes) {
       const person = legacyIdMap.get(row.legacyPersonId);
-      if (!person) continue;
-
-      await this.attendanceRepository
-        .createQueryBuilder()
-        .update(Attendance)
-        .set({ notes: row.notes })
-        .where('"personId" = :personId AND "eventId" = :eventId AND notes IS NULL', {
-          personId: person.id,
-          eventId,
-        })
-        .execute();
+      if (person && row.notes) {
+        notesMap.set(person.id, row.notes);
+      }
     }
+
+    if (notesMap.size === 0) return;
+
+    // Single batch update using CASE WHEN for all notes
+    const personIds = Array.from(notesMap.keys());
+    let caseClause = 'CASE "personId"';
+    const params: Record<string, string> = { eventId };
+
+    personIds.forEach((personId, i) => {
+      caseClause += ` WHEN :pid${i} THEN :note${i}`;
+      params[`pid${i}`] = personId;
+      params[`note${i}`] = notesMap.get(personId)!;
+    });
+    caseClause += ' END';
+
+    await this.attendanceRepository
+      .createQueryBuilder()
+      .update(Attendance)
+      .set({ notes: () => caseClause })
+      .where('"eventId" = :eventId AND "personId" IN (:...personIds) AND notes IS NULL', {
+        ...params,
+        personIds,
+      })
+      .execute();
   }
 
   mapAttendanceStatus(

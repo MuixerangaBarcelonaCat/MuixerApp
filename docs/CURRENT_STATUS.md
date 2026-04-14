@@ -1,18 +1,20 @@
 # Estat Actual del Projecte MuixerApp
 
-> **Última actualització:** 9 d'abril de 2026
+> **Última actualització:** 12 d'abril de 2026
 
 ---
 
 ## 🎯 Resum Executiu
 
-El projecte MuixerApp està en **fase de desenvolupament actiu** amb P0-P3 + P4.1 Auth Layer completats. L'aplicació inclou:
+El projecte MuixerApp està en **fase de desenvolupament actiu** amb P0-P3 + P4.1 + P4.2 completats. L'aplicació inclou:
 
 - ✅ Backend NestJS amb API REST completa + ordenació server-side
 - ✅ Sistema de sincronització amb legacy API (SSE + Strategy pattern) — Persons + Events + Attendance
 - ✅ Dashboard Angular amb DaisyUI v4 + Angular CDK
 - ✅ Gestió de persones, temporades, esdeveniments i assistència
 - ✅ **Auth Layer complet**: JWT+Passport, refresh token rotation, guards globals, login page
+- ✅ **CRUD complet Events + Attendance** al dashboard (crear, editar, eliminar)
+- ✅ **Persones provisionals**: creació ràpida amb àlies `~`, promoció/democió
 - ✅ Visualització d'alçada d'espatlles **absoluta i relativa** (+/- 140 cm)
 - ✅ Arquitectura de components moderna (signals, standalone, OnPush)
 - ✅ **Tests complets:** 101/101 backend + 22/22 dashboard passing
@@ -25,12 +27,12 @@ El projecte MuixerApp està en **fase de desenvolupament actiu** amb P0-P3 + P4.
 
 | Mòdul | Estat | Descripció |
 |-------|-------|------------|
-| **Person Module** | ✅ Complet | CRUD + filtres + cerca + paginació + activate/deactivate + **ordenació server-side** |
+| **Person Module** | ✅ Complet | CRUD + filtres + cerca + paginació + activate/deactivate + **ordenació server-side** + persones provisionals (`~` prefix) |
 | **Position Module** | ✅ Complet | CRUD + relacions M:N amb Person |
 | **User Module** | ✅ Complet | Entitat amb email + OneToOne Person. Gestionat via AuthModule |
 | **Auth Module** | ✅ Complet | JWT+Passport, 7 endpoints, refresh rotation, guards globals, rate limiting |
 | **Season Module** | ✅ Complet | CRUD + comptador d'esdeveniments |
-| **Event Module** | ✅ Complet | EventService + AttendanceService + EventController + filtres/paginació/ordenació |
+| **Event Module** | ✅ Complet | Full CRUD (POST/PUT/DELETE) + Attendance CRUD (POST/PUT/DELETE) + filtres/paginació/ordenació + recàlcul automàtic attendanceSummary |
 | **Sync Module** | ✅ Complet | LegacyApiClient + PersonSyncStrategy + EventSyncStrategy + AttendanceSyncStrategy + SSE |
 | **Database** | ✅ Funcional | TypeORM + NeonDB PostgreSQL + entitats Season/Event/Attendance |
 | **Swagger** | ✅ Funcional | Documentació interactiva a `/api/docs` |
@@ -46,9 +48,15 @@ El projecte MuixerApp està en **fase de desenvolupament actiu** amb P0-P3 + P4.
 - `GET /api/seasons` - Llistar temporades (amb event count)
 - `GET /api/seasons/:id` - Detall temporada
 - `GET /api/events` - Llistar esdeveniments (eventType, seasonId, dateFrom/To, search, countsForStatistics, sortBy, pagination)
+- `POST /api/events` - Crear esdeveniment
 - `GET /api/events/:id` - Detall (inclou metadata + attendanceSummary)
-- `PATCH /api/events/:id` - Actualitzar (countsForStatistics, seasonId)
+- `PUT /api/events/:id` - Actualitzar esdeveniment (tots els camps)
+- `DELETE /api/events/:id` - Eliminar esdeveniment (409 si té assistència)
 - `GET /api/events/:id/attendance` - Llista assistència (status filter, search, pagination)
+- `POST /api/events/:id/attendance` - Crear registre d'assistència (409 si duplicat)
+- `PUT /api/events/:id/attendance/:attendanceId` - Actualitzar assistència
+- `DELETE /api/events/:id/attendance/:attendanceId` - Eliminar assistència
+- `POST /api/persons/provisional` - Crear persona provisional (només àlies)
 - `POST /api/auth/login` - Login (email + password + clientType)
 - `POST /api/auth/refresh` - Rotar refresh token (cookie)
 - `POST /api/auth/logout` - Logout (revocar token actual)
@@ -65,17 +73,20 @@ El projecte MuixerApp està en **fase de desenvolupament actiu** amb P0-P3 + P4.
 | Component | Estat | Descripció |
 |-----------|-------|------------|
 | **Layout** | ✅ Complet | Sidebar + Header + Drawer mòbil (DaisyUI) |
-| **Person List** | ✅ Complet | Taula sempre (scroll horitzontal) + ordenació per columnes + filtres + cerca + paginació configurable |
-| **Person Detail** | ✅ Complet | Vista responsive 2 columnes |
+| **Person List** | ✅ Complet | Taula sempre (scroll horitzontal) + ordenació per columnes + filtres + cerca + paginació configurable + tabs Cens/Provisionals/Tots + badge provisional |
+| **Person Detail** | ✅ Complet | Vista responsive 2 columnes + toggle provisional/regular |
 | **Person Sync** | ✅ Complet | EventSource + progress bar + log en temps real |
-| **Event List** | ✅ Complet | Tabs Assajos/Actuacions, filtres temporada/estadística/cerca, ordenació, paginació, columnes assistència |
-| **Event Detail** | ✅ Complet | Info, metadata per tipus, resum assistència, llista assistència filtrable |
+| **Event List** | ✅ Complet | Tabs Assajos/Actuacions, filtres temporada/estadística/cerca, ordenació, paginació, columnes assistència + botó crear event |
+| **Event Detail** | ✅ Complet | Info + edició via modal + eliminació (amb protecció 409) + gestió assistència completa (afegir/editar/eliminar) + filtre confirmats + persones provisionals inline |
+| **Event Form Modal** | ✅ Complet | Modal reutilitzable per crear i editar esdeveniments (tots els camps) |
+| **Attendance Edit Modal** | ✅ Complet | Edició estat + notes, eliminació amb confirmació, warning per events passats |
+| **Person Search Input** | ✅ Complet | Component shared reutilitzable amb debounce, exclusió d'IDs, badge provisional |
 | **Event Sync** | ✅ Complet | SSE progress UI — mirrors PersonSyncComponent |
 | **Login Page** | ✅ Complet | DaisyUI form, email+password, UI en català, redirect a / on success |
 | **Auth Guards** | ✅ Complet | authGuard (CanActivateFn) + rolesGuard factory. Totes les rutes protegides |
 | **Auth Interceptor** | ✅ Complet | Bearer header + 401→refresh→retry + redirect /login on fail |
 | **Routing** | ✅ Funcional | Lazy loading per features (persons + events), protegit amb auth |
-| **Services** | ✅ Complet | AuthService (signals) + ApiService + PersonService + EventService + AttendanceService + SeasonService |
+| **Services** | ✅ Complet | AuthService (signals) + ApiService (GET/POST/PATCH/PUT/DELETE) + PersonService (incl. provisional) + EventService (full CRUD) + AttendanceService (CRUD) + SeasonService |
 | **Utils** | ✅ Complet | Color, date, person utilities (incl. `formatShoulderHeight*`, `shoulderHeightRelativeTone`) |
 | **Tests** | ✅ 22/22 passing | PersonListComponent + PersonService + EventService + AttendanceService + person.util + http-params.util |
 
@@ -175,7 +186,7 @@ Monorepo:
 | `docs/SYNC_MERGE_STRATEGY.md` | Regles de sincronització (referència canònica) |
 | `docs/VALIDATION_CHECKLIST.md` | Checklist de validació manual |
 | `docs/TROUBLESHOOTING.md` | Solucions a problemes comuns |
-| `docs/specs/` | Specs tècniques aprovades (P0-P2, Sync+Dashboard, P4.1 Auth) |
+| `docs/specs/` | Specs tècniques aprovades (P0-P2, Sync+Dashboard, P4.1 Auth, P4.2 Events+Attendance) |
 
 ---
 
@@ -259,22 +270,17 @@ nx serve dashboard
 
 ## 🎯 Pròxims Passos Immediats
 
-### 1. Validació Manual P4.1
+### 1. Validació Manual P4.1 + P4.2
 
 - [ ] Crear primer user via `POST /auth/setup/user` amb `SETUP_TOKEN`
 - [ ] Provar login al dashboard (`http://localhost:4200/login`)
 - [ ] Verificar guards: rutes protegides redirigeixen a login
-- [ ] Provar refresh automàtic (esperar expiració access token)
-- [ ] Provar logout / logout-all
+- [ ] Provar CRUD d'esdeveniments (crear, editar, eliminar)
+- [ ] Provar gestió d'assistència (afegir, editar estat/notes, eliminar)
+- [ ] Provar creació de persones provisionals i promoció a regulars
 - [ ] Eliminar `SETUP_TOKEN` de `.env` un cop creat el primer user
 
-### 2. P4.2: Dashboard Events + Assistència
-
-- [ ] Edició manual d'assistència per tècnics
-- [ ] Llista de confirmats per planificar pinyes
-- [ ] Flag `manuallyOverridden` a Attendance
-
-### 3. P5: Mòdul Pinyes i Figures
+### 2. P5: Mòdul Pinyes i Figures
 
 - [ ] Canvas / drag-drop per posicions
 - [ ] Templates de figures reutilitzables
@@ -328,6 +334,7 @@ nx serve dashboard
 - **P0-P2:** `docs/specs/2026-03-26-p0-p1-p2-vertical-slice-persons-design.md`
 - **Sync + Dashboard:** `docs/specs/2026-03-30-vertical-slice-completion-sync-dashboard-design.md`
 - **Auth Layer P4.1:** `docs/specs/2026-04-07-p4-1-auth-layer-design.md`
+- **Events + Attendance P4.2:** `docs/specs/2026-04-12-p4-2-dashboard-events-attendance-design.md`
 
 ---
 
@@ -343,6 +350,7 @@ nx serve dashboard
 - ✅ **Ordenació server-side** — Whitelist de camps, protecció SQL injection
 - ✅ **Alçada espatlles relativa** — Toggle absolut/relatiu amb codificació de color
 - ✅ **Auth Layer (P4.1)** — JWT+Passport, refresh rotation, dashboard login, guards globals
+- ✅ **Dashboard Events + Attendance (P4.2)** — CRUD events, gestió assistència manual, persones provisionals, optimistic UI
 - ✅ **Suite de tests completa** — 101/101 API + 22/22 dashboard passing
 
 ---
