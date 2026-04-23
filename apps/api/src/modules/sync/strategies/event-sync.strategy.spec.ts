@@ -82,9 +82,9 @@ describe('EventSyncStrategy — merge rules', () => {
   });
 
   it('maps actuacio performance metadata correctly', () => {
-    const casa: string = '1';
-    const colles: string = 'Colla A, Colla B';
-    const transport: string = '0';
+    const casa = '1' as string;
+    const colles = 'Colla A, Colla B' as string;
+    const transport = '0' as string;
     const metadata = {
       isHome: casa === '1',
       colles: colles ? colles.split(/ i |,/).map((c: string) => c.trim()).filter(Boolean) : [],
@@ -108,7 +108,7 @@ describe('EventSyncStrategy — merge rules', () => {
   });
 
   it('handles empty colles string gracefully', () => {
-    const colles: string = '';
+    const colles = '' as string;
     const result = colles ? colles.split(/ i |,/).map((c: string) => c.trim()).filter(Boolean) : [];
     expect(result).toEqual([]);
   });

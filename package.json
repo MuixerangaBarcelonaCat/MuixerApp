@@ -90,7 +90,7 @@
     "axios": "^1.6.0",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
-    "class-validator": "^0.15.1",
+    "class-validator": "^0.14.4",
     "cookie-parser": "^1.4.7",
     "dotenv": "^17.3.1",
     "lucide-angular": "^1.0.0",

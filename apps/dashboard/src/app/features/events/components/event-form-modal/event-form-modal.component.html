@@ -1,4 +1,10 @@
-<dialog class="modal modal-open" (click)="$event.target === $event.currentTarget && onClose()">
+<!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
+<dialog
+  class="modal modal-open"
+  (click)="$event.target === $event.currentTarget && onClose()"
+  (keydown.escape)="onClose()"
+>
+  <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
   <div class="modal-box max-w-2xl w-full" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
 
     <div class="flex items-center justify-between mb-4">
@@ -137,6 +143,7 @@
 
         <!-- Compta per estadístiques -->
         <div class="form-control col-span-full">
+          <!-- eslint-disable-next-line @angular-eslint/template/label-has-associated-control -->
           <label class="label cursor-pointer justify-start gap-3">
             <input type="checkbox" class="checkbox" formControlName="countsForStatistics" />
             <span class="label-text">Compta per a estadístiques</span>

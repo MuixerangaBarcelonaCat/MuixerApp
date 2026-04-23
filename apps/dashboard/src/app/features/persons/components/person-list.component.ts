@@ -307,6 +307,21 @@ export class PersonListComponent {
     this.loadPersons();
   }
 
+  onSortColumn(col: { key: string; sortField?: string }): void {
+    if (!col.sortField) return;
+    if (this.sortBy() !== col.sortField) {
+      this.sortBy.set(col.sortField);
+      this.sortOrder.set('ASC');
+    } else if (this.sortOrder() === 'ASC') {
+      this.sortOrder.set('DESC');
+    } else {
+      this.sortBy.set(undefined);
+      this.sortOrder.set(undefined);
+    }
+    this.page.set(1);
+    this.loadPersons();
+  }
+
   getCellValueForPerson(person: Person, key: string): string {
     switch (key) {
       case 'fullName': return getFullName(person);

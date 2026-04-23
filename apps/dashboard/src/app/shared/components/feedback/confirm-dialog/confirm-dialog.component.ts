@@ -26,7 +26,7 @@ import { NgClass } from '@angular/common';
           </button>
         </div>
       </div>
-      <div class="modal-backdrop" (click)="cancelled.emit()"></div>
+      <button class="modal-backdrop" type="button" aria-label="Tancar" (click)="cancelled.emit()"></button>
     </dialog>
   `,
 })

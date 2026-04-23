@@ -2,6 +2,12 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { vi } from 'vitest';
 import { of } from 'rxjs';
+import {
+  LUCIDE_ICONS, LucideIconProvider,
+  AlertCircle, AlertTriangle, ArrowLeft, Calendar, Check, ChevronDown, ChevronUp,
+  ChevronsUpDown, Clock, Construction, Eye, Home, Layers, Lock, Mail, Menu,
+  MoreHorizontal, Plus, RefreshCw, Search, Settings, Star, UserX, Users,
+} from 'lucide-angular';
 import { PersonListComponent } from './person-list.component';
 import { PersonService } from '../services/person.service';
 import { AvailabilityStatus, OnboardingStatus } from '@muixer/shared';
@@ -53,6 +59,14 @@ describe('PersonListComponent', () => {
       providers: [
         { provide: PersonService, useValue: personService },
         { provide: Router, useValue: router },
+        {
+          provide: LUCIDE_ICONS, multi: true,
+          useFactory: () => new LucideIconProvider({
+            AlertCircle, AlertTriangle, ArrowLeft, Calendar, Check, ChevronDown, ChevronUp,
+            ChevronsUpDown, Clock, Construction, Eye, Home, Layers, Lock, Mail, Menu,
+            MoreHorizontal, Plus, RefreshCw, Search, Settings, Star, UserX, Users,
+          }),
+        },
       ],
     }).compileComponents();
 

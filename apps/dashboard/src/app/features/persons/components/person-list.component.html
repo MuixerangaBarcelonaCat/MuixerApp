@@ -2,10 +2,10 @@
 
   <!-- Capçalera -->
   <app-page-header title="Persones" [count]="totalPersons()">
-    <a (click)="onSyncClick()" class="btn btn-warning btn-sm btn-outline gap-1.5">
+    <button type="button" (click)="onSyncClick()" class="btn btn-warning btn-sm btn-outline gap-1.5">
       <lucide-icon name="RefreshCw" [size]="14" />
       Sincronitzar
-    </a>
+    </button>
   </app-page-header>
 
   <!-- Tabs: Cens / Provisionals / Tots -->
@@ -50,6 +50,7 @@
 
     <!-- Posicions -->
     @if (positions().length > 0) {
+      <!-- eslint-disable-next-line @angular-eslint/template/label-has-associated-control -->
       <label class="form-control w-full sm:w-48">
         <div class="label pb-1"><span class="label-text text-xs">Posicions</span></div>
         <div class="dropdown">

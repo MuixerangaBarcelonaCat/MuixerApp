@@ -6,6 +6,7 @@ import { Component, ChangeDetectionStrategy, input } from '@angular/core';
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
+    <!-- eslint-disable-next-line @angular-eslint/template/label-has-associated-control -->
     <label class="form-control w-full">
       <div class="label pb-1">
         <span class="label-text font-medium">
