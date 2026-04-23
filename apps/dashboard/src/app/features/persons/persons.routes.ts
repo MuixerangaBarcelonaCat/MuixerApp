@@ -7,7 +7,7 @@ export const personsRoutes: Route[] = [
       import('./components/person-list.component').then((m) => m.PersonListComponent),
   },
   {
-    path: 'sync',
+    path: 'sync-start',
     loadComponent: () =>
       import('./components/person-sync/person-sync.component').then((m) => m.PersonSyncComponent),
   },

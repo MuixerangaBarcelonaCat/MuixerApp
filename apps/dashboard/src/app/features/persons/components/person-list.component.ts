@@ -212,7 +212,7 @@ export class PersonListComponent {
   }
 
   onSyncClick() {
-    this.router.navigate(['/persons/sync']);
+    this.router.navigate(['/persons/sync-start']);
   }
 
   formatShoulderHeightDisplay(value: number | null): string {
