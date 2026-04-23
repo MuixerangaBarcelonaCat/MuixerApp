@@ -1,0 +1,164 @@
+<dialog class="modal modal-open" (click)="$event.target === $event.currentTarget && onClose()">
+  <div class="modal-box max-w-2xl w-full" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-xl font-bold">{{ modalTitle() }}</h2>
+      <button class="btn btn-sm btn-ghost btn-circle" type="button" (click)="onClose()" aria-label="Tancar">✕</button>
+    </div>
+
+    @if (errorMessage()) {
+      <div class="alert alert-error mb-4">
+        <span>{{ errorMessage() }}</span>
+      </div>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+        <!-- Títol -->
+        <div class="form-control col-span-full">
+          <label class="label" for="title">
+            <span class="label-text font-medium">Títol <span class="text-error">*</span></span>
+          </label>
+          <input
+            id="title"
+            type="text"
+            class="input input-bordered"
+            [class.input-error]="fieldError('title')"
+            formControlName="title"
+            maxlength="200"
+            placeholder="Assaig general..."
+          />
+          @if (fieldError('title')) {
+            <div class="label"><span class="label-text-alt text-error">{{ fieldError('title') }}</span></div>
+          }
+        </div>
+
+        <!-- Tipus -->
+        <div class="form-control">
+          <label class="label" for="eventType">
+            <span class="label-text font-medium">Tipus <span class="text-error">*</span></span>
+          </label>
+          <select id="eventType" class="select select-bordered" formControlName="eventType">
+            <option [value]="EventType.ASSAIG">Assaig</option>
+            <option [value]="EventType.ACTUACIO">Actuació</option>
+          </select>
+        </div>
+
+        <!-- Data -->
+        <div class="form-control">
+          <label class="label" for="date">
+            <span class="label-text font-medium">Data <span class="text-error">*</span></span>
+          </label>
+          <input
+            id="date"
+            type="date"
+            class="input input-bordered"
+            [class.input-error]="fieldError('date')"
+            formControlName="date"
+          />
+          @if (fieldError('date')) {
+            <div class="label"><span class="label-text-alt text-error">{{ fieldError('date') }}</span></div>
+          }
+        </div>
+
+        <!-- Hora inici -->
+        <div class="form-control">
+          <label class="label" for="startTime">
+            <span class="label-text font-medium">Hora inici</span>
+          </label>
+          <input
+            id="startTime"
+            type="time"
+            class="input input-bordered"
+            [class.input-error]="fieldError('startTime')"
+            formControlName="startTime"
+          />
+          @if (fieldError('startTime')) {
+            <div class="label"><span class="label-text-alt text-error">{{ fieldError('startTime') }}</span></div>
+          }
+        </div>
+
+        <!-- Lloc -->
+        <div class="form-control">
+          <label class="label" for="location">
+            <span class="label-text font-medium">Lloc</span>
+          </label>
+          <input
+            id="location"
+            type="text"
+            class="input input-bordered"
+            formControlName="location"
+            maxlength="200"
+            placeholder="Local de la colla..."
+          />
+        </div>
+
+        <!-- URL ubicació -->
+        <div class="form-control">
+          <label class="label" for="locationUrl">
+            <span class="label-text font-medium">URL mapa</span>
+          </label>
+          <input
+            id="locationUrl"
+            type="url"
+            class="input input-bordered"
+            formControlName="locationUrl"
+            placeholder="https://maps.google.com/..."
+          />
+        </div>
+
+        <!-- Temporada -->
+        <div class="form-control col-span-full">
+          <label class="label" for="seasonId">
+            <span class="label-text font-medium">Temporada</span>
+          </label>
+          <select id="seasonId" class="select select-bordered" formControlName="seasonId">
+            <option value="">— Sense temporada —</option>
+            @for (season of seasons(); track season.id) {
+              <option [value]="season.id">{{ season.name }}</option>
+            }
+          </select>
+        </div>
+
+        <!-- Descripció -->
+        <div class="form-control col-span-full">
+          <label class="label" for="description">
+            <span class="label-text font-medium">Descripció</span>
+          </label>
+          <textarea
+            id="description"
+            class="textarea textarea-bordered"
+            formControlName="description"
+            rows="3"
+            placeholder="Detalls de l'esdeveniment..."
+          ></textarea>
+        </div>
+
+        <!-- Compta per estadístiques -->
+        <div class="form-control col-span-full">
+          <label class="label cursor-pointer justify-start gap-3">
+            <input type="checkbox" class="checkbox" formControlName="countsForStatistics" />
+            <span class="label-text">Compta per a estadístiques</span>
+          </label>
+        </div>
+
+      </div>
+
+      <div class="modal-action mt-6">
+        <button type="button" class="btn btn-ghost" (click)="onClose()">Cancel·lar</button>
+        <button
+          type="submit"
+          class="btn btn-primary"
+          [disabled]="form.invalid || saving()"
+        >
+          @if (saving()) {
+            <span class="loading loading-spinner loading-xs"></span>
+          }
+          {{ isEditMode() ? 'Desar canvis' : 'Crear esdeveniment' }}
+        </button>
+      </div>
+    </form>
+
+  </div>
+</dialog>

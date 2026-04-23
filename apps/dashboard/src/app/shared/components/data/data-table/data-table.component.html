@@ -1,0 +1,127 @@
+<div class="card bg-base-100 shadow-sm overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="table table-sm">
+      <thead class="sticky top-0 z-10 bg-base-100">
+        <tr>
+          @for (col of displayColumns(); track col.key; let first = $first) {
+            <th
+              [ngClass]="{
+                'sticky left-0 z-[1] bg-base-100': first,
+                'cursor-pointer select-none hover:bg-base-200': !!col.sortField
+              }"
+              (click)="onSort(col)"
+            >
+              <div class="flex items-center gap-1">
+                {{ col.label }}
+                @if (col.sortField) {
+                  <lucide-icon
+                    [name]="getSortIcon(col)"
+                    [size]="14"
+                    [ngClass]="isSorted(col) ? 'text-primary' : 'text-base-content/30'"
+                  />
+                }
+              </div>
+            </th>
+          }
+          @if (rowActions().length > 0) {
+            <th class="text-right">Accions</th>
+          }
+        </tr>
+      </thead>
+
+      <tbody>
+        @if (loading()) {
+          @for (row of skeletonArray(); track $index) {
+            <tr>
+              @for (col of displayColumns(); track col.key; let first = $first) {
+                <td [ngClass]="{ 'sticky left-0 bg-base-100 z-[1]': first }">
+                  <div class="skeleton h-4 rounded"
+                    [ngClass]="first ? 'w-28' : 'w-20'">
+                  </div>
+                </td>
+              }
+              @if (rowActions().length > 0) {
+                <td><div class="skeleton h-4 w-16 rounded ml-auto"></div></td>
+              }
+            </tr>
+          }
+        } @else if (items().length === 0) {
+          <tr>
+            <td [attr.colspan]="displayColumns().length + (rowActions().length > 0 ? 1 : 0)"
+                class="text-center py-12 text-base-content/50 text-sm">
+              No hi ha dades per mostrar
+            </td>
+          </tr>
+        } @else {
+          @for (item of items(); track $index; let idx = $index) {
+            <!-- Group separator row (before first past item) -->
+            @if (showSeparatorBefore(item, idx)) {
+              <tr>
+                <td
+                  [attr.colspan]="displayColumns().length + (rowActions().length > 0 ? 1 : 0)"
+                  class="py-2 px-4"
+                >
+                  <div class="flex items-center gap-3">
+                    <div class="flex-1 border-t border-base-300"></div>
+                    <span class="text-xs font-medium text-base-content/40 whitespace-nowrap">
+                      {{ groupSeparator()?.label }}
+                    </span>
+                    <div class="flex-1 border-t border-base-300"></div>
+                  </div>
+                </td>
+              </tr>
+            }
+
+            <tr
+              class="hover cursor-pointer transition-colors"
+              [class.opacity-60]="isSecondaryGroup(item)"
+              (click)="rowClick.emit($any(item))"
+            >
+              @for (col of displayColumns(); track col.key; let first = $first) {
+                <td
+                  class="whitespace-nowrap"
+                  [ngClass]="{ 'sticky left-0 bg-base-100 z-[1] font-medium': first }"
+                >
+                  @if (col.type === 'badge' && col.badgeClass) {
+                    <span class="badge badge-sm" [ngClass]="col.badgeClass(item)">
+                      {{ getCellValue(item, col) }}
+                    </span>
+                  } @else {
+                    {{ getCellValue(item, col) ?? '—' }}
+                  }
+                </td>
+              }
+
+              @if (rowActions().length > 0) {
+                <td class="text-right" (click)="$event.stopPropagation()">
+                  <div class="dropdown dropdown-end">
+                    <button tabindex="0" class="btn btn-ghost btn-xs" type="button" aria-label="Accions">
+                      <lucide-icon name="MoreHorizontal" [size]="16" />
+                    </button>
+                    <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 w-40 p-1 shadow-lg border border-base-300">
+                      @for (action of rowActions(); track action.label) {
+                        <li>
+                          <button
+                            type="button"
+                            class="text-sm"
+                            [ngClass]="action.class ?? ''"
+                            (click)="action.action(item)"
+                          >
+                            @if (action.icon) {
+                              <lucide-icon [name]="action.icon" [size]="14" />
+                            }
+                            {{ action.label }}
+                          </button>
+                        </li>
+                      }
+                    </ul>
+                  </div>
+                </td>
+              }
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+</div>

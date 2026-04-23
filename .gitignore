@@ -17,6 +17,13 @@ tmp/
 .env.*
 !.env.example
 
+# ── Test & screenshots ─────────────────────────────────────
+__screenshots__/
+.superpowers/
+
+# ── Data ───────────────────────────────────────────────────
+data/extracted/
+
 # ── OS ────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
@@ -28,6 +35,9 @@ Thumbs.db
 *.ntvs*
 *.njsproj
 *.sln
+*.swp
+*.swo
+*~
 
 # ── Cursor agent internals ────────────────────────────────
 .cursor/

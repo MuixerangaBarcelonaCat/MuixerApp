@@ -1,0 +1,77 @@
+<div class="min-h-screen bg-base-200 flex items-center justify-center p-4">
+  <div class="card bg-base-100 shadow-lg w-full max-w-sm">
+    <div class="card-body gap-5">
+
+      <!-- Logo + títol -->
+      <div class="text-center">
+        <img
+          src="/assets/logoMuixe.svg"
+          alt="Logo MuixerApp"
+          class="h-14 w-14 mx-auto mb-3 object-contain"
+          onerror="this.style.display='none'"
+        />
+        <h1 class="text-2xl font-bold text-base-content">MuixerApp</h1>
+        <p class="text-sm text-base-content/50 mt-1">Inicia sessió per continuar</p>
+      </div>
+
+      <!-- Formulari -->
+      <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
+
+        <label class="form-control w-full">
+          <div class="label pb-1"><span class="label-text font-medium">Correu electrònic</span></div>
+          <div class="input input-bordered flex items-center gap-2" [class.input-error]="form.get('email')?.invalid && form.get('email')?.touched">
+            <lucide-icon name="Mail" [size]="16" class="text-base-content/40 shrink-0" />
+            <input
+              type="email"
+              class="grow bg-transparent outline-none text-sm"
+              placeholder="nom@exemple.com"
+              formControlName="email"
+              autocomplete="email"
+            />
+          </div>
+          @if (form.get('email')?.invalid && form.get('email')?.touched) {
+            <div class="label pt-1">
+              <span class="label-text-alt text-error" role="alert">Correu electrònic no vàlid</span>
+            </div>
+          }
+        </label>
+
+        <label class="form-control w-full">
+          <div class="label pb-1"><span class="label-text font-medium">Contrasenya</span></div>
+          <div class="input input-bordered flex items-center gap-2" [class.input-error]="form.get('password')?.invalid && form.get('password')?.touched">
+            <lucide-icon name="Lock" [size]="16" class="text-base-content/40 shrink-0" />
+            <input
+              type="password"
+              class="grow bg-transparent outline-none text-sm"
+              placeholder="••••••••"
+              formControlName="password"
+              autocomplete="current-password"
+            />
+          </div>
+        </label>
+
+        <!-- Error general -->
+        @if (errorMessage()) {
+          <div class="alert alert-error text-sm py-2">
+            <lucide-icon name="AlertCircle" [size]="16" />
+            <span>{{ errorMessage() }}</span>
+          </div>
+        }
+
+        <button
+          type="submit"
+          class="btn btn-primary w-full"
+          [disabled]="form.invalid || isLoading()"
+        >
+          @if (isLoading()) {
+            <span class="loading loading-spinner loading-sm"></span>
+            Iniciant sessió...
+          } @else {
+            Iniciar sessió
+          }
+        </button>
+
+      </form>
+    </div>
+  </div>
+</div>

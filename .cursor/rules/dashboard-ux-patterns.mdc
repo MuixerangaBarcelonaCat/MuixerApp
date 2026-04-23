@@ -1,0 +1,74 @@
+---
+description: UX and accessibility patterns for Dashboard Angular components — layout, shared components, visual hierarchy, loading states
+globs: apps/dashboard/**/*.ts,apps/dashboard/**/*.html
+alwaysApply: false
+---
+
+# Dashboard UX Patterns
+
+## Layout
+
+- **Top bar + tabs** — no sidebar. `header` → `tab-nav` → `main`
+- Desktop: icon + text tabs. Tablet: icon-only tabs. Mobile: hamburger dropdown
+- `LayoutService.isFullscreen()` hides header/tabs for fullscreen views
+- Background: `bg-base-200`. Content area: `p-4 lg:p-6`
+
+## Shared Component Library
+
+Always compose pages with shared components instead of raw HTML:
+
+| Component | Path | Purpose |
+|-----------|------|---------|
+| `app-page-header` | `shared/components/data/page-header` | Title + count badge + action slot |
+| `app-data-table` | `shared/components/data/data-table` | Generic table with sort, skeleton, groupSeparator, actions |
+| `app-filter-bar` | `shared/components/data/filter-bar` | `<ng-content>` wrapper + "Netejar filtres" |
+| `app-active-filters` | `shared/components/data/active-filters` | Dismissible badge chips |
+| `app-column-toggle` | `shared/components/data/column-toggle` | Collapse with checkbox per column |
+| `app-pagination` | `shared/components/data/pagination` | Join buttons + per-page selector |
+| `app-empty-state` | `shared/components/data/empty-state` | Icon + message + optional CTA |
+| `app-stat-card` | `shared/components/data/stat-card` | DaisyUI stat |
+| `app-form-field` | `shared/components/forms/form-field` | Label + error + helper wrapper |
+| `app-confirm-dialog` | `shared/components/feedback/confirm-dialog` | Native `<dialog>` modal |
+| `app-toast` + `ToastService` | `shared/components/feedback/toast` | Auto-dismiss alerts |
+
+## Data Table Contract
+
+Pass ALL columns with `value` extractors. Let `app-data-table` handle visibility:
+
+```html
+<app-data-table
+  [items]="items()"
+  [columns]="tableColumns()"
+  [visibleColumns]="visibleColumnKeys()"
+  [sortBy]="sortBy()"
+  [sortOrder]="sortOrder()"
+  [loading]="loading()"
+  [rowActions]="rowActions"
+  (rowClick)="onRowClick($any($event).id)"
+  (sortChange)="onSortChange($event)"
+/>
+```
+
+Sort cycle: ASC → DESC → clear (3-state).
+
+## Visual Hierarchy
+
+- Page title: `text-xl font-bold` + `badge badge-neutral badge-lg` for count
+- Cards: `card bg-base-100 shadow-sm`. Accent borders: `border-l-4 border-primary`
+- Labels: `text-xs text-base-content/50 font-medium`
+- Values: `text-sm text-base-content`
+- Muted: `text-base-content/60`. Very muted: `text-base-content/40`
+
+## Loading & Empty States
+
+- Tables: inline skeleton rows inside `app-data-table` (automatic via `[loading]`)
+- Pages: `loading loading-spinner loading-md text-primary`
+- Empty: always use `app-empty-state` with Lucide icon + Catalan message + CTA
+- Cards: use `app-skeleton-cards` with static grid class map (no dynamic Tailwind)
+
+## Accessibility
+
+- All interactive elements keyboard-navigable
+- Buttons include text or `aria-label`
+- `type="button"` on all non-submit buttons
+- Dropdowns: DaisyUI `dropdown` + `tabindex="0"` pattern

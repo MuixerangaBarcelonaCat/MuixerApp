@@ -1,0 +1,111 @@
+<dialog class="modal modal-open" (click)="$event.target === $event.currentTarget && onClose()">
+  <div class="modal-box max-w-md w-full" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+
+    <!-- Header -->
+    <div class="flex items-start justify-between mb-4">
+      <div>
+        <h2 class="text-lg font-bold font-mono">{{ attendance().person.alias }}</h2>
+        <p class="text-sm text-base-content/60">{{ attendance().person.name }} {{ attendance().person.firstSurname }}</p>
+        <div class="flex gap-1 mt-1 flex-wrap">
+          @for (pos of attendance().person.positions; track pos.id) {
+            <span
+              class="badge badge-xs"
+              [style.background-color]="pos.color ?? '#888'"
+              style="color: white; font-size: 0.65rem;"
+            >{{ pos.name }}</span>
+          }
+          @if (attendance().person.isXicalla) {
+            <span class="badge badge-xs badge-ghost">👶 Xicalla</span>
+          }
+        </div>
+      </div>
+      <button class="btn btn-sm btn-ghost btn-circle" type="button" (click)="onClose()" aria-label="Tancar">✕</button>
+    </div>
+
+    @if (errorMessage()) {
+      <div class="alert alert-error text-sm mb-4">
+        <span>{{ errorMessage() }}</span>
+      </div>
+    }
+
+    <!-- Status buttons -->
+    <div class="mb-4">
+      <p class="text-sm font-medium mb-2">Estat d'assistència</p>
+      <div class="flex flex-wrap gap-2">
+        @for (status of [AttendanceStatus.ANIRE, AttendanceStatus.ASSISTIT, AttendanceStatus.NO_VAIG, AttendanceStatus.NO_PRESENTAT, AttendanceStatus.PENDENT]; track status) {
+          <button
+            type="button"
+            [class]="statusButtonClass(status)"
+            (click)="selectedStatus.set(status)"
+          >{{ statusLabel(status) }}</button>
+        }
+      </div>
+    </div>
+
+    <!-- Warning for past event stats change -->
+    @if (showWarning()) {
+      <div class="alert alert-warning text-sm mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        <span>Estàs modificant l'assistència d'un event passat. Afectarà les estadístiques.</span>
+      </div>
+    }
+
+    <!-- Notes -->
+    <div class="form-control mb-6">
+      <label class="label" for="attendance-notes">
+        <span class="label-text font-medium">Notes</span>
+        <span class="label-text-alt text-base-content/50">Opcional</span>
+      </label>
+      <textarea
+        id="attendance-notes"
+        class="textarea textarea-bordered"
+        rows="3"
+        placeholder="Motiu de la no assistència, observacions..."
+        [ngModel]="editedNotes()"
+        (ngModelChange)="editedNotes.set($event || null)"
+      ></textarea>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex items-center justify-between">
+      <!-- Delete with confirmation -->
+      <div>
+        @if (showDeleteConfirm()) {
+          <div class="flex items-center gap-2">
+            <span class="text-sm text-error">Segur?</span>
+            <button type="button" class="btn btn-error btn-xs" [disabled]="deleting()" (click)="onDelete()">
+              @if (deleting()) {
+                <span class="loading loading-spinner loading-xs"></span>
+              } @else {
+                Sí, elimina
+              }
+            </button>
+            <button type="button" class="btn btn-ghost btn-xs" (click)="showDeleteConfirm.set(false)">No</button>
+          </div>
+        } @else {
+          <button type="button" class="btn btn-ghost btn-sm text-error" (click)="showDeleteConfirm.set(true)">
+            Eliminar registre
+          </button>
+        }
+      </div>
+
+      <div class="flex gap-2">
+        <button type="button" class="btn btn-ghost btn-sm" (click)="onClose()">Cancel·lar</button>
+        <button
+          type="button"
+          class="btn btn-primary btn-sm"
+          [disabled]="!hasChanges() || saving()"
+          (click)="onSave()"
+        >
+          @if (saving()) {
+            <span class="loading loading-spinner loading-xs"></span>
+          }
+          Desar
+        </button>
+      </div>
+    </div>
+
+  </div>
+</dialog>

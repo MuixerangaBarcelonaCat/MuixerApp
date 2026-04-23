@@ -1,0 +1,110 @@
+---
+description: Angular dashboard list page pattern using shared components
+globs: apps/dashboard/**/components/*-list*
+alwaysApply: false
+---
+
+# Dashboard List Page Pattern
+
+Compose list pages from shared components. Follow `PersonListComponent` as reference.
+
+## Imports
+
+```typescript
+import { ColumnDef, GroupSeparator } from '../../../../shared/models/column-def.model';
+import { SortChange } from '../../../../shared/models/sort.model';
+```
+
+## Signal State
+
+```typescript
+search = signal('');
+searchInput = '';
+page = signal(1);
+limit = signal(50);
+totalItems = signal(0);
+sortBy = signal<string | undefined>(undefined);
+sortOrder = signal<SortOrder | undefined>(undefined);
+items = signal<Item[]>([]);
+loading = signal(false);
+
+visibleColumnKeys = signal<string[]>(loadVisibleColumns());
+tableColumns = computed(() =>
+  ALL_COLUMNS.map(col => ({ ...col, value: col.value }))
+);
+```
+
+## Column Definitions
+
+Define once as `const ALL_COLUMNS: ColumnDef<Item>[]` outside the class:
+
+```typescript
+const ALL_COLUMNS: ColumnDef<Person>[] = [
+  { key: 'name', label: 'Nom', defaultVisible: true, sortField: 'name',
+    value: (p) => `${p.firstName} ${p.lastName}` },
+  { key: 'email', label: 'Email', defaultVisible: true, sortField: 'email',
+    value: (p) => p.email ?? '—' },
+  { key: 'position', label: 'Posició', defaultVisible: true, type: 'badge',
+    value: (p) => p.position?.name ?? '—',
+    badgeClass: (p) => p.position ? '' : 'badge-ghost' },
+];
+```
+
+## Template Composition
+
+```html
+<app-page-header title="Persones" [count]="totalItems()">
+  <button class="btn btn-primary btn-sm" (click)="onSync()">Sincronitzar</button>
+</app-page-header>
+
+<app-filter-bar [hasActiveFilters]="hasFilters()" (clearFilters)="onClearFilters()">
+  <input class="input input-bordered input-sm w-full sm:w-64" [(ngModel)]="searchInput"
+         (ngModelChange)="onSearchChange($event)" placeholder="Cercar…" />
+  <!-- More filter controls as <ng-content> -->
+</app-filter-bar>
+
+<app-active-filters [filters]="activeFilterList()" (removeFilter)="onRemoveFilter($event)" />
+
+<app-column-toggle [columns]="ALL_COLUMNS" [(visibleKeys)]="visibleColumnKeys" />
+
+<app-data-table
+  [items]="items()"
+  [columns]="tableColumns()"
+  [visibleColumns]="visibleColumnKeys()"
+  [sortBy]="sortBy()"
+  [sortOrder]="sortOrder()"
+  [loading]="loading()"
+  [skeletonRows]="10"
+  (rowClick)="onRowClick($any($event).id)"
+  (sortChange)="onSortChange($event)"
+/>
+
+<app-pagination
+  [currentPage]="page()"
+  [totalPages]="totalPages()"
+  [limit]="limit()"
+  [totalItems]="totalItems()"
+  (pageChange)="onPageChange($event)"
+  (limitChange)="onLimitChange($event)"
+/>
+```
+
+## Sort Handler (3-state)
+
+```typescript
+onSortChange(event: SortChange): void {
+  this.sortBy.set(event.order ? event.field : undefined);
+  this.sortOrder.set(event.order);
+  this.page.set(1);
+  this.loadItems();
+}
+```
+
+## Key Rules
+
+- **Reset page to 1** on filter/sort/limit change
+- **Column visibility** persisted in `localStorage`
+- **ALL_COLUMNS** passed to both `app-data-table` and `app-column-toggle`
+- **No duplicate column type** — use `ColumnDef<T>` from shared models
+- **No manual sort/pagination HTML** — delegate to shared components
+- **UI text**: Catalan

@@ -1,0 +1,74 @@
+---
+description: Angular component file structure — separate files for features, inline allowed for small shared components
+globs: apps/dashboard/**/*.component.ts,apps/pwa/**/*.component.ts
+alwaysApply: false
+---
+
+# Angular Component File Structure
+
+## Feature Components (business logic)
+
+**Always separate files**: `.ts` + `.html` (+ `.scss` only if custom styles are needed).
+
+```
+features/persons/components/person-list/
+├── person-list.component.ts    # Logic, signals, service calls
+├── person-list.component.html  # Template with DaisyUI + Tailwind
+└── person-list.component.scss  # ONLY if complex animations needed
+```
+
+```typescript
+@Component({
+  selector: 'app-person-list',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [DataTableComponent, FilterBarComponent],
+  templateUrl: './person-list.component.html',
+})
+```
+
+**No empty `.scss` files** — omit `styleUrls` entirely if no custom styles.
+
+## Shared UI Components (small, generic)
+
+Inline `template` is allowed when the template is **under ~40 lines** and the component has no business logic:
+
+```typescript
+@Component({
+  selector: 'app-stat-card',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [LucideAngularModule],
+  template: `
+    <div class="stat bg-base-100 shadow-sm rounded-box">
+      <div class="stat-figure text-primary">
+        <i-lucide [img]="icon()" class="size-6" />
+      </div>
+      <div class="stat-title text-xs">{{ label() }}</div>
+      <div class="stat-value text-xl">{{ value() }}</div>
+    </div>
+  `,
+})
+export class StatCardComponent {
+  label = input.required<string>();
+  value = input.required<string | number>();
+  icon = input.required<LucideIconData>();
+}
+```
+
+## Decision Criteria
+
+| | Feature component | Shared component |
+|---|---|---|
+| Template size | Any | < 40 lines |
+| Business logic | Yes (service calls, routing) | No (pure I/O) |
+| File structure | `templateUrl` + separate `.html` | `template` inline OK |
+| `.scss` file | Only if needed | Never |
+
+## Mandatory Patterns
+
+- `standalone: true` — always
+- `ChangeDetectionStrategy.OnPush` — always
+- `input()` / `output()` — never `@Input()` / `@Output()`
+- `computed()` for derived state
+- `host: { class: 'block' }` when the component needs block display

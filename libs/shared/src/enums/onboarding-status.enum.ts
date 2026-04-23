@@ -1,0 +1,6 @@
+export enum OnboardingStatus {
+  COMPLETED = 'COMPLETED',
+  IN_PROGRESS = 'IN_PROGRESS',
+  LOST = 'LOST',
+  NOT_APPLICABLE = 'NOT_APPLICABLE',
+}

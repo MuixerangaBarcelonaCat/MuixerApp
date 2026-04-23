@@ -1,0 +1,50 @@
+<!-- Desktop + tablet tabs -->
+<div class="hidden sm:flex border-b border-base-300 bg-base-100 px-4">
+  @for (tab of tabs; track tab.path) {
+    <a
+      [routerLink]="tab.path"
+      routerLinkActive="tab-active border-b-2 border-primary text-primary font-semibold"
+      class="flex items-center gap-2 px-4 py-3 text-sm text-base-content/70 hover:text-base-content transition-colors cursor-pointer whitespace-nowrap"
+    >
+      <lucide-icon [name]="tab.icon" [size]="16" />
+      <!-- Text: visible on lg, hidden on sm/md -->
+      <span class="hidden lg:inline">{{ tab.label }}</span>
+      <!-- Tooltip on tablet (sm/md only) -->
+      <span class="lg:hidden sr-only">{{ tab.label }}</span>
+    </a>
+  }
+</div>
+
+<!-- Mobile: hamburger dropdown -->
+<div class="sm:hidden bg-base-100 border-b border-base-300 px-4 py-2">
+  <div class="dropdown w-full">
+    <button
+      tabindex="0"
+      class="btn btn-ghost btn-sm w-full justify-start gap-2"
+      (click)="mobileMenuToggle.emit()"
+      type="button"
+    >
+      <lucide-icon name="Menu" [size]="18" />
+      <span class="text-sm font-medium">Navegar</span>
+      <lucide-icon name="ChevronDown" [size]="14" class="ml-auto" />
+    </button>
+
+    @if (mobileMenuOpen()) {
+      <ul class="dropdown-content menu bg-base-100 rounded-box z-50 w-full shadow-lg border border-base-300 mt-1">
+        @for (tab of tabs; track tab.path) {
+          <li>
+            <a
+              [routerLink]="tab.path"
+              routerLinkActive="active"
+              class="flex items-center gap-3 py-3"
+              (click)="mobileMenuToggle.emit()"
+            >
+              <lucide-icon [name]="tab.icon" [size]="18" />
+              {{ tab.label }}
+            </a>
+          </li>
+        }
+      </ul>
+    }
+  </div>
+</div>

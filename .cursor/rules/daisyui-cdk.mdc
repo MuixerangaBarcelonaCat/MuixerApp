@@ -1,0 +1,80 @@
+---
+description: DaisyUI + Angular CDK + Tailwind CSS conventions for Angular apps
+globs: apps/dashboard/**/*.ts,apps/dashboard/**/*.html,apps/pwa/**/*.ts,apps/pwa/**/*.html
+alwaysApply: false
+---
+
+# DaisyUI + Angular CDK + Tailwind CSS
+
+## UI Stack
+
+- **Components**: DaisyUI v4 (semantic CSS classes)
+- **Behavior**: Angular CDK (overlays, a11y, drag-drop)
+- **Styling**: Tailwind CSS v3.4.x utilities
+- **Icons**: `lucide-angular` (tree-shakeable, consistent)
+- **NO Angular Material** — never import `@angular/material/*`
+
+## Theming
+
+Single-color generation via `generateCollaTheme(primaryHex)` in `tailwind.config.js`. Each colla defines only a primary hex; secondary, accent, and content colors are computed automatically.
+
+```html
+<html lang="ca" data-theme="colla-barcelona">
+```
+
+**No CSS custom properties** — all colors via DaisyUI tokens (`primary`, `base-100`, `base-content`, etc.). Never use `var(--colla-*)`.
+
+## Responsive Design
+
+- **Mobile-first**: base styles = mobile, `sm:` / `lg:` for larger
+- **Layout**: top bar + tab-nav (no sidebar/drawer)
+- **Tables**: horizontal scroll (`overflow-x-auto`) — never card-view duplicates
+- **Forms**: `w-full sm:w-64` pattern for responsive widths
+
+## DaisyUI Patterns
+
+### Cards
+
+```html
+<div class="card bg-base-100 shadow-sm">
+  <div class="card-body p-4">…</div>
+</div>
+```
+
+Accent: `border-l-4 border-primary` on the card div.
+
+### Modals
+
+Use native `<dialog>` with `modal modal-open` + `modal-backdrop`:
+
+```html
+<dialog class="modal modal-open">
+  <div class="modal-box">…</div>
+  <div class="modal-backdrop" (click)="close()"></div>
+</dialog>
+```
+
+### Badges
+
+Semantic: `badge-success`, `badge-error`, `badge-warning`, `badge-info`, `badge-ghost`.
+Dynamic color: `[style.backgroundColor]` + `[style.color]="getContrastColor(color)"`.
+
+### Buttons
+
+Size: `btn-sm` for actions inside cards/tables. `btn` for primary page actions.
+Variants: `btn-primary`, `btn-outline`, `btn-ghost`, `btn-error`.
+
+## Angular CDK
+
+Use for complex behavior that DaisyUI can't handle:
+- `@angular/cdk/overlay` — programmatic dropdowns/tooltips
+- `@angular/cdk/a11y` — focus trapping in custom dialogs
+- `@angular/cdk/drag-drop` — future pinyes canvas module
+
+## Styling Rules
+
+- All visual styling via DaisyUI semantic + Tailwind utilities
+- **No `.scss` files** unless complex animations are needed
+- No `@apply` — prefer inline classes
+- Dynamic Tailwind classes: use static maps, never template literals
+- UI text: always Catalan

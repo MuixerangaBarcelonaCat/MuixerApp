@@ -1,0 +1,39 @@
+@if (user()) {
+  <div class="dropdown dropdown-end">
+    <div
+      tabindex="0"
+      role="button"
+      class="flex items-center gap-2 btn btn-ghost btn-sm rounded-full pr-3 pl-1 h-auto py-1">
+      <div class="avatar placeholder">
+        <div class="bg-primary text-primary-content rounded-full w-8 h-8 text-sm font-semibold">
+          <span>{{ initials() }}</span>
+        </div>
+      </div>
+      <div class="hidden sm:flex flex-col items-start leading-tight">
+        <span class="text-sm font-medium text-base-content">{{ displayName() }}</span>
+        <span class="badge badge-sm {{ roleBadgeClass() }}">{{ roleLabel() }}</span>
+      </div>
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+      </svg>
+    </div>
+
+    <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 w-56 p-2 shadow-lg border border-base-200 mt-1">
+      <li class="menu-title px-2 py-1">
+        <div class="flex flex-col gap-0.5">
+          <span class="text-xs font-medium text-base-content truncate">{{ user()?.email }}</span>
+          <span class="badge badge-sm {{ roleBadgeClass() }} w-fit">{{ roleLabel() }}</span>
+        </div>
+      </li>
+      <li><hr class="my-1 border-base-200" /></li>
+      <li>
+        <button type="button" class="text-error" (click)="logout()">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+          Tancar sessió
+        </button>
+      </li>
+    </ul>
+  </div>
+}

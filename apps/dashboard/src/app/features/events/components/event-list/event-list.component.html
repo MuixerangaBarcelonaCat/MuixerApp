@@ -1,0 +1,131 @@
+<div class="space-y-4">
+
+  <!-- Capçalera -->
+  <app-page-header [title]="pageTitle()" [count]="totalEvents()">
+    <button
+      type="button"
+      class="btn btn-primary btn-sm gap-1.5"
+      (click)="showCreateModal.set(true)"
+    >
+      <lucide-icon name="Plus" [size]="14" />
+      Nou {{ eventType() === EventType.ASSAIG ? 'assaig' : 'actuació' }}
+    </button>
+    <button
+      type="button"
+      class="btn btn-warning btn-sm btn-outline gap-1.5"
+      (click)="navigateToSync()"
+    >
+      <lucide-icon name="RefreshCw" [size]="14" />
+      Sincronitzar
+    </button>
+  </app-page-header>
+
+  <!-- Filtres -->
+  <app-filter-bar [hasActiveFilters]="hasFilterChips()" (clearFilters)="clearFilters()">
+
+    <!-- Cerca -->
+    <label class="form-control w-full sm:w-64">
+      <div class="label pb-1"><span class="label-text text-xs">Cerca</span></div>
+      <div class="input input-bordered input-sm flex items-center gap-2">
+        <lucide-icon name="Search" [size]="14" class="text-base-content/40" />
+        <input
+          type="text"
+          class="grow bg-transparent outline-none text-sm"
+          placeholder="Títol, lloc..."
+          [(ngModel)]="searchInput"
+          (ngModelChange)="onSearchChange($event)"
+        />
+      </div>
+    </label>
+
+    <!-- Temporada -->
+    @if (seasons().length > 0) {
+      <label class="form-control w-full sm:w-48">
+        <div class="label pb-1"><span class="label-text text-xs">Temporada</span></div>
+          <select
+          class="select select-bordered select-sm"
+          [value]="selectedSeasonId() ?? ''"
+          (change)="onSeasonChange($any($event.target).value)"
+        >
+          <option value="">Totes</option>
+          @for (season of seasons(); track season.id) {
+            <option [value]="season.id">{{ season.name }}</option>
+          }
+        </select>
+      </label>
+    }
+
+    <!-- Filtre temporal -->
+    <label class="form-control w-full sm:w-40">
+      <div class="label pb-1"><span class="label-text text-xs">Quan</span></div>
+      <select
+        class="select select-bordered select-sm"
+        [value]="timeFilter()"
+        (change)="onTimeFilterChange($any($event.target).value)"
+      >
+        <option value="all">Tots</option>
+        <option value="upcoming">Propers</option>
+        <option value="past">Passats</option>
+      </select>
+    </label>
+
+  </app-filter-bar>
+
+  <!-- Filtres actius + toggle columnes -->
+  <div class="flex flex-wrap items-start justify-between gap-3">
+    <app-active-filters
+      [filters]="activeFilterChips()"
+      (removeFilter)="onRemoveFilterChip($event)"
+    />
+    <app-column-toggle
+      [columns]="ALL_EVENT_COLUMNS"
+      [visibleKeys]="visibleColumnKeys()"
+      (toggleColumn)="toggleColumn($event)"
+    />
+  </div>
+
+  <!-- Taula -->
+  <app-data-table
+    [items]="events()"
+    [columns]="tableColumns()"
+    [visibleColumns]="visibleColumnKeys()"
+    [sortBy]="sortBy()"
+    [sortOrder]="sortOrder()"
+    [loading]="loading()"
+    [groupSeparator]="groupSeparator()"
+    [rowActions]="tableRowActions()"
+    (rowClick)="navigateToEvent($any($event).id)"
+    (sortChange)="onSortChangeFromTable($event)"
+  />
+
+  <!-- Estat buit -->
+  @if (!loading() && events().length === 0) {
+    <app-empty-state
+      [icon]="eventType() === EventType.ASSAIG ? 'Calendar' : 'Star'"
+      [message]="'No s\'han trobat ' + (eventType() === EventType.ASSAIG ? 'assajos' : 'actuacions') + ' amb els filtres actuals'"
+      actionLabel="Netejar filtres"
+      (actionClick)="clearFilters()"
+    />
+  }
+
+  <!-- Paginació -->
+  @if (totalEvents() > 0) {
+    <app-pagination
+      [page]="page()"
+      [totalPages]="totalPages()"
+      [limit]="limit()"
+      [totalItems]="totalEvents()"
+      (pageChange)="goToPage($event)"
+      (limitChange)="onLimitChange($event)"
+    />
+  }
+
+</div>
+
+<!-- Modal creació event -->
+@if (showCreateModal()) {
+  <app-event-form-modal
+    (saved)="onEventCreated($event)"
+    (closed)="showCreateModal.set(false)"
+  />
+}

@@ -1,0 +1,53 @@
+---
+description: Nx workspace conventions and structure
+alwaysApply: true
+---
+
+# Nx Workspace Conventions
+
+## Project Structure
+
+```
+apps/
+  api/          → NestJS backend
+  dashboard/    → Angular admin web
+  pwa/          → Angular PWA mobile
+libs/
+  shared/       → Shared code (enums, interfaces, DTOs)
+```
+
+## Import Rules
+
+✅ **GOOD**:
+```typescript
+import { UserRole } from '@muixer/shared';
+```
+
+❌ **BAD**:
+```typescript
+import { UserRole } from '../../../libs/shared/src/enums/user-role.enum';
+import { SomeService } from '../../apps/api/src/modules/user/user.service';
+```
+
+## Key Conventions
+
+- **Path alias**: Use `@muixer/shared` for shared library imports
+- **No cross-app imports**: `apps/api` must NOT import from `apps/dashboard`
+- **Shared code**: Only enums, interfaces, and types go in `libs/shared`
+- **Nx targets**: `serve`, `build`, `test`, `lint`, `seed` (API only)
+- **Generate with Nx**: Use `npx nx g` for new modules, then customize
+
+## Running Commands
+
+```bash
+# Serve apps
+nx serve api
+nx serve dashboard
+
+# Build
+nx build api
+nx build dashboard
+
+# Seed database
+nx run api:seed
+```

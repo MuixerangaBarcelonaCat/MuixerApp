@@ -1,0 +1,9 @@
+{
+  "name": "pwa-e2e",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "apps/pwa-e2e/src",
+  "implicitDependencies": ["pwa"],
+  "// targets": "to see all targets run: nx show project pwa-e2e --web",
+  "targets": {}
+}

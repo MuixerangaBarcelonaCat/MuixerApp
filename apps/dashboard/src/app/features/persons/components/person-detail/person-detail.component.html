@@ -1,0 +1,190 @@
+<div class="space-y-4 max-w-5xl mx-auto">
+
+  <!-- Capçalera -->
+  <div class="flex items-center gap-3">
+    <button class="btn btn-ghost btn-sm btn-circle" (click)="goBack()" type="button" aria-label="Tornar">
+      <lucide-icon name="ArrowLeft" [size]="18" />
+    </button>
+    <div class="flex-1">
+      <div class="flex items-center gap-2 flex-wrap">
+        <h1 class="text-xl font-bold text-base-content">{{ person()?.alias }}</h1>
+        @if (person()?.isProvisional) {
+          <span class="badge badge-warning badge-sm">Provisional</span>
+        }
+        @if (person() && !person()!.isActive) {
+          <span class="badge badge-error badge-sm">Inactiu</span>
+        }
+      </div>
+      <p class="text-xs text-base-content/50 mt-0.5">{{ getFullName(person()!) }}</p>
+    </div>
+    @if (person()) {
+      <div class="flex items-center gap-2">
+        @if (provisionalToggleError()) {
+          <span class="text-xs text-error">{{ provisionalToggleError() }}</span>
+        }
+        <button
+          type="button"
+          class="btn btn-sm"
+          [class.btn-warning]="!person()!.isProvisional"
+          [class.btn-success]="person()!.isProvisional"
+          [disabled]="togglingProvisional()"
+          (click)="toggleProvisional()"
+        >
+          @if (togglingProvisional()) {
+            <span class="loading loading-spinner loading-xs"></span>
+          } @else {
+            {{ person()!.isProvisional ? 'Promoure a membre' : 'Marcar provisional' }}
+          }
+        </button>
+      </div>
+    }
+  </div>
+
+  <!-- Loading -->
+  @if (loading()) {
+    <div class="card bg-base-100 shadow-sm">
+      <div class="card-body items-center gap-3">
+        <span class="loading loading-spinner loading-md text-primary"></span>
+        <p class="text-sm text-base-content/50">Carregant persona...</p>
+      </div>
+    </div>
+  }
+
+  <!-- Not found -->
+  @if (!loading() && !person()) {
+    <app-empty-state icon="UserX" message="Persona no trobada" actionLabel="Tornar" (actionClick)="goBack()" />
+  }
+
+  <!-- Detall -->
+  @if (!loading() && person()) {
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+      <!-- Informació personal -->
+      <div class="card bg-base-100 shadow-sm">
+        <div class="card-body">
+          <h2 class="card-title text-base mb-3 pb-2 border-b border-base-300">Informació personal</h2>
+          <dl class="space-y-3">
+            <div class="flex justify-between items-start">
+              <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Nom complet</dt>
+              <dd class="text-sm text-right">{{ getFullName(person()!) }}</dd>
+            </div>
+            <div class="flex justify-between items-start">
+              <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Alies</dt>
+              <dd class="text-sm text-right font-medium">{{ person()!.alias }}</dd>
+            </div>
+            @if (person()!.email) {
+              <div class="flex justify-between items-start">
+                <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Correu</dt>
+                <dd class="text-sm text-right">{{ person()!.email }}</dd>
+              </div>
+            }
+            @if (person()!.phone) {
+              <div class="flex justify-between items-start">
+                <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Telèfon</dt>
+                <dd class="text-sm text-right">{{ person()!.phone }}</dd>
+              </div>
+            }
+            @if (person()!.birthDate) {
+              <div class="flex justify-between items-start">
+                <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Naixement</dt>
+                <dd class="text-sm text-right">{{ formatDate(person()!.birthDate) }}</dd>
+              </div>
+            }
+            @if (person()!.shoulderHeight) {
+              <div class="flex justify-between items-start">
+                <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Alçada espatlles</dt>
+                <dd class="text-sm text-right">{{ person()!.shoulderHeight }} cm ({{ formatShoulderHeightRelative(person()!.shoulderHeight) }})</dd>
+              </div>
+            }
+          </dl>
+        </div>
+      </div>
+
+      <!-- Informació de la colla -->
+      <div class="card bg-base-100 shadow-sm">
+        <div class="card-body">
+          <h2 class="card-title text-base mb-3 pb-2 border-b border-base-300">Informació de la colla</h2>
+          <dl class="space-y-3">
+
+            <div class="flex justify-between items-start">
+              <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Posicions</dt>
+              <dd class="flex flex-wrap gap-1 justify-end">
+                @for (pos of person()!.positions; track pos.id) {
+                  <span
+                    class="badge badge-sm"
+                    [style.backgroundColor]="pos.color"
+                    [style.color]="getContrastColor(pos.color)"
+                  >{{ pos.name }}</span>
+                }
+                @if (person()!.positions.length === 0) {
+                  <span class="text-xs text-base-content/40">Cap posició</span>
+                }
+              </dd>
+            </div>
+
+            <div class="flex justify-between items-start">
+              <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Estat</dt>
+              <dd class="flex flex-wrap gap-1 justify-end">
+                <span class="badge badge-sm" [class.badge-success]="person()!.isActive" [class.badge-error]="!person()!.isActive">
+                  {{ person()!.isActive ? 'Actiu' : 'Inactiu' }}
+                </span>
+                @if (person()!.isMember) { <span class="badge badge-sm badge-secondary">Membre</span> }
+                @if (person()!.isXicalla) { <span class="badge badge-sm badge-info">Xicalla</span> }
+              </dd>
+            </div>
+
+            <div class="flex justify-between items-start">
+              <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Disponibilitat</dt>
+              <dd>
+                <span
+                  class="badge badge-sm"
+                  [class.badge-success]="person()!.availability === 'AVAILABLE'"
+                  [class.badge-warning]="person()!.availability !== 'AVAILABLE'"
+                >{{ getAvailabilityLabel(person()!.availability) }}</span>
+              </dd>
+            </div>
+
+            <div class="flex justify-between items-start">
+              <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Acollida</dt>
+              <dd><span class="badge badge-sm badge-outline">{{ getOnboardingLabel(person()!.onboardingStatus) }}</span></dd>
+            </div>
+
+            @if (person()!.shirtDate) {
+              <div class="flex justify-between items-start">
+                <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Data samarreta</dt>
+                <dd class="text-sm text-right">{{ formatDate(person()!.shirtDate) }}</dd>
+              </div>
+            }
+
+            @if (person()!.notes) {
+              <div class="flex flex-col gap-1">
+                <dt class="text-xs text-base-content/50 font-medium">Observacions</dt>
+                <dd class="text-sm bg-base-200 rounded-lg p-3 whitespace-pre-wrap">{{ person()!.notes }}</dd>
+              </div>
+            }
+
+          </dl>
+        </div>
+      </div>
+    </div>
+
+    <!-- Metadades -->
+    <div class="collapse collapse-arrow bg-base-100 shadow-sm rounded-xl border border-base-300">
+      <input type="checkbox" [(ngModel)]="metadataExpanded" />
+      <div class="collapse-title text-sm font-medium text-base-content/50 py-3 min-h-0">Metadades</div>
+      <div class="collapse-content">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+          <div class="flex justify-between">
+            <span class="text-xs text-base-content/40">Creat</span>
+            <span class="text-xs text-base-content/60">{{ formatDateTime(person()!.createdAt) }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-xs text-base-content/40">Actualitzat</span>
+            <span class="text-xs text-base-content/60">{{ formatDateTime(person()!.updatedAt) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+</div>

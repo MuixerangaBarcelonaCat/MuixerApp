@@ -1,0 +1,147 @@
+<div class="space-y-4">
+
+  <!-- Capçalera -->
+  <app-page-header title="Persones" [count]="totalPersons()">
+    <a (click)="onSyncClick()" class="btn btn-warning btn-sm btn-outline gap-1.5">
+      <lucide-icon name="RefreshCw" [size]="14" />
+      Sincronitzar
+    </a>
+  </app-page-header>
+
+  <!-- Tabs: Cens / Provisionals / Tots -->
+  <div class="tabs tabs-bordered">
+    <button
+      type="button"
+      class="tab"
+      [class.tab-active]="provisionalTab() === 'cens'"
+      (click)="setProvisionalTab('cens')"
+    >Cens</button>
+    <button
+      type="button"
+      class="tab"
+      [class.tab-active]="provisionalTab() === 'provisionals'"
+      (click)="setProvisionalTab('provisionals')"
+    >Provisionals</button>
+    <button
+      type="button"
+      class="tab"
+      [class.tab-active]="provisionalTab() === 'tots'"
+      (click)="setProvisionalTab('tots')"
+    >Tots</button>
+  </div>
+
+  <!-- Filtres -->
+  <app-filter-bar [hasActiveFilters]="hasFilterChips()" (clearFilters)="clearFilters()">
+
+    <!-- Cerca -->
+    <label class="form-control w-full sm:w-64">
+      <div class="label pb-1"><span class="label-text text-xs">Cerca</span></div>
+      <div class="input input-bordered input-sm flex items-center gap-2">
+        <lucide-icon name="Search" [size]="14" class="text-base-content/40" />
+        <input
+          type="text"
+          class="grow bg-transparent outline-none text-sm"
+          placeholder="Alies, nom, correu..."
+          [(ngModel)]="searchInput"
+          (ngModelChange)="onSearchChange($event)"
+        />
+      </div>
+    </label>
+
+    <!-- Posicions -->
+    @if (positions().length > 0) {
+      <label class="form-control w-full sm:w-48">
+        <div class="label pb-1"><span class="label-text text-xs">Posicions</span></div>
+        <div class="dropdown">
+          <button tabindex="0" type="button" class="btn btn-bordered btn-sm w-full justify-between">
+            @if (selectedPositions().length === 0) {
+              Totes
+            } @else {
+              {{ selectedPositions().length }} seleccionades
+            }
+            <lucide-icon name="ChevronDown" [size]="14" />
+          </button>
+          <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 w-48 p-2 shadow-lg border border-base-300 max-h-56 overflow-y-auto">
+            @for (position of positions(); track position.id) {
+              <li>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    class="checkbox checkbox-xs"
+                    [checked]="selectedPositions().includes(position.id)"
+                    (change)="togglePosition(position.id)"
+                  />
+                  {{ position.name }}
+                </label>
+              </li>
+            }
+          </ul>
+        </div>
+      </label>
+    }
+
+    <!-- Actius -->
+    <label class="form-control">
+      <div class="label pb-1"><span class="label-text text-xs">Estat</span></div>
+      <label class="flex items-center gap-2 cursor-pointer btn btn-bordered btn-sm">
+        <input
+          type="checkbox"
+          class="checkbox checkbox-xs checkbox-primary"
+          [checked]="activeFilters().isActive === true"
+          (change)="toggleActiusFilter()"
+        />
+        <span class="text-sm">Sols actius</span>
+      </label>
+    </label>
+
+  </app-filter-bar>
+
+  <!-- Filtres actius + toggle columnes -->
+  <div class="flex flex-wrap items-start justify-between gap-3">
+    <app-active-filters
+      [filters]="activeFilterChips()"
+      (removeFilter)="onRemoveFilterChip($event)"
+    />
+    <app-column-toggle
+      [columns]="allColumns"
+      [visibleKeys]="visibleColumnKeys()"
+      (toggleColumn)="toggleColumn($event)"
+    />
+  </div>
+
+  <!-- Taula -->
+  <app-data-table
+    [items]="persons()"
+    [columns]="tableColumns()"
+    [visibleColumns]="visibleColumnKeys()"
+    [sortBy]="sortBy()"
+    [sortOrder]="sortOrder()"
+    [loading]="loading()"
+    [rowActions]="tableRowActions"
+    (rowClick)="onPersonClick($any($event).id)"
+    (sortChange)="onSortChangeFromTable($event)"
+  />
+
+  <!-- Estat buit -->
+  @if (!loading() && persons().length === 0) {
+    <app-empty-state
+      icon="Users"
+      message="No s'han trobat persones amb els filtres actuals"
+      actionLabel="Netejar filtres"
+      (actionClick)="clearFilters()"
+    />
+  }
+
+  <!-- Paginació -->
+  @if (totalPersons() > 0) {
+    <app-pagination
+      [page]="page()"
+      [totalPages]="totalPages()"
+      [limit]="limit()"
+      [totalItems]="totalPersons()"
+      (pageChange)="goToPage($event)"
+      (limitChange)="onLimitChange($event)"
+    />
+  }
+
+</div>

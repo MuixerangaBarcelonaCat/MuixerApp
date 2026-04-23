@@ -1,0 +1,17 @@
+<header class="navbar bg-base-100 border-b border-base-300 px-4 min-h-[56px]">
+  <!-- Logo + nom -->
+  <div class="flex-1 flex items-center gap-3">
+    <img
+      src="/assets/logoMuixe.svg"
+      alt="Logo MuixerApp"
+      class="h-8 w-8 object-contain"
+      onerror="this.style.display='none'"
+    />
+    <span class="text-base font-bold text-base-content tracking-tight">MuixerApp</span>
+  </div>
+
+  <!-- Dreta: user-chip via ng-content -->
+  <div class="flex-none">
+    <ng-content />
+  </div>
+</header>

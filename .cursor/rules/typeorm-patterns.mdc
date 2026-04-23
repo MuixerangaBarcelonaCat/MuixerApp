@@ -1,0 +1,56 @@
+---
+description: TypeORM entity patterns and conventions
+globs: apps/api/**/*.entity.ts
+alwaysApply: false
+---
+
+# TypeORM Patterns
+
+## Entity Structure
+
+```typescript
+@Entity('table_name')  // plural, snake_case
+export class EntityName {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column()
+  field: string;
+
+  @Column({ nullable: true })
+  optionalField: string | null;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+}
+```
+
+## Key Conventions
+
+- **Primary keys**: Always UUID (`@PrimaryGeneratedColumn('uuid')`)
+- **Timestamps**: Always include `createdAt` and `updatedAt`
+- **Soft delete**: Use `isActive: boolean` field, NOT `@DeleteDateColumn`
+- **Enums**: Import from `@muixer/shared`, use `@Column({ type: 'enum', enum: EnumName })`
+- **Table names**: plural, snake_case (`persons`, `positions`, `person_positions`)
+- **Column names**: camelCase in TypeScript (TypeORM auto-maps to snake_case in DB)
+- **Nullable fields**: Explicitly type as `Type | null` and use `{ nullable: true }`
+
+## Relations
+
+```typescript
+// Many-to-Many
+@ManyToMany(() => Position)
+@JoinTable({ name: 'person_positions' })
+positions: Position[];
+
+// Many-to-One
+@ManyToOne(() => User, { nullable: true })
+managedBy: User | null;
+
+// Self-referencing
+@ManyToOne(() => Person, { nullable: true })
+mentor: Person | null;
+```

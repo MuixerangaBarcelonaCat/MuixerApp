@@ -1,0 +1,84 @@
+<div class="space-y-4 max-w-3xl mx-auto">
+
+  <!-- Capçalera -->
+  <div class="flex items-center gap-3">
+    <button class="btn btn-ghost btn-sm btn-circle" (click)="goBack()" type="button" aria-label="Tornar">
+      <lucide-icon name="ArrowLeft" [size]="18" />
+    </button>
+    <div>
+      <h1 class="text-xl font-bold text-base-content">Sincronització de persones</h1>
+      <p class="text-xs text-base-content/50 mt-0.5">Importa persones des de l'aplicació legacy</p>
+    </div>
+  </div>
+
+  <!-- Avís -->
+  <div class="alert alert-warning shadow-sm">
+    <lucide-icon name="AlertTriangle" [size]="18" />
+    <div>
+      <p class="font-semibold text-sm">Funcionalitat temporal</p>
+      <p class="text-xs opacity-80">Aquesta opció desapareixerà quan MuixerApp sigui l'aplicació principal.</p>
+    </div>
+  </div>
+
+  <!-- Panell de control -->
+  <div class="card bg-base-100 shadow-sm">
+    <div class="card-body">
+      <div class="flex flex-wrap gap-3 items-center justify-between">
+        <div>
+          @if (syncState() === 'idle') {
+            <p class="text-sm text-base-content/70">Preparat per sincronitzar. Prem el botó per iniciar.</p>
+          } @else if (syncState() === 'running') {
+            <p class="text-sm font-medium">Sincronitzant... {{ progress() }}%</p>
+          } @else if (syncState() === 'complete') {
+            <p class="text-sm text-success font-medium">Sincronització completada ✓</p>
+            @if (summary()) {
+              <p class="text-xs text-base-content/60">Nous: {{ summary()!.new }} · Actualitzats: {{ summary()!.updated }} · Errors: {{ summary()!.errors }}</p>
+            }
+          } @else if (syncState() === 'error') {
+            <p class="text-sm text-error font-medium">Error durant la sincronització</p>
+          }
+        </div>
+        <div class="flex gap-2">
+          @if (syncState() === 'idle' || syncState() === 'complete' || syncState() === 'error') {
+            <button class="btn btn-primary btn-sm gap-1.5" (click)="startSync()" type="button">
+              <lucide-icon name="RefreshCw" [size]="14" />
+              {{ syncState() === 'idle' ? 'Iniciar' : 'Tornar a sincronitzar' }}
+            </button>
+          } @else if (syncState() === 'running') {
+            <button class="btn btn-ghost btn-sm" (click)="cancelSync()" type="button">Cancel·lar</button>
+          }
+          @if (syncState() === 'complete') {
+            <button class="btn btn-success btn-sm gap-1.5" (click)="goBackAndReload()" type="button">
+              <lucide-icon name="Check" [size]="14" />
+              Finalitzar
+            </button>
+          }
+        </div>
+      </div>
+
+      @if (syncState() === 'running') {
+        <div class="mt-3">
+          <progress class="progress progress-primary w-full" [value]="progress()" max="100"></progress>
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Log d'events -->
+  @if (events().length > 0) {
+    <div class="card bg-base-100 shadow-sm">
+      <div class="card-body p-4">
+        <h2 class="text-sm font-semibold text-base-content/70 mb-2">Registre</h2>
+        <div #logContainer class="bg-neutral rounded-lg p-3 max-h-64 overflow-y-auto font-mono text-xs space-y-0.5">
+          @for (evt of events(); track $index) {
+            <div [ngClass]="getEventColorClass(evt.type)">
+              <span class="opacity-50 mr-2">[{{ evt.entity }}]</span>{{ evt.message }}
+              @if (evt.current && evt.total) { <span class="opacity-50"> ({{ evt.current }}/{{ evt.total }})</span> }
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  }
+
+</div>
