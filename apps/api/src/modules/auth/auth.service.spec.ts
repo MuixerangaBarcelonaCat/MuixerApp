@@ -37,6 +37,7 @@ const mockUserRepo = () => ({
   create: jest.fn(),
   save: jest.fn(),
   update: jest.fn(),
+  query: jest.fn().mockResolvedValue([]),
 });
 
 const mockPersonRepo = () => ({
@@ -191,9 +192,12 @@ describe('AuthService', () => {
 
     it('creates a new TECHNICAL user by default', async () => {
       process.env['SETUP_TOKEN'] = 'secret';
-      userRepo.findOne.mockResolvedValue(null);
-      bcrypt.hash.mockResolvedValue('hashed-pw');
       const saved = makeUser({ role: UserRole.TECHNICAL });
+      userRepo.findOne
+        .mockResolvedValueOnce(null)   // check existing user
+        .mockResolvedValueOnce(saved); // reload after save
+      personRepo.findOne.mockResolvedValueOnce(null); // no person match by email
+      bcrypt.hash.mockResolvedValue('hashed-pw');
       userRepo.create.mockReturnValue(saved);
       userRepo.save.mockResolvedValue(saved);
 
@@ -204,9 +208,12 @@ describe('AuthService', () => {
 
     it('creates an ADMIN user when role is specified', async () => {
       process.env['SETUP_TOKEN'] = 'secret';
-      userRepo.findOne.mockResolvedValue(null);
-      bcrypt.hash.mockResolvedValue('hashed-pw');
       const saved = makeUser({ role: UserRole.ADMIN });
+      userRepo.findOne
+        .mockResolvedValueOnce(null)   // check existing user
+        .mockResolvedValueOnce(saved); // reload after save
+      personRepo.findOne.mockResolvedValueOnce(null); // no person match by email
+      bcrypt.hash.mockResolvedValue('hashed-pw');
       userRepo.create.mockReturnValue(saved);
       userRepo.save.mockResolvedValue(saved);
 

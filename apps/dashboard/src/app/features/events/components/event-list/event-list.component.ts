@@ -19,6 +19,7 @@ import {
   Season,
   EventType,
   EventTimeFilter,
+  AttendanceSummary,
 } from '../../models/event.model';
 import { PageHeaderComponent } from '../../../../shared/components/data/page-header/page-header.component';
 import { FilterBarComponent } from '../../../../shared/components/data/filter-bar/filter-bar.component';
@@ -221,6 +222,10 @@ export class EventListComponent implements OnInit {
     this.saveVisibleColumns(this.eventType(), updated);
   }
 
+  isColumnVisible(key: string): boolean {
+    return this.visibleColumnKeys().includes(key);
+  }
+
   formatDate(dateStr: string): string {
     if (!dateStr) return '';
     const d = new Date(dateStr);
@@ -328,6 +333,35 @@ export class EventListComponent implements OnInit {
     this.sortOrder.set(event.order);
     this.page.set(1);
     this.loadEvents();
+  }
+
+  onSortColumn(col: ColumnDef): void {
+    if (!col.sortField) return;
+    const field = col.sortField as EventFilterParams['sortBy'];
+    if (this.sortBy() !== field) {
+      this.sortBy.set(field);
+      this.sortOrder.set('ASC');
+    } else if (this.sortOrder() === 'ASC') {
+      this.sortOrder.set('DESC');
+    } else {
+      this.sortBy.set(undefined);
+      this.sortOrder.set(undefined);
+    }
+    this.page.set(1);
+    this.loadEvents();
+  }
+
+  sortStateForColumn(col: ColumnDef): 'none' | 'asc' | 'desc' {
+    if (!col.sortField || this.sortBy() !== col.sortField) return 'none';
+    return this.sortOrder() === 'ASC' ? 'asc' : 'desc';
+  }
+
+  getConfirmedCount(summary: AttendanceSummary, isPast: boolean): number {
+    return isPast ? summary.attended : summary.confirmed;
+  }
+
+  getDeclinedCount(summary: AttendanceSummary, isPast: boolean): number {
+    return isPast ? summary.declined + summary.noShow : summary.declined;
   }
 
   /** Group separator to split upcoming vs past events */

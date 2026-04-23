@@ -203,7 +203,7 @@ describe('AttendanceSyncStrategy', () => {
 
       expect(legacyApiClient.getAssistenciesXlsx).toHaveBeenCalledWith('42');
       expect(attendanceRepository.upsert).toHaveBeenCalledTimes(1);
-      const upserted = attendanceRepository.upsert.mock.calls[0][0];
+      const upserted = attendanceRepository.upsert.mock.calls[0][0][0]; // batch array → first item
       expect(upserted.status).toBe(AttendanceStatus.ASSISTIT);
       expect(upserted).not.toHaveProperty('isLateCancel');
     });
@@ -230,7 +230,7 @@ describe('AttendanceSyncStrategy', () => {
       const sub = { next: jest.fn() } as unknown as import('rxjs').Subscriber<SyncEvent>;
       await strategy.syncAll(sub, [event]);
 
-      const upserted = attendanceRepository.upsert.mock.calls[0][0];
+      const upserted = attendanceRepository.upsert.mock.calls[0][0][0]; // batch array → first item
       expect(upserted.status).toBe(AttendanceStatus.NO_VAIG);
       expect(upserted).not.toHaveProperty('isLateCancel'); // not stored per-row
 

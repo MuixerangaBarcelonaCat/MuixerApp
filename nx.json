@@ -46,7 +46,8 @@
     },
     "@angular/build:unit-test": {
       "cache": true,
-      "inputs": ["default", "^production"]
+      "inputs": ["default", "^production"],
+      "parallelism": false
     },
     "@nx/js:tsc": {
       "cache": true,

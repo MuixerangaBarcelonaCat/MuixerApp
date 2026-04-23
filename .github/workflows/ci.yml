@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: Lint · Test · Build
+    runs-on: ubuntu-latest
+
+    env:
+      # Minimal env for NestJS unit tests (mocked, no real DB)
+      NODE_ENV: test
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci_test
+      JWT_SECRET: ci-secret-not-real
+      JWT_REFRESH_SECRET: ci-refresh-secret-not-real
+      JWT_ACCESS_TTL: 900
+      JWT_REFRESH_TTL_DASHBOARD: 28800
+      JWT_REFRESH_TTL_PWA: 604800
+      REFRESH_TOKEN_COOKIE: muixer_rt
+      SETUP_TOKEN: ci-setup-token
+      LEGACY_API_URL: https://example.com
+      LEGACY_API_USERNAME: ci
+      LEGACY_API_PASSWORD: ci
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Restore Nx cache
+        uses: actions/cache@v4
+        with:
+          path: .nx/cache
+          key: nx-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+          restore-keys: |
+            nx-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
+            nx-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: npm ci
+
+      # ── Affected (PRs) ── only lint/test/build what changed
+      - name: Set Nx base/head for affected (PR)
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "NX_BASE=origin/${{ github.base_ref }}" >> $GITHUB_ENV
+          echo "NX_HEAD=${{ github.sha }}" >> $GITHUB_ENV
+
+      # ── All projects (push to main/develop) ──
+      - name: Lint (all)
+        if: github.event_name == 'push'
+        run: npx nx run-many -t lint --all --parallel=3
+
+      - name: Test (all, exclude e2e)
+        if: github.event_name == 'push'
+        run: npx nx run-many -t test --all --exclude=dashboard-e2e,pwa-e2e --parallel=3
+
+      - name: Build (all, exclude e2e)
+        if: github.event_name == 'push'
+        run: npx nx run-many -t build --all --exclude=dashboard-e2e,pwa-e2e --parallel=3
+
+      # ── Affected only (PRs) ──
+      - name: Lint (affected)
+        if: github.event_name == 'pull_request'
+        run: npx nx affected -t lint --parallel=3
+
+      - name: Test (affected, exclude e2e)
+        if: github.event_name == 'pull_request'
+        run: npx nx affected -t test --exclude=dashboard-e2e,pwa-e2e --parallel=3
+
+      - name: Build (affected, exclude e2e)
+        if: github.event_name == 'pull_request'
+        run: npx nx affected -t build --exclude=dashboard-e2e,pwa-e2e --parallel=3

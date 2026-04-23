@@ -1,28 +1,54 @@
-node_modules
-dist
-.angular
+# ── Dependencies ──────────────────────────────────────────
+node_modules/
+
+# ── Build outputs ─────────────────────────────────────────
+dist/
+tmp/
+
+# ── Nx cache ──────────────────────────────────────────────
+.nx/cache
+.nx/workspace-data
+
+# ── Angular ───────────────────────────────────────────────
+.angular/
+
+# ── Environment & secrets ─────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Test & screenshots ─────────────────────────────────────
 __screenshots__/
 .superpowers/
 
-# Nx
-.nx/cache/
-.nx/workspace-data/
-nx
-
-# Environment variables
-.env
-.env.local
-
-# Data
+# ── Data ───────────────────────────────────────────────────
 data/extracted/
 
-# IDE
-.vscode
-.idea
+# ── OS ────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── IDE ───────────────────────────────────────────────────
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
 *.swp
 *.swo
 *~
 
-# OS
-.DS_Store
-Thumbs.db
+# ── Cursor agent internals ────────────────────────────────
+.cursor/
+
+# ── Logs ──────────────────────────────────────────────────
+*.log
+logs/
+npm-debug.log*
+
+# ── Test coverage ─────────────────────────────────────────
+coverage/
+
+# ── Agents ────────────────────────────────────────────────
+.agents/

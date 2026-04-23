@@ -2,12 +2,14 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
+import { vi } from 'vitest';
 import { of, throwError } from 'rxjs';
+import { LUCIDE_ICONS, LucideIconProvider, Mail, Lock } from 'lucide-angular';
 import { LoginComponent } from './login.component';
 import { AuthService } from '../../../core/auth/services/auth.service';
 
 const mockAuthService = {
-  login: jest.fn(),
+  login: vi.fn(),
 };
 
 describe('LoginComponent', () => {
@@ -19,7 +21,10 @@ describe('LoginComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [LoginComponent, ReactiveFormsModule, RouterTestingModule],
-      providers: [{ provide: AuthService, useValue: mockAuthService }],
+      providers: [
+        { provide: AuthService, useValue: mockAuthService },
+        { provide: LUCIDE_ICONS, multi: true, useFactory: () => new LucideIconProvider({ Mail, Lock }) },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(LoginComponent);
@@ -29,7 +34,7 @@ describe('LoginComponent', () => {
     fixture.detectChanges();
   });
 
-  afterEach(() => jest.clearAllMocks());
+  afterEach(() => vi.clearAllMocks());
 
   it('form is invalid when empty', () => {
     expect(component.form.invalid).toBe(true);
@@ -41,7 +46,7 @@ describe('LoginComponent', () => {
   });
 
   it('navigates to / on successful login', async () => {
-    const navigateSpy = jest.spyOn(router, 'navigate').mockResolvedValue(true);
+    const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
     authService.login.mockReturnValue(of(void 0));
 
     component.form.setValue({ email: 'user@test.cat', password: 'pass123' });
@@ -57,7 +62,7 @@ describe('LoginComponent', () => {
   it('shows Catalan error message on failed login', () => {
     authService.login.mockReturnValue(throwError(() => new Error('401')));
 
-    component.form.setValue({ email: 'bad@test.cat', password: 'wrong' });
+    component.form.setValue({ email: 'bad@test.cat', password: 'wrong123' });
     component.onSubmit();
 
     expect(component.errorMessage()).toContain('incorrectes');
