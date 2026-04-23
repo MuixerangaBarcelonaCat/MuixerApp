@@ -9,10 +9,6 @@
     "type": "git",
     "url": "git@github.com-personal:MuixerangaBarcelonaCat/MuixerApp.git"
   },
-  "workspaces": [
-    "apps/*",
-    "libs/*"
-  ],
   "devDependencies": {
     "@angular-devkit/core": "~21.2.0",
     "@angular-devkit/schematics": "~21.2.0",
@@ -104,5 +100,8 @@
     "tailwindcss": "^3.4.19",
     "typeorm": "^0.3.28",
     "xlsx": "^0.18.5"
+  },
+  "overrides": {
+    "@noble/hashes": "2.2.0"
   }
 }
