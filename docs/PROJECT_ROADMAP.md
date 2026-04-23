@@ -16,6 +16,7 @@
 | P3 | Temporades + Esdeveniments + Assistència | ✅ Completat | ✅ | — | ✅ | Season + Event + Attendance entities, API, sync + dashboard shell |
 | P4.1 | **Auth Layer** — JWT+Passport + refactor User/Person + Dashboard login | ✅ Completat | [`docs/specs/2026-04-07-p4-1-auth-layer-design.md`](docs/specs/2026-04-07-p4-1-auth-layer-design.md) | ✅ | ✅ | Flux complet: login, refresh rotation, guards globals, dashboard login page |
 | P4.2 | Dashboard Web — Events + Assistència manual | ✅ Completat | [`docs/specs/2026-04-12-p4-2-dashboard-events-attendance-design.md`](docs/specs/2026-04-12-p4-2-dashboard-events-attendance-design.md) | ✅ | ✅ | CRUD events + attendance, persones provisionals, optimistic UI |
+| P4.3 | **Dashboard Design Refactor** — Clean slate visual redesign | ✅ Completat | [`docs/specs/2026-04-20-dashboard-design-refactor-design.md`](docs/specs/2026-04-20-dashboard-design-refactor-design.md) | [`dashboard_design_refactor_3f8d1aed`](.cursor/plans/dashboard_design_refactor_3f8d1aed.plan.md) | ✅ | Top nav + tabs, 15+ shared components, Home tab, sync UI, Pinyes/Config placeholders |
 | P5 | Mòdul Pinyes i Figures | ⚪ Pendent | — | — | — | Canvas, templates reutilitzables, col·laboració tècnics |
 | P6 | PWA Mòbil | ⚪ Pendent | — | — | — | Diferit fins al tall. Estén l'auth de P4.1 als membres |
 | P7 | Informes + Notificacions + Features avançades | ⚪ Pendent | — | — | — | Reports d'assistència, FCM, estadístiques, notícies |
@@ -67,6 +68,52 @@ Decisions clau d'ordre:
 
 ---
 
+## Decisions sobre el Dashboard Design Refactor (P4.3)
+
+### Objectius del refactor
+
+Refactorització completa de la capa visual del Dashboard, mantenint intacta tota la lògica TypeScript (services, models, signals). Enfocament "clean slate" per crear una UX intuïtiva per usuaris no experts.
+
+### Canvis clau implementats
+
+| Àrea | Abans | Després |
+|------|-------|---------|
+| **Navegació** | Sidebar drawer amb menú lateral | Top navigation bar amb tabs (Inici, Persones, Assajos, Actuacions, Pinyes, Configuració) |
+| **Design System** | CSS vars legacy + tema DaisyUI fix | `generateCollaTheme(primaryHex)` — genera paleta completa des d'un sol color amb contrast WCAG automàtic |
+| **Components** | DaisyUI inline en templates | 15+ components reutilitzables (page-header, data-table, pagination, filter-bar, toast, etc.) |
+| **Tipografia** | Sistema per defecte | Inter (Google Fonts) a tots els textos |
+| **Icones** | SVG inline | Lucide Angular (moderna, consistent) |
+| **Layout** | Drawer + sidebar | `flex-col` amb Brand Bar + Tab Bar + content area |
+| **Responsive** | Menú lateral col·lapsable | Desktop (icon+text) → Tablet (icon) → Mobile (dropdown) |
+| **Home** | Redirect directe a /persons | Pàgina d'inici amb preview de dades, cards de navegació, accés sync legacy |
+| **Fullscreen mode** | No disponible | `LayoutService` signal per Pinyes (futur) |
+
+### Artifacts creats
+
+- **Spec completa**: `docs/specs/2026-04-20-dashboard-design-refactor-design.md` (485 línies)
+- **Pla d'implementació**: 7 fases seqüencials amb Mermaid diagrams
+- **15+ components shared**: `apps/dashboard/src/app/shared/components/{data,feedback,forms}/`
+- **3 nous mòduls**: Home, Sync (global), Config (placeholders)
+- **Reducció codi**: ~80% menys HTML als templates refactoritzats (421→100 línies person-list)
+
+### Abast del refactor
+
+| Component/Pàgina | Línies abans | Línies després | Reducció |
+|------------------|--------------|----------------|----------|
+| `person-list.component.html` | 421 | ~100 | 76% |
+| `event-list.component.html` | 394 | ~100 | 75% |
+| `person-detail.component.html` | 236 | ~120 | 49% |
+| `event-detail.component.html` | 410 | ~180 | 56% |
+| `login.component.html` | 76 | ~70 | 8% |
+
+### Preparació per futures fases
+
+- **Pinyes (P5)**: Estructura creada, `LayoutService.requestFullscreen()` disponible
+- **Config (P7)**: Skeleton amb sub-rutes (users, tags, seasons)
+- **Legacy sync**: UI global + per entitat, marcat com a temporal
+
+---
+
 ## Decisions sobre Rols i Permisos
 
 ### Model de Rols
@@ -100,6 +147,73 @@ ADMIN     ≡ TECHNICAL (fins que s'implementi multi-tenant)
 | **Dashboard** — mòdul pinyes i figures | ❌ | ✅ | ✅ |
 | **Dashboard** — gestió d'usuaris (comptes) | ❌ | ✅ | ✅ |
 | **Dashboard** — configuració del sistema | ❌ | ❌ | ✅ |
+
+---
+
+## Decisions sobre el Dashboard Design Refactor (P4.3)
+
+### Enfocament: Clean Slate Visual
+
+Refactorització completa de la capa de presentació sense tocar la lògica de negoci. Objectiu: UX intuïtiva per usuaris no experts, disseny escalable per futures funcionalitats (Pinyes, Config).
+
+### Arquitectura del refactor (7 fases seqüencials)
+
+```
+F1: Design System → F2: Layout Shell → F3: Shared Components
+                                            ├→ F4: Home Tab
+                                            ├→ F5: Llistes
+                                            └→ F6: Detalls + Sync + Login
+                                                    └→ F7: Placeholders + Cleanup
+```
+
+### Components Shared creats
+
+**Data** (`shared/components/data/`):
+- `page-header` — Títol + badge contador + slot per botons d'acció
+- `data-table` — Generic `<T>` amb sort, skeleton, group-separator, row-actions, sticky columns
+- `column-toggle` — Collapse amb checkboxes per mostrar/amagar columnes
+- `filter-bar` — Container flexible per inputs de filtre + boto "Netejar"
+- `active-filters` — Badges dismissibles dels filtres actius
+- `pagination` — Join buttons + selector limit + info de registres
+- `empty-state` — Card amb icona Lucide + missatge + acció opcional
+- `stat-card` — DaisyUI `stat` per mètriques
+
+**Feedback** (`shared/components/feedback/`):
+- `skeleton-rows`, `skeleton-cards` — Loading states animats
+- `confirm-dialog` — Modal DaisyUI amb confirmació/cancel·lació
+- `toast` + `ToastService` — Sistema de notificacions auto-dismiss (4s)
+
+**Forms** (`shared/components/forms/`):
+- `form-field` — Wrapper consistent per labels, errors, helper text
+
+**Layout** (`shared/components/layout/`):
+- `tab-nav` — Navegació responsive amb tabs
+- `header` — Brand bar amb logo + user-chip slot
+- `user-chip` — Avatar + dropdown amb logout (mantingut de P4.1)
+
+### Millores UX implementades
+
+| Feature | Implementació |
+|---------|---------------|
+| **Home page** | Cards de navegació, preview pròxim assaig/actuació amb comptadors d'assistència, bloc sync legacy, accés ràpid a config |
+| **Event lists** | Separador visual per events passats, `opacity-60` per files passades, ordenació per data ASC per defecte |
+| **Sync pages** | UI unificada amb progress bar, log en temps real, alertes warnings |
+| **Mobile UX** | Dropdown DaisyUI per menú, scroll horitzontal en taules |
+| **Fullscreen mode** | `LayoutService` amb Escape listener per Pinyes (futur) |
+
+### Breaking changes
+
+- **`data-theme="colla-barcelona"` obligatori** a `<html>` (aplicat automàticament a `index.html`)
+- **Color primari dinàmic**: modificar `generateCollaTheme('#HEX')` a `tailwind.config.js` per canviar el tema
+- **`SidebarComponent` eliminat** — totes les referències netejades
+- **CSS vars legacy eliminades** — tots els estils via tokens DaisyUI
+
+### Build status
+
+✅ Compilació exitosa en 4.2s  
+✅ Bundle principal: 181.76 kB (initial)  
+✅ Lazy chunks: 124.64 kB (event-detail), 56.95 kB (modals), 34.99 kB (person-list), 33.95 kB (event-list)  
+✅ Zero errors TypeScript
 
 ---
 
@@ -209,6 +323,7 @@ Cada sub-projecte genera:
 | Kickoff equip | `TEAM_KICKOFF.md` | Decisions, arquitectura, flux assistència |
 | Model de dades | `DATA_MODEL.md` | Entitats TypeScript |
 | Auth flow | `AUTH_FLOW.md` | Fluxos d'autenticació, components, variables |
+| Dashboard UI | [`DASHBOARD_UI.md`](DASHBOARD_UI.md) | Design system, components shared, patterns UX (P4.3) |
 | API legacy | `API_APPSISTENCIA.md` | Endpoints de l'app actual per migració |
 | PRD complet | `docs/prd/` | Requirements, user stories, security |
 | Rules Cursor | `.cursor/rules/` | Regles per l'agent AI |
@@ -221,11 +336,15 @@ Cada sub-projecte genera:
 |---------|---------|-------|
 | Idioma UI | Català | Tots els textos, botons, labels, missatges d'error |
 | Idioma codi | Anglès | Variables, funcions, enums, endpoints, commits |
-| Components Angular | 3 fitxers obligatoris | `.ts` + `.html` + `.scss` (cap template inline) |
+| Components Angular | 2 fitxers preferits | `.ts` + `.html` (inline template per components petits). `.scss` només si necessari (des de P4.3: Tailwind/DaisyUI purs) |
 | Canvi de detecció | `OnPush` | Tots els components |
 | Estat reactiu | Signals (`signal`, `computed`, `effect`) | Evitar `BehaviorSubject` per estat local |
-| Estils | DaisyUI v4 + Tailwind v3 | Cap Tailwind v4 fins nova decisió |
+| Estils | DaisyUI v4 + Tailwind v3 | Cap Tailwind v4 fins nova decisió. Des de P4.3: zero custom CSS, tokens DaisyUI purs |
 | Alçada d'espatlles | Baseline 140 cm | Display absolut (cm) o relatiu (+/-) configurable per usuari |
+| Tema i colors | `generateCollaTheme(primaryHex)` | Un sol color hex → paleta completa DaisyUI amb contrast WCAG automàtic (P4.3) |
+| Navegació | Top navigation bar amb tabs | Desktop: icon+text, Tablet: icon, Mobile: dropdown (des de P4.3) |
+| Icones | Lucide Angular | Moderna, consistent, tree-shakeable (des de P4.3) |
+| Font | Inter (Google Fonts) | Sans-serif professional per tota l'aplicació (des de P4.3) |
 
 ---
 
@@ -242,3 +361,6 @@ Cada sub-projecte genera:
 | 9 Abr 2026 | **P4.1 Auth Layer completat**: backend AuthModule (JWT+Passport, refresh rotation, 7 endpoints, guards globals), frontend AuthService (signals), interceptor (401→refresh→retry), guards, login page DaisyUI. Tests backend + frontend. |
 | 12 Abr 2026 | Spec P4.2 aprovada (`docs/specs/2026-04-12-p4-2-dashboard-events-attendance-design.md`). |
 | 12 Abr 2026 | **P4.2 Dashboard Events + Attendance completat**: CRUD events (POST/PUT/DELETE), CRUD attendance, persones provisionals (`isProvisional` + prefix `~`), Event Form Modal, Attendance Edit Modal, Person Search Input, tabs Cens/Provisionals al llistat, optimistic UI. |
+| 20 Abr 2026 | Brainstorming P4.3 Dashboard Design Refactor iniciat. Decisions: top nav, Home tab, Inter font, Lucide icons, theme generator, full-screen mode per Pinyes. |
+| 20 Abr 2026 | Spec P4.3 aprovada (`docs/specs/2026-04-20-dashboard-design-refactor-design.md`). |
+| 20 Abr 2026 | **P4.3 Dashboard Design Refactor completat** (7 fases): generateCollaTheme() amb WCAG, sidebar→tabs, 15+ components shared (page-header, data-table, pagination, filter-bar, toast, etc), Home tab amb preview events, refactor complet de person-list/event-list/detail/sync/login, Pinyes + Config placeholders. Reducció ~80% HTML. Build OK en 4.2s. |
