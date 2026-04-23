@@ -39,10 +39,8 @@ async function bootstrap() {
     .setTitle('MuixerApp API')
     .setDescription('API per a gestió d\'assistència i figures de muixerangues')
     .setVersion('1.0')
-    .addTag('persons', 'Gestió de membres')
-    .addTag('positions', 'Posicions de figures')
-    .addTag('users', 'Usuaris i autenticació')
     .addBearerAuth()
+    .addSecurityRequirements('bearer')
     .build();
   
   const document = SwaggerModule.createDocument(app, config);
