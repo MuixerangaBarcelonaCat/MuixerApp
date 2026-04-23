@@ -1,18 +1,16 @@
-<header class="navbar bg-base-100 border-b">
-  <div class="flex-none lg:hidden">
-    <button 
-      type="button"
-      class="btn btn-square btn-ghost" 
-      (click)="menuClicked.emit()"
-      aria-label="Obrir menú lateral">
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-5 h-5 stroke-current">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-      </svg>
-    </button>
+<header class="navbar bg-base-100 border-b border-base-300 px-4 min-h-[56px]">
+  <!-- Logo + nom -->
+  <div class="flex-1 flex items-center gap-3">
+    <img
+      src="/assets/logoMuixe.svg"
+      alt="Logo MuixerApp"
+      class="h-8 w-8 object-contain"
+      onerror="this.style.display='none'"
+    />
+    <span class="text-base font-bold text-base-content tracking-tight">MuixerApp</span>
   </div>
-  <div class="flex-1">
-    <h2 class="text-lg font-semibold px-2">{{ title() }}</h2>
-  </div>
+
+  <!-- Dreta: user-chip via ng-content -->
   <div class="flex-none">
     <ng-content />
   </div>

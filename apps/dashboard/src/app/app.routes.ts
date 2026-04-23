@@ -10,7 +10,12 @@ export const appRoutes: Route[] = [
     path: '',
     canActivate: [authGuard, rolesGuard(UserRole.TECHNICAL, UserRole.ADMIN)],
     children: [
-      { path: '', redirectTo: 'persons', pathMatch: 'full' },
+      { path: '', redirectTo: 'home', pathMatch: 'full' },
+      {
+        path: 'home',
+        loadChildren: () =>
+          import('./features/home/home.routes').then((m) => m.homeRoutes),
+      },
       {
         path: 'persons',
         loadChildren: () =>
@@ -26,6 +31,22 @@ export const appRoutes: Route[] = [
         loadChildren: () =>
           import('./features/events/events.routes').then((m) => m.performanceRoutes),
       },
+      {
+        path: 'sync',
+        loadChildren: () =>
+          import('./features/sync/sync.routes').then((m) => m.syncRoutes),
+      },
+      {
+        path: 'pinyes',
+        loadChildren: () =>
+          import('./features/pinyes/pinyes.routes').then((m) => m.pinyesRoutes),
+      },
+      {
+        path: 'config',
+        loadChildren: () =>
+          import('./features/config/config.routes').then((m) => m.configRoutes),
+      },
     ],
   },
+  { path: '**', redirectTo: '' },
 ];

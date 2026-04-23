@@ -1,7 +1,7 @@
 import { Component, ChangeDetectionStrategy, inject, signal, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
+import { LucideAngularModule } from 'lucide-angular';
 import { PersonService } from '../../services/person.service';
 import { Person } from '../../models/person.model';
 import {
@@ -13,13 +13,13 @@ import {
   formatDateTime,
   formatShoulderHeightRelative,
 } from '../../../../shared/utils';
+import { EmptyStateComponent } from '../../../../shared/components/data/empty-state/empty-state.component';
 
 @Component({
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule, RouterModule, LucideAngularModule, EmptyStateComponent],
   templateUrl: './person-detail.component.html',
-  styleUrls: ['./person-detail.component.scss'],
 })
 export class PersonDetailComponent implements OnInit {
   private readonly personService = inject(PersonService);

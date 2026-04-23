@@ -1,114 +1,106 @@
-<div class="p-4 lg:p-6">
-  <!-- Back -->
-  <button class="btn btn-ghost btn-sm mb-4 gap-2" (click)="goBack()">
-    ← Tornar
-  </button>
+<div class="space-y-4 max-w-5xl mx-auto">
 
-  @if (loading()) {
-    <div class="flex justify-center py-20">
-      <span class="loading loading-spinner loading-lg"></span>
-    </div>
-  } @else if (event(); as ev) {
-    <!-- Title + actions -->
-    <div class="flex items-start justify-between mb-6">
-      <div>
-        <h1 class="text-2xl font-bold">{{ ev.title }}</h1>
-        <div class="flex items-center gap-2 mt-1">
-          <span class="badge" [class.badge-primary]="ev.eventType === EventType.ASSAIG" [class.badge-secondary]="ev.eventType === EventType.ACTUACIO">
+  <!-- Capçalera -->
+  @if (event(); as ev) {
+    <div class="flex items-start gap-3 flex-wrap">
+      <button class="btn btn-ghost btn-sm btn-circle mt-0.5" (click)="goBack()" type="button" aria-label="Tornar">
+        <lucide-icon name="ArrowLeft" [size]="18" />
+      </button>
+      <div class="flex-1">
+        <div class="flex items-center gap-2 flex-wrap">
+          <h1 class="text-xl font-bold text-base-content">{{ ev.title }}</h1>
+          <span class="badge badge-sm" [class.badge-primary]="ev.eventType === EventType.ASSAIG" [class.badge-secondary]="ev.eventType === EventType.ACTUACIO">
             {{ ev.eventType === EventType.ASSAIG ? 'Assaig' : 'Actuació' }}
           </span>
-          @if (!ev.countsForStatistics) {
-            <span class="badge badge-ghost">No compta estadístiques</span>
-          }
-          @if (isPast()) {
-            <span class="badge badge-neutral">Passat</span>
-          }
+          @if (isPast()) { <span class="badge badge-neutral badge-sm">Passat</span> }
+          @if (!ev.countsForStatistics) { <span class="badge badge-ghost badge-sm">Sense estadística</span> }
         </div>
       </div>
       <div class="flex gap-2 flex-wrap">
         @if (ev.isSynced) {
-          <div class="tooltip" [attr.data-tip]="!isAdmin() ? 'Només administradors poden sincronitzar' : ''">
-            <button
-              class="btn btn-outline btn-sm gap-1"
-              [disabled]="syncState() === 'running' || !isAdmin()"
-              (click)="syncAttendance()"
-            >
-              @if (syncState() === 'running') {
-                <span class="loading loading-spinner loading-xs"></span>
-                Sincronitzant...
-              } @else {
-                🔄 Sync
-              }
-            </button>
-          </div>
+          <button
+            class="btn btn-outline btn-sm gap-1.5"
+            [disabled]="syncState() === 'running' || !isAdmin()"
+            (click)="syncAttendance()"
+            type="button"
+          >
+            @if (syncState() === 'running') {
+              <span class="loading loading-spinner loading-xs"></span> Sincronitzant...
+            } @else {
+              <lucide-icon name="RefreshCw" [size]="14" /> Sync
+            }
+          </button>
         }
-        <button class="btn btn-outline btn-sm" (click)="showEditModal.set(true)">Editar</button>
-        <button
-          class="btn btn-error btn-outline btn-sm"
-          [disabled]="deleting()"
-          (click)="deleteEvent()"
-        >
-          @if (deleting()) {
-            <span class="loading loading-spinner loading-xs"></span>
-          } @else {
-            Eliminar
-          }
+        <button class="btn btn-outline btn-sm" (click)="showEditModal.set(true)" type="button">Editar</button>
+        <button class="btn btn-error btn-outline btn-sm" [disabled]="deleting()" (click)="deleteEvent()" type="button">
+          @if (deleting()) { <span class="loading loading-spinner loading-xs"></span> } @else { Eliminar }
         </button>
       </div>
     </div>
+  }
+
+  <!-- Loading -->
+  @if (loading()) {
+    <div class="card bg-base-100 shadow-sm">
+      <div class="card-body items-center gap-3 py-12">
+        <span class="loading loading-spinner loading-md text-primary"></span>
+        <p class="text-sm text-base-content/50">Carregant event...</p>
+      </div>
+    </div>
+  }
+
+  @if (!loading() && event(); as ev) {
 
     <!-- Delete error -->
     @if (deleteError()) {
-      <div class="alert alert-error mb-4 text-sm">
+      <div class="alert alert-error text-sm">
         <span>{{ deleteError() }}</span>
-        <button class="btn btn-ghost btn-xs" (click)="deleteError.set(null)">✕</button>
+        <button class="btn btn-ghost btn-xs" (click)="deleteError.set(null)" type="button">✕</button>
       </div>
     }
 
     <!-- Sync status -->
     @if (syncState() !== 'idle') {
       <div
-        class="alert mb-6 text-sm"
+        class="alert text-sm"
         [class.alert-info]="syncState() === 'running'"
         [class.alert-success]="syncState() === 'complete'"
         [class.alert-error]="syncState() === 'error'"
       >
-        @if (syncState() === 'running') {
-          <span class="loading loading-spinner loading-sm"></span>
-        }
+        @if (syncState() === 'running') { <span class="loading loading-spinner loading-sm"></span> }
         <span>{{ syncMessage() }}</span>
         @if (syncState() !== 'running') {
-          <button class="btn btn-ghost btn-xs" (click)="syncState.set('idle')">✕</button>
+          <button class="btn btn-ghost btn-xs" (click)="syncState.set('idle')" type="button">✕</button>
         }
       </div>
     }
 
-    <!-- Two-column info + summary -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-      <!-- Info -->
-      <div class="card bg-base-100 shadow">
+    <!-- Info + Resum d'assistència -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <!-- Informació -->
+      <div class="card bg-base-100 shadow-sm">
         <div class="card-body p-4">
-          <h2 class="card-title text-base mb-3">Informació</h2>
+          <h2 class="card-title text-base mb-3 pb-2 border-b border-base-300">Informació</h2>
           <dl class="space-y-2 text-sm">
             <div class="flex gap-2">
-              <dt class="text-base-content/60 w-24 shrink-0">Data:</dt>
-              <dd class="capitalize">{{ formatDate(ev.date) }}</dd>
+              <dt class="text-base-content/50 w-28 shrink-0">Data:</dt>
+              <dd class="capitalize font-medium">{{ formatDate(ev.date) }}</dd>
             </div>
             @if (ev.startTime) {
               <div class="flex gap-2">
-                <dt class="text-base-content/60 w-24 shrink-0">Hora:</dt>
+                <dt class="text-base-content/50 w-28 shrink-0">Hora inici:</dt>
                 <dd>{{ ev.startTime }}</dd>
               </div>
             }
             @if (rehearsalMetadata()?.endTime) {
               <div class="flex gap-2">
-                <dt class="text-base-content/60 w-24 shrink-0">Hora final:</dt>
+                <dt class="text-base-content/50 w-28 shrink-0">Hora final:</dt>
                 <dd>{{ rehearsalMetadata()?.endTime }}</dd>
               </div>
             }
             @if (ev.location) {
               <div class="flex gap-2">
-                <dt class="text-base-content/60 w-24 shrink-0">Lloc:</dt>
+                <dt class="text-base-content/50 w-28 shrink-0">Lloc:</dt>
                 <dd>
                   @if (ev.locationUrl) {
                     <a [href]="ev.locationUrl" target="_blank" class="link link-primary">{{ ev.location }}</a>
@@ -120,30 +112,30 @@
             }
             @if (ev.season) {
               <div class="flex gap-2">
-                <dt class="text-base-content/60 w-24 shrink-0">Temporada:</dt>
+                <dt class="text-base-content/50 w-28 shrink-0">Temporada:</dt>
                 <dd>{{ ev.season.name }}</dd>
               </div>
             }
             <div class="flex gap-2">
-              <dt class="text-base-content/60 w-24 shrink-0">Estadística:</dt>
-              <dd>{{ ev.countsForStatistics ? 'Sí ✅' : 'No ❌' }}</dd>
+              <dt class="text-base-content/50 w-28 shrink-0">Estadística:</dt>
+              <dd>{{ ev.countsForStatistics ? 'Sí' : 'No' }}</dd>
             </div>
             @if (performanceMetadata(); as meta) {
               @if (meta.isHome !== undefined) {
                 <div class="flex gap-2">
-                  <dt class="text-base-content/60 w-24 shrink-0">A casa:</dt>
+                  <dt class="text-base-content/50 w-28 shrink-0">A casa:</dt>
                   <dd>{{ meta.isHome ? 'Sí' : 'No (desplaçament)' }}</dd>
                 </div>
               }
               @if (meta.hasBus !== undefined) {
                 <div class="flex gap-2">
-                  <dt class="text-base-content/60 w-24 shrink-0">Autocar:</dt>
+                  <dt class="text-base-content/50 w-28 shrink-0">Autocar:</dt>
                   <dd>{{ meta.hasBus ? 'Sí' : 'No' }}</dd>
                 </div>
               }
               @if (meta.colles && meta.colles.length > 0) {
                 <div class="flex gap-2">
-                  <dt class="text-base-content/60 w-24 shrink-0">Colles:</dt>
+                  <dt class="text-base-content/50 w-28 shrink-0">Colles:</dt>
                   <dd>{{ meta.colles.join(', ') }}</dd>
                 </div>
               }
@@ -156,24 +148,23 @@
         </div>
       </div>
 
-      <!-- Attendance Summary -->
-      <div class="card bg-base-100 shadow">
+      <!-- Resum d'assistència -->
+      <div class="card bg-base-100 shadow-sm">
         <div class="card-body p-4">
-          <h2 class="card-title text-base mb-3">Resum Assistència</h2>
+          <h2 class="card-title text-base mb-3 pb-2 border-b border-base-300">Resum assistència</h2>
           <dl class="space-y-2 text-sm">
             @for (row of getSummaryForDisplay(ev.attendanceSummary); track row.label) {
               <div class="flex justify-between items-center">
-                <dt class="flex gap-2 items-center">
-                  <span>{{ row.icon }}</span>
-                  <span class="text-base-content/70">{{ row.label }}:</span>
+                <dt class="flex gap-2 items-center text-base-content/70">
+                  <span>{{ row.icon }}</span>{{ row.label }}:
                 </dt>
-                <dd class="font-mono font-semibold text-base">{{ row.value }}</dd>
+                <dd class="font-mono font-bold text-base">{{ row.value }}</dd>
               </div>
             }
           </dl>
           @if (ev.attendanceSummary.total > 0) {
             <div class="mt-4">
-              <div class="flex justify-between text-xs text-base-content/60 mb-1">
+              <div class="flex justify-between text-xs text-base-content/50 mb-1">
                 <span>{{ isPast() ? 'Assistència' : 'Confirmació' }}</span>
                 <span>{{ attendanceRatio() }}%</span>
               </div>
@@ -184,27 +175,20 @@
       </div>
     </div>
 
-    <!-- Attendance list -->
-    <div class="card bg-base-100 shadow">
+    <!-- Llista d'assistència -->
+    <div class="card bg-base-100 shadow-sm">
       <div class="card-body p-4">
         <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
-          <h2 class="card-title text-base">Llista d'Assistència</h2>
+          <h2 class="card-title text-base">Llista d'assistència</h2>
           <div class="flex flex-wrap gap-2">
-            <!-- Confirmed preset toggle -->
             <button
               type="button"
               class="btn btn-sm"
               [class.btn-primary]="confirmedFilterActive()"
               [class.btn-ghost]="!confirmedFilterActive()"
               (click)="toggleConfirmedFilter()"
-            >
-              {{ isPast() ? '✅ Assistits' : '🟢 Confirmats' }}
-            </button>
-            <!-- Status filter -->
-            <select
-              class="select select-sm select-bordered"
-              (change)="onAttendanceStatusFilter($any($event.target).value)"
-            >
+            >{{ isPast() ? '✅ Assistits' : '🟢 Confirmats' }}</button>
+            <select class="select select-sm select-bordered" (change)="onAttendanceStatusFilter($any($event.target).value)">
               <option value="">Tots</option>
               <option [value]="AttendanceStatus.ANIRE">Aniré</option>
               <option [value]="AttendanceStatus.ASSISTIT">Assistit</option>
@@ -212,31 +196,25 @@
               <option [value]="AttendanceStatus.NO_PRESENTAT">No presentat</option>
               <option [value]="AttendanceStatus.PENDENT">Pendents</option>
             </select>
-            <!-- Search -->
             <label class="input input-sm input-bordered flex items-center gap-2">
+              <lucide-icon name="Search" [size]="14" class="text-base-content/40" />
               <input
                 type="text"
-                class="grow"
-                placeholder="Cerca per alies o nom..."
+                class="grow bg-transparent outline-none text-sm w-32"
+                placeholder="Cerca..."
                 [(ngModel)]="attendanceSearchInput"
                 (ngModelChange)="onAttendanceSearchChange($event)"
               />
             </label>
-            <!-- Add attendance toggle -->
-            <button
-              type="button"
-              class="btn btn-primary btn-sm"
-              (click)="showAddBar.set(!showAddBar()); addError.set(null)"
-            >
-              + Afegir membre
+            <button type="button" class="btn btn-primary btn-sm gap-1" (click)="showAddBar.set(!showAddBar()); addError.set(null)">
+              <lucide-icon name="Plus" [size]="14" /> Afegir membre
             </button>
           </div>
         </div>
 
-        <!-- Add attendance bar -->
+        <!-- Barra d'afegir -->
         @if (showAddBar()) {
           <div class="bg-base-200 rounded-box p-3 mb-3 space-y-3">
-            <!-- Status selector -->
             <div class="flex flex-wrap gap-2 items-center">
               <span class="text-sm font-medium">Estat:</span>
               @for (status of [AttendanceStatus.ANIRE, AttendanceStatus.ASSISTIT, AttendanceStatus.NO_VAIG, AttendanceStatus.PENDENT]; track status) {
@@ -249,8 +227,6 @@
                 >{{ getStatusLabel(status) }}</button>
               }
             </div>
-
-            <!-- Person search -->
             <div class="flex flex-col gap-2">
               <app-person-search-input
                 placeholder="Cerca persona del cens..."
@@ -262,22 +238,12 @@
                   <span class="loading loading-spinner loading-xs"></span> Afegint...
                 </div>
               }
-              @if (addError()) {
-                <div class="text-sm text-error">{{ addError() }}</div>
-              }
+              @if (addError()) { <div class="text-sm text-error">{{ addError() }}</div> }
             </div>
-
-            <!-- Add provisional divider -->
             <div class="divider text-xs my-1">O crea una persona provisional</div>
-
-            <button
-              type="button"
-              class="btn btn-ghost btn-xs"
-              (click)="showAddProvisional.set(!showAddProvisional())"
-            >
+            <button type="button" class="btn btn-ghost btn-xs" (click)="showAddProvisional.set(!showAddProvisional())">
               + Persona nova (provisional)
             </button>
-
             @if (showAddProvisional()) {
               <div class="flex items-center gap-2 flex-wrap">
                 <input
@@ -293,27 +259,23 @@
                   [disabled]="!provisionalAlias.trim() || addingProvisional()"
                   (click)="addProvisionalPerson()"
                 >
-                  @if (addingProvisional()) {
-                    <span class="loading loading-spinner loading-xs"></span>
-                  }
+                  @if (addingProvisional()) { <span class="loading loading-spinner loading-xs"></span> }
                   Crear i afegir
                 </button>
               </div>
-              @if (provisionalError()) {
-                <div class="text-sm text-error">{{ provisionalError() }}</div>
-              }
+              @if (provisionalError()) { <div class="text-sm text-error">{{ provisionalError() }}</div> }
             }
           </div>
         }
 
         <div class="overflow-x-auto">
           <table class="table table-sm">
-            <thead>
+            <thead class="sticky top-0 z-10 bg-base-100">
               <tr>
                 <th>Alies</th>
                 <th>Nom</th>
                 <th>Estat</th>
-                <th>Data resposta</th>
+                <th>Resposta</th>
                 <th>Posicions</th>
               </tr>
             </thead>
@@ -324,20 +286,16 @@
                 }
               } @else if (attendances().length === 0) {
                 <tr>
-                  <td colspan="5" class="text-center text-base-content/50 py-6">
-                    Cap registre d'assistència
-                  </td>
+                  <td colspan="5" class="text-center text-base-content/50 py-8 text-sm">Cap registre d'assistència</td>
                 </tr>
               } @else {
                 @for (att of attendances(); track att.id) {
-                  <tr>
-                    <td class="font-mono text-sm font-semibold">
+                  <tr class="hover">
+                    <td class="font-medium text-sm whitespace-nowrap">
                       {{ att.person.alias }}
-                      @if (att.person.isProvisional) {
-                        <span class="badge badge-xs badge-warning ml-1">Prov.</span>
-                      }
+                      @if (att.person.isProvisional) { <span class="badge badge-xs badge-warning ml-1">Prov.</span> }
                     </td>
-                    <td class="text-sm">{{ att.person.name }} {{ att.person.firstSurname }}</td>
+                    <td class="text-sm text-base-content/70 whitespace-nowrap">{{ att.person.name }} {{ att.person.firstSurname }}</td>
                     <td>
                       <button
                         type="button"
@@ -345,17 +303,11 @@
                         [ngClass]="getStatusBadgeClass(att.status)"
                         (click)="openAttendanceEdit(att)"
                         [title]="'Editar assistència de ' + att.person.alias"
-                      >
-                        {{ getStatusLabel(att.status) }}
-                      </button>
-                      @if (att.person.isXicalla) {
-                        <span class="badge badge-ghost badge-xs ml-1">👶</span>
-                      }
-                      @if (att.notes) {
-                        <span class="badge badge-ghost badge-xs ml-1" [title]="att.notes">📝</span>
-                      }
+                      >{{ getStatusLabel(att.status) }}</button>
+                      @if (att.person.isXicalla) { <span class="badge badge-ghost badge-xs ml-1">👶</span> }
+                      @if (att.notes) { <span class="badge badge-ghost badge-xs ml-1" [title]="att.notes">📝</span> }
                     </td>
-                    <td class="text-xs text-base-content/60">{{ formatDateTime(att.respondedAt) }}</td>
+                    <td class="text-xs text-base-content/50 whitespace-nowrap">{{ formatDateTime(att.respondedAt) }}</td>
                     <td>
                       <div class="flex flex-wrap gap-1">
                         @for (pos of att.person.positions; track pos.id) {
@@ -374,18 +326,16 @@
           </table>
         </div>
 
-        <!-- Attendance pagination -->
         @if (totalAttendances() > attendanceLimit()) {
           <div class="flex items-center justify-center gap-2 mt-4">
-            <button class="btn btn-xs" [disabled]="attendancePage() <= 1" (click)="goToAttendancePage(attendancePage() - 1)">←</button>
-            <span class="text-sm">Pàgina {{ attendancePage() }} de {{ totalAttendancePages() }}</span>
-            <button class="btn btn-xs" [disabled]="attendancePage() >= totalAttendancePages()" (click)="goToAttendancePage(attendancePage() + 1)">→</button>
+            <button class="btn btn-xs" [disabled]="attendancePage() <= 1" (click)="goToAttendancePage(attendancePage() - 1)" type="button">←</button>
+            <span class="text-sm text-base-content/60">Pàgina {{ attendancePage() }} de {{ totalAttendancePages() }}</span>
+            <button class="btn btn-xs" [disabled]="attendancePage() >= totalAttendancePages()" (click)="goToAttendancePage(attendancePage() + 1)" type="button">→</button>
           </div>
         }
       </div>
     </div>
 
-    <!-- Edit event modal -->
     @if (showEditModal()) {
       <app-event-form-modal
         [event]="ev"
@@ -395,7 +345,6 @@
       />
     }
 
-    <!-- Attendance edit modal -->
     @if (editingAttendance()) {
       <app-attendance-edit-modal
         [attendance]="editingAttendance()!"
@@ -407,4 +356,5 @@
       />
     }
   }
+
 </div>

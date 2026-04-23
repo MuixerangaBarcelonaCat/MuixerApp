@@ -20,7 +20,6 @@ import { EventDetail, Season, CreateEventPayload, UpdateEventPayload, EventType 
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './event-form-modal.component.html',
-  styleUrls: ['./event-form-modal.component.scss'],
 })
 export class EventFormModalComponent implements OnInit, OnChanges {
   private readonly fb = inject(FormBuilder);

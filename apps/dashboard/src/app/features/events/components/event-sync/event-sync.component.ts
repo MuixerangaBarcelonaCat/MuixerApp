@@ -9,8 +9,9 @@ import {
   ViewChild,
   AfterViewInit,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { Router, ActivatedRoute } from '@angular/router';
+import { NgClass } from '@angular/common';
+import { Router, ActivatedRoute, RouterModule } from '@angular/router';
+import { LucideAngularModule } from 'lucide-angular';
 import { SyncEvent, EventType } from '../../models/event.model';
 import { AuthService } from '../../../../core/auth/services/auth.service';
 import { environment } from '../../../../../environments/environment';
@@ -21,9 +22,8 @@ type SyncState = 'idle' | 'running' | 'complete' | 'error';
   selector: 'app-event-sync',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule],
+  imports: [RouterModule, LucideAngularModule, NgClass],
   templateUrl: './event-sync.component.html',
-  styleUrls: ['./event-sync.component.scss'],
 })
 export class EventSyncComponent implements AfterViewInit {
   private readonly router = inject(Router);

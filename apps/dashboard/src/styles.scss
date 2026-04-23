@@ -1,16 +1,11 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --colla-primary: #1B5E20;
-  --colla-secondary: #FDD835;
-  --colla-text-on-primary: #FFFFFF;
-  --colla-logo-url: url('/assets/logo-mxb.svg');
-}
-
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
 }

@@ -20,7 +20,6 @@ import { AttendanceStatus } from '@muixer/shared';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, FormsModule],
   templateUrl: './attendance-edit-modal.component.html',
-  styleUrls: ['./attendance-edit-modal.component.scss'],
 })
 export class AttendanceEditModalComponent implements OnChanges {
   private readonly attendanceService = inject(AttendanceService);

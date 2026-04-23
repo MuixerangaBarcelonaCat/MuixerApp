@@ -3,13 +3,6 @@ import { EventType, AttendanceStatus, AttendanceSummary, RehearsalMetadata, Perf
 export { EventType, AttendanceStatus };
 export type { AttendanceSummary };
 
-export interface ColumnDef {
-  key: string;
-  label: string;
-  defaultVisible: boolean;
-  sortField?: string;
-}
-
 export type EventTimeFilter = 'upcoming' | 'past' | 'all';
 
 export interface SeasonRef {

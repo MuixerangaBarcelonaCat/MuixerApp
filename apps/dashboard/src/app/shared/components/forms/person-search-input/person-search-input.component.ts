@@ -18,7 +18,6 @@ import { Person } from '../../../../features/persons/models/person.model';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, FormsModule],
   templateUrl: './person-search-input.component.html',
-  styleUrls: ['./person-search-input.component.scss'],
 })
 export class PersonSearchInputComponent implements OnDestroy {
   private readonly personService = inject(PersonService);

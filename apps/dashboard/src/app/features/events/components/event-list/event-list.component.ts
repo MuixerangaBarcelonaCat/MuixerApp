@@ -6,9 +6,9 @@ import {
   signal,
   OnInit,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { LucideAngularModule } from 'lucide-angular';
 import { EventService } from '../../services/event.service';
 import { SeasonService } from '../../services/season.service';
 import { EventFormModalComponent } from '../event-form-modal/event-form-modal.component';
@@ -18,10 +18,17 @@ import {
   EventFilterParams,
   Season,
   EventType,
-  ColumnDef,
   EventTimeFilter,
 } from '../../models/event.model';
-import { AttendanceSummary } from '@muixer/shared';
+import { PageHeaderComponent } from '../../../../shared/components/data/page-header/page-header.component';
+import { FilterBarComponent } from '../../../../shared/components/data/filter-bar/filter-bar.component';
+import { ActiveFiltersComponent } from '../../../../shared/components/data/active-filters/active-filters.component';
+import { ColumnToggleComponent } from '../../../../shared/components/data/column-toggle/column-toggle.component';
+import { PaginationComponent } from '../../../../shared/components/data/pagination/pagination.component';
+import { EmptyStateComponent } from '../../../../shared/components/data/empty-state/empty-state.component';
+import { DataTableComponent, RowAction } from '../../../../shared/components/data/data-table/data-table.component';
+import { ActiveFilter } from '../../../../shared/components/data/active-filters/active-filters.component';
+import { ColumnDef, GroupSeparator } from '../../../../shared/models/column-def.model';
 
 export const ALL_EVENT_COLUMNS: ColumnDef[] = [
   { key: 'date', label: 'Data', defaultVisible: true, sortField: 'date' },
@@ -42,9 +49,19 @@ function storageKey(eventType: EventType): string {
   selector: 'app-event-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, FormsModule, EventFormModalComponent],
+  imports: [
+    FormsModule,
+    LucideAngularModule,
+    EventFormModalComponent,
+    PageHeaderComponent,
+    FilterBarComponent,
+    ActiveFiltersComponent,
+    ColumnToggleComponent,
+    PaginationComponent,
+    EmptyStateComponent,
+    DataTableComponent,
+  ],
   templateUrl: './event-list.component.html',
-  styleUrls: ['./event-list.component.scss'],
 })
 export class EventListComponent implements OnInit {
   private readonly eventService = inject(EventService);
@@ -79,11 +96,6 @@ export class EventListComponent implements OnInit {
 
   visibleColumnKeys = signal<string[]>([]);
 
-  visibleColumns = computed(() => {
-    const keys = this.visibleColumnKeys();
-    return ALL_EVENT_COLUMNS.filter((c) => keys.includes(c.key));
-  });
-
   totalPages = computed(() => Math.ceil(this.totalEvents() / this.limit()));
 
   pageTitle = computed(() =>
@@ -96,22 +108,6 @@ export class EventListComponent implements OnInit {
     const season = this.selectedSeasonId() !== undefined;
     const stats = this.selectedCountsForStats() !== undefined;
     return Boolean(s || tf || season || stats);
-  });
-
-  pageNumbers = computed(() => {
-    const total = this.totalPages();
-    const current = this.page();
-    if (total <= 12) return Array.from({ length: total }, (_, i) => i + 1);
-
-    const pages: (number | 'ellipsis')[] = [1];
-    const rangeStart = Math.max(2, current - 2);
-    const rangeEnd = Math.min(total - 1, current + 2);
-
-    if (rangeStart > 2) pages.push('ellipsis');
-    for (let i = rangeStart; i <= rangeEnd; i++) pages.push(i);
-    if (rangeEnd < total - 1) pages.push('ellipsis');
-    if (total > 1) pages.push(total);
-    return pages;
   });
 
   ngOnInit() {
@@ -151,30 +147,6 @@ export class EventListComponent implements OnInit {
     else this.selectedCountsForStats.set(undefined);
     this.page.set(1);
     this.loadEvents();
-  }
-
-  onSortColumn(col: ColumnDef) {
-    if (!col.sortField) return;
-    const field = col.sortField as EventFilterParams['sortBy'];
-    const currentField = this.sortBy();
-    const currentOrder = this.sortOrder();
-
-    if (currentField !== field) {
-      this.sortBy.set(field);
-      this.sortOrder.set('ASC');
-    } else if (currentOrder === 'ASC') {
-      this.sortOrder.set('DESC');
-    } else {
-      this.sortBy.set(undefined);
-      this.sortOrder.set(undefined);
-    }
-    this.page.set(1);
-    this.loadEvents();
-  }
-
-  sortStateForColumn(col: ColumnDef): 'none' | 'asc' | 'desc' {
-    if (!col.sortField || this.sortBy() !== col.sortField) return 'none';
-    return this.sortOrder() === 'DESC' ? 'desc' : 'asc';
   }
 
   clearFilters() {
@@ -218,14 +190,6 @@ export class EventListComponent implements OnInit {
     this.loadEvents();
   }
 
-  previousPage() {
-    this.goToPage(this.page() - 1);
-  }
-
-  nextPage() {
-    this.goToPage(this.page() + 1);
-  }
-
   onLimitChange(raw: string | number) {
     const n = typeof raw === 'string' ? Number(raw) : raw;
     if (![25, 50, 100].includes(n)) return;
@@ -257,10 +221,6 @@ export class EventListComponent implements OnInit {
     this.saveVisibleColumns(this.eventType(), updated);
   }
 
-  isColumnVisible(key: string): boolean {
-    return this.visibleColumnKeys().includes(key);
-  }
-
   formatDate(dateStr: string): string {
     if (!dateStr) return '';
     const d = new Date(dateStr);
@@ -271,14 +231,6 @@ export class EventListComponent implements OnInit {
     const timeStr = startTime ?? '23:59';
     const dt = new Date(`${dateStr}T${timeStr}:00`);
     return dt < new Date();
-  }
-
-  getConfirmedCount(summary: AttendanceSummary, isPast: boolean): number {
-    return isPast ? summary.attended : summary.confirmed;
-  }
-
-  getDeclinedCount(summary: AttendanceSummary, isPast: boolean): number {
-    return isPast ? summary.declined + summary.noShow : summary.declined;
   }
 
   getSeasonLabel(id: string | undefined): string {
@@ -353,4 +305,72 @@ export class EventListComponent implements OnInit {
   private saveVisibleColumns(eventType: EventType, keys: string[]) {
     localStorage.setItem(storageKey(eventType), JSON.stringify(keys));
   }
+
+  /** Active filter chips for app-active-filters */
+  readonly activeFilterChips = computed<ActiveFilter[]>(() => {
+    const chips: ActiveFilter[] = [];
+    if (this.search().trim()) chips.push({ key: 'search', label: `Cerca: "${this.search()}"` });
+    if (this.timeFilter() !== 'all') chips.push({ key: 'timeFilter', label: this.timeFilterLabel(this.timeFilter()) });
+    if (this.selectedSeasonId()) chips.push({ key: 'season', label: `Temporada: ${this.getSeasonLabel(this.selectedSeasonId())}` });
+    if (this.selectedCountsForStats() !== undefined) chips.push({ key: 'stats', label: this.selectedCountsForStats() ? 'Compta estadística' : 'No compta' });
+    return chips;
+  });
+
+  onRemoveFilterChip(key: string): void {
+    if (key === 'search') this.clearSearchChip();
+    else if (key === 'timeFilter') this.clearTimeFilterChip();
+    else if (key === 'season') this.clearSeasonChip();
+    else if (key === 'stats') this.clearStatsChip();
+  }
+
+  onSortChangeFromTable(event: { field: string; order: 'ASC' | 'DESC' | undefined }): void {
+    this.sortBy.set(event.order ? event.field as EventFilterParams['sortBy'] : undefined);
+    this.sortOrder.set(event.order);
+    this.page.set(1);
+    this.loadEvents();
+  }
+
+  /** Group separator to split upcoming vs past events */
+  readonly groupSeparator = computed<GroupSeparator<EventListItem>>(() => ({
+    predicate: (item: EventListItem) => this.isEventPast(item.date, item.startTime),
+    label: 'Events passats',
+  }));
+
+  formatAttendance(item: EventListItem): string {
+    const isPast = this.isEventPast(item.date, item.startTime);
+    const s = item.attendanceSummary;
+    const yes = isPast ? s.attended : s.confirmed;
+    const no = isPast ? s.declined + s.noShow : s.declined;
+    const pend = s.pending;
+    return `✓${yes} ✗${no} ?${pend}`;
+  }
+
+  /** All columns with value extractors — data-table handles visibility via visibleColumns input */
+  readonly tableColumns = computed<ColumnDef<EventListItem>[]>(() =>
+    ALL_EVENT_COLUMNS.map(col => ({
+      ...col,
+      value: (item: EventListItem): string => {
+        switch (col.key) {
+          case 'date': return this.formatDate(item.date);
+          case 'title': return item.title;
+          case 'location': return item.location ?? '—';
+          case 'startTime': return item.startTime?.slice(0, 5) ?? '—';
+          case 'attendance': return this.formatAttendance(item);
+          case 'season': return item.season?.name ?? '—';
+          case 'countsForStatistics': return item.countsForStatistics ? 'Sí' : 'No';
+          case 'createdAt': return this.formatDate(item.createdAt);
+          default: return String((item as unknown as Record<string, unknown>)[col.key] ?? '—');
+        }
+      },
+    }))
+  );
+
+  /** Row actions */
+  readonly tableRowActions = computed<RowAction<EventListItem>[]>(() => [
+    {
+      label: 'Veure detall',
+      icon: 'Eye',
+      action: (item: EventListItem) => this.navigateToEvent(item.id),
+    },
+  ]);
 }

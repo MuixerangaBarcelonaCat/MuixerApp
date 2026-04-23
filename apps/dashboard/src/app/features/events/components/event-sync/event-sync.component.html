@@ -1,145 +1,84 @@
-<div class="space-y-4">
-  <!-- Header -->
-  <div class="flex items-center gap-4">
-    <button class="btn btn-ghost btn-circle" (click)="goBack()">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-      </svg>
+<div class="space-y-4 max-w-3xl mx-auto">
+
+  <!-- Capçalera -->
+  <div class="flex items-center gap-3">
+    <button class="btn btn-ghost btn-sm btn-circle" (click)="goBack()" type="button" aria-label="Tornar">
+      <lucide-icon name="ArrowLeft" [size]="18" />
     </button>
     <div>
-      <h2 class="text-2xl font-bold">Sincronitzar Esdeveniments</h2>
-      <p class="text-sm text-base-content/70">Importar assajos, actuacions i assistència des del sistema legacy</p>
+      <h1 class="text-xl font-bold text-base-content">Sincronització d'events</h1>
+      <p class="text-xs text-base-content/50 mt-0.5">Importa assajos i actuacions des de l'aplicació legacy</p>
     </div>
   </div>
 
-  <!-- Sync Card -->
-  <div class="card bg-base-100 shadow">
-    <div class="card-body space-y-4">
-      <!-- State Badge + Action -->
-      <div class="flex items-center justify-between">
+  <!-- Avís -->
+  <div class="alert alert-warning shadow-sm">
+    <lucide-icon name="AlertTriangle" [size]="18" />
+    <div>
+      <p class="font-semibold text-sm">Funcionalitat temporal</p>
+      <p class="text-xs opacity-80">Aquesta opció desapareixerà quan MuixerApp sigui l'aplicació principal.</p>
+    </div>
+  </div>
+
+  <!-- Panell de control -->
+  <div class="card bg-base-100 shadow-sm">
+    <div class="card-body">
+      <div class="flex flex-wrap gap-3 items-center justify-between">
         <div>
           @if (syncState() === 'idle') {
-            <div class="badge badge-secondary">Preparat</div>
-          }
-          @if (syncState() === 'running') {
-            <div class="badge badge-primary">
-              <span class="loading loading-spinner loading-xs mr-2"></span>
-              En procés...
-            </div>
-          }
-          @if (syncState() === 'complete') {
-            <div class="badge badge-success gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Completat
-            </div>
-          }
-          @if (syncState() === 'error') {
-            <div class="badge badge-error gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Error
-            </div>
+            <p class="text-sm text-base-content/70">Preparat per sincronitzar events.</p>
+          } @else if (syncState() === 'running') {
+            <p class="text-sm font-medium">Sincronitzant... {{ progress() }}%</p>
+          } @else if (syncState() === 'complete') {
+            <p class="text-sm text-success font-medium">Sincronització completada ✓</p>
+            @if (summary()) {
+              <p class="text-xs text-base-content/60">Nous: {{ summary()!.newEvents }} · Actualitzats: {{ summary()!.updatedEvents }} · Errors: {{ summary()!.errors }}</p>
+            }
+          } @else if (syncState() === 'error') {
+            <p class="text-sm text-error font-medium">Error durant la sincronització</p>
           }
         </div>
-
-        @if (syncState() === 'idle') {
-          <button class="btn btn-primary" (click)="startSync()">
-            Iniciar sincronització
-          </button>
-        }
-        @if (syncState() === 'running') {
-          <button class="btn btn-error" (click)="cancelSync()">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-            Cancel·lar
-          </button>
-        }
-        @if (syncState() === 'complete' || syncState() === 'error') {
-          <button class="btn btn-primary" (click)="resetSync()">
-            Nova sincronització
-          </button>
-        }
+        <div class="flex gap-2">
+          @if (syncState() === 'idle' || syncState() === 'complete' || syncState() === 'error') {
+            <button class="btn btn-primary btn-sm gap-1.5" (click)="startSync()" type="button">
+              <lucide-icon name="RefreshCw" [size]="14" />
+              {{ syncState() === 'idle' ? 'Iniciar' : 'Tornar a sincronitzar' }}
+            </button>
+          } @else if (syncState() === 'running') {
+            <button class="btn btn-ghost btn-sm" (click)="cancelSync()" type="button">Cancel·lar</button>
+          }
+          @if (syncState() === 'complete') {
+            <button class="btn btn-success btn-sm gap-1.5" (click)="goBackAndReload()" type="button">
+              <lucide-icon name="Check" [size]="14" />
+              Finalitzar
+            </button>
+          }
+        </div>
       </div>
 
-      <!-- Progress Bar -->
-      @if (syncState() === 'running' && progress() > 0) {
-        <div class="space-y-2">
-          <div class="flex items-center justify-between text-sm">
-            <span class="text-base-content/70">Progrés</span>
-            <span class="font-medium">{{ progress() }}%</span>
-          </div>
+      @if (syncState() === 'running') {
+        <div class="mt-3">
           <progress class="progress progress-primary w-full" [value]="progress()" max="100"></progress>
         </div>
       }
+    </div>
+  </div>
 
-      <!-- Summary (on complete) -->
-      @if (syncState() === 'complete' && summary()) {
-        <div class="alert alert-success">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 shrink-0 stroke-current" fill="none" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <div class="w-full">
-            <h3 class="font-bold mb-2">Resum de la sincronització</h3>
-            <div class="grid grid-cols-3 gap-4 text-sm">
-              <div>
-                <p class="text-base-content/70">Nous</p>
-                <p class="text-2xl font-bold">{{ summary()!.newEvents }}</p>
-              </div>
-              <div>
-                <p class="text-base-content/70">Actualitzats</p>
-                <p class="text-2xl font-bold">{{ summary()!.updatedEvents }}</p>
-              </div>
-              <div>
-                <p class="text-base-content/70">Errors</p>
-                <p class="text-2xl font-bold">{{ summary()!.errors }}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      }
-
-      <!-- Log Panel -->
-      <div class="border rounded-lg overflow-hidden">
-        <div class="bg-base-200 px-4 py-2 border-b">
-          <h3 class="text-sm font-semibold">Registre d'esdeveniments</h3>
-        </div>
-        <div
-          #logContainer
-          class="bg-neutral text-neutral-content p-4 font-mono text-xs h-96 overflow-y-auto"
-        >
-          @if (events().length === 0) {
-            <p class="text-white/70">Esperant sincronització...</p>
-          }
-          @for (event of events(); track $index) {
-            <div class="mb-1">
-              <span [class]="getEventColorClass(event.type)" class="font-semibold">
-                [{{ event.type.toUpperCase() }}]
-              </span>
-              <span class="text-base-content/40 ml-2">{{ event.entity }}</span>
-              @if (event.current && event.total) {
-                <span class="text-base-content/40 ml-2">({{ event.current }}/{{ event.total }})</span>
-              }
-              <span class="ml-2">{{ event.message }}</span>
+  <!-- Log d'events -->
+  @if (events().length > 0) {
+    <div class="card bg-base-100 shadow-sm">
+      <div class="card-body p-4">
+        <h2 class="text-sm font-semibold text-base-content/70 mb-2">Registre</h2>
+        <div #logContainer class="bg-neutral rounded-lg p-3 max-h-64 overflow-y-auto font-mono text-xs space-y-0.5">
+          @for (evt of events(); track $index) {
+            <div [ngClass]="getEventColorClass(evt.type)">
+              <span class="opacity-50 mr-2">[{{ evt.entity }}]</span>{{ evt.message }}
+              @if (evt.current && evt.total) { <span class="opacity-50"> ({{ evt.current }}/{{ evt.total }})</span> }
             </div>
           }
         </div>
       </div>
-
-      <!-- Post-sync actions -->
-      @if (syncState() === 'complete') {
-        <div class="flex justify-end gap-2">
-          <button class="btn btn-outline" (click)="goBack()">
-            Tornar a la llista
-          </button>
-          <button class="btn btn-primary" (click)="goBackAndReload()">
-            Veure esdeveniments actualitzats
-          </button>
-        </div>
-      }
     </div>
-  </div>
+  }
+
 </div>

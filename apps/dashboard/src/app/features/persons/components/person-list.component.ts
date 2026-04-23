@@ -1,29 +1,27 @@
 import { Component, ChangeDetectionStrategy, computed, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { LucideAngularModule } from 'lucide-angular';
 import { PersonService } from '../services/person.service';
 import { Person, Position, PersonFilterParams, PersonSortOrder } from '../models/person.model';
 import {
   getFullName,
   getAvailabilityLabel,
   getOnboardingLabel,
-  getContrastColor,
   formatDate,
   formatShoulderHeightCm,
   formatShoulderHeightRelative,
-  shoulderHeightRelativeTone,
   SHOULDER_HEIGHT_BASELINE_CM,
-  type ShoulderHeightTone,
 } from '../../../shared/utils';
-
-export interface ColumnDef {
-  key: string;
-  label: string;
-  defaultVisible: boolean;
-  /** API `sortBy` field name; omit if not sortable */
-  sortField?: string;
-}
+import { PageHeaderComponent } from '../../../shared/components/data/page-header/page-header.component';
+import { FilterBarComponent } from '../../../shared/components/data/filter-bar/filter-bar.component';
+import { ActiveFiltersComponent } from '../../../shared/components/data/active-filters/active-filters.component';
+import { ColumnToggleComponent } from '../../../shared/components/data/column-toggle/column-toggle.component';
+import { PaginationComponent } from '../../../shared/components/data/pagination/pagination.component';
+import { EmptyStateComponent } from '../../../shared/components/data/empty-state/empty-state.component';
+import { DataTableComponent, RowAction } from '../../../shared/components/data/data-table/data-table.component';
+import { ActiveFilter } from '../../../shared/components/data/active-filters/active-filters.component';
+import { ColumnDef } from '../../../shared/models/column-def.model';
 
 const STORAGE_KEY = 'person-list-visible-columns';
 
@@ -49,9 +47,18 @@ export const ALL_COLUMNS: ColumnDef[] = [
 @Component({
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, FormsModule],
+  imports: [
+    FormsModule,
+    LucideAngularModule,
+    PageHeaderComponent,
+    FilterBarComponent,
+    ActiveFiltersComponent,
+    ColumnToggleComponent,
+    PaginationComponent,
+    EmptyStateComponent,
+    DataTableComponent,
+  ],
   templateUrl: './person-list.component.html',
-  styleUrls: ['./person-list.component.scss'],
 })
 export class PersonListComponent {
   private readonly personService = inject(PersonService);
@@ -78,11 +85,6 @@ export class PersonListComponent {
 
   visibleColumnKeys = signal<string[]>(this.loadVisibleColumns());
 
-  visibleColumns = computed(() => {
-    const keys = this.visibleColumnKeys();
-    return ALL_COLUMNS.filter((c) => keys.includes(c.key));
-  });
-
   persons = signal<Person[]>([]);
   totalPersons = signal(0);
   positions = signal<Position[]>([]);
@@ -95,40 +97,6 @@ export class PersonListComponent {
     const pos = this.selectedPositions().length > 0;
     const actius = this.activeFilters().isActive === true;
     return Boolean(s || pos || actius);
-  });
-
-  pageNumbers = computed(() => {
-    const total = this.totalPages();
-    const current = this.page();
-
-    if (total <= 12) {
-      return Array.from({ length: total }, (_, i) => i + 1);
-    }
-
-    const pages: (number | 'ellipsis')[] = [];
-
-    pages.push(1);
-
-    const rangeStart = Math.max(2, current - 2);
-    const rangeEnd = Math.min(total - 1, current + 2);
-
-    if (rangeStart > 2) {
-      pages.push('ellipsis');
-    }
-
-    for (let i = rangeStart; i <= rangeEnd; i++) {
-      pages.push(i);
-    }
-
-    if (rangeEnd < total - 1) {
-      pages.push('ellipsis');
-    }
-
-    if (total > 1) {
-      pages.push(total);
-    }
-
-    return pages;
   });
 
   private searchTimeout: ReturnType<typeof setTimeout> | undefined;
@@ -220,20 +188,6 @@ export class PersonListComponent {
     this.loadPersons();
   }
 
-  previousPage() {
-    if (this.page() > 1) {
-      this.page.update((p) => p - 1);
-      this.loadPersons();
-    }
-  }
-
-  nextPage() {
-    if (this.page() < this.totalPages()) {
-      this.page.update((p) => p + 1);
-      this.loadPersons();
-    }
-  }
-
   goToPage(pageNumber: number) {
     if (pageNumber >= 1 && pageNumber <= this.totalPages() && pageNumber !== this.page()) {
       this.page.set(pageNumber);
@@ -261,44 +215,6 @@ export class PersonListComponent {
     this.router.navigate(['/persons/sync']);
   }
 
-  onSortColumn(col: ColumnDef) {
-    if (!col.sortField) {
-      return;
-    }
-    const field = col.sortField;
-    const currentField = this.sortBy();
-    const currentOrder = this.sortOrder();
-
-    if (currentField !== field) {
-      this.sortBy.set(field);
-      this.sortOrder.set('ASC');
-    } else if (currentOrder === 'ASC') {
-      this.sortOrder.set('DESC');
-    } else {
-      this.sortBy.set(undefined);
-      this.sortOrder.set(undefined);
-    }
-    this.page.set(1);
-    this.loadPersons();
-  }
-
-  sortStateForColumn(col: ColumnDef): 'none' | 'asc' | 'desc' {
-    if (!col.sortField || this.sortBy() !== col.sortField) {
-      return 'none';
-    }
-    return this.sortOrder() === 'DESC' ? 'desc' : 'asc';
-  }
-
-  columnHeaderLabel(col: ColumnDef): string {
-    if (col.key === 'shoulderHeight') {
-      return 'Alçada';
-      // return this.shoulderHeightRelative()
-      //   ? `Alçada espatlles (+/- ${this.shoulderBaselineCm})`
-      //   : 'Alçada espatlles (cm)';
-    }
-    return col.label;
-  }
-
   formatShoulderHeightDisplay(value: number | null): string {
     if (value === null || value === 0) {
       return '—';
@@ -307,13 +223,6 @@ export class PersonListComponent {
       return formatShoulderHeightRelative(value, this.shoulderBaselineCm);
     }
     return formatShoulderHeightCm(value);
-  }
-
-  shoulderHeightTone(value: number | null): ShoulderHeightTone {
-    if (!this.shoulderHeightRelative()) {
-      return 'empty';
-    }
-    return shoulderHeightRelativeTone(value, this.shoulderBaselineCm);
   }
 
   private loadPersons() {
@@ -357,10 +266,6 @@ export class PersonListComponent {
     this.saveVisibleColumns(updated);
   }
 
-  isColumnVisible(key: string): boolean {
-    return this.visibleColumnKeys().includes(key);
-  }
-
   private loadVisibleColumns(): string[] {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
@@ -375,9 +280,57 @@ export class PersonListComponent {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(keys));
   }
 
-  readonly getFullName = getFullName;
-  readonly getAvailabilityLabel = getAvailabilityLabel;
-  readonly getOnboardingLabel = getOnboardingLabel;
-  readonly getContrastColor = getContrastColor;
-  readonly formatDate = formatDate;
+  /** Active filter chips for app-active-filters */
+  readonly activeFilterChips = computed<ActiveFilter[]>(() => {
+    const chips: ActiveFilter[] = [];
+    if (this.search().trim()) chips.push({ key: 'search', label: `Cerca: "${this.search()}"` });
+    if (this.selectedPositions().length > 0) chips.push({ key: 'positions', label: `Posicions (${this.selectedPositions().length})` });
+    if (this.activeFilters().isActive === true) chips.push({ key: 'isActive', label: 'Actius' });
+    return chips;
+  });
+
+  /** Row actions for the data table */
+  readonly tableRowActions: RowAction<Person>[] = [
+    { label: 'Veure detall', icon: 'Eye', action: (p) => this.router.navigate(['/persons', p.id]) },
+  ];
+
+  onRemoveFilterChip(key: string): void {
+    if (key === 'search') this.clearSearchChip();
+    else if (key === 'positions') this.clearPositionsChip();
+    else if (key === 'isActive') this.clearActiusChip();
+  }
+
+  onSortChangeFromTable(event: { field: string; order: 'ASC' | 'DESC' | undefined }): void {
+    this.sortBy.set(event.order ? event.field : undefined);
+    this.sortOrder.set(event.order);
+    this.page.set(1);
+    this.loadPersons();
+  }
+
+  getCellValueForPerson(person: Person, key: string): string {
+    switch (key) {
+      case 'fullName': return getFullName(person);
+      case 'alias': return person.alias || '—';
+      case 'positions': return person.positions?.map(p => p.name).join(', ') || '—';
+      case 'availability': return getAvailabilityLabel(person.availability);
+      case 'onboardingStatus': return getOnboardingLabel(person.onboardingStatus);
+      case 'shoulderHeight': return this.formatShoulderHeightDisplay(person.shoulderHeight);
+      case 'isActive': return person.isActive ? 'Actiu' : 'Inactiu';
+      case 'isMember': return person.isMember ? 'Sí' : 'No';
+      case 'isXicalla': return person.isXicalla ? 'Sí' : 'No';
+      case 'birthDate': return person.birthDate ? formatDate(person.birthDate) : '—';
+      case 'shirtDate': return person.shirtDate ? formatDate(person.shirtDate) : '—';
+      case 'createdAt': return formatDate(person.createdAt);
+      case 'updatedAt': return formatDate(person.updatedAt);
+      default: return (person as unknown as Record<string, unknown>)[key] as string ?? '—';
+    }
+  }
+
+  /** All columns with value extractors — data-table handles visibility via visibleColumns input */
+  readonly tableColumns = computed<ColumnDef<Person>[]>(() =>
+    ALL_COLUMNS.map(col => ({
+      ...col,
+      value: (person: Person) => this.getCellValueForPerson(person, col.key),
+    }))
+  );
 }

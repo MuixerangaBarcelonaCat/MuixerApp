@@ -1,6 +1,7 @@
 import { Component, ChangeDetectionStrategy, computed, effect, inject, signal, ElementRef, ViewChild, AfterViewInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { NgClass } from '@angular/common';
+import { Router, RouterModule } from '@angular/router';
+import { LucideAngularModule } from 'lucide-angular';
 import { SyncEvent } from '../../models/person.model';
 import { AuthService } from '../../../../core/auth/services/auth.service';
 import { environment } from '../../../../../environments/environment';
@@ -10,9 +11,8 @@ type SyncState = 'idle' | 'running' | 'complete' | 'error';
 @Component({
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule],
+  imports: [RouterModule, LucideAngularModule, NgClass],
   templateUrl: './person-sync.component.html',
-  styleUrls: ['./person-sync.component.scss'],
 })
 export class PersonSyncComponent implements AfterViewInit {
   private readonly router = inject(Router);

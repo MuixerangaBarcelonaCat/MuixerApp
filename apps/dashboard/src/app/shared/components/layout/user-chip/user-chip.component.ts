@@ -1,5 +1,4 @@
 import { Component, ChangeDetectionStrategy, inject, computed } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { UserRole } from '@muixer/shared';
 import { AuthService } from '../../../../core/auth/services/auth.service';
@@ -19,9 +18,8 @@ const ROLE_BADGE_CLASS: Record<UserRole, string> = {
 @Component({
   selector: 'app-user-chip',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './user-chip.component.html',
-  styleUrls: ['./user-chip.component.scss'],
 })
 export class UserChipComponent {
   private readonly auth = inject(AuthService);

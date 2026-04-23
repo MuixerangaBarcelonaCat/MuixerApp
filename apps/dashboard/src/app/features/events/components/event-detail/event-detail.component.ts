@@ -1,7 +1,8 @@
 import { Component, ChangeDetectionStrategy, computed, inject, signal, OnInit, OnDestroy } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { Router, ActivatedRoute } from '@angular/router';
+import { NgClass } from '@angular/common';
+import { Router, ActivatedRoute, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { LucideAngularModule } from 'lucide-angular';
 import { EventService } from '../../services/event.service';
 import { AttendanceService } from '../../services/attendance.service';
 import { SeasonService } from '../../services/season.service';
@@ -27,9 +28,16 @@ type SyncState = 'idle' | 'running' | 'complete' | 'error';
   selector: 'app-event-detail',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, FormsModule, EventFormModalComponent, AttendanceEditModalComponent, PersonSearchInputComponent],
+  imports: [
+    NgClass,
+    RouterModule,
+    FormsModule,
+    LucideAngularModule,
+    EventFormModalComponent,
+    AttendanceEditModalComponent,
+    PersonSearchInputComponent,
+  ],
   templateUrl: './event-detail.component.html',
-  styleUrls: ['./event-detail.component.scss'],
 })
 export class EventDetailComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
