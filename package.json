@@ -4,7 +4,9 @@
   "description": "MuixerApp - Attendance & figure management for Muixerangues",
   "license": "MIT",
   "private": true,
-  "scripts": {},
+  "scripts": {
+    "ci:local": "npx nx run-many -t lint,test,build --all --exclude=dashboard-e2e,pwa-e2e --parallel=3"
+  },
   "repository": {
     "type": "git",
     "url": "git@github.com-personal:MuixerangaBarcelonaCat/MuixerApp.git"
