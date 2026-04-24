@@ -10,6 +10,7 @@ export class SeasonService {
     private readonly seasonRepository: Repository<Season>,
   ) {}
 
+  /** Retorna totes les temporades ordenades per data d'inici DESC, incloent el recompte d'events de cada una. */
   async findAll(): Promise<{ data: SeasonListItem[]; total: number }> {
     const seasons = await this.seasonRepository
       .createQueryBuilder('season')
@@ -21,6 +22,7 @@ export class SeasonService {
     return { data, total: data.length };
   }
 
+  /** Retorna el detall d'una temporada per ID incloent el recompte d'events. Llança NotFoundException si no existeix. */
   async findOne(id: string): Promise<SeasonListItem> {
     const season = await this.seasonRepository
       .createQueryBuilder('season')
@@ -35,6 +37,7 @@ export class SeasonService {
     return this.toListItem(season);
   }
 
+  /** Transforma l'entitat Season (amb la relació virtual eventCount) al DTO de llista. */
   private toListItem(season: Season & { eventCount?: number }): SeasonListItem {
     return {
       id: season.id,

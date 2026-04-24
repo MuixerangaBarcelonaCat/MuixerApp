@@ -12,6 +12,12 @@ import { XlsxAttendanceRow } from '../interfaces/legacy-event.interface';
 
 const LATE_CANCEL_WINDOW_MS = 6 * 60 * 60 * 1000; // 6 hours in ms
 
+/**
+ * Estratègia de sincronització d'assistència des del legacy APPsistència.
+ * Font de dades: fitxers XLSX (GET /assistencia-export/{id}) — no el JSON de /api/assistencies,
+ * perquè el XLSX inclou totes les persones (incloent les que no han respost i els "No vinc").
+ * Mapeja l'estat `Vinc/Potser/No vinc/null` al AttendanceStatus en funció de si l'event és futur o passat.
+ */
 @Injectable()
 export class AttendanceSyncStrategy {
   private readonly logger = new Logger(AttendanceSyncStrategy.name);
@@ -26,6 +32,7 @@ export class AttendanceSyncStrategy {
     private readonly legacyApiClient: LegacyApiClient,
   ) {}
 
+  /** Sincronitza l'assistència d'un sol event per UUID. Fa login al legacy, descarrega el XLSX i fa upsert dels registres. */
   executeSingleEvent(eventId: string): Observable<SyncEvent> {
     return new Observable<SyncEvent>((subscriber) => {
       this.runSingleEventSync(subscriber, eventId).catch((error: Error) => {

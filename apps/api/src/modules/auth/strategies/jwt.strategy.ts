@@ -4,6 +4,11 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { JwtPayload } from '@muixer/shared';
 import { Request } from 'express';
 
+/**
+ * Estratègia Passport per validar el JWT en peticions autenticades.
+ * Suporta dos extractors: Bearer token de la capçalera Authorization (peticions HTTP normals)
+ * i paràmetre `?token=` de la query string (necessari per a SSE, que no suporta capçaleres personalitzades).
+ */
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor() {
@@ -21,6 +26,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
+  /** Retorna el payload del JWT tal qual — ja validat per Passport. Disponible com a `request.user` als controllers. */
   validate(payload: JwtPayload): JwtPayload {
     return payload;
   }

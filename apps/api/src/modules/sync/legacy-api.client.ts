@@ -33,6 +33,11 @@ export interface LegacyPerson {
   import_quota: string;
 }
 
+/**
+ * Client HTTP per al sistema legacy APPsistència (PHP).
+ * Gestiona la sessió PHP (cookie PHPSESSID), el login per formulari i tots els accessos a les API JSON i XLSX.
+ * Requereix un User-Agent real (el WAF del legacy bloqueja requests sense UA).
+ */
 @Injectable()
 export class LegacyApiClient {
   private readonly logger = new Logger(LegacyApiClient.name);
@@ -76,6 +81,7 @@ export class LegacyApiClient {
     });
   }
 
+  /** Estableix la sessió PHP al legacy: GET `/` per obtenir PHPSESSID, POST login, seguiment de redirect a `/home`. */
   async login(): Promise<void> {
     if (!this.baseUrl || !this.username || !this.password) {
       throw new Error(

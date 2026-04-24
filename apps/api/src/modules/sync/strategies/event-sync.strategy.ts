@@ -27,6 +27,12 @@ const SEASON_2025_2026 = {
 
 const SEASON_CUTOFF = new Date('2025-09-06');
 
+/**
+ * Estratègia de sincronització d'esdeveniments (assajos i actuacions) des del legacy APPsistència.
+ * Crea les temporades hardcoded (2024-2025 i 2025-2026), carrega events via JSON API (llista + detall),
+ * aplica la merge strategy i delega la sincronització d'assistència a AttendanceSyncStrategy.
+ * ⚠️ Les temporades futures no es creen automàticament — pendent CRUD de temporades.
+ */
 @Injectable()
 export class EventSyncStrategy implements SyncStrategy {
   private readonly logger = new Logger(EventSyncStrategy.name);
@@ -41,6 +47,7 @@ export class EventSyncStrategy implements SyncStrategy {
     private readonly attendanceSyncStrategy: AttendanceSyncStrategy,
   ) {}
 
+  /** Inicia la sincronització d'events i retorna un Observable SSE que emet events de progrés. Impedeix execucions simultànies. */
   execute(): Observable<SyncEvent> {
     return new Observable<SyncEvent>((subscriber) => {
       this.runSync(subscriber).catch((error: Error) => {

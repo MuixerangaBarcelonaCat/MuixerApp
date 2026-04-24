@@ -26,6 +26,7 @@ export class PersonService {
     private readonly positionRepository: Repository<Position>,
   ) {}
 
+  /** Retorna una llista paginada i ordenada de persones aplicant tots els filtres disponibles. Usa `unaccent` per cerques insensibles a accents. */
   async findAll(filters: PersonFilterDto): Promise<{ data: PersonResponseDto[]; total: number }> {
     const {
       search,
@@ -114,6 +115,7 @@ export class PersonService {
     return PERSON_SORT_COLUMN_MAP[sortBy] ?? PERSON_SORT_COLUMN_MAP.alias;
   }
 
+  /** Retorna una persona per ID incloent posicions, mentor i gestor. Llança NotFoundException si no existeix. */
   async findOne(id: string): Promise<PersonResponseDto> {
     const person = await this.personRepository.findOne({
       where: { id },
@@ -129,6 +131,7 @@ export class PersonService {
     });
   }
 
+  /** Crea una nova persona amb les posicions i mentor indicats. */
   async create(createPersonDto: CreatePersonDto): Promise<PersonResponseDto> {
     const { positionIds, mentorId, ...personData } = createPersonDto;
 
@@ -179,6 +182,11 @@ export class PersonService {
     });
   }
 
+  /**
+   * Actualitza una persona. Gestiona les transicions d'estat provisional:
+   * - Promoció (provisional→regular): valida que `name`, `firstSurname` no estiguin buits i l'àlies no tingui prefix `~`.
+   * - Democió (regular→provisional): afegeix el prefix `~` a l'àlies automàticament.
+   */
   async update(id: string, updatePersonDto: UpdatePersonDto): Promise<PersonResponseDto> {
     const person = await this.personRepository.findOne({
       where: { id },
@@ -250,6 +258,7 @@ export class PersonService {
     });
   }
 
+  /** Soft delete: marca la persona com a inactiva (`isActive = false`) sense eliminar-la de la DB. */
   async softDelete(id: string): Promise<void> {
     const person = await this.personRepository.findOne({ where: { id } });
     if (!person) {
@@ -259,6 +268,7 @@ export class PersonService {
     await this.personRepository.save(person);
   }
 
+  /** Desactiva una persona i actualitza `lastSyncedAt`. Equivalent al soft delete però retorna el DTO actualitzat. */
   async deactivate(id: string): Promise<PersonResponseDto> {
     const person = await this.personRepository.findOne({
       where: { id },
@@ -278,6 +288,7 @@ export class PersonService {
     });
   }
 
+  /** Reactiva una persona prèviament desactivada i actualitza `lastSyncedAt`. */
   async activate(id: string): Promise<PersonResponseDto> {
     const person = await this.personRepository.findOne({
       where: { id },

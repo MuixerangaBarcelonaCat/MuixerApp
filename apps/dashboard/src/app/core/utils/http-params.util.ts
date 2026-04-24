@@ -1,5 +1,10 @@
 import { HttpParams } from '@angular/common/http';
 
+/**
+ * Converteix un objecte de filtres/paràmetres en `HttpParams` per a les crides a l'API.
+ * Ignora automàticament els valors `undefined`, `null` i cadenes buides.
+ * Els arrays s'afegeixen com a múltiples paràmetres del mateix nom (compatible amb `class-validator` al backend).
+ */
 export function buildHttpParams(params: Record<string, unknown> | object): HttpParams {
   let httpParams = new HttpParams();
 

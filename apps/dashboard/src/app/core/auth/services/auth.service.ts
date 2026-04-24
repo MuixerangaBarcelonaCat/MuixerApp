@@ -30,6 +30,7 @@ export class AuthService {
     [UserRole.TECHNICAL, UserRole.ADMIN].includes(this.userRole()!),
   );
 
+  /** Retorna l'access token actual en memòria. Usat per l'interceptor d'auth per afegir la capçalera Bearer. */
   getAccessToken(): string | null {
     return this._accessToken();
   }
@@ -45,15 +46,18 @@ export class AuthService {
     return this._readyPromise;
   }
 
+  /** Retorna una Promise que es resol quan el silent refresh inicial ha finalitzat. Guards i resolvers han d'esperar-la. */
   whenReady(): Promise<void> {
     return this._readyPromise;
   }
 
+  /** Neteja l'estat d'autenticació en memòria (access token + usuari). No revoca tokens al backend. */
   clearState(): void {
     this._currentUser.set(null);
     this._accessToken.set(null);
   }
 
+  /** Envia les credencials al backend, desa l'access token en memòria i estableix la cookie httpOnly del refresh token. */
   login(credentials: Omit<LoginRequest, 'clientType'>): Observable<void> {
     const body: LoginRequest = { ...credentials, clientType: ClientType.DASHBOARD };
     return this.http
@@ -92,6 +96,7 @@ export class AuthService {
     return this._refreshInProgress$;
   }
 
+  /** Revoca el refresh token de la sessió actual i neteja l'estat local. Si la petició falla, neteja l'estat igualment (fail-safe). */
   logout(): Observable<void> {
     return this.http
       .post<void>(`${environment.apiUrl}/auth/logout`, {}, { withCredentials: true })
@@ -104,6 +109,7 @@ export class AuthService {
       );
   }
 
+  /** Revoca tots els tokens de l'usuari (tots els dispositius), neteja l'estat i redirigeix al login. */
   logoutAll(): Observable<void> {
     return this.http
       .post<void>(`${environment.apiUrl}/auth/logout-all`, {}, { withCredentials: true })
@@ -120,6 +126,7 @@ export class AuthService {
       );
   }
 
+  /** Crida el refresh en segon pla al bootstrap. Si falla (sense sessió activa), neteja l'estat i marca `isReady` igualment. */
   private silentRefresh(): void {
     this.refresh()
       .pipe(
@@ -132,6 +139,7 @@ export class AuthService {
       .subscribe();
   }
 
+  /** Marca l'inicialització com a completada: activa el signal `isReady` i resol la Promise de `whenReady()`. */
   private markReady(): void {
     this._isReady.set(true);
     this._readyResolve();
