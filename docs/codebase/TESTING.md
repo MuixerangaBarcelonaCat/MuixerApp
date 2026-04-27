@@ -69,7 +69,7 @@ apps/dashboard-e2e/src/
 | **Unitari frontend** | ✅ Sí | AuthService, Guards, Utils | `auth.service.spec.ts`, `auth.guard.spec.ts`, `role.guard.spec.ts`, `http-params.util.spec.ts` |
 | **Integració backend** | ✅ Parcial | Controllers amb mòdul NestJS de testing | `person.controller.spec.ts` usa `Test.createTestingModule` |
 | **E2E** | ⚠️ Mínim | Smoke test del dashboard | `apps/dashboard-e2e/src/example.spec.ts` — test de prova Nx scaffold |
-| **Estratègies de sync** | ❌ No | `PersonSyncStrategy`, `EventSyncStrategy`, `AttendanceSyncStrategy` | Tests pendents — complexitat de mocking del legacy API |
+| **Estratègies de sync** | ✅ Sí | `PersonSyncStrategy`, `EventSyncStrategy`, `AttendanceSyncStrategy` | `person-sync.strategy.spec.ts`, `event-sync.strategy.spec.ts`, `attendance-sync.strategy.spec.ts` |
 
 ---
 
@@ -116,11 +116,11 @@ mockHttpClient.post.mockResolvedValue({ accessToken: 'tok', user: mockUser });
 
 | Aspecte | Estat |
 |---------|-------|
-| **Coverage threshold** | No configurat explícitament a `jest.config.ts` ni `tsconfig.spec.json` |
-| **Coverage actual** | [TODO] Executar `nx test api --coverage` per obtenir l'informe actualitzat |
+| **Coverage threshold** | ✅ Configurat (70% statements/functions/lines, 60% branches) — pendent de merge a main |
+| **Coverage actual** | Executar `nx test api --coverage` per obtenir l'informe actualitzat |
 | **Fitxers exclosos del coverage** | DTOs, entitats, interfaces, `main.ts` (configurat a `jest.config.ts`) |
 | **Tests flaky coneguts** | Cap identificat |
-| **Cobertura de les estratègies de sync** | **Zero** — àrea de risc identificada |
+| **Cobertura de les estratègies de sync** | ✅ Existent — `person-sync`, `event-sync`, `attendance-sync` spec files |
 
 ---
 
@@ -166,15 +166,15 @@ it('should return active persons only', async () => {
 
 ## 8. Àrees Sense Tests (Deute de Cobertura)
 
-| Àrea | Risc | Prioritat suggericada |
-|------|------|-----------------------|
-| `PersonSyncStrategy` | Alta complexitat, lògica de merge crítica | Alta |
-| `EventSyncStrategy` | Parsing HTML, gestió de temporades hardcoded | Alta |
-| `AttendanceSyncStrategy` | Parsing XLSX, mapeig d'estats | Alta |
-| `LegacyApiClient` | Integració amb sistema extern | Mitjana |
-| `PersonDetailComponent` (dashboard) | Formulari d'edició, canvis d'estat | Mitjana |
-| `EventDetailComponent` (dashboard) | CRUD assistència, modals | Mitjana |
-| E2E flows complets | Login, sincronització, gestió d'assistència | Baixa (pendent infraestructura) |
+| Àrea | Risc | Prioritat suggericada | Estat |
+|------|------|-----------------------|-------|
+| `PersonSyncStrategy` | Alta complexitat, lògica de merge crítica | Alta | ✅ `person-sync.strategy.spec.ts` existent |
+| `EventSyncStrategy` | Parsing HTML, gestió de temporades | Alta | ✅ `event-sync.strategy.spec.ts` existent |
+| `AttendanceSyncStrategy` | Parsing XLSX, mapeig d'estats | Alta | ✅ `attendance-sync.strategy.spec.ts` existent |
+| `LegacyApiClient` | Integració amb sistema extern | Mitjana | ⚠️ Pendent — mocking de sessió PHP complex |
+| `PersonDetailComponent` (dashboard) | Formulari d'edició, canvis d'estat | Mitjana | ⚠️ Pendent |
+| `EventDetailComponent` (dashboard) | CRUD assistència, modals | Mitjana | ⚠️ Pendent |
+| E2E flows complets | Login, sincronització, gestió d'assistència | Baixa (pendent infraestructura) | ⚠️ Pendent (Playwright scaffold existent) |
 
 ---
 

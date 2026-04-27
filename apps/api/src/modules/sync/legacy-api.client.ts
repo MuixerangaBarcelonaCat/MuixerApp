@@ -294,12 +294,13 @@ export class LegacyApiClient {
       // Skip header/section-separator rows (Id column = 'Id')
       if (!id || id === 'Id') continue;
 
-      const estat = (row[3] as string | null) ?? null;
+      const rawEstat = (row[3] as string | null) ?? null;
+      const estat = rawEstat ? rawEstat.trim() : null;
       rows.push({
         legacyPersonId: String(id),
         personLabel: String(row[1] ?? ''),
         notes: (row[2] as string | null) || null,
-        estat: estat as XlsxAttendanceRow['estat'],
+        estat,
         instant: (row[4] as string | null) || null,
       });
     }

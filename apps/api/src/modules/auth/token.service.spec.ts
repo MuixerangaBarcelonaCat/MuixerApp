@@ -11,6 +11,7 @@ const mockRepo = () => ({
   save: jest.fn(),
   findOne: jest.fn(),
   update: jest.fn(),
+  delete: jest.fn(),
 });
 
 const mockJwt = () => ({
@@ -152,6 +153,35 @@ describe('TokenService', () => {
       repo.update.mockResolvedValue({});
       await service.revokeAllUserTokens('user-uuid');
       expect(repo.update).toHaveBeenCalledWith({ userId: 'user-uuid' }, { revokedAt: expect.any(Date) });
+    });
+  });
+
+  describe('cleanupExpiredTokens', () => {
+    it('deletes expired tokens older than 30 days', async () => {
+      repo.delete.mockResolvedValue({ affected: 3 });
+
+      await service.cleanupExpiredTokens();
+
+      expect(repo.delete).toHaveBeenCalledTimes(2);
+      // First call: all expired tokens older than 30 days
+      expect(repo.delete).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ expiresAt: expect.anything() }),
+      );
+      // Second call: revoked tokens older than 30 days
+      expect(repo.delete).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({ revokedAt: expect.anything(), expiresAt: expect.anything() }),
+      );
+    });
+
+    it('does not log when no tokens are deleted', async () => {
+      repo.delete.mockResolvedValue({ affected: 0 });
+      const logSpy = jest.spyOn(service['logger'], 'log');
+
+      await service.cleanupExpiredTokens();
+
+      expect(logSpy).not.toHaveBeenCalled();
     });
   });
 });

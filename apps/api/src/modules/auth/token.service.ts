@@ -1,7 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { LessThan, Not, IsNull, Repository } from 'typeorm';
 import { createHash, randomUUID } from 'crypto';
 import { ClientType } from '@muixer/shared';
 import { RefreshToken } from './entities/refresh-token.entity';
@@ -14,6 +15,8 @@ import {
 
 @Injectable()
 export class TokenService {
+  private readonly logger = new Logger(TokenService.name);
+
   constructor(
     @InjectRepository(RefreshToken)
     private readonly refreshTokenRepo: Repository<RefreshToken>,
@@ -113,5 +116,29 @@ export class TokenService {
   /** Revoca tots els tokens actius d'un usuari. Usat en logout-all (tots els dispositius). */
   async revokeAllUserTokens(userId: string): Promise<void> {
     await this.refreshTokenRepo.update({ userId }, { revokedAt: new Date() });
+  }
+
+  /**
+   * Elimina refresh tokens obsolets de la DB cada dia a les 03:00.
+   * Un token es considera obsolet si ha caducat o ha estat revocat fa més de 30 dies.
+   * Evita l'acumulació indefinida de files a la taula `refresh_tokens`.
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_3AM)
+  async cleanupExpiredTokens(): Promise<void> {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const expiredResult = await this.refreshTokenRepo.delete({
+      expiresAt: LessThan(thirtyDaysAgo),
+    });
+
+    const revokedResult = await this.refreshTokenRepo.delete({
+      revokedAt: Not(IsNull()),
+      expiresAt: LessThan(thirtyDaysAgo),
+    });
+
+    const total = (expiredResult.affected ?? 0) + (revokedResult.affected ?? 0);
+    if (total > 0) {
+      this.logger.log(`Cleanup: ${total} refresh tokens obsolets eliminats`);
+    }
   }
 }

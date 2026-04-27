@@ -150,11 +150,11 @@ Tècnic prem "Sincronitzar" al Dashboard
 
 | Risc | Impacte | Mitigació actual |
 |------|---------|-----------------|
-| **Temporades hardcoded** al `EventSyncStrategy` | Temporades futures no es creen automàticament; cal modificar el codi | Documentat a `SYNC_ARCHITECTURE.md` — pendent CRUD de temporades |
-| **Sync manual sense idempotència garantida per attendances** | Una re-sync pot sobreescriure notes editades manualment | La flag `manuallyOverridden` és pendent d'implementar |
+| **Temporades hardcoded** al `EventSyncStrategy` | Temporades futures no es creen automàticament; cal modificar el codi | Refactorització pendent (Fase 3 `CONCERNS.md`) per llegir temporades de la DB |
+| **Sync manual sense idempotència garantida per attendances** | Una re-sync pot sobreescriure notes editades manualment | Flag `manuallyOverridden` descartada a P4.2; reconsiderar a P5+ |
 | **`LegacyApiClient` usa sessió PHP amb cookies** | Si el legacy canvia el flux de login, la sync es trenca | Verificat periòdicament durant la migració activa |
-| **ToastService existent però no cridat des de features** | Errors i confirmacions silenciosos per a l'usuari | Infraestructura preparada per a P5+; documentat a `CONCERNS.md` |
-| **Cap CI/CD configurat** | Regressió possible sense validates automàtics | Tests manuals + checklist de validació (`VALIDATION_CHECKLIST.md`) |
+| **ToastService existent però no cridat des de features** | Errors i confirmacions silenciosos per a l'usuari | Integració pendent (Fase 5 `CONCERNS.md`) a event-detail i person-detail |
+| **CI/CD** | ✅ Resolt — `.github/workflows/ci.yml` actiu | lint + test + build en cada PR i push a main/develop |
 | **Sidebar obsoleta referenciada en historial de git** | Arxius residuals potencials | Netejat a P4.3; cap referència a `sidebar` al codi actual |
 
 ---

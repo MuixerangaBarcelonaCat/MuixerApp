@@ -104,6 +104,8 @@ describe('AttendanceSyncStrategy', () => {
     describe('past ACTUACIO', () => {
       it.each([
         ['Vinc', AttendanceStatus.ASSISTIT],
+        ['Vinc amb autocar', AttendanceStatus.ASSISTIT],
+        ['Vinc amb cotxe', AttendanceStatus.ASSISTIT],
         ['No vinc', AttendanceStatus.NO_VAIG],
         ['Potser', AttendanceStatus.NO_PRESENTAT],
         [null, AttendanceStatus.PENDENT],
@@ -115,12 +117,18 @@ describe('AttendanceSyncStrategy', () => {
     describe('future ACTUACIO', () => {
       it.each([
         ['Vinc', AttendanceStatus.ANIRE],
+        ['Vinc amb autocar', AttendanceStatus.ANIRE],
+        ['Vinc amb cotxe', AttendanceStatus.ANIRE],
         ['Potser', AttendanceStatus.ANIRE],
         ['No vinc', AttendanceStatus.NO_VAIG],
         [null, AttendanceStatus.PENDENT],
       ])('estat=%s → %s', (estat, expected) => {
         expect(strategy.mapAttendanceStatus(estat as XlsxAttendanceRow['estat'], EventType.ACTUACIO, false)).toBe(expected);
       });
+    });
+
+    it('treats unknown estat values as PENDENT', () => {
+      expect(strategy.mapAttendanceStatus('Algo desconegut', EventType.ACTUACIO, false)).toBe(AttendanceStatus.PENDENT);
     });
   });
 

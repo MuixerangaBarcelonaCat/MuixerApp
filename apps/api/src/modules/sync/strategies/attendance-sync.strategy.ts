@@ -240,35 +240,50 @@ export class AttendanceSyncStrategy {
       .execute();
   }
 
+  /**
+   * Normalizes raw XLSX estat values into a canonical form.
+   * Handles transport variants: 'Vinc amb autocar', 'Vinc amb cotxe' → 'Vinc'
+   */
+  private normalizeEstat(estat: string | null): 'Vinc' | 'No vinc' | 'Potser' | null {
+    if (!estat) return null;
+    if (estat.startsWith('Vinc')) return 'Vinc';
+    if (estat === 'No vinc') return 'No vinc';
+    if (estat === 'Potser') return 'Potser';
+    this.logger.warn(`Unknown estat value: "${estat}", treating as null`);
+    return null;
+  }
+
   mapAttendanceStatus(
     estat: XlsxAttendanceRow['estat'],
     eventType: EventType,
     isPastEvent: boolean,
   ): AttendanceStatus {
+    const normalized = this.normalizeEstat(estat);
+
     if (eventType === EventType.ASSAIG) {
       if (isPastEvent) {
-        if (estat === 'Vinc') return AttendanceStatus.ASSISTIT;
-        if (estat === 'Potser') return AttendanceStatus.NO_PRESENTAT;
-        if (estat === 'No vinc') return AttendanceStatus.NO_VAIG;
-        return AttendanceStatus.PENDENT; // null = sense resposta
+        if (normalized === 'Vinc') return AttendanceStatus.ASSISTIT;
+        if (normalized === 'Potser') return AttendanceStatus.NO_PRESENTAT;
+        if (normalized === 'No vinc') return AttendanceStatus.NO_VAIG;
+        return AttendanceStatus.PENDENT;
       } else {
-        if (estat === 'Vinc') return AttendanceStatus.ANIRE;
-        if (estat === 'Potser') return AttendanceStatus.ANIRE;
-        if (estat === 'No vinc') return AttendanceStatus.NO_VAIG;
-        return AttendanceStatus.PENDENT; // null = sense resposta
+        if (normalized === 'Vinc') return AttendanceStatus.ANIRE;
+        if (normalized === 'Potser') return AttendanceStatus.ANIRE;
+        if (normalized === 'No vinc') return AttendanceStatus.NO_VAIG;
+        return AttendanceStatus.PENDENT;
       }
     }
 
     if (eventType === EventType.ACTUACIO) {
       if (isPastEvent) {
-        if (estat === 'Vinc') return AttendanceStatus.ASSISTIT;
-        if (estat === 'No vinc') return AttendanceStatus.NO_VAIG;
-        if (estat === 'Potser') return AttendanceStatus.NO_PRESENTAT;
+        if (normalized === 'Vinc') return AttendanceStatus.ASSISTIT;
+        if (normalized === 'No vinc') return AttendanceStatus.NO_VAIG;
+        if (normalized === 'Potser') return AttendanceStatus.NO_PRESENTAT;
         return AttendanceStatus.PENDENT;
       } else {
-        if (estat === 'Vinc') return AttendanceStatus.ANIRE;
-        if (estat === 'No vinc') return AttendanceStatus.NO_VAIG;
-        if (estat === 'Potser') return AttendanceStatus.ANIRE;
+        if (normalized === 'Vinc') return AttendanceStatus.ANIRE;
+        if (normalized === 'No vinc') return AttendanceStatus.NO_VAIG;
+        if (normalized === 'Potser') return AttendanceStatus.ANIRE;
         return AttendanceStatus.PENDENT;
       }
     }

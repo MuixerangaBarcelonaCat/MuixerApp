@@ -11,27 +11,29 @@ import { SyncStrategy } from '../interfaces/sync-strategy.interface';
 import { SyncEvent } from '../interfaces/sync-event.interface';
 import { LegacyAssaig, LegacyAssaigDetail, LegacyActuacio, LegacyActuacioDetail } from '../interfaces/legacy-event.interface';
 
-const SEASON_2024_2025 = {
-  name: 'Temporada 2024-2025',
-  startDate: new Date('2024-09-01'),
-  endDate: new Date('2025-09-05'),
-  legacyId: '2025',
-};
-
-const SEASON_2025_2026 = {
-  name: 'Temporada 2025-2026',
-  startDate: new Date('2025-09-06'),
-  endDate: new Date('2026-09-05'),
-  legacyId: '2026',
-};
-
-const SEASON_CUTOFF = new Date('2025-09-06');
+/** Default seasons created when the DB has none — backward-compatible bootstrapping. */
+const DEFAULT_SEASONS = [
+  {
+    name: 'Temporada 2024-2025',
+    startDate: new Date('2024-09-01'),
+    endDate: new Date('2025-09-05'),
+    legacyId: '2025',
+  },
+  {
+    name: 'Temporada 2025-2026',
+    startDate: new Date('2025-09-06'),
+    endDate: new Date('2026-09-05'),
+    legacyId: '2026',
+  },
+];
 
 /**
  * Estratègia de sincronització d'esdeveniments (assajos i actuacions) des del legacy APPsistència.
- * Crea les temporades hardcoded (2024-2025 i 2025-2026), carrega events via JSON API (llista + detall),
- * aplica la merge strategy i delega la sincronització d'assistència a AttendanceSyncStrategy.
- * ⚠️ Les temporades futures no es creen automàticament — pendent CRUD de temporades.
+ * Carrega les temporades des de la DB (o crea les per defecte si no n'hi ha), sincronitza events via
+ * JSON API (llista + detall), aplica la merge strategy i delega la sincronització d'assistència a
+ * AttendanceSyncStrategy.
+ *
+ * Les temporades futures es creen via el CRUD de temporades del dashboard — no cal modificar el codi.
  */
 @Injectable()
 export class EventSyncStrategy implements SyncStrategy {
@@ -82,9 +84,13 @@ export class EventSyncStrategy implements SyncStrategy {
         return;
       }
 
-      // Phase 1: Create static seasons (idempotent)
-      const { season2024, season2025 } = await this.createStaticSeasons();
-      subscriber.next({ type: 'progress', entity: 'season', message: '2 temporades creades/verificades' });
+      // Phase 1: Load seasons from DB (creates defaults if none exist)
+      const seasons = await this.loadOrCreateSeasons();
+      subscriber.next({
+        type: 'progress',
+        entity: 'season',
+        message: `${seasons.length} temporades carregades`,
+      });
 
       // Phase 2: Sync rehearsals
       const assajos = await this.legacyApiClient.getAssajos();
@@ -100,7 +106,7 @@ export class EventSyncStrategy implements SyncStrategy {
           }
 
           const detail = await this.legacyApiClient.getAssaigDetail(eventId);
-          const isNew = await this.upsertRehearsalEvent(assaig, detail, eventId, season2024, season2025);
+          const isNew = await this.upsertRehearsalEvent(assaig, detail, eventId, seasons);
           if (isNew) counts.newEvents++; else counts.updatedEvents++;
 
           subscriber.next({
@@ -130,7 +136,7 @@ export class EventSyncStrategy implements SyncStrategy {
           }
 
           const detail = await this.legacyApiClient.getActuacioDetail(eventId);
-          const isNew = await this.upsertPerformanceEvent(actuacio, detail, eventId, season2024, season2025);
+          const isNew = await this.upsertPerformanceEvent(actuacio, detail, eventId, seasons);
           if (isNew) counts.newEvents++; else counts.updatedEvents++;
 
           subscriber.next({
@@ -162,27 +168,43 @@ export class EventSyncStrategy implements SyncStrategy {
     }
   }
 
-  private async createStaticSeasons(): Promise<{ season2024: Season; season2025: Season }> {
-    for (const s of [SEASON_2024_2025, SEASON_2025_2026]) {
+  /**
+   * Returns all seasons from the DB ordered by startDate.
+   * If none exist, bootstraps the two default seasons (2024-2025, 2025-2026) as a one-time migration.
+   * Future seasons are managed via the dashboard Season CRUD — no code changes needed.
+   */
+  async loadOrCreateSeasons(): Promise<Season[]> {
+    const existing = await this.seasonRepository.find({ order: { startDate: 'ASC' } });
+    if (existing.length > 0) return existing;
+
+    for (const s of DEFAULT_SEASONS) {
       await this.seasonRepository.upsert(s, { conflictPaths: ['legacyId'] });
     }
-
-    const season2024 = (await this.seasonRepository.findOne({ where: { legacyId: '2025' } }))!;
-    const season2025 = (await this.seasonRepository.findOne({ where: { legacyId: '2026' } }))!;
-
-    return { season2024, season2025 };
+    return this.seasonRepository.find({ order: { startDate: 'ASC' } });
   }
 
-  private assignSeason(eventDate: Date, season2024: Season, season2025: Season): Season {
-    return eventDate < SEASON_CUTOFF ? season2024 : season2025;
+  /**
+   * Assigns an event to the season whose date range covers the event date.
+   * Returns the last season if no exact match (safety fallback for edge dates).
+   */
+  assignSeasonByDate(eventDate: Date, seasons: Season[]): Season | null {
+    if (seasons.length === 0) return null;
+
+    const match = seasons.find((s) => {
+      const start = new Date(s.startDate);
+      const end = new Date(s.endDate);
+      return eventDate >= start && eventDate <= end;
+    });
+
+    // Fallback: use the most recent season for dates outside all ranges
+    return match ?? seasons[seasons.length - 1];
   }
 
   private async upsertRehearsalEvent(
     assaig: LegacyAssaig,
     detail: LegacyAssaigDetail,
     eventId: string,
-    season2024: Season,
-    season2025: Season,
+    seasons: Season[],
   ): Promise<boolean> {
     const date = this.parseDate(assaig.data);
     const title = this.stripHtml(assaig.descripcio || detail.descripcio);
@@ -193,7 +215,7 @@ export class EventSyncStrategy implements SyncStrategy {
     const existing = await this.eventRepository.findOne({ where: { legacyId: eventId } });
 
     if (!existing) {
-      const season = this.assignSeason(date, season2024, season2025);
+      const season = this.assignSeasonByDate(date, seasons);
       const event = this.eventRepository.create({
         eventType: EventType.ASSAIG,
         title,
@@ -203,7 +225,7 @@ export class EventSyncStrategy implements SyncStrategy {
         information: this.stripHtml(detail.informacio) || null,
         countsForStatistics: true,
         metadata,
-        season,
+        season: season ?? undefined,
         legacyId: eventId,
         legacyType: 'assaig',
         lastSyncedAt: new Date(),
@@ -228,8 +250,7 @@ export class EventSyncStrategy implements SyncStrategy {
     actuacio: LegacyActuacio,
     detail: LegacyActuacioDetail,
     eventId: string,
-    season2024: Season,
-    season2025: Season,
+    seasons: Season[],
   ): Promise<boolean> {
     const date = this.parseDate(actuacio.data);
     const title = this.stripHtml(actuacio.descripcio || detail.descripcio);
@@ -242,7 +263,7 @@ export class EventSyncStrategy implements SyncStrategy {
     const existing = await this.eventRepository.findOne({ where: { legacyId: eventId } });
 
     if (!existing) {
-      const season = this.assignSeason(date, season2024, season2025);
+      const season = this.assignSeasonByDate(date, seasons);
       const event = this.eventRepository.create({
         eventType: EventType.ACTUACIO,
         title,
@@ -252,7 +273,7 @@ export class EventSyncStrategy implements SyncStrategy {
         information: this.stripHtml(detail.informacio) || null,
         countsForStatistics: true,
         metadata,
-        season,
+        season: season ?? undefined,
         legacyId: eventId,
         legacyType: 'actuacio',
         lastSyncedAt: new Date(),
