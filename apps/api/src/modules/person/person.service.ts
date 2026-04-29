@@ -51,7 +51,7 @@ export class PersonService {
 
     if (search) {
       queryBuilder.andWhere(
-        '(unaccent(person.alias) ILIKE unaccent(:search) OR unaccent(person.name) ILIKE unaccent(:search) OR unaccent(person.firstSurname) ILIKE unaccent(:search) OR unaccent(person.secondSurname) ILIKE unaccent(:search))',
+        '(unaccent(person.alias) ILIKE unaccent(:search) OR unaccent(person.name) ILIKE unaccent(:search) OR unaccent(person.firstSurname) ILIKE unaccent(:search) OR unaccent(person.secondSurname) ILIKE unaccent(:search) OR person.email ILIKE unaccent(:search))',
         { search: `%${search}%` },
       );
     }

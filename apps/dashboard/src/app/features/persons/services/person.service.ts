@@ -33,4 +33,12 @@ export class PersonService extends ApiService {
   update(id: string, payload: Partial<Person>): Observable<Person> {
     return this.patch<Person>(`/persons/${id}`, payload);
   }
+  
+  deletePerson(id: string): Observable<void> {
+    return this.delete(`/persons/${id}`);
+  }
+  
+  editPerson(id: string, payload: Partial<Person>): Observable<Person> {
+    return this.patch<Person>(`/persons/${id}`, payload);
+  }
 }

@@ -2,11 +2,20 @@
 
   <!-- Capçalera -->
   <app-page-header title="Persones" [count]="totalPersons()">
+    <button
+      type="button"
+      class="btn btn-primary btn-sm gap-1.5"
+      (click)="navigateToNewPerson()"
+    >
+      <lucide-icon name="Plus" [size]="14" />
+      Nova persona
+    </button>
     <button type="button" (click)="onSyncClick()" class="btn btn-warning btn-sm btn-outline gap-1.5">
       <lucide-icon name="RefreshCw" [size]="14" />
       Sincronitzar
     </button>
   </app-page-header>
+
 
   <!-- Tabs: Cens / Provisionals / Tots -->
   <div class="tabs tabs-bordered">
@@ -62,7 +71,10 @@
             }
             <lucide-icon name="ChevronDown" [size]="14" />
           </button>
-          <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 w-48 p-2 shadow-lg border border-base-300 max-h-56 overflow-y-auto">
+          <ul
+            tabindex="0"
+            class="dropdown-content menu bg-base-100 rounded-box z-50 w-48 p-2 shadow-lg border border-base-300"
+          >
             @for (position of positions(); track position.id) {
               <li>
                 <label class="flex items-center gap-2 cursor-pointer">

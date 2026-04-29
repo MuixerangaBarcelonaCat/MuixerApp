@@ -402,6 +402,7 @@ Grid 2 col       →  Cards de seccions amb camps clau-valor
 /home                     → HomeComponent
 /sync                     → GlobalSyncComponent (nou - sincronitza tot)
 /persons                  → PersonListComponent
+/persons/new              → PersonDetailComponent
 /persons/:id              → PersonDetailComponent
 /persons/sync             → PersonSyncComponent
 /rehearsals               → EventListComponent (data: { eventType: 'rehearsal' })
