@@ -38,11 +38,6 @@ export class CreatePersonDto {
   @MaxLength(20)
   alias: string;
 
-  @ApiPropertyOptional({ description: 'Email de contacte' })
-  @IsEmail()
-  @IsOptional()
-  email?: string;
-
   @ApiPropertyOptional({ description: 'Telèfon de contacte', maxLength: 20 })
   @IsString()
   @IsOptional()

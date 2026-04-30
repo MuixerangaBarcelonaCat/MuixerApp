@@ -127,12 +127,6 @@
                 <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Àlies</dt>
                 <dd class="text-sm text-right font-medium">{{ person()!.alias }}</dd>
               </div>
-              @if (person()!.email) {
-                <div class="flex justify-between items-start">
-                  <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Correu</dt>
-                  <dd class="text-sm text-right">{{ person()!.email }}</dd>
-                </div>
-              }
               @if (person()!.phone) {
                 <div class="flex justify-between items-start">
                   <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Telèfon</dt>
@@ -198,18 +192,6 @@
                   formControlName="alias" placeholder="Àlies" />
                 @if (form.get('alias')?.invalid && form.get('alias')?.touched) {
                   <span class="label-text-alt text-error text-xs mt-1">L'àlies és obligatori</span>
-                }
-              </div>
-
-              <div class="form-control">
-                <label class="label py-0">
-                  <span class="label-text text-xs text-base-content/50 font-medium">Correu</span>
-                </label>
-                <input type="email" class="input input-sm input-bordered w-full"
-                  [class.input-error]="form.get('email')?.invalid && form.get('email')?.touched"
-                  formControlName="email" placeholder="correu@exemple.com" />
-                @if (form.get('email')?.invalid && form.get('email')?.touched) {
-                  <span class="label-text-alt text-error text-xs mt-1">Adreça de correu no vàlida</span>
                 }
               </div>
 

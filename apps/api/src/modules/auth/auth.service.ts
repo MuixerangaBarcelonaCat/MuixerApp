@@ -2,10 +2,12 @@ import {
   ForbiddenException,
   Injectable,
   UnauthorizedException,
+  NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { ClientType, UserProfile, UserRole } from '@muixer/shared';
 import { User } from '../user/user.entity';
@@ -14,6 +16,7 @@ import { TokenService } from './token.service';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
 import { SetupUserDto } from './dto/setup-user.dto';
+import crypto from 'crypto';
 import { JWT_ACCESS_TTL } from './constants/auth.constants';
 
 const BCRYPT_ROUNDS = 12;
@@ -21,6 +24,7 @@ const BCRYPT_ROUNDS = 12;
 @Injectable()
 export class AuthService {
   constructor(
+    private readonly dataSource: DataSource,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
     @InjectRepository(Person)
@@ -59,7 +63,7 @@ export class AuthService {
             name: person.name,
             firstSurname: person.firstSurname,
             alias: person.alias,
-            email: person.email,
+            email: person.managedBy?.email ?? null,
           }
         : null,
     };
@@ -105,6 +109,73 @@ export class AuthService {
     });
     if (!user) throw new UnauthorizedException();
     return this.toUserProfile(user);
+  }
+
+  // async inviteFromPerson(personId: string, tokenDurationHours = 72): Promise<User> {
+  //   const queryRunner = this.dataSource.createQueryRunner();
+  //   await queryRunner.connect();
+  //   await queryRunner.startTransaction();
+  //
+  //   try {
+  //     const personRepo = queryRunner.manager.getRepository(Person);
+  //     const userRepo = queryRunner.manager.getRepository(User);
+  //     const person = await personRepo.findOne({ where: { id: personId } });
+  //
+  //     if (!person) {
+  //       throw new NotFoundException(`Person with ID ${personId} not found`);
+  //     }
+  //     if (!person.email) {
+  //       throw new BadRequestException('Person must have an email to invite');
+  //     }
+  //     const existingUser = await userRepo.findOne({
+  //       where: { email: person.email },
+  //     });
+  //
+  //     let user: User;
+  //     if (existingUser) {
+  //       if (existingUser.passwordHash) {
+  //         throw new BadRequestException('User already exists');
+  //       }
+  //       user = existingUser;
+  //     } else {
+  //       user = userRepo.create({
+  //         email: person.email,
+  //         role: UserRole.MEMBER,
+  //         person,
+  //       });
+  //     }
+  //
+  //     const inviteToken = crypto.randomBytes(16).toString('hex');
+  //     const expirationDate = new Date();
+  //     expirationDate.setHours(expirationDate.getHours() + tokenDurationHours);
+  //     user.inviteToken = inviteToken;
+  //     user.inviteExpiresAt = expirationDate;
+  //     const savedUser = await userRepo.save(user);
+  //
+  //     person.isActive = true;
+  //     person.user = savedUser;
+  //     person.managedBy = savedUser;
+  //     await personRepo.save(person);
+  //
+  //     await queryRunner.commitTransaction();
+  //
+  //     this.sendInvitationEmail(savedUser.email, inviteToken).catch((err) => {
+  //       console.error('Failed to send invite email', err);
+  //     });
+  //
+  //     return savedUser;
+  //   } catch (err) {
+  //     await queryRunner.rollbackTransaction();
+  //     throw err;
+  //   } finally {
+  //     await queryRunner.release();
+  //   }
+  // }
+
+  async sendInvitationEmail(email: string, inviteToken: string): Promise<void> {
+    const message = "Here we would send an email to " + email + " with token " + inviteToken;
+    console.log(message);
+    // TODO implement
   }
 
   async acceptInvite(dto: AcceptInviteDto): Promise<{ response: AuthResponseDto; refreshToken: string }> {
@@ -159,12 +230,7 @@ export class AuthService {
     });
     const saved = await this.userRepo.save(user);
 
-    // Link to Person: explicit personId takes priority, otherwise match by email
     let personId = dto.personId;
-    if (!personId) {
-      const personByEmail = await this.personRepo.findOne({ where: { email: dto.email } });
-      if (personByEmail) personId = personByEmail.id;
-    }
 
     if (personId) {
       await this.userRepo.query(

@@ -31,9 +31,6 @@ export class Person {
   alias: string;
 
   @Column({ type: 'varchar', nullable: true })
-  email: string | null;
-
-  @Column({ type: 'varchar', nullable: true })
   phone: string | null;
 
   @Column({ type: 'date', nullable: true })
@@ -84,9 +81,6 @@ export class Person {
 
   @ManyToOne(() => User, { nullable: true })
   managedBy: User | null;
-
-  @OneToOne(() => User, 'person', { nullable: true })
-  user: User | null;
 
   @ManyToOne(() => Person, { nullable: true })
   mentor: Person | null;

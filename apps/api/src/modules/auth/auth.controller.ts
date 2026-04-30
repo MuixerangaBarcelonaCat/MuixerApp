@@ -6,6 +6,7 @@ import {
   Headers,
   HttpCode,
   HttpStatus,
+  Param,
   Post,
   Req,
   Res,
@@ -111,6 +112,12 @@ export class AuthController {
   async getMe(@CurrentUser() user: JwtPayload): Promise<UserProfile> {
     return this.authService.getMe(user.sub);
   }
+
+  // @Post('invite/send/:personId')
+  // @HttpCode(HttpStatus.OK)
+  // async sendInviteToPerson(@Param('personId') personId: string): Promise<void> {
+  //   await this.authService.inviteFromPerson(personId);
+  // }
 
   @Public()
   @Post('invite/accept')

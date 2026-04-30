@@ -21,7 +21,7 @@ export class User {
   @Column({ type: 'varchar', unique: true })
   email: string;
 
-  @Column({ type: 'varchar' })
+  @Column({ type: 'varchar', nullable: true })
   passwordHash: string;
 
   @Column({ type: 'enum', enum: UserRole, default: UserRole.MEMBER })
