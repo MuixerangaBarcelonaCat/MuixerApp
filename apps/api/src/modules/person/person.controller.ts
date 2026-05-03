@@ -11,7 +11,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
 import { UserRole } from '@muixer/shared';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { PersonService } from './person.service';
@@ -21,6 +21,7 @@ import { UpdatePersonDto } from './dto/update-person.dto';
 import { PersonFilterDto } from './dto/person-filter.dto';
 
 @ApiTags('persons')
+@ApiBearerAuth()
 @Controller('persons')
 @Roles(UserRole.TECHNICAL, UserRole.ADMIN)
 export class PersonController {

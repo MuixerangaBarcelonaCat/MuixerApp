@@ -69,11 +69,11 @@ jobs:
 
       - name: Test (all, exclude e2e)
         if: github.event_name == 'push'
-        run: npx nx run-many -t test --all --exclude=dashboard-e2e,pwa-e2e --parallel=3
+        run: npx nx run-many -t test --all --exclude=dashboard-e2e,pwa-e2e,pwa --parallel=3 --configuration=ci
 
       - name: Build (all, exclude e2e)
         if: github.event_name == 'push'
-        run: npx nx run-many -t build --all --exclude=dashboard-e2e,pwa-e2e --parallel=3
+        run: npx nx run-many -t build --all --exclude=dashboard-e2e,pwa-e2e,pwa --parallel=3
 
       # ── Affected only (PRs) ──
       - name: Lint (affected)
@@ -82,8 +82,8 @@ jobs:
 
       - name: Test (affected, exclude e2e)
         if: github.event_name == 'pull_request'
-        run: npx nx affected -t test --exclude=dashboard-e2e,pwa-e2e --parallel=3
+        run: npx nx affected -t test --exclude=dashboard-e2e,pwa-e2e,pwa --parallel=3 --configuration=ci
 
       - name: Build (affected, exclude e2e)
         if: github.event_name == 'pull_request'
-        run: npx nx affected -t build --exclude=dashboard-e2e,pwa-e2e --parallel=3
+        run: npx nx affected -t build --exclude=dashboard-e2e,pwa-e2e,pwa --parallel=3

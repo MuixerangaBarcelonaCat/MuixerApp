@@ -77,6 +77,6 @@ export interface XlsxAttendanceRow {
   legacyPersonId: string;           // Col 0 — direct legacy person ID
   personLabel: string;              // Col 1 — "Cognom, Nom / Alias"
   notes: string | null;             // Col 2 — Comentari
-  estat: 'Vinc' | 'No vinc' | 'Potser' | null;  // Col 3 — null = sense resposta
+  estat: string | null;  // Col 3 — 'Vinc', 'Vinc amb autocar', 'Vinc amb cotxe', 'No vinc', 'Potser', or null
   instant: string | null;           // Col 4 — "DD/MM/YYYY HH:MM:SS" or null
 }

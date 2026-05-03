@@ -16,5 +16,13 @@ export default {
     '!src/**/index.ts',
     '!src/main.ts',
   ],
+  coverageThreshold: {
+    global: {
+      statements: 55,
+      branches: 50,
+      functions: 55,
+      lines: 55,
+    },
+  },
   testMatch: ['**/*.spec.ts'],
 };

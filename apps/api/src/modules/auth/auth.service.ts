@@ -30,6 +30,7 @@ export class AuthService {
     private readonly tokenService: TokenService,
   ) {}
 
+  /** Comprova email i contrasenya via bcrypt. Retorna null si l'usuari no existeix, no està actiu o la contrasenya és incorrecta. */
   async validateUser(email: string, password: string): Promise<User | null> {
     const user = await this.userRepo.findOne({
       where: { email },
@@ -40,6 +41,7 @@ export class AuthService {
     return valid ? user : null;
   }
 
+  /** Genera un JWT d'accés amb payload {sub, email, role} i el TTL configurat a JWT_ACCESS_TTL. */
   private signAccessToken(user: User): string {
     return this.jwtService.sign(
       { sub: user.id, email: user.email, role: user.role },
@@ -47,6 +49,7 @@ export class AuthService {
     );
   }
 
+  /** Transforma l'entitat User a la interfície pública UserProfile (sense passwordHash ni tokens sensibles). */
   private toUserProfile(user: User): UserProfile {
     const person = user.person as Person | null;
     return {
@@ -66,6 +69,7 @@ export class AuthService {
     };
   }
 
+  /** Genera un access token i un refresh token per al client indicat. El refresh token es guarda com a hash SHA-256 a la DB. */
   async login(user: User, clientType: ClientType): Promise<{ response: AuthResponseDto; refreshToken: string }> {
     const accessToken = this.signAccessToken(user);
     const refreshToken = await this.tokenService.createRefreshToken(user, clientType);
@@ -75,6 +79,7 @@ export class AuthService {
     };
   }
 
+  /** Rota el refresh token (invalida l'antic, emet un de nou) i retorna un nou access token. Llança 401 si el token és invàlid, revocat o caducat. */
   async refresh(rawRefreshToken: string): Promise<{ response: AuthResponseDto; newRefreshToken: string }> {
     const { newRawToken, userId } = await this.tokenService.rotateRefreshToken(rawRefreshToken);
 
@@ -91,14 +96,17 @@ export class AuthService {
     };
   }
 
+  /** Revoca el refresh token actual de la sessió. No afecta les altres sessions actives. */
   async logout(rawRefreshToken: string): Promise<void> {
     await this.tokenService.revokeToken(rawRefreshToken);
   }
 
+  /** Revoca tots els refresh tokens de l'usuari (logout de tots els dispositius simultàniament). */
   async logoutAll(userId: string): Promise<void> {
     await this.tokenService.revokeAllUserTokens(userId);
   }
 
+  /** Retorna el perfil públic de l'usuari autenticat a partir del `sub` del JWT. */
   async getMe(userId: string): Promise<UserProfile> {
     const user = await this.userRepo.findOne({
       where: { id: userId },
@@ -108,6 +116,7 @@ export class AuthService {
     return this.toUserProfile(user);
   }
 
+  /** Activa el compte d'un membre a partir del token d'invitació. Valida que el token no hagi caducat i fa auto-login un cop activat. */
   async acceptInvite(dto: AcceptInviteDto): Promise<{ response: AuthResponseDto; refreshToken: string }> {
     const user = await this.userRepo.findOne({
       where: { inviteToken: dto.token },
@@ -141,6 +150,7 @@ export class AuthService {
     };
   }
 
+  /** Crea el primer usuari TECHNICAL via `SETUP_TOKEN`. Si l'email ja existeix, retorna el perfil existent sense crear-ne un de nou (idempotent). */
   async setupUser(dto: SetupUserDto): Promise<UserProfile> {
     const setupToken = process.env['SETUP_TOKEN'];
     if (!setupToken) throw new ForbiddenException('Setup no disponible');
