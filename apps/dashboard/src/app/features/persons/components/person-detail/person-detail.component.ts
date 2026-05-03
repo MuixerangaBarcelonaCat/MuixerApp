@@ -7,9 +7,10 @@ import {
   computed,
 } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, Router, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule, RouterLink } from '@angular/router';
 import { PersonService } from '../../services/person.service';
-import { Person } from '../../models/person.model';
+import { Person, UpdatePersonDto } from '../../models/person.model';
+
 import {
   getAvailabilityLabel,
   getOnboardingLabel,
@@ -17,13 +18,22 @@ import {
   formatDate,
   formatDateTime,
   formatShoulderHeightRelative,
+  getFullName,
 } from '../../../../shared/utils';
 import { EmptyStateComponent } from '../../../../shared/components/data/empty-state/empty-state.component';
+import { PersonInvitationModalComponent } from './modals/person-invitation-modal.component';
+import { PersonLinkUserModalComponent } from './modals/person-link-user-modal.component';
 
 @Component({
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterModule, EmptyStateComponent],
+  imports: [
+    ReactiveFormsModule,
+    RouterModule,
+    EmptyStateComponent,
+    PersonInvitationModalComponent,
+    PersonLinkUserModalComponent,
+  ],
   templateUrl: './person-detail.component.html',
 })
 export class PersonDetailComponent implements OnInit {
@@ -45,9 +55,12 @@ export class PersonDetailComponent implements OnInit {
 
   isNew = computed(() => !this.route.snapshot.paramMap.get('id'));
 
+  invitationModalOpen = signal(false);
+  linkUserModalOpen = signal(false);
+
   form = this.fb.group({
     name: ['', Validators.required],
-    firstSurname: ['',],
+    firstSurname: [''],
     secondSurname: [''],
     alias: ['', Validators.required],
     phone: [''],
@@ -70,12 +83,14 @@ export class PersonDetailComponent implements OnInit {
   readonly formatShoulderHeightRelative = formatShoulderHeightRelative;
 
   ngOnInit() {
-    const id = this.route.snapshot.paramMap.get('id');
-    if (id) {
-      this.loadPerson(id);
-    } else {
-      this.editing.set(true);
-    }
+    this.route.paramMap.subscribe((params) => {
+      const id = params.get('id');
+      if (id) {
+        this.loadPerson(id);
+      } else {
+        this.editing.set(true);
+      }
+    });
   }
 
   goBack() {
@@ -104,7 +119,7 @@ export class PersonDetailComponent implements OnInit {
     const id = this.route.snapshot.paramMap.get('id');
     const raw = this.form.getRawValue();
 
-    const payload: Partial<Person> = {
+    const payload: Partial<UpdatePersonDto> = {
       name: raw.name ?? undefined,
       firstSurname: raw.firstSurname ?? undefined,
       secondSurname: raw.secondSurname ?? undefined,
@@ -220,4 +235,26 @@ export class PersonDetailComponent implements OnInit {
       shirtDate: person.shirtDate ?? '',
     });
   }
+
+  startSendingInvitation() {
+    this.invitationModalOpen.set(true);
+  }
+
+  startLinkingToUser() {
+    this.linkUserModalOpen.set(true);
+  }
+
+  onInvitationSuccess() {
+    const id = this.route.snapshot.paramMap.get('id')!;
+    this.loadPerson(id);
+    this.invitationModalOpen.set(false);
+  }
+
+  onLinkUserSuccess() {
+    const id = this.route.snapshot.paramMap.get('id')!;
+    this.loadPerson(id);
+    this.linkUserModalOpen.set(false);
+  }
+
+  protected readonly getFullName = getFullName;
 }

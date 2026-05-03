@@ -18,6 +18,35 @@ class PositionResponseDto {
   color: string;
 }
 
+class ManagedByPersonDto {
+  @Expose()
+  id: string;
+
+  @Expose()
+  alias: string;
+
+  @Expose()
+  name: string;
+
+  @Expose()
+  firstSurname: string;
+
+  @Expose()
+  secondSurname: string | null;
+}
+
+class ManagedByUserDto {
+  @Expose()
+  id: string;
+
+  @Expose()
+  email: string;
+
+  @Expose()
+  @Type(() => ManagedByPersonDto)
+  person: ManagedByPersonDto | null;
+}
+
 export class PersonResponseDto {
   @Expose()
   id: string;
@@ -76,6 +105,10 @@ export class PersonResponseDto {
   @Expose()
   @Type(() => PositionResponseDto)
   positions: PositionResponseDto[];
+
+  @Expose()
+  @Type(() => ManagedByUserDto)
+  managedBy: ManagedByUserDto | null;
 
   @Expose()
   createdAt: Date;

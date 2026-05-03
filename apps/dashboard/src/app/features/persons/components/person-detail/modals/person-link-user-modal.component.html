@@ -1,0 +1,73 @@
+<dialog
+  class="modal modal-open"
+  (click)="$event.target === $event.currentTarget && close()"
+  (keydown.escape)="close()"
+>
+  <div class="modal-box max-w-md w-full" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+    <div class="flex items-start justify-between mb-4">
+      <h2 class="text-lg font-bold">Enllaça amb usuari existent</h2>
+      <button class="btn btn-sm btn-ghost btn-circle" type="button" (click)="close()" aria-label="Tancar">✕</button>
+    </div>
+
+    @if (error()) {
+      <div class="alert alert-error text-sm mb-4">
+        <span>{{ error() }}</span>
+      </div>
+    }
+
+    <div class="form-control mb-2">
+      <label class="label" for="link-user-search">
+        <span class="label-text font-medium">Cerca persona</span>
+      </label>
+      <div class="relative">
+        <input
+          id="link-user-search"
+          type="text"
+          class="input input-bordered w-full"
+          [value]="search()"
+          (input)="onSearchInput($any($event.target).value)"
+          placeholder="Nom, àlies..."
+          [disabled]="linking()"
+        />
+        @if (searching()) {
+          <span class="loading loading-spinner loading-xs absolute right-3 top-1/2 -translate-y-1/2 text-base-content/40"></span>
+        }
+      </div>
+    </div>
+
+    @if (results().length > 0 && !selected()) {
+      <ul class="menu menu-sm bg-base-200 rounded-box mb-4 max-h-48 overflow-y-auto">
+        @for (p of results(); track p.id) {
+          <li>
+            <button type="button" class="flex flex-col items-start gap-0" (click)="selectPerson(p)">
+              <span class="font-medium">{{ p.alias }}</span>
+              <span class="text-xs text-base-content/50">{{ p.name }} {{ p.firstSurname }}</span>
+            </button>
+          </li>
+        }
+      </ul>
+    }
+
+    @if (search().trim() && !searching() && results().length === 0 && !selected()) {
+      <p class="text-sm text-base-content/50 mb-4">Cap resultat</p>
+    }
+
+    @if (selected()) {
+      <div class="alert alert-info text-sm mb-4">
+        <span>S'enllaçarà amb <strong>{{ selected()!.alias }}</strong> ({{ selected()!.name }} {{ selected()!.firstSurname }})</span>
+      </div>
+    }
+
+    <div class="flex justify-end gap-2">
+      <button type="button" class="btn btn-ghost btn-sm" (click)="close()" [disabled]="linking()">
+        Cancel·lar
+      </button>
+      <button type="button" class="btn btn-success btn-sm" (click)="link()" [disabled]="linking() || !selected()">
+        @if (linking()) {
+          <span class="loading loading-spinner loading-xs"></span>
+        }
+        Enllaça
+      </button>
+    </div>
+  </div>
+</dialog>

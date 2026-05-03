@@ -51,13 +51,13 @@
             {{ person()!.isProvisional ? 'Promoure a membre' : 'Marcar provisional' }}
           }
         </button>
-        <button type="button" class="btn btn-sm btn-error" [disabled]="deletingPerson()" (click)="deletePerson()">
-          @if (deletingPerson()) {
-            <span class="loading loading-spinner loading-xs"></span>
-          } @else {
-            Esborrar
-          }
-        </button>
+<!--        <button type="button" class="btn btn-sm btn-error" [disabled]="deletingPerson()" (click)="deletePerson()">-->
+<!--          @if (deletingPerson()) {-->
+<!--            <span class="loading loading-spinner loading-xs"></span>-->
+<!--          } @else {-->
+<!--            Esborrar-->
+<!--          }-->
+<!--        </button>-->
         <button type="button" class="btn btn-sm btn-primary" (click)="startEditing()">
           Editar
         </button>
@@ -127,6 +127,12 @@
                 <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Àlies</dt>
                 <dd class="text-sm text-right font-medium">{{ person()!.alias }}</dd>
               </div>
+              @if (person()!.managedBy?.email) {
+                <div class="flex justify-between items-start">
+                  <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Correu</dt>
+                  <dd class="text-sm text-right">{{ person()!.managedBy?.email }}</dd>
+                </div>
+              }
               @if (person()!.phone) {
                 <div class="flex justify-between items-start">
                   <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Telèfon</dt>
@@ -274,6 +280,30 @@
                   <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Data camisa</dt>
                   <dd class="text-sm text-right">{{ formatDate(person()!.shirtDate) }}</dd>
                 </div>
+              } @else {
+                <div class="flex justify-between items-start">
+                  <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Camisa</dt>
+                  <dd class="text-sm text-right">No</dd>
+                </div>
+              }
+              @if (!(person()!.managedBy)) {
+                <div class="flex items-left gap-2">
+                  <button type="button" class="btn btn-sm btn-primary" (click)="startSendingInvitation()">
+                    Envia correu d'invitació
+                  </button>
+                  <button type="button" class="btn btn-sm btn-primary" (click)="startLinkingToUser()">
+                    Enllaça amb usuari existent
+                  </button>
+                </div>
+              } @else if (person()!.managedBy?.person?.id !== person()!.id) {
+                <div class="flex justify-between items-start">
+                  <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Responsable</dt>
+                  <dd class="text-sm text-right">
+                    <a class="text-blue-500 underline" [routerLink]="['/persons', person()?.managedBy?.person?.id]">
+                      {{ person()?.managedBy?.person?.alias }}
+                    </a>
+                  </dd>
+                </div>
               }
               @if (person()!.notes) {
                 <div class="flex flex-col gap-1">
@@ -323,7 +353,7 @@
 
               <div class="form-control">
                 <label class="label py-0">
-                  <span class="label-text text-xs text-base-content/50 font-medium">Data samarreta</span>
+                  <span class="label-text text-xs text-base-content/50 font-medium">Data camisa</span>
                 </label>
                 <input type="date" class="input input-sm input-bordered w-full" formControlName="shirtDate" />
               </div>
@@ -361,6 +391,22 @@
         </div>
       </div>
     }
+  }
+
+  @if (invitationModalOpen()) {
+    <app-person-invitation-modal
+      [person]="person()!"
+      (closed)="invitationModalOpen.set(false)"
+      (success)="onInvitationSuccess()"
+    />
+  }
+
+  @if (linkUserModalOpen()) {
+    <app-person-link-user-modal
+      [person]="person()!"
+      (closed)="linkUserModalOpen.set(false)"
+      (success)="onLinkUserSuccess()"
+    />
   }
 
 </div>

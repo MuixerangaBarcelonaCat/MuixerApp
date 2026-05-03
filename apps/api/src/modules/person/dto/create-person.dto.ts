@@ -91,7 +91,7 @@ export class CreatePersonDto {
   @IsOptional()
   notes?: string;
 
-  @ApiPropertyOptional({ description: 'Data de lliurament de samarreta', example: '2024-01-15' })
+  @ApiPropertyOptional({ description: 'Data de lliurament de camisa', example: '2024-01-15' })
   @IsDateString()
   @IsOptional()
   shirtDate?: string;

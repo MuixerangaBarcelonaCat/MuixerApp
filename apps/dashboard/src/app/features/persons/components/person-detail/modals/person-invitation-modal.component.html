@@ -1,0 +1,45 @@
+<dialog
+  class="modal modal-open"
+  (click)="$event.target === $event.currentTarget && close()"
+  (keydown.escape)="close()"
+>
+  <div class="modal-box max-w-md w-full" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+    <div class="flex items-start justify-between mb-4">
+      <h2 class="text-lg font-bold">Envia correu d'invitació</h2>
+      <button class="btn btn-sm btn-ghost btn-circle" type="button" (click)="close()" aria-label="Tancar">✕</button>
+    </div>
+
+    @if (error()) {
+      <div class="alert alert-error text-sm mb-4">
+        <span>{{ error() }}</span>
+      </div>
+    }
+
+    <div class="form-control mb-6">
+      <label class="label" for="invitation-email">
+        <span class="label-text font-medium">Adreça electrònica</span>
+      </label>
+      <input
+        id="invitation-email"
+        type="email"
+        class="input input-bordered w-full"
+        [value]="email()"
+        (input)="email.set($any($event.target).value)"
+        placeholder="exemple@domini.cat"
+        [disabled]="sending()"
+      />
+    </div>
+
+    <div class="flex justify-end gap-2">
+      <button type="button" class="btn btn-ghost btn-sm" (click)="close()" [disabled]="sending()">
+        Cancel·lar
+      </button>
+      <button type="button" class="btn btn-success btn-sm" (click)="send()" [disabled]="sending() || !email().trim()">
+        @if (sending()) {
+          <span class="loading loading-spinner loading-xs"></span>
+        }
+        Envia
+      </button>
+    </div>
+  </div>
+</dialog>

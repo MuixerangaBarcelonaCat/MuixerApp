@@ -325,15 +325,32 @@ describe('PersonService', () => {
     });
 
     it('throws BadRequestException when promoting without name', async () => {
-      const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: '', isProvisional: true, positions: [], mentor: null };
+      const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: '', isProvisional: true, positions: [], mentor: null, managedBy: {'id': 'user_id'} };
       mockPersonRepository.findOne.mockResolvedValue(provisionalPerson);
 
       await expect(service.update('1', { isProvisional: false, alias: 'JoanNou' }))
         .rejects.toThrow(BadRequestException);
     });
 
+    it('throws BadRequestException when promoting without user', async () => {
+      const provisionalPerson = {
+        id: '1',
+        alias: '~Joan',
+        name: 'Joan',
+        firstSurname: '',
+        isProvisional: true,
+        positions: [],
+        mentor: null,
+      };
+      mockPersonRepository.findOne.mockResolvedValue(provisionalPerson);
+
+      await expect(
+        service.update('1', { isProvisional: false, alias: 'JoanNou' }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
     it('throws BadRequestException when promoting with ~ alias', async () => {
-      const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: 'García', isProvisional: true, positions: [], mentor: null };
+      const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: 'García', isProvisional: true, positions: [], mentor: null, managedBy: {'id': 'user_id'} };
       mockPersonRepository.findOne.mockResolvedValue(provisionalPerson);
 
       await expect(service.update('1', { isProvisional: false, name: 'Joan', firstSurname: 'García' }))
@@ -341,7 +358,7 @@ describe('PersonService', () => {
     });
 
     it('promotes provisional person when all fields provided', async () => {
-      const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: '', isProvisional: true, positions: [], mentor: null };
+      const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: '', isProvisional: true, positions: [], mentor: null, managedBy: {'id': 'user_id'} };
       mockPersonRepository.findOne.mockResolvedValue(provisionalPerson);
       mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
 

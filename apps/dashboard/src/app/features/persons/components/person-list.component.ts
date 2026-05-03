@@ -39,7 +39,7 @@ export const ALL_COLUMNS: ColumnDef[] = [
   { key: 'isActive', label: 'Actiu', defaultVisible: true, sortField: 'isActive' },
   { key: 'isMember', label: 'Membre', defaultVisible: false, sortField: 'isMember' },
   { key: 'isXicalla', label: 'Xicalla', defaultVisible: false, sortField: 'isXicalla' },
-  { key: 'shirtDate', label: 'Data samarreta', defaultVisible: false, sortField: 'shirtDate' },
+  { key: 'shirtDate', label: 'Data camisa', defaultVisible: false, sortField: 'shirtDate' },
   { key: 'notes', label: 'Notes', defaultVisible: false },
   { key: 'createdAt', label: 'Creat', defaultVisible: false, sortField: 'createdAt' },
   { key: 'updatedAt', label: 'Actualitzat', defaultVisible: false, sortField: 'updatedAt' },

@@ -1,5 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
+import { switchMap } from 'rxjs/operators';
+import { throwError } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
 import { buildHttpParams } from '../../../core/utils/http-params.util';
 import {
@@ -7,13 +9,17 @@ import {
   Position,
   PaginatedResponse,
   PersonFilterParams,
+  UpdatePersonDto
 } from '../models/person.model';
+
 
 @Injectable({
   providedIn: 'root',
 })
 export class PersonService extends ApiService {
-  getAll(filters: PersonFilterParams = {}): Observable<PaginatedResponse<Person>> {
+  getAll(
+    filters: PersonFilterParams = {},
+  ): Observable<PaginatedResponse<Person>> {
     const params = buildHttpParams(filters);
     return this.get<PaginatedResponse<Person>>('/persons', { params });
   }
@@ -30,15 +36,15 @@ export class PersonService extends ApiService {
     return this.post<Person>('/persons/provisional', { alias });
   }
 
-  update(id: string, payload: Partial<Person>): Observable<Person> {
+  update(id: string, payload: Partial<UpdatePersonDto>): Observable<Person> {
     return this.patch<Person>(`/persons/${id}`, payload);
   }
-  
+
   deletePerson(id: string): Observable<void> {
     return this.delete(`/persons/${id}`);
   }
-  
-  editPerson(id: string, payload: Partial<Person>): Observable<Person> {
-    return this.patch<Person>(`/persons/${id}`, payload);
+
+  sendInvitation(personId: string, email: string): Observable<Person> {
+    return this.post<Person>(`/users/create-with-invite`, { personId, email });
   }
 }
