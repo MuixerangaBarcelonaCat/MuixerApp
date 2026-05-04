@@ -308,7 +308,7 @@ export class UserListComponent {
   readonly tableRowActions = computed<RowAction<UserDto>[]>(() => [
     {
       label: 'Assignar rol',
-      // icon: 'Shield',
+      icon: 'Shield',
       action: (u: UserDto) => this.openGrantRole(u),
     },
   ]);
