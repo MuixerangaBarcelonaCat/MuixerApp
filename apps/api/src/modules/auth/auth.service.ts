@@ -1,6 +1,7 @@
 import {
   ForbiddenException,
   Injectable,
+  InternalServerErrorException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -21,7 +22,6 @@ const BCRYPT_ROUNDS = 12;
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly dataSource: DataSource,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
     @InjectRepository(Person)
@@ -170,7 +170,7 @@ export class AuthService {
     });
     const saved = await this.userRepo.save(user);
 
-    let personId = dto.personId;
+    const personId = dto.personId;
 
     if (personId) {
       await this.userRepo.query(
@@ -183,6 +183,10 @@ export class AuthService {
       where: { id: saved.id },
       relations: ['person'],
     });
-    return this.toUserProfile(reloaded!);
+    if (reloaded) {
+      return this.toUserProfile(reloaded);
+    } else {
+      throw new InternalServerErrorException('No s\'ha pogut crear l\'usuari');
+    }
   }
 }

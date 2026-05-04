@@ -1,7 +1,5 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { switchMap } from 'rxjs/operators';
-import { throwError } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
 import { buildHttpParams } from '../../../core/utils/http-params.util';
 import {

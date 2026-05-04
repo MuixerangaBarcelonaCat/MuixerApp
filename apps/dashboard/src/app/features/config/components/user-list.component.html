@@ -8,7 +8,7 @@
   <app-filter-bar [hasActiveFilters]="hasFilterChips()" (clearFilters)="clearFilters()">
 
     <!-- Cerca -->
-    <label class="form-control w-full sm:w-64">
+    <div class="form-control w-full sm:w-64">
       <div class="label pb-1"><span class="label-text text-xs">Cerca</span></div>
       <div class="input input-bordered input-sm flex items-center gap-2">
         <lucide-icon name="Search" [size]="14" class="text-base-content/40" />
@@ -20,40 +20,42 @@
           (ngModelChange)="onSearchChange($event)"
         />
       </div>
-    </label>
+    </div>
 
     <!-- Rol -->
-    <label class="form-control w-full sm:w-44">
-      <div class="label pb-1"><span class="label-text text-xs">Rol</span></div>
-      <div class="dropdown">
-        <button tabindex="0" type="button" class="btn btn-bordered btn-sm w-full justify-between">
-          @if (!activeFilters().role) {
-            Tots
-          } @else {
-            {{ roleLabels[activeFilters().role!] }}
-          }
-          <lucide-icon name="ChevronDown" [size]="14" />
-        </button>
-        <ul
-          tabindex="0"
-          class="dropdown-content menu bg-base-100 rounded-box z-50 w-44 p-2 shadow-lg border border-base-300"
-        >
-          @for (role of roleOptions; track role) {
-            <li>
-              <label class="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  class="radio radio-xs"
-                  [checked]="activeFilters().role === role"
-                  (change)="toggleRoleFilter(role)"
-                />
-                {{ roleLabels[role] }}
-              </label>
-            </li>
-          }
-        </ul>
+    <div class="form-control w-full sm:w-44">
+      <div class="label pb-1">
+        <span class="label-text text-xs">Rol</span>
+        <div class="dropdown">
+          <button tabindex="0" type="button" class="btn btn-bordered btn-sm w-full justify-between">
+            @if (!activeFilters().role) {
+              Tots
+            } @else {
+              {{ roleLabels[activeFilters().role!] }}
+            }
+            <lucide-icon name="ChevronDown" [size]="14" />
+          </button>
+          <ul
+            tabindex="0"
+            class="dropdown-content menu bg-base-100 rounded-box z-50 w-44 p-2 shadow-lg border border-base-300"
+          >
+            @for (role of roleOptions; track role) {
+              <li>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    class="radio radio-xs"
+                    [checked]="activeFilters().role === role"
+                    (change)="toggleRoleFilter(role)"
+                  />
+                  {{ roleLabels[role] }}
+                </label>
+              </li>
+            }
+          </ul>
+        </div>
       </div>
-    </label>
+    </div>
 
     <!-- Actius -->
     <label class="form-control">
@@ -164,6 +166,6 @@
         </button>
       </div>
     </div>
-    <div class="modal-backdrop" (click)="closeGrantRole()"></div>
+    <div class="modal-backdrop" (click)="closeGrantRole()" (keydown.enter)="closeGrantRole()" tabindex="0"></div>
   </div>
 }

@@ -5,6 +5,7 @@ import { PersonService } from './person.service';
 import { Person } from './person.entity';
 import { Position } from '../position/position.entity';
 import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import { User } from '../user/user.entity';
 
 describe('PersonService', () => {
   let service: PersonService;
@@ -35,6 +36,10 @@ describe('PersonService', () => {
     findByIds: jest.fn(),
   };
 
+  const mockUserRepository = {
+    sendInvitation: jest.fn(),
+  }
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -46,6 +51,10 @@ describe('PersonService', () => {
         {
           provide: getRepositoryToken(Position),
           useValue: mockPositionRepository,
+        },
+        {
+          provide: getRepositoryToken(User),
+          useValue: mockUserRepository,
         },
       ],
     }).compile();
@@ -69,7 +78,7 @@ describe('PersonService', () => {
 
   describe('findOne', () => {
     it('should return a person when found', async () => {
-      const mockPerson = { id: '123', name: 'Test', alias: 'test' };
+      const mockPerson = { id: '123', name: 'Test', alias: 'test', managedBy: null };
       mockPersonRepository.findOne.mockResolvedValue(mockPerson);
 
       const result = await service.findOne('123');
@@ -77,7 +86,7 @@ describe('PersonService', () => {
       expect(result).toEqual(mockPerson);
       expect(mockPersonRepository.findOne).toHaveBeenCalledWith({
         where: { id: '123' },
-        relations: ['positions', 'mentor', 'managedBy'],
+        relations: ['positions', 'mentor', 'managedBy', 'managedBy.person'],
       });
     });
 

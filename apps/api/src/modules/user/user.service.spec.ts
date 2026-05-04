@@ -70,6 +70,9 @@ describe('UserService', () => {
     }).compile();
 
     service = module.get<UserService>(UserService);
+
+    // Prevent actual email sending in all tests
+    jest.spyOn(service, 'sendInvitationEmail').mockResolvedValue(undefined);
   });
 
   // ---------------------------------------------------------------------------

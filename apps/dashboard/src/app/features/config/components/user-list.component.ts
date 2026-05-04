@@ -24,7 +24,6 @@ import {
   RowAction,
 } from '../../../shared/components/data/data-table/data-table.component';
 import { ColumnDef } from '../../../shared/models/column-def.model';
-import { EventListItem } from '@app/features/events/models/event.model';
 
 const STORAGE_KEY = 'user-list-visible-columns';
 

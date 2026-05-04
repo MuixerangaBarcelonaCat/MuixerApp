@@ -7,7 +7,7 @@ import 'dotenv/config';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+ 
 const cookieParser = require('cookie-parser');
 import { AppModule } from './app/app.module';
 import { LatencyInterceptor } from './common/interceptors/latency.interceptor';

@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Body, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { UserRole } from '@muixer/shared';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserService} from './user.service';

@@ -1,9 +1,11 @@
 <dialog
   class="modal modal-open"
   (click)="$event.target === $event.currentTarget && close()"
+  (keydown.enter)="$event.target === $event.currentTarget && close()"
   (keydown.escape)="close()"
+  tabindex="0"
 >
-  <div class="modal-box max-w-md w-full" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+  <div class="modal-box max-w-md w-full" role="dialog" aria-modal="true" (click)="$event.stopPropagation()" (keydown.enter)="$event.stopPropagation()">
     <div class="flex items-start justify-between mb-4">
       <h2 class="text-lg font-bold">Envia correu d'invitació</h2>
       <button class="btn btn-sm btn-ghost btn-circle" type="button" (click)="close()" aria-label="Tancar">✕</button>

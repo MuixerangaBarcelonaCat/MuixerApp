@@ -160,10 +160,10 @@
               <div class="form-control">
                 <label class="label py-0">
                   <span class="label-text text-xs text-base-content/50 font-medium">Nom <span class="text-error">*</span></span>
+                  <input type="text" class="input input-sm input-bordered w-full"
+                    [class.input-error]="form.get('name')?.invalid && form.get('name')?.touched"
+                    formControlName="name" placeholder="Nom" />
                 </label>
-                <input type="text" class="input input-sm input-bordered w-full"
-                  [class.input-error]="form.get('name')?.invalid && form.get('name')?.touched"
-                  formControlName="name" placeholder="Nom" />
                 @if (form.get('name')?.invalid && form.get('name')?.touched) {
                   <span class="label-text-alt text-error text-xs mt-1">El nom és obligatori</span>
                 }
@@ -172,10 +172,10 @@
               <div class="form-control">
                 <label class="label py-0">
                   <span class="label-text text-xs text-base-content/50 font-medium">Primer cognom <span class="text-error">*</span></span>
+                  <input type="text" class="input input-sm input-bordered w-full"
+                    [class.input-error]="form.get('firstSurname')?.invalid && form.get('firstSurname')?.touched"
+                    formControlName="firstSurname" placeholder="Primer cognom" />
                 </label>
-                <input type="text" class="input input-sm input-bordered w-full"
-                  [class.input-error]="form.get('firstSurname')?.invalid && form.get('firstSurname')?.touched"
-                  formControlName="firstSurname" placeholder="Primer cognom" />
                 @if (form.get('firstSurname')?.invalid && form.get('firstSurname')?.touched) {
                   <span class="label-text-alt text-error text-xs mt-1">El primer cognom és obligatori</span>
                 }
@@ -184,18 +184,18 @@
               <div class="form-control">
                 <label class="label py-0">
                   <span class="label-text text-xs text-base-content/50 font-medium">Segon cognom</span>
+                  <input type="text" class="input input-sm input-bordered w-full"
+                    formControlName="secondSurname" placeholder="Segon cognom (opcional)" />
                 </label>
-                <input type="text" class="input input-sm input-bordered w-full"
-                  formControlName="secondSurname" placeholder="Segon cognom (opcional)" />
               </div>
 
               <div class="form-control">
                 <label class="label py-0">
                   <span class="label-text text-xs text-base-content/50 font-medium">Àlies <span class="text-error">*</span></span>
+                  <input type="text" class="input input-sm input-bordered w-full"
+                         [class.input-error]="form.get('alias')?.invalid && form.get('alias')?.touched"
+                         formControlName="alias" placeholder="Àlies" />
                 </label>
-                <input type="text" class="input input-sm input-bordered w-full"
-                  [class.input-error]="form.get('alias')?.invalid && form.get('alias')?.touched"
-                  formControlName="alias" placeholder="Àlies" />
                 @if (form.get('alias')?.invalid && form.get('alias')?.touched) {
                   <span class="label-text-alt text-error text-xs mt-1">L'àlies és obligatori</span>
                 }
@@ -204,24 +204,24 @@
               <div class="form-control">
                 <label class="label py-0">
                   <span class="label-text text-xs text-base-content/50 font-medium">Telèfon</span>
+                  <input type="tel" class="input input-sm input-bordered w-full"
+                         formControlName="phone" placeholder="000 000 000" />
                 </label>
-                <input type="tel" class="input input-sm input-bordered w-full"
-                  formControlName="phone" placeholder="000 000 000" />
               </div>
 
               <div class="form-control">
                 <label class="label py-0">
                   <span class="label-text text-xs text-base-content/50 font-medium">Data de naixement</span>
+                  <input type="date" class="input input-sm input-bordered w-full" formControlName="birthDate" />
                 </label>
-                <input type="date" class="input input-sm input-bordered w-full" formControlName="birthDate" />
               </div>
 
               <div class="form-control">
                 <label class="label py-0">
                   <span class="label-text text-xs text-base-content/50 font-medium">Alçada espatlles (cm)</span>
+                  <input type="number" class="input input-sm input-bordered w-full"
+                         formControlName="shoulderHeight" placeholder="Ex: 145" min="0" max="250" />
                 </label>
-                <input type="number" class="input input-sm input-bordered w-full"
-                  formControlName="shoulderHeight" placeholder="Ex: 145" min="0" max="250" />
               </div>
 
             </div>
@@ -331,39 +331,39 @@
               <div class="form-control">
                 <label class="label py-0">
                   <span class="label-text text-xs text-base-content/50 font-medium">Disponibilitat</span>
+                  <select class="select select-sm select-bordered w-full" formControlName="availability">
+                    <option value="AVAILABLE">Disponible</option>
+                    <option value="TEMPORARILY_UNAVAILABLE">No disponible</option>
+                    <option value="LONG_TERM_UNAVAILABLE">Baixa llarga</option>
+                  </select>
                 </label>
-                <select class="select select-sm select-bordered w-full" formControlName="availability">
-                  <option value="AVAILABLE">Disponible</option>
-                  <option value="TEMPORARILY_UNAVAILABLE">No disponible</option>
-                  <option value="LONG_TERM_UNAVAILABLE">Baixa llarga</option>
-                </select>
               </div>
 
               <div class="form-control">
                 <label class="label py-0">
                   <span class="label-text text-xs text-base-content/50 font-medium">Acollida</span>
+                  <select class="select select-sm select-bordered w-full" formControlName="onboardingStatus">
+                    <option value="IN_PROGRESS">En seguiment</option>
+                    <option value="COMPLETED">Finalitzat</option>
+                    <option value="LOST">Perdut</option>
+                    <option value="NOT_APPLICABLE">No aplica</option>
+                  </select>
                 </label>
-                <select class="select select-sm select-bordered w-full" formControlName="onboardingStatus">
-                  <option value="IN_PROGRESS">En seguiment</option>
-                  <option value="COMPLETED">Finalitzat</option>
-                  <option value="LOST">Perdut</option>
-                  <option value="NOT_APPLICABLE">No aplica</option>
-                </select>
               </div>
 
               <div class="form-control">
                 <label class="label py-0">
                   <span class="label-text text-xs text-base-content/50 font-medium">Data camisa</span>
+                  <input type="date" class="input input-sm input-bordered w-full" formControlName="shirtDate" />
                 </label>
-                <input type="date" class="input input-sm input-bordered w-full" formControlName="shirtDate" />
               </div>
 
               <div class="form-control">
                 <label class="label py-0">
                   <span class="label-text text-xs text-base-content/50 font-medium">Observacions</span>
+                  <textarea class="textarea textarea-bordered textarea-sm w-full"
+                            formControlName="notes" placeholder="Observacions..." rows="4"></textarea>
                 </label>
-                <textarea class="textarea textarea-bordered textarea-sm w-full"
-                  formControlName="notes" placeholder="Observacions..." rows="4"></textarea>
               </div>
 
             </div>

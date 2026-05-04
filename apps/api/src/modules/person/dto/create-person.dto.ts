@@ -1,7 +1,6 @@
 import {
   IsString,
   IsOptional,
-  IsEmail,
   IsBoolean,
   IsEnum,
   IsInt,
@@ -11,7 +10,6 @@ import {
   IsUUID,
   IsArray,
   IsDateString,
-  Matches,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Gender, AvailabilityStatus, OnboardingStatus } from '@muixer/shared';
