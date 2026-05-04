@@ -1,21 +1,23 @@
 # Estat Actual del Projecte MuixerApp
 
-> **Última actualització:** 12 d'abril de 2026
+> **Última actualització:** 24 d'abril de 2026
 
 ---
 
 ## 🎯 Resum Executiu
 
-El projecte MuixerApp està en **fase de desenvolupament actiu** amb P0-P3 + P4.1 + P4.2 completats. L'aplicació inclou:
+El projecte MuixerApp està en **fase de desenvolupament actiu** amb P0-P3 + P4.1 + P4.2 + P4.3 completats. L'aplicació inclou:
 
 - ✅ Backend NestJS amb API REST completa + ordenació server-side
 - ✅ Sistema de sincronització amb legacy API (SSE + Strategy pattern) — Persons + Events + Attendance
-- ✅ Dashboard Angular amb DaisyUI v4 + Angular CDK
+- ✅ Dashboard Angular amb DaisyUI v4 + Angular CDK — **redeseny visual complet (P4.3)**
 - ✅ Gestió de persones, temporades, esdeveniments i assistència
 - ✅ **Auth Layer complet**: JWT+Passport, refresh token rotation, guards globals, login page
 - ✅ **CRUD complet Events + Attendance** al dashboard (crear, editar, eliminar)
 - ✅ **Persones provisionals**: creació ràpida amb àlies `~`, promoció/democió
+- ✅ **Dashboard Design Refactor (P4.3)**: top nav tabs, Inter font, Lucide icons, `generateCollaTheme()`, 15+ shared components, Home tab, fullscreen mode per Pinyes
 - ✅ Visualització d'alçada d'espatlles **absoluta i relativa** (+/- 140 cm)
+- ✅ **CI/CD**: GitHub Actions amb lint + test + build (affected per PRs, all per push)
 - ✅ Arquitectura de components moderna (signals, standalone, OnPush)
 - ✅ **Tests complets:** 101/101 backend + 22/22 dashboard passing
 
@@ -72,7 +74,7 @@ El projecte MuixerApp està en **fase de desenvolupament actiu** amb P0-P3 + P4.
 
 | Component | Estat | Descripció |
 |-----------|-------|------------|
-| **Layout** | ✅ Complet | Sidebar + Header + Drawer mòbil (DaisyUI) |
+| **Layout** | ✅ Complet | Top nav + Tab Bar responsive (Desktop: icon+text, Tablet: icon, Mobile: dropdown) — P4.3 |
 | **Person List** | ✅ Complet | Taula sempre (scroll horitzontal) + ordenació per columnes + filtres + cerca + paginació configurable + tabs Cens/Provisionals/Tots + badge provisional |
 | **Person Detail** | ✅ Complet | Vista responsive 2 columnes + toggle provisional/regular |
 | **Person Sync** | ✅ Complet | EventSource + progress bar + log en temps real |

@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
 import { PersonService } from '../../services/person.service';
+import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { Person } from '../../models/person.model';
 import {
   getFullName,
@@ -25,6 +26,7 @@ export class PersonDetailComponent implements OnInit {
   private readonly personService = inject(PersonService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly toast = inject(ToastService);
 
   person = signal<Person | null>(null);
   loading = signal(false);
@@ -70,10 +72,13 @@ export class PersonDetailComponent implements OnInit {
       next: (updated) => {
         this.person.set(updated);
         this.togglingProvisional.set(false);
+        this.toast.success(newValue ? 'Persona marcada com a provisional.' : 'Persona promoguda a membre regular.');
       },
       error: (err) => {
         this.togglingProvisional.set(false);
-        this.provisionalToggleError.set(err?.error?.message ?? 'Error en canviar l\'estat provisional');
+        const msg = err?.error?.message ?? 'Error en canviar l\'estat provisional';
+        this.provisionalToggleError.set(msg);
+        this.toast.error(msg);
       },
     });
   }
