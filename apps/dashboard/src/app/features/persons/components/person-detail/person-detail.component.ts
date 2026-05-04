@@ -10,6 +10,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule, RouterLink } from '@angular/router';
 import { PersonService } from '../../services/person.service';
 import { Person, UpdatePersonDto } from '../../models/person.model';
+import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 
 import {
   getAvailabilityLabel,
@@ -41,6 +42,7 @@ export class PersonDetailComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
+  private readonly toast = inject(ToastService);
 
   person = signal<Person | null>(null);
   loading = signal(false);
@@ -173,31 +175,13 @@ export class PersonDetailComponent implements OnInit {
       next: (updated) => {
         this.person.set(updated);
         this.togglingProvisional.set(false);
+        this.toast.success(newValue ? 'Persona marcada com a provisional.' : 'Persona promoguda a membre regular.');
       },
       error: (err) => {
         this.togglingProvisional.set(false);
-        this.provisionalToggleError.set(
-          err?.error?.message ?? "Error en canviar l'estat provisional",
-        );
-      },
-    });
-  }
-
-  deletePerson() {
-    const p = this.person();
-    if (!p || this.deletingPerson()) return;
-    if (
-      !confirm(
-        `Segur que vols esborrar ${p.alias}? Aquesta acció no es pot desfer.`,
-      )
-    )
-      return;
-    this.deletingPerson.set(true);
-    this.personService.deletePerson(p.id).subscribe({
-      next: () => this.router.navigate(['/persons']),
-      error: (err) => {
-        this.deletingPerson.set(false);
-        console.error('Error deleting person', err);
+        const msg = err?.error?.message ?? 'Error en canviar l\'estat provisional';
+        this.provisionalToggleError.set(msg);
+        this.toast.error(msg);
       },
     });
   }

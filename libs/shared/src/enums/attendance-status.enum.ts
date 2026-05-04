@@ -1,3 +1,11 @@
+/**
+ * Estats d'assistència d'un membre a un event.
+ * - PENDENT: sense resposta (estat inicial)
+ * - ANIRE: ha confirmat l'assistència
+ * - NO_VAIG: ha declinat l'assistència
+ * - ASSISTIT: ha assistit (confirmat post-event)
+ * - NO_PRESENTAT: va confirmar però no va aparèixer
+ */
 export enum AttendanceStatus {
   PENDENT = 'PENDENT',
   ANIRE = 'ANIRE',

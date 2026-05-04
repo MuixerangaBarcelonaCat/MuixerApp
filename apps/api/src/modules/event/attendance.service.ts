@@ -20,6 +20,7 @@ export class AttendanceService {
     private readonly personRepository: Repository<Person>,
   ) {}
 
+  /** Retorna una llista paginada d'assistències per a un event concret amb filtres per estat i cerca de persona. */
   async findByEvent(
     eventId: string,
     filters: AttendanceFilterDto,
@@ -59,6 +60,7 @@ export class AttendanceService {
     return { data: attendances.map(toAttendanceItem), total };
   }
 
+  /** Crea un registre d'assistència per a un event i una persona. Llança ConflictException si ja existeix. Recalcula el summary de l'event. */
   async create(
     eventId: string,
     dto: CreateAttendanceDto,
@@ -103,6 +105,7 @@ export class AttendanceService {
     return { attendance: toAttendanceItem(savedWithRelations!), summary };
   }
 
+  /** Actualitza l'estat i/o notes d'un registre d'assistència. Recalcula el summary de l'event. */
   async update(
     eventId: string,
     attendanceId: string,
@@ -137,6 +140,7 @@ export class AttendanceService {
     return { attendance: toAttendanceItem(savedWithRelations!), summary };
   }
 
+  /** Elimina un registre d'assistència i recalcula el summary de l'event. */
   async remove(
     eventId: string,
     attendanceId: string,
@@ -160,6 +164,7 @@ export class AttendanceService {
     return { summary };
   }
 
+  /** Recalcula i desa el `attendanceSummary` de l'event a partir dels registres d'assistència actuals. S'executa a cada operació CRUD d'assistència. */
   async recalculateSummary(eventId: string): Promise<void> {
     const attendances = await this.attendanceRepository.find({
       where: { event: { id: eventId } },
@@ -184,6 +189,7 @@ export class AttendanceService {
     await this.eventRepository.update(eventId, { attendanceSummary: summary });
   }
 
+  /** Carrega el `attendanceSummary` actualitzat de la DB per retornar-lo immediatament al client. */
   private async fetchSummary(eventId: string): Promise<AttendanceSummary> {
     const event = await this.eventRepository.findOne({
       where: { id: eventId },

@@ -80,12 +80,5 @@
         }
       }
     },
-    "seed": {
-      "executor": "@nx/js:node",
-      "options": {
-        "buildTarget": "api:build",
-        "args": ["seed"]
-      }
-    }
   }
 }

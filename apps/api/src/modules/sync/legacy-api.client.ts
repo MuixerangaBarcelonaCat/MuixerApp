@@ -33,6 +33,11 @@ export interface LegacyPerson {
   import_quota: string;
 }
 
+/**
+ * Client HTTP per al sistema legacy APPsistència (PHP).
+ * Gestiona la sessió PHP (cookie PHPSESSID), el login per formulari i tots els accessos a les API JSON i XLSX.
+ * Requereix un User-Agent real (el WAF del legacy bloqueja requests sense UA).
+ */
 @Injectable()
 export class LegacyApiClient {
   private readonly logger = new Logger(LegacyApiClient.name);
@@ -76,6 +81,7 @@ export class LegacyApiClient {
     });
   }
 
+  /** Estableix la sessió PHP al legacy: GET `/` per obtenir PHPSESSID, POST login, seguiment de redirect a `/home`. */
   async login(): Promise<void> {
     if (!this.baseUrl || !this.username || !this.password) {
       throw new Error(
@@ -288,12 +294,13 @@ export class LegacyApiClient {
       // Skip header/section-separator rows (Id column = 'Id')
       if (!id || id === 'Id') continue;
 
-      const estat = (row[3] as string | null) ?? null;
+      const rawEstat = (row[3] as string | null) ?? null;
+      const estat = rawEstat ? rawEstat.trim() : null;
       rows.push({
         legacyPersonId: String(id),
         personLabel: String(row[1] ?? ''),
         notes: (row[2] as string | null) || null,
-        estat: estat as XlsxAttendanceRow['estat'],
+        estat,
         instant: (row[4] as string | null) || null,
       });
     }

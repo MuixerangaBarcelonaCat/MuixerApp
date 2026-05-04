@@ -171,11 +171,13 @@ Executa només el pas 5 per un sol event (bypass dels passos 1-4).
 
 ## 4. Codi obsolet / a eliminar
 
+> **Actualitzat 23/04/2026:** Els elements marcats com a obsolets al document anterior ja han estat eliminats.
+
 | Fitxer | Element | Estat |
 |---|---|---|
-| `legacy-api.client.ts` | `getAssistencies()` | ⚠️ Mètode obsolet — substituït per `getAssistenciesXlsx()`. Pot eliminar-se |
-| `legacy-event.interface.ts` | `LegacyAttendance` | ⚠️ Interfície obsoleta — ja no s'utilitza. Pot eliminar-se |
-| `legacy-api.client.spec.ts` | Tests de `getAssistencies` | Verificar si continuen testant el mètode obsolet |
+| `legacy-api.client.ts` | `getAssistencies()` | ✅ Eliminat — substituït per `getAssistenciesXlsx()` |
+| `legacy-event.interface.ts` | `LegacyAttendance` | ✅ Eliminat — ja no existeix al codebase |
+| `sync.controller.ts` | Injecció de `LegacyApiClient` | ✅ Eliminat — el controller no necessitava el client directament |
 
 ---
 
@@ -197,11 +199,11 @@ El mòdul `sync/` sencer pot eliminar-se. Les temporades hauran de tenir un CRUD
 
 ## 6. Pendent abans de desconnectar
 
-- [ ] CRUD de temporades (ara hardcoded)
+- [ ] CRUD de temporades (ara hardcoded al codi)
 - [ ] `colles` parsing bug (split per ` i ` a més de `,`)
 - [ ] Decidir si `legacyId` en events s'exposa al frontend (spec §6.2 diu que no)
-- [ ] Eliminar `getAssistencies()` i `LegacyAttendance` del codi
-- [ ] Migració per eliminar tots els camps `legacy*`
+- [x] ~~Eliminar `getAssistencies()` i `LegacyAttendance` del codi~~ — ✅ Fet (23/04/2026)
+- [ ] Migració per eliminar tots els camps `legacy*` (veure §5)
 
 ---
 

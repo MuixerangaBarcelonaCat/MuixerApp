@@ -1,12 +1,12 @@
 # MuixerApp — Punt actual i pròxims passos
 
-> Última actualització: 12 d'abril de 2026
+> Última actualització: 24 d'abril de 2026
 
 ---
 
 ## On estem?
 
-### ✅ Fase completada: P0+P1+P2+P2.1+P3+P4.1+P4.2 — Complet i Funcional
+### ✅ Fase completada: P0+P1+P2+P2.1+P3+P4.1+P4.2+P4.3 — Complet i Funcional
 
 Vertical slice complet amb auth layer i gestió d'events/assistència. L'aplicació té **login real, guards globals, CRUD complet d'events i assistència manual**:
 
@@ -191,7 +191,8 @@ Implementat a `docs/specs/2026-04-12-p4-2-dashboard-events-attendance-design.md`
 
 | Ítem | Prioritat | Descripció |
 |------|-----------|------------|
-| **Validació manual P4.1 + P4.2** | Alta | Provar login, CRUD events, assistència, provisionals amb dades reals |
+| **Resolució deute tècnic (CONCERNS.md)** | Alta | Temporades dinàmiques, ToastService, coverage threshold, token cleanup |
+| **Validació manual P4.1 + P4.2 + P4.3** | Alta | Provar login, CRUD events, assistència, provisionals, nou design amb dades reals |
 | **P5: Mòdul Pinyes i Figures** | Alta | Canvas, templates, assignació de posicions |
 | **P6: PWA Mobile** | Mitjana | Angular PWA per membres (confirmar assistència, login MEMBER) |
 | **P7: Notificacions** | Baixa | Reports, FCM, estadístiques |

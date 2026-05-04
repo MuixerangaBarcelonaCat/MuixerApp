@@ -8,6 +8,7 @@ import { AttendanceService } from '../../services/attendance.service';
 import { SeasonService } from '../../services/season.service';
 import { PersonService } from '../../../persons/services/person.service';
 import { AuthService } from '../../../../core/auth/services/auth.service';
+import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { EventFormModalComponent } from '../event-form-modal/event-form-modal.component';
 import { AttendanceEditModalComponent } from '../attendance-edit-modal/attendance-edit-modal.component';
 import { PersonSearchInputComponent } from '../../../../shared/components/forms/person-search-input/person-search-input.component';
@@ -43,6 +44,7 @@ export class EventDetailComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
+  private readonly toast = inject(ToastService);
 
   private get listBase(): string {
     const url = this.router.url;
@@ -159,6 +161,7 @@ export class EventDetailComponent implements OnInit, OnDestroy {
   onEventUpdated(updated: EventDetail) {
     this.event.set(updated);
     this.showEditModal.set(false);
+    this.toast.success('Esdeveniment actualitzat correctament.');
   }
 
   deleteEvent() {
@@ -171,14 +174,19 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     this.eventService.remove(ev.id).subscribe({
       next: () => {
         this.deleting.set(false);
+        this.toast.success('Esdeveniment eliminat correctament.');
         this.router.navigate([this.listBase]);
       },
       error: (err) => {
         this.deleting.set(false);
         if (err?.status === 409) {
-          this.deleteError.set('No es pot eliminar un event que té registres d\'assistència.');
+          const msg = 'No es pot eliminar un event que té registres d\'assistència.';
+          this.deleteError.set(msg);
+          this.toast.error(msg);
         } else {
-          this.deleteError.set('Error en eliminar l\'esdeveniment.');
+          const msg = 'Error en eliminar l\'esdeveniment.';
+          this.deleteError.set(msg);
+          this.toast.error(msg);
         }
       },
     });
@@ -250,6 +258,7 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     );
     this.event.update((ev) => ev ? { ...ev, attendanceSummary: result.summary } : ev);
     this.editingAttendance.set(null);
+    this.toast.success('Assistència actualitzada.');
   }
 
   onAttendanceDeleted(result: AttendanceDeleteResponse) {
@@ -258,6 +267,7 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     this.totalAttendances.update((n) => n - 1);
     this.event.update((ev) => ev ? { ...ev, attendanceSummary: result.summary } : ev);
     this.editingAttendance.set(null);
+    this.toast.success('Registre d\'assistència eliminat.');
   }
 
   onPersonSelected(person: Person) {
@@ -276,14 +286,15 @@ export class EventDetailComponent implements OnInit, OnDestroy {
           this.totalAttendances.update((n) => n + 1);
           this.event.update((e) => e ? { ...e, attendanceSummary: result.summary } : e);
           this.showAddBar.set(false);
+          this.toast.success('Assistència afegida correctament.');
         },
         error: (err) => {
           this.addingAttendance.set(false);
-          if (err?.status === 409) {
-            this.addError.set('Aquesta persona ja té un registre d\'assistència per aquest event.');
-          } else {
-            this.addError.set(err?.error?.message ?? 'Error en afegir l\'assistència');
-          }
+          const msg = err?.status === 409
+            ? 'Aquesta persona ja té un registre d\'assistència per aquest event.'
+            : (err?.error?.message ?? 'Error en afegir l\'assistència');
+          this.addError.set(msg);
+          this.toast.error(msg);
         },
       });
   }
@@ -306,16 +317,21 @@ export class EventDetailComponent implements OnInit, OnDestroy {
               this.event.update((e) => e ? { ...e, attendanceSummary: result.summary } : e);
               this.provisionalAlias = '';
               this.showAddProvisional.set(false);
+              this.toast.success('Persona provisional afegida correctament.');
             },
             error: (err) => {
               this.addingProvisional.set(false);
-              this.provisionalError.set(err?.error?.message ?? 'Error en afegir l\'assistència');
+              const msg = err?.error?.message ?? 'Error en afegir l\'assistència';
+              this.provisionalError.set(msg);
+              this.toast.error(msg);
             },
           });
       },
       error: (err) => {
         this.addingProvisional.set(false);
-        this.provisionalError.set(err?.error?.message ?? 'Error en crear la persona provisional');
+        const msg = err?.error?.message ?? 'Error en crear la persona provisional';
+        this.provisionalError.set(msg);
+        this.toast.error(msg);
       },
     });
   }

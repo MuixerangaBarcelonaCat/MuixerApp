@@ -5,8 +5,8 @@ APPsistència 2.0 — Sistema de gestió d'assistència i figures per a Muixeran
 ## Stack Tecnològic
 
 - **Backend**: NestJS + TypeScript + TypeORM + PostgreSQL (NeonDB)
-- **Frontend Dashboard**: Angular 20+ (standalone, signals, OnPush) + Tailwind CSS v3 + DaisyUI + Angular CDK
-- **Mobile**: Angular PWA
+- **Frontend Dashboard**: Angular 21+ (standalone, signals, OnPush) + Tailwind CSS v3 + DaisyUI + Angular CDK
+- **Mobile**: Angular PWA (scaffold — pendent P6)
 - **Monorepo**: Nx workspace
 
 > **Nota**: Utilitzem Tailwind CSS v3 + DaisyUI v4 per estabilitat i compatibilitat.
@@ -31,11 +31,13 @@ scripts/
 
 | Document | Descripció |
 |----------|------------|
+| [`docs/INDEX.md`](docs/INDEX.md) | **Índex complet de la documentació** ⭐ |
 | [`docs/PROJECT_ROADMAP.md`](docs/PROJECT_ROADMAP.md) | Visió general i estat dels sub-projectes |
 | [`docs/NEXT_STEPS.md`](docs/NEXT_STEPS.md) | Punt actual i pròxims passos |
-| [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md) | **Documentació completa de l'API** |
-| [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) | **Solució de problemes comuns** |
-| [`docs/TAILWIND_VERSION.md`](docs/TAILWIND_VERSION.md) | Decisió: Tailwind v3 vs v4 |
+| [`docs/codebase/STACK.md`](docs/codebase/STACK.md) | Stack tecnològic complet |
+| [`docs/codebase/ARCHITECTURE.md`](docs/codebase/ARCHITECTURE.md) | Arquitectura i patrons de disseny |
+| [`docs/AUTH_FLOW.md`](docs/AUTH_FLOW.md) | Flux d'autenticació JWT + Passport |
+| [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) | Model de dades i diagrama ER |
 | [`docs/specs/`](docs/specs/) | Especificacions tècniques aprovades |
 | [`docs/API_APPSISTENCIA.md`](docs/API_APPSISTENCIA.md) | API legacy per migració de dades |
 | [`.cursor/rules/`](.cursor/rules/) | Regles per l'agent AI |
@@ -126,16 +128,22 @@ Documentació completa amb Swagger disponible a `http://localhost:3000/api/docs`
 
 | Method | Route | Descripció |
 |--------|-------|------------|
+| `POST` | `/api/auth/login` | Iniciar sessió |
+| `POST` | `/api/auth/refresh` | Renovar token d'accés |
+| `GET` | `/api/auth/me` | Perfil de l'usuari autenticat |
 | `GET` | `/api/persons` | Llista amb filtres i paginació |
 | `GET` | `/api/persons/:id` | Detall d'una persona |
 | `POST` | `/api/persons` | Crear persona |
 | `PATCH` | `/api/persons/:id` | Actualitzar persona |
 | `DELETE` | `/api/persons/:id` | Soft delete (isActive = false) |
 | `GET` | `/api/positions` | Llista de posicions |
-| `POST` | `/api/positions` | Crear posició |
-| `PATCH` | `/api/positions/:id` | Actualitzar posició |
+| `GET` | `/api/events` | Llista d'events amb filtres |
+| `GET` | `/api/events/:id` | Detall d'un event |
+| `GET` | `/api/seasons` | Llista de temporades |
+| `GET` | `/api/sync/persons` | SSE: sincronitzar persones des del legacy |
+| `GET` | `/api/sync/events` | SSE: sincronitzar events des del legacy |
 
-Veure [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md) per més detalls.
+Documentació interactiva disponible a `http://localhost:3000/api/docs` (Swagger).
 
 ## Funcionalitats implementades
 

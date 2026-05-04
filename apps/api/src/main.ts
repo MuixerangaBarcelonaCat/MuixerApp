@@ -39,6 +39,12 @@ async function bootstrap() {
     .setTitle('MuixerApp API')
     .setDescription('API per a gestió d\'assistència i figures de muixerangues')
     .setVersion('1.0')
+    .addTag('auth', 'Autenticació i gestió de sessions')
+    .addTag('persons', 'Gestió de membres')
+    .addTag('positions', 'Posicions de figures muixerangueres')
+    .addTag('events', 'Esdeveniments: assajos i actuacions')
+    .addTag('seasons', 'Temporades')
+    .addTag('sync', 'Sincronització des del sistema legacy APPsistència')
     .addBearerAuth()
     .addSecurityRequirements('bearer')
     .build();

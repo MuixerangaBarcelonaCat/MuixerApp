@@ -33,6 +33,11 @@ const POSITION_MAPPING: Record<
   'IMATGE I PARADETA': { name: 'Imatge i Paradeta', slug: 'imatge-paradeta', zone: null, color: '#EC407A' },
 };
 
+/**
+ * Estratègia de sincronització de persones des del legacy APPsistència.
+ * Carrega totes les persones de `/api/castellers`, aplica la merge strategy
+ * (CREATE per a noves, UPDATE parcial per a existents) i desactiva les que desapareixen.
+ */
 @Injectable()
 export class PersonSyncStrategy implements SyncStrategy {
   private readonly logger = new Logger(PersonSyncStrategy.name);
@@ -48,6 +53,7 @@ export class PersonSyncStrategy implements SyncStrategy {
     private readonly userRepository: Repository<User>,
   ) {}
 
+  /** Inicia la sincronització de persones i retorna un Observable SSE que emet events de progrés. Impedeix execucions simultànies. */
   execute(): Observable<SyncEvent> {
     return new Observable<SyncEvent>((subscriber) => {
       this.runSync(subscriber).catch((error) => {

@@ -11,7 +11,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiParam, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { UserRole } from '@muixer/shared';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { EventService } from './event.service';
@@ -24,6 +24,7 @@ import { CreateAttendanceDto } from './dto/create-attendance.dto';
 import { UpdateAttendanceDto } from './dto/update-attendance.dto';
 
 @ApiTags('events')
+@ApiBearerAuth()
 @Controller('events')
 @Roles(UserRole.TECHNICAL, UserRole.ADMIN)
 export class EventController {

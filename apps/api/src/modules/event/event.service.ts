@@ -25,6 +25,7 @@ export class EventService {
     private readonly attendanceRepository: Repository<Attendance>,
   ) {}
 
+  /** Retorna una llista paginada d'events amb filtres per temporada, tipus, rang de dates i text. Suporta el filtre `timeFilter` (upcoming/past). */
   async findAll(filters: EventFilterDto): Promise<{ data: EventListItem[]; total: number }> {
     const {
       seasonId,
@@ -89,6 +90,7 @@ export class EventService {
     return { data: events.map(toListItem), total };
   }
 
+  /** Retorna el detall complet d'un event per ID incloent la temporada. Llança NotFoundException si no existeix. */
   async findOne(id: string): Promise<EventDetailItem> {
     const event = await this.eventRepository.findOne({
       where: { id },
@@ -102,6 +104,7 @@ export class EventService {
     return toDetailItem(event);
   }
 
+  /** Crea un nou event i l'associa a la temporada indicada si s'especifica `seasonId`. */
   async create(dto: CreateEventDto): Promise<EventDetailItem> {
     const event = this.eventRepository.create({
       title: dto.title,
@@ -131,6 +134,7 @@ export class EventService {
     return toDetailItem(withRelations!);
   }
 
+  /** Actualitza parcialment un event. Només modifica els camps explícitament presents al DTO (undefined = no tocar). */
   async update(id: string, dto: UpdateEventDto): Promise<EventDetailItem> {
     const event = await this.eventRepository.findOne({
       where: { id },
@@ -162,6 +166,7 @@ export class EventService {
     return toDetailItem(saved);
   }
 
+  /** Elimina un event. Llança ConflictException si l'event té registres d'assistència associats (protecció d'integritat). */
   async remove(id: string): Promise<void> {
     const event = await this.eventRepository.findOne({ where: { id } });
 
@@ -182,6 +187,10 @@ export class EventService {
     await this.eventRepository.remove(event);
   }
 
+  /**
+   * Aplica l'ordenació a la query. El mode `chronological` usa una lògica intel·ligent:
+   * primer els events propers (ordenats per data ASC), després els passats (ordenats DESC).
+   */
   private applySort(
     qb: SelectQueryBuilder<Event>,
     sortBy: EventSortByField | undefined,

@@ -364,3 +364,5 @@ Cada sub-projecte genera:
 | 20 Abr 2026 | Brainstorming P4.3 Dashboard Design Refactor iniciat. Decisions: top nav, Home tab, Inter font, Lucide icons, theme generator, full-screen mode per Pinyes. |
 | 20 Abr 2026 | Spec P4.3 aprovada (`docs/specs/2026-04-20-dashboard-design-refactor-design.md`). |
 | 20 Abr 2026 | **P4.3 Dashboard Design Refactor completat** (7 fases): generateCollaTheme() amb WCAG, sidebar→tabs, 15+ components shared (page-header, data-table, pagination, filter-bar, toast, etc), Home tab amb preview events, refactor complet de person-list/event-list/detail/sync/login, Pinyes + Config placeholders. Reducció ~80% HTML. Build OK en 4.2s. |
+| 24 Abr 2026 | **CI/CD activat**: GitHub Actions amb lint + test + build (affected per PRs, all per push). Coverage enforçat (`--configuration=ci`). |
+| 24 Abr 2026 | **Deute tècnic CONCERNS.md resolt**: temporades dinàmiques (`loadOrCreateSeasons()`), ToastService integrat a event-detail + person-detail, codi mort eliminat (form-field, confirm-dialog, seed), coverage threshold (70%), refresh token cleanup (`@Cron` diari). |
