@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Query } from '@nestjs/common';
+import { Controller, Get, Patch, Post, Body, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { UserRole } from '@muixer/shared';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -36,7 +36,7 @@ export class UserController {
     return this.userService.findAll(filters);
   }
 
-  @Post('/grant-role')
+  @Patch('/grant-role')
   @ApiOperation({
     summary: 'Assigna un rol a un usuari',
   })

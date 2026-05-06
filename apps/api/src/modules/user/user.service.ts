@@ -157,7 +157,8 @@ export class UserService {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
     user.role = role;
-    const output = await this.userRepository.save(user);
+    await this.userRepository.save(user);
+    const output = await this.userRepository.findOne({ where: { id: userId } , relations: ['person'] });
     return plainToInstance(UserResponseDto, output, {
       excludeExtraneousValues: true,
     });

@@ -72,7 +72,7 @@ describe('UserService', () => {
     req.flush({ data: [], total: 0 });
   });
 
-  it('grantRole sends PATCH to /users/:id/role', () => {
+  it('grantRole sends PATCH to /users/grant-role', () => {
     service.grantRole('user-uuid', UserRole.ADMIN).subscribe();
 
     const req = httpMock.expectOne(
