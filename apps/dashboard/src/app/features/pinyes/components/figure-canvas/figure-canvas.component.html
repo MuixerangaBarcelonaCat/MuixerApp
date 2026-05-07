@@ -1,0 +1,26 @@
+<div class="canvas-wrapper" [class.editor-mode]="mode() === 'editor'">
+  <!-- Canvas container -->
+  <div #canvasContainer class="canvas-container" aria-label="Canvas de figura"></div>
+
+  <!-- Zoom indicator -->
+  <div
+    class="zoom-indicator"
+    aria-label="Nivell de zoom"
+    aria-live="polite"
+  >
+    {{ (zoomLevel() * 100).toFixed(0) }}%
+  </div>
+
+  <!-- Fit to screen button -->
+  <button
+    type="button"
+    class="fit-btn btn btn-ghost btn-xs"
+    (click)="fitToScreen()"
+    title="Ajusta a la pantalla"
+    aria-label="Ajusta a la pantalla"
+  >
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+    </svg>
+  </button>
+</div>

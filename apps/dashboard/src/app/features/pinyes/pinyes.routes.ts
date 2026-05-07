@@ -1,6 +1,20 @@
 import { Routes } from '@angular/router';
-import { PinyesPlaceholderComponent } from './pinyes-placeholder.component';
+import { TemplateListComponent } from './components/template-list/template-list.component';
 
 export const pinyesRoutes: Routes = [
-  { path: '', component: PinyesPlaceholderComponent },
+  { path: '', component: TemplateListComponent },
+  {
+    path: 'templates/new',
+    loadComponent: () =>
+      import('./components/template-editor/template-editor.component').then(
+        (m) => m.TemplateEditorComponent,
+      ),
+  },
+  {
+    path: 'templates/:id/edit',
+    loadComponent: () =>
+      import('./components/template-editor/template-editor.component').then(
+        (m) => m.TemplateEditorComponent,
+      ),
+  },
 ];

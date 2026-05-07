@@ -1,0 +1,438 @@
+<div class="editor-layout">
+
+  <!-- ── Top Bar ──────────────────────────────────────────────────────────── -->
+  <header class="editor-topbar" role="banner">
+    <div class="flex items-center gap-3 min-w-0">
+      <button
+        type="button"
+        class="btn btn-ghost btn-sm gap-1"
+        (click)="goBack()"
+        aria-label="Tornar a la llista"
+      >
+        <lucide-icon name="ArrowLeft" [size]="16" aria-hidden="true" />
+        Figures
+      </button>
+
+      <span class="text-base-content/30" aria-hidden="true">/</span>
+
+      <!-- Template name -->
+      <div class="flex items-center gap-2 min-w-0 flex-1">
+        <input
+          type="text"
+          class="input input-ghost input-sm font-semibold text-base-content max-w-xs"
+          placeholder="Nom de la figura"
+          [ngModel]="templateName()"
+          (ngModelChange)="onNameChange($event)"
+          aria-label="Nom de la figura"
+        />
+        <input
+          type="text"
+          class="input input-ghost input-xs text-base-content/50 font-mono w-32"
+          placeholder="slug"
+          [ngModel]="templateSlug()"
+          (ngModelChange)="onSlugChange($event)"
+          aria-label="Slug de la figura"
+        />
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <!-- hasPinya toggle -->
+      <label class="flex items-center gap-2 cursor-pointer" title="Té Pinya">
+        <span class="text-xs text-base-content/60">Pinya</span>
+        <input
+          type="checkbox"
+          class="toggle toggle-sm toggle-primary"
+          [checked]="hasPinya()"
+          (change)="onHasPinyaChange($any($event.target).checked)"
+          aria-label="La figura té pinya"
+        />
+      </label>
+
+      <!-- Save status -->
+      @if (saveStatus() !== 'idle') {
+        <span
+          class="text-xs px-2 py-1 rounded-full"
+          [class.text-primary]="saveStatus() === 'saving'"
+          [class.text-success]="saveStatus() === 'saved'"
+          [class.text-error]="saveStatus() === 'error'"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          @if (saveStatus() === 'saving') {
+            <span class="loading loading-spinner loading-xs mr-1" aria-hidden="true"></span>
+          }
+          {{ saveStatusLabel() }}
+        </span>
+      }
+    </div>
+  </header>
+
+  <!-- ── Main Area ─────────────────────────────────────────────────────────── -->
+  <div class="editor-main">
+
+    <!-- Left Toolbar -->
+    <aside class="editor-toolbar" aria-label="Eines">
+      <div class="toolbar-section">
+        <p class="toolbar-label">Afegir node</p>
+
+        <button
+          type="button"
+          class="toolbar-btn"
+          (click)="addNode(FigureZone.PINYA)"
+          title="Afegir node de Pinya"
+          aria-label="Afegir node de Pinya"
+        >
+          <span class="node-dot bg-blue-500" aria-hidden="true"></span>
+          Pinya
+        </button>
+
+        <button
+          type="button"
+          class="toolbar-btn"
+          (click)="addNode(FigureZone.TRONC)"
+          title="Afegir node de Tronc (baix)"
+          aria-label="Afegir node de Tronc"
+        >
+          <span class="node-dot bg-purple-500" aria-hidden="true"></span>
+          Tronc
+        </button>
+
+        <button
+          type="button"
+          class="toolbar-btn"
+          (click)="addNode(FigureZone.TRONC, 1)"
+          title="Afegir node de Tronc (primer pis)"
+          aria-label="Afegir node de Tronc pis 1"
+        >
+          <span class="node-dot bg-violet-400" aria-hidden="true"></span>
+          Pis 1
+        </button>
+
+        <button
+          type="button"
+          class="toolbar-btn"
+          (click)="addNode(FigureZone.FIGURE_DIRECTION)"
+          title="Afegir marcador de direcció"
+          aria-label="Afegir marcador de direcció de figura"
+        >
+          <span class="node-dot bg-amber-400" aria-hidden="true"></span>
+          Direcció
+        </button>
+
+        <button
+          type="button"
+          class="toolbar-btn"
+          (click)="addNode(FigureZone.XICALLA_DIRECTION)"
+          title="Afegir marcador de Xicalla"
+          aria-label="Afegir marcador de Xicalla"
+        >
+          <span class="node-dot bg-pink-500" aria-hidden="true"></span>
+          Xicalla
+        </button>
+      </div>
+
+      <div class="divider my-1"></div>
+
+      <div class="toolbar-section">
+        <button
+          type="button"
+          class="toolbar-btn text-error disabled:opacity-30"
+          [disabled]="!selectedNodeId()"
+          (click)="deleteSelectedNode()"
+          title="Eliminar node seleccionat"
+          aria-label="Eliminar node seleccionat"
+        >
+          <lucide-icon name="Trash2" [size]="14" aria-hidden="true" />
+          Eliminar
+        </button>
+      </div>
+
+      <div class="divider my-1"></div>
+
+      <div class="toolbar-section">
+        <p class="toolbar-label">Vistes</p>
+
+        <button
+          type="button"
+          class="toolbar-btn"
+          [class.active]="gridEnabled()"
+          (click)="toggleGrid()"
+          title="Mostrar / Ocultar quadrícula"
+          aria-label="Mostrar / Ocultar quadrícula"
+          [attr.aria-pressed]="gridEnabled()"
+        >
+          <lucide-icon name="Grid3X3" [size]="14" aria-hidden="true" />
+          Quadrícula
+        </button>
+
+        <button
+          type="button"
+          class="toolbar-btn"
+          [class.active]="troncVisible()"
+          (click)="toggleTronc()"
+          title="Mostrar / Ocultar vista Tronc"
+          aria-label="Mostrar / Ocultar vista Tronc"
+          [attr.aria-pressed]="troncVisible()"
+        >
+          <lucide-icon name="AlignJustify" [size]="14" aria-hidden="true" />
+          Tronc
+        </button>
+      </div>
+    </aside>
+
+    <!-- Canvas Area -->
+    <main class="editor-canvas" aria-label="Editor visual de la figura">
+      @if (loading()) {
+        <div class="flex items-center justify-center h-full">
+          <span class="loading loading-spinner loading-lg text-primary" aria-label="Carregant figura..."></span>
+        </div>
+      } @else {
+        <app-figure-canvas
+          [nodes]="nodes()"
+          [mode]="'editor'"
+          [gridEnabled]="gridEnabled()"
+          [gridSpacing]="40"
+          [troncVisible]="troncVisible()"
+          [selectedNodeId]="selectedNodeId()"
+          (nodeSelected)="onNodeSelected($event)"
+          (nodeMoved)="onNodeMoved($event)"
+          (nodeRotated)="onNodeRotated($event)"
+        />
+      }
+    </main>
+
+    <!-- Right Panel: Node Properties -->
+    <aside
+      class="editor-panel"
+      [class.panel-open]="propertiesPanelOpen()"
+      [attr.aria-hidden]="!propertiesPanelOpen()"
+    >
+      <!-- Panel toggle -->
+      <button
+        type="button"
+        class="panel-toggle"
+        (click)="togglePropertiesPanel()"
+        [attr.aria-expanded]="propertiesPanelOpen()"
+        aria-controls="properties-panel"
+        [attr.aria-label]="propertiesPanelOpen() ? 'Amagar propietats' : 'Mostrar propietats'"
+      >
+        <lucide-icon
+          [name]="propertiesPanelOpen() ? 'PanelRightClose' : 'PanelRightOpen'"
+          [size]="16"
+          aria-hidden="true"
+        />
+      </button>
+
+      @if (propertiesPanelOpen()) {
+        <div id="properties-panel" class="panel-content">
+          @if (selectedNode(); as node) {
+            <h2 class="panel-title">Propietats del node</h2>
+
+            <!-- Label -->
+            <div class="form-control mb-3">
+              <label class="label pb-1" [for]="'node-label-' + node.id">
+                <span class="label-text text-xs font-medium">Etiqueta</span>
+              </label>
+              <input
+                type="text"
+                [id]="'node-label-' + node.id"
+                class="input input-bordered input-sm"
+                [ngModel]="node.label"
+                (ngModelChange)="updateSelectedNodeProp('label', $event)"
+              />
+            </div>
+
+            <!-- Zone -->
+            <div class="form-control mb-3">
+              <label class="label pb-1" [for]="'node-zone-' + node.id">
+                <span class="label-text text-xs font-medium">Zona</span>
+              </label>
+              <select
+                [id]="'node-zone-' + node.id"
+                class="select select-bordered select-sm"
+                [ngModel]="node.zone"
+                (ngModelChange)="updateSelectedNodeProp('zone', $event)"
+              >
+                <option [value]="FigureZone.PINYA">Pinya</option>
+                <option [value]="FigureZone.TRONC">Tronc</option>
+                <option [value]="FigureZone.FIGURE_DIRECTION">Direcció Figura</option>
+                <option [value]="FigureZone.XICALLA_DIRECTION">Direcció Xicalla</option>
+              </select>
+            </div>
+
+            <!-- Position type -->
+            <div class="form-control mb-3">
+              <label class="label pb-1" [for]="'node-pos-' + node.id">
+                <span class="label-text text-xs font-medium">Tipus de posició</span>
+              </label>
+              <input
+                type="text"
+                [id]="'node-pos-' + node.id"
+                class="input input-bordered input-sm"
+                placeholder="baix, segon, cross..."
+                [ngModel]="node.positionType"
+                (ngModelChange)="updateSelectedNodeProp('positionType', $event || null)"
+              />
+            </div>
+
+            <!-- Shape -->
+            <div class="form-control mb-3">
+              <label class="label pb-1" [for]="'node-shape-' + node.id">
+                <span class="label-text text-xs font-medium">Forma</span>
+              </label>
+              <select
+                [id]="'node-shape-' + node.id"
+                class="select select-bordered select-sm"
+                [ngModel]="node.shape"
+                (ngModelChange)="updateSelectedNodeProp('shape', $event)"
+              >
+                <option [value]="NodeShape.ELLIPSE">El·lipse</option>
+                <option [value]="NodeShape.RECTANGLE">Rectangle</option>
+              </select>
+            </div>
+
+            <!-- Dimensions -->
+            <div class="grid grid-cols-2 gap-2 mb-3">
+              <div class="form-control">
+                <label class="label pb-1" [for]="'node-w-' + node.id">
+                  <span class="label-text text-xs font-medium">Amplada</span>
+                </label>
+                <input
+                  type="number"
+                  [id]="'node-w-' + node.id"
+                  class="input input-bordered input-sm"
+                  [ngModel]="node.width"
+                  (ngModelChange)="updateSelectedNodeProp('width', +$event)"
+                  min="10" max="300"
+                />
+              </div>
+              <div class="form-control">
+                <label class="label pb-1" [for]="'node-h-' + node.id">
+                  <span class="label-text text-xs font-medium">Alçada</span>
+                </label>
+                <input
+                  type="number"
+                  [id]="'node-h-' + node.id"
+                  class="input input-bordered input-sm"
+                  [ngModel]="node.height"
+                  (ngModelChange)="updateSelectedNodeProp('height', +$event)"
+                  min="10" max="300"
+                />
+              </div>
+            </div>
+
+            <!-- Rotation -->
+            <div class="form-control mb-3">
+              <label class="label pb-1" [for]="'node-rot-' + node.id">
+                <span class="label-text text-xs font-medium">Rotació (°)</span>
+              </label>
+              <div class="flex items-center gap-2">
+                <input
+                  type="range"
+                  [id]="'node-rot-' + node.id"
+                  class="range range-xs flex-1"
+                  min="0" max="360" step="15"
+                  [ngModel]="node.rotation"
+                  (ngModelChange)="updateSelectedNodeProp('rotation', +$event)"
+                />
+                <span class="text-xs font-mono w-8 text-right">{{ node.rotation }}°</span>
+              </div>
+            </div>
+
+            <!-- Floor (z) -->
+            <div class="form-control mb-3">
+              <label class="label pb-1" [for]="'node-z-' + node.id">
+                <span class="label-text text-xs font-medium">Pis (z)</span>
+              </label>
+              <input
+                type="number"
+                [id]="'node-z-' + node.id"
+                class="input input-bordered input-sm"
+                [ngModel]="node.z"
+                (ngModelChange)="updateSelectedNodeProp('z', +$event)"
+                min="0" max="20"
+              />
+            </div>
+
+            <!-- Color -->
+            <div class="form-control mb-3">
+              <label class="label pb-1" [for]="'node-color-' + node.id">
+                <span class="label-text text-xs font-medium">Color</span>
+              </label>
+              <div class="flex items-center gap-2">
+                <input
+                  type="color"
+                  [id]="'node-color-' + node.id"
+                  class="w-8 h-8 rounded cursor-pointer border border-base-300"
+                  [ngModel]="node.color || '#6b7280'"
+                  (ngModelChange)="updateSelectedNodeProp('color', $event)"
+                />
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-xs"
+                  (click)="updateSelectedNodeProp('color', null)"
+                  aria-label="Restablir color per defecte"
+                >
+                  Per defecte
+                </button>
+              </div>
+            </div>
+
+            <!-- Climb path -->
+            <div class="form-control mb-3">
+              <label class="label pb-1" [for]="'node-climb-' + node.id">
+                <span class="label-text text-xs font-medium">Camí de pujada</span>
+              </label>
+              <input
+                type="text"
+                [id]="'node-climb-' + node.id"
+                class="input input-bordered input-sm font-mono"
+                placeholder="(X), (A), ..."
+                [ngModel]="node.climbPath"
+                (ngModelChange)="updateSelectedNodeProp('climbPath', $event || null)"
+              />
+            </div>
+
+            <div class="divider mt-2 mb-2"></div>
+
+            <!-- Position in canvas -->
+            <div class="grid grid-cols-2 gap-2">
+              <div class="form-control">
+                <label class="label pb-1" [for]="'node-x-' + node.id">
+                  <span class="label-text text-xs font-medium">X</span>
+                </label>
+                <input
+                  type="number"
+                  [id]="'node-x-' + node.id"
+                  class="input input-bordered input-sm font-mono"
+                  [ngModel]="node.x"
+                  (ngModelChange)="updateSelectedNodeProp('x', +$event)"
+                />
+              </div>
+              <div class="form-control">
+                <label class="label pb-1" [for]="'node-y-' + node.id">
+                  <span class="label-text text-xs font-medium">Y</span>
+                </label>
+                <input
+                  type="number"
+                  [id]="'node-y-' + node.id"
+                  class="input input-bordered input-sm font-mono"
+                  [ngModel]="node.y"
+                  (ngModelChange)="updateSelectedNodeProp('y', +$event)"
+                />
+              </div>
+            </div>
+          } @else {
+            <div class="flex flex-col items-center justify-center h-full gap-3 text-center px-4">
+              <lucide-icon name="MousePointer2" [size]="32" class="text-base-content/20" aria-hidden="true" />
+              <p class="text-sm text-base-content/50">
+                Fes clic a un node del canvas per veure i editar les seves propietats
+              </p>
+            </div>
+          }
+        </div>
+      }
+    </aside>
+  </div>
+</div>

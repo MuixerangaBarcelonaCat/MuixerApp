@@ -7,6 +7,8 @@ import { Season } from '../season/season.entity';
 import { Event } from '../event/event.entity';
 import { Attendance } from '../event/attendance.entity';
 import { RefreshToken } from '../auth/entities/refresh-token.entity';
+import { FigureTemplate } from '../figure/entities/figure-template.entity';
+import { FigureNode } from '../figure/entities/figure-node.entity';
 
 @Module({
   imports: [
@@ -19,7 +21,7 @@ import { RefreshToken } from '../auth/entities/refresh-token.entity';
           type: 'postgres',
           url: process.env.DATABASE_URL,
           ssl: sslEnabled ? { rejectUnauthorized: false } : false,
-          entities: [Position, User, Person, Season, Event, Attendance, RefreshToken],
+          entities: [Position, User, Person, Season, Event, Attendance, RefreshToken, FigureTemplate, FigureNode],
           synchronize: isDevelopment,
           logging: isDevelopment,
         };
