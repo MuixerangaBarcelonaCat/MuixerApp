@@ -154,17 +154,30 @@
     <!-- Canvas Area -->
     <main class="editor-canvas" aria-label="Editor visual de la figura">
 
-      <!-- Tronc widget (floating, top-left of canvas) -->
-      <app-tronc-widget
-        class="tronc-widget-overlay"
-        [troncNodes]="troncNodes()"
-        [mode]="'editor'"
-        [selectedNodeId]="selectedNodeId()"
-        (nodeAdded)="onTroncNodeAdded($event)"
-        (nodeRemoved)="onTroncNodeRemoved($event)"
-        (floorRemoved)="onTroncFloorRemoved($event)"
-        (nodeSelected)="onNodeSelected($event)"
-      />
+      <!-- Floating overlays (top-left of canvas) -->
+      <div class="canvas-overlays">
+        <!-- Tronc widget -->
+        <app-tronc-widget
+          [troncNodes]="troncNodes()"
+          [mode]="'editor'"
+          [selectedNodeId]="selectedNodeId()"
+          (nodeAdded)="onTroncNodeAdded($event)"
+          (nodeRemoved)="onTroncNodeRemoved($event)"
+          (floorRemoved)="onTroncFloorRemoved($event)"
+          (nodeSelected)="onNodeSelected($event)"
+        />
+
+        <!-- Direccions widget (estructura de nodes FIGURE_DIRECTION / XICALLA_DIRECTION) -->
+        <!-- TODO P5.4: aquí s'implementarà l'assignació de persones reals a les direccions -->
+        <app-direccions-widget
+          [directionNodes]="directionNodes()"
+          [mode]="'editor'"
+          [selectedNodeId]="selectedNodeId()"
+          (nodeAdded)="onDirectionNodeAdded($event)"
+          (nodeRemoved)="onDirectionNodeRemoved($event)"
+          (nodeSelected)="onNodeSelected($event)"
+        />
+      </div>
 
       @if (loading()) {
         <div class="flex items-center justify-center h-full">

@@ -673,6 +673,7 @@ features/pinyes/
 
 - Backend: Entitat `NodeAssignment`. API. Validació disponibilitat. Filtres.
 - Dashboard: Canvas d'assignació amb panel lateral. Cercador amb filtres. Indicadors d'alçada. Auto-avançament.
+- **Direccions de figura i xicalla**: El widget `app-direccions-widget` ja existeix al template editor (P5.1) i gestiona els nodes `FIGURE_DIRECTION` / `XICALLA_DIRECTION`, però l'assignació de persones reals a aquests nodes s'implementa aquí, igual que la resta de nodes.
 - Depèn de: P5.3
 - **Spec dedicada**: `docs/specs/2026-XX-XX-p5-4-assignment-design.md`
 
