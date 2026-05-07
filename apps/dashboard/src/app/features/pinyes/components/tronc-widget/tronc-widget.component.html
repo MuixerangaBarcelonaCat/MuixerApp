@@ -105,31 +105,40 @@
                   </button>
                 }
 
-                <!-- climbPath toggle for alcadora/xiqueta -->
-                @if (climbPathMarker(floor.nodes[0]?.positionType ?? null); as marker) {
-                  <button
-                    type="button"
-                    class="climb-badge"
-                    [class.climb-badge--active]="floor.nodes[0]?.climbPath === marker"
-                    (click)="toggleClimbPath(floor.nodes[0], marker)"
-                    [attr.aria-label]="'Marcador pujada ' + marker"
-                    [attr.aria-pressed]="floor.nodes[0]?.climbPath === marker"
-                  >
-                    {{ marker }}
-                  </button>
-                }
               </div>
 
               @if (mode() === 'editor') {
-                <button
-                  type="button"
-                  class="btn btn-ghost btn-xs btn-square text-error ml-auto flex-shrink-0"
-                  (click)="removeFloor(floor.z)"
-                  [attr.aria-label]="'Eliminar tots els nodes del ' + floor.pisLabel"
-                  title="Eliminar pis"
-                >
-                  <lucide-icon name="Trash2" [size]="12" aria-hidden="true" />
-                </button>
+                <div class="floor-controls" role="group" [attr.aria-label]="'Controls del ' + floor.pisLabel">
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-xs btn-square"
+                    (click)="removeLastNodeFromFloor(floor)"
+                    [disabled]="floor.nodes.length === 0"
+                    [attr.aria-label]="'Treure posició del ' + floor.pisLabel"
+                    title="Treure posició"
+                  >
+                    <lucide-icon name="Minus" [size]="10" aria-hidden="true" />
+                  </button>
+                  <span class="floor-count" aria-live="polite">{{ floor.nodes.length }}</span>
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-xs btn-square"
+                    (click)="addNodeToFloor(floor)"
+                    [attr.aria-label]="'Afegir posició al ' + floor.pisLabel"
+                    title="Afegir posició"
+                  >
+                    <lucide-icon name="Plus" [size]="10" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-xs btn-square text-error"
+                    (click)="removeFloor(floor.z)"
+                    [attr.aria-label]="'Eliminar tot el ' + floor.pisLabel"
+                    title="Eliminar pis sencer"
+                  >
+                    <lucide-icon name="Trash2" [size]="10" aria-hidden="true" />
+                  </button>
+                </div>
               }
             </li>
           }
@@ -162,15 +171,6 @@
                       {{ node.label }}
                     </button>
                   }
-                  @if (climbPathMarker(floor.nodes[0]?.positionType ?? null); as marker) {
-                    <span
-                      class="climb-badge"
-                      [class.climb-badge--active]="floor.nodes[0]?.climbPath === marker"
-                      aria-hidden="true"
-                    >
-                      {{ marker }}
-                    </span>
-                  }
                 </td>
               </tr>
             }
@@ -182,41 +182,57 @@
     <!-- Footer: add floor -->
     @if (mode() === 'editor') {
       <div class="tronc-footer">
-        <div class="dropdown dropdown-top w-full" [class.dropdown-open]="addMenuOpen()">
+        @if (!canAddFloor()) {
+          <p class="text-xs text-base-content/30 text-center py-1">Màxim de 6 pisos assolit</p>
+        } @else if (nextFloorOptions().length === 1) {
+          <!-- P1 (Baix): única opció, s'afegeix directament sense desplegable -->
           <button
             type="button"
             class="btn btn-ghost btn-xs w-full gap-1"
-            (click)="toggleAddMenu()"
-            aria-haspopup="true"
-            [attr.aria-expanded]="addMenuOpen()"
-            aria-label="Afegir pis al tronc"
+            (click)="addFloorNode(nextFloorOptions()[0])"
+            [attr.aria-label]="'Afegir P' + (nextZ() + 1) + ' · ' + nextFloorOptions()[0].label"
           >
             <lucide-icon name="Plus" [size]="12" aria-hidden="true" />
-            Afegir pis
-            <lucide-icon name="ChevronUp" [size]="12" aria-hidden="true" />
+            Afegir P{{ nextZ() + 1 }} · {{ nextFloorOptions()[0].label }}
           </button>
-
-          @if (addMenuOpen()) {
-            <ul
-              class="dropdown-content menu bg-base-100 rounded-box shadow-lg border border-base-200 w-full p-1 z-20"
-              role="menu"
-              aria-label="Tipus de pis"
+        } @else {
+          <!-- P2–P6: desplegable cap avall amb les opcions del pis -->
+          <div class="dropdown dropdown-bottom w-full" [class.dropdown-open]="addMenuOpen()">
+            <button
+              type="button"
+              class="btn btn-ghost btn-xs w-full gap-1"
+              (click)="toggleAddMenu()"
+              aria-haspopup="true"
+              [attr.aria-expanded]="addMenuOpen()"
+              [attr.aria-label]="'Afegir P' + (nextZ() + 1) + ' al tronc'"
             >
-              @for (preset of floorPresets; track preset.positionType) {
-                <li role="none">
-                  <button
-                    type="button"
-                    class="text-sm"
-                    role="menuitem"
-                    (click)="addFloorNode(preset)"
-                  >
-                    {{ preset.label }}
-                  </button>
-                </li>
-              }
-            </ul>
-          }
-        </div>
+              <lucide-icon name="Plus" [size]="12" aria-hidden="true" />
+              Afegir P{{ nextZ() + 1 }}
+              <lucide-icon name="ChevronDown" [size]="12" aria-hidden="true" />
+            </button>
+
+            @if (addMenuOpen()) {
+              <ul
+                class="dropdown-content menu bg-base-100 rounded-box shadow-lg border border-base-200 w-full p-1 z-20"
+                role="menu"
+                [attr.aria-label]="'Opcions per al P' + (nextZ() + 1)"
+              >
+                @for (option of nextFloorOptions(); track option.positionType) {
+                  <li role="none">
+                    <button
+                      type="button"
+                      class="text-sm"
+                      role="menuitem"
+                      (click)="addFloorNode(option)"
+                    >
+                      {{ option.label }}
+                    </button>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+        }
       </div>
     }
   </div>

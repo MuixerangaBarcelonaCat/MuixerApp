@@ -197,11 +197,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     this.scheduleAutosave();
   }
 
-  onTroncNodeUpdated(event: { id: string; patch: Partial<FigureNodeItem> }): void {
-    this.updateNode(event.id, event.patch);
-    this.scheduleAutosave();
-  }
-
   // ── Toolbar actions ────────────────────────────────────────────────────────
 
   addPinyaNode(pos: PinyaPosition): void {

@@ -18,7 +18,11 @@
 | P4.2 | Dashboard Web — Events + Assistència manual | ✅ Completat | [`docs/specs/2026-04-12-p4-2-dashboard-events-attendance-design.md`](docs/specs/2026-04-12-p4-2-dashboard-events-attendance-design.md) | ✅ | ✅ | CRUD events + attendance, persones provisionals, optimistic UI |
 | P4.3 | **Dashboard Design Refactor** — Clean slate visual redesign | ✅ Completat | [`docs/specs/2026-04-20-dashboard-design-refactor-design.md`](docs/specs/2026-04-20-dashboard-design-refactor-design.md) | [`dashboard_design_refactor_3f8d1aed`](.cursor/plans/dashboard_design_refactor_3f8d1aed.plan.md) | ✅ | Top nav + tabs, 15+ shared components, Home tab, sync UI, Pinyes/Config placeholders |
 | **P4.4** | **Arquitectura Docker Multi-entorn** | ✅ Completat | [`docs/specs/2026-05-07-p4-4-docker-local-postgres-design.md`](docs/specs/2026-05-07-p4-4-docker-local-postgres-design.md) | ✅ | ✅ | Docker local dev + Dockerfile multi-stage + docker-compose.prod.yml VPS. NeonDB eliminat del flux de dev |
-| P5 | Mòdul Pinyes i Figures | ⚪ Pendent | — | — | — | Canvas, templates reutilitzables, col·laboració tècnics |
+| **P5.1** | **Mòdul Pinyes — Templates i Editor Visual** | ✅ Completat | [`docs/specs/2026-05-07-p5-figures-module-overview-design.md`](docs/specs/2026-05-07-p5-figures-module-overview-design.md) | [`p5.1_templates_editor_2859060d`](.cursor/plans/p5.1_templates_editor_2859060d.plan.md) | ✅ | Backend CRUD FigureTemplate+FigureNode, NodeShape enum, Konva editor (pinya + tronc), llistat templates, auto-save |
+| P5.2 | Mòdul Pinyes — Composicions | ⚪ Pendent | — | — | — | CompositionTemplate + CompositionSlot. Editor per agrupar figures amb offsets |
+| P5.3 | Mòdul Pinyes — Segments i Instàncies | ⚪ Pendent | — | — | — | EventSegment + FigureInstance. Tab "Pinyes" a event-detail. Segments reordenables |
+| P5.4 | Mòdul Pinyes — Assignació de Persones | ⚪ Pendent | — | — | — | NodeAssignment. Canvas d'assignació amb panel lateral, cercador i auto-avançament |
+| P5.5 | Mòdul Pinyes — Projecció i Consulta Històrica | ⚪ Pendent | — | — | — | Mode fullscreen TV/projector. Consulta events passats |
 | P6 | PWA Mòbil | ⚪ Pendent | — | — | — | Diferit fins al tall. Estén l'auth de P4.1 als membres |
 | P7 | Informes + Notificacions + Features avançades | ⚪ Pendent | — | — | — | Reports d'assistència, FCM, estadístiques, notícies |
 
@@ -65,7 +69,54 @@ Decisions clau d'ordre:
 | Auth strategy | JWT+Passport (access 15min + refresh 7d). Implementat a P4.1, estès a P6 | Abr 2026 |
 | Token storage (Dashboard) | Memòria/signal (access token) + `httpOnly cookie` (refresh token) | Abr 2026 |
 | CORS | Array d'orígens via `CORS_ORIGINS` env (Dashboard + PWA) | Abr 2026 |
-| Canvas library (pinyes i figures) | 🟡 Pendent decisió final | — |
+| Canvas library (pinyes i figures) | `konva` (API imperativa directa, sense `ng2-konva` — incompatible amb Angular 20+) | Mai 2026 (P5.1) |
+
+---
+
+## Decisions sobre el Mòdul Pinyes i Figures (P5)
+
+### P5.1 — Templates i Editor Visual (✅ Completat)
+
+#### Què s'ha implementat
+
+**Backend** (`apps/api/src/modules/figure/`):
+- Entitats TypeORM `FigureTemplate` + `FigureNode` (taules `figure_templates` + `figure_nodes`)
+- Enum `NodeShape` (`ELLIPSE`, `RECTANGLE`) a `libs/shared/`
+- `FigureModule` amb 6 endpoints REST: llistat (cerca + paginació), detall, crear, actualitzar (sync inline de nodes), eliminar, duplicar
+- Sync de nodes al `PUT`: crea nous, actualitza existents, elimina els que ja no estan (amb protecció si té `NodeAssignment`s)
+- Tests unitaris: `figure-template.service.spec.ts` + `figure-template.controller.spec.ts`
+
+**Frontend** (`apps/dashboard/src/app/features/pinyes/`):
+- `TemplateListComponent`: llistat de templates amb tabs "Figures" / "Composicions" (tab Composicions en placeholder per P5.2), cards amb accions Editar / Duplicar / Eliminar (confirm-dialog)
+- `FigureCanvasComponent`: canvas Konva reutilitzable amb:
+  - **Pinya layer** (zona principal): nodes `PINYA` + nodes `TRONC` z=0 (baixos)
+  - **Tronc layer** (panel lateral dret): tots els nodes `TRONC` agrupats per pis (`z`). Toggle "Mostrar/Ocultar vista Tronc" a la toolbar
+  - Grid de guia configurable (toggle + mida), snap-to-grid opcional
+  - Zoom (scroll wheel) + pan (click drag fons / botó central)
+  - Drag de nodes per reposicionar. Resize i rotate via Konva Transformer
+  - Edició inline d'etiquetes amb doble-click (input flotant sobre el canvas)
+  - Outputs per `nodeMoved`, `nodeResized`, `nodeRotated`, `nodeLabelChanged`, `nodeSelected`
+- `TemplateEditorComponent`: editor complet de pàgina amb:
+  - Toolbar lateral: afegir nodes per zona (PINYA, TRONC, FIGURE_DIRECTION, XICALLA_DIRECTION) i `positionType`, eliminar node seleccionat, undo
+  - Panel de propietats col·lapsable (dreta): label, zona, positionType, color, shape, dimensions, rotació, climbPath
+  - Top bar: nom/slug editable, toggle `hasPinya`, botó torn enrere, indicador d'estat de save
+  - Auto-save amb debounce 2s: `PUT /api/figure-templates/:id` amb llista completa de nodes
+  - Nou template: primer `POST`, després redirect a mode edició amb ID retornat
+- `CanvasStateService`: zoom, panOffset, selectedNodeId, gridEnabled, gridSpacing, troncVisible (signals)
+- `FigureTemplateService` (dashboard): extends `ApiService`, mètodes `getAll`, `getOne`, `create`, `update`, `delete`, `duplicate`
+
+#### Decisió tècnica clau
+
+`ng2-konva` descartat per incompatibilitat amb Angular 20+. S'usa `konva` directament amb **API imperativa** wrapped dins un component Angular. Els `effect()` de signals disparen re-renders del canvas.
+
+#### Queda pendent a P5
+
+| Fase | Objectiu | Depèn de |
+|------|----------|----------|
+| **P5.2** | Composicions (`CompositionTemplate` + `CompositionSlot`). Editor per agrupar figures amb offsets | P5.1 |
+| **P5.3** | Segments i Instàncies (`EventSegment` + `FigureInstance`). Tab "Pinyes" a event-detail. Segments reordenables drag-handle | P5.1 + P5.2 |
+| **P5.4** | Assignació de persones (`NodeAssignment`). Canvas d'assignació, panel lateral, cercador filtrat, auto-avançament | P5.3 |
+| **P5.5** | Projecció fullscreen (TV/projector) + consulta historial figures per persona/event | P5.4 |
 
 ---
 
@@ -370,3 +421,5 @@ Cada sub-projecte genera:
 | 27 Abr 2026 | **Documentació de codebase completa**: 8 documents creats (`docs/codebase/`): ARCHITECTURE, STACK, TESTING, CONCERNS, CONVENTIONS, STRUCTURE, INTEGRATIONS. JSDoc inline restaurat. |
 | 7 Mai 2026 | **Documentació actualitzada** amb canvis recents. **P4.4 planificada**: Migració a PostgreSQL Docker local. |
 | 7 Mai 2026 | **P4.4 Arquitectura Docker Multi-entorn completada**: docker-compose.yml (dev), Dockerfile multi-stage API, docker-compose.prod.yml (VPS), DB_SSL env var, seed-seasons script, docs DOCKER_ARCHITECTURE + DOCKER_SETUP. NeonDB eliminat del flux de dev. |
+| 7 Mai 2026 | **Spec P5 aprovada** (`docs/specs/2026-05-07-p5-figures-module-overview-design.md`): Mòdul complet Pinyes amb 5 sub-fases (P5.1→P5.5), model de dades (7 entitats), API (20+ endpoints), arquitectura Konva, UX canvas. Decisió: `konva` API imperativa (sense `ng2-konva`). |
+| 7 Mai 2026 | **P5.1 Templates i Editor Visual completat** (7 tasques): Backend — `FigureTemplate`+`FigureNode` entities, `NodeShape` enum, 6 endpoints CRUD+duplicate, tests unitaris. Frontend — `TemplateListComponent` (llistat amb tabs Figures/Composicions, accions CRUD), `FigureCanvasComponent` (Konva stage: pinya layer + tronc layer togglable, grid, zoom/pan, snap-to-grid, drag, resize, rotate, edició inline etiquetes), `TemplateEditorComponent` (toolbar lateral, panel propietats, auto-save 2s debounce, indicador estat). |

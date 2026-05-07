@@ -9,10 +9,9 @@ import {
 import { LucideAngularModule } from 'lucide-angular';
 import { FigureNodeItem } from '../../models/figure-template.model';
 
-interface FloorPreset {
+interface FloorOption {
   label: string;
   positionType: string;
-  fixedZ: number | null;
 }
 
 interface TroncFloor {
@@ -21,14 +20,37 @@ interface TroncFloor {
   nodes: FigureNodeItem[];
 }
 
-const FLOOR_PRESETS: FloorPreset[] = [
-  { label: 'Baix',     positionType: 'baix',     fixedZ: 0 },
-  { label: 'Segon',    positionType: 'segon',    fixedZ: 1 },
-  { label: 'Terç',     positionType: 'terç',     fixedZ: 2 },
-  { label: 'Quart',    positionType: 'quart',    fixedZ: 3 },
-  { label: 'Alçadora', positionType: 'alcadora', fixedZ: null },
-  { label: 'Xiqueta',  positionType: 'xiqueta',  fixedZ: null },
-];
+const MAX_FLOORS = 6;
+
+// Options available when adding the next sequential floor.
+// P1 (z=0): only Baix. P2–P5: named floor + Alçadora + Xiqueta. P6 (z=5): Alçadora/Xiqueta only.
+const FLOOR_OPTIONS: Record<number, FloorOption[]> = {
+  0: [{ label: 'Baix',     positionType: 'baix' }],
+  1: [
+    { label: 'Segon',    positionType: 'segon' },
+    { label: 'Alçadora', positionType: 'alcadora' },
+    { label: 'Xiqueta',  positionType: 'xiqueta' },
+  ],
+  2: [
+    { label: 'Terç',     positionType: 'terç' },
+    { label: 'Alçadora', positionType: 'alcadora' },
+    { label: 'Xiqueta',  positionType: 'xiqueta' },
+  ],
+  3: [
+    { label: 'Quart',    positionType: 'quart' },
+    { label: 'Alçadora', positionType: 'alcadora' },
+    { label: 'Xiqueta',  positionType: 'xiqueta' },
+  ],
+  4: [
+    { label: 'Quint',    positionType: 'quint' },
+    { label: 'Alçadora', positionType: 'alcadora' },
+    { label: 'Xiqueta',  positionType: 'xiqueta' },
+  ],
+  5: [
+    { label: 'Alçadora', positionType: 'alcadora' },
+    { label: 'Xiqueta',  positionType: 'xiqueta' },
+  ],
+};
 
 @Component({
   selector: 'app-tronc-widget',
@@ -46,15 +68,12 @@ export class TroncWidgetComponent {
   readonly nodeAdded    = output<{ z: number; positionType: string; label: string; sortOrder: number }>();
   readonly nodeRemoved  = output<string>();
   readonly floorRemoved = output<number>();
-  readonly nodeUpdated  = output<{ id: string; patch: Partial<FigureNodeItem> }>();
   readonly nodeSelected = output<string | null>();
 
   readonly expanded  = signal(false);
   readonly viewMode  = signal<'tower' | 'list'>('tower');
   readonly sortAscending = signal(false);
   readonly addMenuOpen = signal(false);
-
-  readonly floorPresets = FLOOR_PRESETS;
 
   readonly floors = computed<TroncFloor[]>(() => {
     const nodes = this.troncNodes();
@@ -94,6 +113,10 @@ export class TroncWidgetComponent {
     return count === 0 ? 'sense pisos' : `${count} ${count === 1 ? 'pis' : 'pisos'}`;
   });
 
+  readonly nextZ = computed(() => this.maxZ() + 1);
+  readonly canAddFloor = computed(() => this.nextZ() < MAX_FLOORS);
+  readonly nextFloorOptions = computed(() => FLOOR_OPTIONS[this.nextZ()] ?? []);
+
   toggle(): void {
     this.expanded.update((v) => !v);
     if (this.expanded()) this.addMenuOpen.set(false);
@@ -120,11 +143,11 @@ export class TroncWidgetComponent {
     this.nodeSelected.emit(id);
   }
 
-  addFloorNode(preset: FloorPreset): void {
-    const z = preset.fixedZ !== null ? preset.fixedZ : this.maxZ() + 1;
+  addFloorNode(option: FloorOption): void {
+    const z = this.nextZ();
     const existingAtZ = this.troncNodes().filter((n) => n.z === z);
     const sortOrder = existingAtZ.length;
-    this.nodeAdded.emit({ z, positionType: preset.positionType, label: preset.label, sortOrder });
+    this.nodeAdded.emit({ z, positionType: option.positionType, label: option.label, sortOrder });
     this.addMenuOpen.set(false);
   }
 
@@ -136,16 +159,17 @@ export class TroncWidgetComponent {
     this.floorRemoved.emit(z);
   }
 
-  toggleClimbPath(node: FigureNodeItem, marker: string): void {
-    const current = node.climbPath;
-    const next = current === marker ? null : marker;
-    this.nodeUpdated.emit({ id: node.id, patch: { climbPath: next } });
+  addNodeToFloor(floor: TroncFloor): void {
+    const ref = floor.nodes[0];
+    const positionType = ref?.positionType ?? 'segon';
+    const label = ref?.label ?? 'Pos';
+    this.nodeAdded.emit({ z: floor.z, positionType, label, sortOrder: floor.nodes.length });
   }
 
-  climbPathMarker(positionType: string | null): string | null {
-    if (positionType === 'alcadora') return '(A)';
-    if (positionType === 'xiqueta') return '(X)';
-    return null;
+  removeLastNodeFromFloor(floor: TroncFloor): void {
+    if (floor.nodes.length === 0) return;
+    const last = floor.nodes[floor.nodes.length - 1];
+    this.nodeRemoved.emit(last.id);
   }
 
   isSelected(id: string): boolean {

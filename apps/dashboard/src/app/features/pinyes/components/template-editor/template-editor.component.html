@@ -190,7 +190,6 @@
         (nodeAdded)="onTroncNodeAdded($event)"
         (nodeRemoved)="onTroncNodeRemoved($event)"
         (floorRemoved)="onTroncFloorRemoved($event)"
-        (nodeUpdated)="onTroncNodeUpdated($event)"
         (nodeSelected)="onNodeSelected($event)"
       />
 
@@ -266,45 +265,49 @@
               />
             </div>
 
-            <!-- Zone -->
-            <div class="form-control mb-3">
-              <label class="label pb-1" [for]="'node-zone-' + node.id">
-                <span class="label-text text-xs font-medium">Zona</span>
-              </label>
-              <select
-                [id]="'node-zone-' + node.id"
-                class="select select-bordered select-sm"
-                [ngModel]="node.zone"
-                (ngModelChange)="updateSelectedNodeProp('zone', $event)"
-              >
-                <option [value]="FigureZone.PINYA">Pinya</option>
-                <option [value]="FigureZone.TRONC">Tronc</option>
-                <option [value]="FigureZone.FIGURE_DIRECTION">Direcció Figura</option>
-                <option [value]="FigureZone.XICALLA_DIRECTION">Direcció Xicalla</option>
-              </select>
-              @if (node.zone === FigureZone.PINYA) {
-                <div class="label pt-1">
-                  <span class="label-text-alt text-base-content/50">
-                    Els nodes de pinya sempre tenen pis = 0
-                  </span>
-                </div>
-              }
-            </div>
+            <!-- Zone: only editable for non-TRONC nodes -->
+            @if (node.zone !== FigureZone.TRONC) {
+              <div class="form-control mb-3">
+                <label class="label pb-1" [for]="'node-zone-' + node.id">
+                  <span class="label-text text-xs font-medium">Zona</span>
+                </label>
+                <select
+                  [id]="'node-zone-' + node.id"
+                  class="select select-bordered select-sm"
+                  [ngModel]="node.zone"
+                  (ngModelChange)="updateSelectedNodeProp('zone', $event)"
+                >
+                  <option [value]="FigureZone.PINYA">Pinya</option>
+                  <option [value]="FigureZone.TRONC">Tronc</option>
+                  <option [value]="FigureZone.FIGURE_DIRECTION">Direcció Figura</option>
+                  <option [value]="FigureZone.XICALLA_DIRECTION">Direcció Xicalla</option>
+                </select>
+                @if (node.zone === FigureZone.PINYA) {
+                  <div class="label pt-1">
+                    <span class="label-text-alt text-base-content/50">
+                      Els nodes de pinya sempre tenen pis = 0
+                    </span>
+                  </div>
+                }
+              </div>
+            }
 
-            <!-- Position type -->
-            <div class="form-control mb-3">
-              <label class="label pb-1" [for]="'node-pos-' + node.id">
-                <span class="label-text text-xs font-medium">Tipus de posició</span>
-              </label>
-              <input
-                type="text"
-                [id]="'node-pos-' + node.id"
-                class="input input-bordered input-sm"
-                placeholder="baix, segon, cross..."
-                [ngModel]="node.positionType"
-                (ngModelChange)="updateSelectedNodeProp('positionType', $event || null)"
-              />
-            </div>
+            <!-- Position type: only editable for non-TRONC nodes (for TRONC it is set by the floor preset) -->
+            @if (node.zone !== FigureZone.TRONC) {
+              <div class="form-control mb-3">
+                <label class="label pb-1" [for]="'node-pos-' + node.id">
+                  <span class="label-text text-xs font-medium">Tipus de posició</span>
+                </label>
+                <input
+                  type="text"
+                  [id]="'node-pos-' + node.id"
+                  class="input input-bordered input-sm"
+                  placeholder="baix, segon, cross..."
+                  [ngModel]="node.positionType"
+                  (ngModelChange)="updateSelectedNodeProp('positionType', $event || null)"
+                />
+              </div>
+            }
 
             @if (node.zone !== FigureZone.TRONC) {
               <!-- Shape (pinya/direction only) -->
@@ -407,8 +410,8 @@
               </div>
             }
 
-            <!-- Floor (z) - Only for non-PINYA zones -->
-            @if (node.zone !== FigureZone.PINYA) {
+            <!-- Floor (z) - Only for non-PINYA and non-TRONC zones (TRONC floor is managed via the widget) -->
+            @if (node.zone !== FigureZone.PINYA && node.zone !== FigureZone.TRONC) {
               <div class="form-control mb-3">
                 <label class="label pb-1" [for]="'node-z-' + node.id">
                   <span class="label-text text-xs font-medium">Pis (z)</span>
@@ -422,59 +425,6 @@
                   min="0" max="20"
                 />
               </div>
-            }
-
-            <!-- TRONC-specific fields -->
-            @if (node.zone === FigureZone.TRONC) {
-              <!-- sortOrder reorder within floor -->
-              <div class="form-control mb-3">
-                <label class="label pb-1">
-                  <span class="label-text text-xs font-medium">Posició dins del pis</span>
-                </label>
-                <div class="flex items-center gap-2">
-                  <button
-                    type="button"
-                    class="btn btn-ghost btn-xs btn-square"
-                    (click)="updateSelectedNodeProp('sortOrder', node.sortOrder - 1)"
-                    [disabled]="node.sortOrder <= 0"
-                    aria-label="Moure a l'esquerra dins del pis"
-                  >
-                    <lucide-icon name="ChevronLeft" [size]="14" aria-hidden="true" />
-                  </button>
-                  <span class="text-xs font-mono flex-1 text-center">{{ node.sortOrder + 1 }}</span>
-                  <button
-                    type="button"
-                    class="btn btn-ghost btn-xs btn-square"
-                    (click)="updateSelectedNodeProp('sortOrder', node.sortOrder + 1)"
-                    aria-label="Moure a la dreta dins del pis"
-                  >
-                    <lucide-icon name="ChevronRight" [size]="14" aria-hidden="true" />
-                  </button>
-                </div>
-              </div>
-
-              <!-- climbPath: only for alcadora/xiqueta -->
-              @if (node.positionType === 'alcadora' || node.positionType === 'xiqueta') {
-                <div class="form-control mb-3">
-                  <label class="label pb-1" [for]="'node-climb-' + node.id">
-                    <span class="label-text text-xs font-medium">Marcador de pujada</span>
-                  </label>
-                  <select
-                    [id]="'node-climb-' + node.id"
-                    class="select select-bordered select-sm"
-                    [ngModel]="node.climbPath"
-                    (ngModelChange)="updateSelectedNodeProp('climbPath', $event || null)"
-                  >
-                    <option [value]="null">Cap</option>
-                    @if (node.positionType === 'alcadora') {
-                      <option value="(A)">(A) Alçadora</option>
-                    }
-                    @if (node.positionType === 'xiqueta') {
-                      <option value="(X)">(X) Xiqueta</option>
-                    }
-                  </select>
-                </div>
-              }
             }
           } @else {
             <div class="flex flex-col items-center justify-center h-full gap-3 text-center px-4">
