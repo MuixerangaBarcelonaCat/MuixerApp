@@ -104,33 +104,6 @@
 
       <div class="divider my-1"></div>
 
-      <!-- Tronc positions -->
-      <div class="toolbar-section">
-        <p class="toolbar-label">Tronc</p>
-        <button
-          type="button"
-          class="toolbar-btn"
-          (click)="addNode(FigureZone.TRONC, 0)"
-          title="Afegir node de Tronc (baix)"
-          aria-label="Afegir node de Tronc"
-        >
-          <span class="node-rect" style="background-color: #8b5cf6" aria-hidden="true"></span>
-          Tronc
-        </button>
-        <button
-          type="button"
-          class="toolbar-btn"
-          (click)="addNode(FigureZone.TRONC, 1)"
-          title="Afegir node de Tronc (primer pis)"
-          aria-label="Afegir node de Tronc pis 1"
-        >
-          <span class="node-rect" style="background-color: #a78bfa" aria-hidden="true"></span>
-          Pis 1
-        </button>
-      </div>
-
-      <div class="divider my-1"></div>
-
       <!-- Direction markers -->
       <div class="toolbar-section">
         <p class="toolbar-label">Direccions</p>
@@ -193,19 +166,6 @@
         <button
           type="button"
           class="toolbar-btn"
-          [class.active]="troncVisible()"
-          (click)="toggleTronc()"
-          title="Mostrar / Ocultar vista Tronc"
-          aria-label="Mostrar / Ocultar vista Tronc"
-          [attr.aria-pressed]="troncVisible()"
-        >
-          <lucide-icon name="AlignJustify" [size]="14" aria-hidden="true" />
-          Tronc
-        </button>
-
-        <button
-          type="button"
-          class="toolbar-btn"
           [class.active]="snapToGrid()"
           (click)="toggleSnapToGrid()"
           title="Encaixar a la quadrícula"
@@ -220,15 +180,29 @@
 
     <!-- Canvas Area -->
     <main class="editor-canvas" aria-label="Editor visual de la figura">
+
+      <!-- Tronc widget (floating, top-left of canvas) -->
+      <app-tronc-widget
+        class="tronc-widget-overlay"
+        [troncNodes]="troncNodes()"
+        [mode]="'editor'"
+        [selectedNodeId]="selectedNodeId()"
+        (nodeAdded)="onTroncNodeAdded($event)"
+        (nodeRemoved)="onTroncNodeRemoved($event)"
+        (floorRemoved)="onTroncFloorRemoved($event)"
+        (nodeUpdated)="onTroncNodeUpdated($event)"
+        (nodeSelected)="onNodeSelected($event)"
+      />
+
       @if (loading()) {
         <div class="flex items-center justify-center h-full">
           <span class="loading loading-spinner loading-lg text-primary" aria-label="Carregant figura..."></span>
         </div>
-      } @else if (nodes().length === 0) {
+      } @else if (pinyaNodes().length === 0) {
         <div class="flex flex-col items-center justify-center h-full gap-4 text-center px-6">
           <lucide-icon name="Shapes" [size]="64" class="text-base-content/20" aria-hidden="true" />
           <div>
-            <h3 class="text-lg font-semibold text-base-content mb-1">No hi ha cap composició</h3>
+            <h3 class="text-lg font-semibold text-base-content mb-1">No hi ha cap node de pinya</h3>
             <p class="text-sm text-base-content/60">
               Afegeix nodes des de la barra d'eines de l'esquerra per començar a dissenyar la figura.
             </p>
@@ -236,11 +210,10 @@
         </div>
       } @else {
         <app-figure-canvas
-          [nodes]="nodes()"
+          [nodes]="pinyaNodes()"
           [mode]="'editor'"
           [gridEnabled]="gridEnabled()"
           [gridSpacing]="40"
-          [troncVisible]="troncVisible()"
           [snapToGrid]="snapToGrid()"
           [selectedNodeId]="selectedNodeId()"
           (nodeSelected)="onNodeSelected($event)"
@@ -333,74 +306,106 @@
               />
             </div>
 
-            <!-- Shape -->
-            <div class="form-control mb-3">
-              <label class="label pb-1" [for]="'node-shape-' + node.id">
-                <span class="label-text text-xs font-medium">Forma</span>
-              </label>
-              <select
-                [id]="'node-shape-' + node.id"
-                class="select select-bordered select-sm"
-                [ngModel]="node.shape"
-                (ngModelChange)="updateSelectedNodeProp('shape', $event)"
-              >
-                <option [value]="NodeShape.ELLIPSE">El·lipse</option>
-                <option [value]="NodeShape.RECTANGLE">Rectangle</option>
-              </select>
-            </div>
+            @if (node.zone !== FigureZone.TRONC) {
+              <!-- Shape (pinya/direction only) -->
+              <div class="form-control mb-3">
+                <label class="label pb-1" [for]="'node-shape-' + node.id">
+                  <span class="label-text text-xs font-medium">Forma</span>
+                </label>
+                <select
+                  [id]="'node-shape-' + node.id"
+                  class="select select-bordered select-sm"
+                  [ngModel]="node.shape"
+                  (ngModelChange)="updateSelectedNodeProp('shape', $event)"
+                >
+                  <option [value]="NodeShape.ELLIPSE">El·lipse</option>
+                  <option [value]="NodeShape.RECTANGLE">Rectangle</option>
+                </select>
+              </div>
 
-            <!-- Dimensions -->
-            <div class="form-control mb-3">
-              <label class="label pb-1">
-                <span class="label-text text-xs font-medium">Dimensions</span>
-              </label>
+              <!-- Dimensions (pinya/direction only) -->
+              <div class="form-control mb-3">
+                <label class="label pb-1">
+                  <span class="label-text text-xs font-medium">Dimensions</span>
+                </label>
+                <div class="grid grid-cols-2 gap-2">
+                  <div class="form-control">
+                    <label class="label pb-1" [for]="'node-w-' + node.id">
+                      <span class="label-text text-xs font-medium">Amplada (px)</span>
+                    </label>
+                    <input
+                      type="number"
+                      [id]="'node-w-' + node.id"
+                      class="input input-bordered input-sm font-mono"
+                      [ngModel]="node.width"
+                      (ngModelChange)="updateSelectedNodeProp('width', +$event)"
+                      min="10" max="500"
+                    />
+                  </div>
+                  <div class="form-control">
+                    <label class="label pb-1" [for]="'node-h-' + node.id">
+                      <span class="label-text text-xs font-medium">Alçada (px)</span>
+                    </label>
+                    <input
+                      type="number"
+                      [id]="'node-h-' + node.id"
+                      class="input input-bordered input-sm font-mono"
+                      [ngModel]="node.height"
+                      (ngModelChange)="updateSelectedNodeProp('height', +$event)"
+                      min="10" max="500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Rotation (pinya/direction only) -->
+              <div class="form-control mb-3">
+                <label class="label pb-1" [for]="'node-rot-' + node.id">
+                  <span class="label-text text-xs font-medium">Rotació (°)</span>
+                </label>
+                <div class="flex items-center gap-2">
+                  <input
+                    type="range"
+                    [id]="'node-rot-' + node.id"
+                    class="range range-xs flex-1"
+                    min="0" max="360" step="15"
+                    [ngModel]="node.rotation"
+                    (ngModelChange)="updateSelectedNodeProp('rotation', +$event)"
+                  />
+                  <span class="text-xs font-mono w-8 text-right">{{ node.rotation }}°</span>
+                </div>
+              </div>
+
+              <div class="divider mt-2 mb-2"></div>
+
+              <!-- Position in canvas (pinya/direction only) -->
               <div class="grid grid-cols-2 gap-2">
                 <div class="form-control">
-                  <label class="label pb-1" [for]="'node-w-' + node.id">
-                    <span class="label-text text-xs font-medium">Amplada (px)</span>
+                  <label class="label pb-1" [for]="'node-x-' + node.id">
+                    <span class="label-text text-xs font-medium">X</span>
                   </label>
                   <input
                     type="number"
-                    [id]="'node-w-' + node.id"
+                    [id]="'node-x-' + node.id"
                     class="input input-bordered input-sm font-mono"
-                    [ngModel]="node.width"
-                    (ngModelChange)="updateSelectedNodeProp('width', +$event)"
-                    min="10" max="500"
+                    [ngModel]="node.x"
+                    (ngModelChange)="updateSelectedNodeProp('x', +$event)"
                   />
                 </div>
                 <div class="form-control">
-                  <label class="label pb-1" [for]="'node-h-' + node.id">
-                    <span class="label-text text-xs font-medium">Alçada (px)</span>
+                  <label class="label pb-1" [for]="'node-y-' + node.id">
+                    <span class="label-text text-xs font-medium">Y</span>
                   </label>
                   <input
                     type="number"
-                    [id]="'node-h-' + node.id"
+                    [id]="'node-y-' + node.id"
                     class="input input-bordered input-sm font-mono"
-                    [ngModel]="node.height"
-                    (ngModelChange)="updateSelectedNodeProp('height', +$event)"
-                    min="10" max="500"
+                    [ngModel]="node.y"
+                    (ngModelChange)="updateSelectedNodeProp('y', +$event)"
                   />
                 </div>
               </div>
-            </div>
-
-            <!-- Rotation -->
-            <div class="form-control mb-3">
-              <label class="label pb-1" [for]="'node-rot-' + node.id">
-                <span class="label-text text-xs font-medium">Rotació (°)</span>
-              </label>
-              <div class="flex items-center gap-2">
-                <input
-                  type="range"
-                  [id]="'node-rot-' + node.id"
-                  class="range range-xs flex-1"
-                  min="0" max="360" step="15"
-                  [ngModel]="node.rotation"
-                  (ngModelChange)="updateSelectedNodeProp('rotation', +$event)"
-                />
-                <span class="text-xs font-mono w-8 text-right">{{ node.rotation }}°</span>
-              </div>
-            </div>
+            }
 
             <!-- Floor (z) - Only for non-PINYA zones -->
             @if (node.zone !== FigureZone.PINYA) {
@@ -419,35 +424,58 @@
               </div>
             }
 
-            <div class="divider mt-2 mb-2"></div>
+            <!-- TRONC-specific fields -->
+            @if (node.zone === FigureZone.TRONC) {
+              <!-- sortOrder reorder within floor -->
+              <div class="form-control mb-3">
+                <label class="label pb-1">
+                  <span class="label-text text-xs font-medium">Posició dins del pis</span>
+                </label>
+                <div class="flex items-center gap-2">
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-xs btn-square"
+                    (click)="updateSelectedNodeProp('sortOrder', node.sortOrder - 1)"
+                    [disabled]="node.sortOrder <= 0"
+                    aria-label="Moure a l'esquerra dins del pis"
+                  >
+                    <lucide-icon name="ChevronLeft" [size]="14" aria-hidden="true" />
+                  </button>
+                  <span class="text-xs font-mono flex-1 text-center">{{ node.sortOrder + 1 }}</span>
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-xs btn-square"
+                    (click)="updateSelectedNodeProp('sortOrder', node.sortOrder + 1)"
+                    aria-label="Moure a la dreta dins del pis"
+                  >
+                    <lucide-icon name="ChevronRight" [size]="14" aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
 
-            <!-- Position in canvas -->
-            <div class="grid grid-cols-2 gap-2">
-              <div class="form-control">
-                <label class="label pb-1" [for]="'node-x-' + node.id">
-                  <span class="label-text text-xs font-medium">X</span>
-                </label>
-                <input
-                  type="number"
-                  [id]="'node-x-' + node.id"
-                  class="input input-bordered input-sm font-mono"
-                  [ngModel]="node.x"
-                  (ngModelChange)="updateSelectedNodeProp('x', +$event)"
-                />
-              </div>
-              <div class="form-control">
-                <label class="label pb-1" [for]="'node-y-' + node.id">
-                  <span class="label-text text-xs font-medium">Y</span>
-                </label>
-                <input
-                  type="number"
-                  [id]="'node-y-' + node.id"
-                  class="input input-bordered input-sm font-mono"
-                  [ngModel]="node.y"
-                  (ngModelChange)="updateSelectedNodeProp('y', +$event)"
-                />
-              </div>
-            </div>
+              <!-- climbPath: only for alcadora/xiqueta -->
+              @if (node.positionType === 'alcadora' || node.positionType === 'xiqueta') {
+                <div class="form-control mb-3">
+                  <label class="label pb-1" [for]="'node-climb-' + node.id">
+                    <span class="label-text text-xs font-medium">Marcador de pujada</span>
+                  </label>
+                  <select
+                    [id]="'node-climb-' + node.id"
+                    class="select select-bordered select-sm"
+                    [ngModel]="node.climbPath"
+                    (ngModelChange)="updateSelectedNodeProp('climbPath', $event || null)"
+                  >
+                    <option [value]="null">Cap</option>
+                    @if (node.positionType === 'alcadora') {
+                      <option value="(A)">(A) Alçadora</option>
+                    }
+                    @if (node.positionType === 'xiqueta') {
+                      <option value="(X)">(X) Xiqueta</option>
+                    }
+                  </select>
+                </div>
+              }
+            }
           } @else {
             <div class="flex flex-col items-center justify-center h-full gap-3 text-center px-4">
               <lucide-icon name="MousePointer2" [size]="32" class="text-base-content/20" aria-hidden="true" />

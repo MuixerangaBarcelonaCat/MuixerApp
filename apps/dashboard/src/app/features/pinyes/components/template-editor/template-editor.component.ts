@@ -14,6 +14,7 @@ import { LucideAngularModule } from 'lucide-angular';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { CanvasStateService } from '../../services/canvas-state.service';
 import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component';
+import { TroncWidgetComponent } from '../tronc-widget/tronc-widget.component';
 import {
   FigureTemplateDetail,
   FigureNodeItem,
@@ -50,7 +51,7 @@ const PINYA_POSITIONS: PinyaPosition[] = [
   selector: 'app-template-editor',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule, FigureCanvasComponent],
+  imports: [FormsModule, LucideAngularModule, FigureCanvasComponent, TroncWidgetComponent],
   templateUrl: './template-editor.component.html',
   styleUrl: './template-editor.component.scss',
 })
@@ -84,13 +85,20 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   // Expose canvas state signals for template binding
   readonly gridEnabled = this.canvasState.gridEnabled;
-  readonly troncVisible = this.canvasState.troncVisible;
   readonly snapToGrid = this.canvasState.snapToGrid;
 
   // Enums for template
   readonly FigureZone = FigureZone;
   readonly NodeShape = NodeShape;
   readonly pinyaPositions = PINYA_POSITIONS;
+
+  readonly pinyaNodes = computed(() =>
+    this.nodes().filter((n) => n.zone !== FigureZone.TRONC),
+  );
+
+  readonly troncNodes = computed(() =>
+    this.nodes().filter((n) => n.zone === FigureZone.TRONC),
+  );
 
   readonly selectedNode = computed(() => {
     const id = this.selectedNodeId();
@@ -148,6 +156,49 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   onNodeLabelChanged(event: { id: string; label: string }): void {
     this.updateNode(event.id, { label: event.label });
+    this.scheduleAutosave();
+  }
+
+  // ── Tronc widget events ────────────────────────────────────────────────────
+
+  onTroncNodeAdded(event: { z: number; positionType: string; label: string; sortOrder: number }): void {
+    const id = crypto.randomUUID();
+    const newNode: FigureNodeItem = {
+      id,
+      label: event.label,
+      zone: FigureZone.TRONC,
+      positionType: event.positionType,
+      x: 0,
+      y: 0,
+      z: event.z,
+      width: 60,
+      height: 40,
+      rotation: 0,
+      color: null,
+      shape: NodeShape.RECTANGLE,
+      sortOrder: event.sortOrder,
+      climbPath: null,
+      metadata: {},
+    };
+    this.nodes.update((n) => [...n, newNode]);
+    this.selectedNodeId.set(id);
+    this.scheduleAutosave();
+  }
+
+  onTroncNodeRemoved(id: string): void {
+    this.nodes.update((n) => n.filter((node) => node.id !== id));
+    if (this.selectedNodeId() === id) this.selectedNodeId.set(null);
+    this.scheduleAutosave();
+  }
+
+  onTroncFloorRemoved(z: number): void {
+    this.nodes.update((n) => n.filter((node) => !(node.zone === FigureZone.TRONC && node.z === z)));
+    this.selectedNodeId.set(null);
+    this.scheduleAutosave();
+  }
+
+  onTroncNodeUpdated(event: { id: string; patch: Partial<FigureNodeItem> }): void {
+    this.updateNode(event.id, event.patch);
     this.scheduleAutosave();
   }
 
@@ -325,10 +376,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   toggleGrid(): void {
     this.canvasState.gridEnabled.update((v) => !v);
-  }
-
-  toggleTronc(): void {
-    this.canvasState.troncVisible.update((v) => !v);
   }
 
   toggleSnapToGrid(): void {

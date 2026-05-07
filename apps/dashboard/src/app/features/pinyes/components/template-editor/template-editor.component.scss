@@ -114,6 +114,13 @@
   position: relative;
 }
 
+.tronc-widget-overlay {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 10;
+}
+
 // ── Right panel ───────────────────────────────────────────────────────────
 .editor-panel {
   width: 40px;

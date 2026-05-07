@@ -176,6 +176,13 @@ function buildNodes(): NodePayload[] {
 // Figure payload
 // ---------------------------------------------------------------------------
 
+const TRONC_NODES: NodePayload[] = [
+  { label: 'Baix',  zone: 'TRONC', positionType: 'baix',  x: 0, y: 0, z: 0, width: 60, height: 40, rotation: 0, color: '#EEEEEE', shape: 'RECTANGLE', sortOrder: 0, climbPath: null, metadata: {} },
+  { label: 'Segon', zone: 'TRONC', positionType: 'segon', x: 0, y: 0, z: 1, width: 60, height: 40, rotation: 0, color: '#EEEEEE', shape: 'RECTANGLE', sortOrder: 0, climbPath: null, metadata: {} },
+  { label: 'Terç',  zone: 'TRONC', positionType: 'terç',  x: 0, y: 0, z: 2, width: 60, height: 40, rotation: 0, color: '#EEEEEE', shape: 'RECTANGLE', sortOrder: 0, climbPath: null, metadata: {} },
+  { label: 'Quart', zone: 'TRONC', positionType: 'quart', x: 0, y: 0, z: 3, width: 60, height: 40, rotation: 0, color: '#EEEEEE', shape: 'RECTANGLE', sortOrder: 0, climbPath: null, metadata: {} },
+];
+
 const payload = {
   name:        'Pilar de 4',
   slug:        'pd4',
@@ -183,7 +190,7 @@ const payload = {
   hasPinya:    true,
   direction:   180,
   metadata:    {} as Record<string, unknown>,
-  nodes:       buildNodes(),
+  nodes:       [...buildNodes(), ...TRONC_NODES],
 };
 
 // ---------------------------------------------------------------------------

@@ -44,7 +44,6 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   readonly mode = input<CanvasMode>('editor');
   readonly gridEnabled = input<boolean>(true);
   readonly gridSpacing = input<number>(40);
-  readonly troncVisible = input<boolean>(true);
   readonly selectedNodeId = input<string | null>(null);
   readonly snapToGrid = input<boolean>(false);
 
@@ -58,7 +57,6 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   private stage!: Konva.Stage;
   private gridLayer!: Konva.Layer;
   private pinyaLayer!: Konva.Layer;
-  private troncLayer!: Konva.Layer;
   private transformer!: Konva.Transformer;
 
   private resizeObserver: ResizeObserver | null = null;
@@ -76,7 +74,6 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     effect(() => {
       this.nodes();
       this.selectedNodeId();
-      this.troncVisible();
       this.mode();
       if (!this.stage) return;
       untracked(() => {
@@ -138,7 +135,6 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
     this.gridLayer = new Konva.Layer({ listening: false });
     this.pinyaLayer = new Konva.Layer();
-    this.troncLayer = new Konva.Layer();
 
     // Transformer for resizing nodes
     this.transformer = new Konva.Transformer({
@@ -154,7 +150,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     });
     this.pinyaLayer.add(this.transformer);
 
-    this.stage.add(this.gridLayer, this.pinyaLayer, this.troncLayer);
+    this.stage.add(this.gridLayer, this.pinyaLayer);
 
     this.setupStageInteraction();
   }
@@ -302,47 +298,19 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.transformer.remove();
 
     this.pinyaLayer.destroyChildren();
-    this.troncLayer.destroyChildren();
 
-    const allNodes = this.nodes();
     const isEditor = this.mode() === 'editor';
     const selectedId = this.selectedNodeId();
 
-    for (const node of allNodes) {
-      const isPinyaZone = node.zone === FigureZone.PINYA;
-      const isTroncZone = node.zone === FigureZone.TRONC;
-      const isBaix = isTroncZone && node.z === 0;
-
-      // Baixos (z=0 TRONC) appear in both layers
-      const targets: Konva.Layer[] = [];
-      if (isPinyaZone || isBaix) targets.push(this.pinyaLayer);
-      if (isTroncZone && this.troncVisible()) targets.push(this.troncLayer);
-
-      for (const layer of targets) {
-        const group = this.buildNodeGroup(node, isEditor, selectedId === node.id);
-        layer.add(group);
-      }
-    }
-
-    // Tronc layer separator line
-    if (this.troncVisible()) {
-      const separatorX = this.stage.width() * 0.65;
-      this.troncLayer.add(
-        new Konva.Line({
-          points: [separatorX, 0, separatorX, this.stage.height()],
-          stroke: '#d1d5db',
-          strokeWidth: 1,
-          dash: [6, 4],
-          listening: false,
-        }),
-      );
+    for (const node of this.nodes()) {
+      const group = this.buildNodeGroup(node, isEditor, selectedId === node.id);
+      this.pinyaLayer.add(group);
     }
 
     // Re-add transformer to pinyaLayer
     this.pinyaLayer.add(this.transformer);
 
     this.pinyaLayer.batchDraw();
-    this.troncLayer.batchDraw();
   }
 
   private buildNodeGroup(
