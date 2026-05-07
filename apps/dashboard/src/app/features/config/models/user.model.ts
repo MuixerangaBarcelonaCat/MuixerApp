@@ -28,8 +28,9 @@ export type UserSortOrder = 'ASC' | 'DESC';
 
 export interface UserFilterParams {
   search?: string;
-  role?: UserRole;
+  role?: UserRole[];
   isActive?: boolean;
+  hasCredentials?: boolean;
   page?: number;
   limit?: number;
   sortBy?: string;

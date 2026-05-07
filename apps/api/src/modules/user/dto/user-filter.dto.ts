@@ -17,10 +17,19 @@ import {
 } from '../constants/user-sort.constants';
 
 export class UserFilterDto {
-  @ApiPropertyOptional({ description: 'Filtrar per rol', enum: UserRole })
+  @ApiPropertyOptional({
+    description: 'Filtrar per rols (multiselect)',
+    enum: UserRole,
+    isArray: true,
+  })
   @IsOptional()
-  @IsEnum(UserRole)
-  role?: UserRole;
+  @IsEnum(UserRole, { each: true })
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') return [value];
+    return value;
+  })
+  role?: UserRole[];
 
   @ApiPropertyOptional({ description: 'Filtrar per estat actiu' })
   @IsOptional()
@@ -31,6 +40,18 @@ export class UserFilterDto {
     return value;
   })
   isActive?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Filtrar per usuaris amb credencials (poden fer login)',
+  })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
+  hasCredentials?: boolean;
 
   @ApiPropertyOptional({ description: 'Cerca per email, nom o alias' })
   @IsOptional()

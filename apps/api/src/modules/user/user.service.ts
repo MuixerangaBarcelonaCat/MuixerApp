@@ -53,6 +53,7 @@ export class UserService {
     const {
       role,
       isActive,
+      hasCredentials,
       search,
       sortBy,
       sortOrder = 'ASC',
@@ -64,12 +65,20 @@ export class UserService {
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.person', 'person');
 
-    if (role) {
-      qb.andWhere('user.role = :role', { role });
+    if (role && role.length > 0) {
+      qb.andWhere('user.role IN (:...role)', { role });
     }
 
     if (isActive !== undefined) {
       qb.andWhere('user.isActive = :isActive', { isActive });
+    }
+
+    if (hasCredentials !== undefined) {
+      if (hasCredentials) {
+        qb.andWhere('user.passwordHash IS NOT NULL');
+      } else {
+        qb.andWhere('user.passwordHash IS NULL');
+      }
     }
 
     if (search) {

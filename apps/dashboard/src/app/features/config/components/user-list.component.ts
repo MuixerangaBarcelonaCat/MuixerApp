@@ -90,7 +90,11 @@ export class UserListComponent {
   searchInput = '';
 
   search = signal('');
-  activeFilters = signal<Partial<UserFilterParams>>({});
+  activeFilters = signal<Partial<UserFilterParams>>({
+    role: [UserRole.ADMIN, UserRole.TECHNICAL],
+    isActive: true,
+    hasCredentials: true,
+  });
   page = signal(1);
   limit = signal(25);
 
@@ -112,9 +116,10 @@ export class UserListComponent {
 
   hasFilterChips = computed(() => {
     const s = this.search().trim();
-    const role = this.activeFilters().role;
+    const roles = this.activeFilters().role;
     const isActive = this.activeFilters().isActive === true;
-    return Boolean(s || role || isActive);
+    const hasCredentials = this.activeFilters().hasCredentials === true;
+    return Boolean(s || (roles && roles.length > 0) || isActive || hasCredentials);
   });
 
   private searchTimeout: ReturnType<typeof setTimeout> | undefined;
@@ -134,14 +139,26 @@ export class UserListComponent {
 
   toggleRoleFilter(role: UserRole) {
     const current = this.activeFilters();
-    if (current.role === role) {
-      const { role: _r, ...rest } = current;
-      this.activeFilters.set(rest);
+    const currentRoles = current.role || [];
+    
+    if (currentRoles.includes(role)) {
+      const newRoles = currentRoles.filter((r) => r !== role);
+      if (newRoles.length === 0) {
+        const { role: _r, ...rest } = current;
+        this.activeFilters.set(rest);
+      } else {
+        this.activeFilters.set({ ...current, role: newRoles });
+      }
     } else {
-      this.activeFilters.set({ ...current, role });
+      this.activeFilters.set({ ...current, role: [...currentRoles, role] });
     }
     this.page.set(1);
     this.loadUsers();
+  }
+
+  isRoleSelected(role: UserRole): boolean {
+    const roles = this.activeFilters().role || [];
+    return roles.includes(role);
   }
 
   toggleActiusFilter() {
@@ -151,6 +168,18 @@ export class UserListComponent {
       this.activeFilters.set(rest);
     } else {
       this.activeFilters.set({ ...current, isActive: true });
+    }
+    this.page.set(1);
+    this.loadUsers();
+  }
+
+  toggleHasCredentialsFilter() {
+    const current = this.activeFilters();
+    if (current.hasCredentials === true) {
+      const { hasCredentials: _h, ...rest } = current;
+      this.activeFilters.set(rest);
+    } else {
+      this.activeFilters.set({ ...current, hasCredentials: true });
     }
     this.page.set(1);
     this.loadUsers();
@@ -180,6 +209,13 @@ export class UserListComponent {
 
   clearActiusChip() {
     const { isActive: _a, ...rest } = this.activeFilters();
+    this.activeFilters.set(rest);
+    this.page.set(1);
+    this.loadUsers();
+  }
+
+  clearHasCredentialsChip() {
+    const { hasCredentials: _h, ...rest } = this.activeFilters();
     this.activeFilters.set(rest);
     this.page.set(1);
     this.loadUsers();
@@ -316,10 +352,15 @@ export class UserListComponent {
     const chips: ActiveFilter[] = [];
     if (this.search().trim())
       chips.push({ key: 'search', label: `Cerca: "${this.search()}"` });
-    const role = this.activeFilters().role;
-    if (role) chips.push({ key: 'role', label: `Rol: ${ROLE_LABELS[role]}` });
+    const roles = this.activeFilters().role;
+    if (roles && roles.length > 0) {
+      const roleLabels = roles.map((r) => ROLE_LABELS[r]).join(', ');
+      chips.push({ key: 'role', label: `Rol: ${roleLabels}` });
+    }
     if (this.activeFilters().isActive === true)
       chips.push({ key: 'isActive', label: 'Sols actius' });
+    if (this.activeFilters().hasCredentials === true)
+      chips.push({ key: 'hasCredentials', label: 'Amb accés' });
     return chips;
   });
 
@@ -327,6 +368,7 @@ export class UserListComponent {
     if (key === 'search') this.clearSearchChip();
     else if (key === 'role') this.clearRoleChip();
     else if (key === 'isActive') this.clearActiusChip();
+    else if (key === 'hasCredentials') this.clearHasCredentialsChip();
   }
 
   private loadUsers() {
