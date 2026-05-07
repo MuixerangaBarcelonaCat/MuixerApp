@@ -5,11 +5,11 @@ import {
   ViewChild,
   AfterViewInit,
   OnDestroy,
-  OnChanges,
-  SimpleChanges,
+  effect,
   input,
   output,
   signal,
+  untracked,
 } from '@angular/core';
 import Konva from 'konva';
 import { FigureNodeItem } from '../../models/figure-template.model';
@@ -35,7 +35,7 @@ const NORMAL_STROKE = '#1e1b4b';
   templateUrl: './figure-canvas.component.html',
   styleUrl: './figure-canvas.component.scss',
 })
-export class FigureCanvasComponent implements AfterViewInit, OnDestroy, OnChanges {
+export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   @ViewChild('canvasContainer') containerRef!: ElementRef<HTMLDivElement>;
 
   readonly nodes = input<FigureNodeItem[]>([]);
@@ -44,19 +44,44 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy, OnChange
   readonly gridSpacing = input<number>(40);
   readonly troncVisible = input<boolean>(true);
   readonly selectedNodeId = input<string | null>(null);
+  readonly snapToGrid = input<boolean>(false);
 
   readonly nodeSelected = output<string | null>();
   readonly nodeMoved = output<{ id: string; x: number; y: number }>();
   readonly nodeRotated = output<{ id: string; rotation: number }>();
+  readonly nodeResized = output<{ id: string; width: number; height: number }>();
+  readonly zoomChanged = output<number>();
 
   private stage!: Konva.Stage;
   private gridLayer!: Konva.Layer;
   private pinyaLayer!: Konva.Layer;
   private troncLayer!: Konva.Layer;
+  private transformer!: Konva.Transformer;
 
   private resizeObserver: ResizeObserver | null = null;
 
   readonly zoomLevel = signal(1);
+
+  constructor() {
+    effect(() => {
+      this.gridEnabled();
+      this.gridSpacing();
+      if (!this.stage) return;
+      untracked(() => this.renderGrid());
+    });
+
+    effect(() => {
+      this.nodes();
+      this.selectedNodeId();
+      this.troncVisible();
+      this.mode();
+      if (!this.stage) return;
+      untracked(() => {
+        this.renderNodes();
+        this.updateTransformer();
+      });
+    });
+  }
 
   ngAfterViewInit(): void {
     this.initStage();
@@ -66,17 +91,6 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy, OnChange
       this.resizeStage();
     });
     this.resizeObserver.observe(this.containerRef.nativeElement);
-  }
-
-  ngOnChanges(changes: SimpleChanges): void {
-    if (!this.stage) return;
-
-    if (changes['gridEnabled'] || changes['gridSpacing']) {
-      this.renderGrid();
-    }
-    if (changes['nodes'] || changes['selectedNodeId'] || changes['troncVisible']) {
-      this.renderNodes();
-    }
   }
 
   ngOnDestroy(): void {
@@ -91,6 +105,27 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy, OnChange
     this.stage.batchDraw();
   }
 
+  setZoom(level: number): void {
+    const center = {
+      x: this.stage.width() / 2,
+      y: this.stage.height() / 2,
+    };
+    const oldScale = this.stage.scaleX();
+    const mousePointTo = {
+      x: (center.x - this.stage.x()) / oldScale,
+      y: (center.y - this.stage.y()) / oldScale,
+    };
+
+    this.stage.scale({ x: level, y: level });
+    this.stage.position({
+      x: center.x - mousePointTo.x * level,
+      y: center.y - mousePointTo.y * level,
+    });
+
+    this.zoomLevel.set(level);
+    this.stage.batchDraw();
+  }
+
   private initStage(): void {
     const container = this.containerRef.nativeElement;
     const width = container.clientWidth || 800;
@@ -102,50 +137,45 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy, OnChange
     this.pinyaLayer = new Konva.Layer();
     this.troncLayer = new Konva.Layer();
 
+    // Transformer for resizing nodes
+    this.transformer = new Konva.Transformer({
+      keepRatio: false,
+      enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
+      boundBoxFunc: (oldBox, newBox) => {
+        // Limit minimum size
+        if (Math.abs(newBox.width) < 20 || Math.abs(newBox.height) < 20) {
+          return oldBox;
+        }
+        return newBox;
+      },
+    });
+    this.pinyaLayer.add(this.transformer);
+
     this.stage.add(this.gridLayer, this.pinyaLayer, this.troncLayer);
 
     this.setupStageInteraction();
   }
 
   private setupStageInteraction(): void {
-    // Zoom with wheel
-    this.stage.on('wheel', (e) => {
-      e.evt.preventDefault();
-      const scaleBy = 1.08;
-      const pointer = this.stage.getPointerPosition();
-      if (!pointer) return;
-
-      const oldScale = this.stage.scaleX();
-      const newScale = e.evt.deltaY < 0 ? oldScale * scaleBy : oldScale / scaleBy;
-      const clampedScale = Math.max(0.2, Math.min(6, newScale));
-
-      const mousePointTo = {
-        x: (pointer.x - this.stage.x()) / oldScale,
-        y: (pointer.y - this.stage.y()) / oldScale,
-      };
-
-      this.stage.scale({ x: clampedScale, y: clampedScale });
-      this.stage.position({
-        x: pointer.x - mousePointTo.x * clampedScale,
-        y: pointer.y - mousePointTo.y * clampedScale,
-      });
-
-      this.zoomLevel.set(Math.round(clampedScale * 100) / 100);
-      this.stage.batchDraw();
-    });
-
-    // Pan with middle mouse button or space+drag
+    // Pan with middle mouse button or left click when no node selected
     let isPanning = false;
     let panStart = { x: 0, y: 0 };
     let stageStart = { x: 0, y: 0 };
 
     this.stage.on('mousedown', (e) => {
-      if (e.evt.button === 1) {
+      const isMiddleButton = e.evt.button === 1;
+      const isLeftButton = e.evt.button === 0;
+      const clickedOnStage = e.target === this.stage;
+      const noNodeSelected = !this.selectedNodeId();
+
+      // Allow panning with middle button or left button on empty canvas
+      if (isMiddleButton || (isLeftButton && clickedOnStage && noNodeSelected)) {
         isPanning = true;
         const pos = this.stage.getPointerPosition()!;
         panStart = { x: pos.x, y: pos.y };
         stageStart = { x: this.stage.x(), y: this.stage.y() };
         this.stage.container().style.cursor = 'grabbing';
+        e.evt.preventDefault();
       }
     });
 
@@ -166,12 +196,49 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy, OnChange
       }
     });
 
+    // Update cursor on hover
+    this.stage.on('mousemove', (e) => {
+      if (isPanning) return;
+      const clickedOnStage = e.target === this.stage;
+      const noNodeSelected = !this.selectedNodeId();
+      
+      if (clickedOnStage && noNodeSelected && this.mode() === 'editor') {
+        this.stage.container().style.cursor = 'grab';
+      }
+    });
+
+    this.stage.on('mouseleave', () => {
+      if (!isPanning) {
+        this.stage.container().style.cursor = 'default';
+      }
+    });
+
     // Deselect on stage click
     this.stage.on('click', (e) => {
       if (e.target === this.stage) {
         this.nodeSelected.emit(null);
+        this.transformer.nodes([]);
       }
     });
+  }
+
+  private updateTransformer(): void {
+    const selectedId = this.selectedNodeId();
+    const isEditor = this.mode() === 'editor';
+
+    if (!selectedId || !isEditor) {
+      this.transformer.nodes([]);
+      return;
+    }
+
+    const node = this.pinyaLayer.findOne(`#${selectedId}`);
+    if (node) {
+      this.transformer.nodes([node]);
+      this.transformer.moveToTop();
+      this.pinyaLayer.batchDraw();
+    } else {
+      this.transformer.nodes([]);
+    }
   }
 
   private resizeStage(): void {
@@ -227,6 +294,10 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy, OnChange
   }
 
   private renderNodes(): void {
+    // Preserve the transformer: detach before destroying layer children
+    this.transformer.nodes([]);
+    this.transformer.remove();
+
     this.pinyaLayer.destroyChildren();
     this.troncLayer.destroyChildren();
 
@@ -263,6 +334,9 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy, OnChange
         }),
       );
     }
+
+    // Re-add transformer to pinyaLayer
+    this.pinyaLayer.add(this.transformer);
 
     this.pinyaLayer.batchDraw();
     this.troncLayer.batchDraw();
@@ -329,15 +403,51 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy, OnChange
     // Events
     group.on('click tap', () => {
       this.nodeSelected.emit(node.id);
+      if (isEditor) {
+        this.transformer.nodes([group]);
+        this.transformer.moveToTop();
+        this.pinyaLayer.batchDraw();
+      }
     });
 
     if (isEditor) {
+      group.on('dragmove', () => {
+        if (this.snapToGrid()) {
+          const spacing = this.gridSpacing();
+          group.x(this.snapValue(group.x(), spacing));
+          group.y(this.snapValue(group.y(), spacing));
+        }
+      });
+
       group.on('dragend', () => {
         this.nodeMoved.emit({
           id: node.id,
           x: Math.round(group.x()),
           y: Math.round(group.y()),
         });
+      });
+
+      group.on('transformend', () => {
+        const scaleX = group.scaleX();
+        const scaleY = group.scaleY();
+
+        // Reset accumulated scale back to 1 and apply it as real dimensions
+        group.scaleX(1);
+        group.scaleY(1);
+
+        const newWidth = Math.max(20, Math.round(node.width * scaleX));
+        const newHeight = Math.max(20, Math.round(node.height * scaleY));
+
+        if (newWidth !== node.width || newHeight !== node.height) {
+          this.nodeResized.emit({ id: node.id, width: newWidth, height: newHeight });
+        }
+
+        // Capture rotation set by the Transformer's rotate handle
+        const rawRotation = Math.round(group.rotation());
+        const rotation = ((rawRotation % 360) + 360) % 360;
+        if (rotation !== node.rotation) {
+          this.nodeRotated.emit({ id: node.id, rotation });
+        }
       });
 
       group.on('dblclick dbltap', () => {
@@ -359,6 +469,10 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy, OnChange
     }
 
     return group;
+  }
+
+  private snapValue(value: number, spacing: number): number {
+    return Math.round(value / spacing) * spacing;
   }
 
   /** Returns #000 or #fff depending on background luminance */

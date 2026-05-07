@@ -19,6 +19,7 @@ import {
   CreateFigureNodePayload,
 } from '../../models/figure-template.model';
 import { FigureZone, NodeShape } from '@muixer/shared';
+import { LayoutService } from '../../../../core/services/layout.service';
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -38,6 +39,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   private readonly canvasState = inject(CanvasStateService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly layout = inject(LayoutService);
 
   // Template metadata
   templateId = signal<string | null>(null);
@@ -61,6 +63,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   // Expose canvas state signals for template binding
   readonly gridEnabled = this.canvasState.gridEnabled;
   readonly troncVisible = this.canvasState.troncVisible;
+  readonly snapToGrid = this.canvasState.snapToGrid;
 
   // Enums for template
   readonly FigureZone = FigureZone;
@@ -80,6 +83,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   });
 
   ngOnInit(): void {
+    this.layout.requestFullscreen();
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       this.templateId.set(id);
@@ -90,6 +94,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.layout.exitFullscreen();
     if (this.autosaveTimer) clearTimeout(this.autosaveTimer);
   }
 
@@ -110,6 +115,11 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   onNodeRotated(event: { id: string; rotation: number }): void {
     this.updateNode(event.id, { rotation: event.rotation });
+    this.scheduleAutosave();
+  }
+
+  onNodeResized(event: { id: string; width: number; height: number }): void {
+    this.updateNode(event.id, { width: event.width, height: event.height });
     this.scheduleAutosave();
   }
 
@@ -156,7 +166,15 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   ): void {
     const id = this.selectedNodeId();
     if (!id) return;
-    this.updateNode(id, { [key]: value } as Partial<FigureNodeItem>);
+    
+    const patch: Partial<FigureNodeItem> = { [key]: value } as Partial<FigureNodeItem>;
+    
+    // If changing zone to PINYA, automatically set z to 0
+    if (key === 'zone' && value === FigureZone.PINYA) {
+      patch.z = 0;
+    }
+    
+    this.updateNode(id, patch);
     this.scheduleAutosave();
   }
 
@@ -188,6 +206,10 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   toggleTronc(): void {
     this.canvasState.troncVisible.update((v) => !v);
+  }
+
+  toggleSnapToGrid(): void {
+    this.canvasState.snapToGrid.update((v) => !v);
   }
 
   togglePropertiesPanel(): void {

@@ -37,19 +37,7 @@
     </div>
 
     <div class="flex items-center gap-3">
-      <!-- hasPinya toggle -->
-      <label class="flex items-center gap-2 cursor-pointer" title="Té Pinya">
-        <span class="text-xs text-base-content/60">Pinya</span>
-        <input
-          type="checkbox"
-          class="toggle toggle-sm toggle-primary"
-          [checked]="hasPinya()"
-          (change)="onHasPinyaChange($any($event.target).checked)"
-          aria-label="La figura té pinya"
-        />
-      </label>
-
-      <!-- Save status -->
+        <!-- Save status -->
       @if (saveStatus() !== 'idle') {
         <span
           class="text-xs px-2 py-1 rounded-full"
@@ -65,6 +53,18 @@
           {{ saveStatusLabel() }}
         </span>
       }
+
+      <!-- hasPinya toggle -->
+      <label class="flex items-center gap-2 cursor-pointer" title="Té Pinya">
+        <span class="text-xs text-base-content/60">Pinya</span>
+        <input
+          type="checkbox"
+          class="toggle toggle-sm toggle-primary"
+          [checked]="hasPinya()"
+          (change)="onHasPinyaChange($any($event.target).checked)"
+          aria-label="La figura té pinya"
+        />
+      </label>
     </div>
   </header>
 
@@ -178,6 +178,19 @@
           <lucide-icon name="AlignJustify" [size]="14" aria-hidden="true" />
           Tronc
         </button>
+
+        <button
+          type="button"
+          class="toolbar-btn"
+          [class.active]="snapToGrid()"
+          (click)="toggleSnapToGrid()"
+          title="Encaixar a la quadrícula"
+          aria-label="Encaixar a la quadrícula"
+          [attr.aria-pressed]="snapToGrid()"
+        >
+          <lucide-icon name="Magnet" [size]="14" aria-hidden="true" />
+          Encaixar
+        </button>
       </div>
     </aside>
 
@@ -187,6 +200,16 @@
         <div class="flex items-center justify-center h-full">
           <span class="loading loading-spinner loading-lg text-primary" aria-label="Carregant figura..."></span>
         </div>
+      } @else if (nodes().length === 0) {
+        <div class="flex flex-col items-center justify-center h-full gap-4 text-center px-6">
+          <lucide-icon name="Shapes" [size]="64" class="text-base-content/20" aria-hidden="true" />
+          <div>
+            <h3 class="text-lg font-semibold text-base-content mb-1">No hi ha cap composició</h3>
+            <p class="text-sm text-base-content/60">
+              Afegeix nodes des de la barra d'eines de l'esquerra per començar a dissenyar la figura.
+            </p>
+          </div>
+        </div>
       } @else {
         <app-figure-canvas
           [nodes]="nodes()"
@@ -194,10 +217,12 @@
           [gridEnabled]="gridEnabled()"
           [gridSpacing]="40"
           [troncVisible]="troncVisible()"
+          [snapToGrid]="snapToGrid()"
           [selectedNodeId]="selectedNodeId()"
           (nodeSelected)="onNodeSelected($event)"
           (nodeMoved)="onNodeMoved($event)"
           (nodeRotated)="onNodeRotated($event)"
+          (nodeResized)="onNodeResized($event)"
         />
       }
     </main>
@@ -259,6 +284,13 @@
                 <option [value]="FigureZone.FIGURE_DIRECTION">Direcció Figura</option>
                 <option [value]="FigureZone.XICALLA_DIRECTION">Direcció Xicalla</option>
               </select>
+              @if (node.zone === FigureZone.PINYA) {
+                <div class="label pt-1">
+                  <span class="label-text-alt text-base-content/50">
+                    Els nodes de pinya sempre tenen pis = 0
+                  </span>
+                </div>
+              }
             </div>
 
             <!-- Position type -->
@@ -292,33 +324,16 @@
               </select>
             </div>
 
-            <!-- Dimensions -->
-            <div class="grid grid-cols-2 gap-2 mb-3">
-              <div class="form-control">
-                <label class="label pb-1" [for]="'node-w-' + node.id">
-                  <span class="label-text text-xs font-medium">Amplada</span>
-                </label>
-                <input
-                  type="number"
-                  [id]="'node-w-' + node.id"
-                  class="input input-bordered input-sm"
-                  [ngModel]="node.width"
-                  (ngModelChange)="updateSelectedNodeProp('width', +$event)"
-                  min="10" max="300"
-                />
-              </div>
-              <div class="form-control">
-                <label class="label pb-1" [for]="'node-h-' + node.id">
-                  <span class="label-text text-xs font-medium">Alçada</span>
-                </label>
-                <input
-                  type="number"
-                  [id]="'node-h-' + node.id"
-                  class="input input-bordered input-sm"
-                  [ngModel]="node.height"
-                  (ngModelChange)="updateSelectedNodeProp('height', +$event)"
-                  min="10" max="300"
-                />
+            <!-- Dimensions (read-only info) -->
+            <div class="form-control mb-3">
+              <label class="label pb-1">
+                <span class="label-text text-xs font-medium">Dimensions</span>
+              </label>
+              <div class="text-xs text-base-content/60 bg-base-200 rounded px-3 py-2">
+                {{ node.width }}px × {{ node.height }}px
+                <div class="text-[10px] mt-0.5 text-base-content/40">
+                  Estira els cantons al canvas per redimensionar
+                </div>
               </div>
             </div>
 
@@ -340,20 +355,22 @@
               </div>
             </div>
 
-            <!-- Floor (z) -->
-            <div class="form-control mb-3">
-              <label class="label pb-1" [for]="'node-z-' + node.id">
-                <span class="label-text text-xs font-medium">Pis (z)</span>
-              </label>
-              <input
-                type="number"
-                [id]="'node-z-' + node.id"
-                class="input input-bordered input-sm"
-                [ngModel]="node.z"
-                (ngModelChange)="updateSelectedNodeProp('z', +$event)"
-                min="0" max="20"
-              />
-            </div>
+            <!-- Floor (z) - Only for non-PINYA zones -->
+            @if (node.zone !== FigureZone.PINYA) {
+              <div class="form-control mb-3">
+                <label class="label pb-1" [for]="'node-z-' + node.id">
+                  <span class="label-text text-xs font-medium">Pis (z)</span>
+                </label>
+                <input
+                  type="number"
+                  [id]="'node-z-' + node.id"
+                  class="input input-bordered input-sm"
+                  [ngModel]="node.z"
+                  (ngModelChange)="updateSelectedNodeProp('z', +$event)"
+                  min="0" max="20"
+                />
+              </div>
+            }
 
             <!-- Color -->
             <div class="form-control mb-3">

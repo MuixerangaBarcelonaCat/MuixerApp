@@ -2,14 +2,24 @@
   <!-- Canvas container -->
   <div #canvasContainer class="canvas-container" aria-label="Canvas de figura"></div>
 
-  <!-- Zoom indicator -->
-  <div
-    class="zoom-indicator"
-    aria-label="Nivell de zoom"
-    aria-live="polite"
+  <!-- Zoom selector -->
+  <select
+    class="zoom-selector"
+    [value]="zoomLevel()"
+    (change)="setZoom(+$any($event.target).value)"
+    aria-label="Selecciona el nivell de zoom"
   >
-    {{ (zoomLevel() * 100).toFixed(0) }}%
-  </div>
+    <option [value]="0.25">25%</option>
+    <option [value]="0.5">50%</option>
+    <option [value]="0.75">75%</option>
+    <option [value]="1">100%</option>
+    <option [value]="1.25">125%</option>
+    <option [value]="1.5">150%</option>
+    <option [value]="1.75">175%</option>
+    <option [value]="2">200%</option>
+    <option [value]="2.5">250%</option>
+    <option [value]="3">300%</option>
+  </select>
 
   <!-- Fit to screen button -->
   <button

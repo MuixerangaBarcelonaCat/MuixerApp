@@ -20,17 +20,30 @@
   cursor: default;
 }
 
-.zoom-indicator {
+.zoom-selector {
   position: absolute;
   bottom: 8px;
   left: 8px;
-  background: rgba(0, 0, 0, 0.5);
-  color: #fff;
+  background: rgba(255, 255, 255, 0.95);
+  color: #1f2937;
   font-size: 11px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  pointer-events: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
   font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.15s;
+
+  &:hover {
+    background: #fff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  &:focus {
+    border-color: oklch(var(--p));
+    box-shadow: 0 0 0 2px oklch(var(--p) / 0.2);
+  }
 }
 
 .fit-btn {
