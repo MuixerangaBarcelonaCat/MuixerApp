@@ -17,6 +17,7 @@
 | P4.1 | **Auth Layer** — JWT+Passport + refactor User/Person + Dashboard login | ✅ Completat | [`docs/specs/2026-04-07-p4-1-auth-layer-design.md`](docs/specs/2026-04-07-p4-1-auth-layer-design.md) | ✅ | ✅ | Flux complet: login, refresh rotation, guards globals, dashboard login page |
 | P4.2 | Dashboard Web — Events + Assistència manual | ✅ Completat | [`docs/specs/2026-04-12-p4-2-dashboard-events-attendance-design.md`](docs/specs/2026-04-12-p4-2-dashboard-events-attendance-design.md) | ✅ | ✅ | CRUD events + attendance, persones provisionals, optimistic UI |
 | P4.3 | **Dashboard Design Refactor** — Clean slate visual redesign | ✅ Completat | [`docs/specs/2026-04-20-dashboard-design-refactor-design.md`](docs/specs/2026-04-20-dashboard-design-refactor-design.md) | [`dashboard_design_refactor_3f8d1aed`](.cursor/plans/dashboard_design_refactor_3f8d1aed.plan.md) | ✅ | Top nav + tabs, 15+ shared components, Home tab, sync UI, Pinyes/Config placeholders |
+| **P4.4** | **Arquitectura Docker Multi-entorn** | ✅ Completat | [`docs/specs/2026-05-07-p4-4-docker-local-postgres-design.md`](docs/specs/2026-05-07-p4-4-docker-local-postgres-design.md) | ✅ | ✅ | Docker local dev + Dockerfile multi-stage + docker-compose.prod.yml VPS. NeonDB eliminat del flux de dev |
 | P5 | Mòdul Pinyes i Figures | ⚪ Pendent | — | — | — | Canvas, templates reutilitzables, col·laboració tècnics |
 | P6 | PWA Mòbil | ⚪ Pendent | — | — | — | Diferit fins al tall. Estén l'auth de P4.1 als membres |
 | P7 | Informes + Notificacions + Features avançades | ⚪ Pendent | — | — | — | Reports d'assistència, FCM, estadístiques, notícies |
@@ -54,9 +55,9 @@ Decisions clau d'ordre:
 | Backend framework | NestJS | Mar 2026 |
 | Frontend framework | Angular 20+ (standalone, signals) | Mar 2026 |
 | Mòbil | PWA (sense Ionic) | Mar 2026 |
-| Base de dades | PostgreSQL (NeonDB) | Mar 2026 |
+| Base de dades | PostgreSQL (Docker local dev / VPS prod) | Mar 2026 → Mai 2026 (P4.4) |
 | Monorepo | Nx | Mar 2026 |
-| Docker en dev | No (directe local) | Mar 2026 |
+| Docker en dev | Sí — PostgreSQL en contenidor (dev) + docker-compose.prod.yml (VPS) | Mai 2026 (P4.4) |
 | Idioma UI | Català | Mar 2026 |
 | Idioma codi | Anglès | Mar 2026 |
 | Multi-tenant | Sí (futur, rol ADMIN) | Mar 2026 |
@@ -366,3 +367,6 @@ Cada sub-projecte genera:
 | 20 Abr 2026 | **P4.3 Dashboard Design Refactor completat** (7 fases): generateCollaTheme() amb WCAG, sidebar→tabs, 15+ components shared (page-header, data-table, pagination, filter-bar, toast, etc), Home tab amb preview events, refactor complet de person-list/event-list/detail/sync/login, Pinyes + Config placeholders. Reducció ~80% HTML. Build OK en 4.2s. |
 | 24 Abr 2026 | **CI/CD activat**: GitHub Actions amb lint + test + build (affected per PRs, all per push). Coverage enforçat (`--configuration=ci`). |
 | 24 Abr 2026 | **Deute tècnic CONCERNS.md resolt**: temporades dinàmiques (`loadOrCreateSeasons()`), ToastService integrat a event-detail + person-detail, codi mort eliminat (form-field, confirm-dialog, seed), coverage threshold (70%), refresh token cleanup (`@Cron` diari). |
+| 27 Abr 2026 | **Documentació de codebase completa**: 8 documents creats (`docs/codebase/`): ARCHITECTURE, STACK, TESTING, CONCERNS, CONVENTIONS, STRUCTURE, INTEGRATIONS. JSDoc inline restaurat. |
+| 7 Mai 2026 | **Documentació actualitzada** amb canvis recents. **P4.4 planificada**: Migració a PostgreSQL Docker local. |
+| 7 Mai 2026 | **P4.4 Arquitectura Docker Multi-entorn completada**: docker-compose.yml (dev), Dockerfile multi-stage API, docker-compose.prod.yml (VPS), DB_SSL env var, seed-seasons script, docs DOCKER_ARCHITECTURE + DOCKER_SETUP. NeonDB eliminat del flux de dev. |

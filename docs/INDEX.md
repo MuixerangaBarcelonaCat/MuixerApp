@@ -1,6 +1,6 @@
 # MuixerApp — Índex de Documentació
 
-> Última actualització: 24 d'abril de 2026
+> Última actualització: 7 de maig de 2026
 
 ---
 
@@ -28,6 +28,8 @@
 | [CURRENT_STATUS.md](CURRENT_STATUS.md) | **Estat actual complet del projecte** ⭐ |
 | [NEXT_STEPS.md](NEXT_STEPS.md) | Pròxims passos immediats |
 | [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md) | Visió general i fases P0–P7 |
+| **[DOCKER_SETUP.md](DOCKER_SETUP.md)** | Guia pràctica per PostgreSQL en Docker local |
+| **[DOCKER_ARCHITECTURE.md](DOCKER_ARCHITECTURE.md)** | Arquitectura Docker multi-entorn: dev local, VPS prod, backup, escalabilitat |
 
 ---
 
@@ -76,6 +78,7 @@
 | [specs/2026-04-07-p4-1-auth-layer-design.md](specs/2026-04-07-p4-1-auth-layer-design.md) | ✅ Implementat | P4.1 Auth Layer (JWT+Passport, Dashboard login) |
 | [specs/2026-04-12-p4-2-dashboard-events-attendance-design.md](specs/2026-04-12-p4-2-dashboard-events-attendance-design.md) | ✅ Implementat | P4.2 Dashboard Events + Attendance CRUD, persones provisionals |
 | [specs/2026-04-20-dashboard-design-refactor-design.md](specs/2026-04-20-dashboard-design-refactor-design.md) | ✅ Implementat | P4.3 Dashboard Design Refactor (top nav, Inter, Lucide, generateCollaTheme) |
+| **[specs/2026-05-07-p4-4-docker-local-postgres-design.md](specs/2026-05-07-p4-4-docker-local-postgres-design.md)** | ✅ Implementat | P4.4 Arquitectura Docker Multi-entorn (local dev + VPS prod) |
 
 ---
 
@@ -113,5 +116,5 @@
 
 ---
 
-**Última actualització:** 24 d'abril de 2026  
-**Estat del projecte:** 🟢 Actiu — P0 a P4.3 completats + deute tècnic CONCERNS.md resolt
+**Última actualització:** 7 de maig de 2026  
+**Estat del projecte:** 🟢 Actiu — P0 a P4.4 completats, Docker operatiu, **P5 Figures pendent**

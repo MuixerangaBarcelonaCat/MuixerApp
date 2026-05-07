@@ -1,12 +1,12 @@
 # Estat Actual del Projecte MuixerApp
 
-> **Última actualització:** 24 d'abril de 2026
+> **Última actualització:** 7 de maig de 2026
 
 ---
 
 ## 🎯 Resum Executiu
 
-El projecte MuixerApp està en **fase de desenvolupament actiu** amb P0-P3 + P4.1 + P4.2 + P4.3 completats. L'aplicació inclou:
+El projecte MuixerApp està en **fase de desenvolupament actiu** amb P0-P3 + P4.1 + P4.2 + P4.3 + **P4.4** completats i **deute tècnic resolt**. L'aplicació inclou:
 
 - ✅ Backend NestJS amb API REST completa + ordenació server-side
 - ✅ Sistema de sincronització amb legacy API (SSE + Strategy pattern) — Persons + Events + Attendance
@@ -18,8 +18,13 @@ El projecte MuixerApp està en **fase de desenvolupament actiu** amb P0-P3 + P4.
 - ✅ **Dashboard Design Refactor (P4.3)**: top nav tabs, Inter font, Lucide icons, `generateCollaTheme()`, 15+ shared components, Home tab, fullscreen mode per Pinyes
 - ✅ Visualització d'alçada d'espatlles **absoluta i relativa** (+/- 140 cm)
 - ✅ **CI/CD**: GitHub Actions amb lint + test + build (affected per PRs, all per push)
+- ✅ **Documentació de codebase completa**: ARCHITECTURE, STACK, TESTING, CONCERNS, CONVENTIONS, etc.
+- ✅ **Cleanup de codi mort**: seed commands, components no usats, dependències obsoletes
+- ✅ **Gestió de temporades dinàmiques**: `loadOrCreateSeasons()` automàtic
+- ✅ **Refresh token cleanup**: Cron job diari per revocar tokens expirats
 - ✅ Arquitectura de components moderna (signals, standalone, OnPush)
 - ✅ **Tests complets:** 101/101 backend + 22/22 dashboard passing
+- ✅ **Arquitectura Docker multi-entorn (P4.4)**: Docker local dev + Dockerfile multi-stage + docker-compose.prod.yml per VPS
 
 ---
 
@@ -36,7 +41,7 @@ El projecte MuixerApp està en **fase de desenvolupament actiu** amb P0-P3 + P4.
 | **Season Module** | ✅ Complet | CRUD + comptador d'esdeveniments |
 | **Event Module** | ✅ Complet | Full CRUD (POST/PUT/DELETE) + Attendance CRUD (POST/PUT/DELETE) + filtres/paginació/ordenació + recàlcul automàtic attendanceSummary |
 | **Sync Module** | ✅ Complet | LegacyApiClient + PersonSyncStrategy + EventSyncStrategy + AttendanceSyncStrategy + SSE |
-| **Database** | ✅ Funcional | TypeORM + NeonDB PostgreSQL + entitats Season/Event/Attendance |
+| **Database** | ✅ Funcional | TypeORM + PostgreSQL (Docker local dev / VPS prod) + entitats Season/Event/Attendance |
 | **Swagger** | ✅ Funcional | Documentació interactiva a `/api/docs` |
 | **Tests** | ✅ 101/101 passing | Person + Season + Event + Attendance + Sync strategies |
 
@@ -189,6 +194,13 @@ Monorepo:
 | `docs/VALIDATION_CHECKLIST.md` | Checklist de validació manual |
 | `docs/TROUBLESHOOTING.md` | Solucions a problemes comuns |
 | `docs/specs/` | Specs tècniques aprovades (P0-P2, Sync+Dashboard, P4.1 Auth, P4.2 Events+Attendance) |
+| **`docs/codebase/ARCHITECTURE.md`** | Arquitectura del sistema, flux de dades, patrons de disseny |
+| **`docs/codebase/STACK.md`** | Stack tecnològic detallat (backend, frontend, DevOps) |
+| **`docs/codebase/TESTING.md`** | Estratègia de testing, cobertura, convencions |
+| **`docs/codebase/CONCERNS.md`** | Qüestions tècniques pendents i resoltes |
+| **`docs/codebase/CONVENTIONS.md`** | Convencions de codi i nomenclatura |
+| **`docs/codebase/STRUCTURE.md`** | Estructura de directoris i organització del monorepo |
+| **`docs/codebase/INTEGRATIONS.md`** | Integracions externes (NeonDB, Legacy API) |
 
 ---
 
@@ -272,15 +284,15 @@ nx serve dashboard
 
 ## 🎯 Pròxims Passos Immediats
 
-### 1. Validació Manual P4.1 + P4.2
+### 1. Setup P4.4 (Docker local + migrar dades de NeonDB)
 
-- [ ] Crear primer user via `POST /auth/setup/user` amb `SETUP_TOKEN`
-- [ ] Provar login al dashboard (`http://localhost:4200/login`)
-- [ ] Verificar guards: rutes protegides redirigeixen a login
-- [ ] Provar CRUD d'esdeveniments (crear, editar, eliminar)
-- [ ] Provar gestió d'assistència (afegir, editar estat/notes, eliminar)
-- [ ] Provar creació de persones provisionals i promoció a regulars
-- [ ] Eliminar `SETUP_TOKEN` de `.env` un cop creat el primer user
+- [ ] `npm run docker:up` — arrencar PostgreSQL Docker
+- [ ] `nx serve api` — verificar connexió a Docker
+- [ ] Crear primer admin via `SETUP_TOKEN` endpoint
+- [ ] `nx run api:seed-seasons` — importar temporades
+- [ ] Sincronitzar persones i events des del legacy
+- [ ] Verificar tots els tests: `npm run ci:local`
+- [ ] Eliminar el projecte NeonDB quan tot funcioni
 
 ### 2. P5: Mòdul Pinyes i Figures
 
@@ -299,9 +311,11 @@ nx serve dashboard
   - **Solució futura:** Bulk upsert amb TypeORM
   - **Prioritat:** Baixa (performance, no funcionalitat)
 
+- ✅ ~~**Dependència de NeonDB**~~ — **Resolt a P4.4**: PostgreSQL en Docker local, NeonDB eliminat del flux de dev
+
 ### Dashboard
 
-- ⚠️ **Cobertura de tests parcial** — PersonListComponent té tests bàsics però falten E2E i tests de navegació/detall
+- ⚠️ **Cobertura de tests parcial** — PersonListComponent té tests bàsics però falten E2E i tests de navegació/detail
   - **Solució futura:** Playwright/Cypress per E2E; ampliar cobertura de components de detall
   - **Prioritat:** Mitjana
 
@@ -353,8 +367,13 @@ nx serve dashboard
 - ✅ **Alçada espatlles relativa** — Toggle absolut/relatiu amb codificació de color
 - ✅ **Auth Layer (P4.1)** — JWT+Passport, refresh rotation, dashboard login, guards globals
 - ✅ **Dashboard Events + Attendance (P4.2)** — CRUD events, gestió assistència manual, persones provisionals, optimistic UI
+- ✅ **Dashboard Design Refactor (P4.3)** — Top nav + tabs, 15+ components shared, Home tab, redeseny visual complet
+- ✅ **CI/CD Pipeline** — GitHub Actions amb lint + test + build, coverage enforçat, affected per PRs
+- ✅ **Documentació de Codebase** — 8 documents tècnics (ARCHITECTURE, STACK, TESTING, etc.)
+- ✅ **Cleanup de Deute Tècnic** — Seed commands, components morts, temporades dinàmiques, refresh token cleanup
 - ✅ **Suite de tests completa** — 101/101 API + 22/22 dashboard passing
+- ✅ **Arquitectura Docker multi-entorn (P4.4)** — Docker local dev + Dockerfile multi-stage API + docker-compose.prod.yml per VPS
 
 ---
 
-**Estat del projecte:** 🟢 **Actiu i saludable**
+**Estat del projecte:** 🟢 **Actiu i saludable — P4.4 implementat, Docker local operatiu**

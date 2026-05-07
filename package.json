@@ -4,7 +4,17 @@
   "description": "MuixerApp - Attendance & figure management for Muixerangues",
   "license": "MIT",
   "private": true,
+  "engines": {
+    "node": ">=22.13.0 <23.0.0"
+  },
   "scripts": {
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f postgres",
+    "docker:clean": "docker compose down -v",
+    "docker:psql": "docker exec -it muixer-postgres-dev psql -U muixer -d muixer_dev",
+    "docker:prod:up": "docker compose -f docker-compose.prod.yml up -d --build",
+    "docker:prod:down": "docker compose -f docker-compose.prod.yml down",
     "ci:local": "npx nx run-many -t lint,test,build --all --exclude=dashboard-e2e,pwa-e2e --parallel=3"
   },
   "repository": {

@@ -16,6 +16,7 @@ tmp/
 .env
 .env.*
 !.env.example
+!.env.production.example
 
 # ── Test & screenshots ─────────────────────────────────────
 __screenshots__/
@@ -23,6 +24,9 @@ __screenshots__/
 
 # ── Data ───────────────────────────────────────────────────
 data/extracted/
+
+# ── Docker ─────────────────────────────────────────────────
+docker/postgres/data/
 
 # ── OS ────────────────────────────────────────────────────
 .DS_Store
