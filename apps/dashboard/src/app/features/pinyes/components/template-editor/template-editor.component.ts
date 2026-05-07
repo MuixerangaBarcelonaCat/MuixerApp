@@ -1,6 +1,7 @@
 import {
   Component,
   ChangeDetectionStrategy,
+  HostListener,
   inject,
   signal,
   computed,
@@ -23,8 +24,27 @@ import { LayoutService } from '../../../../core/services/layout.service';
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
-const DEFAULT_NODE_WIDTH = 60;
+interface PinyaPosition {
+  positionType: string;
+  label: string;
+  color: string;
+}
+
+// TODO: Adjust default node dimensions to match visual needs
+const DEFAULT_NODE_WIDTH = 80;
 const DEFAULT_NODE_HEIGHT = 40;
+
+const PINYA_POSITIONS: PinyaPosition[] = [
+  { positionType: 'baix',        label: 'BAIX',        color: '#EEEEEE' },
+  { positionType: 'agulla',      label: 'AGULLA',      color: '#0d9488' },
+  { positionType: 'mans',        label: 'MANS',        color: '#16a34a' },
+  { positionType: 'laterals',    label: 'LATERALS',    color: '#ea580c' },
+  { positionType: 'vents',       label: 'VENTS',       color: '#0891b2' },
+  { positionType: 'cordo-obert', label: 'CORDO OBERT', color: '#7c3aed' },
+  { positionType: 'tap',         label: 'TAP',         color: '#be185d' },
+  { positionType: 'crossa',       label: 'CROSSA',       color: '#E53935' },
+  { positionType: 'contrafort',     label: 'CONTRAFORT',     color: '#1e40af' },
+];
 
 @Component({
   selector: 'app-template-editor',
@@ -68,6 +88,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   // Enums for template
   readonly FigureZone = FigureZone;
   readonly NodeShape = NodeShape;
+  readonly pinyaPositions = PINYA_POSITIONS;
 
   readonly selectedNode = computed(() => {
     const id = this.selectedNodeId();
@@ -123,24 +144,41 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     this.scheduleAutosave();
   }
 
+  onNodeLabelChanged(event: { id: string; label: string }): void {
+    this.updateNode(event.id, { label: event.label });
+    this.scheduleAutosave();
+  }
+
   // ── Toolbar actions ────────────────────────────────────────────────────────
 
-  addNode(zone: FigureZone, z = 0): void {
+  addPinyaNode(pos: PinyaPosition): void {
+    this.addNode(FigureZone.PINYA, 0, pos.positionType, pos.color, pos.label);
+  }
+
+  // ── NODE CREATION ── This is where new nodes are instantiated with their default properties.
+  // To change the default size, modify DEFAULT_NODE_WIDTH / DEFAULT_NODE_HEIGHT above.
+  addNode(
+    zone: FigureZone,
+    z = 0,
+    positionType: string | null = null,
+    color: string | null = null,
+    labelOverride?: string,
+  ): void {
     const id = crypto.randomUUID();
     const stageCenter = { x: 200, y: 200 };
     const newNode: FigureNodeItem = {
       id,
-      label: this.defaultLabel(zone),
+      label: labelOverride ?? this.defaultLabel(zone, z),
       zone,
-      positionType: null,
+      positionType,
       x: stageCenter.x + Math.random() * 40 - 20,
       y: stageCenter.y + Math.random() * 40 - 20,
       z,
       width: DEFAULT_NODE_WIDTH,
       height: DEFAULT_NODE_HEIGHT,
       rotation: 0,
-      color: null,
-      shape: NodeShape.ELLIPSE,
+      color,
+      shape: NodeShape.RECTANGLE,
       sortOrder: this.nodes().length,
       climbPath: null,
       metadata: {},
@@ -148,6 +186,24 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     this.nodes.update((n) => [...n, newNode]);
     this.selectedNodeId.set(id);
     this.scheduleAutosave();
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  onKeyDown(event: KeyboardEvent): void {
+    if (event.key !== 'Delete' && event.key !== 'Backspace') return;
+
+    const target = event.target as HTMLElement;
+    const isEditing =
+      target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA' ||
+      target.tagName === 'SELECT' ||
+      target.isContentEditable;
+    if (isEditing) return;
+
+    if (!this.selectedNodeId()) return;
+
+    event.preventDefault();
+    this.deleteSelectedNode();
   }
 
   deleteSelectedNode(): void {
@@ -292,17 +348,11 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     );
   }
 
-  private defaultLabel(zone: FigureZone): string {
-    const count = this.nodes().filter((n) => n.zone === zone).length + 1;
-    const prefix =
-      zone === FigureZone.PINYA
-        ? 'Pinya'
-        : zone === FigureZone.FIGURE_DIRECTION
-          ? 'Direcció'
-          : zone === FigureZone.XICALLA_DIRECTION
-            ? 'Xicalla Dir.'
-            : 'Tronc';
-    return `${prefix} ${count}`;
+  private defaultLabel(zone: FigureZone, z = 0): string {
+    if (zone === FigureZone.PINYA) return 'Pinya';
+    if (zone === FigureZone.TRONC) return z === 0 ? 'Tronc' : `Pis ${z}`;
+    if (zone === FigureZone.FIGURE_DIRECTION) return 'Direcció';
+    return 'Xicalla Dir.';
   }
 
   private slugify(name: string): string {

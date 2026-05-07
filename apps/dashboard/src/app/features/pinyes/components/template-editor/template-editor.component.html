@@ -73,31 +73,39 @@
 
     <!-- Left Toolbar -->
     <aside class="editor-toolbar" aria-label="Eines">
+
+      <!-- Pinya positions -->
       <div class="toolbar-section">
-        <p class="toolbar-label">Afegir node</p>
+        <p class="toolbar-label">Pinya</p>
+        @for (pos of pinyaPositions; track pos.positionType) {
+          <button
+            type="button"
+            class="toolbar-btn"
+            (click)="addPinyaNode(pos)"
+            [title]="'Afegir ' + pos.label"
+            [attr.aria-label]="'Afegir node ' + pos.label"
+          >
+            <span class="node-rect" [style.backgroundColor]="pos.color" aria-hidden="true"></span>
+            {{ pos.label }}
+          </button>
+        }
+      </div>
 
+      <div class="divider my-1"></div>
+
+      <!-- Tronc positions -->
+      <div class="toolbar-section">
+        <p class="toolbar-label">Tronc</p>
         <button
           type="button"
           class="toolbar-btn"
-          (click)="addNode(FigureZone.PINYA)"
-          title="Afegir node de Pinya"
-          aria-label="Afegir node de Pinya"
-        >
-          <span class="node-dot bg-blue-500" aria-hidden="true"></span>
-          Pinya
-        </button>
-
-        <button
-          type="button"
-          class="toolbar-btn"
-          (click)="addNode(FigureZone.TRONC)"
+          (click)="addNode(FigureZone.TRONC, 0)"
           title="Afegir node de Tronc (baix)"
           aria-label="Afegir node de Tronc"
         >
-          <span class="node-dot bg-purple-500" aria-hidden="true"></span>
+          <span class="node-rect" style="background-color: #8b5cf6" aria-hidden="true"></span>
           Tronc
         </button>
-
         <button
           type="button"
           class="toolbar-btn"
@@ -105,10 +113,16 @@
           title="Afegir node de Tronc (primer pis)"
           aria-label="Afegir node de Tronc pis 1"
         >
-          <span class="node-dot bg-violet-400" aria-hidden="true"></span>
+          <span class="node-rect" style="background-color: #a78bfa" aria-hidden="true"></span>
           Pis 1
         </button>
+      </div>
 
+      <div class="divider my-1"></div>
+
+      <!-- Direction markers -->
+      <div class="toolbar-section">
+        <p class="toolbar-label">Direccions</p>
         <button
           type="button"
           class="toolbar-btn"
@@ -116,10 +130,9 @@
           title="Afegir marcador de direcció"
           aria-label="Afegir marcador de direcció de figura"
         >
-          <span class="node-dot bg-amber-400" aria-hidden="true"></span>
+          <span class="node-rect" style="background-color: #f59e0b" aria-hidden="true"></span>
           Direcció
         </button>
-
         <button
           type="button"
           class="toolbar-btn"
@@ -127,7 +140,7 @@
           title="Afegir marcador de Xicalla"
           aria-label="Afegir marcador de Xicalla"
         >
-          <span class="node-dot bg-pink-500" aria-hidden="true"></span>
+          <span class="node-rect" style="background-color: #ec4899" aria-hidden="true"></span>
           Xicalla
         </button>
       </div>
@@ -223,6 +236,7 @@
           (nodeMoved)="onNodeMoved($event)"
           (nodeRotated)="onNodeRotated($event)"
           (nodeResized)="onNodeResized($event)"
+          (nodeLabelChanged)="onNodeLabelChanged($event)"
         />
       }
     </main>
@@ -371,45 +385,6 @@
                 />
               </div>
             }
-
-            <!-- Color -->
-            <div class="form-control mb-3">
-              <label class="label pb-1" [for]="'node-color-' + node.id">
-                <span class="label-text text-xs font-medium">Color</span>
-              </label>
-              <div class="flex items-center gap-2">
-                <input
-                  type="color"
-                  [id]="'node-color-' + node.id"
-                  class="w-8 h-8 rounded cursor-pointer border border-base-300"
-                  [ngModel]="node.color || '#6b7280'"
-                  (ngModelChange)="updateSelectedNodeProp('color', $event)"
-                />
-                <button
-                  type="button"
-                  class="btn btn-ghost btn-xs"
-                  (click)="updateSelectedNodeProp('color', null)"
-                  aria-label="Restablir color per defecte"
-                >
-                  Per defecte
-                </button>
-              </div>
-            </div>
-
-            <!-- Climb path -->
-            <div class="form-control mb-3">
-              <label class="label pb-1" [for]="'node-climb-' + node.id">
-                <span class="label-text text-xs font-medium">Camí de pujada</span>
-              </label>
-              <input
-                type="text"
-                [id]="'node-climb-' + node.id"
-                class="input input-bordered input-sm font-mono"
-                placeholder="(X), (A), ..."
-                [ngModel]="node.climbPath"
-                (ngModelChange)="updateSelectedNodeProp('climbPath', $event || null)"
-              />
-            </div>
 
             <div class="divider mt-2 mb-2"></div>
 

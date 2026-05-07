@@ -46,6 +46,25 @@
   }
 }
 
+.label-editor {
+  position: absolute;
+  z-index: 10;
+  background: #fff;
+  border: 2px solid oklch(var(--p));
+  border-radius: 4px;
+  padding: 0 4px;
+  font-family: Inter, sans-serif;
+  font-weight: 500;
+  text-align: center;
+  color: #1e1b4b;
+  outline: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+
+  &:focus {
+    box-shadow: 0 0 0 3px oklch(var(--p) / 0.25);
+  }
+}
+
 .fit-btn {
   position: absolute;
   bottom: 8px;

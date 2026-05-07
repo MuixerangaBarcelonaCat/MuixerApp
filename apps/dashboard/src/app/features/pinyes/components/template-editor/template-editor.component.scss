@@ -99,6 +99,14 @@
   flex-shrink: 0;
 }
 
+.node-rect {
+  display: block;
+  width: 22px;
+  height: 14px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
 // ── Canvas ────────────────────────────────────────────────────────────────
 .editor-canvas {
   flex: 1;

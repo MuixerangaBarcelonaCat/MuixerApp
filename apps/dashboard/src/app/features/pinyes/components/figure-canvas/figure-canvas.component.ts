@@ -11,6 +11,7 @@ import {
   signal,
   untracked,
 } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import Konva from 'konva';
 import { FigureNodeItem } from '../../models/figure-template.model';
 import { FigureZone, NodeShape } from '@muixer/shared';
@@ -32,6 +33,7 @@ const NORMAL_STROKE = '#1e1b4b';
   selector: 'app-figure-canvas',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [FormsModule],
   templateUrl: './figure-canvas.component.html',
   styleUrl: './figure-canvas.component.scss',
 })
@@ -50,6 +52,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   readonly nodeMoved = output<{ id: string; x: number; y: number }>();
   readonly nodeRotated = output<{ id: string; rotation: number }>();
   readonly nodeResized = output<{ id: string; width: number; height: number }>();
+  readonly nodeLabelChanged = output<{ id: string; label: string }>();
   readonly zoomChanged = output<number>();
 
   private stage!: Konva.Stage;
@@ -451,9 +454,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       });
 
       group.on('dblclick dbltap', () => {
-        // Rotate 15 degrees on double-click
-        const newRotation = (node.rotation + 15) % 360;
-        this.nodeRotated.emit({ id: node.id, rotation: newRotation });
+        this.showLabelEditor(node);
       });
 
       // Cursor
@@ -469,6 +470,66 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     }
 
     return group;
+  }
+
+  private showLabelEditor(node: FigureNodeItem): void {
+    const stageScale = this.stage.scaleX();
+    const stagePos = this.stage.position();
+
+    const canvasX = node.x * stageScale + stagePos.x;
+    const canvasY = node.y * stageScale + stagePos.y;
+    const inputWidth = Math.max(60, node.width * stageScale);
+    const inputHeight = Math.max(20, node.height * stageScale);
+
+    const wrapper = this.containerRef.nativeElement.parentElement!;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = node.label ?? '';
+    input.className = 'label-editor';
+    input.setAttribute('aria-label', "Edita l'etiqueta del node");
+
+    Object.assign(input.style, {
+      position: 'absolute',
+      left: `${canvasX - inputWidth / 2}px`,
+      top: `${canvasY - inputHeight / 2}px`,
+      width: `${inputWidth}px`,
+      height: `${inputHeight}px`,
+      fontSize: `${Math.max(9, 10 * stageScale)}px`,
+    });
+
+    let committed = false;
+
+    const commit = () => {
+      if (committed) return;
+      committed = true;
+      const newLabel = input.value.trim();
+      wrapper.removeChild(input);
+      if (newLabel !== (node.label ?? '')) {
+        this.nodeLabelChanged.emit({ id: node.id, label: newLabel });
+      }
+    };
+
+    const cancel = () => {
+      if (committed) return;
+      committed = true;
+      wrapper.removeChild(input);
+    };
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        commit();
+      } else if (e.key === 'Escape') {
+        cancel();
+      }
+    });
+
+    input.addEventListener('blur', commit);
+
+    wrapper.appendChild(input);
+    input.focus();
+    input.select();
   }
 
   private snapValue(value: number, spacing: number): number {

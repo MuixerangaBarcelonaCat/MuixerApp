@@ -5,8 +5,8 @@
   <!-- Zoom selector -->
   <select
     class="zoom-selector"
-    [value]="zoomLevel()"
-    (change)="setZoom(+$any($event.target).value)"
+    [ngModel]="zoomLevel()"
+    (ngModelChange)="setZoom(+$event)"
     aria-label="Selecciona el nivell de zoom"
   >
     <option [value]="0.25">25%</option>
