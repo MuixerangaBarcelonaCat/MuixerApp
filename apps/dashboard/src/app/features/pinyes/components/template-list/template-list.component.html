@@ -91,9 +91,11 @@
             class="card bg-base-100 border border-base-200 shadow-sm hover:shadow-md transition-shadow"
           >
             <!-- Canvas preview placeholder -->
-            <div
-              class="w-full h-32 bg-gradient-to-br from-primary/10 to-secondary/10 rounded-t-2xl flex items-center justify-center relative overflow-hidden"
-              aria-hidden="true"
+            <button
+              type="button"
+              class="w-full h-32 bg-gradient-to-br from-primary/10 to-secondary/10 rounded-t-2xl flex items-center justify-center relative overflow-hidden cursor-pointer hover:brightness-95 transition-[filter] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary"
+              (click)="navigateToEdit(template.id)"
+              [attr.aria-label]="'Editar ' + template.name"
             >
               <!-- Simple static preview using SVG dots -->
               <svg width="120" height="80" viewBox="0 0 120 80" class="opacity-60">
@@ -115,11 +117,18 @@
               <span class="badge badge-primary badge-sm absolute top-2 right-2">
                 {{ template.nodeCount }} nodes
               </span>
-            </div>
+            </button>
 
             <div class="card-body p-4 gap-3">
               <div>
-                <h2 class="card-title text-sm font-semibold leading-snug">{{ template.name }}</h2>
+                <h2 class="card-title text-sm font-semibold leading-snug">
+                  <button
+                    type="button"
+                    class="text-left hover:text-primary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary rounded-sm"
+                    (click)="navigateToEdit(template.id)"
+                    [attr.aria-label]="'Editar ' + template.name"
+                  >{{ template.name }}</button>
+                </h2>
                 <p class="text-xs text-base-content/50 font-mono mt-0.5">{{ template.slug }}</p>
               </div>
 

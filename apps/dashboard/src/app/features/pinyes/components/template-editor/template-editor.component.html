@@ -65,6 +65,17 @@
           aria-label="La figura té pinya"
         />
       </label>
+
+      <!-- Shortcuts help -->
+      <button
+        type="button"
+        class="btn btn-ghost btn-sm btn-square"
+        (click)="toggleShortcutsModal()"
+        aria-label="Veure dreceres de teclat"
+        title="Dreceres de teclat"
+      >
+        <lucide-icon name="Keyboard" [size]="16" aria-hidden="true" />
+      </button>
     </div>
   </header>
 
@@ -338,15 +349,37 @@
               </select>
             </div>
 
-            <!-- Dimensions (read-only info) -->
+            <!-- Dimensions -->
             <div class="form-control mb-3">
               <label class="label pb-1">
                 <span class="label-text text-xs font-medium">Dimensions</span>
               </label>
-              <div class="text-xs text-base-content/60 bg-base-200 rounded px-3 py-2">
-                {{ node.width }}px × {{ node.height }}px
-                <div class="text-[10px] mt-0.5 text-base-content/40">
-                  Estira els cantons al canvas per redimensionar
+              <div class="grid grid-cols-2 gap-2">
+                <div class="form-control">
+                  <label class="label pb-1" [for]="'node-w-' + node.id">
+                    <span class="label-text text-xs font-medium">Amplada (px)</span>
+                  </label>
+                  <input
+                    type="number"
+                    [id]="'node-w-' + node.id"
+                    class="input input-bordered input-sm font-mono"
+                    [ngModel]="node.width"
+                    (ngModelChange)="updateSelectedNodeProp('width', +$event)"
+                    min="10" max="500"
+                  />
+                </div>
+                <div class="form-control">
+                  <label class="label pb-1" [for]="'node-h-' + node.id">
+                    <span class="label-text text-xs font-medium">Alçada (px)</span>
+                  </label>
+                  <input
+                    type="number"
+                    [id]="'node-h-' + node.id"
+                    class="input input-bordered input-sm font-mono"
+                    [ngModel]="node.height"
+                    (ngModelChange)="updateSelectedNodeProp('height', +$event)"
+                    min="10" max="500"
+                  />
                 </div>
               </div>
             </div>
@@ -428,3 +461,135 @@
     </aside>
   </div>
 </div>
+
+<!-- ── Shortcuts Modal ──────────────────────────────────────────────────── -->
+@if (shortcutsModalOpen()) {
+  <dialog
+    class="modal modal-open"
+    aria-modal="true"
+    aria-labelledby="shortcuts-title"
+    (keydown.escape)="toggleShortcutsModal()"
+  >
+    <div class="modal-box max-w-lg">
+      <button
+        type="button"
+        class="btn btn-sm btn-circle btn-ghost absolute right-3 top-3"
+        (click)="toggleShortcutsModal()"
+        aria-label="Tancar"
+      >
+        <lucide-icon name="X" [size]="16" aria-hidden="true" />
+      </button>
+
+      <h2 id="shortcuts-title" class="text-lg font-bold mb-4 flex items-center gap-2">
+        <lucide-icon name="Keyboard" [size]="20" aria-hidden="true" />
+        Dreceres de teclat
+      </h2>
+
+      <!-- Selecció i edició -->
+      <section aria-labelledby="shortcuts-nodes">
+        <h3 id="shortcuts-nodes" class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-2">Nodes</h3>
+        <ul class="space-y-2 mb-4" role="list">
+          <li class="flex items-center justify-between gap-4">
+            <span class="text-sm">Seleccionar node</span>
+            <span class="shortcuts-keys"><kbd class="kbd kbd-sm">Clic</kbd></span>
+          </li>
+          <li class="flex items-center justify-between gap-4">
+            <span class="text-sm">Editar etiqueta</span>
+            <span class="shortcuts-keys"><kbd class="kbd kbd-sm">Doble clic</kbd></span>
+          </li>
+          <li class="flex items-center justify-between gap-4">
+            <span class="text-sm">Redimensionar node</span>
+            <span class="shortcuts-keys"><kbd class="kbd kbd-sm">Arrossegar cantonada</kbd></span>
+          </li>
+          <li class="flex items-center justify-between gap-4">
+            <span class="text-sm">Rotar node</span>
+            <span class="shortcuts-keys"><kbd class="kbd kbd-sm">Tirador rotació</kbd></span>
+          </li>
+          <li class="flex items-center justify-between gap-4">
+            <span class="text-sm">Eliminar node seleccionat</span>
+            <span class="shortcuts-keys flex gap-1">
+              <kbd class="kbd kbd-sm">Delete</kbd>
+              <span class="text-base-content/40 text-xs self-center">/</span>
+              <kbd class="kbd kbd-sm">Backspace</kbd>
+            </span>
+          </li>
+        </ul>
+      </section>
+
+      <div class="divider my-2"></div>
+
+      <!-- Còpia -->
+      <section aria-labelledby="shortcuts-copy">
+        <h3 id="shortcuts-copy" class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-2">Còpia</h3>
+        <ul class="space-y-2 mb-4" role="list">
+          <li class="flex items-center justify-between gap-4">
+            <span class="text-sm">Copiar node seleccionat</span>
+            <span class="shortcuts-keys flex gap-1">
+              <kbd class="kbd kbd-sm">⌘</kbd>
+              <kbd class="kbd kbd-sm">C</kbd>
+            </span>
+          </li>
+          <li class="flex items-center justify-between gap-4">
+            <span class="text-sm">Enganxar node copiat</span>
+            <span class="shortcuts-keys flex gap-1">
+              <kbd class="kbd kbd-sm">⌘</kbd>
+              <kbd class="kbd kbd-sm">V</kbd>
+            </span>
+          </li>
+        </ul>
+      </section>
+
+      <div class="divider my-2"></div>
+
+      <!-- Moviment -->
+      <section aria-labelledby="shortcuts-move">
+        <h3 id="shortcuts-move" class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-2">Moviment</h3>
+        <ul class="space-y-2 mb-4" role="list">
+          <li class="flex items-center justify-between gap-4">
+            <span class="text-sm">Moure node (1 px)</span>
+            <span class="shortcuts-keys flex gap-1">
+              <kbd class="kbd kbd-sm">↑</kbd>
+              <kbd class="kbd kbd-sm">↓</kbd>
+              <kbd class="kbd kbd-sm">←</kbd>
+              <kbd class="kbd kbd-sm">→</kbd>
+            </span>
+          </li>
+          <li class="flex items-center justify-between gap-4">
+            <span class="text-sm">Moure node (10 px)</span>
+            <span class="shortcuts-keys flex gap-1">
+              <kbd class="kbd kbd-sm">⇧</kbd>
+              <span class="text-base-content/40 text-xs self-center">+</span>
+              <kbd class="kbd kbd-sm">↑ ↓ ← →</kbd>
+            </span>
+          </li>
+          <li class="flex items-center justify-between gap-4">
+            <span class="text-sm">Moure node lliurement</span>
+            <span class="shortcuts-keys"><kbd class="kbd kbd-sm">Arrossegar</kbd></span>
+          </li>
+        </ul>
+      </section>
+
+      <div class="divider my-2"></div>
+
+      <!-- Canvas -->
+      <section aria-labelledby="shortcuts-canvas">
+        <h3 id="shortcuts-canvas" class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-2">Canvas</h3>
+        <ul class="space-y-2" role="list">
+          <li class="flex items-center justify-between gap-4">
+            <span class="text-sm">Zoom</span>
+            <span class="shortcuts-keys"><kbd class="kbd kbd-sm">Roda ratolí</kbd></span>
+          </li>
+          <li class="flex items-center justify-between gap-4">
+            <span class="text-sm">Desplaçar canvas</span>
+            <span class="shortcuts-keys flex gap-1">
+              <kbd class="kbd kbd-sm">Clic mig</kbd>
+              <span class="text-base-content/40 text-xs self-center">/</span>
+              <kbd class="kbd kbd-sm">Arrossegar fons</kbd>
+            </span>
+          </li>
+        </ul>
+      </section>
+    </div>
+    <div class="modal-backdrop" (click)="toggleShortcutsModal()" aria-hidden="true"></div>
+  </dialog>
+}

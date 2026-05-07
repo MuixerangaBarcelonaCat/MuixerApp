@@ -394,12 +394,14 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       fontFamily: 'Inter, sans-serif',
       fill: textFill,
       align: 'center',
+      verticalAlign: 'middle',
       width: node.width,
+      height: node.height - 8,
       x: -node.width / 2,
-      y: -6,
+      y: -node.height / 2 + 4,
       listening: false,
-      wrap: 'none',
-      ellipsis: true,
+      wrap: 'word',
+      ellipsis: false,
     });
     group.add(text);
 

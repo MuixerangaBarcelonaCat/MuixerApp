@@ -29,6 +29,7 @@ import {
   Eye,
   Grid3X3,
   Home,
+  Keyboard,
   LayoutGrid,
   Layers,
   Lock,
@@ -52,14 +53,15 @@ import {
   UserCog,
   UserX,
   Users,
+  X,
 } from 'lucide-angular';
 
 const icons = {
   AlertCircle, AlertTriangle, AlignJustify, ArrowLeft, Calendar, CalendarRange, Check,
   ChevronDown, ChevronLeft, ChevronRight, ChevronsUpDown, Clock, Construction, Copy, Eye,
-  Grid3X3, Home, LayoutGrid, Layers, Lock, Magnet, Mail, Menu, MoreHorizontal, MousePointer2,
+  Grid3X3, Home, Keyboard, LayoutGrid, Layers, Lock, Magnet, Mail, Menu, MoreHorizontal, MousePointer2,
   PanelRightClose, PanelRightOpen, Pencil, Plus, RefreshCw, Search, Settings, Shapes, Shield,
-  Star, Tag, Trash2, UserCog, UserX, Users,
+  Star, Tag, Trash2, UserCog, UserX, Users, X,
 };
 
 export const appConfig: ApplicationConfig = {

@@ -37,13 +37,13 @@ const DEFAULT_NODE_HEIGHT = 40;
 const PINYA_POSITIONS: PinyaPosition[] = [
   { positionType: 'baix',        label: 'BAIX',        color: '#EEEEEE' },
   { positionType: 'agulla',      label: 'AGULLA',      color: '#0d9488' },
-  { positionType: 'mans',        label: 'MANS',        color: '#16a34a' },
-  { positionType: 'laterals',    label: 'LATERALS',    color: '#ea580c' },
-  { positionType: 'vents',       label: 'VENTS',       color: '#0891b2' },
-  { positionType: 'cordo-obert', label: 'CORDO OBERT', color: '#7c3aed' },
+  { positionType: 'mans',        label: 'MANS',        color: '#FFE082' },
+  { positionType: 'laterals',    label: 'LATERALS',    color: '#80DEEA' },
+  { positionType: 'vents',       label: 'VENTS',       color: '#A5D6A7' },
+  { positionType: 'cordo-obert', label: 'CORDO OBERT', color: '#FFF9C4' },
   { positionType: 'tap',         label: 'TAP',         color: '#be185d' },
-  { positionType: 'crossa',       label: 'CROSSA',       color: '#E53935' },
-  { positionType: 'contrafort',     label: 'CONTRAFORT',     color: '#1e40af' },
+  { positionType: 'crossa',      label: 'CROSSA',      color: '#9FA8DA' },
+  { positionType: 'contrafort',  label: 'CONTRAFORT',  color: '#EF9A9A' },
 ];
 
 @Component({
@@ -71,9 +71,11 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   // Nodes
   nodes = signal<FigureNodeItem[]>([]);
   selectedNodeId = signal<string | null>(null);
+  private clipboardNode = signal<FigureNodeItem | null>(null);
 
   // Panel visibility
   propertiesPanelOpen = signal(true);
+  shortcutsModalOpen = signal(false);
 
   // Status
   loading = signal(false);
@@ -190,8 +192,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown', ['$event'])
   onKeyDown(event: KeyboardEvent): void {
-    if (event.key !== 'Delete' && event.key !== 'Backspace') return;
-
     const target = event.target as HTMLElement;
     const isEditing =
       target.tagName === 'INPUT' ||
@@ -200,10 +200,34 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
       target.isContentEditable;
     if (isEditing) return;
 
-    if (!this.selectedNodeId()) return;
+    const isMod = event.metaKey || event.ctrlKey;
 
-    event.preventDefault();
-    this.deleteSelectedNode();
+    if (isMod && event.key === 'c') {
+      event.preventDefault();
+      this.copySelectedNode();
+      return;
+    }
+
+    if (isMod && event.key === 'v') {
+      event.preventDefault();
+      this.pasteNode();
+      return;
+    }
+
+    if (event.key === 'Delete' || event.key === 'Backspace') {
+      if (!this.selectedNodeId()) return;
+      event.preventDefault();
+      this.deleteSelectedNode();
+      return;
+    }
+
+    const ARROW_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+    if (ARROW_KEYS.includes(event.key)) {
+      const id = this.selectedNodeId();
+      if (!id) return;
+      event.preventDefault();
+      this.moveSelectedNodeByKey(event.key, event.shiftKey);
+    }
   }
 
   deleteSelectedNode(): void {
@@ -211,6 +235,49 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     if (!id) return;
     this.nodes.update((n) => n.filter((node) => node.id !== id));
     this.selectedNodeId.set(null);
+    this.scheduleAutosave();
+  }
+
+  copySelectedNode(): void {
+    const node = this.selectedNode();
+    if (!node) return;
+    this.clipboardNode.set(node);
+  }
+
+  pasteNode(): void {
+    const source = this.clipboardNode();
+    if (!source) return;
+    const PASTE_OFFSET = 24;
+    const newNode: FigureNodeItem = {
+      ...source,
+      id: crypto.randomUUID(),
+      x: source.x + PASTE_OFFSET,
+      y: source.y + PASTE_OFFSET,
+      sortOrder: this.nodes().length,
+    };
+    this.nodes.update((n) => [...n, newNode]);
+    this.selectedNodeId.set(newNode.id);
+    // Update clipboard so repeated pastes cascade
+    this.clipboardNode.set(newNode);
+    this.scheduleAutosave();
+  }
+
+  private moveSelectedNodeByKey(key: string, large: boolean): void {
+    const id = this.selectedNodeId();
+    if (!id) return;
+    const step = large ? 10 : 1;
+    const delta = {
+      ArrowUp:    { x: 0,     y: -step },
+      ArrowDown:  { x: 0,     y:  step },
+      ArrowLeft:  { x: -step, y: 0     },
+      ArrowRight: { x:  step, y: 0     },
+    }[key];
+    if (!delta) return;
+
+    const node = this.nodes().find((n) => n.id === id);
+    if (!node) return;
+
+    this.updateNode(id, { x: node.x + delta.x, y: node.y + delta.y });
     this.scheduleAutosave();
   }
 
@@ -270,6 +337,10 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   togglePropertiesPanel(): void {
     this.propertiesPanelOpen.update((v) => !v);
+  }
+
+  toggleShortcutsModal(): void {
+    this.shortcutsModalOpen.update((v) => !v);
   }
 
   // ── Persistence ────────────────────────────────────────────────────────────
