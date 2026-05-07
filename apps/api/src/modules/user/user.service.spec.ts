@@ -92,8 +92,8 @@ describe('UserService', () => {
     });
 
     it('applies role filter', async () => {
-      await service.findAll({ role: UserRole.ADMIN });
-      expect(userQb.andWhere).toHaveBeenCalledWith('user.role = :role', { role: UserRole.ADMIN });
+      await service.findAll({ role: [UserRole.ADMIN] });
+      expect(userQb.andWhere).toHaveBeenCalledWith('user.role IN (:...role)', { role: [UserRole.ADMIN] });
     });
 
     it('applies isActive=true filter', async () => {

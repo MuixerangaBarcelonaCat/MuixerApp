@@ -129,28 +129,40 @@ describe('UserListComponent', () => {
   // ---------------------------------------------------------------------------
 
   describe('role filter', () => {
-    it('sets role filter and reloads', () => {
+    beforeEach(() => {
+      component.activeFilters.set({});
+      vi.clearAllMocks();
+      userService.getAll.mockReturnValue(of(mockResponse()));
+    });
+
+    it('adds role to filter array and reloads', () => {
       component.toggleRoleFilter(UserRole.ADMIN);
-      expect(component.activeFilters().role).toBe(UserRole.ADMIN);
+      expect(component.activeFilters().role).toEqual([UserRole.ADMIN]);
       expect(userService.getAll).toHaveBeenCalledWith(
-        expect.objectContaining({ role: UserRole.ADMIN }),
+        expect.objectContaining({ role: [UserRole.ADMIN] }),
       );
     });
 
-    it('clears role filter on second toggle of same role', () => {
+    it('clears role filter when toggling the only active role', () => {
       component.toggleRoleFilter(UserRole.ADMIN);
       component.toggleRoleFilter(UserRole.ADMIN);
       expect(component.activeFilters().role).toBeUndefined();
     });
 
-    it('replaces role filter when switching to different role', () => {
+    it('accumulates multiple roles in the filter array', () => {
       component.toggleRoleFilter(UserRole.ADMIN);
       component.toggleRoleFilter(UserRole.MEMBER);
-      expect(component.activeFilters().role).toBe(UserRole.MEMBER);
+      expect(component.activeFilters().role).toEqual([UserRole.ADMIN, UserRole.MEMBER]);
     });
   });
 
   describe('isActive filter', () => {
+    beforeEach(() => {
+      component.activeFilters.set({});
+      vi.clearAllMocks();
+      userService.getAll.mockReturnValue(of(mockResponse()));
+    });
+
     it('sets isActive=true and reloads', () => {
       component.toggleActiusFilter();
       expect(component.activeFilters().isActive).toBe(true);
@@ -196,6 +208,11 @@ describe('UserListComponent', () => {
   // ---------------------------------------------------------------------------
 
   describe('activeFilterChips', () => {
+    beforeEach(() => {
+      component.activeFilters.set({});
+      component.search.set('');
+    });
+
     it('is empty with no filters', () => {
       expect(component.activeFilterChips()).toHaveLength(0);
     });
@@ -208,7 +225,7 @@ describe('UserListComponent', () => {
     });
 
     it('shows role chip with label', () => {
-      component.activeFilters.set({ role: UserRole.ADMIN });
+      component.activeFilters.set({ role: [UserRole.ADMIN] });
       const chip = component.activeFilterChips().find((c) => c.key === 'role');
       expect(chip).toBeDefined();
       expect(chip!.label).toContain('Administrador');
@@ -230,7 +247,7 @@ describe('UserListComponent', () => {
     });
 
     it('clears role chip', () => {
-      component.activeFilters.set({ role: UserRole.ADMIN });
+      component.activeFilters.set({ role: [UserRole.ADMIN] });
       component.onRemoveFilterChip('role');
       expect(component.activeFilters().role).toBeUndefined();
     });
