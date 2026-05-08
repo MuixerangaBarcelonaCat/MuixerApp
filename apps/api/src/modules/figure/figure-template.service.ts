@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FigureTemplate } from './entities/figure-template.entity';
 import { FigureNode } from './entities/figure-node.entity';
+import { CompositionSlot } from '../composition/entities/composition-slot.entity';
 import { CreateFigureTemplateDto } from './dto/create-figure-template.dto';
 import { UpdateFigureTemplateDto } from './dto/update-figure-template.dto';
 import { FigureTemplateFilterDto } from './dto/figure-template-filter.dto';
@@ -50,6 +51,8 @@ export class FigureTemplateService {
     private readonly templateRepository: Repository<FigureTemplate>,
     @InjectRepository(FigureNode)
     private readonly nodeRepository: Repository<FigureNode>,
+    @InjectRepository(CompositionSlot)
+    private readonly compositionSlotRepository: Repository<CompositionSlot>,
   ) {}
 
   async findAll(filters: FigureTemplateFilterDto): Promise<{ data: FigureTemplateListItem[]; total: number }> {
@@ -144,6 +147,16 @@ export class FigureTemplateService {
 
     if (!template) {
       throw new NotFoundException(`FigureTemplate with ID ${id} not found`);
+    }
+
+    const slotCount = await this.compositionSlotRepository.count({
+      where: { figureTemplate: { id } },
+    });
+
+    if (slotCount > 0) {
+      throw new ConflictException(
+        `Cannot delete FigureTemplate: it is referenced by ${slotCount} composition slot(s)`,
+      );
     }
 
     await this.templateRepository.remove(template);

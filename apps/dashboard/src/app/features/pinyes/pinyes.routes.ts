@@ -17,4 +17,18 @@ export const pinyesRoutes: Routes = [
         (m) => m.TemplateEditorComponent,
       ),
   },
+  {
+    path: 'compositions/new',
+    loadComponent: () =>
+      import('./components/composition-editor/composition-editor.component').then(
+        (m) => m.CompositionEditorComponent,
+      ),
+  },
+  {
+    path: 'compositions/:id/edit',
+    loadComponent: () =>
+      import('./components/composition-editor/composition-editor.component').then(
+        (m) => m.CompositionEditorComponent,
+      ),
+  },
 ];

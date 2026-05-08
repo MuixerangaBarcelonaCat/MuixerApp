@@ -14,9 +14,40 @@ import {
 import { FormsModule } from '@angular/forms';
 import Konva from 'konva';
 import { FigureNodeItem } from '../../models/figure-template.model';
+import { CompositionSlotItem } from '../../models/composition.model';
 import { FigureZone, NodeShape } from '@muixer/shared';
 
-export type CanvasMode = 'editor' | 'readonly';
+export type CanvasMode = 'editor' | 'readonly' | 'composition';
+
+export interface CompositionSlotWithNodes {
+  slotId: string;
+  label: string | null;
+  offsetX: number;
+  offsetY: number;
+  sortOrder: number;
+  figureTemplate: {
+    id: string;
+    name: string;
+    hasPinya: boolean;
+    nodes: FigureNodeItem[];
+  };
+}
+
+export function compositionSlotItemToCanvasSlot(slot: CompositionSlotItem): CompositionSlotWithNodes {
+  return {
+    slotId: slot.id,
+    label: slot.label,
+    offsetX: slot.offsetX,
+    offsetY: slot.offsetY,
+    sortOrder: slot.sortOrder,
+    figureTemplate: {
+      id: slot.figureTemplate.id,
+      name: slot.figureTemplate.name,
+      hasPinya: slot.figureTemplate.hasPinya,
+      nodes: slot.figureTemplate.nodes,
+    },
+  };
+}
 
 const GRID_COLOR = '#e5e7eb';
 const NODE_COLORS: Record<string, string> = {
@@ -46,6 +77,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   readonly gridSpacing = input<number>(40);
   readonly selectedNodeId = input<string | null>(null);
   readonly snapToGrid = input<boolean>(false);
+  readonly compositionSlots = input<CompositionSlotWithNodes[]>([]);
+  readonly selectedSlotId = input<string | null>(null);
 
   readonly nodeSelected = output<string | null>();
   readonly nodeMoved = output<{ id: string; x: number; y: number }>();
@@ -53,6 +86,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   readonly nodeResized = output<{ id: string; width: number; height: number }>();
   readonly nodeLabelChanged = output<{ id: string; label: string }>();
   readonly zoomChanged = output<number>();
+  readonly slotSelected = output<string | null>();
+  readonly slotMoved = output<{ slotId: string; offsetX: number; offsetY: number }>();
 
   private stage!: Konva.Stage;
   private gridLayer!: Konva.Layer;
@@ -77,9 +112,18 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.mode();
       if (!this.stage) return;
       untracked(() => {
+        if (this.mode() === 'composition') return;
         this.renderNodes();
         this.updateTransformer();
       });
+    });
+
+    effect(() => {
+      this.compositionSlots();
+      this.selectedSlotId();
+      if (!this.stage) return;
+      if (this.mode() !== 'composition') return;
+      untracked(() => this.renderCompositionSlots());
     });
   }
 
@@ -215,8 +259,12 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     // Deselect on stage click
     this.stage.on('click', (e) => {
       if (e.target === this.stage) {
-        this.nodeSelected.emit(null);
-        this.transformer.nodes([]);
+        if (this.mode() === 'composition') {
+          this.slotSelected.emit(null);
+        } else {
+          this.nodeSelected.emit(null);
+          this.transformer.nodes([]);
+        }
       }
     });
   }
@@ -250,7 +298,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
   private renderAll(): void {
     this.renderGrid();
-    this.renderNodes();
+    if (this.mode() === 'composition') {
+      this.renderCompositionSlots();
+    } else {
+      this.renderNodes();
+    }
   }
 
   private renderGrid(): void {
@@ -310,6 +362,169 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     // Re-add transformer to pinyaLayer
     this.pinyaLayer.add(this.transformer);
 
+    this.pinyaLayer.batchDraw();
+  }
+
+  private renderCompositionSlots(): void {
+    this.transformer.nodes([]);
+    this.transformer.remove();
+    this.pinyaLayer.destroyChildren();
+
+    const selectedSlotId = this.selectedSlotId();
+
+    for (const slot of this.compositionSlots()) {
+      const pinyaNodes = slot.figureTemplate.nodes.filter(
+        (n) => n.zone === FigureZone.PINYA || (n.zone === FigureZone.TRONC && n.z === 0),
+      );
+
+      if (pinyaNodes.length === 0) continue;
+
+      const isSelected = slot.slotId === selectedSlotId;
+
+      // Compute bounding box for the bounding rect
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const n of pinyaNodes) {
+        minX = Math.min(minX, n.x - n.width / 2);
+        minY = Math.min(minY, n.y - n.height / 2);
+        maxX = Math.max(maxX, n.x + n.width / 2);
+        maxY = Math.max(maxY, n.y + n.height / 2);
+      }
+
+      const padding = 8;
+      const labelHeight = 16;
+
+      const slotGroup = new Konva.Group({
+        id: slot.slotId,
+        x: slot.offsetX,
+        y: slot.offsetY,
+        draggable: true,
+      });
+
+      // Bounding box
+      slotGroup.add(
+        new Konva.Rect({
+          x: minX - padding,
+          y: minY - padding - labelHeight,
+          width: maxX - minX + padding * 2,
+          height: maxY - minY + padding * 2 + labelHeight,
+          stroke: isSelected ? SELECTED_STROKE : '#94a3b8',
+          strokeWidth: isSelected ? 2 : 1,
+          dash: [6, 3],
+          fill: isSelected ? 'rgba(245,158,11,0.05)' : 'transparent',
+          cornerRadius: 6,
+          listening: false,
+        }),
+      );
+
+      // Group label (figure name or slot label)
+      const labelText = slot.label ?? slot.figureTemplate.name;
+      slotGroup.add(
+        new Konva.Text({
+          x: minX - padding,
+          y: minY - padding - labelHeight,
+          width: maxX - minX + padding * 2,
+          text: labelText,
+          fontSize: 11,
+          fontFamily: 'Inter, sans-serif',
+          fill: isSelected ? SELECTED_STROKE : '#64748b',
+          align: 'center',
+          verticalAlign: 'middle',
+          height: labelHeight,
+          listening: false,
+          ellipsis: true,
+        }),
+      );
+
+      // Render pinya-view nodes (read-only)
+      for (const node of pinyaNodes) {
+        const fill = node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR;
+        const nodeGroup = new Konva.Group({
+          x: node.x,
+          y: node.y,
+          rotation: node.rotation,
+          draggable: false,
+          listening: false,
+        });
+
+        let shape: Konva.Shape;
+        if (node.shape === NodeShape.ELLIPSE) {
+          shape = new Konva.Ellipse({
+            radiusX: node.width / 2,
+            radiusY: node.height / 2,
+            fill,
+            stroke: NORMAL_STROKE,
+            strokeWidth: 1.5,
+          });
+        } else {
+          shape = new Konva.Rect({
+            x: -node.width / 2,
+            y: -node.height / 2,
+            width: node.width,
+            height: node.height,
+            cornerRadius: 4,
+            fill,
+            stroke: NORMAL_STROKE,
+            strokeWidth: 1.5,
+          });
+        }
+        nodeGroup.add(shape);
+
+        const textFill = this.getContrastColor(fill);
+        nodeGroup.add(
+          new Konva.Text({
+            text: node.label,
+            fontSize: 10,
+            fontFamily: 'Inter, sans-serif',
+            fill: textFill,
+            align: 'center',
+            verticalAlign: 'middle',
+            width: node.width,
+            height: node.height - 8,
+            x: -node.width / 2,
+            y: -node.height / 2 + 4,
+            listening: false,
+            wrap: 'word',
+          }),
+        );
+
+        slotGroup.add(nodeGroup);
+      }
+
+      // Slot group interaction
+      slotGroup.on('click tap', () => {
+        this.slotSelected.emit(slot.slotId);
+      });
+
+      slotGroup.on('dragmove', () => {
+        if (this.snapToGrid()) {
+          const spacing = this.gridSpacing();
+          slotGroup.x(this.snapValue(slotGroup.x(), spacing));
+          slotGroup.y(this.snapValue(slotGroup.y(), spacing));
+        }
+      });
+
+      slotGroup.on('dragend', () => {
+        this.slotMoved.emit({
+          slotId: slot.slotId,
+          offsetX: Math.round(slotGroup.x()),
+          offsetY: Math.round(slotGroup.y()),
+        });
+      });
+
+      slotGroup.on('mouseenter', () => {
+        this.stage.container().style.cursor = 'grab';
+      });
+      slotGroup.on('mouseleave', () => {
+        this.stage.container().style.cursor = 'default';
+      });
+      slotGroup.on('dragstart', () => {
+        this.stage.container().style.cursor = 'grabbing';
+      });
+
+      this.pinyaLayer.add(slotGroup);
+    }
+
+    this.pinyaLayer.add(this.transformer);
     this.pinyaLayer.batchDraw();
   }
 

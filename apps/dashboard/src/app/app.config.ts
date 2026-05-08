@@ -44,6 +44,7 @@ import {
   Minus,
   MoreHorizontal,
   MousePointer2,
+  MousePointerClick,
   PanelRightClose,
   PanelRightOpen,
   Pencil,
@@ -68,7 +69,7 @@ const icons = {
   ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown,
   Clock, Construction, Copy, Eye,
   Grid3X3, Home, Keyboard, LayoutGrid, Layers, List, Lock, Magnet, Mail, Menu, Minus,
-  MoreHorizontal, MousePointer2,
+  MoreHorizontal, MousePointer2, MousePointerClick,
   PanelRightClose, PanelRightOpen, Pencil, Plus, RefreshCw, Search, Settings, Shapes, Shield,
   Star, Tag, Trash2, UserCog, UserX, Users, X,
 };

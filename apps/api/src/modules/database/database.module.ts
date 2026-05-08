@@ -9,6 +9,8 @@ import { Attendance } from '../event/attendance.entity';
 import { RefreshToken } from '../auth/entities/refresh-token.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
 import { FigureNode } from '../figure/entities/figure-node.entity';
+import { CompositionTemplate } from '../composition/entities/composition-template.entity';
+import { CompositionSlot } from '../composition/entities/composition-slot.entity';
 
 @Module({
   imports: [
@@ -21,7 +23,7 @@ import { FigureNode } from '../figure/entities/figure-node.entity';
           type: 'postgres',
           url: process.env.DATABASE_URL,
           ssl: sslEnabled ? { rejectUnauthorized: false } : false,
-          entities: [Position, User, Person, Season, Event, Attendance, RefreshToken, FigureTemplate, FigureNode],
+          entities: [Position, User, Person, Season, Event, Attendance, RefreshToken, FigureTemplate, FigureNode, CompositionTemplate, CompositionSlot],
           synchronize: isDevelopment,
           logging: isDevelopment,
         };
