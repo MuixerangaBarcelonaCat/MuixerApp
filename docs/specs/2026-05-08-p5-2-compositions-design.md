@@ -268,13 +268,12 @@ New component: `CompositionEditorComponent` at `/pinyes/compositions/:id/edit` a
 │ [search]│                                   │               │
 │         │                                   │  Label: ____  │
 │ ┌─────┐ │        KONVA CANVAS               │  Offset X: _  │
-│ │ pd4 │ │    (composition read-only nodes)  │  Offset Y: _  │
-│ ├─────┤ │                                   │  Ordre: ____  │
-│ │ pd3 │ │      ○  ○ ○  ○                    │               │
-│ ├─────┤ │    ○ ○ ○ ○ ○ ○ ○                  │  Figura: pd4  │
-│ │ pd2 │ │      ○  ○ ○  ○                    │  → Editar ↗   │
-│ └─────┘ │                                   │               │
-│         │                                   │  [Eliminar]   │
+│ │ pd4 │ │   (pinya-view nodes, read-only)   │  Offset Y: _  │
+│ ├─────┤ │                                   │               │
+│ │ pd3 │ │      ○  ○ ○  ○                    │  Figura: pd4  │
+│ ├─────┤ │    ○ ○ ○ ○ ○ ○ ○                  │  → Editar ↗   │
+│ │ pd2 │ │      ○  ○ ○  ○                    │               │
+│ └─────┘ │                                   │  [Eliminar]   │
 └─────────┴───────────────────────────────────┴───────────────┘
 ```
 
@@ -320,11 +319,17 @@ interface CompositionSlotWithNodes {
 }
 ```
 
+**Which nodes are rendered?**
+
+The composition canvas shows only the **pinya-view** of each figure: nodes with zone `PINYA` plus nodes with zone `TRONC` and `z === 0` (baixos). These are the same nodes the template editor renders in its pinya layer. Upper tronc floors (z ≥ 1: segons, terços, alçadora, xiqueta) are **not shown** — they are vertical and have no spatial relationship with adjacent figures.
+
+To view or edit the tronc of a figure within a composition, the user clicks "Editar figura ↗" in the right panel, which opens the full template editor (with tronc panel) in a new tab.
+
 **Canvas behavior in composition mode:**
 
 | Aspect | Behavior |
 |--------|----------|
-| Rendering | For each slot, render pinya-view nodes (zone PINYA + TRONC z=0 baixos) with offset applied (`node.x + slot.offsetX`, `node.y + slot.offsetY`). Same visual as template editor pinya layer (shapes, colors, labels). |
+| Rendering | For each slot, render pinya-view nodes (zone PINYA + TRONC z=0) with offset applied (`node.x + slot.offsetX`, `node.y + slot.offsetY`). Same visual as template editor pinya layer (shapes, colors, labels). |
 | Group label | Floating text above each figure group with the figure name (e.g., "pd4 central") |
 | Group border | Subtle dashed bounding box around each figure group to visually separate figures |
 | Selection | Click any node → selects the entire slot/group (highlight all nodes in group) |
@@ -346,10 +351,11 @@ Visible when a slot is selected:
 
 - **Label**: Editable text input for the slot label (e.g., "pd3 esquerra").
 - **Offset X / Offset Y**: Numeric inputs. Updates canvas position and vice-versa (bidirectional sync via drag).
-- **Sort Order**: Numeric input.
 - **Figura**: Read-only display of the referenced `FigureTemplate` name.
   - **Link "Editar figura ↗"**: `routerLink` to `/pinyes/templates/:figureTemplateId/edit` opening in a new tab (`target="_blank"`). Allows the user to edit the base template. Changes propagate automatically since the composition references the template by FK.
 - **Eliminar slot**: Button with confirmation. Removes the slot from the composition.
+
+**Not shown in P5.2:** `sortOrder` exists in the entity/API but is not exposed in the composition editor UI. It will be relevant at P5.3 when ordering instances within a segment.
 
 When no slot is selected: empty state with hint text.
 
