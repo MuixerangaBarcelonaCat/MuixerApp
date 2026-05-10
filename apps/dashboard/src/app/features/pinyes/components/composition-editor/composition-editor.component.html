@@ -71,6 +71,17 @@
       <lucide-icon name="Magnet" [size]="15" aria-hidden="true" />
       Ajusta
     </button>
+
+    <!-- Fit all -->
+    <button
+      type="button"
+      class="btn btn-ghost btn-sm gap-1.5"
+      (click)="fitAll()"
+      aria-label="Enquadrar totes les figures"
+    >
+      <lucide-icon name="Maximize2" [size]="15" aria-hidden="true" />
+      Enquadrar
+    </button>
   </header>
 
   <!-- Main area -->
@@ -217,6 +228,33 @@
               [ngModel]="slot.offsetY"
               (ngModelChange)="onSlotOffsetYChange(+$event)"
             />
+          </div>
+
+          <!-- Z-order controls -->
+          <div class="flex flex-col gap-1">
+            <span class="text-xs text-base-content/50">Ordre de capes</span>
+            <div class="flex gap-2">
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm flex-1 gap-1"
+                (click)="bringForward()"
+                [disabled]="isTopSlot"
+                aria-label="Porta al davant"
+              >
+                <lucide-icon name="ArrowUp" [size]="13" aria-hidden="true" />
+                Al davant
+              </button>
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm flex-1 gap-1"
+                (click)="sendBackward()"
+                [disabled]="isBottomSlot"
+                aria-label="Porta al darrere"
+              >
+                <lucide-icon name="ArrowDown" [size]="13" aria-hidden="true" />
+                Al darrere
+              </button>
+            </div>
           </div>
 
           <div class="divider my-0"></div>

@@ -60,6 +60,7 @@ const NODE_COLORS: Record<string, string> = {
 const DEFAULT_NODE_COLOR = '#6b7280';
 const SELECTED_STROKE = '#f59e0b';
 const NORMAL_STROKE = '#1e1b4b';
+const COMPOSITION_SLOT_SCALE = 0.5;
 
 @Component({
   selector: 'app-figure-canvas',
@@ -150,6 +151,49 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.stage.batchDraw();
   }
 
+  fitAllSlots(): void {
+    // Collect all slot groups (exclude the Transformer which is also a Group subclass)
+    const groups = this.pinyaLayer.getChildren().filter(
+      (node) => node.className === 'Group',
+    ) as Konva.Group[];
+
+    if (groups.length === 0) {
+      this.fitToScreen();
+      return;
+    }
+
+    // Compute union bounding box in layer-local (scene) coordinates
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const group of groups) {
+      const rect = group.getClientRect({ relativeTo: this.pinyaLayer });
+      minX = Math.min(minX, rect.x);
+      minY = Math.min(minY, rect.y);
+      maxX = Math.max(maxX, rect.x + rect.width);
+      maxY = Math.max(maxY, rect.y + rect.height);
+    }
+
+    const bbW = maxX - minX;
+    const bbH = maxY - minY;
+    if (bbW <= 0 || bbH <= 0) {
+      this.fitToScreen();
+      return;
+    }
+
+    const padding = 40;
+    const scaleX = (this.stage.width() - padding * 2) / bbW;
+    const scaleY = (this.stage.height() - padding * 2) / bbH;
+    const newScale = Math.min(scaleX, scaleY, 2);
+
+    // Center the bounding box in the viewport
+    const newX = (this.stage.width() - bbW * newScale) / 2 - minX * newScale;
+    const newY = (this.stage.height() - bbH * newScale) / 2 - minY * newScale;
+
+    this.stage.scale({ x: newScale, y: newScale });
+    this.stage.position({ x: newX, y: newY });
+    this.zoomLevel.set(newScale);
+    this.stage.batchDraw();
+  }
+
   setZoom(level: number): void {
     const center = {
       x: this.stage.width() / 2,
@@ -210,10 +254,12 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       const isMiddleButton = e.evt.button === 1;
       const isLeftButton = e.evt.button === 0;
       const clickedOnStage = e.target === this.stage;
-      const noNodeSelected = !this.selectedNodeId();
+      const noSelection = this.mode() === 'composition'
+        ? !this.selectedSlotId()
+        : !this.selectedNodeId();
 
       // Allow panning with middle button or left button on empty canvas
-      if (isMiddleButton || (isLeftButton && clickedOnStage && noNodeSelected)) {
+      if (isMiddleButton || (isLeftButton && clickedOnStage && noSelection)) {
         isPanning = true;
         const pos = this.stage.getPointerPosition()!;
         panStart = { x: pos.x, y: pos.y };
@@ -244,9 +290,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.stage.on('mousemove', (e) => {
       if (isPanning) return;
       const clickedOnStage = e.target === this.stage;
-      const noNodeSelected = !this.selectedNodeId();
-      
-      if (clickedOnStage && noNodeSelected && this.mode() === 'editor') {
+      const noSelection = this.mode() === 'composition'
+        ? !this.selectedSlotId()
+        : !this.selectedNodeId();
+
+      if (clickedOnStage && noSelection && (this.mode() === 'editor' || this.mode() === 'composition')) {
         this.stage.container().style.cursor = 'grab';
       }
     });
@@ -372,126 +420,174 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.pinyaLayer.destroyChildren();
 
     const selectedSlotId = this.selectedSlotId();
+    // Sort ascending: lower sortOrder painted first (behind), higher sortOrder on top
+    const sortedSlots = [...this.compositionSlots()].sort((a, b) => a.sortOrder - b.sortOrder);
 
-    for (const slot of this.compositionSlots()) {
+    for (const slot of sortedSlots) {
       const pinyaNodes = slot.figureTemplate.nodes.filter(
         (n) => n.zone === FigureZone.PINYA || n.zone === FigureZone.BASE,
       );
 
-      if (pinyaNodes.length === 0) continue;
-
       const isSelected = slot.slotId === selectedSlotId;
-
-      // Compute bounding box for the bounding rect
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      for (const n of pinyaNodes) {
-        minX = Math.min(minX, n.x - n.width / 2);
-        minY = Math.min(minY, n.y - n.height / 2);
-        maxX = Math.max(maxX, n.x + n.width / 2);
-        maxY = Math.max(maxY, n.y + n.height / 2);
-      }
-
-      const padding = 8;
-      const labelHeight = 16;
 
       const slotGroup = new Konva.Group({
         id: slot.slotId,
         x: slot.offsetX,
         y: slot.offsetY,
         draggable: true,
+        scaleX: COMPOSITION_SLOT_SCALE,
+        scaleY: COMPOSITION_SLOT_SCALE,
       });
 
-      // Bounding box
-      slotGroup.add(
-        new Konva.Rect({
-          x: minX - padding,
-          y: minY - padding - labelHeight,
-          width: maxX - minX + padding * 2,
-          height: maxY - minY + padding * 2 + labelHeight,
-          stroke: isSelected ? SELECTED_STROKE : '#94a3b8',
-          strokeWidth: isSelected ? 2 : 1,
-          dash: [6, 3],
-          fill: isSelected ? 'rgba(245,158,11,0.05)' : 'transparent',
-          cornerRadius: 6,
-          listening: false,
-        }),
-      );
-
-      // Group label (figure name or slot label)
-      const labelText = slot.label ?? slot.figureTemplate.name;
-      slotGroup.add(
-        new Konva.Text({
-          x: minX - padding,
-          y: minY - padding - labelHeight,
-          width: maxX - minX + padding * 2,
-          text: labelText,
-          fontSize: 11,
-          fontFamily: 'Inter, sans-serif',
-          fill: isSelected ? SELECTED_STROKE : '#64748b',
-          align: 'center',
-          verticalAlign: 'middle',
-          height: labelHeight,
-          listening: false,
-          ellipsis: true,
-        }),
-      );
-
-      // Render pinya-view nodes (read-only)
-      for (const node of pinyaNodes) {
-        const fill = node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR;
-        const nodeGroup = new Konva.Group({
-          x: node.x,
-          y: node.y,
-          rotation: node.rotation,
-          draggable: false,
-          listening: false,
-        });
-
-        let shape: Konva.Shape;
-        if (node.shape === NodeShape.ELLIPSE) {
-          shape = new Konva.Ellipse({
-            radiusX: node.width / 2,
-            radiusY: node.height / 2,
-            fill,
-            stroke: NORMAL_STROKE,
-            strokeWidth: 1.5,
-          });
-        } else {
-          shape = new Konva.Rect({
-            x: -node.width / 2,
-            y: -node.height / 2,
-            width: node.width,
-            height: node.height,
-            cornerRadius: 4,
-            fill,
-            stroke: NORMAL_STROKE,
-            strokeWidth: 1.5,
-          });
-        }
-        nodeGroup.add(shape);
-
-        const textFill = this.getContrastColor(fill);
-        nodeGroup.add(
+      if (pinyaNodes.length === 0) {
+        // Placeholder while nodes are loading (optimistic add before save response)
+        const phW = 120;
+        const phH = 80;
+        slotGroup.add(
+          new Konva.Rect({
+            x: -phW / 2,
+            y: -phH / 2,
+            width: phW,
+            height: phH,
+            stroke: isSelected ? SELECTED_STROKE : '#94a3b8',
+            strokeWidth: isSelected ? 2 : 1,
+            dash: [6, 3],
+            fill: isSelected ? 'rgba(245,158,11,0.05)' : 'rgba(148,163,184,0.05)',
+            cornerRadius: 6,
+            listening: true,
+          }),
+        );
+        slotGroup.add(
           new Konva.Text({
-            text: node.label,
+            x: -phW / 2,
+            y: -20,
+            width: phW,
+            text: slot.figureTemplate.name,
+            fontSize: 11,
+            fontFamily: 'Inter, sans-serif',
+            fill: isSelected ? SELECTED_STROKE : '#64748b',
+            align: 'center',
+            listening: false,
+          }),
+        );
+        slotGroup.add(
+          new Konva.Text({
+            x: -phW / 2,
+            y: -4,
+            width: phW,
+            text: 'Carregant...',
             fontSize: 10,
             fontFamily: 'Inter, sans-serif',
-            fill: textFill,
+            fill: '#94a3b8',
             align: 'center',
-            verticalAlign: 'middle',
-            width: node.width,
-            height: node.height - 8,
-            x: -node.width / 2,
-            y: -node.height / 2 + 4,
             listening: false,
-            wrap: 'word',
+          }),
+        );
+      } else {
+        // Compute bounding box for the bounding rect
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        for (const n of pinyaNodes) {
+          minX = Math.min(minX, n.x - n.width / 2);
+          minY = Math.min(minY, n.y - n.height / 2);
+          maxX = Math.max(maxX, n.x + n.width / 2);
+          maxY = Math.max(maxY, n.y + n.height / 2);
+        }
+
+        const padding = 8;
+        const labelHeight = 16;
+
+        // Bounding rect with listening: true — acts as the hit area for the whole group
+        slotGroup.add(
+          new Konva.Rect({
+            x: minX - padding,
+            y: minY - padding - labelHeight,
+            width: maxX - minX + padding * 2,
+            height: maxY - minY + padding * 2 + labelHeight,
+            stroke: isSelected ? SELECTED_STROKE : '#94a3b8',
+            strokeWidth: isSelected ? 2 : 1,
+            dash: [6, 3],
+            fill: isSelected ? 'rgba(245,158,11,0.05)' : 'transparent',
+            cornerRadius: 6,
+            listening: true,
           }),
         );
 
-        slotGroup.add(nodeGroup);
+        // Group label (figure name or slot label)
+        const labelText = slot.label ?? slot.figureTemplate.name;
+        slotGroup.add(
+          new Konva.Text({
+            x: minX - padding,
+            y: minY - padding - labelHeight,
+            width: maxX - minX + padding * 2,
+            text: labelText,
+            fontSize: 11,
+            fontFamily: 'Inter, sans-serif',
+            fill: isSelected ? SELECTED_STROKE : '#64748b',
+            align: 'center',
+            verticalAlign: 'middle',
+            height: labelHeight,
+            listening: false,
+            ellipsis: true,
+          }),
+        );
+
+        // Render pinya-view nodes (read-only)
+        for (const node of pinyaNodes) {
+          const fill = node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR;
+          const nodeGroup = new Konva.Group({
+            x: node.x,
+            y: node.y,
+            rotation: node.rotation,
+            draggable: false,
+            listening: false,
+          });
+
+          let shape: Konva.Shape;
+          if (node.shape === NodeShape.ELLIPSE) {
+            shape = new Konva.Ellipse({
+              radiusX: node.width / 2,
+              radiusY: node.height / 2,
+              fill,
+              stroke: NORMAL_STROKE,
+              strokeWidth: 1.5,
+            });
+          } else {
+            shape = new Konva.Rect({
+              x: -node.width / 2,
+              y: -node.height / 2,
+              width: node.width,
+              height: node.height,
+              cornerRadius: 4,
+              fill,
+              stroke: NORMAL_STROKE,
+              strokeWidth: 1.5,
+            });
+          }
+          nodeGroup.add(shape);
+
+          const textFill = this.getContrastColor(fill);
+          nodeGroup.add(
+            new Konva.Text({
+              text: node.label,
+              fontSize: 10,
+              fontFamily: 'Inter, sans-serif',
+              fill: textFill,
+              align: 'center',
+              verticalAlign: 'middle',
+              width: node.width,
+              height: node.height - 8,
+              x: -node.width / 2,
+              y: -node.height / 2 + 4,
+              listening: false,
+              wrap: 'word',
+            }),
+          );
+
+          slotGroup.add(nodeGroup);
+        }
       }
 
-      // Slot group interaction
+      // Slot group interaction — same for real slots and placeholders
       slotGroup.on('click tap', () => {
         this.slotSelected.emit(slot.slotId);
       });

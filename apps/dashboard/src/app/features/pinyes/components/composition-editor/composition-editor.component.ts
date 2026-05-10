@@ -6,6 +6,7 @@ import {
   computed,
   OnInit,
   OnDestroy,
+  ViewChild,
 } from '@angular/core';
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -55,6 +56,8 @@ export class CompositionEditorComponent implements OnInit, OnDestroy {
   nameValue = signal('');
   slugValue = signal('');
   descriptionValue = signal('');
+
+  @ViewChild(FigureCanvasComponent) private canvasRef?: FigureCanvasComponent;
 
   private saveDebounce: ReturnType<typeof setTimeout> | undefined;
   private figureSearchDebounce: ReturnType<typeof setTimeout> | undefined;
@@ -170,22 +173,33 @@ export class CompositionEditorComponent implements OnInit, OnDestroy {
         this.nameValue.set(defaultName);
         this.slugValue.set(this.generateSlug(defaultName));
       }
-      this.saveImmediately(() => this.doAddFigure(figureTemplate));
+      // First save to get an ID, then add the figure and save again
+      this.saveImmediately(() => {
+        this.doAddFigure(figureTemplate);
+        this.saveImmediately();
+      });
       return;
     }
     this.doAddFigure(figureTemplate);
+    // Save immediately so the API returns real nodes, replacing the placeholder
+    this.saveImmediately();
   }
 
   private doAddFigure(figureTemplate: FigureTemplateListItem): void {
     const comp = this.composition();
     if (!comp) return;
 
+    const existingSortOrders = comp.slots.map((s) => s.sortOrder);
+    const newSortOrder = existingSortOrders.length === 0
+      ? 0
+      : Math.max(...existingSortOrders) + 1;
+
     const newSlot: CompositionSlotItem = {
       id: `temp-${Date.now()}`,
       label: null,
-      offsetX: 0,
+      offsetX: comp.slots.length * 200,
       offsetY: 0,
-      sortOrder: comp.slots.length,
+      sortOrder: newSortOrder,
       figureTemplate: {
         ...figureTemplate,
         nodes: [],
@@ -195,7 +209,6 @@ export class CompositionEditorComponent implements OnInit, OnDestroy {
     };
 
     this.composition.set({ ...comp, slots: [...comp.slots, newSlot] });
-    this.scheduleSave();
   }
 
   // --- Canvas events ---
@@ -251,6 +264,56 @@ export class CompositionEditorComponent implements OnInit, OnDestroy {
     });
     this.selectedSlotId.set(null);
     this.scheduleSave();
+  }
+
+  // --- Z-order controls ---
+
+  bringForward(): void {
+    const comp = this.composition();
+    const slotId = this.selectedSlotId();
+    if (!comp || !slotId) return;
+
+    const sorted = [...comp.slots].sort((a, b) => a.sortOrder - b.sortOrder);
+    const idx = sorted.findIndex((s) => s.id === slotId);
+    if (idx === -1 || idx === sorted.length - 1) return;
+
+    const current = sorted[idx];
+    const next = sorted[idx + 1];
+    const updatedSlots = comp.slots.map((s) => {
+      if (s.id === current.id) return { ...s, sortOrder: next.sortOrder };
+      if (s.id === next.id) return { ...s, sortOrder: current.sortOrder };
+      return s;
+    });
+
+    this.composition.set({ ...comp, slots: updatedSlots });
+    this.scheduleSave();
+  }
+
+  sendBackward(): void {
+    const comp = this.composition();
+    const slotId = this.selectedSlotId();
+    if (!comp || !slotId) return;
+
+    const sorted = [...comp.slots].sort((a, b) => a.sortOrder - b.sortOrder);
+    const idx = sorted.findIndex((s) => s.id === slotId);
+    if (idx <= 0) return;
+
+    const current = sorted[idx];
+    const prev = sorted[idx - 1];
+    const updatedSlots = comp.slots.map((s) => {
+      if (s.id === current.id) return { ...s, sortOrder: prev.sortOrder };
+      if (s.id === prev.id) return { ...s, sortOrder: current.sortOrder };
+      return s;
+    });
+
+    this.composition.set({ ...comp, slots: updatedSlots });
+    this.scheduleSave();
+  }
+
+  // --- Canvas fit ---
+
+  fitAll(): void {
+    this.canvasRef?.fitAllSlots();
   }
 
   // --- Navigation ---
@@ -364,6 +427,20 @@ export class CompositionEditorComponent implements OnInit, OnDestroy {
       case 'error': return 'text-error';
       default: return 'text-base-content/30';
     }
+  }
+
+  get isTopSlot(): boolean {
+    const comp = this.composition();
+    const slot = this.selectedSlot();
+    if (!comp || !slot || comp.slots.length <= 1) return true;
+    return slot.sortOrder === Math.max(...comp.slots.map((s) => s.sortOrder));
+  }
+
+  get isBottomSlot(): boolean {
+    const comp = this.composition();
+    const slot = this.selectedSlot();
+    if (!comp || !slot || comp.slots.length <= 1) return true;
+    return slot.sortOrder === Math.min(...comp.slots.map((s) => s.sortOrder));
   }
 
   // --- Helpers ---
