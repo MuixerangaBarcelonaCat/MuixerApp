@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Post, Body, Query } from '@nestjs/common';
+import { Controller, Get, Patch, Post, Body, Query, Param, ParseUUIDPipe } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { UserRole } from '@muixer/shared';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -7,6 +7,7 @@ import { CreateWithInviteDto } from './dto/create-with-invite.dto';
 import { UserFilterDto } from './dto/user-filter.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { GrantUserRoleDto } from './dto/grant-user-role.dto';
+import { UpdatePersonDto } from '../person/dto/update-person.dto';
 
 @ApiTags('users')
 @Controller('users')
@@ -36,7 +37,7 @@ export class UserController {
     return this.userService.findAll(filters);
   }
 
-  @Patch('/grant-role')
+  @Patch('/:id/role')
   @ApiOperation({
     summary: 'Assigna un rol a un usuari',
   })
@@ -44,7 +45,7 @@ export class UserController {
   @ApiResponse({ status: 200, description: 'Usuari actualitzat' })
   @ApiResponse({ status: 400, description: 'Error en assignar el rol' })
   @ApiResponse({ status: 404, description: 'Usuari no trobat' })
-  grantRole(@Body() dto: GrantUserRoleDto): Promise<UserResponseDto> {
-    return this.userService.grantRole(dto.userId, dto.role);
+  grantRole(@Param('id', ParseUUIDPipe) id: string, @Body() dto: GrantUserRoleDto): Promise<UserResponseDto> {
+    return this.userService.grantRole(id, dto.role);
   }
 }

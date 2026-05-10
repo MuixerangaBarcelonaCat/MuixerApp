@@ -24,6 +24,6 @@ export class UserService extends ApiService {
 
   /** Assigna un rol a un usuari. */
   grantRole(userId: string, role: UserRole): Observable<UserDto> {
-    return this.patch<UserDto>(`/users/grant-role`, { userId, role });
+    return this.patch<UserDto>(`/users/${userId}/role`, { role });
   }
 }
