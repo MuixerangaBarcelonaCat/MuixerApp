@@ -402,7 +402,29 @@ export class CompositionEditorComponent implements OnInit, OnDestroy {
 
       this.compositionService.update(comp.id, payload).subscribe({
         next: (updated) => {
+          // The API deletes and recreates all slots on every save, so slot IDs change.
+          // Re-match the currently selected slot by figureTemplateId + sortOrder so the
+          // right panel stays open after autosave.
+          const prevSlotId = this.selectedSlotId();
           this.composition.set(updated);
+          if (prevSlotId) {
+            const prevSlot = comp.slots.find((s) => s.id === prevSlotId);
+            if (prevSlot) {
+              const newSlot = updated.slots.find(
+                (s) =>
+                  s.figureTemplate.id === prevSlot.figureTemplate.id &&
+                  s.sortOrder === prevSlot.sortOrder,
+              );
+              if (newSlot) {
+                this.selectedSlotId.set(newSlot.id);
+              } else {
+                this.selectedSlotId.set(null);
+              }
+            } else {
+              // Selected slot was a temp ID not yet in the saved composition (race condition)
+              this.selectedSlotId.set(null);
+            }
+          }
           this.saveStatus.set('saved');
           afterSave?.();
         },

@@ -6,7 +6,7 @@ import {
   computed,
   OnInit,
 } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
 import { FigureTemplateService } from '../../services/figure-template.service';
@@ -35,6 +35,7 @@ export class TemplateListComponent implements OnInit {
   private readonly figureTemplateService = inject(FigureTemplateService);
   private readonly compositionTemplateService = inject(CompositionTemplateService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   activeTab = signal<ActiveTab>('figures');
   searchInput = '';
@@ -66,6 +67,10 @@ export class TemplateListComponent implements OnInit {
   );
 
   ngOnInit() {
+    const tab = this.route.snapshot.queryParamMap.get('tab') as ActiveTab | null;
+    if (tab === 'compositions') {
+      this.setTab('compositions');
+    }
     this.loadTemplates();
   }
 
