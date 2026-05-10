@@ -89,7 +89,7 @@ Decisions clau d'ordre:
 **Frontend** (`apps/dashboard/src/app/features/pinyes/`):
 - `TemplateListComponent`: llistat de templates amb tabs "Figures" / "Composicions" (tab Composicions en placeholder per P5.2), cards amb accions Editar / Duplicar / Eliminar (confirm-dialog)
 - `FigureCanvasComponent`: canvas Konva reutilitzable amb:
-  - **Pinya layer** (zona principal): nodes `PINYA` + nodes `TRONC` z=0 (baixos)
+  - **Pinya layer** (zona principal): nodes `PINYA` + nodes `BASE` (bases, z=0)
   - **Tronc layer** (panel lateral dret): tots els nodes `TRONC` agrupats per pis (`z`). Toggle "Mostrar/Ocultar vista Tronc" a la toolbar
   - Grid de guia configurable (toggle + mida), snap-to-grid opcional
   - Zoom (scroll wheel) + pan (click drag fons / botó central)

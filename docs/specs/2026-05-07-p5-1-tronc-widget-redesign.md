@@ -35,10 +35,10 @@ La implementació original del tronc a P5.1 renderitzava els nodes TRONC com un 
 
 | Camp | Ús per nodes TRONC |
 |------|--------------------|
-| `zone` | `TRONC` |
-| `z` | Número de pis (0=Baixos, 1=Segons, 2=Terços, 3=Quarts, 4=Alçadora, 5=Xiqueta) |
-| `positionType` | `baix`, `segon`, `terç`, `quart`, `alcadora`, `xiqueta` |
-| `label` | Nom del tipus (sense numeració): "Baix", "Segon", "Terç"... |
+| `zone` | `TRONC` (pisos elevats). Les Bases usen `zone=BASE` (z=0) |
+| `z` | Número de pis absolut (0=Bases/zone BASE, 1=Segon, 2=Terç, 3=Quart, 4=Alçadora, 5=Xiqueta) |
+| `positionType` | `segon`, `terç`, `quart`, `alcadora`, `xiqueta` (les bases usen `base` amb zone=BASE) |
+| `label` | Nom del tipus (sense numeració): "Segon", "Terç"... |
 | `sortOrder` | Posició dins del pis (esquerra → dreta) |
 | `climbPath` | `(X)` per xiqueta, `(A)` per alçadora, `null` per la resta |
 | `x`, `y` | Fixats a 0 (no rellevants per al tronc) |
@@ -47,32 +47,31 @@ La implementació original del tronc a P5.1 renderitzava els nodes TRONC com un 
 
 ### Tipus de pis predefinits
 
-Els tipus de base (Baix, Segon, Terç, Quart) tenen un `z` fix per convenció. Els tipus superiors (Alçadora, Xiqueta) reben `z` **automàtic**: es col·loquen al primer z lliure per sobre del pis existent més alt (`max_z + 1`).
+Les **Bases** (`zone=BASE`, z=0) es gestionen a la secció especial "Bases · P1" del widget (editable bidireccional amb el canvas de pinya). Els pisos de tronc (Segon, Terç, Quart) tenen un `z` fix per convenció. Els tipus superiors (Alçadora, Xiqueta) reben `z` **automàtic**: es col·loquen al primer z lliure per sobre del pis existent més alt (`max_z + 1`).
 
-| Botó al widget | `z` | `positionType` | `label` auto |
-|---|---|---|---|
-| Baix | `0` (fix) | `baix` | `Baix` |
-| Segon | `1` (fix) | `segon` | `Segon` |
-| Terç | `2` (fix) | `terç` | `Terç` |
-| Quart | `3` (fix) | `quart` | `Quart` |
-| Alçadora | `max_z + 1` (auto) | `alcadora` | `Alçadora` |
-| Xiqueta | `max_z + 1` (auto) | `xiqueta` | `Xiqueta` |
+| Secció/Botó al widget | `zone` | `z` | `positionType` | `label` auto |
+|---|---|---|---|---|
+| Bases (secció especial) | `BASE` | `0` (fix) | `base` | `Base` |
+| Segon | `TRONC` | `1` (fix) | `segon` | `Segon` |
+| Terç | `TRONC` | `2` (fix) | `terç` | `Terç` |
+| Quart | `TRONC` | `3` (fix) | `quart` | `Quart` |
+| Alçadora | `TRONC` | `max_z + 1` (auto) | `alcadora` | `Alçadora` |
+| Xiqueta | `TRONC` | `max_z + 1` (auto) | `xiqueta` | `Xiqueta` |
 
 Exemples d'assignació automàtica de `z`:
-- Xopera (Baix+Segon+Terç existents, max_z=2): clicar "Alçadora" → z=3; clicar "Xiqueta" → z=4
+- Xopera (Base+Segon+Terç existents, max_z=2): clicar "Alçadora" → z=3; clicar "Xiqueta" → z=4
 - Figure amb Quart (max_z=3): clicar "Alçadora" → z=4; clicar "Xiqueta" → z=5
 
 > En casos no estàndard, el valor de `z` és editable manualment al panel de propietats.
 
 El `sortOrder` del nou node s'assigna automàticament com el nombre de nodes existents al mateix `z` (= posició al final del pis).
 
-### Relació Baixos — Pinya i Tronc
+### Relació Bases — Pinya i Tronc
 
-Els baixos es defineixen **dues vegades**:
-1. Com a node `zone=PINYA`, `positionType='baix'` — apareixen al canvas de la pinya, lliurement posicionables.
-2. Com a node `zone=TRONC`, `z=0`, `positionType='baix'` — apareixen a P1 del widget de tronc.
+Les **Bases** són la **intersecció** entre pinya i tronc. Es defineixen una **sola vegada**:
+- Node `zone=BASE`, `z=0`, `positionType='base'` — apareixen al canvas de la pinya (posicionables) **i** a la secció "Bases · P1" del widget de tronc.
 
-Representen les mateixes persones físiques. La **sincronització d'assignació** (una sola assignació que actualitza ambdós nodes) es resoldrà a **P5.4**.
+L'edició és **bidireccional**: afegir/treure des del canvas de pinya o des del widget es reflecteix immediatament a l'altre. Representen les mateixes persones físiques. La sincronització d'assignació de persones es resoldrà a **P5.4**.
 
 ---
 
@@ -80,19 +79,21 @@ Representen les mateixes persones físiques. La **sincronització d'assignació*
 
 ### Pilar de 4 (pd4)
 ```
-P4 (z=3): Quart    × 1
-P3 (z=2): Terç     × 1
-P2 (z=1): Segon    × 1
-P1 (z=0): Baix     × 1
+P5 (z=4): Quart    × 1
+P4 (z=3): Terç     × 1
+P3 (z=2): Segon    × 1
+──────────────────────
+Bases (z=0): Base  × 1
 ```
 
 ### Xopera
 ```
-P5 (z=4): Xiqueta  × 1
-P4 (z=3): Alçadora × 1
-P3 (z=2): Terç     × 2
-P2 (z=1): Segon    × 4
-P1 (z=0): Baix     × 4
+P6 (z=5): Xiqueta  × 1
+P5 (z=4): Alçadora × 1
+P4 (z=3): Terç     × 2
+P3 (z=2): Segon    × 4
+──────────────────────
+Bases (z=0): Base  × 4
 ```
 
 ---
@@ -111,16 +112,18 @@ features/pinyes/components/tronc-widget/
 
 ```typescript
 // Inputs
-troncNodes = input<FigureNodeItem[]>([]);       // nodes filtrats zone=TRONC
-mode       = input<'editor' | 'readonly'>('editor');
+troncNodes     = input<FigureNodeItem[]>([]);   // nodes filtrats zone=TRONC (z>=1)
+baseNodes      = input<FigureNodeItem[]>([]);   // nodes filtrats zone=BASE (z=0)
+mode           = input<'editor' | 'readonly'>('editor');
 selectedNodeId = input<string | null>(null);    // per ressaltar el node seleccionat
 
 // Outputs
 nodeAdded    = output<{ z: number; positionType: string; label: string; sortOrder: number }>();
-nodeRemoved  = output<string>();                // id del node a eliminar
+nodeRemoved  = output<string>();                // id del node TRONC a eliminar
 floorRemoved = output<number>();               // z del pis sencer a eliminar
-nodeUpdated  = output<{ id: string; patch: Partial<FigureNodeItem> }>();
 nodeSelected = output<string | null>();         // sincronitza amb el panel de propietats dret
+baseAdded    = output<{ sortOrder: number }>();  // afegir una Base nova (zone=BASE)
+baseRemoved  = output<string>();               // id del node BASE a eliminar
 ```
 
 ### Estats del widget
@@ -140,12 +143,14 @@ Si no hi ha pisos: `[ 🏗 Tronc · sense pisos ▾ ]`
 │                                                     │
 │  P5 ─── [ Xiqueta ] [(X)]                   [🗑]   │
 │  P4 ─── [ Alçadora ] [(A)]                  [🗑]   │
-│  P3 ─── [ Terç ][ Terç ]                    [🗑]   │
-│  P2 ─── [ Seg. ][ Seg. ][ Seg. ][ Seg. ]   [🗑]   │
-│  P1 ─── [ Baix ][ Baix ][ Baix ][ Baix ]   [🗑]   │
+│  P4 ─── [ Terç ][ Terç ]                    [🗑]   │
+│  P3 ─── [ Seg. ][ Seg. ][ Seg. ][ Seg. ]   [🗑]   │
+│ ┌─ Bases · P1 ──────────────────── [-] 4 [+] ─┐  │
+│ │  [ Base ][ Base ][ Base ][ Base ]             │  │
+│ └───────────────────────────────────────────────┘  │
 │                                                     │
-│  [+ Afegir pis ▾]                                  │
-│    Baix · Segon · Terç · Quart · Alçadora · Xiqueta │
+│  [+ Afegir P3 ▾]                                   │
+│    Segon · Terç · Quart · Alçadora · Xiqueta        │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -155,7 +160,7 @@ Si no hi ha pisos: `[ 🏗 Tronc · sense pisos ▾ ]`
 - Botó `[(X)]` / `[(A)]` visible i editable als nodes d'Alçadora/Xiqueta (toggle del `climbPath`).
 - Botó `[🗑]` per eliminar tots els nodes d'un pis (amb confirmació).
 - Click a una píndola → `nodeSelected.emit(nodeId)` — sincronitza el panel de propietats dret.
-- Botó `[+ còpia]` implícit: fer clic a `[+ Afegir pis → Baix]` quan z=0 ja existeix afegeix un node addicional al mateix pis.
+- Secció **Bases · P1** amb controls `[-] N [+]` per afegir/treure bases (sincronitzat amb el canvas de pinya).
 
 **Vista Llista** (toggle):
 ```
@@ -163,9 +168,9 @@ Pis  │ Tipus      │ Nodes
 ─────┼────────────┼──────────────────────────────
 P5   │ Xiqueta    │ Xiqueta [(X)]
 P4   │ Alçadora   │ Alçadora [(A)]
-P3   │ Terços     │ Terç · Terç
-P2   │ Segons     │ Segon · Segon · Segon · Segon
-P1   │ Baixos     │ Baix · Baix · Baix · Baix
+P4   │ Terços     │ Terç · Terç
+P3   │ Segons     │ Segon · Segon · Segon · Segon
+Bases│ Bases      │ Base · Base · Base · Base
 ```
 
 **Orientació configurable**: Botó toggle `[▲]` / `[▼]` per invertir l'ordre de lectura (dalt-baix o baix-dalt) — preferència d'usuari, no afecta les dades.
@@ -314,10 +319,10 @@ Posicionament CSS del widget:
 El seed `seed-pd4.script.ts` actual defineix **35 nodes de pinya i 0 nodes de tronc**. Cal afegir els nodes TRONC del Pilar de 4:
 
 ```typescript
-// Nodes TRONC del pd4
-{ zone: 'TRONC', z: 0, positionType: 'baix',   label: 'Baix',     sortOrder: 0, x: 0, y: 0, width: 60, height: 40, rotation: 0 },
-{ zone: 'TRONC', z: 1, positionType: 'segon',  label: 'Segon',    sortOrder: 0, x: 0, y: 0, width: 60, height: 40, rotation: 0 },
-{ zone: 'TRONC', z: 2, positionType: 'terç',   label: 'Terç',     sortOrder: 0, x: 0, y: 0, width: 60, height: 40, rotation: 0 },
+// Nodes del pd4
+{ zone: 'BASE',  z: 0, positionType: 'base',   label: 'Base',     sortOrder: 0, x: 500, y: 500, width: 80, height: 40, rotation: 0 }, // intersecció pinya-tronc
+{ zone: 'TRONC', z: 1, positionType: 'segon',  label: 'Segon',    sortOrder: 0, x: 0,   y: 0,   width: 60, height: 40, rotation: 0 },
+{ zone: 'TRONC', z: 2, positionType: 'terç',   label: 'Terç',     sortOrder: 0, x: 0,   y: 0,   width: 60, height: 40, rotation: 0 },
 { zone: 'TRONC', z: 3, positionType: 'quart',  label: 'Quart',    sortOrder: 0, x: 0, y: 0, width: 60, height: 40, rotation: 0 },
 ```
 
@@ -325,8 +330,8 @@ El seed `seed-pd4.script.ts` actual defineix **35 nodes de pinya i 0 nodes de tr
 
 ## 9. Decisió Pendent (P5.4)
 
-> **Baixos: assignació dual**
-> Els baixos apareixen com a node PINYA i com a node TRONC (z=0) al mateix template. Quan s'assigna una persona al baix de la pinya (P5.4), cal decidir si l'assignació s'aplica automàticament al node TRONC z=0 corresponent o si es fan dues assignacions independents. Aquesta decisió es pren i implementa a **P5.4**.
+> **Bases: assignació única**
+> Les Bases (`zone=BASE`, z=0) son un sol node per persona que apareix tant a la pinya com al tronc-widget. Quan s'assigna una persona a una Base (P5.4), l'assignació és única — no hi ha duplicació de nodes ni cal sincronitzar dues entitats. Aquesta assignació s'implementa a **P5.4**.
 
 ---
 

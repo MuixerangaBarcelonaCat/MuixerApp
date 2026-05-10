@@ -76,11 +76,58 @@
 
     <!-- Body -->
     <div class="tronc-body">
-      @if (floors().length === 0) {
+      @if (floors().length === 0 && basesCount() === 0) {
         <p class="text-xs text-base-content/40 text-center py-4">
-          Sense pisos. Afegeix un pis des del botó inferior.
+          Sense pisos. Afegeix una base o un pis des dels botons inferiors.
         </p>
       }
+
+      <!-- Bases section (intersection pinya-tronc) -->
+      <div class="bases-section" [class.bases-section--empty]="basesCount() === 0">
+        <div class="bases-header">
+          <span class="bases-label" aria-label="Bases de la figura">Bases · P1</span>
+          @if (mode() === 'editor') {
+            <div class="floor-controls" role="group" aria-label="Controls de les bases">
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs btn-square"
+                (click)="removeLastBase()"
+                [disabled]="basesCount() === 0"
+                aria-label="Treure última base"
+                title="Treure base"
+              >
+                <lucide-icon name="Minus" [size]="10" aria-hidden="true" />
+              </button>
+              <span class="floor-count" aria-live="polite">{{ basesCount() }}</span>
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs btn-square"
+                (click)="addBase()"
+                aria-label="Afegir base"
+                title="Afegir base"
+              >
+                <lucide-icon name="Plus" [size]="10" aria-hidden="true" />
+              </button>
+            </div>
+          }
+        </div>
+        @if (basesCount() > 0) {
+          <div class="floor-nodes" role="list" aria-label="Nodes de base">
+            @for (node of baseNodes(); track node.id) {
+              <button
+                type="button"
+                class="node-pill node-pill--base"
+                [class.node-pill--selected]="isSelected(node.id)"
+                (click)="selectNode(node.id)"
+                [attr.aria-label]="node.label + (isSelected(node.id) ? ' (seleccionat)' : '')"
+                [attr.aria-pressed]="isSelected(node.id)"
+              >
+                {{ node.label }}
+              </button>
+            }
+          </div>
+        }
+      </div>
 
       <!-- Tower view -->
       @if (viewMode() === 'tower') {
@@ -179,24 +226,13 @@
       }
     </div>
 
-    <!-- Footer: add floor -->
+    <!-- Footer: add tronc floor (P2 and above) -->
     @if (mode() === 'editor') {
       <div class="tronc-footer">
         @if (!canAddFloor()) {
           <p class="text-xs text-base-content/30 text-center py-1">Màxim de 6 pisos assolit</p>
-        } @else if (nextFloorOptions().length === 1) {
-          <!-- P1 (Baix): única opció, s'afegeix directament sense desplegable -->
-          <button
-            type="button"
-            class="btn btn-ghost btn-xs w-full gap-1"
-            (click)="addFloorNode(nextFloorOptions()[0])"
-            [attr.aria-label]="'Afegir P' + (nextZ() + 1) + ' · ' + nextFloorOptions()[0].label"
-          >
-            <lucide-icon name="Plus" [size]="12" aria-hidden="true" />
-            Afegir P{{ nextZ() + 1 }} · {{ nextFloorOptions()[0].label }}
-          </button>
         } @else {
-          <!-- P2–P6: desplegable cap avall amb les opcions del pis -->
+          <!-- P2–P6: desplegable amb les opcions del pis -->
           <div class="dropdown dropdown-bottom w-full" [class.dropdown-open]="addMenuOpen()">
             <button
               type="button"

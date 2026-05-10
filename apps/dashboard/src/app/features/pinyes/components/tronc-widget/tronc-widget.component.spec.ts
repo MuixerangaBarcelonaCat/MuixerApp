@@ -23,16 +23,35 @@ let nodeCounter = 0;
 
 const makeNode = (overrides: Partial<FigureNodeItem> = {}): FigureNodeItem => ({
   id: `node-${++nodeCounter}`,
-  label: 'Baix',
+  label: 'Segon',
   zone: FigureZone.TRONC,
-  positionType: 'baix',
+  positionType: 'segon',
   x: 0,
   y: 0,
-  z: 0,
+  z: 1,
   width: 80,
   height: 40,
   rotation: 0,
   color: null,
+  shape: NodeShape.RECTANGLE,
+  sortOrder: 0,
+  climbPath: null,
+  metadata: {},
+  ...overrides,
+});
+
+const makeBaseNode = (overrides: Partial<FigureNodeItem> = {}): FigureNodeItem => ({
+  id: `node-${++nodeCounter}`,
+  label: 'Base',
+  zone: FigureZone.BASE,
+  positionType: 'base',
+  x: 500,
+  y: 500,
+  z: 0,
+  width: 80,
+  height: 40,
+  rotation: 0,
+  color: '#EEEEEE',
   shape: NodeShape.RECTANGLE,
   sortOrder: 0,
   climbPath: null,
@@ -82,14 +101,14 @@ describe('TroncWidgetComponent', () => {
 
     it('groups nodes by z level', () => {
       fixture.componentRef.setInput('troncNodes', [
-        makeNode({ id: 'a', z: 0 }),
-        makeNode({ id: 'b', z: 1 }),
-        makeNode({ id: 'c', z: 0 }),
+        makeNode({ id: 'a', z: 1 }),
+        makeNode({ id: 'b', z: 2 }),
+        makeNode({ id: 'c', z: 1 }),
       ]);
       const floors = component.floors();
       expect(floors).toHaveLength(2);
-      const p1 = floors.find((f) => f.z === 0)!;
-      expect(p1.nodes).toHaveLength(2);
+      const p2 = floors.find((f) => f.z === 1)!;
+      expect(p2.nodes).toHaveLength(2);
     });
 
     it('assigns pisLabel as P(z+1)', () => {
@@ -99,9 +118,9 @@ describe('TroncWidgetComponent', () => {
 
     it('sorts nodes within a floor by sortOrder', () => {
       fixture.componentRef.setInput('troncNodes', [
-        makeNode({ id: 'a', z: 0, sortOrder: 2 }),
-        makeNode({ id: 'b', z: 0, sortOrder: 0 }),
-        makeNode({ id: 'c', z: 0, sortOrder: 1 }),
+        makeNode({ id: 'a', z: 1, sortOrder: 2 }),
+        makeNode({ id: 'b', z: 1, sortOrder: 0 }),
+        makeNode({ id: 'c', z: 1, sortOrder: 1 }),
       ]);
       const floor = component.floors()[0];
       expect(floor.nodes.map((n) => n.id)).toEqual(['b', 'c', 'a']);
@@ -109,38 +128,38 @@ describe('TroncWidgetComponent', () => {
 
     it('sorts floors descending by default (top floor first)', () => {
       fixture.componentRef.setInput('troncNodes', [
-        makeNode({ z: 0 }),
-        makeNode({ z: 2 }),
         makeNode({ z: 1 }),
+        makeNode({ z: 3 }),
+        makeNode({ z: 2 }),
       ]);
       const zOrder = component.floors().map((f) => f.z);
-      expect(zOrder).toEqual([2, 1, 0]);
+      expect(zOrder).toEqual([3, 2, 1]);
     });
 
     it('sorts floors ascending when sortAscending is true', () => {
       fixture.componentRef.setInput('troncNodes', [
-        makeNode({ z: 2 }),
-        makeNode({ z: 0 }),
+        makeNode({ z: 3 }),
         makeNode({ z: 1 }),
+        makeNode({ z: 2 }),
       ]);
       component.sortAscending.set(true);
       const zOrder = component.floors().map((f) => f.z);
-      expect(zOrder).toEqual([0, 1, 2]);
+      expect(zOrder).toEqual([1, 2, 3]);
     });
   });
 
   // ── Computed: maxZ() ───────────────────────────────────────────────────────
 
   describe('maxZ()', () => {
-    it('returns -1 when no nodes', () => {
-      expect(component.maxZ()).toBe(-1);
+    it('returns 0 when no tronc nodes (z=0 is reserved for BASE)', () => {
+      expect(component.maxZ()).toBe(0);
     });
 
-    it('returns the highest z among all nodes', () => {
+    it('returns the highest z among tronc nodes', () => {
       fixture.componentRef.setInput('troncNodes', [
-        makeNode({ z: 0 }),
-        makeNode({ z: 3 }),
         makeNode({ z: 1 }),
+        makeNode({ z: 3 }),
+        makeNode({ z: 2 }),
       ]);
       expect(component.maxZ()).toBe(3);
     });
@@ -149,18 +168,23 @@ describe('TroncWidgetComponent', () => {
   // ── Computed: pillLabel() ──────────────────────────────────────────────────
 
   describe('pillLabel()', () => {
-    it('returns "sense pisos" when no floors', () => {
+    it('returns "sense pisos" when no floors and no bases', () => {
       expect(component.pillLabel()).toBe('sense pisos');
     });
 
-    it('returns singular "1 pis" for exactly one floor', () => {
-      fixture.componentRef.setInput('troncNodes', [makeNode({ z: 0 })]);
+    it('counts bases as an extra floor in the pill label', () => {
+      fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
       expect(component.pillLabel()).toBe('1 pis');
     });
 
-    it('returns plural "X pisos" for multiple floors', () => {
+    it('returns singular "1 pis" for one tronc floor and no bases', () => {
+      fixture.componentRef.setInput('troncNodes', [makeNode({ z: 1 })]);
+      expect(component.pillLabel()).toBe('1 pis');
+    });
+
+    it('returns plural "X pisos" for tronc floors and one base', () => {
+      fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
       fixture.componentRef.setInput('troncNodes', [
-        makeNode({ z: 0 }),
         makeNode({ z: 1 }),
         makeNode({ z: 2 }),
       ]);
@@ -171,8 +195,8 @@ describe('TroncWidgetComponent', () => {
   // ── Computed: nextZ(), canAddFloor(), nextFloorOptions() ──────────────────
 
   describe('nextZ()', () => {
-    it('returns 0 when no nodes', () => {
-      expect(component.nextZ()).toBe(0);
+    it('returns 1 when no tronc nodes (z=0 is reserved for BASE)', () => {
+      expect(component.nextZ()).toBe(1);
     });
 
     it('returns maxZ + 1', () => {
@@ -182,57 +206,126 @@ describe('TroncWidgetComponent', () => {
   });
 
   describe('canAddFloor()', () => {
-    it('returns true when fewer than 6 floors', () => {
+    it('returns true when fewer than 5 tronc floors (total < 6 with base)', () => {
       fixture.componentRef.setInput('troncNodes', [
-        makeNode({ z: 0 }),
         makeNode({ z: 1 }),
+        makeNode({ z: 2 }),
       ]);
       expect(component.canAddFloor()).toBe(true);
     });
 
-    it('returns false when 6 floors already exist (nextZ = 6)', () => {
+    it('returns false when tronc floors fill up to z=5 (nextZ=6)', () => {
       fixture.componentRef.setInput('troncNodes', [
-        makeNode({ z: 0 }), makeNode({ z: 1 }), makeNode({ z: 2 }),
-        makeNode({ z: 3 }), makeNode({ z: 4 }), makeNode({ z: 5 }),
+        makeNode({ z: 1 }), makeNode({ z: 2 }), makeNode({ z: 3 }),
+        makeNode({ z: 4 }), makeNode({ z: 5 }),
       ]);
       expect(component.canAddFloor()).toBe(false);
     });
   });
 
   describe('nextFloorOptions()', () => {
-    it('P1: only Baix', () => {
-      const opts = component.nextFloorOptions();
-      expect(opts).toHaveLength(1);
-      expect(opts[0].positionType).toBe('baix');
-    });
-
-    it('P2: Segon, Alçadora, Xiqueta', () => {
-      fixture.componentRef.setInput('troncNodes', [makeNode({ z: 0 })]);
+    it('P2 (z=1): Segon, Alçadora, Xiqueta when no tronc floors', () => {
       const opts = component.nextFloorOptions();
       expect(opts.map((o) => o.positionType)).toEqual(['segon', 'alcadora', 'xiqueta']);
     });
 
-    it('P3: Terç, Alçadora, Xiqueta', () => {
-      fixture.componentRef.setInput('troncNodes', [makeNode({ z: 0 }), makeNode({ z: 1 })]);
+    it('P3 (z=2): Terç, Alçadora, Xiqueta after one tronc floor', () => {
+      fixture.componentRef.setInput('troncNodes', [makeNode({ z: 1 })]);
       const opts = component.nextFloorOptions();
       expect(opts[0].positionType).toBe('terç');
     });
 
+    it('P4 (z=3): Quart, Alçadora, Xiqueta', () => {
+      fixture.componentRef.setInput('troncNodes', [makeNode({ z: 1 }), makeNode({ z: 2 })]);
+      const opts = component.nextFloorOptions();
+      expect(opts[0].positionType).toBe('quart');
+    });
+
     it('P6 (z=5): only Alçadora, Xiqueta', () => {
       fixture.componentRef.setInput('troncNodes', [
-        makeNode({ z: 0 }), makeNode({ z: 1 }), makeNode({ z: 2 }),
-        makeNode({ z: 3 }), makeNode({ z: 4 }),
+        makeNode({ z: 1 }), makeNode({ z: 2 }), makeNode({ z: 3 }),
+        makeNode({ z: 4 }),
       ]);
       const opts = component.nextFloorOptions();
       expect(opts.map((o) => o.positionType)).toEqual(['alcadora', 'xiqueta']);
     });
 
-    it('returns empty array beyond P6', () => {
+    it('returns empty array when all tronc floors filled (z=5 is max)', () => {
       fixture.componentRef.setInput('troncNodes', [
-        makeNode({ z: 0 }), makeNode({ z: 1 }), makeNode({ z: 2 }),
-        makeNode({ z: 3 }), makeNode({ z: 4 }), makeNode({ z: 5 }),
+        makeNode({ z: 1 }), makeNode({ z: 2 }), makeNode({ z: 3 }),
+        makeNode({ z: 4 }), makeNode({ z: 5 }),
       ]);
       expect(component.nextFloorOptions()).toHaveLength(0);
+    });
+  });
+
+  // ── basesCount() and base outputs ────────────────────────────────────────
+
+  describe('basesCount()', () => {
+    it('returns 0 when no base nodes', () => {
+      expect(component.basesCount()).toBe(0);
+    });
+
+    it('returns the number of base nodes', () => {
+      fixture.componentRef.setInput('baseNodes', [makeBaseNode(), makeBaseNode()]);
+      expect(component.basesCount()).toBe(2);
+    });
+  });
+
+  describe('addBase()', () => {
+    it('emits baseAdded with sortOrder equal to current base count', () => {
+      fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
+      const emitted: { sortOrder: number }[] = [];
+      component.baseAdded.subscribe((v) => emitted.push(v));
+
+      component.addBase();
+
+      expect(emitted).toHaveLength(1);
+      expect(emitted[0]).toEqual({ sortOrder: 1 });
+    });
+
+    it('emits sortOrder 0 when no bases yet', () => {
+      const emitted: { sortOrder: number }[] = [];
+      component.baseAdded.subscribe((v) => emitted.push(v));
+
+      component.addBase();
+
+      expect(emitted[0]).toEqual({ sortOrder: 0 });
+    });
+  });
+
+  describe('removeBase()', () => {
+    it('emits baseRemoved with the given id', () => {
+      const emitted: string[] = [];
+      component.baseRemoved.subscribe((v) => emitted.push(v));
+
+      component.removeBase('base-1');
+
+      expect(emitted).toEqual(['base-1']);
+    });
+  });
+
+  describe('removeLastBase()', () => {
+    it('emits baseRemoved with the last base node id', () => {
+      fixture.componentRef.setInput('baseNodes', [
+        makeBaseNode({ id: 'b1', sortOrder: 0 }),
+        makeBaseNode({ id: 'b2', sortOrder: 1 }),
+      ]);
+      const emitted: string[] = [];
+      component.baseRemoved.subscribe((v) => emitted.push(v));
+
+      component.removeLastBase();
+
+      expect(emitted).toEqual(['b2']);
+    });
+
+    it('does not emit when no bases', () => {
+      const emitted: string[] = [];
+      component.baseRemoved.subscribe((v) => emitted.push(v));
+
+      component.removeLastBase();
+
+      expect(emitted).toHaveLength(0);
     });
   });
 
@@ -359,14 +452,14 @@ describe('TroncWidgetComponent', () => {
   });
 
   describe('addFloorNode()', () => {
-    it('emits nodeAdded at nextZ with sortOrder 0 for an empty floor', () => {
+    it('emits nodeAdded at z=1 (nextZ when no tronc floors) with sortOrder 0', () => {
       const emitted: { z: number; positionType: string; label: string; sortOrder: number }[] = [];
       component.nodeAdded.subscribe((v) => emitted.push(v));
 
-      component.addFloorNode({ label: 'Baix', positionType: 'baix' });
+      component.addFloorNode({ label: 'Segon', positionType: 'segon' });
 
       expect(emitted).toHaveLength(1);
-      expect(emitted[0]).toEqual({ z: 0, positionType: 'baix', label: 'Baix', sortOrder: 0 });
+      expect(emitted[0]).toEqual({ z: 1, positionType: 'segon', label: 'Segon', sortOrder: 0 });
     });
 
     it('emits at nextZ = maxZ + 1', () => {
@@ -381,7 +474,7 @@ describe('TroncWidgetComponent', () => {
 
     it('closes the add menu after emitting', () => {
       component.addMenuOpen.set(true);
-      component.addFloorNode({ label: 'Baix', positionType: 'baix' });
+      component.addFloorNode({ label: 'Segon', positionType: 'segon' });
       expect(component.addMenuOpen()).toBe(false);
     });
   });
@@ -389,19 +482,19 @@ describe('TroncWidgetComponent', () => {
   describe('addNodeToFloor()', () => {
     it('emits nodeAdded with same positionType/label as the floor and sortOrder = node count', () => {
       fixture.componentRef.setInput('troncNodes', [
-        makeNode({ id: 'a', z: 0, positionType: 'segon', label: 'Segon', sortOrder: 0 }),
-        makeNode({ id: 'b', z: 0, positionType: 'segon', label: 'Segon', sortOrder: 1 }),
+        makeNode({ id: 'a', z: 1, positionType: 'segon', label: 'Segon', sortOrder: 0 }),
+        makeNode({ id: 'b', z: 1, positionType: 'segon', label: 'Segon', sortOrder: 1 }),
       ]);
 
       const emitted: { z: number; positionType: string; label: string; sortOrder: number }[] = [];
       component.nodeAdded.subscribe((v) => emitted.push(v));
 
-      const floor = component.floors().find((f) => f.z === 0)!;
+      const floor = component.floors().find((f) => f.z === 1)!;
       component.addNodeToFloor(floor);
 
       expect(emitted).toHaveLength(1);
       expect(emitted[0]).toEqual({
-        z: 0,
+        z: 1,
         positionType: 'segon',
         label: 'Segon',
         sortOrder: 2,
@@ -412,14 +505,14 @@ describe('TroncWidgetComponent', () => {
   describe('removeLastNodeFromFloor()', () => {
     it('emits nodeRemoved with the id of the last node (highest sortOrder)', () => {
       fixture.componentRef.setInput('troncNodes', [
-        makeNode({ id: 'first', z: 0, sortOrder: 0 }),
-        makeNode({ id: 'last',  z: 0, sortOrder: 1 }),
+        makeNode({ id: 'first', z: 1, sortOrder: 0 }),
+        makeNode({ id: 'last',  z: 1, sortOrder: 1 }),
       ]);
 
       const emitted: string[] = [];
       component.nodeRemoved.subscribe((v) => emitted.push(v));
 
-      const floor = component.floors().find((f) => f.z === 0)!;
+      const floor = component.floors().find((f) => f.z === 1)!;
       component.removeLastNodeFromFloor(floor);
 
       expect(emitted).toEqual(['last']);
@@ -429,7 +522,7 @@ describe('TroncWidgetComponent', () => {
       const emitted: string[] = [];
       component.nodeRemoved.subscribe((v) => emitted.push(v));
 
-      component.removeLastNodeFromFloor({ z: 0, pisLabel: 'P1', nodes: [] });
+      component.removeLastNodeFromFloor({ z: 1, pisLabel: 'P2', nodes: [] });
 
       expect(emitted).toHaveLength(0);
     });

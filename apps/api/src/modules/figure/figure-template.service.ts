@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FigureTemplate } from './entities/figure-template.entity';
@@ -98,6 +98,8 @@ export class FigureTemplateService {
   }
 
   async create(dto: CreateFigureTemplateDto): Promise<FigureTemplateDetailItem> {
+    await this.assertSlugAvailable(dto.slug);
+
     const template = this.templateRepository.create({
       name: dto.name,
       slug: dto.slug,
@@ -107,13 +109,18 @@ export class FigureTemplateService {
       metadata: dto.metadata ?? {},
     });
 
-    const saved = await this.templateRepository.save(template);
-
-    if (dto.nodes && dto.nodes.length > 0) {
-      await this.createNodes(saved, dto.nodes);
+    let saved: FigureTemplate;
+    try {
+      saved = await this.templateRepository.save(template);
+    } catch (err) {
+      this.handleDbError(err);
     }
 
-    return this.findOne(saved.id);
+    if (dto.nodes && dto.nodes.length > 0) {
+      await this.createNodes(saved!, dto.nodes);
+    }
+
+    return this.findOne(saved!.id);
   }
 
   async update(id: string, dto: UpdateFigureTemplateDto): Promise<FigureTemplateDetailItem> {
@@ -127,13 +134,20 @@ export class FigureTemplateService {
     }
 
     if (dto.name !== undefined) template.name = dto.name;
-    if (dto.slug !== undefined) template.slug = dto.slug;
+    if (dto.slug !== undefined) {
+      await this.assertSlugAvailable(dto.slug, id);
+      template.slug = dto.slug;
+    }
     if (dto.description !== undefined) template.description = dto.description ?? null;
     if (dto.hasPinya !== undefined) template.hasPinya = dto.hasPinya;
     if (dto.direction !== undefined) template.direction = dto.direction;
     if (dto.metadata !== undefined) template.metadata = dto.metadata ?? {};
 
-    await this.templateRepository.save(template);
+    try {
+      await this.templateRepository.save(template);
+    } catch (err) {
+      this.handleDbError(err);
+    }
 
     if (dto.nodes !== undefined) {
       await this.syncNodes(template, dto.nodes);
@@ -188,6 +202,28 @@ export class FigureTemplateService {
     }
 
     return this.findOne(savedCopy.id);
+  }
+
+  private async assertSlugAvailable(slug: string, excludeId?: string): Promise<void> {
+    const existing = await this.templateRepository.findOne({ where: { slug } });
+    if (existing && existing.id !== excludeId) {
+      throw new ConflictException(
+        `The slug "${slug}" is already in use by another figure template`,
+      );
+    }
+  }
+
+  /** Converts PostgreSQL unique-constraint violations (23505) into ConflictExceptions. */
+  private handleDbError(err: unknown): never {
+    const pgErr = err as { code?: string; detail?: string };
+    if (pgErr?.code === '23505') {
+      const slugMatch = pgErr.detail?.match(/Key \(slug\)=\(([^)]+)\)/);
+      const slug = slugMatch ? slugMatch[1] : 'unknown';
+      throw new ConflictException(
+        `The slug "${slug}" is already in use by another figure template`,
+      );
+    }
+    throw new InternalServerErrorException('Unexpected database error');
   }
 
   private async createNodes(template: FigureTemplate, dtos: CreateFigureNodeDto[]): Promise<void> {

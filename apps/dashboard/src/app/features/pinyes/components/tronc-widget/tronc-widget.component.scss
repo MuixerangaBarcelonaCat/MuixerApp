@@ -79,6 +79,35 @@
   gap: 0.25rem;
 }
 
+// Bases section (intersection pinya-tronc)
+.bases-section {
+  border: 1px dashed oklch(var(--p) / 0.4);
+  border-radius: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  background: oklch(var(--p) / 0.04);
+  margin-bottom: 0.25rem;
+
+  &--empty {
+    border-color: oklch(var(--b3));
+    background: transparent;
+  }
+}
+
+.bases-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  min-height: 22px;
+}
+
+.bases-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: oklch(var(--p) / 0.7);
+  letter-spacing: 0.02em;
+}
+
 // Tower view
 .tronc-floors {
   display: flex;
@@ -142,6 +171,19 @@
   &--sm {
     font-size: 0.6rem;
     padding: 0.1rem 0.35rem;
+  }
+
+  &--base {
+    border-color: oklch(var(--p) / 0.35);
+    background: oklch(var(--p) / 0.08);
+    color: oklch(var(--p) / 0.85);
+    font-weight: 600;
+
+    &:hover {
+      background: oklch(var(--p) / 0.15);
+      border-color: oklch(var(--p) / 0.55);
+      color: oklch(var(--p));
+    }
   }
 }
 

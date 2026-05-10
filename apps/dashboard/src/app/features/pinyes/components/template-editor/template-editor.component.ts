@@ -11,6 +11,7 @@ import {
 import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
+import { HttpErrorResponse } from '@angular/common/http';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { CanvasStateService } from '../../services/canvas-state.service';
 import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component';
@@ -22,6 +23,7 @@ import {
 } from '../../models/figure-template.model';
 import { FigureZone, NodeShape } from '@muixer/shared';
 import { LayoutService } from '../../../../core/services/layout.service';
+import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -36,7 +38,6 @@ const DEFAULT_NODE_WIDTH = 80;
 const DEFAULT_NODE_HEIGHT = 40;
 
 const PINYA_POSITIONS: PinyaPosition[] = [
-  { positionType: 'baix',        label: 'BAIX',        color: '#EEEEEE' },
   { positionType: 'agulla',      label: 'AGULLA',      color: '#0d9488' },
   { positionType: 'mans',        label: 'MANS',        color: '#FFE082' },
   { positionType: 'laterals',    label: 'LATERALS',    color: '#80DEEA' },
@@ -61,6 +62,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly layout = inject(LayoutService);
+  private readonly toast = inject(ToastService);
 
   // Template metadata
   templateId = signal<string | null>(null);
@@ -94,6 +96,10 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   readonly pinyaNodes = computed(() =>
     this.nodes().filter((n) => n.zone !== FigureZone.TRONC),
+  );
+
+  readonly baseNodes = computed(() =>
+    this.nodes().filter((n) => n.zone === FigureZone.BASE),
   );
 
   readonly troncNodes = computed(() =>
@@ -194,6 +200,39 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   onTroncFloorRemoved(z: number): void {
     this.nodes.update((n) => n.filter((node) => !(node.zone === FigureZone.TRONC && node.z === z)));
     this.selectedNodeId.set(null);
+    this.scheduleAutosave();
+  }
+
+  // ── Base node events (from tronc widget bases section) ────────────────────
+
+  onBaseNodeAdded(event: { sortOrder: number }): void {
+    const id = crypto.randomUUID();
+    const stageCenter = { x: 200, y: 200 };
+    const newNode: FigureNodeItem = {
+      id,
+      label: 'Base',
+      zone: FigureZone.BASE,
+      positionType: 'base',
+      x: stageCenter.x + Math.random() * 40 - 20,
+      y: stageCenter.y + Math.random() * 40 - 20,
+      z: 0,
+      width: DEFAULT_NODE_WIDTH,
+      height: DEFAULT_NODE_HEIGHT,
+      rotation: 0,
+      color: '#EEEEEE',
+      shape: NodeShape.RECTANGLE,
+      sortOrder: event.sortOrder,
+      climbPath: null,
+      metadata: {},
+    };
+    this.nodes.update((n) => [...n, newNode]);
+    this.selectedNodeId.set(id);
+    this.scheduleAutosave();
+  }
+
+  onBaseNodeRemoved(id: string): void {
+    this.nodes.update((n) => n.filter((node) => node.id !== id));
+    if (this.selectedNodeId() === id) this.selectedNodeId.set(null);
     this.scheduleAutosave();
   }
 
@@ -338,8 +377,8 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     
     const patch: Partial<FigureNodeItem> = { [key]: value } as Partial<FigureNodeItem>;
     
-    // If changing zone to PINYA, automatically set z to 0
-    if (key === 'zone' && value === FigureZone.PINYA) {
+    // BASE and PINYA nodes always live at z=0
+    if (key === 'zone' && (value === FigureZone.PINYA || value === FigureZone.BASE)) {
       patch.z = 0;
     }
     
@@ -404,7 +443,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     if (id) {
       this.figureTemplateService.update(id, payload).subscribe({
         next: () => this.onSaveSuccess(),
-        error: () => this.saveStatus.set('error'),
+        error: (err: HttpErrorResponse) => this.onSaveError(err),
       });
     } else {
       this.figureTemplateService
@@ -417,7 +456,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
             });
             this.onSaveSuccess();
           },
-          error: () => this.saveStatus.set('error'),
+          error: (err: HttpErrorResponse) => this.onSaveError(err),
         });
     }
   }
@@ -425,6 +464,19 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   private onSaveSuccess(): void {
     this.saveStatus.set('saved');
     setTimeout(() => this.saveStatus.set('idle'), 2500);
+  }
+
+  private onSaveError(err: HttpErrorResponse): void {
+    this.saveStatus.set('error');
+    const isSlugConflict =
+      err.status === 409 ||
+      (err.status === 500 && (err.error?.message as string | undefined)?.toLowerCase().includes('slug'));
+    if (isSlugConflict) {
+      const slug = this.templateSlug();
+      this.toast.error(`L'identificador "${slug}" ja l'utilitza una altra figura. Canvia'l per poder desar.`);
+    } else {
+      this.toast.error('No s\'ha pogut desar la figura. Torna-ho a intentar.');
+    }
   }
 
   private buildPayload() {
@@ -462,8 +514,9 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   }
 
   private defaultLabel(zone: FigureZone, z = 0): string {
+    if (zone === FigureZone.BASE) return 'Base';
     if (zone === FigureZone.PINYA) return 'Pinya';
-    if (zone === FigureZone.TRONC) return z === 0 ? 'Tronc' : `Pis ${z}`;
+    if (zone === FigureZone.TRONC) return `Pis ${z}`;
     if (zone === FigureZone.FIGURE_DIRECTION) return 'Direcció';
     return 'Xicalla Dir.';
   }

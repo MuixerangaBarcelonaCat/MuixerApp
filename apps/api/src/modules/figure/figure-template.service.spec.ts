@@ -23,11 +23,11 @@ const makeTemplate = (overrides: Partial<FigureTemplate> = {}): FigureTemplate =
 
 const makeNode = (overrides: Partial<FigureNode> = {}): FigureNode => ({
   id: 'node-uuid',
-  label: 'Baix 1',
-  zone: FigureZone.TRONC,
-  positionType: 'baix',
-  x: 0,
-  y: 0,
+  label: 'Base 1',
+  zone: FigureZone.BASE,
+  positionType: 'base',
+  x: 500,
+  y: 500,
   z: 0,
   width: 60,
   height: 40,
@@ -44,10 +44,10 @@ const makeNode = (overrides: Partial<FigureNode> = {}): FigureNode => ({
 } as FigureNode);
 
 const NODE_DTO = {
-  label: 'Baix 1',
-  zone: FigureZone.TRONC,
-  x: 0,
-  y: 0,
+  label: 'Base 1',
+  zone: FigureZone.BASE,
+  x: 500,
+  y: 500,
   width: 60,
   height: 40,
   shape: NodeShape.ELLIPSE,

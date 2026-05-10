@@ -42,7 +42,7 @@ describe('PositionService', () => {
 
   describe('findOne', () => {
     it('should return a position when found', async () => {
-      const mockPosition = { id: '123', name: 'Baix', slug: 'baix' };
+      const mockPosition = { id: '123', name: 'Base', slug: 'base' };
       mockRepository.findOne.mockResolvedValue(mockPosition);
 
       const result = await service.findOne('123');
@@ -62,7 +62,7 @@ describe('PositionService', () => {
 
   describe('create', () => {
     it('should create a position', async () => {
-      const createDto = { name: 'Baix', slug: 'baix' };
+      const createDto = { name: 'Base', slug: 'base' };
       const mockPosition = { id: '123', ...createDto };
 
       mockRepository.create.mockReturnValue(mockPosition);
@@ -79,7 +79,7 @@ describe('PositionService', () => {
   describe('findAll', () => {
     it('should return all positions', async () => {
       const mockPositions = [
-        { id: '1', name: 'Baix', slug: 'baix' },
+        { id: '1', name: 'Base', slug: 'base' },
         { id: '2', name: 'Acotxador', slug: 'acotxador' },
       ];
       mockRepository.find.mockResolvedValue(mockPositions);

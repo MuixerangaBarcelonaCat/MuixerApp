@@ -20,12 +20,13 @@ interface TroncFloor {
   nodes: FigureNodeItem[];
 }
 
+// z=0 is reserved for BASE nodes. Tronc floors start at z=1.
+// MAX_FLOORS counts the total figure floors including z=0 (base).
 const MAX_FLOORS = 6;
 
-// Options available when adding the next sequential floor.
-// P1 (z=0): only Baix. P2–P5: named floor + Alçadora + Xiqueta. P6 (z=5): Alçadora/Xiqueta only.
+// Options available when adding the next sequential tronc floor.
+// Keys are z values (starting at 1). z=1 (Segon) up to z=5 (Alçadora/Xiqueta only).
 const FLOOR_OPTIONS: Record<number, FloorOption[]> = {
-  0: [{ label: 'Baix',     positionType: 'baix' }],
   1: [
     { label: 'Segon',    positionType: 'segon' },
     { label: 'Alçadora', positionType: 'alcadora' },
@@ -62,6 +63,7 @@ const FLOOR_OPTIONS: Record<number, FloorOption[]> = {
 })
 export class TroncWidgetComponent {
   readonly troncNodes    = input<FigureNodeItem[]>([]);
+  readonly baseNodes     = input<FigureNodeItem[]>([]);
   readonly mode          = input<'editor' | 'readonly'>('editor');
   readonly selectedNodeId = input<string | null>(null);
 
@@ -69,6 +71,8 @@ export class TroncWidgetComponent {
   readonly nodeRemoved  = output<string>();
   readonly floorRemoved = output<number>();
   readonly nodeSelected = output<string | null>();
+  readonly baseAdded    = output<{ sortOrder: number }>();
+  readonly baseRemoved  = output<string>();
 
   readonly expanded  = signal(false);
   readonly viewMode  = signal<'tower' | 'list'>('tower');
@@ -102,18 +106,25 @@ export class TroncWidgetComponent {
 
   readonly floorCount = computed(() => this.floors().length);
 
+  readonly basesCount = computed(() => this.baseNodes().length);
+
+  // maxZ for tronc floors only (z >= 1). Returns 0 when no tronc floors so nextZ starts at 1.
   readonly maxZ = computed(() => {
     const nodes = this.troncNodes();
-    if (nodes.length === 0) return -1;
+    if (nodes.length === 0) return 0;
     return Math.max(...nodes.map((n) => n.z));
   });
 
   readonly pillLabel = computed(() => {
-    const count = this.floorCount();
-    return count === 0 ? 'sense pisos' : `${count} ${count === 1 ? 'pis' : 'pisos'}`;
+    const bases = this.basesCount();
+    const floors = this.floorCount();
+    const totalFloors = bases > 0 ? floors + 1 : floors;
+    return totalFloors === 0 ? 'sense pisos' : `${totalFloors} ${totalFloors === 1 ? 'pis' : 'pisos'}`;
   });
 
-  readonly nextZ = computed(() => this.maxZ() + 1);
+  // nextZ for tronc: starts at 1 (z=0 is reserved for BASE)
+  readonly nextZ = computed(() => Math.max(1, this.maxZ() + 1));
+  // Total floors including base (z=0). MAX_FLOORS = 6 means z=0..5
   readonly canAddFloor = computed(() => this.nextZ() < MAX_FLOORS);
   readonly nextFloorOptions = computed(() => FLOOR_OPTIONS[this.nextZ()] ?? []);
 
@@ -170,6 +181,22 @@ export class TroncWidgetComponent {
     if (floor.nodes.length === 0) return;
     const last = floor.nodes[floor.nodes.length - 1];
     this.nodeRemoved.emit(last.id);
+  }
+
+  addBase(): void {
+    const sortOrder = this.baseNodes().length;
+    this.baseAdded.emit({ sortOrder });
+  }
+
+  removeLastBase(): void {
+    const bases = this.baseNodes();
+    if (bases.length === 0) return;
+    const last = bases[bases.length - 1];
+    this.baseRemoved.emit(last.id);
+  }
+
+  removeBase(id: string): void {
+    this.baseRemoved.emit(id);
   }
 
   isSelected(id: string): boolean {

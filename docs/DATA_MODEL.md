@@ -53,8 +53,8 @@ Posicions muixerangueres (pinya, tronc, caps de colla...). Gestionades intername
 | Camp | Tipus DB | TypeScript | Nullable | Notes |
 |------|----------|------------|----------|-------|
 | `id` | `uuid` | `string` | No | PK |
-| `name` | `varchar` | `string` | No | Únic. Ex: `"Baix"` |
-| `slug` | `varchar` | `string` | No | Únic. Ex: `"baix"` |
+| `name` | `varchar` | `string` | No | Únic. Ex: `"Base"` |
+| `slug` | `varchar` | `string` | No | Únic. Ex: `"base"` |
 | `shortDescription` | `varchar` | `string \| null` | Sí | |
 | `longDescription` | `text` | `string \| null` | Sí | |
 | `color` | `varchar` | `string \| null` | Sí | Hex, ex: `"#FF5733"` |

@@ -19,10 +19,10 @@ const mockDetail = {
 };
 
 const NODE_DTO = {
-  label: 'Baix 1',
-  zone: FigureZone.TRONC,
-  x: 0,
-  y: 0,
+  label: 'Base 1',
+  zone: FigureZone.BASE,
+  x: 500,
+  y: 500,
   width: 60,
   height: 40,
   shape: NodeShape.ELLIPSE,

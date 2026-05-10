@@ -11,7 +11,7 @@ import {
 import { FigureZone, NodeShape } from '@muixer/shared';
 
 export class CreateFigureNodeDto {
-  @ApiProperty({ description: 'Node label, e.g. "Baix 1"' })
+  @ApiProperty({ description: 'Node label, e.g. "Base 1"' })
   @IsString()
   @IsNotEmpty()
   label: string;
@@ -20,7 +20,7 @@ export class CreateFigureNodeDto {
   @IsEnum(FigureZone)
   zone: FigureZone;
 
-  @ApiPropertyOptional({ description: 'Free-form position type, e.g. "baix", "segon", "cross"' })
+  @ApiPropertyOptional({ description: 'Free-form position type, e.g. "base", "segon", "cross"' })
   @IsString()
   @IsOptional()
   positionType?: string;
@@ -33,7 +33,7 @@ export class CreateFigureNodeDto {
   @IsNumber()
   y: number;
 
-  @ApiPropertyOptional({ description: 'Floor (0=ground/pinya, 1=segons, 2=terços…)', default: 0 })
+  @ApiPropertyOptional({ description: 'Floor (0=base, 1=segon, 2=terç…)', default: 0 })
   @IsInt()
   @Min(0)
   @IsOptional()

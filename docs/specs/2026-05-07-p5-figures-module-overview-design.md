@@ -25,9 +25,9 @@ Definir l'especificació tècnica i funcional del Mòdul de Pinyes (Figures Desi
 | Terme | Definició |
 |-------|-----------|
 | **Pinya** | Base de la figura. Totes les persones amb els peus a terra. Vista en planta (des de dalt). |
-| **Tronc** | Estructura vertical de la figura. Pisos apilats sobre els baixos. Vista frontal (alçat). |
-| **Baixos** | Persones a la base que apareixen tant a la pinya com al tronc. |
-| **Segons** | Segon pis del tronc. Mateixa quantitat que els baixos, peus tancats sobre les espatlles dels baixos. |
+| **Tronc** | Estructura vertical de la figura. Pisos apilats sobre les bases. Vista frontal (alçat). |
+| **Bases** | Persones a la base que apareixen tant a la pinya com al tronc. Zona `BASE` (z=0). Intersecció entre pinya i tronc. |
+| **Segons** | Segon pis del tronc (z=1). Mateixa quantitat que les bases, peus tancats sobre les espatlles de les bases. |
 | **Terços** | Tercer pis. Menys persones, peus oberts sobre dues espatlles de dos segons adjacents. |
 | **Alçadora** | Persona que alça la xiqueta al cim de la figura. |
 | **Xiqueta** | Persona al cim de la figura (xicalla, < 16 anys). |
@@ -135,8 +135,8 @@ Cada posició dins d'un template.
 | `id` | `uuid` | `string` | No | PK, auto-generat |
 | `template` | FK → `figure_templates` | `FigureTemplate` | No | ManyToOne, CASCADE delete |
 | `label` | `varchar` | `string` | No | Ex: "Baix 1", "Cross esquerra" |
-| `zone` | `enum FigureZone` | `FigureZone` | No | `PINYA`, `TRONC`, `FIGURE_DIRECTION`, `XICALLA_DIRECTION`. **Baixos**: zone=`TRONC` amb z=0. El canvas renderitza automàticament els nodes TRONC z=0 en ambdues vistes (pinya i tronc) |
-| `positionType` | `varchar` | `string \| null` | Sí | Lliure: "baix", "segon", "cross", "agulla", "primeres_mans"... |
+| `zone` | `enum FigureZone` | `FigureZone` | No | `BASE`, `PINYA`, `TRONC`, `FIGURE_DIRECTION`, `XICALLA_DIRECTION`. **Bases**: zone=`BASE` (z=0), intersecció pinya-tronc. El canvas renderitza els nodes `BASE` a la vista de pinya; el tronc-widget els mostra com a secció especial "Bases · P1". |
+| `positionType` | `varchar` | `string \| null` | Sí | Lliure: "base", "segon", "cross", "agulla", "primeres_mans"... |
 | `x` | `float` | `number` | No | Coordenada X al canvas |
 | `y` | `float` | `number` | No | Coordenada Y al canvas |
 | `z` | `int` | `number` | No | Default `0`. Pis (0=terra/pinya, 1=segons, 2=terços...) |

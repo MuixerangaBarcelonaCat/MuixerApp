@@ -24,11 +24,11 @@ const makeFigureTemplate = (overrides: Partial<FigureTemplate> = {}): FigureTemp
 
 const makeFigureNode = () => ({
   id: 'node-uuid',
-  label: 'Baix 1',
-  zone: FigureZone.TRONC,
-  positionType: 'baix',
-  x: 0,
-  y: 0,
+  label: 'Base 1',
+  zone: FigureZone.BASE,
+  positionType: 'base',
+  x: 500,
+  y: 500,
   z: 0,
   width: 60,
   height: 40,

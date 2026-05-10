@@ -85,6 +85,23 @@
     <!-- Left Toolbar -->
     <aside class="editor-toolbar" aria-label="Eines">
 
+      <!-- Base (intersecció pinya-tronc) -->
+      <div class="toolbar-section">
+        <p class="toolbar-label">Base</p>
+        <button
+          type="button"
+          class="toolbar-btn"
+          (click)="onBaseNodeAdded({ sortOrder: baseNodes().length })"
+          title="Afegir Base"
+          aria-label="Afegir node Base"
+        >
+          <span class="node-rect" style="background-color: #EEEEEE; border: 1px dashed #a1a1a1;" aria-hidden="true"></span>
+          BASE
+        </button>
+      </div>
+
+      <div class="divider my-1"></div>
+
       <!-- Pinya positions -->
       <div class="toolbar-section">
         <p class="toolbar-label">Pinya</p>
@@ -159,12 +176,15 @@
         <!-- Tronc widget -->
         <app-tronc-widget
           [troncNodes]="troncNodes()"
+          [baseNodes]="baseNodes()"
           [mode]="'editor'"
           [selectedNodeId]="selectedNodeId()"
           (nodeAdded)="onTroncNodeAdded($event)"
           (nodeRemoved)="onTroncNodeRemoved($event)"
           (floorRemoved)="onTroncFloorRemoved($event)"
           (nodeSelected)="onNodeSelected($event)"
+          (baseAdded)="onBaseNodeAdded($event)"
+          (baseRemoved)="onBaseNodeRemoved($event)"
         />
 
         <!-- Direccions widget (estructura de nodes FIGURE_DIRECTION / XICALLA_DIRECTION) -->
@@ -263,15 +283,15 @@
                   [ngModel]="node.zone"
                   (ngModelChange)="updateSelectedNodeProp('zone', $event)"
                 >
+                  <option [value]="FigureZone.BASE">Base</option>
                   <option [value]="FigureZone.PINYA">Pinya</option>
-                  <option [value]="FigureZone.TRONC">Tronc</option>
                   <option [value]="FigureZone.FIGURE_DIRECTION">Direcció Figura</option>
                   <option [value]="FigureZone.XICALLA_DIRECTION">Direcció Xicalla</option>
                 </select>
-                @if (node.zone === FigureZone.PINYA) {
+                @if (node.zone === FigureZone.PINYA || node.zone === FigureZone.BASE) {
                   <div class="label pt-1">
                     <span class="label-text-alt text-base-content/50">
-                      Els nodes de pinya sempre tenen pis = 0
+                      Els nodes de pinya i base sempre tenen pis = 0
                     </span>
                   </div>
                 }
@@ -288,7 +308,7 @@
                   type="text"
                   [id]="'node-pos-' + node.id"
                   class="input input-bordered input-sm"
-                  placeholder="baix, segon, cross..."
+                  placeholder="base, segon, cross..."
                   [ngModel]="node.positionType"
                   (ngModelChange)="updateSelectedNodeProp('positionType', $event || null)"
                 />
@@ -396,8 +416,8 @@
               </div>
             }
 
-            <!-- Floor (z) - Only for non-PINYA and non-TRONC zones (TRONC floor is managed via the widget) -->
-            @if (node.zone !== FigureZone.PINYA && node.zone !== FigureZone.TRONC) {
+            <!-- Floor (z) - Only for non-PINYA, non-BASE, non-TRONC zones (TRONC floor is managed via the widget, BASE and PINYA are always z=0) -->
+            @if (node.zone !== FigureZone.PINYA && node.zone !== FigureZone.BASE && node.zone !== FigureZone.TRONC) {
               <div class="form-control mb-3">
                 <label class="label pb-1" [for]="'node-z-' + node.id">
                   <span class="label-text text-xs font-medium">Pis (z)</span>

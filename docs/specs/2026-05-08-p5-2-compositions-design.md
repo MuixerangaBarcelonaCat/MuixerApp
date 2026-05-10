@@ -321,7 +321,7 @@ interface CompositionSlotWithNodes {
 
 **Which nodes are rendered?**
 
-The composition canvas shows only the **pinya-view** of each figure: nodes with zone `PINYA` plus nodes with zone `TRONC` and `z === 0` (baixos). These are the same nodes the template editor renders in its pinya layer. Upper tronc floors (z ≥ 1: segons, terços, alçadora, xiqueta) are **not shown** — they are vertical and have no spatial relationship with adjacent figures.
+The composition canvas shows only the **pinya-view** of each figure: nodes with zone `PINYA` plus nodes with zone `BASE` (bases, z=0). These are the same nodes the template editor renders in its pinya layer. Tronc floors (z ≥ 1: segon, terç, alçadora, xiqueta) are **not shown** — they are vertical and have no spatial relationship with adjacent figures.
 
 To view or edit the tronc of a figure within a composition, the user clicks "Editar figura ↗" in the right panel, which opens the full template editor (with tronc panel) in a new tab.
 
@@ -329,7 +329,7 @@ To view or edit the tronc of a figure within a composition, the user clicks "Edi
 
 | Aspect | Behavior |
 |--------|----------|
-| Rendering | For each slot, render pinya-view nodes (zone PINYA + TRONC z=0) with offset applied (`node.x + slot.offsetX`, `node.y + slot.offsetY`). Same visual as template editor pinya layer (shapes, colors, labels). |
+| Rendering | For each slot, render pinya-view nodes (zone PINYA + zone BASE) with offset applied (`node.x + slot.offsetX`, `node.y + slot.offsetY`). Same visual as template editor pinya layer (shapes, colors, labels). |
 | Group label | Floating text above each figure group with the figure name (e.g., "pd4 central") |
 | Group border | Subtle dashed bounding box around each figure group to visually separate figures |
 | Selection | Click any node → selects the entire slot/group (highlight all nodes in group) |
@@ -531,4 +531,4 @@ Add to `figure-template.service.spec.ts`:
 | `EventSegment` management | P5.3 |
 | Person assignment to composition nodes | P5.4 |
 | Projection view of compositions | P5.5 |
-| Tronc panel (lateral floor view) in composition editor | Deferred — composition canvas renders pinya-view nodes (zone PINYA + TRONC z=0 baixos, same as template editor pinya layer). The lateral tronc floor panel is per-figure only |
+| Tronc panel (lateral floor view) in composition editor | Deferred — composition canvas renders pinya-view nodes (zone PINYA + zone BASE, same as template editor pinya layer). The lateral tronc floor panel is per-figure only |

@@ -2,9 +2,9 @@
  * Pilar de 4 — figure seed script.
  *
  * Data captured from DB on 2026-05-07 after manual editing via template editor.
- * Layout: pinya en creu (BAIX + 2 CROSSA + 2 CONTRAFORT + 8 MANS nord/sud +
+ * Layout: pinya en creu (BASE + 2 CROSSA + 2 CONTRAFORT + 8 MANS nord/sud +
  *         6 VENTS est/oest + 4 CORDÓ OBERT + 12 LATERALS diagonals)
- * Tronc: Baix → Segon → Alçadora → Xiqueta (4 nivells, z 0–3)
+ * Tronc: Base(z=0) → Segon(z=1) → Alçadora(z=2) → Xiqueta(z=3)
  *
  * Usage:
  *   nx run api:seed-figures-pd4           → prints JSON payload
@@ -21,9 +21,10 @@ const figure: FigureSeed = {
   direction:   180,
   metadata:    {},
   nodes: [
+    // ── BASE (intersecció pinya-tronc) ────────────────────────────────────
+    { label: 'BASE',        zone: 'BASE',  positionType: 'base',        x: 500, y: 500, z: 0, width: 80, height: 40, rotation:   0, color: '#EEEEEE', shape: 'RECTANGLE', sortOrder:  0, climbPath: null, metadata: {} },
     // ── PINYA ──────────────────────────────────────────────────────────────
     // Centre
-    { label: 'BAIX',        zone: 'PINYA', positionType: 'baix',       x: 500, y: 500, z: 0, width: 80, height: 40, rotation:   0, color: '#EEEEEE', shape: 'RECTANGLE', sortOrder:  0, climbPath: null, metadata: {} },
     { label: 'CROSSA',      zone: 'PINYA', positionType: 'crossa',     x: 436, y: 500, z: 0, width: 80, height: 40, rotation: 270, color: '#9FA8DA', shape: 'RECTANGLE', sortOrder: 34, climbPath: null, metadata: {} },
     { label: 'CROSSA',      zone: 'PINYA', positionType: 'crossa',     x: 565, y: 500, z: 0, width: 80, height: 40, rotation:  90, color: '#9FA8DA', shape: 'RECTANGLE', sortOrder:  2, climbPath: null, metadata: {} },
     { label: 'CONTRAFORT',  zone: 'PINYA', positionType: 'contrafort', x: 500, y: 458, z: 0, width: 80, height: 36, rotation:   0, color: '#EF9A9A', shape: 'RECTANGLE', sortOrder:  3, climbPath: null, metadata: {} },
@@ -67,7 +68,6 @@ const figure: FigureSeed = {
     { label: 'LATERAL',     zone: 'PINYA', positionType: 'laterals',   x: 629, y: 627, z: 0, width: 80, height: 40, rotation: 135, color: '#80DEEA', shape: 'RECTANGLE', sortOrder: 33, climbPath: null, metadata: {} },
     { label: 'LATERAL',     zone: 'PINYA', positionType: 'laterals',   x: 662, y: 660, z: 0, width: 80, height: 40, rotation: 135, color: '#80DEEA', shape: 'RECTANGLE', sortOrder: 34, climbPath: null, metadata: {} },
     // ── TRONC ──────────────────────────────────────────────────────────────
-    { label: 'Baix',     zone: 'TRONC', positionType: 'baix',     x: 0, y: 0, z: 0, width: 60, height: 40, rotation: 0, color: null, shape: 'RECTANGLE', sortOrder: 0, climbPath: null,  metadata: {} },
     { label: 'Segon',    zone: 'TRONC', positionType: 'segon',    x: 0, y: 0, z: 1, width: 60, height: 40, rotation: 0, color: null, shape: 'RECTANGLE', sortOrder: 0, climbPath: null,  metadata: {} },
     { label: 'Alçadora', zone: 'TRONC', positionType: 'alcadora', x: 0, y: 0, z: 2, width: 60, height: 40, rotation: 0, color: null, shape: 'RECTANGLE', sortOrder: 0, climbPath: '(A)', metadata: {} },
     { label: 'Xiqueta',  zone: 'TRONC', positionType: 'xiqueta',  x: 0, y: 0, z: 3, width: 60, height: 40, rotation: 0, color: null, shape: 'RECTANGLE', sortOrder: 0, climbPath: '(X)', metadata: {} },

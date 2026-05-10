@@ -51,6 +51,7 @@ export function compositionSlotItemToCanvasSlot(slot: CompositionSlotItem): Comp
 
 const GRID_COLOR = '#e5e7eb';
 const NODE_COLORS: Record<string, string> = {
+  [FigureZone.BASE]: '#EEEEEE',
   [FigureZone.PINYA]: '#3b82f6',
   [FigureZone.TRONC]: '#8b5cf6',
   [FigureZone.FIGURE_DIRECTION]: '#f59e0b',
@@ -374,7 +375,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
     for (const slot of this.compositionSlots()) {
       const pinyaNodes = slot.figureTemplate.nodes.filter(
-        (n) => n.zone === FigureZone.PINYA || (n.zone === FigureZone.TRONC && n.z === 0),
+        (n) => n.zone === FigureZone.PINYA || n.zone === FigureZone.BASE,
       );
 
       if (pinyaNodes.length === 0) continue;
