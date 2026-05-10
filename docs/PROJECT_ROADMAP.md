@@ -19,7 +19,7 @@
 | P4.3 | **Dashboard Design Refactor** — Clean slate visual redesign | ✅ Completat | [`docs/specs/2026-04-20-dashboard-design-refactor-design.md`](docs/specs/2026-04-20-dashboard-design-refactor-design.md) | [`dashboard_design_refactor_3f8d1aed`](.cursor/plans/dashboard_design_refactor_3f8d1aed.plan.md) | ✅ | Top nav + tabs, 15+ shared components, Home tab, sync UI, Pinyes/Config placeholders |
 | **P4.4** | **Arquitectura Docker Multi-entorn** | ✅ Completat | [`docs/specs/2026-05-07-p4-4-docker-local-postgres-design.md`](docs/specs/2026-05-07-p4-4-docker-local-postgres-design.md) | ✅ | ✅ | Docker local dev + Dockerfile multi-stage + docker-compose.prod.yml VPS. NeonDB eliminat del flux de dev |
 | **P5.1** | **Mòdul Pinyes — Templates i Editor Visual** | ✅ Completat | [`docs/specs/2026-05-07-p5-figures-module-overview-design.md`](docs/specs/2026-05-07-p5-figures-module-overview-design.md) | [`p5.1_templates_editor_2859060d`](.cursor/plans/p5.1_templates_editor_2859060d.plan.md) | ✅ | Backend CRUD FigureTemplate+FigureNode, NodeShape enum, Konva editor (pinya + tronc), llistat templates, auto-save. TroncWidget: pisos seqüencials P1–P6 amb opcions per pis, +/- posicions per fila, dropdown cap avall, panel propietats simplificat |
-| P5.2 | Mòdul Pinyes — Composicions | ⚪ Pendent | — | — | — | CompositionTemplate + CompositionSlot. Editor per agrupar figures amb offsets |
+| **P5.2** | **Mòdul Pinyes — Composicions** | ✅ Completat | [`docs/specs/2026-05-08-p5-2-compositions-design.md`](docs/specs/2026-05-08-p5-2-compositions-design.md) | ✅ | ✅ | Backend CompositionModule (entitats+CRUD+tests). Frontend: CompositionEditorComponent (canvas multi-figura, pinya-view, offsets, auto-save), tab Composicions al llistat. P5.2.1: fixes canvas (selection/drag/panning), scale 50%, placeholder, save immediat, offset incremental, fit-all, z-order |
 | P5.3 | Mòdul Pinyes — Segments i Instàncies | ⚪ Pendent | — | — | — | EventSegment + FigureInstance. Tab "Pinyes" a event-detail. Segments reordenables |
 | P5.4 | Mòdul Pinyes — Assignació de Persones | ⚪ Pendent | — | — | — | NodeAssignment. Canvas d'assignació amb panel lateral, cercador i auto-avançament |
 | P5.5 | Mòdul Pinyes — Projecció i Consulta Històrica | ⚪ Pendent | — | — | — | Mode fullscreen TV/projector. Consulta events passats |
@@ -113,10 +113,54 @@ Decisions clau d'ordre:
 
 | Fase | Objectiu | Depèn de |
 |------|----------|----------|
-| **P5.2** | Composicions (`CompositionTemplate` + `CompositionSlot`). Editor per agrupar figures amb offsets | P5.1 |
+| **P5.2** | ✅ Composicions (`CompositionTemplate` + `CompositionSlot`). Editor per agrupar figures amb offsets | P5.1 |
 | **P5.3** | Segments i Instàncies (`EventSegment` + `FigureInstance`). Tab "Pinyes" a event-detail. Segments reordenables drag-handle | P5.1 + P5.2 |
 | **P5.4** | Assignació de persones (`NodeAssignment`). Canvas d'assignació, panel lateral, cercador filtrat, auto-avançament | P5.3 |
 | **P5.5** | Projecció fullscreen (TV/projector) + consulta historial figures per persona/event | P5.4 |
+
+---
+
+## Decisions sobre el Mòdul Pinyes — Composicions (P5.2)
+
+### P5.2 — Composicions (✅ Completat)
+
+#### Què s'ha implementat
+
+**Backend** (`apps/api/src/modules/composition/`):
+- Entitats TypeORM `CompositionTemplate` + `CompositionSlot` (taules `composition_templates` + `composition_slots`)
+- `CompositionModule` amb 6 endpoints REST: llistat (cerca + paginació), detall (amb nodes populats per al canvas), crear, actualitzar (sync complet de slots), eliminar, duplicar
+- Sync de slots al `PUT`: elimina tots i recrea (full replace)
+- Protecció referencial: `FigureTemplateService.remove()` comprova si hi ha `CompositionSlot`s referenciants i llança `ConflictException` (409)
+- Tests unitaris: `composition-template.service.spec.ts` + `composition-template.controller.spec.ts` + tests d'integritat a `figure-template.service.spec.ts`
+
+**Frontend** (`apps/dashboard/src/app/features/pinyes/`):
+- `CompositionEditorComponent`: editor de pàgina complet amb:
+  - Top bar: nom/slug editable, descripció, indicador d'estat de save
+  - Panel esquerre (Figure Picker): cerca de `FigureTemplate`s, click per afegir slot
+  - Canvas Konva en mode `'composition'`: renderitza nodes pinya-view (PINYA + BASE) de cada slot amb offsets, grups draggables, dashed bounding box, label de grup, selecció de slot
+  - Panel dret (Slot Properties): label, offset X/Y, link "Editar figura ↗", eliminar slot
+  - Auto-save amb debounce 2s + save immediat en afegir figura
+- `TemplateListComponent`: tab "Composicions" amb dades reals (cards CRUD: Editar / Duplicar / Eliminar)
+- `CompositionTemplateService` (dashboard): `getAll`, `getOne`, `create`, `update`, `delete`, `duplicate`
+- `composition.model.ts`: `CompositionSlotItem`, `CompositionTemplateListItem`, `CompositionTemplateDetail`
+
+#### P5.2.1 — Corrections & Improvements (✅ Completat)
+
+Fixes crítics de canvas i millores UX implementades posteriorment:
+
+| Fix/Millora | Detall |
+|-------------|--------|
+| **Selecció/drag broken** | Bounding rect `listening: true` — fa de hit area del grup. Sense això, tots els clicks passaven al Stage |
+| **Panning conflictiu** | Guard mode-aware: panning esquerre únicament quan no hi ha selecció en el mode actiu (`selectedSlotId` vs `selectedNodeId`) |
+| **Cursor grab** | Estès a `mode === 'composition'` |
+| **Placeholder per slots buits** | Quan `nodes === []` (just afegit, pendent de resposta API): rect discontinu + text "Carregant..." en comptes de saltarse el slot |
+| **Save immediat en afegir** | `addFigure()` crida `saveImmediately()` en lloc de `scheduleSave()` per minimitzar el temps de buit |
+| **Offset incremental** | Cada nova figura s'afegeix a `(slots.length * 200, 0)` evitant apilament al (0,0) |
+| **Scale 50%** | `scaleX/Y: 0.5` a cada `slotGroup` — múltiples figures caben al viewport sense overflow |
+| **Botó "Enquadrar"** | `fitAllSlots()` calcula bounding box global de tots els grups i ajusta zoom+posició per mostrar-los tots (icon Maximize2) |
+| **Z-order controls** | "Porta al davant" / "Porta al darrere" al right panel: swap de `sortOrder`, canvas re-renderitza en ordre correcte |
+
+**Spec P5.2.1**: [`docs/specs/2026-05-10-p5-2-1-composition-editor-fixes.md`](docs/specs/2026-05-10-p5-2-1-composition-editor-fixes.md)
 
 ---
 
@@ -424,3 +468,6 @@ Cada sub-projecte genera:
 | 7 Mai 2026 | **Spec P5 aprovada** (`docs/specs/2026-05-07-p5-figures-module-overview-design.md`): Mòdul complet Pinyes amb 5 sub-fases (P5.1→P5.5), model de dades (7 entitats), API (20+ endpoints), arquitectura Konva, UX canvas. Decisió: `konva` API imperativa (sense `ng2-konva`). |
 | 7 Mai 2026 | **P5.1 Templates i Editor Visual completat** (7 tasques): Backend — `FigureTemplate`+`FigureNode` entities, `NodeShape` enum, 6 endpoints CRUD+duplicate, tests unitaris. Frontend — `TemplateListComponent` (llistat amb tabs Figures/Composicions, accions CRUD), `FigureCanvasComponent` (Konva stage: pinya layer + tronc layer togglable, grid, zoom/pan, snap-to-grid, drag, resize, rotate, edició inline etiquetes), `TemplateEditorComponent` (toolbar lateral, panel propietats, auto-save 2s debounce, indicador estat). |
 | 7 Mai 2026 | **TroncWidget refinat**: icones Lucide registrades (Building2, List, ArrowDown/Up, ChevronUp, Minus). Dropdown "Afegir pis" ara cap avall amb opcions per pis (P1=Baix directe, P2–P6 amb selector Segon/Terç/Quart/Quint/Alçadora/Xiqueta). Màxim 6 pisos, creació seqüencial. Botons +/− per fila per afegir/treure posicions. Panel propietats simplificat per TRONC (zona, positionType, sortOrder, climbPath ocults). Pre-existing test fixes: `role: UserRole[]` array en tests user-list/user-service/login; grantRole URL; role.guard TestBed reset. Tests: ✅ 258 API + 148 dashboard. |
+| 8 Mai 2026 | **Spec P5.2 aprovada** (`docs/specs/2026-05-08-p5-2-compositions-design.md`): Model de dades (`CompositionTemplate` + `CompositionSlot`), 6 endpoints REST, `CompositionEditorComponent` layout amb Figure Picker + canvas multi-figura (pinya-view, offsets, grups draggables) + Slot Properties panel, auto-save. |
+| 8–10 Mai 2026 | **P5.2 Composicions completat**: Backend — `CompositionModule` (entitats, 6 endpoints CRUD+duplicate, tests referencial integrity). Frontend — `CompositionEditorComponent` (canvas mode composition, auto-save, Figure Picker), tab Composicions al llistat amb CRUD real. Protecció referencial al delete de `FigureTemplate` (409 si té slots). |
+| 10 Mai 2026 | **Spec P5.2.1 aprovada i implementada** (`docs/specs/2026-05-10-p5-2-1-composition-editor-fixes.md`): Fix canvas interaction (listening:true al rect, panning guard mode-aware, cursor grab). Millores UX: scale 50%, placeholder per slots buits, save immediat en add, offset incremental, botó "Enquadrar" (fitAllSlots), z-order controls (bringForward/sendBackward). Tests: ✅ 281 API + 200 dashboard. |

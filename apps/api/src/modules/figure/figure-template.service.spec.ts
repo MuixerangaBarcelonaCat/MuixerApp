@@ -139,7 +139,7 @@ describe('FigureTemplateService', () => {
       const result = await service.findOne('tmpl-uuid');
       expect(result.id).toBe('tmpl-uuid');
       expect(result.nodes).toHaveLength(1);
-      expect(result.nodes[0].label).toBe('Baix 1');
+      expect(result.nodes[0].label).toBe('Base 1');
     });
 
     it('throws NotFoundException when not found', async () => {
@@ -152,7 +152,9 @@ describe('FigureTemplateService', () => {
     it('creates template and returns detail', async () => {
       const saved = makeTemplate({ id: 'new-uuid' });
       mockTemplateRepo.save.mockResolvedValue(saved);
-      mockTemplateRepo.findOne.mockResolvedValue({ ...saved, nodes: [] });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(null) // assertSlugAvailable: slug not taken
+        .mockResolvedValueOnce({ ...saved, nodes: [] }); // findOne after create
 
       const result = await service.create({
         name: 'Pinet Doble de 4',
@@ -167,7 +169,9 @@ describe('FigureTemplateService', () => {
     it('creates nodes when provided', async () => {
       const saved = makeTemplate({ id: 'new-uuid' });
       mockTemplateRepo.save.mockResolvedValue(saved);
-      mockTemplateRepo.findOne.mockResolvedValue({ ...saved, nodes: [makeNode()] });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(null) // assertSlugAvailable: slug not taken
+        .mockResolvedValueOnce({ ...saved, nodes: [makeNode()] }); // findOne after create
       mockNodeRepo.save.mockResolvedValue([makeNode()]);
 
       await service.create({ name: 'pd4', slug: 'pd4', nodes: [NODE_DTO] });
