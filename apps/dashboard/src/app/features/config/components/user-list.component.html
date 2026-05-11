@@ -1,0 +1,171 @@
+<div class="space-y-4">
+
+  <!-- Capçalera -->
+  <app-page-header title="Usuaris" [count]="totalUsers()">
+  </app-page-header>
+
+  <!-- Filtres -->
+  <app-filter-bar [hasActiveFilters]="hasFilterChips()" (clearFilters)="clearFilters()">
+
+    <!-- Cerca -->
+    <div class="form-control w-full sm:w-64">
+      <div class="label pb-1"><span class="label-text text-xs">Cerca</span></div>
+      <div class="input input-bordered input-sm flex items-center gap-2">
+        <lucide-icon name="Search" [size]="14" class="text-base-content/40" />
+        <input
+          type="text"
+          class="grow bg-transparent outline-none text-sm"
+          placeholder="Correu, nom..."
+          [(ngModel)]="searchInput"
+          (ngModelChange)="onSearchChange($event)"
+        />
+      </div>
+    </div>
+
+    <!-- Rol -->
+    <div class="form-control w-full sm:w-44">
+      <div class="label pb-1">
+        <span class="label-text text-xs">Rol</span>
+        <div class="dropdown">
+          <button tabindex="0" type="button" class="btn btn-bordered btn-sm w-full justify-between">
+            @if (!activeFilters().role) {
+              Tots
+            } @else {
+              {{ roleLabels[activeFilters().role!] }}
+            }
+            <lucide-icon name="ChevronDown" [size]="14" />
+          </button>
+          <ul
+            tabindex="0"
+            class="dropdown-content menu bg-base-100 rounded-box z-50 w-44 p-2 shadow-lg border border-base-300"
+          >
+            @for (role of roleOptions; track role) {
+              <li>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    class="radio radio-xs"
+                    [checked]="activeFilters().role === role"
+                    (change)="toggleRoleFilter(role)"
+                  />
+                  {{ roleLabels[role] }}
+                </label>
+              </li>
+            }
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actius -->
+    <label class="form-control">
+      <div class="label pb-1"><span class="label-text text-xs">Estat</span></div>
+      <label class="flex items-center gap-2 cursor-pointer btn btn-bordered btn-sm">
+        <input
+          type="checkbox"
+          class="checkbox checkbox-xs checkbox-primary"
+          [checked]="activeFilters().isActive === true"
+          (change)="toggleActiusFilter()"
+        />
+        <span class="text-sm">Sols actius</span>
+      </label>
+    </label>
+
+  </app-filter-bar>
+
+  <!-- Filtres actius + toggle columnes -->
+  <div class="flex flex-wrap items-start justify-between gap-3">
+    <app-active-filters
+      [filters]="activeFilterChips()"
+      (removeFilter)="onRemoveFilterChip($event)"
+    />
+    <app-column-toggle
+      [columns]="allColumns"
+      [visibleKeys]="visibleColumnKeys()"
+      (toggleColumn)="toggleColumn($event)"
+    />
+  </div>
+
+  <!-- Taula -->
+  <app-data-table
+    [items]="users()"
+    [columns]="tableColumns()"
+    [visibleColumns]="visibleColumnKeys()"
+    [sortBy]="sortBy()"
+    [sortOrder]="sortOrder()"
+    [loading]="loading()"
+    [rowActions]="tableRowActions()"
+    (sortChange)="onSortChangeFromTable($event)"
+  />
+
+  <!-- Estat buit -->
+  @if (!loading() && users().length === 0) {
+    <app-empty-state
+      icon="Users"
+      message="No s'han trobat usuaris amb els filtres actuals"
+      actionLabel="Netejar filtres"
+      (actionClick)="clearFilters()"
+    />
+  }
+
+  <!-- Paginació -->
+  @if (totalUsers() > 0) {
+    <app-pagination
+      [page]="page()"
+      [totalPages]="totalPages()"
+      [limit]="limit()"
+      [totalItems]="totalUsers()"
+      (pageChange)="goToPage($event)"
+      (limitChange)="onLimitChange($event)"
+    />
+  }
+
+</div>
+
+<!-- Modal: Assignar rol -->
+@if (grantRoleUser()) {
+  <div class="modal modal-open">
+    <div class="modal-box max-w-sm">
+      <h3 class="font-bold text-lg mb-1">Assignar rol</h3>
+      <p class="text-sm text-base-content/60 mb-4">
+        {{ grantRoleUser()!.email }}
+      </p>
+
+      <div class="flex flex-col gap-2">
+        @for (role of roleOptions; track role) {
+          <label class="flex items-center gap-3 cursor-pointer p-3 rounded-lg border border-base-300 hover:bg-base-200 transition-colors"
+            [class.border-primary]="grantRoleSelected() === role"
+            [class.bg-primary]="grantRoleSelected() === role"
+            [class.bg-opacity-5]="grantRoleSelected() === role"
+          >
+            <input
+              type="radio"
+              class="radio radio-primary radio-sm"
+              [checked]="grantRoleSelected() === role"
+              (change)="grantRoleSelected.set(role)"
+            />
+            <span class="text-sm font-medium">{{ roleLabels[role] }}</span>
+          </label>
+        }
+      </div>
+
+      <div class="modal-action">
+        <button type="button" class="btn btn-ghost btn-sm" (click)="closeGrantRole()">
+          Cancel·lar
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary btn-sm"
+          [disabled]="grantRoleLoading() || grantRoleSelected() === grantRoleUser()!.role"
+          (click)="confirmGrantRole()"
+        >
+          @if (grantRoleLoading()) {
+            <span class="loading loading-spinner loading-xs"></span>
+          }
+          Confirmar
+        </button>
+      </div>
+    </div>
+    <div class="modal-backdrop" (click)="closeGrantRole()" (keydown.enter)="closeGrantRole()" tabindex="0"></div>
+  </div>
+}

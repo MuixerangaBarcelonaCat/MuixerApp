@@ -7,6 +7,7 @@ import {
   Position,
   PaginatedResponse,
   PersonFilterParams,
+  UpdatePersonDto
 } from '../models/person.model';
 
 /** Servei de comunicació amb l'API de persones. Estén ApiService per heretar els mètodes HTTP amb baseUrl. */
@@ -15,7 +16,9 @@ import {
 })
 export class PersonService extends ApiService {
   /** Carrega la llista paginada de persones aplicant els filtres indicats. */
-  getAll(filters: PersonFilterParams = {}): Observable<PaginatedResponse<Person>> {
+  getAll(
+    filters: PersonFilterParams = {},
+  ): Observable<PaginatedResponse<Person>> {
     const params = buildHttpParams(filters);
     return this.get<PaginatedResponse<Person>>('/persons', { params });
   }
@@ -36,7 +39,12 @@ export class PersonService extends ApiService {
   }
 
   /** Actualitza parcialment una persona. Usat per edicions de detall i per a les transicions provisional↔regular. */
-  update(id: string, payload: Partial<Person>): Observable<Person> {
+  update(id: string, payload: Partial<UpdatePersonDto>): Observable<Person> {
     return this.patch<Person>(`/persons/${id}`, payload);
+  }
+
+  /** Crea un usuari per una persona i li envia un email d'invitació. */
+  sendInvitation(personId: string, email: string): Observable<Person> {
+    return this.post<Person>(`/users/create-with-invite`, { personId, email });
   }
 }

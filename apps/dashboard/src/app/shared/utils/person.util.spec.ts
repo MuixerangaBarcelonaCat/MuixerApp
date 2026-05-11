@@ -29,6 +29,7 @@ describe('person.util', () => {
     notes: null,
     isActive: true,
     positions: [],
+    managedBy: null,
     createdAt: '',
     updatedAt: '',
   };

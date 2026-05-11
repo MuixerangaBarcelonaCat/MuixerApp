@@ -4,7 +4,6 @@ import {
   Column,
   ManyToMany,
   ManyToOne,
-  OneToOne,
   JoinTable,
   CreateDateColumn,
   UpdateDateColumn,
@@ -29,9 +28,6 @@ export class Person {
 
   @Column({ type: 'varchar', length: 20, unique: true })
   alias: string;
-
-  @Column({ type: 'varchar', nullable: true })
-  email: string | null;
 
   @Column({ type: 'varchar', nullable: true })
   phone: string | null;
@@ -84,9 +80,6 @@ export class Person {
 
   @ManyToOne(() => User, { nullable: true })
   managedBy: User | null;
-
-  @OneToOne(() => User, 'person', { nullable: true })
-  user: User | null;
 
   @ManyToOne(() => Person, { nullable: true })
   mentor: Person | null;

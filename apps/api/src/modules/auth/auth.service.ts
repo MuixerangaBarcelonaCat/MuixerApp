@@ -1,11 +1,12 @@
 import {
   ForbiddenException,
   Injectable,
+  InternalServerErrorException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { ClientType, UserProfile, UserRole } from '@muixer/shared';
 import { User } from '../user/user.entity';
@@ -62,7 +63,7 @@ export class AuthService {
             name: person.name,
             firstSurname: person.firstSurname,
             alias: person.alias,
-            email: person.email,
+            email: person.managedBy?.email ?? null,
           }
         : null,
     };
@@ -169,12 +170,7 @@ export class AuthService {
     });
     const saved = await this.userRepo.save(user);
 
-    // Link to Person: explicit personId takes priority, otherwise match by email
-    let personId = dto.personId;
-    if (!personId) {
-      const personByEmail = await this.personRepo.findOne({ where: { email: dto.email } });
-      if (personByEmail) personId = personByEmail.id;
-    }
+    const personId = dto.personId;
 
     if (personId) {
       await this.userRepo.query(
@@ -187,6 +183,10 @@ export class AuthService {
       where: { id: saved.id },
       relations: ['person'],
     });
-    return this.toUserProfile(reloaded!);
+    if (reloaded) {
+      return this.toUserProfile(reloaded);
+    } else {
+      throw new InternalServerErrorException('No s\'ha pogut crear l\'usuari');
+    }
   }
 }

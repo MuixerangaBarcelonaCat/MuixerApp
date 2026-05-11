@@ -8,6 +8,12 @@ export interface Position {
   color: string;
 }
 
+export interface User {
+  id: string;
+  email: string;
+  person: Person;
+}
+
 export interface Person {
   id: string;
   name: string;
@@ -27,6 +33,7 @@ export interface Person {
   notes: string | null;
   isActive: boolean;
   positions: Position[];
+  managedBy: User | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -64,4 +71,28 @@ export interface SyncEvent {
   total?: number;
   message: string;
   detail?: Record<string, unknown>;
+}
+
+export interface UpdatePersonDto {
+  id: string;
+  name: string;
+  firstSurname: string;
+  secondSurname: string | null;
+  alias: string;
+  email: string | null;
+  phone: string | null;
+  birthDate: string | null;
+  shoulderHeight: number | null;
+  isXicalla: boolean;
+  isMember: boolean;
+  isProvisional?: boolean;
+  availability: AvailabilityStatus;
+  onboardingStatus: OnboardingStatus;
+  shirtDate: string | null;
+  notes: string | null;
+  isActive: boolean;
+  positions: string[];
+  managedById: string | null;
+  createdAt: string;
+  updatedAt: string;
 }

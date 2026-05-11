@@ -22,6 +22,7 @@ import { EmptyStateComponent } from '../../../shared/components/data/empty-state
 import { DataTableComponent, RowAction } from '../../../shared/components/data/data-table/data-table.component';
 import { ActiveFilter } from '../../../shared/components/data/active-filters/active-filters.component';
 import { ColumnDef } from '../../../shared/models/column-def.model';
+import { EventType } from '@muixer/shared';
 
 const STORAGE_KEY = 'person-list-visible-columns';
 
@@ -38,7 +39,7 @@ export const ALL_COLUMNS: ColumnDef[] = [
   { key: 'isActive', label: 'Actiu', defaultVisible: true, sortField: 'isActive' },
   { key: 'isMember', label: 'Membre', defaultVisible: false, sortField: 'isMember' },
   { key: 'isXicalla', label: 'Xicalla', defaultVisible: false, sortField: 'isXicalla' },
-  { key: 'shirtDate', label: 'Data samarreta', defaultVisible: false, sortField: 'shirtDate' },
+  { key: 'shirtDate', label: 'Data camisa', defaultVisible: false, sortField: 'shirtDate' },
   { key: 'notes', label: 'Notes', defaultVisible: false },
   { key: 'createdAt', label: 'Creat', defaultVisible: false, sortField: 'createdAt' },
   { key: 'updatedAt', label: 'Actualitzat', defaultVisible: false, sortField: 'updatedAt' },
@@ -215,6 +216,10 @@ export class PersonListComponent {
     this.router.navigate(['/persons/sync-start']);
   }
 
+  navigateToNewPerson() {
+    this.router.navigate(['/persons/new']);
+  }
+
   formatShoulderHeightDisplay(value: number | null): string {
     if (value === null || value === 0) {
       return '—';
@@ -348,4 +353,5 @@ export class PersonListComponent {
       value: (person: Person) => this.getCellValueForPerson(person, col.key),
     }))
   );
+  protected readonly EventType = EventType;
 }

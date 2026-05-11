@@ -1,7 +1,6 @@
 import {
   IsString,
   IsOptional,
-  IsEmail,
   IsBoolean,
   IsEnum,
   IsInt,
@@ -11,7 +10,6 @@ import {
   IsUUID,
   IsArray,
   IsDateString,
-  Matches,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Gender, AvailabilityStatus, OnboardingStatus } from '@muixer/shared';
@@ -36,13 +34,7 @@ export class CreatePersonDto {
   @ApiProperty({ description: 'Àlies únic del membre', maxLength: 20 })
   @IsString()
   @MaxLength(20)
-  @Matches(/^[^~]/, { message: 'L\'àlies no pot començar amb el caràcter "~" (reservat per a persones provisionals)' })
   alias: string;
-
-  @ApiPropertyOptional({ description: 'Email de contacte' })
-  @IsEmail()
-  @IsOptional()
-  email?: string;
 
   @ApiPropertyOptional({ description: 'Telèfon de contacte', maxLength: 20 })
   @IsString()
@@ -97,7 +89,7 @@ export class CreatePersonDto {
   @IsOptional()
   notes?: string;
 
-  @ApiPropertyOptional({ description: 'Data de lliurament de samarreta', example: '2024-01-15' })
+  @ApiPropertyOptional({ description: 'Data de lliurament de camisa', example: '2024-01-15' })
   @IsDateString()
   @IsOptional()
   shirtDate?: string;

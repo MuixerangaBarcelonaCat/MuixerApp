@@ -12,7 +12,7 @@ import { LucideAngularModule } from 'lucide-angular';
       <div>
         <h1 class="text-2xl font-bold text-base-content">Mòdul de Pinyes</h1>
         <p class="text-base-content/50 text-sm mt-2 max-w-sm">
-          Aquest mòdul és en construcció. Permetrà gestionar les figures i posicions dels castellers amb un canvas interactiu.
+          Aquest mòdul és en construcció. Permetrà gestionar les figures i posicions dels muixeranguers amb un canvas interactiu.
         </p>
       </div>
       <div class="badge badge-warning gap-2">

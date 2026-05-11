@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   Calendar,
+  CalendarRange,
   Check,
   ChevronDown,
   ChevronsUpDown,
@@ -32,15 +33,19 @@ import {
   RefreshCw,
   Search,
   Settings,
+  Shield,
   Star,
+  Tag,
+  UserCog,
   UserX,
   Users,
 } from 'lucide-angular';
 
 const icons = {
-  AlertCircle, AlertTriangle, ArrowLeft, Calendar, Check, ChevronDown,
+  AlertCircle, AlertTriangle, ArrowLeft, Calendar, CalendarRange, Check, ChevronDown,
   ChevronsUpDown, Clock, Construction, Eye, Home, Layers, Lock, Mail, Menu,
-  MoreHorizontal, Plus, RefreshCw, Search, Settings, Star, UserX, Users,
+  MoreHorizontal, Plus, RefreshCw, Search, Settings, Shield, Star,
+  Tag, UserCog, UserX, Users,
 };
 
 export const appConfig: ApplicationConfig = {

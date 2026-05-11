@@ -6,6 +6,7 @@ import { LegacyApiClient, LegacyPerson } from '../legacy-api.client';
 import { Person } from '../../person/person.entity';
 import { Position } from '../../position/position.entity';
 import { AvailabilityStatus, OnboardingStatus } from '@muixer/shared';
+import { User } from '../../user/user.entity';
 
 // Helper to build a fluent QueryBuilder mock where getOne returns a configurable value
 function makeQb(getOneResult: Person | null = null) {
@@ -56,6 +57,7 @@ describe('PersonSyncStrategy', () => {
 
   function buildModule(qbFactory: () => ReturnType<typeof makeQb>) {
     const mockPersonRepo = {
+      find: jest.fn().mockResolvedValue([]),
       findOne: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
@@ -72,16 +74,30 @@ describe('PersonSyncStrategy', () => {
       })),
     };
 
+    const mockUserRepo = {
+      create: jest.fn().mockReturnValue({
+          id: 'user-uuid',
+          email: 'joan@example.cat',
+          role: 'MEMBER',
+        }),
+      findOne: jest.fn().mockResolvedValue(null),
+      save: jest.fn().mockResolvedValue({
+          id: 'user-uuid',
+          email: 'joan@example.cat',
+          role: 'MEMBER',
+        }),
+    };
+
     const mockLegacyClient = {
       login: jest.fn(),
       getCastellers: jest.fn(),
     };
 
-    return { mockPersonRepo, mockPositionRepo, mockLegacyClient };
+    return { mockPersonRepo, mockPositionRepo, mockUserRepo, mockLegacyClient };
   }
 
   async function createModule(qbFactory: () => ReturnType<typeof makeQb>) {
-    const { mockPersonRepo, mockPositionRepo, mockLegacyClient } = buildModule(qbFactory);
+    const { mockPersonRepo, mockPositionRepo, mockUserRepo, mockLegacyClient } = buildModule(qbFactory);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -89,6 +105,7 @@ describe('PersonSyncStrategy', () => {
         { provide: LegacyApiClient, useValue: mockLegacyClient },
         { provide: getRepositoryToken(Person), useValue: mockPersonRepo },
         { provide: getRepositoryToken(Position), useValue: mockPositionRepo },
+        { provide: getRepositoryToken(User), useValue: mockUserRepo },
       ],
     }).compile();
 
@@ -193,7 +210,6 @@ describe('PersonSyncStrategy', () => {
               firstSurname: 'Garcia',
               secondSurname: 'Lopez',
               alias: 'Joani',
-              email: 'joan@example.com',
               isMember: true,
               availability: AvailabilityStatus.AVAILABLE,
               onboardingStatus: OnboardingStatus.COMPLETED,
