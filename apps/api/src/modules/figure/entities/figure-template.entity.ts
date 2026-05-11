@@ -7,6 +7,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { FigureNode } from './figure-node.entity';
+import { FigureInstance } from '../../event-segment/entities/figure-instance.entity';
 
 @Entity('figure_templates')
 export class FigureTemplate {
@@ -33,6 +34,9 @@ export class FigureTemplate {
 
   @OneToMany(() => FigureNode, (node) => node.template, { cascade: true })
   nodes: FigureNode[];
+
+  @OneToMany(() => FigureInstance, (instance) => instance.figureTemplate)
+  instances: FigureInstance[];
 
   @CreateDateColumn()
   createdAt: Date;

@@ -1,10 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { CompositionTemplateService } from './composition-template.service';
 import { CompositionTemplate } from './entities/composition-template.entity';
 import { CompositionSlot } from './entities/composition-slot.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
+import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
 import { FigureZone, NodeShape } from '@muixer/shared';
 
 const makeFigureTemplate = (overrides: Partial<FigureTemplate> = {}): FigureTemplate =>
@@ -77,6 +78,10 @@ describe('CompositionTemplateService', () => {
     findOne: jest.fn(),
   };
 
+  const mockFigureInstanceRepo = {
+    count: jest.fn().mockResolvedValue(0),
+  };
+
   const mockSlotRepo = {
     create: jest.fn((dto) => dto),
     save: jest.fn(),
@@ -118,6 +123,10 @@ describe('CompositionTemplateService', () => {
         {
           provide: getRepositoryToken(FigureTemplate),
           useValue: mockFigureTemplateRepo,
+        },
+        {
+          provide: getRepositoryToken(FigureInstance),
+          useValue: mockFigureInstanceRepo,
         },
       ],
     }).compile();
@@ -255,6 +264,7 @@ describe('CompositionTemplateService', () => {
     it('removes composition', async () => {
       const comp = makeComposition();
       mockCompositionRepo.findOne.mockResolvedValue(comp);
+      mockFigureInstanceRepo.count.mockResolvedValue(0);
       mockCompositionRepo.remove.mockResolvedValue(comp);
 
       await service.remove('comp-uuid');
@@ -264,6 +274,14 @@ describe('CompositionTemplateService', () => {
     it('throws NotFoundException when not found', async () => {
       mockCompositionRepo.findOne.mockResolvedValue(null);
       await expect(service.remove('bad-uuid')).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws ConflictException when composition is used in figure instances', async () => {
+      const comp = makeComposition();
+      mockCompositionRepo.findOne.mockResolvedValue(comp);
+      mockFigureInstanceRepo.count.mockResolvedValue(2);
+
+      await expect(service.remove('comp-uuid')).rejects.toThrow(ConflictException);
     });
   });
 

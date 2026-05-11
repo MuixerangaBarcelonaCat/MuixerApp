@@ -1,0 +1,130 @@
+<dialog
+  class="modal modal-open"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="picker-modal-title"
+  (click)="onBackdropClick($event)"
+  (keydown.escape)="close()"
+>
+  <div class="modal-box max-w-lg">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-4">
+      <h2 id="picker-modal-title" class="text-lg font-bold">Afegir figura o composició</h2>
+      <button
+        type="button"
+        class="btn btn-ghost btn-sm btn-circle"
+        (click)="close()"
+        aria-label="Tancar"
+      >
+        <lucide-icon name="X" [size]="18" />
+      </button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs tabs-bordered mb-4" role="tablist">
+      <button
+        type="button"
+        class="tab"
+        [class.tab-active]="activeTab() === 'figures'"
+        role="tab"
+        [attr.aria-selected]="activeTab() === 'figures'"
+        (click)="setTab('figures')"
+      >
+        <lucide-icon name="Hexagon" [size]="14" class="mr-1" />
+        Figures
+        @if (figures().length > 0) {
+          <span class="badge badge-xs ml-1">{{ figures().length }}</span>
+        }
+      </button>
+      <button
+        type="button"
+        class="tab"
+        [class.tab-active]="activeTab() === 'composicions'"
+        role="tab"
+        [attr.aria-selected]="activeTab() === 'composicions'"
+        (click)="setTab('composicions')"
+      >
+        <lucide-icon name="LayoutGrid" [size]="14" class="mr-1" />
+        Composicions
+        @if (compositions().length > 0) {
+          <span class="badge badge-xs ml-1">{{ compositions().length }}</span>
+        }
+      </button>
+    </div>
+
+    <!-- Search input -->
+    <label class="input input-sm input-bordered flex items-center gap-2 mb-3">
+      <lucide-icon name="Search" [size]="14" class="text-base-content/40" />
+      <input
+        type="search"
+        class="grow bg-transparent outline-none text-sm"
+        [placeholder]="activeTab() === 'figures' ? 'Cerca figura...' : 'Cerca composició...'"
+        [ngModel]="search()"
+        (ngModelChange)="search.set($event)"
+        aria-label="Cerca"
+      />
+    </label>
+
+    <!-- Figure list -->
+    @if (activeTab() === 'figures') {
+      @if (loadingFigures()) {
+        <div class="flex items-center justify-center py-8 gap-2 text-sm text-base-content/50">
+          <span class="loading loading-spinner loading-sm"></span> Carregant figures...
+        </div>
+      } @else if (filteredFigures().length === 0) {
+        <p class="text-center text-sm text-base-content/40 py-8">
+          @if (search()) { Cap figura trobada per "{{ search() }}" } @else { Cap figura creada encara }
+        </p>
+      } @else {
+        <ul class="space-y-1 max-h-72 overflow-y-auto" role="listbox" aria-label="Llista de figures">
+          @for (figure of filteredFigures(); track figure.id) {
+            <li role="option" [attr.aria-selected]="false">
+              <button
+                type="button"
+                class="w-full text-left btn btn-ghost btn-sm justify-start gap-2 h-auto py-2"
+                (click)="selectFigure(figure)"
+              >
+                <span class="font-medium text-sm">{{ figure.name }}</span>
+                <span class="text-xs text-base-content/40 ml-auto">{{ figure.nodeCount }} nodes</span>
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    }
+
+    <!-- Composition list -->
+    @if (activeTab() === 'composicions') {
+      @if (loadingCompositions()) {
+        <div class="flex items-center justify-center py-8 gap-2 text-sm text-base-content/50">
+          <span class="loading loading-spinner loading-sm"></span> Carregant composicions...
+        </div>
+      } @else if (filteredCompositions().length === 0) {
+        <p class="text-center text-sm text-base-content/40 py-8">
+          @if (search()) { Cap composició trobada per "{{ search() }}" } @else { Cap composició creada encara }
+        </p>
+      } @else {
+        <ul class="space-y-1 max-h-72 overflow-y-auto" role="listbox" aria-label="Llista de composicions">
+          @for (composition of filteredCompositions(); track composition.id) {
+            <li role="option" [attr.aria-selected]="false">
+              <button
+                type="button"
+                class="w-full text-left btn btn-ghost btn-sm justify-start gap-2 h-auto py-2"
+                (click)="selectComposition(composition)"
+              >
+                <lucide-icon name="LayoutGrid" [size]="14" class="text-secondary shrink-0" />
+                <span class="font-medium text-sm">{{ composition.name }}</span>
+                <span class="text-xs text-base-content/40 ml-auto">{{ composition.slotCount }} figures</span>
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    }
+
+    <!-- Footer info -->
+    <p class="text-xs text-base-content/40 mt-3 text-center">
+      Pots afegir múltiples figures sense tancar el diàleg.
+    </p>
+  </div>
+</dialog>

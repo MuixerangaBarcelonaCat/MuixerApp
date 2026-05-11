@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { FigureTemplate } from './entities/figure-template.entity';
 import { FigureNode } from './entities/figure-node.entity';
 import { CompositionSlot } from '../composition/entities/composition-slot.entity';
+import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
 import { CreateFigureTemplateDto } from './dto/create-figure-template.dto';
 import { UpdateFigureTemplateDto } from './dto/update-figure-template.dto';
 import { FigureTemplateFilterDto } from './dto/figure-template-filter.dto';
@@ -53,6 +54,8 @@ export class FigureTemplateService {
     private readonly nodeRepository: Repository<FigureNode>,
     @InjectRepository(CompositionSlot)
     private readonly compositionSlotRepository: Repository<CompositionSlot>,
+    @InjectRepository(FigureInstance)
+    private readonly figureInstanceRepository: Repository<FigureInstance>,
   ) {}
 
   async findAll(filters: FigureTemplateFilterDto): Promise<{ data: FigureTemplateListItem[]; total: number }> {
@@ -170,6 +173,16 @@ export class FigureTemplateService {
     if (slotCount > 0) {
       throw new ConflictException(
         `Cannot delete FigureTemplate: it is referenced by ${slotCount} composition slot(s)`,
+      );
+    }
+
+    const instanceCount = await this.figureInstanceRepository.count({
+      where: { figureTemplate: { id } },
+    });
+
+    if (instanceCount > 0) {
+      throw new ConflictException(
+        `Aquesta figura s'utilitza a ${instanceCount} event(s) i no es pot eliminar.`,
       );
     }
 

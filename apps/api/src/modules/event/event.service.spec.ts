@@ -5,6 +5,7 @@ import { EventService } from './event.service';
 import { Event } from './event.entity';
 import { Attendance } from './attendance.entity';
 import { Season } from '../season/season.entity';
+import { EventSegment } from '../event-segment/entities/event-segment.entity';
 import { EventType } from '@muixer/shared';
 
 const makeEvent = (overrides: Partial<Event> = {}): Event => ({
@@ -42,6 +43,18 @@ describe('EventService', () => {
     count: jest.fn().mockResolvedValue(0),
   };
 
+  const segmentQb = {
+    leftJoinAndSelect: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
+    addOrderBy: jest.fn().mockReturnThis(),
+    getMany: jest.fn().mockResolvedValue([]),
+  };
+
+  const mockSegmentRepo = {
+    createQueryBuilder: jest.fn(() => segmentQb),
+  };
+
   beforeEach(async () => {
     eventQb = {
       leftJoinAndSelect: jest.fn().mockReturnThis(),
@@ -54,6 +67,14 @@ describe('EventService', () => {
       getCount: jest.fn().mockResolvedValue(0),
       getMany: jest.fn().mockResolvedValue([]),
     };
+
+    jest.clearAllMocks();
+    mockSegmentRepo.createQueryBuilder.mockReturnValue(segmentQb);
+    segmentQb.leftJoinAndSelect.mockReturnThis();
+    segmentQb.where.mockReturnThis();
+    segmentQb.orderBy.mockReturnThis();
+    segmentQb.addOrderBy.mockReturnThis();
+    segmentQb.getMany.mockResolvedValue([]);
 
     const mockEventRepo = {
       createQueryBuilder: jest.fn(() => eventQb),
@@ -68,6 +89,7 @@ describe('EventService', () => {
         { provide: getRepositoryToken(Event), useValue: mockEventRepo },
         { provide: getRepositoryToken(Season), useValue: mockSeasonRepo },
         { provide: getRepositoryToken(Attendance), useValue: mockAttendanceRepo },
+        { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
       ],
     }).compile();
 
@@ -122,6 +144,40 @@ describe('EventService', () => {
         'event.countsForStatistics = :countsForStatistics',
         { countsForStatistics: false },
       );
+    });
+
+    it('includes segmentsSummary as null when event has no segments', async () => {
+      eventQb.getMany.mockResolvedValue([makeEvent({ id: 'evt-uuid' })]);
+      eventQb.getCount.mockResolvedValue(1);
+      segmentQb.getMany.mockResolvedValue([]);
+
+      const result = await service.findAll({});
+
+      expect(result.data[0].segmentsSummary).toBeNull();
+    });
+
+    it('includes segmentsSummary with segment and instance counts', async () => {
+      eventQb.getMany.mockResolvedValue([makeEvent({ id: 'evt-uuid' })]);
+      eventQb.getCount.mockResolvedValue(1);
+      segmentQb.getMany.mockResolvedValue([
+        {
+          id: 'seg-1',
+          name: 'Bloc 1',
+          event: { id: 'evt-uuid' },
+          instances: [
+            { figureTemplate: { name: 'pd4' }, compositionTemplate: null },
+            { figureTemplate: null, compositionTemplate: { name: 'Altar' } },
+          ],
+        },
+      ]);
+
+      const result = await service.findAll({});
+      const summary = result.data[0].segmentsSummary;
+
+      expect(summary).not.toBeNull();
+      expect(summary!.segmentCount).toBe(1);
+      expect(summary!.instanceCount).toBe(2);
+      expect(summary!.segments[0].figureNames).toEqual(['pd4', 'Altar']);
     });
 
     it('defaults to chronological smart sort when no sortBy given', async () => {
@@ -179,6 +235,7 @@ describe('EventService', () => {
           { provide: getRepositoryToken(Event), useValue: eventRepo },
           { provide: getRepositoryToken(Season), useValue: mockSeasonRepo },
           { provide: getRepositoryToken(Attendance), useValue: mockAttendanceRepo },
+          { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
         ],
       }).compile();
       const svc = mod.get<EventService>(EventService);
@@ -194,6 +251,7 @@ describe('EventService', () => {
           { provide: getRepositoryToken(Event), useValue: eventRepo },
           { provide: getRepositoryToken(Season), useValue: mockSeasonRepo },
           { provide: getRepositoryToken(Attendance), useValue: mockAttendanceRepo },
+          { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
         ],
       }).compile();
       const svc = mod.get<EventService>(EventService);
@@ -212,6 +270,7 @@ describe('EventService', () => {
           { provide: getRepositoryToken(Event), useValue: eventRepo },
           { provide: getRepositoryToken(Season), useValue: mockSeasonRepo },
           { provide: getRepositoryToken(Attendance), useValue: mockAttendanceRepo },
+          { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
         ],
       }).compile();
       const svc = mod.get<EventService>(EventService);
@@ -234,6 +293,7 @@ describe('EventService', () => {
           { provide: getRepositoryToken(Event), useValue: eventRepo },
           { provide: getRepositoryToken(Season), useValue: mockSeasonRepo },
           { provide: getRepositoryToken(Attendance), useValue: mockAttendanceRepo },
+          { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
         ],
       }).compile();
       const svc = mod.get<EventService>(EventService);
@@ -256,6 +316,7 @@ describe('EventService', () => {
           { provide: getRepositoryToken(Event), useValue: eventRepo },
           { provide: getRepositoryToken(Season), useValue: mockSeasonRepo },
           { provide: getRepositoryToken(Attendance), useValue: mockAttendanceRepo },
+          { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
         ],
       }).compile();
       const svc = mod.get<EventService>(EventService);

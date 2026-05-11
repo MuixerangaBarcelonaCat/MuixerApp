@@ -1,0 +1,188 @@
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { DataSource, Repository } from 'typeorm';
+import { EventSegment } from './entities/event-segment.entity';
+import { Event } from '../event/event.entity';
+import { CreateSegmentDto } from './dto/create-segment.dto';
+import { UpdateSegmentDto } from './dto/update-segment.dto';
+import { ReorderSegmentsDto } from './dto/reorder-segments.dto';
+
+export interface InstanceRef {
+  id: string;
+  label: string | null;
+  sortOrder: number;
+  figureTemplate: { id: string; name: string } | null;
+  compositionTemplate: { id: string; name: string } | null;
+}
+
+export interface SegmentWithInstances {
+  id: string;
+  name: string | null;
+  sortOrder: number;
+  startTime: string | null;
+  endTime: string | null;
+  notes: string | null;
+  isVisible: boolean;
+  instances: InstanceRef[];
+}
+
+@Injectable()
+export class EventSegmentService {
+  constructor(
+    @InjectRepository(EventSegment)
+    private readonly segmentRepository: Repository<EventSegment>,
+    @InjectRepository(Event)
+    private readonly eventRepository: Repository<Event>,
+    private readonly dataSource: DataSource,
+  ) {}
+
+  async findAllByEvent(eventId: string): Promise<SegmentWithInstances[]> {
+    await this.assertEventExists(eventId);
+
+    const segments = await this.segmentRepository
+      .createQueryBuilder('segment')
+      .leftJoinAndSelect('segment.instances', 'instance')
+      .leftJoinAndSelect('instance.figureTemplate', 'figureTemplate')
+      .leftJoinAndSelect('instance.compositionTemplate', 'compositionTemplate')
+      .where('segment.event = :eventId', { eventId })
+      .orderBy('segment.sortOrder', 'ASC')
+      .addOrderBy('instance.sortOrder', 'ASC')
+      .getMany();
+
+    return segments.map(toSegmentWithInstances);
+  }
+
+  async create(eventId: string, dto: CreateSegmentDto): Promise<SegmentWithInstances> {
+    const event = await this.assertEventExists(eventId);
+
+    const maxOrder = await this.segmentRepository
+      .createQueryBuilder('segment')
+      .select('MAX(segment.sortOrder)', 'max')
+      .where('segment.event = :eventId', { eventId })
+      .getRawOne<{ max: number | null }>();
+
+    const sortOrder = (maxOrder?.max ?? -1) + 1;
+
+    const segment = this.segmentRepository.create({
+      event,
+      name: dto.name ?? null,
+      sortOrder,
+      startTime: dto.startTime ?? null,
+      endTime: dto.endTime ?? null,
+      notes: dto.notes ?? null,
+      isVisible: false,
+    });
+
+    const saved = await this.segmentRepository.save(segment);
+    return this.findOneById(saved.id);
+  }
+
+  async update(eventId: string, segmentId: string, dto: UpdateSegmentDto): Promise<SegmentWithInstances> {
+    const segment = await this.assertSegmentBelongsToEvent(eventId, segmentId);
+
+    if (dto.name !== undefined) segment.name = dto.name;
+    if (dto.startTime !== undefined) segment.startTime = dto.startTime ?? null;
+    if (dto.endTime !== undefined) segment.endTime = dto.endTime ?? null;
+    if (dto.notes !== undefined) segment.notes = dto.notes ?? null;
+    if (dto.isVisible !== undefined) segment.isVisible = dto.isVisible;
+
+    await this.segmentRepository.save(segment);
+    return this.findOneById(segment.id);
+  }
+
+  async remove(eventId: string, segmentId: string): Promise<void> {
+    const segment = await this.assertSegmentBelongsToEvent(eventId, segmentId);
+    await this.segmentRepository.remove(segment);
+  }
+
+  async reorder(eventId: string, dto: ReorderSegmentsDto): Promise<void> {
+    await this.assertEventExists(eventId);
+
+    const existing = await this.segmentRepository.find({
+      where: { event: { id: eventId } },
+      select: ['id'],
+    });
+
+    const existingIds = new Set(existing.map((s) => s.id));
+    const invalid = dto.segmentIds.filter((id) => !existingIds.has(id));
+
+    if (invalid.length > 0) {
+      throw new BadRequestException(
+        `Segment IDs not found in event: ${invalid.join(', ')}`,
+      );
+    }
+
+    await this.dataSource.transaction(async (manager) => {
+      for (let i = 0; i < dto.segmentIds.length; i++) {
+        await manager.update(EventSegment, { id: dto.segmentIds[i] }, { sortOrder: i });
+      }
+    });
+  }
+
+  private async assertEventExists(eventId: string): Promise<Event> {
+    const event = await this.eventRepository.findOne({ where: { id: eventId } });
+    if (!event) {
+      throw new NotFoundException(`Event with ID ${eventId} not found`);
+    }
+    return event;
+  }
+
+  private async assertSegmentBelongsToEvent(
+    eventId: string,
+    segmentId: string,
+  ): Promise<EventSegment> {
+    const segment = await this.segmentRepository.findOne({
+      where: { id: segmentId, event: { id: eventId } },
+    });
+    if (!segment) {
+      throw new NotFoundException(
+        `Segment with ID ${segmentId} not found in event ${eventId}`,
+      );
+    }
+    return segment;
+  }
+
+  private async findOneById(id: string): Promise<SegmentWithInstances> {
+    const segment = await this.segmentRepository
+      .createQueryBuilder('segment')
+      .leftJoinAndSelect('segment.instances', 'instance')
+      .leftJoinAndSelect('instance.figureTemplate', 'figureTemplate')
+      .leftJoinAndSelect('instance.compositionTemplate', 'compositionTemplate')
+      .where('segment.id = :id', { id })
+      .orderBy('instance.sortOrder', 'ASC')
+      .getOne();
+
+    if (!segment) {
+      throw new NotFoundException(`Segment with ID ${id} not found`);
+    }
+
+    return toSegmentWithInstances(segment);
+  }
+}
+
+function toSegmentWithInstances(segment: EventSegment): SegmentWithInstances {
+  return {
+    id: segment.id,
+    name: segment.name,
+    sortOrder: segment.sortOrder,
+    startTime: segment.startTime,
+    endTime: segment.endTime,
+    notes: segment.notes,
+    isVisible: segment.isVisible,
+    instances: (segment.instances ?? []).map((instance) => ({
+      id: instance.id,
+      label: instance.label,
+      sortOrder: instance.sortOrder,
+      figureTemplate: instance.figureTemplate
+        ? { id: instance.figureTemplate.id, name: instance.figureTemplate.name }
+        : null,
+      compositionTemplate: instance.compositionTemplate
+        ? { id: instance.compositionTemplate.id, name: instance.compositionTemplate.name }
+        : null,
+    })),
+  };
+}

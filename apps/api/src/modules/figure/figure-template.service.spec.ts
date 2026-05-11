@@ -5,6 +5,7 @@ import { FigureTemplateService } from './figure-template.service';
 import { FigureTemplate } from './entities/figure-template.entity';
 import { FigureNode } from './entities/figure-node.entity';
 import { CompositionSlot } from '../composition/entities/composition-slot.entity';
+import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
 import { FigureZone, NodeShape } from '@muixer/shared';
 
 const makeTemplate = (overrides: Partial<FigureTemplate> = {}): FigureTemplate => ({
@@ -67,6 +68,10 @@ describe('FigureTemplateService', () => {
     count: jest.fn().mockResolvedValue(0),
   };
 
+  const mockFigureInstanceRepo = {
+    count: jest.fn().mockResolvedValue(0),
+  };
+
   const mockTemplateRepo = {
     createQueryBuilder: jest.fn(() => templateQb),
     findOne: jest.fn(),
@@ -94,6 +99,7 @@ describe('FigureTemplateService', () => {
         { provide: getRepositoryToken(FigureTemplate), useValue: mockTemplateRepo },
         { provide: getRepositoryToken(FigureNode), useValue: mockNodeRepo },
         { provide: getRepositoryToken(CompositionSlot), useValue: mockCompositionSlotRepo },
+        { provide: getRepositoryToken(FigureInstance), useValue: mockFigureInstanceRepo },
       ],
     }).compile();
 
@@ -230,14 +236,25 @@ describe('FigureTemplateService', () => {
       const tmpl = makeTemplate();
       mockTemplateRepo.findOne.mockResolvedValue(tmpl);
       mockCompositionSlotRepo.count.mockResolvedValue(2);
+      mockFigureInstanceRepo.count.mockResolvedValue(0);
 
       await expect(service.remove('tmpl-uuid')).rejects.toThrow(ConflictException);
     });
 
-    it('succeeds when template is not referenced by any composition slot', async () => {
+    it('throws ConflictException when template is used in figure instances', async () => {
       const tmpl = makeTemplate();
       mockTemplateRepo.findOne.mockResolvedValue(tmpl);
       mockCompositionSlotRepo.count.mockResolvedValue(0);
+      mockFigureInstanceRepo.count.mockResolvedValue(3);
+
+      await expect(service.remove('tmpl-uuid')).rejects.toThrow(ConflictException);
+    });
+
+    it('succeeds when template is not referenced by any slot or instance', async () => {
+      const tmpl = makeTemplate();
+      mockTemplateRepo.findOne.mockResolvedValue(tmpl);
+      mockCompositionSlotRepo.count.mockResolvedValue(0);
+      mockFigureInstanceRepo.count.mockResolvedValue(0);
       mockTemplateRepo.remove.mockResolvedValue(tmpl);
 
       await expect(service.remove('tmpl-uuid')).resolves.toBeUndefined();

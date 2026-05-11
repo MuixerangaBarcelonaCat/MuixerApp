@@ -11,6 +11,7 @@ import {
 import { EventType, AttendanceSummary, RehearsalMetadata, PerformanceMetadata } from '@muixer/shared';
 import { Season } from '../season/season.entity';
 import { Attendance } from './attendance.entity';
+import { EventSegment } from '../event-segment/entities/event-segment.entity';
 
 const DEFAULT_ATTENDANCE_SUMMARY: AttendanceSummary = {
   confirmed: 0,
@@ -67,6 +68,9 @@ export class Event {
 
   @OneToMany(() => Attendance, (attendance) => attendance.event)
   attendances: Attendance[];
+
+  @OneToMany(() => EventSegment, (segment) => segment.event)
+  segments: EventSegment[];
 
   @Column({ type: 'varchar', nullable: true, unique: true })
   legacyId: string | null;

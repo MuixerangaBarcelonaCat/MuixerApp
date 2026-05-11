@@ -11,6 +11,8 @@ import { FigureTemplate } from '../figure/entities/figure-template.entity';
 import { FigureNode } from '../figure/entities/figure-node.entity';
 import { CompositionTemplate } from '../composition/entities/composition-template.entity';
 import { CompositionSlot } from '../composition/entities/composition-slot.entity';
+import { EventSegment } from '../event-segment/entities/event-segment.entity';
+import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
 
 @Module({
   imports: [
@@ -23,7 +25,21 @@ import { CompositionSlot } from '../composition/entities/composition-slot.entity
           type: 'postgres',
           url: process.env.DATABASE_URL,
           ssl: sslEnabled ? { rejectUnauthorized: false } : false,
-          entities: [Position, User, Person, Season, Event, Attendance, RefreshToken, FigureTemplate, FigureNode, CompositionTemplate, CompositionSlot],
+          entities: [
+            Position,
+            User,
+            Person,
+            Season,
+            Event,
+            Attendance,
+            RefreshToken,
+            FigureTemplate,
+            FigureNode,
+            CompositionTemplate,
+            CompositionSlot,
+            EventSegment,
+            FigureInstance,
+          ],
           synchronize: isDevelopment,
           logging: isDevelopment,
         };

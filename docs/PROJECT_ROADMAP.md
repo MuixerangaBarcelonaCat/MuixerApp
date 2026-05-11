@@ -20,7 +20,8 @@
 | **P4.4** | **Arquitectura Docker Multi-entorn** | ✅ Completat | [`docs/specs/2026-05-07-p4-4-docker-local-postgres-design.md`](docs/specs/2026-05-07-p4-4-docker-local-postgres-design.md) | ✅ | ✅ | Docker local dev + Dockerfile multi-stage + docker-compose.prod.yml VPS. NeonDB eliminat del flux de dev |
 | **P5.1** | **Mòdul Pinyes — Templates i Editor Visual** | ✅ Completat | [`docs/specs/2026-05-07-p5-figures-module-overview-design.md`](docs/specs/2026-05-07-p5-figures-module-overview-design.md) | [`p5.1_templates_editor_2859060d`](.cursor/plans/p5.1_templates_editor_2859060d.plan.md) | ✅ | Backend CRUD FigureTemplate+FigureNode, NodeShape enum, Konva editor (pinya + tronc), llistat templates, auto-save. TroncWidget: pisos seqüencials P1–P6 amb opcions per pis, +/- posicions per fila, dropdown cap avall, panel propietats simplificat |
 | **P5.2** | **Mòdul Pinyes — Composicions** | ✅ Completat | [`docs/specs/2026-05-08-p5-2-compositions-design.md`](docs/specs/2026-05-08-p5-2-compositions-design.md) | ✅ | ✅ | Backend CompositionModule (entitats+CRUD+tests). Frontend: CompositionEditorComponent (canvas multi-figura, pinya-view, offsets, auto-save), tab Composicions al llistat. P5.2.1: fixes canvas (selection/drag/panning), scale 50%, placeholder, save immediat, offset incremental, fit-all, z-order |
-| P5.3 | Mòdul Pinyes — Segments i Instàncies | ⚪ Pendent | — | — | — | EventSegment + FigureInstance. Tab "Pinyes" a event-detail. Segments reordenables |
+|| **P5.3** | **Mòdul Pinyes — Segments i Instàncies** | ✅ Completat | — | — | ✅ | Backend EventSegmentModule (entitats+CRUD+tests). Frontend: SegmentManagerComponent inline a event-detail, CRUD segments/instàncies, reordenar (fletxes), modal picker figures/composicions, toggle visibilitat. Pendent: revisió UX completa (P5.3.1) |
+|| P5.3.1 | Mòdul Pinyes — Revisió UX Segments | ⚪ Pendent | — | — | — | Refactor UX segments: tab dedicat "Pinyes" a event-detail, millores d'interacció amb les figures, preview canvas, navegació fluida |
 | P5.4 | Mòdul Pinyes — Assignació de Persones | ⚪ Pendent | — | — | — | NodeAssignment. Canvas d'assignació amb panel lateral, cercador i auto-avançament |
 | P5.5 | Mòdul Pinyes — Projecció i Consulta Històrica | ⚪ Pendent | — | — | — | Mode fullscreen TV/projector. Consulta events passats |
 | P6 | PWA Mòbil | ⚪ Pendent | — | — | — | Diferit fins al tall. Estén l'auth de P4.1 als membres |
@@ -114,9 +115,10 @@ Decisions clau d'ordre:
 | Fase | Objectiu | Depèn de |
 |------|----------|----------|
 | **P5.2** | ✅ Composicions (`CompositionTemplate` + `CompositionSlot`). Editor per agrupar figures amb offsets | P5.1 |
-| **P5.3** | Segments i Instàncies (`EventSegment` + `FigureInstance`). Tab "Pinyes" a event-detail. Segments reordenables drag-handle | P5.1 + P5.2 |
-| **P5.4** | Assignació de persones (`NodeAssignment`). Canvas d'assignació, panel lateral, cercador filtrat, auto-avançament | P5.3 |
-| **P5.5** | Projecció fullscreen (TV/projector) + consulta historial figures per persona/event | P5.4 |
+|| **P5.3** | ✅ Segments i Instàncies (`EventSegment` + `FigureInstance`). CRUD segments/instàncies, reordenar (fletxes), modal picker. Pendent: refactor UX (P5.3.1) | P5.1 + P5.2 |
+|| **P5.3.1** | Refactor UX segments: tab dedicat "Pinyes" a event-detail, millores d'interacció, preview canvas, navegació fluida | P5.3 |
+|| **P5.4** | Assignació de persones (`NodeAssignment`). Canvas d'assignació, panel lateral, cercador filtrat, auto-avançament | P5.3 |
+|| **P5.5** | Projecció fullscreen (TV/projector) + consulta historial figures per persona/event | P5.4 |
 
 ---
 
@@ -161,6 +163,53 @@ Fixes crítics de canvas i millores UX implementades posteriorment:
 | **Z-order controls** | "Porta al davant" / "Porta al darrere" al right panel: swap de `sortOrder`, canvas re-renderitza en ordre correcte |
 
 **Spec P5.2.1**: [`docs/specs/2026-05-10-p5-2-1-composition-editor-fixes.md`](docs/specs/2026-05-10-p5-2-1-composition-editor-fixes.md)
+
+---
+
+## Decisions sobre el Mòdul Pinyes — Segments i Instàncies (P5.3)
+
+### P5.3 — Segments i Instàncies (✅ Completat)
+
+#### Què s'ha implementat
+
+**Backend** (`apps/api/src/modules/event-segment/`):
+- Entitats TypeORM `EventSegment` + `FigureInstance` (taules `event_segments` + `figure_instances`)
+- `EventSegmentModule` amb endpoints REST per segments i instàncies:
+  - Segments: llistat (per event), detall, crear, actualitzar, eliminar, reordenar
+  - Instàncies: llistat (per segment), detall, crear, actualitzar, eliminar, reordenar
+- `EventSegment`: camps `name`, `sortOrder`, `startTime`, `endTime`, `notes`, `isVisible` (visibilitat cap als membres)
+- `FigureInstance`: referència a `FigureTemplate` o `CompositionTemplate`, amb `label` opcional, `sortOrder`, relació a `EventSegment`
+- Reordenació via endpoint dedicat: `PUT /events/:eventId/segments/reorder` + `PUT /events/:eventId/segments/:segmentId/instances/reorder`
+- Tests unitaris: `event-segment.service.spec.ts` + `event-segment.controller.spec.ts` + `figure-instance.service.spec.ts`
+
+**Frontend** (`apps/dashboard/src/app/features/`):
+- `SegmentManagerComponent` integrat inline a `event-detail.component.html` (entre cards d'info i llista d'assistència):
+  - Llistat de segments amb cards sempre visibles
+  - Nom editable inline (click per editar, guardar/cancelar)
+  - Toggle visibilitat (`isVisible`) amb icona Eye/EyeOff
+  - Reordenació amb fletxes amunt/avall (no drag-handle)
+  - Eliminar segment (amb confirmació)
+  - Afegir segment nou (botó "+")
+  - Figures/composicions mostrades com a badges/chips dins de cada segment
+  - Menú contextual per instàncies (eliminar figura del segment)
+- `FigurePickerModalComponent`: modal amb tabs "Figures" / "Composicions", cerca, selecció de templates
+- `EventSegmentService` + `FigureInstanceService` (dashboard): mètodes CRUD + reordenació
+- Models: `SegmentDetail`, `InstanceDetail` a `segment.model.ts`
+
+#### Limitacions actuals i tasques pendents
+
+**No implementat a P5.3**:
+- Tab dedicat "Pinyes" a l'event-detail (implementat inline en comptes de tab)
+- Preview/miniatura del canvas de les figures dins dels segments
+- Navegació directa des de la llista d'events cap als segments (botó/columna)
+- Interacció avançada amb les figures (assignació de persones — P5.4)
+
+**P5.3.1 — Revisió UX Segments (⚪ Pendent)**:
+- Refactoritzar la secció de segments a un tab dedicat "Pinyes" dins d'event-detail
+- Afegir preview readonly del canvas de cada figura dins del segment
+- Afegir accés ràpid des de la llista d'events (columna amb recompte + botó d'accés)
+- Millorar la navegació entre segments, figures, i el canvas d'edició de templates
+- Considerar millores de layout per dispositius mòbils
 
 ---
 
@@ -471,3 +520,4 @@ Cada sub-projecte genera:
 | 8 Mai 2026 | **Spec P5.2 aprovada** (`docs/specs/2026-05-08-p5-2-compositions-design.md`): Model de dades (`CompositionTemplate` + `CompositionSlot`), 6 endpoints REST, `CompositionEditorComponent` layout amb Figure Picker + canvas multi-figura (pinya-view, offsets, grups draggables) + Slot Properties panel, auto-save. |
 | 8–10 Mai 2026 | **P5.2 Composicions completat**: Backend — `CompositionModule` (entitats, 6 endpoints CRUD+duplicate, tests referencial integrity). Frontend — `CompositionEditorComponent` (canvas mode composition, auto-save, Figure Picker), tab Composicions al llistat amb CRUD real. Protecció referencial al delete de `FigureTemplate` (409 si té slots). |
 | 10 Mai 2026 | **Spec P5.2.1 aprovada i implementada** (`docs/specs/2026-05-10-p5-2-1-composition-editor-fixes.md`): Fix canvas interaction (listening:true al rect, panning guard mode-aware, cursor grab). Millores UX: scale 50%, placeholder per slots buits, save immediat en add, offset incremental, botó "Enquadrar" (fitAllSlots), z-order controls (bringForward/sendBackward). Tests: ✅ 281 API + 200 dashboard. |
+|| 11 Mai 2026 | **P5.3 Segments i Instàncies completat**: Backend — `EventSegmentModule` (entitats EventSegment + FigureInstance, endpoints CRUD + reordenar per segments i instàncies, tests unitaris). Frontend — `SegmentManagerComponent` integrat inline a event-detail (cards sempre visibles, edició nom, toggle visibilitat, fletxes reordenar, badges figures/composicions, `FigurePickerModalComponent` amb tabs). Pendent: refactor UX a tab dedicat "Pinyes" (P5.3.1). |

@@ -1,9 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CompositionTemplate } from './entities/composition-template.entity';
 import { CompositionSlot } from './entities/composition-slot.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
+import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
 import { CreateCompositionTemplateDto } from './dto/create-composition-template.dto';
 import { UpdateCompositionTemplateDto } from './dto/update-composition-template.dto';
 import { CompositionTemplateFilterDto } from './dto/composition-template-filter.dto';
@@ -50,6 +51,8 @@ export class CompositionTemplateService {
     private readonly slotRepository: Repository<CompositionSlot>,
     @InjectRepository(FigureTemplate)
     private readonly figureTemplateRepository: Repository<FigureTemplate>,
+    @InjectRepository(FigureInstance)
+    private readonly figureInstanceRepository: Repository<FigureInstance>,
   ) {}
 
   async findAll(
@@ -136,6 +139,16 @@ export class CompositionTemplateService {
 
     if (!composition) {
       throw new NotFoundException(`CompositionTemplate with ID ${id} not found`);
+    }
+
+    const instanceCount = await this.figureInstanceRepository.count({
+      where: { compositionTemplate: { id } },
+    });
+
+    if (instanceCount > 0) {
+      throw new ConflictException(
+        `Aquesta composició s'utilitza a ${instanceCount} event(s) i no es pot eliminar.`,
+      );
     }
 
     await this.compositionRepository.remove(composition);

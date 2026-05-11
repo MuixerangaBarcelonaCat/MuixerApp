@@ -1,0 +1,204 @@
+<section aria-labelledby="segments-heading">
+  <div class="card bg-base-100 shadow-sm">
+    <div class="card-body p-4">
+      <!-- Header -->
+      <div class="flex items-center justify-between gap-3 flex-wrap mb-3 pb-2 border-b border-base-300">
+        <h2 id="segments-heading" class="card-title text-base">
+          <lucide-icon name="Layers" [size]="18" class="text-primary" />
+          Pinyes i Figures
+        </h2>
+        <button
+          type="button"
+          class="btn btn-primary btn-sm gap-1"
+          [disabled]="saving()"
+          (click)="createSegment()"
+          aria-label="Afegir nou segment"
+        >
+          @if (saving()) {
+            <span class="loading loading-spinner loading-xs"></span>
+          } @else {
+            <lucide-icon name="Plus" [size]="14" />
+          }
+          Nou segment
+        </button>
+      </div>
+
+      <!-- Loading -->
+      @if (loading()) {
+        <div class="flex items-center gap-2 py-6 justify-center text-base-content/50 text-sm">
+          <span class="loading loading-spinner loading-sm"></span>
+          Carregant segments...
+        </div>
+      }
+
+      <!-- Empty state -->
+      @if (!loading() && segments().length === 0) {
+        <div class="py-8 text-center text-sm text-base-content/50">
+          <lucide-icon name="Layers" [size]="40" class="mx-auto mb-2 text-base-content/20" />
+          <p>Cap segment creat encara.</p>
+          <p class="mt-1">Afegeix un segment per organitzar les figures que es faran en aquest event.</p>
+        </div>
+      }
+
+      <!-- Segments list -->
+      @if (!loading() && segments().length > 0) {
+        <div class="space-y-3" role="list" aria-label="Llista de segments">
+          @for (segment of segments(); track segment.id; let i = $index; let last = $last) {
+            <div
+              class="border border-base-300 rounded-box p-3 space-y-2"
+              role="listitem"
+            >
+              <!-- Segment header row -->
+              <div class="flex items-center gap-2 flex-wrap">
+                <!-- Reorder -->
+                <div class="flex flex-col gap-0.5">
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-xs px-1 py-0.5 h-auto min-h-0"
+                    [disabled]="i === 0"
+                    (click)="moveSegment(segment, 'up')"
+                    aria-label="Moure segment amunt"
+                  >
+                    <lucide-icon name="ChevronUp" [size]="14" />
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-xs px-1 py-0.5 h-auto min-h-0"
+                    [disabled]="last"
+                    (click)="moveSegment(segment, 'down')"
+                    aria-label="Moure segment avall"
+                  >
+                    <lucide-icon name="ChevronDown" [size]="14" />
+                  </button>
+                </div>
+
+                <!-- Name or edit input -->
+                @if (editingSegmentId() === segment.id) {
+                  <input
+                    type="text"
+                    class="input input-sm input-bordered flex-1 min-w-[140px]"
+                    [attr.aria-label]="'Nom del segment'"
+                    [(ngModel)]="editingName"
+                    (keydown.enter)="saveSegmentName(segment)"
+                    (keydown.escape)="cancelEdit()"
+                    placeholder="Nom del segment (opcional)"
+                    maxlength="120"
+                  />
+                  <button type="button" class="btn btn-success btn-xs gap-1" (click)="saveSegmentName(segment)">
+                    <lucide-icon name="Check" [size]="12" /> Desar
+                  </button>
+                  <button type="button" class="btn btn-ghost btn-xs" (click)="cancelEdit()">Cancel·lar</button>
+                } @else {
+                  <button
+                    type="button"
+                    class="font-medium text-sm flex-1 text-left hover:text-primary transition-colors"
+                    (click)="startEdit(segment.id, segment.name ?? '')"
+                    [title]="'Editar nom del segment'"
+                  >
+                    {{ displayName()(segment) }}
+                    @if (!segment.name) {
+                      <span class="text-base-content/40 text-xs font-normal ml-1">(auto)</span>
+                    }
+                  </button>
+                }
+
+                <!-- Visibility toggle -->
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-xs gap-1"
+                  (click)="toggleVisibility(segment)"
+                  [title]="segment.isVisible ? 'Visible als membres — clica per ocultar' : 'Ocult als membres — clica per publicar'"
+                  [attr.aria-pressed]="segment.isVisible"
+                >
+                  @if (segment.isVisible) {
+                    <lucide-icon name="Eye" [size]="14" class="text-success" />
+                  } @else {
+                    <lucide-icon name="EyeOff" [size]="14" class="text-base-content/40" />
+                  }
+                </button>
+
+                <!-- Add figure button -->
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-xs gap-1"
+                  (click)="openPicker(segment.id)"
+                  aria-label="Afegir figura o composició al segment"
+                >
+                  <lucide-icon name="Plus" [size]="14" />
+                  Figura
+                </button>
+
+                <!-- Delete segment -->
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-xs text-error hover:bg-error/10"
+                  (click)="removeSegment(segment)"
+                  aria-label="Eliminar segment"
+                >
+                  <lucide-icon name="Trash2" [size]="14" />
+                </button>
+              </div>
+
+              <!-- Time + Notes info (if set) -->
+              @if (segment.startTime || segment.endTime || segment.notes) {
+                <div class="text-xs text-base-content/50 flex flex-wrap gap-3 pl-8">
+                  @if (segment.startTime || segment.endTime) {
+                    <span>
+                      <lucide-icon name="Clock" [size]="11" class="inline mr-0.5" />
+                      {{ segment.startTime ?? '?' }}–{{ segment.endTime ?? '?' }}
+                    </span>
+                  }
+                  @if (segment.notes) {
+                    <span class="truncate max-w-[240px]" [title]="segment.notes">
+                      <lucide-icon name="FileText" [size]="11" class="inline mr-0.5" />
+                      {{ segment.notes }}
+                    </span>
+                  }
+                </div>
+              }
+
+              <!-- Instances (figure badges) -->
+              @if (segment.instances.length > 0) {
+                <div class="flex flex-wrap gap-1.5 pl-8" role="list" [attr.aria-label]="'Figures del segment ' + displayName()(segment)">
+                  @for (instance of segment.instances; track instance.id) {
+                    <div
+                      class="badge gap-1 pr-1 cursor-default"
+                      [class.badge-primary]="!isComposition(instance)"
+                      [class.badge-secondary]="isComposition(instance)"
+                      role="listitem"
+                    >
+                      @if (isComposition(instance)) {
+                        <lucide-icon name="LayoutGrid" [size]="11" />
+                      }
+                      <span class="text-xs">{{ getInstanceLabel(instance) }}</span>
+                      <button
+                        type="button"
+                        class="ml-0.5 hover:opacity-70 transition-opacity"
+                        (click)="removeInstance(segment, instance)"
+                        [attr.aria-label]="'Treure ' + getInstanceLabel(instance) + ' del segment'"
+                      >
+                        <lucide-icon name="X" [size]="11" />
+                      </button>
+                    </div>
+                  }
+                </div>
+              } @else {
+                <p class="text-xs text-base-content/30 pl-8">Cap figura afegida. Clica "+ Figura" per afegir-ne.</p>
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </div>
+</section>
+
+<!-- Figure Picker Modal -->
+@if (pickerOpen() && pickerSegmentId()) {
+  <app-figure-picker-modal
+    [open]="pickerOpen()"
+    [segmentId]="pickerSegmentId()!"
+    (selected)="onInstanceSelected($event)"
+    (closed)="closePicker()"
+  />
+}

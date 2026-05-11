@@ -11,6 +11,7 @@ import { AuthService } from '../../../../core/auth/services/auth.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { EventFormModalComponent } from '../event-form-modal/event-form-modal.component';
 import { AttendanceEditModalComponent } from '../attendance-edit-modal/attendance-edit-modal.component';
+import { SegmentManagerComponent } from '../segment-manager/segment-manager.component';
 import { PersonSearchInputComponent } from '../../../../shared/components/forms/person-search-input/person-search-input.component';
 import { EventDetail, EventType, AttendanceSummary, SyncEvent, Season } from '../../models/event.model';
 import {
@@ -37,6 +38,7 @@ type SyncState = 'idle' | 'running' | 'complete' | 'error';
     EventFormModalComponent,
     AttendanceEditModalComponent,
     PersonSearchInputComponent,
+    SegmentManagerComponent,
   ],
   templateUrl: './event-detail.component.html',
 })

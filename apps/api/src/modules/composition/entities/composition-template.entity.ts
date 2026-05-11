@@ -7,6 +7,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { CompositionSlot } from './composition-slot.entity';
+import { FigureInstance } from '../../event-segment/entities/figure-instance.entity';
 
 @Entity('composition_templates')
 export class CompositionTemplate {
@@ -24,6 +25,9 @@ export class CompositionTemplate {
 
   @OneToMany(() => CompositionSlot, (slot) => slot.composition, { cascade: true })
   slots: CompositionSlot[];
+
+  @OneToMany(() => FigureInstance, (instance) => instance.compositionTemplate)
+  instances: FigureInstance[];
 
   @CreateDateColumn()
   createdAt: Date;
