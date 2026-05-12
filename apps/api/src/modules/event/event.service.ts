@@ -200,10 +200,11 @@ export class EventService {
 
     const segments = await this.segmentRepository
       .createQueryBuilder('segment')
+      .leftJoinAndSelect('segment.event', 'event')
       .leftJoinAndSelect('segment.instances', 'instance')
       .leftJoinAndSelect('instance.figureTemplate', 'figureTemplate')
       .leftJoinAndSelect('instance.compositionTemplate', 'compositionTemplate')
-      .where('segment.event IN (:...eventIds)', { eventIds })
+      .where('event.id IN (:...eventIds)', { eventIds })
       .orderBy('segment.sortOrder', 'ASC')
       .addOrderBy('instance.sortOrder', 'ASC')
       .getMany();
@@ -211,7 +212,8 @@ export class EventService {
     const map = new Map<string, SegmentsSummary>();
 
     for (const segment of segments) {
-      const eventId = (segment.event as unknown as { id: string }).id;
+      const eventId = segment.event?.id;
+      if (!eventId) continue;
       if (!map.has(eventId)) {
         map.set(eventId, { segmentCount: 0, instanceCount: 0, segments: [] });
       }
