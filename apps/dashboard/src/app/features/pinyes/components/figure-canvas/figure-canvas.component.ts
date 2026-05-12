@@ -16,8 +16,9 @@ import Konva from 'konva';
 import { FigureNodeItem } from '../../models/figure-template.model';
 import { CompositionSlotItem } from '../../models/composition.model';
 import { FigureZone, NodeShape } from '@muixer/shared';
+import { AssignmentDetail, HeightMode } from '../../models/assignment.model';
 
-export type CanvasMode = 'editor' | 'readonly' | 'composition';
+export type CanvasMode = 'editor' | 'readonly' | 'composition' | 'assignment';
 
 export interface CompositionSlotWithNodes {
   slotId: string;
@@ -81,8 +82,13 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   readonly snapToGrid = input<boolean>(false);
   readonly compositionSlots = input<CompositionSlotWithNodes[]>([]);
   readonly selectedSlotId = input<string | null>(null);
+  // Assignment mode inputs
+  readonly assignments = input<AssignmentDetail[]>([]);
+  readonly heightMode = input<HeightMode>('relative');
+  readonly attendanceMap = input<Map<string, string>>(new Map());
 
   readonly nodeSelected = output<string | null>();
+  readonly nodeClicked = output<{ nodeId: string; x: number; y: number }>();
   readonly nodeMoved = output<{ id: string; x: number; y: number }>();
   readonly nodeRotated = output<{ id: string; rotation: number }>();
   readonly nodeResized = output<{ id: string; width: number; height: number }>();
@@ -90,6 +96,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   readonly zoomChanged = output<number>();
   readonly slotSelected = output<string | null>();
   readonly slotMoved = output<{ slotId: string; offsetX: number; offsetY: number }>();
+  readonly nodeDoubleClicked = output<string>();
 
   private stage!: Konva.Stage;
   private gridLayer!: Konva.Layer;
@@ -114,7 +121,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.mode();
       if (!this.stage) return;
       untracked(() => {
-        if (this.mode() === 'composition') return;
+        if (this.mode() === 'composition' || this.mode() === 'assignment') return;
         this.renderNodes();
         this.updateTransformer();
       });
@@ -126,6 +133,16 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       if (!this.stage) return;
       if (this.mode() !== 'composition') return;
       untracked(() => this.renderCompositionSlots());
+    });
+
+    effect(() => {
+      this.assignments();
+      this.heightMode();
+      this.attendanceMap();
+      this.selectedNodeId();
+      if (!this.stage) return;
+      if (this.mode() !== 'assignment') return;
+      untracked(() => this.renderAssignmentNodes());
     });
   }
 
@@ -349,6 +366,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.renderGrid();
     if (this.mode() === 'composition') {
       this.renderCompositionSlots();
+    } else if (this.mode() === 'assignment') {
+      this.renderAssignmentNodes();
     } else {
       this.renderNodes();
     }
@@ -619,6 +638,157 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       });
 
       this.pinyaLayer.add(slotGroup);
+    }
+
+    this.pinyaLayer.add(this.transformer);
+    this.pinyaLayer.batchDraw();
+  }
+
+  private renderAssignmentNodes(): void {
+    this.transformer.nodes([]);
+    this.transformer.remove();
+    this.pinyaLayer.destroyChildren();
+
+    const assignments = this.assignments();
+    const heightMode = this.heightMode();
+    const attendanceMap = this.attendanceMap();
+    const selectedId = this.selectedNodeId();
+
+    const assignmentByNodeId = new Map(assignments.map((a) => [a.node.id, a]));
+
+    const ATTENDANCE_COLORS: Record<string, string> = {
+      ANIRE: '#22c55e',
+      PENDENT: '#f59e0b',
+      NO_VAIG: '#ef4444',
+    };
+
+    for (const node of this.nodes()) {
+      const assignment = assignmentByNodeId.get(node.id);
+      const isSelected = selectedId === node.id;
+      const fill = node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR;
+      const stroke = isSelected ? SELECTED_STROKE : NORMAL_STROKE;
+      const strokeWidth = isSelected ? 3 : 1.5;
+
+      const group = new Konva.Group({
+        id: node.id,
+        x: node.x,
+        y: node.y,
+        rotation: node.rotation,
+        draggable: false,
+      });
+
+      let shape: Konva.Shape;
+      if ((node as any).shape === NodeShape.ELLIPSE) {
+        shape = new Konva.Ellipse({
+          radiusX: node.width / 2,
+          radiusY: node.height / 2,
+          fill,
+          stroke,
+          strokeWidth,
+        });
+      } else {
+        shape = new Konva.Rect({
+          x: -node.width / 2,
+          y: -node.height / 2,
+          width: node.width,
+          height: node.height,
+          cornerRadius: 4,
+          fill,
+          stroke,
+          strokeWidth,
+        });
+      }
+      group.add(shape);
+
+      if (assignment) {
+        const alias = assignment.person.alias;
+        const textFill = this.getContrastColor(fill);
+
+        let displayText = alias;
+        if (assignment.person.shoulderHeight !== null) {
+          const h = assignment.person.shoulderHeight;
+          const heightText = heightMode === 'relative'
+            ? `${h >= 140 ? '+' : ''}${h - 140}`
+            : `${h}`;
+          displayText = `${alias} (${heightText})`;
+        }
+
+        group.add(
+          new Konva.Text({
+            text: displayText,
+            fontSize: 9,
+            fontFamily: 'Inter, sans-serif',
+            fill: textFill,
+            align: 'center',
+            verticalAlign: 'middle',
+            width: node.width,
+            height: node.height,
+            x: -node.width / 2,
+            y: -node.height / 2,
+            listening: false,
+            wrap: 'word',
+            ellipsis: true,
+          }),
+        );
+
+        // Attendance badge (small dot at top-right corner)
+        const attendanceStatus = attendanceMap.get(assignment.person.id);
+        if (attendanceStatus) {
+          const badgeColor = ATTENDANCE_COLORS[attendanceStatus] ?? '#6b7280';
+          group.add(
+            new Konva.Circle({
+              x: node.width / 2 - 5,
+              y: -node.height / 2 + 5,
+              radius: 5,
+              fill: badgeColor,
+              stroke: '#ffffff',
+              strokeWidth: 1,
+              listening: false,
+            }),
+          );
+        }
+      } else {
+        // Empty node label
+        const textFill = this.getContrastColor(fill);
+        group.add(
+          new Konva.Text({
+            text: node.label,
+            fontSize: 9,
+            fontFamily: 'Inter, sans-serif',
+            fill: textFill,
+            opacity: 0.6,
+            align: 'center',
+            verticalAlign: 'middle',
+            width: node.width,
+            height: node.height - 8,
+            x: -node.width / 2,
+            y: -node.height / 2 + 4,
+            listening: false,
+            wrap: 'word',
+          }),
+        );
+      }
+
+      group.on('click tap', (e) => {
+        const containerRect = this.stage.container().getBoundingClientRect();
+        const clickX = e.evt.clientX - containerRect.left;
+        const clickY = e.evt.clientY - containerRect.top;
+        this.nodeSelected.emit(node.id);
+        this.nodeClicked.emit({ nodeId: node.id, x: clickX, y: clickY });
+      });
+
+      group.on('dblclick dbltap', () => {
+        this.nodeDoubleClicked.emit(node.id);
+      });
+
+      group.on('mouseenter', () => {
+        this.stage.container().style.cursor = 'pointer';
+      });
+      group.on('mouseleave', () => {
+        this.stage.container().style.cursor = 'default';
+      });
+
+      this.pinyaLayer.add(group);
     }
 
     this.pinyaLayer.add(this.transformer);

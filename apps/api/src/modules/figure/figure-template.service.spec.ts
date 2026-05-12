@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { FigureTemplateService } from './figure-template.service';
+import { NodeAssignmentService } from '../node-assignment/node-assignment.service';
 import { FigureTemplate } from './entities/figure-template.entity';
 import { FigureNode } from './entities/figure-node.entity';
 import { CompositionSlot } from '../composition/entities/composition-slot.entity';
@@ -72,6 +73,10 @@ describe('FigureTemplateService', () => {
     count: jest.fn().mockResolvedValue(0),
   };
 
+  const mockNodeAssignmentService: Partial<NodeAssignmentService> = {
+    countByNode: jest.fn().mockResolvedValue(0),
+  };
+
   const mockTemplateRepo = {
     createQueryBuilder: jest.fn(() => templateQb),
     findOne: jest.fn(),
@@ -100,6 +105,7 @@ describe('FigureTemplateService', () => {
         { provide: getRepositoryToken(FigureNode), useValue: mockNodeRepo },
         { provide: getRepositoryToken(CompositionSlot), useValue: mockCompositionSlotRepo },
         { provide: getRepositoryToken(FigureInstance), useValue: mockFigureInstanceRepo },
+        { provide: NodeAssignmentService, useValue: mockNodeAssignmentService },
       ],
     }).compile();
 
@@ -204,10 +210,33 @@ describe('FigureTemplateService', () => {
         .mockResolvedValueOnce(tmpl)
         .mockResolvedValueOnce({ ...tmpl, nodes: [] });
       mockTemplateRepo.save.mockResolvedValue(tmpl);
+      (mockNodeAssignmentService.countByNode as jest.Mock).mockResolvedValue(0);
 
       await service.update('tmpl-uuid', { nodes: [] });
 
       expect(mockNodeRepo.delete).toHaveBeenCalled();
+    });
+
+    it('throws ConflictException when trying to remove a node that has active assignments', async () => {
+      const nodeWithAssignment = makeNode({ id: 'assigned-node-uuid' });
+      const tmpl = makeTemplate({ nodes: [nodeWithAssignment] });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(tmpl);
+      mockTemplateRepo.save.mockResolvedValue(tmpl);
+      (mockNodeAssignmentService.countByNode as jest.Mock).mockResolvedValue(2);
+
+      await expect(service.update('tmpl-uuid', { nodes: [] })).rejects.toThrow(ConflictException);
+    });
+
+    it('allows removing a node with zero assignments', async () => {
+      const tmpl = makeTemplate({ nodes: [makeNode()] });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(tmpl)
+        .mockResolvedValueOnce({ ...tmpl, nodes: [] });
+      mockTemplateRepo.save.mockResolvedValue(tmpl);
+      (mockNodeAssignmentService.countByNode as jest.Mock).mockResolvedValue(0);
+
+      await expect(service.update('tmpl-uuid', { nodes: [] })).resolves.not.toThrow();
     });
 
     it('throws NotFoundException when not found', async () => {

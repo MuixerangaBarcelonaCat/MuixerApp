@@ -31,4 +31,11 @@ export const pinyesRoutes: Routes = [
         (m) => m.CompositionEditorComponent,
       ),
   },
+  {
+    path: 'events/:eventId/segments/:segmentId/assign',
+    loadComponent: () =>
+      import('./components/assignment-canvas/assignment-canvas.component').then(
+        (m) => m.AssignmentCanvasComponent,
+      ),
+  },
 ];

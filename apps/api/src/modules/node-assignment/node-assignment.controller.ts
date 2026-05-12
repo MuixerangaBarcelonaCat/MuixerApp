@@ -1,0 +1,90 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Body,
+  Param,
+  Query,
+  HttpCode,
+  HttpStatus,
+  ParseUUIDPipe,
+} from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserRole } from '@muixer/shared';
+import { NodeAssignmentService } from './node-assignment.service';
+import { AvailablePersonsService, AvailablePersonsQuery } from './available-persons.service';
+import { CreateAssignmentDto } from './dto/create-assignment.dto';
+import { BulkImportAssignmentDto } from './dto/bulk-import-assignment.dto';
+
+@ApiTags('node-assignments')
+@ApiBearerAuth()
+@Roles(UserRole.TECHNICAL, UserRole.ADMIN)
+@Controller()
+export class NodeAssignmentController {
+  constructor(
+    private readonly assignmentService: NodeAssignmentService,
+    private readonly availablePersonsService: AvailablePersonsService,
+  ) {}
+
+  @ApiOperation({ summary: 'List all assignments for a figure instance' })
+  @Get('figure-instances/:instanceId/assignments')
+  async getByInstance(@Param('instanceId', ParseUUIDPipe) instanceId: string) {
+    const data = await this.assignmentService.getByInstance(instanceId);
+    return { data };
+  }
+
+  @ApiOperation({ summary: 'Assign a person to a node in a figure instance' })
+  @Post('figure-instances/:instanceId/assignments')
+  assign(
+    @Param('instanceId', ParseUUIDPipe) instanceId: string,
+    @Body() dto: CreateAssignmentDto,
+  ) {
+    return this.assignmentService.assign(instanceId, dto);
+  }
+
+  @ApiOperation({ summary: 'Remove an assignment from a figure instance' })
+  @Delete('figure-instances/:instanceId/assignments/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  unassign(
+    @Param('instanceId', ParseUUIDPipe) instanceId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<void> {
+    return this.assignmentService.unassign(instanceId, id);
+  }
+
+  @ApiOperation({ summary: 'Bulk import assignments from a previous figure instance' })
+  @Post('figure-instances/:instanceId/assignments/bulk')
+  @HttpCode(HttpStatus.MULTI_STATUS)
+  bulkImport(
+    @Param('instanceId', ParseUUIDPipe) instanceId: string,
+    @Body() dto: BulkImportAssignmentDto,
+  ) {
+    return this.assignmentService.bulkImport(instanceId, dto);
+  }
+
+  @ApiOperation({ summary: 'Get available persons for assignment in a segment' })
+  @Get('events/:eventId/segments/:segmentId/available-persons')
+  async getAvailablePersons(
+    @Param('eventId', ParseUUIDPipe) eventId: string,
+    @Param('segmentId', ParseUUIDPipe) segmentId: string,
+    @Query() query: AvailablePersonsQuery,
+  ) {
+    const data = await this.availablePersonsService.getAvailablePersons(eventId, segmentId, query);
+    return { data };
+  }
+
+  @ApiOperation({ summary: 'Get figure instance assignment history for a template' })
+  @Get('figure-templates/:templateId/history')
+  async getHistory(@Param('templateId', ParseUUIDPipe) templateId: string) {
+    const data = await this.assignmentService.getHistory(templateId);
+    return { data };
+  }
+
+  @ApiOperation({ summary: 'Get the next performance event after the given event' })
+  @Get('events/:eventId/next-performance')
+  getNextPerformance(@Param('eventId', ParseUUIDPipe) eventId: string) {
+    return this.availablePersonsService.getNextPerformance(eventId);
+  }
+}

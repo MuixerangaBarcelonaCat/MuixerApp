@@ -6,9 +6,13 @@ import { CompositionSlot } from '../composition/entities/composition-slot.entity
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
 import { FigureTemplateController } from './figure-template.controller';
 import { FigureTemplateService } from './figure-template.service';
+import { NodeAssignmentModule } from '../node-assignment/node-assignment.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([FigureTemplate, FigureNode, CompositionSlot, FigureInstance])],
+  imports: [
+    TypeOrmModule.forFeature([FigureTemplate, FigureNode, CompositionSlot, FigureInstance]),
+    NodeAssignmentModule,
+  ],
   controllers: [FigureTemplateController],
   providers: [FigureTemplateService],
   exports: [FigureTemplateService],

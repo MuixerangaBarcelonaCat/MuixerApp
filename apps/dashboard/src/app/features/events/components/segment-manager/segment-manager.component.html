@@ -128,6 +128,19 @@
                   Figura
                 </button>
 
+                <!-- Assign persons button -->
+                @if (segment.instances.length > 0) {
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-xs gap-1 text-primary"
+                    (click)="navigateToAssignment(segment.id)"
+                    [attr.aria-label]="'Assignar persones al segment ' + displayName()(segment)"
+                  >
+                    <lucide-icon name="Users" [size]="14" />
+                    Assignar
+                  </button>
+                }
+
                 <!-- Delete segment -->
                 <button
                   type="button"

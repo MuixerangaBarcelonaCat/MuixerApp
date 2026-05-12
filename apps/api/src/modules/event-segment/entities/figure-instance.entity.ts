@@ -3,6 +3,7 @@ import {
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
+  OneToMany,
   CreateDateColumn,
   UpdateDateColumn,
   JoinColumn,
@@ -10,6 +11,7 @@ import {
 import { EventSegment } from './event-segment.entity';
 import { FigureTemplate } from '../../figure/entities/figure-template.entity';
 import { CompositionTemplate } from '../../composition/entities/composition-template.entity';
+import type { NodeAssignment } from '../../node-assignment/entities/node-assignment.entity';
 
 @Entity('figure_instances')
 export class FigureInstance {
@@ -33,6 +35,9 @@ export class FigureInstance {
 
   @Column({ type: 'int' })
   sortOrder: number;
+
+  @OneToMany('NodeAssignment', (a: NodeAssignment) => a.figureInstance, { cascade: true })
+  assignments: NodeAssignment[];
 
   @CreateDateColumn()
   createdAt: Date;

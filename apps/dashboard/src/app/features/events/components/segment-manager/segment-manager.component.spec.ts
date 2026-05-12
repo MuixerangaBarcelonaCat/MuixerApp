@@ -1,10 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import { of, throwError } from 'rxjs';
+import { Router } from '@angular/router';
 import {
   LUCIDE_ICONS, LucideIconProvider,
   Check, ChevronDown, ChevronUp, Clock, Eye, EyeOff, FileText, Hexagon, Layers,
-  LayoutGrid, Plus, Trash2, X,
+  LayoutGrid, Plus, Trash2, Users, X,
 } from 'lucide-angular';
 import { SegmentManagerComponent } from './segment-manager.component';
 import { EventSegmentService } from '../../../pinyes/services/event-segment.service';
@@ -40,6 +41,7 @@ describe('SegmentManagerComponent', () => {
   let segmentService: Partial<EventSegmentService>;
   let instanceService: Partial<FigureInstanceService>;
   let toastService: { success: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
+  let routerMock: { navigate: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
     segmentService = {
@@ -60,17 +62,20 @@ describe('SegmentManagerComponent', () => {
       error: vi.fn(),
     };
 
+    routerMock = { navigate: vi.fn() };
+
     await TestBed.configureTestingModule({
       imports: [SegmentManagerComponent],
       providers: [
         { provide: EventSegmentService, useValue: segmentService },
         { provide: FigureInstanceService, useValue: instanceService },
         { provide: ToastService, useValue: toastService },
+        { provide: Router, useValue: routerMock },
         {
           provide: LUCIDE_ICONS, multi: true,
           useFactory: () => new LucideIconProvider({
             Check, ChevronDown, ChevronUp, Clock, Eye, EyeOff, FileText, Hexagon, Layers,
-            LayoutGrid, Plus, Trash2, X,
+            LayoutGrid, Plus, Trash2, Users, X,
           }),
         },
       ],
@@ -217,6 +222,25 @@ describe('SegmentManagerComponent', () => {
       component.startEdit('seg-uuid-1', 'Bloc A');
       component.cancelEdit();
       expect(component.editingSegmentId()).toBeNull();
+    });
+  });
+
+  describe('navigateToAssignment()', () => {
+    it('"Assignar" button calls navigateToAssignment with segment id', () => {
+      const seg = makeSegment({ instances: [makeInstance()] });
+      component.segments.set([seg]);
+      fixture.detectChanges();
+      component.navigateToAssignment(seg.id);
+      expect(routerMock.navigate).toHaveBeenCalledWith([
+        '/pinyes/events', EVENT_ID, 'segments', seg.id, 'assign',
+      ]);
+    });
+
+    it('navigates to correct assignment canvas URL', () => {
+      component.navigateToAssignment('seg-uuid-1');
+      expect(routerMock.navigate).toHaveBeenCalledWith([
+        '/pinyes/events', EVENT_ID, 'segments', 'seg-uuid-1', 'assign',
+      ]);
     });
   });
 });

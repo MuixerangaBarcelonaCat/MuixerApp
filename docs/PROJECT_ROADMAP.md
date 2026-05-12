@@ -22,7 +22,7 @@
 | **P5.2** | **Mòdul Pinyes — Composicions** | ✅ Completat | [`docs/specs/2026-05-08-p5-2-compositions-design.md`](docs/specs/2026-05-08-p5-2-compositions-design.md) | ✅ | ✅ | Backend CompositionModule (entitats+CRUD+tests). Frontend: CompositionEditorComponent (canvas multi-figura, pinya-view, offsets, auto-save), tab Composicions al llistat. P5.2.1: fixes canvas (selection/drag/panning), scale 50%, placeholder, save immediat, offset incremental, fit-all, z-order |
 || **P5.3** | **Mòdul Pinyes — Segments i Instàncies** | ✅ Completat | — | — | ✅ | Backend EventSegmentModule (entitats+CRUD+tests). Frontend: SegmentManagerComponent inline a event-detail, CRUD segments/instàncies, reordenar (fletxes), modal picker figures/composicions, toggle visibilitat. Pendent: revisió UX completa (P5.3.1) |
 || P5.3.1 | Mòdul Pinyes — Revisió UX Segments | ⚪ Pendent | — | — | — | Refactor UX segments: tab dedicat "Pinyes" a event-detail, millores d'interacció amb les figures, preview canvas, navegació fluida |
-| P5.4 | Mòdul Pinyes — Assignació de Persones | ⚪ Pendent | — | — | — | NodeAssignment. Canvas d'assignació amb panel lateral, cercador i auto-avançament |
+| **P5.4** | **Mòdul Pinyes — Assignació de Persones** | ✅ Completat | [`docs/specs/2026-05-11-p5-3-event-segments-figure-instances.md`](docs/specs/2026-05-11-p5-3-event-segments-figure-instances.md) | [`p5.4_node_assignment_54c3d5e9`](.cursor/plans/p5.4_node_assignment_54c3d5e9.plan.md) | ✅ | NodeAssignment entity+module (backend), AssignmentCanvas+PersonPanel+NodePopover+ImportPinyaModal (frontend), AssignmentStateService (signals), optimistic UI+rollback, botó "Assignar" al SegmentManager |
 | P5.5 | Mòdul Pinyes — Projecció i Consulta Històrica | ⚪ Pendent | — | — | — | Mode fullscreen TV/projector. Consulta events passats |
 | P6 | PWA Mòbil | ⚪ Pendent | — | — | — | Diferit fins al tall. Estén l'auth de P4.1 als membres |
 | P7 | Informes + Notificacions + Features avançades | ⚪ Pendent | — | — | — | Reports d'assistència, FCM, estadístiques, notícies |
@@ -210,6 +210,49 @@ Fixes crítics de canvas i millores UX implementades posteriorment:
 - Afegir accés ràpid des de la llista d'events (columna amb recompte + botó d'accés)
 - Millorar la navegació entre segments, figures, i el canvas d'edició de templates
 - Considerar millores de layout per dispositius mòbils
+
+---
+
+## Decisions sobre el Mòdul Pinyes — Assignació de Persones (P5.4)
+
+### P5.4 — Assignació de Persones (✅ Completat)
+
+#### Què s'ha implementat
+
+**Backend** (`apps/api/src/modules/node-assignment/`):
+- Entitat TypeORM `NodeAssignment` (taula `node_assignments`) amb constraints únics: `[figureInstance, figureNode, compositionSlot]` i `[figureInstance, person, compositionSlot]`
+- `NodeAssignmentService`: `getByInstance`, `assign` (validacions 404/409), `unassign`, `getHistory`, `bulkImport`, `countByNode`
+- `AvailablePersonsService`: `getAvailablePersons` (filtres search/height/xicalla/excludeAssigned, proximity sort per altura, `nextPerformanceStatus`), `getNextPerformance` (propera actuació)
+- `NodeAssignmentController`: 7 endpoints REST, protegits amb `AuthGuard`+`RolesGuard`
+- Delete guard a `FigureTemplateService`: comprova `countByNode()` abans d'eliminar nodes ocupats (409)
+- Relació `@OneToMany` de `FigureInstance` → `NodeAssignment` (cascade delete)
+- Tests: `node-assignment.service.spec.ts` + `node-assignment.controller.spec.ts` + `available-persons.service.spec.ts`
+
+**Frontend** (`apps/dashboard/src/app/features/pinyes/`):
+- `assignment.model.ts`: interfaces `AssignmentDetail`, `AvailablePerson`, `FigureHistoryEntry`, `BulkImportResult`, `PendingOp`
+- `NodeAssignmentService` (HTTP): `getByInstance`, `assign`, `unassign`, `bulkImport`, `getAvailablePersons`, `getHistory`, `getNextPerformance`
+- `AssignmentStateService` (signals): `selectedNodeId`, `selectedPersonId`, `activeInstanceId`, `assignments`, `confirmedPersons`, `heightMode`, `panelCollapsed`, `pendingOperations`, computed `freePersonsCount`, `totalConfirmedCount`
+- `AssignmentCanvasComponent`: pàgina principal, gestió de tabs per instàncies, interacció pick-and-place (buida+persona, ocupada+persona→swap, ocupada+buida→moure), optimistic UI+rollback, auto-advance al node buit següent
+- `PersonPanelComponent`: panel lateral, filtres (cerca, altura±2cm, xicalla, nomes lliures), agrupat per Confirmades/Pendents/No vindran, indicador 🎭 propera actuació, format altura absolut/relatiu
+- `NodePopoverComponent`: popover detall d'un node assignat amb botó desassignar
+- `ImportPinyaModalComponent`: modal per importar assignacions d'events anteriors, llista historial, preview, resultat de la importació (creats/conflictes)
+- `AssignmentStateService.spec.ts` + `NodeAssignmentService.spec.ts` + tests dels components
+
+**Routing**:
+- Ruta `pinyes/events/:eventId/segments/:segmentId/assign` → `AssignmentCanvasComponent` (lazy)
+- Botó "Assignar" afegit al `SegmentManagerComponent` amb navegació via `Router`
+
+#### Patrons i decisions tècniques clau
+
+| Decisió | Resultat |
+|---------|----------|
+| **Optimistic UI** | `assignments` signal actualitzat immediatament; rollback si HTTP falla |
+| **Pick-and-place** | Selecció d'`AvailablePerson` + `FigureNode` desacoblada, amb auto-trigger si l'altre ja estava seleccionat |
+| **Auto-advance** | Després d'una assignació exitosa, el cursor avança al primer node buit (`sortOrder`) |
+| **Proximity sort per altura** | `getAvailablePersons` ordena per `|shoulderHeight - query.height|` (exacte primer, ±1–2 cm després) |
+| **Next performance** | `AvailablePersonsService.getNextPerformance` busca la propera `ACTUACIO` (per als assajos) |
+| **Delete guard** | `NodeAssignmentService.countByNode()` protegeix contra eliminar nodes ocupats (409) |
+| **Circular dependency** | `FigureInstance → NodeAssignment` usa string-based entity name a `@OneToMany` per evitar imports circulars |
 
 ---
 
@@ -521,3 +564,4 @@ Cada sub-projecte genera:
 | 8–10 Mai 2026 | **P5.2 Composicions completat**: Backend — `CompositionModule` (entitats, 6 endpoints CRUD+duplicate, tests referencial integrity). Frontend — `CompositionEditorComponent` (canvas mode composition, auto-save, Figure Picker), tab Composicions al llistat amb CRUD real. Protecció referencial al delete de `FigureTemplate` (409 si té slots). |
 | 10 Mai 2026 | **Spec P5.2.1 aprovada i implementada** (`docs/specs/2026-05-10-p5-2-1-composition-editor-fixes.md`): Fix canvas interaction (listening:true al rect, panning guard mode-aware, cursor grab). Millores UX: scale 50%, placeholder per slots buits, save immediat en add, offset incremental, botó "Enquadrar" (fitAllSlots), z-order controls (bringForward/sendBackward). Tests: ✅ 281 API + 200 dashboard. |
 || 11 Mai 2026 | **P5.3 Segments i Instàncies completat**: Backend — `EventSegmentModule` (entitats EventSegment + FigureInstance, endpoints CRUD + reordenar per segments i instàncies, tests unitaris). Frontend — `SegmentManagerComponent` integrat inline a event-detail (cards sempre visibles, edició nom, toggle visibilitat, fletxes reordenar, badges figures/composicions, `FigurePickerModalComponent` amb tabs). Pendent: refactor UX a tab dedicat "Pinyes" (P5.3.1). |
+| 12 Mai 2026 | **P5.4 Assignació de Persones completat** (7 fases): Backend — `NodeAssignmentModule` (entitat `NodeAssignment`, `NodeAssignmentService` CRUD+validacions 404/409/400, `AvailablePersonsService` queries, controller, delete guard integrat a `FigureTemplateService`). Frontend — models `assignment.model.ts`, `NodeAssignmentService` HTTP, `AssignmentStateService` (signals), `AssignmentCanvasComponent` (pick-and-place, optimistic UI+rollback, auto-advance), `PersonPanelComponent` (filtres altura/xicalla/cerca, 🎭 next-performance), `NodePopoverComponent`, `ImportPinyaModalComponent` (import d'historial). Ruta `/pinyes/events/:eventId/segments/:segmentId/assign`. Botó "Assignar" al `SegmentManagerComponent`. Tests: ✅ 370 API + 303 dashboard. |

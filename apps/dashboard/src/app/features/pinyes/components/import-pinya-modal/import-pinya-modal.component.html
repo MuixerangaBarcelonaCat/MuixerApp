@@ -1,0 +1,123 @@
+@if (open()) {
+  <dialog
+    class="modal modal-open"
+    role="dialog"
+    aria-labelledby="import-modal-title"
+    aria-modal="true"
+    (click)="onBackdropClick($event)"
+  >
+    <div class="modal-box max-w-lg">
+      <div class="flex items-center justify-between mb-4">
+        <h2 id="import-modal-title" class="text-lg font-bold">Importar pinya anterior</h2>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="close()" aria-label="Tancar">
+          <i-lucide [img]="X" class="size-4" />
+        </button>
+      </div>
+
+      @if (loading()) {
+        <div class="flex justify-center py-8">
+          <span class="loading loading-spinner loading-md text-primary"></span>
+        </div>
+      }
+
+      @if (!loading()) {
+        @if (history().length === 0) {
+          <p class="text-sm text-base-content/60 py-4 text-center">
+            No hi ha pinyes anteriors disponibles per importar.
+          </p>
+        }
+
+        @if (history().length > 0) {
+          <p class="text-sm text-base-content/60 mb-3">
+            Selecciona un event per importar les seves assignacions:
+          </p>
+          <ul class="space-y-1 max-h-64 overflow-y-auto mb-4" role="listbox" aria-label="Pinyes anteriors">
+            @for (entry of history(); track entry.instanceId) {
+              <li>
+                <button
+                  type="button"
+                  role="option"
+                  [attr.aria-selected]="selectedEntry()?.instanceId === entry.instanceId"
+                  class="w-full text-left px-3 py-2 rounded-lg border transition-colors text-sm"
+                  [class]="selectedEntry()?.instanceId === entry.instanceId
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-base-300 hover:border-base-content/30 hover:bg-base-200'"
+                  (click)="selectEntry(entry)"
+                >
+                  <div class="flex items-center justify-between">
+                    <span class="font-medium">{{ entry.eventTitle }}</span>
+                    <span class="text-xs text-base-content/50">{{ entry.eventDate | slice:0:10 }}</span>
+                  </div>
+                  <div class="text-xs text-base-content/50 mt-0.5 flex items-center gap-2">
+                    @if (entry.segmentName) {
+                      <span>{{ entry.segmentName }}</span>
+                    }
+                    <span class="badge badge-ghost badge-xs">
+                      {{ entry.assignmentCount }}/{{ entry.totalNodes }} assignades
+                    </span>
+                  </div>
+                </button>
+              </li>
+            }
+          </ul>
+
+          @if (selectedEntry()) {
+            <div class="bg-base-200 rounded-lg p-3 mb-4 text-xs space-y-1">
+              <p class="font-semibold">Resum: {{ selectedEntry()!.assignmentCount }} assignacions</p>
+              @for (a of selectedEntry()!.assignments.slice(0, 5); track a.nodeId) {
+                <p class="text-base-content/60">{{ a.nodeLabel }}: {{ a.personAlias }}</p>
+              }
+              @if (selectedEntry()!.assignments.length > 5) {
+                <p class="text-base-content/40">i {{ selectedEntry()!.assignments.length - 5 }} més...</p>
+              }
+            </div>
+          }
+        }
+
+        @if (lastResult()) {
+          <div class="alert" [class]="lastResult()!.conflicts.length > 0 ? 'alert-warning' : 'alert-success'">
+            <p class="text-sm font-medium">
+              {{ lastResult()!.created.length }} assignacions importades
+              @if (lastResult()!.conflicts.length > 0) {
+                , {{ lastResult()!.conflicts.length }} conflictes omesos
+              }
+            </p>
+            @if (lastResult()!.conflicts.length > 0) {
+              <ul class="mt-1 text-xs space-y-0.5">
+                @for (c of lastResult()!.conflicts; track c.nodeId) {
+                  <li>{{ c.nodeLabel }} / {{ c.personAlias }}: {{ c.reason }}</li>
+                }
+              </ul>
+            }
+          </div>
+        }
+
+        @if (error()) {
+          <div class="alert alert-error text-sm">{{ error() }}</div>
+        }
+      }
+
+      <div class="modal-action">
+        <button type="button" class="btn btn-ghost btn-sm" (click)="close()">
+          Tancar
+        </button>
+        @if (!lastResult()) {
+          <button
+            type="button"
+            class="btn btn-primary btn-sm gap-1"
+            [disabled]="!selectedEntry() || importing()"
+            (click)="doImport()"
+          >
+            @if (importing()) {
+              <span class="loading loading-spinner loading-xs"></span>
+            } @else {
+              <i-lucide [img]="Import" class="size-3" />
+            }
+            Importar
+          </button>
+        }
+      </div>
+    </div>
+    <div class="modal-backdrop" (click)="close()"></div>
+  </dialog>
+}

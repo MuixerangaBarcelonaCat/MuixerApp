@@ -1,12 +1,12 @@
 # Estat Actual del Projecte MuixerApp
 
-> **Última actualització:** 7 de maig de 2026
+> **Última actualització:** 12 de maig de 2026
 
 ---
 
 ## 🎯 Resum Executiu
 
-El projecte MuixerApp està en **fase de desenvolupament actiu** amb P0-P3 + P4.1 + P4.2 + P4.3 + **P4.4** completats i **deute tècnic resolt**. L'aplicació inclou:
+El projecte MuixerApp està en **fase de desenvolupament actiu** amb P0-P3 + P4.1 + P4.2 + P4.3 + P4.4 + P5.1 + P5.2 + P5.3 + **P5.4** completats i **deute tècnic resolt**. L'aplicació inclou:
 
 - ✅ Backend NestJS amb API REST completa + ordenació server-side
 - ✅ Sistema de sincronització amb legacy API (SSE + Strategy pattern) — Persons + Events + Attendance
@@ -23,8 +23,10 @@ El projecte MuixerApp està en **fase de desenvolupament actiu** amb P0-P3 + P4.
 - ✅ **Gestió de temporades dinàmiques**: `loadOrCreateSeasons()` automàtic
 - ✅ **Refresh token cleanup**: Cron job diari per revocar tokens expirats
 - ✅ Arquitectura de components moderna (signals, standalone, OnPush)
-- ✅ **Tests complets:** 101/101 backend + 22/22 dashboard passing
+- ✅ **Tests complets:** 370/370 backend + 303/303 dashboard passing
 - ✅ **Arquitectura Docker multi-entorn (P4.4)**: Docker local dev + Dockerfile multi-stage + docker-compose.prod.yml per VPS
+- ✅ **Mòdul Pinyes complet (P5.1–P5.4)**: Templates, Composicions, Segments, Instàncies i Assignació de Persones implementats
+- ✅ **Assignació de Persones (P5.4)**: Canvas d'assignació pick-and-place, panel lateral filtrat, optimistic UI, historial d'importació
 
 ---
 
@@ -43,7 +45,8 @@ El projecte MuixerApp està en **fase de desenvolupament actiu** amb P0-P3 + P4.
 | **Sync Module** | ✅ Complet | LegacyApiClient + PersonSyncStrategy + EventSyncStrategy + AttendanceSyncStrategy + SSE |
 | **Database** | ✅ Funcional | TypeORM + PostgreSQL (Docker local dev / VPS prod) + entitats Season/Event/Attendance |
 | **Swagger** | ✅ Funcional | Documentació interactiva a `/api/docs` |
-| **Tests** | ✅ 101/101 passing | Person + Season + Event + Attendance + Sync strategies |
+| **Node Assignment Module** | ✅ Complet | NodeAssignment entity+CRUD+validacions, AvailablePersonsService (filtres+proximity sort+nextPerformance), delete guard, bulk import |
+| **Tests** | ✅ 370/370 passing | Person + Season + Event + Attendance + Sync + FigureTemplate + Composition + EventSegment + NodeAssignment |
 
 **Endpoints disponibles:**
 - `GET /api/persons` - Llistar amb filtres
@@ -95,7 +98,9 @@ El projecte MuixerApp està en **fase de desenvolupament actiu** amb P0-P3 + P4.
 | **Routing** | ✅ Funcional | Lazy loading per features (persons + events), protegit amb auth |
 | **Services** | ✅ Complet | AuthService (signals) + ApiService (GET/POST/PATCH/PUT/DELETE) + PersonService (incl. provisional) + EventService (full CRUD) + AttendanceService (CRUD) + SeasonService |
 | **Utils** | ✅ Complet | Color, date, person utilities (incl. `formatShoulderHeight*`, `shoulderHeightRelativeTone`) |
-| **Tests** | ✅ 22/22 passing | PersonListComponent + PersonService + EventService + AttendanceService + person.util + http-params.util |
+| **Assignment Canvas** | ✅ Complet | `AssignmentCanvasComponent` (pick-and-place, optimistic UI, auto-advance), `PersonPanelComponent` (filtres, 🎭 next-performance), `NodePopoverComponent`, `ImportPinyaModalComponent` |
+| **Assignment Services** | ✅ Complet | `NodeAssignmentService` (HTTP), `AssignmentStateService` (signals: selectedNodeId, activeInstanceId, freePersonsCount computed) |
+| **Tests** | ✅ 303/303 passing | PersonListComponent + PersonService + EventService + AttendanceService + person.util + http-params.util + NodeAssignmentService + AssignmentStateService + AssignmentCanvasComponent + PersonPanelComponent + NodePopoverComponent + ImportPinyaModalComponent + SegmentManagerComponent |
 
 **Stack UI:**
 - DaisyUI v4.12.24 (55 components CSS)
@@ -212,7 +217,7 @@ Monorepo:
 nx test api
 ```
 
-**Resultat:** 101/101 tests passing
+**Resultat:** 370/370 tests passing
 
 **Cobertura:**
 - `PersonService` — CRUD, filtres, paginació, ordenació (default/ASC/DESC), activate/deactivate
@@ -235,7 +240,7 @@ nx test api
 nx test dashboard
 ```
 
-**Resultat:** 22/22 tests passing
+**Resultat:** 303/303 tests passing
 
 **Cobertura:**
 - `PersonListComponent` — inicialització, `onSortColumn` (3 estats), toggle `shoulderHeightRelative`
@@ -294,10 +299,11 @@ nx serve dashboard
 - [ ] Verificar tots els tests: `npm run ci:local`
 - [ ] Eliminar el projecte NeonDB quan tot funcioni
 
-### 2. P5: Mòdul Pinyes i Figures
+### 2. P5.5: Projecció i Consulta Històrica
 
-- [ ] Canvas / drag-drop per posicions
-- [ ] Templates de figures reutilitzables
+- [ ] Mode fullscreen TV/projector per a actuacions
+- [ ] Consulta de figures per persona (historial d'assignacions)
+- [ ] Vista de figures dels events passats
 
 **Documentació:** `docs/PROJECT_ROADMAP.md`
 
@@ -371,9 +377,11 @@ nx serve dashboard
 - ✅ **CI/CD Pipeline** — GitHub Actions amb lint + test + build, coverage enforçat, affected per PRs
 - ✅ **Documentació de Codebase** — 8 documents tècnics (ARCHITECTURE, STACK, TESTING, etc.)
 - ✅ **Cleanup de Deute Tècnic** — Seed commands, components morts, temporades dinàmiques, refresh token cleanup
-- ✅ **Suite de tests completa** — 101/101 API + 22/22 dashboard passing
+- ✅ **Suite de tests completa** — 370/370 API + 303/303 dashboard passing
 - ✅ **Arquitectura Docker multi-entorn (P4.4)** — Docker local dev + Dockerfile multi-stage API + docker-compose.prod.yml per VPS
+- ✅ **Mòdul Pinyes complet (P5.1–P5.4)** — Templates, Composicions, Segments, Instàncies i Assignació de Persones
+- ✅ **Assignació de Persones (P5.4)** — NodeAssignment, canvas pick-and-place, optimistic UI, panel filtrat, historial, botó al SegmentManager
 
 ---
 
-**Estat del projecte:** 🟢 **Actiu i saludable — P4.4 implementat, Docker local operatiu**
+**Estat del projecte:** 🟢 **Actiu i saludable — P5.4 implementat, Mòdul Pinyes operatiu (P5.1–P5.4)**

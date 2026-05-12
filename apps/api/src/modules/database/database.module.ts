@@ -13,6 +13,7 @@ import { CompositionTemplate } from '../composition/entities/composition-templat
 import { CompositionSlot } from '../composition/entities/composition-slot.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
+import { NodeAssignment } from '../node-assignment/entities/node-assignment.entity';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { FigureInstance } from '../event-segment/entities/figure-instance.entity
             CompositionSlot,
             EventSegment,
             FigureInstance,
+            NodeAssignment,
           ],
           synchronize: isDevelopment,
           logging: isDevelopment,

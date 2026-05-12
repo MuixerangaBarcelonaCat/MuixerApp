@@ -8,6 +8,7 @@ import {
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
 import { EventSegmentService } from '../../../pinyes/services/event-segment.service';
 import { FigureInstanceService } from '../../../pinyes/services/figure-instance.service';
@@ -28,6 +29,7 @@ export class SegmentManagerComponent implements OnInit {
   private readonly segmentService = inject(EventSegmentService);
   private readonly instanceService = inject(FigureInstanceService);
   private readonly toast = inject(ToastService);
+  private readonly router = inject(Router);
 
   segments = signal<SegmentDetail[]>([]);
   loading = signal(false);
@@ -192,5 +194,9 @@ export class SegmentManagerComponent implements OnInit {
 
   isComposition(instance: InstanceDetail): boolean {
     return !!instance.compositionTemplate;
+  }
+
+  navigateToAssignment(segmentId: string): void {
+    this.router.navigate(['/pinyes/events', this.eventId(), 'segments', segmentId, 'assign']);
   }
 }

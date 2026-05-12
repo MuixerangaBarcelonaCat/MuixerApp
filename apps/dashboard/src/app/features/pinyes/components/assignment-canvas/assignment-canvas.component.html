@@ -1,0 +1,154 @@
+<div class="flex flex-col h-screen">
+  <!-- Top bar -->
+  <header class="flex items-center gap-3 px-4 py-2 bg-base-100 border-b border-base-200 shrink-0">
+    <button
+      type="button"
+      class="btn btn-ghost btn-sm gap-1"
+      (click)="goBack()"
+      aria-label="Tornar a l'event"
+    >
+      <i-lucide [img]="ArrowLeft" class="size-4" />
+      Tornar
+    </button>
+
+    <div class="flex-1 flex items-center gap-2 overflow-x-auto">
+      <!-- Figure tabs -->
+      @for (tab of tabs(); track tab.instanceId) {
+        <button
+          type="button"
+          class="btn btn-sm gap-1 shrink-0"
+          [class]="state.activeInstanceId() === tab.instanceId ? 'btn-primary' : 'btn-ghost'"
+          (click)="selectTab(tab.instanceId)"
+          [attr.aria-pressed]="state.activeInstanceId() === tab.instanceId"
+          [attr.aria-label]="tab.label + ': ' + tab.assignedCount + ' de ' + tab.totalCount + ' assignades'"
+        >
+          {{ tab.label }}
+          <span class="badge badge-xs"
+            [class]="tab.assignedCount === tab.totalCount ? 'badge-success' : 'badge-ghost'">
+            {{ tab.assignedCount }}/{{ tab.totalCount }}
+          </span>
+        </button>
+      }
+    </div>
+
+    @if (activeTab()?.figureTemplateId) {
+      <a
+        [routerLink]="['/pinyes', 'templates', activeTab()!.figureTemplateId, 'edit']"
+        class="btn btn-ghost btn-sm gap-1"
+        aria-label="Editar template de la figura"
+      >
+        <i-lucide [img]="Edit" class="size-4" />
+        Editar template
+      </a>
+    }
+  </header>
+
+  <!-- Main content: canvas + person panel -->
+  <div class="flex flex-1 overflow-hidden">
+    <!-- Canvas area -->
+    <main class="flex-1 relative overflow-hidden">
+      @if (loading()) {
+        <div class="absolute inset-0 flex items-center justify-center bg-base-100/80 z-10">
+          <span class="loading loading-spinner loading-lg text-primary"></span>
+        </div>
+      }
+
+      @if (!loading() && activeNodes().length > 0) {
+        <app-figure-canvas
+          class="w-full h-full block"
+          [nodes]="activeNodes()"
+          mode="assignment"
+          [selectedNodeId]="state.selectedNodeId()"
+          [assignments]="state.assignments()"
+          [heightMode]="state.heightMode()"
+          [attendanceMap]="attendanceMap()"
+          (nodeSelected)="onNodeSelected($event)"
+          (nodeClicked)="onNodeClicked($event)"
+        />
+      }
+
+      @if (!loading() && activeNodes().length === 0 && tabs().length > 0) {
+        <div class="flex flex-col items-center justify-center h-full gap-3 text-base-content/50">
+          <i-lucide [img]="Users" class="size-12" />
+          <p class="text-sm">Carregant nodes de la figura...</p>
+        </div>
+      }
+
+      @if (!loading() && tabs().length === 0) {
+        <div class="flex flex-col items-center justify-center h-full gap-3 text-base-content/50">
+          <i-lucide [img]="Users" class="size-12" />
+          <p class="text-sm">Aquest segment no té figures per assignar.</p>
+        </div>
+      }
+
+      <!-- Node popover -->
+      @if (popoverAssignment()) {
+        <app-node-popover
+          [assignment]="popoverAssignment()"
+          [position]="popoverPosition()"
+          [heightMode]="state.heightMode()"
+          [attendanceStatus]="getAttendanceStatus(popoverAssignment()!)"
+          (unassign)="onUnassign($event)"
+          (close)="popoverAssignment.set(null)"
+        />
+      }
+    </main>
+
+    <!-- Person panel (right sidebar) -->
+    @if (!state.panelCollapsed() && eventId() && segmentId()) {
+      <aside class="w-64 shrink-0 overflow-hidden">
+        <app-person-panel
+          [eventId]="eventId()"
+          [segmentId]="segmentId()"
+          [selectedNodeId]="state.selectedNodeId()"
+          [assignments]="state.assignments()"
+          [heightMode]="state.heightMode()"
+          (personSelected)="onPersonSelected($event)"
+        />
+      </aside>
+    }
+  </div>
+
+  <!-- Bottom bar -->
+  <footer class="flex items-center gap-3 px-4 py-2 bg-base-100 border-t border-base-200 shrink-0 text-sm">
+    <!-- Abs/Rel toggle -->
+    <button
+      type="button"
+      class="btn btn-xs btn-outline gap-1"
+      (click)="state.toggleHeightMode()"
+      [attr.aria-label]="'Mode alçada: ' + state.heightMode()"
+    >
+      {{ state.heightMode() === 'relative' ? 'Rel.' : 'Abs.' }}
+    </button>
+
+    <!-- Free persons counter -->
+    <span class="text-base-content/60">
+      Lliures: <strong>{{ state.freePersonsCount() }}</strong>
+    </span>
+
+    <div class="flex-1"></div>
+
+    <!-- Import pinya button -->
+    @if (activeTab()?.figureTemplateId) {
+      <button
+        type="button"
+        class="btn btn-xs btn-outline gap-1"
+        (click)="importModalOpen.set(true)"
+        aria-label="Importar assignacions d'una pinya anterior"
+      >
+        Importar pinya
+      </button>
+    }
+  </footer>
+</div>
+
+<!-- Import modal -->
+@if (activeTab()?.figureTemplateId && state.activeInstanceId()) {
+  <app-import-pinya-modal
+    [figureTemplateId]="activeTab()!.figureTemplateId!"
+    [currentInstanceId]="state.activeInstanceId()!"
+    [open]="importModalOpen()"
+    (importCompleted)="onImportCompleted($event)"
+    (closed)="importModalOpen.set(false)"
+  />
+}

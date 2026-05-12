@@ -9,6 +9,7 @@ import { CreateFigureTemplateDto } from './dto/create-figure-template.dto';
 import { UpdateFigureTemplateDto } from './dto/update-figure-template.dto';
 import { FigureTemplateFilterDto } from './dto/figure-template-filter.dto';
 import { CreateFigureNodeDto } from './dto/create-figure-node.dto';
+import { NodeAssignmentService } from '../node-assignment/node-assignment.service';
 
 export interface FigureNodeItem {
   id: string;
@@ -56,6 +57,7 @@ export class FigureTemplateService {
     private readonly compositionSlotRepository: Repository<CompositionSlot>,
     @InjectRepository(FigureInstance)
     private readonly figureInstanceRepository: Repository<FigureInstance>,
+    private readonly nodeAssignmentService: NodeAssignmentService,
   ) {}
 
   async findAll(filters: FigureTemplateFilterDto): Promise<{ data: FigureTemplateListItem[]; total: number }> {
@@ -263,6 +265,22 @@ export class FigureTemplateService {
   }
 
   private async syncNodes(template: FigureTemplate, incomingDtos: CreateFigureNodeDto[]): Promise<void> {
+    const existingNodes = template.nodes ?? [];
+    const nodesWithAssignments: string[] = [];
+
+    for (const node of existingNodes) {
+      const count = await this.nodeAssignmentService.countByNode(node.id);
+      if (count > 0) {
+        nodesWithAssignments.push(node.label);
+      }
+    }
+
+    if (nodesWithAssignments.length > 0) {
+      throw new ConflictException(
+        `Cannot modify nodes: the following nodes have active assignments: ${nodesWithAssignments.join(', ')}`,
+      );
+    }
+
     await this.nodeRepository.delete({ template: { id: template.id } });
     await this.createNodes(template, incomingDtos);
   }
