@@ -15,6 +15,10 @@
     "docker:psql": "docker exec -it muixer-postgres-dev psql -U muixer -d muixer_dev",
     "docker:prod:up": "docker compose -f docker-compose.prod.yml up -d --build",
     "docker:prod:down": "docker compose -f docker-compose.prod.yml down",
+    "docker:pre:up": "docker compose -f docker-compose.pre.yml up -d --build",
+    "docker:pre:down": "docker compose -f docker-compose.pre.yml down",
+    "docker:pre:logs": "docker compose -f docker-compose.pre.yml logs -f",
+    "docker:pre:ps": "docker compose -f docker-compose.pre.yml ps",
     "ci:local": "npx nx run-many -t lint,test,build --all --exclude=dashboard-e2e,pwa-e2e --parallel=3"
   },
   "repository": {

@@ -6,10 +6,11 @@
 
 ## Visió General
 
-MuixerApp utilitza Docker **únicament per a la base de dades** en desenvolupament, i Docker complet (API + DB) en producció. Aquest disseny permet:
+MuixerApp utilitza Docker **únicament per a la base de dades** en desenvolupament, i Docker complet (API + DB + Dashboard) en PRE i producció. Aquest disseny permet:
 
 - **Dev local**: `nx serve api` + `docker compose up` (PostgreSQL local, codi amb hot-reload)
-- **Producció VPS**: `docker compose -f docker-compose.prod.yml up` (tot en contenidors)
+- **PRE (Hetzner)**: `docker compose -f docker-compose.pre.yml up` (stack complet: API + Dashboard + PostgreSQL)
+- **Producció VPS**: `docker compose -f docker-compose.prod.yml up` (API + PostgreSQL)
 - **Portabilitat**: Canviar de proveidor VPS en menys d'una hora
 
 ---
@@ -36,6 +37,40 @@ MuixerApp utilitza Docker **únicament per a la base de dades** en desenvolupame
 │   └───────────────────────────────────────┘     │
 └─────────────────────────────────────────────────┘
 ```
+
+### PRE — Hetzner (`204.168.221.131`)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Hetzner VPS (Ubuntu 24.04 — 4GB RAM / 40GB disk)           │
+│                                                             │
+│  ┌────────────────────────────────────────────────────────┐ │
+│  │  Docker: muixer-dashboard-pre                          │ │
+│  │  nginx:1.27-alpine  Port 80 (host)                     │ │
+│  │                                                        │ │
+│  │  GET /*     → static files Angular                     │ │
+│  │  GET /api/* → proxy_pass http://api:3000               │ │
+│  └────────────────────────┬───────────────────────────────┘ │
+│                           │ xarxa Docker interna            │
+│  ┌────────────────────────▼───────────────────────────────┐ │
+│  │  Docker: muixer-api-pre                                │ │
+│  │  NestJS + Node 22  Port 3000 (host, per a debug)       │ │
+│  └────────────────────────┬───────────────────────────────┘ │
+│                           │ DATABASE_URL                    │
+│  ┌────────────────────────▼───────────────────────────────┐ │
+│  │  Docker: muixer-postgres-pre                           │ │
+│  │  postgres:16-alpine  (sense port exposat al host)      │ │
+│  │  Volume: postgres-pre-data (persistent)                │ │
+│  └────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Accés**:
+- Dashboard: `http://204.168.221.131` (port 80)
+- API (debug): `http://204.168.221.131:3000/api`
+- API docs: `http://204.168.221.131:3000/api/docs`
+
+---
 
 ### Producció (VPS)
 
@@ -73,13 +108,40 @@ MuixerApp utilitza Docker **únicament per a la base de dades** en desenvolupame
 | Fitxer | Entorn | Propòsit |
 |--------|--------|----------|
 | `docker-compose.yml` | Dev | PostgreSQL local per al dev |
+| `docker-compose.pre.yml` | PRE | Stack complet: API + Dashboard (nginx) + PostgreSQL |
 | `docker-compose.prod.yml` | Producció | Stack complet: API + PostgreSQL |
-| `apps/api/Dockerfile` | Producció | Build multi-stage de l'API NestJS |
+| `apps/api/Dockerfile` | PRE / Prod | Build multi-stage de l'API NestJS |
+| `apps/dashboard/Dockerfile` | PRE | Build multi-stage del Dashboard Angular + nginx |
+| `apps/dashboard/nginx.conf` | PRE | nginx: SPA routing + proxy `/api` → API |
 | `.dockerignore` | Build | Exclou fitxers innecessaris del context de build |
 | `docker/postgres/init.sql` | Dev | Inicialitza extensions PG en dev |
-| `docker/postgres/init-prod.sql` | Producció | Inicialitza extensions PG en prod |
+| `docker/postgres/init-prod.sql` | PRE / Prod | Inicialitza extensions PG en PRE i prod |
 | `.env.example` | Dev | Template variables d'entorn per dev |
+| `.env.pre.example` | PRE | Template variables d'entorn per PRE |
 | `.env.production.example` | Producció | Template variables d'entorn per prod |
+
+---
+
+## Dockerfile Multi-Stage (Dashboard)
+
+El Dockerfile del Dashboard utilitza 3 stages:
+
+```
+┌──────────────┐   ┌──────────────────────────┐   ┌──────────────────┐
+│  Stage 1     │   │  Stage 2                 │   │  Stage 3         │
+│  deps        │──▶│  build                   │──▶│  runner          │
+│              │   │                          │   │                  │
+│ npm ci       │   │ nx build shared + dash   │   │ nginx:1.27-alpine│
+│ (all deps)   │   │ --configuration=pre      │   │ static files     │
+│              │   │                          │   │ + nginx.conf     │
+└──────────────┘   └──────────────────────────┘   └──────────────────┘
+```
+
+**Per què nginx?**
+- Serveix els estàtics amb headers de cache correctes (Angular usa hashes als noms)
+- Proxeja `/api/*` al contenidor `api` per la xarxa Docker interna
+- SPA fallback: totes les rutes retornen `index.html` per al router Angular
+- Usuari no-root per seguretat
 
 ---
 
@@ -121,7 +183,71 @@ El Dockerfile de l'API utilitza 4 stages per optimitzar la mida final:
 
 ---
 
-## Com Desplegar a un VPS (Pas a Pas)
+## Com Desplegar a PRE — Hetzner (Pas a Pas)
+
+> Servidor: Ubuntu 24.04 LTS · 4GB RAM · 40GB disk · IP `204.168.221.131`
+
+### Prerequisits (ja fets)
+
+- [x] Docker instal·lat: `curl -fsSL https://get.docker.com | sh`
+- [x] Swap de 2GB configurat
+
+### Desplegament inicial PRE
+
+```bash
+# 1. Clonar el repositori al servidor
+git clone git@github.com:MuixerangaBarcelonaCat/MuixerApp.git
+cd MuixerApp
+
+# 2. Crear el fitxer .env.pre a partir del template
+cp .env.pre.example .env.pre
+# Omplir amb passwords forts (openssl rand -base64 48)
+nano .env.pre
+
+# 3. Arrencar l'stack complet (primer cop: fa build de les imatges, ~5-10 min)
+docker compose -f docker-compose.pre.yml up -d --build
+
+# 4. Verificar que tot funciona
+docker compose -f docker-compose.pre.yml ps
+docker compose -f docker-compose.pre.yml logs api --tail=50
+
+# 5. Crear el primer usuari admin
+curl -X POST http://204.168.221.131:3000/api/setup/first-admin \
+  -H "X-Setup-Token: <el-teu-SETUP_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "admin@example.com", "password": "strong-password"}'
+
+# 6. Eliminar SETUP_TOKEN del .env.pre un cop creat l'admin
+nano .env.pre  # comenta o elimina la línia SETUP_TOKEN
+docker compose -f docker-compose.pre.yml up -d api  # reinicia l'API sense rebuild
+```
+
+### Veure logs per a debug
+
+```bash
+# Tots els serveis en temps real
+docker compose -f docker-compose.pre.yml logs -f
+
+# Servei concret
+docker compose -f docker-compose.pre.yml logs -f api
+docker compose -f docker-compose.pre.yml logs -f dashboard
+docker compose -f docker-compose.pre.yml logs -f postgres
+
+# Últimes N línies
+docker compose -f docker-compose.pre.yml logs --tail=100 api
+```
+
+### Actualitzar PRE a una nova versió
+
+```bash
+git pull origin main
+docker compose -f docker-compose.pre.yml up -d --build
+docker compose -f docker-compose.pre.yml ps
+```
+
+---
+
+## Com Desplegar a un VPS de Producció (Pas a Pas)
 
 ### Prerequisits
 
@@ -366,4 +492,4 @@ MuixerApp/
 
 ---
 
-**Última actualització:** 7 de maig de 2026
+**Última actualització:** 15 de maig de 2026

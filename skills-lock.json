@@ -43,6 +43,12 @@
       "sourceType": "github",
       "computedHash": "063a0e6448123cd359ad0044cc46b0e490cc7964d45ef4bb9fd842bd2ffbca67"
     },
+    "monorepo-management": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "skillPath": "plugins/developer-essentials/skills/monorepo-management/SKILL.md",
+      "computedHash": "082be44c6320ce348b19c33f08f527ad604eed2da48f92e8c7010e206d5450cd"
+    },
     "nestjs-best-practices": {
       "source": "kadajett/agent-nestjs-skills",
       "sourceType": "github",

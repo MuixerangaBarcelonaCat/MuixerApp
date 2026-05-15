@@ -1,0 +1,50 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: muixer-postgres-pre
+    restart: unless-stopped
+    env_file: .env.pre
+    volumes:
+      - postgres-pre-data:/var/lib/postgresql/data
+      - ./docker/postgres/init-prod.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: muixer-api-pre:latest
+    container_name: muixer-api-pre
+    restart: unless-stopped
+    env_file: .env.pre
+    ports:
+      - '3000:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/api/health || exit 1']
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: apps/dashboard/Dockerfile
+    image: muixer-dashboard-pre:latest
+    container_name: muixer-dashboard-pre
+    restart: unless-stopped
+    ports:
+      - '80:80'
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  postgres-pre-data:
