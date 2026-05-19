@@ -15,6 +15,8 @@ export interface FigureNodeItem {
   shape: NodeShape;
   sortOrder: number;
   climbPath: string | null;
+  ringLevel: number | null;
+  originNodeId: string | null;
   metadata: Record<string, unknown>;
 }
 
@@ -25,6 +27,9 @@ export interface FigureTemplateListItem {
   description: string | null;
   hasPinya: boolean;
   direction: number;
+  variantOrder: number;
+  familyId: string | null;
+  familyName: string | null;
   nodeCount: number;
   createdAt: string;
   updatedAt: string;
@@ -38,11 +43,13 @@ export interface FigureTemplateDetail extends FigureTemplateListItem {
 export interface FigureTemplateFilterParams {
   search?: string;
   hasPinya?: boolean;
+  familyId?: string;
   page?: number;
   limit?: number;
 }
 
 export interface CreateFigureNodePayload {
+  id?: string;
   label: string;
   zone: FigureZone;
   positionType?: string;
@@ -56,12 +63,17 @@ export interface CreateFigureNodePayload {
   shape: NodeShape;
   sortOrder?: number;
   climbPath?: string;
+  ringLevel?: number;
+  originNodeId?: string;
   metadata?: Record<string, unknown>;
 }
 
 export interface CreateFigureTemplatePayload {
   name: string;
   slug: string;
+  familyId: string;
+  variantOrder?: number;
+  deriveFromTemplateId?: string;
   description?: string;
   hasPinya?: boolean;
   direction?: number;

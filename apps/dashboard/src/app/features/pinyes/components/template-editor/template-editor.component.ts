@@ -71,6 +71,11 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   templateDescription = signal('');
   hasPinya = signal(true);
 
+  // Family context (populated from query param or loaded template)
+  familyId = signal<string | null>(null);
+  familyName = signal<string | null>(null);
+  variantOrder = signal<number | null>(null);
+
   // Nodes
   nodes = signal<FigureNodeItem[]>([]);
   selectedNodeId = signal<string | null>(null);
@@ -122,11 +127,17 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.layout.requestFullscreen();
     const id = this.route.snapshot.paramMap.get('id');
+    const queryFamilyId = this.route.snapshot.queryParamMap.get('familyId');
+    const queryFamilyName = this.route.snapshot.queryParamMap.get('familyName');
     if (id) {
       this.templateId.set(id);
       this.loadTemplate(id);
     } else {
       this.canvasState.reset();
+      if (queryFamilyId) {
+        this.familyId.set(queryFamilyId);
+        this.familyName.set(queryFamilyName);
+      }
     }
   }
 
@@ -184,6 +195,8 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
       shape: NodeShape.RECTANGLE,
       sortOrder: event.sortOrder,
       climbPath: null,
+      ringLevel: null,
+      originNodeId: null,
       metadata: {},
     };
     this.nodes.update((n) => [...n, newNode]);
@@ -223,6 +236,8 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
       shape: NodeShape.RECTANGLE,
       sortOrder: event.sortOrder,
       climbPath: null,
+      ringLevel: null,
+      originNodeId: null,
       metadata: {},
     };
     this.nodes.update((n) => [...n, newNode]);
@@ -268,6 +283,8 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
       shape: NodeShape.RECTANGLE,
       sortOrder: this.nodes().length,
       climbPath: null,
+      ringLevel: null,
+      originNodeId: null,
       metadata: {},
     };
     this.nodes.update((n) => [...n, newNode]);
@@ -436,6 +453,12 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     const slug = this.templateSlug().trim();
     if (!name || !slug) return;
 
+    const familyId = this.familyId();
+    if (!this.templateId() && !familyId) {
+      this.toast.error('Cal assignar la figura a una família. Torna a la llista i crea la variant des d\'una família.');
+      return;
+    }
+
     this.saveStatus.set('saving');
     const payload = this.buildPayload();
     const id = this.templateId();
@@ -447,10 +470,19 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
       });
     } else {
       this.figureTemplateService
-        .create({ name, slug, hasPinya: this.hasPinya(), nodes: payload.nodes ?? [] })
+        .create({
+          name,
+          slug,
+          familyId: familyId!,
+          hasPinya: this.hasPinya(),
+          nodes: payload.nodes ?? [],
+        })
         .subscribe({
           next: (created) => {
             this.templateId.set(created.id);
+            if (created.familyId) this.familyId.set(created.familyId);
+            if (created.familyName) this.familyName.set(created.familyName);
+            if (created.variantOrder) this.variantOrder.set(created.variantOrder);
             this.router.navigate(['/pinyes/templates', created.id, 'edit'], {
               replaceUrl: true,
             });
@@ -468,10 +500,17 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   private onSaveError(err: HttpErrorResponse): void {
     this.saveStatus.set('error');
-    const isSlugConflict =
-      err.status === 409 ||
-      (err.status === 500 && (err.error?.message as string | undefined)?.toLowerCase().includes('slug'));
-    if (isSlugConflict) {
+    const msg = (err.error?.message as string | undefined) ?? '';
+    const msgLower = msg.toLowerCase();
+
+    if (err.status === 409 && (msgLower.includes('slug') || msgLower.includes('identificador'))) {
+      const slug = this.templateSlug();
+      this.toast.error(`L'identificador "${slug}" ja l'utilitza una altra figura. Canvia'l per poder desar.`);
+    } else if (err.status === 409 && (msgLower.includes('instànci') || msgLower.includes('instanci') || msgLower.includes('composici'))) {
+      this.toast.error(msg || 'No es pot esborrar: hi ha instàncies o composicions que fan servir aquesta figura.');
+    } else if (err.status === 409) {
+      this.toast.error(msg || 'Conflicte en desar la figura. Revisa les dades i torna-ho a intentar.');
+    } else if (err.status === 500 && msgLower.includes('slug')) {
       const slug = this.templateSlug();
       this.toast.error(`L'identificador "${slug}" ja l'utilitza una altra figura. Canvia'l per poder desar.`);
     } else {
@@ -489,6 +528,14 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     };
   }
 
+  // Expose for template
+  readonly hasFamily = computed(() => !!this.familyId());
+  readonly familyBreadcrumb = computed(() => {
+    const fn = this.familyName();
+    if (!fn) return null;
+    return fn;
+  });
+
   private loadTemplate(id: string): void {
     this.loading.set(true);
     this.figureTemplateService.getOne(id).subscribe({
@@ -498,6 +545,9 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
         this.templateDescription.set(tmpl.description ?? '');
         this.hasPinya.set(tmpl.hasPinya);
         this.nodes.set(tmpl.nodes);
+        this.familyId.set(tmpl.familyId);
+        this.familyName.set(tmpl.familyName);
+        this.variantOrder.set(tmpl.variantOrder ?? null);
         this.loading.set(false);
       },
       error: () => {
@@ -534,6 +584,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
 function nodeToPayload(node: FigureNodeItem): CreateFigureNodePayload {
   return {
+    id: node.id,
     label: node.label,
     zone: node.zone,
     positionType: node.positionType ?? undefined,
@@ -547,6 +598,8 @@ function nodeToPayload(node: FigureNodeItem): CreateFigureNodePayload {
     shape: node.shape,
     sortOrder: node.sortOrder,
     climbPath: node.climbPath ?? undefined,
+    ringLevel: node.ringLevel ?? undefined,
+    originNodeId: node.originNodeId ?? undefined,
     metadata: node.metadata,
   };
 }

@@ -1,20 +1,21 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { FigureFamily } from './entities/figure-family.entity';
 import { FigureTemplate } from './entities/figure-template.entity';
 import { FigureNode } from './entities/figure-node.entity';
 import { CompositionSlot } from '../composition/entities/composition-slot.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
+import { FigureFamilyController } from './figure-family.controller';
+import { FigureFamilyService } from './figure-family.service';
 import { FigureTemplateController } from './figure-template.controller';
 import { FigureTemplateService } from './figure-template.service';
-import { NodeAssignmentModule } from '../node-assignment/node-assignment.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([FigureTemplate, FigureNode, CompositionSlot, FigureInstance]),
-    NodeAssignmentModule,
+    TypeOrmModule.forFeature([FigureFamily, FigureTemplate, FigureNode, CompositionSlot, FigureInstance]),
   ],
-  controllers: [FigureTemplateController],
-  providers: [FigureTemplateService],
-  exports: [FigureTemplateService],
+  controllers: [FigureFamilyController, FigureTemplateController],
+  providers: [FigureFamilyService, FigureTemplateService],
+  exports: [FigureFamilyService, FigureTemplateService],
 })
 export class FigureModule {}

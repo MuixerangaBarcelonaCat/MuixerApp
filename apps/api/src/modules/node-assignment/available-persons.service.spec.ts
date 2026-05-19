@@ -120,11 +120,12 @@ describe('AvailablePersonsService', () => {
     it('returns persons with attendanceStatus for current event', async () => {
       mockEventRepo.findOne.mockResolvedValueOnce(makeEvent()).mockResolvedValue(null);
       mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
-      const person = makePerson(PERSON_ID_1, {
-        attendances: [{ status: AttendanceStatus.ANIRE }],
-      });
+      const person = makePerson(PERSON_ID_1);
       mockPersonQb.getMany.mockResolvedValue([person]);
-      mockAttendanceRepo.find.mockResolvedValue([]);
+      // The service fetches attendance separately via attendanceRepository.find
+      mockAttendanceRepo.find.mockResolvedValue([
+        { person: { id: PERSON_ID_1 }, status: AttendanceStatus.ANIRE },
+      ]);
 
       const result = await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, {});
 
@@ -194,7 +195,7 @@ describe('AvailablePersonsService', () => {
         {
           person: { id: PERSON_ID_1 },
           figureInstance: { id: 'instance-uuid-1' },
-          figureNode: { label: 'Node A' },
+          instanceNode: { label: 'Node A' },
         },
       ]);
       mockAttendanceRepo.find.mockResolvedValue([]);

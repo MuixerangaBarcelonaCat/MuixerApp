@@ -2,6 +2,9 @@ export interface InstanceDetail {
   id: string;
   label: string | null;
   sortOrder: number;
+  snapshotted: boolean;
+  sourceVariantOrder: number | null;
+  assignedCount: number;
   figureTemplate: { id: string; name: string } | null;
   compositionTemplate: { id: string; name: string } | null;
 }

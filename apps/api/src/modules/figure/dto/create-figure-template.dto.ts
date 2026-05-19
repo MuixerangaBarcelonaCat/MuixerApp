@@ -2,22 +2,45 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsArray,
   IsBoolean,
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
+  Min,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { CreateFigureNodeDto } from './create-figure-node.dto';
 
 export class CreateFigureTemplateDto {
-  @ApiProperty({ description: 'Unique human-readable name, e.g. "Pinet Doble de 4"' })
+  @ApiProperty({ description: 'UUID of the FigureFamily this template belongs to' })
+  @IsUUID()
+  @IsNotEmpty()
+  familyId: string;
+
+  @ApiPropertyOptional({
+    description: 'Position within the family (1 = smallest variant). Defaults to max + 1.',
+  })
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  variantOrder?: number;
+
+  @ApiPropertyOptional({
+    description: 'If provided, nodes are derived from this template (with originNodeId lineage)',
+  })
+  @IsUUID()
+  @IsOptional()
+  deriveFromTemplateId?: string;
+
+  @ApiProperty({ description: 'Unique human-readable name, e.g. "Pinet Doble de 4 — 2C"' })
   @IsString()
   @IsNotEmpty()
   name: string;
 
-  @ApiProperty({ description: 'Unique URL-safe slug, e.g. "pd4"' })
+  @ApiProperty({ description: 'Unique URL-safe slug, e.g. "pd4-2c"' })
   @IsString()
   @IsNotEmpty()
   slug: string;

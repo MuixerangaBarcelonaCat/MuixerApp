@@ -36,6 +36,8 @@ const makeNode = (overrides: Partial<FigureNodeItem> = {}): FigureNodeItem => ({
   shape: NodeShape.RECTANGLE,
   sortOrder: 0,
   climbPath: null,
+  ringLevel: null,
+  originNodeId: null,
   metadata: {},
   ...overrides,
 });
@@ -55,6 +57,8 @@ const makeBaseNode = (overrides: Partial<FigureNodeItem> = {}): FigureNodeItem =
   shape: NodeShape.RECTANGLE,
   sortOrder: 0,
   climbPath: null,
+  ringLevel: null,
+  originNodeId: null,
   metadata: {},
   ...overrides,
 });

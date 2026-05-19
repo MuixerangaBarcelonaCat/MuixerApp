@@ -61,6 +61,18 @@ export class FigureNode {
   @Column({ type: 'varchar', nullable: true })
   climbPath: string | null;
 
+  /** Concentric ring this node belongs to (1 = innermost). NULL for non-pinya zones. */
+  @Column({ type: 'int', nullable: true })
+  ringLevel: number | null;
+
+  /**
+   * Root ancestor node ID — set when this node is derived from another template variant.
+   * Always traces back to the original node in the first variant (not the immediate parent).
+   * Informational only; not a FK constraint.
+   */
+  @Column({ type: 'uuid', nullable: true })
+  originNodeId: string | null;
+
   @Column({ type: 'jsonb', default: {} })
   metadata: Record<string, unknown>;
 

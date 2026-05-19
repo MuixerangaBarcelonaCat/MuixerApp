@@ -25,11 +25,23 @@ export interface NodeSeed {
   shape: 'RECTANGLE' | 'ELLIPSE';
   sortOrder: number;
   climbPath: string | null;
+  /** Concentric ring level (1 = innermost). NULL for non-pinya nodes. */
+  ringLevel?: number | null;
+  /** Root ancestor node ID — set when deriving from another variant. */
+  originNodeId?: string | null;
   metadata: Record<string, unknown>;
 }
 
 export interface FigureSeed {
+  /** Name of the FigureFamily this template belongs to. Created if it doesn't exist. */
+  familyName: string;
+  /** Slug of the FigureFamily. */
+  familySlug: string;
+  /** Position within the family (1 = smallest). */
+  variantOrder: number;
+  /** Template name, e.g. "Pilar de 4 — 2C" */
   name: string;
+  /** Template slug, e.g. "pd4-2c" */
   slug: string;
   description: string;
   hasPinya: boolean;
@@ -46,40 +58,59 @@ export async function insertFigure(figure: FigureSeed): Promise<void> {
   const { NestFactory } = await import('@nestjs/core');
   const { getRepositoryToken } = await import('@nestjs/typeorm');
   const { AppModule } = await import('../../../../app/app.module');
-  const { FigureTemplate } = await import('../../figure/entities/figure-template.entity');
-  const { FigureNode } = await import('../../figure/entities/figure-node.entity');
+  const { FigureFamily } = await import('../../../figure/entities/figure-family.entity');
+  const { FigureTemplate } = await import('../../../figure/entities/figure-template.entity');
+  const { FigureNode } = await import('../../../figure/entities/figure-node.entity');
 
   const app = await NestFactory.createApplicationContext(AppModule, {
     logger: ['error', 'warn'],
   });
 
   try {
+    const familyRepo = app.get<
+      import('typeorm').Repository<import('../../figure/entities/figure-family.entity').FigureFamily>
+    >(getRepositoryToken(FigureFamily));
+
     const templateRepo = app.get<
-      import('typeorm').Repository<
-        import('../../figure/entities/figure-template.entity').FigureTemplate
-      >
+      import('typeorm').Repository<import('../../figure/entities/figure-template.entity').FigureTemplate>
     >(getRepositoryToken(FigureTemplate));
 
     const nodeRepo = app.get<
-      import('typeorm').Repository<
-        import('../../figure/entities/figure-node.entity').FigureNode
-      >
+      import('typeorm').Repository<import('../../figure/entities/figure-node.entity').FigureNode>
     >(getRepositoryToken(FigureNode));
 
+    // Find or create family
+    let family = await familyRepo.findOne({ where: { slug: figure.familySlug } });
+    if (!family) {
+      family = familyRepo.create({
+        name: figure.familyName,
+        slug: figure.familySlug,
+        description: null,
+        metadata: {},
+      });
+      family = await familyRepo.save(family);
+      console.log(`\n  Created family: "${figure.familyName}" (${family.id})`);
+    } else {
+      console.log(`\n  Using existing family: "${figure.familyName}" (${family.id})`);
+    }
+
+    // Check if template slug already exists
     const existing = await templateRepo.findOne({ where: { slug: figure.slug } });
     if (existing) {
-      console.log(`\n⚠️  Figure "${figure.slug}" already exists (id: ${existing.id}).`);
-      console.log('   Skipping. Delete it first or change the slug.\n');
+      console.log(`\n  Template "${figure.slug}" already exists (id: ${existing.id}).`);
+      console.log('  Skipping. Delete it first or change the slug.\n');
       return;
     }
 
     const template = templateRepo.create({
-      name:        figure.name,
-      slug:        figure.slug,
-      description: figure.description,
-      hasPinya:    figure.hasPinya,
-      direction:   figure.direction,
-      metadata:    figure.metadata,
+      family,
+      variantOrder:  figure.variantOrder,
+      name:          figure.name,
+      slug:          figure.slug,
+      description:   figure.description,
+      hasPinya:      figure.hasPinya,
+      direction:     figure.direction,
+      metadata:      figure.metadata,
     });
     const saved = await templateRepo.save(template);
 
@@ -99,15 +130,18 @@ export async function insertFigure(figure: FigureSeed): Promise<void> {
         shape:        n.shape as import('../../../../../../libs/shared/src/enums/node-shape.enum').NodeShape,
         sortOrder:    n.sortOrder,
         climbPath:    n.climbPath,
+        ringLevel:    n.ringLevel ?? null,
+        originNodeId: n.originNodeId ?? null,
         metadata:     n.metadata,
       }),
     );
     await nodeRepo.save(nodeEntities);
 
-    console.log(`\n✅  "${figure.name}" created!`);
-    console.log(`   ID:    ${saved.id}`);
-    console.log(`   Nodes: ${nodeEntities.length}`);
-    console.log(`\n   Open in dashboard: /pinyes/templates/${saved.id}/edit\n`);
+    console.log(`\n  Template "${figure.name}" created!`);
+    console.log(`  ID:           ${saved.id}`);
+    console.log(`  Family:       ${figure.familyName} (order ${figure.variantOrder})`);
+    console.log(`  Nodes:        ${nodeEntities.length}`);
+    console.log(`\n  Open in dashboard: /pinyes/templates/${saved.id}/edit\n`);
   } finally {
     await app.close();
   }

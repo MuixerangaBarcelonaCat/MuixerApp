@@ -172,7 +172,7 @@
 
               <!-- Instances (figure badges) -->
               @if (segment.instances.length > 0) {
-                <div class="flex flex-wrap gap-1.5 pl-8" role="list" [attr.aria-label]="'Figures del segment ' + displayName()(segment)">
+                <div class="flex flex-wrap gap-1.5 pl-8 items-center" role="list" [attr.aria-label]="'Figures del segment ' + displayName()(segment)">
                   @for (instance of segment.instances; track instance.id) {
                     <div
                       class="badge gap-1 pr-1 cursor-default"
@@ -184,6 +184,11 @@
                         <lucide-icon name="LayoutGrid" [size]="11" />
                       }
                       <span class="text-xs">{{ getInstanceLabel(instance) }}</span>
+                      @if (instance.assignedCount > 0) {
+                        <span class="badge badge-xs badge-ghost font-mono" [attr.aria-label]="instance.assignedCount + ' assignades'">
+                          {{ instance.assignedCount }}
+                        </span>
+                      }
                       <button
                         type="button"
                         class="ml-0.5 hover:opacity-70 transition-opacity"
@@ -193,6 +198,12 @@
                         <lucide-icon name="X" [size]="11" />
                       </button>
                     </div>
+                  }
+                  @if (segmentTotalAssigned()(segment) > 0) {
+                    <span class="text-xs text-base-content/50 ml-1">
+                      <lucide-icon name="Users" [size]="11" class="inline mr-0.5" />
+                      {{ segmentTotalAssigned()(segment) }} assignades
+                    </span>
                   }
                 </div>
               } @else {
@@ -214,4 +225,56 @@
     (selected)="onInstanceSelected($event)"
     (closed)="closePicker()"
   />
+}
+
+<!-- Remove instance confirmation modal -->
+@if (pendingInstanceRemoval()) {
+  <dialog
+    class="modal modal-open"
+    role="alertdialog"
+    aria-labelledby="remove-instance-title"
+    aria-describedby="remove-instance-desc"
+    aria-modal="true"
+  >
+    <div class="modal-box max-w-sm">
+      <h3 id="remove-instance-title" class="text-lg font-bold mb-3 text-error">Eliminar figura del segment</h3>
+      <p id="remove-instance-desc" class="text-sm text-base-content/70">
+        Vols eliminar
+        <strong>{{ getInstanceLabel(pendingInstanceRemoval()!.instance) }}</strong>
+        del segment?
+      </p>
+      @if (pendingInstanceRemoval()!.instance.assignedCount > 0) {
+        <div class="alert alert-warning mt-3 py-2 text-sm gap-2">
+          <lucide-icon name="Users" [size]="16" />
+          <span>
+            <strong>{{ pendingInstanceRemoval()!.instance.assignedCount }} assignacions</strong>
+            es perdran i les persones tornaran al panel.
+          </span>
+        </div>
+      }
+      <p class="text-xs text-warning mt-2">Aquesta acció no es pot desfer.</p>
+      <div class="modal-action">
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm"
+          (click)="cancelInstanceRemoval()"
+          [disabled]="removingInstance()"
+        >
+          Cancel·lar
+        </button>
+        <button
+          type="button"
+          class="btn btn-error btn-sm gap-1"
+          (click)="confirmInstanceRemoval()"
+          [disabled]="removingInstance()"
+        >
+          @if (removingInstance()) {
+            <span class="loading loading-spinner loading-xs"></span>
+          }
+          Eliminar
+        </button>
+      </div>
+    </div>
+    <div class="modal-backdrop" (click)="cancelInstanceRemoval()"></div>
+  </dialog>
 }

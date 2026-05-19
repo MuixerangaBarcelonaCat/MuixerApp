@@ -15,6 +15,9 @@ export interface InstanceRef {
   id: string;
   label: string | null;
   sortOrder: number;
+  snapshotted: boolean;
+  sourceVariantOrder: number | null;
+  assignedCount: number;
   figureTemplate: { id: string; name: string } | null;
   compositionTemplate: { id: string; name: string } | null;
 }
@@ -53,7 +56,11 @@ export class EventSegmentService {
       .addOrderBy('instance.sortOrder', 'ASC')
       .getMany();
 
-    return segments.map(toSegmentWithInstances);
+    const countMap = await this.loadAssignmentCounts(
+      segments.flatMap((s) => (s.instances ?? []).map((i) => i.id)),
+    );
+
+    return segments.map((s) => toSegmentWithInstances(s, countMap));
   }
 
   async create(eventId: string, dto: CreateSegmentDto): Promise<SegmentWithInstances> {
@@ -160,11 +167,28 @@ export class EventSegmentService {
       throw new NotFoundException(`Segment with ID ${id} not found`);
     }
 
-    return toSegmentWithInstances(segment);
+    const countMap = await this.loadAssignmentCounts(
+      (segment.instances ?? []).map((i) => i.id),
+    );
+
+    return toSegmentWithInstances(segment, countMap);
+  }
+
+  private async loadAssignmentCounts(instanceIds: string[]): Promise<Map<string, number>> {
+    const map = new Map<string, number>();
+    if (instanceIds.length === 0) return map;
+    const rows: { figureInstanceId: string; count: string }[] = await this.dataSource.query(
+      `SELECT "figureInstanceId", COUNT(*) as count FROM node_assignments WHERE "figureInstanceId" = ANY($1) GROUP BY "figureInstanceId"`,
+      [instanceIds],
+    );
+    for (const row of rows) {
+      map.set(row.figureInstanceId, parseInt(row.count, 10));
+    }
+    return map;
   }
 }
 
-function toSegmentWithInstances(segment: EventSegment): SegmentWithInstances {
+function toSegmentWithInstances(segment: EventSegment, countMap: Map<string, number>): SegmentWithInstances {
   return {
     id: segment.id,
     name: segment.name,
@@ -177,6 +201,9 @@ function toSegmentWithInstances(segment: EventSegment): SegmentWithInstances {
       id: instance.id,
       label: instance.label,
       sortOrder: instance.sortOrder,
+      snapshotted: instance.snapshotted,
+      sourceVariantOrder: instance.sourceVariantOrder,
+      assignedCount: countMap.get(instance.id) ?? 0,
       figureTemplate: instance.figureTemplate
         ? { id: instance.figureTemplate.id, name: instance.figureTemplate.name }
         : null,

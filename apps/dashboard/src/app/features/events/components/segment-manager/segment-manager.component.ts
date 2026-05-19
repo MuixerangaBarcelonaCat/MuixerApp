@@ -16,6 +16,11 @@ import { ToastService } from '../../../../shared/components/feedback/toast/toast
 import { FigurePickerModalComponent } from '../../../pinyes/components/figure-picker-modal/figure-picker-modal.component';
 import { SegmentDetail, InstanceDetail } from '../../../pinyes/models/segment.model';
 
+interface PendingInstanceRemoval {
+  segment: SegmentDetail;
+  instance: InstanceDetail;
+}
+
 @Component({
   selector: 'app-segment-manager',
   standalone: true,
@@ -40,6 +45,13 @@ export class SegmentManagerComponent implements OnInit {
 
   pickerOpen = signal(false);
   pickerSegmentId = signal<string | null>(null);
+
+  pendingInstanceRemoval = signal<PendingInstanceRemoval | null>(null);
+  removingInstance = signal(false);
+
+  segmentTotalAssigned = computed(() => (segment: SegmentDetail): number =>
+    segment.instances.reduce((sum, i) => sum + (i.assignedCount ?? 0), 0),
+  );
 
   displayName = computed(() => (segment: SegmentDetail): string => {
     if (segment.name) return segment.name;
@@ -171,20 +183,34 @@ export class SegmentManagerComponent implements OnInit {
   }
 
   removeInstance(segment: SegmentDetail, instance: InstanceDetail) {
-    const name = instance.figureTemplate?.name ?? instance.compositionTemplate?.name ?? 'aquesta figura';
-    if (!confirm(`Segur que vols treure "${name}" del segment?`)) return;
+    this.pendingInstanceRemoval.set({ segment, instance });
+  }
 
-    this.instanceService.remove(this.eventId(), segment.id, instance.id).subscribe({
+  cancelInstanceRemoval(): void {
+    this.pendingInstanceRemoval.set(null);
+  }
+
+  confirmInstanceRemoval(): void {
+    const pending = this.pendingInstanceRemoval();
+    if (!pending) return;
+
+    this.removingInstance.set(true);
+    this.instanceService.remove(this.eventId(), pending.segment.id, pending.instance.id).subscribe({
       next: () => {
         this.segments.update((list) =>
           list.map((s) =>
-            s.id === segment.id
-              ? { ...s, instances: s.instances.filter((i) => i.id !== instance.id) }
+            s.id === pending.segment.id
+              ? { ...s, instances: s.instances.filter((i) => i.id !== pending.instance.id) }
               : s,
           ),
         );
+        this.removingInstance.set(false);
+        this.pendingInstanceRemoval.set(null);
       },
-      error: () => this.toast.error('Error en eliminar la figura del segment.'),
+      error: () => {
+        this.removingInstance.set(false);
+        this.toast.error('Error en eliminar la figura del segment.');
+      },
     });
   }
 

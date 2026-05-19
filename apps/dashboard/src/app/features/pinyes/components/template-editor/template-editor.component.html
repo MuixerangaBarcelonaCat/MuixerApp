@@ -13,6 +13,13 @@
         Figures
       </button>
 
+      @if (familyBreadcrumb()) {
+        <span class="text-base-content/30" aria-hidden="true">/</span>
+        <span class="text-sm text-base-content/60 font-medium truncate max-w-36" [title]="familyBreadcrumb()!">
+          {{ familyBreadcrumb() }}
+        </span>
+      }
+
       <span class="text-base-content/30" aria-hidden="true">/</span>
 
       <!-- Template name -->
@@ -312,6 +319,33 @@
                   [ngModel]="node.positionType"
                   (ngModelChange)="updateSelectedNodeProp('positionType', $event || null)"
                 />
+              </div>
+            }
+
+            <!-- Ring level: only for PINYA nodes -->
+            @if (node.zone === FigureZone.PINYA) {
+              <div class="form-control mb-3">
+                <label class="label pb-1" [for]="'node-ring-' + node.id">
+                  <span
+                    class="label-text text-xs font-medium tooltip tooltip-right"
+                    data-tip="El nivell de cordó indica a quin anell concèntric pertany aquesta posició. Serveix per saber quines posicions s'afegeixen quan la figura creix."
+                  >
+                    Nivell de cordó
+                  </span>
+                </label>
+                <input
+                  type="number"
+                  [id]="'node-ring-' + node.id"
+                  class="input input-bordered input-sm"
+                  placeholder="Buit = independent"
+                  [ngModel]="node.ringLevel"
+                  (ngModelChange)="updateSelectedNodeProp('ringLevel', $event ? +$event : null)"
+                  min="1"
+                  max="10"
+                />
+                <div class="label pt-1">
+                  <span class="label-text-alt text-base-content/50">Buit per a nodes independents (ex: cordó obert)</span>
+                </div>
               </div>
             }
 

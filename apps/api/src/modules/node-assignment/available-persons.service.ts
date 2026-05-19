@@ -131,12 +131,12 @@ export class AvailablePersonsService {
     if (!excludeAssignedBool) {
       const segmentAssignments = await this.assignmentRepository.find({
         where: { figureInstance: { segment: { id: segmentId } } },
-        relations: ['figureInstance', 'figureNode', 'person'],
+        relations: ['figureInstance', 'instanceNode', 'person'],
       });
       segmentAssignments.forEach((assignment) => {
         assignedDetails.set(assignment.person.id, {
           instanceId: assignment.figureInstance.id,
-          nodeLabel: assignment.figureNode?.label ?? '',
+          nodeLabel: assignment.instanceNode?.label ?? '',
         });
       });
     }

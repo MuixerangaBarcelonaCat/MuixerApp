@@ -1,0 +1,89 @@
+@if (visible()) {
+  <dialog
+    class="modal modal-open"
+    role="dialog"
+    aria-labelledby="onboarding-title"
+    aria-modal="true"
+  >
+    <div class="modal-box max-w-md">
+      <div class="flex items-center justify-between mb-4">
+        <h2 id="onboarding-title" class="text-lg font-bold">Com funciona el mòdul de Pinyes</h2>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="close()" aria-label="Tancar">
+          <i-lucide [img]="X" class="size-4" />
+        </button>
+      </div>
+
+      <!-- Step indicator -->
+      <div class="flex justify-center gap-2 mb-6">
+        @for (step of steps; track $index) {
+          <span
+            class="w-2 h-2 rounded-full transition-colors"
+            [class]="$index === currentStep() ? 'bg-primary' : 'bg-base-300'"
+            [attr.aria-current]="$index === currentStep() ? 'step' : null"
+          ></span>
+        }
+      </div>
+
+      <!-- Step content -->
+      <div class="text-center py-4">
+        <div class="flex justify-center mb-4">
+          <div class="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
+            <i-lucide [img]="steps[currentStep()].icon" class="size-7 text-primary" />
+          </div>
+        </div>
+        <h3 class="text-base font-semibold mb-2">{{ steps[currentStep()].title }}</h3>
+        <p class="text-sm text-base-content/70 leading-relaxed">
+          {{ steps[currentStep()].description }}
+        </p>
+      </div>
+
+      <!-- Step counter -->
+      <p class="text-center text-xs text-base-content/40 mt-2">
+        {{ currentStep() + 1 }} / {{ steps.length }}
+      </p>
+
+      <!-- Don't show again -->
+      @if (currentStep() === steps.length - 1) {
+        <label class="flex items-center gap-2 mt-4 cursor-pointer justify-center">
+          <input
+            type="checkbox"
+            class="checkbox checkbox-sm checkbox-primary"
+            [checked]="dontShowAgain()"
+            (change)="toggleDontShowAgain()"
+          />
+          <span class="text-xs text-base-content/60">No tornis a mostrar</span>
+        </label>
+      }
+
+      <div class="modal-action justify-between">
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm"
+          [disabled]="currentStep() === 0"
+          (click)="prevStep()"
+        >
+          Anterior
+        </button>
+
+        @if (currentStep() < steps.length - 1) {
+          <button
+            type="button"
+            class="btn btn-primary btn-sm"
+            (click)="nextStep()"
+          >
+            Següent
+          </button>
+        } @else {
+          <button
+            type="button"
+            class="btn btn-primary btn-sm"
+            (click)="close()"
+          >
+            Entesos!
+          </button>
+        }
+      </div>
+    </div>
+    <div class="modal-backdrop" (click)="close()"></div>
+  </dialog>
+}

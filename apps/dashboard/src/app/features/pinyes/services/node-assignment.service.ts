@@ -9,12 +9,19 @@ import {
   BulkImportResult,
   CreateAssignmentPayload,
   FigureHistoryEntry,
+  InstanceNodeItem,
+  SwapAssignmentsPayload,
+  UpgradeResult,
 } from '../models/assignment.model';
 
 @Injectable({
   providedIn: 'root',
 })
 export class NodeAssignmentService extends ApiService {
+  getInstanceNodes(instanceId: string): Observable<{ data: InstanceNodeItem[] }> {
+    return this.get<{ data: InstanceNodeItem[] }>(`/figure-instances/${instanceId}/nodes`);
+  }
+
   getByInstance(instanceId: string): Observable<{ data: AssignmentDetail[] }> {
     return this.get<{ data: AssignmentDetail[] }>(`/figure-instances/${instanceId}/assignments`);
   }
@@ -25,6 +32,24 @@ export class NodeAssignmentService extends ApiService {
 
   unassign(instanceId: string, assignmentId: string): Observable<void> {
     return this.delete<void>(`/figure-instances/${instanceId}/assignments/${assignmentId}`);
+  }
+
+  swap(
+    instanceId: string,
+    payload: SwapAssignmentsPayload,
+  ): Observable<{ a: AssignmentDetail; b: AssignmentDetail }> {
+    return this.post<{ a: AssignmentDetail; b: AssignmentDetail }>(
+      `/figure-instances/${instanceId}/assignments/swap`,
+      payload,
+    );
+  }
+
+  upgradeInstance(instanceId: string): Observable<UpgradeResult> {
+    return this.post<UpgradeResult>(`/figure-instances/${instanceId}/upgrade`, {});
+  }
+
+  resetSnapshot(instanceId: string): Observable<{ removedAssignments: number }> {
+    return this.post<{ removedAssignments: number }>(`/figure-instances/${instanceId}/reset`, {});
   }
 
   bulkImport(instanceId: string, payload: BulkImportPayload): Observable<BulkImportResult> {

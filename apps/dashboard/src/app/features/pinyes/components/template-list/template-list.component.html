@@ -2,21 +2,33 @@
 
   <!-- Header -->
   <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-    <div>
-      <h1 class="text-2xl font-bold text-base-content">Figures i Pinyes</h1>
-      <p class="text-sm text-base-content/60 mt-1">Templates per dissenyar les figures i assignar persones</p>
-    </div>
-    @if (activeTab() === 'figures') {
+    <div class="flex items-center gap-2">
+      <div>
+        <h1 class="text-2xl font-bold text-base-content">Figures i Pinyes</h1>
+        <p class="text-sm text-base-content/60 mt-1">Famílies, variants i composicions per dissenyar i assignar figures</p>
+      </div>
       <button
         type="button"
-        class="btn btn-primary gap-2"
-        (click)="navigateToCreate()"
-        aria-label="Crear nova figura"
+        class="btn btn-ghost btn-circle btn-sm"
+        aria-label="Ajuda sobre el mòdul de Pinyes"
+        (click)="onboardingModal.open()"
       >
-        <lucide-icon name="Plus" [size]="18" aria-hidden="true" />
-        Nova figura
+        <lucide-icon name="HelpCircle" [size]="18" aria-hidden="true" />
       </button>
-    } @else {
+    </div>
+    @if (activeTab() === 'families') {
+      <span class="tooltip tooltip-left" data-tip="Una família agrupa les variants d'una mateixa figura. Per exemple, 'Pilar de 4' pot tenir variants amb 1, 2 o 3 cordons.">
+        <button
+          type="button"
+          class="btn btn-primary gap-2"
+          (click)="openCreateFamilyModal()"
+          aria-label="Crear nova família"
+        >
+          <lucide-icon name="Plus" [size]="18" aria-hidden="true" />
+          Nova família
+        </button>
+      </span>
+    } @else if (activeTab() === 'compositions') {
       <button
         type="button"
         class="btn btn-primary gap-2"
@@ -34,12 +46,22 @@
     <button
       role="tab"
       class="tab gap-2"
+      [class.tab-active]="activeTab() === 'families'"
+      (click)="setTab('families')"
+      [attr.aria-selected]="activeTab() === 'families'"
+    >
+      <lucide-icon name="FolderOpen" [size]="16" aria-hidden="true" />
+      Famílies
+    </button>
+    <button
+      role="tab"
+      class="tab gap-2"
       [class.tab-active]="activeTab() === 'figures'"
       (click)="setTab('figures')"
       [attr.aria-selected]="activeTab() === 'figures'"
     >
       <lucide-icon name="Layers" [size]="16" aria-hidden="true" />
-      Figures
+      Figures soltes
     </button>
     <button
       role="tab"
@@ -53,8 +75,233 @@
     </button>
   </div>
 
-  <!-- Figures Tab -->
+  <!-- ══════════════════ FAMILIES TAB ══════════════════ -->
+  @if (activeTab() === 'families') {
+
+    <!-- Search -->
+    <div class="flex gap-3 items-center">
+      <label class="input input-bordered flex items-center gap-2 flex-1 max-w-sm">
+        <lucide-icon name="Search" [size]="16" class="text-base-content/40" aria-hidden="true" />
+        <input
+          type="search"
+          placeholder="Cerca per nom o slug..."
+          [(ngModel)]="familiesSearchInput"
+          (ngModelChange)="onFamiliesSearchChange($event)"
+          class="grow"
+          aria-label="Cerca famílies"
+        />
+      </label>
+      @if (familiesLoading() && families().length > 0) {
+        <span class="loading loading-spinner loading-sm text-primary" aria-label="Carregant..."></span>
+      }
+    </div>
+
+    <!-- Loading -->
+    @if (familiesLoading() && families().length === 0) {
+      <div class="flex justify-center py-16" aria-label="Carregant famílies...">
+        <span class="loading loading-spinner loading-lg text-primary"></span>
+      </div>
+    }
+
+    <!-- Empty -->
+    @else if (!familiesLoading() && families().length === 0) {
+      <app-empty-state
+        icon="FolderOpen"
+        message="Cap família creada. Crea la teva primera família per agrupar les variants d'una figura."
+        actionLabel="Nova família"
+        (actionClick)="openCreateFamilyModal()"
+      />
+    }
+
+    <!-- Family list -->
+    @else if (families().length > 0) {
+      <ul class="flex flex-col gap-3" aria-label="Llista de famílies">
+        @for (family of families(); track family.id) {
+          <li class="card bg-base-100 border border-base-200 shadow-sm">
+
+            <!-- Family header row -->
+            <div class="flex items-center gap-3 p-4">
+              <button
+                type="button"
+                class="flex items-center gap-3 flex-1 min-w-0 text-left hover:text-primary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary rounded"
+                (click)="toggleFamily(family.id)"
+                [attr.aria-expanded]="isFamilyExpanded(family.id)"
+                [attr.aria-controls]="'family-variants-' + family.id"
+              >
+                <lucide-icon
+                  [name]="isFamilyExpanded(family.id) ? 'ChevronDown' : 'ChevronRight'"
+                  [size]="18"
+                  class="shrink-0 text-base-content/50"
+                  aria-hidden="true"
+                />
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span class="font-semibold text-base-content">{{ family.name }}</span>
+                    <span class="text-xs text-base-content/50 font-mono">{{ family.slug }}</span>
+                    <span class="badge badge-ghost badge-sm">
+                      {{ family.variantCount }} {{ family.variantCount === 1 ? 'variant' : 'variants' }}
+                    </span>
+                  </div>
+                  @if (family.description) {
+                    <p class="text-xs text-base-content/60 mt-0.5 line-clamp-1">{{ family.description }}</p>
+                  }
+                </div>
+              </button>
+
+              <!-- Family actions -->
+              <div class="flex items-center gap-1 shrink-0">
+                <span
+                  class="tooltip tooltip-left"
+                  data-tip="Cada variant representa la mateixa figura amb un nombre diferent de cordons. Es pot derivar d'una variant existent per heretar les posicions."
+                >
+                  <button
+                    type="button"
+                    class="btn btn-primary btn-sm gap-1"
+                    (click)="openNewVariant(family)"
+                    [attr.aria-label]="'Nova variant per a ' + family.name"
+                  >
+                    <lucide-icon name="Plus" [size]="13" aria-hidden="true" />
+                    Nova variant
+                  </button>
+                </span>
+
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-sm btn-square"
+                  (click)="openEditFamilyModal(family)"
+                  [attr.aria-label]="'Editar família ' + family.name"
+                  title="Editar família"
+                >
+                  <lucide-icon name="Pencil" [size]="14" aria-hidden="true" />
+                </button>
+
+                @if (confirmDeleteFamilyId() === family.id) {
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs text-error">Eliminar família?</span>
+                    <button
+                      type="button"
+                      class="btn btn-ghost btn-xs"
+                      (click)="cancelDeleteFamily()"
+                    >Cancel·la</button>
+                    <button
+                      type="button"
+                      class="btn btn-error btn-xs"
+                      (click)="confirmDeleteFamily(family.id)"
+                    >Elimina</button>
+                  </div>
+                } @else {
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-sm btn-square text-error hover:bg-error/10"
+                    [disabled]="deletingFamilyId() === family.id"
+                    (click)="requestDeleteFamily(family.id)"
+                    [attr.aria-label]="'Eliminar família ' + family.name"
+                    title="Eliminar família"
+                  >
+                    @if (deletingFamilyId() === family.id) {
+                      <span class="loading loading-spinner loading-xs"></span>
+                    } @else {
+                      <lucide-icon name="Trash2" [size]="14" aria-hidden="true" />
+                    }
+                  </button>
+                }
+              </div>
+            </div>
+
+            <!-- Variants (expanded) -->
+            @if (isFamilyExpanded(family.id)) {
+              <div
+                [id]="'family-variants-' + family.id"
+                class="border-t border-base-200"
+                role="region"
+                [attr.aria-label]="'Variants de ' + family.name"
+              >
+                @if (family.variants.length === 0) {
+                  <p class="text-sm text-base-content/50 px-6 py-4">
+                    Aquesta família no té variants. Clica "Nova variant" per crear-ne una.
+                  </p>
+                } @else {
+                  <div class="px-2 py-1">
+                    <p class="text-xs font-medium text-base-content/40 uppercase tracking-wide px-4 py-2">
+                      <span
+                        class="tooltip tooltip-right"
+                        data-tip="Les variants estan ordenades de menor a major nombre de cordons."
+                      >
+                        Variants ordenades per cordons
+                      </span>
+                    </p>
+                    <ul>
+                      @for (variant of family.variants; track variant.id) {
+                        <li class="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-base-200/50">
+                          <div class="flex items-center gap-2 min-w-0 flex-1">
+                            <span class="badge badge-primary badge-sm font-mono shrink-0">
+                              #{{ variant.variantOrder }}
+                            </span>
+                            <span class="text-sm font-medium text-base-content truncate">{{ variant.name }}</span>
+                            <span class="text-xs text-base-content/50 font-mono hidden sm:block">{{ variant.slug }}</span>
+                            <span class="badge badge-ghost badge-sm ml-auto shrink-0">{{ variant.nodeCount }} nodes</span>
+                          </div>
+                          @if (confirmDeleteVariantId() === variant.id) {
+                            <div class="flex items-center gap-2 shrink-0">
+                              <span class="text-xs text-error">Eliminar variant?</span>
+                              <button
+                                type="button"
+                                class="btn btn-ghost btn-xs"
+                                (click)="cancelDeleteVariant()"
+                              >Cancel·la</button>
+                              <button
+                                type="button"
+                                class="btn btn-error btn-xs"
+                                (click)="confirmDeleteVariant(variant.id, family.id)"
+                              >Elimina</button>
+                            </div>
+                          } @else {
+                            <div class="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                class="btn btn-ghost btn-xs gap-1"
+                                (click)="navigateToEditVariant(variant.id)"
+                                [attr.aria-label]="'Editar variant ' + variant.name"
+                              >
+                                <lucide-icon name="Pencil" [size]="12" aria-hidden="true" />
+                                Editar
+                              </button>
+                              <button
+                                type="button"
+                                class="btn btn-ghost btn-xs gap-1 text-error hover:bg-error/10"
+                                [disabled]="deletingVariantId() === variant.id"
+                                (click)="requestDeleteVariant(variant.id)"
+                                [attr.aria-label]="'Eliminar variant ' + variant.name"
+                              >
+                                @if (deletingVariantId() === variant.id) {
+                                  <span class="loading loading-spinner loading-xs"></span>
+                                } @else {
+                                  <lucide-icon name="Trash2" [size]="12" aria-hidden="true" />
+                                }
+                                Eliminar
+                              </button>
+                            </div>
+                          }
+                        </li>
+                      }
+                    </ul>
+                  </div>
+                }
+              </div>
+            }
+          </li>
+        }
+      </ul>
+    }
+  }
+
+  <!-- ══════════════════ FIGURES SOLTES TAB ══════════════════ -->
   @if (activeTab() === 'figures') {
+
+    <div class="alert alert-info">
+      <lucide-icon name="Info" [size]="16" aria-hidden="true" />
+      <span class="text-sm">Aquestes figures van ser creades abans del sistema de famílies. Per crear noves figures, utilitza la pestanya "Famílies".</span>
+    </div>
 
     <!-- Search -->
     <div class="flex gap-3 items-center">
@@ -74,44 +321,36 @@
       }
     </div>
 
-    <!-- Loading state -->
     @if (loading() && templates().length === 0) {
       <div class="flex justify-center py-16" aria-label="Carregant figures...">
         <span class="loading loading-spinner loading-lg text-primary"></span>
       </div>
     }
 
-    <!-- Empty state -->
     @else if (!loading() && templates().length === 0) {
       <app-empty-state
         icon="Layers"
-        message="Cap figura creada. Crea la teva primera figura per dissenyar i assignar pinyes als assajos."
-        actionLabel="Nova figura"
-        (actionClick)="navigateToCreate()"
+        message="No hi ha figures sense família. Totes les figures ja pertanyen a una família."
+        actionLabel="Anar a famílies"
+        (actionClick)="setTab('families')"
       />
     }
 
-    <!-- Card grid -->
     @else if (templates().length > 0) {
       <ul
         class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-        aria-label="Llista de figures"
+        aria-label="Llista de figures sense família"
       >
         @for (template of templates(); track template.id) {
-          <li
-            class="card bg-base-100 border border-base-200 shadow-sm hover:shadow-md transition-shadow"
-          >
-            <!-- Canvas preview placeholder -->
+          <li class="card bg-base-100 border border-base-200 shadow-sm hover:shadow-md transition-shadow">
             <button
               type="button"
               class="w-full h-32 bg-gradient-to-br from-primary/10 to-secondary/10 rounded-t-2xl flex items-center justify-center relative overflow-hidden cursor-pointer hover:brightness-95 transition-[filter] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary"
               (click)="navigateToEdit(template.id)"
               [attr.aria-label]="'Editar ' + template.name"
             >
-              <!-- Simple static preview using SVG dots -->
               <svg width="120" height="80" viewBox="0 0 120 80" class="opacity-60">
                 @if (template.hasPinya) {
-                  <!-- Simplified pinya representation -->
                   <circle cx="60" cy="60" r="8" fill="currentColor" class="text-primary" />
                   <circle cx="40" cy="50" r="7" fill="currentColor" class="text-secondary" />
                   <circle cx="80" cy="50" r="7" fill="currentColor" class="text-secondary" />
@@ -119,12 +358,9 @@
                   <circle cx="60" cy="35" r="6" fill="currentColor" class="text-accent" />
                   <circle cx="95" cy="40" r="6" fill="currentColor" class="text-accent" />
                 }
-                <!-- Tronc representation -->
                 <rect x="50" y="5" width="20" height="12" rx="3" fill="currentColor" class="text-primary/70" />
                 <rect x="45" y="19" width="30" height="11" rx="3" fill="currentColor" class="text-secondary/70" />
               </svg>
-
-              <!-- Node count badge -->
               <span class="badge badge-primary badge-sm absolute top-2 right-2">
                 {{ template.nodeCount }} nodes
               </span>
@@ -158,31 +394,14 @@
                 <p class="text-xs text-base-content/60 line-clamp-2">{{ template.description }}</p>
               }
 
-              <p class="text-xs text-base-content/40">
-                Actualitzat {{ formatDate(template.updatedAt) }}
-              </p>
+              <p class="text-xs text-base-content/40">Actualitzat {{ formatDate(template.updatedAt) }}</p>
 
-              <!-- Actions -->
               <div class="card-actions justify-end gap-1 mt-1">
-
-                <!-- Confirm delete dialog -->
                 @if (confirmDeleteId() === template.id) {
                   <div class="flex items-center gap-2 w-full">
                     <span class="text-xs text-error flex-1">Eliminar figura?</span>
-                    <button
-                      type="button"
-                      class="btn btn-ghost btn-xs"
-                      (click)="cancelDelete()"
-                    >
-                      Cancel·la
-                    </button>
-                    <button
-                      type="button"
-                      class="btn btn-error btn-xs"
-                      (click)="confirmDelete(template.id)"
-                    >
-                      Elimina
-                    </button>
+                    <button type="button" class="btn btn-ghost btn-xs" (click)="cancelDelete()">Cancel·la</button>
+                    <button type="button" class="btn btn-error btn-xs" (click)="confirmDelete(template.id)">Elimina</button>
                   </div>
                 } @else {
                   <button
@@ -225,28 +444,13 @@
         }
       </ul>
 
-      <!-- Pagination -->
       @if (totalPages() > 1) {
         <div class="flex items-center justify-center gap-2 mt-2" aria-label="Paginació">
-          <button
-            type="button"
-            class="btn btn-ghost btn-sm"
-            [disabled]="page() <= 1"
-            (click)="goToPage(page() - 1)"
-            aria-label="Pàgina anterior"
-          >
+          <button type="button" class="btn btn-ghost btn-sm" [disabled]="page() <= 1" (click)="goToPage(page() - 1)" aria-label="Pàgina anterior">
             <lucide-icon name="ChevronLeft" [size]="16" aria-hidden="true" />
           </button>
-          <span class="text-sm text-base-content/70">
-            Pàgina {{ page() }} de {{ totalPages() }}
-          </span>
-          <button
-            type="button"
-            class="btn btn-ghost btn-sm"
-            [disabled]="page() >= totalPages()"
-            (click)="goToPage(page() + 1)"
-            aria-label="Pàgina següent"
-          >
+          <span class="text-sm text-base-content/70">Pàgina {{ page() }} de {{ totalPages() }}</span>
+          <button type="button" class="btn btn-ghost btn-sm" [disabled]="page() >= totalPages()" (click)="goToPage(page() + 1)" aria-label="Pàgina següent">
             <lucide-icon name="ChevronRight" [size]="16" aria-hidden="true" />
           </button>
         </div>
@@ -254,10 +458,9 @@
     }
   }
 
-  <!-- Compositions Tab -->
+  <!-- ══════════════════ COMPOSITIONS TAB ══════════════════ -->
   @if (activeTab() === 'compositions') {
 
-    <!-- Search -->
     <div class="flex gap-3 items-center">
       <label class="input input-bordered flex items-center gap-2 flex-1 max-w-sm">
         <lucide-icon name="Search" [size]="16" class="text-base-content/40" aria-hidden="true" />
@@ -275,14 +478,12 @@
       }
     </div>
 
-    <!-- Loading state -->
     @if (compositionsLoading() && compositions().length === 0) {
       <div class="flex justify-center py-16" aria-label="Carregant composicions...">
         <span class="loading loading-spinner loading-lg text-primary"></span>
       </div>
     }
 
-    <!-- Empty state -->
     @else if (!compositionsLoading() && compositions().length === 0) {
       <app-empty-state
         icon="LayoutGrid"
@@ -292,7 +493,6 @@
       />
     }
 
-    <!-- Card grid -->
     @else if (compositions().length > 0) {
       <ul
         class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
@@ -300,8 +500,6 @@
       >
         @for (composition of compositions(); track composition.id) {
           <li class="card bg-base-100 border border-base-200 shadow-sm hover:shadow-md transition-shadow">
-
-            <!-- Preview area -->
             <button
               type="button"
               class="w-full h-32 bg-gradient-to-br from-secondary/10 to-primary/10 rounded-t-2xl flex items-center justify-center relative overflow-hidden cursor-pointer hover:brightness-95 transition-[filter] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary"
@@ -309,9 +507,7 @@
               [attr.aria-label]="'Editar composició ' + composition.name"
             >
               <lucide-icon name="LayoutGrid" [size]="40" class="text-secondary/40" aria-hidden="true" />
-              <span class="badge badge-secondary badge-sm absolute top-2 right-2">
-                {{ composition.slotCount }} figures
-              </span>
+              <span class="badge badge-secondary badge-sm absolute top-2 right-2">{{ composition.slotCount }} figures</span>
             </button>
 
             <div class="card-body p-4 gap-3">
@@ -331,29 +527,14 @@
                 <p class="text-xs text-base-content/60 line-clamp-2">{{ composition.description }}</p>
               }
 
-              <p class="text-xs text-base-content/40">
-                Actualitzat {{ formatDate(composition.updatedAt) }}
-              </p>
+              <p class="text-xs text-base-content/40">Actualitzat {{ formatDate(composition.updatedAt) }}</p>
 
-              <!-- Actions -->
               <div class="card-actions justify-end gap-1 mt-1">
                 @if (compositionsConfirmDeleteId() === composition.id) {
                   <div class="flex items-center gap-2 w-full">
                     <span class="text-xs text-error flex-1">Eliminar composició?</span>
-                    <button
-                      type="button"
-                      class="btn btn-ghost btn-xs"
-                      (click)="cancelDeleteComposition()"
-                    >
-                      Cancel·la
-                    </button>
-                    <button
-                      type="button"
-                      class="btn btn-error btn-xs"
-                      (click)="confirmDeleteComposition(composition.id)"
-                    >
-                      Elimina
-                    </button>
+                    <button type="button" class="btn btn-ghost btn-xs" (click)="cancelDeleteComposition()">Cancel·la</button>
+                    <button type="button" class="btn btn-error btn-xs" (click)="confirmDeleteComposition(composition.id)">Elimina</button>
                   </div>
                 } @else {
                   <button
@@ -396,28 +577,13 @@
         }
       </ul>
 
-      <!-- Pagination -->
       @if (compositionsTotalPages() > 1) {
         <div class="flex items-center justify-center gap-2 mt-2" aria-label="Paginació composicions">
-          <button
-            type="button"
-            class="btn btn-ghost btn-sm"
-            [disabled]="compositionsPage() <= 1"
-            (click)="goToCompositionsPage(compositionsPage() - 1)"
-            aria-label="Pàgina anterior"
-          >
+          <button type="button" class="btn btn-ghost btn-sm" [disabled]="compositionsPage() <= 1" (click)="goToCompositionsPage(compositionsPage() - 1)" aria-label="Pàgina anterior">
             <lucide-icon name="ChevronLeft" [size]="16" aria-hidden="true" />
           </button>
-          <span class="text-sm text-base-content/70">
-            Pàgina {{ compositionsPage() }} de {{ compositionsTotalPages() }}
-          </span>
-          <button
-            type="button"
-            class="btn btn-ghost btn-sm"
-            [disabled]="compositionsPage() >= compositionsTotalPages()"
-            (click)="goToCompositionsPage(compositionsPage() + 1)"
-            aria-label="Pàgina següent"
-          >
+          <span class="text-sm text-base-content/70">Pàgina {{ compositionsPage() }} de {{ compositionsTotalPages() }}</span>
+          <button type="button" class="btn btn-ghost btn-sm" [disabled]="compositionsPage() >= compositionsTotalPages()" (click)="goToCompositionsPage(compositionsPage() + 1)" aria-label="Pàgina següent">
             <lucide-icon name="ChevronRight" [size]="16" aria-hidden="true" />
           </button>
         </div>
@@ -426,3 +592,167 @@
   }
 
 </div>
+
+<!-- ══════════════════ NOVA FAMÍLIA MODAL ══════════════════ -->
+@if (familyModal(); as modal) {
+  <dialog
+    class="modal modal-open"
+    aria-modal="true"
+    [attr.aria-labelledby]="'family-modal-title'"
+    (keydown.escape)="closeFamilyModal()"
+  >
+    <div class="modal-box max-w-md">
+      <button
+        type="button"
+        class="btn btn-sm btn-circle btn-ghost absolute right-3 top-3"
+        (click)="closeFamilyModal()"
+        aria-label="Tancar"
+      >
+        <lucide-icon name="X" [size]="16" aria-hidden="true" />
+      </button>
+
+      <h2 id="family-modal-title" class="text-lg font-bold mb-1 flex items-center gap-2">
+        <lucide-icon name="FolderOpen" [size]="20" aria-hidden="true" />
+        {{ modal.mode === 'create' ? 'Nova família' : 'Editar família' }}
+      </h2>
+      <p class="text-sm text-base-content/60 mb-5">
+        Una família agrupa les variants d'una mateixa figura amb diferent nombre de cordons.
+      </p>
+
+      <form (ngSubmit)="submitFamilyModal()" class="flex flex-col gap-4">
+        <div class="form-control">
+          <label class="label pb-1" for="family-modal-name">
+            <span class="label-text font-medium">Nom</span>
+          </label>
+          <input
+            id="family-modal-name"
+            type="text"
+            class="input input-bordered"
+            placeholder="Ex: Pilar de 4"
+            [ngModel]="modal.name"
+            (ngModelChange)="onFamilyNameChange($event)"
+            name="familyName"
+            required
+            autocomplete="off"
+          />
+        </div>
+
+        <div class="form-control">
+          <label class="label pb-1" for="family-modal-slug">
+            <span class="label-text font-medium">Identificador (slug)</span>
+          </label>
+          <input
+            id="family-modal-slug"
+            type="text"
+            class="input input-bordered font-mono text-sm"
+            placeholder="pilar-de-4"
+            [ngModel]="modal.slug"
+            (ngModelChange)="onFamilySlugChange($event)"
+            name="familySlug"
+            required
+            autocomplete="off"
+          />
+          <div class="label pt-1">
+            <span class="label-text-alt text-base-content/50">Ha de ser únic i només pot contenir lletres, números i guions</span>
+          </div>
+        </div>
+
+        <div class="form-control">
+          <label class="label pb-1" for="family-modal-desc">
+            <span class="label-text font-medium">Descripció (opcional)</span>
+          </label>
+          <textarea
+            id="family-modal-desc"
+            class="textarea textarea-bordered text-sm"
+            placeholder="Descripció opcional de la família..."
+            [ngModel]="modal.description"
+            (ngModelChange)="onFamilyDescriptionChange($event)"
+            name="familyDescription"
+            rows="2"
+          ></textarea>
+        </div>
+
+        <div class="modal-action mt-2">
+          <button type="button" class="btn btn-ghost" (click)="closeFamilyModal()">Cancel·la</button>
+          <button
+            type="submit"
+            class="btn btn-primary gap-2"
+            [disabled]="!modal.name.trim() || !modal.slug.trim() || modal.saving"
+          >
+            @if (modal.saving) {
+              <span class="loading loading-spinner loading-xs"></span>
+            }
+            {{ modal.mode === 'create' ? 'Crear família' : 'Desar canvis' }}
+          </button>
+        </div>
+      </form>
+    </div>
+    <div class="modal-backdrop" (click)="closeFamilyModal()" aria-hidden="true"></div>
+  </dialog>
+}
+
+<!-- ══════════════════ DERIVAR VARIANT MODAL ══════════════════ -->
+@if (deriveModal(); as modal) {
+  <dialog
+    class="modal modal-open"
+    aria-modal="true"
+    aria-labelledby="derive-modal-title"
+    (keydown.escape)="closeDeriveModal()"
+  >
+    <div class="modal-box max-w-md">
+      <button
+        type="button"
+        class="btn btn-sm btn-circle btn-ghost absolute right-3 top-3"
+        (click)="closeDeriveModal()"
+        aria-label="Tancar"
+      >
+        <lucide-icon name="X" [size]="16" aria-hidden="true" />
+      </button>
+
+      <h2 id="derive-modal-title" class="text-lg font-bold mb-1 flex items-center gap-2">
+        <lucide-icon name="GitBranch" [size]="20" aria-hidden="true" />
+        Nova variant de "{{ modal.familyName }}"
+      </h2>
+      <p class="text-sm text-base-content/60 mb-5">
+        Selecciona la variant de la qual vols heretar les posicions. La nova variant copiarà tots els seus nodes mantenint la traçabilitat dels orígens.
+      </p>
+
+      <div class="form-control mb-6">
+        <label class="label pb-1" for="derive-source">
+          <span class="label-text font-medium">Derivar de la variant</span>
+        </label>
+        <select
+          id="derive-source"
+          class="select select-bordered"
+          [ngModel]="modal.selectedVariantId"
+          (ngModelChange)="onDeriveVariantChange($event)"
+          name="deriveSource"
+        >
+          @for (variant of modal.variants; track variant.id) {
+            <option [value]="variant.id">
+              {{ variant.name }} ({{ variant.nodeCount }} nodes)
+            </option>
+          }
+        </select>
+      </div>
+
+      <div class="modal-action">
+        <button type="button" class="btn btn-ghost" (click)="closeDeriveModal()">Cancel·la</button>
+        <button
+          type="button"
+          class="btn btn-primary gap-2"
+          [disabled]="modal.creating"
+          (click)="confirmDeriveVariant()"
+        >
+          @if (modal.creating) {
+            <span class="loading loading-spinner loading-xs"></span>
+          }
+          Crear i obrir editor
+        </button>
+      </div>
+    </div>
+    <div class="modal-backdrop" (click)="closeDeriveModal()" aria-hidden="true"></div>
+  </dialog>
+}
+
+<app-pinyes-onboarding-modal #onboardingModal />

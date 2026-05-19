@@ -2,8 +2,6 @@ import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
-  OnChanges,
-  SimpleChanges,
   ViewChild,
   computed,
   effect,
@@ -26,7 +24,7 @@ import { AvailablePerson, AssignmentDetail, HeightMode } from '../../models/assi
   imports: [FormsModule, LucideAngularModule],
   templateUrl: './person-panel.component.html',
 })
-export class PersonPanelComponent implements OnChanges {
+export class PersonPanelComponent {
   @ViewChild('searchInput') searchInputRef?: ElementRef<HTMLInputElement>;
 
   readonly eventId = input.required<string>();
@@ -49,7 +47,7 @@ export class PersonPanelComponent implements OnChanges {
   readonly loading = signal(false);
   readonly search = signal('');
   readonly height = signal<number | null>(null);
-  readonly showXicalla = signal(true);
+  readonly showXicalla = signal(false);
   readonly altresExpanded = signal(false);
   readonly assignadesExpanded = signal(true);
 
@@ -116,12 +114,6 @@ export class PersonPanelComponent implements OnChanges {
         }
       });
     });
-  }
-
-  ngOnChanges(changes: SimpleChanges): void {
-    if (changes['eventId'] || changes['segmentId']) {
-      this.loadPersons();
-    }
   }
 
   focusSearch(): void {

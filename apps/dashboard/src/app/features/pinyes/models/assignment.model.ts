@@ -8,6 +8,9 @@ export interface AssignmentNodeDetail {
   z: number;
   positionType: string | null;
   sortOrder: number;
+  ringLevel: number | null;
+  originNodeId: string | null;
+  sourceNodeId: string | null;
 }
 
 export interface AssignmentPersonDetail {
@@ -46,6 +49,8 @@ export interface FigureHistoryEntry {
   eventDate: string;
   segmentName: string | null;
   instanceId: string;
+  snapshotted: boolean;
+  sourceVariantOrder: number | null;
   assignmentCount: number;
   totalNodes: number;
   assignments: {
@@ -95,4 +100,38 @@ export interface PendingOp {
   personId: string | null;
   /** Snapshot to revert to on failure */
   previousAssignments: AssignmentDetail[];
+}
+
+export interface InstanceNodeItem {
+  id: string;
+  label: string;
+  zone: string;
+  positionType: string | null;
+  x: number;
+  y: number;
+  z: number;
+  width: number;
+  height: number;
+  rotation: number;
+  color: string | null;
+  shape: string;
+  sortOrder: number;
+  ringLevel: number | null;
+  originNodeId: string | null;
+  sourceNodeId: string | null;
+  isSnapshotted: boolean;
+}
+
+export interface UpgradeResult {
+  addedNodes: number;
+  updatedNodes: number;
+  totalNodes: number;
+  newTemplateId: string;
+  newTemplateName: string;
+  newVariantOrder: number;
+}
+
+export interface SwapAssignmentsPayload {
+  assignmentIdA: string;
+  assignmentIdB: string;
 }

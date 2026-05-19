@@ -17,6 +17,7 @@ import { NodeAssignmentService } from './node-assignment.service';
 import { AvailablePersonsService, AvailablePersonsQuery } from './available-persons.service';
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
 import { BulkImportAssignmentDto } from './dto/bulk-import-assignment.dto';
+import { SwapAssignmentsDto } from './dto/swap-assignments.dto';
 
 @ApiTags('node-assignments')
 @ApiBearerAuth()
@@ -28,6 +29,13 @@ export class NodeAssignmentController {
     private readonly availablePersonsService: AvailablePersonsService,
   ) {}
 
+  @ApiOperation({ summary: 'Get nodes for a figure instance (live template or snapshot)' })
+  @Get('figure-instances/:instanceId/nodes')
+  async getInstanceNodes(@Param('instanceId', ParseUUIDPipe) instanceId: string) {
+    const data = await this.assignmentService.getInstanceNodes(instanceId);
+    return { data };
+  }
+
   @ApiOperation({ summary: 'List all assignments for a figure instance' })
   @Get('figure-instances/:instanceId/assignments')
   async getByInstance(@Param('instanceId', ParseUUIDPipe) instanceId: string) {
@@ -35,13 +43,22 @@ export class NodeAssignmentController {
     return { data };
   }
 
-  @ApiOperation({ summary: 'Assign a person to a node in a figure instance' })
+  @ApiOperation({ summary: 'Assign a person to a node in a figure instance (auto-snapshots on first assignment)' })
   @Post('figure-instances/:instanceId/assignments')
   assign(
     @Param('instanceId', ParseUUIDPipe) instanceId: string,
     @Body() dto: CreateAssignmentDto,
   ) {
     return this.assignmentService.assign(instanceId, dto);
+  }
+
+  @ApiOperation({ summary: 'Swap two assignments within the same figure instance' })
+  @Post('figure-instances/:instanceId/assignments/swap')
+  swap(
+    @Param('instanceId', ParseUUIDPipe) instanceId: string,
+    @Body() dto: SwapAssignmentsDto,
+  ) {
+    return this.assignmentService.swap(instanceId, dto);
   }
 
   @ApiOperation({ summary: 'Remove an assignment from a figure instance' })
@@ -62,6 +79,18 @@ export class NodeAssignmentController {
     @Body() dto: BulkImportAssignmentDto,
   ) {
     return this.assignmentService.bulkImport(instanceId, dto);
+  }
+
+  @ApiOperation({ summary: 'Upgrade instance to the next variant in its family (adds cordon nodes)' })
+  @Post('figure-instances/:instanceId/upgrade')
+  upgradeInstance(@Param('instanceId', ParseUUIDPipe) instanceId: string) {
+    return this.assignmentService.upgradeInstance(instanceId);
+  }
+
+  @ApiOperation({ summary: 'Reset snapshot: remove all assignments and instance nodes, revert to live template' })
+  @Post('figure-instances/:instanceId/reset')
+  resetSnapshot(@Param('instanceId', ParseUUIDPipe) instanceId: string) {
+    return this.assignmentService.resetSnapshot(instanceId);
   }
 
   @ApiOperation({ summary: 'Get available persons for assignment in a segment' })

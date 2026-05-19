@@ -31,6 +31,8 @@ const makeInstance = () => ({
   id: 'inst-uuid-1',
   label: null,
   sortOrder: 0,
+  snapshotted: false,
+  sourceVariantOrder: null,
   figureTemplate: { id: 'fig-1', name: 'pd4' },
   compositionTemplate: null,
 });
@@ -119,8 +121,8 @@ describe('SegmentManagerComponent', () => {
       const seg = makeSegment({
         name: null,
         instances: [
-          { id: 'i1', label: null, sortOrder: 0, figureTemplate: { id: 'f1', name: 'pd4' }, compositionTemplate: null },
-          { id: 'i2', label: null, sortOrder: 1, figureTemplate: null, compositionTemplate: { id: 'c1', name: 'Altar' } },
+          { id: 'i1', label: null, sortOrder: 0, snapshotted: false, sourceVariantOrder: null, figureTemplate: { id: 'f1', name: 'pd4' }, compositionTemplate: null },
+          { id: 'i2', label: null, sortOrder: 1, snapshotted: false, sourceVariantOrder: null, figureTemplate: null, compositionTemplate: { id: 'c1', name: 'Altar' } },
         ],
       });
       expect(component.displayName()(seg)).toBe('pd4 + Altar');

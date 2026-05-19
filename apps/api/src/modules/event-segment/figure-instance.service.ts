@@ -180,6 +180,9 @@ export class FigureInstanceService {
       id: instance.id,
       label: instance.label,
       sortOrder: instance.sortOrder,
+      snapshotted: instance.snapshotted,
+      sourceVariantOrder: instance.sourceVariantOrder,
+      assignedCount: 0,
       figureTemplate: instance.figureTemplate
         ? { id: instance.figureTemplate.id, name: instance.figureTemplate.name }
         : null,

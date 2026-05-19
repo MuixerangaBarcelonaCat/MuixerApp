@@ -8,7 +8,7 @@ const makeAssignment = (): AssignmentDetail => ({
   id: 'assignment-1',
   figureInstanceId: 'instance-1',
   compositionSlotId: null,
-  node: { id: 'node-1', label: 'pd4-1', zone: 'TRONC', z: 1, positionType: 'pd4', sortOrder: 0 },
+  node: { id: 'node-1', label: 'pd4-1', zone: 'TRONC', z: 1, positionType: 'pd4', sortOrder: 0, ringLevel: null, originNodeId: null, sourceNodeId: null },
   person: {
     id: 'person-1',
     alias: 'Pepet',
@@ -53,6 +53,8 @@ describe('NodePopoverComponent', () => {
   });
 
   it('displays person alias, full name, height, and node label', () => {
+    fixture.componentRef.setInput('heightMode', 'absolute');
+    fixture.detectChanges();
     const html = fixture.nativeElement.innerHTML;
     expect(html).toContain('Pepet');
     expect(html).toContain('Pere');

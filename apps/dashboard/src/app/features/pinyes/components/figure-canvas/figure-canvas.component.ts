@@ -18,6 +18,25 @@ import { CompositionSlotItem } from '../../models/composition.model';
 import { FigureZone, NodeShape } from '@muixer/shared';
 import { AssignmentDetail, HeightMode } from '../../models/assignment.model';
 
+/** Minimal node shape accepted by the canvas for rendering — both FigureNodeItem and InstanceNodeItem satisfy this */
+export interface CanvasNode {
+  id: string;
+  label: string;
+  zone: string;
+  positionType: string | null;
+  x: number;
+  y: number;
+  z: number;
+  width: number;
+  height: number;
+  rotation: number;
+  color: string | null;
+  shape: string;
+  sortOrder: number;
+  ringLevel?: number | null;
+  originNodeId?: string | null;
+}
+
 export type CanvasMode = 'editor' | 'readonly' | 'composition' | 'assignment';
 
 export interface CompositionSlotWithNodes {
@@ -74,7 +93,7 @@ const COMPOSITION_SLOT_SCALE = 0.5;
 export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   @ViewChild('canvasContainer') containerRef!: ElementRef<HTMLDivElement>;
 
-  readonly nodes = input<FigureNodeItem[]>([]);
+  readonly nodes = input<CanvasNode[]>([]);
   readonly mode = input<CanvasMode>('editor');
   readonly gridEnabled = input<boolean>(true);
   readonly gridSpacing = input<number>(40);
@@ -87,6 +106,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   readonly heightMode = input<HeightMode>('relative');
   readonly attendanceMap = input<Map<string, string>>(new Map());
   readonly nextPerformanceMap = input<Map<string, string | null>>(new Map());
+  readonly highlightedNodeIds = input<Set<string>>(new Set());
 
   readonly nodeSelected = output<string | null>();
   readonly nodeClicked = output<{ nodeId: string; x: number; y: number }>();
@@ -142,6 +162,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.attendanceMap();
       this.nextPerformanceMap();
       this.selectedNodeId();
+      this.highlightedNodeIds();
       if (!this.stage) return;
       if (this.mode() !== 'assignment') return;
       untracked(() => this.renderAssignmentNodes());
@@ -424,12 +445,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     const isEditor = this.mode() === 'editor';
     const selectedId = this.selectedNodeId();
 
-    for (const node of this.nodes()) {
+    for (const node of this.nodes() as FigureNodeItem[]) {
       const group = this.buildNodeGroup(node, isEditor, selectedId === node.id);
       this.pinyaLayer.add(group);
     }
 
-    // Re-add transformer to pinyaLayer
     this.pinyaLayer.add(this.transformer);
 
     this.pinyaLayer.batchDraw();
@@ -658,6 +678,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     const selectedId = this.selectedNodeId();
 
     const assignmentByNodeId = new Map(assignments.map((a) => [a.node.id, a]));
+    const highlighted = this.highlightedNodeIds();
 
     const ATTENDANCE_COLORS: Record<string, string> = {
       ANIRE: '#22c55e',
@@ -668,9 +689,10 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     for (const node of this.nodes()) {
       const assignment = assignmentByNodeId.get(node.id);
       const isSelected = selectedId === node.id;
+      const isHighlighted = highlighted.has(node.id);
       const fill = node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR;
-      const stroke = isSelected ? SELECTED_STROKE : NORMAL_STROKE;
-      const strokeWidth = isSelected ? 3 : 1.5;
+      const stroke = isSelected ? SELECTED_STROKE : isHighlighted ? '#10b981' : NORMAL_STROKE;
+      const strokeWidth = isSelected ? 3 : isHighlighted ? 2.5 : 1.5;
 
       const group = new Konva.Group({
         id: node.id,
@@ -700,6 +722,12 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           stroke,
           strokeWidth,
         });
+      }
+      if (isHighlighted) {
+        shape.shadowColor('#10b981');
+        shape.shadowBlur(12);
+        shape.shadowOpacity(0.7);
+        shape.shadowEnabled(true);
       }
       group.add(shape);
 
@@ -885,6 +913,41 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       ellipsis: false,
     });
     group.add(text);
+
+    // Ring level badge (editor mode, PINYA zone nodes only)
+    if (isEditor && node.zone === FigureZone.PINYA && node.ringLevel != null) {
+      const badgeText = `C${node.ringLevel}`;
+      const badgeFontSize = 8;
+      const badgePadX = 3;
+      const badgePadY = 1.5;
+      const badgeW = badgeFontSize * badgeText.length * 0.6 + badgePadX * 2;
+      const badgeH = badgeFontSize + badgePadY * 2;
+      const badgeX = node.width / 2 - badgeW - 1;
+      const badgeY = -node.height / 2 + 1;
+
+      const badgeBg = new Konva.Rect({
+        x: badgeX,
+        y: badgeY,
+        width: badgeW,
+        height: badgeH,
+        fill: 'rgba(0,0,0,0.55)',
+        cornerRadius: 2,
+        listening: false,
+      });
+      group.add(badgeBg);
+
+      const badgeLabel = new Konva.Text({
+        text: badgeText,
+        fontSize: badgeFontSize,
+        fontFamily: 'Inter, monospace',
+        fill: '#ffffff',
+        fontStyle: 'bold',
+        x: badgeX + badgePadX,
+        y: badgeY + badgePadY,
+        listening: false,
+      });
+      group.add(badgeLabel);
+    }
 
     // Events
     group.on('click tap', () => {

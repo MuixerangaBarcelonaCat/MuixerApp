@@ -6,11 +6,17 @@ import {
   IsOptional,
   IsString,
   IsInt,
+  IsUUID,
   Min,
 } from 'class-validator';
 import { FigureZone, NodeShape } from '@muixer/shared';
 
 export class CreateFigureNodeDto {
+  @ApiPropertyOptional({ description: 'Existing node UUID — used for upsert matching on update' })
+  @IsUUID()
+  @IsOptional()
+  id?: string;
+
   @ApiProperty({ description: 'Node label, e.g. "Base 1"' })
   @IsString()
   @IsNotEmpty()
@@ -20,7 +26,7 @@ export class CreateFigureNodeDto {
   @IsEnum(FigureZone)
   zone: FigureZone;
 
-  @ApiPropertyOptional({ description: 'Free-form position type, e.g. "base", "segon", "cross"' })
+  @ApiPropertyOptional({ description: 'Free-form position type, e.g. "laterals", "mans", "vents"' })
   @IsString()
   @IsOptional()
   positionType?: string;
@@ -71,6 +77,17 @@ export class CreateFigureNodeDto {
   @IsString()
   @IsOptional()
   climbPath?: string;
+
+  @ApiPropertyOptional({ description: 'Concentric ring level (1 = innermost). Only for PINYA zone nodes.' })
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  ringLevel?: number;
+
+  @ApiPropertyOptional({ description: 'Root ancestor node ID (set automatically on variant derivation)' })
+  @IsUUID()
+  @IsOptional()
+  originNodeId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

@@ -6,7 +6,7 @@ const makeAssignment = (nodeId = 'node-1', personId = 'person-1'): AssignmentDet
   id: 'assignment-1',
   figureInstanceId: 'instance-1',
   compositionSlotId: null,
-  node: { id: nodeId, label: 'pd4-1', zone: 'TRONC', z: 1, positionType: 'pd4', sortOrder: 0 },
+  node: { id: nodeId, label: 'pd4-1', zone: 'TRONC', z: 1, positionType: 'pd4', sortOrder: 0, ringLevel: null, originNodeId: null, sourceNodeId: null },
   person: { id: personId, alias: 'Pepet', name: 'Pere', firstSurname: 'Garcia', shoulderHeight: 140 },
 });
 
