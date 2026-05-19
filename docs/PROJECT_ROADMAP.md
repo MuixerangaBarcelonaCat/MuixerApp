@@ -23,7 +23,8 @@
 || **P5.3** | **Mòdul Pinyes — Segments i Instàncies** | ✅ Completat | — | — | ✅ | Backend EventSegmentModule (entitats+CRUD+tests). Frontend: SegmentManagerComponent inline a event-detail, CRUD segments/instàncies, reordenar (fletxes), modal picker figures/composicions, toggle visibilitat. Pendent: revisió UX completa (P5.3.1) |
 || P5.3.1 | Mòdul Pinyes — Revisió UX Segments | ⚪ Pendent | — | — | — | Refactor UX segments: tab dedicat "Pinyes" a event-detail, millores d'interacció amb les figures, preview canvas, navegació fluida |
 | **P5.4** | **Mòdul Pinyes — Assignació de Persones** | ✅ Completat | [`docs/specs/2026-05-11-p5-3-event-segments-figure-instances.md`](docs/specs/2026-05-11-p5-3-event-segments-figure-instances.md) | [`p5.4_node_assignment_54c3d5e9`](.cursor/plans/p5.4_node_assignment_54c3d5e9.plan.md) | ✅ | NodeAssignment entity+module (backend), AssignmentCanvas+PersonPanel+NodePopover+ImportPinyaModal (frontend), AssignmentStateService (signals), optimistic UI+rollback, botó "Assignar" al SegmentManager |
-| P5.5 | Mòdul Pinyes — Projecció i Consulta Històrica | ⚪ Pendent | — | — | — | Mode fullscreen TV/projector. Consulta events passats |
+| **P5.5** | **Mòdul Pinyes — Famílies, Snapshot i Creixement Concèntric** | ✅ Completat | [`docs/specs/2026-05-19-p5-family-snapshot-redesign.md`](docs/specs/2026-05-19-p5-family-snapshot-redesign.md) | — | ✅ | Fases A+B (backend): FigureFamily+InstanceNode entities, lazy snapshot, upgrade de cordó, upsert estable de nodes, NodeAssignment migrat a InstanceNode. Fases C+D (frontend): tab Famílies, modal Nova Família, llistat variants, AssignmentCanvas amb InstanceNodes, modal onboarding pinyes. |
+| P5.6 | Mòdul Pinyes — Projecció i Consulta Històrica | ⚪ Pendent | — | — | — | Mode fullscreen TV/projector. Consulta events passats per figura/persona |
 | P6 | PWA Mòbil | ⚪ Pendent | — | — | — | Diferit fins al tall. Estén l'auth de P4.1 als membres |
 | P7 | Informes + Notificacions + Features avançades | ⚪ Pendent | — | — | — | Reports d'assistència, FCM, estadístiques, notícies |
 
@@ -253,6 +254,63 @@ Fixes crítics de canvas i millores UX implementades posteriorment:
 | **Next performance** | `AvailablePersonsService.getNextPerformance` busca la propera `ACTUACIO` (per als assajos) |
 | **Delete guard** | `NodeAssignmentService.countByNode()` protegeix contra eliminar nodes ocupats (409) |
 | **Circular dependency** | `FigureInstance → NodeAssignment` usa string-based entity name a `@OneToMany` per evitar imports circulars |
+
+---
+
+---
+
+## Decisions sobre el Mòdul Pinyes — Famílies, Snapshot i Creixement Concèntric (P5.5)
+
+### P5.5 — Family + Snapshot Redesign (✅ Completat)
+
+#### Problema resolt
+
+| Problema | Impacte (pre-P5.5) |
+|----------|-------------------|
+| `syncNodes` = delete-all + recreate | Node IDs inestables entre saves; assignacions bloquejaven qualsevol edició del template |
+| `NodeAssignment` apuntava a `FigureNode` (template) | Template i instàncies acoblats; editar un template trencava les assignacions existents |
+| Sense concepte de família ni variant | Cada mida de figura = template independent sense relació |
+| Sense model de cordons | Afegir un cordó requeria crear un template nou des de zero |
+
+#### Quatre fases d'implementació
+
+**Fase A — Data Foundation (backend)**
+- `FigureFamily` entity + `FigureFamilyService` + `FigureFamilyController` + DTOs
+- `FigureTemplate`: + `family` (FK nullable, RESTRICT) + `variantOrder` (int)
+- `FigureNode`: + `ringLevel` (int nullable) + `originNodeId` (uuid nullable, no FK)
+- `InstanceNode` entity (snapshot de nodes per instància)
+- `FigureInstance`: + `snapshotted` (boolean) + `sourceVariantOrder` (int nullable)
+- `NodeAssignment`: `figureNode` FK → `instanceNode` FK (a `InstanceNode`)
+- `syncNodes()` reescrit com a **upsert** per ID (update/create/delete vs delete-all+recreate)
+- `reset-figure-data.script.ts` + seed reestructurat amb família `pd3`/`pd3-creu`/`pd4`
+
+**Fase B — Snapshot & Upgrade (backend)**
+- `getInstanceNodes()` — retorna `InstanceNode`s (snapshotted) o `FigureNode`s vius (pre-snapshot)
+- `assign()` amb auto-snapshot: la primera assignació copia tots els nodes del template a `InstanceNode`s propis
+- `upgradeInstance()` — afegeix nodes de la variant superior (matching per `originNodeId ?? sourceNodeId`)
+- `bulkImport()` remapejat via `sourceNodeId` de `InstanceNode`
+- `getHistory()`, `unassign()`, swap — tots migrats a `InstanceNode`
+
+**Fase C — Frontend Famílies i Templates**
+- `FigureFamilyService` (dashboard) + `figure-family.model.ts`
+- `TemplateListComponent` reestructurat: tab "Famílies" com a vista principal, families expandibles amb variants
+- Modal "Nova Família" amb name/slug/description
+- `PinyesOnboardingModalComponent`: walkthrough informatiu (famílies, variants, cordons, snapshot)
+
+**Fase D — Frontend Assignment Canvas**
+- `AssignmentCanvasComponent` migrat: carrega `InstanceNode`s (snapshotted) o template nodes (pre-snapshot) via `GET /figure-instances/:id/nodes`
+- Bulk import actualitzat per `sourceNodeId` de `InstanceNode`
+- Models `AssignmentDetail` i `PendingOp` actualitzats per `InstanceNode`
+
+#### Decisions tècniques clau
+
+| Decisió | Resultat |
+|---------|----------|
+| **Lazy snapshot** | No es creen `InstanceNode`s fins la primera assignació, minimitzant dades per instàncies sense assignar |
+| **FK no-referencial per llinatge** | `originNodeId` i `sourceNodeId` com a `uuid nullable` sense FK real — sobreviuen a esborrats de nodes del template |
+| **Upgrade per canonical ID** | `canonicalId = originNodeId ?? self.id` — permet matching estable entre variants independentment de la profunditat del llinatge |
+| **Backward compatibility al canvas** | `assign()` accepta tant `InstanceNode.id` com `FigureNode.id` (via `sourceNodeId` lookup) per mantenir compatibilitat amb el canvas pre-snapshot |
+| **Reset net de dades de dev** | Script `reset-figure-data.script.ts` per netejar instàncies/nodes/assignacions i re-fer el seed, evitant migracions destructives en dev |
 
 ---
 
@@ -512,6 +570,7 @@ Cada sub-projecte genera:
 | Model de dades | `DATA_MODEL.md` | Entitats TypeScript |
 | Auth flow | `AUTH_FLOW.md` | Fluxos d'autenticació, components, variables |
 | Dashboard UI | [`DASHBOARD_UI.md`](DASHBOARD_UI.md) | Design system, components shared, patterns UX (P4.3) |
+| Mòdul Pinyes | [`PINYES_MODULE.md`](PINYES_MODULE.md) | Arquitectura completa del mòdul P5: famílies, snapshot, upgrade, assignació |
 | API legacy | `API_APPSISTENCIA.md` | Endpoints de l'app actual per migració |
 | PRD complet | `docs/prd/` | Requirements, user stories, security |
 | Rules Cursor | `.cursor/rules/` | Regles per l'agent AI |
@@ -565,3 +624,4 @@ Cada sub-projecte genera:
 | 10 Mai 2026 | **Spec P5.2.1 aprovada i implementada** (`docs/specs/2026-05-10-p5-2-1-composition-editor-fixes.md`): Fix canvas interaction (listening:true al rect, panning guard mode-aware, cursor grab). Millores UX: scale 50%, placeholder per slots buits, save immediat en add, offset incremental, botó "Enquadrar" (fitAllSlots), z-order controls (bringForward/sendBackward). Tests: ✅ 281 API + 200 dashboard. |
 || 11 Mai 2026 | **P5.3 Segments i Instàncies completat**: Backend — `EventSegmentModule` (entitats EventSegment + FigureInstance, endpoints CRUD + reordenar per segments i instàncies, tests unitaris). Frontend — `SegmentManagerComponent` integrat inline a event-detail (cards sempre visibles, edició nom, toggle visibilitat, fletxes reordenar, badges figures/composicions, `FigurePickerModalComponent` amb tabs). Pendent: refactor UX a tab dedicat "Pinyes" (P5.3.1). |
 | 12 Mai 2026 | **P5.4 Assignació de Persones completat** (7 fases): Backend — `NodeAssignmentModule` (entitat `NodeAssignment`, `NodeAssignmentService` CRUD+validacions 404/409/400, `AvailablePersonsService` queries, controller, delete guard integrat a `FigureTemplateService`). Frontend — models `assignment.model.ts`, `NodeAssignmentService` HTTP, `AssignmentStateService` (signals), `AssignmentCanvasComponent` (pick-and-place, optimistic UI+rollback, auto-advance), `PersonPanelComponent` (filtres altura/xicalla/cerca, 🎭 next-performance), `NodePopoverComponent`, `ImportPinyaModalComponent` (import d'historial). Ruta `/pinyes/events/:eventId/segments/:segmentId/assign`. Botó "Assignar" al `SegmentManagerComponent`. Tests: ✅ 370 API + 303 dashboard. |
+| 19 Mai 2026 | **Spec P5.5 aprovada i implementada** (`docs/specs/2026-05-19-p5-family-snapshot-redesign.md`): Redesign del model d'instàncies i templates. 4 fases: A (dades backend), B (snapshot+upgrade backend), C (famílies frontend), D (canvas assignació + onboarding). Nous artefactes: `FigureFamily`, `InstanceNode`, `reset-figure-data.script.ts`. Canvis model: `FigureTemplate`+família+variantOrder, `FigureNode`+ringLevel+originNodeId, `FigureInstance`+snapshotted+sourceVariantOrder, `NodeAssignment.figureNode`→`instanceNode`. Documentació actualitzada: `DATA_MODEL.md`, `PROJECT_ROADMAP.md`, `docs/PINYES_MODULE.md` (nou). |
