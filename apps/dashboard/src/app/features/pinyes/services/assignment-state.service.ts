@@ -15,9 +15,21 @@ export class AssignmentStateService {
   readonly activeInstanceId = signal<string | null>(null);
   readonly assignments = signal<AssignmentDetail[]>([]);
   readonly confirmedPersons = signal<AvailablePerson[]>([]);
+  /**
+   * Persistent attendance map built from unfiltered person loads.
+   * Keyed by personId → attendanceStatus. Not reset on filtered searches.
+   */
+  readonly attendanceRegistry = signal<Map<string, string>>(new Map());
+  /**
+   * Persistent next-performance status map.
+   * Keyed by personId → nextPerformanceStatus | null.
+   */
+  readonly nextPerformanceRegistry = signal<Map<string, string | null>>(new Map());
   readonly heightMode = signal<HeightMode>('relative');
   readonly panelCollapsed = signal<boolean>(false);
   readonly pendingOperations = signal<PendingOp[]>([]);
+  /** Increment to request person-panel reload */
+  readonly personListRefreshTrigger = signal(0);
 
   /** Number of confirmed (ANIRE) persons not yet assigned in the current segment */
   readonly freePersonsCount = computed(() => {
@@ -52,12 +64,18 @@ export class AssignmentStateService {
     this.heightMode.update((m) => (m === 'relative' ? 'absolute' : 'relative'));
   }
 
+  refreshPersonList(): void {
+    this.personListRefreshTrigger.update((n) => n + 1);
+  }
+
   reset(): void {
     this.selectedNodeId.set(null);
     this.selectedPersonId.set(null);
     this.activeInstanceId.set(null);
     this.assignments.set([]);
     this.confirmedPersons.set([]);
+    this.attendanceRegistry.set(new Map());
+    this.nextPerformanceRegistry.set(new Map());
     this.heightMode.set('relative');
     this.panelCollapsed.set(false);
     this.pendingOperations.set([]);

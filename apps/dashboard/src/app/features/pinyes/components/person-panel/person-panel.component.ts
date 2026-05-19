@@ -2,7 +2,6 @@ import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
-  OnInit,
   OnChanges,
   SimpleChanges,
   ViewChild,
@@ -12,6 +11,7 @@ import {
   input,
   output,
   signal,
+  untracked,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, RefreshCw, ChevronDown, ChevronUp } from 'lucide-angular';
@@ -26,7 +26,7 @@ import { AvailablePerson, AssignmentDetail, HeightMode } from '../../models/assi
   imports: [FormsModule, LucideAngularModule],
   templateUrl: './person-panel.component.html',
 })
-export class PersonPanelComponent implements OnInit, OnChanges {
+export class PersonPanelComponent implements OnChanges {
   @ViewChild('searchInput') searchInputRef?: ElementRef<HTMLInputElement>;
 
   readonly eventId = input.required<string>();
@@ -36,6 +36,7 @@ export class PersonPanelComponent implements OnInit, OnChanges {
   readonly heightMode = input<HeightMode>('relative');
 
   readonly personSelected = output<AvailablePerson>();
+  readonly assignedPersonSelected = output<{ personId: string; instanceId: string }>();
 
   private readonly assignmentService = inject(NodeAssignmentService);
   private readonly state = inject(AssignmentStateService);
@@ -48,21 +49,56 @@ export class PersonPanelComponent implements OnInit, OnChanges {
   readonly loading = signal(false);
   readonly search = signal('');
   readonly height = signal<number | null>(null);
-  readonly isXicalla = signal<boolean | undefined>(undefined);
-  readonly excludeAssigned = signal(true);
+  readonly showXicalla = signal(true);
   readonly altresExpanded = signal(false);
+  readonly assignadesExpanded = signal(true);
+
+  readonly freePersons = computed(() =>
+    this.persons().filter((p) => !p.assignedInSegment),
+  );
 
   readonly confirmedPersons = computed(() =>
-    this.persons().filter((p) => p.attendanceStatus === 'ANIRE'),
+    this.freePersons().filter((p) => p.attendanceStatus === 'ANIRE'),
   );
 
   readonly pendingPersons = computed(() =>
-    this.persons().filter((p) => p.attendanceStatus === 'PENDENT'),
+    this.freePersons().filter((p) => p.attendanceStatus === 'PENDENT'),
   );
 
   readonly declinedPersons = computed(() =>
-    this.persons().filter((p) => p.attendanceStatus === 'NO_VAIG'),
+    this.freePersons().filter((p) => p.attendanceStatus === 'NO_VAIG'),
   );
+
+  readonly assignedPersons = computed(() => {
+    const apiAssigned = this.persons().filter((p) => p.assignedInSegment);
+    const seen = new Set(apiAssigned.map((p) => p.id));
+    const extras: AvailablePerson[] = [];
+
+    // Supplement with current-instance assignments (optimistic / before API refresh)
+    for (const assignment of this.assignments()) {
+      if (seen.has(assignment.person.id)) continue;
+      const fromList = this.persons().find((p) => p.id === assignment.person.id);
+      extras.push({
+        ...(fromList ?? {
+          id: assignment.person.id,
+          alias: assignment.person.alias,
+          name: assignment.person.name,
+          firstSurname: assignment.person.firstSurname,
+          shoulderHeight: assignment.person.shoulderHeight,
+          isXicalla: false,
+          attendanceStatus: 'ANIRE',
+          nextPerformanceStatus: null,
+          assignedInSegment: true,
+        }),
+        assignedInSegment: true,
+        assignedInstanceId: assignment.figureInstanceId,
+        assignedNodeLabel: assignment.node.label,
+      });
+      seen.add(assignment.person.id);
+    }
+
+    return [...apiAssigned, ...extras];
+  });
 
   constructor() {
     effect(() => {
@@ -71,10 +107,15 @@ export class PersonPanelComponent implements OnInit, OnChanges {
         setTimeout(() => this.focusSearch(), 0);
       }
     });
-  }
 
-  ngOnInit(): void {
-    this.loadPersons();
+    effect(() => {
+      this.state.personListRefreshTrigger();
+      untracked(() => {
+        if (this.eventId() && this.segmentId()) {
+          this.loadPersons();
+        }
+      });
+    });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -90,7 +131,7 @@ export class PersonPanelComponent implements OnInit, OnChanges {
   loadPersons(): void {
     this.loading.set(true);
     const query: Record<string, any> = {
-      excludeAssigned: this.excludeAssigned(),
+      excludeAssigned: false,
     };
     if (this.search()) query['search'] = this.search();
     if (this.height() !== null) {
@@ -98,7 +139,7 @@ export class PersonPanelComponent implements OnInit, OnChanges {
       const absoluteHeight = this.heightMode() === 'relative' ? 140 + heightValue : heightValue;
       query['height'] = absoluteHeight;
     }
-    if (this.isXicalla() !== undefined) query['isXicalla'] = this.isXicalla();
+    if (!this.showXicalla()) query['isXicalla'] = false;
 
     this.assignmentService
       .getAvailablePersons(this.eventId(), this.segmentId(), query)
@@ -106,6 +147,19 @@ export class PersonPanelComponent implements OnInit, OnChanges {
         next: (resp) => {
           this.persons.set(resp.data);
           this.state.confirmedPersons.set(resp.data);
+
+          // Update persistent registries on every load (merge, not replace)
+          this.state.attendanceRegistry.update((m) => {
+            const updated = new Map(m);
+            resp.data.forEach((p) => updated.set(p.id, p.attendanceStatus));
+            return updated;
+          });
+          this.state.nextPerformanceRegistry.update((m) => {
+            const updated = new Map(m);
+            resp.data.forEach((p) => updated.set(p.id, p.nextPerformanceStatus ?? null));
+            return updated;
+          });
+
           this.loading.set(false);
         },
         error: () => this.loading.set(false),
@@ -123,12 +177,7 @@ export class PersonPanelComponent implements OnInit, OnChanges {
   }
 
   onXicallaChange(checked: boolean): void {
-    this.isXicalla.set(checked ? true : undefined);
-    this.loadPersons();
-  }
-
-  onExcludeAssignedChange(value: boolean): void {
-    this.excludeAssigned.set(value);
+    this.showXicalla.set(checked);
     this.loadPersons();
   }
 
@@ -136,8 +185,17 @@ export class PersonPanelComponent implements OnInit, OnChanges {
     this.personSelected.emit(person);
   }
 
+  navigateToAssigned(person: AvailablePerson): void {
+    if (person.assignedInstanceId) {
+      this.assignedPersonSelected.emit({
+        personId: person.id,
+        instanceId: person.assignedInstanceId,
+      });
+    }
+  }
+
   formatHeight(person: AvailablePerson): string {
-    if (person.shoulderHeight === null) return '-';
+    if (person.shoulderHeight === null || person.shoulderHeight === 0 || person.shoulderHeight === 140) return '-';
     const h = person.shoulderHeight;
     if (this.heightMode() === 'relative') {
       const diff = h - 140;

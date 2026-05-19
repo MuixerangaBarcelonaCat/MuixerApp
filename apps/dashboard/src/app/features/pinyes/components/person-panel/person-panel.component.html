@@ -1,7 +1,7 @@
 <div class="flex flex-col h-full bg-base-100 border-l border-base-200">
   <!-- Header -->
-  <div class="p-3 border-b border-base-200">
-    <div class="flex items-center justify-between mb-2">
+  <div class="px-2 py-2 border-b border-base-200">
+    <div class="flex items-center justify-between mb-1.5">
       <h3 class="text-sm font-semibold text-base-content">Persones</h3>
       <button
         type="button"
@@ -18,7 +18,7 @@
     <input
       #searchInput
       type="search"
-      class="input input-bordered input-sm w-full mb-2"
+      class="input input-bordered input-sm w-full mb-1.5"
       placeholder="Cerca per nom o àlies..."
       [value]="search()"
       (input)="onSearchChange($any($event.target).value)"
@@ -28,7 +28,7 @@
     <!-- Height filter -->
     <input
       type="number"
-      class="input input-bordered input-sm w-full mb-2"
+      class="input input-bordered input-sm w-full mb-1.5"
       [placeholder]="heightMode() === 'relative' ? 'Alçada relativa (ex: +5, -10)' : 'Alçada absoluta (cm)'"
       [value]="height() ?? ''"
       (input)="onHeightChange($any($event.target).value ? +$any($event.target).value : null)"
@@ -37,26 +37,16 @@
       [max]="heightMode() === 'relative' ? 50 : 200"
     />
 
-    <!-- Checkboxes -->
-    <div class="flex flex-col gap-1">
-      <label class="flex items-center gap-2 text-xs cursor-pointer">
+    <!-- Filters -->
+    <div class="flex items-center gap-3">
+      <label class="flex items-center gap-1.5 text-xs cursor-pointer">
         <input
           type="checkbox"
           class="checkbox checkbox-xs"
-          [checked]="excludeAssigned()"
-          (change)="onExcludeAssignedChange($any($event.target).checked)"
-        />
-        Només lliures
-      </label>
-      <label class="flex items-center gap-2 text-xs cursor-pointer">
-        <input
-          type="checkbox"
-          class="checkbox checkbox-xs"
-          [checked]="isXicalla()"
-          [indeterminate]="isXicalla() === undefined"
+          [checked]="showXicalla()"
           (change)="onXicallaChange($any($event.target).checked)"
         />
-        Només xicalla
+        Xicalla
       </label>
     </div>
   </div>
@@ -71,8 +61,8 @@
   <!-- Person list -->
   @if (!loading()) {
     <div class="flex-1 overflow-y-auto">
-      <!-- Confirmades (ANIRE) -->
-      <div class="p-2">
+      <!-- Confirmades (ANIRE, free) -->
+      <div class="px-2 pt-2 pb-1">
         <p class="text-xs font-semibold text-success mb-1">
           Confirmades ({{ confirmedPersons().length }})
         </p>
@@ -83,25 +73,61 @@
             (click)="selectPerson(person)"
             [attr.aria-label]="'Seleccionar ' + person.alias"
           >
-            <span class="flex items-center gap-1.5">
-              <span class="font-medium">{{ person.alias }}</span>
+            <span class="flex items-center gap-1.5 min-w-0">
+              <span class="font-medium truncate">{{ person.alias }}</span>
               @if (person.nextPerformanceStatus === 'ANIRE') {
-                <span class="text-base-content/50" aria-label="Vindrà a la propera actuació" title="Vindrà a la propera actuació">🎭</span>
+                <span class="text-base-content/50 shrink-0" aria-label="Vindrà a la propera actuació" title="Vindrà a la propera actuació">🎭</span>
               }
             </span>
-            <span class="text-base-content/50 shrink-0">{{ formatHeight(person) }}</span>
+            @if (formatHeight(person) !== '-') {
+              <span class="text-base-content/50 shrink-0">{{ formatHeight(person) }}</span>
+            }
           </button>
         }
         @if (confirmedPersons().length === 0) {
-          <p class="text-xs text-base-content/40 px-2 py-1">Cap persona confirmada</p>
+          <p class="text-xs text-base-content/40 px-2 py-1">Cap persona confirmada lliure</p>
         }
       </div>
 
-      <!-- Altres (PENDENT + NO_VAIG) collapsed -->
+      <!-- Assignades (already placed in a node) -->
+      @if (assignedPersons().length > 0) {
+        <div class="border-t border-base-200">
+          <button
+            type="button"
+            class="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-info hover:bg-base-200 transition-colors"
+            (click)="assignadesExpanded.update(v => !v)"
+            [attr.aria-expanded]="assignadesExpanded()"
+            aria-controls="assignades-panel"
+          >
+            <span>Assignades ({{ assignedPersons().length }})</span>
+            <i-lucide [img]="assignadesExpanded() ? ChevronUp : ChevronDown" class="size-3" />
+          </button>
+
+          @if (assignadesExpanded()) {
+            <div id="assignades-panel" class="px-2 pb-2">
+              @for (person of assignedPersons(); track person.id) {
+                <button
+                  type="button"
+                  class="w-full text-left px-2 py-1.5 rounded hover:bg-base-200 active:bg-base-300 transition-colors flex items-center justify-between gap-2 text-xs"
+                  (click)="navigateToAssigned(person)"
+                  [attr.aria-label]="person.alias + ': anar al node ' + (person.assignedNodeLabel ?? '')"
+                >
+                  <span class="flex items-center gap-1.5 min-w-0">
+                    <span class="truncate text-base-content/60">{{ person.alias }}</span>
+                  </span>
+                  <span class="badge badge-xs badge-info shrink-0">{{ person.assignedNodeLabel || 'Assignada' }}</span>
+                </button>
+              }
+            </div>
+          }
+        </div>
+      }
+
+      <!-- Altres (PENDENT + NO_VAIG, free) -->
       <div class="border-t border-base-200">
         <button
           type="button"
-          class="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-base-content/60 hover:bg-base-200 transition-colors"
+          class="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-base-content/60 hover:bg-base-200 transition-colors"
           (click)="toggleAltres()"
           [attr.aria-expanded]="altresExpanded()"
           aria-controls="altres-panel"
@@ -112,32 +138,10 @@
 
         @if (altresExpanded()) {
           <div id="altres-panel" class="px-2 pb-2">
-            <!-- Pendents -->
-            @if (pendingPersons().length > 0) {
-              <p class="text-xs font-medium text-warning mt-2 mb-1">
-                Pendents ({{ pendingPersons().length }})
-              </p>
-              @for (person of pendingPersons(); track person.id) {
-                <button
-                  type="button"
-                  class="w-full text-left px-2 py-1.5 rounded hover:bg-base-200 active:bg-base-300 transition-colors flex items-center justify-between gap-2 text-xs opacity-80"
-                  (click)="selectPerson(person)"
-                  [attr.aria-label]="'Seleccionar ' + person.alias + ' (pendent)'"
-                >
-                  <span class="flex items-center gap-1.5">
-                    <span>{{ person.alias }}</span>
-                    @if (person.nextPerformanceStatus === 'ANIRE') {
-                      <span class="text-base-content/50" aria-label="Vindrà a la propera actuació">🎭</span>
-                    }
-                  </span>
-                  <span class="text-base-content/50 shrink-0">{{ formatHeight(person) }}</span>
-                </button>
-              }
-            }
-
+            
             <!-- No vindran -->
             @if (declinedPersons().length > 0) {
-              <p class="text-xs font-medium text-error mt-2 mb-1">
+              <p class="text-xs font-medium text-error mt-1.5 mb-1">
                 No vindran ({{ declinedPersons().length }})
               </p>
               @for (person of declinedPersons(); track person.id) {
@@ -147,16 +151,43 @@
                   (click)="selectPerson(person)"
                   [attr.aria-label]="'Seleccionar ' + person.alias + ' (no vindrà)'"
                 >
-                  <span class="flex items-center gap-1.5">
-                    <span class="line-through">{{ person.alias }}</span>
+                  <span class="flex items-center gap-1.5 min-w-0">
+                    <span class="line-through truncate">{{ person.alias }}</span>
                     @if (person.nextPerformanceStatus === 'ANIRE') {
-                      <span class="text-base-content/50" aria-label="Vindrà a la propera actuació">🎭</span>
+                      <span class="text-base-content/50 shrink-0" aria-label="Vindrà a la propera actuació">🎭</span>
                     }
                   </span>
-                  <span class="text-base-content/50 shrink-0">{{ formatHeight(person) }}</span>
+                  @if (formatHeight(person) !== '-') {
+                    <span class="text-base-content/50 shrink-0">{{ formatHeight(person) }}</span>
+                  }
                 </button>
               }
             }
+            <!-- Pendents -->
+            @if (pendingPersons().length > 0) {
+              <p class="text-xs font-medium text-warning mt-1.5 mb-1">
+                Pendents ({{ pendingPersons().length }})
+              </p>
+              @for (person of pendingPersons(); track person.id) {
+                <button
+                  type="button"
+                  class="w-full text-left px-2 py-1.5 rounded hover:bg-base-200 active:bg-base-300 transition-colors flex items-center justify-between gap-2 text-xs opacity-80"
+                  (click)="selectPerson(person)"
+                  [attr.aria-label]="'Seleccionar ' + person.alias + ' (pendent)'"
+                >
+                  <span class="flex items-center gap-1.5 min-w-0">
+                    <span class="truncate">{{ person.alias }}</span>
+                    @if (person.nextPerformanceStatus === 'ANIRE') {
+                      <span class="text-base-content/50 shrink-0" aria-label="Vindrà a la propera actuació">🎭</span>
+                    }
+                  </span>
+                  @if (formatHeight(person) !== '-') {
+                    <span class="text-base-content/50 shrink-0">{{ formatHeight(person) }}</span>
+                  }
+                </button>
+              }
+            }
+
           </div>
         }
       </div>

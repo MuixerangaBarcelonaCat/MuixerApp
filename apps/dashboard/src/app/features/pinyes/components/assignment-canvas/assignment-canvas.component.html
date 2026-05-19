@@ -62,6 +62,7 @@
           [assignments]="state.assignments()"
           [heightMode]="state.heightMode()"
           [attendanceMap]="attendanceMap()"
+          [nextPerformanceMap]="nextPerformanceMap()"
           (nodeSelected)="onNodeSelected($event)"
           (nodeClicked)="onNodeClicked($event)"
         />
@@ -104,6 +105,7 @@
           [assignments]="state.assignments()"
           [heightMode]="state.heightMode()"
           (personSelected)="onPersonSelected($event)"
+          (assignedPersonSelected)="onAssignedPersonSelected($event)"
         />
       </aside>
     }
