@@ -86,6 +86,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   readonly assignments = input<AssignmentDetail[]>([]);
   readonly heightMode = input<HeightMode>('relative');
   readonly attendanceMap = input<Map<string, string>>(new Map());
+  readonly nextPerformanceMap = input<Map<string, string | null>>(new Map());
 
   readonly nodeSelected = output<string | null>();
   readonly nodeClicked = output<{ nodeId: string; x: number; y: number }>();
@@ -139,6 +140,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.assignments();
       this.heightMode();
       this.attendanceMap();
+      this.nextPerformanceMap();
       this.selectedNodeId();
       if (!this.stage) return;
       if (this.mode() !== 'assignment') return;
@@ -652,6 +654,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     const assignments = this.assignments();
     const heightMode = this.heightMode();
     const attendanceMap = this.attendanceMap();
+    const nextPerformanceMap = this.nextPerformanceMap();
     const selectedId = this.selectedNodeId();
 
     const assignmentByNodeId = new Map(assignments.map((a) => [a.node.id, a]));
@@ -703,20 +706,15 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       if (assignment) {
         const alias = assignment.person.alias;
         const textFill = this.getContrastColor(fill);
+        const shoulderH = assignment.person.shoulderHeight;
+        const hasValidHeight = shoulderH !== null && shoulderH !== 0 && shoulderH !== 140;
+        const nextStatus = nextPerformanceMap.get(assignment.person.id);
 
-        let displayText = alias;
-        if (assignment.person.shoulderHeight !== null) {
-          const h = assignment.person.shoulderHeight;
-          const heightText = heightMode === 'relative'
-            ? `${h >= 140 ? '+' : ''}${h - 140}`
-            : `${h}`;
-          displayText = `${alias} (${heightText})`;
-        }
-
+        // Alias text — centred in the node, larger now that height is a separate badge
         group.add(
           new Konva.Text({
-            text: displayText,
-            fontSize: 9,
+            text: alias,
+            fontSize: 11,
             fontFamily: 'Inter, sans-serif',
             fill: textFill,
             align: 'center',
@@ -730,6 +728,39 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
             ellipsis: true,
           }),
         );
+
+        // Height badge at top-left
+        if (hasValidHeight) {
+          const heightText = heightMode === 'relative'
+            ? `${shoulderH! >= 140 ? '+' : ''}${shoulderH! - 140}`
+            : `${shoulderH}`;
+          group.add(
+            new Konva.Text({
+              text: heightText,
+              fontSize: 7,
+              fontFamily: 'Inter, sans-serif',
+              fill: textFill,
+              opacity: 0.75,
+              align: 'left',
+              x: -node.width / 2 + 3,
+              y: -node.height / 2 + 2,
+              listening: false,
+            }),
+          );
+        }
+
+        // Next performance indicator at bottom-left (only when coming to next actuació)
+        if (nextStatus === 'ANIRE') {
+          group.add(
+            new Konva.Text({
+              text: '🎭',
+              fontSize: 8,
+              x: -node.width / 2 + 2,
+              y: node.height / 2 - 11,
+              listening: false,
+            }),
+          );
+        }
 
         // Attendance badge (small dot at top-right corner)
         const attendanceStatus = attendanceMap.get(assignment.person.id);

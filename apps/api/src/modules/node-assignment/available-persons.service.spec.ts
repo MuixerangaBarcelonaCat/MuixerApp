@@ -76,6 +76,7 @@ const mockSegmentRepo = {
 
 const mockAssignmentRepo = {
   createQueryBuilder: jest.fn().mockReturnValue(mockAssignmentQb),
+  find: jest.fn().mockResolvedValue([]),
 };
 
 describe('AvailablePersonsService', () => {
@@ -106,6 +107,7 @@ describe('AvailablePersonsService', () => {
     mockPersonQb.getMany.mockResolvedValue([]);
 
     mockAssignmentRepo.createQueryBuilder.mockReturnValue(mockAssignmentQb);
+    mockAssignmentRepo.find.mockResolvedValue([]);
     mockAssignmentQb.innerJoin.mockReturnThis();
     mockAssignmentQb.where.mockReturnThis();
     mockAssignmentQb.select.mockReturnThis();
@@ -188,13 +190,21 @@ describe('AvailablePersonsService', () => {
       mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
       const person = makePerson();
       mockPersonQb.getMany.mockResolvedValue([person]);
-      mockAssignmentQb.getMany.mockResolvedValue([{ personId: PERSON_ID_1 }]);
+      mockAssignmentRepo.find.mockResolvedValue([
+        {
+          person: { id: PERSON_ID_1 },
+          figureInstance: { id: 'instance-uuid-1' },
+          figureNode: { label: 'Node A' },
+        },
+      ]);
       mockAttendanceRepo.find.mockResolvedValue([]);
 
       const result = await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, { excludeAssigned: false });
 
       expect(result).toHaveLength(1);
       expect(result[0].assignedInSegment).toBe(true);
+      expect(result[0].assignedInstanceId).toBe('instance-uuid-1');
+      expect(result[0].assignedNodeLabel).toBe('Node A');
     });
 
     it('returns nextPerformanceStatus when event is ASSAIG', async () => {

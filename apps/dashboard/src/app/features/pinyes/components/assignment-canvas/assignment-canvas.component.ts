@@ -3,11 +3,13 @@ import {
   Component,
   computed,
   inject,
+  OnDestroy,
   OnInit,
   signal,
 } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { LucideAngularModule, ArrowLeft, Users, Edit, RefreshCw } from 'lucide-angular';
+import { LayoutService } from '../../../../core/services/layout.service';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
 import { EventSegmentService } from '../../services/event-segment.service';
@@ -23,7 +25,7 @@ import {
   BulkImportResult,
   PendingOp,
 } from '../../models/assignment.model';
-import { SegmentDetail, InstanceDetail } from '../../models/segment.model';
+import { SegmentDetail } from '../../models/segment.model';
 import { FigureNodeItem } from '../../models/figure-template.model';
 
 interface InstanceTab {
@@ -49,9 +51,10 @@ interface InstanceTab {
   ],
   templateUrl: './assignment-canvas.component.html',
 })
-export class AssignmentCanvasComponent implements OnInit {
+export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly layout = inject(LayoutService);
   private readonly assignmentService = inject(NodeAssignmentService);
   private readonly segmentService = inject(EventSegmentService);
   private readonly figureTemplateService = inject(FigureTemplateService);
@@ -84,19 +87,20 @@ export class AssignmentCanvasComponent implements OnInit {
     return `${tab.assignedCount}/${tab.totalCount}`;
   });
 
-  readonly attendanceMap = computed(() => {
-    const map = new Map<string, string>();
-    const persons = this.state.confirmedPersons();
-    persons.forEach((p) => map.set(p.id, p.attendanceStatus));
-    return map;
-  });
+  readonly attendanceMap = computed(() => this.state.attendanceRegistry());
+  readonly nextPerformanceMap = computed(() => this.state.nextPerformanceRegistry());
 
   ngOnInit(): void {
+    this.layout.requestFullscreen();
     const params = this.route.snapshot.params;
     this.eventId.set(params['eventId']);
     this.segmentId.set(params['segmentId']);
     this.state.reset();
     this.loadSegment();
+  }
+
+  ngOnDestroy(): void {
+    this.layout.exitFullscreen();
   }
 
   private loadSegment(): void {
@@ -134,6 +138,35 @@ export class AssignmentCanvasComponent implements OnInit {
 
     this.tabs.set(tabBuilders);
 
+    // Load counts for ALL tabs in parallel so badges show correct numbers from the start
+    tabBuilders.forEach((tab) => {
+      if (tab.figureTemplateId) {
+        this.figureTemplateService.getOne(tab.figureTemplateId).subscribe({
+          next: (template) => {
+            this.tabs.update((list) =>
+              list.map((t) =>
+                t.instanceId === tab.instanceId
+                  ? { ...t, totalCount: template.nodes.length }
+                  : t,
+              ),
+            );
+          },
+        });
+      }
+      this.assignmentService.getByInstance(tab.instanceId).subscribe({
+        next: (resp) => {
+          this.tabs.update((list) =>
+            list.map((t) =>
+              t.instanceId === tab.instanceId
+                ? { ...t, assignedCount: resp.data.length }
+                : t,
+            ),
+          );
+        },
+      });
+    });
+
+    // Fully activate first tab (loads nodes + sets active assignments signal)
     if (tabBuilders.length > 0) {
       this.selectTab(tabBuilders[0].instanceId);
     }
@@ -150,8 +183,8 @@ export class AssignmentCanvasComponent implements OnInit {
     const tab = this.tabs().find((t) => t.instanceId === instanceId);
     if (!tab) return;
 
-    // Load nodes from figure template
-    if (tab.figureTemplateId) {
+    // Load nodes from figure template (may already be cached in tab)
+    if (tab.figureTemplateId && tab.nodes.length === 0) {
       this.figureTemplateService.getOne(tab.figureTemplateId).subscribe({
         next: (template) => {
           this.tabs.update((list) =>
@@ -165,7 +198,7 @@ export class AssignmentCanvasComponent implements OnInit {
       });
     }
 
-    // Load assignments for this instance
+    // Load assignments for this instance and set as active
     this.assignmentService.getByInstance(instanceId).subscribe({
       next: (resp) => {
         this.state.assignments.set(resp.data);
@@ -176,6 +209,24 @@ export class AssignmentCanvasComponent implements OnInit {
               : t,
           ),
         );
+      },
+    });
+  }
+
+  onAssignedPersonSelected(event: { personId: string; instanceId: string }): void {
+    const targetTab = this.tabs().find((t) => t.instanceId === event.instanceId);
+    if (!targetTab) return;
+
+    // Switch to the tab that contains the assignment
+    this.selectTab(event.instanceId);
+
+    // After tab data loads, find and select the node where this person is assigned
+    this.assignmentService.getByInstance(event.instanceId).subscribe({
+      next: (resp) => {
+        const assignment = resp.data.find((a) => a.person.id === event.personId);
+        if (assignment) {
+          this.state.setSelectedNodeId(assignment.node.id);
+        }
       },
     });
   }
@@ -273,12 +324,17 @@ export class AssignmentCanvasComponent implements OnInit {
         );
         this.state.pendingOperations.update((ops) => ops.filter((o) => o.id !== op.id));
         this.updateTabCount(instanceId);
+        this.state.refreshPersonList();
         this.advanceToNextEmptyNode(nodeId);
       },
       error: (err) => {
         // Rollback
         this.state.assignments.set(op.previousAssignments);
         this.state.pendingOperations.update((ops) => ops.filter((o) => o.id !== op.id));
+        this.updateTabCount(instanceId);
+        this.state.refreshPersonList();
+        // Restore focus to the node that failed so the user can retry
+        this.state.setSelectedNodeId(nodeId);
         const msg = err?.status === 409
           ? 'Conflicte en assignar la persona. Ja pot estar assignada.'
           : 'Error en assignar la persona.';
@@ -382,9 +438,12 @@ export class AssignmentCanvasComponent implements OnInit {
     this.assignmentService.unassign(instanceId, assignment.id).subscribe({
       next: () => {
         this.updateTabCount(instanceId);
+        this.state.refreshPersonList();
       },
       error: () => {
         this.state.assignments.set(snapshot);
+        this.updateTabCount(instanceId);
+        this.state.refreshPersonList();
         this.toast.error('Error en desassignar la persona.');
       },
     });

@@ -18,6 +18,8 @@ export interface AvailablePersonDto {
   attendanceStatus: AttendanceStatus;
   nextPerformanceStatus: AttendanceStatus | null;
   assignedInSegment: boolean;
+  assignedInstanceId?: string;
+  assignedNodeLabel?: string;
 }
 
 export interface AvailablePersonsQuery {
@@ -61,7 +63,18 @@ export class AvailablePersonsService {
       );
     }
 
-    const { search, height, isXicalla, excludeAssigned = true } = query;
+    const { search, height } = query;
+
+    // HTTP query params arrive as strings — coerce booleans explicitly
+    const raw = query as unknown as Record<string, string | boolean | undefined>;
+    const coerceBool = (v: string | boolean | undefined, def: boolean): boolean => {
+      if (v === undefined) return def;
+      if (typeof v === 'boolean') return v;
+      return v === 'true';
+    };
+    const isXicallaBool: boolean | undefined =
+      raw['isXicalla'] === undefined ? undefined : coerceBool(raw['isXicalla'], false);
+    const excludeAssignedBool = coerceBool(raw['excludeAssigned'], true);
 
     // Build base person query
     const qb = this.personRepository
@@ -75,11 +88,11 @@ export class AvailablePersonsService {
       );
     }
 
-    if (typeof isXicalla === 'boolean') {
-      qb.andWhere('person.isXicalla = :isXicalla', { isXicalla });
+    if (isXicallaBool !== undefined) {
+      qb.andWhere('person.isXicalla = :isXicalla', { isXicalla: isXicallaBool });
     }
 
-    if (excludeAssigned) {
+    if (excludeAssignedBool) {
       qb.andWhere(
         `NOT EXISTS (
           SELECT 1 FROM node_assignments na
@@ -113,16 +126,19 @@ export class AvailablePersonsService {
       });
     }
 
-    // Get assigned person IDs in this segment (for `assignedInSegment` flag)
-    const assignedInSegment = new Set<string>();
-    if (!excludeAssigned) {
-      const assigned = await this.assignmentRepository
-        .createQueryBuilder('a')
-        .innerJoin('a.figureInstance', 'fi')
-        .where('fi.segmentId = :segmentId', { segmentId })
-        .select('a.personId')
-        .getMany();
-      assigned.forEach((a) => assignedInSegment.add((a as any).personId));
+    // Get assigned person details in this segment (for `assignedInSegment` flag + location)
+    const assignedDetails = new Map<string, { instanceId: string; nodeLabel: string }>();
+    if (!excludeAssignedBool) {
+      const segmentAssignments = await this.assignmentRepository.find({
+        where: { figureInstance: { segment: { id: segmentId } } },
+        relations: ['figureInstance', 'figureNode', 'person'],
+      });
+      segmentAssignments.forEach((assignment) => {
+        assignedDetails.set(assignment.person.id, {
+          instanceId: assignment.figureInstance.id,
+          nodeLabel: assignment.figureNode?.label ?? '',
+        });
+      });
     }
 
     // Get next performance event for next-performance status
@@ -148,6 +164,7 @@ export class AvailablePersonsService {
       const nextPerformanceStatus = nextPerformance
         ? (nextAttendanceMap.get(person.id) ?? null)
         : null;
+      const detail = assignedDetails.get(person.id);
 
       return {
         id: person.id,
@@ -158,7 +175,9 @@ export class AvailablePersonsService {
         isXicalla: person.isXicalla,
         attendanceStatus,
         nextPerformanceStatus,
-        assignedInSegment: excludeAssigned ? false : assignedInSegment.has(person.id),
+        assignedInSegment: !excludeAssignedBool && assignedDetails.has(person.id),
+        assignedInstanceId: detail?.instanceId,
+        assignedNodeLabel: detail?.nodeLabel,
       };
     });
   }

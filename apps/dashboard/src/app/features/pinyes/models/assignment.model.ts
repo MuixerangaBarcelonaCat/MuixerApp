@@ -36,6 +36,8 @@ export interface AvailablePerson {
   attendanceStatus: AttendanceStatus;
   nextPerformanceStatus: AttendanceStatus | null;
   assignedInSegment: boolean;
+  assignedInstanceId?: string;
+  assignedNodeLabel?: string;
 }
 
 export interface FigureHistoryEntry {
