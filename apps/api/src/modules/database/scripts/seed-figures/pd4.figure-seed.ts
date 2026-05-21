@@ -24,8 +24,6 @@ const figure: FigureSeed = {
   direction:    180,
   metadata:     {},
   nodes: [
-    // ── BASE (intersecció pinya-tronc) ────────────────────────────────────
-    { label: 'BASE',        zone: 'BASE',  positionType: 'base',        x: 500, y: 500, z: 0, width: 80, height: 40, rotation:   0, color: '#EEEEEE', shape: 'RECTANGLE', sortOrder:  0, climbPath: null, ringLevel: null, metadata: {} },
     // ── PINYA — RING 1 (primer cordó) ─────────────────────────────────────
     // Centre — crosses/contraforts belong to the pinya core, not tied to a specific ring
     { label: 'CROSSA',      zone: 'PINYA', positionType: 'crossa',     x: 436, y: 500, z: 0, width: 80, height: 40, rotation: 270, color: '#9FA8DA', shape: 'RECTANGLE', sortOrder:  1, climbPath: null, ringLevel: null, metadata: {} },
@@ -70,10 +68,14 @@ const figure: FigureSeed = {
     { label: 'CORDÓ OBERT', zone: 'PINYA', positionType: 'cordo-obert', x: 500, y: 760, z: 0, width: 64, height: 40, rotation:   0, color: '#FFF9C4', shape: 'ELLIPSE',    sortOrder: 14, climbPath: null, ringLevel: null, metadata: {} },
     { label: 'CORDÓ OBERT', zone: 'PINYA', positionType: 'cordo-obert', x: 252, y: 500, z: 0, width: 64, height: 40, rotation: 270, color: '#FFF9C4', shape: 'ELLIPSE',    sortOrder: 18, climbPath: null, ringLevel: null, metadata: {} },
     { label: 'CORDÓ OBERT', zone: 'PINYA', positionType: 'cordo-obert', x: 749, y: 500, z: 0, width: 64, height: 40, rotation:  91, color: '#FFF9C4', shape: 'ELLIPSE',    sortOrder: 22, climbPath: null, ringLevel: null, metadata: {} },
-    // ── TRONC ──────────────────────────────────────────────────────────────
-    { label: 'Segon',    zone: 'TRONC', positionType: 'segon',    x: 0, y: 0, z: 1, width: 60, height: 40, rotation: 0, color: null, shape: 'RECTANGLE', sortOrder: 0, climbPath: null,  ringLevel: null, metadata: {} },
-    { label: 'Alçadora', zone: 'TRONC', positionType: 'alcadora', x: 0, y: 0, z: 2, width: 60, height: 40, rotation: 0, color: null, shape: 'RECTANGLE', sortOrder: 0, climbPath: '(A)', ringLevel: null, metadata: {} },
-    { label: 'Xiqueta',  zone: 'TRONC', positionType: 'xiqueta',  x: 0, y: 0, z: 3, width: 60, height: 40, rotation: 0, color: null, shape: 'RECTANGLE', sortOrder: 0, climbPath: '(X)', ringLevel: null, metadata: {} },
+  ],
+  // ── TRONC + BASE — shared across all "Pilar de 4" variants ──────────────
+  // x and width for TRONC are relative tronc units (1u = 1 person width).
+  familyNodes: [
+    { label: 'BASE',     zone: 'BASE',  positionType: 'base',     x: 500, y: 500, z: 0, width: 80, height: 40, rotation: 0, color: '#EEEEEE', shape: 'RECTANGLE', sortOrder: 0, climbPath: null,  ringLevel: null, metadata: {} },
+    { label: 'Segon',    zone: 'TRONC', positionType: 'segon',    x: 0,   y: 0,   z: 1, width: 1,  height: 40, rotation: 0, color: null,      shape: 'RECTANGLE', sortOrder: 0, climbPath: null,  ringLevel: null, metadata: {} },
+    { label: 'Alçadora', zone: 'TRONC', positionType: 'alcadora', x: 0,   y: 0,   z: 2, width: 1,  height: 40, rotation: 0, color: null,      shape: 'RECTANGLE', sortOrder: 0, climbPath: '(A)', ringLevel: null, metadata: {} },
+    { label: 'Xiqueta',  zone: 'TRONC', positionType: 'xiqueta',  x: 0,   y: 0,   z: 3, width: 1,  height: 40, rotation: 0, color: null,      shape: 'RECTANGLE', sortOrder: 0, climbPath: '(X)', ringLevel: null, metadata: {} },
   ],
 };
 

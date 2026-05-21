@@ -26,8 +26,6 @@ const figure: FigureSeed = {
   direction:    180,
   metadata:     {},
   nodes: [
-    // ── BASE ────────────────────────────────────────────────────────────────
-    { label: 'BASE',    zone: 'BASE',  positionType: 'base',    x: 500, y: 500, z: 0, width: 80, height: 40, rotation:   0, color: '#EEEEEE', shape: 'RECTANGLE', sortOrder:  0, climbPath: null, ringLevel: null, metadata: {} },
     // ── PINYA — RING 1 (1r cordó: creu de suport directe) ────────────────
     { label: 'MANS',    zone: 'PINYA', positionType: 'mans',    x: 500, y: 373, z: 0, width: 80, height: 40, rotation:   0, color: '#FFE082', shape: 'RECTANGLE', sortOrder:  5, climbPath: null, ringLevel: 1, metadata: {} },
     { label: 'MANS',    zone: 'PINYA', positionType: 'mans',    x: 500, y: 624, z: 0, width: 80, height: 40, rotation:   0, color: '#FFE082', shape: 'RECTANGLE', sortOrder: 10, climbPath: null, ringLevel: 1, metadata: {} },
@@ -38,9 +36,13 @@ const figure: FigureSeed = {
     { label: 'LATERAL', zone: 'PINYA', positionType: 'laterals', x: 592, y: 406, z: 0, width: 80, height: 40, rotation:  45, color: '#80DEEA', shape: 'RECTANGLE', sortOrder: 26, climbPath: null, ringLevel: 2, metadata: {} },
     { label: 'LATERAL', zone: 'PINYA', positionType: 'laterals', x: 412, y: 590, z: 0, width: 80, height: 40, rotation: 225, color: '#80DEEA', shape: 'RECTANGLE', sortOrder: 29, climbPath: null, ringLevel: 2, metadata: {} },
     { label: 'LATERAL', zone: 'PINYA', positionType: 'laterals', x: 595, y: 595, z: 0, width: 80, height: 40, rotation: 135, color: '#80DEEA', shape: 'RECTANGLE', sortOrder: 32, climbPath: null, ringLevel: 2, metadata: {} },
-    // ── TRONC ────────────────────────────────────────────────────────────────
-    { label: 'Alçadora', zone: 'TRONC', positionType: 'alcadora', x: 0, y: 0, z: 1, width: 60, height: 40, rotation: 0, color: null, shape: 'RECTANGLE', sortOrder: 0, climbPath: null, ringLevel: null, metadata: {} },
-    { label: 'Xiqueta',  zone: 'TRONC', positionType: 'xiqueta',  x: 0, y: 0, z: 2, width: 60, height: 40, rotation: 0, color: null, shape: 'RECTANGLE', sortOrder: 0, climbPath: null, ringLevel: null, metadata: {} },
+  ],
+  // ── TRONC + BASE — shared with pd3-creu (same family) ───────────────────
+  // Inserted only if the family has no family nodes yet (pd3-creu runs first normally).
+  familyNodes: [
+    { label: 'BASE',     zone: 'BASE',  positionType: 'base',     x: 500, y: 500, z: 0, width: 80, height: 40, rotation: 0, color: '#EEEEEE', shape: 'RECTANGLE', sortOrder:  0, climbPath: null, ringLevel: null, metadata: {} },
+    { label: 'Alçadora', zone: 'TRONC', positionType: 'alcadora', x: 0,   y: 0,   z: 1, width: 1,  height: 40, rotation: 0, color: null,      shape: 'RECTANGLE', sortOrder:  0, climbPath: null, ringLevel: null, metadata: {} },
+    { label: 'Xiqueta',  zone: 'TRONC', positionType: 'xiqueta',  x: 0,   y: 0,   z: 2, width: 1,  height: 40, rotation: 0, color: null,      shape: 'RECTANGLE', sortOrder:  0, climbPath: null, ringLevel: null, metadata: {} },
   ],
 };
 

@@ -44,6 +44,18 @@
     </div>
 
     <div class="flex items-center gap-3">
+      <!-- Tronc drawer trigger -->
+      <button
+        type="button"
+        class="btn btn-ghost btn-sm gap-1"
+        (click)="troncDrawerOpen.set(true)"
+        aria-label="Obrir panell del Tronc"
+        title="Tronc"
+      >
+        <lucide-icon name="Layers" [size]="16" aria-hidden="true" />
+        Tronc
+      </button>
+
         <!-- Save status -->
       @if (saveStatus() !== 'idle') {
         <span
@@ -177,34 +189,6 @@
 
     <!-- Canvas Area -->
     <main class="editor-canvas" aria-label="Editor visual de la figura">
-
-      <!-- Floating overlays (top-left of canvas) -->
-      <div class="canvas-overlays">
-        <!-- Tronc widget -->
-        <app-tronc-widget
-          [troncNodes]="troncNodes()"
-          [baseNodes]="baseNodes()"
-          [mode]="'editor'"
-          [selectedNodeId]="selectedNodeId()"
-          (nodeAdded)="onTroncNodeAdded($event)"
-          (nodeRemoved)="onTroncNodeRemoved($event)"
-          (floorRemoved)="onTroncFloorRemoved($event)"
-          (nodeSelected)="onNodeSelected($event)"
-          (baseAdded)="onBaseNodeAdded($event)"
-          (baseRemoved)="onBaseNodeRemoved($event)"
-        />
-
-        <!-- Direccions widget (estructura de nodes FIGURE_DIRECTION / XICALLA_DIRECTION) -->
-        <!-- TODO P5.4: aquí s'implementarà l'assignació de persones reals a les direccions -->
-        <!-- <app-direccions-widget
-          [directionNodes]="directionNodes()"
-          [mode]="'editor'"
-          [selectedNodeId]="selectedNodeId()"
-          (nodeAdded)="onDirectionNodeAdded($event)"
-          (nodeRemoved)="onDirectionNodeRemoved($event)"
-          (nodeSelected)="onNodeSelected($event)"
-        /> -->
-      </div>
 
       @if (loading()) {
         <div class="flex items-center justify-center h-full">
@@ -479,6 +463,51 @@
     </aside>
   </div>
 </div>
+
+<!-- ── Tronc Floating Panel ──────────────────────────────────────────────── -->
+@if (troncDrawerOpen()) {
+  <aside
+    class="tronc-floating-panel"
+    [style.left.px]="troncPanelPos().x"
+    [style.top.px]="troncPanelPos().y"
+    aria-label="Tronc de la figura"
+    (keydown.escape)="troncDrawerOpen.set(false)"
+  >
+    <div
+      class="tronc-floating-header"
+      (mousedown)="onTroncDragStart($event)"
+    >
+      <lucide-icon name="GripVertical" [size]="14" class="drag-handle" aria-hidden="true" />
+      <h2 class="tronc-floating-title">
+        Tronc
+        <span class="tronc-shared-badge" title="Compartit entre totes les variants de la família">
+          Compartit
+        </span>
+      </h2>
+      <button
+        type="button"
+        class="btn btn-ghost btn-xs btn-square"
+        (click)="troncDrawerOpen.set(false)"
+        aria-label="Tancar panell del Tronc"
+      >
+        <lucide-icon name="X" [size]="14" aria-hidden="true" />
+      </button>
+    </div>
+    <app-tronc-view
+      class="tronc-floating-body"
+      [troncNodes]="troncNodes()"
+      [baseNodes]="baseNodes()"
+      [mode]="'editor'"
+      [selectedNodeId]="selectedNodeId()"
+      (nodeSelected)="onNodeSelected($event)"
+      (nodeAdded)="onTroncNodeAdded($event)"
+      (nodeRemoved)="onTroncNodeRemoved($event)"
+      (nodeUpdated)="onTroncNodeUpdated($event)"
+      (baseAdded)="onBaseNodeAdded($event)"
+      (baseRemoved)="onBaseNodeRemoved($event)"
+    />
+  </aside>
+}
 
 <!-- ── Shortcuts Modal ──────────────────────────────────────────────────── -->
 @if (shortcutsModalOpen()) {

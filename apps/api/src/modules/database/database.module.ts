@@ -10,6 +10,7 @@ import { RefreshToken } from '../auth/entities/refresh-token.entity';
 import { FigureFamily } from '../figure/entities/figure-family.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
 import { FigureNode } from '../figure/entities/figure-node.entity';
+import { FigureFamilyNode } from '../figure/entities/figure-family-node.entity';
 import { CompositionTemplate } from '../composition/entities/composition-template.entity';
 import { CompositionSlot } from '../composition/entities/composition-slot.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
@@ -39,6 +40,7 @@ import { NodeAssignment } from '../node-assignment/entities/node-assignment.enti
             FigureFamily,
             FigureTemplate,
             FigureNode,
+            FigureFamilyNode,
             CompositionTemplate,
             CompositionSlot,
             EventSegment,

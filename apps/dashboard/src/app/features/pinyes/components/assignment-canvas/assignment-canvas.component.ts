@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  HostListener,
   inject,
   OnDestroy,
   OnInit,
@@ -9,7 +10,7 @@ import {
 } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Location } from '@angular/common';
-import { LucideAngularModule, ArrowLeft, Users, Edit, RefreshCw, Plus, Trash2, X } from 'lucide-angular';
+import { LucideAngularModule, ArrowLeft, Users, Edit, RefreshCw, Plus, Trash2, X, PanelLeft, PanelLeftClose } from 'lucide-angular';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
@@ -21,8 +22,10 @@ import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component'
 import { PersonPanelComponent } from '../person-panel/person-panel.component';
 import { NodePopoverComponent } from '../node-popover/node-popover.component';
 import { ImportPinyaModalComponent } from '../import-pinya-modal/import-pinya-modal.component';
+import { TroncViewComponent } from '../tronc-view/tronc-view.component';
 import {
   AssignmentDetail,
+  AttendanceStatus,
   AvailablePerson,
   BulkImportResult,
   InstanceNodeItem,
@@ -31,6 +34,7 @@ import {
 import { SegmentDetail } from '../../models/segment.model';
 import { FigureFamilyDetail, FigureFamilyVariant } from '../../models/figure-family.model';
 import { FigureTemplateService } from '../../services/figure-template.service';
+import { FigureZone } from '@muixer/shared';
 
 interface InstanceTab {
   instanceId: string;
@@ -55,8 +59,10 @@ interface InstanceTab {
     PersonPanelComponent,
     NodePopoverComponent,
     ImportPinyaModalComponent,
+    TroncViewComponent,
   ],
   templateUrl: './assignment-canvas.component.html',
+  styleUrl: './assignment-canvas.component.scss',
 })
 export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
@@ -77,6 +83,8 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly Plus = Plus;
   readonly Trash2 = Trash2;
   readonly X = X;
+  readonly PanelLeft = PanelLeft;
+  readonly PanelLeftClose = PanelLeftClose;
 
   readonly eventId = signal('');
   readonly segmentId = signal('');
@@ -96,11 +104,38 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly deletingInstance = signal(false);
   readonly pendingDeleteTab = signal<InstanceTab | null>(null);
 
+  readonly troncPanelOpen = signal(false);
+
+  // Floating tronc panel drag state
+  readonly troncPanelPos = signal({ x: 16, y: 60 });
+  private troncDragging = false;
+  private troncDragOffset = { x: 0, y: 0 };
+
   readonly activeTab = computed(() =>
     this.tabs().find((t) => t.instanceId === this.state.activeInstanceId()) ?? null,
   );
 
   readonly activeNodes = computed(() => this.activeTab()?.nodes ?? []);
+
+  /** Nodes rendered on the pinya Konva canvas (PINYA + BASE + direction zones, no TRONC). */
+  readonly activePinyaNodes = computed(() =>
+    this.activeNodes().filter((n) => n.zone !== FigureZone.TRONC),
+  );
+
+  /** TRONC-zone nodes passed to the tronc panel. */
+  readonly activeTroncNodes = computed(() =>
+    this.activeNodes().filter((n) => n.zone === FigureZone.TRONC),
+  );
+
+  /** BASE-zone nodes passed to the tronc panel (P1 row). */
+  readonly activeBaseNodes = computed(() =>
+    this.activeNodes().filter((n) => n.zone === FigureZone.BASE),
+  );
+
+  /** Cast attendanceRegistry to AttendanceStatus map for TroncViewComponent. */
+  readonly troncAttendanceMap = computed(
+    () => this.state.attendanceRegistry() as Map<string, AttendanceStatus>,
+  );
 
   readonly assignmentProgress = computed(() => {
     const tab = this.activeTab();
@@ -179,6 +214,30 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     if (tabBuilders.length > 0) {
       this.selectTab(tabBuilders[0].instanceId);
     }
+  }
+
+  // ── Tronc panel drag ─────────────────────────────────────────────────────
+
+  onTroncDragStart(event: MouseEvent): void {
+    if ((event.target as HTMLElement).closest('button')) return;
+    this.troncDragging = true;
+    const pos = this.troncPanelPos();
+    this.troncDragOffset = { x: event.clientX - pos.x, y: event.clientY - pos.y };
+    event.preventDefault();
+  }
+
+  @HostListener('document:mousemove', ['$event'])
+  onTroncDragMove(event: MouseEvent): void {
+    if (!this.troncDragging) return;
+    this.troncPanelPos.set({
+      x: event.clientX - this.troncDragOffset.x,
+      y: event.clientY - this.troncDragOffset.y,
+    });
+  }
+
+  @HostListener('document:mouseup')
+  onTroncDragEnd(): void {
+    this.troncDragging = false;
   }
 
   selectTab(instanceId: string): void {
@@ -301,6 +360,14 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
   onNodeClicked(event: { nodeId: string; x: number; y: number }): void {
     this.popoverPosition.set({ x: event.x, y: event.y });
+  }
+
+  onTroncNodeClicked(event: { nodeId: string; event: MouseEvent }): void {
+    const target = event.event.currentTarget as HTMLElement | null;
+    if (target) {
+      const rect = target.getBoundingClientRect();
+      this.popoverPosition.set({ x: rect.right, y: rect.top + rect.height / 2 });
+    }
   }
 
   onPersonSelected(person: AvailablePerson): void {

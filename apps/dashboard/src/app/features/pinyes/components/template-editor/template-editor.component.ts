@@ -15,7 +15,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { CanvasStateService } from '../../services/canvas-state.service';
 import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component';
-import { TroncWidgetComponent } from '../tronc-widget/tronc-widget.component';
+import { TroncViewComponent } from '../tronc-view/tronc-view.component';
 import {
   FigureTemplateDetail,
   FigureNodeItem,
@@ -52,7 +52,7 @@ const PINYA_POSITIONS: PinyaPosition[] = [
   selector: 'app-template-editor',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule, FigureCanvasComponent, TroncWidgetComponent],
+  imports: [FormsModule, LucideAngularModule, FigureCanvasComponent, TroncViewComponent],
   templateUrl: './template-editor.component.html',
   styleUrl: './template-editor.component.scss',
 })
@@ -84,6 +84,12 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   // Panel visibility
   propertiesPanelOpen = signal(true);
   shortcutsModalOpen = signal(false);
+  troncDrawerOpen = signal(false);
+
+  // Floating tronc panel drag state
+  readonly troncPanelPos = signal({ x: 16, y: 60 });
+  private troncDragging = false;
+  private troncDragOffset = { x: 0, y: 0 };
 
   // Status
   loading = signal(false);
@@ -180,15 +186,17 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   onTroncNodeAdded(event: { z: number; positionType: string; label: string; sortOrder: number }): void {
     const id = crypto.randomUUID();
+    const existingAtZ = this.troncNodes().filter((n) => n.z === event.z);
+    const nextX = existingAtZ.reduce((max, n) => Math.max(max, n.x + n.width), 0);
     const newNode: FigureNodeItem = {
       id,
       label: event.label,
       zone: FigureZone.TRONC,
       positionType: event.positionType,
-      x: 0,
+      x: nextX,
       y: 0,
       z: event.z,
-      width: 60,
+      width: 1,
       height: 40,
       rotation: 0,
       color: null,
@@ -207,6 +215,11 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   onTroncNodeRemoved(id: string): void {
     this.nodes.update((n) => n.filter((node) => node.id !== id));
     if (this.selectedNodeId() === id) this.selectedNodeId.set(null);
+    this.scheduleAutosave();
+  }
+
+  onTroncNodeUpdated(event: { nodeId: string; x: number; width: number }): void {
+    this.updateNode(event.nodeId, { x: event.x, width: event.width });
     this.scheduleAutosave();
   }
 
@@ -290,6 +303,30 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     this.nodes.update((n) => [...n, newNode]);
     this.selectedNodeId.set(id);
     this.scheduleAutosave();
+  }
+
+  // ── Tronc panel drag ─────────────────────────────────────────────────────
+
+  onTroncDragStart(event: MouseEvent): void {
+    if ((event.target as HTMLElement).closest('button')) return;
+    this.troncDragging = true;
+    const pos = this.troncPanelPos();
+    this.troncDragOffset = { x: event.clientX - pos.x, y: event.clientY - pos.y };
+    event.preventDefault();
+  }
+
+  @HostListener('document:mousemove', ['$event'])
+  onTroncDragMove(event: MouseEvent): void {
+    if (!this.troncDragging) return;
+    this.troncPanelPos.set({
+      x: event.clientX - this.troncDragOffset.x,
+      y: event.clientY - this.troncDragOffset.y,
+    });
+  }
+
+  @HostListener('document:mouseup')
+  onTroncDragEnd(): void {
+    this.troncDragging = false;
   }
 
   @HostListener('document:keydown', ['$event'])

@@ -10,6 +10,7 @@ import { NodeAssignment } from './entities/node-assignment.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
 import { InstanceNode } from '../event-segment/entities/instance-node.entity';
 import { FigureNode } from '../figure/entities/figure-node.entity';
+import { FigureFamilyNode } from '../figure/entities/figure-family-node.entity';
 import { Person } from '../person/person.entity';
 import { CompositionSlot } from '../composition/entities/composition-slot.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
@@ -171,6 +172,28 @@ function figureNodeToResponse(node: FigureNode): InstanceNodeResponse {
   };
 }
 
+function familyNodeToResponse(node: FigureFamilyNode): InstanceNodeResponse {
+  return {
+    id: node.id,
+    sourceNodeId: null,
+    originNodeId: null, // Family nodes are always the canonical source
+    label: node.label,
+    zone: node.zone,
+    positionType: node.positionType,
+    x: node.x,
+    y: node.y,
+    z: node.z,
+    width: node.width,
+    height: node.height,
+    rotation: node.rotation,
+    color: node.color,
+    shape: node.shape,
+    sortOrder: node.sortOrder,
+    ringLevel: node.ringLevel,
+    isSnapshotted: false,
+  };
+}
+
 // ─── Service ────────────────────────────────────────────────────────────────
 
 @Injectable()
@@ -184,6 +207,8 @@ export class NodeAssignmentService {
     private readonly instanceNodeRepository: Repository<InstanceNode>,
     @InjectRepository(FigureNode)
     private readonly figureNodeRepository: Repository<FigureNode>,
+    @InjectRepository(FigureFamilyNode)
+    private readonly familyNodeRepository: Repository<FigureFamilyNode>,
     @InjectRepository(Person)
     private readonly personRepository: Repository<Person>,
     @InjectRepository(CompositionSlot)
@@ -220,11 +245,21 @@ export class NodeAssignmentService {
 
     const template = await this.figureTemplateRepository.findOne({
       where: { id: instance.figureTemplate.id },
-      relations: ['nodes'],
+      relations: ['nodes', 'family'],
     });
-    return (template?.nodes ?? [])
+
+    const templateNodes = (template?.nodes ?? [])
       .sort((a, b) => a.sortOrder - b.sortOrder)
       .map(figureNodeToResponse);
+
+    const familyNodes = template?.family
+      ? await this.familyNodeRepository.find({
+          where: { family: { id: template.family.id } },
+          order: { z: 'ASC', sortOrder: 'ASC' },
+        })
+      : [];
+
+    return [...templateNodes, ...familyNodes.map(familyNodeToResponse)];
   }
 
   // ── Existing — assignments list ────────────────────────────────────────────
@@ -776,17 +811,23 @@ export class NodeAssignmentService {
 
     const template = await this.figureTemplateRepository.findOne({
       where: { id: instance.figureTemplate.id },
-      relations: ['nodes'],
+      relations: ['nodes', 'family'],
     });
 
     if (!template) {
       throw new NotFoundException(`FigureTemplate ${instance.figureTemplate.id} not found`);
     }
 
-    const nodes = template.nodes ?? [];
+    const templateNodes = template.nodes ?? [];
+    const familyNodes = template.family
+      ? await this.familyNodeRepository.find({
+          where: { family: { id: template.family.id } },
+          order: { z: 'ASC', sortOrder: 'ASC' },
+        })
+      : [];
 
     return this.dataSource.transaction(async (manager) => {
-      const instanceNodes = nodes.map((node) =>
+      const templateInstanceNodes = templateNodes.map((node) =>
         manager.create(InstanceNode, {
           figureInstance: instance,
           sourceNodeId: node.id,
@@ -809,7 +850,33 @@ export class NodeAssignmentService {
         }),
       );
 
-      const saved = await manager.save(InstanceNode, instanceNodes);
+      const familyInstanceNodes = familyNodes.map((node) =>
+        manager.create(InstanceNode, {
+          figureInstance: instance,
+          sourceNodeId: node.id, // FigureFamilyNode.id — traced for dedup/upgrade
+          originNodeId: null, // Family nodes are always canonical
+          label: node.label,
+          zone: node.zone,
+          positionType: node.positionType,
+          x: node.x,
+          y: node.y,
+          z: node.z,
+          width: node.width,
+          height: node.height,
+          rotation: node.rotation,
+          color: node.color,
+          shape: node.shape,
+          sortOrder: node.sortOrder,
+          climbPath: node.climbPath,
+          ringLevel: node.ringLevel,
+          metadata: node.metadata,
+        }),
+      );
+
+      const saved = await manager.save(InstanceNode, [
+        ...templateInstanceNodes,
+        ...familyInstanceNodes,
+      ]);
 
       await manager.update(FigureInstance, instance.id, {
         snapshotted: true,

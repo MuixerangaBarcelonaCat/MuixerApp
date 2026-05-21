@@ -78,18 +78,32 @@
 
   <!-- Main content: canvas + person panel -->
   <div class="flex flex-1 overflow-hidden">
+
     <!-- Canvas area -->
     <main class="flex-1 relative overflow-hidden">
+
+      <!-- Tronc drawer trigger (floating top-left) -->
+      <button
+        type="button"
+        class="tronc-drawer-trigger"
+        (click)="troncPanelOpen.set(true)"
+        aria-label="Obrir panell del Tronc"
+        title="Tronc"
+      >
+        <i-lucide [img]="PanelLeft" class="size-4" />
+        Tronc
+      </button>
+
       @if (loading()) {
         <div class="absolute inset-0 flex items-center justify-center bg-base-100/80 z-10">
           <span class="loading loading-spinner loading-lg text-primary"></span>
         </div>
       }
 
-      @if (!loading() && activeNodes().length > 0) {
+      @if (!loading() && activePinyaNodes().length > 0) {
         <app-figure-canvas
           class="w-full h-full block"
-          [nodes]="activeNodes()"
+          [nodes]="activePinyaNodes()"
           mode="assignment"
           [selectedNodeId]="state.selectedNodeId()"
           [assignments]="state.assignments()"
@@ -102,10 +116,17 @@
         />
       }
 
-      @if (!loading() && activeNodes().length === 0 && tabs().length > 0) {
+      @if (!loading() && activePinyaNodes().length === 0 && activeNodes().length === 0 && tabs().length > 0) {
         <div class="flex flex-col items-center justify-center h-full gap-3 text-base-content/50">
           <i-lucide [img]="Users" class="size-12" />
           <p class="text-sm">Carregant nodes de la figura...</p>
+        </div>
+      }
+
+      @if (!loading() && activePinyaNodes().length === 0 && activeNodes().length > 0) {
+        <div class="flex flex-col items-center justify-center h-full gap-3 text-base-content/50">
+          <i-lucide [img]="Users" class="size-12" />
+          <p class="text-sm">Aquesta figura no té nodes de pinya. Consulta el panell del tronc.</p>
         </div>
       }
 
@@ -130,6 +151,7 @@
     </main>
 
     <!-- Person panel (right sidebar) -->
+
     @if (!state.panelCollapsed() && eventId() && segmentId()) {
       <aside class="w-64 shrink-0 overflow-hidden">
         <app-person-panel
@@ -144,6 +166,46 @@
       </aside>
     }
   </div>
+
+<!-- Tronc Floating Panel -->
+@if (troncPanelOpen()) {
+  <aside
+    class="tronc-floating-panel"
+    [style.left.px]="troncPanelPos().x"
+    [style.top.px]="troncPanelPos().y"
+    aria-label="Tronc de la figura"
+    (keydown.escape)="troncPanelOpen.set(false)"
+  >
+    <div
+      class="tronc-floating-header"
+      (mousedown)="onTroncDragStart($event)"
+    >
+      <i-lucide [img]="PanelLeft" class="drag-handle size-3.5" aria-hidden="true" />
+      <h2 class="tronc-floating-title">Tronc</h2>
+      <button
+        type="button"
+        class="btn btn-ghost btn-xs btn-square"
+        (click)="troncPanelOpen.set(false)"
+        aria-label="Tancar panell del Tronc"
+      >
+        <i-lucide [img]="X" class="size-3.5" aria-hidden="true" />
+      </button>
+    </div>
+    <app-tronc-view
+      class="tronc-floating-body"
+      [troncNodes]="activeTroncNodes()"
+      [baseNodes]="activeBaseNodes()"
+      [assignments]="state.assignments()"
+      [selectedNodeId]="state.selectedNodeId()"
+      [mode]="'assignment'"
+      [heightMode]="state.heightMode()"
+      [highlightedNodeIds]="highlightedNodeIds()"
+      [attendanceMap]="troncAttendanceMap()"
+      (nodeSelected)="onNodeSelected($event)"
+      (nodeClicked)="onTroncNodeClicked($event)"
+    />
+  </aside>
+}
 
   <!-- Bottom bar -->
   <footer class="flex items-center gap-3 px-4 py-2 bg-base-100 border-t border-base-200 shrink-0 text-sm">

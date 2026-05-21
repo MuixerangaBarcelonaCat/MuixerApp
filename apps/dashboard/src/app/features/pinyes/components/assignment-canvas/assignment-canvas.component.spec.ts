@@ -5,13 +5,14 @@ import { of, throwError } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
   LUCIDE_ICONS, LucideIconProvider,
-  ArrowLeft, Users, Edit, RefreshCw, Plus,
+  ArrowLeft, Users, Edit, RefreshCw, Plus, PanelLeft, PanelLeftClose,
 } from 'lucide-angular';
 import { AssignmentCanvasComponent } from './assignment-canvas.component';
 import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component';
 import { PersonPanelComponent } from '../person-panel/person-panel.component';
 import { NodePopoverComponent } from '../node-popover/node-popover.component';
 import { ImportPinyaModalComponent } from '../import-pinya-modal/import-pinya-modal.component';
+import { TroncViewComponent } from '../tronc-view/tronc-view.component';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
 import { EventSegmentService } from '../../services/event-segment.service';
@@ -68,6 +69,20 @@ class StubImportModal {
   readonly closed = output<void>();
 }
 
+@Component({ selector: 'app-tronc-view', standalone: true, template: '' })
+class StubTroncView {
+  readonly troncNodes = input<unknown[]>([]);
+  readonly baseNodes = input<unknown[]>([]);
+  readonly assignments = input<AssignmentDetail[]>([]);
+  readonly selectedNodeId = input<string | null>(null);
+  readonly mode = input<string>('assignment');
+  readonly heightMode = input<string>('relative');
+  readonly highlightedNodeIds = input<Set<string>>(new Set());
+  readonly attendanceMap = input<Map<string, string>>(new Map());
+  readonly nodeSelected = output<string | null>();
+  readonly nodeClicked = output<{ nodeId: string; event: MouseEvent }>();
+}
+
 // ── Test constants & factories ──────────────────────────────────────────────
 
 const EVENT_ID = 'event-uuid-1';
@@ -82,6 +97,7 @@ const makeInstance = (overrides = {}) => ({
   sortOrder: 0,
   snapshotted: false,
   sourceVariantOrder: null,
+  assignedCount: 0,
   figureTemplate: { id: TEMPLATE_ID, name: 'pd4' },
   compositionTemplate: null,
   ...overrides,
@@ -236,13 +252,13 @@ describe('AssignmentCanvasComponent', () => {
         },
         {
           provide: LUCIDE_ICONS, multi: true,
-          useFactory: () => new LucideIconProvider({ ArrowLeft, Users, Edit, RefreshCw, Plus }),
+          useFactory: () => new LucideIconProvider({ ArrowLeft, Users, Edit, RefreshCw, Plus, PanelLeft, PanelLeftClose }),
         },
       ],
     })
     .overrideComponent(AssignmentCanvasComponent, {
-      remove: { imports: [FigureCanvasComponent, PersonPanelComponent, NodePopoverComponent, ImportPinyaModalComponent] },
-      add: { imports: [StubFigureCanvas, StubPersonPanel, StubNodePopover, StubImportModal] },
+      remove: { imports: [FigureCanvasComponent, PersonPanelComponent, NodePopoverComponent, ImportPinyaModalComponent, TroncViewComponent] },
+      add: { imports: [StubFigureCanvas, StubPersonPanel, StubNodePopover, StubImportModal, StubTroncView] },
     })
     .compileComponents();
 
@@ -521,6 +537,46 @@ describe('AssignmentCanvasComponent', () => {
 
       expect(assignmentService.getInstanceNodes).toHaveBeenCalledWith(INSTANCE_ID);
       expect(toastService.success).toHaveBeenCalled();
+    });
+  });
+
+  // ── tronc panel & zone filtering ──────────────────────────────────────────
+
+  describe('tronc panel', () => {
+    const allNodes = makeInstanceNodes(); // inode-1=BASE, inode-2=TRONC
+
+    beforeEach(() => {
+      component.tabs.update((list) => list.map((t) => ({ ...t, nodes: allNodes })));
+      fixture.detectChanges();
+    });
+
+    it('activePinyaNodes excludes TRONC-zone nodes', () => {
+      const pinyaNodes = component.activePinyaNodes();
+      expect(pinyaNodes.every((n) => n.zone !== FigureZone.TRONC)).toBe(true);
+      expect(pinyaNodes.length).toBe(allNodes.filter((n) => n.zone !== FigureZone.TRONC).length);
+    });
+
+    it('activeTroncNodes contains only TRONC-zone nodes', () => {
+      const troncNodes = component.activeTroncNodes();
+      expect(troncNodes.every((n) => n.zone === FigureZone.TRONC)).toBe(true);
+      expect(troncNodes.length).toBe(1);
+    });
+
+    it('activeBaseNodes contains only BASE-zone nodes', () => {
+      const baseNodes = component.activeBaseNodes();
+      expect(baseNodes.every((n) => n.zone === FigureZone.BASE)).toBe(true);
+      expect(baseNodes.length).toBe(1);
+    });
+
+    it('troncPanelOpen defaults to true', () => {
+      expect(component.troncPanelOpen()).toBe(true);
+    });
+
+    it('troncPanelOpen toggles correctly', () => {
+      component.troncPanelOpen.update((v) => !v);
+      expect(component.troncPanelOpen()).toBe(false);
+      component.troncPanelOpen.update((v) => !v);
+      expect(component.troncPanelOpen()).toBe(true);
     });
   });
 });

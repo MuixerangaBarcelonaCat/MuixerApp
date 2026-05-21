@@ -6,15 +6,21 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
+import { FigureZone } from '@muixer/shared';
 import { FigureFamily } from './entities/figure-family.entity';
 import { FigureTemplate } from './entities/figure-template.entity';
 import { FigureNode } from './entities/figure-node.entity';
+import { FigureFamilyNode } from './entities/figure-family-node.entity';
 import { CompositionSlot } from '../composition/entities/composition-slot.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
 import { CreateFigureTemplateDto } from './dto/create-figure-template.dto';
 import { UpdateFigureTemplateDto } from './dto/update-figure-template.dto';
 import { FigureTemplateFilterDto } from './dto/figure-template-filter.dto';
 import { CreateFigureNodeDto } from './dto/create-figure-node.dto';
+
+const FAMILY_ZONES = new Set<string>([FigureZone.TRONC, FigureZone.BASE]);
+
+// ─── Response interfaces ────────────────────────────────────────────────────
 
 export interface FigureNodeItem {
   id: string;
@@ -56,6 +62,8 @@ export interface FigureTemplateDetailItem extends FigureTemplateListItem {
   nodes: FigureNodeItem[];
 }
 
+// ─── Service ────────────────────────────────────────────────────────────────
+
 @Injectable()
 export class FigureTemplateService {
   constructor(
@@ -65,6 +73,8 @@ export class FigureTemplateService {
     private readonly templateRepository: Repository<FigureTemplate>,
     @InjectRepository(FigureNode)
     private readonly nodeRepository: Repository<FigureNode>,
+    @InjectRepository(FigureFamilyNode)
+    private readonly familyNodeRepository: Repository<FigureFamilyNode>,
     @InjectRepository(CompositionSlot)
     private readonly compositionSlotRepository: Repository<CompositionSlot>,
     @InjectRepository(FigureInstance)
@@ -117,7 +127,9 @@ export class FigureTemplateService {
       throw new NotFoundException(`FigureTemplate with ID ${id} not found`);
     }
 
-    return toDetailItem(template);
+    const familyNodes = await this.loadFamilyNodes(template.family?.id);
+
+    return toDetailItem(template, familyNodes);
   }
 
   async create(dto: CreateFigureTemplateDto): Promise<FigureTemplateDetailItem> {
@@ -151,7 +163,21 @@ export class FigureTemplateService {
     if (dto.deriveFromTemplateId) {
       await this.deriveNodes(saved!, dto.deriveFromTemplateId);
     } else if (dto.nodes && dto.nodes.length > 0) {
-      await this.createNodes(saved!, dto.nodes);
+      const familyDtos = dto.nodes.filter((n) => FAMILY_ZONES.has(n.zone));
+      const templateDtos = dto.nodes.filter((n) => !FAMILY_ZONES.has(n.zone));
+
+      if (templateDtos.length > 0) {
+        await this.createNodes(saved!, templateDtos);
+      }
+
+      if (familyDtos.length > 0) {
+        const existingCount = await this.familyNodeRepository.count({
+          where: { family: { id: family.id } },
+        });
+        if (existingCount === 0) {
+          await this.createFamilyNodes(family, familyDtos);
+        }
+      }
     }
 
     return this.findOne(saved!.id);
@@ -248,11 +274,23 @@ export class FigureTemplateService {
 
     const savedCopy = await this.templateRepository.save(copy);
 
-    if (original.nodes && original.nodes.length > 0) {
-      await this.createNodes(savedCopy, original.nodes.map(nodeToCreateDto));
+    // Only copy PINYA/direction nodes — TRONC/BASE are shared at family level
+    const pinyaNodes = (original.nodes ?? []).filter((n) => !FAMILY_ZONES.has(n.zone));
+    if (pinyaNodes.length > 0) {
+      await this.createNodes(savedCopy, pinyaNodes.map(nodeToCreateDto));
     }
 
     return this.findOne(savedCopy.id);
+  }
+
+  // ─── Private helpers ────────────────────────────────────────────────────────
+
+  private async loadFamilyNodes(familyId?: string): Promise<FigureFamilyNode[]> {
+    if (!familyId) return [];
+    return this.familyNodeRepository.find({
+      where: { family: { id: familyId } },
+      order: { z: 'ASC', sortOrder: 'ASC' },
+    });
   }
 
   private async nextVariantOrder(familyId: string): Promise<number> {
@@ -265,9 +303,9 @@ export class FigureTemplateService {
   }
 
   /**
-   * Derives nodes from a source template, setting originNodeId to trace root ancestor lineage.
-   * Each copied node gets originNodeId = sourceNode.originNodeId ?? sourceNode.id
-   * so derivation chains always point back to the root.
+   * Derives nodes from a source template into a new target template.
+   * Only copies PINYA/direction nodes — TRONC/BASE are inherited from the shared family.
+   * Sets originNodeId to trace the root ancestor lineage.
    */
   private async deriveNodes(target: FigureTemplate, sourceTemplateId: string): Promise<void> {
     const source = await this.templateRepository.findOne({
@@ -277,7 +315,10 @@ export class FigureTemplateService {
 
     if (!source || !source.nodes) return;
 
-    const derived = source.nodes.map((node) =>
+    const nodesToDerive = source.nodes.filter((n) => !FAMILY_ZONES.has(n.zone));
+    if (nodesToDerive.length === 0) return;
+
+    const derived = nodesToDerive.map((node) =>
       this.nodeRepository.create({
         template: target,
         label: node.label,
@@ -348,12 +389,57 @@ export class FigureTemplateService {
     await this.nodeRepository.save(nodes);
   }
 
+  private async createFamilyNodes(
+    family: FigureFamily,
+    dtos: CreateFigureNodeDto[],
+  ): Promise<void> {
+    const nodes = dtos.map((dto) =>
+      this.familyNodeRepository.create({
+        family,
+        label: dto.label,
+        zone: dto.zone,
+        positionType: dto.positionType ?? null,
+        x: dto.x,
+        y: dto.y,
+        z: dto.z ?? 0,
+        width: dto.width,
+        height: dto.height,
+        rotation: dto.rotation ?? 0,
+        color: dto.color ?? null,
+        shape: dto.shape,
+        sortOrder: dto.sortOrder ?? 0,
+        climbPath: dto.climbPath ?? null,
+        ringLevel: dto.ringLevel ?? null,
+        metadata: dto.metadata ?? {},
+      }),
+    );
+    await this.familyNodeRepository.save(nodes);
+  }
+
   /**
-   * Upsert strategy: nodes with matching IDs are updated, unknown IDs create new nodes,
-   * existing nodes absent from the incoming list are deleted.
-   * No assignment guard — assignments point to InstanceNodes (decoupled from template nodes).
+   * Orchestrates node sync: routes TRONC/BASE to figure_family_nodes,
+   * everything else stays in figure_nodes (template level).
    */
   private async syncNodes(
+    template: FigureTemplate,
+    incomingDtos: CreateFigureNodeDto[],
+  ): Promise<void> {
+    const familyDtos = incomingDtos.filter((dto) => FAMILY_ZONES.has(dto.zone));
+    const templateDtos = incomingDtos.filter((dto) => !FAMILY_ZONES.has(dto.zone));
+
+    await this.syncTemplateLevelNodes(template, templateDtos);
+
+    if (template.family) {
+      await this.syncFamilyNodes(template.family, familyDtos);
+    }
+  }
+
+  /**
+   * Upsert strategy for template-level (PINYA/direction) nodes.
+   * Nodes with matching IDs are updated, unknown IDs create new nodes,
+   * existing nodes absent from the incoming list are deleted.
+   */
+  private async syncTemplateLevelNodes(
     template: FigureTemplate,
     incomingDtos: CreateFigureNodeDto[],
   ): Promise<void> {
@@ -394,19 +480,64 @@ export class FigureTemplateService {
       .filter((n) => !incomingIds.has(n.id))
       .map((n) => n.id);
 
-    if (toUpdate.length > 0) {
-      await this.nodeRepository.save(toUpdate);
+    if (toUpdate.length > 0) await this.nodeRepository.save(toUpdate);
+    if (toCreate.length > 0) await this.createNodes(template, toCreate);
+    if (toDeleteIds.length > 0) await this.nodeRepository.delete({ id: In(toDeleteIds) });
+  }
+
+  /**
+   * Upsert strategy for family-level (TRONC/BASE) nodes.
+   * Shared across all variants of the family.
+   */
+  private async syncFamilyNodes(
+    family: FigureFamily,
+    incomingDtos: CreateFigureNodeDto[],
+  ): Promise<void> {
+    const existingNodes = await this.familyNodeRepository.find({
+      where: { family: { id: family.id } },
+    });
+    const existingById = new Map(existingNodes.map((n) => [n.id, n]));
+
+    const toUpdate: FigureFamilyNode[] = [];
+    const toCreate: CreateFigureNodeDto[] = [];
+    const incomingIds = new Set<string>();
+
+    for (const dto of incomingDtos) {
+      if (dto.id && existingById.has(dto.id)) {
+        const node = existingById.get(dto.id)!;
+        node.label = dto.label;
+        node.zone = dto.zone;
+        node.positionType = dto.positionType ?? null;
+        node.x = dto.x;
+        node.y = dto.y;
+        node.z = dto.z ?? 0;
+        node.width = dto.width;
+        node.height = dto.height;
+        node.rotation = dto.rotation ?? 0;
+        node.color = dto.color ?? null;
+        node.shape = dto.shape;
+        node.sortOrder = dto.sortOrder ?? 0;
+        node.climbPath = dto.climbPath ?? null;
+        node.ringLevel = dto.ringLevel ?? null;
+        node.metadata = dto.metadata ?? {};
+        toUpdate.push(node);
+        incomingIds.add(dto.id);
+      } else {
+        toCreate.push(dto);
+      }
     }
 
-    if (toCreate.length > 0) {
-      await this.createNodes(template, toCreate);
-    }
+    const toDeleteIds = existingNodes
+      .filter((n) => !incomingIds.has(n.id))
+      .map((n) => n.id);
 
-    if (toDeleteIds.length > 0) {
-      await this.nodeRepository.delete({ id: In(toDeleteIds) });
-    }
+    if (toUpdate.length > 0) await this.familyNodeRepository.save(toUpdate);
+    if (toCreate.length > 0) await this.createFamilyNodes(family, toCreate);
+    if (toDeleteIds.length > 0) await this.familyNodeRepository.delete({ id: In(toDeleteIds) });
   }
 }
+
+// ─── Mappers ─────────────────────────────────────────────────────────────────
 
 function nodeToCreateDto(node: FigureNode): CreateFigureNodeDto {
   return {
@@ -430,6 +561,50 @@ function nodeToCreateDto(node: FigureNode): CreateFigureNodeDto {
   };
 }
 
+function templateNodeToItem(node: FigureNode): FigureNodeItem {
+  return {
+    id: node.id,
+    label: node.label,
+    zone: node.zone,
+    positionType: node.positionType,
+    x: node.x,
+    y: node.y,
+    z: node.z,
+    width: node.width,
+    height: node.height,
+    rotation: node.rotation,
+    color: node.color,
+    shape: node.shape,
+    sortOrder: node.sortOrder,
+    climbPath: node.climbPath,
+    ringLevel: node.ringLevel,
+    originNodeId: node.originNodeId,
+    metadata: node.metadata,
+  };
+}
+
+function familyNodeToItem(node: FigureFamilyNode): FigureNodeItem {
+  return {
+    id: node.id,
+    label: node.label,
+    zone: node.zone,
+    positionType: node.positionType,
+    x: node.x,
+    y: node.y,
+    z: node.z,
+    width: node.width,
+    height: node.height,
+    rotation: node.rotation,
+    color: node.color,
+    shape: node.shape,
+    sortOrder: node.sortOrder,
+    climbPath: node.climbPath,
+    ringLevel: node.ringLevel,
+    originNodeId: null, // Family nodes are always the canonical source
+    metadata: node.metadata,
+  };
+}
+
 function toListItem(
   template: FigureTemplate & { nodeCount?: number },
 ): FigureTemplateListItem {
@@ -449,28 +624,16 @@ function toListItem(
   };
 }
 
-function toDetailItem(template: FigureTemplate): FigureTemplateDetailItem {
+function toDetailItem(
+  template: FigureTemplate,
+  familyNodes: FigureFamilyNode[] = [],
+): FigureTemplateDetailItem {
   return {
     ...toListItem(template),
     metadata: template.metadata,
-    nodes: (template.nodes ?? []).map((node) => ({
-      id: node.id,
-      label: node.label,
-      zone: node.zone,
-      positionType: node.positionType,
-      x: node.x,
-      y: node.y,
-      z: node.z,
-      width: node.width,
-      height: node.height,
-      rotation: node.rotation,
-      color: node.color,
-      shape: node.shape,
-      sortOrder: node.sortOrder,
-      climbPath: node.climbPath,
-      ringLevel: node.ringLevel,
-      originNodeId: node.originNodeId,
-      metadata: node.metadata,
-    })),
+    nodes: [
+      ...(template.nodes ?? []).map(templateNodeToItem),
+      ...familyNodes.map(familyNodeToItem),
+    ],
   };
 }

@@ -1,0 +1,212 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+// ── Section wrapper ───────────────────────────────────────────────────────────
+
+.tronc-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0.5rem;
+  gap: 0.25rem;
+}
+
+// ── Header ───────────────────────────────────────────────────────────────────
+
+.tronc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.25rem 0.25rem 0.25rem 0.5rem;
+  flex-shrink: 0;
+}
+
+// ── Floors container ─────────────────────────────────────────────────────────
+
+.floors-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-shrink: 0;
+
+  &.inverted {
+    flex-direction: column-reverse;
+  }
+}
+
+// ── Floor row ─────────────────────────────────────────────────────────────────
+
+.floor-row {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr 4rem;
+  gap: 0.5rem;
+  align-items: center;
+  min-height: 3rem;
+}
+
+// ── Floor label ───────────────────────────────────────────────────────────────
+
+.floor-label {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  flex-shrink: 0;
+}
+
+.pis-code {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: oklch(var(--bc) / 0.7);
+  line-height: 1;
+}
+
+.progress-badge {
+  font-size: 0.6rem;
+  color: oklch(var(--bc) / 0.4);
+  line-height: 1;
+}
+
+// ── Floor grid ────────────────────────────────────────────────────────────────
+
+.floor-grid {
+  display: grid;
+  gap: 2px;
+  align-items: stretch;
+}
+
+// ── Tronc node button ─────────────────────────────────────────────────────────
+
+.tronc-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  min-height: 3rem;
+  padding: 0.25rem 0.4rem;
+  border-radius: 0.25rem;
+  border: 1px solid oklch(var(--b3));
+  background: oklch(var(--b2));
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s, box-shadow 0.1s;
+  overflow: hidden;
+  text-align: center;
+  outline: none;
+
+  &:hover:not(:disabled) {
+    background: oklch(var(--b3));
+    border-color: oklch(var(--bc) / 0.2);
+  }
+
+  &:focus-visible {
+    box-shadow: 0 0 0 2px oklch(var(--p));
+    border-color: oklch(var(--p));
+  }
+
+  &.selected {
+    border-color: oklch(var(--p));
+    box-shadow: 0 0 0 2px oklch(var(--p) / 0.3);
+    background: oklch(var(--p) / 0.08);
+  }
+
+  &.assigned {
+    background: oklch(var(--b1));
+  }
+
+  &.highlighted {
+    border-color: oklch(var(--a));
+    background: oklch(var(--a) / 0.08);
+  }
+}
+
+// ── Node content ──────────────────────────────────────────────────────────────
+
+.node-label {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: oklch(var(--bc) / 0.6);
+  line-height: 1.2;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.height-badge {
+  position: absolute;
+  top: 2px;
+  left: 3px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: oklch(var(--bc) / 0.5);
+  line-height: 1;
+}
+
+.person-alias {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: oklch(var(--bc));
+  line-height: 1.2;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attendance-dot {
+  position: absolute;
+  bottom: 3px;
+  left: 4px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+// ── Variance column ───────────────────────────────────────────────────────────
+
+.floor-variance {
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.2;
+  flex-shrink: 0;
+  color: oklch(var(--bc) / 0.4);
+}
+
+// ── Editor controls ───────────────────────────────────────────────────────────
+
+.editor-controls {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.selected-node-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.controls-label {
+  font-size: 0.7rem;
+  color: oklch(var(--bc) / 0.5);
+  font-weight: 500;
+  padding: 0 0.25rem;
+}
+
+.add-floor-row {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+  margin-top: 0.25rem;
+}
+

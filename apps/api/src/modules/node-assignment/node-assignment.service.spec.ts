@@ -11,6 +11,7 @@ import { NodeAssignment } from './entities/node-assignment.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
 import { InstanceNode } from '../event-segment/entities/instance-node.entity';
 import { FigureNode } from '../figure/entities/figure-node.entity';
+import { FigureFamilyNode } from '../figure/entities/figure-family-node.entity';
 import { Person } from '../person/person.entity';
 import { CompositionSlot } from '../composition/entities/composition-slot.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
@@ -166,6 +167,10 @@ const mockFigureNodeRepo = {
   findOne: jest.fn(),
 };
 
+const mockFamilyNodeRepo = {
+  find: jest.fn().mockResolvedValue([]),
+};
+
 const mockPersonRepo = { findOne: jest.fn() };
 const mockSlotRepo = { findOne: jest.fn() };
 const mockTemplateRepo = { findOne: jest.fn() };
@@ -196,6 +201,7 @@ describe('NodeAssignmentService', () => {
         { provide: getRepositoryToken(FigureInstance), useValue: mockInstanceRepo },
         { provide: getRepositoryToken(InstanceNode), useValue: mockInstanceNodeRepo },
         { provide: getRepositoryToken(FigureNode), useValue: mockFigureNodeRepo },
+        { provide: getRepositoryToken(FigureFamilyNode), useValue: mockFamilyNodeRepo },
         { provide: getRepositoryToken(Person), useValue: mockPersonRepo },
         { provide: getRepositoryToken(CompositionSlot), useValue: mockSlotRepo },
         { provide: getRepositoryToken(FigureTemplate), useValue: mockTemplateRepo },
@@ -257,6 +263,7 @@ describe('NodeAssignmentService', () => {
         makeInstance({ snapshotted: false, figureTemplate: { id: TEMPLATE_ID } }),
       );
       mockTemplateRepo.findOne.mockResolvedValue(makeTemplate());
+      mockFamilyNodeRepo.find.mockResolvedValue([]);
 
       const result = await service.getInstanceNodes(INSTANCE_ID);
 
@@ -264,6 +271,33 @@ describe('NodeAssignmentService', () => {
       expect(result[0].id).toBe(FIGURE_NODE_ID);
       expect(result[0].isSnapshotted).toBe(false);
       expect(result[0].sourceNodeId).toBeNull();
+    });
+
+    it('merges family nodes into live response with isSnapshotted=false', async () => {
+      const familyNode: Partial<FigureFamilyNode> = {
+        id: 'family-node-1',
+        label: 'Alçadora',
+        zone: FigureZone.TRONC,
+        positionType: 'alcadora',
+        x: 0, y: 0, z: 1, width: 1, height: 40,
+        rotation: 0, color: null,
+        shape: NodeShape.RECTANGLE,
+        sortOrder: 0, climbPath: null, ringLevel: null, metadata: {},
+      };
+      mockInstanceRepo.findOne.mockResolvedValue(
+        makeInstance({ snapshotted: false, figureTemplate: { id: TEMPLATE_ID } }),
+      );
+      mockTemplateRepo.findOne.mockResolvedValue(makeTemplate());
+      mockFamilyNodeRepo.find.mockResolvedValue([familyNode]);
+
+      const result = await service.getInstanceNodes(INSTANCE_ID);
+
+      expect(result).toHaveLength(2);
+      const tronc = result.find((n) => n.zone === FigureZone.TRONC);
+      expect(tronc).toBeDefined();
+      expect(tronc!.id).toBe('family-node-1');
+      expect(tronc!.isSnapshotted).toBe(false);
+      expect(tronc!.originNodeId).toBeNull();
     });
 
     it('throws NotFoundException if instance not found', async () => {
@@ -517,6 +551,100 @@ describe('NodeAssignmentService', () => {
       mockAssignmentRepo.findOne.mockResolvedValue(a);
 
       await expect(service.unassign(INSTANCE_ID, ASSIGNMENT_ID)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ── snapshotInstance (via assign) — family node inclusion ────────────────
+
+  describe('snapshotInstance — family nodes', () => {
+    it('includes family nodes (TRONC/BASE) in the snapshot alongside template nodes', async () => {
+      const familyNode: Partial<FigureFamilyNode> = {
+        id: 'family-node-snap',
+        label: 'Alçadora',
+        zone: FigureZone.TRONC,
+        positionType: 'alcadora',
+        x: 0, y: 0, z: 1, width: 1, height: 40,
+        rotation: 0, color: null,
+        shape: NodeShape.RECTANGLE,
+        sortOrder: 0, climbPath: null, ringLevel: null, metadata: {},
+      };
+
+      const unsnapshottedInstance = makeInstance({ snapshotted: false });
+      const manager = makeTransactionManager();
+      // Capture what was passed to manager.save
+      const savedNodes: any[] = [];
+      manager.save.mockImplementation((_entity: any, nodes: any[]) => {
+        savedNodes.push(...nodes);
+        const firstNode = { id: 'new-inode-uuid', sourceNodeId: FIGURE_NODE_ID, zone: FigureZone.PINYA };
+        return Promise.resolve([firstNode]);
+      });
+
+      mockInstanceRepo.findOne.mockResolvedValue(unsnapshottedInstance);
+      mockTemplateRepo.findOne.mockResolvedValue(makeTemplate());
+      mockFamilyNodeRepo.find.mockResolvedValue([familyNode]);
+      mockDataSource.transaction.mockImplementation((cb: any) => cb(manager));
+      mockPersonRepo.findOne.mockResolvedValue(makePerson());
+
+      // The node returned from snapshot must match sourceNodeId
+      const snapshotPinyaNode = { id: 'new-inode-uuid', sourceNodeId: FIGURE_NODE_ID };
+      manager.save.mockResolvedValue([snapshotPinyaNode]);
+      mockAssignmentRepo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue(makeAssignment({ instanceNode: snapshotPinyaNode as any }));
+      mockAssignmentRepo.create.mockReturnValue(makeAssignment());
+      mockAssignmentRepo.save.mockResolvedValue({ id: ASSIGNMENT_ID });
+
+      await service.assign(INSTANCE_ID, { nodeId: FIGURE_NODE_ID, personId: PERSON_ID });
+
+      expect(mockFamilyNodeRepo.find).toHaveBeenCalled();
+      // Transaction was executed — both template and family nodes should be created
+      expect(mockDataSource.transaction).toHaveBeenCalledTimes(1);
+      const managerCreateCalls = manager.create.mock.calls;
+      // Should have created one template node and one family node
+      expect(managerCreateCalls.length).toBeGreaterThanOrEqual(2);
+      const zones = managerCreateCalls.map((call: any[]) => call[1]?.zone);
+      expect(zones).toContain(FigureZone.PINYA);
+      expect(zones).toContain(FigureZone.TRONC);
+    });
+
+    it('uses sourceNodeId = familyNode.id for family nodes in snapshot', async () => {
+      const familyNode: Partial<FigureFamilyNode> = {
+        id: 'family-node-snap-id',
+        label: 'Alçadora',
+        zone: FigureZone.TRONC,
+        positionType: 'alcadora',
+        x: 0, y: 0, z: 1, width: 1, height: 40,
+        rotation: 0, color: null,
+        shape: NodeShape.RECTANGLE,
+        sortOrder: 0, climbPath: null, ringLevel: null, metadata: {},
+      };
+
+      const unsnapshottedInstance = makeInstance({ snapshotted: false });
+      const manager = makeTransactionManager();
+      const snapshotPinyaNode = { id: 'new-inode-uuid', sourceNodeId: FIGURE_NODE_ID };
+      manager.save.mockResolvedValue([snapshotPinyaNode]);
+
+      mockInstanceRepo.findOne.mockResolvedValue(unsnapshottedInstance);
+      mockTemplateRepo.findOne.mockResolvedValue(makeTemplate());
+      mockFamilyNodeRepo.find.mockResolvedValue([familyNode]);
+      mockDataSource.transaction.mockImplementation((cb: any) => cb(manager));
+      mockPersonRepo.findOne.mockResolvedValue(makePerson());
+      mockAssignmentRepo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue(makeAssignment({ instanceNode: snapshotPinyaNode as any }));
+      mockAssignmentRepo.create.mockReturnValue(makeAssignment());
+      mockAssignmentRepo.save.mockResolvedValue({ id: ASSIGNMENT_ID });
+
+      await service.assign(INSTANCE_ID, { nodeId: FIGURE_NODE_ID, personId: PERSON_ID });
+
+      const familyNodeCreate = manager.create.mock.calls.find(
+        (call: any[]) => call[1]?.zone === FigureZone.TRONC,
+      );
+      expect(familyNodeCreate).toBeDefined();
+      expect(familyNodeCreate![1].sourceNodeId).toBe('family-node-snap-id');
+      expect(familyNodeCreate![1].originNodeId).toBeNull(); // family nodes are canonical
     });
   });
 
