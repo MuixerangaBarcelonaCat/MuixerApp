@@ -24,7 +24,9 @@
 || P5.3.1 | Mòdul Pinyes — Revisió UX Segments | ⚪ Pendent | — | — | — | Refactor UX segments: tab dedicat "Pinyes" a event-detail, millores d'interacció amb les figures, preview canvas, navegació fluida |
 | **P5.4** | **Mòdul Pinyes — Assignació de Persones** | ✅ Completat | [`docs/specs/2026-05-11-p5-3-event-segments-figure-instances.md`](docs/specs/2026-05-11-p5-3-event-segments-figure-instances.md) | [`p5.4_node_assignment_54c3d5e9`](.cursor/plans/p5.4_node_assignment_54c3d5e9.plan.md) | ✅ | NodeAssignment entity+module (backend), AssignmentCanvas+PersonPanel+NodePopover+ImportPinyaModal (frontend), AssignmentStateService (signals), optimistic UI+rollback, botó "Assignar" al SegmentManager |
 | **P5.5** | **Mòdul Pinyes — Famílies, Snapshot i Creixement Concèntric** | ✅ Completat | [`docs/specs/2026-05-19-p5-family-snapshot-redesign.md`](docs/specs/2026-05-19-p5-family-snapshot-redesign.md) | — | ✅ | Fases A+B (backend): FigureFamily+InstanceNode entities, lazy snapshot, upgrade de cordó, upsert estable de nodes, NodeAssignment migrat a InstanceNode. Fases C+D (frontend): tab Famílies, modal Nova Família, llistat variants, AssignmentCanvas amb InstanceNodes, modal onboarding pinyes. |
-| P5.6 | Mòdul Pinyes — Projecció i Consulta Històrica | ⚪ Pendent | — | — | — | Mode fullscreen TV/projector. Consulta events passats per figura/persona |
+|| **P5.6** | **Mòdul Pinyes — Visualització i Assignació de Troncs** | ✅ Completat | [`docs/specs/2026-05-20-p5-tronc-visualization-design.md`](docs/specs/2026-05-20-p5-tronc-visualization-design.md) | — | ✅ | TroncViewComponent amb CSS Grid, sistema d'unitats relatives (0.5u–8u), rendering per pisos, variance d'alçades per pis amb color-coding, toggle orientació P1 dalt/baix, controls editor (x/width 0.5 decimals), UI floating draggable panel, add floor/node inline, attendance status indicators |
+|| **P5.7** | **Mòdul Pinyes — Tronc Nodes a Nivell de Família** | ✅ Completat | — | — | ✅ | FigureFamilyNode entity (TRONC/BASE shared per família), merge/split transparent al backend (GET merge, PUT split), migrate-tronc-to-family script (idempotent), seed files actualitzats, snapshotInstance amb FamilyNodes, tests actualitzats |
+|| P5.8 | Mòdul Pinyes — Projecció i Consulta Històrica | ⚪ Pendent | — | — | — | Mode fullscreen TV/projector. Consulta events passats per figura/persona |
 | P6 | PWA Mòbil | ⚪ Pendent | — | — | — | Diferit fins al tall. Estén l'auth de P4.1 als membres |
 | P7 | Informes + Notificacions + Features avançades | ⚪ Pendent | — | — | — | Reports d'assistència, FCM, estadístiques, notícies |
 
@@ -311,6 +313,104 @@ Fixes crítics de canvas i millores UX implementades posteriorment:
 | **Upgrade per canonical ID** | `canonicalId = originNodeId ?? self.id` — permet matching estable entre variants independentment de la profunditat del llinatge |
 | **Backward compatibility al canvas** | `assign()` accepta tant `InstanceNode.id` com `FigureNode.id` (via `sourceNodeId` lookup) per mantenir compatibilitat amb el canvas pre-snapshot |
 | **Reset net de dades de dev** | Script `reset-figure-data.script.ts` per netejar instàncies/nodes/assignacions i re-fer el seed, evitant migracions destructives en dev |
+
+---
+
+## Decisions sobre el Mòdul Pinyes — Visualització i Assignació de Troncs (P5.6)
+
+### P5.6 — Tronc Visualization (✅ Completat)
+
+#### Què s'ha implementat
+
+**Backend** (`apps/api/src/modules/figure/`, `apps/api/src/modules/database/scripts/`):
+- **Migració d'unitats relatives**: `migrate-tronc-units.script.ts` actualitza valors de `x` i `width` per nodes TRONC/BASE existents a unitats relatives (1–4u → 0–4u posició, 1–4u amplada)
+- Nx target `migrate-tronc-units` per executar la migració
+- Seeds actualitzats amb noves unitats relatives per pd3, pd3-creu, pd4
+
+**Frontend** (`apps/dashboard/src/app/features/pinyes/`):
+- **`TroncViewComponent`**: Component Angular standalone reutilitzable amb:
+  - Renderitzat amb CSS Grid (sistema flexible i accessible)
+  - Sistema d'unitats relatives: `x` (0–8u, steps 0.5), `width` (0.5–8u, steps 0.5)
+  - Organització per pisos (P1=Bases, P2+→TRONC) amb labels "Segon/Segona", "Terç/Tercera", etc.
+  - Toggle orientació: P1 dalt (ascendent) ↔ P1 baix (descendent)
+  - Mode `editor`: controls per position X, amplada, eliminar node, afegir node inline (+), afegir pis (dropdown amb pissos faltants)
+  - Mode `assignment`: visualització assignacions amb àlies persona, alçada (abs/rel segons global toggle), attendance status (color dot), height variance per pis amb color-coding (verd ≤5cm, groc 6–10cm, vermell >10cm)
+  - **Floating draggable panel**: panell movible sobre el canvas (no modal amb blur), arrossegable amb mouse, no bloqueja interacció amb canvas subjacent
+- **Integració `TemplateEditorComponent`**: botó "Tronc" a topbar, floating panel amb `TroncViewComponent` en mode editor
+- **Integració `AssignmentCanvasComponent`**: botó floating "Tronc" sobre canvas, floating panel amb `TroncViewComponent` en mode assignment
+- **`floor-variance.util.ts`**: funcions `floorVariance()` (calcula Δcm per pis) i `varianceLevel()` (classifica per threshold)
+- **Tests unitaris**: `tronc-view.component.spec.ts` (grid calculations, floor sorting, UI interactions, variance logic), `floor-variance.util.spec.ts`
+
+**Eines i patterns**:
+- **CSS Grid**: grid-template-columns dinàmic (minmax responsive), grid-column per positioning de nodes
+- **Grid doblejat**: intern usa x*2 i width*2 per suportar 0.5u steps amb CSS Grid (que només suporta enters)
+- **Inline styling per colors**: `[style.color]` i `[style.background-color]` amb funcions `getVarianceColor()` i `getAttendanceColor()` per evitar problemes de CSS specificity amb DaisyUI
+- **Add floor/node UX**: + inline dins cada pis (no list externa), dropdown "Afegir pis" amb opcions de tots els pisos faltants (no seqüencial)
+- **Columna extra per add-node button**: grid té una columna extra fixa (2.5rem) al final per evitar line-break del botó +
+
+#### Decisions tècniques clau
+
+| Decisió | Resultat |
+|---------|----------|
+| **CSS Grid** | Renderitzat flexible, accessible, responsive. Evita complexitat de Konva per aquest sub-canvas |
+| **Unitats relatives** | `x` i `width` per TRONC/BASE són 0–8u (steps 0.5). PINYA nodes mantenen pixels per Konva |
+| **Grid doblejat** | Intern *2 tots els valors per permetre 0.5u steps amb CSS Grid (que només accepta enters) |
+| **No nova columna DB** | Reinterpretació de `x`/`width` existents — només migració de dades, no schema |
+| **Floating panel** | UI movible sense modal/backdrop, permet interacció simultània amb canvas pinya |
+| **Inline colors** | `[style.color]` i `[style.background-color]` per evitar CSS specificity issues amb DaisyUI utilities |
+| **Add any floor** | `availableFloorOptions()` itera tots els z levels (1–6) i llista els faltants, no només el següent seqüencial |
+| **Columna extra grid** | Dedicada al botó +, evita line-break quan totes les posicions del pis estan ocupades |
+
+---
+
+## Decisions sobre el Mòdul Pinyes — Tronc Nodes a Nivell de Família (P5.7)
+
+### P5.7 — Tronc Nodes at Family Level (✅ Completat)
+
+#### Problema resolt
+
+| Problema | Impacte (pre-P5.7) |
+|----------|-------------------|
+| TRONC/BASE nodes duplicats per variant | Cada variant d'una família tenia la seva pròpia còpia dels nodes de tronc, causant inconsistències quan s'editava el tronc |
+| Editar tronc requeria editar totes les variants | Workflow tediós i propens a errors; variants amb troncs diferents sense raó |
+| Conceptualment incorrecte | El tronc és la mateixa estructura física per tota la família; només la pinya creix per variant |
+
+#### Implementació: Merge/Split Transparent
+
+**Backend** (`apps/api/src/modules/figure/`):
+- **Entitat `FigureFamilyNode`** (`figure_family_nodes`): nodes TRONC/BASE compartits a nivell de `FigureFamily`
+  - Camps: `family` FK, `label`, `zone` (TRONC/BASE només), `positionType`, `x`, `width`, `z`, `sortOrder`, `color`, `shape`, `climbPath`
+  - No té `originNodeId` (no deriva de res, és l'origen)
+- **Estratègia merge/split transparent**:
+  - `GET /figure-templates/:id` → merge: combina `FigureFamilyNode`s amb `FigureNode`s (només PINYA), marca FamilyNodes com a `isShared: true`
+  - `PUT /figure-templates/:id` → split: separa nodes per zona, TRONC/BASE van a `syncFamilyNodes()`, PINYA/direccions van a `syncTemplateLevelNodes()`
+  - `syncFamilyNodes()`: upsert idempotent (update si ID existeix, create si no) pels nodes TRONC/BASE a `figure_family_nodes`
+  - `syncTemplateLevelNodes()`: upsert idempotent pels nodes PINYA a `figure_nodes` (no toca TRONC/BASE)
+- **Funció `deriveNodes()`**: només copia nodes PINYA (exclou TRONC/BASE) quan es crea una nova variant
+- **`snapshotInstance()`**: snapshoteja tant `FigureFamilyNode`s com `FigureNode`s a `InstanceNode`s
+- **Script `migrate-tronc-to-family.script.ts`**: migració idempotent que:
+  1. Itera per cada `FigureFamily`
+  2. Troba el template amb `variantOrder` més baix (variant base)
+  3. Copia els seus nodes TRONC/BASE a `figure_family_nodes`
+  4. Elimina tots els nodes TRONC/BASE de `figure_nodes` per tota la família
+- Nx target `migrate-tronc-to-family` per executar la migració
+- Seeds actualitzats (`pd3`, `pd3-creu`, `pd4`): estructura `familyNodes` separada a `FigureSeed`, `insertFigure()` idempotent per family nodes
+
+**Tests**:
+- `figure-template.service.spec.ts`: tests merge/split, upsert, deriveNodes (només PINYA), duplicate (només PINYA)
+- `node-assignment.service.spec.ts`: snapshotInstance inclou family nodes, getInstanceNodes retorna merged list
+
+#### Decisions tècniques clau
+
+| Decisió | Resultat |
+|---------|----------|
+| **Entitat `FigureFamilyNode`** | TRONC/BASE compartits a `FigureFamily`, desacoblats de templates individuals |
+| **Merge/Split transparent** | Frontend no canvia: segueix rebent/enviant nodes com abans. Backend fa la separació internament |
+| **Upsert per ID** | `syncFamilyNodes` i `syncTemplateLevelNodes` fan update si node.id existeix, create si no → estable per auto-save |
+| **Derive només PINYA** | Crear nova variant hereta PINYA del parent, però TRONC/BASE venen automàticament de la família |
+| **Snapshot inclou family nodes** | `snapshotInstance()` copia FamilyNodes+FigureNodes a InstanceNodes per lazy snapshot correcte |
+| **Migració idempotent** | `migrate-tronc-to-family` pot executar-se múltiples vegades sense efectes secundaris |
+| **Seed idempotent** | `insertFigure()` comprova si la família ja té family nodes abans d'inserir-los (evita duplicats en re-seed) |
 
 ---
 
@@ -625,3 +725,6 @@ Cada sub-projecte genera:
 || 11 Mai 2026 | **P5.3 Segments i Instàncies completat**: Backend — `EventSegmentModule` (entitats EventSegment + FigureInstance, endpoints CRUD + reordenar per segments i instàncies, tests unitaris). Frontend — `SegmentManagerComponent` integrat inline a event-detail (cards sempre visibles, edició nom, toggle visibilitat, fletxes reordenar, badges figures/composicions, `FigurePickerModalComponent` amb tabs). Pendent: refactor UX a tab dedicat "Pinyes" (P5.3.1). |
 | 12 Mai 2026 | **P5.4 Assignació de Persones completat** (7 fases): Backend — `NodeAssignmentModule` (entitat `NodeAssignment`, `NodeAssignmentService` CRUD+validacions 404/409/400, `AvailablePersonsService` queries, controller, delete guard integrat a `FigureTemplateService`). Frontend — models `assignment.model.ts`, `NodeAssignmentService` HTTP, `AssignmentStateService` (signals), `AssignmentCanvasComponent` (pick-and-place, optimistic UI+rollback, auto-advance), `PersonPanelComponent` (filtres altura/xicalla/cerca, 🎭 next-performance), `NodePopoverComponent`, `ImportPinyaModalComponent` (import d'historial). Ruta `/pinyes/events/:eventId/segments/:segmentId/assign`. Botó "Assignar" al `SegmentManagerComponent`. Tests: ✅ 370 API + 303 dashboard. |
 | 19 Mai 2026 | **Spec P5.5 aprovada i implementada** (`docs/specs/2026-05-19-p5-family-snapshot-redesign.md`): Redesign del model d'instàncies i templates. 4 fases: A (dades backend), B (snapshot+upgrade backend), C (famílies frontend), D (canvas assignació + onboarding). Nous artefactes: `FigureFamily`, `InstanceNode`, `reset-figure-data.script.ts`. Canvis model: `FigureTemplate`+família+variantOrder, `FigureNode`+ringLevel+originNodeId, `FigureInstance`+snapshotted+sourceVariantOrder, `NodeAssignment.figureNode`→`instanceNode`. Documentació actualitzada: `DATA_MODEL.md`, `PROJECT_ROADMAP.md`, `docs/PINYES_MODULE.md` (nou). |
+| 20 Mai 2026 | **Spec P5.6 aprovada** (`docs/specs/2026-05-20-p5-tronc-visualization-design.md`): Visualització i assignació de troncs amb CSS Grid, sistema d'unitats relatives (0.5u–8u), variance d'alçades per pis amb color-coding. |
+| 20–22 Mai 2026 | **P5.6 Tronc Visualization completat**: Backend — migració `migrate-tronc-units.script.ts`, seeds actualitzats. Frontend — `TroncViewComponent` (CSS Grid, unitats relatives x/width 0.5u steps, toggle orientació P1, mode editor/assignment, floating draggable panel, variance colors inline styling, add floor/node inline UX, columna extra grid per botó +), `floor-variance.util.ts`, integració a `TemplateEditorComponent` i `AssignmentCanvasComponent`. Tests: grid calculations, floor sorting, variance logic. Decisió: grid doblejat intern (x*2, width*2) per suportar 0.5u steps. |
+| 21–22 Mai 2026 | **P5.7 Tronc Nodes at Family Level completat**: `FigureFamilyNode` entity (TRONC/BASE compartits per família), estratègia merge/split transparent (`GET` merge, `PUT` split), migració idempotent `migrate-tronc-to-family.script.ts`, seeds actualitzats (familyNodes separats), `snapshotInstance` amb FamilyNodes, tests merge/split/upsert/derive. Decisió: upsert per ID (estable per auto-save), derive només PINYA (tronc ve de família automàticament). |
