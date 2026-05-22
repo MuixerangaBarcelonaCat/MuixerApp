@@ -113,18 +113,18 @@ describe('TroncViewComponent', () => {
     expect(baseFloor!.nodes.length).toBe(1);
   });
 
-  // ── totalColumns ──────────────────────────────────────────────────────────
+  // ── totalColumns (doubled internally: 0.5u = 1 CSS column) ──────────────
 
-  it('computes totalColumns as max(x+width) across TRONC nodes', () => {
+  it('computes totalColumns as 2x max(x+width) across TRONC nodes', () => {
     fixture.componentRef.setInput('troncNodes', [
       makeNode({ x: 0, width: 2 }),
       makeNode({ id: 'n2', x: 2, width: 1 }),
     ]);
     fixture.detectChanges();
-    expect(component.totalColumns()).toBe(3);
+    expect(component.totalColumns()).toBe(6); // 3 * 2
   });
 
-  it('computes totalColumns as base node count when greater than TRONC max', () => {
+  it('computes totalColumns from base count when greater', () => {
     fixture.componentRef.setInput('troncNodes', [makeNode({ x: 0, width: 1 })]);
     fixture.componentRef.setInput('baseNodes', [
       makeBaseNode({ id: 'b1' }),
@@ -133,28 +133,46 @@ describe('TroncViewComponent', () => {
       makeBaseNode({ id: 'b4' }),
     ]);
     fixture.detectChanges();
-    expect(component.totalColumns()).toBe(4);
+    expect(component.totalColumns()).toBe(8); // 4 bases * 2
   });
 
-  it('defaults totalColumns to 1 when no nodes exist', () => {
-    expect(component.totalColumns()).toBe(1);
+  it('defaults totalColumns to 2 when no nodes exist', () => {
+    expect(component.totalColumns()).toBe(2);
   });
 
-  // ── Grid column values ────────────────────────────────────────────────────
+  // ── Grid column values (doubled grid) ───────────────────────────────────
 
   it('computes correct grid-column for TRONC node at x=0, width=1', () => {
     const node = makeNode({ x: 0, width: 1 });
-    expect(component.getTroncNodeGridColumn(node)).toBe('1 / span 1');
+    expect(component.getTroncNodeGridColumn(node)).toBe('1 / span 2');
   });
 
   it('computes correct grid-column for TRONC node at x=2, width=2', () => {
     const node = makeNode({ x: 2, width: 2 });
-    expect(component.getTroncNodeGridColumn(node)).toBe('3 / span 2');
+    expect(component.getTroncNodeGridColumn(node)).toBe('5 / span 4');
+  });
+
+  it('computes correct grid-column for TRONC node at x=0.5, width=1.5', () => {
+    const node = makeNode({ x: 0.5, width: 1.5 });
+    expect(component.getTroncNodeGridColumn(node)).toBe('2 / span 3');
   });
 
   it('computes correct grid-column for BASE node by index', () => {
-    expect(component.getBaseNodeGridColumn(0)).toBe('1 / span 1');
-    expect(component.getBaseNodeGridColumn(3)).toBe('4 / span 1');
+    expect(component.getBaseNodeGridColumn(0)).toBe('1 / span 2');
+    expect(component.getBaseNodeGridColumn(3)).toBe('7 / span 2');
+  });
+
+  it('computes correct grid-column for add-node button', () => {
+    // With no nodes, totalColumns = 2, so button at 3 / span 2
+    expect(component.getAddNodeButtonGridColumn()).toBe('3 / span 2');
+    
+    // With nodes at x=0 w=2, x=2 w=2, totalColumns = 8, so button at 9 / span 2
+    fixture.componentRef.setInput('troncNodes', [
+      makeNode({ x: 0, width: 2 }),
+      makeNode({ x: 2, width: 2 }),
+    ]);
+    fixture.detectChanges();
+    expect(component.getAddNodeButtonGridColumn()).toBe('9 / span 2');
   });
 
   // ── Orientation toggle ────────────────────────────────────────────────────
@@ -170,19 +188,19 @@ describe('TroncViewComponent', () => {
     expect(component.inverted()).toBe(false);
   });
 
-  it('reverses floor order when inverted', () => {
+  it('floors data order is always descending (CSS handles inversion)', () => {
     fixture.componentRef.setInput('troncNodes', [
       makeNode({ id: 'n1', z: 1 }),
       makeNode({ id: 'n2', z: 2 }),
     ]);
     fixture.detectChanges();
 
-    const normalOrder = component.floors().map((f) => f.z);
-    component.toggleOrientation();
-    const invertedOrder = component.floors().map((f) => f.z);
+    const order = component.floors().map((f) => f.z);
+    expect(order[0]).toBeGreaterThan(order[order.length - 1]);
 
-    expect(normalOrder[0]).toBeGreaterThan(normalOrder[normalOrder.length - 1]);
-    expect(invertedOrder[0]).toBeLessThan(invertedOrder[invertedOrder.length - 1]);
+    component.toggleOrientation();
+    const orderAfter = component.floors().map((f) => f.z);
+    expect(orderAfter).toEqual(order);
   });
 
   // ── Assignment info ───────────────────────────────────────────────────────
@@ -339,20 +357,28 @@ describe('TroncViewComponent', () => {
     expect(emitted).toEqual(['tronc-del']);
   });
 
-  it('nodeUpdated emits with clamped width when onNodeWidthChange is called', () => {
+  it('nodeUpdated emits with clamped width (max 8) on onNodeWidthChange', () => {
     const emitted: { nodeId: string; x: number; width: number }[] = [];
     fixture.componentRef.instance.nodeUpdated.subscribe((e) => emitted.push(e));
     const node = makeNode({ id: 'n1', x: 0, width: 1 });
-    component.onNodeWidthChange(node, 5); // 5 should be clamped to 4
-    expect(emitted[0]).toEqual({ nodeId: 'n1', x: 0, width: 4 });
+    component.onNodeWidthChange(node, 10);
+    expect(emitted[0]).toEqual({ nodeId: 'n1', x: 0, width: 8 });
   });
 
-  it('nodeUpdated emits with floor(x) when onNodeXChange is called', () => {
+  it('nodeUpdated supports 0.5 step for width', () => {
+    const emitted: { nodeId: string; x: number; width: number }[] = [];
+    fixture.componentRef.instance.nodeUpdated.subscribe((e) => emitted.push(e));
+    const node = makeNode({ id: 'n1', x: 0, width: 1 });
+    component.onNodeWidthChange(node, 1.5);
+    expect(emitted[0]).toEqual({ nodeId: 'n1', x: 0, width: 1.5 });
+  });
+
+  it('nodeUpdated rounds x to nearest 0.5 on onNodeXChange', () => {
     const emitted: { nodeId: string; x: number; width: number }[] = [];
     fixture.componentRef.instance.nodeUpdated.subscribe((e) => emitted.push(e));
     const node = makeNode({ id: 'n1', x: 0, width: 2 });
-    component.onNodeXChange(node, 1.9); // should floor to 1
-    expect(emitted[0]).toEqual({ nodeId: 'n1', x: 1, width: 2 });
+    component.onNodeXChange(node, 1.7);
+    expect(emitted[0]).toEqual({ nodeId: 'n1', x: 1.5, width: 2 });
   });
 
   it('baseAdded emits with sortOrder = current base count', () => {
@@ -389,22 +415,30 @@ describe('TroncViewComponent', () => {
     expect(component.hasTronc()).toBe(true);
   });
 
-  // ── nextFloorOptions ─────────────────────────────────────────────────────
+  // ── availableFloorOptions ────────────────────────────────────────────────
 
-  it('nextFloorOptions shows floor types for nextZ when no tronc floors exist', () => {
-    expect(component.nextFloorOptions().length).toBeGreaterThan(0);
-    expect(component.nextFloorOptions()[0].z).toBe(1);
+  it('shows all floor options when no tronc floors exist', () => {
+    const opts = component.availableFloorOptions();
+    expect(opts.length).toBeGreaterThan(0);
+    expect(opts[0].z).toBe(1);
   });
 
-  it('nextFloorOptions shows options for the next available z', () => {
+  it('excludes z levels that already have nodes', () => {
     fixture.componentRef.setInput('troncNodes', [makeNode({ z: 2 })]);
     fixture.detectChanges();
-    expect(component.nextFloorOptions()[0].z).toBe(3);
+    const opts = component.availableFloorOptions();
+    expect(opts.some((o) => o.z === 2)).toBe(false);
+    expect(opts.some((o) => o.z === 1)).toBe(true);
+    expect(opts.some((o) => o.z === 3)).toBe(true);
   });
 
-  it('nextFloorOptions is empty when max z reaches MAX_TRONC_Z', () => {
-    fixture.componentRef.setInput('troncNodes', [makeNode({ z: 5 })]);
+  it('is empty when all z levels have nodes', () => {
+    const allFloors = [];
+    for (let z = 1; z <= 5; z++) {
+      allFloors.push(makeNode({ id: `n${z}`, z }));
+    }
+    fixture.componentRef.setInput('troncNodes', allFloors);
     fixture.detectChanges();
-    expect(component.nextFloorOptions().length).toBe(0);
+    expect(component.availableFloorOptions().length).toBe(0);
   });
 });

@@ -44,19 +44,7 @@
     </div>
 
     <div class="flex items-center gap-3">
-      <!-- Tronc drawer trigger -->
-      <button
-        type="button"
-        class="btn btn-ghost btn-sm gap-1"
-        (click)="troncDrawerOpen.set(true)"
-        aria-label="Obrir panell del Tronc"
-        title="Tronc"
-      >
-        <lucide-icon name="Layers" [size]="16" aria-hidden="true" />
-        Tronc
-      </button>
-
-        <!-- Save status -->
+          <!-- Save status -->
       @if (saveStatus() !== 'idle') {
         <span
           class="text-xs px-2 py-1 rounded-full"
@@ -72,6 +60,18 @@
           {{ saveStatusLabel() }}
         </span>
       }
+
+      <!-- Tronc drawer trigger -->
+      <button
+        type="button"
+        class="btn btn-ghost btn-sm gap-1"
+        (click)="troncDrawerOpen.set(true)"
+        aria-label="Obrir panell del Tronc"
+        title="Tronc"
+      >
+        <lucide-icon name="Layers" [size]="16" aria-hidden="true" />
+        Tronc
+      </button>
 
       <!-- hasPinya toggle -->
       <label class="flex items-center gap-2 cursor-pointer" title="Té Pinya">

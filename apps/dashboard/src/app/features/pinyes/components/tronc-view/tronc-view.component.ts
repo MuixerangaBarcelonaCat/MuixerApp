@@ -46,8 +46,7 @@ interface FloorOption {
 
 const HEIGHT_BASELINE = 140;
 
-// Available floor types per next z level. Keys are the nextZ value.
-const FLOOR_OPTIONS: Record<number, FloorOption[]> = {
+const FLOOR_LABELS: Record<number, FloorOption[]> = {
   1: [
     { z: 1, label: 'Segon/Segona', positionType: 'segon' },
     { z: 1, label: 'Alçadora',     positionType: 'alcadora' },
@@ -140,17 +139,16 @@ export class TroncViewComponent {
   );
 
   /**
-   * Total grid columns = max between:
-   * - TRONC: max(x + width) across all tronc nodes
-   * - BASE: count of base nodes (each occupies 1 column by index)
+   * Grid columns in half-units (0.5u = 1 CSS column).
+   * Doubled internally so fractional x/width map to integer grid lines.
    */
   readonly totalColumns = computed(() => {
     const troncMax = this.troncNodes().reduce(
-      (max, n) => Math.max(max, n.x + n.width),
+      (max, n) => Math.max(max, Math.round((n.x + n.width) * 2)),
       0,
     );
-    const baseCount = this.sortedBases().length;
-    return Math.max(troncMax, baseCount, 1);
+    const baseCount = this.sortedBases().length * 2;
+    return Math.max(troncMax, baseCount, 2);
   });
 
   readonly floors = computed<TroncFloor[]>(() => {
@@ -183,11 +181,7 @@ export class TroncViewComponent {
       isBase: true,
     };
 
-    const allFloors = [...troncFloors, baseFloor].sort((a, b) =>
-      this.inverted() ? a.z - b.z : b.z - a.z,
-    );
-
-    return allFloors;
+    return [...troncFloors, baseFloor].sort((a, b) => b.z - a.z);
   });
 
   readonly varianceByFloor = computed(() => {
@@ -224,14 +218,22 @@ export class TroncViewComponent {
     return this.troncNodes().find((n) => n.id === id) ?? null;
   });
 
-  readonly maxTroncZ = computed(() =>
-    this.troncNodes().reduce((max, n) => Math.max(max, n.z), 0),
+  /** All z levels that currently have tronc nodes. */
+  readonly existingZLevels = computed(() =>
+    new Set(this.troncNodes().map((n) => n.z)),
   );
 
-  readonly nextFloorOptions = computed<FloorOption[]>(() => {
-    const nextZ = this.maxTroncZ() + 1;
-    if (nextZ > MAX_TRONC_Z) return [];
-    return FLOOR_OPTIONS[nextZ] ?? [];
+  /** Floor options for all z levels that don't yet have any nodes. */
+  readonly availableFloorOptions = computed<FloorOption[]>(() => {
+    const existing = this.existingZLevels();
+    const options: FloorOption[] = [];
+    for (let z = 1; z <= MAX_TRONC_Z; z++) {
+      if (!existing.has(z)) {
+        const zOptions = FLOOR_LABELS[z];
+        if (zOptions) options.push(...zOptions);
+      }
+    }
+    return options;
   });
 
   readonly hasTronc = computed(
@@ -248,12 +250,13 @@ export class TroncViewComponent {
   }
 
   onNodeXChange(node: TroncNodeItem, value: number): void {
-    this.nodeUpdated.emit({ nodeId: node.id, x: Math.max(0, Math.floor(value)), width: node.width });
+    const rounded = Math.round(Math.max(0, Math.min(8, value)) * 2) / 2;
+    this.nodeUpdated.emit({ nodeId: node.id, x: rounded, width: node.width });
   }
 
   onNodeWidthChange(node: TroncNodeItem, value: number): void {
-    const clamped = Math.max(1, Math.min(4, Math.floor(value)));
-    this.nodeUpdated.emit({ nodeId: node.id, x: node.x, width: clamped });
+    const rounded = Math.round(Math.max(0.5, Math.min(8, value)) * 2) / 2;
+    this.nodeUpdated.emit({ nodeId: node.id, x: node.x, width: rounded });
   }
 
   onNodeDelete(node: TroncNodeItem): void {
@@ -261,34 +264,29 @@ export class TroncViewComponent {
   }
 
   onAddFloor(): void {
-    const options = this.nextFloorOptions();
+    const options = this.availableFloorOptions();
     const typeKey = this.selectedFloorType();
     const option =
-      options.find((o) => o.positionType === typeKey) ?? options[0];
+      options.find((o) => `${o.z}-${o.positionType}` === typeKey) ?? options[0];
     if (!option) return;
 
-    const existingAtZ = this.troncNodes().filter((n) => n.z === option.z);
     this.nodeAdded.emit({
       z: option.z,
       positionType: option.positionType,
       label: option.label,
-      sortOrder: existingAtZ.length,
+      sortOrder: 0,
     });
     this.selectedFloorType.set('');
   }
 
   onAddNodeToFloor(floor: TroncFloor): void {
-    const nextX = floor.nodes.reduce((max, n) => Math.max(max, n.x + n.width), 0);
+    const floorLabel = this.getFloorDisplayLabel(floor.z, floor.positionTypeLabel);
     this.nodeAdded.emit({
       z: floor.z,
       positionType: floor.positionTypeLabel,
-      label: `${floor.positionTypeLabel} ${floor.nodes.length + 1}`,
+      label: floorLabel,
       sortOrder: floor.nodes.length,
     });
-    // Also emit nodeUpdated immediately with correct x so parent can set it
-    // (parent creates node at x:0; a separate nodeUpdated would be redundant since
-    // parent's onTroncNodeAdded sets x:0 by default — user adjusts in the panel)
-    void nextX; // x positioning is handled via the x input after creation
   }
 
   onAddBase(): void {
@@ -333,11 +331,19 @@ export class TroncViewComponent {
     return this.attendanceMap().get(personId) ?? null;
   }
 
-  getAttendanceCss(assignment: AssignmentDetail): string {
+  getAttendanceColor(assignment: AssignmentDetail): string {
     const status = this.getAttendanceStatus(assignment);
-    if (status === 'ANIRE' || status === 'ASSISTIT') return 'bg-success';
-    if (status === 'NO_VAIG' || status === 'NO_PRESENTAT') return 'bg-error';
-    return 'bg-base-300';
+    if (status === 'ANIRE' || status === 'ASSISTIT') return 'oklch(var(--su))';
+    if (status === 'NO_VAIG' || status === 'NO_PRESENTAT') return 'oklch(var(--er))';
+    return 'oklch(var(--bc) / 0.2)';
+  }
+
+  getVarianceColor(z: number): string {
+    const level = this.getVarianceLevel(z);
+    if (level === 'success') return 'oklch(var(--su))';
+    if (level === 'warning') return 'oklch(var(--wa))';
+    if (level === 'error') return 'oklch(var(--er))';
+    return 'oklch(var(--bc) / 0.4)';
   }
 
   getVarianceDisplay(z: number): string {
@@ -371,21 +377,37 @@ export class TroncViewComponent {
     return `${node.label}: ${assignment.person.alias}, alçada ${height}`;
   }
 
-  /** CSS grid-column value for a TRONC node. */
+  /** CSS grid-column for a TRONC node (doubled grid: 0.5u = 1 column). */
   getTroncNodeGridColumn(node: TroncNodeItem): string {
-    return `${node.x + 1} / span ${node.width}`;
+    const start = Math.round(node.x * 2) + 1;
+    const span = Math.round(node.width * 2);
+    return `${start} / span ${span}`;
   }
 
-  /** CSS grid-column value for a BASE node by its sorted index. */
+  /** CSS grid-column for a BASE node by its sorted index (each base = 2 half-cols). */
   getBaseNodeGridColumn(index: number): string {
-    return `${index + 1} / span 1`;
+    return `${index * 2 + 1} / span 2`;
   }
 
   gridTemplateColumns(): string {
-    const cols = this.totalColumns();
-    // Drawer is 480px → content ~440px. Aim for ≥60px per col when ≤7 cols.
-    const minSize = cols > 7 ? '3rem' : cols > 4 ? '4rem' : '5rem';
-    return `repeat(${cols}, minmax(${minSize}, 1fr))`;
+    const halfCols = this.totalColumns();
+    const realCols = halfCols / 2;
+    const minSize = realCols > 7 ? '1.5rem' : realCols > 4 ? '2rem' : '2.5rem';
+    // Add 2 extra half-columns (= 1 real column) for the add-node button
+    return `repeat(${halfCols}, minmax(${minSize}, 1fr)) 2.5rem`;
+  }
+
+  /** Grid column for the add-node button (always in the extra column at the end). */
+  getAddNodeButtonGridColumn(): string {
+    const halfCols = this.totalColumns();
+    return `${halfCols + 1} / span 2`;
+  }
+
+  /** Canonical display label for a floor level and position type. */
+  private getFloorDisplayLabel(z: number, positionType: string): string {
+    const options = FLOOR_LABELS[z];
+    if (!options) return positionType;
+    return options.find((o) => o.positionType === positionType)?.label ?? positionType;
   }
 
   private getDominantPositionType(nodes: TroncNodeItem[]): string {

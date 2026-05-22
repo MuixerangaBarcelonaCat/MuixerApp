@@ -568,15 +568,15 @@ describe('AssignmentCanvasComponent', () => {
       expect(baseNodes.length).toBe(1);
     });
 
-    it('troncPanelOpen defaults to true', () => {
-      expect(component.troncPanelOpen()).toBe(true);
+    it('troncPanelOpen defaults to false (floating panel, user opens)', () => {
+      expect(component.troncPanelOpen()).toBe(false);
     });
 
     it('troncPanelOpen toggles correctly', () => {
       component.troncPanelOpen.update((v) => !v);
-      expect(component.troncPanelOpen()).toBe(false);
-      component.troncPanelOpen.update((v) => !v);
       expect(component.troncPanelOpen()).toBe(true);
+      component.troncPanelOpen.update((v) => !v);
+      expect(component.troncPanelOpen()).toBe(false);
     });
   });
 });
