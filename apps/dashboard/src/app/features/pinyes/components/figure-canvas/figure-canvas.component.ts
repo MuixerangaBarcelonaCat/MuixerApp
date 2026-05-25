@@ -125,6 +125,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   private transformer!: Konva.Transformer;
 
   private resizeObserver: ResizeObserver | null = null;
+  /** Reused for measuring label text; not attached to the stage. */
+  private labelMeasureProbe: Konva.Text | null = null;
 
   readonly zoomLevel = signal(1);
 
@@ -185,6 +187,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.resizeObserver?.disconnect();
+    this.labelMeasureProbe?.destroy();
+    this.labelMeasureProbe = null;
     this.stage?.destroy();
   }
 
@@ -906,11 +910,16 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
       const textFill = this.getContrastColor(fill);
       const displayText = assignment ? assignment.person.alias : node.label;
+      const { fontSize, wrap } = this.fitFontSizeForNode(displayText, node.width, node.height, {
+        maxFontSize: assignment ? 13 : 9,
+        fontStyle: assignment ? 'bold' : 'normal',
+        wrap: assignment ? 'none' : 'word',
+      });
 
       group.add(
         new Konva.Text({
           text: displayText,
-          fontSize: assignment ? 13 : 9,
+          fontSize,
           fontStyle: assignment ? 'bold' : 'normal',
           fontFamily: 'Inter, sans-serif',
           fill: textFill,
@@ -922,8 +931,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           x: -node.width / 2,
           y: -node.height / 2,
           listening: false,
-          wrap: 'none',
-          ellipsis: true,
+          wrap,
+          ellipsis: false,
         }),
       );
 
@@ -1160,6 +1169,61 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
   private snapValue(value: number, spacing: number): number {
     return Math.round(value / spacing) * spacing;
+  }
+
+  private getLabelMeasureProbe(): Konva.Text {
+    if (!this.labelMeasureProbe) {
+      this.labelMeasureProbe = new Konva.Text({
+        fontFamily: 'Inter, sans-serif',
+        listening: false,
+      });
+    }
+    return this.labelMeasureProbe;
+  }
+
+  /**
+   * Shrinks font size (and optionally wraps) so the full label fits inside the node box.
+   * Used in readonly/projection mode instead of ellipsis truncation.
+   */
+  private fitFontSizeForNode(
+    text: string,
+    boxWidth: number,
+    boxHeight: number,
+    opts: {
+      maxFontSize: number;
+      minFontSize?: number;
+      fontStyle?: string;
+      wrap?: 'none' | 'word';
+      padding?: number;
+    },
+  ): { fontSize: number; wrap: 'none' | 'word' } {
+    const padding = opts.padding ?? 4;
+    const maxW = Math.max(1, boxWidth - padding * 2);
+    const maxH = Math.max(1, boxHeight - padding * 2);
+    const minFont = opts.minFontSize ?? 5;
+    const maxFont = opts.maxFontSize;
+    const wrap = opts.wrap ?? 'none';
+    const probe = this.getLabelMeasureProbe();
+
+    probe.text(text);
+    probe.fontStyle(opts.fontStyle ?? 'normal');
+    probe.wrap(wrap);
+    if (wrap === 'word') {
+      probe.width(maxW);
+    } else {
+      probe.width(0);
+    }
+
+    for (let fontSize = maxFont; fontSize >= minFont; fontSize -= 0.5) {
+      probe.fontSize(fontSize);
+      const size = probe.measureSize(text);
+      const fitsWidth = wrap === 'word' || size.width <= maxW;
+      if (fitsWidth && size.height <= maxH) {
+        return { fontSize, wrap };
+      }
+    }
+
+    return { fontSize: minFont, wrap };
   }
 
   /** Returns #000 or #fff depending on background luminance */

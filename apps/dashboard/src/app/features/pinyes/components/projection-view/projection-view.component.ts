@@ -9,23 +9,42 @@ import {
   signal,
 } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { Subject, Subscription } from 'rxjs';
-import { debounceTime, switchMap } from 'rxjs/operators';
+import { CommonModule, Location } from '@angular/common';
 import { LucideAngularModule } from 'lucide-angular';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { ProjectionService } from '../../services/projection.service';
-import { ReferenceElementService } from '../../services/reference-element.service';
 import { ProjectionSegmentData, ProjectionInstance } from '../../models/projection.model';
-import { ReferenceElementItem, CreateReferenceElementPayload } from '../../models/reference-element.model';
-import { FigurePosition, SegmentCanvasComponent } from '../segment-canvas/segment-canvas.component';
 import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component';
 import { TroncViewComponent, TroncNodeItem } from '../tronc-view/tronc-view.component';
-import { ReferenceElementType, FigureZone } from '@muixer/shared';
+import { FigureZone } from '@muixer/shared';
 
-type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+type ViewMode = 'pinyes' | 'troncs';
+
+interface TroncPanel {
+  instanceId: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  zIndex: number;
+}
+
+interface DragState {
+  panelId: string;
+  startMouseX: number;
+  startMouseY: number;
+  startPanelX: number;
+  startPanelY: number;
+}
+
+interface ResizeState {
+  panelId: string;
+  startMouseX: number;
+  startMouseY: number;
+  startWidth: number;
+  startHeight: number;
+}
 
 @Component({
   selector: 'app-projection-view',
@@ -33,10 +52,8 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
-    FormsModule,
     RouterLink,
     LucideAngularModule,
-    SegmentCanvasComponent,
     FigureCanvasComponent,
     TroncViewComponent,
   ],
@@ -45,44 +62,29 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 export class ProjectionViewComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly location = inject(Location);
   private readonly layoutService = inject(LayoutService);
   private readonly projectionService = inject(ProjectionService);
-  private readonly referenceElementService = inject(ReferenceElementService);
   private readonly toast = inject(ToastService);
 
-  readonly ReferenceElementType = ReferenceElementType;
   readonly FigureZone = FigureZone;
 
   // ── State signals ───────────────────────────────────────────────────────────
 
   readonly loading = signal(true);
-  readonly editMode = signal(true);
+  readonly viewMode = signal<ViewMode>('pinyes');
   readonly segmentData = signal<ProjectionSegmentData | null>(null);
-  /** Kept for edit-mode SegmentCanvas mini-preview positions (not persisted). */
-  readonly figurePositions = signal<Map<string, FigurePosition>>(new Map());
-  readonly selectedElementId = signal<string | null>(null);
-  readonly referenceElements = signal<ReferenceElementItem[]>([]);
   readonly cursorVisible = signal(true);
   readonly helpModalOpen = signal(false);
-  readonly saveStatus = signal<SaveStatus>('idle');
 
-  /** Projection mode: shows tronc floating panel for the double-clicked figure. */
-  readonly troncOverlayInstanceId = signal<string | null>(null);
+  /** Pinya view: independently draggable/resizable tronc panels, one per figure. */
+  readonly openTroncPanels = signal<TroncPanel[]>([]);
 
-  /** Background color for projection mode. */
+  /** Background color for projection. */
   readonly bgColor = signal<'white' | 'black'>('white');
-
-  /** Add-element modal state. */
-  readonly addElementModalOpen = signal(false);
-  readonly addElementModalType = signal<ReferenceElementType | null>(null);
-  readonly addElementModalLabel = signal('');
 
   // ── Computed ────────────────────────────────────────────────────────────────
 
-  /**
-   * Grid columns:
-   *  1→1, 2→2, 3→3, 4→2×2, 5+→3 cols (last row centered via flex justify-center)
-   */
   readonly gridCols = computed(() => {
     const n = this.segmentData()?.instances.length ?? 0;
     if (n <= 1) return 1;
@@ -97,35 +99,18 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
     return Math.ceil(n / this.gridCols());
   });
 
-  /** Flex item width — accounts for 6px total gap (3px per side margin). */
   readonly itemWidthStyle = computed(() => `calc(${100 / this.gridCols()}% - 6px)`);
-
-  /** Flex item height — accounts for 6px total gap. */
   readonly itemHeightStyle = computed(() => `calc(${100 / this.gridRows()}% - 6px)`);
 
-  readonly troncOverlayInstance = computed(() => {
-    const id = this.troncOverlayInstanceId();
-    if (!id) return null;
-    return this.segmentData()?.instances.find((i) => i.id === id) ?? null;
-  });
-
-  readonly troncOverlayTroncNodes = computed<TroncNodeItem[]>(() =>
-    (this.troncOverlayInstance()?.nodes.filter((n) => n.zone === FigureZone.TRONC) ?? []) as TroncNodeItem[],
-  );
-
-  readonly troncOverlayBaseNodes = computed<TroncNodeItem[]>(() =>
-    (this.troncOverlayInstance()?.nodes.filter((n) => n.zone === FigureZone.BASE) ?? []) as TroncNodeItem[],
-  );
-
-  // ── Route params (public for RouterLink in template) ────────────────────────
+  // ── Route params ────────────────────────────────────────────────────────────
 
   eventId = '';
   segmentId = '';
 
   private cursorTimer: ReturnType<typeof setTimeout> | null = null;
-
-  private readonly elementsSave$ = new Subject<void>();
-  private subscriptions = new Subscription();
+  private zCounter = 60;
+  private dragState: DragState | null = null;
+  private resizeState: ResizeState | null = null;
 
   // ── Lifecycle ───────────────────────────────────────────────────────────────
 
@@ -134,14 +119,16 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
     const params = this.route.snapshot.params;
     this.eventId = params['eventId'];
     this.segmentId = params['segmentId'];
+
+    const qp = this.route.snapshot.queryParams['view'];
+    if (qp === 'troncs') this.viewMode.set('troncs');
+
     this.loadSegment();
-    this.setupAutoSave();
   }
 
   ngOnDestroy(): void {
     this.layoutService.exitFullscreen();
     if (this.cursorTimer) clearTimeout(this.cursorTimer);
-    this.subscriptions.unsubscribe();
   }
 
   // ── Keyboard shortcuts ──────────────────────────────────────────────────────
@@ -152,97 +139,149 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
     if (event.key === 'ArrowRight') this.navigateSegment('next');
     if (event.key === 'Escape') this.handleEscape();
     if (event.key === 'f' || event.key === 'F') this.toggleBrowserFullscreen();
-    if (event.key === 'e' || event.key === 'E') this.editMode.update((v) => !v);
+    if (event.key === 'e' || event.key === 'E') this.toggleViewMode();
     if (event.key === '?' || event.key === 'h' || event.key === 'H') {
       this.helpModalOpen.update((v) => !v);
     }
   }
 
+  // ── Drag & resize ───────────────────────────────────────────────────────────
+
+  @HostListener('document:mousemove', ['$event'])
+  onDocumentMouseMove(event: MouseEvent): void {
+    if (this.dragState) {
+      const dx = event.clientX - this.dragState.startMouseX;
+      const dy = event.clientY - this.dragState.startMouseY;
+      const { panelId, startPanelX, startPanelY } = this.dragState;
+      this.openTroncPanels.update((ps) =>
+        ps.map((p) =>
+          p.instanceId === panelId
+            ? { ...p, x: Math.max(0, startPanelX + dx), y: Math.max(0, startPanelY + dy) }
+            : p,
+        ),
+      );
+    }
+    if (this.resizeState) {
+      const dx = event.clientX - this.resizeState.startMouseX;
+      const dy = event.clientY - this.resizeState.startMouseY;
+      const { panelId, startWidth, startHeight } = this.resizeState;
+      this.openTroncPanels.update((ps) =>
+        ps.map((p) =>
+          p.instanceId === panelId
+            ? { ...p, width: Math.max(300, startWidth + dx), height: Math.max(200, startHeight + dy) }
+            : p,
+        ),
+      );
+    }
+  }
+
+  @HostListener('document:mouseup')
+  onDocumentMouseUp(): void {
+    this.dragState = null;
+    this.resizeState = null;
+  }
+
   // ── Mouse / cursor management ───────────────────────────────────────────────
 
   onMouseMove(): void {
-    if (this.editMode()) return;
     this.cursorVisible.set(true);
     if (this.cursorTimer) clearTimeout(this.cursorTimer);
     this.cursorTimer = setTimeout(() => this.cursorVisible.set(false), 3000);
   }
 
-  // ── Figure grid interactions ────────────────────────────────────────────────
+  // ── View mode ───────────────────────────────────────────────────────────────
 
-  /** Double-click on a grid cell: show tronc floating panel for that figure. */
+  toggleViewMode(): void {
+    const next: ViewMode = this.viewMode() === 'pinyes' ? 'troncs' : 'pinyes';
+    this.viewMode.set(next);
+    this.syncQueryParam();
+  }
+
+  // ── Figure grid interactions (pinya view) ─────────────────────────────────
+
   onFigureDoubleClicked(instanceId: string): void {
-    this.troncOverlayInstanceId.set(instanceId);
+    const existing = this.openTroncPanels().find((p) => p.instanceId === instanceId);
+    if (existing) {
+      this.bringPanelToFront(instanceId);
+      return;
+    }
+    const offset = this.openTroncPanels().length * 30;
+    this.zCounter++;
+    this.openTroncPanels.update((ps) => [
+      ...ps,
+      { instanceId, x: 16 + offset, y: 100 + offset, width: 600, height: 400, zIndex: this.zCounter },
+    ]);
   }
 
-  closeTroncOverlay(): void {
-    this.troncOverlayInstanceId.set(null);
+  bringPanelToFront(instanceId: string): void {
+    this.zCounter++;
+    const z = this.zCounter;
+    this.openTroncPanels.update((ps) =>
+      ps.map((p) => (p.instanceId === instanceId ? { ...p, zIndex: z } : p)),
+    );
   }
 
-  /** Returns pinya+base nodes for a figure (excludes TRONC zone). */
+  closeTroncPanel(instanceId: string): void {
+    this.openTroncPanels.update((ps) => ps.filter((p) => p.instanceId !== instanceId));
+  }
+
+  onPanelDragStart(event: MouseEvent, instanceId: string): void {
+    event.preventDefault();
+    const panel = this.openTroncPanels().find((p) => p.instanceId === instanceId);
+    if (!panel) return;
+    this.bringPanelToFront(instanceId);
+    this.dragState = {
+      panelId: instanceId,
+      startMouseX: event.clientX,
+      startMouseY: event.clientY,
+      startPanelX: panel.x,
+      startPanelY: panel.y,
+    };
+  }
+
+  onPanelResizeStart(event: MouseEvent, instanceId: string): void {
+    event.preventDefault();
+    event.stopPropagation();
+    const panel = this.openTroncPanels().find((p) => p.instanceId === instanceId);
+    if (!panel) return;
+    this.bringPanelToFront(instanceId);
+    this.resizeState = {
+      panelId: instanceId,
+      startMouseX: event.clientX,
+      startMouseY: event.clientY,
+      startWidth: panel.width,
+      startHeight: panel.height,
+    };
+  }
+
+  // ── Panel data accessors ──────────────────────────────────────────────────
+
+  getPanelInstance(instanceId: string): ProjectionInstance | undefined {
+    return this.segmentData()?.instances.find((i) => i.id === instanceId);
+  }
+
+  getPanelTroncNodes(instanceId: string): TroncNodeItem[] {
+    return (this.getPanelInstance(instanceId)?.nodes.filter((n) => n.zone === FigureZone.TRONC) ?? []) as TroncNodeItem[];
+  }
+
+  getPanelBaseNodes(instanceId: string): TroncNodeItem[] {
+    return (this.getPanelInstance(instanceId)?.nodes.filter((n) => n.zone === FigureZone.BASE) ?? []) as TroncNodeItem[];
+  }
+
   getInstancePinyaNodes(instance: ProjectionInstance) {
     return instance.nodes.filter((n) => n.zone !== FigureZone.TRONC);
   }
 
+  getInstanceTroncNodes(instance: ProjectionInstance): TroncNodeItem[] {
+    return instance.nodes.filter((n) => n.zone === FigureZone.TRONC) as TroncNodeItem[];
+  }
+
+  getInstanceBaseNodes(instance: ProjectionInstance): TroncNodeItem[] {
+    return instance.nodes.filter((n) => n.zone === FigureZone.BASE) as TroncNodeItem[];
+  }
+
   getInstanceName(instance: ProjectionInstance): string {
     return instance.label ?? instance.figureTemplate?.name ?? 'Figura';
-  }
-
-  // ── Edit-mode canvas interactions ───────────────────────────────────────────
-
-  /** Updates local figurePositions state; positions are NOT persisted (grid layout replaces positioning). */
-  onFigureMoved(event: { instanceId: string; x: number; y: number }): void {
-    this.figurePositions.update((map) => {
-      const current = map.get(event.instanceId) ?? { x: 0, y: 0, scale: 1 };
-      const next = new Map(map);
-      next.set(event.instanceId, { ...current, x: event.x, y: event.y });
-      return next;
-    });
-  }
-
-  onElementMoved(event: {
-    elementId: string;
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-    rotation: number;
-  }): void {
-    this.referenceElements.update((els) =>
-      els.map((el) =>
-        el.id === event.elementId
-          ? { ...el, x: event.x, y: event.y, width: event.width, height: event.height, rotation: event.rotation }
-          : el,
-      ),
-    );
-    this.elementsSave$.next();
-  }
-
-  // ── Reference element management ────────────────────────────────────────────
-
-  openAddElementModal(type: ReferenceElementType): void {
-    this.addElementModalType.set(type);
-    this.addElementModalLabel.set('');
-    this.addElementModalOpen.set(true);
-  }
-
-  confirmAddElement(): void {
-    const type = this.addElementModalType();
-    if (!type) return;
-    const label = this.addElementModalLabel().trim() || null;
-    this.createReferenceElement(type, label);
-    this.addElementModalOpen.set(false);
-    this.addElementModalType.set(null);
-    this.addElementModalLabel.set('');
-  }
-
-  onElementDeleted(elementId: string): void {
-    this.referenceElementService.remove(this.eventId, elementId).subscribe({
-      next: () => {
-        this.referenceElements.update((els) => els.filter((el) => el.id !== elementId));
-        if (this.selectedElementId() === elementId) this.selectedElementId.set(null);
-      },
-      error: () => this.toast.error('Error eliminant element de referència'),
-    });
   }
 
   // ── Background color ────────────────────────────────────────────────────────
@@ -259,41 +298,32 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
     const targetId =
       direction === 'prev' ? data.segment.prevSegmentId : data.segment.nextSegmentId;
     if (!targetId) return;
-    this.router.navigate(['/pinyes/events', this.eventId, 'segments', targetId, 'project']);
+
+    const queryParams = this.viewMode() === 'troncs' ? { view: 'troncs' } : {};
+    this.router.navigate(
+      ['/pinyes/events', this.eventId, 'segments', targetId, 'project'],
+      { queryParams },
+    );
     this.segmentId = targetId;
-    this.troncOverlayInstanceId.set(null);
+    this.openTroncPanels.set([]);
     this.loadSegment();
   }
 
-  toggleEditMode(): void {
-    this.editMode.update((v) => !v);
-    if (!this.editMode()) {
-      this.cursorVisible.set(true);
-      this.cursorTimer = setTimeout(() => this.cursorVisible.set(false), 3000);
-    }
-  }
-
   goBack(): void {
-    this.router.navigate(['/events', this.eventId]);
+    this.location.back();
   }
 
   // ── Private helpers ─────────────────────────────────────────────────────────
 
   private handleEscape(): void {
-    if (this.addElementModalOpen()) {
-      this.addElementModalOpen.set(false);
-      return;
-    }
     if (this.helpModalOpen()) {
       this.helpModalOpen.set(false);
       return;
     }
-    if (this.troncOverlayInstanceId()) {
-      this.troncOverlayInstanceId.set(null);
-      return;
-    }
-    if (!this.editMode()) {
-      this.editMode.set(true);
+    const panels = this.openTroncPanels();
+    if (panels.length > 0) {
+      const topPanel = panels.reduce((a, b) => (a.zIndex > b.zIndex ? a : b));
+      this.closeTroncPanel(topPanel.instanceId);
       return;
     }
     this.goBack();
@@ -307,20 +337,9 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
     }
   }
 
-  private createReferenceElement(type: ReferenceElementType, label: string | null): void {
-    const payload: CreateReferenceElementPayload = {
-      type,
-      x: 100,
-      y: 100,
-      width: type === ReferenceElementType.RECTANGLE ? 200 : 150,
-      height: type === ReferenceElementType.RECTANGLE ? 120 : 20,
-      rotation: 0,
-      label,
-    };
-    this.referenceElementService.create(this.eventId, payload).subscribe({
-      next: (el) => this.referenceElements.update((els) => [...els, el]),
-      error: () => this.toast.error('Error creant element de referència'),
-    });
+  private syncQueryParam(): void {
+    const queryParams = this.viewMode() === 'troncs' ? { view: 'troncs' } : { view: null };
+    this.router.navigate([], { relativeTo: this.route, queryParams, queryParamsHandling: 'merge' });
   }
 
   private loadSegment(): void {
@@ -328,16 +347,6 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
     this.projectionService.getProjection(this.eventId, this.segmentId).subscribe({
       next: (data) => {
         this.segmentData.set(data);
-        const positions = new Map<string, FigurePosition>();
-        for (const instance of data.instances) {
-          positions.set(instance.id, {
-            x: instance.projectionX ?? -1,
-            y: instance.projectionY ?? -1,
-            scale: instance.projectionScale ?? 1,
-          });
-        }
-        this.figurePositions.set(positions);
-        this.referenceElements.set(data.referenceElements);
         this.loading.set(false);
       },
       error: () => {
@@ -345,32 +354,5 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
         this.loading.set(false);
       },
     });
-  }
-
-  private setupAutoSave(): void {
-    const elementsSub = this.elementsSave$
-      .pipe(
-        debounceTime(2000),
-        switchMap(() => {
-          const elements = this.referenceElements().map((el) => ({
-            id: el.id,
-            x: el.x,
-            y: el.y,
-            width: el.width,
-            height: el.height,
-            rotation: el.rotation,
-          }));
-          return this.referenceElementService.batchUpdate(this.eventId, elements);
-        }),
-      )
-      .subscribe({
-        next: () => {
-          this.saveStatus.set('saved');
-          setTimeout(() => this.saveStatus.set('idle'), 2000);
-        },
-        error: () => this.saveStatus.set('error'),
-      });
-
-    this.subscriptions.add(elementsSub);
   }
 }
