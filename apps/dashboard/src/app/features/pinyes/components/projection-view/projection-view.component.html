@@ -1,0 +1,199 @@
+@if (loading()) {
+  <div class="flex h-screen w-screen items-center justify-center bg-black text-white" role="status" aria-live="polite">
+    <span class="loading loading-spinner loading-lg text-primary"></span>
+    <span class="sr-only">Carregant projecció...</span>
+  </div>
+} @else if (viewMode() === 'figure' && activeFigure()) {
+  <app-figure-projection
+    [instance]="activeFigure()!"
+    (backToSegment)="viewMode.set('segment'); focusedInstanceId.set(null)"
+  />
+} @else if (segmentData()) {
+  <div
+    class="flex flex-col h-screen w-screen overflow-hidden"
+    [class.bg-black]="!editMode()"
+    [class.bg-base-200]="editMode()"
+    [class.cursor-none]="!editMode() && !cursorVisible()"
+    (mousemove)="onMouseMove()"
+    role="main"
+    aria-label="Vista de projecció del segment"
+  >
+
+    <!-- ── Toolbar (edit mode only) ─────────────────────────────────────────── -->
+    @if (editMode()) {
+      <header class="flex items-center gap-2 px-4 py-2 bg-base-100 border-b border-base-300 shadow-sm flex-shrink-0">
+
+        <!-- Back -->
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm btn-square"
+          (click)="goBack()"
+          aria-label="Tornar a l'event"
+          title="Tornar a l'event (Escape)"
+        >
+          <lucide-icon name="ArrowLeft" [size]="18" aria-hidden="true" />
+        </button>
+
+        <!-- Segment name -->
+        <h1 class="text-sm font-semibold flex-1 truncate">
+          {{ segmentData()!.segment.name ?? 'Segment sense nom' }}
+        </h1>
+
+        <!-- Prev / Next -->
+        <div class="join">
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm join-item"
+            (click)="navigateSegment('prev')"
+            [disabled]="!segmentData()!.segment.prevSegmentId"
+            aria-label="Segment anterior"
+            title="Segment anterior (←)"
+          >
+            <lucide-icon name="ChevronLeft" [size]="16" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm join-item"
+            (click)="navigateSegment('next')"
+            [disabled]="!segmentData()!.segment.nextSegmentId"
+            aria-label="Segment següent"
+            title="Segment següent (→)"
+          >
+            <lucide-icon name="ChevronRight" [size]="16" aria-hidden="true" />
+          </button>
+        </div>
+
+        <!-- Add reference elements -->
+        <div class="dropdown dropdown-end">
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm gap-1"
+            tabindex="0"
+            aria-label="Afegir element de referència"
+          >
+            <lucide-icon name="PlusSquare" [size]="16" aria-hidden="true" />
+            Element
+          </button>
+          <ul class="dropdown-content menu bg-base-100 rounded-box z-10 w-44 p-1 shadow border border-base-300">
+            <li>
+              <button type="button" (click)="onElementCreated(ReferenceElementType.RECTANGLE)">
+                <lucide-icon name="Square" [size]="14" aria-hidden="true" />
+                Rectangle
+              </button>
+            </li>
+            <li>
+              <button type="button" (click)="onElementCreated(ReferenceElementType.ARROW)">
+                <lucide-icon name="MoveRight" [size]="14" aria-hidden="true" />
+                Fletxa
+              </button>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Save status -->
+        @if (saveStatus() === 'saving') {
+          <span class="text-xs text-base-content/50">Desant...</span>
+        } @else if (saveStatus() === 'saved') {
+          <span class="text-xs text-success">Desat ✓</span>
+        } @else if (saveStatus() === 'error') {
+          <span class="text-xs text-error">Error al desar</span>
+        }
+
+        <!-- Edit ↔ Projection toggle -->
+        <button
+          type="button"
+          class="btn btn-primary btn-sm gap-1"
+          (click)="toggleEditMode()"
+          aria-label="Activar mode projecció"
+          title="Projectar (E)"
+        >
+          <lucide-icon name="Monitor" [size]="16" aria-hidden="true" />
+          Projectar
+        </button>
+
+        <!-- Help -->
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm btn-square"
+          (click)="helpModalOpen.set(true)"
+          aria-label="Ajuda de dreceres"
+          title="Ajuda (?)"
+        >
+          <lucide-icon name="HelpCircle" [size]="18" aria-hidden="true" />
+        </button>
+      </header>
+    }
+
+    <!-- ── Canvas area ──────────────────────────────────────────────────────── -->
+    <div class="flex flex-1 overflow-hidden relative">
+
+      <app-segment-canvas
+        class="flex-1 block"
+        [instances]="segmentData()!.instances"
+        [referenceElements]="referenceElements()"
+        [editMode]="editMode()"
+        [figurePositions]="figurePositions()"
+        [selectedElementId]="selectedElementId()"
+        (figureMoved)="onFigureMoved($event)"
+        (figureClicked)="onFigureClicked($event)"
+        (elementMoved)="onElementMoved($event)"
+        (elementSelected)="selectedElementId.set($event)"
+      />
+
+    </div>
+
+    <!-- ── Projection mode HUD (edit mode off) ─────────────────────────────── -->
+    @if (!editMode() && cursorVisible()) {
+      <div
+        class="fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 px-4 py-2 rounded-full bg-black/50 text-white/70 text-sm backdrop-blur-sm"
+        aria-live="polite"
+      >
+        <span>{{ segmentData()!.segment.name ?? 'Segment' }}</span>
+        @if (segmentData()!.segment.prevSegmentId) {
+          <kbd class="kbd kbd-sm bg-white/10 border-white/20 text-white/60">←</kbd>
+        }
+        @if (segmentData()!.segment.nextSegmentId) {
+          <kbd class="kbd kbd-sm bg-white/10 border-white/20 text-white/60">→</kbd>
+        }
+        <button
+          type="button"
+          class="btn btn-ghost btn-xs text-white/70"
+          (click)="toggleEditMode()"
+          aria-label="Tornar al mode d'edició"
+        >
+          <lucide-icon name="Pencil" [size]="14" aria-hidden="true" />
+          Editar
+        </button>
+      </div>
+    }
+
+  </div>
+
+  <!-- ── Help modal ─────────────────────────────────────────────────────────── -->
+  @if (helpModalOpen()) {
+    <dialog class="modal modal-open" aria-modal="true" aria-label="Ajuda de dreceres de teclat">
+      <div class="modal-box max-w-md">
+        <h2 class="font-bold text-lg mb-4">Dreceres de teclat</h2>
+
+        <table class="table table-sm w-full" role="grid">
+          <tbody>
+            <tr><td><kbd class="kbd kbd-sm">←</kbd> / <kbd class="kbd kbd-sm">→</kbd></td><td class="text-sm">Segment anterior / següent</td></tr>
+            <tr><td><kbd class="kbd kbd-sm">E</kbd></td><td class="text-sm">Alternar mode edició / projecció</td></tr>
+            <tr><td><kbd class="kbd kbd-sm">F</kbd></td><td class="text-sm">Pantalla completa del navegador</td></tr>
+            <tr><td><kbd class="kbd kbd-sm">Esc</kbd></td><td class="text-sm">Sortir de la figura / projectar / tornar</td></tr>
+            <tr><td><kbd class="kbd kbd-sm">?</kbd></td><td class="text-sm">Mostrar / amagar ajuda</td></tr>
+          </tbody>
+        </table>
+
+        <p class="text-xs text-base-content/50 mt-3">
+          En mode projecció, fes clic sobre una figura per veure-la en pantalla completa.
+        </p>
+
+        <div class="modal-action">
+          <button type="button" class="btn btn-sm" (click)="helpModalOpen.set(false)">Tancar</button>
+        </div>
+      </div>
+      <div class="modal-backdrop" (click)="helpModalOpen.set(false)" aria-hidden="true"></div>
+    </dialog>
+  }
+}

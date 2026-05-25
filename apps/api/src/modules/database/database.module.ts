@@ -17,6 +17,7 @@ import { EventSegment } from '../event-segment/entities/event-segment.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
 import { InstanceNode } from '../event-segment/entities/instance-node.entity';
 import { NodeAssignment } from '../node-assignment/entities/node-assignment.entity';
+import { ReferenceElement } from '../reference-element/entities/reference-element.entity';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { NodeAssignment } from '../node-assignment/entities/node-assignment.enti
             FigureInstance,
             InstanceNode,
             NodeAssignment,
+            ReferenceElement,
           ],
           synchronize: isDevelopment,
           logging: isDevelopment,

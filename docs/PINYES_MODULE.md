@@ -1,8 +1,10 @@
 # Mòdul de Pinyes — Documentació Tècnica
 
-> Última actualització: 19 de maig de 2026  
-> Fases implementades: P5.1 → P5.5  
-> Spec de referència: `docs/specs/2026-05-19-p5-family-snapshot-redesign.md`
+> Última actualització: 22 de maig de 2026  
+> Fases implementades: P5.1 → P5.7  
+> Specs de referència:
+> - `docs/specs/2026-05-19-p5-family-snapshot-redesign.md` (P5.5)
+> - `docs/specs/2026-05-20-p5-tronc-visualization-design.md` (P5.6)
 
 ---
 
@@ -18,9 +20,11 @@
 8. [Arquitectura frontend](#8-arquitectura-frontend)
 9. [Flux d'assignació pas a pas](#9-flux-dassignació-pas-a-pas)
 10. [Import massiu (bulk import)](#10-import-massiu-bulk-import)
-11. [Invariants de domini](#11-invariants-de-domini)
-12. [Gestió d'errors i casos límit](#12-gestió-derrors-i-casos-límit)
-13. [Guia per futures implementacions](#13-guia-per-futures-implementacions)
+11. [Visualització i assignació de troncs (P5.6)](#11-visualització-i-assignació-de-troncs-p56)
+12. [Tronc nodes a nivell de família (P5.7)](#12-tronc-nodes-a-nivell-de-família-p57)
+13. [Invariants de domini](#13-invariants-de-domini)
+14. [Gestió d'errors i casos límit](#14-gestió-derrors-i-casos-límit)
+15. [Guia per futures implementacions](#15-guia-per-futures-implementacions)
 
 ---
 
@@ -106,17 +110,19 @@ Bloc temporal dins d'un event (ex: "Escalfament", "Bloc 1"). Cada segment conté
 ```
 FigureFamily
     │ 1:N (RESTRICT)
-    ▼
-FigureTemplate ──── 1:N (CASCADE) ────► FigureNode
-    │                                       │
-    │ 1:N                             ringLevel, originNodeId
-    ▼
-FigureInstance ─── snapshotted, sourceVariantOrder
+    ├──► FigureTemplate ──── 1:N (CASCADE) ────► FigureNode
+    │         │                                       │
+    │         │ 1:N                             ringLevel, originNodeId
+    │         ▼
+    │   FigureInstance ─── snapshotted, sourceVariantOrder
+    │         │
+    │         ├─ 1:N (CASCADE) ────► InstanceNode ◄──── originNodeId, sourceNodeId
+    │         │                           │
+    │         └─ 1:N (CASCADE) ────► NodeAssignment ───► InstanceNode (RESTRICT)
+    │                                                 └──► Person (RESTRICT)
     │
-    ├─ 1:N (CASCADE) ────► InstanceNode ◄──── originNodeId, sourceNodeId
-    │                           │
-    └─ 1:N (CASCADE) ────► NodeAssignment ───► InstanceNode (RESTRICT)
-                                           └──► Person (RESTRICT)
+    └──► FigureFamilyNode (P5.7) ─── zone: TRONC/BASE only, shared across variants
+              │ x, width (relative units 0.5u–8u), z (floor), sortOrder
 ```
 
 ### Taules de base de dades
@@ -125,7 +131,8 @@ FigureInstance ─── snapshotted, sourceVariantOrder
 |-------|-----------|------|
 | `figure_families` | Famílies de figures | P5.5 |
 | `figure_templates` | Templates reutilitzables | P5.1 |
-| `figure_nodes` | Nodes d'un template | P5.1 |
+| `figure_nodes` | Nodes d'un template (només PINYA) | P5.1 / P5.7 |
+| `figure_family_nodes` | Nodes TRONC/BASE compartits per família | P5.7 |
 | `composition_templates` | Agrupació de templates | P5.2 |
 | `composition_slots` | Slot dins d'una composició | P5.2 |
 | `event_segments` | Blocs temporals d'un event | P5.3 |
@@ -319,7 +326,7 @@ apps/dashboard/src/app/features/pinyes/
 │   ├── node-popover/            # Popover de node assignat (acció desassignar)
 │   ├── import-pinya-modal/      # Modal d'importació massiva
 │   ├── figure-picker-modal/     # Modal per afegir figura/composició al segment
-│   ├── tronc-widget/            # Widget del tronc (pisos, posicions per fila)
+│   ├── tronc-view/              # Visualització i assignació de troncs (P5.6)
 │   └── pinyes-onboarding-modal/ # Modal d'introducció al mòdul (P5.5)
 ├── services/
 │   ├── figure-template.service.ts
@@ -336,6 +343,8 @@ apps/dashboard/src/app/features/pinyes/
     ├── assignment.model.ts
     ├── segment.model.ts
     └── composition.model.ts
+└── utils/
+    └── floor-variance.util.ts      # P5.6
 ```
 
 ### TemplateListComponent
@@ -351,12 +360,12 @@ Vista principal del mòdul de pinyes, accessible via `/pinyes`.
 
 Editor de pàgina complet accessible via `/pinyes/templates/:id/edit`.
 
-- **FigureCanvasComponent** (Konva): canvas pinya (65-70% ample) + tronc lateral (30-35%)
-- **TroncWidget**: pisos seqüencials P1–P6, botons +/− per posicions per fila
-- **Toolbar lateral**: afegir nodes per zona + positionType, eliminar node seleccionat
+- **FigureCanvasComponent** (Konva): canvas pinya amb nodes PINYA renderitzats
+- **TroncViewComponent** (P5.6): Floating draggable panel amb visualització CSS Grid del tronc, mode `editor`
+- **Toolbar lateral**: afegir nodes per zona + positionType, eliminar node seleccionat, **botó "Tronc"** (obre floating panel)
 - **Panel propietats**: label, zona, positionType, color, shape, ringLevel (P5.5), climbPath
 - **Auto-save** amb debounce 2s + indicador d'estat
-- **Upsert de nodes**: envia el payload complet al `PUT`; el backend fa upsert per ID
+- **Upsert de nodes**: envia el payload complet al `PUT`; el backend fa upsert per ID (P5.7: split TRONC/BASE a family nodes)
 
 ### AssignmentCanvasComponent
 
@@ -491,7 +500,167 @@ Match: origen_sourceNodeId == destí_sourceNodeId
 
 ---
 
-## 11. Invariants de domini
+## 11. Visualització i assignació de troncs (P5.6)
+
+### El problema resolt
+
+Pre-P5.6, els nodes `TRONC` es renderitzaven al canvas Konva amb coordenades `(0,0)`, fent-los invisibles i inutilitzables. El `TroncWidget` al template editor només permetia afegir/eliminar posicions però no representava la topologia real.
+
+### Sistema d'unitats relatives
+
+Els nodes `TRONC` i `BASE` ara usen **unitats relatives** (no pixels) per representar la seva posició horitzontal i amplada:
+
+- **`x`** (0–8, steps 0.5): posició horitzontal d'inici en unitats relatives
+- **`width`** (0.5–8, steps 0.5): amplada en unitats relatives (1u = amplada d'una persona)
+- **`z`** (integer): pis (P1 = z:0 per `BASE`, P2+ = z:1+ per `TRONC`)
+
+Exemple visual (Pilar de 4):
+```
+P5: [x:1, w:1]                                      → 1 node
+P4: [x:0, w:2]                                      → 1 node spanning 2
+P3: [x:0, w:2] [x:2, w:2]                           → 2 nodes spanning 2 each
+P2: [x:0, w:1] [x:1, w:1] [x:2, w:1] [x:3, w:1]    → 4 nodes
+P1: [x:0, w:1] [x:1, w:1] [x:2, w:1] [x:3, w:1]    → 4 bases (z=0)
+```
+
+**Convenció**: `x` i `width` són **pixels** per nodes `PINYA` (canvas Konva) i **unitats relatives** per nodes `TRONC`/`BASE`.
+
+### TroncViewComponent
+
+Component Angular standalone reutilitzable que renderitza el tronc amb **CSS Grid**:
+
+**Modes d'operació**:
+- **`editor`**: Controls per editar posició X, amplada, afegir/eliminar nodes, afegir pisos
+- **`assignment`**: Visualització d'assignacions amb àlies, alçada, attendance status, variance per pis
+
+**Característiques clau**:
+- **Toggle orientació**: P1 dalt (ascendent) ↔ P1 baix (descendent)
+- **Variance d'alçades per pis**: Mostra `Δ Xcm` amb color-coding:
+  - Verd: ≤5cm
+  - Groc: 6–10cm
+  - Vermell: >10cm
+- **Floating draggable panel**: Panell movible sobre el canvas (no modal), arrossegable amb mouse
+- **Grid doblejat intern**: Usa `x*2` i `width*2` internament per suportar 0.5u steps amb CSS Grid (que només accepta enters)
+- **Inline styling per colors**: `[style.color]` i `[style.background-color]` per evitar problemes de CSS specificity
+- **Add floor/node UX**: Botó `+` inline dins cada pis, dropdown per afegir qualsevol pis faltant
+- **Columna extra grid**: Dedicada al botó + per evitar line-break quan totes les posicions estan ocupades
+
+**Integració**:
+- `TemplateEditorComponent`: Botó "Tronc" a topbar → floating panel en mode editor
+- `AssignmentCanvasComponent`: Botó floating "Tronc" sobre canvas → floating panel en mode assignment
+
+**Lògica de variance**:
+```typescript
+// floor-variance.util.ts
+export function floorVariance(z: number, assignments: Map<...>): number | null {
+  // Calcula la diferència entre altura màxima i mínima del pis
+  const heights = [...]; // assignacions del pis z
+  return heights.length >= 2 ? Math.max(...heights) - Math.min(...heights) : null;
+}
+
+export function varianceLevel(variance: number): 'success' | 'warning' | 'error' {
+  if (variance <= 5) return 'success';
+  if (variance <= 10) return 'warning';
+  return 'error';
+}
+```
+
+**Migració de dades**:
+Script `migrate-tronc-units.script.ts` actualitza valors existents de `x`/`width` per nodes TRONC/BASE a unitats relatives (defecte: `x=0..3`, `width=1`).
+
+---
+
+## 12. Tronc nodes a nivell de família (P5.7)
+
+### El problema resolt
+
+Pre-P5.7, cada variant d'una família tenia la seva pròpia còpia dels nodes `TRONC`/`BASE`. Això causava:
+- Inconsistències quan s'editava el tronc d'una sola variant
+- Workflow tediós (editar totes les variants manualment)
+- Conceptualment incorrecte (el tronc és la **mateixa estructura** per tota la família)
+
+### Entitat FigureFamilyNode
+
+Nova taula `figure_family_nodes` que emmagatzema nodes `TRONC`/`BASE` compartits a nivell de `FigureFamily`:
+
+```typescript
+@Entity('figure_family_nodes')
+export class FigureFamilyNode {
+  @PrimaryGeneratedColumn('uuid') id: string;
+  @ManyToOne(() => FigureFamily, { onDelete: 'CASCADE' }) family: FigureFamily;
+  @Column() label: string;
+  @Column({ type: 'enum', enum: FigureZone }) zone: FigureZone; // TRONC | BASE
+  @Column() positionType: string;
+  @Column({ type: 'float' }) x: number;           // unitats relatives
+  @Column({ type: 'float' }) width: number;       // unitats relatives
+  @Column({ type: 'int' }) z: number;             // pis
+  @Column({ type: 'int' }) sortOrder: number;
+  @Column({ nullable: true }) color?: string;
+  @Column({ type: 'enum', enum: NodeShape }) shape: NodeShape;
+  @Column({ type: 'jsonb', nullable: true }) climbPath?: any;
+  // No té originNodeId (no deriva, és l'origen)
+}
+```
+
+### Estratègia merge/split transparent
+
+El frontend **no canvia**: segueix enviant/rebent nodes com abans. El backend fa la separació internament:
+
+**GET `/figure-templates/:id`** → **merge**:
+1. Carrega `FigureNode`s del template (només PINYA)
+2. Carrega `FigureFamilyNode`s de la família (TRONC/BASE)
+3. Combina les dues llistes
+4. Marca FamilyNodes amb `isShared: true` al DTO de sortida
+
+**PUT `/figure-templates/:id`** → **split**:
+1. Rep el payload amb nodes combinats
+2. Separa per `zone`:
+   - `TRONC`/`BASE` → `syncFamilyNodes()` (upsert a `figure_family_nodes`)
+   - `PINYA` / directions → `syncTemplateLevelNodes()` (upsert a `figure_nodes`)
+3. Upsert idempotent per ID (update si existeix, create si nou, delete si falta)
+
+**Funcions afectades**:
+- **`deriveNodes()`**: Només copia nodes PINYA (exclou TRONC/BASE) quan es crea una nova variant
+- **`snapshotInstance()`**: Snapshoteja tant `FigureFamilyNode`s com `FigureNode`s a `InstanceNode`s
+- **`duplicate()`**: En duplicar un template, si té família, els TRONC/BASE venen automàticament de la família
+
+### Migració de dades
+
+Script `migrate-tronc-to-family.script.ts` (idempotent):
+1. Itera per cada `FigureFamily`
+2. Troba el template amb `variantOrder` més baix (variant base)
+3. Copia els seus nodes TRONC/BASE a `figure_family_nodes`
+4. Elimina tots els nodes TRONC/BASE de `figure_nodes` per tota la família
+
+Nx target: `nx run api:migrate-tronc-to-family`
+
+### Seeds actualitzats
+
+Els seeds ara tenen estructura `familyNodes` separada:
+
+```typescript
+interface FigureSeed {
+  family: { name, slug, description };
+  variants: Array<{
+    name, slug, variantOrder,
+    nodes: FigureNodeSeed[]  // només PINYA
+  }>;
+  familyNodes: FigureNodeSeed[]  // TRONC + BASE, compartits
+}
+```
+
+`insertFigure()` és idempotent: comprova si la família ja té family nodes abans d'inserir-los.
+
+### Beneficis
+
+- **Edició unificada**: Editar el tronc d'una variant actualitza automàticament totes les variants
+- **Menys duplicació**: Un sol conjunt de nodes TRONC/BASE per família
+- **Conceptualment correcte**: El tronc és la mateixa estructura física per tota la família
+- **Backward compatible**: Instàncies existents snapshotted no es veuen afectades
+
+---
+
+## 13. Invariants de domini
 
 Aquests invariants han de mantenir-se en qualsevol futura implementació:
 
@@ -513,9 +682,13 @@ Aquests invariants han de mantenir-se en qualsevol futura implementació:
 
 9. **Cordo-obert independence**: Nodes amb `positionType = 'cordo-obert'` poden tenir `ringLevel = null`. La seva presència és independent del compte de cordons.
 
+10. **Tronc shared at family level (P5.7)**: Nodes `TRONC` i `BASE` existeixen només a `FigureFamilyNode` (no a `FigureNode`). Són compartits per totes les variants d'una família.
+
+11. **Relative units for tronc (P5.6)**: Per nodes `TRONC`/`BASE`, `x` i `width` són unitats relatives (0–8u, steps 0.5). Per nodes `PINYA`, són pixels.
+
 ---
 
-## 12. Gestió d'errors i casos límit
+## 14. Gestió d'errors i casos límit
 
 | Situació | Codi HTTP | Missatge Catalan |
 |----------|-----------|-----------------|
@@ -536,7 +709,7 @@ Aquests invariants han de mantenir-se en qualsevol futura implementació:
 
 ---
 
-## 13. Guia per futures implementacions
+## 15. Guia per futures implementacions
 
 ### Afegir un nou tipus de posicionType
 
@@ -592,4 +765,6 @@ El model de famílies i templates és **per colla**. Quan s'implementi multi-ten
 
 ---
 
-*Documentació generada el 19 de maig de 2026. Referència principal: `docs/specs/2026-05-19-p5-family-snapshot-redesign.md`.*
+*Documentació actualitzada el 22 de maig de 2026. Referències principals:*
+- *P5.5: `docs/specs/2026-05-19-p5-family-snapshot-redesign.md`*
+- *P5.6: `docs/specs/2026-05-20-p5-tronc-visualization-design.md`*

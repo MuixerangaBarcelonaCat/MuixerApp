@@ -61,15 +61,19 @@
                 [attr.aria-pressed]="isSelected(node.id)"
               >
                 @if (getAssignment(node.id); as assignment) {
-                  <span class="height-badge" aria-hidden="true">
-                    {{ getHeightDisplay(assignment.person.shoulderHeight) }}
-                  </span>
-                  <span class="person-alias">{{ assignment.person.alias }}</span>
-                  <span
-                    class="attendance-dot"
-                    [style.background-color]="getAttendanceColor(assignment)"
-                    aria-hidden="true"
-                  ></span>
+                  @if (mode() !== 'projection') {
+                    <span class="height-badge" aria-hidden="true">
+                      {{ getHeightDisplay(assignment.person.shoulderHeight) }}
+                    </span>
+                  }
+                  <span class="person-alias" [class.text-base]="mode() === 'projection'">{{ assignment.person.alias }}</span>
+                  @if (mode() !== 'projection') {
+                    <span
+                      class="attendance-dot"
+                      [style.background-color]="getAttendanceColor(assignment)"
+                      aria-hidden="true"
+                    ></span>
+                  }
                 } @else {
                   <span class="node-label">{{ node.label }}</span>
                 }
@@ -89,15 +93,19 @@
                 [attr.aria-pressed]="isSelected(node.id)"
               >
                 @if (getAssignment(node.id); as assignment) {
-                  <span class="height-badge" aria-hidden="true">
-                    {{ getHeightDisplay(assignment.person.shoulderHeight) }}
-                  </span>
-                  <span class="person-alias">{{ assignment.person.alias }}</span>
-                  <span
-                    class="attendance-dot"
-                    [style.background-color]="getAttendanceColor(assignment)"
-                    aria-hidden="true"
-                  ></span>
+                  @if (mode() !== 'projection') {
+                    <span class="height-badge" aria-hidden="true">
+                      {{ getHeightDisplay(assignment.person.shoulderHeight) }}
+                    </span>
+                  }
+                  <span class="person-alias" [class.text-base]="mode() === 'projection'">{{ assignment.person.alias }}</span>
+                  @if (mode() !== 'projection') {
+                    <span
+                      class="attendance-dot"
+                      [style.background-color]="getAttendanceColor(assignment)"
+                      aria-hidden="true"
+                    ></span>
+                  }
                 } @else {
                   <span class="node-label">{{ node.label }}</span>
                 }

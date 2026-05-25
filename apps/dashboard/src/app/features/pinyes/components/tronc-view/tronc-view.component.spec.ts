@@ -441,4 +441,46 @@ describe('TroncViewComponent', () => {
     fixture.detectChanges();
     expect(component.availableFloorOptions().length).toBe(0);
   });
+
+  // ── Projection mode ───────────────────────────────────────────────────────
+
+  describe('projection mode', () => {
+    beforeEach(() => {
+      fixture.componentRef.setInput('troncNodes', [makeNode()]);
+      fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
+      fixture.componentRef.setInput('assignments', [makeAssignment('node-1', 'Lluna', 155)]);
+      fixture.componentRef.setInput('mode', 'projection');
+      fixture.detectChanges();
+    });
+
+    it('does not render height badges', () => {
+      const badges = fixture.nativeElement.querySelectorAll('.height-badge');
+      expect(badges.length).toBe(0);
+    });
+
+    it('does not render attendance dots', () => {
+      const dots = fixture.nativeElement.querySelectorAll('.attendance-dot');
+      expect(dots.length).toBe(0);
+    });
+
+    it('renders person alias with text-base class for larger font', () => {
+      const aliases = fixture.nativeElement.querySelectorAll('.person-alias.text-base');
+      expect(aliases.length).toBeGreaterThan(0);
+    });
+
+    it('does not render editor controls (+ button, floor dropdown)', () => {
+      const editorControls = fixture.nativeElement.querySelector('.editor-controls');
+      expect(editorControls).toBeNull();
+    });
+
+    it('does not render variance indicators', () => {
+      const variances = fixture.nativeElement.querySelectorAll('.floor-variance');
+      expect(variances.length).toBe(0);
+    });
+
+    it('does not render progress badges', () => {
+      const progressBadges = fixture.nativeElement.querySelectorAll('.progress-badge');
+      expect(progressBadges.length).toBe(0);
+    });
+  });
 });

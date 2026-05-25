@@ -142,7 +142,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.mode();
       if (!this.stage) return;
       untracked(() => {
-        if (this.mode() === 'composition' || this.mode() === 'assignment') return;
+        const m = this.mode();
+        if (m === 'composition' || m === 'assignment' || m === 'readonly') return;
         this.renderNodes();
         this.updateTransformer();
       });
@@ -164,8 +165,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.selectedNodeId();
       this.highlightedNodeIds();
       if (!this.stage) return;
-      if (this.mode() !== 'assignment') return;
-      untracked(() => this.renderAssignmentNodes());
+      if (this.mode() === 'assignment') {
+        untracked(() => this.renderAssignmentNodes());
+      } else if (this.mode() === 'readonly') {
+        untracked(() => this.renderReadonlyNodes());
+      }
     });
   }
 
@@ -391,6 +395,9 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.renderCompositionSlots();
     } else if (this.mode() === 'assignment') {
       this.renderAssignmentNodes();
+    } else if (this.mode() === 'readonly') {
+      this.renderReadonlyNodes();
+      setTimeout(() => this.fitToScreen());
     } else {
       this.renderNodes();
     }
@@ -846,6 +853,79 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       group.on('mouseleave', () => {
         this.stage.container().style.cursor = 'default';
       });
+
+      this.pinyaLayer.add(group);
+    }
+
+    this.pinyaLayer.add(this.transformer);
+    this.pinyaLayer.batchDraw();
+  }
+
+  private renderReadonlyNodes(): void {
+    this.transformer.nodes([]);
+    this.transformer.remove();
+    this.pinyaLayer.destroyChildren();
+
+    const assignments = this.assignments();
+    const assignmentByNodeId = new Map(assignments.map((a) => [a.node.id, a]));
+
+    for (const node of this.nodes()) {
+      const assignment = assignmentByNodeId.get(node.id);
+      const fill = node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR;
+
+      const group = new Konva.Group({
+        id: node.id,
+        x: node.x,
+        y: node.y,
+        rotation: node.rotation,
+        draggable: false,
+      });
+
+      let shape: Konva.Shape;
+      if ((node as { shape?: string }).shape === NodeShape.ELLIPSE) {
+        shape = new Konva.Ellipse({
+          radiusX: node.width / 2,
+          radiusY: node.height / 2,
+          fill,
+          stroke: NORMAL_STROKE,
+          strokeWidth: 1.5,
+        });
+      } else {
+        shape = new Konva.Rect({
+          x: -node.width / 2,
+          y: -node.height / 2,
+          width: node.width,
+          height: node.height,
+          cornerRadius: 4,
+          fill,
+          stroke: NORMAL_STROKE,
+          strokeWidth: 1.5,
+        });
+      }
+      group.add(shape);
+
+      const textFill = this.getContrastColor(fill);
+      const displayText = assignment ? assignment.person.alias : node.label;
+
+      group.add(
+        new Konva.Text({
+          text: displayText,
+          fontSize: assignment ? 13 : 9,
+          fontStyle: assignment ? 'bold' : 'normal',
+          fontFamily: 'Inter, sans-serif',
+          fill: textFill,
+          opacity: assignment ? 1 : 0.5,
+          align: 'center',
+          verticalAlign: 'middle',
+          width: node.width,
+          height: node.height,
+          x: -node.width / 2,
+          y: -node.height / 2,
+          listening: false,
+          wrap: 'word',
+          ellipsis: true,
+        }),
+      );
 
       this.pinyaLayer.add(group);
     }

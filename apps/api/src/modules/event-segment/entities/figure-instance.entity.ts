@@ -51,6 +51,15 @@ export class FigureInstance {
   @Column({ type: 'int', nullable: true })
   sourceVariantOrder: number | null;
 
+  @Column({ type: 'float', nullable: true })
+  projectionX: number | null;
+
+  @Column({ type: 'float', nullable: true })
+  projectionY: number | null;
+
+  @Column({ type: 'float', default: 1.0 })
+  projectionScale: number;
+
   @OneToMany('InstanceNode', (node: InstanceNode) => node.figureInstance, { cascade: true })
   instanceNodes: InstanceNode[];
 

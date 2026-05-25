@@ -5,7 +5,7 @@ import { Router } from '@angular/router';
 import {
   LUCIDE_ICONS, LucideIconProvider,
   Check, ChevronDown, ChevronUp, Clock, Eye, EyeOff, FileText, Hexagon, Layers,
-  LayoutGrid, Plus, Trash2, Users, X,
+  LayoutGrid, Monitor, Plus, Trash2, Users, X,
 } from 'lucide-angular';
 import { SegmentManagerComponent } from './segment-manager.component';
 import { EventSegmentService } from '../../../pinyes/services/event-segment.service';
@@ -27,15 +27,19 @@ const makeSegment = (overrides: Partial<SegmentDetail> = {}): SegmentDetail => (
   ...overrides,
 });
 
-const makeInstance = () => ({
+const makeInstance = (overrides = {}) => ({
   id: 'inst-uuid-1',
   label: null,
   sortOrder: 0,
   snapshotted: false,
   sourceVariantOrder: null,
   assignedCount: 0,
+  projectionX: null,
+  projectionY: null,
+  projectionScale: 1,
   figureTemplate: { id: 'fig-1', name: 'pd4' },
   compositionTemplate: null,
+  ...overrides,
 });
 
 describe('SegmentManagerComponent', () => {
@@ -78,7 +82,7 @@ describe('SegmentManagerComponent', () => {
           provide: LUCIDE_ICONS, multi: true,
           useFactory: () => new LucideIconProvider({
             Check, ChevronDown, ChevronUp, Clock, Eye, EyeOff, FileText, Hexagon, Layers,
-            LayoutGrid, Plus, Trash2, Users, X,
+            LayoutGrid, Monitor, Plus, Trash2, Users, X,
           }),
         },
       ],
@@ -122,8 +126,8 @@ describe('SegmentManagerComponent', () => {
       const seg = makeSegment({
         name: null,
         instances: [
-          { id: 'i1', label: null, sortOrder: 0, snapshotted: false, sourceVariantOrder: null, assignedCount: 0, figureTemplate: { id: 'f1', name: 'pd4' }, compositionTemplate: null },
-          { id: 'i2', label: null, sortOrder: 1, snapshotted: false, sourceVariantOrder: null, assignedCount: 0, figureTemplate: null, compositionTemplate: { id: 'c1', name: 'Altar' } },
+          { id: 'i1', label: null, sortOrder: 0, snapshotted: false, sourceVariantOrder: null, assignedCount: 0, projectionX: null, projectionY: null, projectionScale: 1, figureTemplate: { id: 'f1', name: 'pd4' }, compositionTemplate: null },
+          { id: 'i2', label: null, sortOrder: 1, snapshotted: false, sourceVariantOrder: null, assignedCount: 0, projectionX: null, projectionY: null, projectionScale: 1, figureTemplate: null, compositionTemplate: { id: 'c1', name: 'Altar' } },
         ],
       });
       expect(component.displayName()(seg)).toBe('pd4 + Altar');

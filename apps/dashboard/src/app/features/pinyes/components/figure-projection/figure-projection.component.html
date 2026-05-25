@@ -1,0 +1,49 @@
+<div
+  class="flex h-screen w-screen bg-black text-white"
+  role="main"
+  aria-label="Vista de figura en projecció"
+>
+
+  <!-- Tronc (left panel) -->
+  <aside
+    class="flex-shrink-0 max-w-[30%] w-auto overflow-y-auto p-4 border-r border-white/10"
+    aria-label="Vista del tronc"
+  >
+    <app-tronc-view
+      mode="projection"
+      [troncNodes]="troncNodes()"
+      [baseNodes]="baseNodes()"
+      [assignments]="assignmentList()"
+    />
+  </aside>
+
+  <!-- Pinya canvas (main area) -->
+  <main class="flex-1 h-full relative">
+    <app-figure-canvas
+      class="block w-full h-full"
+      mode="readonly"
+      [nodes]="pinyaNodes()"
+      [assignments]="assignmentList()"
+    />
+  </main>
+
+  <!-- Figure name (bottom-center) -->
+  <span
+    class="fixed bottom-4 left-1/2 -translate-x-1/2 text-lg font-semibold opacity-60 pointer-events-none"
+    aria-live="polite"
+  >
+    {{ instance().figureTemplate?.name ?? instance().label }}
+  </span>
+
+  <!-- Back button (bottom-left) -->
+  <button
+    type="button"
+    class="fixed bottom-4 left-4 btn btn-ghost btn-sm gap-1 text-white opacity-50 hover:opacity-100 focus-visible:opacity-100"
+    (click)="backToSegment.emit()"
+    aria-label="Tornar a la vista del segment"
+  >
+    <lucide-icon name="ArrowLeft" [size]="18" aria-hidden="true" />
+    Tornar al segment
+  </button>
+
+</div>

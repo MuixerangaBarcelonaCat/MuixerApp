@@ -225,4 +225,8 @@ export class SegmentManagerComponent implements OnInit {
   navigateToAssignment(segmentId: string): void {
     this.router.navigate(['/pinyes/events', this.eventId(), 'segments', segmentId, 'assign']);
   }
+
+  navigateToProjection(segmentId: string): void {
+    this.router.navigate(['/pinyes/events', this.eventId(), 'segments', segmentId, 'project']);
+  }
 }

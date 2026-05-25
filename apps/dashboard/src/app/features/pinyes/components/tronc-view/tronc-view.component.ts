@@ -94,7 +94,7 @@ export class TroncViewComponent {
 
   readonly assignments = input<AssignmentDetail[]>([]);
   readonly selectedNodeId = input<string | null>(null);
-  readonly mode = input<'editor' | 'assignment'>('assignment');
+  readonly mode = input<'editor' | 'assignment' | 'projection'>('assignment');
   readonly heightMode = input<HeightMode>('relative');
   readonly highlightedNodeIds = input<Set<string>>(new Set());
 

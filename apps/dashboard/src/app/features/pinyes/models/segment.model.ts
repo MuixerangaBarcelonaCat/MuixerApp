@@ -5,6 +5,9 @@ export interface InstanceDetail {
   snapshotted: boolean;
   sourceVariantOrder: number | null;
   assignedCount: number;
+  projectionX: number | null;
+  projectionY: number | null;
+  projectionScale: number;
   figureTemplate: { id: string; name: string } | null;
   compositionTemplate: { id: string; name: string } | null;
 }

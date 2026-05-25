@@ -7,6 +7,7 @@ export * from './enums/node-shape.enum';
 export * from './enums/event-type.enum';
 export * from './enums/attendance-status.enum';
 export * from './enums/client-type.enum';
+export * from './enums/reference-element-type.enum';
 export * from './interfaces/attendance-summary.interface';
 export * from './interfaces/event-metadata.interface';
 export * from './interfaces/auth.interfaces';

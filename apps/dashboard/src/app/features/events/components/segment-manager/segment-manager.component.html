@@ -139,6 +139,15 @@
                     <lucide-icon name="Users" [size]="14" />
                     Assignar
                   </button>
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-xs gap-1 text-secondary"
+                    (click)="navigateToProjection(segment.id)"
+                    [attr.aria-label]="'Projectar segment ' + displayName()(segment)"
+                  >
+                    <lucide-icon name="Monitor" [size]="14" />
+                    Projectar
+                  </button>
                 }
 
                 <!-- Delete segment -->
