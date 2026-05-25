@@ -11,6 +11,7 @@ import {
   Trash2,
 } from 'lucide-angular';
 import { Component, input, output } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { FigureProjectionComponent } from './figure-projection.component';
 import { ProjectionInstance } from '../../models/projection.model';
 import { AssignmentDetail } from '../../models/assignment.model';
@@ -118,6 +119,11 @@ describe('FigureProjectionComponent', () => {
           multi: true,
           useFactory: () => new LucideIconProvider({ ArrowLeft, ArrowDownUp, ArrowUpDown, Plus, Trash2 }),
         },
+        {
+          // Provide a minimal ActivatedRoute so the component doesn't crash in embedded mode
+          provide: ActivatedRoute,
+          useValue: { snapshot: { params: {} } },
+        },
       ],
     })
       .overrideComponent(FigureProjectionComponent, {
@@ -131,10 +137,10 @@ describe('FigureProjectionComponent', () => {
     fixture.detectChanges();
   });
 
-  it('separates pinya nodes (excludes TRONC and BASE)', () => {
+  it('pinya nodes include PINYA and BASE zones (excludes TRONC)', () => {
     const pinyaNodes = component.pinyaNodes();
-    expect(pinyaNodes.every((n) => n.zone !== FigureZone.TRONC && n.zone !== FigureZone.BASE)).toBe(true);
-    expect(pinyaNodes.length).toBe(1);
+    expect(pinyaNodes.every((n) => n.zone !== FigureZone.TRONC)).toBe(true);
+    expect(pinyaNodes.length).toBe(2);
   });
 
   it('separates tronc nodes (zone === TRONC)', () => {
@@ -154,7 +160,7 @@ describe('FigureProjectionComponent', () => {
     expect(name).toContain('Pinet Doble de 4');
   });
 
-  it('emits backToSegment when back button is clicked', () => {
+  it('emits backToSegment when back button is clicked in embedded mode', () => {
     const emitSpy = vi.spyOn(component.backToSegment, 'emit');
     const btn = fixture.nativeElement.querySelector('button[aria-label="Tornar a la vista del segment"]');
     expect(btn).not.toBeNull();

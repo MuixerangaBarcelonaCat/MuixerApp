@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Location } from '@angular/common';
-import { LucideAngularModule, ArrowLeft, Users, Edit, RefreshCw, Plus, Trash2, X, PanelLeft, PanelLeftClose } from 'lucide-angular';
+import { LucideAngularModule, ArrowLeft, Users, Edit, RefreshCw, Plus, Trash2, X, PanelLeft, PanelLeftClose, Monitor } from 'lucide-angular';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
@@ -85,6 +85,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly X = X;
   readonly PanelLeft = PanelLeft;
   readonly PanelLeftClose = PanelLeftClose;
+  readonly Monitor = Monitor;
 
   readonly eventId = signal('');
   readonly segmentId = signal('');

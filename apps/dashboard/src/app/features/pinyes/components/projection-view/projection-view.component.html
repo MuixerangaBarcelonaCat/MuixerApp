@@ -1,18 +1,14 @@
 @if (loading()) {
-  <div class="flex h-screen w-screen items-center justify-center bg-black text-white" role="status" aria-live="polite">
+  <div class="flex h-screen w-screen items-center justify-center bg-base-200" role="status" aria-live="polite">
     <span class="loading loading-spinner loading-lg text-primary"></span>
     <span class="sr-only">Carregant projecció...</span>
   </div>
-} @else if (viewMode() === 'figure' && activeFigure()) {
-  <app-figure-projection
-    [instance]="activeFigure()!"
-    (backToSegment)="viewMode.set('segment'); focusedInstanceId.set(null)"
-  />
 } @else if (segmentData()) {
   <div
     class="flex flex-col h-screen w-screen overflow-hidden"
-    [class.bg-black]="!editMode()"
     [class.bg-base-200]="editMode()"
+    [class.bg-white]="!editMode() && bgColor() === 'white'"
+    [class.bg-black]="!editMode() && bgColor() === 'black'"
     [class.cursor-none]="!editMode() && !cursorVisible()"
     (mousemove)="onMouseMove()"
     role="main"
@@ -76,19 +72,43 @@
           </button>
           <ul class="dropdown-content menu bg-base-100 rounded-box z-10 w-44 p-1 shadow border border-base-300">
             <li>
-              <button type="button" (click)="onElementCreated(ReferenceElementType.RECTANGLE)">
+              <button type="button" (click)="openAddElementModal(ReferenceElementType.RECTANGLE)">
                 <lucide-icon name="Square" [size]="14" aria-hidden="true" />
                 Rectangle
               </button>
             </li>
             <li>
-              <button type="button" (click)="onElementCreated(ReferenceElementType.ARROW)">
+              <button type="button" (click)="openAddElementModal(ReferenceElementType.ARROW)">
                 <lucide-icon name="MoveRight" [size]="14" aria-hidden="true" />
                 Fletxa
               </button>
             </li>
           </ul>
         </div>
+
+        <!-- Delete selected element -->
+        @if (selectedElementId()) {
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm btn-square text-error"
+            (click)="onElementDeleted(selectedElementId()!)"
+            aria-label="Eliminar element seleccionat"
+            title="Eliminar element"
+          >
+            <lucide-icon name="Trash2" [size]="16" aria-hidden="true" />
+          </button>
+        }
+
+        <!-- Background color toggle -->
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm btn-square"
+          (click)="toggleBgColor()"
+          [attr.aria-label]="bgColor() === 'white' ? 'Canviar fons a negre' : 'Canviar fons a blanc'"
+          title="Alternar fons (blanc / negre)"
+        >
+          <lucide-icon [name]="bgColor() === 'white' ? 'Moon' : 'Sun'" [size]="16" aria-hidden="true" />
+        </button>
 
         <!-- Save status -->
         @if (saveStatus() === 'saving') {
@@ -124,40 +144,155 @@
       </header>
     }
 
-    <!-- ── Canvas area ──────────────────────────────────────────────────────── -->
+    <!-- ── Main content area ────────────────────────────────────────────────── -->
     <div class="flex flex-1 overflow-hidden relative">
 
-      <app-segment-canvas
-        class="flex-1 block"
-        [instances]="segmentData()!.instances"
-        [referenceElements]="referenceElements()"
-        [editMode]="editMode()"
-        [figurePositions]="figurePositions()"
-        [selectedElementId]="selectedElementId()"
-        (figureMoved)="onFigureMoved($event)"
-        (figureClicked)="onFigureClicked($event)"
-        (elementMoved)="onElementMoved($event)"
-        (elementSelected)="selectedElementId.set($event)"
-      />
+      @if (editMode()) {
+        <!-- Edit mode: Konva canvas with mini figure previews + reference elements -->
+        <app-segment-canvas
+          class="flex-1 block"
+          [instances]="segmentData()!.instances"
+          [referenceElements]="referenceElements()"
+          [editMode]="true"
+          [figurePositions]="figurePositions()"
+          [selectedElementId]="selectedElementId()"
+          (figureMoved)="onFigureMoved($event)"
+          (elementMoved)="onElementMoved($event)"
+          (elementSelected)="selectedElementId.set($event)"
+        />
+      } @else {
+        <!-- Projection mode: responsive CSS grid of figure canvases -->
+        <div
+          class="flex flex-wrap w-full h-full p-1 overflow-hidden"
+          style="justify-content: center; align-content: center; gap: 3px;"
+          aria-label="Figures en projecció"
+        >
+          @for (instance of segmentData()!.instances; track instance.id) {
+            <div
+              class="relative overflow-hidden group"
+              [style.width]="itemWidthStyle()"
+              [style.height]="itemHeightStyle()"
+              (dblclick)="onFigureDoubleClicked(instance.id)"
+              [attr.aria-label]="'Figura: ' + getInstanceName(instance) + '. Doble clic per veure el tronc'"
+            >
+              <!-- Figure canvas -->
+              <app-figure-canvas
+                class="block w-full h-full"
+                mode="readonly"
+                [nodes]="getInstancePinyaNodes(instance)"
+                [assignments]="instance.assignments"
+              />
+
+              <!-- Figure name label -->
+              <span
+                class="absolute bottom-1 left-0 right-0 text-center text-sm font-semibold pointer-events-none truncate px-2"
+                [class.text-gray-800]="bgColor() === 'white'"
+                [class.text-white]="bgColor() === 'black'"
+                [class.opacity-70]="true"
+                aria-hidden="true"
+              >
+                {{ getInstanceName(instance) }}
+              </span>
+
+              <!-- Expand link (visible on hover) — navigates to single-figure projection -->
+              <a
+                [routerLink]="['/pinyes/events', eventId, 'segments', segmentId, 'project', instance.id]"
+                class="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity rounded-md p-1 focus-visible:opacity-100"
+                [class.bg-black]="bgColor() === 'white'"
+                [class.bg-white]="bgColor() === 'black'"
+                [class.text-white]="bgColor() === 'white'"
+                [class.text-black]="bgColor() === 'black'"
+                [class.bg-opacity-50]="true"
+                [attr.aria-label]="'Veure ' + getInstanceName(instance) + ' en pantalla completa'"
+                title="Veure en pantalla completa"
+              >
+                <lucide-icon name="Maximize2" [size]="14" aria-hidden="true" />
+              </a>
+            </div>
+          }
+        </div>
+
+        <!-- ── Tronc floating overlay (projection mode, on double-click) ────── -->
+        @if (troncOverlayInstance()) {
+          <aside
+            class="fixed z-50 rounded-xl shadow-2xl overflow-hidden"
+            style="top: 100px; left: 16px; width: 600px; max-height: 400px;"
+            [style.background]="bgColor() === 'white' ? 'rgba(30,30,30,0.92)' : 'rgba(0,0,0,0.88)'"
+            role="dialog"
+            aria-modal="false"
+            [attr.aria-label]="'Tronc de ' + getInstanceName(troncOverlayInstance()!)"
+          >
+            <!-- Panel header -->
+            <div class="flex items-center justify-between px-4 py-2 border-b border-white/10">
+              <span class="text-sm font-semibold text-white truncate">
+                Tronc · {{ getInstanceName(troncOverlayInstance()!) }}
+              </span>
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs btn-square text-white/70 hover:text-white"
+                (click)="closeTroncOverlay()"
+                aria-label="Tancar el tronc"
+              >
+                <lucide-icon name="X" [size]="14" aria-hidden="true" />
+              </button>
+            </div>
+
+            <!-- TroncView content -->
+            <div class="overflow-y-auto" style="max-height: 350px;">
+              <app-tronc-view
+                mode="projection"
+                [troncNodes]="troncOverlayTroncNodes()"
+                [baseNodes]="troncOverlayBaseNodes()"
+                [assignments]="troncOverlayInstance()!.assignments"
+              />
+            </div>
+          </aside>
+          <!-- Click-outside backdrop (invisible) -->
+          <div
+            class="fixed inset-0 z-40"
+            (click)="closeTroncOverlay()"
+            aria-hidden="true"
+          ></div>
+        }
+      }
 
     </div>
 
-    <!-- ── Projection mode HUD (edit mode off) ─────────────────────────────── -->
+    <!-- ── Projection mode HUD (cursor visible, edit mode off) ─────────────── -->
     @if (!editMode() && cursorVisible()) {
       <div
-        class="fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 px-4 py-2 rounded-full bg-black/50 text-white/70 text-sm backdrop-blur-sm"
+        class="fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-full bg-black/60 text-white/80 text-sm backdrop-blur-sm"
         aria-live="polite"
       >
-        <span>{{ segmentData()!.segment.name ?? 'Segment' }}</span>
+        <span class="truncate max-w-[200px]">{{ segmentData()!.segment.name ?? 'Segment' }}</span>
+
         @if (segmentData()!.segment.prevSegmentId) {
-          <kbd class="kbd kbd-sm bg-white/10 border-white/20 text-white/60">←</kbd>
+          <button
+            type="button"
+            class="flex items-center justify-center"
+            (click)="navigateSegment('prev')"
+            aria-label="Segment anterior"
+            title="Segment anterior (←)"
+          >
+            <kbd class="kbd kbd-sm bg-white/10 border-white/20 text-white/70 cursor-pointer hover:bg-white/20">←</kbd>
+          </button>
         }
+
         @if (segmentData()!.segment.nextSegmentId) {
-          <kbd class="kbd kbd-sm bg-white/10 border-white/20 text-white/60">→</kbd>
+          <button
+            type="button"
+            class="flex items-center justify-center"
+            (click)="navigateSegment('next')"
+            aria-label="Segment següent"
+            title="Segment següent (→)"
+          >
+            <kbd class="kbd kbd-sm bg-white/10 border-white/20 text-white/70 cursor-pointer hover:bg-white/20">→</kbd>
+          </button>
         }
+
         <button
           type="button"
-          class="btn btn-ghost btn-xs text-white/70"
+          class="btn btn-ghost btn-xs text-white/70 hover:text-white"
           (click)="toggleEditMode()"
           aria-label="Tornar al mode d'edició"
         >
@@ -180,13 +315,15 @@
             <tr><td><kbd class="kbd kbd-sm">←</kbd> / <kbd class="kbd kbd-sm">→</kbd></td><td class="text-sm">Segment anterior / següent</td></tr>
             <tr><td><kbd class="kbd kbd-sm">E</kbd></td><td class="text-sm">Alternar mode edició / projecció</td></tr>
             <tr><td><kbd class="kbd kbd-sm">F</kbd></td><td class="text-sm">Pantalla completa del navegador</td></tr>
-            <tr><td><kbd class="kbd kbd-sm">Esc</kbd></td><td class="text-sm">Sortir de la figura / projectar / tornar</td></tr>
+            <tr><td><kbd class="kbd kbd-sm">Esc</kbd></td><td class="text-sm">Tancar tronc / sortir de projecció / tornar</td></tr>
             <tr><td><kbd class="kbd kbd-sm">?</kbd></td><td class="text-sm">Mostrar / amagar ajuda</td></tr>
           </tbody>
         </table>
 
         <p class="text-xs text-base-content/50 mt-3">
-          En mode projecció, fes clic sobre una figura per veure-la en pantalla completa.
+          En mode projecció, fes doble clic sobre una figura per veure el tronc. Fes clic a
+          <lucide-icon name="Maximize2" [size]="12" aria-hidden="true" class="inline" />
+          per veure la figura en pantalla completa.
         </p>
 
         <div class="modal-action">
@@ -194,6 +331,60 @@
         </div>
       </div>
       <div class="modal-backdrop" (click)="helpModalOpen.set(false)" aria-hidden="true"></div>
+    </dialog>
+  }
+
+  <!-- ── Add reference element modal ──────────────────────────────────────── -->
+  @if (addElementModalOpen()) {
+    <dialog class="modal modal-open" aria-modal="true" aria-label="Afegir element de referència">
+      <div class="modal-box max-w-sm">
+        <h2 class="font-bold text-lg mb-1">
+          Afegir
+          {{ addElementModalType() === ReferenceElementType.RECTANGLE ? 'rectangle' : 'fletxa' }}
+        </h2>
+
+        <p class="text-sm text-base-content/60 mb-4">
+          @if (addElementModalType() === ReferenceElementType.RECTANGLE) {
+            Un rectangle és un element visual que pots posicionar lliurement a la projecció. Arrossega'l per moure'l i ajusta la seva mida.
+          } @else {
+            Una fletxa és un indicador direccional. Pots rotar-la i moure-la per assenyalar elements de la projecció.
+          }
+        </p>
+
+        <div class="form-control mb-4">
+          <label class="label" for="element-label-input">
+            <span class="label-text">Nom de l'element <span class="text-base-content/40">(opcional)</span></span>
+          </label>
+          <input
+            id="element-label-input"
+            type="text"
+            class="input input-bordered input-sm"
+            placeholder="p.e. Zona de Sortida"
+            [ngModel]="addElementModalLabel()"
+            (ngModelChange)="addElementModalLabel.set($event)"
+            (keydown.enter)="confirmAddElement()"
+            autofocus
+          />
+        </div>
+
+        <div class="modal-action">
+          <button
+            type="button"
+            class="btn btn-sm"
+            (click)="addElementModalOpen.set(false)"
+          >
+            Cancel·lar
+          </button>
+          <button
+            type="button"
+            class="btn btn-primary btn-sm"
+            (click)="confirmAddElement()"
+          >
+            Afegir
+          </button>
+        </div>
+      </div>
+      <div class="modal-backdrop" (click)="addElementModalOpen.set(false)" aria-hidden="true"></div>
     </dialog>
   }
 }

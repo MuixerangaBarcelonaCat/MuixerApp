@@ -276,7 +276,7 @@ export class SegmentCanvasComponent implements AfterViewInit, OnDestroy {
         (n) => n.zone === FigureZone.TRONC || n.zone === FigureZone.BASE,
       );
       const pinyaNodes = instance.nodes.filter(
-        (n) => n.zone !== FigureZone.TRONC && n.zone !== FigureZone.BASE,
+        (n) => n.zone !== FigureZone.TRONC,
       );
 
       const troncWidth = this.estimateTroncWidth(troncAndBase);

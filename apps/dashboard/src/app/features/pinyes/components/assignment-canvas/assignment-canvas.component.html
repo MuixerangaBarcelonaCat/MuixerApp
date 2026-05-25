@@ -74,6 +74,18 @@
         Editar template
       </a>
     }
+
+    @if (activeTab()) {
+      <a
+        [routerLink]="['/pinyes/events', eventId(), 'segments', segmentId(), 'project', activeTab()!.instanceId]"
+        class="btn btn-ghost btn-sm gap-1"
+        aria-label="Projectar la figura en pantalla completa"
+        title="Projectar figura"
+      >
+        <i-lucide [img]="Monitor" class="size-4" aria-hidden="true" />
+        Projectar
+      </a>
+    }
   </header>
 
   <!-- Main content: canvas + person panel -->

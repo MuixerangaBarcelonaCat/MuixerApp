@@ -45,4 +45,11 @@ export const pinyesRoutes: Routes = [
         (m) => m.ProjectionViewComponent,
       ),
   },
+  {
+    path: 'events/:eventId/segments/:segmentId/project/:instanceId',
+    loadComponent: () =>
+      import('./components/figure-projection/figure-projection.component').then(
+        (m) => m.FigureProjectionComponent,
+      ),
+  },
 ];

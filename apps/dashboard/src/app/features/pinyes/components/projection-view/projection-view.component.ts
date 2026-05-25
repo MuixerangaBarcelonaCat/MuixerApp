@@ -8,8 +8,9 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Subject, Subscription } from 'rxjs';
 import { debounceTime, switchMap } from 'rxjs/operators';
 import { LucideAngularModule } from 'lucide-angular';
@@ -17,13 +18,13 @@ import { LayoutService } from '../../../../core/services/layout.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { ProjectionService } from '../../services/projection.service';
 import { ReferenceElementService } from '../../services/reference-element.service';
-import { ProjectionSegmentData, ProjectionInstance, InstanceLayoutUpdate } from '../../models/projection.model';
+import { ProjectionSegmentData, ProjectionInstance } from '../../models/projection.model';
 import { ReferenceElementItem, CreateReferenceElementPayload } from '../../models/reference-element.model';
 import { FigurePosition, SegmentCanvasComponent } from '../segment-canvas/segment-canvas.component';
-import { FigureProjectionComponent } from '../figure-projection/figure-projection.component';
-import { ReferenceElementType } from '@muixer/shared';
+import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component';
+import { TroncViewComponent, TroncNodeItem } from '../tronc-view/tronc-view.component';
+import { ReferenceElementType, FigureZone } from '@muixer/shared';
 
-type ViewMode = 'segment' | 'figure';
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 @Component({
@@ -32,9 +33,12 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
+    FormsModule,
+    RouterLink,
     LucideAngularModule,
     SegmentCanvasComponent,
-    FigureProjectionComponent,
+    FigureCanvasComponent,
+    TroncViewComponent,
   ],
   templateUrl: './projection-view.component.html',
 })
@@ -47,40 +51,89 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
   private readonly toast = inject(ToastService);
 
   readonly ReferenceElementType = ReferenceElementType;
+  readonly FigureZone = FigureZone;
+
+  // ── State signals ───────────────────────────────────────────────────────────
 
   readonly loading = signal(true);
-  readonly viewMode = signal<ViewMode>('segment');
   readonly editMode = signal(true);
   readonly segmentData = signal<ProjectionSegmentData | null>(null);
-  readonly focusedInstanceId = signal<string | null>(null);
-  readonly selectedElementId = signal<string | null>(null);
+  /** Kept for edit-mode SegmentCanvas mini-preview positions (not persisted). */
   readonly figurePositions = signal<Map<string, FigurePosition>>(new Map());
+  readonly selectedElementId = signal<string | null>(null);
   readonly referenceElements = signal<ReferenceElementItem[]>([]);
   readonly cursorVisible = signal(true);
   readonly helpModalOpen = signal(false);
   readonly saveStatus = signal<SaveStatus>('idle');
 
-  readonly activeFigure = computed<ProjectionInstance | undefined>(() => {
-    const id = this.focusedInstanceId();
-    if (!id) return undefined;
-    return this.segmentData()?.instances.find((i) => i.id === id);
+  /** Projection mode: shows tronc floating panel for the double-clicked figure. */
+  readonly troncOverlayInstanceId = signal<string | null>(null);
+
+  /** Background color for projection mode. */
+  readonly bgColor = signal<'white' | 'black'>('white');
+
+  /** Add-element modal state. */
+  readonly addElementModalOpen = signal(false);
+  readonly addElementModalType = signal<ReferenceElementType | null>(null);
+  readonly addElementModalLabel = signal('');
+
+  // ── Computed ────────────────────────────────────────────────────────────────
+
+  /**
+   * Grid columns:
+   *  1→1, 2→2, 3→3, 4→2×2, 5+→3 cols (last row centered via flex justify-center)
+   */
+  readonly gridCols = computed(() => {
+    const n = this.segmentData()?.instances.length ?? 0;
+    if (n <= 1) return 1;
+    if (n === 2) return 2;
+    if (n === 3) return 3;
+    if (n === 4) return 2;
+    return 3;
   });
 
-  private eventId = '';
-  private segmentId = '';
+  readonly gridRows = computed(() => {
+    const n = this.segmentData()?.instances.length ?? 0;
+    return Math.ceil(n / this.gridCols());
+  });
+
+  /** Flex item width — accounts for 6px total gap (3px per side margin). */
+  readonly itemWidthStyle = computed(() => `calc(${100 / this.gridCols()}% - 6px)`);
+
+  /** Flex item height — accounts for 6px total gap. */
+  readonly itemHeightStyle = computed(() => `calc(${100 / this.gridRows()}% - 6px)`);
+
+  readonly troncOverlayInstance = computed(() => {
+    const id = this.troncOverlayInstanceId();
+    if (!id) return null;
+    return this.segmentData()?.instances.find((i) => i.id === id) ?? null;
+  });
+
+  readonly troncOverlayTroncNodes = computed<TroncNodeItem[]>(() =>
+    (this.troncOverlayInstance()?.nodes.filter((n) => n.zone === FigureZone.TRONC) ?? []) as TroncNodeItem[],
+  );
+
+  readonly troncOverlayBaseNodes = computed<TroncNodeItem[]>(() =>
+    (this.troncOverlayInstance()?.nodes.filter((n) => n.zone === FigureZone.BASE) ?? []) as TroncNodeItem[],
+  );
+
+  // ── Route params (public for RouterLink in template) ────────────────────────
+
+  eventId = '';
+  segmentId = '';
+
   private cursorTimer: ReturnType<typeof setTimeout> | null = null;
 
-  private readonly layoutSave$ = new Subject<InstanceLayoutUpdate[]>();
   private readonly elementsSave$ = new Subject<void>();
   private subscriptions = new Subscription();
 
+  // ── Lifecycle ───────────────────────────────────────────────────────────────
+
   ngOnInit(): void {
     this.layoutService.requestFullscreen();
-
     const params = this.route.snapshot.params;
     this.eventId = params['eventId'];
     this.segmentId = params['segmentId'];
-
     this.loadSegment();
     this.setupAutoSave();
   }
@@ -90,6 +143,8 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
     if (this.cursorTimer) clearTimeout(this.cursorTimer);
     this.subscriptions.unsubscribe();
   }
+
+  // ── Keyboard shortcuts ──────────────────────────────────────────────────────
 
   @HostListener('document:keydown', ['$event'])
   onKeyDown(event: KeyboardEvent): void {
@@ -103,6 +158,8 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
     }
   }
 
+  // ── Mouse / cursor management ───────────────────────────────────────────────
+
   onMouseMove(): void {
     if (this.editMode()) return;
     this.cursorVisible.set(true);
@@ -110,6 +167,29 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
     this.cursorTimer = setTimeout(() => this.cursorVisible.set(false), 3000);
   }
 
+  // ── Figure grid interactions ────────────────────────────────────────────────
+
+  /** Double-click on a grid cell: show tronc floating panel for that figure. */
+  onFigureDoubleClicked(instanceId: string): void {
+    this.troncOverlayInstanceId.set(instanceId);
+  }
+
+  closeTroncOverlay(): void {
+    this.troncOverlayInstanceId.set(null);
+  }
+
+  /** Returns pinya+base nodes for a figure (excludes TRONC zone). */
+  getInstancePinyaNodes(instance: ProjectionInstance) {
+    return instance.nodes.filter((n) => n.zone !== FigureZone.TRONC);
+  }
+
+  getInstanceName(instance: ProjectionInstance): string {
+    return instance.label ?? instance.figureTemplate?.name ?? 'Figura';
+  }
+
+  // ── Edit-mode canvas interactions ───────────────────────────────────────────
+
+  /** Updates local figurePositions state; positions are NOT persisted (grid layout replaces positioning). */
   onFigureMoved(event: { instanceId: string; x: number; y: number }): void {
     this.figurePositions.update((map) => {
       const current = map.get(event.instanceId) ?? { x: 0, y: 0, scale: 1 };
@@ -117,12 +197,6 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
       next.set(event.instanceId, { ...current, x: event.x, y: event.y });
       return next;
     });
-    this.triggerLayoutSave();
-  }
-
-  onFigureClicked(instanceId: string): void {
-    this.focusedInstanceId.set(instanceId);
-    this.viewMode.set('figure');
   }
 
   onElementMoved(event: {
@@ -143,20 +217,22 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
     this.elementsSave$.next();
   }
 
-  onElementCreated(type: ReferenceElementType): void {
-    const payload: CreateReferenceElementPayload = {
-      type,
-      x: 100,
-      y: 100,
-      width: type === ReferenceElementType.RECTANGLE ? 200 : 150,
-      height: type === ReferenceElementType.RECTANGLE ? 120 : 20,
-      rotation: 0,
-      label: type === ReferenceElementType.RECTANGLE ? 'Element' : null,
-    };
-    this.referenceElementService.create(this.eventId, payload).subscribe({
-      next: (el) => this.referenceElements.update((els) => [...els, el]),
-      error: () => this.toast.error('Error creant element de referència'),
-    });
+  // ── Reference element management ────────────────────────────────────────────
+
+  openAddElementModal(type: ReferenceElementType): void {
+    this.addElementModalType.set(type);
+    this.addElementModalLabel.set('');
+    this.addElementModalOpen.set(true);
+  }
+
+  confirmAddElement(): void {
+    const type = this.addElementModalType();
+    if (!type) return;
+    const label = this.addElementModalLabel().trim() || null;
+    this.createReferenceElement(type, label);
+    this.addElementModalOpen.set(false);
+    this.addElementModalType.set(null);
+    this.addElementModalLabel.set('');
   }
 
   onElementDeleted(elementId: string): void {
@@ -169,17 +245,23 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
     });
   }
 
+  // ── Background color ────────────────────────────────────────────────────────
+
+  toggleBgColor(): void {
+    this.bgColor.update((c) => (c === 'white' ? 'black' : 'white'));
+  }
+
+  // ── Segment navigation ──────────────────────────────────────────────────────
+
   navigateSegment(direction: 'prev' | 'next'): void {
     const data = this.segmentData();
     if (!data) return;
     const targetId =
       direction === 'prev' ? data.segment.prevSegmentId : data.segment.nextSegmentId;
     if (!targetId) return;
-
     this.router.navigate(['/pinyes/events', this.eventId, 'segments', targetId, 'project']);
     this.segmentId = targetId;
-    this.viewMode.set('segment');
-    this.focusedInstanceId.set(null);
+    this.troncOverlayInstanceId.set(null);
     this.loadSegment();
   }
 
@@ -195,14 +277,19 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
     this.router.navigate(['/events', this.eventId]);
   }
 
+  // ── Private helpers ─────────────────────────────────────────────────────────
+
   private handleEscape(): void {
+    if (this.addElementModalOpen()) {
+      this.addElementModalOpen.set(false);
+      return;
+    }
     if (this.helpModalOpen()) {
       this.helpModalOpen.set(false);
       return;
     }
-    if (this.viewMode() === 'figure') {
-      this.viewMode.set('segment');
-      this.focusedInstanceId.set(null);
+    if (this.troncOverlayInstanceId()) {
+      this.troncOverlayInstanceId.set(null);
       return;
     }
     if (!this.editMode()) {
@@ -220,12 +307,27 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
     }
   }
 
+  private createReferenceElement(type: ReferenceElementType, label: string | null): void {
+    const payload: CreateReferenceElementPayload = {
+      type,
+      x: 100,
+      y: 100,
+      width: type === ReferenceElementType.RECTANGLE ? 200 : 150,
+      height: type === ReferenceElementType.RECTANGLE ? 120 : 20,
+      rotation: 0,
+      label,
+    };
+    this.referenceElementService.create(this.eventId, payload).subscribe({
+      next: (el) => this.referenceElements.update((els) => [...els, el]),
+      error: () => this.toast.error('Error creant element de referència'),
+    });
+  }
+
   private loadSegment(): void {
     this.loading.set(true);
     this.projectionService.getProjection(this.eventId, this.segmentId).subscribe({
       next: (data) => {
         this.segmentData.set(data);
-
         const positions = new Map<string, FigurePosition>();
         for (const instance of data.instances) {
           positions.set(instance.id, {
@@ -246,21 +348,6 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
   }
 
   private setupAutoSave(): void {
-    const layoutSub = this.layoutSave$
-      .pipe(
-        debounceTime(2000),
-        switchMap((layouts) =>
-          this.projectionService.updateProjectionLayout(this.eventId, this.segmentId, layouts),
-        ),
-      )
-      .subscribe({
-        next: () => {
-          this.saveStatus.set('saved');
-          setTimeout(() => this.saveStatus.set('idle'), 2000);
-        },
-        error: () => this.saveStatus.set('error'),
-      });
-
     const elementsSub = this.elementsSave$
       .pipe(
         debounceTime(2000),
@@ -284,17 +371,6 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
         error: () => this.saveStatus.set('error'),
       });
 
-    this.subscriptions.add(layoutSub);
     this.subscriptions.add(elementsSub);
-  }
-
-  private triggerLayoutSave(): void {
-    const positions = this.figurePositions();
-    const layouts: InstanceLayoutUpdate[] = [];
-    for (const [instanceId, pos] of positions) {
-      layouts.push({ instanceId, x: pos.x, y: pos.y, scale: pos.scale });
-    }
-    this.saveStatus.set('saving');
-    this.layoutSave$.next(layouts);
   }
 }

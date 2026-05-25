@@ -759,7 +759,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
             x: -node.width / 2,
             y: -node.height / 2,
             listening: false,
-            wrap: 'word',
+            wrap: 'none',
             ellipsis: true,
           }),
         );
@@ -922,7 +922,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           x: -node.width / 2,
           y: -node.height / 2,
           listening: false,
-          wrap: 'word',
+          wrap: 'none',
           ellipsis: true,
         }),
       );
