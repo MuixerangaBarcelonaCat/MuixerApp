@@ -2,35 +2,48 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  HostListener,
   inject,
+  OnDestroy,
   OnInit,
   signal,
 } from '@angular/core';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { LucideAngularModule, ArrowLeft, Users, Edit, RefreshCw } from 'lucide-angular';
-import { NodeAssignmentService } from '../../services/node-assignment.service';
+import { ActivatedRoute, RouterLink } from '@angular/router';
+import { Location } from '@angular/common';
+import { LucideAngularModule, ArrowLeft, Users, Edit, RefreshCw, Plus, Trash2, X, PanelLeft, PanelLeftClose, Monitor, Lock } from 'lucide-angular';
+import { LayoutService } from '../../../../core/services/layout.service';
+import { NodeAssignmentService, LockStatus } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
 import { EventSegmentService } from '../../services/event-segment.service';
-import { FigureTemplateService } from '../../services/figure-template.service';
+import { FigureFamilyService } from '../../services/figure-family.service';
+import { FigureInstanceService } from '../../services/figure-instance.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component';
 import { PersonPanelComponent } from '../person-panel/person-panel.component';
 import { NodePopoverComponent } from '../node-popover/node-popover.component';
 import { ImportPinyaModalComponent } from '../import-pinya-modal/import-pinya-modal.component';
+import { TroncViewComponent } from '../tronc-view/tronc-view.component';
 import {
   AssignmentDetail,
+  AttendanceStatus,
   AvailablePerson,
   BulkImportResult,
+  InstanceNodeItem,
   PendingOp,
 } from '../../models/assignment.model';
-import { SegmentDetail, InstanceDetail } from '../../models/segment.model';
-import { FigureNodeItem } from '../../models/figure-template.model';
+import { SegmentDetail } from '../../models/segment.model';
+import { FigureFamilyDetail, FigureFamilyVariant } from '../../models/figure-family.model';
+import { FigureTemplateService } from '../../services/figure-template.service';
+import { FigureZone } from '@muixer/shared';
 
 interface InstanceTab {
   instanceId: string;
   label: string;
   figureTemplateId: string | null;
-  nodes: FigureNodeItem[];
+  familyId: string | null;
+  snapshotted: boolean;
+  sourceVariantOrder: number | null;
+  nodes: InstanceNodeItem[];
   assignedCount: number;
   totalCount: number;
 }
@@ -46,15 +59,20 @@ interface InstanceTab {
     PersonPanelComponent,
     NodePopoverComponent,
     ImportPinyaModalComponent,
+    TroncViewComponent,
   ],
   templateUrl: './assignment-canvas.component.html',
+  styleUrl: './assignment-canvas.component.scss',
 })
-export class AssignmentCanvasComponent implements OnInit {
+export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
-  private readonly router = inject(Router);
+  private readonly location = inject(Location);
+  private readonly layout = inject(LayoutService);
   private readonly assignmentService = inject(NodeAssignmentService);
   private readonly segmentService = inject(EventSegmentService);
+  private readonly familyService = inject(FigureFamilyService);
   private readonly figureTemplateService = inject(FigureTemplateService);
+  private readonly instanceService = inject(FigureInstanceService);
   private readonly toast = inject(ToastService);
   readonly state = inject(AssignmentStateService);
 
@@ -62,6 +80,13 @@ export class AssignmentCanvasComponent implements OnInit {
   readonly Users = Users;
   readonly Edit = Edit;
   readonly RefreshCw = RefreshCw;
+  readonly Plus = Plus;
+  readonly Trash2 = Trash2;
+  readonly X = X;
+  readonly PanelLeft = PanelLeft;
+  readonly PanelLeftClose = PanelLeftClose;
+  readonly Monitor = Monitor;
+  readonly Lock = Lock;
 
   readonly eventId = signal('');
   readonly segmentId = signal('');
@@ -71,6 +96,25 @@ export class AssignmentCanvasComponent implements OnInit {
   readonly popoverAssignment = signal<AssignmentDetail | null>(null);
   readonly popoverPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
   readonly importModalOpen = signal(false);
+  readonly highlightedNodeIds = signal<Set<string>>(new Set());
+  readonly upgradeModalOpen = signal(false);
+  readonly upgrading = signal(false);
+  readonly familyDetail = signal<FigureFamilyDetail | null>(null);
+  readonly resetModalOpen = signal(false);
+  readonly resetting = signal(false);
+  readonly deleteInstanceModalOpen = signal(false);
+  readonly deletingInstance = signal(false);
+  readonly pendingDeleteTab = signal<InstanceTab | null>(null);
+
+  readonly lockStatus = signal<LockStatus | null>(null);
+  readonly isLocked = computed(() => this.lockStatus()?.locked ?? false);
+
+  readonly troncPanelOpen = signal(false);
+
+  // Floating tronc panel drag state
+  readonly troncPanelPos = signal({ x: 16, y: 60 });
+  private troncDragging = false;
+  private troncDragOffset = { x: 0, y: 0 };
 
   readonly activeTab = computed(() =>
     this.tabs().find((t) => t.instanceId === this.state.activeInstanceId()) ?? null,
@@ -78,25 +122,70 @@ export class AssignmentCanvasComponent implements OnInit {
 
   readonly activeNodes = computed(() => this.activeTab()?.nodes ?? []);
 
+  /** Full node object for the currently selected node (null if no selection). */
+  readonly selectedNode = computed(() => {
+    const id = this.state.selectedNodeId();
+    return id ? (this.activeNodes().find((n) => n.id === id) ?? null) : null;
+  });
+
+  /** Nodes rendered on the pinya Konva canvas (PINYA + BASE + direction zones, no TRONC). */
+  readonly activePinyaNodes = computed(() =>
+    this.activeNodes().filter((n) => n.zone !== FigureZone.TRONC),
+  );
+
+  /** TRONC-zone nodes passed to the tronc panel. */
+  readonly activeTroncNodes = computed(() =>
+    this.activeNodes().filter((n) => n.zone === FigureZone.TRONC),
+  );
+
+  /** BASE-zone nodes passed to the tronc panel (P1 row). */
+  readonly activeBaseNodes = computed(() =>
+    this.activeNodes().filter((n) => n.zone === FigureZone.BASE),
+  );
+
+  /** Cast attendanceRegistry to AttendanceStatus map for TroncViewComponent. */
+  readonly troncAttendanceMap = computed(
+    () => this.state.attendanceRegistry() as Map<string, AttendanceStatus>,
+  );
+
   readonly assignmentProgress = computed(() => {
     const tab = this.activeTab();
     if (!tab) return '';
     return `${tab.assignedCount}/${tab.totalCount}`;
   });
 
-  readonly attendanceMap = computed(() => {
-    const map = new Map<string, string>();
-    const persons = this.state.confirmedPersons();
-    persons.forEach((p) => map.set(p.id, p.attendanceStatus));
-    return map;
+  readonly attendanceMap = computed(() => this.state.attendanceRegistry());
+  readonly nextPerformanceMap = computed(() => this.state.nextPerformanceRegistry());
+
+  readonly nextVariant = computed<FigureFamilyVariant | null>(() => {
+    const tab = this.activeTab();
+    const family = this.familyDetail();
+    if (!tab || !family || !tab.figureTemplateId) return null;
+    const currentOrder = tab.sourceVariantOrder ?? family.variants.find(
+      (v) => v.id === tab.figureTemplateId,
+    )?.variantOrder ?? 0;
+    return family.variants
+      .filter((v) => v.variantOrder > currentOrder)
+      .sort((a, b) => a.variantOrder - b.variantOrder)[0] ?? null;
   });
 
+  readonly canUpgrade = computed(() => !!this.nextVariant());
+
   ngOnInit(): void {
+    this.layout.requestFullscreen();
     const params = this.route.snapshot.params;
     this.eventId.set(params['eventId']);
     this.segmentId.set(params['segmentId']);
     this.state.reset();
     this.loadSegment();
+
+    this.assignmentService.getLockStatus(this.eventId()).subscribe({
+      next: (status) => this.lockStatus.set(status),
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.layout.exitFullscreen();
   }
 
   private loadSegment(): void {
@@ -127,6 +216,9 @@ export class AssignmentCanvasComponent implements OnInit {
         instanceId: instance.id,
         label: instance.label ?? instance.figureTemplate?.name ?? '?',
         figureTemplateId: instance.figureTemplate?.id ?? null,
+        familyId: null,
+        snapshotted: instance.snapshotted,
+        sourceVariantOrder: instance.sourceVariantOrder,
         nodes: [],
         assignedCount: 0,
         totalCount: 0,
@@ -139,33 +231,56 @@ export class AssignmentCanvasComponent implements OnInit {
     }
   }
 
+  // ── Tronc panel drag ─────────────────────────────────────────────────────
+
+  onTroncDragStart(event: MouseEvent): void {
+    if ((event.target as HTMLElement).closest('button')) return;
+    this.troncDragging = true;
+    const pos = this.troncPanelPos();
+    this.troncDragOffset = { x: event.clientX - pos.x, y: event.clientY - pos.y };
+    event.preventDefault();
+  }
+
+  @HostListener('document:mousemove', ['$event'])
+  onTroncDragMove(event: MouseEvent): void {
+    if (!this.troncDragging) return;
+    this.troncPanelPos.set({
+      x: event.clientX - this.troncDragOffset.x,
+      y: event.clientY - this.troncDragOffset.y,
+    });
+  }
+
+  @HostListener('document:mouseup')
+  onTroncDragEnd(): void {
+    this.troncDragging = false;
+  }
+
   selectTab(instanceId: string): void {
     this.state.activeInstanceId.set(instanceId);
     this.state.selectedNodeId.set(null);
     this.popoverAssignment.set(null);
+    this.highlightedNodeIds.set(new Set());
+    this.familyDetail.set(null);
     this.loadTabData(instanceId);
+    this.loadFamilyForTab(instanceId);
   }
 
   private loadTabData(instanceId: string): void {
     const tab = this.tabs().find((t) => t.instanceId === instanceId);
     if (!tab) return;
 
-    // Load nodes from figure template
-    if (tab.figureTemplateId) {
-      this.figureTemplateService.getOne(tab.figureTemplateId).subscribe({
-        next: (template) => {
-          this.tabs.update((list) =>
-            list.map((t) =>
-              t.instanceId === instanceId
-                ? { ...t, nodes: template.nodes, totalCount: template.nodes.length }
-                : t,
-            ),
-          );
-        },
-      });
-    }
+    this.assignmentService.getInstanceNodes(instanceId).subscribe({
+      next: (resp) => {
+        this.tabs.update((list) =>
+          list.map((t) =>
+            t.instanceId === instanceId
+              ? { ...t, nodes: resp.data, totalCount: resp.data.length }
+              : t,
+          ),
+        );
+      },
+    });
 
-    // Load assignments for this instance
     this.assignmentService.getByInstance(instanceId).subscribe({
       next: (resp) => {
         this.state.assignments.set(resp.data);
@@ -180,7 +295,52 @@ export class AssignmentCanvasComponent implements OnInit {
     });
   }
 
+  private loadFamilyForTab(instanceId: string): void {
+    const tab = this.tabs().find((t) => t.instanceId === instanceId);
+    if (!tab?.figureTemplateId) return;
+
+    if (tab.familyId) {
+      this.familyService.getOne(tab.familyId).subscribe({
+        next: (family) => this.familyDetail.set(family),
+      });
+      return;
+    }
+
+    this.figureTemplateService.getOne(tab.figureTemplateId).subscribe({
+      next: (template) => {
+        const familyId = template.familyId ?? null;
+        this.tabs.update((list) =>
+          list.map((t) =>
+            t.instanceId === instanceId ? { ...t, familyId } : t,
+          ),
+        );
+        if (familyId) {
+          this.familyService.getOne(familyId).subscribe({
+            next: (family) => this.familyDetail.set(family),
+          });
+        }
+      },
+    });
+  }
+
+  onAssignedPersonSelected(event: { personId: string; instanceId: string }): void {
+    const targetTab = this.tabs().find((t) => t.instanceId === event.instanceId);
+    if (!targetTab) return;
+
+    this.selectTab(event.instanceId);
+
+    this.assignmentService.getByInstance(event.instanceId).subscribe({
+      next: (resp) => {
+        const assignment = resp.data.find((a) => a.person.id === event.personId);
+        if (assignment) {
+          this.state.setSelectedNodeId(assignment.node.id);
+        }
+      },
+    });
+  }
+
   onNodeSelected(nodeId: string | null): void {
+    if (this.isLocked()) return;
     if (!nodeId) {
       this.state.setSelectedNodeId(null);
       this.popoverAssignment.set(null);
@@ -218,11 +378,19 @@ export class AssignmentCanvasComponent implements OnInit {
     this.popoverPosition.set({ x: event.x, y: event.y });
   }
 
+  onTroncNodeClicked(event: { nodeId: string; event: MouseEvent }): void {
+    const target = event.event.currentTarget as HTMLElement | null;
+    if (target) {
+      const rect = target.getBoundingClientRect();
+      this.popoverPosition.set({ x: rect.right, y: rect.top + rect.height / 2 });
+    }
+  }
+
   onPersonSelected(person: AvailablePerson): void {
+    if (this.isLocked()) return;
     const selectedNodeId = this.state.selectedNodeId();
 
     if (!selectedNodeId) {
-      // No node selected — mark person as selected
       this.state.setSelectedPersonId(person.id);
       return;
     }
@@ -232,7 +400,6 @@ export class AssignmentCanvasComponent implements OnInit {
       .find((a) => a.node.id === selectedNodeId);
 
     if (existingAssignment) {
-      // Swap: unassign current, then assign new person
       this.triggerUnassignThenAssign(existingAssignment, selectedNodeId, person.id);
     } else {
       this.triggerAssign(selectedNodeId, person.id);
@@ -242,14 +409,25 @@ export class AssignmentCanvasComponent implements OnInit {
   private triggerAssign(nodeId: string, personId: string): void {
     const instanceId = this.state.activeInstanceId();
     if (!instanceId) return;
+    const tab = this.activeTab();
 
-    // Optimistic update
     const snapshot = [...this.state.assignments()];
+    const matchedNode = this.activeNodes().find((n) => n.id === nodeId);
     const tempAssignment: AssignmentDetail = {
       id: `temp-${Date.now()}`,
       figureInstanceId: instanceId,
       compositionSlotId: null,
-      node: this.activeNodes().find((n) => n.id === nodeId)! as any,
+      node: {
+        id: nodeId,
+        label: matchedNode?.label ?? '',
+        zone: matchedNode?.zone ?? '',
+        z: matchedNode?.z ?? 0,
+        positionType: matchedNode?.positionType ?? null,
+        sortOrder: matchedNode?.sortOrder ?? 0,
+        ringLevel: matchedNode?.ringLevel ?? null,
+        originNodeId: matchedNode?.originNodeId ?? null,
+        sourceNodeId: matchedNode?.sourceNodeId ?? null,
+      },
       person: { id: personId, alias: '...', name: '', firstSurname: '', shoulderHeight: null },
     };
     this.state.assignments.update((list) => [...list, tempAssignment]);
@@ -267,22 +445,52 @@ export class AssignmentCanvasComponent implements OnInit {
 
     this.assignmentService.assign(instanceId, { nodeId, personId }).subscribe({
       next: (created) => {
-        // Replace temp with real assignment
         this.state.assignments.update((list) =>
           list.map((a) => (a.id === tempAssignment.id ? created : a)),
         );
         this.state.pendingOperations.update((ops) => ops.filter((o) => o.id !== op.id));
+
+        // After first assignment the instance becomes snapshotted — refresh nodes to get InstanceNode IDs
+        if (tab && !tab.snapshotted) {
+          this.refreshInstanceNodes(instanceId);
+        }
+
         this.updateTabCount(instanceId);
-        this.advanceToNextEmptyNode(nodeId);
+        this.state.refreshPersonList();
+        this.advanceToNextEmptyNode(created.node.id);
       },
       error: (err) => {
-        // Rollback
         this.state.assignments.set(op.previousAssignments);
         this.state.pendingOperations.update((ops) => ops.filter((o) => o.id !== op.id));
+        this.updateTabCount(instanceId);
+        this.state.refreshPersonList();
+        this.state.setSelectedNodeId(nodeId);
         const msg = err?.status === 409
           ? 'Conflicte en assignar la persona. Ja pot estar assignada.'
           : 'Error en assignar la persona.';
         this.toast.error(msg);
+      },
+    });
+  }
+
+  private refreshInstanceNodes(instanceId: string): void {
+    this.assignmentService.getInstanceNodes(instanceId).subscribe({
+      next: (resp) => {
+        this.tabs.update((list) =>
+          list.map((t) =>
+            t.instanceId === instanceId
+              ? { ...t, nodes: resp.data, totalCount: resp.data.length, snapshotted: true }
+              : t,
+          ),
+        );
+        // Re-fetch assignments so node IDs align
+        this.assignmentService.getByInstance(instanceId).subscribe({
+          next: (assignResp) => {
+            if (this.state.activeInstanceId() === instanceId) {
+              this.state.assignments.set(assignResp.data);
+            }
+          },
+        });
       },
     });
   }
@@ -315,62 +523,41 @@ export class AssignmentCanvasComponent implements OnInit {
     if (!instanceId) return;
 
     const snapshot = [...this.state.assignments()];
-    
-    this.state.assignments.update((list) => 
-      list.map(a => {
-        if (a.id === assignment1.id) {
-          return { ...a, person: assignment2.person };
-        }
-        if (a.id === assignment2.id) {
-          return { ...a, person: assignment1.person };
-        }
+
+    // Optimistic update
+    this.state.assignments.update((list) =>
+      list.map((a) => {
+        if (a.id === assignment1.id) return { ...a, person: assignment2.person };
+        if (a.id === assignment2.id) return { ...a, person: assignment1.person };
         return a;
-      })
+      }),
     );
 
-    this.assignmentService.unassign(instanceId, assignment1.id).subscribe({
-      next: () => {
-        this.assignmentService.unassign(instanceId, assignment2.id).subscribe({
-          next: () => {
-            this.assignmentService.assign(instanceId, { 
-              nodeId: assignment1.node.id, 
-              personId: assignment2.person.id 
-            }).subscribe({
-              next: () => {
-                this.assignmentService.assign(instanceId, { 
-                  nodeId: assignment2.node.id, 
-                  personId: assignment1.person.id 
-                }).subscribe({
-                  next: () => {
-                    this.loadTabData(instanceId);
-                    this.toast.success('Persones intercanviades correctament.');
-                  },
-                  error: () => {
-                    this.state.assignments.set(snapshot);
-                    this.toast.error('Error en l\'intercanvi de persones.');
-                  }
-                });
-              },
-              error: () => {
-                this.state.assignments.set(snapshot);
-                this.toast.error('Error en l\'intercanvi de persones.');
-              }
-            });
-          },
-          error: () => {
-            this.state.assignments.set(snapshot);
-            this.toast.error('Error en l\'intercanvi de persones.');
-          }
-        });
-      },
-      error: () => {
-        this.state.assignments.set(snapshot);
-        this.toast.error('Error en l\'intercanvi de persones.');
-      }
-    });
+    this.assignmentService
+      .swap(instanceId, {
+        assignmentIdA: assignment1.id,
+        assignmentIdB: assignment2.id,
+      })
+      .subscribe({
+        next: (result) => {
+          this.state.assignments.update((list) =>
+            list.map((a) => {
+              if (a.id === result.a.id) return result.a;
+              if (a.id === result.b.id) return result.b;
+              return a;
+            }),
+          );
+          this.toast.success('Persones intercanviades correctament.');
+        },
+        error: () => {
+          this.state.assignments.set(snapshot);
+          this.toast.error("Error en l'intercanvi de persones.");
+        },
+      });
   }
 
   onUnassign(assignment: AssignmentDetail): void {
+    if (this.isLocked()) return;
     const instanceId = this.state.activeInstanceId();
     if (!instanceId) return;
 
@@ -382,13 +569,171 @@ export class AssignmentCanvasComponent implements OnInit {
     this.assignmentService.unassign(instanceId, assignment.id).subscribe({
       next: () => {
         this.updateTabCount(instanceId);
+        this.state.refreshPersonList();
       },
       error: () => {
         this.state.assignments.set(snapshot);
+        this.updateTabCount(instanceId);
+        this.state.refreshPersonList();
         this.toast.error('Error en desassignar la persona.');
       },
     });
   }
+
+  // ─── Upgrade ────────────────────────────────────────────────────────────
+
+  openUpgradeModal(): void {
+    this.upgradeModalOpen.set(true);
+  }
+
+  confirmUpgrade(): void {
+    const instanceId = this.state.activeInstanceId();
+    if (!instanceId) return;
+
+    this.upgrading.set(true);
+    const previousNodeIds = new Set(this.activeNodes().map((n) => n.id));
+
+    this.assignmentService.upgradeInstance(instanceId).subscribe({
+      next: (result) => {
+        this.upgrading.set(false);
+        this.upgradeModalOpen.set(false);
+        this.toast.success(`S'han afegit ${result.addedNodes} posicions noves.`);
+
+        // Reload nodes and highlight the new ones
+        this.assignmentService.getInstanceNodes(instanceId).subscribe({
+          next: (resp) => {
+            const newIds = new Set(
+              resp.data.filter((n) => !previousNodeIds.has(n.id)).map((n) => n.id),
+            );
+            this.tabs.update((list) =>
+              list.map((t) =>
+                t.instanceId === instanceId
+                  ? {
+                      ...t,
+                      nodes: resp.data,
+                      totalCount: resp.data.length,
+                      snapshotted: true,
+                      label: result.newTemplateName,
+                      figureTemplateId: result.newTemplateId,
+                      sourceVariantOrder: result.newVariantOrder,
+                    }
+                  : t,
+              ),
+            );
+            this.highlightedNodeIds.set(newIds);
+            setTimeout(() => this.highlightedNodeIds.set(new Set()), 5000);
+
+            // Reload family to update nextVariant computed
+            this.loadFamilyForTab(instanceId);
+          },
+        });
+
+        this.assignmentService.getByInstance(instanceId).subscribe({
+          next: (resp) => {
+            this.state.assignments.set(resp.data);
+            this.updateTabCount(instanceId);
+          },
+        });
+      },
+      error: (err) => {
+        this.upgrading.set(false);
+        this.upgradeModalOpen.set(false);
+        const msg = err?.error?.message ?? "Error en afegir el cordó.";
+        this.toast.error(msg);
+      },
+    });
+  }
+
+  cancelUpgrade(): void {
+    this.upgradeModalOpen.set(false);
+  }
+
+  // ─── Reset snapshot ────────────────────────────────────────────────────
+
+  openResetModal(): void {
+    this.resetModalOpen.set(true);
+  }
+
+  confirmReset(): void {
+    const instanceId = this.state.activeInstanceId();
+    if (!instanceId) return;
+
+    this.resetting.set(true);
+    this.assignmentService.resetSnapshot(instanceId).subscribe({
+      next: (result) => {
+        this.resetting.set(false);
+        this.resetModalOpen.set(false);
+        this.toast.success(`S'han eliminat ${result.removedAssignments} assignacions. La figura torna al template original.`);
+
+        this.tabs.update((list) =>
+          list.map((t) =>
+            t.instanceId === instanceId
+              ? { ...t, snapshotted: false, sourceVariantOrder: null, assignedCount: 0 }
+              : t,
+          ),
+        );
+        this.state.assignments.set([]);
+        this.loadTabData(instanceId);
+        this.loadFamilyForTab(instanceId);
+        this.state.refreshPersonList();
+      },
+      error: (err) => {
+        this.resetting.set(false);
+        this.resetModalOpen.set(false);
+        const msg = err?.error?.message ?? 'Error en reinicialitzar la figura.';
+        this.toast.error(msg);
+      },
+    });
+  }
+
+  cancelReset(): void {
+    this.resetModalOpen.set(false);
+  }
+
+  // ─── Delete instance ────────────────────────────────────────────────────
+
+  openDeleteInstanceModal(tab: InstanceTab): void {
+    this.pendingDeleteTab.set(tab);
+    this.deleteInstanceModalOpen.set(true);
+  }
+
+  cancelDeleteInstance(): void {
+    this.deleteInstanceModalOpen.set(false);
+    this.pendingDeleteTab.set(null);
+  }
+
+  confirmDeleteInstance(): void {
+    const tab = this.pendingDeleteTab();
+    if (!tab) return;
+
+    this.deletingInstance.set(true);
+    this.instanceService.remove(this.eventId(), this.segmentId(), tab.instanceId).subscribe({
+      next: () => {
+        this.deletingInstance.set(false);
+        this.deleteInstanceModalOpen.set(false);
+        this.pendingDeleteTab.set(null);
+
+        const remaining = this.tabs().filter((t) => t.instanceId !== tab.instanceId);
+        this.tabs.set(remaining);
+
+        if (remaining.length > 0) {
+          this.selectTab(remaining[0].instanceId);
+        } else {
+          this.state.reset();
+          this.goBack();
+        }
+
+        this.state.refreshPersonList();
+        this.toast.success(`Figura "${tab.label}" eliminada del segment.`);
+      },
+      error: () => {
+        this.deletingInstance.set(false);
+        this.toast.error("Error en eliminar la figura del segment.");
+      },
+    });
+  }
+
+  // ─── Helpers ────────────────────────────────────────────────────────────
 
   private advanceToNextEmptyNode(justAssignedNodeId: string): void {
     const nodes = this.activeNodes();
@@ -420,7 +765,10 @@ export class AssignmentCanvasComponent implements OnInit {
     this.toast.success(msg);
     this.importModalOpen.set(false);
     const instanceId = this.state.activeInstanceId();
-    if (instanceId) this.loadTabData(instanceId);
+    if (instanceId) {
+      // Import may trigger snapshot — refresh nodes
+      this.refreshInstanceNodes(instanceId);
+    }
   }
 
   getAttendanceStatus(assignment: AssignmentDetail): string | null {
@@ -428,6 +776,6 @@ export class AssignmentCanvasComponent implements OnInit {
   }
 
   goBack(): void {
-    this.router.navigate(['/events', this.eventId()]);
+    this.location.back();
   }
 }

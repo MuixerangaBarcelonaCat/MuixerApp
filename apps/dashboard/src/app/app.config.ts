@@ -62,7 +62,9 @@ import {
   UserCog,
   UserX,
   Users,
-  X, Hexagon, EyeOff
+  X, Hexagon, EyeOff, FolderOpen, Info, GitBranch, HelpCircle, PlusCircle, UserCheck, Edit, Import, ArrowUpDown, ArrowDownUp,
+  GripVertical, PanelLeft, PanelLeftClose, Monitor, PlusSquare, Square, MoveRight, Moon, Sun,
+  BookOpen, RotateCcw, History
 } from 'lucide-angular';
 
 const icons = {
@@ -73,7 +75,10 @@ const icons = {
   Grid3X3, Home, Keyboard, LayoutGrid, Layers, List, Lock, Magnet, Mail, Maximize2, Menu, Minus,
   MoreHorizontal, MousePointer2, MousePointerClick,
   PanelRightClose, PanelRightOpen, Pencil, Plus, RefreshCw, Search, Settings, Shapes, Shield,
-  Star, Tag, Trash2, UserCog, UserX, Users, X, Hexagon, EyeOff
+  Star, Tag, Trash2, UserCog, UserX, Users, X, Hexagon, EyeOff, FolderOpen, Info, GitBranch,
+  HelpCircle, PlusCircle, UserCheck, Edit, Import, ArrowUpDown, ArrowDownUp,
+  GripVertical, PanelLeft, PanelLeftClose, Monitor, PlusSquare, Square, MoveRight, Moon, Sun,
+  BookOpen, RotateCcw, History
 };
 
 export const appConfig: ApplicationConfig = {

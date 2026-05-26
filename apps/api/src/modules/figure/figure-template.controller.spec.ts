@@ -6,11 +6,14 @@ import { FigureZone, NodeShape } from '@muixer/shared';
 
 const mockDetail = {
   id: 'tmpl-uuid',
-  name: 'Pinet Doble de 4',
-  slug: 'pd4',
+  name: 'Pilar de 4 — 2C',
+  slug: 'pd4-2c',
   description: null,
   hasPinya: true,
   direction: 0,
+  variantOrder: 1,
+  familyId: 'family-uuid',
+  familyName: 'Pilar de 4',
   nodeCount: 0,
   metadata: {},
   nodes: [],
@@ -19,13 +22,15 @@ const mockDetail = {
 };
 
 const NODE_DTO = {
-  label: 'Base 1',
-  zone: FigureZone.BASE,
+  label: 'MANS',
+  zone: FigureZone.PINYA,
+  positionType: 'mans',
   x: 500,
-  y: 500,
-  width: 60,
+  y: 400,
+  width: 80,
   height: 40,
-  shape: NodeShape.ELLIPSE,
+  shape: NodeShape.RECTANGLE,
+  ringLevel: 1,
 };
 
 describe('FigureTemplateController', () => {
@@ -39,7 +44,7 @@ describe('FigureTemplateController', () => {
       create: jest.fn().mockResolvedValue(mockDetail),
       update: jest.fn().mockResolvedValue(mockDetail),
       remove: jest.fn().mockResolvedValue(undefined),
-      duplicate: jest.fn().mockResolvedValue({ ...mockDetail, name: 'Pinet Doble de 4 (còpia)' }),
+      duplicate: jest.fn().mockResolvedValue({ ...mockDetail, name: 'Pilar de 4 — 2C (còpia)' }),
     } as unknown as jest.Mocked<FigureTemplateService>;
 
     const module: TestingModule = await Test.createTestingModule({
@@ -60,17 +65,23 @@ describe('FigureTemplateController', () => {
       expect(result.meta.limit).toBe(25);
     });
 
-    it('passes filters to service', async () => {
-      await controller.findAll({ search: 'pd4', hasPinya: true, page: 1, limit: 10 });
-      expect(service.findAll).toHaveBeenCalledWith({ search: 'pd4', hasPinya: true, page: 1, limit: 10 });
+    it('passes filters including familyId to service', async () => {
+      await controller.findAll({ search: 'pd4', familyId: 'family-uuid', page: 1, limit: 10 });
+      expect(service.findAll).toHaveBeenCalledWith({
+        search: 'pd4',
+        familyId: 'family-uuid',
+        page: 1,
+        limit: 10,
+      });
     });
   });
 
   describe('findOne', () => {
-    it('returns detail with nodes', async () => {
+    it('returns detail with familyId and variantOrder', async () => {
       const result = await controller.findOne('tmpl-uuid');
       expect(result.id).toBe('tmpl-uuid');
-      expect(result.nodes).toBeDefined();
+      expect(result.familyId).toBe('family-uuid');
+      expect(result.variantOrder).toBe(1);
     });
 
     it('propagates NotFoundException', async () => {
@@ -80,9 +91,9 @@ describe('FigureTemplateController', () => {
   });
 
   describe('create', () => {
-    it('delegates to service and returns detail', async () => {
-      const dto = { name: 'pd4', slug: 'pd4', nodes: [NODE_DTO] };
-      const result = await controller.create(dto);
+    it('delegates to service with familyId', async () => {
+      const dto = { familyId: 'family-uuid', name: 'pd4-2c', slug: 'pd4-2c', nodes: [NODE_DTO] };
+      const result = await controller.create(dto as any);
       expect(service.create).toHaveBeenCalledWith(dto);
       expect(result.id).toBe('tmpl-uuid');
     });
@@ -90,7 +101,7 @@ describe('FigureTemplateController', () => {
 
   describe('update', () => {
     it('delegates to service with id and dto', async () => {
-      const dto = { name: 'Nou nom', nodes: [] };
+      const dto = { name: 'Nou nom', variantOrder: 2, nodes: [] };
       await controller.update('tmpl-uuid', dto);
       expect(service.update).toHaveBeenCalledWith('tmpl-uuid', dto);
     });

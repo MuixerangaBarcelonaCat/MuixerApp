@@ -276,6 +276,8 @@ function toDetailItem(composition: CompositionTemplate): CompositionTemplateDeta
         shape: node.shape,
         sortOrder: node.sortOrder,
         climbPath: node.climbPath,
+        ringLevel: node.ringLevel ?? null,
+        originNodeId: node.originNodeId ?? null,
         metadata: node.metadata,
       })),
     },

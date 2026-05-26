@@ -1,0 +1,238 @@
+<section class="tronc-view" aria-label="Vista del tronc">
+
+  <!-- ── Header ──────────────────────────────────────────────────────────── -->
+  <header class="tronc-header">
+    <span class="text-xs font-semibold uppercase tracking-wide text-base-content/50">Tronc</span>
+    <button
+      type="button"
+      class="btn btn-ghost btn-xs btn-square"
+      (click)="toggleOrientation()"
+      aria-label="Invertir vista del tronc"
+      title="Invertir orientació (P1 dalt / P1 baix)"
+    >
+      <lucide-icon [name]="inverted() ? 'ArrowDownUp' : 'ArrowUpDown'" [size]="14" aria-hidden="true" />
+    </button>
+  </header>
+
+  <!-- ── No-tronc message ────────────────────────────────────────────────── -->
+  @if (!hasTronc() && mode() !== 'editor') {
+    <div class="alert alert-info py-2 px-3 text-xs mt-2" role="status">
+      Aquesta figura no té tronc configurat. Pots crear-lo des de l'editor de plantilles.
+    </div>
+  }
+
+  @if (!hasTronc() && mode() === 'editor') {
+    <p class="text-xs text-base-content/40 px-2 mt-2 italic">
+      Afegeix un pis per configurar el tronc.
+    </p>
+  }
+
+  <!-- ── Floors ──────────────────────────────────────────────────────────── -->
+  <div class="floors-container" [style.flex-direction]="inverted() ? 'column-reverse' : 'column'">
+    @for (floor of floors(); track floor.z) {
+      <div class="floor-row">
+
+        <!-- Floor label -->
+        <div class="floor-label">
+          <span class="pis-code">{{ floor.pisLabel }}</span>
+          @if (mode() === 'assignment') {
+            <span class="progress-badge">{{ getProgressDisplay(floor.z) }}</span>
+          }
+        </div>
+
+        <!-- Node grid -->
+        <div
+          class="floor-grid"
+          [style.grid-template-columns]="gridTemplateColumns()"
+          role="group"
+          [attr.aria-label]="floor.pisLabel + ' · ' + floor.positionTypeLabel"
+        >
+          @if (floor.isBase) {
+            @for (node of floor.nodes; track node.id; let i = $index) {
+              <button
+                type="button"
+                class="tronc-node"
+                [class.selected]="isSelected(node.id)"
+                [class.assigned]="isAssigned(node.id)"
+                [class.highlighted]="isHighlighted(node.id)"
+                [style.grid-column]="getBaseNodeGridColumn(i)"
+                (click)="onNodeClick(node, $event)"
+                [attr.aria-label]="getNodeAriaLabel(node)"
+                [attr.aria-pressed]="isSelected(node.id)"
+              >
+                @if (getAssignment(node.id); as assignment) {
+                  @if (mode() !== 'projection') {
+                    <span class="height-badge" aria-hidden="true">
+                      {{ getHeightDisplay(assignment.person.shoulderHeight) }}
+                    </span>
+                  }
+                  <span class="person-alias" [class.text-base]="mode() === 'projection'">{{ assignment.person.alias }}</span>
+                  @if (mode() !== 'projection') {
+                    <span
+                      class="attendance-dot"
+                      [style.background-color]="getAttendanceColor(assignment)"
+                      aria-hidden="true"
+                    ></span>
+                  }
+                } @else {
+                  <span class="node-label">{{ node.label }}</span>
+                }
+              </button>
+            }
+          } @else {
+            @for (node of floor.nodes; track node.id) {
+              <button
+                type="button"
+                class="tronc-node"
+                [class.selected]="isSelected(node.id)"
+                [class.assigned]="isAssigned(node.id)"
+                [class.highlighted]="isHighlighted(node.id)"
+                [style.grid-column]="getTroncNodeGridColumn(node)"
+                (click)="onNodeClick(node, $event)"
+                [attr.aria-label]="getNodeAriaLabel(node)"
+                [attr.aria-pressed]="isSelected(node.id)"
+              >
+                @if (getAssignment(node.id); as assignment) {
+                  @if (mode() !== 'projection') {
+                    <span class="height-badge" aria-hidden="true">
+                      {{ getHeightDisplay(assignment.person.shoulderHeight) }}
+                    </span>
+                  }
+                  <span class="person-alias" [class.text-base]="mode() === 'projection'">{{ assignment.person.alias }}</span>
+                  @if (mode() !== 'projection') {
+                    <span
+                      class="attendance-dot"
+                      [style.background-color]="getAttendanceColor(assignment)"
+                      aria-hidden="true"
+                    ></span>
+                  }
+                } @else {
+                  <span class="node-label">{{ node.label }}</span>
+                }
+              </button>
+            }
+          }
+
+          <!-- Inline + button per floor (editor only, non-base) -->
+          @if (mode() === 'editor' && !floor.isBase) {
+            <button
+              type="button"
+              class="floor-add-node-btn"
+              [style.grid-column]="getAddNodeButtonGridColumn()"
+              (click)="onAddNodeToFloor(floor)"
+              [attr.aria-label]="'Afegir node a ' + floor.pisLabel"
+              title="Afegir node"
+            >
+              <lucide-icon name="Plus" [size]="12" aria-hidden="true" />
+            </button>
+          }
+        </div>
+
+        <!-- Floor variance (assignment mode only) -->
+        @if (mode() === 'assignment') {
+          <div
+            class="floor-variance"
+            [style.color]="getVarianceColor(floor.z)"
+            [attr.aria-label]="getVarianceAriaLabel(floor.z)"
+          >
+            {{ getVarianceDisplay(floor.z) }}
+          </div>
+        }
+
+      </div>
+    }
+  </div>
+
+  <!-- ── Editor controls (compact) ────────────────────────────────────────── -->
+  @if (mode() === 'editor') {
+    <div class="editor-controls">
+
+      <div class="divider my-1"></div>
+
+      <!-- Selected TRONC node controls — inline row -->
+      @if (selectedTroncNode(); as node) {
+        <div class="selected-node-controls">
+          <p class="controls-label">Node: <strong>{{ node.label }}</strong></p>
+
+          <div class="node-props-row">
+            <div class="form-control flex-1">
+              <label class="label py-0" [for]="'tronc-x-' + node.id">
+                <span class="label-text text-xs">Pos. (x)</span>
+              </label>
+              <input
+                type="number"
+                [id]="'tronc-x-' + node.id"
+                class="input input-bordered input-xs"
+                min="0"
+                max="8"
+                step="0.5"
+                [ngModel]="node.x"
+                (ngModelChange)="onNodeXChange(node, $event)"
+              />
+            </div>
+
+            <div class="form-control flex-1">
+              <label class="label py-0" [for]="'tronc-w-' + node.id">
+                <span class="label-text text-xs">Amp.</span>
+              </label>
+              <input
+                type="number"
+                [id]="'tronc-w-' + node.id"
+                class="input input-bordered input-xs"
+                min="0.5"
+                max="8"
+                step="0.5"
+                [ngModel]="node.width"
+                (ngModelChange)="onNodeWidthChange(node, $event)"
+              />
+            </div>
+
+            <button
+              type="button"
+              class="btn btn-xs btn-error btn-outline btn-square self-end"
+              (click)="onNodeDelete(node)"
+              aria-label="Eliminar node"
+              title="Eliminar node"
+            >
+              <lucide-icon name="Trash2" [size]="12" aria-hidden="true" />
+            </button>
+          </div>
+          <span class="label-text-alt text-base-content/40" style="font-size: 0.6rem;">
+            Unitats relatives (0.5u = mitja persona)
+          </span>
+        </div>
+
+        <div class="divider my-1"></div>
+      }
+
+      <!-- Add floor (compact) -->
+      @if (availableFloorOptions().length > 0) {
+        <div class="add-floor-row">
+          <select
+            class="select select-bordered select-xs flex-1"
+            [ngModel]="selectedFloorType()"
+            (ngModelChange)="selectedFloorType.set($event)"
+            aria-label="Tipus de pis a afegir"
+          >
+            <option value="" disabled>Afegir pis...</option>
+            @for (opt of availableFloorOptions(); track opt.positionType + opt.z) {
+              <option [value]="opt.z + '-' + opt.positionType">P{{ opt.z + 1 }} · {{ opt.label }}</option>
+            }
+          </select>
+          <button
+            type="button"
+            class="btn btn-primary btn-xs btn-square"
+            (click)="onAddFloor()"
+            [disabled]="!selectedFloorType()"
+            aria-label="Afegir pis"
+            title="Afegir pis"
+          >
+            <lucide-icon name="Plus" [size]="12" aria-hidden="true" />
+          </button>
+        </div>
+      }
+
+    </div>
+  }
+
+</section>

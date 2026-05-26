@@ -13,6 +13,13 @@
         Figures
       </button>
 
+      @if (familyBreadcrumb()) {
+        <span class="text-base-content/30" aria-hidden="true">/</span>
+        <span class="text-sm text-base-content/60 font-medium truncate max-w-36" [title]="familyBreadcrumb()!">
+          {{ familyBreadcrumb() }}
+        </span>
+      }
+
       <span class="text-base-content/30" aria-hidden="true">/</span>
 
       <!-- Template name -->
@@ -37,7 +44,7 @@
     </div>
 
     <div class="flex items-center gap-3">
-        <!-- Save status -->
+          <!-- Save status -->
       @if (saveStatus() !== 'idle') {
         <span
           class="text-xs px-2 py-1 rounded-full"
@@ -53,6 +60,18 @@
           {{ saveStatusLabel() }}
         </span>
       }
+
+      <!-- Tronc drawer trigger -->
+      <button
+        type="button"
+        class="btn btn-ghost btn-sm gap-1"
+        (click)="troncDrawerOpen.set(true)"
+        aria-label="Obrir panell del Tronc"
+        title="Tronc"
+      >
+        <lucide-icon name="Layers" [size]="16" aria-hidden="true" />
+        Tronc
+      </button>
 
       <!-- hasPinya toggle -->
       <label class="flex items-center gap-2 cursor-pointer" title="Té Pinya">
@@ -76,6 +95,17 @@
       >
         <lucide-icon name="Keyboard" [size]="16" aria-hidden="true" />
       </button>
+
+      <!-- Editor help -->
+      <button
+        type="button"
+        class="btn btn-ghost btn-sm btn-square"
+        (click)="helpModal().open()"
+        aria-label="Ajuda de l'editor de figures"
+        title="Ajuda"
+      >
+        <lucide-icon name="HelpCircle" [size]="16" aria-hidden="true" />
+      </button>
     </div>
   </header>
 
@@ -98,6 +128,20 @@
           <span class="node-rect" style="background-color: #EEEEEE; border: 1px dashed #a1a1a1;" aria-hidden="true"></span>
           BASE
         </button>
+
+        <!-- Base ordering warning -->
+        @if (baseNodes().length >= 2 && !baseOrderingValidation().isValid) {
+          <button
+            type="button"
+            class="mt-1 flex items-center gap-1 text-[10px] text-warning font-medium leading-tight hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-warning rounded px-1"
+            (click)="helpModal().open()"
+            title="Les bases no estan en ordre anti-horari. Clica per saber com corregir-ho."
+            aria-label="Avís: ordre de bases incorrecte. Clica per veure l'ajuda."
+          >
+            <lucide-icon name="AlertTriangle" [size]="11" aria-hidden="true" />
+            Ordre incorrecte
+          </button>
+        }
       </div>
 
       <div class="divider my-1"></div>
@@ -170,34 +214,6 @@
 
     <!-- Canvas Area -->
     <main class="editor-canvas" aria-label="Editor visual de la figura">
-
-      <!-- Floating overlays (top-left of canvas) -->
-      <div class="canvas-overlays">
-        <!-- Tronc widget -->
-        <app-tronc-widget
-          [troncNodes]="troncNodes()"
-          [baseNodes]="baseNodes()"
-          [mode]="'editor'"
-          [selectedNodeId]="selectedNodeId()"
-          (nodeAdded)="onTroncNodeAdded($event)"
-          (nodeRemoved)="onTroncNodeRemoved($event)"
-          (floorRemoved)="onTroncFloorRemoved($event)"
-          (nodeSelected)="onNodeSelected($event)"
-          (baseAdded)="onBaseNodeAdded($event)"
-          (baseRemoved)="onBaseNodeRemoved($event)"
-        />
-
-        <!-- Direccions widget (estructura de nodes FIGURE_DIRECTION / XICALLA_DIRECTION) -->
-        <!-- TODO P5.4: aquí s'implementarà l'assignació de persones reals a les direccions -->
-        <!-- <app-direccions-widget
-          [directionNodes]="directionNodes()"
-          [mode]="'editor'"
-          [selectedNodeId]="selectedNodeId()"
-          (nodeAdded)="onDirectionNodeAdded($event)"
-          (nodeRemoved)="onDirectionNodeRemoved($event)"
-          (nodeSelected)="onNodeSelected($event)"
-        /> -->
-      </div>
 
       @if (loading()) {
         <div class="flex items-center justify-center h-full">
@@ -312,6 +328,33 @@
                   [ngModel]="node.positionType"
                   (ngModelChange)="updateSelectedNodeProp('positionType', $event || null)"
                 />
+              </div>
+            }
+
+            <!-- Ring level: only for PINYA nodes -->
+            @if (node.zone === FigureZone.PINYA) {
+              <div class="form-control mb-3">
+                <label class="label pb-1" [for]="'node-ring-' + node.id">
+                  <span
+                    class="label-text text-xs font-medium tooltip tooltip-right"
+                    data-tip="El nivell de cordó indica a quin anell concèntric pertany aquesta posició. Serveix per saber quines posicions s'afegeixen quan la figura creix."
+                  >
+                    Nivell de cordó
+                  </span>
+                </label>
+                <input
+                  type="number"
+                  [id]="'node-ring-' + node.id"
+                  class="input input-bordered input-sm"
+                  placeholder="Buit = independent"
+                  [ngModel]="node.ringLevel"
+                  (ngModelChange)="updateSelectedNodeProp('ringLevel', $event ? +$event : null)"
+                  min="1"
+                  max="10"
+                />
+                <div class="label pt-1">
+                  <span class="label-text-alt text-base-content/50">Buit per a nodes independents (ex: cordó obert)</span>
+                </div>
               </div>
             }
 
@@ -446,6 +489,51 @@
   </div>
 </div>
 
+<!-- ── Tronc Floating Panel ──────────────────────────────────────────────── -->
+@if (troncDrawerOpen()) {
+  <aside
+    class="tronc-floating-panel"
+    [style.left.px]="troncPanelPos().x"
+    [style.top.px]="troncPanelPos().y"
+    aria-label="Tronc de la figura"
+    (keydown.escape)="troncDrawerOpen.set(false)"
+  >
+    <div
+      class="tronc-floating-header"
+      (mousedown)="onTroncDragStart($event)"
+    >
+      <lucide-icon name="GripVertical" [size]="14" class="drag-handle" aria-hidden="true" />
+      <h2 class="tronc-floating-title">
+        Tronc
+        <span class="tronc-shared-badge" title="Compartit entre totes les variants de la família">
+          Compartit
+        </span>
+      </h2>
+      <button
+        type="button"
+        class="btn btn-ghost btn-xs btn-square"
+        (click)="troncDrawerOpen.set(false)"
+        aria-label="Tancar panell del Tronc"
+      >
+        <lucide-icon name="X" [size]="14" aria-hidden="true" />
+      </button>
+    </div>
+    <app-tronc-view
+      class="tronc-floating-body"
+      [troncNodes]="troncNodes()"
+      [baseNodes]="baseNodes()"
+      [mode]="'editor'"
+      [selectedNodeId]="selectedNodeId()"
+      (nodeSelected)="onNodeSelected($event)"
+      (nodeAdded)="onTroncNodeAdded($event)"
+      (nodeRemoved)="onTroncNodeRemoved($event)"
+      (nodeUpdated)="onTroncNodeUpdated($event)"
+      (baseAdded)="onBaseNodeAdded($event)"
+      (baseRemoved)="onBaseNodeRemoved($event)"
+    />
+  </aside>
+}
+
 <!-- ── Shortcuts Modal ──────────────────────────────────────────────────── -->
 @if (shortcutsModalOpen()) {
   <dialog
@@ -577,3 +665,6 @@
     <div class="modal-backdrop" (click)="toggleShortcutsModal()" aria-hidden="true"></div>
   </dialog>
 }
+
+<!-- Template editor help modal -->
+<app-template-editor-help-modal />

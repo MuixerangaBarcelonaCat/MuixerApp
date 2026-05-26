@@ -11,6 +11,12 @@ import { ActivatedRoute, Router, RouterModule, RouterLink } from '@angular/route
 import { PersonService } from '../../services/person.service';
 import { Person, UpdatePersonDto } from '../../models/person.model';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
+import { PositionService } from '../../../config/services/position.service';
+import { PositionWithCount } from '../../../config/models/position.model';
+import { NodeAssignmentService } from '../../../pinyes/services/node-assignment.service';
+import { SeasonService } from '../../../events/services/season.service';
+import { PersonAssignmentEntry } from '../../../pinyes/models/assignment.model';
+import { Season } from '../../../events/models/event.model';
 
 import {
   getAvailabilityLabel,
@@ -22,6 +28,7 @@ import {
   getFullName,
 } from '../../../../shared/utils';
 import { EmptyStateComponent } from '../../../../shared/components/data/empty-state/empty-state.component';
+import { PaginationComponent } from '../../../../shared/components/data/pagination/pagination.component';
 import { PersonInvitationModalComponent } from './modals/person-invitation-modal.component';
 import { PersonLinkUserModalComponent } from './modals/person-link-user-modal.component';
 
@@ -32,6 +39,7 @@ import { PersonLinkUserModalComponent } from './modals/person-link-user-modal.co
     ReactiveFormsModule,
     RouterModule,
     EmptyStateComponent,
+    PaginationComponent,
     PersonInvitationModalComponent,
     PersonLinkUserModalComponent,
   ],
@@ -39,6 +47,9 @@ import { PersonLinkUserModalComponent } from './modals/person-link-user-modal.co
 })
 export class PersonDetailComponent implements OnInit {
   private readonly personService = inject(PersonService);
+  private readonly positionService = inject(PositionService);
+  private readonly nodeAssignmentService = inject(NodeAssignmentService);
+  private readonly seasonService = inject(SeasonService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
@@ -57,8 +68,21 @@ export class PersonDetailComponent implements OnInit {
 
   isNew = computed(() => !this.route.snapshot.paramMap.get('id'));
 
+  allPositions = signal<PositionWithCount[]>([]);
+  selectedPositionIds = signal<string[]>([]);
+
   invitationModalOpen = signal(false);
   linkUserModalOpen = signal(false);
+
+  // ── F3 History ──
+  historyEntries = signal<PersonAssignmentEntry[]>([]);
+  historyLoading = signal(false);
+  historyPage = signal(1);
+  historyTotal = signal(0);
+  historyLimit = signal(20);
+  historySeasonId = signal<string | undefined>(undefined);
+  historyExpanded = signal(true);
+  seasons = signal<Season[]>([]);
 
   form = this.fb.group({
     name: ['', Validators.required],
@@ -83,12 +107,22 @@ export class PersonDetailComponent implements OnInit {
   readonly formatDate = formatDate;
   readonly formatDateTime = formatDateTime;
   readonly formatShoulderHeightRelative = formatShoulderHeightRelative;
+  readonly Math = Math;
 
   ngOnInit() {
+    this.positionService.getAll().subscribe({
+      next: (positions) => this.allPositions.set(positions),
+    });
+
+    this.seasonService.getAll().subscribe({
+      next: (res) => this.seasons.set(res.data),
+    });
+
     this.route.paramMap.subscribe((params) => {
       const id = params.get('id');
       if (id) {
         this.loadPerson(id);
+        this.loadHistory();
       } else {
         this.editing.set(true);
       }
@@ -107,9 +141,22 @@ export class PersonDetailComponent implements OnInit {
 
   cancelEditing() {
     const p = this.person();
-    if (p) this.patchForm(p);
+    if (p) {
+      this.patchForm(p);
+      this.selectedPositionIds.set(p.positions.map(pos => pos.id));
+    }
     this.saveError.set(null);
     this.editing.set(false);
+  }
+
+  togglePosition(positionId: string): void {
+    this.selectedPositionIds.update(ids =>
+      ids.includes(positionId) ? ids.filter(id => id !== positionId) : [...ids, positionId],
+    );
+  }
+
+  isPositionSelected(positionId: string): boolean {
+    return this.selectedPositionIds().includes(positionId);
   }
 
   save() {
@@ -121,7 +168,7 @@ export class PersonDetailComponent implements OnInit {
     const id = this.route.snapshot.paramMap.get('id');
     const raw = this.form.getRawValue();
 
-    const payload: Partial<UpdatePersonDto> = {
+    const payload: Partial<UpdatePersonDto> & { positionIds?: string[] } = {
       name: raw.name ?? undefined,
       firstSurname: raw.firstSurname ?? undefined,
       secondSurname: raw.secondSurname ?? undefined,
@@ -137,6 +184,7 @@ export class PersonDetailComponent implements OnInit {
       onboardingStatus:
         (raw.onboardingStatus as Person['onboardingStatus']) ?? undefined,
       shirtDate: raw.shirtDate || null,
+      positionIds: this.selectedPositionIds(),
     };
 
     const request$ = id
@@ -192,6 +240,7 @@ export class PersonDetailComponent implements OnInit {
       next: (person) => {
         this.person.set(person);
         this.patchForm(person);
+        this.selectedPositionIds.set(person.positions.map(p => p.id));
         this.loading.set(false);
       },
       error: (err) => {
@@ -238,6 +287,44 @@ export class PersonDetailComponent implements OnInit {
     const id = this.route.snapshot.paramMap.get('id')!;
     this.loadPerson(id);
     this.linkUserModalOpen.set(false);
+  }
+
+  // ── F3 History ──
+
+  loadHistory() {
+    const id = this.route.snapshot.paramMap.get('id');
+    if (!id) return;
+    this.historyLoading.set(true);
+    this.nodeAssignmentService
+      .getPersonHistory(id, {
+        page: this.historyPage(),
+        limit: this.historyLimit(),
+        seasonId: this.historySeasonId(),
+      })
+      .subscribe({
+        next: (res) => {
+          this.historyEntries.set(res.data);
+          this.historyTotal.set(res.meta.total);
+          this.historyLoading.set(false);
+        },
+        error: () => this.historyLoading.set(false),
+      });
+  }
+
+  onHistoryPageChange(page: number) {
+    this.historyPage.set(page);
+    this.loadHistory();
+  }
+
+  onHistorySeasonChange(seasonId: string) {
+    this.historySeasonId.set(seasonId || undefined);
+    this.historyPage.set(1);
+    this.loadHistory();
+  }
+
+  navigateToEvent(entry: PersonAssignmentEntry) {
+    const base = entry.eventType === 'ACTUACIO' ? '/performances' : '/rehearsals';
+    this.router.navigate([base, entry.eventId]);
   }
 
   protected readonly getFullName = getFullName;

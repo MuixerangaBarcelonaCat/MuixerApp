@@ -16,6 +16,8 @@ const makeHistoryEntry = (instanceId = SOURCE_INSTANCE_ID): FigureHistoryEntry =
   eventDate: '2026-03-15',
   segmentName: 'Bloc 1',
   instanceId,
+  snapshotted: true,
+  sourceVariantOrder: 1,
   assignmentCount: 5,
   totalNodes: 8,
   assignments: [

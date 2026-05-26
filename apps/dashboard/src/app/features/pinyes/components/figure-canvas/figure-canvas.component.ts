@@ -18,6 +18,25 @@ import { CompositionSlotItem } from '../../models/composition.model';
 import { FigureZone, NodeShape } from '@muixer/shared';
 import { AssignmentDetail, HeightMode } from '../../models/assignment.model';
 
+/** Minimal node shape accepted by the canvas for rendering — both FigureNodeItem and InstanceNodeItem satisfy this */
+export interface CanvasNode {
+  id: string;
+  label: string;
+  zone: string;
+  positionType: string | null;
+  x: number;
+  y: number;
+  z: number;
+  width: number;
+  height: number;
+  rotation: number;
+  color: string | null;
+  shape: string;
+  sortOrder: number;
+  ringLevel?: number | null;
+  originNodeId?: string | null;
+}
+
 export type CanvasMode = 'editor' | 'readonly' | 'composition' | 'assignment';
 
 export interface CompositionSlotWithNodes {
@@ -74,7 +93,7 @@ const COMPOSITION_SLOT_SCALE = 0.5;
 export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   @ViewChild('canvasContainer') containerRef!: ElementRef<HTMLDivElement>;
 
-  readonly nodes = input<FigureNodeItem[]>([]);
+  readonly nodes = input<CanvasNode[]>([]);
   readonly mode = input<CanvasMode>('editor');
   readonly gridEnabled = input<boolean>(true);
   readonly gridSpacing = input<number>(40);
@@ -86,6 +105,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   readonly assignments = input<AssignmentDetail[]>([]);
   readonly heightMode = input<HeightMode>('relative');
   readonly attendanceMap = input<Map<string, string>>(new Map());
+  readonly nextPerformanceMap = input<Map<string, string | null>>(new Map());
+  readonly highlightedNodeIds = input<Set<string>>(new Set());
 
   readonly nodeSelected = output<string | null>();
   readonly nodeClicked = output<{ nodeId: string; x: number; y: number }>();
@@ -104,6 +125,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   private transformer!: Konva.Transformer;
 
   private resizeObserver: ResizeObserver | null = null;
+  /** Reused for measuring label text; not attached to the stage. */
+  private labelMeasureProbe: Konva.Text | null = null;
 
   readonly zoomLevel = signal(1);
 
@@ -121,7 +144,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.mode();
       if (!this.stage) return;
       untracked(() => {
-        if (this.mode() === 'composition' || this.mode() === 'assignment') return;
+        const m = this.mode();
+        if (m === 'composition' || m === 'assignment' || m === 'readonly') return;
         this.renderNodes();
         this.updateTransformer();
       });
@@ -139,10 +163,15 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.assignments();
       this.heightMode();
       this.attendanceMap();
+      this.nextPerformanceMap();
       this.selectedNodeId();
+      this.highlightedNodeIds();
       if (!this.stage) return;
-      if (this.mode() !== 'assignment') return;
-      untracked(() => this.renderAssignmentNodes());
+      if (this.mode() === 'assignment') {
+        untracked(() => this.renderAssignmentNodes());
+      } else if (this.mode() === 'readonly') {
+        untracked(() => this.renderReadonlyNodes());
+      }
     });
   }
 
@@ -158,6 +187,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.resizeObserver?.disconnect();
+    this.labelMeasureProbe?.destroy();
+    this.labelMeasureProbe = null;
     this.stage?.destroy();
   }
 
@@ -368,6 +399,9 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.renderCompositionSlots();
     } else if (this.mode() === 'assignment') {
       this.renderAssignmentNodes();
+    } else if (this.mode() === 'readonly') {
+      this.renderReadonlyNodes();
+      setTimeout(() => this.fitToScreen());
     } else {
       this.renderNodes();
     }
@@ -422,12 +456,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     const isEditor = this.mode() === 'editor';
     const selectedId = this.selectedNodeId();
 
-    for (const node of this.nodes()) {
+    for (const node of this.nodes() as FigureNodeItem[]) {
       const group = this.buildNodeGroup(node, isEditor, selectedId === node.id);
       this.pinyaLayer.add(group);
     }
 
-    // Re-add transformer to pinyaLayer
     this.pinyaLayer.add(this.transformer);
 
     this.pinyaLayer.batchDraw();
@@ -652,9 +685,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     const assignments = this.assignments();
     const heightMode = this.heightMode();
     const attendanceMap = this.attendanceMap();
+    const nextPerformanceMap = this.nextPerformanceMap();
     const selectedId = this.selectedNodeId();
 
     const assignmentByNodeId = new Map(assignments.map((a) => [a.node.id, a]));
+    const highlighted = this.highlightedNodeIds();
 
     const ATTENDANCE_COLORS: Record<string, string> = {
       ANIRE: '#22c55e',
@@ -665,9 +700,10 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     for (const node of this.nodes()) {
       const assignment = assignmentByNodeId.get(node.id);
       const isSelected = selectedId === node.id;
+      const isHighlighted = highlighted.has(node.id);
       const fill = node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR;
-      const stroke = isSelected ? SELECTED_STROKE : NORMAL_STROKE;
-      const strokeWidth = isSelected ? 3 : 1.5;
+      const stroke = isSelected ? SELECTED_STROKE : isHighlighted ? '#10b981' : NORMAL_STROKE;
+      const strokeWidth = isSelected ? 3 : isHighlighted ? 2.5 : 1.5;
 
       const group = new Konva.Group({
         id: node.id,
@@ -698,25 +734,26 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           strokeWidth,
         });
       }
+      if (isHighlighted) {
+        shape.shadowColor('#10b981');
+        shape.shadowBlur(12);
+        shape.shadowOpacity(0.7);
+        shape.shadowEnabled(true);
+      }
       group.add(shape);
 
       if (assignment) {
         const alias = assignment.person.alias;
         const textFill = this.getContrastColor(fill);
+        const shoulderH = assignment.person.shoulderHeight;
+        const hasValidHeight = shoulderH !== null && shoulderH !== 0 && shoulderH !== 140;
+        const nextStatus = nextPerformanceMap.get(assignment.person.id);
 
-        let displayText = alias;
-        if (assignment.person.shoulderHeight !== null) {
-          const h = assignment.person.shoulderHeight;
-          const heightText = heightMode === 'relative'
-            ? `${h >= 140 ? '+' : ''}${h - 140}`
-            : `${h}`;
-          displayText = `${alias} (${heightText})`;
-        }
-
+        // Alias text — centred in the node, larger now that height is a separate badge
         group.add(
           new Konva.Text({
-            text: displayText,
-            fontSize: 9,
+            text: alias,
+            fontSize: 11,
             fontFamily: 'Inter, sans-serif',
             fill: textFill,
             align: 'center',
@@ -726,10 +763,43 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
             x: -node.width / 2,
             y: -node.height / 2,
             listening: false,
-            wrap: 'word',
+            wrap: 'none',
             ellipsis: true,
           }),
         );
+
+        // Height badge at top-left
+        if (hasValidHeight) {
+          const heightText = heightMode === 'relative'
+            ? `${shoulderH! >= 140 ? '+' : ''}${shoulderH! - 140}`
+            : `${shoulderH}`;
+          group.add(
+            new Konva.Text({
+              text: heightText,
+              fontSize: 7,
+              fontFamily: 'Inter, sans-serif',
+              fill: textFill,
+              opacity: 0.75,
+              align: 'left',
+              x: -node.width / 2 + 3,
+              y: -node.height / 2 + 2,
+              listening: false,
+            }),
+          );
+        }
+
+        // Next performance indicator at bottom-left (only when coming to next actuació)
+        if (nextStatus === 'ANIRE') {
+          group.add(
+            new Konva.Text({
+              text: '🎭',
+              fontSize: 8,
+              x: -node.width / 2 + 2,
+              y: node.height / 2 - 11,
+              listening: false,
+            }),
+          );
+        }
 
         // Attendance badge (small dot at top-right corner)
         const attendanceStatus = attendanceMap.get(assignment.person.id);
@@ -787,6 +857,84 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       group.on('mouseleave', () => {
         this.stage.container().style.cursor = 'default';
       });
+
+      this.pinyaLayer.add(group);
+    }
+
+    this.pinyaLayer.add(this.transformer);
+    this.pinyaLayer.batchDraw();
+  }
+
+  private renderReadonlyNodes(): void {
+    this.transformer.nodes([]);
+    this.transformer.remove();
+    this.pinyaLayer.destroyChildren();
+
+    const assignments = this.assignments();
+    const assignmentByNodeId = new Map(assignments.map((a) => [a.node.id, a]));
+
+    for (const node of this.nodes()) {
+      const assignment = assignmentByNodeId.get(node.id);
+      const fill = node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR;
+
+      const group = new Konva.Group({
+        id: node.id,
+        x: node.x,
+        y: node.y,
+        rotation: node.rotation,
+        draggable: false,
+      });
+
+      let shape: Konva.Shape;
+      if ((node as { shape?: string }).shape === NodeShape.ELLIPSE) {
+        shape = new Konva.Ellipse({
+          radiusX: node.width / 2,
+          radiusY: node.height / 2,
+          fill,
+          stroke: NORMAL_STROKE,
+          strokeWidth: 1.5,
+        });
+      } else {
+        shape = new Konva.Rect({
+          x: -node.width / 2,
+          y: -node.height / 2,
+          width: node.width,
+          height: node.height,
+          cornerRadius: 4,
+          fill,
+          stroke: NORMAL_STROKE,
+          strokeWidth: 1.5,
+        });
+      }
+      group.add(shape);
+
+      const textFill = this.getContrastColor(fill);
+      const displayText = assignment ? assignment.person.alias : node.label;
+      const { fontSize, wrap } = this.fitFontSizeForNode(displayText, node.width, node.height, {
+        maxFontSize: assignment ? 13 : 9,
+        fontStyle: assignment ? 'bold' : 'normal',
+        wrap: assignment ? 'none' : 'word',
+      });
+
+      group.add(
+        new Konva.Text({
+          text: displayText,
+          fontSize,
+          fontStyle: assignment ? 'bold' : 'normal',
+          fontFamily: 'Inter, sans-serif',
+          fill: textFill,
+          opacity: assignment ? 1 : 0.5,
+          align: 'center',
+          verticalAlign: 'middle',
+          width: node.width,
+          height: node.height,
+          x: -node.width / 2,
+          y: -node.height / 2,
+          listening: false,
+          wrap,
+          ellipsis: false,
+        }),
+      );
 
       this.pinyaLayer.add(group);
     }
@@ -854,6 +1002,41 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       ellipsis: false,
     });
     group.add(text);
+
+    // Ring level badge (editor mode, PINYA zone nodes only)
+    if (isEditor && node.zone === FigureZone.PINYA && node.ringLevel != null) {
+      const badgeText = `C${node.ringLevel}`;
+      const badgeFontSize = 8;
+      const badgePadX = 3;
+      const badgePadY = 1.5;
+      const badgeW = badgeFontSize * badgeText.length * 0.6 + badgePadX * 2;
+      const badgeH = badgeFontSize + badgePadY * 2;
+      const badgeX = node.width / 2 - badgeW - 1;
+      const badgeY = -node.height / 2 + 1;
+
+      const badgeBg = new Konva.Rect({
+        x: badgeX,
+        y: badgeY,
+        width: badgeW,
+        height: badgeH,
+        fill: 'rgba(0,0,0,0.55)',
+        cornerRadius: 2,
+        listening: false,
+      });
+      group.add(badgeBg);
+
+      const badgeLabel = new Konva.Text({
+        text: badgeText,
+        fontSize: badgeFontSize,
+        fontFamily: 'Inter, monospace',
+        fill: '#ffffff',
+        fontStyle: 'bold',
+        x: badgeX + badgePadX,
+        y: badgeY + badgePadY,
+        listening: false,
+      });
+      group.add(badgeLabel);
+    }
 
     // Events
     group.on('click tap', () => {
@@ -986,6 +1169,61 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
   private snapValue(value: number, spacing: number): number {
     return Math.round(value / spacing) * spacing;
+  }
+
+  private getLabelMeasureProbe(): Konva.Text {
+    if (!this.labelMeasureProbe) {
+      this.labelMeasureProbe = new Konva.Text({
+        fontFamily: 'Inter, sans-serif',
+        listening: false,
+      });
+    }
+    return this.labelMeasureProbe;
+  }
+
+  /**
+   * Shrinks font size (and optionally wraps) so the full label fits inside the node box.
+   * Used in readonly/projection mode instead of ellipsis truncation.
+   */
+  private fitFontSizeForNode(
+    text: string,
+    boxWidth: number,
+    boxHeight: number,
+    opts: {
+      maxFontSize: number;
+      minFontSize?: number;
+      fontStyle?: string;
+      wrap?: 'none' | 'word';
+      padding?: number;
+    },
+  ): { fontSize: number; wrap: 'none' | 'word' } {
+    const padding = opts.padding ?? 4;
+    const maxW = Math.max(1, boxWidth - padding * 2);
+    const maxH = Math.max(1, boxHeight - padding * 2);
+    const minFont = opts.minFontSize ?? 5;
+    const maxFont = opts.maxFontSize;
+    const wrap = opts.wrap ?? 'none';
+    const probe = this.getLabelMeasureProbe();
+
+    probe.text(text);
+    probe.fontStyle(opts.fontStyle ?? 'normal');
+    probe.wrap(wrap);
+    if (wrap === 'word') {
+      probe.width(maxW);
+    } else {
+      probe.width(0);
+    }
+
+    for (let fontSize = maxFont; fontSize >= minFont; fontSize -= 0.5) {
+      probe.fontSize(fontSize);
+      const size = probe.measureSize(text);
+      const fitsWidth = wrap === 'word' || size.width <= maxW;
+      if (fitsWidth && size.height <= maxH) {
+        return { fontSize, wrap };
+      }
+    }
+
+    return { fontSize: minFont, wrap };
   }
 
   /** Returns #000 or #fff depending on background luminance */

@@ -6,7 +6,7 @@
 
 ## 🎯 Resum Executiu
 
-El projecte MuixerApp està en **fase de desenvolupament actiu** amb P0-P3 + P4.1 + P4.2 + P4.3 + P4.4 + P5.1 + P5.2 + P5.3 + **P5.4** completats i **deute tècnic resolt**. L'aplicació inclou:
+El projecte MuixerApp està en **fase de desenvolupament actiu** amb P0-P3 + P4.1 + P4.2 + P4.3 + P4.4 + P5.1 + P5.2 + P5.3 + **P5.4** + **P5.10** completats i **deute tècnic resolt**. L'aplicació inclou:
 
 - ✅ Backend NestJS amb API REST completa + ordenació server-side
 - ✅ Sistema de sincronització amb legacy API (SSE + Strategy pattern) — Persons + Events + Attendance
@@ -27,6 +27,7 @@ El projecte MuixerApp està en **fase de desenvolupament actiu** amb P0-P3 + P4.
 - ✅ **Arquitectura Docker multi-entorn (P4.4)**: Docker local dev + Dockerfile multi-stage + docker-compose.prod.yml per VPS
 - ✅ **Mòdul Pinyes complet (P5.1–P5.4)**: Templates, Composicions, Segments, Instàncies i Assignació de Persones implementats
 - ✅ **Assignació de Persones (P5.4)**: Canvas d'assignació pick-and-place, panel lateral filtrat, optimistic UI, historial d'importació
+- ✅ **Posicions, Lock i Historials (P5.10)**: CRUD posicions, lock automàtic d'assignacions, filtre intel·ligent per posició, historials per persona/event/família
 
 ---
 
@@ -124,7 +125,7 @@ El projecte MuixerApp està en **fase de desenvolupament actiu** amb P0-P3 + P4.
 Backend:
 ├── NestJS 10.x
 ├── TypeORM 0.3.x
-├── PostgreSQL (NeonDB)
+├── PostgreSQL (Docker)
 ├── Swagger/OpenAPI
 └── Jest (testing)
 
@@ -302,8 +303,8 @@ nx serve dashboard
 ### 2. P5.5: Projecció i Consulta Històrica
 
 - [ ] Mode fullscreen TV/projector per a actuacions
-- [ ] Consulta de figures per persona (historial d'assignacions)
-- [ ] Vista de figures dels events passats
+- [x] Consulta de figures per persona (historial d'assignacions) — implementat a P5.10 F3
+- [x] Vista de figures dels events passats — implementat a P5.10 F3
 
 **Documentació:** `docs/PROJECT_ROADMAP.md`
 
@@ -381,7 +382,8 @@ nx serve dashboard
 - ✅ **Arquitectura Docker multi-entorn (P4.4)** — Docker local dev + Dockerfile multi-stage API + docker-compose.prod.yml per VPS
 - ✅ **Mòdul Pinyes complet (P5.1–P5.4)** — Templates, Composicions, Segments, Instàncies i Assignació de Persones
 - ✅ **Assignació de Persones (P5.4)** — NodeAssignment, canvas pick-and-place, optimistic UI, panel filtrat, historial, botó al SegmentManager
+- ✅ **Posicions, Lock i Historials (P5.10)** — CRUD posicions, lock automàtic, filtre per posició, historials (persona/event/família)
 
 ---
 
-**Estat del projecte:** 🟢 **Actiu i saludable — P5.4 implementat, Mòdul Pinyes operatiu (P5.1–P5.4)**
+**Estat del projecte:** 🟢 **Actiu i saludable — P5.10 implementat, Mòdul Pinyes operatiu (P5.1–P5.4 + P5.10)**

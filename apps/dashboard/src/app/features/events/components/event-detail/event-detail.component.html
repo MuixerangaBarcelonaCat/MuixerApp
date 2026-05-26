@@ -14,6 +14,12 @@
           </span>
           @if (isPast()) { <span class="badge badge-neutral badge-sm">Passat</span> }
           @if (!ev.countsForStatistics) { <span class="badge badge-ghost badge-sm">Sense estadística</span> }
+          @if (isEventLocked()) {
+            <span class="badge badge-warning badge-sm gap-1">
+              <lucide-icon name="Lock" [size]="11" />
+              Assignacions bloquejades
+            </span>
+          }
         </div>
       </div>
       <div class="flex gap-2 flex-wrap">
@@ -176,7 +182,58 @@
     </div>
 
     <!-- Pinyes i Figures (Segments) -->
-    <app-segment-manager [eventId]="ev.id" />
+    <app-segment-manager [eventId]="ev.id" [isLocked]="isEventLocked()" />
+
+    <!-- Resum de pinyes (historial read-only) -->
+    <!-- TODO: Amagat el resum de pinyes per ara, valorar si es útil en un futur   -->
+    <!-- @if (assignmentSummary(); as summary) {
+      @if (summary.segments.length > 0) {
+        <div class="card bg-base-100 shadow-sm">
+          <div class="card-body p-4">
+            <div class="flex items-center gap-2 mb-3">
+              <h2 class="card-title text-base">Pinyes</h2>
+              @if (isEventLocked()) {
+                <span class="badge badge-warning badge-sm gap-1">Registre tancat</span>
+              }
+            </div>
+
+            <div class="space-y-4">
+              @for (seg of summary.segments; track seg.segmentId) {
+                <div class="border border-base-300 rounded-lg p-3">
+                  <h3 class="text-sm font-semibold text-base-content/80 mb-2">{{ seg.segmentName }}</h3>
+                  @for (fig of seg.figures; track fig.instanceId) {
+                    <div class="mb-3 last:mb-0">
+                      <div class="flex items-center gap-2 mb-1">
+                        <span class="text-sm font-medium">{{ fig.figureName }}</span>
+                        @if (fig.familyName) {
+                          <span class="text-xs text-base-content/50">({{ fig.familyName }})</span>
+                        }
+                        <span class="badge badge-ghost badge-xs">{{ fig.assignedNodes }}/{{ fig.totalNodes }}</span>
+                      </div>
+                      @if (fig.assignments.length > 0) {
+                        <div class="flex flex-wrap gap-1">
+                          @for (a of fig.assignments; track a.personId) {
+                            <span class="badge badge-sm gap-1"
+                              [class.badge-info]="a.zone === 'PINYA'"
+                              [class.badge-warning]="a.zone === 'TRONC'"
+                              [class.badge-neutral]="a.zone === 'BASE'"
+                            >{{ a.nodeLabel }} → {{ a.personAlias }}</span>
+                          }
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    } @else if (summaryLoading()) {
+      <div class="flex justify-center py-4">
+        <span class="loading loading-spinner loading-md text-primary"></span>
+      </div>
+    } -->
 
     <!-- Llista d'assistència -->
     <div class="card bg-base-100 shadow-sm">

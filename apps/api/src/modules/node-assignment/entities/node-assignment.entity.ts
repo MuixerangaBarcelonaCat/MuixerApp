@@ -8,12 +8,12 @@ import {
   Unique,
 } from 'typeorm';
 import { FigureInstance } from '../../event-segment/entities/figure-instance.entity';
-import { FigureNode } from '../../figure/entities/figure-node.entity';
+import { InstanceNode } from '../../event-segment/entities/instance-node.entity';
 import { Person } from '../../person/person.entity';
 import { CompositionSlot } from '../../composition/entities/composition-slot.entity';
 
 @Entity('node_assignments')
-@Unique(['figureInstance', 'figureNode', 'compositionSlot'])
+@Unique(['figureInstance', 'instanceNode', 'compositionSlot'])
 @Unique(['figureInstance', 'person', 'compositionSlot'])
 export class NodeAssignment {
   @PrimaryGeneratedColumn('uuid')
@@ -26,9 +26,9 @@ export class NodeAssignment {
   @JoinColumn()
   figureInstance: FigureInstance;
 
-  @ManyToOne(() => FigureNode, { nullable: false, onDelete: 'RESTRICT' })
+  @ManyToOne(() => InstanceNode, { nullable: false, onDelete: 'RESTRICT' })
   @JoinColumn()
-  figureNode: FigureNode;
+  instanceNode: InstanceNode;
 
   @ManyToOne(() => Person, { nullable: false, onDelete: 'RESTRICT' })
   @JoinColumn()
@@ -36,8 +36,6 @@ export class NodeAssignment {
 
   /**
    * Required when figureInstance references a CompositionTemplate.
-   * Identifies which slot within the composition this assignment belongs to,
-   * disambiguating when the same FigureTemplate appears in multiple slots.
    * Null for standalone (non-composition) figure instances.
    */
   @ManyToOne(() => CompositionSlot, { nullable: true, onDelete: 'RESTRICT' })

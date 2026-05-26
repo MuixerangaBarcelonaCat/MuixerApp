@@ -8,6 +8,9 @@ import { CompositionTemplate } from '../composition/entities/composition-templat
 import { EventSegmentController } from './event-segment.controller';
 import { EventSegmentService } from './event-segment.service';
 import { FigureInstanceService } from './figure-instance.service';
+import { ProjectionService } from './projection.service';
+import { NodeAssignmentModule } from '../node-assignment/node-assignment.module';
+import { ReferenceElementModule } from '../reference-element/reference-element.module';
 
 @Module({
   imports: [
@@ -18,9 +21,11 @@ import { FigureInstanceService } from './figure-instance.service';
       FigureTemplate,
       CompositionTemplate,
     ]),
+    NodeAssignmentModule,
+    ReferenceElementModule,
   ],
   controllers: [EventSegmentController],
-  providers: [EventSegmentService, FigureInstanceService],
-  exports: [EventSegmentService, FigureInstanceService],
+  providers: [EventSegmentService, FigureInstanceService, ProjectionService],
+  exports: [EventSegmentService, FigureInstanceService, ProjectionService],
 })
 export class EventSegmentModule {}

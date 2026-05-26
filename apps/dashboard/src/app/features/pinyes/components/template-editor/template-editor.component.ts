@@ -7,6 +7,7 @@ import {
   computed,
   OnInit,
   OnDestroy,
+  viewChild,
 } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -15,7 +16,8 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { CanvasStateService } from '../../services/canvas-state.service';
 import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component';
-import { TroncWidgetComponent } from '../tronc-widget/tronc-widget.component';
+import { TroncViewComponent } from '../tronc-view/tronc-view.component';
+import { TemplateEditorHelpModalComponent } from '../template-editor-help-modal/template-editor-help-modal.component';
 import {
   FigureTemplateDetail,
   FigureNodeItem,
@@ -24,6 +26,7 @@ import {
 import { FigureZone, NodeShape } from '@muixer/shared';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
+import { validateBaseOrdering } from '../../utils/base-ordering.util';
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -52,7 +55,7 @@ const PINYA_POSITIONS: PinyaPosition[] = [
   selector: 'app-template-editor',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule, FigureCanvasComponent, TroncWidgetComponent],
+  imports: [FormsModule, LucideAngularModule, FigureCanvasComponent, TroncViewComponent, TemplateEditorHelpModalComponent],
   templateUrl: './template-editor.component.html',
   styleUrl: './template-editor.component.scss',
 })
@@ -64,12 +67,19 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   private readonly layout = inject(LayoutService);
   private readonly toast = inject(ToastService);
 
+  readonly helpModal = viewChild.required(TemplateEditorHelpModalComponent);
+
   // Template metadata
   templateId = signal<string | null>(null);
   templateName = signal('Nova Figura');
   templateSlug = signal('');
   templateDescription = signal('');
   hasPinya = signal(true);
+
+  // Family context (populated from query param or loaded template)
+  familyId = signal<string | null>(null);
+  familyName = signal<string | null>(null);
+  variantOrder = signal<number | null>(null);
 
   // Nodes
   nodes = signal<FigureNodeItem[]>([]);
@@ -79,6 +89,12 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   // Panel visibility
   propertiesPanelOpen = signal(true);
   shortcutsModalOpen = signal(false);
+  troncDrawerOpen = signal(false);
+
+  // Floating tronc panel drag state
+  readonly troncPanelPos = signal({ x: 16, y: 60 });
+  private troncDragging = false;
+  private troncDragOffset = { x: 0, y: 0 };
 
   // Status
   loading = signal(false);
@@ -119,14 +135,27 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     return '';
   });
 
+  /** Validation of BASE node counter-clockwise ordering. Recomputes on any node change. */
+  readonly baseOrderingValidation = computed(() =>
+    validateBaseOrdering(
+      this.baseNodes().map((n) => ({ sortOrder: n.sortOrder, x: n.x, y: n.y })),
+    ),
+  );
+
   ngOnInit(): void {
     this.layout.requestFullscreen();
     const id = this.route.snapshot.paramMap.get('id');
+    const queryFamilyId = this.route.snapshot.queryParamMap.get('familyId');
+    const queryFamilyName = this.route.snapshot.queryParamMap.get('familyName');
     if (id) {
       this.templateId.set(id);
       this.loadTemplate(id);
     } else {
       this.canvasState.reset();
+      if (queryFamilyId) {
+        this.familyId.set(queryFamilyId);
+        this.familyName.set(queryFamilyName);
+      }
     }
   }
 
@@ -169,21 +198,25 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   onTroncNodeAdded(event: { z: number; positionType: string; label: string; sortOrder: number }): void {
     const id = crypto.randomUUID();
+    const existingAtZ = this.troncNodes().filter((n) => n.z === event.z);
+    const nextX = existingAtZ.reduce((max, n) => Math.max(max, n.x + n.width), 0);
     const newNode: FigureNodeItem = {
       id,
       label: event.label,
       zone: FigureZone.TRONC,
       positionType: event.positionType,
-      x: 0,
+      x: nextX,
       y: 0,
       z: event.z,
-      width: 60,
+      width: 1,
       height: 40,
       rotation: 0,
       color: null,
       shape: NodeShape.RECTANGLE,
       sortOrder: event.sortOrder,
       climbPath: null,
+      ringLevel: null,
+      originNodeId: null,
       metadata: {},
     };
     this.nodes.update((n) => [...n, newNode]);
@@ -194,6 +227,11 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   onTroncNodeRemoved(id: string): void {
     this.nodes.update((n) => n.filter((node) => node.id !== id));
     if (this.selectedNodeId() === id) this.selectedNodeId.set(null);
+    this.scheduleAutosave();
+  }
+
+  onTroncNodeUpdated(event: { nodeId: string; x: number; width: number }): void {
+    this.updateNode(event.nodeId, { x: event.x, width: event.width });
     this.scheduleAutosave();
   }
 
@@ -208,9 +246,10 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   onBaseNodeAdded(event: { sortOrder: number }): void {
     const id = crypto.randomUUID();
     const stageCenter = { x: 200, y: 200 };
+    const baseNumber = this.baseNodes().length + 1;
     const newNode: FigureNodeItem = {
       id,
-      label: 'Base',
+      label: `Base ${baseNumber}`,
       zone: FigureZone.BASE,
       positionType: 'base',
       x: stageCenter.x + Math.random() * 40 - 20,
@@ -223,6 +262,8 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
       shape: NodeShape.RECTANGLE,
       sortOrder: event.sortOrder,
       climbPath: null,
+      ringLevel: null,
+      originNodeId: null,
       metadata: {},
     };
     this.nodes.update((n) => [...n, newNode]);
@@ -268,11 +309,37 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
       shape: NodeShape.RECTANGLE,
       sortOrder: this.nodes().length,
       climbPath: null,
+      ringLevel: null,
+      originNodeId: null,
       metadata: {},
     };
     this.nodes.update((n) => [...n, newNode]);
     this.selectedNodeId.set(id);
     this.scheduleAutosave();
+  }
+
+  // ── Tronc panel drag ─────────────────────────────────────────────────────
+
+  onTroncDragStart(event: MouseEvent): void {
+    if ((event.target as HTMLElement).closest('button')) return;
+    this.troncDragging = true;
+    const pos = this.troncPanelPos();
+    this.troncDragOffset = { x: event.clientX - pos.x, y: event.clientY - pos.y };
+    event.preventDefault();
+  }
+
+  @HostListener('document:mousemove', ['$event'])
+  onTroncDragMove(event: MouseEvent): void {
+    if (!this.troncDragging) return;
+    this.troncPanelPos.set({
+      x: event.clientX - this.troncDragOffset.x,
+      y: event.clientY - this.troncDragOffset.y,
+    });
+  }
+
+  @HostListener('document:mouseup')
+  onTroncDragEnd(): void {
+    this.troncDragging = false;
   }
 
   @HostListener('document:keydown', ['$event'])
@@ -436,6 +503,12 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     const slug = this.templateSlug().trim();
     if (!name || !slug) return;
 
+    const familyId = this.familyId();
+    if (!this.templateId() && !familyId) {
+      this.toast.error('Cal assignar la figura a una família. Torna a la llista i crea la variant des d\'una família.');
+      return;
+    }
+
     this.saveStatus.set('saving');
     const payload = this.buildPayload();
     const id = this.templateId();
@@ -447,10 +520,19 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
       });
     } else {
       this.figureTemplateService
-        .create({ name, slug, hasPinya: this.hasPinya(), nodes: payload.nodes ?? [] })
+        .create({
+          name,
+          slug,
+          familyId: familyId!,
+          hasPinya: this.hasPinya(),
+          nodes: payload.nodes ?? [],
+        })
         .subscribe({
           next: (created) => {
             this.templateId.set(created.id);
+            if (created.familyId) this.familyId.set(created.familyId);
+            if (created.familyName) this.familyName.set(created.familyName);
+            if (created.variantOrder) this.variantOrder.set(created.variantOrder);
             this.router.navigate(['/pinyes/templates', created.id, 'edit'], {
               replaceUrl: true,
             });
@@ -468,10 +550,17 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   private onSaveError(err: HttpErrorResponse): void {
     this.saveStatus.set('error');
-    const isSlugConflict =
-      err.status === 409 ||
-      (err.status === 500 && (err.error?.message as string | undefined)?.toLowerCase().includes('slug'));
-    if (isSlugConflict) {
+    const msg = (err.error?.message as string | undefined) ?? '';
+    const msgLower = msg.toLowerCase();
+
+    if (err.status === 409 && (msgLower.includes('slug') || msgLower.includes('identificador'))) {
+      const slug = this.templateSlug();
+      this.toast.error(`L'identificador "${slug}" ja l'utilitza una altra figura. Canvia'l per poder desar.`);
+    } else if (err.status === 409 && (msgLower.includes('instànci') || msgLower.includes('instanci') || msgLower.includes('composici'))) {
+      this.toast.error(msg || 'No es pot esborrar: hi ha instàncies o composicions que fan servir aquesta figura.');
+    } else if (err.status === 409) {
+      this.toast.error(msg || 'Conflicte en desar la figura. Revisa les dades i torna-ho a intentar.');
+    } else if (err.status === 500 && msgLower.includes('slug')) {
       const slug = this.templateSlug();
       this.toast.error(`L'identificador "${slug}" ja l'utilitza una altra figura. Canvia'l per poder desar.`);
     } else {
@@ -489,6 +578,14 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     };
   }
 
+  // Expose for template
+  readonly hasFamily = computed(() => !!this.familyId());
+  readonly familyBreadcrumb = computed(() => {
+    const fn = this.familyName();
+    if (!fn) return null;
+    return fn;
+  });
+
   private loadTemplate(id: string): void {
     this.loading.set(true);
     this.figureTemplateService.getOne(id).subscribe({
@@ -498,6 +595,9 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
         this.templateDescription.set(tmpl.description ?? '');
         this.hasPinya.set(tmpl.hasPinya);
         this.nodes.set(tmpl.nodes);
+        this.familyId.set(tmpl.familyId);
+        this.familyName.set(tmpl.familyName);
+        this.variantOrder.set(tmpl.variantOrder ?? null);
         this.loading.set(false);
       },
       error: () => {
@@ -514,7 +614,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   }
 
   private defaultLabel(zone: FigureZone, z = 0): string {
-    if (zone === FigureZone.BASE) return 'Base';
+    if (zone === FigureZone.BASE) return `Base ${this.baseNodes().length + 1}`;
     if (zone === FigureZone.PINYA) return 'Pinya';
     if (zone === FigureZone.TRONC) return `Pis ${z}`;
     if (zone === FigureZone.FIGURE_DIRECTION) return 'Direcció';
@@ -534,6 +634,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
 function nodeToPayload(node: FigureNodeItem): CreateFigureNodePayload {
   return {
+    id: node.id,
     label: node.label,
     zone: node.zone,
     positionType: node.positionType ?? undefined,
@@ -547,6 +648,8 @@ function nodeToPayload(node: FigureNodeItem): CreateFigureNodePayload {
     shape: node.shape,
     sortOrder: node.sortOrder,
     climbPath: node.climbPath ?? undefined,
+    ringLevel: node.ringLevel ?? undefined,
+    originNodeId: node.originNodeId ?? undefined,
     metadata: node.metadata,
   };
 }

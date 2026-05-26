@@ -2,42 +2,83 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { FigureTemplateService } from './figure-template.service';
-import { NodeAssignmentService } from '../node-assignment/node-assignment.service';
+import { FigureFamily } from './entities/figure-family.entity';
 import { FigureTemplate } from './entities/figure-template.entity';
 import { FigureNode } from './entities/figure-node.entity';
+import { FigureFamilyNode } from './entities/figure-family-node.entity';
 import { CompositionSlot } from '../composition/entities/composition-slot.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
 import { FigureZone, NodeShape } from '@muixer/shared';
 
+const makeFamily = (overrides: Partial<FigureFamily> = {}): FigureFamily => ({
+  id: 'family-uuid',
+  name: 'Pilar de 4',
+  slug: 'pilar-de-4',
+  description: null,
+  metadata: {},
+  templates: [],
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  ...overrides,
+} as FigureFamily);
+
 const makeTemplate = (overrides: Partial<FigureTemplate> = {}): FigureTemplate => ({
   id: 'tmpl-uuid',
-  name: 'Pinet Doble de 4',
-  slug: 'pd4',
+  name: 'Pilar de 4 — 2C',
+  slug: 'pd4-2c',
   description: null,
   hasPinya: true,
   direction: 0,
+  variantOrder: 1,
+  family: null,
   metadata: {},
   nodes: [],
+  instances: [],
   createdAt: new Date(),
   updatedAt: new Date(),
   ...overrides,
 } as FigureTemplate);
 
-const makeNode = (overrides: Partial<FigureNode> = {}): FigureNode => ({
-  id: 'node-uuid',
-  label: 'Base 1',
-  zone: FigureZone.BASE,
-  positionType: 'base',
-  x: 500,
-  y: 500,
-  z: 0,
-  width: 60,
+const makeFamilyNode = (overrides: Partial<FigureFamilyNode> = {}): FigureFamilyNode => ({
+  id: 'family-node-uuid',
+  label: 'Alçadora',
+  zone: FigureZone.TRONC,
+  positionType: 'alcadora',
+  x: 0,
+  y: 0,
+  z: 1,
+  width: 1,
   height: 40,
   rotation: 0,
-  color: '#3B82F6',
-  shape: NodeShape.ELLIPSE,
+  color: null,
+  shape: NodeShape.RECTANGLE,
   sortOrder: 0,
   climbPath: null,
+  ringLevel: null,
+  metadata: {},
+  family: null as unknown as FigureFamily,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  ...overrides,
+} as FigureFamilyNode);
+
+const makeNode = (overrides: Partial<FigureNode> = {}): FigureNode => ({
+  id: 'node-uuid',
+  label: 'MANS',
+  zone: FigureZone.PINYA,
+  positionType: 'mans',
+  x: 500,
+  y: 400,
+  z: 0,
+  width: 80,
+  height: 40,
+  rotation: 0,
+  color: '#FFE082',
+  shape: NodeShape.RECTANGLE,
+  sortOrder: 5,
+  climbPath: null,
+  ringLevel: 1,
+  originNodeId: null,
   metadata: {},
   template: null as unknown as FigureTemplate,
   createdAt: new Date(),
@@ -46,13 +87,15 @@ const makeNode = (overrides: Partial<FigureNode> = {}): FigureNode => ({
 } as FigureNode);
 
 const NODE_DTO = {
-  label: 'Base 1',
-  zone: FigureZone.BASE,
+  label: 'MANS',
+  zone: FigureZone.PINYA,
+  positionType: 'mans',
   x: 500,
-  y: 500,
-  width: 60,
+  y: 400,
+  width: 80,
   height: 40,
-  shape: NodeShape.ELLIPSE,
+  shape: NodeShape.RECTANGLE,
+  ringLevel: 1,
 };
 
 describe('FigureTemplateService', () => {
@@ -63,6 +106,15 @@ describe('FigureTemplateService', () => {
     create: jest.fn((dto) => dto),
     save: jest.fn(),
     delete: jest.fn().mockResolvedValue(undefined),
+    find: jest.fn().mockResolvedValue([]),
+  };
+
+  const mockFamilyNodeRepo = {
+    create: jest.fn((dto) => dto),
+    save: jest.fn(),
+    delete: jest.fn().mockResolvedValue(undefined),
+    find: jest.fn().mockResolvedValue([]),
+    count: jest.fn().mockResolvedValue(0),
   };
 
   const mockCompositionSlotRepo = {
@@ -73,8 +125,9 @@ describe('FigureTemplateService', () => {
     count: jest.fn().mockResolvedValue(0),
   };
 
-  const mockNodeAssignmentService: Partial<NodeAssignmentService> = {
-    countByNode: jest.fn().mockResolvedValue(0),
+  const mockFamilyRepo = {
+    findOne: jest.fn(),
+    createQueryBuilder: jest.fn(),
   };
 
   const mockTemplateRepo = {
@@ -89,23 +142,30 @@ describe('FigureTemplateService', () => {
     jest.clearAllMocks();
 
     templateQb = {
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
       loadRelationCountAndMap: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
       skip: jest.fn().mockReturnThis(),
       take: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
       getCount: jest.fn().mockResolvedValue(0),
       getMany: jest.fn().mockResolvedValue([]),
+      getRawOne: jest.fn().mockResolvedValue({ max: 0 }),
     };
+
+    mockTemplateRepo.createQueryBuilder.mockReturnValue(templateQb);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         FigureTemplateService,
+        { provide: getRepositoryToken(FigureFamily), useValue: mockFamilyRepo },
         { provide: getRepositoryToken(FigureTemplate), useValue: mockTemplateRepo },
         { provide: getRepositoryToken(FigureNode), useValue: mockNodeRepo },
+        { provide: getRepositoryToken(FigureFamilyNode), useValue: mockFamilyNodeRepo },
         { provide: getRepositoryToken(CompositionSlot), useValue: mockCompositionSlotRepo },
         { provide: getRepositoryToken(FigureInstance), useValue: mockFigureInstanceRepo },
-        { provide: NodeAssignmentService, useValue: mockNodeAssignmentService },
       ],
     }).compile();
 
@@ -135,6 +195,14 @@ describe('FigureTemplateService', () => {
       );
     });
 
+    it('applies familyId filter', async () => {
+      await service.findAll({ familyId: 'family-uuid' });
+      expect(templateQb.andWhere).toHaveBeenCalledWith(
+        'family.id = :familyId',
+        { familyId: 'family-uuid' },
+      );
+    });
+
     it('uses pagination values', async () => {
       templateQb.getMany.mockResolvedValue([makeTemplate()]);
       templateQb.getCount.mockResolvedValue(1);
@@ -151,7 +219,35 @@ describe('FigureTemplateService', () => {
       const result = await service.findOne('tmpl-uuid');
       expect(result.id).toBe('tmpl-uuid');
       expect(result.nodes).toHaveLength(1);
-      expect(result.nodes[0].label).toBe('Base 1');
+      expect(result.nodes[0].ringLevel).toBe(1);
+      expect(result.nodes[0].originNodeId).toBeNull();
+    });
+
+    it('merges family nodes into the response with originNodeId=null', async () => {
+      const family = makeFamily();
+      const tmpl = makeTemplate({ family, nodes: [makeNode()] });
+      const familyNode = makeFamilyNode();
+      mockTemplateRepo.findOne.mockResolvedValue(tmpl);
+      mockFamilyNodeRepo.find.mockResolvedValue([familyNode]);
+
+      const result = await service.findOne('tmpl-uuid');
+
+      expect(result.nodes).toHaveLength(2);
+      const tronc = result.nodes.find((n) => n.zone === FigureZone.TRONC);
+      expect(tronc).toBeDefined();
+      expect(tronc!.id).toBe('family-node-uuid');
+      expect(tronc!.originNodeId).toBeNull(); // Family nodes are canonical
+    });
+
+    it('returns only template nodes when family has no family nodes', async () => {
+      const family = makeFamily();
+      const tmpl = makeTemplate({ family, nodes: [makeNode()] });
+      mockTemplateRepo.findOne.mockResolvedValue(tmpl);
+      mockFamilyNodeRepo.find.mockResolvedValue([]);
+
+      const result = await service.findOne('tmpl-uuid');
+      expect(result.nodes).toHaveLength(1);
+      expect(result.nodes[0].zone).toBe(FigureZone.PINYA);
     });
 
     it('throws NotFoundException when not found', async () => {
@@ -161,16 +257,26 @@ describe('FigureTemplateService', () => {
   });
 
   describe('create', () => {
-    it('creates template and returns detail', async () => {
-      const saved = makeTemplate({ id: 'new-uuid' });
-      mockTemplateRepo.save.mockResolvedValue(saved);
+    it('throws NotFoundException when family not found', async () => {
+      mockFamilyRepo.findOne.mockResolvedValue(null);
+      await expect(
+        service.create({ familyId: 'missing-family', name: 'X', slug: 'x', nodes: [] }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('creates template linked to family', async () => {
+      const family = makeFamily();
+      const saved = makeTemplate({ id: 'new-uuid', family });
+      mockFamilyRepo.findOne.mockResolvedValue(family);
       mockTemplateRepo.findOne
         .mockResolvedValueOnce(null) // assertSlugAvailable: slug not taken
         .mockResolvedValueOnce({ ...saved, nodes: [] }); // findOne after create
+      mockTemplateRepo.save.mockResolvedValue(saved);
 
       const result = await service.create({
-        name: 'Pinet Doble de 4',
-        slug: 'pd4',
+        familyId: 'family-uuid',
+        name: 'Pilar de 4 — 2C',
+        slug: 'pd4-2c',
         nodes: [],
       });
 
@@ -178,64 +284,199 @@ describe('FigureTemplateService', () => {
       expect(mockTemplateRepo.save).toHaveBeenCalled();
     });
 
-    it('creates nodes when provided', async () => {
+    it('derives nodes from source template with originNodeId lineage', async () => {
+      const family = makeFamily();
+      const sourceNode = makeNode({ id: 'source-node', originNodeId: null });
+      const sourceTemplate = makeTemplate({ id: 'source-tmpl', nodes: [sourceNode] });
       const saved = makeTemplate({ id: 'new-uuid' });
-      mockTemplateRepo.save.mockResolvedValue(saved);
+
+      mockFamilyRepo.findOne.mockResolvedValue(family);
       mockTemplateRepo.findOne
-        .mockResolvedValueOnce(null) // assertSlugAvailable: slug not taken
-        .mockResolvedValueOnce({ ...saved, nodes: [makeNode()] }); // findOne after create
-      mockNodeRepo.save.mockResolvedValue([makeNode()]);
+        .mockResolvedValueOnce(null) // assertSlugAvailable
+        .mockResolvedValueOnce(sourceTemplate) // deriveNodes: load source
+        .mockResolvedValueOnce({ ...saved, nodes: [] }); // findOne after create
+      mockTemplateRepo.save.mockResolvedValue(saved);
+      mockNodeRepo.save.mockResolvedValue([]);
 
-      await service.create({ name: 'pd4', slug: 'pd4', nodes: [NODE_DTO] });
+      await service.create({
+        familyId: 'family-uuid',
+        name: 'Pilar de 4 — 3C',
+        slug: 'pd4-3c',
+        deriveFromTemplateId: 'source-tmpl',
+        nodes: [],
+      });
 
-      expect(mockNodeRepo.save).toHaveBeenCalled();
+      const savedNodes = mockNodeRepo.save.mock.calls[0][0];
+      expect(savedNodes[0].originNodeId).toBe('source-node');
+    });
+
+    it('preserves originNodeId root ancestor when deriving from a derived template', async () => {
+      const family = makeFamily();
+      // Already-derived node: originNodeId points to root ancestor
+      const derivedNode = makeNode({ id: 'derived-node', originNodeId: 'root-ancestor-id' });
+      const derivedTemplate = makeTemplate({ id: 'derived-tmpl', nodes: [derivedNode] });
+      const saved = makeTemplate({ id: 'new-uuid' });
+
+      mockFamilyRepo.findOne.mockResolvedValue(family);
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(null) // assertSlugAvailable
+        .mockResolvedValueOnce(derivedTemplate) // deriveNodes
+        .mockResolvedValueOnce({ ...saved, nodes: [] });
+      mockTemplateRepo.save.mockResolvedValue(saved);
+      mockNodeRepo.save.mockResolvedValue([]);
+
+      await service.create({
+        familyId: 'family-uuid',
+        name: 'Pilar de 4 — 4C',
+        slug: 'pd4-4c',
+        deriveFromTemplateId: 'derived-tmpl',
+        nodes: [],
+      });
+
+      const savedNodes = mockNodeRepo.save.mock.calls[0][0];
+      // Should keep root ancestor, NOT use derivedNode.id
+      expect(savedNodes[0].originNodeId).toBe('root-ancestor-id');
     });
   });
 
-  describe('update', () => {
-    it('updates scalar fields', async () => {
+  describe('update — syncNodes zone routing', () => {
+    it('routes TRONC/BASE nodes to familyNodeRepo, not nodeRepo', async () => {
+      const family = makeFamily();
+      const tmpl = makeTemplate({ family, nodes: [] });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(tmpl)
+        .mockResolvedValueOnce({ ...tmpl, nodes: [] });
+      mockTemplateRepo.save.mockResolvedValue(tmpl);
+      mockFamilyNodeRepo.find.mockResolvedValue([]); // no existing family nodes
+
+      const troncDto = {
+        label: 'Alçadora',
+        zone: FigureZone.TRONC,
+        positionType: 'alcadora',
+        x: 0, y: 0, z: 1, width: 1, height: 40,
+        shape: NodeShape.RECTANGLE,
+      };
+
+      await service.update('tmpl-uuid', { nodes: [troncDto] });
+
+      // Family node created, NOT a template node
+      expect(mockFamilyNodeRepo.save).toHaveBeenCalled();
+      expect(mockNodeRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('routes PINYA nodes to nodeRepo, not familyNodeRepo', async () => {
+      const family = makeFamily();
+      const tmpl = makeTemplate({ family, nodes: [] });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(tmpl)
+        .mockResolvedValueOnce({ ...tmpl, nodes: [] });
+      mockTemplateRepo.save.mockResolvedValue(tmpl);
+      mockFamilyNodeRepo.find.mockResolvedValue([]);
+
+      await service.update('tmpl-uuid', { nodes: [NODE_DTO] });
+
+      expect(mockNodeRepo.save).toHaveBeenCalled();
+    });
+
+    it('updates existing family node by ID', async () => {
+      const family = makeFamily();
+      const existingFamilyNode = makeFamilyNode({ id: 'fn-uuid' });
+      const tmpl = makeTemplate({ family, nodes: [] });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(tmpl)
+        .mockResolvedValueOnce({ ...tmpl, nodes: [] });
+      mockTemplateRepo.save.mockResolvedValue(tmpl);
+      mockFamilyNodeRepo.find.mockResolvedValue([existingFamilyNode]);
+
+      await service.update('tmpl-uuid', {
+        nodes: [{ id: 'fn-uuid', label: 'Alçadora', zone: FigureZone.TRONC, positionType: 'alcadora', x: 0, y: 0, z: 1, width: 2, height: 40, shape: NodeShape.RECTANGLE }],
+      });
+
+      const saved = mockFamilyNodeRepo.save.mock.calls[0][0];
+      expect(saved[0].id).toBe('fn-uuid');
+      expect(saved[0].width).toBe(2);
+    });
+
+    it('deletes removed family nodes from family table', async () => {
+      const family = makeFamily();
+      const existingFamilyNode = makeFamilyNode({ id: 'fn-to-delete' });
+      const tmpl = makeTemplate({ family, nodes: [] });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(tmpl)
+        .mockResolvedValueOnce({ ...tmpl, nodes: [] });
+      mockTemplateRepo.save.mockResolvedValue(tmpl);
+      mockFamilyNodeRepo.find.mockResolvedValue([existingFamilyNode]);
+
+      // Send empty nodes — removes the family node
+      await service.update('tmpl-uuid', { nodes: [] });
+
+      expect(mockFamilyNodeRepo.delete).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: expect.objectContaining({ _value: expect.arrayContaining(['fn-to-delete']) }),
+        }),
+      );
+    });
+  });
+
+  describe('update — upsert sync', () => {
+    it('updates an existing node by ID without changing UUID', async () => {
+      const existingNode = makeNode({ id: 'stable-node-id' });
+      const tmpl = makeTemplate({ nodes: [existingNode] });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(tmpl)
+        .mockResolvedValueOnce({ ...tmpl, nodes: [existingNode] });
+      mockTemplateRepo.save.mockResolvedValue(tmpl);
+
+      await service.update('tmpl-uuid', {
+        nodes: [{ ...NODE_DTO, id: 'stable-node-id', x: 600 }],
+      });
+
+      // save called with the updated node (not a new one)
+      const savedNodes = mockNodeRepo.save.mock.calls[0][0];
+      expect(savedNodes[0].id).toBe('stable-node-id');
+      expect(savedNodes[0].x).toBe(600);
+      // no delete for matched node
+      expect(mockNodeRepo.delete).not.toHaveBeenCalled();
+    });
+
+    it('creates new node when no matching ID', async () => {
       const tmpl = makeTemplate({ nodes: [] });
       mockTemplateRepo.findOne
         .mockResolvedValueOnce(tmpl)
-        .mockResolvedValueOnce({ ...tmpl, name: 'Nou nom', nodes: [] });
-      mockTemplateRepo.save.mockResolvedValue({ ...tmpl, name: 'Nou nom' });
+        .mockResolvedValueOnce({ ...tmpl, nodes: [] });
+      mockTemplateRepo.save.mockResolvedValue(tmpl);
 
-      const result = await service.update('tmpl-uuid', { name: 'Nou nom' });
-      expect(result.name).toBe('Nou nom');
+      await service.update('tmpl-uuid', { nodes: [NODE_DTO] });
+
+      expect(mockNodeRepo.save).toHaveBeenCalled();
     });
 
-    it('replaces nodes when nodes array provided', async () => {
-      const tmpl = makeTemplate({ nodes: [makeNode()] });
+    it('deletes nodes not in the incoming list', async () => {
+      const existingNode = makeNode({ id: 'node-to-delete' });
+      const tmpl = makeTemplate({ nodes: [existingNode] });
       mockTemplateRepo.findOne
         .mockResolvedValueOnce(tmpl)
         .mockResolvedValueOnce({ ...tmpl, nodes: [] });
       mockTemplateRepo.save.mockResolvedValue(tmpl);
-      (mockNodeAssignmentService.countByNode as jest.Mock).mockResolvedValue(0);
 
+      // incoming list has no node with id 'node-to-delete'
       await service.update('tmpl-uuid', { nodes: [] });
 
-      expect(mockNodeRepo.delete).toHaveBeenCalled();
+      expect(mockNodeRepo.delete).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: expect.objectContaining({ _value: expect.arrayContaining(['node-to-delete']) }),
+        }),
+      );
     });
 
-    it('throws ConflictException when trying to remove a node that has active assignments', async () => {
-      const nodeWithAssignment = makeNode({ id: 'assigned-node-uuid' });
-      const tmpl = makeTemplate({ nodes: [nodeWithAssignment] });
-      mockTemplateRepo.findOne
-        .mockResolvedValueOnce(tmpl);
-      mockTemplateRepo.save.mockResolvedValue(tmpl);
-      (mockNodeAssignmentService.countByNode as jest.Mock).mockResolvedValue(2);
-
-      await expect(service.update('tmpl-uuid', { nodes: [] })).rejects.toThrow(ConflictException);
-    });
-
-    it('allows removing a node with zero assignments', async () => {
+    it('allows editing template that has snapshotted instances (no guard)', async () => {
       const tmpl = makeTemplate({ nodes: [makeNode()] });
       mockTemplateRepo.findOne
         .mockResolvedValueOnce(tmpl)
         .mockResolvedValueOnce({ ...tmpl, nodes: [] });
       mockTemplateRepo.save.mockResolvedValue(tmpl);
-      (mockNodeAssignmentService.countByNode as jest.Mock).mockResolvedValue(0);
 
+      // No assignment service involved anymore — should not throw
       await expect(service.update('tmpl-uuid', { nodes: [] })).resolves.not.toThrow();
     });
 
@@ -250,6 +491,7 @@ describe('FigureTemplateService', () => {
       const tmpl = makeTemplate();
       mockTemplateRepo.findOne.mockResolvedValue(tmpl);
       mockCompositionSlotRepo.count.mockResolvedValue(0);
+      mockFigureInstanceRepo.count.mockResolvedValue(0);
       mockTemplateRepo.remove.mockResolvedValue(tmpl);
 
       await service.remove('tmpl-uuid');
@@ -265,8 +507,6 @@ describe('FigureTemplateService', () => {
       const tmpl = makeTemplate();
       mockTemplateRepo.findOne.mockResolvedValue(tmpl);
       mockCompositionSlotRepo.count.mockResolvedValue(2);
-      mockFigureInstanceRepo.count.mockResolvedValue(0);
-
       await expect(service.remove('tmpl-uuid')).rejects.toThrow(ConflictException);
     });
 
@@ -275,40 +515,82 @@ describe('FigureTemplateService', () => {
       mockTemplateRepo.findOne.mockResolvedValue(tmpl);
       mockCompositionSlotRepo.count.mockResolvedValue(0);
       mockFigureInstanceRepo.count.mockResolvedValue(3);
-
       await expect(service.remove('tmpl-uuid')).rejects.toThrow(ConflictException);
-    });
-
-    it('succeeds when template is not referenced by any slot or instance', async () => {
-      const tmpl = makeTemplate();
-      mockTemplateRepo.findOne.mockResolvedValue(tmpl);
-      mockCompositionSlotRepo.count.mockResolvedValue(0);
-      mockFigureInstanceRepo.count.mockResolvedValue(0);
-      mockTemplateRepo.remove.mockResolvedValue(tmpl);
-
-      await expect(service.remove('tmpl-uuid')).resolves.toBeUndefined();
     });
   });
 
   describe('duplicate', () => {
-    it('creates a copy with modified name and slug', async () => {
-      const original = makeTemplate({ nodes: [makeNode()] });
+    it('creates a copy preserving family link', async () => {
+      const family = makeFamily();
+      const original = makeTemplate({ nodes: [makeNode()], family });
       mockTemplateRepo.findOne.mockResolvedValueOnce(original);
-      const copyTemplate = makeTemplate({ id: 'copy-uuid', name: 'Pinet Doble de 4 (còpia)' });
+      const copyTemplate = makeTemplate({ id: 'copy-uuid', name: 'Pilar de 4 — 2C (còpia)', family });
       mockTemplateRepo.save.mockResolvedValue(copyTemplate);
+      templateQb.getRawOne.mockResolvedValue({ max: 1 });
       mockTemplateRepo.findOne.mockResolvedValueOnce({ ...copyTemplate, nodes: [] });
       mockNodeRepo.save.mockResolvedValue([]);
 
       const result = await service.duplicate('tmpl-uuid');
 
-      expect(mockTemplateRepo.save).toHaveBeenCalled();
+      expect(result.id).toBe('copy-uuid');
       const savedArg = mockTemplateRepo.save.mock.calls[0][0];
       expect(savedArg.name).toContain('(còpia)');
+    });
+
+    it('does NOT copy TRONC/BASE nodes — they are shared at family level', async () => {
+      const family = makeFamily();
+      const troncNode = makeNode({ id: 'tronc-node', zone: FigureZone.TRONC, positionType: 'alcadora' });
+      const pinyaNode = makeNode({ id: 'pinya-node', zone: FigureZone.PINYA });
+      const original = makeTemplate({ nodes: [pinyaNode, troncNode], family });
+      mockTemplateRepo.findOne.mockResolvedValueOnce(original);
+      const copyTemplate = makeTemplate({ id: 'copy-uuid', family });
+      mockTemplateRepo.save.mockResolvedValue(copyTemplate);
+      templateQb.getRawOne.mockResolvedValue({ max: 1 });
+      mockTemplateRepo.findOne.mockResolvedValueOnce({ ...copyTemplate, nodes: [] });
+      mockFamilyNodeRepo.find.mockResolvedValue([]);
+
+      await service.duplicate('tmpl-uuid');
+
+      const savedNodes = mockNodeRepo.save.mock.calls[0]?.[0] ?? [];
+      expect(savedNodes.every((n: any) => n.zone !== FigureZone.TRONC && n.zone !== FigureZone.BASE)).toBe(true);
+      expect(savedNodes.some((n: any) => n.zone === FigureZone.PINYA)).toBe(true);
     });
 
     it('throws NotFoundException when original not found', async () => {
       mockTemplateRepo.findOne.mockResolvedValue(null);
       await expect(service.duplicate('bad-uuid')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('deriveNodes', () => {
+    it('skips TRONC/BASE nodes when deriving from a source template', async () => {
+      const family = makeFamily();
+      const pinyaNode = makeNode({ id: 'pinya-node', zone: FigureZone.PINYA });
+      const troncNode = makeNode({ id: 'tronc-node', zone: FigureZone.TRONC });
+      const baseNode = makeNode({ id: 'base-node', zone: FigureZone.BASE });
+      const sourceTemplate = makeTemplate({ id: 'source-tmpl', nodes: [pinyaNode, troncNode, baseNode] });
+      const saved = makeTemplate({ id: 'new-uuid' });
+
+      mockFamilyRepo.findOne.mockResolvedValue(family);
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(null) // assertSlugAvailable
+        .mockResolvedValueOnce(sourceTemplate) // deriveNodes
+        .mockResolvedValueOnce({ ...saved, nodes: [] });
+      mockTemplateRepo.save.mockResolvedValue(saved);
+      mockNodeRepo.save.mockResolvedValue([]);
+      mockFamilyNodeRepo.find.mockResolvedValue([]);
+
+      await service.create({
+        familyId: 'family-uuid',
+        name: 'New Variant',
+        slug: 'new-variant',
+        deriveFromTemplateId: 'source-tmpl',
+        nodes: [],
+      });
+
+      const savedNodes = mockNodeRepo.save.mock.calls[0]?.[0] ?? [];
+      expect(savedNodes).toHaveLength(1); // only PINYA
+      expect(savedNodes[0].zone).toBe(FigureZone.PINYA);
     });
   });
 });

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Param, Body, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, ParseUUIDPipe, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { UserRole } from '@muixer/shared';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -50,5 +50,16 @@ export class PositionController {
     @Body() updatePositionDto: UpdatePositionDto,
   ) {
     return this.positionService.update(id, updatePositionDto);
+  }
+
+  /** Elimina una posició si no té persones assignades. */
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Eliminar una posició' })
+  @ApiResponse({ status: 204, description: 'Posició eliminada correctament.' })
+  @ApiResponse({ status: 404, description: 'Posició no trobada.' })
+  @ApiResponse({ status: 409, description: 'No es pot esborrar: hi ha persones amb aquesta posició assignada.' })
+  remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    return this.positionService.remove(id);
   }
 }

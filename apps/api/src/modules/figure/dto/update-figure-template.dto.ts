@@ -2,10 +2,12 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsArray,
   IsBoolean,
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
+  Min,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -40,12 +42,19 @@ export class UpdateFigureTemplateDto {
   direction?: number;
 
   @ApiPropertyOptional()
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  variantOrder?: number;
+
+  @ApiPropertyOptional()
   @IsOptional()
   metadata?: Record<string, unknown>;
 
   @ApiPropertyOptional({
     type: [CreateFigureNodeDto],
-    description: 'Full replacement of node list. Nodes with matching IDs are updated; missing IDs are deleted; new ones are created.',
+    description:
+      'Node list with upsert semantics. Nodes with matching IDs are updated; nodes without IDs are created; existing nodes not in the list are deleted.',
   })
   @IsArray()
   @ValidateNested({ each: true })

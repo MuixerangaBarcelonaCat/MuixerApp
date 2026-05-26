@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { EventSegmentController } from './event-segment.controller';
 import { EventSegmentService } from './event-segment.service';
 import { FigureInstanceService } from './figure-instance.service';
+import { ProjectionService, ProjectionData } from './projection.service';
 import { SegmentWithInstances } from './event-segment.service';
 
 const EVENT_ID = 'event-uuid-1';
@@ -35,11 +36,22 @@ const mockSegmentService: Partial<EventSegmentService> = {
   reorder: jest.fn().mockResolvedValue(undefined),
 };
 
+const mockProjectionData: ProjectionData = {
+  segment: { id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 0, prevSegmentId: null, nextSegmentId: 'seg-next' },
+  instances: [],
+  referenceElements: [],
+};
+
 const mockInstanceService: Partial<FigureInstanceService> = {
   create: jest.fn().mockResolvedValue(mockInstance),
   update: jest.fn().mockResolvedValue(mockInstance),
   remove: jest.fn().mockResolvedValue(undefined),
   reorder: jest.fn().mockResolvedValue(undefined),
+  updateProjectionLayout: jest.fn().mockResolvedValue(undefined),
+};
+
+const mockProjectionService: Partial<ProjectionService> = {
+  getProjection: jest.fn().mockResolvedValue(mockProjectionData),
 };
 
 describe('EventSegmentController', () => {
@@ -51,6 +63,7 @@ describe('EventSegmentController', () => {
       providers: [
         { provide: EventSegmentService, useValue: mockSegmentService },
         { provide: FigureInstanceService, useValue: mockInstanceService },
+        { provide: ProjectionService, useValue: mockProjectionService },
       ],
     }).compile();
 
@@ -129,6 +142,28 @@ describe('EventSegmentController', () => {
     it('delegates to instance service and returns void (204)', async () => {
       await expect(controller.removeInstance(EVENT_ID, SEGMENT_ID, INSTANCE_ID)).resolves.toBeUndefined();
       expect(mockInstanceService.remove).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID, INSTANCE_ID);
+    });
+  });
+
+  describe('updateProjectionLayout', () => {
+    it('delegates to instance service and returns void (204)', async () => {
+      const dto = { layouts: [{ instanceId: INSTANCE_ID, x: 100, y: 200, scale: 1.0 }] };
+      await expect(controller.updateProjectionLayout(EVENT_ID, SEGMENT_ID, dto)).resolves.toBeUndefined();
+      expect(mockInstanceService.updateProjectionLayout).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID, dto);
+    });
+  });
+
+  describe('getProjection', () => {
+    it('delegates to projection service and returns aggregated data', async () => {
+      const result = await controller.getProjection(EVENT_ID, SEGMENT_ID);
+      expect(result).toEqual(mockProjectionData);
+      expect(mockProjectionService.getProjection).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID);
+    });
+
+    it('returns prev/next segment IDs from projection service', async () => {
+      const result = await controller.getProjection(EVENT_ID, SEGMENT_ID);
+      expect(result.segment.prevSegmentId).toBeNull();
+      expect(result.segment.nextSegmentId).toBe('seg-next');
     });
   });
 });

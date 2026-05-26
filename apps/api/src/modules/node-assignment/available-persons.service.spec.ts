@@ -24,6 +24,14 @@ const makeEvent = (overrides: Partial<Event> = {}): Event =>
     ...overrides,
   }) as Event;
 
+const makePosition = (slug = 'agulla', overrides: any = {}): any => ({
+  id: `pos-${slug}`,
+  name: slug.charAt(0).toUpperCase() + slug.slice(1),
+  slug,
+  color: '#0d9488',
+  ...overrides,
+});
+
 const makePerson = (id = PERSON_ID_1, overrides: any = {}): any => ({
   id,
   alias: 'Pepet',
@@ -32,6 +40,7 @@ const makePerson = (id = PERSON_ID_1, overrides: any = {}): any => ({
   shoulderHeight: 140,
   isXicalla: false,
   attendances: [],
+  positions: [],
   ...overrides,
 });
 
@@ -76,6 +85,7 @@ const mockSegmentRepo = {
 
 const mockAssignmentRepo = {
   createQueryBuilder: jest.fn().mockReturnValue(mockAssignmentQb),
+  find: jest.fn().mockResolvedValue([]),
 };
 
 describe('AvailablePersonsService', () => {
@@ -106,6 +116,7 @@ describe('AvailablePersonsService', () => {
     mockPersonQb.getMany.mockResolvedValue([]);
 
     mockAssignmentRepo.createQueryBuilder.mockReturnValue(mockAssignmentQb);
+    mockAssignmentRepo.find.mockResolvedValue([]);
     mockAssignmentQb.innerJoin.mockReturnThis();
     mockAssignmentQb.where.mockReturnThis();
     mockAssignmentQb.select.mockReturnThis();
@@ -118,11 +129,12 @@ describe('AvailablePersonsService', () => {
     it('returns persons with attendanceStatus for current event', async () => {
       mockEventRepo.findOne.mockResolvedValueOnce(makeEvent()).mockResolvedValue(null);
       mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
-      const person = makePerson(PERSON_ID_1, {
-        attendances: [{ status: AttendanceStatus.ANIRE }],
-      });
+      const person = makePerson(PERSON_ID_1);
       mockPersonQb.getMany.mockResolvedValue([person]);
-      mockAttendanceRepo.find.mockResolvedValue([]);
+      // The service fetches attendance separately via attendanceRepository.find
+      mockAttendanceRepo.find.mockResolvedValue([
+        { person: { id: PERSON_ID_1 }, status: AttendanceStatus.ANIRE },
+      ]);
 
       const result = await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, {});
 
@@ -188,13 +200,21 @@ describe('AvailablePersonsService', () => {
       mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
       const person = makePerson();
       mockPersonQb.getMany.mockResolvedValue([person]);
-      mockAssignmentQb.getMany.mockResolvedValue([{ personId: PERSON_ID_1 }]);
+      mockAssignmentRepo.find.mockResolvedValue([
+        {
+          person: { id: PERSON_ID_1 },
+          figureInstance: { id: 'instance-uuid-1' },
+          instanceNode: { label: 'Node A' },
+        },
+      ]);
       mockAttendanceRepo.find.mockResolvedValue([]);
 
       const result = await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, { excludeAssigned: false });
 
       expect(result).toHaveLength(1);
       expect(result[0].assignedInSegment).toBe(true);
+      expect(result[0].assignedInstanceId).toBe('instance-uuid-1');
+      expect(result[0].assignedNodeLabel).toBe('Node A');
     });
 
     it('returns nextPerformanceStatus when event is ASSAIG', async () => {
@@ -252,6 +272,44 @@ describe('AvailablePersonsService', () => {
       await expect(
         service.getAvailablePersons(EVENT_ID, SEGMENT_ID, {}),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it('returns positions[] for each person with id, name, slug, color', async () => {
+      mockEventRepo.findOne.mockResolvedValueOnce(makeEvent()).mockResolvedValue(null);
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      const pos1 = makePosition('agulla', { color: '#0d9488' });
+      const pos2 = makePosition('vents', { color: '#A5D6A7' });
+      const person = makePerson(PERSON_ID_1, { positions: [pos1, pos2] });
+      mockPersonQb.getMany.mockResolvedValue([person]);
+      mockAttendanceRepo.find.mockResolvedValue([]);
+
+      const result = await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, {});
+
+      expect(result[0].positions).toHaveLength(2);
+      expect(result[0].positions[0]).toEqual({ id: pos1.id, name: pos1.name, slug: 'agulla', color: '#0d9488' });
+      expect(result[0].positions[1]).toEqual({ id: pos2.id, name: pos2.name, slug: 'vents', color: '#A5D6A7' });
+    });
+
+    it('returns empty positions[] when person has no positions', async () => {
+      mockEventRepo.findOne.mockResolvedValueOnce(makeEvent()).mockResolvedValue(null);
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      const person = makePerson(PERSON_ID_1, { positions: [] });
+      mockPersonQb.getMany.mockResolvedValue([person]);
+      mockAttendanceRepo.find.mockResolvedValue([]);
+
+      const result = await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, {});
+
+      expect(result[0].positions).toEqual([]);
+    });
+
+    it('calls leftJoinAndSelect for person.positions', async () => {
+      mockEventRepo.findOne.mockResolvedValueOnce(makeEvent()).mockResolvedValue(null);
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockPersonQb.getMany.mockResolvedValue([]);
+
+      await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, {});
+
+      expect(mockPersonQb.leftJoinAndSelect).toHaveBeenCalledWith('person.positions', 'positions');
     });
   });
 

@@ -25,6 +25,13 @@ describe('NodeAssignmentService', () => {
 
   afterEach(() => httpMock.verify());
 
+  it('getInstanceNodes sends GET to /figure-instances/:id/nodes', () => {
+    service.getInstanceNodes(INSTANCE_ID).subscribe();
+    const req = httpMock.expectOne(`${BASE}/figure-instances/${INSTANCE_ID}/nodes`);
+    expect(req.request.method).toBe('GET');
+    req.flush({ data: [] });
+  });
+
   it('getByInstance sends GET to /figure-instances/:id/assignments', () => {
     service.getByInstance(INSTANCE_ID).subscribe();
     const req = httpMock.expectOne(`${BASE}/figure-instances/${INSTANCE_ID}/assignments`);
@@ -47,6 +54,22 @@ describe('NodeAssignmentService', () => {
     const req = httpMock.expectOne(`${BASE}/figure-instances/${INSTANCE_ID}/assignments`);
     expect(req.request.body).toEqual(payload);
     req.flush({});
+  });
+
+  it('swap sends POST to /figure-instances/:id/assignments/swap', () => {
+    const payload = { assignmentIdA: 'a-uuid', assignmentIdB: 'b-uuid' };
+    service.swap(INSTANCE_ID, payload).subscribe();
+    const req = httpMock.expectOne(`${BASE}/figure-instances/${INSTANCE_ID}/assignments/swap`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual(payload);
+    req.flush({ a: {}, b: {} });
+  });
+
+  it('upgradeInstance sends POST to /figure-instances/:id/upgrade', () => {
+    service.upgradeInstance(INSTANCE_ID).subscribe();
+    const req = httpMock.expectOne(`${BASE}/figure-instances/${INSTANCE_ID}/upgrade`);
+    expect(req.request.method).toBe('POST');
+    req.flush({ addedNodes: 2, totalNodes: 4 });
   });
 
   it('unassign sends DELETE to /figure-instances/:id/assignments/:assignmentId', () => {

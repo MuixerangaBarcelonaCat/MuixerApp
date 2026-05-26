@@ -62,6 +62,7 @@ export class ImportPinyaModalComponent implements OnChanges {
   }
 
   selectEntry(entry: FigureHistoryEntry): void {
+    if (!entry.snapshotted) return;
     this.selectedEntry.set(entry);
     this.lastResult.set(null);
   }
