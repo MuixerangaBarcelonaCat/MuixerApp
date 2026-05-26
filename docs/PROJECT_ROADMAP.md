@@ -26,7 +26,10 @@
 | **P5.5** | **Mòdul Pinyes — Famílies, Snapshot i Creixement Concèntric** | ✅ Completat | [`docs/specs/2026-05-19-p5-family-snapshot-redesign.md`](docs/specs/2026-05-19-p5-family-snapshot-redesign.md) | — | ✅ | Fases A+B (backend): FigureFamily+InstanceNode entities, lazy snapshot, upgrade de cordó, upsert estable de nodes, NodeAssignment migrat a InstanceNode. Fases C+D (frontend): tab Famílies, modal Nova Família, llistat variants, AssignmentCanvas amb InstanceNodes, modal onboarding pinyes. |
 || **P5.6** | **Mòdul Pinyes — Visualització i Assignació de Troncs** | ✅ Completat | [`docs/specs/2026-05-20-p5-tronc-visualization-design.md`](docs/specs/2026-05-20-p5-tronc-visualization-design.md) | — | ✅ | TroncViewComponent amb CSS Grid, sistema d'unitats relatives (0.5u–8u), rendering per pisos, variance d'alçades per pis amb color-coding, toggle orientació P1 dalt/baix, controls editor (x/width 0.5 decimals), UI floating draggable panel, add floor/node inline, attendance status indicators |
 || **P5.7** | **Mòdul Pinyes — Tronc Nodes a Nivell de Família** | ✅ Completat | — | — | ✅ | FigureFamilyNode entity (TRONC/BASE shared per família), merge/split transparent al backend (GET merge, PUT split), migrate-tronc-to-family script (idempotent), seed files actualitzats, snapshotInstance amb FamilyNodes, tests actualitzats |
-|| P5.8 | Mòdul Pinyes — Projecció i Consulta Històrica | ⚪ Pendent | — | — | — | Mode fullscreen TV/projector. Consulta events passats per figura/persona |
+|| **P5.8** | **Mòdul Pinyes — Convenció d'ordre de les Bases** | ✅ Completat | — | — | ✅ | Convenció anti-horari (CCW) per bases. `validateBaseOrdering()` util, badge "Bases desordenades" al llistat de famílies, modal d'ajuda amb diagrama, invariant documentat a PINYES_MODULE.md §15 |
+|| **P5.8.1** | **Mòdul Pinyes — Vista de Projecció (inicial)** | ✅ Completat | [`docs/specs/2026-05-22-p5-8-1-projection-view-design.md`](docs/specs/2026-05-22-p5-8-1-projection-view-design.md) | — | ✅ | `ProjectionViewComponent` + `SegmentCanvasComponent` Konva, ruta `/events/:id/projection`, mode edició/projecció. Posicionament Konva substituït per grid CSS a P5.9 |
+|| **P5.9** | **Mòdul Pinyes — Vista de Projecció (refinada)** | ✅ Completat | — | — | ✅ | Grid CSS responsive (P5.9.1): bases visibles, ruta figura individual, fons configurable. Vista Troncs `?view=troncs` (P5.9.2), panells flotants multi-figura draggable/resizable independents, HUD navegació, eliminació mode edició |
+|| **P5.10** | **Mòdul Pinyes — Posicions, Lock i Historials** | ✅ Completat | [`docs/specs/2026-05-26-p5-10-positions-lock-history-design.md`](docs/specs/2026-05-26-p5-10-positions-lock-history-design.md) | [`f3_historials_implementation_63ca896e`](.cursor/plans/f3_historials_implementation_63ca896e.plan.md) | ✅ | **F1:** PositionModule (CRUD + relació M:N Person), lock automàtic assignacions (`ASSIGNMENT_LOCK_DAYS`), tags de posició a person-detail. **F2:** filtre intel·ligent per posició al PersonPanel (`positionType` matching). **F3:** historials (persona/event/família), 3 endpoints nous, 4 superfícies UI |
 | P6 | PWA Mòbil | ⚪ Pendent | — | — | — | Diferit fins al tall. Estén l'auth de P4.1 als membres |
 | P7 | Informes + Notificacions + Features avançades | ⚪ Pendent | — | — | — | Reports d'assistència, FCM, estadístiques, notícies |
 
@@ -414,6 +417,112 @@ Fixes crítics de canvas i millores UX implementades posteriorment:
 
 ---
 
+## Decisions sobre el Mòdul Pinyes — Convenció de Bases, Projecció i Historials (P5.8–P5.10)
+
+### P5.8 — Convenció d'ordre de les Bases (✅ Completat)
+
+#### Problema resolt
+
+Les Bases de la pinya no tenien un ordre canònic definit, cosa que generava inconsistències visuals entre variants d'una mateixa família i dificultava l'assignació per posició.
+
+#### Implementació
+
+- **Convenció CCW**: `sortOrder` 0 = Base superior-esquerra, augmenta en sentit anti-horari. Label canònic: `Base N` (N = sortOrder + 1).
+- **`validateBaseOrdering()`**: funció util al frontend que comprova si les bases segueixen la convenció; retorna `true/false`.
+- **Badge "Bases desordenades"**: al llistat de famílies, quan `validateBaseOrdering()` falla per alguna variant, s'afegeix un badge visual.
+- **Modal d'ajuda**: diagrama interactiu que explica la convenció CCW amb exemple visual per a la família `pd3`.
+- **Invariant §15.12** documentat a `PINYES_MODULE.md`.
+
+---
+
+### P5.8.1 → P5.9 — Vista de Projecció (✅ Completat)
+
+#### Objectiu
+
+Mode fullscreen per a assajos/actuacions: TV/projector mostra les pinyes del segment en curs amb informació d'assignació en temps real.
+
+#### Evolució per sub-fases
+
+| Sub-fase | Contingut | Estat actual |
+|----------|-----------|--------------|
+| **P5.8.1** | `ProjectionViewComponent` + `SegmentCanvasComponent` Konva, ruta `/events/:id/projection`, posicionament lliure (`projectionX/Y/Scale`), mode edició/projecció | Posicionament Konva i mode edició **reemplaçats** |
+| **P5.9.1** | Grid CSS responsive, bases visibles, ruta figura individual (`FigureProjectionComponent`), ellipsis, fons configurable, eliminació elements de referència de la UI | Grid, bases, ruta individual i fons **actius** |
+| **P5.9.2** | Vista Troncs (`?view=troncs`), panells flotants multi-figura independents (draggable + resizable, sense backdrop), HUD de navegació, correccions toast/enrere | **Estat actual** |
+
+#### Components i rutes
+
+**Frontend** (`apps/dashboard/src/app/features/pinyes/`):
+- `projection-view/`: grid CSS de figures d'un segment, toggle pinya/troncs
+- `figure-projection/`: pantalla completa d'una sola figura (ruta `/events/:id/segments/:segId/figures/:instanceId/projection`)
+- `ProjectionService` (dashboard): mètodes per obtenir dades de projecció
+- `projection.model.ts`: `ProjectionData`, `ProjectionFigure`, `ProjectionNode`
+
+#### Decisions tècniques clau
+
+| Decisió | Resultat |
+|---------|----------|
+| **Grid CSS sobre Konva** | Posicionament automàtic, responsive, accessible. Konva descartada per la vista de projecció |
+| **Multi-panell tronc** | Panells independents per figura (vs. un sol overlay P5.9.1), sense backdrop bloquejant |
+| **Ruta figura individual** | Permet projectar una sola figura en pantalla gran, útil per assajos de figures complexes |
+| **`?view=troncs`** | Commutació pinya↔troncs via query param, preserva l'URL del segment |
+
+---
+
+### P5.10 — Posicions, Lock i Historials (✅ Completat)
+
+#### Spec
+
+[`docs/specs/2026-05-26-p5-10-positions-lock-history-design.md`](docs/specs/2026-05-26-p5-10-positions-lock-history-design.md)
+
+#### Tres fases d'implementació
+
+**F1 — PositionModule + Lock**
+
+**Backend** (`apps/api/src/modules/position/`):
+- Entitat `Position` (taula `positions`): `name`, `slug`, `description`, relació M:N amb `Person` via `person_positions`
+- `PositionModule` amb 5 endpoints REST: llistar, detall, crear, actualitzar, eliminar (protecció 409 si té persones assignades)
+- **Lock automàtic**: `NodeAssignmentService` comprova `event.date + ASSIGNMENT_LOCK_DAYS < now()` en totes les operacions d'escriptura (`assign`, `unassign`, swap, `bulkImport`, `upgrade`, `reset`). Retorna 403 si l'event està bloquejat. `ASSIGNMENT_LOCK_DAYS=0` desactiva el lock.
+- `ASSIGNMENT_LOCK_DAYS` configurable via `.env`
+- Tests: `position.service.spec.ts` + `position.controller.spec.ts` + lock guard integrat a `node-assignment.service.spec.ts`
+
+**Frontend**:
+- `PositionService` (dashboard): CRUD posicions
+- `position.model.ts`: `Position`, `PositionListItem`
+- `PositionListComponent` + `PositionFormModalComponent` (tab Configuració → Posicions)
+- Tags de posicions a `person-detail` (pills editables)
+- Rutes afegides a `config.routes.ts`
+
+**F2 — Filtre intel·ligent per posició**
+
+- `PersonPanel`: nou filtre "Posició" que filtra persones per `position.slug === node.positionType`
+- Matching suau: `Position.slug` ↔ `FigureNode.positionType` per convenció de noms (no FK)
+- `AvailablePersonsService` (backend): nou paràmetre `positionType` a `getAvailablePersons()`
+- Badge de posició als items de persona al panel
+
+**F3 — Historials**
+
+**Backend** — 3 endpoints nous + extensió de `getHistory()`:
+- `GET /figure-families/:familyId/history` → historial paginat de la família (amb `seasonId` filter)
+- `GET /persons/:personId/assignment-history` → historial paginat de la persona
+- `GET /events/:eventId/assignment-summary` → resum estructurat de totes les figures d'un event
+- `getHistory()` estès amb `eventType`, `familyName`, paginació i filtre per temporada (`HistoryQueryDto`)
+- Tots els endpoints de historial usen TypeORM `QueryBuilder` per joins múltiples eficients
+
+**Frontend** — 4 superfícies UI noves:
+- `person-detail`: secció col·lapsable "Historial de pinyes" (taula + paginació + filtre temporada)
+- `event-detail`: secció "Pinyes" (resum segments → figures → assignacions, read-only)
+- `FamilyHistoryModalComponent` (nou): modal historial per família (taula + paginació + filtre temporada)
+- `template-list`: botó "Historial" per família (icona History), obre `FamilyHistoryModalComponent`
+
+#### Invariants nous (PINYES_MODULE.md §15)
+
+| # | Invariant |
+|---|-----------|
+| 13 | **Assignment lock**: operacions d'escriptura retornen 403 si `event.date + LOCK_DAYS < now()` |
+| 14 | **Position-positionType soft matching**: `Position.slug` ↔ `FigureNode.positionType` per convenció de noms, no FK |
+
+---
+
 ## Decisions sobre el Dashboard Design Refactor (P4.3)
 
 ### Objectius del refactor
@@ -728,3 +837,8 @@ Cada sub-projecte genera:
 | 20 Mai 2026 | **Spec P5.6 aprovada** (`docs/specs/2026-05-20-p5-tronc-visualization-design.md`): Visualització i assignació de troncs amb CSS Grid, sistema d'unitats relatives (0.5u–8u), variance d'alçades per pis amb color-coding. |
 | 20–22 Mai 2026 | **P5.6 Tronc Visualization completat**: Backend — migració `migrate-tronc-units.script.ts`, seeds actualitzats. Frontend — `TroncViewComponent` (CSS Grid, unitats relatives x/width 0.5u steps, toggle orientació P1, mode editor/assignment, floating draggable panel, variance colors inline styling, add floor/node inline UX, columna extra grid per botó +), `floor-variance.util.ts`, integració a `TemplateEditorComponent` i `AssignmentCanvasComponent`. Tests: grid calculations, floor sorting, variance logic. Decisió: grid doblejat intern (x*2, width*2) per suportar 0.5u steps. |
 | 21–22 Mai 2026 | **P5.7 Tronc Nodes at Family Level completat**: `FigureFamilyNode` entity (TRONC/BASE compartits per família), estratègia merge/split transparent (`GET` merge, `PUT` split), migració idempotent `migrate-tronc-to-family.script.ts`, seeds actualitzats (familyNodes separats), `snapshotInstance` amb FamilyNodes, tests merge/split/upsert/derive. Decisió: upsert per ID (estable per auto-save), derive només PINYA (tronc ve de família automàticament). |
+| 22–23 Mai 2026 | **P5.8 Convenció d'ordre de les Bases completat**: convenció CCW documentada i implementada. `validateBaseOrdering()` util al frontend. Badge "Bases desordenades" al llistat de famílies. Modal d'ajuda amb diagrama CCW. Invariant §15.12 afegit a `PINYES_MODULE.md`. |
+| 22–24 Mai 2026 | **P5.8.1 Vista de Projecció (inicial) completada** (`docs/specs/2026-05-22-p5-8-1-projection-view-design.md`): `ProjectionViewComponent` + `SegmentCanvasComponent` Konva, ruta `/events/:id/projection`, mode edició/projecció, elements de referència. |
+| 24–25 Mai 2026 | **P5.9 Vista de Projecció (refinada) completada** (P5.9.1 + P5.9.2): Grid CSS responsive, bases visibles, `FigureProjectionComponent` (ruta figura individual), fons configurable. Vista Troncs (`?view=troncs`), panells flotants multi-figura independents draggable+resizable sense backdrop, HUD navegació, eliminació mode edició i elements de referència de la UI. |
+| 26 Mai 2026 | **Spec P5.10 aprovada** (`docs/specs/2026-05-26-p5-10-positions-lock-history-design.md`): PositionModule, lock automàtic assignacions, filtre per posició al PersonPanel, historials (persona/event/família). |
+| 26 Mai 2026 | **P5.10 Posicions, Lock i Historials completat** (F1+F2+F3): Backend — `PositionModule` (CRUD, M:N Person), lock automàtic (`ASSIGNMENT_LOCK_DAYS`, 403 guard), `HistoryQueryDto`, 3 endpoints historial nous (`getPersonHistory`, `getEventAssignmentSummary`, `getFamilyHistory`), `getHistory()` estès amb `eventType`/`familyName`/paginació. Frontend — `PositionListComponent`+`PositionFormModalComponent` (tab Configuració), tags posicions a person-detail, filtre posició al PersonPanel, secció "Historial de pinyes" a person-detail, secció "Pinyes" (summary) a event-detail, `FamilyHistoryModalComponent` (nou), botó "Historial" per família al template-list. Invariants 13+14 afegits a `PINYES_MODULE.md`. |

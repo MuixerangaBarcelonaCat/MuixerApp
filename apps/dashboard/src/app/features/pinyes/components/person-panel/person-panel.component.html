@@ -66,14 +66,25 @@
         <p class="text-xs font-semibold text-success mb-1">
           Confirmades ({{ confirmedPersons().length }})
         </p>
-        @for (person of confirmedPersons(); track person.id) {
+        @for (person of sortedConfirmedPersons(); track person.id) {
+          @let posType = activeNodePositionType();
+          @let matchPos = posType ? (person.positions.find(p => p.slug === posType) ?? null) : null;
           <button
             type="button"
             class="w-full text-left px-2 py-1.5 rounded hover:bg-base-200 active:bg-base-300 transition-colors flex items-center justify-between gap-2 text-xs"
+            [class.opacity-60]="posType && !matchPos"
             (click)="selectPerson(person)"
             [attr.aria-label]="'Seleccionar ' + person.alias"
           >
             <span class="flex items-center gap-1.5 min-w-0">
+              @if (matchPos) {
+                <span
+                  class="w-2 h-2 rounded-full shrink-0"
+                  [style.background-color]="matchPos.color ?? 'currentColor'"
+                  [attr.aria-label]="'Posició: ' + matchPos.name"
+                  [title]="matchPos.name"
+                ></span>
+              }
               <span class="font-medium truncate">{{ person.alias }}</span>
               @if (person.nextPerformanceStatus === 'ANIRE') {
                 <span class="text-base-content/50 shrink-0" aria-label="Vindrà a la propera actuació" title="Vindrà a la propera actuació">🎭</span>

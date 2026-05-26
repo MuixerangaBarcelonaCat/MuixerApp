@@ -30,6 +30,7 @@ import { EmptyStateComponent } from '../../../../shared/components/data/empty-st
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { PinyesOnboardingModalComponent } from '../pinyes-onboarding-modal/pinyes-onboarding-modal.component';
 import { TemplateEditorHelpModalComponent } from '../template-editor-help-modal/template-editor-help-modal.component';
+import { FamilyHistoryModalComponent } from '../family-history-modal/family-history-modal.component';
 import { FigureZone } from '@muixer/shared';
 import {
   validateBaseOrdering,
@@ -51,7 +52,14 @@ interface FamilyModal {
   selector: 'app-template-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule, EmptyStateComponent, PinyesOnboardingModalComponent, TemplateEditorHelpModalComponent],
+  imports: [
+    FormsModule,
+    LucideAngularModule,
+    EmptyStateComponent,
+    PinyesOnboardingModalComponent,
+    TemplateEditorHelpModalComponent,
+    FamilyHistoryModalComponent,
+  ],
   templateUrl: './template-list.component.html',
   styleUrl: './template-list.component.scss',
 })
@@ -75,6 +83,8 @@ export class TemplateListComponent implements OnInit {
   familiesSearch = signal('');
   familiesSearchInput = '';
   expandedFamilyId = signal<string | null>(null);
+  historyFamilyId = signal<string | null>(null);
+  historyFamilyName = signal('');
   deletingFamilyId = signal<string | null>(null);
   confirmDeleteFamilyId = signal<string | null>(null);
   deletingVariantId = signal<string | null>(null);
@@ -170,6 +180,16 @@ export class TemplateListComponent implements OnInit {
 
   isFamilyExpanded(id: string): boolean {
     return this.expandedFamilyId() === id;
+  }
+
+  openFamilyHistory(family: FigureFamilyDetail) {
+    this.historyFamilyId.set(family.id);
+    this.historyFamilyName.set(family.name);
+  }
+
+  closeFamilyHistory() {
+    this.historyFamilyId.set(null);
+    this.historyFamilyName.set('');
   }
 
   openCreateFamilyModal() {

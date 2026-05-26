@@ -10,9 +10,9 @@ import {
 } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Location } from '@angular/common';
-import { LucideAngularModule, ArrowLeft, Users, Edit, RefreshCw, Plus, Trash2, X, PanelLeft, PanelLeftClose, Monitor } from 'lucide-angular';
+import { LucideAngularModule, ArrowLeft, Users, Edit, RefreshCw, Plus, Trash2, X, PanelLeft, PanelLeftClose, Monitor, Lock } from 'lucide-angular';
 import { LayoutService } from '../../../../core/services/layout.service';
-import { NodeAssignmentService } from '../../services/node-assignment.service';
+import { NodeAssignmentService, LockStatus } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
 import { EventSegmentService } from '../../services/event-segment.service';
 import { FigureFamilyService } from '../../services/figure-family.service';
@@ -86,6 +86,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly PanelLeft = PanelLeft;
   readonly PanelLeftClose = PanelLeftClose;
   readonly Monitor = Monitor;
+  readonly Lock = Lock;
 
   readonly eventId = signal('');
   readonly segmentId = signal('');
@@ -105,6 +106,9 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly deletingInstance = signal(false);
   readonly pendingDeleteTab = signal<InstanceTab | null>(null);
 
+  readonly lockStatus = signal<LockStatus | null>(null);
+  readonly isLocked = computed(() => this.lockStatus()?.locked ?? false);
+
   readonly troncPanelOpen = signal(false);
 
   // Floating tronc panel drag state
@@ -117,6 +121,12 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   );
 
   readonly activeNodes = computed(() => this.activeTab()?.nodes ?? []);
+
+  /** Full node object for the currently selected node (null if no selection). */
+  readonly selectedNode = computed(() => {
+    const id = this.state.selectedNodeId();
+    return id ? (this.activeNodes().find((n) => n.id === id) ?? null) : null;
+  });
 
   /** Nodes rendered on the pinya Konva canvas (PINYA + BASE + direction zones, no TRONC). */
   readonly activePinyaNodes = computed(() =>
@@ -168,6 +178,10 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     this.segmentId.set(params['segmentId']);
     this.state.reset();
     this.loadSegment();
+
+    this.assignmentService.getLockStatus(this.eventId()).subscribe({
+      next: (status) => this.lockStatus.set(status),
+    });
   }
 
   ngOnDestroy(): void {
@@ -326,6 +340,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   }
 
   onNodeSelected(nodeId: string | null): void {
+    if (this.isLocked()) return;
     if (!nodeId) {
       this.state.setSelectedNodeId(null);
       this.popoverAssignment.set(null);
@@ -372,6 +387,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   }
 
   onPersonSelected(person: AvailablePerson): void {
+    if (this.isLocked()) return;
     const selectedNodeId = this.state.selectedNodeId();
 
     if (!selectedNodeId) {
@@ -541,6 +557,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   }
 
   onUnassign(assignment: AssignmentDetail): void {
+    if (this.isLocked()) return;
     const instanceId = this.state.activeInstanceId();
     if (!instanceId) return;
 

@@ -23,6 +23,7 @@ const makeAvailablePerson = (
   attendanceStatus: status,
   nextPerformanceStatus: null,
   assignedInSegment: false,
+  positions: [],
   ...overrides,
 });
 
@@ -173,6 +174,94 @@ describe('PersonPanelComponent', () => {
       const callCount = assignmentService.getAvailablePersons.mock.calls.length;
       component.loadPersons();
       expect(assignmentService.getAvailablePersons.mock.calls.length).toBeGreaterThan(callCount);
+    });
+  });
+
+  // ── sortedConfirmedPersons (F2 intelligent filter) ─────────────────────────
+
+  describe('sortedConfirmedPersons', () => {
+    const posVents = { id: 'pos-vents', name: 'Vents', slug: 'vents', color: '#A5D6A7' };
+    const posAgulla = { id: 'pos-agulla', name: 'Agulla', slug: 'agulla', color: '#0d9488' };
+
+    it('returns confirmedPersons in original order when activeNodePositionType is null', () => {
+      const persons = [
+        makeAvailablePerson('p1', 'ANIRE', { positions: [] }),
+        makeAvailablePerson('p2', 'ANIRE', { positions: [posVents] }),
+      ];
+      component.persons.set(persons);
+      fixture.componentRef.setInput('activeNodePositionType', null);
+      fixture.detectChanges();
+
+      const sorted = component.sortedConfirmedPersons();
+      expect(sorted[0].id).toBe('p1');
+      expect(sorted[1].id).toBe('p2');
+    });
+
+    it('puts persons with matching slug first', () => {
+      const persons = [
+        makeAvailablePerson('p1', 'ANIRE', { positions: [] }),
+        makeAvailablePerson('p2', 'ANIRE', { positions: [posVents] }),
+        makeAvailablePerson('p3', 'ANIRE', { positions: [] }),
+      ];
+      component.persons.set(persons);
+      fixture.componentRef.setInput('activeNodePositionType', 'vents');
+      fixture.detectChanges();
+
+      const sorted = component.sortedConfirmedPersons();
+      expect(sorted[0].id).toBe('p2');
+    });
+
+    it('does not change order when no person matches the positionType slug', () => {
+      const persons = [
+        makeAvailablePerson('p1', 'ANIRE', { positions: [posAgulla] }),
+        makeAvailablePerson('p2', 'ANIRE', { positions: [posAgulla] }),
+      ];
+      component.persons.set(persons);
+      fixture.componentRef.setInput('activeNodePositionType', 'vents');
+      fixture.detectChanges();
+
+      const sorted = component.sortedConfirmedPersons();
+      expect(sorted[0].id).toBe('p1');
+      expect(sorted[1].id).toBe('p2');
+    });
+
+    it('renders colored dot for person with matching position slug', () => {
+      const person = makeAvailablePerson('p1', 'ANIRE', { positions: [posVents] });
+      component.persons.set([person]);
+      fixture.componentRef.setInput('activeNodePositionType', 'vents');
+      fixture.detectChanges();
+
+      const dot = fixture.nativeElement.querySelector('[style*="background-color"]');
+      expect(dot).toBeTruthy();
+    });
+
+    it('renders opacity-60 on button for non-matching person when positionType is active', () => {
+      const persons = [
+        makeAvailablePerson('p1', 'ANIRE', { positions: [posVents] }),
+        makeAvailablePerson('p2', 'ANIRE', { positions: [] }),
+      ];
+      component.persons.set(persons);
+      fixture.componentRef.setInput('activeNodePositionType', 'vents');
+      fixture.detectChanges();
+
+      const buttons: HTMLButtonElement[] = Array.from(
+        fixture.nativeElement.querySelectorAll('button[aria-label^="Seleccionar"]'),
+      );
+      const nonMatchBtn = buttons.find((b) => b.classList.contains('opacity-60'));
+      expect(nonMatchBtn).toBeTruthy();
+    });
+
+    it('does not apply opacity-60 when activeNodePositionType is null', () => {
+      const person = makeAvailablePerson('p1', 'ANIRE', { positions: [] });
+      component.persons.set([person]);
+      fixture.componentRef.setInput('activeNodePositionType', null);
+      fixture.detectChanges();
+
+      const buttons: HTMLButtonElement[] = Array.from(
+        fixture.nativeElement.querySelectorAll('button[aria-label^="Seleccionar"]'),
+      );
+      const dimBtn = buttons.find((b) => b.classList.contains('opacity-60'));
+      expect(dimBtn).toBeFalsy();
     });
   });
 });

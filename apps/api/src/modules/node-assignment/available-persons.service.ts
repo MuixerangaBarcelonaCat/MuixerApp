@@ -8,6 +8,13 @@ import { EventSegment } from '../event-segment/entities/event-segment.entity';
 import { NodeAssignment } from './entities/node-assignment.entity';
 import { AttendanceStatus, EventType } from '@muixer/shared';
 
+export interface AvailablePersonPositionDto {
+  id: string;
+  name: string;
+  slug: string;
+  color: string | null;
+}
+
 export interface AvailablePersonDto {
   id: string;
   alias: string;
@@ -20,6 +27,7 @@ export interface AvailablePersonDto {
   assignedInSegment: boolean;
   assignedInstanceId?: string;
   assignedNodeLabel?: string;
+  positions: AvailablePersonPositionDto[];
 }
 
 export interface AvailablePersonsQuery {
@@ -79,6 +87,7 @@ export class AvailablePersonsService {
     // Build base person query
     const qb = this.personRepository
       .createQueryBuilder('person')
+      .leftJoinAndSelect('person.positions', 'positions')
       .where('person.isActive = true');
 
     if (search) {
@@ -178,6 +187,12 @@ export class AvailablePersonsService {
         assignedInSegment: !excludeAssignedBool && assignedDetails.has(person.id),
         assignedInstanceId: detail?.instanceId,
         assignedNodeLabel: detail?.nodeLabel,
+        positions: (person.positions ?? []).map((p) => ({
+          id: p.id,
+          name: p.name,
+          slug: p.slug,
+          color: p.color,
+        })),
       };
     });
   }

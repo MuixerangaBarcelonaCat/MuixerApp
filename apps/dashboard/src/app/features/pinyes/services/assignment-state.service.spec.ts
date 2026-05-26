@@ -20,6 +20,7 @@ const makeAvailablePerson = (id = 'person-1', status: AvailablePerson['attendanc
   attendanceStatus: status,
   nextPerformanceStatus: null,
   assignedInSegment: false,
+  positions: [],
 });
 
 describe('AssignmentStateService', () => {

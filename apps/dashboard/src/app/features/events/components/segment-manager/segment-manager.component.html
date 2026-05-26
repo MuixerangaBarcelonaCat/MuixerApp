@@ -132,11 +132,19 @@
                 @if (segment.instances.length > 0) {
                   <button
                     type="button"
-                    class="btn btn-ghost btn-xs gap-1 text-primary"
+                    class="btn btn-ghost btn-xs gap-1"
+                    [class.text-primary]="!isLocked()"
+                    [class.text-base-content]="isLocked()"
+                    [class.opacity-50]="isLocked()"
                     (click)="navigateToAssignment(segment.id)"
                     [attr.aria-label]="'Assignar persones al segment ' + displayName()(segment)"
+                    [title]="isLocked() ? 'Assignacions bloquejades' : ''"
                   >
-                    <lucide-icon name="Users" [size]="14" />
+                    @if (isLocked()) {
+                      <lucide-icon name="Lock" [size]="14" aria-hidden="true" />
+                    } @else {
+                      <lucide-icon name="Users" [size]="14" />
+                    }
                     Assignar
                   </button>
                   <button

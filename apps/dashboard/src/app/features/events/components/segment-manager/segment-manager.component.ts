@@ -30,6 +30,7 @@ interface PendingInstanceRemoval {
 })
 export class SegmentManagerComponent implements OnInit {
   eventId = input.required<string>();
+  isLocked = input<boolean>(false);
 
   private readonly segmentService = inject(EventSegmentService);
   private readonly instanceService = inject(FigureInstanceService);

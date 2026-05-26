@@ -18,6 +18,7 @@ import { AvailablePersonsService, AvailablePersonsQuery } from './available-pers
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
 import { BulkImportAssignmentDto } from './dto/bulk-import-assignment.dto';
 import { SwapAssignmentsDto } from './dto/swap-assignments.dto';
+import { HistoryQueryDto } from './dto/history-query.dto';
 
 @ApiTags('node-assignments')
 @ApiBearerAuth()
@@ -106,14 +107,46 @@ export class NodeAssignmentController {
 
   @ApiOperation({ summary: 'Get figure instance assignment history for a template' })
   @Get('figure-templates/:templateId/history')
-  async getHistory(@Param('templateId', ParseUUIDPipe) templateId: string) {
-    const data = await this.assignmentService.getHistory(templateId);
-    return { data };
+  async getHistory(
+    @Param('templateId', ParseUUIDPipe) templateId: string,
+    @Query() query: HistoryQueryDto,
+  ) {
+    return this.assignmentService.getHistory(templateId, query);
+  }
+
+  @ApiOperation({ summary: 'Get assignment lock status for an event' })
+  @Get('events/:eventId/lock-status')
+  getLockStatus(@Param('eventId', ParseUUIDPipe) eventId: string) {
+    return this.assignmentService.getLockStatus(eventId);
   }
 
   @ApiOperation({ summary: 'Get the next performance event after the given event' })
   @Get('events/:eventId/next-performance')
   getNextPerformance(@Param('eventId', ParseUUIDPipe) eventId: string) {
     return this.availablePersonsService.getNextPerformance(eventId);
+  }
+
+  @ApiOperation({ summary: 'Get assignment history for a person' })
+  @Get('persons/:personId/assignment-history')
+  getPersonHistory(
+    @Param('personId', ParseUUIDPipe) personId: string,
+    @Query() query: HistoryQueryDto,
+  ) {
+    return this.assignmentService.getPersonHistory(personId, query);
+  }
+
+  @ApiOperation({ summary: 'Get assignment summary for all figures in an event' })
+  @Get('events/:eventId/assignment-summary')
+  getEventAssignmentSummary(@Param('eventId', ParseUUIDPipe) eventId: string) {
+    return this.assignmentService.getEventAssignmentSummary(eventId);
+  }
+
+  @ApiOperation({ summary: 'Get assignment history for all variants in a figure family' })
+  @Get('figure-families/:familyId/history')
+  getFamilyHistory(
+    @Param('familyId', ParseUUIDPipe) familyId: string,
+    @Query() query: HistoryQueryDto,
+  ) {
+    return this.assignmentService.getFamilyHistory(familyId, query);
   }
 }

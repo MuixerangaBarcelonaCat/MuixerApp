@@ -32,6 +32,7 @@ export class PersonPanelComponent {
   readonly selectedNodeId = input<string | null>(null);
   readonly assignments = input<AssignmentDetail[]>([]);
   readonly heightMode = input<HeightMode>('relative');
+  readonly activeNodePositionType = input<string | null>(null);
 
   readonly personSelected = output<AvailablePerson>();
   readonly assignedPersonSelected = output<{ personId: string; instanceId: string }>();
@@ -58,6 +59,17 @@ export class PersonPanelComponent {
   readonly confirmedPersons = computed(() =>
     this.freePersons().filter((p) => p.attendanceStatus === 'ANIRE'),
   );
+
+  readonly sortedConfirmedPersons = computed(() => {
+    const posType = this.activeNodePositionType();
+    const persons = this.confirmedPersons();
+    if (!posType) return persons;
+    return [...persons].sort((a, b) => {
+      const aMatch = a.positions.some((p) => p.slug === posType) ? 1 : 0;
+      const bMatch = b.positions.some((p) => p.slug === posType) ? 1 : 0;
+      return bMatch - aMatch;
+    });
+  });
 
   readonly pendingPersons = computed(() =>
     this.freePersons().filter((p) => p.attendanceStatus === 'PENDENT'),
@@ -87,6 +99,7 @@ export class PersonPanelComponent {
           attendanceStatus: 'ANIRE',
           nextPerformanceStatus: null,
           assignedInSegment: true,
+          positions: [],
         }),
         assignedInSegment: true,
         assignedInstanceId: assignment.figureInstanceId,

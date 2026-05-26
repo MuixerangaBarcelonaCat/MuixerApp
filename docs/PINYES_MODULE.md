@@ -1,10 +1,11 @@
 # Mòdul de Pinyes — Documentació Tècnica
 
-> Última actualització: 22 de maig de 2026  
-> Fases implementades: P5.1 → P5.7  
+> Última actualització: 26 de maig de 2026  
+> Fases implementades: P5.1 → P5.9 (projecció: P5.8.1 + P5.9.1 + P5.9.2)  
 > Specs de referència:
 > - `docs/specs/2026-05-19-p5-family-snapshot-redesign.md` (P5.5)
 > - `docs/specs/2026-05-20-p5-tronc-visualization-design.md` (P5.6)
+> - `docs/specs/2026-05-22-p5-8-1-projection-view-design.md` (P5.8.1)
 
 ---
 
@@ -23,9 +24,10 @@
 11. [Visualització i assignació de troncs (P5.6)](#11-visualització-i-assignació-de-troncs-p56)
 12. [Tronc nodes a nivell de família (P5.7)](#12-tronc-nodes-a-nivell-de-família-p57)
 13. [Convenció d'ordre de les Bases (P5.8)](#13-convenció-dordre-de-les-bases-p58)
-14. [Invariants de domini](#14-invariants-de-domini)
-15. [Gestió d'errors i casos límit](#15-gestió-derrors-i-casos-límit)
-16. [Guia per futures implementacions](#16-guia-per-futures-implementacions)
+14. [Vista de projecció (P5.8.1 → P5.9)](#14-vista-de-projecció-p581--p59)
+15. [Invariants de domini](#15-invariants-de-domini)
+16. [Gestió d'errors i casos límit](#16-gestió-derrors-i-casos-límit)
+17. [Guia per futures implementacions](#17-guia-per-futures-implementacions)
 
 ---
 
@@ -40,6 +42,7 @@ El mòdul de Pinyes permet al **Cap de Pinyes** (tècnic de la colla) dissenyar 
 - **Composicions**: Agrupa múltiples figures en una disposició espacial (ex: "Altar" = 2 pilars + 1 morera).
 - **Segments d'event**: Cada event es divideix en blocs temporals; cada bloc conté figures a realitzar.
 - **Assignació**: Canvas d'assignació pick-and-place on el Cap de Pinyes assigna membres a cada posició.
+- **Projecció**: Vista fullscreen per assajos/actuacions amb grid de pinyes o resum de troncs (P5.9).
 - **Creixement concèntric**: Afegir un cordó a una figura en curs sense perdre les assignacions existents.
 
 ---
@@ -309,6 +312,13 @@ Això garanteix:
 | `GET` | `/node-assignments/available-persons` | Membres filtrats per `search`, `height±2`, `isXicalla`, `excludeAssigned`, ordenats per proximitat d'alçada |
 | `GET` | `/node-assignments/next-performance` | Propera `ACTUACIO` (per als assajos, mostra 🎭) |
 
+### Projecció (`/events/:eventId/segments/:segmentId`)
+
+| Mètode | Ruta | Descripció |
+|--------|------|-----------|
+| `GET` | `/events/:eventId/segments/:segmentId/projection` | Dades agregades per a la vista de projecció: instàncies amb nodes, assignacions, elements de referència, navegació prev/next segment |
+| `PUT` | `/events/:eventId/segments/:segmentId/instances/projection-layout` | Actualitza posicions Konva legacy (`projectionX`, `projectionY`, `projectionScale`) — ja no s'utilitza des de la grid CSS (P5.9) |
+
 ---
 
 ## 8. Arquitectura frontend
@@ -328,6 +338,8 @@ apps/dashboard/src/app/features/pinyes/
 │   ├── import-pinya-modal/      # Modal d'importació massiva
 │   ├── figure-picker-modal/     # Modal per afegir figura/composició al segment
 │   ├── tronc-view/              # Visualització i assignació de troncs (P5.6)
+│   ├── projection-view/         # Projecció de segment (pinyes + troncs) (P5.9)
+│   ├── figure-projection/       # Projecció d'una sola figura en pantalla completa (P5.9)
 │   └── pinyes-onboarding-modal/ # Modal d'introducció al mòdul (P5.5)
 ├── services/
 │   ├── figure-template.service.ts
@@ -336,6 +348,7 @@ apps/dashboard/src/app/features/pinyes/
 │   ├── assignment-state.service.ts # Signals: estat global del canvas
 │   ├── event-segment.service.ts
 │   ├── figure-instance.service.ts
+│   ├── projection.service.ts       # P5.9
 │   └── composition-template.service.ts
 └── models/
     ├── figure-template.model.ts
@@ -343,6 +356,7 @@ apps/dashboard/src/app/features/pinyes/
     ├── figure-node.model.ts
     ├── assignment.model.ts
     ├── segment.model.ts
+    ├── projection.model.ts         # P5.9
     └── composition.model.ts
 └── utils/
     └── floor-variance.util.ts      # P5.6
@@ -717,7 +731,257 @@ Es mostra automàticament a la primera visita a l'editor de templates (clau loca
 
 ---
 
-## 14. Invariants de domini
+## 14. Vista de projecció (P5.8.1 → P5.9)
+
+Mode **fullscreen** per projectar les assignacions d'un segment durant assajos o actuacions. Accessible des del gestor de segments de l'event (`SegmentManagerComponent` → botó "Projecció"), des del canvas d'assignació (botó "Projectar" per figura) o directament per URL.
+
+### Evolució
+
+| Fase | Què es va implementar | Estat actual |
+|------|----------------------|--------------|
+| **P5.8.1** | Vista de projecció inicial: `ProjectionViewComponent`, `SegmentCanvasComponent` Konva, posicionament lliure (`projectionX/Y/Scale`), elements de referència, mode edició/projecció | Spec: `docs/specs/2026-05-22-p5-8-1-projection-view-design.md`. El posicionament Konva i el mode edició **ja no s'utilitzen** |
+| **P5.9.1** | Grid CSS responsive, bases visibles, tronc per doble clic, ruta figura individual, ellipsis, fons configurable, gestió d'elements de referència | Grid, bases, ruta individual i fons **actius**; elements de referència **eliminats de la UI** de projecció |
+| **P5.9.2** | Eliminació mode edició, vista Troncs (`?view=troncs`), panells flotants multi-figura, HUD de navegació, correccions toast/enrere | **Estat actual** del component |
+
+### P5.9.1 — Millores de layout i projecció per figura
+
+Canvis implementats sobre P5.8.1 (pla *Projection View Fixes & Enhancements*):
+
+#### 1. Bases visibles a la projecció
+
+Previament, `FigureProjectionComponent.pinyaNodes` excloua `FigureZone.BASE`, de manera que les bases no es renderitzaven al canvas Konva.
+
+**Fix:** `pinyaNodes` filtra només `TRONC`:
+
+```typescript
+readonly pinyaNodes = computed(() =>
+  instance.nodes.filter((n) => n.zone !== FigureZone.TRONC),
+);
+```
+
+Afecta `FigureProjectionComponent`, la grid de `ProjectionViewComponent` (`getInstancePinyaNodes`) i `segment-canvas.component.ts` (mini-previews en mode edició, ja eliminat).
+
+#### 2. Grid CSS en lloc de posicionament Konva
+
+Substituïx el llenç Konva lliure (`projectionX`, `projectionY`, `projectionScale`) per un layout **flex-wrap** que s'adapta al nombre de figures. El pipeline d'auto-save de posicions (`PUT .../projection-layout`) es va eliminar del frontend de projecció.
+
+#### 3. Tronc per doble clic (primera iteració)
+
+Primera versió: un sol panell flotant fix (`troncOverlayInstanceId`) obert amb doble clic sobre una cel·la de la grid. Substituit a P5.9.2 per panells multi-figura independents (vegeu més avall).
+
+#### 4. Ruta de projecció per figura individual
+
+Nova ruta lazy-loaded i `FigureProjectionComponent` en mode standalone:
+
+- Carrega dades via `GET .../projection` i filtra per `instanceId` de la ruta
+- Layout: tronc (esquerra, `TroncViewComponent mode="projection"`) + pinya (`FigureCanvasComponent mode="readonly"`)
+- Botó "Tornar al segment" → navega a `/project` del mateix segment
+- `LayoutService.requestFullscreen()` en entrar / `exitFullscreen()` en sortir
+
+**Punts d'accés:**
+- Grid de segment: enllaç `Maximize2` (hover) per cel·la
+- Canvas d'assignació: botó **"Projectar"** a la toolbar (per la figura de la pestanya activa)
+
+#### 5. Navegació de segments clickable
+
+Els `<kbd>←</kbd>` / `<kbd>→</kbd>` del HUD passen de ser decoratius a `<button>` amb `(click)="navigateSegment('prev'|'next')"`.
+
+#### 6. Ellipsis als noms de nodes Konva
+
+A `FigureCanvasComponent`, els labels en mode projecció/readonly usaven `wrap: 'word'`, cosa que permetia desbordament multilínia sense retallar. Es va canviar a `wrap: 'none'` (posteriorment evolucionat a `fitFontSizeForNode()` per reduir la font abans de truncar).
+
+#### 7. Fons configurable (blanc / negre)
+
+Signal `bgColor: signal<'white' | 'black'>` (defecte: blanc). Toggle Moon/Sun al HUD. Els labels de figura adapten color segons fons (`text-gray-800` / `text-white`).
+
+#### 8. Elements de referència (mode edició — eliminat a P5.9.2)
+
+A P5.9.1 s'afegí gestió d'elements de referència des del mode edició:
+- Modal per afegir rectangle/fletxa amb label personalitzat
+- Botó eliminar quan un element està seleccionat
+- Auto-save de posicions via `ReferenceElementService.batchUpdate` (debounce 2s)
+
+L'API continua retornant `referenceElements` a `GET .../projection`, però la UI de projecció **ja no els gestiona** des de P5.9.2.
+
+### P5.9.2 — Refinament de la UX (estat actual)
+
+#### Rutes frontend
+
+| Ruta | Component | Propòsit |
+|------|-----------|----------|
+| `/pinyes/events/:eventId/segments/:segmentId/project` | `ProjectionViewComponent` | Grid del segment sencer (pinyes o troncs) |
+| `/pinyes/events/:eventId/segments/:segmentId/project/:instanceId` | `FigureProjectionComponent` | Una sola figura en pantalla completa |
+
+**Query param de vista** (només `ProjectionViewComponent`):
+
+| URL | Vista |
+|-----|-------|
+| `/project` | **Pinyes** (defecte) — grid de canvases Konva per figura |
+| `/project?view=troncs` | **Troncs** — grid de resums de tronc per figura |
+
+El query param es preserva en navegar entre segments (`←` / `→`). La tecla `E` alterna entre vistes i sincronitza l'URL via `syncQueryParam()`.
+
+#### Arquitectura de vistes
+
+El component **no té mode d'edició** (`SegmentCanvasComponent` eliminat de la projecció). Hi ha dues vistes independents controlades per `viewMode: signal<'pinyes' | 'troncs'>`:
+
+```
+ProjectionViewComponent
+├── viewMode = 'pinyes'  (defecte)
+│   ├── CSS flex-wrap grid de FigureCanvasComponent (mode readonly)
+│   ├── Doble clic → panell flotant de tronc (TroncViewComponent)
+│   └── Enllaç Maximize2 → FigureProjectionComponent (figura individual)
+│
+└── viewMode = 'troncs'  (?view=troncs)
+    └── CSS flex-wrap grid de targetes amb TroncViewComponent (mode projection)
+```
+
+#### Layout responsive (CSS grid)
+
+Les figures s'organitzen amb `flex-wrap` i mides calculades per `gridCols` / `gridRows`:
+
+| N figures | Columnes | Files |
+|-----------|----------|-------|
+| 1 | 1 | 1 |
+| 2 | 2 | 1 |
+| 3 | 3 | 1 |
+| 4 | 2 | 2 |
+| 5+ | 3 | `ceil(n/3)` (última fila centrada) |
+
+Cada cel·la usa `itemWidthStyle()` / `itemHeightStyle()` (`calc(X% - 6px)`) per tenir en compte el gap de 3px.
+
+Els camps `projectionX`, `projectionY`, `projectionScale` de `FigureInstance` continuen existint a la BD però **ja no governen el layout** de la projecció.
+
+#### Vista Pinyes
+
+- Renderitza cada figura amb `FigureCanvasComponent` en mode `readonly`.
+- Nodes mostrats: tot excepte `TRONC` (inclou `PINYA`, `BASE`, directions).
+- Assignacions visibles com a àlies sobre els nodes.
+- **Doble clic** sobre una figura obre un panell flotant de tronc independent.
+- **Hover → Maximize2**: navega a `/project/:instanceId` per veure la figura sola.
+
+#### Panells flotants de tronc (vista Pinyes)
+
+Substituïx l'antic overlay únic i fix. Permet **múltiples panells simultanis**, un per figura:
+
+```typescript
+interface TroncPanel {
+  instanceId: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  zIndex: number;
+}
+
+readonly openTroncPanels = signal<TroncPanel[]>([]);
+```
+
+| Acció | Comportament |
+|-------|-------------|
+| Doble clic figura | Obre panell nou (offset +30px/+30px per evitar superposició) |
+| Doble clic figura ja oberta | Porta el panell al davant (`bringPanelToFront`) |
+| Arrossegar capçalera | Mou el panell (`DragState` + `@HostListener document:mousemove`) |
+| Handle cantonada inferior dreta | Redimensiona (mínim 300×200px) |
+| Botó X / `Esc` | Tanca el panell superior (màxim `zIndex`) |
+| Canvi de segment | Esborra tots els panells (`openTroncPanels.set([])`) |
+
+Contingut del panell: `TroncViewComponent` en mode `projection`, amb interior `flex-1 overflow-y-auto min-h-0` per adaptar-se a l'alçada en redimensionar.
+
+**Eliminat**: backdrop invisible a pantalla completa que bloquejava la interacció amb altres panells.
+
+#### Vista Troncs
+
+Resum del segment amb **només troncs** (no pinyes). Cada figura és una targeta fosca amb:
+- Capçalera amb nom de la figura
+- `TroncViewComponent` (mode `projection`) amb nodes `TRONC` + `BASE` i assignacions
+
+Mateixes dimensions de grid que la vista Pinyes. No hi ha panells flotants en aquesta vista.
+
+#### HUD de navegació flotant
+
+Barra `<nav>` fixa al centre-inferior, **sempre visible** (no s'amaga amb el cursor):
+
+| Control | Funció |
+|---------|--------|
+| ← (ArrowLeft) | Tornar a l'event (`Location.back()`) |
+| Nom del segment | Informatiu |
+| ← / → (kbd) | Segment anterior / següent |
+| Pinyes / Troncs | Toggle de vista (també tecla `E`) |
+| Moon / Sun | Alternar fons blanc / negre |
+| ? | Modal d'ajuda de dreceres |
+
+El botó enrere usa `Location.back()` (no `/events/:eventId`, ruta inexistent) per tornar correctament tant a `/rehearsals/:id` com a `/performances/:id`.
+
+#### FigureProjectionComponent
+
+Projecció d'**una sola figura** en pantalla completa. Dos modes:
+
+- **Standalone** (ruta `/project/:instanceId`): carrega dades via `ProjectionService.getProjection()` i filtra la instància demanada.
+- **Embedded** (input `instance`): per tests o ús futur dins d'un altre component.
+
+Mostra `FigureCanvasComponent` (pinya + bases) i `TroncViewComponent` (tronc) en layout vertical.
+
+#### Dreceres de teclat
+
+| Tecla | Acció |
+|-------|-------|
+| `←` / `→` | Segment anterior / següent |
+| `E` | Alternar vista Pinyes / Troncs |
+| `F` | Pantalla completa del navegador |
+| `Esc` | Tancar ajuda → tancar panell tronc superior → tornar enrere |
+| `?` / `H` | Obrir / tancar modal d'ajuda |
+
+En mode projecció, el cursor s'amaga després de 3s d'inactivitat (`cursor-none`); el HUD roman interactiu.
+
+#### Correccions P5.9.2 (maig 2026)
+
+| Problema | Solució |
+|----------|---------|
+| Entrada a `/project` mostrava canvas d'edició (SegmentCanvas + elements de referència) | Eliminat mode edició; defecte = grid Pinyes |
+| Toast buit interceptava hover (32×32px top-right) | `pointer-events-none` al contenidor, `pointer-events-auto` a cada toast individual; `aria-live` es manté al DOM |
+| Botó enrere navegava a `/events/:eventId` (404) | `Location.back()` |
+| Panell tronc fix (P5.9.1), un sol overlay, backdrop bloquejant | Multi-panell independent, draggable, resizable, sense backdrop |
+| Tecla `E` obria vista d'edició sense sentit | Reconvertit a toggle Pinyes ↔ Troncs amb `?view=troncs` |
+
+#### Fitxers implicats
+
+| Fitxer | Canvis principals |
+|--------|-------------------|
+| `projection-view.component.ts/html` | Grid CSS, `viewMode`, panells flotants, HUD |
+| `figure-projection.component.ts/html` | Bases incloses, mode standalone per ruta |
+| `figure-projection.component.spec.ts` | Tests `pinyaNodes` inclou BASE |
+| `figure-canvas.component.ts` | Ellipsis / `fitFontSizeForNode` en mode readonly |
+| `segment-canvas.component.ts` | BASE incloses a mini-previews (legacy edit mode) |
+| `pinyes.routes.ts` | Rutes `/project` i `/project/:instanceId` |
+| `assignment-canvas.component.html` | Botó "Projectar" per figura activa |
+| `toast.component.ts` | `pointer-events-none` al contenidor buit |
+
+#### Flux de dades
+
+```
+SegmentManager → navigate('/pinyes/events/:eventId/segments/:segmentId/project')
+        │
+        ▼
+ProjectionViewComponent.ngOnInit()
+  1. layoutService.requestFullscreen()
+  2. Llegeix ?view=troncs → viewMode
+  3. GET /events/:eventId/segments/:segmentId/projection
+        │
+        ▼
+ProjectionSegmentData {
+  segment: { id, name, prevSegmentId, nextSegmentId },
+  instances: [{ nodes, assignments, figureTemplate, ... }],
+  referenceElements: [...]   // retornat per l'API; no gestionat des de la UI de projecció
+}
+        │
+        ▼
+Renderitza grid segons viewMode ('pinyes' | 'troncs')
+```
+
+---
+
+## 15. Invariants de domini
 
 Aquests invariants han de mantenir-se en qualsevol futura implementació:
 
@@ -745,9 +1009,13 @@ Aquests invariants han de mantenir-se en qualsevol futura implementació:
 
 12. **Base ordering (P5.8)**: Les Bases han de seguir l'ordre anti-horari (CCW) partint de dalt-esquerra. `sortOrder` 0 = dalt-esquerra, i augmenta en sentit anti-horari. El label de cada Base ha de ser `Base N` (N = sortOrder + 1). La funció `validateBaseOrdering()` comprova aquest invariant.
 
+13. **Assignment lock (P5.10)**: Un cop `event.date + ASSIGNMENT_LOCK_DAYS < now()`, les operacions d'escriptura sobre `NodeAssignment` (assign, unassign, swap, bulkImport, upgrade, reset) retornen 403. Les lectures (GET) no es veuen afectades. `ASSIGNMENT_LOCK_DAYS = 0` desactiva el lock.
+
+14. **Position-positionType soft matching (P5.10)**: `Position.slug` i `FigureNode.positionType` es relacionen per convenció de noms (mateixa cadena), no per FK. El matching és opcional i s'usa per prioritzar persones al panel d'assignació.
+
 ---
 
-## 15. Gestió d'errors i casos límit
+## 16. Gestió d'errors i casos límit
 
 | Situació | Codi HTTP | Missatge Catalan |
 |----------|-----------|-----------------|
@@ -768,7 +1036,7 @@ Aquests invariants han de mantenir-se en qualsevol futura implementació:
 
 ---
 
-## 16. Guia per futures implementacions
+## 17. Guia per futures implementacions
 
 ### Afegir un nou tipus de posicionType
 
@@ -807,13 +1075,12 @@ El backend de `upgradeInstance` ja està implementat. La integració frontend (P
 - Feedback visual dels nodes nous durant 5 segons post-upgrade
 - Endpoint: `POST /node-assignments/instances/:id/upgrade`
 
-### Projecció fullscreen (P5.6)
+### Millores a la projecció (futur)
 
-Per implementar el mode projector:
-- Afegir ruta `/pinyes/events/:eventId/segments/:segmentId/project`
-- Reutilitzar `FigureCanvasComponent` en mode read-only
-- `LayoutService.requestFullscreen()` ja disponible des de P4.3
-- Carregar `GET /node-assignments/instances/:id/nodes` + assignacions per mostrar els noms
+Possibles extensions sobre P5.9:
+- Reintroduir posicionament manual d'elements de referència (escenari, marques) si cal per a actuacions complexes
+- Sincronització en temps real entre múltiples pantalles de projecció
+- Mode composició (agrupar figures d'un `CompositionTemplate` visualment)
 
 ### Multi-tenant (futur)
 
@@ -824,6 +1091,8 @@ El model de famílies i templates és **per colla**. Quan s'implementi multi-ten
 
 ---
 
-*Documentació actualitzada el 22 de maig de 2026. Referències principals:*
+*Documentació actualitzada el 26 de maig de 2026. Referències principals:*
 - *P5.5: `docs/specs/2026-05-19-p5-family-snapshot-redesign.md`*
 - *P5.6: `docs/specs/2026-05-20-p5-tronc-visualization-design.md`*
+- *P5.8.1: `docs/specs/2026-05-22-p5-8-1-projection-view-design.md`*
+- *P5.9: vista de projecció — `ProjectionViewComponent`, `FigureProjectionComponent`*

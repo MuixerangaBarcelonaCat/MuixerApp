@@ -46,6 +46,7 @@ class StubPersonPanel {
   readonly selectedNodeId = input<string | null>(null);
   readonly assignments = input<AssignmentDetail[]>([]);
   readonly heightMode = input<string>('relative');
+  readonly activeNodePositionType = input<string | null>(null);
   readonly personSelected = output<AvailablePerson>();
   readonly assignedPersonSelected = output<{ personId: string; instanceId: string }>();
 }
@@ -173,6 +174,7 @@ const makeAvailablePerson = (id = 'person-1'): AvailablePerson => ({
   attendanceStatus: 'ANIRE',
   nextPerformanceStatus: null,
   assignedInSegment: false,
+  positions: [],
 });
 
 type MockFn = ReturnType<typeof vi.fn>;
@@ -184,10 +186,12 @@ interface MockAssignmentService {
   unassign: MockFn;
   swap: MockFn;
   upgradeInstance: MockFn;
+  resetSnapshot: MockFn;
   bulkImport: MockFn;
   getHistory: MockFn;
   getNextPerformance: MockFn;
   getAvailablePersons: MockFn;
+  getLockStatus: MockFn;
 }
 
 describe('AssignmentCanvasComponent', () => {
@@ -213,10 +217,12 @@ describe('AssignmentCanvasComponent', () => {
         b: makeAssignment('inode-2', 'person-1'),
       })),
       upgradeInstance: vi.fn().mockReturnValue(of({ addedNodes: 2, totalNodes: 4 })),
+      resetSnapshot: vi.fn().mockReturnValue(of({ removedAssignments: 0 })),
       bulkImport: vi.fn().mockReturnValue(of({ created: [], conflicts: [] })),
       getHistory: vi.fn().mockReturnValue(of({ data: [] })),
       getNextPerformance: vi.fn().mockReturnValue(of(null)),
       getAvailablePersons: vi.fn().mockReturnValue(of({ data: [] })),
+      getLockStatus: vi.fn().mockReturnValue(of({ locked: false, lockDate: null, lockDays: 2 })),
     };
 
     segmentService = {

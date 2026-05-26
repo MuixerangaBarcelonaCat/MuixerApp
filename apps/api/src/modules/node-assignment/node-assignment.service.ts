@@ -3,18 +3,22 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+import { EventType, FigureZone } from '@muixer/shared';
 import { NodeAssignment } from './entities/node-assignment.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
 import { InstanceNode } from '../event-segment/entities/instance-node.entity';
 import { FigureNode } from '../figure/entities/figure-node.entity';
 import { FigureFamilyNode } from '../figure/entities/figure-family-node.entity';
+import { FigureFamily } from '../figure/entities/figure-family.entity';
 import { Person } from '../person/person.entity';
 import { CompositionSlot } from '../composition/entities/composition-slot.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
+import { Event } from '../event/event.entity';
 
 // ─── Response interfaces ────────────────────────────────────────────────────
 
@@ -75,6 +79,8 @@ export interface FigureHistoryEntry {
   eventId: string;
   eventTitle: string;
   eventDate: string;
+  eventType: EventType;
+  familyName: string | null;
   segmentName: string | null;
   instanceId: string;
   snapshotted: boolean;
@@ -97,6 +103,61 @@ export interface BulkImportResult {
     personAlias: string;
     reason: string;
   }[];
+}
+
+export interface PersonAssignmentEntry {
+  eventId: string;
+  eventTitle: string;
+  eventDate: string;
+  eventType: EventType;
+  segmentName: string;
+  instanceId: string;
+  figureName: string;
+  figureSlug: string;
+  familyName: string | null;
+  nodeLabel: string;
+  positionType: string | null;
+  zone: FigureZone;
+  z: number;
+}
+
+export interface PersonAssignmentHistory {
+  data: PersonAssignmentEntry[];
+  meta: { total: number; page: number; limit: number };
+}
+
+export interface EventFigureSummary {
+  instanceId: string;
+  figureName: string;
+  familyName: string | null;
+  snapshotted: boolean;
+  totalNodes: number;
+  assignedNodes: number;
+  assignments: {
+    nodeLabel: string;
+    positionType: string | null;
+    zone: FigureZone;
+    z: number;
+    personAlias: string;
+    personId: string;
+  }[];
+}
+
+export interface EventSegmentSummary {
+  segmentId: string;
+  segmentName: string;
+  sortOrder: number;
+  figures: EventFigureSummary[];
+}
+
+export interface EventAssignmentSummary {
+  segments: EventSegmentSummary[];
+}
+
+export interface HistoryQueryParams {
+  page?: number;
+  limit?: number;
+  seasonId?: string;
 }
 
 // ─── Mappers ────────────────────────────────────────────────────────────────
@@ -209,6 +270,8 @@ export class NodeAssignmentService {
     private readonly figureNodeRepository: Repository<FigureNode>,
     @InjectRepository(FigureFamilyNode)
     private readonly familyNodeRepository: Repository<FigureFamilyNode>,
+    @InjectRepository(FigureFamily)
+    private readonly figureFamilyRepository: Repository<FigureFamily>,
     @InjectRepository(Person)
     private readonly personRepository: Repository<Person>,
     @InjectRepository(CompositionSlot)
@@ -217,6 +280,8 @@ export class NodeAssignmentService {
     private readonly figureTemplateRepository: Repository<FigureTemplate>,
     @InjectRepository(EventSegment)
     private readonly eventSegmentRepository: Repository<EventSegment>,
+    @InjectRepository(Event)
+    private readonly eventRepository: Repository<Event>,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -284,6 +349,8 @@ export class NodeAssignmentService {
     instanceId: string,
     dto: { nodeId: string; personId: string; compositionSlotId?: string },
   ): Promise<AssignmentDetail> {
+    await this.checkEventLock(instanceId);
+
     const instance = await this.figureInstanceRepository.findOne({
       where: { id: instanceId },
       relations: ['figureTemplate', 'compositionTemplate', 'segment'],
@@ -395,6 +462,8 @@ export class NodeAssignmentService {
     instanceId: string,
     dto: { assignmentIdA: string; assignmentIdB: string },
   ): Promise<{ a: AssignmentDetail; b: AssignmentDetail }> {
+    await this.checkEventLock(instanceId);
+
     const [assignmentA, assignmentB] = await Promise.all([
       this.assignmentRepository.findOne({
         where: { id: dto.assignmentIdA },
@@ -453,6 +522,8 @@ export class NodeAssignmentService {
   // ── Existing — unassign ───────────────────────────────────────────────────
 
   async unassign(instanceId: string, assignmentId: string): Promise<void> {
+    await this.checkEventLock(instanceId);
+
     const assignment = await this.assignmentRepository.findOne({
       where: { id: assignmentId },
       relations: ['figureInstance'],
@@ -472,6 +543,8 @@ export class NodeAssignmentService {
   // ── Reset snapshot — wipe all assignments + instance nodes ────────────────
 
   async resetSnapshot(instanceId: string): Promise<{ removedAssignments: number }> {
+    await this.checkEventLock(instanceId);
+
     const instance = await this.figureInstanceRepository.findOne({
       where: { id: instanceId },
       relations: ['figureTemplate'],
@@ -501,31 +574,51 @@ export class NodeAssignmentService {
 
   // ── B.6 — History ─────────────────────────────────────────────────────────
 
-  async getHistory(templateId: string): Promise<FigureHistoryEntry[]> {
-    const template = await this.figureTemplateRepository.findOne({ where: { id: templateId } });
+  async getHistory(
+    templateId: string,
+    query: HistoryQueryParams = {},
+  ): Promise<{ data: FigureHistoryEntry[]; meta: { total: number; page: number; limit: number } }> {
+    const template = await this.figureTemplateRepository.findOne({
+      where: { id: templateId },
+      relations: ['family'],
+    });
     if (!template) {
       throw new NotFoundException(`FigureTemplate with ID ${templateId} not found`);
     }
 
-    const instances = await this.figureInstanceRepository.find({
-      where: { figureTemplate: { id: templateId } },
-      relations: [
-        'assignments',
-        'assignments.instanceNode',
-        'assignments.person',
-        'instanceNodes',
-        'segment',
-        'segment.event',
-      ],
-      order: { createdAt: 'DESC' },
-    });
+    const page = Math.max(query.page ?? 1, 1);
+    const limit = Math.min(Math.max(query.limit ?? 20, 1), 100);
 
-    return instances.map((instance) => {
-      const event = instance.segment.event as any;
+    const qb = this.figureInstanceRepository
+      .createQueryBuilder('fi')
+      .leftJoinAndSelect('fi.assignments', 'a')
+      .leftJoinAndSelect('a.instanceNode', 'ain')
+      .leftJoinAndSelect('a.person', 'ap')
+      .leftJoinAndSelect('fi.instanceNodes', 'inode')
+      .leftJoinAndSelect('fi.segment', 'seg')
+      .leftJoinAndSelect('seg.event', 'ev')
+      .where('fi.figureTemplateId = :templateId', { templateId });
+
+    if (query.seasonId) {
+      qb.andWhere('ev.seasonId = :seasonId', { seasonId: query.seasonId });
+    }
+
+    const total = await qb.getCount();
+    const instances = await qb
+      .orderBy('ev.date', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getMany();
+
+    const familyName = template.family?.name ?? null;
+    const data = instances.map((instance) => {
+      const event = instance.segment.event as Event;
       return {
         eventId: event.id,
         eventTitle: event.title,
-        eventDate: event.date,
+        eventDate: event.date as unknown as string,
+        eventType: event.eventType,
+        familyName,
         segmentName: (instance.segment as any).name ?? null,
         instanceId: instance.id,
         snapshotted: instance.snapshotted,
@@ -540,6 +633,201 @@ export class NodeAssignmentService {
         })),
       };
     });
+
+    return { data, meta: { total, page, limit } };
+  }
+
+  // ── F3 — Person assignment history ─────────────────────────────────────────
+
+  async getPersonHistory(
+    personId: string,
+    query: HistoryQueryParams = {},
+  ): Promise<PersonAssignmentHistory> {
+    const person = await this.personRepository.findOne({ where: { id: personId } });
+    if (!person) {
+      throw new NotFoundException('Persona no trobada.');
+    }
+
+    const page = Math.max(query.page ?? 1, 1);
+    const limit = Math.min(Math.max(query.limit ?? 20, 1), 100);
+
+    const qb = this.assignmentRepository
+      .createQueryBuilder('na')
+      .innerJoin('na.instanceNode', 'inode')
+      .innerJoin('na.figureInstance', 'fi')
+      .innerJoin('fi.segment', 'seg')
+      .innerJoin('seg.event', 'ev')
+      .leftJoin('fi.figureTemplate', 'tpl')
+      .leftJoin('tpl.family', 'fam')
+      .where('na.personId = :personId', { personId })
+      .select([
+        'ev.id AS "eventId"',
+        'ev.title AS "eventTitle"',
+        'ev.date AS "eventDate"',
+        'ev.eventType AS "eventType"',
+        'seg.name AS "segmentName"',
+        'fi.id AS "instanceId"',
+        'tpl.name AS "figureName"',
+        'tpl.slug AS "figureSlug"',
+        'fam.name AS "familyName"',
+        'inode.label AS "nodeLabel"',
+        'inode.positionType AS "positionType"',
+        'inode.zone AS "zone"',
+        'inode.z AS "z"',
+      ]);
+
+    if (query.seasonId) {
+      qb.andWhere('ev.seasonId = :seasonId', { seasonId: query.seasonId });
+    }
+
+    const total = await qb.getCount();
+    const raw = await qb
+      .orderBy('"eventDate"', 'DESC')
+      .addOrderBy('"segmentName"', 'ASC')
+      .offset((page - 1) * limit)
+      .limit(limit)
+      .getRawMany();
+
+    const data: PersonAssignmentEntry[] = raw.map((r) => ({
+      eventId: r.eventId,
+      eventTitle: r.eventTitle,
+      eventDate: r.eventDate,
+      eventType: r.eventType,
+      segmentName: r.segmentName ?? '',
+      instanceId: r.instanceId,
+      figureName: r.figureName ?? '',
+      figureSlug: r.figureSlug ?? '',
+      familyName: r.familyName ?? null,
+      nodeLabel: r.nodeLabel,
+      positionType: r.positionType ?? null,
+      zone: r.zone as FigureZone,
+      z: Number(r.z),
+    }));
+
+    return { data, meta: { total, page, limit } };
+  }
+
+  // ── F3 — Event assignment summary ─────────────────────────────────────────
+
+  async getEventAssignmentSummary(eventId: string): Promise<EventAssignmentSummary> {
+    const event = await this.eventRepository.findOne({ where: { id: eventId } });
+    if (!event) {
+      throw new NotFoundException('Event no trobat.');
+    }
+
+    const segments = await this.eventSegmentRepository.find({
+      where: { event: { id: eventId } },
+      order: { sortOrder: 'ASC' },
+    });
+
+    const result: EventSegmentSummary[] = [];
+
+    for (const segment of segments) {
+      const instances = await this.figureInstanceRepository.find({
+        where: { segment: { id: segment.id } },
+        relations: [
+          'figureTemplate',
+          'figureTemplate.family',
+          'instanceNodes',
+          'assignments',
+          'assignments.instanceNode',
+          'assignments.person',
+        ],
+      });
+
+      const figures: EventFigureSummary[] = instances.map((fi) => {
+        const totalNodes = fi.instanceNodes?.length ?? 0;
+        const assignments = (fi.assignments ?? []).map((a) => ({
+          nodeLabel: a.instanceNode.label,
+          positionType: a.instanceNode.positionType ?? null,
+          zone: a.instanceNode.zone as FigureZone,
+          z: a.instanceNode.z,
+          personAlias: (a.person as any).alias as string,
+          personId: a.person.id,
+        }));
+
+        return {
+          instanceId: fi.id,
+          figureName: fi.figureTemplate?.name ?? 'Sense plantilla',
+          familyName: fi.figureTemplate?.family?.name ?? null,
+          snapshotted: fi.snapshotted,
+          totalNodes,
+          assignedNodes: assignments.length,
+          assignments,
+        };
+      });
+
+      result.push({
+        segmentId: segment.id,
+        segmentName: (segment as any).name ?? '',
+        sortOrder: segment.sortOrder,
+        figures,
+      });
+    }
+
+    return { segments: result };
+  }
+
+  // ── F3 — Family history ────────────────────────────────────────────────────
+
+  async getFamilyHistory(
+    familyId: string,
+    query: HistoryQueryParams = {},
+  ): Promise<{ data: FigureHistoryEntry[]; meta: { total: number; page: number; limit: number } }> {
+    const family = await this.figureFamilyRepository.findOne({ where: { id: familyId } });
+    if (!family) {
+      throw new NotFoundException('Família de figures no trobada.');
+    }
+
+    const page = Math.max(query.page ?? 1, 1);
+    const limit = Math.min(Math.max(query.limit ?? 20, 1), 100);
+
+    const qb = this.figureInstanceRepository
+      .createQueryBuilder('fi')
+      .leftJoinAndSelect('fi.assignments', 'a')
+      .leftJoinAndSelect('a.instanceNode', 'ain')
+      .leftJoinAndSelect('a.person', 'ap')
+      .leftJoinAndSelect('fi.instanceNodes', 'inode')
+      .leftJoinAndSelect('fi.segment', 'seg')
+      .leftJoinAndSelect('seg.event', 'ev')
+      .leftJoinAndSelect('fi.figureTemplate', 'tpl')
+      .where('tpl.familyId = :familyId', { familyId });
+
+    if (query.seasonId) {
+      qb.andWhere('ev.seasonId = :seasonId', { seasonId: query.seasonId });
+    }
+
+    const total = await qb.getCount();
+    const instances = await qb
+      .orderBy('ev.date', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getMany();
+
+    const data: FigureHistoryEntry[] = instances.map((instance) => {
+      const event = instance.segment.event as Event;
+      return {
+        eventId: event.id,
+        eventTitle: event.title,
+        eventDate: event.date as unknown as string,
+        eventType: event.eventType,
+        familyName: family.name,
+        segmentName: (instance.segment as any).name ?? null,
+        instanceId: instance.id,
+        snapshotted: instance.snapshotted,
+        sourceVariantOrder: instance.sourceVariantOrder,
+        assignmentCount: instance.assignments?.length ?? 0,
+        totalNodes: instance.instanceNodes?.length ?? 0,
+        assignments: (instance.assignments ?? []).map((a) => ({
+          nodeId: a.instanceNode.id,
+          nodeLabel: a.instanceNode.label,
+          personId: a.person.id,
+          personAlias: (a.person as any).alias,
+        })),
+      };
+    });
+
+    return { data, meta: { total, page, limit } };
   }
 
   // ── B.5 — Bulk import with snapshot awareness ─────────────────────────────
@@ -548,6 +836,8 @@ export class NodeAssignmentService {
     instanceId: string,
     dto: { sourceInstanceId: string; sourceCompositionSlotId?: string },
   ): Promise<BulkImportResult> {
+    await this.checkEventLock(instanceId);
+
     const targetInstance = await this.figureInstanceRepository.findOne({
       where: { id: instanceId },
       relations: ['figureTemplate', 'compositionTemplate', 'segment', 'instanceNodes'],
@@ -664,6 +954,8 @@ export class NodeAssignmentService {
   // ── B.3 — Upgrade instance to next variant ────────────────────────────────
 
   async upgradeInstance(instanceId: string): Promise<UpgradeResult> {
+    await this.checkEventLock(instanceId);
+
     const instance = await this.figureInstanceRepository.findOne({
       where: { id: instanceId },
       relations: ['figureTemplate', 'figureTemplate.family', 'instanceNodes'],
@@ -795,6 +1087,54 @@ export class NodeAssignmentService {
       newTemplateName: nextTemplate.name,
       newVariantOrder: nextTemplate.variantOrder,
     };
+  }
+
+  // ── Lock — Assignment lock after event date ────────────────────────────────
+
+  async getLockStatus(eventId: string): Promise<{ locked: boolean; lockDate: string | null; lockDays: number }> {
+    const event = await this.eventRepository.findOne({ where: { id: eventId } });
+    if (!event) {
+      throw new NotFoundException(`Event with ID ${eventId} not found`);
+    }
+
+    const lockDays = parseInt(process.env.ASSIGNMENT_LOCK_DAYS ?? '2', 10);
+    if (lockDays <= 0) {
+      return { locked: false, lockDate: null, lockDays: 0 };
+    }
+
+    const eventDate = new Date(event.date);
+    const lockDate = new Date(eventDate);
+    lockDate.setDate(lockDate.getDate() + lockDays);
+
+    return {
+      locked: new Date() > lockDate,
+      lockDate: lockDate.toISOString().slice(0, 10),
+      lockDays,
+    };
+  }
+
+  private async checkEventLock(instanceId: string): Promise<void> {
+    const lockDays = parseInt(process.env.ASSIGNMENT_LOCK_DAYS ?? '2', 10);
+    if (lockDays <= 0) return;
+
+    const instance = await this.figureInstanceRepository.findOne({
+      where: { id: instanceId },
+      relations: ['segment', 'segment.event'],
+    });
+    if (!instance?.segment) return;
+
+    const event = instance.segment.event as Event;
+    if (!event) return;
+
+    const eventDate = new Date(event.date);
+    const lockDate = new Date(eventDate);
+    lockDate.setDate(lockDate.getDate() + lockDays);
+
+    if (new Date() > lockDate) {
+      throw new ForbiddenException(
+        `Les assignacions d'aquest event estan bloquejades (event del ${eventDate.toISOString().slice(0, 10)}, bloqueig després de ${lockDays} dies).`,
+      );
+    }
   }
 
   // ── B.1 — Snapshot helper ─────────────────────────────────────────────────

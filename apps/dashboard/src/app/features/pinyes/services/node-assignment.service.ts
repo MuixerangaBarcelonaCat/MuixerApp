@@ -8,8 +8,12 @@ import {
   BulkImportPayload,
   BulkImportResult,
   CreateAssignmentPayload,
+  EventAssignmentSummary,
   FigureHistoryEntry,
+  HistoryMeta,
+  HistoryQuery,
   InstanceNodeItem,
+  PersonAssignmentHistory,
   SwapAssignmentsPayload,
   UpgradeResult,
 } from '../models/assignment.model';
@@ -70,8 +74,39 @@ export class NodeAssignmentService extends ApiService {
     );
   }
 
-  getHistory(figureTemplateId: string): Observable<{ data: FigureHistoryEntry[] }> {
-    return this.get<{ data: FigureHistoryEntry[] }>(`/figure-templates/${figureTemplateId}/history`);
+  getHistory(
+    figureTemplateId: string,
+    query: HistoryQuery = {},
+  ): Observable<{ data: FigureHistoryEntry[]; meta: HistoryMeta }> {
+    const params = this.buildQueryParams(query);
+    return this.get<{ data: FigureHistoryEntry[]; meta: HistoryMeta }>(
+      `/figure-templates/${figureTemplateId}/history`,
+      { params },
+    );
+  }
+
+  getPersonHistory(personId: string, query: HistoryQuery = {}): Observable<PersonAssignmentHistory> {
+    const params = this.buildQueryParams(query);
+    return this.get<PersonAssignmentHistory>(`/persons/${personId}/assignment-history`, { params });
+  }
+
+  getEventAssignmentSummary(eventId: string): Observable<EventAssignmentSummary> {
+    return this.get<EventAssignmentSummary>(`/events/${eventId}/assignment-summary`);
+  }
+
+  getFamilyHistory(
+    familyId: string,
+    query: HistoryQuery = {},
+  ): Observable<{ data: FigureHistoryEntry[]; meta: HistoryMeta }> {
+    const params = this.buildQueryParams(query);
+    return this.get<{ data: FigureHistoryEntry[]; meta: HistoryMeta }>(
+      `/figure-families/${familyId}/history`,
+      { params },
+    );
+  }
+
+  getLockStatus(eventId: string): Observable<LockStatus> {
+    return this.get<LockStatus>(`/events/${eventId}/lock-status`);
   }
 
   getNextPerformance(eventId: string): Observable<{ id: string; title: string; date: string } | null> {
@@ -79,4 +114,16 @@ export class NodeAssignmentService extends ApiService {
       `/events/${eventId}/next-performance`,
     );
   }
+
+  private buildQueryParams(query: HistoryQuery): Record<string, string> {
+    return Object.entries(query)
+      .filter(([, v]) => v !== undefined)
+      .reduce<Record<string, string>>((acc, [k, v]) => ({ ...acc, [k]: String(v) }), {});
+  }
+}
+
+export interface LockStatus {
+  locked: boolean;
+  lockDate: string | null;
+  lockDays: number;
 }

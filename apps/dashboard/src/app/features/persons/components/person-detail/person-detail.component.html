@@ -250,6 +250,7 @@
                 </dd>
               </div>
               <div class="flex justify-between items-start">
+
                 <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Estat</dt>
                 <dd class="flex flex-wrap gap-1 justify-end">
                   <span class="badge badge-sm"
@@ -315,6 +316,31 @@
           } @else {
             <div class="space-y-3">
 
+              <!-- Posicions (chips toggle) -->
+              <div>
+                <span class="text-xs text-base-content/50 font-medium block mb-2">Posicions</span>
+                <div class="flex flex-wrap gap-1.5" role="group" aria-label="Selecció de posicions">
+                  @for (pos of allPositions(); track pos.id) {
+                    <button
+                      type="button"
+                      class="badge badge-sm cursor-pointer transition-opacity"
+                      [class.opacity-40]="!isPositionSelected(pos.id)"
+                      [class.ring-2]="isPositionSelected(pos.id)"
+                      [class.ring-primary]="isPositionSelected(pos.id)"
+                      [style.backgroundColor]="pos.color ?? '#e5e7eb'"
+                      [style.color]="pos.color ? getContrastColor(pos.color) : 'inherit'"
+                      (click)="togglePosition(pos.id)"
+                      [attr.aria-pressed]="isPositionSelected(pos.id)"
+                    >
+                      {{ pos.name }}
+                    </button>
+                  }
+                  @if (allPositions().length === 0) {
+                    <span class="text-xs text-base-content/40">No hi ha posicions disponibles</span>
+                  }
+                </div>
+              </div>
+
               <div class="flex justify-between items-center">
                 <span class="text-xs text-base-content/50 font-medium">Actiu</span>
                 <input type="checkbox" class="toggle toggle-sm toggle-success" formControlName="isActive" />
@@ -371,6 +397,89 @@
         </div>
       </div>
     </div>
+
+    <!-- Historial de pinyes -->
+    @if (!isNew() && person()) {
+      <div class="collapse collapse-arrow bg-base-100 shadow-sm rounded-xl border border-base-300">
+        <input type="checkbox" [checked]="historyExpanded()" (change)="historyExpanded.set(!historyExpanded())" />
+        <div class="collapse-title text-sm font-bold py-3 min-h-0">
+          Historial de pinyes
+          @if (historyTotal() > 0) {
+            <span class="badge badge-neutral badge-sm ml-2">{{ historyTotal() }}</span>
+          }
+        </div>
+        <div class="collapse-content">
+          <!-- Season filter -->
+          <div class="flex items-center gap-3 mb-3">
+            <select
+              class="select select-bordered select-sm w-48"
+              [value]="historySeasonId() ?? ''"
+              (change)="onHistorySeasonChange($any($event.target).value)"
+              aria-label="Filtrar per temporada"
+            >
+              <option value="">Totes les temporades</option>
+              @for (season of seasons(); track season.id) {
+                <option [value]="season.id">{{ season.name }}</option>
+              }
+            </select>
+          </div>
+
+          @if (historyLoading()) {
+            <div class="flex justify-center py-6">
+              <span class="loading loading-spinner loading-md text-primary"></span>
+            </div>
+          } @else if (historyEntries().length === 0) {
+            <app-empty-state message="Aquesta persona no té assignacions registrades." />
+          } @else {
+            <div class="overflow-x-auto">
+              <table class="table table-sm">
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Event</th>
+                    <th>Segment</th>
+                    <th>Figura</th>
+                    <th>Posició</th>
+                    <th>Zona</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (entry of historyEntries(); track entry.instanceId + entry.nodeLabel) {
+                    <tr class="hover cursor-pointer" (click)="navigateToEvent(entry)">
+                      <td class="text-xs text-base-content/60">{{ formatDate(entry.eventDate) }}</td>
+                      <td>
+                        <span class="text-sm">{{ entry.eventTitle }}</span>
+                        @if (entry.eventType === 'ACTUACIO') {
+                          <span class="badge badge-info badge-xs ml-1">Actuació</span>
+                        }
+                      </td>
+                      <td class="text-sm text-base-content/70">{{ entry.segmentName }}</td>
+                      <td class="text-sm">{{ entry.figureName }}</td>
+                      <td class="text-sm font-medium">{{ entry.nodeLabel }}</td>
+                      <td>
+                        <span class="badge badge-ghost badge-sm">{{ entry.zone }}</span>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+
+            @if (historyTotal() > historyLimit()) {
+              <div class="mt-3">
+                <app-pagination
+                  [page]="historyPage()"
+                  [totalItems]="historyTotal()"
+                  [limit]="historyLimit()"
+                  [totalPages]="Math.ceil(historyTotal() / historyLimit())"
+                  (pageChange)="onHistoryPageChange($event)"
+                />
+              </div>
+            }
+          }
+        </div>
+      </div>
+    }
 
     <!-- Metadades -->
     @if (!isNew()) {

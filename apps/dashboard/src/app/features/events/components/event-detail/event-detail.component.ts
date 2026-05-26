@@ -13,6 +13,8 @@ import { EventFormModalComponent } from '../event-form-modal/event-form-modal.co
 import { AttendanceEditModalComponent } from '../attendance-edit-modal/attendance-edit-modal.component';
 import { SegmentManagerComponent } from '../segment-manager/segment-manager.component';
 import { PersonSearchInputComponent } from '../../../../shared/components/forms/person-search-input/person-search-input.component';
+import { NodeAssignmentService, LockStatus } from '../../../pinyes/services/node-assignment.service';
+import { EventAssignmentSummary, EventSegmentSummary } from '../../../pinyes/models/assignment.model';
 import { EventDetail, EventType, AttendanceSummary, SyncEvent, Season } from '../../models/event.model';
 import {
   AttendanceItem,
@@ -56,6 +58,7 @@ export class EventDetailComponent implements OnInit, OnDestroy {
   private readonly attendanceService = inject(AttendanceService);
   private readonly seasonService = inject(SeasonService);
   private readonly personService = inject(PersonService);
+  private readonly nodeAssignmentService = inject(NodeAssignmentService);
 
   readonly EventType = EventType;
   readonly AttendanceStatus = AttendanceStatus;
@@ -95,6 +98,11 @@ export class EventDetailComponent implements OnInit, OnDestroy {
 
   syncState = signal<SyncState>('idle');
   syncMessage = signal('');
+
+  lockStatus = signal<LockStatus | null>(null);
+  isEventLocked = computed(() => this.lockStatus()?.locked ?? false);
+  assignmentSummary = signal<EventAssignmentSummary | null>(null);
+  summaryLoading = signal(false);
   private syncEventSource: EventSource | null = null;
 
   isPast = computed(() => {
@@ -152,6 +160,10 @@ export class EventDetailComponent implements OnInit, OnDestroy {
         this.loading.set(false);
         this.addStatus.set(this.defaultAddStatus());
         this.loadAttendance();
+        this.nodeAssignmentService.getLockStatus(id).subscribe({
+          next: (status) => this.lockStatus.set(status),
+        });
+        this.loadAssignmentSummary(id);
       },
       error: () => {
         this.loading.set(false);
@@ -164,6 +176,17 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     this.event.set(updated);
     this.showEditModal.set(false);
     this.toast.success('Esdeveniment actualitzat correctament.');
+  }
+
+  private loadAssignmentSummary(eventId: string) {
+    this.summaryLoading.set(true);
+    this.nodeAssignmentService.getEventAssignmentSummary(eventId).subscribe({
+      next: (summary) => {
+        this.assignmentSummary.set(summary);
+        this.summaryLoading.set(false);
+      },
+      error: () => this.summaryLoading.set(false),
+    });
   }
 
   deleteEvent() {

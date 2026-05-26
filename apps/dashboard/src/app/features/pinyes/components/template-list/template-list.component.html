@@ -182,6 +182,16 @@
                 <button
                   type="button"
                   class="btn btn-ghost btn-sm btn-square"
+                  (click)="openFamilyHistory(family)"
+                  [attr.aria-label]="'Historial de ' + family.name"
+                  title="Historial"
+                >
+                  <lucide-icon name="History" [size]="14" aria-hidden="true" />
+                </button>
+
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-sm btn-square"
                   (click)="openEditFamilyModal(family)"
                   [attr.aria-label]="'Editar família ' + family.name"
                   title="Editar família"
@@ -771,3 +781,11 @@
 
 <app-pinyes-onboarding-modal #onboardingModal />
 <app-template-editor-help-modal #editorHelpModal [autoShow]="false" />
+
+@if (historyFamilyId()) {
+  <app-family-history-modal
+    [familyId]="historyFamilyId()!"
+    [familyName]="historyFamilyName()"
+    (closed)="closeFamilyHistory()"
+  />
+}

@@ -47,6 +47,7 @@
         type="button"
         class="btn btn-sm btn-outline btn-success gap-1"
         (click)="openUpgradeModal()"
+        [disabled]="isLocked()"
         data-tip="Afegeix les posicions del següent cordó basant-se en la variant superior de la família. No afecta les assignacions existents."
         aria-label="Afegir cordó a la figura"
       >
@@ -87,6 +88,17 @@
       </a>
     }
   </header>
+
+  <!-- Lock banner -->
+  @if (isLocked()) {
+    <div class="flex items-center gap-2 px-4 py-2 bg-warning/10 border-b border-warning/30 text-warning-content" role="alert">
+      <i-lucide [img]="Lock" class="size-4 text-warning shrink-0" aria-hidden="true" />
+      <span class="text-sm">
+        <strong>Assignacions bloquejades</strong> — les assignacions es van tancar el {{ lockStatus()!.lockDate }}.
+        Mode de només lectura.
+      </span>
+    </div>
+  }
 
   <!-- Main content: canvas + person panel -->
   <div class="flex flex-1 overflow-hidden">
@@ -164,7 +176,7 @@
 
     <!-- Person panel (right sidebar) -->
 
-    @if (!state.panelCollapsed() && eventId() && segmentId()) {
+    @if (!isLocked() && !state.panelCollapsed() && eventId() && segmentId()) {
       <aside class="w-64 shrink-0 overflow-hidden">
         <app-person-panel
           [eventId]="eventId()"
@@ -172,6 +184,7 @@
           [selectedNodeId]="state.selectedNodeId()"
           [assignments]="state.assignments()"
           [heightMode]="state.heightMode()"
+          [activeNodePositionType]="selectedNode()?.positionType ?? null"
           (personSelected)="onPersonSelected($event)"
           (assignedPersonSelected)="onAssignedPersonSelected($event)"
         />
@@ -244,6 +257,7 @@
         type="button"
         class="btn btn-xs btn-outline btn-error gap-1"
         (click)="openResetModal()"
+        [disabled]="isLocked()"
         aria-label="Reinicialitzar la figura: elimina totes les assignacions i torna al template original"
       >
         <i-lucide [img]="Trash2" class="size-3" />
@@ -257,6 +271,7 @@
         type="button"
         class="btn btn-xs btn-outline gap-1"
         (click)="importModalOpen.set(true)"
+        [disabled]="isLocked()"
         aria-label="Importar assignacions d'una pinya anterior"
       >
         Importar pinya

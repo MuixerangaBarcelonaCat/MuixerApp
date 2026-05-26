@@ -4,6 +4,7 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { NodeAssignmentService } from './node-assignment.service';
@@ -12,11 +13,13 @@ import { FigureInstance } from '../event-segment/entities/figure-instance.entity
 import { InstanceNode } from '../event-segment/entities/instance-node.entity';
 import { FigureNode } from '../figure/entities/figure-node.entity';
 import { FigureFamilyNode } from '../figure/entities/figure-family-node.entity';
+import { FigureFamily } from '../figure/entities/figure-family.entity';
 import { Person } from '../person/person.entity';
 import { CompositionSlot } from '../composition/entities/composition-slot.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
-import { FigureZone, NodeShape } from '@muixer/shared';
+import { Event } from '../event/event.entity';
+import { EventType, FigureZone, NodeShape } from '@muixer/shared';
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -152,6 +155,7 @@ const mockInstanceRepo = {
   find: jest.fn(),
   findOne: jest.fn(),
   update: jest.fn(),
+  createQueryBuilder: jest.fn(),
 };
 
 const mockInstanceNodeRepo = {
@@ -174,7 +178,9 @@ const mockFamilyNodeRepo = {
 const mockPersonRepo = { findOne: jest.fn() };
 const mockSlotRepo = { findOne: jest.fn() };
 const mockTemplateRepo = { findOne: jest.fn() };
-const mockSegmentRepo = { findOne: jest.fn() };
+const mockSegmentRepo = { findOne: jest.fn(), find: jest.fn() };
+const mockEventRepo = { findOne: jest.fn() };
+const mockFamilyRepo = { findOne: jest.fn() };
 const mockDataSource = {
   transaction: jest.fn(),
   query: jest.fn().mockResolvedValue([]),
@@ -187,6 +193,7 @@ describe('NodeAssignmentService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    process.env.ASSIGNMENT_LOCK_DAYS = '0';
     mockAssignmentRepo.createQueryBuilder.mockReturnValue(mockQb);
     mockQb.innerJoin.mockReturnThis();
     mockQb.where.mockReturnThis();
@@ -202,15 +209,21 @@ describe('NodeAssignmentService', () => {
         { provide: getRepositoryToken(InstanceNode), useValue: mockInstanceNodeRepo },
         { provide: getRepositoryToken(FigureNode), useValue: mockFigureNodeRepo },
         { provide: getRepositoryToken(FigureFamilyNode), useValue: mockFamilyNodeRepo },
+        { provide: getRepositoryToken(FigureFamily), useValue: mockFamilyRepo },
         { provide: getRepositoryToken(Person), useValue: mockPersonRepo },
         { provide: getRepositoryToken(CompositionSlot), useValue: mockSlotRepo },
         { provide: getRepositoryToken(FigureTemplate), useValue: mockTemplateRepo },
         { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
+        { provide: getRepositoryToken(Event), useValue: mockEventRepo },
         { provide: DataSource, useValue: mockDataSource },
       ],
     }).compile();
 
     service = module.get<NodeAssignmentService>(NodeAssignmentService);
+  });
+
+  afterEach(() => {
+    delete process.env.ASSIGNMENT_LOCK_DAYS;
   });
 
   // ── getByInstance ──────────────────────────────────────────────────────
@@ -651,26 +664,241 @@ describe('NodeAssignmentService', () => {
   // ── getHistory ────────────────────────────────────────────────────────
 
   describe('getHistory', () => {
+    const mockHistoryQb = {
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      getCount: jest.fn().mockResolvedValue(0),
+      getMany: jest.fn().mockResolvedValue([]),
+    };
+
+    beforeEach(() => {
+      mockInstanceRepo.createQueryBuilder = jest.fn().mockReturnValue(mockHistoryQb);
+    });
+
     it('throws NotFoundException if template not found', async () => {
       mockTemplateRepo.findOne.mockResolvedValue(null);
       await expect(service.getHistory('bad-tmpl')).rejects.toThrow(NotFoundException);
     });
 
-    it('returns history entries with snapshotted flag and assignments from instanceNodes', async () => {
-      const tmpl = { id: TEMPLATE_ID };
-      const instance = makeInstance({ instanceNodes: [makeInstanceNode()], snapshotted: true, sourceVariantOrder: 1 });
+    it('returns paginated history entries with eventType and familyName', async () => {
+      const tmpl = { id: TEMPLATE_ID, family: { id: FAMILY_ID, name: 'Muixeranga de 5' } };
+      const instance = makeInstance({ snapshotted: true, sourceVariantOrder: 1 });
       instance.assignments = [makeAssignment()];
+      instance.segment = { ...makeSegment(), event: { id: 'e1', title: 'Assaig', date: '2026-05-01', eventType: EventType.ASSAIG } };
 
       mockTemplateRepo.findOne.mockResolvedValue(tmpl);
-      mockInstanceRepo.find.mockResolvedValue([instance]);
+      mockHistoryQb.getCount.mockResolvedValue(1);
+      mockHistoryQb.getMany.mockResolvedValue([instance]);
 
       const result = await service.getHistory(TEMPLATE_ID);
 
-      expect(result).toHaveLength(1);
-      expect(result[0].instanceId).toBe(INSTANCE_ID);
-      expect(result[0].snapshotted).toBe(true);
-      expect(result[0].sourceVariantOrder).toBe(1);
-      expect(result[0].assignments[0].nodeId).toBe(INSTANCE_NODE_ID);
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].eventType).toBe(EventType.ASSAIG);
+      expect(result.data[0].familyName).toBe('Muixeranga de 5');
+      expect(result.data[0].instanceId).toBe(INSTANCE_ID);
+      expect(result.meta.total).toBe(1);
+      expect(result.meta.page).toBe(1);
+      expect(result.meta.limit).toBe(20);
+    });
+
+    it('applies seasonId filter when provided', async () => {
+      const tmpl = { id: TEMPLATE_ID, family: null };
+      mockTemplateRepo.findOne.mockResolvedValue(tmpl);
+      mockHistoryQb.getCount.mockResolvedValue(0);
+      mockHistoryQb.getMany.mockResolvedValue([]);
+
+      await service.getHistory(TEMPLATE_ID, { seasonId: 'season-1' });
+
+      expect(mockHistoryQb.andWhere).toHaveBeenCalledWith(
+        'ev.seasonId = :seasonId',
+        { seasonId: 'season-1' },
+      );
+    });
+  });
+
+  // ── getPersonHistory ───────────────────────────────────────────────────
+
+  describe('getPersonHistory', () => {
+    const mockPersonHistoryQb = {
+      innerJoin: jest.fn().mockReturnThis(),
+      leftJoin: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      addOrderBy: jest.fn().mockReturnThis(),
+      offset: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      getCount: jest.fn().mockResolvedValue(0),
+      getRawMany: jest.fn().mockResolvedValue([]),
+    };
+
+    beforeEach(() => {
+      mockAssignmentRepo.createQueryBuilder.mockReturnValue(mockPersonHistoryQb);
+    });
+
+    it('throws NotFoundException if person not found', async () => {
+      mockPersonRepo.findOne.mockResolvedValue(null);
+      await expect(service.getPersonHistory('bad-id')).rejects.toThrow(NotFoundException);
+    });
+
+    it('returns paginated entries ordered by event date DESC', async () => {
+      mockPersonRepo.findOne.mockResolvedValue(makePerson());
+      mockPersonHistoryQb.getCount.mockResolvedValue(2);
+      mockPersonHistoryQb.getRawMany.mockResolvedValue([
+        {
+          eventId: 'e1', eventTitle: 'Diada', eventDate: '2026-05-10',
+          eventType: EventType.ACTUACIO, segmentName: 'Bloc 1',
+          instanceId: 'fi-1', figureName: 'Muixeranga de 5',
+          figureSlug: 'muixeranga-de-5', familyName: 'Muixeranga',
+          nodeLabel: 'MANS', positionType: 'mans', zone: FigureZone.PINYA, z: 0,
+        },
+        {
+          eventId: 'e2', eventTitle: 'Assaig', eventDate: '2026-05-05',
+          eventType: EventType.ASSAIG, segmentName: 'Bloc 2',
+          instanceId: 'fi-2', figureName: 'Pilar de 4',
+          figureSlug: 'pilar-de-4', familyName: null,
+          nodeLabel: 'AGULLA', positionType: 'agulla', zone: FigureZone.PINYA, z: 1,
+        },
+      ]);
+
+      const result = await service.getPersonHistory(PERSON_ID, { page: 1, limit: 20 });
+
+      expect(result.data).toHaveLength(2);
+      expect(result.data[0].eventTitle).toBe('Diada');
+      expect(result.data[0].eventType).toBe(EventType.ACTUACIO);
+      expect(result.data[1].familyName).toBeNull();
+      expect(result.meta.total).toBe(2);
+    });
+
+    it('applies seasonId filter when provided', async () => {
+      mockPersonRepo.findOne.mockResolvedValue(makePerson());
+      mockPersonHistoryQb.getCount.mockResolvedValue(0);
+      mockPersonHistoryQb.getRawMany.mockResolvedValue([]);
+
+      await service.getPersonHistory(PERSON_ID, { seasonId: 'season-x' });
+
+      expect(mockPersonHistoryQb.andWhere).toHaveBeenCalledWith(
+        'ev.seasonId = :seasonId',
+        { seasonId: 'season-x' },
+      );
+    });
+
+    it('defaults to page=1, limit=20 when not provided', async () => {
+      mockPersonRepo.findOne.mockResolvedValue(makePerson());
+      mockPersonHistoryQb.getCount.mockResolvedValue(0);
+      mockPersonHistoryQb.getRawMany.mockResolvedValue([]);
+
+      const result = await service.getPersonHistory(PERSON_ID);
+
+      expect(result.meta.page).toBe(1);
+      expect(result.meta.limit).toBe(20);
+    });
+  });
+
+  // ── getEventAssignmentSummary ──────────────────────────────────────────
+
+  describe('getEventAssignmentSummary', () => {
+    it('throws NotFoundException if event not found', async () => {
+      mockEventRepo.findOne.mockResolvedValue(null);
+      await expect(service.getEventAssignmentSummary('bad-id')).rejects.toThrow(NotFoundException);
+    });
+
+    it('returns segments with figures and assignments', async () => {
+      const person = makePerson();
+      const iNode = makeInstanceNode();
+      const assignment = { ...makeAssignment(), instanceNode: iNode, person };
+      const figureInstance = {
+        id: 'fi-1',
+        figureTemplate: { id: TEMPLATE_ID, name: 'Muixeranga de 5', family: { name: 'Muixeranga' } },
+        snapshotted: true,
+        instanceNodes: [iNode],
+        assignments: [assignment],
+      };
+      const segment = { id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 };
+
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
+      mockSegmentRepo.find.mockResolvedValue([segment]);
+      mockInstanceRepo.find.mockResolvedValue([figureInstance]);
+
+      const result = await service.getEventAssignmentSummary('e1');
+
+      expect(result.segments).toHaveLength(1);
+      expect(result.segments[0].segmentName).toBe('Bloc 1');
+      expect(result.segments[0].figures).toHaveLength(1);
+      expect(result.segments[0].figures[0].figureName).toBe('Muixeranga de 5');
+      expect(result.segments[0].figures[0].familyName).toBe('Muixeranga');
+      expect(result.segments[0].figures[0].totalNodes).toBe(1);
+      expect(result.segments[0].figures[0].assignedNodes).toBe(1);
+      expect(result.segments[0].figures[0].assignments[0].personAlias).toBe('Pepet');
+    });
+
+    it('returns empty segments array when event has no segments', async () => {
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
+      mockSegmentRepo.find.mockResolvedValue([]);
+
+      const result = await service.getEventAssignmentSummary('e1');
+
+      expect(result.segments).toEqual([]);
+    });
+  });
+
+  // ── getFamilyHistory ───────────────────────────────────────────────────
+
+  describe('getFamilyHistory', () => {
+    const mockFamilyHistoryQb = {
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      getCount: jest.fn().mockResolvedValue(0),
+      getMany: jest.fn().mockResolvedValue([]),
+    };
+
+    beforeEach(() => {
+      mockInstanceRepo.createQueryBuilder = jest.fn().mockReturnValue(mockFamilyHistoryQb);
+    });
+
+    it('throws NotFoundException if family not found', async () => {
+      mockFamilyRepo.findOne.mockResolvedValue(null);
+      await expect(service.getFamilyHistory('bad-id')).rejects.toThrow(NotFoundException);
+    });
+
+    it('returns paginated history aggregating all variants', async () => {
+      const family = { id: FAMILY_ID, name: 'Muixeranga' };
+      const instance = makeInstance({ snapshotted: true, sourceVariantOrder: 2 });
+      instance.assignments = [makeAssignment()];
+      instance.segment = { ...makeSegment(), event: { id: 'e1', title: 'Diada', date: '2026-06-01', eventType: EventType.ACTUACIO } };
+
+      mockFamilyRepo.findOne.mockResolvedValue(family);
+      mockFamilyHistoryQb.getCount.mockResolvedValue(1);
+      mockFamilyHistoryQb.getMany.mockResolvedValue([instance]);
+
+      const result = await service.getFamilyHistory(FAMILY_ID);
+
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].familyName).toBe('Muixeranga');
+      expect(result.data[0].eventType).toBe(EventType.ACTUACIO);
+      expect(result.meta.total).toBe(1);
+    });
+
+    it('applies seasonId filter when provided', async () => {
+      mockFamilyRepo.findOne.mockResolvedValue({ id: FAMILY_ID, name: 'Test' });
+      mockFamilyHistoryQb.getCount.mockResolvedValue(0);
+      mockFamilyHistoryQb.getMany.mockResolvedValue([]);
+
+      await service.getFamilyHistory(FAMILY_ID, { seasonId: 'season-y' });
+
+      expect(mockFamilyHistoryQb.andWhere).toHaveBeenCalledWith(
+        'ev.seasonId = :seasonId',
+        { seasonId: 'season-y' },
+      );
     });
   });
 
@@ -962,6 +1190,172 @@ describe('NodeAssignmentService', () => {
 
       expect(result.conflicts).toHaveLength(1);
       expect(result.conflicts[0].reason).toContain('No matching node');
+    });
+  });
+
+  // ── Assignment lock ──────────────────────────────────────────────────
+
+  describe('checkEventLock', () => {
+    const lockedDate = new Date();
+    lockedDate.setDate(lockedDate.getDate() - 10);
+    const lockedDateStr = lockedDate.toISOString().slice(0, 10);
+
+    const recentDate = new Date();
+    recentDate.setDate(recentDate.getDate() - 1);
+    const recentDateStr = recentDate.toISOString().slice(0, 10);
+
+    const makeLockedInstance = (eventDate: string) =>
+      makeInstance({
+        segment: {
+          id: SEGMENT_ID,
+          event: { id: 'event-uuid-1', title: 'Assaig', date: eventDate },
+        },
+      });
+
+    beforeEach(() => {
+      process.env.ASSIGNMENT_LOCK_DAYS = '2';
+    });
+
+    it('assign() throws ForbiddenException when event is locked', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeLockedInstance(lockedDateStr));
+
+      await expect(
+        service.assign(INSTANCE_ID, { nodeId: INSTANCE_NODE_ID, personId: PERSON_ID }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('unassign() throws ForbiddenException when event is locked', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeLockedInstance(lockedDateStr));
+
+      await expect(
+        service.unassign(INSTANCE_ID, ASSIGNMENT_ID),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('swap() throws ForbiddenException when event is locked', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeLockedInstance(lockedDateStr));
+
+      await expect(
+        service.swap(INSTANCE_ID, { assignmentIdA: ASSIGNMENT_ID, assignmentIdB: ASSIGNMENT_ID_B }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('bulkImport() throws ForbiddenException when event is locked', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeLockedInstance(lockedDateStr));
+
+      await expect(
+        service.bulkImport(INSTANCE_ID, { sourceInstanceId: 'src' }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('upgradeInstance() throws ForbiddenException when event is locked', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeLockedInstance(lockedDateStr));
+
+      await expect(
+        service.upgradeInstance(INSTANCE_ID),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('resetSnapshot() throws ForbiddenException when event is locked', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeLockedInstance(lockedDateStr));
+
+      await expect(
+        service.resetSnapshot(INSTANCE_ID),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('allows assign() when ASSIGNMENT_LOCK_DAYS=0 (lock disabled)', async () => {
+      process.env.ASSIGNMENT_LOCK_DAYS = '0';
+
+      const inode = makeInstanceNode();
+      const a = makeAssignment();
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
+      mockInstanceNodeRepo.findOne.mockResolvedValue(inode);
+      mockPersonRepo.findOne.mockResolvedValue(makePerson());
+      mockAssignmentRepo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue(a);
+      mockAssignmentRepo.create.mockReturnValue(a);
+      mockAssignmentRepo.save.mockResolvedValue(a);
+
+      const result = await service.assign(INSTANCE_ID, {
+        nodeId: INSTANCE_NODE_ID,
+        personId: PERSON_ID,
+      });
+
+      expect(result.id).toBe(ASSIGNMENT_ID);
+    });
+
+    it('allows assign() when event is recent (within lock window)', async () => {
+      mockInstanceRepo.findOne
+        .mockResolvedValueOnce(makeLockedInstance(recentDateStr))
+        .mockResolvedValueOnce(makeInstance({ snapshotted: true }));
+
+      const inode = makeInstanceNode();
+      const a = makeAssignment();
+      mockInstanceNodeRepo.findOne.mockResolvedValue(inode);
+      mockPersonRepo.findOne.mockResolvedValue(makePerson());
+      mockAssignmentRepo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue(a);
+      mockAssignmentRepo.create.mockReturnValue(a);
+      mockAssignmentRepo.save.mockResolvedValue(a);
+
+      const result = await service.assign(INSTANCE_ID, {
+        nodeId: INSTANCE_NODE_ID,
+        personId: PERSON_ID,
+      });
+
+      expect(result.id).toBe(ASSIGNMENT_ID);
+    });
+  });
+
+  // ── getLockStatus ───────────────────────────────────────────────────
+
+  describe('getLockStatus', () => {
+    it('returns locked=true for old event', async () => {
+      const oldDate = new Date();
+      oldDate.setDate(oldDate.getDate() - 10);
+      process.env.ASSIGNMENT_LOCK_DAYS = '2';
+
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1', date: oldDate });
+
+      const status = await service.getLockStatus('e1');
+
+      expect(status.locked).toBe(true);
+      expect(status.lockDays).toBe(2);
+      expect(status.lockDate).toBeDefined();
+    });
+
+    it('returns locked=false for recent event', async () => {
+      const today = new Date();
+      process.env.ASSIGNMENT_LOCK_DAYS = '2';
+
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1', date: today });
+
+      const status = await service.getLockStatus('e1');
+
+      expect(status.locked).toBe(false);
+    });
+
+    it('returns locked=false when ASSIGNMENT_LOCK_DAYS=0', async () => {
+      process.env.ASSIGNMENT_LOCK_DAYS = '0';
+
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1', date: new Date('2020-01-01') });
+
+      const status = await service.getLockStatus('e1');
+
+      expect(status.locked).toBe(false);
+      expect(status.lockDays).toBe(0);
+    });
+
+    it('throws NotFoundException if event not found', async () => {
+      process.env.ASSIGNMENT_LOCK_DAYS = '2';
+      mockEventRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.getLockStatus('bad-id')).rejects.toThrow(NotFoundException);
     });
   });
 });
