@@ -29,6 +29,12 @@ import {
 import { EmptyStateComponent } from '../../../../shared/components/data/empty-state/empty-state.component';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { PinyesOnboardingModalComponent } from '../pinyes-onboarding-modal/pinyes-onboarding-modal.component';
+import { TemplateEditorHelpModalComponent } from '../template-editor-help-modal/template-editor-help-modal.component';
+import { FigureZone } from '@muixer/shared';
+import {
+  validateBaseOrdering,
+  BaseValidationResult,
+} from '../../utils/base-ordering.util';
 
 type ActiveTab = 'families' | 'figures' | 'compositions';
 
@@ -45,7 +51,7 @@ interface FamilyModal {
   selector: 'app-template-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule, EmptyStateComponent, PinyesOnboardingModalComponent],
+  imports: [FormsModule, LucideAngularModule, EmptyStateComponent, PinyesOnboardingModalComponent, TemplateEditorHelpModalComponent],
   templateUrl: './template-list.component.html',
   styleUrl: './template-list.component.scss',
 })
@@ -76,6 +82,18 @@ export class TemplateListComponent implements OnInit {
   readonly familiesTotalPages = computed(() =>
     Math.ceil(this.familiesTotal() / this.familiesLimit()),
   );
+
+  /**
+   * Map of familyId → BaseValidationResult.
+   * Populated asynchronously after families load.
+   * A missing key means validation is still pending.
+   */
+  readonly familyBaseValidation = signal<Map<string, BaseValidationResult>>(new Map());
+
+  isFamilyBaseOrderingValid(familyId: string): boolean {
+    const result = this.familyBaseValidation().get(familyId);
+    return result?.isValid ?? true;
+  }
 
   // Family modal state
   familyModal = signal<FamilyModal | null>(null);
@@ -528,6 +546,7 @@ export class TemplateListComponent implements OnInit {
                 if (completed === listItems.length) {
                   this.families.set(details);
                   this.familiesLoading.set(false);
+                  this.validateFamilyBaseOrdering(details);
                 }
               },
               error: () => {
@@ -536,6 +555,7 @@ export class TemplateListComponent implements OnInit {
                 if (completed === listItems.length) {
                   this.families.set(details);
                   this.familiesLoading.set(false);
+                  this.validateFamilyBaseOrdering(details);
                 }
               },
             });
@@ -543,6 +563,36 @@ export class TemplateListComponent implements OnInit {
         },
         error: () => this.familiesLoading.set(false),
       });
+  }
+
+  private validateFamilyBaseOrdering(families: FigureFamilyDetail[]): void {
+    // Reset validation map so stale results from previous loads are cleared
+    this.familyBaseValidation.set(new Map());
+
+    for (const family of families) {
+      if (family.variants.length === 0) continue;
+
+      const firstVariant = [...family.variants].sort(
+        (a, b) => a.variantOrder - b.variantOrder,
+      )[0];
+
+      this.figureTemplateService.getOne(firstVariant.id).subscribe({
+        next: (tmpl) => {
+          const baseNodes = tmpl.nodes.filter((n) => n.zone === FigureZone.BASE);
+          const result = validateBaseOrdering(
+            baseNodes.map((n) => ({ sortOrder: n.sortOrder, x: n.x, y: n.y })),
+          );
+          this.familyBaseValidation.update((map) => {
+            const next = new Map(map);
+            next.set(family.id, result);
+            return next;
+          });
+        },
+        error: () => {
+          // If we can't load the template, skip validation for this family
+        },
+      });
+    }
   }
 
   private loadTemplates() {

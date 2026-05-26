@@ -1,0 +1,110 @@
+@if (visible()) {
+  <dialog
+    class="modal modal-open"
+    role="dialog"
+    aria-labelledby="editor-help-title"
+    aria-modal="true"
+  >
+    <div class="modal-box max-w-md">
+      <div class="flex items-center justify-between mb-4">
+        <h2 id="editor-help-title" class="text-lg font-bold">Ajuda de l'editor de figures</h2>
+        <button type="button" class="btn btn-ghost btn-sm btn-square" (click)="close()" aria-label="Tancar ajuda">
+          <lucide-icon name="X" [size]="16" aria-hidden="true" />
+        </button>
+      </div>
+
+      <!-- Step dots -->
+      <div class="flex justify-center gap-2 mb-6" role="group" aria-label="Passos">
+        @for (step of steps; track $index) {
+          <span
+            class="w-2 h-2 rounded-full transition-colors"
+            [class]="$index === currentStep() ? 'bg-primary' : 'bg-base-300'"
+            [attr.aria-current]="$index === currentStep() ? 'step' : null"
+          ></span>
+        }
+      </div>
+
+      <!-- Step content -->
+      <div class="py-2">
+        <div class="flex justify-center mb-4">
+          <div class="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
+            <i-lucide [img]="steps[currentStep()].icon" class="size-7 text-primary" aria-hidden="true"></i-lucide>
+          </div>
+        </div>
+        <h3 class="text-base font-semibold mb-2 text-center">{{ steps[currentStep()].title }}</h3>
+        <p class="text-sm text-base-content/70 leading-relaxed text-center">
+          {{ steps[currentStep()].description }}
+        </p>
+
+        <!-- Base order diagram — only on step 1 -->
+        @if (steps[currentStep()].hasDiagram) {
+          <figure class="mt-4" aria-label="Diagrama de l'ordre anti-horari de les Bases">
+            <div class="bg-base-200 rounded-lg p-4 font-mono text-xs select-none" aria-hidden="true">
+              <div class="grid grid-cols-2 gap-2 w-44 mx-auto">
+                <div class="bg-primary text-primary-content rounded px-2 py-1 text-center font-semibold">Base 1</div>
+                <div class="bg-primary/40 text-primary-content rounded px-2 py-1 text-center font-semibold">Base 4</div>
+                <div class="col-span-2 flex items-center justify-center gap-1 text-base-content/50 text-[10px] my-0.5">
+                  <span>↙ anti-horari ↗</span>
+                </div>
+                <div class="bg-primary/40 text-primary-content rounded px-2 py-1 text-center font-semibold">Base 2</div>
+                <div class="bg-primary/20 text-base-content rounded px-2 py-1 text-center font-semibold">Base 3</div>
+              </div>
+              <p class="text-center text-[10px] text-base-content/50 mt-3">Vist des de dalt (canvas de Pinya)</p>
+            </div>
+            <figcaption class="text-xs text-base-content/50 text-center mt-2">
+              Base 1 sempre a dalt-esquerra. Continua en sentit anti-horari.
+            </figcaption>
+          </figure>
+        }
+      </div>
+
+      <!-- Counter -->
+      <p class="text-center text-xs text-base-content/40 mt-3">
+        {{ currentStep() + 1 }} / {{ steps.length }}
+      </p>
+
+      <!-- Don't show again -->
+      @if (currentStep() === steps.length - 1) {
+        <label class="flex items-center gap-2 mt-4 cursor-pointer justify-center">
+          <input
+            type="checkbox"
+            class="checkbox checkbox-sm checkbox-primary"
+            [checked]="dontShowAgain()"
+            (change)="toggleDontShowAgain()"
+          />
+          <span class="text-xs text-base-content/60">No tornis a mostrar</span>
+        </label>
+      }
+
+      <div class="modal-action justify-between mt-4">
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm"
+          [disabled]="currentStep() === 0"
+          (click)="prevStep()"
+        >
+          Anterior
+        </button>
+
+        @if (currentStep() < steps.length - 1) {
+          <button
+            type="button"
+            class="btn btn-primary btn-sm"
+            (click)="nextStep()"
+          >
+            Següent
+          </button>
+        } @else {
+          <button
+            type="button"
+            class="btn btn-primary btn-sm"
+            (click)="close()"
+          >
+            Entesos!
+          </button>
+        }
+      </div>
+    </div>
+    <div class="modal-backdrop" (click)="close()"></div>
+  </dialog>
+}

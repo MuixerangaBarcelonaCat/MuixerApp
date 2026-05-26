@@ -95,6 +95,17 @@
       >
         <lucide-icon name="Keyboard" [size]="16" aria-hidden="true" />
       </button>
+
+      <!-- Editor help -->
+      <button
+        type="button"
+        class="btn btn-ghost btn-sm btn-square"
+        (click)="helpModal().open()"
+        aria-label="Ajuda de l'editor de figures"
+        title="Ajuda"
+      >
+        <lucide-icon name="HelpCircle" [size]="16" aria-hidden="true" />
+      </button>
     </div>
   </header>
 
@@ -117,6 +128,20 @@
           <span class="node-rect" style="background-color: #EEEEEE; border: 1px dashed #a1a1a1;" aria-hidden="true"></span>
           BASE
         </button>
+
+        <!-- Base ordering warning -->
+        @if (baseNodes().length >= 2 && !baseOrderingValidation().isValid) {
+          <button
+            type="button"
+            class="mt-1 flex items-center gap-1 text-[10px] text-warning font-medium leading-tight hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-warning rounded px-1"
+            (click)="helpModal().open()"
+            title="Les bases no estan en ordre anti-horari. Clica per saber com corregir-ho."
+            aria-label="Avís: ordre de bases incorrecte. Clica per veure l'ajuda."
+          >
+            <lucide-icon name="AlertTriangle" [size]="11" aria-hidden="true" />
+            Ordre incorrecte
+          </button>
+        }
       </div>
 
       <div class="divider my-1"></div>
@@ -640,3 +665,6 @@
     <div class="modal-backdrop" (click)="toggleShortcutsModal()" aria-hidden="true"></div>
   </dialog>
 }
+
+<!-- Template editor help modal -->
+<app-template-editor-help-modal />

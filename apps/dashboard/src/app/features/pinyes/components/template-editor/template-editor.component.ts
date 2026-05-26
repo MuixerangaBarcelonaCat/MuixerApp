@@ -7,6 +7,7 @@ import {
   computed,
   OnInit,
   OnDestroy,
+  viewChild,
 } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -16,6 +17,7 @@ import { FigureTemplateService } from '../../services/figure-template.service';
 import { CanvasStateService } from '../../services/canvas-state.service';
 import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component';
 import { TroncViewComponent } from '../tronc-view/tronc-view.component';
+import { TemplateEditorHelpModalComponent } from '../template-editor-help-modal/template-editor-help-modal.component';
 import {
   FigureTemplateDetail,
   FigureNodeItem,
@@ -24,6 +26,7 @@ import {
 import { FigureZone, NodeShape } from '@muixer/shared';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
+import { validateBaseOrdering } from '../../utils/base-ordering.util';
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -52,7 +55,7 @@ const PINYA_POSITIONS: PinyaPosition[] = [
   selector: 'app-template-editor',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule, FigureCanvasComponent, TroncViewComponent],
+  imports: [FormsModule, LucideAngularModule, FigureCanvasComponent, TroncViewComponent, TemplateEditorHelpModalComponent],
   templateUrl: './template-editor.component.html',
   styleUrl: './template-editor.component.scss',
 })
@@ -63,6 +66,8 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly layout = inject(LayoutService);
   private readonly toast = inject(ToastService);
+
+  readonly helpModal = viewChild.required(TemplateEditorHelpModalComponent);
 
   // Template metadata
   templateId = signal<string | null>(null);
@@ -129,6 +134,13 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     if (s === 'error') return 'Error en guardar';
     return '';
   });
+
+  /** Validation of BASE node counter-clockwise ordering. Recomputes on any node change. */
+  readonly baseOrderingValidation = computed(() =>
+    validateBaseOrdering(
+      this.baseNodes().map((n) => ({ sortOrder: n.sortOrder, x: n.x, y: n.y })),
+    ),
+  );
 
   ngOnInit(): void {
     this.layout.requestFullscreen();
@@ -234,9 +246,10 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   onBaseNodeAdded(event: { sortOrder: number }): void {
     const id = crypto.randomUUID();
     const stageCenter = { x: 200, y: 200 };
+    const baseNumber = this.baseNodes().length + 1;
     const newNode: FigureNodeItem = {
       id,
-      label: 'Base',
+      label: `Base ${baseNumber}`,
       zone: FigureZone.BASE,
       positionType: 'base',
       x: stageCenter.x + Math.random() * 40 - 20,
@@ -601,7 +614,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   }
 
   private defaultLabel(zone: FigureZone, z = 0): string {
-    if (zone === FigureZone.BASE) return 'Base';
+    if (zone === FigureZone.BASE) return `Base ${this.baseNodes().length + 1}`;
     if (zone === FigureZone.PINYA) return 'Pinya';
     if (zone === FigureZone.TRONC) return `Pis ${z}`;
     if (zone === FigureZone.FIGURE_DIRECTION) return 'Direcció';

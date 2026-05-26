@@ -141,6 +141,20 @@
                     <span class="badge badge-ghost badge-sm">
                       {{ family.variantCount }} {{ family.variantCount === 1 ? 'variant' : 'variants' }}
                     </span>
+                    @if (!isFamilyBaseOrderingValid(family.id)) {
+                      <span
+                        class="badge badge-warning badge-sm gap-1 cursor-pointer hover:badge-outline"
+                        (click)="editorHelpModal.open(); $event.stopPropagation()"
+                        [attr.aria-label]="'Avís: les Bases de ' + family.name + ' no estan en ordre anti-horari correcte'"
+                        title="Les Bases no estan en ordre anti-horari. Clica per veure l'ajuda."
+                        role="button"
+                        tabindex="0"
+                        (keydown.enter)="editorHelpModal.open(); $event.stopPropagation()"
+                      >
+                        <lucide-icon name="AlertTriangle" [size]="11" aria-hidden="true" />
+                        Bases desordenades
+                      </span>
+                    }
                   </div>
                   @if (family.description) {
                     <p class="text-xs text-base-content/60 mt-0.5 line-clamp-1">{{ family.description }}</p>
@@ -756,3 +770,4 @@
 }
 
 <app-pinyes-onboarding-modal #onboardingModal />
+<app-template-editor-help-modal #editorHelpModal [autoShow]="false" />

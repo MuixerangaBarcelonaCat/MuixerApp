@@ -6,7 +6,8 @@ import { HttpErrorResponse } from '@angular/common/http';
 import {
   LUCIDE_ICONS, LucideIconProvider,
   Plus, Search, ChevronDown, ChevronRight, FolderOpen, Layers, LayoutGrid,
-  GitBranch, Pencil, Trash2, Copy, X, Info, ChevronLeft, HelpCircle,
+  GitBranch, Pencil, Trash2, Copy, X, Info, ChevronLeft, HelpCircle, AlertTriangle,
+  BookOpen, RotateCcw, ArrowUpDown,
 } from 'lucide-angular';
 import { TemplateListComponent } from './template-list.component';
 import { FigureTemplateService } from '../../services/figure-template.service';
@@ -56,6 +57,7 @@ describe('TemplateListComponent', () => {
   let router: { navigate: ReturnType<typeof vi.fn> };
   let figureService: {
     getAll: ReturnType<typeof vi.fn>;
+    getOne: ReturnType<typeof vi.fn>;
     remove: ReturnType<typeof vi.fn>;
     duplicate: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>;
@@ -77,6 +79,7 @@ describe('TemplateListComponent', () => {
     router = { navigate: vi.fn() };
     figureService = {
       getAll: vi.fn().mockReturnValue(of(paginatedTemplates)),
+      getOne: vi.fn().mockReturnValue(of({ ...makeTemplate(), nodes: [] })),
       remove: vi.fn().mockReturnValue(of(undefined)),
       duplicate: vi.fn().mockReturnValue(of(makeTemplate({ id: 'dup-1' }))),
       create: vi.fn().mockReturnValue(of(makeTemplate({ id: 'new-1' }))),
@@ -111,7 +114,8 @@ describe('TemplateListComponent', () => {
           provide: LUCIDE_ICONS, multi: true,
           useFactory: () => new LucideIconProvider({
             Plus, Search, ChevronDown, ChevronRight, FolderOpen, Layers, LayoutGrid,
-            GitBranch, Pencil, Trash2, Copy, X, Info, ChevronLeft, HelpCircle,
+            GitBranch, Pencil, Trash2, Copy, X, Info, ChevronLeft, HelpCircle, AlertTriangle,
+            BookOpen, RotateCcw, ArrowUpDown,
           }),
         },
       ],

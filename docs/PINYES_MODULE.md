@@ -22,9 +22,10 @@
 10. [Import massiu (bulk import)](#10-import-massiu-bulk-import)
 11. [Visualització i assignació de troncs (P5.6)](#11-visualització-i-assignació-de-troncs-p56)
 12. [Tronc nodes a nivell de família (P5.7)](#12-tronc-nodes-a-nivell-de-família-p57)
-13. [Invariants de domini](#13-invariants-de-domini)
-14. [Gestió d'errors i casos límit](#14-gestió-derrors-i-casos-límit)
-15. [Guia per futures implementacions](#15-guia-per-futures-implementacions)
+13. [Convenció d'ordre de les Bases (P5.8)](#13-convenció-dordre-de-les-bases-p58)
+14. [Invariants de domini](#14-invariants-de-domini)
+15. [Gestió d'errors i casos límit](#15-gestió-derrors-i-casos-límit)
+16. [Guia per futures implementacions](#16-guia-per-futures-implementacions)
 
 ---
 
@@ -572,8 +573,6 @@ Script `migrate-tronc-units.script.ts` actualitza valors existents de `x`/`width
 
 ## 12. Tronc nodes a nivell de família (P5.7)
 
-### El problema resolt
-
 Pre-P5.7, cada variant d'una família tenia la seva pròpia còpia dels nodes `TRONC`/`BASE`. Això causava:
 - Inconsistències quan s'editava el tronc d'una sola variant
 - Workflow tediós (editar totes les variants manualment)
@@ -660,7 +659,65 @@ interface FigureSeed {
 
 ---
 
-## 13. Invariants de domini
+## 13. Convenció d'ordre de les Bases (P5.8)
+
+### El problema
+
+Les Bases (zone `BASE`, `z = 0`) defineixen el P1 del Tronc. La seva posició horitzontal al Tronc (via `sortOrder`) determina quina persona del Tronc queda alineada sobre quina Base. Si les Bases no estan en l'ordre correcte, les assignacions del Tronc (Segon, Alçadora, Xiqueta) es col·loquen sobre la Base equivocada.
+
+### Convenció oficial
+
+**Les Bases es numeren i s'ordenen en sentit anti-horari (CCW) partint de la dalt-esquerra**, vist des de dalt del canvas de Pinya.
+
+| Núm. Base | Posició aproximada | Exemple (4 Bases) |
+|-----------|-------------------|-------------------|
+| Base 1    | Dalt-esquerra     | Top-left (NW)     |
+| Base 2    | Baix-esquerra     | Bottom-left (SW)  |
+| Base 3    | Baix-dreta        | Bottom-right (SE) |
+| Base 4    | Dalt-dreta        | Top-right (NE)    |
+
+Diagrama:
+```
+  Base 1 ── Base 4
+    |  ↺ CCW  |
+  Base 2 ── Base 3
+```
+
+Per a N Bases, el patró continua en sentit anti-horari des de la Base 1 (dalt-esquerra).
+
+### Etiquetatge automàtic
+
+Quan el Cap de Pinyes afegeix una Base des de l'editor, el sistema li assigna automàticament el label `Base N` (on N és la posició seqüencial dins la família: `Base 1`, `Base 2`, etc.). Aquest label reflecteix l'`sortOrder` de la Base.
+
+### Validació en l'editor
+
+La funció `validateBaseOrdering()` (`utils/base-ordering.util.ts`) comprova si les Bases segueixen l'ordre anti-horari:
+
+1. Calcula el centroide de totes les Bases.
+2. Mesura l'angle de cada Base respecte al centroide en coordenades de pantalla (`atan2`).
+3. Calcula la distància anti-horari de cada Base respecte a la Base 1 (`sortOrder` 0).
+4. Verifica que aquesta distància augmenta monòtonament amb el `sortOrder`.
+
+Si la validació falla (N ≥ 2 Bases), l'editor mostra un avís **"Ordre incorrecte"** a la secció de Bases de la barra d'eines.
+
+### Validació a la llista de templates
+
+A la vista de llista de famílies (`/pinyes`), cada família amb Bases desordenades mostra el badge **"Bases desordenades"**. Fent clic s'obre el modal d'ajuda que explica la convenció.
+
+La validació es fa de forma asíncrona en carregar la llista: per a cada família es carrega el primer variant (menor `variantOrder`) i s'extrauen els nodes `BASE`.
+
+### Modal d'ajuda
+
+El `TemplateEditorHelpModalComponent` explica:
+- Com funciona l'editor de figures.
+- La convenció d'ordre anti-horari de les Bases (amb diagrama).
+- La relació entre l'ordre de Bases i els pisos del Tronc.
+
+Es mostra automàticament a la primera visita a l'editor de templates (clau localStorage: `muixer_template_editor_help_dismissed`). Es pot reobrir des del botó `?` de la topbar de l'editor.
+
+---
+
+## 14. Invariants de domini
 
 Aquests invariants han de mantenir-se en qualsevol futura implementació:
 
@@ -686,9 +743,11 @@ Aquests invariants han de mantenir-se en qualsevol futura implementació:
 
 11. **Relative units for tronc (P5.6)**: Per nodes `TRONC`/`BASE`, `x` i `width` són unitats relatives (0–8u, steps 0.5). Per nodes `PINYA`, són pixels.
 
+12. **Base ordering (P5.8)**: Les Bases han de seguir l'ordre anti-horari (CCW) partint de dalt-esquerra. `sortOrder` 0 = dalt-esquerra, i augmenta en sentit anti-horari. El label de cada Base ha de ser `Base N` (N = sortOrder + 1). La funció `validateBaseOrdering()` comprova aquest invariant.
+
 ---
 
-## 14. Gestió d'errors i casos límit
+## 15. Gestió d'errors i casos límit
 
 | Situació | Codi HTTP | Missatge Catalan |
 |----------|-----------|-----------------|
@@ -709,7 +768,7 @@ Aquests invariants han de mantenir-se en qualsevol futura implementació:
 
 ---
 
-## 15. Guia per futures implementacions
+## 16. Guia per futures implementacions
 
 ### Afegir un nou tipus de posicionType
 
