@@ -20,7 +20,9 @@ export class CreateFigureNodeDto {
   @IsEnum(FigureZone)
   zone: FigureZone;
 
-  @ApiPropertyOptional({ description: 'Free-form position type, e.g. "base", "segon", "cross"' })
+  @ApiPropertyOptional({
+    description: 'Free-form position type, e.g. "base", "segon", "cross"',
+  })
   @IsString()
   @IsOptional()
   positionType?: string;
@@ -33,7 +35,10 @@ export class CreateFigureNodeDto {
   @IsNumber()
   y: number;
 
-  @ApiPropertyOptional({ description: 'Floor (0=base, 1=segon, 2=terç…)', default: 0 })
+  @ApiPropertyOptional({
+    description: 'Floor (0=base, 1=segon, 2=terç…)',
+    default: 0,
+  })
   @IsInt()
   @Min(0)
   @IsOptional()
@@ -67,10 +72,23 @@ export class CreateFigureNodeDto {
   @IsOptional()
   sortOrder?: number;
 
-  @ApiPropertyOptional({ description: 'Climb path marker, e.g. "(X)" or "(A)"' })
+  @ApiPropertyOptional({
+    description: 'Climb path marker, e.g. "(X)" or "(A)"',
+  })
   @IsString()
   @IsOptional()
   climbPath?: string;
+
+  @ApiPropertyOptional({ description: 'Rengla del node' })
+  @IsString()
+  @IsOptional()
+  rengla?: string | null;
+
+  @ApiPropertyOptional({ description: 'Posicio dins la rengla' })
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  renglaPosition?: number | null;
 
   @ApiPropertyOptional()
   @IsOptional()

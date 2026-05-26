@@ -2,6 +2,8 @@ export interface InstanceDetail {
   id: string;
   label: string | null;
   sortOrder: number;
+  numberOfCordons: number | null;
+  openCordons: string[] | null;
   figureTemplate: { id: string; name: string } | null;
   compositionTemplate: { id: string; name: string } | null;
 }
@@ -41,4 +43,6 @@ export interface CreateInstancePayload {
 export interface UpdateInstancePayload {
   label?: string | null;
   sortOrder?: number;
+  numberOfCordons?: number | null;
+  openCordons?: string[] | null;
 }

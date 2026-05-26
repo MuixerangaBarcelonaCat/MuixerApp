@@ -61,6 +61,12 @@ export class FigureNode {
   @Column({ type: 'varchar', nullable: true })
   climbPath: string | null;
 
+  @Column({ type: 'varchar', nullable: true })
+  rengla: string | null;
+
+  @Column({ type: 'int', nullable: true })
+  renglaPosition: number | null;
+
   @Column({ type: 'jsonb', default: {} })
   metadata: Record<string, unknown>;
 

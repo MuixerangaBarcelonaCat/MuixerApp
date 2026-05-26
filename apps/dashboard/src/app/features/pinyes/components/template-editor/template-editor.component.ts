@@ -7,6 +7,7 @@ import {
   computed,
   OnInit,
   OnDestroy,
+  ViewChild,
 } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -15,6 +16,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { CanvasStateService } from '../../services/canvas-state.service';
 import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component';
+import { RenglaOverlayComponent } from '../rengla-overlay/rengla-overlay.component';
 import { TroncWidgetComponent } from '../tronc-widget/tronc-widget.component';
 import {
   FigureTemplateDetail,
@@ -41,7 +43,7 @@ const PINYA_POSITIONS: PinyaPosition[] = [
   { positionType: 'agulla',      label: 'AGULLA',      color: '#0d9488' },
   { positionType: 'mans',        label: 'MANS',        color: '#FFE082' },
   { positionType: 'laterals',    label: 'LATERALS',    color: '#80DEEA' },
-  { positionType: 'vents',       label: 'VENTS',       color: '#A5D6A7' },
+  { positionType: 'vents',       label: 'VENT',       color: '#A5D6A7' },
   { positionType: 'cordo-obert', label: 'CORDO OBERT', color: '#FFF9C4' },
   { positionType: 'tap',         label: 'TAP',         color: '#be185d' },
   { positionType: 'crossa',      label: 'CROSSA',      color: '#9FA8DA' },
@@ -52,7 +54,13 @@ const PINYA_POSITIONS: PinyaPosition[] = [
   selector: 'app-template-editor',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule, FigureCanvasComponent, TroncWidgetComponent],
+  imports: [
+    FormsModule,
+    LucideAngularModule,
+    FigureCanvasComponent,
+    TroncWidgetComponent,
+    RenglaOverlayComponent,
+  ],
   templateUrl: './template-editor.component.html',
   styleUrl: './template-editor.component.scss',
 })
@@ -93,6 +101,12 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   readonly FigureZone = FigureZone;
   readonly NodeShape = NodeShape;
   readonly pinyaPositions = PINYA_POSITIONS;
+
+  @ViewChild(FigureCanvasComponent)
+  private canvasComponent?: FigureCanvasComponent;
+  readonly canvasTransform = computed(
+    () => this.canvasComponent?.stageTransform() ?? { x: 0, y: 0, scale: 1 },
+  );
 
   readonly pinyaNodes = computed(() =>
     this.nodes().filter((n) => n.zone !== FigureZone.TRONC),
@@ -167,7 +181,12 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   // ── Tronc widget events ────────────────────────────────────────────────────
 
-  onTroncNodeAdded(event: { z: number; positionType: string; label: string; sortOrder: number }): void {
+  onTroncNodeAdded(event: {
+    z: number;
+    positionType: string;
+    label: string;
+    sortOrder: number;
+  }): void {
     const id = crypto.randomUUID();
     const newNode: FigureNodeItem = {
       id,
@@ -184,6 +203,8 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
       shape: NodeShape.RECTANGLE,
       sortOrder: event.sortOrder,
       climbPath: null,
+      rengla: null,
+      renglaPosition: null,
       metadata: {},
     };
     this.nodes.update((n) => [...n, newNode]);
@@ -198,7 +219,9 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   }
 
   onTroncFloorRemoved(z: number): void {
-    this.nodes.update((n) => n.filter((node) => !(node.zone === FigureZone.TRONC && node.z === z)));
+    this.nodes.update((n) =>
+      n.filter((node) => !(node.zone === FigureZone.TRONC && node.z === z)),
+    );
     this.selectedNodeId.set(null);
     this.scheduleAutosave();
   }
@@ -223,6 +246,8 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
       shape: NodeShape.RECTANGLE,
       sortOrder: event.sortOrder,
       climbPath: null,
+      rengla: null,
+      renglaPosition: null,
       metadata: {},
     };
     this.nodes.update((n) => [...n, newNode]);
@@ -268,6 +293,8 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
       shape: NodeShape.RECTANGLE,
       sortOrder: this.nodes().length,
       climbPath: null,
+      rengla: null,
+      renglaPosition: null,
       metadata: {},
     };
     this.nodes.update((n) => [...n, newNode]);
@@ -277,6 +304,10 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown', ['$event'])
   onKeyDown(event: KeyboardEvent): void {
+    if (this.renglaEditMode()) {
+      this.onRenglaModeKeyDown(event);
+      return;
+    }
     const target = event.target as HTMLElement;
     const isEditing =
       target.tagName === 'INPUT' ||
@@ -352,10 +383,10 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     if (!id) return;
     const step = large ? 10 : 1;
     const delta = {
-      ArrowUp:    { x: 0,     y: -step },
-      ArrowDown:  { x: 0,     y:  step },
-      ArrowLeft:  { x: -step, y: 0     },
-      ArrowRight: { x:  step, y: 0     },
+      ArrowUp: { x: 0, y: -step },
+      ArrowDown: { x: 0, y: step },
+      ArrowLeft: { x: -step, y: 0 },
+      ArrowRight: { x: step, y: 0 },
     }[key];
     if (!delta) return;
 
@@ -374,14 +405,19 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   ): void {
     const id = this.selectedNodeId();
     if (!id) return;
-    
-    const patch: Partial<FigureNodeItem> = { [key]: value } as Partial<FigureNodeItem>;
-    
+
+    const patch: Partial<FigureNodeItem> = {
+      [key]: value,
+    } as Partial<FigureNodeItem>;
+
     // BASE and PINYA nodes always live at z=0
-    if (key === 'zone' && (value === FigureZone.PINYA || value === FigureZone.BASE)) {
+    if (
+      key === 'zone' &&
+      (value === FigureZone.PINYA || value === FigureZone.BASE)
+    ) {
       patch.z = 0;
     }
-    
+
     this.updateNode(id, patch);
     this.scheduleAutosave();
   }
@@ -447,7 +483,12 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
       });
     } else {
       this.figureTemplateService
-        .create({ name, slug, hasPinya: this.hasPinya(), nodes: payload.nodes ?? [] })
+        .create({
+          name,
+          slug,
+          hasPinya: this.hasPinya(),
+          nodes: payload.nodes ?? [],
+        })
         .subscribe({
           next: (created) => {
             this.templateId.set(created.id);
@@ -470,12 +511,17 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     this.saveStatus.set('error');
     const isSlugConflict =
       err.status === 409 ||
-      (err.status === 500 && (err.error?.message as string | undefined)?.toLowerCase().includes('slug'));
+      (err.status === 500 &&
+        (err.error?.message as string | undefined)
+          ?.toLowerCase()
+          .includes('slug'));
     if (isSlugConflict) {
       const slug = this.templateSlug();
-      this.toast.error(`L'identificador "${slug}" ja l'utilitza una altra figura. Canvia'l per poder desar.`);
+      this.toast.error(
+        `L'identificador "${slug}" ja l'utilitza una altra figura. Canvia'l per poder desar.`,
+      );
     } else {
-      this.toast.error('No s\'ha pogut desar la figura. Torna-ho a intentar.');
+      this.toast.error("No s'ha pogut desar la figura. Torna-ho a intentar.");
     }
   }
 
@@ -530,6 +576,200 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
       .trim()
       .replace(/\s+/g, '-');
   }
+
+  // ── Rengla edit mode ───────────────────────────────────────────────────────
+
+  readonly renglaEditMode = signal(false);
+
+  // Nodes being built into the current rengla (in order)
+  private renglaInProgress = signal<FigureNodeItem[]>([]);
+
+  // All committed rengles: renglaId → ordered node ids
+  // We derive this from the nodes signal so it stays in sync
+  readonly renglaMap = computed(() => {
+    const map = new Map<string, FigureNodeItem[]>();
+    for (const n of this.nodes()) {
+      if (n.zone !== FigureZone.PINYA) continue;
+      if (!n.rengla) continue;
+      const arr = map.get(n.rengla) ?? [];
+      arr.push(n);
+      map.set(n.rengla, arr);
+    }
+    // Sort each rengla by position
+    for (const [key, arr] of map) {
+      map.set(
+        key,
+        arr.sort((a, b) => (a.renglaPosition ?? 0) - (b.renglaPosition ?? 0)),
+      );
+    }
+    return map;
+  });
+
+  // Next auto-increment number
+  private nextRenglaNumber = computed(() => {
+    let max = 0;
+    for (const key of this.renglaMap().keys()) {
+      const match = key.match(/^Rengla (\d+)$/);
+      if (match) max = Math.max(max, +match[1]);
+    }
+    return max + 1;
+  });
+
+  readonly renglaInProgressNodes = this.renglaInProgress.asReadonly();
+
+  toggleRenglaMode(): void {
+    if (this.renglaEditMode()) {
+      this.cancelRengla();
+    }
+    this.renglaEditMode.update((v) => !v);
+    this.selectedNodeId.set(null);
+  }
+
+  onRenglaModeKeyDown(event: KeyboardEvent): void {
+    if (!this.renglaEditMode()) return;
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      this.finalizeRengla();
+    } else if (event.key === 'Delete') {
+      event.preventDefault();
+      this.cancelRengla();
+    }
+  }
+
+  onRenglaNodeClicked(node: FigureNodeItem): void {
+    if (!this.renglaEditMode()) return;
+
+    // Already in this rengla-in-progress — ignore (no cycles)
+    if (this.renglaInProgress().some((n) => n.id === node.id)) return;
+
+    // Belongs to a committed rengla → offer to delete it
+    if (node.rengla) {
+      this.openRenglaDialog(node);
+      return;
+    }
+
+    this.renglaInProgress.update((arr) => [...arr, node]);
+  }
+
+  finalizeRengla(): void {
+    const inProgress = this.renglaInProgress();
+    if (inProgress.length < 1) {
+      this.cancelRengla();
+      return;
+    }
+
+    const renglaName = `Rengla ${this.nextRenglaNumber()}`;
+
+    // Patch nodes locally first (optimistic)
+    this.nodes.update((nodes) =>
+      nodes.map((n) => {
+        const idx = inProgress.findIndex((p) => p.id === n.id);
+        if (idx === -1) return n;
+        return { ...n, rengla: renglaName, renglaPosition: idx + 1 };
+      }),
+    );
+    this.renglaInProgress.set([]);
+
+    for (let i = 0; i < inProgress.length; i++) {
+      const node = inProgress[i];
+      this.patchNodeRengla(node.id, renglaName, i + 1);
+    }
+  }
+
+  cancelRengla(): void {
+    this.renglaInProgress.set([]);
+  }
+
+  private deleteRengla(renglaName: string): void {
+    const affected = this.nodes().filter((n) => n.rengla === renglaName);
+
+    // Optimistic local clear
+    this.nodes.update((nodes) =>
+      nodes.map((n) =>
+        n.rengla === renglaName
+          ? { ...n, rengla: null, renglaPosition: null }
+          : n,
+      ),
+    );
+
+    for (const node of affected) {
+      this.patchNodeRengla(node.id, null, null);
+    }
+  }
+
+  private patchNodeRengla(
+    nodeId: string,
+    rengla: string | null,
+    renglaPosition: number | null,
+  ): void {
+    const templateId = this.templateId();
+    if (!templateId) return;
+    this.updateNode(nodeId, {
+      rengla: rengla ?? undefined,
+      renglaPosition: renglaPosition ?? undefined,
+    });
+  }
+
+  readonly renglaEditDialog = signal<{
+    renglaName: string;
+    nodes: FigureNodeItem[];
+    offsetDelta: number; // how much the user has shifted the start position
+  } | null>(null);
+
+  openRenglaDialog(node: FigureNodeItem): void {
+    const renglaName = node.rengla!;
+    const nodes = this.renglaMap().get(renglaName) ?? [];
+    this.renglaEditDialog.set({ renglaName, nodes, offsetDelta: 0 });
+  }
+
+  adjustRenglaOffset(delta: number): void {
+    this.renglaEditDialog.update((d) => {
+      if (!d) return d;
+      const newDelta = d.offsetDelta + delta;
+      // Clamp so position 1 never goes below 1
+      const minPosition = d.nodes[0]?.renglaPosition ?? 1;
+      if (minPosition + newDelta < 1) return d;
+      return { ...d, offsetDelta: newDelta };
+    });
+  }
+
+  confirmRenglaEdit(): void {
+    const dialog = this.renglaEditDialog();
+    if (!dialog) return;
+
+    if (dialog.offsetDelta !== 0) {
+      // Apply offset: patch all nodes locally and via API
+      this.nodes.update((nodes) =>
+        nodes.map((n) => {
+          if (n.rengla !== dialog.renglaName || n.renglaPosition === null)
+            return n;
+          return {
+            ...n,
+            renglaPosition: n.renglaPosition + dialog.offsetDelta,
+          };
+        }),
+      );
+      const affected = this.nodes().filter(
+        (n) => n.rengla === dialog.renglaName,
+      );
+      for (const node of affected) {
+        this.patchNodeRengla(node.id, node.rengla, node.renglaPosition);
+      }
+    }
+
+    this.renglaEditDialog.set(null);
+  }
+
+  deleteRenglaFromDialog(): void {
+    const dialog = this.renglaEditDialog();
+    if (!dialog) return;
+    this.renglaEditDialog.set(null);
+    this.deleteRengla(dialog.renglaName);
+  }
+
+  closeRenglaDialog(): void {
+    this.renglaEditDialog.set(null);
+  }
 }
 
 function nodeToPayload(node: FigureNodeItem): CreateFigureNodePayload {
@@ -547,6 +787,8 @@ function nodeToPayload(node: FigureNodeItem): CreateFigureNodePayload {
     shape: node.shape,
     sortOrder: node.sortOrder,
     climbPath: node.climbPath ?? undefined,
+    rengla: node.rengla ?? undefined,
+    renglaPosition: node.renglaPosition ?? undefined,
     metadata: node.metadata,
   };
 }

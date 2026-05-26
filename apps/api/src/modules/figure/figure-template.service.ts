@@ -26,6 +26,8 @@ export interface FigureNodeItem {
   shape: string;
   sortOrder: number;
   climbPath: string | null;
+  rengla: string | null;
+  renglaPosition: number | null;
   metadata: Record<string, unknown>;
 }
 
@@ -258,6 +260,8 @@ export class FigureTemplateService {
         shape: dto.shape,
         sortOrder: dto.sortOrder ?? 0,
         climbPath: dto.climbPath ?? null,
+        rengla: dto.rengla ?? null,
+        renglaPosition: dto.renglaPosition ?? null,
         metadata: dto.metadata ?? {},
       }),
     );
@@ -301,6 +305,8 @@ function nodeToCreateDto(node: FigureNode): CreateFigureNodeDto {
     shape: node.shape,
     sortOrder: node.sortOrder,
     climbPath: node.climbPath ?? undefined,
+    rengla: node.rengla ?? undefined,
+    renglaPosition: node.renglaPosition ?? undefined,
     metadata: node.metadata,
   };
 }
@@ -338,6 +344,8 @@ function toDetailItem(template: FigureTemplate): FigureTemplateDetailItem {
       shape: node.shape,
       sortOrder: node.sortOrder,
       climbPath: node.climbPath,
+      rengla: node.rengla,
+      renglaPosition: node.renglaPosition,
       metadata: node.metadata,
     })),
   };

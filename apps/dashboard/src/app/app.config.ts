@@ -52,6 +52,7 @@ import {
   Pencil,
   Plus,
   RefreshCw,
+  Rows3,
   Search,
   Settings,
   Shapes,
@@ -72,7 +73,7 @@ const icons = {
   Clock, Construction, Copy, ExternalLink, Eye,
   Grid3X3, Home, Keyboard, LayoutGrid, Layers, List, Lock, Magnet, Mail, Maximize2, Menu, Minus,
   MoreHorizontal, MousePointer2, MousePointerClick,
-  PanelRightClose, PanelRightOpen, Pencil, Plus, RefreshCw, Search, Settings, Shapes, Shield,
+  PanelRightClose, PanelRightOpen, Pencil, Plus, RefreshCw, Rows3, Search, Settings, Shapes, Shield,
   Star, Tag, Trash2, UserCog, UserX, Users, X, Hexagon, EyeOff
 };
 

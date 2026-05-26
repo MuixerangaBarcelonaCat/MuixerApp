@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { IsInt, IsOptional, IsString, Min, IsArray } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class UpdateInstanceDto {
@@ -14,4 +14,16 @@ export class UpdateInstanceDto {
   @IsOptional()
   @Type(() => Number)
   sortOrder?: number;
+
+  @ApiPropertyOptional({ description: 'Number of cordons' })
+  @IsInt()
+  @IsOptional()
+  @Min(0)
+  @Type(() => Number)
+  numberOfCordons: number | null;
+
+  @ApiPropertyOptional({ description: 'List of open cordons' })
+  @IsOptional()
+  @IsArray()
+  openCordons: string[];
 }

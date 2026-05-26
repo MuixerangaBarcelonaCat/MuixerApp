@@ -8,7 +8,7 @@ import {
   signal,
 } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { LucideAngularModule, ArrowLeft, Users, Edit, RefreshCw } from 'lucide-angular';
+import { LucideAngularModule, ArrowLeft, Users, Edit, RefreshCw, Rows3, Plus, Minus } from 'lucide-angular';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
@@ -19,6 +19,7 @@ import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component'
 import { PersonPanelComponent } from '../person-panel/person-panel.component';
 import { NodePopoverComponent } from '../node-popover/node-popover.component';
 import { ImportPinyaModalComponent } from '../import-pinya-modal/import-pinya-modal.component';
+import { FigureInstanceService } from '../../services/figure-instance.service';
 import {
   AssignmentDetail,
   AvailablePerson,
@@ -27,6 +28,7 @@ import {
 } from '../../models/assignment.model';
 import { SegmentDetail } from '../../models/segment.model';
 import { FigureNodeItem } from '../../models/figure-template.model';
+import { NodeShape } from '@muixer/shared';
 
 interface InstanceTab {
   instanceId: string;
@@ -35,6 +37,8 @@ interface InstanceTab {
   nodes: FigureNodeItem[];
   assignedCount: number;
   totalCount: number;
+  numberOfCordons: number | null;
+  openCordons: string[] | null;
 }
 
 @Component({
@@ -57,6 +61,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   private readonly layout = inject(LayoutService);
   private readonly assignmentService = inject(NodeAssignmentService);
   private readonly segmentService = inject(EventSegmentService);
+  private readonly instanceService = inject(FigureInstanceService);
   private readonly figureTemplateService = inject(FigureTemplateService);
   private readonly toast = inject(ToastService);
   readonly state = inject(AssignmentStateService);
@@ -65,6 +70,9 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly Users = Users;
   readonly Edit = Edit;
   readonly RefreshCw = RefreshCw;
+  readonly Rows3 = Rows3;
+  readonly Plus = Plus;
+  readonly Minus = Minus;
 
   readonly eventId = signal('');
   readonly segmentId = signal('');
@@ -75,11 +83,75 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly popoverPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
   readonly importModalOpen = signal(false);
 
-  readonly activeTab = computed(() =>
-    this.tabs().find((t) => t.instanceId === this.state.activeInstanceId()) ?? null,
+  readonly activeTab = computed(
+    () =>
+      this.tabs().find((t) => t.instanceId === this.state.activeInstanceId()) ??
+      null,
   );
 
-  readonly activeNodes = computed(() => this.activeTab()?.nodes ?? []);
+  readonly activeRenglaTypes = computed(() => {
+    const nodes = this.activeTab()?.nodes ?? [];
+
+    // For each rengla, find the node with the lowest renglaPosition
+    const renglaFirstNode = new Map<string, string>(); // renglaName → firstNodeLabel
+    for (const n of nodes) {
+      if (!n.rengla || n.renglaPosition === null) continue;
+      const existing = renglaFirstNode.get(n.rengla);
+      if (!existing) {
+        renglaFirstNode.set(n.rengla, n.label);
+      } else {
+        // Check if this node has a lower position
+        const currentMin = nodes
+          .filter((x) => x.rengla === n.rengla)
+          .reduce(
+            (min, x) => (x.renglaPosition! < min ? x.renglaPosition! : min),
+            Infinity,
+          );
+        if (n.renglaPosition === currentMin) {
+          renglaFirstNode.set(n.rengla, n.label);
+        }
+      }
+    }
+
+    // Group rengla names by their first-node label (the "type")
+    const typeMap = new Map<string, string[]>(); // firstNodeLabel → renglaNames[]
+    for (const [renglaName, firstLabel] of renglaFirstNode) {
+      const arr = typeMap.get(firstLabel) ?? [];
+      arr.push(renglaName);
+      typeMap.set(firstLabel, arr);
+    }
+
+    return [...typeMap.entries()]
+      .map(([typeName, renglaNames]) => ({ typeName, renglaNames }))
+      .sort((a, b) => a.typeName.localeCompare(b.typeName));
+  });
+
+  readonly activeNodes = computed(() => {
+    const tab = this.activeTab();
+    if (!tab) return [];
+    const maxPosition = tab.numberOfCordons;
+    const openCordons = tab.openCordons ?? [];
+
+    return tab.nodes
+      .filter((n) => {
+        // Nodes without rengla always show
+        if (!n.rengla || n.renglaPosition === null) return true;
+        // Apply cordon cutoff
+        if (maxPosition !== null && n.renglaPosition > maxPosition)
+          return false;
+        return true;
+      })
+      .map((n) => {
+        if (!n.rengla || n.renglaPosition === null) return n;
+        const maxPosition = tab.numberOfCordons;
+        // Last visible position in this rengla
+        const isLast = maxPosition !== null && n.renglaPosition === maxPosition;
+        if (isLast && openCordons.includes(n.rengla)) {
+          return { ...n, shape: NodeShape.ELLIPSE };
+        }
+        return n;
+      });
+  });
 
   readonly assignmentProgress = computed(() => {
     const tab = this.activeTab();
@@ -88,7 +160,13 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   });
 
   readonly attendanceMap = computed(() => this.state.attendanceRegistry());
-  readonly nextPerformanceMap = computed(() => this.state.nextPerformanceRegistry());
+  readonly nextPerformanceMap = computed(() =>
+    this.state.nextPerformanceRegistry(),
+  );
+
+  readonly cordonsDialogOpen = signal(false);
+  readonly dialogCordons = signal<number | null>(null);
+  readonly dialogOpenCordons = signal<string[]>([]);
 
   ngOnInit(): void {
     this.layout.requestFullscreen();
@@ -127,14 +205,18 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   private buildTabs(seg: SegmentDetail): void {
     const tabBuilders = seg.instances
       .filter((i) => !!i.figureTemplate)
-      .map((instance): InstanceTab => ({
-        instanceId: instance.id,
-        label: instance.label ?? instance.figureTemplate?.name ?? '?',
-        figureTemplateId: instance.figureTemplate?.id ?? null,
-        nodes: [],
-        assignedCount: 0,
-        totalCount: 0,
-      }));
+      .map(
+        (instance): InstanceTab => ({
+          instanceId: instance.id,
+          label: instance.label ?? instance.figureTemplate?.name ?? '?',
+          figureTemplateId: instance.figureTemplate?.id ?? null,
+          nodes: [],
+          assignedCount: 0,
+          totalCount: 0,
+          numberOfCordons: instance.numberOfCordons ?? null,
+          openCordons: instance.openCordons ?? null,
+        }),
+      );
 
     this.tabs.set(tabBuilders);
 
@@ -190,7 +272,11 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
           this.tabs.update((list) =>
             list.map((t) =>
               t.instanceId === instanceId
-                ? { ...t, nodes: template.nodes, totalCount: template.nodes.length }
+                ? {
+                    ...t,
+                    nodes: template.nodes,
+                    totalCount: template.nodes.length,
+                  }
                 : t,
             ),
           );
@@ -213,8 +299,13 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     });
   }
 
-  onAssignedPersonSelected(event: { personId: string; instanceId: string }): void {
-    const targetTab = this.tabs().find((t) => t.instanceId === event.instanceId);
+  onAssignedPersonSelected(event: {
+    personId: string;
+    instanceId: string;
+  }): void {
+    const targetTab = this.tabs().find(
+      (t) => t.instanceId === event.instanceId,
+    );
     if (!targetTab) return;
 
     // Switch to the tab that contains the assignment
@@ -223,7 +314,9 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     // After tab data loads, find and select the node where this person is assigned
     this.assignmentService.getByInstance(event.instanceId).subscribe({
       next: (resp) => {
-        const assignment = resp.data.find((a) => a.person.id === event.personId);
+        const assignment = resp.data.find(
+          (a) => a.person.id === event.personId,
+        );
         if (assignment) {
           this.state.setSelectedNodeId(assignment.node.id);
         }
@@ -244,10 +337,16 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
     const previouslySelectedNodeId = this.state.selectedNodeId();
     const previousNodeAssignment = previouslySelectedNodeId
-      ? this.state.assignments().find((a) => a.node.id === previouslySelectedNodeId)
+      ? this.state
+          .assignments()
+          .find((a) => a.node.id === previouslySelectedNodeId)
       : null;
 
-    if (clickedNodeAssignment && previousNodeAssignment && previouslySelectedNodeId !== nodeId) {
+    if (
+      clickedNodeAssignment &&
+      previousNodeAssignment &&
+      previouslySelectedNodeId !== nodeId
+    ) {
       this.triggerSwap(previousNodeAssignment, clickedNodeAssignment);
       this.state.setSelectedNodeId(null);
       this.popoverAssignment.set(null);
@@ -284,7 +383,11 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
     if (existingAssignment) {
       // Swap: unassign current, then assign new person
-      this.triggerUnassignThenAssign(existingAssignment, selectedNodeId, person.id);
+      this.triggerUnassignThenAssign(
+        existingAssignment,
+        selectedNodeId,
+        person.id,
+      );
     } else {
       this.triggerAssign(selectedNodeId, person.id);
     }
@@ -301,7 +404,13 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
       figureInstanceId: instanceId,
       compositionSlotId: null,
       node: this.activeNodes().find((n) => n.id === nodeId)! as any,
-      person: { id: personId, alias: '...', name: '', firstSurname: '', shoulderHeight: null },
+      person: {
+        id: personId,
+        alias: '...',
+        name: '',
+        firstSurname: '',
+        shoulderHeight: null,
+      },
     };
     this.state.assignments.update((list) => [...list, tempAssignment]);
     this.state.setSelectedNodeId(null);
@@ -322,7 +431,9 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
         this.state.assignments.update((list) =>
           list.map((a) => (a.id === tempAssignment.id ? created : a)),
         );
-        this.state.pendingOperations.update((ops) => ops.filter((o) => o.id !== op.id));
+        this.state.pendingOperations.update((ops) =>
+          ops.filter((o) => o.id !== op.id),
+        );
         this.updateTabCount(instanceId);
         this.state.refreshPersonList();
         this.advanceToNextEmptyNode(nodeId);
@@ -330,14 +441,17 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
       error: (err) => {
         // Rollback
         this.state.assignments.set(op.previousAssignments);
-        this.state.pendingOperations.update((ops) => ops.filter((o) => o.id !== op.id));
+        this.state.pendingOperations.update((ops) =>
+          ops.filter((o) => o.id !== op.id),
+        );
         this.updateTabCount(instanceId);
         this.state.refreshPersonList();
         // Restore focus to the node that failed so the user can retry
         this.state.setSelectedNodeId(nodeId);
-        const msg = err?.status === 409
-          ? 'Conflicte en assignar la persona. Ja pot estar assignada.'
-          : 'Error en assignar la persona.';
+        const msg =
+          err?.status === 409
+            ? 'Conflicte en assignar la persona. Ja pot estar assignada.'
+            : 'Error en assignar la persona.';
         this.toast.error(msg);
       },
     });
@@ -352,7 +466,9 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     if (!instanceId) return;
 
     const snapshot = [...this.state.assignments()];
-    this.state.assignments.update((list) => list.filter((a) => a.id !== existing.id));
+    this.state.assignments.update((list) =>
+      list.filter((a) => a.id !== existing.id),
+    );
     this.state.setSelectedNodeId(null);
 
     this.assignmentService.unassign(instanceId, existing.id).subscribe({
@@ -366,14 +482,17 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     });
   }
 
-  private triggerSwap(assignment1: AssignmentDetail, assignment2: AssignmentDetail): void {
+  private triggerSwap(
+    assignment1: AssignmentDetail,
+    assignment2: AssignmentDetail,
+  ): void {
     const instanceId = this.state.activeInstanceId();
     if (!instanceId) return;
 
     const snapshot = [...this.state.assignments()];
-    
-    this.state.assignments.update((list) => 
-      list.map(a => {
+
+    this.state.assignments.update((list) =>
+      list.map((a) => {
         if (a.id === assignment1.id) {
           return { ...a, person: assignment2.person };
         }
@@ -381,48 +500,54 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
           return { ...a, person: assignment1.person };
         }
         return a;
-      })
+      }),
     );
 
     this.assignmentService.unassign(instanceId, assignment1.id).subscribe({
       next: () => {
         this.assignmentService.unassign(instanceId, assignment2.id).subscribe({
           next: () => {
-            this.assignmentService.assign(instanceId, { 
-              nodeId: assignment1.node.id, 
-              personId: assignment2.person.id 
-            }).subscribe({
-              next: () => {
-                this.assignmentService.assign(instanceId, { 
-                  nodeId: assignment2.node.id, 
-                  personId: assignment1.person.id 
-                }).subscribe({
-                  next: () => {
-                    this.loadTabData(instanceId);
-                    this.toast.success('Persones intercanviades correctament.');
-                  },
-                  error: () => {
-                    this.state.assignments.set(snapshot);
-                    this.toast.error('Error en l\'intercanvi de persones.');
-                  }
-                });
-              },
-              error: () => {
-                this.state.assignments.set(snapshot);
-                this.toast.error('Error en l\'intercanvi de persones.');
-              }
-            });
+            this.assignmentService
+              .assign(instanceId, {
+                nodeId: assignment1.node.id,
+                personId: assignment2.person.id,
+              })
+              .subscribe({
+                next: () => {
+                  this.assignmentService
+                    .assign(instanceId, {
+                      nodeId: assignment2.node.id,
+                      personId: assignment1.person.id,
+                    })
+                    .subscribe({
+                      next: () => {
+                        this.loadTabData(instanceId);
+                        this.toast.success(
+                          'Persones intercanviades correctament.',
+                        );
+                      },
+                      error: () => {
+                        this.state.assignments.set(snapshot);
+                        this.toast.error("Error en l'intercanvi de persones.");
+                      },
+                    });
+                },
+                error: () => {
+                  this.state.assignments.set(snapshot);
+                  this.toast.error("Error en l'intercanvi de persones.");
+                },
+              });
           },
           error: () => {
             this.state.assignments.set(snapshot);
-            this.toast.error('Error en l\'intercanvi de persones.');
-          }
+            this.toast.error("Error en l'intercanvi de persones.");
+          },
         });
       },
       error: () => {
         this.state.assignments.set(snapshot);
-        this.toast.error('Error en l\'intercanvi de persones.');
-      }
+        this.toast.error("Error en l'intercanvi de persones.");
+      },
     });
   }
 
@@ -431,7 +556,9 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     if (!instanceId) return;
 
     const snapshot = [...this.state.assignments()];
-    this.state.assignments.update((list) => list.filter((a) => a.id !== assignment.id));
+    this.state.assignments.update((list) =>
+      list.filter((a) => a.id !== assignment.id),
+    );
     this.popoverAssignment.set(null);
     this.state.setSelectedNodeId(null);
 
@@ -468,14 +595,17 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   private updateTabCount(instanceId: string): void {
     const count = this.state.assignments().length;
     this.tabs.update((list) =>
-      list.map((t) => (t.instanceId === instanceId ? { ...t, assignedCount: count } : t)),
+      list.map((t) =>
+        t.instanceId === instanceId ? { ...t, assignedCount: count } : t,
+      ),
     );
   }
 
   onImportCompleted(result: BulkImportResult): void {
-    const msg = result.conflicts.length > 0
-      ? `Importades ${result.created.length} assignacions (${result.conflicts.length} conflictes omesos).`
-      : `Importades ${result.created.length} assignacions correctament.`;
+    const msg =
+      result.conflicts.length > 0
+        ? `Importades ${result.created.length} assignacions (${result.conflicts.length} conflictes omesos).`
+        : `Importades ${result.created.length} assignacions correctament.`;
     this.toast.success(msg);
     this.importModalOpen.set(false);
     const instanceId = this.state.activeInstanceId();
@@ -488,5 +618,72 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
   goBack(): void {
     this.router.navigate(['/events', this.eventId()]);
+  }
+
+  openCordonsDialog(): void {
+    const tab = this.activeTab();
+    if (!tab) return;
+    this.dialogCordons.set(tab.numberOfCordons);
+    this.dialogOpenCordons.set(tab.openCordons ?? []);
+    this.cordonsDialogOpen.set(true);
+  }
+
+  closeCordonsDialog(): void {
+    this.cordonsDialogOpen.set(false);
+  }
+
+  adjustDialogCordons(delta: number): void {
+    this.dialogCordons.update((v) => {
+      const current = v ?? 0;
+      const next = current + delta;
+      return next <= 0 ? null : next;
+    });
+  }
+
+  isTypeOpen(renglaNames: string[]): boolean {
+    return renglaNames.every((r) => this.dialogOpenCordons().includes(r));
+  }
+
+  toggleOpenCordoType(renglaNames: string[]): void {
+    const allOn = this.isTypeOpen(renglaNames);
+    this.dialogOpenCordons.update((list) => {
+      if (allOn) {
+        return list.filter((r) => !renglaNames.includes(r));
+      } else {
+        const toAdd = renglaNames.filter((r) => !list.includes(r));
+        return [...list, ...toAdd];
+      }
+    });
+  }
+
+  toggleAllOpenCordons(): void {
+    const all = this.activeRenglaTypes().flatMap((t) => t.renglaNames);
+    this.dialogOpenCordons.update((list) =>
+      list.length === all.length ? [] : all,
+    );
+  }
+
+  saveCordonsDialog(): void {
+    const instanceId = this.state.activeInstanceId();
+    if (!instanceId) return;
+
+    const numberOfCordons = this.dialogCordons();
+    const openCordons = this.dialogOpenCordons();
+
+    this.cordonsDialogOpen.set(false);
+
+    this.tabs.update((list) =>
+      list.map((t) =>
+        t.instanceId === instanceId
+          ? { ...t, numberOfCordons, openCordons: [...openCordons] }
+          : t,
+      ),
+    );
+
+    this.instanceService
+      .update(this.eventId(), this.segmentId(), instanceId, { numberOfCordons, openCordons })
+      .subscribe({
+        error: () => this.toast.error('Error desant la configuració de cordons.'),
+      });
   }
 }

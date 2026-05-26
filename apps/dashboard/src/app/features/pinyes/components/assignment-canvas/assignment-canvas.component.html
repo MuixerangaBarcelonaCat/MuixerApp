@@ -30,6 +30,17 @@
         </button>
       }
     </div>
+    @if (state.activeInstanceId()) {
+      <button
+        type="button"
+        class="btn btn-ghost btn-sm gap-1"
+        (click)="openCordonsDialog()"
+        aria-label="Configurar cordons"
+      >
+        <i-lucide [img]="Rows3" class="size-4" />
+        Cordons
+      </button>
+    }
 
     @if (activeTab()?.figureTemplateId) {
       <a
@@ -153,4 +164,110 @@
     (importCompleted)="onImportCompleted($event)"
     (closed)="importModalOpen.set(false)"
   />
+}
+
+@if (cordonsDialogOpen()) {
+  <dialog
+    class="modal modal-open"
+    aria-modal="true"
+    aria-labelledby="cordons-dialog-title"
+    (keydown.escape)="closeCordonsDialog()"
+  >
+    <div class="modal-box max-w-sm">
+      <h3 id="cordons-dialog-title" class="font-bold text-lg mb-4">
+        Configuració de cordons
+      </h3>
+
+      <!-- Cordons number -->
+      <div class="form-control mb-5">
+        <label class="label pb-1">
+          <span class="label-text text-xs font-medium">Cordons visibles</span>
+          <span class="label-text-alt text-base-content/50">
+            {{ dialogCordons() === null ? 'Tots' : 'fins a posició ' + dialogCordons() }}
+          </span>
+        </label>
+        <div class="flex items-center gap-3">
+          <button
+            type="button"
+            class="btn btn-sm btn-ghost btn-square"
+            [disabled]="dialogCordons() === null"
+            (click)="adjustDialogCordons(-1)"
+            aria-label="Menys cordons"
+          >
+            <i-lucide [img]="Minus" class="size-4" />
+          </button>
+          <span class="font-mono text-xl font-semibold min-w-10 text-center">
+            {{ dialogCordons() === null ? '∞' : dialogCordons() }}
+          </span>
+          <button
+            type="button"
+            class="btn btn-sm btn-ghost btn-square"
+            (click)="adjustDialogCordons(1)"
+            aria-label="Més cordons"
+          >
+            <i-lucide [img]="Plus" class="size-4" />
+          </button>
+        </div>
+      </div>
+
+      <div class="divider my-3"></div>
+
+      <!-- Cordo obert per rengla -->
+      <div class="form-control mb-4">
+        <label class="label pb-2">
+          <span class="label-text text-xs font-medium">Cordó obert</span>
+          <span class="label-text-alt text-base-content/50 text-xs">
+            L'últim node de la rengla serà el·lipse
+          </span>
+        </label>
+
+        @if (activeRenglaTypes().length === 0) {
+          <p class="text-xs text-base-content/40 italic">
+            Aquesta figura no té rengles definides.
+          </p>
+        } @else {
+          <!-- All toggle -->
+          <label class="flex items-center gap-3 py-1 cursor-pointer mb-1">
+            <input
+              type="checkbox"
+              class="checkbox checkbox-sm checkbox-primary"
+              [checked]="dialogOpenCordons().length === activeRenglaTypes().length"
+              [indeterminate]="dialogOpenCordons().length > 0 && dialogOpenCordons().length < activeRenglaTypes().length"
+              (change)="toggleAllOpenCordons()"
+            />
+            <span class="text-sm font-medium">Totes les rengles</span>
+          </label>
+
+          <div class="divider my-1"></div>
+
+          @for (type of activeRenglaTypes(); track type.typeName) {
+            <label class="flex items-center gap-3 py-1 cursor-pointer">
+              <input
+                type="checkbox"
+                class="checkbox checkbox-sm"
+                [checked]="isTypeOpen(type.renglaNames)"
+                (change)="toggleOpenCordoType(type.renglaNames)"
+              />
+              <div class="flex flex-col min-w-0">
+                <span class="text-sm">{{ type.typeName }}</span>
+                <span class="text-xs text-base-content/50">
+                  {{ type.renglaNames.length }} rengl{{ type.renglaNames.length !== 1 ? 'es' : 'a' }}
+                </span>
+              </div>
+            </label>
+          }
+        }
+      </div>
+
+      <div class="modal-action">
+        <button type="button" class="btn btn-ghost btn-sm" (click)="closeCordonsDialog()">
+          Cancel·lar
+        </button>
+        <button type="button" class="btn btn-primary btn-sm" (click)="saveCordonsDialog()">
+          Desar
+        </button>
+      </div>
+    </div>
+    <div class="modal-backdrop" (click)="closeCordonsDialog()" aria-hidden="true"></div>
+  </dialog>
 }

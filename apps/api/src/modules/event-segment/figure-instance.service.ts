@@ -95,6 +95,8 @@ export class FigureInstanceService {
 
     if (dto.label !== undefined) instance.label = dto.label ?? null;
     if (dto.sortOrder !== undefined) instance.sortOrder = dto.sortOrder;
+    if (dto.numberOfCordons !== undefined) instance.numberOfCordons = dto.numberOfCordons ?? null;
+    if (dto.openCordons !== undefined) instance.openCordons = dto.openCordons ?? null;
 
     await this.instanceRepository.save(instance);
     return this.findOneById(instance.id);

@@ -54,6 +54,20 @@
         </span>
       }
 
+      <!-- Rengla edit mode toggle -->
+      <button
+        type="button"
+        class="btn btn-sm gap-1"
+        [class.btn-warning]="renglaEditMode()"
+        [class.btn-ghost]="!renglaEditMode()"
+        (click)="toggleRenglaMode()"
+        [attr.aria-pressed]="renglaEditMode()"
+        title="Edita rengles"
+      >
+        <lucide-icon name="Rows3" [size]="14" aria-hidden="true" />
+        Edita rengles
+      </button>
+
       <!-- hasPinya toggle -->
       <label class="flex items-center gap-2 cursor-pointer" title="Té Pinya">
         <span class="text-xs text-base-content/60">Pinya</span>
@@ -214,9 +228,10 @@
           </div>
         </div>
       } @else {
+        <div class="relative w-full h-full">
         <app-figure-canvas
           [nodes]="pinyaNodes()"
-          [mode]="'editor'"
+          [mode]="renglaEditMode() ? 'readonly' : 'editor'"
           [gridEnabled]="gridEnabled()"
           [gridSpacing]="40"
           [snapToGrid]="snapToGrid()"
@@ -227,6 +242,18 @@
           (nodeResized)="onNodeResized($event)"
           (nodeLabelChanged)="onNodeLabelChanged($event)"
         />
+        @if (renglaEditMode()) {
+          <app-rengla-overlay
+            [nodes]="pinyaNodes()"
+            [renglaInProgress]="renglaInProgressNodes()"
+            [renglaMap]="renglaMap()"
+            (nodeClicked)="onRenglaNodeClicked($event)"
+            (finalize)="finalizeRengla()"
+            (cancel)="cancelRengla()"
+            [stageTransform]="canvasTransform()"
+          />
+        }
+      </div>
       }
     </main>
 
@@ -575,5 +602,82 @@
       </section>
     </div>
     <div class="modal-backdrop" (click)="toggleShortcutsModal()" aria-hidden="true"></div>
+  </dialog>
+}
+
+@if (renglaEditDialog(); as dialog) {
+  <dialog
+    class="modal modal-open"
+    aria-modal="true"
+    [attr.aria-labelledby]="'rengla-dialog-title'"
+    (keydown.escape)="closeRenglaDialog()"
+  >
+    <div class="modal-box max-w-sm">
+      <h3 id="rengla-dialog-title" class="font-bold text-lg mb-1">
+        {{ dialog.renglaName }}
+      </h3>
+      <p class="text-sm text-base-content/60 mb-4">
+        {{ dialog.nodes.length }} nodes · posicions
+        {{ (dialog.nodes[0]?.renglaPosition ?? 1) + dialog.offsetDelta }}
+        –
+        {{ (dialog.nodes[dialog.nodes.length - 1]?.renglaPosition ?? dialog.nodes.length) + dialog.offsetDelta }}
+      </p>
+
+      <!-- Position offset adjuster -->
+      <div class="form-control mb-4">
+        <label class="label pb-1">
+          <span class="label-text text-xs font-medium">Posició del primer node</span>
+        </label>
+        <div class="flex items-center gap-3">
+          <button
+            type="button"
+            class="btn btn-sm btn-ghost btn-square"
+            [disabled]="(dialog.nodes[0]?.renglaPosition ?? 1) + dialog.offsetDelta <= 1"
+            (click)="adjustRenglaOffset(-1)"
+            aria-label="Disminuir posició"
+          >
+            <lucide-icon name="Minus" [size]="14" />
+          </button>
+          <span class="font-mono text-lg font-semibold min-w-8 text-center">
+            {{ (dialog.nodes[0]?.renglaPosition ?? 1) + dialog.offsetDelta }}
+          </span>
+          <button
+            type="button"
+            class="btn btn-sm btn-ghost btn-square"
+            (click)="adjustRenglaOffset(1)"
+            aria-label="Augmentar posició"
+          >
+            <lucide-icon name="Plus" [size]="14" />
+          </button>
+          <span class="text-xs text-base-content/50 ml-1">
+            fins a {{ (dialog.nodes[dialog.nodes.length - 1]?.renglaPosition ?? dialog.nodes.length) + dialog.offsetDelta }}
+          </span>
+        </div>
+      </div>
+
+      <div class="modal-action flex gap-2 justify-between">
+        <button
+          type="button"
+          class="btn btn-sm btn-error btn-outline"
+          (click)="deleteRenglaFromDialog()"
+        >
+          <lucide-icon name="Trash2" [size]="14" />
+          Eliminar rengla
+        </button>
+        <div class="flex gap-2">
+          <button type="button" class="btn btn-sm btn-ghost" (click)="closeRenglaDialog()">
+            Cancel·lar
+          </button>
+          <button
+            type="button"
+            class="btn btn-sm btn-primary"
+            (click)="confirmRenglaEdit()"
+          >
+            Desar
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-backdrop" (click)="closeRenglaDialog()" aria-hidden="true"></div>
   </dialog>
 }

@@ -12,21 +12,32 @@ import { EventSegment } from './event-segment.entity';
 import { FigureTemplate } from '../../figure/entities/figure-template.entity';
 import { CompositionTemplate } from '../../composition/entities/composition-template.entity';
 import type { NodeAssignment } from '../../node-assignment/entities/node-assignment.entity';
+import { list } from 'postcss';
 
 @Entity('figure_instances')
 export class FigureInstance {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => EventSegment, (segment) => segment.instances, { onDelete: 'CASCADE', nullable: false })
+  @ManyToOne(() => EventSegment, (segment) => segment.instances, {
+    onDelete: 'CASCADE',
+    nullable: false,
+  })
   @JoinColumn()
   segment: EventSegment;
 
-  @ManyToOne(() => FigureTemplate, (template) => template.instances, { nullable: true, onDelete: 'RESTRICT' })
+  @ManyToOne(() => FigureTemplate, (template) => template.instances, {
+    nullable: true,
+    onDelete: 'RESTRICT',
+  })
   @JoinColumn()
   figureTemplate: FigureTemplate | null;
 
-  @ManyToOne(() => CompositionTemplate, (composition) => composition.instances, { nullable: true, onDelete: 'RESTRICT' })
+  @ManyToOne(
+    () => CompositionTemplate,
+    (composition) => composition.instances,
+    { nullable: true, onDelete: 'RESTRICT' },
+  )
   @JoinColumn()
   compositionTemplate: CompositionTemplate | null;
 
@@ -36,8 +47,16 @@ export class FigureInstance {
   @Column({ type: 'int' })
   sortOrder: number;
 
-  @OneToMany('NodeAssignment', (a: NodeAssignment) => a.figureInstance, { cascade: true })
+  @OneToMany('NodeAssignment', (a: NodeAssignment) => a.figureInstance, {
+    cascade: true,
+  })
   assignments: NodeAssignment[];
+
+  @Column({ type: 'int', nullable: true })
+  numberOfCordons: number | null;
+
+  @Column({ type: 'jsonb', nullable: true, array: true })
+  openCordons: string[];
 
   @CreateDateColumn()
   createdAt: Date;

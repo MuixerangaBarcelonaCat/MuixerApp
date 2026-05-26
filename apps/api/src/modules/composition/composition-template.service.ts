@@ -276,6 +276,8 @@ function toDetailItem(composition: CompositionTemplate): CompositionTemplateDeta
         shape: node.shape,
         sortOrder: node.sortOrder,
         climbPath: node.climbPath,
+        rengla: node.rengla,
+        renglaPosition: node.renglaPosition,
         metadata: node.metadata,
       })),
     },

@@ -15,6 +15,8 @@ export interface FigureNodeItem {
   shape: NodeShape;
   sortOrder: number;
   climbPath: string | null;
+  rengla: string | null;
+  renglaPosition: number | null;
   metadata: Record<string, unknown>;
 }
 
@@ -56,6 +58,8 @@ export interface CreateFigureNodePayload {
   shape: NodeShape;
   sortOrder?: number;
   climbPath?: string;
+  rengla?: string;
+  renglaPosition?: number;
   metadata?: Record<string, unknown>;
 }
 
