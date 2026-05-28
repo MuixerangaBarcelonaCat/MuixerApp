@@ -66,6 +66,14 @@ export class FigureFamilyNode {
   @Column({ type: 'int', nullable: true })
   ringLevel: number | null;
 
+  /** Future-proofing: always NULL for now. */
+  @Column({ type: 'uuid', nullable: true })
+  renglaId: string | null;
+
+  /** Future-proofing: always NULL for now. */
+  @Column({ type: 'int', nullable: true })
+  renglaPosition: number | null;
+
   @Column({ type: 'jsonb', default: {} })
   metadata: Record<string, unknown>;
 

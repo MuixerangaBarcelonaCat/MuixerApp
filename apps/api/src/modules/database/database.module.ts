@@ -18,6 +18,7 @@ import { FigureInstance } from '../event-segment/entities/figure-instance.entity
 import { InstanceNode } from '../event-segment/entities/instance-node.entity';
 import { NodeAssignment } from '../node-assignment/entities/node-assignment.entity';
 import { ReferenceElement } from '../reference-element/entities/reference-element.entity';
+import { Rengla } from '../figure/entities/rengla.entity';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { ReferenceElement } from '../reference-element/entities/reference-elemen
             InstanceNode,
             NodeAssignment,
             ReferenceElement,
+            Rengla
           ],
           synchronize: isDevelopment,
           logging: isDevelopment,

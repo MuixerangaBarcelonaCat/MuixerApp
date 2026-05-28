@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 import { FigureFamily } from './figure-family.entity';
 import { FigureNode } from './figure-node.entity';
+import { Rengla } from './rengla.entity';
 import { FigureInstance } from '../../event-segment/entities/figure-instance.entity';
 
 @Entity('figure_templates')
@@ -47,6 +48,9 @@ export class FigureTemplate {
 
   @OneToMany(() => FigureNode, (node) => node.template, { cascade: true })
   nodes: FigureNode[];
+
+  @OneToMany(() => Rengla, (rengla) => rengla.template, { cascade: true })
+  rengles: Rengla[];
 
   @OneToMany(() => FigureInstance, (instance) => instance.figureTemplate)
   instances: FigureInstance[];

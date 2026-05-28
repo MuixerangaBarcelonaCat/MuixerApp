@@ -35,6 +35,8 @@ export interface CanvasNode {
   sortOrder: number;
   ringLevel?: number | null;
   originNodeId?: string | null;
+  renglaId?: string | null;
+  renglaPosition?: number | null;
 }
 
 export type CanvasMode = 'editor' | 'readonly' | 'composition' | 'assignment';

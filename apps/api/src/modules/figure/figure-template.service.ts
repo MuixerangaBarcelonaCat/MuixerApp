@@ -11,12 +11,14 @@ import { FigureFamily } from './entities/figure-family.entity';
 import { FigureTemplate } from './entities/figure-template.entity';
 import { FigureNode } from './entities/figure-node.entity';
 import { FigureFamilyNode } from './entities/figure-family-node.entity';
+import { Rengla } from './entities/rengla.entity';
 import { CompositionSlot } from '../composition/entities/composition-slot.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
 import { CreateFigureTemplateDto } from './dto/create-figure-template.dto';
 import { UpdateFigureTemplateDto } from './dto/update-figure-template.dto';
 import { FigureTemplateFilterDto } from './dto/figure-template-filter.dto';
 import { CreateFigureNodeDto } from './dto/create-figure-node.dto';
+import { CreateRenglaDto } from './dto/create-rengla.dto';
 
 const FAMILY_ZONES = new Set<string>([FigureZone.TRONC, FigureZone.BASE]);
 
@@ -39,7 +41,17 @@ export interface FigureNodeItem {
   climbPath: string | null;
   ringLevel: number | null;
   originNodeId: string | null;
+  renglaId: string | null;
+  renglaPosition: number | null;
   metadata: Record<string, unknown>;
+}
+
+export interface RenglaItem {
+  id: string;
+  name: string;
+  sortOrder: number;
+  startPosition: number;
+  allowsCordoObert: boolean;
 }
 
 export interface FigureTemplateListItem {
@@ -53,6 +65,7 @@ export interface FigureTemplateListItem {
   familyId: string | null;
   familyName: string | null;
   nodeCount: number;
+  renglaCount: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -60,6 +73,7 @@ export interface FigureTemplateListItem {
 export interface FigureTemplateDetailItem extends FigureTemplateListItem {
   metadata: Record<string, unknown>;
   nodes: FigureNodeItem[];
+  rengles: RenglaItem[];
 }
 
 // ─── Service ────────────────────────────────────────────────────────────────
@@ -75,6 +89,8 @@ export class FigureTemplateService {
     private readonly nodeRepository: Repository<FigureNode>,
     @InjectRepository(FigureFamilyNode)
     private readonly familyNodeRepository: Repository<FigureFamilyNode>,
+    @InjectRepository(Rengla)
+    private readonly renglaRepository: Repository<Rengla>,
     @InjectRepository(CompositionSlot)
     private readonly compositionSlotRepository: Repository<CompositionSlot>,
     @InjectRepository(FigureInstance)
@@ -89,7 +105,8 @@ export class FigureTemplateService {
     const qb = this.templateRepository
       .createQueryBuilder('template')
       .leftJoinAndSelect('template.family', 'family')
-      .loadRelationCountAndMap('template.nodeCount', 'template.nodes');
+      .loadRelationCountAndMap('template.nodeCount', 'template.nodes')
+      .loadRelationCountAndMap('template.renglaCount', 'template.rengles');
 
     if (search) {
       qb.andWhere(
@@ -120,7 +137,7 @@ export class FigureTemplateService {
   async findOne(id: string): Promise<FigureTemplateDetailItem> {
     const template = await this.templateRepository.findOne({
       where: { id },
-      relations: ['nodes', 'family'],
+      relations: ['nodes', 'family', 'rengles'],
     });
 
     if (!template) {
@@ -212,6 +229,10 @@ export class FigureTemplateService {
 
     if (dto.nodes !== undefined) {
       await this.syncNodes(template, dto.nodes);
+    }
+
+    if (dto.rengles !== undefined) {
+      await this.syncRengles(template, dto.rengles);
     }
 
     return this.findOne(id);
@@ -383,6 +404,8 @@ export class FigureTemplateService {
         climbPath: dto.climbPath ?? null,
         ringLevel: dto.ringLevel ?? null,
         originNodeId: dto.originNodeId ?? null,
+        renglaId: dto.renglaId ?? null,
+        renglaPosition: dto.renglaPosition ?? null,
         metadata: dto.metadata ?? {},
       }),
     );
@@ -468,6 +491,8 @@ export class FigureTemplateService {
         node.climbPath = dto.climbPath ?? null;
         node.ringLevel = dto.ringLevel ?? null;
         node.originNodeId = dto.originNodeId ?? node.originNodeId;
+        node.renglaId = dto.renglaId ?? node.renglaId;
+        node.renglaPosition = dto.renglaPosition ?? node.renglaPosition;
         node.metadata = dto.metadata ?? {};
         toUpdate.push(node);
         incomingIds.add(dto.id);
@@ -535,6 +560,66 @@ export class FigureTemplateService {
     if (toCreate.length > 0) await this.createFamilyNodes(family, toCreate);
     if (toDeleteIds.length > 0) await this.familyNodeRepository.delete({ id: In(toDeleteIds) });
   }
+
+  /**
+   * Upsert strategy for rengles.
+   * On deletion: clears renglaId/renglaPosition on orphaned FigureNodes.
+   */
+  private async syncRengles(
+    template: FigureTemplate,
+    incomingDtos: CreateRenglaDto[],
+  ): Promise<void> {
+    const existingRengles = await this.renglaRepository.find({
+      where: { template: { id: template.id } },
+    });
+    const existingById = new Map(existingRengles.map((r) => [r.id, r]));
+
+    const toUpdate: Rengla[] = [];
+    const toCreate: Rengla[] = [];
+    const incomingIds = new Set<string>();
+
+    for (const dto of incomingDtos) {
+      if (dto.id && existingById.has(dto.id)) {
+        const rengla = existingById.get(dto.id)!;
+        rengla.name = dto.name;
+        rengla.sortOrder = dto.sortOrder ?? rengla.sortOrder;
+        rengla.startPosition = dto.startPosition ?? rengla.startPosition;
+        rengla.allowsCordoObert = dto.allowsCordoObert ?? rengla.allowsCordoObert;
+        toUpdate.push(rengla);
+        incomingIds.add(dto.id);
+      } else {
+        toCreate.push(
+          this.renglaRepository.create({
+            ...(dto.id ? { id: dto.id } : {}),
+            template,
+            name: dto.name,
+            sortOrder: dto.sortOrder ?? 0,
+            startPosition: dto.startPosition ?? 1,
+            allowsCordoObert: dto.allowsCordoObert ?? false,
+          }),
+        );
+      }
+    }
+
+    const toDeleteIds = existingRengles
+      .filter((r) => !incomingIds.has(r.id))
+      .map((r) => r.id);
+
+    if (toUpdate.length > 0) await this.renglaRepository.save(toUpdate);
+    if (toCreate.length > 0) await this.renglaRepository.save(toCreate);
+
+    if (toDeleteIds.length > 0) {
+      await this.nodeRepository
+        .createQueryBuilder()
+        .update(FigureNode)
+        .set({ renglaId: null, renglaPosition: null })
+        .where('renglaId IN (:...ids)', { ids: toDeleteIds })
+        .andWhere('templateId = :templateId', { templateId: template.id })
+        .execute();
+
+      await this.renglaRepository.delete({ id: In(toDeleteIds) });
+    }
+  }
 }
 
 // ─── Mappers ─────────────────────────────────────────────────────────────────
@@ -557,6 +642,8 @@ function nodeToCreateDto(node: FigureNode): CreateFigureNodeDto {
     climbPath: node.climbPath ?? undefined,
     ringLevel: node.ringLevel ?? undefined,
     originNodeId: node.originNodeId ?? undefined,
+    renglaId: node.renglaId ?? undefined,
+    renglaPosition: node.renglaPosition ?? undefined,
     metadata: node.metadata,
   };
 }
@@ -579,6 +666,8 @@ function templateNodeToItem(node: FigureNode): FigureNodeItem {
     climbPath: node.climbPath,
     ringLevel: node.ringLevel,
     originNodeId: node.originNodeId,
+    renglaId: node.renglaId,
+    renglaPosition: node.renglaPosition,
     metadata: node.metadata,
   };
 }
@@ -600,14 +689,27 @@ function familyNodeToItem(node: FigureFamilyNode): FigureNodeItem {
     sortOrder: node.sortOrder,
     climbPath: node.climbPath,
     ringLevel: node.ringLevel,
-    originNodeId: null, // Family nodes are always the canonical source
+    originNodeId: null,
+    renglaId: node.renglaId,
+    renglaPosition: node.renglaPosition,
     metadata: node.metadata,
   };
 }
 
+function renglaToItem(rengla: Rengla): RenglaItem {
+  return {
+    id: rengla.id,
+    name: rengla.name,
+    sortOrder: rengla.sortOrder,
+    startPosition: rengla.startPosition,
+    allowsCordoObert: rengla.allowsCordoObert,
+  };
+}
+
 function toListItem(
-  template: FigureTemplate & { nodeCount?: number },
+  template: FigureTemplate & { nodeCount?: number; renglaCount?: number },
 ): FigureTemplateListItem {
+  const t = template as unknown as { nodeCount: number; renglaCount: number };
   return {
     id: template.id,
     name: template.name,
@@ -618,7 +720,8 @@ function toListItem(
     variantOrder: template.variantOrder,
     familyId: template.family?.id ?? null,
     familyName: template.family?.name ?? null,
-    nodeCount: (template as unknown as { nodeCount: number }).nodeCount ?? 0,
+    nodeCount: t.nodeCount ?? 0,
+    renglaCount: t.renglaCount ?? 0,
     createdAt: template.createdAt,
     updatedAt: template.updatedAt,
   };
@@ -635,5 +738,6 @@ function toDetailItem(
       ...(template.nodes ?? []).map(templateNodeToItem),
       ...familyNodes.map(familyNodeToItem),
     ],
+    rengles: (template.rengles ?? []).map(renglaToItem),
   };
 }

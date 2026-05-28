@@ -63,6 +63,8 @@ export interface InstanceNodeResponse {
   shape: string;
   sortOrder: number;
   ringLevel: number | null;
+  renglaId: string | null;
+  renglaPosition: number | null;
   isSnapshotted: boolean;
 }
 
@@ -207,6 +209,8 @@ function instanceNodeToResponse(node: InstanceNode): InstanceNodeResponse {
     shape: node.shape,
     sortOrder: node.sortOrder,
     ringLevel: node.ringLevel,
+    renglaId: node.renglaId,
+    renglaPosition: node.renglaPosition,
     isSnapshotted: true,
   };
 }
@@ -229,6 +233,8 @@ function figureNodeToResponse(node: FigureNode): InstanceNodeResponse {
     shape: node.shape,
     sortOrder: node.sortOrder,
     ringLevel: node.ringLevel,
+    renglaId: node.renglaId,
+    renglaPosition: node.renglaPosition,
     isSnapshotted: false,
   };
 }
@@ -237,7 +243,7 @@ function familyNodeToResponse(node: FigureFamilyNode): InstanceNodeResponse {
   return {
     id: node.id,
     sourceNodeId: null,
-    originNodeId: null, // Family nodes are always the canonical source
+    originNodeId: null,
     label: node.label,
     zone: node.zone,
     positionType: node.positionType,
@@ -251,8 +257,22 @@ function familyNodeToResponse(node: FigureFamilyNode): InstanceNodeResponse {
     shape: node.shape,
     sortOrder: node.sortOrder,
     ringLevel: node.ringLevel,
+    renglaId: node.renglaId,
+    renglaPosition: node.renglaPosition,
     isSnapshotted: false,
   };
+}
+
+export function isNodeVisible(
+  node: { renglaId: string | null; renglaPosition: number | null; positionType: string | null },
+  numberOfCordons: number | null,
+  openCordons: string[] | null,
+): boolean {
+  if (!node.renglaId || node.renglaPosition === null) return true;
+  if (node.positionType === 'cordo-obert') {
+    return openCordons?.includes(node.renglaId) ?? false;
+  }
+  return node.renglaPosition <= (numberOfCordons ?? Infinity);
 }
 
 // ─── Service ────────────────────────────────────────────────────────────────
@@ -296,35 +316,45 @@ export class NodeAssignmentService {
       throw new NotFoundException(`FigureInstance with ID ${instanceId} not found`);
     }
 
+    let allNodes: InstanceNodeResponse[];
+
     if (instance.snapshotted) {
       const nodes = await this.instanceNodeRepository.find({
         where: { figureInstance: { id: instanceId } },
         order: { sortOrder: 'ASC' },
       });
-      return nodes.map(instanceNodeToResponse);
+      allNodes = nodes.map(instanceNodeToResponse);
+    } else {
+      if (!instance.figureTemplate) {
+        throw new BadRequestException('Instance has no figure template and has not been snapshotted');
+      }
+
+      const template = await this.figureTemplateRepository.findOne({
+        where: { id: instance.figureTemplate.id },
+        relations: ['nodes', 'family'],
+      });
+
+      const templateNodes = (template?.nodes ?? [])
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map(figureNodeToResponse);
+
+      const familyNodes = template?.family
+        ? await this.familyNodeRepository.find({
+            where: { family: { id: template.family.id } },
+            order: { z: 'ASC', sortOrder: 'ASC' },
+          })
+        : [];
+
+      allNodes = [...templateNodes, ...familyNodes.map(familyNodeToResponse)];
     }
 
-    if (!instance.figureTemplate) {
-      throw new BadRequestException('Instance has no figure template and has not been snapshotted');
+    if (instance.numberOfCordons !== null || (instance.openCordons && instance.openCordons.length > 0)) {
+      return allNodes.filter((node) =>
+        isNodeVisible(node, instance.numberOfCordons, instance.openCordons),
+      );
     }
 
-    const template = await this.figureTemplateRepository.findOne({
-      where: { id: instance.figureTemplate.id },
-      relations: ['nodes', 'family'],
-    });
-
-    const templateNodes = (template?.nodes ?? [])
-      .sort((a, b) => a.sortOrder - b.sortOrder)
-      .map(figureNodeToResponse);
-
-    const familyNodes = template?.family
-      ? await this.familyNodeRepository.find({
-          where: { family: { id: template.family.id } },
-          order: { z: 'ASC', sortOrder: 'ASC' },
-        })
-      : [];
-
-    return [...templateNodes, ...familyNodes.map(familyNodeToResponse)];
+    return allNodes;
   }
 
   // ── Existing — assignments list ────────────────────────────────────────────
@@ -1054,6 +1084,8 @@ export class NodeAssignmentService {
           sortOrder: node.sortOrder,
           climbPath: node.climbPath,
           ringLevel: node.ringLevel,
+          renglaId: node.renglaId,
+          renglaPosition: node.renglaPosition,
           metadata: node.metadata,
         }),
       );
@@ -1086,6 +1118,34 @@ export class NodeAssignmentService {
       newTemplateId: nextTemplate.id,
       newTemplateName: nextTemplate.name,
       newVariantOrder: nextTemplate.variantOrder,
+    };
+  }
+
+  // ── Cordons — update numberOfCordons / openCordons on instance ─────────────
+
+  async updateCordons(
+    instanceId: string,
+    dto: { numberOfCordons?: number | null; openCordons?: string[] | null },
+  ): Promise<{ numberOfCordons: number | null; openCordons: string[] | null }> {
+    const instance = await this.figureInstanceRepository.findOne({
+      where: { id: instanceId },
+    });
+    if (!instance) {
+      throw new NotFoundException(`FigureInstance with ID ${instanceId} not found`);
+    }
+
+    if (dto.numberOfCordons !== undefined) {
+      instance.numberOfCordons = dto.numberOfCordons;
+    }
+    if (dto.openCordons !== undefined) {
+      instance.openCordons = dto.openCordons;
+    }
+
+    await this.figureInstanceRepository.save(instance);
+
+    return {
+      numberOfCordons: instance.numberOfCordons,
+      openCordons: instance.openCordons,
     };
   }
 
@@ -1186,6 +1246,8 @@ export class NodeAssignmentService {
           sortOrder: node.sortOrder,
           climbPath: node.climbPath,
           ringLevel: node.ringLevel,
+          renglaId: node.renglaId,
+          renglaPosition: node.renglaPosition,
           metadata: node.metadata,
         }),
       );
@@ -1193,8 +1255,8 @@ export class NodeAssignmentService {
       const familyInstanceNodes = familyNodes.map((node) =>
         manager.create(InstanceNode, {
           figureInstance: instance,
-          sourceNodeId: node.id, // FigureFamilyNode.id — traced for dedup/upgrade
-          originNodeId: null, // Family nodes are always canonical
+          sourceNodeId: node.id,
+          originNodeId: null,
           label: node.label,
           zone: node.zone,
           positionType: node.positionType,
@@ -1209,6 +1271,8 @@ export class NodeAssignmentService {
           sortOrder: node.sortOrder,
           climbPath: node.climbPath,
           ringLevel: node.ringLevel,
+          renglaId: node.renglaId,
+          renglaPosition: node.renglaPosition,
           metadata: node.metadata,
         }),
       );

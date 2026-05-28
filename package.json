@@ -20,6 +20,7 @@
     "docker:pre:down": "docker compose -f docker-compose.pre.yml down",
     "docker:pre:logs": "docker compose -f docker-compose.pre.yml logs -f",
     "docker:pre:ps": "docker compose -f docker-compose.pre.yml ps",
+    "db:reset-figures": "docker exec -i muixer-postgres-dev psql -U muixer -d muixer_dev < scripts/reset-figure-data-safe.sql",
     "ci:local": "npx nx run-many -t lint,test,build --all --exclude=dashboard-e2e,pwa-e2e --parallel=3"
   },
   "repository": {

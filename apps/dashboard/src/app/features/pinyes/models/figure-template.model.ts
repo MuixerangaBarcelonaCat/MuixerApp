@@ -17,7 +17,17 @@ export interface FigureNodeItem {
   climbPath: string | null;
   ringLevel: number | null;
   originNodeId: string | null;
+  renglaId: string | null;
+  renglaPosition: number | null;
   metadata: Record<string, unknown>;
+}
+
+export interface RenglaModel {
+  id: string;
+  name: string;
+  sortOrder: number;
+  startPosition: number;
+  allowsCordoObert: boolean;
 }
 
 export interface FigureTemplateListItem {
@@ -31,6 +41,7 @@ export interface FigureTemplateListItem {
   familyId: string | null;
   familyName: string | null;
   nodeCount: number;
+  renglaCount: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -38,6 +49,7 @@ export interface FigureTemplateListItem {
 export interface FigureTemplateDetail extends FigureTemplateListItem {
   metadata: Record<string, unknown>;
   nodes: FigureNodeItem[];
+  rengles: RenglaModel[];
 }
 
 export interface FigureTemplateFilterParams {
@@ -65,6 +77,8 @@ export interface CreateFigureNodePayload {
   climbPath?: string;
   ringLevel?: number;
   originNodeId?: string;
+  renglaId?: string;
+  renglaPosition?: number;
   metadata?: Record<string, unknown>;
 }
 
@@ -89,6 +103,7 @@ export interface UpdateFigureTemplatePayload {
   direction?: number;
   metadata?: Record<string, unknown>;
   nodes?: CreateFigureNodePayload[];
+  rengles?: RenglaModel[];
 }
 
 export interface PaginatedFigureTemplates {

@@ -217,6 +217,8 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
       climbPath: null,
       ringLevel: null,
       originNodeId: null,
+      renglaId: null,
+      renglaPosition: null,
       metadata: {},
     };
     this.nodes.update((n) => [...n, newNode]);
@@ -264,6 +266,8 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
       climbPath: null,
       ringLevel: null,
       originNodeId: null,
+      renglaId: null,
+      renglaPosition: null,
       metadata: {},
     };
     this.nodes.update((n) => [...n, newNode]);
@@ -311,6 +315,8 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
       climbPath: null,
       ringLevel: null,
       originNodeId: null,
+      renglaId: null,
+      renglaPosition: null,
       metadata: {},
     };
     this.nodes.update((n) => [...n, newNode]);
@@ -650,6 +656,8 @@ function nodeToPayload(node: FigureNodeItem): CreateFigureNodePayload {
     climbPath: node.climbPath ?? undefined,
     ringLevel: node.ringLevel ?? undefined,
     originNodeId: node.originNodeId ?? undefined,
+    renglaId: node.renglaId ?? undefined,
+    renglaPosition: node.renglaPosition ?? undefined,
     metadata: node.metadata,
   };
 }

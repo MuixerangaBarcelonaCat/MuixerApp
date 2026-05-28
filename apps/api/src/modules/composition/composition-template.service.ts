@@ -278,6 +278,8 @@ function toDetailItem(composition: CompositionTemplate): CompositionTemplateDeta
         climbPath: node.climbPath,
         ringLevel: node.ringLevel ?? null,
         originNodeId: node.originNodeId ?? null,
+        renglaId: node.renglaId ?? null,
+        renglaPosition: node.renglaPosition ?? null,
         metadata: node.metadata,
       })),
     },

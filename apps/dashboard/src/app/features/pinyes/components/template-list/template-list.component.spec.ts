@@ -46,6 +46,7 @@ const makeTemplate = (overrides: Partial<FigureTemplateListItem> = {}): FigureTe
   familyId: 'fam-1',
   familyName: 'Pilar de 4',
   nodeCount: 10,
+  renglaCount: 0,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
   ...overrides,

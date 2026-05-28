@@ -89,6 +89,17 @@ export class CreateFigureNodeDto {
   @IsOptional()
   originNodeId?: string;
 
+  @ApiPropertyOptional({ description: 'Rengla UUID this node belongs to' })
+  @IsUUID()
+  @IsOptional()
+  renglaId?: string;
+
+  @ApiPropertyOptional({ description: 'Position within the rengla (1 = first cordon)' })
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  renglaPosition?: number;
+
   @ApiPropertyOptional()
   @IsOptional()
   metadata?: Record<string, unknown>;

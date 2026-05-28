@@ -24,6 +24,7 @@ const makeFigure = (overrides: Partial<FigureTemplateListItem> = {}): FigureTemp
   familyId: 'fam-uuid-1',
   familyName: 'Pilar de 4',
   nodeCount: 5,
+  renglaCount: 0,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
   ...overrides,

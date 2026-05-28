@@ -128,6 +128,8 @@ export interface InstanceNodeItem {
   sortOrder: number;
   ringLevel: number | null;
   originNodeId: string | null;
+  renglaId: string | null;
+  renglaPosition: number | null;
   sourceNodeId: string | null;
   isSnapshotted: boolean;
 }

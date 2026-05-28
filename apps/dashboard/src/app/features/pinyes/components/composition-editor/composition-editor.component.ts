@@ -203,6 +203,7 @@ export class CompositionEditorComponent implements OnInit, OnDestroy {
       figureTemplate: {
         ...figureTemplate,
         nodes: [],
+        rengles: [],
         metadata: {},
         direction: 0,
       },

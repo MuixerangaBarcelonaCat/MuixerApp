@@ -73,6 +73,14 @@ export class FigureNode {
   @Column({ type: 'uuid', nullable: true })
   originNodeId: string | null;
 
+  /** Rengla this node belongs to. Plain UUID (not FK) — survives rengla deletions. */
+  @Column({ type: 'uuid', nullable: true })
+  renglaId: string | null;
+
+  /** Position within the rengla (1 = first cordon, 2 = second, ...). */
+  @Column({ type: 'int', nullable: true })
+  renglaPosition: number | null;
+
   @Column({ type: 'jsonb', default: {} })
   metadata: Record<string, unknown>;
 

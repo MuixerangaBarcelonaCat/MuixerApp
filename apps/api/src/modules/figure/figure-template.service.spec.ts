@@ -6,6 +6,7 @@ import { FigureFamily } from './entities/figure-family.entity';
 import { FigureTemplate } from './entities/figure-template.entity';
 import { FigureNode } from './entities/figure-node.entity';
 import { FigureFamilyNode } from './entities/figure-family-node.entity';
+import { Rengla } from './entities/rengla.entity';
 import { CompositionSlot } from '../composition/entities/composition-slot.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
 import { FigureZone, NodeShape } from '@muixer/shared';
@@ -33,6 +34,7 @@ const makeTemplate = (overrides: Partial<FigureTemplate> = {}): FigureTemplate =
   family: null,
   metadata: {},
   nodes: [],
+  rengles: [],
   instances: [],
   createdAt: new Date(),
   updatedAt: new Date(),
@@ -55,6 +57,8 @@ const makeFamilyNode = (overrides: Partial<FigureFamilyNode> = {}): FigureFamily
   sortOrder: 0,
   climbPath: null,
   ringLevel: null,
+  renglaId: null,
+  renglaPosition: null,
   metadata: {},
   family: null as unknown as FigureFamily,
   createdAt: new Date(),
@@ -79,12 +83,25 @@ const makeNode = (overrides: Partial<FigureNode> = {}): FigureNode => ({
   climbPath: null,
   ringLevel: 1,
   originNodeId: null,
+  renglaId: null,
+  renglaPosition: null,
   metadata: {},
   template: null as unknown as FigureTemplate,
   createdAt: new Date(),
   updatedAt: new Date(),
   ...overrides,
 } as FigureNode);
+
+const makeRengla = (overrides: Partial<Rengla> = {}): Rengla => ({
+  id: 'rengla-uuid',
+  name: 'Mans Nord',
+  sortOrder: 0,
+  startPosition: 1,
+  allowsCordoObert: false,
+  template: null as unknown as FigureTemplate,
+  createdAt: new Date(),
+  ...overrides,
+} as Rengla);
 
 const NODE_DTO = {
   label: 'MANS',
@@ -107,6 +124,7 @@ describe('FigureTemplateService', () => {
     save: jest.fn(),
     delete: jest.fn().mockResolvedValue(undefined),
     find: jest.fn().mockResolvedValue([]),
+    createQueryBuilder: jest.fn(),
   };
 
   const mockFamilyNodeRepo = {
@@ -115,6 +133,13 @@ describe('FigureTemplateService', () => {
     delete: jest.fn().mockResolvedValue(undefined),
     find: jest.fn().mockResolvedValue([]),
     count: jest.fn().mockResolvedValue(0),
+  };
+
+  const mockRenglaRepo = {
+    create: jest.fn((dto) => dto),
+    save: jest.fn(),
+    delete: jest.fn().mockResolvedValue(undefined),
+    find: jest.fn().mockResolvedValue([]),
   };
 
   const mockCompositionSlotRepo = {
@@ -164,6 +189,7 @@ describe('FigureTemplateService', () => {
         { provide: getRepositoryToken(FigureTemplate), useValue: mockTemplateRepo },
         { provide: getRepositoryToken(FigureNode), useValue: mockNodeRepo },
         { provide: getRepositoryToken(FigureFamilyNode), useValue: mockFamilyNodeRepo },
+        { provide: getRepositoryToken(Rengla), useValue: mockRenglaRepo },
         { provide: getRepositoryToken(CompositionSlot), useValue: mockCompositionSlotRepo },
         { provide: getRepositoryToken(FigureInstance), useValue: mockFigureInstanceRepo },
       ],
@@ -591,6 +617,151 @@ describe('FigureTemplateService', () => {
       const savedNodes = mockNodeRepo.save.mock.calls[0]?.[0] ?? [];
       expect(savedNodes).toHaveLength(1); // only PINYA
       expect(savedNodes[0].zone).toBe(FigureZone.PINYA);
+    });
+  });
+
+  describe('syncRengles', () => {
+    it('creates new rengles when template has none', async () => {
+      const tmpl = makeTemplate({ nodes: [] });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(tmpl)
+        .mockResolvedValueOnce({ ...tmpl, rengles: [] });
+      mockTemplateRepo.save.mockResolvedValue(tmpl);
+      mockRenglaRepo.find.mockResolvedValue([]);
+
+      await service.update('tmpl-uuid', {
+        rengles: [{ name: 'Mans Nord', sortOrder: 0, startPosition: 1 }],
+      });
+
+      expect(mockRenglaRepo.save).toHaveBeenCalled();
+      const saved = mockRenglaRepo.save.mock.calls[0][0];
+      expect(saved).toHaveLength(1);
+      expect(saved[0].name).toBe('Mans Nord');
+    });
+
+    it('updates existing rengla by ID', async () => {
+      const existing = makeRengla({ id: 'rengla-1' });
+      const tmpl = makeTemplate({ nodes: [] });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(tmpl)
+        .mockResolvedValueOnce({ ...tmpl, rengles: [existing] });
+      mockTemplateRepo.save.mockResolvedValue(tmpl);
+      mockRenglaRepo.find.mockResolvedValue([existing]);
+
+      await service.update('tmpl-uuid', {
+        rengles: [{ id: 'rengla-1', name: 'Mans Sud', sortOrder: 1 }],
+      });
+
+      const saved = mockRenglaRepo.save.mock.calls[0][0];
+      expect(saved[0].name).toBe('Mans Sud');
+      expect(saved[0].sortOrder).toBe(1);
+    });
+
+    it('deletes absent rengles and orphans their nodes', async () => {
+      const existing = makeRengla({ id: 'rengla-to-delete' });
+      const tmpl = makeTemplate({ nodes: [] });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(tmpl)
+        .mockResolvedValueOnce({ ...tmpl, rengles: [] });
+      mockTemplateRepo.save.mockResolvedValue(tmpl);
+      mockRenglaRepo.find.mockResolvedValue([existing]);
+
+      const mockNodeQb = {
+        update: jest.fn().mockReturnThis(),
+        set: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockResolvedValue(undefined),
+      };
+      mockNodeRepo.createQueryBuilder = jest.fn().mockReturnValue(mockNodeQb);
+
+      await service.update('tmpl-uuid', { rengles: [] });
+
+      expect(mockNodeQb.set).toHaveBeenCalledWith({ renglaId: null, renglaPosition: null });
+      expect(mockRenglaRepo.delete).toHaveBeenCalled();
+    });
+
+    it('backwards compat: update without rengles field leaves rengles untouched', async () => {
+      const tmpl = makeTemplate({ nodes: [] });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(tmpl)
+        .mockResolvedValueOnce({ ...tmpl, rengles: [] });
+      mockTemplateRepo.save.mockResolvedValue(tmpl);
+
+      await service.update('tmpl-uuid', { name: 'Updated Name' });
+
+      expect(mockRenglaRepo.find).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('findOne — rengles', () => {
+    it('returns empty rengles array for template without rengles', async () => {
+      const tmpl = makeTemplate({ nodes: [makeNode()], rengles: [] });
+      mockTemplateRepo.findOne.mockResolvedValue(tmpl);
+
+      const result = await service.findOne('tmpl-uuid');
+      expect(result.rengles).toEqual([]);
+    });
+
+    it('maps rengles in detail response', async () => {
+      const rengla = makeRengla({ id: 'r1', name: 'Mans Nord', sortOrder: 0, startPosition: 1, allowsCordoObert: true });
+      const tmpl = makeTemplate({ nodes: [], rengles: [rengla] });
+      mockTemplateRepo.findOne.mockResolvedValue(tmpl);
+
+      const result = await service.findOne('tmpl-uuid');
+      expect(result.rengles).toHaveLength(1);
+      expect(result.rengles[0]).toEqual({
+        id: 'r1',
+        name: 'Mans Nord',
+        sortOrder: 0,
+        startPosition: 1,
+        allowsCordoObert: true,
+      });
+    });
+
+    it('includes renglaId and renglaPosition in node items', async () => {
+      const node = makeNode({ renglaId: 'rengla-1', renglaPosition: 2 });
+      const tmpl = makeTemplate({ nodes: [node], rengles: [] });
+      mockTemplateRepo.findOne.mockResolvedValue(tmpl);
+
+      const result = await service.findOne('tmpl-uuid');
+      expect(result.nodes[0].renglaId).toBe('rengla-1');
+      expect(result.nodes[0].renglaPosition).toBe(2);
+    });
+  });
+
+  describe('update — rengla fields on nodes', () => {
+    it('preserves renglaId and renglaPosition on node update', async () => {
+      const existingNode = makeNode({ id: 'node-1', renglaId: 'r1', renglaPosition: 3 });
+      const tmpl = makeTemplate({ nodes: [existingNode] });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(tmpl)
+        .mockResolvedValueOnce({ ...tmpl, rengles: [] });
+      mockTemplateRepo.save.mockResolvedValue(tmpl);
+
+      await service.update('tmpl-uuid', {
+        nodes: [{ ...NODE_DTO, id: 'node-1', renglaId: 'r1', renglaPosition: 3 }],
+      });
+
+      const saved = mockNodeRepo.save.mock.calls[0][0];
+      expect(saved[0].renglaId).toBe('r1');
+      expect(saved[0].renglaPosition).toBe(3);
+    });
+
+    it('includes renglaId and renglaPosition when creating new nodes', async () => {
+      const tmpl = makeTemplate({ nodes: [] });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(tmpl)
+        .mockResolvedValueOnce({ ...tmpl, rengles: [] });
+      mockTemplateRepo.save.mockResolvedValue(tmpl);
+
+      await service.update('tmpl-uuid', {
+        nodes: [{ ...NODE_DTO, renglaId: 'r1', renglaPosition: 1 }],
+      });
+
+      const saved = mockNodeRepo.save.mock.calls[0][0];
+      expect(saved[0].renglaId).toBe('r1');
+      expect(saved[0].renglaPosition).toBe(1);
     });
   });
 });

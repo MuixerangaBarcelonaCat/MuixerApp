@@ -120,8 +120,8 @@ const makeSegment = (instanceOverrides = {}): SegmentDetail => ({
 });
 
 const makeInstanceNodes = (): InstanceNodeItem[] => [
-  { id: 'inode-1', label: 'base-1', zone: FigureZone.BASE, z: 0, positionType: null, x: 100, y: 100, width: 60, height: 40, rotation: 0, color: null, shape: NodeShape.ELLIPSE, sortOrder: 0, ringLevel: null, originNodeId: null, sourceNodeId: 'node-1', isSnapshotted: false },
-  { id: 'inode-2', label: 'tronc-1', zone: FigureZone.TRONC, z: 1, positionType: null, x: 200, y: 100, width: 60, height: 40, rotation: 0, color: null, shape: NodeShape.ELLIPSE, sortOrder: 1, ringLevel: null, originNodeId: null, sourceNodeId: 'node-2', isSnapshotted: false },
+  { id: 'inode-1', label: 'base-1', zone: FigureZone.BASE, z: 0, positionType: null, x: 100, y: 100, width: 60, height: 40, rotation: 0, color: null, shape: NodeShape.ELLIPSE, sortOrder: 0, ringLevel: null, originNodeId: null, renglaId: null, renglaPosition: null, sourceNodeId: 'node-1', isSnapshotted: false },
+  { id: 'inode-2', label: 'tronc-1', zone: FigureZone.TRONC, z: 1, positionType: null, x: 200, y: 100, width: 60, height: 40, rotation: 0, color: null, shape: NodeShape.ELLIPSE, sortOrder: 1, ringLevel: null, originNodeId: null, renglaId: null, renglaPosition: null, sourceNodeId: 'node-2', isSnapshotted: false },
 ];
 
 const makeTemplate = () => ({
@@ -460,12 +460,12 @@ describe('AssignmentCanvasComponent', () => {
         id: 'inode-3', label: 'pinya-new-1', zone: FigureZone.PINYA, z: 0,
         positionType: 'laterals', x: 300, y: 100, width: 40, height: 40,
         rotation: 0, color: null, shape: NodeShape.ELLIPSE, sortOrder: 2,
-        ringLevel: 2, originNodeId: null, sourceNodeId: 'node-3', isSnapshotted: true,
+        ringLevel: 2, originNodeId: null, renglaId: null, renglaPosition: null, sourceNodeId: 'node-3', isSnapshotted: true,
       }, {
         id: 'inode-4', label: 'pinya-new-2', zone: FigureZone.PINYA, z: 0,
         positionType: 'mans', x: 400, y: 100, width: 40, height: 40,
         rotation: 0, color: null, shape: NodeShape.ELLIPSE, sortOrder: 3,
-        ringLevel: 2, originNodeId: null, sourceNodeId: 'node-4', isSnapshotted: true,
+        ringLevel: 2, originNodeId: null, renglaId: null, renglaPosition: null, sourceNodeId: 'node-4', isSnapshotted: true,
       }];
 
       assignmentService.getInstanceNodes.mockReturnValue(of({ data: upgradedNodes }));

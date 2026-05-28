@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Body,
   Param,
@@ -18,6 +19,7 @@ import { AvailablePersonsService, AvailablePersonsQuery } from './available-pers
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
 import { BulkImportAssignmentDto } from './dto/bulk-import-assignment.dto';
 import { SwapAssignmentsDto } from './dto/swap-assignments.dto';
+import { UpdateInstanceCordonsDto } from './dto/update-instance-cordons.dto';
 import { HistoryQueryDto } from './dto/history-query.dto';
 
 @ApiTags('node-assignments')
@@ -80,6 +82,15 @@ export class NodeAssignmentController {
     @Body() dto: BulkImportAssignmentDto,
   ) {
     return this.assignmentService.bulkImport(instanceId, dto);
+  }
+
+  @ApiOperation({ summary: 'Update cordon configuration (numberOfCordons, openCordons) for a figure instance' })
+  @Patch('figure-instances/:instanceId/cordons')
+  updateCordons(
+    @Param('instanceId', ParseUUIDPipe) instanceId: string,
+    @Body() dto: UpdateInstanceCordonsDto,
+  ) {
+    return this.assignmentService.updateCordons(instanceId, dto);
   }
 
   @ApiOperation({ summary: 'Upgrade instance to the next variant in its family (adds cordon nodes)' })
