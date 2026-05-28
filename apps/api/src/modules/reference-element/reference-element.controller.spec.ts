@@ -4,6 +4,8 @@ import { ReferenceElementService } from './reference-element.service';
 import { ReferenceElement } from './entities/reference-element.entity';
 import { ReferenceElementType } from '@muixer/shared';
 
+const FIXED_DATE = new Date('2026-01-01T00:00:00Z');
+
 const makeElement = (overrides: Partial<ReferenceElement> = {}): ReferenceElement =>
   ({
     id: 'elem-uuid',
@@ -17,8 +19,8 @@ const makeElement = (overrides: Partial<ReferenceElement> = {}): ReferenceElemen
     color: null,
     sortOrder: 0,
     hiddenInSegments: [],
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    createdAt: FIXED_DATE,
+    updatedAt: FIXED_DATE,
     ...overrides,
   }) as ReferenceElement;
 

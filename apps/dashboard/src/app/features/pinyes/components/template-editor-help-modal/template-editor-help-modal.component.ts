@@ -69,7 +69,7 @@ export class TemplateEditorHelpModalComponent implements OnInit {
   readonly dontShowAgain = signal(false);
   readonly visible = signal(false);
 
-  constructor() {}
+  constructor() { /* DI-only */ }
 
   ngOnInit(): void {
     const dismissed = localStorage.getItem(STORAGE_KEY);

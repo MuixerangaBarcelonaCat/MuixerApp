@@ -7,7 +7,8 @@
 ## Prerequisits
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) instal·lat i funcionant
-- Node.js 22 LTS i npm instal·lats (veure `.node-version`)
+- Node.js 22 LTS instal·lat (veure `.node-version`)
+- pnpm instal·lat: `corepack enable && corepack prepare pnpm@latest --activate`
 
 ---
 
@@ -18,7 +19,7 @@
 ```bash
 git clone <repo-url>
 cd MuixerApp
-npm install
+pnpm install
 ```
 
 ### 2. Configurar variables d'entorn
@@ -31,7 +32,7 @@ cp .env.example .env
 ### 3. Arrencar la base de dades
 
 ```bash
-npm run docker:up
+pnpm run docker:up
 ```
 
 Arrenca PostgreSQL 16 a `localhost:5432`.
@@ -87,13 +88,13 @@ nx serve dashboard
 
 | Script | Descripció |
 |--------|------------|
-| `npm run docker:up` | Arrencar el contenidor PostgreSQL |
-| `npm run docker:down` | Aturar el contenidor (manté les dades) |
-| `npm run docker:logs` | Veure logs de PostgreSQL en temps real |
-| `npm run docker:clean` | Aturar i **eliminar volums** (neteja completa) |
-| `npm run docker:psql` | Obrir psql (consola SQL interactiva) |
-| `npm run docker:prod:up` | Arrencar l'stack complet de producció (API + DB) |
-| `npm run docker:prod:down` | Aturar l'stack de producció |
+| `pnpm run docker:up` | Arrencar el contenidor PostgreSQL |
+| `pnpm run docker:down` | Aturar el contenidor (manté les dades) |
+| `pnpm run docker:logs` | Veure logs de PostgreSQL en temps real |
+| `pnpm run docker:clean` | Aturar i **eliminar volums** (neteja completa) |
+| `pnpm run docker:psql` | Obrir psql (consola SQL interactiva) |
+| `pnpm run docker:prod:up` | Arrencar l'stack complet de producció (API + DB) |
+| `pnpm run docker:prod:down` | Aturar l'stack de producció |
 | `nx run api:seed-seasons` | Importar temporades des de `data/seeds/seasons.json` |
 
 ---
@@ -101,7 +102,7 @@ nx serve dashboard
 ## Accés SQL directe
 
 ```bash
-npm run docker:psql
+pnpm run docker:psql
 ```
 
 Exemples de consultes:
@@ -127,8 +128,8 @@ SELECT id, name, "firstSurname", alias FROM persons LIMIT 10;
 Si vols tornar a un estat net (elimina TOTES les dades locals):
 
 ```bash
-npm run docker:clean   # Elimina contenidors i volums
-npm run docker:up      # Torna a crear la DB
+pnpm run docker:clean   # Elimina contenidors i volums
+pnpm run docker:up      # Torna a crear la DB
 nx serve api           # TypeORM recrea les taules automàticament
 nx run api:seed-seasons  # Reimporta les temporades
 ```
@@ -168,13 +169,13 @@ Les credencials del `.env` i el `docker-compose.yml` no coincideixen. Comprova q
 
 Si has canviat alguna cosa, fes un reset complet:
 ```bash
-npm run docker:clean && npm run docker:up
+pnpm run docker:clean && pnpm run docker:up
 ```
 
 ### L'API no arrenca
 
 1. Comprova que el contenidor Docker és en marxa: `docker ps`
-2. Prova la connexió: `npm run docker:psql`
+2. Prova la connexió: `pnpm run docker:psql`
 3. Comprova que `DATABASE_URL` al `.env` és correcta
 
 ---

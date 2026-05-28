@@ -30,6 +30,7 @@
 | [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md) | Visió general i fases P0–P7 |
 | **[DOCKER_SETUP.md](DOCKER_SETUP.md)** | Guia pràctica per PostgreSQL en Docker local |
 | **[DOCKER_ARCHITECTURE.md](DOCKER_ARCHITECTURE.md)** | Arquitectura Docker multi-entorn: dev local, VPS prod, backup, escalabilitat |
+| **[DEPLOY_PRE.md](DEPLOY_PRE.md)** | Guia de desplegament a l'entorn PRE (Hetzner VPS) |
 
 ---
 
@@ -66,6 +67,12 @@
 | Document | Descripció |
 |----------|------------|
 | [VALIDATION_CHECKLIST.md](VALIDATION_CHECKLIST.md) | Checklist de validació manual (20 punts) |
+
+### Migracions i Millores Pendents
+
+| Document | Estat | Descripció |
+|----------|-------|------------|
+| [MIGRATION_NPM_TO_PNPM.md](MIGRATION_NPM_TO_PNPM.md) | 📋 Pendent | Pla d'implementació per migrar de npm a pnpm |
 
 ---
 

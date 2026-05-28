@@ -377,9 +377,9 @@
 
               <!-- Dimensions (pinya/direction only) -->
               <div class="form-control mb-3">
-                <label class="label pb-1">
+                <p class="label pb-1">
                   <span class="label-text text-xs font-medium">Dimensions</span>
-                </label>
+                </p>
                 <div class="grid grid-cols-2 gap-2">
                   <div class="form-control">
                     <label class="label pb-1" [for]="'node-w-' + node.id">
@@ -496,6 +496,7 @@
     [style.left.px]="troncPanelPos().x"
     [style.top.px]="troncPanelPos().y"
     aria-label="Tronc de la figura"
+    tabindex="-1"
     (keydown.escape)="troncDrawerOpen.set(false)"
   >
     <div
@@ -540,6 +541,7 @@
     class="modal modal-open"
     aria-modal="true"
     aria-labelledby="shortcuts-title"
+    tabindex="-1"
     (keydown.escape)="toggleShortcutsModal()"
   >
     <div class="modal-box max-w-lg">

@@ -58,6 +58,7 @@ class StubNodePopover {
   readonly heightMode = input<string>('relative');
   readonly attendanceStatus = input<string | null>(null);
   readonly unassign = output<AssignmentDetail>();
+  // eslint-disable-next-line @angular-eslint/no-output-native -- stub mirrors real component
   readonly close = output<void>();
 }
 

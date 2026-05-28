@@ -1,0 +1,15 @@
+# PRE — HTTP accessible per IP
+# Per habilitar HTTPS: substituir ":80" pel domini real (p.ex. "pre.muixerapp.cat")
+# Caddy gestionarà els certificats Let's Encrypt automàticament sense cap canvi addicional
+:80 {
+    # Compressió gzip
+    encode gzip
+
+    # Proxy per a la API NestJS — totes les peticions /api/* van al backend
+    reverse_proxy /api/* api:3000
+
+    # Servir l'Angular SPA (fitxers estàtics + SPA fallback per al router Angular)
+    root * /srv
+    file_server
+    try_files {path} /index.html
+}

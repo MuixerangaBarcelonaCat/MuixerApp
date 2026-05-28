@@ -1,8 +1,9 @@
 # Stage 1: Install ALL dependencies (needed for build tools)
 FROM node:22-alpine AS deps
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci
+RUN corepack enable
+COPY package.json pnpm-lock.yaml .npmrc ./
+RUN pnpm install --frozen-lockfile
 
 # Stage 2: Build the Angular application
 FROM node:22-alpine AS build
@@ -17,32 +18,17 @@ ENV NX_SKIP_NX_CACHE=true
 RUN ./node_modules/.bin/nx build shared --configuration=production && \
     ./node_modules/.bin/nx build dashboard --configuration=pre
 
-# Stage 3: Serve static files with nginx
-FROM nginx:1.27-alpine AS runner
+# Stage 3: Serve static files with Caddy
+FROM caddy:alpine AS runner
 
-# Remove default nginx config
-RUN rm /etc/nginx/conf.d/default.conf
-
-# Copy our custom nginx config
-COPY apps/dashboard/nginx.conf /etc/nginx/conf.d/default.conf
+# Copy Caddy configuration
+COPY apps/dashboard/Caddyfile /etc/caddy/Caddyfile
 
 # Copy the built Angular app
-COPY --from=build /app/dist/apps/dashboard/browser /usr/share/nginx/html
-
-# Non-root user for security
-RUN addgroup -g 1001 -S nginx-user && \
-    adduser -S -D -H -u 1001 -h /var/cache/nginx -s /sbin/nologin -G nginx-user -g nginx-user nginx-user && \
-    chown -R nginx-user:nginx-user /usr/share/nginx/html && \
-    chown -R nginx-user:nginx-user /var/cache/nginx && \
-    chown -R nginx-user:nginx-user /var/log/nginx && \
-    touch /var/run/nginx.pid && \
-    chown -R nginx-user:nginx-user /var/run/nginx.pid
-
-USER nginx-user
+COPY --from=build /app/dist/apps/dashboard/browser /srv
 
 EXPOSE 80
+EXPOSE 443
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
   CMD wget -qO- http://localhost:80/ || exit 1
-
-CMD ["nginx", "-g", "daemon off;"]

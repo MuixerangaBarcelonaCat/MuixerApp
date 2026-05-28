@@ -7,7 +7,7 @@ import {
   LUCIDE_ICONS, LucideIconProvider,
   Plus, Search, ChevronDown, ChevronRight, FolderOpen, Layers, LayoutGrid,
   GitBranch, Pencil, Trash2, Copy, X, Info, ChevronLeft, HelpCircle, AlertTriangle,
-  BookOpen, RotateCcw, ArrowUpDown,
+  BookOpen, RotateCcw, ArrowUpDown, History,
 } from 'lucide-angular';
 import { TemplateListComponent } from './template-list.component';
 import { FigureTemplateService } from '../../services/figure-template.service';
@@ -115,7 +115,7 @@ describe('TemplateListComponent', () => {
           useFactory: () => new LucideIconProvider({
             Plus, Search, ChevronDown, ChevronRight, FolderOpen, Layers, LayoutGrid,
             GitBranch, Pencil, Trash2, Copy, X, Info, ChevronLeft, HelpCircle, AlertTriangle,
-            BookOpen, RotateCcw, ArrowUpDown,
+            BookOpen, RotateCcw, ArrowUpDown, History,
           }),
         },
       ],

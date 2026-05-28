@@ -1,8 +1,9 @@
 # Stage 1: Install ALL dependencies (needed for build tools)
 FROM node:22-alpine AS deps
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci
+RUN corepack enable
+COPY package.json pnpm-lock.yaml .npmrc ./
+RUN pnpm install --frozen-lockfile
 
 # Stage 2: Build the application
 FROM node:22-alpine AS build
@@ -21,9 +22,11 @@ RUN ./node_modules/.bin/nx build shared --configuration=production && \
 # Stage 3: Install only production dependencies for the final image
 FROM node:22-alpine AS prod-deps
 WORKDIR /app
-# The nx build generates a package.json in dist/apps/api
+RUN corepack enable
+# The nx build generates a package.json in dist/apps/api with only runtime deps
+# No pnpm-lock.yaml exists here — use --no-lockfile
 COPY --from=build /app/dist/apps/api/package.json ./
-RUN npm install --omit=dev
+RUN pnpm install --prod --no-lockfile
 
 # Stage 4: Final lightweight runner image
 FROM node:22-alpine AS runner

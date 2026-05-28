@@ -199,6 +199,7 @@
     [style.left.px]="troncPanelPos().x"
     [style.top.px]="troncPanelPos().y"
     aria-label="Tronc de la figura"
+    tabindex="-1"
     (keydown.escape)="troncPanelOpen.set(false)"
   >
     <div
@@ -339,7 +340,7 @@
         </button>
       </div>
     </div>
-    <div class="modal-backdrop" (click)="cancelDeleteInstance()"></div>
+    <button type="button" class="modal-backdrop" (click)="cancelDeleteInstance()" aria-label="Tancar"></button>
   </dialog>
 }
 
@@ -383,7 +384,7 @@
         </button>
       </div>
     </div>
-    <div class="modal-backdrop" (click)="cancelReset()"></div>
+    <button type="button" class="modal-backdrop" (click)="cancelReset()" aria-label="Tancar"></button>
   </dialog>
 }
 
@@ -424,6 +425,6 @@
         </button>
       </div>
     </div>
-    <div class="modal-backdrop" (click)="cancelUpgrade()"></div>
+    <button type="button" class="modal-backdrop" (click)="cancelUpgrade()" aria-label="Tancar"></button>
   </dialog>
 }

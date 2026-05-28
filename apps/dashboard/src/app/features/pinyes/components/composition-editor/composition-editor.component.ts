@@ -481,7 +481,7 @@ export class CompositionEditorComponent implements OnInit, OnDestroy {
   private loadAvailableTemplates(): void {
     this.figureTemplateService.getAll({ limit: 100 }).subscribe({
       next: (resp) => this.availableTemplates.set(resp.data),
-      error: () => {},
+      error: () => { /* silently ignore — non-critical prefetch */ },
     });
   }
 

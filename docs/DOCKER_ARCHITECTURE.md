@@ -46,10 +46,10 @@ MuixerApp utilitza Docker **únicament per a la base de dades** en desenvolupame
 │                                                             │
 │  ┌────────────────────────────────────────────────────────┐ │
 │  │  Docker: muixer-dashboard-pre                          │ │
-│  │  nginx:1.27-alpine  Port 80 (host)                     │ │
+│  │  caddy:alpine  Port 80/443 (host)                      │ │
 │  │                                                        │ │
-│  │  GET /*     → static files Angular                     │ │
-│  │  GET /api/* → proxy_pass http://api:3000               │ │
+│  │  GET /*     → static files Angular (SPA fallback)      │ │
+│  │  GET /api/* → reverse_proxy http://api:3000            │ │
 │  └────────────────────────┬───────────────────────────────┘ │
 │                           │ xarxa Docker interna            │
 │  ┌────────────────────────▼───────────────────────────────┐ │
@@ -108,11 +108,12 @@ MuixerApp utilitza Docker **únicament per a la base de dades** en desenvolupame
 | Fitxer | Entorn | Propòsit |
 |--------|--------|----------|
 | `docker-compose.yml` | Dev | PostgreSQL local per al dev |
-| `docker-compose.pre.yml` | PRE | Stack complet: API + Dashboard (nginx) + PostgreSQL |
+| `docker-compose.pre.yml` | PRE | Stack complet: API + Dashboard (Caddy) + PostgreSQL |
 | `docker-compose.prod.yml` | Producció | Stack complet: API + PostgreSQL |
 | `apps/api/Dockerfile` | PRE / Prod | Build multi-stage de l'API NestJS |
-| `apps/dashboard/Dockerfile` | PRE | Build multi-stage del Dashboard Angular + nginx |
-| `apps/dashboard/nginx.conf` | PRE | nginx: SPA routing + proxy `/api` → API |
+| `apps/dashboard/Dockerfile` | PRE | Build multi-stage del Dashboard Angular + Caddy |
+| `apps/dashboard/Caddyfile` | PRE | Caddy: SPA routing + proxy `/api` → API + HTTPS automàtic |
+| `apps/dashboard/nginx.conf` | — | ⚠️ Obsolet — substituït per `Caddyfile` |
 | `.dockerignore` | Build | Exclou fitxers innecessaris del context de build |
 | `docker/postgres/init.sql` | Dev | Inicialitza extensions PG en dev |
 | `docker/postgres/init-prod.sql` | PRE / Prod | Inicialitza extensions PG en PRE i prod |
@@ -131,17 +132,18 @@ El Dockerfile del Dashboard utilitza 3 stages:
 │  Stage 1     │   │  Stage 2                 │   │  Stage 3         │
 │  deps        │──▶│  build                   │──▶│  runner          │
 │              │   │                          │   │                  │
-│ npm ci       │   │ nx build shared + dash   │   │ nginx:1.27-alpine│
+│ pnpm install │   │ nx build shared + dash   │   │ caddy:alpine     │
 │ (all deps)   │   │ --configuration=pre      │   │ static files     │
-│              │   │                          │   │ + nginx.conf     │
+│              │   │                          │   │ + Caddyfile      │
 └──────────────┘   └──────────────────────────┘   └──────────────────┘
 ```
 
-**Per què nginx?**
-- Serveix els estàtics amb headers de cache correctes (Angular usa hashes als noms)
+**Per què Caddy?**
+- Serveix els estàtics amb gzip automàtic (Angular usa hashes als noms)
 - Proxeja `/api/*` al contenidor `api` per la xarxa Docker interna
 - SPA fallback: totes les rutes retornen `index.html` per al router Angular
-- Usuari no-root per seguretat
+- **HTTPS automàtic via Let's Encrypt**: canviant `:80` per un domini al `Caddyfile`, Caddy gestiona els certificats sol
+- Configuració mínima (6 línies vs ~50 de nginx)
 
 ---
 
@@ -154,7 +156,7 @@ El Dockerfile de l'API utilitza 4 stages per optimitzar la mida final:
 │  Stage 1     │   │  Stage 2     │   │  Stage 3       │   │  Stage 4     │
 │  deps        │──▶│  build       │──▶│  prod-deps     │──▶│  runner      │
 │              │   │              │   │                │   │              │
-│ npm ci       │   │ nx build     │   │ npm install    │   │ node main.js │
+│ pnpm install │   │ nx build     │   │ pnpm install   │   │ node main.js │
 │ (all deps)   │   │ api + shared │   │ (prod only,    │   │ (final image │
 │              │   │              │   │  from dist/    │   │  ~150MB)     │
 │              │   │              │   │  package.json) │   │              │

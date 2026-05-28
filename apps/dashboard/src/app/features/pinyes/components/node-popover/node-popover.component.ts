@@ -71,6 +71,7 @@ export class NodePopoverComponent {
   readonly attendanceStatus = input<string | null>(null);
 
   readonly unassign = output<AssignmentDetail>();
+  // eslint-disable-next-line @angular-eslint/no-output-native
   readonly close = output<void>();
 
   readonly X = X;

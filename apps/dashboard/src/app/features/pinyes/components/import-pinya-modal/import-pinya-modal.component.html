@@ -5,6 +5,7 @@
     aria-labelledby="import-modal-title"
     aria-modal="true"
     (click)="onBackdropClick($event)"
+    (keydown.escape)="close()"
   >
     <div class="modal-box max-w-lg">
       <div class="flex items-center justify-between mb-4">
@@ -127,6 +128,6 @@
         }
       </div>
     </div>
-    <div class="modal-backdrop" (click)="close()"></div>
+    <button type="button" class="modal-backdrop" (click)="close()" aria-label="Tancar"></button>
   </dialog>
 }

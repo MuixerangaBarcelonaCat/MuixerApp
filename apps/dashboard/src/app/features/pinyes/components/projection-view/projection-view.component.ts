@@ -331,9 +331,9 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
 
   private toggleBrowserFullscreen(): void {
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(() => {});
+      document.documentElement.requestFullscreen().catch(() => { /* best-effort */ });
     } else {
-      document.exitFullscreen().catch(() => {});
+      document.exitFullscreen().catch(() => { /* best-effort */ });
     }
   }
 

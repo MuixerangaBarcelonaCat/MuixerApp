@@ -623,6 +623,7 @@
     class="modal modal-open"
     aria-modal="true"
     [attr.aria-labelledby]="'family-modal-title'"
+    tabindex="-1"
     (keydown.escape)="closeFamilyModal()"
   >
     <div class="modal-box max-w-md">
@@ -721,6 +722,7 @@
     class="modal modal-open"
     aria-modal="true"
     aria-labelledby="derive-modal-title"
+    tabindex="-1"
     (keydown.escape)="closeDeriveModal()"
   >
     <div class="modal-box max-w-md">

@@ -131,13 +131,15 @@ describe('NodeAssignmentController', () => {
   });
 
   describe('getHistory', () => {
-    it('delegates to service and returns { data } envelope', async () => {
-      (mockAssignmentService.getHistory as jest.Mock).mockResolvedValue([mockHistoryEntry]);
+    it('delegates to service and returns paginated result', async () => {
+      const serviceResult = { data: [mockHistoryEntry], meta: { total: 1, page: 1, limit: 20 } };
+      (mockAssignmentService.getHistory as jest.Mock).mockResolvedValue(serviceResult);
+      const query = { page: 1, limit: 20 };
 
-      const result = await controller.getHistory(TEMPLATE_ID);
+      const result = await controller.getHistory(TEMPLATE_ID, query as any);
 
-      expect(result).toEqual({ data: [mockHistoryEntry] });
-      expect(mockAssignmentService.getHistory).toHaveBeenCalledWith(TEMPLATE_ID);
+      expect(result).toEqual(serviceResult);
+      expect(mockAssignmentService.getHistory).toHaveBeenCalledWith(TEMPLATE_ID, query);
     });
   });
 
