@@ -259,6 +259,7 @@
             (nodeResized)="onNodeResized($event)"
             (nodeLabelChanged)="onNodeLabelChanged($event)"
             (stageTransformChanged)="onStageTransformChanged($event)"
+            (ghostCloneRequested)="onGhostCloneRequested($event)"
           />
           @if (renglaEditMode()) {
             <app-rengla-overlay

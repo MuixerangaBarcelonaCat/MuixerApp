@@ -15,7 +15,7 @@ import { LucideAngularModule } from 'lucide-angular';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { CanvasStateService } from '../../services/canvas-state.service';
-import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component';
+import { FigureCanvasComponent, CanvasNode } from '../figure-canvas/figure-canvas.component';
 import { TroncViewComponent } from '../tronc-view/tronc-view.component';
 import { TemplateEditorHelpModalComponent } from '../template-editor-help-modal/template-editor-help-modal.component';
 import {
@@ -574,6 +574,77 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
           : n,
       ),
     );
+    this.scheduleAutosave();
+  }
+
+  // ── Ghost clone ─────────────────────────────────────────────────────────────
+
+  onGhostCloneRequested(event: { sourceNode: CanvasNode; targetPosition: { x: number; y: number } }): void {
+    const source = this.nodes().find((n) => n.id === event.sourceNode.id);
+    if (!source) return;
+
+    const newId = crypto.randomUUID();
+    let renglaId = source.renglaId;
+    let renglaPosition = source.renglaPosition != null ? source.renglaPosition + 1 : null;
+    let ringLevel = source.ringLevel != null ? source.ringLevel + 1 : null;
+
+    if (renglaId) {
+      this.nodes.update((nodes) =>
+        nodes.map((n) =>
+          n.renglaId === renglaId && n.renglaPosition != null && n.renglaPosition >= renglaPosition!
+            ? { ...n, renglaPosition: n.renglaPosition + 1, ringLevel: n.ringLevel != null ? n.ringLevel + 1 : null }
+            : n,
+        ),
+      );
+    } else {
+      const autoRenglaId = crypto.randomUUID();
+      const renglaIndex = this.rengles().length;
+      const newRengla: RenglaModel = {
+        id: autoRenglaId,
+        name: `${source.label} ${renglaIndex + 1}`,
+        sortOrder: renglaIndex,
+        startPosition: 1,
+        allowsCordoObert: false,
+      };
+      this.rengles.update((r) => [...r, newRengla]);
+
+      this.nodes.update((nodes) =>
+        nodes.map((n) =>
+          n.id === source.id
+            ? { ...n, renglaId: autoRenglaId, renglaPosition: 1, ringLevel: 1 }
+            : n,
+        ),
+      );
+
+      renglaId = autoRenglaId;
+      renglaPosition = 2;
+      ringLevel = 2;
+    }
+
+    const clonedNode: FigureNodeItem = {
+      id: newId,
+      label: source.label,
+      zone: source.zone,
+      positionType: source.positionType,
+      x: event.targetPosition.x,
+      y: event.targetPosition.y,
+      z: source.z,
+      width: source.width,
+      height: source.height,
+      rotation: source.rotation,
+      color: source.color,
+      shape: source.shape,
+      sortOrder: this.nodes().length,
+      climbPath: null,
+      ringLevel,
+      originNodeId: null,
+      renglaId,
+      renglaPosition,
+      metadata: {},
+    };
+
+    this.nodes.update((n) => [...n, clonedNode]);
+    this.selectedNodeId.set(newId);
     this.scheduleAutosave();
   }
 

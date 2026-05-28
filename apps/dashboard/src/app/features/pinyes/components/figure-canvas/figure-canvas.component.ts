@@ -17,6 +17,10 @@ import { FigureNodeItem } from '../../models/figure-template.model';
 import { CompositionSlotItem } from '../../models/composition.model';
 import { FigureZone, NodeShape } from '@muixer/shared';
 import { AssignmentDetail, HeightMode } from '../../models/assignment.model';
+import {
+  calculateGhostPosition,
+  isGhostEligible,
+} from '../../utils/ghost-clone.util';
 
 /** Minimal node shape accepted by the canvas for rendering — both FigureNodeItem and InstanceNodeItem satisfy this */
 export interface CanvasNode {
@@ -121,6 +125,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   readonly slotMoved = output<{ slotId: string; offsetX: number; offsetY: number }>();
   readonly nodeDoubleClicked = output<string>();
   readonly stageTransformChanged = output<{ x: number; y: number; scaleX: number; scaleY: number }>();
+  readonly ghostCloneRequested = output<{ sourceNode: CanvasNode; targetPosition: { x: number; y: number } }>();
 
   private stage!: Konva.Stage;
   private gridLayer!: Konva.Layer;
@@ -130,6 +135,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   private resizeObserver: ResizeObserver | null = null;
   /** Reused for measuring label text; not attached to the stage. */
   private labelMeasureProbe: Konva.Text | null = null;
+
+  private activeGhostGroup: Konva.Group | null = null;
+  private ghostHoverTimer: ReturnType<typeof setTimeout> | null = null;
+  private ghostLeaveTimer: ReturnType<typeof setTimeout> | null = null;
+  private ghostSourceNodeId: string | null = null;
 
   readonly zoomLevel = signal(1);
 
@@ -189,6 +199,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.clearAllGhostTimers();
     this.resizeObserver?.disconnect();
     this.labelMeasureProbe?.destroy();
     this.labelMeasureProbe = null;
@@ -475,7 +486,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   }
 
   private renderNodes(): void {
-    // Preserve the transformer: detach before destroying layer children
+    this.clearAllGhostTimers();
+
     this.transformer.nodes([]);
     this.transformer.remove();
 
@@ -483,8 +495,9 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
     const isEditor = this.mode() === 'editor';
     const selectedId = this.selectedNodeId();
+    const allNodes = this.nodes() as FigureNodeItem[];
 
-    for (const node of this.nodes() as FigureNodeItem[]) {
+    for (const node of allNodes) {
       const group = this.buildNodeGroup(node, isEditor, selectedId === node.id);
       this.pinyaLayer.add(group);
     }
@@ -1120,19 +1133,156 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         this.showLabelEditor(node);
       });
 
-      // Cursor
+      // Cursor + ghost hover
       group.on('mouseenter', () => {
         this.stage.container().style.cursor = 'grab';
+        if (isGhostEligible(node)) {
+          this.startGhostTimer(node);
+        }
       });
       group.on('mouseleave', () => {
         this.stage.container().style.cursor = 'default';
+        this.scheduleGhostHide();
       });
       group.on('dragstart', () => {
         this.stage.container().style.cursor = 'grabbing';
+        this.hideGhost();
       });
     }
 
     return group;
+  }
+
+  // ── Ghost clone ──────────────────────────────────────────────────────────
+
+  private startGhostTimer(node: CanvasNode): void {
+    this.clearGhostLeaveTimer();
+
+    if (this.ghostSourceNodeId === node.id) return;
+
+    this.hideGhost();
+    this.ghostHoverTimer = setTimeout(() => this.showGhostForNode(node), 1000);
+  }
+
+  private showGhostForNode(node: CanvasNode): void {
+    this.hideGhost();
+
+    const pos = calculateGhostPosition(node);
+    const strokeColor = node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR;
+
+    const ghost = new Konva.Group({
+      x: pos.x,
+      y: pos.y,
+      rotation: node.rotation,
+      listening: true,
+    });
+
+    let shape: Konva.Shape;
+    if (node.shape === NodeShape.ELLIPSE) {
+      shape = new Konva.Ellipse({
+        radiusX: node.width / 2,
+        radiusY: node.height / 2,
+        fill: 'transparent',
+        stroke: strokeColor,
+        strokeWidth: 2,
+        dash: [6, 4],
+        opacity: 0.75,
+      });
+    } else {
+      shape = new Konva.Rect({
+        x: -node.width / 2,
+        y: -node.height / 2,
+        width: node.width,
+        height: node.height,
+        cornerRadius: 4,
+        fill: 'transparent',
+        stroke: strokeColor,
+        strokeWidth: 2,
+        dash: [6, 4],
+        opacity: 0.75,
+      });
+    }
+    ghost.add(shape);
+
+    ghost.add(
+      new Konva.Text({
+        text: '+',
+        fontSize: 18,
+        fontFamily: 'Inter, sans-serif',
+        fill: strokeColor,
+        opacity: 0.7,
+        align: 'center',
+        verticalAlign: 'middle',
+        width: node.width,
+        height: node.height,
+        x: -node.width / 2,
+        y: -node.height / 2,
+        listening: false,
+      }),
+    );
+
+    ghost.on('mouseenter', () => {
+      this.clearGhostLeaveTimer();
+      this.stage.container().style.cursor = 'copy';
+    });
+
+    ghost.on('mouseleave', () => {
+      this.stage.container().style.cursor = 'default';
+      this.scheduleGhostHide();
+    });
+
+    ghost.on('click tap', () => {
+      this.ghostCloneRequested.emit({ sourceNode: node, targetPosition: pos });
+      this.hideGhost();
+    });
+
+    this.pinyaLayer.add(ghost);
+    ghost.moveToTop();
+    this.transformer.moveToTop();
+    this.pinyaLayer.batchDraw();
+
+    this.activeGhostGroup = ghost;
+    this.ghostSourceNodeId = node.id;
+  }
+
+  private scheduleGhostHide(): void {
+    this.clearGhostLeaveTimer();
+    this.ghostLeaveTimer = setTimeout(() => this.hideGhost(), 150);
+  }
+
+  private hideGhost(): void {
+    this.clearGhostHoverTimer();
+    this.clearGhostLeaveTimer();
+    if (this.activeGhostGroup) {
+      this.activeGhostGroup.destroy();
+      this.activeGhostGroup = null;
+      this.ghostSourceNodeId = null;
+      this.pinyaLayer.batchDraw();
+    }
+  }
+
+  private clearGhostHoverTimer(): void {
+    if (this.ghostHoverTimer) {
+      clearTimeout(this.ghostHoverTimer);
+      this.ghostHoverTimer = null;
+    }
+  }
+
+  private clearGhostLeaveTimer(): void {
+    if (this.ghostLeaveTimer) {
+      clearTimeout(this.ghostLeaveTimer);
+      this.ghostLeaveTimer = null;
+    }
+  }
+
+  private clearAllGhostTimers(): void {
+    this.clearGhostHoverTimer();
+    this.clearGhostLeaveTimer();
+    if (this.activeGhostGroup) {
+      this.activeGhostGroup.destroy();
+      this.activeGhostGroup = null;
+      this.ghostSourceNodeId = null;
+    }
   }
 
   private showLabelEditor(node: FigureNodeItem): void {
