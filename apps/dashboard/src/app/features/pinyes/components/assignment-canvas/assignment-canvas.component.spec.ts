@@ -100,6 +100,8 @@ const makeInstance = (overrides = {}) => ({
   snapshotted: false,
   sourceVariantOrder: null,
   assignedCount: 0,
+  numberOfCordons: null,
+  openCordons: null,
   projectionX: null,
   projectionY: null,
   projectionScale: 1,
@@ -187,6 +189,7 @@ interface MockAssignmentService {
   unassign: MockFn;
   swap: MockFn;
   upgradeInstance: MockFn;
+  updateCordons: MockFn;
   resetSnapshot: MockFn;
   bulkImport: MockFn;
   getHistory: MockFn;
@@ -218,6 +221,7 @@ describe('AssignmentCanvasComponent', () => {
         b: makeAssignment('inode-2', 'person-1'),
       })),
       upgradeInstance: vi.fn().mockReturnValue(of({ addedNodes: 2, totalNodes: 4 })),
+      updateCordons: vi.fn().mockReturnValue(of({ numberOfCordons: null, openCordons: null })),
       resetSnapshot: vi.fn().mockReturnValue(of({ removedAssignments: 0 })),
       bulkImport: vi.fn().mockReturnValue(of({ created: [], conflicts: [] })),
       getHistory: vi.fn().mockReturnValue(of({ data: [] })),
@@ -430,70 +434,40 @@ describe('AssignmentCanvasComponent', () => {
     });
   });
 
-  // ── upgrade ───────────────────────────────────────────────────────────────
+  // ── cordons ──────────────────────────────────────────────────────────────
 
-  describe('upgrade', () => {
-    beforeEach(() => {
-      component.tabs.update((list) =>
-        list.map((t) => ({
-          ...t,
-          familyId: FAMILY_ID,
-          snapshotted: true,
-          sourceVariantOrder: 1,
-          nodes: makeInstanceNodes(),
-        })),
-      );
-      component['familyDetail'].set(makeFamily());
-      fixture.detectChanges();
+  describe('cordons', () => {
+    it('hasCordonsConfig is false when no rengles are loaded', () => {
+      expect(component.hasCordonsConfig()).toBe(false);
     });
 
-    it('canUpgrade is true when next variant exists', () => {
-      expect(component.canUpgrade()).toBe(true);
+    it('hasCordonsConfig is true when rengles are present', () => {
+      component['templateRengles'].set([
+        { id: 'r1', name: 'Mans', sortOrder: 0, startPosition: 1, allowsCordoObert: true },
+      ]);
+      expect(component.hasCordonsConfig()).toBe(true);
     });
 
-    it('nextVariant returns the next family variant', () => {
-      expect(component.nextVariant()?.variantOrder).toBe(2);
+    it('renglesWithCordoObert filters only allowsCordoObert=true', () => {
+      component['templateRengles'].set([
+        { id: 'r1', name: 'Mans', sortOrder: 0, startPosition: 1, allowsCordoObert: true },
+        { id: 'r2', name: 'Vents', sortOrder: 1, startPosition: 1, allowsCordoObert: false },
+      ]);
+      expect(component.renglesWithCordoObert().length).toBe(1);
+      expect(component.renglesWithCordoObert()[0].id).toBe('r1');
     });
 
-    it('confirmUpgrade calls upgradeInstance and shows toast', () => {
-      const upgradedNodes = [...makeInstanceNodes(), {
-        id: 'inode-3', label: 'pinya-new-1', zone: FigureZone.PINYA, z: 0,
-        positionType: 'laterals', x: 300, y: 100, width: 40, height: 40,
-        rotation: 0, color: null, shape: NodeShape.ELLIPSE, sortOrder: 2,
-        ringLevel: 2, originNodeId: null, renglaId: null, renglaPosition: null, sourceNodeId: 'node-3', isSnapshotted: true,
-      }, {
-        id: 'inode-4', label: 'pinya-new-2', zone: FigureZone.PINYA, z: 0,
-        positionType: 'mans', x: 400, y: 100, width: 40, height: 40,
-        rotation: 0, color: null, shape: NodeShape.ELLIPSE, sortOrder: 3,
-        ringLevel: 2, originNodeId: null, renglaId: null, renglaPosition: null, sourceNodeId: 'node-4', isSnapshotted: true,
-      }];
+    it('onCordonsSaved calls updateCordons and reloads nodes', () => {
+      assignmentService.updateCordons.mockReturnValue(of({ numberOfCordons: 2, openCordons: null }));
+      assignmentService.getInstanceNodes.mockReturnValue(of({ data: makeInstanceNodes() }));
 
-      assignmentService.getInstanceNodes.mockReturnValue(of({ data: upgradedNodes }));
+      component.onCordonsSaved({ numberOfCordons: 2, openCordons: [] });
 
-      component.confirmUpgrade();
-
-      expect(assignmentService.upgradeInstance).toHaveBeenCalledWith(INSTANCE_ID);
-      expect(toastService.success).toHaveBeenCalledWith(expect.stringContaining('2 posicions'));
-    });
-
-    it('upgrade error shows error toast', () => {
-      assignmentService.upgradeInstance.mockReturnValue(
-        throwError(() => ({ error: { message: 'No next variant' } })),
-      );
-
-      component.confirmUpgrade();
-
-      expect(toastService.error).toHaveBeenCalled();
-    });
-
-    it('canUpgrade is false when at max variant', () => {
-      component['familyDetail'].set({
-        ...makeFamily(),
-        variants: [{ id: TEMPLATE_ID, name: 'pd4 — variant 1', slug: 'pd4-v1', variantOrder: 1, nodeCount: 2 }],
+      expect(assignmentService.updateCordons).toHaveBeenCalledWith(INSTANCE_ID, {
+        numberOfCordons: 2,
+        openCordons: null,
       });
-      fixture.detectChanges();
-
-      expect(component.canUpgrade()).toBe(false);
+      expect(toastService.success).toHaveBeenCalled();
     });
   });
 
@@ -507,6 +481,7 @@ describe('AssignmentCanvasComponent', () => {
         {
           instanceId: secondInstanceId, label: 'pd3', figureTemplateId: TEMPLATE_ID,
           familyId: null, snapshotted: false, sourceVariantOrder: null,
+          numberOfCordons: null, openCordons: null,
           nodes: [], assignedCount: 0, totalCount: 0,
         },
       ]);

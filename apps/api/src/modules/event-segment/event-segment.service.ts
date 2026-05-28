@@ -18,6 +18,8 @@ export interface InstanceRef {
   snapshotted: boolean;
   sourceVariantOrder: number | null;
   assignedCount: number;
+  numberOfCordons: number | null;
+  openCordons: string[] | null;
   figureTemplate: { id: string; name: string } | null;
   compositionTemplate: { id: string; name: string } | null;
 }
@@ -204,6 +206,8 @@ function toSegmentWithInstances(segment: EventSegment, countMap: Map<string, num
       snapshotted: instance.snapshotted,
       sourceVariantOrder: instance.sourceVariantOrder,
       assignedCount: countMap.get(instance.id) ?? 0,
+      numberOfCordons: instance.numberOfCordons,
+      openCordons: instance.openCordons,
       figureTemplate: instance.figureTemplate
         ? { id: instance.figureTemplate.id, name: instance.figureTemplate.name }
         : null,

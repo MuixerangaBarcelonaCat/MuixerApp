@@ -42,27 +42,19 @@
       }
     </div>
 
-    @if (canUpgrade()) {
+    @if (hasCordonsConfig()) {
       <button
         type="button"
-        class="btn btn-sm btn-outline btn-success gap-1"
-        (click)="openUpgradeModal()"
-        [disabled]="isLocked()"
-        data-tip="Afegeix les posicions del següent cordó basant-se en la variant superior de la família. No afecta les assignacions existents."
-        aria-label="Afegir cordó a la figura"
+        class="btn btn-sm btn-outline gap-1"
+        (click)="openCordonsDialog()"
+        aria-label="Configurar cordons visibles"
       >
-        <i-lucide [img]="Plus" class="size-4" />
-        Afegir cordó
+        <i-lucide [img]="SlidersHorizontal" class="size-4" />
+        Cordons
+        @if (activeTab()?.numberOfCordons) {
+          <span class="badge badge-xs badge-info">{{ activeTab()!.numberOfCordons }}</span>
+        }
       </button>
-    }
-
-    @if (activeTab()?.figureTemplateId && !canUpgrade() && familyDetail()) {
-      <span
-        class="text-xs text-base-content/40 hidden sm:inline"
-        data-tip="Ja estàs a la variant més gran de la família."
-      >
-        Variant màxima
-      </span>
     }
 
     @if (activeTab()?.figureTemplateId) {
@@ -388,43 +380,13 @@
   </dialog>
 }
 
-<!-- Upgrade modal -->
-@if (upgradeModalOpen()) {
-  <dialog
-    class="modal modal-open"
-    role="dialog"
-    aria-labelledby="upgrade-modal-title"
-    aria-modal="true"
-  >
-    <div class="modal-box max-w-sm">
-      <h3 id="upgrade-modal-title" class="text-lg font-bold mb-3">Afegir cordó</h3>
-      <p class="text-sm text-base-content/70">
-        Vols afegir un cordó? S'afegiran posicions noves de la variant
-        <strong>{{ nextVariant()?.name }}</strong>.
-        Les assignacions actuals es mantindran.
-      </p>
-      <div class="modal-action">
-        <button
-          type="button"
-          class="btn btn-ghost btn-sm"
-          (click)="cancelUpgrade()"
-          [disabled]="upgrading()"
-        >
-          Cancel·lar
-        </button>
-        <button
-          type="button"
-          class="btn btn-primary btn-sm gap-1"
-          (click)="confirmUpgrade()"
-          [disabled]="upgrading()"
-        >
-          @if (upgrading()) {
-            <span class="loading loading-spinner loading-xs"></span>
-          }
-          Afegir
-        </button>
-      </div>
-    </div>
-    <button type="button" class="modal-backdrop" (click)="cancelUpgrade()" aria-label="Tancar"></button>
-  </dialog>
-}
+<!-- Cordons dialog -->
+<app-cordons-dialog
+  [open]="cordonsDialogOpen()"
+  [numberOfCordons]="activeTab()?.numberOfCordons ?? null"
+  [openCordons]="activeTab()?.openCordons ?? []"
+  [rengles]="renglesWithCordoObert()"
+  [maxCordons]="maxCordons()"
+  (saved)="onCordonsSaved($event)"
+  (closed)="onCordonsDialogClosed()"
+/>

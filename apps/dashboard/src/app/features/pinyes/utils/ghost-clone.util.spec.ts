@@ -50,13 +50,13 @@ describe('ghost-clone.util', () => {
       const node = makeNode({ x: 200, y: 200, width: 80, rotation: 0 });
       const result = calculateGhostPosition(node);
       expect(result.x).toBe(200);
-      expect(result.y).toBe(200 - (80 + 3));
+      expect(result.y).toBe(200 - (40 + 3));
     });
 
     it('places ghost to the right (east) for rotation=90', () => {
       const node = makeNode({ x: 200, y: 200, width: 80, rotation: 90 });
       const result = calculateGhostPosition(node);
-      expect(result.x).toBe(200 + (80 + 3));
+      expect(result.x).toBe(200 + (40 + 3));
       expect(result.y).toBe(200);
     });
 
@@ -64,13 +64,13 @@ describe('ghost-clone.util', () => {
       const node = makeNode({ x: 200, y: 200, width: 80, rotation: 180 });
       const result = calculateGhostPosition(node);
       expect(result.x).toBe(200);
-      expect(result.y).toBe(200 + (80 + 3));
+      expect(result.y).toBe(200 + (40 + 3));
     });
 
     it('places ghost to the left (west) for rotation=270', () => {
       const node = makeNode({ x: 200, y: 200, width: 80, rotation: 270 });
       const result = calculateGhostPosition(node);
-      expect(result.x).toBe(200 - (80 + 3));
+      expect(result.x).toBe(200 - (40 + 3));
       expect(result.y).toBe(200);
     });
 
@@ -88,10 +88,10 @@ describe('ghost-clone.util', () => {
       expect(result.y).toBeLessThan(200);
     });
 
-    it('uses width + default gap (3) for offset distance', () => {
-      const node = makeNode({ x: 100, y: 100, width: 60, rotation: 0 });
+    it('uses height + default gap (3) for offset distance', () => {
+      const node = makeNode({ x: 100, y: 100, width: 60, height: 50, rotation: 0 });
       const result = calculateGhostPosition(node);
-      expect(result.y).toBe(100 - 63);
+      expect(result.y).toBe(100 - 53);
     });
 
     it('respects custom gap', () => {

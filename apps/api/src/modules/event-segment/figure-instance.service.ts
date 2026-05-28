@@ -214,6 +214,8 @@ export class FigureInstanceService {
       snapshotted: instance.snapshotted,
       sourceVariantOrder: instance.sourceVariantOrder,
       assignedCount: 0,
+      numberOfCordons: instance.numberOfCordons,
+      openCordons: instance.openCordons,
       figureTemplate: instance.figureTemplate
         ? { id: instance.figureTemplate.id, name: instance.figureTemplate.name }
         : null,

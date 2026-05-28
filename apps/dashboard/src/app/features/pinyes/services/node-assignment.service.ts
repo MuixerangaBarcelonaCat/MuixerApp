@@ -7,6 +7,7 @@ import {
   AvailablePersonsQuery,
   BulkImportPayload,
   BulkImportResult,
+  CordonsResponse,
   CreateAssignmentPayload,
   EventAssignmentSummary,
   FigureHistoryEntry,
@@ -15,6 +16,7 @@ import {
   InstanceNodeItem,
   PersonAssignmentHistory,
   SwapAssignmentsPayload,
+  UpdateInstanceCordonsPayload,
   UpgradeResult,
 } from '../models/assignment.model';
 
@@ -50,6 +52,10 @@ export class NodeAssignmentService extends ApiService {
 
   upgradeInstance(instanceId: string): Observable<UpgradeResult> {
     return this.post<UpgradeResult>(`/figure-instances/${instanceId}/upgrade`, {});
+  }
+
+  updateCordons(instanceId: string, payload: UpdateInstanceCordonsPayload): Observable<CordonsResponse> {
+    return this.patch<CordonsResponse>(`/figure-instances/${instanceId}/cordons`, payload);
   }
 
   resetSnapshot(instanceId: string): Observable<{ removedAssignments: number }> {

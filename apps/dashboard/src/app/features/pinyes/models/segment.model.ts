@@ -5,6 +5,8 @@ export interface InstanceDetail {
   snapshotted: boolean;
   sourceVariantOrder: number | null;
   assignedCount: number;
+  numberOfCordons: number | null;
+  openCordons: string[] | null;
   projectionX: number | null;
   projectionY: number | null;
   projectionScale: number;

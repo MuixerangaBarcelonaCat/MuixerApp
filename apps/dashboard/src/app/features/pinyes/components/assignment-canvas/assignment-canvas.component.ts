@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Location } from '@angular/common';
-import { LucideAngularModule, ArrowLeft, Users, Edit, RefreshCw, Plus, Trash2, X, PanelLeft, PanelLeftClose, Monitor, Lock } from 'lucide-angular';
+import { LucideAngularModule, ArrowLeft, Users, Edit, RefreshCw, Trash2, X, PanelLeft, PanelLeftClose, Monitor, Lock, SlidersHorizontal } from 'lucide-angular';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { NodeAssignmentService, LockStatus } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
@@ -23,6 +23,7 @@ import { PersonPanelComponent } from '../person-panel/person-panel.component';
 import { NodePopoverComponent } from '../node-popover/node-popover.component';
 import { ImportPinyaModalComponent } from '../import-pinya-modal/import-pinya-modal.component';
 import { TroncViewComponent } from '../tronc-view/tronc-view.component';
+import { CordonsDialogComponent, CordonsDialogSaveEvent } from '../cordons-dialog/cordons-dialog.component';
 import {
   AssignmentDetail,
   AttendanceStatus,
@@ -32,9 +33,11 @@ import {
   PendingOp,
 } from '../../models/assignment.model';
 import { SegmentDetail } from '../../models/segment.model';
-import { FigureFamilyDetail, FigureFamilyVariant } from '../../models/figure-family.model';
+import { FigureFamilyDetail } from '../../models/figure-family.model';
 import { FigureTemplateService } from '../../services/figure-template.service';
+import { RenglaModel } from '../../models/figure-template.model';
 import { FigureZone } from '@muixer/shared';
+import { repositionCordoObertNodes } from '../../utils/cordo-obert-reposition.util';
 
 interface InstanceTab {
   instanceId: string;
@@ -43,6 +46,8 @@ interface InstanceTab {
   familyId: string | null;
   snapshotted: boolean;
   sourceVariantOrder: number | null;
+  numberOfCordons: number | null;
+  openCordons: string[] | null;
   nodes: InstanceNodeItem[];
   assignedCount: number;
   totalCount: number;
@@ -60,6 +65,7 @@ interface InstanceTab {
     NodePopoverComponent,
     ImportPinyaModalComponent,
     TroncViewComponent,
+    CordonsDialogComponent,
   ],
   templateUrl: './assignment-canvas.component.html',
   styleUrl: './assignment-canvas.component.scss',
@@ -80,13 +86,13 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly Users = Users;
   readonly Edit = Edit;
   readonly RefreshCw = RefreshCw;
-  readonly Plus = Plus;
   readonly Trash2 = Trash2;
   readonly X = X;
   readonly PanelLeft = PanelLeft;
   readonly PanelLeftClose = PanelLeftClose;
   readonly Monitor = Monitor;
   readonly Lock = Lock;
+  readonly SlidersHorizontal = SlidersHorizontal;
 
   readonly eventId = signal('');
   readonly segmentId = signal('');
@@ -97,8 +103,6 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly popoverPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
   readonly importModalOpen = signal(false);
   readonly highlightedNodeIds = signal<Set<string>>(new Set());
-  readonly upgradeModalOpen = signal(false);
-  readonly upgrading = signal(false);
   readonly familyDetail = signal<FigureFamilyDetail | null>(null);
   readonly resetModalOpen = signal(false);
   readonly resetting = signal(false);
@@ -110,6 +114,14 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly isLocked = computed(() => this.lockStatus()?.locked ?? false);
 
   readonly troncPanelOpen = signal(false);
+
+  readonly templateRengles = signal<RenglaModel[]>([]);
+  readonly maxCordons = signal(0);
+  readonly renglesWithCordoObert = computed(() =>
+    this.templateRengles().filter((r) => r.allowsCordoObert),
+  );
+  readonly hasCordonsConfig = computed(() => this.templateRengles().length > 0);
+  readonly cordonsDialogOpen = signal(false);
 
   // Floating tronc panel drag state
   readonly troncPanelPos = signal({ x: 16, y: 60 });
@@ -129,9 +141,11 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   });
 
   /** Nodes rendered on the pinya Konva canvas (PINYA + BASE + direction zones, no TRONC). */
-  readonly activePinyaNodes = computed(() =>
-    this.activeNodes().filter((n) => n.zone !== FigureZone.TRONC),
-  );
+  readonly activePinyaNodes = computed(() => {
+    const nodes = this.activeNodes().filter((n) => n.zone !== FigureZone.TRONC);
+    const tab = this.activeTab();
+    return repositionCordoObertNodes(nodes, tab?.numberOfCordons ?? null);
+  });
 
   /** TRONC-zone nodes passed to the tronc panel. */
   readonly activeTroncNodes = computed(() =>
@@ -156,20 +170,6 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
   readonly attendanceMap = computed(() => this.state.attendanceRegistry());
   readonly nextPerformanceMap = computed(() => this.state.nextPerformanceRegistry());
-
-  readonly nextVariant = computed<FigureFamilyVariant | null>(() => {
-    const tab = this.activeTab();
-    const family = this.familyDetail();
-    if (!tab || !family || !tab.figureTemplateId) return null;
-    const currentOrder = tab.sourceVariantOrder ?? family.variants.find(
-      (v) => v.id === tab.figureTemplateId,
-    )?.variantOrder ?? 0;
-    return family.variants
-      .filter((v) => v.variantOrder > currentOrder)
-      .sort((a, b) => a.variantOrder - b.variantOrder)[0] ?? null;
-  });
-
-  readonly canUpgrade = computed(() => !!this.nextVariant());
 
   ngOnInit(): void {
     this.layout.requestFullscreen();
@@ -219,6 +219,8 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
         familyId: null,
         snapshotted: instance.snapshotted,
         sourceVariantOrder: instance.sourceVariantOrder,
+        numberOfCordons: instance.numberOfCordons ?? null,
+        openCordons: instance.openCordons ?? null,
         nodes: [],
         assignedCount: 0,
         totalCount: 0,
@@ -303,6 +305,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
       this.familyService.getOne(tab.familyId).subscribe({
         next: (family) => this.familyDetail.set(family),
       });
+      this.loadTemplateRengles(tab.figureTemplateId);
       return;
     }
 
@@ -314,11 +317,30 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
             t.instanceId === instanceId ? { ...t, familyId } : t,
           ),
         );
+        this.templateRengles.set(template.rengles ?? []);
+        const maxPos = (template.nodes ?? []).reduce(
+          (max, n) => (n.renglaPosition != null && n.renglaPosition > max ? n.renglaPosition : max),
+          0,
+        );
+        this.maxCordons.set(maxPos);
         if (familyId) {
           this.familyService.getOne(familyId).subscribe({
             next: (family) => this.familyDetail.set(family),
           });
         }
+      },
+    });
+  }
+
+  private loadTemplateRengles(templateId: string): void {
+    this.figureTemplateService.getOne(templateId).subscribe({
+      next: (template) => {
+        this.templateRengles.set(template.rengles ?? []);
+        const maxPos = (template.nodes ?? []).reduce(
+          (max, n) => (n.renglaPosition != null && n.renglaPosition > max ? n.renglaPosition : max),
+          0,
+        );
+        this.maxCordons.set(maxPos);
       },
     });
   }
@@ -580,72 +602,40 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     });
   }
 
-  // ─── Upgrade ────────────────────────────────────────────────────────────
+  // ─── Cordons dialog ─────────────────────────────────────────────────────
 
-  openUpgradeModal(): void {
-    this.upgradeModalOpen.set(true);
+  openCordonsDialog(): void {
+    this.cordonsDialogOpen.set(true);
   }
 
-  confirmUpgrade(): void {
+  onCordonsSaved(event: CordonsDialogSaveEvent): void {
     const instanceId = this.state.activeInstanceId();
     if (!instanceId) return;
 
-    this.upgrading.set(true);
-    const previousNodeIds = new Set(this.activeNodes().map((n) => n.id));
-
-    this.assignmentService.upgradeInstance(instanceId).subscribe({
-      next: (result) => {
-        this.upgrading.set(false);
-        this.upgradeModalOpen.set(false);
-        this.toast.success(`S'han afegit ${result.addedNodes} posicions noves.`);
-
-        // Reload nodes and highlight the new ones
-        this.assignmentService.getInstanceNodes(instanceId).subscribe({
-          next: (resp) => {
-            const newIds = new Set(
-              resp.data.filter((n) => !previousNodeIds.has(n.id)).map((n) => n.id),
-            );
-            this.tabs.update((list) =>
-              list.map((t) =>
-                t.instanceId === instanceId
-                  ? {
-                      ...t,
-                      nodes: resp.data,
-                      totalCount: resp.data.length,
-                      snapshotted: true,
-                      label: result.newTemplateName,
-                      figureTemplateId: result.newTemplateId,
-                      sourceVariantOrder: result.newVariantOrder,
-                    }
-                  : t,
-              ),
-            );
-            this.highlightedNodeIds.set(newIds);
-            setTimeout(() => this.highlightedNodeIds.set(new Set()), 5000);
-
-            // Reload family to update nextVariant computed
-            this.loadFamilyForTab(instanceId);
-          },
-        });
-
-        this.assignmentService.getByInstance(instanceId).subscribe({
-          next: (resp) => {
-            this.state.assignments.set(resp.data);
-            this.updateTabCount(instanceId);
-          },
-        });
+    this.cordonsDialogOpen.set(false);
+    this.assignmentService.updateCordons(instanceId, {
+      numberOfCordons: event.numberOfCordons,
+      openCordons: event.openCordons.length > 0 ? event.openCordons : null,
+    }).subscribe({
+      next: (resp) => {
+        this.tabs.update((list) =>
+          list.map((t) =>
+            t.instanceId === instanceId
+              ? { ...t, numberOfCordons: resp.numberOfCordons, openCordons: resp.openCordons }
+              : t,
+          ),
+        );
+        this.refreshInstanceNodes(instanceId);
+        this.toast.success('Configuració de cordons actualitzada.');
       },
-      error: (err) => {
-        this.upgrading.set(false);
-        this.upgradeModalOpen.set(false);
-        const msg = err?.error?.message ?? "Error en afegir el cordó.";
-        this.toast.error(msg);
+      error: () => {
+        this.toast.error('Error en actualitzar els cordons.');
       },
     });
   }
 
-  cancelUpgrade(): void {
-    this.upgradeModalOpen.set(false);
+  onCordonsDialogClosed(): void {
+    this.cordonsDialogOpen.set(false);
   }
 
   // ─── Reset snapshot ────────────────────────────────────────────────────

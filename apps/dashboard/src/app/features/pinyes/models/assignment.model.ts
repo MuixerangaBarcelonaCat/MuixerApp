@@ -143,6 +143,16 @@ export interface UpgradeResult {
   newVariantOrder: number;
 }
 
+export interface UpdateInstanceCordonsPayload {
+  numberOfCordons?: number | null;
+  openCordons?: string[] | null;
+}
+
+export interface CordonsResponse {
+  numberOfCordons: number | null;
+  openCordons: string[] | null;
+}
+
 export interface SwapAssignmentsPayload {
   assignmentIdA: string;
   assignmentIdB: string;
