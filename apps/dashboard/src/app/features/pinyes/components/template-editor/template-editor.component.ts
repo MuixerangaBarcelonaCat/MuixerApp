@@ -22,8 +22,11 @@ import {
   FigureTemplateDetail,
   FigureNodeItem,
   CreateFigureNodePayload,
+  RenglaModel,
 } from '../../models/figure-template.model';
 import { FigureZone, NodeShape } from '@muixer/shared';
+import { RenglaOverlayComponent, RenglaCreatedEvent, RenglaUpdatedEvent, RenglaDeletedEvent } from '../rengla-overlay/rengla-overlay.component';
+import { StageTransform } from '../../utils/rengla-coordinates.util';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { validateBaseOrdering } from '../../utils/base-ordering.util';
@@ -55,7 +58,7 @@ const PINYA_POSITIONS: PinyaPosition[] = [
   selector: 'app-template-editor',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule, FigureCanvasComponent, TroncViewComponent, TemplateEditorHelpModalComponent],
+  imports: [FormsModule, LucideAngularModule, FigureCanvasComponent, TroncViewComponent, TemplateEditorHelpModalComponent, RenglaOverlayComponent],
   templateUrl: './template-editor.component.html',
   styleUrl: './template-editor.component.scss',
 })
@@ -85,6 +88,13 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   nodes = signal<FigureNodeItem[]>([]);
   selectedNodeId = signal<string | null>(null);
   private clipboardNode = signal<FigureNodeItem | null>(null);
+
+  // Rengles
+  rengles = signal<RenglaModel[]>([]);
+  renglaEditMode = signal(false);
+  stageTransform = signal<StageTransform>({ x: 0, y: 0, scaleX: 1, scaleY: 1 });
+
+  readonly canvasMode = computed(() => this.renglaEditMode() ? 'readonly' as const : 'editor' as const);
 
   // Panel visibility
   propertiesPanelOpen = signal(true);
@@ -497,6 +507,76 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     this.shortcutsModalOpen.update((v) => !v);
   }
 
+  // ── Rengla mode ──────────────────────────────────────────────────────────
+
+  toggleRenglaEditMode(): void {
+    this.renglaEditMode.update((v) => !v);
+    if (this.renglaEditMode()) {
+      this.selectedNodeId.set(null);
+    }
+  }
+
+  onStageTransformChanged(t: StageTransform): void {
+    this.stageTransform.set(t);
+  }
+
+  onRenglaCreated(event: RenglaCreatedEvent): void {
+    const renglaId = crypto.randomUUID();
+    const startPos = event.rengla.startPosition;
+    const newRengla: RenglaModel = {
+      id: renglaId,
+      name: event.rengla.name,
+      sortOrder: event.rengla.sortOrder,
+      startPosition: startPos,
+      allowsCordoObert: event.rengla.allowsCordoObert,
+    };
+    this.rengles.update((r) => [...r, newRengla]);
+
+    this.nodes.update((nodes) =>
+      nodes.map((n) => {
+        const assignment = event.nodeAssignments.find((a) => a.nodeId === n.id);
+        if (!assignment) return n;
+        return {
+          ...n,
+          renglaId,
+          renglaPosition: assignment.renglaPosition,
+          ringLevel: startPos + assignment.renglaPosition - 1,
+        };
+      }),
+    );
+
+    this.scheduleAutosave();
+  }
+
+  onRenglaUpdated(event: RenglaUpdatedEvent): void {
+    this.rengles.update((list) =>
+      list.map((r) => (r.id === event.rengla.id ? event.rengla : r)),
+    );
+
+    const startPos = event.rengla.startPosition;
+    this.nodes.update((nodes) =>
+      nodes.map((n) =>
+        n.renglaId === event.rengla.id && n.renglaPosition != null
+          ? { ...n, ringLevel: startPos + n.renglaPosition - 1 }
+          : n,
+      ),
+    );
+
+    this.scheduleAutosave();
+  }
+
+  onRenglaDeleted(event: RenglaDeletedEvent): void {
+    this.rengles.update((list) => list.filter((r) => r.id !== event.renglaId));
+    this.nodes.update((nodes) =>
+      nodes.map((n) =>
+        n.renglaId === event.renglaId
+          ? { ...n, renglaId: null, renglaPosition: null, ringLevel: null }
+          : n,
+      ),
+    );
+    this.scheduleAutosave();
+  }
+
   // ── Persistence ────────────────────────────────────────────────────────────
 
   private scheduleAutosave(): void {
@@ -581,6 +661,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
       description: this.templateDescription().trim() || undefined,
       hasPinya: this.hasPinya(),
       nodes: this.nodes().map(nodeToPayload),
+      rengles: this.rengles(),
     };
   }
 
@@ -601,6 +682,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
         this.templateDescription.set(tmpl.description ?? '');
         this.hasPinya.set(tmpl.hasPinya);
         this.nodes.set(tmpl.nodes);
+        this.rengles.set(tmpl.rengles ?? []);
         this.familyId.set(tmpl.familyId);
         this.familyName.set(tmpl.familyName);
         this.variantOrder.set(tmpl.variantOrder ?? null);

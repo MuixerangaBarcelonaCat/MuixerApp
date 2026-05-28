@@ -61,6 +61,21 @@
         </span>
       }
 
+      <!-- Rengla edit mode toggle -->
+      <button
+        type="button"
+        class="btn btn-sm gap-1"
+        [class.btn-primary]="renglaEditMode()"
+        [class.btn-ghost]="!renglaEditMode()"
+        (click)="toggleRenglaEditMode()"
+        [attr.aria-pressed]="renglaEditMode()"
+        aria-label="Editar rengles"
+        title="Edita rengles"
+      >
+        <lucide-icon name="GitBranchPlus" [size]="16" aria-hidden="true" />
+        Rengles
+      </button>
+
       <!-- Tronc drawer trigger -->
       <button
         type="button"
@@ -230,19 +245,32 @@
           </div>
         </div>
       } @else {
-        <app-figure-canvas
-          [nodes]="pinyaNodes()"
-          [mode]="'editor'"
-          [gridEnabled]="gridEnabled()"
-          [gridSpacing]="40"
-          [snapToGrid]="snapToGrid()"
-          [selectedNodeId]="selectedNodeId()"
-          (nodeSelected)="onNodeSelected($event)"
-          (nodeMoved)="onNodeMoved($event)"
-          (nodeRotated)="onNodeRotated($event)"
-          (nodeResized)="onNodeResized($event)"
-          (nodeLabelChanged)="onNodeLabelChanged($event)"
-        />
+        <div class="relative w-full h-full">
+          <app-figure-canvas
+            [nodes]="pinyaNodes()"
+            [mode]="canvasMode()"
+            [gridEnabled]="gridEnabled()"
+            [gridSpacing]="40"
+            [snapToGrid]="snapToGrid()"
+            [selectedNodeId]="selectedNodeId()"
+            (nodeSelected)="onNodeSelected($event)"
+            (nodeMoved)="onNodeMoved($event)"
+            (nodeRotated)="onNodeRotated($event)"
+            (nodeResized)="onNodeResized($event)"
+            (nodeLabelChanged)="onNodeLabelChanged($event)"
+            (stageTransformChanged)="onStageTransformChanged($event)"
+          />
+          @if (renglaEditMode()) {
+            <app-rengla-overlay
+              [nodes]="pinyaNodes()"
+              [rengles]="rengles()"
+              [stageTransform]="stageTransform()"
+              (renglaCreated)="onRenglaCreated($event)"
+              (renglaUpdated)="onRenglaUpdated($event)"
+              (renglaDeleted)="onRenglaDeleted($event)"
+            />
+          }
+        </div>
       }
     </main>
 
@@ -337,7 +365,9 @@
                 <label class="label pb-1" [for]="'node-ring-' + node.id">
                   <span
                     class="label-text text-xs font-medium tooltip tooltip-right"
-                    data-tip="El nivell de cordó indica a quin anell concèntric pertany aquesta posició. Serveix per saber quines posicions s'afegeixen quan la figura creix."
+                    [attr.data-tip]="node.renglaId
+                      ? 'Calculat automàticament des de la rengla assignada.'
+                      : 'El nivell de cordó indica a quin anell concèntric pertany aquesta posició. Serveix per saber quines posicions s\'afegeixen quan la figura creix.'"
                   >
                     Nivell de cordó
                   </span>
@@ -346,14 +376,22 @@
                   type="number"
                   [id]="'node-ring-' + node.id"
                   class="input input-bordered input-sm"
-                  placeholder="Buit = independent"
+                  [class.input-disabled]="!!node.renglaId"
+                  [placeholder]="node.renglaId ? '' : 'Buit = independent'"
                   [ngModel]="node.ringLevel"
                   (ngModelChange)="updateSelectedNodeProp('ringLevel', $event ? +$event : null)"
+                  [disabled]="!!node.renglaId"
                   min="1"
                   max="10"
                 />
                 <div class="label pt-1">
-                  <span class="label-text-alt text-base-content/50">Buit per a nodes independents (ex: cordó obert)</span>
+                  <span class="label-text-alt text-base-content/50">
+                    @if (node.renglaId) {
+                      Gestionat per la rengla assignada
+                    } @else {
+                      Buit per a nodes independents (ex: cordó obert)
+                    }
+                  </span>
                 </div>
               </div>
             }

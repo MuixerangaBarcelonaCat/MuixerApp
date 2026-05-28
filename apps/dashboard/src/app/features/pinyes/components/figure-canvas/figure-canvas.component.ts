@@ -120,6 +120,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   readonly slotSelected = output<string | null>();
   readonly slotMoved = output<{ slotId: string; offsetX: number; offsetY: number }>();
   readonly nodeDoubleClicked = output<string>();
+  readonly stageTransformChanged = output<{ x: number; y: number; scaleX: number; scaleY: number }>();
 
   private stage!: Konva.Stage;
   private gridLayer!: Konva.Layer;
@@ -199,6 +200,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.stage.position({ x: 0, y: 0 });
     this.zoomLevel.set(1);
     this.stage.batchDraw();
+    this.emitStageTransform();
   }
 
   fitAllSlots(): void {
@@ -242,6 +244,17 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.stage.position({ x: newX, y: newY });
     this.zoomLevel.set(newScale);
     this.stage.batchDraw();
+    this.emitStageTransform();
+  }
+
+  getStageTransform(): { x: number; y: number; scaleX: number; scaleY: number } {
+    if (!this.stage) return { x: 0, y: 0, scaleX: 1, scaleY: 1 };
+    return {
+      x: this.stage.x(),
+      y: this.stage.y(),
+      scaleX: this.stage.scaleX(),
+      scaleY: this.stage.scaleY(),
+    };
   }
 
   setZoom(level: number): void {
@@ -263,6 +276,17 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
     this.zoomLevel.set(level);
     this.stage.batchDraw();
+    this.emitStageTransform();
+  }
+
+  private emitStageTransform(): void {
+    if (!this.stage) return;
+    this.stageTransformChanged.emit({
+      x: this.stage.x(),
+      y: this.stage.y(),
+      scaleX: this.stage.scaleX(),
+      scaleY: this.stage.scaleY(),
+    });
   }
 
   private initStage(): void {
@@ -327,12 +351,14 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         y: stageStart.y + (pos.y - panStart.y),
       });
       this.stage.batchDraw();
+      this.emitStageTransform();
     });
 
     this.stage.on('mouseup', () => {
       if (isPanning) {
         isPanning = false;
         this.stage.container().style.cursor = 'default';
+        this.emitStageTransform();
       }
     });
 

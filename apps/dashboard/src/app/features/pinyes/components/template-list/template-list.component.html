@@ -166,16 +166,16 @@
               <div class="flex items-center gap-1 shrink-0">
                 <span
                   class="tooltip tooltip-left"
-                  data-tip="Cada variant representa la mateixa figura amb un nombre diferent de cordons. Es pot derivar d'una variant existent per heretar les posicions."
+                  data-tip="Crea una nova figura dins d'aquesta família."
                 >
                   <button
                     type="button"
                     class="btn btn-primary btn-sm gap-1"
                     (click)="openNewVariant(family)"
-                    [attr.aria-label]="'Nova variant per a ' + family.name"
+                    [attr.aria-label]="'Nova figura per a ' + family.name"
                   >
                     <lucide-icon name="Plus" [size]="13" aria-hidden="true" />
-                    Nova variant
+                    Nova figura
                   </button>
                 </span>
 
@@ -242,7 +242,7 @@
               >
                 @if (family.variants.length === 0) {
                   <p class="text-sm text-base-content/50 px-6 py-4">
-                    Aquesta família no té variants. Clica "Nova variant" per crear-ne una.
+                    Aquesta família no té figures. Clica "Nova figura" per crear-ne una.
                   </p>
                 } @else {
                   <div class="px-2 py-1">
@@ -737,15 +737,15 @@
 
       <h2 id="derive-modal-title" class="text-lg font-bold mb-1 flex items-center gap-2">
         <lucide-icon name="GitBranch" [size]="20" aria-hidden="true" />
-        Nova variant de "{{ modal.familyName }}"
+        Nova figura de "{{ modal.familyName }}"
       </h2>
       <p class="text-sm text-base-content/60 mb-5">
-        Selecciona la variant de la qual vols heretar les posicions. La nova variant copiarà tots els seus nodes mantenint la traçabilitat dels orígens.
+        Selecciona la figura de la qual vols heretar les posicions. La nova figura copiarà tots els seus nodes mantenint la traçabilitat dels orígens.
       </p>
 
       <div class="form-control mb-6">
         <label class="label pb-1" for="derive-source">
-          <span class="label-text font-medium">Derivar de la variant</span>
+          <span class="label-text font-medium">Derivar de la figura</span>
         </label>
         <select
           id="derive-source"
