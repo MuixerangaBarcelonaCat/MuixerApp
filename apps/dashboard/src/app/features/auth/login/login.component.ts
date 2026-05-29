@@ -23,8 +23,8 @@ export class LoginComponent {
   private readonly fb = inject(FormBuilder);
 
   readonly form = this.fb.nonNullable.group({
-    email: [environment.production ? '' : 'lvaquer87@gmail.com', [Validators.required, Validators.email]],
-    password: [environment.production ? '' : 'Provesapp1234!', [Validators.required, Validators.minLength(6)]],
+    email: [environment.production ? '' : '', [Validators.required, Validators.email]],
+    password: [environment.production ? '' : '', [Validators.required, Validators.minLength(6)]],
   });
 
   readonly isLoading = signal(false);

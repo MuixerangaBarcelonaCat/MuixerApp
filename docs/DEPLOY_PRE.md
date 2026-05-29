@@ -135,7 +135,7 @@ curl -s http://204.168.221.131:3000/api/health
 # Resposta esperada: {"status":"ok"}
 
 # 8. Crear el primer usuari administrador
-curl -X POST http://204.168.221.131:3000/api/setup/first-admin \
+curl -X POST http://204.168.221.131:3000/api/auth/setup/user \
   -H "X-Setup-Token: <SETUP_TOKEN del .env.pre>" \
   -H "Content-Type: application/json" \
   -d '{"email": "admin@example.com", "password": "contrasenya-forta"}'
