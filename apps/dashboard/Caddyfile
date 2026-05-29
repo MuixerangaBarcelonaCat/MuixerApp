@@ -2,14 +2,17 @@
 # Per habilitar HTTPS: substituir ":80" pel domini real (p.ex. "pre.muixerapp.cat")
 # Caddy gestionarà els certificats Let's Encrypt automàticament sense cap canvi addicional
 :80 {
-    # Compressió gzip
     encode gzip
 
-    # Proxy per a la API NestJS — totes les peticions /api/* van al backend
-    reverse_proxy /api/* api:3000
+    # L'API ha de tenir prioritat absoluta — handle evita que file_server intercepti POST/PUT/etc.
+    handle /api/* {
+        reverse_proxy api:3000
+    }
 
-    # Servir l'Angular SPA (fitxers estàtics + SPA fallback per al router Angular)
-    root * /srv
-    file_server
-    try_files {path} /index.html
+    # SPA fallback per a la resta de rutes Angular
+    handle {
+        root * /srv
+        try_files {path} /index.html
+        file_server
+    }
 }
