@@ -26,6 +26,8 @@ import { Rengla } from '../figure/entities/rengla.entity';
       useFactory: () => {
         const isDevelopment = process.env.NODE_ENV !== 'production';
         const sslEnabled = process.env.DB_SSL === 'true';
+        // DB_SYNC=true permet sincronitzar l'esquema en producció (primer desplegament)
+        const synchronize = isDevelopment || process.env.DB_SYNC === 'true';
 
         return {
           type: 'postgres',
@@ -52,7 +54,7 @@ import { Rengla } from '../figure/entities/rengla.entity';
             ReferenceElement,
             Rengla
           ],
-          synchronize: isDevelopment,
+          synchronize,
           logging: isDevelopment,
         };
       },
