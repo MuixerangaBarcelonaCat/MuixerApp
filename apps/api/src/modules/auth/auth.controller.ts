@@ -50,7 +50,7 @@ export class AuthController {
       sameSite: 'lax',
       path: '/api/auth',
       maxAge: maxAge * 1000,
-      secure: process.env['NODE_ENV'] === 'production',
+      secure: process.env['COOKIE_SECURE'] !== 'false' && process.env['NODE_ENV'] === 'production',
     });
   }
 
