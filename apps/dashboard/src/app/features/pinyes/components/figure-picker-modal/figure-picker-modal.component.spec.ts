@@ -37,7 +37,7 @@ const makeFamily = (overrides: Partial<FigureFamilyDetail> = {}): FigureFamilyDe
   description: null,
   variantCount: 1,
   metadata: {},
-  variants: [{ id: 'fig-uuid-1', name: 'pd4', slug: 'pd4', variantOrder: 1, nodeCount: 5 }],
+  variants: [{ id: 'fig-uuid-1', name: 'pd4', slug: 'pd4', variantOrder: 1, nodeCount: 5, renglaCount: 0 }],
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
   ...overrides,
@@ -138,8 +138,8 @@ describe('FigurePickerModalComponent', () => {
 
   it('filters familyGroups by search query on family name', () => {
     component.families.set([
-      makeFamily({ id: 'f1', name: 'Pilar de 4', variants: [{ id: 'v1', name: 'pd4 1C', slug: 'pd4-1c', variantOrder: 1, nodeCount: 5 }] }),
-      makeFamily({ id: 'f2', name: 'Morera', variants: [{ id: 'v2', name: 'morera 1C', slug: 'morera-1c', variantOrder: 1, nodeCount: 3 }] }),
+      makeFamily({ id: 'f1', name: 'Pilar de 4', variants: [{ id: 'v1', name: 'pd4 1C', slug: 'pd4-1c', variantOrder: 1, nodeCount: 5, renglaCount: 0 }] }),
+      makeFamily({ id: 'f2', name: 'Morera', variants: [{ id: 'v2', name: 'morera 1C', slug: 'morera-1c', variantOrder: 1, nodeCount: 3, renglaCount: 0 }] }),
     ]);
     component.figures.set([
       makeFigure({ id: 'v1', name: 'pd4 1C', familyId: 'f1', familyName: 'Pilar de 4' }),

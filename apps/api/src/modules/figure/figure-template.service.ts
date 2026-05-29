@@ -177,9 +177,7 @@ export class FigureTemplateService {
       this.handleDbError(err);
     }
 
-    if (dto.deriveFromTemplateId) {
-      await this.deriveNodes(saved!, dto.deriveFromTemplateId);
-    } else if (dto.nodes && dto.nodes.length > 0) {
+    if (dto.nodes && dto.nodes.length > 0) {
       const familyDtos = dto.nodes.filter((n) => FAMILY_ZONES.has(n.zone));
       const templateDtos = dto.nodes.filter((n) => !FAMILY_ZONES.has(n.zone));
 
@@ -321,47 +319,6 @@ export class FigureTemplateService {
       .where('t.familyId = :familyId', { familyId })
       .getRawOne<{ max: number | null }>();
     return (result?.max ?? 0) + 1;
-  }
-
-  /**
-   * Derives nodes from a source template into a new target template.
-   * Only copies PINYA/direction nodes — TRONC/BASE are inherited from the shared family.
-   * Sets originNodeId to trace the root ancestor lineage.
-   */
-  private async deriveNodes(target: FigureTemplate, sourceTemplateId: string): Promise<void> {
-    const source = await this.templateRepository.findOne({
-      where: { id: sourceTemplateId },
-      relations: ['nodes'],
-    });
-
-    if (!source || !source.nodes) return;
-
-    const nodesToDerive = source.nodes.filter((n) => !FAMILY_ZONES.has(n.zone));
-    if (nodesToDerive.length === 0) return;
-
-    const derived = nodesToDerive.map((node) =>
-      this.nodeRepository.create({
-        template: target,
-        label: node.label,
-        zone: node.zone,
-        positionType: node.positionType,
-        x: node.x,
-        y: node.y,
-        z: node.z,
-        width: node.width,
-        height: node.height,
-        rotation: node.rotation,
-        color: node.color,
-        shape: node.shape,
-        sortOrder: node.sortOrder,
-        climbPath: node.climbPath,
-        ringLevel: node.ringLevel,
-        originNodeId: node.originNodeId ?? node.id,
-        metadata: node.metadata,
-      }),
-    );
-
-    await this.nodeRepository.save(derived);
   }
 
   private async assertSlugAvailable(slug: string, excludeId?: string): Promise<void> {

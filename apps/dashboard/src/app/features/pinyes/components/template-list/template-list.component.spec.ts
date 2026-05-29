@@ -31,7 +31,7 @@ const makeFamilyListItem = (overrides: Partial<FigureFamilyListItem> = {}): Figu
 const makeFamilyDetail = (overrides: Partial<FigureFamilyDetail> = {}): FigureFamilyDetail => ({
   ...makeFamilyListItem(),
   metadata: {},
-  variants: [{ id: 'tmpl-1', name: 'pd4 1C', slug: 'pd4-1c', variantOrder: 1, nodeCount: 10 }],
+  variants: [{ id: 'tmpl-1', name: 'pd4 1C', slug: 'pd4-1c', variantOrder: 1, nodeCount: 10, renglaCount: 4 }],
   ...overrides,
 });
 
@@ -227,32 +227,12 @@ describe('TemplateListComponent', () => {
 
   // ── "Nova Variant" derivation ──────────────────────────────────────────────
 
-  it('openNewVariant navigates directly to editor when no variants', () => {
-    const emptyFamily = makeFamilyDetail({ variants: [] });
-    component.openNewVariant(emptyFamily);
+  it('openNewVariant navigates to editor with family params', () => {
+    const family = makeFamilyDetail();
+    component.openNewVariant(family);
     expect(router.navigate).toHaveBeenCalledWith(['/pinyes/templates/new'], {
       queryParams: { familyId: 'fam-1', familyName: 'Pilar de 4' },
     });
-  });
-
-  it('openNewVariant opens derive modal when variants exist', () => {
-    const family = makeFamilyDetail();
-    component.openNewVariant(family);
-    expect(component.deriveModal()).not.toBeNull();
-    expect(component.deriveModal()?.familyId).toBe('fam-1');
-  });
-
-  it('confirmDeriveVariant calls figureService.create with deriveFromTemplateId', () => {
-    const family = makeFamilyDetail();
-    component.openNewVariant(family);
-    component.confirmDeriveVariant();
-    expect(figureService.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        familyId: 'fam-1',
-        deriveFromTemplateId: 'tmpl-1',
-        variantOrder: 2,
-      }),
-    );
   });
 
   // ── Tabs ──────────────────────────────────────────────────────────────────

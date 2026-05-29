@@ -4,6 +4,7 @@ export interface FigureFamilyVariant {
   slug: string;
   variantOrder: number;
   nodeCount: number;
+  renglaCount: number;
 }
 
 export interface FigureFamilyListItem {

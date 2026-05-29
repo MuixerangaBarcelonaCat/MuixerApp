@@ -74,9 +74,9 @@ export interface CordonsDialogSaveEvent {
           @if (rengles().length > 0) {
             <div class="divider my-2"></div>
             <div class="form-control">
-              <label class="label">
+              <span class="label" id="cordo-obert-label">
                 <span class="label-text font-medium">Cordó obert</span>
-              </label>
+              </span>
               <div class="space-y-2 max-h-48 overflow-y-auto">
                 @for (rengla of rengles(); track rengla.id) {
                   <label class="flex items-center gap-3 cursor-pointer px-2 py-1.5 rounded hover:bg-base-200 transition-colors">
@@ -111,7 +111,7 @@ export interface CordonsDialogSaveEvent {
             </button>
           </div>
         </div>
-        <div class="modal-backdrop" (click)="onCancel()"></div>
+        <button type="button" class="modal-backdrop" (click)="onCancel()" aria-label="Tancar"></button>
       </dialog>
     }
   `,

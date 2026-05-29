@@ -17,6 +17,7 @@ export interface FigureFamilyVariantSummary {
   slug: string;
   variantOrder: number;
   nodeCount: number;
+  renglaCount: number;
 }
 
 export interface FigureFamilyListItem {
@@ -71,7 +72,7 @@ export class FigureFamilyService {
   async findOne(id: string): Promise<FigureFamilyDetailItem> {
     const family = await this.familyRepository.findOne({
       where: { id },
-      relations: ['templates', 'templates.nodes'],
+      relations: ['templates', 'templates.nodes', 'templates.rengles'],
     });
 
     if (!family) {
@@ -194,6 +195,7 @@ function toDetailItem(family: FigureFamily): FigureFamilyDetailItem {
       slug: t.slug,
       variantOrder: t.variantOrder,
       nodeCount: t.nodes?.length ?? 0,
+      renglaCount: t.rengles?.length ?? 0,
     })),
   };
 }

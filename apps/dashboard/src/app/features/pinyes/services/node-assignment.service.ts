@@ -17,7 +17,6 @@ import {
   PersonAssignmentHistory,
   SwapAssignmentsPayload,
   UpdateInstanceCordonsPayload,
-  UpgradeResult,
 } from '../models/assignment.model';
 
 @Injectable({
@@ -48,10 +47,6 @@ export class NodeAssignmentService extends ApiService {
       `/figure-instances/${instanceId}/assignments/swap`,
       payload,
     );
-  }
-
-  upgradeInstance(instanceId: string): Observable<UpgradeResult> {
-    return this.post<UpgradeResult>(`/figure-instances/${instanceId}/upgrade`, {});
   }
 
   updateCordons(instanceId: string, payload: UpdateInstanceCordonsPayload): Observable<CordonsResponse> {

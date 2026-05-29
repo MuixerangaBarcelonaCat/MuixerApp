@@ -4,105 +4,157 @@
     role="dialog"
     aria-labelledby="editor-help-title"
     aria-modal="true"
+    (keydown.escape)="close()"
   >
-    <div class="modal-box max-w-md">
-      <div class="flex items-center justify-between mb-4">
-        <h2 id="editor-help-title" class="text-lg font-bold">Ajuda de l'editor de figures</h2>
+    <div class="modal-box max-w-2xl max-h-[80vh] flex flex-col p-0">
+      <!-- Header -->
+      <div class="flex items-center justify-between px-5 pt-4 pb-3 border-b border-base-300 shrink-0">
+        <h2 id="editor-help-title" class="text-lg font-bold">Ajuda del creador de figures</h2>
         <button type="button" class="btn btn-ghost btn-sm btn-square" (click)="close()" aria-label="Tancar ajuda">
-          <lucide-icon name="X" [size]="16" aria-hidden="true" />
+          <i-lucide [img]="X" class="size-4" aria-hidden="true" />
         </button>
       </div>
 
-      <!-- Step dots -->
-      <div class="flex justify-center gap-2 mb-6" role="group" aria-label="Passos">
-        @for (step of steps; track $index) {
-          <span
-            class="w-2 h-2 rounded-full transition-colors"
-            [class]="$index === currentStep() ? 'bg-primary' : 'bg-base-300'"
-            [attr.aria-current]="$index === currentStep() ? 'step' : null"
-          ></span>
-        }
-      </div>
-
-      <!-- Step content -->
-      <div class="py-2">
-        <div class="flex justify-center mb-4">
-          <div class="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
-            <i-lucide [img]="steps[currentStep()].icon" class="size-7 text-primary" aria-hidden="true"></i-lucide>
-          </div>
-        </div>
-        <h3 class="text-base font-semibold mb-2 text-center">{{ steps[currentStep()].title }}</h3>
-        <p class="text-sm text-base-content/70 leading-relaxed text-center">
-          {{ steps[currentStep()].description }}
-        </p>
-
-        <!-- Base order diagram — only on step 1 -->
-        @if (steps[currentStep()].hasDiagram) {
-          <figure class="mt-4" aria-label="Diagrama de l'ordre anti-horari de les Bases">
-            <div class="bg-base-200 rounded-lg p-4 font-mono text-xs select-none" aria-hidden="true">
-              <div class="grid grid-cols-2 gap-2 w-44 mx-auto">
-                <div class="bg-primary text-primary-content rounded px-2 py-1 text-center font-semibold">Base 1</div>
-                <div class="bg-primary/40 text-primary-content rounded px-2 py-1 text-center font-semibold">Base 4</div>
-                <div class="col-span-2 flex items-center justify-center gap-1 text-base-content/50 text-[10px] my-0.5">
-                  <span>↙ anti-horari ↗</span>
-                </div>
-                <div class="bg-primary/40 text-primary-content rounded px-2 py-1 text-center font-semibold">Base 2</div>
-                <div class="bg-primary/20 text-base-content rounded px-2 py-1 text-center font-semibold">Base 3</div>
-              </div>
-              <p class="text-center text-[10px] text-base-content/50 mt-3">Vist des de dalt (canvas de Pinya)</p>
-            </div>
-            <figcaption class="text-xs text-base-content/50 text-center mt-2">
-              Base 1 sempre a dalt-esquerra. Continua en sentit anti-horari.
-            </figcaption>
-          </figure>
-        }
-      </div>
-
-      <!-- Counter -->
-      <p class="text-center text-xs text-base-content/40 mt-3">
-        {{ currentStep() + 1 }} / {{ steps.length }}
-      </p>
-
-      <!-- Don't show again -->
-      @if (currentStep() === steps.length - 1) {
-        <label class="flex items-center gap-2 mt-4 cursor-pointer justify-center">
+      <!-- Search -->
+      <div class="px-5 py-3 border-b border-base-300 shrink-0">
+        <div class="relative">
+          <i-lucide [img]="Search" class="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-base-content/40" aria-hidden="true" />
           <input
-            type="checkbox"
-            class="checkbox checkbox-sm checkbox-primary"
-            [checked]="dontShowAgain()"
-            (change)="toggleDontShowAgain()"
+            type="search"
+            class="input input-bordered input-sm w-full pl-9"
+            placeholder="Cercar a l'ajuda..."
+            aria-label="Cercar a l'ajuda"
+            [value]="searchQuery()"
+            (input)="onSearchInput($event)"
           />
-          <span class="text-xs text-base-content/60">No tornis a mostrar</span>
-        </label>
-      }
+        </div>
+      </div>
 
-      <div class="modal-action justify-between mt-4">
-        <button
-          type="button"
-          class="btn btn-ghost btn-sm"
-          [disabled]="currentStep() === 0"
-          (click)="prevStep()"
+      <!-- Body -->
+      <div class="flex flex-1 min-h-0 overflow-hidden">
+        <!-- Tab sidebar -->
+        <nav
+          class="w-40 shrink-0 border-r border-base-300 overflow-y-auto py-2"
+          role="tablist"
+          aria-label="Seccions d'ajuda"
         >
-          Anterior
-        </button>
+          @for (section of filteredSections(); track section.id) {
+            <button
+              type="button"
+              role="tab"
+              class="flex items-center gap-2 w-full px-3 py-2 text-sm text-left transition-colors hover:bg-base-200"
+              [class.bg-primary]="activeTab() === section.id && !isSearching()"
+              [class.text-primary-content]="activeTab() === section.id && !isSearching()"
+              [class.font-semibold]="activeTab() === section.id"
+              [attr.aria-selected]="activeTab() === section.id"
+              [attr.aria-controls]="'help-panel-' + section.id"
+              (click)="selectTab(section.id)"
+            >
+              <i-lucide [img]="getSectionIcon(section)" class="size-4 shrink-0" aria-hidden="true" />
+              <span class="truncate">{{ section.title }}</span>
+              @if (isSearching()) {
+                <span class="badge badge-xs badge-ghost ml-auto">{{ section.items.length }}</span>
+              }
+            </button>
+          }
+          @if (!hasResults()) {
+            <p class="text-xs text-base-content/50 px-3 py-4 text-center">Cap resultat</p>
+          }
+        </nav>
 
-        @if (currentStep() < steps.length - 1) {
-          <button
-            type="button"
-            class="btn btn-primary btn-sm"
-            (click)="nextStep()"
-          >
-            Següent
-          </button>
-        } @else {
-          <button
-            type="button"
-            class="btn btn-primary btn-sm"
-            (click)="close()"
-          >
-            Entesos!
-          </button>
-        }
+        <!-- Content panel -->
+        <div class="flex-1 overflow-y-auto p-4" role="tabpanel" [id]="'help-panel-' + activeTab()">
+          @if (isSearching()) {
+            <!-- Search mode: show all matching sections -->
+            @for (section of filteredSections(); track section.id) {
+              <h3 class="text-sm font-semibold text-base-content/70 mb-2 mt-3 first:mt-0">{{ section.title }}</h3>
+              <div class="space-y-1 mb-4">
+                @for (item of section.items; track $index) {
+                  <div class="collapse collapse-arrow bg-base-200 rounded-lg">
+                    <input
+                      type="checkbox"
+                      [checked]="isItemExpanded(section.id, $index)"
+                      (change)="toggleItem(section.id, $index)"
+                      [attr.aria-label]="item.question"
+                    />
+                    <div class="collapse-title text-sm font-medium py-2 min-h-0">
+                      {{ item.question }}
+                    </div>
+                    <div class="collapse-content">
+                      <p class="text-sm text-base-content/70 leading-relaxed pb-1">{{ item.answer }}</p>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          } @else if (activeSection(); as section) {
+            <!-- Normal mode: show active tab content -->
+            <div class="flex items-center gap-2 mb-4">
+              <i-lucide [img]="getSectionIcon(section)" class="size-5 text-primary" aria-hidden="true" />
+              <h3 class="text-base font-semibold">{{ section.title }}</h3>
+            </div>
+            <div class="space-y-1">
+              @for (item of section.items; track $index) {
+                <div class="collapse collapse-arrow bg-base-200 rounded-lg">
+                  <input
+                    type="checkbox"
+                    [checked]="isItemExpanded(section.id, $index)"
+                    (change)="toggleItem(section.id, $index)"
+                    [attr.aria-label]="item.question"
+                  />
+                  <div class="collapse-title text-sm font-medium py-2 min-h-0">
+                    {{ item.question }}
+                  </div>
+                  <div class="collapse-content">
+                    <p class="text-sm text-base-content/70 leading-relaxed pb-1">{{ item.answer }}</p>
+                  </div>
+                </div>
+              }
+            </div>
+
+            <!-- Structured shortcuts for the dreceres tab -->
+            @if (section.id === 'dreceres') {
+              <div class="mt-3 space-y-4">
+                @for (group of shortcutGroups; track group.title) {
+                  <section>
+                    <h4 class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-2">{{ group.title }}</h4>
+                    <ul class="space-y-1.5" role="list">
+                      @for (shortcut of group.shortcuts; track shortcut.action) {
+                        <li class="flex items-center justify-between gap-3 text-sm">
+                          <span class="text-base-content/70">{{ shortcut.action }}</span>
+                          <span class="shrink-0">
+                            <kbd class="kbd kbd-sm">{{ shortcut.keys }}</kbd>
+                          </span>
+                        </li>
+                      }
+                    </ul>
+                  </section>
+                }
+              </div>
+            }
+
+            <!-- Base order diagram for the bases tab -->
+            @if (section.id === 'bases') {
+              <figure class="mt-5" aria-label="Diagrama de l'ordre anti-horari de les Bases">
+                <div class="bg-base-200 rounded-lg p-4 font-mono text-xs select-none" aria-hidden="true">
+                  <div class="grid grid-cols-2 gap-2 w-44 mx-auto">
+                    <div class="bg-primary text-primary-content rounded px-2 py-1 text-center font-semibold">Base 1</div>
+                    <div class="bg-primary/40 text-primary-content rounded px-2 py-1 text-center font-semibold">Base 4</div>
+                    <div class="col-span-2 flex items-center justify-center gap-1 text-base-content/50 text-[10px] my-0.5">
+                      <span>↙ anti-horari ↗</span>
+                    </div>
+                    <div class="bg-primary/40 text-primary-content rounded px-2 py-1 text-center font-semibold">Base 2</div>
+                    <div class="bg-primary/20 text-base-content rounded px-2 py-1 text-center font-semibold">Base 3</div>
+                  </div>
+                  <p class="text-center text-[10px] text-base-content/50 mt-3">Vist des de dalt (canvas de Pinya)</p>
+                </div>
+                <figcaption class="text-xs text-base-content/50 text-center mt-2">
+                  Base 1 sempre a dalt-esquerra. Continua en sentit anti-horari.
+                </figcaption>
+              </figure>
+            }
+          }
+        </div>
       </div>
     </div>
     <button type="button" class="modal-backdrop" (click)="close()" aria-label="Tancar"></button>

@@ -1,7 +1,7 @@
 # Mòdul de Pinyes — Documentació Tècnica
 
-> Última actualització: 26 de maig de 2026  
-> Fases implementades: P5.1 → P5.9 (projecció: P5.8.1 + P5.9.1 + P5.9.2)  
+> Última actualització: 28 de maig de 2026  
+> Fases implementades: P5.1 → P5.11 (rengles: F1–F5)  
 > Specs de referència:
 > - `docs/specs/2026-05-19-p5-family-snapshot-redesign.md` (P5.5)
 > - `docs/specs/2026-05-20-p5-tronc-visualization-design.md` (P5.6)
@@ -28,6 +28,9 @@
 15. [Invariants de domini](#15-invariants-de-domini)
 16. [Gestió d'errors i casos límit](#16-gestió-derrors-i-casos-límit)
 17. [Guia per futures implementacions](#17-guia-per-futures-implementacions)
+18. [Rengles — Integració (P5.11)](#18-rengles--integració-p511)
+19. [Ghost Clone — Creació radial de nodes (P5.11 F3)](#19-ghost-clone--creació-radial-de-nodes-p511-f3)
+20. [Selector de cordons a l'assignació (P5.11 F4)](#20-selector-de-cordons-a-lassignació-p511-f4)
 
 ---
 
@@ -1013,9 +1016,15 @@ Aquests invariants han de mantenir-se en qualsevol futura implementació:
 
 14. **Position-positionType soft matching (P5.10)**: `Position.slug` i `FigureNode.positionType` es relacionen per convenció de noms (mateixa cadena), no per FK. El matching és opcional i s'usa per prioritzar persones al panel d'assignació.
 
+15. **Rengla integrity (P5.11)**: Un node amb `renglaId` no-null ha de tenir `renglaPosition` no-null. Si es borra una `Rengla`, tots els nodes amb aquell `renglaId` passen a `renglaId = null, renglaPosition = null`.
+
+16. **Cordons visibility (P5.11)**: `isNodeVisible()` és la funció canònica per filtrar nodes per cordons. Nodes sense `renglaId` sempre es mostren. Nodes `cordo-obert` es mostren només si la seva rengla està a `openCordons`.
+
+17. **Bulk import matching (P5.11)**: El matching de nodes entre instàncies es fa per `renglaId + renglaPosition` com a clau primària, amb fallback a `sourceNodeId` directe.
+
 ---
 
-## 16. Gestió d'errors i casos límit
+## 18 (antic 16). Gestió d'errors i casos límit
 
 | Situació | Codi HTTP | Missatge Catalan |
 |----------|-----------|-----------------|
@@ -1091,8 +1100,160 @@ El model de famílies i templates és **per colla**. Quan s'implementi multi-ten
 
 ---
 
-*Documentació actualitzada el 26 de maig de 2026. Referències principals:*
+## 18. Rengles — Integració (P5.11)
+
+### Concepte
+
+Una **rengla** és una seqüència ordenada de nodes de pinya que formen una línia radial des del centre de la figura cap enfora. Cada posició dins la rengla correspon a un cordó diferent (1r, 2n, 3r...).
+
+```
+                      Cordó 3    Cordó 2    Cordó 1    Centre
+                        ↓          ↓          ↓         ↓
+Rengla "Mans Nord":  [MANS·3] → [MANS·2] → [MANS·1] → [CROSSA]
+Rengla "Vents Est":  [VENTS·3]→ [VENTS·2]→ [VENTS·1]→ [AGULLA]
+```
+
+### Entitat `Rengla`
+
+```typescript
+@Entity('rengles')
+export class Rengla {
+  @PrimaryGeneratedColumn('uuid') id: string;
+  @ManyToOne(() => FigureTemplate, { onDelete: 'CASCADE' }) template: FigureTemplate;
+  @Column({ type: 'varchar' }) name: string;
+  @Column({ type: 'int', default: 0 }) sortOrder: number;
+  @Column({ type: 'int', default: 1 }) startPosition: number;
+  @Column({ type: 'boolean', default: false }) allowsCordoObert: boolean;
+  @CreateDateColumn() createdAt: Date;
+}
+```
+
+### Canvis a `FigureNode`
+
+Nous camps afegits:
+
+| Camp | Tipus | Descripció |
+|------|-------|-----------|
+| `renglaId` | `uuid \| null` | FK a la rengla (NULL = node lliure/central) |
+| `renglaPosition` | `int \| null` | Posició dins la rengla (1 = primer cordó) |
+
+### Relació `ringLevel` ↔ `renglaPosition`
+
+- `ringLevel`: identifica el cordó concèntric globalment (per renderització Konva)
+- `renglaPosition`: posició dins la seva rengla (per filtratge de cordons)
+- En la majoria de casos: `ringLevel === renglaPosition`
+- Nodes sense rengla (agulla, crossa, contrafort, tap): `renglaId = null`, `renglaPosition = null`
+
+### Diagrama de relacions actualitzat
+
+```
+FigureFamily
+    │ 1:N
+    └──► FigureTemplate ──── 1:N ────► FigureNode (renglaId, renglaPosition)
+              │                              │
+              ├─ 1:N ──► Rengla             ◄── FK: renglaId
+              │
+              └─ 1:N ──► FigureInstance ── numberOfCordons, openCordons
+                              │
+                              └─ 1:N ──► InstanceNode (renglaId, renglaPosition copied)
+```
+
+### Impacte en funcionalitats existents
+
+| Funcionalitat | Canvi |
+|---------------|-------|
+| **Snapshot** | Copia `renglaId` i `renglaPosition` de FigureNode a InstanceNode |
+| **Bulk import** | Matching per `renglaId + renglaPosition` (fallback: `sourceNodeId`) |
+| **Projecció** | Nodes filtrats per `isNodeVisible()` basant-se en `numberOfCordons` |
+| **Upgrade** | Conceptualment reemplaçat pel selector de cordons (reversible, no destructiu) |
+| **Derivació de variants** | Eliminada; un sol template conté tots els cordons |
+
+### Nodes sense rengla
+
+Nodes que mai pertanyen a cap rengla i sempre es mostren:
+- `agulla`, `crossa`, `contrafort`, `tap`
+- Nodes de zona `TRONC`, `BASE`, `FIGURE_DIRECTION`, `XICALLA_DIRECTION`
+
+---
+
+## 19. Ghost Clone — Creació radial de nodes (P5.11 F3)
+
+### Propòsit
+
+Facilitar la creació de nodes al template editor per clonació ràpida, alineant el nou node radialment darrere del node d'origen.
+
+### Funcionament
+
+1. Per a cada node PINYA que no és central i no és cordó obert, es renderitza un ghost (`+`) darrere seu
+2. El ghost es posiciona usant la rotació del node: `direction = (sin(R), -cos(R))`, offset = `height + gap`
+3. Clicar el ghost crea un clon amb les mateixes propietats, afegit a la mateixa rengla amb `renglaPosition + 1`
+
+### Utilitats (`ghost-clone.util.ts`)
+
+```typescript
+calculatePinyaCentroid(nodes): { x, y }       // Centroide aritmètic
+calculateGhostPosition(node, gap=3): { x, y } // Posició radial basada en rotació
+isGhostEligible(node): boolean                 // true si PINYA i no central/CO
+```
+
+### Elegibilitat
+
+| Tipus | Ghost? |
+|-------|--------|
+| PINYA (mans, vents, laterals) | Sí |
+| PINYA (agulla, crossa, contrafort, tap) | No |
+| PINYA (cordo-obert) | No |
+| TRONC, BASE, directions | No |
+
+---
+
+## 20. Selector de cordons a l'assignació (P5.11 F4)
+
+### Propòsit
+
+Permet al Cap de Pinyes triar quants cordons mostrar a l'assignació sense canviar de template. Substitueix el concepte d'upgrade de cordó (que era irreversible).
+
+### Model de dades
+
+| Camp | Entitat | Tipus | Descripció |
+|------|---------|-------|-----------|
+| `numberOfCordons` | `FigureInstance` | `int \| null` | Cordons visibles (NULL = tots) |
+| `openCordons` | `FigureInstance` | `jsonb (string[]) \| null` | IDs de rengles amb cordó obert actiu |
+
+### Lògica de visibilitat (`isNodeVisible`)
+
+```typescript
+function isNodeVisible(
+  node: { renglaId, renglaPosition, positionType },
+  numberOfCordons: number | null,
+  openCordons: string[] | null,
+): boolean {
+  if (!node.renglaId) return true;
+  if (node.positionType === 'cordo-obert') {
+    return (openCordons ?? []).includes(node.renglaId);
+  }
+  return node.renglaPosition! <= (numberOfCordons ?? Infinity);
+}
+```
+
+### Components
+
+- **`CordonsDialogComponent`**: modal inline amb selector numèric + toggles per rengla
+- **Integració**: botó "Cordons" a la topbar de `AssignmentCanvasComponent`
+- **Persistència**: `PATCH /figure-instances/:id/cordons` desa la configuració
+- **Projecció**: `getInstanceNodes()` aplica `isNodeVisible()` abans de retornar nodes
+
+### Característiques clau
+
+- Reversible: amagar cordons no elimina assignacions
+- Per instància: cada instància pot tenir configuració diferent
+- Persistent: sobreviu a recàrregues de pàgina
+
+---
+
+*Documentació actualitzada el 28 de maig de 2026. Referències principals:*
 - *P5.5: `docs/specs/2026-05-19-p5-family-snapshot-redesign.md`*
 - *P5.6: `docs/specs/2026-05-20-p5-tronc-visualization-design.md`*
 - *P5.8.1: `docs/specs/2026-05-22-p5-8-1-projection-view-design.md`*
 - *P5.9: vista de projecció — `ProjectionViewComponent`, `FigureProjectionComponent`*
+- *P5.11: `docs/specs/2026-05-28-rengles-integration-spec.md`*

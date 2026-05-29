@@ -139,7 +139,7 @@
                     <span class="font-semibold text-base-content">{{ family.name }}</span>
                     <span class="text-xs text-base-content/50 font-mono">{{ family.slug }}</span>
                     <span class="badge badge-ghost badge-sm">
-                      {{ family.variantCount }} {{ family.variantCount === 1 ? 'variant' : 'variants' }}
+                      {{ getRenglaCount(family) }} {{ getRenglaCount(family) === 1 ? 'rengla definida' : 'rengles definides' }}
                     </span>
                     @if (!isFamilyBaseOrderingValid(family.id)) {
                       <span
@@ -713,71 +713,6 @@
       </form>
     </div>
     <div class="modal-backdrop" (click)="closeFamilyModal()" aria-hidden="true"></div>
-  </dialog>
-}
-
-<!-- ══════════════════ DERIVAR VARIANT MODAL ══════════════════ -->
-@if (deriveModal(); as modal) {
-  <dialog
-    class="modal modal-open"
-    aria-modal="true"
-    aria-labelledby="derive-modal-title"
-    tabindex="-1"
-    (keydown.escape)="closeDeriveModal()"
-  >
-    <div class="modal-box max-w-md">
-      <button
-        type="button"
-        class="btn btn-sm btn-circle btn-ghost absolute right-3 top-3"
-        (click)="closeDeriveModal()"
-        aria-label="Tancar"
-      >
-        <lucide-icon name="X" [size]="16" aria-hidden="true" />
-      </button>
-
-      <h2 id="derive-modal-title" class="text-lg font-bold mb-1 flex items-center gap-2">
-        <lucide-icon name="GitBranch" [size]="20" aria-hidden="true" />
-        Nova figura de "{{ modal.familyName }}"
-      </h2>
-      <p class="text-sm text-base-content/60 mb-5">
-        Selecciona la figura de la qual vols heretar les posicions. La nova figura copiarà tots els seus nodes mantenint la traçabilitat dels orígens.
-      </p>
-
-      <div class="form-control mb-6">
-        <label class="label pb-1" for="derive-source">
-          <span class="label-text font-medium">Derivar de la figura</span>
-        </label>
-        <select
-          id="derive-source"
-          class="select select-bordered"
-          [ngModel]="modal.selectedVariantId"
-          (ngModelChange)="onDeriveVariantChange($event)"
-          name="deriveSource"
-        >
-          @for (variant of modal.variants; track variant.id) {
-            <option [value]="variant.id">
-              {{ variant.name }} ({{ variant.nodeCount }} nodes)
-            </option>
-          }
-        </select>
-      </div>
-
-      <div class="modal-action">
-        <button type="button" class="btn btn-ghost" (click)="closeDeriveModal()">Cancel·la</button>
-        <button
-          type="button"
-          class="btn btn-primary gap-2"
-          [disabled]="modal.creating"
-          (click)="confirmDeriveVariant()"
-        >
-          @if (modal.creating) {
-            <span class="loading loading-spinner loading-xs"></span>
-          }
-          Crear i obrir editor
-        </button>
-      </div>
-    </div>
-    <div class="modal-backdrop" (click)="closeDeriveModal()" aria-hidden="true"></div>
   </dialog>
 }
 

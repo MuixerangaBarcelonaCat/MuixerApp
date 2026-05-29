@@ -47,6 +47,9 @@
                 aria-hidden="true"
               >
                 {{ getInstanceName(instance) }}
+                @if (getCordonsLabel(instance); as cordonsLabel) {
+                  <span class="ml-1 text-xs opacity-80 font-normal">({{ cordonsLabel }})</span>
+                }
               </span>
 
               <a

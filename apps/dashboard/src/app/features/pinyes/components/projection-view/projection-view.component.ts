@@ -284,6 +284,20 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
     return instance.label ?? instance.figureTemplate?.name ?? 'Figura';
   }
 
+  getCordonsLabel(instance: ProjectionInstance): string | null {
+    if (instance.numberOfCordons == null && (!instance.openCordons || instance.openCordons.length === 0)) {
+      return null;
+    }
+    const parts: string[] = [];
+    if (instance.numberOfCordons != null) {
+      parts.push(`${instance.numberOfCordons}C`);
+    }
+    if (instance.openCordons && instance.openCordons.length > 0) {
+      parts.push('CO');
+    }
+    return parts.join('+');
+  }
+
   // ── Background color ────────────────────────────────────────────────────────
 
   toggleBgColor(): void {

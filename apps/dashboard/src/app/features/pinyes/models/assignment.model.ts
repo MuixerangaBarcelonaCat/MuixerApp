@@ -134,15 +134,6 @@ export interface InstanceNodeItem {
   isSnapshotted: boolean;
 }
 
-export interface UpgradeResult {
-  addedNodes: number;
-  updatedNodes: number;
-  totalNodes: number;
-  newTemplateId: string;
-  newTemplateName: string;
-  newVariantOrder: number;
-}
-
 export interface UpdateInstanceCordonsPayload {
   numberOfCordons?: number | null;
   openCordons?: string[] | null;

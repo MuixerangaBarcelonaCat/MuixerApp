@@ -87,7 +87,6 @@ export interface CreateFigureTemplatePayload {
   slug: string;
   familyId: string;
   variantOrder?: number;
-  deriveFromTemplateId?: string;
   description?: string;
   hasPinya?: boolean;
   direction?: number;

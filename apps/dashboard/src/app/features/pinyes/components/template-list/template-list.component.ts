@@ -105,17 +105,13 @@ export class TemplateListComponent implements OnInit {
     return result?.isValid ?? true;
   }
 
+  getRenglaCount(family: FigureFamilyDetail): number {
+    if (!family.variants || family.variants.length === 0) return 0;
+    return family.variants[0].renglaCount ?? 0;
+  }
+
   // Family modal state
   familyModal = signal<FamilyModal | null>(null);
-
-  // Derive variant modal state
-  deriveModal = signal<{
-    familyId: string;
-    familyName: string;
-    variants: FigureFamilyDetail['variants'];
-    selectedVariantId: string;
-    creating: boolean;
-  } | null>(null);
 
   // Figures tab state (legacy/no-family)
   templates = signal<FigureTemplateListItem[]>([]);
@@ -301,69 +297,12 @@ export class TemplateListComponent implements OnInit {
     });
   }
 
-  // ── Variant derivation modal ───────────────────────────────────────────────
+  // ── New variant navigation ─────────────────────────────────────────────────
 
   openNewVariant(family: FigureFamilyDetail) {
-    if (family.variants.length === 0) {
-      this.router.navigate(['/pinyes/templates/new'], {
-        queryParams: { familyId: family.id, familyName: family.name },
-      });
-      return;
-    }
-    this.deriveModal.set({
-      familyId: family.id,
-      familyName: family.name,
-      variants: family.variants,
-      selectedVariantId: family.variants[family.variants.length - 1].id,
-      creating: false,
+    this.router.navigate(['/pinyes/templates/new'], {
+      queryParams: { familyId: family.id, familyName: family.name },
     });
-  }
-
-  closeDeriveModal() {
-    this.deriveModal.set(null);
-  }
-
-  onDeriveVariantChange(id: string) {
-    this.deriveModal.update((m) => m ? { ...m, selectedVariantId: id } : null);
-  }
-
-  confirmDeriveVariant() {
-    const m = this.deriveModal();
-    if (!m || m.creating) return;
-
-    const sourceVariant = m.variants.find((v) => v.id === m.selectedVariantId);
-    if (!sourceVariant) return;
-
-    const nextOrder = Math.max(...m.variants.map((v) => v.variantOrder)) + 1;
-    const newName = `${m.familyName} — variant ${nextOrder}`;
-    const newSlug = `${this.slugify(m.familyName)}-v${nextOrder}`;
-
-    this.deriveModal.update((prev) => prev ? { ...prev, creating: true } : null);
-
-    this.figureTemplateService
-      .create({
-        name: newName,
-        slug: newSlug,
-        familyId: m.familyId,
-        variantOrder: nextOrder,
-        deriveFromTemplateId: m.selectedVariantId,
-        nodes: [],
-      })
-      .subscribe({
-        next: (created) => {
-          this.deriveModal.set(null);
-          this.router.navigate(['/pinyes/templates', created.id, 'edit']);
-        },
-        error: (err: HttpErrorResponse) => {
-          this.deriveModal.update((prev) => prev ? { ...prev, creating: false } : null);
-          const msg = err.error?.message as string | undefined;
-          if (err.status === 409) {
-            this.toast.error(`L'identificador "${newSlug}" ja l'utilitza una altra figura. Edita el nom o canvia l'ordre.`);
-          } else {
-            this.toast.error(msg ?? 'No s\'ha pogut crear la variant.');
-          }
-        },
-      });
   }
 
   navigateToEditVariant(templateId: string) {

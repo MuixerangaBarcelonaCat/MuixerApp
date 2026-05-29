@@ -915,12 +915,15 @@ export class NodeAssignmentService {
     const created: AssignmentDetail[] = [];
     const conflicts: BulkImportResult['conflicts'] = [];
 
-    // Composite key (canonicalId, ringLevel) — handles multiple rings sharing the same origin
-    const targetCanonicalMap = new Map<string, InstanceNode>();
+    // Primary matching by renglaId + renglaPosition; fallback by sourceNodeId
+    const targetByRengla = new Map<string, InstanceNode>();
+    const targetBySourceNodeId = new Map<string, InstanceNode>();
     for (const node of targetInstance.instanceNodes ?? []) {
-      const canonicalId = node.originNodeId ?? node.sourceNodeId;
-      if (canonicalId) {
-        targetCanonicalMap.set(`${canonicalId}:${node.ringLevel ?? 0}`, node);
+      if (node.renglaId && node.renglaPosition != null) {
+        targetByRengla.set(`${node.renglaId}:${node.renglaPosition}`, node);
+      }
+      if (node.sourceNodeId) {
+        targetBySourceNodeId.set(node.sourceNodeId, node);
       }
     }
 
@@ -930,9 +933,13 @@ export class NodeAssignmentService {
       const personAlias = (sourceAssignment.person as any).alias;
       const nodeLabel = sourceNode.label;
 
-      const sourceCanonicalId = sourceNode.originNodeId ?? sourceNode.sourceNodeId;
-      const sourceKey = sourceCanonicalId ? `${sourceCanonicalId}:${sourceNode.ringLevel ?? 0}` : null;
-      const targetNode = sourceKey ? targetCanonicalMap.get(sourceKey) : undefined;
+      let targetNode: InstanceNode | undefined;
+      if (sourceNode.renglaId && sourceNode.renglaPosition != null) {
+        targetNode = targetByRengla.get(`${sourceNode.renglaId}:${sourceNode.renglaPosition}`);
+      }
+      if (!targetNode && sourceNode.sourceNodeId) {
+        targetNode = targetBySourceNodeId.get(sourceNode.sourceNodeId);
+      }
 
       if (!targetNode) {
         conflicts.push({ nodeId: sourceNode.id, nodeLabel, personAlias, reason: 'No matching node found in target instance' });

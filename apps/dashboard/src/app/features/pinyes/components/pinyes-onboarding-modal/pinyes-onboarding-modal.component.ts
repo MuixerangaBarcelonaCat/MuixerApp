@@ -7,9 +7,8 @@ import {
 import {
   LucideAngularModule,
   Layers,
-  PlusCircle,
+  GitCommitHorizontal,
   UserCheck,
-  HelpCircle,
   X,
 } from 'lucide-angular';
 
@@ -34,27 +33,27 @@ export class PinyesOnboardingModalComponent {
 
   readonly steps: OnboardingStep[] = [
     {
-      title: 'Famílies i variants',
+      title: 'Famílies i figures',
       description:
-        'Una família agrupa les variants d\'una mateixa figura. ' +
-        'Cada variant té un nombre diferent de cordons. ' +
-        'Per exemple, "Pilar de 4" pot tenir variants amb 1, 2 o 3 cordons.',
+        'Cada família agrupa la informació d\'una figura (ex: "Pinet doble"). ' +
+        'Un sol template conté totes les posicions de tots els cordons. ' +
+        'Les rengles defineixen les línies radials de posicions del centre cap enfora.',
       icon: Layers,
     },
     {
-      title: 'Cordons',
+      title: 'Rengles i cordons',
       description:
-        'Quan una figura necessita més gent, s\'afegeix un cordó. ' +
-        'Les posicions existents i les assignacions es mantenen intactes. ' +
-        'Només s\'afegeixen les posicions noves del següent cordó.',
-      icon: PlusCircle,
+        'Una rengla és la línia de posicions des del centre de la pinya cap al cordó extern. ' +
+        'A l\'assignació, el selector de cordons controla quants cordons es mostren. ' +
+        'Canviar el nombre de cordons no elimina assignacions — només les amaga o mostra.',
+      icon: GitCommitHorizontal,
     },
     {
       title: 'Assignacions',
       description:
         'Les assignacions es fan sobre una còpia de la figura (snapshot). ' +
         'Editar el template original no afecta les assignacions existents. ' +
-        'Pots importar assignacions de pinyes anteriors per estalviar temps.',
+        'Pots importar assignacions de pinyes anteriors i configurar cordons per instància.',
       icon: UserCheck,
     },
   ];

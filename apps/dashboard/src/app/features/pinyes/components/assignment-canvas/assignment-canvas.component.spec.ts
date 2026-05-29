@@ -153,8 +153,8 @@ const makeFamily = () => ({
   updatedAt: '2026-01-01',
   metadata: {},
   variants: [
-    { id: TEMPLATE_ID, name: 'pd4 — variant 1', slug: 'pd4-v1', variantOrder: 1, nodeCount: 2 },
-    { id: 'template-v2', name: 'pd4 — variant 2', slug: 'pd4-v2', variantOrder: 2, nodeCount: 4 },
+    { id: TEMPLATE_ID, name: 'pd4 — variant 1', slug: 'pd4-v1', variantOrder: 1, nodeCount: 2, renglaCount: 0 },
+    { id: 'template-v2', name: 'pd4 — variant 2', slug: 'pd4-v2', variantOrder: 2, nodeCount: 4, renglaCount: 0 },
   ],
 });
 
@@ -188,7 +188,6 @@ interface MockAssignmentService {
   assign: MockFn;
   unassign: MockFn;
   swap: MockFn;
-  upgradeInstance: MockFn;
   updateCordons: MockFn;
   resetSnapshot: MockFn;
   bulkImport: MockFn;
@@ -220,7 +219,6 @@ describe('AssignmentCanvasComponent', () => {
         a: makeAssignment('inode-1', 'person-2'),
         b: makeAssignment('inode-2', 'person-1'),
       })),
-      upgradeInstance: vi.fn().mockReturnValue(of({ addedNodes: 2, totalNodes: 4 })),
       updateCordons: vi.fn().mockReturnValue(of({ numberOfCordons: null, openCordons: null })),
       resetSnapshot: vi.fn().mockReturnValue(of({ removedAssignments: 0 })),
       bulkImport: vi.fn().mockReturnValue(of({ created: [], conflicts: [] })),

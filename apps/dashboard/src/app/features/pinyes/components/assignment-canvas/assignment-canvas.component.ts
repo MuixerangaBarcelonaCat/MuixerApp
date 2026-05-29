@@ -188,6 +188,51 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     this.layout.exitFullscreen();
   }
 
+  @HostListener('document:keydown', ['$event'])
+  onKeyDown(event: KeyboardEvent): void {
+    const target = event.target as HTMLElement;
+    const isEditing =
+      target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA' ||
+      target.tagName === 'SELECT' ||
+      target.isContentEditable;
+    if (isEditing) return;
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.state.setSelectedNodeId(null);
+      this.state.setSelectedPersonId(null);
+      this.popoverAssignment.set(null);
+      return;
+    }
+
+    if (event.key === 'Tab') {
+      event.preventDefault();
+      this.advanceToNextEmptyNodeFromCurrent();
+      return;
+    }
+  }
+
+  private advanceToNextEmptyNodeFromCurrent(): void {
+    const nodes = this.activeNodes();
+    if (nodes.length === 0) return;
+    const assignments = this.state.assignments();
+    const assignedNodeIds = new Set(assignments.map((a) => a.node.id));
+
+    const currentId = this.state.selectedNodeId();
+    const startIndex = currentId
+      ? nodes.findIndex((n) => n.id === currentId)
+      : -1;
+
+    for (let i = 1; i <= nodes.length; i++) {
+      const idx = (startIndex + i) % nodes.length;
+      if (!assignedNodeIds.has(nodes[idx].id)) {
+        this.state.setSelectedNodeId(nodes[idx].id);
+        return;
+      }
+    }
+  }
+
   private loadSegment(): void {
     this.loading.set(true);
     this.segmentService.getByEvent(this.eventId()).subscribe({

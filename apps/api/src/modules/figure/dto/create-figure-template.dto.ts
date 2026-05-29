@@ -28,13 +28,6 @@ export class CreateFigureTemplateDto {
   @IsOptional()
   variantOrder?: number;
 
-  @ApiPropertyOptional({
-    description: 'If provided, nodes are derived from this template (with originNodeId lineage)',
-  })
-  @IsUUID()
-  @IsOptional()
-  deriveFromTemplateId?: string;
-
   @ApiProperty({ description: 'Unique human-readable name, e.g. "Pinet Doble de 4 — 2C"' })
   @IsString()
   @IsNotEmpty()

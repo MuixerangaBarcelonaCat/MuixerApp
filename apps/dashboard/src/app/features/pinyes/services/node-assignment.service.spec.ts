@@ -65,13 +65,6 @@ describe('NodeAssignmentService', () => {
     req.flush({ a: {}, b: {} });
   });
 
-  it('upgradeInstance sends POST to /figure-instances/:id/upgrade', () => {
-    service.upgradeInstance(INSTANCE_ID).subscribe();
-    const req = httpMock.expectOne(`${BASE}/figure-instances/${INSTANCE_ID}/upgrade`);
-    expect(req.request.method).toBe('POST');
-    req.flush({ addedNodes: 2, totalNodes: 4 });
-  });
-
   it('unassign sends DELETE to /figure-instances/:id/assignments/:assignmentId', () => {
     service.unassign(INSTANCE_ID, ASSIGNMENT_ID).subscribe();
     const req = httpMock.expectOne(

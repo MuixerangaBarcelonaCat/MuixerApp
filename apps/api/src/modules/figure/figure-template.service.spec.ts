@@ -310,59 +310,6 @@ describe('FigureTemplateService', () => {
       expect(mockTemplateRepo.save).toHaveBeenCalled();
     });
 
-    it('derives nodes from source template with originNodeId lineage', async () => {
-      const family = makeFamily();
-      const sourceNode = makeNode({ id: 'source-node', originNodeId: null });
-      const sourceTemplate = makeTemplate({ id: 'source-tmpl', nodes: [sourceNode] });
-      const saved = makeTemplate({ id: 'new-uuid' });
-
-      mockFamilyRepo.findOne.mockResolvedValue(family);
-      mockTemplateRepo.findOne
-        .mockResolvedValueOnce(null) // assertSlugAvailable
-        .mockResolvedValueOnce(sourceTemplate) // deriveNodes: load source
-        .mockResolvedValueOnce({ ...saved, nodes: [] }); // findOne after create
-      mockTemplateRepo.save.mockResolvedValue(saved);
-      mockNodeRepo.save.mockResolvedValue([]);
-
-      await service.create({
-        familyId: 'family-uuid',
-        name: 'Pilar de 4 — 3C',
-        slug: 'pd4-3c',
-        deriveFromTemplateId: 'source-tmpl',
-        nodes: [],
-      });
-
-      const savedNodes = mockNodeRepo.save.mock.calls[0][0];
-      expect(savedNodes[0].originNodeId).toBe('source-node');
-    });
-
-    it('preserves originNodeId root ancestor when deriving from a derived template', async () => {
-      const family = makeFamily();
-      // Already-derived node: originNodeId points to root ancestor
-      const derivedNode = makeNode({ id: 'derived-node', originNodeId: 'root-ancestor-id' });
-      const derivedTemplate = makeTemplate({ id: 'derived-tmpl', nodes: [derivedNode] });
-      const saved = makeTemplate({ id: 'new-uuid' });
-
-      mockFamilyRepo.findOne.mockResolvedValue(family);
-      mockTemplateRepo.findOne
-        .mockResolvedValueOnce(null) // assertSlugAvailable
-        .mockResolvedValueOnce(derivedTemplate) // deriveNodes
-        .mockResolvedValueOnce({ ...saved, nodes: [] });
-      mockTemplateRepo.save.mockResolvedValue(saved);
-      mockNodeRepo.save.mockResolvedValue([]);
-
-      await service.create({
-        familyId: 'family-uuid',
-        name: 'Pilar de 4 — 4C',
-        slug: 'pd4-4c',
-        deriveFromTemplateId: 'derived-tmpl',
-        nodes: [],
-      });
-
-      const savedNodes = mockNodeRepo.save.mock.calls[0][0];
-      // Should keep root ancestor, NOT use derivedNode.id
-      expect(savedNodes[0].originNodeId).toBe('root-ancestor-id');
-    });
   });
 
   describe('update — syncNodes zone routing', () => {
@@ -585,38 +532,6 @@ describe('FigureTemplateService', () => {
     it('throws NotFoundException when original not found', async () => {
       mockTemplateRepo.findOne.mockResolvedValue(null);
       await expect(service.duplicate('bad-uuid')).rejects.toThrow(NotFoundException);
-    });
-  });
-
-  describe('deriveNodes', () => {
-    it('skips TRONC/BASE nodes when deriving from a source template', async () => {
-      const family = makeFamily();
-      const pinyaNode = makeNode({ id: 'pinya-node', zone: FigureZone.PINYA });
-      const troncNode = makeNode({ id: 'tronc-node', zone: FigureZone.TRONC });
-      const baseNode = makeNode({ id: 'base-node', zone: FigureZone.BASE });
-      const sourceTemplate = makeTemplate({ id: 'source-tmpl', nodes: [pinyaNode, troncNode, baseNode] });
-      const saved = makeTemplate({ id: 'new-uuid' });
-
-      mockFamilyRepo.findOne.mockResolvedValue(family);
-      mockTemplateRepo.findOne
-        .mockResolvedValueOnce(null) // assertSlugAvailable
-        .mockResolvedValueOnce(sourceTemplate) // deriveNodes
-        .mockResolvedValueOnce({ ...saved, nodes: [] });
-      mockTemplateRepo.save.mockResolvedValue(saved);
-      mockNodeRepo.save.mockResolvedValue([]);
-      mockFamilyNodeRepo.find.mockResolvedValue([]);
-
-      await service.create({
-        familyId: 'family-uuid',
-        name: 'New Variant',
-        slug: 'new-variant',
-        deriveFromTemplateId: 'source-tmpl',
-        nodes: [],
-      });
-
-      const savedNodes = mockNodeRepo.save.mock.calls[0]?.[0] ?? [];
-      expect(savedNodes).toHaveLength(1); // only PINYA
-      expect(savedNodes[0].zone).toBe(FigureZone.PINYA);
     });
   });
 
