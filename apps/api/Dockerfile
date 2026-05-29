@@ -23,10 +23,9 @@ RUN ./node_modules/.bin/nx build shared --configuration=production && \
 FROM node:22-alpine AS prod-deps
 WORKDIR /app
 RUN corepack enable
-# The nx build generates a package.json in dist/apps/api with only runtime deps
-# No pnpm-lock.yaml exists here — use --no-lockfile
 COPY --from=build /app/dist/apps/api/package.json ./
-RUN pnpm install --prod --no-lockfile
+RUN pnpm install --prod --no-lockfile && \
+    pnpm add pg tslib bcrypt --no-lockfile
 
 # Stage 4: Final lightweight runner image
 FROM node:22-alpine AS runner
