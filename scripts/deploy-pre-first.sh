@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Script per al PRIMER DESPLEGAMENT a PRE
-# Ús: ssh user@204.168.221.131, després executar aquest script al servidor
+# Ús: ssh root@204.168.221.131, després executar aquest script al servidor
 
 set -e
 
@@ -33,7 +33,7 @@ if ! command -v git &> /dev/null; then
   exit 1
 fi
 
-if ! groups $USER | grep -q docker; then
+if [ "$(id -u)" -ne 0 ] && ! groups $USER | grep -q docker; then
   echo -e "${RED}❌ L'usuari no està al grup docker${NC}"
   echo "   Executa: sudo usermod -aG docker \$USER && newgrp docker"
   exit 1
@@ -66,7 +66,7 @@ if [ ! -f .env.pre ]; then
   echo "  ./scripts/generate-pre-env.sh"
   echo ""
   echo "Després copia'l al servidor:"
-  echo "  scp .env.pre user@204.168.221.131:~/MuixerApp/"
+  echo "  scp .env.pre root@204.168.221.131:~/MuixerApp/"
   exit 1
 fi
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Script per ACTUALITZAR PRE (desplegaments posteriors)
-# Ús: ssh user@204.168.221.131, cd MuixerApp, ./scripts/deploy-pre-update.sh
+# Ús: ssh root@204.168.221.131, cd MuixerApp, ./scripts/deploy-pre-update.sh
 
 set -e
 
