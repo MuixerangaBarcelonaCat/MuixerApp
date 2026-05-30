@@ -169,6 +169,58 @@ docker compose -f docker-compose.pre.yml logs api --tail=50
 
 > **Dades persistents**: El volum `postgres-pre-data` manté les dades entre desplegaments. El volum `caddy-data` conserva els certificats TLS quan s'activi HTTPS.
 
+> **Migracions**: L'entrypoint del contenidor API executa automàticament `typeorm migration:run` abans d'arrencar l'aplicació. Si hi ha migracions pendents, s'aplicaran durant el boot.
+
+---
+
+## Migracions de Base de Dades
+
+### Com funcionen
+
+L'esquema de la base de dades es gestiona amb **migracions de TypeORM**. `synchronize` està **sempre desactivat** en tots els entorns. Les migracions s'executen automàticament:
+
+- **DEV**: Quan `nx serve api` arrenca (`migrationsRun: true` al TypeORM config)
+- **PRE/PROD**: L'script `entrypoint.sh` del contenidor Docker executa `migration:run` abans d'iniciar Node
+
+### Baseline de PRE
+
+PRE ja tenia l'esquema creat amb `synchronize: true`. Per marcar l'estat inicial com a "ja migrat":
+
+```bash
+# Executar UNA SOLA VEGADA al servidor PRE (ja fet)
+bash scripts/baseline-pre-migrations.sh
+```
+
+Això insereix un registre a `typeorm_migrations` perquè el runner salti la migració `InitialSchema`.
+
+### Afegir un canvi d'esquema
+
+```bash
+# 1. Modificar les entitats (local, en dev)
+# 2. Generar la migració automàticament
+pnpm run migration:generate -- NomDelCanvi
+
+# 3. Revisar el fitxer generat a apps/api/src/migrations/
+# 4. Fer commit de l'entitat + la migració junts
+# 5. Al desplegar a PRE/PROD, s'aplica automàticament
+```
+
+### Comandes útils
+
+| Comanda | Descripció |
+|---------|------------|
+| `pnpm run migration:generate -- NomMigració` | Genera migració des de canvis a entitats |
+| `pnpm run migration:create -- NomMigració` | Crea migració buida (SQL manual) |
+| `pnpm run migration:run` | Aplica migracions pendents (local) |
+| `pnpm run migration:revert` | Reverteix l'última migració (local) |
+| `pnpm run migration:show` | Mostra estat de totes les migracions |
+
+### Revertir una migració a PRE
+
+```bash
+docker exec muixer-api-pre node ./node_modules/typeorm/cli.js migration:revert -d ./data-source.js
+```
+
 ---
 
 ## Comandes de Gestió

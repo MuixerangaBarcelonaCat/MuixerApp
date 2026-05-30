@@ -21,6 +21,11 @@
     "docker:pre:logs": "docker compose -f docker-compose.pre.yml logs -f",
     "docker:pre:ps": "docker compose -f docker-compose.pre.yml ps",
     "db:reset-figures": "docker exec -i muixer-postgres-dev psql -U muixer -d muixer_dev < scripts/reset-figure-data-safe.sql",
+    "migration:generate": "nx run api:migration-generate --name",
+    "migration:create": "nx run api:migration-create --name",
+    "migration:run": "nx run api:migration-run",
+    "migration:revert": "nx run api:migration-revert",
+    "migration:show": "nx run api:migration-show",
     "ci:local": "npx nx run-many -t lint,test,build --all --exclude=dashboard-e2e,pwa-e2e --parallel=3"
   },
   "repository": {
