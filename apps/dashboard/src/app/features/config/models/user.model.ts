@@ -36,3 +36,17 @@ export interface UserFilterParams {
   sortBy?: string;
   sortOrder?: UserSortOrder;
 }
+
+export interface CreateUserPayload {
+  email: string;
+  password: string;
+  role: UserRole;
+  personId?: string;
+}
+
+export interface UpdateUserPayload {
+  email?: string;
+  role?: UserRole;
+  isActive?: boolean;
+  personId?: string | null;
+}

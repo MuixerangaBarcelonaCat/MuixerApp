@@ -24,6 +24,8 @@ import {
   RowAction,
 } from '../../../shared/components/data/data-table/data-table.component';
 import { ColumnDef } from '../../../shared/models/column-def.model';
+import { UserFormModalComponent } from './user-form-modal/user-form-modal.component';
+import { ToastService } from '../../../shared/components/feedback/toast/toast.service';
 
 const STORAGE_KEY = 'user-list-visible-columns';
 
@@ -76,11 +78,13 @@ function formatDate(value: string | null): string {
     PaginationComponent,
     EmptyStateComponent,
     DataTableComponent,
+    UserFormModalComponent,
   ],
   templateUrl: './user-list.component.html',
 })
 export class UserListComponent {
   private readonly userService = inject(UserService);
+  private readonly toast = inject(ToastService);
 
   readonly allColumns = ALL_COLUMNS;
   readonly UserRole = UserRole;
@@ -111,6 +115,10 @@ export class UserListComponent {
   grantRoleUser = signal<UserDto | null>(null);
   grantRoleSelected = signal<UserRole | null>(null);
   grantRoleLoading = signal(false);
+
+  // Create/Edit modal state
+  showFormModal = signal(false);
+  editingUser = signal<UserDto | null>(null);
 
   totalPages = computed(() => Math.ceil(this.totalUsers() / this.limit()));
 
@@ -308,6 +316,43 @@ export class UserListComponent {
     });
   }
 
+  // Create/Edit modal
+  openCreateModal(): void {
+    this.editingUser.set(null);
+    this.showFormModal.set(true);
+  }
+
+  openEditModal(user: UserDto): void {
+    this.editingUser.set(user);
+    this.showFormModal.set(true);
+  }
+
+  closeFormModal(): void {
+    this.showFormModal.set(false);
+    this.editingUser.set(null);
+  }
+
+  onUserSaved(user: UserDto): void {
+    this.closeFormModal();
+    this.loadUsers();
+  }
+
+  deactivateUser(user: UserDto): void {
+    if (!user.isActive) return;
+    this.userService.deactivate(user.id).subscribe({
+      next: () => {
+        this.toast.success('Usuari desactivat correctament.');
+        this.users.update((list) =>
+          list.map((u) => (u.id === user.id ? { ...u, isActive: false } : u)),
+        );
+      },
+      error: (err) => {
+        const msg = err?.error?.message ?? "Error en desactivar l'usuari.";
+        this.toast.error(msg);
+      },
+    });
+  }
+
   getCellValue(user: UserDto, key: string): string {
     switch (key) {
       case 'email':
@@ -342,9 +387,19 @@ export class UserListComponent {
 
   readonly tableRowActions = computed<RowAction<UserDto>[]>(() => [
     {
+      label: 'Editar',
+      icon: 'Pencil',
+      action: (u: UserDto) => this.openEditModal(u),
+    },
+    {
       label: 'Assignar rol',
       icon: 'Shield',
       action: (u: UserDto) => this.openGrantRole(u),
+    },
+    {
+      label: 'Desactivar',
+      icon: 'UserX',
+      action: (u: UserDto) => this.deactivateUser(u),
     },
   ]);
 

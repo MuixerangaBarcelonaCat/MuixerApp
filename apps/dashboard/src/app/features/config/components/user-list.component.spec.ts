@@ -21,17 +21,21 @@ import {
   Mail,
   Menu,
   MoreHorizontal,
+  Pencil,
   Plus,
   RefreshCw,
   Search,
   Settings,
   Shield,
   Star,
+  UserPlus,
   UserX,
   Users,
 } from 'lucide-angular';
 import { UserListComponent } from './user-list.component';
 import { UserService } from '../services/user.service';
+import { ToastService } from '../../../shared/components/feedback/toast/toast.service';
+import { PersonService } from '../../../features/persons/services/person.service';
 import { UserRole } from '@muixer/shared';
 import { UserDto } from '../models/user.model';
 
@@ -64,18 +68,35 @@ describe('UserListComponent', () => {
   let userService: {
     getAll: ReturnType<typeof vi.fn>;
     grantRole: ReturnType<typeof vi.fn>;
+    create: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>;
+    deactivate: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(async () => {
     userService = {
       getAll: vi.fn().mockReturnValue(of(mockResponse())),
       grantRole: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      deactivate: vi.fn(),
+    };
+
+    const mockToast = {
+      success: vi.fn(),
+      error: vi.fn(),
+    };
+
+    const mockPersonService = {
+      getAll: vi.fn().mockReturnValue(of({ data: [], meta: { total: 0, page: 1, limit: 10 } })),
     };
 
     await TestBed.configureTestingModule({
       imports: [UserListComponent],
       providers: [
         { provide: UserService, useValue: userService },
+        { provide: ToastService, useValue: mockToast },
+        { provide: PersonService, useValue: mockPersonService },
         {
           provide: LUCIDE_ICONS,
           multi: true,
@@ -98,12 +119,14 @@ describe('UserListComponent', () => {
               Mail,
               Menu,
               MoreHorizontal,
+              Pencil,
               Plus,
               RefreshCw,
               Search,
               Settings,
               Shield,
               Star,
+              UserPlus,
               UserX,
               Users,
             }),

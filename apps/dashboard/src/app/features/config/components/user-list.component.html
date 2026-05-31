@@ -2,6 +2,10 @@
 
   <!-- Capçalera -->
   <app-page-header title="Usuaris" [count]="totalUsers()">
+    <button type="button" class="btn btn-primary btn-sm" (click)="openCreateModal()">
+      <lucide-icon name="UserPlus" [size]="16" />
+      Crear usuari
+    </button>
   </app-page-header>
 
   <!-- Filtres -->
@@ -120,6 +124,15 @@
   }
 
 </div>
+
+<!-- Modal: Crear/Editar usuari -->
+@if (showFormModal()) {
+  <app-user-form-modal
+    [user]="editingUser()"
+    (saved)="onUserSaved($event)"
+    (cancelled)="closeFormModal()"
+  />
+}
 
 <!-- Modal: Assignar rol -->
 @if (grantRoleUser()) {
