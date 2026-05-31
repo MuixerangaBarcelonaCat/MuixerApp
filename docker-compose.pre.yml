@@ -4,6 +4,8 @@ services:
     container_name: muixer-postgres-pre
     restart: unless-stopped
     env_file: .env.pre
+    ports:
+      - '5432:5432'
     volumes:
       - postgres-pre-data:/var/lib/postgresql/data
       - ./docker/postgres/init-prod.sql:/docker-entrypoint-initdb.d/init.sql

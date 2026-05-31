@@ -49,10 +49,10 @@ Swagger: `http://localhost:3000/api/docs`
 ### 5. Crear el primer usuari admin
 
 ```bash
-curl -X POST http://localhost:3000/api/setup/first-admin \
-  -H "X-Setup-Token: <SETUP_TOKEN del .env>" \
+curl -X POST http://localhost:3000/api/auth/setup/user \
+  -H "X-Setup-Token: $SETUP_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"email": "el-teu-email@example.com", "password": "la-teva-password"}'
+  -d '{"email": "un-email-nou@gmail.com", "password": "el-password", "role": "ADMIN"}'
 ```
 
 ### 6. Importar les temporades

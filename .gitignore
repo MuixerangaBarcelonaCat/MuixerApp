@@ -28,6 +28,9 @@ data/extracted/
 # ── Docker ─────────────────────────────────────────────────
 docker/postgres/data/
 
+# ── Scripts locals (credencials, no pujar a git) ──────────
+scripts/tunnel-pre.sh
+
 # ── OS ────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
