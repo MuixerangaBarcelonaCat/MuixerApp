@@ -13,6 +13,7 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
 import { HttpErrorResponse } from '@angular/common/http';
+import { generateUUID } from '@app/shared/utils';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { CanvasStateService } from '../../services/canvas-state.service';
 import { FigureCanvasComponent, CanvasNode } from '../figure-canvas/figure-canvas.component';
@@ -207,7 +208,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   // ── Tronc widget events ────────────────────────────────────────────────────
 
   onTroncNodeAdded(event: { z: number; positionType: string; label: string; sortOrder: number }): void {
-    const id = crypto.randomUUID();
+    const id = generateUUID();
     const existingAtZ = this.troncNodes().filter((n) => n.z === event.z);
     const nextX = existingAtZ.reduce((max, n) => Math.max(max, n.x + n.width), 0);
     const newNode: FigureNodeItem = {
@@ -256,7 +257,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   // ── Base node events (from tronc widget bases section) ────────────────────
 
   onBaseNodeAdded(event: { sortOrder: number }): void {
-    const id = crypto.randomUUID();
+    const id = generateUUID();
     const stageCenter = { x: 200, y: 200 };
     const baseNumber = this.baseNodes().length + 1;
     const newNode: FigureNodeItem = {
@@ -306,7 +307,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     color: string | null = null,
     labelOverride?: string,
   ): void {
-    const id = crypto.randomUUID();
+    const id = generateUUID();
     const stageCenter = { x: 200, y: 200 };
     const newNode: FigureNodeItem = {
       id,
@@ -418,7 +419,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     const PASTE_OFFSET = 24;
     const newNode: FigureNodeItem = {
       ...source,
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       x: source.x + PASTE_OFFSET,
       y: source.y + PASTE_OFFSET,
       sortOrder: this.nodes().length,
@@ -521,7 +522,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   }
 
   onRenglaCreated(event: RenglaCreatedEvent): void {
-    const renglaId = crypto.randomUUID();
+    const renglaId = generateUUID();
     const startPos = event.rengla.startPosition;
     const newRengla: RenglaModel = {
       id: renglaId,
@@ -583,7 +584,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     const source = this.nodes().find((n) => n.id === event.sourceNode.id);
     if (!source) return;
 
-    const newId = crypto.randomUUID();
+    const newId = generateUUID();
     let renglaId = source.renglaId;
     let renglaPosition = source.renglaPosition != null ? source.renglaPosition + 1 : null;
     let ringLevel = source.ringLevel != null ? source.ringLevel + 1 : null;
@@ -597,7 +598,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
         ),
       );
     } else {
-      const autoRenglaId = crypto.randomUUID();
+      const autoRenglaId = generateUUID();
       const renglaIndex = this.rengles().length;
       const newRengla: RenglaModel = {
         id: autoRenglaId,

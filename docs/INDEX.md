@@ -25,9 +25,9 @@
 | Document | Descripció |
 |----------|------------|
 | [README.md](../README.md) | Introducció i setup del projecte |
-| [CURRENT_STATUS.md](CURRENT_STATUS.md) | **Estat actual complet del projecte** ⭐ |
-| [NEXT_STEPS.md](NEXT_STEPS.md) | Pròxims passos immediats |
-| [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md) | Visió general i fases P0–P7 |
+| [CURRENT_STATUS.md](CURRENT_STATUS.md) | **Snapshot del frontier actual** ⭐ |
+| [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md) | Visió general i fases P0–P7 (mapa lleuger) |
+| [PHASES_LOG.md](PHASES_LOG.md) | Història cronològica completa de fites del projecte |
 | **[DOCKER_SETUP.md](DOCKER_SETUP.md)** | Guia pràctica per PostgreSQL en Docker local |
 | **[DOCKER_ARCHITECTURE.md](DOCKER_ARCHITECTURE.md)** | Arquitectura Docker multi-entorn: dev local, VPS prod, backup, escalabilitat |
 | **[DEPLOY_PRE.md](DEPLOY_PRE.md)** | Guia de desplegament a l'entorn PRE (Hetzner VPS) |
