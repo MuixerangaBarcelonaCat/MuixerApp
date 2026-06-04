@@ -85,7 +85,7 @@ nx serve api
 
 ```bash
 # Crear usuari admin via endpoint bootstrap
-curl -X POST http://localhost:3000/api/setup/first-admin \
+curl -X POST http://localhost:3000/api/setup/user \
   -H "X-Setup-Token: <SETUP_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{"email": "el-teu-email@example.com", "password": "la-teva-password"}'
