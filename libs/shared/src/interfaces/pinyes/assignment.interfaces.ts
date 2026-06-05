@@ -107,7 +107,7 @@ export interface FigureHistoryEntry {
   }[];
 }
 
-export interface HistoryMeta extends PaginatedMeta {}
+export type HistoryMeta = PaginatedMeta;
 
 export interface PersonAssignmentEntry {
   eventId: string;

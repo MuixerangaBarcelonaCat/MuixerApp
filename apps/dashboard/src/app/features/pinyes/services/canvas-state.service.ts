@@ -8,5 +8,9 @@ export class CanvasStateService {
   readonly gridSpacing = signal<number>(40);
   readonly snapToGrid = signal<boolean>(true);
 
-  reset(): void {}
+  reset(): void {
+    this.gridEnabled.set(true);
+    this.gridSpacing.set(40);
+    this.snapToGrid.set(true);
+  }
 }
