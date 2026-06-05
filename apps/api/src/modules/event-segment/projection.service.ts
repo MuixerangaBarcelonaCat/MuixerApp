@@ -61,6 +61,7 @@ export class ProjectionService {
       instanceIds.length > 0
         ? this.instanceNodeRepository.find({
             where: { figureInstance: { id: In(instanceIds) } },
+            relations: ['figureInstance'],
             order: { sortOrder: 'ASC' },
           })
         : Promise.resolve([]),
@@ -74,7 +75,7 @@ export class ProjectionService {
 
     const nodesByInstance = new Map<string, InstanceNode[]>();
     for (const node of allNodes) {
-      const iid = (node.figureInstance as any)?.id ?? (node as any).figureInstanceId;
+      const iid = node.figureInstance.id;
       if (!nodesByInstance.has(iid)) nodesByInstance.set(iid, []);
       nodesByInstance.get(iid)!.push(node);
     }
