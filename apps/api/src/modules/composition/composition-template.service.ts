@@ -1,6 +1,6 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import { CompositionTemplate } from './entities/composition-template.entity';
 import { CompositionSlot } from './entities/composition-slot.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
@@ -53,6 +53,7 @@ export class CompositionTemplateService {
     private readonly figureTemplateRepository: Repository<FigureTemplate>,
     @InjectRepository(FigureInstance)
     private readonly figureInstanceRepository: Repository<FigureInstance>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async findAll(
@@ -96,6 +97,8 @@ export class CompositionTemplateService {
   }
 
   async create(dto: CreateCompositionTemplateDto): Promise<CompositionTemplateDetailItem> {
+    await this.assertSlugAvailable(dto.slug);
+
     const composition = this.compositionRepository.create({
       name: dto.name,
       slug: dto.slug,
@@ -122,7 +125,10 @@ export class CompositionTemplateService {
     }
 
     if (dto.name !== undefined) composition.name = dto.name;
-    if (dto.slug !== undefined) composition.slug = dto.slug;
+    if (dto.slug !== undefined) {
+      await this.assertSlugAvailable(dto.slug, id);
+      composition.slug = dto.slug;
+    }
     if (dto.description !== undefined) composition.description = dto.description ?? null;
 
     await this.compositionRepository.save(composition);
@@ -214,12 +220,59 @@ export class CompositionTemplateService {
     await this.slotRepository.save(slots);
   }
 
+  /**
+   * C2 fix: atomic slot replacement.
+   * 1. Pre-validate all figureTemplateIds in one batched query to fail fast
+   *    BEFORE any delete occurs.
+   * 2. Wrap delete + recreate in a transaction so a failed create rolls back the
+   *    delete, preventing loss of all slots on a bad request.
+   */
   private async syncSlots(
     composition: CompositionTemplate,
     incomingDtos: CreateCompositionSlotDto[],
   ): Promise<void> {
-    await this.slotRepository.delete({ composition: { id: composition.id } });
-    await this.createSlots(composition, incomingDtos);
+    let templateMap = new Map<string, FigureTemplate>();
+
+    if (incomingDtos.length > 0) {
+      const templateIds = [...new Set(incomingDtos.map((dto) => dto.figureTemplateId))];
+      const templates = await this.figureTemplateRepository.find({
+        where: { id: In(templateIds) },
+      });
+      templateMap = new Map(templates.map((t) => [t.id, t]));
+
+      const missing = templateIds.filter((id) => !templateMap.has(id));
+      if (missing.length > 0) {
+        throw new NotFoundException(`FigureTemplate IDs not found: ${missing.join(', ')}`);
+      }
+    }
+
+    await this.dataSource.transaction(async (manager) => {
+      await manager.delete(CompositionSlot, { composition: { id: composition.id } });
+
+      if (incomingDtos.length > 0) {
+        const slots = incomingDtos.map((dto) =>
+          manager.create(CompositionSlot, {
+            composition,
+            figureTemplate: templateMap.get(dto.figureTemplateId)!,
+            label: dto.label ?? null,
+            offsetX: dto.offsetX,
+            offsetY: dto.offsetY,
+            sortOrder: dto.sortOrder ?? 0,
+          }),
+        );
+        await manager.save(CompositionSlot, slots);
+      }
+    });
+  }
+
+  // H5 fix: slug uniqueness check mirroring the figure-template pattern.
+  private async assertSlugAvailable(slug: string, excludeId?: string): Promise<void> {
+    const existing = await this.compositionRepository.findOne({ where: { slug } });
+    if (existing && existing.id !== excludeId) {
+      throw new ConflictException(
+        `The slug "${slug}" is already in use by another composition`,
+      );
+    }
   }
 }
 

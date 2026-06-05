@@ -9,6 +9,7 @@ import { FigureInstance } from './entities/figure-instance.entity';
 import { EventSegment } from './entities/event-segment.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
 import { CompositionTemplate } from '../composition/entities/composition-template.entity';
+import { NodeAssignment } from '../node-assignment/entities/node-assignment.entity';
 import { CreateInstanceDto } from './dto/create-instance.dto';
 import { UpdateInstanceDto } from './dto/update-instance.dto';
 import { ReorderInstancesDto } from './dto/reorder-instances.dto';
@@ -207,13 +208,20 @@ export class FigureInstanceService {
       throw new NotFoundException(`FigureInstance with ID ${id} not found`);
     }
 
+    // H1 fix: query the actual assignment count instead of hardcoding 0.
+    // Uses DataSource.getRepository to avoid adding NodeAssignment to module's
+    // forFeature (it is already registered via NodeAssignmentModule).
+    const assignedCount = await this.dataSource
+      .getRepository(NodeAssignment)
+      .count({ where: { figureInstance: { id: instance.id } } });
+
     return {
       id: instance.id,
       label: instance.label,
       sortOrder: instance.sortOrder,
       snapshotted: instance.snapshotted,
       sourceVariantOrder: instance.sourceVariantOrder,
-      assignedCount: 0,
+      assignedCount,
       numberOfCordons: instance.numberOfCordons,
       openCordons: instance.openCordons,
       figureTemplate: instance.figureTemplate

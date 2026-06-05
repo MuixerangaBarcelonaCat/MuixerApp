@@ -619,6 +619,20 @@ export class NodeAssignmentService {
     const page = Math.max(query.page ?? 1, 1);
     const limit = Math.min(Math.max(query.limit ?? 20, 1), 100);
 
+    // H3 fix: count on a separate QB without collection joins to avoid row inflation
+    // from leftJoinAndSelect on one-to-many relations (assignments, instanceNodes).
+    const countQb = this.figureInstanceRepository
+      .createQueryBuilder('fi')
+      .leftJoin('fi.segment', 'seg')
+      .leftJoin('seg.event', 'ev')
+      .where('fi.figureTemplateId = :templateId', { templateId });
+
+    if (query.seasonId) {
+      countQb.andWhere('ev.seasonId = :seasonId', { seasonId: query.seasonId });
+    }
+
+    const total = await countQb.getCount();
+
     const qb = this.figureInstanceRepository
       .createQueryBuilder('fi')
       .leftJoinAndSelect('fi.assignments', 'a')
@@ -633,7 +647,6 @@ export class NodeAssignmentService {
       qb.andWhere('ev.seasonId = :seasonId', { seasonId: query.seasonId });
     }
 
-    const total = await qb.getCount();
     const instances = await qb
       .orderBy('ev.date', 'DESC')
       .skip((page - 1) * limit)
@@ -812,6 +825,20 @@ export class NodeAssignmentService {
     const page = Math.max(query.page ?? 1, 1);
     const limit = Math.min(Math.max(query.limit ?? 20, 1), 100);
 
+    // H3 fix: count on a separate QB without collection joins to avoid row inflation.
+    const countQb = this.figureInstanceRepository
+      .createQueryBuilder('fi')
+      .leftJoin('fi.segment', 'seg')
+      .leftJoin('seg.event', 'ev')
+      .leftJoin('fi.figureTemplate', 'tpl')
+      .where('tpl.familyId = :familyId', { familyId });
+
+    if (query.seasonId) {
+      countQb.andWhere('ev.seasonId = :seasonId', { seasonId: query.seasonId });
+    }
+
+    const total = await countQb.getCount();
+
     const qb = this.figureInstanceRepository
       .createQueryBuilder('fi')
       .leftJoinAndSelect('fi.assignments', 'a')
@@ -827,7 +854,6 @@ export class NodeAssignmentService {
       qb.andWhere('ev.seasonId = :seasonId', { seasonId: query.seasonId });
     }
 
-    const total = await qb.getCount();
     const instances = await qb
       .orderBy('ev.date', 'DESC')
       .skip((page - 1) * limit)
@@ -1210,12 +1236,18 @@ export class NodeAssignmentService {
    * Copies all FigureNode rows from the instance's template into InstanceNode rows
    * owned by this instance. Marks the instance as snapshotted. Runs in a transaction.
    * Returns the newly created InstanceNode rows.
+   *
+   * C1 fix: template/family data is loaded BEFORE the transaction to keep the
+   * critical section short. Inside the transaction a pessimistic_write lock on
+   * FigureInstance serialises concurrent calls and an idempotency re-check prevents
+   * double-snapshot if two requests raced past the outer `!snapshotted` check.
    */
   private async snapshotInstance(instance: FigureInstance): Promise<InstanceNode[]> {
     if (!instance.figureTemplate) {
       throw new BadRequestException('Cannot snapshot a composition-based instance');
     }
 
+    // Load template data outside the transaction to minimise lock hold time.
     const template = await this.figureTemplateRepository.findOne({
       where: { id: instance.figureTemplate.id },
       relations: ['nodes', 'family'],
@@ -1234,6 +1266,19 @@ export class NodeAssignmentService {
       : [];
 
     return this.dataSource.transaction(async (manager) => {
+      // Acquire a row-level write lock to serialise concurrent snapshot attempts.
+      const locked = await manager.findOne(FigureInstance, {
+        where: { id: instance.id },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      // Idempotency guard: another concurrent request may have already snapshotted.
+      if (locked!.snapshotted) {
+        return manager.find(InstanceNode, {
+          where: { figureInstance: { id: instance.id } },
+        });
+      }
+
       const templateInstanceNodes = templateNodes.map((node) =>
         manager.create(InstanceNode, {
           figureInstance: instance,

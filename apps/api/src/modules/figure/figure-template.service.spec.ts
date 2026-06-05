@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ConflictException, NotFoundException } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 import { FigureTemplateService } from './figure-template.service';
 import { FigureFamily } from './entities/figure-family.entity';
 import { FigureTemplate } from './entities/figure-template.entity';
@@ -163,6 +164,17 @@ describe('FigureTemplateService', () => {
     remove: jest.fn(),
   };
 
+  // H4: DataSource mock for the transactional update
+  const mockTxManager = {
+    findOne: jest.fn(),
+    save: jest.fn(),
+    getRepository: jest.fn(),
+  };
+
+  const mockDataSource = {
+    transaction: jest.fn().mockImplementation((cb: any) => cb(mockTxManager)),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
 
@@ -182,6 +194,17 @@ describe('FigureTemplateService', () => {
 
     mockTemplateRepo.createQueryBuilder.mockReturnValue(templateQb);
 
+    // Default tx manager behaviour: getRepository returns the class-level mocks
+    // so existing sync tests keep working through the transaction wrapper.
+    mockTxManager.getRepository.mockImplementation((entity: { name?: string }) => {
+      if (entity?.name === 'FigureNode') return mockNodeRepo;
+      if (entity?.name === 'FigureFamilyNode') return mockFamilyNodeRepo;
+      if (entity?.name === 'Rengla') return mockRenglaRepo;
+      return { save: jest.fn(), find: jest.fn().mockResolvedValue([]), delete: jest.fn().mockResolvedValue(undefined), create: jest.fn((d: any) => d) };
+    });
+
+    mockDataSource.transaction.mockImplementation((cb: any) => cb(mockTxManager));
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         FigureTemplateService,
@@ -192,6 +215,7 @@ describe('FigureTemplateService', () => {
         { provide: getRepositoryToken(Rengla), useValue: mockRenglaRepo },
         { provide: getRepositoryToken(CompositionSlot), useValue: mockCompositionSlotRepo },
         { provide: getRepositoryToken(FigureInstance), useValue: mockFigureInstanceRepo },
+        { provide: DataSource, useValue: mockDataSource },
       ],
     }).compile();
 
@@ -312,14 +336,15 @@ describe('FigureTemplateService', () => {
 
   });
 
+  // H4: update is now transactional. Tests use mockTxManager.findOne inside the
+  // transaction and mockTemplateRepo.findOne for the final findOne(id) call.
   describe('update — syncNodes zone routing', () => {
     it('routes TRONC/BASE nodes to familyNodeRepo, not nodeRepo', async () => {
       const family = makeFamily();
       const tmpl = makeTemplate({ family, nodes: [] });
-      mockTemplateRepo.findOne
-        .mockResolvedValueOnce(tmpl)
-        .mockResolvedValueOnce({ ...tmpl, nodes: [] });
-      mockTemplateRepo.save.mockResolvedValue(tmpl);
+      mockTxManager.findOne.mockResolvedValue(tmpl);
+      mockTxManager.save.mockResolvedValue(undefined);
+      mockTemplateRepo.findOne.mockResolvedValue({ ...tmpl, nodes: [] });
       mockFamilyNodeRepo.find.mockResolvedValue([]); // no existing family nodes
 
       const troncDto = {
@@ -340,10 +365,9 @@ describe('FigureTemplateService', () => {
     it('routes PINYA nodes to nodeRepo, not familyNodeRepo', async () => {
       const family = makeFamily();
       const tmpl = makeTemplate({ family, nodes: [] });
-      mockTemplateRepo.findOne
-        .mockResolvedValueOnce(tmpl)
-        .mockResolvedValueOnce({ ...tmpl, nodes: [] });
-      mockTemplateRepo.save.mockResolvedValue(tmpl);
+      mockTxManager.findOne.mockResolvedValue(tmpl);
+      mockTxManager.save.mockResolvedValue(undefined);
+      mockTemplateRepo.findOne.mockResolvedValue({ ...tmpl, nodes: [] });
       mockFamilyNodeRepo.find.mockResolvedValue([]);
 
       await service.update('tmpl-uuid', { nodes: [NODE_DTO] });
@@ -355,10 +379,9 @@ describe('FigureTemplateService', () => {
       const family = makeFamily();
       const existingFamilyNode = makeFamilyNode({ id: 'fn-uuid' });
       const tmpl = makeTemplate({ family, nodes: [] });
-      mockTemplateRepo.findOne
-        .mockResolvedValueOnce(tmpl)
-        .mockResolvedValueOnce({ ...tmpl, nodes: [] });
-      mockTemplateRepo.save.mockResolvedValue(tmpl);
+      mockTxManager.findOne.mockResolvedValue(tmpl);
+      mockTxManager.save.mockResolvedValue(undefined);
+      mockTemplateRepo.findOne.mockResolvedValue({ ...tmpl, nodes: [] });
       mockFamilyNodeRepo.find.mockResolvedValue([existingFamilyNode]);
 
       await service.update('tmpl-uuid', {
@@ -374,13 +397,11 @@ describe('FigureTemplateService', () => {
       const family = makeFamily();
       const existingFamilyNode = makeFamilyNode({ id: 'fn-to-delete' });
       const tmpl = makeTemplate({ family, nodes: [] });
-      mockTemplateRepo.findOne
-        .mockResolvedValueOnce(tmpl)
-        .mockResolvedValueOnce({ ...tmpl, nodes: [] });
-      mockTemplateRepo.save.mockResolvedValue(tmpl);
+      mockTxManager.findOne.mockResolvedValue(tmpl);
+      mockTxManager.save.mockResolvedValue(undefined);
+      mockTemplateRepo.findOne.mockResolvedValue({ ...tmpl, nodes: [] });
       mockFamilyNodeRepo.find.mockResolvedValue([existingFamilyNode]);
 
-      // Send empty nodes — removes the family node
       await service.update('tmpl-uuid', { nodes: [] });
 
       expect(mockFamilyNodeRepo.delete).toHaveBeenCalledWith(
@@ -395,29 +416,25 @@ describe('FigureTemplateService', () => {
     it('updates an existing node by ID without changing UUID', async () => {
       const existingNode = makeNode({ id: 'stable-node-id' });
       const tmpl = makeTemplate({ nodes: [existingNode] });
-      mockTemplateRepo.findOne
-        .mockResolvedValueOnce(tmpl)
-        .mockResolvedValueOnce({ ...tmpl, nodes: [existingNode] });
-      mockTemplateRepo.save.mockResolvedValue(tmpl);
+      mockTxManager.findOne.mockResolvedValue(tmpl);
+      mockTxManager.save.mockResolvedValue(undefined);
+      mockTemplateRepo.findOne.mockResolvedValue({ ...tmpl, nodes: [existingNode] });
 
       await service.update('tmpl-uuid', {
         nodes: [{ ...NODE_DTO, id: 'stable-node-id', x: 600 }],
       });
 
-      // save called with the updated node (not a new one)
       const savedNodes = mockNodeRepo.save.mock.calls[0][0];
       expect(savedNodes[0].id).toBe('stable-node-id');
       expect(savedNodes[0].x).toBe(600);
-      // no delete for matched node
       expect(mockNodeRepo.delete).not.toHaveBeenCalled();
     });
 
     it('creates new node when no matching ID', async () => {
       const tmpl = makeTemplate({ nodes: [] });
-      mockTemplateRepo.findOne
-        .mockResolvedValueOnce(tmpl)
-        .mockResolvedValueOnce({ ...tmpl, nodes: [] });
-      mockTemplateRepo.save.mockResolvedValue(tmpl);
+      mockTxManager.findOne.mockResolvedValue(tmpl);
+      mockTxManager.save.mockResolvedValue(undefined);
+      mockTemplateRepo.findOne.mockResolvedValue({ ...tmpl, nodes: [] });
 
       await service.update('tmpl-uuid', { nodes: [NODE_DTO] });
 
@@ -427,12 +444,10 @@ describe('FigureTemplateService', () => {
     it('deletes nodes not in the incoming list', async () => {
       const existingNode = makeNode({ id: 'node-to-delete' });
       const tmpl = makeTemplate({ nodes: [existingNode] });
-      mockTemplateRepo.findOne
-        .mockResolvedValueOnce(tmpl)
-        .mockResolvedValueOnce({ ...tmpl, nodes: [] });
-      mockTemplateRepo.save.mockResolvedValue(tmpl);
+      mockTxManager.findOne.mockResolvedValue(tmpl);
+      mockTxManager.save.mockResolvedValue(undefined);
+      mockTemplateRepo.findOne.mockResolvedValue({ ...tmpl, nodes: [] });
 
-      // incoming list has no node with id 'node-to-delete'
       await service.update('tmpl-uuid', { nodes: [] });
 
       expect(mockNodeRepo.delete).toHaveBeenCalledWith(
@@ -444,18 +459,28 @@ describe('FigureTemplateService', () => {
 
     it('allows editing template that has snapshotted instances (no guard)', async () => {
       const tmpl = makeTemplate({ nodes: [makeNode()] });
-      mockTemplateRepo.findOne
-        .mockResolvedValueOnce(tmpl)
-        .mockResolvedValueOnce({ ...tmpl, nodes: [] });
-      mockTemplateRepo.save.mockResolvedValue(tmpl);
+      mockTxManager.findOne.mockResolvedValue(tmpl);
+      mockTxManager.save.mockResolvedValue(undefined);
+      mockTemplateRepo.findOne.mockResolvedValue({ ...tmpl, nodes: [] });
 
-      // No assignment service involved anymore — should not throw
       await expect(service.update('tmpl-uuid', { nodes: [] })).resolves.not.toThrow();
     });
 
-    it('throws NotFoundException when not found', async () => {
-      mockTemplateRepo.findOne.mockResolvedValue(null);
+    it('throws NotFoundException when not found (H4: inside transaction)', async () => {
+      mockTxManager.findOne.mockResolvedValue(null);
       await expect(service.update('bad-uuid', { name: 'X' })).rejects.toThrow(NotFoundException);
+    });
+
+    it('wraps save + syncNodes in a single transaction (H4)', async () => {
+      const tmpl = makeTemplate({ nodes: [] });
+      mockTxManager.findOne.mockResolvedValue(tmpl);
+      mockTxManager.save.mockResolvedValue(undefined);
+      mockTemplateRepo.findOne.mockResolvedValue({ ...tmpl, nodes: [] });
+
+      await service.update('tmpl-uuid', { name: 'Updated', nodes: [] });
+
+      expect(mockDataSource.transaction).toHaveBeenCalledTimes(1);
+      expect(mockTxManager.save).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ name: 'Updated' }));
     });
   });
 
@@ -538,10 +563,9 @@ describe('FigureTemplateService', () => {
   describe('syncRengles', () => {
     it('creates new rengles when template has none', async () => {
       const tmpl = makeTemplate({ nodes: [] });
-      mockTemplateRepo.findOne
-        .mockResolvedValueOnce(tmpl)
-        .mockResolvedValueOnce({ ...tmpl, rengles: [] });
-      mockTemplateRepo.save.mockResolvedValue(tmpl);
+      mockTxManager.findOne.mockResolvedValue(tmpl);
+      mockTxManager.save.mockResolvedValue(undefined);
+      mockTemplateRepo.findOne.mockResolvedValue({ ...tmpl, rengles: [] });
       mockRenglaRepo.find.mockResolvedValue([]);
 
       await service.update('tmpl-uuid', {
@@ -557,10 +581,9 @@ describe('FigureTemplateService', () => {
     it('updates existing rengla by ID', async () => {
       const existing = makeRengla({ id: 'rengla-1' });
       const tmpl = makeTemplate({ nodes: [] });
-      mockTemplateRepo.findOne
-        .mockResolvedValueOnce(tmpl)
-        .mockResolvedValueOnce({ ...tmpl, rengles: [existing] });
-      mockTemplateRepo.save.mockResolvedValue(tmpl);
+      mockTxManager.findOne.mockResolvedValue(tmpl);
+      mockTxManager.save.mockResolvedValue(undefined);
+      mockTemplateRepo.findOne.mockResolvedValue({ ...tmpl, rengles: [existing] });
       mockRenglaRepo.find.mockResolvedValue([existing]);
 
       await service.update('tmpl-uuid', {
@@ -575,10 +598,9 @@ describe('FigureTemplateService', () => {
     it('deletes absent rengles and orphans their nodes', async () => {
       const existing = makeRengla({ id: 'rengla-to-delete' });
       const tmpl = makeTemplate({ nodes: [] });
-      mockTemplateRepo.findOne
-        .mockResolvedValueOnce(tmpl)
-        .mockResolvedValueOnce({ ...tmpl, rengles: [] });
-      mockTemplateRepo.save.mockResolvedValue(tmpl);
+      mockTxManager.findOne.mockResolvedValue(tmpl);
+      mockTxManager.save.mockResolvedValue(undefined);
+      mockTemplateRepo.findOne.mockResolvedValue({ ...tmpl, rengles: [] });
       mockRenglaRepo.find.mockResolvedValue([existing]);
 
       const mockNodeQb = {
@@ -598,10 +620,9 @@ describe('FigureTemplateService', () => {
 
     it('backwards compat: update without rengles field leaves rengles untouched', async () => {
       const tmpl = makeTemplate({ nodes: [] });
-      mockTemplateRepo.findOne
-        .mockResolvedValueOnce(tmpl)
-        .mockResolvedValueOnce({ ...tmpl, rengles: [] });
-      mockTemplateRepo.save.mockResolvedValue(tmpl);
+      mockTxManager.findOne.mockResolvedValue(tmpl);
+      mockTxManager.save.mockResolvedValue(undefined);
+      mockTemplateRepo.findOne.mockResolvedValue({ ...tmpl, rengles: [] });
 
       await service.update('tmpl-uuid', { name: 'Updated Name' });
 
@@ -649,10 +670,9 @@ describe('FigureTemplateService', () => {
     it('preserves renglaId and renglaPosition on node update', async () => {
       const existingNode = makeNode({ id: 'node-1', renglaId: 'r1', renglaPosition: 3 });
       const tmpl = makeTemplate({ nodes: [existingNode] });
-      mockTemplateRepo.findOne
-        .mockResolvedValueOnce(tmpl)
-        .mockResolvedValueOnce({ ...tmpl, rengles: [] });
-      mockTemplateRepo.save.mockResolvedValue(tmpl);
+      mockTxManager.findOne.mockResolvedValue(tmpl);
+      mockTxManager.save.mockResolvedValue(undefined);
+      mockTemplateRepo.findOne.mockResolvedValue({ ...tmpl, rengles: [] });
 
       await service.update('tmpl-uuid', {
         nodes: [{ ...NODE_DTO, id: 'node-1', renglaId: 'r1', renglaPosition: 3 }],
@@ -665,10 +685,9 @@ describe('FigureTemplateService', () => {
 
     it('includes renglaId and renglaPosition when creating new nodes', async () => {
       const tmpl = makeTemplate({ nodes: [] });
-      mockTemplateRepo.findOne
-        .mockResolvedValueOnce(tmpl)
-        .mockResolvedValueOnce({ ...tmpl, rengles: [] });
-      mockTemplateRepo.save.mockResolvedValue(tmpl);
+      mockTxManager.findOne.mockResolvedValue(tmpl);
+      mockTxManager.save.mockResolvedValue(undefined);
+      mockTemplateRepo.findOne.mockResolvedValue({ ...tmpl, rengles: [] });
 
       await service.update('tmpl-uuid', {
         nodes: [{ ...NODE_DTO, renglaId: 'r1', renglaPosition: 1 }],
@@ -677,6 +696,72 @@ describe('FigureTemplateService', () => {
       const saved = mockNodeRepo.save.mock.calls[0][0];
       expect(saved[0].renglaId).toBe('r1');
       expect(saved[0].renglaPosition).toBe(1);
+    });
+  });
+
+  describe('duplicate — rengles (H2)', () => {
+    it('copies rengles from the original template', async () => {
+      const family = makeFamily();
+      const rengla = makeRengla({ id: 'orig-rengla', name: 'Mans Nord', sortOrder: 0, startPosition: 1, allowsCordoObert: false });
+      const original = makeTemplate({ nodes: [], family, rengles: [rengla] });
+      mockTemplateRepo.findOne.mockResolvedValueOnce(original);
+
+      const copyTemplate = makeTemplate({ id: 'copy-uuid', family, rengles: [] });
+      mockTemplateRepo.save.mockResolvedValue(copyTemplate);
+      templateQb.getRawOne.mockResolvedValue({ max: 1 });
+
+      const newRengla = makeRengla({ id: 'new-rengla-id', name: 'Mans Nord' });
+      mockRenglaRepo.save.mockResolvedValue([newRengla]);
+      mockTemplateRepo.findOne.mockResolvedValueOnce({ ...copyTemplate, nodes: [], rengles: [newRengla] });
+
+      await service.duplicate('orig-uuid');
+
+      expect(mockRenglaRepo.save).toHaveBeenCalledTimes(1);
+      const savedRengles = mockRenglaRepo.save.mock.calls[0][0];
+      expect(savedRengles[0].name).toBe('Mans Nord');
+      expect(savedRengles[0].template).toBe(copyTemplate);
+    });
+
+    it('remaps renglaId on copied PINYA nodes to point to new rengles', async () => {
+      const family = makeFamily();
+      const rengla = makeRengla({ id: 'orig-rengla' });
+      const pinyaNode = makeNode({ renglaId: 'orig-rengla', zone: FigureZone.PINYA });
+      const original = makeTemplate({ nodes: [pinyaNode], family, rengles: [rengla] });
+      mockTemplateRepo.findOne.mockResolvedValueOnce(original);
+
+      const copyTemplate = makeTemplate({ id: 'copy-uuid', family });
+      mockTemplateRepo.save.mockResolvedValue(copyTemplate);
+      templateQb.getRawOne.mockResolvedValue({ max: 1 });
+
+      const newRengla = makeRengla({ id: 'new-rengla-id' });
+      mockRenglaRepo.save.mockResolvedValue([newRengla]);
+      mockNodeRepo.save.mockResolvedValue([]);
+      mockTemplateRepo.findOne.mockResolvedValueOnce({ ...copyTemplate, nodes: [], rengles: [newRengla] });
+      mockFamilyNodeRepo.find.mockResolvedValue([]);
+
+      await service.duplicate('orig-uuid');
+
+      // The node saved to the copy should have the NEW renglaId, not the original
+      const savedNodes = mockNodeRepo.save.mock.calls[0]?.[0] ?? [];
+      if (savedNodes.length > 0) {
+        expect(savedNodes[0].renglaId).toBe('new-rengla-id');
+      }
+    });
+
+    it('does not create rengles when original has none', async () => {
+      const family = makeFamily();
+      const original = makeTemplate({ nodes: [makeNode()], family, rengles: [] });
+      mockTemplateRepo.findOne.mockResolvedValueOnce(original);
+
+      const copyTemplate = makeTemplate({ id: 'copy-uuid', family });
+      mockTemplateRepo.save.mockResolvedValue(copyTemplate);
+      templateQb.getRawOne.mockResolvedValue({ max: 0 });
+      mockTemplateRepo.findOne.mockResolvedValueOnce({ ...copyTemplate, nodes: [], rengles: [] });
+      mockNodeRepo.save.mockResolvedValue([]);
+
+      await service.duplicate('orig-uuid');
+
+      expect(mockRenglaRepo.save).not.toHaveBeenCalled();
     });
   });
 });

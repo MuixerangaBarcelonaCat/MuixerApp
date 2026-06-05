@@ -5,6 +5,7 @@ import {
   ManyToOne,
   JoinColumn,
   CreateDateColumn,
+  Unique,
 } from 'typeorm';
 import { FigureZone, NodeShape } from '@muixer/shared';
 import type { FigureInstance } from './figure-instance.entity';
@@ -13,8 +14,13 @@ import type { FigureInstance } from './figure-instance.entity';
  * Snapshot copy of a FigureNode, owned by a FigureInstance.
  * Created in bulk when the first NodeAssignment is made on an instance (lazy snapshot).
  * After snapshot, changes to the source FigureTemplate do NOT affect these rows.
+ *
+ * The (figureInstance, sourceNodeId) unique constraint is a DB-level safety net
+ * against the snapshot race condition (two concurrent first-assignments).
+ * Primary protection is the pessimistic_write lock in snapshotInstance().
  */
 @Entity('instance_nodes')
+@Unique(['figureInstance', 'sourceNodeId'])
 export class InstanceNode {
   @PrimaryGeneratedColumn('uuid')
   id: string;

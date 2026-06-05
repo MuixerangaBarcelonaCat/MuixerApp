@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import { FigureZone } from '@muixer/shared';
 import { FigureFamily } from './entities/figure-family.entity';
 import { FigureTemplate } from './entities/figure-template.entity';
@@ -95,6 +95,7 @@ export class FigureTemplateService {
     private readonly compositionSlotRepository: Repository<CompositionSlot>,
     @InjectRepository(FigureInstance)
     private readonly figureInstanceRepository: Repository<FigureInstance>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async findAll(
@@ -199,39 +200,46 @@ export class FigureTemplateService {
   }
 
   async update(id: string, dto: UpdateFigureTemplateDto): Promise<FigureTemplateDetailItem> {
-    const template = await this.templateRepository.findOne({
-      where: { id },
-      relations: ['nodes', 'family'],
-    });
-
-    if (!template) {
-      throw new NotFoundException(`FigureTemplate with ID ${id} not found`);
-    }
-
-    if (dto.name !== undefined) template.name = dto.name;
+    // H4 fix: wrap save + syncNodes + syncRengles in a single transaction so a
+    // partial failure cannot leave the template in an inconsistent state.
     if (dto.slug !== undefined) {
+      // Assert slug availability outside the transaction (uses a plain select).
+      // The DB unique constraint acts as the final guard for concurrent renames.
       await this.assertSlugAvailable(dto.slug, id);
-      template.slug = dto.slug;
-    }
-    if (dto.description !== undefined) template.description = dto.description ?? null;
-    if (dto.hasPinya !== undefined) template.hasPinya = dto.hasPinya;
-    if (dto.direction !== undefined) template.direction = dto.direction;
-    if (dto.variantOrder !== undefined) template.variantOrder = dto.variantOrder;
-    if (dto.metadata !== undefined) template.metadata = dto.metadata ?? {};
-
-    try {
-      await this.templateRepository.save(template);
-    } catch (err) {
-      this.handleDbError(err);
     }
 
-    if (dto.nodes !== undefined) {
-      await this.syncNodes(template, dto.nodes);
-    }
+    await this.dataSource.transaction(async (manager) => {
+      const template = await manager.findOne(FigureTemplate, {
+        where: { id },
+        relations: ['nodes', 'family'],
+      });
 
-    if (dto.rengles !== undefined) {
-      await this.syncRengles(template, dto.rengles);
-    }
+      if (!template) {
+        throw new NotFoundException(`FigureTemplate with ID ${id} not found`);
+      }
+
+      if (dto.name !== undefined) template.name = dto.name;
+      if (dto.slug !== undefined) template.slug = dto.slug;
+      if (dto.description !== undefined) template.description = dto.description ?? null;
+      if (dto.hasPinya !== undefined) template.hasPinya = dto.hasPinya;
+      if (dto.direction !== undefined) template.direction = dto.direction;
+      if (dto.variantOrder !== undefined) template.variantOrder = dto.variantOrder;
+      if (dto.metadata !== undefined) template.metadata = dto.metadata ?? {};
+
+      try {
+        await manager.save(FigureTemplate, template);
+      } catch (err) {
+        this.handleDbError(err);
+      }
+
+      if (dto.nodes !== undefined) {
+        await this.syncNodes(template, dto.nodes, manager);
+      }
+
+      if (dto.rengles !== undefined) {
+        await this.syncRengles(template, dto.rengles, manager);
+      }
+    });
 
     return this.findOne(id);
   }
@@ -269,7 +277,7 @@ export class FigureTemplateService {
   async duplicate(id: string): Promise<FigureTemplateDetailItem> {
     const original = await this.templateRepository.findOne({
       where: { id },
-      relations: ['nodes', 'family'],
+      relations: ['nodes', 'family', 'rengles'],  // H2: include rengles
     });
 
     if (!original) {
@@ -293,10 +301,37 @@ export class FigureTemplateService {
 
     const savedCopy = await this.templateRepository.save(copy);
 
-    // Only copy PINYA/direction nodes — TRONC/BASE are shared at family level
+    // H2 fix: copy rengles first so we can remap renglaId on the copied nodes.
+    const renglaIdMap = new Map<string, string>(); // original ID → new ID
+    const originalRengles = original.rengles ?? [];
+    if (originalRengles.length > 0) {
+      const newRengles = originalRengles.map((r) =>
+        this.renglaRepository.create({
+          template: savedCopy,
+          name: r.name,
+          sortOrder: r.sortOrder,
+          startPosition: r.startPosition,
+          allowsCordoObert: r.allowsCordoObert,
+        }),
+      );
+      const savedRengles = await this.renglaRepository.save(newRengles);
+      originalRengles.forEach((orig, idx) => {
+        renglaIdMap.set(orig.id, savedRengles[idx].id);
+      });
+    }
+
+    // Only copy PINYA/direction nodes — TRONC/BASE are shared at family level.
+    // Remap renglaId references to the newly created rengles.
     const pinyaNodes = (original.nodes ?? []).filter((n) => !FAMILY_ZONES.has(n.zone));
     if (pinyaNodes.length > 0) {
-      await this.createNodes(savedCopy, pinyaNodes.map(nodeToCreateDto));
+      const pinyaDtos = pinyaNodes.map((n) => {
+        const dto = nodeToCreateDto(n);
+        if (dto.renglaId && renglaIdMap.has(dto.renglaId)) {
+          dto.renglaId = renglaIdMap.get(dto.renglaId);
+        }
+        return dto;
+      });
+      await this.createNodes(savedCopy, pinyaDtos);
     }
 
     return this.findOne(savedCopy.id);
@@ -342,9 +377,14 @@ export class FigureTemplateService {
     throw new InternalServerErrorException('Unexpected database error');
   }
 
-  private async createNodes(template: FigureTemplate, dtos: CreateFigureNodeDto[]): Promise<void> {
+  private async createNodes(
+    template: FigureTemplate,
+    dtos: CreateFigureNodeDto[],
+    manager?: EntityManager,
+  ): Promise<void> {
+    const nodeRepo = manager?.getRepository(FigureNode) ?? this.nodeRepository;
     const nodes = dtos.map((dto) =>
-      this.nodeRepository.create({
+      nodeRepo.create({
         template,
         label: dto.label,
         zone: dto.zone,
@@ -366,15 +406,17 @@ export class FigureTemplateService {
         metadata: dto.metadata ?? {},
       }),
     );
-    await this.nodeRepository.save(nodes);
+    await nodeRepo.save(nodes);
   }
 
   private async createFamilyNodes(
     family: FigureFamily,
     dtos: CreateFigureNodeDto[],
+    manager?: EntityManager,
   ): Promise<void> {
+    const familyNodeRepo = manager?.getRepository(FigureFamilyNode) ?? this.familyNodeRepository;
     const nodes = dtos.map((dto) =>
-      this.familyNodeRepository.create({
+      familyNodeRepo.create({
         family,
         label: dto.label,
         zone: dto.zone,
@@ -393,7 +435,7 @@ export class FigureTemplateService {
         metadata: dto.metadata ?? {},
       }),
     );
-    await this.familyNodeRepository.save(nodes);
+    await familyNodeRepo.save(nodes);
   }
 
   /**
@@ -403,14 +445,15 @@ export class FigureTemplateService {
   private async syncNodes(
     template: FigureTemplate,
     incomingDtos: CreateFigureNodeDto[],
+    manager?: EntityManager,
   ): Promise<void> {
     const familyDtos = incomingDtos.filter((dto) => FAMILY_ZONES.has(dto.zone));
     const templateDtos = incomingDtos.filter((dto) => !FAMILY_ZONES.has(dto.zone));
 
-    await this.syncTemplateLevelNodes(template, templateDtos);
+    await this.syncTemplateLevelNodes(template, templateDtos, manager);
 
     if (template.family) {
-      await this.syncFamilyNodes(template.family, familyDtos);
+      await this.syncFamilyNodes(template.family, familyDtos, manager);
     }
   }
 
@@ -422,7 +465,9 @@ export class FigureTemplateService {
   private async syncTemplateLevelNodes(
     template: FigureTemplate,
     incomingDtos: CreateFigureNodeDto[],
+    manager?: EntityManager,
   ): Promise<void> {
+    const nodeRepo = manager?.getRepository(FigureNode) ?? this.nodeRepository;
     const existingNodes = template.nodes ?? [];
     const existingById = new Map(existingNodes.map((n) => [n.id, n]));
 
@@ -462,9 +507,9 @@ export class FigureTemplateService {
       .filter((n) => !incomingIds.has(n.id))
       .map((n) => n.id);
 
-    if (toUpdate.length > 0) await this.nodeRepository.save(toUpdate);
-    if (toCreate.length > 0) await this.createNodes(template, toCreate);
-    if (toDeleteIds.length > 0) await this.nodeRepository.delete({ id: In(toDeleteIds) });
+    if (toUpdate.length > 0) await nodeRepo.save(toUpdate);
+    if (toCreate.length > 0) await this.createNodes(template, toCreate, manager);
+    if (toDeleteIds.length > 0) await nodeRepo.delete({ id: In(toDeleteIds) });
   }
 
   /**
@@ -474,8 +519,10 @@ export class FigureTemplateService {
   private async syncFamilyNodes(
     family: FigureFamily,
     incomingDtos: CreateFigureNodeDto[],
+    manager?: EntityManager,
   ): Promise<void> {
-    const existingNodes = await this.familyNodeRepository.find({
+    const familyNodeRepo = manager?.getRepository(FigureFamilyNode) ?? this.familyNodeRepository;
+    const existingNodes = await familyNodeRepo.find({
       where: { family: { id: family.id } },
     });
     const existingById = new Map(existingNodes.map((n) => [n.id, n]));
@@ -513,9 +560,9 @@ export class FigureTemplateService {
       .filter((n) => !incomingIds.has(n.id))
       .map((n) => n.id);
 
-    if (toUpdate.length > 0) await this.familyNodeRepository.save(toUpdate);
-    if (toCreate.length > 0) await this.createFamilyNodes(family, toCreate);
-    if (toDeleteIds.length > 0) await this.familyNodeRepository.delete({ id: In(toDeleteIds) });
+    if (toUpdate.length > 0) await familyNodeRepo.save(toUpdate);
+    if (toCreate.length > 0) await this.createFamilyNodes(family, toCreate, manager);
+    if (toDeleteIds.length > 0) await familyNodeRepo.delete({ id: In(toDeleteIds) });
   }
 
   /**
@@ -525,8 +572,12 @@ export class FigureTemplateService {
   private async syncRengles(
     template: FigureTemplate,
     incomingDtos: CreateRenglaDto[],
+    manager?: EntityManager,
   ): Promise<void> {
-    const existingRengles = await this.renglaRepository.find({
+    const renglaRepo = manager?.getRepository(Rengla) ?? this.renglaRepository;
+    const nodeRepo = manager?.getRepository(FigureNode) ?? this.nodeRepository;
+
+    const existingRengles = await renglaRepo.find({
       where: { template: { id: template.id } },
     });
     const existingById = new Map(existingRengles.map((r) => [r.id, r]));
@@ -546,7 +597,7 @@ export class FigureTemplateService {
         incomingIds.add(dto.id);
       } else {
         toCreate.push(
-          this.renglaRepository.create({
+          renglaRepo.create({
             ...(dto.id ? { id: dto.id } : {}),
             template,
             name: dto.name,
@@ -562,11 +613,11 @@ export class FigureTemplateService {
       .filter((r) => !incomingIds.has(r.id))
       .map((r) => r.id);
 
-    if (toUpdate.length > 0) await this.renglaRepository.save(toUpdate);
-    if (toCreate.length > 0) await this.renglaRepository.save(toCreate);
+    if (toUpdate.length > 0) await renglaRepo.save(toUpdate);
+    if (toCreate.length > 0) await renglaRepo.save(toCreate);
 
     if (toDeleteIds.length > 0) {
-      await this.nodeRepository
+      await nodeRepo
         .createQueryBuilder()
         .update(FigureNode)
         .set({ renglaId: null, renglaPosition: null })
@@ -574,7 +625,7 @@ export class FigureTemplateService {
         .andWhere('templateId = :templateId', { templateId: template.id })
         .execute();
 
-      await this.renglaRepository.delete({ id: In(toDeleteIds) });
+      await renglaRepo.delete({ id: In(toDeleteIds) });
     }
   }
 }

@@ -137,10 +137,20 @@ const mockQb = {
 
 // ─── Mock transaction manager ──────────────────────────────────────────────
 
-const makeTransactionManager = (savedNodes: any[] = []) => ({
+/**
+ * lockedInstance: what manager.findOne returns inside snapshotInstance.
+ * Defaults to { snapshotted: false } so the snapshot proceeds normally.
+ * Pass { snapshotted: true } to simulate the idempotency early-return path (C1).
+ */
+const makeTransactionManager = (
+  savedNodes: any[] = [],
+  lockedInstance: any = { snapshotted: false },
+) => ({
   create: jest.fn((_entity: any, data: any) => ({ ...data, id: 'new-inode-uuid' })),
   save: jest.fn().mockResolvedValue(savedNodes),
   update: jest.fn().mockResolvedValue({}),
+  findOne: jest.fn().mockResolvedValue(lockedInstance),
+  find: jest.fn().mockResolvedValue(savedNodes),
 });
 
 // ─── Mock repositories ────────────────────────────────────────────────────
@@ -457,6 +467,41 @@ describe('NodeAssignmentService', () => {
         service.assign(INSTANCE_ID, { nodeId: INSTANCE_NODE_ID, personId: PERSON_ID }),
       ).rejects.toThrow(ConflictException);
     });
+
+    // C1 — snapshot idempotency guard
+    it('returns existing InstanceNodes when a concurrent request already snapshotted the instance', async () => {
+      const unsnapshottedInstance = makeInstance({ snapshotted: false });
+      const existingNodes = [makeInstanceNode({ id: 'existing-inode' })];
+      // Simulate a concurrent request snapshotted the instance between the outer
+      // check and the transaction lock acquisition.
+      const alreadySnapshottedManager = makeTransactionManager(existingNodes, { snapshotted: true });
+
+      mockInstanceRepo.findOne.mockResolvedValue(unsnapshottedInstance);
+      mockTemplateRepo.findOne.mockResolvedValue(makeTemplate());
+      mockDataSource.transaction.mockImplementation((cb: any) => cb(alreadySnapshottedManager));
+      mockPersonRepo.findOne.mockResolvedValue(makePerson());
+
+      // manager.find() returns existingNodes when idempotency guard fires
+      alreadySnapshottedManager.find.mockResolvedValue(existingNodes);
+
+      // The outer assignment flow after snapshotting must still find the node
+      const existingNode = makeInstanceNode({ id: 'existing-inode' });
+      mockInstanceNodeRepo.findOne.mockResolvedValue(existingNode);
+      mockAssignmentRepo.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+      mockAssignmentRepo.create.mockReturnValue(makeAssignment({ instanceNode: existingNode as any }));
+      mockAssignmentRepo.save.mockResolvedValue({ id: ASSIGNMENT_ID });
+
+      const result = await service.assign(INSTANCE_ID, {
+        nodeId: FIGURE_NODE_ID,
+        personId: PERSON_ID,
+      });
+
+      // Transaction was entered, but findOne returned snapshotted=true → early return
+      expect(alreadySnapshottedManager.findOne).toHaveBeenCalledTimes(1);
+      // No new nodes were created
+      expect(alreadySnapshottedManager.save).not.toHaveBeenCalled();
+      expect(result.id).toBe(ASSIGNMENT_ID);
+    });
   });
 
   // ── swap ──────────────────────────────────────────────────────────────
@@ -668,7 +713,10 @@ describe('NodeAssignmentService', () => {
   // ── getHistory ────────────────────────────────────────────────────────
 
   describe('getHistory', () => {
+    // H3: both the count QB and data QB return this same mock. The count QB uses
+    // leftJoin (not leftJoinAndSelect) so the mock must support both.
     const mockHistoryQb = {
+      leftJoin: jest.fn().mockReturnThis(),
       leftJoinAndSelect: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
@@ -854,7 +902,9 @@ describe('NodeAssignmentService', () => {
   // ── getFamilyHistory ───────────────────────────────────────────────────
 
   describe('getFamilyHistory', () => {
+    // H3: count QB uses leftJoin (no collections); data QB uses leftJoinAndSelect.
     const mockFamilyHistoryQb = {
+      leftJoin: jest.fn().mockReturnThis(),
       leftJoinAndSelect: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),

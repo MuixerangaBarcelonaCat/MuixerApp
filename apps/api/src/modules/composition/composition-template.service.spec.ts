@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ConflictException, NotFoundException } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 import { CompositionTemplateService } from './composition-template.service';
 import { CompositionTemplate } from './entities/composition-template.entity';
 import { CompositionSlot } from './entities/composition-slot.entity';
@@ -76,6 +77,7 @@ describe('CompositionTemplateService', () => {
 
   const mockFigureTemplateRepo = {
     findOne: jest.fn(),
+    find: jest.fn().mockResolvedValue([]),
   };
 
   const mockFigureInstanceRepo = {
@@ -96,6 +98,17 @@ describe('CompositionTemplateService', () => {
     remove: jest.fn(),
   };
 
+  // C2: transaction manager mock for syncSlots
+  const mockTxManager = {
+    delete: jest.fn().mockResolvedValue(undefined),
+    create: jest.fn((_entity: any, dto: any) => dto),
+    save: jest.fn().mockResolvedValue([]),
+  };
+
+  const mockDataSource = {
+    transaction: jest.fn().mockImplementation((cb: any) => cb(mockTxManager)),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
 
@@ -108,6 +121,11 @@ describe('CompositionTemplateService', () => {
       getCount: jest.fn().mockResolvedValue(0),
       getMany: jest.fn().mockResolvedValue([]),
     };
+
+    mockTxManager.delete.mockResolvedValue(undefined);
+    mockTxManager.create.mockImplementation((_entity: any, dto: any) => dto);
+    mockTxManager.save.mockResolvedValue([]);
+    mockDataSource.transaction.mockImplementation((cb: any) => cb(mockTxManager));
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -128,6 +146,7 @@ describe('CompositionTemplateService', () => {
           provide: getRepositoryToken(FigureInstance),
           useValue: mockFigureInstanceRepo,
         },
+        { provide: DataSource, useValue: mockDataSource },
       ],
     }).compile();
 
@@ -182,8 +201,10 @@ describe('CompositionTemplateService', () => {
   describe('create', () => {
     it('creates composition without slots and returns detail', async () => {
       const saved = makeComposition({ id: 'new-uuid' });
+      mockCompositionRepo.findOne
+        .mockResolvedValueOnce(null)              // assertSlugAvailable: slug free
+        .mockResolvedValueOnce({ ...saved, slots: [] }); // findOne at end
       mockCompositionRepo.save.mockResolvedValue(saved);
-      mockCompositionRepo.findOne.mockResolvedValue({ ...saved, slots: [] });
 
       const result = await service.create({ name: 'Altar', slug: 'altar', slots: [] });
 
@@ -192,13 +213,13 @@ describe('CompositionTemplateService', () => {
     });
 
     it('creates composition with slots and saves each slot', async () => {
+      const figTemplate = makeFigureTemplate();
       const saved = makeComposition({ id: 'new-uuid' });
+      mockCompositionRepo.findOne
+        .mockResolvedValueOnce(null)              // assertSlugAvailable
+        .mockResolvedValueOnce({ ...saved, slots: [makeSlot()] }); // findOne at end
       mockCompositionRepo.save.mockResolvedValue(saved);
-      mockCompositionRepo.findOne.mockResolvedValue({
-        ...saved,
-        slots: [makeSlot()],
-      });
-      mockFigureTemplateRepo.findOne.mockResolvedValue(makeFigureTemplate());
+      mockFigureTemplateRepo.findOne.mockResolvedValue(figTemplate);
       mockSlotRepo.save.mockResolvedValue([makeSlot()]);
 
       await service.create({
@@ -213,8 +234,24 @@ describe('CompositionTemplateService', () => {
       expect(mockSlotRepo.save).toHaveBeenCalled();
     });
 
-    it('throws NotFoundException for invalid figureTemplateId', async () => {
+    // H5 — slug uniqueness on create
+    it('throws ConflictException when creating with an already-used slug', async () => {
+      const other = makeComposition({ id: 'other-uuid', slug: 'altar' });
+      // Use mockResolvedValueOnce so the default value doesn't bleed into subsequent tests
+      mockCompositionRepo.findOne.mockResolvedValueOnce(other); // assertSlugAvailable: slug taken
+
+      await expect(
+        service.create({ name: 'Nova Altar', slug: 'altar', slots: [] }),
+      ).rejects.toThrow(ConflictException);
+
+      expect(mockCompositionRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException for invalid figureTemplateId in createSlots', async () => {
       const saved = makeComposition({ id: 'new-uuid' });
+      // assertSlugAvailable: findOne returns null (slug free), no extra values needed
+      // createSlots calls figureTemplateRepo.findOne (not compositionRepo.findOne)
+      mockCompositionRepo.findOne.mockResolvedValueOnce(null);
       mockCompositionRepo.save.mockResolvedValue(saved);
       mockFigureTemplateRepo.findOne.mockResolvedValue(null);
 
@@ -240,7 +277,7 @@ describe('CompositionTemplateService', () => {
       expect(result.name).toBe('Nou nom');
     });
 
-    it('replaces slots when slots array is provided', async () => {
+    it('replaces slots when slots array is provided (C2: via transaction)', async () => {
       const comp = makeComposition({ slots: [makeSlot()] });
       mockCompositionRepo.findOne
         .mockResolvedValueOnce(comp)
@@ -249,7 +286,25 @@ describe('CompositionTemplateService', () => {
 
       await service.update('comp-uuid', { slots: [] });
 
-      expect(mockSlotRepo.delete).toHaveBeenCalled();
+      // delete goes through the transaction manager, not slotRepo directly
+      expect(mockTxManager.delete).toHaveBeenCalled();
+    });
+
+    it('pre-validates figureTemplateIds before deleting slots (C2: fail-safe)', async () => {
+      const comp = makeComposition({ slots: [] });
+      mockCompositionRepo.findOne.mockResolvedValue(comp);
+      mockCompositionRepo.save.mockResolvedValue(comp);
+      // One of the template IDs does not exist
+      mockFigureTemplateRepo.find.mockResolvedValue([]); // none found
+
+      await expect(
+        service.update('comp-uuid', {
+          slots: [{ figureTemplateId: 'nonexistent', offsetX: 0, offsetY: 0 }],
+        }),
+      ).rejects.toThrow(NotFoundException);
+
+      // Transaction must NOT have been called — delete was never reached
+      expect(mockTxManager.delete).not.toHaveBeenCalled();
     });
 
     it('throws NotFoundException when not found', async () => {
@@ -257,6 +312,32 @@ describe('CompositionTemplateService', () => {
       await expect(service.update('bad-uuid', { name: 'X' })).rejects.toThrow(
         NotFoundException,
       );
+    });
+
+    // H5 — slug uniqueness
+    it('throws ConflictException when updating to a slug already used by another composition', async () => {
+      const comp = makeComposition({ id: 'comp-uuid', slug: 'altar' });
+      const other = makeComposition({ id: 'other-uuid', slug: 'existing-slug' });
+      mockCompositionRepo.findOne
+        .mockResolvedValueOnce(comp)       // update: find composition
+        .mockResolvedValueOnce(other);     // assertSlugAvailable: slug taken
+
+      await expect(
+        service.update('comp-uuid', { slug: 'existing-slug' }),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('allows updating slug to the same value (no conflict with self)', async () => {
+      const comp = makeComposition({ id: 'comp-uuid', slug: 'altar' });
+      mockCompositionRepo.findOne
+        .mockResolvedValueOnce(comp)     // update: find composition
+        .mockResolvedValueOnce(comp)     // assertSlugAvailable: same composition found (excludeId matches)
+        .mockResolvedValueOnce({ ...comp, slots: [] }); // findOne at end
+      mockCompositionRepo.save.mockResolvedValue(comp);
+
+      await expect(
+        service.update('comp-uuid', { slug: 'altar' }),
+      ).resolves.not.toThrow();
     });
   });
 
