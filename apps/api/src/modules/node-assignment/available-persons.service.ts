@@ -1,34 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThan, In } from 'typeorm';
+import { AttendanceStatus, AvailablePerson, AvailablePersonPosition, EventType } from '@muixer/shared';
 import { Person } from '../person/person.entity';
 import { Attendance } from '../event/attendance.entity';
 import { Event } from '../event/event.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
 import { NodeAssignment } from './entities/node-assignment.entity';
-import { AttendanceStatus, EventType } from '@muixer/shared';
-
-export interface AvailablePersonPositionDto {
-  id: string;
-  name: string;
-  slug: string;
-  color: string | null;
-}
-
-export interface AvailablePersonDto {
-  id: string;
-  alias: string;
-  name: string;
-  firstSurname: string;
-  shoulderHeight: number | null;
-  isXicalla: boolean;
-  attendanceStatus: AttendanceStatus;
-  nextPerformanceStatus: AttendanceStatus | null;
-  assignedInSegment: boolean;
-  assignedInstanceId?: string;
-  assignedNodeLabel?: string;
-  positions: AvailablePersonPositionDto[];
-}
 
 export interface AvailablePersonsQuery {
   search?: string;
@@ -56,7 +34,7 @@ export class AvailablePersonsService {
     eventId: string,
     segmentId: string,
     query: AvailablePersonsQuery = {},
-  ): Promise<AvailablePersonDto[]> {
+  ): Promise<AvailablePerson[]> {
     const event = await this.eventRepository.findOne({ where: { id: eventId } });
     if (!event) {
       throw new NotFoundException(`Event with ID ${eventId} not found`);

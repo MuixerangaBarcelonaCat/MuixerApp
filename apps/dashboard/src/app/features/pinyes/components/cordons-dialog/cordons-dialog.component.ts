@@ -8,7 +8,7 @@ import {
   signal,
 } from '@angular/core';
 import { LucideAngularModule, Minus, Plus } from 'lucide-angular';
-import { RenglaModel } from '../../models/figure-template.model';
+import { RenglaItem } from '../../models/figure-template.model';
 
 export interface CordonsDialogSaveEvent {
   numberOfCordons: number | null;
@@ -120,7 +120,7 @@ export class CordonsDialogComponent {
   readonly open = input.required<boolean>();
   readonly numberOfCordons = input.required<number | null>();
   readonly openCordons = input.required<string[]>();
-  readonly rengles = input.required<RenglaModel[]>();
+  readonly rengles = input.required<RenglaItem[]>();
   readonly maxCordons = input.required<number>();
 
   readonly saved = output<CordonsDialogSaveEvent>();

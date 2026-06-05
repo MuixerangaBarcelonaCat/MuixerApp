@@ -21,7 +21,7 @@ import { FigureFamilyService } from '../../services/figure-family.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { AssignmentDetail, AvailablePerson, BulkImportResult, InstanceNodeItem } from '../../models/assignment.model';
 import { SegmentDetail } from '../../models/segment.model';
-import { FigureZone, NodeShape } from '@muixer/shared';
+import { AttendanceStatus, FigureZone, NodeShape } from '@muixer/shared';
 
 // ── Stub child components ───────────────────────────────────────────────────
 
@@ -163,7 +163,7 @@ const makeAssignment = (nodeId = 'inode-1', personId = 'person-1'): AssignmentDe
   id: `assignment-${++assignmentIdCounter}`,
   figureInstanceId: INSTANCE_ID,
   compositionSlotId: null,
-  node: { id: nodeId, label: 'base-1', zone: 'BASE', z: 0, positionType: null, sortOrder: 0, ringLevel: null, originNodeId: null, sourceNodeId: 'node-1' },
+  node: { id: nodeId, label: 'base-1', zone: FigureZone.BASE, z: 0, positionType: null, sortOrder: 0, ringLevel: null, originNodeId: null, sourceNodeId: 'node-1' },
   person: { id: personId, alias: 'Pepet', name: 'Pere', firstSurname: 'Garcia', shoulderHeight: 140 },
 });
 
@@ -174,7 +174,7 @@ const makeAvailablePerson = (id = 'person-1'): AvailablePerson => ({
   firstSurname: 'Garcia',
   shoulderHeight: 140,
   isXicalla: false,
-  attendanceStatus: 'ANIRE',
+  attendanceStatus: AttendanceStatus.ANIRE,
   nextPerformanceStatus: null,
   assignedInSegment: false,
   positions: [],
@@ -192,7 +192,6 @@ interface MockAssignmentService {
   resetSnapshot: MockFn;
   bulkImport: MockFn;
   getHistory: MockFn;
-  getNextPerformance: MockFn;
   getAvailablePersons: MockFn;
   getLockStatus: MockFn;
 }
@@ -223,7 +222,6 @@ describe('AssignmentCanvasComponent', () => {
       resetSnapshot: vi.fn().mockReturnValue(of({ removedAssignments: 0 })),
       bulkImport: vi.fn().mockReturnValue(of({ created: [], conflicts: [] })),
       getHistory: vi.fn().mockReturnValue(of({ data: [] })),
-      getNextPerformance: vi.fn().mockReturnValue(of(null)),
       getAvailablePersons: vi.fn().mockReturnValue(of({ data: [] })),
       getLockStatus: vi.fn().mockReturnValue(of({ locked: false, lockDate: null, lockDays: 2 })),
     };

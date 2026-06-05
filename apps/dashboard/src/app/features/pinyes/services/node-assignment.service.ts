@@ -110,12 +110,6 @@ export class NodeAssignmentService extends ApiService {
     return this.get<LockStatus>(`/events/${eventId}/lock-status`);
   }
 
-  getNextPerformance(eventId: string): Observable<{ id: string; title: string; date: string } | null> {
-    return this.get<{ id: string; title: string; date: string } | null>(
-      `/events/${eventId}/next-performance`,
-    );
-  }
-
   private buildQueryParams(query: HistoryQuery): Record<string, string> {
     return Object.entries(query)
       .filter(([, v]) => v !== undefined)

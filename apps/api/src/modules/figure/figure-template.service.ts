@@ -6,7 +6,14 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, Repository } from 'typeorm';
-import { FigureZone } from '@muixer/shared';
+import {
+  FigureZone,
+  NodeShape,
+  FigureNodeItem,
+  RenglaItem,
+  FigureTemplateListItem,
+  FigureTemplateDetail,
+} from '@muixer/shared';
 import { FigureFamily } from './entities/figure-family.entity';
 import { FigureTemplate } from './entities/figure-template.entity';
 import { FigureNode } from './entities/figure-node.entity';
@@ -21,60 +28,6 @@ import { CreateFigureNodeDto } from './dto/create-figure-node.dto';
 import { CreateRenglaDto } from './dto/create-rengla.dto';
 
 const FAMILY_ZONES = new Set<string>([FigureZone.TRONC, FigureZone.BASE]);
-
-// ─── Response interfaces ────────────────────────────────────────────────────
-
-export interface FigureNodeItem {
-  id: string;
-  label: string;
-  zone: string;
-  positionType: string | null;
-  x: number;
-  y: number;
-  z: number;
-  width: number;
-  height: number;
-  rotation: number;
-  color: string | null;
-  shape: string;
-  sortOrder: number;
-  climbPath: string | null;
-  ringLevel: number | null;
-  originNodeId: string | null;
-  renglaId: string | null;
-  renglaPosition: number | null;
-  metadata: Record<string, unknown>;
-}
-
-export interface RenglaItem {
-  id: string;
-  name: string;
-  sortOrder: number;
-  startPosition: number;
-  allowsCordoObert: boolean;
-}
-
-export interface FigureTemplateListItem {
-  id: string;
-  name: string;
-  slug: string;
-  description: string | null;
-  hasPinya: boolean;
-  direction: number;
-  variantOrder: number;
-  familyId: string | null;
-  familyName: string | null;
-  nodeCount: number;
-  renglaCount: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface FigureTemplateDetailItem extends FigureTemplateListItem {
-  metadata: Record<string, unknown>;
-  nodes: FigureNodeItem[];
-  rengles: RenglaItem[];
-}
 
 // ─── Service ────────────────────────────────────────────────────────────────
 
@@ -135,7 +88,7 @@ export class FigureTemplateService {
     return { data: templates.map(toListItem), total };
   }
 
-  async findOne(id: string): Promise<FigureTemplateDetailItem> {
+  async findOne(id: string): Promise<FigureTemplateDetail> {
     const template = await this.templateRepository.findOne({
       where: { id },
       relations: ['nodes', 'family', 'rengles'],
@@ -150,7 +103,7 @@ export class FigureTemplateService {
     return toDetailItem(template, familyNodes);
   }
 
-  async create(dto: CreateFigureTemplateDto): Promise<FigureTemplateDetailItem> {
+  async create(dto: CreateFigureTemplateDto): Promise<FigureTemplateDetail> {
     const family = await this.familyRepository.findOne({ where: { id: dto.familyId } });
     if (!family) {
       throw new NotFoundException(`FigureFamily with ID ${dto.familyId} not found`);
@@ -199,7 +152,7 @@ export class FigureTemplateService {
     return this.findOne(saved!.id);
   }
 
-  async update(id: string, dto: UpdateFigureTemplateDto): Promise<FigureTemplateDetailItem> {
+  async update(id: string, dto: UpdateFigureTemplateDto): Promise<FigureTemplateDetail> {
     // H4 fix: wrap save + syncNodes + syncRengles in a single transaction so a
     // partial failure cannot leave the template in an inconsistent state.
     if (dto.slug !== undefined) {
@@ -274,7 +227,7 @@ export class FigureTemplateService {
     await this.templateRepository.remove(template);
   }
 
-  async duplicate(id: string): Promise<FigureTemplateDetailItem> {
+  async duplicate(id: string): Promise<FigureTemplateDetail> {
     const original = await this.templateRepository.findOne({
       where: { id },
       relations: ['nodes', 'family', 'rengles'],  // H2: include rengles
@@ -660,7 +613,7 @@ function templateNodeToItem(node: FigureNode): FigureNodeItem {
   return {
     id: node.id,
     label: node.label,
-    zone: node.zone,
+    zone: node.zone as FigureZone,
     positionType: node.positionType,
     x: node.x,
     y: node.y,
@@ -669,7 +622,7 @@ function templateNodeToItem(node: FigureNode): FigureNodeItem {
     height: node.height,
     rotation: node.rotation,
     color: node.color,
-    shape: node.shape,
+    shape: node.shape as NodeShape,
     sortOrder: node.sortOrder,
     climbPath: node.climbPath,
     ringLevel: node.ringLevel,
@@ -684,7 +637,7 @@ function familyNodeToItem(node: FigureFamilyNode): FigureNodeItem {
   return {
     id: node.id,
     label: node.label,
-    zone: node.zone,
+    zone: node.zone as FigureZone,
     positionType: node.positionType,
     x: node.x,
     y: node.y,
@@ -693,7 +646,7 @@ function familyNodeToItem(node: FigureFamilyNode): FigureNodeItem {
     height: node.height,
     rotation: node.rotation,
     color: node.color,
-    shape: node.shape,
+    shape: node.shape as NodeShape,
     sortOrder: node.sortOrder,
     climbPath: node.climbPath,
     ringLevel: node.ringLevel,
@@ -730,15 +683,15 @@ function toListItem(
     familyName: template.family?.name ?? null,
     nodeCount: t.nodeCount ?? 0,
     renglaCount: t.renglaCount ?? 0,
-    createdAt: template.createdAt,
-    updatedAt: template.updatedAt,
+    createdAt: template.createdAt.toISOString(),
+    updatedAt: template.updatedAt.toISOString(),
   };
 }
 
 function toDetailItem(
   template: FigureTemplate,
   familyNodes: FigureFamilyNode[] = [],
-): FigureTemplateDetailItem {
+): FigureTemplateDetail {
   return {
     ...toListItem(template),
     metadata: template.metadata,

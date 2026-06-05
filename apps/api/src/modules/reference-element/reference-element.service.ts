@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+import { ReferenceElementItem } from '@muixer/shared';
 import { ReferenceElement } from './entities/reference-element.entity';
 import { Event } from '../event/event.entity';
 import { CreateReferenceElementDto } from './dto/create-reference-element.dto';
@@ -146,5 +147,21 @@ export class ReferenceElementService {
       );
     }
     return element;
+  }
+
+  static toItem(element: ReferenceElement): ReferenceElementItem {
+    return {
+      id: element.id,
+      type: element.type,
+      label: element.label,
+      x: element.x,
+      y: element.y,
+      width: element.width,
+      height: element.height,
+      rotation: element.rotation,
+      color: element.color,
+      sortOrder: element.sortOrder,
+      hiddenInSegments: element.hiddenInSegments,
+    };
   }
 }

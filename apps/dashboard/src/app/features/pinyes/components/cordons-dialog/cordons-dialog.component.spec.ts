@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
 import { CordonsDialogComponent, CordonsDialogSaveEvent } from './cordons-dialog.component';
-import { RenglaModel } from '../../models/figure-template.model';
+import { RenglaItem } from '../../models/figure-template.model';
 
 @Component({
   standalone: true,
@@ -22,7 +22,7 @@ class TestHostComponent {
   open = signal(true);
   numberOfCordons = signal<number | null>(null);
   openCordons = signal<string[]>([]);
-  rengles = signal<RenglaModel[]>([
+  rengles = signal<RenglaItem[]>([
     { id: 'r1', name: 'Mans Nord', sortOrder: 0, startPosition: 1, allowsCordoObert: true },
     { id: 'r2', name: 'Vents Est', sortOrder: 1, startPosition: 1, allowsCordoObert: true },
   ]);

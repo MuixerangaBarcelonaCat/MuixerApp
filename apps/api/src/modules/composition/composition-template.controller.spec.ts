@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CompositionTemplateController } from './composition-template.controller';
 import { CompositionTemplateService } from './composition-template.service';
-import { CompositionTemplateDetailItem, CompositionTemplateListItem } from './composition-template.service';
+import { CompositionTemplateDetail, CompositionTemplateListItem } from '@muixer/shared';
 
 const mockListItem: CompositionTemplateListItem = {
   id: 'comp-uuid',
@@ -9,11 +9,11 @@ const mockListItem: CompositionTemplateListItem = {
   slug: 'altar',
   description: null,
   slotCount: 2,
-  createdAt: new Date(),
-  updatedAt: new Date(),
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
 };
 
-const mockDetail: CompositionTemplateDetailItem = {
+const mockDetail: CompositionTemplateDetail = {
   ...mockListItem,
   slots: [],
 };

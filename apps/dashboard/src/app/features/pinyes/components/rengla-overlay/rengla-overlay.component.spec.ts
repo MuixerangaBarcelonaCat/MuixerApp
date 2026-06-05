@@ -5,7 +5,7 @@ import {
   Plus, Pencil, Trash2, X, GitBranchPlus,
 } from 'lucide-angular';
 import { RenglaOverlayComponent, RenglaCreatedEvent, RenglaUpdatedEvent, RenglaDeletedEvent } from './rengla-overlay.component';
-import { FigureNodeItem, RenglaModel } from '../../models/figure-template.model';
+import { FigureNodeItem, RenglaItem } from '../../models/figure-template.model';
 import { FigureZone, NodeShape } from '@muixer/shared';
 
 const makeNode = (overrides: Partial<FigureNodeItem> = {}): FigureNodeItem => ({
@@ -31,7 +31,7 @@ const makeNode = (overrides: Partial<FigureNodeItem> = {}): FigureNodeItem => ({
   ...overrides,
 });
 
-const makeRengla = (overrides: Partial<RenglaModel> = {}): RenglaModel => ({
+const makeRengla = (overrides: Partial<RenglaItem> = {}): RenglaItem => ({
   id: crypto.randomUUID(),
   name: 'MANS',
   sortOrder: 0,
@@ -72,7 +72,7 @@ describe('RenglaOverlayComponent', () => {
     component.renglaDeleted.subscribe((e: RenglaDeletedEvent) => deletedSpy(e));
   });
 
-  function setInputs(nodes: FigureNodeItem[], rengles: RenglaModel[] = []) {
+  function setInputs(nodes: FigureNodeItem[], rengles: RenglaItem[] = []) {
     fixture.componentRef.setInput('nodes', nodes);
     fixture.componentRef.setInput('rengles', rengles);
     fixture.componentRef.setInput('stageTransform', { x: 0, y: 0, scaleX: 1, scaleY: 1 });

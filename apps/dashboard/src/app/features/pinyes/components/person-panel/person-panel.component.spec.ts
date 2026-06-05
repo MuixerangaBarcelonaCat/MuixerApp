@@ -5,13 +5,14 @@ import {
   LUCIDE_ICONS, LucideIconProvider,
   RefreshCw, ChevronDown, ChevronUp,
 } from 'lucide-angular';
+import { AttendanceStatus } from '@muixer/shared';
 import { PersonPanelComponent } from './person-panel.component';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AvailablePerson } from '../../models/assignment.model';
 
 const makeAvailablePerson = (
   id = 'person-1',
-  status: AvailablePerson['attendanceStatus'] = 'ANIRE',
+  status: AvailablePerson['attendanceStatus'] = AttendanceStatus.ANIRE,
   overrides: Partial<AvailablePerson> = {},
 ): AvailablePerson => ({
   id,
@@ -80,9 +81,9 @@ describe('PersonPanelComponent', () => {
 
     it('separates persons into Confirmades (ANIRE) and Altres blocks', () => {
       const persons = [
-        makeAvailablePerson('p1', 'ANIRE'),
-        makeAvailablePerson('p2', 'PENDENT'),
-        makeAvailablePerson('p3', 'NO_VAIG'),
+        makeAvailablePerson('p1', AttendanceStatus.ANIRE),
+        makeAvailablePerson('p2', AttendanceStatus.PENDENT),
+        makeAvailablePerson('p3', AttendanceStatus.NO_VAIG),
       ];
       assignmentService.getAvailablePersons.mockReturnValue(of({ data: persons }));
       component.loadPersons();
@@ -146,7 +147,7 @@ describe('PersonPanelComponent', () => {
     });
 
     it('persons show 🎭 indicator when nextPerformanceStatus is ANIRE', () => {
-      const person = makeAvailablePerson('p1', 'ANIRE', { nextPerformanceStatus: 'ANIRE' });
+      const person = makeAvailablePerson('p1', AttendanceStatus.ANIRE, { nextPerformanceStatus: AttendanceStatus.ANIRE });
       component.persons.set([person]);
       fixture.detectChanges();
       const html = fixture.nativeElement.innerHTML;
@@ -155,7 +156,7 @@ describe('PersonPanelComponent', () => {
 
     it('formatHeight returns relative height string when heightMode is relative', () => {
       fixture.componentRef.setInput('heightMode', 'relative');
-      const person = makeAvailablePerson('p1', 'ANIRE', { shoulderHeight: 142 });
+      const person = makeAvailablePerson('p1', AttendanceStatus.ANIRE, { shoulderHeight: 142 });
       const result = component.formatHeight(person);
       expect(result).toBe('+2');
     });
@@ -185,8 +186,8 @@ describe('PersonPanelComponent', () => {
 
     it('returns confirmedPersons in original order when activeNodePositionType is null', () => {
       const persons = [
-        makeAvailablePerson('p1', 'ANIRE', { positions: [] }),
-        makeAvailablePerson('p2', 'ANIRE', { positions: [posVents] }),
+        makeAvailablePerson('p1', AttendanceStatus.ANIRE, { positions: [] }),
+        makeAvailablePerson('p2', AttendanceStatus.ANIRE, { positions: [posVents] }),
       ];
       component.persons.set(persons);
       fixture.componentRef.setInput('activeNodePositionType', null);
@@ -199,9 +200,9 @@ describe('PersonPanelComponent', () => {
 
     it('puts persons with matching slug first', () => {
       const persons = [
-        makeAvailablePerson('p1', 'ANIRE', { positions: [] }),
-        makeAvailablePerson('p2', 'ANIRE', { positions: [posVents] }),
-        makeAvailablePerson('p3', 'ANIRE', { positions: [] }),
+        makeAvailablePerson('p1', AttendanceStatus.ANIRE, { positions: [] }),
+        makeAvailablePerson('p2', AttendanceStatus.ANIRE, { positions: [posVents] }),
+        makeAvailablePerson('p3', AttendanceStatus.ANIRE, { positions: [] }),
       ];
       component.persons.set(persons);
       fixture.componentRef.setInput('activeNodePositionType', 'vents');
@@ -213,8 +214,8 @@ describe('PersonPanelComponent', () => {
 
     it('does not change order when no person matches the positionType slug', () => {
       const persons = [
-        makeAvailablePerson('p1', 'ANIRE', { positions: [posAgulla] }),
-        makeAvailablePerson('p2', 'ANIRE', { positions: [posAgulla] }),
+        makeAvailablePerson('p1', AttendanceStatus.ANIRE, { positions: [posAgulla] }),
+        makeAvailablePerson('p2', AttendanceStatus.ANIRE, { positions: [posAgulla] }),
       ];
       component.persons.set(persons);
       fixture.componentRef.setInput('activeNodePositionType', 'vents');
@@ -226,7 +227,7 @@ describe('PersonPanelComponent', () => {
     });
 
     it('renders colored dot for person with matching position slug', () => {
-      const person = makeAvailablePerson('p1', 'ANIRE', { positions: [posVents] });
+      const person = makeAvailablePerson('p1', AttendanceStatus.ANIRE, { positions: [posVents] });
       component.persons.set([person]);
       fixture.componentRef.setInput('activeNodePositionType', 'vents');
       fixture.detectChanges();
@@ -237,8 +238,8 @@ describe('PersonPanelComponent', () => {
 
     it('renders opacity-60 on button for non-matching person when positionType is active', () => {
       const persons = [
-        makeAvailablePerson('p1', 'ANIRE', { positions: [posVents] }),
-        makeAvailablePerson('p2', 'ANIRE', { positions: [] }),
+        makeAvailablePerson('p1', AttendanceStatus.ANIRE, { positions: [posVents] }),
+        makeAvailablePerson('p2', AttendanceStatus.ANIRE, { positions: [] }),
       ];
       component.persons.set(persons);
       fixture.componentRef.setInput('activeNodePositionType', 'vents');
@@ -252,7 +253,7 @@ describe('PersonPanelComponent', () => {
     });
 
     it('does not apply opacity-60 when activeNodePositionType is null', () => {
-      const person = makeAvailablePerson('p1', 'ANIRE', { positions: [] });
+      const person = makeAvailablePerson('p1', AttendanceStatus.ANIRE, { positions: [] });
       component.persons.set([person]);
       fixture.componentRef.setInput('activeNodePositionType', null);
       fixture.detectChanges();

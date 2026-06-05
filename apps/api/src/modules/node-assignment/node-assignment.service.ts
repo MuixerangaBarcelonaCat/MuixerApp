@@ -6,8 +6,21 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
-import { EventType, FigureZone } from '@muixer/shared';
+import { DataSource, In, Repository } from 'typeorm';
+import {
+  EventType,
+  FigureZone,
+  NodeShape,
+  AssignmentDetail,
+  InstanceNodeItem,
+  FigureHistoryEntry,
+  BulkImportResult,
+  PersonAssignmentEntry,
+  PersonAssignmentHistory,
+  EventFigureSummary,
+  EventSegmentSummary,
+  EventAssignmentSummary,
+} from '@muixer/shared';
 import { NodeAssignment } from './entities/node-assignment.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
 import { InstanceNode } from '../event-segment/entities/instance-node.entity';
@@ -19,142 +32,6 @@ import { CompositionSlot } from '../composition/entities/composition-slot.entity
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
 import { Event } from '../event/event.entity';
-
-// ─── Response interfaces ────────────────────────────────────────────────────
-
-export interface AssignmentDetail {
-  id: string;
-  figureInstanceId: string;
-  compositionSlotId: string | null;
-  node: {
-    id: string;
-    label: string;
-    zone: string;
-    z: number;
-    positionType: string | null;
-    sortOrder: number;
-    ringLevel: number | null;
-    originNodeId: string | null;
-    sourceNodeId: string | null;
-  };
-  person: {
-    id: string;
-    alias: string;
-    name: string;
-    firstSurname: string;
-    shoulderHeight: number | null;
-  };
-}
-
-export interface InstanceNodeResponse {
-  id: string;
-  sourceNodeId: string | null;
-  originNodeId: string | null;
-  label: string;
-  zone: string;
-  positionType: string | null;
-  x: number;
-  y: number;
-  z: number;
-  width: number;
-  height: number;
-  rotation: number;
-  color: string | null;
-  shape: string;
-  sortOrder: number;
-  ringLevel: number | null;
-  renglaId: string | null;
-  renglaPosition: number | null;
-  isSnapshotted: boolean;
-}
-
-export interface UpgradeResult {
-  addedNodes: number;
-  updatedNodes: number;
-  totalNodes: number;
-  newTemplateId: string;
-  newTemplateName: string;
-  newVariantOrder: number;
-}
-
-export interface FigureHistoryEntry {
-  eventId: string;
-  eventTitle: string;
-  eventDate: string;
-  eventType: EventType;
-  familyName: string | null;
-  segmentName: string | null;
-  instanceId: string;
-  snapshotted: boolean;
-  sourceVariantOrder: number | null;
-  assignmentCount: number;
-  totalNodes: number;
-  assignments: {
-    nodeId: string;
-    nodeLabel: string;
-    personId: string;
-    personAlias: string;
-  }[];
-}
-
-export interface BulkImportResult {
-  created: AssignmentDetail[];
-  conflicts: {
-    nodeId: string;
-    nodeLabel: string;
-    personAlias: string;
-    reason: string;
-  }[];
-}
-
-export interface PersonAssignmentEntry {
-  eventId: string;
-  eventTitle: string;
-  eventDate: string;
-  eventType: EventType;
-  segmentName: string;
-  instanceId: string;
-  figureName: string;
-  figureSlug: string;
-  familyName: string | null;
-  nodeLabel: string;
-  positionType: string | null;
-  zone: FigureZone;
-  z: number;
-}
-
-export interface PersonAssignmentHistory {
-  data: PersonAssignmentEntry[];
-  meta: { total: number; page: number; limit: number };
-}
-
-export interface EventFigureSummary {
-  instanceId: string;
-  figureName: string;
-  familyName: string | null;
-  snapshotted: boolean;
-  totalNodes: number;
-  assignedNodes: number;
-  assignments: {
-    nodeLabel: string;
-    positionType: string | null;
-    zone: FigureZone;
-    z: number;
-    personAlias: string;
-    personId: string;
-  }[];
-}
-
-export interface EventSegmentSummary {
-  segmentId: string;
-  segmentName: string;
-  sortOrder: number;
-  figures: EventFigureSummary[];
-}
-
-export interface EventAssignmentSummary {
-  segments: EventSegmentSummary[];
-}
 
 export interface HistoryQueryParams {
   page?: number;
@@ -173,7 +50,7 @@ function toAssignmentDetail(assignment: NodeAssignment): AssignmentDetail {
     node: {
       id: node.id,
       label: node.label,
-      zone: node.zone,
+      zone: node.zone as FigureZone,
       z: node.z,
       positionType: node.positionType,
       sortOrder: node.sortOrder,
@@ -183,21 +60,21 @@ function toAssignmentDetail(assignment: NodeAssignment): AssignmentDetail {
     },
     person: {
       id: assignment.person.id,
-      alias: (assignment.person as any).alias,
-      name: (assignment.person as any).name,
-      firstSurname: (assignment.person as any).firstSurname,
-      shoulderHeight: (assignment.person as any).shoulderHeight ?? null,
+      alias: (assignment.person as Person).alias,
+      name: (assignment.person as Person).name,
+      firstSurname: (assignment.person as Person).firstSurname,
+      shoulderHeight: (assignment.person as Person).shoulderHeight ?? null,
     },
   };
 }
 
-function instanceNodeToResponse(node: InstanceNode): InstanceNodeResponse {
+function instanceNodeToResponse(node: InstanceNode): InstanceNodeItem {
   return {
     id: node.id,
     sourceNodeId: node.sourceNodeId,
     originNodeId: node.originNodeId,
     label: node.label,
-    zone: node.zone,
+    zone: node.zone as FigureZone,
     positionType: node.positionType,
     x: node.x,
     y: node.y,
@@ -206,7 +83,7 @@ function instanceNodeToResponse(node: InstanceNode): InstanceNodeResponse {
     height: node.height,
     rotation: node.rotation,
     color: node.color,
-    shape: node.shape,
+    shape: node.shape as NodeShape,
     sortOrder: node.sortOrder,
     ringLevel: node.ringLevel,
     renglaId: node.renglaId,
@@ -215,13 +92,13 @@ function instanceNodeToResponse(node: InstanceNode): InstanceNodeResponse {
   };
 }
 
-function figureNodeToResponse(node: FigureNode): InstanceNodeResponse {
+function figureNodeToResponse(node: FigureNode): InstanceNodeItem {
   return {
     id: node.id,
     sourceNodeId: null,
     originNodeId: node.originNodeId,
     label: node.label,
-    zone: node.zone,
+    zone: node.zone as FigureZone,
     positionType: node.positionType,
     x: node.x,
     y: node.y,
@@ -230,7 +107,7 @@ function figureNodeToResponse(node: FigureNode): InstanceNodeResponse {
     height: node.height,
     rotation: node.rotation,
     color: node.color,
-    shape: node.shape,
+    shape: node.shape as NodeShape,
     sortOrder: node.sortOrder,
     ringLevel: node.ringLevel,
     renglaId: node.renglaId,
@@ -239,13 +116,13 @@ function figureNodeToResponse(node: FigureNode): InstanceNodeResponse {
   };
 }
 
-function familyNodeToResponse(node: FigureFamilyNode): InstanceNodeResponse {
+function familyNodeToResponse(node: FigureFamilyNode): InstanceNodeItem {
   return {
     id: node.id,
     sourceNodeId: null,
     originNodeId: null,
     label: node.label,
-    zone: node.zone,
+    zone: node.zone as FigureZone,
     positionType: node.positionType,
     x: node.x,
     y: node.y,
@@ -254,7 +131,7 @@ function familyNodeToResponse(node: FigureFamilyNode): InstanceNodeResponse {
     height: node.height,
     rotation: node.rotation,
     color: node.color,
-    shape: node.shape,
+    shape: node.shape as NodeShape,
     sortOrder: node.sortOrder,
     ringLevel: node.ringLevel,
     renglaId: node.renglaId,
@@ -307,7 +184,7 @@ export class NodeAssignmentService {
 
   // ── B.4 — Instance nodes (live template or snapshot) ──────────────────────
 
-  async getInstanceNodes(instanceId: string): Promise<InstanceNodeResponse[]> {
+  async getInstanceNodes(instanceId: string): Promise<InstanceNodeItem[]> {
     const instance = await this.figureInstanceRepository.findOne({
       where: { id: instanceId },
       relations: ['figureTemplate'],
@@ -316,7 +193,7 @@ export class NodeAssignmentService {
       throw new NotFoundException(`FigureInstance with ID ${instanceId} not found`);
     }
 
-    let allNodes: InstanceNodeResponse[];
+    let allNodes: InstanceNodeItem[];
 
     if (instance.snapshotted) {
       const nodes = await this.instanceNodeRepository.find({
@@ -424,6 +301,9 @@ export class NodeAssignmentService {
     const person = await this.personRepository.findOne({ where: { id: dto.personId } });
     if (!person) {
       throw new NotFoundException(`Person with ID ${dto.personId} not found`);
+    }
+    if (!person.isActive) {
+      throw new BadRequestException(`Person ${person.alias} is inactive and cannot be assigned`);
     }
 
     const compositionSlot = dto.compositionSlotId
@@ -763,20 +643,33 @@ export class NodeAssignmentService {
       order: { sortOrder: 'ASC' },
     });
 
-    const result: EventSegmentSummary[] = [];
+    if (segments.length === 0) {
+      return { segments: [] };
+    }
 
-    for (const segment of segments) {
-      const instances = await this.figureInstanceRepository.find({
-        where: { segment: { id: segment.id } },
-        relations: [
-          'figureTemplate',
-          'figureTemplate.family',
-          'instanceNodes',
-          'assignments',
-          'assignments.instanceNode',
-          'assignments.person',
-        ],
-      });
+    const segmentIds = segments.map((s) => s.id);
+    const allInstances = await this.figureInstanceRepository.find({
+      where: { segment: { id: In(segmentIds) } },
+      relations: [
+        'segment',
+        'figureTemplate',
+        'figureTemplate.family',
+        'instanceNodes',
+        'assignments',
+        'assignments.instanceNode',
+        'assignments.person',
+      ],
+    });
+
+    const instancesBySegment = new Map<string, FigureInstance[]>();
+    for (const fi of allInstances) {
+      const sid = fi.segment.id;
+      if (!instancesBySegment.has(sid)) instancesBySegment.set(sid, []);
+      instancesBySegment.get(sid)!.push(fi);
+    }
+
+    const result: EventSegmentSummary[] = segments.map((segment) => {
+      const instances = instancesBySegment.get(segment.id) ?? [];
 
       const figures: EventFigureSummary[] = instances.map((fi) => {
         const totalNodes = fi.instanceNodes?.length ?? 0;
@@ -785,7 +678,7 @@ export class NodeAssignmentService {
           positionType: a.instanceNode.positionType ?? null,
           zone: a.instanceNode.zone as FigureZone,
           z: a.instanceNode.z,
-          personAlias: (a.person as any).alias as string,
+          personAlias: (a.person as Person).alias,
           personId: a.person.id,
         }));
 
@@ -800,13 +693,13 @@ export class NodeAssignmentService {
         };
       });
 
-      result.push({
+      return {
         segmentId: segment.id,
-        segmentName: (segment as any).name ?? '',
+        segmentName: segment.name ?? '',
         sortOrder: segment.sortOrder,
         figures,
-      });
-    }
+      };
+    });
 
     return { segments: result };
   }
@@ -1014,152 +907,14 @@ export class NodeAssignmentService {
     return { created, conflicts };
   }
 
-  // ── B.3 — Upgrade instance to next variant ────────────────────────────────
-
-  async upgradeInstance(instanceId: string): Promise<UpgradeResult> {
-    await this.checkEventLock(instanceId);
-
-    const instance = await this.figureInstanceRepository.findOne({
-      where: { id: instanceId },
-      relations: ['figureTemplate', 'figureTemplate.family', 'instanceNodes'],
-    });
-    if (!instance) {
-      throw new NotFoundException(`FigureInstance with ID ${instanceId} not found`);
-    }
-    if (!instance.figureTemplate) {
-      throw new BadRequestException('Instance does not reference a figure template and cannot be upgraded');
-    }
-
-    // Auto-snapshot if not yet snapshotted, then reload
-    if (!instance.snapshotted) {
-      await this.snapshotInstance(instance);
-      const refreshed = await this.figureInstanceRepository.findOne({
-        where: { id: instanceId },
-        relations: ['figureTemplate', 'figureTemplate.family', 'instanceNodes'],
-      });
-      if (refreshed) {
-        instance.snapshotted = refreshed.snapshotted;
-        instance.sourceVariantOrder = refreshed.sourceVariantOrder;
-        instance.instanceNodes = refreshed.instanceNodes;
-        instance.figureTemplate = refreshed.figureTemplate!;
-      }
-    }
-
-    const currentFamily = instance.figureTemplate.family;
-    if (!currentFamily) {
-      throw new BadRequestException('Template does not belong to a family. Cannot upgrade.');
-    }
-
-    const currentVariantOrder = instance.sourceVariantOrder ?? instance.figureTemplate.variantOrder;
-
-    const nextTemplate = await this.figureTemplateRepository.findOne({
-      where: { family: { id: currentFamily.id }, variantOrder: currentVariantOrder + 1 },
-      relations: ['nodes'],
-    });
-
-    if (!nextTemplate) {
-      throw new BadRequestException(
-        'No hi ha una variant amb més cordons disponible per a aquesta família.',
-      );
-    }
-
-    // Build composite key map: (canonicalId, ringLevel) → InstanceNode
-    // Handles multiple rings sharing the same originNodeId
-    const existingByKey = new Map<string, InstanceNode>();
-    for (const inode of instance.instanceNodes ?? []) {
-      const canonicalId = inode.originNodeId ?? inode.sourceNodeId;
-      if (canonicalId) {
-        existingByKey.set(`${canonicalId}:${inode.ringLevel ?? 0}`, inode);
-      }
-    }
-
-    const newTemplateNodes: FigureNode[] = [];
-    const positionUpdates: { id: string; x: number; y: number; width: number; height: number; rotation: number }[] = [];
-
-    for (const node of nextTemplate.nodes ?? []) {
-      const canonicalId = node.originNodeId ?? node.id;
-      const key = `${canonicalId}:${node.ringLevel ?? 0}`;
-      const existing = existingByKey.get(key);
-
-      if (!existing) {
-        newTemplateNodes.push(node);
-      } else if (
-        existing.x !== node.x || existing.y !== node.y ||
-        existing.width !== node.width || existing.height !== node.height ||
-        existing.rotation !== node.rotation
-      ) {
-        positionUpdates.push({
-          id: existing.id,
-          x: node.x, y: node.y,
-          width: node.width, height: node.height,
-          rotation: node.rotation,
-        });
-      }
-    }
-
-    if (newTemplateNodes.length > 0) {
-      const newInstanceNodes = newTemplateNodes.map((node) =>
-        this.instanceNodeRepository.create({
-          figureInstance: instance,
-          sourceNodeId: node.id,
-          originNodeId: node.originNodeId,
-          label: node.label,
-          zone: node.zone,
-          positionType: node.positionType,
-          x: node.x,
-          y: node.y,
-          z: node.z,
-          width: node.width,
-          height: node.height,
-          rotation: node.rotation,
-          color: node.color,
-          shape: node.shape,
-          sortOrder: node.sortOrder,
-          climbPath: node.climbPath,
-          ringLevel: node.ringLevel,
-          renglaId: node.renglaId,
-          renglaPosition: node.renglaPosition,
-          metadata: node.metadata,
-        }),
-      );
-      await this.instanceNodeRepository.save(newInstanceNodes);
-    }
-
-    // Relocate existing nodes whose positions changed in the next variant layout
-    if (positionUpdates.length > 0) {
-      await Promise.all(
-        positionUpdates.map((u) =>
-          this.instanceNodeRepository.update(u.id, {
-            x: u.x, y: u.y, width: u.width, height: u.height, rotation: u.rotation,
-          }),
-        ),
-      );
-    }
-
-    // Update instance to point at next variant (use FK id to satisfy TypeORM DeepPartial)
-    await this.figureInstanceRepository.update(instanceId, {
-      figureTemplate: { id: nextTemplate.id } as any,
-      sourceVariantOrder: nextTemplate.variantOrder,
-    });
-
-    const totalNodes = (instance.instanceNodes?.length ?? 0) + newTemplateNodes.length;
-
-    return {
-      addedNodes: newTemplateNodes.length,
-      updatedNodes: positionUpdates.length,
-      totalNodes,
-      newTemplateId: nextTemplate.id,
-      newTemplateName: nextTemplate.name,
-      newVariantOrder: nextTemplate.variantOrder,
-    };
-  }
-
   // ── Cordons — update numberOfCordons / openCordons on instance ─────────────
 
   async updateCordons(
     instanceId: string,
     dto: { numberOfCordons?: number | null; openCordons?: string[] | null },
   ): Promise<{ numberOfCordons: number | null; openCordons: string[] | null }> {
+    await this.checkEventLock(instanceId);
+
     const instance = await this.figureInstanceRepository.findOne({
       where: { id: instanceId },
     });

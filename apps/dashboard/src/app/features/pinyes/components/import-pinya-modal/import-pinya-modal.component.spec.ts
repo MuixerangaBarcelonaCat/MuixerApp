@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi, type Mock } from 'vitest';
 import { of, throwError } from 'rxjs';
 import { LUCIDE_ICONS, LucideIconProvider, Import, X } from 'lucide-angular';
+import { EventType } from '@muixer/shared';
 import { ImportPinyaModalComponent } from './import-pinya-modal.component';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { FigureHistoryEntry, BulkImportResult } from '../../models/assignment.model';
@@ -14,7 +15,7 @@ const makeHistoryEntry = (instanceId = SOURCE_INSTANCE_ID): FigureHistoryEntry =
   eventId: 'event-uuid-1',
   eventTitle: 'Assaig Setmana Santa',
   eventDate: '2026-03-15',
-  eventType: 'REHEARSAL',
+  eventType: EventType.ASSAIG,
   familyName: null,
   segmentName: 'Bloc 1',
   instanceId,

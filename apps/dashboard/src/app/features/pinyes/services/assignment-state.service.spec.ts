@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { AttendanceStatus, FigureZone } from '@muixer/shared';
 import { AssignmentStateService } from './assignment-state.service';
 import { AssignmentDetail, AvailablePerson } from '../models/assignment.model';
 
@@ -6,11 +7,11 @@ const makeAssignment = (nodeId = 'node-1', personId = 'person-1'): AssignmentDet
   id: 'assignment-1',
   figureInstanceId: 'instance-1',
   compositionSlotId: null,
-  node: { id: nodeId, label: 'pd4-1', zone: 'TRONC', z: 1, positionType: 'pd4', sortOrder: 0, ringLevel: null, originNodeId: null, sourceNodeId: null },
+  node: { id: nodeId, label: 'pd4-1', zone: FigureZone.TRONC, z: 1, positionType: 'pd4', sortOrder: 0, ringLevel: null, originNodeId: null, sourceNodeId: null },
   person: { id: personId, alias: 'Pepet', name: 'Pere', firstSurname: 'Garcia', shoulderHeight: 140 },
 });
 
-const makeAvailablePerson = (id = 'person-1', status: AvailablePerson['attendanceStatus'] = 'ANIRE'): AvailablePerson => ({
+const makeAvailablePerson = (id = 'person-1', status: AvailablePerson['attendanceStatus'] = AttendanceStatus.ANIRE): AvailablePerson => ({
   id,
   alias: 'Pepet',
   name: 'Pere',
@@ -107,9 +108,9 @@ describe('AssignmentStateService', () => {
 
     it('returns correct count (total ANIRE minus assigned in segment)', () => {
       service.confirmedPersons.set([
-        makeAvailablePerson('person-1', 'ANIRE'),
-        makeAvailablePerson('person-2', 'ANIRE'),
-        makeAvailablePerson('person-3', 'PENDENT'),
+        makeAvailablePerson('person-1', AttendanceStatus.ANIRE),
+        makeAvailablePerson('person-2', AttendanceStatus.ANIRE),
+        makeAvailablePerson('person-3', AttendanceStatus.PENDENT),
       ]);
       service.assignments.set([makeAssignment('node-1', 'person-1')]);
       // 2 ANIRE total, 1 assigned → 1 free
@@ -118,8 +119,8 @@ describe('AssignmentStateService', () => {
 
     it('updates reactively when assignments change', () => {
       service.confirmedPersons.set([
-        makeAvailablePerson('person-1', 'ANIRE'),
-        makeAvailablePerson('person-2', 'ANIRE'),
+        makeAvailablePerson('person-1', AttendanceStatus.ANIRE),
+        makeAvailablePerson('person-2', AttendanceStatus.ANIRE),
       ]);
       service.assignments.set([]);
       expect(service.freePersonsCount()).toBe(2);

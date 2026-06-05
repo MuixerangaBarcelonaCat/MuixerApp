@@ -33,15 +33,6 @@ describe('FigureInstanceService', () => {
     req.flush({});
   });
 
-  it('update sends PUT to the correct nested URL with payload', () => {
-    const payload = { label: 'Central' };
-    service.update(EVENT_ID, SEGMENT_ID, INSTANCE_ID, payload).subscribe();
-    const req = httpMock.expectOne(`${INSTANCES_BASE}/${INSTANCE_ID}`);
-    expect(req.request.method).toBe('PUT');
-    expect(req.request.body).toEqual(payload);
-    req.flush({});
-  });
-
   it('remove sends DELETE to the correct nested URL', () => {
     service.remove(EVENT_ID, SEGMENT_ID, INSTANCE_ID).subscribe();
     const req = httpMock.expectOne(`${INSTANCES_BASE}/${INSTANCE_ID}`);
@@ -49,11 +40,4 @@ describe('FigureInstanceService', () => {
     req.flush(null);
   });
 
-  it('reorder sends PATCH to instances/reorder with instanceIds', () => {
-    service.reorder(EVENT_ID, SEGMENT_ID, [INSTANCE_ID]).subscribe();
-    const req = httpMock.expectOne(`${INSTANCES_BASE}/reorder`);
-    expect(req.request.method).toBe('PATCH');
-    expect(req.request.body).toEqual({ instanceIds: [INSTANCE_ID] });
-    req.flush(null);
-  });
 });

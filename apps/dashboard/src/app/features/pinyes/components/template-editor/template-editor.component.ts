@@ -23,7 +23,7 @@ import {
   FigureTemplateDetail,
   FigureNodeItem,
   CreateFigureNodePayload,
-  RenglaModel,
+  RenglaItem,
 } from '../../models/figure-template.model';
 import { FigureZone, NodeShape } from '@muixer/shared';
 import { RenglaOverlayComponent, RenglaCreatedEvent, RenglaUpdatedEvent, RenglaDeletedEvent } from '../rengla-overlay/rengla-overlay.component';
@@ -91,7 +91,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   private clipboardNode = signal<FigureNodeItem | null>(null);
 
   // Rengles
-  rengles = signal<RenglaModel[]>([]);
+  rengles = signal<RenglaItem[]>([]);
   renglaEditMode = signal(false);
   stageTransform = signal<StageTransform>({ x: 0, y: 0, scaleX: 1, scaleY: 1 });
 
@@ -524,7 +524,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   onRenglaCreated(event: RenglaCreatedEvent): void {
     const renglaId = generateUUID();
     const startPos = event.rengla.startPosition;
-    const newRengla: RenglaModel = {
+    const newRengla: RenglaItem = {
       id: renglaId,
       name: event.rengla.name,
       sortOrder: event.rengla.sortOrder,
@@ -600,7 +600,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     } else {
       const autoRenglaId = generateUUID();
       const renglaIndex = this.rengles().length;
-      const newRengla: RenglaModel = {
+      const newRengla: RenglaItem = {
         id: autoRenglaId,
         name: `${source.label} ${renglaIndex + 1}`,
         sortOrder: renglaIndex,

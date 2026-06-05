@@ -35,7 +35,7 @@ import {
 import { SegmentDetail } from '../../models/segment.model';
 import { FigureFamilyDetail } from '../../models/figure-family.model';
 import { FigureTemplateService } from '../../services/figure-template.service';
-import { RenglaModel } from '../../models/figure-template.model';
+import { RenglaItem } from '../../models/figure-template.model';
 import { FigureZone } from '@muixer/shared';
 import { repositionCordoObertNodes } from '../../utils/cordo-obert-reposition.util';
 
@@ -115,7 +115,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
   readonly troncPanelOpen = signal(false);
 
-  readonly templateRengles = signal<RenglaModel[]>([]);
+  readonly templateRengles = signal<RenglaItem[]>([]);
   readonly maxCordons = signal(0);
   readonly renglesWithCordoObert = computed(() =>
     this.templateRengles().filter((r) => r.allowsCordoObert),
@@ -487,7 +487,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
       node: {
         id: nodeId,
         label: matchedNode?.label ?? '',
-        zone: matchedNode?.zone ?? '',
+        zone: matchedNode?.zone ?? FigureZone.PINYA,
         z: matchedNode?.z ?? 0,
         positionType: matchedNode?.positionType ?? null,
         sortOrder: matchedNode?.sortOrder ?? 0,

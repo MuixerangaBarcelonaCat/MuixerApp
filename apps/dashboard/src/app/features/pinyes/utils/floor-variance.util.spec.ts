@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { FigureZone } from '@muixer/shared';
 import { floorVariance, varianceLevel } from './floor-variance.util';
 import { AssignmentDetail } from '../models/assignment.model';
 
@@ -10,7 +11,7 @@ function makeAssignment(nodeId: string, shoulderHeight: number | null): Assignme
     node: {
       id: nodeId,
       label: 'Node',
-      zone: 'TRONC',
+      zone: FigureZone.TRONC,
       z: 1,
       positionType: 'segon',
       sortOrder: 0,

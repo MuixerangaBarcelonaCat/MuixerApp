@@ -93,12 +93,6 @@ export class NodeAssignmentController {
     return this.assignmentService.updateCordons(instanceId, dto);
   }
 
-  @ApiOperation({ summary: 'Upgrade instance to the next variant in its family (adds cordon nodes)' })
-  @Post('figure-instances/:instanceId/upgrade')
-  upgradeInstance(@Param('instanceId', ParseUUIDPipe) instanceId: string) {
-    return this.assignmentService.upgradeInstance(instanceId);
-  }
-
   @ApiOperation({ summary: 'Reset snapshot: remove all assignments and instance nodes, revert to live template' })
   @Post('figure-instances/:instanceId/reset')
   resetSnapshot(@Param('instanceId', ParseUUIDPipe) instanceId: string) {

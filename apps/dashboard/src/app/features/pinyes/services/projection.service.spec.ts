@@ -8,7 +8,6 @@ import { ProjectionService } from './projection.service';
 const BASE = environment.apiUrl;
 const EVENT_ID = 'event-uuid-1';
 const SEGMENT_ID = 'seg-uuid-1';
-const INSTANCE_ID = 'inst-uuid-1';
 
 describe('ProjectionService', () => {
   let service: ProjectionService;
@@ -37,14 +36,4 @@ describe('ProjectionService', () => {
     });
   });
 
-  it('updateProjectionLayout sends PUT with { layouts }', () => {
-    const layouts = [{ instanceId: INSTANCE_ID, x: 100, y: 200, scale: 1.0 }];
-    service.updateProjectionLayout(EVENT_ID, SEGMENT_ID, layouts).subscribe();
-    const req = httpMock.expectOne(
-      `${BASE}/events/${EVENT_ID}/segments/${SEGMENT_ID}/instances/projection-layout`,
-    );
-    expect(req.request.method).toBe('PUT');
-    expect(req.request.body).toEqual({ layouts });
-    req.flush(null);
-  });
 });

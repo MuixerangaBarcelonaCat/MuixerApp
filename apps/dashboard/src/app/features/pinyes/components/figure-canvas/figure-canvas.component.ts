@@ -14,7 +14,6 @@ import {
 import { FormsModule } from '@angular/forms';
 import Konva from 'konva';
 import { FigureNodeItem } from '../../models/figure-template.model';
-import { CompositionSlotItem } from '../../models/composition.model';
 import { FigureZone, NodeShape } from '@muixer/shared';
 import { AssignmentDetail, HeightMode } from '../../models/assignment.model';
 import {
@@ -59,21 +58,6 @@ export interface CompositionSlotWithNodes {
   };
 }
 
-export function compositionSlotItemToCanvasSlot(slot: CompositionSlotItem): CompositionSlotWithNodes {
-  return {
-    slotId: slot.id,
-    label: slot.label,
-    offsetX: slot.offsetX,
-    offsetY: slot.offsetY,
-    sortOrder: slot.sortOrder,
-    figureTemplate: {
-      id: slot.figureTemplate.id,
-      name: slot.figureTemplate.name,
-      hasPinya: slot.figureTemplate.hasPinya,
-      nodes: slot.figureTemplate.nodes,
-    },
-  };
-}
 
 const GRID_COLOR = '#e5e7eb';
 const NODE_COLORS: Record<string, string> = {
@@ -120,10 +104,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   readonly nodeRotated = output<{ id: string; rotation: number }>();
   readonly nodeResized = output<{ id: string; width: number; height: number }>();
   readonly nodeLabelChanged = output<{ id: string; label: string }>();
-  readonly zoomChanged = output<number>();
   readonly slotSelected = output<string | null>();
   readonly slotMoved = output<{ slotId: string; offsetX: number; offsetY: number }>();
-  readonly nodeDoubleClicked = output<string>();
   readonly stageTransformChanged = output<{ x: number; y: number; scaleX: number; scaleY: number }>();
   readonly ghostCloneRequested = output<{ sourceNode: CanvasNode; targetPosition: { x: number; y: number } }>();
 
@@ -256,16 +238,6 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.zoomLevel.set(newScale);
     this.stage.batchDraw();
     this.emitStageTransform();
-  }
-
-  getStageTransform(): { x: number; y: number; scaleX: number; scaleY: number } {
-    if (!this.stage) return { x: 0, y: 0, scaleX: 1, scaleY: 1 };
-    return {
-      x: this.stage.x(),
-      y: this.stage.y(),
-      scaleX: this.stage.scaleX(),
-      scaleY: this.stage.scaleY(),
-    };
   }
 
   setZoom(level: number): void {
@@ -886,10 +858,6 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         const clickY = e.evt.clientY - containerRect.top;
         this.nodeSelected.emit(node.id);
         this.nodeClicked.emit({ nodeId: node.id, x: clickX, y: clickY });
-      });
-
-      group.on('dblclick dbltap', () => {
-        this.nodeDoubleClicked.emit(node.id);
       });
 
       group.on('mouseenter', () => {

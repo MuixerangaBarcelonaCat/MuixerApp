@@ -201,11 +201,13 @@ export class CompositionEditorComponent implements OnInit, OnDestroy {
       offsetY: 0,
       sortOrder: newSortOrder,
       figureTemplate: {
-        ...figureTemplate,
+        id: figureTemplate.id,
+        name: figureTemplate.name,
+        slug: figureTemplate.slug,
+        hasPinya: figureTemplate.hasPinya,
+        direction: figureTemplate.direction ?? 0,
+        nodeCount: figureTemplate.nodeCount ?? 0,
         nodes: [],
-        rengles: [],
-        metadata: {},
-        direction: 0,
       },
     };
 

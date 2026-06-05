@@ -15,7 +15,7 @@ import { ActivatedRoute } from '@angular/router';
 import { FigureProjectionComponent } from './figure-projection.component';
 import { ProjectionInstance } from '../../models/projection.model';
 import { AssignmentDetail } from '../../models/assignment.model';
-import { FigureZone } from '@muixer/shared';
+import { FigureZone, NodeShape } from '@muixer/shared';
 import { CanvasNode, CanvasMode } from '../figure-canvas/figure-canvas.component';
 import { TroncNodeItem } from '../tronc-view/tronc-view.component';
 
@@ -58,7 +58,7 @@ const makeInstance = (overrides: Partial<ProjectionInstance> = {}): ProjectionIn
       height: 40,
       rotation: 0,
       color: null,
-      shape: 'ELLIPSE',
+      shape: NodeShape.ELLIPSE,
       sortOrder: 0,
       ringLevel: null,
       originNodeId: null,
@@ -79,7 +79,7 @@ const makeInstance = (overrides: Partial<ProjectionInstance> = {}): ProjectionIn
       height: 1,
       rotation: 0,
       color: null,
-      shape: 'RECT',
+      shape: NodeShape.RECTANGLE,
       sortOrder: 0,
       ringLevel: null,
       originNodeId: null,
@@ -100,7 +100,7 @@ const makeInstance = (overrides: Partial<ProjectionInstance> = {}): ProjectionIn
       height: 1,
       rotation: 0,
       color: null,
-      shape: 'ELLIPSE',
+      shape: NodeShape.ELLIPSE,
       sortOrder: 0,
       ringLevel: null,
       originNodeId: null,

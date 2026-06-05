@@ -1,26 +1,8 @@
-export interface FigureFamilyVariant {
-  id: string;
-  name: string;
-  slug: string;
-  variantOrder: number;
-  nodeCount: number;
-  renglaCount: number;
-}
-
-export interface FigureFamilyListItem {
-  id: string;
-  name: string;
-  slug: string;
-  description: string | null;
-  variantCount: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface FigureFamilyDetail extends FigureFamilyListItem {
-  metadata: Record<string, unknown>;
-  variants: FigureFamilyVariant[];
-}
+export type {
+  FigureFamilyVariant,
+  FigureFamilyListItem,
+  FigureFamilyDetail,
+} from '@muixer/shared';
 
 export interface FigureFamilyFilterParams {
   search?: string;
@@ -29,7 +11,7 @@ export interface FigureFamilyFilterParams {
 }
 
 export interface PaginatedFigureFamilies {
-  data: FigureFamilyListItem[];
+  data: import('@muixer/shared').FigureFamilyListItem[];
   meta: {
     total: number;
     page: number;

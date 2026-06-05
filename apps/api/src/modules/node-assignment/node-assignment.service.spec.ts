@@ -33,12 +33,14 @@ const TEMPLATE_ID = 'template-uuid-1';
 const SEGMENT_ID = 'segment-uuid-1';
 const FAMILY_ID = 'family-uuid-1';
 
-const makePerson = (id = PERSON_ID) => ({
+const makePerson = (id = PERSON_ID, overrides: Record<string, unknown> = {}) => ({
   id,
   alias: 'Pepet',
   name: 'Pere',
   firstSurname: 'Garcia',
   shoulderHeight: 140,
+  isActive: true,
+  ...overrides,
 });
 
 const makeFigureNode = (overrides: Partial<FigureNode> = {}): Partial<FigureNode> => ({
@@ -394,6 +396,15 @@ describe('NodeAssignmentService', () => {
       await expect(
         service.assign(INSTANCE_ID, { nodeId: INSTANCE_NODE_ID, personId: PERSON_ID }),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws BadRequestException if person is inactive', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
+      mockInstanceNodeRepo.findOne.mockResolvedValue(makeInstanceNode());
+      mockPersonRepo.findOne.mockResolvedValue(makePerson(PERSON_ID, { isActive: false }));
+      await expect(
+        service.assign(INSTANCE_ID, { nodeId: INSTANCE_NODE_ID, personId: PERSON_ID }),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('throws NotFoundException if InstanceNode not found in this instance (snapshotted)', async () => {
@@ -864,14 +875,15 @@ describe('NodeAssignmentService', () => {
       const person = makePerson();
       const iNode = makeInstanceNode();
       const assignment = { ...makeAssignment(), instanceNode: iNode, person };
+      const segment = { id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 };
       const figureInstance = {
         id: 'fi-1',
+        segment: { id: SEGMENT_ID },
         figureTemplate: { id: TEMPLATE_ID, name: 'Muixeranga de 5', family: { name: 'Muixeranga' } },
         snapshotted: true,
         instanceNodes: [iNode],
         assignments: [assignment],
       };
-      const segment = { id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 };
 
       mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
       mockSegmentRepo.find.mockResolvedValue([segment]);
@@ -953,222 +965,6 @@ describe('NodeAssignmentService', () => {
         'ev.seasonId = :seasonId',
         { seasonId: 'season-y' },
       );
-    });
-  });
-
-  // ── upgradeInstance ───────────────────────────────────────────────────
-
-  describe('upgradeInstance', () => {
-    const NEXT_TEMPLATE_ID = 'template-uuid-2';
-    const NEW_NODE_ID = 'fnode-uuid-new';
-
-    const makeNextTemplate = () => ({
-      id: NEXT_TEMPLATE_ID,
-      name: 'Figure — variant 2',
-      variantOrder: 2,
-      family: { id: FAMILY_ID },
-      nodes: [
-        // shared node (same originNodeId + same ringLevel as existing instance node)
-        makeFigureNode({ id: 'fnode-shared', originNodeId: FIGURE_NODE_ID }),
-        // new node exclusive to variant 2
-        makeFigureNode({ id: NEW_NODE_ID, originNodeId: null }),
-      ],
-    });
-
-    it('adds only new nodes not already in the instance', async () => {
-      const instance = makeInstance({
-        snapshotted: true,
-        sourceVariantOrder: 1,
-        figureTemplate: { id: TEMPLATE_ID, variantOrder: 1, family: { id: FAMILY_ID } },
-        instanceNodes: [makeInstanceNode({ sourceNodeId: FIGURE_NODE_ID, originNodeId: null })],
-      });
-      const nextTemplate = makeNextTemplate();
-
-      mockInstanceRepo.findOne.mockResolvedValue(instance);
-      mockTemplateRepo.findOne.mockResolvedValue(nextTemplate);
-      mockInstanceNodeRepo.create.mockImplementation((data: any) => ({ ...data, id: 'saved-inode' }));
-      mockInstanceNodeRepo.save.mockResolvedValue([{ id: 'saved-inode' }]);
-      mockInstanceRepo.update.mockResolvedValue({});
-
-      const result = await service.upgradeInstance(INSTANCE_ID);
-
-      expect(mockInstanceNodeRepo.save).toHaveBeenCalledTimes(1);
-      expect(result.addedNodes).toBe(1);
-      expect(result.updatedNodes).toBe(0);
-      expect(result.totalNodes).toBe(2);
-      expect(result.newTemplateId).toBe(NEXT_TEMPLATE_ID);
-      expect(result.newTemplateName).toBe('Figure — variant 2');
-      expect(result.newVariantOrder).toBe(2);
-      expect(mockInstanceRepo.update).toHaveBeenCalledWith(INSTANCE_ID, {
-        figureTemplate: { id: NEXT_TEMPLATE_ID },
-        sourceVariantOrder: 2,
-      });
-    });
-
-    it('auto-snapshots unsnapshotted instance before upgrade', async () => {
-      const unsnapshottedInstance = makeInstance({ snapshotted: false, sourceVariantOrder: null });
-      const snapshotNode = makeInstanceNode({ sourceNodeId: FIGURE_NODE_ID });
-      const snapshotManager = makeTransactionManager([snapshotNode]);
-
-      // First findOne: load for upgrade; after snapshot: reload
-      const snapshotted = makeInstance({
-        snapshotted: true,
-        sourceVariantOrder: 1,
-        figureTemplate: { id: TEMPLATE_ID, variantOrder: 1, family: { id: FAMILY_ID } },
-        instanceNodes: [snapshotNode],
-      });
-      mockInstanceRepo.findOne
-        .mockResolvedValueOnce(unsnapshottedInstance) // initial load
-        .mockResolvedValueOnce(snapshotted);          // reload after snapshot
-
-      mockTemplateRepo.findOne
-        .mockResolvedValueOnce(makeTemplate()) // for snapshotInstance
-        .mockResolvedValueOnce({              // for nextTemplate
-          id: NEXT_TEMPLATE_ID,
-          name: 'Figure — variant 2',
-          variantOrder: 2,
-          family: { id: FAMILY_ID },
-          nodes: [makeFigureNode({ id: NEW_NODE_ID, originNodeId: null })],
-        });
-
-      mockDataSource.transaction.mockImplementation((cb: any) => cb(snapshotManager));
-      mockInstanceNodeRepo.create.mockImplementation((data: any) => ({ ...data, id: 'saved-inode' }));
-      mockInstanceNodeRepo.save.mockResolvedValue([{ id: 'saved-inode' }]);
-      mockInstanceRepo.update.mockResolvedValue({});
-
-      const result = await service.upgradeInstance(INSTANCE_ID);
-
-      expect(mockDataSource.transaction).toHaveBeenCalledTimes(1);
-      expect(result.addedNodes).toBe(1);
-      expect(result.updatedNodes).toBe(0);
-    });
-
-    it('throws BadRequestException when no larger variant exists', async () => {
-      mockInstanceRepo.findOne.mockResolvedValue(
-        makeInstance({ snapshotted: true, sourceVariantOrder: 3 }),
-      );
-      mockTemplateRepo.findOne.mockResolvedValue(null); // no next variant
-
-      await expect(service.upgradeInstance(INSTANCE_ID)).rejects.toThrow(BadRequestException);
-    });
-
-    it('throws NotFoundException if instance not found', async () => {
-      mockInstanceRepo.findOne.mockResolvedValue(null);
-      await expect(service.upgradeInstance(INSTANCE_ID)).rejects.toThrow(NotFoundException);
-    });
-
-    it('throws BadRequestException if instance has no figureTemplate', async () => {
-      mockInstanceRepo.findOne.mockResolvedValue(
-        makeInstance({ figureTemplate: null }),
-      );
-
-      await expect(service.upgradeInstance(INSTANCE_ID)).rejects.toThrow(BadRequestException);
-    });
-
-    it('adds ring-2 nodes that share originNodeId with existing ring-1 nodes', async () => {
-      const existingRing1Node = makeInstanceNode({
-        sourceNodeId: FIGURE_NODE_ID,
-        originNodeId: null,
-        ringLevel: 1,
-      });
-      const instance = makeInstance({
-        snapshotted: true,
-        sourceVariantOrder: 1,
-        figureTemplate: { id: TEMPLATE_ID, variantOrder: 1, family: { id: FAMILY_ID } },
-        instanceNodes: [existingRing1Node],
-      });
-      const nextTemplate = {
-        id: NEXT_TEMPLATE_ID,
-        name: 'Figure — variant 2',
-        variantOrder: 2,
-        family: { id: FAMILY_ID },
-        nodes: [
-          // ring-1 node sharing same origin → should be filtered out
-          makeFigureNode({ id: 'fnode-r1', originNodeId: FIGURE_NODE_ID, ringLevel: 1 }),
-          // ring-2 node sharing same origin → should be ADDED (different ringLevel)
-          makeFigureNode({ id: 'fnode-r2', originNodeId: FIGURE_NODE_ID, ringLevel: 2 }),
-        ],
-      };
-
-      mockInstanceRepo.findOne.mockResolvedValue(instance);
-      mockTemplateRepo.findOne.mockResolvedValue(nextTemplate);
-      mockInstanceNodeRepo.create.mockImplementation((data: any) => ({ ...data, id: 'saved-r2' }));
-      mockInstanceNodeRepo.save.mockResolvedValue([{ id: 'saved-r2' }]);
-      mockInstanceRepo.update.mockResolvedValue({});
-
-      const result = await service.upgradeInstance(INSTANCE_ID);
-
-      expect(result.addedNodes).toBe(1);
-      expect(result.updatedNodes).toBe(0);
-      const saveArg = mockInstanceNodeRepo.create.mock.calls[0][0] as any;
-      expect(saveArg.ringLevel).toBe(2);
-    });
-
-    it('adds zero nodes when all next-variant nodes are already in the instance', async () => {
-      const existingINode = makeInstanceNode({ sourceNodeId: FIGURE_NODE_ID, originNodeId: null });
-      const instance = makeInstance({
-        snapshotted: true,
-        sourceVariantOrder: 1,
-        figureTemplate: { id: TEMPLATE_ID, variantOrder: 1, family: { id: FAMILY_ID } },
-        instanceNodes: [existingINode],
-      });
-      const nextTemplate = {
-        id: NEXT_TEMPLATE_ID,
-        name: 'Figure — variant 2',
-        variantOrder: 2,
-        family: { id: FAMILY_ID },
-        // all nodes already covered by canonical IDs (same origin + same ring)
-        nodes: [makeFigureNode({ id: 'fnode-shared', originNodeId: FIGURE_NODE_ID })],
-      };
-
-      mockInstanceRepo.findOne.mockResolvedValue(instance);
-      mockTemplateRepo.findOne.mockResolvedValue(nextTemplate);
-      mockInstanceRepo.update.mockResolvedValue({});
-
-      const result = await service.upgradeInstance(INSTANCE_ID);
-
-      expect(mockInstanceNodeRepo.save).not.toHaveBeenCalled();
-      expect(result.addedNodes).toBe(0);
-      expect(result.updatedNodes).toBe(0);
-      expect(result.totalNodes).toBe(1);
-    });
-
-    it('updates positions of existing nodes when the next variant has different coordinates', async () => {
-      const existingINode = makeInstanceNode({
-        id: 'inode-cordo',
-        sourceNodeId: FIGURE_NODE_ID,
-        originNodeId: null,
-        x: 280,
-        y: 56,
-      });
-      const instance = makeInstance({
-        snapshotted: true,
-        sourceVariantOrder: 1,
-        figureTemplate: { id: TEMPLATE_ID, variantOrder: 1, family: { id: FAMILY_ID } },
-        instanceNodes: [existingINode],
-      });
-      const nextTemplate = {
-        id: NEXT_TEMPLATE_ID,
-        name: 'Figure — variant 2',
-        variantOrder: 2,
-        family: { id: FAMILY_ID },
-        nodes: [
-          makeFigureNode({ id: 'fnode-moved', originNodeId: FIGURE_NODE_ID, x: 280, y: 8 }),
-        ],
-      };
-
-      mockInstanceRepo.findOne.mockResolvedValue(instance);
-      mockTemplateRepo.findOne.mockResolvedValue(nextTemplate);
-      mockInstanceNodeRepo.update.mockResolvedValue({});
-      mockInstanceRepo.update.mockResolvedValue({});
-
-      const result = await service.upgradeInstance(INSTANCE_ID);
-
-      expect(result.addedNodes).toBe(0);
-      expect(result.updatedNodes).toBe(1);
-      expect(mockInstanceNodeRepo.update).toHaveBeenCalledWith('inode-cordo', {
-        x: 280, y: 8, width: 80, height: 40, rotation: 0,
-      });
     });
   });
 
@@ -1299,14 +1095,6 @@ describe('NodeAssignmentService', () => {
 
       await expect(
         service.bulkImport(INSTANCE_ID, { sourceInstanceId: 'src' }),
-      ).rejects.toThrow(ForbiddenException);
-    });
-
-    it('upgradeInstance() throws ForbiddenException when event is locked', async () => {
-      mockInstanceRepo.findOne.mockResolvedValue(makeLockedInstance(lockedDateStr));
-
-      await expect(
-        service.upgradeInstance(INSTANCE_ID),
       ).rejects.toThrow(ForbiddenException);
     });
 

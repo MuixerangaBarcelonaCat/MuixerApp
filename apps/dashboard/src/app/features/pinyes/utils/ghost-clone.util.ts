@@ -9,23 +9,6 @@ export interface GhostPositionInput {
   rotation: number;
 }
 
-/**
- * Arithmetic mean of all node positions — acts as the radial origin
- * for ghost placement direction.
- */
-export function calculatePinyaCentroid(
-  nodes: readonly GhostPositionInput[],
-): { x: number; y: number } {
-  if (nodes.length === 0) return { x: 0, y: 0 };
-
-  let sumX = 0;
-  let sumY = 0;
-  for (const n of nodes) {
-    sumX += n.x;
-    sumY += n.y;
-  }
-  return { x: sumX / nodes.length, y: sumY / nodes.length };
-}
 
 const DEFAULT_GAP = 3;
 

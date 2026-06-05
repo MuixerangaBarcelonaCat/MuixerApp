@@ -15,6 +15,7 @@ import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, RefreshCw, ChevronDown, ChevronUp } from 'lucide-angular';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
+import { AttendanceStatus } from '@muixer/shared';
 import { AvailablePerson, AssignmentDetail, HeightMode } from '../../models/assignment.model';
 
 @Component({
@@ -57,7 +58,7 @@ export class PersonPanelComponent {
   );
 
   readonly confirmedPersons = computed(() =>
-    this.freePersons().filter((p) => p.attendanceStatus === 'ANIRE'),
+    this.freePersons().filter((p) => p.attendanceStatus === AttendanceStatus.ANIRE),
   );
 
   readonly sortedConfirmedPersons = computed(() => {
@@ -96,7 +97,7 @@ export class PersonPanelComponent {
           firstSurname: assignment.person.firstSurname,
           shoulderHeight: assignment.person.shoulderHeight,
           isXicalla: false,
-          attendanceStatus: 'ANIRE',
+          attendanceStatus: AttendanceStatus.ANIRE,
           nextPerformanceStatus: null,
           assignedInSegment: true,
           positions: [],

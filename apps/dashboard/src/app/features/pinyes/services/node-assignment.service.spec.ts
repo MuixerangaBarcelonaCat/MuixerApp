@@ -104,10 +104,4 @@ describe('NodeAssignmentService', () => {
     req.flush({ data: [] });
   });
 
-  it('getNextPerformance sends GET to /events/:id/next-performance', () => {
-    service.getNextPerformance(EVENT_ID).subscribe();
-    const req = httpMock.expectOne(`${BASE}/events/${EVENT_ID}/next-performance`);
-    expect(req.request.method).toBe('GET');
-    req.flush(null);
-  });
 });

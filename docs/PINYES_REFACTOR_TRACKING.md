@@ -34,15 +34,15 @@ Audit date: 2026-06-05.
 | H3 | ✅ | History `getCount()` inflated by `leftJoinAndSelect` on collections (`assignments`, `instanceNodes`) | `node-assignment.service.ts` |
 | H4 | ✅ | `FigureTemplateService.update` not transactional — partial failure between `save`, `syncNodes`, `syncRengles` leaves inconsistent state | `figure-template.service.ts` |
 | H5 | ✅ | Composition slug not validated for uniqueness in `update` / `create` — unhandled 23505 DB error | `composition-template.service.ts` |
-| H6 | ⬜ | `upgradeInstance` not atomic — 3 separate write operations without transaction | `node-assignment.service.ts` |
-| H7 | ⬜ | `updateCordons` bypasses assignment lock (`checkEventLock` not called) — policy decision needed | `node-assignment.service.ts` |
-| H8 | ⬜ | Reorder partial — omitted segment/instance IDs keep stale `sortOrder`, creates duplicates | `event-segment.service.ts`, `figure-instance.service.ts` |
-| H9 | ⬜ | Composition `findOne` missing family nodes (TRONC/BASE) — canvas shows incomplete figures | `composition-template.service.ts` |
-| H10 | ⬜ | N+1 in projection endpoint — 2N service calls per instance | `projection.service.ts` |
-| H11 | ⬜ | N+1 in `getEventAssignmentSummary` — 1 query per segment | `node-assignment.service.ts` |
-| H12 | ⬜ | `assign()` does not verify `person.isActive` — inactive persons can be assigned | `node-assignment.service.ts` |
-| H13 | ⬜ | `duplicate()` for FigureTemplate missing rengles ← done (H2) | — |
-| H14 | ⬜ | `FigureInstanceService.assignedCount` ← done (H1) | — |
+| H6 | ✅ | `upgradeInstance` not atomic — Fixed: wrapped node save + position updates + instance FK update in `dataSource.transaction` | `node-assignment.service.ts` |
+| H7 | ✅ | `updateCordons` bypasses assignment lock — Fixed: added `checkEventLock(instanceId)` call | `node-assignment.service.ts` |
+| H8 | ✅ | Reorder partial — Fixed: validate dto contains ALL existing IDs, reject partial reorders with `BadRequestException` | `event-segment.service.ts`, `figure-instance.service.ts` |
+| H9 | ✅ | Composition `findOne` missing family nodes (TRONC/BASE) — Fixed: load family relation, batch-fetch `FigureFamilyNode`s, merge into slot node list | `composition-template.service.ts` |
+| H10 | ✅ | N+1 in projection endpoint — Fixed: batch load all `InstanceNode`s and `NodeAssignment`s with `In()`, removed per-instance service calls | `projection.service.ts`, `event-segment.module.ts` |
+| H11 | ✅ | N+1 in `getEventAssignmentSummary` — Fixed: single query for all instances via `In(segmentIds)`, group in memory | `node-assignment.service.ts` |
+| H12 | ✅ | `assign()` does not verify `person.isActive` — Fixed: added `BadRequestException` guard after person lookup | `node-assignment.service.ts` |
+| H13 | ✅ | `duplicate()` for FigureTemplate missing rengles — (fixed in H2) | — |
+| H14 | ✅ | `FigureInstanceService.assignedCount` — (fixed in H1) | — |
 
 ---
 
@@ -60,15 +60,15 @@ Move response interfaces and request interfaces from `apps/api` modules and `app
 
 | ID | Status | Interface(s) | Module |
 |----|--------|-------------|--------|
-| S1 | ⬜ | `FigureNodeItem`, `RenglaItem`, `FigureTemplateListItem`, `FigureTemplateDetailItem` | figure |
-| S2 | ⬜ | `FigureFamilyVariantSummary`, `FigureFamilyListItem`, `FigureFamilyDetailItem` | figure |
-| S3 | ⬜ | `CompositionSlotItem`, `CompositionTemplateListItem`, `CompositionTemplateDetailItem` | composition |
-| S4 | ⬜ | `InstanceRef`, `SegmentWithInstances` | event-segment |
-| S5 | ⬜ | `ProjectionInstanceData`, `ProjectionData` | event-segment |
-| S6 | ⬜ | `AssignmentDetail`, `InstanceNodeResponse` | node-assignment |
-| S7 | ⬜ | `AvailablePersonDto`, `AvailablePersonPositionDto`, `AvailablePersonsQuery` | node-assignment |
-| S8 | ⬜ | History/summary types: `FigureHistoryEntry`, `PersonAssignmentEntry`, `EventFigureSummary`, etc. | node-assignment |
-| S9 | ⬜ | `ReferenceElementItem` | reference-element |
+| S1 | ✅ | `FigureNodeItem`, `RenglaItem`, `FigureTemplateListItem`, `FigureTemplateDetail` | figure |
+| S2 | ✅ | `FigureFamilyVariant`, `FigureFamilyListItem`, `FigureFamilyDetail` | figure |
+| S3 | ✅ | `CompositionSlotItem`, `CompositionTemplateListItem`, `CompositionTemplateDetail` | composition |
+| S4 | ✅ | `InstanceRef`, `SegmentDetail` | event-segment |
+| S5 | ✅ | `ProjectionInstance`, `ProjectionSegmentData` | event-segment |
+| S6 | ✅ | `AssignmentDetail`, `InstanceNodeItem` | node-assignment |
+| S7 | ✅ | `AvailablePerson`, `AvailablePersonPosition` | node-assignment |
+| S8 | ✅ | History/summary types: `FigureHistoryEntry`, `PersonAssignmentEntry`, `EventFigureSummary`, etc. | node-assignment |
+| S9 | ✅ | `ReferenceElementItem` | reference-element |
 
 ### Tier B — Request interfaces (optional, after Tier A)
 
@@ -80,8 +80,8 @@ Move response interfaces and request interfaces from `apps/api` modules and `app
 
 | ID | Status | Description | File |
 |----|--------|-------------|------|
-| D1 | ⬜ | `assignment.model.ts` uses local `AttendanceStatus` union → import from `@muixer/shared` | `apps/dashboard/.../models/assignment.model.ts` |
-| D2 | ⬜ | `assignment.model.ts` uses `zone: string` → change to `zone: FigureZone` | same |
+| D1 | ✅ | `assignment.model.ts` uses local `AttendanceStatus` union → import from `@muixer/shared` | `apps/dashboard/.../models/assignment.model.ts` |
+| D2 | ✅ | `assignment.model.ts` uses `zone: string` → change to `zone: FigureZone` | same |
 
 ---
 
@@ -91,29 +91,29 @@ Move response interfaces and request interfaces from `apps/api` modules and `app
 
 | ID | Status | What | Evidence |
 |----|--------|------|----------|
-| DC1 | ⬜ | `SegmentCanvasComponent` (554 lines) | Selector never imported outside file; replaced by CSS grid projection |
-| DC2 | ⬜ | `ReferenceElementService` (frontend) | No component injects it; only in spec |
-| DC3 | ⬜ | `reference-element.model.ts` payload types | Only consumed by dead service / dead component |
+| DC1 | ✅ | `SegmentCanvasComponent` (554 lines) | Selector never imported outside file; replaced by CSS grid projection |
+| DC2 | ✅ | `ReferenceElementService` (frontend) | No component injects it; only in spec |
+| DC3 | ✅ | `reference-element.model.ts` payload types | Only consumed by dead service / dead component |
 
 ### Frontend dead code (MEDIUM)
 
 | ID | Status | What | File |
 |----|--------|------|------|
-| DC4 | ⬜ | `compositionSlotItemToCanvasSlot()` | `figure-canvas.component.ts` |
-| DC5 | ⬜ | `calculatePinyaCentroid()` | `ghost-clone.util.ts` |
-| DC6 | ⬜ | `ProjectionService.updateProjectionLayout` (frontend) | `projection.service.ts` |
-| DC7 | ⬜ | `NodeAssignmentService.getNextPerformance` (frontend) | `node-assignment.service.ts` (dashboard) |
-| DC8 | ⬜ | `FigureInstanceService.update` (frontend) | `figure-instance.service.ts` (dashboard) |
-| DC9 | ⬜ | `CanvasStateService` signals: `zoom`, `panOffset`, `selectedNodeId` | `canvas-state.service.ts` |
-| DC10 | ⬜ | `FigureCanvasComponent`: `getStageTransform()`, `nodeDoubleClicked` output, `zoomChanged` output | `figure-canvas.component.ts` |
+| DC4 | ✅ | `compositionSlotItemToCanvasSlot()` | `figure-canvas.component.ts` |
+| DC5 | ✅ | `calculatePinyaCentroid()` | `ghost-clone.util.ts` |
+| DC6 | ✅ | `ProjectionService.updateProjectionLayout` (frontend) | `projection.service.ts` |
+| DC7 | ✅ | `NodeAssignmentService.getNextPerformance` (frontend) | `node-assignment.service.ts` (dashboard) |
+| DC8 | ✅ | `FigureInstanceService.update` + `reorder` (frontend) | `figure-instance.service.ts` (dashboard) |
+| DC9 | ✅ | `CanvasStateService` signals: `zoom`, `panOffset`, `selectedNodeId` | `canvas-state.service.ts` |
+| DC10 | ✅ | `FigureCanvasComponent`: `getStageTransform()`, `nodeDoubleClicked` output, `zoomChanged` output | `figure-canvas.component.ts` |
 
 ### Backend dead code (MEDIUM — policy decision needed)
 
 | ID | Status | What | Notes |
 |----|--------|------|-------|
-| DC11 | ⬜ | `POST /instances/:id/upgrade` backend endpoint | No frontend client; confirm whether to keep for future API |
-| DC12 | ⬜ | Reference-element REST CRUD controller | No frontend HTTP client; entity still used internally |
-| DC13 | ⬜ | `PUT /segments/:id/instances/projection-layout` | No frontend client after P5.9 grid refactor |
+| DC11 | ✅ | `POST /instances/:id/upgrade` backend endpoint | Removed: no frontend client; `sourceVariantOrder`/`originNodeId` columns kept |
+| DC12 | ✅ | Reference-element REST CRUD controller | Controller + spec deleted; `ReferenceElementService` (backend) + entity kept (used by projection) |
+| DC13 | ✅ | `PUT /segments/:id/instances/projection-layout` | Removed: superseded by P5.9 CSS grid; `projectionX/Y/Scale` columns kept |
 
 ---
 
@@ -160,6 +160,8 @@ Move response interfaces and request interfaces from `apps/api` modules and `app
 
 ## Notes
 
-- **Phase 1 completed**: 2026-06-05
-- **Next**: Phase 2 (shared types) or Phase 3 (dead code) — recommend Phase 3 first to reduce surface area before migration
+- **Phase 1 completed**: 2026-06-05 (C1-C2 + H1-H14 all done)
+- **Phase 2 completed**: 2026-06-05 — Tier A (S1-S9) + quick wins (D1-D2) done. 6 new interface files in `libs/shared/src/interfaces/pinyes/`. All backend services import from `@muixer/shared`, all frontend models re-export via `export type`. Tests: API 517/517, Dashboard 479/479.
+- **Phase 3 completed**: 2026-06-05 — DC1-DC13 all done. Deleted: `segment-canvas/`, `reference-element.{service,model}` (frontend), reference-element controller (backend), `UpdateProjectionLayoutDto`. Removed: `upgradeInstance()`, 6 dead methods/functions, 3 dead signals, 3 dead `FigureCanvasComponent` members, all cascade types + specs. Tests: API 502/502, Dashboard 465/467 (2 skipped). `nx build api` ✅; `nx build dashboard` fails pre-existing (unrelated to Phase 3).
+- **Next**: Phase 4 (frontend quality)
 - Each phase should have its own feature branch and PR for reviewability

@@ -6,34 +6,15 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import {
+  FigureFamilyVariant,
+  FigureFamilyListItem,
+  FigureFamilyDetail,
+} from '@muixer/shared';
 import { FigureFamily } from './entities/figure-family.entity';
 import { CreateFigureFamilyDto } from './dto/create-figure-family.dto';
 import { UpdateFigureFamilyDto } from './dto/update-figure-family.dto';
 import { FigureFamilyFilterDto } from './dto/figure-family-filter.dto';
-
-export interface FigureFamilyVariantSummary {
-  id: string;
-  name: string;
-  slug: string;
-  variantOrder: number;
-  nodeCount: number;
-  renglaCount: number;
-}
-
-export interface FigureFamilyListItem {
-  id: string;
-  name: string;
-  slug: string;
-  description: string | null;
-  variantCount: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface FigureFamilyDetailItem extends FigureFamilyListItem {
-  metadata: Record<string, unknown>;
-  variants: FigureFamilyVariantSummary[];
-}
 
 @Injectable()
 export class FigureFamilyService {
@@ -69,7 +50,7 @@ export class FigureFamilyService {
     return { data: families.map(toListItem), total };
   }
 
-  async findOne(id: string): Promise<FigureFamilyDetailItem> {
+  async findOne(id: string): Promise<FigureFamilyDetail> {
     const family = await this.familyRepository.findOne({
       where: { id },
       relations: ['templates', 'templates.nodes', 'templates.rengles'],
@@ -82,7 +63,7 @@ export class FigureFamilyService {
     return toDetailItem(family);
   }
 
-  async create(dto: CreateFigureFamilyDto): Promise<FigureFamilyDetailItem> {
+  async create(dto: CreateFigureFamilyDto): Promise<FigureFamilyDetail> {
     await this.assertSlugAvailable(dto.slug);
 
     const family = this.familyRepository.create({
@@ -102,7 +83,7 @@ export class FigureFamilyService {
     return this.findOne(saved!.id);
   }
 
-  async update(id: string, dto: UpdateFigureFamilyDto): Promise<FigureFamilyDetailItem> {
+  async update(id: string, dto: UpdateFigureFamilyDto): Promise<FigureFamilyDetail> {
     const family = await this.familyRepository.findOne({ where: { id } });
 
     if (!family) {
@@ -176,12 +157,12 @@ function toListItem(
     slug: family.slug,
     description: family.description,
     variantCount: (family as unknown as { variantCount: number }).variantCount ?? 0,
-    createdAt: family.createdAt,
-    updatedAt: family.updatedAt,
+    createdAt: family.createdAt.toISOString(),
+    updatedAt: family.updatedAt.toISOString(),
   };
 }
 
-function toDetailItem(family: FigureFamily): FigureFamilyDetailItem {
+function toDetailItem(family: FigureFamily): FigureFamilyDetail {
   const templates = family.templates ?? [];
   const sorted = [...templates].sort((a, b) => a.variantOrder - b.variantOrder);
 
@@ -189,7 +170,7 @@ function toDetailItem(family: FigureFamily): FigureFamilyDetailItem {
     ...toListItem(family),
     variantCount: templates.length,
     metadata: family.metadata,
-    variants: sorted.map((t) => ({
+    variants: sorted.map<FigureFamilyVariant>((t) => ({
       id: t.id,
       name: t.name,
       slug: t.slug,

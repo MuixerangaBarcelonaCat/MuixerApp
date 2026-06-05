@@ -1,37 +1,20 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
+import {
+  AssignmentDetail,
+  FigureZone,
+  InstanceNodeItem,
+  NodeShape,
+  ProjectionInstance,
+  ProjectionSegmentData,
+} from '@muixer/shared';
 import { EventSegment } from './entities/event-segment.entity';
 import { FigureInstance } from './entities/figure-instance.entity';
-import { NodeAssignmentService, AssignmentDetail, InstanceNodeResponse } from '../node-assignment/node-assignment.service';
+import { InstanceNode } from './entities/instance-node.entity';
+import { NodeAssignment } from '../node-assignment/entities/node-assignment.entity';
 import { ReferenceElementService } from '../reference-element/reference-element.service';
-import { ReferenceElement } from '../reference-element/entities/reference-element.entity';
-
-export interface ProjectionInstanceData {
-  id: string;
-  label: string | null;
-  sortOrder: number;
-  numberOfCordons: number | null;
-  openCordons: string[] | null;
-  projectionX: number | null;
-  projectionY: number | null;
-  projectionScale: number;
-  figureTemplate: { id: string; name: string } | null;
-  nodes: InstanceNodeResponse[];
-  assignments: AssignmentDetail[];
-}
-
-export interface ProjectionData {
-  segment: {
-    id: string;
-    name: string | null;
-    sortOrder: number;
-    prevSegmentId: string | null;
-    nextSegmentId: string | null;
-  };
-  instances: ProjectionInstanceData[];
-  referenceElements: ReferenceElement[];
-}
+import { isNodeVisible } from '../node-assignment/node-assignment.service';
 
 @Injectable()
 export class ProjectionService {
@@ -40,11 +23,14 @@ export class ProjectionService {
     private readonly segmentRepository: Repository<EventSegment>,
     @InjectRepository(FigureInstance)
     private readonly instanceRepository: Repository<FigureInstance>,
-    private readonly nodeAssignmentService: NodeAssignmentService,
+    @InjectRepository(InstanceNode)
+    private readonly instanceNodeRepository: Repository<InstanceNode>,
+    @InjectRepository(NodeAssignment)
+    private readonly assignmentRepository: Repository<NodeAssignment>,
     private readonly referenceElementService: ReferenceElementService,
   ) {}
 
-  async getProjection(eventId: string, segmentId: string): Promise<ProjectionData> {
+  async getProjection(eventId: string, segmentId: string): Promise<ProjectionSegmentData> {
     const segment = await this.segmentRepository.findOne({
       where: { id: segmentId, event: { id: eventId } },
     });
@@ -70,34 +56,111 @@ export class ProjectionService {
       order: { sortOrder: 'ASC' },
     });
 
-    const projectionInstances: ProjectionInstanceData[] = await Promise.all(
-      instances.map(async (instance) => {
-        const [nodes, assignments] = await Promise.all([
-          this.nodeAssignmentService.getInstanceNodes(instance.id),
-          this.nodeAssignmentService.getByInstance(instance.id),
-        ]);
-        return {
-          id: instance.id,
-          label: instance.label,
-          sortOrder: instance.sortOrder,
-          numberOfCordons: instance.numberOfCordons,
-          openCordons: instance.openCordons,
-          projectionX: instance.projectionX,
-          projectionY: instance.projectionY,
-          projectionScale: instance.projectionScale,
-          figureTemplate: instance.figureTemplate
-            ? { id: instance.figureTemplate.id, name: instance.figureTemplate.name }
-            : null,
-          nodes,
-          assignments,
-        };
-      }),
-    );
+    const instanceIds = instances.map((i) => i.id);
 
-    const allElements = await this.referenceElementService.findByEvent(eventId);
-    const visibleElements = allElements.filter(
-      (el) => !el.hiddenInSegments.includes(segmentId),
-    );
+    const [allNodes, allAssignments, allElements] = await Promise.all([
+      instanceIds.length > 0
+        ? this.instanceNodeRepository.find({
+            where: { figureInstance: { id: In(instanceIds) } },
+            order: { sortOrder: 'ASC' },
+          })
+        : Promise.resolve([]),
+      instanceIds.length > 0
+        ? this.assignmentRepository.find({
+            where: { figureInstance: { id: In(instanceIds) } },
+            relations: ['instanceNode', 'person', 'compositionSlot', 'figureInstance'],
+          })
+        : Promise.resolve([]),
+      this.referenceElementService.findByEvent(eventId),
+    ]);
+
+    const nodesByInstance = new Map<string, InstanceNode[]>();
+    for (const node of allNodes) {
+      const iid = (node.figureInstance as any)?.id ?? (node as any).figureInstanceId;
+      if (!nodesByInstance.has(iid)) nodesByInstance.set(iid, []);
+      nodesByInstance.get(iid)!.push(node);
+    }
+
+    const assignmentsByInstance = new Map<string, NodeAssignment[]>();
+    for (const a of allAssignments) {
+      const iid = a.figureInstance.id;
+      if (!assignmentsByInstance.has(iid)) assignmentsByInstance.set(iid, []);
+      assignmentsByInstance.get(iid)!.push(a);
+    }
+
+    const projectionInstances: ProjectionInstance[] = instances.map((instance) => {
+      let nodes: InstanceNodeItem[] = (nodesByInstance.get(instance.id) ?? []).map((n) => ({
+        id: n.id,
+        sourceNodeId: n.sourceNodeId,
+        originNodeId: n.originNodeId,
+        label: n.label,
+        zone: n.zone as FigureZone,
+        positionType: n.positionType,
+        x: n.x,
+        y: n.y,
+        z: n.z,
+        width: n.width,
+        height: n.height,
+        rotation: n.rotation,
+        color: n.color,
+        shape: n.shape as NodeShape,
+        sortOrder: n.sortOrder,
+        ringLevel: n.ringLevel,
+        renglaId: n.renglaId,
+        renglaPosition: n.renglaPosition,
+        isSnapshotted: true,
+      }));
+
+      if (instance.numberOfCordons !== null || (instance.openCordons && instance.openCordons.length > 0)) {
+        nodes = nodes.filter((node) =>
+          isNodeVisible(node, instance.numberOfCordons, instance.openCordons),
+        );
+      }
+
+      const assignments: AssignmentDetail[] = (assignmentsByInstance.get(instance.id) ?? []).map((a) => ({
+        id: a.id,
+        figureInstanceId: a.figureInstance.id,
+        compositionSlotId: a.compositionSlot?.id ?? null,
+        node: {
+          id: a.instanceNode.id,
+          label: a.instanceNode.label,
+          zone: a.instanceNode.zone as FigureZone,
+          z: a.instanceNode.z,
+          positionType: a.instanceNode.positionType,
+          sortOrder: a.instanceNode.sortOrder,
+          ringLevel: a.instanceNode.ringLevel,
+          originNodeId: a.instanceNode.originNodeId,
+          sourceNodeId: a.instanceNode.sourceNodeId,
+        },
+        person: {
+          id: a.person.id,
+          alias: (a.person as any).alias,
+          name: (a.person as any).name,
+          firstSurname: (a.person as any).firstSurname,
+          shoulderHeight: (a.person as any).shoulderHeight ?? null,
+        },
+      }));
+
+      return {
+        id: instance.id,
+        label: instance.label,
+        sortOrder: instance.sortOrder,
+        numberOfCordons: instance.numberOfCordons,
+        openCordons: instance.openCordons,
+        projectionX: instance.projectionX,
+        projectionY: instance.projectionY,
+        projectionScale: instance.projectionScale,
+        figureTemplate: instance.figureTemplate
+          ? { id: instance.figureTemplate.id, name: instance.figureTemplate.name }
+          : null,
+        nodes,
+        assignments,
+      };
+    });
+
+    const visibleElements = allElements
+      .filter((el) => !el.hiddenInSegments.includes(segmentId))
+      .map(ReferenceElementService.toItem);
 
     return {
       segment: {
