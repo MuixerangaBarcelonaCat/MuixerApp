@@ -13,7 +13,7 @@ import { EventSegment } from './entities/event-segment.entity';
 import { FigureInstance } from './entities/figure-instance.entity';
 import { InstanceNode } from './entities/instance-node.entity';
 import { NodeAssignment } from '../node-assignment/entities/node-assignment.entity';
-import { ReferenceElementService } from '../reference-element/reference-element.service';
+import { Person } from '../person/person.entity';
 import { isNodeVisible } from '../node-assignment/node-assignment.service';
 
 @Injectable()
@@ -27,7 +27,6 @@ export class ProjectionService {
     private readonly instanceNodeRepository: Repository<InstanceNode>,
     @InjectRepository(NodeAssignment)
     private readonly assignmentRepository: Repository<NodeAssignment>,
-    private readonly referenceElementService: ReferenceElementService,
   ) {}
 
   async getProjection(eventId: string, segmentId: string): Promise<ProjectionSegmentData> {
@@ -58,7 +57,7 @@ export class ProjectionService {
 
     const instanceIds = instances.map((i) => i.id);
 
-    const [allNodes, allAssignments, allElements] = await Promise.all([
+    const [allNodes, allAssignments] = await Promise.all([
       instanceIds.length > 0
         ? this.instanceNodeRepository.find({
             where: { figureInstance: { id: In(instanceIds) } },
@@ -71,7 +70,6 @@ export class ProjectionService {
             relations: ['instanceNode', 'person', 'compositionSlot', 'figureInstance'],
           })
         : Promise.resolve([]),
-      this.referenceElementService.findByEvent(eventId),
     ]);
 
     const nodesByInstance = new Map<string, InstanceNode[]>();
@@ -134,10 +132,10 @@ export class ProjectionService {
         },
         person: {
           id: a.person.id,
-          alias: (a.person as any).alias,
-          name: (a.person as any).name,
-          firstSurname: (a.person as any).firstSurname,
-          shoulderHeight: (a.person as any).shoulderHeight ?? null,
+          alias: (a.person as Person).alias,
+          name: (a.person as Person).name,
+          firstSurname: (a.person as Person).firstSurname,
+          shoulderHeight: (a.person as Person).shoulderHeight ?? null,
         },
       }));
 
@@ -147,9 +145,6 @@ export class ProjectionService {
         sortOrder: instance.sortOrder,
         numberOfCordons: instance.numberOfCordons,
         openCordons: instance.openCordons,
-        projectionX: instance.projectionX,
-        projectionY: instance.projectionY,
-        projectionScale: instance.projectionScale,
         figureTemplate: instance.figureTemplate
           ? { id: instance.figureTemplate.id, name: instance.figureTemplate.name }
           : null,
@@ -157,10 +152,6 @@ export class ProjectionService {
         assignments,
       };
     });
-
-    const visibleElements = allElements
-      .filter((el) => !el.hiddenInSegments.includes(segmentId))
-      .map(ReferenceElementService.toItem);
 
     return {
       segment: {
@@ -171,7 +162,6 @@ export class ProjectionService {
         nextSegmentId,
       },
       instances: projectionInstances,
-      referenceElements: visibleElements,
     };
   }
 }

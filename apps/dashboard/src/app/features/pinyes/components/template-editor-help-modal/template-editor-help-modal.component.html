@@ -6,7 +6,7 @@
     aria-modal="true"
     (keydown.escape)="close()"
   >
-    <div class="modal-box max-w-2xl max-h-[80vh] flex flex-col p-0">
+    <div class="modal-box max-w-2xl max-h-[80vh] flex flex-col p-0" cdkTrapFocus cdkTrapFocusAutoCapture>
       <!-- Header -->
       <div class="flex items-center justify-between px-5 pt-4 pb-3 border-b border-base-300 shrink-0">
         <h2 id="editor-help-title" class="text-lg font-bold">Ajuda del creador de figures</h2>

@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsBoolean, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class FigureFamilyFilterDto {
   @ApiPropertyOptional({ description: 'Search by name or slug' })
@@ -19,6 +19,15 @@ export class FigureFamilyFilterDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(200)
   @IsOptional()
-  limit?: number;
+  limit?: number = 25;
+
+  @ApiPropertyOptional({
+    description: 'When true, returns FigureFamilyDetail with variants instead of FigureFamilyListItem',
+  })
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  @IsOptional()
+  includeVariants?: boolean;
 }

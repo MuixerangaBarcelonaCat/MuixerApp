@@ -36,9 +36,6 @@ const makeInstance = (overrides = {}) => ({
   assignedCount: 0,
   numberOfCordons: null,
   openCordons: null,
-  projectionX: null,
-  projectionY: null,
-  projectionScale: 1,
   figureTemplate: { id: 'fig-1', name: 'pd4' },
   compositionTemplate: null,
   ...overrides,
@@ -128,8 +125,8 @@ describe('SegmentManagerComponent', () => {
       const seg = makeSegment({
         name: null,
         instances: [
-          { id: 'i1', label: null, sortOrder: 0, snapshotted: false, sourceVariantOrder: null, assignedCount: 0, numberOfCordons: null, openCordons: null, projectionX: null, projectionY: null, projectionScale: 1, figureTemplate: { id: 'f1', name: 'pd4' }, compositionTemplate: null },
-          { id: 'i2', label: null, sortOrder: 1, snapshotted: false, sourceVariantOrder: null, assignedCount: 0, numberOfCordons: null, openCordons: null, projectionX: null, projectionY: null, projectionScale: 1, figureTemplate: null, compositionTemplate: { id: 'c1', name: 'Altar' } },
+          { id: 'i1', label: null, sortOrder: 0, snapshotted: false, sourceVariantOrder: null, assignedCount: 0, numberOfCordons: null, openCordons: null, figureTemplate: { id: 'f1', name: 'pd4' }, compositionTemplate: null },
+          { id: 'i2', label: null, sortOrder: 1, snapshotted: false, sourceVariantOrder: null, assignedCount: 0, numberOfCordons: null, openCordons: null, figureTemplate: null, compositionTemplate: { id: 'c1', name: 'Altar' } },
         ],
       });
       expect(component.displayName()(seg)).toBe('pd4 + Altar');

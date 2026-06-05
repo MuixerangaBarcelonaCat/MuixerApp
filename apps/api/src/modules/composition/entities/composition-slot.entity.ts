@@ -4,6 +4,8 @@ import {
   Column,
   ManyToOne,
   JoinColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { CompositionTemplate } from './composition-template.entity';
 import { FigureTemplate } from '../../figure/entities/figure-template.entity';
@@ -39,4 +41,10 @@ export class CompositionSlot {
 
   @Column({ type: 'int', default: 0 })
   sortOrder: number;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 }

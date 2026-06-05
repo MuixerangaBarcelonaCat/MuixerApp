@@ -7,13 +7,7 @@ import { Attendance } from '../event/attendance.entity';
 import { Event } from '../event/event.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
 import { NodeAssignment } from './entities/node-assignment.entity';
-
-export interface AvailablePersonsQuery {
-  search?: string;
-  height?: number;
-  isXicalla?: boolean;
-  excludeAssigned?: boolean;
-}
+import { AvailablePersonsQueryDto } from './dto/available-persons-query.dto';
 
 @Injectable()
 export class AvailablePersonsService {
@@ -33,7 +27,7 @@ export class AvailablePersonsService {
   async getAvailablePersons(
     eventId: string,
     segmentId: string,
-    query: AvailablePersonsQuery = {},
+    query: AvailablePersonsQueryDto = {},
   ): Promise<AvailablePerson[]> {
     const event = await this.eventRepository.findOne({ where: { id: eventId } });
     if (!event) {
@@ -49,18 +43,8 @@ export class AvailablePersonsService {
       );
     }
 
-    const { search, height } = query;
-
-    // HTTP query params arrive as strings — coerce booleans explicitly
-    const raw = query as unknown as Record<string, string | boolean | undefined>;
-    const coerceBool = (v: string | boolean | undefined, def: boolean): boolean => {
-      if (v === undefined) return def;
-      if (typeof v === 'boolean') return v;
-      return v === 'true';
-    };
-    const isXicallaBool: boolean | undefined =
-      raw['isXicalla'] === undefined ? undefined : coerceBool(raw['isXicalla'], false);
-    const excludeAssignedBool = coerceBool(raw['excludeAssigned'], true);
+    const { search, height, isXicalla: isXicallaBool, excludeAssigned } = query;
+    const excludeAssignedBool = excludeAssigned ?? true;
 
     // Build base person query
     const qb = this.personRepository

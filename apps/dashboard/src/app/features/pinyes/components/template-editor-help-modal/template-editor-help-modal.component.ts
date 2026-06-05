@@ -7,6 +7,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import { CdkTrapFocus } from '@angular/cdk/a11y';
 import {
   LucideAngularModule,
   Circle,
@@ -264,7 +265,7 @@ const HELP_SECTIONS: HelpSection[] = [
   selector: 'app-template-editor-help-modal',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule],
+  imports: [LucideAngularModule, CdkTrapFocus],
   templateUrl: './template-editor-help-modal.component.html',
 })
 export class TemplateEditorHelpModalComponent implements OnInit {

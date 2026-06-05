@@ -4,6 +4,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import { CdkTrapFocus } from '@angular/cdk/a11y';
 import {
   LucideAngularModule,
   Layers,
@@ -24,7 +25,7 @@ interface OnboardingStep {
   selector: 'app-pinyes-onboarding-modal',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule],
+  imports: [LucideAngularModule, CdkTrapFocus],
   templateUrl: './pinyes-onboarding-modal.component.html',
 })
 export class PinyesOnboardingModalComponent {

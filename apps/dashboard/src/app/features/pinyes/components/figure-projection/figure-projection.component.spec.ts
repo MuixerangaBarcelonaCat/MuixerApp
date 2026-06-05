@@ -41,9 +41,6 @@ const makeInstance = (overrides: Partial<ProjectionInstance> = {}): ProjectionIn
   sortOrder: 0,
   numberOfCordons: null,
   openCordons: null,
-  projectionX: 100,
-  projectionY: 200,
-  projectionScale: 1,
   figureTemplate: { id: 'fig-uuid', name: 'Pinet Doble de 4' },
   nodes: [
     {

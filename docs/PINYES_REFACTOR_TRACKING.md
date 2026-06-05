@@ -123,23 +123,23 @@ Move response interfaces and request interfaces from `apps/api` modules and `app
 
 | ID | Status | Issue | Scope |
 |----|--------|-------|-------|
-| FQ1 | ⬜ | **No `takeUntilDestroyed()` anywhere** — all 8+ components with `.subscribe()` have no cleanup | Module-wide |
-| FQ2 | ⬜ | `figure-canvas.component.ts` (1416 lines) — extract KonvaStageService + mode renderers | `figure-canvas/` |
-| FQ3 | ⬜ | N+1 family detail loading in `TemplateListComponent` + `FigurePickerModalComponent` | `template-list/`, `figure-picker-modal/` |
-| FQ4 | ⬜ | `template-list.component.html` (728 lines) — extract tab subcomponents | `template-list/` |
-| FQ5 | ⬜ | `template-editor.component.ts` (817 lines) + `assignment-canvas.component.ts` (816 lines) — split | — |
+| FQ1 | ✅ | **No `takeUntilDestroyed()` anywhere** — all 8+ components with `.subscribe()` have no cleanup | Module-wide |
+| FQ2 | ✅ | `figure-canvas.component.ts` (1416 lines) — extract KonvaStageService + mode renderers | `figure-canvas/` |
+| FQ3 | ✅ | N+1 family detail loading in `TemplateListComponent` + `FigurePickerModalComponent` | `template-list/`, `figure-picker-modal/` |
+| FQ4 | ✅ | `template-list.component.html` (728 lines) — extract tab subcomponents | `template-list/` |
+| FQ5 | ✅ | `template-editor.component.ts` (817 lines) + `assignment-canvas.component.ts` (816 lines) — split | — |
 
 ### P2 (convention / nice to have)
 
 | ID | Status | Issue | Scope |
 |----|--------|-------|-------|
-| FQ6 | ⬜ | Migrate 4 `@ViewChild` usages to `viewChild()` | `person-panel`, `figure-canvas`, `composition-editor`, `segment-canvas` |
-| FQ7 | ⬜ | Shared drag-panel directive (duplicated in template-editor + assignment-canvas + projection-view) | Extract `FloatingPanelDragDirective` |
-| FQ8 | ⬜ | Shared utils: height formatting, attendance badge, `slugify` | Extract to `utils/` |
-| FQ9 | ⬜ | `effect()` / `linkedSignal()` underused — migrate `OnInit` + `OnChanges` reactive patterns | Module-wide |
-| FQ10 | ⬜ | `CommonModule` import unnecessary in `projection-view` (uses `@if`/`@for` control flow) | `projection-view/` |
-| FQ11 | ⬜ | Modal focus trap — add `CdkTrapFocus` to all modals | import-pinya, family-history, figure-picker, cordons-dialog, pinyes-onboarding |
-| FQ12 | ⬜ | `family-history-modal` table rows only clickable with mouse — add keyboard support | `family-history-modal/` |
+| FQ6 | ✅ | Migrate 4 `@ViewChild` usages to `viewChild()` | `person-panel`, `figure-canvas`, `composition-editor`, `segment-canvas` |
+| FQ7 | ✅ | Shared drag-panel directive (duplicated in template-editor + assignment-canvas + projection-view) | Extract `FloatingPanelDragDirective` |
+| FQ8 | ✅ | Shared utils: height formatting, attendance badge, `slugify` | Extract to `utils/` |
+| FQ9 | ✅ | `effect()` / `linkedSignal()` underused — migrate `OnInit` + `OnChanges` reactive patterns | Module-wide |
+| FQ10 | ✅ | `CommonModule` import unnecessary in `projection-view` (uses `@if`/`@for` control flow) | `projection-view/` |
+| FQ11 | ✅ | Modal focus trap — add `CdkTrapFocus` to all modals | import-pinya, family-history, figure-picker, cordons-dialog, pinyes-onboarding |
+| FQ12 | ✅ | `family-history-modal` table rows only clickable with mouse — add keyboard support | `family-history-modal/` |
 
 ---
 
@@ -147,14 +147,14 @@ Move response interfaces and request interfaces from `apps/api` modules and `app
 
 | ID | Status | Issue | File(s) |
 |----|--------|-------|---------|
-| BC1 | ⬜ | Missing `updatedAt` on `Rengla` entity | `rengla.entity.ts` |
-| BC2 | ⬜ | Missing `updatedAt` on `InstanceNode` entity | `instance-node.entity.ts` |
-| BC3 | ⬜ | Missing `createdAt`/`updatedAt` on `CompositionSlot` entity | `composition-slot.entity.ts` |
-| BC4 | ⬜ | ~10 `any` usages in `node-assignment.service.ts` | `node-assignment.service.ts` |
-| BC5 | ⬜ | `AvailablePersonsQuery` is an interface, not a DTO — lacks `@Type()`, `@Transform()` | `available-persons.service.ts` |
-| BC6 | ⬜ | Filter DTOs missing `@Max(100)` on `limit` | figure, composition filter DTOs |
-| BC7 | ⬜ | `assign()` does not check `person.isActive` | `node-assignment.service.ts` |
-| BC8 | ⬜ | Default pagination limit inconsistency (25 in filters, 20 in history) | filter DTOs |
+| BC1 | ✅ | Missing `updatedAt` on `Rengla` entity | `rengla.entity.ts` |
+| BC2 | ✅ | Missing `updatedAt` on `InstanceNode` entity | `instance-node.entity.ts` |
+| BC3 | ✅ | Missing `createdAt`/`updatedAt` on `CompositionSlot` entity | `composition-slot.entity.ts` |
+| BC4 | ✅ | ~10 `any` usages in `node-assignment.service.ts` | `node-assignment.service.ts` |
+| BC5 | ✅ | `AvailablePersonsQuery` is an interface, not a DTO — lacks `@Type()`, `@Transform()` | `available-persons.service.ts` |
+| BC6 | ✅ | Filter DTOs missing `@Max(100)` on `limit` | figure, composition filter DTOs |
+| BC7 | ✅ | `assign()` does not check `person.isActive` | `node-assignment.service.ts` |
+| BC8 | ✅ | Default pagination limit inconsistency (25 in filters, 20 in history) | filter DTOs |
 
 ---
 
@@ -163,5 +163,7 @@ Move response interfaces and request interfaces from `apps/api` modules and `app
 - **Phase 1 completed**: 2026-06-05 (C1-C2 + H1-H14 all done)
 - **Phase 2 completed**: 2026-06-05 — Tier A (S1-S9) + quick wins (D1-D2) done. 6 new interface files in `libs/shared/src/interfaces/pinyes/`. All backend services import from `@muixer/shared`, all frontend models re-export via `export type`. Tests: API 517/517, Dashboard 479/479.
 - **Phase 3 completed**: 2026-06-05 — DC1-DC13 all done. Deleted: `segment-canvas/`, `reference-element.{service,model}` (frontend), reference-element controller (backend), `UpdateProjectionLayoutDto`. Removed: `upgradeInstance()`, 6 dead methods/functions, 3 dead signals, 3 dead `FigureCanvasComponent` members, all cascade types + specs. Tests: API 502/502, Dashboard 465/467 (2 skipped). `nx build api` ✅; `nx build dashboard` fails pre-existing (unrelated to Phase 3).
-- **Next**: Phase 4 (frontend quality)
+- **Backend conventions completed**: 2026-06-05 — BC1-BC8 all done. Added `updatedAt` to `Rengla`/`InstanceNode`, `createdAt`+`updatedAt` to `CompositionSlot`. Eliminated 8 `as any` casts (IsNull(), remove unnecessary casts). Converted `AvailablePersonsQuery` interface to `AvailablePersonsQueryDto` class with `@Type`/`@Transform`. Added `@Max(100)` + DTO-level defaults to 3 filter DTOs. Standardized history pagination default to 25. Tests: API 502/502.
+- **Phase 4 completed**: 2026-06-05 — FQ1-FQ12 all done. Key deliverables: `takeUntilDestroyed` on 48 subscriptions across 10 components (FQ1); `figure-canvas` decomposed into `KonvaStageService` + 4 mode renderers + `NodeShapeFactory` (FQ2); N+1 eliminated via `includeVariants` API param + client-side family grouping (FQ3); `template-list` split into `FamilyListTab`, `FigureGridTab`, `CompositionGridTab` tab components (FQ4); `TemplateEditorStateService` + `AssignmentTabService` + `AssignmentOperationsService` extracted, components reduced to ~200 lines each (FQ5); 3 `@ViewChild` → `viewChild()` (FQ6); `FloatingPanelDragDirective` extracted (FQ7); `slugify`, `height-display`, `attendance-display` utils extracted (FQ8); 3 `ngOnChanges`/`ngOnInit` → `effect()`, 2 `signal()` → `linkedSignal()` (FQ9); `CommonModule` removed (FQ10); `CdkTrapFocus` on 11 modal surfaces (FQ11); keyboard navigation on history table rows (FQ12). Tests: Dashboard 465/467 (2 pre-existing skips).
+- **Next**: Phase 5 (P6 PWA mobile) or further P5 features
 - Each phase should have its own feature branch and PR for reviewability

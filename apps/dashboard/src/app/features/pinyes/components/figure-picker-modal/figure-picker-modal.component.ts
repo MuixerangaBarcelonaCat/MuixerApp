@@ -1,20 +1,21 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   computed,
+  effect,
   inject,
   input,
-  OnInit,
   output,
   signal,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { CdkTrapFocus } from '@angular/cdk/a11y';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
 import { FigureTemplateService } from '../../services/figure-template.service';
-import { FigureFamilyService } from '../../services/figure-family.service';
 import { CompositionTemplateService } from '../../services/composition-template.service';
 import { FigureTemplateListItem } from '../../models/figure-template.model';
-import { FigureFamilyDetail } from '../../models/figure-family.model';
 import { CompositionTemplateListItem } from '../../models/composition.model';
 
 export type PickerTab = 'figures' | 'composicions';
@@ -34,10 +35,10 @@ export interface FamilyGroup {
   selector: 'app-figure-picker-modal',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule],
+  imports: [FormsModule, LucideAngularModule, CdkTrapFocus],
   templateUrl: './figure-picker-modal.component.html',
 })
-export class FigurePickerModalComponent implements OnInit {
+export class FigurePickerModalComponent {
   open = input.required<boolean>();
   segmentId = input.required<string>();
 
@@ -45,30 +46,41 @@ export class FigurePickerModalComponent implements OnInit {
   closed = output<void>();
 
   private readonly figureService = inject(FigureTemplateService);
-  private readonly familyService = inject(FigureFamilyService);
   private readonly compositionService = inject(CompositionTemplateService);
+  private readonly destroyRef = inject(DestroyRef);
 
   activeTab = signal<PickerTab>('figures');
   search = signal('');
   loadingFigures = signal(false);
   loadingCompositions = signal(false);
 
-  families = signal<FigureFamilyDetail[]>([]);
   figures = signal<FigureTemplateListItem[]>([]);
   compositions = signal<CompositionTemplateListItem[]>([]);
 
-  // Figures grouped by family, filtered by search
+  // Figures grouped by family, derived client-side from the figure list (no extra HTTP calls)
   readonly familyGroups = computed<FamilyGroup[]>(() => {
     const q = this.search().toLowerCase();
-    return this.families()
-      .map((f) => {
-        const variants = f.variants
-          .map((v) => this.figures().find((fig) => fig.id === v.id))
-          .filter((fig): fig is FigureTemplateListItem => !!fig)
-          .filter((fig) => !q || fig.name.toLowerCase().includes(q) || f.name.toLowerCase().includes(q));
-        return { familyId: f.id, familyName: f.name, variants };
+    const withFamily = this.figures().filter((f) => !!f.familyId);
+
+    const byFamily = new Map<string, { name: string; variants: FigureTemplateListItem[] }>();
+    for (const fig of withFamily) {
+      const fid = fig.familyId!;
+      if (!byFamily.has(fid)) {
+        byFamily.set(fid, { name: fig.familyName ?? fid, variants: [] });
+      }
+      byFamily.get(fid)!.variants.push(fig);
+    }
+
+    return Array.from(byFamily.entries())
+      .map(([familyId, { name, variants }]) => {
+        const sorted = [...variants].sort((a, b) => a.variantOrder - b.variantOrder);
+        const filtered = q
+          ? sorted.filter((f) => f.name.toLowerCase().includes(q) || name.toLowerCase().includes(q))
+          : sorted;
+        return { familyId, familyName: name, variants: filtered };
       })
-      .filter((g) => g.variants.length > 0);
+      .filter((g) => g.variants.length > 0)
+      .sort((a, b) => a.familyName.localeCompare(b.familyName));
   });
 
   // Legacy (no-family) figures filtered by search
@@ -89,53 +101,21 @@ export class FigurePickerModalComponent implements OnInit {
     () => this.familyGroups().length > 0 || this.legacyFigures().length > 0,
   );
 
-  ngOnInit() {
-    this.loadFigures();
-    this.loadCompositions();
+  constructor() {
+    effect(() => {
+      if (this.open()) {
+        this.loadFigures();
+        this.loadCompositions();
+      }
+    });
   }
 
   private loadFigures() {
     this.loadingFigures.set(true);
-    this.figureService.getAll({ limit: 200 }).subscribe({
+    this.figureService.getAll({ limit: 200 }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (resp) => {
         this.figures.set(resp.data);
-        this.loadFamilies();
-      },
-      error: () => this.loadingFigures.set(false),
-    });
-  }
-
-  private loadFamilies() {
-    this.familyService.getAll({ limit: 100 }).subscribe({
-      next: (resp) => {
-        const listItems = resp.data;
-        if (listItems.length === 0) {
-          this.families.set([]);
-          this.loadingFigures.set(false);
-          return;
-        }
-        let completed = 0;
-        const details: FigureFamilyDetail[] = new Array(listItems.length);
-        listItems.forEach((item, idx) => {
-          this.familyService.getOne(item.id).subscribe({
-            next: (detail) => {
-              details[idx] = detail;
-              completed++;
-              if (completed === listItems.length) {
-                this.families.set(details);
-                this.loadingFigures.set(false);
-              }
-            },
-            error: () => {
-              details[idx] = { ...item, metadata: {}, variants: [] };
-              completed++;
-              if (completed === listItems.length) {
-                this.families.set(details);
-                this.loadingFigures.set(false);
-              }
-            },
-          });
-        });
+        this.loadingFigures.set(false);
       },
       error: () => this.loadingFigures.set(false),
     });
@@ -143,7 +123,7 @@ export class FigurePickerModalComponent implements OnInit {
 
   private loadCompositions() {
     this.loadingCompositions.set(true);
-    this.compositionService.getAll({ limit: 200 }).subscribe({
+    this.compositionService.getAll({ limit: 200 }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (resp) => {
         this.compositions.set(resp.data);
         this.loadingCompositions.set(false);

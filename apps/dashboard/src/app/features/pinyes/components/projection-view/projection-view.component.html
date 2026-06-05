@@ -266,7 +266,7 @@
   <!-- ── Help modal ─────────────────────────────────────────────────────────── -->
   @if (helpModalOpen()) {
     <dialog class="modal modal-open" aria-modal="true" aria-label="Ajuda de dreceres de teclat">
-      <div class="modal-box max-w-md">
+      <div class="modal-box max-w-md" cdkTrapFocus cdkTrapFocusAutoCapture>
         <h2 class="font-bold text-lg mb-4">Dreceres de teclat</h2>
 
         <table class="table table-sm w-full" role="grid">

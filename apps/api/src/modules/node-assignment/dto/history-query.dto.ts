@@ -13,7 +13,7 @@ export class HistoryQueryDto {
   @Max(100)
   @IsOptional()
   @Type(() => Number)
-  limit?: number = 20;
+  limit?: number = 25;
 
   @IsUUID('4')
   @IsOptional()

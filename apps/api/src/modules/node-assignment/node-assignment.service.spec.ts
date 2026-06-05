@@ -180,6 +180,7 @@ const mockInstanceNodeRepo = {
   save: jest.fn(),
   create: jest.fn((data: any) => ({ ...data, id: 'new-inode-uuid' })),
   update: jest.fn(),
+  createQueryBuilder: jest.fn(),
 };
 
 const mockFigureNodeRepo = {
@@ -479,6 +480,21 @@ describe('NodeAssignmentService', () => {
       ).rejects.toThrow(ConflictException);
     });
 
+    it('throws ConflictException if same person assigned to different composition slot of same instance', async () => {
+      const inode = makeInstanceNode();
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
+      mockPersonRepo.findOne.mockResolvedValue(makePerson());
+      mockInstanceNodeRepo.findOne.mockResolvedValue(inode);
+      mockSlotRepo.findOne.mockResolvedValue({ id: 'slot-b' });
+      mockAssignmentRepo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(makeAssignment());
+
+      await expect(
+        service.assign(INSTANCE_ID, { nodeId: INSTANCE_NODE_ID, personId: PERSON_ID, compositionSlotId: 'slot-b' }),
+      ).rejects.toThrow(ConflictException);
+    });
+
     // C1 — snapshot idempotency guard
     it('returns existing InstanceNodes when a concurrent request already snapshotted the instance', async () => {
       const unsnapshottedInstance = makeInstance({ snapshotted: false });
@@ -729,6 +745,7 @@ describe('NodeAssignmentService', () => {
     const mockHistoryQb = {
       leftJoin: jest.fn().mockReturnThis(),
       leftJoinAndSelect: jest.fn().mockReturnThis(),
+      loadRelationCountAndMap: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
@@ -765,7 +782,7 @@ describe('NodeAssignmentService', () => {
       expect(result.data[0].instanceId).toBe(INSTANCE_ID);
       expect(result.meta.total).toBe(1);
       expect(result.meta.page).toBe(1);
-      expect(result.meta.limit).toBe(20);
+      expect(result.meta.limit).toBe(25);
     });
 
     it('applies seasonId filter when provided', async () => {
@@ -859,7 +876,7 @@ describe('NodeAssignmentService', () => {
       const result = await service.getPersonHistory(PERSON_ID);
 
       expect(result.meta.page).toBe(1);
-      expect(result.meta.limit).toBe(20);
+      expect(result.meta.limit).toBe(25);
     });
   });
 
@@ -881,13 +898,21 @@ describe('NodeAssignmentService', () => {
         segment: { id: SEGMENT_ID },
         figureTemplate: { id: TEMPLATE_ID, name: 'Muixeranga de 5', family: { name: 'Muixeranga' } },
         snapshotted: true,
-        instanceNodes: [iNode],
         assignments: [assignment],
+      };
+
+      const mockNodeCountQb = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        getRawMany: jest.fn().mockResolvedValue([{ instanceId: 'fi-1', count: '1' }]),
       };
 
       mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
       mockSegmentRepo.find.mockResolvedValue([segment]);
       mockInstanceRepo.find.mockResolvedValue([figureInstance]);
+      mockInstanceNodeRepo.createQueryBuilder.mockReturnValue(mockNodeCountQb);
 
       const result = await service.getEventAssignmentSummary('e1');
 
@@ -918,6 +943,7 @@ describe('NodeAssignmentService', () => {
     const mockFamilyHistoryQb = {
       leftJoin: jest.fn().mockReturnThis(),
       leftJoinAndSelect: jest.fn().mockReturnThis(),
+      loadRelationCountAndMap: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
@@ -1041,6 +1067,28 @@ describe('NodeAssignmentService', () => {
       expect(result.conflicts).toHaveLength(1);
       expect(result.conflicts[0].reason).toContain('No matching node');
     });
+
+    it('rethrows unexpected errors from assign() instead of swallowing them', async () => {
+      const targetINode = makeInstanceNode({ sourceNodeId: FIGURE_NODE_ID });
+      const target = makeInstance({ snapshotted: true, instanceNodes: [targetINode] });
+      const source = makeInstance({ id: 'source-uuid', snapshotted: true });
+      const sourceAssignment = makeAssignment({
+        figureInstance: source as any,
+        instanceNode: makeInstanceNode({ sourceNodeId: FIGURE_NODE_ID }) as any,
+      });
+
+      mockInstanceRepo.findOne
+        .mockResolvedValueOnce(target)
+        .mockResolvedValueOnce(source)
+        .mockResolvedValueOnce(target); // reload inside assign
+
+      mockAssignmentRepo.find.mockResolvedValue([sourceAssignment]);
+      mockAssignmentRepo.findOne.mockRejectedValue(new Error('DB connection lost'));
+
+      await expect(
+        service.bulkImport(INSTANCE_ID, { sourceInstanceId: 'source-uuid' }),
+      ).rejects.toThrow('DB connection lost');
+    });
   });
 
   // ── Assignment lock ──────────────────────────────────────────────────
@@ -1104,6 +1152,22 @@ describe('NodeAssignmentService', () => {
       await expect(
         service.resetSnapshot(INSTANCE_ID),
       ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('throws NotFoundException when instance does not exist (lock enabled)', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.assign(INSTANCE_ID, { nodeId: INSTANCE_NODE_ID, personId: PERSON_ID }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws NotFoundException when instance has no segment/event', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue({ id: INSTANCE_ID, segment: null });
+
+      await expect(
+        service.assign(INSTANCE_ID, { nodeId: INSTANCE_NODE_ID, personId: PERSON_ID }),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('allows assign() when ASSIGNMENT_LOCK_DAYS=0 (lock disabled)', async () => {

@@ -6,7 +6,7 @@
   (click)="onBackdropClick($event)"
   (keydown.escape)="close()"
 >
-  <div class="modal-box max-w-lg">
+  <div class="modal-box max-w-lg" cdkTrapFocus cdkTrapFocusAutoCapture>
     <!-- Header -->
     <div class="flex items-center justify-between mb-4">
       <h2 id="picker-modal-title" class="text-lg font-bold">Afegir figura o composició</h2>

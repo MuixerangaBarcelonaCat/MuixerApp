@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   OnInit,
   OnDestroy,
   computed,
@@ -9,6 +10,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
 import { LayoutService } from '../../../../core/services/layout.service';
@@ -33,6 +35,7 @@ export class FigureProjectionComponent implements OnInit, OnDestroy {
   private readonly layoutService = inject(LayoutService, { optional: true });
   private readonly projectionService = inject(ProjectionService, { optional: true });
   private readonly toast = inject(ToastService, { optional: true });
+  private readonly destroyRef = inject(DestroyRef);
 
   /**
    * Embedded mode: parent passes the instance directly (e.g. testing).
@@ -121,7 +124,9 @@ export class FigureProjectionComponent implements OnInit, OnDestroy {
     const segmentId = this.route.snapshot.params['segmentId'];
 
     this.loading.set(true);
-    this.projectionService.getProjection(eventId, segmentId).subscribe({
+    this.projectionService.getProjection(eventId, segmentId).pipe(
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe({
       next: (data) => {
         const found = data.instances.find((i) => i.id === instanceId) ?? null;
         this.loadedInstance.set(found);

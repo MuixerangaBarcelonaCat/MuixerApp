@@ -15,6 +15,7 @@ import { CompositionSlot } from '../../composition/entities/composition-slot.ent
 @Entity('node_assignments')
 @Unique(['figureInstance', 'instanceNode', 'compositionSlot'])
 @Unique(['figureInstance', 'person', 'compositionSlot'])
+@Unique(['figureInstance', 'person'])
 export class NodeAssignment {
   @PrimaryGeneratedColumn('uuid')
   id: string;

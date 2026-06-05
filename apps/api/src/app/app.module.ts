@@ -16,7 +16,6 @@ import { FigureModule } from '../modules/figure/figure.module';
 import { CompositionModule } from '../modules/composition/composition.module';
 import { EventSegmentModule } from '../modules/event-segment/event-segment.module';
 import { NodeAssignmentModule } from '../modules/node-assignment/node-assignment.module';
-import { ReferenceElementModule } from '../modules/reference-element/reference-element.module';
 import { JwtAuthGuard } from '../modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../modules/auth/guards/roles.guard';
 
@@ -36,7 +35,6 @@ import { RolesGuard } from '../modules/auth/guards/roles.guard';
     CompositionModule,
     EventSegmentModule,
     NodeAssignmentModule,
-    ReferenceElementModule,
   ],
   controllers: [AppController],
   providers: [

@@ -1,8 +1,8 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   ElementRef,
-  ViewChild,
   computed,
   effect,
   inject,
@@ -10,7 +10,9 @@ import {
   output,
   signal,
   untracked,
+  viewChild,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, RefreshCw, ChevronDown, ChevronUp } from 'lucide-angular';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
@@ -26,7 +28,7 @@ import { AvailablePerson, AssignmentDetail, HeightMode } from '../../models/assi
   templateUrl: './person-panel.component.html',
 })
 export class PersonPanelComponent {
-  @ViewChild('searchInput') searchInputRef?: ElementRef<HTMLInputElement>;
+  private readonly searchInputRef = viewChild<ElementRef<HTMLInputElement>>('searchInput');
 
   readonly eventId = input.required<string>();
   readonly segmentId = input.required<string>();
@@ -40,6 +42,7 @@ export class PersonPanelComponent {
 
   private readonly assignmentService = inject(NodeAssignmentService);
   private readonly state = inject(AssignmentStateService);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly RefreshCw = RefreshCw;
   readonly ChevronDown = ChevronDown;
@@ -131,7 +134,7 @@ export class PersonPanelComponent {
   }
 
   focusSearch(): void {
-    this.searchInputRef?.nativeElement.focus();
+    this.searchInputRef()?.nativeElement.focus();
   }
 
   loadPersons(): void {
@@ -149,6 +152,7 @@ export class PersonPanelComponent {
 
     this.assignmentService
       .getAvailablePersons(this.eventId(), this.segmentId(), query)
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (resp) => {
           this.persons.set(resp.data);

@@ -1,13 +1,17 @@
 import {
   Component,
   ChangeDetectionStrategy,
+  DestroyRef,
+  effect,
   inject,
   input,
   output,
   signal,
   computed,
-  OnInit,
+  untracked,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { CdkTrapFocus } from '@angular/cdk/a11y';
 import { Router } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
@@ -21,13 +25,14 @@ import { PaginationComponent } from '../../../../shared/components/data/paginati
   selector: 'app-family-history-modal',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule, EmptyStateComponent, PaginationComponent],
+  imports: [LucideAngularModule, EmptyStateComponent, PaginationComponent, CdkTrapFocus],
   templateUrl: './family-history-modal.component.html',
 })
-export class FamilyHistoryModalComponent implements OnInit {
+export class FamilyHistoryModalComponent {
   private readonly nodeAssignmentService = inject(NodeAssignmentService);
   private readonly seasonService = inject(SeasonService);
   private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
 
   familyId = input.required<string>();
   familyName = input<string>('');
@@ -42,11 +47,14 @@ export class FamilyHistoryModalComponent implements OnInit {
   seasons = signal<Season[]>([]);
   totalPages = computed(() => Math.ceil(this.total() / this.limit()));
 
-  ngOnInit() {
-    this.seasonService.getAll().subscribe({
+  constructor() {
+    this.seasonService.getAll().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (res) => this.seasons.set(res.data),
     });
-    this.loadHistory();
+    effect(() => {
+      this.familyId(); // track familyId changes
+      untracked(() => this.loadHistory());
+    });
   }
 
   loadHistory() {
@@ -57,6 +65,7 @@ export class FamilyHistoryModalComponent implements OnInit {
         limit: this.limit(),
         seasonId: this.seasonId(),
       })
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (res) => {
           this.entries.set(res.data);

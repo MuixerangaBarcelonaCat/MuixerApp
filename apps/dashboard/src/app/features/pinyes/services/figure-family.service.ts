@@ -7,6 +7,7 @@ import {
   FigureFamilyDetail,
   FigureFamilyFilterParams,
   PaginatedFigureFamilies,
+  PaginatedFigureFamiliesWithVariants,
   UpdateFigureFamilyPayload,
 } from '../models/figure-family.model';
 
@@ -14,9 +15,11 @@ import {
   providedIn: 'root',
 })
 export class FigureFamilyService extends ApiService {
-  getAll(filters: FigureFamilyFilterParams = {}): Observable<PaginatedFigureFamilies> {
+  getAll(filters?: FigureFamilyFilterParams): Observable<PaginatedFigureFamilies>;
+  getAll(filters: FigureFamilyFilterParams & { includeVariants: true }): Observable<PaginatedFigureFamiliesWithVariants>;
+  getAll(filters: FigureFamilyFilterParams = {}): Observable<PaginatedFigureFamilies | PaginatedFigureFamiliesWithVariants> {
     const params = buildHttpParams(filters);
-    return this.get<PaginatedFigureFamilies>('/figure-families', { params });
+    return this.get<PaginatedFigureFamilies | PaginatedFigureFamiliesWithVariants>('/figure-families', { params });
   }
 
   getOne(id: string): Observable<FigureFamilyDetail> {

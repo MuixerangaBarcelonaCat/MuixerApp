@@ -5,6 +5,7 @@ import {
   ManyToOne,
   JoinColumn,
   CreateDateColumn,
+  UpdateDateColumn,
   Unique,
 } from 'typeorm';
 import { FigureZone, NodeShape } from '@muixer/shared';
@@ -41,7 +42,7 @@ export class InstanceNode {
 
   /**
    * Root ancestor node ID, copied from FigureNode.originNodeId at snapshot time.
-   * Used for upgrade matching: canonical ID = originNodeId ?? sourceNodeId.
+   * Historical column — the upgrade endpoint has been removed.
    */
   @Column({ type: 'uuid', nullable: true })
   originNodeId: string | null;
@@ -101,4 +102,7 @@ export class InstanceNode {
 
   @CreateDateColumn()
   createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 }

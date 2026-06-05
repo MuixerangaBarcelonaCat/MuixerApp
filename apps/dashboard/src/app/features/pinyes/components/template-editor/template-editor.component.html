@@ -531,16 +531,18 @@
 <!-- ── Tronc Floating Panel ──────────────────────────────────────────────── -->
 @if (troncDrawerOpen()) {
   <aside
+    appFloatingPanelDrag
+    #troncDragDir="appFloatingPanelDrag"
     class="tronc-floating-panel"
-    [style.left.px]="troncPanelPos().x"
-    [style.top.px]="troncPanelPos().y"
+    [style.left.px]="troncDragDir.position().x"
+    [style.top.px]="troncDragDir.position().y"
     aria-label="Tronc de la figura"
     tabindex="-1"
     (keydown.escape)="troncDrawerOpen.set(false)"
   >
     <div
       class="tronc-floating-header"
-      (mousedown)="onTroncDragStart($event)"
+      (mousedown)="troncDragDir.onDragStart($event)"
     >
       <lucide-icon name="GripVertical" [size]="14" class="drag-handle" aria-hidden="true" />
       <h2 class="tronc-floating-title">
@@ -583,7 +585,7 @@
     tabindex="-1"
     (keydown.escape)="toggleShortcutsModal()"
   >
-    <div class="modal-box max-w-lg">
+    <div class="modal-box max-w-lg" cdkTrapFocus cdkTrapFocusAutoCapture>
       <button
         type="button"
         class="btn btn-sm btn-circle btn-ghost absolute right-3 top-3"

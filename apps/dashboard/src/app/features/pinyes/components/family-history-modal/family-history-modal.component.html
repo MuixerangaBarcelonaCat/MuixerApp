@@ -1,5 +1,5 @@
 <dialog class="modal modal-open" aria-labelledby="family-history-title">
-  <div class="modal-box max-w-3xl">
+  <div class="modal-box max-w-3xl" cdkTrapFocus cdkTrapFocusAutoCapture>
     <div class="flex items-center justify-between mb-4">
       <h3 id="family-history-title" class="font-bold text-lg">
         Historial — {{ familyName() }}
@@ -42,7 +42,14 @@
           </thead>
           <tbody>
             @for (entry of entries(); track entry.instanceId) {
-              <tr class="hover cursor-pointer" (click)="navigateToEvent(entry)">
+              <tr
+                class="hover cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                tabindex="0"
+                role="link"
+                (click)="navigateToEvent(entry)"
+                (keydown.enter)="navigateToEvent(entry)"
+                (keydown.space)="navigateToEvent(entry); $event.preventDefault()"
+              >
                 <td class="text-xs text-base-content/60">{{ formatDate(entry.eventDate) }}</td>
                 <td class="text-sm">{{ entry.eventTitle }}</td>
                 <td>

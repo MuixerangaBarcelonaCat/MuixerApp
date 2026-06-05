@@ -1,7 +1,7 @@
 # Mòdul de Pinyes — Documentació Tècnica
 
-> Última actualització: 28 de maig de 2026  
-> Fases implementades: P5.1 → P5.11 (rengles: F1–F5)  
+> Última actualització: 5 de juny de 2026  
+> Fases implementades: P5.1 → P5.12 (refactor & code review completat)  
 > Specs de referència:
 > - `docs/specs/2026-05-19-p5-family-snapshot-redesign.md` (P5.5)
 > - `docs/specs/2026-05-20-p5-tronc-visualization-design.md` (P5.6)

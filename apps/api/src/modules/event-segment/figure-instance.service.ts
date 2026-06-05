@@ -201,9 +201,6 @@ export class FigureInstanceService {
       assignedCount,
       numberOfCordons: instance.numberOfCordons,
       openCordons: instance.openCordons,
-      projectionX: instance.projectionX ?? null,
-      projectionY: instance.projectionY ?? null,
-      projectionScale: instance.projectionScale ?? 1,
       figureTemplate: instance.figureTemplate
         ? { id: instance.figureTemplate.id, name: instance.figureTemplate.name }
         : null,

@@ -39,7 +39,6 @@ const mockSegmentService: Partial<EventSegmentService> = {
 const mockProjectionSegmentData: ProjectionSegmentData = {
   segment: { id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 0, prevSegmentId: null, nextSegmentId: 'seg-next' },
   instances: [],
-  referenceElements: [],
 };
 
 const mockInstanceService: Partial<FigureInstanceService> = {

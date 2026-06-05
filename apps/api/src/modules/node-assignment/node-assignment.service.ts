@@ -6,7 +6,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, In, IsNull, Repository, SelectQueryBuilder } from 'typeorm';
 import {
   EventType,
   FigureZone,
@@ -32,12 +32,7 @@ import { CompositionSlot } from '../composition/entities/composition-slot.entity
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
 import { Event } from '../event/event.entity';
-
-export interface HistoryQueryParams {
-  page?: number;
-  limit?: number;
-  seasonId?: string;
-}
+import { HistoryQueryDto } from './dto/history-query.dto';
 
 // ─── Mappers ────────────────────────────────────────────────────────────────
 
@@ -314,7 +309,7 @@ export class NodeAssignmentService {
       where: {
         figureInstance: { id: instanceId },
         instanceNode: { id: instanceNode.id },
-        ...(compositionSlot ? { compositionSlot: { id: compositionSlot.id } } : { compositionSlot: null as any }),
+        ...(compositionSlot ? { compositionSlot: { id: compositionSlot.id } } : { compositionSlot: IsNull() }),
       },
     });
     if (nodeConflict) {
@@ -327,7 +322,6 @@ export class NodeAssignmentService {
       where: {
         figureInstance: { id: instanceId },
         person: { id: dto.personId },
-        ...(compositionSlot ? { compositionSlot: { id: compositionSlot.id } } : { compositionSlot: null as any }),
       },
     });
     if (personConflict) {
@@ -397,9 +391,6 @@ export class NodeAssignmentService {
     if (dto.assignmentIdA === dto.assignmentIdB) {
       throw new BadRequestException('Cannot swap an assignment with itself');
     }
-
-    const nodeIdA = assignmentA.instanceNode.id;
-    const nodeIdB = assignmentB.instanceNode.id;
 
     await this.dataSource.query(
       `UPDATE node_assignments
@@ -475,7 +466,7 @@ export class NodeAssignmentService {
       await manager.delete(InstanceNode, { figureInstance: { id: instanceId } });
       await manager.update(FigureInstance, instanceId, {
         snapshotted: false,
-        sourceVariantOrder: null as any,
+        sourceVariantOrder: null as number | null,
       });
     });
 
@@ -486,7 +477,7 @@ export class NodeAssignmentService {
 
   async getHistory(
     templateId: string,
-    query: HistoryQueryParams = {},
+    query: HistoryQueryDto = {},
   ): Promise<{ data: FigureHistoryEntry[]; meta: { total: number; page: number; limit: number } }> {
     const template = await this.figureTemplateRepository.findOne({
       where: { id: templateId },
@@ -496,75 +487,18 @@ export class NodeAssignmentService {
       throw new NotFoundException(`FigureTemplate with ID ${templateId} not found`);
     }
 
-    const page = Math.max(query.page ?? 1, 1);
-    const limit = Math.min(Math.max(query.limit ?? 20, 1), 100);
-
-    // H3 fix: count on a separate QB without collection joins to avoid row inflation
-    // from leftJoinAndSelect on one-to-many relations (assignments, instanceNodes).
-    const countQb = this.figureInstanceRepository
-      .createQueryBuilder('fi')
-      .leftJoin('fi.segment', 'seg')
-      .leftJoin('seg.event', 'ev')
-      .where('fi.figureTemplateId = :templateId', { templateId });
-
-    if (query.seasonId) {
-      countQb.andWhere('ev.seasonId = :seasonId', { seasonId: query.seasonId });
-    }
-
-    const total = await countQb.getCount();
-
-    const qb = this.figureInstanceRepository
-      .createQueryBuilder('fi')
-      .leftJoinAndSelect('fi.assignments', 'a')
-      .leftJoinAndSelect('a.instanceNode', 'ain')
-      .leftJoinAndSelect('a.person', 'ap')
-      .leftJoinAndSelect('fi.instanceNodes', 'inode')
-      .leftJoinAndSelect('fi.segment', 'seg')
-      .leftJoinAndSelect('seg.event', 'ev')
-      .where('fi.figureTemplateId = :templateId', { templateId });
-
-    if (query.seasonId) {
-      qb.andWhere('ev.seasonId = :seasonId', { seasonId: query.seasonId });
-    }
-
-    const instances = await qb
-      .orderBy('ev.date', 'DESC')
-      .skip((page - 1) * limit)
-      .take(limit)
-      .getMany();
-
-    const familyName = template.family?.name ?? null;
-    const data = instances.map((instance) => {
-      const event = instance.segment.event as Event;
-      return {
-        eventId: event.id,
-        eventTitle: event.title,
-        eventDate: event.date as unknown as string,
-        eventType: event.eventType,
-        familyName,
-        segmentName: (instance.segment as any).name ?? null,
-        instanceId: instance.id,
-        snapshotted: instance.snapshotted,
-        sourceVariantOrder: instance.sourceVariantOrder,
-        assignmentCount: instance.assignments?.length ?? 0,
-        totalNodes: instance.instanceNodes?.length ?? 0,
-        assignments: (instance.assignments ?? []).map((a) => ({
-          nodeId: a.instanceNode.id,
-          nodeLabel: a.instanceNode.label,
-          personId: a.person.id,
-          personAlias: (a.person as any).alias,
-        })),
-      };
-    });
-
-    return { data, meta: { total, page, limit } };
+    return this.queryHistory(
+      (qb) => qb.where('fi.figureTemplateId = :templateId', { templateId }),
+      template.family?.name ?? null,
+      query,
+    );
   }
 
   // ── F3 — Person assignment history ─────────────────────────────────────────
 
   async getPersonHistory(
     personId: string,
-    query: HistoryQueryParams = {},
+    query: HistoryQueryDto = {},
   ): Promise<PersonAssignmentHistory> {
     const person = await this.personRepository.findOne({ where: { id: personId } });
     if (!person) {
@@ -572,7 +506,7 @@ export class NodeAssignmentService {
     }
 
     const page = Math.max(query.page ?? 1, 1);
-    const limit = Math.min(Math.max(query.limit ?? 20, 1), 100);
+    const limit = Math.min(Math.max(query.limit ?? 25, 1), 100);
 
     const qb = this.assignmentRepository
       .createQueryBuilder('na')
@@ -654,12 +588,26 @@ export class NodeAssignmentService {
         'segment',
         'figureTemplate',
         'figureTemplate.family',
-        'instanceNodes',
         'assignments',
         'assignments.instanceNode',
         'assignments.person',
       ],
     });
+
+    const instanceIds = allInstances.map((fi) => fi.id);
+    const nodeCountMap = new Map<string, number>();
+    if (instanceIds.length > 0) {
+      const nodeCounts = await this.instanceNodeRepository
+        .createQueryBuilder('inode')
+        .select('inode.figureInstanceId', 'instanceId')
+        .addSelect('COUNT(*)', 'count')
+        .where('inode.figureInstanceId IN (:...ids)', { ids: instanceIds })
+        .groupBy('inode.figureInstanceId')
+        .getRawMany();
+      for (const row of nodeCounts) {
+        nodeCountMap.set(row.instanceId, parseInt(row.count, 10));
+      }
+    }
 
     const instancesBySegment = new Map<string, FigureInstance[]>();
     for (const fi of allInstances) {
@@ -672,7 +620,7 @@ export class NodeAssignmentService {
       const instances = instancesBySegment.get(segment.id) ?? [];
 
       const figures: EventFigureSummary[] = instances.map((fi) => {
-        const totalNodes = fi.instanceNodes?.length ?? 0;
+        const totalNodes = nodeCountMap.get(fi.id) ?? 0;
         const assignments = (fi.assignments ?? []).map((a) => ({
           nodeLabel: a.instanceNode.label,
           positionType: a.instanceNode.positionType ?? null,
@@ -708,23 +656,35 @@ export class NodeAssignmentService {
 
   async getFamilyHistory(
     familyId: string,
-    query: HistoryQueryParams = {},
+    query: HistoryQueryDto = {},
   ): Promise<{ data: FigureHistoryEntry[]; meta: { total: number; page: number; limit: number } }> {
     const family = await this.figureFamilyRepository.findOne({ where: { id: familyId } });
     if (!family) {
       throw new NotFoundException('Família de figures no trobada.');
     }
 
-    const page = Math.max(query.page ?? 1, 1);
-    const limit = Math.min(Math.max(query.limit ?? 20, 1), 100);
+    return this.queryHistory(
+      (qb) => qb
+        .leftJoin('fi.figureTemplate', 'tpl')
+        .where('tpl.familyId = :familyId', { familyId }),
+      family.name,
+      query,
+    );
+  }
 
-    // H3 fix: count on a separate QB without collection joins to avoid row inflation.
+  private async queryHistory(
+    applyWhere: (qb: SelectQueryBuilder<FigureInstance>) => SelectQueryBuilder<FigureInstance>,
+    familyName: string | null,
+    query: HistoryQueryDto,
+  ): Promise<{ data: FigureHistoryEntry[]; meta: { total: number; page: number; limit: number } }> {
+    const page = Math.max(query.page ?? 1, 1);
+    const limit = Math.min(Math.max(query.limit ?? 25, 1), 100);
+
     const countQb = this.figureInstanceRepository
       .createQueryBuilder('fi')
       .leftJoin('fi.segment', 'seg')
-      .leftJoin('seg.event', 'ev')
-      .leftJoin('fi.figureTemplate', 'tpl')
-      .where('tpl.familyId = :familyId', { familyId });
+      .leftJoin('seg.event', 'ev');
+    applyWhere(countQb);
 
     if (query.seasonId) {
       countQb.andWhere('ev.seasonId = :seasonId', { seasonId: query.seasonId });
@@ -732,22 +692,21 @@ export class NodeAssignmentService {
 
     const total = await countQb.getCount();
 
-    const qb = this.figureInstanceRepository
+    const dataQb = this.figureInstanceRepository
       .createQueryBuilder('fi')
       .leftJoinAndSelect('fi.assignments', 'a')
       .leftJoinAndSelect('a.instanceNode', 'ain')
       .leftJoinAndSelect('a.person', 'ap')
-      .leftJoinAndSelect('fi.instanceNodes', 'inode')
+      .loadRelationCountAndMap('fi.totalNodes', 'fi.instanceNodes')
       .leftJoinAndSelect('fi.segment', 'seg')
-      .leftJoinAndSelect('seg.event', 'ev')
-      .leftJoinAndSelect('fi.figureTemplate', 'tpl')
-      .where('tpl.familyId = :familyId', { familyId });
+      .leftJoinAndSelect('seg.event', 'ev');
+    applyWhere(dataQb);
 
     if (query.seasonId) {
-      qb.andWhere('ev.seasonId = :seasonId', { seasonId: query.seasonId });
+      dataQb.andWhere('ev.seasonId = :seasonId', { seasonId: query.seasonId });
     }
 
-    const instances = await qb
+    const instances = await dataQb
       .orderBy('ev.date', 'DESC')
       .skip((page - 1) * limit)
       .take(limit)
@@ -760,18 +719,18 @@ export class NodeAssignmentService {
         eventTitle: event.title,
         eventDate: event.date as unknown as string,
         eventType: event.eventType,
-        familyName: family.name,
-        segmentName: (instance.segment as any).name ?? null,
+        familyName,
+        segmentName: instance.segment?.name ?? null,
         instanceId: instance.id,
         snapshotted: instance.snapshotted,
         sourceVariantOrder: instance.sourceVariantOrder,
         assignmentCount: instance.assignments?.length ?? 0,
-        totalNodes: instance.instanceNodes?.length ?? 0,
+        totalNodes: (instance as any).totalNodes ?? 0,
         assignments: (instance.assignments ?? []).map((a) => ({
           nodeId: a.instanceNode.id,
           nodeLabel: a.instanceNode.label,
           personId: a.person.id,
-          personAlias: (a.person as any).alias,
+          personAlias: a.person?.alias ?? '',
         })),
       };
     });
@@ -849,7 +808,7 @@ export class NodeAssignmentService {
     for (const sourceAssignment of sourceAssignments) {
       const sourceNode = sourceAssignment.instanceNode;
       const personId = sourceAssignment.person.id;
-      const personAlias = (sourceAssignment.person as any).alias;
+      const personAlias = sourceAssignment.person?.alias ?? '';
       const nodeLabel = sourceNode.label;
 
       let targetNode: InstanceNode | undefined;
@@ -865,33 +824,6 @@ export class NodeAssignmentService {
         continue;
       }
 
-      const nodeOccupied = await this.assignmentRepository.findOne({
-        where: { figureInstance: { id: instanceId }, instanceNode: { id: targetNode.id } },
-      });
-      if (nodeOccupied) {
-        conflicts.push({ nodeId: targetNode.id, nodeLabel, personAlias, reason: 'Node already occupied in target instance' });
-        continue;
-      }
-
-      const personInInstance = await this.assignmentRepository.findOne({
-        where: { figureInstance: { id: instanceId }, person: { id: personId } },
-      });
-      if (personInInstance) {
-        conflicts.push({ nodeId: targetNode.id, nodeLabel, personAlias, reason: 'Person already assigned in target instance' });
-        continue;
-      }
-
-      const personInSegment = await this.assignmentRepository
-        .createQueryBuilder('a')
-        .innerJoin('a.figureInstance', 'fi')
-        .where('fi.segmentId = :segmentId', { segmentId: targetInstance.segment.id })
-        .andWhere('a.personId = :personId', { personId })
-        .getOne();
-      if (personInSegment) {
-        conflicts.push({ nodeId: targetNode.id, nodeLabel, personAlias, reason: 'Person already assigned in this segment' });
-        continue;
-      }
-
       try {
         const detail = await this.assign(instanceId, {
           nodeId: targetNode.id,
@@ -899,8 +831,16 @@ export class NodeAssignmentService {
           compositionSlotId: undefined,
         });
         created.push(detail);
-      } catch {
-        conflicts.push({ nodeId: targetNode.id, nodeLabel, personAlias, reason: 'Could not create assignment' });
+      } catch (err) {
+        if (
+          err instanceof ConflictException ||
+          err instanceof NotFoundException ||
+          err instanceof BadRequestException
+        ) {
+          conflicts.push({ nodeId: targetNode.id, nodeLabel, personAlias, reason: err.message });
+        } else {
+          throw err;
+        }
       }
     }
 
@@ -969,10 +909,14 @@ export class NodeAssignmentService {
       where: { id: instanceId },
       relations: ['segment', 'segment.event'],
     });
-    if (!instance?.segment) return;
+    if (!instance) {
+      throw new NotFoundException(`FigureInstance ${instanceId} not found`);
+    }
+    if (!instance.segment?.event) {
+      throw new NotFoundException(`FigureInstance ${instanceId} has no associated event`);
+    }
 
     const event = instance.segment.event as Event;
-    if (!event) return;
 
     const eventDate = new Date(event.date);
     const lockDate = new Date(eventDate);

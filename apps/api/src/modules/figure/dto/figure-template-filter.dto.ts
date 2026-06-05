@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { IsBoolean, IsInt, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import { IsBoolean, IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 
 export class FigureTemplateFilterDto {
   @ApiPropertyOptional({ description: 'Search by name or slug' })
@@ -34,6 +34,7 @@ export class FigureTemplateFilterDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(200)
   @IsOptional()
-  limit?: number;
+  limit?: number = 25;
 }

@@ -15,7 +15,8 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '@muixer/shared';
 import { NodeAssignmentService } from './node-assignment.service';
-import { AvailablePersonsService, AvailablePersonsQuery } from './available-persons.service';
+import { AvailablePersonsService } from './available-persons.service';
+import { AvailablePersonsQueryDto } from './dto/available-persons-query.dto';
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
 import { BulkImportAssignmentDto } from './dto/bulk-import-assignment.dto';
 import { SwapAssignmentsDto } from './dto/swap-assignments.dto';
@@ -104,7 +105,7 @@ export class NodeAssignmentController {
   async getAvailablePersons(
     @Param('eventId', ParseUUIDPipe) eventId: string,
     @Param('segmentId', ParseUUIDPipe) segmentId: string,
-    @Query() query: AvailablePersonsQuery,
+    @Query() query: AvailablePersonsQueryDto,
   ) {
     const data = await this.availablePersonsService.getAvailablePersons(eventId, segmentId, query);
     return { data };

@@ -25,12 +25,18 @@ export class FigureFamilyService {
 
   async findAll(
     filters: FigureFamilyFilterDto,
-  ): Promise<{ data: FigureFamilyListItem[]; total: number }> {
-    const { search, page = 1, limit = 25 } = filters;
+  ): Promise<{ data: (FigureFamilyListItem | FigureFamilyDetail)[]; total: number }> {
+    const { search, page = 1, limit = 25, includeVariants } = filters;
 
-    const qb = this.familyRepository
-      .createQueryBuilder('family')
-      .loadRelationCountAndMap('family.variantCount', 'family.templates');
+    const qb = this.familyRepository.createQueryBuilder('family');
+
+    if (includeVariants) {
+      qb.leftJoinAndSelect('family.templates', 'template')
+        .leftJoinAndSelect('template.nodes', 'node')
+        .leftJoinAndSelect('template.rengles', 'rengla');
+    } else {
+      qb.loadRelationCountAndMap('family.variantCount', 'family.templates');
+    }
 
     if (search) {
       qb.andWhere(
@@ -47,7 +53,10 @@ export class FigureFamilyService {
       .take(limit)
       .getMany();
 
-    return { data: families.map(toListItem), total };
+    return {
+      data: includeVariants ? families.map(toDetailItem) : families.map(toListItem),
+      total,
+    };
   }
 
   async findOne(id: string): Promise<FigureFamilyDetail> {

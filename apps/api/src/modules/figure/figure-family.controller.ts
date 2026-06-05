@@ -26,7 +26,7 @@ import { FigureFamilyFilterDto } from './dto/figure-family-filter.dto';
 export class FigureFamilyController {
   constructor(private readonly figureFamilyService: FigureFamilyService) {}
 
-  @ApiOperation({ summary: 'List figure families with optional search and pagination' })
+  @ApiOperation({ summary: 'List figure families with optional search and pagination. Pass includeVariants=true to get full detail with variants in one request.' })
   @Get()
   async findAll(@Query() filters: FigureFamilyFilterDto) {
     const { data, total } = await this.figureFamilyService.findAll(filters);

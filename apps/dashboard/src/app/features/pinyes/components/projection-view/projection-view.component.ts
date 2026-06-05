@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   HostListener,
   OnDestroy,
   OnInit,
@@ -8,8 +9,10 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { CommonModule, Location } from '@angular/common';
+import { Location } from '@angular/common';
+import { CdkTrapFocus } from '@angular/cdk/a11y';
 import { LucideAngularModule } from 'lucide-angular';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
@@ -51,11 +54,11 @@ interface ResizeState {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    CommonModule,
     RouterLink,
     LucideAngularModule,
     FigureCanvasComponent,
     TroncViewComponent,
+    CdkTrapFocus,
   ],
   templateUrl: './projection-view.component.html',
 })
@@ -66,6 +69,7 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
   private readonly layoutService = inject(LayoutService);
   private readonly projectionService = inject(ProjectionService);
   private readonly toast = inject(ToastService);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly FigureZone = FigureZone;
 
@@ -358,7 +362,9 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
 
   private loadSegment(): void {
     this.loading.set(true);
-    this.projectionService.getProjection(this.eventId, this.segmentId).subscribe({
+    this.projectionService.getProjection(this.eventId, this.segmentId).pipe(
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe({
       next: (data) => {
         this.segmentData.set(data);
         this.loading.set(false);

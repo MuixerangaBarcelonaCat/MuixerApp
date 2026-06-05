@@ -7,7 +7,7 @@
     (click)="onBackdropClick($event)"
     (keydown.escape)="close()"
   >
-    <div class="modal-box max-w-lg">
+    <div class="modal-box max-w-lg" cdkTrapFocus cdkTrapFocusAutoCapture>
       <div class="flex items-center justify-between mb-4">
         <h2 id="import-modal-title" class="text-lg font-bold">Importar pinya anterior</h2>
         <button type="button" class="btn btn-ghost btn-sm" (click)="close()" aria-label="Tancar">

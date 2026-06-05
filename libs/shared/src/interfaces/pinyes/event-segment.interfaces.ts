@@ -1,5 +1,4 @@
 import { AssignmentDetail, InstanceNodeItem } from './assignment.interfaces';
-import { ReferenceElementItem } from './reference-element.interfaces';
 
 export interface InstanceRef {
   id: string;
@@ -10,9 +9,6 @@ export interface InstanceRef {
   assignedCount: number;
   numberOfCordons: number | null;
   openCordons: string[] | null;
-  projectionX: number | null;
-  projectionY: number | null;
-  projectionScale: number;
   figureTemplate: { id: string; name: string } | null;
   compositionTemplate: { id: string; name: string } | null;
 }
@@ -34,9 +30,6 @@ export interface ProjectionInstance {
   sortOrder: number;
   numberOfCordons: number | null;
   openCordons: string[] | null;
-  projectionX: number | null;
-  projectionY: number | null;
-  projectionScale: number;
   figureTemplate: { id: string; name: string } | null;
   nodes: InstanceNodeItem[];
   assignments: AssignmentDetail[];
@@ -51,5 +44,4 @@ export interface ProjectionSegmentData {
     nextSegmentId: string | null;
   };
   instances: ProjectionInstance[];
-  referenceElements: ReferenceElementItem[];
 }
