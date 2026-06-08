@@ -88,6 +88,5 @@
       "unitTestRunner": "vitest-angular"
     }
   },
-  "analytics": false,
-  "nxCloudId": "6a22a739a86f52f1f63fee96"
+  "analytics": false
 }
