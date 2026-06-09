@@ -7,7 +7,7 @@ import { FigureInstanceService } from '../../../services/figure-instance.service
 import { AssignmentStateService } from '../../../services/assignment-state.service';
 import { ToastService } from '../../../../../shared/components/feedback/toast/toast.service';
 import { SegmentDetail } from '../../../models/segment.model';
-import { RenglaItem } from '../../../models/figure-template.model';
+import { RenglaModel } from '../../../models/figure-template.model';
 import { FigureZone } from '@muixer/shared';
 import { InstanceNodeItem } from '../../../models/assignment.model';
 import { repositionCordoObertNodes } from '../../../utils/cordo-obert-reposition.util';
@@ -41,7 +41,7 @@ export class AssignmentTabService {
   readonly tabs = signal<InstanceTab[]>([]);
   readonly segment = signal<SegmentDetail | null>(null);
   readonly loading = signal(false);
-  readonly templateRengles = signal<RenglaItem[]>([]);
+  readonly templateRengles = signal<RenglaModel[]>([]);
   readonly maxCordons = signal(0);
 
   readonly activeTab = computed(() =>

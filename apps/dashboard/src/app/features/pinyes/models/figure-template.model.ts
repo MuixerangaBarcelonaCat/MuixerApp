@@ -85,8 +85,6 @@ export interface CreateFigureNodePayload {
 export interface CreateFigureTemplatePayload {
   name: string;
   slug: string;
-  familyId: string;
-  variantOrder?: number;
   description?: string;
   hasPinya?: boolean;
   direction?: number;

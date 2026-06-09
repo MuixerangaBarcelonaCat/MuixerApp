@@ -16,7 +16,7 @@ import {
   FigureTemplateDetail,
   FigureNodeItem,
   CreateFigureNodePayload,
-  RenglaItem,
+  RenglaModel,
 } from '../../../models/figure-template.model';
 import { FigureZone, NodeShape } from '@muixer/shared';
 import { RenglaCreatedEvent, RenglaUpdatedEvent, RenglaDeletedEvent } from '../../rengla-overlay/rengla-overlay.component';
@@ -69,7 +69,7 @@ export class TemplateEditorStateService {
   readonly nodes = signal<FigureNodeItem[]>([]);
   readonly selectedNodeId = signal<string | null>(null);
   private readonly clipboardNode = signal<FigureNodeItem | null>(null);
-  readonly rengles = signal<RenglaItem[]>([]);
+  readonly rengles = signal<RenglaModel[]>([]);
 
   // ── UI status ────────────────────────────────────────────────────────────
   readonly saveStatus = signal<SaveStatus>('idle');
@@ -293,7 +293,7 @@ export class TemplateEditorStateService {
 
   onRenglaCreated(event: RenglaCreatedEvent): void {
     const renglaId = generateUUID();
-    const newRengla: RenglaItem = {
+    const newRengla: RenglaModel = {
       id: renglaId, name: event.rengla.name, sortOrder: event.rengla.sortOrder,
       startPosition: event.rengla.startPosition, allowsCordoObert: event.rengla.allowsCordoObert,
     };

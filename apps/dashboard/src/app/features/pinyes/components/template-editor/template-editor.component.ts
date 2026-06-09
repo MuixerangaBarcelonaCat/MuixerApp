@@ -80,11 +80,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   templateDescription = signal('');
   hasPinya = signal(true);
 
-  // Family context (populated from query param or loaded template)
-  familyId = signal<string | null>(null);
-  familyName = signal<string | null>(null);
-  variantOrder = signal<number | null>(null);
-
   // Nodes
   nodes = signal<FigureNodeItem[]>([]);
   selectedNodeId = signal<string | null>(null);
@@ -156,17 +151,11 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.layout.requestFullscreen();
     const id = this.route.snapshot.paramMap.get('id');
-    const queryFamilyId = this.route.snapshot.queryParamMap.get('familyId');
-    const queryFamilyName = this.route.snapshot.queryParamMap.get('familyName');
     if (id) {
       this.templateId.set(id);
       this.loadTemplate(id);
     } else {
       this.canvasState.reset();
-      if (queryFamilyId) {
-        this.familyId.set(queryFamilyId);
-        this.familyName.set(queryFamilyName);
-      }
     }
   }
 
@@ -661,12 +650,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     const slug = this.templateSlug().trim();
     if (!name || !slug) return;
 
-    const familyId = this.familyId();
-    if (!this.templateId() && !familyId) {
-      this.toast.error('Cal assignar la figura a una família. Torna a la llista i crea la variant des d\'una família.');
-      return;
-    }
-
     this.saveStatus.set('saving');
     const payload = this.buildPayload();
     const id = this.templateId();
@@ -681,16 +664,12 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
         .create({
           name,
           slug,
-          familyId: familyId!,
           hasPinya: this.hasPinya(),
           nodes: payload.nodes ?? [],
         })
         .subscribe({
           next: (created) => {
             this.templateId.set(created.id);
-            if (created.familyId) this.familyId.set(created.familyId);
-            if (created.familyName) this.familyName.set(created.familyName);
-            if (created.variantOrder) this.variantOrder.set(created.variantOrder);
             this.router.navigate(['/pinyes/templates', created.id, 'edit'], {
               replaceUrl: true,
             });
@@ -737,14 +716,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     };
   }
 
-  // Expose for template
-  readonly hasFamily = computed(() => !!this.familyId());
-  readonly familyBreadcrumb = computed(() => {
-    const fn = this.familyName();
-    if (!fn) return null;
-    return fn;
-  });
-
   private loadTemplate(id: string): void {
     this.loading.set(true);
     this.figureTemplateService.getOne(id).subscribe({
@@ -755,9 +726,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
         this.hasPinya.set(tmpl.hasPinya);
         this.nodes.set(tmpl.nodes);
         this.rengles.set(tmpl.rengles ?? []);
-        this.familyId.set(tmpl.familyId);
-        this.familyName.set(tmpl.familyName);
-        this.variantOrder.set(tmpl.variantOrder ?? null);
         this.loading.set(false);
       },
       error: () => {
