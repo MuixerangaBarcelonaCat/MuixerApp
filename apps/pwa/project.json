@@ -64,7 +64,12 @@
     },
     "test": {
       "executor": "@angular/build:unit-test",
-      "options": {}
+      "options": {},
+      "configurations": {
+        "ci": {
+          "coverage": false
+        }
+      }
     },
     "serve-static": {
       "continuous": true,

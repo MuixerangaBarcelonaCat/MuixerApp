@@ -1,0 +1,18 @@
+[
+  {
+    "id": "90786c9b-1947-431a-9de7-de8ff06bc923",
+    "name": "Temporada 2024-2025",
+    "startDate": "2024-08-31T22:00:00.000Z",
+    "endDate": "2025-09-04T22:00:00.000Z",
+    "description": null,
+    "legacyId": "2025"
+  },
+  {
+    "id": "6f4254a4-79a8-4091-9bc5-4dbaf54d4f0c",
+    "name": "Temporada 2025-2026",
+    "startDate": "2025-09-05T22:00:00.000Z",
+    "endDate": "2026-09-04T22:00:00.000Z",
+    "description": null,
+    "legacyId": "2026"
+  }
+]

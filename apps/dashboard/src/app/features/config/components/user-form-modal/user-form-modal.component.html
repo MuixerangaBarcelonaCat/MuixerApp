@@ -1,0 +1,121 @@
+<dialog class="modal modal-open" aria-modal="true" role="dialog" aria-labelledby="user-modal-title">
+  <div class="modal-box max-w-md">
+    <h3 id="user-modal-title" class="font-bold text-lg mb-4">
+      {{ isEditMode() ? 'Editar usuari' : 'Crear usuari' }}
+    </h3>
+
+    <form [formGroup]="form" (ngSubmit)="onSave()" class="space-y-4">
+
+      <!-- Person search -->
+      <div class="form-control">
+        <div class="label pb-1">
+          <span class="label-text text-xs font-medium">Persona vinculada</span>
+        </div>
+
+        @if (linkedPerson(); as person) {
+          <div class="flex items-center gap-2 px-3 py-2 bg-base-200 rounded-lg">
+            <span class="font-mono font-semibold text-sm">{{ person.alias }}</span>
+            <span class="text-base-content/60">—</span>
+            <span class="text-sm">{{ person.name }} {{ person.firstSurname }}</span>
+            <button
+              type="button"
+              class="btn btn-ghost btn-xs ml-auto"
+              (click)="clearLinkedPerson()"
+              aria-label="Desvincular persona"
+            >
+              ✕
+            </button>
+          </div>
+          @if (personWarning()) {
+            <p class="text-xs text-warning mt-1">{{ personWarning() }}</p>
+          }
+        } @else {
+          <app-person-search-input
+            placeholder="Cerca persona per vincular..."
+            (selected)="onPersonSelected($event)"
+          />
+          <p class="label pt-0.5">
+            <span class="label-text-alt text-base-content/40">Opcional. Permet vincular l'usuari a una persona del cens.</span>
+          </p>
+        }
+      </div>
+
+      <!-- Email -->
+      <div class="form-control">
+        <label class="label pb-1" for="user-email">
+          <span class="label-text text-xs font-medium">Correu electrònic *</span>
+        </label>
+        <input
+          id="user-email"
+          type="email"
+          class="input input-bordered input-sm w-full"
+          formControlName="email"
+          placeholder="correu@example.com"
+          autocomplete="off"
+        />
+        @if (form.get('email')!.touched && form.get('email')!.hasError('email')) {
+          <p class="text-xs text-error mt-1">Format de correu invàlid.</p>
+        }
+      </div>
+
+      <!-- Password (only in create mode) -->
+      @if (!isEditMode()) {
+        <div class="form-control">
+          <label class="label pb-1" for="user-password">
+            <span class="label-text text-xs font-medium">Contrasenya temporal *</span>
+          </label>
+          <input
+            id="user-password"
+            type="password"
+            class="input input-bordered input-sm w-full"
+            formControlName="password"
+            placeholder="Mínim 8 caràcters"
+            autocomplete="new-password"
+          />
+          @if (form.get('password')!.touched && form.get('password')!.hasError('minlength')) {
+            <p class="text-xs text-error mt-1">La contrasenya ha de tenir mínim 8 caràcters.</p>
+          }
+        </div>
+      }
+
+      <!-- Role -->
+      <fieldset class="form-control">
+        <legend class="label pb-1">
+          <span class="label-text text-xs font-medium">Rol *</span>
+        </legend>
+        <div class="flex gap-4">
+          @for (role of roleOptions; track role) {
+            <label class="label cursor-pointer gap-2">
+              <input
+                type="radio"
+                class="radio radio-sm radio-primary"
+                [value]="role"
+                formControlName="role"
+              />
+              <span class="label-text text-sm">{{ roleLabels[role] }}</span>
+            </label>
+          }
+        </div>
+      </fieldset>
+
+      <!-- Actions -->
+      <div class="modal-action">
+        <button type="button" class="btn btn-ghost btn-sm" (click)="onCancel()">
+          Cancel·lar
+        </button>
+        <button
+          type="submit"
+          class="btn btn-primary btn-sm"
+          [disabled]="form.invalid || saving()"
+        >
+          @if (saving()) {
+            <span class="loading loading-spinner loading-xs"></span>
+          }
+          {{ isEditMode() ? 'Desar' : 'Crear usuari' }}
+        </button>
+      </div>
+
+    </form>
+  </div>
+  <div class="modal-backdrop" (click)="onCancel()" (keydown.enter)="onCancel()" tabindex="0" role="button" aria-label="Tancar modal"></div>
+</dialog>

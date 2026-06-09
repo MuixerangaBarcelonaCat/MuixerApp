@@ -1,0 +1,287 @@
+<div class="flex flex-col h-screen bg-base-200 overflow-hidden">
+
+  <!-- Top bar -->
+  <header class="flex items-center gap-3 px-4 h-14 bg-base-100 border-b border-base-200 shrink-0 z-10">
+    <button
+      type="button"
+      class="btn btn-ghost btn-sm gap-2"
+      (click)="goBack()"
+      aria-label="Tornar a la llista de composicions"
+    >
+      <lucide-icon name="ArrowLeft" [size]="16" aria-hidden="true" />
+      Composicions
+    </button>
+
+    <div class="divider divider-horizontal m-0 h-6"></div>
+
+    <!-- Inline name editor -->
+    <label class="sr-only" for="comp-name-input">Nom de la composició</label>
+    <input
+      id="comp-name-input"
+      type="text"
+      class="input input-ghost input-sm font-semibold text-base-content w-48 focus:bg-base-200 focus:outline-none"
+      placeholder="Nom de la composició"
+      [ngModel]="nameValue()"
+      (ngModelChange)="onNameChange($event)"
+      aria-label="Nom de la composició"
+    />
+
+    <!-- Inline slug editor -->
+    <label class="sr-only" for="comp-slug-input">Slug</label>
+    <span class="text-base-content/30 text-sm select-none">/</span>
+    <input
+      id="comp-slug-input"
+      type="text"
+      class="input input-ghost input-sm font-mono text-sm text-base-content/60 w-36 focus:bg-base-200 focus:outline-none"
+      placeholder="slug"
+      [ngModel]="slugValue()"
+      (ngModelChange)="onSlugChange($event)"
+      aria-label="Slug de la composició"
+    />
+
+    <div class="flex-1"></div>
+
+    <!-- Save status indicator -->
+    <span class="text-xs" [class]="saveStatusClass" aria-live="polite">
+      {{ saveStatusLabel }}
+    </span>
+
+    <!-- Grid toggle -->
+    <button
+      type="button"
+      class="btn btn-ghost btn-sm gap-1.5"
+      [class.btn-active]="gridEnabled"
+      (click)="toggleGrid()"
+      aria-pressed="{{ gridEnabled }}"
+      aria-label="Alternar graella"
+    >
+      <lucide-icon name="Grid3X3" [size]="15" aria-hidden="true" />
+      Graella
+    </button>
+
+    <!-- Snap toggle -->
+    <button
+      type="button"
+      class="btn btn-ghost btn-sm gap-1.5"
+      [class.btn-active]="snapToGrid"
+      (click)="toggleSnap()"
+      aria-pressed="{{ snapToGrid }}"
+      aria-label="Alternar ajust a la graella"
+    >
+      <lucide-icon name="Magnet" [size]="15" aria-hidden="true" />
+      Ajusta
+    </button>
+
+    <!-- Fit all -->
+    <button
+      type="button"
+      class="btn btn-ghost btn-sm gap-1.5"
+      (click)="fitAll()"
+      aria-label="Enquadrar totes les figures"
+    >
+      <lucide-icon name="Maximize2" [size]="15" aria-hidden="true" />
+      Enquadrar
+    </button>
+  </header>
+
+  <!-- Main area -->
+  <div class="flex flex-1 overflow-hidden">
+
+    <!-- Left panel: Figure picker -->
+    <aside
+      class="w-64 bg-base-100 border-r border-base-200 flex flex-col shrink-0 overflow-hidden"
+      aria-label="Selector de figures"
+    >
+      <div class="p-3 border-b border-base-200">
+        <h2 class="text-xs font-semibold text-base-content/50 uppercase tracking-wider mb-2">
+          Figures disponibles
+        </h2>
+        <label class="input input-bordered input-sm flex items-center gap-2">
+          <lucide-icon name="Search" [size]="13" class="text-base-content/40" aria-hidden="true" />
+          <input
+            type="search"
+            placeholder="Cerca figura..."
+            [(ngModel)]="figurePickerSearchInput"
+            (ngModelChange)="onFigurePickerSearchChange($event)"
+            class="grow text-sm"
+            aria-label="Cerca figures disponibles"
+          />
+        </label>
+      </div>
+
+      <ul class="flex-1 overflow-y-auto p-2 flex flex-col gap-1" role="list">
+        @for (tmpl of filteredTemplates(); track tmpl.id) {
+          <li>
+            <button
+              type="button"
+              class="btn btn-ghost btn-sm w-full justify-start gap-2 text-left normal-case font-normal"
+              (click)="addFigure(tmpl)"
+              [attr.aria-label]="'Afegir ' + tmpl.name + ' a la composició'"
+            >
+              <span
+                class="badge badge-xs shrink-0"
+                [class]="tmpl.hasPinya ? 'badge-primary' : 'badge-ghost'"
+                aria-hidden="true"
+              >
+                {{ tmpl.nodeCount }}
+              </span>
+              <span class="truncate text-xs">{{ tmpl.name }}</span>
+              @if (tmpl.hasPinya) {
+                <lucide-icon name="Plus" [size]="12" class="ml-auto shrink-0 text-base-content/40" aria-hidden="true" />
+              }
+            </button>
+          </li>
+        } @empty {
+          <li class="flex items-center justify-center py-10 text-xs text-base-content/30">
+            Cap figura trobada
+          </li>
+        }
+      </ul>
+    </aside>
+
+    <!-- Center: Canvas -->
+    <main class="flex-1 relative overflow-hidden" aria-label="Llenç de la composició">
+      @if (loading()) {
+        <div class="absolute inset-0 flex items-center justify-center bg-base-200/50 z-20">
+          <span class="loading loading-spinner loading-lg text-primary" aria-label="Carregant..."></span>
+        </div>
+      }
+
+      @if (!loading()) {
+        <app-figure-canvas
+          mode="composition"
+          [compositionSlots]="compositionSlots()"
+          [selectedSlotId]="selectedSlotId()"
+          [gridEnabled]="gridEnabled"
+          [gridSpacing]="gridSpacing"
+          [snapToGrid]="snapToGrid"
+          (slotSelected)="onSlotSelected($event)"
+          (slotMoved)="onSlotMoved($event)"
+        />
+      }
+    </main>
+
+    <!-- Right panel: Slot properties -->
+    @if (selectedSlot(); as slot) {
+      <aside
+        class="w-64 bg-base-100 border-l border-base-200 flex flex-col shrink-0 overflow-y-auto"
+        aria-label="Propietats de la figura seleccionada"
+      >
+        <div class="p-4 flex flex-col gap-5">
+          <h2 class="text-xs font-semibold text-base-content/50 uppercase tracking-wider">
+            Propietats del Slot
+          </h2>
+
+          <!-- Figure link -->
+          <div class="flex flex-col gap-1">
+            <span class="text-xs text-base-content/50">Figura base</span>
+            <a
+              [routerLink]="['/pinyes/templates', slot.figureTemplate.id, 'edit']"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="link link-primary text-sm font-medium flex items-center gap-1"
+              [attr.aria-label]="'Editar figura ' + slot.figureTemplate.name + ' en una nova pestanya'"
+            >
+              {{ slot.figureTemplate.name }}
+              <lucide-icon name="ExternalLink" [size]="12" aria-hidden="true" />
+            </a>
+          </div>
+
+          <!-- Label -->
+          <div class="form-control">
+            <label class="label pb-1" for="slot-label-input">
+              <span class="label-text text-xs">Etiqueta personalitzada</span>
+            </label>
+            <input
+              id="slot-label-input"
+              type="text"
+              class="input input-bordered input-sm"
+              placeholder="Ex: pd4 central"
+              [ngModel]="slot.label ?? ''"
+              (ngModelChange)="onSlotLabelChange($event)"
+            />
+          </div>
+
+          <!-- Offset X -->
+          <div class="form-control">
+            <label class="label pb-1" for="slot-offset-x">
+              <span class="label-text text-xs">Offset X</span>
+            </label>
+            <input
+              id="slot-offset-x"
+              type="number"
+              class="input input-bordered input-sm font-mono"
+              [ngModel]="slot.offsetX"
+              (ngModelChange)="onSlotOffsetXChange(+$event)"
+            />
+          </div>
+
+          <!-- Offset Y -->
+          <div class="form-control">
+            <label class="label pb-1" for="slot-offset-y">
+              <span class="label-text text-xs">Offset Y</span>
+            </label>
+            <input
+              id="slot-offset-y"
+              type="number"
+              class="input input-bordered input-sm font-mono"
+              [ngModel]="slot.offsetY"
+              (ngModelChange)="onSlotOffsetYChange(+$event)"
+            />
+          </div>
+
+          <!-- Z-order controls -->
+          <div class="flex flex-col gap-1">
+            <span class="text-xs text-base-content/50">Ordre de capes</span>
+            <div class="flex gap-2">
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm flex-1 gap-1"
+                (click)="bringForward()"
+                [disabled]="isTopSlot"
+                aria-label="Porta al davant"
+              >
+                <lucide-icon name="ArrowUp" [size]="13" aria-hidden="true" />
+                Davant
+              </button>
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm flex-1 gap-1"
+                (click)="sendBackward()"
+                [disabled]="isBottomSlot"
+                aria-label="Porta al darrere"
+              >
+                <lucide-icon name="ArrowDown" [size]="13" aria-hidden="true" />
+                Darrere
+              </button>
+            </div>
+          </div>
+
+          <div class="divider my-0"></div>
+
+          <!-- Delete slot button -->
+          <button
+            type="button"
+            class="btn btn-error btn-sm gap-2 w-full"
+            (click)="deleteSelectedSlot()"
+            aria-label="Eliminar figura de la composició"
+          >
+            <lucide-icon name="Trash2" [size]="14" aria-hidden="true" />
+            Eliminar de la composició
+          </button>
+        </div>
+      </aside>
+    } @else {
+      <aside
+        class="w-64 bg-base-100 border-l border-base-200 flex flex-col items-center justify-center shrink-0 p-6"
+        aria-label="Cap figura seleccionada"
+      >
+        <lucide-icon name="MousePointerClick" [size]="32" class="text-base-content/20 mb-3" aria-hidden="true" />
+        <p class="text-xs text-base-content/40 text-center">
+          Fes clic sobre una figura al llenç per veure les seves propietats
+        </p>
+      </aside>
+    }
+
+  </div>
+</div>

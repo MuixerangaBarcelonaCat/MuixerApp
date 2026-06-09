@@ -5,30 +5,44 @@ import { signal } from '@angular/core';
 import { authGuard } from './auth.guard';
 import { AuthService } from '../services/auth.service';
 
-const mockAuthService = (authenticated: boolean) => ({
-  isAuthenticated: signal(authenticated),
-  whenReady: () => Promise.resolve(),
-});
-
-const runGuard = (authenticated: boolean) => {
-  const authService = mockAuthService(authenticated);
-  TestBed.configureTestingModule({
-    imports: [RouterTestingModule],
-    providers: [{ provide: AuthService, useValue: authService }],
-  });
-  return TestBed.runInInjectionContext(() =>
-    authGuard({} as never, {} as never),
-  ) as Promise<boolean | ReturnType<Router['createUrlTree']>>;
-};
-
 describe('authGuard', () => {
+  afterEach(() => {
+    TestBed.resetTestingModule();
+  });
+
   it('returns true when user is authenticated', async () => {
-    const result = await runGuard(true);
+    TestBed.configureTestingModule({
+      imports: [RouterTestingModule],
+      providers: [
+        {
+          provide: AuthService,
+          useValue: { isAuthenticated: signal(true), whenReady: () => Promise.resolve() },
+        },
+      ],
+    });
+
+    const result = await (TestBed.runInInjectionContext(() =>
+      authGuard({} as never, {} as never),
+    ) as Promise<boolean | ReturnType<Router['createUrlTree']>>);
+
     expect(result).toBe(true);
   });
 
   it('redirects to /login when not authenticated', async () => {
-    const result = await runGuard(false);
+    TestBed.configureTestingModule({
+      imports: [RouterTestingModule],
+      providers: [
+        {
+          provide: AuthService,
+          useValue: { isAuthenticated: signal(false), whenReady: () => Promise.resolve() },
+        },
+      ],
+    });
+
+    const result = await (TestBed.runInInjectionContext(() =>
+      authGuard({} as never, {} as never),
+    ) as Promise<boolean | ReturnType<Router['createUrlTree']>>);
+
     expect(result).toBeTruthy();
     expect((result as ReturnType<Router['createUrlTree']>).toString()).toBe('/login');
   });
@@ -42,10 +56,7 @@ describe('authGuard', () => {
       providers: [
         {
           provide: AuthService,
-          useValue: {
-            isAuthenticated: signal(true),
-            whenReady: () => readyPromise,
-          },
+          useValue: { isAuthenticated: signal(true), whenReady: () => readyPromise },
         },
       ],
     });

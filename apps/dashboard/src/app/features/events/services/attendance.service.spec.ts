@@ -10,6 +10,7 @@ describe('AttendanceService', () => {
   let httpMock: HttpTestingController;
 
   beforeEach(() => {
+    TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       providers: [AttendanceService, provideHttpClient(), provideHttpClientTesting()],
     });

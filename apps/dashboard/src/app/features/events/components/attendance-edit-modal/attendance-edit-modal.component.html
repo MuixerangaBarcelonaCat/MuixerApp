@@ -4,7 +4,7 @@
   (click)="$event.target === $event.currentTarget && onClose()"
   (keydown.escape)="onClose()"
 >
-  <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
+  <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -->
   <div class="modal-box max-w-md w-full" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
 
     <!-- Header -->

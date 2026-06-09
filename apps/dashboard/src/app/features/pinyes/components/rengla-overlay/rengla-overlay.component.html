@@ -1,0 +1,286 @@
+<!-- SVG overlay that tracks the Konva canvas zoom/pan -->
+<svg
+  class="absolute inset-0 w-full h-full pointer-events-none"
+  aria-hidden="true"
+>
+  <!-- Existing rengla connection lines -->
+  @for (line of renglaLines(); track line.rengla.id) {
+    @if (line.points.length >= 2) {
+      <polyline
+        class="pointer-events-auto cursor-pointer"
+        [attr.points]="toPolylinePoints(line.points)"
+        [attr.stroke]="line.color"
+        stroke-width="2.5"
+        stroke-dasharray="8 4"
+        fill="none"
+        [attr.opacity]="selectedRenglaId() === line.rengla.id ? 1 : 0.6"
+        (click)="onRenglaLineClick(line.rengla.id)"
+      />
+    }
+
+    <!-- Position badges on assigned nodes -->
+    @for (pt of line.points; track pt.id) {
+      <g
+        class="pointer-events-auto cursor-pointer"
+        [attr.transform]="'rotate(' + pt.rotation + ' ' + pt.cx + ' ' + pt.cy + ')'"
+        (click)="onNodeClick(pt.id)"
+      >
+        <circle
+          [attr.cx]="pt.cx + pt.width / 2 - 4"
+          [attr.cy]="pt.cy - pt.height / 2 + 4"
+          r="9"
+          [attr.fill]="line.color"
+          stroke="white"
+          stroke-width="1.5"
+        />
+        <text
+          [attr.x]="pt.cx + pt.width / 2 - 4"
+          [attr.y]="pt.cy - pt.height / 2 + 4"
+          text-anchor="middle"
+          dominant-baseline="central"
+          fill="white"
+          font-size="9"
+          font-weight="bold"
+          font-family="Inter, sans-serif"
+          class="select-none"
+        >{{ pt.renglaPosition }}</text>
+      </g>
+    }
+  }
+
+  <!-- Pending creation line -->
+  @if (pendingLine()) {
+    <polyline
+      [attr.points]="pendingLine()"
+      stroke="#6366f1"
+      stroke-width="3"
+      fill="none"
+      opacity="0.8"
+    />
+  }
+
+  <!-- Pending creation badges -->
+  @for (nodeId of pendingNodeIds(); track nodeId; let i = $index) {
+    @if (screenNodeById(nodeId); as sn) {
+      <g [attr.transform]="'rotate(' + sn.rotation + ' ' + sn.cx + ' ' + sn.cy + ')'">
+        <circle
+          [attr.cx]="sn.cx + sn.width / 2 - 4"
+          [attr.cy]="sn.cy - sn.height / 2 + 4"
+          r="10"
+          fill="#6366f1"
+          stroke="white"
+          stroke-width="2"
+        />
+        <text
+          [attr.x]="sn.cx + sn.width / 2 - 4"
+          [attr.y]="sn.cy - sn.height / 2 + 4"
+          text-anchor="middle"
+          dominant-baseline="central"
+          fill="white"
+          font-size="10"
+          font-weight="bold"
+          font-family="Inter, sans-serif"
+          class="select-none"
+        >{{ i + 1 }}</text>
+      </g>
+    }
+  }
+
+  <!-- Clickable hit areas on eligible nodes -->
+  @for (sn of screenNodes(); track sn.id) {
+    @if (!assignedNodeIds().has(sn.id) && !isNodePending(sn.id)) {
+      <rect
+        class="pointer-events-auto cursor-pointer"
+        [attr.transform]="'rotate(' + sn.rotation + ' ' + sn.cx + ' ' + sn.cy + ')'"
+        [attr.x]="sn.cx - sn.width / 2"
+        [attr.y]="sn.cy - sn.height / 2"
+        [attr.width]="sn.width"
+        [attr.height]="sn.height"
+        fill="transparent"
+        [attr.stroke]="creatingRengla() ? '#6366f1' : 'transparent'"
+        stroke-width="1.5"
+        stroke-dasharray="4 3"
+        [attr.opacity]="creatingRengla() ? 0.4 : 0"
+        rx="3"
+        (click)="onNodeClick(sn.id)"
+      />
+    }
+  }
+
+  <!-- Selection highlight ring -->
+  @for (line of renglaLines(); track line.rengla.id) {
+    @if (selectedRenglaId() === line.rengla.id) {
+      @for (pt of line.points; track pt.id) {
+        <rect
+          [attr.transform]="'rotate(' + pt.rotation + ' ' + pt.cx + ' ' + pt.cy + ')'"
+          [attr.x]="pt.cx - pt.width / 2 - 3"
+          [attr.y]="pt.cy - pt.height / 2 - 3"
+          [attr.width]="pt.width + 6"
+          [attr.height]="pt.height + 6"
+          fill="none"
+          [attr.stroke]="line.color"
+          stroke-width="2"
+          stroke-dasharray="6 3"
+          rx="5"
+          opacity="0.7"
+        />
+      }
+    }
+  }
+</svg>
+
+<!-- Action bar (floating bottom) -->
+<div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 pointer-events-auto">
+  @if (creatingRengla()) {
+    <div class="flex items-center gap-2 bg-base-100 shadow-lg rounded-box px-4 py-2 border border-base-300">
+      <span class="text-sm text-base-content/70">
+        @if (pendingNodeIds().length === 0) {
+          Fes clic als nodes per ordre (del centre cap enfora)
+        } @else {
+          {{ pendingNodeIds().length }} nodes seleccionats
+        }
+      </span>
+      <button
+        type="button"
+        class="btn btn-primary btn-sm"
+        [disabled]="pendingNodeIds().length < 2"
+        (click)="finishCreating()"
+        aria-label="Finalitzar creació de rengla"
+      >
+        Finalitzar
+      </button>
+      <button
+        type="button"
+        class="btn btn-ghost btn-sm"
+        (click)="cancelCreate()"
+        aria-label="Cancel·lar creació de rengla"
+      >
+        Cancel·lar
+      </button>
+    </div>
+  } @else if (selectedRengla(); as sel) {
+    <div class="flex items-center gap-2 bg-base-100 shadow-lg rounded-box px-4 py-2 border border-base-300">
+      <span class="text-sm font-medium">{{ sel.name }}</span>
+      <button
+        type="button"
+        class="btn btn-ghost btn-sm"
+        (click)="editSelectedRengla()"
+        aria-label="Editar rengla"
+      >
+        <lucide-icon name="Pencil" [size]="14" aria-hidden="true" />
+        Editar
+      </button>
+      <button
+        type="button"
+        class="btn btn-ghost btn-sm text-error"
+        (click)="deleteSelectedRengla()"
+        aria-label="Suprimir rengla"
+      >
+        <lucide-icon name="Trash2" [size]="14" aria-hidden="true" />
+        Suprimir
+      </button>
+      <button
+        type="button"
+        class="btn btn-ghost btn-sm"
+        (click)="selectedRenglaId.set(null)"
+        aria-label="Tancar selecció"
+      >
+        <lucide-icon name="X" [size]="14" aria-hidden="true" />
+      </button>
+    </div>
+  } @else {
+    <button
+      type="button"
+      class="btn btn-primary btn-sm shadow-lg pointer-events-auto"
+      (click)="startCreating()"
+      aria-label="Crear nova rengla"
+    >
+      <lucide-icon name="Plus" [size]="14" aria-hidden="true" />
+      Nova rengla
+    </button>
+  }
+</div>
+
+<!-- Mini-dialog for rengla name/config -->
+@if (showMiniDialog()) {
+  <div class="absolute inset-0 flex items-center justify-center pointer-events-auto z-20">
+    <div
+      class="bg-base-100 shadow-xl rounded-box border border-base-300 p-5 w-80"
+      role="dialog"
+      aria-label="Configurar rengla"
+      (keydown.escape)="cancelDialog()"
+    >
+      <h3 class="text-sm font-bold mb-3">
+        {{ creatingRengla() ? 'Nova rengla' : 'Editar rengla' }}
+      </h3>
+
+      <div class="form-control mb-3">
+        <label class="label pb-1" for="rengla-name">
+          <span class="label-text text-xs font-medium">Nom</span>
+        </label>
+        <input
+          id="rengla-name"
+          type="text"
+          class="input input-bordered input-sm"
+          [ngModel]="dialogName()"
+          (ngModelChange)="dialogName.set($event)"
+          placeholder="MANS, VENTS, LATERALS..."
+        />
+      </div>
+
+      <div class="form-control mb-3">
+        <label class="label pb-1" for="rengla-start">
+          <span
+            class="label-text text-xs font-medium tooltip tooltip-right"
+            data-tip="Primer cordó on apareix aquesta rengla. 1 = sempre visible."
+          >
+            Posició inicial
+          </span>
+        </label>
+        <input
+          id="rengla-start"
+          type="number"
+          class="input input-bordered input-sm w-20"
+          [ngModel]="dialogStartPosition()"
+          (ngModelChange)="dialogStartPosition.set(+$event)"
+          min="1"
+          max="10"
+        />
+      </div>
+
+      <div class="form-control mb-4">
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            class="checkbox checkbox-sm checkbox-primary"
+            [checked]="dialogAllowsCordoObert()"
+            (change)="dialogAllowsCordoObert.set($any($event.target).checked)"
+          />
+          <span class="label-text text-xs">Permet cordó obert</span>
+        </label>
+      </div>
+
+      <div class="flex justify-end gap-2">
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm"
+          (click)="cancelDialog()"
+        >
+          Cancel·lar
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary btn-sm"
+          (click)="creatingRengla() ? confirmCreate() : confirmEdit()"
+        >
+          {{ creatingRengla() ? 'Crear' : 'Desar' }}
+        </button>
+      </div>
+    </div>
+    <div
+      class="absolute inset-0 bg-black/20 -z-10"
+      (click)="cancelDialog()"
+      aria-hidden="true"
+    ></div>
+  </div>
+}

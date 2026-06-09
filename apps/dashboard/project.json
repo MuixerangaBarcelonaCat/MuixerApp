@@ -24,6 +24,12 @@
       },
       "configurations": {
         "production": {
+          "fileReplacements": [
+            {
+              "replace": "apps/dashboard/src/environments/environment.ts",
+              "with": "apps/dashboard/src/environments/environment.prod.ts"
+            }
+          ],
           "budgets": [
             {
               "type": "initial",
@@ -36,6 +42,16 @@
               "maximumError": "8kb"
             }
           ],
+          "outputHashing": "all"
+        },
+        "pre": {
+          "fileReplacements": [
+            {
+              "replace": "apps/dashboard/src/environments/environment.ts",
+              "with": "apps/dashboard/src/environments/environment.pre.ts"
+            }
+          ],
+          "optimization": true,
           "outputHashing": "all"
         },
         "development": {
@@ -67,7 +83,13 @@
     },
     "test": {
       "executor": "@angular/build:unit-test",
-      "options": {}
+      "options": {},
+      "configurations": {
+        "ci": {
+          "coverage": true,
+          "runnerConfig": true
+        }
+      }
     },
     "serve-static": {
       "continuous": true,

@@ -7,6 +7,7 @@ import { rolesGuard } from './role.guard';
 import { AuthService } from '../services/auth.service';
 
 const runRolesGuard = (userRole: UserRole | null, ...allowedRoles: UserRole[]) => {
+  TestBed.resetTestingModule();
   TestBed.configureTestingModule({
     imports: [RouterTestingModule],
     providers: [

@@ -36,24 +36,27 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        # Llegeix la versió del camp "packageManager" de package.json
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version-file: .node-version
-          cache: npm
-          cache-dependency-path: package-lock.json
+          cache: pnpm
 
       - name: Restore Nx cache
         uses: actions/cache@v4
         with:
           path: .nx/cache
-          key: nx-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+          key: nx-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
           restore-keys: |
-            nx-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
+            nx-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
             nx-${{ runner.os }}-
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       # ── Affected (PRs) ── only lint/test/build what changed
       - name: Set Nx base/head for affected (PR)
@@ -69,11 +72,11 @@ jobs:
 
       - name: Test (all, exclude e2e)
         if: github.event_name == 'push'
-        run: npx nx run-many -t test --all --exclude=dashboard-e2e,pwa-e2e --parallel=3
+        run: npx nx run-many -t test --all --exclude=dashboard-e2e,pwa-e2e,pwa --parallel=3 --configuration=ci
 
       - name: Build (all, exclude e2e)
         if: github.event_name == 'push'
-        run: npx nx run-many -t build --all --exclude=dashboard-e2e,pwa-e2e --parallel=3
+        run: npx nx run-many -t build --all --exclude=dashboard-e2e,pwa-e2e,pwa --parallel=3
 
       # ── Affected only (PRs) ──
       - name: Lint (affected)
@@ -82,8 +85,8 @@ jobs:
 
       - name: Test (affected, exclude e2e)
         if: github.event_name == 'pull_request'
-        run: npx nx affected -t test --exclude=dashboard-e2e,pwa-e2e --parallel=3
+        run: npx nx affected -t test --exclude=dashboard-e2e,pwa-e2e,pwa --parallel=3 --configuration=ci
 
       - name: Build (affected, exclude e2e)
         if: github.event_name == 'pull_request'
-        run: npx nx affected -t build --exclude=dashboard-e2e,pwa-e2e --parallel=3
+        run: npx nx affected -t build --exclude=dashboard-e2e,pwa-e2e,pwa --parallel=3

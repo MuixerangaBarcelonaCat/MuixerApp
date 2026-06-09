@@ -1,4 +1,5 @@
 export enum FigureZone {
+  BASE = 'BASE',
   PINYA = 'PINYA',
   TRONC = 'TRONC',
   FIGURE_DIRECTION = 'FIGURE_DIRECTION',

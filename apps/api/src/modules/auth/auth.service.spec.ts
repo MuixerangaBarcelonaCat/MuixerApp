@@ -12,7 +12,7 @@ jest.mock('bcrypt', () => ({
   compare: jest.fn(),
   hash: jest.fn(),
 }));
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+ 
 const bcrypt = require('bcrypt') as { compare: jest.Mock; hash: jest.Mock };
 
 const makeUser = (overrides: Partial<User> = {}): User =>

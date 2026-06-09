@@ -1,5 +1,5 @@
 import { EventSyncStrategy } from './event-sync.strategy';
-import { EventType } from '@muixer/shared';
+import { Season } from '../../season/season.entity';
 
 describe('EventSyncStrategy — unit helpers', () => {
   let strategy: EventSyncStrategy;
@@ -10,6 +10,7 @@ describe('EventSyncStrategy — unit helpers', () => {
       extractEventId: EventSyncStrategy.prototype.extractEventId,
       parseDate: EventSyncStrategy.prototype.parseDate,
       stripHtml: EventSyncStrategy.prototype.stripHtml,
+      assignSeasonByDate: EventSyncStrategy.prototype.assignSeasonByDate,
     } as unknown as EventSyncStrategy;
   });
 
@@ -51,26 +52,87 @@ describe('EventSyncStrategy — unit helpers', () => {
   });
 });
 
-describe('EventSyncStrategy — season assignment', () => {
-  const CUTOFF = new Date('2025-09-06');
+describe('EventSyncStrategy — assignSeasonByDate', () => {
+  const makeSeasons = (): Season[] =>
+    [
+      {
+        id: 's1',
+        name: 'Temporada 2024-2025',
+        startDate: new Date('2024-09-01'),
+        endDate: new Date('2025-09-05'),
+        legacyId: '2025',
+        description: null,
+        events: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: 's2',
+        name: 'Temporada 2025-2026',
+        startDate: new Date('2025-09-06'),
+        endDate: new Date('2026-09-05'),
+        legacyId: '2026',
+        description: null,
+        events: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ] as Season[];
 
-  const season2024 = { id: 's1', name: 'Temporada 2024-2025' };
-  const season2025 = { id: 's2', name: 'Temporada 2025-2026' };
+  let strategy: EventSyncStrategy;
 
-  function assignSeason(date: Date) {
-    return date < CUTOFF ? season2024 : season2025;
-  }
-
-  it('assigns events before cutoff to Temporada 2024-2025', () => {
-    expect(assignSeason(new Date('2025-09-05'))).toBe(season2024);
+  beforeEach(() => {
+    strategy = {
+      assignSeasonByDate: EventSyncStrategy.prototype.assignSeasonByDate,
+    } as unknown as EventSyncStrategy;
   });
 
-  it('assigns events on cutoff date to Temporada 2025-2026', () => {
-    expect(assignSeason(new Date('2025-09-06'))).toBe(season2025);
+  it('assigns events within first season range to Temporada 2024-2025', () => {
+    const seasons = makeSeasons();
+    expect(strategy.assignSeasonByDate(new Date('2025-03-15'), seasons)?.id).toBe('s1');
   });
 
-  it('assigns events after cutoff to Temporada 2025-2026', () => {
-    expect(assignSeason(new Date('2026-03-26'))).toBe(season2025);
+  it('assigns events on last day of first season to Temporada 2024-2025', () => {
+    const seasons = makeSeasons();
+    expect(strategy.assignSeasonByDate(new Date('2025-09-05'), seasons)?.id).toBe('s1');
+  });
+
+  it('assigns events on first day of second season to Temporada 2025-2026', () => {
+    const seasons = makeSeasons();
+    expect(strategy.assignSeasonByDate(new Date('2025-09-06'), seasons)?.id).toBe('s2');
+  });
+
+  it('assigns events within second season range to Temporada 2025-2026', () => {
+    const seasons = makeSeasons();
+    expect(strategy.assignSeasonByDate(new Date('2026-03-26'), seasons)?.id).toBe('s2');
+  });
+
+  it('falls back to last season for dates beyond all ranges', () => {
+    const seasons = makeSeasons();
+    // 2027 event — beyond all defined seasons, falls back to most recent
+    expect(strategy.assignSeasonByDate(new Date('2027-01-01'), seasons)?.id).toBe('s2');
+  });
+
+  it('returns null for empty seasons array', () => {
+    expect(strategy.assignSeasonByDate(new Date('2026-01-01'), [])).toBeNull();
+  });
+
+  it('assigns correctly with a third season added to DB', () => {
+    const seasons = [
+      ...makeSeasons(),
+      {
+        id: 's3',
+        name: 'Temporada 2026-2027',
+        startDate: new Date('2026-09-06'),
+        endDate: new Date('2027-09-05'),
+        legacyId: '2027',
+        description: null,
+        events: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as Season,
+    ];
+    expect(strategy.assignSeasonByDate(new Date('2026-12-01'), seasons)?.id).toBe('s3');
   });
 });
 
@@ -118,11 +180,10 @@ describe('EventSyncStrategy — merge rules', () => {
 describe('EventSyncStrategy — concurrency guard', () => {
   it('returns error event if sync already in progress', (done) => {
     const mockEventRepo = { findOne: jest.fn(), save: jest.fn(), create: jest.fn(), find: jest.fn() };
-    const mockSeasonRepo = { findOne: jest.fn(), upsert: jest.fn() };
+    const mockSeasonRepo = { findOne: jest.fn(), upsert: jest.fn(), find: jest.fn() };
     const mockLegacyClient = { login: jest.fn(), getAssajos: jest.fn(), getActuacions: jest.fn() };
     const mockAttendanceStrategy = { syncAll: jest.fn() };
 
-    // Manually simulate isSyncing = true
     const s = new EventSyncStrategy(
       mockEventRepo as never,
       mockSeasonRepo as never,
@@ -130,7 +191,7 @@ describe('EventSyncStrategy — concurrency guard', () => {
       mockAttendanceStrategy as never,
     );
 
-    // Trigger first sync (won't complete immediately in this mock)
+    // Manually simulate isSyncing = true
     (s as unknown as { isSyncing: boolean }).isSyncing = true;
 
     const events: import('../interfaces/sync-event.interface').SyncEvent[] = [];
@@ -142,5 +203,54 @@ describe('EventSyncStrategy — concurrency guard', () => {
         done();
       },
     });
+  });
+});
+
+describe('EventSyncStrategy — loadOrCreateSeasons', () => {
+  it('returns existing seasons without creating defaults when DB has seasons', async () => {
+    const existing: Partial<Season>[] = [
+      { id: 's1', name: 'Temporada 2024-2025', startDate: new Date('2024-09-01'), endDate: new Date('2025-09-05'), legacyId: '2025' },
+    ];
+    const mockSeasonRepo = {
+      find: jest.fn().mockResolvedValue(existing),
+      upsert: jest.fn(),
+    };
+
+    const s = new EventSyncStrategy(
+      {} as never,
+      mockSeasonRepo as never,
+      {} as never,
+      {} as never,
+    );
+
+    const result = await s.loadOrCreateSeasons();
+
+    expect(result).toHaveLength(1);
+    expect(mockSeasonRepo.upsert).not.toHaveBeenCalled();
+  });
+
+  it('creates default seasons when DB is empty', async () => {
+    const mockSeasonRepo = {
+      find: jest
+        .fn()
+        .mockResolvedValueOnce([]) // first call: empty
+        .mockResolvedValueOnce([
+          { id: 's1', legacyId: '2025' },
+          { id: 's2', legacyId: '2026' },
+        ]), // second call: after upsert
+      upsert: jest.fn().mockResolvedValue(undefined),
+    };
+
+    const s = new EventSyncStrategy(
+      {} as never,
+      mockSeasonRepo as never,
+      {} as never,
+      {} as never,
+    );
+
+    const result = await s.loadOrCreateSeasons();
+
+    expect(mockSeasonRepo.upsert).toHaveBeenCalledTimes(2);
+    expect(result).toHaveLength(2);
   });
 });

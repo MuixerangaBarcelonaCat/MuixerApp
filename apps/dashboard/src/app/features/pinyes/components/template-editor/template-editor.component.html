@@ -1,0 +1,701 @@
+<div class="editor-layout">
+
+  <!-- ── Top Bar ──────────────────────────────────────────────────────────── -->
+  <header class="editor-topbar" role="banner">
+    <div class="flex items-center gap-3 min-w-0">
+      <button
+        type="button"
+        class="btn btn-ghost btn-sm gap-1"
+        (click)="goBack()"
+        aria-label="Tornar a la llista"
+      >
+        <lucide-icon name="ArrowLeft" [size]="16" aria-hidden="true" />
+        Figures
+      </button>
+
+      <span class="text-base-content/30" aria-hidden="true">/</span>
+
+      <!-- Template name -->
+      <div class="flex items-center gap-2 min-w-0 flex-1">
+        <input
+          type="text"
+          class="input input-ghost input-sm font-semibold text-base-content max-w-xs"
+          placeholder="Nom de la figura"
+          [ngModel]="templateName()"
+          (ngModelChange)="onNameChange($event)"
+          aria-label="Nom de la figura"
+        />
+        <input
+          type="text"
+          class="input input-ghost input-xs text-base-content/50 font-mono w-32"
+          placeholder="slug"
+          [ngModel]="templateSlug()"
+          (ngModelChange)="onSlugChange($event)"
+          aria-label="Slug de la figura"
+        />
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3">
+          <!-- Save status -->
+      @if (saveStatus() !== 'idle') {
+        <span
+          class="text-xs px-2 py-1 rounded-full"
+          [class.text-primary]="saveStatus() === 'saving'"
+          [class.text-success]="saveStatus() === 'saved'"
+          [class.text-error]="saveStatus() === 'error'"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          @if (saveStatus() === 'saving') {
+            <span class="loading loading-spinner loading-xs mr-1" aria-hidden="true"></span>
+          }
+          {{ saveStatusLabel() }}
+        </span>
+      }
+
+      <!-- Rengla edit mode toggle -->
+      <button
+        type="button"
+        class="btn btn-sm gap-1"
+        [class.btn-primary]="renglaEditMode()"
+        [class.btn-ghost]="!renglaEditMode()"
+        (click)="toggleRenglaEditMode()"
+        [attr.aria-pressed]="renglaEditMode()"
+        aria-label="Editar rengles"
+        title="Edita rengles"
+      >
+        <lucide-icon name="GitBranchPlus" [size]="16" aria-hidden="true" />
+        Rengles
+      </button>
+
+      <!-- Tronc drawer trigger -->
+      <button
+        type="button"
+        class="btn btn-ghost btn-sm gap-1"
+        (click)="troncDrawerOpen.set(true)"
+        aria-label="Obrir panell del Tronc"
+        title="Tronc"
+      >
+        <lucide-icon name="Layers" [size]="16" aria-hidden="true" />
+        Tronc
+      </button>
+
+      <!-- hasPinya toggle -->
+      <label class="flex items-center gap-2 cursor-pointer" title="Té Pinya">
+        <span class="text-xs text-base-content/60">Pinya</span>
+        <input
+          type="checkbox"
+          class="toggle toggle-sm toggle-primary"
+          [checked]="hasPinya()"
+          (change)="onHasPinyaChange($any($event.target).checked)"
+          aria-label="La figura té pinya"
+        />
+      </label>
+
+      <!-- Shortcuts help -->
+      <button
+        type="button"
+        class="btn btn-ghost btn-sm btn-square"
+        (click)="toggleShortcutsModal()"
+        aria-label="Veure dreceres de teclat"
+        title="Dreceres de teclat"
+      >
+        <lucide-icon name="Keyboard" [size]="16" aria-hidden="true" />
+      </button>
+
+      <!-- Editor help -->
+      <button
+        type="button"
+        class="btn btn-ghost btn-sm btn-square"
+        (click)="helpModal().open()"
+        aria-label="Ajuda de l'editor de figures"
+        title="Ajuda"
+      >
+        <lucide-icon name="HelpCircle" [size]="16" aria-hidden="true" />
+      </button>
+    </div>
+  </header>
+
+  <!-- ── Main Area ─────────────────────────────────────────────────────────── -->
+  <div class="editor-main">
+
+    <!-- Left Toolbar -->
+    <aside class="editor-toolbar" aria-label="Eines">
+
+      <!-- Base (intersecció pinya-tronc) -->
+      <div class="toolbar-section">
+        <p class="toolbar-label">Base</p>
+        <button
+          type="button"
+          class="toolbar-btn"
+          (click)="onBaseNodeAdded({ sortOrder: baseNodes().length })"
+          title="Afegir Base"
+          aria-label="Afegir node Base"
+        >
+          <span class="node-rect" style="background-color: #EEEEEE; border: 1px dashed #a1a1a1;" aria-hidden="true"></span>
+          BASE
+        </button>
+
+        <!-- Base ordering warning -->
+        @if (baseNodes().length >= 2 && !baseOrderingValidation().isValid) {
+          <button
+            type="button"
+            class="mt-1 flex items-center gap-1 text-[10px] text-warning font-medium leading-tight hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-warning rounded px-1"
+            (click)="helpModal().open()"
+            title="Les bases no estan en ordre anti-horari. Clica per saber com corregir-ho."
+            aria-label="Avís: ordre de bases incorrecte. Clica per veure l'ajuda."
+          >
+            <lucide-icon name="AlertTriangle" [size]="11" aria-hidden="true" />
+            Ordre incorrecte
+          </button>
+        }
+      </div>
+
+      <div class="divider my-1"></div>
+
+      <!-- Pinya positions -->
+      <div class="toolbar-section">
+        <p class="toolbar-label">Pinya</p>
+        @for (pos of pinyaPositions; track pos.positionType) {
+          <button
+            type="button"
+            class="toolbar-btn"
+            (click)="addPinyaNode(pos)"
+            [title]="'Afegir ' + pos.label"
+            [attr.aria-label]="'Afegir node ' + pos.label"
+          >
+            <span class="node-rect" [style.backgroundColor]="pos.color" aria-hidden="true"></span>
+            {{ pos.label }}
+          </button>
+        }
+      </div>
+
+      <div class="divider my-1"></div>
+
+      <div class="toolbar-section">
+        <button
+          type="button"
+          class="toolbar-btn text-error disabled:opacity-30"
+          [disabled]="!selectedNodeId()"
+          (click)="deleteSelectedNode()"
+          title="Eliminar node seleccionat"
+          aria-label="Eliminar node seleccionat"
+        >
+          <lucide-icon name="Trash2" [size]="14" aria-hidden="true" />
+          Eliminar
+        </button>
+      </div>
+
+      <div class="divider my-1"></div>
+
+      <div class="toolbar-section">
+        <p class="toolbar-label">Vistes</p>
+
+        <button
+          type="button"
+          class="toolbar-btn"
+          [class.active]="gridEnabled()"
+          (click)="toggleGrid()"
+          title="Mostrar / Ocultar quadrícula"
+          aria-label="Mostrar / Ocultar quadrícula"
+          [attr.aria-pressed]="gridEnabled()"
+        >
+          <lucide-icon name="Grid3X3" [size]="14" aria-hidden="true" />
+          Quadrícula
+        </button>
+
+        <button
+          type="button"
+          class="toolbar-btn"
+          [class.active]="snapToGrid()"
+          (click)="toggleSnapToGrid()"
+          title="Encaixar a la quadrícula"
+          aria-label="Encaixar a la quadrícula"
+          [attr.aria-pressed]="snapToGrid()"
+        >
+          <lucide-icon name="Magnet" [size]="14" aria-hidden="true" />
+          Encaixar
+        </button>
+      </div>
+    </aside>
+
+    <!-- Canvas Area -->
+    <main class="editor-canvas" aria-label="Editor visual de la figura">
+
+      @if (loading()) {
+        <div class="flex items-center justify-center h-full">
+          <span class="loading loading-spinner loading-lg text-primary" aria-label="Carregant figura..."></span>
+        </div>
+      } @else if (pinyaNodes().length === 0) {
+        <div class="flex flex-col items-center justify-center h-full gap-4 text-center px-6">
+          <lucide-icon name="Shapes" [size]="64" class="text-base-content/20" aria-hidden="true" />
+          <div>
+            <h3 class="text-lg font-semibold text-base-content mb-1">No hi ha cap node de pinya</h3>
+            <p class="text-sm text-base-content/60">
+              Afegeix nodes des de la barra d'eines de l'esquerra per començar a dissenyar la figura.
+            </p>
+          </div>
+        </div>
+      } @else {
+        <div class="relative w-full h-full">
+          <app-figure-canvas
+            [nodes]="pinyaNodes()"
+            [mode]="canvasMode()"
+            [gridEnabled]="gridEnabled()"
+            [gridSpacing]="40"
+            [snapToGrid]="snapToGrid()"
+            [selectedNodeId]="selectedNodeId()"
+            (nodeSelected)="onNodeSelected($event)"
+            (nodeMoved)="onNodeMoved($event)"
+            (nodeRotated)="onNodeRotated($event)"
+            (nodeResized)="onNodeResized($event)"
+            (nodeLabelChanged)="onNodeLabelChanged($event)"
+            (stageTransformChanged)="onStageTransformChanged($event)"
+            (ghostCloneRequested)="onGhostCloneRequested($event)"
+          />
+          @if (renglaEditMode()) {
+            <app-rengla-overlay
+              [nodes]="pinyaNodes()"
+              [rengles]="rengles()"
+              [stageTransform]="stageTransform()"
+              (renglaCreated)="onRenglaCreated($event)"
+              (renglaUpdated)="onRenglaUpdated($event)"
+              (renglaDeleted)="onRenglaDeleted($event)"
+            />
+          }
+        </div>
+      }
+    </main>
+
+    <!-- Right Panel: Node Properties -->
+    <aside
+      class="editor-panel"
+      [class.panel-open]="propertiesPanelOpen()"
+      [attr.aria-hidden]="!propertiesPanelOpen()"
+    >
+      <!-- Panel toggle -->
+      <button
+        type="button"
+        class="panel-toggle"
+        (click)="togglePropertiesPanel()"
+        [attr.aria-expanded]="propertiesPanelOpen()"
+        aria-controls="properties-panel"
+        [attr.aria-label]="propertiesPanelOpen() ? 'Amagar propietats' : 'Mostrar propietats'"
+      >
+        <lucide-icon
+          [name]="propertiesPanelOpen() ? 'PanelRightClose' : 'PanelRightOpen'"
+          [size]="16"
+          aria-hidden="true"
+        />
+      </button>
+
+      @if (propertiesPanelOpen()) {
+        <div id="properties-panel" class="panel-content">
+          @if (selectedNode(); as node) {
+            <h2 class="panel-title">Propietats del node</h2>
+
+            <!-- Label -->
+            <div class="form-control mb-3">
+              <label class="label pb-1" [for]="'node-label-' + node.id">
+                <span class="label-text text-xs font-medium">Etiqueta</span>
+              </label>
+              <input
+                type="text"
+                [id]="'node-label-' + node.id"
+                class="input input-bordered input-sm"
+                [ngModel]="node.label"
+                (ngModelChange)="updateSelectedNodeProp('label', $event)"
+              />
+            </div>
+
+            <!-- Zone: only editable for non-TRONC nodes -->
+            @if (node.zone !== FigureZone.TRONC) {
+              <div class="form-control mb-3">
+                <label class="label pb-1" [for]="'node-zone-' + node.id">
+                  <span class="label-text text-xs font-medium">Zona</span>
+                </label>
+                <select
+                  [id]="'node-zone-' + node.id"
+                  class="select select-bordered select-sm"
+                  [ngModel]="node.zone"
+                  (ngModelChange)="updateSelectedNodeProp('zone', $event)"
+                >
+                  <option [value]="FigureZone.BASE">Base</option>
+                  <option [value]="FigureZone.PINYA">Pinya</option>
+                  <option [value]="FigureZone.FIGURE_DIRECTION">Direcció Figura</option>
+                  <option [value]="FigureZone.XICALLA_DIRECTION">Direcció Xicalla</option>
+                </select>
+                @if (node.zone === FigureZone.PINYA || node.zone === FigureZone.BASE) {
+                  <div class="label pt-1">
+                    <span class="label-text-alt text-base-content/50">
+                      Els nodes de pinya i base sempre tenen pis = 0
+                    </span>
+                  </div>
+                }
+              </div>
+            }
+
+            <!-- Position type: only editable for non-TRONC nodes (for TRONC it is set by the floor preset) -->
+            @if (node.zone !== FigureZone.TRONC) {
+              <div class="form-control mb-3">
+                <label class="label pb-1" [for]="'node-pos-' + node.id">
+                  <span class="label-text text-xs font-medium">Tipus de posició</span>
+                </label>
+                <input
+                  type="text"
+                  [id]="'node-pos-' + node.id"
+                  class="input input-bordered input-sm"
+                  placeholder="base, segon, cross..."
+                  [ngModel]="node.positionType"
+                  (ngModelChange)="updateSelectedNodeProp('positionType', $event || null)"
+                />
+              </div>
+            }
+
+            <!-- Ring level: only for PINYA nodes -->
+            @if (node.zone === FigureZone.PINYA) {
+              <div class="form-control mb-3">
+                <label class="label pb-1" [for]="'node-ring-' + node.id">
+                  <span
+                    class="label-text text-xs font-medium tooltip tooltip-right"
+                    [attr.data-tip]="node.renglaId
+                      ? 'Calculat automàticament des de la rengla assignada.'
+                      : 'El nivell de cordó indica a quin anell concèntric pertany aquesta posició. Serveix per saber quines posicions s\'afegeixen quan la figura creix.'"
+                  >
+                    Nivell de cordó
+                  </span>
+                </label>
+                <input
+                  type="number"
+                  [id]="'node-ring-' + node.id"
+                  class="input input-bordered input-sm"
+                  [class.input-disabled]="!!node.renglaId"
+                  [placeholder]="node.renglaId ? '' : 'Buit = independent'"
+                  [ngModel]="node.ringLevel"
+                  (ngModelChange)="updateSelectedNodeProp('ringLevel', $event ? +$event : null)"
+                  [disabled]="!!node.renglaId"
+                  min="1"
+                  max="10"
+                />
+                <div class="label pt-1">
+                  <span class="label-text-alt text-base-content/50">
+                    @if (node.renglaId) {
+                      Gestionat per la rengla assignada
+                    } @else {
+                      Buit per a nodes independents (ex: cordó obert)
+                    }
+                  </span>
+                </div>
+              </div>
+            }
+
+            @if (node.zone !== FigureZone.TRONC) {
+              <!-- Shape (pinya/direction only) -->
+              <div class="form-control mb-3">
+                <label class="label pb-1" [for]="'node-shape-' + node.id">
+                  <span class="label-text text-xs font-medium">Forma</span>
+                </label>
+                <select
+                  [id]="'node-shape-' + node.id"
+                  class="select select-bordered select-sm"
+                  [ngModel]="node.shape"
+                  (ngModelChange)="updateSelectedNodeProp('shape', $event)"
+                >
+                  <option [value]="NodeShape.ELLIPSE">El·lipse</option>
+                  <option [value]="NodeShape.RECTANGLE">Rectangle</option>
+                </select>
+              </div>
+
+              <!-- Dimensions (pinya/direction only) -->
+              <div class="form-control mb-3">
+                <p class="label pb-1">
+                  <span class="label-text text-xs font-medium">Dimensions</span>
+                </p>
+                <div class="grid grid-cols-2 gap-2">
+                  <div class="form-control">
+                    <label class="label pb-1" [for]="'node-w-' + node.id">
+                      <span class="label-text text-xs font-medium">Amplada (px)</span>
+                    </label>
+                    <input
+                      type="number"
+                      [id]="'node-w-' + node.id"
+                      class="input input-bordered input-sm font-mono"
+                      [ngModel]="node.width"
+                      (ngModelChange)="updateSelectedNodeProp('width', +$event)"
+                      min="10" max="500"
+                    />
+                  </div>
+                  <div class="form-control">
+                    <label class="label pb-1" [for]="'node-h-' + node.id">
+                      <span class="label-text text-xs font-medium">Alçada (px)</span>
+                    </label>
+                    <input
+                      type="number"
+                      [id]="'node-h-' + node.id"
+                      class="input input-bordered input-sm font-mono"
+                      [ngModel]="node.height"
+                      (ngModelChange)="updateSelectedNodeProp('height', +$event)"
+                      min="10" max="500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Rotation (pinya/direction only) -->
+              <div class="form-control mb-3">
+                <label class="label pb-1" [for]="'node-rot-' + node.id">
+                  <span class="label-text text-xs font-medium">Rotació (°)</span>
+                </label>
+                <div class="flex items-center gap-2">
+                  <input
+                    type="range"
+                    [id]="'node-rot-' + node.id"
+                    class="range range-xs flex-1"
+                    min="0" max="360" step="15"
+                    [ngModel]="node.rotation"
+                    (ngModelChange)="updateSelectedNodeProp('rotation', +$event)"
+                  />
+                  <span class="text-xs font-mono w-8 text-right">{{ node.rotation }}°</span>
+                </div>
+              </div>
+
+              <div class="divider mt-2 mb-2"></div>
+
+              <!-- Position in canvas (pinya/direction only) -->
+              <div class="grid grid-cols-2 gap-2">
+                <div class="form-control">
+                  <label class="label pb-1" [for]="'node-x-' + node.id">
+                    <span class="label-text text-xs font-medium">X</span>
+                  </label>
+                  <input
+                    type="number"
+                    [id]="'node-x-' + node.id"
+                    class="input input-bordered input-sm font-mono"
+                    [ngModel]="node.x"
+                    (ngModelChange)="updateSelectedNodeProp('x', +$event)"
+                  />
+                </div>
+                <div class="form-control">
+                  <label class="label pb-1" [for]="'node-y-' + node.id">
+                    <span class="label-text text-xs font-medium">Y</span>
+                  </label>
+                  <input
+                    type="number"
+                    [id]="'node-y-' + node.id"
+                    class="input input-bordered input-sm font-mono"
+                    [ngModel]="node.y"
+                    (ngModelChange)="updateSelectedNodeProp('y', +$event)"
+                  />
+                </div>
+              </div>
+            }
+
+            <!-- Floor (z) - Only for non-PINYA, non-BASE, non-TRONC zones (TRONC floor is managed via the widget, BASE and PINYA are always z=0) -->
+            @if (node.zone !== FigureZone.PINYA && node.zone !== FigureZone.BASE && node.zone !== FigureZone.TRONC) {
+              <div class="form-control mb-3">
+                <label class="label pb-1" [for]="'node-z-' + node.id">
+                  <span class="label-text text-xs font-medium">Pis (z)</span>
+                </label>
+                <input
+                  type="number"
+                  [id]="'node-z-' + node.id"
+                  class="input input-bordered input-sm"
+                  [ngModel]="node.z"
+                  (ngModelChange)="updateSelectedNodeProp('z', +$event)"
+                  min="0" max="20"
+                />
+              </div>
+            }
+          } @else {
+            <div class="flex flex-col items-center justify-center h-full gap-3 text-center px-4">
+              <lucide-icon name="MousePointer2" [size]="32" class="text-base-content/20" aria-hidden="true" />
+              <p class="text-sm text-base-content/50">
+                Fes clic a un node del canvas per veure i editar les seves propietats
+              </p>
+            </div>
+          }
+        </div>
+      }
+    </aside>
+  </div>
+</div>
+
+<!-- ── Tronc Floating Panel ──────────────────────────────────────────────── -->
+@if (troncDrawerOpen()) {
+  <aside
+    class="tronc-floating-panel"
+    [style.left.px]="troncPanelPos().x"
+    [style.top.px]="troncPanelPos().y"
+    aria-label="Tronc de la figura"
+    tabindex="-1"
+    (keydown.escape)="troncDrawerOpen.set(false)"
+  >
+    <div
+      class="tronc-floating-header"
+      (mousedown)="onTroncDragStart($event)"
+    >
+      <lucide-icon name="GripVertical" [size]="14" class="drag-handle" aria-hidden="true" />
+      <h2 class="tronc-floating-title">
+        Tronc
+      </h2>
+      <button
+        type="button"
+        class="btn btn-ghost btn-xs btn-square"
+        (click)="troncDrawerOpen.set(false)"
+        aria-label="Tancar panell del Tronc"
+      >
+        <lucide-icon name="X" [size]="14" aria-hidden="true" />
+      </button>
+    </div>
+    <app-tronc-view
+      class="tronc-floating-body"
+      [troncNodes]="troncNodes()"
+      [baseNodes]="baseNodes()"
+      [mode]="'editor'"
+      [selectedNodeId]="selectedNodeId()"
+      (nodeSelected)="onNodeSelected($event)"
+      (nodeAdded)="onTroncNodeAdded($event)"
+      (nodeRemoved)="onTroncNodeRemoved($event)"
+      (nodeUpdated)="onTroncNodeUpdated($event)"
+      (baseAdded)="onBaseNodeAdded($event)"
+      (baseRemoved)="onBaseNodeRemoved($event)"
+    />
+  </aside>
+}
+
+<!-- ── Shortcuts Modal ──────────────────────────────────────────────────── -->
+@if (shortcutsModalOpen()) {
+  <dialog
+    class="modal modal-open"
+    aria-modal="true"
+    aria-labelledby="shortcuts-title"
+    tabindex="-1"
+    (keydown.escape)="toggleShortcutsModal()"
+  >
+    <div class="modal-box max-w-lg">
+      <button
+        type="button"
+        class="btn btn-sm btn-circle btn-ghost absolute right-3 top-3"
+        (click)="toggleShortcutsModal()"
+        aria-label="Tancar"
+      >
+        <lucide-icon name="X" [size]="16" aria-hidden="true" />
+      </button>
+
+      <h2 id="shortcuts-title" class="text-lg font-bold mb-4 flex items-center gap-2">
+        <lucide-icon name="Keyboard" [size]="20" aria-hidden="true" />
+        Dreceres de teclat
+      </h2>
+
+      <!-- Selecció i edició -->
+      <section aria-labelledby="shortcuts-nodes">
+        <h3 id="shortcuts-nodes" class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-2">Nodes</h3>
+        <ul class="space-y-2 mb-4" role="list">
+          <li class="flex items-center justify-between gap-4">
+            <span class="text-sm">Seleccionar node</span>
+            <span class="shortcuts-keys"><kbd class="kbd kbd-sm">Clic</kbd></span>
+          </li>
+          <li class="flex items-center justify-between gap-4">
+            <span class="text-sm">Editar etiqueta</span>
+            <span class="shortcuts-keys"><kbd class="kbd kbd-sm">Doble clic</kbd></span>
+          </li>
+          <li class="flex items-center justify-between gap-4">
+            <span class="text-sm">Redimensionar node</span>
+            <span class="shortcuts-keys"><kbd class="kbd kbd-sm">Arrossegar cantonada</kbd></span>
+          </li>
+          <li class="flex items-center justify-between gap-4">
+            <span class="text-sm">Rotar node</span>
+            <span class="shortcuts-keys"><kbd class="kbd kbd-sm">Tirador rotació</kbd></span>
+          </li>
+          <li class="flex items-center justify-between gap-4">
+            <span class="text-sm">Eliminar node seleccionat</span>
+            <span class="shortcuts-keys flex gap-1">
+              <kbd class="kbd kbd-sm">Delete</kbd>
+              <span class="text-base-content/40 text-xs self-center">/</span>
+              <kbd class="kbd kbd-sm">Backspace</kbd>
+            </span>
+          </li>
+        </ul>
+      </section>
+
+      <div class="divider my-2"></div>
+
+      <!-- Còpia -->
+      <section aria-labelledby="shortcuts-copy">
+        <h3 id="shortcuts-copy" class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-2">Còpia</h3>
+        <ul class="space-y-2 mb-4" role="list">
+          <li class="flex items-center justify-between gap-4">
+            <span class="text-sm">Copiar node seleccionat</span>
+            <span class="shortcuts-keys flex gap-1">
+              <kbd class="kbd kbd-sm">⌘</kbd>
+              <kbd class="kbd kbd-sm">C</kbd>
+            </span>
+          </li>
+          <li class="flex items-center justify-between gap-4">
+            <span class="text-sm">Enganxar node copiat</span>
+            <span class="shortcuts-keys flex gap-1">
+              <kbd class="kbd kbd-sm">⌘</kbd>
+              <kbd class="kbd kbd-sm">V</kbd>
+            </span>
+          </li>
+        </ul>
+      </section>
+
+      <div class="divider my-2"></div>
+
+      <!-- Moviment -->
+      <section aria-labelledby="shortcuts-move">
+        <h3 id="shortcuts-move" class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-2">Moviment</h3>
+        <ul class="space-y-2 mb-4" role="list">
+          <li class="flex items-center justify-between gap-4">
+            <span class="text-sm">Moure node (1 px)</span>
+            <span class="shortcuts-keys flex gap-1">
+              <kbd class="kbd kbd-sm">↑</kbd>
+              <kbd class="kbd kbd-sm">↓</kbd>
+              <kbd class="kbd kbd-sm">←</kbd>
+              <kbd class="kbd kbd-sm">→</kbd>
+            </span>
+          </li>
+          <li class="flex items-center justify-between gap-4">
+            <span class="text-sm">Moure node (10 px)</span>
+            <span class="shortcuts-keys flex gap-1">
+              <kbd class="kbd kbd-sm">⇧</kbd>
+              <span class="text-base-content/40 text-xs self-center">+</span>
+              <kbd class="kbd kbd-sm">↑ ↓ ← →</kbd>
+            </span>
+          </li>
+          <li class="flex items-center justify-between gap-4">
+            <span class="text-sm">Moure node lliurement</span>
+            <span class="shortcuts-keys"><kbd class="kbd kbd-sm">Arrossegar</kbd></span>
+          </li>
+        </ul>
+      </section>
+
+      <div class="divider my-2"></div>
+
+      <!-- Canvas -->
+      <section aria-labelledby="shortcuts-canvas">
+        <h3 id="shortcuts-canvas" class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-2">Canvas</h3>
+        <ul class="space-y-2" role="list">
+          <li class="flex items-center justify-between gap-4">
+            <span class="text-sm">Zoom</span>
+            <span class="shortcuts-keys"><kbd class="kbd kbd-sm">Roda ratolí</kbd></span>
+          </li>
+          <li class="flex items-center justify-between gap-4">
+            <span class="text-sm">Desplaçar canvas</span>
+            <span class="shortcuts-keys flex gap-1">
+              <kbd class="kbd kbd-sm">Clic mig</kbd>
+              <span class="text-base-content/40 text-xs self-center">/</span>
+              <kbd class="kbd kbd-sm">Arrossegar fons</kbd>
+            </span>
+          </li>
+        </ul>
+      </section>
+    </div>
+    <div class="modal-backdrop" (click)="toggleShortcutsModal()" aria-hidden="true"></div>
+  </dialog>
+}
+
+<!-- Template editor help modal -->
+<app-template-editor-help-modal />

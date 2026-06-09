@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: muixer-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: muixer
+      POSTGRES_PASSWORD: muixer_dev_pass
+      POSTGRES_DB: muixer_dev
+    ports:
+      - '5433:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U muixer -d muixer_dev']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  postgres-data:

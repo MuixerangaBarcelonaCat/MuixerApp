@@ -15,6 +15,16 @@ export default {
     '!src/**/*.entity.ts',
     '!src/**/index.ts',
     '!src/main.ts',
+    '!src/**/scripts/**',
+    '!src/**/seeds/**',
   ],
+  coverageThreshold: {
+    global: {
+      statements: 55,
+      branches: 50,
+      functions: 55,
+      lines: 55,
+    },
+  },
   testMatch: ['**/*.spec.ts'],
 };

@@ -1,13 +1,15 @@
-<div class="space-y-4 max-w-5xl mx-auto">
+<div class="space-y-4 max-w-5xl mx-auto" [formGroup]="form">
 
   <!-- Capçalera -->
   <div class="flex items-center gap-3">
     <button class="btn btn-ghost btn-sm btn-circle" (click)="goBack()" type="button" aria-label="Tornar">
-      <lucide-icon name="ArrowLeft" [size]="18" />
+      ←
     </button>
     <div class="flex-1">
       <div class="flex items-center gap-2 flex-wrap">
-        <h1 class="text-xl font-bold text-base-content">{{ person()?.alias }}</h1>
+        <h1 class="text-xl font-bold text-base-content">
+          {{ person()?.alias || (isNew() ? 'Nova persona' : '—') }}
+        </h1>
         @if (person()?.isProvisional) {
           <span class="badge badge-warning badge-sm">Provisional</span>
         }
@@ -15,13 +17,26 @@
           <span class="badge badge-error badge-sm">Inactiu</span>
         }
       </div>
-      <p class="text-xs text-base-content/50 mt-0.5">{{ getFullName(person()!) }}</p>
+      @if (!isNew() && person()) {
+        <p class="text-xs text-base-content/50 mt-0.5">
+          {{ person()!.name }} {{ person()!.firstSurname }}{{ person()!.secondSurname ? ' ' + person()!.secondSurname : '' }}
+        </p>
+      }
     </div>
-    @if (person()) {
-      <div class="flex items-center gap-2">
-        @if (provisionalToggleError()) {
-          <span class="text-xs text-error">{{ provisionalToggleError() }}</span>
-        }
+
+    <!-- Botons de capçalera -->
+    <div class="flex items-center gap-2">
+      @if (provisionalToggleError()) {
+        <span class="text-xs text-error">{{ provisionalToggleError() }}</span>
+      }
+      @if (saveError()) {
+        <span class="text-xs text-error">{{ saveError() }}</span>
+      }
+      @if (saveSuccess() && !editing()) {
+        <span class="text-xs text-success">Desat correctament</span>
+      }
+
+      @if (person() && !editing()) {
         <button
           type="button"
           class="btn btn-sm"
@@ -36,8 +51,36 @@
             {{ person()!.isProvisional ? 'Promoure a membre' : 'Marcar provisional' }}
           }
         </button>
-      </div>
-    }
+<!--        <button type="button" class="btn btn-sm btn-error" [disabled]="deletingPerson()" (click)="deletePerson()">-->
+<!--          @if (deletingPerson()) {-->
+<!--            <span class="loading loading-spinner loading-xs"></span>-->
+<!--          } @else {-->
+<!--            Esborrar-->
+<!--          }-->
+<!--        </button>-->
+        <button type="button" class="btn btn-sm btn-primary" (click)="startEditing()">
+          Editar
+        </button>
+      }
+
+      @if (editing()) {
+        @if (!isNew()) {
+          <button type="button" class="btn btn-sm btn-ghost" (click)="cancelEditing()">Cancel·lar</button>
+        }
+        <button
+          type="button"
+          class="btn btn-sm btn-primary"
+          [disabled]="form.invalid || saving()"
+          (click)="save()"
+        >
+          @if (saving()) {
+            <span class="loading loading-spinner loading-xs"></span>
+          } @else {
+            {{ isNew() ? 'Crear' : 'Desar' }}
+          }
+        </button>
+      }
+    </div>
   </div>
 
   <!-- Loading -->
@@ -51,52 +94,138 @@
   }
 
   <!-- Not found -->
-  @if (!loading() && !person()) {
+  @if (!loading() && !isNew() && !person()) {
     <app-empty-state icon="UserX" message="Persona no trobada" actionLabel="Tornar" (actionClick)="goBack()" />
   }
 
-  <!-- Detall -->
-  @if (!loading() && person()) {
+  <!-- Contingut principal -->
+  @if (!loading() && (isNew() || person())) {
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
       <!-- Informació personal -->
       <div class="card bg-base-100 shadow-sm">
         <div class="card-body">
           <h2 class="card-title text-base mb-3 pb-2 border-b border-base-300">Informació personal</h2>
-          <dl class="space-y-3">
-            <div class="flex justify-between items-start">
-              <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Nom complet</dt>
-              <dd class="text-sm text-right">{{ getFullName(person()!) }}</dd>
+
+          @if (!editing()) {
+            <dl class="space-y-3">
+              <div class="flex justify-between items-start">
+                <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Nom</dt>
+                <dd class="text-sm text-right">{{ person()!.name }}</dd>
+              </div>
+              <div class="flex justify-between items-start">
+                <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Primer cognom</dt>
+                <dd class="text-sm text-right">{{ person()!.firstSurname }}</dd>
+              </div>
+              @if (person()!.secondSurname) {
+                <div class="flex justify-between items-start">
+                  <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Segon cognom</dt>
+                  <dd class="text-sm text-right">{{ person()!.secondSurname }}</dd>
+                </div>
+              }
+              <div class="flex justify-between items-start">
+                <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Àlies</dt>
+                <dd class="text-sm text-right font-medium">{{ person()!.alias }}</dd>
+              </div>
+              @if (person()!.managedBy?.email) {
+                <div class="flex justify-between items-start">
+                  <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Correu</dt>
+                  <dd class="text-sm text-right">{{ person()!.managedBy?.email }}</dd>
+                </div>
+              }
+              @if (person()!.phone) {
+                <div class="flex justify-between items-start">
+                  <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Telèfon</dt>
+                  <dd class="text-sm text-right">{{ person()!.phone }}</dd>
+                </div>
+              }
+              @if (person()!.birthDate) {
+                <div class="flex justify-between items-start">
+                  <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Naixement</dt>
+                  <dd class="text-sm text-right">{{ formatDate(person()!.birthDate) }}</dd>
+                </div>
+              }
+              @if (person()!.shoulderHeight) {
+                <div class="flex justify-between items-start">
+                  <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Alçada espatlles</dt>
+                  <dd class="text-sm text-right">
+                    {{ person()!.shoulderHeight }} cm ({{ formatShoulderHeightRelative(person()!.shoulderHeight) }})
+                  </dd>
+                </div>
+              }
+            </dl>
+          } @else {
+            <div class="space-y-3">
+
+              <div class="form-control">
+                <label class="label py-0">
+                  <span class="label-text text-xs text-base-content/50 font-medium">Nom <span class="text-error">*</span></span>
+                  <input type="text" class="input input-sm input-bordered w-full"
+                    [class.input-error]="form.get('name')?.invalid && form.get('name')?.touched"
+                    formControlName="name" placeholder="Nom" />
+                </label>
+                @if (form.get('name')?.invalid && form.get('name')?.touched) {
+                  <span class="label-text-alt text-error text-xs mt-1">El nom és obligatori</span>
+                }
+              </div>
+
+              <div class="form-control">
+                <label class="label py-0">
+                  <span class="label-text text-xs text-base-content/50 font-medium">Primer cognom <span class="text-error">*</span></span>
+                  <input type="text" class="input input-sm input-bordered w-full"
+                    [class.input-error]="form.get('firstSurname')?.invalid && form.get('firstSurname')?.touched"
+                    formControlName="firstSurname" placeholder="Primer cognom" />
+                </label>
+                @if (form.get('firstSurname')?.invalid && form.get('firstSurname')?.touched) {
+                  <span class="label-text-alt text-error text-xs mt-1">El primer cognom és obligatori</span>
+                }
+              </div>
+
+              <div class="form-control">
+                <label class="label py-0">
+                  <span class="label-text text-xs text-base-content/50 font-medium">Segon cognom</span>
+                  <input type="text" class="input input-sm input-bordered w-full"
+                    formControlName="secondSurname" placeholder="Segon cognom (opcional)" />
+                </label>
+              </div>
+
+              <div class="form-control">
+                <label class="label py-0">
+                  <span class="label-text text-xs text-base-content/50 font-medium">Àlies <span class="text-error">*</span></span>
+                  <input type="text" class="input input-sm input-bordered w-full"
+                         [class.input-error]="form.get('alias')?.invalid && form.get('alias')?.touched"
+                         formControlName="alias" placeholder="Àlies" />
+                </label>
+                @if (form.get('alias')?.invalid && form.get('alias')?.touched) {
+                  <span class="label-text-alt text-error text-xs mt-1">L'àlies és obligatori</span>
+                }
+              </div>
+
+              <div class="form-control">
+                <label class="label py-0">
+                  <span class="label-text text-xs text-base-content/50 font-medium">Telèfon</span>
+                  <input type="tel" class="input input-sm input-bordered w-full"
+                         formControlName="phone" placeholder="000 000 000" />
+                </label>
+              </div>
+
+              <div class="form-control">
+                <label class="label py-0">
+                  <span class="label-text text-xs text-base-content/50 font-medium">Data de naixement</span>
+                  <input type="date" class="input input-sm input-bordered w-full" formControlName="birthDate" />
+                </label>
+              </div>
+
+              <div class="form-control">
+                <label class="label py-0">
+                  <span class="label-text text-xs text-base-content/50 font-medium">Alçada espatlles (cm)</span>
+                  <input type="number" class="input input-sm input-bordered w-full"
+                         formControlName="shoulderHeight" placeholder="Ex: 145" min="0" max="250" />
+                </label>
+              </div>
+
             </div>
-            <div class="flex justify-between items-start">
-              <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Alies</dt>
-              <dd class="text-sm text-right font-medium">{{ person()!.alias }}</dd>
-            </div>
-            @if (person()!.email) {
-              <div class="flex justify-between items-start">
-                <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Correu</dt>
-                <dd class="text-sm text-right">{{ person()!.email }}</dd>
-              </div>
-            }
-            @if (person()!.phone) {
-              <div class="flex justify-between items-start">
-                <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Telèfon</dt>
-                <dd class="text-sm text-right">{{ person()!.phone }}</dd>
-              </div>
-            }
-            @if (person()!.birthDate) {
-              <div class="flex justify-between items-start">
-                <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Naixement</dt>
-                <dd class="text-sm text-right">{{ formatDate(person()!.birthDate) }}</dd>
-              </div>
-            }
-            @if (person()!.shoulderHeight) {
-              <div class="flex justify-between items-start">
-                <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Alçada espatlles</dt>
-                <dd class="text-sm text-right">{{ person()!.shoulderHeight }} cm ({{ formatShoulderHeightRelative(person()!.shoulderHeight) }})</dd>
-              </div>
-            }
-          </dl>
+          }
         </div>
       </div>
 
@@ -104,87 +233,289 @@
       <div class="card bg-base-100 shadow-sm">
         <div class="card-body">
           <h2 class="card-title text-base mb-3 pb-2 border-b border-base-300">Informació de la colla</h2>
-          <dl class="space-y-3">
 
-            <div class="flex justify-between items-start">
-              <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Posicions</dt>
-              <dd class="flex flex-wrap gap-1 justify-end">
-                @for (pos of person()!.positions; track pos.id) {
-                  <span
-                    class="badge badge-sm"
-                    [style.backgroundColor]="pos.color"
-                    [style.color]="getContrastColor(pos.color)"
-                  >{{ pos.name }}</span>
-                }
-                @if (person()!.positions.length === 0) {
-                  <span class="text-xs text-base-content/40">Cap posició</span>
-                }
-              </dd>
-            </div>
-
-            <div class="flex justify-between items-start">
-              <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Estat</dt>
-              <dd class="flex flex-wrap gap-1 justify-end">
-                <span class="badge badge-sm" [class.badge-success]="person()!.isActive" [class.badge-error]="!person()!.isActive">
-                  {{ person()!.isActive ? 'Actiu' : 'Inactiu' }}
-                </span>
-                @if (person()!.isMember) { <span class="badge badge-sm badge-secondary">Membre</span> }
-                @if (person()!.isXicalla) { <span class="badge badge-sm badge-info">Xicalla</span> }
-              </dd>
-            </div>
-
-            <div class="flex justify-between items-start">
-              <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Disponibilitat</dt>
-              <dd>
-                <span
-                  class="badge badge-sm"
-                  [class.badge-success]="person()!.availability === 'AVAILABLE'"
-                  [class.badge-warning]="person()!.availability !== 'AVAILABLE'"
-                >{{ getAvailabilityLabel(person()!.availability) }}</span>
-              </dd>
-            </div>
-
-            <div class="flex justify-between items-start">
-              <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Acollida</dt>
-              <dd><span class="badge badge-sm badge-outline">{{ getOnboardingLabel(person()!.onboardingStatus) }}</span></dd>
-            </div>
-
-            @if (person()!.shirtDate) {
+          @if (!editing()) {
+            <dl class="space-y-3">
               <div class="flex justify-between items-start">
-                <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Data samarreta</dt>
-                <dd class="text-sm text-right">{{ formatDate(person()!.shirtDate) }}</dd>
+                <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Posicions</dt>
+                <dd class="flex flex-wrap gap-1 justify-end">
+                  @for (pos of person()!.positions; track pos.id) {
+                    <span class="badge badge-sm"
+                      [style.backgroundColor]="pos.color"
+                      [style.color]="getContrastColor(pos.color)">{{ pos.name }}</span>
+                  }
+                  @if (person()!.positions.length === 0) {
+                    <span class="text-xs text-base-content/40">Cap posició</span>
+                  }
+                </dd>
               </div>
-            }
+              <div class="flex justify-between items-start">
 
-            @if (person()!.notes) {
-              <div class="flex flex-col gap-1">
-                <dt class="text-xs text-base-content/50 font-medium">Observacions</dt>
-                <dd class="text-sm bg-base-200 rounded-lg p-3 whitespace-pre-wrap">{{ person()!.notes }}</dd>
+                <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Estat</dt>
+                <dd class="flex flex-wrap gap-1 justify-end">
+                  <span class="badge badge-sm"
+                    [class.badge-success]="person()!.isActive"
+                    [class.badge-error]="!person()!.isActive">
+                    {{ person()!.isActive ? 'Actiu' : 'Inactiu' }}
+                  </span>
+                  @if (person()!.isMember) { <span class="badge badge-sm badge-secondary">Membre</span> }
+                  @if (person()!.isXicalla) { <span class="badge badge-sm badge-info">Xicalla</span> }
+                </dd>
               </div>
-            }
+              <div class="flex justify-between items-start">
+                <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Disponibilitat</dt>
+                <dd>
+                  <span class="badge badge-sm"
+                    [class.badge-success]="person()!.availability === 'AVAILABLE'"
+                    [class.badge-warning]="person()!.availability !== 'AVAILABLE'">
+                    {{ getAvailabilityLabel(person()!.availability) }}
+                  </span>
+                </dd>
+              </div>
+              <div class="flex justify-between items-start">
+                <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Acollida</dt>
+                <dd><span class="badge badge-sm badge-outline">{{ getOnboardingLabel(person()!.onboardingStatus) }}</span></dd>
+              </div>
+              @if (person()!.shirtDate) {
+                <div class="flex justify-between items-start">
+                  <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Data camisa</dt>
+                  <dd class="text-sm text-right">{{ formatDate(person()!.shirtDate) }}</dd>
+                </div>
+              } @else {
+                <div class="flex justify-between items-start">
+                  <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Camisa</dt>
+                  <dd class="text-sm text-right">No</dd>
+                </div>
+              }
+              @if (!(person()!.managedBy)) {
+                <div class="flex items-left gap-2">
+                  <button type="button" class="btn btn-sm btn-primary" (click)="startSendingInvitation()">
+                    Envia correu d'invitació
+                  </button>
+                  <button type="button" class="btn btn-sm btn-primary" (click)="startLinkingToUser()">
+                    Enllaça amb usuari existent
+                  </button>
+                </div>
+              } @else if (person()!.managedBy?.person?.id !== person()!.id) {
+                <div class="flex justify-between items-start">
+                  <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Responsable</dt>
+                  <dd class="text-sm text-right">
+                    <a class="text-blue-500 underline" [routerLink]="['/persons', person()?.managedBy?.person?.id]">
+                      {{ person()?.managedBy?.person?.alias }}
+                    </a>
+                  </dd>
+                </div>
+              }
+              @if (person()!.notes) {
+                <div class="flex flex-col gap-1">
+                  <dt class="text-xs text-base-content/50 font-medium">Observacions</dt>
+                  <dd class="text-sm bg-base-200 rounded-lg p-3 whitespace-pre-wrap">{{ person()!.notes }}</dd>
+                </div>
+              }
+            </dl>
+          } @else {
+            <div class="space-y-3">
 
-          </dl>
+              <!-- Posicions (chips toggle) -->
+              <div>
+                <span class="text-xs text-base-content/50 font-medium block mb-2">Posicions</span>
+                <div class="flex flex-wrap gap-1.5" role="group" aria-label="Selecció de posicions">
+                  @for (pos of allPositions(); track pos.id) {
+                    <button
+                      type="button"
+                      class="badge badge-sm cursor-pointer transition-opacity"
+                      [class.opacity-40]="!isPositionSelected(pos.id)"
+                      [class.ring-2]="isPositionSelected(pos.id)"
+                      [class.ring-primary]="isPositionSelected(pos.id)"
+                      [style.backgroundColor]="pos.color ?? '#e5e7eb'"
+                      [style.color]="pos.color ? getContrastColor(pos.color) : 'inherit'"
+                      (click)="togglePosition(pos.id)"
+                      [attr.aria-pressed]="isPositionSelected(pos.id)"
+                    >
+                      {{ pos.name }}
+                    </button>
+                  }
+                  @if (allPositions().length === 0) {
+                    <span class="text-xs text-base-content/40">No hi ha posicions disponibles</span>
+                  }
+                </div>
+              </div>
+
+              <div class="flex justify-between items-center">
+                <span class="text-xs text-base-content/50 font-medium">Actiu</span>
+                <input type="checkbox" class="toggle toggle-sm toggle-success" formControlName="isActive" />
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-xs text-base-content/50 font-medium">Membre</span>
+                <input type="checkbox" class="toggle toggle-sm toggle-secondary" formControlName="isMember" />
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-xs text-base-content/50 font-medium">Xicalla</span>
+                <input type="checkbox" class="toggle toggle-sm toggle-info" formControlName="isXicalla" />
+              </div>
+
+              <div class="form-control">
+                <label class="label py-0">
+                  <span class="label-text text-xs text-base-content/50 font-medium">Disponibilitat</span>
+                  <select class="select select-sm select-bordered w-full" formControlName="availability">
+                    <option value="AVAILABLE">Disponible</option>
+                    <option value="TEMPORARILY_UNAVAILABLE">No disponible</option>
+                    <option value="LONG_TERM_UNAVAILABLE">Baixa llarga</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="form-control">
+                <label class="label py-0">
+                  <span class="label-text text-xs text-base-content/50 font-medium">Acollida</span>
+                  <select class="select select-sm select-bordered w-full" formControlName="onboardingStatus">
+                    <option value="IN_PROGRESS">En seguiment</option>
+                    <option value="COMPLETED">Finalitzat</option>
+                    <option value="LOST">Perdut</option>
+                    <option value="NOT_APPLICABLE">No aplica</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="form-control">
+                <label class="label py-0">
+                  <span class="label-text text-xs text-base-content/50 font-medium">Data camisa</span>
+                  <input type="date" class="input input-sm input-bordered w-full" formControlName="shirtDate" />
+                </label>
+              </div>
+
+              <div class="form-control">
+                <label class="label py-0">
+                  <span class="label-text text-xs text-base-content/50 font-medium">Observacions</span>
+                  <textarea class="textarea textarea-bordered textarea-sm w-full"
+                            formControlName="notes" placeholder="Observacions..." rows="4"></textarea>
+                </label>
+              </div>
+
+            </div>
+          }
         </div>
       </div>
     </div>
+
+    <!-- Historial de pinyes -->
+    @if (!isNew() && person()) {
+      <div class="collapse collapse-arrow bg-base-100 shadow-sm rounded-xl border border-base-300">
+        <input type="checkbox" [checked]="historyExpanded()" (change)="historyExpanded.set(!historyExpanded())" />
+        <div class="collapse-title text-sm font-bold py-3 min-h-0">
+          Historial de pinyes
+          @if (historyTotal() > 0) {
+            <span class="badge badge-neutral badge-sm ml-2">{{ historyTotal() }}</span>
+          }
+        </div>
+        <div class="collapse-content">
+          <!-- Season filter -->
+          <div class="flex items-center gap-3 mb-3">
+            <select
+              class="select select-bordered select-sm w-48"
+              [value]="historySeasonId() ?? ''"
+              (change)="onHistorySeasonChange($any($event.target).value)"
+              aria-label="Filtrar per temporada"
+            >
+              <option value="">Totes les temporades</option>
+              @for (season of seasons(); track season.id) {
+                <option [value]="season.id">{{ season.name }}</option>
+              }
+            </select>
+          </div>
+
+          @if (historyLoading()) {
+            <div class="flex justify-center py-6">
+              <span class="loading loading-spinner loading-md text-primary"></span>
+            </div>
+          } @else if (historyEntries().length === 0) {
+            <app-empty-state message="Aquesta persona no té assignacions registrades." />
+          } @else {
+            <div class="overflow-x-auto">
+              <table class="table table-sm">
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Event</th>
+                    <th>Segment</th>
+                    <th>Figura</th>
+                    <th>Posició</th>
+                    <th>Zona</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (entry of historyEntries(); track entry.instanceId + entry.nodeLabel) {
+                    <tr class="hover cursor-pointer" (click)="navigateToEvent(entry)">
+                      <td class="text-xs text-base-content/60">{{ formatDate(entry.eventDate) }}</td>
+                      <td>
+                        <span class="text-sm">{{ entry.eventTitle }}</span>
+                        @if (entry.eventType === 'ACTUACIO') {
+                          <span class="badge badge-info badge-xs ml-1">Actuació</span>
+                        }
+                      </td>
+                      <td class="text-sm text-base-content/70">{{ entry.segmentName }}</td>
+                      <td class="text-sm">{{ entry.figureName }}</td>
+                      <td class="text-sm font-medium">{{ entry.nodeLabel }}</td>
+                      <td>
+                        <span class="badge badge-ghost badge-sm">{{ entry.zone }}</span>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+
+            @if (historyTotal() > historyLimit()) {
+              <div class="mt-3">
+                <app-pagination
+                  [page]="historyPage()"
+                  [totalItems]="historyTotal()"
+                  [limit]="historyLimit()"
+                  [totalPages]="Math.ceil(historyTotal() / historyLimit())"
+                  (pageChange)="onHistoryPageChange($event)"
+                />
+              </div>
+            }
+          }
+        </div>
+      </div>
+    }
 
     <!-- Metadades -->
-    <div class="collapse collapse-arrow bg-base-100 shadow-sm rounded-xl border border-base-300">
-      <input type="checkbox" [(ngModel)]="metadataExpanded" />
-      <div class="collapse-title text-sm font-medium text-base-content/50 py-3 min-h-0">Metadades</div>
-      <div class="collapse-content">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
-          <div class="flex justify-between">
-            <span class="text-xs text-base-content/40">Creat</span>
-            <span class="text-xs text-base-content/60">{{ formatDateTime(person()!.createdAt) }}</span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-xs text-base-content/40">Actualitzat</span>
-            <span class="text-xs text-base-content/60">{{ formatDateTime(person()!.updatedAt) }}</span>
+    @if (!isNew()) {
+      <div class="collapse collapse-arrow bg-base-100 shadow-sm rounded-xl border border-base-300">
+        <input type="checkbox" [checked]="metadataExpanded()" (change)="metadataExpanded.set(!metadataExpanded())" />
+        <div class="collapse-title text-sm font-medium text-base-content/50 py-3 min-h-0">Metadades</div>
+        <div class="collapse-content">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+            <div class="flex justify-between">
+              <span class="text-xs text-base-content/40">Creat</span>
+              <span class="text-xs text-base-content/60">{{ formatDateTime(person()!.createdAt) }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-xs text-base-content/40">Actualitzat</span>
+              <span class="text-xs text-base-content/60">{{ formatDateTime(person()!.updatedAt) }}</span>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    }
+  }
+
+  @if (invitationModalOpen()) {
+    <app-person-invitation-modal
+      [person]="person()!"
+      (closed)="invitationModalOpen.set(false)"
+      (success)="onInvitationSuccess()"
+    />
+  }
+
+  @if (linkUserModalOpen()) {
+    <app-person-link-user-modal
+      [person]="person()!"
+      (closed)="linkUserModalOpen.set(false)"
+      (success)="onLinkUserSuccess()"
+    />
   }
 
 </div>

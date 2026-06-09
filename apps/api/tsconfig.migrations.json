@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "es2021",
+    "moduleResolution": "node",
+    "rootDir": "src",
+    "outDir": "../../dist/apps/api/migrations-compiled",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "esModuleInterop": true,
+    "declaration": false,
+    "sourceMap": false,
+    "skipLibCheck": true,
+    "paths": {
+      "@muixer/shared": ["../../libs/shared/src/index.ts"]
+    },
+    "baseUrl": "."
+  },
+  "include": [
+    "src/data-source.ts",
+    "src/migrations/**/*.ts"
+  ]
+}

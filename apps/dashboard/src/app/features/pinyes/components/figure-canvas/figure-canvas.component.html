@@ -1,0 +1,36 @@
+<div class="canvas-wrapper" [class.editor-mode]="mode() === 'editor'">
+  <!-- Canvas container -->
+  <div #canvasContainer class="canvas-container" aria-label="Canvas de figura"></div>
+
+  <!-- Zoom selector -->
+  <select
+    class="zoom-selector"
+    [ngModel]="zoomLevel()"
+    (ngModelChange)="setZoom(+$event)"
+    aria-label="Selecciona el nivell de zoom"
+  >
+    <option [value]="0.25">25%</option>
+    <option [value]="0.5">50%</option>
+    <option [value]="0.75">75%</option>
+    <option [value]="1">100%</option>
+    <option [value]="1.25">125%</option>
+    <option [value]="1.5">150%</option>
+    <option [value]="1.75">175%</option>
+    <option [value]="2">200%</option>
+    <option [value]="2.5">250%</option>
+    <option [value]="3">300%</option>
+  </select>
+
+  <!-- Fit to screen button -->
+  <button
+    type="button"
+    class="fit-btn btn btn-ghost btn-xs"
+    (click)="fitToScreen()"
+    title="Ajusta a la pantalla"
+    aria-label="Ajusta a la pantalla"
+  >
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+    </svg>
+  </button>
+</div>

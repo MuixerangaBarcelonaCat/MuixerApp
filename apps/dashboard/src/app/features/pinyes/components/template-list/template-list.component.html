@@ -1,0 +1,349 @@
+<div class="flex flex-col gap-6 p-6">
+
+  <!-- Header -->
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div class="flex items-center gap-2">
+      <div>
+        <h1 class="text-2xl font-bold text-base-content">Figures i Pinyes</h1>
+        <p class="text-sm text-base-content/60 mt-1">Figures i composicions per dissenyar i assignar pinyes</p>
+      </div>
+      <button
+        type="button"
+        class="btn btn-ghost btn-circle btn-sm"
+        aria-label="Ajuda sobre el mòdul de Pinyes"
+        (click)="onboardingModal.open()"
+      >
+        <lucide-icon name="HelpCircle" [size]="18" aria-hidden="true" />
+      </button>
+    </div>
+    @if (activeTab() === 'compositions') {
+      <button
+        type="button"
+        class="btn btn-primary gap-2"
+        (click)="navigateToCreateComposition()"
+        aria-label="Crear nova composició"
+      >
+        <lucide-icon name="Plus" [size]="18" aria-hidden="true" />
+        Nova composició
+      </button>
+    }
+  </div>
+
+  <!-- Tabs -->
+  <div role="tablist" class="tabs tabs-bordered w-fit" aria-label="Tipus de templates">
+    <button
+      role="tab"
+      class="tab gap-2"
+      [class.tab-active]="activeTab() === 'figures'"
+      (click)="setTab('figures')"
+      [attr.aria-selected]="activeTab() === 'figures'"
+    >
+      <lucide-icon name="Layers" [size]="16" aria-hidden="true" />
+      Figures
+    </button>
+    <button
+      role="tab"
+      class="tab gap-2"
+      [class.tab-active]="activeTab() === 'compositions'"
+      (click)="setTab('compositions')"
+      [attr.aria-selected]="activeTab() === 'compositions'"
+    >
+      <lucide-icon name="LayoutGrid" [size]="16" aria-hidden="true" />
+      Composicions
+    </button>
+  </div>
+
+  <!-- ══════════════════ FIGURES TAB ══════════════════ -->
+  @if (activeTab() === 'figures') {
+
+    <!-- Search -->
+    <div class="flex gap-3 items-center">
+      <label class="input input-bordered flex items-center gap-2 flex-1 max-w-sm">
+        <lucide-icon name="Search" [size]="16" class="text-base-content/40" aria-hidden="true" />
+        <input
+          type="search"
+          placeholder="Cerca per nom o slug..."
+          [(ngModel)]="searchInput"
+          (ngModelChange)="onSearchChange($event)"
+          class="grow"
+          aria-label="Cerca figures"
+        />
+      </label>
+      @if (loading() && templates().length > 0) {
+        <span class="loading loading-spinner loading-sm text-primary" aria-label="Carregant..."></span>
+      }
+    </div>
+
+    @if (loading() && templates().length === 0) {
+      <div class="flex justify-center py-16" aria-label="Carregant figures...">
+        <span class="loading loading-spinner loading-lg text-primary"></span>
+      </div>
+    }
+
+    @else if (!loading() && templates().length === 0) {
+      <app-empty-state
+        icon="Layers"
+        message="Cap figura creada. Crea la teva primera figura per començar a dissenyar pinyes."
+        actionLabel="Nova figura"
+        (actionClick)="navigateToCreate()"
+      />
+    }
+
+    @else if (templates().length > 0) {
+      <ul
+        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+        aria-label="Llista de figures"
+      >
+        @for (template of templates(); track template.id) {
+          <li class="card bg-base-100 border border-base-200 shadow-sm hover:shadow-md transition-shadow">
+            <button
+              type="button"
+              class="w-full h-32 bg-gradient-to-br from-primary/10 to-secondary/10 rounded-t-2xl flex items-center justify-center relative overflow-hidden cursor-pointer hover:brightness-95 transition-[filter] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary"
+              (click)="navigateToEdit(template.id)"
+              [attr.aria-label]="'Editar ' + template.name"
+            >
+              <svg width="120" height="80" viewBox="0 0 120 80" class="opacity-60">
+                @if (template.hasPinya) {
+                  <circle cx="60" cy="60" r="8" fill="currentColor" class="text-primary" />
+                  <circle cx="40" cy="50" r="7" fill="currentColor" class="text-secondary" />
+                  <circle cx="80" cy="50" r="7" fill="currentColor" class="text-secondary" />
+                  <circle cx="25" cy="40" r="6" fill="currentColor" class="text-accent" />
+                  <circle cx="60" cy="35" r="6" fill="currentColor" class="text-accent" />
+                  <circle cx="95" cy="40" r="6" fill="currentColor" class="text-accent" />
+                }
+                <rect x="50" y="5" width="20" height="12" rx="3" fill="currentColor" class="text-primary/70" />
+                <rect x="45" y="19" width="30" height="11" rx="3" fill="currentColor" class="text-secondary/70" />
+              </svg>
+              <span class="badge badge-primary badge-sm absolute top-2 right-2">
+                {{ template.nodeCount }} nodes
+              </span>
+            </button>
+
+            <div class="card-body p-4 gap-3">
+              <div>
+                <h2 class="card-title text-sm font-semibold leading-snug">
+                  <button
+                    type="button"
+                    class="text-left hover:text-primary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary rounded-sm"
+                    (click)="navigateToEdit(template.id)"
+                    [attr.aria-label]="'Editar ' + template.name"
+                  >{{ template.name }}</button>
+                </h2>
+                <p class="text-xs text-base-content/50 font-mono mt-0.5">{{ template.slug }}</p>
+              </div>
+
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="badge badge-ghost badge-sm gap-1">
+                  <lucide-icon
+                    [name]="template.hasPinya ? 'Layers' : 'AlignJustify'"
+                    [size]="10"
+                    aria-hidden="true"
+                  />
+                  {{ hasPinyaLabel(template.hasPinya) }}
+                </span>
+              </div>
+
+              @if (template.description) {
+                <p class="text-xs text-base-content/60 line-clamp-2">{{ template.description }}</p>
+              }
+
+              <p class="text-xs text-base-content/40">Actualitzat {{ formatDate(template.updatedAt) }}</p>
+
+              <div class="card-actions justify-end gap-1 mt-1">
+                @if (confirmDeleteId() === template.id) {
+                  <div class="flex items-center gap-2 w-full">
+                    <span class="text-xs text-error flex-1">Eliminar figura?</span>
+                    <button type="button" class="btn btn-ghost btn-xs" (click)="cancelDelete()">Cancel·la</button>
+                    <button type="button" class="btn btn-error btn-xs" (click)="confirmDelete(template.id)">Elimina</button>
+                  </div>
+                } @else {
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-xs gap-1"
+                    [disabled]="deletingId() === template.id"
+                    (click)="duplicate(template.id)"
+                    [attr.aria-label]="'Duplicar ' + template.name"
+                  >
+                    <lucide-icon name="Copy" [size]="13" aria-hidden="true" />
+                    Duplicar
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-xs gap-1 text-error hover:bg-error/10"
+                    [disabled]="deletingId() === template.id"
+                    (click)="requestDelete(template.id)"
+                    [attr.aria-label]="'Eliminar ' + template.name"
+                  >
+                    @if (deletingId() === template.id) {
+                      <span class="loading loading-spinner loading-xs"></span>
+                    } @else {
+                      <lucide-icon name="Trash2" [size]="13" aria-hidden="true" />
+                    }
+                    Eliminar
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-primary btn-xs gap-1"
+                    (click)="navigateToEdit(template.id)"
+                    [attr.aria-label]="'Editar ' + template.name"
+                  >
+                    <lucide-icon name="Pencil" [size]="13" aria-hidden="true" />
+                    Editar
+                  </button>
+                }
+              </div>
+            </div>
+          </li>
+        }
+      </ul>
+
+      @if (totalPages() > 1) {
+        <div class="flex items-center justify-center gap-2 mt-2" aria-label="Paginació">
+          <button type="button" class="btn btn-ghost btn-sm" [disabled]="page() <= 1" (click)="goToPage(page() - 1)" aria-label="Pàgina anterior">
+            <lucide-icon name="ChevronLeft" [size]="16" aria-hidden="true" />
+          </button>
+          <span class="text-sm text-base-content/70">Pàgina {{ page() }} de {{ totalPages() }}</span>
+          <button type="button" class="btn btn-ghost btn-sm" [disabled]="page() >= totalPages()" (click)="goToPage(page() + 1)" aria-label="Pàgina següent">
+            <lucide-icon name="ChevronRight" [size]="16" aria-hidden="true" />
+          </button>
+        </div>
+      }
+    }
+  }
+
+  <!-- ══════════════════ COMPOSITIONS TAB ══════════════════ -->
+  @if (activeTab() === 'compositions') {
+
+    <div class="flex gap-3 items-center">
+      <label class="input input-bordered flex items-center gap-2 flex-1 max-w-sm">
+        <lucide-icon name="Search" [size]="16" class="text-base-content/40" aria-hidden="true" />
+        <input
+          type="search"
+          placeholder="Cerca per nom o slug..."
+          [(ngModel)]="compositionsSearchInput"
+          (ngModelChange)="onCompositionsSearchChange($event)"
+          class="grow"
+          aria-label="Cerca composicions"
+        />
+      </label>
+      @if (compositionsLoading() && compositions().length > 0) {
+        <span class="loading loading-spinner loading-sm text-primary" aria-label="Carregant..."></span>
+      }
+    </div>
+
+    @if (compositionsLoading() && compositions().length === 0) {
+      <div class="flex justify-center py-16" aria-label="Carregant composicions...">
+        <span class="loading loading-spinner loading-lg text-primary"></span>
+      </div>
+    }
+
+    @else if (!compositionsLoading() && compositions().length === 0) {
+      <app-empty-state
+        icon="LayoutGrid"
+        message="Cap composició creada. Crea la teva primera composició per agrupar figures (ex: 'Altar', '5 de Oros')."
+        actionLabel="Nova composició"
+        (actionClick)="navigateToCreateComposition()"
+      />
+    }
+
+    @else if (compositions().length > 0) {
+      <ul
+        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+        aria-label="Llista de composicions"
+      >
+        @for (composition of compositions(); track composition.id) {
+          <li class="card bg-base-100 border border-base-200 shadow-sm hover:shadow-md transition-shadow">
+            <button
+              type="button"
+              class="w-full h-32 bg-gradient-to-br from-secondary/10 to-primary/10 rounded-t-2xl flex items-center justify-center relative overflow-hidden cursor-pointer hover:brightness-95 transition-[filter] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary"
+              (click)="navigateToEditComposition(composition.id)"
+              [attr.aria-label]="'Editar composició ' + composition.name"
+            >
+              <lucide-icon name="LayoutGrid" [size]="40" class="text-secondary/40" aria-hidden="true" />
+              <span class="badge badge-secondary badge-sm absolute top-2 right-2">{{ composition.slotCount }} figures</span>
+            </button>
+
+            <div class="card-body p-4 gap-3">
+              <div>
+                <h2 class="card-title text-sm font-semibold leading-snug">
+                  <button
+                    type="button"
+                    class="text-left hover:text-primary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary rounded-sm"
+                    (click)="navigateToEditComposition(composition.id)"
+                    [attr.aria-label]="'Editar composició ' + composition.name"
+                  >{{ composition.name }}</button>
+                </h2>
+                <p class="text-xs text-base-content/50 font-mono mt-0.5">{{ composition.slug }}</p>
+              </div>
+
+              @if (composition.description) {
+                <p class="text-xs text-base-content/60 line-clamp-2">{{ composition.description }}</p>
+              }
+
+              <p class="text-xs text-base-content/40">Actualitzat {{ formatDate(composition.updatedAt) }}</p>
+
+              <div class="card-actions justify-end gap-1 mt-1">
+                @if (compositionsConfirmDeleteId() === composition.id) {
+                  <div class="flex items-center gap-2 w-full">
+                    <span class="text-xs text-error flex-1">Eliminar composició?</span>
+                    <button type="button" class="btn btn-ghost btn-xs" (click)="cancelDeleteComposition()">Cancel·la</button>
+                    <button type="button" class="btn btn-error btn-xs" (click)="confirmDeleteComposition(composition.id)">Elimina</button>
+                  </div>
+                } @else {
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-xs gap-1"
+                    [disabled]="compositionsDeletingId() === composition.id"
+                    (click)="duplicateComposition(composition.id)"
+                    [attr.aria-label]="'Duplicar composició ' + composition.name"
+                  >
+                    <lucide-icon name="Copy" [size]="13" aria-hidden="true" />
+                    Duplicar
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-xs gap-1 text-error hover:bg-error/10"
+                    [disabled]="compositionsDeletingId() === composition.id"
+                    (click)="requestDeleteComposition(composition.id)"
+                    [attr.aria-label]="'Eliminar composició ' + composition.name"
+                  >
+                    @if (compositionsDeletingId() === composition.id) {
+                      <span class="loading loading-spinner loading-xs"></span>
+                    } @else {
+                      <lucide-icon name="Trash2" [size]="13" aria-hidden="true" />
+                    }
+                    Eliminar
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-primary btn-xs gap-1"
+                    (click)="navigateToEditComposition(composition.id)"
+                    [attr.aria-label]="'Editar composició ' + composition.name"
+                  >
+                    <lucide-icon name="Pencil" [size]="13" aria-hidden="true" />
+                    Editar
+                  </button>
+                }
+              </div>
+            </div>
+          </li>
+        }
+      </ul>
+
+      @if (compositionsTotalPages() > 1) {
+        <div class="flex items-center justify-center gap-2 mt-2" aria-label="Paginació composicions">
+          <button type="button" class="btn btn-ghost btn-sm" [disabled]="compositionsPage() <= 1" (click)="goToCompositionsPage(compositionsPage() - 1)" aria-label="Pàgina anterior">
+            <lucide-icon name="ChevronLeft" [size]="16" aria-hidden="true" />
+          </button>
+          <span class="text-sm text-base-content/70">Pàgina {{ compositionsPage() }} de {{ compositionsTotalPages() }}</span>
+          <button type="button" class="btn btn-ghost btn-sm" [disabled]="compositionsPage() >= compositionsTotalPages()" (click)="goToCompositionsPage(compositionsPage() + 1)" aria-label="Pàgina següent">
+            <lucide-icon name="ChevronRight" [size]="16" aria-hidden="true" />
+          </button>
+        </div>
+      }
+    }
+  }
+
+</div>
+
+<app-pinyes-onboarding-modal #onboardingModal />

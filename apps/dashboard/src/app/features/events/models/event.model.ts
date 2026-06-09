@@ -19,6 +19,12 @@ export interface Season {
   eventCount: number;
 }
 
+export interface SegmentsSummary {
+  segmentCount: number;
+  instanceCount: number;
+  segments: { name: string | null; figureNames: string[] }[];
+}
+
 export interface EventListItem {
   id: string;
   eventType: EventType;
@@ -29,6 +35,7 @@ export interface EventListItem {
   countsForStatistics: boolean;
   attendanceSummary: AttendanceSummary;
   season: SeasonRef | null;
+  segmentsSummary: SegmentsSummary | null;
   createdAt: string;
 }
 

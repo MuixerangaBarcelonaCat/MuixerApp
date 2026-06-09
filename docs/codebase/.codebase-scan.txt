@@ -1,0 +1,520 @@
+
+=== DIRECTORY TREE (max depth 3, source files only) ===
+.DS_Store
+.agents
+.agents/skills
+.agents/skills/acquire-codebase-knowledge
+.agents/skills/acquire-codebase-knowledge/SKILL.md
+.agents/skills/acquire-codebase-knowledge/assets
+.agents/skills/acquire-codebase-knowledge/references
+.agents/skills/acquire-codebase-knowledge/scripts
+.agents/skills/angular-component
+.agents/skills/angular-component/SKILL.md
+.agents/skills/angular-component/references
+.agents/skills/angular-signals
+.agents/skills/angular-signals/SKILL.md
+.agents/skills/angular-signals/references
+.agents/skills/api-design-principles
+.agents/skills/api-design-principles/SKILL.md
+.agents/skills/api-design-principles/assets
+.agents/skills/api-design-principles/references
+.agents/skills/brainstorming
+.agents/skills/brainstorming/SKILL.md
+.agents/skills/brainstorming/scripts
+.agents/skills/brainstorming/spec-document-reviewer-prompt.md
+.agents/skills/brainstorming/visual-companion.md
+.agents/skills/frontend-design
+.agents/skills/frontend-design/LICENSE.txt
+.agents/skills/frontend-design/SKILL.md
+.agents/skills/neon-postgres
+.agents/skills/neon-postgres/SKILL.md
+.agents/skills/nestjs-best-practices
+.agents/skills/nestjs-best-practices/AGENTS.md
+.agents/skills/nestjs-best-practices/README.md
+.agents/skills/nestjs-best-practices/SKILL.md
+.agents/skills/nestjs-best-practices/rules
+.agents/skills/nestjs-best-practices/scripts
+.agents/skills/systematic-debugging
+.agents/skills/systematic-debugging/CREATION-LOG.md
+.agents/skills/systematic-debugging/SKILL.md
+.agents/skills/systematic-debugging/condition-based-waiting-example.ts
+.agents/skills/systematic-debugging/condition-based-waiting.md
+.agents/skills/systematic-debugging/defense-in-depth.md
+.agents/skills/systematic-debugging/find-polluter.sh
+.agents/skills/systematic-debugging/root-cause-tracing.md
+.agents/skills/systematic-debugging/test-academic.md
+.agents/skills/systematic-debugging/test-pressure-1.md
+.agents/skills/systematic-debugging/test-pressure-2.md
+.agents/skills/systematic-debugging/test-pressure-3.md
+.agents/skills/test-driven-development
+.agents/skills/test-driven-development/SKILL.md
+.agents/skills/test-driven-development/testing-anti-patterns.md
+.agents/skills/ui-ux-pro-max
+.agents/skills/ui-ux-pro-max/SKILL.md
+.agents/skills/ui-ux-pro-max/data
+.agents/skills/ui-ux-pro-max/scripts
+.angular
+.angular/cache
+.angular/cache/21.2.5
+.angular/cache/21.2.5/dashboard
+.cursor
+.cursor/.DS_Store
+.cursor/plans
+.cursor/plans/altres
+.cursor/plans/altres/persons_page_improvements_0b74a9b7.plan.md
+.cursor/plans/dashboard_design_refactor_3f8d1aed.plan.md
+.cursor/plans/p0-p1-p2_implementation_plan_c2382cf2.plan.md
+.cursor/plans/p3_events_attendance_implementation_cfc967de.plan.md
+.cursor/plans/p4.1_auth_layer_1cfbd185.plan.md
+.cursor/plans/p4.2_implementation_plan_47595935.plan.md
+.cursor/rules
+.cursor/rules/angular-component-structure.mdc
+.cursor/rules/api-response-format.mdc
+.cursor/rules/backend-filter-sort-pattern.mdc
+.cursor/rules/daisyui-cdk.mdc
+.cursor/rules/dashboard-list-pattern.mdc
+.cursor/rules/dashboard-ux-patterns.mdc
+.cursor/rules/muixer-language.mdc
+.cursor/rules/muixer-project.mdc
+.cursor/rules/muixer-security.mdc
+.cursor/rules/nx-workspace.mdc
+.cursor/rules/sync-strategy-pattern.mdc
+.cursor/rules/typeorm-patterns.mdc
+.cursor/settings.json
+.env
+.env.example
+.gitignore
+.nx
+.nx/cache
+.nx/cache/14923801280126616198
+.nx/cache/16220038998349925854
+.nx/cache/4663726524979698014
+.nx/cache/6941650592532490879
+.nx/cache/run.json
+.nx/cache/terminalOutputs
+.nx/cache/terminalOutputs/1033024408794393356
+.nx/cache/terminalOutputs/10828073048376968061
+.nx/cache/terminalOutputs/14923801280126616198
+.nx/cache/terminalOutputs/16220038998349925854
+.nx/cache/terminalOutputs/1900350986873474572
+.nx/cache/terminalOutputs/4663726524979698014
+.nx/cache/terminalOutputs/6941650592532490879
+.nx/workspace-data
+.nx/workspace-data/BFCE00E5-9CAE-5C1F-8013-58F9E36142C2.db
+.nx/workspace-data/BFCE00E5-9CAE-5C1F-8013-58F9E36142C2.db-shm
+.nx/workspace-data/BFCE00E5-9CAE-5C1F-8013-58F9E36142C2.db-wal
+.nx/workspace-data/BFCE00E5-9CAE-5C1F-8013-58F9E36142C2.lock
+.nx/workspace-data/d
+.nx/workspace-data/d/daemon.log
+.nx/workspace-data/d/server-process.json
+.nx/workspace-data/eslint-2654242865465226088.hash
+.nx/workspace-data/file-map.json
+.nx/workspace-data/jest-7930610538513362720.hash
+.nx/workspace-data/lockfile-dependencies.hash
+.nx/workspace-data/lockfile-nodes.hash
+.nx/workspace-data/nx_files.nxt
+.nx/workspace-data/parsed-lock-file.dependencies.json
+.nx/workspace-data/parsed-lock-file.nodes.json
+.nx/workspace-data/playwright-5186013267177752385.hash
+.nx/workspace-data/project-graph.json
+.nx/workspace-data/project-graph.lock
+.nx/workspace-data/source-maps.json
+.nx/workspace-data/webpack-7566275343909617285.hash
+.prettierignore
+.prettierrc
+.superpowers
+.vscode
+.vscode/extensions.json
+README.md
+apps
+apps/api
+apps/api/jest.config.ts
+apps/api/project.json
+apps/api/src
+apps/api/src/app
+apps/api/src/assets
+apps/api/src/common
+apps/api/src/main.ts
+apps/api/src/modules
+apps/api/tsconfig.app.json
+apps/api/tsconfig.json
+apps/api/tsconfig.spec.json
+apps/api/webpack.config.js
+apps/dashboard
+apps/dashboard/eslint.config.mjs
+apps/dashboard/postcss.config.js
+apps/dashboard/project.json
+apps/dashboard/proxy.conf.json
+apps/dashboard/public
+apps/dashboard/public/assets
+apps/dashboard/public/favicon.ico
+apps/dashboard/src
+apps/dashboard/src/app
+apps/dashboard/src/environments
+apps/dashboard/src/index.html
+apps/dashboard/src/main.ts
+apps/dashboard/src/styles.scss
+apps/dashboard/tsconfig.app.json
+apps/dashboard/tsconfig.json
+apps/dashboard/tsconfig.spec.json
+apps/dashboard-e2e
+apps/dashboard-e2e/eslint.config.mjs
+apps/dashboard-e2e/playwright.config.ts
+apps/dashboard-e2e/project.json
+apps/dashboard-e2e/src
+apps/dashboard-e2e/src/example.spec.ts
+apps/dashboard-e2e/tsconfig.json
+apps/pwa
+apps/pwa/eslint.config.mjs
+apps/pwa/postcss.config.js
+apps/pwa/project.json
+apps/pwa/public
+apps/pwa/public/favicon.ico
+apps/pwa/src
+apps/pwa/src/app
+apps/pwa/src/index.html
+apps/pwa/src/main.ts
+apps/pwa/src/styles.scss
+apps/pwa/tsconfig.app.json
+apps/pwa/tsconfig.json
+apps/pwa/tsconfig.spec.json
+apps/pwa-e2e
+apps/pwa-e2e/eslint.config.mjs
+apps/pwa-e2e/playwright.config.ts
+apps/pwa-e2e/project.json
+apps/pwa-e2e/src
+apps/pwa-e2e/src/example.spec.ts
+apps/pwa-e2e/tsconfig.json
+docs
+docs/API_APPSISTENCIA.md
+docs/AUTH_FLOW.md
+docs/CURRENT_STATUS.md
+docs/DASHBOARD_UI.md
+docs/DATA_MODEL.md
+docs/INDEX.md
+docs/NEXT_STEPS.md
+docs/PROJECT_ROADMAP.md
+docs/SSE_AUTH.md
+docs/SYNC_ARCHITECTURE.md
+docs/VALIDATION_CHECKLIST.md
+docs/codebase
+docs/codebase/.codebase-scan.txt
+docs/image
+
+=== STACK DETECTION (manifest files) ===
+
+--- package-lock.json ---
+{
+  "name": "muixer-app",
+  "version": "1.0.0",
+  "lockfileVersion": 3,
+  "requires": true,
+  "packages": {
+    "": {
+      "name": "muixer-app",
+      "version": "1.0.0",
+      "license": "MIT",
+      "workspaces": [
+        "apps/*",
+        "libs/*"
+      ],
+      "dependencies": {
+        "@angular/cdk": "^21.2.4",
+        "@angular/common": "~21.2.0",
+        "@angular/compiler": "~21.2.0",
+        "@angular/core": "~21.2.0",
+        "@angular/forms": "~21.2.0",
+        "@angular/platform-browser": "~21.2.0",
+        "@angular/router": "~21.2.0",
+        "@nestjs/common": "^11.1.17",
+        "@nestjs/core": "^11.1.17",
+        "@nestjs/jwt": "^11.0.2",
+        "@nestjs/mapped-types": "^2.1.0",
+        "@nestjs/passport": "^11.0.5",
+        "@nestjs/platform-express": "^11.1.17",
+        "@nestjs/swagger": "^11.2.6",
+        "@nestjs/throttler": "^6.5.0",
+        "@nestjs/typeorm": "^11.0.0",
+        "axios": "^1.6.0",
+        "bcrypt": "^6.0.0",
+        "class-transformer": "^0.5.1",
+        "class-validator": "^0.15.1",
+        "cookie-parser": "^1.4.7",
+        "dotenv": "^17.3.1",
+        "lucide-angular": "^1.0.0",
+        "nest-commander": "^3.20.1",
+        "passport": "^0.7.0",
+        "passport-jwt": "^4.0.1",
+        "passport-local": "^1.0.0",
+        "pg": "^8.20.0",
+        "reflect-metadata": "^0.1.14",
+        "rxjs": "^7.8.2",
+        "tailwindcss": "^3.4.19",
+        "typeorm": "^0.3.28",
+        "xlsx": "^0.18.5"
+      },
+      "devDependencies": {
+        "@angular-devkit/core": "~21.2.0",
+        "@angular-devkit/schematics": "~21.2.0",
+        "@angular/build": "~21.2.0",
+        "@angular/cli": "~21.2.0",
+        "@angular/compiler-cli": "~21.2.0",
+        "@angular/language-service": "~21.2.0",
+        "@eslint/js": "^9.8.0",
+        "@nestjs/schematics": "^11.0.0",
+        "@nestjs/testing": "^11.0.0",
+        "@nx/angular": "^22.6.3",
+        "@nx/devkit": "22.6.3",
+        "@nx/eslint": "22.6.3",
+        "@nx/eslint-plugin": "22.6.3",
+        "@nx/jest": "22.6.3",
+        "@nx/js": "^22.6.3",
+        "@nx/nest": "^22.6.3",
+        "@nx/node": "22.6.3",
+        "@nx/playwright": "22.6.3",
+        "@nx/web": "22.6.3",
+        "@nx/webpack": "22.6.3",
+        "@nx/workspace": "^22.6.3",
+        "@oxc-project/runtime": "^0.115.0",
+        "@playwright/test": "^1.36.0",
+        "@schematics/angular": "~21.2.0",
+        "@swc-node/register": "~1.11.1",
+        "@swc/core": "~1.15.5",
+        "@swc/helpers": "~0.5.18",
+        "@types/bcrypt": "^6.0.0",
+        "@types/cookie-parser": "^1.4.10",
+        "@types/jest": "^30.0.0",
+
+[TRUNCATED] Showing first 80 of 28941 lines.
+--- package.json ---
+{
+  "name": "muixer-app",
+  "version": "1.0.0",
+  "description": "MuixerApp - Attendance & figure management for Muixerangues",
+  "license": "MIT",
+  "private": true,
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "git@github.com-personal:MuixerangaBarcelonaCat/MuixerApp.git"
+  },
+  "workspaces": [
+    "apps/*",
+    "libs/*"
+  ],
+  "devDependencies": {
+    "@angular-devkit/core": "~21.2.0",
+    "@angular-devkit/schematics": "~21.2.0",
+    "@angular/build": "~21.2.0",
+    "@angular/cli": "~21.2.0",
+    "@angular/compiler-cli": "~21.2.0",
+    "@angular/language-service": "~21.2.0",
+    "@eslint/js": "^9.8.0",
+    "@nestjs/schematics": "^11.0.0",
+    "@nestjs/testing": "^11.0.0",
+    "@nx/angular": "^22.6.3",
+    "@nx/devkit": "22.6.3",
+    "@nx/eslint": "22.6.3",
+    "@nx/eslint-plugin": "22.6.3",
+    "@nx/jest": "22.6.3",
+    "@nx/js": "^22.6.3",
+    "@nx/nest": "^22.6.3",
+    "@nx/node": "22.6.3",
+    "@nx/playwright": "22.6.3",
+    "@nx/web": "22.6.3",
+    "@nx/webpack": "22.6.3",
+    "@nx/workspace": "^22.6.3",
+    "@oxc-project/runtime": "^0.115.0",
+    "@playwright/test": "^1.36.0",
+    "@schematics/angular": "~21.2.0",
+    "@swc-node/register": "~1.11.1",
+    "@swc/core": "~1.15.5",
+    "@swc/helpers": "~0.5.18",
+    "@types/bcrypt": "^6.0.0",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/jest": "^30.0.0",
+    "@types/node": "20.19.9",
+    "@types/passport-jwt": "^4.0.1",
+    "@types/passport-local": "^1.0.38",
+    "@typescript-eslint/utils": "^8.40.0",
+    "angular-eslint": "^21.2.0",
+    "autoprefixer": "^10.4.27",
+    "daisyui": "^4.12.24",
+    "eslint": "^9.8.0",
+    "eslint-config-prettier": "^10.0.0",
+    "eslint-plugin-playwright": "^1.6.2",
+    "jest": "^30.0.2",
+    "jest-environment-node": "^30.0.2",
+    "jest-util": "^30.0.2",
+    "jsdom": "^27.1.0",
+    "jsonc-eslint-parser": "^2.1.0",
+    "nx": "^22.6.3",
+    "postcss": "^8.5.8",
+    "prettier": "~3.6.2",
+    "ts-jest": "^29.4.0",
+    "ts-node": "10.9.1",
+    "tslib": "^2.3.0",
+    "typescript": "~5.9.2",
+    "typescript-eslint": "^8.40.0",
+    "vitest": "^4.0.8",
+    "webpack-cli": "^5.1.4"
+  },
+  "dependencies": {
+    "@angular/cdk": "^21.2.4",
+    "@angular/common": "~21.2.0",
+    "@angular/compiler": "~21.2.0",
+    "@angular/core": "~21.2.0",
+    "@angular/forms": "~21.2.0",
+    "@angular/platform-browser": "~21.2.0",
+    "@angular/router": "~21.2.0",
+
+[TRUNCATED] Showing first 80 of 108 lines.
+
+=== ENTRY POINTS ===
+No common entry points found. Check 'main' or 'scripts.start' in manifest files above.
+
+=== LINTING AND FORMATTING CONFIG ===
+Found: eslint.config.mjs
+Found: .prettierrc
+Found: tsconfig.base.json
+
+=== ENVIRONMENT VARIABLE TEMPLATES ===
+--- .env.example ---
+DATABASE_URL=postgresql://user:pass@ep-xxx.region.neon.tech/muixer
+NODE_ENV=development
+PORT=3000
+
+# CORS (comma-separated list of allowed origins)
+CORS_ORIGINS=http://localhost:4200,http://localhost:4300
+
+# Legacy API (sync)
+LEGACY_API_URL=https://colla-muixeranguera.appsistencia.cat
+LEGACY_API_USERNAME=XXXXXX
+LEGACY_API_PASSWORD=XXXXXX
+
+# JWT — Access Token
+JWT_SECRET=change-me-strong-random-secret
+JWT_ACCESS_TTL=900
+
+# JWT — Refresh Token (separate secret!)
+JWT_REFRESH_SECRET=change-me-different-strong-secret
+# Temps de vida dels refresh tokens per a cada client (dashboard o PWA).
+# 28800 = 8 hours
+JWT_REFRESH_TTL_DASHBOARD=28800
+# 604800 = 7 days
+JWT_REFRESH_TTL_PWA=604800
+
+# Refresh token cookie name
+REFRESH_TOKEN_COOKIE=muixer_rt
+
+# Bootstrap setup endpoint — remove from production after first user is created
+SETUP_TOKEN=change-me-random-uuid
+
+
+=== TODO / FIXME / HACK (production code only, test dirs excluded) ===
+.agents/skills/acquire-codebase-knowledge/scripts/scan.py:28: TODO_LIMIT = 60
+.agents/skills/acquire-codebase-knowledge/scripts/scan.py:291: """Search for TODO/FIXME/HACK comments."""
+.agents/skills/acquire-codebase-knowledge/scripts/scan.py:291: """Search for TODO/FIXME/HACK comments."""
+.agents/skills/acquire-codebase-knowledge/scripts/scan.py:291: """Search for TODO/FIXME/HACK comments."""
+.agents/skills/acquire-codebase-knowledge/scripts/scan.py:293: patterns = ["TODO", "FIXME", "HACK"]
+.agents/skills/acquire-codebase-knowledge/scripts/scan.py:293: patterns = ["TODO", "FIXME", "HACK"]
+.agents/skills/acquire-codebase-knowledge/scripts/scan.py:293: patterns = ["TODO", "FIXME", "HACK"]
+.agents/skills/acquire-codebase-knowledge/scripts/scan.py:320: return todos[:TODO_LIMIT]
+.agents/skills/acquire-codebase-knowledge/scripts/scan.py:617: # TODOs
+.agents/skills/acquire-codebase-knowledge/scripts/scan.py:620: print_section("TODO / FIXME / HACK (production code only, test dirs excluded)", todos, output_file)
+.agents/skills/acquire-codebase-knowledge/scripts/scan.py:620: print_section("TODO / FIXME / HACK (production code only, test dirs excluded)", todos, output_file)
+.agents/skills/acquire-codebase-knowledge/scripts/scan.py:620: print_section("TODO / FIXME / HACK (production code only, test dirs excluded)", todos, output_file)
+.agents/skills/acquire-codebase-knowledge/scripts/scan.py:622: print_section("TODO / FIXME / HACK (production code only, test dirs excluded)", ["None found."], output_file)
+.agents/skills/acquire-codebase-knowledge/scripts/scan.py:622: print_section("TODO / FIXME / HACK (production code only, test dirs excluded)", ["None found."], output_file)
+.agents/skills/acquire-codebase-knowledge/scripts/scan.py:622: print_section("TODO / FIXME / HACK (production code only, test dirs excluded)", ["None found."], output_file)
+.agents/skills/api-design-principles/assets/rest-api-template.py:25: allowed_hosts=["*"] # TODO: Configure this in production, e.g. ["api.example.com"]
+.agents/skills/api-design-principles/assets/rest-api-template.py:31: allow_origins=["*"], # TODO: Update this with specific origins in production
+.agents/skills/api-design-principles/assets/rest-api-template.py:32: allow_credentials=False, # TODO: Set to True if you need cookies/auth headers, but restrict origins
+apps/api/src/modules/database/seeds/seed.command.ts:35: console.log('📝 TODO: Implement full import logic per spec section 5\n');
+apps/api/src/modules/database/seeds/seed.command.ts:37: // TODO: Implement the full import logic:
+
+=== GIT RECENT COMMITS (last 20) ===
+17c274e Fixed Persones sync
+43af637 chore: add .superpowers to gitignore and cleanup temp files
+f771d22 docs: update roadmap with P4.3 Dashboard Design Refactor completion
+f273880 feat(dashboard): complete design refactor — 7-phase implementation (Fase 1-7)
+3350ee9 docs: add dashboard design refactor spec
+4d2112f feat(api): enhance PersonFilterDto and AttendanceSyncStrategy for improved functionality
+ccec089 feat(dashboard): enhance PersonListComponent with provisional filter and badge
+a9122aa chore(api): remove trailing event.module.ts comment
+d071608 feat(dashboard): P4.2 phase 6 — Person list provisional filter + badge
+3ccf010 feat(dashboard): P4.2 phase 5 — Attendance management UI
+d1e8374 feat(dashboard): P4.2 phase 4 — Event Form Modal + CRUD
+a7f5446 feat(api): P4.2 phase 3 — provisional persons
+d09da1a feat(api): P4.2 phase 1+2 — Event CRUD + Attendance CRUD
+44a4be3 docs: add P4.2 spec — Dashboard Events CRUD + Manual Attendance
+7aac3d0 Update environment configuration, modify cookie SameSite attribute, and enhance authentication guards
+1e39afd Refactor column selector styles and update availability label in person list component
+b629ee8 Arreglats petits detalls de visualització i sync
+cb5abfb Implementació completa del P4.1 Auth Layer: JWT+Passport backend, login dashboard Angular, i documentació
+b8fa611 Afegit algun canvi al roadmap i canvis als estils del dashboard per a que estigui més compactat
+853c1c3 Afegits canvis per millorar la sync de dades fent servir els XLSX i alguns canvis d'estils del Dashboard
+
+=== HIGH-CHURN FILES (last 90 days, top 20) ===
+   8 apps/dashboard/src/app/features/persons/components/person-list.component.html
+   8 apps/dashboard/src/app/features/persons/components/person-list.component.ts
+   8 apps/dashboard/src/app/features/events/components/event-list/event-list.component.html
+   7 docs/PROJECT_ROADMAP.md
+   7 apps/dashboard/src/app/features/events/components/event-detail/event-detail.component.ts
+   7 docs/NEXT_STEPS.md
+   7 .nx/workspace-data/eslint-2654242865465226088.hash
+   6 apps/dashboard/src/app/features/events/components/event-detail/event-detail.component.html
+   6 apps/dashboard/src/app/features/events/models/event.model.ts
+   6 package-lock.json
+   6 package.json
+   6 docs/CURRENT_STATUS.md
+   5 .gitignore
+   5 apps/dashboard/src/app/app.config.ts
+   5 apps/dashboard/src/app/app.html
+   5 apps/dashboard/src/app/app.routes.ts
+   5 apps/dashboard/src/app/app.ts
+   5 apps/dashboard/src/app/features/persons/components/person-detail/person-detail.component.html
+   5 apps/dashboard/src/app/shared/components/layout/sidebar/sidebar.component.html
+   5 tailwind.config.js
+
+=== MONOREPO SIGNALS ===
+Monorepo tool detected: nx.json
+Sub-package directory found: apps/
+Sub-package directory found: libs/
+package.json has 'workspaces' field (npm/yarn workspaces monorepo)
+
+=== CODE METRICS ===
+Total files scanned: 484
+Total lines of code: 150822
+
+Files by language:
+  Other: 263
+  TypeScript: 192
+  JavaScript: 22
+  Python: 7
+
+Top 10 largest files:
+.angular/cache/21.2.5/dashboard/vite/deps/lucide-angular.js.map: 2995.5KB
+apps/dashboard/public/assets/logoMuixe.png: 1496.9KB
+.angular/cache/21.2.5/dashboard/vite/deps/chunk-YP5ULT2C.js.map: 1346.0KB
+.nx/workspace-data/project-graph.json: 1100.3KB
+package-lock.json: 1006.0KB
+.angular/cache/21.2.5/dashboard/vite/deps/chunk-YP5ULT2C.js: 810.5KB
+.agents/skills/ui-ux-pro-max/data/google-fonts.csv: 727.7KB
+.angular/cache/21.2.5/dashboard/vite/deps/lucide-angular.js: 716.3KB
+.nx/workspace-data/parsed-lock-file.nodes.json: 676.6KB
+.nx/workspace-data/parsed-lock-file.dependencies.json: 434.7KB
+
+=== CI/CD PIPELINES ===
+No CI/CD pipelines detected.
+
+=== CONTAINERS & ORCHESTRATION ===
+No containerization configs detected.
+
+=== SECURITY & COMPLIANCE ===
+No security configs detected.
+
+=== PERFORMANCE & TESTING ===
+No performance testing configs detected.
+
+=== SCAN COMPLETE ===

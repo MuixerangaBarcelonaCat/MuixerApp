@@ -37,6 +37,7 @@ export const ALL_EVENT_COLUMNS: ColumnDef[] = [
   { key: 'location', label: 'Lloc', defaultVisible: true, sortField: 'location' },
   { key: 'startTime', label: 'Hora inici', defaultVisible: true },
   { key: 'attendance', label: 'Assistència', defaultVisible: true },
+  { key: 'pinyes', label: 'Pinyes', defaultVisible: true },
   { key: 'season', label: 'Temporada', defaultVisible: false },
   { key: 'countsForStatistics', label: 'Estadístiques', defaultVisible: false },
   { key: 'createdAt', label: 'Creat', defaultVisible: false, sortField: 'createdAt' },
@@ -379,6 +380,14 @@ export class EventListComponent implements OnInit {
     return `✓${yes} ✗${no} ?${pend}`;
   }
 
+  formatPinyes(item: EventListItem): string {
+    const summary = item.segmentsSummary;
+    if (!summary || summary.segmentCount === 0) return '—';
+    const segLabel = summary.segmentCount === 1 ? 'seg' : 'segs';
+    const figLabel = summary.instanceCount === 1 ? 'fig' : 'figs';
+    return `${summary.segmentCount} ${segLabel} · ${summary.instanceCount} ${figLabel}`;
+  }
+
   /** All columns with value extractors — data-table handles visibility via visibleColumns input */
   readonly tableColumns = computed<ColumnDef<EventListItem>[]>(() =>
     ALL_EVENT_COLUMNS.map(col => ({
@@ -390,6 +399,7 @@ export class EventListComponent implements OnInit {
           case 'location': return item.location ?? '—';
           case 'startTime': return item.startTime?.slice(0, 5) ?? '—';
           case 'attendance': return this.formatAttendance(item);
+          case 'pinyes': return this.formatPinyes(item);
           case 'season': return item.season?.name ?? '—';
           case 'countsForStatistics': return item.countsForStatistics ? 'Sí' : 'No';
           case 'createdAt': return this.formatDate(item.createdAt);
@@ -404,6 +414,11 @@ export class EventListComponent implements OnInit {
     {
       label: 'Veure detall',
       icon: 'Eye',
+      action: (item: EventListItem) => this.navigateToEvent(item.id),
+    },
+    {
+      label: 'Gestionar pinyes',
+      icon: 'Layers',
       action: (item: EventListItem) => this.navigateToEvent(item.id),
     },
   ]);
