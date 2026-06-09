@@ -5,7 +5,7 @@
     <div class="flex items-center gap-2">
       <div>
         <h1 class="text-2xl font-bold text-base-content">Figures i Pinyes</h1>
-        <p class="text-sm text-base-content/60 mt-1">Famílies, variants i composicions per dissenyar i assignar figures</p>
+        <p class="text-sm text-base-content/60 mt-1">Figures i composicions per dissenyar i assignar</p>
       </div>
       <button
         type="button"
@@ -23,22 +23,12 @@
     <button
       role="tab"
       class="tab gap-2"
-      [class.tab-active]="activeTab() === 'families'"
-      (click)="setTab('families')"
-      [attr.aria-selected]="activeTab() === 'families'"
-    >
-      <lucide-icon name="FolderOpen" [size]="16" aria-hidden="true" />
-      Famílies
-    </button>
-    <button
-      role="tab"
-      class="tab gap-2"
       [class.tab-active]="activeTab() === 'figures'"
       (click)="setTab('figures')"
       [attr.aria-selected]="activeTab() === 'figures'"
     >
       <lucide-icon name="Layers" [size]="16" aria-hidden="true" />
-      Figures soltes
+      Figures
     </button>
     <button
       role="tab"
@@ -52,11 +42,8 @@
     </button>
   </div>
 
-  @if (activeTab() === 'families') {
-    <app-family-list-tab (openHelpModal)="openEditorHelpModal()" />
-  }
   @if (activeTab() === 'figures') {
-    <app-figure-grid-tab (switchToFamilies)="setTab('families')" />
+    <app-figure-list-tab (openHelpModal)="openEditorHelpModal()" />
   }
   @if (activeTab() === 'compositions') {
     <app-composition-grid-tab />

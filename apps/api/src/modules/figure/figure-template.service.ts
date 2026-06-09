@@ -14,10 +14,8 @@ import {
   FigureTemplateListItem,
   FigureTemplateDetail,
 } from '@muixer/shared';
-import { FigureFamily } from './entities/figure-family.entity';
 import { FigureTemplate } from './entities/figure-template.entity';
 import { FigureNode } from './entities/figure-node.entity';
-import { FigureFamilyNode } from './entities/figure-family-node.entity';
 import { Rengla } from './entities/rengla.entity';
 import { CompositionSlot } from '../composition/entities/composition-slot.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
@@ -27,21 +25,15 @@ import { FigureTemplateFilterDto } from './dto/figure-template-filter.dto';
 import { CreateFigureNodeDto } from './dto/create-figure-node.dto';
 import { CreateRenglaDto } from './dto/create-rengla.dto';
 
-const FAMILY_ZONES = new Set<string>([FigureZone.TRONC, FigureZone.BASE]);
-
 // ─── Service ────────────────────────────────────────────────────────────────
 
 @Injectable()
 export class FigureTemplateService {
   constructor(
-    @InjectRepository(FigureFamily)
-    private readonly familyRepository: Repository<FigureFamily>,
     @InjectRepository(FigureTemplate)
     private readonly templateRepository: Repository<FigureTemplate>,
     @InjectRepository(FigureNode)
     private readonly nodeRepository: Repository<FigureNode>,
-    @InjectRepository(FigureFamilyNode)
-    private readonly familyNodeRepository: Repository<FigureFamilyNode>,
     @InjectRepository(Rengla)
     private readonly renglaRepository: Repository<Rengla>,
     @InjectRepository(CompositionSlot)
@@ -54,11 +46,10 @@ export class FigureTemplateService {
   async findAll(
     filters: FigureTemplateFilterDto,
   ): Promise<{ data: FigureTemplateListItem[]; total: number }> {
-    const { search, hasPinya, familyId, page = 1, limit = 25 } = filters;
+    const { search, hasPinya, page = 1, limit = 25 } = filters;
 
     const qb = this.templateRepository
       .createQueryBuilder('template')
-      .leftJoinAndSelect('template.family', 'family')
       .loadRelationCountAndMap('template.nodeCount', 'template.nodes')
       .loadRelationCountAndMap('template.renglaCount', 'template.rengles');
 
@@ -71,10 +62,6 @@ export class FigureTemplateService {
 
     if (hasPinya !== undefined) {
       qb.andWhere('template.hasPinya = :hasPinya', { hasPinya });
-    }
-
-    if (familyId !== undefined) {
-      qb.andWhere('family.id = :familyId', { familyId });
     }
 
     const total = await qb.getCount();
@@ -91,31 +78,20 @@ export class FigureTemplateService {
   async findOne(id: string): Promise<FigureTemplateDetail> {
     const template = await this.templateRepository.findOne({
       where: { id },
-      relations: ['nodes', 'family', 'rengles'],
+      relations: ['nodes', 'rengles'],
     });
 
     if (!template) {
       throw new NotFoundException(`FigureTemplate with ID ${id} not found`);
     }
 
-    const familyNodes = await this.loadFamilyNodes(template.family?.id);
-
-    return toDetailItem(template, familyNodes);
+    return toDetailItem(template);
   }
 
   async create(dto: CreateFigureTemplateDto): Promise<FigureTemplateDetail> {
-    const family = await this.familyRepository.findOne({ where: { id: dto.familyId } });
-    if (!family) {
-      throw new NotFoundException(`FigureFamily with ID ${dto.familyId} not found`);
-    }
-
     await this.assertSlugAvailable(dto.slug);
 
-    const variantOrder = dto.variantOrder ?? (await this.nextVariantOrder(family.id));
-
     const template = this.templateRepository.create({
-      family,
-      variantOrder,
       name: dto.name,
       slug: dto.slug,
       description: dto.description ?? null,
@@ -132,39 +108,21 @@ export class FigureTemplateService {
     }
 
     if (dto.nodes && dto.nodes.length > 0) {
-      const familyDtos = dto.nodes.filter((n) => FAMILY_ZONES.has(n.zone));
-      const templateDtos = dto.nodes.filter((n) => !FAMILY_ZONES.has(n.zone));
-
-      if (templateDtos.length > 0) {
-        await this.createNodes(saved!, templateDtos);
-      }
-
-      if (familyDtos.length > 0) {
-        const existingCount = await this.familyNodeRepository.count({
-          where: { family: { id: family.id } },
-        });
-        if (existingCount === 0) {
-          await this.createFamilyNodes(family, familyDtos);
-        }
-      }
+      await this.createNodes(saved!, dto.nodes);
     }
 
     return this.findOne(saved!.id);
   }
 
   async update(id: string, dto: UpdateFigureTemplateDto): Promise<FigureTemplateDetail> {
-    // H4 fix: wrap save + syncNodes + syncRengles in a single transaction so a
-    // partial failure cannot leave the template in an inconsistent state.
     if (dto.slug !== undefined) {
-      // Assert slug availability outside the transaction (uses a plain select).
-      // The DB unique constraint acts as the final guard for concurrent renames.
       await this.assertSlugAvailable(dto.slug, id);
     }
 
     await this.dataSource.transaction(async (manager) => {
       const template = await manager.findOne(FigureTemplate, {
         where: { id },
-        relations: ['nodes', 'family'],
+        relations: ['nodes'],
       });
 
       if (!template) {
@@ -176,7 +134,6 @@ export class FigureTemplateService {
       if (dto.description !== undefined) template.description = dto.description ?? null;
       if (dto.hasPinya !== undefined) template.hasPinya = dto.hasPinya;
       if (dto.direction !== undefined) template.direction = dto.direction;
-      if (dto.variantOrder !== undefined) template.variantOrder = dto.variantOrder;
       if (dto.metadata !== undefined) template.metadata = dto.metadata ?? {};
 
       try {
@@ -230,20 +187,14 @@ export class FigureTemplateService {
   async duplicate(id: string): Promise<FigureTemplateDetail> {
     const original = await this.templateRepository.findOne({
       where: { id },
-      relations: ['nodes', 'family', 'rengles'],  // H2: include rengles
+      relations: ['nodes', 'rengles'],
     });
 
     if (!original) {
       throw new NotFoundException(`FigureTemplate with ID ${id} not found`);
     }
 
-    const variantOrder = original.family
-      ? await this.nextVariantOrder(original.family.id)
-      : original.variantOrder + 1;
-
     const copy = this.templateRepository.create({
-      family: original.family,
-      variantOrder,
       name: `${original.name} (còpia)`,
       slug: `${original.slug}-copia-${Date.now()}`,
       description: original.description,
@@ -254,8 +205,7 @@ export class FigureTemplateService {
 
     const savedCopy = await this.templateRepository.save(copy);
 
-    // H2 fix: copy rengles first so we can remap renglaId on the copied nodes.
-    const renglaIdMap = new Map<string, string>(); // original ID → new ID
+    const renglaIdMap = new Map<string, string>();
     const originalRengles = original.rengles ?? [];
     if (originalRengles.length > 0) {
       const newRengles = originalRengles.map((r) =>
@@ -273,41 +223,22 @@ export class FigureTemplateService {
       });
     }
 
-    // Only copy PINYA/direction nodes — TRONC/BASE are shared at family level.
-    // Remap renglaId references to the newly created rengles.
-    const pinyaNodes = (original.nodes ?? []).filter((n) => !FAMILY_ZONES.has(n.zone));
-    if (pinyaNodes.length > 0) {
-      const pinyaDtos = pinyaNodes.map((n) => {
+    const allNodes = original.nodes ?? [];
+    if (allNodes.length > 0) {
+      const nodeDtos = allNodes.map((n) => {
         const dto = nodeToCreateDto(n);
         if (dto.renglaId && renglaIdMap.has(dto.renglaId)) {
           dto.renglaId = renglaIdMap.get(dto.renglaId);
         }
         return dto;
       });
-      await this.createNodes(savedCopy, pinyaDtos);
+      await this.createNodes(savedCopy, nodeDtos);
     }
 
     return this.findOne(savedCopy.id);
   }
 
   // ─── Private helpers ────────────────────────────────────────────────────────
-
-  private async loadFamilyNodes(familyId?: string): Promise<FigureFamilyNode[]> {
-    if (!familyId) return [];
-    return this.familyNodeRepository.find({
-      where: { family: { id: familyId } },
-      order: { z: 'ASC', sortOrder: 'ASC' },
-    });
-  }
-
-  private async nextVariantOrder(familyId: string): Promise<number> {
-    const result = await this.templateRepository
-      .createQueryBuilder('t')
-      .select('MAX(t.variantOrder)', 'max')
-      .where('t.familyId = :familyId', { familyId })
-      .getRawOne<{ max: number | null }>();
-    return (result?.max ?? 0) + 1;
-  }
 
   private async assertSlugAvailable(slug: string, excludeId?: string): Promise<void> {
     const existing = await this.templateRepository.findOne({ where: { slug } });
@@ -362,60 +293,12 @@ export class FigureTemplateService {
     await nodeRepo.save(nodes);
   }
 
-  private async createFamilyNodes(
-    family: FigureFamily,
-    dtos: CreateFigureNodeDto[],
-    manager?: EntityManager,
-  ): Promise<void> {
-    const familyNodeRepo = manager?.getRepository(FigureFamilyNode) ?? this.familyNodeRepository;
-    const nodes = dtos.map((dto) =>
-      familyNodeRepo.create({
-        family,
-        label: dto.label,
-        zone: dto.zone,
-        positionType: dto.positionType ?? null,
-        x: dto.x,
-        y: dto.y,
-        z: dto.z ?? 0,
-        width: dto.width,
-        height: dto.height,
-        rotation: dto.rotation ?? 0,
-        color: dto.color ?? null,
-        shape: dto.shape,
-        sortOrder: dto.sortOrder ?? 0,
-        climbPath: dto.climbPath ?? null,
-        ringLevel: dto.ringLevel ?? null,
-        metadata: dto.metadata ?? {},
-      }),
-    );
-    await familyNodeRepo.save(nodes);
-  }
-
   /**
-   * Orchestrates node sync: routes TRONC/BASE to figure_family_nodes,
-   * everything else stays in figure_nodes (template level).
-   */
-  private async syncNodes(
-    template: FigureTemplate,
-    incomingDtos: CreateFigureNodeDto[],
-    manager?: EntityManager,
-  ): Promise<void> {
-    const familyDtos = incomingDtos.filter((dto) => FAMILY_ZONES.has(dto.zone));
-    const templateDtos = incomingDtos.filter((dto) => !FAMILY_ZONES.has(dto.zone));
-
-    await this.syncTemplateLevelNodes(template, templateDtos, manager);
-
-    if (template.family) {
-      await this.syncFamilyNodes(template.family, familyDtos, manager);
-    }
-  }
-
-  /**
-   * Upsert strategy for template-level (PINYA/direction) nodes.
+   * Upsert all nodes for a template (all zones treated uniformly).
    * Nodes with matching IDs are updated, unknown IDs create new nodes,
    * existing nodes absent from the incoming list are deleted.
    */
-  private async syncTemplateLevelNodes(
+  private async syncNodes(
     template: FigureTemplate,
     incomingDtos: CreateFigureNodeDto[],
     manager?: EntityManager,
@@ -463,59 +346,6 @@ export class FigureTemplateService {
     if (toUpdate.length > 0) await nodeRepo.save(toUpdate);
     if (toCreate.length > 0) await this.createNodes(template, toCreate, manager);
     if (toDeleteIds.length > 0) await nodeRepo.delete({ id: In(toDeleteIds) });
-  }
-
-  /**
-   * Upsert strategy for family-level (TRONC/BASE) nodes.
-   * Shared across all variants of the family.
-   */
-  private async syncFamilyNodes(
-    family: FigureFamily,
-    incomingDtos: CreateFigureNodeDto[],
-    manager?: EntityManager,
-  ): Promise<void> {
-    const familyNodeRepo = manager?.getRepository(FigureFamilyNode) ?? this.familyNodeRepository;
-    const existingNodes = await familyNodeRepo.find({
-      where: { family: { id: family.id } },
-    });
-    const existingById = new Map(existingNodes.map((n) => [n.id, n]));
-
-    const toUpdate: FigureFamilyNode[] = [];
-    const toCreate: CreateFigureNodeDto[] = [];
-    const incomingIds = new Set<string>();
-
-    for (const dto of incomingDtos) {
-      if (dto.id && existingById.has(dto.id)) {
-        const node = existingById.get(dto.id)!;
-        node.label = dto.label;
-        node.zone = dto.zone;
-        node.positionType = dto.positionType ?? null;
-        node.x = dto.x;
-        node.y = dto.y;
-        node.z = dto.z ?? 0;
-        node.width = dto.width;
-        node.height = dto.height;
-        node.rotation = dto.rotation ?? 0;
-        node.color = dto.color ?? null;
-        node.shape = dto.shape;
-        node.sortOrder = dto.sortOrder ?? 0;
-        node.climbPath = dto.climbPath ?? null;
-        node.ringLevel = dto.ringLevel ?? null;
-        node.metadata = dto.metadata ?? {};
-        toUpdate.push(node);
-        incomingIds.add(dto.id);
-      } else {
-        toCreate.push(dto);
-      }
-    }
-
-    const toDeleteIds = existingNodes
-      .filter((n) => !incomingIds.has(n.id))
-      .map((n) => n.id);
-
-    if (toUpdate.length > 0) await familyNodeRepo.save(toUpdate);
-    if (toCreate.length > 0) await this.createFamilyNodes(family, toCreate, manager);
-    if (toDeleteIds.length > 0) await familyNodeRepo.delete({ id: In(toDeleteIds) });
   }
 
   /**
@@ -633,30 +463,6 @@ function templateNodeToItem(node: FigureNode): FigureNodeItem {
   };
 }
 
-function familyNodeToItem(node: FigureFamilyNode): FigureNodeItem {
-  return {
-    id: node.id,
-    label: node.label,
-    zone: node.zone as FigureZone,
-    positionType: node.positionType,
-    x: node.x,
-    y: node.y,
-    z: node.z,
-    width: node.width,
-    height: node.height,
-    rotation: node.rotation,
-    color: node.color,
-    shape: node.shape as NodeShape,
-    sortOrder: node.sortOrder,
-    climbPath: node.climbPath,
-    ringLevel: node.ringLevel,
-    originNodeId: null,
-    renglaId: node.renglaId,
-    renglaPosition: node.renglaPosition,
-    metadata: node.metadata,
-  };
-}
-
 function renglaToItem(rengla: Rengla): RenglaItem {
   return {
     id: rengla.id,
@@ -678,9 +484,6 @@ function toListItem(
     description: template.description,
     hasPinya: template.hasPinya,
     direction: template.direction,
-    variantOrder: template.variantOrder,
-    familyId: template.family?.id ?? null,
-    familyName: template.family?.name ?? null,
     nodeCount: t.nodeCount ?? 0,
     renglaCount: t.renglaCount ?? 0,
     createdAt: template.createdAt.toISOString(),
@@ -688,17 +491,11 @@ function toListItem(
   };
 }
 
-function toDetailItem(
-  template: FigureTemplate,
-  familyNodes: FigureFamilyNode[] = [],
-): FigureTemplateDetail {
+function toDetailItem(template: FigureTemplate): FigureTemplateDetail {
   return {
     ...toListItem(template),
     metadata: template.metadata,
-    nodes: [
-      ...(template.nodes ?? []).map(templateNodeToItem),
-      ...familyNodes.map(familyNodeToItem),
-    ],
+    nodes: (template.nodes ?? []).map(templateNodeToItem),
     rengles: (template.rengles ?? []).map(renglaToItem),
   };
 }

@@ -25,8 +25,6 @@ import { NodeAssignment } from './entities/node-assignment.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
 import { InstanceNode } from '../event-segment/entities/instance-node.entity';
 import { FigureNode } from '../figure/entities/figure-node.entity';
-import { FigureFamilyNode } from '../figure/entities/figure-family-node.entity';
-import { FigureFamily } from '../figure/entities/figure-family.entity';
 import { Person } from '../person/person.entity';
 import { CompositionSlot } from '../composition/entities/composition-slot.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
@@ -111,30 +109,6 @@ function figureNodeToResponse(node: FigureNode): InstanceNodeItem {
   };
 }
 
-function familyNodeToResponse(node: FigureFamilyNode): InstanceNodeItem {
-  return {
-    id: node.id,
-    sourceNodeId: null,
-    originNodeId: null,
-    label: node.label,
-    zone: node.zone as FigureZone,
-    positionType: node.positionType,
-    x: node.x,
-    y: node.y,
-    z: node.z,
-    width: node.width,
-    height: node.height,
-    rotation: node.rotation,
-    color: node.color,
-    shape: node.shape as NodeShape,
-    sortOrder: node.sortOrder,
-    ringLevel: node.ringLevel,
-    renglaId: node.renglaId,
-    renglaPosition: node.renglaPosition,
-    isSnapshotted: false,
-  };
-}
-
 export function isNodeVisible(
   node: { renglaId: string | null; renglaPosition: number | null; positionType: string | null },
   numberOfCordons: number | null,
@@ -160,10 +134,6 @@ export class NodeAssignmentService {
     private readonly instanceNodeRepository: Repository<InstanceNode>,
     @InjectRepository(FigureNode)
     private readonly figureNodeRepository: Repository<FigureNode>,
-    @InjectRepository(FigureFamilyNode)
-    private readonly familyNodeRepository: Repository<FigureFamilyNode>,
-    @InjectRepository(FigureFamily)
-    private readonly figureFamilyRepository: Repository<FigureFamily>,
     @InjectRepository(Person)
     private readonly personRepository: Repository<Person>,
     @InjectRepository(CompositionSlot)
@@ -203,21 +173,12 @@ export class NodeAssignmentService {
 
       const template = await this.figureTemplateRepository.findOne({
         where: { id: instance.figureTemplate.id },
-        relations: ['nodes', 'family'],
+        relations: ['nodes'],
       });
 
-      const templateNodes = (template?.nodes ?? [])
+      allNodes = (template?.nodes ?? [])
         .sort((a, b) => a.sortOrder - b.sortOrder)
         .map(figureNodeToResponse);
-
-      const familyNodes = template?.family
-        ? await this.familyNodeRepository.find({
-            where: { family: { id: template.family.id } },
-            order: { z: 'ASC', sortOrder: 'ASC' },
-          })
-        : [];
-
-      allNodes = [...templateNodes, ...familyNodes.map(familyNodeToResponse)];
     }
 
     if (instance.numberOfCordons !== null || (instance.openCordons && instance.openCordons.length > 0)) {
@@ -479,17 +440,13 @@ export class NodeAssignmentService {
     templateId: string,
     query: HistoryQueryDto = {},
   ): Promise<{ data: FigureHistoryEntry[]; meta: { total: number; page: number; limit: number } }> {
-    const template = await this.figureTemplateRepository.findOne({
-      where: { id: templateId },
-      relations: ['family'],
-    });
+    const template = await this.figureTemplateRepository.findOne({ where: { id: templateId } });
     if (!template) {
       throw new NotFoundException(`FigureTemplate with ID ${templateId} not found`);
     }
 
     return this.queryHistory(
       (qb) => qb.where('fi.figureTemplateId = :templateId', { templateId }),
-      template.family?.name ?? null,
       query,
     );
   }
@@ -515,7 +472,6 @@ export class NodeAssignmentService {
       .innerJoin('fi.segment', 'seg')
       .innerJoin('seg.event', 'ev')
       .leftJoin('fi.figureTemplate', 'tpl')
-      .leftJoin('tpl.family', 'fam')
       .where('na.personId = :personId', { personId })
       .select([
         'ev.id AS "eventId"',
@@ -526,7 +482,6 @@ export class NodeAssignmentService {
         'fi.id AS "instanceId"',
         'tpl.name AS "figureName"',
         'tpl.slug AS "figureSlug"',
-        'fam.name AS "familyName"',
         'inode.label AS "nodeLabel"',
         'inode.positionType AS "positionType"',
         'inode.zone AS "zone"',
@@ -554,7 +509,6 @@ export class NodeAssignmentService {
       instanceId: r.instanceId,
       figureName: r.figureName ?? '',
       figureSlug: r.figureSlug ?? '',
-      familyName: r.familyName ?? null,
       nodeLabel: r.nodeLabel,
       positionType: r.positionType ?? null,
       zone: r.zone as FigureZone,
@@ -587,7 +541,6 @@ export class NodeAssignmentService {
       relations: [
         'segment',
         'figureTemplate',
-        'figureTemplate.family',
         'assignments',
         'assignments.instanceNode',
         'assignments.person',
@@ -633,7 +586,6 @@ export class NodeAssignmentService {
         return {
           instanceId: fi.id,
           figureName: fi.figureTemplate?.name ?? 'Sense plantilla',
-          familyName: fi.figureTemplate?.family?.name ?? null,
           snapshotted: fi.snapshotted,
           totalNodes,
           assignedNodes: assignments.length,
@@ -652,29 +604,8 @@ export class NodeAssignmentService {
     return { segments: result };
   }
 
-  // ── F3 — Family history ────────────────────────────────────────────────────
-
-  async getFamilyHistory(
-    familyId: string,
-    query: HistoryQueryDto = {},
-  ): Promise<{ data: FigureHistoryEntry[]; meta: { total: number; page: number; limit: number } }> {
-    const family = await this.figureFamilyRepository.findOne({ where: { id: familyId } });
-    if (!family) {
-      throw new NotFoundException('Família de figures no trobada.');
-    }
-
-    return this.queryHistory(
-      (qb) => qb
-        .leftJoin('fi.figureTemplate', 'tpl')
-        .where('tpl.familyId = :familyId', { familyId }),
-      family.name,
-      query,
-    );
-  }
-
   private async queryHistory(
     applyWhere: (qb: SelectQueryBuilder<FigureInstance>) => SelectQueryBuilder<FigureInstance>,
-    familyName: string | null,
     query: HistoryQueryDto,
   ): Promise<{ data: FigureHistoryEntry[]; meta: { total: number; page: number; limit: number } }> {
     const page = Math.max(query.page ?? 1, 1);
@@ -719,7 +650,6 @@ export class NodeAssignmentService {
         eventTitle: event.title,
         eventDate: event.date as unknown as string,
         eventType: event.eventType,
-        familyName,
         segmentName: instance.segment?.name ?? null,
         instanceId: instance.id,
         snapshotted: instance.snapshotted,
@@ -936,49 +866,40 @@ export class NodeAssignmentService {
    * owned by this instance. Marks the instance as snapshotted. Runs in a transaction.
    * Returns the newly created InstanceNode rows.
    *
-   * C1 fix: template/family data is loaded BEFORE the transaction to keep the
-   * critical section short. Inside the transaction a pessimistic_write lock on
-   * FigureInstance serialises concurrent calls and an idempotency re-check prevents
-   * double-snapshot if two requests raced past the outer `!snapshotted` check.
+   * C1 fix: template data is loaded BEFORE the transaction to keep the critical
+   * section short. Inside the transaction a pessimistic_write lock on FigureInstance
+   * serialises concurrent calls and an idempotency re-check prevents double-snapshot
+   * if two requests raced past the outer `!snapshotted` check.
    */
   private async snapshotInstance(instance: FigureInstance): Promise<InstanceNode[]> {
     if (!instance.figureTemplate) {
       throw new BadRequestException('Cannot snapshot a composition-based instance');
     }
 
-    // Load template data outside the transaction to minimise lock hold time.
     const template = await this.figureTemplateRepository.findOne({
       where: { id: instance.figureTemplate.id },
-      relations: ['nodes', 'family'],
+      relations: ['nodes'],
     });
 
     if (!template) {
       throw new NotFoundException(`FigureTemplate ${instance.figureTemplate.id} not found`);
     }
 
-    const templateNodes = template.nodes ?? [];
-    const familyNodes = template.family
-      ? await this.familyNodeRepository.find({
-          where: { family: { id: template.family.id } },
-          order: { z: 'ASC', sortOrder: 'ASC' },
-        })
-      : [];
+    const allNodes = template.nodes ?? [];
 
     return this.dataSource.transaction(async (manager) => {
-      // Acquire a row-level write lock to serialise concurrent snapshot attempts.
       const locked = await manager.findOne(FigureInstance, {
         where: { id: instance.id },
         lock: { mode: 'pessimistic_write' },
       });
 
-      // Idempotency guard: another concurrent request may have already snapshotted.
       if (locked!.snapshotted) {
         return manager.find(InstanceNode, {
           where: { figureInstance: { id: instance.id } },
         });
       }
 
-      const templateInstanceNodes = templateNodes.map((node) =>
+      const instanceNodes = allNodes.map((node) =>
         manager.create(InstanceNode, {
           figureInstance: instance,
           sourceNodeId: node.id,
@@ -1003,40 +924,9 @@ export class NodeAssignmentService {
         }),
       );
 
-      const familyInstanceNodes = familyNodes.map((node) =>
-        manager.create(InstanceNode, {
-          figureInstance: instance,
-          sourceNodeId: node.id,
-          originNodeId: null,
-          label: node.label,
-          zone: node.zone,
-          positionType: node.positionType,
-          x: node.x,
-          y: node.y,
-          z: node.z,
-          width: node.width,
-          height: node.height,
-          rotation: node.rotation,
-          color: node.color,
-          shape: node.shape,
-          sortOrder: node.sortOrder,
-          climbPath: node.climbPath,
-          ringLevel: node.ringLevel,
-          renglaId: node.renglaId,
-          renglaPosition: node.renglaPosition,
-          metadata: node.metadata,
-        }),
-      );
+      const saved = await manager.save(InstanceNode, instanceNodes);
 
-      const saved = await manager.save(InstanceNode, [
-        ...templateInstanceNodes,
-        ...familyInstanceNodes,
-      ]);
-
-      await manager.update(FigureInstance, instance.id, {
-        snapshotted: true,
-        sourceVariantOrder: template.variantOrder,
-      });
+      await manager.update(FigureInstance, instance.id, { snapshotted: true });
 
       return saved;
     });

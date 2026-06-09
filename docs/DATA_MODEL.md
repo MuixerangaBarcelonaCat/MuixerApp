@@ -107,33 +107,15 @@ Tokens de refresc per a la rotació segura de sessions JWT. Afegit a P4.1.
 
 ---
 
-### `figure_families`
-
-Família de figures: agrupa variants (templates) que representen la mateixa figura a mides diferents. Afegit a P5.5.
-
-| Camp | Tipus DB | TypeScript | Nullable | Notes |
-|------|----------|------------|----------|-------|
-| `id` | `uuid` | `string` | No | PK, auto-generat |
-| `name` | `varchar` | `string` | No | Únic. Ex: "Pilar de 4" |
-| `slug` | `varchar` | `string` | No | Únic. Ex: "pilar-de-4" |
-| `description` | `text` | `string \| null` | Sí | Descripció opcional |
-| `metadata` | `jsonb` | `Record<string, unknown>` | No | Default `{}`. Extensible |
-| `createdAt` | `timestamp` | `Date` | No | Auto |
-| `updatedAt` | `timestamp` | `Date` | No | Auto |
-
-**Protecció referencial**: No es pot eliminar una `FigureFamily` si té `FigureTemplate`s associades (409 Conflict).
-
----
-
 ### `figure_templates`
 
-Plantilla reutilitzable d'una figura individual. Afegit a P5.1. Ampliat a P5.5 amb camps de família i variant.
+Plantilla reutilitzable d'una figura individual. Afegit a P5.1.
+
+> **Canvi P5.13 (Remove FigureFamily)**: eliminats els camps `familyId` i `variantOrder`. Tots els nodes (PINYA, TRONC, BASE) es guarden directament a `figure_nodes`. La taula `figure_families` i `figure_family_nodes` han estat eliminades.
 
 | Camp | Tipus DB | TypeScript | Nullable | Notes |
 |------|----------|------------|----------|-------|
 | `id` | `uuid` | `string` | No | PK, auto-generat |
-| `family` | FK → `figure_families` | `FigureFamily \| null` | Sí | ManyToOne, RESTRICT delete. `null` per dades legacy |
-| `variantOrder` | `int` | `number` | No | Default `1`. Posició dins la família (1 = variant més petita) |
 | `name` | `varchar` | `string` | No | Únic. Ex: "Pinet Doble de 4" |
 | `slug` | `varchar` | `string` | No | Únic. Ex: "pd4" |
 | `description` | `text` | `string \| null` | Sí | Notes del tècnic |
@@ -142,8 +124,6 @@ Plantilla reutilitzable d'una figura individual. Afegit a P5.1. Ampliat a P5.5 a
 | `metadata` | `jsonb` | `Record<string, unknown>` | No | Default `{}`. Extensible |
 | `createdAt` | `timestamp` | `Date` | No | Auto |
 | `updatedAt` | `timestamp` | `Date` | No | Auto |
-
-> **Canvi P5.5**: Afegits `family` (FK nullable a `figure_families`, RESTRICT) i `variantOrder` (int, default 1). Templates sense família (dades legacy pre-P5.5) apareixen a la secció "Altres" al llistat de l'editor.
 
 ---
 
@@ -244,11 +224,12 @@ Materialització d'un template o composició en un segment concret. Afegit a P5.
 | `label` | `varchar` | `string \| null` | Sí | Ex: "Morera central (5 de Oros)" |
 | `sortOrder` | `int` | `number` | No | Ordre dins del segment |
 | `snapshotted` | `boolean` | `boolean` | No | Default `false`. `true` quan s'han copiat els nodes a `InstanceNode` (primera assignació) |
-| `sourceVariantOrder` | `int` | `number \| null` | Sí | `variantOrder` del template en el moment del snapshot. Usada per calcular l'upgrade |
+| `sourceVariantOrder` | `int` | `number \| null` | Sí | Dada histórica (P5.5). Sempre `null` per instàncies creades des de P5.13 |
 | `createdAt` | `timestamp` | `Date` | No | Auto |
 | `updatedAt` | `timestamp` | `Date` | No | Auto |
 
 > **Canvi P5.5**: Eliminats `offsetX`, `offsetY`, `direction` (no s'usaven). Afegits `snapshotted` i `sourceVariantOrder`. La instància és lleugera fins a la primera assignació; en aquell moment es dispara el **lazy snapshot**.
+> **Canvi P5.13**: `sourceVariantOrder` es manté com a dada histórica però sempre és `null` en noves instàncies (el concepte de variant ha desaparegut).
 
 ---
 
@@ -452,20 +433,8 @@ erDiagram
         timestamp createdAt
     }
 
-    figure_families {
-        uuid id PK
-        varchar name UK
-        varchar slug UK
-        text description "nullable"
-        jsonb metadata "default {}"
-        timestamp createdAt
-        timestamp updatedAt
-    }
-
     figure_templates {
         uuid id PK
-        uuid family_id FK "nullable, RESTRICT"
-        int variantOrder "default 1"
         varchar name UK
         varchar slug UK
         text description "nullable"
@@ -622,10 +591,9 @@ Person >──< Position                  : via person_positions (M:N)
 User ──< RefreshToken (userId)        : un User pot tenir N refresh tokens actius
 ```
 
-**Mòdul de Pinyes (P5.1–P5.5):**
+**Mòdul de Pinyes (P5.1–P5.13):**
 ```
-FigureFamily ──< FigureTemplate                    : RESTRICT (1:N) — P5.5
-FigureTemplate ──< FigureNode                      : CASCADE (1:N)
+FigureTemplate ──< FigureNode                      : CASCADE (1:N) — totes les zones (PINYA/TRONC/BASE)
 CompositionTemplate ──< CompositionSlot            : CASCADE (1:N)
 CompositionSlot >── FigureTemplate                 : M:1 (protecció 409)
 
@@ -657,10 +625,10 @@ NodeAssignment >──? CompositionSlot                : M:1 opcional
 | `EventSegment` | P5.3 ✅ | Segment temporal dins d'un event |
 | `FigureInstance` | P5.3 ✅ | Instància concreta d'una figura en un `EventSegment` |
 | `NodeAssignment` | P5.4 ✅ | Assignació `Person` → posició en una figura |
-| `FigureFamily` | P5.5 ✅ | Família que agrupa variants d'una mateixa figura |
 | `InstanceNode` | P5.5 ✅ | Snapshot de `FigureNode` propietat d'una `FigureInstance` |
 
-> **Canvis de model a P5.5**: `FigureTemplate` + `family`/`variantOrder`, `FigureNode` + `ringLevel`/`originNodeId`, `FigureInstance` + `snapshotted`/`sourceVariantOrder`, `NodeAssignment.figureNode` → `NodeAssignment.instanceNode`.
+> **Canvis de model a P5.5**: `FigureNode` + `ringLevel`/`originNodeId`, `FigureInstance` + `snapshotted`/`sourceVariantOrder`, `NodeAssignment.figureNode` → `NodeAssignment.instanceNode`.
+> **Canvis de model a P5.13**: Eliminades `FigureFamily` (P5.5) i `FigureFamilyNode` (P5.7). `FigureTemplate` perd `familyId`/`variantOrder`. Tots els nodes van directament a `figure_nodes`.
 
 ## Entitats Pendents (P6+)
 
@@ -678,16 +646,15 @@ NodeAssignment >──? CompositionSlot                : M:1 opcional
 - **Auth (P4.1)**: `User` amb `email` (login credential), OneToOne a `Person`. Refresh tokens amb rotació + detecció de reutilització. Vegeu `AUTH_FLOW.md`.
 - **Multi-tenant**: Arquitectura preparada per afegir `Colla` com a arrel de tot el model (P futur).
 - **GDPR**: Camps sensibles (`email`, `phone`, `birthDate`) requeriran encriptació en repòs (pendent).
-- **Mòdul Pinyes (P5.1-P5.5)**:
-  - **Templates reutilitzables**: `FigureTemplate` amb `FigureNode`s. Sync inline via `PUT` (upsert per ID: crea nous, actualitza existents, elimina els absents). IDs de nodes estables entre saves.
-  - **Composicions**: `CompositionTemplate` agrupa múltiples `FigureTemplate`s amb offsets. No recursives.
-  - **Segments seqüencials**: `EventSegment` amb `sortOrder`, horari opcional.
-  - **Famílies i variants (P5.5)**: `FigureFamily` agrupa `FigureTemplate`s que representen la mateixa figura a mides diferents. Cada template té un `variantOrder` dins la família.
-  - **Instàncies amb lazy snapshot (P5.5)**: `FigureInstance` és lleugera fins a la primera assignació. En aquell moment, els nodes del template es copien a `InstanceNode`s propis de la instància (`snapshotted = true`). A partir d'aquí, els canvis al template no afecten la instància.
-  - **Upgrade de cordó (P5.5)**: `upgradeInstance()` afegeix `InstanceNode`s nous de la variant superior de la família sense tocar els existents ni les assignacions.
-  - **Assignacions amb validació**: `NodeAssignment` apunta a `InstanceNode` (no a `FigureNode`). Constraints únics: un node una persona, una persona no duplicada al segment.
+- **Mòdul Pinyes (P5.1-P5.13)**:
+  - **Templates reutilitzables (P5.1)**: `FigureTemplate` amb `FigureNode`s per totes les zones (PINYA, TRONC, BASE). Sync inline via `PUT` (upsert per ID). IDs de nodes estables entre saves.
+  - **Composicions (P5.2)**: `CompositionTemplate` agrupa múltiples `FigureTemplate`s amb offsets. No recursives.
+  - **Segments seqüencials (P5.3)**: `EventSegment` amb `sortOrder`, horari opcional.
+  - **Instàncies amb lazy snapshot (P5.5)**: `FigureInstance` és lleugera fins a la primera assignació. En aquell moment, tots els nodes del template es copien a `InstanceNode`s propis de la instància (`snapshotted = true`). A partir d'aquí, els canvis al template no afecten la instància.
+  - **Assignacions amb validació (P5.4/P5.5)**: `NodeAssignment` apunta a `InstanceNode` (no a `FigureNode`). Constraints únics: un node una persona, una persona no duplicada al segment.
   - **Zona BASE**: Els nodes amb `zone = BASE` (z=0) representen les bases. Apareixen tant a la vista de pinya com al tronc.
-  - **Protecció referencial**: No es pot eliminar `FigureTemplate` si té `CompositionSlot`s (409) o `FigureInstance`s (409). No es pot eliminar `FigureFamily` si té templates (409).
+  - **Protecció referencial**: No es pot eliminar `FigureTemplate` si té `CompositionSlot`s (409) o `FigureInstance`s (409).
+  - **Eliminació de FigureFamily (P5.13)**: Taules `figure_families` i `figure_family_nodes` eliminades. Tots els nodes van directament a `figure_nodes`. Interfície aplanada: una llista de `Figures` + `Composicions`.
   - **Canvas Konva**: API imperativa directa (no `ng2-konva`). Pinya (65-70% ample) + tronc (30-35% lateral). Zoom, pan, drag, snap-to-grid.
   - **Auto-save**: Debounce 2s amb indicador d'estat (Guardat/Guardant/Error).
   - **Alçada relativa**: Al tronc, si la persona té `shoulderHeight`, es mostra "+3" o "-5" (cm vs baseline 140 cm).

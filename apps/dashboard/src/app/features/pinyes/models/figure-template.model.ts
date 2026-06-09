@@ -11,7 +11,6 @@ export type {
 export interface FigureTemplateFilterParams {
   search?: string;
   hasPinya?: boolean;
-  familyId?: string;
   page?: number;
   limit?: number;
 }
@@ -41,8 +40,6 @@ export interface CreateFigureNodePayload {
 export interface CreateFigureTemplatePayload {
   name: string;
   slug: string;
-  familyId: string;
-  variantOrder?: number;
   description?: string;
   hasPinya?: boolean;
   direction?: number;

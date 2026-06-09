@@ -7,10 +7,8 @@ import { Season } from '../season/season.entity';
 import { Event } from '../event/event.entity';
 import { Attendance } from '../event/attendance.entity';
 import { RefreshToken } from '../auth/entities/refresh-token.entity';
-import { FigureFamily } from '../figure/entities/figure-family.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
 import { FigureNode } from '../figure/entities/figure-node.entity';
-import { FigureFamilyNode } from '../figure/entities/figure-family-node.entity';
 import { CompositionTemplate } from '../composition/entities/composition-template.entity';
 import { CompositionSlot } from '../composition/entities/composition-slot.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
@@ -23,6 +21,7 @@ import { DropReferenceElementsAndProjectionColumns1749106200000 } from '../../mi
 import { AddUpdatedAtToRengles1749106300000 } from '../../migrations/1749106300000-AddUpdatedAtToRengles';
 import { AddUpdatedAtToMissingTables1749106400000 } from '../../migrations/1749106400000-AddUpdatedAtToMissingTables';
 import { AddPersonInstanceUniqueConstraint1749106500000 } from '../../migrations/1749106500000-AddPersonInstanceUniqueConstraint';
+import { RemoveFigureFamily1780982679300 } from '../../migrations/1780982679300-RemoveFigureFamily';
 
 @Module({
   imports: [
@@ -35,7 +34,7 @@ import { AddPersonInstanceUniqueConstraint1749106500000 } from '../../migrations
           type: 'postgres',
           url: process.env.DATABASE_URL,
           ssl: sslEnabled ? { rejectUnauthorized: false } : false,
-          entities: [
+            entities: [
             Position,
             User,
             Person,
@@ -43,10 +42,8 @@ import { AddPersonInstanceUniqueConstraint1749106500000 } from '../../migrations
             Event,
             Attendance,
             RefreshToken,
-            FigureFamily,
             FigureTemplate,
             FigureNode,
-            FigureFamilyNode,
             CompositionTemplate,
             CompositionSlot,
             EventSegment,
@@ -63,6 +60,7 @@ import { AddPersonInstanceUniqueConstraint1749106500000 } from '../../migrations
             AddUpdatedAtToRengles1749106300000,
             AddUpdatedAtToMissingTables1749106400000,
             AddPersonInstanceUniqueConstraint1749106500000,
+            RemoveFigureFamily1780982679300,
           ],
           migrationsTableName: 'typeorm_migrations',
           logging: isDevelopment,

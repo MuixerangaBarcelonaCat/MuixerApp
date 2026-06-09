@@ -64,9 +64,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   readonly templateSlug = this.st.templateSlug;
   readonly templateDescription = this.st.templateDescription;
   readonly hasPinya = this.st.hasPinya;
-  readonly familyId = this.st.familyId;
-  readonly familyName = this.st.familyName;
-  readonly variantOrder = this.st.variantOrder;
   readonly nodes = this.st.nodes;
   readonly selectedNodeId = this.st.selectedNodeId;
   readonly rengles = this.st.rengles;
@@ -81,8 +78,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   readonly selectedNode = this.st.selectedNode;
   readonly saveStatusLabel = this.st.saveStatusLabel;
   readonly baseOrderingValidation = this.st.baseOrderingValidation;
-  readonly hasFamily = this.st.hasFamily;
-  readonly familyBreadcrumb = this.st.familyBreadcrumb;
   readonly canvasMode = this.st.canvasMode;
 
   // ── Enums and constants for template ────────────────────────────────────
@@ -93,17 +88,11 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.layout.requestFullscreen();
     const id = this.route.snapshot.paramMap.get('id');
-    const queryFamilyId = this.route.snapshot.queryParamMap.get('familyId');
-    const queryFamilyName = this.route.snapshot.queryParamMap.get('familyName');
     if (id) {
       this.st.templateId.set(id);
       this.st.loadTemplate(id);
     } else {
       this.st.reset();
-      if (queryFamilyId) {
-        this.st.familyId.set(queryFamilyId);
-        this.st.familyName.set(queryFamilyName);
-      }
     }
   }
 

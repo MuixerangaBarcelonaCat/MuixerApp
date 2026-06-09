@@ -13,13 +13,6 @@
         Figures
       </button>
 
-      @if (familyBreadcrumb()) {
-        <span class="text-base-content/30" aria-hidden="true">/</span>
-        <span class="text-sm text-base-content/60 font-medium truncate max-w-36" [title]="familyBreadcrumb()!">
-          {{ familyBreadcrumb() }}
-        </span>
-      }
-
       <span class="text-base-content/30" aria-hidden="true">/</span>
 
       <!-- Template name -->
@@ -545,12 +538,7 @@
       (mousedown)="troncDragDir.onDragStart($event)"
     >
       <lucide-icon name="GripVertical" [size]="14" class="drag-handle" aria-hidden="true" />
-      <h2 class="tronc-floating-title">
-        Tronc
-        <span class="tronc-shared-badge" title="Compartit entre totes les variants de la família">
-          Compartit
-        </span>
-      </h2>
+      <h2 class="tronc-floating-title">Tronc</h2>
       <button
         type="button"
         class="btn btn-ghost btn-xs btn-square"

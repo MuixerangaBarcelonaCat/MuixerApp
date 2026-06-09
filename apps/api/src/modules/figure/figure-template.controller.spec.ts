@@ -11,12 +11,11 @@ const mockDetail = {
   description: null,
   hasPinya: true,
   direction: 0,
-  variantOrder: 1,
-  familyId: 'family-uuid',
-  familyName: 'Pilar de 4',
   nodeCount: 0,
+  renglaCount: 0,
   metadata: {},
   nodes: [],
+  rengles: [],
   createdAt: new Date(),
   updatedAt: new Date(),
 };
@@ -65,11 +64,10 @@ describe('FigureTemplateController', () => {
       expect(result.meta.limit).toBe(25);
     });
 
-    it('passes filters including familyId to service', async () => {
-      await controller.findAll({ search: 'pd4', familyId: 'family-uuid', page: 1, limit: 10 });
+    it('passes search and pagination filters to service', async () => {
+      await controller.findAll({ search: 'pd4', page: 1, limit: 10 });
       expect(service.findAll).toHaveBeenCalledWith({
         search: 'pd4',
-        familyId: 'family-uuid',
         page: 1,
         limit: 10,
       });
@@ -77,11 +75,10 @@ describe('FigureTemplateController', () => {
   });
 
   describe('findOne', () => {
-    it('returns detail with familyId and variantOrder', async () => {
+    it('returns detail item', async () => {
       const result = await controller.findOne('tmpl-uuid');
       expect(result.id).toBe('tmpl-uuid');
-      expect(result.familyId).toBe('family-uuid');
-      expect(result.variantOrder).toBe(1);
+      expect(result.name).toBe('Pilar de 4 — 2C');
     });
 
     it('propagates NotFoundException', async () => {
@@ -91,8 +88,8 @@ describe('FigureTemplateController', () => {
   });
 
   describe('create', () => {
-    it('delegates to service with familyId', async () => {
-      const dto = { familyId: 'family-uuid', name: 'pd4-2c', slug: 'pd4-2c', nodes: [NODE_DTO] };
+    it('delegates to service', async () => {
+      const dto = { name: 'pd4-2c', slug: 'pd4-2c', nodes: [NODE_DTO] };
       const result = await controller.create(dto as any);
       expect(service.create).toHaveBeenCalledWith(dto);
       expect(result.id).toBe('tmpl-uuid');
@@ -101,7 +98,7 @@ describe('FigureTemplateController', () => {
 
   describe('update', () => {
     it('delegates to service with id and dto', async () => {
-      const dto = { name: 'Nou nom', variantOrder: 2, nodes: [] };
+      const dto = { name: 'Nou nom', nodes: [] };
       await controller.update('tmpl-uuid', dto);
       expect(service.update).toHaveBeenCalledWith('tmpl-uuid', dto);
     });

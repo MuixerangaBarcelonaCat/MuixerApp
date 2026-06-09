@@ -147,12 +147,4 @@ export class NodeAssignmentController {
     return this.assignmentService.getEventAssignmentSummary(eventId);
   }
 
-  @ApiOperation({ summary: 'Get assignment history for all variants in a figure family' })
-  @Get('figure-families/:familyId/history')
-  getFamilyHistory(
-    @Param('familyId', ParseUUIDPipe) familyId: string,
-    @Query() query: HistoryQueryDto,
-  ) {
-    return this.assignmentService.getFamilyHistory(familyId, query);
-  }
 }

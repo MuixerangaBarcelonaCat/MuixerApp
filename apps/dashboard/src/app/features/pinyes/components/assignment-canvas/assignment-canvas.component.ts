@@ -108,7 +108,6 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly tabs = this.tab.tabs;
   readonly segment = this.tab.segment;
   readonly loading = this.tab.loading;
-  readonly familyDetail = this.tab.familyDetail;
   readonly templateRengles = this.tab.templateRengles;
   readonly maxCordons = this.tab.maxCordons;
   readonly activeTab = this.tab.activeTab;

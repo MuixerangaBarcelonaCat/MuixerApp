@@ -95,17 +95,6 @@ export class NodeAssignmentService extends ApiService {
     return this.get<EventAssignmentSummary>(`/events/${eventId}/assignment-summary`);
   }
 
-  getFamilyHistory(
-    familyId: string,
-    query: HistoryQuery = {},
-  ): Observable<{ data: FigureHistoryEntry[]; meta: HistoryMeta }> {
-    const params = this.buildQueryParams(query);
-    return this.get<{ data: FigureHistoryEntry[]; meta: HistoryMeta }>(
-      `/figure-families/${familyId}/history`,
-      { params },
-    );
-  }
-
   getLockStatus(eventId: string): Observable<LockStatus> {
     return this.get<LockStatus>(`/events/${eventId}/lock-status`);
   }

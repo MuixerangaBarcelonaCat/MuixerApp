@@ -25,12 +25,6 @@ export interface InstanceSelection {
   compositionTemplateId?: string;
 }
 
-export interface FamilyGroup {
-  familyId: string;
-  familyName: string;
-  variants: FigureTemplateListItem[];
-}
-
 @Component({
   selector: 'app-figure-picker-modal',
   standalone: true,
@@ -57,38 +51,15 @@ export class FigurePickerModalComponent {
   figures = signal<FigureTemplateListItem[]>([]);
   compositions = signal<CompositionTemplateListItem[]>([]);
 
-  // Figures grouped by family, derived client-side from the figure list (no extra HTTP calls)
-  readonly familyGroups = computed<FamilyGroup[]>(() => {
+  readonly filteredFigures = computed<FigureTemplateListItem[]>(() => {
     const q = this.search().toLowerCase();
-    const withFamily = this.figures().filter((f) => !!f.familyId);
-
-    const byFamily = new Map<string, { name: string; variants: FigureTemplateListItem[] }>();
-    for (const fig of withFamily) {
-      const fid = fig.familyId!;
-      if (!byFamily.has(fid)) {
-        byFamily.set(fid, { name: fig.familyName ?? fid, variants: [] });
-      }
-      byFamily.get(fid)!.variants.push(fig);
-    }
-
-    return Array.from(byFamily.entries())
-      .map(([familyId, { name, variants }]) => {
-        const sorted = [...variants].sort((a, b) => a.variantOrder - b.variantOrder);
-        const filtered = q
-          ? sorted.filter((f) => f.name.toLowerCase().includes(q) || name.toLowerCase().includes(q))
-          : sorted;
-        return { familyId, familyName: name, variants: filtered };
-      })
-      .filter((g) => g.variants.length > 0)
-      .sort((a, b) => a.familyName.localeCompare(b.familyName));
-  });
-
-  // Legacy (no-family) figures filtered by search
-  readonly legacyFigures = computed<FigureTemplateListItem[]>(() => {
-    const q = this.search().toLowerCase();
-    const noFamily = this.figures().filter((f) => !f.familyId);
-    if (!q) return noFamily;
-    return noFamily.filter((f) => f.name.toLowerCase().includes(q));
+    if (!q) return this.figures();
+    return this.figures().filter(
+      (f) =>
+        f.name.toLowerCase().includes(q) ||
+        f.slug.toLowerCase().includes(q) ||
+        (f.description ?? '').toLowerCase().includes(q),
+    );
   });
 
   readonly filteredCompositions = computed(() => {
@@ -96,10 +67,6 @@ export class FigurePickerModalComponent {
     if (!q) return this.compositions();
     return this.compositions().filter((c) => c.name.toLowerCase().includes(q));
   });
-
-  readonly hasAnyFigure = computed(
-    () => this.familyGroups().length > 0 || this.legacyFigures().length > 0,
-  );
 
   constructor() {
     effect(() => {

@@ -64,9 +64,6 @@ export class TemplateEditorStateService {
   readonly templateSlug = signal('');
   readonly templateDescription = signal('');
   readonly hasPinya = signal(true);
-  readonly familyId = signal<string | null>(null);
-  readonly familyName = signal<string | null>(null);
-  readonly variantOrder = signal<number | null>(null);
 
   // ── Node state ───────────────────────────────────────────────────────────
   readonly nodes = signal<FigureNodeItem[]>([]);
@@ -96,8 +93,6 @@ export class TemplateEditorStateService {
   readonly baseOrderingValidation = computed(() =>
     validateBaseOrdering(this.baseNodes().map((n) => ({ sortOrder: n.sortOrder, x: n.x, y: n.y }))),
   );
-  readonly hasFamily = computed(() => !!this.familyId());
-  readonly familyBreadcrumb = computed(() => this.familyName() ?? null);
   readonly canvasMode = computed(() => this.renglaEditMode() ? 'readonly' as const : 'editor' as const);
 
   readonly renglaEditMode = signal(false);
@@ -115,9 +110,6 @@ export class TemplateEditorStateService {
     this.templateSlug.set('');
     this.templateDescription.set('');
     this.hasPinya.set(true);
-    this.familyId.set(null);
-    this.familyName.set(null);
-    this.variantOrder.set(null);
     this.nodes.set([]);
     this.selectedNodeId.set(null);
     this.rengles.set([]);
@@ -136,9 +128,6 @@ export class TemplateEditorStateService {
         this.hasPinya.set(tmpl.hasPinya);
         this.nodes.set(tmpl.nodes);
         this.rengles.set(tmpl.rengles ?? []);
-        this.familyId.set(tmpl.familyId);
-        this.familyName.set(tmpl.familyName);
-        this.variantOrder.set(tmpl.variantOrder ?? null);
         this.loading.set(false);
       },
       error: () => {
@@ -423,12 +412,6 @@ export class TemplateEditorStateService {
     const slug = this.templateSlug().trim();
     if (!name || !slug) return;
 
-    const familyId = this.familyId();
-    if (!this.templateId() && !familyId) {
-      this.toast.error("Cal assignar la figura a una família. Torna a la llista i crea la variant des d'una família.");
-      return;
-    }
-
     this.saveStatus.set('saving');
     const payload = this.buildPayload();
     const id = this.templateId();
@@ -440,14 +423,11 @@ export class TemplateEditorStateService {
       });
     } else {
       this.figureTemplateService
-        .create({ name, slug, familyId: familyId!, hasPinya: this.hasPinya(), nodes: payload.nodes ?? [] })
+        .create({ name, slug, hasPinya: this.hasPinya(), nodes: payload.nodes ?? [] })
         .pipe(takeUntilDestroyed(this.destroyRef))
         .subscribe({
           next: (created) => {
             this.templateId.set(created.id);
-            if (created.familyId) this.familyId.set(created.familyId);
-            if (created.familyName) this.familyName.set(created.familyName);
-            if (created.variantOrder) this.variantOrder.set(created.variantOrder);
             this.router.navigate(['/pinyes/templates', created.id, 'edit'], { replaceUrl: true });
             this.onSaveSuccess();
           },

@@ -3,12 +3,9 @@ import {
   PrimaryGeneratedColumn,
   Column,
   OneToMany,
-  ManyToOne,
-  JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { FigureFamily } from './figure-family.entity';
 import { FigureNode } from './figure-node.entity';
 import { Rengla } from './rengla.entity';
 import { FigureInstance } from '../../event-segment/entities/figure-instance.entity';
@@ -17,16 +14,6 @@ import { FigureInstance } from '../../event-segment/entities/figure-instance.ent
 export class FigureTemplate {
   @PrimaryGeneratedColumn('uuid')
   id: string;
-
-  @ManyToOne(() => FigureFamily, (family) => family.templates, {
-    nullable: true,
-    onDelete: 'RESTRICT',
-  })
-  @JoinColumn()
-  family: FigureFamily | null;
-
-  @Column({ type: 'int', default: 1 })
-  variantOrder: number;
 
   @Column({ type: 'varchar', unique: true })
   name: string;

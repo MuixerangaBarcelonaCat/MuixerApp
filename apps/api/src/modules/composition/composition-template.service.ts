@@ -11,7 +11,6 @@ import {
 import { CompositionTemplate } from './entities/composition-template.entity';
 import { CompositionSlot } from './entities/composition-slot.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
-import { FigureFamilyNode } from '../figure/entities/figure-family-node.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
 import { CreateCompositionTemplateDto } from './dto/create-composition-template.dto';
 import { UpdateCompositionTemplateDto } from './dto/update-composition-template.dto';
@@ -62,36 +61,14 @@ export class CompositionTemplateService {
   async findOne(id: string): Promise<CompositionTemplateDetail> {
     const composition = await this.compositionRepository.findOne({
       where: { id },
-      relations: ['slots', 'slots.figureTemplate', 'slots.figureTemplate.nodes', 'slots.figureTemplate.family'],
+      relations: ['slots', 'slots.figureTemplate', 'slots.figureTemplate.nodes'],
     });
 
     if (!composition) {
       throw new NotFoundException(`CompositionTemplate with ID ${id} not found`);
     }
 
-    const familyIds = [
-      ...new Set(
-        (composition.slots ?? [])
-          .map((s) => s.figureTemplate?.family?.id)
-          .filter((fid): fid is string => !!fid),
-      ),
-    ];
-
-    const familyNodesMap = new Map<string, FigureFamilyNode[]>();
-    if (familyIds.length > 0) {
-      const familyNodes = await this.dataSource.getRepository(FigureFamilyNode).find({
-        where: { family: { id: In(familyIds) } },
-        relations: ['family'],
-        order: { z: 'ASC', sortOrder: 'ASC' },
-      });
-      for (const fn of familyNodes) {
-        const fid = fn.family.id;
-        if (!familyNodesMap.has(fid)) familyNodesMap.set(fid, []);
-        familyNodesMap.get(fid)!.push(fn);
-      }
-    }
-
-    return toDetailItem(composition, familyNodesMap);
+    return toDetailItem(composition);
   }
 
   async create(dto: CreateCompositionTemplateDto): Promise<CompositionTemplateDetail> {
@@ -298,12 +275,9 @@ function toListItem(
   };
 }
 
-function toDetailItem(
-  composition: CompositionTemplate,
-  familyNodesMap: Map<string, FigureFamilyNode[]> = new Map(),
-): CompositionTemplateDetail {
+function toDetailItem(composition: CompositionTemplate): CompositionTemplateDetail {
   const slots: CompositionSlotItem[] = (composition.slots ?? []).map((slot) => {
-    const pinyaNodes = (slot.figureTemplate.nodes ?? []).map((node) => ({
+    const allNodes = (slot.figureTemplate.nodes ?? []).map((node) => ({
       id: node.id,
       label: node.label,
       zone: node.zone as FigureZone,
@@ -324,33 +298,6 @@ function toDetailItem(
       renglaPosition: node.renglaPosition ?? null,
       metadata: node.metadata,
     }));
-
-    const familyId = slot.figureTemplate.family?.id;
-    const troncBaseNodes = familyId
-      ? (familyNodesMap.get(familyId) ?? []).map((fn) => ({
-          id: fn.id,
-          label: fn.label,
-          zone: fn.zone as FigureZone,
-          positionType: fn.positionType,
-          x: fn.x,
-          y: fn.y,
-          z: fn.z,
-          width: fn.width,
-          height: fn.height,
-          rotation: fn.rotation,
-          color: fn.color,
-          shape: fn.shape as NodeShape,
-          sortOrder: fn.sortOrder,
-          climbPath: fn.climbPath,
-          ringLevel: fn.ringLevel ?? null,
-          originNodeId: null,
-          renglaId: fn.renglaId ?? null,
-          renglaPosition: fn.renglaPosition ?? null,
-          metadata: fn.metadata,
-        }))
-      : [];
-
-    const allNodes = [...pinyaNodes, ...troncBaseNodes];
 
     return {
       id: slot.id,

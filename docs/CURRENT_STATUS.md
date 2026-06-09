@@ -7,16 +7,16 @@
 > - **Història cronològica** → [PHASES_LOG.md](PHASES_LOG.md)
 > - **Detall tècnic** → docs dedicats (vegeu taula al final)
 >
-> **Branca activa:** `feat/modul-pinyes` · **Frontier:** P5.12 completat (refactor & code review) · **Pendent destacat:** P5.3.1 (UX segments), P6 (PWA)
+> **Branca activa:** `feat/modul-pinyes` · **Frontier:** P5.13 completat (eliminació FigureFamily, jerarquia aplanada) · **Pendent destacat:** P5.3.1 (UX segments), P6 (PWA)
 
 ---
 
 ## Resum
 
-Projecte en **desenvolupament actiu**. Completat: tot P0–P5.12. El Mòdul Pinyes és operatiu
-de punta a punta (templates → composicions → segments → assignació → famílies/snapshot →
-troncs → projecció → posicions/historials → rengles) i ha passat un audit complet de qualitat
-(P5.12: 4 fases de refactor + 10 troballes de code review resoltes). Pendent principal: la PWA mòbil (P6).
+Projecte en **desenvolupament actiu**. Completat: tot P0–P5.13. El Mòdul Pinyes és operatiu
+de punta a punta (templates → composicions → segments → assignació → snapshot →
+troncs → projecció → posicions/historials → rengles). P5.12 va completar el refactor + code review;
+P5.13 ha eliminat el concepte `FigureFamily` (jerarquia aplanada: una llista de Figures). Pendent principal: la PWA mòbil (P6).
 
 Per a l'estat fase a fase amb enllaços als specs, vegeu la taula `Estat General` del
 [roadmap](PROJECT_ROADMAP.md).
@@ -36,7 +36,7 @@ Per a l'estat fase a fase amb enllaços als specs, vegeu la taula `Estat General
 | `season` | ✅ | CRUD + comptador d'events |
 | `event` | ✅ | CRUD events + attendance + recàlcul `attendanceSummary` |
 | `sync` | ✅ | Strategy + SSE (Persons / Events / Attendance) |
-| `figure` | ✅ | FigureTemplate/Node/Family/FamilyNode, merge/split, snapshot |
+| `figure` | ✅ | FigureTemplate/Node (totes les zones), snapshot — FigureFamily eliminada (P5.13) |
 | `composition` | ✅ | CompositionTemplate + Slot |
 | `event-segment` | ✅ | EventSegment + FigureInstance + ProjectionService |
 | `node-assignment` | ✅ | Assignació, lazy snapshot, bulk import, lock, historials |
