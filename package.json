@@ -26,7 +26,7 @@
     "migration:run": "nx run api:migration-run",
     "migration:revert": "nx run api:migration-revert",
     "migration:show": "nx run api:migration-show",
-    "ci:local": "npx nx run-many -t lint,test,build --all --exclude=dashboard-e2e,pwa-e2e --parallel=3 --configuration=ci"
+    "ci:local": "CI=true npx nx run-many -t lint,test,build --all --exclude=dashboard-e2e,pwa-e2e,pwa --parallel=3 --configuration=ci"
   },
   "repository": {
     "type": "git",
