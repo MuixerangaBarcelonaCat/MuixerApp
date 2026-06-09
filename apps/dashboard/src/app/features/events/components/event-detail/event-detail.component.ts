@@ -13,9 +13,12 @@ import { EventFormModalComponent } from '../event-form-modal/event-form-modal.co
 import { AttendanceEditModalComponent } from '../attendance-edit-modal/attendance-edit-modal.component';
 import { SegmentManagerComponent } from '../segment-manager/segment-manager.component';
 import { PersonSearchInputComponent } from '../../../../shared/components/forms/person-search-input/person-search-input.component';
+import { StatCardComponent } from '../../../../shared/components/data/stat-card/stat-card.component';
 import { NodeAssignmentService, LockStatus } from '../../../pinyes/services/node-assignment.service';
+import { getContrastColor } from '../../../../shared/utils/color.util';
 import { EventAssignmentSummary, EventSegmentSummary } from '../../../pinyes/models/assignment.model';
 import { EventDetail, EventType, AttendanceSummary, SyncEvent, Season } from '../../models/event.model';
+import { getAdultsCount } from '../event-list/event-list.component';
 import {
   AttendanceItem,
   AttendanceFilterParams,
@@ -40,6 +43,7 @@ type SyncState = 'idle' | 'running' | 'complete' | 'error';
     EventFormModalComponent,
     AttendanceEditModalComponent,
     PersonSearchInputComponent,
+    StatCardComponent,
     SegmentManagerComponent,
   ],
   templateUrl: './event-detail.component.html',
@@ -94,7 +98,7 @@ export class EventDetailComponent implements OnInit, OnDestroy {
   provisionalAlias = '';
   addingProvisional = signal(false);
   provisionalError = signal<string | null>(null);
-  confirmedFilterActive = signal(false);
+  confirmedFilterActive = signal(true);
 
   syncState = signal<SyncState>('idle');
   syncMessage = signal('');
@@ -131,6 +135,14 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     return Math.round((numerator / ev.attendanceSummary.total) * 100);
   });
 
+  adultsCount = computed(() => {
+    const ev = this.event();
+    if (!ev) return 0;
+    return getAdultsCount(ev.attendanceSummary, this.isPast());
+  });
+
+  readonly getContrastColor = getContrastColor;
+
   rehearsalMetadata = computed((): RehearsalMetadata | null => {
     const ev = this.event();
     if (!ev || ev.eventType !== EventType.ASSAIG) return null;
@@ -159,6 +171,10 @@ export class EventDetailComponent implements OnInit, OnDestroy {
         this.event.set(ev);
         this.loading.set(false);
         this.addStatus.set(this.defaultAddStatus());
+        if (this.confirmedFilterActive()) {
+          const status = this.isPast() ? AttendanceStatus.ASSISTIT : AttendanceStatus.ANIRE;
+          this.attendanceStatusFilter.set(status);
+        }
         this.loadAttendance();
         this.nodeAssignmentService.getLockStatus(id).subscribe({
           next: (status) => this.lockStatus.set(status),
@@ -472,14 +488,16 @@ export class EventDetailComponent implements OnInit, OnDestroy {
 
   getSummaryForDisplay(summary: AttendanceSummary) {
     const past = this.isPast();
+    const adults = getAdultsCount(summary, past);
     return [
-      { label: past ? 'Assistit' : 'Aniré', value: past ? summary.attended : summary.confirmed, icon: past ? '✅' : '🟢', hidden: false },
-      { label: 'No presentat', value: summary.noShow, icon: '🟡', hidden: !past },
-      { label: past ? 'No va anar' : 'No vaig', value: summary.declined, icon: '🔴', hidden: false },
-      { label: 'Baixes tardanes', value: summary.lateCancel, icon: '⚠️', hidden: !past || summary.lateCancel === 0 },
-      { label: past ? 'Sense resposta' : 'Pendents', value: summary.pending, icon: '⚪', hidden: false },
-      { label: 'Xicalla', value: summary.children, icon: '👶', hidden: false },
-      { label: 'Total', value: summary.total, icon: '#', hidden: false },
+      { label: past ? 'Assistit' : 'Aniré', value: past ? summary.attended : summary.confirmed, icon: 'UserCheck', iconClass: 'text-success', hidden: false },
+      { label: 'Adults', value: adults, icon: 'Users', iconClass: 'text-primary', hidden: false },
+      { label: 'No presentat', value: summary.noShow, icon: 'AlertTriangle', iconClass: 'text-warning', hidden: !past },
+      { label: past ? 'No va anar' : 'No vaig', value: summary.declined, icon: 'UserX', iconClass: 'text-error', hidden: false },
+      { label: 'Baixes tardanes', value: summary.lateCancel, icon: 'AlertCircle', iconClass: 'text-warning', hidden: !past || summary.lateCancel === 0 },
+      { label: past ? 'Sense resposta' : 'Pendents', value: summary.pending, icon: 'Clock', iconClass: 'text-base-content/40', hidden: false },
+      { label: 'Xicalla', value: summary.children, icon: 'Baby', iconClass: 'text-info', hidden: false },
+      { label: 'Total', value: summary.total, icon: 'UsersRound', iconClass: 'text-base-content', hidden: false },
     ].filter((row) => !row.hidden);
   }
 }

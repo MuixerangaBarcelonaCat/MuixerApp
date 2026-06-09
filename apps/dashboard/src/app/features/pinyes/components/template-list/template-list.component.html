@@ -26,6 +26,16 @@
         <lucide-icon name="Plus" [size]="18" aria-hidden="true" />
         Nova composició
       </button>
+    } @else {
+      <button
+        type="button"
+        class="btn btn-primary gap-2"
+        (click)="navigateToCreate()"
+        aria-label="Crear nova figura"
+      >
+        <lucide-icon name="Plus" [size]="18" aria-hidden="true" />
+        Nova figura
+      </button>
     }
   </div>
 
