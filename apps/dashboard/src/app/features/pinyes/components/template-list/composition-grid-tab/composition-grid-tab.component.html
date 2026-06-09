@@ -1,0 +1,140 @@
+<!-- Create button -->
+<div class="flex justify-end mb-4">
+  <button
+    type="button"
+    class="btn btn-primary gap-2"
+    (click)="navigateToCreateComposition()"
+    aria-label="Crear nova composició"
+  >
+    <lucide-icon name="Plus" [size]="18" aria-hidden="true" />
+    Nova composició
+  </button>
+</div>
+
+<!-- Search -->
+<div class="flex gap-3 items-center">
+  <label class="input input-bordered flex items-center gap-2 flex-1 max-w-sm">
+    <lucide-icon name="Search" [size]="16" class="text-base-content/40" aria-hidden="true" />
+    <input
+      type="search"
+      placeholder="Cerca per nom o slug..."
+      [(ngModel)]="compositionsSearchInput"
+      (ngModelChange)="onCompositionsSearchChange($event)"
+      class="grow"
+      aria-label="Cerca composicions"
+    />
+  </label>
+  @if (compositionsLoading() && compositions().length > 0) {
+    <span class="loading loading-spinner loading-sm text-primary" aria-label="Carregant..."></span>
+  }
+</div>
+
+@if (compositionsLoading() && compositions().length === 0) {
+  <div class="flex justify-center py-16 mt-4" aria-label="Carregant composicions...">
+    <span class="loading loading-spinner loading-lg text-primary"></span>
+  </div>
+} @else if (!compositionsLoading() && compositions().length === 0) {
+  <div class="mt-4">
+    <app-empty-state
+      icon="LayoutGrid"
+      message="Cap composició creada. Crea la teva primera composició per agrupar figures (ex: 'Altar', '5 de Oros')."
+      actionLabel="Nova composició"
+      (actionClick)="navigateToCreateComposition()"
+    />
+  </div>
+} @else if (compositions().length > 0) {
+  <ul
+    class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-4"
+    aria-label="Llista de composicions"
+  >
+    @for (composition of compositions(); track composition.id) {
+      <li class="card bg-base-100 border border-base-200 shadow-sm hover:shadow-md transition-shadow">
+        <button
+          type="button"
+          class="w-full h-32 bg-gradient-to-br from-secondary/10 to-primary/10 rounded-t-2xl flex items-center justify-center relative overflow-hidden cursor-pointer hover:brightness-95 transition-[filter] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary"
+          (click)="navigateToEditComposition(composition.id)"
+          [attr.aria-label]="'Editar composició ' + composition.name"
+        >
+          <lucide-icon name="LayoutGrid" [size]="40" class="text-secondary/40" aria-hidden="true" />
+          <span class="badge badge-secondary badge-sm absolute top-2 right-2">{{ composition.slotCount }} figures</span>
+        </button>
+
+        <div class="card-body p-4 gap-3">
+          <div>
+            <h2 class="card-title text-sm font-semibold leading-snug">
+              <button
+                type="button"
+                class="text-left hover:text-primary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary rounded-sm"
+                (click)="navigateToEditComposition(composition.id)"
+                [attr.aria-label]="'Editar composició ' + composition.name"
+              >{{ composition.name }}</button>
+            </h2>
+            <p class="text-xs text-base-content/50 font-mono mt-0.5">{{ composition.slug }}</p>
+          </div>
+
+          @if (composition.description) {
+            <p class="text-xs text-base-content/60 line-clamp-2">{{ composition.description }}</p>
+          }
+
+          <p class="text-xs text-base-content/40">Actualitzat {{ formatDate(composition.updatedAt) }}</p>
+
+          <div class="card-actions justify-end gap-1 mt-1">
+            @if (compositionsConfirmDeleteId() === composition.id) {
+              <div class="flex items-center gap-2 w-full">
+                <span class="text-xs text-error flex-1">Eliminar composició?</span>
+                <button type="button" class="btn btn-ghost btn-xs" (click)="cancelDeleteComposition()">Cancel·la</button>
+                <button type="button" class="btn btn-error btn-xs" (click)="confirmDeleteComposition(composition.id)">Elimina</button>
+              </div>
+            } @else {
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs gap-1"
+                [disabled]="compositionsDeletingId() === composition.id"
+                (click)="duplicateComposition(composition.id)"
+                [attr.aria-label]="'Duplicar composició ' + composition.name"
+              >
+                <lucide-icon name="Copy" [size]="13" aria-hidden="true" />
+                Duplicar
+              </button>
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs gap-1 text-error hover:bg-error/10"
+                [disabled]="compositionsDeletingId() === composition.id"
+                (click)="requestDeleteComposition(composition.id)"
+                [attr.aria-label]="'Eliminar composició ' + composition.name"
+              >
+                @if (compositionsDeletingId() === composition.id) {
+                  <span class="loading loading-spinner loading-xs"></span>
+                } @else {
+                  <lucide-icon name="Trash2" [size]="13" aria-hidden="true" />
+                }
+                Eliminar
+              </button>
+              <button
+                type="button"
+                class="btn btn-primary btn-xs gap-1"
+                (click)="navigateToEditComposition(composition.id)"
+                [attr.aria-label]="'Editar composició ' + composition.name"
+              >
+                <lucide-icon name="Pencil" [size]="13" aria-hidden="true" />
+                Editar
+              </button>
+            }
+          </div>
+        </div>
+      </li>
+    }
+  </ul>
+
+  @if (compositionsTotalPages() > 1) {
+    <div class="flex items-center justify-center gap-2 mt-2" aria-label="Paginació composicions">
+      <button type="button" class="btn btn-ghost btn-sm" [disabled]="compositionsPage() <= 1" (click)="goToCompositionsPage(compositionsPage() - 1)" aria-label="Pàgina anterior">
+        <lucide-icon name="ChevronLeft" [size]="16" aria-hidden="true" />
+      </button>
+      <span class="text-sm text-base-content/70">Pàgina {{ compositionsPage() }} de {{ compositionsTotalPages() }}</span>
+      <button type="button" class="btn btn-ghost btn-sm" [disabled]="compositionsPage() >= compositionsTotalPages()" (click)="goToCompositionsPage(compositionsPage() + 1)" aria-label="Pàgina següent">
+        <lucide-icon name="ChevronRight" [size]="16" aria-hidden="true" />
+      </button>
+    </div>
+  }
+}

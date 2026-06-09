@@ -20,6 +20,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { UserFilterDto } from './dto/user-filter.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { GrantUserRoleDto } from './dto/grant-user-role.dto';
+import { UpdatePersonDto } from '../person/dto/update-person.dto';
 
 @ApiTags('users')
 @Controller('users')
@@ -61,8 +62,31 @@ export class UserController {
   @ApiResponse({ status: 200, description: 'Usuari actualitzat' })
   @ApiResponse({ status: 400, description: 'Error en assignar el rol' })
   @ApiResponse({ status: 404, description: 'Usuari no trobat' })
-  grantRole(@Body() dto: GrantUserRoleDto): Promise<UserResponseDto> {
-    return this.userService.grantRole(dto.userId, dto.role);
+  grantRole(@Param('id', ParseUUIDPipe) id: string, @Body() dto: GrantUserRoleDto): Promise<UserResponseDto> {
+    return this.userService.grantRole(id, dto.role);
+  }
+
+  @Patch(':id/deactivate')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Desactiva un usuari' })
+  @ApiResponse({ status: 204, description: 'Usuari desactivat' })
+  @ApiResponse({ status: 404, description: 'Usuari no trobat' })
+  async deactivateUser(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<void> {
+    return this.userService.deactivateUser(id);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: "Actualitza les dades d'un usuari" })
+  @ApiResponse({ status: 200, description: 'Usuari actualitzat' })
+  @ApiResponse({ status: 404, description: 'Usuari no trobat' })
+  @ApiResponse({ status: 409, description: 'Email ja existeix' })
+  updateUser(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateUserDto,
+  ): Promise<UserResponseDto> {
+    return this.userService.updateUser(id, dto);
   }
 
   @Patch(':id/deactivate')

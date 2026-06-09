@@ -11,3 +11,5 @@ export * from './enums/reference-element-type.enum';
 export * from './interfaces/attendance-summary.interface';
 export * from './interfaces/event-metadata.interface';
 export * from './interfaces/auth.interfaces';
+export * from './interfaces/pagination.interface';
+export * from './interfaces/pinyes';

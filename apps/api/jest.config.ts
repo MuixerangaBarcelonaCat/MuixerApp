@@ -15,6 +15,8 @@ export default {
     '!src/**/*.entity.ts',
     '!src/**/index.ts',
     '!src/main.ts',
+    '!src/**/scripts/**',
+    '!src/**/seeds/**',
   ],
   coverageThreshold: {
     global: {
