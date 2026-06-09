@@ -10,6 +10,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 export class RemoveFigureFamily1780982679300 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // 1. Copy family-level nodes (TRONC/BASE) to figure_nodes for each template
+    //    Cast enum columns through text to bridge different-named but same-valued PG enums
     await queryRunner.query(`
       INSERT INTO figure_nodes (
         id, label, zone, "positionType", x, y, z, width, height, rotation,
@@ -19,7 +20,7 @@ export class RemoveFigureFamily1780982679300 implements MigrationInterface {
       SELECT
         uuid_generate_v4(),
         ffn.label,
-        ffn.zone,
+        ffn.zone::text::figure_nodes_zone_enum,
         ffn."positionType",
         ffn.x,
         ffn.y,
@@ -28,7 +29,7 @@ export class RemoveFigureFamily1780982679300 implements MigrationInterface {
         ffn.height,
         ffn.rotation,
         ffn.color,
-        ffn.shape,
+        ffn.shape::text::figure_nodes_shape_enum,
         ffn."sortOrder",
         ffn."climbPath",
         ffn."ringLevel",
