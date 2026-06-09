@@ -1,7 +1,7 @@
 # Model de Dades — MuixerApp
 
 > Última actualització: 19 de maig de 2026  
-> Estat: P0–P4.4 completat. P5.1–P5.5 Mòdul de Pinyes implementat (Templates, Composicions, Segments, Assignacions, Famílies + Snapshot Redesign).
+> Estat: P0–P4.4 completat. P5.1–P5.11 Mòdul de Pinyes implementat (Templates, Composicions, Segments, Assignacions, Snapshot, Rengles).
 
 ---
 
@@ -107,33 +107,13 @@ Tokens de refresc per a la rotació segura de sessions JWT. Afegit a P4.1.
 
 ---
 
-### `figure_families`
-
-Família de figures: agrupa variants (templates) que representen la mateixa figura a mides diferents. Afegit a P5.5.
-
-| Camp | Tipus DB | TypeScript | Nullable | Notes |
-|------|----------|------------|----------|-------|
-| `id` | `uuid` | `string` | No | PK, auto-generat |
-| `name` | `varchar` | `string` | No | Únic. Ex: "Pilar de 4" |
-| `slug` | `varchar` | `string` | No | Únic. Ex: "pilar-de-4" |
-| `description` | `text` | `string \| null` | Sí | Descripció opcional |
-| `metadata` | `jsonb` | `Record<string, unknown>` | No | Default `{}`. Extensible |
-| `createdAt` | `timestamp` | `Date` | No | Auto |
-| `updatedAt` | `timestamp` | `Date` | No | Auto |
-
-**Protecció referencial**: No es pot eliminar una `FigureFamily` si té `FigureTemplate`s associades (409 Conflict).
-
----
-
 ### `figure_templates`
 
-Plantilla reutilitzable d'una figura individual. Afegit a P5.1. Ampliat a P5.5 amb camps de família i variant.
+Plantilla reutilitzable d'una figura individual. Afegit a P5.1.
 
 | Camp | Tipus DB | TypeScript | Nullable | Notes |
 |------|----------|------------|----------|-------|
 | `id` | `uuid` | `string` | No | PK, auto-generat |
-| `family` | FK → `figure_families` | `FigureFamily \| null` | Sí | ManyToOne, RESTRICT delete. `null` per dades legacy |
-| `variantOrder` | `int` | `number` | No | Default `1`. Posició dins la família (1 = variant més petita) |
 | `name` | `varchar` | `string` | No | Únic. Ex: "Pinet Doble de 4" |
 | `slug` | `varchar` | `string` | No | Únic. Ex: "pd4" |
 | `description` | `text` | `string \| null` | Sí | Notes del tècnic |
@@ -143,13 +123,11 @@ Plantilla reutilitzable d'una figura individual. Afegit a P5.1. Ampliat a P5.5 a
 | `createdAt` | `timestamp` | `Date` | No | Auto |
 | `updatedAt` | `timestamp` | `Date` | No | Auto |
 
-> **Canvi P5.5**: Afegits `family` (FK nullable a `figure_families`, RESTRICT) i `variantOrder` (int, default 1). Templates sense família (dades legacy pre-P5.5) apareixen a la secció "Altres" al llistat de l'editor.
-
 ---
 
 ### `figure_nodes`
 
-Cada posició dins d'un template de figura. Afegit a P5.1. Ampliat a P5.5 amb camps de cordó i llinatge.
+Cada posició dins d'un template de figura (totes les zones: PINYA, TRONC, BASE, directions). Afegit a P5.1. Ampliat a P5.5 amb camps de cordó i llinatge.
 
 | Camp | Tipus DB | TypeScript | Nullable | Notes |
 |------|----------|------------|----------|-------|
@@ -169,7 +147,7 @@ Cada posició dins d'un template de figura. Afegit a P5.1. Ampliat a P5.5 amb ca
 | `sortOrder` | `int` | `number` | No | Ordre dins del pis/zona |
 | `climbPath` | `varchar` | `string \| null` | Sí | Markers "(X)", "(A)" per indicar per on puja |
 | `ringLevel` | `int` | `number \| null` | Sí | Anell concèntric al qual pertany (1 = primer cordó). `null` per zones no-pinya i `cordo-obert` |
-| `originNodeId` | `uuid` | `string \| null` | Sí | ID de l'ancestre arrel dins la família. Informat; no FK. Traça el llinatge entre variants |
+| `originNodeId` | `uuid` | `string \| null` | Sí | ID opcional per traçar llinatge quan es dupliquen o deriven nodes. Informat; no FK |
 | `metadata` | `jsonb` | `Record<string, unknown>` | No | Default `{}` |
 | `createdAt` | `timestamp` | `Date` | No | Auto |
 | `updatedAt` | `timestamp` | `Date` | No | Auto |
@@ -244,11 +222,10 @@ Materialització d'un template o composició en un segment concret. Afegit a P5.
 | `label` | `varchar` | `string \| null` | Sí | Ex: "Morera central (5 de Oros)" |
 | `sortOrder` | `int` | `number` | No | Ordre dins del segment |
 | `snapshotted` | `boolean` | `boolean` | No | Default `false`. `true` quan s'han copiat els nodes a `InstanceNode` (primera assignació) |
-| `sourceVariantOrder` | `int` | `number \| null` | Sí | `variantOrder` del template en el moment del snapshot. Usada per calcular l'upgrade |
 | `createdAt` | `timestamp` | `Date` | No | Auto |
 | `updatedAt` | `timestamp` | `Date` | No | Auto |
 
-> **Canvi P5.5**: Eliminats `offsetX`, `offsetY`, `direction` (no s'usaven). Afegits `snapshotted` i `sourceVariantOrder`. La instància és lleugera fins a la primera assignació; en aquell moment es dispara el **lazy snapshot**.
+> **Canvi P5.5**: Eliminats `offsetX`, `offsetY`, `direction` (no s'usaven). Afegit `snapshotted`. La instància és lleugera fins a la primera assignació; en aquell moment es dispara el **lazy snapshot**. **P5.13**: Eliminat `sourceVariantOrder` (obsolet amb la retirada del sistema de variants).
 
 ---
 
@@ -261,7 +238,7 @@ Còpia snapshot d'un `FigureNode` propietat d'una `FigureInstance`. Afegit a P5.
 | `id` | `uuid` | `string` | No | PK, auto-generat |
 | `figureInstance` | FK → `figure_instances` | `FigureInstance` | No | ManyToOne, CASCADE delete |
 | `sourceNodeId` | `uuid` | `string \| null` | Sí | ID del `FigureNode` original en el moment del snapshot. No FK (sobreviu a esborrats de template) |
-| `originNodeId` | `uuid` | `string \| null` | Sí | Copiat de `FigureNode.originNodeId`. ID ancestre arrel per a l'upgrade matching |
+| `originNodeId` | `uuid` | `string \| null` | Sí | Copiat de `FigureNode.originNodeId` |
 | `label` | `varchar` | `string` | No | |
 | `zone` | `enum` | `FigureZone` | No | |
 | `positionType` | `varchar` | `string \| null` | Sí | |
@@ -279,7 +256,7 @@ Còpia snapshot d'un `FigureNode` propietat d'una `FigureInstance`. Afegit a P5.
 | `metadata` | `jsonb` | `Record<string, unknown>` | No | Default `{}` |
 | `createdAt` | `timestamp` | `Date` | No | Auto |
 
-> **Immutabilitat del snapshot**: Un cop `snapshotted = true`, els `InstanceNode` d'una instància **NO s'eliminen ni modifiquen** per canvis al template font. L'única operació que afegeix nodes és l'**upgrade de cordó** (`upgradeInstance`).
+> **Immutabilitat del snapshot**: Un cop `snapshotted = true`, els `InstanceNode` d'una instància **NO s'eliminen ni modifiquen** per canvis al template font.
 
 ---
 
@@ -452,20 +429,8 @@ erDiagram
         timestamp createdAt
     }
 
-    figure_families {
-        uuid id PK
-        varchar name UK
-        varchar slug UK
-        text description "nullable"
-        jsonb metadata "default {}"
-        timestamp createdAt
-        timestamp updatedAt
-    }
-
     figure_templates {
         uuid id PK
-        uuid family_id FK "nullable, RESTRICT"
-        int variantOrder "default 1"
         varchar name UK
         varchar slug UK
         text description "nullable"
@@ -549,7 +514,6 @@ erDiagram
         varchar label "nullable"
         int sortOrder
         boolean snapshotted "default false"
-        int sourceVariantOrder "nullable"
         timestamp createdAt
         timestamp updatedAt
     }
@@ -593,7 +557,6 @@ erDiagram
     persons }o--o{ positions : "person_positions (M:N)"
     users ||--o{ refresh_tokens : "userId (1:N)"
     
-    figure_families ||--o{ figure_templates : "templates (1:N RESTRICT)"
     figure_templates ||--o{ figure_nodes : "nodes (1:N CASCADE)"
     composition_templates ||--o{ composition_slots : "slots (1:N CASCADE)"
     composition_slots }o--|| figure_templates : "figureTemplate (M:1)"
@@ -622,16 +585,15 @@ Person >──< Position                  : via person_positions (M:N)
 User ──< RefreshToken (userId)        : un User pot tenir N refresh tokens actius
 ```
 
-**Mòdul de Pinyes (P5.1–P5.5):**
+**Mòdul de Pinyes (P5.1–P5.11):**
 ```
-FigureFamily ──< FigureTemplate                    : RESTRICT (1:N) — P5.5
 FigureTemplate ──< FigureNode                      : CASCADE (1:N)
 CompositionTemplate ──< CompositionSlot            : CASCADE (1:N)
 CompositionSlot >── FigureTemplate                 : M:1 (protecció 409)
 
 Event ──< EventSegment                             : CASCADE (1:N)
 EventSegment ──< FigureInstance                    : CASCADE (1:N)
-FigureInstance >──? FigureTemplate                 : M:1 opcional — P5.5 (XOR)
+FigureInstance >──? FigureTemplate                 : M:1 opcional (XOR)
 FigureInstance >──? CompositionTemplate            : M:1 opcional (XOR)
 
 FigureInstance ──< InstanceNode                    : CASCADE (1:N) — P5.5
@@ -657,10 +619,9 @@ NodeAssignment >──? CompositionSlot                : M:1 opcional
 | `EventSegment` | P5.3 ✅ | Segment temporal dins d'un event |
 | `FigureInstance` | P5.3 ✅ | Instància concreta d'una figura en un `EventSegment` |
 | `NodeAssignment` | P5.4 ✅ | Assignació `Person` → posició en una figura |
-| `FigureFamily` | P5.5 ✅ | Família que agrupa variants d'una mateixa figura |
 | `InstanceNode` | P5.5 ✅ | Snapshot de `FigureNode` propietat d'una `FigureInstance` |
 
-> **Canvis de model a P5.5**: `FigureTemplate` + `family`/`variantOrder`, `FigureNode` + `ringLevel`/`originNodeId`, `FigureInstance` + `snapshotted`/`sourceVariantOrder`, `NodeAssignment.figureNode` → `NodeAssignment.instanceNode`.
+> **Canvis de model a P5.5**: `FigureNode` + `ringLevel`/`originNodeId`, `FigureInstance` + `snapshotted`, `NodeAssignment.figureNode` → `NodeAssignment.instanceNode`. **P5.13**: eliminats `FigureFamily`, `FigureFamilyNode`, `familyId`, `variantOrder` i `sourceVariantOrder`; tots els nodes viuen a `figure_nodes`.
 
 ## Entitats Pendents (P6+)
 
@@ -678,16 +639,15 @@ NodeAssignment >──? CompositionSlot                : M:1 opcional
 - **Auth (P4.1)**: `User` amb `email` (login credential), OneToOne a `Person`. Refresh tokens amb rotació + detecció de reutilització. Vegeu `AUTH_FLOW.md`.
 - **Multi-tenant**: Arquitectura preparada per afegir `Colla` com a arrel de tot el model (P futur).
 - **GDPR**: Camps sensibles (`email`, `phone`, `birthDate`) requeriran encriptació en repòs (pendent).
-- **Mòdul Pinyes (P5.1-P5.5)**:
-  - **Templates reutilitzables**: `FigureTemplate` amb `FigureNode`s. Sync inline via `PUT` (upsert per ID: crea nous, actualitza existents, elimina els absents). IDs de nodes estables entre saves.
+- **Mòdul Pinyes (P5.1-P5.11)**:
+  - **Templates reutilitzables**: `FigureTemplate` amb `FigureNode`s (totes les zones). Sync inline via `PUT` (upsert per ID: crea nous, actualitza existents, elimina els absents). IDs de nodes estables entre saves.
   - **Composicions**: `CompositionTemplate` agrupa múltiples `FigureTemplate`s amb offsets. No recursives.
   - **Segments seqüencials**: `EventSegment` amb `sortOrder`, horari opcional.
-  - **Famílies i variants (P5.5)**: `FigureFamily` agrupa `FigureTemplate`s que representen la mateixa figura a mides diferents. Cada template té un `variantOrder` dins la família.
   - **Instàncies amb lazy snapshot (P5.5)**: `FigureInstance` és lleugera fins a la primera assignació. En aquell moment, els nodes del template es copien a `InstanceNode`s propis de la instància (`snapshotted = true`). A partir d'aquí, els canvis al template no afecten la instància.
-  - **Upgrade de cordó (P5.5)**: `upgradeInstance()` afegeix `InstanceNode`s nous de la variant superior de la família sense tocar els existents ni les assignacions.
+  - **Selector de cordons (P5.11)**: `numberOfCordons` i `openCordons` a `FigureInstance` controlen quins nodes de pinya es mostren a l'assignació/projecció (reversible, sense canvi de template).
   - **Assignacions amb validació**: `NodeAssignment` apunta a `InstanceNode` (no a `FigureNode`). Constraints únics: un node una persona, una persona no duplicada al segment.
   - **Zona BASE**: Els nodes amb `zone = BASE` (z=0) representen les bases. Apareixen tant a la vista de pinya com al tronc.
-  - **Protecció referencial**: No es pot eliminar `FigureTemplate` si té `CompositionSlot`s (409) o `FigureInstance`s (409). No es pot eliminar `FigureFamily` si té templates (409).
+  - **Protecció referencial**: No es pot eliminar `FigureTemplate` si té `CompositionSlot`s (409) o `FigureInstance`s (409).
   - **Canvas Konva**: API imperativa directa (no `ng2-konva`). Pinya (65-70% ample) + tronc (30-35% lateral). Zoom, pan, drag, snap-to-grid.
   - **Auto-save**: Debounce 2s amb indicador d'estat (Guardat/Guardant/Error).
   - **Alçada relativa**: Al tronc, si la persona té `shoulderHeight`, es mostra "+3" o "-5" (cm vs baseline 140 cm).

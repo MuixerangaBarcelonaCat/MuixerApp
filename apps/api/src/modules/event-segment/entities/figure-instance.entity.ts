@@ -44,13 +44,6 @@ export class FigureInstance {
   @Column({ type: 'boolean', default: false })
   snapshotted: boolean;
 
-  /**
-   * The variantOrder of the template at the time of snapshot.
-   * Historical column — the upgrade endpoint has been removed.
-   */
-  @Column({ type: 'int', nullable: true })
-  sourceVariantOrder: number | null;
-
   /** How many cordons to show. NULL = all visible. */
   @Column({ type: 'int', nullable: true })
   numberOfCordons: number | null;
@@ -58,6 +51,15 @@ export class FigureInstance {
   /** Rengla IDs with open cordon active. NULL = none. */
   @Column({ type: 'jsonb', nullable: true })
   openCordons: string[] | null;
+
+  @Column({ type: 'float', nullable: true })
+  projectionX: number | null;
+
+  @Column({ type: 'float', nullable: true })
+  projectionY: number | null;
+
+  @Column({ type: 'float', default: 1.0 })
+  projectionScale: number;
 
   @OneToMany('InstanceNode', (node: InstanceNode) => node.figureInstance, { cascade: true })
   instanceNodes: InstanceNode[];

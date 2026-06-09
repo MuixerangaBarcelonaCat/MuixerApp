@@ -20,7 +20,6 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { UserFilterDto } from './dto/user-filter.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { GrantUserRoleDto } from './dto/grant-user-role.dto';
-import { UpdatePersonDto } from '../person/dto/update-person.dto';
 
 @ApiTags('users')
 @Controller('users')
@@ -88,4 +87,5 @@ export class UserController {
   ): Promise<UserResponseDto> {
     return this.userService.updateUser(id, dto);
   }
+
 }

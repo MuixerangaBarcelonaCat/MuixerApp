@@ -15,7 +15,7 @@ import { ActivatedRoute } from '@angular/router';
 import { FigureProjectionComponent } from './figure-projection.component';
 import { ProjectionInstance } from '../../models/projection.model';
 import { AssignmentDetail } from '../../models/assignment.model';
-import { FigureZone, NodeShape } from '@muixer/shared';
+import { FigureZone } from '@muixer/shared';
 import { CanvasNode, CanvasMode } from '../figure-canvas/figure-canvas.component';
 import { TroncNodeItem } from '../tronc-view/tronc-view.component';
 
@@ -41,6 +41,9 @@ const makeInstance = (overrides: Partial<ProjectionInstance> = {}): ProjectionIn
   sortOrder: 0,
   numberOfCordons: null,
   openCordons: null,
+  projectionX: 100,
+  projectionY: 200,
+  projectionScale: 1,
   figureTemplate: { id: 'fig-uuid', name: 'Pinet Doble de 4' },
   nodes: [
     {
@@ -55,7 +58,7 @@ const makeInstance = (overrides: Partial<ProjectionInstance> = {}): ProjectionIn
       height: 40,
       rotation: 0,
       color: null,
-      shape: NodeShape.ELLIPSE,
+      shape: 'ELLIPSE',
       sortOrder: 0,
       ringLevel: null,
       originNodeId: null,
@@ -76,7 +79,7 @@ const makeInstance = (overrides: Partial<ProjectionInstance> = {}): ProjectionIn
       height: 1,
       rotation: 0,
       color: null,
-      shape: NodeShape.RECTANGLE,
+      shape: 'RECT',
       sortOrder: 0,
       ringLevel: null,
       originNodeId: null,
@@ -97,7 +100,7 @@ const makeInstance = (overrides: Partial<ProjectionInstance> = {}): ProjectionIn
       height: 1,
       rotation: 0,
       color: null,
-      shape: NodeShape.ELLIPSE,
+      shape: 'ELLIPSE',
       sortOrder: 0,
       ringLevel: null,
       originNodeId: null,

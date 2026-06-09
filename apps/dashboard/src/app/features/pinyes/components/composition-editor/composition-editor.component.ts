@@ -1,16 +1,13 @@
 import {
   Component,
   ChangeDetectionStrategy,
-  DestroyRef,
   inject,
   signal,
   computed,
-  linkedSignal,
   OnInit,
   OnDestroy,
-  viewChild,
+  ViewChild,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
@@ -44,7 +41,6 @@ export class CompositionEditorComponent implements OnInit, OnDestroy {
   private readonly layoutService = inject(LayoutService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
-  private readonly destroyRef = inject(DestroyRef);
 
   // State
   composition = signal<CompositionTemplateDetail | null>(null);
@@ -56,12 +52,12 @@ export class CompositionEditorComponent implements OnInit, OnDestroy {
   isNew = signal(false);
   loading = signal(false);
 
-  // Inline editing fields — auto-sync from loaded composition via linkedSignal
-  nameValue = linkedSignal(() => this.composition()?.name ?? '');
-  slugValue = linkedSignal(() => this.composition()?.slug ?? '');
-  descriptionValue = linkedSignal(() => this.composition()?.description ?? '');
+  // Inline editing fields (local, synced to composition on save)
+  nameValue = signal('');
+  slugValue = signal('');
+  descriptionValue = signal('');
 
-  private readonly canvasRef = viewChild(FigureCanvasComponent);
+  @ViewChild(FigureCanvasComponent) private canvasRef?: FigureCanvasComponent;
 
   private saveDebounce: ReturnType<typeof setTimeout> | undefined;
   private figureSearchDebounce: ReturnType<typeof setTimeout> | undefined;
@@ -110,9 +106,12 @@ export class CompositionEditorComponent implements OnInit, OnDestroy {
 
     if (id) {
       this.loading.set(true);
-      this.compositionService.getOne(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      this.compositionService.getOne(id).subscribe({
         next: (comp) => {
           this.composition.set(comp);
+          this.nameValue.set(comp.name);
+          this.slugValue.set(comp.slug);
+          this.descriptionValue.set(comp.description ?? '');
           this.autoSlugEnabled = false;
           this.loading.set(false);
         },
@@ -202,13 +201,11 @@ export class CompositionEditorComponent implements OnInit, OnDestroy {
       offsetY: 0,
       sortOrder: newSortOrder,
       figureTemplate: {
-        id: figureTemplate.id,
-        name: figureTemplate.name,
-        slug: figureTemplate.slug,
-        hasPinya: figureTemplate.hasPinya,
-        direction: figureTemplate.direction ?? 0,
-        nodeCount: figureTemplate.nodeCount ?? 0,
+        ...figureTemplate,
         nodes: [],
+        rengles: [],
+        metadata: {},
+        direction: 0,
       },
     };
 
@@ -317,7 +314,7 @@ export class CompositionEditorComponent implements OnInit, OnDestroy {
   // --- Canvas fit ---
 
   fitAll(): void {
-    this.canvasRef()?.fitAllSlots();
+    this.canvasRef?.fitAllSlots();
   }
 
   // --- Navigation ---
@@ -384,7 +381,7 @@ export class CompositionEditorComponent implements OnInit, OnDestroy {
         slots,
       };
 
-      this.compositionService.create(payload).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      this.compositionService.create(payload).subscribe({
         next: (created) => {
           this.composition.set(created);
           this.autoSlugEnabled = false;
@@ -404,7 +401,7 @@ export class CompositionEditorComponent implements OnInit, OnDestroy {
         slots,
       };
 
-      this.compositionService.update(comp.id, payload).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      this.compositionService.update(comp.id, payload).subscribe({
         next: (updated) => {
           // The API deletes and recreates all slots on every save, so slot IDs change.
           // Re-match the currently selected slot by figureTemplateId + sortOrder so the
@@ -483,7 +480,7 @@ export class CompositionEditorComponent implements OnInit, OnDestroy {
   }
 
   private loadAvailableTemplates(): void {
-    this.figureTemplateService.getAll({ limit: 100 }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    this.figureTemplateService.getAll({ limit: 100 }).subscribe({
       next: (resp) => this.availableTemplates.set(resp.data),
       error: () => { /* silently ignore — non-critical prefetch */ },
     });

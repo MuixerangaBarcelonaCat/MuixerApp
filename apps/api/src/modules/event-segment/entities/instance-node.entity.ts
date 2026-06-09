@@ -5,8 +5,6 @@ import {
   ManyToOne,
   JoinColumn,
   CreateDateColumn,
-  UpdateDateColumn,
-  Unique,
 } from 'typeorm';
 import { FigureZone, NodeShape } from '@muixer/shared';
 import type { FigureInstance } from './figure-instance.entity';
@@ -15,13 +13,8 @@ import type { FigureInstance } from './figure-instance.entity';
  * Snapshot copy of a FigureNode, owned by a FigureInstance.
  * Created in bulk when the first NodeAssignment is made on an instance (lazy snapshot).
  * After snapshot, changes to the source FigureTemplate do NOT affect these rows.
- *
- * The (figureInstance, sourceNodeId) unique constraint is a DB-level safety net
- * against the snapshot race condition (two concurrent first-assignments).
- * Primary protection is the pessimistic_write lock in snapshotInstance().
  */
 @Entity('instance_nodes')
-@Unique(['figureInstance', 'sourceNodeId'])
 export class InstanceNode {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -42,7 +35,7 @@ export class InstanceNode {
 
   /**
    * Root ancestor node ID, copied from FigureNode.originNodeId at snapshot time.
-   * Historical column — the upgrade endpoint has been removed.
+   * Used for upgrade matching: canonical ID = originNodeId ?? sourceNodeId.
    */
   @Column({ type: 'uuid', nullable: true })
   originNodeId: string | null;
@@ -89,11 +82,11 @@ export class InstanceNode {
   @Column({ type: 'int', nullable: true })
   ringLevel: number | null;
 
-  /** Copied from source FigureNode/FigureFamilyNode at snapshot time. */
+  /** Copied from source FigureNode at snapshot time. */
   @Column({ type: 'uuid', nullable: true })
   renglaId: string | null;
 
-  /** Copied from source FigureNode/FigureFamilyNode at snapshot time. */
+  /** Copied from source FigureNode at snapshot time. */
   @Column({ type: 'int', nullable: true })
   renglaPosition: number | null;
 
@@ -102,7 +95,4 @@ export class InstanceNode {
 
   @CreateDateColumn()
   createdAt: Date;
-
-  @UpdateDateColumn()
-  updatedAt: Date;
 }

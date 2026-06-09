@@ -1,12 +1,12 @@
 import { repositionCordoObertNodes } from './cordo-obert-reposition.util';
 import { InstanceNodeItem } from '../models/assignment.model';
-import { FigureZone, NodeShape } from '@muixer/shared';
+import { NodeShape } from '@muixer/shared';
 
 function makeNode(overrides: Partial<InstanceNodeItem>): InstanceNodeItem {
   return {
     id: crypto.randomUUID(),
     label: 'node',
-    zone: FigureZone.PINYA,
+    zone: 'PINYA',
     positionType: null,
     x: 0,
     y: 0,

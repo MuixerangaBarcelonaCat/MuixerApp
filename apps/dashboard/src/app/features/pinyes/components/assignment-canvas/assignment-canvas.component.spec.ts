@@ -17,11 +17,10 @@ import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
 import { EventSegmentService } from '../../services/event-segment.service';
 import { FigureTemplateService } from '../../services/figure-template.service';
-import { FigureFamilyService } from '../../services/figure-family.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { AssignmentDetail, AvailablePerson, BulkImportResult, InstanceNodeItem } from '../../models/assignment.model';
 import { SegmentDetail } from '../../models/segment.model';
-import { AttendanceStatus, FigureZone, NodeShape } from '@muixer/shared';
+import { FigureZone, NodeShape } from '@muixer/shared';
 
 // ── Stub child components ───────────────────────────────────────────────────
 
@@ -91,17 +90,18 @@ const EVENT_ID = 'event-uuid-1';
 const SEGMENT_ID = 'segment-uuid-1';
 const INSTANCE_ID = 'instance-uuid-1';
 const TEMPLATE_ID = 'template-uuid-1';
-const FAMILY_ID = 'family-uuid-1';
 
 const makeInstance = (overrides = {}) => ({
   id: INSTANCE_ID,
   label: null,
   sortOrder: 0,
   snapshotted: false,
-  sourceVariantOrder: null,
   assignedCount: 0,
   numberOfCordons: null,
   openCordons: null,
+  projectionX: null,
+  projectionY: null,
+  projectionScale: 1,
   figureTemplate: { id: TEMPLATE_ID, name: 'pd4' },
   compositionTemplate: null,
   ...overrides,
@@ -130,29 +130,13 @@ const makeTemplate = () => ({
   description: null,
   hasPinya: true,
   direction: 0,
-  variantOrder: 1,
-  familyId: FAMILY_ID,
-  familyName: 'pd4',
   nodeCount: 2,
+  renglaCount: 0,
   metadata: {},
   nodes: [],
+  rengles: [],
   createdAt: '2026-01-01',
   updatedAt: '2026-01-01',
-});
-
-const makeFamily = () => ({
-  id: FAMILY_ID,
-  name: 'pd4',
-  slug: 'pd4',
-  description: null,
-  variantCount: 2,
-  createdAt: '2026-01-01',
-  updatedAt: '2026-01-01',
-  metadata: {},
-  variants: [
-    { id: TEMPLATE_ID, name: 'pd4 — variant 1', slug: 'pd4-v1', variantOrder: 1, nodeCount: 2, renglaCount: 0 },
-    { id: 'template-v2', name: 'pd4 — variant 2', slug: 'pd4-v2', variantOrder: 2, nodeCount: 4, renglaCount: 0 },
-  ],
 });
 
 let assignmentIdCounter = 0;
@@ -160,7 +144,7 @@ const makeAssignment = (nodeId = 'inode-1', personId = 'person-1'): AssignmentDe
   id: `assignment-${++assignmentIdCounter}`,
   figureInstanceId: INSTANCE_ID,
   compositionSlotId: null,
-  node: { id: nodeId, label: 'base-1', zone: FigureZone.BASE, z: 0, positionType: null, sortOrder: 0, ringLevel: null, originNodeId: null, sourceNodeId: 'node-1' },
+  node: { id: nodeId, label: 'base-1', zone: 'BASE', z: 0, positionType: null, sortOrder: 0, ringLevel: null, originNodeId: null, sourceNodeId: 'node-1' },
   person: { id: personId, alias: 'Pepet', name: 'Pere', firstSurname: 'Garcia', shoulderHeight: 140 },
 });
 
@@ -171,7 +155,7 @@ const makeAvailablePerson = (id = 'person-1'): AvailablePerson => ({
   firstSurname: 'Garcia',
   shoulderHeight: 140,
   isXicalla: false,
-  attendanceStatus: AttendanceStatus.ANIRE,
+  attendanceStatus: 'ANIRE',
   nextPerformanceStatus: null,
   assignedInSegment: false,
   positions: [],
@@ -189,6 +173,7 @@ interface MockAssignmentService {
   resetSnapshot: MockFn;
   bulkImport: MockFn;
   getHistory: MockFn;
+  getNextPerformance: MockFn;
   getAvailablePersons: MockFn;
   getLockStatus: MockFn;
 }
@@ -199,7 +184,6 @@ describe('AssignmentCanvasComponent', () => {
   let assignmentService: MockAssignmentService;
   let segmentService: { getByEvent: MockFn };
   let figureTemplateService: { getOne: MockFn };
-  let familyService: { getOne: MockFn };
   let toastService: { success: MockFn; error: MockFn };
   let routerMock: { navigate: MockFn };
   let stateService: AssignmentStateService;
@@ -219,6 +203,7 @@ describe('AssignmentCanvasComponent', () => {
       resetSnapshot: vi.fn().mockReturnValue(of({ removedAssignments: 0 })),
       bulkImport: vi.fn().mockReturnValue(of({ created: [], conflicts: [] })),
       getHistory: vi.fn().mockReturnValue(of({ data: [] })),
+      getNextPerformance: vi.fn().mockReturnValue(of(null)),
       getAvailablePersons: vi.fn().mockReturnValue(of({ data: [] })),
       getLockStatus: vi.fn().mockReturnValue(of({ locked: false, lockDate: null, lockDays: 2 })),
     };
@@ -229,10 +214,6 @@ describe('AssignmentCanvasComponent', () => {
 
     figureTemplateService = {
       getOne: vi.fn().mockReturnValue(of(makeTemplate())),
-    };
-
-    familyService = {
-      getOne: vi.fn().mockReturnValue(of(makeFamily())),
     };
 
     toastService = {
@@ -250,7 +231,6 @@ describe('AssignmentCanvasComponent', () => {
         { provide: NodeAssignmentService, useValue: assignmentService },
         { provide: EventSegmentService, useValue: segmentService },
         { provide: FigureTemplateService, useValue: figureTemplateService },
-        { provide: FigureFamilyService, useValue: familyService },
         { provide: ToastService, useValue: toastService },
         { provide: Router, useValue: routerMock },
         {
@@ -473,7 +453,7 @@ describe('AssignmentCanvasComponent', () => {
         ...list,
         {
           instanceId: secondInstanceId, label: 'pd3', figureTemplateId: TEMPLATE_ID,
-          familyId: null, snapshotted: false, sourceVariantOrder: null,
+          snapshotted: false,
           numberOfCordons: null, openCordons: null,
           nodes: [], assignedCount: 0, totalCount: 0,
         },

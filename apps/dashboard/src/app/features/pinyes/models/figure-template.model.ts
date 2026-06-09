@@ -1,17 +1,57 @@
 import { FigureZone, NodeShape } from '@muixer/shared';
-import type { RenglaItem, FigureTemplateListItem } from '@muixer/shared';
 
-export type {
-  FigureNodeItem,
-  RenglaItem,
-  FigureTemplateListItem,
-  FigureTemplateDetail,
-} from '@muixer/shared';
+export interface FigureNodeItem {
+  id: string;
+  label: string;
+  zone: FigureZone;
+  positionType: string | null;
+  x: number;
+  y: number;
+  z: number;
+  width: number;
+  height: number;
+  rotation: number;
+  color: string | null;
+  shape: NodeShape;
+  sortOrder: number;
+  climbPath: string | null;
+  ringLevel: number | null;
+  originNodeId: string | null;
+  renglaId: string | null;
+  renglaPosition: number | null;
+  metadata: Record<string, unknown>;
+}
+
+export interface RenglaModel {
+  id: string;
+  name: string;
+  sortOrder: number;
+  startPosition: number;
+  allowsCordoObert: boolean;
+}
+
+export interface FigureTemplateListItem {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  hasPinya: boolean;
+  direction: number;
+  nodeCount: number;
+  renglaCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FigureTemplateDetail extends FigureTemplateListItem {
+  metadata: Record<string, unknown>;
+  nodes: FigureNodeItem[];
+  rengles: RenglaModel[];
+}
 
 export interface FigureTemplateFilterParams {
   search?: string;
   hasPinya?: boolean;
-  familyId?: string;
   page?: number;
   limit?: number;
 }
@@ -41,8 +81,6 @@ export interface CreateFigureNodePayload {
 export interface CreateFigureTemplatePayload {
   name: string;
   slug: string;
-  familyId: string;
-  variantOrder?: number;
   description?: string;
   hasPinya?: boolean;
   direction?: number;
@@ -58,7 +96,7 @@ export interface UpdateFigureTemplatePayload {
   direction?: number;
   metadata?: Record<string, unknown>;
   nodes?: CreateFigureNodePayload[];
-  rengles?: RenglaItem[];
+  rengles?: RenglaModel[];
 }
 
 export interface PaginatedFigureTemplates {

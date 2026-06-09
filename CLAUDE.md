@@ -33,7 +33,6 @@ nx build dashboard
 # Database scripts (run from repo root)
 nx run api:seed-seasons              # Import seasons seed data
 nx run api:reset-figure-data         # Dev reset: wipe instances/nodes/assignments + re-seed
-nx run api:migrate-tronc-to-family   # P5.7 migration
 nx run api:migrate-tronc-units       # P5.6 migration
 
 # Docker
@@ -67,11 +66,11 @@ Modules under `src/modules/`:
 - `auth` — JWT (15min) + httpOnly refresh token (7d), Passport, token rotation
 - `person` — CRUD + soft delete via `isActive` boolean
 - `event` + `season` + attendance
-- `figure` — `FigureTemplate`, `FigureFamily`, `FigureNode` (PINYA zone), `FigureFamilyNode` (TRONC/BASE zone)
+- `figure` — `FigureTemplate`, `FigureNode`, `Rengla`
 - `composition` — `CompositionTemplate` + `CompositionSlot`
 - `event-segment` — `EventSegment`, `FigureInstance`, `InstanceNode`, `ProjectionService`
-- `node-assignment` — assignment logic, lazy snapshot, bulk import, lock, history
-- `reference-element` — `ReferenceElement` entity for projection (internal service, REST controller removed in P5.12)
+- `node-assignment` — assignment logic, lazy snapshot
+- `reference-element` — `ReferenceElement` for projection canvas (P5.8.1)
 - `sync` — SSE strategy pattern for legacy data import
 
 **TypeORM conventions:** UUID primary keys, `createdAt`/`updatedAt` always present, soft delete = `isActive: boolean` (not `@DeleteDateColumn`), enums imported from `@muixer/shared`, table names plural snake_case.
@@ -101,16 +100,12 @@ Routes (all behind `authGuard` + `rolesGuard(TECHNICAL, ADMIN)`):
 The figures module has a non-obvious lifecycle:
 
 1. **Pre-snapshot** — `FigureInstance { snapshotted: false }`. Canvas reads live `FigureNode`s from the template.
-2. **First assignment** — triggers automatic snapshot in a transaction: copies all `FigureNode`s + `FigureFamilyNode`s into `InstanceNode`s, sets `snapshotted = true`. Subsequent template changes do NOT affect the instance.
+2. **First assignment** — triggers automatic snapshot in a transaction: copies all `FigureNode`s into `InstanceNode`s, sets `snapshotted = true`. Subsequent template changes do NOT affect the instance.
 3. **Post-snapshot** — canvas reads `InstanceNode`s (immutable). Assignments always point to `InstanceNode`, never to `FigureNode`.
-4. ~~**Upgrade**~~ — removed. The `sourceVariantOrder` and `originNodeId` columns remain for historical data but no endpoint uses them.
 
-Node split by zone (transparent to frontend):
-- `PINYA` nodes live in `figure_nodes` (per template)
-- `TRONC`/`BASE` nodes live in `figure_family_nodes` (shared across all variants in a family)
-- `GET /figure-templates/:id` merges both; `PUT` splits them back automatically
+All nodes (PINYA, TRONC, BASE, directions) live in `figure_nodes` per template.
 
-`FigureNode.id` is stable across saves (upsert by ID, not delete+recreate). `originNodeId` always points to the root ancestor within the family, not the immediate previous variant.
+`FigureNode.id` is stable across saves (upsert by ID, not delete+recreate). `originNodeId` (optional) traces lineage when nodes are duplicated or derived from another template.
 
 **Pinyes routes:**
 ```
@@ -147,12 +142,11 @@ Node split by zone (transparent to frontend):
 
 ---
 
-## P5.12 — Pinyes Refactor & Code Review (completed)
+## P5.8.1 — Projection view (in progress)
 
-Full audit of the pinyes module across 4 phases + 10 code review findings. Key outcomes:
-- **Phase 1**: Fixed 2 critical bugs (snapshot race condition, composition slot sync) + 14 HIGH bugs
-- **Phase 2**: Shared types — 9 interface groups moved to `@muixer/shared`
-- **Phase 3**: Dead code cleanup — removed `SegmentCanvasComponent`, reference-element REST controller, `upgradeInstance`, 6+ dead methods
-- **Phase 4**: Frontend quality — `takeUntilDestroyed` on 48 subscriptions, `figure-canvas` decomposed into `KonvaStageService` + 4 renderers, `FloatingPanelDragDirective`, `CdkTrapFocus` on 11 modals
-- **Code Review (F1-F10)**: Person uniqueness per instance, `checkEventLock` throws on missing data, `bulkImport` catch discriminates error types, history queries optimized (count vs join), dead vars removed, `as any` casts replaced with proper types
-- Tracking: `docs/PINYES_REFACTOR_TRACKING.md` | Review: `docs/PINYES_REFACTOR_REVIEW.md`
+Current branch `story/deploy-server-pre` contains work on the fullscreen projection feature. Key additions:
+- `FigureInstance` has `projectionX`, `projectionY`, `projectionScale` fields
+- `ReferenceElement` entity (RECTANGLE | ARROW) scoped to an event, with `hiddenInSegments` JSONB
+- Endpoint `PUT /segments/:id/instances/projection-layout` for batch position updates
+- Endpoint `GET /segments/:id/projection` for optimized projection data
+- New components: `ProjectionViewComponent`, `SegmentCanvasComponent`, `FigureProjectionComponent`

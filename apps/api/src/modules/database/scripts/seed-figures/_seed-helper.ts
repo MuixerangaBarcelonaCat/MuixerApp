@@ -33,12 +33,6 @@ export interface NodeSeed {
 }
 
 export interface FigureSeed {
-  /** Name of the FigureFamily this template belongs to. Created if it doesn't exist. */
-  familyName: string;
-  /** Slug of the FigureFamily. */
-  familySlug: string;
-  /** Position within the family (1 = smallest). */
-  variantOrder: number;
   /** Template name, e.g. "Pilar de 4 — 2C" */
   name: string;
   /** Template slug, e.g. "pd4-2c" */
@@ -47,14 +41,8 @@ export interface FigureSeed {
   hasPinya: boolean;
   direction: number;
   metadata: Record<string, unknown>;
-  /** Template-level nodes (PINYA, FIGURE_DIRECTION, etc.) — never TRONC or BASE. */
+  /** All template nodes (PINYA, TRONC, BASE, etc.) */
   nodes: NodeSeed[];
-  /**
-   * Family-level nodes (TRONC and BASE). Shared across all variants of the family.
-   * Only inserted if the family has no family nodes yet, making this safe to include
-   * in every variant seed — the first one to run wins.
-   */
-  familyNodes?: NodeSeed[];
 }
 
 // ---------------------------------------------------------------------------
@@ -65,20 +53,14 @@ export async function insertFigure(figure: FigureSeed): Promise<void> {
   const { NestFactory } = await import('@nestjs/core');
   const { getRepositoryToken } = await import('@nestjs/typeorm');
   const { AppModule } = await import('../../../../app/app.module');
-  const { FigureFamily } = await import('../../../figure/entities/figure-family.entity');
   const { FigureTemplate } = await import('../../../figure/entities/figure-template.entity');
   const { FigureNode } = await import('../../../figure/entities/figure-node.entity');
-  const { FigureFamilyNode } = await import('../../../figure/entities/figure-family-node.entity');
 
   const app = await NestFactory.createApplicationContext(AppModule, {
     logger: ['error', 'warn'],
   });
 
   try {
-    const familyRepo = app.get<
-      import('typeorm').Repository<import('../../figure/entities/figure-family.entity').FigureFamily>
-    >(getRepositoryToken(FigureFamily));
-
     const templateRepo = app.get<
       import('typeorm').Repository<import('../../figure/entities/figure-template.entity').FigureTemplate>
     >(getRepositoryToken(FigureTemplate));
@@ -87,26 +69,6 @@ export async function insertFigure(figure: FigureSeed): Promise<void> {
       import('typeorm').Repository<import('../../figure/entities/figure-node.entity').FigureNode>
     >(getRepositoryToken(FigureNode));
 
-    const familyNodeRepo = app.get<
-      import('typeorm').Repository<import('../../figure/entities/figure-family-node.entity').FigureFamilyNode>
-    >(getRepositoryToken(FigureFamilyNode));
-
-    // Find or create family
-    let family = await familyRepo.findOne({ where: { slug: figure.familySlug } });
-    if (!family) {
-      family = familyRepo.create({
-        name: figure.familyName,
-        slug: figure.familySlug,
-        description: null,
-        metadata: {},
-      });
-      family = await familyRepo.save(family);
-      console.log(`\n  Created family: "${figure.familyName}" (${family.id})`);
-    } else {
-      console.log(`\n  Using existing family: "${figure.familyName}" (${family.id})`);
-    }
-
-    // Check if template slug already exists
     const existing = await templateRepo.findOne({ where: { slug: figure.slug } });
     if (existing) {
       console.log(`\n  Template "${figure.slug}" already exists (id: ${existing.id}).`);
@@ -115,18 +77,15 @@ export async function insertFigure(figure: FigureSeed): Promise<void> {
     }
 
     const template = templateRepo.create({
-      family,
-      variantOrder:  figure.variantOrder,
-      name:          figure.name,
-      slug:          figure.slug,
-      description:   figure.description,
-      hasPinya:      figure.hasPinya,
-      direction:     figure.direction,
-      metadata:      figure.metadata,
+      name:        figure.name,
+      slug:        figure.slug,
+      description: figure.description,
+      hasPinya:    figure.hasPinya,
+      direction:   figure.direction,
+      metadata:    figure.metadata,
     });
     const saved = await templateRepo.save(template);
 
-    // Insert template-level nodes (PINYA, direction, etc.)
     if (figure.nodes.length > 0) {
       const nodeEntities = figure.nodes.map((n) =>
         nodeRepo.create({
@@ -151,47 +110,11 @@ export async function insertFigure(figure: FigureSeed): Promise<void> {
       );
       await nodeRepo.save(nodeEntities);
       console.log(`\n  Template "${figure.name}" created!`);
-      console.log(`  ID:           ${saved.id}`);
-      console.log(`  Family:       ${figure.familyName} (order ${figure.variantOrder})`);
-      console.log(`  Template nodes: ${nodeEntities.length}`);
+      console.log(`  ID:     ${saved.id}`);
+      console.log(`  Nodes:  ${nodeEntities.length}`);
     } else {
-      console.log(`\n  Template "${figure.name}" created (no template nodes).`);
-      console.log(`  ID:           ${saved.id}`);
-      console.log(`  Family:       ${figure.familyName} (order ${figure.variantOrder})`);
-    }
-
-    // Insert family-level nodes (TRONC/BASE) only if family has none yet
-    if (figure.familyNodes && figure.familyNodes.length > 0) {
-      const existingFamilyNodeCount = await familyNodeRepo.count({
-        where: { family: { id: family.id } },
-      });
-
-      if (existingFamilyNodeCount === 0) {
-        const familyNodeEntities = figure.familyNodes.map((n) =>
-          familyNodeRepo.create({
-            family,
-            label:        n.label,
-            zone:         n.zone as import('../../../../../../libs/shared/src/enums/figure-zone.enum').FigureZone,
-            positionType: n.positionType,
-            x:            n.x,
-            y:            n.y,
-            z:            n.z,
-            width:        n.width,
-            height:       n.height,
-            rotation:     n.rotation,
-            color:        n.color,
-            shape:        n.shape as import('../../../../../../libs/shared/src/enums/node-shape.enum').NodeShape,
-            sortOrder:    n.sortOrder,
-            climbPath:    n.climbPath,
-            ringLevel:    n.ringLevel ?? null,
-            metadata:     n.metadata,
-          }),
-        );
-        await familyNodeRepo.save(familyNodeEntities);
-        console.log(`  Family nodes:   ${familyNodeEntities.length} (TRONC/BASE — shared)`);
-      } else {
-        console.log(`  Family nodes:   skipped (family already has ${existingFamilyNodeCount} node(s))`);
-      }
+      console.log(`\n  Template "${figure.name}" created (no nodes).`);
+      console.log(`  ID:     ${saved.id}`);
     }
 
     console.log(`\n  Open in dashboard: /pinyes/templates/${saved.id}/edit\n`);

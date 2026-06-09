@@ -16,14 +16,14 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '@muixer/shared';
 import { EventSegmentService } from './event-segment.service';
 import { FigureInstanceService } from './figure-instance.service';
-import { ProjectionSegmentData } from '@muixer/shared';
-import { ProjectionService } from './projection.service';
+import { ProjectionService, ProjectionData } from './projection.service';
 import { CreateSegmentDto } from './dto/create-segment.dto';
 import { UpdateSegmentDto } from './dto/update-segment.dto';
 import { ReorderSegmentsDto } from './dto/reorder-segments.dto';
 import { CreateInstanceDto } from './dto/create-instance.dto';
 import { UpdateInstanceDto } from './dto/update-instance.dto';
 import { ReorderInstancesDto } from './dto/reorder-instances.dto';
+import { UpdateProjectionLayoutDto } from './dto/update-projection-layout.dto';
 
 @ApiTags('event-segments')
 @ApiBearerAuth()
@@ -125,12 +125,23 @@ export class EventSegmentController {
     return this.instanceService.remove(eventId, segmentId, id);
   }
 
-  @ApiOperation({ summary: 'Get all projection data for a segment (instances with nodes, assignments, reference elements)' })
+  @ApiOperation({ summary: 'Batch update projection positions for all instances in a segment' })
+  @Put(':segmentId/instances/projection-layout')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  updateProjectionLayout(
+    @Param('eventId', ParseUUIDPipe) eventId: string,
+    @Param('segmentId', ParseUUIDPipe) segmentId: string,
+    @Body() dto: UpdateProjectionLayoutDto,
+  ): Promise<void> {
+    return this.instanceService.updateProjectionLayout(eventId, segmentId, dto);
+  }
+
+  @ApiOperation({ summary: 'Get all projection data for a segment (instances with nodes, assignments)' })
   @Get(':segmentId/projection')
   getProjection(
     @Param('eventId', ParseUUIDPipe) eventId: string,
     @Param('segmentId', ParseUUIDPipe) segmentId: string,
-  ): Promise<ProjectionSegmentData> {
+  ): Promise<ProjectionData> {
     return this.projectionService.getProjection(eventId, segmentId);
   }
 }

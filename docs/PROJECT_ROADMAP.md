@@ -35,7 +35,6 @@
 | P5.9 | **Pinyes** — Vista de Projecció (refinada) | ✅ Completat | — | — | ✅ | Grid CSS responsive, vista Troncs `?view=troncs`, panells flotants, HUD navegació |
 | P5.10 | **Pinyes** — Posicions, Lock i Historials | ✅ Completat | [`spec`](specs/2026-05-26-p5-10-positions-lock-history-design.md) | ✅ | ✅ | PositionModule + lock automàtic + filtre per posició + historials (persona/event/família) |
 | P5.11 | **Pinyes** — Integració de Rengles | ✅ Completat | [`spec`](specs/2026-05-28-rengles-integration-spec.md) | ✅ | ✅ | Rengla entity, editor de rengles, ghost clone, selector de cordons, projecció filtrada |
-| P5.12 | **Pinyes** — Refactor & Code Review | ✅ Completat | [`review`](PINYES_REFACTOR_REVIEW.md) | ✅ | ✅ | Audit complet (4 fases + 10 troballes), shared types, dead code cleanup, qualitat frontend. Detall: [tracking](PINYES_REFACTOR_TRACKING.md) |
 | P6 | PWA Mòbil | ⚪ Pendent | — | — | — | Diferit fins al tall. Estén l'auth de P4.1 als membres |
 | P7 | Informes + Notificacions + Features avançades | ⚪ Pendent | — | — | — | Reports d'assistència, FCM, estadístiques, notícies |
 

@@ -2,14 +2,12 @@ import { Injectable, DestroyRef, inject, signal, computed } from '@angular/core'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NodeAssignmentService } from '../../../services/node-assignment.service';
 import { EventSegmentService } from '../../../services/event-segment.service';
-import { FigureFamilyService } from '../../../services/figure-family.service';
 import { FigureTemplateService } from '../../../services/figure-template.service';
 import { FigureInstanceService } from '../../../services/figure-instance.service';
 import { AssignmentStateService } from '../../../services/assignment-state.service';
 import { ToastService } from '../../../../../shared/components/feedback/toast/toast.service';
 import { SegmentDetail } from '../../../models/segment.model';
-import { FigureFamilyDetail } from '../../../models/figure-family.model';
-import { RenglaItem } from '../../../models/figure-template.model';
+import { RenglaModel } from '../../../models/figure-template.model';
 import { FigureZone } from '@muixer/shared';
 import { InstanceNodeItem } from '../../../models/assignment.model';
 import { repositionCordoObertNodes } from '../../../utils/cordo-obert-reposition.util';
@@ -18,9 +16,7 @@ export interface InstanceTab {
   instanceId: string;
   label: string;
   figureTemplateId: string | null;
-  familyId: string | null;
   snapshotted: boolean;
-  sourceVariantOrder: number | null;
   numberOfCordons: number | null;
   openCordons: string[] | null;
   nodes: InstanceNodeItem[];
@@ -34,7 +30,6 @@ export interface InstanceTab {
 @Injectable()
 export class AssignmentTabService {
   private readonly segmentService = inject(EventSegmentService);
-  private readonly familyService = inject(FigureFamilyService);
   private readonly figureTemplateService = inject(FigureTemplateService);
   private readonly assignmentService = inject(NodeAssignmentService);
   readonly instanceService = inject(FigureInstanceService);
@@ -45,8 +40,7 @@ export class AssignmentTabService {
   readonly tabs = signal<InstanceTab[]>([]);
   readonly segment = signal<SegmentDetail | null>(null);
   readonly loading = signal(false);
-  readonly familyDetail = signal<FigureFamilyDetail | null>(null);
-  readonly templateRengles = signal<RenglaItem[]>([]);
+  readonly templateRengles = signal<RenglaModel[]>([]);
   readonly maxCordons = signal(0);
 
   readonly activeTab = computed(() =>
@@ -88,9 +82,8 @@ export class AssignmentTabService {
     this.state.activeInstanceId.set(instanceId);
     this.state.selectedNodeId.set(null);
     this.state.assignments.set([]);
-    this.familyDetail.set(null);
     this.loadTabData(instanceId);
-    this.loadFamilyForTab(instanceId);
+    this.loadTemplateRenglesForTab(instanceId);
   }
 
   loadTabData(instanceId: string): void {
@@ -148,16 +141,14 @@ export class AssignmentTabService {
     );
   }
 
-  /** Called after a snapshot reset — clears snapshot, assignments and source variant */
   markTabReset(instanceId: string): void {
     this.tabs.update((list) =>
       list.map((t) =>
-        t.instanceId === instanceId ? { ...t, snapshotted: false, sourceVariantOrder: null, assignedCount: 0 } : t,
+        t.instanceId === instanceId ? { ...t, snapshotted: false, assignedCount: 0 } : t,
       ),
     );
   }
 
-  /** Called after the first assignment triggers snapshotting */
   markTabSnapshotted(instanceId: string): void {
     this.tabs.update((list) =>
       list.map((t) =>
@@ -211,9 +202,7 @@ export class AssignmentTabService {
         instanceId: instance.id,
         label: instance.label ?? instance.figureTemplate?.name ?? '?',
         figureTemplateId: instance.figureTemplate?.id ?? null,
-        familyId: null,
         snapshotted: instance.snapshotted,
-        sourceVariantOrder: instance.sourceVariantOrder,
         numberOfCordons: instance.numberOfCordons ?? null,
         openCordons: instance.openCordons ?? null,
         nodes: [],
@@ -227,43 +216,11 @@ export class AssignmentTabService {
     }
   }
 
-  private loadFamilyForTab(instanceId: string): void {
+  private loadTemplateRenglesForTab(instanceId: string): void {
     const tab = this.tabs().find((t) => t.instanceId === instanceId);
     if (!tab?.figureTemplateId) return;
 
-    if (tab.familyId) {
-      this.familyService.getOne(tab.familyId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-        next: (family) => this.familyDetail.set(family),
-      });
-      this.loadTemplateRengles(tab.figureTemplateId);
-      return;
-    }
-
     this.figureTemplateService.getOne(tab.figureTemplateId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (template) => {
-        const familyId = template.familyId ?? null;
-        this.tabs.update((list) =>
-          list.map((t) =>
-            t.instanceId === instanceId ? { ...t, familyId } : t,
-          ),
-        );
-        this.templateRengles.set(template.rengles ?? []);
-        const maxPos = (template.nodes ?? []).reduce(
-          (max, n) => (n.renglaPosition != null && n.renglaPosition > max ? n.renglaPosition : max),
-          0,
-        );
-        this.maxCordons.set(maxPos);
-        if (familyId) {
-          this.familyService.getOne(familyId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-            next: (family) => this.familyDetail.set(family),
-          });
-        }
-      },
-    });
-  }
-
-  private loadTemplateRengles(templateId: string): void {
-    this.figureTemplateService.getOne(templateId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (template) => {
         this.templateRengles.set(template.rengles ?? []);
         const maxPos = (template.nodes ?? []).reduce(

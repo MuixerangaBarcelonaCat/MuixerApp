@@ -4,7 +4,6 @@ import {
   output,
   signal,
 } from '@angular/core';
-import { CdkTrapFocus } from '@angular/cdk/a11y';
 import {
   LucideAngularModule,
   Layers,
@@ -25,7 +24,7 @@ interface OnboardingStep {
   selector: 'app-pinyes-onboarding-modal',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule, CdkTrapFocus],
+  imports: [LucideAngularModule],
   templateUrl: './pinyes-onboarding-modal.component.html',
 })
 export class PinyesOnboardingModalComponent {
@@ -34,10 +33,9 @@ export class PinyesOnboardingModalComponent {
 
   readonly steps: OnboardingStep[] = [
     {
-      title: 'Famílies i figures',
+      title: 'Figures',
       description:
-        'Cada família agrupa la informació d\'una figura (ex: "Pinet doble"). ' +
-        'Un sol template conté totes les posicions de tots els cordons. ' +
+        'Cada figura defineix totes les posicions de tots els cordons (ex: "Pinet doble de 4"). ' +
         'Les rengles defineixen les línies radials de posicions del centre cap enfora.',
       icon: Layers,
     },

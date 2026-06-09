@@ -1,7 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi, type Mock } from 'vitest';
 import { LUCIDE_ICONS, LucideIconProvider, X, UserMinus } from 'lucide-angular';
-import { FigureZone } from '@muixer/shared';
 import { NodePopoverComponent } from './node-popover.component';
 import { AssignmentDetail } from '../../models/assignment.model';
 
@@ -9,7 +8,7 @@ const makeAssignment = (): AssignmentDetail => ({
   id: 'assignment-1',
   figureInstanceId: 'instance-1',
   compositionSlotId: null,
-  node: { id: 'node-1', label: 'pd4-1', zone: FigureZone.TRONC, z: 1, positionType: 'pd4', sortOrder: 0, ringLevel: null, originNodeId: null, sourceNodeId: null },
+  node: { id: 'node-1', label: 'pd4-1', zone: 'TRONC', z: 1, positionType: 'pd4', sortOrder: 0, ringLevel: null, originNodeId: null, sourceNodeId: null },
   person: {
     id: 'person-1',
     alias: 'Pepet',

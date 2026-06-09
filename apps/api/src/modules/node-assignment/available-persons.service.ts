@@ -1,13 +1,41 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThan, In } from 'typeorm';
-import { AttendanceStatus, AvailablePerson, AvailablePersonPosition, EventType } from '@muixer/shared';
 import { Person } from '../person/person.entity';
 import { Attendance } from '../event/attendance.entity';
 import { Event } from '../event/event.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
 import { NodeAssignment } from './entities/node-assignment.entity';
-import { AvailablePersonsQueryDto } from './dto/available-persons-query.dto';
+import { AttendanceStatus, EventType } from '@muixer/shared';
+
+export interface AvailablePersonPositionDto {
+  id: string;
+  name: string;
+  slug: string;
+  color: string | null;
+}
+
+export interface AvailablePersonDto {
+  id: string;
+  alias: string;
+  name: string;
+  firstSurname: string;
+  shoulderHeight: number | null;
+  isXicalla: boolean;
+  attendanceStatus: AttendanceStatus;
+  nextPerformanceStatus: AttendanceStatus | null;
+  assignedInSegment: boolean;
+  assignedInstanceId?: string;
+  assignedNodeLabel?: string;
+  positions: AvailablePersonPositionDto[];
+}
+
+export interface AvailablePersonsQuery {
+  search?: string;
+  height?: number;
+  isXicalla?: boolean;
+  excludeAssigned?: boolean;
+}
 
 @Injectable()
 export class AvailablePersonsService {
@@ -27,8 +55,8 @@ export class AvailablePersonsService {
   async getAvailablePersons(
     eventId: string,
     segmentId: string,
-    query: AvailablePersonsQueryDto = {},
-  ): Promise<AvailablePerson[]> {
+    query: AvailablePersonsQuery = {},
+  ): Promise<AvailablePersonDto[]> {
     const event = await this.eventRepository.findOne({ where: { id: eventId } });
     if (!event) {
       throw new NotFoundException(`Event with ID ${eventId} not found`);
@@ -43,8 +71,18 @@ export class AvailablePersonsService {
       );
     }
 
-    const { search, height, isXicalla: isXicallaBool, excludeAssigned } = query;
-    const excludeAssignedBool = excludeAssigned ?? true;
+    const { search, height } = query;
+
+    // HTTP query params arrive as strings — coerce booleans explicitly
+    const raw = query as unknown as Record<string, string | boolean | undefined>;
+    const coerceBool = (v: string | boolean | undefined, def: boolean): boolean => {
+      if (v === undefined) return def;
+      if (typeof v === 'boolean') return v;
+      return v === 'true';
+    };
+    const isXicallaBool: boolean | undefined =
+      raw['isXicalla'] === undefined ? undefined : coerceBool(raw['isXicalla'], false);
+    const excludeAssignedBool = coerceBool(raw['excludeAssigned'], true);
 
     // Build base person query
     const qb = this.personRepository

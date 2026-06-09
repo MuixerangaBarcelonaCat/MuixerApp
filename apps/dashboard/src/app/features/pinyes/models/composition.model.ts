@@ -1,9 +1,27 @@
-export type {
-  CompositionSlotItem,
-  CompositionSlotFigureTemplate,
-  CompositionTemplateListItem,
-  CompositionTemplateDetail,
-} from '@muixer/shared';
+import { FigureTemplateDetail } from './figure-template.model';
+
+export interface CompositionSlotItem {
+  id: string;
+  label: string | null;
+  offsetX: number;
+  offsetY: number;
+  sortOrder: number;
+  figureTemplate: FigureTemplateDetail;
+}
+
+export interface CompositionTemplateListItem {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  slotCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CompositionTemplateDetail extends CompositionTemplateListItem {
+  slots: CompositionSlotItem[];
+}
 
 export interface CompositionTemplateFilterParams {
   search?: string;
@@ -34,7 +52,7 @@ export interface UpdateCompositionTemplatePayload {
 }
 
 export interface PaginatedCompositionTemplates {
-  data: import('@muixer/shared').CompositionTemplateListItem[];
+  data: CompositionTemplateListItem[];
   meta: {
     total: number;
     page: number;

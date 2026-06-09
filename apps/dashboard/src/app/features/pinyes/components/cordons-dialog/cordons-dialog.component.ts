@@ -2,13 +2,13 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   input,
-  linkedSignal,
   output,
+  signal,
 } from '@angular/core';
-import { CdkTrapFocus } from '@angular/cdk/a11y';
 import { LucideAngularModule, Minus, Plus } from 'lucide-angular';
-import { RenglaItem } from '../../models/figure-template.model';
+import { RenglaModel } from '../../models/figure-template.model';
 
 export interface CordonsDialogSaveEvent {
   numberOfCordons: number | null;
@@ -19,7 +19,7 @@ export interface CordonsDialogSaveEvent {
   selector: 'app-cordons-dialog',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule, CdkTrapFocus],
+  imports: [LucideAngularModule],
   template: `
     @if (open()) {
       <dialog
@@ -28,7 +28,7 @@ export interface CordonsDialogSaveEvent {
         aria-labelledby="cordons-dialog-title"
         aria-modal="true"
       >
-        <div class="modal-box max-w-sm" cdkTrapFocus cdkTrapFocusAutoCapture>
+        <div class="modal-box max-w-sm">
           <h3 id="cordons-dialog-title" class="text-lg font-bold mb-4">Configuració de cordons</h3>
 
           <div class="form-control mb-4">
@@ -120,7 +120,7 @@ export class CordonsDialogComponent {
   readonly open = input.required<boolean>();
   readonly numberOfCordons = input.required<number | null>();
   readonly openCordons = input.required<string[]>();
-  readonly rengles = input.required<RenglaItem[]>();
+  readonly rengles = input.required<RenglaModel[]>();
   readonly maxCordons = input.required<number>();
 
   readonly saved = output<CordonsDialogSaveEvent>();
@@ -129,8 +129,8 @@ export class CordonsDialogComponent {
   readonly Minus = Minus;
   readonly Plus = Plus;
 
-  readonly localCordons = linkedSignal(() => this.numberOfCordons());
-  readonly localOpenCordons = linkedSignal(() => [...(this.openCordons() ?? [])]);
+  readonly localCordons = signal<number | null>(null);
+  readonly localOpenCordons = signal<string[]>([]);
 
   readonly hasChanges = computed(() => {
     return (
@@ -138,6 +138,15 @@ export class CordonsDialogComponent {
       JSON.stringify(this.localOpenCordons().sort()) !== JSON.stringify([...(this.openCordons() ?? [])].sort())
     );
   });
+
+  constructor() {
+    effect(() => {
+      if (this.open()) {
+        this.localCordons.set(this.numberOfCordons());
+        this.localOpenCordons.set([...(this.openCordons() ?? [])]);
+      }
+    });
+  }
 
   decrement(): void {
     const current = this.localCordons();

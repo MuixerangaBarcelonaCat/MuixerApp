@@ -63,14 +63,8 @@ const mockCompositionRepo = {
   findOne: jest.fn(),
 };
 
-// H1: mock NodeAssignment repo returned by DataSource.getRepository()
-const mockNodeAssignmentCountRepo = {
-  count: jest.fn().mockResolvedValue(0),
-};
-
 const mockDataSource = {
   transaction: jest.fn().mockImplementation((cb) => cb({ update: jest.fn() })),
-  getRepository: jest.fn().mockReturnValue(mockNodeAssignmentCountRepo),
 };
 
 describe('FigureInstanceService', () => {
@@ -94,9 +88,6 @@ describe('FigureInstanceService', () => {
     mockInstanceQb.select.mockReturnThis();
     mockInstanceQb.where.mockReturnThis();
     mockInstanceQb.getRawOne.mockResolvedValue({ max: null });
-    // H1: reset count mock between tests
-    mockNodeAssignmentCountRepo.count.mockResolvedValue(0);
-    mockDataSource.getRepository.mockReturnValue(mockNodeAssignmentCountRepo);
   });
 
   describe('create', () => {
@@ -236,37 +227,6 @@ describe('FigureInstanceService', () => {
       await expect(
         service.reorder(EVENT_ID, SEGMENT_ID, { instanceIds: [] }),
       ).rejects.toThrow(NotFoundException);
-    });
-  });
-
-  // H1 — assignedCount
-  describe('assignedCount in create/update responses', () => {
-    it('returns assignedCount from the actual NodeAssignment count, not hardcoded 0', async () => {
-      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
-      mockFigureTemplateRepo.findOne.mockResolvedValue(makeFigureTemplate());
-      mockInstanceRepo.create.mockReturnValue(makeInstance());
-      mockInstanceRepo.save.mockResolvedValue(makeInstance());
-      mockInstanceRepo.findOne.mockResolvedValue(makeInstance());
-      // Simulate 3 existing assignments
-      mockNodeAssignmentCountRepo.count.mockResolvedValue(3);
-
-      const result = await service.create(EVENT_ID, SEGMENT_ID, { figureTemplateId: FIGURE_ID });
-
-      expect(result.assignedCount).toBe(3);
-      expect(mockDataSource.getRepository).toHaveBeenCalled();
-    });
-
-    it('returns 0 when no assignments exist', async () => {
-      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
-      mockFigureTemplateRepo.findOne.mockResolvedValue(makeFigureTemplate());
-      mockInstanceRepo.create.mockReturnValue(makeInstance());
-      mockInstanceRepo.save.mockResolvedValue(makeInstance());
-      mockInstanceRepo.findOne.mockResolvedValue(makeInstance());
-      mockNodeAssignmentCountRepo.count.mockResolvedValue(0);
-
-      const result = await service.create(EVENT_ID, SEGMENT_ID, { figureTemplateId: FIGURE_ID });
-
-      expect(result.assignedCount).toBe(0);
     });
   });
 });

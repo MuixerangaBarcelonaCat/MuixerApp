@@ -13,13 +13,6 @@
         Figures
       </button>
 
-      @if (familyBreadcrumb()) {
-        <span class="text-base-content/30" aria-hidden="true">/</span>
-        <span class="text-sm text-base-content/60 font-medium truncate max-w-36" [title]="familyBreadcrumb()!">
-          {{ familyBreadcrumb() }}
-        </span>
-      }
-
       <span class="text-base-content/30" aria-hidden="true">/</span>
 
       <!-- Template name -->
@@ -531,25 +524,20 @@
 <!-- ── Tronc Floating Panel ──────────────────────────────────────────────── -->
 @if (troncDrawerOpen()) {
   <aside
-    appFloatingPanelDrag
-    #troncDragDir="appFloatingPanelDrag"
     class="tronc-floating-panel"
-    [style.left.px]="troncDragDir.position().x"
-    [style.top.px]="troncDragDir.position().y"
+    [style.left.px]="troncPanelPos().x"
+    [style.top.px]="troncPanelPos().y"
     aria-label="Tronc de la figura"
     tabindex="-1"
     (keydown.escape)="troncDrawerOpen.set(false)"
   >
     <div
       class="tronc-floating-header"
-      (mousedown)="troncDragDir.onDragStart($event)"
+      (mousedown)="onTroncDragStart($event)"
     >
       <lucide-icon name="GripVertical" [size]="14" class="drag-handle" aria-hidden="true" />
       <h2 class="tronc-floating-title">
         Tronc
-        <span class="tronc-shared-badge" title="Compartit entre totes les variants de la família">
-          Compartit
-        </span>
       </h2>
       <button
         type="button"
@@ -585,7 +573,7 @@
     tabindex="-1"
     (keydown.escape)="toggleShortcutsModal()"
   >
-    <div class="modal-box max-w-lg" cdkTrapFocus cdkTrapFocusAutoCapture>
+    <div class="modal-box max-w-lg">
       <button
         type="button"
         class="btn btn-sm btn-circle btn-ghost absolute right-3 top-3"

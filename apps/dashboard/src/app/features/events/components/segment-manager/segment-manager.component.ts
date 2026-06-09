@@ -14,11 +14,11 @@ import { EventSegmentService } from '../../../pinyes/services/event-segment.serv
 import { FigureInstanceService } from '../../../pinyes/services/figure-instance.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { FigurePickerModalComponent } from '../../../pinyes/components/figure-picker-modal/figure-picker-modal.component';
-import { SegmentDetail, InstanceRef } from '../../../pinyes/models/segment.model';
+import { SegmentDetail, InstanceDetail } from '../../../pinyes/models/segment.model';
 
 interface PendingInstanceRemoval {
   segment: SegmentDetail;
-  instance: InstanceRef;
+  instance: InstanceDetail;
 }
 
 @Component({
@@ -183,7 +183,7 @@ export class SegmentManagerComponent implements OnInit {
     });
   }
 
-  removeInstance(segment: SegmentDetail, instance: InstanceRef) {
+  removeInstance(segment: SegmentDetail, instance: InstanceDetail) {
     this.pendingInstanceRemoval.set({ segment, instance });
   }
 
@@ -215,11 +215,11 @@ export class SegmentManagerComponent implements OnInit {
     });
   }
 
-  getInstanceLabel(instance: InstanceRef): string {
+  getInstanceLabel(instance: InstanceDetail): string {
     return instance.label ?? instance.figureTemplate?.name ?? instance.compositionTemplate?.name ?? '?';
   }
 
-  isComposition(instance: InstanceRef): boolean {
+  isComposition(instance: InstanceDetail): boolean {
     return !!instance.compositionTemplate;
   }
 

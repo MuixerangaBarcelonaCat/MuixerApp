@@ -5,15 +5,15 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import { InstanceRef } from '@muixer/shared';
 import { FigureInstance } from './entities/figure-instance.entity';
 import { EventSegment } from './entities/event-segment.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
 import { CompositionTemplate } from '../composition/entities/composition-template.entity';
-import { NodeAssignment } from '../node-assignment/entities/node-assignment.entity';
 import { CreateInstanceDto } from './dto/create-instance.dto';
 import { UpdateInstanceDto } from './dto/update-instance.dto';
 import { ReorderInstancesDto } from './dto/reorder-instances.dto';
+import { UpdateProjectionLayoutDto } from './dto/update-projection-layout.dto';
+import { InstanceRef } from './event-segment.service';
 
 @Injectable()
 export class FigureInstanceService {
@@ -119,25 +119,47 @@ export class FigureInstanceService {
     });
 
     const existingIds = new Set(existing.map((i) => i.id));
-    const dtoIds = new Set(dto.instanceIds);
-
     const invalid = dto.instanceIds.filter((id) => !existingIds.has(id));
+
     if (invalid.length > 0) {
       throw new BadRequestException(
         `Instance IDs not found in segment: ${invalid.join(', ')}`,
       );
     }
 
-    const missing = existing.filter((i) => !dtoIds.has(i.id)).map((i) => i.id);
-    if (missing.length > 0) {
+    await this.dataSource.transaction(async (manager) => {
+      for (let i = 0; i < dto.instanceIds.length; i++) {
+        await manager.update(FigureInstance, { id: dto.instanceIds[i] }, { sortOrder: i });
+      }
+    });
+  }
+
+  async updateProjectionLayout(
+    eventId: string,
+    segmentId: string,
+    dto: UpdateProjectionLayoutDto,
+  ): Promise<void> {
+    await this.assertSegmentBelongsToEvent(eventId, segmentId);
+
+    const existing = await this.instanceRepository.find({
+      where: { segment: { id: segmentId } },
+      select: ['id'],
+    });
+    const existingIds = new Set(existing.map((i) => i.id));
+    const invalid = dto.layouts.filter((l) => !existingIds.has(l.instanceId));
+    if (invalid.length > 0) {
       throw new BadRequestException(
-        `Reorder must include all instances. Missing: ${missing.join(', ')}`,
+        `Instance IDs not found in segment: ${invalid.map((l) => l.instanceId).join(', ')}`,
       );
     }
 
     await this.dataSource.transaction(async (manager) => {
-      for (let i = 0; i < dto.instanceIds.length; i++) {
-        await manager.update(FigureInstance, { id: dto.instanceIds[i] }, { sortOrder: i });
+      for (const layout of dto.layouts) {
+        await manager.update(
+          FigureInstance,
+          { id: layout.instanceId },
+          { projectionX: layout.x, projectionY: layout.y, projectionScale: layout.scale },
+        );
       }
     });
   }
@@ -185,20 +207,12 @@ export class FigureInstanceService {
       throw new NotFoundException(`FigureInstance with ID ${id} not found`);
     }
 
-    // H1 fix: query the actual assignment count instead of hardcoding 0.
-    // Uses DataSource.getRepository to avoid adding NodeAssignment to module's
-    // forFeature (it is already registered via NodeAssignmentModule).
-    const assignedCount = await this.dataSource
-      .getRepository(NodeAssignment)
-      .count({ where: { figureInstance: { id: instance.id } } });
-
     return {
       id: instance.id,
       label: instance.label,
       sortOrder: instance.sortOrder,
       snapshotted: instance.snapshotted,
-      sourceVariantOrder: instance.sourceVariantOrder,
-      assignedCount,
+      assignedCount: 0,
       numberOfCordons: instance.numberOfCordons,
       openCordons: instance.openCordons,
       figureTemplate: instance.figureTemplate

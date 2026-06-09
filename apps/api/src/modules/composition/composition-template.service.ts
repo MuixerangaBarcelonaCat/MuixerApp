@@ -1,22 +1,46 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
-import {
-  FigureZone,
-  NodeShape,
-  CompositionSlotItem,
-  CompositionTemplateListItem,
-  CompositionTemplateDetail,
-} from '@muixer/shared';
+import { Repository } from 'typeorm';
 import { CompositionTemplate } from './entities/composition-template.entity';
 import { CompositionSlot } from './entities/composition-slot.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
-import { FigureFamilyNode } from '../figure/entities/figure-family-node.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
 import { CreateCompositionTemplateDto } from './dto/create-composition-template.dto';
 import { UpdateCompositionTemplateDto } from './dto/update-composition-template.dto';
 import { CompositionTemplateFilterDto } from './dto/composition-template-filter.dto';
 import { CreateCompositionSlotDto } from './dto/create-composition-slot.dto';
+import { FigureNodeItem } from '../figure/figure-template.service';
+
+export interface CompositionSlotItem {
+  id: string;
+  label: string | null;
+  offsetX: number;
+  offsetY: number;
+  sortOrder: number;
+  figureTemplate: {
+    id: string;
+    name: string;
+    slug: string;
+    hasPinya: boolean;
+    direction: number;
+    nodeCount: number;
+    nodes: FigureNodeItem[];
+  };
+}
+
+export interface CompositionTemplateListItem {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  slotCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CompositionTemplateDetailItem extends CompositionTemplateListItem {
+  slots: CompositionSlotItem[];
+}
 
 @Injectable()
 export class CompositionTemplateService {
@@ -29,7 +53,6 @@ export class CompositionTemplateService {
     private readonly figureTemplateRepository: Repository<FigureTemplate>,
     @InjectRepository(FigureInstance)
     private readonly figureInstanceRepository: Repository<FigureInstance>,
-    private readonly dataSource: DataSource,
   ) {}
 
   async findAll(
@@ -59,44 +82,20 @@ export class CompositionTemplateService {
     return { data: compositions.map(toListItem), total };
   }
 
-  async findOne(id: string): Promise<CompositionTemplateDetail> {
+  async findOne(id: string): Promise<CompositionTemplateDetailItem> {
     const composition = await this.compositionRepository.findOne({
       where: { id },
-      relations: ['slots', 'slots.figureTemplate', 'slots.figureTemplate.nodes', 'slots.figureTemplate.family'],
+      relations: ['slots', 'slots.figureTemplate', 'slots.figureTemplate.nodes'],
     });
 
     if (!composition) {
       throw new NotFoundException(`CompositionTemplate with ID ${id} not found`);
     }
 
-    const familyIds = [
-      ...new Set(
-        (composition.slots ?? [])
-          .map((s) => s.figureTemplate?.family?.id)
-          .filter((fid): fid is string => !!fid),
-      ),
-    ];
-
-    const familyNodesMap = new Map<string, FigureFamilyNode[]>();
-    if (familyIds.length > 0) {
-      const familyNodes = await this.dataSource.getRepository(FigureFamilyNode).find({
-        where: { family: { id: In(familyIds) } },
-        relations: ['family'],
-        order: { z: 'ASC', sortOrder: 'ASC' },
-      });
-      for (const fn of familyNodes) {
-        const fid = fn.family.id;
-        if (!familyNodesMap.has(fid)) familyNodesMap.set(fid, []);
-        familyNodesMap.get(fid)!.push(fn);
-      }
-    }
-
-    return toDetailItem(composition, familyNodesMap);
+    return toDetailItem(composition);
   }
 
-  async create(dto: CreateCompositionTemplateDto): Promise<CompositionTemplateDetail> {
-    await this.assertSlugAvailable(dto.slug);
-
+  async create(dto: CreateCompositionTemplateDto): Promise<CompositionTemplateDetailItem> {
     const composition = this.compositionRepository.create({
       name: dto.name,
       slug: dto.slug,
@@ -115,7 +114,7 @@ export class CompositionTemplateService {
   async update(
     id: string,
     dto: UpdateCompositionTemplateDto,
-  ): Promise<CompositionTemplateDetail> {
+  ): Promise<CompositionTemplateDetailItem> {
     const composition = await this.compositionRepository.findOne({ where: { id } });
 
     if (!composition) {
@@ -123,10 +122,7 @@ export class CompositionTemplateService {
     }
 
     if (dto.name !== undefined) composition.name = dto.name;
-    if (dto.slug !== undefined) {
-      await this.assertSlugAvailable(dto.slug, id);
-      composition.slug = dto.slug;
-    }
+    if (dto.slug !== undefined) composition.slug = dto.slug;
     if (dto.description !== undefined) composition.description = dto.description ?? null;
 
     await this.compositionRepository.save(composition);
@@ -158,7 +154,7 @@ export class CompositionTemplateService {
     await this.compositionRepository.remove(composition);
   }
 
-  async duplicate(id: string): Promise<CompositionTemplateDetail> {
+  async duplicate(id: string): Promise<CompositionTemplateDetailItem> {
     const original = await this.compositionRepository.findOne({
       where: { id },
       relations: ['slots', 'slots.figureTemplate'],
@@ -218,59 +214,12 @@ export class CompositionTemplateService {
     await this.slotRepository.save(slots);
   }
 
-  /**
-   * C2 fix: atomic slot replacement.
-   * 1. Pre-validate all figureTemplateIds in one batched query to fail fast
-   *    BEFORE any delete occurs.
-   * 2. Wrap delete + recreate in a transaction so a failed create rolls back the
-   *    delete, preventing loss of all slots on a bad request.
-   */
   private async syncSlots(
     composition: CompositionTemplate,
     incomingDtos: CreateCompositionSlotDto[],
   ): Promise<void> {
-    let templateMap = new Map<string, FigureTemplate>();
-
-    if (incomingDtos.length > 0) {
-      const templateIds = [...new Set(incomingDtos.map((dto) => dto.figureTemplateId))];
-      const templates = await this.figureTemplateRepository.find({
-        where: { id: In(templateIds) },
-      });
-      templateMap = new Map(templates.map((t) => [t.id, t]));
-
-      const missing = templateIds.filter((id) => !templateMap.has(id));
-      if (missing.length > 0) {
-        throw new NotFoundException(`FigureTemplate IDs not found: ${missing.join(', ')}`);
-      }
-    }
-
-    await this.dataSource.transaction(async (manager) => {
-      await manager.delete(CompositionSlot, { composition: { id: composition.id } });
-
-      if (incomingDtos.length > 0) {
-        const slots = incomingDtos.map((dto) =>
-          manager.create(CompositionSlot, {
-            composition,
-            figureTemplate: templateMap.get(dto.figureTemplateId)!,
-            label: dto.label ?? null,
-            offsetX: dto.offsetX,
-            offsetY: dto.offsetY,
-            sortOrder: dto.sortOrder ?? 0,
-          }),
-        );
-        await manager.save(CompositionSlot, slots);
-      }
-    });
-  }
-
-  // H5 fix: slug uniqueness check mirroring the figure-template pattern.
-  private async assertSlugAvailable(slug: string, excludeId?: string): Promise<void> {
-    const existing = await this.compositionRepository.findOne({ where: { slug } });
-    if (existing && existing.id !== excludeId) {
-      throw new ConflictException(
-        `The slug "${slug}" is already in use by another composition`,
-      );
-    }
+    await this.slotRepository.delete({ composition: { id: composition.id } });
+    await this.createSlots(composition, incomingDtos);
   }
 }
 
@@ -293,82 +242,48 @@ function toListItem(
     slug: composition.slug,
     description: composition.description,
     slotCount: (composition as unknown as { slotCount: number }).slotCount ?? 0,
-    createdAt: composition.createdAt.toISOString(),
-    updatedAt: composition.updatedAt.toISOString(),
+    createdAt: composition.createdAt,
+    updatedAt: composition.updatedAt,
   };
 }
 
-function toDetailItem(
-  composition: CompositionTemplate,
-  familyNodesMap: Map<string, FigureFamilyNode[]> = new Map(),
-): CompositionTemplateDetail {
-  const slots: CompositionSlotItem[] = (composition.slots ?? []).map((slot) => {
-    const pinyaNodes = (slot.figureTemplate.nodes ?? []).map((node) => ({
-      id: node.id,
-      label: node.label,
-      zone: node.zone as FigureZone,
-      positionType: node.positionType,
-      x: node.x,
-      y: node.y,
-      z: node.z,
-      width: node.width,
-      height: node.height,
-      rotation: node.rotation,
-      color: node.color,
-      shape: node.shape as NodeShape,
-      sortOrder: node.sortOrder,
-      climbPath: node.climbPath,
-      ringLevel: node.ringLevel ?? null,
-      originNodeId: node.originNodeId ?? null,
-      renglaId: node.renglaId ?? null,
-      renglaPosition: node.renglaPosition ?? null,
-      metadata: node.metadata,
-    }));
-
-    const familyId = slot.figureTemplate.family?.id;
-    const troncBaseNodes = familyId
-      ? (familyNodesMap.get(familyId) ?? []).map((fn) => ({
-          id: fn.id,
-          label: fn.label,
-          zone: fn.zone as FigureZone,
-          positionType: fn.positionType,
-          x: fn.x,
-          y: fn.y,
-          z: fn.z,
-          width: fn.width,
-          height: fn.height,
-          rotation: fn.rotation,
-          color: fn.color,
-          shape: fn.shape as NodeShape,
-          sortOrder: fn.sortOrder,
-          climbPath: fn.climbPath,
-          ringLevel: fn.ringLevel ?? null,
-          originNodeId: null,
-          renglaId: fn.renglaId ?? null,
-          renglaPosition: fn.renglaPosition ?? null,
-          metadata: fn.metadata,
-        }))
-      : [];
-
-    const allNodes = [...pinyaNodes, ...troncBaseNodes];
-
-    return {
-      id: slot.id,
-      label: slot.label,
-      offsetX: slot.offsetX,
-      offsetY: slot.offsetY,
-      sortOrder: slot.sortOrder,
-      figureTemplate: {
-        id: slot.figureTemplate.id,
-        name: slot.figureTemplate.name,
-        slug: slot.figureTemplate.slug,
-        hasPinya: slot.figureTemplate.hasPinya,
-        direction: slot.figureTemplate.direction,
-        nodeCount: allNodes.length,
-        nodes: allNodes,
-      },
-    };
-  });
+function toDetailItem(composition: CompositionTemplate): CompositionTemplateDetailItem {
+  const slots: CompositionSlotItem[] = (composition.slots ?? []).map((slot) => ({
+    id: slot.id,
+    label: slot.label,
+    offsetX: slot.offsetX,
+    offsetY: slot.offsetY,
+    sortOrder: slot.sortOrder,
+    figureTemplate: {
+      id: slot.figureTemplate.id,
+      name: slot.figureTemplate.name,
+      slug: slot.figureTemplate.slug,
+      hasPinya: slot.figureTemplate.hasPinya,
+      direction: slot.figureTemplate.direction,
+      nodeCount: (slot.figureTemplate.nodes ?? []).length,
+      nodes: (slot.figureTemplate.nodes ?? []).map((node) => ({
+        id: node.id,
+        label: node.label,
+        zone: node.zone,
+        positionType: node.positionType,
+        x: node.x,
+        y: node.y,
+        z: node.z,
+        width: node.width,
+        height: node.height,
+        rotation: node.rotation,
+        color: node.color,
+        shape: node.shape,
+        sortOrder: node.sortOrder,
+        climbPath: node.climbPath,
+        ringLevel: node.ringLevel ?? null,
+        originNodeId: node.originNodeId ?? null,
+        renglaId: node.renglaId ?? null,
+        renglaPosition: node.renglaPosition ?? null,
+        metadata: node.metadata,
+      })),
+    },
+  }));
 
   return {
     ...toListItem(composition),

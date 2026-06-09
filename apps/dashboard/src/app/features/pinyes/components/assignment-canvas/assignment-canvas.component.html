@@ -187,18 +187,16 @@
 <!-- Tronc Floating Panel -->
 @if (troncPanelOpen()) {
   <aside
-    appFloatingPanelDrag
-    #troncDragDir="appFloatingPanelDrag"
     class="tronc-floating-panel"
-    [style.left.px]="troncDragDir.position().x"
-    [style.top.px]="troncDragDir.position().y"
+    [style.left.px]="troncPanelPos().x"
+    [style.top.px]="troncPanelPos().y"
     aria-label="Tronc de la figura"
     tabindex="-1"
     (keydown.escape)="troncPanelOpen.set(false)"
   >
     <div
       class="tronc-floating-header"
-      (mousedown)="troncDragDir.onDragStart($event)"
+      (mousedown)="onTroncDragStart($event)"
     >
       <i-lucide [img]="PanelLeft" class="drag-handle size-3.5" aria-hidden="true" />
       <h2 class="tronc-floating-title">Tronc</h2>
@@ -295,7 +293,7 @@
     aria-describedby="delete-instance-desc"
     aria-modal="true"
   >
-    <div class="modal-box max-w-sm" cdkTrapFocus cdkTrapFocusAutoCapture>
+    <div class="modal-box max-w-sm">
       <h3 id="delete-instance-title" class="text-lg font-bold mb-3 text-error">Eliminar figura del segment</h3>
       <p id="delete-instance-desc" class="text-sm text-base-content/70">
         Vols eliminar
@@ -347,7 +345,7 @@
     aria-describedby="reset-modal-desc"
     aria-modal="true"
   >
-    <div class="modal-box max-w-sm" cdkTrapFocus cdkTrapFocusAutoCapture>
+    <div class="modal-box max-w-sm">
       <h3 id="reset-modal-title" class="text-lg font-bold mb-3 text-error">Reinicialitzar figura</h3>
       <p id="reset-modal-desc" class="text-sm text-base-content/70">
         Aquesta acció eliminarà

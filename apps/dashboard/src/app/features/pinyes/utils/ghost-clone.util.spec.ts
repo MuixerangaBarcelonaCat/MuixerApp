@@ -1,4 +1,5 @@
 import {
+  calculatePinyaCentroid,
   calculateGhostPosition,
   isGhostEligible,
   GhostPositionInput,
@@ -12,6 +13,36 @@ function makeNode(
 }
 
 describe('ghost-clone.util', () => {
+  // ── calculatePinyaCentroid ─────────────────────────────────────────────
+
+  describe('calculatePinyaCentroid', () => {
+    it('returns (0,0) for an empty array', () => {
+      expect(calculatePinyaCentroid([])).toEqual({ x: 0, y: 0 });
+    });
+
+    it('returns the node position for a single node', () => {
+      const result = calculatePinyaCentroid([makeNode({ x: 50, y: 70 })]);
+      expect(result).toEqual({ x: 50, y: 70 });
+    });
+
+    it('computes the arithmetic mean of 3 nodes', () => {
+      const nodes = [
+        makeNode({ x: 0, y: 0 }),
+        makeNode({ x: 90, y: 60 }),
+        makeNode({ x: 210, y: 240 }),
+      ];
+      expect(calculatePinyaCentroid(nodes)).toEqual({ x: 100, y: 100 });
+    });
+
+    it('handles negative coordinates', () => {
+      const nodes = [
+        makeNode({ x: -100, y: -50 }),
+        makeNode({ x: 100, y: 50 }),
+      ];
+      expect(calculatePinyaCentroid(nodes)).toEqual({ x: 0, y: 0 });
+    });
+  });
+
   // ── calculateGhostPosition ─────────────────────────────────────────────
 
   describe('calculateGhostPosition', () => {

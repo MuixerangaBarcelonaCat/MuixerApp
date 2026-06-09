@@ -37,14 +37,8 @@ DELETE FROM rengles WHERE true;
 -- 7. Figure nodes (depenen de figure_templates)
 DELETE FROM figure_nodes;
 
--- 8. Figure family nodes (depenen de figure_families)
-DELETE FROM figure_family_nodes;
-
--- 9. Figure templates (depenen de figure_families)
+-- 8. Figure templates
 DELETE FROM figure_templates;
-
--- 10. Figure families
-DELETE FROM figure_families;
 
 COMMIT;
 
@@ -63,8 +57,4 @@ SELECT 'rengles', COUNT(*) FROM rengles
 UNION ALL
 SELECT 'figure_nodes', COUNT(*) FROM figure_nodes
 UNION ALL
-SELECT 'figure_family_nodes', COUNT(*) FROM figure_family_nodes
-UNION ALL
-SELECT 'figure_templates', COUNT(*) FROM figure_templates
-UNION ALL
-SELECT 'figure_families', COUNT(*) FROM figure_families;
+SELECT 'figure_templates', COUNT(*) FROM figure_templates;

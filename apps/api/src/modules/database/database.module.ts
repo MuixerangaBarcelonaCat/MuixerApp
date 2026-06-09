@@ -7,10 +7,8 @@ import { Season } from '../season/season.entity';
 import { Event } from '../event/event.entity';
 import { Attendance } from '../event/attendance.entity';
 import { RefreshToken } from '../auth/entities/refresh-token.entity';
-import { FigureFamily } from '../figure/entities/figure-family.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
 import { FigureNode } from '../figure/entities/figure-node.entity';
-import { FigureFamilyNode } from '../figure/entities/figure-family-node.entity';
 import { CompositionTemplate } from '../composition/entities/composition-template.entity';
 import { CompositionSlot } from '../composition/entities/composition-slot.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
@@ -19,10 +17,12 @@ import { InstanceNode } from '../event-segment/entities/instance-node.entity';
 import { NodeAssignment } from '../node-assignment/entities/node-assignment.entity';
 import { Rengla } from '../figure/entities/rengla.entity';
 import { InitialSchema1748600000000 } from '../../migrations/1748600000000-InitialSchema';
-import { DropReferenceElementsAndProjectionColumns1749106200000 } from '../../migrations/1749106200000-DropReferenceElementsAndProjectionColumns';
 import { AddUpdatedAtToRengles1749106300000 } from '../../migrations/1749106300000-AddUpdatedAtToRengles';
 import { AddUpdatedAtToMissingTables1749106400000 } from '../../migrations/1749106400000-AddUpdatedAtToMissingTables';
 import { AddPersonInstanceUniqueConstraint1749106500000 } from '../../migrations/1749106500000-AddPersonInstanceUniqueConstraint';
+import { RemoveFigureFamily1780982679300 } from '../../migrations/1780982679300-RemoveFigureFamily';
+import { RestoreProjectionColumnsAndReferenceElements1781000000000 } from '../../migrations/1781000000000-RestoreProjectionColumnsAndReferenceElements';
+import { DropSourceVariantOrder1781100000000 } from '../../migrations/1781100000000-DropSourceVariantOrder';
 
 @Module({
   imports: [
@@ -43,10 +43,8 @@ import { AddPersonInstanceUniqueConstraint1749106500000 } from '../../migrations
             Event,
             Attendance,
             RefreshToken,
-            FigureFamily,
             FigureTemplate,
             FigureNode,
-            FigureFamilyNode,
             CompositionTemplate,
             CompositionSlot,
             EventSegment,
@@ -59,10 +57,12 @@ import { AddPersonInstanceUniqueConstraint1749106500000 } from '../../migrations
           migrationsRun: isDevelopment,
           migrations: [
             InitialSchema1748600000000,
-            DropReferenceElementsAndProjectionColumns1749106200000,
             AddUpdatedAtToRengles1749106300000,
             AddUpdatedAtToMissingTables1749106400000,
             AddPersonInstanceUniqueConstraint1749106500000,
+            RemoveFigureFamily1780982679300,
+            RestoreProjectionColumnsAndReferenceElements1781000000000,
+            DropSourceVariantOrder1781100000000,
           ],
           migrationsTableName: 'typeorm_migrations',
           logging: isDevelopment,

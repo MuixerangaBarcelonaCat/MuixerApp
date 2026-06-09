@@ -7,16 +7,15 @@
 > - **Història cronològica** → [PHASES_LOG.md](PHASES_LOG.md)
 > - **Detall tècnic** → docs dedicats (vegeu taula al final)
 >
-> **Branca activa:** `feat/modul-pinyes` · **Frontier:** P5.12 completat (refactor & code review) · **Pendent destacat:** P5.3.1 (UX segments), P6 (PWA)
+> **Branca activa:** `feat/modul-pinyes` · **Frontier:** P5.11 completat · **Pendent destacat:** P5.3.1 (UX segments), P6 (PWA)
 
 ---
 
 ## Resum
 
-Projecte en **desenvolupament actiu**. Completat: tot P0–P5.12. El Mòdul Pinyes és operatiu
+Projecte en **desenvolupament actiu**. Completat: tot P0–P5.11. El Mòdul Pinyes és operatiu
 de punta a punta (templates → composicions → segments → assignació → famílies/snapshot →
-troncs → projecció → posicions/historials → rengles) i ha passat un audit complet de qualitat
-(P5.12: 4 fases de refactor + 10 troballes de code review resoltes). Pendent principal: la PWA mòbil (P6).
+troncs → projecció → posicions/historials → rengles). Pendent principal: la PWA mòbil (P6).
 
 Per a l'estat fase a fase amb enllaços als specs, vegeu la taula `Estat General` del
 [roadmap](PROJECT_ROADMAP.md).
@@ -39,8 +38,8 @@ Per a l'estat fase a fase amb enllaços als specs, vegeu la taula `Estat General
 | `figure` | ✅ | FigureTemplate/Node/Family/FamilyNode, merge/split, snapshot |
 | `composition` | ✅ | CompositionTemplate + Slot |
 | `event-segment` | ✅ | EventSegment + FigureInstance + ProjectionService |
-| `node-assignment` | ✅ | Assignació, lazy snapshot, bulk import, lock, historials |
-| `reference-element` | ✅ | Entitat per projecció (servei intern, controller REST eliminat a P5.12) |
+| `node-assignment` | ✅ | Assignació, lazy snapshot, upgrade, bulk import, lock |
+| `reference-element` | ✅ | Elements de referència per projecció (P5.8.1) |
 
 > Endpoints en viu i sempre actualitzats → **Swagger: http://localhost:3000/api/docs**
 

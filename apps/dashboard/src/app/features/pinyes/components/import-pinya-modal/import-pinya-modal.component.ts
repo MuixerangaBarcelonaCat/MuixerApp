@@ -1,16 +1,14 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  DestroyRef,
-  effect,
   inject,
   input,
+  OnChanges,
   output,
   signal,
+  SimpleChanges,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { SlicePipe } from '@angular/common';
-import { CdkTrapFocus } from '@angular/cdk/a11y';
 import { LucideAngularModule, Import, X } from 'lucide-angular';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { BulkImportResult, FigureHistoryEntry } from '../../models/assignment.model';
@@ -19,10 +17,10 @@ import { BulkImportResult, FigureHistoryEntry } from '../../models/assignment.mo
   selector: 'app-import-pinya-modal',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule, SlicePipe, CdkTrapFocus],
+  imports: [LucideAngularModule, SlicePipe],
   templateUrl: './import-pinya-modal.component.html',
 })
-export class ImportPinyaModalComponent {
+export class ImportPinyaModalComponent implements OnChanges {
   readonly figureTemplateId = input.required<string>();
   readonly currentInstanceId = input.required<string>();
   readonly open = input<boolean>(false);
@@ -31,7 +29,6 @@ export class ImportPinyaModalComponent {
   readonly closed = output<void>();
 
   private readonly assignmentService = inject(NodeAssignmentService);
-  private readonly destroyRef = inject(DestroyRef);
 
   readonly Import = Import;
   readonly X = X;
@@ -43,22 +40,18 @@ export class ImportPinyaModalComponent {
   readonly lastResult = signal<BulkImportResult | null>(null);
   readonly error = signal<string | null>(null);
 
-  constructor() {
-    effect(() => {
-      if (this.open()) {
-        this.selectedEntry.set(null);
-        this.lastResult.set(null);
-        this.error.set(null);
-        this.loadHistory();
-      }
-    });
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['open'] && this.open()) {
+      this.selectedEntry.set(null);
+      this.lastResult.set(null);
+      this.error.set(null);
+      this.loadHistory();
+    }
   }
 
   private loadHistory(): void {
     this.loading.set(true);
-    this.assignmentService.getHistory(this.figureTemplateId()).pipe(
-      takeUntilDestroyed(this.destroyRef),
-    ).subscribe({
+    this.assignmentService.getHistory(this.figureTemplateId()).subscribe({
       next: (resp) => {
         const filtered = resp.data.filter((e) => e.instanceId !== this.currentInstanceId());
         this.history.set(filtered);
@@ -83,7 +76,6 @@ export class ImportPinyaModalComponent {
 
     this.assignmentService
       .bulkImport(this.currentInstanceId(), { sourceInstanceId: entry.instanceId })
-      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (result) => {
           this.importing.set(false);

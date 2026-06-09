@@ -53,19 +53,9 @@ BEGIN
     DELETE FROM figure_nodes;
   END IF;
 
-  -- Eliminar figure family nodes
-  IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'figure_family_nodes') THEN
-    DELETE FROM figure_family_nodes;
-  END IF;
-
   -- Eliminar figure templates
   IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'figure_templates') THEN
     DELETE FROM figure_templates;
-  END IF;
-
-  -- Eliminar figure families
-  IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'figure_families') THEN
-    DELETE FROM figure_families;
   END IF;
 
   RAISE NOTICE 'Neteja completada correctament.';
@@ -84,7 +74,7 @@ BEGIN
     WHERE table_name IN (
       'node_assignments', 'instance_nodes', 'figure_instances',
       'composition_slots', 'composition_templates', 'rengles',
-      'figure_nodes', 'figure_family_nodes', 'figure_templates', 'figure_families'
+      'figure_nodes', 'figure_templates'
     )
     AND table_schema = 'public'
   LOOP

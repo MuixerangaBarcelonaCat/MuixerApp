@@ -6,7 +6,7 @@
   (click)="onBackdropClick($event)"
   (keydown.escape)="close()"
 >
-  <div class="modal-box max-w-lg" cdkTrapFocus cdkTrapFocusAutoCapture>
+  <div class="modal-box max-w-lg">
     <!-- Header -->
     <div class="flex items-center justify-between mb-4">
       <h2 id="picker-modal-title" class="text-lg font-bold">Afegir figura o composició</h2>
@@ -55,14 +55,14 @@
       <input
         type="search"
         class="grow bg-transparent outline-none text-sm"
-        [placeholder]="activeTab() === 'figures' ? 'Cerca família o figura...' : 'Cerca composició...'"
+        [placeholder]="activeTab() === 'figures' ? 'Cerca figura...' : 'Cerca composició...'"
         [ngModel]="search()"
         (ngModelChange)="search.set($event)"
         aria-label="Cerca"
       />
     </label>
 
-    <!-- Figure list (grouped by family) -->
+    <!-- Figure list -->
     @if (activeTab() === 'figures') {
       @if (loadingFigures()) {
         <div class="flex items-center justify-center py-8 gap-2 text-sm text-base-content/50">
@@ -77,58 +77,21 @@
           }
         </p>
       } @else {
-        <div class="max-h-80 overflow-y-auto flex flex-col gap-2" role="listbox" aria-label="Llista de figures">
-
-          <!-- Family groups -->
-          @for (group of familyGroups(); track group.familyId) {
-            <div>
-              <p class="text-xs font-semibold text-base-content/50 uppercase tracking-wide px-2 py-1 flex items-center gap-1">
-                <lucide-icon name="FolderOpen" [size]="11" aria-hidden="true" />
-                {{ group.familyName }}
-              </p>
-              <ul>
-                @for (variant of group.variants; track variant.id) {
-                  <li role="option" [attr.aria-selected]="false">
-                    <button
-                      type="button"
-                      class="w-full text-left btn btn-ghost btn-sm justify-start gap-2 h-auto py-2 pl-6"
-                      (click)="selectFigure(variant)"
-                    >
-                      <span class="badge badge-primary badge-xs font-mono shrink-0">#{{ variant.variantOrder }}</span>
-                      <span class="font-medium text-sm">{{ variant.name }}</span>
-                      <span class="text-xs text-base-content/40 ml-auto">{{ variant.nodeCount }} nodes</span>
-                    </button>
-                  </li>
-                }
-              </ul>
-            </div>
+        <ul class="space-y-1 max-h-80 overflow-y-auto" role="listbox" aria-label="Llista de figures">
+          @for (figure of filteredFigures(); track figure.id) {
+            <li role="option" [attr.aria-selected]="false">
+              <button
+                type="button"
+                class="w-full text-left btn btn-ghost btn-sm justify-start gap-2 h-auto py-2"
+                (click)="selectFigure(figure)"
+              >
+                <lucide-icon name="Hexagon" [size]="14" class="text-primary shrink-0" aria-hidden="true" />
+                <span class="font-medium text-sm">{{ figure.name }}</span>
+                <span class="text-xs text-base-content/40 ml-auto">{{ figure.nodeCount }} nodes</span>
+              </button>
+            </li>
           }
-
-          <!-- Legacy (no family) -->
-          @if (legacyFigures().length > 0) {
-            <div>
-              <p class="text-xs font-semibold text-base-content/50 uppercase tracking-wide px-2 py-1 flex items-center gap-1">
-                <lucide-icon name="Layers" [size]="11" aria-hidden="true" />
-                Altres (sense família)
-              </p>
-              <ul>
-                @for (figure of legacyFigures(); track figure.id) {
-                  <li role="option" [attr.aria-selected]="false">
-                    <button
-                      type="button"
-                      class="w-full text-left btn btn-ghost btn-sm justify-start gap-2 h-auto py-2"
-                      (click)="selectFigure(figure)"
-                    >
-                      <span class="font-medium text-sm">{{ figure.name }}</span>
-                      <span class="text-xs text-base-content/40 ml-auto">{{ figure.nodeCount }} nodes</span>
-                    </button>
-                  </li>
-                }
-              </ul>
-            </div>
-          }
-
-        </div>
+        </ul>
       }
     }
 

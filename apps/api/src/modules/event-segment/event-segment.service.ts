@@ -5,12 +5,34 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import { InstanceRef, SegmentDetail } from '@muixer/shared';
 import { EventSegment } from './entities/event-segment.entity';
 import { Event } from '../event/event.entity';
 import { CreateSegmentDto } from './dto/create-segment.dto';
 import { UpdateSegmentDto } from './dto/update-segment.dto';
 import { ReorderSegmentsDto } from './dto/reorder-segments.dto';
+
+export interface InstanceRef {
+  id: string;
+  label: string | null;
+  sortOrder: number;
+  snapshotted: boolean;
+  assignedCount: number;
+  numberOfCordons: number | null;
+  openCordons: string[] | null;
+  figureTemplate: { id: string; name: string } | null;
+  compositionTemplate: { id: string; name: string } | null;
+}
+
+export interface SegmentWithInstances {
+  id: string;
+  name: string | null;
+  sortOrder: number;
+  startTime: string | null;
+  endTime: string | null;
+  notes: string | null;
+  isVisible: boolean;
+  instances: InstanceRef[];
+}
 
 @Injectable()
 export class EventSegmentService {
@@ -22,7 +44,7 @@ export class EventSegmentService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async findAllByEvent(eventId: string): Promise<SegmentDetail[]> {
+  async findAllByEvent(eventId: string): Promise<SegmentWithInstances[]> {
     await this.assertEventExists(eventId);
 
     const segments = await this.segmentRepository
@@ -42,7 +64,7 @@ export class EventSegmentService {
     return segments.map((s) => toSegmentWithInstances(s, countMap));
   }
 
-  async create(eventId: string, dto: CreateSegmentDto): Promise<SegmentDetail> {
+  async create(eventId: string, dto: CreateSegmentDto): Promise<SegmentWithInstances> {
     const event = await this.assertEventExists(eventId);
 
     const maxOrder = await this.segmentRepository
@@ -67,7 +89,7 @@ export class EventSegmentService {
     return this.findOneById(saved.id);
   }
 
-  async update(eventId: string, segmentId: string, dto: UpdateSegmentDto): Promise<SegmentDetail> {
+  async update(eventId: string, segmentId: string, dto: UpdateSegmentDto): Promise<SegmentWithInstances> {
     const segment = await this.assertSegmentBelongsToEvent(eventId, segmentId);
 
     if (dto.name !== undefined) segment.name = dto.name;
@@ -94,19 +116,11 @@ export class EventSegmentService {
     });
 
     const existingIds = new Set(existing.map((s) => s.id));
-    const dtoIds = new Set(dto.segmentIds);
-
     const invalid = dto.segmentIds.filter((id) => !existingIds.has(id));
+
     if (invalid.length > 0) {
       throw new BadRequestException(
         `Segment IDs not found in event: ${invalid.join(', ')}`,
-      );
-    }
-
-    const missing = existing.filter((s) => !dtoIds.has(s.id)).map((s) => s.id);
-    if (missing.length > 0) {
-      throw new BadRequestException(
-        `Reorder must include all segments. Missing: ${missing.join(', ')}`,
       );
     }
 
@@ -140,7 +154,7 @@ export class EventSegmentService {
     return segment;
   }
 
-  private async findOneById(id: string): Promise<SegmentDetail> {
+  private async findOneById(id: string): Promise<SegmentWithInstances> {
     const segment = await this.segmentRepository
       .createQueryBuilder('segment')
       .leftJoinAndSelect('segment.instances', 'instance')
@@ -175,7 +189,7 @@ export class EventSegmentService {
   }
 }
 
-function toSegmentWithInstances(segment: EventSegment, countMap: Map<string, number>): SegmentDetail {
+function toSegmentWithInstances(segment: EventSegment, countMap: Map<string, number>): SegmentWithInstances {
   return {
     id: segment.id,
     name: segment.name,
@@ -184,12 +198,11 @@ function toSegmentWithInstances(segment: EventSegment, countMap: Map<string, num
     endTime: segment.endTime,
     notes: segment.notes,
     isVisible: segment.isVisible,
-    instances: (segment.instances ?? []).map<InstanceRef>((instance) => ({
+    instances: (segment.instances ?? []).map((instance) => ({
       id: instance.id,
       label: instance.label,
       sortOrder: instance.sortOrder,
       snapshotted: instance.snapshotted,
-      sourceVariantOrder: instance.sourceVariantOrder,
       assignedCount: countMap.get(instance.id) ?? 0,
       numberOfCordons: instance.numberOfCordons,
       openCordons: instance.openCordons,

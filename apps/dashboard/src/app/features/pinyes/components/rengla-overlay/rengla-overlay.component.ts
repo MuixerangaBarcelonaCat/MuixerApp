@@ -9,18 +9,18 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
-import { FigureNodeItem, RenglaItem } from '../../models/figure-template.model';
+import { FigureNodeItem, RenglaModel } from '../../models/figure-template.model';
 import { FigureZone } from '@muixer/shared';
 import { StageTransform, stageToScreen, isCentralNode } from '../../utils/rengla-coordinates.util';
 import { getRenglaColor } from '../../utils/rengla-colors';
 
 export interface RenglaCreatedEvent {
-  rengla: Omit<RenglaItem, 'id'>;
+  rengla: Omit<RenglaModel, 'id'>;
   nodeAssignments: { nodeId: string; renglaPosition: number }[];
 }
 
 export interface RenglaUpdatedEvent {
-  rengla: RenglaItem;
+  rengla: RenglaModel;
 }
 
 export interface RenglaDeletedEvent {
@@ -50,7 +50,7 @@ interface ScreenNode {
 })
 export class RenglaOverlayComponent {
   readonly nodes = input.required<FigureNodeItem[]>();
-  readonly rengles = input.required<RenglaItem[]>();
+  readonly rengles = input.required<RenglaModel[]>();
   readonly stageTransform = input<StageTransform>({ x: 0, y: 0, scaleX: 1, scaleY: 1 });
 
   readonly renglaCreated = output<RenglaCreatedEvent>();

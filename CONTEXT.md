@@ -107,7 +107,7 @@ MuixerApp/
 │   │           ├── person/           # CRUD persones
 │   │           ├── event/            # Events + Attendance
 │   │           ├── season/           # Temporades
-│   │           ├── figure/           # FigureFamily + FigureTemplate + FigureNode + FigureFamilyNode
+│   │           ├── figure/           # FigureTemplate + FigureNode + Rengla
 │   │           ├── composition/      # CompositionTemplate + CompositionSlot
 │   │           ├── event-segment/    # EventSegment + FigureInstance
 │   │           ├── node-assignment/  # NodeAssignment + InstanceNode + AvailablePersons
@@ -192,11 +192,7 @@ Season ──► Event ──► Attendance
                 │
                 └── ReferenceElement[] (P5.8.1)
 
-FigureFamily ──► FigureTemplate[] (variantOrder crescut)
-     │                │
-     │                └── FigureNode[] (zone: PINYA only, post-P5.7)
-     │
-     └── FigureFamilyNode[] (zone: TRONC/BASE, compartits per família, P5.7)
+FigureTemplate ──► FigureNode[] (PINYA, TRONC, BASE, directions)
 
 CompositionTemplate ──► CompositionSlot[] ──► FigureTemplate
 ```
@@ -212,10 +208,8 @@ CompositionTemplate ──► CompositionSlot[] ──► FigureTemplate
 | `seasons` | Season | P3 |
 | `events` | Event | P3 |
 | `attendances` | Attendance | P3 |
-| `figure_families` | FigureFamily | P5.5 |
 | `figure_templates` | FigureTemplate | P5.1 |
-| `figure_nodes` | FigureNode (PINYA only) | P5.1 / P5.7 |
-| `figure_family_nodes` | FigureFamilyNode (TRONC/BASE) | P5.7 |
+| `figure_nodes` | FigureNode (totes les zones) | P5.1 |
 | `composition_templates` | CompositionTemplate | P5.2 |
 | `composition_slots` | CompositionSlot | P5.2 |
 | `event_segments` | EventSegment | P5.3 |
@@ -228,30 +222,23 @@ CompositionTemplate ──► CompositionSlot[] ──► FigureTemplate
 
 #### FigureTemplate
 - `name`, `slug`, `hasPinya`, `direction`
-- `family` FK → FigureFamily (nullable, RESTRICT)
-- `variantOrder` (int) — posició dins la família
 
-#### FigureNode (PINYA only, post-P5.7)
+#### FigureNode
 - `zone`: `PINYA | TRONC | BASE | FIGURE_DIRECTION | XICALLA_DIRECTION`
 - `positionType`: `agulla | laterals | mans | vents | cordo-obert | crossa | contrafort | tap` (varchar lliure)
 - `ringLevel` (int, nullable) — anell concèntric (1 = primer cordó)
-- `originNodeId` (uuid nullable, no FK) — ancestre arrel dins la família
-- `x`, `y` (pixels, per Konva)
-
-#### FigureFamilyNode (TRONC/BASE, P5.7)
-- `zone`: `TRONC | BASE` únicament
-- `x`, `width` (unitats relatives 0–8u, steps 0.5)
-- `z` (int) — pis (P1=0 per BASE, P2+=1+ per TRONC)
-- No té `originNodeId` (és l'origen)
+- `renglaId`, `renglaPosition` — pertinença a rengla (P5.11)
+- `originNodeId` (uuid nullable, no FK) — llinatge opcional en duplicacions/derivacions
+- `x`, `y` (pixels per PINYA; unitats relatives per TRONC/BASE)
 
 #### FigureInstance
 - `figureTemplate` FK (o `compositionTemplate` — XOR)
 - `snapshotted` (boolean) — indica si els nodes ja s'han copiat
-- `sourceVariantOrder` (int, nullable) — variant en el moment del snapshot
+- `numberOfCordons`, `openCordons` — selector de cordons visible (P5.11)
 - `projectionX`, `projectionY` (float, nullable), `projectionScale` (float, default 1.0) — P5.8.1
 
 #### InstanceNode
-- Còpia immutable de FigureNode/FigureFamilyNode
+- Còpia immutable de FigureNode
 - `sourceNodeId` (uuid, no FK) — ID del FigureNode original
 - `originNodeId` (uuid, no FK) — copiat de FigureNode.originNodeId
 
@@ -335,24 +322,14 @@ CompositionTemplate ──► CompositionSlot[] ──► FigureTemplate
 | GET | `/sync/events` | SSE — sincronitza events i assistència |
 | GET | `/sync/all` | SSE — sincronització completa (persons → events → attendance) |
 
-### Figure Families (`/api/figure-families`)
-
-| Mètode | Ruta | Descripció |
-|--------|------|-----------|
-| GET | `/figure-families` | Llistar (search, page, limit) amb variantCount |
-| GET | `/figure-families/:id` | Detall amb variants |
-| POST | `/figure-families` | Crear família |
-| PUT | `/figure-families/:id` | Actualitzar metadades |
-| DELETE | `/figure-families/:id` | Eliminar (409 si té templates) |
-
 ### Figure Templates (`/api/figure-templates`)
 
 | Mètode | Ruta | Descripció |
 |--------|------|-----------|
-| GET | `/figure-templates` | Llistar (familyId, search, hasPinya, page, limit) |
-| GET | `/figure-templates/:id` | Detall amb nodes (merge PINYA + FamilyNodes TRONC/BASE) |
-| POST | `/figure-templates` | Crear (familyId opcional, variantOrder) |
-| PUT | `/figure-templates/:id` | Actualitzar + upsert nodes (split PINYA/TRONC transparent) |
+| GET | `/figure-templates` | Llistar (search, hasPinya, page, limit) |
+| GET | `/figure-templates/:id` | Detall amb nodes |
+| POST | `/figure-templates` | Crear |
+| PUT | `/figure-templates/:id` | Actualitzar + upsert nodes |
 | DELETE | `/figure-templates/:id` | Eliminar (409 si té instàncies o slots) |
 | POST | `/figure-templates/:id/duplicate` | Duplicar template |
 
@@ -393,7 +370,6 @@ CompositionTemplate ──► CompositionSlot[] ──► FigureTemplate
 | POST | `/node-assignments/instances/:id/assign` | Assignar persona a node (auto-snapshot en primera crida) |
 | DELETE | `/node-assignments/instances/:id/unassign/:nodeId` | Desassignar |
 | POST | `/node-assignments/instances/:id/swap` | Intercanviar dues assignacions |
-| POST | `/node-assignments/instances/:id/upgrade` | Afegir cordó (variant superior) |
 | GET | `/node-assignments/instances/:id/history` | Historial d'assignacions per importar |
 | POST | `/node-assignments/instances/:id/bulk-import` | Import massiu des d'instància anterior |
 | GET | `/node-assignments/available-persons` | Persones filtrades i ordenades per alçada (search, height±2, isXicalla, excludeAssigned) |
@@ -479,12 +455,11 @@ Veure secció 8 per a la documentació completa del mòdul.
 
 | Concepte | Descripció |
 |----------|-----------|
-| **FigureFamily** | Agrupa templates (variants) de la mateixa figura. Ex: "Pilar de 4" amb 1C, 2C, 3C |
-| **FigureTemplate** | Blueprint reutilitzable. Conté nodes PINYA i referència a la família per TRONC/BASE |
-| **FigureNode** | Posicions PINYA dins d'un template. `ringLevel`, `originNodeId` per llinatge |
-| **FigureFamilyNode** | Nodes TRONC/BASE compartits per tota la família (P5.7) |
+| **FigureTemplate** | Blueprint reutilitzable. Conté tots els nodes (PINYA, TRONC, BASE) |
+| **FigureNode** | Posició dins d'un template. `ringLevel`, `renglaId`/`renglaPosition`, `originNodeId` opcional |
+| **Rengla** | Seqüència radial de nodes de pinya per cordó (P5.11) |
 | **FigureInstance** | Presència concreta d'un template en un segment. Lleugera fins la primera assignació |
-| **InstanceNode** | Còpia immutable de FigureNode/FamilyNode. Creada al primer assign (lazy snapshot) |
+| **InstanceNode** | Còpia immutable de FigureNode. Creada al primer assign (lazy snapshot) |
 | **NodeAssignment** | Persona → InstanceNode. **Sempre a InstanceNode, mai a FigureNode** |
 | **EventSegment** | Bloc temporal d'un event (ex: "Bloc 1", "Escalfament") |
 
@@ -496,18 +471,17 @@ Veure secció 8 per a la documentació completa del mòdul.
    → Canvas llegeix els FigureNodes vius del template
 
 2. Primera assignació → SNAPSHOT AUTOMÀTIC en transacció:
-   a. Copia tots els FigureNodes + FamilyNodes → InstanceNodes
-   b. snapshotted = true, sourceVariantOrder = template.variantOrder
+   a. Copia tots els FigureNodes → InstanceNodes
+   b. snapshotted = true
    c. Crea NodeAssignment → InstanceNode (matching per sourceNodeId)
 
 3. Post-snapshot:
    Canvas llegeix InstanceNodes (immutables)
    Canvis al template NO afecten la instància
 
-4. Upgrade de cordó:
-   POST /instances/:id/upgrade
-   Afegeix InstanceNodes nous (variant N+1) sense tocar els existents
-   15 assignats → 15 assignats + 8 nous buits
+4. Selector de cordons (P5.11):
+   PATCH /figure-instances/:id/cordons
+   Filtra nodes visibles per numberOfCordons / openCordons (reversible)
 
 5. Eliminació:
    CASCADE: FigureInstance → InstanceNodes + NodeAssignments
@@ -518,7 +492,7 @@ Veure secció 8 per a la documentació completa del mòdul.
 ```
 apps/dashboard/src/app/features/pinyes/
 ├── components/
-│   ├── template-list/         # Tab Famílies + Figures + Composicions
+│   ├── template-list/         # Tab Figures + Composicions
 │   ├── template-editor/       # Ruta /pinyes/templates/:id/edit
 │   │                          # Konva canvas (pinya) + TroncView floating panel
 │   ├── figure-canvas/         # Canvas Konva reutilitzable (modes: editor|assignment|readonly|composition)
@@ -535,7 +509,6 @@ apps/dashboard/src/app/features/pinyes/
 │   └── pinyes-onboarding-modal/
 ├── services/
 │   ├── figure-template.service.ts
-│   ├── figure-family.service.ts
 │   ├── node-assignment.service.ts
 │   ├── assignment-state.service.ts   # Signals globals del canvas
 │   ├── event-segment.service.ts
@@ -590,27 +563,11 @@ totalConfirmedCount: computed<number>
 
 1. `NodeAssignment` apunta **sempre** a `InstanceNode`, mai a `FigureNode`
 2. Un cop `snapshotted = true`, els `InstanceNode` NO es modifiquen per canvis al template
-3. Dins una família, `originNodeId` sempre apunta a l'ancestre arrel (no l'immediat anterior)
-4. Templates d'una família: `variantOrder` estrictament creixent; upgrade sempre a `variantOrder + 1`
-5. `FigureInstance` té exactament `figureTemplate` **o** `compositionTemplate` (XOR)
-6. Una persona NO pot aparèixer en dues `NodeAssignment` del **mateix segment**
-7. Nodes TRONC/BASE existeixen **únicament** a `FigureFamilyNode` (no a `FigureNode`, post-P5.7)
-8. Per nodes TRONC/BASE: `x` i `width` = unitats relatives. Per nodes PINYA: pixels (Konva)
-9. `FigureNode.id` és **estable entre saves** (upsert per ID, no delete+recreate)
-
-### Merge/Split transparent (P5.7)
-
-```
-GET /figure-templates/:id
-  Backend: FigureNodes (PINYA) + FigureFamilyNodes (TRONC/BASE) → merged response
-  Frontend: rep tots els nodes junts (FamilyNodes marcats isShared:true)
-
-PUT /figure-templates/:id
-  Frontend: envia tots els nodes junts
-  Backend: separa per zone:
-    PINYA → syncTemplateLevelNodes() → figure_nodes
-    TRONC/BASE → syncFamilyNodes() → figure_family_nodes (actualitza TOTES les variants)
-```
+3. `FigureInstance` té exactament `figureTemplate` **o** `compositionTemplate` (XOR)
+4. Una persona NO pot aparèixer en dues `NodeAssignment` del **mateix segment**
+5. Tots els nodes (PINYA, TRONC, BASE) viuen a `figure_nodes` per template
+6. Per nodes TRONC/BASE: `x` i `width` = unitats relatives. Per nodes PINYA: pixels (Konva)
+7. `FigureNode.id` és **estable entre saves** (upsert per ID, no delete+recreate)
 
 ---
 
@@ -722,9 +679,9 @@ Brainstorming → Spec (docs/specs/YYYY-MM-DD-<topic>-design.md)
 - `AuthModule`: login, refresh, logout, guards
 - `SeasonService`, `EventService`, `AttendanceService`, `EventController`
 - `Sync`: `PersonSyncStrategy`, `EventSyncStrategy`, `AttendanceSyncStrategy`
-- `FigureTemplate`: CRUD, upsert nodes, merge/split (P5.7), deriveNodes, duplicate
+- `FigureTemplate`: CRUD, upsert nodes, duplicate
 - `CompositionTemplate`, `EventSegmentService`, `FigureInstanceService`
-- `NodeAssignmentService`: assign, unassign, swap, upgrade, bulkImport, snapshot
+- `NodeAssignmentService`: assign, unassign, swap, bulkImport, snapshot
 - `AvailablePersonsService`: filtres, proximity sort per alçada
 
 ### Cobertura frontend destacada
@@ -769,7 +726,6 @@ nx serve dashboard                   # http://localhost:4200
 
 # Migracions i seeds
 nx run api:seed-seasons              # Importar temporades
-nx run api:migrate-tronc-to-family   # P5.7: Migrar TRONC/BASE a FigureFamilyNode
 nx run api:migrate-tronc-units       # P5.6: Actualitzar unitats relatives TRONC/BASE
 nx run api:reset-figure-data         # Neteja dev: esborrar instàncies/nodes/assignacions + re-seed
 

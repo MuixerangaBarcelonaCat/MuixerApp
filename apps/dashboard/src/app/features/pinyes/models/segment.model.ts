@@ -1,4 +1,28 @@
-export type { InstanceRef, SegmentDetail } from '@muixer/shared';
+export interface InstanceDetail {
+  id: string;
+  label: string | null;
+  sortOrder: number;
+  snapshotted: boolean;
+  assignedCount: number;
+  numberOfCordons: number | null;
+  openCordons: string[] | null;
+  projectionX: number | null;
+  projectionY: number | null;
+  projectionScale: number;
+  figureTemplate: { id: string; name: string } | null;
+  compositionTemplate: { id: string; name: string } | null;
+}
+
+export interface SegmentDetail {
+  id: string;
+  name: string | null;
+  sortOrder: number;
+  startTime: string | null;
+  endTime: string | null;
+  notes: string | null;
+  isVisible: boolean;
+  instances: InstanceDetail[];
+}
 
 export interface CreateSegmentPayload {
   name?: string;
@@ -21,3 +45,7 @@ export interface CreateInstancePayload {
   label?: string;
 }
 
+export interface UpdateInstancePayload {
+  label?: string | null;
+  sortOrder?: number;
+}

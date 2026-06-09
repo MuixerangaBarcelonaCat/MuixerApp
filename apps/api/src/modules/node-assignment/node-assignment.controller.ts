@@ -15,8 +15,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '@muixer/shared';
 import { NodeAssignmentService } from './node-assignment.service';
-import { AvailablePersonsService } from './available-persons.service';
-import { AvailablePersonsQueryDto } from './dto/available-persons-query.dto';
+import { AvailablePersonsService, AvailablePersonsQuery } from './available-persons.service';
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
 import { BulkImportAssignmentDto } from './dto/bulk-import-assignment.dto';
 import { SwapAssignmentsDto } from './dto/swap-assignments.dto';
@@ -94,6 +93,7 @@ export class NodeAssignmentController {
     return this.assignmentService.updateCordons(instanceId, dto);
   }
 
+
   @ApiOperation({ summary: 'Reset snapshot: remove all assignments and instance nodes, revert to live template' })
   @Post('figure-instances/:instanceId/reset')
   resetSnapshot(@Param('instanceId', ParseUUIDPipe) instanceId: string) {
@@ -105,7 +105,7 @@ export class NodeAssignmentController {
   async getAvailablePersons(
     @Param('eventId', ParseUUIDPipe) eventId: string,
     @Param('segmentId', ParseUUIDPipe) segmentId: string,
-    @Query() query: AvailablePersonsQueryDto,
+    @Query() query: AvailablePersonsQuery,
   ) {
     const data = await this.availablePersonsService.getAvailablePersons(eventId, segmentId, query);
     return { data };
@@ -147,12 +147,4 @@ export class NodeAssignmentController {
     return this.assignmentService.getEventAssignmentSummary(eventId);
   }
 
-  @ApiOperation({ summary: 'Get assignment history for all variants in a figure family' })
-  @Get('figure-families/:familyId/history')
-  getFamilyHistory(
-    @Param('familyId', ParseUUIDPipe) familyId: string,
-    @Query() query: HistoryQueryDto,
-  ) {
-    return this.assignmentService.getFamilyHistory(familyId, query);
-  }
 }

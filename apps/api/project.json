@@ -101,13 +101,6 @@
         "cwd": "."
       }
     },
-    "migrate-tronc-to-family": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "TS_NODE_PROJECT=tsconfig.base.json ts-node --compilerOptions '{\"module\":\"commonjs\",\"target\":\"es2021\",\"moduleResolution\":\"node\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true}' --transpileOnly -r tsconfig-paths/register apps/api/src/modules/database/scripts/migrate-tronc-to-family.script.ts",
-        "cwd": "."
-      }
-    },
     "seed-figures-pd4": {
       "executor": "nx:run-commands",
       "options": {

@@ -4,7 +4,6 @@ import {
   LUCIDE_ICONS, LucideIconProvider,
   ArrowDownUp, ArrowUpDown, Plus, Trash2, X,
 } from 'lucide-angular';
-import { FigureZone } from '@muixer/shared';
 import { TroncViewComponent, TroncNodeItem } from './tronc-view.component';
 import { AssignmentDetail } from '../../models/assignment.model';
 
@@ -44,7 +43,7 @@ function makeAssignment(nodeId: string, alias: string, shoulderHeight: number | 
     node: {
       id: nodeId,
       label: 'Node',
-      zone: FigureZone.TRONC,
+      zone: 'TRONC',
       z: 1,
       positionType: 'segon',
       sortOrder: 0,
