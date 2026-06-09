@@ -2,32 +2,16 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsArray,
   IsBoolean,
-  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
-  IsUUID,
-  Min,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { CreateFigureNodeDto } from './create-figure-node.dto';
 
 export class CreateFigureTemplateDto {
-  @ApiProperty({ description: 'UUID of the FigureFamily this template belongs to' })
-  @IsUUID()
-  @IsNotEmpty()
-  familyId: string;
-
-  @ApiPropertyOptional({
-    description: 'Position within the family (1 = smallest variant). Defaults to max + 1.',
-  })
-  @IsInt()
-  @Min(1)
-  @IsOptional()
-  variantOrder?: number;
-
   @ApiProperty({ description: 'Unique human-readable name, e.g. "Pinet Doble de 4 — 2C"' })
   @IsString()
   @IsNotEmpty()

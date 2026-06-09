@@ -6,11 +6,8 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
-import { FigureZone } from '@muixer/shared';
-import { FigureFamily } from './entities/figure-family.entity';
 import { FigureTemplate } from './entities/figure-template.entity';
 import { FigureNode } from './entities/figure-node.entity';
-import { FigureFamilyNode } from './entities/figure-family-node.entity';
 import { Rengla } from './entities/rengla.entity';
 import { CompositionSlot } from '../composition/entities/composition-slot.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
@@ -19,8 +16,6 @@ import { UpdateFigureTemplateDto } from './dto/update-figure-template.dto';
 import { FigureTemplateFilterDto } from './dto/figure-template-filter.dto';
 import { CreateFigureNodeDto } from './dto/create-figure-node.dto';
 import { CreateRenglaDto } from './dto/create-rengla.dto';
-
-const FAMILY_ZONES = new Set<string>([FigureZone.TRONC, FigureZone.BASE]);
 
 // ─── Response interfaces ────────────────────────────────────────────────────
 
@@ -61,9 +56,6 @@ export interface FigureTemplateListItem {
   description: string | null;
   hasPinya: boolean;
   direction: number;
-  variantOrder: number;
-  familyId: string | null;
-  familyName: string | null;
   nodeCount: number;
   renglaCount: number;
   createdAt: Date;
@@ -81,14 +73,10 @@ export interface FigureTemplateDetailItem extends FigureTemplateListItem {
 @Injectable()
 export class FigureTemplateService {
   constructor(
-    @InjectRepository(FigureFamily)
-    private readonly familyRepository: Repository<FigureFamily>,
     @InjectRepository(FigureTemplate)
     private readonly templateRepository: Repository<FigureTemplate>,
     @InjectRepository(FigureNode)
     private readonly nodeRepository: Repository<FigureNode>,
-    @InjectRepository(FigureFamilyNode)
-    private readonly familyNodeRepository: Repository<FigureFamilyNode>,
     @InjectRepository(Rengla)
     private readonly renglaRepository: Repository<Rengla>,
     @InjectRepository(CompositionSlot)
@@ -100,11 +88,10 @@ export class FigureTemplateService {
   async findAll(
     filters: FigureTemplateFilterDto,
   ): Promise<{ data: FigureTemplateListItem[]; total: number }> {
-    const { search, hasPinya, familyId, page = 1, limit = 25 } = filters;
+    const { search, hasPinya, page = 1, limit = 25 } = filters;
 
     const qb = this.templateRepository
       .createQueryBuilder('template')
-      .leftJoinAndSelect('template.family', 'family')
       .loadRelationCountAndMap('template.nodeCount', 'template.nodes')
       .loadRelationCountAndMap('template.renglaCount', 'template.rengles');
 
@@ -117,10 +104,6 @@ export class FigureTemplateService {
 
     if (hasPinya !== undefined) {
       qb.andWhere('template.hasPinya = :hasPinya', { hasPinya });
-    }
-
-    if (familyId !== undefined) {
-      qb.andWhere('family.id = :familyId', { familyId });
     }
 
     const total = await qb.getCount();
@@ -137,31 +120,20 @@ export class FigureTemplateService {
   async findOne(id: string): Promise<FigureTemplateDetailItem> {
     const template = await this.templateRepository.findOne({
       where: { id },
-      relations: ['nodes', 'family', 'rengles'],
+      relations: ['nodes', 'rengles'],
     });
 
     if (!template) {
       throw new NotFoundException(`FigureTemplate with ID ${id} not found`);
     }
 
-    const familyNodes = await this.loadFamilyNodes(template.family?.id);
-
-    return toDetailItem(template, familyNodes);
+    return toDetailItem(template);
   }
 
   async create(dto: CreateFigureTemplateDto): Promise<FigureTemplateDetailItem> {
-    const family = await this.familyRepository.findOne({ where: { id: dto.familyId } });
-    if (!family) {
-      throw new NotFoundException(`FigureFamily with ID ${dto.familyId} not found`);
-    }
-
     await this.assertSlugAvailable(dto.slug);
 
-    const variantOrder = dto.variantOrder ?? (await this.nextVariantOrder(family.id));
-
     const template = this.templateRepository.create({
-      family,
-      variantOrder,
       name: dto.name,
       slug: dto.slug,
       description: dto.description ?? null,
@@ -178,21 +150,7 @@ export class FigureTemplateService {
     }
 
     if (dto.nodes && dto.nodes.length > 0) {
-      const familyDtos = dto.nodes.filter((n) => FAMILY_ZONES.has(n.zone));
-      const templateDtos = dto.nodes.filter((n) => !FAMILY_ZONES.has(n.zone));
-
-      if (templateDtos.length > 0) {
-        await this.createNodes(saved!, templateDtos);
-      }
-
-      if (familyDtos.length > 0) {
-        const existingCount = await this.familyNodeRepository.count({
-          where: { family: { id: family.id } },
-        });
-        if (existingCount === 0) {
-          await this.createFamilyNodes(family, familyDtos);
-        }
-      }
+      await this.createNodes(saved!, dto.nodes);
     }
 
     return this.findOne(saved!.id);
@@ -201,7 +159,7 @@ export class FigureTemplateService {
   async update(id: string, dto: UpdateFigureTemplateDto): Promise<FigureTemplateDetailItem> {
     const template = await this.templateRepository.findOne({
       where: { id },
-      relations: ['nodes', 'family'],
+      relations: ['nodes'],
     });
 
     if (!template) {
@@ -216,7 +174,6 @@ export class FigureTemplateService {
     if (dto.description !== undefined) template.description = dto.description ?? null;
     if (dto.hasPinya !== undefined) template.hasPinya = dto.hasPinya;
     if (dto.direction !== undefined) template.direction = dto.direction;
-    if (dto.variantOrder !== undefined) template.variantOrder = dto.variantOrder;
     if (dto.metadata !== undefined) template.metadata = dto.metadata ?? {};
 
     try {
@@ -269,20 +226,14 @@ export class FigureTemplateService {
   async duplicate(id: string): Promise<FigureTemplateDetailItem> {
     const original = await this.templateRepository.findOne({
       where: { id },
-      relations: ['nodes', 'family'],
+      relations: ['nodes'],
     });
 
     if (!original) {
       throw new NotFoundException(`FigureTemplate with ID ${id} not found`);
     }
 
-    const variantOrder = original.family
-      ? await this.nextVariantOrder(original.family.id)
-      : original.variantOrder + 1;
-
     const copy = this.templateRepository.create({
-      family: original.family,
-      variantOrder,
       name: `${original.name} (còpia)`,
       slug: `${original.slug}-copia-${Date.now()}`,
       description: original.description,
@@ -293,33 +244,15 @@ export class FigureTemplateService {
 
     const savedCopy = await this.templateRepository.save(copy);
 
-    // Only copy PINYA/direction nodes — TRONC/BASE are shared at family level
-    const pinyaNodes = (original.nodes ?? []).filter((n) => !FAMILY_ZONES.has(n.zone));
-    if (pinyaNodes.length > 0) {
-      await this.createNodes(savedCopy, pinyaNodes.map(nodeToCreateDto));
+    const allNodes = original.nodes ?? [];
+    if (allNodes.length > 0) {
+      await this.createNodes(savedCopy, allNodes.map(nodeToCreateDto));
     }
 
     return this.findOne(savedCopy.id);
   }
 
   // ─── Private helpers ────────────────────────────────────────────────────────
-
-  private async loadFamilyNodes(familyId?: string): Promise<FigureFamilyNode[]> {
-    if (!familyId) return [];
-    return this.familyNodeRepository.find({
-      where: { family: { id: familyId } },
-      order: { z: 'ASC', sortOrder: 'ASC' },
-    });
-  }
-
-  private async nextVariantOrder(familyId: string): Promise<number> {
-    const result = await this.templateRepository
-      .createQueryBuilder('t')
-      .select('MAX(t.variantOrder)', 'max')
-      .where('t.familyId = :familyId', { familyId })
-      .getRawOne<{ max: number | null }>();
-    return (result?.max ?? 0) + 1;
-  }
 
   private async assertSlugAvailable(slug: string, excludeId?: string): Promise<void> {
     const existing = await this.templateRepository.findOne({ where: { slug } });
@@ -369,57 +302,12 @@ export class FigureTemplateService {
     await this.nodeRepository.save(nodes);
   }
 
-  private async createFamilyNodes(
-    family: FigureFamily,
-    dtos: CreateFigureNodeDto[],
-  ): Promise<void> {
-    const nodes = dtos.map((dto) =>
-      this.familyNodeRepository.create({
-        family,
-        label: dto.label,
-        zone: dto.zone,
-        positionType: dto.positionType ?? null,
-        x: dto.x,
-        y: dto.y,
-        z: dto.z ?? 0,
-        width: dto.width,
-        height: dto.height,
-        rotation: dto.rotation ?? 0,
-        color: dto.color ?? null,
-        shape: dto.shape,
-        sortOrder: dto.sortOrder ?? 0,
-        climbPath: dto.climbPath ?? null,
-        ringLevel: dto.ringLevel ?? null,
-        metadata: dto.metadata ?? {},
-      }),
-    );
-    await this.familyNodeRepository.save(nodes);
-  }
-
   /**
-   * Orchestrates node sync: routes TRONC/BASE to figure_family_nodes,
-   * everything else stays in figure_nodes (template level).
-   */
-  private async syncNodes(
-    template: FigureTemplate,
-    incomingDtos: CreateFigureNodeDto[],
-  ): Promise<void> {
-    const familyDtos = incomingDtos.filter((dto) => FAMILY_ZONES.has(dto.zone));
-    const templateDtos = incomingDtos.filter((dto) => !FAMILY_ZONES.has(dto.zone));
-
-    await this.syncTemplateLevelNodes(template, templateDtos);
-
-    if (template.family) {
-      await this.syncFamilyNodes(template.family, familyDtos);
-    }
-  }
-
-  /**
-   * Upsert strategy for template-level (PINYA/direction) nodes.
+   * Upsert strategy for all nodes (PINYA, TRONC, BASE — all in figure_nodes now).
    * Nodes with matching IDs are updated, unknown IDs create new nodes,
    * existing nodes absent from the incoming list are deleted.
    */
-  private async syncTemplateLevelNodes(
+  private async syncNodes(
     template: FigureTemplate,
     incomingDtos: CreateFigureNodeDto[],
   ): Promise<void> {
@@ -465,57 +353,6 @@ export class FigureTemplateService {
     if (toUpdate.length > 0) await this.nodeRepository.save(toUpdate);
     if (toCreate.length > 0) await this.createNodes(template, toCreate);
     if (toDeleteIds.length > 0) await this.nodeRepository.delete({ id: In(toDeleteIds) });
-  }
-
-  /**
-   * Upsert strategy for family-level (TRONC/BASE) nodes.
-   * Shared across all variants of the family.
-   */
-  private async syncFamilyNodes(
-    family: FigureFamily,
-    incomingDtos: CreateFigureNodeDto[],
-  ): Promise<void> {
-    const existingNodes = await this.familyNodeRepository.find({
-      where: { family: { id: family.id } },
-    });
-    const existingById = new Map(existingNodes.map((n) => [n.id, n]));
-
-    const toUpdate: FigureFamilyNode[] = [];
-    const toCreate: CreateFigureNodeDto[] = [];
-    const incomingIds = new Set<string>();
-
-    for (const dto of incomingDtos) {
-      if (dto.id && existingById.has(dto.id)) {
-        const node = existingById.get(dto.id)!;
-        node.label = dto.label;
-        node.zone = dto.zone;
-        node.positionType = dto.positionType ?? null;
-        node.x = dto.x;
-        node.y = dto.y;
-        node.z = dto.z ?? 0;
-        node.width = dto.width;
-        node.height = dto.height;
-        node.rotation = dto.rotation ?? 0;
-        node.color = dto.color ?? null;
-        node.shape = dto.shape;
-        node.sortOrder = dto.sortOrder ?? 0;
-        node.climbPath = dto.climbPath ?? null;
-        node.ringLevel = dto.ringLevel ?? null;
-        node.metadata = dto.metadata ?? {};
-        toUpdate.push(node);
-        incomingIds.add(dto.id);
-      } else {
-        toCreate.push(dto);
-      }
-    }
-
-    const toDeleteIds = existingNodes
-      .filter((n) => !incomingIds.has(n.id))
-      .map((n) => n.id);
-
-    if (toUpdate.length > 0) await this.familyNodeRepository.save(toUpdate);
-    if (toCreate.length > 0) await this.createFamilyNodes(family, toCreate);
-    if (toDeleteIds.length > 0) await this.familyNodeRepository.delete({ id: In(toDeleteIds) });
   }
 
   /**
@@ -605,7 +442,7 @@ function nodeToCreateDto(node: FigureNode): CreateFigureNodeDto {
   };
 }
 
-function templateNodeToItem(node: FigureNode): FigureNodeItem {
+function nodeToItem(node: FigureNode): FigureNodeItem {
   return {
     id: node.id,
     label: node.label,
@@ -623,30 +460,6 @@ function templateNodeToItem(node: FigureNode): FigureNodeItem {
     climbPath: node.climbPath,
     ringLevel: node.ringLevel,
     originNodeId: node.originNodeId,
-    renglaId: node.renglaId,
-    renglaPosition: node.renglaPosition,
-    metadata: node.metadata,
-  };
-}
-
-function familyNodeToItem(node: FigureFamilyNode): FigureNodeItem {
-  return {
-    id: node.id,
-    label: node.label,
-    zone: node.zone,
-    positionType: node.positionType,
-    x: node.x,
-    y: node.y,
-    z: node.z,
-    width: node.width,
-    height: node.height,
-    rotation: node.rotation,
-    color: node.color,
-    shape: node.shape,
-    sortOrder: node.sortOrder,
-    climbPath: node.climbPath,
-    ringLevel: node.ringLevel,
-    originNodeId: null,
     renglaId: node.renglaId,
     renglaPosition: node.renglaPosition,
     metadata: node.metadata,
@@ -674,9 +487,6 @@ function toListItem(
     description: template.description,
     hasPinya: template.hasPinya,
     direction: template.direction,
-    variantOrder: template.variantOrder,
-    familyId: template.family?.id ?? null,
-    familyName: template.family?.name ?? null,
     nodeCount: t.nodeCount ?? 0,
     renglaCount: t.renglaCount ?? 0,
     createdAt: template.createdAt,
@@ -684,17 +494,11 @@ function toListItem(
   };
 }
 
-function toDetailItem(
-  template: FigureTemplate,
-  familyNodes: FigureFamilyNode[] = [],
-): FigureTemplateDetailItem {
+function toDetailItem(template: FigureTemplate): FigureTemplateDetailItem {
   return {
     ...toListItem(template),
     metadata: template.metadata,
-    nodes: [
-      ...(template.nodes ?? []).map(templateNodeToItem),
-      ...familyNodes.map(familyNodeToItem),
-    ],
+    nodes: (template.nodes ?? []).map(nodeToItem),
     rengles: (template.rengles ?? []).map(renglaToItem),
   };
 }

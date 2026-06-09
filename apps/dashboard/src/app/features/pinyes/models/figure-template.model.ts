@@ -37,9 +37,6 @@ export interface FigureTemplateListItem {
   description: string | null;
   hasPinya: boolean;
   direction: number;
-  variantOrder: number;
-  familyId: string | null;
-  familyName: string | null;
   nodeCount: number;
   renglaCount: number;
   createdAt: string;
@@ -55,7 +52,6 @@ export interface FigureTemplateDetail extends FigureTemplateListItem {
 export interface FigureTemplateFilterParams {
   search?: string;
   hasPinya?: boolean;
-  familyId?: string;
   page?: number;
   limit?: number;
 }

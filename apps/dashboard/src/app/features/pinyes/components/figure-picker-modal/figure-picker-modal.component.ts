@@ -71,12 +71,11 @@ export class FigurePickerModalComponent implements OnInit {
       .filter((g) => g.variants.length > 0);
   });
 
-  // Legacy (no-family) figures filtered by search
   readonly legacyFigures = computed<FigureTemplateListItem[]>(() => {
     const q = this.search().toLowerCase();
-    const noFamily = this.figures().filter((f) => !f.familyId);
-    if (!q) return noFamily;
-    return noFamily.filter((f) => f.name.toLowerCase().includes(q));
+    const all = this.figures();
+    if (!q) return all;
+    return all.filter((f) => f.name.toLowerCase().includes(q));
   });
 
   readonly filteredCompositions = computed(() => {

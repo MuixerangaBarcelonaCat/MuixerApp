@@ -563,9 +563,8 @@ export class TemplateListComponent implements OnInit {
     };
     this.figureTemplateService.getAll(filters).subscribe({
       next: (resp) => {
-        // Show only templates without a family (legacy data)
-        this.templates.set(resp.data.filter((t) => !t.familyId));
-        this.total.set(resp.data.filter((t) => !t.familyId).length);
+        this.templates.set(resp.data);
+        this.total.set(resp.data.length);
         this.loading.set(false);
       },
       error: () => this.loading.set(false),

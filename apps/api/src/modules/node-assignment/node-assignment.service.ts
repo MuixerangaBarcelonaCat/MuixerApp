@@ -12,8 +12,6 @@ import { NodeAssignment } from './entities/node-assignment.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
 import { InstanceNode } from '../event-segment/entities/instance-node.entity';
 import { FigureNode } from '../figure/entities/figure-node.entity';
-import { FigureFamilyNode } from '../figure/entities/figure-family-node.entity';
-import { FigureFamily } from '../figure/entities/figure-family.entity';
 import { Person } from '../person/person.entity';
 import { CompositionSlot } from '../composition/entities/composition-slot.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
@@ -239,29 +237,6 @@ function figureNodeToResponse(node: FigureNode): InstanceNodeResponse {
   };
 }
 
-function familyNodeToResponse(node: FigureFamilyNode): InstanceNodeResponse {
-  return {
-    id: node.id,
-    sourceNodeId: null,
-    originNodeId: null,
-    label: node.label,
-    zone: node.zone,
-    positionType: node.positionType,
-    x: node.x,
-    y: node.y,
-    z: node.z,
-    width: node.width,
-    height: node.height,
-    rotation: node.rotation,
-    color: node.color,
-    shape: node.shape,
-    sortOrder: node.sortOrder,
-    ringLevel: node.ringLevel,
-    renglaId: node.renglaId,
-    renglaPosition: node.renglaPosition,
-    isSnapshotted: false,
-  };
-}
 
 export function isNodeVisible(
   node: { renglaId: string | null; renglaPosition: number | null; positionType: string | null },
@@ -288,10 +263,6 @@ export class NodeAssignmentService {
     private readonly instanceNodeRepository: Repository<InstanceNode>,
     @InjectRepository(FigureNode)
     private readonly figureNodeRepository: Repository<FigureNode>,
-    @InjectRepository(FigureFamilyNode)
-    private readonly familyNodeRepository: Repository<FigureFamilyNode>,
-    @InjectRepository(FigureFamily)
-    private readonly figureFamilyRepository: Repository<FigureFamily>,
     @InjectRepository(Person)
     private readonly personRepository: Repository<Person>,
     @InjectRepository(CompositionSlot)
@@ -331,21 +302,12 @@ export class NodeAssignmentService {
 
       const template = await this.figureTemplateRepository.findOne({
         where: { id: instance.figureTemplate.id },
-        relations: ['nodes', 'family'],
+        relations: ['nodes'],
       });
 
-      const templateNodes = (template?.nodes ?? [])
+      allNodes = (template?.nodes ?? [])
         .sort((a, b) => a.sortOrder - b.sortOrder)
         .map(figureNodeToResponse);
-
-      const familyNodes = template?.family
-        ? await this.familyNodeRepository.find({
-            where: { family: { id: template.family.id } },
-            order: { z: 'ASC', sortOrder: 'ASC' },
-          })
-        : [];
-
-      allNodes = [...templateNodes, ...familyNodes.map(familyNodeToResponse)];
     }
 
     if (instance.numberOfCordons !== null || (instance.openCordons && instance.openCordons.length > 0)) {
@@ -640,7 +602,6 @@ export class NodeAssignmentService {
       .take(limit)
       .getMany();
 
-    const familyName = template.family?.name ?? null;
     const data = instances.map((instance) => {
       const event = instance.segment.event as Event;
       return {
@@ -648,7 +609,7 @@ export class NodeAssignmentService {
         eventTitle: event.title,
         eventDate: event.date as unknown as string,
         eventType: event.eventType,
-        familyName,
+        familyName: null as string | null,
         segmentName: (instance.segment as any).name ?? null,
         instanceId: instance.id,
         snapshotted: instance.snapshotted,
@@ -757,7 +718,6 @@ export class NodeAssignmentService {
         where: { segment: { id: segment.id } },
         relations: [
           'figureTemplate',
-          'figureTemplate.family',
           'instanceNodes',
           'assignments',
           'assignments.instanceNode',
@@ -779,7 +739,7 @@ export class NodeAssignmentService {
         return {
           instanceId: fi.id,
           figureName: fi.figureTemplate?.name ?? 'Sense plantilla',
-          familyName: fi.figureTemplate?.family?.name ?? null,
+          familyName: null as string | null,
           snapshotted: fi.snapshotted,
           totalNodes,
           assignedNodes: assignments.length,
@@ -798,66 +758,13 @@ export class NodeAssignmentService {
     return { segments: result };
   }
 
-  // ── F3 — Family history ────────────────────────────────────────────────────
+  // ── F3 — Family history (deprecated — families removed) ─────────────────────
 
   async getFamilyHistory(
-    familyId: string,
-    query: HistoryQueryParams = {},
+    _familyId: string,
+    _query: HistoryQueryParams = {},
   ): Promise<{ data: FigureHistoryEntry[]; meta: { total: number; page: number; limit: number } }> {
-    const family = await this.figureFamilyRepository.findOne({ where: { id: familyId } });
-    if (!family) {
-      throw new NotFoundException('Família de figures no trobada.');
-    }
-
-    const page = Math.max(query.page ?? 1, 1);
-    const limit = Math.min(Math.max(query.limit ?? 20, 1), 100);
-
-    const qb = this.figureInstanceRepository
-      .createQueryBuilder('fi')
-      .leftJoinAndSelect('fi.assignments', 'a')
-      .leftJoinAndSelect('a.instanceNode', 'ain')
-      .leftJoinAndSelect('a.person', 'ap')
-      .leftJoinAndSelect('fi.instanceNodes', 'inode')
-      .leftJoinAndSelect('fi.segment', 'seg')
-      .leftJoinAndSelect('seg.event', 'ev')
-      .leftJoinAndSelect('fi.figureTemplate', 'tpl')
-      .where('tpl.familyId = :familyId', { familyId });
-
-    if (query.seasonId) {
-      qb.andWhere('ev.seasonId = :seasonId', { seasonId: query.seasonId });
-    }
-
-    const total = await qb.getCount();
-    const instances = await qb
-      .orderBy('ev.date', 'DESC')
-      .skip((page - 1) * limit)
-      .take(limit)
-      .getMany();
-
-    const data: FigureHistoryEntry[] = instances.map((instance) => {
-      const event = instance.segment.event as Event;
-      return {
-        eventId: event.id,
-        eventTitle: event.title,
-        eventDate: event.date as unknown as string,
-        eventType: event.eventType,
-        familyName: family.name,
-        segmentName: (instance.segment as any).name ?? null,
-        instanceId: instance.id,
-        snapshotted: instance.snapshotted,
-        sourceVariantOrder: instance.sourceVariantOrder,
-        assignmentCount: instance.assignments?.length ?? 0,
-        totalNodes: instance.instanceNodes?.length ?? 0,
-        assignments: (instance.assignments ?? []).map((a) => ({
-          nodeId: a.instanceNode.id,
-          nodeLabel: a.instanceNode.label,
-          personId: a.person.id,
-          personAlias: (a.person as any).alias,
-        })),
-      };
-    });
-
-    return { data, meta: { total, page, limit } };
+    throw new BadRequestException('La funcionalitat de família ha estat eliminada.');
   }
 
   // ── B.5 — Bulk import with snapshot awareness ─────────────────────────────
@@ -988,144 +895,12 @@ export class NodeAssignmentService {
     return { created, conflicts };
   }
 
-  // ── B.3 — Upgrade instance to next variant ────────────────────────────────
+  // ── B.3 — Upgrade instance to next variant (disabled — families removed) ───
 
-  async upgradeInstance(instanceId: string): Promise<UpgradeResult> {
-    await this.checkEventLock(instanceId);
-
-    const instance = await this.figureInstanceRepository.findOne({
-      where: { id: instanceId },
-      relations: ['figureTemplate', 'figureTemplate.family', 'instanceNodes'],
-    });
-    if (!instance) {
-      throw new NotFoundException(`FigureInstance with ID ${instanceId} not found`);
-    }
-    if (!instance.figureTemplate) {
-      throw new BadRequestException('Instance does not reference a figure template and cannot be upgraded');
-    }
-
-    // Auto-snapshot if not yet snapshotted, then reload
-    if (!instance.snapshotted) {
-      await this.snapshotInstance(instance);
-      const refreshed = await this.figureInstanceRepository.findOne({
-        where: { id: instanceId },
-        relations: ['figureTemplate', 'figureTemplate.family', 'instanceNodes'],
-      });
-      if (refreshed) {
-        instance.snapshotted = refreshed.snapshotted;
-        instance.sourceVariantOrder = refreshed.sourceVariantOrder;
-        instance.instanceNodes = refreshed.instanceNodes;
-        instance.figureTemplate = refreshed.figureTemplate!;
-      }
-    }
-
-    const currentFamily = instance.figureTemplate.family;
-    if (!currentFamily) {
-      throw new BadRequestException('Template does not belong to a family. Cannot upgrade.');
-    }
-
-    const currentVariantOrder = instance.sourceVariantOrder ?? instance.figureTemplate.variantOrder;
-
-    const nextTemplate = await this.figureTemplateRepository.findOne({
-      where: { family: { id: currentFamily.id }, variantOrder: currentVariantOrder + 1 },
-      relations: ['nodes'],
-    });
-
-    if (!nextTemplate) {
-      throw new BadRequestException(
-        'No hi ha una variant amb més cordons disponible per a aquesta família.',
-      );
-    }
-
-    // Build composite key map: (canonicalId, ringLevel) → InstanceNode
-    // Handles multiple rings sharing the same originNodeId
-    const existingByKey = new Map<string, InstanceNode>();
-    for (const inode of instance.instanceNodes ?? []) {
-      const canonicalId = inode.originNodeId ?? inode.sourceNodeId;
-      if (canonicalId) {
-        existingByKey.set(`${canonicalId}:${inode.ringLevel ?? 0}`, inode);
-      }
-    }
-
-    const newTemplateNodes: FigureNode[] = [];
-    const positionUpdates: { id: string; x: number; y: number; width: number; height: number; rotation: number }[] = [];
-
-    for (const node of nextTemplate.nodes ?? []) {
-      const canonicalId = node.originNodeId ?? node.id;
-      const key = `${canonicalId}:${node.ringLevel ?? 0}`;
-      const existing = existingByKey.get(key);
-
-      if (!existing) {
-        newTemplateNodes.push(node);
-      } else if (
-        existing.x !== node.x || existing.y !== node.y ||
-        existing.width !== node.width || existing.height !== node.height ||
-        existing.rotation !== node.rotation
-      ) {
-        positionUpdates.push({
-          id: existing.id,
-          x: node.x, y: node.y,
-          width: node.width, height: node.height,
-          rotation: node.rotation,
-        });
-      }
-    }
-
-    if (newTemplateNodes.length > 0) {
-      const newInstanceNodes = newTemplateNodes.map((node) =>
-        this.instanceNodeRepository.create({
-          figureInstance: instance,
-          sourceNodeId: node.id,
-          originNodeId: node.originNodeId,
-          label: node.label,
-          zone: node.zone,
-          positionType: node.positionType,
-          x: node.x,
-          y: node.y,
-          z: node.z,
-          width: node.width,
-          height: node.height,
-          rotation: node.rotation,
-          color: node.color,
-          shape: node.shape,
-          sortOrder: node.sortOrder,
-          climbPath: node.climbPath,
-          ringLevel: node.ringLevel,
-          renglaId: node.renglaId,
-          renglaPosition: node.renglaPosition,
-          metadata: node.metadata,
-        }),
-      );
-      await this.instanceNodeRepository.save(newInstanceNodes);
-    }
-
-    // Relocate existing nodes whose positions changed in the next variant layout
-    if (positionUpdates.length > 0) {
-      await Promise.all(
-        positionUpdates.map((u) =>
-          this.instanceNodeRepository.update(u.id, {
-            x: u.x, y: u.y, width: u.width, height: u.height, rotation: u.rotation,
-          }),
-        ),
-      );
-    }
-
-    // Update instance to point at next variant (use FK id to satisfy TypeORM DeepPartial)
-    await this.figureInstanceRepository.update(instanceId, {
-      figureTemplate: { id: nextTemplate.id } as any,
-      sourceVariantOrder: nextTemplate.variantOrder,
-    });
-
-    const totalNodes = (instance.instanceNodes?.length ?? 0) + newTemplateNodes.length;
-
-    return {
-      addedNodes: newTemplateNodes.length,
-      updatedNodes: positionUpdates.length,
-      totalNodes,
-      newTemplateId: nextTemplate.id,
-      newTemplateName: nextTemplate.name,
-      newVariantOrder: nextTemplate.variantOrder,
-    };
+  async upgradeInstance(_instanceId: string): Promise<UpgradeResult> {
+    throw new BadRequestException(
+      'La funcionalitat d\'upgrade no està disponible temporalment (famílies eliminades).',
+    );
   }
 
   // ── Cordons — update numberOfCordons / openCordons on instance ─────────────
@@ -1218,23 +993,17 @@ export class NodeAssignmentService {
 
     const template = await this.figureTemplateRepository.findOne({
       where: { id: instance.figureTemplate.id },
-      relations: ['nodes', 'family'],
+      relations: ['nodes'],
     });
 
     if (!template) {
       throw new NotFoundException(`FigureTemplate ${instance.figureTemplate.id} not found`);
     }
 
-    const templateNodes = template.nodes ?? [];
-    const familyNodes = template.family
-      ? await this.familyNodeRepository.find({
-          where: { family: { id: template.family.id } },
-          order: { z: 'ASC', sortOrder: 'ASC' },
-        })
-      : [];
+    const allNodes = template.nodes ?? [];
 
     return this.dataSource.transaction(async (manager) => {
-      const templateInstanceNodes = templateNodes.map((node) =>
+      const instanceNodes = allNodes.map((node) =>
         manager.create(InstanceNode, {
           figureInstance: instance,
           sourceNodeId: node.id,
@@ -1259,39 +1028,11 @@ export class NodeAssignmentService {
         }),
       );
 
-      const familyInstanceNodes = familyNodes.map((node) =>
-        manager.create(InstanceNode, {
-          figureInstance: instance,
-          sourceNodeId: node.id,
-          originNodeId: null,
-          label: node.label,
-          zone: node.zone,
-          positionType: node.positionType,
-          x: node.x,
-          y: node.y,
-          z: node.z,
-          width: node.width,
-          height: node.height,
-          rotation: node.rotation,
-          color: node.color,
-          shape: node.shape,
-          sortOrder: node.sortOrder,
-          climbPath: node.climbPath,
-          ringLevel: node.ringLevel,
-          renglaId: node.renglaId,
-          renglaPosition: node.renglaPosition,
-          metadata: node.metadata,
-        }),
-      );
-
-      const saved = await manager.save(InstanceNode, [
-        ...templateInstanceNodes,
-        ...familyInstanceNodes,
-      ]);
+      const saved = await manager.save(InstanceNode, instanceNodes);
 
       await manager.update(FigureInstance, instance.id, {
         snapshotted: true,
-        sourceVariantOrder: template.variantOrder,
+        sourceVariantOrder: null,
       });
 
       return saved;

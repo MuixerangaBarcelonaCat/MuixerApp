@@ -356,10 +356,9 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
     this.figureTemplateService.getOne(tab.figureTemplateId).subscribe({
       next: (template) => {
-        const familyId = template.familyId ?? null;
         this.tabs.update((list) =>
           list.map((t) =>
-            t.instanceId === instanceId ? { ...t, familyId } : t,
+            t.instanceId === instanceId ? { ...t, familyId: null } : t,
           ),
         );
         this.templateRengles.set(template.rengles ?? []);
@@ -368,11 +367,6 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
           0,
         );
         this.maxCordons.set(maxPos);
-        if (familyId) {
-          this.familyService.getOne(familyId).subscribe({
-            next: (family) => this.familyDetail.set(family),
-          });
-        }
       },
     });
   }

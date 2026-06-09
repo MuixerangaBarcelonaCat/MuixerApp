@@ -2,12 +2,10 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsArray,
   IsBoolean,
-  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
-  Min,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -41,12 +39,6 @@ export class UpdateFigureTemplateDto {
   @IsNumber()
   @IsOptional()
   direction?: number;
-
-  @ApiPropertyOptional()
-  @IsInt()
-  @Min(1)
-  @IsOptional()
-  variantOrder?: number;
 
   @ApiPropertyOptional()
   @IsOptional()
