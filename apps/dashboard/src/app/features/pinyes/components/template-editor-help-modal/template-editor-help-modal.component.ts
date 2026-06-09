@@ -146,8 +146,8 @@ const HELP_SECTIONS: HelpSection[] = [
         answer: 'Dins de cada pis, clica el botó "+" per afegir una nova posició. Ajusta la posició X i l\'amplada amb els controls inline.',
       },
       {
-        question: 'El tronc és compartit entre figures de la mateixa família?',
-        answer: 'Sí. El tronc i les Bases s\'emmagatzemen a nivell de família. Editar el tronc en una figura actualitza automàticament totes les figures de la mateixa família.',
+        question: 'Com es guarda el tronc?',
+        answer: 'El tronc i les Bases s\'emmagatzemen com a part de cada figura. Cada figura té el seu propi tronc independent.',
       },
       {
         question: 'Com canvio l\'orientació del tronc?',
@@ -224,7 +224,7 @@ const HELP_SECTIONS: HelpSection[] = [
       },
       {
         question: 'Què significa "Bases desordenades"?',
-        answer: 'Quan la validació detecta que les Bases no segueixen l\'ordre anti-horari correcte, apareix un avís al llistat de famílies i a l\'editor.',
+        answer: 'Quan la validació detecta que les Bases no segueixen l\'ordre anti-horari correcte, apareix un avís al llistat de figures i a l\'editor.',
       },
       {
         question: 'Com corregeixo l\'ordre?',
