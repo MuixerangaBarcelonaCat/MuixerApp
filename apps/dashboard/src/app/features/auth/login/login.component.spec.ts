@@ -37,6 +37,7 @@ describe('LoginComponent', () => {
   afterEach(() => vi.clearAllMocks());
 
   it('form is invalid when empty', () => {
+    component.form.reset({ email: '', password: '' });
     expect(component.form.invalid).toBe(true);
   });
 
@@ -70,6 +71,7 @@ describe('LoginComponent', () => {
   });
 
   it('does not submit when form is invalid', () => {
+    component.form.reset({ email: '', password: '' });
     component.onSubmit();
     expect(authService.login).not.toHaveBeenCalled();
   });

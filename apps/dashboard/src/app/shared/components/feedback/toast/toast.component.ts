@@ -7,10 +7,10 @@ import { ToastService } from './toast.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
-    <div class="toast toast-top toast-end z-[9999]" aria-live="polite">
+    <div class="toast toast-top toast-end z-[9999] pointer-events-none" aria-live="polite">
       @for (toast of toastService.toasts(); track toast.id) {
         <div
-          class="alert shadow-lg"
+          class="alert shadow-lg pointer-events-auto"
           [class]="alertClass(toast.type)"
         >
           <span>{{ toast.message }}</span>

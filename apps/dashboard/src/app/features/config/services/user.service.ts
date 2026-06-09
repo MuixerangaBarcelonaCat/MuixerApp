@@ -6,15 +6,15 @@ import {
   UserDto,
   PaginatedResponse,
   UserFilterParams,
+  CreateUserPayload,
+  UpdateUserPayload,
 } from '../models/user.model';
 import { UserRole } from '@muixer/shared';
 
-/** Servei de comunicació amb l'API d'usuaris. */
 @Injectable({
   providedIn: 'root',
 })
 export class UserService extends ApiService {
-  /** Carrega la llista paginada d'usuaris aplicant els filtres indicats. */
   getAll(
     filters: UserFilterParams = {},
   ): Observable<PaginatedResponse<UserDto>> {
@@ -22,8 +22,19 @@ export class UserService extends ApiService {
     return this.get<PaginatedResponse<UserDto>>('/users', { params });
   }
 
-  /** Assigna un rol a un usuari. */
+  create(payload: CreateUserPayload): Observable<UserDto> {
+    return this.post<UserDto>('/users', payload);
+  }
+
+  update(userId: string, payload: UpdateUserPayload): Observable<UserDto> {
+    return this.patch<UserDto>(`/users/${userId}`, payload);
+  }
+
+  deactivate(userId: string): Observable<void> {
+    return this.patch<void>(`/users/${userId}/deactivate`, {});
+  }
+
   grantRole(userId: string, role: UserRole): Observable<UserDto> {
-    return this.patch<UserDto>(`/users/${userId}/role`, { role });
+    return this.patch<UserDto>(`/users/grant-role`, { userId, role });
   }
 }

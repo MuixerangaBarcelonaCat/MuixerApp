@@ -1,0 +1,126 @@
+<dialog class="modal modal-open" aria-modal="true" role="dialog" aria-labelledby="position-modal-title">
+  <div class="modal-box max-w-md">
+    <h3 id="position-modal-title" class="font-bold text-lg mb-4">
+      {{ isEditMode ? 'Editar posició' : 'Nova posició' }}
+    </h3>
+
+    <form [formGroup]="form" (ngSubmit)="onSave()" class="space-y-4">
+
+      <!-- Nom -->
+      <div class="form-control">
+        <label class="label pb-1" for="pos-name">
+          <span class="label-text text-xs font-medium">Nom *</span>
+        </label>
+        <input
+          id="pos-name"
+          type="text"
+          class="input input-bordered input-sm w-full"
+          formControlName="name"
+          (input)="onNameInput()"
+          placeholder="Ex: Vents"
+        />
+      </div>
+
+      <!-- Slug -->
+      <div class="form-control">
+        <label class="label pb-1" for="pos-slug">
+          <span class="label-text text-xs font-medium">Identificador (slug) *</span>
+        </label>
+        <input
+          id="pos-slug"
+          type="text"
+          class="input input-bordered input-sm w-full font-mono"
+          formControlName="slug"
+          placeholder="Ex: vents"
+          [attr.readonly]="isEditMode ? '' : null"
+        />
+        @if (!isEditMode) {
+          <p class="label pt-0.5">
+            <span class="label-text-alt text-base-content/40">Es genera automàticament a partir del nom.</span>
+          </p>
+        }
+      </div>
+
+      <!-- Color + Zona (inline) -->
+      <div class="flex gap-4">
+        <div class="form-control flex-1">
+          <label class="label pb-1" for="pos-color">
+            <span class="label-text text-xs font-medium">Color</span>
+          </label>
+          <div class="flex items-center gap-2">
+            <input
+              id="pos-color"
+              type="color"
+              class="w-8 h-8 rounded cursor-pointer border border-base-300"
+              formControlName="color"
+            />
+            <span class="text-xs font-mono text-base-content/60">{{ form.get('color')!.value }}</span>
+          </div>
+        </div>
+
+        <div class="form-control flex-1">
+          <label class="label pb-1" for="pos-zone">
+            <span class="label-text text-xs font-medium">Zona</span>
+          </label>
+          <select
+            id="pos-zone"
+            class="select select-bordered select-sm w-full"
+            formControlName="zone"
+          >
+            <option value="">Sense zona</option>
+            @for (z of zoneOptions; track z) {
+              <option [value]="z">{{ z }}</option>
+            }
+          </select>
+        </div>
+      </div>
+
+      <!-- Descripció curta -->
+      <div class="form-control">
+        <label class="label pb-1" for="pos-short-desc">
+          <span class="label-text text-xs font-medium">Descripció curta</span>
+        </label>
+        <input
+          id="pos-short-desc"
+          type="text"
+          class="input input-bordered input-sm w-full"
+          formControlName="shortDescription"
+          placeholder="Resum breu"
+        />
+      </div>
+
+      <!-- Descripció llarga -->
+      <div class="form-control">
+        <label class="label pb-1" for="pos-long-desc">
+          <span class="label-text text-xs font-medium">Descripció llarga</span>
+        </label>
+        <textarea
+          id="pos-long-desc"
+          class="textarea textarea-bordered textarea-sm w-full"
+          formControlName="longDescription"
+          rows="3"
+          placeholder="Descripció detallada de la posició"
+        ></textarea>
+      </div>
+
+      <!-- Actions -->
+      <div class="modal-action">
+        <button type="button" class="btn btn-ghost btn-sm" (click)="onCancel()">
+          Cancel·lar
+        </button>
+        <button
+          type="submit"
+          class="btn btn-primary btn-sm"
+          [disabled]="form.invalid || saving()"
+        >
+          @if (saving()) {
+            <span class="loading loading-spinner loading-xs"></span>
+          }
+          {{ isEditMode ? 'Desar' : 'Crear' }}
+        </button>
+      </div>
+
+    </form>
+  </div>
+  <div class="modal-backdrop" (click)="onCancel()" (keydown.enter)="onCancel()" tabindex="0" role="button" aria-label="Tancar modal"></div>
+</dialog>

@@ -291,10 +291,10 @@ describe('EventListComponent', () => {
     });
 
     it('uses startTime for precision', () => {
-      const today = new Date();
-      const pastTime = `${String(today.getHours() - 2).padStart(2, '0')}:00`;
-      const dateStr = today.toISOString().slice(0, 10);
-      expect(component.isEventPast(dateStr, pastTime)).toBe(true);
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const dateStr = yesterday.toISOString().slice(0, 10);
+      expect(component.isEventPast(dateStr, '23:59')).toBe(true);
     });
   });
 

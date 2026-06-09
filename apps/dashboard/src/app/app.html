@@ -1,9 +1,5 @@
-@if (isAuthRoute()) {
-  <router-outlet />
-} @else if (layout.isFullscreen()) {
-  <router-outlet />
-} @else {
-  <div class="flex flex-col h-screen overflow-hidden">
+<div class="flex flex-col h-screen overflow-hidden">
+  @if (!isAuthRoute() && !layout.isFullscreen()) {
     <app-header>
       <app-user-chip />
     </app-header>
@@ -12,11 +8,16 @@
       [mobileMenuOpen]="mobileMenuOpen()"
       (mobileMenuToggle)="mobileMenuOpen.set(!mobileMenuOpen())"
     />
+  }
 
-    <main class="flex-1 overflow-y-auto bg-base-200 p-4 lg:p-6">
-      <router-outlet />
-    </main>
-  </div>
-}
+  <main
+    class="flex-1 overflow-y-auto"
+    [class.bg-base-200]="!isAuthRoute() && !layout.isFullscreen()"
+    [class.p-4]="!isAuthRoute() && !layout.isFullscreen()"
+    [class.lg:p-6]="!isAuthRoute() && !layout.isFullscreen()"
+  >
+    <router-outlet />
+  </main>
+</div>
 
 <app-toast />

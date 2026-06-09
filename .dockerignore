@@ -1,0 +1,16 @@
+node_modules
+dist
+.nx
+.angular
+.git
+.gitignore
+.env*
+!.env.example
+docs
+*.md
+coverage
+tmp
+__screenshots__
+data/extracted
+.agents
+.cursor

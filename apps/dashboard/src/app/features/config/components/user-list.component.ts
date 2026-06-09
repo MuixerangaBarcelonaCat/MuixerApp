@@ -24,6 +24,8 @@ import {
   RowAction,
 } from '../../../shared/components/data/data-table/data-table.component';
 import { ColumnDef } from '../../../shared/models/column-def.model';
+import { UserFormModalComponent } from './user-form-modal/user-form-modal.component';
+import { ToastService } from '../../../shared/components/feedback/toast/toast.service';
 
 const STORAGE_KEY = 'user-list-visible-columns';
 
@@ -76,11 +78,13 @@ function formatDate(value: string | null): string {
     PaginationComponent,
     EmptyStateComponent,
     DataTableComponent,
+    UserFormModalComponent,
   ],
   templateUrl: './user-list.component.html',
 })
 export class UserListComponent {
   private readonly userService = inject(UserService);
+  private readonly toast = inject(ToastService);
 
   readonly allColumns = ALL_COLUMNS;
   readonly UserRole = UserRole;
@@ -90,7 +94,11 @@ export class UserListComponent {
   searchInput = '';
 
   search = signal('');
-  activeFilters = signal<Partial<UserFilterParams>>({});
+  activeFilters = signal<Partial<UserFilterParams>>({
+    role: [UserRole.ADMIN, UserRole.TECHNICAL],
+    isActive: true,
+    hasCredentials: true,
+  });
   page = signal(1);
   limit = signal(25);
 
@@ -108,13 +116,18 @@ export class UserListComponent {
   grantRoleSelected = signal<UserRole | null>(null);
   grantRoleLoading = signal(false);
 
+  // Create/Edit modal state
+  showFormModal = signal(false);
+  editingUser = signal<UserDto | null>(null);
+
   totalPages = computed(() => Math.ceil(this.totalUsers() / this.limit()));
 
   hasFilterChips = computed(() => {
     const s = this.search().trim();
-    const role = this.activeFilters().role;
+    const roles = this.activeFilters().role;
     const isActive = this.activeFilters().isActive === true;
-    return Boolean(s || role || isActive);
+    const hasCredentials = this.activeFilters().hasCredentials === true;
+    return Boolean(s || (roles && roles.length > 0) || isActive || hasCredentials);
   });
 
   private searchTimeout: ReturnType<typeof setTimeout> | undefined;
@@ -134,14 +147,26 @@ export class UserListComponent {
 
   toggleRoleFilter(role: UserRole) {
     const current = this.activeFilters();
-    if (current.role === role) {
-      const { role: _r, ...rest } = current;
-      this.activeFilters.set(rest);
+    const currentRoles = current.role || [];
+    
+    if (currentRoles.includes(role)) {
+      const newRoles = currentRoles.filter((r) => r !== role);
+      if (newRoles.length === 0) {
+        const { role: _r, ...rest } = current;
+        this.activeFilters.set(rest);
+      } else {
+        this.activeFilters.set({ ...current, role: newRoles });
+      }
     } else {
-      this.activeFilters.set({ ...current, role });
+      this.activeFilters.set({ ...current, role: [...currentRoles, role] });
     }
     this.page.set(1);
     this.loadUsers();
+  }
+
+  isRoleSelected(role: UserRole): boolean {
+    const roles = this.activeFilters().role || [];
+    return roles.includes(role);
   }
 
   toggleActiusFilter() {
@@ -151,6 +176,18 @@ export class UserListComponent {
       this.activeFilters.set(rest);
     } else {
       this.activeFilters.set({ ...current, isActive: true });
+    }
+    this.page.set(1);
+    this.loadUsers();
+  }
+
+  toggleHasCredentialsFilter() {
+    const current = this.activeFilters();
+    if (current.hasCredentials === true) {
+      const { hasCredentials: _h, ...rest } = current;
+      this.activeFilters.set(rest);
+    } else {
+      this.activeFilters.set({ ...current, hasCredentials: true });
     }
     this.page.set(1);
     this.loadUsers();
@@ -180,6 +217,13 @@ export class UserListComponent {
 
   clearActiusChip() {
     const { isActive: _a, ...rest } = this.activeFilters();
+    this.activeFilters.set(rest);
+    this.page.set(1);
+    this.loadUsers();
+  }
+
+  clearHasCredentialsChip() {
+    const { hasCredentials: _h, ...rest } = this.activeFilters();
     this.activeFilters.set(rest);
     this.page.set(1);
     this.loadUsers();
@@ -272,6 +316,43 @@ export class UserListComponent {
     });
   }
 
+  // Create/Edit modal
+  openCreateModal(): void {
+    this.editingUser.set(null);
+    this.showFormModal.set(true);
+  }
+
+  openEditModal(user: UserDto): void {
+    this.editingUser.set(user);
+    this.showFormModal.set(true);
+  }
+
+  closeFormModal(): void {
+    this.showFormModal.set(false);
+    this.editingUser.set(null);
+  }
+
+  onUserSaved(user: UserDto): void {
+    this.closeFormModal();
+    this.loadUsers();
+  }
+
+  deactivateUser(user: UserDto): void {
+    if (!user.isActive) return;
+    this.userService.deactivate(user.id).subscribe({
+      next: () => {
+        this.toast.success('Usuari desactivat correctament.');
+        this.users.update((list) =>
+          list.map((u) => (u.id === user.id ? { ...u, isActive: false } : u)),
+        );
+      },
+      error: (err) => {
+        const msg = err?.error?.message ?? "Error en desactivar l'usuari.";
+        this.toast.error(msg);
+      },
+    });
+  }
+
   getCellValue(user: UserDto, key: string): string {
     switch (key) {
       case 'email':
@@ -306,9 +387,19 @@ export class UserListComponent {
 
   readonly tableRowActions = computed<RowAction<UserDto>[]>(() => [
     {
+      label: 'Editar',
+      icon: 'Pencil',
+      action: (u: UserDto) => this.openEditModal(u),
+    },
+    {
       label: 'Assignar rol',
       icon: 'Shield',
       action: (u: UserDto) => this.openGrantRole(u),
+    },
+    {
+      label: 'Desactivar',
+      icon: 'UserX',
+      action: (u: UserDto) => this.deactivateUser(u),
     },
   ]);
 
@@ -316,10 +407,15 @@ export class UserListComponent {
     const chips: ActiveFilter[] = [];
     if (this.search().trim())
       chips.push({ key: 'search', label: `Cerca: "${this.search()}"` });
-    const role = this.activeFilters().role;
-    if (role) chips.push({ key: 'role', label: `Rol: ${ROLE_LABELS[role]}` });
+    const roles = this.activeFilters().role;
+    if (roles && roles.length > 0) {
+      const roleLabels = roles.map((r) => ROLE_LABELS[r]).join(', ');
+      chips.push({ key: 'role', label: `Rol: ${roleLabels}` });
+    }
     if (this.activeFilters().isActive === true)
       chips.push({ key: 'isActive', label: 'Sols actius' });
+    if (this.activeFilters().hasCredentials === true)
+      chips.push({ key: 'hasCredentials', label: 'Amb accés' });
     return chips;
   });
 
@@ -327,6 +423,7 @@ export class UserListComponent {
     if (key === 'search') this.clearSearchChip();
     else if (key === 'role') this.clearRoleChip();
     else if (key === 'isActive') this.clearActiusChip();
+    else if (key === 'hasCredentials') this.clearHasCredentialsChip();
   }
 
   private loadUsers() {

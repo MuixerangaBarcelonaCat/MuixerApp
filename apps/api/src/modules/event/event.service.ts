@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Event } from './event.entity';
 import { Attendance } from './attendance.entity';
 import { Season } from '../season/season.entity';
+import { EventSegment } from '../event-segment/entities/event-segment.entity';
 import { EventFilterDto } from './dto/event-filter.dto';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
@@ -23,6 +24,8 @@ export class EventService {
     private readonly seasonRepository: Repository<Season>,
     @InjectRepository(Attendance)
     private readonly attendanceRepository: Repository<Attendance>,
+    @InjectRepository(EventSegment)
+    private readonly segmentRepository: Repository<EventSegment>,
   ) {}
 
   /** Retorna una llista paginada d'events amb filtres per temporada, tipus, rang de dates i text. Suporta el filtre `timeFilter` (upcoming/past). */
@@ -87,7 +90,10 @@ export class EventService {
       .take(limit)
       .getMany();
 
-    return { data: events.map(toListItem), total };
+    const eventIds = events.map((e) => e.id);
+    const summaryMap = await this.buildSegmentsSummaryMap(eventIds);
+
+    return { data: events.map((e) => toListItem(e, summaryMap.get(e.id) ?? null)), total };
   }
 
   /** Retorna el detall complet d'un event per ID incloent la temporada. Llança NotFoundException si no existeix. */
@@ -187,6 +193,44 @@ export class EventService {
     await this.eventRepository.remove(event);
   }
 
+  private async buildSegmentsSummaryMap(
+    eventIds: string[],
+  ): Promise<Map<string, SegmentsSummary>> {
+    if (eventIds.length === 0) return new Map();
+
+    const segments = await this.segmentRepository
+      .createQueryBuilder('segment')
+      .leftJoinAndSelect('segment.event', 'event')
+      .leftJoinAndSelect('segment.instances', 'instance')
+      .leftJoinAndSelect('instance.figureTemplate', 'figureTemplate')
+      .leftJoinAndSelect('instance.compositionTemplate', 'compositionTemplate')
+      .where('event.id IN (:...eventIds)', { eventIds })
+      .orderBy('segment.sortOrder', 'ASC')
+      .addOrderBy('instance.sortOrder', 'ASC')
+      .getMany();
+
+    const map = new Map<string, SegmentsSummary>();
+
+    for (const segment of segments) {
+      const eventId = segment.event?.id;
+      if (!eventId) continue;
+      if (!map.has(eventId)) {
+        map.set(eventId, { segmentCount: 0, instanceCount: 0, segments: [] });
+      }
+      const summary = map.get(eventId)!;
+      summary.segmentCount += 1;
+
+      const figureNames = (segment.instances ?? []).map((i) =>
+        i.figureTemplate?.name ?? i.compositionTemplate?.name ?? '',
+      );
+
+      summary.instanceCount += figureNames.length;
+      summary.segments.push({ name: segment.name, figureNames });
+    }
+
+    return map;
+  }
+
   /**
    * Aplica l'ordenació a la query. El mode `chronological` usa una lògica intel·ligent:
    * primer els events propers (ordenats per data ASC), després els passats (ordenats DESC).
@@ -220,6 +264,12 @@ export interface SeasonRef {
   name: string;
 }
 
+export interface SegmentsSummary {
+  segmentCount: number;
+  instanceCount: number;
+  segments: { name: string | null; figureNames: string[] }[];
+}
+
 export interface EventListItem {
   id: string;
   eventType: string;
@@ -230,6 +280,7 @@ export interface EventListItem {
   countsForStatistics: boolean;
   attendanceSummary: Record<string, number>;
   season: SeasonRef | null;
+  segmentsSummary: SegmentsSummary | null;
   createdAt: Date;
 }
 
@@ -246,7 +297,7 @@ function toSeasonRef(season: Season | null): SeasonRef | null {
   return { id: season.id, name: season.name };
 }
 
-function toListItem(event: Event): EventListItem {
+function toListItem(event: Event, segmentsSummary: SegmentsSummary | null): EventListItem {
   return {
     id: event.id,
     eventType: event.eventType,
@@ -257,13 +308,14 @@ function toListItem(event: Event): EventListItem {
     countsForStatistics: event.countsForStatistics,
     attendanceSummary: event.attendanceSummary as unknown as Record<string, number>,
     season: toSeasonRef(event.season),
+    segmentsSummary,
     createdAt: event.createdAt,
   };
 }
 
 function toDetailItem(event: Event): EventDetailItem {
   return {
-    ...toListItem(event),
+    ...toListItem(event, null),
     description: event.description,
     locationUrl: event.locationUrl,
     information: event.information,

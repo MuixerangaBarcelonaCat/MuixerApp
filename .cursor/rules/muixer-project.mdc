@@ -12,11 +12,11 @@ Open-source attendance & figure management system for Muixerangues (human tower 
 - **Backend:** NestJS + TypeScript (strict)
 - **Frontend Dashboard:** Angular 20+ (standalone components, signals, OnPush) + DaisyUI + Angular CDK
 - **Mobile:** Angular PWA (no Ionic, no native apps)
-- **Database:** PostgreSQL on NeonDB (no local DB, connect remote in dev)
+- **Database:** PostgreSQL — **Docker local in dev** (`docker compose up`), VPS Docker in prod
 - **Monorepo:** Nx workspace (`apps/api`, `apps/dashboard`, `apps/pwa`, `libs/shared`)
 - **ORM:** TypeORM (class-based entities with decorators)
 - **Styling:** Tailwind CSS v3 + DaisyUI v4 (stable, semantic classes)
-- **No Docker** in dev — run Node/Angular/NestJS directly
+- **Docker:** PostgreSQL in dev (`docker-compose.yml`), full stack in prod (`docker-compose.prod.yml` + `apps/api/Dockerfile`)
 
 ## Architecture
 
@@ -39,10 +39,10 @@ Legacy app at `muixerangadebarcelona.appsistencia.cat` has a PHP API. Data migra
 
 ## Current Status
 
-- **Active spec:** `docs/specs/2026-03-26-p0-p1-p2-vertical-slice-persons-design.md` (approved & implemented)
-- **Implementation:** P0+P1+P2 vertical slice complete (scaffold + entities + basic UI)
-- **Continuity doc:** `docs/NEXT_STEPS.md`
+- **Implementation:** P0→P4.4 complete (scaffold + entities + auth + events/attendance + dashboard + Docker)
+- **Current state:** `docs/CURRENT_STATUS.md`
 - **Roadmap:** `docs/PROJECT_ROADMAP.md`
+- **Docker docs:** `docs/DOCKER_ARCHITECTURE.md`, `docs/DOCKER_SETUP.md`
 
 ## Terminology
 
@@ -54,19 +54,24 @@ Legacy app at `muixerangadebarcelona.appsistencia.cat` has a PHP API. Data migra
 
 | ID | Sub-project | Status |
 |----|-------------|--------|
-| P0 | Scaffold (Nx + NestJS + Angular + NeonDB) | ✅ Implemented |
-| P1 | Auth + Users + Persons (entities, no login yet) | ✅ Implemented |
-| P2 | Data Migration (extract from legacy API) | 🟡 Structure ready |
-| P3 | Seasons + Events + Attendance | Pending |
-| P4 | Dashboard Web (Angular) | 🟡 Shell created |
-| P5 | PWA Mobile | Pending |
-| P6 | Figures/Canvas Module | Pending |
+| P0 | Scaffold (Nx + NestJS + Angular) | ✅ Implemented |
+| P1 | Auth + Users + Persons | ✅ Implemented |
+| P2 | Data Migration (extract from legacy API) | ✅ Implemented |
+| P3 | Seasons + Events + Attendance | ✅ Implemented |
+| P4.1 | Auth Layer (JWT + Passport + dashboard login) | ✅ Implemented |
+| P4.2 | Dashboard Events + Attendance CRUD | ✅ Implemented |
+| P4.3 | Dashboard Design Refactor | ✅ Implemented |
+| P4.4 | Docker Multi-env Architecture | ✅ Implemented |
+| P5 | Figures/Canvas Module | Pending |
+| P6 | PWA Mobile | Pending |
 | P7 | Notifications + Advanced Features | Pending |
 
 ## Key Documentation
 
 - **Roadmap**: `docs/PROJECT_ROADMAP.md`
-- **Current state**: `docs/NEXT_STEPS.md`
+- **Current state**: `docs/CURRENT_STATUS.md`
 - **Specs**: `docs/specs/`
 - **Legacy API**: `docs/API_APPSISTENCIA.md`
+- **Docker setup**: `docs/DOCKER_SETUP.md`
+- **Docker architecture**: `docs/DOCKER_ARCHITECTURE.md`
 - **Setup**: `README.md`

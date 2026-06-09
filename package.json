@@ -4,8 +4,29 @@
   "description": "MuixerApp - Attendance & figure management for Muixerangues",
   "license": "MIT",
   "private": true,
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=22.13.0 <23.0.0"
+  },
   "scripts": {
-    "ci:local": "npx nx run-many -t lint,test,build --all --exclude=dashboard-e2e,pwa-e2e --parallel=3"
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f postgres",
+    "docker:clean": "docker compose down -v",
+    "docker:psql": "docker exec -it muixer-postgres-dev psql -U muixer -d muixer_dev",
+    "docker:prod:up": "docker compose -f docker-compose.prod.yml up -d --build",
+    "docker:prod:down": "docker compose -f docker-compose.prod.yml down",
+    "docker:pre:up": "docker compose -f docker-compose.pre.yml up -d --build",
+    "docker:pre:down": "docker compose -f docker-compose.pre.yml down",
+    "docker:pre:logs": "docker compose -f docker-compose.pre.yml logs -f",
+    "docker:pre:ps": "docker compose -f docker-compose.pre.yml ps",
+    "db:reset-figures": "docker exec -i muixer-postgres-dev psql -U muixer -d muixer_dev < scripts/reset-figure-data-safe.sql",
+    "migration:generate": "nx run api:migration-generate --name",
+    "migration:create": "nx run api:migration-create --name",
+    "migration:run": "nx run api:migration-run",
+    "migration:revert": "nx run api:migration-revert",
+    "migration:show": "nx run api:migration-show",
+    "ci:local": "CI=true npx nx run-many -t lint,test,build --all --exclude=dashboard-e2e,pwa-e2e,pwa --parallel=3 --configuration=ci"
   },
   "repository": {
     "type": "git",
@@ -63,7 +84,6 @@
     "prettier": "~3.6.2",
     "ts-jest": "^29.4.0",
     "ts-node": "10.9.1",
-    "tslib": "^2.3.0",
     "typescript": "~5.9.2",
     "typescript-eslint": "^8.40.0",
     "vitest": "^4.0.8",
@@ -93,6 +113,7 @@
     "class-validator": "^0.14.4",
     "cookie-parser": "^1.4.7",
     "dotenv": "^17.3.1",
+    "konva": "^10.3.0",
     "lucide-angular": "^1.0.0",
     "nest-commander": "^3.20.1",
     "passport": "^0.7.0",
@@ -102,10 +123,13 @@
     "reflect-metadata": "^0.1.14",
     "rxjs": "^7.8.2",
     "tailwindcss": "^3.4.19",
+    "tslib": "^2.3.0",
     "typeorm": "^0.3.28",
     "xlsx": "^0.18.5"
   },
-  "overrides": {
-    "@noble/hashes": "2.2.0"
+  "pnpm": {
+    "overrides": {
+      "@noble/hashes": "2.2.0"
+    }
   }
 }

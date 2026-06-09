@@ -1,0 +1,61 @@
+@if (loading()) {
+  <div class="flex h-screen w-screen items-center justify-center bg-black" role="status" aria-live="polite">
+    <span class="loading loading-spinner loading-lg text-white"></span>
+    <span class="sr-only">Carregant figura...</span>
+  </div>
+} @else if (activeInstance()) {
+  <div
+    class="flex h-screen w-screen bg-white text-gray-900"
+    role="main"
+    aria-label="Vista de figura en projecció"
+  >
+
+    <!-- Tronc (left panel) — always visible in this view -->
+    <aside
+      class="flex-shrink-0 max-w-[35%] w-auto overflow-y-auto border-r border-gray-200"
+      aria-label="Vista del tronc"
+    >
+      <app-tronc-view
+        mode="projection"
+        [troncNodes]="troncNodes()"
+        [baseNodes]="baseNodes()"
+        [assignments]="assignmentList()"
+      />
+    </aside>
+
+    <!-- Pinya canvas (main area) -->
+    <main class="flex-1 h-full relative overflow-hidden">
+      <app-figure-canvas
+        class="block w-full h-full"
+        mode="readonly"
+        [nodes]="pinyaNodes()"
+        [assignments]="assignmentList()"
+      />
+    </main>
+
+    <!-- Figure name (bottom-center) -->
+    <span
+      class="fixed bottom-4 left-1/2 -translate-x-1/2 text-lg font-semibold text-gray-700 opacity-70 pointer-events-none truncate max-w-[60%]"
+      aria-live="polite"
+    >
+      {{ displayName() }}
+    </span>
+
+    <!-- Back button (bottom-left) -->
+    <button
+      type="button"
+      class="fixed bottom-4 left-4 btn btn-ghost btn-sm gap-1 text-gray-600 opacity-60 hover:opacity-100 focus-visible:opacity-100"
+      (click)="handleBack()"
+      aria-label="Tornar a la vista del segment"
+    >
+      <lucide-icon name="ArrowLeft" [size]="18" aria-hidden="true" />
+      Tornar al segment
+    </button>
+
+  </div>
+} @else {
+  <!-- Instance not found (standalone mode, bad route) -->
+  <div class="flex h-screen w-screen items-center justify-center bg-base-200" role="status">
+    <p class="text-base-content/60">Figura no trobada.</p>
+  </div>
+}

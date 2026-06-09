@@ -1,0 +1,394 @@
+<div class="flex flex-col h-screen">
+  <!-- Top bar -->
+  <header class="flex items-center gap-3 px-4 py-2 bg-base-100 border-b border-base-200 shrink-0">
+    <button
+      type="button"
+      class="btn btn-ghost btn-sm gap-1"
+      (click)="goBack()"
+      aria-label="Tornar a l'event"
+    >
+      <i-lucide [img]="ArrowLeft" class="size-4" />
+      Tornar
+    </button>
+
+    <div class="flex-1 flex items-center gap-2 overflow-x-auto">
+      <!-- Figure tabs -->
+      @for (tab of tabs(); track tab.instanceId) {
+        <div class="flex items-center shrink-0">
+          <button
+            type="button"
+            class="btn btn-sm gap-1 rounded-r-none"
+            [class]="state.activeInstanceId() === tab.instanceId ? 'btn-primary' : 'btn-ghost'"
+            (click)="selectTab(tab.instanceId)"
+            [attr.aria-pressed]="state.activeInstanceId() === tab.instanceId"
+            [attr.aria-label]="tab.label + ': ' + tab.assignedCount + ' de ' + tab.totalCount + ' assignades'"
+          >
+            {{ tab.label }}
+            <span class="badge badge-xs"
+              [class]="tab.assignedCount === tab.totalCount ? 'badge-success' : 'badge-ghost'">
+              {{ tab.assignedCount }}/{{ tab.totalCount }}
+            </span>
+          </button>
+          <button
+            type="button"
+            class="btn btn-sm rounded-l-none border-l-0 px-1.5"
+            [class]="state.activeInstanceId() === tab.instanceId ? 'btn-primary opacity-70 hover:opacity-100' : 'btn-ghost'"
+            (click)="openDeleteInstanceModal(tab)"
+            [attr.aria-label]="'Eliminar ' + tab.label + ' del segment'"
+          >
+            <i-lucide [img]="X" class="size-3" />
+          </button>
+        </div>
+      }
+    </div>
+
+    @if (hasCordonsConfig()) {
+      <button
+        type="button"
+        class="btn btn-sm btn-outline gap-1"
+        (click)="openCordonsDialog()"
+        aria-label="Configurar cordons visibles"
+      >
+        <i-lucide [img]="SlidersHorizontal" class="size-4" />
+        Cordons
+        @if (activeTab()?.numberOfCordons) {
+          <span class="badge badge-xs badge-info">{{ activeTab()!.numberOfCordons }}</span>
+        }
+      </button>
+    }
+
+    @if (activeTab()?.figureTemplateId) {
+      <a
+        [routerLink]="['/pinyes', 'templates', activeTab()!.figureTemplateId, 'edit']"
+        class="btn btn-ghost btn-sm gap-1"
+        aria-label="Editar template de la figura"
+      >
+        <i-lucide [img]="Edit" class="size-4" />
+        Editar template
+      </a>
+    }
+
+    @if (activeTab()) {
+      <a
+        [routerLink]="['/pinyes/events', eventId(), 'segments', segmentId(), 'project', activeTab()!.instanceId]"
+        class="btn btn-ghost btn-sm gap-1"
+        aria-label="Projectar la figura en pantalla completa"
+        title="Projectar figura"
+      >
+        <i-lucide [img]="Monitor" class="size-4" aria-hidden="true" />
+        Projectar
+      </a>
+    }
+  </header>
+
+  <!-- Lock banner -->
+  @if (isLocked()) {
+    <div class="flex items-center gap-2 px-4 py-2 bg-warning/10 border-b border-warning/30 text-warning-content" role="alert">
+      <i-lucide [img]="Lock" class="size-4 text-warning shrink-0" aria-hidden="true" />
+      <span class="text-sm">
+        <strong>Assignacions bloquejades</strong> — les assignacions es van tancar el {{ lockStatus()!.lockDate }}.
+        Mode de només lectura.
+      </span>
+    </div>
+  }
+
+  <!-- Main content: canvas + person panel -->
+  <div class="flex flex-1 overflow-hidden">
+
+    <!-- Canvas area -->
+    <main class="flex-1 relative overflow-hidden">
+
+      <!-- Tronc drawer trigger (floating top-left) -->
+      <button
+        type="button"
+        class="tronc-drawer-trigger"
+        (click)="troncPanelOpen.set(true)"
+        aria-label="Obrir panell del Tronc"
+        title="Tronc"
+      >
+        <i-lucide [img]="PanelLeft" class="size-4" />
+        Tronc
+      </button>
+
+      @if (loading()) {
+        <div class="absolute inset-0 flex items-center justify-center bg-base-100/80 z-10">
+          <span class="loading loading-spinner loading-lg text-primary"></span>
+        </div>
+      }
+
+      @if (!loading() && activePinyaNodes().length > 0) {
+        <app-figure-canvas
+          class="w-full h-full block"
+          [nodes]="activePinyaNodes()"
+          mode="assignment"
+          [selectedNodeId]="state.selectedNodeId()"
+          [assignments]="state.assignments()"
+          [heightMode]="state.heightMode()"
+          [attendanceMap]="attendanceMap()"
+          [nextPerformanceMap]="nextPerformanceMap()"
+          [highlightedNodeIds]="highlightedNodeIds()"
+          (nodeSelected)="onNodeSelected($event)"
+          (nodeClicked)="onNodeClicked($event)"
+        />
+      }
+
+      @if (!loading() && activePinyaNodes().length === 0 && activeNodes().length === 0 && tabs().length > 0) {
+        <div class="flex flex-col items-center justify-center h-full gap-3 text-base-content/50">
+          <i-lucide [img]="Users" class="size-12" />
+          <p class="text-sm">Carregant nodes de la figura...</p>
+        </div>
+      }
+
+      @if (!loading() && activePinyaNodes().length === 0 && activeNodes().length > 0) {
+        <div class="flex flex-col items-center justify-center h-full gap-3 text-base-content/50">
+          <i-lucide [img]="Users" class="size-12" />
+          <p class="text-sm">Aquesta figura no té nodes de pinya. Consulta el panell del tronc.</p>
+        </div>
+      }
+
+      @if (!loading() && tabs().length === 0) {
+        <div class="flex flex-col items-center justify-center h-full gap-3 text-base-content/50">
+          <i-lucide [img]="Users" class="size-12" />
+          <p class="text-sm">Aquest segment no té figures per assignar.</p>
+        </div>
+      }
+
+      <!-- Node popover -->
+      @if (popoverAssignment()) {
+        <app-node-popover
+          [assignment]="popoverAssignment()"
+          [position]="popoverPosition()"
+          [heightMode]="state.heightMode()"
+          [attendanceStatus]="getAttendanceStatus(popoverAssignment()!)"
+          (unassign)="onUnassign($event)"
+          (close)="popoverAssignment.set(null)"
+        />
+      }
+    </main>
+
+    <!-- Person panel (right sidebar) -->
+
+    @if (!isLocked() && !state.panelCollapsed() && eventId() && segmentId()) {
+      <aside class="w-64 shrink-0 overflow-hidden">
+        <app-person-panel
+          [eventId]="eventId()"
+          [segmentId]="segmentId()"
+          [selectedNodeId]="state.selectedNodeId()"
+          [assignments]="state.assignments()"
+          [heightMode]="state.heightMode()"
+          [activeNodePositionType]="selectedNode()?.positionType ?? null"
+          (personSelected)="onPersonSelected($event)"
+          (assignedPersonSelected)="onAssignedPersonSelected($event)"
+        />
+      </aside>
+    }
+  </div>
+
+<!-- Tronc Floating Panel -->
+@if (troncPanelOpen()) {
+  <aside
+    appFloatingPanelDrag
+    #troncDragDir="appFloatingPanelDrag"
+    class="tronc-floating-panel"
+    [style.left.px]="troncDragDir.position().x"
+    [style.top.px]="troncDragDir.position().y"
+    aria-label="Tronc de la figura"
+    tabindex="-1"
+    (keydown.escape)="troncPanelOpen.set(false)"
+  >
+    <div
+      class="tronc-floating-header"
+      (mousedown)="troncDragDir.onDragStart($event)"
+    >
+      <i-lucide [img]="PanelLeft" class="drag-handle size-3.5" aria-hidden="true" />
+      <h2 class="tronc-floating-title">Tronc</h2>
+      <button
+        type="button"
+        class="btn btn-ghost btn-xs btn-square"
+        (click)="troncPanelOpen.set(false)"
+        aria-label="Tancar panell del Tronc"
+      >
+        <i-lucide [img]="X" class="size-3.5" aria-hidden="true" />
+      </button>
+    </div>
+    <app-tronc-view
+      class="tronc-floating-body"
+      [troncNodes]="activeTroncNodes()"
+      [baseNodes]="activeBaseNodes()"
+      [assignments]="state.assignments()"
+      [selectedNodeId]="state.selectedNodeId()"
+      [mode]="'assignment'"
+      [heightMode]="state.heightMode()"
+      [highlightedNodeIds]="highlightedNodeIds()"
+      [attendanceMap]="troncAttendanceMap()"
+      (nodeSelected)="onNodeSelected($event)"
+      (nodeClicked)="onTroncNodeClicked($event)"
+    />
+  </aside>
+}
+
+  <!-- Bottom bar -->
+  <footer class="flex items-center gap-3 px-4 py-2 bg-base-100 border-t border-base-200 shrink-0 text-sm">
+    <!-- Abs/Rel toggle -->
+    <button
+      type="button"
+      class="btn btn-xs btn-outline gap-1"
+      (click)="state.toggleHeightMode()"
+      [attr.aria-label]="'Mode alçada: ' + state.heightMode()"
+    >
+      {{ state.heightMode() === 'relative' ? 'Rel.' : 'Abs.' }}
+    </button>
+
+    <!-- Free persons counter -->
+    <span class="text-base-content/60">
+      Lliures: <strong>{{ state.freePersonsCount() }}</strong>
+    </span>
+
+    <div class="flex-1"></div>
+
+    <!-- Reset snapshot button -->
+    @if (activeTab()?.snapshotted) {
+      <button
+        type="button"
+        class="btn btn-xs btn-outline btn-error gap-1"
+        (click)="openResetModal()"
+        [disabled]="isLocked()"
+        aria-label="Reinicialitzar la figura: elimina totes les assignacions i torna al template original"
+      >
+        <i-lucide [img]="Trash2" class="size-3" />
+        Reinicialitzar
+      </button>
+    }
+
+    <!-- Import pinya button -->
+    @if (activeTab()?.figureTemplateId) {
+      <button
+        type="button"
+        class="btn btn-xs btn-outline gap-1"
+        (click)="importModalOpen.set(true)"
+        [disabled]="isLocked()"
+        aria-label="Importar assignacions d'una pinya anterior"
+      >
+        Importar pinya
+      </button>
+    }
+  </footer>
+</div>
+
+<!-- Import modal -->
+@if (activeTab()?.figureTemplateId && state.activeInstanceId()) {
+  <app-import-pinya-modal
+    [figureTemplateId]="activeTab()!.figureTemplateId!"
+    [currentInstanceId]="state.activeInstanceId()!"
+    [open]="importModalOpen()"
+    (importCompleted)="onImportCompleted($event)"
+    (closed)="importModalOpen.set(false)"
+  />
+}
+
+<!-- Delete instance modal -->
+@if (deleteInstanceModalOpen() && pendingDeleteTab()) {
+  <dialog
+    class="modal modal-open"
+    role="alertdialog"
+    aria-labelledby="delete-instance-title"
+    aria-describedby="delete-instance-desc"
+    aria-modal="true"
+  >
+    <div class="modal-box max-w-sm" cdkTrapFocus cdkTrapFocusAutoCapture>
+      <h3 id="delete-instance-title" class="text-lg font-bold mb-3 text-error">Eliminar figura del segment</h3>
+      <p id="delete-instance-desc" class="text-sm text-base-content/70">
+        Vols eliminar
+        <strong>{{ pendingDeleteTab()!.label }}</strong>
+        d'aquest segment?
+      </p>
+      @if (pendingDeleteTab()!.assignedCount > 0) {
+        <div class="alert alert-warning mt-3 py-2 text-sm gap-2">
+          <i-lucide [img]="Users" class="size-4 shrink-0" />
+          <span>
+            <strong>{{ pendingDeleteTab()!.assignedCount }} assignacions</strong>
+            es perdran i les persones tornaran al panel.
+          </span>
+        </div>
+      }
+      <p class="text-xs text-warning mt-2">Aquesta acció no es pot desfer.</p>
+      <div class="modal-action">
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm"
+          (click)="cancelDeleteInstance()"
+          [disabled]="deletingInstance()"
+        >
+          Cancel·lar
+        </button>
+        <button
+          type="button"
+          class="btn btn-error btn-sm gap-1"
+          (click)="confirmDeleteInstance()"
+          [disabled]="deletingInstance()"
+        >
+          @if (deletingInstance()) {
+            <span class="loading loading-spinner loading-xs"></span>
+          }
+          Eliminar
+        </button>
+      </div>
+    </div>
+    <button type="button" class="modal-backdrop" (click)="cancelDeleteInstance()" aria-label="Tancar"></button>
+  </dialog>
+}
+
+<!-- Reset modal -->
+@if (resetModalOpen()) {
+  <dialog
+    class="modal modal-open"
+    role="alertdialog"
+    aria-labelledby="reset-modal-title"
+    aria-describedby="reset-modal-desc"
+    aria-modal="true"
+  >
+    <div class="modal-box max-w-sm" cdkTrapFocus cdkTrapFocusAutoCapture>
+      <h3 id="reset-modal-title" class="text-lg font-bold mb-3 text-error">Reinicialitzar figura</h3>
+      <p id="reset-modal-desc" class="text-sm text-base-content/70">
+        Aquesta acció eliminarà
+        <strong class="text-error">{{ activeTab()?.assignedCount ?? 0 }} assignacions</strong>
+        i tornarà la figura al template original.
+        Les persones assignades quedaran lliures.
+      </p>
+      <p class="text-xs text-warning mt-2">Aquesta acció no es pot desfer.</p>
+      <div class="modal-action">
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm"
+          (click)="cancelReset()"
+          [disabled]="resetting()"
+        >
+          Cancel·lar
+        </button>
+        <button
+          type="button"
+          class="btn btn-error btn-sm gap-1"
+          (click)="confirmReset()"
+          [disabled]="resetting()"
+        >
+          @if (resetting()) {
+            <span class="loading loading-spinner loading-xs"></span>
+          }
+          Eliminar tot
+        </button>
+      </div>
+    </div>
+    <button type="button" class="modal-backdrop" (click)="cancelReset()" aria-label="Tancar"></button>
+  </dialog>
+}
+
+<!-- Cordons dialog -->
+<app-cordons-dialog
+  [open]="cordonsDialogOpen()"
+  [numberOfCordons]="activeTab()?.numberOfCordons ?? null"
+  [openCordons]="activeTab()?.openCordons ?? []"
+  [rengles]="renglesWithCordoObert()"
+  [maxCordons]="maxCordons()"
+  (saved)="onCordonsSaved($event)"
+  (closed)="onCordonsDialogClosed()"
+/>

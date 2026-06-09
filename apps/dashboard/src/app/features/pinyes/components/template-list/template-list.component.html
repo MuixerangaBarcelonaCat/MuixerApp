@@ -1,0 +1,68 @@
+<div class="flex flex-col gap-6 p-6">
+
+  <!-- Header -->
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div class="flex items-center gap-2">
+      <div>
+        <h1 class="text-2xl font-bold text-base-content">Figures i Pinyes</h1>
+        <p class="text-sm text-base-content/60 mt-1">Famílies, variants i composicions per dissenyar i assignar figures</p>
+      </div>
+      <button
+        type="button"
+        class="btn btn-ghost btn-circle btn-sm"
+        aria-label="Ajuda sobre el mòdul de Pinyes"
+        (click)="onboardingModal.open()"
+      >
+        <lucide-icon name="HelpCircle" [size]="18" aria-hidden="true" />
+      </button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div role="tablist" class="tabs tabs-bordered w-fit" aria-label="Tipus de templates">
+    <button
+      role="tab"
+      class="tab gap-2"
+      [class.tab-active]="activeTab() === 'families'"
+      (click)="setTab('families')"
+      [attr.aria-selected]="activeTab() === 'families'"
+    >
+      <lucide-icon name="FolderOpen" [size]="16" aria-hidden="true" />
+      Famílies
+    </button>
+    <button
+      role="tab"
+      class="tab gap-2"
+      [class.tab-active]="activeTab() === 'figures'"
+      (click)="setTab('figures')"
+      [attr.aria-selected]="activeTab() === 'figures'"
+    >
+      <lucide-icon name="Layers" [size]="16" aria-hidden="true" />
+      Figures soltes
+    </button>
+    <button
+      role="tab"
+      class="tab gap-2"
+      [class.tab-active]="activeTab() === 'compositions'"
+      (click)="setTab('compositions')"
+      [attr.aria-selected]="activeTab() === 'compositions'"
+    >
+      <lucide-icon name="LayoutGrid" [size]="16" aria-hidden="true" />
+      Composicions
+    </button>
+  </div>
+
+  @if (activeTab() === 'families') {
+    <app-family-list-tab (openHelpModal)="openEditorHelpModal()" />
+  }
+  @if (activeTab() === 'figures') {
+    <app-figure-grid-tab (switchToFamilies)="setTab('families')" />
+  }
+  @if (activeTab() === 'compositions') {
+    <app-composition-grid-tab />
+  }
+
+</div>
+
+<app-pinyes-onboarding-modal #onboardingModal />
+<app-template-editor-help-modal #editorHelpModal [autoShow]="false" />

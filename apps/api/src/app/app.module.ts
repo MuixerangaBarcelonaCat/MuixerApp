@@ -12,6 +12,10 @@ import { SyncModule } from '../modules/sync/sync.module';
 import { SeasonModule } from '../modules/season/season.module';
 import { EventModule } from '../modules/event/event.module';
 import { AuthModule } from '../modules/auth/auth.module';
+import { FigureModule } from '../modules/figure/figure.module';
+import { CompositionModule } from '../modules/composition/composition.module';
+import { EventSegmentModule } from '../modules/event-segment/event-segment.module';
+import { NodeAssignmentModule } from '../modules/node-assignment/node-assignment.module';
 import { JwtAuthGuard } from '../modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../modules/auth/guards/roles.guard';
 
@@ -27,6 +31,10 @@ import { RolesGuard } from '../modules/auth/guards/roles.guard';
     SeasonModule,
     EventModule,
     AuthModule,
+    FigureModule,
+    CompositionModule,
+    EventSegmentModule,
+    NodeAssignmentModule,
   ],
   controllers: [AppController],
   providers: [

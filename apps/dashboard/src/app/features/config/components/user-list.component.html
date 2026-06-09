@@ -2,6 +2,10 @@
 
   <!-- Capçalera -->
   <app-page-header title="Usuaris" [count]="totalUsers()">
+    <button type="button" class="btn btn-primary btn-sm" (click)="openCreateModal()">
+      <lucide-icon name="UserPlus" [size]="16" />
+      Crear usuari
+    </button>
   </app-page-header>
 
   <!-- Filtres -->
@@ -22,38 +26,23 @@
       </div>
     </div>
 
-    <!-- Rol -->
-    <div class="form-control w-full sm:w-44">
+    <!-- Rol (multiselect button tags) -->
+    <div class="form-control">
       <div class="label pb-1">
-        <span class="label-text text-xs">Rol</span>
-        <div class="dropdown">
-          <button tabindex="0" type="button" class="btn btn-bordered btn-sm w-full justify-between">
-            @if (!activeFilters().role) {
-              Tots
-            } @else {
-              {{ roleLabels[activeFilters().role!] }}
-            }
-            <lucide-icon name="ChevronDown" [size]="14" />
-          </button>
-          <ul
-            tabindex="0"
-            class="dropdown-content menu bg-base-100 rounded-box z-50 w-44 p-2 shadow-lg border border-base-300"
+        <span class="label-text text-xs">Rols</span>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        @for (role of roleOptions; track role) {
+          <button
+            type="button"
+            class="btn btn-sm"
+            [class.btn-primary]="isRoleSelected(role)"
+            [class.btn-outline]="!isRoleSelected(role)"
+            (click)="toggleRoleFilter(role)"
           >
-            @for (role of roleOptions; track role) {
-              <li>
-                <label class="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    class="radio radio-xs"
-                    [checked]="activeFilters().role === role"
-                    (change)="toggleRoleFilter(role)"
-                  />
-                  {{ roleLabels[role] }}
-                </label>
-              </li>
-            }
-          </ul>
-        </div>
+            {{ roleLabels[role] }}
+          </button>
+        }
       </div>
     </div>
 
@@ -68,6 +57,20 @@
           (change)="toggleActiusFilter()"
         />
         <span class="text-sm">Sols actius</span>
+      </label>
+    </label>
+
+    <!-- Amb accés -->
+    <label class="form-control">
+      <div class="label pb-1"><span class="label-text text-xs">Accés</span></div>
+      <label class="flex items-center gap-2 cursor-pointer btn btn-bordered btn-sm">
+        <input
+          type="checkbox"
+          class="checkbox checkbox-xs checkbox-primary"
+          [checked]="activeFilters().hasCredentials === true"
+          (change)="toggleHasCredentialsFilter()"
+        />
+        <span class="text-sm">Amb accés</span>
       </label>
     </label>
 
@@ -121,6 +124,15 @@
   }
 
 </div>
+
+<!-- Modal: Crear/Editar usuari -->
+@if (showFormModal()) {
+  <app-user-form-modal
+    [user]="editingUser()"
+    (saved)="onUserSaved($event)"
+    (cancelled)="closeFormModal()"
+  />
+}
 
 <!-- Modal: Assignar rol -->
 @if (grantRoleUser()) {
