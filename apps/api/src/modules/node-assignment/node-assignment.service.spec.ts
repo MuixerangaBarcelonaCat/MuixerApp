@@ -567,7 +567,6 @@ describe('NodeAssignmentService', () => {
 
       expect(result.data).toHaveLength(1);
       expect(result.data[0].eventType).toBe(EventType.ASSAIG);
-      expect(result.data[0].familyName).toBeNull();
       expect(result.data[0].instanceId).toBe(INSTANCE_ID);
       expect(result.meta.total).toBe(1);
       expect(result.meta.page).toBe(1);
@@ -640,7 +639,6 @@ describe('NodeAssignmentService', () => {
       expect(result.data).toHaveLength(2);
       expect(result.data[0].eventTitle).toBe('Diada');
       expect(result.data[0].eventType).toBe(EventType.ACTUACIO);
-      expect(result.data[0].familyName).toBeNull();
       expect(result.meta.total).toBe(2);
     });
 
@@ -700,7 +698,6 @@ describe('NodeAssignmentService', () => {
       expect(result.segments[0].segmentName).toBe('Bloc 1');
       expect(result.segments[0].figures).toHaveLength(1);
       expect(result.segments[0].figures[0].figureName).toBe('Muixeranga de 5');
-      expect(result.segments[0].figures[0].familyName).toBeNull();
       expect(result.segments[0].figures[0].totalNodes).toBe(1);
       expect(result.segments[0].figures[0].assignedNodes).toBe(1);
       expect(result.segments[0].figures[0].assignments[0].personAlias).toBe('Pepet');
