@@ -3,14 +3,12 @@ import { vi } from 'vitest';
 import { of } from 'rxjs';
 import {
   LUCIDE_ICONS, LucideIconProvider,
-  Hexagon, LayoutGrid, Search, X, FolderOpen, Layers,
+  Hexagon, LayoutGrid, Search, X,
 } from 'lucide-angular';
 import { FigurePickerModalComponent } from './figure-picker-modal.component';
 import { FigureTemplateService } from '../../services/figure-template.service';
-import { FigureFamilyService } from '../../services/figure-family.service';
 import { CompositionTemplateService } from '../../services/composition-template.service';
 import { FigureTemplateListItem } from '../../models/figure-template.model';
-import { FigureFamilyDetail } from '../../models/figure-family.model';
 import { CompositionTemplateListItem } from '../../models/composition.model';
 
 const makeFigure = (overrides: Partial<FigureTemplateListItem> = {}): FigureTemplateListItem => ({
@@ -20,24 +18,8 @@ const makeFigure = (overrides: Partial<FigureTemplateListItem> = {}): FigureTemp
   description: null,
   hasPinya: true,
   direction: 0,
-  variantOrder: 1,
-  familyId: 'fam-uuid-1',
-  familyName: 'Pilar de 4',
   nodeCount: 5,
   renglaCount: 0,
-  createdAt: '2026-01-01T00:00:00.000Z',
-  updatedAt: '2026-01-01T00:00:00.000Z',
-  ...overrides,
-});
-
-const makeFamily = (overrides: Partial<FigureFamilyDetail> = {}): FigureFamilyDetail => ({
-  id: 'fam-uuid-1',
-  name: 'Pilar de 4',
-  slug: 'pilar-de-4',
-  description: null,
-  variantCount: 1,
-  metadata: {},
-  variants: [{ id: 'fig-uuid-1', name: 'pd4', slug: 'pd4', variantOrder: 1, nodeCount: 5, renglaCount: 0 }],
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
   ...overrides,
@@ -58,7 +40,6 @@ describe('FigurePickerModalComponent', () => {
   let fixture: ComponentFixture<FigurePickerModalComponent>;
   let component: FigurePickerModalComponent;
   let figureService: { getAll: ReturnType<typeof vi.fn> };
-  let familyService: { getAll: ReturnType<typeof vi.fn>; getOne: ReturnType<typeof vi.fn> };
   let compositionService: { getAll: ReturnType<typeof vi.fn> };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let selectedSpy: any;
@@ -69,10 +50,6 @@ describe('FigurePickerModalComponent', () => {
     figureService = {
       getAll: vi.fn().mockReturnValue(of({ data: [makeFigure()], meta: { total: 1, page: 1, limit: 200 } })),
     };
-    familyService = {
-      getAll: vi.fn().mockReturnValue(of({ data: [makeFamily()], meta: { total: 1, page: 1, limit: 100 } })),
-      getOne: vi.fn().mockReturnValue(of(makeFamily())),
-    };
     compositionService = {
       getAll: vi.fn().mockReturnValue(of({ data: [makeComposition()], meta: { total: 1, page: 1, limit: 200 } })),
     };
@@ -81,11 +58,10 @@ describe('FigurePickerModalComponent', () => {
       imports: [FigurePickerModalComponent],
       providers: [
         { provide: FigureTemplateService, useValue: figureService },
-        { provide: FigureFamilyService, useValue: familyService },
         { provide: CompositionTemplateService, useValue: compositionService },
         {
           provide: LUCIDE_ICONS, multi: true,
-          useFactory: () => new LucideIconProvider({ Hexagon, LayoutGrid, Search, X, FolderOpen, Layers }),
+          useFactory: () => new LucideIconProvider({ Hexagon, LayoutGrid, Search, X }),
         },
       ],
     }).compileComponents();
@@ -121,33 +97,14 @@ describe('FigurePickerModalComponent', () => {
     expect(component.figures()[0].name).toBe('pd4');
   });
 
-  it('groups figures by family', () => {
-    expect(component.familyGroups()).toHaveLength(1);
-    expect(component.familyGroups()[0].familyName).toBe('Pilar de 4');
-    expect(component.familyGroups()[0].variants).toHaveLength(1);
-  });
-
-  it('shows legacy figures without family in legacyFigures()', () => {
+  it('filters figures by search query on name', () => {
     component.figures.set([
-      makeFigure({ id: 'fig-1', familyId: 'fam-uuid-1', familyName: 'Pilar de 4' }),
-      makeFigure({ id: 'fig-2', name: 'Legacy', familyId: null, familyName: null }),
-    ]);
-    expect(component.legacyFigures()).toHaveLength(1);
-    expect(component.legacyFigures()[0].name).toBe('Legacy');
-  });
-
-  it('filters familyGroups by search query on family name', () => {
-    component.families.set([
-      makeFamily({ id: 'f1', name: 'Pilar de 4', variants: [{ id: 'v1', name: 'pd4 1C', slug: 'pd4-1c', variantOrder: 1, nodeCount: 5, renglaCount: 0 }] }),
-      makeFamily({ id: 'f2', name: 'Morera', variants: [{ id: 'v2', name: 'morera 1C', slug: 'morera-1c', variantOrder: 1, nodeCount: 3, renglaCount: 0 }] }),
-    ]);
-    component.figures.set([
-      makeFigure({ id: 'v1', name: 'pd4 1C', familyId: 'f1', familyName: 'Pilar de 4' }),
-      makeFigure({ id: 'v2', name: 'morera 1C', familyId: 'f2', familyName: 'Morera' }),
+      makeFigure({ id: 'fig-1', name: 'pd4 1C' }),
+      makeFigure({ id: 'fig-2', name: 'Morera' }),
     ]);
     component.search.set('morera');
-    expect(component.familyGroups()).toHaveLength(1);
-    expect(component.familyGroups()[0].familyName).toBe('Morera');
+    expect(component.filteredFigures()).toHaveLength(1);
+    expect(component.filteredFigures()[0].name).toBe('Morera');
   });
 
   it('switches to composicions tab', () => {

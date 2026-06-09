@@ -3,7 +3,6 @@ export interface InstanceDetail {
   label: string | null;
   sortOrder: number;
   snapshotted: boolean;
-  sourceVariantOrder: number | null;
   assignedCount: number;
   numberOfCordons: number | null;
   openCordons: string[] | null;

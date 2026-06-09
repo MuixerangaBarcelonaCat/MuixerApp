@@ -15,7 +15,6 @@ import { LayoutService } from '../../../../core/services/layout.service';
 import { NodeAssignmentService, LockStatus } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
 import { EventSegmentService } from '../../services/event-segment.service';
-import { FigureFamilyService } from '../../services/figure-family.service';
 import { FigureInstanceService } from '../../services/figure-instance.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component';
@@ -33,7 +32,6 @@ import {
   PendingOp,
 } from '../../models/assignment.model';
 import { SegmentDetail } from '../../models/segment.model';
-import { FigureFamilyDetail } from '../../models/figure-family.model';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { RenglaModel } from '../../models/figure-template.model';
 import { FigureZone } from '@muixer/shared';
@@ -43,9 +41,7 @@ interface InstanceTab {
   instanceId: string;
   label: string;
   figureTemplateId: string | null;
-  familyId: string | null;
   snapshotted: boolean;
-  sourceVariantOrder: number | null;
   numberOfCordons: number | null;
   openCordons: string[] | null;
   nodes: InstanceNodeItem[];
@@ -76,7 +72,6 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   private readonly layout = inject(LayoutService);
   private readonly assignmentService = inject(NodeAssignmentService);
   private readonly segmentService = inject(EventSegmentService);
-  private readonly familyService = inject(FigureFamilyService);
   private readonly figureTemplateService = inject(FigureTemplateService);
   private readonly instanceService = inject(FigureInstanceService);
   private readonly toast = inject(ToastService);
@@ -103,7 +98,6 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly popoverPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
   readonly importModalOpen = signal(false);
   readonly highlightedNodeIds = signal<Set<string>>(new Set());
-  readonly familyDetail = signal<FigureFamilyDetail | null>(null);
   readonly resetModalOpen = signal(false);
   readonly resetting = signal(false);
   readonly deleteInstanceModalOpen = signal(false);
@@ -261,9 +255,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
         instanceId: instance.id,
         label: instance.label ?? instance.figureTemplate?.name ?? '?',
         figureTemplateId: instance.figureTemplate?.id ?? null,
-        familyId: null,
         snapshotted: instance.snapshotted,
-        sourceVariantOrder: instance.sourceVariantOrder,
         numberOfCordons: instance.numberOfCordons ?? null,
         openCordons: instance.openCordons ?? null,
         nodes: [],
@@ -307,9 +299,8 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     this.state.selectedNodeId.set(null);
     this.popoverAssignment.set(null);
     this.highlightedNodeIds.set(new Set());
-    this.familyDetail.set(null);
     this.loadTabData(instanceId);
-    this.loadFamilyForTab(instanceId);
+    this.loadTemplateRenglesForTab(instanceId);
   }
 
   private loadTabData(instanceId: string): void {
@@ -342,33 +333,10 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     });
   }
 
-  private loadFamilyForTab(instanceId: string): void {
+  private loadTemplateRenglesForTab(instanceId: string): void {
     const tab = this.tabs().find((t) => t.instanceId === instanceId);
     if (!tab?.figureTemplateId) return;
-
-    if (tab.familyId) {
-      this.familyService.getOne(tab.familyId).subscribe({
-        next: (family) => this.familyDetail.set(family),
-      });
-      this.loadTemplateRengles(tab.figureTemplateId);
-      return;
-    }
-
-    this.figureTemplateService.getOne(tab.figureTemplateId).subscribe({
-      next: (template) => {
-        this.tabs.update((list) =>
-          list.map((t) =>
-            t.instanceId === instanceId ? { ...t, familyId: null } : t,
-          ),
-        );
-        this.templateRengles.set(template.rengles ?? []);
-        const maxPos = (template.nodes ?? []).reduce(
-          (max, n) => (n.renglaPosition != null && n.renglaPosition > max ? n.renglaPosition : max),
-          0,
-        );
-        this.maxCordons.set(maxPos);
-      },
-    });
+    this.loadTemplateRengles(tab.figureTemplateId);
   }
 
   private loadTemplateRengles(templateId: string): void {
@@ -697,13 +665,13 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
         this.tabs.update((list) =>
           list.map((t) =>
             t.instanceId === instanceId
-              ? { ...t, snapshotted: false, sourceVariantOrder: null, assignedCount: 0 }
+              ? { ...t, snapshotted: false, assignedCount: 0 }
               : t,
           ),
         );
         this.state.assignments.set([]);
         this.loadTabData(instanceId);
-        this.loadFamilyForTab(instanceId);
+        this.loadTemplateRenglesForTab(instanceId);
         this.state.refreshPersonList();
       },
       error: (err) => {

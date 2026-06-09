@@ -66,25 +66,14 @@ export interface InstanceNodeResponse {
   isSnapshotted: boolean;
 }
 
-export interface UpgradeResult {
-  addedNodes: number;
-  updatedNodes: number;
-  totalNodes: number;
-  newTemplateId: string;
-  newTemplateName: string;
-  newVariantOrder: number;
-}
-
 export interface FigureHistoryEntry {
   eventId: string;
   eventTitle: string;
   eventDate: string;
   eventType: EventType;
-  familyName: string | null;
   segmentName: string | null;
   instanceId: string;
   snapshotted: boolean;
-  sourceVariantOrder: number | null;
   assignmentCount: number;
   totalNodes: number;
   assignments: {
@@ -114,7 +103,6 @@ export interface PersonAssignmentEntry {
   instanceId: string;
   figureName: string;
   figureSlug: string;
-  familyName: string | null;
   nodeLabel: string;
   positionType: string | null;
   zone: FigureZone;
@@ -129,7 +117,6 @@ export interface PersonAssignmentHistory {
 export interface EventFigureSummary {
   instanceId: string;
   figureName: string;
-  familyName: string | null;
   snapshotted: boolean;
   totalNodes: number;
   assignedNodes: number;
@@ -557,7 +544,6 @@ export class NodeAssignmentService {
       await manager.delete(InstanceNode, { figureInstance: { id: instanceId } });
       await manager.update(FigureInstance, instanceId, {
         snapshotted: false,
-        sourceVariantOrder: null as any,
       });
     });
 
@@ -572,7 +558,6 @@ export class NodeAssignmentService {
   ): Promise<{ data: FigureHistoryEntry[]; meta: { total: number; page: number; limit: number } }> {
     const template = await this.figureTemplateRepository.findOne({
       where: { id: templateId },
-      relations: ['family'],
     });
     if (!template) {
       throw new NotFoundException(`FigureTemplate with ID ${templateId} not found`);
@@ -609,11 +594,9 @@ export class NodeAssignmentService {
         eventTitle: event.title,
         eventDate: event.date as unknown as string,
         eventType: event.eventType,
-        familyName: null as string | null,
         segmentName: (instance.segment as any).name ?? null,
         instanceId: instance.id,
         snapshotted: instance.snapshotted,
-        sourceVariantOrder: instance.sourceVariantOrder,
         assignmentCount: instance.assignments?.length ?? 0,
         totalNodes: instance.instanceNodes?.length ?? 0,
         assignments: (instance.assignments ?? []).map((a) => ({
@@ -649,7 +632,6 @@ export class NodeAssignmentService {
       .innerJoin('fi.segment', 'seg')
       .innerJoin('seg.event', 'ev')
       .leftJoin('fi.figureTemplate', 'tpl')
-      .leftJoin('tpl.family', 'fam')
       .where('na.personId = :personId', { personId })
       .select([
         'ev.id AS "eventId"',
@@ -660,7 +642,6 @@ export class NodeAssignmentService {
         'fi.id AS "instanceId"',
         'tpl.name AS "figureName"',
         'tpl.slug AS "figureSlug"',
-        'fam.name AS "familyName"',
         'inode.label AS "nodeLabel"',
         'inode.positionType AS "positionType"',
         'inode.zone AS "zone"',
@@ -688,7 +669,6 @@ export class NodeAssignmentService {
       instanceId: r.instanceId,
       figureName: r.figureName ?? '',
       figureSlug: r.figureSlug ?? '',
-      familyName: r.familyName ?? null,
       nodeLabel: r.nodeLabel,
       positionType: r.positionType ?? null,
       zone: r.zone as FigureZone,
@@ -739,7 +719,6 @@ export class NodeAssignmentService {
         return {
           instanceId: fi.id,
           figureName: fi.figureTemplate?.name ?? 'Sense plantilla',
-          familyName: null as string | null,
           snapshotted: fi.snapshotted,
           totalNodes,
           assignedNodes: assignments.length,
@@ -758,14 +737,6 @@ export class NodeAssignmentService {
     return { segments: result };
   }
 
-  // ── F3 — Family history (deprecated — families removed) ─────────────────────
-
-  async getFamilyHistory(
-    _familyId: string,
-    _query: HistoryQueryParams = {},
-  ): Promise<{ data: FigureHistoryEntry[]; meta: { total: number; page: number; limit: number } }> {
-    throw new BadRequestException('La funcionalitat de família ha estat eliminada.');
-  }
 
   // ── B.5 — Bulk import with snapshot awareness ─────────────────────────────
 
@@ -804,7 +775,6 @@ export class NodeAssignmentService {
       });
       if (refreshed) {
         targetInstance.snapshotted = refreshed.snapshotted;
-        targetInstance.sourceVariantOrder = refreshed.sourceVariantOrder;
         targetInstance.instanceNodes = refreshed.instanceNodes;
       }
     }
@@ -895,13 +865,6 @@ export class NodeAssignmentService {
     return { created, conflicts };
   }
 
-  // ── B.3 — Upgrade instance to next variant (disabled — families removed) ───
-
-  async upgradeInstance(_instanceId: string): Promise<UpgradeResult> {
-    throw new BadRequestException(
-      'La funcionalitat d\'upgrade no està disponible temporalment (famílies eliminades).',
-    );
-  }
 
   // ── Cordons — update numberOfCordons / openCordons on instance ─────────────
 
@@ -1032,7 +995,6 @@ export class NodeAssignmentService {
 
       await manager.update(FigureInstance, instance.id, {
         snapshotted: true,
-        sourceVariantOrder: null,
       });
 
       return saved;

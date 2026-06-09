@@ -56,11 +56,9 @@ export interface FigureHistoryEntry {
   eventTitle: string;
   eventDate: string;
   eventType: string;
-  familyName: string | null;
   segmentName: string | null;
   instanceId: string;
   snapshotted: boolean;
-  sourceVariantOrder: number | null;
   assignmentCount: number;
   totalNodes: number;
   assignments: {
@@ -172,7 +170,6 @@ export interface PersonAssignmentEntry {
   instanceId: string;
   figureName: string;
   figureSlug: string;
-  familyName: string | null;
   nodeLabel: string;
   positionType: string | null;
   zone: string;
@@ -196,7 +193,6 @@ export interface EventAssignmentEntry {
 export interface EventFigureSummary {
   instanceId: string;
   figureName: string;
-  familyName: string | null;
   snapshotted: boolean;
   totalNodes: number;
   assignedNodes: number;

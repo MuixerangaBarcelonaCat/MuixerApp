@@ -4,7 +4,7 @@
  * Truncates tables in FK-safe order:
  *   node_assignments → instance_nodes → figure_instances →
  *   figure_nodes → composition_slots → figure_templates →
- *   composition_templates → figure_families
+ *   composition_templates
  *
  * Usage:
  *   nx run api:reset-figure-data
@@ -32,7 +32,6 @@ async function run(): Promise<void> {
       'composition_slots',
       'figure_templates',
       'composition_templates',
-      'figure_families',
     ];
 
     console.log('\nResetting figure data...\n');

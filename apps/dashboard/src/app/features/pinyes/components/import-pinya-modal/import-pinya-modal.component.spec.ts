@@ -15,11 +15,9 @@ const makeHistoryEntry = (instanceId = SOURCE_INSTANCE_ID): FigureHistoryEntry =
   eventTitle: 'Assaig Setmana Santa',
   eventDate: '2026-03-15',
   eventType: 'REHEARSAL',
-  familyName: null,
   segmentName: 'Bloc 1',
   instanceId,
   snapshotted: true,
-  sourceVariantOrder: 1,
   assignmentCount: 5,
   totalNodes: 8,
   assignments: [

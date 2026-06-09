@@ -33,7 +33,6 @@ nx build dashboard
 # Database scripts (run from repo root)
 nx run api:seed-seasons              # Import seasons seed data
 nx run api:reset-figure-data         # Dev reset: wipe instances/nodes/assignments + re-seed
-nx run api:migrate-tronc-to-family   # P5.7 migration
 nx run api:migrate-tronc-units       # P5.6 migration
 
 # Docker
@@ -67,10 +66,10 @@ Modules under `src/modules/`:
 - `auth` — JWT (15min) + httpOnly refresh token (7d), Passport, token rotation
 - `person` — CRUD + soft delete via `isActive` boolean
 - `event` + `season` + attendance
-- `figure` — `FigureTemplate`, `FigureFamily`, `FigureNode` (PINYA zone), `FigureFamilyNode` (TRONC/BASE zone)
+- `figure` — `FigureTemplate`, `FigureNode`, `Rengla`
 - `composition` — `CompositionTemplate` + `CompositionSlot`
 - `event-segment` — `EventSegment`, `FigureInstance`, `InstanceNode`, `ProjectionService`
-- `node-assignment` — assignment logic, lazy snapshot, upgrade
+- `node-assignment` — assignment logic, lazy snapshot
 - `reference-element` — `ReferenceElement` for projection canvas (P5.8.1)
 - `sync` — SSE strategy pattern for legacy data import
 
@@ -101,16 +100,12 @@ Routes (all behind `authGuard` + `rolesGuard(TECHNICAL, ADMIN)`):
 The figures module has a non-obvious lifecycle:
 
 1. **Pre-snapshot** — `FigureInstance { snapshotted: false }`. Canvas reads live `FigureNode`s from the template.
-2. **First assignment** — triggers automatic snapshot in a transaction: copies all `FigureNode`s + `FigureFamilyNode`s into `InstanceNode`s, sets `snapshotted = true`. Subsequent template changes do NOT affect the instance.
+2. **First assignment** — triggers automatic snapshot in a transaction: copies all `FigureNode`s into `InstanceNode`s, sets `snapshotted = true`. Subsequent template changes do NOT affect the instance.
 3. **Post-snapshot** — canvas reads `InstanceNode`s (immutable). Assignments always point to `InstanceNode`, never to `FigureNode`.
-4. **Upgrade** — `POST /instances/:id/upgrade` adds new `InstanceNode`s from the next variant without touching existing ones.
 
-Node split by zone (transparent to frontend):
-- `PINYA` nodes live in `figure_nodes` (per template)
-- `TRONC`/`BASE` nodes live in `figure_family_nodes` (shared across all variants in a family)
-- `GET /figure-templates/:id` merges both; `PUT` splits them back automatically
+All nodes (PINYA, TRONC, BASE, directions) live in `figure_nodes` per template.
 
-`FigureNode.id` is stable across saves (upsert by ID, not delete+recreate). `originNodeId` always points to the root ancestor within the family, not the immediate previous variant.
+`FigureNode.id` is stable across saves (upsert by ID, not delete+recreate). `originNodeId` (optional) traces lineage when nodes are duplicated or derived from another template.
 
 **Pinyes routes:**
 ```

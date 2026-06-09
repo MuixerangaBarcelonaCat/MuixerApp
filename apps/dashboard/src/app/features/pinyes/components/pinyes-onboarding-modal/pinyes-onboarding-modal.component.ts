@@ -33,10 +33,9 @@ export class PinyesOnboardingModalComponent {
 
   readonly steps: OnboardingStep[] = [
     {
-      title: 'Famílies i figures',
+      title: 'Figures',
       description:
-        'Cada família agrupa la informació d\'una figura (ex: "Pinet doble"). ' +
-        'Un sol template conté totes les posicions de tots els cordons. ' +
+        'Cada figura defineix totes les posicions de tots els cordons (ex: "Pinet doble de 4"). ' +
         'Les rengles defineixen les línies radials de posicions del centre cap enfora.',
       icon: Layers,
     },

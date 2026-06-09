@@ -15,22 +15,21 @@
 2. [Conceptes de domini](#2-conceptes-de-domini)
 3. [Model de dades](#3-model-de-dades)
 4. [Cicle de vida d'una instància](#4-cicle-de-vida-duna-instància)
-5. [Upgrade de cordó](#5-upgrade-de-cordó)
-6. [Estabilitat de nodes al template](#6-estabilitat-de-nodes-al-template)
-7. [API REST — endpoints](#7-api-rest--endpoints)
-8. [Arquitectura frontend](#8-arquitectura-frontend)
-9. [Flux d'assignació pas a pas](#9-flux-dassignació-pas-a-pas)
-10. [Import massiu (bulk import)](#10-import-massiu-bulk-import)
-11. [Visualització i assignació de troncs (P5.6)](#11-visualització-i-assignació-de-troncs-p56)
-12. [Tronc nodes a nivell de família (P5.7)](#12-tronc-nodes-a-nivell-de-família-p57)
-13. [Convenció d'ordre de les Bases (P5.8)](#13-convenció-dordre-de-les-bases-p58)
-14. [Vista de projecció (P5.8.1 → P5.9)](#14-vista-de-projecció-p581--p59)
-15. [Invariants de domini](#15-invariants-de-domini)
-16. [Gestió d'errors i casos límit](#16-gestió-derrors-i-casos-límit)
-17. [Guia per futures implementacions](#17-guia-per-futures-implementacions)
-18. [Rengles — Integració (P5.11)](#18-rengles--integració-p511)
-19. [Ghost Clone — Creació radial de nodes (P5.11 F3)](#19-ghost-clone--creació-radial-de-nodes-p511-f3)
-20. [Selector de cordons a l'assignació (P5.11 F4)](#20-selector-de-cordons-a-lassignació-p511-f4)
+5. [Estabilitat de nodes al template](#5-estabilitat-de-nodes-al-template)
+6. [API REST — endpoints](#6-api-rest--endpoints)
+7. [Arquitectura frontend](#7-arquitectura-frontend)
+8. [Flux d'assignació pas a pas](#8-flux-dassignació-pas-a-pas)
+9. [Import massiu (bulk import)](#9-import-massiu-bulk-import)
+10. [Visualització i assignació de troncs (P5.6)](#10-visualització-i-assignació-de-troncs-p56)
+11. [Històric P5.7 — Tronc a nivell de família (eliminat)](#11-històric-p57--tronc-a-nivell-de-família-eliminat)
+12. [Convenció d'ordre de les Bases (P5.8)](#12-convenció-dordre-de-les-bases-p58)
+13. [Vista de projecció (P5.8.1 → P5.9)](#13-vista-de-projecció-p581--p59)
+14. [Invariants de domini](#14-invariants-de-domini)
+15. [Gestió d'errors i casos límit](#15-gestió-derrors-i-casos-límit)
+16. [Guia per futures implementacions](#16-guia-per-futures-implementacions)
+17. [Rengles — Integració (P5.11)](#17-rengles--integració-p511)
+18. [Ghost Clone — Creació radial de nodes (P5.11 F3)](#18-ghost-clone--creació-radial-de-nodes-p511-f3)
+19. [Selector de cordons a l'assignació (P5.11 F4)](#19-selector-de-cordons-a-lassignació-p511-f4)
 
 ---
 
@@ -41,36 +40,22 @@ El mòdul de Pinyes permet al **Cap de Pinyes** (tècnic de la colla) dissenyar 
 ### Funcionalitats principals
 
 - **Disseny de figures**: Editor visual (canvas Konva) per crear templates amb posicions de pinya, tronc i base.
-- **Famílies i variants**: Agrupa templates que representen la mateixa figura a mides diferents (ex: "Pilar de 4" amb 1, 2 i 3 cordons).
 - **Composicions**: Agrupa múltiples figures en una disposició espacial (ex: "Altar" = 2 pilars + 1 morera).
 - **Segments d'event**: Cada event es divideix en blocs temporals; cada bloc conté figures a realitzar.
 - **Assignació**: Canvas d'assignació pick-and-place on el Cap de Pinyes assigna membres a cada posició.
+- **Selector de cordons**: Triar quants cordons mostrar per instància sense canviar de template (P5.11).
 - **Projecció**: Vista fullscreen per assajos/actuacions amb grid de pinyes o resum de troncs (P5.9).
-- **Creixement concèntric**: Afegir un cordó a una figura en curs sense perdre les assignacions existents.
 
 ---
 
 ## 2. Conceptes de domini
 
-### FigureFamily (Família)
-
-Una família agrupa templates que representen la **mateixa figura** a mides diferents (cordons). Per exemple:
-
-```
-FigureFamily: "Pilar de 4"
-  ├── FigureTemplate: "Pilar de 4 — 1 cordó"  (variantOrder = 1, ~12 nodes pinya)
-  ├── FigureTemplate: "Pilar de 4 — 2 cordons" (variantOrder = 2, ~20 nodes pinya)
-  └── FigureTemplate: "Pilar de 4 — 3 cordons" (variantOrder = 3, ~28 nodes pinya)
-```
-
-Els templates sense família (dades legacy pre-P5.5) apareixen a la secció "Altres" del llistat.
-
-### FigureTemplate (Template / Variant)
+### FigureTemplate (Template)
 
 Un template és el **blueprint reutilitzable** d'una figura. Conté:
 - Metadades: `name`, `slug`, `hasPinya`, `direction`
-- Una llista de **FigureNode**s que defineixen les posicions físiques
-- Referència a la seva `FigureFamily` + `variantOrder`
+- Una llista de **FigureNode**s que defineixen totes les posicions (PINYA, TRONC, BASE, directions)
+- **Rengla**s (P5.11) per organitzar nodes de pinya per cordó
 
 Els templates es dissenyen a l'**editor visual**. Cada save fa un **upsert** de nodes per ID (no delete+recreate), garantint que els IDs siguin estables.
 
@@ -83,14 +68,14 @@ Cada posició dins d'un template. Camps clau:
 | `zone` | `PINYA`, `TRONC`, `BASE`, `FIGURE_DIRECTION`, `XICALLA_DIRECTION` |
 | `positionType` | Tipus semàntic: `agulla`, `laterals`, `mans`, `vents`, `cordo-obert`, `crossa`, `contrafort`, `tap` |
 | `ringLevel` | Anell concèntric al qual pertany (1 = primer cordó). `null` per no-pinya i `cordo-obert` |
-| `originNodeId` | ID de l'ancestre arrel dins la família. Permet traçar el llinatge entre variants derivades |
+| `originNodeId` | ID opcional per traçar llinatge quan es dupliquen o deriven nodes d'un altre template |
 
 ### FigureInstance (Instància)
 
 Una instància és la **presència concreta** d'un template en un segment d'event. No és una còpia; inicialment és una referència lleugera. Conté:
 - Referència a `figureTemplate` (o `compositionTemplate`)
 - `snapshotted: boolean` — indica si els nodes ja s'han copiat
-- `sourceVariantOrder` — variant en el moment del snapshot (per calcular upgrades)
+- `numberOfCordons`, `openCordons` — selector de cordons visibles (P5.11)
 
 ### InstanceNode (Node d'instància)
 
@@ -98,7 +83,7 @@ Còpia immutable d'un `FigureNode`, propietat d'una `FigureInstance`. Creada en 
 
 Camps addicionals respecte `FigureNode`:
 - `sourceNodeId` — ID del `FigureNode` original en el moment del snapshot (no FK)
-- `originNodeId` — copiat de `FigureNode.originNodeId` per facilitar el matching en upgrades
+- `originNodeId` — copiat de `FigureNode.originNodeId`
 
 ### NodeAssignment (Assignació)
 
@@ -115,31 +100,26 @@ Bloc temporal dins d'un event (ex: "Escalfament", "Bloc 1"). Cada segment conté
 ### Diagrama de relacions (mòdul pinyes)
 
 ```
-FigureFamily
-    │ 1:N (RESTRICT)
-    ├──► FigureTemplate ──── 1:N (CASCADE) ────► FigureNode
-    │         │                                       │
-    │         │ 1:N                             ringLevel, originNodeId
-    │         ▼
-    │   FigureInstance ─── snapshotted, sourceVariantOrder
-    │         │
-    │         ├─ 1:N (CASCADE) ────► InstanceNode ◄──── originNodeId, sourceNodeId
-    │         │                           │
-    │         └─ 1:N (CASCADE) ────► NodeAssignment ───► InstanceNode (RESTRICT)
-    │                                                 └──► Person (RESTRICT)
+FigureTemplate ──── 1:N (CASCADE) ────► FigureNode (PINYA, TRONC, BASE, directions)
+    │                                       │
+    │                                 ringLevel, renglaId, originNodeId
+    ├─ 1:N ──► Rengla
     │
-    └──► FigureFamilyNode (P5.7) ─── zone: TRONC/BASE only, shared across variants
-              │ x, width (relative units 0.5u–8u), z (floor), sortOrder
+    └─ 1:N ──► FigureInstance ─── snapshotted, numberOfCordons, openCordons
+                    │
+                    ├─ 1:N (CASCADE) ────► InstanceNode ◄──── sourceNodeId, originNodeId
+                    │                           │
+                    └─ 1:N (CASCADE) ────► NodeAssignment ───► InstanceNode (RESTRICT)
+                                                      └──► Person (RESTRICT)
 ```
 
 ### Taules de base de dades
 
 | Taula | Descripció | Fase |
 |-------|-----------|------|
-| `figure_families` | Famílies de figures | P5.5 |
 | `figure_templates` | Templates reutilitzables | P5.1 |
-| `figure_nodes` | Nodes d'un template (només PINYA) | P5.1 / P5.7 |
-| `figure_family_nodes` | Nodes TRONC/BASE compartits per família | P5.7 |
+| `figure_nodes` | Nodes d'un template (totes les zones) | P5.1 |
+| `rengles` | Rengles de pinya per template | P5.11 |
 | `composition_templates` | Agrupació de templates | P5.2 |
 | `composition_slots` | Slot dins d'una composició | P5.2 |
 | `event_segments` | Blocs temporals d'un event | P5.3 |
@@ -160,7 +140,6 @@ Quan s'afegeix una figura a un segment, es crea una `FigureInstance` lleugera:
   "id": "abc-123",
   "figureTemplate": { "id": "template-456" },
   "snapshotted": false,
-  "sourceVariantOrder": null,
   "instanceNodes": []
 }
 ```
@@ -180,7 +159,7 @@ El backend executa el **lazy snapshot** en transacció:
 
 1. Llegeix tots els `FigureNode`s del template referit per la instància
 2. Crea N `InstanceNode`s (còpies) amb `sourceNodeId = figureNode.id` i `originNodeId = figureNode.originNodeId`
-3. Actualitza la instància: `snapshotted = true`, `sourceVariantOrder = template.variantOrder`
+3. Actualitza la instància: `snapshotted = true`
 4. Crea la `NodeAssignment` apuntant a l'`InstanceNode` corresponent (matching per `sourceNodeId = nodeId`)
 5. Retorna el detall de l'assignació creada
 
@@ -202,57 +181,7 @@ Totes les assignacions posteriors fan un lookup directe per `InstanceNode.id` (o
 
 ---
 
-## 5. Upgrade de cordó
-
-L'upgrade permet afegir les posicions del **cordó exterior** a una instància ja assignada, sense tocar les assignacions existents.
-
-### Quan és possible
-
-El botó "Afegir cordó" apareix quan:
-- La instància pertany a una família (via `figureTemplate.family`)
-- Existeix un template amb `variantOrder = instance.sourceVariantOrder + 1` a la mateixa família
-- L'instància no ja està a la variant màxima
-
-### Algorisme d'upgrade
-
-```
-POST /node-assignments/instances/:id/upgrade
-```
-
-1. Troba el template de la instància: `instance.figureTemplate`
-2. Obté la família: `template.family`
-3. Troba la variant superior: `family.templates` on `variantOrder = instance.sourceVariantOrder + 1`
-4. Carrega els nodes de la variant superior
-5. Per cada node de la variant superior, calcula el **canonical ID**: `originNodeId ?? node.id`
-6. Per cada `InstanceNode` existent, calcula el seu canonical: `originNodeId ?? sourceNodeId`
-7. Els nodes amb canonical que ja existeix → **no s'afegeixen** (ja estan assignables)
-8. Els nodes sense match → **nous `InstanceNode`s** creats amb geometria de la variant superior
-9. Actualitza: `instance.sourceVariantOrder = variantSuperior.variantOrder`, `instance.figureTemplate = variantSuperior`
-
-El resultat és un `UpgradeResult`:
-```typescript
-{
-  addedNodes: number;       // nous InstanceNodes creats
-  updatedNodes: number;     // 0 (no es toquen els existents)
-  totalNodes: number;       // total InstanceNodes post-upgrade
-  newTemplateId: string;
-  newTemplateName: string;
-  newVariantOrder: number;
-}
-```
-
-### Exemple visual
-
-```
-Instància post-snapshot (2C): 20 InstanceNodes, 15 assignats
-                    ↓  upgrade
-Instància post-upgrade (3C): 20 InstanceNodes existents (15 assignats) + 8 nous
-                              → 28 InstanceNodes, 8 lliures a assignar
-```
-
----
-
-## 6. Estabilitat de nodes al template
+## 5. Estabilitat de nodes al template
 
 Abans de P5.5, el `PUT /figure-templates/:id` feia un **delete-all + recreate** de tots els nodes. Això generava nous UUIDs a cada save i, si hi havia assignacions, bloquejava l'operació amb 409.
 
@@ -272,28 +201,18 @@ Això garanteix:
 
 ---
 
-## 7. API REST — endpoints
-
-### Famílies (`/figure-families`)
-
-| Mètode | Ruta | Descripció |
-|--------|------|-----------|
-| `GET` | `/figure-families` | Llista paginada amb `search`, `page`, `limit`. Inclou `variantCount` |
-| `GET` | `/figure-families/:id` | Detall amb llista de variants (id, name, slug, variantOrder, nodeCount) |
-| `POST` | `/figure-families` | Crea família (name, slug, description, metadata) |
-| `PUT` | `/figure-families/:id` | Actualitza metadades |
-| `DELETE` | `/figure-families/:id` | Elimina (409 si té templates) |
+## 6. API REST — endpoints
 
 ### Templates (`/figure-templates`)
 
 | Mètode | Ruta | Descripció |
 |--------|------|-----------|
-| `GET` | `/figure-templates` | Llista paginada amb `familyId`, `search`, `hasPinya` |
+| `GET` | `/figure-templates` | Llista paginada amb `search`, `hasPinya` |
 | `GET` | `/figure-templates/:id` | Detall amb nodes |
-| `POST` | `/figure-templates` | Crea template (+ `familyId` opcional, `variantOrder`) |
+| `POST` | `/figure-templates` | Crea template |
 | `PUT` | `/figure-templates/:id` | Actualitza template + upsert de nodes |
 | `DELETE` | `/figure-templates/:id` | Elimina (409 si té instàncies o slots) |
-| `POST` | `/figure-templates/:id/duplicate` | Duplica template (nova família o mateixa, nou variantOrder) |
+| `POST` | `/figure-templates/:id/duplicate` | Duplica template |
 
 ### Instàncies i nodes (`/node-assignments`)
 
@@ -304,7 +223,6 @@ Això garanteix:
 | `POST` | `/node-assignments/instances/:id/assign` | Assigna persona a node (auto-snapshot en primera crida) |
 | `DELETE` | `/node-assignments/instances/:id/unassign/:nodeId` | Desassigna node |
 | `POST` | `/node-assignments/instances/:id/swap` | Intercanvia dues assignacions |
-| `POST` | `/node-assignments/instances/:id/upgrade` | Afegeix cordó (variant superior) |
 | `GET` | `/node-assignments/instances/:id/history` | Historial d'assignacions per importar |
 | `POST` | `/node-assignments/instances/:id/bulk-import` | Import massiu des d'una instància anterior |
 
@@ -324,14 +242,14 @@ Això garanteix:
 
 ---
 
-## 8. Arquitectura frontend
+## 7. Arquitectura frontend
 
 ### Estructura de fitxers
 
 ```
 apps/dashboard/src/app/features/pinyes/
 ├── components/
-│   ├── template-list/           # Llistat principal: tab Famílies / Figures / Composicions
+│   ├── template-list/           # Llistat principal: tab Figures / Composicions
 │   ├── template-editor/         # Editor Konva de template (pinya + tronc)
 │   ├── figure-canvas/           # Canvas Konva reutilitzable
 │   ├── composition-editor/      # Editor de composicions multi-figura
@@ -346,7 +264,6 @@ apps/dashboard/src/app/features/pinyes/
 │   └── pinyes-onboarding-modal/ # Modal d'introducció al mòdul (P5.5)
 ├── services/
 │   ├── figure-template.service.ts
-│   ├── figure-family.service.ts    # P5.5
 │   ├── node-assignment.service.ts
 │   ├── assignment-state.service.ts # Signals: estat global del canvas
 │   ├── event-segment.service.ts
@@ -355,7 +272,6 @@ apps/dashboard/src/app/features/pinyes/
 │   └── composition-template.service.ts
 └── models/
     ├── figure-template.model.ts
-    ├── figure-family.model.ts      # P5.5
     ├── figure-node.model.ts
     ├── assignment.model.ts
     ├── segment.model.ts
@@ -369,9 +285,8 @@ apps/dashboard/src/app/features/pinyes/
 
 Vista principal del mòdul de pinyes, accessible via `/pinyes`.
 
-**Tres tabs**:
-- **Famílies** (defecte, P5.5): Llistat de `FigureFamily` amb variants expandibles. Botons: "Nova Família" (modal), "Nova Variant" (navega a editor), "Editar", "Eliminar".
-- **Figures**: Llistat pla de `FigureTemplate`s, per gestionar templates orfes o pre-família.
+**Dos tabs**:
+- **Figures** (defecte): Llistat de `FigureTemplate`s amb cerca, crear, editar i eliminar.
 - **Composicions**: Llistat de `CompositionTemplate`s.
 
 ### TemplateEditorComponent
@@ -383,7 +298,7 @@ Editor de pàgina complet accessible via `/pinyes/templates/:id/edit`.
 - **Toolbar lateral**: afegir nodes per zona + positionType, eliminar node seleccionat, **botó "Tronc"** (obre floating panel)
 - **Panel propietats**: label, zona, positionType, color, shape, ringLevel (P5.5), climbPath
 - **Auto-save** amb debounce 2s + indicador d'estat
-- **Upsert de nodes**: envia el payload complet al `PUT`; el backend fa upsert per ID (P5.7: split TRONC/BASE a family nodes)
+- **Upsert de nodes**: envia el payload complet al `PUT`; el backend fa upsert per ID
 
 ### AssignmentCanvasComponent
 
@@ -424,16 +339,15 @@ totalConfirmedCount: computed<number>
 ### PinyesOnboardingModalComponent (P5.5)
 
 Modal informatiu que explica conceptes al Cap de Pinyes:
-1. **Famílies**: agrupació de variants de la mateixa figura
-2. **Variants**: representació de la figura a mides (cordons) diferents
-3. **Snapshot**: quan s'assigna per primera vegada, els nodes es "fixen" per a l'event
-4. **Afegir cordó**: creixement de la figura sense perdre assignacions
+1. **Rengles**: seqüències radials de nodes de pinya per cordó
+2. **Snapshot**: quan s'assigna per primera vegada, els nodes es "fixen" per a l'event
+3. **Selector de cordons**: triar quants cordons mostrar a l'assignació (reversible)
 
 Es mostra a la primera visita del mòdul i es pot reobrir des d'una icona `?`.
 
 ---
 
-## 9. Flux d'assignació pas a pas
+## 8. Flux d'assignació pas a pas
 
 ```
 Cap de Pinyes navega a /pinyes/events/:eventId/segments/:segmentId/assign
@@ -475,7 +389,7 @@ Renderitza canvas Konva:
 
 ---
 
-## 10. Import massiu (bulk import)
+## 9. Import massiu (bulk import)
 
 Permet importar assignacions d'una instància anterior (d'un altre event) cap a la instància actual.
 
@@ -518,7 +432,7 @@ Match: origen_sourceNodeId == destí_sourceNodeId
 
 ---
 
-## 11. Visualització i assignació de troncs (P5.6)
+## 10. Visualització i assignació de troncs (P5.6)
 
 ### El problema resolt
 
@@ -588,95 +502,15 @@ Script `migrate-tronc-units.script.ts` actualitza valors existents de `x`/`width
 
 ---
 
-## 12. Tronc nodes a nivell de família (P5.7)
+## 11. Històric P5.7 — Tronc a nivell de família (eliminat)
 
-Pre-P5.7, cada variant d'una família tenia la seva pròpia còpia dels nodes `TRONC`/`BASE`. Això causava:
-- Inconsistències quan s'editava el tronc d'una sola variant
-- Workflow tediós (editar totes les variants manualment)
-- Conceptualment incorrecte (el tronc és la **mateixa estructura** per tota la família)
+Entre P5.7 i P5.13, els nodes `TRONC`/`BASE` es van emmagatzemar a `figure_family_nodes` compartits per `FigureFamily`, amb merge/split transparent al `GET`/`PUT` de templates. Aquest disseny s'ha eliminat completament a **P5.13** (`RemoveFigureFamily1780982679300`): taules `figure_families` i `figure_family_nodes` eliminades, i tots els nodes (PINYA, TRONC, BASE) consolidats a `figure_nodes`.
 
-### Entitat FigureFamilyNode
-
-Nova taula `figure_family_nodes` que emmagatzema nodes `TRONC`/`BASE` compartits a nivell de `FigureFamily`:
-
-```typescript
-@Entity('figure_family_nodes')
-export class FigureFamilyNode {
-  @PrimaryGeneratedColumn('uuid') id: string;
-  @ManyToOne(() => FigureFamily, { onDelete: 'CASCADE' }) family: FigureFamily;
-  @Column() label: string;
-  @Column({ type: 'enum', enum: FigureZone }) zone: FigureZone; // TRONC | BASE
-  @Column() positionType: string;
-  @Column({ type: 'float' }) x: number;           // unitats relatives
-  @Column({ type: 'float' }) width: number;       // unitats relatives
-  @Column({ type: 'int' }) z: number;             // pis
-  @Column({ type: 'int' }) sortOrder: number;
-  @Column({ nullable: true }) color?: string;
-  @Column({ type: 'enum', enum: NodeShape }) shape: NodeShape;
-  @Column({ type: 'jsonb', nullable: true }) climbPath?: any;
-  // No té originNodeId (no deriva, és l'origen)
-}
-```
-
-### Estratègia merge/split transparent
-
-El frontend **no canvia**: segueix enviant/rebent nodes com abans. El backend fa la separació internament:
-
-**GET `/figure-templates/:id`** → **merge**:
-1. Carrega `FigureNode`s del template (només PINYA)
-2. Carrega `FigureFamilyNode`s de la família (TRONC/BASE)
-3. Combina les dues llistes
-4. Marca FamilyNodes amb `isShared: true` al DTO de sortida
-
-**PUT `/figure-templates/:id`** → **split**:
-1. Rep el payload amb nodes combinats
-2. Separa per `zone`:
-   - `TRONC`/`BASE` → `syncFamilyNodes()` (upsert a `figure_family_nodes`)
-   - `PINYA` / directions → `syncTemplateLevelNodes()` (upsert a `figure_nodes`)
-3. Upsert idempotent per ID (update si existeix, create si nou, delete si falta)
-
-**Funcions afectades**:
-- **`deriveNodes()`**: Només copia nodes PINYA (exclou TRONC/BASE) quan es crea una nova variant
-- **`snapshotInstance()`**: Snapshoteja tant `FigureFamilyNode`s com `FigureNode`s a `InstanceNode`s
-- **`duplicate()`**: En duplicar un template, si té família, els TRONC/BASE venen automàticament de la família
-
-### Migració de dades
-
-Script `migrate-tronc-to-family.script.ts` (idempotent):
-1. Itera per cada `FigureFamily`
-2. Troba el template amb `variantOrder` més baix (variant base)
-3. Copia els seus nodes TRONC/BASE a `figure_family_nodes`
-4. Elimina tots els nodes TRONC/BASE de `figure_nodes` per tota la família
-
-Nx target: `nx run api:migrate-tronc-to-family`
-
-### Seeds actualitzats
-
-Els seeds ara tenen estructura `familyNodes` separada:
-
-```typescript
-interface FigureSeed {
-  family: { name, slug, description };
-  variants: Array<{
-    name, slug, variantOrder,
-    nodes: FigureNodeSeed[]  // només PINYA
-  }>;
-  familyNodes: FigureNodeSeed[]  // TRONC + BASE, compartits
-}
-```
-
-`insertFigure()` és idempotent: comprova si la família ja té family nodes abans d'inserir-los.
-
-### Beneficis
-
-- **Edició unificada**: Editar el tronc d'una variant actualitza automàticament totes les variants
-- **Menys duplicació**: Un sol conjunt de nodes TRONC/BASE per família
-- **Conceptualment correcte**: El tronc és la mateixa estructura física per tota la família
-- **Backward compatible**: Instàncies existents snapshotted no es veuen afectades
+La migració històrica `migrate-tronc-to-family.script.ts` (P5.7) ja no existeix com a target Nx. Vegeu `docs/P5.13_DEPLOYMENT_GUIDE.md` per al procés de desplegament de l'eliminació.
 
 ---
 
-## 13. Convenció d'ordre de les Bases (P5.8)
+## 12. Convenció d'ordre de les Bases (P5.8)
 
 ### El problema
 
@@ -704,7 +538,7 @@ Per a N Bases, el patró continua en sentit anti-horari des de la Base 1 (dalt-e
 
 ### Etiquetatge automàtic
 
-Quan el Cap de Pinyes afegeix una Base des de l'editor, el sistema li assigna automàticament el label `Base N` (on N és la posició seqüencial dins la família: `Base 1`, `Base 2`, etc.). Aquest label reflecteix l'`sortOrder` de la Base.
+Quan el Cap de Pinyes afegeix una Base des de l'editor, el sistema li assigna automàticament el label `Base N` (on N és la posició seqüencial dins el template: `Base 1`, `Base 2`, etc.). Aquest label reflecteix l'`sortOrder` de la Base.
 
 ### Validació en l'editor
 
@@ -719,9 +553,9 @@ Si la validació falla (N ≥ 2 Bases), l'editor mostra un avís **"Ordre incorr
 
 ### Validació a la llista de templates
 
-A la vista de llista de famílies (`/pinyes`), cada família amb Bases desordenades mostra el badge **"Bases desordenades"**. Fent clic s'obre el modal d'ajuda que explica la convenció.
+A la vista de llista de figures (`/pinyes`), cada template amb Bases desordenades pot mostrar el badge **"Bases desordenades"**. Fent clic s'obre el modal d'ajuda que explica la convenció.
 
-La validació es fa de forma asíncrona en carregar la llista: per a cada família es carrega el primer variant (menor `variantOrder`) i s'extrauen els nodes `BASE`.
+La validació es fa de forma asíncrona en carregar la llista: per a cada template s'extrauen els nodes `BASE`.
 
 ### Modal d'ajuda
 
@@ -734,7 +568,7 @@ Es mostra automàticament a la primera visita a l'editor de templates (clau loca
 
 ---
 
-## 14. Vista de projecció (P5.8.1 → P5.9)
+## 13. Vista de projecció (P5.8.1 → P5.9)
 
 Mode **fullscreen** per projectar les assignacions d'un segment durant assajos o actuacions. Accessible des del gestor de segments de l'event (`SegmentManagerComponent` → botó "Projecció"), des del canvas d'assignació (botó "Projectar" per figura) o directament per URL.
 
@@ -984,56 +818,49 @@ Renderitza grid segons viewMode ('pinyes' | 'troncs')
 
 ---
 
-## 15. Invariants de domini
+## 14. Invariants de domini
 
 Aquests invariants han de mantenir-se en qualsevol futura implementació:
 
-1. **Snapshot immutable**: Un cop `snapshotted = true`, els `InstanceNode` d'una instància no es modifiquen per canvis al template. Només `upgradeInstance()` pot afegir nous `InstanceNode`s.
+1. **Snapshot immutable**: Un cop `snapshotted = true`, els `InstanceNode` d'una instància no es modifiquen per canvis al template.
 
 2. **Assignació → InstanceNode only**: `NodeAssignment` apunta **sempre** a `InstanceNode`, mai directament a `FigureNode`.
 
-3. **originNodeId traces back to root**: Dins d'una família, el `originNodeId` d'un node derivat sempre apunta a l'**ancestre arrel** (el node de la primera variant), no al node de la variant immediatament anterior.
+3. **XOR template/composition**: Una `FigureInstance` té exactament un de `figureTemplate` o `compositionTemplate`. Mai tots dos, mai cap.
 
-4. **Family ordering**: Els templates d'una família tenen `variantOrder` estrictament creixents. L'upgrade sempre va a `variantOrder + 1`.
+4. **One person per segment**: Una persona no pot aparèixer en dues `NodeAssignment` de `FigureInstance`s del mateix `EventSegment`.
 
-5. **XOR template/composition**: Una `FigureInstance` té exactament un de `figureTemplate` o `compositionTemplate`. Mai tots dos, mai cap.
+5. **ringLevel consistency**: Tots els nodes d'un template amb `ringLevel = N` impliquen l'existència d'almenys un node amb `ringLevel = 1..N-1`. No poden haver-hi forats.
 
-6. **One person per segment**: Una persona no pot aparèixer en dues `NodeAssignment` de `FigureInstance`s del mateix `EventSegment`.
+6. **Node ID stability**: Dins d'un template, `FigureNode.id` és estable entre saves (upsert, no delete+recreate).
 
-7. **ringLevel consistency**: Tots els nodes d'un template amb `ringLevel = N` impliquen l'existència d'almenys un node amb `ringLevel = 1..N-1`. No poden haver-hi forats.
+7. **Cordo-obert independence**: Nodes amb `positionType = 'cordo-obert'` poden tenir `ringLevel = null`. La seva presència és independent del compte de cordons.
 
-8. **Node ID stability**: Dins d'un template, `FigureNode.id` és estable entre saves (upsert, no delete+recreate).
+8. **All nodes in figure_nodes**: Tots els nodes (PINYA, TRONC, BASE, directions) viuen a `figure_nodes` per template.
 
-9. **Cordo-obert independence**: Nodes amb `positionType = 'cordo-obert'` poden tenir `ringLevel = null`. La seva presència és independent del compte de cordons.
+9. **Relative units for tronc (P5.6)**: Per nodes `TRONC`/`BASE`, `x` i `width` són unitats relatives (0–8u, steps 0.5). Per nodes `PINYA`, són pixels.
 
-10. **Tronc shared at family level (P5.7)**: Nodes `TRONC` i `BASE` existeixen només a `FigureFamilyNode` (no a `FigureNode`). Són compartits per totes les variants d'una família.
+10. **Base ordering (P5.8)**: Les Bases han de seguir l'ordre anti-horari (CCW) partint de dalt-esquerra. `sortOrder` 0 = dalt-esquerra, i augmenta en sentit anti-horari. El label de cada Base ha de ser `Base N` (N = sortOrder + 1). La funció `validateBaseOrdering()` comprova aquest invariant.
 
-11. **Relative units for tronc (P5.6)**: Per nodes `TRONC`/`BASE`, `x` i `width` són unitats relatives (0–8u, steps 0.5). Per nodes `PINYA`, són pixels.
+11. **Assignment lock (P5.10)**: Un cop `event.date + ASSIGNMENT_LOCK_DAYS < now()`, les operacions d'escriptura sobre `NodeAssignment` (assign, unassign, swap, bulkImport, reset) retornen 403. Les lectures (GET) no es veuen afectades. `ASSIGNMENT_LOCK_DAYS = 0` desactiva el lock.
 
-12. **Base ordering (P5.8)**: Les Bases han de seguir l'ordre anti-horari (CCW) partint de dalt-esquerra. `sortOrder` 0 = dalt-esquerra, i augmenta en sentit anti-horari. El label de cada Base ha de ser `Base N` (N = sortOrder + 1). La funció `validateBaseOrdering()` comprova aquest invariant.
+12. **Position-positionType soft matching (P5.10)**: `Position.slug` i `FigureNode.positionType` es relacionen per convenció de noms (mateixa cadena), no per FK. El matching és opcional i s'usa per prioritzar persones al panel d'assignació.
 
-13. **Assignment lock (P5.10)**: Un cop `event.date + ASSIGNMENT_LOCK_DAYS < now()`, les operacions d'escriptura sobre `NodeAssignment` (assign, unassign, swap, bulkImport, upgrade, reset) retornen 403. Les lectures (GET) no es veuen afectades. `ASSIGNMENT_LOCK_DAYS = 0` desactiva el lock.
+13. **Rengla integrity (P5.11)**: Un node amb `renglaId` no-null ha de tenir `renglaPosition` no-null. Si es borra una `Rengla`, tots els nodes amb aquell `renglaId` passen a `renglaId = null, renglaPosition = null`.
 
-14. **Position-positionType soft matching (P5.10)**: `Position.slug` i `FigureNode.positionType` es relacionen per convenció de noms (mateixa cadena), no per FK. El matching és opcional i s'usa per prioritzar persones al panel d'assignació.
+14. **Cordons visibility (P5.11)**: `isNodeVisible()` és la funció canònica per filtrar nodes per cordons. Nodes sense `renglaId` sempre es mostren. Nodes `cordo-obert` es mostren només si la seva rengla està a `openCordons`.
 
-15. **Rengla integrity (P5.11)**: Un node amb `renglaId` no-null ha de tenir `renglaPosition` no-null. Si es borra una `Rengla`, tots els nodes amb aquell `renglaId` passen a `renglaId = null, renglaPosition = null`.
-
-16. **Cordons visibility (P5.11)**: `isNodeVisible()` és la funció canònica per filtrar nodes per cordons. Nodes sense `renglaId` sempre es mostren. Nodes `cordo-obert` es mostren només si la seva rengla està a `openCordons`.
-
-17. **Bulk import matching (P5.11)**: El matching de nodes entre instàncies es fa per `renglaId + renglaPosition` com a clau primària, amb fallback a `sourceNodeId` directe.
+15. **Bulk import matching (P5.11)**: El matching de nodes entre instàncies es fa per `renglaId + renglaPosition` com a clau primària, amb fallback a `sourceNodeId` directe.
 
 ---
 
-## 18 (antic 16). Gestió d'errors i casos límit
+## 15. Gestió d'errors i casos límit
 
 | Situació | Codi HTTP | Missatge Catalan |
 |----------|-----------|-----------------|
 | Slug duplicat en template | 409 | "L'identificador ja l'utilitza una altra figura. Canvia'l." |
-| Slug duplicat en família | 409 | "L'identificador ja l'utilitza una altra família. Canvia'l." |
 | Eliminar template amb instàncies | 409 | "No es pot esborrar: hi ha instàncies que fan servir aquest template." |
 | Eliminar template amb slots de composició | 409 | "No es pot esborrar: s'utilitza en composicions." |
-| Eliminar família amb variants | 409 | "No es pot esborrar: la família té N variant(s) associada(es)." |
-| Afegir cordó — no existeix variant superior | 400 | "No hi ha una variant amb més cordons disponible per a aquesta família." |
 | Node ja ocupat | 409 | "Aquesta posició ja està ocupada." |
 | Persona ja assignada al segment | 409 | "Aquesta persona ja està assignada a una altra figura del segment." |
 | InstanceNode no trobat en snapshot | 404 | (missatge intern, no exposat a UI) |
@@ -1045,44 +872,20 @@ Aquests invariants han de mantenir-se en qualsevol futura implementació:
 
 ---
 
-## 17. Guia per futures implementacions
+## 16. Guia per futures implementacions
 
 ### Afegir un nou tipus de posicionType
 
 1. `FigureNode.positionType` és un `varchar` lliure, no un enum. Afegir el nou valor al seed o a l'UI no requereix migració.
-2. Si el tipus és "growable" (apareix en cordons addicionats per upgrade), afegir-lo a la constant `GROWABLE_POSITION_TYPES` a `libs/shared`.
-3. Actualitzar el toolbar de l'editor si es vol un botó específic.
+2. Actualitzar el toolbar de l'editor si es vol un botó específic.
 
-### Crear un nou template derivat (variant)
+### Duplicar un template
 
 ```
-POST /figure-templates
-{
-  "familyId": "family-uuid",
-  "variantOrder": 3,
-  "name": "Pilar de 4 — 3 cordons",
-  "slug": "pilar-de-4-3c",
-  "nodes": [
-    // Nodes copiats de la variant 2, amb originNodeId = node.originNodeId ?? node.id
-    // Nous nodes del cordó 3 amb ringLevel = 3, originNodeId = null
-  ]
-}
+POST /figure-templates/:id/duplicate
 ```
 
-### Implementar downgrade (eliminar cordó)
-
-El downgrade NO està implementat. Si es vol implementar en el futur:
-1. Verificar que cap `InstanceNode` del cordó N té `NodeAssignment`s actives (si en té, bloquejar amb 422)
-2. Si cap, eliminar els `InstanceNode`s del `ringLevel = N`
-3. Actualitzar `instance.sourceVariantOrder = N - 1` i `instance.figureTemplate` a la variant N-1
-
-### Implementar UI d'upgrade de cordó al canvas
-
-El backend de `upgradeInstance` ja està implementat. La integració frontend (Phase D.2) inclou:
-- Botó "Afegir cordó" visible quan `nextVariant` existeix
-- Modal de confirmació amb el nombre de posicions noves
-- Feedback visual dels nodes nous durant 5 segons post-upgrade
-- Endpoint: `POST /node-assignments/instances/:id/upgrade`
+Duplica el template amb tots els seus nodes (PINYA, TRONC, BASE). Els nodes duplicats poden conservar `originNodeId` per traçar el llinatge.
 
 ### Millores a la projecció (futur)
 
@@ -1093,14 +896,14 @@ Possibles extensions sobre P5.9:
 
 ### Multi-tenant (futur)
 
-El model de famílies i templates és **per colla**. Quan s'implementi multi-tenant:
-- Afegir `collaId` a `FigureFamily`, `FigureTemplate`, `CompositionTemplate`
-- Els seeds seran per colla; les famílies no seran globals
+El model de templates és **per colla**. Quan s'implementi multi-tenant:
+- Afegir `collaId` a `FigureTemplate`, `CompositionTemplate`
+- Els seeds seran per colla
 - L'API haurà de filtrar per `collaId` extret del JWT
 
 ---
 
-## 18. Rengles — Integració (P5.11)
+## 17. Rengles — Integració (P5.11)
 
 ### Concepte
 
@@ -1147,15 +950,13 @@ Nous camps afegits:
 ### Diagrama de relacions actualitzat
 
 ```
-FigureFamily
-    │ 1:N
-    └──► FigureTemplate ──── 1:N ────► FigureNode (renglaId, renglaPosition)
-              │                              │
-              ├─ 1:N ──► Rengla             ◄── FK: renglaId
-              │
-              └─ 1:N ──► FigureInstance ── numberOfCordons, openCordons
-                              │
-                              └─ 1:N ──► InstanceNode (renglaId, renglaPosition copied)
+FigureTemplate ──── 1:N ────► FigureNode (renglaId, renglaPosition)
+      │                              │
+      ├─ 1:N ──► Rengla             ◄── FK: renglaId
+      │
+      └─ 1:N ──► FigureInstance ── numberOfCordons, openCordons
+                      │
+                      └─ 1:N ──► InstanceNode (renglaId, renglaPosition copied)
 ```
 
 ### Impacte en funcionalitats existents
@@ -1165,7 +966,7 @@ FigureFamily
 | **Snapshot** | Copia `renglaId` i `renglaPosition` de FigureNode a InstanceNode |
 | **Bulk import** | Matching per `renglaId + renglaPosition` (fallback: `sourceNodeId`) |
 | **Projecció** | Nodes filtrats per `isNodeVisible()` basant-se en `numberOfCordons` |
-| **Upgrade** | Conceptualment reemplaçat pel selector de cordons (reversible, no destructiu) |
+| **Upgrade** | Eliminat; substituït pel selector de cordons (reversible, no destructiu) |
 | **Derivació de variants** | Eliminada; un sol template conté tots els cordons |
 
 ### Nodes sense rengla
@@ -1176,7 +977,7 @@ Nodes que mai pertanyen a cap rengla i sempre es mostren:
 
 ---
 
-## 19. Ghost Clone — Creació radial de nodes (P5.11 F3)
+## 18. Ghost Clone — Creació radial de nodes (P5.11 F3)
 
 ### Propòsit
 
@@ -1207,7 +1008,7 @@ isGhostEligible(node): boolean                 // true si PINYA i no central/CO
 
 ---
 
-## 20. Selector de cordons a l'assignació (P5.11 F4)
+## 19. Selector de cordons a l'assignació (P5.11 F4)
 
 ### Propòsit
 

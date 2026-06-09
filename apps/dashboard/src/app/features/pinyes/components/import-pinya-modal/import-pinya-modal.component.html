@@ -51,12 +51,7 @@
                 >
                   <div class="flex items-center justify-between">
                     <span class="font-medium">{{ entry.eventTitle }}</span>
-                    <div class="flex items-center gap-1">
-                      @if (entry.sourceVariantOrder) {
-                        <span class="badge badge-ghost badge-xs">#{{ entry.sourceVariantOrder }}</span>
-                      }
-                      <span class="text-xs text-base-content/50">{{ entry.eventDate | slice:0:10 }}</span>
-                    </div>
+                    <span class="text-xs text-base-content/50">{{ entry.eventDate | slice:0:10 }}</span>
                   </div>
                   <div class="text-xs text-base-content/50 mt-0.5 flex items-center gap-2">
                     @if (entry.segmentName) {

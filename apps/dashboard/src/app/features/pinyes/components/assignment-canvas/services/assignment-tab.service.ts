@@ -17,7 +17,6 @@ export interface InstanceTab {
   label: string;
   figureTemplateId: string | null;
   snapshotted: boolean;
-  sourceVariantOrder: number | null;
   numberOfCordons: number | null;
   openCordons: string[] | null;
   nodes: InstanceNodeItem[];
@@ -145,7 +144,7 @@ export class AssignmentTabService {
   markTabReset(instanceId: string): void {
     this.tabs.update((list) =>
       list.map((t) =>
-        t.instanceId === instanceId ? { ...t, snapshotted: false, sourceVariantOrder: null, assignedCount: 0 } : t,
+        t.instanceId === instanceId ? { ...t, snapshotted: false, assignedCount: 0 } : t,
       ),
     );
   }
@@ -204,7 +203,6 @@ export class AssignmentTabService {
         label: instance.label ?? instance.figureTemplate?.name ?? '?',
         figureTemplateId: instance.figureTemplate?.id ?? null,
         snapshotted: instance.snapshotted,
-        sourceVariantOrder: instance.sourceVariantOrder,
         numberOfCordons: instance.numberOfCordons ?? null,
         openCordons: instance.openCordons ?? null,
         nodes: [],

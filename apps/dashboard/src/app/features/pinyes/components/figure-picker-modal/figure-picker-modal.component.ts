@@ -11,10 +11,8 @@ import {
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
 import { FigureTemplateService } from '../../services/figure-template.service';
-import { FigureFamilyService } from '../../services/figure-family.service';
 import { CompositionTemplateService } from '../../services/composition-template.service';
 import { FigureTemplateListItem } from '../../models/figure-template.model';
-import { FigureFamilyDetail } from '../../models/figure-family.model';
 import { CompositionTemplateListItem } from '../../models/composition.model';
 
 export type PickerTab = 'figures' | 'composicions';
@@ -22,12 +20,6 @@ export type PickerTab = 'figures' | 'composicions';
 export interface InstanceSelection {
   figureTemplateId?: string;
   compositionTemplateId?: string;
-}
-
-export interface FamilyGroup {
-  familyId: string;
-  familyName: string;
-  variants: FigureTemplateListItem[];
 }
 
 @Component({
@@ -45,7 +37,6 @@ export class FigurePickerModalComponent implements OnInit {
   closed = output<void>();
 
   private readonly figureService = inject(FigureTemplateService);
-  private readonly familyService = inject(FigureFamilyService);
   private readonly compositionService = inject(CompositionTemplateService);
 
   activeTab = signal<PickerTab>('figures');
@@ -53,25 +44,10 @@ export class FigurePickerModalComponent implements OnInit {
   loadingFigures = signal(false);
   loadingCompositions = signal(false);
 
-  families = signal<FigureFamilyDetail[]>([]);
   figures = signal<FigureTemplateListItem[]>([]);
   compositions = signal<CompositionTemplateListItem[]>([]);
 
-  // Figures grouped by family, filtered by search
-  readonly familyGroups = computed<FamilyGroup[]>(() => {
-    const q = this.search().toLowerCase();
-    return this.families()
-      .map((f) => {
-        const variants = f.variants
-          .map((v) => this.figures().find((fig) => fig.id === v.id))
-          .filter((fig): fig is FigureTemplateListItem => !!fig)
-          .filter((fig) => !q || fig.name.toLowerCase().includes(q) || f.name.toLowerCase().includes(q));
-        return { familyId: f.id, familyName: f.name, variants };
-      })
-      .filter((g) => g.variants.length > 0);
-  });
-
-  readonly legacyFigures = computed<FigureTemplateListItem[]>(() => {
+  readonly filteredFigures = computed<FigureTemplateListItem[]>(() => {
     const q = this.search().toLowerCase();
     const all = this.figures();
     if (!q) return all;
@@ -84,9 +60,7 @@ export class FigurePickerModalComponent implements OnInit {
     return this.compositions().filter((c) => c.name.toLowerCase().includes(q));
   });
 
-  readonly hasAnyFigure = computed(
-    () => this.familyGroups().length > 0 || this.legacyFigures().length > 0,
-  );
+  readonly hasAnyFigure = computed(() => this.filteredFigures().length > 0);
 
   ngOnInit() {
     this.loadFigures();
@@ -98,43 +72,7 @@ export class FigurePickerModalComponent implements OnInit {
     this.figureService.getAll({ limit: 200 }).subscribe({
       next: (resp) => {
         this.figures.set(resp.data);
-        this.loadFamilies();
-      },
-      error: () => this.loadingFigures.set(false),
-    });
-  }
-
-  private loadFamilies() {
-    this.familyService.getAll({ limit: 100 }).subscribe({
-      next: (resp) => {
-        const listItems = resp.data;
-        if (listItems.length === 0) {
-          this.families.set([]);
-          this.loadingFigures.set(false);
-          return;
-        }
-        let completed = 0;
-        const details: FigureFamilyDetail[] = new Array(listItems.length);
-        listItems.forEach((item, idx) => {
-          this.familyService.getOne(item.id).subscribe({
-            next: (detail) => {
-              details[idx] = detail;
-              completed++;
-              if (completed === listItems.length) {
-                this.families.set(details);
-                this.loadingFigures.set(false);
-              }
-            },
-            error: () => {
-              details[idx] = { ...item, metadata: {}, variants: [] };
-              completed++;
-              if (completed === listItems.length) {
-                this.families.set(details);
-                this.loadingFigures.set(false);
-              }
-            },
-          });
-        });
+        this.loadingFigures.set(false);
       },
       error: () => this.loadingFigures.set(false),
     });

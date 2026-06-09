@@ -82,11 +82,11 @@ export class InstanceNode {
   @Column({ type: 'int', nullable: true })
   ringLevel: number | null;
 
-  /** Copied from source FigureNode/FigureFamilyNode at snapshot time. */
+  /** Copied from source FigureNode at snapshot time. */
   @Column({ type: 'uuid', nullable: true })
   renglaId: string | null;
 
-  /** Copied from source FigureNode/FigureFamilyNode at snapshot time. */
+  /** Copied from source FigureNode at snapshot time. */
   @Column({ type: 'int', nullable: true })
   renglaPosition: number | null;
 

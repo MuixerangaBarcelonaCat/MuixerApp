@@ -1,7 +1,6 @@
 /**
  * Pilar de 4 — figure seed script.
  *
- * Family: "Pilar de 4" | variant 1 of 2
  * This is the 2-cordon variant (ring 1 = crossa/contrafort/mans/vents/laterals,
  * ring 2 = outer mans/vents/laterals). cordó-obert closes the outer ring (ringLevel NULL).
  * Tronc: Base(z=0) → Segon(z=1) → Alçadora(z=2) → Xiqueta(z=3)
@@ -14,9 +13,6 @@
 import { FigureSeed, insertFigure, printPayload } from './_seed-helper';
 
 const figure: FigureSeed = {
-  familyName:   'Pilar de 4',
-  familySlug:   'pilar-de-4',
-  variantOrder: 1,
   name:         'Pilar de 4 — 2C',
   slug:         'pd4-2c',
   description:  'Pilar de 4 (Pinet doble) — 2 cordons',
@@ -68,10 +64,8 @@ const figure: FigureSeed = {
     { label: 'CORDÓ OBERT', zone: 'PINYA', positionType: 'cordo-obert', x: 500, y: 760, z: 0, width: 64, height: 40, rotation:   0, color: '#FFF9C4', shape: 'ELLIPSE',    sortOrder: 14, climbPath: null, ringLevel: null, metadata: {} },
     { label: 'CORDÓ OBERT', zone: 'PINYA', positionType: 'cordo-obert', x: 252, y: 500, z: 0, width: 64, height: 40, rotation: 270, color: '#FFF9C4', shape: 'ELLIPSE',    sortOrder: 18, climbPath: null, ringLevel: null, metadata: {} },
     { label: 'CORDÓ OBERT', zone: 'PINYA', positionType: 'cordo-obert', x: 749, y: 500, z: 0, width: 64, height: 40, rotation:  91, color: '#FFF9C4', shape: 'ELLIPSE',    sortOrder: 22, climbPath: null, ringLevel: null, metadata: {} },
-  ],
-  // ── TRONC + BASE — shared across all "Pilar de 4" variants ──────────────
-  // x and width for TRONC are relative tronc units (1u = 1 person width).
-  familyNodes: [
+    // ── TRONC + BASE ───────────────────────────────────────────────────────
+    // x and width for TRONC are relative tronc units (1u = 1 person width).
     { label: 'BASE',     zone: 'BASE',  positionType: 'base',     x: 500, y: 500, z: 0, width: 80, height: 40, rotation: 0, color: '#EEEEEE', shape: 'RECTANGLE', sortOrder: 0, climbPath: null,  ringLevel: null, metadata: {} },
     { label: 'Segon',    zone: 'TRONC', positionType: 'segon',    x: 0,   y: 0,   z: 1, width: 1,  height: 40, rotation: 0, color: null,      shape: 'RECTANGLE', sortOrder: 0, climbPath: null,  ringLevel: null, metadata: {} },
     { label: 'Alçadora', zone: 'TRONC', positionType: 'alcadora', x: 0,   y: 0,   z: 2, width: 1,  height: 40, rotation: 0, color: null,      shape: 'RECTANGLE', sortOrder: 0, climbPath: '(A)', ringLevel: null, metadata: {} },

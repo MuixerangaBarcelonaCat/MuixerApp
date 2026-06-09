@@ -95,7 +95,6 @@ export interface FigureHistoryEntry {
   segmentName: string | null;
   instanceId: string;
   snapshotted: boolean;
-  sourceVariantOrder: number | null;
   assignmentCount: number;
   totalNodes: number;
   assignments: {

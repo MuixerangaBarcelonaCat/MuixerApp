@@ -212,7 +212,6 @@ export class FigureInstanceService {
       label: instance.label,
       sortOrder: instance.sortOrder,
       snapshotted: instance.snapshotted,
-      sourceVariantOrder: instance.sourceVariantOrder,
       assignedCount: 0,
       numberOfCordons: instance.numberOfCordons,
       openCordons: instance.openCordons,

@@ -205,9 +205,6 @@
                     <div class="mb-3 last:mb-0">
                       <div class="flex items-center gap-2 mb-1">
                         <span class="text-sm font-medium">{{ fig.figureName }}</span>
-                        @if (fig.familyName) {
-                          <span class="text-xs text-base-content/50">({{ fig.familyName }})</span>
-                        }
                         <span class="badge badge-ghost badge-xs">{{ fig.assignedNodes }}/{{ fig.totalNodes }}</span>
                       </div>
                       @if (fig.assignments.length > 0) {

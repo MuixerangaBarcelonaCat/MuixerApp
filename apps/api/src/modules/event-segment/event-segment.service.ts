@@ -16,7 +16,6 @@ export interface InstanceRef {
   label: string | null;
   sortOrder: number;
   snapshotted: boolean;
-  sourceVariantOrder: number | null;
   assignedCount: number;
   numberOfCordons: number | null;
   openCordons: string[] | null;
@@ -204,7 +203,6 @@ function toSegmentWithInstances(segment: EventSegment, countMap: Map<string, num
       label: instance.label,
       sortOrder: instance.sortOrder,
       snapshotted: instance.snapshotted,
-      sourceVariantOrder: instance.sourceVariantOrder,
       assignedCount: countMap.get(instance.id) ?? 0,
       numberOfCordons: instance.numberOfCordons,
       openCordons: instance.openCordons,

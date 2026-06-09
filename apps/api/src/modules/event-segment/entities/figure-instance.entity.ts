@@ -44,13 +44,6 @@ export class FigureInstance {
   @Column({ type: 'boolean', default: false })
   snapshotted: boolean;
 
-  /**
-   * The variantOrder of the template at the time of snapshot.
-   * Used by the upgrade operation to find which variant's nodes to add next.
-   */
-  @Column({ type: 'int', nullable: true })
-  sourceVariantOrder: number | null;
-
   /** How many cordons to show. NULL = all visible. */
   @Column({ type: 'int', nullable: true })
   numberOfCordons: number | null;
