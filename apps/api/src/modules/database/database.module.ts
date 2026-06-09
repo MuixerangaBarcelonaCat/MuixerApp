@@ -17,7 +17,6 @@ import { EventSegment } from '../event-segment/entities/event-segment.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
 import { InstanceNode } from '../event-segment/entities/instance-node.entity';
 import { NodeAssignment } from '../node-assignment/entities/node-assignment.entity';
-import { ReferenceElement } from '../reference-element/entities/reference-element.entity';
 import { Rengla } from '../figure/entities/rengla.entity';
 import { InitialSchema1748600000000 } from '../../migrations/1748600000000-InitialSchema';
 
@@ -50,7 +49,6 @@ import { InitialSchema1748600000000 } from '../../migrations/1748600000000-Initi
             FigureInstance,
             InstanceNode,
             NodeAssignment,
-            ReferenceElement,
             Rengla,
           ],
           synchronize: false,

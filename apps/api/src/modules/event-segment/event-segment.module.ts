@@ -10,8 +10,6 @@ import { EventSegmentService } from './event-segment.service';
 import { FigureInstanceService } from './figure-instance.service';
 import { ProjectionService } from './projection.service';
 import { NodeAssignmentModule } from '../node-assignment/node-assignment.module';
-import { ReferenceElementModule } from '../reference-element/reference-element.module';
-
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -22,7 +20,6 @@ import { ReferenceElementModule } from '../reference-element/reference-element.m
       CompositionTemplate,
     ]),
     NodeAssignmentModule,
-    ReferenceElementModule,
   ],
   controllers: [EventSegmentController],
   providers: [EventSegmentService, FigureInstanceService, ProjectionService],

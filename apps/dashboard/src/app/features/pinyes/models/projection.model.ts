@@ -1,5 +1,4 @@
 import { AssignmentDetail, InstanceNodeItem } from './assignment.model';
-import { ReferenceElementItem } from './reference-element.model';
 
 export interface ProjectionInstance {
   id: string;
@@ -24,7 +23,6 @@ export interface ProjectionSegmentData {
     nextSegmentId: string | null;
   };
   instances: ProjectionInstance[];
-  referenceElements: ReferenceElementItem[];
 }
 
 export interface InstanceLayoutUpdate {

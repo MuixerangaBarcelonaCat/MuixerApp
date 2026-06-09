@@ -4,8 +4,6 @@ import { Repository } from 'typeorm';
 import { EventSegment } from './entities/event-segment.entity';
 import { FigureInstance } from './entities/figure-instance.entity';
 import { NodeAssignmentService, AssignmentDetail, InstanceNodeResponse } from '../node-assignment/node-assignment.service';
-import { ReferenceElementService } from '../reference-element/reference-element.service';
-import { ReferenceElement } from '../reference-element/entities/reference-element.entity';
 
 export interface ProjectionInstanceData {
   id: string;
@@ -30,7 +28,6 @@ export interface ProjectionData {
     nextSegmentId: string | null;
   };
   instances: ProjectionInstanceData[];
-  referenceElements: ReferenceElement[];
 }
 
 @Injectable()
@@ -41,7 +38,6 @@ export class ProjectionService {
     @InjectRepository(FigureInstance)
     private readonly instanceRepository: Repository<FigureInstance>,
     private readonly nodeAssignmentService: NodeAssignmentService,
-    private readonly referenceElementService: ReferenceElementService,
   ) {}
 
   async getProjection(eventId: string, segmentId: string): Promise<ProjectionData> {
@@ -94,11 +90,6 @@ export class ProjectionService {
       }),
     );
 
-    const allElements = await this.referenceElementService.findByEvent(eventId);
-    const visibleElements = allElements.filter(
-      (el) => !el.hiddenInSegments.includes(segmentId),
-    );
-
     return {
       segment: {
         id: segment.id,
@@ -108,7 +99,6 @@ export class ProjectionService {
         nextSegmentId,
       },
       instances: projectionInstances,
-      referenceElements: visibleElements,
     };
   }
 }

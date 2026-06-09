@@ -33,7 +33,6 @@ describe('ProjectionService', () => {
     req.flush({
       segment: { id: SEGMENT_ID, name: 'Test', sortOrder: 0, prevSegmentId: null, nextSegmentId: null },
       instances: [],
-      referenceElements: [],
     });
   });
 

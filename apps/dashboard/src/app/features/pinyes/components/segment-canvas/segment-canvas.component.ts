@@ -11,9 +11,8 @@ import {
   untracked,
 } from '@angular/core';
 import Konva from 'konva';
-import { FigureZone, NodeShape, ReferenceElementType } from '@muixer/shared';
+import { FigureZone, NodeShape } from '@muixer/shared';
 import { ProjectionInstance } from '../../models/projection.model';
-import { ReferenceElementItem } from '../../models/reference-element.model';
 
 export interface FigurePosition {
   x: number;
@@ -30,7 +29,6 @@ const DEFAULT_NODE_COLOR = '#6b7280';
 const TRONC_FLOOR_HEIGHT = 28;
 const TRONC_NODE_WIDTH = 56;
 const TRONC_PADDING = 4;
-const FIGURE_LABEL_HEIGHT = 20;
 
 function getContrastColor(hex: string): string {
   const c = (hex || '#888888').replace('#', '');
@@ -52,35 +50,21 @@ export class SegmentCanvasComponent implements AfterViewInit, OnDestroy {
   @ViewChild('canvasContainer') containerRef!: ElementRef<HTMLDivElement>;
 
   readonly instances = input.required<ProjectionInstance[]>();
-  readonly referenceElements = input.required<ReferenceElementItem[]>();
   readonly editMode = input.required<boolean>();
   readonly figurePositions = input.required<Map<string, FigurePosition>>();
-  readonly selectedElementId = input<string | null>(null);
 
   readonly figureMoved = output<{ instanceId: string; x: number; y: number }>();
   readonly figureClicked = output<string>();
-  readonly elementMoved = output<{
-    elementId: string;
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-    rotation: number;
-  }>();
-  readonly elementSelected = output<string | null>();
 
   private stage!: Konva.Stage;
   private layer!: Konva.Layer;
-  private transformer!: Konva.Transformer;
   private resizeObserver: ResizeObserver | null = null;
 
   constructor() {
     effect(() => {
       this.instances();
-      this.referenceElements();
       this.editMode();
       this.figurePositions();
-      this.selectedElementId();
       if (!this.stage) return;
       untracked(() => this.renderAll());
     });
@@ -112,151 +96,18 @@ export class SegmentCanvasComponent implements AfterViewInit, OnDestroy {
       height: container.clientHeight || 600,
     });
     this.layer = new Konva.Layer();
-    this.transformer = new Konva.Transformer({
-      keepRatio: false,
-      rotateEnabled: true,
-      enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
-    });
-    this.layer.add(this.transformer);
     this.stage.add(this.layer);
-
-    this.stage.on('click tap', (e) => {
-      if (e.target === this.stage) {
-        this.transformer.nodes([]);
-        this.elementSelected.emit(null);
-        this.layer.batchDraw();
-      }
-    });
   }
 
   private renderAll(): void {
-    this.transformer.nodes([]);
-    this.transformer.remove();
     this.layer.destroyChildren();
 
     const editMode = this.editMode();
     const bg = editMode ? '#f8f9fa' : '#000000';
     this.stage.container().style.backgroundColor = bg;
 
-    this.renderReferenceElements(editMode);
     this.renderFigures(editMode);
-
-    this.layer.add(this.transformer);
     this.layer.batchDraw();
-  }
-
-  private renderReferenceElements(editMode: boolean): void {
-    const elements = this.referenceElements();
-    const selectedId = this.selectedElementId();
-
-    for (const el of elements) {
-      const isSelected = el.id === selectedId;
-      const opacity = editMode ? 1 : 0.35;
-      const color = el.color ?? '#888888';
-
-      const group = new Konva.Group({
-        id: `ref-${el.id}`,
-        x: el.x,
-        y: el.y,
-        rotation: el.rotation,
-        draggable: editMode,
-        opacity,
-      });
-
-      if (el.type === ReferenceElementType.RECTANGLE) {
-        group.add(
-          new Konva.Rect({
-            x: 0,
-            y: 0,
-            width: el.width,
-            height: el.height,
-            stroke: isSelected ? '#f59e0b' : color,
-            strokeWidth: isSelected ? 3 : 2,
-            fill: 'transparent',
-            cornerRadius: 4,
-          }),
-        );
-        if (el.label) {
-          group.add(
-            new Konva.Text({
-              x: 4,
-              y: 4,
-              width: el.width - 8,
-              text: el.label,
-              fontSize: 13,
-              fontFamily: 'Inter, sans-serif',
-              fill: color,
-              listening: false,
-              ellipsis: true,
-              wrap: 'none',
-            }),
-          );
-        }
-      } else if (el.type === ReferenceElementType.ARROW) {
-        const len = el.width;
-        group.add(
-          new Konva.Arrow({
-            points: [0, 0, len, 0],
-            stroke: isSelected ? '#f59e0b' : color,
-            strokeWidth: isSelected ? 4 : 3,
-            fill: isSelected ? '#f59e0b' : color,
-            pointerLength: 14,
-            pointerWidth: 10,
-          }),
-        );
-        if (el.label) {
-          group.add(
-            new Konva.Text({
-              x: len / 2 - 40,
-              y: -20,
-              width: 80,
-              text: el.label,
-              fontSize: 12,
-              fontFamily: 'Inter, sans-serif',
-              fill: color,
-              align: 'center',
-              listening: false,
-            }),
-          );
-        }
-      }
-
-      if (editMode) {
-        group.on('click tap', () => {
-          this.elementSelected.emit(el.id);
-          this.transformer.nodes([group]);
-          this.transformer.moveToTop();
-          this.layer.batchDraw();
-        });
-
-        group.on('dragend', () => {
-          const clientRect = group.getClientRect({ relativeTo: this.layer });
-          this.elementMoved.emit({
-            elementId: el.id,
-            x: group.x(),
-            y: group.y(),
-            width: el.width,
-            height: el.height,
-            rotation: group.rotation(),
-          });
-        });
-
-        group.on('transformend', () => {
-          this.elementMoved.emit({
-            elementId: el.id,
-            x: group.x(),
-            y: group.y(),
-            width: Math.max(20, group.width() * group.scaleX()),
-            height: Math.max(20, group.height() * group.scaleY()),
-            rotation: group.rotation(),
-          });
-          group.scaleX(1);
-          group.scaleY(1);
-        });
-      }
-
-      this.layer.add(group);
-    }
   }
 
   private renderFigures(editMode: boolean): void {
@@ -291,20 +142,17 @@ export class SegmentCanvasComponent implements AfterViewInit, OnDestroy {
         draggable: editMode,
       });
 
-      // Tronc mini (top-left of figure group)
       const troncGroup = this.buildTroncMini(instance, troncAndBase);
       troncGroup.x(0);
       troncGroup.y(0);
       figureGroup.add(troncGroup);
 
-      // Pinya (offset to the right of tronc)
       const pinyaOffsetX = troncWidth + TRONC_PADDING * 2;
       const pinyaGroup = this.buildPinyaMini(instance, pinyaNodes, !editMode);
       pinyaGroup.x(pinyaOffsetX);
       pinyaGroup.y(0);
       figureGroup.add(pinyaGroup);
 
-      // Figure name label (bottom-center)
       const totalWidth = pinyaOffsetX + this.estimatePinyaWidth(pinyaNodes);
       const displayName = instance.label ?? instance.figureTemplate?.name ?? 'Figura';
       figureGroup.add(
@@ -390,7 +238,6 @@ export class SegmentCanvasComponent implements AfterViewInit, OnDestroy {
         }),
       );
 
-      // Floor label
       group.add(
         new Konva.Text({
           x: TRONC_PADDING,

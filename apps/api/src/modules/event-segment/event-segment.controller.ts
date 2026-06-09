@@ -136,7 +136,7 @@ export class EventSegmentController {
     return this.instanceService.updateProjectionLayout(eventId, segmentId, dto);
   }
 
-  @ApiOperation({ summary: 'Get all projection data for a segment (instances with nodes, assignments, reference elements)' })
+  @ApiOperation({ summary: 'Get all projection data for a segment (instances with nodes, assignments)' })
   @Get(':segmentId/projection')
   getProjection(
     @Param('eventId', ParseUUIDPipe) eventId: string,
