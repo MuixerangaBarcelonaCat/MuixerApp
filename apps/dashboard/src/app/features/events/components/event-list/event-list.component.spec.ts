@@ -9,7 +9,7 @@ import {
   ChevronsUpDown, Clock, Construction, Eye, Home, Layers, Lock, Mail, Menu,
   MoreHorizontal, Plus, RefreshCw, Search, Settings, Star, UserX, Users,
 } from 'lucide-angular';
-import { EventListComponent, ALL_EVENT_COLUMNS } from './event-list.component';
+import { EventListComponent, ALL_EVENT_COLUMNS, getAdultsCount } from './event-list.component';
 import { EventService } from '../../services/event.service';
 import { SeasonService } from '../../services/season.service';
 import { EventType } from '@muixer/shared';
@@ -330,6 +330,40 @@ describe('EventListComponent', () => {
 
     it('returns only declined for future event (getDeclinedCount)', () => {
       expect(component.getDeclinedCount(summary, false)).toBe(5);
+    });
+  });
+
+  describe('getAdultsCount', () => {
+    const summary = {
+      confirmed: 10, declined: 5, pending: 3,
+      attended: 20, noShow: 2, lateCancel: 1, children: 4, total: 40,
+    };
+
+    it('returns confirmed - children for future event', () => {
+      expect(getAdultsCount(summary, false)).toBe(6);
+    });
+
+    it('returns attended - children for past event', () => {
+      expect(getAdultsCount(summary, true)).toBe(16);
+    });
+
+    it('returns 0 when children exceed positive count', () => {
+      const edge = { ...summary, confirmed: 2, children: 5 };
+      expect(getAdultsCount(edge, false)).toBe(0);
+    });
+
+    it('returns 0 when positive count is 0', () => {
+      const zero = { ...summary, confirmed: 0, children: 0 };
+      expect(getAdultsCount(zero, false)).toBe(0);
+    });
+  });
+
+  describe('formatAdults', () => {
+    it('includes adults column in ALL_EVENT_COLUMNS', () => {
+      const col = ALL_EVENT_COLUMNS.find(c => c.key === 'adults');
+      expect(col).toBeDefined();
+      expect(col!.label).toBe('Adults');
+      expect(col!.defaultVisible).toBe(true);
     });
   });
 

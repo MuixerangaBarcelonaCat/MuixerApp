@@ -1,4 +1,9 @@
-export type ColumnType = 'text' | 'badge' | 'date' | 'number' | 'actions' | 'custom';
+export type ColumnType = 'text' | 'badge' | 'pills' | 'date' | 'number' | 'actions' | 'custom';
+
+export interface ColumnPill {
+  text: string;
+  class: string;
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface ColumnDef<T = any> {
@@ -11,6 +16,8 @@ export interface ColumnDef<T = any> {
   value?: (item: T) => string | number | null | undefined;
   /** Optional badge class when type === 'badge' */
   badgeClass?: (item: T) => string;
+  /** Colored text pills when type === 'pills' */
+  pills?: (item: T) => ColumnPill[];
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
