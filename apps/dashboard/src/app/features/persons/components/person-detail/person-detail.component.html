@@ -8,7 +8,7 @@
     <div class="flex-1">
       <div class="flex items-center gap-2 flex-wrap">
         <h1 class="text-xl font-bold text-base-content">
-          {{ person()?.alias || (isNew() ? 'Nova persona' : '—') }}
+          {{ person()?.alias || (isNew() ? 'Persona nova' : '—') }}
         </h1>
         @if (person()?.isProvisional) {
           <span class="badge badge-warning badge-sm">Provisional</span>
@@ -59,7 +59,7 @@
 <!--          }-->
 <!--        </button>-->
         <button type="button" class="btn btn-sm btn-primary" (click)="startEditing()">
-          Editar
+          Edita
         </button>
       }
 

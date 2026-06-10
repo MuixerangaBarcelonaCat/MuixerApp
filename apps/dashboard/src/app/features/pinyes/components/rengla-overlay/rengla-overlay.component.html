@@ -165,10 +165,10 @@
         type="button"
         class="btn btn-ghost btn-sm"
         (click)="editSelectedRengla()"
-        aria-label="Editar rengla"
+        aria-label="Edita rengla"
       >
         <lucide-icon name="Pencil" [size]="14" aria-hidden="true" />
-        Editar
+        Edita
       </button>
       <button
         type="button"
@@ -193,10 +193,10 @@
       type="button"
       class="btn btn-primary btn-sm shadow-lg pointer-events-auto"
       (click)="startCreating()"
-      aria-label="Crear nova rengla"
+      aria-label="Crear rengla nova"
     >
       <lucide-icon name="Plus" [size]="14" aria-hidden="true" />
-      Nova rengla
+      Rengla nova
     </button>
   }
 </div>
@@ -211,7 +211,7 @@
       (keydown.escape)="cancelDialog()"
     >
       <h3 class="text-sm font-bold mb-3">
-        {{ creatingRengla() ? 'Nova rengla' : 'Editar rengla' }}
+        {{ creatingRengla() ? 'Rengla nova' : 'Edita rengla' }}
       </h3>
 
       <div class="form-control mb-3">

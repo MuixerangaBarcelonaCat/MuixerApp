@@ -109,11 +109,11 @@ Aplica estes normes **sempre** que escrigues o modifiques text visible a la inte
 
 ## 5. Articles i pronoms possessius
 
-- Afegeix l'article quan sigui necessari (el català en fa més ús que l'anglès):
+- Afegeix l'article quan siga necessari (el català en fa més ús que l'anglès):
   - ❌ `S'està baixant correu.`
   - ✅ `S'està baixant el correu.`
 - Els noms de programes i SO porten article amb apostrofació normal: `l'Excel`, `el Windows`, `el Linux`, `el GIMP`.
-- **Possessius**: no els usis si no hi ha ambigüitat:
+- **Possessius**: no els uses si no hi ha ambigüitat:
   - ❌ `Esteu segur que voleu eliminar el vostre fitxer?`
   - ✅ `Esteu segur que voleu eliminar el fitxer?`
 
@@ -221,6 +221,7 @@ Els textos han d'estar en valencià, no en català central:
 - Sintaxi i morfologia verbal:
   - Pronoms febles: formes li'l, li la, vos (vos mira, no us mira)
   - Primera persona del present: jo cante, jo perd, jo òbric
+  - Subjuntiu: que jo cante, que tu cantes
   - Subjuntiu en -ra (cantara).
   - Incoatius amb base en -eix-/-ix- segons persona.
   - Preferència per tindre, vindre, veure.

@@ -1,5 +1,7 @@
 Recull de termes
 
+Nota: Alguns d'estos termes són en català central. Recorda emprar les variants valencianes.
+
 Anglès|Català|Categoria
 3D shading|ombreig en 3D|m
 abnormal termination|fi anormal|m
@@ -8,7 +10,7 @@ abort|interrupció|f
 aborted|interromput -uda|adj
 abortion|interrupció|f
 about|quant a|loc
-above|més amunt, a sobre, abans|adv
+above|més amunt, damunt, abans|adv
 above|superior|adj
 accelerator|(tecla de) drecera|f
 accept, to|acceptar|v tr
@@ -147,7 +149,7 @@ autoload|càrrega automàtica|f
 automate, to|automatitzar|v tr
 automatic|automàtic -a|adj
 automatics|automàtica|f
-autosaving|desament automàtic|m
+autosaving|alçament automàtic|m
 autoscroll|desplaçament automàtic|m
 available|disponible|adj
 avatar|avatar|m
@@ -181,7 +183,7 @@ baud|baud|m
 BBS|BBS|m
 beeper|cercapersones|m
 below|inferior|adj
-below|més avall, a sota, a continuació|adv
+below|més avall, davall, a continuació|adv
 benchmark|test de referència|m
 beta version|versió beta|f
 billing information|dades de facturació|f pl
@@ -651,7 +653,7 @@ erase head|capçal d’esborrament|m
 erase, to|esborrar, suprimir|v tr
 error|error|m
 Esc, escape key|tecla d’escapada|f
-escape, to|interrompre || escapar, sortir (v intr)|v tr
+escape, to|interrompre || escapar, eixir (v intr)|v tr
 escaped character|caràcter alterat|m
 evaluation copy|còpia d’avaluació|f
 event|esdeveniment || incidència (f)|m
@@ -659,7 +661,7 @@ exception|excepció|f
 executable|executable|adj
 execute, to|executar|v tr
 execution time|temps d’execució|m
-exit, to|sortir|v intr
+exit, to|eixir|v intr
 expand, to|ampliar|v tr
 expansion slot|ranura d’expansió|f
 expected|esperat -ada|adj
@@ -999,20 +1001,20 @@ lock|bloqueig, blocatge|m
 locking|bloqueig, blocatge|m
 log file|fitxer de registre|m
 log in, to|iniciar la/una sessió, entrar, connectar(-se)|v intr
-log off, to|finalitzar la/una sessió, sortir, desconnectar(-se)|v intr
+log off, to|finalitzar la/una sessió, eixir, desconnectar(-se)|v intr
 log on, to|iniciar la/una sessió, entrar, connectar(-se)|v intr
-log out, to|finalitzar la/una sessió, sortir, desconnectar(-se)|v intr
+log out, to|finalitzar la/una sessió, eixir, desconnectar(-se)|v intr
 log, to|registrar|v tr
 log|registre|m
 logical partition|partició lògica|f
 login script|script d’inici de sessió [ l’script ]|m
 login|dades d’inici de sessió || inici de sessió (m), entrada (f), connexió (f)|f pl
-logoff, to|sortir, desconnectar(-se), finalitzar la sessió|v intr
-logoff|final de sessió (m), sortida, desconnexió|f
+logoff, to|eixir, desconnectar(-se), finalitzar la sessió|v intr
+logoff|final de sessió (m), eixida, desconnexió|f
 logon, to|iniciar la/una sessió, entrar, connectar(-se)|v intr
 logon|inici de sessió (m), entrada, connexió|f
-logout, to|finalitzar la/una sessió, sortir, desconnectar(-se)|v intr
-logout|final de sessió (m), sortida, desconnexió|f
+logout, to|finalitzar la/una sessió, eixir, desconnectar(-se)|v intr
+logout|final de sessió (m), eixida, desconnexió|f
 long press|mantenir premut -da|v tr
 look and feel|aspecte i comportament|m
 look for, to|cercar|v tr
@@ -1176,14 +1178,14 @@ option|opció|f
 organization|organització|f
 original size|mida original|f
 out of memory|sense memòria|loc
-outbox|safata de sortida|f
-outgoing mail server|servidor de correu de sortida|m
-outgoing message|missatge de sortida|m
-outgoing|de sortida|loc
+outbox|safata d'eixida|f
+outgoing mail server|servidor de correu d'eixida|m
+outgoing message|missatge d'eixida|m
+outgoing|d'eixida|loc
 outline|contorn|m
-output device|perifèric de sortida|m
+output device|perifèric d'eixida|m
 output, to|donar com a resultat || imprimir|v tr
-output|sortida|f
+output|eixida|f
 overflow|desbordament|m
 overline|sobreratllat|m
 override, to|substituir, sobreescriure|v tr
@@ -1354,7 +1356,7 @@ querying server|servidor de consultes|m
 queue, to|enviar a la cua|v tr
 queue|cua|f
 quick launch bar|barra d’execució ràpida|f
-quit, to|sortir|v intr
+quit, to|eixir|v intr
 quotation|citació|f
 quote, to|citar|v tr
 quotes|cometes|f pl
@@ -1511,9 +1513,9 @@ salvage|salvament (financer) || recuperació (xarxes) (f)|m
 sample|mostra|f
 sampling rate|freqüència de mostratge|f
 sandbox|entorn de proves|m
-save as, to|anomenar i desar|v tr
-save, to|desar|v tr
-saving|desament|m
+save as, to|anomenar i alçar|v tr
+save, to|alçar|v tr
+saving|alçament|m
 scalable|escalable|adj
 scale, to|canviar d’escala|v tr
 scan, to|escanejar|v tr
@@ -1701,7 +1703,7 @@ subnet|subxarxa|f
 subprogram|subprograma|m
 subscribe, to|subscriure’s|v pron
 subscript|subíndex|m
-succeed, to|reeixir, sortir-se’n, tenir èxit|v intr
+succeed, to|reeixir, tenir èxit|v intr
 successfully|correctament, amb èxit (loc)|adv
 suggest, to|suggerir|v tr
 suggestion|suggeriment|m
@@ -1875,7 +1877,7 @@ upload|càrrega, penjada|f
 upper case, uppercase|majúscula|f
 usability|usabilitat|f
 usage|sintaxi|f
-use, to|utilitzar|v tr
+use, to|emprar, utilitzar|v tr
 use|utilització|f
 user-defined key|tecla programable|f
 user friendly, user-friendly|amigable|adv

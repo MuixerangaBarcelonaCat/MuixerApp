@@ -5,7 +5,7 @@
       type="button"
       class="btn btn-ghost btn-sm gap-1"
       (click)="goBack()"
-      aria-label="Tornar a l'event"
+      aria-label="Tornar a l'esdeveniment"
     >
       <i-lucide [img]="ArrowLeft" class="size-4" />
       Tornar
@@ -61,10 +61,10 @@
       <a
         [routerLink]="['/pinyes', 'templates', activeTab()!.figureTemplateId, 'edit']"
         class="btn btn-ghost btn-sm gap-1"
-        aria-label="Editar template de la figura"
+        aria-label="Edita template de la figura"
       >
         <i-lucide [img]="Edit" class="size-4" />
-        Editar template
+        Edita template
       </a>
     }
 
