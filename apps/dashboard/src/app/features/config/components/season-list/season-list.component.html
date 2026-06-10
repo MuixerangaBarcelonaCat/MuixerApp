@@ -1,0 +1,126 @@
+<div class="space-y-4">
+
+  <app-page-header title="Temporades" [count]="seasons().length">
+    <button type="button" class="btn btn-primary btn-sm" (click)="openCreateModal()">
+      Nova temporada
+    </button>
+  </app-page-header>
+
+  <div class="overflow-x-auto">
+    <table class="table table-sm w-full" role="table">
+      <thead>
+        <tr>
+          <th>Nom</th>
+          <th>Data inici</th>
+          <th>Data fi</th>
+          <th class="text-right">Events</th>
+          <th class="w-28">Accions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (loading()) {
+          @for (_ of [1,2,3]; track $index) {
+            <tr>
+              <td><div class="skeleton h-3 w-40"></div></td>
+              <td><div class="skeleton h-3 w-20"></div></td>
+              <td><div class="skeleton h-3 w-20"></div></td>
+              <td class="text-right"><div class="skeleton h-3 w-8 ml-auto"></div></td>
+              <td><div class="skeleton h-3 w-20"></div></td>
+            </tr>
+          }
+        } @else {
+          @for (season of formattedSeasons(); track season.id) {
+            <tr class="hover">
+              <td class="font-medium">
+                {{ season.name }}
+                @if (season.isCurrent) {
+                  <span class="badge badge-success badge-sm ml-2">Actual</span>
+                }
+              </td>
+              <td class="tabular-nums">{{ season.startDateFormatted }}</td>
+              <td class="tabular-nums">{{ season.endDateFormatted }}</td>
+              <td class="text-right tabular-nums">
+                @if (season.eventCount > 0) {
+                  <a
+                    [routerLink]="['/rehearsals']"
+                    [queryParams]="{ seasonId: season.id }"
+                    class="link link-primary"
+                  >
+                    {{ season.eventCount }}
+                  </a>
+                } @else {
+                  <span class="text-base-content/40">0</span>
+                }
+              </td>
+              <td>
+                <div class="flex gap-1">
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-xs"
+                    (click)="openEditModal(season)"
+                    [attr.aria-label]="'Editar ' + season.name"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-xs text-error"
+                    (click)="confirmDelete(season)"
+                    [attr.aria-label]="'Eliminar ' + season.name"
+                  >
+                    Eliminar
+                  </button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="5">
+                <app-empty-state
+                  icon="Calendar"
+                  message="No hi ha temporades creades encara"
+                  actionLabel="Crear temporada"
+                  (actionClick)="openCreateModal()"
+                />
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+@if (modalOpen()) {
+  <app-season-form-modal
+    [season]="selectedSeason()"
+    (saved)="onModalSaved()"
+    (cancelled)="onModalCancelled()"
+  />
+}
+
+@if (confirmDeleteTarget(); as target) {
+  <dialog class="modal modal-open" aria-modal="true" role="alertdialog" aria-labelledby="delete-confirm-title">
+    <div class="modal-box max-w-sm">
+      <h3 id="delete-confirm-title" class="font-bold text-lg">Eliminar temporada</h3>
+      <p class="py-4 text-sm">
+        Segur que vols eliminar <strong>{{ target.name }}</strong>?
+        @if (target.eventCount > 0) {
+          <br />
+          <span class="text-warning">Aquesta temporada té {{ target.eventCount }} events associats i no es podrà eliminar.</span>
+        }
+      </p>
+      <div class="modal-action">
+        <button type="button" class="btn btn-ghost btn-sm" (click)="cancelDelete()">Cancel·lar</button>
+        <button type="button" class="btn btn-error btn-sm" [disabled]="deleting()" (click)="executeDelete()">
+          @if (deleting()) {
+            <span class="loading loading-spinner loading-xs"></span>
+          }
+          Eliminar
+        </button>
+      </div>
+    </div>
+    <div class="modal-backdrop" (click)="cancelDelete()" (keydown.enter)="cancelDelete()" tabindex="0" role="button" aria-label="Tancar"></div>
+  </dialog>
+}

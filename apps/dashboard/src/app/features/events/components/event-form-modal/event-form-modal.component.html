@@ -121,7 +121,7 @@
           </label>
           <select id="seasonId" class="select select-bordered" formControlName="seasonId">
             <option value="">— Sense temporada —</option>
-            @for (season of seasons(); track season.id) {
+            @for (season of allSeasons(); track season.id) {
               <option [value]="season.id">{{ season.name }}</option>
             }
           </select>
