@@ -34,7 +34,7 @@
             class="btn btn-sm rounded-l-none border-l-0 px-1.5"
             [class]="state.activeInstanceId() === tab.instanceId ? 'btn-primary opacity-70 hover:opacity-100' : 'btn-ghost'"
             (click)="openDeleteInstanceModal(tab)"
-            [attr.aria-label]="'Eliminar ' + tab.label + ' del segment'"
+            [attr.aria-label]="'Elimina ' + tab.label + ' del segment'"
           >
             <i-lucide [img]="X" class="size-3" />
           </button>
@@ -296,7 +296,7 @@
     <div class="modal-box max-w-sm">
       <h3 id="delete-instance-title" class="text-lg font-bold mb-3 text-error">Eliminar figura del segment</h3>
       <p id="delete-instance-desc" class="text-sm text-base-content/70">
-        Vols eliminar
+        Voleu eliminar
         <strong>{{ pendingDeleteTab()!.label }}</strong>
         d'aquest segment?
       </p>
@@ -372,7 +372,7 @@
           @if (resetting()) {
             <span class="loading loading-spinner loading-xs"></span>
           }
-          Eliminar tot
+          Elimina tot
         </button>
       </div>
     </div>

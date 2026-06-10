@@ -37,9 +37,9 @@
             }
           </button>
         }
-        <button class="btn btn-outline btn-sm" (click)="showEditModal.set(true)" type="button">Editar</button>
+        <button class="btn btn-outline btn-sm" (click)="showEditModal.set(true)" type="button">Edita</button>
         <button class="btn btn-error btn-outline btn-sm" [disabled]="deleting()" (click)="deleteEvent()" type="button">
-          @if (deleting()) { <span class="loading loading-spinner loading-xs"></span> } @else { Eliminar }
+          @if (deleting()) { <span class="loading loading-spinner loading-xs"></span> } @else { Elimina }
         </button>
       </div>
     </div>

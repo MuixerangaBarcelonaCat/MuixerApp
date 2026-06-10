@@ -42,7 +42,7 @@ import { LucideAngularModule } from 'lucide-angular';
             <p class="text-xs text-base-content/60 mb-3">Importa totes les persones i membres del cens legacy.</p>
             <a routerLink="/persons/sync" class="btn btn-primary btn-sm gap-1.5 w-full">
               <lucide-icon name="RefreshCw" [size]="14" />
-              Sincronitzar persones
+              Sincronitza persones
             </a>
           </div>
         </div>
@@ -56,7 +56,7 @@ import { LucideAngularModule } from 'lucide-angular';
             <p class="text-xs text-base-content/60 mb-3">Importa tots els assajos i l'historial d'assistència.</p>
             <a routerLink="/rehearsals/sync" class="btn btn-info btn-sm gap-1.5 w-full">
               <lucide-icon name="RefreshCw" [size]="14" />
-              Sincronitzar assajos
+              Sincronitza assajos
             </a>
           </div>
         </div>
@@ -70,7 +70,7 @@ import { LucideAngularModule } from 'lucide-angular';
             <p class="text-xs text-base-content/60 mb-3">Importa totes les actuacions i l'historial d'assistència.</p>
             <a routerLink="/performances/sync" class="btn btn-success btn-sm gap-1.5 w-full">
               <lucide-icon name="RefreshCw" [size]="14" />
-              Sincronitzar actuacions
+              Sincronitza actuacions
             </a>
           </div>
         </div>
