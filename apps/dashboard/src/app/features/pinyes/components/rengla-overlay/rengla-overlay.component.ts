@@ -178,7 +178,7 @@ export class RenglaOverlayComponent {
 
   finishCreating(): void {
     const ids = this.pendingNodeIds();
-    if (ids.length < 2) return;
+    if (ids.length < 1) return;
 
     const firstNode = this.nodes().find((n) => n.id === ids[0]);
     const suggestedName = this.suggestName(firstNode?.positionType ?? null);
@@ -190,7 +190,7 @@ export class RenglaOverlayComponent {
 
   confirmCreate(): void {
     const ids = this.pendingNodeIds();
-    if (ids.length < 2) return;
+    if (ids.length < 1) return;
 
     this.renglaCreated.emit({
       rengla: {
