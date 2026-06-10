@@ -424,11 +424,11 @@ describe('TroncViewComponent', () => {
   });
 
   it('excludes z levels that already have nodes', () => {
-    fixture.componentRef.setInput('troncNodes', [makeNode({ z: 2 })]);
+    fixture.componentRef.setInput('troncNodes', [makeNode({ z: 1}), makeNode({ z: 2 })]);
     fixture.detectChanges();
     const opts = component.availableFloorOptions();
     expect(opts.some((o) => o.z === 2)).toBe(false);
-    expect(opts.some((o) => o.z === 1)).toBe(true);
+    expect(opts.some((o) => o.z === 1)).toBe(false);
     expect(opts.some((o) => o.z === 3)).toBe(true);
   });
 
