@@ -95,7 +95,6 @@ describe('RenglaOverlayComponent', () => {
     ];
     setInputs(nodes);
     const eligible = component.eligibleNodes();
-    expect(eligible).toHaveLength(2);
     expect(eligible.map((n) => n.id)).toEqual(['n1', 'n5', 'n6']);
   });
 
