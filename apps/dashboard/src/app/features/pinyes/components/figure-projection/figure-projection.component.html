@@ -5,26 +5,13 @@
   </div>
 } @else if (activeInstance()) {
   <div
-    class="flex h-screen w-screen bg-white text-gray-900"
+    class="relative h-screen w-screen bg-white text-gray-900"
     role="main"
     aria-label="Vista de figura en projecció"
   >
 
-    <!-- Tronc (left panel) — always visible in this view -->
-    <aside
-      class="flex-shrink-0 max-w-[35%] w-auto overflow-y-auto border-r border-gray-200"
-      aria-label="Vista del tronc"
-    >
-      <app-tronc-view
-        mode="projection"
-        [troncNodes]="troncNodes()"
-        [baseNodes]="baseNodes()"
-        [assignments]="assignmentList()"
-      />
-    </aside>
-
-    <!-- Pinya canvas (main area) -->
-    <main class="flex-1 h-full relative overflow-hidden">
+    <!-- Pinya canvas (full screen) -->
+    <main class="h-full w-full overflow-hidden">
       <app-figure-canvas
         class="block w-full h-full"
         mode="readonly"
@@ -32,6 +19,79 @@
         [assignments]="assignmentList()"
       />
     </main>
+
+    <!-- Navigation buttons (top-left) -->
+    <nav class="fixed top-4 left-4 z-40 flex flex-col gap-1" aria-label="Navegació">
+      <button
+        type="button"
+        class="btn btn-ghost btn-sm gap-1 text-gray-600 hover:text-gray-900 focus-visible:opacity-100"
+        (click)="navigateToAssignment()"
+        aria-label="Tornar a l'assignació"
+      >
+        <lucide-icon name="ArrowLeft" [size]="16" aria-hidden="true" />
+        Tornar a l'assignació
+      </button>
+      @if (standaloneMode()) {
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm gap-1 text-gray-400 hover:text-gray-700 focus-visible:opacity-100"
+          (click)="navigateToProjection()"
+          aria-label="Projecció del segment"
+        >
+          <lucide-icon name="LayoutGrid" [size]="16" aria-hidden="true" />
+          Projecció del segment
+        </button>
+      }
+    </nav>
+
+    <!-- Tronc toggle button (visible when panel is closed) -->
+    @if (!troncPanelOpen()) {
+      <button
+        type="button"
+        class="fixed top-4 right-4 z-40 btn btn-ghost btn-sm gap-1 text-gray-600 hover:text-gray-900 focus-visible:opacity-100"
+        (click)="troncPanelOpen.set(true)"
+        aria-label="Obrir panell del Tronc"
+      >
+        <lucide-icon name="PanelLeft" [size]="16" aria-hidden="true" />
+        Tronc
+      </button>
+    }
+
+    <!-- Tronc floating panel -->
+    @if (troncPanelOpen()) {
+      <aside
+        class="tronc-floating-panel"
+        [style.left.px]="troncPanelPos().x"
+        [style.top.px]="troncPanelPos().y"
+        aria-label="Tronc de la figura"
+        tabindex="-1"
+        (keydown.escape)="troncPanelOpen.set(false)"
+      >
+        <div
+          class="tronc-floating-header"
+          (mousedown)="onTroncDragStart($event)"
+        >
+          <lucide-icon name="GripVertical" [size]="14" class="drag-handle" aria-hidden="true" />
+          <h3 class="tronc-floating-title">Tronc</h3>
+          <button
+            type="button"
+            class="btn btn-ghost btn-xs btn-square"
+            (click)="troncPanelOpen.set(false)"
+            aria-label="Tancar panell del Tronc"
+          >
+            <lucide-icon name="X" [size]="14" aria-hidden="true" />
+          </button>
+        </div>
+        <div class="tronc-floating-body">
+          <app-tronc-view
+            mode="projection"
+            [troncNodes]="troncNodes()"
+            [baseNodes]="baseNodes()"
+            [assignments]="assignmentList()"
+          />
+        </div>
+      </aside>
+    }
 
     <!-- Figure name (bottom-center) -->
     <span
@@ -41,20 +101,8 @@
       {{ displayName() }}
     </span>
 
-    <!-- Back button (bottom-left) -->
-    <button
-      type="button"
-      class="fixed bottom-4 left-4 btn btn-ghost btn-sm gap-1 text-gray-600 opacity-60 hover:opacity-100 focus-visible:opacity-100"
-      (click)="handleBack()"
-      aria-label="Tornar a la vista del segment"
-    >
-      <lucide-icon name="ArrowLeft" [size]="18" aria-hidden="true" />
-      Tornar al segment
-    </button>
-
   </div>
 } @else {
-  <!-- Instance not found (standalone mode, bad route) -->
   <div class="flex h-screen w-screen items-center justify-center bg-base-200" role="status">
     <p class="text-base-content/60">Figura no trobada.</p>
   </div>

@@ -21,7 +21,8 @@ import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component'
 import { PersonPanelComponent } from '../person-panel/person-panel.component';
 import { NodePopoverComponent } from '../node-popover/node-popover.component';
 import { ImportPinyaModalComponent } from '../import-pinya-modal/import-pinya-modal.component';
-import { TroncViewComponent } from '../tronc-view/tronc-view.component';
+import { TroncViewComponent, PositionOption } from '../tronc-view/tronc-view.component';
+import { PositionService } from '../../../config/services/position.service';
 import { CordonsDialogComponent, CordonsDialogSaveEvent } from '../cordons-dialog/cordons-dialog.component';
 import {
   AssignmentDetail,
@@ -75,6 +76,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   private readonly figureTemplateService = inject(FigureTemplateService);
   private readonly instanceService = inject(FigureInstanceService);
   private readonly toast = inject(ToastService);
+  private readonly positionService = inject(PositionService);
   readonly state = inject(AssignmentStateService);
 
   readonly ArrowLeft = ArrowLeft;
@@ -108,6 +110,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly isLocked = computed(() => this.lockStatus()?.locked ?? false);
 
   readonly troncPanelOpen = signal(false);
+  readonly troncPositions = signal<PositionOption[]>([]);
 
   readonly templateRengles = signal<RenglaModel[]>([]);
   readonly maxCordons = signal(0);
@@ -172,6 +175,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     this.segmentId.set(params['segmentId']);
     this.state.reset();
     this.loadSegment();
+    this.loadTroncPositions();
 
     this.assignmentService.getLockStatus(this.eventId()).subscribe({
       next: (status) => this.lockStatus.set(status),
@@ -349,6 +353,17 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
         );
         this.maxCordons.set(maxPos);
       },
+    });
+  }
+
+  private loadTroncPositions(): void {
+    this.positionService.getAll().subscribe((positions) => {
+      this.troncPositions.set(
+        positions
+          .filter((p) => p.zone === FigureZone.TRONC)
+          .map((p) => ({ slug: p.slug, name: p.name, color: p.color }))
+          .sort((a, b) => a.slug.localeCompare(b.slug)),
+      );
     });
   }
 

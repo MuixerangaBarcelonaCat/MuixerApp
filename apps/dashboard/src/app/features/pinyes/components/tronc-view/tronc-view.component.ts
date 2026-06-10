@@ -7,6 +7,7 @@ import {
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
 import { AssignmentDetail, AttendanceStatus, HeightMode } from '../../models/assignment.model';
 import { floorVariance, varianceLevel, VarianceLevel } from '../../utils/floor-variance.util';
@@ -38,40 +39,13 @@ interface TroncFloor {
   isBase: boolean;
 }
 
-interface FloorOption {
-  z: number;
-  label: string;
-  positionType: string;
+export interface PositionOption {
+  slug: string;
+  name: string;
+  color: string | null;
 }
 
 const HEIGHT_BASELINE = 140;
-
-const FLOOR_LABELS: Record<number, FloorOption[]> = {
-  1: [
-    { z: 1, label: 'Segon/Segona', positionType: 'segon' },
-    { z: 1, label: 'Alçadora',     positionType: 'alcadora' },
-    { z: 1, label: 'Xiqueta',      positionType: 'xiqueta' },
-  ],
-  2: [
-    { z: 2, label: 'Terç/Terça', positionType: 'terç' },
-    { z: 2, label: 'Alçadora',   positionType: 'alcadora' },
-    { z: 2, label: 'Xiqueta',    positionType: 'xiqueta' },
-  ],
-  3: [
-    { z: 3, label: 'Quart/Quarta', positionType: 'quart' },
-    { z: 3, label: 'Alçadora',     positionType: 'alcadora' },
-    { z: 3, label: 'Xiqueta',      positionType: 'xiqueta' },
-  ],
-  4: [
-    { z: 4, label: 'Quint/Quinta', positionType: 'quint' },
-    { z: 4, label: 'Alçadora',     positionType: 'alcadora' },
-    { z: 4, label: 'Xiqueta',      positionType: 'xiqueta' },
-  ],
-  5: [
-    { z: 5, label: 'Alçadora', positionType: 'alcadora' },
-    { z: 5, label: 'Xiqueta',  positionType: 'xiqueta' },
-  ],
-};
 
 const MAX_TRONC_Z = 5;
 
@@ -79,7 +53,7 @@ const MAX_TRONC_Z = 5;
   selector: 'app-tronc-view',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule],
+  imports: [FormsModule, RouterLink, LucideAngularModule],
   templateUrl: './tronc-view.component.html',
   styleUrl: './tronc-view.component.scss',
 })
@@ -92,6 +66,7 @@ export class TroncViewComponent {
   /** BASE-zone nodes (z=0, intersection with pinya). Positioned by sortOrder index in tronc view. */
   readonly baseNodes = input<TroncNodeItem[]>([]);
 
+  readonly troncPositions = input<PositionOption[]>([]);
   readonly assignments = input<AssignmentDetail[]>([]);
   readonly selectedNodeId = input<string | null>(null);
   readonly mode = input<'editor' | 'assignment' | 'projection'>('assignment');
@@ -109,8 +84,8 @@ export class TroncViewComponent {
   /** Emits for popover positioning (assigned node clicked). */
   readonly nodeClicked = output<{ nodeId: string; event: MouseEvent }>();
 
-  /** Editor only: position/width changed for a TRONC node. */
-  readonly nodeUpdated = output<{ nodeId: string; x: number; width: number }>();
+  /** Editor only: position/width/positionType changed for a TRONC node. */
+  readonly nodeUpdated = output<{ nodeId: string; x: number; width: number; positionType?: string; label?: string }>();
 
   /** Editor only: create a new TRONC node on the given floor. */
   readonly nodeAdded = output<{ z: number; positionType: string; label: string; sortOrder: number }>();
@@ -124,13 +99,13 @@ export class TroncViewComponent {
   /** Editor only: delete a BASE node by id. */
   readonly baseRemoved = output<string>();
 
+  /** Editor only: delete all TRONC nodes at a given z-level. */
+  readonly floorRemoved = output<number>();
+
   // ── Local state ────────────────────────────────────────────────────────────
 
   /** Flip floor order: P1 at top instead of at bottom. */
   readonly inverted = signal(false);
-
-  /** Selected floor option type for the "Afegir pis" dropdown. */
-  readonly selectedFloorType = signal<string>('');
 
   // ── Computed ───────────────────────────────────────────────────────────────
 
@@ -223,17 +198,16 @@ export class TroncViewComponent {
     new Set(this.troncNodes().map((n) => n.z)),
   );
 
-  /** Floor options for all z levels that don't yet have any nodes. */
-  readonly availableFloorOptions = computed<FloorOption[]>(() => {
-    const existing = this.existingZLevels();
-    const options: FloorOption[] = [];
-    for (let z = 1; z <= MAX_TRONC_Z; z++) {
-      if (!existing.has(z)) {
-        const zOptions = FLOOR_LABELS[z];
-        if (zOptions) options.push(...zOptions);
-      }
-    }
-    return options;
+  readonly baseCount = computed(() => this.baseNodes().length);
+
+  readonly maxExistingZ = computed(() => {
+    const zLevels = [...this.existingZLevels()];
+    return zLevels.length > 0 ? Math.max(...zLevels) : 0;
+  });
+
+  readonly canAddFloor = computed(() => {
+    const nextZ = this.maxExistingZ() + 1;
+    return nextZ <= MAX_TRONC_Z && this.baseNodes().length > 0;
   });
 
   readonly hasTronc = computed(
@@ -249,42 +223,79 @@ export class TroncViewComponent {
     }
   }
 
-  onNodeXChange(node: TroncNodeItem, value: number): void {
-    const rounded = Math.round(Math.max(0, Math.min(8, value)) * 2) / 2;
-    this.nodeUpdated.emit({ nodeId: node.id, x: rounded, width: node.width });
+  onStepX(node: TroncNodeItem, delta: number): void {
+    const bc = this.baseCount();
+    const newX = Math.round((node.x + delta) * 2) / 2;
+    const clamped = Math.max(0, Math.min(bc - node.width, newX));
+    this.nodeUpdated.emit({ nodeId: node.id, x: clamped, width: node.width });
   }
 
-  onNodeWidthChange(node: TroncNodeItem, value: number): void {
-    const rounded = Math.round(Math.max(0.5, Math.min(8, value)) * 2) / 2;
-    this.nodeUpdated.emit({ nodeId: node.id, x: node.x, width: rounded });
+  onStepWidth(node: TroncNodeItem, delta: number): void {
+    const bc = this.baseCount();
+    const newW = Math.round((node.width + delta) * 2) / 2;
+    const clamped = Math.max(0.5, Math.min(bc - node.x, newW));
+    this.nodeUpdated.emit({ nodeId: node.id, x: node.x, width: clamped });
   }
+
+  xAtMin(node: TroncNodeItem): boolean { return node.x <= 0; }
+  xAtMax(node: TroncNodeItem): boolean { return node.x >= this.baseCount() - node.width; }
+  widthAtMin(node: TroncNodeItem): boolean { return node.width <= 0.5; }
+  widthAtMax(node: TroncNodeItem): boolean { return node.width >= this.baseCount() - node.x; }
 
   onNodeDelete(node: TroncNodeItem): void {
     this.nodeRemoved.emit(node.id);
   }
 
+  onPositionTypeChange(node: TroncNodeItem, slug: string): void {
+    const pos = this.troncPositions().find((p) => p.slug === slug);
+    if (!pos) return;
+    this.nodeUpdated.emit({
+      nodeId: node.id,
+      x: node.x,
+      width: node.width,
+      positionType: pos.slug,
+      label: pos.name,
+    });
+  }
+
   onAddFloor(): void {
-    const options = this.availableFloorOptions();
-    const typeKey = this.selectedFloorType();
-    const option =
-      options.find((o) => `${o.z}-${o.positionType}` === typeKey) ?? options[0];
-    if (!option) return;
+    if (!this.canAddFloor()) return;
+    const nextZ = this.maxExistingZ() + 1;
+    const positions = this.troncPositions();
+    const defaultPos = positions.length > 0
+      ? positions[0]
+      : { slug: 'tronc', name: 'Tronc' };
 
     this.nodeAdded.emit({
-      z: option.z,
-      positionType: option.positionType,
-      label: option.label,
+      z: nextZ,
+      positionType: defaultPos.slug,
+      label: defaultPos.name,
       sortOrder: 0,
     });
-    this.selectedFloorType.set('');
+  }
+
+  canRemoveFloor(z: number): boolean {
+    return z === this.maxExistingZ();
+  }
+
+  onRemoveFloor(z: number): void {
+    if (!this.canRemoveFloor(z)) return;
+    this.floorRemoved.emit(z);
   }
 
   onAddNodeToFloor(floor: TroncFloor): void {
-    const floorLabel = this.getFloorDisplayLabel(floor.z, floor.positionTypeLabel);
+    const lastNode = floor.nodes[floor.nodes.length - 1];
+    const positions = this.troncPositions();
+    const inherited = lastNode
+      ? positions.find((p) => p.slug === lastNode.positionType)
+      : positions[0];
+    const positionType = inherited?.slug ?? lastNode?.positionType ?? 'tronc';
+    const label = inherited?.name ?? lastNode?.label ?? 'Tronc';
+
     this.nodeAdded.emit({
       z: floor.z,
-      positionType: floor.positionTypeLabel,
-      label: floorLabel,
+      positionType,
+      label,
       sortOrder: floor.nodes.length,
     });
   }
@@ -370,6 +381,12 @@ export class TroncViewComponent {
     return `${p.assigned}/${p.total}`;
   }
 
+  getPositionColor(node: TroncNodeItem): string | null {
+    if (!node.positionType) return null;
+    const match = this.troncPositions().find((p) => p.slug === node.positionType);
+    return match?.color ?? null;
+  }
+
   getNodeAriaLabel(node: TroncNodeItem): string {
     const assignment = this.getAssignment(node.id);
     if (!assignment) return `Node ${node.label}, sense assignar`;
@@ -403,27 +420,21 @@ export class TroncViewComponent {
     return `${halfCols + 1} / span 2`;
   }
 
-  /** Canonical display label for a floor level and position type. */
-  private getFloorDisplayLabel(z: number, positionType: string): string {
-    const options = FLOOR_LABELS[z];
-    if (!options) return positionType;
-    return options.find((o) => o.positionType === positionType)?.label ?? positionType;
-  }
-
   private getDominantPositionType(nodes: TroncNodeItem[]): string {
     const counts = new Map<string, number>();
     for (const node of nodes) {
       const pt = node.positionType ?? 'desconegut';
       counts.set(pt, (counts.get(pt) ?? 0) + 1);
     }
-    let dominant = 'desconegut';
+    let dominantSlug = 'desconegut';
     let maxCount = 0;
     for (const [type, count] of counts) {
       if (count > maxCount) {
         maxCount = count;
-        dominant = type;
+        dominantSlug = type;
       }
     }
-    return dominant;
+    const match = this.troncPositions().find((p) => p.slug === dominantSlug);
+    return match?.name ?? dominantSlug;
   }
 }

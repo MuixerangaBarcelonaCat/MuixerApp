@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  HostListener,
   OnInit,
   OnDestroy,
   computed,
@@ -26,6 +27,7 @@ import { FigureZone } from '@muixer/shared';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [LucideAngularModule, TroncViewComponent, FigureCanvasComponent],
   templateUrl: './figure-projection.component.html',
+  styleUrl: './figure-projection.component.scss',
 })
 export class FigureProjectionComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute, { optional: true });
@@ -56,7 +58,14 @@ export class FigureProjectionComponent implements OnInit, OnDestroy {
   );
 
   /** True when loaded via route (no instance input provided at init time). */
-  private standaloneMode = false;
+  readonly standaloneMode = signal(false);
+
+  // ── Tronc floating panel ───────────────────────────────────────────────────
+
+  readonly troncPanelOpen = signal(true);
+  readonly troncPanelPos = signal({ x: 16, y: 60 });
+  private troncDragging = false;
+  private troncDragOffset = { x: 0, y: 0 };
 
   // ── Derived computed (from activeInstance) ──────────────────────────────────
 
@@ -87,29 +96,58 @@ export class FigureProjectionComponent implements OnInit, OnDestroy {
     const instanceId = this.route?.snapshot.params['instanceId'];
 
     if (instanceId && !this.instance()) {
-      // Standalone route mode
-      this.standaloneMode = true;
+      this.standaloneMode.set(true);
       this.layoutService?.requestFullscreen();
       this.loadFromRoute(instanceId);
     }
   }
 
   ngOnDestroy(): void {
-    if (this.standaloneMode) {
+    if (this.standaloneMode()) {
       this.layoutService?.exitFullscreen();
     }
   }
 
-  // ── Actions ─────────────────────────────────────────────────────────────────
+  // ── Navigation ──────────────────────────────────────────────────────────────
 
-  handleBack(): void {
-    if (this.standaloneMode && this.router && this.route) {
-      const eventId = this.route.snapshot.params['eventId'];
-      const segmentId = this.route.snapshot.params['segmentId'];
-      this.router.navigate(['/pinyes/events', eventId, 'segments', segmentId, 'project']);
+  navigateToAssignment(): void {
+    if (this.standaloneMode() && this.router && this.route) {
+      const { eventId, segmentId } = this.route.snapshot.params;
+      this.router.navigate(['/pinyes/events', eventId, 'segments', segmentId, 'assign']);
     } else {
       this.backToSegment.emit();
     }
+  }
+
+  navigateToProjection(): void {
+    if (this.router && this.route) {
+      const { eventId, segmentId } = this.route.snapshot.params;
+      this.router.navigate(['/pinyes/events', eventId, 'segments', segmentId, 'project']);
+    }
+  }
+
+  // ── Tronc panel drag ──────────────────────────────────────────────────────
+
+  onTroncDragStart(event: MouseEvent): void {
+    if ((event.target as HTMLElement).closest('button')) return;
+    this.troncDragging = true;
+    const pos = this.troncPanelPos();
+    this.troncDragOffset = { x: event.clientX - pos.x, y: event.clientY - pos.y };
+    event.preventDefault();
+  }
+
+  @HostListener('document:mousemove', ['$event'])
+  onTroncDragMove(event: MouseEvent): void {
+    if (!this.troncDragging) return;
+    this.troncPanelPos.set({
+      x: event.clientX - this.troncDragOffset.x,
+      y: event.clientY - this.troncDragOffset.y,
+    });
+  }
+
+  @HostListener('document:mouseup')
+  onTroncDragEnd(): void {
+    this.troncDragging = false;
   }
 
   // ── Private ─────────────────────────────────────────────────────────────────
