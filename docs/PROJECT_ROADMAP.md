@@ -18,6 +18,7 @@
 | P2 | Data Migration (API legacy → NeonDB) | ✅ Completat | ✅ | ✅ | ✅ | Sync SSE complet, merge strategy implementada |
 | P2.1 | Dashboard Persons — UX i funcionalitats avançades | ✅ Completat | ✅ | ✅ | ✅ | Ordenació, alçada relativa, filtres, tests |
 | P3 | Temporades + Esdeveniments + Assistència | ✅ Completat | ✅ | — | ✅ | Season + Event + Attendance entities, API, sync + dashboard shell |
+| P3.1 | **Temporades — CRUD complet** | ✅ Completat | [`spec`](specs/2026-06-10-seasons-crud-design.md) | ✅ | ✅ | CRUD `/config/seasons`, validació solapament, auto-assign temporada actual a events, pre-selecció als formularis |
 | P4.1 | **Auth Layer** — JWT+Passport + refactor User/Person + Dashboard login | ✅ Completat | [`spec`](specs/2026-04-07-p4-1-auth-layer-design.md) | ✅ | ✅ | Login, refresh rotation, guards globals, dashboard login. Detall: [AUTH_FLOW.md](AUTH_FLOW.md) |
 | P4.2 | Dashboard Web — Events + Assistència manual | ✅ Completat | [`spec`](specs/2026-04-12-p4-2-dashboard-events-attendance-design.md) | ✅ | ✅ | CRUD events + attendance, persones provisionals, optimistic UI |
 | P4.3 | **Dashboard Design Refactor** — Clean slate visual redesign | ✅ Completat | [`spec`](specs/2026-04-20-dashboard-design-refactor-design.md) | ✅ | ✅ | Top nav + tabs, 15+ shared components, Home tab. Detall: [DASHBOARD_UI.md](DASHBOARD_UI.md) |

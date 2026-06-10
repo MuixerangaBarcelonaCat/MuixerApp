@@ -5,6 +5,7 @@ import { Event } from './event.entity';
 import { Attendance } from './attendance.entity';
 import { Season } from '../season/season.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
+import { SeasonService } from '../season/season.service';
 import { EventFilterDto } from './dto/event-filter.dto';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
@@ -26,6 +27,7 @@ export class EventService {
     private readonly attendanceRepository: Repository<Attendance>,
     @InjectRepository(EventSegment)
     private readonly segmentRepository: Repository<EventSegment>,
+    private readonly seasonService: SeasonService,
   ) {}
 
   /** Retorna una llista paginada d'events amb filtres per temporada, tipus, rang de dates i text. Suporta el filtre `timeFilter` (upcoming/past). */
@@ -110,7 +112,6 @@ export class EventService {
     return toDetailItem(event);
   }
 
-  /** Crea un nou event i l'associa a la temporada indicada si s'especifica `seasonId`. */
   async create(dto: CreateEventDto): Promise<EventDetailItem> {
     const event = this.eventRepository.create({
       title: dto.title,
@@ -130,6 +131,11 @@ export class EventService {
         throw new NotFoundException(`Season with ID ${dto.seasonId} not found`);
       }
       event.season = season;
+    } else if (dto.seasonId === undefined) {
+      const currentSeason = await this.seasonService.findCurrentEntity();
+      if (currentSeason) {
+        event.season = currentSeason;
+      }
     }
 
     const saved = await this.eventRepository.save(event);
@@ -161,11 +167,15 @@ export class EventService {
     if (dto.countsForStatistics !== undefined) event.countsForStatistics = dto.countsForStatistics;
 
     if (dto.seasonId !== undefined) {
-      const season = await this.seasonRepository.findOne({ where: { id: dto.seasonId } });
-      if (!season) {
-        throw new NotFoundException(`Season with ID ${dto.seasonId} not found`);
+      if (!dto.seasonId) {
+        event.season = null;
+      } else {
+        const season = await this.seasonRepository.findOne({ where: { id: dto.seasonId } });
+        if (!season) {
+          throw new NotFoundException(`Season with ID ${dto.seasonId} not found`);
+        }
+        event.season = season;
       }
-      event.season = season;
     }
 
     const saved = await this.eventRepository.save(event);
