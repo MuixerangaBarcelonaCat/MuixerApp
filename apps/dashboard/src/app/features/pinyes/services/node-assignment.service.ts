@@ -8,6 +8,7 @@ import {
   BulkImportPayload,
   BulkImportResult,
   CordonsResponse,
+  CreateAdHocNodePayload,
   CreateAssignmentPayload,
   EventAssignmentSummary,
   FigureHistoryEntry,
@@ -16,6 +17,7 @@ import {
   InstanceNodeItem,
   PersonAssignmentHistory,
   SwapAssignmentsPayload,
+  UpdateAdHocNodePayload,
   UpdateInstanceCordonsPayload,
 } from '../models/assignment.model';
 
@@ -53,8 +55,22 @@ export class NodeAssignmentService extends ApiService {
     return this.patch<CordonsResponse>(`/figure-instances/${instanceId}/cordons`, payload);
   }
 
-  resetSnapshot(instanceId: string): Observable<{ removedAssignments: number }> {
-    return this.post<{ removedAssignments: number }>(`/figure-instances/${instanceId}/reset`, {});
+  resetSnapshot(instanceId: string): Observable<{ removedAssignments: number; deletedAdHocCount: number }> {
+    return this.post<{ removedAssignments: number; deletedAdHocCount: number }>(`/figure-instances/${instanceId}/reset`, {});
+  }
+
+  // ── Ad-hoc node CRUD ────────────────────────────────────────────────────
+
+  createAdHocNode(instanceId: string, payload: CreateAdHocNodePayload): Observable<InstanceNodeItem> {
+    return this.post<InstanceNodeItem>(`/figure-instances/${instanceId}/ad-hoc-nodes`, payload);
+  }
+
+  updateAdHocNode(instanceId: string, nodeId: string, payload: UpdateAdHocNodePayload): Observable<InstanceNodeItem> {
+    return this.patch<InstanceNodeItem>(`/figure-instances/${instanceId}/ad-hoc-nodes/${nodeId}`, payload);
+  }
+
+  deleteAdHocNode(instanceId: string, nodeId: string): Observable<void> {
+    return this.delete<void>(`/figure-instances/${instanceId}/ad-hoc-nodes/${nodeId}`);
   }
 
   bulkImport(instanceId: string, payload: BulkImportPayload): Observable<BulkImportResult> {

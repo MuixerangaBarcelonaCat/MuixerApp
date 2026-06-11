@@ -38,7 +38,7 @@ describe('ImportPinyaModalComponent', () => {
   beforeEach(async () => {
     assignmentService = {
       getHistory: vi.fn().mockReturnValue(of({ data: [makeHistoryEntry()] })),
-      bulkImport: vi.fn().mockReturnValue(of({ created: [], conflicts: [] } as BulkImportResult)),
+      bulkImport: vi.fn().mockReturnValue(of({ created: [], conflicts: [], clonedAdHocNodes: 0 } as BulkImportResult)),
     };
 
     await TestBed.configureTestingModule({
@@ -106,7 +106,7 @@ describe('ImportPinyaModalComponent', () => {
     });
 
     it('"Importar" button calls bulkImport with correct sourceInstanceId', () => {
-      const result: BulkImportResult = { created: [{}] as any, conflicts: [] };
+      const result: BulkImportResult = { created: [{}] as any, conflicts: [], clonedAdHocNodes: 0 };
       assignmentService.bulkImport.mockReturnValue(of(result));
       const entry = makeHistoryEntry();
       component.selectEntry(entry);
@@ -127,7 +127,7 @@ describe('ImportPinyaModalComponent', () => {
     });
 
     it('shows success result after import', () => {
-      const result: BulkImportResult = { created: [{}] as any, conflicts: [] };
+      const result: BulkImportResult = { created: [{}] as any, conflicts: [], clonedAdHocNodes: 0 };
       assignmentService.bulkImport.mockReturnValue(of(result));
       component.selectEntry(makeHistoryEntry());
       component.doImport();
@@ -139,6 +139,7 @@ describe('ImportPinyaModalComponent', () => {
       const result: BulkImportResult = {
         created: [],
         conflicts: [{ nodeId: 'n1', nodeLabel: 'base1', personAlias: 'Pepet', reason: 'Occupied' }],
+        clonedAdHocNodes: 0,
       };
       assignmentService.bulkImport.mockReturnValue(of(result));
       component.selectEntry(makeHistoryEntry());
@@ -148,7 +149,7 @@ describe('ImportPinyaModalComponent', () => {
     });
 
     it('emits importCompleted after successful import', () => {
-      const result: BulkImportResult = { created: [], conflicts: [] };
+      const result: BulkImportResult = { created: [], conflicts: [], clonedAdHocNodes: 0 };
       assignmentService.bulkImport.mockReturnValue(of(result));
       component.selectEntry(makeHistoryEntry());
       component.doImport();

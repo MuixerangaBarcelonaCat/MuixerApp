@@ -5,7 +5,7 @@ import { of, throwError } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
   LUCIDE_ICONS, LucideIconProvider,
-  ArrowLeft, Users, Edit, RefreshCw, Plus, PanelLeft, PanelLeftClose,
+  ArrowLeft, Users, Edit, RefreshCw, Plus, PanelLeft, PanelLeftClose, HelpCircle,
 } from 'lucide-angular';
 import { AssignmentCanvasComponent } from './assignment-canvas.component';
 import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component';
@@ -13,6 +13,7 @@ import { PersonPanelComponent } from '../person-panel/person-panel.component';
 import { NodePopoverComponent } from '../node-popover/node-popover.component';
 import { ImportPinyaModalComponent } from '../import-pinya-modal/import-pinya-modal.component';
 import { TroncViewComponent } from '../tronc-view/tronc-view.component';
+import { AdHocNodesHelpModalComponent } from '../ad-hoc-nodes-help-modal/ad-hoc-nodes-help-modal.component';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
 import { EventSegmentService } from '../../services/event-segment.service';
@@ -20,7 +21,7 @@ import { FigureTemplateService } from '../../services/figure-template.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { AssignmentDetail, AvailablePerson, BulkImportResult, InstanceNodeItem } from '../../models/assignment.model';
 import { SegmentDetail } from '../../models/segment.model';
-import { FigureZone, NodeShape } from '@muixer/shared';
+import { FigureZone, NodeShape, AD_HOC_PINYA_PRESETS } from '@muixer/shared';
 
 // ── Stub child components ───────────────────────────────────────────────────
 
@@ -34,8 +35,12 @@ class StubFigureCanvas {
   readonly attendanceMap = input<Map<string, string>>(new Map());
   readonly nextPerformanceMap = input<Map<string, string | null>>(new Map());
   readonly highlightedNodeIds = input<Set<string>>(new Set());
+  readonly isPlacementMode = input<boolean>(false);
   readonly nodeSelected = output<string | null>();
   readonly nodeClicked = output<{ nodeId: string; x: number; y: number }>();
+  readonly canvasClicked = output<{ x: number; y: number }>();
+  readonly adHocNodeMoved = output<{ nodeId: string; x: number; y: number }>();
+  readonly adHocNodeTransformed = output<{ nodeId: string; width: number; height: number; rotation: number }>();
 }
 
 @Component({ selector: 'app-person-panel', standalone: true, template: '' })
@@ -84,6 +89,12 @@ class StubTroncView {
   readonly nodeClicked = output<{ nodeId: string; event: MouseEvent }>();
 }
 
+@Component({ selector: 'app-ad-hoc-nodes-help-modal', standalone: true, template: '' })
+class StubHelpModal {
+  readonly open = input<boolean>(false);
+  readonly closed = output<void>();
+}
+
 // ── Test constants & factories ──────────────────────────────────────────────
 
 const EVENT_ID = 'event-uuid-1';
@@ -119,8 +130,8 @@ const makeSegment = (instanceOverrides = {}): SegmentDetail => ({
 });
 
 const makeInstanceNodes = (): InstanceNodeItem[] => [
-  { id: 'inode-1', label: 'base-1', zone: FigureZone.BASE, z: 0, positionType: null, x: 100, y: 100, width: 60, height: 40, rotation: 0, color: null, shape: NodeShape.ELLIPSE, sortOrder: 0, ringLevel: null, originNodeId: null, renglaId: null, renglaPosition: null, sourceNodeId: 'node-1', isSnapshotted: false },
-  { id: 'inode-2', label: 'tronc-1', zone: FigureZone.TRONC, z: 1, positionType: null, x: 200, y: 100, width: 60, height: 40, rotation: 0, color: null, shape: NodeShape.ELLIPSE, sortOrder: 1, ringLevel: null, originNodeId: null, renglaId: null, renglaPosition: null, sourceNodeId: 'node-2', isSnapshotted: false },
+  { id: 'inode-1', label: 'base-1', zone: FigureZone.BASE, z: 0, positionType: null, x: 100, y: 100, width: 60, height: 40, rotation: 0, color: null, shape: NodeShape.ELLIPSE, sortOrder: 0, ringLevel: null, originNodeId: null, renglaId: null, renglaPosition: null, sourceNodeId: 'node-1', isSnapshotted: false, isAdHoc: false, createdById: null },
+  { id: 'inode-2', label: 'tronc-1', zone: FigureZone.TRONC, z: 1, positionType: null, x: 200, y: 100, width: 60, height: 40, rotation: 0, color: null, shape: NodeShape.ELLIPSE, sortOrder: 1, ringLevel: null, originNodeId: null, renglaId: null, renglaPosition: null, sourceNodeId: 'node-2', isSnapshotted: false, isAdHoc: false, createdById: null },
 ];
 
 const makeTemplate = () => ({
@@ -173,6 +184,9 @@ interface MockAssignmentService {
   resetSnapshot: MockFn;
   bulkImport: MockFn;
   getHistory: MockFn;
+  createAdHocNode: MockFn;
+  updateAdHocNode: MockFn;
+  deleteAdHocNode: MockFn;
   getNextPerformance: MockFn;
   getAvailablePersons: MockFn;
   getLockStatus: MockFn;
@@ -184,7 +198,7 @@ describe('AssignmentCanvasComponent', () => {
   let assignmentService: MockAssignmentService;
   let segmentService: { getByEvent: MockFn };
   let figureTemplateService: { getOne: MockFn };
-  let toastService: { success: MockFn; error: MockFn };
+  let toastService: { success: MockFn; error: MockFn; info: MockFn; warning: MockFn };
   let routerMock: { navigate: MockFn };
   let stateService: AssignmentStateService;
 
@@ -200,9 +214,12 @@ describe('AssignmentCanvasComponent', () => {
         b: makeAssignment('inode-2', 'person-1'),
       })),
       updateCordons: vi.fn().mockReturnValue(of({ numberOfCordons: null, openCordons: null })),
-      resetSnapshot: vi.fn().mockReturnValue(of({ removedAssignments: 0 })),
-      bulkImport: vi.fn().mockReturnValue(of({ created: [], conflicts: [] })),
+      resetSnapshot: vi.fn().mockReturnValue(of({ removedAssignments: 0, deletedAdHocCount: 0 })),
+      bulkImport: vi.fn().mockReturnValue(of({ created: [], conflicts: [], clonedAdHocNodes: 0 })),
       getHistory: vi.fn().mockReturnValue(of({ data: [] })),
+      createAdHocNode: vi.fn().mockReturnValue(of(makeInstanceNodes()[0])),
+      updateAdHocNode: vi.fn().mockReturnValue(of(makeInstanceNodes()[0])),
+      deleteAdHocNode: vi.fn().mockReturnValue(of(undefined)),
       getNextPerformance: vi.fn().mockReturnValue(of(null)),
       getAvailablePersons: vi.fn().mockReturnValue(of({ data: [] })),
       getLockStatus: vi.fn().mockReturnValue(of({ locked: false, lockDate: null, lockDays: 2 })),
@@ -219,6 +236,8 @@ describe('AssignmentCanvasComponent', () => {
     toastService = {
       success: vi.fn(),
       error: vi.fn(),
+      info: vi.fn(),
+      warning: vi.fn(),
     };
 
     routerMock = {
@@ -239,13 +258,13 @@ describe('AssignmentCanvasComponent', () => {
         },
         {
           provide: LUCIDE_ICONS, multi: true,
-          useFactory: () => new LucideIconProvider({ ArrowLeft, Users, Edit, RefreshCw, Plus, PanelLeft, PanelLeftClose }),
+          useFactory: () => new LucideIconProvider({ ArrowLeft, Users, Edit, RefreshCw, Plus, PanelLeft, PanelLeftClose, HelpCircle }),
         },
       ],
     })
     .overrideComponent(AssignmentCanvasComponent, {
-      remove: { imports: [FigureCanvasComponent, PersonPanelComponent, NodePopoverComponent, ImportPinyaModalComponent, TroncViewComponent] },
-      add: { imports: [StubFigureCanvas, StubPersonPanel, StubNodePopover, StubImportModal, StubTroncView] },
+      remove: { imports: [FigureCanvasComponent, PersonPanelComponent, NodePopoverComponent, ImportPinyaModalComponent, TroncViewComponent, AdHocNodesHelpModalComponent] },
+      add: { imports: [StubFigureCanvas, StubPersonPanel, StubNodePopover, StubImportModal, StubTroncView, StubHelpModal] },
     })
     .compileComponents();
 
@@ -488,7 +507,7 @@ describe('AssignmentCanvasComponent', () => {
 
   describe('import', () => {
     it('onImportCompleted refreshes instance nodes', () => {
-      const result: BulkImportResult = { created: [makeAssignment()], conflicts: [] };
+      const result: BulkImportResult = { created: [makeAssignment()], conflicts: [], clonedAdHocNodes: 0 };
       assignmentService.getInstanceNodes.mockClear();
 
       component.onImportCompleted(result);
@@ -535,6 +554,119 @@ describe('AssignmentCanvasComponent', () => {
       expect(component.troncPanelOpen()).toBe(true);
       component.troncPanelOpen.update((v) => !v);
       expect(component.troncPanelOpen()).toBe(false);
+    });
+  });
+
+  // ── ad-hoc nodes ───────────────────────────────────────────────────────────
+
+  describe('ad-hoc nodes', () => {
+    const adHocNode: InstanceNodeItem = {
+      id: 'adhoc-1', label: 'Cordó obert', zone: FigureZone.PINYA, z: 0,
+      positionType: 'cordo-obert', x: 150, y: 200, width: 80, height: 40,
+      rotation: 0, color: '#FFF9C4', shape: NodeShape.ELLIPSE, sortOrder: 10,
+      ringLevel: null, originNodeId: null, renglaId: null, renglaPosition: null,
+      sourceNodeId: null, isSnapshotted: true, isAdHoc: true, createdById: 'user-1',
+    };
+
+    const dispatchKey = (key: string) => {
+      const event = new KeyboardEvent('keydown', { key, bubbles: true });
+      document.body.dispatchEvent(event);
+    };
+
+    it('onPresetSelected with non-comodin preset enters placement mode', () => {
+      const preset = AD_HOC_PINYA_PRESETS.find((p) => !p.requiresCustomLabel)!;
+      component.onPresetSelected(preset);
+      expect(stateService.isPlacementMode()).toBe(true);
+      expect(stateService.placementPreset()).toBe(preset);
+    });
+
+    it('onPresetSelected with comodin opens label input', () => {
+      const comodin = AD_HOC_PINYA_PRESETS.find((p) => p.requiresCustomLabel)!;
+      component.onPresetSelected(comodin);
+      expect(component.comodinInputOpen()).toBe(true);
+      expect(stateService.isPlacementMode()).toBe(false);
+    });
+
+    it('Escape exits placement mode', () => {
+      const preset = AD_HOC_PINYA_PRESETS[0];
+      stateService.enterPlacementMode(preset);
+      expect(stateService.isPlacementMode()).toBe(true);
+
+      dispatchKey('Escape');
+      expect(stateService.isPlacementMode()).toBe(false);
+    });
+
+    it('onCanvasClicked during placement calls createAdHocNode', () => {
+      const preset = AD_HOC_PINYA_PRESETS[0];
+      stateService.enterPlacementMode(preset);
+      stateService.activeInstanceId.set(INSTANCE_ID);
+
+      component.onCanvasClicked({ x: 300, y: 400 });
+
+      expect(assignmentService.createAdHocNode).toHaveBeenCalledWith(
+        INSTANCE_ID,
+        expect.objectContaining({ x: 300, y: 400, zone: preset.zone }),
+      );
+    });
+
+    it('Backspace on selected ad-hoc node (unassigned) calls deleteAdHocNode', () => {
+      const nodesWithAdHoc = [...makeInstanceNodes(), adHocNode];
+      component.tabs.update((list) => list.map((t) => ({ ...t, nodes: nodesWithAdHoc })));
+      stateService.selectedNodeId.set('adhoc-1');
+      stateService.assignments.set([]);
+      fixture.detectChanges();
+
+      dispatchKey('Delete');
+      expect(assignmentService.deleteAdHocNode).toHaveBeenCalledWith(INSTANCE_ID, 'adhoc-1');
+    });
+
+    it('Backspace on selected ad-hoc node (assigned) opens confirmation modal', () => {
+      const nodesWithAdHoc = [...makeInstanceNodes(), adHocNode];
+      component.tabs.update((list) => list.map((t) => ({ ...t, nodes: nodesWithAdHoc })));
+      stateService.selectedNodeId.set('adhoc-1');
+      stateService.assignments.set([{
+        ...makeAssignment('adhoc-1', 'person-1'),
+        node: { id: 'adhoc-1', label: 'Cordó obert', zone: 'PINYA', z: 0, positionType: 'cordo-obert', sortOrder: 10, ringLevel: null, originNodeId: null, sourceNodeId: null },
+      }]);
+      fixture.detectChanges();
+
+      dispatchKey('Backspace');
+      expect(component.deleteAdHocModalOpen()).toBe(true);
+      expect(component.pendingDeleteNodeLabel()).toBe('Cordó obert');
+      expect(component.pendingDeletePersonName()).toBe('Pepet');
+    });
+
+    it('Backspace on template node does nothing', () => {
+      stateService.selectedNodeId.set('inode-1');
+      dispatchKey('Delete');
+      expect(assignmentService.deleteAdHocNode).not.toHaveBeenCalled();
+      expect(component.deleteAdHocModalOpen()).toBe(false);
+    });
+
+    it('refreshInstanceNodes updates activeTabNodes for reset warning', () => {
+      const nodesWithAdHoc = [...makeInstanceNodes(), adHocNode];
+      assignmentService.getInstanceNodes.mockReturnValue(of({ data: nodesWithAdHoc }));
+      stateService.activeInstanceId.set(INSTANCE_ID);
+
+      component['refreshInstanceNodes'](INSTANCE_ID);
+
+      expect(stateService.activeTabNodes()).toEqual(nodesWithAdHoc);
+      expect(stateService.hasAdHocNodes()).toBe(true);
+    });
+
+    it('onEditTemplate shows info toast and navigates', () => {
+      component.tabs.update((list) => list.map((t) => ({
+        ...t, figureTemplateId: TEMPLATE_ID,
+      })));
+      fixture.detectChanges();
+
+      component.onEditTemplate();
+      expect(toastService.info).toHaveBeenCalledWith(
+        'Els canvis al template no afecten instàncies ja creades.',
+      );
+      expect(routerMock.navigate).toHaveBeenCalledWith(
+        ['/pinyes', 'templates', TEMPLATE_ID, 'edit'],
+      );
     });
   });
 });

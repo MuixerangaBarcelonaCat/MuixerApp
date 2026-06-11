@@ -1,0 +1,57 @@
+@if (open()) {
+  <dialog
+    class="modal modal-open"
+    role="dialog"
+    aria-labelledby="help-modal-title"
+    aria-modal="true"
+    cdkTrapFocus
+    [cdkTrapFocusAutoCapture]="true"
+  >
+    <div class="modal-box max-w-lg">
+      <h3 id="help-modal-title" class="text-lg font-bold mb-4">Nodes ad-hoc</h3>
+      <div class="prose prose-sm max-w-none">
+        <p>
+          Els <strong>nodes ad-hoc</strong> permeten afegir posicions extra directament al canvas
+          d'assignacions, sense modificar el template original de la figura.
+        </p>
+
+        <h4>Com funciona?</h4>
+        <ul class="steps steps-vertical text-sm">
+          <li class="step step-primary">
+            Fes clic al botó <strong>+</strong> a la part inferior dreta.
+          </li>
+          <li class="step step-primary">
+            Selecciona el tipus de posició (mans, agulla, cordó obert, etc.) o "Comodí" per escriure un nom lliure.
+          </li>
+          <li class="step step-primary">
+            Fes clic al canvas per col·locar el node.
+          </li>
+          <li class="step step-primary">
+            Assigna una persona com qualsevol altre node.
+          </li>
+        </ul>
+
+        <h4>Gestió dels nodes ad-hoc</h4>
+        <ul>
+          <li><strong>Moure:</strong> arrossega el node al canvas.</li>
+          <li><strong>Redimensionar/rotar:</strong> doble clic per activar els controls.</li>
+          <li><strong>Eliminar:</strong> selecciona el node i prem <kbd>Supr</kbd> o <kbd>Retrocés</kbd>.</li>
+        </ul>
+
+        <h4>Aspectes importants</h4>
+        <ul>
+          <li>Els nodes ad-hoc es mostren amb <strong>vora discontínua</strong> per distingir-los.</li>
+          <li>Reinicialitzar la figura eliminarà també tots els nodes ad-hoc.</li>
+          <li>En importar una pinya, els nodes ad-hoc de l'origen es clonen automàticament.</li>
+          <li>Editar el template no afecta els nodes ad-hoc creats (i viceversa).</li>
+        </ul>
+      </div>
+      <div class="modal-action">
+        <button type="button" class="btn btn-primary btn-sm" (click)="close()">
+          Entès
+        </button>
+      </div>
+    </div>
+    <button type="button" class="modal-backdrop" (click)="close()" aria-label="Tancar"></button>
+  </dialog>
+}

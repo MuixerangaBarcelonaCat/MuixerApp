@@ -82,6 +82,8 @@ const makeInstanceNode = (overrides: Partial<InstanceNode> = {}): Partial<Instan
   renglaId: null,
   renglaPosition: null,
   metadata: {},
+  isAdHoc: false,
+  createdById: null,
   ...overrides,
 });
 
@@ -156,12 +158,20 @@ const mockInstanceRepo = {
   createQueryBuilder: jest.fn(),
 };
 
+const mockInstanceNodeQb = {
+  where: jest.fn().mockReturnThis(),
+  select: jest.fn().mockReturnThis(),
+  getRawOne: jest.fn().mockResolvedValue({ max: 5 }),
+};
+
 const mockInstanceNodeRepo = {
   find: jest.fn(),
   findOne: jest.fn(),
   save: jest.fn(),
   create: jest.fn((data: any) => ({ ...data, id: 'new-inode-uuid' })),
   update: jest.fn(),
+  count: jest.fn().mockResolvedValue(0),
+  createQueryBuilder: jest.fn().mockReturnValue(mockInstanceNodeQb),
 };
 
 const mockFigureNodeRepo = {
@@ -1000,6 +1010,250 @@ describe('NodeAssignmentService', () => {
       const result = await service.getInstanceNodes(INSTANCE_ID);
       expect(result).toHaveLength(2);
       expect(result.map((n) => n.id)).toEqual(['n1', 'n2']);
+    });
+  });
+
+  // ── Ad-hoc node CRUD ──────────────────────────────────────────────────
+
+  describe('createAdHocNode', () => {
+    const adHocDto = {
+      zone: FigureZone.PINYA,
+      positionType: 'mans',
+      label: 'Mans extra',
+      x: 100,
+      y: 200,
+    } as any;
+
+    const makeAdHocTxManager = () => ({
+      createQueryBuilder: jest.fn().mockReturnValue(mockInstanceNodeQb),
+      create: jest.fn((_entity: any, data: any) => ({ ...data, id: 'adhoc-1' })),
+      save: jest.fn().mockImplementation((node: any) => Promise.resolve(node)),
+    });
+
+    it('creates ad-hoc node on snapshotted instance', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
+      mockInstanceNodeQb.getRawOne.mockResolvedValue({ max: 5 });
+
+      const txManager = makeAdHocTxManager();
+      const created = makeInstanceNode({ id: 'adhoc-1', isAdHoc: true, createdById: 'user-1' });
+      txManager.create.mockReturnValue(created);
+      txManager.save.mockResolvedValue(created);
+      mockDataSource.transaction.mockImplementation((cb: any) => cb(txManager));
+
+      const result = await service.createAdHocNode(INSTANCE_ID, adHocDto, 'user-1');
+
+      expect(result.isAdHoc).toBe(true);
+      expect(txManager.create).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ isAdHoc: true, createdById: 'user-1' }),
+      );
+    });
+
+    it('auto-snapshots when instance is not snapshotted', async () => {
+      const unsnapshottedInstance = makeInstance({ snapshotted: false });
+      mockInstanceRepo.findOne.mockResolvedValue(unsnapshottedInstance);
+      mockTemplateRepo.findOne.mockResolvedValue(makeTemplate());
+
+      const snapshotManager = makeTransactionManager([makeInstanceNode()]);
+      const txManager = makeAdHocTxManager();
+      const created = makeInstanceNode({ id: 'adhoc-1', isAdHoc: true });
+      txManager.create.mockReturnValue(created);
+      txManager.save.mockResolvedValue(created);
+      mockInstanceNodeQb.getRawOne.mockResolvedValue({ max: 1 });
+
+      let callCount = 0;
+      mockDataSource.transaction.mockImplementation((cb: any) => {
+        callCount++;
+        return callCount === 1 ? cb(snapshotManager) : cb(txManager);
+      });
+
+      await service.createAdHocNode(INSTANCE_ID, adHocDto, 'user-1');
+
+      expect(mockDataSource.transaction).toHaveBeenCalled();
+    });
+
+    it('rejects composition instance with 400', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(
+        makeInstance({ compositionTemplate: { id: 'comp-1' }, figureTemplate: null }),
+      );
+
+      await expect(
+        service.createAdHocNode(INSTANCE_ID, adHocDto, 'user-1'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects when event is locked', async () => {
+      process.env.ASSIGNMENT_LOCK_DAYS = '2';
+      const lockedDate = new Date();
+      lockedDate.setDate(lockedDate.getDate() - 10);
+      mockInstanceRepo.findOne.mockResolvedValue(
+        makeInstance({
+          segment: {
+            id: SEGMENT_ID,
+            event: { id: 'e1', title: 'Old event', date: lockedDate.toISOString().slice(0, 10) },
+          },
+        }),
+      );
+
+      await expect(
+        service.createAdHocNode(INSTANCE_ID, adHocDto, 'user-1'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('updateAdHocNode', () => {
+    it('updates position of ad-hoc node', async () => {
+      const adHocNode = makeInstanceNode({ id: 'adhoc-1', isAdHoc: true });
+      mockInstanceNodeRepo.findOne.mockResolvedValue(adHocNode);
+      mockInstanceNodeRepo.save.mockResolvedValue({ ...adHocNode, x: 300, y: 400 });
+
+      const result = await service.updateAdHocNode(INSTANCE_ID, 'adhoc-1', { x: 300, y: 400 });
+
+      expect(result.x).toBe(300);
+      expect(result.y).toBe(400);
+    });
+
+    it('rejects update of snapshot node with 403', async () => {
+      const snapshotNode = makeInstanceNode({ id: 'snap-1', isAdHoc: false });
+      mockInstanceNodeRepo.findOne.mockResolvedValue(snapshotNode);
+
+      await expect(
+        service.updateAdHocNode(INSTANCE_ID, 'snap-1', { x: 100 }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('throws 404 for non-existent node', async () => {
+      mockInstanceNodeRepo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.updateAdHocNode(INSTANCE_ID, 'no-such-id', { x: 100 }),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('deleteAdHocNode', () => {
+    it('deletes ad-hoc node without assignment', async () => {
+      const adHocNode = makeInstanceNode({ id: 'adhoc-1', isAdHoc: true });
+      mockInstanceNodeRepo.findOne.mockResolvedValue(adHocNode);
+      const txManager = {
+        delete: jest.fn().mockResolvedValue({}),
+      };
+      mockDataSource.transaction.mockImplementation((cb: any) => cb(txManager));
+
+      await service.deleteAdHocNode(INSTANCE_ID, 'adhoc-1');
+
+      expect(txManager.delete).toHaveBeenCalledTimes(2);
+    });
+
+    it('rejects deletion of snapshot node with 403', async () => {
+      const snapshotNode = makeInstanceNode({ id: 'snap-1', isAdHoc: false });
+      mockInstanceNodeRepo.findOne.mockResolvedValue(snapshotNode);
+
+      await expect(
+        service.deleteAdHocNode(INSTANCE_ID, 'snap-1'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('throws 404 for non-existent node', async () => {
+      mockInstanceNodeRepo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.deleteAdHocNode(INSTANCE_ID, 'no-such-id'),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('assign — DECORATION guard', () => {
+    it('rejects assignment to DECORATION node', async () => {
+      const decorationNode = makeInstanceNode({
+        id: 'dec-1',
+        zone: FigureZone.DECORATION,
+        isAdHoc: true,
+      });
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
+      mockInstanceNodeRepo.findOne.mockResolvedValue(decorationNode);
+
+      await expect(
+        service.assign(INSTANCE_ID, { nodeId: 'dec-1', personId: PERSON_ID }),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('resetSnapshot — ad-hoc count', () => {
+    it('returns deletedAdHocCount in reset result', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
+      mockAssignmentRepo.count.mockResolvedValue(3);
+      mockInstanceNodeRepo.count.mockResolvedValue(2);
+      const txManager = {
+        delete: jest.fn().mockResolvedValue({}),
+        update: jest.fn().mockResolvedValue({}),
+      };
+      mockDataSource.transaction.mockImplementation((cb: any) => cb(txManager));
+
+      const result = await service.resetSnapshot(INSTANCE_ID);
+
+      expect(result.removedAssignments).toBe(3);
+      expect(result.deletedAdHocCount).toBe(2);
+    });
+  });
+
+  describe('bulkImport — ad-hoc cloning', () => {
+    it('clones ad-hoc nodes from source to target', async () => {
+      const adHocSourceNode = makeInstanceNode({
+        id: 'src-adhoc-1',
+        isAdHoc: true,
+        sourceNodeId: null,
+        label: 'Extra cordó',
+      });
+      const target = makeInstance({ snapshotted: true, instanceNodes: [makeInstanceNode()] });
+      const source = makeInstance({
+        id: 'source-uuid',
+        snapshotted: true,
+        instanceNodes: [makeInstanceNode(), adHocSourceNode],
+      });
+
+      mockInstanceRepo.findOne
+        .mockResolvedValueOnce(target)
+        .mockResolvedValueOnce(source);
+      mockAssignmentRepo.find.mockResolvedValue([]);
+      mockInstanceNodeQb.getRawOne.mockResolvedValue({ max: 5 });
+      const cloned = { ...adHocSourceNode, id: 'cloned-adhoc-1' };
+      mockInstanceNodeRepo.create.mockReturnValue(cloned);
+      mockInstanceNodeRepo.save.mockResolvedValue(cloned);
+
+      const result = await service.bulkImport(INSTANCE_ID, { sourceInstanceId: 'source-uuid' });
+
+      expect(result.clonedAdHocNodes).toBe(1);
+      expect(mockInstanceNodeRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ isAdHoc: true, label: 'Extra cordó' }),
+      );
+    });
+  });
+
+  describe('getInstanceNodes — isAdHoc in response', () => {
+    it('includes isAdHoc field for snapshotted nodes', async () => {
+      const adHocNode = makeInstanceNode({ id: 'adhoc-1', isAdHoc: true });
+      const regularNode = makeInstanceNode({ id: 'reg-1', isAdHoc: false });
+
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
+      mockInstanceNodeRepo.find.mockResolvedValue([regularNode, adHocNode]);
+
+      const result = await service.getInstanceNodes(INSTANCE_ID);
+
+      expect(result).toHaveLength(2);
+      expect(result.find((n) => n.id === 'adhoc-1')?.isAdHoc).toBe(true);
+      expect(result.find((n) => n.id === 'reg-1')?.isAdHoc).toBe(false);
+    });
+
+    it('returns isAdHoc=false for live template nodes', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(
+        makeInstance({ snapshotted: false, figureTemplate: { id: TEMPLATE_ID } }),
+      );
+      mockTemplateRepo.findOne.mockResolvedValue(makeTemplate());
+
+      const result = await service.getInstanceNodes(INSTANCE_ID);
+
+      expect(result[0].isAdHoc).toBe(false);
     });
   });
 

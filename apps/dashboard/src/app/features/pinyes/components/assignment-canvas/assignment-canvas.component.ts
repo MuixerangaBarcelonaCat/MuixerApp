@@ -8,9 +8,9 @@ import {
   OnInit,
   signal,
 } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Location } from '@angular/common';
-import { LucideAngularModule, ArrowLeft, Users, Edit, RefreshCw, Trash2, X, PanelLeft, PanelLeftClose, Monitor, Lock, SlidersHorizontal } from 'lucide-angular';
+import { LucideAngularModule, ArrowLeft, Users, Edit, RefreshCw, Trash2, X, PanelLeft, PanelLeftClose, Monitor, Lock, SlidersHorizontal, Plus, HelpCircle } from 'lucide-angular';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { NodeAssignmentService, LockStatus } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
@@ -23,6 +23,8 @@ import { NodePopoverComponent } from '../node-popover/node-popover.component';
 import { ImportPinyaModalComponent } from '../import-pinya-modal/import-pinya-modal.component';
 import { TroncViewComponent } from '../tronc-view/tronc-view.component';
 import { CordonsDialogComponent, CordonsDialogSaveEvent } from '../cordons-dialog/cordons-dialog.component';
+import { AdHocNodesHelpModalComponent } from '../ad-hoc-nodes-help-modal/ad-hoc-nodes-help-modal.component';
+import { AdHocNodePropertiesComponent } from '../ad-hoc-node-properties/ad-hoc-node-properties.component';
 import {
   AssignmentDetail,
   AttendanceStatus,
@@ -30,11 +32,12 @@ import {
   BulkImportResult,
   InstanceNodeItem,
   PendingOp,
+  UpdateAdHocNodePayload,
 } from '../../models/assignment.model';
 import { SegmentDetail } from '../../models/segment.model';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { RenglaModel } from '../../models/figure-template.model';
-import { FigureZone } from '@muixer/shared';
+import { FigureZone, AD_HOC_PINYA_PRESETS, AdHocNodePreset } from '@muixer/shared';
 import { repositionCordoObertNodes } from '../../utils/cordo-obert-reposition.util';
 
 interface InstanceTab {
@@ -62,12 +65,15 @@ interface InstanceTab {
     ImportPinyaModalComponent,
     TroncViewComponent,
     CordonsDialogComponent,
+    AdHocNodesHelpModalComponent,
+    AdHocNodePropertiesComponent,
   ],
   templateUrl: './assignment-canvas.component.html',
   styleUrl: './assignment-canvas.component.scss',
 })
 export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly location = inject(Location);
   private readonly layout = inject(LayoutService);
   private readonly assignmentService = inject(NodeAssignmentService);
@@ -88,6 +94,10 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly Monitor = Monitor;
   readonly Lock = Lock;
   readonly SlidersHorizontal = SlidersHorizontal;
+  readonly Plus = Plus;
+  readonly HelpCircle = HelpCircle;
+
+  readonly adHocPresets = AD_HOC_PINYA_PRESETS;
 
   readonly eventId = signal('');
   readonly segmentId = signal('');
@@ -108,6 +118,25 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly isLocked = computed(() => this.lockStatus()?.locked ?? false);
 
   readonly troncPanelOpen = signal(false);
+
+  readonly deleteAdHocModalOpen = signal(false);
+  readonly pendingDeleteNodeId = signal<string | null>(null);
+  readonly pendingDeleteNodeLabel = computed(() => {
+    const nodeId = this.pendingDeleteNodeId();
+    if (!nodeId) return '';
+    return this.activeNodes().find((n) => n.id === nodeId)?.label ?? '';
+  });
+  readonly pendingDeletePersonName = computed(() => {
+    const nodeId = this.pendingDeleteNodeId();
+    if (!nodeId) return '';
+    const assignment = this.state.assignments().find((a) => a.node.id === nodeId);
+    if (!assignment) return '';
+    return assignment.person.alias || `${assignment.person.name} ${assignment.person.firstSurname}`;
+  });
+  readonly helpModalOpen = signal(false);
+  readonly comodinInputOpen = signal(false);
+  readonly comodinLabel = signal('');
+  readonly fabDropdownOpen = signal(false);
 
   readonly templateRengles = signal<RenglaModel[]>([]);
   readonly maxCordons = signal(0);
@@ -132,6 +161,12 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly selectedNode = computed(() => {
     const id = this.state.selectedNodeId();
     return id ? (this.activeNodes().find((n) => n.id === id) ?? null) : null;
+  });
+
+  /** Selected ad-hoc node for the properties panel (null if selection is a template node or nothing). */
+  readonly selectedAdHocNode = computed(() => {
+    const node = this.selectedNode();
+    return node?.isAdHoc ? node : null;
   });
 
   /** Nodes rendered on the pinya Konva canvas (PINYA + BASE + direction zones, no TRONC). */
@@ -194,6 +229,18 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
     if (event.key === 'Escape') {
       event.preventDefault();
+      if (this.fabDropdownOpen()) {
+        this.fabDropdownOpen.set(false);
+        return;
+      }
+      if (this.state.isPlacementMode()) {
+        this.state.exitPlacementMode();
+        return;
+      }
+      if (this.deleteAdHocModalOpen()) {
+        this.cancelDeleteAdHocNode();
+        return;
+      }
       this.state.setSelectedNodeId(null);
       this.state.setSelectedPersonId(null);
       this.popoverAssignment.set(null);
@@ -203,6 +250,34 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     if (event.key === 'Tab') {
       event.preventDefault();
       this.advanceToNextEmptyNodeFromCurrent();
+      return;
+    }
+
+    if ((event.key === 'Delete' || event.key === 'Backspace') && !this.isLocked()) {
+      const selectedId = this.state.selectedNodeId();
+      if (!selectedId) return;
+      const node = this.activeNodes().find((n) => n.id === selectedId);
+      if (!node?.isAdHoc) return;
+      event.preventDefault();
+
+      const isAssigned = this.state.assignments().some((a) => a.node.id === selectedId);
+      if (isAssigned) {
+        this.pendingDeleteNodeId.set(selectedId);
+        this.deleteAdHocModalOpen.set(true);
+      } else {
+        this.deleteAdHocNode(selectedId);
+      }
+      return;
+    }
+
+    const ARROW_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+    if (ARROW_KEYS.includes(event.key) && !this.isLocked()) {
+      const selectedId = this.state.selectedNodeId();
+      if (!selectedId) return;
+      const node = this.activeNodes().find((n) => n.id === selectedId);
+      if (!node?.isAdHoc) return;
+      event.preventDefault();
+      this.moveAdHocNodeByKey(selectedId, node, event.key, event.shiftKey);
       return;
     }
   }
@@ -316,6 +391,9 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
               : t,
           ),
         );
+        if (this.state.activeInstanceId() === instanceId) {
+          this.state.activeTabNodes.set(resp.data);
+        }
       },
     });
 
@@ -368,7 +446,46 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     });
   }
 
+  onCanvasClicked(event: { x: number; y: number }): void {
+    this.fabDropdownOpen.set(false);
+    if (!this.state.isPlacementMode()) return;
+    const preset = this.state.placementPreset();
+    if (!preset) return;
+
+    const instanceId = this.state.activeInstanceId();
+    if (!instanceId) return;
+
+    const label = preset.requiresCustomLabel
+      ? (this.state.placementCustomLabel() || 'Comodí')
+      : preset.label;
+
+    this.assignmentService
+      .createAdHocNode(instanceId, {
+        zone: preset.zone,
+        positionType: preset.positionType ?? undefined,
+        label,
+        x: event.x,
+        y: event.y,
+        width: preset.width,
+        height: preset.height,
+        shape: preset.shape,
+        color: preset.color,
+      })
+      .subscribe({
+        next: () => {
+          this.state.exitPlacementMode();
+          this.refreshInstanceNodes(instanceId);
+          this.toast.success(`Node "${label}" creat.`);
+        },
+        error: (err) => {
+          const msg = err?.error?.message ?? 'Error en crear el node.';
+          this.toast.error(msg);
+        },
+      });
+  }
+
   onNodeSelected(nodeId: string | null): void {
+    this.fabDropdownOpen.set(false);
     if (this.isLocked()) return;
     if (!nodeId) {
       this.state.setSelectedNodeId(null);
@@ -512,7 +629,9 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
               : t,
           ),
         );
-        // Re-fetch assignments so node IDs align
+        if (this.state.activeInstanceId() === instanceId) {
+          this.state.activeTabNodes.set(resp.data);
+        }
         this.assignmentService.getByInstance(instanceId).subscribe({
           next: (assignResp) => {
             if (this.state.activeInstanceId() === instanceId) {
@@ -660,7 +779,11 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
       next: (result) => {
         this.resetting.set(false);
         this.resetModalOpen.set(false);
-        this.toast.success(`S'han eliminat ${result.removedAssignments} assignacions. La figura torna al template original.`);
+        let resetMsg = `S'han eliminat ${result.removedAssignments} assignacions. La figura torna al template original.`;
+        if (result.deletedAdHocCount > 0) {
+          resetMsg += ` S'han eliminat ${result.deletedAdHocCount} nodes ad-hoc.`;
+        }
+        this.toast.success(resetMsg);
 
         this.tabs.update((list) =>
           list.map((t) =>
@@ -756,16 +879,188 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   }
 
   onImportCompleted(result: BulkImportResult): void {
-    const msg = result.conflicts.length > 0
+    let msg = result.conflicts.length > 0
       ? `Importades ${result.created.length} assignacions (${result.conflicts.length} conflictes omesos).`
       : `Importades ${result.created.length} assignacions correctament.`;
+    if (result.clonedAdHocNodes > 0) {
+      msg += ` S'han clonat ${result.clonedAdHocNodes} nodes ad-hoc.`;
+    }
     this.toast.success(msg);
     this.importModalOpen.set(false);
     const instanceId = this.state.activeInstanceId();
     if (instanceId) {
-      // Import may trigger snapshot — refresh nodes
       this.refreshInstanceNodes(instanceId);
     }
+  }
+
+  // ── Ad-hoc node operations ──────────────────────────────────────────────
+
+  onPresetSelected(preset: AdHocNodePreset): void {
+    this.fabDropdownOpen.set(false);
+    if (preset.requiresCustomLabel) {
+      this.comodinInputOpen.set(true);
+      this.comodinLabel.set('');
+      return;
+    }
+    this.state.enterPlacementMode(preset);
+  }
+
+  confirmComodinLabel(): void {
+    const label = this.comodinLabel().trim();
+    if (!label) return;
+    const comodinPreset = this.adHocPresets.find((p) => p.requiresCustomLabel);
+    if (!comodinPreset) return;
+    this.comodinInputOpen.set(false);
+    this.state.enterPlacementMode(comodinPreset, label);
+  }
+
+  cancelComodinInput(): void {
+    this.comodinInputOpen.set(false);
+    this.comodinLabel.set('');
+  }
+
+  onAdHocNodeMoved(event: { nodeId: string; x: number; y: number }): void {
+    const instanceId = this.state.activeInstanceId();
+    if (!instanceId) return;
+
+    this.tabs.update((list) =>
+      list.map((t) =>
+        t.instanceId === instanceId
+          ? {
+              ...t,
+              nodes: t.nodes.map((n) =>
+                n.id === event.nodeId ? { ...n, x: event.x, y: event.y } : n,
+              ),
+            }
+          : t,
+      ),
+    );
+
+    this.assignmentService
+      .updateAdHocNode(instanceId, event.nodeId, { x: event.x, y: event.y })
+      .subscribe({
+        error: () => {
+          this.toast.error('Error en moure el node.');
+          this.refreshInstanceNodes(instanceId);
+        },
+      });
+  }
+
+  onAdHocNodeTransformed(event: {
+    nodeId: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    rotation: number;
+  }): void {
+    const instanceId = this.state.activeInstanceId();
+    if (!instanceId) return;
+
+    this.assignmentService
+      .updateAdHocNode(instanceId, event.nodeId, {
+        x: event.x,
+        y: event.y,
+        width: event.width,
+        height: event.height,
+        rotation: event.rotation,
+      })
+      .subscribe({
+        next: () => this.refreshInstanceNodes(instanceId),
+        error: () => {
+          this.toast.error('Error en redimensionar el node.');
+          this.refreshInstanceNodes(instanceId);
+        },
+      });
+  }
+
+  deleteAdHocNode(nodeId: string): void {
+    const instanceId = this.state.activeInstanceId();
+    if (!instanceId) return;
+
+    this.state.setSelectedNodeId(null);
+    this.assignmentService.deleteAdHocNode(instanceId, nodeId).subscribe({
+      next: () => {
+        this.refreshInstanceNodes(instanceId);
+        this.state.refreshPersonList();
+        this.toast.success('Node eliminat.');
+      },
+      error: () => this.toast.error('Error en eliminar el node.'),
+    });
+  }
+
+  confirmDeleteAdHocNode(): void {
+    const nodeId = this.pendingDeleteNodeId();
+    if (!nodeId) return;
+    this.deleteAdHocModalOpen.set(false);
+    this.pendingDeleteNodeId.set(null);
+    this.deleteAdHocNode(nodeId);
+  }
+
+  cancelDeleteAdHocNode(): void {
+    this.deleteAdHocModalOpen.set(false);
+    this.pendingDeleteNodeId.set(null);
+  }
+
+  openHelpModal(): void {
+    this.helpModalOpen.set(true);
+  }
+
+  closeHelpModal(): void {
+    this.helpModalOpen.set(false);
+  }
+
+  private moveAdHocNodeByKey(nodeId: string, node: InstanceNodeItem, key: string, large: boolean): void {
+    const step = large ? 10 : 1;
+    const delta: Record<string, { x: number; y: number }> = {
+      ArrowUp:    { x: 0,     y: -step },
+      ArrowDown:  { x: 0,     y:  step },
+      ArrowLeft:  { x: -step, y: 0     },
+      ArrowRight: { x:  step, y: 0     },
+    };
+    const d = delta[key];
+    if (!d) return;
+
+    const newX = node.x + d.x;
+    const newY = node.y + d.y;
+    this.onAdHocNodeMoved({ nodeId, x: newX, y: newY });
+  }
+
+  onAdHocPropertyChanged(event: { nodeId: string; patch: Partial<UpdateAdHocNodePayload> }): void {
+    const instanceId = this.state.activeInstanceId();
+    if (!instanceId) return;
+
+    this.tabs.update((list) =>
+      list.map((t) =>
+        t.instanceId === instanceId
+          ? { ...t, nodes: t.nodes.map((n) => n.id === event.nodeId ? { ...n, ...event.patch } : n) }
+          : t,
+      ),
+    );
+  }
+
+  onAdHocNodeUpdated(): void {
+    const instanceId = this.state.activeInstanceId();
+    if (instanceId) {
+      this.refreshInstanceNodes(instanceId);
+    }
+  }
+
+  onAdHocDeleteFromPanel(nodeId: string): void {
+    const isAssigned = this.state.assignments().some((a) => a.node.id === nodeId);
+    if (isAssigned) {
+      this.pendingDeleteNodeId.set(nodeId);
+      this.deleteAdHocModalOpen.set(true);
+    } else {
+      this.deleteAdHocNode(nodeId);
+    }
+  }
+
+  onEditTemplate(): void {
+    const templateId = this.activeTab()?.figureTemplateId;
+    if (!templateId) return;
+    this.toast.info('Els canvis al template no afecten instàncies ja creades.');
+    this.router.navigate(['/pinyes', 'templates', templateId, 'edit']);
   }
 
   getAttendanceStatus(assignment: AssignmentDetail): string | null {

@@ -58,14 +58,15 @@
     }
 
     @if (activeTab()?.figureTemplateId) {
-      <a
-        [routerLink]="['/pinyes', 'templates', activeTab()!.figureTemplateId, 'edit']"
+      <button
+        type="button"
         class="btn btn-ghost btn-sm gap-1"
         aria-label="Editar template de la figura"
+        (click)="onEditTemplate()"
       >
         <i-lucide [img]="Edit" class="size-4" />
         Editar template
-      </a>
+      </button>
     }
 
     @if (activeTab()) {
@@ -119,6 +120,7 @@
       @if (!loading() && activePinyaNodes().length > 0) {
         <app-figure-canvas
           class="w-full h-full block"
+          [class.cursor-crosshair]="state.isPlacementMode()"
           [nodes]="activePinyaNodes()"
           mode="assignment"
           [selectedNodeId]="state.selectedNodeId()"
@@ -127,8 +129,12 @@
           [attendanceMap]="attendanceMap()"
           [nextPerformanceMap]="nextPerformanceMap()"
           [highlightedNodeIds]="highlightedNodeIds()"
+          [isPlacementMode]="state.isPlacementMode()"
           (nodeSelected)="onNodeSelected($event)"
           (nodeClicked)="onNodeClicked($event)"
+          (canvasClicked)="onCanvasClicked($event)"
+          (adHocNodeMoved)="onAdHocNodeMoved($event)"
+          (adHocNodeTransformed)="onAdHocNodeTransformed($event)"
         />
       }
 
@@ -151,6 +157,81 @@
           <i-lucide [img]="Users" class="size-12" />
           <p class="text-sm">Aquest segment no té figures per assignar.</p>
         </div>
+      }
+
+      <!-- Ad-hoc FAB + help -->
+      @if (!isLocked() && activeTab()) {
+        <div class="absolute bottom-4 right-4 flex items-center gap-2 z-20">
+          <button
+            type="button"
+            class="btn btn-circle btn-sm btn-ghost"
+            (click)="openHelpModal()"
+            aria-label="Ajuda sobre nodes ad-hoc"
+            title="Ajuda"
+          >
+            <i-lucide [img]="HelpCircle" class="size-5" />
+          </button>
+
+          <div class="relative">
+            <button
+              type="button"
+              class="btn btn-circle btn-primary shadow-lg"
+              (click)="fabDropdownOpen.set(!fabDropdownOpen())"
+              aria-label="Afegir node ad-hoc"
+              aria-haspopup="true"
+              [attr.aria-expanded]="fabDropdownOpen()"
+            >
+              <i-lucide [img]="Plus" class="size-5" />
+            </button>
+            @if (fabDropdownOpen()) {
+              <ul
+                class="menu bg-base-100 rounded-box shadow-xl w-56 p-2 absolute bottom-full right-0 mb-2 z-50"
+                role="menu"
+              >
+                @for (preset of adHocPresets; track preset.positionType) {
+                  <li role="none">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      class="flex items-center gap-2 text-sm"
+                      (click)="onPresetSelected(preset)"
+                    >
+                      <span
+                        class="inline-block w-3 h-3 rounded-sm shrink-0"
+                        [style.backgroundColor]="preset.color"
+                      ></span>
+                      {{ preset.requiresCustomLabel ? 'Comodí (etiqueta lliure)' : preset.label }}
+                    </button>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- Placement mode banner -->
+      @if (state.isPlacementMode()) {
+        <div class="absolute top-2 left-1/2 -translate-x-1/2 z-30 alert alert-info py-2 px-4 shadow-lg max-w-sm" role="status">
+          <span class="text-sm">
+            <strong>Mode col·locació:</strong> fes clic al canvas per situar el node.
+            <button type="button" class="btn btn-xs btn-ghost ml-1" (click)="state.exitPlacementMode()">
+              Cancel·lar
+            </button>
+          </span>
+        </div>
+      }
+
+      <!-- Ad-hoc node properties panel -->
+      @if (selectedAdHocNode(); as adHocNode) {
+        <app-ad-hoc-node-properties
+          [node]="adHocNode"
+          [instanceId]="state.activeInstanceId()!"
+          (closed)="state.setSelectedNodeId(null)"
+          (propertyChanged)="onAdHocPropertyChanged($event)"
+          (nodeUpdated)="onAdHocNodeUpdated()"
+          (deleteRequested)="onAdHocDeleteFromPanel($event)"
+        />
       }
 
       <!-- Node popover -->
@@ -353,6 +434,14 @@
         i tornarà la figura al template original.
         Les persones assignades quedaran lliures.
       </p>
+      @if (state.hasAdHocNodes()) {
+        <div class="alert alert-warning mt-3 py-2 text-sm gap-2">
+          <span>
+            <strong>{{ state.adHocNodes().length }} nodes ad-hoc</strong>
+            també s'eliminaran permanentment.
+          </span>
+        </div>
+      }
       <p class="text-xs text-warning mt-2">Aquesta acció no es pot desfer.</p>
       <div class="modal-action">
         <button
@@ -389,4 +478,81 @@
   [maxCordons]="maxCordons()"
   (saved)="onCordonsSaved($event)"
   (closed)="onCordonsDialogClosed()"
+/>
+
+<!-- Delete ad-hoc node modal -->
+@if (deleteAdHocModalOpen()) {
+  <dialog
+    class="modal modal-open"
+    role="alertdialog"
+    aria-labelledby="delete-adhoc-title"
+    aria-describedby="delete-adhoc-desc"
+    aria-modal="true"
+  >
+    <div class="modal-box max-w-sm">
+      <h3 id="delete-adhoc-title" class="text-lg font-bold mb-3 text-error">Eliminar node ad-hoc</h3>
+      <p id="delete-adhoc-desc" class="text-sm text-base-content/70">
+        El node «<strong>{{ pendingDeleteNodeLabel() }}</strong>» té la persona
+        <strong>{{ pendingDeletePersonName() }}</strong> assignada.
+        Si l'elimines, l'assignació es perdrà.
+      </p>
+      <div class="modal-action">
+        <button type="button" class="btn btn-ghost btn-sm" (click)="cancelDeleteAdHocNode()">
+          Cancel·lar
+        </button>
+        <button type="button" class="btn btn-error btn-sm" (click)="confirmDeleteAdHocNode()">
+          Eliminar
+        </button>
+      </div>
+    </div>
+    <button type="button" class="modal-backdrop" (click)="cancelDeleteAdHocNode()" aria-label="Tancar"></button>
+  </dialog>
+}
+
+<!-- Comodin label input dialog -->
+@if (comodinInputOpen()) {
+  <dialog
+    class="modal modal-open"
+    role="dialog"
+    aria-labelledby="comodin-title"
+    aria-modal="true"
+  >
+    <div class="modal-box max-w-xs">
+      <h3 id="comodin-title" class="text-lg font-bold mb-3">Etiqueta del comodí</h3>
+      <label for="comodin-input" class="label">
+        <span class="label-text">Escriu el nom del node:</span>
+      </label>
+      <input
+        id="comodin-input"
+        type="text"
+        class="input input-bordered w-full"
+        [value]="comodinLabel()"
+        (input)="comodinLabel.set($any($event.target).value)"
+        (keydown.enter)="confirmComodinLabel()"
+        placeholder="Ex: Extra mans, Reforç..."
+        maxlength="100"
+        autofocus
+      />
+      <div class="modal-action">
+        <button type="button" class="btn btn-ghost btn-sm" (click)="cancelComodinInput()">
+          Cancel·lar
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary btn-sm"
+          (click)="confirmComodinLabel()"
+          [disabled]="!comodinLabel().trim()"
+        >
+          Col·locar
+        </button>
+      </div>
+    </div>
+    <button type="button" class="modal-backdrop" (click)="cancelComodinInput()" aria-label="Tancar"></button>
+  </dialog>
+}
+
+<!-- Help modal -->
+<app-ad-hoc-nodes-help-modal
+  [open]="helpModalOpen()"
+  (closed)="closeHelpModal()"
 />

@@ -41,6 +41,7 @@ export interface CanvasNode {
   originNodeId?: string | null;
   renglaId?: string | null;
   renglaPosition?: number | null;
+  isAdHoc?: boolean;
 }
 
 export type CanvasMode = 'editor' | 'readonly' | 'composition' | 'assignment';
@@ -113,6 +114,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   readonly attendanceMap = input<Map<string, string>>(new Map());
   readonly nextPerformanceMap = input<Map<string, string | null>>(new Map());
   readonly highlightedNodeIds = input<Set<string>>(new Set());
+  readonly isPlacementMode = input<boolean>(false);
 
   readonly nodeSelected = output<string | null>();
   readonly nodeClicked = output<{ nodeId: string; x: number; y: number }>();
@@ -126,6 +128,9 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   readonly nodeDoubleClicked = output<string>();
   readonly stageTransformChanged = output<{ x: number; y: number; scaleX: number; scaleY: number }>();
   readonly ghostCloneRequested = output<{ sourceNode: CanvasNode; targetPosition: { x: number; y: number } }>();
+  readonly canvasClicked = output<{ x: number; y: number }>();
+  readonly adHocNodeMoved = output<{ nodeId: string; x: number; y: number }>();
+  readonly adHocNodeTransformed = output<{ nodeId: string; x: number; y: number; width: number; height: number; rotation: number }>();
 
   private stage!: Konva.Stage;
   private gridLayer!: Konva.Layer;
@@ -140,6 +145,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   private ghostHoverTimer: ReturnType<typeof setTimeout> | null = null;
   private ghostLeaveTimer: ReturnType<typeof setTimeout> | null = null;
   private ghostSourceNodeId: string | null = null;
+  private adHocTooltip: Konva.Label | null = null;
 
   readonly zoomLevel = signal(1);
 
@@ -173,6 +179,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     });
 
     effect(() => {
+      this.nodes();
       this.assignments();
       this.heightMode();
       this.attendanceMap();
@@ -181,11 +188,32 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.highlightedNodeIds();
       if (!this.stage) return;
       if (this.mode() === 'assignment') {
-        untracked(() => this.renderAssignmentNodes());
+        untracked(() => {
+          this.renderAssignmentNodes();
+          this.updateTransformer();
+        });
       } else if (this.mode() === 'readonly') {
         untracked(() => this.renderReadonlyNodes());
       }
     });
+
+    effect(() => {
+      const placement = this.isPlacementMode();
+      if (!this.stage) return;
+      untracked(() => {
+        if (placement) {
+          this.stage.container().style.cursor = 'crosshair';
+        }
+      });
+    });
+  }
+
+  private setCursor(cursor: string): void {
+    if (this.isPlacementMode()) {
+      this.stage.container().style.cursor = 'crosshair';
+      return;
+    }
+    this.stage.container().style.cursor = cursor;
   }
 
   ngAfterViewInit(): void {
@@ -368,12 +396,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.stage.on('mouseup', () => {
       if (isPanning) {
         isPanning = false;
-        this.stage.container().style.cursor = 'default';
+        this.setCursor('default');
         this.emitStageTransform();
       }
     });
 
-    // Update cursor on hover
     this.stage.on('mousemove', (e) => {
       if (isPanning) return;
       const clickedOnStage = e.target === this.stage;
@@ -382,19 +409,31 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         : !this.selectedNodeId();
 
       if (clickedOnStage && noSelection && (this.mode() === 'editor' || this.mode() === 'composition')) {
-        this.stage.container().style.cursor = 'grab';
+        this.setCursor('grab');
       }
     });
 
     this.stage.on('mouseleave', () => {
       if (!isPanning) {
-        this.stage.container().style.cursor = 'default';
+        this.setCursor('default');
       }
     });
 
-    // Deselect on stage click
+    // Deselect on stage click or place ad-hoc node
     this.stage.on('click', (e) => {
       if (e.target === this.stage) {
+        if (this.isPlacementMode()) {
+          const pos = this.stage.getPointerPosition();
+          if (pos) {
+            const scale = this.stage.scaleX();
+            const stagePos = this.stage.position();
+            this.canvasClicked.emit({
+              x: Math.round((pos.x - stagePos.x) / scale),
+              y: Math.round((pos.y - stagePos.y) / scale),
+            });
+          }
+          return;
+        }
         if (this.mode() === 'composition') {
           this.slotSelected.emit(null);
         } else {
@@ -407,21 +446,37 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
   private updateTransformer(): void {
     const selectedId = this.selectedNodeId();
-    const isEditor = this.mode() === 'editor';
+    const m = this.mode();
+    const isEditor = m === 'editor';
+    const isAssignment = m === 'assignment';
 
-    if (!selectedId || !isEditor) {
+    if (!selectedId) {
       this.transformer.nodes([]);
       return;
     }
 
-    const node = this.pinyaLayer.findOne(`#${selectedId}`);
-    if (node) {
-      this.transformer.nodes([node]);
-      this.transformer.moveToTop();
-      this.pinyaLayer.batchDraw();
-    } else {
+    if (!isEditor && !isAssignment) {
       this.transformer.nodes([]);
+      return;
     }
+
+    const konvaNode = this.pinyaLayer.findOne(`#${selectedId}`);
+    if (!konvaNode) {
+      this.transformer.nodes([]);
+      return;
+    }
+
+    if (isAssignment) {
+      const canvasNode = this.nodes().find((n) => n.id === selectedId);
+      if (!(canvasNode as any)?.isAdHoc) {
+        this.transformer.nodes([]);
+        return;
+      }
+    }
+
+    this.transformer.nodes([konvaNode]);
+    this.transformer.moveToTop();
+    this.pinyaLayer.batchDraw();
   }
 
   private resizeStage(): void {
@@ -742,6 +797,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       const assignment = assignmentByNodeId.get(node.id);
       const isSelected = selectedId === node.id;
       const isHighlighted = highlighted.has(node.id);
+      const isAdHoc = !!(node as any).isAdHoc;
       const fill = node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR;
       const stroke = isSelected ? SELECTED_STROKE : isHighlighted ? '#10b981' : NORMAL_STROKE;
       const strokeWidth = isSelected ? 3 : isHighlighted ? 2.5 : 1.5;
@@ -751,7 +807,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         x: node.x,
         y: node.y,
         rotation: node.rotation,
-        draggable: false,
+        draggable: isAdHoc,
       });
 
       let shape: Konva.Shape;
@@ -762,6 +818,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           fill,
           stroke,
           strokeWidth,
+          dash: isAdHoc ? [6, 3] : undefined,
         });
       } else {
         shape = new Konva.Rect({
@@ -773,6 +830,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           fill,
           stroke,
           strokeWidth,
+          dash: isAdHoc ? [6, 3] : undefined,
         });
       }
       if (isHighlighted) {
@@ -790,7 +848,6 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         const hasValidHeight = shoulderH !== null && shoulderH !== 0 && shoulderH !== 140;
         const nextStatus = nextPerformanceMap.get(assignment.person.id);
 
-        // Alias text — centred in the node, larger now that height is a separate badge
         group.add(
           new Konva.Text({
             text: alias,
@@ -809,7 +866,6 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           }),
         );
 
-        // Height badge at top-left
         if (hasValidHeight) {
           const heightText = heightMode === 'relative'
             ? `${shoulderH! >= 140 ? '+' : ''}${shoulderH! - 140}`
@@ -829,7 +885,6 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           );
         }
 
-        // Next performance indicator at bottom-left (only when coming to next actuació)
         if (nextStatus === 'ANIRE') {
           group.add(
             new Konva.Text({
@@ -842,7 +897,6 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           );
         }
 
-        // Attendance badge (small dot at top-right corner)
         const attendanceStatus = attendanceMap.get(assignment.person.id);
         if (attendanceStatus) {
           const badgeColor = ATTENDANCE_COLORS[attendanceStatus] ?? '#6b7280';
@@ -859,7 +913,6 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           );
         }
       } else {
-        // Empty node label
         const textFill = this.getContrastColor(fill);
         group.add(
           new Konva.Text({
@@ -880,24 +933,79 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         );
       }
 
-      group.on('click tap', (e) => {
-        const containerRect = this.stage.container().getBoundingClientRect();
-        const clickX = e.evt.clientX - containerRect.left;
-        const clickY = e.evt.clientY - containerRect.top;
-        this.nodeSelected.emit(node.id);
-        this.nodeClicked.emit({ nodeId: node.id, x: clickX, y: clickY });
-      });
+      if (isAdHoc) {
+        group.on('click tap', (e) => {
+          const containerRect = this.stage.container().getBoundingClientRect();
+          const clickX = e.evt.clientX - containerRect.left;
+          const clickY = e.evt.clientY - containerRect.top;
+          this.nodeSelected.emit(node.id);
+          this.nodeClicked.emit({ nodeId: node.id, x: clickX, y: clickY });
+        });
 
-      group.on('dblclick dbltap', () => {
-        this.nodeDoubleClicked.emit(node.id);
-      });
+        group.on('dragstart', () => {
+          this.setCursor('grabbing');
+        });
 
-      group.on('mouseenter', () => {
-        this.stage.container().style.cursor = 'pointer';
-      });
-      group.on('mouseleave', () => {
-        this.stage.container().style.cursor = 'default';
-      });
+        group.on('dragend', () => {
+          this.setCursor('grab');
+          this.adHocNodeMoved.emit({
+            nodeId: node.id,
+            x: Math.round(group.x()),
+            y: Math.round(group.y()),
+          });
+        });
+
+        group.on('dblclick dbltap', () => {
+          this.nodeSelected.emit(node.id);
+          this.transformer.nodes([group]);
+          this.transformer.moveToTop();
+          this.pinyaLayer.batchDraw();
+        });
+
+        group.on('transformend', () => {
+          const scaleX = group.scaleX();
+          const scaleY = group.scaleY();
+          group.scaleX(1);
+          group.scaleY(1);
+
+          this.adHocNodeTransformed.emit({
+            nodeId: node.id,
+            x: Math.round(group.x()),
+            y: Math.round(group.y()),
+            width: Math.max(20, Math.round(node.width * scaleX)),
+            height: Math.max(20, Math.round(node.height * scaleY)),
+            rotation: ((Math.round(group.rotation()) % 360) + 360) % 360,
+          });
+        });
+
+        group.on('mouseenter', () => {
+          this.setCursor('grab');
+          this.showAdHocTooltip(group);
+        });
+        group.on('mouseleave', () => {
+          this.setCursor('default');
+          this.hideAdHocTooltip();
+        });
+      } else {
+        group.on('click tap', (e) => {
+          const containerRect = this.stage.container().getBoundingClientRect();
+          const clickX = e.evt.clientX - containerRect.left;
+          const clickY = e.evt.clientY - containerRect.top;
+          this.nodeSelected.emit(node.id);
+          this.nodeClicked.emit({ nodeId: node.id, x: clickX, y: clickY });
+        });
+
+        group.on('dblclick dbltap', () => {
+          this.nodeDoubleClicked.emit(node.id);
+        });
+
+        group.on('mouseenter', () => {
+          this.setCursor('pointer');
+        });
+        group.on('mouseleave', () => {
+          this.setCursor('default');
+        });
+      }
 
       this.pinyaLayer.add(group);
     }
@@ -1412,5 +1520,27 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     const b = parseInt(c.slice(4, 6), 16);
     const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
     return luminance > 0.5 ? '#000000' : '#ffffff';
+  }
+
+  private showAdHocTooltip(group: Konva.Group): void {
+    this.hideAdHocTooltip();
+    const label = new Konva.Label({
+      x: group.x(),
+      y: group.y() - 28,
+      opacity: 0.85,
+    });
+    label.add(new Konva.Tag({ fill: '#1f2937', cornerRadius: 4, pointerDirection: 'down', pointerWidth: 8, pointerHeight: 4 }));
+    label.add(new Konva.Text({ text: 'Node creat manualment', fontSize: 11, fontFamily: 'Inter, sans-serif', fill: '#ffffff', padding: 4 }));
+    this.adHocTooltip = label;
+    this.pinyaLayer.add(label);
+    this.pinyaLayer.batchDraw();
+  }
+
+  private hideAdHocTooltip(): void {
+    if (this.adHocTooltip) {
+      this.adHocTooltip.destroy();
+      this.adHocTooltip = null;
+      this.pinyaLayer.batchDraw();
+    }
   }
 }
