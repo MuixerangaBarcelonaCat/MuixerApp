@@ -490,14 +490,62 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     const past = this.isPast();
     const adults = getAdultsCount(summary, past);
     return [
-      { label: past ? 'Assistit' : 'Aniré', value: past ? summary.attended : summary.confirmed, icon: 'UserCheck', iconClass: 'text-success', hidden: false },
-      { label: 'Adults', value: adults, icon: 'Users', iconClass: 'text-primary', hidden: false },
-      { label: 'No presentat', value: summary.noShow, icon: 'AlertTriangle', iconClass: 'text-warning', hidden: !past },
-      { label: past ? 'No va anar' : 'No vaig', value: summary.declined, icon: 'UserX', iconClass: 'text-error', hidden: false },
-      { label: 'Baixes tardanes', value: summary.lateCancel, icon: 'AlertCircle', iconClass: 'text-warning', hidden: !past || summary.lateCancel === 0 },
-      { label: past ? 'Sense resposta' : 'Pendents', value: summary.pending, icon: 'Clock', iconClass: 'text-base-content/40', hidden: false },
-      { label: 'Xicalla', value: summary.children, icon: 'Baby', iconClass: 'text-info', hidden: false },
-      { label: 'Total', value: summary.total, icon: 'UsersRound', iconClass: 'text-base-content', hidden: false },
+      {
+        label: past ? 'Assistit' : 'Aniré',
+        value: past ? summary.attended : summary.confirmed,
+        icon: 'UserCheck',
+        iconClass: 'text-success',
+        hidden: false,
+      },
+      {
+        label: 'No presentat',
+        value: summary.noShow,
+        icon: 'AlertTriangle',
+        iconClass: 'text-warning',
+        hidden: !past,
+      },
+      {
+        label: past ? 'No va anar' : 'No vaig',
+        value: summary.declined,
+        icon: 'UserX',
+        iconClass: 'text-error',
+        hidden: false,
+      },
+      {
+        label: 'Baixes tardanes',
+        value: summary.lateCancel,
+        icon: 'AlertCircle',
+        iconClass: 'text-warning',
+        hidden: !past || summary.lateCancel === 0,
+      },
+      {
+        label: past ? 'Sense resposta' : 'Pendents',
+        value: summary.pending,
+        icon: 'Clock',
+        iconClass: 'text-base-content/40',
+        hidden: false,
+      },
+      {
+        label: 'Adults',
+        value: adults,
+        icon: 'Users',
+        iconClass: 'text-primary',
+        hidden: false,
+      },
+      {
+        label: 'Xicalla',
+        value: summary.children,
+        icon: 'Baby',
+        iconClass: 'text-info',
+        hidden: false,
+      },
+      {
+        label: 'Total',
+        value: summary.total,
+        icon: 'UsersRound',
+        iconClass: 'text-base-content',
+        hidden: false,
+      },
     ].filter((row) => !row.hidden);
   }
 }

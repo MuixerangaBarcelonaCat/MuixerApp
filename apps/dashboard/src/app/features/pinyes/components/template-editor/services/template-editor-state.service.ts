@@ -35,17 +35,6 @@ export interface PinyaPosition {
 const DEFAULT_NODE_WIDTH = 80;
 const DEFAULT_NODE_HEIGHT = 40;
 
-export const PINYA_POSITIONS: PinyaPosition[] = [
-  { positionType: 'agulla',      label: 'AGULLA',      color: '#0d9488' },
-  { positionType: 'mans',        label: 'MANS',        color: '#FFE082' },
-  { positionType: 'laterals',    label: 'LATERALS',    color: '#80DEEA' },
-  { positionType: 'vents',       label: 'VENTS',       color: '#A5D6A7' },
-  { positionType: 'cordo-obert', label: 'CORDO OBERT', color: '#FFF9C4' },
-  { positionType: 'tap',         label: 'TAP',         color: '#be185d' },
-  { positionType: 'crossa',      label: 'CROSSA',      color: '#9FA8DA' },
-  { positionType: 'contrafort',  label: 'CONTRAFORT',  color: '#EF9A9A' },
-];
-
 /**
  * Component-scoped service that owns all figure-template editing state and operations.
  * Provided in TemplateEditorComponent's providers array — one instance per editor.

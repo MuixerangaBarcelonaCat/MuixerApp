@@ -1,7 +1,7 @@
 <dialog class="modal modal-open" aria-modal="true" role="dialog" aria-labelledby="user-modal-title">
   <div class="modal-box max-w-md">
     <h3 id="user-modal-title" class="font-bold text-lg mb-4">
-      {{ isEditMode() ? 'Editar usuari' : 'Crear usuari' }}
+      {{ isEditMode() ? 'Edita usuari' : 'Crea usuari' }}
     </h3>
 
     <form [formGroup]="form" (ngSubmit)="onSave()" class="space-y-4">

@@ -22,7 +22,7 @@ export function stageToScreen(
 
 /** Central position types that should NOT be assignable to rengles */
 const CENTRAL_POSITION_TYPES = new Set([
-  'agulla', 'crossa', 'contrafort', 'tap',
+  'agulla', 'crossa', 'contrafort'
 ]);
 
 export function isCentralNode(positionType: string | null): boolean {

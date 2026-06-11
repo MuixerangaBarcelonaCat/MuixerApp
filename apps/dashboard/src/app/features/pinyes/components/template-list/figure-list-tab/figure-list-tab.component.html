@@ -22,7 +22,7 @@
         (click)="openNewFigure()"
       >
         <lucide-icon name="Plus" [size]="16" aria-hidden="true" />
-        Nova figura
+        Figura nova
       </button>
     </span>
   </div>
@@ -45,7 +45,7 @@
       <app-empty-state
         icon="Layers"
         message="Crea la primera figura per dissenyar i assignar posicions."
-        actionLabel="Nova figura"
+        actionLabel="Figura nova"
         (actionClick)="openNewFigure()"
       />
     }
@@ -89,11 +89,11 @@
 
               <!-- Actions -->
               <div class="flex items-center gap-1 shrink-0">
-                <span class="tooltip tooltip-left" data-tip="Editar figura">
+                <span class="tooltip tooltip-left" data-tip="Edita figura">
                   <button
                     type="button"
                     class="btn btn-ghost btn-sm btn-circle"
-                    [attr.aria-label]="'Editar ' + figure.name"
+                    [attr.aria-label]="'Edita ' + figure.name"
                     (click)="openEdit(figure.id)"
                   >
                     <lucide-icon name="Pencil" [size]="16" aria-hidden="true" />

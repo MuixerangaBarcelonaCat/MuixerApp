@@ -4,8 +4,8 @@
   <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
     <div class="flex items-center gap-2">
       <div>
-        <h1 class="text-2xl font-bold text-base-content">Figures i Pinyes</h1>
-        <p class="text-sm text-base-content/60 mt-1">Figures i composicions per dissenyar i assignar pinyes</p>
+        <h1 class="text-2xl font-bold text-base-content">Plantilles</h1>
+        <p class="text-sm text-base-content/60 mt-1">Plantilles i composicions per dissenyar i assignar pinyes</p>
       </div>
       <button
         type="button"
@@ -21,20 +21,20 @@
         type="button"
         class="btn btn-primary gap-2"
         (click)="navigateToCreateComposition()"
-        aria-label="Crear nova composició"
+        aria-label="Crea composició nova"
       >
         <lucide-icon name="Plus" [size]="18" aria-hidden="true" />
-        Nova composició
+        Composició nova
       </button>
     } @else {
       <button
         type="button"
         class="btn btn-primary gap-2"
         (click)="navigateToCreate()"
-        aria-label="Crear nova figura"
+        aria-label="Crea figura nova"
       >
         <lucide-icon name="Plus" [size]="18" aria-hidden="true" />
-        Nova figura
+        Figura nova
       </button>
     }
   </div>
@@ -72,7 +72,7 @@
         <lucide-icon name="Search" [size]="16" class="text-base-content/40" aria-hidden="true" />
         <input
           type="search"
-          placeholder="Cerca per nom o slug..."
+          placeholder="Cerca per nom..."
           [(ngModel)]="searchInput"
           (ngModelChange)="onSearchChange($event)"
           class="grow"
@@ -94,7 +94,7 @@
       <app-empty-state
         icon="Layers"
         message="Cap figura creada. Crea la teva primera figura per començar a dissenyar pinyes."
-        actionLabel="Nova figura"
+        actionLabel="Figura nova"
         (actionClick)="navigateToCreate()"
       />
     }
@@ -110,7 +110,7 @@
               type="button"
               class="w-full h-32 bg-gradient-to-br from-primary/10 to-secondary/10 rounded-t-2xl flex items-center justify-center relative overflow-hidden cursor-pointer hover:brightness-95 transition-[filter] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary"
               (click)="navigateToEdit(template.id)"
-              [attr.aria-label]="'Editar ' + template.name"
+              [attr.aria-label]="'Edita ' + template.name"
             >
               <svg width="120" height="80" viewBox="0 0 120 80" class="opacity-60">
                 @if (template.hasPinya) {
@@ -136,7 +136,7 @@
                     type="button"
                     class="text-left hover:text-primary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary rounded-sm"
                     (click)="navigateToEdit(template.id)"
-                    [attr.aria-label]="'Editar ' + template.name"
+                    [attr.aria-label]="'Edita ' + template.name"
                   >{{ template.name }}</button>
                 </h2>
                 <p class="text-xs text-base-content/50 font-mono mt-0.5">{{ template.slug }}</p>
@@ -172,33 +172,33 @@
                     class="btn btn-ghost btn-xs gap-1"
                     [disabled]="deletingId() === template.id"
                     (click)="duplicate(template.id)"
-                    [attr.aria-label]="'Duplicar ' + template.name"
+                    [attr.aria-label]="'Duplica ' + template.name"
                   >
                     <lucide-icon name="Copy" [size]="13" aria-hidden="true" />
-                    Duplicar
+                    Duplica
                   </button>
                   <button
                     type="button"
                     class="btn btn-ghost btn-xs gap-1 text-error hover:bg-error/10"
                     [disabled]="deletingId() === template.id"
                     (click)="requestDelete(template.id)"
-                    [attr.aria-label]="'Eliminar ' + template.name"
+                    [attr.aria-label]="'Elimina ' + template.name"
                   >
                     @if (deletingId() === template.id) {
                       <span class="loading loading-spinner loading-xs"></span>
                     } @else {
                       <lucide-icon name="Trash2" [size]="13" aria-hidden="true" />
                     }
-                    Eliminar
+                    Elimina
                   </button>
                   <button
                     type="button"
                     class="btn btn-primary btn-xs gap-1"
                     (click)="navigateToEdit(template.id)"
-                    [attr.aria-label]="'Editar ' + template.name"
+                    [attr.aria-label]="'Edita ' + template.name"
                   >
                     <lucide-icon name="Pencil" [size]="13" aria-hidden="true" />
-                    Editar
+                    Edita
                   </button>
                 }
               </div>
@@ -229,7 +229,7 @@
         <lucide-icon name="Search" [size]="16" class="text-base-content/40" aria-hidden="true" />
         <input
           type="search"
-          placeholder="Cerca per nom o slug..."
+          placeholder="Cerca per nom..."
           [(ngModel)]="compositionsSearchInput"
           (ngModelChange)="onCompositionsSearchChange($event)"
           class="grow"
@@ -250,8 +250,8 @@
     @else if (!compositionsLoading() && compositions().length === 0) {
       <app-empty-state
         icon="LayoutGrid"
-        message="Cap composició creada. Crea la teva primera composició per agrupar figures (ex: 'Altar', '5 de Oros')."
-        actionLabel="Nova composició"
+        message="Cap composició creada. Creeu la vostra primera composició per agrupar figures (ex: 'Altar', '5 de Oros')."
+        actionLabel="Composició nova"
         (actionClick)="navigateToCreateComposition()"
       />
     }
@@ -267,7 +267,7 @@
               type="button"
               class="w-full h-32 bg-gradient-to-br from-secondary/10 to-primary/10 rounded-t-2xl flex items-center justify-center relative overflow-hidden cursor-pointer hover:brightness-95 transition-[filter] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary"
               (click)="navigateToEditComposition(composition.id)"
-              [attr.aria-label]="'Editar composició ' + composition.name"
+              [attr.aria-label]="'Edita composició ' + composition.name"
             >
               <lucide-icon name="LayoutGrid" [size]="40" class="text-secondary/40" aria-hidden="true" />
               <span class="badge badge-secondary badge-sm absolute top-2 right-2">{{ composition.slotCount }} figures</span>
@@ -280,7 +280,7 @@
                     type="button"
                     class="text-left hover:text-primary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary rounded-sm"
                     (click)="navigateToEditComposition(composition.id)"
-                    [attr.aria-label]="'Editar composició ' + composition.name"
+                    [attr.aria-label]="'Edita composició ' + composition.name"
                   >{{ composition.name }}</button>
                 </h2>
                 <p class="text-xs text-base-content/50 font-mono mt-0.5">{{ composition.slug }}</p>
@@ -322,16 +322,16 @@
                     } @else {
                       <lucide-icon name="Trash2" [size]="13" aria-hidden="true" />
                     }
-                    Eliminar
+                    Elimina
                   </button>
                   <button
                     type="button"
                     class="btn btn-primary btn-xs gap-1"
                     (click)="navigateToEditComposition(composition.id)"
-                    [attr.aria-label]="'Editar composició ' + composition.name"
+                    [attr.aria-label]="'Edita composició ' + composition.name"
                   >
                     <lucide-icon name="Pencil" [size]="13" aria-hidden="true" />
-                    Editar
+                    Edita
                   </button>
                 }
               </div>
