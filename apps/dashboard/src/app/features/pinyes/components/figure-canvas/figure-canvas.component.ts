@@ -83,8 +83,69 @@ const NODE_COLORS: Record<string, string> = {
   [FigureZone.TRONC]: '#8b5cf6',
   [FigureZone.FIGURE_DIRECTION]: '#f59e0b',
   [FigureZone.XICALLA_DIRECTION]: '#ec4899',
+  [FigureZone.DECORATION]: '#999999',
 };
 const DEFAULT_NODE_COLOR = '#6b7280';
+
+function createNodeShape(
+  shape: string,
+  w: number,
+  h: number,
+  opts: { fill: string; stroke: string; strokeWidth: number; dash?: number[]; opacity?: number },
+): Konva.Shape {
+  if (shape === NodeShape.ARROW) {
+    return new Konva.Line({
+      points: [
+        -w / 2, -h / 2,
+        w / 4, -h / 2,
+        w / 2, 0,
+        w / 4, h / 2,
+        -w / 2, h / 2,
+      ],
+      closed: true,
+      fill: opts.fill,
+      stroke: opts.stroke,
+      strokeWidth: opts.strokeWidth,
+      dash: opts.dash,
+      opacity: opts.opacity,
+    });
+  }
+  if (shape === NodeShape.CIRCLE) {
+    const r = Math.min(w, h) / 2;
+    return new Konva.Ellipse({
+      radiusX: r,
+      radiusY: r,
+      fill: opts.fill,
+      stroke: opts.stroke,
+      strokeWidth: opts.strokeWidth,
+      dash: opts.dash,
+      opacity: opts.opacity,
+    });
+  }
+  if (shape === NodeShape.ELLIPSE) {
+    return new Konva.Ellipse({
+      radiusX: w / 2,
+      radiusY: h / 2,
+      fill: opts.fill,
+      stroke: opts.stroke,
+      strokeWidth: opts.strokeWidth,
+      dash: opts.dash,
+      opacity: opts.opacity,
+    });
+  }
+  return new Konva.Rect({
+    x: -w / 2,
+    y: -h / 2,
+    width: w,
+    height: h,
+    cornerRadius: 4,
+    fill: opts.fill,
+    stroke: opts.stroke,
+    strokeWidth: opts.strokeWidth,
+    dash: opts.dash,
+    opacity: opts.opacity,
+  });
+}
 const SELECTED_STROKE = '#f59e0b';
 const NORMAL_STROKE = '#1e1b4b';
 const COMPOSITION_SLOT_SCALE = 0.5;
@@ -690,27 +751,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
             listening: false,
           });
 
-          let shape: Konva.Shape;
-          if (node.shape === NodeShape.ELLIPSE) {
-            shape = new Konva.Ellipse({
-              radiusX: node.width / 2,
-              radiusY: node.height / 2,
-              fill,
-              stroke: NORMAL_STROKE,
-              strokeWidth: 1.5,
-            });
-          } else {
-            shape = new Konva.Rect({
-              x: -node.width / 2,
-              y: -node.height / 2,
-              width: node.width,
-              height: node.height,
-              cornerRadius: 4,
-              fill,
-              stroke: NORMAL_STROKE,
-              strokeWidth: 1.5,
-            });
-          }
+          const shape = createNodeShape(node.shape ?? NodeShape.RECTANGLE, node.width, node.height, {
+            fill,
+            stroke: NORMAL_STROKE,
+            strokeWidth: 1.5,
+          });
           nodeGroup.add(shape);
 
           const textFill = this.getContrastColor(fill);
@@ -798,9 +843,19 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       const isSelected = selectedId === node.id;
       const isHighlighted = highlighted.has(node.id);
       const isAdHoc = !!(node as any).isAdHoc;
-      const fill = node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR;
-      const stroke = isSelected ? SELECTED_STROKE : isHighlighted ? '#10b981' : NORMAL_STROKE;
-      const strokeWidth = isSelected ? 3 : isHighlighted ? 2.5 : 1.5;
+      const isDecoration = node.zone === FigureZone.DECORATION;
+      const fill = isDecoration
+        ? 'transparent'
+        : (node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR);
+      const decorationStroke = node.color ?? NODE_COLORS[node.zone] ?? '#999999';
+      const stroke = isSelected
+        ? SELECTED_STROKE
+        : isHighlighted
+          ? '#10b981'
+          : isDecoration
+            ? decorationStroke
+            : NORMAL_STROKE;
+      const strokeWidth = isSelected ? 3 : isHighlighted ? 2.5 : isDecoration ? 2 : 1.5;
 
       const group = new Konva.Group({
         id: node.id,
@@ -808,31 +863,15 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         y: node.y,
         rotation: node.rotation,
         draggable: isAdHoc,
+        opacity: isDecoration ? 0.6 : 1,
       });
 
-      let shape: Konva.Shape;
-      if ((node as any).shape === NodeShape.ELLIPSE) {
-        shape = new Konva.Ellipse({
-          radiusX: node.width / 2,
-          radiusY: node.height / 2,
-          fill,
-          stroke,
-          strokeWidth,
-          dash: isAdHoc ? [6, 3] : undefined,
-        });
-      } else {
-        shape = new Konva.Rect({
-          x: -node.width / 2,
-          y: -node.height / 2,
-          width: node.width,
-          height: node.height,
-          cornerRadius: 4,
-          fill,
-          stroke,
-          strokeWidth,
-          dash: isAdHoc ? [6, 3] : undefined,
-        });
-      }
+      const shape = createNodeShape(
+        (node as any).shape ?? NodeShape.RECTANGLE,
+        node.width,
+        node.height,
+        { fill, stroke, strokeWidth, dash: isAdHoc ? [6, 3] : undefined },
+      );
       if (isHighlighted) {
         shape.shadowColor('#10b981');
         shape.shadowBlur(12);
@@ -843,7 +882,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
       if (assignment) {
         const alias = assignment.person.alias;
-        const textFill = this.getContrastColor(fill);
+        const textFill = isDecoration ? decorationStroke : this.getContrastColor(fill);
         const shoulderH = assignment.person.shoulderHeight;
         const hasValidHeight = shoulderH !== null && shoulderH !== 0 && shoulderH !== 140;
         const nextStatus = nextPerformanceMap.get(assignment.person.id);
@@ -913,7 +952,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           );
         }
       } else {
-        const textFill = this.getContrastColor(fill);
+        const textFill = isDecoration ? decorationStroke : this.getContrastColor(fill);
         group.add(
           new Konva.Text({
             text: node.label,
@@ -935,11 +974,13 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
       if (isAdHoc) {
         group.on('click tap', (e) => {
-          const containerRect = this.stage.container().getBoundingClientRect();
-          const clickX = e.evt.clientX - containerRect.left;
-          const clickY = e.evt.clientY - containerRect.top;
           this.nodeSelected.emit(node.id);
-          this.nodeClicked.emit({ nodeId: node.id, x: clickX, y: clickY });
+          if (!isDecoration) {
+            const containerRect = this.stage.container().getBoundingClientRect();
+            const clickX = e.evt.clientX - containerRect.left;
+            const clickY = e.evt.clientY - containerRect.top;
+            this.nodeClicked.emit({ nodeId: node.id, x: clickX, y: clickY });
+          }
         });
 
         group.on('dragstart', () => {
@@ -980,7 +1021,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
         group.on('mouseenter', () => {
           this.setCursor('grab');
-          this.showAdHocTooltip(group);
+          if (!isDecoration) this.showAdHocTooltip(group);
         });
         group.on('mouseleave', () => {
           this.setCursor('default');
@@ -1024,7 +1065,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
     for (const node of this.nodes()) {
       const assignment = assignmentByNodeId.get(node.id);
-      const fill = node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR;
+      const isDecoration = node.zone === FigureZone.DECORATION;
+      const fill = isDecoration
+        ? 'transparent'
+        : (node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR);
+      const decorationStroke = node.color ?? NODE_COLORS[node.zone] ?? '#999999';
 
       const group = new Konva.Group({
         id: node.id,
@@ -1032,32 +1077,22 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         y: node.y,
         rotation: node.rotation,
         draggable: false,
+        opacity: isDecoration ? 0.4 : 1,
       });
 
-      let shape: Konva.Shape;
-      if ((node as { shape?: string }).shape === NodeShape.ELLIPSE) {
-        shape = new Konva.Ellipse({
-          radiusX: node.width / 2,
-          radiusY: node.height / 2,
+      const shape = createNodeShape(
+        (node as { shape?: string }).shape ?? NodeShape.RECTANGLE,
+        node.width,
+        node.height,
+        {
           fill,
-          stroke: NORMAL_STROKE,
-          strokeWidth: 1.5,
-        });
-      } else {
-        shape = new Konva.Rect({
-          x: -node.width / 2,
-          y: -node.height / 2,
-          width: node.width,
-          height: node.height,
-          cornerRadius: 4,
-          fill,
-          stroke: NORMAL_STROKE,
-          strokeWidth: 1.5,
-        });
-      }
+          stroke: isDecoration ? decorationStroke : NORMAL_STROKE,
+          strokeWidth: isDecoration ? 2 : 1.5,
+        },
+      );
       group.add(shape);
 
-      const textFill = this.getContrastColor(fill);
+      const textFill = isDecoration ? decorationStroke : this.getContrastColor(fill);
       const displayText = assignment ? assignment.person.alias : node.label;
       const { fontSize, wrap } = this.fitFontSizeForNode(displayText, node.width, node.height, {
         maxFontSize: assignment ? 13 : 9,
@@ -1109,28 +1144,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       draggable: isEditor,
     });
 
-    // Shape
-    let shape: Konva.Shape;
-    if (node.shape === NodeShape.ELLIPSE) {
-      shape = new Konva.Ellipse({
-        radiusX: node.width / 2,
-        radiusY: node.height / 2,
-        fill,
-        stroke,
-        strokeWidth,
-      });
-    } else {
-      shape = new Konva.Rect({
-        x: -node.width / 2,
-        y: -node.height / 2,
-        width: node.width,
-        height: node.height,
-        cornerRadius: 4,
-        fill,
-        stroke,
-        strokeWidth,
-      });
-    }
+    const shape = createNodeShape(node.shape ?? NodeShape.RECTANGLE, node.width, node.height, {
+      fill,
+      stroke,
+      strokeWidth,
+    });
     group.add(shape);
 
     // Label
@@ -1285,31 +1303,13 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       listening: true,
     });
 
-    let shape: Konva.Shape;
-    if (node.shape === NodeShape.ELLIPSE) {
-      shape = new Konva.Ellipse({
-        radiusX: node.width / 2,
-        radiusY: node.height / 2,
-        fill: 'transparent',
-        stroke: strokeColor,
-        strokeWidth: 2,
-        dash: [6, 4],
-        opacity: 0.75,
-      });
-    } else {
-      shape = new Konva.Rect({
-        x: -node.width / 2,
-        y: -node.height / 2,
-        width: node.width,
-        height: node.height,
-        cornerRadius: 4,
-        fill: 'transparent',
-        stroke: strokeColor,
-        strokeWidth: 2,
-        dash: [6, 4],
-        opacity: 0.75,
-      });
-    }
+    const shape = createNodeShape(node.shape ?? NodeShape.RECTANGLE, node.width, node.height, {
+      fill: 'transparent',
+      stroke: strokeColor,
+      strokeWidth: 2,
+      dash: [6, 4],
+      opacity: 0.75,
+    });
     ghost.add(shape);
 
     ghost.add(

@@ -37,7 +37,7 @@ import {
 import { SegmentDetail } from '../../models/segment.model';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { RenglaModel } from '../../models/figure-template.model';
-import { FigureZone, AD_HOC_PINYA_PRESETS, AdHocNodePreset } from '@muixer/shared';
+import { FigureZone, AD_HOC_PINYA_PRESETS, AD_HOC_DECORATION_PRESETS, AdHocNodePreset } from '@muixer/shared';
 import { repositionCordoObertNodes } from '../../utils/cordo-obert-reposition.util';
 
 interface InstanceTab {
@@ -98,6 +98,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly HelpCircle = HelpCircle;
 
   readonly adHocPresets = AD_HOC_PINYA_PRESETS;
+  readonly decorationPresets = AD_HOC_DECORATION_PRESETS;
 
   readonly eventId = signal('');
   readonly segmentId = signal('');
@@ -489,6 +490,16 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     if (this.isLocked()) return;
     if (!nodeId) {
       this.state.setSelectedNodeId(null);
+      this.popoverAssignment.set(null);
+      return;
+    }
+
+    const activeNodes = this.activePinyaNodes();
+    const clickedNode = activeNodes.find((n) => n.id === nodeId);
+    const isDecorationNode = clickedNode?.zone === FigureZone.DECORATION;
+
+    if (isDecorationNode) {
+      this.state.setSelectedNodeId(nodeId);
       this.popoverAssignment.set(null);
       return;
     }
@@ -895,9 +906,12 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
   // ── Ad-hoc node operations ──────────────────────────────────────────────
 
+  readonly pendingLabelPreset = signal<AdHocNodePreset | null>(null);
+
   onPresetSelected(preset: AdHocNodePreset): void {
     this.fabDropdownOpen.set(false);
     if (preset.requiresCustomLabel) {
+      this.pendingLabelPreset.set(preset);
       this.comodinInputOpen.set(true);
       this.comodinLabel.set('');
       return;
@@ -908,15 +922,40 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   confirmComodinLabel(): void {
     const label = this.comodinLabel().trim();
     if (!label) return;
-    const comodinPreset = this.adHocPresets.find((p) => p.requiresCustomLabel);
-    if (!comodinPreset) return;
+    const preset = this.pendingLabelPreset();
+    if (!preset) return;
     this.comodinInputOpen.set(false);
-    this.state.enterPlacementMode(comodinPreset, label);
+    this.pendingLabelPreset.set(null);
+    this.state.enterPlacementMode(preset, label);
   }
 
   cancelComodinInput(): void {
     this.comodinInputOpen.set(false);
     this.comodinLabel.set('');
+    this.pendingLabelPreset.set(null);
+  }
+
+  readonly labelDialogTitle = computed(() => {
+    const preset = this.pendingLabelPreset();
+    return preset?.zone === FigureZone.DECORATION
+      ? 'Etiqueta del node decoratiu'
+      : 'Etiqueta del comodí';
+  });
+
+  readonly labelDialogPlaceholder = computed(() => {
+    const preset = this.pendingLabelPreset();
+    return preset?.zone === FigureZone.DECORATION
+      ? 'Ex: Església, Nord, Escenari...'
+      : 'Ex: Extra mans, Reforç...';
+  });
+
+  getDecorationLabel(preset: AdHocNodePreset): string {
+    const labels: Record<string, string> = {
+      rectangle: 'Rectangle',
+      arrow: 'Fletxa',
+      circle: 'Cercle',
+    };
+    return labels[preset.positionType ?? ''] ?? preset.positionType ?? '';
   }
 
   onAdHocNodeMoved(event: { nodeId: string; x: number; y: number }): void {

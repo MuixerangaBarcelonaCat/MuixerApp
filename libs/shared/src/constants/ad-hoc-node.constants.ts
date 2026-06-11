@@ -35,6 +35,25 @@ export interface AdHocNodePreset {
   requiresCustomLabel: boolean;
 }
 
+export const DECORATION_POSITION_TYPES = [
+  'rectangle',
+  'arrow',
+  'circle',
+] as const;
+
+export type DecorationPositionType = (typeof DECORATION_POSITION_TYPES)[number];
+
+export const AD_HOC_ALLOWED_ZONES_PHASE2 = [
+  FigureZone.PINYA,
+  FigureZone.DECORATION,
+] as const;
+
+export const AD_HOC_DECORATION_PRESETS: AdHocNodePreset[] = [
+  { zone: FigureZone.DECORATION, positionType: 'rectangle', label: '', width: 120, height: 80, shape: NodeShape.RECTANGLE, color: '#999999', requiresCustomLabel: true },
+  { zone: FigureZone.DECORATION, positionType: 'arrow', label: '', width: 80, height: 30, shape: NodeShape.ARROW, color: '#999999', requiresCustomLabel: true },
+  { zone: FigureZone.DECORATION, positionType: 'circle', label: '', width: 60, height: 60, shape: NodeShape.CIRCLE, color: '#999999', requiresCustomLabel: true },
+];
+
 export const AD_HOC_PINYA_PRESETS: AdHocNodePreset[] = [
   { zone: FigureZone.PINYA, positionType: 'agulla', label: 'Agulla', width: 80, height: 40, shape: NodeShape.RECTANGLE, color: '#0d9488', requiresCustomLabel: false },
   { zone: FigureZone.PINYA, positionType: 'mans', label: 'Mans', width: 80, height: 40, shape: NodeShape.RECTANGLE, color: '#FFE082', requiresCustomLabel: false },

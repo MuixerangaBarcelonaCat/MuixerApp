@@ -1257,6 +1257,194 @@ describe('NodeAssignmentService', () => {
     });
   });
 
+  // ── Ad-hoc DECORATION CRUD (Phase 2) ────────────────────────────────
+
+  describe('createAdHocNode — DECORATION', () => {
+    const makeAdHocTxManager = () => ({
+      createQueryBuilder: jest.fn().mockReturnValue(mockInstanceNodeQb),
+      create: jest.fn((_entity: any, data: any) => ({ ...data, id: 'dec-adhoc-1' })),
+      save: jest.fn().mockImplementation((node: any) => Promise.resolve(node)),
+    });
+
+    it('creates DECORATION rectangle with correct defaults', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
+      mockInstanceNodeQb.getRawOne.mockResolvedValue({ max: 5 });
+
+      const txManager = makeAdHocTxManager();
+      const created = makeInstanceNode({
+        id: 'dec-adhoc-1',
+        zone: FigureZone.DECORATION,
+        positionType: 'rectangle',
+        shape: NodeShape.RECTANGLE,
+        width: 120,
+        height: 80,
+        color: '#999999',
+        isAdHoc: true,
+        createdById: 'user-1',
+      });
+      txManager.create.mockReturnValue(created);
+      txManager.save.mockResolvedValue(created);
+      mockDataSource.transaction.mockImplementation((cb: any) => cb(txManager));
+
+      const result = await service.createAdHocNode(
+        INSTANCE_ID,
+        { zone: FigureZone.DECORATION, positionType: 'rectangle', label: 'Església', x: 100, y: 200 } as any,
+        'user-1',
+      );
+
+      expect(result.isAdHoc).toBe(true);
+      expect(result.zone).toBe(FigureZone.DECORATION);
+      expect(txManager.create).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          zone: FigureZone.DECORATION,
+          positionType: 'rectangle',
+          isAdHoc: true,
+        }),
+      );
+    });
+
+    it('creates DECORATION arrow with ARROW shape defaults', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
+      mockInstanceNodeQb.getRawOne.mockResolvedValue({ max: 5 });
+
+      const txManager = makeAdHocTxManager();
+      const created = makeInstanceNode({
+        id: 'dec-adhoc-2',
+        zone: FigureZone.DECORATION,
+        positionType: 'arrow',
+        shape: NodeShape.ARROW,
+        width: 80,
+        height: 30,
+        isAdHoc: true,
+      });
+      txManager.create.mockReturnValue(created);
+      txManager.save.mockResolvedValue(created);
+      mockDataSource.transaction.mockImplementation((cb: any) => cb(txManager));
+
+      const result = await service.createAdHocNode(
+        INSTANCE_ID,
+        { zone: FigureZone.DECORATION, positionType: 'arrow', label: 'Nord', x: 50, y: 50 } as any,
+        'user-1',
+      );
+
+      expect(result.isAdHoc).toBe(true);
+      expect(result.shape).toBe(NodeShape.ARROW);
+    });
+
+    it('creates DECORATION circle with CIRCLE shape defaults', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
+      mockInstanceNodeQb.getRawOne.mockResolvedValue({ max: 5 });
+
+      const txManager = makeAdHocTxManager();
+      const created = makeInstanceNode({
+        id: 'dec-adhoc-3',
+        zone: FigureZone.DECORATION,
+        positionType: 'circle',
+        shape: NodeShape.CIRCLE,
+        width: 60,
+        height: 60,
+        isAdHoc: true,
+      });
+      txManager.create.mockReturnValue(created);
+      txManager.save.mockResolvedValue(created);
+      mockDataSource.transaction.mockImplementation((cb: any) => cb(txManager));
+
+      const result = await service.createAdHocNode(
+        INSTANCE_ID,
+        { zone: FigureZone.DECORATION, positionType: 'circle', label: 'Pilar', x: 200, y: 200 } as any,
+        'user-1',
+      );
+
+      expect(result.isAdHoc).toBe(true);
+      expect(result.shape).toBe(NodeShape.CIRCLE);
+    });
+
+    it('deletes DECORATION node successfully', async () => {
+      const decorationNode = makeInstanceNode({
+        id: 'dec-1',
+        zone: FigureZone.DECORATION,
+        isAdHoc: true,
+      });
+      mockInstanceNodeRepo.findOne.mockResolvedValue(decorationNode);
+      const txManager = { delete: jest.fn().mockResolvedValue({}) };
+      mockDataSource.transaction.mockImplementation((cb: any) => cb(txManager));
+
+      await service.deleteAdHocNode(INSTANCE_ID, 'dec-1');
+
+      expect(txManager.delete).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('bulkImport — DECORATION cloning', () => {
+    it('clones DECORATION nodes without attempting assignment', async () => {
+      const decorationSource = makeInstanceNode({
+        id: 'src-dec-1',
+        zone: FigureZone.DECORATION,
+        positionType: 'rectangle',
+        shape: NodeShape.RECTANGLE,
+        isAdHoc: true,
+        sourceNodeId: null,
+        label: 'Església',
+      });
+      const target = makeInstance({ snapshotted: true, instanceNodes: [makeInstanceNode()] });
+      const source = makeInstance({
+        id: 'source-uuid',
+        snapshotted: true,
+        instanceNodes: [makeInstanceNode(), decorationSource],
+      });
+
+      mockInstanceRepo.findOne
+        .mockResolvedValueOnce(target)
+        .mockResolvedValueOnce(source);
+      mockAssignmentRepo.find.mockResolvedValue([]);
+      mockInstanceNodeQb.getRawOne.mockResolvedValue({ max: 5 });
+      const cloned = { ...decorationSource, id: 'cloned-dec-1' };
+      mockInstanceNodeRepo.create.mockReturnValue(cloned);
+      mockInstanceNodeRepo.save.mockResolvedValue(cloned);
+
+      const result = await service.bulkImport(INSTANCE_ID, { sourceInstanceId: 'source-uuid' });
+
+      expect(result.clonedAdHocNodes).toBe(1);
+      expect(result.conflicts).toHaveLength(0);
+    });
+
+    it('does not duplicate DECORATION nodes on re-import (idempotent)', async () => {
+      const decorationSource = makeInstanceNode({
+        id: 'src-dec-1',
+        zone: FigureZone.DECORATION,
+        isAdHoc: true,
+        sourceNodeId: null,
+        label: 'Església',
+      });
+      const existingClone = makeInstanceNode({
+        id: 'existing-clone',
+        originNodeId: 'src-dec-1',
+        isAdHoc: true,
+      });
+      const target = makeInstance({
+        snapshotted: true,
+        instanceNodes: [makeInstanceNode(), existingClone],
+      });
+      const source = makeInstance({
+        id: 'source-uuid',
+        snapshotted: true,
+        instanceNodes: [makeInstanceNode(), decorationSource],
+      });
+
+      mockInstanceRepo.findOne
+        .mockResolvedValueOnce(target)
+        .mockResolvedValueOnce(source);
+      mockAssignmentRepo.find.mockResolvedValue([]);
+      mockInstanceNodeRepo.find.mockResolvedValue([existingClone]);
+
+      const result = await service.bulkImport(INSTANCE_ID, { sourceInstanceId: 'source-uuid' });
+
+      expect(result.clonedAdHocNodes).toBe(0);
+      expect(mockInstanceNodeRepo.create).not.toHaveBeenCalled();
+    });
+  });
+
   describe('snapshotInstance — rengla propagation', () => {
     it('copies renglaId and renglaPosition from template nodes to instance nodes', async () => {
       const figureNode = makeFigureNode({ renglaId: 'r-uuid', renglaPosition: 2 });

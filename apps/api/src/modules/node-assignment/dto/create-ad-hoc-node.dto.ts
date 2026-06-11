@@ -7,21 +7,59 @@ import {
   MaxLength,
   Min,
   Matches,
+  ValidatorConstraint,
+  ValidatorConstraintInterface,
+  ValidationArguments,
+  Validate,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 import {
   FigureZone,
   NodeShape,
   PINYA_POSITION_TYPES,
-  AD_HOC_ALLOWED_ZONES_PHASE1,
+  PinyaPositionType,
+  DECORATION_POSITION_TYPES,
+  DecorationPositionType,
+  AD_HOC_ALLOWED_ZONES_PHASE2,
 } from '@muixer/shared';
 
+@ValidatorConstraint({ name: 'isValidPositionType', async: false })
+export class IsValidPositionTypeConstraint
+  implements ValidatorConstraintInterface
+{
+  validate(
+    positionType: string | undefined,
+    args: ValidationArguments,
+  ): boolean {
+    const obj = args.object as CreateAdHocNodeDto;
+    if (obj.zone === FigureZone.PINYA) {
+      return (
+        !positionType ||
+        PINYA_POSITION_TYPES.includes(positionType as PinyaPositionType)
+      );
+    }
+    if (obj.zone === FigureZone.DECORATION) {
+      return (
+        !!positionType &&
+        DECORATION_POSITION_TYPES.includes(
+          positionType as DecorationPositionType,
+        )
+      );
+    }
+    return false;
+  }
+
+  defaultMessage(): string {
+    return 'positionType no vàlid per a la zona seleccionada.';
+  }
+}
+
 export class CreateAdHocNodeDto {
-  @IsIn([...AD_HOC_ALLOWED_ZONES_PHASE1])
+  @IsIn([...AD_HOC_ALLOWED_ZONES_PHASE2])
   zone: FigureZone;
 
   @IsOptional()
-  @IsIn([...PINYA_POSITION_TYPES])
+  @Validate(IsValidPositionTypeConstraint)
   positionType?: string;
 
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))

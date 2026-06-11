@@ -21,7 +21,7 @@ import { FigureTemplateService } from '../../services/figure-template.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { AssignmentDetail, AvailablePerson, BulkImportResult, InstanceNodeItem } from '../../models/assignment.model';
 import { SegmentDetail } from '../../models/segment.model';
-import { FigureZone, NodeShape, AD_HOC_PINYA_PRESETS } from '@muixer/shared';
+import { FigureZone, NodeShape, AD_HOC_PINYA_PRESETS, AD_HOC_DECORATION_PRESETS } from '@muixer/shared';
 
 // ── Stub child components ───────────────────────────────────────────────────
 
@@ -666,6 +666,138 @@ describe('AssignmentCanvasComponent', () => {
       );
       expect(routerMock.navigate).toHaveBeenCalledWith(
         ['/pinyes', 'templates', TEMPLATE_ID, 'edit'],
+      );
+    });
+  });
+
+  // ── FAB categories & DECORATION presets (Phase 2) ──────────────────────────
+
+  describe('FAB categories & DECORATION presets', () => {
+    it('exposes decorationPresets from shared constants', () => {
+      expect(component.decorationPresets).toBe(AD_HOC_DECORATION_PRESETS);
+      expect(component.decorationPresets.length).toBe(3);
+    });
+
+    it('all decoration presets require custom label', () => {
+      expect(component.decorationPresets.every((p) => p.requiresCustomLabel)).toBe(true);
+    });
+
+    it('onPresetSelected with DECORATION preset opens label dialog and stores pendingLabelPreset', () => {
+      const decPreset = AD_HOC_DECORATION_PRESETS[0];
+      component.onPresetSelected(decPreset);
+
+      expect(component.comodinInputOpen()).toBe(true);
+      expect(component.pendingLabelPreset()).toBe(decPreset);
+      expect(stateService.isPlacementMode()).toBe(false);
+    });
+
+    it('confirmComodinLabel uses pendingLabelPreset (not always comodin)', () => {
+      const decPreset = AD_HOC_DECORATION_PRESETS[0];
+      component.onPresetSelected(decPreset);
+      component.comodinLabel.set('Església');
+
+      component.confirmComodinLabel();
+
+      expect(stateService.isPlacementMode()).toBe(true);
+      expect(stateService.placementPreset()).toBe(decPreset);
+      expect(stateService.placementCustomLabel()).toBe('Església');
+      expect(component.pendingLabelPreset()).toBeNull();
+    });
+
+    it('cancelComodinInput clears pendingLabelPreset', () => {
+      const decPreset = AD_HOC_DECORATION_PRESETS[1];
+      component.onPresetSelected(decPreset);
+      expect(component.pendingLabelPreset()).toBe(decPreset);
+
+      component.cancelComodinInput();
+      expect(component.pendingLabelPreset()).toBeNull();
+      expect(component.comodinInputOpen()).toBe(false);
+    });
+
+    it('labelDialogTitle returns "Etiqueta del node decoratiu" for DECORATION presets', () => {
+      const decPreset = AD_HOC_DECORATION_PRESETS[0];
+      component.onPresetSelected(decPreset);
+      expect(component.labelDialogTitle()).toBe('Etiqueta del node decoratiu');
+    });
+
+    it('labelDialogTitle returns "Etiqueta del comodí" for PINYA comodin presets', () => {
+      const comodin = AD_HOC_PINYA_PRESETS.find((p) => p.requiresCustomLabel)!;
+      component.onPresetSelected(comodin);
+      expect(component.labelDialogTitle()).toBe('Etiqueta del comodí');
+    });
+
+    it('getDecorationLabel returns Catalan labels for each positionType', () => {
+      const rect = AD_HOC_DECORATION_PRESETS.find((p) => p.positionType === 'rectangle')!;
+      const arrow = AD_HOC_DECORATION_PRESETS.find((p) => p.positionType === 'arrow')!;
+      const circle = AD_HOC_DECORATION_PRESETS.find((p) => p.positionType === 'circle')!;
+
+      expect(component.getDecorationLabel(rect)).toBe('Rectangle');
+      expect(component.getDecorationLabel(arrow)).toBe('Fletxa');
+      expect(component.getDecorationLabel(circle)).toBe('Cercle');
+    });
+  });
+
+  // ── DECORATION node interaction ────────────────────────────────────────────
+
+  describe('DECORATION node interaction', () => {
+    const decorationNode: InstanceNodeItem = {
+      id: 'dec-1', label: 'Església', zone: FigureZone.DECORATION, z: 0,
+      positionType: 'rectangle', x: 200, y: 300, width: 120, height: 80,
+      rotation: 0, color: '#999999', shape: NodeShape.RECTANGLE, sortOrder: 20,
+      ringLevel: null, originNodeId: null, renglaId: null, renglaPosition: null,
+      sourceNodeId: null, isSnapshotted: true, isAdHoc: true, createdById: 'user-1',
+    };
+
+    beforeEach(() => {
+      const nodes = [...makeInstanceNodes(), decorationNode];
+      component.tabs.update((list) => list.map((t) => ({ ...t, nodes })));
+      fixture.detectChanges();
+    });
+
+    it('onNodeSelected with DECORATION node selects but does NOT trigger assign', () => {
+      stateService.setSelectedPersonId('person-1');
+      component.onNodeSelected('dec-1');
+
+      expect(stateService.selectedNodeId()).toBe('dec-1');
+      expect(assignmentService.assign).not.toHaveBeenCalled();
+    });
+
+    it('onNodeSelected with DECORATION node does NOT trigger swap', () => {
+      const a1 = makeAssignment('inode-1', 'person-1');
+      stateService.assignments.set([a1]);
+      stateService.setSelectedNodeId('inode-1');
+
+      component.onNodeSelected('dec-1');
+
+      expect(assignmentService.swap).not.toHaveBeenCalled();
+      expect(stateService.selectedNodeId()).toBe('dec-1');
+    });
+
+    it('Delete key on selected DECORATION node calls deleteAdHocNode', () => {
+      stateService.selectedNodeId.set('dec-1');
+      stateService.assignments.set([]);
+
+      const event = new KeyboardEvent('keydown', { key: 'Delete', bubbles: true });
+      document.body.dispatchEvent(event);
+
+      expect(assignmentService.deleteAdHocNode).toHaveBeenCalledWith(INSTANCE_ID, 'dec-1');
+    });
+
+    it('onCanvasClicked during DECORATION placement calls createAdHocNode with DECORATION zone', () => {
+      const decPreset = AD_HOC_DECORATION_PRESETS[0];
+      stateService.enterPlacementMode(decPreset, 'Església');
+      stateService.activeInstanceId.set(INSTANCE_ID);
+
+      component.onCanvasClicked({ x: 300, y: 400 });
+
+      expect(assignmentService.createAdHocNode).toHaveBeenCalledWith(
+        INSTANCE_ID,
+        expect.objectContaining({
+          x: 300,
+          y: 400,
+          zone: FigureZone.DECORATION,
+          label: 'Església',
+        }),
       );
     });
   });

@@ -7,7 +7,13 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import { EventType, FigureZone, NodeShape, AD_HOC_PINYA_PRESETS } from '@muixer/shared';
+import {
+  EventType,
+  FigureZone,
+  NodeShape,
+  AD_HOC_PINYA_PRESETS,
+  AD_HOC_DECORATION_PRESETS,
+} from '@muixer/shared';
 import { CreateAdHocNodeDto } from './dto/create-ad-hoc-node.dto';
 import { UpdateAdHocNodeDto } from './dto/update-ad-hoc-node.dto';
 import { NodeAssignment } from './entities/node-assignment.entity';
@@ -941,7 +947,11 @@ export class NodeAssignmentService {
       clonedAdHocNodes++;
 
       const sourceAssignment = sourceAdHocAssignmentMap.get(sourceAdHoc.id);
-      if (sourceAssignment && sourceAssignment.person) {
+      if (
+        sourceAssignment &&
+        sourceAssignment.person &&
+        sourceAdHoc.zone !== FigureZone.DECORATION
+      ) {
         const personId = sourceAssignment.person.id;
         const personAlias = sourceAssignment.person.alias ?? `${sourceAssignment.person.name} ${sourceAssignment.person.firstSurname}`;
         try {
@@ -1065,7 +1075,8 @@ export class NodeAssignmentService {
       instance.snapshotted = true;
     }
 
-    const preset = AD_HOC_PINYA_PRESETS.find(
+    const allPresets = [...AD_HOC_PINYA_PRESETS, ...AD_HOC_DECORATION_PRESETS];
+    const preset = allPresets.find(
       (p) => p.positionType === dto.positionType && p.zone === dto.zone,
     );
 

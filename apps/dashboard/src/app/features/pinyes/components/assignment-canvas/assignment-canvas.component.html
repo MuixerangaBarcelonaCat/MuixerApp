@@ -185,9 +185,10 @@
             </button>
             @if (fabDropdownOpen()) {
               <ul
-                class="menu bg-base-100 rounded-box shadow-xl w-56 p-2 absolute bottom-full right-0 mb-2 z-50"
+                class="menu bg-base-100 rounded-box shadow-xl w-56 p-2 absolute bottom-full right-0 mb-2 z-50 max-h-80 overflow-y-auto"
                 role="menu"
               >
+                <li class="menu-title text-xs uppercase tracking-wider opacity-60">Pinya</li>
                 @for (preset of adHocPresets; track preset.positionType) {
                   <li role="none">
                     <button
@@ -201,6 +202,23 @@
                         [style.backgroundColor]="preset.color"
                       ></span>
                       {{ preset.requiresCustomLabel ? 'Comodí (etiqueta lliure)' : preset.label }}
+                    </button>
+                  </li>
+                }
+                <li class="menu-title text-xs uppercase tracking-wider opacity-60 mt-1">Decoratiu</li>
+                @for (preset of decorationPresets; track preset.positionType) {
+                  <li role="none">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      class="flex items-center gap-2 text-sm"
+                      (click)="onPresetSelected(preset)"
+                    >
+                      <span
+                        class="inline-block w-3 h-3 rounded-sm shrink-0 border border-base-content/30"
+                        [style.backgroundColor]="preset.color"
+                      ></span>
+                      {{ getDecorationLabel(preset) }} (etiqueta lliure)
                     </button>
                   </li>
                 }
@@ -518,7 +536,7 @@
     aria-modal="true"
   >
     <div class="modal-box max-w-xs">
-      <h3 id="comodin-title" class="text-lg font-bold mb-3">Etiqueta del comodí</h3>
+      <h3 id="comodin-title" class="text-lg font-bold mb-3">{{ labelDialogTitle() }}</h3>
       <label for="comodin-input" class="label">
         <span class="label-text">Escriu el nom del node:</span>
       </label>
@@ -529,7 +547,7 @@
         [value]="comodinLabel()"
         (input)="comodinLabel.set($any($event.target).value)"
         (keydown.enter)="confirmComodinLabel()"
-        placeholder="Ex: Extra mans, Reforç..."
+        [placeholder]="labelDialogPlaceholder()"
         maxlength="100"
         autofocus
       />
