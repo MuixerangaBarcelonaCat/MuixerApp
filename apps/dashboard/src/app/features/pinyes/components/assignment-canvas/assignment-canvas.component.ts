@@ -470,7 +470,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
         width: preset.width,
         height: preset.height,
         shape: preset.shape,
-        color: preset.color,
+        color: preset.color ?? undefined,
       })
       .subscribe({
         next: () => {

@@ -7,6 +7,7 @@ import {
   MinLength,
   Min,
   Matches,
+  ValidateIf,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { NodeShape } from '@muixer/shared';
@@ -42,8 +43,9 @@ export class UpdateAdHocNodeDto {
   rotation?: number;
 
   @IsOptional()
-  @Matches(/^#[0-9a-fA-F]{6}$/)
-  color?: string;
+  @ValidateIf((_o, value) => value !== null && value !== undefined)
+  @Matches(/^#[0-9a-fA-F]{6}$/, { message: 'color ha de ser un hex de 6 dígits (#RRGGBB).' })
+  color?: string | null;
 
   @IsOptional()
   @IsIn(Object.values(NodeShape))

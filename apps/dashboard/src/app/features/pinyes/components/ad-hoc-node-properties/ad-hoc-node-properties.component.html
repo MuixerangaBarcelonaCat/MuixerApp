@@ -143,21 +143,39 @@
       </div>
     </div>
 
-    <!-- Color -->
+    <!-- Color / fill -->
     <div class="form-control">
       <label class="label pb-1" [for]="'adhoc-color-' + node().id">
-        <span class="label-text text-xs font-medium">Color</span>
+        <span class="label-text text-xs font-medium">
+          {{ isDecoration() ? 'Color de fons' : 'Color' }}
+        </span>
       </label>
       <div class="flex items-center gap-2">
         <input
           type="color"
           [id]="'adhoc-color-' + node().id"
           class="w-8 h-8 rounded cursor-pointer border border-base-300"
-          [ngModel]="node().color ?? '#6b7280'"
+          [ngModel]="node().color ?? (isDecoration() ? '#e5e7eb' : '#6b7280')"
           (ngModelChange)="onPropChange('color', $event)"
         />
-        <span class="text-xs font-mono text-base-content/60">{{ node().color ?? '#6b7280' }}</span>
+        <span class="text-xs font-mono text-base-content/60">
+          {{ node().color ?? (isDecoration() ? 'Sense fons' : '#6b7280') }}
+        </span>
+        @if (isDecoration() && node().color) {
+          <button
+            type="button"
+            class="btn btn-ghost btn-xs"
+            (click)="clearDecorationFill()"
+          >
+            Treure fons
+          </button>
+        }
       </div>
+      @if (isDecoration()) {
+        <p class="text-xs text-base-content/50 mt-1">
+          El traç es manté gris; el color aplica només al fons.
+        </p>
+      }
     </div>
   </div>
 </div>

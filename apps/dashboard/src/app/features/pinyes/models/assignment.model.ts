@@ -155,7 +155,7 @@ export interface UpdateAdHocNodePayload {
   width?: number;
   height?: number;
   rotation?: number;
-  color?: string;
+  color?: string | null;
   shape?: string;
 }
 

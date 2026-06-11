@@ -86,6 +86,11 @@ const NODE_COLORS: Record<string, string> = {
   [FigureZone.DECORATION]: '#999999',
 };
 const DEFAULT_NODE_COLOR = '#6b7280';
+const DECORATION_STROKE = NODE_COLORS[FigureZone.DECORATION];
+
+function decorationFill(color: string | null | undefined): string {
+  return color ?? 'transparent';
+}
 
 function createNodeShape(
   shape: string,
@@ -845,15 +850,14 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       const isAdHoc = !!(node as any).isAdHoc;
       const isDecoration = node.zone === FigureZone.DECORATION;
       const fill = isDecoration
-        ? 'transparent'
+        ? decorationFill(node.color)
         : (node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR);
-      const decorationStroke = node.color ?? NODE_COLORS[node.zone] ?? '#999999';
       const stroke = isSelected
         ? SELECTED_STROKE
         : isHighlighted
           ? '#10b981'
           : isDecoration
-            ? decorationStroke
+            ? DECORATION_STROKE
             : NORMAL_STROKE;
       const strokeWidth = isSelected ? 3 : isHighlighted ? 2.5 : isDecoration ? 2 : 1.5;
 
@@ -882,7 +886,9 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
       if (assignment) {
         const alias = assignment.person.alias;
-        const textFill = isDecoration ? decorationStroke : this.getContrastColor(fill);
+        const textFill = isDecoration
+          ? (node.color ? this.getContrastColor(node.color) : DECORATION_STROKE)
+          : this.getContrastColor(fill);
         const shoulderH = assignment.person.shoulderHeight;
         const hasValidHeight = shoulderH !== null && shoulderH !== 0 && shoulderH !== 140;
         const nextStatus = nextPerformanceMap.get(assignment.person.id);
@@ -952,7 +958,9 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           );
         }
       } else {
-        const textFill = isDecoration ? decorationStroke : this.getContrastColor(fill);
+        const textFill = isDecoration
+          ? (node.color ? this.getContrastColor(node.color) : DECORATION_STROKE)
+          : this.getContrastColor(fill);
         group.add(
           new Konva.Text({
             text: node.label,
@@ -1067,9 +1075,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       const assignment = assignmentByNodeId.get(node.id);
       const isDecoration = node.zone === FigureZone.DECORATION;
       const fill = isDecoration
-        ? 'transparent'
+        ? decorationFill(node.color)
         : (node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR);
-      const decorationStroke = node.color ?? NODE_COLORS[node.zone] ?? '#999999';
 
       const group = new Konva.Group({
         id: node.id,
@@ -1086,13 +1093,15 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         node.height,
         {
           fill,
-          stroke: isDecoration ? decorationStroke : NORMAL_STROKE,
+          stroke: isDecoration ? DECORATION_STROKE : NORMAL_STROKE,
           strokeWidth: isDecoration ? 2 : 1.5,
         },
       );
       group.add(shape);
 
-      const textFill = isDecoration ? decorationStroke : this.getContrastColor(fill);
+      const textFill = isDecoration
+        ? (node.color ? this.getContrastColor(node.color) : DECORATION_STROKE)
+        : this.getContrastColor(fill);
       const displayText = assignment ? assignment.person.alias : node.label;
       const { fontSize, wrap } = this.fitFontSizeForNode(displayText, node.width, node.height, {
         maxFontSize: assignment ? 13 : 9,

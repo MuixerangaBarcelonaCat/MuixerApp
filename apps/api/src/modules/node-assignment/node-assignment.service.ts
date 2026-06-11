@@ -1101,7 +1101,11 @@ export class NodeAssignmentService {
         width: dto.width ?? preset?.width ?? 80,
         height: dto.height ?? preset?.height ?? 40,
         rotation: dto.rotation ?? 0,
-        color: dto.color ?? preset?.color ?? '#B0BEC5',
+        color:
+          dto.color ??
+          (dto.zone === FigureZone.DECORATION
+            ? (preset?.color ?? null)
+            : (preset?.color ?? '#B0BEC5')),
         shape: dto.shape ?? preset?.shape ?? NodeShape.RECTANGLE,
         sortOrder: nextSortOrder,
         climbPath: null,

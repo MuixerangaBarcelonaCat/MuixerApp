@@ -31,7 +31,7 @@ export interface AdHocNodePreset {
   width: number;
   height: number;
   shape: NodeShape;
-  color: string;
+  color: string | null;
   requiresCustomLabel: boolean;
 }
 
@@ -49,9 +49,9 @@ export const AD_HOC_ALLOWED_ZONES_PHASE2 = [
 ] as const;
 
 export const AD_HOC_DECORATION_PRESETS: AdHocNodePreset[] = [
-  { zone: FigureZone.DECORATION, positionType: 'rectangle', label: '', width: 120, height: 80, shape: NodeShape.RECTANGLE, color: '#999999', requiresCustomLabel: true },
-  { zone: FigureZone.DECORATION, positionType: 'arrow', label: '', width: 80, height: 30, shape: NodeShape.ARROW, color: '#999999', requiresCustomLabel: true },
-  { zone: FigureZone.DECORATION, positionType: 'circle', label: '', width: 60, height: 60, shape: NodeShape.CIRCLE, color: '#999999', requiresCustomLabel: true },
+  { zone: FigureZone.DECORATION, positionType: 'rectangle', label: '', width: 120, height: 80, shape: NodeShape.RECTANGLE, color: null, requiresCustomLabel: true },
+  { zone: FigureZone.DECORATION, positionType: 'arrow', label: '', width: 80, height: 30, shape: NodeShape.ARROW, color: null, requiresCustomLabel: true },
+  { zone: FigureZone.DECORATION, positionType: 'circle', label: '', width: 60, height: 60, shape: NodeShape.CIRCLE, color: null, requiresCustomLabel: true },
 ];
 
 export const AD_HOC_PINYA_PRESETS: AdHocNodePreset[] = [

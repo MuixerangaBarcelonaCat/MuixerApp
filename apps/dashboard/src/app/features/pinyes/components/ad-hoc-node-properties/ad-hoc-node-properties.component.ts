@@ -1,6 +1,7 @@
 import {
   Component,
   ChangeDetectionStrategy,
+  computed,
   input,
   output,
   inject,
@@ -10,7 +11,7 @@ import { LucideAngularModule, X, Trash2 } from 'lucide-angular';
 import { InstanceNodeItem, UpdateAdHocNodePayload } from '../../models/assignment.model';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
-import { NodeShape } from '@muixer/shared';
+import { FigureZone, NodeShape } from '@muixer/shared';
 
 @Component({
   selector: 'app-ad-hoc-node-properties',
@@ -33,6 +34,11 @@ export class AdHocNodePropertiesComponent {
   readonly X = X;
   readonly Trash2 = Trash2;
   readonly NodeShape = NodeShape;
+  readonly FigureZone = FigureZone;
+
+  readonly isDecoration = computed(
+    () => this.node().zone === FigureZone.DECORATION,
+  );
 
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -40,10 +46,17 @@ export class AdHocNodePropertiesComponent {
     this.closed.emit();
   }
 
-  onPropChange(key: keyof UpdateAdHocNodePayload, value: string | number): void {
+  onPropChange(
+    key: keyof UpdateAdHocNodePayload,
+    value: string | number | null,
+  ): void {
     const payload: UpdateAdHocNodePayload = { [key]: value };
     this.propertyChanged.emit({ nodeId: this.node().id, patch: payload });
     this.debouncedUpdate(payload);
+  }
+
+  clearDecorationFill(): void {
+    this.onPropChange('color', null);
   }
 
   onDelete(): void {
