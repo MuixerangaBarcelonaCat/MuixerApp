@@ -13,6 +13,7 @@ import {
   NodeShape,
   AD_HOC_PINYA_PRESETS,
   AD_HOC_DECORATION_PRESETS,
+  AD_HOC_DIRECTION_PRESETS,
 } from '@muixer/shared';
 import { CreateAdHocNodeDto } from './dto/create-ad-hoc-node.dto';
 import { UpdateAdHocNodeDto } from './dto/update-ad-hoc-node.dto';
@@ -486,18 +487,27 @@ export class NodeAssignmentService {
       throw new BadRequestException('Cannot swap an assignment with itself');
     }
 
-    const nodeIdA = assignmentA.instanceNode.id;
-    const nodeIdB = assignmentB.instanceNode.id;
+    await this.dataSource.transaction(async (manager) => {
+      await manager.delete(NodeAssignment, { id: dto.assignmentIdA });
+      await manager.delete(NodeAssignment, { id: dto.assignmentIdB });
 
-    await this.dataSource.query(
-      `UPDATE node_assignments
-       SET "personId" = CASE
-         WHEN id = $1::uuid THEN $2::uuid
-         WHEN id = $3::uuid THEN $4::uuid
-       END
-       WHERE id IN ($1::uuid, $3::uuid)`,
-      [dto.assignmentIdA, assignmentB.person.id, dto.assignmentIdB, assignmentA.person.id],
-    );
+      const newA = manager.create(NodeAssignment, {
+        id: dto.assignmentIdA,
+        figureInstance: assignmentA.figureInstance,
+        instanceNode: assignmentA.instanceNode,
+        person: assignmentB.person,
+        compositionSlot: assignmentA.compositionSlot,
+      });
+      const newB = manager.create(NodeAssignment, {
+        id: dto.assignmentIdB,
+        figureInstance: assignmentB.figureInstance,
+        instanceNode: assignmentB.instanceNode,
+        person: assignmentA.person,
+        compositionSlot: assignmentB.compositionSlot,
+      });
+
+      await manager.save(NodeAssignment, [newA, newB]);
+    });
 
     const [updatedA, updatedB] = await Promise.all([
       this.assignmentRepository.findOne({
@@ -1075,7 +1085,7 @@ export class NodeAssignmentService {
       instance.snapshotted = true;
     }
 
-    const allPresets = [...AD_HOC_PINYA_PRESETS, ...AD_HOC_DECORATION_PRESETS];
+    const allPresets = [...AD_HOC_PINYA_PRESETS, ...AD_HOC_DECORATION_PRESETS, ...AD_HOC_DIRECTION_PRESETS];
     const preset = allPresets.find(
       (p) => p.positionType === dto.positionType && p.zone === dto.zone,
     );

@@ -439,7 +439,7 @@ describe('NodeAssignmentService', () => {
         person: makePerson(PERSON_ID_B) as any,
       });
 
-    it('swaps persons between two assignments using raw SQL', async () => {
+    it('swaps persons between two assignments using delete+recreate in transaction', async () => {
       const assignmentA = makeAssignment();
       const assignmentB = makeAssignmentB();
       const swappedA = { ...assignmentA, person: assignmentB.person };
@@ -451,16 +451,21 @@ describe('NodeAssignmentService', () => {
         .mockResolvedValueOnce(swappedA)      // reload A after swap
         .mockResolvedValueOnce(swappedB);     // reload B after swap
 
+      const txManager = {
+        delete: jest.fn().mockResolvedValue(undefined),
+        create: jest.fn().mockImplementation((_entity: any, data: any) => data),
+        save: jest.fn().mockResolvedValue(undefined),
+      };
+      mockDataSource.transaction.mockImplementation((cb: any) => cb(txManager));
+
       const result = await service.swap(INSTANCE_ID, {
         assignmentIdA: ASSIGNMENT_ID,
         assignmentIdB: ASSIGNMENT_ID_B,
       });
 
-      expect(mockDataSource.query).toHaveBeenCalledTimes(1);
-      expect(mockDataSource.query).toHaveBeenCalledWith(
-        expect.stringContaining('personId'),
-        [ASSIGNMENT_ID, PERSON_ID_B, ASSIGNMENT_ID_B, PERSON_ID],
-      );
+      expect(mockDataSource.transaction).toHaveBeenCalledTimes(1);
+      expect(txManager.delete).toHaveBeenCalledTimes(2);
+      expect(txManager.save).toHaveBeenCalledTimes(1);
       expect(result.a.id).toBe(ASSIGNMENT_ID);
       expect(result.b.id).toBe(ASSIGNMENT_ID_B);
     });
@@ -1442,6 +1447,149 @@ describe('NodeAssignmentService', () => {
 
       expect(result.clonedAdHocNodes).toBe(0);
       expect(mockInstanceNodeRepo.create).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── Ad-hoc DIRECTION (Phase 3) ─────────────────────────────────────────
+
+  describe('createAdHocNode — DIRECTION', () => {
+    const makeAdHocTxManager = () => ({
+      createQueryBuilder: jest.fn().mockReturnValue(mockInstanceNodeQb),
+      create: jest.fn((_entity: any, data: any) => ({ ...data, id: 'dir-adhoc-1' })),
+      save: jest.fn().mockImplementation((node: any) => Promise.resolve(node)),
+    });
+
+    it('creates FIGURE_DIRECTION ad-hoc node with correct defaults', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
+      mockInstanceNodeQb.getRawOne.mockResolvedValue({ max: 5 });
+
+      const txManager = makeAdHocTxManager();
+      const created = makeInstanceNode({
+        id: 'dir-adhoc-1',
+        zone: FigureZone.FIGURE_DIRECTION,
+        positionType: null,
+        shape: NodeShape.RECTANGLE,
+        width: 90,
+        height: 44,
+        color: '#d97706',
+        label: 'Direcció fig.',
+        isAdHoc: true,
+        createdById: 'user-1',
+      });
+      txManager.create.mockReturnValue(created);
+      txManager.save.mockResolvedValue(created);
+      mockDataSource.transaction.mockImplementation((cb: any) => cb(txManager));
+
+      const result = await service.createAdHocNode(
+        INSTANCE_ID,
+        { zone: FigureZone.FIGURE_DIRECTION, label: 'Direcció fig.', x: 100, y: 200 } as any,
+        'user-1',
+      );
+
+      expect(result.isAdHoc).toBe(true);
+      expect(result.zone).toBe(FigureZone.FIGURE_DIRECTION);
+      expect(txManager.create).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          zone: FigureZone.FIGURE_DIRECTION,
+          isAdHoc: true,
+          positionType: null,
+        }),
+      );
+    });
+
+    it('creates XICALLA_DIRECTION ad-hoc node with correct defaults', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
+      mockInstanceNodeQb.getRawOne.mockResolvedValue({ max: 5 });
+
+      const txManager = makeAdHocTxManager();
+      const created = makeInstanceNode({
+        id: 'dir-adhoc-2',
+        zone: FigureZone.XICALLA_DIRECTION,
+        positionType: null,
+        shape: NodeShape.RECTANGLE,
+        width: 90,
+        height: 44,
+        color: '#db2777',
+        label: 'Direcció xic.',
+        isAdHoc: true,
+        createdById: 'user-1',
+      });
+      txManager.create.mockReturnValue(created);
+      txManager.save.mockResolvedValue(created);
+      mockDataSource.transaction.mockImplementation((cb: any) => cb(txManager));
+
+      const result = await service.createAdHocNode(
+        INSTANCE_ID,
+        { zone: FigureZone.XICALLA_DIRECTION, label: 'Direcció xic.', x: 150, y: 250 } as any,
+        'user-1',
+      );
+
+      expect(result.isAdHoc).toBe(true);
+      expect(result.zone).toBe(FigureZone.XICALLA_DIRECTION);
+    });
+
+    it('allows multiple FIGURE_DIRECTION ad-hoc nodes in same segment (no node-level uniqueness)', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
+      mockInstanceNodeQb.getRawOne.mockResolvedValue({ max: 5 });
+
+      const txManager = makeAdHocTxManager();
+      const created = makeInstanceNode({
+        id: 'dir-adhoc-3',
+        zone: FigureZone.FIGURE_DIRECTION,
+        isAdHoc: true,
+        createdById: 'user-1',
+      });
+      txManager.create.mockReturnValue(created);
+      txManager.save.mockResolvedValue(created);
+      mockDataSource.transaction.mockImplementation((cb: any) => cb(txManager));
+
+      const result = await service.createAdHocNode(
+        INSTANCE_ID,
+        { zone: FigureZone.FIGURE_DIRECTION, label: 'Direcció fig.', x: 100, y: 200 } as any,
+        'user-1',
+      );
+
+      expect(result.isAdHoc).toBe(true);
+    });
+  });
+
+  describe('bulkImport — direction node cloning (Phase 3)', () => {
+    const mockSortQb = {
+      where: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      getRawOne: jest.fn().mockResolvedValue({ max: 5 }),
+    };
+
+    it('clones ad-hoc FIGURE_DIRECTION node normally during import', async () => {
+      const directionSource = makeInstanceNode({
+        id: 'src-dir-1',
+        zone: FigureZone.FIGURE_DIRECTION,
+        isAdHoc: true,
+        sourceNodeId: null,
+        label: 'Direcció fig.',
+      });
+      const target = makeInstance({ snapshotted: true, instanceNodes: [makeInstanceNode()] });
+      const source = makeInstance({
+        id: 'source-uuid',
+        snapshotted: true,
+        instanceNodes: [makeInstanceNode(), directionSource],
+      });
+
+      mockInstanceRepo.findOne
+        .mockResolvedValueOnce(target)
+        .mockResolvedValueOnce(source);
+      mockAssignmentRepo.find.mockResolvedValue([]);
+      mockInstanceNodeRepo.find.mockResolvedValue([]);
+      mockInstanceNodeRepo.createQueryBuilder.mockReturnValue(mockSortQb);
+
+      const cloned = { ...directionSource, id: 'cloned-dir-1' };
+      mockInstanceNodeRepo.create.mockReturnValue(cloned);
+      mockInstanceNodeRepo.save.mockResolvedValue(cloned);
+
+      const result = await service.bulkImport(INSTANCE_ID, { sourceInstanceId: 'source-uuid' });
+
+      expect(result.clonedAdHocNodes).toBe(1);
     });
   });
 

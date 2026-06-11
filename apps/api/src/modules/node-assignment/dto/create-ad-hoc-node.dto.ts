@@ -20,7 +20,8 @@ import {
   PinyaPositionType,
   DECORATION_POSITION_TYPES,
   DecorationPositionType,
-  AD_HOC_ALLOWED_ZONES_PHASE2,
+  DIRECTION_ZONES,
+  AD_HOC_ALLOWED_ZONES_PHASE3,
 } from '@muixer/shared';
 
 @ValidatorConstraint({ name: 'isValidPositionType', async: false })
@@ -46,6 +47,9 @@ export class IsValidPositionTypeConstraint
         )
       );
     }
+    if ((DIRECTION_ZONES as readonly FigureZone[]).includes(obj.zone)) {
+      return !positionType;
+    }
     return false;
   }
 
@@ -55,7 +59,7 @@ export class IsValidPositionTypeConstraint
 }
 
 export class CreateAdHocNodeDto {
-  @IsIn([...AD_HOC_ALLOWED_ZONES_PHASE2])
+  @IsIn([...AD_HOC_ALLOWED_ZONES_PHASE3])
   zone: FigureZone;
 
   @IsOptional()

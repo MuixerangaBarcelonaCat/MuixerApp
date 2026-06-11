@@ -37,7 +37,7 @@ import {
 import { SegmentDetail } from '../../models/segment.model';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { RenglaModel } from '../../models/figure-template.model';
-import { FigureZone, AD_HOC_PINYA_PRESETS, AD_HOC_DECORATION_PRESETS, AdHocNodePreset } from '@muixer/shared';
+import { FigureZone, AD_HOC_PINYA_PRESETS, AD_HOC_DECORATION_PRESETS, AD_HOC_DIRECTION_PRESETS, AdHocNodePreset } from '@muixer/shared';
 import { repositionCordoObertNodes } from '../../utils/cordo-obert-reposition.util';
 
 interface InstanceTab {
@@ -99,6 +99,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
   readonly adHocPresets = AD_HOC_PINYA_PRESETS;
   readonly decorationPresets = AD_HOC_DECORATION_PRESETS;
+  readonly directionPresets = AD_HOC_DIRECTION_PRESETS;
 
   readonly eventId = signal('');
   readonly segmentId = signal('');
@@ -138,6 +139,8 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly comodinInputOpen = signal(false);
   readonly comodinLabel = signal('');
   readonly fabDropdownOpen = signal(false);
+  readonly fabDecorationOpen = signal(false);
+  readonly fabDirectionOpen = signal(false);
 
   readonly templateRengles = signal<RenglaModel[]>([]);
   readonly maxCordons = signal(0);
@@ -232,6 +235,14 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
       event.preventDefault();
       if (this.fabDropdownOpen()) {
         this.fabDropdownOpen.set(false);
+        return;
+      }
+      if (this.fabDecorationOpen()) {
+        this.fabDecorationOpen.set(false);
+        return;
+      }
+      if (this.fabDirectionOpen()) {
+        this.fabDirectionOpen.set(false);
         return;
       }
       if (this.state.isPlacementMode()) {
@@ -479,6 +490,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
           this.toast.success(`Node "${label}" creat.`);
         },
         error: (err) => {
+          this.state.exitPlacementMode();
           const msg = err?.error?.message ?? 'Error en crear el node.';
           this.toast.error(msg);
         },
@@ -487,6 +499,8 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
   onNodeSelected(nodeId: string | null): void {
     this.fabDropdownOpen.set(false);
+    this.fabDecorationOpen.set(false);
+    this.fabDirectionOpen.set(false);
     if (this.isLocked()) return;
     if (!nodeId) {
       this.state.setSelectedNodeId(null);
@@ -549,6 +563,12 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
     if (!selectedNodeId) {
       this.state.setSelectedPersonId(person.id);
+      return;
+    }
+
+    const selectedNodeData = this.activeNodes().find((n) => n.id === selectedNodeId);
+    if (selectedNodeData?.zone === FigureZone.DECORATION) {
+      this.toast.error('Els nodes decoratius no es poden assignar.');
       return;
     }
 
@@ -910,6 +930,8 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
   onPresetSelected(preset: AdHocNodePreset): void {
     this.fabDropdownOpen.set(false);
+    this.fabDecorationOpen.set(false);
+    this.fabDirectionOpen.set(false);
     if (preset.requiresCustomLabel) {
       this.pendingLabelPreset.set(preset);
       this.comodinInputOpen.set(true);

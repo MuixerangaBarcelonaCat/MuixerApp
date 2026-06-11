@@ -28,6 +28,12 @@
   </div>
 
   <div class="p-3 space-y-3">
+    <!-- @if (isDirection()) {
+      <div class="alert alert-info py-1.5 px-2 text-xs">
+        <span>La mateixa persona no pot repetir-se al segment (entre totes les instàncies).</span>
+      </div>
+    } -->
+
     <!-- Label -->
     <div class="form-control">
       <label class="label pb-1" [for]="'adhoc-label-' + node().id">

@@ -15,7 +15,7 @@ import { FormsModule } from '@angular/forms';
 import Konva from 'konva';
 import { FigureNodeItem } from '../../models/figure-template.model';
 import { CompositionSlotItem } from '../../models/composition.model';
-import { FigureZone, NodeShape } from '@muixer/shared';
+import { FigureZone, NodeShape, DIRECTION_ZONES } from '@muixer/shared';
 import { AssignmentDetail, HeightMode } from '../../models/assignment.model';
 import {
   calculateGhostPosition,
@@ -81,8 +81,8 @@ const NODE_COLORS: Record<string, string> = {
   [FigureZone.BASE]: '#EEEEEE',
   [FigureZone.PINYA]: '#3b82f6',
   [FigureZone.TRONC]: '#8b5cf6',
-  [FigureZone.FIGURE_DIRECTION]: '#f59e0b',
-  [FigureZone.XICALLA_DIRECTION]: '#ec4899',
+  [FigureZone.FIGURE_DIRECTION]: '#d97706',
+  [FigureZone.XICALLA_DIRECTION]: '#db2777',
   [FigureZone.DECORATION]: '#999999',
 };
 const DEFAULT_NODE_COLOR = '#6b7280';
@@ -849,6 +849,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       const isHighlighted = highlighted.has(node.id);
       const isAdHoc = !!(node as any).isAdHoc;
       const isDecoration = node.zone === FigureZone.DECORATION;
+      const isDirection = (DIRECTION_ZONES as readonly string[]).includes(node.zone);
       const fill = isDecoration
         ? decorationFill(node.color)
         : (node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR);
@@ -858,8 +859,10 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           ? '#10b981'
           : isDecoration
             ? DECORATION_STROKE
-            : NORMAL_STROKE;
-      const strokeWidth = isSelected ? 3 : isHighlighted ? 2.5 : isDecoration ? 2 : 1.5;
+            : isDirection
+              ? '#1e1b4b'
+              : NORMAL_STROKE;
+      const strokeWidth = isSelected ? 3 : isHighlighted ? 2.5 : isDirection ? 2.5 : isDecoration ? 2 : 1.5;
 
       const group = new Konva.Group({
         id: node.id,

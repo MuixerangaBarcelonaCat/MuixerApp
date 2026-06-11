@@ -11,7 +11,7 @@ import { LucideAngularModule, X, Trash2 } from 'lucide-angular';
 import { InstanceNodeItem, UpdateAdHocNodePayload } from '../../models/assignment.model';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
-import { FigureZone, NodeShape } from '@muixer/shared';
+import { FigureZone, NodeShape, DIRECTION_ZONES } from '@muixer/shared';
 
 @Component({
   selector: 'app-ad-hoc-node-properties',
@@ -38,6 +38,10 @@ export class AdHocNodePropertiesComponent {
 
   readonly isDecoration = computed(
     () => this.node().zone === FigureZone.DECORATION,
+  );
+
+  readonly isDirection = computed(
+    () => (DIRECTION_ZONES as readonly string[]).includes(this.node().zone),
   );
 
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;

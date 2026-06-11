@@ -807,12 +807,12 @@ This is necessary because `comodin` is the only type with `requiresCustomLabel: 
 Each phase gets its own implementation plan document:
 
 
-| Phase   | Plan Document                                   | Status  |
-| ------- | ----------------------------------------------- | ------- |
-| Phase 1 | `docs/specs/plans/ad-hoc-nodes-phase-1-plan.md` | Pending |
-| Phase 2 | `docs/specs/plans/ad-hoc-nodes-phase-2-plan.md` | Pending |
-| Phase 3 | `docs/specs/plans/ad-hoc-nodes-phase-3-plan.md` | Pending |
-| Phase 4 | TBD (future)                                    | —       |
+| Phase   | Plan Document                                   | Status      |
+| ------- | ----------------------------------------------- | ----------- |
+| Phase 1 | `docs/specs/plans/ad-hoc-nodes-phase-1-plan.md` | Implemented |
+| Phase 2 | `docs/specs/plans/ad-hoc-nodes-phase-2-spec.md` | Implemented |
+| Phase 3 | `docs/specs/plans/ad-hoc-nodes-phase-3-spec.md` | Implemented |
+| Phase 4 | TBD (future)                                    | —           |
 
 
 Each plan follows the structure: task breakdown, file changes list, acceptance criteria, estimated effort, and references back to this spec.
