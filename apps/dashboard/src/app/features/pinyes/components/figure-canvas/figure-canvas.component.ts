@@ -661,8 +661,18 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     const selectedId = this.selectedNodeId();
     const allNodes = this.nodes() as FigureNodeItem[];
 
+    const renglaMaxPosition = new Map<string, number>();
     for (const node of allNodes) {
-      const group = this.buildNodeGroup(node, isEditor, selectedId === node.id);
+      if (node.renglaId != null && node.renglaPosition != null) {
+        const current = renglaMaxPosition.get(node.renglaId) ?? -Infinity;
+        if (node.renglaPosition > current) {
+          renglaMaxPosition.set(node.renglaId, node.renglaPosition);
+        }
+      }
+    }
+
+    for (const node of allNodes) {
+      const group = this.buildNodeGroup(node, isEditor, selectedId === node.id, renglaMaxPosition);
       this.pinyaLayer.add(group);
     }
 
@@ -1212,6 +1222,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     node: FigureNodeItem,
     isEditor: boolean,
     isSelected: boolean,
+    renglaMaxPosition: Map<string, number> = new Map(),
   ): Konva.Group {
     const fill = node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR;
     const stroke = isSelected ? SELECTED_STROKE : NORMAL_STROKE;
@@ -1353,7 +1364,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       // Cursor + ghost hover
       group.on('mouseenter', () => {
         this.stage.container().style.cursor = 'grab';
-        if (isGhostEligible(node)) {
+        if (isGhostEligible(node, renglaMaxPosition.get(node.renglaId ?? '') ?? 0)) {
           this.startGhostTimer(node);
         }
       });

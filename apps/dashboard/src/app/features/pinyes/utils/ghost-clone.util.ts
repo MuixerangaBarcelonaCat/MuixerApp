@@ -65,9 +65,13 @@ export function calculateGhostPosition(
 export function isGhostEligible(node: {
   zone: string;
   positionType: string | null;
-}): boolean {
+  renglaPosition: number | null;
+}, renglaMax: number): boolean {
   if (node.zone !== FigureZone.PINYA) return false;
   if (isCentralNode(node.positionType)) return false;
   if (node.positionType === 'cordo-obert') return false;
+  if (node.renglaPosition != null && node.renglaPosition !== renglaMax)
+    return false;
+
   return true;
 }
