@@ -5,7 +5,7 @@ import { of, throwError } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
   LUCIDE_ICONS, LucideIconProvider,
-  ArrowLeft, Users, Edit, RefreshCw, Plus, PanelLeft, PanelLeftClose,
+  ArrowLeft, Users, Edit, RefreshCw, Plus, PanelLeft, PanelLeftClose, HelpCircle,
 } from 'lucide-angular';
 import { AssignmentCanvasComponent } from './assignment-canvas.component';
 import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component';
@@ -13,6 +13,7 @@ import { PersonPanelComponent } from '../person-panel/person-panel.component';
 import { NodePopoverComponent } from '../node-popover/node-popover.component';
 import { ImportPinyaModalComponent } from '../import-pinya-modal/import-pinya-modal.component';
 import { TroncViewComponent } from '../tronc-view/tronc-view.component';
+import { AdHocNodesHelpModalComponent } from '../ad-hoc-nodes-help-modal/ad-hoc-nodes-help-modal.component';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
 import { EventSegmentService } from '../../services/event-segment.service';
@@ -20,7 +21,7 @@ import { FigureTemplateService } from '../../services/figure-template.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { AssignmentDetail, AvailablePerson, BulkImportResult, InstanceNodeItem } from '../../models/assignment.model';
 import { SegmentDetail } from '../../models/segment.model';
-import { FigureZone, NodeShape } from '@muixer/shared';
+import { FigureZone, NodeShape, AD_HOC_PINYA_PRESETS, AD_HOC_DECORATION_PRESETS, AD_HOC_DIRECTION_PRESETS } from '@muixer/shared';
 
 // ── Stub child components ───────────────────────────────────────────────────
 
@@ -34,8 +35,13 @@ class StubFigureCanvas {
   readonly attendanceMap = input<Map<string, string>>(new Map());
   readonly nextPerformanceMap = input<Map<string, string | null>>(new Map());
   readonly highlightedNodeIds = input<Set<string>>(new Set());
+  readonly isPlacementMode = input<boolean>(false);
   readonly nodeSelected = output<string | null>();
   readonly nodeClicked = output<{ nodeId: string; x: number; y: number }>();
+  readonly nodeDoubleClicked = output<string>();
+  readonly canvasClicked = output<{ x: number; y: number }>();
+  readonly adHocNodeMoved = output<{ nodeId: string; x: number; y: number }>();
+  readonly adHocNodeTransformed = output<{ nodeId: string; width: number; height: number; rotation: number }>();
 }
 
 @Component({ selector: 'app-person-panel', standalone: true, template: '' })
@@ -84,6 +90,12 @@ class StubTroncView {
   readonly nodeClicked = output<{ nodeId: string; event: MouseEvent }>();
 }
 
+@Component({ selector: 'app-ad-hoc-nodes-help-modal', standalone: true, template: '' })
+class StubHelpModal {
+  readonly open = input<boolean>(false);
+  readonly closed = output<void>();
+}
+
 // ── Test constants & factories ──────────────────────────────────────────────
 
 const EVENT_ID = 'event-uuid-1';
@@ -119,8 +131,8 @@ const makeSegment = (instanceOverrides = {}): SegmentDetail => ({
 });
 
 const makeInstanceNodes = (): InstanceNodeItem[] => [
-  { id: 'inode-1', label: 'base-1', zone: FigureZone.BASE, z: 0, positionType: null, x: 100, y: 100, width: 60, height: 40, rotation: 0, color: null, shape: NodeShape.ELLIPSE, sortOrder: 0, ringLevel: null, originNodeId: null, renglaId: null, renglaPosition: null, sourceNodeId: 'node-1', isSnapshotted: false },
-  { id: 'inode-2', label: 'tronc-1', zone: FigureZone.TRONC, z: 1, positionType: null, x: 200, y: 100, width: 60, height: 40, rotation: 0, color: null, shape: NodeShape.ELLIPSE, sortOrder: 1, ringLevel: null, originNodeId: null, renglaId: null, renglaPosition: null, sourceNodeId: 'node-2', isSnapshotted: false },
+  { id: 'inode-1', label: 'base-1', zone: FigureZone.BASE, z: 0, positionType: null, x: 100, y: 100, width: 60, height: 40, rotation: 0, color: null, shape: NodeShape.ELLIPSE, sortOrder: 0, ringLevel: null, originNodeId: null, renglaId: null, renglaPosition: null, sourceNodeId: 'node-1', isSnapshotted: false, isAdHoc: false, createdById: null },
+  { id: 'inode-2', label: 'tronc-1', zone: FigureZone.TRONC, z: 1, positionType: null, x: 200, y: 100, width: 60, height: 40, rotation: 0, color: null, shape: NodeShape.ELLIPSE, sortOrder: 1, ringLevel: null, originNodeId: null, renglaId: null, renglaPosition: null, sourceNodeId: 'node-2', isSnapshotted: false, isAdHoc: false, createdById: null },
 ];
 
 const makeTemplate = () => ({
@@ -173,6 +185,9 @@ interface MockAssignmentService {
   resetSnapshot: MockFn;
   bulkImport: MockFn;
   getHistory: MockFn;
+  createAdHocNode: MockFn;
+  updateAdHocNode: MockFn;
+  deleteAdHocNode: MockFn;
   getNextPerformance: MockFn;
   getAvailablePersons: MockFn;
   getLockStatus: MockFn;
@@ -184,7 +199,7 @@ describe('AssignmentCanvasComponent', () => {
   let assignmentService: MockAssignmentService;
   let segmentService: { getByEvent: MockFn };
   let figureTemplateService: { getOne: MockFn };
-  let toastService: { success: MockFn; error: MockFn };
+  let toastService: { success: MockFn; error: MockFn; info: MockFn; warning: MockFn };
   let routerMock: { navigate: MockFn };
   let stateService: AssignmentStateService;
 
@@ -200,9 +215,12 @@ describe('AssignmentCanvasComponent', () => {
         b: makeAssignment('inode-2', 'person-1'),
       })),
       updateCordons: vi.fn().mockReturnValue(of({ numberOfCordons: null, openCordons: null })),
-      resetSnapshot: vi.fn().mockReturnValue(of({ removedAssignments: 0 })),
-      bulkImport: vi.fn().mockReturnValue(of({ created: [], conflicts: [] })),
+      resetSnapshot: vi.fn().mockReturnValue(of({ removedAssignments: 0, deletedAdHocCount: 0 })),
+      bulkImport: vi.fn().mockReturnValue(of({ created: [], conflicts: [], clonedAdHocNodes: 0 })),
       getHistory: vi.fn().mockReturnValue(of({ data: [] })),
+      createAdHocNode: vi.fn().mockReturnValue(of(makeInstanceNodes()[0])),
+      updateAdHocNode: vi.fn().mockReturnValue(of(makeInstanceNodes()[0])),
+      deleteAdHocNode: vi.fn().mockReturnValue(of(undefined)),
       getNextPerformance: vi.fn().mockReturnValue(of(null)),
       getAvailablePersons: vi.fn().mockReturnValue(of({ data: [] })),
       getLockStatus: vi.fn().mockReturnValue(of({ locked: false, lockDate: null, lockDays: 2 })),
@@ -219,6 +237,8 @@ describe('AssignmentCanvasComponent', () => {
     toastService = {
       success: vi.fn(),
       error: vi.fn(),
+      info: vi.fn(),
+      warning: vi.fn(),
     };
 
     routerMock = {
@@ -239,13 +259,13 @@ describe('AssignmentCanvasComponent', () => {
         },
         {
           provide: LUCIDE_ICONS, multi: true,
-          useFactory: () => new LucideIconProvider({ ArrowLeft, Users, Edit, RefreshCw, Plus, PanelLeft, PanelLeftClose }),
+          useFactory: () => new LucideIconProvider({ ArrowLeft, Users, Edit, RefreshCw, Plus, PanelLeft, PanelLeftClose, HelpCircle }),
         },
       ],
     })
     .overrideComponent(AssignmentCanvasComponent, {
-      remove: { imports: [FigureCanvasComponent, PersonPanelComponent, NodePopoverComponent, ImportPinyaModalComponent, TroncViewComponent] },
-      add: { imports: [StubFigureCanvas, StubPersonPanel, StubNodePopover, StubImportModal, StubTroncView] },
+      remove: { imports: [FigureCanvasComponent, PersonPanelComponent, NodePopoverComponent, ImportPinyaModalComponent, TroncViewComponent, AdHocNodesHelpModalComponent] },
+      add: { imports: [StubFigureCanvas, StubPersonPanel, StubNodePopover, StubImportModal, StubTroncView, StubHelpModal] },
     })
     .compileComponents();
 
@@ -488,7 +508,7 @@ describe('AssignmentCanvasComponent', () => {
 
   describe('import', () => {
     it('onImportCompleted refreshes instance nodes', () => {
-      const result: BulkImportResult = { created: [makeAssignment()], conflicts: [] };
+      const result: BulkImportResult = { created: [makeAssignment()], conflicts: [], clonedAdHocNodes: 0 };
       assignmentService.getInstanceNodes.mockClear();
 
       component.onImportCompleted(result);
@@ -535,6 +555,423 @@ describe('AssignmentCanvasComponent', () => {
       expect(component.troncPanelOpen()).toBe(true);
       component.troncPanelOpen.update((v) => !v);
       expect(component.troncPanelOpen()).toBe(false);
+    });
+  });
+
+  // ── ad-hoc nodes ───────────────────────────────────────────────────────────
+
+  describe('ad-hoc nodes', () => {
+    const adHocNode: InstanceNodeItem = {
+      id: 'adhoc-1', label: 'Cordó obert', zone: FigureZone.PINYA, z: 0,
+      positionType: 'cordo-obert', x: 150, y: 200, width: 80, height: 40,
+      rotation: 0, color: '#FFF9C4', shape: NodeShape.ELLIPSE, sortOrder: 10,
+      ringLevel: null, originNodeId: null, renglaId: null, renglaPosition: null,
+      sourceNodeId: null, isSnapshotted: true, isAdHoc: true, createdById: 'user-1',
+    };
+
+    const dispatchKey = (key: string) => {
+      const event = new KeyboardEvent('keydown', { key, bubbles: true });
+      document.body.dispatchEvent(event);
+    };
+
+    it('onPresetSelected with non-comodin preset enters placement mode', () => {
+      const preset = AD_HOC_PINYA_PRESETS.find((p) => !p.requiresCustomLabel)!;
+      component.onPresetSelected(preset);
+      expect(stateService.isPlacementMode()).toBe(true);
+      expect(stateService.placementPreset()).toBe(preset);
+    });
+
+    it('onPresetSelected with comodin opens label input', () => {
+      const comodin = AD_HOC_PINYA_PRESETS.find((p) => p.requiresCustomLabel)!;
+      component.onPresetSelected(comodin);
+      expect(component.comodinInputOpen()).toBe(true);
+      expect(stateService.isPlacementMode()).toBe(false);
+    });
+
+    it('Escape exits placement mode', () => {
+      const preset = AD_HOC_PINYA_PRESETS[0];
+      stateService.enterPlacementMode(preset);
+      expect(stateService.isPlacementMode()).toBe(true);
+
+      dispatchKey('Escape');
+      expect(stateService.isPlacementMode()).toBe(false);
+    });
+
+    it('onCanvasClicked during placement calls createAdHocNode', () => {
+      const preset = AD_HOC_PINYA_PRESETS[0];
+      stateService.enterPlacementMode(preset);
+      stateService.activeInstanceId.set(INSTANCE_ID);
+
+      component.onCanvasClicked({ x: 300, y: 400 });
+
+      expect(assignmentService.createAdHocNode).toHaveBeenCalledWith(
+        INSTANCE_ID,
+        expect.objectContaining({ x: 300, y: 400, zone: preset.zone }),
+      );
+    });
+
+    it('Backspace on selected ad-hoc node (unassigned) calls deleteAdHocNode', () => {
+      const nodesWithAdHoc = [...makeInstanceNodes(), adHocNode];
+      component.tabs.update((list) => list.map((t) => ({ ...t, nodes: nodesWithAdHoc })));
+      stateService.selectedNodeId.set('adhoc-1');
+      stateService.assignments.set([]);
+      fixture.detectChanges();
+
+      dispatchKey('Delete');
+      expect(assignmentService.deleteAdHocNode).toHaveBeenCalledWith(INSTANCE_ID, 'adhoc-1');
+    });
+
+    it('Backspace on selected ad-hoc node (assigned) opens confirmation modal', () => {
+      const nodesWithAdHoc = [...makeInstanceNodes(), adHocNode];
+      component.tabs.update((list) => list.map((t) => ({ ...t, nodes: nodesWithAdHoc })));
+      stateService.selectedNodeId.set('adhoc-1');
+      stateService.assignments.set([{
+        ...makeAssignment('adhoc-1', 'person-1'),
+        node: { id: 'adhoc-1', label: 'Cordó obert', zone: 'PINYA', z: 0, positionType: 'cordo-obert', sortOrder: 10, ringLevel: null, originNodeId: null, sourceNodeId: null },
+      }]);
+      fixture.detectChanges();
+
+      dispatchKey('Backspace');
+      expect(component.deleteAdHocModalOpen()).toBe(true);
+      expect(component.pendingDeleteNodeLabel()).toBe('Cordó obert');
+      expect(component.pendingDeletePersonName()).toBe('Pepet');
+    });
+
+    it('Backspace on template node does nothing', () => {
+      stateService.selectedNodeId.set('inode-1');
+      dispatchKey('Delete');
+      expect(assignmentService.deleteAdHocNode).not.toHaveBeenCalled();
+      expect(component.deleteAdHocModalOpen()).toBe(false);
+    });
+
+    it('refreshInstanceNodes updates activeTabNodes for reset warning', () => {
+      const nodesWithAdHoc = [...makeInstanceNodes(), adHocNode];
+      assignmentService.getInstanceNodes.mockReturnValue(of({ data: nodesWithAdHoc }));
+      stateService.activeInstanceId.set(INSTANCE_ID);
+
+      component['refreshInstanceNodes'](INSTANCE_ID);
+
+      expect(stateService.activeTabNodes()).toEqual(nodesWithAdHoc);
+      expect(stateService.hasAdHocNodes()).toBe(true);
+    });
+
+    it('onEditTemplate shows info toast and navigates', () => {
+      component.tabs.update((list) => list.map((t) => ({
+        ...t, figureTemplateId: TEMPLATE_ID,
+      })));
+      fixture.detectChanges();
+
+      component.onEditTemplate();
+      expect(toastService.info).toHaveBeenCalledWith(
+        'Els canvis al template no afecten instàncies ja creades.',
+      );
+      expect(routerMock.navigate).toHaveBeenCalledWith(
+        ['/pinyes', 'templates', TEMPLATE_ID, 'edit'],
+      );
+    });
+  });
+
+  // ── FAB categories & DECORATION presets (Phase 2) ──────────────────────────
+
+  describe('FAB categories & DECORATION presets', () => {
+    it('exposes decorationPresets from shared constants', () => {
+      expect(component.decorationPresets).toBe(AD_HOC_DECORATION_PRESETS);
+      expect(component.decorationPresets.length).toBe(3);
+    });
+
+    it('all decoration presets require custom label', () => {
+      expect(component.decorationPresets.every((p) => p.requiresCustomLabel)).toBe(true);
+    });
+
+    it('onPresetSelected with DECORATION preset opens label dialog and stores pendingLabelPreset', () => {
+      const decPreset = AD_HOC_DECORATION_PRESETS[0];
+      component.onPresetSelected(decPreset);
+
+      expect(component.comodinInputOpen()).toBe(true);
+      expect(component.pendingLabelPreset()).toBe(decPreset);
+      expect(stateService.isPlacementMode()).toBe(false);
+    });
+
+    it('confirmComodinLabel uses pendingLabelPreset (not always comodin)', () => {
+      const decPreset = AD_HOC_DECORATION_PRESETS[0];
+      component.onPresetSelected(decPreset);
+      component.comodinLabel.set('Església');
+
+      component.confirmComodinLabel();
+
+      expect(stateService.isPlacementMode()).toBe(true);
+      expect(stateService.placementPreset()).toBe(decPreset);
+      expect(stateService.placementCustomLabel()).toBe('Església');
+      expect(component.pendingLabelPreset()).toBeNull();
+    });
+
+    it('cancelComodinInput clears pendingLabelPreset', () => {
+      const decPreset = AD_HOC_DECORATION_PRESETS[1];
+      component.onPresetSelected(decPreset);
+      expect(component.pendingLabelPreset()).toBe(decPreset);
+
+      component.cancelComodinInput();
+      expect(component.pendingLabelPreset()).toBeNull();
+      expect(component.comodinInputOpen()).toBe(false);
+    });
+
+    it('labelDialogTitle returns "Etiqueta del node decoratiu" for DECORATION presets', () => {
+      const decPreset = AD_HOC_DECORATION_PRESETS[0];
+      component.onPresetSelected(decPreset);
+      expect(component.labelDialogTitle()).toBe('Etiqueta del node decoratiu');
+    });
+
+    it('labelDialogTitle returns "Etiqueta del comodí" for PINYA comodin presets', () => {
+      const comodin = AD_HOC_PINYA_PRESETS.find((p) => p.requiresCustomLabel)!;
+      component.onPresetSelected(comodin);
+      expect(component.labelDialogTitle()).toBe('Etiqueta del comodí');
+    });
+
+    it('getDecorationLabel returns Catalan labels for each positionType', () => {
+      const rect = AD_HOC_DECORATION_PRESETS.find((p) => p.positionType === 'rectangle')!;
+      const arrow = AD_HOC_DECORATION_PRESETS.find((p) => p.positionType === 'arrow')!;
+      const circle = AD_HOC_DECORATION_PRESETS.find((p) => p.positionType === 'circle')!;
+
+      expect(component.getDecorationLabel(rect)).toBe('Rectangle');
+      expect(component.getDecorationLabel(arrow)).toBe('Fletxa');
+      expect(component.getDecorationLabel(circle)).toBe('Cercle');
+    });
+  });
+
+  // ── DECORATION node interaction ────────────────────────────────────────────
+
+  describe('DECORATION node interaction', () => {
+    const decorationNode: InstanceNodeItem = {
+      id: 'dec-1', label: 'Església', zone: FigureZone.DECORATION, z: 0,
+      positionType: 'rectangle', x: 200, y: 300, width: 120, height: 80,
+      rotation: 0, color: '#999999', shape: NodeShape.RECTANGLE, sortOrder: 20,
+      ringLevel: null, originNodeId: null, renglaId: null, renglaPosition: null,
+      sourceNodeId: null, isSnapshotted: true, isAdHoc: true, createdById: 'user-1',
+    };
+
+    beforeEach(() => {
+      const nodes = [...makeInstanceNodes(), decorationNode];
+      component.tabs.update((list) => list.map((t) => ({ ...t, nodes })));
+      fixture.detectChanges();
+    });
+
+    it('onNodeSelected with DECORATION node selects but does NOT trigger assign', () => {
+      stateService.setSelectedPersonId('person-1');
+      component.onNodeSelected('dec-1');
+
+      expect(stateService.selectedNodeId()).toBe('dec-1');
+      expect(assignmentService.assign).not.toHaveBeenCalled();
+    });
+
+    it('onNodeSelected with DECORATION node does NOT trigger swap', () => {
+      const a1 = makeAssignment('inode-1', 'person-1');
+      stateService.assignments.set([a1]);
+      stateService.setSelectedNodeId('inode-1');
+
+      component.onNodeSelected('dec-1');
+
+      expect(assignmentService.swap).not.toHaveBeenCalled();
+      expect(stateService.selectedNodeId()).toBe('dec-1');
+    });
+
+    it('Delete key on selected DECORATION node calls deleteAdHocNode', () => {
+      stateService.selectedNodeId.set('dec-1');
+      stateService.assignments.set([]);
+
+      const event = new KeyboardEvent('keydown', { key: 'Delete', bubbles: true });
+      document.body.dispatchEvent(event);
+
+      expect(assignmentService.deleteAdHocNode).toHaveBeenCalledWith(INSTANCE_ID, 'dec-1');
+    });
+
+    it('onCanvasClicked during DECORATION placement calls createAdHocNode with DECORATION zone', () => {
+      const decPreset = AD_HOC_DECORATION_PRESETS[0];
+      stateService.enterPlacementMode(decPreset, 'Església');
+      stateService.activeInstanceId.set(INSTANCE_ID);
+
+      component.onCanvasClicked({ x: 300, y: 400 });
+
+      expect(assignmentService.createAdHocNode).toHaveBeenCalledWith(
+        INSTANCE_ID,
+        expect.objectContaining({
+          x: 300,
+          y: 400,
+          zone: FigureZone.DECORATION,
+          label: 'Església',
+        }),
+      );
+    });
+  });
+
+  // ── DIRECTION presets (Phase 3) ──────────────────────────────────────────────
+
+  describe('DIRECTION presets', () => {
+    const directionNode: InstanceNodeItem = {
+      id: 'dir-1', label: 'Direcció Figura', zone: FigureZone.PINYA, z: 0,
+      positionType: 'figure-direction', x: 50, y: 50, width: 80, height: 40,
+      rotation: 0, color: '#7C3AED', shape: NodeShape.RECTANGLE, sortOrder: 30,
+      ringLevel: null, originNodeId: null, renglaId: null, renglaPosition: null,
+      sourceNodeId: null, isSnapshotted: true, isAdHoc: true, createdById: 'user-1',
+    };
+
+    it('direction preset enters placement mode directly (no label dialog)', () => {
+      const preset = AD_HOC_DIRECTION_PRESETS[0];
+      component.onPresetSelected(preset);
+
+      expect(stateService.isPlacementMode()).toBe(true);
+      expect(component.comodinInputOpen()).toBe(false);
+    });
+
+    it('direction node creation via canvas click dispatches createAdHocNode with correct zone', () => {
+      const preset = AD_HOC_DIRECTION_PRESETS[0];
+      stateService.enterPlacementMode(preset);
+      stateService.activeInstanceId.set(INSTANCE_ID);
+
+      component.onCanvasClicked({ x: 60, y: 70 });
+
+      expect(assignmentService.createAdHocNode).toHaveBeenCalledWith(
+        INSTANCE_ID,
+        expect.objectContaining({
+          x: 60,
+          y: 70,
+          zone: preset.zone,
+          label: preset.label,
+        }),
+      );
+    });
+
+    it('direction node is assignable (onNodeSelected triggers assign)', () => {
+      const nodes = [...makeInstanceNodes(), directionNode];
+      component.tabs.update((list) => list.map((t) => ({ ...t, nodes })));
+      stateService.activeTabNodes.set(nodes);
+      stateService.setSelectedPersonId('person-1');
+      fixture.detectChanges();
+
+      component.onNodeSelected('dir-1');
+
+      expect(assignmentService.assign).toHaveBeenCalled();
+    });
+  });
+
+  // ── Node duplication (Phase 4) ───────────────────────────────────────────────
+
+  describe('node duplication (Ctrl+D)', () => {
+    const adHocNode: InstanceNodeItem = {
+      id: 'adhoc-dup', label: 'Agulla', zone: FigureZone.PINYA, z: 0,
+      positionType: 'agulla', x: 100, y: 200, width: 80, height: 40,
+      rotation: 15, color: '#0d9488', shape: NodeShape.RECTANGLE, sortOrder: 10,
+      ringLevel: null, originNodeId: null, renglaId: null, renglaPosition: null,
+      sourceNodeId: null, isSnapshotted: true, isAdHoc: true, createdById: 'user-1',
+    };
+
+    const dispatchCtrlD = () => {
+      document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', ctrlKey: true, bubbles: true }));
+    };
+
+    beforeEach(() => {
+      const nodes = [...makeInstanceNodes(), adHocNode];
+      component.tabs.update((list) => list.map((t) => ({ ...t, nodes })));
+      stateService.activeTabNodes.set(nodes);
+      stateService.activeInstanceId.set(INSTANCE_ID);
+      fixture.detectChanges();
+    });
+
+    it('Ctrl+D on selected ad-hoc node calls createAdHocNode with offset and copy suffix', () => {
+      stateService.selectedNodeId.set('adhoc-dup');
+
+      dispatchCtrlD();
+
+      expect(assignmentService.createAdHocNode).toHaveBeenCalledWith(
+        INSTANCE_ID,
+        expect.objectContaining({
+          zone: FigureZone.PINYA,
+          positionType: 'agulla',
+          label: 'Agulla',
+          x: 120,
+          y: 220,
+          width: 80,
+          height: 40,
+          rotation: 15,
+          color: '#0d9488',
+        }),
+      );
+    });
+
+    it('Ctrl+D with no ad-hoc selection does nothing', () => {
+      stateService.selectedNodeId.set(null);
+
+      dispatchCtrlD();
+
+      expect(assignmentService.createAdHocNode).not.toHaveBeenCalled();
+    });
+
+    it('Ctrl+D on template node does nothing', () => {
+      stateService.selectedNodeId.set('inode-1');
+
+      dispatchCtrlD();
+
+      expect(assignmentService.createAdHocNode).not.toHaveBeenCalled();
+    });
+
+    it('Ctrl+D when locked does nothing', () => {
+      stateService.selectedNodeId.set('adhoc-dup');
+      (component as unknown as { lockStatus: { set: (v: unknown) => void } }).lockStatus.set({ locked: true, lockDate: '2026-01-01', lockDays: 2 });
+
+      dispatchCtrlD();
+
+      expect(assignmentService.createAdHocNode).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── Keyboard shortcuts Ctrl+1..9 (Phase 4) ──────────────────────────────────
+
+  describe('keyboard shortcuts (Ctrl+1..9)', () => {
+    beforeEach(() => {
+      stateService.activeInstanceId.set(INSTANCE_ID);
+      component.tabs.update((list) => list.map((t) => ({ ...t, instanceId: INSTANCE_ID })));
+      fixture.detectChanges();
+    });
+
+    const dispatchCtrlDigit = (digit: number) => {
+      document.body.dispatchEvent(new KeyboardEvent('keydown', { key: String(digit), ctrlKey: true, bubbles: true }));
+    };
+
+    it('Ctrl+1 enters placement mode for first pinya preset (Agulla)', () => {
+      dispatchCtrlDigit(1);
+
+      expect(stateService.isPlacementMode()).toBe(true);
+      expect(stateService.placementPreset()).toBe(AD_HOC_PINYA_PRESETS[0]);
+    });
+
+    it('Ctrl+9 opens comodin label dialog', () => {
+      dispatchCtrlDigit(9);
+
+      expect(component.comodinInputOpen()).toBe(true);
+      expect(stateService.isPlacementMode()).toBe(false);
+    });
+
+    it('Ctrl+1 while locked does nothing', () => {
+      (component as unknown as { lockStatus: { set: (v: unknown) => void } }).lockStatus.set({ locked: true, lockDate: '2026-01-01', lockDays: 2 });
+
+      dispatchCtrlDigit(1);
+
+      expect(stateService.isPlacementMode()).toBe(false);
+    });
+
+    it('Ctrl+1 while already in placement mode does nothing', () => {
+      stateService.enterPlacementMode(AD_HOC_PINYA_PRESETS[2]);
+
+      dispatchCtrlDigit(1);
+
+      expect(stateService.placementPreset()).toBe(AD_HOC_PINYA_PRESETS[2]);
+    });
+
+    it('Ctrl+1 while help modal open does nothing', () => {
+      component.helpModalOpen.set(true);
+
+      dispatchCtrlDigit(1);
+
+      expect(stateService.isPlacementMode()).toBe(false);
     });
   });
 });

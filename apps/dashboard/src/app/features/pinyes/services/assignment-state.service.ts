@@ -1,8 +1,10 @@
 import { Injectable, computed, signal } from '@angular/core';
+import { AdHocNodePreset } from '@muixer/shared';
 import {
   AssignmentDetail,
   AvailablePerson,
   HeightMode,
+  InstanceNodeItem,
   PendingOp,
 } from '../models/assignment.model';
 
@@ -30,6 +32,20 @@ export class AssignmentStateService {
   readonly pendingOperations = signal<PendingOp[]>([]);
   /** Increment to request person-panel reload */
   readonly personListRefreshTrigger = signal(0);
+
+  /** Ad-hoc placement mode */
+  readonly isPlacementMode = signal<boolean>(false);
+  readonly placementPreset = signal<AdHocNodePreset | null>(null);
+  readonly placementCustomLabel = signal<string | null>(null);
+
+  /** Current active tab's nodes — set by AssignmentCanvasComponent */
+  readonly activeTabNodes = signal<InstanceNodeItem[]>([]);
+
+  /** Derived: only ad-hoc nodes from the active tab */
+  readonly adHocNodes = computed(() =>
+    this.activeTabNodes().filter((n) => n.isAdHoc),
+  );
+  readonly hasAdHocNodes = computed(() => this.adHocNodes().length > 0);
 
   /** Number of confirmed (ANIRE) persons not yet assigned in the current segment */
   readonly freePersonsCount = computed(() => {
@@ -68,6 +84,20 @@ export class AssignmentStateService {
     this.personListRefreshTrigger.update((n) => n + 1);
   }
 
+  enterPlacementMode(preset: AdHocNodePreset, customLabel?: string): void {
+    this.isPlacementMode.set(true);
+    this.placementPreset.set(preset);
+    this.placementCustomLabel.set(customLabel ?? null);
+    this.selectedNodeId.set(null);
+    this.selectedPersonId.set(null);
+  }
+
+  exitPlacementMode(): void {
+    this.isPlacementMode.set(false);
+    this.placementPreset.set(null);
+    this.placementCustomLabel.set(null);
+  }
+
   reset(): void {
     this.selectedNodeId.set(null);
     this.selectedPersonId.set(null);
@@ -79,5 +109,9 @@ export class AssignmentStateService {
     this.heightMode.set('relative');
     this.panelCollapsed.set(false);
     this.pendingOperations.set([]);
+    this.isPlacementMode.set(false);
+    this.placementPreset.set(null);
+    this.placementCustomLabel.set(null);
+    this.activeTabNodes.set([]);
   }
 }

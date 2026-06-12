@@ -26,7 +26,7 @@
 | P5.1 | **Pinyes** — Templates i Editor Visual | ✅ Completat | [`spec`](specs/2026-05-07-p5-figures-module-overview-design.md) | ✅ | ✅ | Backend CRUD FigureTemplate+FigureNode, Konva editor (pinya+tronc), auto-save |
 | P5.2 | **Pinyes** — Composicions | ✅ Completat | [`spec`](specs/2026-05-08-p5-2-compositions-design.md) | ✅ | ✅ | CompositionModule + CompositionEditorComponent (canvas multi-figura). P5.2.1: fixes canvas + UX |
 | P5.3 | **Pinyes** — Segments i Instàncies | ✅ Completat | — | — | ✅ | EventSegmentModule + SegmentManagerComponent inline. Pendent: revisió UX (P5.3.1) |
-| P5.3.1 | Pinyes — Revisió UX Segments | ⚪ Pendent | — | — | — | Tab dedicat "Pinyes" a event-detail, preview canvas, navegació fluida |
+| P5.3.1 | Pinyes — Revisió UX Segments | ⚪ Pendent | — | — | — | Tab dedicat "Pinyes" a event-detail, preview canvas, navegació fluida. Inclou mètriques d'adults i stat cards (parcialment fet) |
 | P5.4 | **Pinyes** — Assignació de Persones | ✅ Completat | [`spec`](specs/2026-05-11-p5-3-event-segments-figure-instances.md) | ✅ | ✅ | NodeAssignment + AssignmentCanvas + PersonPanel, optimistic UI, pick-and-place |
 | P5.5 | **Pinyes** — Famílies, Snapshot i Creixement Concèntric | ✅ Completat | [`spec`](specs/2026-05-19-p5-family-snapshot-redesign.md) | — | ✅ | FigureFamily+InstanceNode, lazy snapshot, upgrade de cordó, upsert estable |
 | P5.6 | **Pinyes** — Visualització i Assignació de Troncs | ✅ Completat | [`spec`](specs/2026-05-20-p5-tronc-visualization-design.md) | — | ✅ | TroncViewComponent (CSS Grid), unitats relatives 0.5u–8u, variance per pis |
@@ -36,14 +36,55 @@
 | P5.9 | **Pinyes** — Vista de Projecció (refinada) | ✅ Completat | — | — | ✅ | Grid CSS responsive, vista Troncs `?view=troncs`, panells flotants, HUD navegació |
 | P5.10 | **Pinyes** — Posicions, Lock i Historials | ✅ Completat | [`spec`](specs/2026-05-26-p5-10-positions-lock-history-design.md) | ✅ | ✅ | PositionModule + lock automàtic + filtre per posició + historials (persona/event/família) |
 | P5.11 | **Pinyes** — Integració de Rengles | ✅ Completat | [`spec`](specs/2026-05-28-rengles-integration-spec.md) | ✅ | ✅ | Rengla entity, editor de rengles, ghost clone, selector de cordons, projecció filtrada |
+| P5.12 | **Pinyes** — Nodes Ad-Hoc a Instàncies | ✅ Completat | [`spec`](specs/2026-06-10-ad-hoc-instance-nodes-design.md) | ✅ | ✅ | 5 fases: PINYA ad-hoc, DECORATION, DIRECTION, undo/redo, save-as-template. Substitueix `ReferenceElement` |
+| R1 | **Refactor** — Eliminació de FigureFamily | ✅ Completat | — | — | ✅ | Migració DB, simplificació model (FamilyNode → FigureNode directe), cleanup frontend |
+| R2 | **Refactor** — Eliminació de ReferenceElement | ✅ Completat | — | — | ✅ | Mòdul eliminat, substituït per nodes DECORATION ad-hoc (P5.12) |
+| I1 | **Infra** — Entorn PRE (Hetzner VPS) | ✅ Completat | — | — | ✅ | Caddy reverse proxy, Docker Compose pre, scripts deploy, cookie secure condicional |
+| I2 | **Infra** — Migració a pnpm | ✅ Completat | — | — | ✅ | pnpm workspace, lockfile, CI adaptat |
 | P6 | PWA Mòbil | ⚪ Pendent | — | — | — | Diferit fins al tall. Estén l'auth de P4.1 als membres |
 | P7 | Informes + Notificacions + Features avançades | ⚪ Pendent | — | — | — | Reports d'assistència, FCM, estadístiques, notícies |
 
 **Llegenda:** ⚪ Pendent | 🟡 Dissenyant | 🔵 En curs | ✅ Completat | ❌ Cancel·lat
 
+> **Prefixos:** `P` = producte, `R` = refactor, `I` = infraestructura
+>
 > El detall complet de cada fase del **Mòdul Pinyes (P5.x)** viu a [PINYES_MODULE.md](PINYES_MODULE.md)
 > (conceptes de domini, model de dades, cicle de vida, upgrade, API, arquitectura frontend, troncs,
-> famílies, convenció de bases, projecció). Vegeu també les specs enllaçades a la taula.
+> convenció de bases, projecció, nodes ad-hoc). Vegeu també les specs enllaçades a la taula.
+
+---
+
+## Pròxims Desenvolupaments (proposta)
+
+### Curt termini (juliol 2026)
+
+| ID | Proposta | Esforç | Impacte | Justificació |
+|----|----------|--------|---------|--------------|
+| P5.3.1 | **Revisió UX Segments** — Tab "Pinyes" a event-detail, preview canvas inline, navegació fluida entre segments | M | Alt | UX fragmentada: els tècnics han de navegar massa clics per arribar al canvas d'assignació |
+| P5.13 | **Editor de Templates v2** — Reordenar nodes drag-and-drop, duplicar template, importar nodes d'altra plantilla | S | Mitjà | Feedback tècnics: crear templates similars és repetitiu |
+| Q1 | **Qualitat** — E2E tests (Playwright) per a fluxos crítics: login → crear event → assignar → projectar | M | Alt | Cobertura E2E = 0%. Risc de regressions en fluxos multi-pàgina |
+
+### Mitjà termini (agost–setembre 2026)
+
+| ID | Proposta | Esforç | Impacte | Justificació |
+|----|----------|--------|---------|--------------|
+| P6.1 | **PWA — Auth + Visualització** — Login membre, veure events propis, confirmar assistència, veure pinyes (readonly) | L | Molt alt | Desbloqueig per a tots els membres de la colla. Prerequisit: res (reutilitza AuthModule P4.1) |
+| P6.2 | **PWA — Notificacions push** — FCM/Web Push per a convocatòries i recordatoris | M | Alt | Complementa P6.1 — sense push la PWA perd adopció |
+| P8 | **Dashboard d'Estadístiques** — Assistència per persona/temporada, ranking, participació en figures, gràfics | M | Alt | Dades ja disponibles. Valor per a junta i tècnics |
+
+### Llarg termini (Q4 2026+)
+
+| ID | Proposta | Esforç | Impacte | Justificació |
+|----|----------|--------|---------|--------------|
+| P9 | **Multi-tenant** — `collaId` al JWT, guard de tenant, branding dinàmic (logo, colors), onboarding colla | XL | Estratègic | Permet oferir l'app a altres colles. Prerequisit: P6 estable |
+| P10 | **Exportació i Impressió** — PDF de pinyes (canvas → imatge), llistats d'assistència imprimibles, CSV | S | Mitjà | Tècnics demanen imprimir les pinyes per als assajos |
+| P11 | **Historial i Auditoria** — Log d'accions (qui va canviar què), versionat de templates, rollback d'assignacions | L | Mitjà | Traçabilitat per a decisions tècniques |
+
+**Llegenda esforç:** S = 1-3 dies | M = 1-2 setmanes | L = 3-4 setmanes | XL = 1-2 mesos
+
+> **Recomanació:** Prioritzar **P5.3.1 → Q1 → P6.1** com a camí crític. La PWA és el multiplier de valor
+> més gran (passa de ~5 tècnics a ~40 membres actius). E2E tests abans de P6 redueixen el risc de
+> regressions durant el desenvolupament mòbil.
 
 ---
 
@@ -51,20 +92,27 @@
 
 ```
 P0 (Scaffold)
- ├── P1 (Usuaris + Persones) ──┬── P3 (Events + Assistència)
+ ├── P1 (Usuaris + Persones) ──┬── P3 (Events + Assistència + Seasons CRUD)
  │                              │
  └── P2 (Data Migration) ───────┤
                                  └── P4.1 (Auth Layer) ← prerequisit seguretat
-                                          └── P4.2 (Dashboard Events + Assistència)
-                                                  └── P5 (Pinyes i Figures)
-                                                          └── P6 (PWA Mòbil)
-                                                                  └── P7 (Informes + Notificacions)
+                                     ├── I1 (PRE Hetzner) ← deploy continu
+                                     └── P4.2 (Dashboard Events + Assistència)
+                                             └── P5 (Pinyes: P5.1→P5.12) ← ✅ completat
+                                                 ├── P5.3.1 (UX Segments) ← pendent
+                                                 ├── P5.13 (Editor Templates v2)
+                                                 ├── Q1 (E2E tests) ← recomanat abans P6
+                                                 └── P6 (PWA Mòbil: P6.1 Auth+View → P6.2 Push)
+                                                     ├── P8 (Dashboard Estadístiques)
+                                                     └── P9 (Multi-tenant) ← estratègic
 
 Decisions clau d'ordre:
-  - P4.1 primer: cal auth per desplegar a servidor sense exposar l'API
-  - P5 avançat respecte PWA: dades legacy suficients per validar canvas amb tècnics
+  - P5 complet (P5.1→P5.12): mòdul operatiu de punta a punta amb tècnics
+  - P5.3.1 immediat: UX polish necessari abans d'obrir als membres
+  - Q1 (E2E) abans P6: xarxa de seguretat contra regressions multi-pàgina
   - P6 diferit: membres seguiran usant el legacy fins al tall oficial
   - P6 reutilitza l'AuthModule de P4.1 sense reimplementar-lo
+  - P9 (multi-tenant) requereix P6 estable i validació amb 1a colla
 ```
 
 ---
@@ -87,6 +135,9 @@ Decisions clau d'ordre:
 | Token storage (Dashboard) | Memòria/signal (access token) + `httpOnly cookie` (refresh token) | Abr 2026 |
 | CORS | Array d'orígens via `CORS_ORIGINS` env (Dashboard + PWA) | Abr 2026 |
 | Canvas library (pinyes i figures) | `konva` (API imperativa directa, sense `ng2-konva` — incompatible amb Angular 20+) | Mai 2026 (P5.1) |
+| Package manager | `pnpm` (migrat des de npm per velocitat i espai disc) | Juny 2026 |
+| Entorn PRE | Hetzner VPS + Caddy reverse proxy + Docker Compose | Juny 2026 (I1) |
+| Ad-hoc nodes strategy | Single-table extension (`isAdHoc` discriminator a `InstanceNode`), no taules noves | Juny 2026 (P5.12) |
 
 ---
 
@@ -97,6 +148,7 @@ El roadmap no duplica el detall tècnic. Cada tema té un doc autoritzat:
 | Tema | Document |
 |------|----------|
 | Mòdul Pinyes (P5.x) — domini, model, cicle de vida, API, frontend | [PINYES_MODULE.md](PINYES_MODULE.md) |
+| Nodes Ad-Hoc (P5.12) — spec general, 5 fases | [`spec`](specs/2026-06-10-ad-hoc-instance-nodes-design.md) · [`plans/`](specs/plans/) |
 | Dashboard UI — design system, components shared, patterns (P4.3) | [DASHBOARD_UI.md](DASHBOARD_UI.md) |
 | Model de dades — entitats, camps, relacions, model User/Person | [DATA_MODEL.md](DATA_MODEL.md) |
 | Autenticació — login, refresh, guards, variables | [AUTH_FLOW.md](AUTH_FLOW.md) |

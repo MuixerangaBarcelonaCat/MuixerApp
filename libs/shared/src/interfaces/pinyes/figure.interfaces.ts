@@ -49,3 +49,9 @@ export interface FigureTemplateDetail extends FigureTemplateListItem {
   nodes: FigureNodeItem[];
   rengles: RenglaItem[];
 }
+
+export interface SaveFromInstancePayload {
+  instanceId: string;
+  mode: 'overwrite' | 'new_version';
+  name?: string;
+}

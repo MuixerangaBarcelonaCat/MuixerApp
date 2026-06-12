@@ -8,9 +8,9 @@ import {
   OnInit,
   signal,
 } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Location } from '@angular/common';
-import { LucideAngularModule, ArrowLeft, Users, Edit, RefreshCw, Trash2, X, PanelLeft, PanelLeftClose, Monitor, Lock, SlidersHorizontal } from 'lucide-angular';
+import { LucideAngularModule, ArrowLeft, Users, Edit, RefreshCw, Trash2, X, PanelLeft, PanelLeftClose, Monitor, Lock, SlidersHorizontal, Plus, HelpCircle, Undo2, Redo2, Save } from 'lucide-angular';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { NodeAssignmentService, LockStatus } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
@@ -19,10 +19,12 @@ import { FigureInstanceService } from '../../services/figure-instance.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component';
 import { PersonPanelComponent } from '../person-panel/person-panel.component';
-import { NodePopoverComponent } from '../node-popover/node-popover.component';
 import { ImportPinyaModalComponent } from '../import-pinya-modal/import-pinya-modal.component';
 import { TroncViewComponent } from '../tronc-view/tronc-view.component';
 import { CordonsDialogComponent, CordonsDialogSaveEvent } from '../cordons-dialog/cordons-dialog.component';
+import { AdHocNodesHelpModalComponent } from '../ad-hoc-nodes-help-modal/ad-hoc-nodes-help-modal.component';
+import { AdHocNodePropertiesComponent } from '../ad-hoc-node-properties/ad-hoc-node-properties.component';
+import { SaveAsTemplateDialogComponent, SaveAsTemplateResult } from '../save-as-template-dialog/save-as-template-dialog.component';
 import {
   AssignmentDetail,
   AttendanceStatus,
@@ -30,12 +32,15 @@ import {
   BulkImportResult,
   InstanceNodeItem,
   PendingOp,
+  UpdateAdHocNodePayload,
 } from '../../models/assignment.model';
 import { SegmentDetail } from '../../models/segment.model';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { RenglaModel } from '../../models/figure-template.model';
-import { FigureZone } from '@muixer/shared';
+import { FigureZone, AD_HOC_PINYA_PRESETS, AD_HOC_DECORATION_PRESETS, AD_HOC_DIRECTION_PRESETS, AdHocNodePreset } from '@muixer/shared';
 import { repositionCordoObertNodes } from '../../utils/cordo-obert-reposition.util';
+import { Observable } from 'rxjs';
+import { UndoRedoService, UndoableAction } from '../../services/undo-redo.service';
 
 interface InstanceTab {
   instanceId: string;
@@ -58,16 +63,20 @@ interface InstanceTab {
     LucideAngularModule,
     FigureCanvasComponent,
     PersonPanelComponent,
-    NodePopoverComponent,
     ImportPinyaModalComponent,
     TroncViewComponent,
     CordonsDialogComponent,
+    AdHocNodesHelpModalComponent,
+    AdHocNodePropertiesComponent,
+    SaveAsTemplateDialogComponent,
   ],
   templateUrl: './assignment-canvas.component.html',
   styleUrl: './assignment-canvas.component.scss',
+  providers: [UndoRedoService],
 })
 export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly location = inject(Location);
   private readonly layout = inject(LayoutService);
   private readonly assignmentService = inject(NodeAssignmentService);
@@ -76,6 +85,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   private readonly instanceService = inject(FigureInstanceService);
   private readonly toast = inject(ToastService);
   readonly state = inject(AssignmentStateService);
+  readonly undoRedo = inject(UndoRedoService);
 
   readonly ArrowLeft = ArrowLeft;
   readonly Users = Users;
@@ -88,6 +98,17 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly Monitor = Monitor;
   readonly Lock = Lock;
   readonly SlidersHorizontal = SlidersHorizontal;
+  readonly Plus = Plus;
+  readonly HelpCircle = HelpCircle;
+  readonly Undo2 = Undo2;
+  readonly Redo2 = Redo2;
+  readonly SaveIcon = Save;
+
+  readonly saveAsTemplateOpen = signal(false);
+
+  readonly adHocPresets = AD_HOC_PINYA_PRESETS;
+  readonly decorationPresets = AD_HOC_DECORATION_PRESETS;
+  readonly directionPresets = AD_HOC_DIRECTION_PRESETS;
 
   readonly eventId = signal('');
   readonly segmentId = signal('');
@@ -108,6 +129,34 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly isLocked = computed(() => this.lockStatus()?.locked ?? false);
 
   readonly troncPanelOpen = signal(false);
+  readonly adHocPropertiesOpen = signal(false);
+
+  readonly deleteAdHocModalOpen = signal(false);
+  readonly pendingDeleteNodeId = signal<string | null>(null);
+  readonly pendingDeleteNodeLabel = computed(() => {
+    const nodeId = this.pendingDeleteNodeId();
+    if (!nodeId) return '';
+    return this.activeNodes().find((n) => n.id === nodeId)?.label ?? '';
+  });
+  readonly pendingDeletePersonName = computed(() => {
+    const nodeId = this.pendingDeleteNodeId();
+    if (!nodeId) return '';
+    const assignment = this.state.assignments().find((a) => a.node.id === nodeId);
+    if (!assignment) return '';
+    return assignment.person.alias || `${assignment.person.name} ${assignment.person.firstSurname}`;
+  });
+  readonly helpModalOpen = signal(false);
+  readonly comodinInputOpen = signal(false);
+  readonly comodinLabel = signal('');
+  readonly clipboardAdHocNode = signal<{ zone: string; positionType: string | null; label: string; width: number; height: number; shape: string; color: string | null; rotation: number } | null>(null);
+  readonly fabDropdownOpen = signal(false);
+  readonly fabDecorationOpen = signal(false);
+  readonly fabDirectionOpen = signal(false);
+
+  private lastMoveUndoTime = 0;
+  private lastMoveNodeId: string | null = null;
+  private moveOrigin: { x: number; y: number } | null = null;
+  private static readonly MOVE_COALESCE_MS = 500;
 
   readonly templateRengles = signal<RenglaModel[]>([]);
   readonly maxCordons = signal(0);
@@ -132,6 +181,25 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly selectedNode = computed(() => {
     const id = this.state.selectedNodeId();
     return id ? (this.activeNodes().find((n) => n.id === id) ?? null) : null;
+  });
+
+  /** Selected ad-hoc node (null if selection is a template node or nothing). */
+  readonly selectedAdHocNode = computed(() => {
+    const node = this.selectedNode();
+    return node?.isAdHoc ? node : null;
+  });
+
+  /** Ad-hoc node to show in the properties panel (only when panel explicitly opened via double-click). */
+  readonly adHocNodeForPanel = computed(() => {
+    if (!this.adHocPropertiesOpen()) return null;
+    return this.selectedAdHocNode();
+  });
+
+  /** Assignment for the selected ad-hoc node (if any). */
+  readonly selectedAdHocAssignment = computed(() => {
+    const node = this.selectedAdHocNode();
+    if (!node) return null;
+    return this.state.assignments().find((a) => a.node.id === node.id) ?? null;
   });
 
   /** Nodes rendered on the pinya Konva canvas (PINYA + BASE + direction zones, no TRONC). */
@@ -180,6 +248,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.layout.exitFullscreen();
+    this.undoRedo.clear();
   }
 
   @HostListener('document:keydown', ['$event'])
@@ -194,6 +263,30 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
     if (event.key === 'Escape') {
       event.preventDefault();
+      if (this.fabDropdownOpen()) {
+        this.fabDropdownOpen.set(false);
+        return;
+      }
+      if (this.fabDecorationOpen()) {
+        this.fabDecorationOpen.set(false);
+        return;
+      }
+      if (this.fabDirectionOpen()) {
+        this.fabDirectionOpen.set(false);
+        return;
+      }
+      if (this.state.isPlacementMode()) {
+        this.state.exitPlacementMode();
+        return;
+      }
+      if (this.deleteAdHocModalOpen()) {
+        this.cancelDeleteAdHocNode();
+        return;
+      }
+      if (this.adHocPropertiesOpen()) {
+        this.adHocPropertiesOpen.set(false);
+        return;
+      }
       this.state.setSelectedNodeId(null);
       this.state.setSelectedPersonId(null);
       this.popoverAssignment.set(null);
@@ -204,6 +297,85 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
       event.preventDefault();
       this.advanceToNextEmptyNodeFromCurrent();
       return;
+    }
+
+    if ((event.key === 'Delete' || event.key === 'Backspace') && !this.isLocked()) {
+      const selectedId = this.state.selectedNodeId();
+      if (!selectedId) return;
+      const node = this.activeNodes().find((n) => n.id === selectedId);
+      if (!node?.isAdHoc) return;
+      event.preventDefault();
+
+      const isAssigned = this.state.assignments().some((a) => a.node.id === selectedId);
+      if (isAssigned) {
+        this.pendingDeleteNodeId.set(selectedId);
+        this.deleteAdHocModalOpen.set(true);
+      } else {
+        this.deleteAdHocNode(selectedId);
+      }
+      return;
+    }
+
+    const ARROW_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+    if (ARROW_KEYS.includes(event.key) && !this.isLocked()) {
+      const selectedId = this.state.selectedNodeId();
+      if (!selectedId) return;
+      const node = this.activeNodes().find((n) => n.id === selectedId);
+      if (!node?.isAdHoc) return;
+      event.preventDefault();
+      this.moveAdHocNodeByKey(selectedId, node, event.key, event.shiftKey);
+      return;
+    }
+
+    if (event.key === 'z' && (event.ctrlKey || event.metaKey) && !event.shiftKey && !this.isLocked()) {
+      event.preventDefault();
+      this.performUndo();
+      return;
+    }
+
+    if (event.key === 'z' && (event.ctrlKey || event.metaKey) && event.shiftKey && !this.isLocked()) {
+      event.preventDefault();
+      this.performRedo();
+      return;
+    }
+
+    if (event.key === 'c' && (event.ctrlKey || event.metaKey) && !this.isLocked()) {
+      event.preventDefault();
+      this.copySelectedAdHocNode();
+      return;
+    }
+
+    if (event.key === 'v' && (event.ctrlKey || event.metaKey) && !this.isLocked()) {
+      event.preventDefault();
+      this.pasteAdHocNode();
+      return;
+    }
+
+    if (event.key === 'd' && (event.ctrlKey || event.metaKey) && !this.isLocked()) {
+      event.preventDefault();
+      const node = this.selectedAdHocNode();
+      if (!node) return;
+      this.duplicateAdHocNode(node);
+      return;
+    }
+
+    // Keyboard shortcuts
+    if (event.ctrlKey || event.metaKey) {
+      const digit = parseInt(event.key, 10);
+      if (
+        digit >= 1 && digit <= 9
+        && !this.isLocked()
+        && this.activeTab()
+        && !this.state.isPlacementMode()
+        && !this.helpModalOpen()
+        && !this.comodinInputOpen()
+        && !this.deleteAdHocModalOpen()
+      ) {
+        event.preventDefault();
+        const preset = this.adHocPresets[digit - 1];
+        if (preset) this.onPresetSelected(preset);
+        return;
+      }
     }
   }
 
@@ -298,7 +470,9 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     this.state.activeInstanceId.set(instanceId);
     this.state.selectedNodeId.set(null);
     this.popoverAssignment.set(null);
+    this.adHocPropertiesOpen.set(false);
     this.highlightedNodeIds.set(new Set());
+    this.undoRedo.clear();
     this.loadTabData(instanceId);
     this.loadTemplateRenglesForTab(instanceId);
   }
@@ -316,6 +490,9 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
               : t,
           ),
         );
+        if (this.state.activeInstanceId() === instanceId) {
+          this.state.activeTabNodes.set(resp.data);
+        }
       },
     });
 
@@ -368,10 +545,85 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     });
   }
 
+  onCanvasClicked(event: { x: number; y: number }): void {
+    this.fabDropdownOpen.set(false);
+    if (!this.state.isPlacementMode()) return;
+    const preset = this.state.placementPreset();
+    if (!preset) return;
+
+    const instanceId = this.state.activeInstanceId();
+    if (!instanceId) return;
+
+    const label = preset.requiresCustomLabel
+      ? (this.state.placementCustomLabel() || 'Comodí')
+      : preset.label;
+
+    const createPayload = {
+      zone: preset.zone,
+      positionType: preset.positionType ?? undefined,
+      label,
+      x: event.x,
+      y: event.y,
+      width: preset.width,
+      height: preset.height,
+      shape: preset.shape,
+      color: preset.color ?? undefined,
+    };
+
+    this.assignmentService.createAdHocNode(instanceId, createPayload).subscribe({
+      next: (created) => {
+        this.state.exitPlacementMode();
+        this.refreshInstanceNodes(instanceId);
+        this.toast.success(`Node "${label}" creat.`);
+
+        let lastCreatedId = created.id;
+        const action: UndoableAction = {
+          type: 'CREATE',
+          description: `Crear ${label}`,
+          execute: () => {
+            const obs = this.assignmentService.createAdHocNode(instanceId, createPayload);
+            return new Observable<void>((sub) => {
+              obs.subscribe({
+                next: (re) => { lastCreatedId = re.id; sub.next(); sub.complete(); },
+                error: (err) => sub.error(err),
+              });
+            });
+          },
+          undo: () => this.assignmentService.deleteAdHocNode(instanceId, lastCreatedId),
+        };
+        this.undoRedo.push(action);
+      },
+      error: (err) => {
+        this.state.exitPlacementMode();
+        const msg = err?.error?.message ?? 'Error en crear el node.';
+        this.toast.error(msg);
+      },
+    });
+  }
+
   onNodeSelected(nodeId: string | null): void {
+    this.fabDropdownOpen.set(false);
+    this.fabDecorationOpen.set(false);
+    this.fabDirectionOpen.set(false);
     if (this.isLocked()) return;
+
+    const previousNodeId = this.state.selectedNodeId();
+    if (nodeId !== previousNodeId) {
+      this.adHocPropertiesOpen.set(false);
+    }
+
     if (!nodeId) {
       this.state.setSelectedNodeId(null);
+      this.popoverAssignment.set(null);
+      return;
+    }
+
+    const activeNodes = this.activePinyaNodes();
+    const clickedNode = activeNodes.find((n) => n.id === nodeId);
+    const isDecorationNode = clickedNode?.zone === FigureZone.DECORATION;
+
+    if (isDecorationNode) {
+      this.state.setSelectedNodeId(nodeId);
       this.popoverAssignment.set(null);
       return;
     }
@@ -407,6 +659,13 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     this.popoverPosition.set({ x: event.x, y: event.y });
   }
 
+  onNodeDoubleClicked(nodeId: string): void {
+    const node = this.activeNodes().find((n) => n.id === nodeId);
+    if (node?.isAdHoc) {
+      this.adHocPropertiesOpen.set(true);
+    }
+  }
+
   onTroncNodeClicked(event: { nodeId: string; event: MouseEvent }): void {
     const target = event.event.currentTarget as HTMLElement | null;
     if (target) {
@@ -421,6 +680,12 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
     if (!selectedNodeId) {
       this.state.setSelectedPersonId(person.id);
+      return;
+    }
+
+    const selectedNodeData = this.activeNodes().find((n) => n.id === selectedNodeId);
+    if (selectedNodeData?.zone === FigureZone.DECORATION) {
+      this.toast.error('Els nodes decoratius no es poden assignar.');
       return;
     }
 
@@ -479,7 +744,6 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
         );
         this.state.pendingOperations.update((ops) => ops.filter((o) => o.id !== op.id));
 
-        // After first assignment the instance becomes snapshotted — refresh nodes to get InstanceNode IDs
         if (tab && !tab.snapshotted) {
           this.refreshInstanceNodes(instanceId);
         }
@@ -487,6 +751,23 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
         this.updateTabCount(instanceId);
         this.state.refreshPersonList();
         this.advanceToNextEmptyNode(created.node.id);
+
+        let lastAssignId = created.id;
+        const action: UndoableAction = {
+          type: 'ASSIGN',
+          description: `Assignar persona`,
+          execute: () => {
+            const obs = this.assignmentService.assign(instanceId, { nodeId, personId });
+            return new Observable<void>((sub) => {
+              obs.subscribe({
+                next: (re) => { lastAssignId = re.id; sub.next(); sub.complete(); },
+                error: (err) => sub.error(err),
+              });
+            });
+          },
+          undo: () => this.assignmentService.unassign(instanceId, lastAssignId),
+        };
+        this.undoRedo.push(action);
       },
       error: (err) => {
         this.state.assignments.set(op.previousAssignments);
@@ -512,7 +793,9 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
               : t,
           ),
         );
-        // Re-fetch assignments so node IDs align
+        if (this.state.activeInstanceId() === instanceId) {
+          this.state.activeTabNodes.set(resp.data);
+        }
         this.assignmentService.getByInstance(instanceId).subscribe({
           next: (assignResp) => {
             if (this.state.activeInstanceId() === instanceId) {
@@ -590,6 +873,8 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     const instanceId = this.state.activeInstanceId();
     if (!instanceId) return;
 
+    const nodeId = assignment.node.id;
+    const personId = assignment.person.id;
     const snapshot = [...this.state.assignments()];
     this.state.assignments.update((list) => list.filter((a) => a.id !== assignment.id));
     this.popoverAssignment.set(null);
@@ -599,6 +884,23 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
       next: () => {
         this.updateTabCount(instanceId);
         this.state.refreshPersonList();
+
+        let lastAssignmentId = assignment.id;
+        const action: UndoableAction = {
+          type: 'UNASSIGN',
+          description: `Desassignar persona`,
+          execute: () => this.assignmentService.unassign(instanceId, lastAssignmentId),
+          undo: () => {
+            const obs = this.assignmentService.assign(instanceId, { nodeId, personId });
+            return new Observable<void>((sub) => {
+              obs.subscribe({
+                next: (created) => { lastAssignmentId = created.id; sub.next(); sub.complete(); },
+                error: (err) => sub.error(err),
+              });
+            });
+          },
+        };
+        this.undoRedo.push(action);
       },
       error: () => {
         this.state.assignments.set(snapshot);
@@ -655,12 +957,17 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     const instanceId = this.state.activeInstanceId();
     if (!instanceId) return;
 
+    this.undoRedo.clear();
     this.resetting.set(true);
     this.assignmentService.resetSnapshot(instanceId).subscribe({
       next: (result) => {
         this.resetting.set(false);
         this.resetModalOpen.set(false);
-        this.toast.success(`S'han eliminat ${result.removedAssignments} assignacions. La figura torna al template original.`);
+        let resetMsg = `S'han eliminat ${result.removedAssignments} assignacions. La figura torna al template original.`;
+        if (result.deletedAdHocCount > 0) {
+          resetMsg += ` S'han eliminat ${result.deletedAdHocCount} nodes ad-hoc.`;
+        }
+        this.toast.success(resetMsg);
 
         this.tabs.update((list) =>
           list.map((t) =>
@@ -756,16 +1063,470 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   }
 
   onImportCompleted(result: BulkImportResult): void {
-    const msg = result.conflicts.length > 0
+    let msg = result.conflicts.length > 0
       ? `Importades ${result.created.length} assignacions (${result.conflicts.length} conflictes omesos).`
       : `Importades ${result.created.length} assignacions correctament.`;
+    if (result.clonedAdHocNodes > 0) {
+      msg += ` S'han clonat ${result.clonedAdHocNodes} nodes ad-hoc.`;
+    }
     this.toast.success(msg);
     this.importModalOpen.set(false);
     const instanceId = this.state.activeInstanceId();
     if (instanceId) {
-      // Import may trigger snapshot — refresh nodes
       this.refreshInstanceNodes(instanceId);
     }
+  }
+
+  // ── Ad-hoc node operations ──────────────────────────────────────────────
+
+  readonly pendingLabelPreset = signal<AdHocNodePreset | null>(null);
+
+  onPresetSelected(preset: AdHocNodePreset): void {
+    this.fabDropdownOpen.set(false);
+    this.fabDecorationOpen.set(false);
+    this.fabDirectionOpen.set(false);
+    if (preset.requiresCustomLabel) {
+      this.pendingLabelPreset.set(preset);
+      this.comodinInputOpen.set(true);
+      this.comodinLabel.set('');
+      return;
+    }
+    this.state.enterPlacementMode(preset);
+  }
+
+  confirmComodinLabel(): void {
+    const label = this.comodinLabel().trim();
+    if (!label) return;
+    const preset = this.pendingLabelPreset();
+    if (!preset) return;
+    this.comodinInputOpen.set(false);
+    this.pendingLabelPreset.set(null);
+    this.state.enterPlacementMode(preset, label);
+  }
+
+  cancelComodinInput(): void {
+    this.comodinInputOpen.set(false);
+    this.comodinLabel.set('');
+    this.pendingLabelPreset.set(null);
+  }
+
+  readonly labelDialogTitle = computed(() => {
+    const preset = this.pendingLabelPreset();
+    return preset?.zone === FigureZone.DECORATION
+      ? 'Etiqueta del node decoratiu'
+      : 'Etiqueta del comodí';
+  });
+
+  readonly labelDialogPlaceholder = computed(() => {
+    const preset = this.pendingLabelPreset();
+    return preset?.zone === FigureZone.DECORATION
+      ? 'Ex: Església, Nord, Escenari...'
+      : 'Ex: Extra mans, Reforç...';
+  });
+
+  getDecorationLabel(preset: AdHocNodePreset): string {
+    const labels: Record<string, string> = {
+      rectangle: 'Rectangle',
+      arrow: 'Fletxa',
+      circle: 'Cercle',
+    };
+    return labels[preset.positionType ?? ''] ?? preset.positionType ?? '';
+  }
+
+  onAdHocNodeMoved(event: { nodeId: string; x: number; y: number }): void {
+    const instanceId = this.state.activeInstanceId();
+    if (!instanceId) return;
+
+    const now = Date.now();
+    const node = this.activeNodes().find((n) => n.id === event.nodeId);
+    const isCoalescing =
+      event.nodeId === this.lastMoveNodeId &&
+      now - this.lastMoveUndoTime < AssignmentCanvasComponent.MOVE_COALESCE_MS;
+
+    if (!isCoalescing) {
+      this.moveOrigin = { x: node?.x ?? event.x, y: node?.y ?? event.y };
+      this.lastMoveNodeId = event.nodeId;
+    }
+    this.lastMoveUndoTime = now;
+    const origin = this.moveOrigin!;
+
+    this.tabs.update((list) =>
+      list.map((t) =>
+        t.instanceId === instanceId
+          ? {
+              ...t,
+              nodes: t.nodes.map((n) =>
+                n.id === event.nodeId ? { ...n, x: event.x, y: event.y } : n,
+              ),
+            }
+          : t,
+      ),
+    );
+
+    this.assignmentService
+      .updateAdHocNode(instanceId, event.nodeId, { x: event.x, y: event.y })
+      .subscribe({
+        next: () => {
+          const finalX = event.x;
+          const finalY = event.y;
+          const action: UndoableAction = {
+            type: 'MOVE',
+            description: `Moure ${node?.label ?? 'node'}`,
+            execute: () => this.assignmentService.updateAdHocNode(instanceId, event.nodeId, { x: finalX, y: finalY }),
+            undo: () => this.assignmentService.updateAdHocNode(instanceId, event.nodeId, { x: origin.x, y: origin.y }),
+          };
+          if (isCoalescing) {
+            this.undoRedo.replaceLast(action);
+          } else {
+            this.undoRedo.push(action);
+          }
+        },
+        error: () => {
+          this.toast.error('Error en moure el node.');
+          this.refreshInstanceNodes(instanceId);
+        },
+      });
+  }
+
+  onAdHocNodeTransformed(event: {
+    nodeId: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    rotation: number;
+  }): void {
+    const instanceId = this.state.activeInstanceId();
+    if (!instanceId) return;
+
+    const node = this.activeNodes().find((n) => n.id === event.nodeId);
+    const prevGeometry = node
+      ? { x: node.x, y: node.y, width: node.width, height: node.height, rotation: node.rotation }
+      : null;
+    const newGeometry = { x: event.x, y: event.y, width: event.width, height: event.height, rotation: event.rotation };
+
+    this.assignmentService
+      .updateAdHocNode(instanceId, event.nodeId, newGeometry)
+      .subscribe({
+        next: () => {
+          this.refreshInstanceNodes(instanceId);
+          if (prevGeometry) {
+            const action: UndoableAction = {
+              type: 'RESIZE',
+              description: `Redimensionar ${node?.label ?? 'node'}`,
+              execute: () => this.assignmentService.updateAdHocNode(instanceId, event.nodeId, newGeometry),
+              undo: () => this.assignmentService.updateAdHocNode(instanceId, event.nodeId, prevGeometry),
+            };
+            this.undoRedo.push(action);
+          }
+        },
+        error: () => {
+          this.toast.error('Error en redimensionar el node.');
+          this.refreshInstanceNodes(instanceId);
+        },
+      });
+  }
+
+  deleteAdHocNode(nodeId: string): void {
+    const instanceId = this.state.activeInstanceId();
+    if (!instanceId) return;
+
+    const node = this.activeNodes().find((n) => n.id === nodeId);
+    const assignment = this.state.assignments().find((a) => a.node.id === nodeId);
+    const snapshotData = node ? {
+      zone: node.zone,
+      positionType: node.positionType ?? undefined,
+      label: node.label,
+      x: node.x,
+      y: node.y,
+      width: node.width,
+      height: node.height,
+      shape: node.shape,
+      color: node.color ?? undefined,
+      rotation: node.rotation,
+    } : null;
+
+    this.state.setSelectedNodeId(null);
+    this.assignmentService.deleteAdHocNode(instanceId, nodeId).subscribe({
+      next: () => {
+        this.refreshInstanceNodes(instanceId);
+        this.state.refreshPersonList();
+        this.toast.success('Node eliminat.');
+
+        if (snapshotData) {
+          let lastKnownNodeId = nodeId;
+          const action: UndoableAction = {
+            type: 'DELETE',
+            description: `Eliminar ${snapshotData.label}`,
+            execute: () => this.assignmentService.deleteAdHocNode(instanceId, lastKnownNodeId),
+            undo: () => {
+              const obs = this.assignmentService.createAdHocNode(instanceId, snapshotData);
+              return new Observable<void>((sub) => {
+                obs.subscribe({
+                  next: (recreated) => {
+                    lastKnownNodeId = recreated.id;
+                    sub.next();
+                    sub.complete();
+                  },
+                  error: (err) => sub.error(err),
+                });
+              });
+            },
+          };
+          this.undoRedo.push(action);
+        }
+      },
+      error: () => this.toast.error('Error en eliminar el node.'),
+    });
+  }
+
+  private copySelectedAdHocNode(): void {
+    const node = this.selectedAdHocNode();
+    if (!node) return;
+    this.clipboardAdHocNode.set({
+      zone: node.zone,
+      positionType: node.positionType,
+      label: node.label,
+      width: node.width,
+      height: node.height,
+      shape: node.shape,
+      color: node.color,
+      rotation: node.rotation,
+    });
+    this.toast.success('Node copiat.');
+  }
+
+  private pasteAdHocNode(): void {
+    const clipboard = this.clipboardAdHocNode();
+    if (!clipboard) return;
+    const instanceId = this.state.activeInstanceId();
+    if (!instanceId) return;
+
+    const selectedNode = this.selectedAdHocNode();
+    const baseX = selectedNode?.x ?? 100;
+    const baseY = selectedNode?.y ?? 100;
+
+    const pastePayload = {
+      zone: clipboard.zone,
+      positionType: clipboard.positionType ?? undefined,
+      label: clipboard.label,
+      x: baseX + 20,
+      y: baseY + 20,
+      width: clipboard.width,
+      height: clipboard.height,
+      shape: clipboard.shape,
+      color: clipboard.color ?? undefined,
+      rotation: clipboard.rotation,
+    };
+
+    this.assignmentService.createAdHocNode(instanceId, pastePayload).subscribe({
+      next: (created) => {
+        this.refreshInstanceNodes(instanceId);
+        this.toast.success(`Node "${clipboard.label}" enganxat.`);
+
+        let lastPastedId = created.id;
+        const action: UndoableAction = {
+          type: 'CREATE',
+          description: `Enganxar ${clipboard.label}`,
+          execute: () => {
+            const obs = this.assignmentService.createAdHocNode(instanceId, pastePayload);
+            return new Observable<void>((sub) => {
+              obs.subscribe({
+                next: (re) => { lastPastedId = re.id; sub.next(); sub.complete(); },
+                error: (err) => sub.error(err),
+              });
+            });
+          },
+          undo: () => this.assignmentService.deleteAdHocNode(instanceId, lastPastedId),
+        };
+        this.undoRedo.push(action);
+      },
+      error: () => this.toast.error('Error en enganxar el node.'),
+    });
+  }
+
+  duplicateSelectedAdHocNode(): void {
+    const node = this.selectedAdHocNode();
+    if (!node) return;
+    this.duplicateAdHocNode(node);
+  }
+
+  private duplicateAdHocNode(node: { id: string; zone: string; positionType: string | null; label: string; x: number; y: number; width: number; height: number; shape: string; color: string | null; rotation: number }): void {
+    const instanceId = this.state.activeInstanceId();
+    if (!instanceId) return;
+
+    const dupPayload = {
+      zone: node.zone,
+      positionType: node.positionType ?? undefined,
+      label: node.label,
+      x: node.x + 20,
+      y: node.y + 20,
+      width: node.width,
+      height: node.height,
+      shape: node.shape,
+      color: node.color ?? undefined,
+      rotation: node.rotation,
+    };
+
+    this.assignmentService.createAdHocNode(instanceId, dupPayload).subscribe({
+      next: (created) => {
+        this.refreshInstanceNodes(instanceId);
+        this.toast.success(`Node "${node.label}" duplicat.`);
+
+        let lastDupId = created.id;
+        const action: UndoableAction = {
+          type: 'CREATE',
+          description: `Duplicar ${node.label}`,
+          execute: () => {
+            const obs = this.assignmentService.createAdHocNode(instanceId, dupPayload);
+            return new Observable<void>((sub) => {
+              obs.subscribe({
+                next: (re) => { lastDupId = re.id; sub.next(); sub.complete(); },
+                error: (err) => sub.error(err),
+              });
+            });
+          },
+          undo: () => this.assignmentService.deleteAdHocNode(instanceId, lastDupId),
+        };
+        this.undoRedo.push(action);
+      },
+      error: () => this.toast.error('Error en duplicar el node.'),
+    });
+  }
+
+  confirmDeleteAdHocNode(): void {
+    const nodeId = this.pendingDeleteNodeId();
+    if (!nodeId) return;
+    this.deleteAdHocModalOpen.set(false);
+    this.pendingDeleteNodeId.set(null);
+    this.deleteAdHocNode(nodeId);
+  }
+
+  cancelDeleteAdHocNode(): void {
+    this.deleteAdHocModalOpen.set(false);
+    this.pendingDeleteNodeId.set(null);
+  }
+
+  openHelpModal(): void {
+    this.helpModalOpen.set(true);
+  }
+
+  closeHelpModal(): void {
+    this.helpModalOpen.set(false);
+  }
+
+  private moveAdHocNodeByKey(nodeId: string, node: InstanceNodeItem, key: string, large: boolean): void {
+    const step = large ? 10 : 1;
+    const delta: Record<string, { x: number; y: number }> = {
+      ArrowUp:    { x: 0,     y: -step },
+      ArrowDown:  { x: 0,     y:  step },
+      ArrowLeft:  { x: -step, y: 0     },
+      ArrowRight: { x:  step, y: 0     },
+    };
+    const d = delta[key];
+    if (!d) return;
+
+    const newX = node.x + d.x;
+    const newY = node.y + d.y;
+    this.onAdHocNodeMoved({ nodeId, x: newX, y: newY });
+  }
+
+  onAdHocPropertyChanged(event: { nodeId: string; patch: Partial<UpdateAdHocNodePayload> }): void {
+    const instanceId = this.state.activeInstanceId();
+    if (!instanceId) return;
+
+    const node = this.activeNodes().find((n) => n.id === event.nodeId);
+    const reversePatch: Partial<UpdateAdHocNodePayload> = {};
+    if (node) {
+      for (const key of Object.keys(event.patch) as (keyof UpdateAdHocNodePayload)[]) {
+        if (key in node) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (reversePatch as any)[key] = (node as any)[key];
+        }
+      }
+    }
+
+    this.tabs.update((list) =>
+      list.map((t) =>
+        t.instanceId === instanceId
+          ? { ...t, nodes: t.nodes.map((n) => n.id === event.nodeId ? { ...n, ...event.patch } : n) }
+          : t,
+      ),
+    );
+
+    this.assignmentService.updateAdHocNode(instanceId, event.nodeId, event.patch).subscribe({
+      next: () => {
+        const action: UndoableAction = {
+          type: 'PROPERTY_CHANGE',
+          description: `Canviar propietat`,
+          execute: () => this.assignmentService.updateAdHocNode(instanceId, event.nodeId, event.patch),
+          undo: () => this.assignmentService.updateAdHocNode(instanceId, event.nodeId, reversePatch),
+        };
+        this.undoRedo.push(action);
+      },
+      error: () => {
+        this.toast.error('Error en actualitzar el node.');
+        this.refreshInstanceNodes(instanceId);
+      },
+    });
+  }
+
+  onAdHocNodeUpdated(): void {
+    const instanceId = this.state.activeInstanceId();
+    if (instanceId) {
+      this.refreshInstanceNodes(instanceId);
+    }
+  }
+
+  onAdHocDeleteFromPanel(nodeId: string): void {
+    const isAssigned = this.state.assignments().some((a) => a.node.id === nodeId);
+    if (isAssigned) {
+      this.pendingDeleteNodeId.set(nodeId);
+      this.deleteAdHocModalOpen.set(true);
+    } else {
+      this.deleteAdHocNode(nodeId);
+    }
+  }
+
+  // ── Undo / Redo ─────────────────────────────────────────────────────────
+
+  performUndo(): void {
+    this.undoRedo.undo().subscribe({
+      next: () => {
+        const instanceId = this.state.activeInstanceId();
+        if (instanceId) this.refreshInstanceNodes(instanceId);
+      },
+      error: () => this.toast.error("Error en desfer l'acció."),
+    });
+  }
+
+  performRedo(): void {
+    this.undoRedo.redo().subscribe({
+      next: () => {
+        const instanceId = this.state.activeInstanceId();
+        if (instanceId) this.refreshInstanceNodes(instanceId);
+      },
+      error: () => this.toast.error("Error en refer l'acció."),
+    });
+  }
+
+  openSaveAsTemplate(): void {
+    this.saveAsTemplateOpen.set(true);
+  }
+
+  onSaveAsTemplateClosed(): void {
+    this.saveAsTemplateOpen.set(false);
+  }
+
+  onSaveAsTemplateResult(_result: SaveAsTemplateResult): void {
+    this.saveAsTemplateOpen.set(false);
+  }
+
+  onEditTemplate(): void {
+    const templateId = this.activeTab()?.figureTemplateId;
+    if (!templateId) return;
+    this.toast.info('Els canvis al template no afecten instàncies ja creades.');
+    this.router.navigate(['/pinyes', 'templates', templateId, 'edit']);
   }
 
   getAttendanceStatus(assignment: AssignmentDetail): string | null {

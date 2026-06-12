@@ -1,0 +1,84 @@
+import { FigureZone } from '../enums/figure-zone.enum';
+import { NodeShape } from '../enums/node-shape.enum';
+
+export const PINYA_POSITION_TYPES = [
+  'agulla',
+  'mans',
+  'laterals',
+  'vents',
+  'cordo-obert',
+  'tap',
+  'crossa',
+  'contrafort',
+  'comodin',
+] as const;
+
+export type PinyaPositionType = (typeof PINYA_POSITION_TYPES)[number];
+
+export const AD_HOC_ALLOWED_ZONES_PHASE1 = [FigureZone.PINYA] as const;
+
+export const AD_HOC_ALLOWED_ZONES = [
+  FigureZone.PINYA,
+  FigureZone.DECORATION,
+  FigureZone.FIGURE_DIRECTION,
+  FigureZone.XICALLA_DIRECTION,
+] as const;
+
+export interface AdHocNodePreset {
+  zone: FigureZone;
+  positionType: string | null;
+  label: string;
+  width: number;
+  height: number;
+  shape: NodeShape;
+  color: string | null;
+  requiresCustomLabel: boolean;
+}
+
+export const DECORATION_POSITION_TYPES = [
+  'rectangle',
+  'arrow',
+  'circle',
+] as const;
+
+export type DecorationPositionType = (typeof DECORATION_POSITION_TYPES)[number];
+
+export const AD_HOC_ALLOWED_ZONES_PHASE2 = [
+  FigureZone.PINYA,
+  FigureZone.DECORATION,
+] as const;
+
+export const AD_HOC_ALLOWED_ZONES_PHASE3 = [
+  FigureZone.PINYA,
+  FigureZone.DECORATION,
+  FigureZone.FIGURE_DIRECTION,
+  FigureZone.XICALLA_DIRECTION,
+] as const;
+
+export const DIRECTION_ZONES = [
+  FigureZone.FIGURE_DIRECTION,
+  FigureZone.XICALLA_DIRECTION,
+] as const;
+
+export const AD_HOC_DIRECTION_PRESETS: AdHocNodePreset[] = [
+  { zone: FigureZone.FIGURE_DIRECTION, positionType: null, label: 'Direcció fig.', width: 90, height: 44, shape: NodeShape.RECTANGLE, color: '#d97706', requiresCustomLabel: false },
+  { zone: FigureZone.XICALLA_DIRECTION, positionType: null, label: 'Direcció xic.', width: 90, height: 44, shape: NodeShape.RECTANGLE, color: '#db2777', requiresCustomLabel: false },
+];
+
+export const AD_HOC_DECORATION_PRESETS: AdHocNodePreset[] = [
+  { zone: FigureZone.DECORATION, positionType: 'rectangle', label: '', width: 120, height: 80, shape: NodeShape.RECTANGLE, color: null, requiresCustomLabel: true },
+  { zone: FigureZone.DECORATION, positionType: 'arrow', label: '', width: 80, height: 30, shape: NodeShape.ARROW, color: null, requiresCustomLabel: true },
+  { zone: FigureZone.DECORATION, positionType: 'circle', label: '', width: 60, height: 60, shape: NodeShape.CIRCLE, color: null, requiresCustomLabel: true },
+];
+
+export const AD_HOC_PINYA_PRESETS: AdHocNodePreset[] = [
+  { zone: FigureZone.PINYA, positionType: 'agulla', label: 'Agulla', width: 80, height: 40, shape: NodeShape.RECTANGLE, color: '#0d9488', requiresCustomLabel: false },
+  { zone: FigureZone.PINYA, positionType: 'mans', label: 'Mans', width: 80, height: 40, shape: NodeShape.RECTANGLE, color: '#FFE082', requiresCustomLabel: false },
+  { zone: FigureZone.PINYA, positionType: 'laterals', label: 'Laterals', width: 80, height: 40, shape: NodeShape.RECTANGLE, color: '#80DEEA', requiresCustomLabel: false },
+  { zone: FigureZone.PINYA, positionType: 'vents', label: 'Vents', width: 80, height: 40, shape: NodeShape.RECTANGLE, color: '#A5D6A7', requiresCustomLabel: false },
+  { zone: FigureZone.PINYA, positionType: 'cordo-obert', label: 'Cordó obert', width: 80, height: 40, shape: NodeShape.ELLIPSE, color: '#FFF9C4', requiresCustomLabel: false },
+  { zone: FigureZone.PINYA, positionType: 'tap', label: 'Tap', width: 80, height: 40, shape: NodeShape.RECTANGLE, color: '#be185d', requiresCustomLabel: false },
+  { zone: FigureZone.PINYA, positionType: 'crossa', label: 'Crossa', width: 80, height: 40, shape: NodeShape.RECTANGLE, color: '#9FA8DA', requiresCustomLabel: false },
+  { zone: FigureZone.PINYA, positionType: 'contrafort', label: 'Contrafort', width: 80, height: 40, shape: NodeShape.RECTANGLE, color: '#EF9A9A', requiresCustomLabel: false },
+  { zone: FigureZone.PINYA, positionType: 'comodin', label: '', width: 80, height: 40, shape: NodeShape.RECTANGLE, color: '#B0BEC5', requiresCustomLabel: true },
+];

@@ -1,0 +1,214 @@
+<div
+  class="absolute top-12 left-4 z-30 bg-base-100 border border-base-300 rounded-xl shadow-xl w-64 max-h-[calc(100%-6rem)] overflow-y-auto"
+  role="region"
+  aria-label="Propietats del node ad-hoc"
+>
+  <!-- Header -->
+  <div class="flex items-center justify-between px-3 py-2 border-b border-base-200">
+    <h3 class="text-sm font-semibold">Propietats del node</h3>
+    <div class="flex items-center gap-1">
+      <button
+        type="button"
+        class="btn btn-ghost btn-xs btn-square"
+        (click)="onDuplicate()"
+        aria-label="Duplicar node ad-hoc"
+        title="Duplicar (Ctrl+D)"
+      >
+        <i-lucide [img]="Copy" class="size-3.5" />
+      </button>
+      <button
+        type="button"
+        class="btn btn-ghost btn-xs btn-square text-error"
+        (click)="onDelete()"
+        aria-label="Eliminar node ad-hoc"
+        title="Eliminar"
+      >
+        <i-lucide [img]="Trash2" class="size-3.5" />
+      </button>
+      <button
+        type="button"
+        class="btn btn-ghost btn-xs btn-square"
+        (click)="close()"
+        aria-label="Tancar propietats"
+      >
+        <i-lucide [img]="X" class="size-3.5" />
+      </button>
+    </div>
+  </div>
+
+  <!-- Assignment info (compact) -->
+  @if (assignment(); as a) {
+    <div class="flex items-center gap-2 px-3 py-1.5 bg-base-200/60 border-b border-base-200 text-xs">
+      <div class="flex-1 min-w-0">
+        <span class="font-semibold truncate">{{ a.person.alias }}</span>
+        @if (heightDisplay(); as hd) {
+          <span class="text-base-content/50 ml-1">{{ hd }}</span>
+        }
+        <span class="badge badge-xs ml-1" [class]="attendanceBadgeClass()">
+          {{ attendanceLabel() }}
+        </span>
+      </div>
+      <button
+        type="button"
+        class="btn btn-ghost btn-xs btn-square text-error shrink-0"
+        (click)="unassign.emit(a)"
+        aria-label="Desassignar persona"
+        title="Desassignar"
+      >
+        <i-lucide [img]="UserMinus" class="size-3" />
+      </button>
+    </div>
+  }
+
+  <div class="p-3 space-y-3">
+    <!-- Label -->
+    <div class="form-control">
+      <label class="label pb-1" [for]="'adhoc-label-' + node().id">
+        <span class="label-text text-xs font-medium">Etiqueta</span>
+      </label>
+      <input
+        type="text"
+        [id]="'adhoc-label-' + node().id"
+        class="input input-bordered input-sm"
+        [ngModel]="node().label"
+        (ngModelChange)="onPropChange('label', $event)"
+        maxlength="100"
+      />
+    </div>
+
+    <!-- Shape -->
+    <div class="form-control">
+      <label class="label pb-1" [for]="'adhoc-shape-' + node().id">
+        <span class="label-text text-xs font-medium">Forma</span>
+      </label>
+      <select
+        [id]="'adhoc-shape-' + node().id"
+        class="select select-bordered select-sm"
+        [ngModel]="node().shape"
+        (ngModelChange)="onPropChange('shape', $event)"
+      >
+        <option [value]="NodeShape.ELLIPSE">El·lipse</option>
+        <option [value]="NodeShape.RECTANGLE">Rectangle</option>
+        <option [value]="NodeShape.ARROW">Fletxa</option>
+        <option [value]="NodeShape.CIRCLE">Cercle</option>
+      </select>
+    </div>
+
+    <!-- Dimensions -->
+    <div>
+      <p class="label-text text-xs font-medium mb-1">Dimensions</p>
+      <div class="grid grid-cols-2 gap-2">
+        <div class="form-control">
+          <label class="label pb-0.5" [for]="'adhoc-w-' + node().id">
+            <span class="label-text text-xs">Amplada</span>
+          </label>
+          <input
+            type="number"
+            [id]="'adhoc-w-' + node().id"
+            class="input input-bordered input-sm font-mono"
+            [ngModel]="node().width"
+            (ngModelChange)="onPropChange('width', +$event)"
+            min="20" max="500"
+          />
+        </div>
+        <div class="form-control">
+          <label class="label pb-0.5" [for]="'adhoc-h-' + node().id">
+            <span class="label-text text-xs">Alçada</span>
+          </label>
+          <input
+            type="number"
+            [id]="'adhoc-h-' + node().id"
+            class="input input-bordered input-sm font-mono"
+            [ngModel]="node().height"
+            (ngModelChange)="onPropChange('height', +$event)"
+            min="20" max="500"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- Rotation -->
+    <div class="form-control">
+      <label class="label pb-1" [for]="'adhoc-rot-' + node().id">
+        <span class="label-text text-xs font-medium">Rotació</span>
+      </label>
+      <div class="flex items-center gap-2">
+        <input
+          type="range"
+          [id]="'adhoc-rot-' + node().id"
+          class="range range-xs flex-1"
+          min="0" max="360" step="1"
+          [ngModel]="node().rotation"
+          (ngModelChange)="onPropChange('rotation', +$event)"
+        />
+        <span class="text-xs font-mono w-10 text-right">{{ node().rotation }}°</span>
+      </div>
+    </div>
+
+    <!-- Position -->
+    <div>
+      <p class="label-text text-xs font-medium mb-1">Posició</p>
+      <div class="grid grid-cols-2 gap-2">
+        <div class="form-control">
+          <label class="label pb-0.5" [for]="'adhoc-x-' + node().id">
+            <span class="label-text text-xs">X</span>
+          </label>
+          <input
+            type="number"
+            [id]="'adhoc-x-' + node().id"
+            class="input input-bordered input-sm font-mono"
+            [ngModel]="node().x"
+            (ngModelChange)="onPropChange('x', +$event)"
+          />
+        </div>
+        <div class="form-control">
+          <label class="label pb-0.5" [for]="'adhoc-y-' + node().id">
+            <span class="label-text text-xs">Y</span>
+          </label>
+          <input
+            type="number"
+            [id]="'adhoc-y-' + node().id"
+            class="input input-bordered input-sm font-mono"
+            [ngModel]="node().y"
+            (ngModelChange)="onPropChange('y', +$event)"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- Color / fill -->
+    <div class="form-control">
+      <label class="label pb-1" [for]="'adhoc-color-' + node().id">
+        <span class="label-text text-xs font-medium">
+          {{ isDecoration() ? 'Color de fons' : 'Color' }}
+        </span>
+      </label>
+      <div class="flex items-center gap-2">
+        <input
+          type="color"
+          [id]="'adhoc-color-' + node().id"
+          class="w-8 h-8 rounded cursor-pointer border border-base-300"
+          [ngModel]="node().color ?? (isDecoration() ? '#e5e7eb' : '#6b7280')"
+          (ngModelChange)="onPropChange('color', $event)"
+        />
+        <span class="text-xs font-mono text-base-content/60">
+          {{ node().color ?? (isDecoration() ? 'Sense fons' : '#6b7280') }}
+        </span>
+        @if (isDecoration() && node().color) {
+          <button
+            type="button"
+            class="btn btn-ghost btn-xs"
+            (click)="clearDecorationFill()"
+          >
+            Treure fons
+          </button>
+        }
+      </div>
+      @if (isDecoration()) {
+        <p class="text-xs text-base-content/50 mt-1">
+          El traç es manté gris; el color aplica només al fons.
+        </p>
+      }
+    </div>
+  </div>
+</div>

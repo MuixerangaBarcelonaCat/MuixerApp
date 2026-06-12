@@ -5,9 +5,11 @@ import {
   ManyToOne,
   JoinColumn,
   CreateDateColumn,
+  Index,
 } from 'typeorm';
 import { FigureZone, NodeShape } from '@muixer/shared';
 import type { FigureInstance } from './figure-instance.entity';
+import type { User } from '../../user/user.entity';
 
 /**
  * Snapshot copy of a FigureNode, owned by a FigureInstance.
@@ -15,6 +17,7 @@ import type { FigureInstance } from './figure-instance.entity';
  * After snapshot, changes to the source FigureTemplate do NOT affect these rows.
  */
 @Entity('instance_nodes')
+@Index('idx_instance_nodes_instance_adhoc', ['figureInstance', 'isAdHoc'])
 export class InstanceNode {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -92,6 +95,16 @@ export class InstanceNode {
 
   @Column({ type: 'jsonb', default: {} })
   metadata: Record<string, unknown>;
+
+  @Column({ type: 'boolean', default: false })
+  isAdHoc: boolean;
+
+  @ManyToOne('User', { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'createdById' })
+  createdBy: User | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  createdById: string | null;
 
   @CreateDateColumn()
   createdAt: Date;

@@ -14,9 +14,13 @@ import {
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '@muixer/shared';
+import { JwtPayload } from '@muixer/shared';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { NodeAssignmentService } from './node-assignment.service';
 import { AvailablePersonsService, AvailablePersonsQuery } from './available-persons.service';
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
+import { CreateAdHocNodeDto } from './dto/create-ad-hoc-node.dto';
+import { UpdateAdHocNodeDto } from './dto/update-ad-hoc-node.dto';
 import { BulkImportAssignmentDto } from './dto/bulk-import-assignment.dto';
 import { SwapAssignmentsDto } from './dto/swap-assignments.dto';
 import { UpdateInstanceCordonsDto } from './dto/update-instance-cordons.dto';
@@ -98,6 +102,38 @@ export class NodeAssignmentController {
   @Post('figure-instances/:instanceId/reset')
   resetSnapshot(@Param('instanceId', ParseUUIDPipe) instanceId: string) {
     return this.assignmentService.resetSnapshot(instanceId);
+  }
+
+  // ── Ad-hoc node CRUD ────────────────────────────────────────────────────
+
+  @ApiOperation({ summary: 'Create an ad-hoc node on a figure instance (post-snapshot)' })
+  @Post('figure-instances/:instanceId/ad-hoc-nodes')
+  createAdHocNode(
+    @Param('instanceId', ParseUUIDPipe) instanceId: string,
+    @Body() dto: CreateAdHocNodeDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.assignmentService.createAdHocNode(instanceId, dto, user.sub);
+  }
+
+  @ApiOperation({ summary: 'Update an ad-hoc node (position, size, label, rotation)' })
+  @Patch('figure-instances/:instanceId/ad-hoc-nodes/:nodeId')
+  updateAdHocNode(
+    @Param('instanceId', ParseUUIDPipe) instanceId: string,
+    @Param('nodeId', ParseUUIDPipe) nodeId: string,
+    @Body() dto: UpdateAdHocNodeDto,
+  ) {
+    return this.assignmentService.updateAdHocNode(instanceId, nodeId, dto);
+  }
+
+  @ApiOperation({ summary: 'Delete an ad-hoc node (transactional unassign + delete)' })
+  @Delete('figure-instances/:instanceId/ad-hoc-nodes/:nodeId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteAdHocNode(
+    @Param('instanceId', ParseUUIDPipe) instanceId: string,
+    @Param('nodeId', ParseUUIDPipe) nodeId: string,
+  ): Promise<void> {
+    return this.assignmentService.deleteAdHocNode(instanceId, nodeId);
   }
 
   @ApiOperation({ summary: 'Get available persons for assignment in a segment' })
