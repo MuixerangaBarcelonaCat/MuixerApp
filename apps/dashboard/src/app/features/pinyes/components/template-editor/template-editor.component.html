@@ -155,7 +155,8 @@
     </div>
   </header>
 
-  @if (adHocInstanceCount() > 0 && !adHocBannerDismissed() && !previewMode()) {
+  <!-- Ad-hoc instance banner (disabled) de moment ho mantenim tot al popover app-ad-hoc-node-properties -->
+  <!-- @if (adHocInstanceCount() > 0 && !adHocBannerDismissed() && !previewMode()) {
     <div class="alert alert-info text-sm mx-4 mt-2" role="status">
       <lucide-icon name="Info" [size]="16" class="shrink-0" aria-hidden="true" />
       <span>
@@ -167,7 +168,7 @@
         <lucide-icon name="X" [size]="12" aria-hidden="true" />
       </button>
     </div>
-  }
+  } -->
 
   <!-- ── Main Area ─────────────────────────────────────────────────────────── -->
   <div class="editor-main">
