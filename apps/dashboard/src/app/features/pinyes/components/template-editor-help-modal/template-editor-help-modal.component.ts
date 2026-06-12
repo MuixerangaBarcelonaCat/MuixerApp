@@ -57,6 +57,7 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: 'Supr / Backspace', action: 'Eliminar node seleccionat' },
       { keys: '↑ ↓ ← →', action: 'Moure node (1 px)' },
       { keys: 'Shift + ↑ ↓ ← →', action: 'Moure node (10 px)' },
+      { keys: '⌘/Ctrl + Shift + P', action: 'Previsualitzar / sortir de previsualització' },
       { keys: 'Roda del ratolí', action: 'Zoom' },
       { keys: 'Arrossegar fons', action: 'Desplaçar canvas (pan)' },
     ],

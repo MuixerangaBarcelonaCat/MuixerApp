@@ -17,42 +17,89 @@
 
       <!-- Template name -->
       <div class="flex items-center gap-2 min-w-0 flex-1">
-        <input
-          type="text"
-          class="input input-ghost input-sm font-semibold text-base-content max-w-xs"
-          placeholder="Nom de la figura"
-          [ngModel]="templateName()"
-          (ngModelChange)="onNameChange($event)"
-          aria-label="Nom de la figura"
-        />
-        <input
-          type="text"
-          class="input input-ghost input-xs text-base-content/50 font-mono w-32"
-          placeholder="slug"
-          [ngModel]="templateSlug()"
-          (ngModelChange)="onSlugChange($event)"
-          aria-label="Slug de la figura"
-        />
+        @if (previewMode()) {
+          <span class="text-sm font-semibold text-base-content truncate">{{ templateName() }}</span>
+          <span class="badge badge-ghost badge-sm">Previsualització</span>
+        } @else {
+          <input
+            type="text"
+            class="input input-ghost input-sm font-semibold text-base-content max-w-xs"
+            placeholder="Nom de la figura"
+            [ngModel]="templateName()"
+            (ngModelChange)="onNameChange($event)"
+            aria-label="Nom de la figura"
+          />
+          <input
+            type="text"
+            class="input input-ghost input-xs text-base-content/50 font-mono w-32"
+            placeholder="slug"
+            [ngModel]="templateSlug()"
+            (ngModelChange)="onSlugChange($event)"
+            aria-label="Slug de la figura"
+          />
+        }
       </div>
     </div>
 
     <div class="flex items-center gap-3">
-          <!-- Save status -->
-      @if (saveStatus() !== 'idle') {
-        <span
-          class="text-xs px-2 py-1 rounded-full"
-          [class.text-primary]="saveStatus() === 'saving'"
-          [class.text-success]="saveStatus() === 'saved'"
-          [class.text-error]="saveStatus() === 'error'"
-          aria-live="polite"
-          aria-atomic="true"
-        >
-          @if (saveStatus() === 'saving') {
-            <span class="loading loading-spinner loading-xs mr-1" aria-hidden="true"></span>
-          }
-          {{ saveStatusLabel() }}
-        </span>
+      @if (!previewMode()) {
+        <!-- Save status -->
+        @if (saveStatus() !== 'idle') {
+          <span
+            class="text-xs px-2 py-1 rounded-full"
+            [class.text-primary]="saveStatus() === 'saving'"
+            [class.text-success]="saveStatus() === 'saved'"
+            [class.text-error]="saveStatus() === 'error'"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            @if (saveStatus() === 'saving') {
+              <span class="loading loading-spinner loading-xs mr-1" aria-hidden="true"></span>
+            }
+            {{ saveStatusLabel() }}
+          </span>
+        }
+
+        <!-- Undo / Redo -->
+        <div class="flex items-center gap-1">
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm btn-square"
+            [disabled]="!canUndo()"
+            (click)="performUndo()"
+            [attr.aria-label]="undoDescription() ? 'Desfer: ' + undoDescription() : 'Desfer'"
+            [title]="undoDescription() ? 'Desfer: ' + undoDescription() : 'Desfer (Ctrl+Z)'"
+          >
+            <i-lucide [img]="Undo2" class="size-4" />
+          </button>
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm btn-square"
+            [disabled]="!canRedo()"
+            (click)="performRedo()"
+            [attr.aria-label]="redoDescription() ? 'Refer: ' + redoDescription() : 'Refer'"
+            [title]="redoDescription() ? 'Refer: ' + redoDescription() : 'Refer (Ctrl+Shift+Z)'"
+          >
+            <i-lucide [img]="Redo2" class="size-4" />
+          </button>
+        </div>
       }
+
+      <!-- Preview mode toggle -->
+      <button
+        type="button"
+        class="btn btn-sm gap-1"
+        [class.btn-primary]="previewMode()"
+        [class.btn-ghost]="!previewMode()"
+        (click)="togglePreview()"
+        [attr.aria-pressed]="previewMode()"
+        [disabled]="renglaEditMode()"
+        aria-label="Previsualitzar figura"
+        title="Previsualitzar (Ctrl+Shift+P)"
+      >
+        <i-lucide [img]="previewMode() ? EyeOff : Eye" class="size-4" aria-hidden="true" />
+        <!-- {{ previewMode() ? 'Sortir' : 'Previsualitzar' }} -->
+      </button>
 
       <!-- Rengla edit mode toggle -->
       <button
@@ -60,6 +107,7 @@
         class="btn btn-sm gap-1"
         [class.btn-primary]="renglaEditMode()"
         [class.btn-ghost]="!renglaEditMode()"
+        [disabled]="previewMode()"
         (click)="toggleRenglaEditMode()"
         [attr.aria-pressed]="renglaEditMode()"
         aria-label="Editar rengles"
@@ -69,29 +117,31 @@
         Rengles
       </button>
 
-      <!-- Tronc drawer trigger -->
-      <button
-        type="button"
-        class="btn btn-ghost btn-sm gap-1"
-        (click)="troncDrawerOpen.set(true)"
-        aria-label="Obrir panell del Tronc"
-        title="Tronc"
-      >
-        <lucide-icon name="Layers" [size]="16" aria-hidden="true" />
-        Tronc
-      </button>
+      @if (!previewMode()) {
+        <!-- Tronc drawer trigger -->
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm gap-1"
+          (click)="troncDrawerOpen.set(true)"
+          aria-label="Obrir panell del Tronc"
+          title="Tronc"
+        >
+          <lucide-icon name="Layers" [size]="16" aria-hidden="true" />
+          Tronc
+        </button>
 
-      <!-- hasPinya toggle -->
-      <label class="flex items-center gap-2 cursor-pointer" title="Té Pinya">
-        <span class="text-xs text-base-content/60">Pinya</span>
-        <input
-          type="checkbox"
-          class="toggle toggle-sm toggle-primary"
-          [checked]="hasPinya()"
-          (change)="onHasPinyaChange($any($event.target).checked)"
-          aria-label="La figura té pinya"
-        />
-      </label>
+        <!-- hasPinya toggle -->
+        <label class="flex items-center gap-2 cursor-pointer" title="Té Pinya">
+          <span class="text-xs text-base-content/60">Pinya</span>
+          <input
+            type="checkbox"
+            class="toggle toggle-sm toggle-primary"
+            [checked]="hasPinya()"
+            (change)="onHasPinyaChange($any($event.target).checked)"
+            aria-label="La figura té pinya"
+          />
+        </label>
+      }
 
       <!-- Shortcuts help -->
       <button
@@ -117,7 +167,7 @@
     </div>
   </header>
 
-  @if (adHocInstanceCount() > 0 && !adHocBannerDismissed()) {
+  @if (adHocInstanceCount() > 0 && !adHocBannerDismissed() && !previewMode()) {
     <div class="alert alert-info text-sm mx-4 mt-2" role="status">
       <lucide-icon name="Info" [size]="16" class="shrink-0" aria-hidden="true" />
       <span>
@@ -135,6 +185,7 @@
   <div class="editor-main">
 
     <!-- Left Toolbar -->
+    @if (!previewMode()) {
     <aside class="editor-toolbar" aria-label="Eines">
 
       <!-- Base (intersecció pinya-tronc) -->
@@ -233,6 +284,7 @@
         </button>
       </div>
     </aside>
+    }
 
     <!-- Canvas Area -->
     <main class="editor-canvas" aria-label="Editor visual de la figura">
@@ -246,9 +298,11 @@
           <lucide-icon name="Shapes" [size]="64" class="text-base-content/20" aria-hidden="true" />
           <div>
             <h3 class="text-lg font-semibold text-base-content mb-1">No hi ha cap node de pinya</h3>
-            <p class="text-sm text-base-content/60">
-              Afegeix nodes des de la barra d'eines de l'esquerra per començar a dissenyar la figura.
-            </p>
+            @if (!previewMode()) {
+              <p class="text-sm text-base-content/60">
+                Afegeix nodes des de la barra d'eines de l'esquerra per començar a dissenyar la figura.
+              </p>
+            }
           </div>
         </div>
       } @else {
@@ -256,7 +310,7 @@
           <app-figure-canvas
             [nodes]="pinyaNodes()"
             [mode]="canvasMode()"
-            [gridEnabled]="gridEnabled()"
+            [gridEnabled]="!previewMode() && gridEnabled()"
             [gridSpacing]="40"
             [snapToGrid]="snapToGrid()"
             [selectedNodeId]="selectedNodeId()"
@@ -268,7 +322,7 @@
             (stageTransformChanged)="onStageTransformChanged($event)"
             (ghostCloneRequested)="onGhostCloneRequested($event)"
           />
-          @if (renglaEditMode()) {
+          @if (renglaEditMode() && !previewMode()) {
             <app-rengla-overlay
               [nodes]="pinyaNodes()"
               [rengles]="rengles()"
@@ -283,6 +337,7 @@
     </main>
 
     <!-- Right Panel: Node Properties -->
+    @if (!previewMode()) {
     <aside
       class="editor-panel"
       [class.panel-open]="propertiesPanelOpen()"
@@ -532,11 +587,12 @@
         </div>
       }
     </aside>
+    }
   </div>
 </div>
 
 <!-- ── Tronc Floating Panel ──────────────────────────────────────────────── -->
-@if (troncDrawerOpen()) {
+@if (troncDrawerOpen() && !previewMode()) {
   <aside
     class="tronc-floating-panel"
     [style.left.px]="troncPanelPos().x"
@@ -566,7 +622,7 @@
       class="tronc-floating-body"
       [troncNodes]="troncNodes()"
       [baseNodes]="baseNodes()"
-      [mode]="'editor'"
+      [mode]="troncMode()"
       [selectedNodeId]="selectedNodeId()"
       (nodeSelected)="onNodeSelected($event)"
       (nodeAdded)="onTroncNodeAdded($event)"
@@ -688,6 +744,23 @@
 
       <div class="divider my-2"></div>
 
+      <!-- Previsualització -->
+      <section aria-labelledby="shortcuts-preview">
+        <h3 id="shortcuts-preview" class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-2">Previsualització</h3>
+        <ul class="space-y-2 mb-4" role="list">
+          <li class="flex items-center justify-between gap-4">
+            <span class="text-sm">Activar / desactivar previsualització</span>
+            <span class="shortcuts-keys flex gap-1">
+              <kbd class="kbd kbd-sm">⌘</kbd>
+              <kbd class="kbd kbd-sm">⇧</kbd>
+              <kbd class="kbd kbd-sm">P</kbd>
+            </span>
+          </li>
+        </ul>
+      </section>
+
+      <div class="divider my-2"></div>
+
       <!-- Canvas -->
       <section aria-labelledby="shortcuts-canvas">
         <h3 id="shortcuts-canvas" class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-2">Canvas</h3>
@@ -713,3 +786,8 @@
 
 <!-- Template editor help modal -->
 <app-template-editor-help-modal />
+
+<!-- Screen reader announcements -->
+<div class="sr-only" aria-live="polite" aria-atomic="true">
+  {{ previewAnnouncement() }}
+</div>

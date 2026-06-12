@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   InternalServerErrorException,
@@ -17,6 +18,8 @@ import { UpdateFigureTemplateDto } from './dto/update-figure-template.dto';
 import { FigureTemplateFilterDto } from './dto/figure-template-filter.dto';
 import { CreateFigureNodeDto } from './dto/create-figure-node.dto';
 import { CreateRenglaDto } from './dto/create-rengla.dto';
+import { SaveFromInstanceDto } from './dto/save-from-instance.dto';
+import { FigureZone } from '@muixer/shared';
 
 // ─── Response interfaces ────────────────────────────────────────────────────
 
@@ -264,6 +267,164 @@ export class FigureTemplateService {
     }
 
     return this.findOne(savedCopy.id);
+  }
+
+  // ─── Save from Instance ─────────────────────────────────────────────────────
+
+  private static readonly SAVEABLE_ZONES: string[] = [
+    FigureZone.PINYA,
+    FigureZone.BASE,
+    FigureZone.TRONC,
+  ];
+
+  async saveFromInstance(
+    templateId: string,
+    dto: SaveFromInstanceDto,
+  ): Promise<FigureTemplateDetailItem> {
+    const template = await this.templateRepository.findOne({
+      where: { id: templateId },
+      relations: ['nodes', 'rengles'],
+    });
+    if (!template) {
+      throw new NotFoundException(`FigureTemplate with ID ${templateId} not found`);
+    }
+
+    const instance = await this.figureInstanceRepository.findOne({
+      where: { id: dto.instanceId },
+      relations: ['instanceNodes', 'figureTemplate'],
+    });
+    if (!instance) {
+      throw new NotFoundException(`FigureInstance with ID ${dto.instanceId} not found`);
+    }
+    if (instance.figureTemplate?.id !== templateId) {
+      throw new BadRequestException('Instance does not belong to this template');
+    }
+    if (!instance.snapshotted) {
+      throw new BadRequestException('Instance is not snapshotted yet');
+    }
+
+    const filteredNodes = (instance.instanceNodes ?? []).filter(
+      (n) => FigureTemplateService.SAVEABLE_ZONES.includes(n.zone),
+    );
+
+    if (filteredNodes.length === 0) {
+      throw new BadRequestException('No saveable nodes in this instance');
+    }
+
+    const nodeDtos = filteredNodes.map((n) => this.instanceNodeToCreateDto(n));
+
+    if (dto.mode === 'overwrite') {
+      await this.syncNodes(template, nodeDtos);
+      return this.findOne(templateId);
+    }
+
+    // new_version: create a new template
+    const versionName = dto.name?.trim() || await this.suggestVersionName(template.name);
+    const versionSlug = this.generateSlug(versionName);
+
+    await this.assertSlugAvailable(versionSlug);
+
+    const newTemplate = this.templateRepository.create({
+      name: versionName,
+      slug: versionSlug,
+      description: template.description,
+      hasPinya: template.hasPinya,
+      direction: template.direction,
+      metadata: template.metadata ?? {},
+    });
+
+    let savedTemplate: FigureTemplate;
+    try {
+      savedTemplate = await this.templateRepository.save(newTemplate);
+    } catch (err) {
+      return this.handleDbError(err);
+    }
+
+    // Copy rengles with new UUIDs, build mapping
+    const existingRengles = template.rengles ?? [];
+    const renglaIdMap = new Map<string, string>();
+
+    if (existingRengles.length > 0) {
+      const newRengles = existingRengles.map((r) => {
+        const newId = this.generateUUID();
+        renglaIdMap.set(r.id, newId);
+        return this.renglaRepository.create({
+          id: newId,
+          template: savedTemplate,
+          name: r.name,
+          sortOrder: r.sortOrder,
+          startPosition: r.startPosition,
+          allowsCordoObert: r.allowsCordoObert,
+        });
+      });
+      await this.renglaRepository.save(newRengles);
+    }
+
+    // Remap renglaIds in node DTOs
+    const remappedDtos = nodeDtos.map((d) => ({
+      ...d,
+      renglaId: d.renglaId ? (renglaIdMap.get(d.renglaId) ?? null) : null,
+    }));
+
+    await this.createNodes(savedTemplate, remappedDtos as CreateFigureNodeDto[]);
+    return this.findOne(savedTemplate.id);
+  }
+
+  async suggestVersionName(baseName: string): Promise<string> {
+    const pattern = baseName.replace(/ v\d+$/, '');
+    const existing = await this.templateRepository
+      .createQueryBuilder('t')
+      .where("t.name LIKE :pattern", { pattern: `${pattern} v%` })
+      .getMany();
+
+    let maxVersion = 1;
+    for (const t of existing) {
+      const match = t.name.match(/ v(\d+)$/);
+      if (match) {
+        maxVersion = Math.max(maxVersion, parseInt(match[1], 10));
+      }
+    }
+    return `${pattern} v${maxVersion + 1}`;
+  }
+
+  private instanceNodeToCreateDto(n: InstanceNode): CreateFigureNodeDto {
+    return {
+      label: n.label,
+      zone: n.zone,
+      positionType: n.positionType ?? undefined,
+      x: n.x,
+      y: n.y,
+      z: n.z,
+      width: n.width,
+      height: n.height,
+      rotation: n.rotation,
+      color: n.color ?? undefined,
+      shape: n.shape,
+      sortOrder: n.sortOrder,
+      climbPath: n.climbPath ?? undefined,
+      ringLevel: n.ringLevel ?? undefined,
+      renglaId: n.renglaId ?? undefined,
+      renglaPosition: n.renglaPosition ?? undefined,
+      metadata: n.metadata,
+    };
+  }
+
+  private generateSlug(name: string): string {
+    return name
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9\s-]/g, '')
+      .trim()
+      .replace(/\s+/g, '-');
+  }
+
+  private generateUUID(): string {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === 'x' ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
   }
 
   // ─── Private helpers ────────────────────────────────────────────────────────

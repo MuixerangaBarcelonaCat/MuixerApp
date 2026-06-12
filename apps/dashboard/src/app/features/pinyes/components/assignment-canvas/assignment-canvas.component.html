@@ -69,6 +69,19 @@
       </button>
     }
 
+    @if (activeTab()?.snapshotted && activeTab()?.figureTemplateId && !isLocked()) {
+      <button
+        type="button"
+        class="btn btn-ghost btn-sm gap-1"
+        aria-label="Desar com a template"
+        (click)="openSaveAsTemplate()"
+        title="Desar la disposició actual com a template"
+      >
+        <i-lucide [img]="SaveIcon" class="size-4" />
+        Desar com a template
+      </button>
+    }
+
     @if (activeTab()) {
       <a
         [routerLink]="['/pinyes/events', eventId(), 'segments', segmentId(), 'project', activeTab()!.instanceId]"
@@ -160,9 +173,29 @@
         </div>
       }
 
-      <!-- Ad-hoc FAB + help -->
+      <!-- Ad-hoc FAB + help + undo/redo -->
       @if (!isLocked() && activeTab()) {
         <div class="absolute bottom-4 right-4 flex items-center gap-2 z-20">
+          <button
+            type="button"
+            class="btn btn-circle btn-sm btn-ghost"
+            [disabled]="!undoRedo.canUndo() || undoRedo.isBusy()"
+            (click)="performUndo()"
+            [attr.aria-label]="undoRedo.undoDescription() ? 'Desfer: ' + undoRedo.undoDescription() : 'Desfer'"
+            [title]="undoRedo.undoDescription() ? 'Desfer: ' + undoRedo.undoDescription() : 'Desfer (Ctrl+Z)'"
+          >
+            <i-lucide [img]="Undo2" class="size-4" />
+          </button>
+          <button
+            type="button"
+            class="btn btn-circle btn-sm btn-ghost"
+            [disabled]="!undoRedo.canRedo() || undoRedo.isBusy()"
+            (click)="performRedo()"
+            [attr.aria-label]="undoRedo.redoDescription() ? 'Refer: ' + undoRedo.redoDescription() : 'Refer'"
+            [title]="undoRedo.redoDescription() ? 'Refer: ' + undoRedo.redoDescription() : 'Refer (Ctrl+Shift+Z)'"
+          >
+            <i-lucide [img]="Redo2" class="size-4" />
+          </button>
           <button
             type="button"
             class="btn btn-circle btn-sm btn-ghost"
@@ -642,3 +675,16 @@
   [open]="helpModalOpen()"
   (closed)="closeHelpModal()"
 />
+
+<!-- Save as template dialog -->
+@if (activeTab()?.snapshotted && activeTab()?.figureTemplateId) {
+  <app-save-as-template-dialog
+    [open]="saveAsTemplateOpen()"
+    [instanceId]="activeTab()!.instanceId"
+    [templateId]="activeTab()!.figureTemplateId!"
+    [templateName]="activeTab()!.label"
+    [instanceNodes]="activeNodes()"
+    (closed)="onSaveAsTemplateClosed()"
+    (saved)="onSaveAsTemplateResult($event)"
+  />
+}
