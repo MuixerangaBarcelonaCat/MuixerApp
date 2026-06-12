@@ -19,7 +19,6 @@ import { FigureInstanceService } from '../../services/figure-instance.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component';
 import { PersonPanelComponent } from '../person-panel/person-panel.component';
-import { NodePopoverComponent } from '../node-popover/node-popover.component';
 import { ImportPinyaModalComponent } from '../import-pinya-modal/import-pinya-modal.component';
 import { TroncViewComponent } from '../tronc-view/tronc-view.component';
 import { CordonsDialogComponent, CordonsDialogSaveEvent } from '../cordons-dialog/cordons-dialog.component';
@@ -64,7 +63,6 @@ interface InstanceTab {
     LucideAngularModule,
     FigureCanvasComponent,
     PersonPanelComponent,
-    NodePopoverComponent,
     ImportPinyaModalComponent,
     TroncViewComponent,
     CordonsDialogComponent,

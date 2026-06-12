@@ -8,7 +8,7 @@
       (click)="showCreateModal.set(true)"
     >
       <lucide-icon name="Plus" [size]="14" />
-      Nou {{ eventType() === EventType.ASSAIG ? 'assaig' : 'actuació' }}
+      {{ eventType() === EventType.ASSAIG ? 'Assaig nou' : 'Actuació nova' }}
     </button>
     <button
       type="button"

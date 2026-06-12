@@ -95,8 +95,7 @@ describe('RenglaOverlayComponent', () => {
     ];
     setInputs(nodes);
     const eligible = component.eligibleNodes();
-    expect(eligible).toHaveLength(2);
-    expect(eligible.map((n) => n.id)).toEqual(['n1', 'n6']);
+    expect(eligible.map((n) => n.id)).toEqual(['n1', 'n5', 'n6']);
   });
 
   it('excludes non-PINYA zone nodes from eligible', () => {
@@ -169,23 +168,20 @@ describe('RenglaOverlayComponent', () => {
       expect(component.pendingNodeIds()).toEqual(['n2']);
     });
 
-    it('does not allow finishing with less than 2 nodes', () => {
+    it('does not allow finishing with less than 1 nodes', () => {
       setInputs([makeNode({ id: 'n1' })]);
       component.startCreating();
-      component.onNodeClick('n1');
       component.finishCreating();
       expect(component.showMiniDialog()).toBe(false);
     });
 
-    it('opens mini-dialog when finishing with 2+ nodes', () => {
+    it('opens mini-dialog when finishing with 1+ nodes', () => {
       const nodes = [
         makeNode({ id: 'n1', positionType: 'mans' }),
-        makeNode({ id: 'n2', positionType: 'mans' }),
       ];
       setInputs(nodes);
       component.startCreating();
       component.onNodeClick('n1');
-      component.onNodeClick('n2');
       component.finishCreating();
       expect(component.showMiniDialog()).toBe(true);
       expect(component.dialogName()).toBe('MANS');

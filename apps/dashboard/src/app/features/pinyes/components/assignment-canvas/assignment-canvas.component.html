@@ -5,7 +5,7 @@
       type="button"
       class="btn btn-ghost btn-sm gap-1"
       (click)="goBack()"
-      aria-label="Tornar a l'event"
+      aria-label="Tornar a l'esdeveniment"
     >
       <i-lucide [img]="ArrowLeft" class="size-4" />
       Tornar
@@ -34,7 +34,7 @@
             class="btn btn-sm rounded-l-none border-l-0 px-1.5"
             [class]="state.activeInstanceId() === tab.instanceId ? 'btn-primary opacity-70 hover:opacity-100' : 'btn-ghost'"
             (click)="openDeleteInstanceModal(tab)"
-            [attr.aria-label]="'Eliminar ' + tab.label + ' del segment'"
+            [attr.aria-label]="'Elimina ' + tab.label + ' del segment'"
           >
             <i-lucide [img]="X" class="size-3" />
           </button>
@@ -61,11 +61,11 @@
       <button
         type="button"
         class="btn btn-ghost btn-sm gap-1"
-        aria-label="Editar template de la figura"
+        aria-label="Edita template de la figura"
         (click)="onEditTemplate()"
       >
         <i-lucide [img]="Edit" class="size-4" />
-        Editar template
+        Edita template
       </button>
     }
 
@@ -73,12 +73,12 @@
       <button
         type="button"
         class="btn btn-ghost btn-sm gap-1"
-        aria-label="Desar com a template"
+        aria-label="Desa com a template"
         (click)="openSaveAsTemplate()"
-        title="Desar la disposició actual com a template"
+        title="Desa la disposició actual com a template"
       >
         <i-lucide [img]="SaveIcon" class="size-4" />
-        Desar com a template
+        Desa com a template
       </button>
     }
 
@@ -496,7 +496,7 @@
     <div class="modal-box max-w-sm">
       <h3 id="delete-instance-title" class="text-lg font-bold mb-3 text-error">Eliminar figura del segment</h3>
       <p id="delete-instance-desc" class="text-sm text-base-content/70">
-        Vols eliminar
+        Voleu eliminar
         <strong>{{ pendingDeleteTab()!.label }}</strong>
         d'aquest segment?
       </p>
@@ -580,7 +580,7 @@
           @if (resetting()) {
             <span class="loading loading-spinner loading-xs"></span>
           }
-          Eliminar tot
+          Elimina tot
         </button>
       </div>
     </div>

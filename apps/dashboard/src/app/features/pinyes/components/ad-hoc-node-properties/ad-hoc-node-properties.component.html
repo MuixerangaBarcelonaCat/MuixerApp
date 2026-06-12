@@ -137,7 +137,7 @@
           type="range"
           [id]="'adhoc-rot-' + node().id"
           class="range range-xs flex-1"
-          min="0" max="360" step="15"
+          min="0" max="360" step="1"
           [ngModel]="node().rotation"
           (ngModelChange)="onPropChange('rotation', +$event)"
         />

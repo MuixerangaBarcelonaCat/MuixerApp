@@ -46,6 +46,7 @@ interface PinyaPosition {
   positionType: string;
   label: string;
   color: string;
+  shape: NodeShape;
 }
 
 // TODO: Adjust default node dimensions to match visual needs
@@ -53,21 +54,28 @@ const DEFAULT_NODE_WIDTH = 80;
 const DEFAULT_NODE_HEIGHT = 40;
 
 const PINYA_POSITIONS: PinyaPosition[] = [
-  { positionType: 'agulla',      label: 'AGULLA',      color: '#0d9488' },
-  { positionType: 'mans',        label: 'MANS',        color: '#FFE082' },
-  { positionType: 'laterals',    label: 'LATERALS',    color: '#80DEEA' },
-  { positionType: 'vents',       label: 'VENTS',       color: '#A5D6A7' },
-  { positionType: 'cordo-obert', label: 'CORDO OBERT', color: '#FFF9C4' },
-  { positionType: 'tap',         label: 'TAP',         color: '#be185d' },
-  { positionType: 'crossa',      label: 'CROSSA',      color: '#9FA8DA' },
-  { positionType: 'contrafort',  label: 'CONTRAFORT',  color: '#EF9A9A' },
+  { positionType: 'agulla',      label: 'AGULLA',      color: '#0d9488', shape: NodeShape.RECTANGLE },
+  { positionType: 'mans',        label: 'MANS',        color: '#FFE082', shape: NodeShape.RECTANGLE },
+  { positionType: 'laterals',    label: 'LATERALS',    color: '#80DEEA', shape: NodeShape.RECTANGLE },
+  { positionType: 'vents',       label: 'VENTS',       color: '#A5D6A7', shape: NodeShape.RECTANGLE },
+  { positionType: 'cordo-obert', label: 'CORDO OBERT', color: '#FFF9C4', shape: NodeShape.ELLIPSE },
+  { positionType: 'tap',         label: 'TAP',         color: '#be185d', shape: NodeShape.RECTANGLE },
+  { positionType: 'crossa',      label: 'CROSSA',      color: '#9FA8DA', shape: NodeShape.RECTANGLE},
+  { positionType: 'contrafort',  label: 'CONTRAFORT',  color: '#EF9A9A', shape: NodeShape.RECTANGLE },
 ];
 
 @Component({
   selector: 'app-template-editor',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule, FigureCanvasComponent, TroncViewComponent, TemplateEditorHelpModalComponent, RenglaOverlayComponent],
+  imports: [
+    FormsModule,
+    LucideAngularModule,
+    FigureCanvasComponent,
+    TroncViewComponent,
+    TemplateEditorHelpModalComponent,
+    RenglaOverlayComponent,
+  ],
   templateUrl: './template-editor.component.html',
   styleUrl: './template-editor.component.scss',
 })
@@ -179,9 +187,9 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   readonly saveStatusLabel = computed(() => {
     const s = this.saveStatus();
-    if (s === 'saving') return 'Guardant...';
-    if (s === 'saved') return 'Guardat';
-    if (s === 'error') return 'Error en guardar';
+    if (s === 'saving') return 'Alçant...';
+    if (s === 'saved') return 'Alçat';
+    if (s === 'error') return "S'ha produït un error en alçar";
     return '';
   });
 
@@ -244,11 +252,19 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   // ── Tronc widget events ────────────────────────────────────────────────────
 
-  onTroncNodeAdded(event: { z: number; positionType: string; label: string; sortOrder: number }): void {
+  onTroncNodeAdded(event: {
+    z: number;
+    positionType: string;
+    label: string;
+    sortOrder: number;
+  }): void {
     this.pushSnapshot('Afegir node de tronc');
     const id = generateUUID();
     const existingAtZ = this.troncNodes().filter((n) => n.z === event.z);
-    const nextX = existingAtZ.reduce((max, n) => Math.max(max, n.x + n.width), 0);
+    const nextX = existingAtZ.reduce(
+      (max, n) => Math.max(max, n.x + n.width),
+      0,
+    );
     const newNode: FigureNodeItem = {
       id,
       label: event.label,
@@ -282,7 +298,11 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     this.scheduleAutosave();
   }
 
-  onTroncNodeUpdated(event: { nodeId: string; x: number; width: number }): void {
+  onTroncNodeUpdated(event: {
+    nodeId: string;
+    x: number;
+    width: number;
+  }): void {
     this.pushSnapshot('Modificar node de tronc');
     this.updateNode(event.nodeId, { x: event.x, width: event.width });
     this.scheduleAutosave();
@@ -290,7 +310,9 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   onTroncFloorRemoved(z: number): void {
     this.pushSnapshot('Eliminar pis');
-    this.nodes.update((n) => n.filter((node) => !(node.zone === FigureZone.TRONC && node.z === z)));
+    this.nodes.update((n) =>
+      n.filter((node) => !(node.zone === FigureZone.TRONC && node.z === z)),
+    );
     this.selectedNodeId.set(null);
     this.scheduleAutosave();
   }
@@ -338,7 +360,14 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   // ── Toolbar actions ────────────────────────────────────────────────────────
 
   addPinyaNode(pos: PinyaPosition): void {
-    this.addNode(FigureZone.PINYA, 0, pos.positionType, pos.color, pos.label);
+    this.addNode(
+      FigureZone.PINYA,
+      0,
+      pos.positionType,
+      pos.color,
+      pos.label,
+      pos.shape,
+    );
   }
 
   addNode(
@@ -347,6 +376,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     positionType: string | null = null,
     color: string | null = null,
     labelOverride?: string,
+    shape: NodeShape = NodeShape.RECTANGLE,
   ): void {
     this.pushSnapshot(`Afegir ${labelOverride ?? 'node'}`);
     const id = generateUUID();
@@ -363,7 +393,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
       height: DEFAULT_NODE_HEIGHT,
       rotation: 0,
       color,
-      shape: NodeShape.RECTANGLE,
+      shape: shape,
       sortOrder: this.nodes().length,
       climbPath: null,
       ringLevel: null,
@@ -383,7 +413,10 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     if ((event.target as HTMLElement).closest('button')) return;
     this.troncDragging = true;
     const pos = this.troncPanelPos();
-    this.troncDragOffset = { x: event.clientX - pos.x, y: event.clientY - pos.y };
+    this.troncDragOffset = {
+      x: event.clientX - pos.x,
+      y: event.clientY - pos.y,
+    };
     event.preventDefault();
   }
 
@@ -513,10 +546,10 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     this.pushSnapshot('Moure node');
     const step = large ? 10 : 1;
     const delta = {
-      ArrowUp:    { x: 0,     y: -step },
-      ArrowDown:  { x: 0,     y:  step },
-      ArrowLeft:  { x: -step, y: 0     },
-      ArrowRight: { x:  step, y: 0     },
+      ArrowUp: { x: 0, y: -step },
+      ArrowDown: { x: 0, y: step },
+      ArrowLeft: { x: -step, y: 0 },
+      ArrowRight: { x: step, y: 0 },
     }[key];
     if (!delta) return;
 
@@ -536,14 +569,19 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     const id = this.selectedNodeId();
     if (!id) return;
     this.pushSnapshot('Canviar propietat');
-    
-    const patch: Partial<FigureNodeItem> = { [key]: value } as Partial<FigureNodeItem>;
-    
+
+    const patch: Partial<FigureNodeItem> = {
+      [key]: value,
+    } as Partial<FigureNodeItem>;
+
     // BASE and PINYA nodes always live at z=0
-    if (key === 'zone' && (value === FigureZone.PINYA || value === FigureZone.BASE)) {
+    if (
+      key === 'zone' &&
+      (value === FigureZone.PINYA || value === FigureZone.BASE)
+    ) {
       patch.z = 0;
     }
-    
+
     this.updateNode(id, patch);
     this.scheduleAutosave();
   }
@@ -745,21 +783,31 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   // ── Ghost clone ─────────────────────────────────────────────────────────────
 
-  onGhostCloneRequested(event: { sourceNode: CanvasNode; targetPosition: { x: number; y: number } }): void {
+  onGhostCloneRequested(event: {
+    sourceNode: CanvasNode;
+    targetPosition: { x: number; y: number };
+  }): void {
     const source = this.nodes().find((n) => n.id === event.sourceNode.id);
     if (!source) return;
     this.pushSnapshot('Clonar node');
 
     const newId = generateUUID();
     let renglaId = source.renglaId;
-    let renglaPosition = source.renglaPosition != null ? source.renglaPosition + 1 : null;
+    let renglaPosition =
+      source.renglaPosition != null ? source.renglaPosition + 1 : null;
     let ringLevel = source.ringLevel != null ? source.ringLevel + 1 : null;
 
     if (renglaId) {
       this.nodes.update((nodes) =>
         nodes.map((n) =>
-          n.renglaId === renglaId && n.renglaPosition != null && n.renglaPosition >= renglaPosition!
-            ? { ...n, renglaPosition: n.renglaPosition + 1, ringLevel: n.ringLevel != null ? n.ringLevel + 1 : null }
+          n.renglaId === renglaId &&
+          n.renglaPosition != null &&
+          n.renglaPosition >= renglaPosition!
+            ? {
+                ...n,
+                renglaPosition: n.renglaPosition + 1,
+                ringLevel: n.ringLevel != null ? n.ringLevel + 1 : null,
+              }
             : n,
         ),
       );
@@ -867,18 +915,36 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     const msg = (err.error?.message as string | undefined) ?? '';
     const msgLower = msg.toLowerCase();
 
-    if (err.status === 409 && (msgLower.includes('slug') || msgLower.includes('identificador'))) {
+    if (
+      err.status === 409 &&
+      (msgLower.includes('slug') || msgLower.includes('identificador'))
+    ) {
       const slug = this.templateSlug();
-      this.toast.error(`L'identificador "${slug}" ja l'utilitza una altra figura. Canvia'l per poder desar.`);
-    } else if (err.status === 409 && (msgLower.includes('instànci') || msgLower.includes('instanci') || msgLower.includes('composici'))) {
-      this.toast.error(msg || 'No es pot esborrar: hi ha instàncies o composicions que fan servir aquesta figura.');
+      this.toast.error(
+        `L'identificador "${slug}" ja l'utilitza una altra figura. Canvia'l per poder desar.`,
+      );
+    } else if (
+      err.status === 409 &&
+      (msgLower.includes('instànci') ||
+        msgLower.includes('instanci') ||
+        msgLower.includes('composici'))
+    ) {
+      this.toast.error(
+        msg ||
+          'No es pot esborrar: hi ha instàncies o composicions que fan servir aquesta figura.',
+      );
     } else if (err.status === 409) {
-      this.toast.error(msg || 'Conflicte en desar la figura. Revisa les dades i torna-ho a intentar.');
+      this.toast.error(
+        msg ||
+          'Conflicte en desar la figura. Revisa les dades i torna-ho a intentar.',
+      );
     } else if (err.status === 500 && msgLower.includes('slug')) {
       const slug = this.templateSlug();
-      this.toast.error(`L'identificador "${slug}" ja l'utilitza una altra figura. Canvia'l per poder desar.`);
+      this.toast.error(
+        `L'identificador "${slug}" ja l'utilitza una altra figura. Canvia'l per poder desar.`,
+      );
     } else {
-      this.toast.error('No s\'ha pogut desar la figura. Torna-ho a intentar.');
+      this.toast.error("No s'ha pogut desar la figura. Torna-ho a intentar.");
     }
   }
 

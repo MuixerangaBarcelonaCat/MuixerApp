@@ -169,9 +169,10 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   readonly nodes = input<CanvasNode[]>([]);
   readonly mode = input<CanvasMode>('editor');
   readonly gridEnabled = input<boolean>(true);
-  readonly gridSpacing = input<number>(40);
+  readonly gridSpacing = input<number>(20);
   readonly selectedNodeId = input<string | null>(null);
   readonly snapToGrid = input<boolean>(false);
+  readonly rotationSnapAngle = input<number>(15);
   readonly compositionSlots = input<CompositionSlotWithNodes[]>([]);
   readonly selectedSlotId = input<string | null>(null);
   // Assignment mode inputs
@@ -186,17 +187,44 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   readonly nodeClicked = output<{ nodeId: string; x: number; y: number }>();
   readonly nodeMoved = output<{ id: string; x: number; y: number }>();
   readonly nodeRotated = output<{ id: string; rotation: number }>();
-  readonly nodeResized = output<{ id: string; width: number; height: number }>();
+  readonly nodeResized = output<{
+    id: string;
+    width: number;
+    height: number;
+  }>();
   readonly nodeLabelChanged = output<{ id: string; label: string }>();
   readonly zoomChanged = output<number>();
   readonly slotSelected = output<string | null>();
-  readonly slotMoved = output<{ slotId: string; offsetX: number; offsetY: number }>();
+  readonly slotMoved = output<{
+    slotId: string;
+    offsetX: number;
+    offsetY: number;
+  }>();
   readonly nodeDoubleClicked = output<string>();
-  readonly stageTransformChanged = output<{ x: number; y: number; scaleX: number; scaleY: number }>();
-  readonly ghostCloneRequested = output<{ sourceNode: CanvasNode; targetPosition: { x: number; y: number } }>();
+  readonly stageTransformChanged = output<{
+    x: number;
+    y: number;
+    scaleX: number;
+    scaleY: number;
+  }>();
+  readonly ghostCloneRequested = output<{
+    sourceNode: CanvasNode;
+    targetPosition: { x: number; y: number };
+  }>();
   readonly canvasClicked = output<{ x: number; y: number }>();
-  readonly adHocNodeMoved = output<{ nodeId: string; x: number; y: number }>();
-  readonly adHocNodeTransformed = output<{ nodeId: string; x: number; y: number; width: number; height: number; rotation: number }>();
+  readonly adHocNodeMoved = output<{
+    nodeId: string;
+    x: number;
+    y: number;
+  }>();
+  readonly adHocNodeTransformed = output<{
+    nodeId: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    rotation: number;
+  }>();
 
   private stage!: Konva.Stage;
   private gridLayer!: Konva.Layer;
@@ -230,7 +258,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       if (!this.stage) return;
       untracked(() => {
         const m = this.mode();
-        if (m === 'composition' || m === 'assignment' || m === 'readonly') return;
+        if (m === 'composition' || m === 'assignment' || m === 'readonly')
+          return;
         this.renderNodes();
         this.updateTransformer();
       });
@@ -310,9 +339,9 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
   fitAllSlots(): void {
     // Collect all slot groups (exclude the Transformer which is also a Group subclass)
-    const groups = this.pinyaLayer.getChildren().filter(
-      (node) => node.className === 'Group',
-    ) as Konva.Group[];
+    const groups = this.pinyaLayer
+      .getChildren()
+      .filter((node) => node.className === 'Group') as Konva.Group[];
 
     if (groups.length === 0) {
       this.fitToScreen();
@@ -320,7 +349,10 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     }
 
     // Compute union bounding box in layer-local (scene) coordinates
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
     for (const group of groups) {
       const rect = group.getClientRect({ relativeTo: this.pinyaLayer });
       minX = Math.min(minX, rect.x);
@@ -352,7 +384,12 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.emitStageTransform();
   }
 
-  getStageTransform(): { x: number; y: number; scaleX: number; scaleY: number } {
+  getStageTransform(): {
+    x: number;
+    y: number;
+    scaleX: number;
+    scaleY: number;
+  } {
     if (!this.stage) return { x: 0, y: 0, scaleX: 1, scaleY: 1 };
     return {
       x: this.stage.x(),
@@ -433,9 +470,10 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       const isMiddleButton = e.evt.button === 1;
       const isLeftButton = e.evt.button === 0;
       const clickedOnStage = e.target === this.stage;
-      const noSelection = this.mode() === 'composition'
-        ? !this.selectedSlotId()
-        : !this.selectedNodeId();
+      const noSelection =
+        this.mode() === 'composition'
+          ? !this.selectedSlotId()
+          : !this.selectedNodeId();
 
       // Allow panning with middle button or left button on empty canvas
       if (isMiddleButton || (isLeftButton && clickedOnStage && noSelection)) {
@@ -470,11 +508,16 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.stage.on('mousemove', (e) => {
       if (isPanning) return;
       const clickedOnStage = e.target === this.stage;
-      const noSelection = this.mode() === 'composition'
-        ? !this.selectedSlotId()
-        : !this.selectedNodeId();
+      const noSelection =
+        this.mode() === 'composition'
+          ? !this.selectedSlotId()
+          : !this.selectedNodeId();
 
-      if (clickedOnStage && noSelection && (this.mode() === 'editor' || this.mode() === 'composition')) {
+      if (
+        clickedOnStage &&
+        noSelection &&
+        (this.mode() === 'editor' || this.mode() === 'composition')
+      ) {
         this.setCursor('grab');
       }
     });
@@ -635,7 +678,9 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
     const selectedSlotId = this.selectedSlotId();
     // Sort ascending: lower sortOrder painted first (behind), higher sortOrder on top
-    const sortedSlots = [...this.compositionSlots()].sort((a, b) => a.sortOrder - b.sortOrder);
+    const sortedSlots = [...this.compositionSlots()].sort(
+      (a, b) => a.sortOrder - b.sortOrder,
+    );
 
     for (const slot of sortedSlots) {
       const pinyaNodes = slot.figureTemplate.nodes.filter(
@@ -666,7 +711,9 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
             stroke: isSelected ? SELECTED_STROKE : '#94a3b8',
             strokeWidth: isSelected ? 2 : 1,
             dash: [6, 3],
-            fill: isSelected ? 'rgba(245,158,11,0.05)' : 'rgba(148,163,184,0.05)',
+            fill: isSelected
+              ? 'rgba(245,158,11,0.05)'
+              : 'rgba(148,163,184,0.05)',
             cornerRadius: 6,
             listening: true,
           }),
@@ -699,7 +746,10 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         );
       } else {
         // Compute bounding box for the bounding rect
-        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        let minX = Infinity,
+          minY = Infinity,
+          maxX = -Infinity,
+          maxY = -Infinity;
         for (const n of pinyaNodes) {
           minX = Math.min(minX, n.x - n.width / 2);
           minY = Math.min(minY, n.y - n.height / 2);
@@ -747,7 +797,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
         // Render pinya-view nodes (read-only)
         for (const node of pinyaNodes) {
-          const fill = node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR;
+          const fill =
+            node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR;
           const nodeGroup = new Konva.Group({
             x: node.x,
             y: node.y,
@@ -849,7 +900,9 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       const isHighlighted = highlighted.has(node.id);
       const isAdHoc = !!(node as any).isAdHoc;
       const isDecoration = node.zone === FigureZone.DECORATION;
-      const isDirection = (DIRECTION_ZONES as readonly string[]).includes(node.zone);
+      const isDirection = (DIRECTION_ZONES as readonly string[]).includes(
+        node.zone,
+      );
       const fill = isDecoration
         ? decorationFill(node.color)
         : (node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR);
@@ -862,7 +915,15 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
             : isDirection
               ? '#1e1b4b'
               : NORMAL_STROKE;
-      const strokeWidth = isSelected ? 3 : isHighlighted ? 2.5 : isDirection ? 2.5 : isDecoration ? 2 : 1.5;
+      const strokeWidth = isSelected
+        ? 3
+        : isHighlighted
+          ? 2.5
+          : isDirection
+            ? 2.5
+            : isDecoration
+              ? 2
+              : 1.5;
 
       const group = new Konva.Group({
         id: node.id,
@@ -893,7 +954,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           ? (node.color ? this.getContrastColor(node.color) : DECORATION_STROKE)
           : this.getContrastColor(fill);
         const shoulderH = assignment.person.shoulderHeight;
-        const hasValidHeight = shoulderH !== null && shoulderH !== 0 && shoulderH !== 140;
+        const hasValidHeight =
+          shoulderH !== null && shoulderH !== 0 && shoulderH !== 140;
         const nextStatus = nextPerformanceMap.get(assignment.person.id);
 
         group.add(
@@ -915,9 +977,10 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         );
 
         if (hasValidHeight) {
-          const heightText = heightMode === 'relative'
-            ? `${shoulderH! >= 140 ? '+' : ''}${shoulderH! - 140}`
-            : `${shoulderH}`;
+          const heightText =
+            heightMode === 'relative'
+              ? `${shoulderH! >= 140 ? '+' : ''}${shoulderH! - 140}`
+              : `${shoulderH}`;
           group.add(
             new Konva.Text({
               text: heightText,
@@ -1107,11 +1170,16 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         ? (node.color ? this.getContrastColor(node.color) : DECORATION_STROKE)
         : this.getContrastColor(fill);
       const displayText = assignment ? assignment.person.alias : node.label;
-      const { fontSize, wrap } = this.fitFontSizeForNode(displayText, node.width, node.height, {
-        maxFontSize: assignment ? 13 : 9,
-        fontStyle: assignment ? 'bold' : 'normal',
-        wrap: assignment ? 'none' : 'word',
-      });
+      const { fontSize, wrap } = this.fitFontSizeForNode(
+        displayText,
+        node.width,
+        node.height,
+        {
+          maxFontSize: assignment ? 13 : 9,
+          fontStyle: assignment ? 'bold' : 'normal',
+          wrap: assignment ? 'none' : 'word',
+        },
+      );
 
       group.add(
         new Konva.Text({
@@ -1257,12 +1325,22 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         const newHeight = Math.max(20, Math.round(node.height * scaleY));
 
         if (newWidth !== node.width || newHeight !== node.height) {
-          this.nodeResized.emit({ id: node.id, width: newWidth, height: newHeight });
+          this.nodeResized.emit({
+            id: node.id,
+            width: newWidth,
+            height: newHeight,
+          });
         }
 
         // Capture rotation set by the Transformer's rotate handle
         const rawRotation = Math.round(group.rotation());
-        const rotation = ((rawRotation % 360) + 360) % 360;
+        let rotation = ((rawRotation % 360) + 360) % 360;
+        if (this.snapToGrid()) {
+          rotation =
+            Math.round(rotation / this.rotationSnapAngle()) *
+            this.rotationSnapAngle();
+          rotation = ((rotation % 360) + 360) % 360;
+        }
         if (rotation !== node.rotation) {
           this.nodeRotated.emit({ id: node.id, rotation });
         }
@@ -1307,7 +1385,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.hideGhost();
 
     const pos = calculateGhostPosition(node);
-    const strokeColor = node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR;
+    const strokeColor =
+      node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR;
 
     const ghost = new Konva.Group({
       x: pos.x,

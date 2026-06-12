@@ -41,8 +41,8 @@ describe('rengla-coordinates.util', () => {
       expect(isCentralNode('contrafort')).toBe(true);
     });
 
-    it('returns true for tap', () => {
-      expect(isCentralNode('tap')).toBe(true);
+    it('returns false for tap', () => {
+      expect(isCentralNode('tap')).toBe(false);
     });
 
     it('returns false for mans', () => {

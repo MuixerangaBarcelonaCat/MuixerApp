@@ -233,7 +233,7 @@ export class FigureTemplateService {
 
     if (instanceCount > 0) {
       throw new ConflictException(
-        `No es pot esborrar: hi ha ${instanceCount} instància/instàncies que fan servir aquest template.`,
+        `No es pot esborrar: hi ha ${instanceCount} instàncies que fan servir aquesta plantilla.`,
       );
     }
 
