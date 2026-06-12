@@ -49,7 +49,6 @@ export interface RenglaItem {
   id: string;
   name: string;
   sortOrder: number;
-  startPosition: number;
   allowsCordoObert: boolean;
 }
 
@@ -148,11 +147,12 @@ export class FigureTemplateService {
   }
 
   async create(dto: CreateFigureTemplateDto): Promise<FigureTemplateDetailItem> {
-    await this.assertSlugAvailable(dto.slug);
+    const name = await this.generateUniqueName(dto.name.trim());
+    const slug = await this.generateUniqueSlug(this.slugify(name));
 
     const template = this.templateRepository.create({
-      name: dto.name,
-      slug: dto.slug,
+      name,
+      slug,
       description: dto.description ?? null,
       hasPinya: dto.hasPinya ?? true,
       direction: dto.direction ?? 0,
@@ -183,10 +183,11 @@ export class FigureTemplateService {
       throw new NotFoundException(`FigureTemplate with ID ${id} not found`);
     }
 
-    if (dto.name !== undefined) template.name = dto.name;
-    if (dto.slug !== undefined) {
-      await this.assertSlugAvailable(dto.slug, id);
-      template.slug = dto.slug;
+    if (dto.name !== undefined) {
+      const trimmedName = dto.name.trim();
+      await this.assertNameAvailable(trimmedName, id);
+      template.name = trimmedName;
+      template.slug = await this.generateUniqueSlug(this.slugify(trimmedName), id);
     }
     if (dto.description !== undefined) template.description = dto.description ?? null;
     if (dto.hasPinya !== undefined) template.hasPinya = dto.hasPinya;
@@ -201,6 +202,7 @@ export class FigureTemplateService {
 
     if (dto.nodes !== undefined) {
       await this.syncNodes(template, dto.nodes);
+      await this.autoComputeAllowsCordoObert(id);
     }
 
     if (dto.rengles !== undefined) {
@@ -353,7 +355,6 @@ export class FigureTemplateService {
           template: savedTemplate,
           name: r.name,
           sortOrder: r.sortOrder,
-          startPosition: r.startPosition,
           allowsCordoObert: r.allowsCordoObert,
         });
       });
@@ -438,14 +439,64 @@ export class FigureTemplateService {
     }
   }
 
+  private async assertNameAvailable(name: string, excludeId?: string): Promise<void> {
+    const existing = await this.templateRepository.findOne({ where: { name } });
+    if (existing && existing.id !== excludeId) {
+      throw new ConflictException(
+        `The name "${name}" is already in use by another figure template`,
+      );
+    }
+  }
+
+  private async generateUniqueName(baseName: string, excludeId?: string): Promise<string> {
+    let candidate = baseName;
+    let suffix = 2;
+    while (true) {
+      const existing = await this.templateRepository.findOne({ where: { name: candidate } });
+      if (!existing || existing.id === excludeId) return candidate;
+      candidate = `${baseName} ${suffix}`;
+      suffix++;
+    }
+  }
+
+  private async generateUniqueSlug(baseSlug: string, excludeId?: string): Promise<string> {
+    let candidate = baseSlug;
+    let suffix = 2;
+    while (true) {
+      const existing = await this.templateRepository.findOne({ where: { slug: candidate } });
+      if (!existing || existing.id === excludeId) return candidate;
+      candidate = `${baseSlug}-${suffix}`;
+      suffix++;
+    }
+  }
+
+  private slugify(name: string): string {
+    return name
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9\s-]/g, '')
+      .trim()
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-');
+  }
+
   private handleDbError(err: unknown): never {
     const pgErr = err as { code?: string; detail?: string };
     if (pgErr?.code === '23505') {
+      const nameMatch = pgErr.detail?.match(/Key \(name\)=\(([^)]+)\)/);
+      if (nameMatch) {
+        throw new ConflictException(
+          `The name "${nameMatch[1]}" is already in use by another figure template`,
+        );
+      }
       const slugMatch = pgErr.detail?.match(/Key \(slug\)=\(([^)]+)\)/);
-      const slug = slugMatch ? slugMatch[1] : 'unknown';
-      throw new ConflictException(
-        `The slug "${slug}" is already in use by another figure template`,
-      );
+      if (slugMatch) {
+        throw new ConflictException(
+          `The slug "${slugMatch[1]}" is already in use by another figure template`,
+        );
+      }
+      throw new ConflictException('A figure template with these values already exists');
     }
     throw new InternalServerErrorException('Unexpected database error');
   }
@@ -533,6 +584,7 @@ export class FigureTemplateService {
   /**
    * Upsert strategy for rengles.
    * On deletion: clears renglaId/renglaPosition on orphaned FigureNodes.
+   * After upsert: auto-computes allowsCordoObert from node data.
    */
   private async syncRengles(
     template: FigureTemplate,
@@ -547,12 +599,12 @@ export class FigureTemplateService {
     const toCreate: Rengla[] = [];
     const incomingIds = new Set<string>();
 
-    for (const dto of incomingDtos) {
+    for (let i = 0; i < incomingDtos.length; i++) {
+      const dto = incomingDtos[i];
       if (dto.id && existingById.has(dto.id)) {
         const rengla = existingById.get(dto.id)!;
-        rengla.name = dto.name;
+        rengla.name = dto.name ?? rengla.name ?? `Rengla ${i + 1}`;
         rengla.sortOrder = dto.sortOrder ?? rengla.sortOrder;
-        rengla.startPosition = dto.startPosition ?? rengla.startPosition;
         rengla.allowsCordoObert = dto.allowsCordoObert ?? rengla.allowsCordoObert;
         toUpdate.push(rengla);
         incomingIds.add(dto.id);
@@ -561,9 +613,8 @@ export class FigureTemplateService {
           this.renglaRepository.create({
             ...(dto.id ? { id: dto.id } : {}),
             template,
-            name: dto.name,
-            sortOrder: dto.sortOrder ?? 0,
-            startPosition: dto.startPosition ?? 1,
+            name: dto.name || `Rengla ${i + 1}`,
+            sortOrder: dto.sortOrder ?? i,
             allowsCordoObert: dto.allowsCordoObert ?? false,
           }),
         );
@@ -587,6 +638,34 @@ export class FigureTemplateService {
         .execute();
 
       await this.renglaRepository.delete({ id: In(toDeleteIds) });
+    }
+
+    await this.autoComputeAllowsCordoObert(template.id);
+  }
+
+  private async autoComputeAllowsCordoObert(templateId: string): Promise<void> {
+    const rengles = await this.renglaRepository.find({
+      where: { template: { id: templateId } },
+    });
+    if (rengles.length === 0) return;
+
+    const nodes = await this.nodeRepository.find({
+      where: { template: { id: templateId } },
+    });
+
+    const updates: Rengla[] = [];
+    for (const rengla of rengles) {
+      const hasCordoObert = nodes.some(
+        (n) => n.renglaId === rengla.id && n.positionType === 'cordo-obert',
+      );
+      if (rengla.allowsCordoObert !== hasCordoObert) {
+        rengla.allowsCordoObert = hasCordoObert;
+        updates.push(rengla);
+      }
+    }
+
+    if (updates.length > 0) {
+      await this.renglaRepository.save(updates);
     }
   }
 }
@@ -644,9 +723,8 @@ function nodeToItem(node: FigureNode): FigureNodeItem {
 function renglaToItem(rengla: Rengla): RenglaItem {
   return {
     id: rengla.id,
-    name: rengla.name,
+    name: rengla.name ?? `Rengla ${rengla.sortOrder + 1}`,
     sortOrder: rengla.sortOrder,
-    startPosition: rengla.startPosition,
     allowsCordoObert: rengla.allowsCordoObert,
   };
 }
