@@ -167,6 +167,7 @@ export interface UpdateInstanceCordonsPayload {
 export interface CordonsResponse {
   numberOfCordons: number | null;
   openCordons: string[] | null;
+  removedAssignments: number;
 }
 
 export interface SwapAssignmentsPayload {

@@ -29,14 +29,9 @@
             (ngModelChange)="onNameChange($event)"
             aria-label="Nom de la figura"
           />
-          <input
-            type="text"
-            class="input input-ghost input-xs text-base-content/50 font-mono w-32"
-            placeholder="slug"
-            [ngModel]="templateSlug()"
-            (ngModelChange)="onSlugChange($event)"
-            aria-label="Slug de la figura"
-          />
+          @if (templateSlug()) {
+            <span class="text-xs text-base-content/40 font-mono truncate max-w-32">{{ templateSlug() }}</span>
+          }
         }
       </div>
     </div>
@@ -317,7 +312,6 @@
               [rengles]="rengles()"
               [stageTransform]="stageTransform()"
               (renglaCreated)="onRenglaCreated($event)"
-              (renglaUpdated)="onRenglaUpdated($event)"
               (renglaDeleted)="onRenglaDeleted($event)"
             />
           }
@@ -775,6 +769,29 @@
 
 <!-- Template editor help modal -->
 <app-template-editor-help-modal />
+
+<!-- Name prompt modal -->
+@if (showNamePrompt()) {
+  <dialog class="modal modal-open" role="dialog" aria-labelledby="name-prompt-title" aria-modal="true">
+    <div class="modal-box max-w-sm">
+      <h3 id="name-prompt-title" class="text-lg font-bold mb-2">Nom de la figura</h3>
+      <p class="text-sm text-base-content/70 mb-4">Has d'introduir un nom per la figura abans de continuar.</p>
+      <input
+        #nameInput
+        type="text"
+        class="input input-bordered w-full"
+        placeholder="Ex: Pilar de 4, Torre de 6..."
+        (keydown.enter)="confirmNamePrompt(nameInput.value)"
+        aria-label="Nom de la figura"
+      />
+      <div class="modal-action">
+        <button type="button" class="btn btn-ghost btn-sm" (click)="cancelNamePrompt()">Cancel·lar</button>
+        <button type="button" class="btn btn-primary btn-sm" (click)="confirmNamePrompt(nameInput.value)">Confirmar</button>
+      </div>
+    </div>
+    <button type="button" class="modal-backdrop" (click)="cancelNamePrompt()" aria-label="Tancar"></button>
+  </dialog>
+}
 
 <!-- Screen reader announcements -->
 <div class="sr-only" aria-live="polite" aria-atomic="true">

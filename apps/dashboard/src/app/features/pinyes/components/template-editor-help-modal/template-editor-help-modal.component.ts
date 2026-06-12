@@ -185,8 +185,8 @@ const HELP_SECTIONS: HelpSection[] = [
         answer: 'Darrere de cada node de pinya (excepte centrals i cordó obert) apareix un "+" fantasma. Clicant-lo es crea un clon alineat radialment i s\'afegeix automàticament a la mateixa rengla.',
       },
       {
-        question: 'Què és startPosition?',
-        answer: 'Algunes rengles només apareixen a partir d\'un cert cordó. Per exemple, laterals extra que només existeixen a 3+ cordons tenen startPosition = 3.',
+        question: 'Com es crea una rengla?',
+        answer: 'Activeu el mode rengles, cliqueu els nodes en ordre (del centre cap enfora) i premeu "Finalitzar". La rengla es crea automàticament sense cap formulari.',
       },
       {
         question: 'Puc eliminar una rengla?',

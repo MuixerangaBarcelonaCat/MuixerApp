@@ -56,7 +56,6 @@ const makeRengla = (overrides: Partial<Rengla> = {}): Rengla => ({
   id: 'rengla-uuid',
   name: 'Mans Nord',
   sortOrder: 0,
-  startPosition: 1,
   allowsCordoObert: false,
   template: null as unknown as FigureTemplate,
   createdAt: new Date(),
@@ -210,7 +209,8 @@ describe('FigureTemplateService', () => {
     it('creates template with slug and name', async () => {
       const saved = makeTemplate({ id: 'new-uuid' });
       mockTemplateRepo.findOne
-        .mockResolvedValueOnce(null) // assertSlugAvailable: slug not taken
+        .mockResolvedValueOnce(null) // generateUniqueName: name not taken
+        .mockResolvedValueOnce(null) // generateUniqueSlug: slug not taken
         .mockResolvedValueOnce({ ...saved, nodes: [] }); // findOne after create
       mockTemplateRepo.save.mockResolvedValue(saved);
 
@@ -222,6 +222,28 @@ describe('FigureTemplateService', () => {
 
       expect(result.id).toBe('new-uuid');
       expect(mockTemplateRepo.save).toHaveBeenCalled();
+    });
+
+    it('auto-suffixes name and slug when name already exists', async () => {
+      const existing = makeTemplate({ id: 'existing-uuid', name: 'Trobada', slug: 'trobada' });
+      const saved = makeTemplate({ id: 'new-uuid', name: 'Trobada 2', slug: 'trobada-2' });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(existing) // generateUniqueName: "Trobada" taken
+        .mockResolvedValueOnce(null) // generateUniqueName: "Trobada 2" free
+        .mockResolvedValueOnce(null) // generateUniqueSlug: "trobada-2" free
+        .mockResolvedValueOnce({ ...saved, nodes: [] });
+      mockTemplateRepo.save.mockImplementation(async (tmpl) => tmpl as FigureTemplate);
+
+      const result = await service.create({
+        name: 'Trobada',
+        slug: 'trobada',
+        nodes: [],
+      });
+
+      expect(mockTemplateRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'Trobada 2', slug: 'trobada-2' }),
+      );
+      expect(result.id).toBe('new-uuid');
     });
   });
 
@@ -358,7 +380,7 @@ describe('FigureTemplateService', () => {
       mockRenglaRepo.find.mockResolvedValue([]);
 
       await service.update('tmpl-uuid', {
-        rengles: [{ name: 'Mans Nord', sortOrder: 0, startPosition: 1 }],
+        rengles: [{ name: 'Mans Nord', sortOrder: 0 }],
       });
 
       expect(mockRenglaRepo.save).toHaveBeenCalled();
@@ -413,12 +435,26 @@ describe('FigureTemplateService', () => {
       const tmpl = makeTemplate({ nodes: [] });
       mockTemplateRepo.findOne
         .mockResolvedValueOnce(tmpl)
-        .mockResolvedValueOnce({ ...tmpl, rengles: [] });
+        .mockResolvedValueOnce(null) // assertNameAvailable
+        .mockResolvedValueOnce(null) // generateUniqueSlug check
+        .mockResolvedValueOnce({ ...tmpl, rengles: [] }); // findOne at end
       mockTemplateRepo.save.mockResolvedValue(tmpl);
 
       await service.update('tmpl-uuid', { name: 'Updated Name' });
 
       expect(mockRenglaRepo.find).not.toHaveBeenCalled();
+    });
+
+    it('rejects update when renaming to an existing name', async () => {
+      const tmpl = makeTemplate({ nodes: [] });
+      const other = makeTemplate({ id: 'other-uuid', name: 'Trobada' });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(tmpl)
+        .mockResolvedValueOnce(other);
+
+      await expect(service.update('tmpl-uuid', { name: 'Trobada' })).rejects.toThrow(
+        ConflictException,
+      );
     });
   });
 
@@ -432,7 +468,7 @@ describe('FigureTemplateService', () => {
     });
 
     it('maps rengles in detail response', async () => {
-      const rengla = makeRengla({ id: 'r1', name: 'Mans Nord', sortOrder: 0, startPosition: 1, allowsCordoObert: true });
+      const rengla = makeRengla({ id: 'r1', name: 'Mans Nord', sortOrder: 0, allowsCordoObert: true });
       const tmpl = makeTemplate({ nodes: [], rengles: [rengla] });
       mockTemplateRepo.findOne.mockResolvedValue(tmpl);
 
@@ -442,7 +478,6 @@ describe('FigureTemplateService', () => {
         id: 'r1',
         name: 'Mans Nord',
         sortOrder: 0,
-        startPosition: 1,
         allowsCordoObert: true,
       });
     });

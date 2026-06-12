@@ -5,16 +5,6 @@ export class AddAdHocInstanceNodes1781200000000 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `ALTER TYPE "public"."figure_zone_enum" ADD VALUE IF NOT EXISTS 'DECORATION'`,
-    );
-    await queryRunner.query(
-      `ALTER TYPE "public"."node_shape_enum" ADD VALUE IF NOT EXISTS 'ARROW'`,
-    );
-    await queryRunner.query(
-      `ALTER TYPE "public"."node_shape_enum" ADD VALUE IF NOT EXISTS 'CIRCLE'`,
-    );
-
-    await queryRunner.query(
       `ALTER TABLE "instance_nodes" ADD COLUMN "isAdHoc" boolean NOT NULL DEFAULT false`,
     );
     await queryRunner.query(
@@ -22,6 +12,16 @@ export class AddAdHocInstanceNodes1781200000000 implements MigrationInterface {
     );
     await queryRunner.query(
       `ALTER TABLE "instance_nodes" ADD CONSTRAINT "FK_instance_nodes_createdBy" FOREIGN KEY ("createdById") REFERENCES "users"("id") ON DELETE SET NULL`,
+    );
+
+    await queryRunner.query(
+      `ALTER TYPE "public"."figure_zone_enum" ADD VALUE IF NOT EXISTS 'DECORATION'`,
+    );
+    await queryRunner.query(
+      `ALTER TYPE "public"."node_shape_enum" ADD VALUE IF NOT EXISTS 'ARROW'`,
+    );
+    await queryRunner.query(
+      `ALTER TYPE "public"."node_shape_enum" ADD VALUE IF NOT EXISTS 'CIRCLE'`,
     );
 
     await queryRunner.query(

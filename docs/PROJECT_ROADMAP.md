@@ -35,10 +35,11 @@
 | P5.8.1 | **Pinyes** — Vista de Projecció (inicial) | ✅ Completat | [`spec`](specs/2026-05-22-p5-8-1-projection-view-design.md) | — | ✅ | ProjectionView + SegmentCanvas Konva. Substituït per grid CSS a P5.9 |
 | P5.9 | **Pinyes** — Vista de Projecció (refinada) | ✅ Completat | — | — | ✅ | Grid CSS responsive, vista Troncs `?view=troncs`, panells flotants, HUD navegació |
 | P5.10 | **Pinyes** — Posicions, Lock i Historials | ✅ Completat | [`spec`](specs/2026-05-26-p5-10-positions-lock-history-design.md) | ✅ | ✅ | PositionModule + lock automàtic + filtre per posició + historials (persona/event/família) |
-| P5.11 | **Pinyes** — Integració de Rengles | ✅ Completat | [`spec`](specs/2026-05-28-rengles-integration-spec.md) | ✅ | ✅ | Rengla entity, editor de rengles, ghost clone, selector de cordons, projecció filtrada |
+| P5.11 | **Pinyes** — Integració de Rengles | ✅ Completat | [`spec`](specs/2026-05-28-rengles-integration-spec.md) | ✅ | ✅ | Rengla entity, editor de rengles, ghost clone, selector de cordons, projecció filtrada. UX simplificada a R3 |
 | P5.12 | **Pinyes** — Nodes Ad-Hoc a Instàncies | ✅ Completat | [`spec`](specs/2026-06-10-ad-hoc-instance-nodes-design.md) | ✅ | ✅ | 5 fases: PINYA ad-hoc, DECORATION, DIRECTION, undo/redo, save-as-template. Substitueix `ReferenceElement` |
 | R1 | **Refactor** — Eliminació de FigureFamily | ✅ Completat | — | — | ✅ | Migració DB, simplificació model (FamilyNode → FigureNode directe), cleanup frontend |
 | R2 | **Refactor** — Eliminació de ReferenceElement | ✅ Completat | — | — | ✅ | Mòdul eliminat, substituït per nodes DECORATION ad-hoc (P5.12) |
+| R3 | **Refactor** — Simplificació de Rengles i templates | ✅ Completat | — | — | ✅ | Auto-nom/slug, creació de rengles sense formulari, eliminació `startPosition`, desassignació al reduir cordons. Migració `1781300000000`. Detall: [PINYES_REFACTOR_TRACKING.md](PINYES_REFACTOR_TRACKING.md) |
 | I1 | **Infra** — Entorn PRE (Hetzner VPS) | ✅ Completat | — | — | ✅ | Caddy reverse proxy, Docker Compose pre, scripts deploy, cookie secure condicional |
 | I2 | **Infra** — Migració a pnpm | ✅ Completat | — | — | ✅ | pnpm workspace, lockfile, CI adaptat |
 | P6 | PWA Mòbil | ⚪ Pendent | — | — | — | Diferit fins al tall. Estén l'auth de P4.1 als membres |
@@ -98,7 +99,7 @@ P0 (Scaffold)
                                  └── P4.1 (Auth Layer) ← prerequisit seguretat
                                      ├── I1 (PRE Hetzner) ← deploy continu
                                      └── P4.2 (Dashboard Events + Assistència)
-                                             └── P5 (Pinyes: P5.1→P5.12) ← ✅ completat
+                                             └── P5 (Pinyes: P5.1→P5.12 + R3) ← ✅ completat
                                                  ├── P5.3.1 (UX Segments) ← pendent
                                                  ├── P5.13 (Editor Templates v2)
                                                  ├── Q1 (E2E tests) ← recomanat abans P6
@@ -107,7 +108,7 @@ P0 (Scaffold)
                                                      └── P9 (Multi-tenant) ← estratègic
 
 Decisions clau d'ordre:
-  - P5 complet (P5.1→P5.12): mòdul operatiu de punta a punta amb tècnics
+  - P5 complet (P5.1→P5.12 + R3): mòdul operatiu de punta a punta amb tècnics
   - P5.3.1 immediat: UX polish necessari abans d'obrir als membres
   - Q1 (E2E) abans P6: xarxa de seguretat contra regressions multi-pàgina
   - P6 diferit: membres seguiran usant el legacy fins al tall oficial
@@ -148,6 +149,7 @@ El roadmap no duplica el detall tècnic. Cada tema té un doc autoritzat:
 | Tema | Document |
 |------|----------|
 | Mòdul Pinyes (P5.x) — domini, model, cicle de vida, API, frontend | [PINYES_MODULE.md](PINYES_MODULE.md) |
+| Refactors Pinyes (R1–R3) — auditoria i seguiment | [PINYES_REFACTOR_TRACKING.md](PINYES_REFACTOR_TRACKING.md) |
 | Nodes Ad-Hoc (P5.12) — spec general, 5 fases | [`spec`](specs/2026-06-10-ad-hoc-instance-nodes-design.md) · [`plans/`](specs/plans/) |
 | Dashboard UI — design system, components shared, patterns (P4.3) | [DASHBOARD_UI.md](DASHBOARD_UI.md) |
 | Model de dades — entitats, camps, relacions, model User/Person | [DATA_MODEL.md](DATA_MODEL.md) |

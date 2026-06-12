@@ -6,7 +6,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import {
   EventType,
   FigureZone,
@@ -990,7 +990,7 @@ export class NodeAssignmentService {
   async updateCordons(
     instanceId: string,
     dto: { numberOfCordons?: number | null; openCordons?: string[] | null },
-  ): Promise<{ numberOfCordons: number | null; openCordons: string[] | null }> {
+  ): Promise<{ numberOfCordons: number | null; openCordons: string[] | null; removedAssignments: number }> {
     const instance = await this.figureInstanceRepository.findOne({
       where: { id: instanceId },
     });
@@ -1007,9 +1007,25 @@ export class NodeAssignmentService {
 
     await this.figureInstanceRepository.save(instance);
 
+    let removedAssignments = 0;
+    const allNodes = await this.instanceNodeRepository.find({
+      where: { figureInstance: { id: instanceId } },
+    });
+    const hiddenNodeIds = allNodes
+      .filter((n) => !isNodeVisible(n, instance.numberOfCordons, instance.openCordons))
+      .map((n) => n.id);
+
+    if (hiddenNodeIds.length > 0) {
+      const result = await this.assignmentRepository.delete({
+        instanceNode: { id: In(hiddenNodeIds) },
+      });
+      removedAssignments = result.affected ?? 0;
+    }
+
     return {
       numberOfCordons: instance.numberOfCordons,
       openCordons: instance.openCordons,
+      removedAssignments,
     };
   }
 

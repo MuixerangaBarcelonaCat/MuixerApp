@@ -26,7 +26,7 @@ import {
   RenglaModel,
 } from '../../models/figure-template.model';
 import { FigureZone, NodeShape } from '@muixer/shared';
-import { RenglaOverlayComponent, RenglaCreatedEvent, RenglaUpdatedEvent, RenglaDeletedEvent } from '../rengla-overlay/rengla-overlay.component';
+import { RenglaOverlayComponent, RenglaCreatedEvent, RenglaDeletedEvent } from '../rengla-overlay/rengla-overlay.component';
 import { StageTransform } from '../../utils/rengla-coordinates.util';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
@@ -105,6 +105,14 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   rengles = signal<RenglaModel[]>([]);
   renglaEditMode = signal(false);
   stageTransform = signal<StageTransform>({ x: 0, y: 0, scaleX: 1, scaleY: 1 });
+
+  // Name enforcement
+  readonly showNamePrompt = signal(false);
+  private pendingAction: (() => void) | null = null;
+  readonly needsName = computed(() => {
+    const name = this.templateName().trim();
+    return !this.templateId() && (!name || name === 'Nova Figura');
+  });
 
   // Preview mode
   readonly previewMode = signal(false);
@@ -258,37 +266,42 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     label: string;
     sortOrder: number;
   }): void {
-    this.pushSnapshot('Afegir node de tronc');
-    const id = generateUUID();
-    const existingAtZ = this.troncNodes().filter((n) => n.z === event.z);
-    const nextX = existingAtZ.reduce(
-      (max, n) => Math.max(max, n.x + n.width),
-      0,
-    );
-    const newNode: FigureNodeItem = {
-      id,
-      label: event.label,
-      zone: FigureZone.TRONC,
-      positionType: event.positionType,
-      x: nextX,
-      y: 0,
-      z: event.z,
-      width: 1,
-      height: 40,
-      rotation: 0,
-      color: null,
-      shape: NodeShape.RECTANGLE,
-      sortOrder: event.sortOrder,
-      climbPath: null,
-      ringLevel: null,
-      originNodeId: null,
-      renglaId: null,
-      renglaPosition: null,
-      metadata: {},
+    const doAdd = () => {
+      this.pushSnapshot('Afegir node de tronc');
+      const id = generateUUID();
+      const existingAtZ = this.troncNodes().filter((n) => n.z === event.z);
+      const nextX = existingAtZ.reduce(
+        (max, n) => Math.max(max, n.x + n.width),
+        0,
+      );
+      const newNode: FigureNodeItem = {
+        id,
+        label: event.label,
+        zone: FigureZone.TRONC,
+        positionType: event.positionType,
+        x: nextX,
+        y: 0,
+        z: event.z,
+        width: 1,
+        height: 40,
+        rotation: 0,
+        color: null,
+        shape: NodeShape.RECTANGLE,
+        sortOrder: event.sortOrder,
+        climbPath: null,
+        ringLevel: null,
+        originNodeId: null,
+        renglaId: null,
+        renglaPosition: null,
+        metadata: {},
+      };
+      this.nodes.update((n) => [...n, newNode]);
+      this.selectedNodeId.set(id);
+      this.scheduleAutosave();
     };
-    this.nodes.update((n) => [...n, newNode]);
-    this.selectedNodeId.set(id);
-    this.scheduleAutosave();
+
+    if (!this.requireName(doAdd)) return;
+    doAdd();
   }
 
   onTroncNodeRemoved(id: string): void {
@@ -320,34 +333,39 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   // ── Base node events (from tronc widget bases section) ────────────────────
 
   onBaseNodeAdded(event: { sortOrder: number }): void {
-    this.pushSnapshot('Afegir base');
-    const id = generateUUID();
-    const stageCenter = { x: 200, y: 200 };
-    const baseNumber = this.baseNodes().length + 1;
-    const newNode: FigureNodeItem = {
-      id,
-      label: `Base ${baseNumber}`,
-      zone: FigureZone.BASE,
-      positionType: 'base',
-      x: stageCenter.x + Math.random() * 40 - 20,
-      y: stageCenter.y + Math.random() * 40 - 20,
-      z: 0,
-      width: DEFAULT_NODE_WIDTH,
-      height: DEFAULT_NODE_HEIGHT,
-      rotation: 0,
-      color: '#EEEEEE',
-      shape: NodeShape.RECTANGLE,
-      sortOrder: event.sortOrder,
-      climbPath: null,
-      ringLevel: null,
-      originNodeId: null,
-      renglaId: null,
-      renglaPosition: null,
-      metadata: {},
+    const doAdd = () => {
+      this.pushSnapshot('Afegir base');
+      const id = generateUUID();
+      const stageCenter = { x: 200, y: 200 };
+      const baseNumber = this.baseNodes().length + 1;
+      const newNode: FigureNodeItem = {
+        id,
+        label: `Base ${baseNumber}`,
+        zone: FigureZone.BASE,
+        positionType: 'base',
+        x: stageCenter.x + Math.random() * 40 - 20,
+        y: stageCenter.y + Math.random() * 40 - 20,
+        z: 0,
+        width: DEFAULT_NODE_WIDTH,
+        height: DEFAULT_NODE_HEIGHT,
+        rotation: 0,
+        color: '#EEEEEE',
+        shape: NodeShape.RECTANGLE,
+        sortOrder: event.sortOrder,
+        climbPath: null,
+        ringLevel: null,
+        originNodeId: null,
+        renglaId: null,
+        renglaPosition: null,
+        metadata: {},
+      };
+      this.nodes.update((n) => [...n, newNode]);
+      this.selectedNodeId.set(id);
+      this.scheduleAutosave();
     };
-    this.nodes.update((n) => [...n, newNode]);
-    this.selectedNodeId.set(id);
-    this.scheduleAutosave();
+
+    if (!this.requireName(doAdd)) return;
+    doAdd();
   }
 
   onBaseNodeRemoved(id: string): void {
@@ -378,33 +396,38 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     labelOverride?: string,
     shape: NodeShape = NodeShape.RECTANGLE,
   ): void {
-    this.pushSnapshot(`Afegir ${labelOverride ?? 'node'}`);
-    const id = generateUUID();
-    const stageCenter = { x: 200, y: 200 };
-    const newNode: FigureNodeItem = {
-      id,
-      label: labelOverride ?? this.defaultLabel(zone, z),
-      zone,
-      positionType,
-      x: stageCenter.x + Math.random() * 40 - 20,
-      y: stageCenter.y + Math.random() * 40 - 20,
-      z,
-      width: DEFAULT_NODE_WIDTH,
-      height: DEFAULT_NODE_HEIGHT,
-      rotation: 0,
-      color,
-      shape: shape,
-      sortOrder: this.nodes().length,
-      climbPath: null,
-      ringLevel: null,
-      originNodeId: null,
-      renglaId: null,
-      renglaPosition: null,
-      metadata: {},
+    const doAdd = () => {
+      this.pushSnapshot(`Afegir ${labelOverride ?? 'node'}`);
+      const id = generateUUID();
+      const stageCenter = { x: 200, y: 200 };
+      const newNode: FigureNodeItem = {
+        id,
+        label: labelOverride ?? this.defaultLabel(zone, z),
+        zone,
+        positionType,
+        x: stageCenter.x + Math.random() * 40 - 20,
+        y: stageCenter.y + Math.random() * 40 - 20,
+        z,
+        width: DEFAULT_NODE_WIDTH,
+        height: DEFAULT_NODE_HEIGHT,
+        rotation: 0,
+        color,
+        shape: shape,
+        sortOrder: this.nodes().length,
+        climbPath: null,
+        ringLevel: null,
+        originNodeId: null,
+        renglaId: null,
+        renglaPosition: null,
+        metadata: {},
+      };
+      this.nodes.update((n) => [...n, newNode]);
+      this.selectedNodeId.set(id);
+      this.scheduleAutosave();
     };
-    this.nodes.update((n) => [...n, newNode]);
-    this.selectedNodeId.set(id);
-    this.scheduleAutosave();
+
+    if (!this.requireName(doAdd)) return;
+    doAdd();
   }
 
   // ── Tronc panel drag ─────────────────────────────────────────────────────
@@ -519,20 +542,25 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   pasteNode(): void {
     const source = this.clipboardNode();
     if (!source) return;
-    this.pushSnapshot(`Enganxar ${source.label}`);
-    const PASTE_OFFSET = 24;
-    const newNode: FigureNodeItem = {
-      ...source,
-      id: generateUUID(),
-      x: source.x + PASTE_OFFSET,
-      y: source.y + PASTE_OFFSET,
-      sortOrder: this.nodes().length,
+
+    const doPaste = () => {
+      this.pushSnapshot(`Enganxar ${source.label}`);
+      const PASTE_OFFSET = 24;
+      const newNode: FigureNodeItem = {
+        ...source,
+        id: generateUUID(),
+        x: source.x + PASTE_OFFSET,
+        y: source.y + PASTE_OFFSET,
+        sortOrder: this.nodes().length,
+      };
+      this.nodes.update((n) => [...n, newNode]);
+      this.selectedNodeId.set(newNode.id);
+      this.clipboardNode.set(newNode);
+      this.scheduleAutosave();
     };
-    this.nodes.update((n) => [...n, newNode]);
-    this.selectedNodeId.set(newNode.id);
-    // Update clipboard so repeated pastes cascade
-    this.clipboardNode.set(newNode);
-    this.scheduleAutosave();
+
+    if (!this.requireName(doPaste)) return;
+    doPaste();
   }
 
   duplicateSelectedNode(): void {
@@ -590,15 +618,33 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   onNameChange(value: string): void {
     this.templateName.set(value);
-    if (!this.templateId()) {
-      this.templateSlug.set(this.slugify(value));
-    }
+    this.templateSlug.set(this.slugify(value));
     this.scheduleAutosave();
   }
 
-  onSlugChange(value: string): void {
-    this.templateSlug.set(value);
-    this.scheduleAutosave();
+  confirmNamePrompt(name: string): void {
+    if (!name.trim()) return;
+    this.templateName.set(name.trim());
+    this.templateSlug.set(this.slugify(name.trim()));
+    this.showNamePrompt.set(false);
+    if (this.pendingAction) {
+      this.pendingAction();
+      this.pendingAction = null;
+    }
+  }
+
+  cancelNamePrompt(): void {
+    this.showNamePrompt.set(false);
+    this.pendingAction = null;
+  }
+
+  private requireName(action: () => void): boolean {
+    if (this.needsName()) {
+      this.pendingAction = action;
+      this.showNamePrompt.set(true);
+      return false;
+    }
+    return true;
   }
 
   onHasPinyaChange(value: boolean): void {
@@ -724,12 +770,10 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   onRenglaCreated(event: RenglaCreatedEvent): void {
     this.pushSnapshot('Crear rengla');
     const renglaId = generateUUID();
-    const startPos = event.rengla.startPosition;
     const newRengla: RenglaModel = {
       id: renglaId,
       name: event.rengla.name,
       sortOrder: event.rengla.sortOrder,
-      startPosition: startPos,
       allowsCordoObert: event.rengla.allowsCordoObert,
     };
     this.rengles.update((r) => [...r, newRengla]);
@@ -742,27 +786,9 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
           ...n,
           renglaId,
           renglaPosition: assignment.renglaPosition,
-          ringLevel: startPos + assignment.renglaPosition - 1,
+          ringLevel: assignment.renglaPosition,
         };
       }),
-    );
-
-    this.scheduleAutosave();
-  }
-
-  onRenglaUpdated(event: RenglaUpdatedEvent): void {
-    this.pushSnapshot('Modificar rengla');
-    this.rengles.update((list) =>
-      list.map((r) => (r.id === event.rengla.id ? event.rengla : r)),
-    );
-
-    const startPos = event.rengla.startPosition;
-    this.nodes.update((nodes) =>
-      nodes.map((n) =>
-        n.renglaId === event.rengla.id && n.renglaPosition != null
-          ? { ...n, ringLevel: startPos + n.renglaPosition - 1 }
-          : n,
-      ),
     );
 
     this.scheduleAutosave();
@@ -789,78 +815,40 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   }): void {
     const source = this.nodes().find((n) => n.id === event.sourceNode.id);
     if (!source) return;
-    this.pushSnapshot('Clonar node');
 
-    const newId = generateUUID();
-    let renglaId = source.renglaId;
-    let renglaPosition =
-      source.renglaPosition != null ? source.renglaPosition + 1 : null;
-    let ringLevel = source.ringLevel != null ? source.ringLevel + 1 : null;
+    const doClone = () => {
+      this.pushSnapshot('Clonar node');
+      const newId = generateUUID();
 
-    if (renglaId) {
-      this.nodes.update((nodes) =>
-        nodes.map((n) =>
-          n.renglaId === renglaId &&
-          n.renglaPosition != null &&
-          n.renglaPosition >= renglaPosition!
-            ? {
-                ...n,
-                renglaPosition: n.renglaPosition + 1,
-                ringLevel: n.ringLevel != null ? n.ringLevel + 1 : null,
-              }
-            : n,
-        ),
-      );
-    } else {
-      const autoRenglaId = generateUUID();
-      const renglaIndex = this.rengles().length;
-      const newRengla: RenglaModel = {
-        id: autoRenglaId,
-        name: `${source.label} ${renglaIndex + 1}`,
-        sortOrder: renglaIndex,
-        startPosition: 1,
-        allowsCordoObert: false,
+      const clonedNode: FigureNodeItem = {
+        id: newId,
+        label: source.label,
+        zone: source.zone,
+        positionType: source.positionType,
+        x: event.targetPosition.x,
+        y: event.targetPosition.y,
+        z: source.z,
+        width: source.width,
+        height: source.height,
+        rotation: source.rotation,
+        color: source.color,
+        shape: source.shape,
+        sortOrder: this.nodes().length,
+        climbPath: null,
+        ringLevel: null,
+        originNodeId: null,
+        renglaId: null,
+        renglaPosition: null,
+        metadata: {},
       };
-      this.rengles.update((r) => [...r, newRengla]);
 
-      this.nodes.update((nodes) =>
-        nodes.map((n) =>
-          n.id === source.id
-            ? { ...n, renglaId: autoRenglaId, renglaPosition: 1, ringLevel: 1 }
-            : n,
-        ),
-      );
-
-      renglaId = autoRenglaId;
-      renglaPosition = 2;
-      ringLevel = 2;
-    }
-
-    const clonedNode: FigureNodeItem = {
-      id: newId,
-      label: source.label,
-      zone: source.zone,
-      positionType: source.positionType,
-      x: event.targetPosition.x,
-      y: event.targetPosition.y,
-      z: source.z,
-      width: source.width,
-      height: source.height,
-      rotation: source.rotation,
-      color: source.color,
-      shape: source.shape,
-      sortOrder: this.nodes().length,
-      climbPath: null,
-      ringLevel,
-      originNodeId: null,
-      renglaId,
-      renglaPosition,
-      metadata: {},
+      this.nodes.update((n) => [...n, clonedNode]);
+      this.selectedNodeId.set(newId);
+      this.scheduleAutosave();
     };
 
-    this.nodes.update((n) => [...n, clonedNode]);
-    this.selectedNodeId.set(newId);
-    this.scheduleAutosave();
+    if (!this.requireName(doClone)) return;
+    doClone();
   }
 
   // ── Persistence ────────────────────────────────────────────────────────────
@@ -872,8 +860,9 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   private save(): void {
     const name = this.templateName().trim();
-    const slug = this.templateSlug().trim();
+    const slug = this.templateSlug().trim() || this.slugify(name);
     if (!name || !slug) return;
+    this.templateSlug.set(slug);
 
     this.saveStatus.set('saving');
     const payload = this.buildPayload();
@@ -895,6 +884,8 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
         .subscribe({
           next: (created) => {
             this.templateId.set(created.id);
+            this.templateName.set(created.name);
+            this.templateSlug.set(created.slug);
             this.router.navigate(['/pinyes/templates', created.id, 'edit'], {
               replaceUrl: true,
             });
@@ -917,14 +908,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
     if (
       err.status === 409 &&
-      (msgLower.includes('slug') || msgLower.includes('identificador'))
-    ) {
-      const slug = this.templateSlug();
-      this.toast.error(
-        `L'identificador "${slug}" ja l'utilitza una altra figura. Canvia'l per poder desar.`,
-      );
-    } else if (
-      err.status === 409 &&
       (msgLower.includes('instànci') ||
         msgLower.includes('instanci') ||
         msgLower.includes('composici'))
@@ -933,15 +916,12 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
         msg ||
           'No es pot esborrar: hi ha instàncies o composicions que fan servir aquesta figura.',
       );
+    } else if (err.status === 409 && msgLower.includes('name')) {
+      this.toast.error('Ja existeix una altra figura amb aquest nom. Tria un nom diferent.');
     } else if (err.status === 409) {
       this.toast.error(
         msg ||
-          'Conflicte en desar la figura. Revisa les dades i torna-ho a intentar.',
-      );
-    } else if (err.status === 500 && msgLower.includes('slug')) {
-      const slug = this.templateSlug();
-      this.toast.error(
-        `L'identificador "${slug}" ja l'utilitza una altra figura. Canvia'l per poder desar.`,
+          'Conflicte en desar la figura. Prova a canviar el nom.',
       );
     } else {
       this.toast.error("No s'ha pogut desar la figura. Torna-ho a intentar.");
@@ -951,7 +931,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   private buildPayload() {
     return {
       name: this.templateName().trim(),
-      slug: this.templateSlug().trim(),
       description: this.templateDescription().trim() || undefined,
       hasPinya: this.hasPinya(),
       nodes: this.nodes().map(nodeToPayload),
