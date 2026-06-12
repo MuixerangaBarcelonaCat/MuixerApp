@@ -93,7 +93,7 @@
     @else if (!loading() && templates().length === 0) {
       <app-empty-state
         icon="Layers"
-        message="Cap figura creada. Crea la teva primera figura per començar a dissenyar pinyes."
+        message="No hi ha figures. Creeu la primera figura per començar a dissenyar pinyes."
         actionLabel="Figura nova"
         (actionClick)="navigateToCreate()"
       />
@@ -250,7 +250,7 @@
     @else if (!compositionsLoading() && compositions().length === 0) {
       <app-empty-state
         icon="LayoutGrid"
-        message="Cap composició creada. Creeu la vostra primera composició per agrupar figures (ex: 'Altar', '5 de Oros')."
+        message="No hi ha composicions. Creeu la primera composició per agrupar figures (ex: 'Altar', '5 de Oros')."
         actionLabel="Composició nova"
         (actionClick)="navigateToCreateComposition()"
       />
