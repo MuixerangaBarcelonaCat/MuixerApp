@@ -165,5 +165,22 @@ Move response interfaces and request interfaces from `apps/api` modules and `app
 - **Phase 3 completed**: 2026-06-05 — DC1-DC13 all done. Deleted: `segment-canvas/`, `reference-element.{service,model}` (frontend), reference-element controller (backend), `UpdateProjectionLayoutDto`. Removed: `upgradeInstance()`, 6 dead methods/functions, 3 dead signals, 3 dead `FigureCanvasComponent` members, all cascade types + specs. Tests: API 502/502, Dashboard 465/467 (2 skipped). `nx build api` ✅; `nx build dashboard` fails pre-existing (unrelated to Phase 3).
 - **Backend conventions completed**: 2026-06-05 — BC1-BC8 all done. Added `updatedAt` to `Rengla`/`InstanceNode`, `createdAt`+`updatedAt` to `CompositionSlot`. Eliminated 8 `as any` casts (IsNull(), remove unnecessary casts). Converted `AvailablePersonsQuery` interface to `AvailablePersonsQueryDto` class with `@Type`/`@Transform`. Added `@Max(100)` + DTO-level defaults to 3 filter DTOs. Standardized history pagination default to 25. Tests: API 502/502.
 - **Phase 4 completed**: 2026-06-05 — FQ1, FQ3-FQ12 done. FQ2 deferred: extracted `KonvaStageService` + 4 mode renderers were never wired to `FigureCanvasComponent` and were removed 2026-06-12 as dead code. Key deliverables: `takeUntilDestroyed` on 48 subscriptions across 10 components (FQ1); N+1 eliminated via `includeVariants` API param + client-side family grouping (FQ3); `template-list` split into `FamilyListTab`, `FigureGridTab`, `CompositionGridTab` tab components (FQ4); `TemplateEditorStateService` + `AssignmentTabService` + `AssignmentOperationsService` extracted, components reduced to ~200 lines each (FQ5); 3 `@ViewChild` → `viewChild()` (FQ6); `FloatingPanelDragDirective` extracted (FQ7); `slugify`, `height-display`, `attendance-display` utils extracted (FQ8); 3 `ngOnChanges`/`ngOnInit` → `effect()`, 2 `signal()` → `linkedSignal()` (FQ9); `CommonModule` removed (FQ10); `CdkTrapFocus` on 11 modal surfaces (FQ11); keyboard navigation on history table rows (FQ12). Tests: Dashboard 465/467 (2 pre-existing skips).
-- **Next**: Phase 5 (P6 PWA mobile) or further P5 features
+- **Phase 5 (R3) completed**: 2026-06-12 — Simplificació de Rengles i editor de templates. Auto-nom/slug únics en crear, obligació de nom abans d'afegir nodes, creació de rengles sense formulari (nom i `allowsCordoObert` automàtics), eliminació de `startPosition`, rengles només esborrables (no editables), ghost clone sense `renglaId`, desassignació automàtica en reduir cordons. Migració `1781300000000-SimplifyRengles`.
+- **Next**: P5.3.1 (UX Segments), Q1 (E2E), or P6 PWA mobile
 - Each phase should have its own feature branch and PR for reviewability
+
+---
+
+## Phase 5 — Rengles & template editor simplification (R3)
+
+| ID | Status | Description |
+|----|--------|-------------|
+| R3.1 | ✅ | Enforce figure name before first node (modal prompt) |
+| R3.2 | ✅ | Auto-generate unique slug and name on create; slug read-only in UI |
+| R3.3 | ✅ | Simplified rengla creation — select nodes + Finalitzar, no mini-dialog |
+| R3.4 | ✅ | Auto-compute `allowsCordoObert` from last node type |
+| R3.5 | ✅ | Remove `startPosition`; `ringLevel` = `renglaPosition` |
+| R3.6 | ✅ | Ghost clone does not copy rengla fields |
+| R3.7 | ✅ | Rengles delete-only after creation |
+| R3.8 | ✅ | Unassign people from hidden nodes when cordons reduced |
+| R3.9 | ✅ | DB migration `1781300000000-SimplifyRengles` |
