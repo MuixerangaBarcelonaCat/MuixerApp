@@ -1378,14 +1378,14 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     if (this.ghostSourceNodeId === node.id) return;
 
     this.hideGhost();
-    this.ghostHoverTimer = setTimeout(() => this.showGhostForNode(node), 1000);
+    this.ghostHoverTimer = setTimeout(() => this.showGhostForNode(node), 250);
   }
 
   private showGhostForNode(node: CanvasNode): void {
     this.hideGhost();
 
     const pos = calculateGhostPosition(node);
-    const strokeColor =
+    const nodeColor =
       node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR;
 
     const ghost = new Konva.Group({
@@ -1396,21 +1396,21 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     });
 
     const shape = createNodeShape(node.shape ?? NodeShape.RECTANGLE, node.width, node.height, {
-      fill: 'transparent',
-      stroke: strokeColor,
+      fill: nodeColor,
+      stroke: 'black',
       strokeWidth: 2,
       dash: [6, 4],
-      opacity: 0.75,
+      opacity: 0.4,
     });
     ghost.add(shape);
 
     ghost.add(
       new Konva.Text({
         text: '+',
-        fontSize: 18,
+        fontSize: 24,
         fontFamily: 'Inter, sans-serif',
-        fill: strokeColor,
-        opacity: 0.7,
+        fill: 'black',
+        opacity: 0.4,
         align: 'center',
         verticalAlign: 'middle',
         width: node.width,

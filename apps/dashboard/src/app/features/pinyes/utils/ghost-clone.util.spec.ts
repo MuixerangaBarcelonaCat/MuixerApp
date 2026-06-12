@@ -88,10 +88,10 @@ describe('ghost-clone.util', () => {
       expect(result.y).toBeLessThan(200);
     });
 
-    it('uses height + default gap (3) for offset distance', () => {
+    it('uses height + default gap (0) for offset distance', () => {
       const node = makeNode({ x: 100, y: 100, width: 60, height: 50, rotation: 0 });
       const result = calculateGhostPosition(node);
-      expect(result.y).toBe(100 - 53);
+      expect(result.y).toBe(100 - 50);
     });
 
     it('respects custom gap', () => {

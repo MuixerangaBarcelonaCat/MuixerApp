@@ -27,7 +27,7 @@ export function calculatePinyaCentroid(
   return { x: sumX / nodes.length, y: sumY / nodes.length };
 }
 
-const DEFAULT_GAP = 3;
+const DEFAULT_GAP = 0;
 
 /**
  * Computes the position for a ghost node placed directly behind the
