@@ -251,7 +251,7 @@ export class FigureTemplateService {
     }
 
     const copy = this.templateRepository.create({
-      name: original.name,
+      name: `${original.name} (còpia)`,
       slug: `${original.slug}-copia-${Date.now()}`,
       description: original.description,
       hasPinya: original.hasPinya,

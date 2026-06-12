@@ -886,7 +886,7 @@ describe('AssignmentCanvasComponent', () => {
         expect.objectContaining({
           zone: FigureZone.PINYA,
           positionType: 'agulla',
-          label: 'Agulla (còpia)',
+          label: 'Agulla',
           x: 120,
           y: 220,
           width: 80,

@@ -286,12 +286,12 @@ describe('CompositionTemplateService', () => {
   });
 
   describe('duplicate', () => {
-    it('creates a copy with "(còpia)" suffix and same slot references', async () => {
+    it('creates a copy with same name and same slot references', async () => {
       const figTemplate = makeFigureTemplate();
       const original = makeComposition({ slots: [makeSlot({ figureTemplate: figTemplate })] });
       mockCompositionRepo.findOne.mockResolvedValueOnce(original);
 
-      const copyComp = makeComposition({ id: 'copy-uuid', name: 'Altar (còpia)' });
+      const copyComp = makeComposition({ id: 'copy-uuid', name: 'Altar' });
       mockCompositionRepo.save.mockResolvedValue(copyComp);
       mockFigureTemplateRepo.findOne.mockResolvedValue(figTemplate);
       mockSlotRepo.save.mockResolvedValue([]);
@@ -301,7 +301,7 @@ describe('CompositionTemplateService', () => {
 
       expect(mockCompositionRepo.save).toHaveBeenCalled();
       const savedArg = mockCompositionRepo.save.mock.calls[0][0];
-      expect(savedArg.name).toContain('(còpia)');
+      expect(savedArg.name).toBe('Altar');
       expect(result.id).toBe('copy-uuid');
     });
 

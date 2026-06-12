@@ -33,7 +33,7 @@ describe('AdHocNodesHelpModalComponent', () => {
     fixture.detectChanges();
     const text = fixture.nativeElement.textContent;
     expect(text).toContain('Nodes ad-hoc');
-    expect(text).toContain('Com funciona?');
+    expect(text).toContain('Tipus de nodes');
     expect(text).toContain('vora discontínua');
   });
 

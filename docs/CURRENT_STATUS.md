@@ -7,15 +7,17 @@
 > - **Història cronològica** → [PHASES_LOG.md](PHASES_LOG.md)
 > - **Detall tècnic** → docs dedicats (vegeu taula al final)
 >
-> **Branca activa:** `feat/modul-pinyes` · **Frontier:** P5.11 completat · **Pendent destacat:** P5.3.1 (UX segments), P6 (PWA)
+> **Branca activa:** `feat/assignar-nodes-nous` · **Frontier:** P5.12 completat · **Pendent destacat:** P5.3.1 (UX segments), Q1 (E2E), P6 (PWA)
 
 ---
 
 ## Resum
 
-Projecte en **desenvolupament actiu**. Completat: tot P0–P5.11. El Mòdul Pinyes és operatiu
-de punta a punta (templates → composicions → segments → assignació → famílies/snapshot →
-troncs → projecció → posicions/historials → rengles). Pendent principal: la PWA mòbil (P6).
+Projecte en **desenvolupament actiu**. Completat: tot P0–P5.12 + refactors (R1, R2) + infra (I1, I2).
+El Mòdul Pinyes és operatiu de punta a punta (templates → composicions → segments → assignació →
+snapshot → troncs → projecció → posicions/historials → rengles → **nodes ad-hoc**).
+Eliminades FigureFamily i ReferenceElement (simplificació de model). Entorn PRE desplegat a Hetzner.
+Pendent principal: UX polish segments (P5.3.1), E2E tests (Q1), i la PWA mòbil (P6).
 
 Per a l'estat fase a fase amb enllaços als specs, vegeu la taula `Estat General` del
 [roadmap](PROJECT_ROADMAP.md).
@@ -35,11 +37,10 @@ Per a l'estat fase a fase amb enllaços als specs, vegeu la taula `Estat General
 | `season` | ✅ | CRUD + comptador d'events |
 | `event` | ✅ | CRUD events + attendance + recàlcul `attendanceSummary` |
 | `sync` | ✅ | Strategy + SSE (Persons / Events / Attendance) |
-| `figure` | ✅ | FigureTemplate/Node/Family/FamilyNode, merge/split, snapshot |
+| `figure` | ✅ | FigureTemplate/Node, save-from-instance, snapshot |
 | `composition` | ✅ | CompositionTemplate + Slot |
-| `event-segment` | ✅ | EventSegment + FigureInstance + ProjectionService |
-| `node-assignment` | ✅ | Assignació, lazy snapshot, upgrade, bulk import, lock |
-| `reference-element` | ✅ | Elements de referència per projecció (P5.8.1) |
+| `event-segment` | ✅ | EventSegment + FigureInstance + InstanceNode (incl. ad-hoc) + ProjectionService |
+| `node-assignment` | ✅ | Assignació, lazy snapshot, upgrade, bulk import, lock, **ad-hoc CRUD** |
 
 > Endpoints en viu i sempre actualitzats → **Swagger: http://localhost:3000/api/docs**
 
@@ -51,7 +52,7 @@ Per a l'estat fase a fase amb enllaços als specs, vegeu la taula `Estat General
 | `auth` | ✅ | Login + guards + interceptor (401→refresh→retry) |
 | `persons` | ✅ | Llista/detall, ordenació, filtres, provisionals, historial pinyes |
 | `events` | ✅ | Llista/detall, CRUD, attendance, segments inline |
-| `pinyes` | ✅ | Editor templates/composicions, canvas assignació, projecció, troncs, rengles |
+| `pinyes` | ✅ | Editor templates/composicions, canvas assignació (+ ad-hoc nodes, undo/redo), projecció, troncs, rengles |
 | `config` | ✅ | Posicions; skeleton per users/seasons |
 | `sync` | ✅ | UI SSE amb progress + log |
 
@@ -66,8 +67,12 @@ Per a l'estat fase a fase amb enllaços als specs, vegeu la taula `Estat General
 ## En curs i pròxims passos
 
 - **P5.3.1** — Revisió UX dels segments (tab dedicat "Pinyes" a event-detail, preview canvas).
-- **P6** — PWA mòbil per a membres (autogestió d'assistència, visualització de pinyes).
-- **P7** — Informes, notificacions FCM, estadístiques.
+- **Q1** — E2E tests amb Playwright per als fluxos crítics (login → event → assignació → projecció).
+- **P6.1** — PWA mòbil: auth + visualització events + confirmar assistència + veure pinyes readonly.
+- **P6.2** — PWA: notificacions push (FCM/Web Push).
+- **P8** — Dashboard d'estadístiques (assistència per persona/temporada, participació en figures).
+
+> Vegeu la secció "Pròxims Desenvolupaments" del [roadmap](PROJECT_ROADMAP.md) per al detall complet.
 
 ---
 
