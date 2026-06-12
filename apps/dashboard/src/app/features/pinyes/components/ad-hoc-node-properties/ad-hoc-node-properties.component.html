@@ -9,6 +9,15 @@
     <div class="flex items-center gap-1">
       <button
         type="button"
+        class="btn btn-ghost btn-xs btn-square"
+        (click)="onDuplicate()"
+        aria-label="Duplicar node ad-hoc"
+        title="Duplicar (Ctrl+D)"
+      >
+        <i-lucide [img]="Copy" class="size-3.5" />
+      </button>
+      <button
+        type="button"
         class="btn btn-ghost btn-xs btn-square text-error"
         (click)="onDelete()"
         aria-label="Eliminar node ad-hoc"
@@ -27,13 +36,31 @@
     </div>
   </div>
 
-  <div class="p-3 space-y-3">
-    <!-- @if (isDirection()) {
-      <div class="alert alert-info py-1.5 px-2 text-xs">
-        <span>La mateixa persona no pot repetir-se al segment (entre totes les instàncies).</span>
+  <!-- Assignment info (compact) -->
+  @if (assignment(); as a) {
+    <div class="flex items-center gap-2 px-3 py-1.5 bg-base-200/60 border-b border-base-200 text-xs">
+      <div class="flex-1 min-w-0">
+        <span class="font-semibold truncate">{{ a.person.alias }}</span>
+        @if (heightDisplay(); as hd) {
+          <span class="text-base-content/50 ml-1">{{ hd }}</span>
+        }
+        <span class="badge badge-xs ml-1" [class]="attendanceBadgeClass()">
+          {{ attendanceLabel() }}
+        </span>
       </div>
-    } -->
+      <button
+        type="button"
+        class="btn btn-ghost btn-xs btn-square text-error shrink-0"
+        (click)="unassign.emit(a)"
+        aria-label="Desassignar persona"
+        title="Desassignar"
+      >
+        <i-lucide [img]="UserMinus" class="size-3" />
+      </button>
+    </div>
+  }
 
+  <div class="p-3 space-y-3">
     <!-- Label -->
     <div class="form-control">
       <label class="label pb-1" [for]="'adhoc-label-' + node().id">

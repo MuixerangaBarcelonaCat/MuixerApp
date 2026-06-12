@@ -120,6 +120,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly isLocked = computed(() => this.lockStatus()?.locked ?? false);
 
   readonly troncPanelOpen = signal(false);
+  readonly adHocPropertiesOpen = signal(false);
 
   readonly deleteAdHocModalOpen = signal(false);
   readonly pendingDeleteNodeId = signal<string | null>(null);
@@ -138,6 +139,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly helpModalOpen = signal(false);
   readonly comodinInputOpen = signal(false);
   readonly comodinLabel = signal('');
+  readonly clipboardAdHocNode = signal<{ zone: string; positionType: string | null; label: string; width: number; height: number; shape: string; color: string | null; rotation: number } | null>(null);
   readonly fabDropdownOpen = signal(false);
   readonly fabDecorationOpen = signal(false);
   readonly fabDirectionOpen = signal(false);
@@ -167,10 +169,23 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     return id ? (this.activeNodes().find((n) => n.id === id) ?? null) : null;
   });
 
-  /** Selected ad-hoc node for the properties panel (null if selection is a template node or nothing). */
+  /** Selected ad-hoc node (null if selection is a template node or nothing). */
   readonly selectedAdHocNode = computed(() => {
     const node = this.selectedNode();
     return node?.isAdHoc ? node : null;
+  });
+
+  /** Ad-hoc node to show in the properties panel (only when panel explicitly opened via double-click). */
+  readonly adHocNodeForPanel = computed(() => {
+    if (!this.adHocPropertiesOpen()) return null;
+    return this.selectedAdHocNode();
+  });
+
+  /** Assignment for the selected ad-hoc node (if any). */
+  readonly selectedAdHocAssignment = computed(() => {
+    const node = this.selectedAdHocNode();
+    if (!node) return null;
+    return this.state.assignments().find((a) => a.node.id === node.id) ?? null;
   });
 
   /** Nodes rendered on the pinya Konva canvas (PINYA + BASE + direction zones, no TRONC). */
@@ -253,6 +268,10 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
         this.cancelDeleteAdHocNode();
         return;
       }
+      if (this.adHocPropertiesOpen()) {
+        this.adHocPropertiesOpen.set(false);
+        return;
+      }
       this.state.setSelectedNodeId(null);
       this.state.setSelectedPersonId(null);
       this.popoverAssignment.set(null);
@@ -291,6 +310,45 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
       event.preventDefault();
       this.moveAdHocNodeByKey(selectedId, node, event.key, event.shiftKey);
       return;
+    }
+
+    if (event.key === 'c' && (event.ctrlKey || event.metaKey) && !this.isLocked()) {
+      event.preventDefault();
+      this.copySelectedAdHocNode();
+      return;
+    }
+
+    if (event.key === 'v' && (event.ctrlKey || event.metaKey) && !this.isLocked()) {
+      event.preventDefault();
+      this.pasteAdHocNode();
+      return;
+    }
+
+    if (event.key === 'd' && (event.ctrlKey || event.metaKey) && !this.isLocked()) {
+      event.preventDefault();
+      const node = this.selectedAdHocNode();
+      if (!node) return;
+      this.duplicateAdHocNode(node);
+      return;
+    }
+
+    // Keyboard shortcuts
+    if (event.ctrlKey || event.metaKey) {
+      const digit = parseInt(event.key, 10);
+      if (
+        digit >= 1 && digit <= 9
+        && !this.isLocked()
+        && this.activeTab()
+        && !this.state.isPlacementMode()
+        && !this.helpModalOpen()
+        && !this.comodinInputOpen()
+        && !this.deleteAdHocModalOpen()
+      ) {
+        event.preventDefault();
+        const preset = this.adHocPresets[digit - 1];
+        if (preset) this.onPresetSelected(preset);
+        return;
+      }
     }
   }
 
@@ -385,6 +443,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     this.state.activeInstanceId.set(instanceId);
     this.state.selectedNodeId.set(null);
     this.popoverAssignment.set(null);
+    this.adHocPropertiesOpen.set(false);
     this.highlightedNodeIds.set(new Set());
     this.loadTabData(instanceId);
     this.loadTemplateRenglesForTab(instanceId);
@@ -502,6 +561,12 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     this.fabDecorationOpen.set(false);
     this.fabDirectionOpen.set(false);
     if (this.isLocked()) return;
+
+    const previousNodeId = this.state.selectedNodeId();
+    if (nodeId !== previousNodeId) {
+      this.adHocPropertiesOpen.set(false);
+    }
+
     if (!nodeId) {
       this.state.setSelectedNodeId(null);
       this.popoverAssignment.set(null);
@@ -547,6 +612,13 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
   onNodeClicked(event: { nodeId: string; x: number; y: number }): void {
     this.popoverPosition.set({ x: event.x, y: event.y });
+  }
+
+  onNodeDoubleClicked(nodeId: string): void {
+    const node = this.activeNodes().find((n) => n.id === nodeId);
+    if (node?.isAdHoc) {
+      this.adHocPropertiesOpen.set(true);
+    }
   }
 
   onTroncNodeClicked(event: { nodeId: string; event: MouseEvent }): void {
@@ -1048,6 +1120,86 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
       },
       error: () => this.toast.error('Error en eliminar el node.'),
     });
+  }
+
+  private copySelectedAdHocNode(): void {
+    const node = this.selectedAdHocNode();
+    if (!node) return;
+    this.clipboardAdHocNode.set({
+      zone: node.zone,
+      positionType: node.positionType,
+      label: node.label,
+      width: node.width,
+      height: node.height,
+      shape: node.shape,
+      color: node.color,
+      rotation: node.rotation,
+    });
+    this.toast.success('Node copiat.');
+  }
+
+  private pasteAdHocNode(): void {
+    const clipboard = this.clipboardAdHocNode();
+    if (!clipboard) return;
+    const instanceId = this.state.activeInstanceId();
+    if (!instanceId) return;
+
+    const selectedNode = this.selectedAdHocNode();
+    const baseX = selectedNode?.x ?? 100;
+    const baseY = selectedNode?.y ?? 100;
+
+    this.assignmentService
+      .createAdHocNode(instanceId, {
+        zone: clipboard.zone,
+        positionType: clipboard.positionType ?? undefined,
+        label: clipboard.label,
+        x: baseX + 20,
+        y: baseY + 20,
+        width: clipboard.width,
+        height: clipboard.height,
+        shape: clipboard.shape,
+        color: clipboard.color ?? undefined,
+        rotation: clipboard.rotation,
+      })
+      .subscribe({
+        next: () => {
+          this.refreshInstanceNodes(instanceId);
+          this.toast.success(`Node "${clipboard.label}" enganxat.`);
+        },
+        error: () => this.toast.error('Error en enganxar el node.'),
+      });
+  }
+
+  duplicateSelectedAdHocNode(): void {
+    const node = this.selectedAdHocNode();
+    if (!node) return;
+    this.duplicateAdHocNode(node);
+  }
+
+  private duplicateAdHocNode(node: { id: string; zone: string; positionType: string | null; label: string; x: number; y: number; width: number; height: number; shape: string; color: string | null; rotation: number }): void {
+    const instanceId = this.state.activeInstanceId();
+    if (!instanceId) return;
+
+    this.assignmentService
+      .createAdHocNode(instanceId, {
+        zone: node.zone,
+        positionType: node.positionType ?? undefined,
+        label: node.label,
+        x: node.x + 20,
+        y: node.y + 20,
+        width: node.width,
+        height: node.height,
+        shape: node.shape,
+        color: node.color ?? undefined,
+        rotation: node.rotation,
+      })
+      .subscribe({
+        next: () => {
+          this.refreshInstanceNodes(instanceId);
+          this.toast.success(`Node "${node.label}" duplicat.`);
+        },
+        error: () => this.toast.error('Error en duplicar el node.'),
+      });
   }
 
   confirmDeleteAdHocNode(): void {

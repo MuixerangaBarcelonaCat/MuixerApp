@@ -21,7 +21,7 @@ import { FigureTemplateService } from '../../services/figure-template.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { AssignmentDetail, AvailablePerson, BulkImportResult, InstanceNodeItem } from '../../models/assignment.model';
 import { SegmentDetail } from '../../models/segment.model';
-import { FigureZone, NodeShape, AD_HOC_PINYA_PRESETS, AD_HOC_DECORATION_PRESETS } from '@muixer/shared';
+import { FigureZone, NodeShape, AD_HOC_PINYA_PRESETS, AD_HOC_DECORATION_PRESETS, AD_HOC_DIRECTION_PRESETS } from '@muixer/shared';
 
 // ── Stub child components ───────────────────────────────────────────────────
 
@@ -38,6 +38,7 @@ class StubFigureCanvas {
   readonly isPlacementMode = input<boolean>(false);
   readonly nodeSelected = output<string | null>();
   readonly nodeClicked = output<{ nodeId: string; x: number; y: number }>();
+  readonly nodeDoubleClicked = output<string>();
   readonly canvasClicked = output<{ x: number; y: number }>();
   readonly adHocNodeMoved = output<{ nodeId: string; x: number; y: number }>();
   readonly adHocNodeTransformed = output<{ nodeId: string; width: number; height: number; rotation: number }>();
@@ -799,6 +800,178 @@ describe('AssignmentCanvasComponent', () => {
           label: 'Església',
         }),
       );
+    });
+  });
+
+  // ── DIRECTION presets (Phase 3) ──────────────────────────────────────────────
+
+  describe('DIRECTION presets', () => {
+    const directionNode: InstanceNodeItem = {
+      id: 'dir-1', label: 'Direcció Figura', zone: FigureZone.PINYA, z: 0,
+      positionType: 'figure-direction', x: 50, y: 50, width: 80, height: 40,
+      rotation: 0, color: '#7C3AED', shape: NodeShape.RECTANGLE, sortOrder: 30,
+      ringLevel: null, originNodeId: null, renglaId: null, renglaPosition: null,
+      sourceNodeId: null, isSnapshotted: true, isAdHoc: true, createdById: 'user-1',
+    };
+
+    it('direction preset enters placement mode directly (no label dialog)', () => {
+      const preset = AD_HOC_DIRECTION_PRESETS[0];
+      component.onPresetSelected(preset);
+
+      expect(stateService.isPlacementMode()).toBe(true);
+      expect(component.comodinInputOpen()).toBe(false);
+    });
+
+    it('direction node creation via canvas click dispatches createAdHocNode with correct zone', () => {
+      const preset = AD_HOC_DIRECTION_PRESETS[0];
+      stateService.enterPlacementMode(preset);
+      stateService.activeInstanceId.set(INSTANCE_ID);
+
+      component.onCanvasClicked({ x: 60, y: 70 });
+
+      expect(assignmentService.createAdHocNode).toHaveBeenCalledWith(
+        INSTANCE_ID,
+        expect.objectContaining({
+          x: 60,
+          y: 70,
+          zone: preset.zone,
+          label: preset.label,
+        }),
+      );
+    });
+
+    it('direction node is assignable (onNodeSelected triggers assign)', () => {
+      const nodes = [...makeInstanceNodes(), directionNode];
+      component.tabs.update((list) => list.map((t) => ({ ...t, nodes })));
+      stateService.activeTabNodes.set(nodes);
+      stateService.setSelectedPersonId('person-1');
+      fixture.detectChanges();
+
+      component.onNodeSelected('dir-1');
+
+      expect(assignmentService.assign).toHaveBeenCalled();
+    });
+  });
+
+  // ── Node duplication (Phase 4) ───────────────────────────────────────────────
+
+  describe('node duplication (Ctrl+D)', () => {
+    const adHocNode: InstanceNodeItem = {
+      id: 'adhoc-dup', label: 'Agulla', zone: FigureZone.PINYA, z: 0,
+      positionType: 'agulla', x: 100, y: 200, width: 80, height: 40,
+      rotation: 15, color: '#0d9488', shape: NodeShape.RECTANGLE, sortOrder: 10,
+      ringLevel: null, originNodeId: null, renglaId: null, renglaPosition: null,
+      sourceNodeId: null, isSnapshotted: true, isAdHoc: true, createdById: 'user-1',
+    };
+
+    const dispatchCtrlD = () => {
+      document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', ctrlKey: true, bubbles: true }));
+    };
+
+    beforeEach(() => {
+      const nodes = [...makeInstanceNodes(), adHocNode];
+      component.tabs.update((list) => list.map((t) => ({ ...t, nodes })));
+      stateService.activeTabNodes.set(nodes);
+      stateService.activeInstanceId.set(INSTANCE_ID);
+      fixture.detectChanges();
+    });
+
+    it('Ctrl+D on selected ad-hoc node calls createAdHocNode with offset and copy suffix', () => {
+      stateService.selectedNodeId.set('adhoc-dup');
+
+      dispatchCtrlD();
+
+      expect(assignmentService.createAdHocNode).toHaveBeenCalledWith(
+        INSTANCE_ID,
+        expect.objectContaining({
+          zone: FigureZone.PINYA,
+          positionType: 'agulla',
+          label: 'Agulla (còpia)',
+          x: 120,
+          y: 220,
+          width: 80,
+          height: 40,
+          rotation: 15,
+          color: '#0d9488',
+        }),
+      );
+    });
+
+    it('Ctrl+D with no ad-hoc selection does nothing', () => {
+      stateService.selectedNodeId.set(null);
+
+      dispatchCtrlD();
+
+      expect(assignmentService.createAdHocNode).not.toHaveBeenCalled();
+    });
+
+    it('Ctrl+D on template node does nothing', () => {
+      stateService.selectedNodeId.set('inode-1');
+
+      dispatchCtrlD();
+
+      expect(assignmentService.createAdHocNode).not.toHaveBeenCalled();
+    });
+
+    it('Ctrl+D when locked does nothing', () => {
+      stateService.selectedNodeId.set('adhoc-dup');
+      (component as unknown as { lockStatus: { set: (v: unknown) => void } }).lockStatus.set({ locked: true, lockDate: '2026-01-01', lockDays: 2 });
+
+      dispatchCtrlD();
+
+      expect(assignmentService.createAdHocNode).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── Keyboard shortcuts Ctrl+1..9 (Phase 4) ──────────────────────────────────
+
+  describe('keyboard shortcuts (Ctrl+1..9)', () => {
+    beforeEach(() => {
+      stateService.activeInstanceId.set(INSTANCE_ID);
+      component.tabs.update((list) => list.map((t) => ({ ...t, instanceId: INSTANCE_ID })));
+      fixture.detectChanges();
+    });
+
+    const dispatchCtrlDigit = (digit: number) => {
+      document.body.dispatchEvent(new KeyboardEvent('keydown', { key: String(digit), ctrlKey: true, bubbles: true }));
+    };
+
+    it('Ctrl+1 enters placement mode for first pinya preset (Agulla)', () => {
+      dispatchCtrlDigit(1);
+
+      expect(stateService.isPlacementMode()).toBe(true);
+      expect(stateService.placementPreset()).toBe(AD_HOC_PINYA_PRESETS[0]);
+    });
+
+    it('Ctrl+9 opens comodin label dialog', () => {
+      dispatchCtrlDigit(9);
+
+      expect(component.comodinInputOpen()).toBe(true);
+      expect(stateService.isPlacementMode()).toBe(false);
+    });
+
+    it('Ctrl+1 while locked does nothing', () => {
+      (component as unknown as { lockStatus: { set: (v: unknown) => void } }).lockStatus.set({ locked: true, lockDate: '2026-01-01', lockDays: 2 });
+
+      dispatchCtrlDigit(1);
+
+      expect(stateService.isPlacementMode()).toBe(false);
+    });
+
+    it('Ctrl+1 while already in placement mode does nothing', () => {
+      stateService.enterPlacementMode(AD_HOC_PINYA_PRESETS[2]);
+
+      dispatchCtrlDigit(1);
+
+      expect(stateService.placementPreset()).toBe(AD_HOC_PINYA_PRESETS[2]);
+    });
+
+    it('Ctrl+1 while help modal open does nothing', () => {
+      component.helpModalOpen.set(true);
+
+      dispatchCtrlDigit(1);
+
+      expect(stateService.isPlacementMode()).toBe(false);
     });
   });
 });

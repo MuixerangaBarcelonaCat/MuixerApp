@@ -132,6 +132,7 @@
           [isPlacementMode]="state.isPlacementMode()"
           (nodeSelected)="onNodeSelected($event)"
           (nodeClicked)="onNodeClicked($event)"
+          (nodeDoubleClicked)="onNodeDoubleClicked($event)"
           (canvasClicked)="onCanvasClicked($event)"
           (adHocNodeMoved)="onAdHocNodeMoved($event)"
           (adHocNodeTransformed)="onAdHocNodeTransformed($event)"
@@ -302,20 +303,25 @@
         </div>
       }
 
-      <!-- Ad-hoc node properties panel -->
-      @if (selectedAdHocNode(); as adHocNode) {
+      <!-- Ad-hoc node properties panel (opens on double-click) -->
+      @if (adHocNodeForPanel(); as adHocNode) {
         <app-ad-hoc-node-properties
           [node]="adHocNode"
           [instanceId]="state.activeInstanceId()!"
-          (closed)="state.setSelectedNodeId(null)"
+          [assignment]="selectedAdHocAssignment()"
+          [heightMode]="state.heightMode()"
+          [attendanceStatus]="selectedAdHocAssignment() ? getAttendanceStatus(selectedAdHocAssignment()!) : null"
+          (closed)="adHocPropertiesOpen.set(false)"
           (propertyChanged)="onAdHocPropertyChanged($event)"
           (nodeUpdated)="onAdHocNodeUpdated()"
           (deleteRequested)="onAdHocDeleteFromPanel($event)"
+          (duplicateRequested)="duplicateSelectedAdHocNode()"
+          (unassign)="onUnassign($event)"
         />
       }
 
-      <!-- Node popover -->
-      @if (popoverAssignment()) {
+      <!-- Node popover (disabled) de moment ho mantenim tot al popover app-ad-hoc-node-properties -->
+      <!-- @if (popoverAssignment()) {
         <app-node-popover
           [assignment]="popoverAssignment()"
           [position]="popoverPosition()"
@@ -324,7 +330,7 @@
           (unassign)="onUnassign($event)"
           (close)="popoverAssignment.set(null)"
         />
-      }
+      } -->
     </main>
 
     <!-- Person panel (right sidebar) -->

@@ -51,9 +51,10 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
     shortcuts: [
       { keys: 'Clic', action: 'Seleccionar node' },
       { keys: 'Doble clic', action: 'Editar etiqueta' },
-      { keys: 'Supr / Backspace', action: 'Eliminar node seleccionat' },
       { keys: '⌘/Ctrl + C', action: 'Copiar node' },
       { keys: '⌘/Ctrl + V', action: 'Enganxar node' },
+      { keys: '⌘/Ctrl + D', action: 'Duplicar node' },
+      { keys: 'Supr / Backspace', action: 'Eliminar node seleccionat' },
       { keys: '↑ ↓ ← →', action: 'Moure node (1 px)' },
       { keys: 'Shift + ↑ ↓ ← →', action: 'Moure node (10 px)' },
       { keys: 'Roda del ratolí', action: 'Zoom' },
@@ -71,8 +72,19 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
   {
     title: 'Canvas d\'assignació',
     shortcuts: [
+      { keys: 'Clic', action: 'Seleccionar node (per assignar)' },
+      { keys: 'Arrossegar', action: 'Moure node ad-hoc' },
+      { keys: 'Doble clic', action: 'Obrir propietats del node ad-hoc' },
       { keys: 'Tab', action: 'Avançar al node buit següent' },
-      { keys: 'Escape', action: 'Deseleccionar node i persona' },
+      { keys: 'Escape', action: 'Deseleccionar / tancar panells' },
+      { keys: '⌘/Ctrl + C', action: 'Copiar node ad-hoc' },
+      { keys: '⌘/Ctrl + V', action: 'Enganxar node ad-hoc' },
+      { keys: '⌘/Ctrl + D', action: 'Duplicar node ad-hoc' },
+      { keys: 'Supr / Backspace', action: 'Eliminar node ad-hoc' },
+      { keys: '↑ ↓ ← →', action: 'Moure node ad-hoc (1 px)' },
+      { keys: 'Shift + ↑ ↓ ← →', action: 'Moure node ad-hoc (10 px)' },
+      { keys: '⌘/Ctrl + 1…8', action: 'Crear node de pinya (preset ràpid)' },
+      { keys: '⌘/Ctrl + 9', action: 'Crear node Comodí' },
     ],
   },
   {

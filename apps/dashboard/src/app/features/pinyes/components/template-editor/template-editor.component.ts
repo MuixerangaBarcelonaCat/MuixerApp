@@ -97,6 +97,10 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   shortcutsModalOpen = signal(false);
   troncDrawerOpen = signal(false);
 
+  // Ad-hoc instance awareness
+  readonly adHocInstanceCount = signal(0);
+  readonly adHocBannerDismissed = signal(false);
+
   // Floating tronc panel drag state
   readonly troncPanelPos = signal({ x: 16, y: 60 });
   private troncDragging = false;
@@ -372,6 +376,12 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
       return;
     }
 
+    if (isMod && event.key === 'd') {
+      event.preventDefault();
+      this.duplicateSelectedNode();
+      return;
+    }
+
     if (event.key === 'Delete' || event.key === 'Backspace') {
       if (!this.selectedNodeId()) return;
       event.preventDefault();
@@ -418,6 +428,11 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     // Update clipboard so repeated pastes cascade
     this.clipboardNode.set(newNode);
     this.scheduleAutosave();
+  }
+
+  duplicateSelectedNode(): void {
+    this.copySelectedNode();
+    this.pasteNode();
   }
 
   private moveSelectedNodeByKey(key: string, large: boolean): void {
@@ -716,6 +731,10 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     };
   }
 
+  dismissAdHocBanner(): void {
+    this.adHocBannerDismissed.set(true);
+  }
+
   private loadTemplate(id: string): void {
     this.loading.set(true);
     this.figureTemplateService.getOne(id).subscribe({
@@ -726,6 +745,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
         this.hasPinya.set(tmpl.hasPinya);
         this.nodes.set(tmpl.nodes);
         this.rengles.set(tmpl.rengles ?? []);
+        this.adHocInstanceCount.set(tmpl.adHocInstanceCount ?? 0);
         this.loading.set(false);
       },
       error: () => {

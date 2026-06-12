@@ -47,6 +47,7 @@ export interface FigureTemplateDetail extends FigureTemplateListItem {
   metadata: Record<string, unknown>;
   nodes: FigureNodeItem[];
   rengles: RenglaModel[];
+  adHocInstanceCount?: number;
 }
 
 export interface FigureTemplateFilterParams {

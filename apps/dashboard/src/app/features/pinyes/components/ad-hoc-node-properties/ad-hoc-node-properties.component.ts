@@ -7,8 +7,8 @@ import {
   inject,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { LucideAngularModule, X, Trash2 } from 'lucide-angular';
-import { InstanceNodeItem, UpdateAdHocNodePayload } from '../../models/assignment.model';
+import { LucideAngularModule, X, Trash2, UserMinus, Copy } from 'lucide-angular';
+import { AssignmentDetail, HeightMode, InstanceNodeItem, UpdateAdHocNodePayload } from '../../models/assignment.model';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { FigureZone, NodeShape, DIRECTION_ZONES } from '@muixer/shared';
@@ -26,13 +26,20 @@ export class AdHocNodePropertiesComponent {
 
   readonly node = input.required<InstanceNodeItem>();
   readonly instanceId = input.required<string>();
+  readonly assignment = input<AssignmentDetail | null>(null);
+  readonly heightMode = input<HeightMode>('relative');
+  readonly attendanceStatus = input<string | null>(null);
   readonly closed = output<void>();
   readonly nodeUpdated = output<void>();
   readonly deleteRequested = output<string>();
+  readonly duplicateRequested = output<void>();
   readonly propertyChanged = output<{ nodeId: string; patch: Partial<UpdateAdHocNodePayload> }>();
+  readonly unassign = output<AssignmentDetail>();
 
   readonly X = X;
   readonly Trash2 = Trash2;
+  readonly UserMinus = UserMinus;
+  readonly Copy = Copy;
   readonly NodeShape = NodeShape;
   readonly FigureZone = FigureZone;
 
@@ -43,6 +50,32 @@ export class AdHocNodePropertiesComponent {
   readonly isDirection = computed(
     () => (DIRECTION_ZONES as readonly string[]).includes(this.node().zone),
   );
+
+  readonly heightDisplay = computed(() => {
+    const h = this.assignment()?.person?.shoulderHeight;
+    if (h === null || h === undefined) return null;
+    if (this.heightMode() === 'relative') {
+      const diff = h - 140;
+      return diff >= 0 ? `+${diff}` : `${diff}`;
+    }
+    return `${h} cm`;
+  });
+
+  readonly attendanceBadgeClass = computed(() => {
+    const status = this.attendanceStatus();
+    if (status === 'ANIRE') return 'badge-success';
+    if (status === 'NO_VAIG') return 'badge-error';
+    if (status === 'PENDENT') return 'badge-warning';
+    return 'badge-ghost';
+  });
+
+  readonly attendanceLabel = computed(() => {
+    const status = this.attendanceStatus();
+    if (status === 'ANIRE') return 'Vinc';
+    if (status === 'NO_VAIG') return 'No vinc';
+    if (status === 'PENDENT') return 'Pendent';
+    return 'Assignat/da';
+  });
 
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -65,6 +98,10 @@ export class AdHocNodePropertiesComponent {
 
   onDelete(): void {
     this.deleteRequested.emit(this.node().id);
+  }
+
+  onDuplicate(): void {
+    this.duplicateRequested.emit();
   }
 
   private debouncedUpdate(payload: UpdateAdHocNodePayload): void {

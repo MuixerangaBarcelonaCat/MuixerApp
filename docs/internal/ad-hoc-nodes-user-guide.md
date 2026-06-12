@@ -112,11 +112,44 @@ Si algú modifica el template base després de crear la instància, **cap node c
 
 ## Dreceres de teclat
 
+### Dreceres compartides (Editor de templates + Canvas d'assignació)
+
+| Tecla | Acció |
+|-------|-------|
+| **⌘/Ctrl + C** | Copiar node seleccionat |
+| **⌘/Ctrl + V** | Enganxar node |
+| **⌘/Ctrl + D** | Duplicar node seleccionat |
+| **Suprimir / Backspace** | Eliminar node seleccionat |
+| **↑ ↓ ← →** | Moure node (1 px) |
+| **Shift + ↑ ↓ ← →** | Moure node (10 px) |
+| **Escape** | Cancel·lar acció / tancar panells |
+
+### Editor de templates (addicionals)
+
+| Tecla | Acció |
+|-------|-------|
+| **Clic** | Seleccionar node |
+| **Doble clic** | Editar etiqueta |
+| **Roda del ratolí** | Zoom |
+| **Arrossegar fons** | Desplaçar canvas (pan) |
+
+### Canvas d'assignació (addicionals)
+
 | Tecla | Acció |
 |-------|-------|
 | **Clic** | Seleccionar node (per assignar) |
 | **Arrossegar** | Moure node ad-hoc |
-| **Doble clic** | Mode redimensió/rotació |
-| **Escape** | Cancel·lar acció / sortir de mode |
-| **Suprimir / Backspace** | Eliminar node ad-hoc seleccionat |
+| **Doble clic** | Obrir propietats del node ad-hoc |
 | **Tab** | Avançar al següent node buit |
+| **⌘/Ctrl + 1…8** | Crear node de pinya (preset ràpid) |
+| **⌘/Ctrl + 9** | Crear node Comodí (demana etiqueta) |
+
+### Projecció
+
+| Tecla | Acció |
+|-------|-------|
+| **← / →** | Segment anterior / següent |
+| **E** | Alternar vista Pinyes / Troncs |
+| **F** | Pantalla completa del navegador |
+| **Escape** | Tancar panell / tornar enrere |
+| **? / H** | Obrir / tancar ajuda |

@@ -1009,6 +1009,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
         group.on('dblclick dbltap', () => {
           this.nodeSelected.emit(node.id);
+          this.nodeDoubleClicked.emit(node.id);
           this.transformer.nodes([group]);
           this.transformer.moveToTop();
           this.pinyaLayer.batchDraw();

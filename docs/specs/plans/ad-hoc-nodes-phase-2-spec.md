@@ -1,6 +1,6 @@
 # Ad-Hoc Instance Nodes — Phase 2 Specification
 
-> **Status:** Draft
+> **Status:** Implemented
 > **Created:** 2026-06-10
 > **Parent spec:** [`docs/specs/2026-06-10-ad-hoc-instance-nodes-design.md`](../2026-06-10-ad-hoc-instance-nodes-design.md)
 > **Phase 1 plan:** [`docs/specs/plans/ad-hoc-nodes-phase-1-plan.md`](ad-hoc-nodes-phase-1-plan.md)

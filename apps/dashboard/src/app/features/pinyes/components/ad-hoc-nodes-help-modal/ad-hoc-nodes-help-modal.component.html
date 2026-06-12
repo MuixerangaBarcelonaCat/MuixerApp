@@ -7,70 +7,151 @@
     cdkTrapFocus
     [cdkTrapFocusAutoCapture]="true"
   >
-    <div class="modal-box max-w-lg">
+    <div class="modal-box max-w-2xl max-h-[80vh]">
       <h3 id="help-modal-title" class="text-lg font-bold mb-4">Nodes ad-hoc</h3>
-      <div class="prose prose-sm max-w-none">
+      <div class="prose prose-sm max-w-none overflow-y-auto">
+
         <p>
           Els <strong>nodes ad-hoc</strong> permeten afegir posicions extra directament al canvas
-          d'assignacions, sense modificar el template original de la figura.
+          d'assignacions, sense modificar el template original de la figura. Es distingeixen
+          per la seva <strong>vora discontínua</strong> (guions).
         </p>
 
-        <h4>Com funciona?</h4>
-        <ul class="steps steps-vertical text-sm">
-          <li class="step step-primary">
-            Fes clic al botó <strong>+</strong> a la part inferior dreta.
-          </li>
-          <li class="step step-primary">
-            Selecciona la categoria (<strong>Pinya</strong>, <strong>Decoratiu</strong> o <strong>Direccions</strong>) i el tipus de posició.
-          </li>
-          <li class="step step-primary">
-            Fes clic al canvas per col·locar el node.
-          </li>
-          <li class="step step-primary">
-            Per als nodes de pinya, assigna una persona com qualsevol altre node.
-          </li>
-        </ul>
-
-        <h4>Nodes de Pinya</h4>
-        <p>
-          Afegeixen posicions assignables (mans, agulla, cordó obert, etc.) o un "Comodí" amb nom lliure.
-          Es comporten com qualsevol altre node del template: pots assignar-hi persones.
-        </p>
-
-        <h4>Nodes Decoratius</h4>
-        <p>
-          Serveixen per afegir elements visuals d'orientació o referència (rectangles, fletxes, cercles).
-          <strong>No es poden assignar a persones.</strong>
-          Són útils per marcar zones de l'escenari, direccions, o punts de referència.
-        </p>
-
-        <h4>Nodes de Direcció</h4>
-        <p>
-          Indiquen l'orientació de la figura o de la xicalla. Són posicions <strong>assignables</strong>:
-          la persona assignada es col·loca en aquella posició per guiar l'orientació.
-        </p>
+        <h4>Tipus de nodes</h4>
         <ul>
-          <li><strong>Direcció Figura:</strong> indica cap a on mira la figura principal.</li>
-          <li><strong>Direcció Xicalla:</strong> indica cap a on s'orienta el grup de xicalla.</li>
-          <li><strong>Unicitat persona:</strong> la mateixa persona no pot estar assignada dues vegades al segment.</li>
+          <li>
+            <strong>Pinya</strong> — Posicions assignables (agulla, mans, laterals, vents, cordó obert, tap, crossa, contrafort)
+            o un <strong>Comodí</strong> amb nom lliure.
+          </li>
+          <li>
+            <strong>Decoratiu</strong> — Elements visuals d'orientació (rectangles, fletxes, cercles).
+            <strong>No assignables.</strong>
+          </li>
+          <li>
+            <strong>Direcció</strong> — Indiquen l'orientació de la figura o xicalla.
+            <strong>Assignables</strong> (la persona indica cap on s'orienta).
+          </li>
         </ul>
 
-        <h4>Gestió dels nodes ad-hoc</h4>
+        <h4>Dreceres de teclat</h4>
+        <div class="space-y-4 not-prose">
+          <section>
+            <h5 class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-2">Interacció bàsica</h5>
+            <ul class="space-y-1.5" role="list">
+              <li class="flex items-center justify-between gap-3 text-sm">
+                <span class="text-base-content/70">Seleccionar node (per assignar)</span>
+                <kbd class="kbd kbd-sm shrink-0">Clic</kbd>
+              </li>
+              <li class="flex items-center justify-between gap-3 text-sm">
+                <span class="text-base-content/70">Moure node ad-hoc</span>
+                <kbd class="kbd kbd-sm shrink-0">Arrossegar</kbd>
+              </li>
+              <li class="flex items-center justify-between gap-3 text-sm">
+                <span class="text-base-content/70">Obrir propietats del node</span>
+                <kbd class="kbd kbd-sm shrink-0">Doble clic</kbd>
+              </li>
+              <li class="flex items-center justify-between gap-3 text-sm">
+                <span class="text-base-content/70">Avançar al següent node buit</span>
+                <kbd class="kbd kbd-sm shrink-0">Tab</kbd>
+              </li>
+              <li class="flex items-center justify-between gap-3 text-sm">
+                <span class="text-base-content/70">Cancel·lar acció / sortir de mode</span>
+                <kbd class="kbd kbd-sm shrink-0">Escape</kbd>
+              </li>
+            </ul>
+          </section>
+          <section>
+            <h5 class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-2">Edició de nodes ad-hoc</h5>
+            <ul class="space-y-1.5" role="list">
+              <li class="flex items-center justify-between gap-3 text-sm">
+                <span class="text-base-content/70">Copiar node</span>
+                <kbd class="kbd kbd-sm shrink-0">⌘/Ctrl + C</kbd>
+              </li>
+              <li class="flex items-center justify-between gap-3 text-sm">
+                <span class="text-base-content/70">Enganxar node</span>
+                <kbd class="kbd kbd-sm shrink-0">⌘/Ctrl + V</kbd>
+              </li>
+              <li class="flex items-center justify-between gap-3 text-sm">
+                <span class="text-base-content/70">Duplicar node</span>
+                <kbd class="kbd kbd-sm shrink-0">⌘/Ctrl + D</kbd>
+              </li>
+              <li class="flex items-center justify-between gap-3 text-sm">
+                <span class="text-base-content/70">Eliminar node</span>
+                <kbd class="kbd kbd-sm shrink-0">Supr / Retrocés</kbd>
+              </li>
+              <li class="flex items-center justify-between gap-3 text-sm">
+                <span class="text-base-content/70">Moure node (1 px)</span>
+                <kbd class="kbd kbd-sm shrink-0">↑ ↓ ← →</kbd>
+              </li>
+              <li class="flex items-center justify-between gap-3 text-sm">
+                <span class="text-base-content/70">Moure node (10 px)</span>
+                <kbd class="kbd kbd-sm shrink-0">Shift + ↑ ↓ ← →</kbd>
+              </li>
+            </ul>
+          </section>
+          <section>
+            <h5 class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-2">Creació ràpida</h5>
+            <ul class="space-y-1.5" role="list">
+              <li class="flex items-center justify-between gap-3 text-sm">
+                <span class="text-base-content/70">Crear node de pinya (preset ràpid)</span>
+                <kbd class="kbd kbd-sm shrink-0">⌘/Ctrl + 1…8</kbd>
+              </li>
+              <li class="flex items-center justify-between gap-3 text-sm">
+                <span class="text-base-content/70">Crear node Comodí (demana etiqueta)</span>
+                <kbd class="kbd kbd-sm shrink-0">⌘/Ctrl + 9</kbd>
+              </li>
+            </ul>
+          </section>
+        </div>
+
+        <h4>Diferències amb els nodes del template</h4>
+        <div class="overflow-x-auto">
+          <table class="table table-xs">
+            <thead>
+              <tr>
+                <th>Característica</th>
+                <th>Nodes del template</th>
+                <th>Nodes ad-hoc</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Origen</td><td>Copiats del template</td><td>Creats manualment</td></tr>
+              <tr><td>Aparença</td><td>Vora contínua</td><td>Vora discontínua</td></tr>
+              <tr><td>Moviment</td><td>Fixos</td><td>Lliures (arrossegar)</td></tr>
+              <tr><td>Redimensió</td><td>No</td><td>Sí (doble clic)</td></tr>
+              <tr><td>Eliminació</td><td>No</td><td>Sí (Suprimir)</td></tr>
+              <tr><td>Import</td><td>Per posició/rengla</td><td>Íntegrament amb assignacions</td></tr>
+              <tr><td>Relació template</td><td>Cap (snapshot immutable)</td><td>Cap relació</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4>Coses importants</h4>
         <ul>
-          <li><strong>Moure:</strong> arrossega el node al canvas.</li>
-          <li><strong>Redimensionar/rotar:</strong> doble clic per activar els controls.</li>
-          <li><strong>Propietats:</strong> selecciona el node per veure el panell de propietats (etiqueta, forma, color...).</li>
-          <li><strong>Eliminar:</strong> selecciona el node i prem <kbd>Supr</kbd> o <kbd>Retrocés</kbd>.</li>
+          <li>
+            <strong>Reset esborra TOT:</strong> reinicialitzar la figura elimina tots els nodes
+            (template + ad-hoc) i totes les assignacions.
+          </li>
+          <li>
+            <strong>El bloqueig s'aplica:</strong> quan l'event està bloquejat, no es poden afegir,
+            moure ni eliminar nodes ad-hoc.
+          </li>
+          <li>
+            <strong>L'import copia els ad-hoc:</strong> quan importes assignacions d'una altra instància,
+            els nodes ad-hoc es clonen automàticament amb les assignacions.
+          </li>
+          <li>
+            <strong>Canvis al template no afecten:</strong> si es modifica el template base,
+            cap node d'aquesta instància canvia.
+          </li>
         </ul>
 
-        <h4>Aspectes importants</h4>
-        <ul>
-          <li>Els nodes ad-hoc es mostren amb <strong>vora discontínua</strong> per distingir-los.</li>
-          <li>Els nodes decoratius poden tenir <strong>color de fons</strong> (des del panell de propietats) o quedar sense fons.</li>
-          <li>Reinicialitzar la figura eliminarà també tots els nodes ad-hoc.</li>
-          <li>En importar una pinya, els nodes ad-hoc de l'origen es clonen automàticament.</li>
-          <li>Editar el template no afecta els nodes ad-hoc creats (i viceversa).</li>
-        </ul>
+        <h4>Comodí</h4>
+        <p>
+          El <strong>Comodí</strong> permet crear una posició amb un nom personalitzat per a
+          situacions no estàndard (p.ex. "reforç esquerre", "lateral-agulla"). En seleccionar-lo,
+          l'aplicació demanarà un nom abans de col·locar-lo al canvas.
+        </p>
       </div>
       <div class="modal-action">
         <button type="button" class="btn btn-primary btn-sm" (click)="close()">

@@ -11,6 +11,7 @@ import { FigureNode } from './entities/figure-node.entity';
 import { Rengla } from './entities/rengla.entity';
 import { CompositionSlot } from '../composition/entities/composition-slot.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
+import { InstanceNode } from '../event-segment/entities/instance-node.entity';
 import { CreateFigureTemplateDto } from './dto/create-figure-template.dto';
 import { UpdateFigureTemplateDto } from './dto/update-figure-template.dto';
 import { FigureTemplateFilterDto } from './dto/figure-template-filter.dto';
@@ -66,6 +67,7 @@ export interface FigureTemplateDetailItem extends FigureTemplateListItem {
   metadata: Record<string, unknown>;
   nodes: FigureNodeItem[];
   rengles: RenglaItem[];
+  adHocInstanceCount: number;
 }
 
 // ─── Service ────────────────────────────────────────────────────────────────
@@ -83,6 +85,8 @@ export class FigureTemplateService {
     private readonly compositionSlotRepository: Repository<CompositionSlot>,
     @InjectRepository(FigureInstance)
     private readonly figureInstanceRepository: Repository<FigureInstance>,
+    @InjectRepository(InstanceNode)
+    private readonly instanceNodeRepository: Repository<InstanceNode>,
   ) {}
 
   async findAll(
@@ -127,7 +131,17 @@ export class FigureTemplateService {
       throw new NotFoundException(`FigureTemplate with ID ${id} not found`);
     }
 
-    return toDetailItem(template);
+    const adHocInstanceCount = await this.instanceNodeRepository
+      .createQueryBuilder('inode')
+      .innerJoin('inode.figureInstance', 'fi')
+      .where('fi.figureTemplateId = :templateId', { templateId: id })
+      .andWhere('fi.snapshotted = true')
+      .andWhere('inode.isAdHoc = true')
+      .select('COUNT(DISTINCT fi.id)', 'count')
+      .getRawOne()
+      .then((r) => parseInt(r?.count ?? '0', 10));
+
+    return toDetailItem(template, adHocInstanceCount);
   }
 
   async create(dto: CreateFigureTemplateDto): Promise<FigureTemplateDetailItem> {
@@ -234,7 +248,7 @@ export class FigureTemplateService {
     }
 
     const copy = this.templateRepository.create({
-      name: `${original.name} (còpia)`,
+      name: original.name,
       slug: `${original.slug}-copia-${Date.now()}`,
       description: original.description,
       hasPinya: original.hasPinya,
@@ -494,11 +508,15 @@ function toListItem(
   };
 }
 
-function toDetailItem(template: FigureTemplate): FigureTemplateDetailItem {
+function toDetailItem(
+  template: FigureTemplate,
+  adHocInstanceCount = 0,
+): FigureTemplateDetailItem {
   return {
     ...toListItem(template),
     metadata: template.metadata,
     nodes: (template.nodes ?? []).map(nodeToItem),
     rengles: (template.rengles ?? []).map(renglaToItem),
+    adHocInstanceCount,
   };
 }

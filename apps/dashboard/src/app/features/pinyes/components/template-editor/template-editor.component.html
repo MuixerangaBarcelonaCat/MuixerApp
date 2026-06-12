@@ -117,6 +117,20 @@
     </div>
   </header>
 
+  @if (adHocInstanceCount() > 0 && !adHocBannerDismissed()) {
+    <div class="alert alert-info text-sm mx-4 mt-2" role="status">
+      <lucide-icon name="Info" [size]="16" class="shrink-0" aria-hidden="true" />
+      <span>
+        Hi ha {{ adHocInstanceCount() }}
+        {{ adHocInstanceCount() === 1 ? 'instància' : 'instàncies' }}
+        amb nodes creats manualment. Els canvis al template no afecten les instàncies ja existents.
+      </span>
+      <button type="button" class="btn btn-ghost btn-xs" (click)="dismissAdHocBanner()" aria-label="Tancar">
+        <lucide-icon name="X" [size]="12" aria-hidden="true" />
+      </button>
+    </div>
+  }
+
   <!-- ── Main Area ─────────────────────────────────────────────────────────── -->
   <div class="editor-main">
 

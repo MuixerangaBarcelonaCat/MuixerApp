@@ -762,15 +762,24 @@ This is necessary because `comodin` is the only type with `requiresCustomLabel: 
 
 ---
 
-### Phase 4 (Future) — Template editor awareness + UX polish
+### Phase 4 — Template editor awareness + UX polish
 
-**Scope (deferred, no implementation plan):**
+**Scope:** No DB migration. Frontend-heavy.
 
+- Phase 3 fixes: uncomment direction alert, missing tests, spec status update
+- Help modal enhancement: keyboard shortcuts table, differences table, important notes
 - Template editor: informational banner explaining instance-level additions lifecycle
-- Assignment canvas: undo/redo stack for ad-hoc operations
-- Assignment canvas: node duplication (clone existing ad-hoc node)
-- Keyboard shortcuts for quick creation (e.g. Ctrl+1..8 for pinya presets)
-- "Save as template preset" — promote ad-hoc nodes back to template
+- Assignment canvas: node duplication (Ctrl+D clone existing ad-hoc node)
+- Keyboard shortcuts for quick creation (Ctrl+1..9 for pinya presets)
+
+---
+
+### Phase 5 (Future) — Advanced features
+
+**Scope (deferred):**
+
+- Assignment canvas: undo/redo stack for ad-hoc operations (in-memory, no DB)
+- "Save as template preset" — promote ad-hoc nodes back to template (requires `figure_nodes_zone_enum` migration)
 - Template preview showing what gets snapshotted
 
 ---
@@ -796,7 +805,7 @@ This is necessary because `comodin` is the only type with `requiresCustomLabel: 
 - TRONC ad-hoc nodes during assignment (complex CSS grid interaction, would need TroncView editor mode in assignment)
 - BASE ad-hoc nodes during assignment (CCW ordering implications)
 - Real-time collaboration on ad-hoc nodes (P7 territory)
-- Version history / audit log for ad-hoc operations (Phase 4 candidate)
+- Version history / audit log for ad-hoc operations (Phase 5 candidate)
 - Composition instance support for ad-hoc nodes (composition snapshot not supported)
 - Migrating existing template directions to instance-only (templates can still have directions)
 
@@ -807,12 +816,13 @@ This is necessary because `comodin` is the only type with `requiresCustomLabel: 
 Each phase gets its own implementation plan document:
 
 
-| Phase   | Plan Document                                   | Status      |
-| ------- | ----------------------------------------------- | ----------- |
-| Phase 1 | `docs/specs/plans/ad-hoc-nodes-phase-1-plan.md` | Implemented |
-| Phase 2 | `docs/specs/plans/ad-hoc-nodes-phase-2-spec.md` | Implemented |
-| Phase 3 | `docs/specs/plans/ad-hoc-nodes-phase-3-spec.md` | Implemented |
-| Phase 4 | TBD (future)                                    | —           |
+| Phase   | Plan Document                                   | Status           |
+| ------- | ----------------------------------------------- | ---------------- |
+| Phase 1 | `docs/specs/plans/ad-hoc-nodes-phase-1-plan.md` | Implemented      |
+| Phase 2 | `docs/specs/plans/ad-hoc-nodes-phase-2-spec.md` | Implemented      |
+| Phase 3 | `docs/specs/plans/ad-hoc-nodes-phase-3-spec.md` | Implemented      |
+| Phase 4 | `docs/specs/plans/ad-hoc-nodes-phase-4-spec.md` | Draft            |
+| Phase 5 | `docs/specs/plans/ad-hoc-nodes-phase-5-spec.md` | Draft (Deferred) |
 
 
 Each plan follows the structure: task breakdown, file changes list, acceptance criteria, estimated effort, and references back to this spec.
