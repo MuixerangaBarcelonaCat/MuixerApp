@@ -184,7 +184,13 @@ export class AssignmentOperationsService {
         next: (resp) => {
           this.tab.updateTabCordons(instanceId, resp.numberOfCordons, resp.openCordons);
           this.tab.refreshInstanceNodes(instanceId);
-          this.toast.success('Configuració de cordons actualitzada.');
+          if (resp.removedAssignments > 0) {
+            this.toast.warning(
+              `S'han desassignat ${resp.removedAssignments} persones dels cordons eliminats.`,
+            );
+          } else {
+            this.toast.success('Configuració de cordons actualitzada.');
+          }
           onSuccess();
         },
         error: () => this.toast.error('Error en actualitzar els cordons.'),

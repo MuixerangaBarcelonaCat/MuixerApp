@@ -214,7 +214,7 @@ describe('AssignmentCanvasComponent', () => {
         a: makeAssignment('inode-1', 'person-2'),
         b: makeAssignment('inode-2', 'person-1'),
       })),
-      updateCordons: vi.fn().mockReturnValue(of({ numberOfCordons: null, openCordons: null })),
+      updateCordons: vi.fn().mockReturnValue(of({ numberOfCordons: null, openCordons: null, removedAssignments: 0 })),
       resetSnapshot: vi.fn().mockReturnValue(of({ removedAssignments: 0, deletedAdHocCount: 0 })),
       bulkImport: vi.fn().mockReturnValue(of({ created: [], conflicts: [], clonedAdHocNodes: 0 })),
       getHistory: vi.fn().mockReturnValue(of({ data: [] })),
@@ -436,22 +436,22 @@ describe('AssignmentCanvasComponent', () => {
 
     it('hasCordonsConfig is true when rengles are present', () => {
       component['templateRengles'].set([
-        { id: 'r1', name: 'Mans', sortOrder: 0, startPosition: 1, allowsCordoObert: true },
+        { id: 'r1', name: 'Mans', sortOrder: 0, allowsCordoObert: true },
       ]);
       expect(component.hasCordonsConfig()).toBe(true);
     });
 
     it('renglesWithCordoObert filters only allowsCordoObert=true', () => {
       component['templateRengles'].set([
-        { id: 'r1', name: 'Mans', sortOrder: 0, startPosition: 1, allowsCordoObert: true },
-        { id: 'r2', name: 'Vents', sortOrder: 1, startPosition: 1, allowsCordoObert: false },
+        { id: 'r1', name: 'Mans', sortOrder: 0, allowsCordoObert: true },
+        { id: 'r2', name: 'Vents', sortOrder: 1, allowsCordoObert: false },
       ]);
       expect(component.renglesWithCordoObert().length).toBe(1);
       expect(component.renglesWithCordoObert()[0].id).toBe('r1');
     });
 
     it('onCordonsSaved calls updateCordons and reloads nodes', () => {
-      assignmentService.updateCordons.mockReturnValue(of({ numberOfCordons: 2, openCordons: null }));
+      assignmentService.updateCordons.mockReturnValue(of({ numberOfCordons: 2, openCordons: null, removedAssignments: 0 }));
       assignmentService.getInstanceNodes.mockReturnValue(of({ data: makeInstanceNodes() }));
 
       component.onCordonsSaved({ numberOfCordons: 2, openCordons: [] });

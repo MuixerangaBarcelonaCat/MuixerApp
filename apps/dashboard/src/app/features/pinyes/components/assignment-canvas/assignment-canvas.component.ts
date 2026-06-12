@@ -935,7 +935,13 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
           ),
         );
         this.refreshInstanceNodes(instanceId);
-        this.toast.success('Configuració de cordons actualitzada.');
+        if (resp.removedAssignments > 0) {
+          this.toast.warning(
+            `S'han desassignat ${resp.removedAssignments} persones dels cordons eliminats.`,
+          );
+        } else {
+          this.toast.success('Configuració de cordons actualitzada.');
+        }
       },
       error: () => {
         this.toast.error('Error en actualitzar els cordons.');
