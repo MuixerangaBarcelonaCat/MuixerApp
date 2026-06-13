@@ -88,6 +88,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   private readonly toast = inject(ToastService);
 
   readonly helpModal = viewChild.required(TemplateEditorHelpModalComponent);
+  readonly figureCanvas = viewChild(FigureCanvasComponent);
 
   // Template metadata
   templateId = signal<string | null>(null);
@@ -336,15 +337,15 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     const doAdd = () => {
       this.pushSnapshot('Afegir base');
       const id = generateUUID();
-      const stageCenter = { x: 200, y: 200 };
+      const { x, y } = this.getNewNodePosition();
       const baseNumber = this.baseNodes().length + 1;
       const newNode: FigureNodeItem = {
         id,
         label: `Base ${baseNumber}`,
         zone: FigureZone.BASE,
         positionType: 'base',
-        x: stageCenter.x + Math.random() * 40 - 20,
-        y: stageCenter.y + Math.random() * 40 - 20,
+        x,
+        y,
         z: 0,
         width: DEFAULT_NODE_WIDTH,
         height: DEFAULT_NODE_HEIGHT,
@@ -399,14 +400,14 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     const doAdd = () => {
       this.pushSnapshot(`Afegir ${labelOverride ?? 'node'}`);
       const id = generateUUID();
-      const stageCenter = { x: 200, y: 200 };
+      const { x, y } = this.getNewNodePosition();
       const newNode: FigureNodeItem = {
         id,
         label: labelOverride ?? this.defaultLabel(zone, z),
         zone,
         positionType,
-        x: stageCenter.x + Math.random() * 40 - 20,
-        y: stageCenter.y + Math.random() * 40 - 20,
+        x,
+        y,
         z,
         width: DEFAULT_NODE_WIDTH,
         height: DEFAULT_NODE_HEIGHT,
@@ -966,6 +967,14 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     this.nodes.update((nodes) =>
       nodes.map((n) => (n.id === id ? { ...n, ...patch } : n)),
     );
+  }
+
+  private getNewNodePosition(spread = 20): { x: number; y: number } {
+    const center = this.figureCanvas()?.getViewportCenter() ?? { x: 0, y: 0 };
+    return {
+      x: Math.round(center.x + Math.random() * spread - spread / 2),
+      y: Math.round(center.y + Math.random() * spread - spread / 2),
+    };
   }
 
   private defaultLabel(zone: FigureZone, z = 0): string {

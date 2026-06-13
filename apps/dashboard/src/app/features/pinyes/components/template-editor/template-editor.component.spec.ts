@@ -37,6 +37,9 @@ class StubFigureCanvas {
   readonly nodeLabelChanged = output<{ id: string; label: string }>();
   readonly stageTransformChanged = output<StageTransform>();
   readonly ghostCloneRequested = output<unknown>();
+  getViewportCenter(): { x: number; y: number } {
+    return { x: 386, y: 150 };
+  }
 }
 
 @Component({ selector: 'app-tronc-view', standalone: true, template: '' })
