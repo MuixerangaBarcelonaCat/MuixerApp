@@ -240,12 +240,6 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     this.segmentId.set(params['segmentId']);
     this.state.reset();
     this.loadSegment();
-    const instanceId = params['instanceId'] ?? null;
-    if (instanceId === null) {
-      this.selectTab(this.tabs()[0].instanceId);
-    } else {
-      this.selectTab(instanceId);
-    }
 
     this.assignmentService.getLockStatus(this.eventId()).subscribe({
       next: (status) => this.lockStatus.set(status),
@@ -442,6 +436,12 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
       }));
 
     this.tabs.set(tabBuilders);
+
+    const instanceId = this.route.snapshot.params['instanceId'] ?? null;
+    const targetId = instanceId ?? tabBuilders[0]?.instanceId;
+    if (targetId) {
+      this.selectTab(targetId);
+    }
   }
 
   // ── Tronc panel drag ─────────────────────────────────────────────────────
