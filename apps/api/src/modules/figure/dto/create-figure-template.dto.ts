@@ -17,10 +17,10 @@ export class CreateFigureTemplateDto {
   @IsNotEmpty()
   name: string;
 
-  @ApiProperty({ description: 'Unique URL-safe slug, e.g. "pd4-2c"' })
+  @ApiPropertyOptional({ description: 'URL-safe slug. Auto-generated from name if omitted.' })
   @IsString()
-  @IsNotEmpty()
-  slug: string;
+  @IsOptional()
+  slug?: string;
 
   @ApiPropertyOptional()
   @IsString()

@@ -163,15 +163,6 @@
       <span class="text-sm font-medium">{{ sel.name }}</span>
       <button
         type="button"
-        class="btn btn-ghost btn-sm"
-        (click)="editSelectedRengla()"
-        aria-label="Edita rengla"
-      >
-        <lucide-icon name="Pencil" [size]="14" aria-hidden="true" />
-        Edita
-      </button>
-      <button
-        type="button"
         class="btn btn-ghost btn-sm text-error"
         (click)="deleteSelectedRengla()"
         aria-label="Suprimir rengla"
@@ -200,87 +191,3 @@
     </button>
   }
 </div>
-
-<!-- Mini-dialog for rengla name/config -->
-@if (showMiniDialog()) {
-  <div class="absolute inset-0 flex items-center justify-center pointer-events-auto z-20">
-    <div
-      class="bg-base-100 shadow-xl rounded-box border border-base-300 p-5 w-80"
-      role="dialog"
-      aria-label="Configurar rengla"
-      (keydown.escape)="cancelDialog()"
-    >
-      <h3 class="text-sm font-bold mb-3">
-        {{ creatingRengla() ? 'Rengla nova' : 'Edita rengla' }}
-      </h3>
-
-      <div class="form-control mb-3">
-        <label class="label pb-1" for="rengla-name">
-          <span class="label-text text-xs font-medium">Nom</span>
-        </label>
-        <input
-          id="rengla-name"
-          type="text"
-          class="input input-bordered input-sm"
-          [ngModel]="dialogName()"
-          (ngModelChange)="dialogName.set($event)"
-          placeholder="MANS, VENTS, LATERALS..."
-        />
-      </div>
-
-      <div class="form-control mb-3">
-        <label class="label pb-1" for="rengla-start">
-          <span
-            class="label-text text-xs font-medium tooltip tooltip-right"
-            data-tip="Primer cordó on apareix aquesta rengla. 1 = sempre visible."
-          >
-            Posició inicial
-          </span>
-        </label>
-        <input
-          id="rengla-start"
-          type="number"
-          class="input input-bordered input-sm w-20"
-          [ngModel]="dialogStartPosition()"
-          (ngModelChange)="dialogStartPosition.set(+$event)"
-          min="1"
-          max="10"
-        />
-      </div>
-
-      <div class="form-control mb-4">
-        <label class="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            class="checkbox checkbox-sm checkbox-primary"
-            [checked]="dialogAllowsCordoObert()"
-            (change)="dialogAllowsCordoObert.set($any($event.target).checked)"
-          />
-          <span class="label-text text-xs">Permet cordó obert</span>
-        </label>
-      </div>
-
-      <div class="flex justify-end gap-2">
-        <button
-          type="button"
-          class="btn btn-ghost btn-sm"
-          (click)="cancelDialog()"
-        >
-          Cancel·lar
-        </button>
-        <button
-          type="button"
-          class="btn btn-primary btn-sm"
-          (click)="creatingRengla() ? confirmCreate() : confirmEdit()"
-        >
-          {{ creatingRengla() ? 'Crea' : 'Alça' }}
-        </button>
-      </div>
-    </div>
-    <div
-      class="absolute inset-0 bg-black/20 -z-10"
-      (click)="cancelDialog()"
-      aria-hidden="true"
-    ></div>
-  </div>
-}

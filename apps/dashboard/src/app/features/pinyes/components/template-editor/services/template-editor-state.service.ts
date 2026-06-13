@@ -19,7 +19,7 @@ import {
   RenglaModel,
 } from '../../../models/figure-template.model';
 import { FigureZone, NodeShape } from '@muixer/shared';
-import { RenglaCreatedEvent, RenglaUpdatedEvent, RenglaDeletedEvent } from '../../rengla-overlay/rengla-overlay.component';
+import { RenglaCreatedEvent, RenglaDeletedEvent } from '../../rengla-overlay/rengla-overlay.component';
 import { validateBaseOrdering } from '../../../utils/base-ordering.util';
 import { slugify } from '../../../utils/slugify.util';
 import { CanvasNode } from '../../figure-canvas/figure-canvas.component';
@@ -284,27 +284,15 @@ export class TemplateEditorStateService {
     const renglaId = generateUUID();
     const newRengla: RenglaModel = {
       id: renglaId, name: event.rengla.name, sortOrder: event.rengla.sortOrder,
-      startPosition: event.rengla.startPosition, allowsCordoObert: event.rengla.allowsCordoObert,
+      allowsCordoObert: event.rengla.allowsCordoObert,
     };
     this.rengles.update((r) => [...r, newRengla]);
     this.nodes.update((nodes) =>
       nodes.map((n) => {
         const a = event.nodeAssignments.find((x) => x.nodeId === n.id);
         if (!a) return n;
-        return { ...n, renglaId, renglaPosition: a.renglaPosition, ringLevel: event.rengla.startPosition + a.renglaPosition - 1 };
+        return { ...n, renglaId, renglaPosition: a.renglaPosition, ringLevel: a.renglaPosition };
       }),
-    );
-    this.scheduleAutosave();
-  }
-
-  onRenglaUpdated(event: RenglaUpdatedEvent): void {
-    this.rengles.update((list) => list.map((r) => (r.id === event.rengla.id ? event.rengla : r)));
-    this.nodes.update((nodes) =>
-      nodes.map((n) =>
-        n.renglaId === event.rengla.id && n.renglaPosition != null
-          ? { ...n, ringLevel: event.rengla.startPosition + n.renglaPosition - 1 }
-          : n,
-      ),
     );
     this.scheduleAutosave();
   }
@@ -328,39 +316,12 @@ export class TemplateEditorStateService {
     if (!source) return;
 
     const newId = generateUUID();
-    let renglaId = source.renglaId;
-    let renglaPosition = source.renglaPosition != null ? source.renglaPosition + 1 : null;
-    let ringLevel = source.ringLevel != null ? source.ringLevel + 1 : null;
-
-    if (renglaId) {
-      this.nodes.update((nodes) =>
-        nodes.map((n) =>
-          n.renglaId === renglaId && n.renglaPosition != null && n.renglaPosition >= renglaPosition!
-            ? { ...n, renglaPosition: n.renglaPosition + 1, ringLevel: n.ringLevel != null ? n.ringLevel + 1 : null }
-            : n,
-        ),
-      );
-    } else {
-      const autoRenglaId = generateUUID();
-      const renglaIndex = this.rengles().length;
-      this.rengles.update((r) => [...r, {
-        id: autoRenglaId, name: `${source.label} ${renglaIndex + 1}`,
-        sortOrder: renglaIndex, startPosition: 1, allowsCordoObert: false,
-      }]);
-      this.nodes.update((nodes) =>
-        nodes.map((n) => n.id === source.id ? { ...n, renglaId: autoRenglaId, renglaPosition: 1, ringLevel: 1 } : n),
-      );
-      renglaId = autoRenglaId;
-      renglaPosition = 2;
-      ringLevel = 2;
-    }
-
     const clonedNode: FigureNodeItem = {
       id: newId, label: source.label, zone: source.zone, positionType: source.positionType,
       x: event.targetPosition.x, y: event.targetPosition.y, z: source.z,
       width: source.width, height: source.height, rotation: source.rotation,
       color: source.color, shape: source.shape, sortOrder: this.nodes().length,
-      climbPath: null, ringLevel, originNodeId: null, renglaId, renglaPosition, metadata: {},
+      climbPath: null, ringLevel: null, originNodeId: null, renglaId: null, renglaPosition: null, metadata: {},
     };
     this.nodes.update((n) => [...n, clonedNode]);
     this.selectedNodeId.set(newId);
@@ -371,12 +332,7 @@ export class TemplateEditorStateService {
 
   onNameChange(value: string): void {
     this.templateName.set(value);
-    if (!this.templateId()) this.templateSlug.set(slugify(value));
-    this.scheduleAutosave();
-  }
-
-  onSlugChange(value: string): void {
-    this.templateSlug.set(value);
+    this.templateSlug.set(slugify(value));
     this.scheduleAutosave();
   }
 
@@ -417,6 +373,8 @@ export class TemplateEditorStateService {
         .subscribe({
           next: (created) => {
             this.templateId.set(created.id);
+            this.templateName.set(created.name);
+            this.templateSlug.set(created.slug);
             this.router.navigate(['/pinyes/templates', created.id, 'edit'], { replaceUrl: true });
             this.onSaveSuccess();
           },
@@ -434,16 +392,13 @@ export class TemplateEditorStateService {
     this.saveStatus.set('error');
     const msg = (err.error?.message as string | undefined) ?? '';
     const msgLower = msg.toLowerCase();
-    const slug = this.templateSlug();
 
-    if (err.status === 409 && (msgLower.includes('slug') || msgLower.includes('identificador'))) {
-      this.toast.error(`L'identificador "${slug}" ja l'utilitza una altra figura. Canvia'l per poder desar.`);
-    } else if (err.status === 409 && (msgLower.includes('instànci') || msgLower.includes('composici'))) {
+    if (err.status === 409 && (msgLower.includes('instànci') || msgLower.includes('composici'))) {
       this.toast.error(msg || "No es pot esborrar: hi ha instàncies o composicions que fan servir aquesta figura.");
+    } else if (err.status === 409 && msgLower.includes('name')) {
+      this.toast.error('Ja existeix una altra figura amb aquest nom. Tria un nom diferent.');
     } else if (err.status === 409) {
-      this.toast.error(msg || 'Conflicte en desar la figura. Revisa les dades i torna-ho a intentar.');
-    } else if (err.status === 500 && msgLower.includes('slug')) {
-      this.toast.error(`L'identificador "${slug}" ja l'utilitza una altra figura. Canvia'l per poder desar.`);
+      this.toast.error(msg || 'Conflicte en desar la figura. Prova a canviar el nom.');
     } else {
       this.toast.error("No s'ha pogut desar la figura. Torna-ho a intentar.");
     }
@@ -452,7 +407,6 @@ export class TemplateEditorStateService {
   private buildPayload() {
     return {
       name: this.templateName().trim(),
-      slug: this.templateSlug().trim(),
       description: this.templateDescription().trim() || undefined,
       hasPinya: this.hasPinya(),
       nodes: this.nodes().map(nodeToPayload),

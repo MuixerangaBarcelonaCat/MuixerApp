@@ -21,12 +21,6 @@ export class UpdateFigureTemplateDto {
 
   @ApiPropertyOptional()
   @IsString()
-  @IsNotEmpty()
-  @IsOptional()
-  slug?: string;
-
-  @ApiPropertyOptional()
-  @IsString()
   @IsOptional()
   description?: string;
 

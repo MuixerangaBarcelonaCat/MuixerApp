@@ -26,7 +26,6 @@ export interface RenglaModel {
   id: string;
   name: string;
   sortOrder: number;
-  startPosition: number;
   allowsCordoObert: boolean;
 }
 
@@ -91,7 +90,6 @@ export interface CreateFigureTemplatePayload {
 
 export interface UpdateFigureTemplatePayload {
   name?: string;
-  slug?: string;
   description?: string;
   hasPinya?: boolean;
   direction?: number;
