@@ -259,9 +259,8 @@ describe('SegmentManagerComponent', () => {
         EVENT_ID,
         'segments',
         'seg-1',
-        'instances',
-        'inst-1',
         'assign',
+        'inst-1',
       ]);
     });
 

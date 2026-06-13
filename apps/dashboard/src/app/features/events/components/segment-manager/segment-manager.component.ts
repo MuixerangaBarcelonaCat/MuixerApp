@@ -224,7 +224,7 @@ export class SegmentManagerComponent implements OnInit {
   }
 
   navigateToAssignment(segmentId: string, instanceId: string | null = null): void {
-    let route = ['/pinyes/events', this.eventId(), 'segments', segmentId, 'assign'];
+    const route = ['/pinyes/events', this.eventId(), 'segments', segmentId, 'assign'];
     if (instanceId) {
       route.push(instanceId);
     }
