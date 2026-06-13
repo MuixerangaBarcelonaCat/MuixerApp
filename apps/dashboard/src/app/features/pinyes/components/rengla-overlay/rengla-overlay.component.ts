@@ -151,10 +151,13 @@ export class RenglaOverlayComponent {
       }
       return;
     }
-
     const node = this.nodes().find((n) => n.id === nodeId);
     if (node?.renglaId) {
       this.selectedRenglaId.set(node.renglaId);
+    } else {
+      // Auto-start creation when the user taps an unassigned eligible node
+      this.startCreating();
+      this.pendingNodeIds.set([nodeId]);
     }
   }
 
@@ -207,10 +210,14 @@ export class RenglaOverlayComponent {
       }
       return;
     }
-
     if (event.key === 'Enter' && this.creatingRengla()) {
       event.preventDefault();
       this.finishCreating();
+      return;
+    }
+    if ((event.key === 'Delete' || event.key === 'Backspace') && this.selectedRenglaId()) {
+      event.preventDefault();
+      this.deleteSelectedRengla();
     }
   }
 
