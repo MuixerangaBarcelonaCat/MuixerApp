@@ -244,10 +244,36 @@ describe('SegmentManagerComponent', () => {
       ]);
     });
 
+    it('clicking figure name button navigates to instance assignment', () => {
+      const seg = makeSegment({
+        id: 'seg-1',
+        instances: [makeInstance({ id: 'inst-1' })],
+      });
+      component.segments.set([seg]);
+      fixture.detectChanges();
+    
+      const button = fixture.nativeElement.querySelector('[data-instance-id="inst-1"]');
+      button.click();
+      expect(routerMock.navigate).toHaveBeenCalledWith([
+        '/pinyes/events',
+        EVENT_ID,
+        'segments',
+        'seg-1',
+        'instances',
+        'inst-1',
+        'assign',
+      ]);
+    });
+
     it('navigates to correct assignment canvas URL', () => {
       component.navigateToAssignment('seg-uuid-1');
       expect(routerMock.navigate).toHaveBeenCalledWith([
         '/pinyes/events', EVENT_ID, 'segments', 'seg-uuid-1', 'assign',
+      ]);
+      component.navigateToAssignment('seg-uuid-1', 'inst-uuid-1');
+      expect(routerMock.navigate).toHaveBeenCalledWith([
+        '/pinyes/events', EVENT_ID, 'segments', 'seg-uuid-1', 'assign',
+        'inst-uuid-1',
       ]);
     });
   });

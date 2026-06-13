@@ -36,7 +36,7 @@
         <div class="py-8 text-center text-sm text-base-content/50">
           <lucide-icon name="Layers" [size]="40" class="mx-auto mb-2 text-base-content/20" />
           <p>Cap segment creat encara.</p>
-          <p class="mt-1">Afegeix un segment per organitzar les figures que es faran en aquest event.</p>
+          <p class="mt-1">Afegiu un segment per organitzar les figures que es faran en aquest event.</p>
         </div>
       }
 
@@ -192,7 +192,7 @@
                 <div class="flex flex-wrap gap-1.5 pl-8 items-center" role="list" [attr.aria-label]="'Figures del segment ' + displayName()(segment)">
                   @for (instance of segment.instances; track instance.id) {
                     <div
-                      class="badge gap-1 pr-1 cursor-default"
+                      class="badge gap-1 pr-1"
                       [class.badge-primary]="!isComposition(instance)"
                       [class.badge-secondary]="isComposition(instance)"
                       role="listitem"
@@ -200,7 +200,14 @@
                       @if (isComposition(instance)) {
                         <lucide-icon name="LayoutGrid" [size]="11" />
                       }
-                      <span class="text-xs">{{ getInstanceLabel(instance) }}</span>
+                      <button
+                        type="button"
+                        class="text-xs hover:underline cursor-pointer"
+                        (click)="navigateToAssignment(segment.id, instance.id)"
+                        [attr.aria-label]="'Assignar ' + getInstanceLabel(instance)"
+                        [attr.data-instance-id]="instance.id">
+                        {{ getInstanceLabel(instance) }}
+                      </button>
                       @if (instance.assignedCount > 0) {
                         <span class="badge badge-xs badge-ghost font-mono" [attr.aria-label]="instance.assignedCount + ' assignades'">
                           {{ instance.assignedCount }}
@@ -224,7 +231,7 @@
                   }
                 </div>
               } @else {
-                <p class="text-xs text-base-content/30 pl-8">Cap figura afegida. Clica "+ Figura" per afegir-ne.</p>
+                <p class="text-xs text-base-content/30 pl-8">Cap figura afegida. Cliqueu "+ Figura" per afegir-ne.</p>
               }
             </div>
           }

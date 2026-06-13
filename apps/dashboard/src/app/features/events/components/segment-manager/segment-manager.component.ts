@@ -223,8 +223,12 @@ export class SegmentManagerComponent implements OnInit {
     return !!instance.compositionTemplate;
   }
 
-  navigateToAssignment(segmentId: string): void {
-    this.router.navigate(['/pinyes/events', this.eventId(), 'segments', segmentId, 'assign']);
+  navigateToAssignment(segmentId: string, instanceId: string | null = null): void {
+    let route = ['/pinyes/events', this.eventId(), 'segments', segmentId, 'assign'];
+    if (instanceId) {
+      route.push(instanceId);
+    }
+    this.router.navigate(route);
   }
 
   navigateToProjection(segmentId: string): void {
