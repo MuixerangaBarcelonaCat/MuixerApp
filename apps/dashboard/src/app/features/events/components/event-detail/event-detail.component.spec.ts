@@ -76,6 +76,13 @@ describe('EventDetailComponent — getSummaryForDisplay', () => {
       expect(row).toBeDefined();
       expect(row!.value).toBe(81);
     });
+
+    it('includes Adults row with correct value (attended - children)', () => {
+      const rows = component.getSummaryForDisplay(pastSummary);
+      const row = rows.find((r) => r.label === 'Adults');
+      expect(row).toBeDefined();
+      expect(row!.value).toBe(50);
+    });
   });
 
   describe('future event', () => {
@@ -98,6 +105,35 @@ describe('EventDetailComponent — getSummaryForDisplay', () => {
     it('does not include Baixes tardanes row', () => {
       const rows = component.getSummaryForDisplay(futureSummary);
       expect(rows.find((r) => r.label === 'Baixes tardanes')).toBeUndefined();
+    });
+
+    it('includes Adults row with correct value (confirmed - children)', () => {
+      const rows = component.getSummaryForDisplay(futureSummary);
+      const row = rows.find((r) => r.label === 'Adults');
+      expect(row).toBeDefined();
+      expect(row!.value).toBe(26);
+    });
+  });
+
+  describe('icon fields use Lucide names (not emojis)', () => {
+    beforeEach(() => {
+      (component as unknown as { isPast: () => boolean }).isPast = () => false;
+    });
+
+    it('all rows have icon as a Lucide icon name string', () => {
+      const rows = component.getSummaryForDisplay(futureSummary);
+      const validIcons = ['UserCheck', 'Users', 'UserX', 'AlertTriangle', 'AlertCircle', 'Clock', 'Baby', 'UsersRound'];
+      for (const row of rows) {
+        expect(validIcons).toContain(row.icon);
+      }
+    });
+
+    it('all rows have an iconClass string', () => {
+      const rows = component.getSummaryForDisplay(futureSummary);
+      for (const row of rows) {
+        expect(row.iconClass).toBeDefined();
+        expect(typeof row.iconClass).toBe('string');
+      }
     });
   });
 });

@@ -37,9 +37,9 @@
             }
           </button>
         }
-        <button class="btn btn-outline btn-sm" (click)="showEditModal.set(true)" type="button">Editar</button>
+        <button class="btn btn-outline btn-sm" (click)="showEditModal.set(true)" type="button">Edita</button>
         <button class="btn btn-error btn-outline btn-sm" [disabled]="deleting()" (click)="deleteEvent()" type="button">
-          @if (deleting()) { <span class="loading loading-spinner loading-xs"></span> } @else { Eliminar }
+          @if (deleting()) { <span class="loading loading-spinner loading-xs"></span> } @else { Elimina }
         </button>
       </div>
     </div>
@@ -80,6 +80,34 @@
         }
       </div>
     }
+
+    <!-- Stat cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-3 gap-3">
+      <app-stat-card
+        [label]="isPast() ? 'Assistits' : 'Confirmats'"
+        [value]="isPast() ? ev.attendanceSummary.attended : ev.attendanceSummary.confirmed"
+        icon="UserCheck"
+        accentClass="text-success"
+      />
+      <app-stat-card
+        label="Adults "
+        [value]="adultsCount()"
+        icon="Users"
+        accentClass="text-primary"
+      />
+      <app-stat-card
+        label="Xicalla"
+        [value]="ev.attendanceSummary.children"
+        icon="Baby"
+        accentClass="text-info"
+      />
+      <!-- <app-stat-card
+        label="Total"
+        [value]="ev.attendanceSummary.total"
+        icon="UsersRound"
+        accentClass="text-base-content"
+      /> -->
+    </div>
 
     <!-- Info + Resum d'assistència -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -162,7 +190,8 @@
             @for (row of getSummaryForDisplay(ev.attendanceSummary); track row.label) {
               <div class="flex justify-between items-center">
                 <dt class="flex gap-2 items-center text-base-content/70">
-                  <span>{{ row.icon }}</span>{{ row.label }}:
+                  <lucide-icon [name]="row.icon" [size]="16" [class]="row.iconClass" />
+                  {{ row.label }}:
                 </dt>
                 <dd class="font-mono font-bold text-base">{{ row.value }}</dd>
               </div>
@@ -240,11 +269,14 @@
           <div class="flex flex-wrap gap-2">
             <button
               type="button"
-              class="btn btn-sm"
+              class="btn btn-sm gap-1"
               [class.btn-primary]="confirmedFilterActive()"
               [class.btn-ghost]="!confirmedFilterActive()"
               (click)="toggleConfirmedFilter()"
-            >{{ isPast() ? '✅ Assistits' : '🟢 Confirmats' }}</button>
+            >
+              <lucide-icon name="UserCheck" [size]="14" />
+              {{ isPast() ? 'Assistits' : 'Confirmats' }}
+            </button>
             <select class="select select-sm select-bordered" (change)="onAttendanceStatusFilter($any($event.target).value)">
               <option value="">Tots</option>
               <option [value]="AttendanceStatus.ANIRE">Aniré</option>
@@ -329,7 +361,7 @@
           <table class="table table-sm">
             <thead class="sticky top-0 z-10 bg-base-100">
               <tr>
-                <th>Alies</th>
+                <th>Àlies</th>
                 <th>Nom</th>
                 <th>Estat</th>
                 <th>Resposta</th>
@@ -359,19 +391,34 @@
                         class="badge badge-sm cursor-pointer hover:opacity-80 transition-opacity"
                         [ngClass]="getStatusBadgeClass(att.status)"
                         (click)="openAttendanceEdit(att)"
-                        [title]="'Editar assistència de ' + att.person.alias"
+                        [attr.aria-label]="'Edita assistència de ' + att.person.alias"
+                        [title]="'Edita assistència de ' + att.person.alias"
                       >{{ getStatusLabel(att.status) }}</button>
-                      @if (att.person.isXicalla) { <span class="badge badge-ghost badge-xs ml-1">👶</span> }
-                      @if (att.notes) { <span class="badge badge-ghost badge-xs ml-1" [title]="att.notes">📝</span> }
+                      @if (att.person.isXicalla) {
+                        <span class="badge badge-info badge-sm ml-0.5 gap-0.5" title="Xicalla">
+                          <lucide-icon name="Baby" [size]="10" />
+                        </span>
+                      }
+                      @if (att.notes) {
+                        <span
+                          class="tooltip tooltip-right ml-1"
+                          [attr.data-tip]="att.notes"
+                         >
+                          <span class="badge badge-ghost badge-sm gap-0.5 cursor-default">
+                            <lucide-icon name="StickyNote" [size]="10" />
+                          </span>
+                        </span>
+                      }
                     </td>
                     <td class="text-xs text-base-content/50 whitespace-nowrap">{{ formatDateTime(att.respondedAt) }}</td>
                     <td>
                       <div class="flex flex-wrap gap-1">
                         @for (pos of att.person.positions; track pos.id) {
                           <span
-                            class="badge badge-xs"
+                            class="badge badge-sm"
                             [style.background-color]="pos.color ?? '#888'"
-                            style="color: white; font-size: 0.65rem;"
+                            [style.color]="getContrastColor(pos.color ?? '#888')"
+                            style="font-size: 0.65rem;"
                           >{{ pos.name }}</span>
                         }
                       </div>

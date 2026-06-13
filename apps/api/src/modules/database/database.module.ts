@@ -17,6 +17,13 @@ import { InstanceNode } from '../event-segment/entities/instance-node.entity';
 import { NodeAssignment } from '../node-assignment/entities/node-assignment.entity';
 import { Rengla } from '../figure/entities/rengla.entity';
 import { InitialSchema1748600000000 } from '../../migrations/1748600000000-InitialSchema';
+import { AddUpdatedAtToRengles1749106300000 } from '../../migrations/1749106300000-AddUpdatedAtToRengles';
+import { AddUpdatedAtToMissingTables1749106400000 } from '../../migrations/1749106400000-AddUpdatedAtToMissingTables';
+import { AddPersonInstanceUniqueConstraint1749106500000 } from '../../migrations/1749106500000-AddPersonInstanceUniqueConstraint';
+import { RemoveFigureFamily1780982679300 } from '../../migrations/1780982679300-RemoveFigureFamily';
+import { RestoreProjectionColumnsAndReferenceElements1781000000000 } from '../../migrations/1781000000000-RestoreProjectionColumnsAndReferenceElements';
+import { DropSourceVariantOrder1781100000000 } from '../../migrations/1781100000000-DropSourceVariantOrder';
+import { AddAdHocInstanceNodes1781200000000 } from '../../migrations/1781200000000-AddAdHocInstanceNodes';
 
 @Module({
   imports: [
@@ -49,7 +56,16 @@ import { InitialSchema1748600000000 } from '../../migrations/1748600000000-Initi
           ],
           synchronize: false,
           migrationsRun: isDevelopment,
-          migrations: [InitialSchema1748600000000],
+          migrations: [
+            InitialSchema1748600000000,
+            AddUpdatedAtToRengles1749106300000,
+            AddUpdatedAtToMissingTables1749106400000,
+            AddPersonInstanceUniqueConstraint1749106500000,
+            RemoveFigureFamily1780982679300,
+            RestoreProjectionColumnsAndReferenceElements1781000000000,
+            DropSourceVariantOrder1781100000000,
+            AddAdHocInstanceNodes1781200000000,
+          ],
           migrationsTableName: 'typeorm_migrations',
           logging: isDevelopment,
         };

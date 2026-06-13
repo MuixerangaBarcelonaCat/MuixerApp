@@ -2,9 +2,9 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import {
   LUCIDE_ICONS, LucideIconProvider,
-  Plus, Pencil, Trash2, X, GitBranchPlus,
+  Plus, Trash2, X, GitBranchPlus,
 } from 'lucide-angular';
-import { RenglaOverlayComponent, RenglaCreatedEvent, RenglaUpdatedEvent, RenglaDeletedEvent } from './rengla-overlay.component';
+import { RenglaOverlayComponent, RenglaCreatedEvent, RenglaDeletedEvent } from './rengla-overlay.component';
 import { FigureNodeItem, RenglaModel } from '../../models/figure-template.model';
 import { FigureZone, NodeShape } from '@muixer/shared';
 
@@ -35,7 +35,6 @@ const makeRengla = (overrides: Partial<RenglaModel> = {}): RenglaModel => ({
   id: crypto.randomUUID(),
   name: 'MANS',
   sortOrder: 0,
-  startPosition: 1,
   allowsCordoObert: false,
   ...overrides,
 });
@@ -46,8 +45,6 @@ describe('RenglaOverlayComponent', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let createdSpy: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let updatedSpy: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let deletedSpy: any;
 
   beforeEach(async () => {
@@ -56,7 +53,7 @@ describe('RenglaOverlayComponent', () => {
       providers: [
         {
           provide: LUCIDE_ICONS, multi: true,
-          useFactory: () => new LucideIconProvider({ Plus, Pencil, Trash2, X, GitBranchPlus }),
+          useFactory: () => new LucideIconProvider({ Plus, Trash2, X, GitBranchPlus }),
         },
       ],
     }).compileComponents();
@@ -65,10 +62,8 @@ describe('RenglaOverlayComponent', () => {
     component = fixture.componentInstance;
 
     createdSpy = vi.fn();
-    updatedSpy = vi.fn();
     deletedSpy = vi.fn();
     component.renglaCreated.subscribe((e: RenglaCreatedEvent) => createdSpy(e));
-    component.renglaUpdated.subscribe((e: RenglaUpdatedEvent) => updatedSpy(e));
     component.renglaDeleted.subscribe((e: RenglaDeletedEvent) => deletedSpy(e));
   });
 
@@ -95,8 +90,7 @@ describe('RenglaOverlayComponent', () => {
     ];
     setInputs(nodes);
     const eligible = component.eligibleNodes();
-    expect(eligible).toHaveLength(2);
-    expect(eligible.map((n) => n.id)).toEqual(['n1', 'n6']);
+    expect(eligible.map((n) => n.id)).toEqual(['n1', 'n5', 'n6']);
   });
 
   it('excludes non-PINYA zone nodes from eligible', () => {
@@ -119,8 +113,8 @@ describe('RenglaOverlayComponent', () => {
 
     const sn = component.screenNodes();
     expect(sn).toHaveLength(1);
-    expect(sn[0].cx).toBe(210); // 100 * 2 + 10
-    expect(sn[0].cy).toBe(120); // 50 * 2 + 20
+    expect(sn[0].cx).toBe(210);
+    expect(sn[0].cy).toBe(120);
   });
 
   it('computes rengla lines for existing rengles', () => {
@@ -169,29 +163,14 @@ describe('RenglaOverlayComponent', () => {
       expect(component.pendingNodeIds()).toEqual(['n2']);
     });
 
-    it('does not allow finishing with less than 2 nodes', () => {
+    it('does not emit with zero pending nodes', () => {
       setInputs([makeNode({ id: 'n1' })]);
       component.startCreating();
-      component.onNodeClick('n1');
       component.finishCreating();
-      expect(component.showMiniDialog()).toBe(false);
+      expect(createdSpy).not.toHaveBeenCalled();
     });
 
-    it('opens mini-dialog when finishing with 2+ nodes', () => {
-      const nodes = [
-        makeNode({ id: 'n1', positionType: 'mans' }),
-        makeNode({ id: 'n2', positionType: 'mans' }),
-      ];
-      setInputs(nodes);
-      component.startCreating();
-      component.onNodeClick('n1');
-      component.onNodeClick('n2');
-      component.finishCreating();
-      expect(component.showMiniDialog()).toBe(true);
-      expect(component.dialogName()).toBe('MANS');
-    });
-
-    it('emits renglaCreated on confirm', () => {
+    it('emits renglaCreated directly on finishCreating (no dialog)', () => {
       const nodes = [
         makeNode({ id: 'n1', positionType: 'mans' }),
         makeNode({ id: 'n2', positionType: 'mans' }),
@@ -203,16 +182,11 @@ describe('RenglaOverlayComponent', () => {
       component.onNodeClick('n2');
       component.onNodeClick('n3');
       component.finishCreating();
-      component.dialogName.set('MANS Nord');
-      component.dialogStartPosition.set(1);
-      component.dialogAllowsCordoObert.set(true);
-      component.confirmCreate();
 
       expect(createdSpy).toHaveBeenCalledTimes(1);
       const event = createdSpy.mock.calls[0][0] as RenglaCreatedEvent;
-      expect(event.rengla.name).toBe('MANS Nord');
-      expect(event.rengla.startPosition).toBe(1);
-      expect(event.rengla.allowsCordoObert).toBe(true);
+      expect(event.rengla.name).toBe('Rengla 1');
+      expect(event.rengla.allowsCordoObert).toBe(false);
       expect(event.nodeAssignments).toEqual([
         { nodeId: 'n1', renglaPosition: 1 },
         { nodeId: 'n2', renglaPosition: 2 },
@@ -220,18 +194,31 @@ describe('RenglaOverlayComponent', () => {
       ]);
     });
 
-    it('clears state after confirm', () => {
+    it('auto-sets allowsCordoObert if last node is cordo-obert', () => {
+      const nodes = [
+        makeNode({ id: 'n1', positionType: 'mans' }),
+        makeNode({ id: 'n2', positionType: 'cordo-obert' }),
+      ];
+      setInputs(nodes);
+      component.startCreating();
+      component.onNodeClick('n1');
+      component.onNodeClick('n2');
+      component.finishCreating();
+
+      const event = createdSpy.mock.calls[0][0] as RenglaCreatedEvent;
+      expect(event.rengla.allowsCordoObert).toBe(true);
+    });
+
+    it('clears state after finishCreating', () => {
       const nodes = [makeNode({ id: 'n1' }), makeNode({ id: 'n2' })];
       setInputs(nodes);
       component.startCreating();
       component.onNodeClick('n1');
       component.onNodeClick('n2');
       component.finishCreating();
-      component.confirmCreate();
 
       expect(component.creatingRengla()).toBe(false);
       expect(component.pendingNodeIds()).toEqual([]);
-      expect(component.showMiniDialog()).toBe(false);
     });
 
     it('cancelCreate resets all creation state', () => {
@@ -245,7 +232,7 @@ describe('RenglaOverlayComponent', () => {
     });
   });
 
-  describe('rengla selection and editing', () => {
+  describe('rengla selection and deletion', () => {
     it('selects a rengla by clicking an assigned node', () => {
       const renglaId = 'r-1';
       const nodes = [makeNode({ id: 'n1', renglaId, renglaPosition: 1 })];
@@ -261,26 +248,6 @@ describe('RenglaOverlayComponent', () => {
 
       component.onRenglaLineClick(renglaId);
       expect(component.selectedRenglaId()).toBe(renglaId);
-    });
-
-    it('emits renglaUpdated on edit confirm', () => {
-      const renglaId = 'r-1';
-      const rengla = makeRengla({ id: renglaId, name: 'MANS', startPosition: 1 });
-      setInputs([], [rengla]);
-
-      component.selectedRenglaId.set(renglaId);
-      component.editSelectedRengla();
-      expect(component.showMiniDialog()).toBe(true);
-      expect(component.dialogName()).toBe('MANS');
-
-      component.dialogName.set('MANS Nord');
-      component.dialogStartPosition.set(2);
-      component.confirmEdit();
-
-      expect(updatedSpy).toHaveBeenCalledTimes(1);
-      const event = updatedSpy.mock.calls[0][0] as RenglaUpdatedEvent;
-      expect(event.rengla.name).toBe('MANS Nord');
-      expect(event.rengla.startPosition).toBe(2);
     });
 
     it('emits renglaDeleted on delete', () => {
@@ -315,7 +282,7 @@ describe('RenglaOverlayComponent', () => {
       expect(component.selectedRenglaId()).toBeNull();
     });
 
-    it('Enter opens finish dialog when creating with 2+ nodes', () => {
+    it('Enter calls finishCreating and emits when creating with nodes', () => {
       const nodes = [makeNode({ id: 'n1' }), makeNode({ id: 'n2' })];
       setInputs(nodes);
       component.startCreating();
@@ -326,7 +293,7 @@ describe('RenglaOverlayComponent', () => {
       vi.spyOn(event, 'preventDefault');
       component.onKeyDown(event);
 
-      expect(component.showMiniDialog()).toBe(true);
+      expect(createdSpy).toHaveBeenCalledTimes(1);
     });
   });
 

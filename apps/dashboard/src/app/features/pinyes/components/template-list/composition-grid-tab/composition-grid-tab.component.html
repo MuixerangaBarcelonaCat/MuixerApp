@@ -4,10 +4,10 @@
     type="button"
     class="btn btn-primary gap-2"
     (click)="navigateToCreateComposition()"
-    aria-label="Crear nova composició"
+    aria-label="Crea composició nova"
   >
     <lucide-icon name="Plus" [size]="18" aria-hidden="true" />
-    Nova composició
+    Composició nova
   </button>
 </div>
 
@@ -17,7 +17,7 @@
     <lucide-icon name="Search" [size]="16" class="text-base-content/40" aria-hidden="true" />
     <input
       type="search"
-      placeholder="Cerca per nom o slug..."
+      placeholder="Cerca per no..."
       [(ngModel)]="compositionsSearchInput"
       (ngModelChange)="onCompositionsSearchChange($event)"
       class="grow"
@@ -38,7 +38,7 @@
     <app-empty-state
       icon="LayoutGrid"
       message="Cap composició creada. Crea la teva primera composició per agrupar figures (ex: 'Altar', '5 de Oros')."
-      actionLabel="Nova composició"
+      actionLabel="Composició nova"
       (actionClick)="navigateToCreateComposition()"
     />
   </div>
@@ -53,7 +53,7 @@
           type="button"
           class="w-full h-32 bg-gradient-to-br from-secondary/10 to-primary/10 rounded-t-2xl flex items-center justify-center relative overflow-hidden cursor-pointer hover:brightness-95 transition-[filter] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary"
           (click)="navigateToEditComposition(composition.id)"
-          [attr.aria-label]="'Editar composició ' + composition.name"
+          [attr.aria-label]="'Edita composició ' + composition.name"
         >
           <lucide-icon name="LayoutGrid" [size]="40" class="text-secondary/40" aria-hidden="true" />
           <span class="badge badge-secondary badge-sm absolute top-2 right-2">{{ composition.slotCount }} figures</span>
@@ -66,7 +66,7 @@
                 type="button"
                 class="text-left hover:text-primary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary rounded-sm"
                 (click)="navigateToEditComposition(composition.id)"
-                [attr.aria-label]="'Editar composició ' + composition.name"
+                [attr.aria-label]="'Edita composició ' + composition.name"
               >{{ composition.name }}</button>
             </h2>
             <p class="text-xs text-base-content/50 font-mono mt-0.5">{{ composition.slug }}</p>
@@ -114,10 +114,10 @@
                 type="button"
                 class="btn btn-primary btn-xs gap-1"
                 (click)="navigateToEditComposition(composition.id)"
-                [attr.aria-label]="'Editar composició ' + composition.name"
+                [attr.aria-label]="'Edita composició ' + composition.name"
               >
                 <lucide-icon name="Pencil" [size]="13" aria-hidden="true" />
-                Editar
+                Edita
               </button>
             }
           </div>

@@ -1,0 +1,106 @@
+<dialog class="modal modal-open" aria-modal="true" role="dialog" aria-labelledby="season-modal-title">
+  <div class="modal-box max-w-md">
+    <h3 id="season-modal-title" class="font-bold text-lg mb-4">
+      {{ isEditMode ? 'Edita temporada' : 'Temporada nova' }}
+    </h3>
+
+    @if (errorMessage()) {
+      <div class="alert alert-error mb-4" role="alert">
+        <span>{{ errorMessage() }}</span>
+      </div>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="onSave()" class="space-y-4" novalidate>
+
+      <div class="form-control">
+        <label class="label pb-1" for="season-name">
+          <span class="label-text text-xs font-medium">Nom <span class="text-error">*</span></span>
+        </label>
+        <input
+          id="season-name"
+          type="text"
+          class="input input-bordered input-sm w-full"
+          [class.input-error]="fieldError('name')"
+          formControlName="name"
+          maxlength="100"
+          placeholder="Ex: Temporada 2025-2026"
+        />
+        @if (fieldError('name')) {
+          <div class="label pt-0.5"><span class="label-text-alt text-error">{{ fieldError('name') }}</span></div>
+        }
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div class="form-control">
+          <label class="label pb-1" for="season-start">
+            <span class="label-text text-xs font-medium">Data inici <span class="text-error">*</span></span>
+          </label>
+          <input
+            id="season-start"
+            type="date"
+            class="input input-bordered input-sm w-full"
+            [class.input-error]="fieldError('startDate')"
+            formControlName="startDate"
+          />
+          @if (fieldError('startDate')) {
+            <div class="label pt-0.5"><span class="label-text-alt text-error">{{ fieldError('startDate') }}</span></div>
+          }
+        </div>
+
+        <div class="form-control">
+          <label class="label pb-1" for="season-end">
+            <span class="label-text text-xs font-medium">Data fi <span class="text-error">*</span></span>
+          </label>
+          <input
+            id="season-end"
+            type="date"
+            class="input input-bordered input-sm w-full"
+            [class.input-error]="fieldError('endDate') || dateRangeInvalid"
+            formControlName="endDate"
+          />
+          @if (fieldError('endDate')) {
+            <div class="label pt-0.5"><span class="label-text-alt text-error">{{ fieldError('endDate') }}</span></div>
+          }
+          @if (dateRangeInvalid && !fieldError('endDate')) {
+            <div class="label pt-0.5"><span class="label-text-alt text-error">La data fi ha de ser posterior a la data d'inici</span></div>
+          }
+        </div>
+      </div>
+
+      <div class="form-control">
+        <label class="label pb-1" for="season-description">
+          <span class="label-text text-xs font-medium">Descripció</span>
+        </label>
+        <textarea
+          id="season-description"
+          class="textarea textarea-bordered textarea-sm w-full"
+          formControlName="description"
+          rows="3"
+          maxlength="500"
+          placeholder="Descripció opcional de la temporada"
+        ></textarea>
+        @if (fieldError('description')) {
+          <div class="label pt-0.5"><span class="label-text-alt text-error">{{ fieldError('description') }}</span></div>
+        }
+      </div>
+
+      <div class="modal-action">
+        <button type="button" class="btn btn-ghost btn-sm" (click)="onCancel()">
+          Cancel·lar
+        </button>
+        <button
+          type="submit"
+          class="btn btn-primary btn-sm"
+          [disabled]="form.invalid || saving() || dateRangeInvalid"
+        >
+          @if (saving()) {
+            <span class="loading loading-spinner loading-xs"></span>
+          }
+          {{ isEditMode ? 'Desar' : 'Crear' }}
+        </button>
+      </div>
+
+    </form>
+  </div>
+  <div class="modal-backdrop" (click)="onCancel()" (keydown.enter)="onCancel()" tabindex="0" role="button" aria-label="Tancar modal"></div>
+</dialog>

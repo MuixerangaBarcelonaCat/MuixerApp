@@ -21,7 +21,7 @@ export class TabNavComponent {
     { path: '/persons', label: 'Persones', icon: 'Users' },
     { path: '/rehearsals', label: 'Assajos', icon: 'Calendar' },
     { path: '/performances', label: 'Actuacions', icon: 'Star' },
-    { path: '/pinyes', label: 'Pinyes', icon: 'Layers' },
+    { path: '/pinyes', label: 'Plantilles', icon: 'Layers' },
     { path: '/config', label: 'Configuració', icon: 'Settings' },
   ];
 }

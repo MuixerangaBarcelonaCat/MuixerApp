@@ -1,7 +1,7 @@
 <div class="card bg-base-100 shadow-sm overflow-hidden">
   <div class="overflow-x-auto">
-    <table class="table table-sm">
-      <thead class="sticky top-0 z-10 bg-base-100">
+    <table class="table table-sm table-zebra">
+      <thead class="sticky top-0 z-10 bg-base-100 border-b border-base-300">
         <tr>
           @for (col of displayColumns(); track col.key; let first = $first) {
             <th
@@ -80,11 +80,17 @@
               @for (col of displayColumns(); track col.key; let first = $first) {
                 <td
                   class="whitespace-nowrap"
-                  [ngClass]="{ 'sticky left-0 bg-base-100 z-[1] font-medium': first }"
+                  [ngClass]="{ 'sticky left-0 z-[1] font-medium': first }"
                 >
                   @if (col.type === 'badge' && col.badgeClass) {
                     <span class="badge badge-sm" [ngClass]="col.badgeClass(item)">
                       {{ getCellValue(item, col) }}
+                    </span>
+                  } @else if (col.type === 'pills' && col.pills) {
+                    <span class="inline-flex items-center gap-2">
+                      @for (pill of col.pills(item); track pill.text) {
+                        <span class="text-xs font-semibold tabular-nums" [ngClass]="pill.class">{{ pill.text }}</span>
+                      }
                     </span>
                   } @else {
                     {{ getCellValue(item, col) ?? '—' }}

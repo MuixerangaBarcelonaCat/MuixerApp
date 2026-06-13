@@ -29,7 +29,12 @@ import { PaginationComponent } from '../../../../shared/components/data/paginati
 import { EmptyStateComponent } from '../../../../shared/components/data/empty-state/empty-state.component';
 import { DataTableComponent, RowAction } from '../../../../shared/components/data/data-table/data-table.component';
 import { ActiveFilter } from '../../../../shared/components/data/active-filters/active-filters.component';
-import { ColumnDef, GroupSeparator } from '../../../../shared/models/column-def.model';
+import { ColumnDef, ColumnPill, GroupSeparator } from '../../../../shared/models/column-def.model';
+
+export function getAdultsCount(summary: AttendanceSummary, isPast: boolean): number {
+  const positive = isPast ? summary.attended : summary.confirmed;
+  return Math.max(0, positive - summary.children);
+}
 
 export const ALL_EVENT_COLUMNS: ColumnDef[] = [
   { key: 'date', label: 'Data', defaultVisible: true, sortField: 'date' },
@@ -37,6 +42,7 @@ export const ALL_EVENT_COLUMNS: ColumnDef[] = [
   { key: 'location', label: 'Lloc', defaultVisible: true, sortField: 'location' },
   { key: 'startTime', label: 'Hora inici', defaultVisible: true },
   { key: 'attendance', label: 'Assistència', defaultVisible: true },
+  { key: 'adults', label: 'Adults', defaultVisible: true },
   { key: 'pinyes', label: 'Pinyes', defaultVisible: true },
   { key: 'season', label: 'Temporada', defaultVisible: false },
   { key: 'countsForStatistics', label: 'Estadístiques', defaultVisible: false },
@@ -380,6 +386,11 @@ export class EventListComponent implements OnInit {
     return `✓${yes} ✗${no} ?${pend}`;
   }
 
+  formatAdults(item: EventListItem): string {
+    const isPast = this.isEventPast(item.date, item.startTime);
+    return String(getAdultsCount(item.attendanceSummary, isPast));
+  }
+
   formatPinyes(item: EventListItem): string {
     const summary = item.segmentsSummary;
     if (!summary || summary.segmentCount === 0) return '—';
@@ -388,25 +399,49 @@ export class EventListComponent implements OnInit {
     return `${summary.segmentCount} ${segLabel} · ${summary.instanceCount} ${figLabel}`;
   }
 
+  private attendancePills(item: EventListItem): ColumnPill[] {
+    const isPast = this.isEventPast(item.date, item.startTime);
+    const s = item.attendanceSummary;
+    const yes = isPast ? s.attended : s.confirmed;
+    const no = isPast ? s.declined + s.noShow : s.declined;
+    const pend = s.pending;
+    return [
+      { text: `✓${yes}`, class: 'text-success' },
+      { text: `✗${no}`, class: 'text-error' },
+      { text: `?${pend}`, class: 'text-base-content/40' },
+    ];
+  }
+
   /** All columns with value extractors — data-table handles visibility via visibleColumns input */
   readonly tableColumns = computed<ColumnDef<EventListItem>[]>(() =>
-    ALL_EVENT_COLUMNS.map(col => ({
-      ...col,
-      value: (item: EventListItem): string => {
-        switch (col.key) {
-          case 'date': return this.formatDate(item.date);
-          case 'title': return item.title;
-          case 'location': return item.location ?? '—';
-          case 'startTime': return item.startTime?.slice(0, 5) ?? '—';
-          case 'attendance': return this.formatAttendance(item);
-          case 'pinyes': return this.formatPinyes(item);
-          case 'season': return item.season?.name ?? '—';
-          case 'countsForStatistics': return item.countsForStatistics ? 'Sí' : 'No';
-          case 'createdAt': return this.formatDate(item.createdAt);
-          default: return String((item as unknown as Record<string, unknown>)[col.key] ?? '—');
-        }
-      },
-    }))
+    ALL_EVENT_COLUMNS.map(col => {
+      const base: ColumnDef<EventListItem> = {
+        ...col,
+        value: (item: EventListItem): string => {
+          switch (col.key) {
+            case 'date': return this.formatDate(item.date);
+            case 'title': return item.title;
+            case 'location': return item.location ?? '—';
+            case 'startTime': return item.startTime?.slice(0, 5) ?? '—';
+            case 'adults': return this.formatAdults(item);
+            case 'pinyes': return this.formatPinyes(item);
+            case 'season': return item.season?.name ?? '—';
+            case 'countsForStatistics': return item.countsForStatistics ? 'Sí' : 'No';
+            case 'createdAt': return this.formatDate(item.createdAt);
+            default: return String((item as unknown as Record<string, unknown>)[col.key] ?? '—');
+          }
+        },
+      };
+      if (col.key === 'attendance') {
+        base.type = 'pills';
+        base.pills = (item) => this.attendancePills(item);
+      }
+      if (col.key === 'adults') {
+        base.type = 'badge';
+        base.badgeClass = () => 'badge-primary badge-outline badge-sm';
+      }
+      return base;
+    })
   );
 
   /** Row actions */

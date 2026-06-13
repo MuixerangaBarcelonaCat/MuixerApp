@@ -7,7 +7,6 @@ import {
   signal,
   HostListener,
 } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
 import { FigureNodeItem, RenglaModel } from '../../models/figure-template.model';
 import { FigureZone } from '@muixer/shared';
@@ -17,10 +16,6 @@ import { getRenglaColor } from '../../utils/rengla-colors';
 export interface RenglaCreatedEvent {
   rengla: Omit<RenglaModel, 'id'>;
   nodeAssignments: { nodeId: string; renglaPosition: number }[];
-}
-
-export interface RenglaUpdatedEvent {
-  rengla: RenglaModel;
 }
 
 export interface RenglaDeletedEvent {
@@ -44,7 +39,7 @@ interface ScreenNode {
   selector: 'app-rengla-overlay',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule],
+  imports: [LucideAngularModule],
   templateUrl: './rengla-overlay.component.html',
   host: { class: 'block absolute inset-0 pointer-events-none z-10' },
 })
@@ -54,17 +49,11 @@ export class RenglaOverlayComponent {
   readonly stageTransform = input<StageTransform>({ x: 0, y: 0, scaleX: 1, scaleY: 1 });
 
   readonly renglaCreated = output<RenglaCreatedEvent>();
-  readonly renglaUpdated = output<RenglaUpdatedEvent>();
   readonly renglaDeleted = output<RenglaDeletedEvent>();
 
   readonly creatingRengla = signal(false);
   readonly pendingNodeIds = signal<string[]>([]);
   readonly selectedRenglaId = signal<string | null>(null);
-  readonly showMiniDialog = signal(false);
-
-  readonly dialogName = signal('');
-  readonly dialogStartPosition = signal(1);
-  readonly dialogAllowsCordoObert = signal(false);
 
   /** PINYA nodes eligible for rengla assignment (excludes central nodes) */
   readonly eligibleNodes = computed(() =>
@@ -153,8 +142,6 @@ export class RenglaOverlayComponent {
   }
 
   onNodeClick(nodeId: string): void {
-    if (this.showMiniDialog()) return;
-
     if (this.creatingRengla()) {
       const ids = this.pendingNodeIds();
       if (ids.includes(nodeId)) {
@@ -178,26 +165,16 @@ export class RenglaOverlayComponent {
 
   finishCreating(): void {
     const ids = this.pendingNodeIds();
-    if (ids.length < 2) return;
+    if (ids.length < 1) return;
 
-    const firstNode = this.nodes().find((n) => n.id === ids[0]);
-    const suggestedName = this.suggestName(firstNode?.positionType ?? null);
-    this.dialogName.set(suggestedName);
-    this.dialogStartPosition.set(1);
-    this.dialogAllowsCordoObert.set(false);
-    this.showMiniDialog.set(true);
-  }
-
-  confirmCreate(): void {
-    const ids = this.pendingNodeIds();
-    if (ids.length < 2) return;
+    const lastNode = this.nodes().find((n) => n.id === ids[ids.length - 1]);
+    const hasCordoObert = lastNode?.positionType === 'cordo-obert';
 
     this.renglaCreated.emit({
       rengla: {
-        name: this.dialogName().trim() || 'Rengla',
+        name: `Rengla ${this.rengles().length + 1}`,
         sortOrder: this.rengles().length,
-        startPosition: this.dialogStartPosition(),
-        allowsCordoObert: this.dialogAllowsCordoObert(),
+        allowsCordoObert: hasCordoObert,
       },
       nodeAssignments: ids.map((nodeId, i) => ({
         nodeId,
@@ -211,33 +188,6 @@ export class RenglaOverlayComponent {
   cancelCreate(): void {
     this.creatingRengla.set(false);
     this.pendingNodeIds.set([]);
-    this.showMiniDialog.set(false);
-  }
-
-  editSelectedRengla(): void {
-    const r = this.selectedRengla();
-    if (!r) return;
-    this.dialogName.set(r.name);
-    this.dialogStartPosition.set(r.startPosition);
-    this.dialogAllowsCordoObert.set(r.allowsCordoObert);
-    this.showMiniDialog.set(true);
-  }
-
-  confirmEdit(): void {
-    const r = this.selectedRengla();
-    if (!r) return;
-
-    this.renglaUpdated.emit({
-      rengla: {
-        ...r,
-        name: this.dialogName().trim() || r.name,
-        startPosition: this.dialogStartPosition(),
-        allowsCordoObert: this.dialogAllowsCordoObert(),
-      },
-    });
-
-    this.showMiniDialog.set(false);
-    this.selectedRenglaId.set(null);
   }
 
   deleteSelectedRengla(): void {
@@ -245,22 +195,12 @@ export class RenglaOverlayComponent {
     if (!id) return;
     this.renglaDeleted.emit({ renglaId: id });
     this.selectedRenglaId.set(null);
-    this.showMiniDialog.set(false);
-  }
-
-  cancelDialog(): void {
-    this.showMiniDialog.set(false);
-    if (this.creatingRengla()) {
-      this.cancelCreate();
-    }
   }
 
   @HostListener('document:keydown', ['$event'])
   onKeyDown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
-      if (this.showMiniDialog()) {
-        this.cancelDialog();
-      } else if (this.creatingRengla()) {
+      if (this.creatingRengla()) {
         this.cancelCreate();
       } else if (this.selectedRenglaId()) {
         this.selectedRenglaId.set(null);
@@ -268,7 +208,7 @@ export class RenglaOverlayComponent {
       return;
     }
 
-    if (event.key === 'Enter' && this.creatingRengla() && !this.showMiniDialog()) {
+    if (event.key === 'Enter' && this.creatingRengla()) {
       event.preventDefault();
       this.finishCreating();
     }
@@ -288,14 +228,5 @@ export class RenglaOverlayComponent {
 
   screenNodeById(nodeId: string): ScreenNode | undefined {
     return this.screenNodes().find((sn) => sn.id === nodeId);
-  }
-
-  private suggestName(positionType: string | null): string {
-    if (!positionType) return 'Rengla';
-    const existing = this.rengles().filter((r) =>
-      r.name.toLowerCase().startsWith(positionType.toUpperCase()),
-    ).length;
-    const label = positionType.toUpperCase();
-    return existing > 0 ? `${label} ${existing + 1}` : label;
   }
 }

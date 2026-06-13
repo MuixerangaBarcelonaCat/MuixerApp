@@ -6,8 +6,17 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
-import { EventType, FigureZone } from '@muixer/shared';
+import { DataSource, In, Repository } from 'typeorm';
+import {
+  EventType,
+  FigureZone,
+  NodeShape,
+  AD_HOC_PINYA_PRESETS,
+  AD_HOC_DECORATION_PRESETS,
+  AD_HOC_DIRECTION_PRESETS,
+} from '@muixer/shared';
+import { CreateAdHocNodeDto } from './dto/create-ad-hoc-node.dto';
+import { UpdateAdHocNodeDto } from './dto/update-ad-hoc-node.dto';
 import { NodeAssignment } from './entities/node-assignment.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
 import { InstanceNode } from '../event-segment/entities/instance-node.entity';
@@ -64,6 +73,8 @@ export interface InstanceNodeResponse {
   renglaId: string | null;
   renglaPosition: number | null;
   isSnapshotted: boolean;
+  isAdHoc: boolean;
+  createdById: string | null;
 }
 
 export interface FigureHistoryEntry {
@@ -92,6 +103,7 @@ export interface BulkImportResult {
     personAlias: string;
     reason: string;
   }[];
+  clonedAdHocNodes: number;
 }
 
 export interface PersonAssignmentEntry {
@@ -197,6 +209,8 @@ function instanceNodeToResponse(node: InstanceNode): InstanceNodeResponse {
     renglaId: node.renglaId,
     renglaPosition: node.renglaPosition,
     isSnapshotted: true,
+    isAdHoc: node.isAdHoc ?? false,
+    createdById: node.createdById ?? null,
   };
 }
 
@@ -221,6 +235,8 @@ function figureNodeToResponse(node: FigureNode): InstanceNodeResponse {
     renglaId: node.renglaId,
     renglaPosition: node.renglaPosition,
     isSnapshotted: false,
+    isAdHoc: false,
+    createdById: null,
   };
 }
 
@@ -370,6 +386,10 @@ export class NodeAssignmentService {
       instanceNode = found;
     }
 
+    if (instanceNode.zone === FigureZone.DECORATION) {
+      throw new BadRequestException('Els nodes decoratius no es poden assignar.');
+    }
+
     const person = await this.personRepository.findOne({ where: { id: dto.personId } });
     if (!person) {
       throw new NotFoundException(`Person with ID ${dto.personId} not found`);
@@ -467,18 +487,27 @@ export class NodeAssignmentService {
       throw new BadRequestException('Cannot swap an assignment with itself');
     }
 
-    const nodeIdA = assignmentA.instanceNode.id;
-    const nodeIdB = assignmentB.instanceNode.id;
+    await this.dataSource.transaction(async (manager) => {
+      await manager.delete(NodeAssignment, { id: dto.assignmentIdA });
+      await manager.delete(NodeAssignment, { id: dto.assignmentIdB });
 
-    await this.dataSource.query(
-      `UPDATE node_assignments
-       SET "personId" = CASE
-         WHEN id = $1::uuid THEN $2::uuid
-         WHEN id = $3::uuid THEN $4::uuid
-       END
-       WHERE id IN ($1::uuid, $3::uuid)`,
-      [dto.assignmentIdA, assignmentB.person.id, dto.assignmentIdB, assignmentA.person.id],
-    );
+      const newA = manager.create(NodeAssignment, {
+        id: dto.assignmentIdA,
+        figureInstance: assignmentA.figureInstance,
+        instanceNode: assignmentA.instanceNode,
+        person: assignmentB.person,
+        compositionSlot: assignmentA.compositionSlot,
+      });
+      const newB = manager.create(NodeAssignment, {
+        id: dto.assignmentIdB,
+        figureInstance: assignmentB.figureInstance,
+        instanceNode: assignmentB.instanceNode,
+        person: assignmentA.person,
+        compositionSlot: assignmentB.compositionSlot,
+      });
+
+      await manager.save(NodeAssignment, [newA, newB]);
+    });
 
     const [updatedA, updatedB] = await Promise.all([
       this.assignmentRepository.findOne({
@@ -521,7 +550,7 @@ export class NodeAssignmentService {
 
   // ── Reset snapshot — wipe all assignments + instance nodes ────────────────
 
-  async resetSnapshot(instanceId: string): Promise<{ removedAssignments: number }> {
+  async resetSnapshot(instanceId: string): Promise<{ removedAssignments: number; deletedAdHocCount: number }> {
     await this.checkEventLock(instanceId);
 
     const instance = await this.figureInstanceRepository.findOne({
@@ -539,6 +568,10 @@ export class NodeAssignmentService {
       where: { figureInstance: { id: instanceId } },
     });
 
+    const adHocCount = await this.instanceNodeRepository.count({
+      where: { figureInstance: { id: instanceId }, isAdHoc: true },
+    });
+
     await this.dataSource.transaction(async (manager) => {
       await manager.delete(NodeAssignment, { figureInstance: { id: instanceId } });
       await manager.delete(InstanceNode, { figureInstance: { id: instanceId } });
@@ -547,7 +580,7 @@ export class NodeAssignmentService {
       });
     });
 
-    return { removedAssignments: assignmentCount };
+    return { removedAssignments: assignmentCount, deletedAdHocCount: adHocCount };
   }
 
   // ── B.6 — History ─────────────────────────────────────────────────────────
@@ -806,6 +839,7 @@ export class NodeAssignmentService {
 
     for (const sourceAssignment of sourceAssignments) {
       const sourceNode = sourceAssignment.instanceNode;
+      if (sourceNode.isAdHoc) continue; // ad-hoc assignments handled below
       const personId = sourceAssignment.person.id;
       const personAlias = (sourceAssignment.person as any).alias;
       const nodeLabel = sourceNode.label;
@@ -862,7 +896,92 @@ export class NodeAssignmentService {
       }
     }
 
-    return { created, conflicts };
+    // Clone ad-hoc nodes from source to target (idempotent via originNodeId)
+    const sourceAdHocNodes = (sourceInstance.instanceNodes ?? []).filter(
+      (n) => n.isAdHoc,
+    );
+    let clonedAdHocNodes = 0;
+
+    const existingTargetAdHoc = await this.instanceNodeRepository.find({
+      where: { figureInstance: { id: instanceId }, isAdHoc: true },
+      select: ['id', 'originNodeId'],
+    });
+    const existingOriginIds = new Set(
+      existingTargetAdHoc.filter((n) => n.originNodeId).map((n) => n.originNodeId),
+    );
+
+    const maxSortOrder = await this.instanceNodeRepository
+      .createQueryBuilder('n')
+      .where('n.figureInstanceId = :id', { id: instanceId })
+      .select('MAX(n.sortOrder)', 'max')
+      .getRawOne();
+    let nextSortOrder = (maxSortOrder?.max ?? 0) + 1;
+
+    const sourceAdHocAssignmentMap = new Map<string, NodeAssignment>();
+    for (const sa of sourceAssignments) {
+      if (sa.instanceNode.isAdHoc) {
+        sourceAdHocAssignmentMap.set(sa.instanceNode.id, sa);
+      }
+    }
+
+    for (const sourceAdHoc of sourceAdHocNodes) {
+      if (existingOriginIds.has(sourceAdHoc.id)) {
+        continue;
+      }
+
+      const cloned = this.instanceNodeRepository.create({
+        figureInstance: targetInstance,
+        sourceNodeId: null,
+        originNodeId: sourceAdHoc.id,
+        label: sourceAdHoc.label,
+        zone: sourceAdHoc.zone,
+        positionType: sourceAdHoc.positionType,
+        x: sourceAdHoc.x,
+        y: sourceAdHoc.y,
+        z: sourceAdHoc.z,
+        width: sourceAdHoc.width,
+        height: sourceAdHoc.height,
+        rotation: sourceAdHoc.rotation,
+        color: sourceAdHoc.color,
+        shape: sourceAdHoc.shape,
+        sortOrder: nextSortOrder++,
+        climbPath: sourceAdHoc.climbPath,
+        ringLevel: sourceAdHoc.ringLevel,
+        renglaId: null,
+        renglaPosition: null,
+        metadata: sourceAdHoc.metadata ?? {},
+        isAdHoc: true,
+        createdById: null,
+      });
+      const savedClone = await this.instanceNodeRepository.save(cloned);
+      clonedAdHocNodes++;
+
+      const sourceAssignment = sourceAdHocAssignmentMap.get(sourceAdHoc.id);
+      if (
+        sourceAssignment &&
+        sourceAssignment.person &&
+        sourceAdHoc.zone !== FigureZone.DECORATION
+      ) {
+        const personId = sourceAssignment.person.id;
+        const personAlias = sourceAssignment.person.alias ?? `${sourceAssignment.person.name} ${sourceAssignment.person.firstSurname}`;
+        try {
+          await this.assign(instanceId, {
+            nodeId: savedClone.id,
+            personId,
+            compositionSlotId: undefined,
+          });
+        } catch {
+          conflicts.push({
+            nodeId: savedClone.id,
+            nodeLabel: sourceAdHoc.label,
+            personAlias,
+            reason: 'No s\'ha pogut clonar l\'assignació ad-hoc',
+          });
+        }
+      }
+    }
+
+    return { created, conflicts, clonedAdHocNodes };
   }
 
 
@@ -871,7 +990,7 @@ export class NodeAssignmentService {
   async updateCordons(
     instanceId: string,
     dto: { numberOfCordons?: number | null; openCordons?: string[] | null },
-  ): Promise<{ numberOfCordons: number | null; openCordons: string[] | null }> {
+  ): Promise<{ numberOfCordons: number | null; openCordons: string[] | null; removedAssignments: number }> {
     const instance = await this.figureInstanceRepository.findOne({
       where: { id: instanceId },
     });
@@ -888,9 +1007,25 @@ export class NodeAssignmentService {
 
     await this.figureInstanceRepository.save(instance);
 
+    let removedAssignments = 0;
+    const allNodes = await this.instanceNodeRepository.find({
+      where: { figureInstance: { id: instanceId } },
+    });
+    const hiddenNodeIds = allNodes
+      .filter((n) => !isNodeVisible(n, instance.numberOfCordons, instance.openCordons))
+      .map((n) => n.id);
+
+    if (hiddenNodeIds.length > 0) {
+      const result = await this.assignmentRepository.delete({
+        instanceNode: { id: In(hiddenNodeIds) },
+      });
+      removedAssignments = result.affected ?? 0;
+    }
+
     return {
       numberOfCordons: instance.numberOfCordons,
       openCordons: instance.openCordons,
+      removedAssignments,
     };
   }
 
@@ -938,6 +1073,135 @@ export class NodeAssignmentService {
     if (new Date() > lockDate) {
       throw new ForbiddenException(
         `Les assignacions d'aquest event estan bloquejades (event del ${eventDate.toISOString().slice(0, 10)}, bloqueig després de ${lockDays} dies).`,
+      );
+    }
+  }
+
+  // ── Ad-hoc node CRUD ─────────────────────────────────────────────────────
+
+  async createAdHocNode(
+    instanceId: string,
+    dto: CreateAdHocNodeDto,
+    userId: string,
+  ): Promise<InstanceNodeResponse> {
+    await this.checkEventLock(instanceId);
+
+    const instance = await this.figureInstanceRepository.findOne({
+      where: { id: instanceId },
+      relations: ['figureTemplate', 'compositionTemplate', 'segment'],
+    });
+    if (!instance) {
+      throw new NotFoundException(`FigureInstance with ID ${instanceId} not found`);
+    }
+
+    this.assertNotComposition(instance);
+
+    if (!instance.snapshotted) {
+      await this.snapshotInstance(instance);
+      instance.snapshotted = true;
+    }
+
+    const allPresets = [...AD_HOC_PINYA_PRESETS, ...AD_HOC_DECORATION_PRESETS, ...AD_HOC_DIRECTION_PRESETS];
+    const preset = allPresets.find(
+      (p) => p.positionType === dto.positionType && p.zone === dto.zone,
+    );
+
+    const saved = await this.dataSource.transaction(async (manager) => {
+      const maxResult = await manager
+        .createQueryBuilder(InstanceNode, 'n')
+        .where('n.figureInstanceId = :id', { id: instanceId })
+        .select('MAX(n.sortOrder)', 'max')
+        .getRawOne();
+      const nextSortOrder = (maxResult?.max ?? 0) + 1;
+
+      const node = manager.create(InstanceNode, {
+        figureInstance: instance,
+        sourceNodeId: null,
+        originNodeId: null,
+        label: dto.label,
+        zone: dto.zone,
+        positionType: dto.positionType ?? null,
+        x: dto.x,
+        y: dto.y,
+        z: 0,
+        width: dto.width ?? preset?.width ?? 80,
+        height: dto.height ?? preset?.height ?? 40,
+        rotation: dto.rotation ?? 0,
+        color:
+          dto.color ??
+          (dto.zone === FigureZone.DECORATION
+            ? (preset?.color ?? null)
+            : (preset?.color ?? '#B0BEC5')),
+        shape: dto.shape ?? preset?.shape ?? NodeShape.RECTANGLE,
+        sortOrder: nextSortOrder,
+        climbPath: null,
+        ringLevel: null,
+        renglaId: null,
+        renglaPosition: null,
+        metadata: {},
+        isAdHoc: true,
+        createdById: userId,
+      } as Partial<InstanceNode>);
+
+      return manager.save(node);
+    });
+
+    return instanceNodeToResponse(saved as InstanceNode);
+  }
+
+  async updateAdHocNode(
+    instanceId: string,
+    nodeId: string,
+    dto: UpdateAdHocNodeDto,
+  ): Promise<InstanceNodeResponse> {
+    await this.checkEventLock(instanceId);
+
+    const node = await this.instanceNodeRepository.findOne({
+      where: { id: nodeId, figureInstance: { id: instanceId } },
+    });
+    if (!node) {
+      throw new NotFoundException(`InstanceNode with ID ${nodeId} not found in this instance`);
+    }
+    if (!node.isAdHoc) {
+      throw new ForbiddenException('No es pot modificar un node del template.');
+    }
+
+    if (dto.label !== undefined) node.label = dto.label;
+    if (dto.x !== undefined) node.x = dto.x;
+    if (dto.y !== undefined) node.y = dto.y;
+    if (dto.width !== undefined) node.width = dto.width;
+    if (dto.height !== undefined) node.height = dto.height;
+    if (dto.rotation !== undefined) node.rotation = dto.rotation;
+    if (dto.color !== undefined) node.color = dto.color;
+    if (dto.shape !== undefined) node.shape = dto.shape;
+
+    const updated = await this.instanceNodeRepository.save(node);
+    return instanceNodeToResponse(updated);
+  }
+
+  async deleteAdHocNode(instanceId: string, nodeId: string): Promise<void> {
+    await this.checkEventLock(instanceId);
+
+    const node = await this.instanceNodeRepository.findOne({
+      where: { id: nodeId, figureInstance: { id: instanceId } },
+    });
+    if (!node) {
+      throw new NotFoundException(`InstanceNode with ID ${nodeId} not found in this instance`);
+    }
+    if (!node.isAdHoc) {
+      throw new ForbiddenException('No es pot eliminar un node del template.');
+    }
+
+    await this.dataSource.transaction(async (manager) => {
+      await manager.delete(NodeAssignment, { instanceNode: { id: nodeId } });
+      await manager.delete(InstanceNode, { id: nodeId });
+    });
+  }
+
+  private assertNotComposition(instance: FigureInstance): void {
+    if (instance.compositionTemplate) {
+      throw new BadRequestException(
+        'Les instàncies de composició no suporten nodes ad-hoc.',
       );
     }
   }

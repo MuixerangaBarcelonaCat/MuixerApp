@@ -12,14 +12,14 @@
           class="btn btn-primary btn-sm gap-1"
           [disabled]="saving()"
           (click)="createSegment()"
-          aria-label="Afegir nou segment"
+          aria-label="Afegir segment nou"
         >
           @if (saving()) {
             <span class="loading loading-spinner loading-xs"></span>
           } @else {
             <lucide-icon name="Plus" [size]="14" />
           }
-          Nou segment
+          Segment nou
         </button>
       </div>
 
@@ -93,7 +93,7 @@
                     type="button"
                     class="font-medium text-sm flex-1 text-left hover:text-primary transition-colors"
                     (click)="startEdit(segment.id, segment.name ?? '')"
-                    [title]="'Editar nom del segment'"
+                    [title]="'Edita nom del segment'"
                   >
                     {{ displayName()(segment) }}
                     @if (!segment.name) {

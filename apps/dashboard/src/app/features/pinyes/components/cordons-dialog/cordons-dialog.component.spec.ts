@@ -23,8 +23,8 @@ class TestHostComponent {
   numberOfCordons = signal<number | null>(null);
   openCordons = signal<string[]>([]);
   rengles = signal<RenglaModel[]>([
-    { id: 'r1', name: 'Mans Nord', sortOrder: 0, startPosition: 1, allowsCordoObert: true },
-    { id: 'r2', name: 'Vents Est', sortOrder: 1, startPosition: 1, allowsCordoObert: true },
+    { id: 'r1', name: 'Mans Nord', sortOrder: 0, allowsCordoObert: true },
+    { id: 'r2', name: 'Vents Est', sortOrder: 1, allowsCordoObert: true },
   ]);
   maxCordons = signal(3);
   savedEvent: CordonsDialogSaveEvent | null = null;

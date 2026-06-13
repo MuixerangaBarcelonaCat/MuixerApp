@@ -48,22 +48,22 @@ const HEIGHT_BASELINE = 140;
 
 const FLOOR_LABELS: Record<number, FloorOption[]> = {
   1: [
-    { z: 1, label: 'Segon/Segona', positionType: 'segon' },
+    { z: 1, label: 'Segona', positionType: 'segon' },
     { z: 1, label: 'Alçadora',     positionType: 'alcadora' },
     { z: 1, label: 'Xiqueta',      positionType: 'xiqueta' },
   ],
   2: [
-    { z: 2, label: 'Terç/Terça', positionType: 'terç' },
+    { z: 2, label: 'Terça', positionType: 'terç' },
     { z: 2, label: 'Alçadora',   positionType: 'alcadora' },
     { z: 2, label: 'Xiqueta',    positionType: 'xiqueta' },
   ],
   3: [
-    { z: 3, label: 'Quart/Quarta', positionType: 'quart' },
+    { z: 3, label: 'Quarta', positionType: 'quart' },
     { z: 3, label: 'Alçadora',     positionType: 'alcadora' },
     { z: 3, label: 'Xiqueta',      positionType: 'xiqueta' },
   ],
   4: [
-    { z: 4, label: 'Quint/Quinta', positionType: 'quint' },
+    { z: 4, label: 'Quinta', positionType: 'quint' },
     { z: 4, label: 'Alçadora',     positionType: 'alcadora' },
     { z: 4, label: 'Xiqueta',      positionType: 'xiqueta' },
   ],
@@ -231,6 +231,7 @@ export class TroncViewComponent {
       if (!existing.has(z)) {
         const zOptions = FLOOR_LABELS[z];
         if (zOptions) options.push(...zOptions);
+        break;
       }
     }
     return options;

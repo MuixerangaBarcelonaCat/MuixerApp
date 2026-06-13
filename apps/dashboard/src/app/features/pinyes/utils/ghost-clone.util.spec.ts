@@ -159,10 +159,10 @@ describe('ghost-clone.util', () => {
       ).toBe(false);
     });
 
-    it('returns false for tap', () => {
+    it('returns true for tap', () => {
       expect(
         isGhostEligible({ zone: FigureZone.PINYA, positionType: 'tap' }),
-      ).toBe(false);
+      ).toBe(true);
     });
 
     it('returns false for cordo-obert', () => {

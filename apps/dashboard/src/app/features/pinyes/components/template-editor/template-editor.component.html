@@ -17,42 +17,84 @@
 
       <!-- Template name -->
       <div class="flex items-center gap-2 min-w-0 flex-1">
-        <input
-          type="text"
-          class="input input-ghost input-sm font-semibold text-base-content max-w-xs"
-          placeholder="Nom de la figura"
-          [ngModel]="templateName()"
-          (ngModelChange)="onNameChange($event)"
-          aria-label="Nom de la figura"
-        />
-        <input
-          type="text"
-          class="input input-ghost input-xs text-base-content/50 font-mono w-32"
-          placeholder="slug"
-          [ngModel]="templateSlug()"
-          (ngModelChange)="onSlugChange($event)"
-          aria-label="Slug de la figura"
-        />
+        @if (previewMode()) {
+          <span class="text-sm font-semibold text-base-content truncate">{{ templateName() }}</span>
+          <span class="badge badge-ghost badge-sm">Previsualització</span>
+        } @else {
+          <input
+            type="text"
+            class="input input-ghost input-sm font-semibold text-base-content max-w-xs"
+            placeholder="Nom de la figura"
+            [ngModel]="templateName()"
+            (ngModelChange)="onNameChange($event)"
+            aria-label="Nom de la figura"
+          />
+          @if (templateSlug()) {
+            <span class="text-xs text-base-content/40 font-mono truncate max-w-32">{{ templateSlug() }}</span>
+          }
+        }
       </div>
     </div>
 
     <div class="flex items-center gap-3">
-          <!-- Save status -->
-      @if (saveStatus() !== 'idle') {
-        <span
-          class="text-xs px-2 py-1 rounded-full"
-          [class.text-primary]="saveStatus() === 'saving'"
-          [class.text-success]="saveStatus() === 'saved'"
-          [class.text-error]="saveStatus() === 'error'"
-          aria-live="polite"
-          aria-atomic="true"
-        >
-          @if (saveStatus() === 'saving') {
-            <span class="loading loading-spinner loading-xs mr-1" aria-hidden="true"></span>
-          }
-          {{ saveStatusLabel() }}
-        </span>
+      @if (!previewMode()) {
+        <!-- Save status -->
+        @if (saveStatus() !== 'idle') {
+          <span
+            class="text-xs px-2 py-1 rounded-full"
+            [class.text-primary]="saveStatus() === 'saving'"
+            [class.text-success]="saveStatus() === 'saved'"
+            [class.text-error]="saveStatus() === 'error'"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            @if (saveStatus() === 'saving') {
+              <span class="loading loading-spinner loading-xs mr-1" aria-hidden="true"></span>
+            }
+            {{ saveStatusLabel() }}
+          </span>
+        }
+
+        <!-- Undo / Redo -->
+        <div class="flex items-center gap-1">
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm btn-square"
+            [disabled]="!canUndo()"
+            (click)="performUndo()"
+            [attr.aria-label]="undoDescription() ? 'Desfer: ' + undoDescription() : 'Desfer'"
+            [title]="undoDescription() ? 'Desfer: ' + undoDescription() : 'Desfer (Ctrl+Z)'"
+          >
+            <i-lucide [img]="Undo2" class="size-4" />
+          </button>
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm btn-square"
+            [disabled]="!canRedo()"
+            (click)="performRedo()"
+            [attr.aria-label]="redoDescription() ? 'Refer: ' + redoDescription() : 'Refer'"
+            [title]="redoDescription() ? 'Refer: ' + redoDescription() : 'Refer (Ctrl+Shift+Z)'"
+          >
+            <i-lucide [img]="Redo2" class="size-4" />
+          </button>
+        </div>
       }
+
+      <!-- Preview mode toggle -->
+      <button
+        type="button"
+        class="btn btn-sm gap-1"
+        [class.btn-primary]="previewMode()"
+        [class.btn-ghost]="!previewMode()"
+        (click)="togglePreview()"
+        [attr.aria-pressed]="previewMode()"
+        [disabled]="renglaEditMode()"
+        aria-label="Previsualitzar figura"
+        title="Previsualitzar (Ctrl+Shift+P)"
+      >
+        <i-lucide [img]="previewMode() ? EyeOff : Eye" class="size-4" aria-hidden="true" />
+        <!-- {{ previewMode() ? 'Sortir' : 'Previsualitzar' }} -->
+      </button>
 
       <!-- Rengla edit mode toggle -->
       <button
@@ -60,39 +102,30 @@
         class="btn btn-sm gap-1"
         [class.btn-primary]="renglaEditMode()"
         [class.btn-ghost]="!renglaEditMode()"
+        [disabled]="previewMode()"
         (click)="toggleRenglaEditMode()"
         [attr.aria-pressed]="renglaEditMode()"
-        aria-label="Editar rengles"
-        title="Edita rengles"
+        aria-label="Edita rengles"
+        title="Edit rengles"
       >
         <lucide-icon name="GitBranchPlus" [size]="16" aria-hidden="true" />
         Rengles
       </button>
 
-      <!-- Tronc drawer trigger -->
-      <button
-        type="button"
-        class="btn btn-ghost btn-sm gap-1"
-        (click)="troncDrawerOpen.set(true)"
-        aria-label="Obrir panell del Tronc"
-        title="Tronc"
-      >
-        <lucide-icon name="Layers" [size]="16" aria-hidden="true" />
-        Tronc
-      </button>
+      @if (!previewMode()) {
+        <!-- Tronc drawer trigger -->
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm gap-1"
+          (click)="troncDrawerOpen.set(true)"
+          aria-label="Obrir panell del Tronc"
+          title="Tronc"
+        >
+          <lucide-icon name="Layers" [size]="16" aria-hidden="true" />
+          Tronc
+        </button>
 
-      <!-- hasPinya toggle -->
-      <label class="flex items-center gap-2 cursor-pointer" title="Té Pinya">
-        <span class="text-xs text-base-content/60">Pinya</span>
-        <input
-          type="checkbox"
-          class="toggle toggle-sm toggle-primary"
-          [checked]="hasPinya()"
-          (change)="onHasPinyaChange($any($event.target).checked)"
-          aria-label="La figura té pinya"
-        />
-      </label>
-
+      }
       <!-- Shortcuts help -->
       <button
         type="button"
@@ -117,10 +150,26 @@
     </div>
   </header>
 
+  <!-- Ad-hoc instance banner (disabled) de moment ho mantenim tot al popover app-ad-hoc-node-properties -->
+  <!-- @if (adHocInstanceCount() > 0 && !adHocBannerDismissed() && !previewMode()) {
+    <div class="alert alert-info text-sm mx-4 mt-2" role="status">
+      <lucide-icon name="Info" [size]="16" class="shrink-0" aria-hidden="true" />
+      <span>
+        Hi ha {{ adHocInstanceCount() }}
+        {{ adHocInstanceCount() === 1 ? 'instància' : 'instàncies' }}
+        amb nodes creats manualment. Els canvis al template no afecten les instàncies ja existents.
+      </span>
+      <button type="button" class="btn btn-ghost btn-xs" (click)="dismissAdHocBanner()" aria-label="Tancar">
+        <lucide-icon name="X" [size]="12" aria-hidden="true" />
+      </button>
+    </div>
+  } -->
+
   <!-- ── Main Area ─────────────────────────────────────────────────────────── -->
   <div class="editor-main">
 
     <!-- Left Toolbar -->
+    @if (!previewMode()) {
     <aside class="editor-toolbar" aria-label="Eines">
 
       <!-- Base (intersecció pinya-tronc) -->
@@ -192,33 +241,34 @@
       <div class="toolbar-section">
         <p class="toolbar-label">Vistes</p>
 
-        <button
-          type="button"
-          class="toolbar-btn"
-          [class.active]="gridEnabled()"
-          (click)="toggleGrid()"
-          title="Mostrar / Ocultar quadrícula"
-          aria-label="Mostrar / Ocultar quadrícula"
-          [attr.aria-pressed]="gridEnabled()"
-        >
-          <lucide-icon name="Grid3X3" [size]="14" aria-hidden="true" />
-          Quadrícula
-        </button>
+<!--        <button-->
+<!--          type="button"-->
+<!--          class="toolbar-btn"-->
+<!--          [class.active]="gridEnabled()"-->
+<!--          (click)="toggleGrid()"-->
+<!--          title="Mostrar / Ocultar quadrícula"-->
+<!--          aria-label="Mostrar / Ocultar quadrícula"-->
+<!--          [attr.aria-pressed]="gridEnabled()"-->
+<!--        >-->
+<!--          <lucide-icon name="Grid3X3" [size]="14" aria-hidden="true" />-->
+<!--          Quadrícula-->
+<!--        </button>-->
 
         <button
           type="button"
           class="toolbar-btn"
           [class.active]="snapToGrid()"
           (click)="toggleSnapToGrid()"
-          title="Encaixar a la quadrícula"
-          aria-label="Encaixar a la quadrícula"
+          title="Encaixa a la quadrícula"
+          aria-label="Encaixa a la quadrícula"
           [attr.aria-pressed]="snapToGrid()"
         >
           <lucide-icon name="Magnet" [size]="14" aria-hidden="true" />
-          Encaixar
+          Encaixa a la quadrícula
         </button>
       </div>
     </aside>
+    }
 
     <!-- Canvas Area -->
     <main class="editor-canvas" aria-label="Editor visual de la figura">
@@ -227,23 +277,24 @@
         <div class="flex items-center justify-center h-full">
           <span class="loading loading-spinner loading-lg text-primary" aria-label="Carregant figura..."></span>
         </div>
-      } @else if (pinyaNodes().length === 0) {
-        <div class="flex flex-col items-center justify-center h-full gap-4 text-center px-6">
-          <lucide-icon name="Shapes" [size]="64" class="text-base-content/20" aria-hidden="true" />
-          <div>
-            <h3 class="text-lg font-semibold text-base-content mb-1">No hi ha cap node de pinya</h3>
-            <p class="text-sm text-base-content/60">
-              Afegeix nodes des de la barra d'eines de l'esquerra per començar a dissenyar la figura.
-            </p>
-          </div>
-        </div>
       } @else {
         <div class="relative w-full h-full">
+          @if (pinyaNodes().length === 0 && !previewMode()) {
+            <div class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 text-center px-6 pointer-events-none">
+              <lucide-icon name="Shapes" [size]="64" class="text-base-content/20" aria-hidden="true" />
+              <div>
+                <h3 class="text-lg font-semibold text-base-content mb-1">No hi ha cap node de pinya</h3>
+                <p class="text-sm text-base-content/60">
+                  Afegeix nodes des de la barra d'eines de l'esquerra per començar a dissenyar la figura.
+                </p>
+              </div>
+            </div>
+          }
           <app-figure-canvas
             [nodes]="pinyaNodes()"
             [mode]="canvasMode()"
-            [gridEnabled]="gridEnabled()"
-            [gridSpacing]="40"
+            [gridEnabled]="!previewMode() && gridEnabled()"
+            [gridSpacing]="20"
             [snapToGrid]="snapToGrid()"
             [selectedNodeId]="selectedNodeId()"
             (nodeSelected)="onNodeSelected($event)"
@@ -254,13 +305,12 @@
             (stageTransformChanged)="onStageTransformChanged($event)"
             (ghostCloneRequested)="onGhostCloneRequested($event)"
           />
-          @if (renglaEditMode()) {
+          @if (renglaEditMode() && !previewMode()) {
             <app-rengla-overlay
               [nodes]="pinyaNodes()"
               [rengles]="rengles()"
               [stageTransform]="stageTransform()"
               (renglaCreated)="onRenglaCreated($event)"
-              (renglaUpdated)="onRenglaUpdated($event)"
               (renglaDeleted)="onRenglaDeleted($event)"
             />
           }
@@ -269,6 +319,7 @@
     </main>
 
     <!-- Right Panel: Node Properties -->
+    @if (!previewMode()) {
     <aside
       class="editor-panel"
       [class.panel-open]="propertiesPanelOpen()"
@@ -452,7 +503,7 @@
                     type="range"
                     [id]="'node-rot-' + node.id"
                     class="range range-xs flex-1"
-                    min="0" max="360" step="15"
+                    min="0" max="360" step="1"
                     [ngModel]="node.rotation"
                     (ngModelChange)="updateSelectedNodeProp('rotation', +$event)"
                   />
@@ -511,18 +562,19 @@
             <div class="flex flex-col items-center justify-center h-full gap-3 text-center px-4">
               <lucide-icon name="MousePointer2" [size]="32" class="text-base-content/20" aria-hidden="true" />
               <p class="text-sm text-base-content/50">
-                Fes clic a un node del canvas per veure i editar les seves propietats
+                Feu clic a un node del canvas per veure i editar les seves propietats
               </p>
             </div>
           }
         </div>
       }
     </aside>
+    }
   </div>
 </div>
 
 <!-- ── Tronc Floating Panel ──────────────────────────────────────────────── -->
-@if (troncDrawerOpen()) {
+@if (troncDrawerOpen() && !previewMode()) {
   <aside
     class="tronc-floating-panel"
     [style.left.px]="troncPanelPos().x"
@@ -552,7 +604,7 @@
       class="tronc-floating-body"
       [troncNodes]="troncNodes()"
       [baseNodes]="baseNodes()"
-      [mode]="'editor'"
+      [mode]="troncMode()"
       [selectedNodeId]="selectedNodeId()"
       (nodeSelected)="onNodeSelected($event)"
       (nodeAdded)="onTroncNodeAdded($event)"
@@ -593,23 +645,23 @@
         <h3 id="shortcuts-nodes" class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-2">Nodes</h3>
         <ul class="space-y-2 mb-4" role="list">
           <li class="flex items-center justify-between gap-4">
-            <span class="text-sm">Seleccionar node</span>
+            <span class="text-sm">Selecciona node</span>
             <span class="shortcuts-keys"><kbd class="kbd kbd-sm">Clic</kbd></span>
           </li>
           <li class="flex items-center justify-between gap-4">
-            <span class="text-sm">Editar etiqueta</span>
+            <span class="text-sm">Edita etiqueta</span>
             <span class="shortcuts-keys"><kbd class="kbd kbd-sm">Doble clic</kbd></span>
           </li>
           <li class="flex items-center justify-between gap-4">
-            <span class="text-sm">Redimensionar node</span>
+            <span class="text-sm">Redimensiona node</span>
             <span class="shortcuts-keys"><kbd class="kbd kbd-sm">Arrossegar cantonada</kbd></span>
           </li>
           <li class="flex items-center justify-between gap-4">
-            <span class="text-sm">Rotar node</span>
+            <span class="text-sm">Rota node</span>
             <span class="shortcuts-keys"><kbd class="kbd kbd-sm">Tirador rotació</kbd></span>
           </li>
           <li class="flex items-center justify-between gap-4">
-            <span class="text-sm">Eliminar node seleccionat</span>
+            <span class="text-sm">Elimina node seleccionat</span>
             <span class="shortcuts-keys flex gap-1">
               <kbd class="kbd kbd-sm">Delete</kbd>
               <span class="text-base-content/40 text-xs self-center">/</span>
@@ -626,14 +678,14 @@
         <h3 id="shortcuts-copy" class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-2">Còpia</h3>
         <ul class="space-y-2 mb-4" role="list">
           <li class="flex items-center justify-between gap-4">
-            <span class="text-sm">Copiar node seleccionat</span>
+            <span class="text-sm">Copia node seleccionat</span>
             <span class="shortcuts-keys flex gap-1">
               <kbd class="kbd kbd-sm">⌘</kbd>
               <kbd class="kbd kbd-sm">C</kbd>
             </span>
           </li>
           <li class="flex items-center justify-between gap-4">
-            <span class="text-sm">Enganxar node copiat</span>
+            <span class="text-sm">Enganxa node copiat</span>
             <span class="shortcuts-keys flex gap-1">
               <kbd class="kbd kbd-sm">⌘</kbd>
               <kbd class="kbd kbd-sm">V</kbd>
@@ -649,7 +701,7 @@
         <h3 id="shortcuts-move" class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-2">Moviment</h3>
         <ul class="space-y-2 mb-4" role="list">
           <li class="flex items-center justify-between gap-4">
-            <span class="text-sm">Moure node (1 px)</span>
+            <span class="text-sm">Mou node (1 px)</span>
             <span class="shortcuts-keys flex gap-1">
               <kbd class="kbd kbd-sm">↑</kbd>
               <kbd class="kbd kbd-sm">↓</kbd>
@@ -658,7 +710,7 @@
             </span>
           </li>
           <li class="flex items-center justify-between gap-4">
-            <span class="text-sm">Moure node (10 px)</span>
+            <span class="text-sm">Mou node (10 px)</span>
             <span class="shortcuts-keys flex gap-1">
               <kbd class="kbd kbd-sm">⇧</kbd>
               <span class="text-base-content/40 text-xs self-center">+</span>
@@ -666,8 +718,25 @@
             </span>
           </li>
           <li class="flex items-center justify-between gap-4">
-            <span class="text-sm">Moure node lliurement</span>
+            <span class="text-sm">Mou node lliurement</span>
             <span class="shortcuts-keys"><kbd class="kbd kbd-sm">Arrossegar</kbd></span>
+          </li>
+        </ul>
+      </section>
+
+      <div class="divider my-2"></div>
+
+      <!-- Previsualització -->
+      <section aria-labelledby="shortcuts-preview">
+        <h3 id="shortcuts-preview" class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-2">Previsualització</h3>
+        <ul class="space-y-2 mb-4" role="list">
+          <li class="flex items-center justify-between gap-4">
+            <span class="text-sm">Activar / desactivar previsualització</span>
+            <span class="shortcuts-keys flex gap-1">
+              <kbd class="kbd kbd-sm">⌘</kbd>
+              <kbd class="kbd kbd-sm">⇧</kbd>
+              <kbd class="kbd kbd-sm">P</kbd>
+            </span>
           </li>
         </ul>
       </section>
@@ -683,7 +752,7 @@
             <span class="shortcuts-keys"><kbd class="kbd kbd-sm">Roda ratolí</kbd></span>
           </li>
           <li class="flex items-center justify-between gap-4">
-            <span class="text-sm">Desplaçar canvas</span>
+            <span class="text-sm">Desplaça canvas</span>
             <span class="shortcuts-keys flex gap-1">
               <kbd class="kbd kbd-sm">Clic mig</kbd>
               <span class="text-base-content/40 text-xs self-center">/</span>
@@ -699,3 +768,31 @@
 
 <!-- Template editor help modal -->
 <app-template-editor-help-modal />
+
+<!-- Name prompt modal -->
+@if (showNamePrompt()) {
+  <dialog class="modal modal-open" role="dialog" aria-labelledby="name-prompt-title" aria-modal="true">
+    <div class="modal-box max-w-sm">
+      <h3 id="name-prompt-title" class="text-lg font-bold mb-2">Nom de la figura</h3>
+      <p class="text-sm text-base-content/70 mb-4">Has d'introduir un nom per la figura abans de continuar.</p>
+      <input
+        #nameInput
+        type="text"
+        class="input input-bordered w-full"
+        placeholder="Ex: Pilar de 4, Torre de 6..."
+        (keydown.enter)="confirmNamePrompt(nameInput.value)"
+        aria-label="Nom de la figura"
+      />
+      <div class="modal-action">
+        <button type="button" class="btn btn-ghost btn-sm" (click)="cancelNamePrompt()">Cancel·lar</button>
+        <button type="button" class="btn btn-primary btn-sm" (click)="confirmNamePrompt(nameInput.value)">Confirmar</button>
+      </div>
+    </div>
+    <button type="button" class="modal-backdrop" (click)="cancelNamePrompt()" aria-label="Tancar"></button>
+  </dialog>
+}
+
+<!-- Screen reader announcements -->
+<div class="sr-only" aria-live="polite" aria-atomic="true">
+  {{ previewAnnouncement() }}
+</div>

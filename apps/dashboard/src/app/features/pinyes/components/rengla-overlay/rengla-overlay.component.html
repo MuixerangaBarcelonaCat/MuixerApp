@@ -135,7 +135,7 @@
     <div class="flex items-center gap-2 bg-base-100 shadow-lg rounded-box px-4 py-2 border border-base-300">
       <span class="text-sm text-base-content/70">
         @if (pendingNodeIds().length === 0) {
-          Fes clic als nodes per ordre (del centre cap enfora)
+          Feu clic als nodes per ordre (del centre cap enfora)
         } @else {
           {{ pendingNodeIds().length }} nodes seleccionats
         }
@@ -143,7 +143,7 @@
       <button
         type="button"
         class="btn btn-primary btn-sm"
-        [disabled]="pendingNodeIds().length < 2"
+        [disabled]="pendingNodeIds().length < 1"
         (click)="finishCreating()"
         aria-label="Finalitzar creació de rengla"
       >
@@ -161,15 +161,6 @@
   } @else if (selectedRengla(); as sel) {
     <div class="flex items-center gap-2 bg-base-100 shadow-lg rounded-box px-4 py-2 border border-base-300">
       <span class="text-sm font-medium">{{ sel.name }}</span>
-      <button
-        type="button"
-        class="btn btn-ghost btn-sm"
-        (click)="editSelectedRengla()"
-        aria-label="Editar rengla"
-      >
-        <lucide-icon name="Pencil" [size]="14" aria-hidden="true" />
-        Editar
-      </button>
       <button
         type="button"
         class="btn btn-ghost btn-sm text-error"
@@ -193,94 +184,11 @@
       type="button"
       class="btn btn-primary btn-sm shadow-lg pointer-events-auto"
       (click)="startCreating()"
-      aria-label="Crear nova rengla"
+      aria-label="Crear rengla nova"
     >
       <lucide-icon name="Plus" [size]="14" aria-hidden="true" />
-      Nova rengla
+      Rengla nova
     </button>
   }
 </div>
 
-<!-- Mini-dialog for rengla name/config -->
-@if (showMiniDialog()) {
-  <div class="absolute inset-0 flex items-center justify-center pointer-events-auto z-20">
-    <div
-      class="bg-base-100 shadow-xl rounded-box border border-base-300 p-5 w-80"
-      role="dialog"
-      aria-label="Configurar rengla"
-      (keydown.escape)="cancelDialog()"
-    >
-      <h3 class="text-sm font-bold mb-3">
-        {{ creatingRengla() ? 'Nova rengla' : 'Editar rengla' }}
-      </h3>
-
-      <div class="form-control mb-3">
-        <label class="label pb-1" for="rengla-name">
-          <span class="label-text text-xs font-medium">Nom</span>
-        </label>
-        <input
-          id="rengla-name"
-          type="text"
-          class="input input-bordered input-sm"
-          [ngModel]="dialogName()"
-          (ngModelChange)="dialogName.set($event)"
-          placeholder="MANS, VENTS, LATERALS..."
-        />
-      </div>
-
-      <div class="form-control mb-3">
-        <label class="label pb-1" for="rengla-start">
-          <span
-            class="label-text text-xs font-medium tooltip tooltip-right"
-            data-tip="Primer cordó on apareix aquesta rengla. 1 = sempre visible."
-          >
-            Posició inicial
-          </span>
-        </label>
-        <input
-          id="rengla-start"
-          type="number"
-          class="input input-bordered input-sm w-20"
-          [ngModel]="dialogStartPosition()"
-          (ngModelChange)="dialogStartPosition.set(+$event)"
-          min="1"
-          max="10"
-        />
-      </div>
-
-      <div class="form-control mb-4">
-        <label class="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            class="checkbox checkbox-sm checkbox-primary"
-            [checked]="dialogAllowsCordoObert()"
-            (change)="dialogAllowsCordoObert.set($any($event.target).checked)"
-          />
-          <span class="label-text text-xs">Permet cordó obert</span>
-        </label>
-      </div>
-
-      <div class="flex justify-end gap-2">
-        <button
-          type="button"
-          class="btn btn-ghost btn-sm"
-          (click)="cancelDialog()"
-        >
-          Cancel·lar
-        </button>
-        <button
-          type="button"
-          class="btn btn-primary btn-sm"
-          (click)="creatingRengla() ? confirmCreate() : confirmEdit()"
-        >
-          {{ creatingRengla() ? 'Crear' : 'Desar' }}
-        </button>
-      </div>
-    </div>
-    <div
-      class="absolute inset-0 bg-black/20 -z-10"
-      (click)="cancelDialog()"
-      aria-hidden="true"
-    ></div>
-  </div>
-}

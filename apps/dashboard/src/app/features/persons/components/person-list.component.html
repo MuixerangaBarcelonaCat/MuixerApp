@@ -8,7 +8,7 @@
       (click)="navigateToNewPerson()"
     >
       <lucide-icon name="Plus" [size]="14" />
-      Nova persona
+      Persona nova
     </button>
     <button type="button" (click)="onSyncClick()" class="btn btn-warning btn-sm btn-outline gap-1.5">
       <lucide-icon name="RefreshCw" [size]="14" />
@@ -50,7 +50,7 @@
         <input
           type="text"
           class="grow bg-transparent outline-none text-sm"
-          placeholder="Alies, nom..."
+          placeholder="Àlies, nom..."
           [(ngModel)]="searchInput"
           (ngModelChange)="onSearchChange($event)"
         />

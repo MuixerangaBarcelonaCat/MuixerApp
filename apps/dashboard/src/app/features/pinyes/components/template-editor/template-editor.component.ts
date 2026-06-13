@@ -11,7 +11,7 @@ import {
 } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { LucideAngularModule } from 'lucide-angular';
+import { LucideAngularModule, Undo2, Redo2, Eye, EyeOff } from 'lucide-angular';
 import { HttpErrorResponse } from '@angular/common/http';
 import { generateUUID } from '../../../../shared/utils/uuid.util';
 import { FigureTemplateService } from '../../services/figure-template.service';
@@ -26,7 +26,7 @@ import {
   RenglaModel,
 } from '../../models/figure-template.model';
 import { FigureZone, NodeShape } from '@muixer/shared';
-import { RenglaOverlayComponent, RenglaCreatedEvent, RenglaUpdatedEvent, RenglaDeletedEvent } from '../rengla-overlay/rengla-overlay.component';
+import { RenglaOverlayComponent, RenglaCreatedEvent, RenglaDeletedEvent } from '../rengla-overlay/rengla-overlay.component';
 import { StageTransform } from '../../utils/rengla-coordinates.util';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
@@ -34,10 +34,19 @@ import { validateBaseOrdering } from '../../utils/base-ordering.util';
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
+interface TemplateSnapshot {
+  description: string;
+  nodes: FigureNodeItem[];
+  rengles: RenglaModel[];
+}
+
+const MAX_UNDO_STACK = 50;
+
 interface PinyaPosition {
   positionType: string;
   label: string;
   color: string;
+  shape: NodeShape;
 }
 
 // TODO: Adjust default node dimensions to match visual needs
@@ -45,21 +54,28 @@ const DEFAULT_NODE_WIDTH = 80;
 const DEFAULT_NODE_HEIGHT = 40;
 
 const PINYA_POSITIONS: PinyaPosition[] = [
-  { positionType: 'agulla',      label: 'AGULLA',      color: '#0d9488' },
-  { positionType: 'mans',        label: 'MANS',        color: '#FFE082' },
-  { positionType: 'laterals',    label: 'LATERALS',    color: '#80DEEA' },
-  { positionType: 'vents',       label: 'VENTS',       color: '#A5D6A7' },
-  { positionType: 'cordo-obert', label: 'CORDO OBERT', color: '#FFF9C4' },
-  { positionType: 'tap',         label: 'TAP',         color: '#be185d' },
-  { positionType: 'crossa',      label: 'CROSSA',      color: '#9FA8DA' },
-  { positionType: 'contrafort',  label: 'CONTRAFORT',  color: '#EF9A9A' },
+  { positionType: 'agulla',      label: 'AGULLA',      color: '#0d9488', shape: NodeShape.RECTANGLE },
+  { positionType: 'mans',        label: 'MANS',        color: '#FFE082', shape: NodeShape.RECTANGLE },
+  { positionType: 'laterals',    label: 'LATERALS',    color: '#80DEEA', shape: NodeShape.RECTANGLE },
+  { positionType: 'vents',       label: 'VENTS',       color: '#A5D6A7', shape: NodeShape.RECTANGLE },
+  { positionType: 'cordo-obert', label: 'CORDO OBERT', color: '#FFF9C4', shape: NodeShape.ELLIPSE },
+  { positionType: 'tap',         label: 'TAP',         color: '#be185d', shape: NodeShape.RECTANGLE },
+  { positionType: 'crossa',      label: 'CROSSA',      color: '#9FA8DA', shape: NodeShape.RECTANGLE},
+  { positionType: 'contrafort',  label: 'CONTRAFORT',  color: '#EF9A9A', shape: NodeShape.RECTANGLE },
 ];
 
 @Component({
   selector: 'app-template-editor',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule, FigureCanvasComponent, TroncViewComponent, TemplateEditorHelpModalComponent, RenglaOverlayComponent],
+  imports: [
+    FormsModule,
+    LucideAngularModule,
+    FigureCanvasComponent,
+    TroncViewComponent,
+    TemplateEditorHelpModalComponent,
+    RenglaOverlayComponent,
+  ],
   templateUrl: './template-editor.component.html',
   styleUrl: './template-editor.component.scss',
 })
@@ -72,6 +88,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   private readonly toast = inject(ToastService);
 
   readonly helpModal = viewChild.required(TemplateEditorHelpModalComponent);
+  readonly figureCanvas = viewChild(FigureCanvasComponent);
 
   // Template metadata
   templateId = signal<string | null>(null);
@@ -90,17 +107,61 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   renglaEditMode = signal(false);
   stageTransform = signal<StageTransform>({ x: 0, y: 0, scaleX: 1, scaleY: 1 });
 
-  readonly canvasMode = computed(() => this.renglaEditMode() ? 'readonly' as const : 'editor' as const);
+  // Name enforcement
+  readonly showNamePrompt = signal(false);
+  private pendingAction: (() => void) | null = null;
+  readonly needsName = computed(() => {
+    const name = this.templateName().trim();
+    return !this.templateId() && (!name || name === 'Nova Figura');
+  });
+
+  // Preview mode
+  readonly previewMode = signal(false);
+  readonly previewAnnouncement = signal('');
+
+  readonly canvasMode = computed(() => {
+    if (this.previewMode()) return 'readonly' as const;
+    if (this.renglaEditMode()) return 'readonly' as const;
+    return 'editor' as const;
+  });
+
+  readonly troncMode = computed<'editor' | 'projection'>(() =>
+    this.previewMode() ? 'projection' : 'editor',
+  );
 
   // Panel visibility
   propertiesPanelOpen = signal(true);
   shortcutsModalOpen = signal(false);
   troncDrawerOpen = signal(false);
 
+  // Ad-hoc instance awareness
+  readonly adHocInstanceCount = signal(0);
+  readonly adHocBannerDismissed = signal(false);
+
   // Floating tronc panel drag state
   readonly troncPanelPos = signal({ x: 16, y: 60 });
   private troncDragging = false;
   private troncDragOffset = { x: 0, y: 0 };
+
+  // Icons
+  readonly Undo2 = Undo2;
+  readonly Redo2 = Redo2;
+  readonly Eye = Eye;
+  readonly EyeOff = EyeOff;
+
+  // Undo/redo (memento pattern)
+  private readonly undoStack = signal<TemplateSnapshot[]>([]);
+  private readonly redoStack = signal<TemplateSnapshot[]>([]);
+  readonly canUndo = computed(() => this.undoStack().length > 0);
+  readonly canRedo = computed(() => this.redoStack().length > 0);
+  readonly undoDescription = computed(() => {
+    const stack = this.undoStack();
+    return stack.length > 0 ? stack[stack.length - 1].description : null;
+  });
+  readonly redoDescription = computed(() => {
+    const stack = this.redoStack();
+    return stack.length > 0 ? stack[stack.length - 1].description : null;
+  });
 
   // Status
   loading = signal(false);
@@ -135,9 +196,9 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   readonly saveStatusLabel = computed(() => {
     const s = this.saveStatus();
-    if (s === 'saving') return 'Guardant...';
-    if (s === 'saved') return 'Guardat';
-    if (s === 'error') return 'Error en guardar';
+    if (s === 'saving') return 'Alçant...';
+    if (s === 'saved') return 'Alçat';
+    if (s === 'error') return "S'ha produït un error en alçar";
     return '';
   });
 
@@ -175,70 +236,97 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   }
 
   onNodeMoved(event: { id: string; x: number; y: number }): void {
+    this.pushSnapshot('Moure node');
     this.updateNode(event.id, { x: event.x, y: event.y });
     this.scheduleAutosave();
   }
 
   onNodeRotated(event: { id: string; rotation: number }): void {
+    this.pushSnapshot('Rotar node');
     this.updateNode(event.id, { rotation: event.rotation });
     this.scheduleAutosave();
   }
 
   onNodeResized(event: { id: string; width: number; height: number }): void {
+    this.pushSnapshot('Redimensionar node');
     this.updateNode(event.id, { width: event.width, height: event.height });
     this.scheduleAutosave();
   }
 
   onNodeLabelChanged(event: { id: string; label: string }): void {
+    this.pushSnapshot('Canviar etiqueta');
     this.updateNode(event.id, { label: event.label });
     this.scheduleAutosave();
   }
 
   // ── Tronc widget events ────────────────────────────────────────────────────
 
-  onTroncNodeAdded(event: { z: number; positionType: string; label: string; sortOrder: number }): void {
-    const id = generateUUID();
-    const existingAtZ = this.troncNodes().filter((n) => n.z === event.z);
-    const nextX = existingAtZ.reduce((max, n) => Math.max(max, n.x + n.width), 0);
-    const newNode: FigureNodeItem = {
-      id,
-      label: event.label,
-      zone: FigureZone.TRONC,
-      positionType: event.positionType,
-      x: nextX,
-      y: 0,
-      z: event.z,
-      width: 1,
-      height: 40,
-      rotation: 0,
-      color: null,
-      shape: NodeShape.RECTANGLE,
-      sortOrder: event.sortOrder,
-      climbPath: null,
-      ringLevel: null,
-      originNodeId: null,
-      renglaId: null,
-      renglaPosition: null,
-      metadata: {},
+  onTroncNodeAdded(event: {
+    z: number;
+    positionType: string;
+    label: string;
+    sortOrder: number;
+  }): void {
+    const doAdd = () => {
+      this.pushSnapshot('Afegir node de tronc');
+      const id = generateUUID();
+      const existingAtZ = this.troncNodes().filter((n) => n.z === event.z);
+      const nextX = existingAtZ.reduce(
+        (max, n) => Math.max(max, n.x + n.width),
+        0,
+      );
+      const newNode: FigureNodeItem = {
+        id,
+        label: event.label,
+        zone: FigureZone.TRONC,
+        positionType: event.positionType,
+        x: nextX,
+        y: 0,
+        z: event.z,
+        width: 1,
+        height: 40,
+        rotation: 0,
+        color: null,
+        shape: NodeShape.RECTANGLE,
+        sortOrder: event.sortOrder,
+        climbPath: null,
+        ringLevel: null,
+        originNodeId: null,
+        renglaId: null,
+        renglaPosition: null,
+        metadata: {},
+      };
+      this.nodes.update((n) => [...n, newNode]);
+      this.selectedNodeId.set(id);
+      this.scheduleAutosave();
     };
-    this.nodes.update((n) => [...n, newNode]);
-    this.selectedNodeId.set(id);
-    this.scheduleAutosave();
+
+    if (!this.requireName(doAdd)) return;
+    doAdd();
   }
 
   onTroncNodeRemoved(id: string): void {
+    this.pushSnapshot('Eliminar node de tronc');
     this.nodes.update((n) => n.filter((node) => node.id !== id));
     if (this.selectedNodeId() === id) this.selectedNodeId.set(null);
     this.scheduleAutosave();
   }
 
-  onTroncNodeUpdated(event: { nodeId: string; x: number; width: number }): void {
+  onTroncNodeUpdated(event: {
+    nodeId: string;
+    x: number;
+    width: number;
+  }): void {
+    this.pushSnapshot('Modificar node de tronc');
     this.updateNode(event.nodeId, { x: event.x, width: event.width });
     this.scheduleAutosave();
   }
 
   onTroncFloorRemoved(z: number): void {
-    this.nodes.update((n) => n.filter((node) => !(node.zone === FigureZone.TRONC && node.z === z)));
+    this.pushSnapshot('Eliminar pis');
+    this.nodes.update((n) =>
+      n.filter((node) => !(node.zone === FigureZone.TRONC && node.z === z)),
+    );
     this.selectedNodeId.set(null);
     this.scheduleAutosave();
   }
@@ -246,36 +334,43 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   // ── Base node events (from tronc widget bases section) ────────────────────
 
   onBaseNodeAdded(event: { sortOrder: number }): void {
-    const id = generateUUID();
-    const stageCenter = { x: 200, y: 200 };
-    const baseNumber = this.baseNodes().length + 1;
-    const newNode: FigureNodeItem = {
-      id,
-      label: `Base ${baseNumber}`,
-      zone: FigureZone.BASE,
-      positionType: 'base',
-      x: stageCenter.x + Math.random() * 40 - 20,
-      y: stageCenter.y + Math.random() * 40 - 20,
-      z: 0,
-      width: DEFAULT_NODE_WIDTH,
-      height: DEFAULT_NODE_HEIGHT,
-      rotation: 0,
-      color: '#EEEEEE',
-      shape: NodeShape.RECTANGLE,
-      sortOrder: event.sortOrder,
-      climbPath: null,
-      ringLevel: null,
-      originNodeId: null,
-      renglaId: null,
-      renglaPosition: null,
-      metadata: {},
+    const doAdd = () => {
+      this.pushSnapshot('Afegir base');
+      const id = generateUUID();
+      const { x, y } = this.getNewNodePosition();
+      const baseNumber = this.baseNodes().length + 1;
+      const newNode: FigureNodeItem = {
+        id,
+        label: `Base ${baseNumber}`,
+        zone: FigureZone.BASE,
+        positionType: 'base',
+        x,
+        y,
+        z: 0,
+        width: DEFAULT_NODE_WIDTH,
+        height: DEFAULT_NODE_HEIGHT,
+        rotation: 0,
+        color: '#EEEEEE',
+        shape: NodeShape.RECTANGLE,
+        sortOrder: event.sortOrder,
+        climbPath: null,
+        ringLevel: null,
+        originNodeId: null,
+        renglaId: null,
+        renglaPosition: null,
+        metadata: {},
+      };
+      this.nodes.update((n) => [...n, newNode]);
+      this.selectedNodeId.set(id);
+      this.scheduleAutosave();
     };
-    this.nodes.update((n) => [...n, newNode]);
-    this.selectedNodeId.set(id);
-    this.scheduleAutosave();
+
+    if (!this.requireName(doAdd)) return;
+    doAdd();
   }
 
   onBaseNodeRemoved(id: string): void {
+    this.pushSnapshot('Eliminar base');
     this.nodes.update((n) => n.filter((node) => node.id !== id));
     if (this.selectedNodeId() === id) this.selectedNodeId.set(null);
     this.scheduleAutosave();
@@ -284,44 +379,56 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   // ── Toolbar actions ────────────────────────────────────────────────────────
 
   addPinyaNode(pos: PinyaPosition): void {
-    this.addNode(FigureZone.PINYA, 0, pos.positionType, pos.color, pos.label);
+    this.addNode(
+      FigureZone.PINYA,
+      0,
+      pos.positionType,
+      pos.color,
+      pos.label,
+      pos.shape,
+    );
   }
 
-  // ── NODE CREATION ── This is where new nodes are instantiated with their default properties.
-  // To change the default size, modify DEFAULT_NODE_WIDTH / DEFAULT_NODE_HEIGHT above.
   addNode(
     zone: FigureZone,
     z = 0,
     positionType: string | null = null,
     color: string | null = null,
     labelOverride?: string,
+    shape: NodeShape = NodeShape.RECTANGLE,
   ): void {
-    const id = generateUUID();
-    const stageCenter = { x: 200, y: 200 };
-    const newNode: FigureNodeItem = {
-      id,
-      label: labelOverride ?? this.defaultLabel(zone, z),
-      zone,
-      positionType,
-      x: stageCenter.x + Math.random() * 40 - 20,
-      y: stageCenter.y + Math.random() * 40 - 20,
-      z,
-      width: DEFAULT_NODE_WIDTH,
-      height: DEFAULT_NODE_HEIGHT,
-      rotation: 0,
-      color,
-      shape: NodeShape.RECTANGLE,
-      sortOrder: this.nodes().length,
-      climbPath: null,
-      ringLevel: null,
-      originNodeId: null,
-      renglaId: null,
-      renglaPosition: null,
-      metadata: {},
+    const doAdd = () => {
+      this.pushSnapshot(`Afegir ${labelOverride ?? 'node'}`);
+      const id = generateUUID();
+      const { x, y } = this.getNewNodePosition();
+      const newNode: FigureNodeItem = {
+        id,
+        label: labelOverride ?? this.defaultLabel(zone, z),
+        zone,
+        positionType,
+        x,
+        y,
+        z,
+        width: DEFAULT_NODE_WIDTH,
+        height: DEFAULT_NODE_HEIGHT,
+        rotation: 0,
+        color,
+        shape: shape,
+        sortOrder: this.nodes().length,
+        climbPath: null,
+        ringLevel: null,
+        originNodeId: null,
+        renglaId: null,
+        renglaPosition: null,
+        metadata: {},
+      };
+      this.nodes.update((n) => [...n, newNode]);
+      this.selectedNodeId.set(id);
+      this.scheduleAutosave();
     };
-    this.nodes.update((n) => [...n, newNode]);
-    this.selectedNodeId.set(id);
-    this.scheduleAutosave();
+
+    if (!this.requireName(doAdd)) return;
+    doAdd();
   }
 
   // ── Tronc panel drag ─────────────────────────────────────────────────────
@@ -330,7 +437,10 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     if ((event.target as HTMLElement).closest('button')) return;
     this.troncDragging = true;
     const pos = this.troncPanelPos();
-    this.troncDragOffset = { x: event.clientX - pos.x, y: event.clientY - pos.y };
+    this.troncDragOffset = {
+      x: event.clientX - pos.x,
+      y: event.clientY - pos.y,
+    };
     event.preventDefault();
   }
 
@@ -360,6 +470,26 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
     const isMod = event.metaKey || event.ctrlKey;
 
+    if (isMod && event.shiftKey && event.key.toLowerCase() === 'p') {
+      event.preventDefault();
+      this.togglePreview();
+      return;
+    }
+
+    if (this.previewMode()) return;
+
+    if (isMod && event.key === 'z' && !event.shiftKey) {
+      event.preventDefault();
+      this.performUndo();
+      return;
+    }
+
+    if (isMod && event.key === 'z' && event.shiftKey) {
+      event.preventDefault();
+      this.performRedo();
+      return;
+    }
+
     if (isMod && event.key === 'c') {
       event.preventDefault();
       this.copySelectedNode();
@@ -369,6 +499,12 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     if (isMod && event.key === 'v') {
       event.preventDefault();
       this.pasteNode();
+      return;
+    }
+
+    if (isMod && event.key === 'd') {
+      event.preventDefault();
+      this.duplicateSelectedNode();
       return;
     }
 
@@ -391,6 +527,8 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   deleteSelectedNode(): void {
     const id = this.selectedNodeId();
     if (!id) return;
+    const node = this.nodes().find((n) => n.id === id);
+    this.pushSnapshot(`Eliminar ${node?.label ?? 'node'}`);
     this.nodes.update((n) => n.filter((node) => node.id !== id));
     this.selectedNodeId.set(null);
     this.scheduleAutosave();
@@ -405,30 +543,42 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   pasteNode(): void {
     const source = this.clipboardNode();
     if (!source) return;
-    const PASTE_OFFSET = 24;
-    const newNode: FigureNodeItem = {
-      ...source,
-      id: generateUUID(),
-      x: source.x + PASTE_OFFSET,
-      y: source.y + PASTE_OFFSET,
-      sortOrder: this.nodes().length,
+
+    const doPaste = () => {
+      this.pushSnapshot(`Enganxar ${source.label}`);
+      const PASTE_OFFSET = 24;
+      const newNode: FigureNodeItem = {
+        ...source,
+        id: generateUUID(),
+        x: source.x + PASTE_OFFSET,
+        y: source.y + PASTE_OFFSET,
+        sortOrder: this.nodes().length,
+      };
+      this.nodes.update((n) => [...n, newNode]);
+      this.selectedNodeId.set(newNode.id);
+      this.clipboardNode.set(newNode);
+      this.scheduleAutosave();
     };
-    this.nodes.update((n) => [...n, newNode]);
-    this.selectedNodeId.set(newNode.id);
-    // Update clipboard so repeated pastes cascade
-    this.clipboardNode.set(newNode);
-    this.scheduleAutosave();
+
+    if (!this.requireName(doPaste)) return;
+    doPaste();
+  }
+
+  duplicateSelectedNode(): void {
+    this.copySelectedNode();
+    this.pasteNode();
   }
 
   private moveSelectedNodeByKey(key: string, large: boolean): void {
     const id = this.selectedNodeId();
     if (!id) return;
+    this.pushSnapshot('Moure node');
     const step = large ? 10 : 1;
     const delta = {
-      ArrowUp:    { x: 0,     y: -step },
-      ArrowDown:  { x: 0,     y:  step },
-      ArrowLeft:  { x: -step, y: 0     },
-      ArrowRight: { x:  step, y: 0     },
+      ArrowUp: { x: 0, y: -step },
+      ArrowDown: { x: 0, y: step },
+      ArrowLeft: { x: -step, y: 0 },
+      ArrowRight: { x: step, y: 0 },
     }[key];
     if (!delta) return;
 
@@ -447,14 +597,20 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   ): void {
     const id = this.selectedNodeId();
     if (!id) return;
-    
-    const patch: Partial<FigureNodeItem> = { [key]: value } as Partial<FigureNodeItem>;
-    
+    this.pushSnapshot('Canviar propietat');
+
+    const patch: Partial<FigureNodeItem> = {
+      [key]: value,
+    } as Partial<FigureNodeItem>;
+
     // BASE and PINYA nodes always live at z=0
-    if (key === 'zone' && (value === FigureZone.PINYA || value === FigureZone.BASE)) {
+    if (
+      key === 'zone' &&
+      (value === FigureZone.PINYA || value === FigureZone.BASE)
+    ) {
       patch.z = 0;
     }
-    
+
     this.updateNode(id, patch);
     this.scheduleAutosave();
   }
@@ -463,15 +619,33 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   onNameChange(value: string): void {
     this.templateName.set(value);
-    if (!this.templateId()) {
-      this.templateSlug.set(this.slugify(value));
-    }
+    this.templateSlug.set(this.slugify(value));
     this.scheduleAutosave();
   }
 
-  onSlugChange(value: string): void {
-    this.templateSlug.set(value);
-    this.scheduleAutosave();
+  confirmNamePrompt(name: string): void {
+    if (!name.trim()) return;
+    this.templateName.set(name.trim());
+    this.templateSlug.set(this.slugify(name.trim()));
+    this.showNamePrompt.set(false);
+    if (this.pendingAction) {
+      this.pendingAction();
+      this.pendingAction = null;
+    }
+  }
+
+  cancelNamePrompt(): void {
+    this.showNamePrompt.set(false);
+    this.pendingAction = null;
+  }
+
+  private requireName(action: () => void): boolean {
+    if (this.needsName()) {
+      this.pendingAction = action;
+      this.showNamePrompt.set(true);
+      return false;
+    }
+    return true;
   }
 
   onHasPinyaChange(value: boolean): void {
@@ -497,9 +671,93 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     this.shortcutsModalOpen.update((v) => !v);
   }
 
+  togglePreview(): void {
+    if (this.renglaEditMode()) return;
+    const entering = !this.previewMode();
+    this.previewMode.set(entering);
+    if (entering) {
+      this.selectedNodeId.set(null);
+    }
+    this.previewAnnouncement.set(
+      entering ? 'Mode previsualització activat' : 'Mode previsualització desactivat',
+    );
+  }
+
+  // ── Undo / Redo ──────────────────────────────────────────────────────────
+
+  private lastSnapshotTime = 0;
+  private lastSnapshotType = '';
+  private static readonly COALESCE_MS = 300;
+
+  private pushSnapshot(description: string): void {
+    const now = Date.now();
+    const shouldCoalesce =
+      description === this.lastSnapshotType &&
+      now - this.lastSnapshotTime < TemplateEditorComponent.COALESCE_MS;
+
+    if (shouldCoalesce) {
+      this.lastSnapshotTime = now;
+      return;
+    }
+
+    this.lastSnapshotTime = now;
+    this.lastSnapshotType = description;
+
+    const snapshot: TemplateSnapshot = {
+      description,
+      nodes: structuredClone(this.nodes()),
+      rengles: structuredClone(this.rengles()),
+    };
+    this.undoStack.update((stack) => {
+      const next = [...stack, snapshot];
+      if (next.length > MAX_UNDO_STACK) next.shift();
+      return next;
+    });
+    this.redoStack.set([]);
+  }
+
+  performUndo(): void {
+    const stack = this.undoStack();
+    if (stack.length === 0) return;
+    const snapshot = stack[stack.length - 1];
+
+    const currentState: TemplateSnapshot = {
+      description: snapshot.description,
+      nodes: structuredClone(this.nodes()),
+      rengles: structuredClone(this.rengles()),
+    };
+    this.redoStack.update((s) => [...s, currentState]);
+    this.undoStack.set(stack.slice(0, -1));
+
+    this.nodes.set(snapshot.nodes);
+    this.rengles.set(snapshot.rengles);
+    this.selectedNodeId.set(null);
+    this.scheduleAutosave();
+  }
+
+  performRedo(): void {
+    const stack = this.redoStack();
+    if (stack.length === 0) return;
+    const snapshot = stack[stack.length - 1];
+
+    const currentState: TemplateSnapshot = {
+      description: snapshot.description,
+      nodes: structuredClone(this.nodes()),
+      rengles: structuredClone(this.rengles()),
+    };
+    this.undoStack.update((s) => [...s, currentState]);
+    this.redoStack.set(stack.slice(0, -1));
+
+    this.nodes.set(snapshot.nodes);
+    this.rengles.set(snapshot.rengles);
+    this.selectedNodeId.set(null);
+    this.scheduleAutosave();
+  }
+
   // ── Rengla mode ──────────────────────────────────────────────────────────
 
   toggleRenglaEditMode(): void {
+    if (this.previewMode()) this.previewMode.set(false);
     this.renglaEditMode.update((v) => !v);
     if (this.renglaEditMode()) {
       this.selectedNodeId.set(null);
@@ -511,13 +769,12 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   }
 
   onRenglaCreated(event: RenglaCreatedEvent): void {
+    this.pushSnapshot('Crear rengla');
     const renglaId = generateUUID();
-    const startPos = event.rengla.startPosition;
     const newRengla: RenglaModel = {
       id: renglaId,
       name: event.rengla.name,
       sortOrder: event.rengla.sortOrder,
-      startPosition: startPos,
       allowsCordoObert: event.rengla.allowsCordoObert,
     };
     this.rengles.update((r) => [...r, newRengla]);
@@ -530,7 +787,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
           ...n,
           renglaId,
           renglaPosition: assignment.renglaPosition,
-          ringLevel: startPos + assignment.renglaPosition - 1,
+          ringLevel: assignment.renglaPosition,
         };
       }),
     );
@@ -538,24 +795,8 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     this.scheduleAutosave();
   }
 
-  onRenglaUpdated(event: RenglaUpdatedEvent): void {
-    this.rengles.update((list) =>
-      list.map((r) => (r.id === event.rengla.id ? event.rengla : r)),
-    );
-
-    const startPos = event.rengla.startPosition;
-    this.nodes.update((nodes) =>
-      nodes.map((n) =>
-        n.renglaId === event.rengla.id && n.renglaPosition != null
-          ? { ...n, ringLevel: startPos + n.renglaPosition - 1 }
-          : n,
-      ),
-    );
-
-    this.scheduleAutosave();
-  }
-
   onRenglaDeleted(event: RenglaDeletedEvent): void {
+    this.pushSnapshot('Eliminar rengla');
     this.rengles.update((list) => list.filter((r) => r.id !== event.renglaId));
     this.nodes.update((nodes) =>
       nodes.map((n) =>
@@ -569,73 +810,46 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   // ── Ghost clone ─────────────────────────────────────────────────────────────
 
-  onGhostCloneRequested(event: { sourceNode: CanvasNode; targetPosition: { x: number; y: number } }): void {
+  onGhostCloneRequested(event: {
+    sourceNode: CanvasNode;
+    targetPosition: { x: number; y: number };
+  }): void {
     const source = this.nodes().find((n) => n.id === event.sourceNode.id);
     if (!source) return;
 
-    const newId = generateUUID();
-    let renglaId = source.renglaId;
-    let renglaPosition = source.renglaPosition != null ? source.renglaPosition + 1 : null;
-    let ringLevel = source.ringLevel != null ? source.ringLevel + 1 : null;
+    const doClone = () => {
+      this.pushSnapshot('Clonar node');
+      const newId = generateUUID();
 
-    if (renglaId) {
-      this.nodes.update((nodes) =>
-        nodes.map((n) =>
-          n.renglaId === renglaId && n.renglaPosition != null && n.renglaPosition >= renglaPosition!
-            ? { ...n, renglaPosition: n.renglaPosition + 1, ringLevel: n.ringLevel != null ? n.ringLevel + 1 : null }
-            : n,
-        ),
-      );
-    } else {
-      const autoRenglaId = generateUUID();
-      const renglaIndex = this.rengles().length;
-      const newRengla: RenglaModel = {
-        id: autoRenglaId,
-        name: `${source.label} ${renglaIndex + 1}`,
-        sortOrder: renglaIndex,
-        startPosition: 1,
-        allowsCordoObert: false,
+      const clonedNode: FigureNodeItem = {
+        id: newId,
+        label: source.label,
+        zone: source.zone,
+        positionType: source.positionType,
+        x: event.targetPosition.x,
+        y: event.targetPosition.y,
+        z: source.z,
+        width: source.width,
+        height: source.height,
+        rotation: source.rotation,
+        color: source.color,
+        shape: source.shape,
+        sortOrder: this.nodes().length,
+        climbPath: null,
+        ringLevel: null,
+        originNodeId: null,
+        renglaId: null,
+        renglaPosition: null,
+        metadata: {},
       };
-      this.rengles.update((r) => [...r, newRengla]);
 
-      this.nodes.update((nodes) =>
-        nodes.map((n) =>
-          n.id === source.id
-            ? { ...n, renglaId: autoRenglaId, renglaPosition: 1, ringLevel: 1 }
-            : n,
-        ),
-      );
-
-      renglaId = autoRenglaId;
-      renglaPosition = 2;
-      ringLevel = 2;
-    }
-
-    const clonedNode: FigureNodeItem = {
-      id: newId,
-      label: source.label,
-      zone: source.zone,
-      positionType: source.positionType,
-      x: event.targetPosition.x,
-      y: event.targetPosition.y,
-      z: source.z,
-      width: source.width,
-      height: source.height,
-      rotation: source.rotation,
-      color: source.color,
-      shape: source.shape,
-      sortOrder: this.nodes().length,
-      climbPath: null,
-      ringLevel,
-      originNodeId: null,
-      renglaId,
-      renglaPosition,
-      metadata: {},
+      this.nodes.update((n) => [...n, clonedNode]);
+      this.selectedNodeId.set(newId);
+      this.scheduleAutosave();
     };
 
-    this.nodes.update((n) => [...n, clonedNode]);
-    this.selectedNodeId.set(newId);
-    this.scheduleAutosave();
+    if (!this.requireName(doClone)) return;
+    doClone();
   }
 
   // ── Persistence ────────────────────────────────────────────────────────────
@@ -647,8 +861,9 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   private save(): void {
     const name = this.templateName().trim();
-    const slug = this.templateSlug().trim();
+    const slug = this.templateSlug().trim() || this.slugify(name);
     if (!name || !slug) return;
+    this.templateSlug.set(slug);
 
     this.saveStatus.set('saving');
     const payload = this.buildPayload();
@@ -670,6 +885,8 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
         .subscribe({
           next: (created) => {
             this.templateId.set(created.id);
+            this.templateName.set(created.name);
+            this.templateSlug.set(created.slug);
             this.router.navigate(['/pinyes/templates', created.id, 'edit'], {
               replaceUrl: true,
             });
@@ -690,30 +907,40 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     const msg = (err.error?.message as string | undefined) ?? '';
     const msgLower = msg.toLowerCase();
 
-    if (err.status === 409 && (msgLower.includes('slug') || msgLower.includes('identificador'))) {
-      const slug = this.templateSlug();
-      this.toast.error(`L'identificador "${slug}" ja l'utilitza una altra figura. Canvia'l per poder desar.`);
-    } else if (err.status === 409 && (msgLower.includes('instànci') || msgLower.includes('instanci') || msgLower.includes('composici'))) {
-      this.toast.error(msg || 'No es pot esborrar: hi ha instàncies o composicions que fan servir aquesta figura.');
+    if (
+      err.status === 409 &&
+      (msgLower.includes('instànci') ||
+        msgLower.includes('instanci') ||
+        msgLower.includes('composici'))
+    ) {
+      this.toast.error(
+        msg ||
+          'No es pot esborrar: hi ha instàncies o composicions que fan servir aquesta figura.',
+      );
+    } else if (err.status === 409 && msgLower.includes('name')) {
+      this.toast.error('Ja existeix una altra figura amb aquest nom. Tria un nom diferent.');
     } else if (err.status === 409) {
-      this.toast.error(msg || 'Conflicte en desar la figura. Revisa les dades i torna-ho a intentar.');
-    } else if (err.status === 500 && msgLower.includes('slug')) {
-      const slug = this.templateSlug();
-      this.toast.error(`L'identificador "${slug}" ja l'utilitza una altra figura. Canvia'l per poder desar.`);
+      this.toast.error(
+        msg ||
+          'Conflicte en desar la figura. Prova a canviar el nom.',
+      );
     } else {
-      this.toast.error('No s\'ha pogut desar la figura. Torna-ho a intentar.');
+      this.toast.error("No s'ha pogut desar la figura. Torna-ho a intentar.");
     }
   }
 
   private buildPayload() {
     return {
       name: this.templateName().trim(),
-      slug: this.templateSlug().trim(),
       description: this.templateDescription().trim() || undefined,
       hasPinya: this.hasPinya(),
       nodes: this.nodes().map(nodeToPayload),
       rengles: this.rengles(),
     };
+  }
+
+  dismissAdHocBanner(): void {
+    this.adHocBannerDismissed.set(true);
   }
 
   private loadTemplate(id: string): void {
@@ -726,6 +953,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
         this.hasPinya.set(tmpl.hasPinya);
         this.nodes.set(tmpl.nodes);
         this.rengles.set(tmpl.rengles ?? []);
+        this.adHocInstanceCount.set(tmpl.adHocInstanceCount ?? 0);
         this.loading.set(false);
       },
       error: () => {
@@ -739,6 +967,14 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     this.nodes.update((nodes) =>
       nodes.map((n) => (n.id === id ? { ...n, ...patch } : n)),
     );
+  }
+
+  private getNewNodePosition(spread = 20): { x: number; y: number } {
+    const center = this.figureCanvas()?.getViewportCenter() ?? { x: 0, y: 0 };
+    return {
+      x: Math.round(center.x + Math.random() * spread - spread / 2),
+      y: Math.round(center.y + Math.random() * spread - spread / 2),
+    };
   }
 
   private defaultLabel(zone: FigureZone, z = 0): string {

@@ -3,7 +3,7 @@
   <!-- Capçalera -->
   <app-page-header title="Etiquetes de posició" [count]="positions().length">
     <button type="button" class="btn btn-primary btn-sm" (click)="openCreateModal()">
-      Nova posició
+        Posició nova
     </button>
   </app-page-header>
 
@@ -62,17 +62,17 @@
                     type="button"
                     class="btn btn-ghost btn-xs"
                     (click)="openEditModal(pos)"
-                    aria-label="Editar {{ pos.name }}"
+                    aria-label="Edita {{ pos.name }}"
                   >
-                    Editar
+                    Edita
                   </button>
                   <button
                     type="button"
                     class="btn btn-ghost btn-xs text-error"
                     (click)="confirmDelete(pos)"
-                    aria-label="Eliminar {{ pos.name }}"
+                    aria-label="Elimina {{ pos.name }}"
                   >
-                    Eliminar
+                    Elimina
                   </button>
                 </div>
               </td>

@@ -6,6 +6,7 @@ import { Event } from './event.entity';
 import { Attendance } from './attendance.entity';
 import { Season } from '../season/season.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
+import { SeasonService } from '../season/season.service';
 import { EventType } from '@muixer/shared';
 
 const makeEvent = (overrides: Partial<Event> = {}): Event => ({
@@ -90,6 +91,7 @@ describe('EventService', () => {
         { provide: getRepositoryToken(Season), useValue: mockSeasonRepo },
         { provide: getRepositoryToken(Attendance), useValue: mockAttendanceRepo },
         { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
+        { provide: SeasonService, useValue: { findCurrentEntity: jest.fn().mockResolvedValue(null) } },
       ],
     }).compile();
 
@@ -236,6 +238,7 @@ describe('EventService', () => {
           { provide: getRepositoryToken(Season), useValue: mockSeasonRepo },
           { provide: getRepositoryToken(Attendance), useValue: mockAttendanceRepo },
           { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
+          { provide: SeasonService, useValue: { findCurrentEntity: jest.fn().mockResolvedValue(null) } },
         ],
       }).compile();
       const svc = mod.get<EventService>(EventService);
@@ -252,6 +255,7 @@ describe('EventService', () => {
           { provide: getRepositoryToken(Season), useValue: mockSeasonRepo },
           { provide: getRepositoryToken(Attendance), useValue: mockAttendanceRepo },
           { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
+          { provide: SeasonService, useValue: { findCurrentEntity: jest.fn().mockResolvedValue(null) } },
         ],
       }).compile();
       const svc = mod.get<EventService>(EventService);
@@ -271,6 +275,7 @@ describe('EventService', () => {
           { provide: getRepositoryToken(Season), useValue: mockSeasonRepo },
           { provide: getRepositoryToken(Attendance), useValue: mockAttendanceRepo },
           { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
+          { provide: SeasonService, useValue: { findCurrentEntity: jest.fn().mockResolvedValue(null) } },
         ],
       }).compile();
       const svc = mod.get<EventService>(EventService);
@@ -294,6 +299,7 @@ describe('EventService', () => {
           { provide: getRepositoryToken(Season), useValue: mockSeasonRepo },
           { provide: getRepositoryToken(Attendance), useValue: mockAttendanceRepo },
           { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
+          { provide: SeasonService, useValue: { findCurrentEntity: jest.fn().mockResolvedValue(null) } },
         ],
       }).compile();
       const svc = mod.get<EventService>(EventService);
@@ -317,6 +323,7 @@ describe('EventService', () => {
           { provide: getRepositoryToken(Season), useValue: mockSeasonRepo },
           { provide: getRepositoryToken(Attendance), useValue: mockAttendanceRepo },
           { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
+          { provide: SeasonService, useValue: { findCurrentEntity: jest.fn().mockResolvedValue(null) } },
         ],
       }).compile();
       const svc = mod.get<EventService>(EventService);

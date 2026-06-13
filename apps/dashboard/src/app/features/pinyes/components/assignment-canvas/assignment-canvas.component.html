@@ -5,7 +5,7 @@
       type="button"
       class="btn btn-ghost btn-sm gap-1"
       (click)="goBack()"
-      aria-label="Tornar a l'event"
+      aria-label="Tornar a l'esdeveniment"
     >
       <i-lucide [img]="ArrowLeft" class="size-4" />
       Tornar
@@ -34,7 +34,7 @@
             class="btn btn-sm rounded-l-none border-l-0 px-1.5"
             [class]="state.activeInstanceId() === tab.instanceId ? 'btn-primary opacity-70 hover:opacity-100' : 'btn-ghost'"
             (click)="openDeleteInstanceModal(tab)"
-            [attr.aria-label]="'Eliminar ' + tab.label + ' del segment'"
+            [attr.aria-label]="'Elimina ' + tab.label + ' del segment'"
           >
             <i-lucide [img]="X" class="size-3" />
           </button>
@@ -58,14 +58,28 @@
     }
 
     @if (activeTab()?.figureTemplateId) {
-      <a
-        [routerLink]="['/pinyes', 'templates', activeTab()!.figureTemplateId, 'edit']"
+      <button
+        type="button"
         class="btn btn-ghost btn-sm gap-1"
-        aria-label="Editar template de la figura"
+        aria-label="Edita template de la figura"
+        (click)="onEditTemplate()"
       >
         <i-lucide [img]="Edit" class="size-4" />
-        Editar template
-      </a>
+        Edita template
+      </button>
+    }
+
+    @if (activeTab()?.snapshotted && activeTab()?.figureTemplateId && !isLocked()) {
+      <button
+        type="button"
+        class="btn btn-ghost btn-sm gap-1"
+        aria-label="Desa com a template"
+        (click)="openSaveAsTemplate()"
+        title="Desa la disposició actual com a template"
+      >
+        <i-lucide [img]="SaveIcon" class="size-4" />
+        Desa com a template
+      </button>
     }
 
     @if (activeTab()) {
@@ -119,6 +133,7 @@
       @if (!loading() && activePinyaNodes().length > 0) {
         <app-figure-canvas
           class="w-full h-full block"
+          [class.cursor-crosshair]="state.isPlacementMode()"
           [nodes]="activePinyaNodes()"
           mode="assignment"
           [selectedNodeId]="state.selectedNodeId()"
@@ -127,8 +142,13 @@
           [attendanceMap]="attendanceMap()"
           [nextPerformanceMap]="nextPerformanceMap()"
           [highlightedNodeIds]="highlightedNodeIds()"
+          [isPlacementMode]="state.isPlacementMode()"
           (nodeSelected)="onNodeSelected($event)"
           (nodeClicked)="onNodeClicked($event)"
+          (nodeDoubleClicked)="onNodeDoubleClicked($event)"
+          (canvasClicked)="onCanvasClicked($event)"
+          (adHocNodeMoved)="onAdHocNodeMoved($event)"
+          (adHocNodeTransformed)="onAdHocNodeTransformed($event)"
         />
       }
 
@@ -153,8 +173,188 @@
         </div>
       }
 
-      <!-- Node popover -->
-      @if (popoverAssignment()) {
+      <!-- Ad-hoc FAB + help + undo/redo -->
+      @if (!isLocked() && activeTab()) {
+        <div class="absolute bottom-4 right-4 flex items-center gap-2 z-20">
+          <button
+            type="button"
+            class="btn btn-circle btn-sm btn-ghost"
+            [disabled]="!undoRedo.canUndo() || undoRedo.isBusy()"
+            (click)="performUndo()"
+            [attr.aria-label]="undoRedo.undoDescription() ? 'Desfer: ' + undoRedo.undoDescription() : 'Desfer'"
+            [title]="undoRedo.undoDescription() ? 'Desfer: ' + undoRedo.undoDescription() : 'Desfer (Ctrl+Z)'"
+          >
+            <i-lucide [img]="Undo2" class="size-4" />
+          </button>
+          <button
+            type="button"
+            class="btn btn-circle btn-sm btn-ghost"
+            [disabled]="!undoRedo.canRedo() || undoRedo.isBusy()"
+            (click)="performRedo()"
+            [attr.aria-label]="undoRedo.redoDescription() ? 'Refer: ' + undoRedo.redoDescription() : 'Refer'"
+            [title]="undoRedo.redoDescription() ? 'Refer: ' + undoRedo.redoDescription() : 'Refer (Ctrl+Shift+Z)'"
+          >
+            <i-lucide [img]="Redo2" class="size-4" />
+          </button>
+          <button
+            type="button"
+            class="btn btn-circle btn-sm btn-ghost"
+            (click)="openHelpModal()"
+            aria-label="Ajuda sobre nodes ad-hoc"
+            title="Ajuda"
+          >
+            <i-lucide [img]="HelpCircle" class="size-5" />
+          </button>
+
+          <!-- Direction FAB -->
+          <div class="relative">
+            <button
+              type="button"
+              class="btn btn-circle shadow-lg"
+              style="background-color: #d97706; border-color: #d97706; color: white;"
+              (click)="fabDirectionOpen.set(!fabDirectionOpen())"
+              aria-label="Afegir node de direcció"
+              aria-haspopup="true"
+              [attr.aria-expanded]="fabDirectionOpen()"
+              title="Direccions"
+            >
+              <span class="text-xs font-bold">Dir</span>
+            </button>
+            @if (fabDirectionOpen()) {
+              <ul
+                class="menu bg-base-100 rounded-box shadow-xl w-48 p-2 absolute bottom-full right-0 mb-2 z-50"
+                role="menu"
+              >
+                @for (preset of directionPresets; track preset.zone) {
+                  <li role="none">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      class="flex items-center gap-2 text-sm"
+                      (click)="onPresetSelected(preset); fabDirectionOpen.set(false)"
+                    >
+                      <span
+                        class="inline-block w-3 h-3 rounded-sm shrink-0"
+                        [style.backgroundColor]="preset.color"
+                      ></span>
+                      {{ preset.label }}
+                    </button>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+
+          <!-- Decoration FAB -->
+          <div class="relative">
+            <button
+              type="button"
+              class="btn btn-circle shadow-lg"
+              style="background-color: #6b7280; border-color: #6b7280; color: white;"
+              (click)="fabDecorationOpen.set(!fabDecorationOpen())"
+              aria-label="Afegir node decoratiu"
+              aria-haspopup="true"
+              [attr.aria-expanded]="fabDecorationOpen()"
+              title="Decoratiu"
+            >
+              <span class="text-xs font-bold">Dec</span>
+            </button>
+            @if (fabDecorationOpen()) {
+              <ul
+                class="menu bg-base-100 rounded-box shadow-xl w-48 p-2 absolute bottom-full right-0 mb-2 z-50"
+                role="menu"
+              >
+                @for (preset of decorationPresets; track preset.positionType) {
+                  <li role="none">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      class="flex items-center gap-2 text-sm"
+                      (click)="onPresetSelected(preset); fabDecorationOpen.set(false)"
+                    >
+                      <span
+                        class="inline-block w-3 h-3 rounded-sm shrink-0 border border-base-content/30"
+                        [style.backgroundColor]="preset.color"
+                      ></span>
+                      {{ getDecorationLabel(preset) }} (etiqueta lliure)
+                    </button>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+
+          <!-- Pinya FAB (primary) -->
+          <div class="relative">
+            <button
+              type="button"
+              class="btn btn-circle btn-primary shadow-lg"
+              (click)="fabDropdownOpen.set(!fabDropdownOpen())"
+              aria-label="Afegir node de pinya"
+              aria-haspopup="true"
+              [attr.aria-expanded]="fabDropdownOpen()"
+              title="Pinya"
+            >
+              <i-lucide [img]="Plus" class="size-5" />
+            </button>
+            @if (fabDropdownOpen()) {
+              <ul
+                class="menu bg-base-100 rounded-box shadow-xl w-56 p-2 absolute bottom-full right-0 mb-2 z-50 max-h-80 overflow-y-auto"
+                role="menu"
+              >
+                @for (preset of adHocPresets; track preset.positionType) {
+                  <li role="none">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      class="flex items-center gap-2 text-sm"
+                      (click)="onPresetSelected(preset); fabDropdownOpen.set(false)"
+                    >
+                      <span
+                        class="inline-block w-3 h-3 rounded-sm shrink-0"
+                        [style.backgroundColor]="preset.color"
+                      ></span>
+                      {{ preset.requiresCustomLabel ? 'Comodí (etiqueta lliure)' : preset.label }}
+                    </button>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- Placement mode banner -->
+      @if (state.isPlacementMode()) {
+        <div class="absolute top-2 left-1/2 -translate-x-1/2 z-30 alert alert-info py-2 px-4 shadow-lg max-w-sm" role="status">
+          <span class="text-sm">
+            <strong>Mode col·locació:</strong> fes clic al canvas per situar el node.
+            <button type="button" class="btn btn-xs btn-ghost ml-1" (click)="state.exitPlacementMode()">
+              Cancel·lar
+            </button>
+          </span>
+        </div>
+      }
+
+      <!-- Ad-hoc node properties panel (opens on double-click) -->
+      @if (adHocNodeForPanel(); as adHocNode) {
+        <app-ad-hoc-node-properties
+          [node]="adHocNode"
+          [instanceId]="state.activeInstanceId()!"
+          [assignment]="selectedAdHocAssignment()"
+          [heightMode]="state.heightMode()"
+          [attendanceStatus]="selectedAdHocAssignment() ? getAttendanceStatus(selectedAdHocAssignment()!) : null"
+          (closed)="adHocPropertiesOpen.set(false)"
+          (propertyChanged)="onAdHocPropertyChanged($event)"
+          (nodeUpdated)="onAdHocNodeUpdated()"
+          (deleteRequested)="onAdHocDeleteFromPanel($event)"
+          (duplicateRequested)="duplicateSelectedAdHocNode()"
+          (unassign)="onUnassign($event)"
+        />
+      }
+
+      <!-- Node popover (disabled) de moment ho mantenim tot al popover app-ad-hoc-node-properties -->
+      <!-- @if (popoverAssignment()) {
         <app-node-popover
           [assignment]="popoverAssignment()"
           [position]="popoverPosition()"
@@ -163,7 +363,7 @@
           (unassign)="onUnassign($event)"
           (close)="popoverAssignment.set(null)"
         />
-      }
+      } -->
     </main>
 
     <!-- Person panel (right sidebar) -->
@@ -296,7 +496,7 @@
     <div class="modal-box max-w-sm">
       <h3 id="delete-instance-title" class="text-lg font-bold mb-3 text-error">Eliminar figura del segment</h3>
       <p id="delete-instance-desc" class="text-sm text-base-content/70">
-        Vols eliminar
+        Voleu eliminar
         <strong>{{ pendingDeleteTab()!.label }}</strong>
         d'aquest segment?
       </p>
@@ -353,6 +553,14 @@
         i tornarà la figura al template original.
         Les persones assignades quedaran lliures.
       </p>
+      @if (state.hasAdHocNodes()) {
+        <div class="alert alert-warning mt-3 py-2 text-sm gap-2">
+          <span>
+            <strong>{{ state.adHocNodes().length }} nodes ad-hoc</strong>
+            també s'eliminaran permanentment.
+          </span>
+        </div>
+      }
       <p class="text-xs text-warning mt-2">Aquesta acció no es pot desfer.</p>
       <div class="modal-action">
         <button
@@ -372,7 +580,7 @@
           @if (resetting()) {
             <span class="loading loading-spinner loading-xs"></span>
           }
-          Eliminar tot
+          Elimina tot
         </button>
       </div>
     </div>
@@ -390,3 +598,93 @@
   (saved)="onCordonsSaved($event)"
   (closed)="onCordonsDialogClosed()"
 />
+
+<!-- Delete ad-hoc node modal -->
+@if (deleteAdHocModalOpen()) {
+  <dialog
+    class="modal modal-open"
+    role="alertdialog"
+    aria-labelledby="delete-adhoc-title"
+    aria-describedby="delete-adhoc-desc"
+    aria-modal="true"
+  >
+    <div class="modal-box max-w-sm">
+      <h3 id="delete-adhoc-title" class="text-lg font-bold mb-3 text-error">Eliminar node ad-hoc</h3>
+      <p id="delete-adhoc-desc" class="text-sm text-base-content/70">
+        El node «<strong>{{ pendingDeleteNodeLabel() }}</strong>» té la persona
+        <strong>{{ pendingDeletePersonName() }}</strong> assignada.
+        Si l'elimines, l'assignació es perdrà.
+      </p>
+      <div class="modal-action">
+        <button type="button" class="btn btn-ghost btn-sm" (click)="cancelDeleteAdHocNode()">
+          Cancel·lar
+        </button>
+        <button type="button" class="btn btn-error btn-sm" (click)="confirmDeleteAdHocNode()">
+          Eliminar
+        </button>
+      </div>
+    </div>
+    <button type="button" class="modal-backdrop" (click)="cancelDeleteAdHocNode()" aria-label="Tancar"></button>
+  </dialog>
+}
+
+<!-- Comodin label input dialog -->
+@if (comodinInputOpen()) {
+  <dialog
+    class="modal modal-open"
+    role="dialog"
+    aria-labelledby="comodin-title"
+    aria-modal="true"
+  >
+    <div class="modal-box max-w-xs">
+      <h3 id="comodin-title" class="text-lg font-bold mb-3">{{ labelDialogTitle() }}</h3>
+      <label for="comodin-input" class="label">
+        <span class="label-text">Escriu el nom del node:</span>
+      </label>
+      <input
+        id="comodin-input"
+        type="text"
+        class="input input-bordered w-full"
+        [value]="comodinLabel()"
+        (input)="comodinLabel.set($any($event.target).value)"
+        (keydown.enter)="confirmComodinLabel()"
+        [placeholder]="labelDialogPlaceholder()"
+        maxlength="100"
+        autofocus
+      />
+      <div class="modal-action">
+        <button type="button" class="btn btn-ghost btn-sm" (click)="cancelComodinInput()">
+          Cancel·lar
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary btn-sm"
+          (click)="confirmComodinLabel()"
+          [disabled]="!comodinLabel().trim()"
+        >
+          Col·locar
+        </button>
+      </div>
+    </div>
+    <button type="button" class="modal-backdrop" (click)="cancelComodinInput()" aria-label="Tancar"></button>
+  </dialog>
+}
+
+<!-- Help modal -->
+<app-ad-hoc-nodes-help-modal
+  [open]="helpModalOpen()"
+  (closed)="closeHelpModal()"
+/>
+
+<!-- Save as template dialog -->
+@if (activeTab()?.snapshotted && activeTab()?.figureTemplateId) {
+  <app-save-as-template-dialog
+    [open]="saveAsTemplateOpen()"
+    [instanceId]="activeTab()!.instanceId"
+    [templateId]="activeTab()!.figureTemplateId!"
+    [templateName]="activeTab()!.label"
+    [instanceNodes]="activeNodes()"
+    (closed)="onSaveAsTemplateClosed()"
+    (saved)="onSaveAsTemplateResult($event)"
+  />
+}
