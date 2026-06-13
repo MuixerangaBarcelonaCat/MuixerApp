@@ -21,6 +21,7 @@ import {
   calculateGhostPosition,
   isGhostEligible,
 } from '../../utils/ghost-clone.util';
+import { screenToStage } from '../../utils/rengla-coordinates.util';
 
 /** Minimal node shape accepted by the canvas for rendering — both FigureNodeItem and InstanceNodeItem satisfy this */
 export interface CanvasNode {
@@ -396,6 +397,25 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       y: this.stage.y(),
       scaleX: this.stage.scaleX(),
       scaleY: this.stage.scaleY(),
+    };
+  }
+
+  /** Stage-space coordinates at the center of the visible canvas viewport. */
+  getViewportCenter(): { x: number; y: number } {
+    if (!this.stage) {
+      return { x: 0, y: 0 };
+    }
+
+    const transform = this.getStageTransform();
+    const center = screenToStage(
+      this.stage.width() / 2,
+      this.stage.height() / 2,
+      transform,
+    );
+
+    return {
+      x: Math.round(center.x),
+      y: Math.round(center.y),
     };
   }
 
