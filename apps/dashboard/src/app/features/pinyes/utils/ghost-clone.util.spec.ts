@@ -140,13 +140,13 @@ describe('ghost-clone.util', () => {
 
     it('returns false for agulla', () => {
       expect(
-        isGhostEligible({ zone: FigureZone.PINYA, positionType: 'agulla', renglaPosition: null}, null),
+        isGhostEligible({ zone: FigureZone.PINYA, positionType: 'agulla', renglaPosition: null}, 0),
       ).toBe(false);
     });
 
     it('returns false for crossa', () => {
       expect(
-        isGhostEligible({ zone: FigureZone.PINYA, positionType: 'crossa', renglaPosition: null }, null),
+        isGhostEligible({ zone: FigureZone.PINYA, positionType: 'crossa', renglaPosition: null }, 0),
       ).toBe(false);
     });
 
@@ -156,13 +156,13 @@ describe('ghost-clone.util', () => {
           zone: FigureZone.PINYA,
           positionType: 'contrafort',
           renglaPosition: null
-        }, null),
+        }, 0),
       ).toBe(false);
     });
 
     it('returns true for tap', () => {
       expect(
-        isGhostEligible({ zone: FigureZone.PINYA, positionType: 'tap', renglaPosition: null }, null),
+        isGhostEligible({ zone: FigureZone.PINYA, positionType: 'tap', renglaPosition: null }, 0),
       ).toBe(true);
     });
 
@@ -172,7 +172,7 @@ describe('ghost-clone.util', () => {
           zone: FigureZone.PINYA,
           positionType: 'cordo-obert',
           renglaPosition: null
-        }, null),
+        }, 0),
       ).toBe(false);
     });
 
