@@ -17,13 +17,13 @@
   <!-- ── No-tronc message ────────────────────────────────────────────────── -->
   @if (!hasTronc() && mode() !== 'editor') {
     <div class="alert alert-info py-2 px-3 text-xs mt-2" role="status">
-      Aquesta figura no té tronc configurat. Pots crear-lo des de l'editor de plantilles.
+      Aquesta figura no té tronc configurat. Podeu crear-lo des de l'editor de plantilles.
     </div>
   }
 
   @if (!hasTronc() && mode() === 'editor') {
     <p class="text-xs text-base-content/40 px-2 mt-2 italic">
-      Afegeix un pis per configurar el tronc.
+      Afegiu un pis per configurar el tronc.
     </p>
   }
 
