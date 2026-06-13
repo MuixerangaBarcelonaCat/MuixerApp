@@ -169,7 +169,7 @@
   <div class="editor-main">
 
     <!-- Left Toolbar -->
-    @if (!previewMode()) {
+    @if (!previewMode() && !renglaEditMode()) {
     <aside class="editor-toolbar" aria-label="Eines">
 
       <!-- Base (intersecció pinya-tronc) -->
@@ -319,7 +319,7 @@
     </main>
 
     <!-- Right Panel: Node Properties -->
-    @if (!previewMode()) {
+    @if (!previewMode() && !renglaEditMode()) {
     <aside
       class="editor-panel"
       [class.panel-open]="propertiesPanelOpen()"
