@@ -1,11 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
   LUCIDE_ICONS, LucideIconProvider,
   ArrowDownUp, ArrowUpDown, Plus, Minus, Trash2, X,
 } from 'lucide-angular';
-import { TroncViewComponent, TroncNodeItem, PositionOption } from './tronc-view.component';
+import { TroncViewComponent, TroncNodeItem } from './tronc-view.component';
 import { AssignmentDetail } from '../../models/assignment.model';
 
 function makeNode(overrides: Partial<TroncNodeItem> = {}): TroncNodeItem {
@@ -70,7 +69,6 @@ describe('TroncViewComponent', () => {
     await TestBed.configureTestingModule({
       imports: [TroncViewComponent],
       providers: [
-        provideRouter([]),
         {
           provide: LUCIDE_ICONS,
           multi: true,
@@ -540,29 +538,27 @@ describe('TroncViewComponent', () => {
     expect(emitted[0].sortOrder).toBe(0);
   });
 
-  it('onAddFloor uses first troncPosition when available', () => {
-    const positions: PositionOption[] = [
-      { slug: 'alcadora', name: 'Alçadora', color: null },
-      { slug: 'segon', name: 'Segon/Segona', color: null },
-    ];
+  it('onAddFloor uses z-level defaults for new floors', () => {
     const emitted: { z: number; positionType: string; label: string }[] = [];
     fixture.componentRef.instance.nodeAdded.subscribe((e) => emitted.push(e));
     fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
-    fixture.componentRef.setInput('troncPositions', positions);
     fixture.detectChanges();
     component.onAddFloor();
-    expect(emitted[0].positionType).toBe('alcadora');
-    expect(emitted[0].label).toBe('Alçadora');
+    expect(emitted[0].z).toBe(1);
+    expect(emitted[0].positionType).toBe('segones');
+    expect(emitted[0].label).toBe('Segones');
   });
 
-  it('onAddFloor uses fallback when no troncPositions configured', () => {
+  it('onAddFloor uses correct z-level default for z=2', () => {
     const emitted: { z: number; positionType: string; label: string }[] = [];
     fixture.componentRef.instance.nodeAdded.subscribe((e) => emitted.push(e));
     fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
+    fixture.componentRef.setInput('troncNodes', [makeNode({ z: 1 })]);
     fixture.detectChanges();
     component.onAddFloor();
-    expect(emitted[0].positionType).toBe('tronc');
-    expect(emitted[0].label).toBe('Tronc');
+    expect(emitted[0].z).toBe(2);
+    expect(emitted[0].positionType).toBe('terceres');
+    expect(emitted[0].label).toBe('Terçes');
   });
 
   it('onRemoveFloor emits floorRemoved for topmost z', () => {
@@ -589,158 +585,100 @@ describe('TroncViewComponent', () => {
     expect(emitted.length).toBe(0);
   });
 
-  // ── Position catalog ────────────────────────────────────────────────────
+  // ── Label editing ───────────────────────────────────────────────────────
 
-  it('troncPositions defaults to empty array', () => {
-    expect(component.troncPositions()).toEqual([]);
-  });
-
-  it('onPositionTypeChange emits correct positionType and label', () => {
-    const positions: PositionOption[] = [
-      { slug: 'segon', name: 'Segon/Segona', color: '#ff0000' },
-      { slug: 'alcadora', name: 'Alçadora', color: '#00ff00' },
-    ];
-    fixture.componentRef.setInput('troncPositions', positions);
-    fixture.detectChanges();
-
-    const emitted: { nodeId: string; positionType?: string; label?: string }[] = [];
+  it('onLabelChange emits updated label', () => {
+    const emitted: { nodeId: string; label?: string }[] = [];
     fixture.componentRef.instance.nodeUpdated.subscribe((e) => emitted.push(e));
-    const node = makeNode({ id: 'n1', positionType: 'segon' });
-    component.onPositionTypeChange(node, 'alcadora');
-    expect(emitted[0].positionType).toBe('alcadora');
-    expect(emitted[0].label).toBe('Alçadora');
+    const node = makeNode({ id: 'n1', label: 'Segon' });
+    component.onLabelChange(node, 'Terç');
+    expect(emitted[0].label).toBe('Terç');
   });
 
-  // ── Position color coding (SP3) ──────────────────────────────────────────
+  it('onLabelChange ignores empty string', () => {
+    const emitted: { nodeId: string; label?: string }[] = [];
+    fixture.componentRef.instance.nodeUpdated.subscribe((e) => emitted.push(e));
+    const node = makeNode({ id: 'n1' });
+    component.onLabelChange(node, '  ');
+    expect(emitted.length).toBe(0);
+  });
 
-  describe('getPositionColor', () => {
-    it('returns null when troncPositions is empty', () => {
-      const node = makeNode({ positionType: 'segon' });
-      expect(component.getPositionColor(node)).toBeNull();
+  // ── Z-level color coding ──────────────────────────────────────────────
+
+  describe('getZLevelColor', () => {
+    it('returns blue for z=1', () => {
+      expect(component.getZLevelColor(1)).toBe('#1E88E5');
     });
 
-    it('returns null when node has no matching positionType', () => {
-      fixture.componentRef.setInput('troncPositions', [
-        { slug: 'alcadora', name: 'Alçadora', color: '#0000ff' },
-      ]);
-      fixture.detectChanges();
-      const node = makeNode({ positionType: 'segon' });
-      expect(component.getPositionColor(node)).toBeNull();
+    it('returns green for z=2', () => {
+      expect(component.getZLevelColor(2)).toBe('#43A047');
     });
 
-    it('returns null when node positionType is null', () => {
-      fixture.componentRef.setInput('troncPositions', [
-        { slug: 'segon', name: 'Segon', color: '#ff0000' },
-      ]);
-      fixture.detectChanges();
-      const node = makeNode({ positionType: null });
-      expect(component.getPositionColor(node)).toBeNull();
-    });
-
-    it('returns color string when slug matches', () => {
-      fixture.componentRef.setInput('troncPositions', [
-        { slug: 'segon', name: 'Segon', color: '#ff0000' },
-        { slug: 'alcadora', name: 'Alçadora', color: '#0000ff' },
-      ]);
-      fixture.detectChanges();
-      const node = makeNode({ positionType: 'segon' });
-      expect(component.getPositionColor(node)).toBe('#ff0000');
-    });
-
-    it('returns null when matching position has null color', () => {
-      fixture.componentRef.setInput('troncPositions', [
-        { slug: 'segon', name: 'Segon', color: null },
-      ]);
-      fixture.detectChanges();
-      const node = makeNode({ positionType: 'segon' });
-      expect(component.getPositionColor(node)).toBeNull();
+    it('returns fallback for unknown z', () => {
+      expect(component.getZLevelColor(99)).toBe('#78909C');
     });
   });
 
-  describe('position color border rendering', () => {
-    const positions: PositionOption[] = [
-      { slug: 'segon', name: 'Segon', color: '#ff0000' },
-    ];
-
-    it('renders position-colored class in assignment mode', () => {
+  describe('z-colored border rendering', () => {
+    it('renders z-colored class in assignment mode', () => {
       fixture.componentRef.setInput('troncNodes', [makeNode({ positionType: 'segon' })]);
       fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
-      fixture.componentRef.setInput('troncPositions', positions);
       fixture.componentRef.setInput('mode', 'assignment');
       fixture.detectChanges();
 
-      const colored = fixture.nativeElement.querySelectorAll('.tronc-node.position-colored');
+      const colored = fixture.nativeElement.querySelectorAll('.tronc-node.z-colored');
       expect(colored.length).toBeGreaterThan(0);
     });
 
-    it('does not render position-colored class in editor mode', () => {
+    it('does not render z-colored class in editor mode', () => {
       fixture.componentRef.setInput('troncNodes', [makeNode({ positionType: 'segon' })]);
       fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
-      fixture.componentRef.setInput('troncPositions', positions);
       fixture.componentRef.setInput('mode', 'editor');
       fixture.detectChanges();
 
-      const colored = fixture.nativeElement.querySelectorAll('.tronc-node.position-colored');
+      const colored = fixture.nativeElement.querySelectorAll('.tronc-node.z-colored');
       expect(colored.length).toBe(0);
     });
 
-    it('does not render position-colored class in projection mode', () => {
+    it('does not render z-colored class in projection mode', () => {
       fixture.componentRef.setInput('troncNodes', [makeNode({ positionType: 'segon' })]);
       fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
-      fixture.componentRef.setInput('troncPositions', positions);
       fixture.componentRef.setInput('mode', 'projection');
       fixture.detectChanges();
 
-      const colored = fixture.nativeElement.querySelectorAll('.tronc-node.position-colored');
+      const colored = fixture.nativeElement.querySelectorAll('.tronc-node.z-colored');
       expect(colored.length).toBe(0);
     });
   });
 
-  // ── Floor label resolution (SP3) ───────────────────────────────────────
+  // ── Floor label resolution ──────────────────────────────────────────────
 
   describe('floor positionTypeLabel resolution', () => {
-    it('resolves slug to Position.name when positions are loaded', () => {
-      fixture.componentRef.setInput('troncPositions', [
-        { slug: 'segon', name: 'Segon/Segona', color: null },
-      ]);
+    it('resolves using dominant node label', () => {
       fixture.componentRef.setInput('troncNodes', [
-        makeNode({ id: 'n1', z: 1, positionType: 'segon' }),
+        makeNode({ id: 'n1', z: 1, label: 'Segon', positionType: 'segon' }),
       ]);
       fixture.detectChanges();
 
       const floor = component.floors().find((f) => f.z === 1);
-      expect(floor?.positionTypeLabel).toBe('Segon/Segona');
+      expect(floor?.positionTypeLabel).toBe('Segon');
     });
 
-    it('falls back to raw slug when positions are empty', () => {
+    it('uses most common label when multiple nodes on same floor', () => {
       fixture.componentRef.setInput('troncNodes', [
-        makeNode({ id: 'n1', z: 1, positionType: 'segon' }),
+        makeNode({ id: 'n1', z: 1, label: 'Segon', positionType: 'segones' }),
+        makeNode({ id: 'n2', z: 1, label: 'Segon', positionType: 'segones' }),
+        makeNode({ id: 'n3', z: 1, label: 'Alt', positionType: 'segones' }),
       ]);
       fixture.detectChanges();
 
       const floor = component.floors().find((f) => f.z === 1);
-      expect(floor?.positionTypeLabel).toBe('segon');
-    });
-
-    it('falls back to raw slug when no matching position found', () => {
-      fixture.componentRef.setInput('troncPositions', [
-        { slug: 'alcadora', name: 'Alçadora', color: null },
-      ]);
-      fixture.componentRef.setInput('troncNodes', [
-        makeNode({ id: 'n1', z: 1, positionType: 'segon' }),
-      ]);
-      fixture.detectChanges();
-
-      const floor = component.floors().find((f) => f.z === 1);
-      expect(floor?.positionTypeLabel).toBe('segon');
+      expect(floor?.positionTypeLabel).toBe('Segon');
     });
 
     it('shows position-type-label in DOM in assignment mode', () => {
-      fixture.componentRef.setInput('troncPositions', [
-        { slug: 'segon', name: 'Segon/Segona', color: null },
-      ]);
       fixture.componentRef.setInput('troncNodes', [
-        makeNode({ id: 'n1', z: 1, positionType: 'segon' }),
+        makeNode({ id: 'n1', z: 1, label: 'Segon', positionType: 'segon' }),
       ]);
       fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
       fixture.componentRef.setInput('mode', 'assignment');
@@ -749,7 +687,7 @@ describe('TroncViewComponent', () => {
       const labels = fixture.nativeElement.querySelectorAll('.position-type-label');
       expect(labels.length).toBeGreaterThan(0);
       const texts = Array.from(labels as NodeListOf<HTMLElement>).map((el) => el.textContent?.trim());
-      expect(texts).toContain('Segon/Segona');
+      expect(texts).toContain('Segon');
     });
 
     it('does not show position-type-label in editor mode', () => {
@@ -771,6 +709,15 @@ describe('TroncViewComponent', () => {
       const labels = fixture.nativeElement.querySelectorAll('.position-type-label');
       expect(labels.length).toBe(0);
     });
+  });
+
+  // ── Unassign ──────────────────────────────────────────────────────────
+
+  it('nodeUnassigned emits node id', () => {
+    const emitted: string[] = [];
+    fixture.componentRef.instance.nodeUnassigned.subscribe((id: string) => emitted.push(id));
+    component.onUnassignNode('node-42');
+    expect(emitted).toEqual(['node-42']);
   });
 
   // ── Projection mode ───────────────────────────────────────────────────────

@@ -7,7 +7,6 @@ import {
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
 import { AssignmentDetail, AttendanceStatus, HeightMode } from '../../models/assignment.model';
 import { floorVariance, varianceLevel, VarianceLevel } from '../../utils/floor-variance.util';
@@ -39,21 +38,34 @@ interface TroncFloor {
   isBase: boolean;
 }
 
-export interface PositionOption {
-  slug: string;
-  name: string;
-  color: string | null;
-}
-
 const HEIGHT_BASELINE = 140;
 
 const MAX_TRONC_Z = 5;
+
+/** Conventional floor defaults per z-level (1-based above base). */
+const TRONC_Z_DEFAULTS: Record<number, { label: string; positionType: string }> = {
+  1: { label: 'Segones', positionType: 'segones' },
+  2: { label: 'Terçes', positionType: 'terceres' },
+  3: { label: 'Quartes', positionType: 'quartes' },
+  4: { label: 'Quintes', positionType: 'quintes' },
+  5: { label: 'Sisenes', positionType: 'sisenes' },
+};
+
+/** Palette for tronc z-level color coding. */
+const Z_LEVEL_COLORS: Record<number, string> = {
+  0: '#607D8B',
+  1: '#1E88E5',
+  2: '#43A047',
+  3: '#FB8C00',
+  4: '#8E24AA',
+  5: '#E53935',
+};
 
 @Component({
   selector: 'app-tronc-view',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink, LucideAngularModule],
+  imports: [FormsModule, LucideAngularModule],
   templateUrl: './tronc-view.component.html',
   styleUrl: './tronc-view.component.scss',
 })
@@ -66,7 +78,6 @@ export class TroncViewComponent {
   /** BASE-zone nodes (z=0, intersection with pinya). Positioned by sortOrder index in tronc view. */
   readonly baseNodes = input<TroncNodeItem[]>([]);
 
-  readonly troncPositions = input<PositionOption[]>([]);
   readonly assignments = input<AssignmentDetail[]>([]);
   readonly selectedNodeId = input<string | null>(null);
   readonly mode = input<'editor' | 'assignment' | 'projection'>('assignment');
@@ -101,6 +112,9 @@ export class TroncViewComponent {
 
   /** Editor only: delete all TRONC nodes at a given z-level. */
   readonly floorRemoved = output<number>();
+
+  /** Assignment mode: request unassignment for a node id. */
+  readonly nodeUnassigned = output<string>();
 
   // ── Local state ────────────────────────────────────────────────────────────
 
@@ -246,30 +260,25 @@ export class TroncViewComponent {
     this.nodeRemoved.emit(node.id);
   }
 
-  onPositionTypeChange(node: TroncNodeItem, slug: string): void {
-    const pos = this.troncPositions().find((p) => p.slug === slug);
-    if (!pos) return;
+  onLabelChange(node: TroncNodeItem, label: string): void {
+    if (!label.trim()) return;
     this.nodeUpdated.emit({
       nodeId: node.id,
       x: node.x,
       width: node.width,
-      positionType: pos.slug,
-      label: pos.name,
+      label: label.trim(),
     });
   }
 
   onAddFloor(): void {
     if (!this.canAddFloor()) return;
     const nextZ = this.maxExistingZ() + 1;
-    const positions = this.troncPositions();
-    const defaultPos = positions.length > 0
-      ? positions[0]
-      : { slug: 'tronc', name: 'Tronc' };
+    const defaults = TRONC_Z_DEFAULTS[nextZ] ?? { label: `Pis ${nextZ + 1}`, positionType: 'tronc' };
 
     this.nodeAdded.emit({
       z: nextZ,
-      positionType: defaultPos.slug,
-      label: defaultPos.name,
+      positionType: defaults.positionType,
+      label: defaults.label,
       sortOrder: 0,
     });
   }
@@ -285,12 +294,9 @@ export class TroncViewComponent {
 
   onAddNodeToFloor(floor: TroncFloor): void {
     const lastNode = floor.nodes[floor.nodes.length - 1];
-    const positions = this.troncPositions();
-    const inherited = lastNode
-      ? positions.find((p) => p.slug === lastNode.positionType)
-      : positions[0];
-    const positionType = inherited?.slug ?? lastNode?.positionType ?? 'tronc';
-    const label = inherited?.name ?? lastNode?.label ?? 'Tronc';
+    const defaults = TRONC_Z_DEFAULTS[floor.z] ?? { label: `Pis ${floor.z + 1}`, positionType: 'tronc' };
+    const positionType = lastNode?.positionType ?? defaults.positionType;
+    const label = lastNode?.label ?? defaults.label;
 
     this.nodeAdded.emit({
       z: floor.z,
@@ -381,10 +387,12 @@ export class TroncViewComponent {
     return `${p.assigned}/${p.total}`;
   }
 
-  getPositionColor(node: TroncNodeItem): string | null {
-    if (!node.positionType) return null;
-    const match = this.troncPositions().find((p) => p.slug === node.positionType);
-    return match?.color ?? null;
+  getZLevelColor(z: number): string {
+    return Z_LEVEL_COLORS[z] ?? '#78909C';
+  }
+
+  onUnassignNode(nodeId: string): void {
+    this.nodeUnassigned.emit(nodeId);
   }
 
   getNodeAriaLabel(node: TroncNodeItem): string {
@@ -423,18 +431,17 @@ export class TroncViewComponent {
   private getDominantPositionType(nodes: TroncNodeItem[]): string {
     const counts = new Map<string, number>();
     for (const node of nodes) {
-      const pt = node.positionType ?? 'desconegut';
-      counts.set(pt, (counts.get(pt) ?? 0) + 1);
+      const label = node.label || node.positionType || 'desconegut';
+      counts.set(label, (counts.get(label) ?? 0) + 1);
     }
-    let dominantSlug = 'desconegut';
+    let dominant = 'desconegut';
     let maxCount = 0;
-    for (const [type, count] of counts) {
+    for (const [label, count] of counts) {
       if (count > maxCount) {
         maxCount = count;
-        dominantSlug = type;
+        dominant = label;
       }
     }
-    const match = this.troncPositions().find((p) => p.slug === dominantSlug);
-    return match?.name ?? dominantSlug;
+    return dominant;
   }
 }

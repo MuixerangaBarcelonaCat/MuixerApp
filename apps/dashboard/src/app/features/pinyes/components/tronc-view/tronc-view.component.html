@@ -50,71 +50,95 @@
         >
           @if (floor.isBase) {
             @for (node of floor.nodes; track node.id; let i = $index) {
-              <button
-                type="button"
-                class="tronc-node"
-                [class.selected]="isSelected(node.id)"
-                [class.assigned]="isAssigned(node.id)"
-                [class.highlighted]="isHighlighted(node.id)"
-                [class.position-colored]="mode() === 'assignment' && getPositionColor(node)"
-                [style.border-left-color]="mode() === 'assignment' ? getPositionColor(node) : null"
-                [style.grid-column]="getBaseNodeGridColumn(i)"
-                (click)="onNodeClick(node, $event)"
-                [attr.aria-label]="getNodeAriaLabel(node)"
-                [attr.aria-pressed]="isSelected(node.id)"
-              >
-                @if (getAssignment(node.id); as assignment) {
-                  @if (mode() !== 'projection') {
-                    <span class="height-badge" aria-hidden="true">
-                      {{ getHeightDisplay(assignment.person.shoulderHeight) }}
-                    </span>
+              <div class="tronc-node-wrapper" [style.grid-column]="getBaseNodeGridColumn(i)">
+                <button
+                  type="button"
+                  class="tronc-node"
+                  [class.selected]="isSelected(node.id)"
+                  [class.assigned]="isAssigned(node.id)"
+                  [class.highlighted]="isHighlighted(node.id)"
+                  [class.z-colored]="mode() === 'assignment'"
+                  [style.border-left-color]="mode() === 'assignment' ? getZLevelColor(node.z) : null"
+                  (click)="onNodeClick(node, $event)"
+                  [attr.aria-label]="getNodeAriaLabel(node)"
+                  [attr.aria-pressed]="isSelected(node.id)"
+                >
+                  @if (getAssignment(node.id); as assignment) {
+                    @if (mode() !== 'projection') {
+                      <span class="height-badge" aria-hidden="true">
+                        {{ getHeightDisplay(assignment.person.shoulderHeight) }}
+                      </span>
+                    }
+                    <span class="person-alias" [class.text-base]="mode() === 'projection'">{{ assignment.person.alias }}</span>
+                    @if (mode() !== 'projection') {
+                      <span
+                        class="attendance-dot"
+                        [style.background-color]="getAttendanceColor(assignment)"
+                        aria-hidden="true"
+                      ></span>
+                    }
+                  } @else {
+                    <span class="node-label">{{ node.label }}</span>
                   }
-                  <span class="person-alias" [class.text-base]="mode() === 'projection'">{{ assignment.person.alias }}</span>
-                  @if (mode() !== 'projection') {
-                    <span
-                      class="attendance-dot"
-                      [style.background-color]="getAttendanceColor(assignment)"
-                      aria-hidden="true"
-                    ></span>
-                  }
-                } @else {
-                  <span class="node-label">{{ node.label }}</span>
+                </button>
+                @if (mode() === 'assignment' && isAssigned(node.id) && isSelected(node.id)) {
+                  <button
+                    type="button"
+                    class="unassign-btn"
+                    (click)="onUnassignNode(node.id); $event.stopPropagation()"
+                    aria-label="Desassignar"
+                    title="Desassignar"
+                  >
+                    <lucide-icon name="X" [size]="10" aria-hidden="true" />
+                  </button>
                 }
-              </button>
+              </div>
             }
           } @else {
             @for (node of floor.nodes; track node.id) {
-              <button
-                type="button"
-                class="tronc-node"
-                [class.selected]="isSelected(node.id)"
-                [class.assigned]="isAssigned(node.id)"
-                [class.highlighted]="isHighlighted(node.id)"
-                [class.position-colored]="mode() === 'assignment' && getPositionColor(node)"
-                [style.border-left-color]="mode() === 'assignment' ? getPositionColor(node) : null"
-                [style.grid-column]="getTroncNodeGridColumn(node)"
-                (click)="onNodeClick(node, $event)"
-                [attr.aria-label]="getNodeAriaLabel(node)"
-                [attr.aria-pressed]="isSelected(node.id)"
-              >
-                @if (getAssignment(node.id); as assignment) {
-                  @if (mode() !== 'projection') {
-                    <span class="height-badge" aria-hidden="true">
-                      {{ getHeightDisplay(assignment.person.shoulderHeight) }}
-                    </span>
+              <div class="tronc-node-wrapper" [style.grid-column]="getTroncNodeGridColumn(node)">
+                <button
+                  type="button"
+                  class="tronc-node"
+                  [class.selected]="isSelected(node.id)"
+                  [class.assigned]="isAssigned(node.id)"
+                  [class.highlighted]="isHighlighted(node.id)"
+                  [class.z-colored]="mode() === 'assignment'"
+                  [style.border-left-color]="mode() === 'assignment' ? getZLevelColor(node.z) : null"
+                  (click)="onNodeClick(node, $event)"
+                  [attr.aria-label]="getNodeAriaLabel(node)"
+                  [attr.aria-pressed]="isSelected(node.id)"
+                >
+                  @if (getAssignment(node.id); as assignment) {
+                    @if (mode() !== 'projection') {
+                      <span class="height-badge" aria-hidden="true">
+                        {{ getHeightDisplay(assignment.person.shoulderHeight) }}
+                      </span>
+                    }
+                    <span class="person-alias" [class.text-base]="mode() === 'projection'">{{ assignment.person.alias }}</span>
+                    @if (mode() !== 'projection') {
+                      <span
+                        class="attendance-dot"
+                        [style.background-color]="getAttendanceColor(assignment)"
+                        aria-hidden="true"
+                      ></span>
+                    }
+                  } @else {
+                    <span class="node-label">{{ node.label }}</span>
                   }
-                  <span class="person-alias" [class.text-base]="mode() === 'projection'">{{ assignment.person.alias }}</span>
-                  @if (mode() !== 'projection') {
-                    <span
-                      class="attendance-dot"
-                      [style.background-color]="getAttendanceColor(assignment)"
-                      aria-hidden="true"
-                    ></span>
-                  }
-                } @else {
-                  <span class="node-label">{{ node.label }}</span>
+                </button>
+                @if (mode() === 'assignment' && isAssigned(node.id) && isSelected(node.id)) {
+                  <button
+                    type="button"
+                    class="unassign-btn"
+                    (click)="onUnassignNode(node.id); $event.stopPropagation()"
+                    aria-label="Desassignar"
+                    title="Desassignar"
+                  >
+                    <lucide-icon name="X" [size]="10" aria-hidden="true" />
+                  </button>
                 }
-              </button>
+              </div>
             }
           }
 
@@ -173,29 +197,20 @@
         <div class="selected-node-controls">
           <p class="controls-label">Node: <strong>{{ node.label }}</strong></p>
 
-          <!-- Position type selector -->
+          <!-- Node label (free text) -->
           <div class="form-control">
-            <label class="label py-0" [for]="'tronc-pos-' + node.id">
-              <span class="label-text text-xs">Posició</span>
+            <label class="label py-0" [for]="'tronc-label-' + node.id">
+              <span class="label-text text-xs">Etiqueta</span>
             </label>
-            @if (troncPositions().length > 0) {
-              <select
-                [id]="'tronc-pos-' + node.id"
-                class="select select-bordered select-xs"
-                [ngModel]="node.positionType"
-                (ngModelChange)="onPositionTypeChange(node, $event)"
-                aria-label="Tipus de posició"
-              >
-                @for (pos of troncPositions(); track pos.slug) {
-                  <option [value]="pos.slug">{{ pos.name }}</option>
-                }
-              </select>
-            } @else {
-              <p class="text-xs text-warning italic mt-1">
-                Cap posició de tronc configurada.
-                <a routerLink="/config/tags" class="link link-primary">Ves a Configuració</a>
-              </p>
-            }
+            <input
+              type="text"
+              [id]="'tronc-label-' + node.id"
+              class="input input-bordered input-xs"
+              [ngModel]="node.label"
+              (ngModelChange)="onLabelChange(node, $event)"
+              aria-label="Etiqueta del node"
+              maxlength="30"
+            />
           </div>
 
           <!-- Stepper controls for x / width -->

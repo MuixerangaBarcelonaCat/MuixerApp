@@ -17,8 +17,7 @@ import { generateUUID } from '../../../../shared/utils/uuid.util';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { CanvasStateService } from '../../services/canvas-state.service';
 import { FigureCanvasComponent, CanvasNode } from '../figure-canvas/figure-canvas.component';
-import { TroncViewComponent, PositionOption } from '../tronc-view/tronc-view.component';
-import { PositionService } from '../../../config/services/position.service';
+import { TroncViewComponent } from '../tronc-view/tronc-view.component';
 import { TemplateEditorHelpModalComponent } from '../template-editor-help-modal/template-editor-help-modal.component';
 import {
   FigureTemplateDetail,
@@ -87,8 +86,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly layout = inject(LayoutService);
   private readonly toast = inject(ToastService);
-  private readonly positionService = inject(PositionService);
-
   readonly helpModal = viewChild.required(TemplateEditorHelpModalComponent);
   readonly figureCanvas = viewChild(FigureCanvasComponent);
 
@@ -98,7 +95,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   templateSlug = signal('');
   templateDescription = signal('');
   hasPinya = signal(true);
-  troncPositions = signal<PositionOption[]>([]);
 
   // Nodes
   nodes = signal<FigureNodeItem[]>([]);
@@ -214,7 +210,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.layout.requestFullscreen();
-    this.loadTroncPositions();
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       this.templateId.set(id);
@@ -966,16 +961,8 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     });
   }
 
-  private loadTroncPositions(): void {
-    this.positionService.getAll().subscribe((positions) => {
-      this.troncPositions.set(
-        positions
-          .filter((p) => p.zone === FigureZone.TRONC)
-          .map((p) => ({ slug: p.slug, name: p.name, color: p.color }))
-          .sort((a, b) => a.slug.localeCompare(b.slug)),
-      );
-    });
-  }
+  // TRONC positions are now derived from z-level defaults in TroncViewComponent.
+  // No longer loaded from the Position catalog.
 
   private updateNode(id: string, patch: Partial<FigureNodeItem>): void {
     this.nodes.update((nodes) =>

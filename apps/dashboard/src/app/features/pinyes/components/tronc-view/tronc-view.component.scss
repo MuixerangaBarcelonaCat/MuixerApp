@@ -85,9 +85,17 @@
   align-items: stretch;
 }
 
+// ── Node wrapper (for unassign overlay) ───────────────────────────────────────
+
+.tronc-node-wrapper {
+  position: relative;
+  display: flex;
+}
+
 // ── Tronc node button ─────────────────────────────────────────────────────────
 
 .tronc-node {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -129,7 +137,7 @@
     background: oklch(var(--a) / 0.08);
   }
 
-  &.position-colored {
+  &.z-colored {
     border-left-width: 3px;
     border-left-style: solid;
   }
@@ -177,6 +185,38 @@
   height: 6px;
   border-radius: 50%;
   flex-shrink: 0;
+}
+
+// ── Unassign button overlay ───────────────────────────────────────────────────
+
+.unassign-btn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  border: none;
+  background: oklch(var(--er));
+  color: oklch(var(--erc));
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.1s, opacity 0.1s;
+  opacity: 0.9;
+
+  &:hover {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+
+  &:focus-visible {
+    outline: 2px solid oklch(var(--er));
+    outline-offset: 1px;
+  }
 }
 
 // ── Inline add-node button in floor grid ──────────────────────────────────────
