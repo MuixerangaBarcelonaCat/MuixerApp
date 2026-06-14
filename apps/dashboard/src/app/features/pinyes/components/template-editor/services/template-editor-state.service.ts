@@ -396,11 +396,11 @@ export class TemplateEditorStateService {
     if (err.status === 409 && (msgLower.includes('instànci') || msgLower.includes('composici'))) {
       this.toast.error(msg || "No es pot esborrar: hi ha instàncies o composicions que fan servir aquesta figura.");
     } else if (err.status === 409 && msgLower.includes('name')) {
-      this.toast.error('Ja existeix una altra figura amb aquest nom. Tria un nom diferent.');
+      this.toast.error('Ja existeix una altra figura amb aquest nom. Trieu un nom diferent.');
     } else if (err.status === 409) {
-      this.toast.error(msg || 'Conflicte en desar la figura. Prova a canviar el nom.');
+      this.toast.error(msg || 'Conflicte en desar la figura. Proveu a canviar el nom.');
     } else {
-      this.toast.error("No s'ha pogut desar la figura. Torna-ho a intentar.");
+      this.toast.error("No s'ha pogut desar la figura. Torneu-ho a intentar.");
     }
   }
 

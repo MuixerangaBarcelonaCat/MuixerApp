@@ -33,7 +33,7 @@
         <span class="text-xs text-error">{{ saveError() }}</span>
       }
       @if (saveSuccess() && !editing()) {
-        <span class="text-xs text-success">Desat correctament</span>
+        <span class="text-xs text-success">Alçat correctament</span>
       }
 
       @if (person() && !editing()) {
@@ -76,7 +76,7 @@
           @if (saving()) {
             <span class="loading loading-spinner loading-xs"></span>
           } @else {
-            {{ isNew() ? 'Crear' : 'Desar' }}
+            {{ isNew() ? 'Crea' : 'Alça' }}
           }
         </button>
       }
