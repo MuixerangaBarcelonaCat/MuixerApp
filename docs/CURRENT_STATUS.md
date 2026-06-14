@@ -60,7 +60,7 @@ Per a l'estat fase a fase amb enllaços als specs, vegeu la taula `Estat General
 
 | | Estat | |
 |--|-------|--|
-| PWA | 🔲 Scaffold buit | Pendent (P6) — reutilitzarà l'AuthModule de P4.1 |
+| PWA | 🟡 Spec aprovada | P6.0–P6.9 dissenyat. Spec: [pwa/PWA_SPEC.md](pwa/PWA_SPEC.md) · Roadmap: [pwa/PWA_ROADMAP.md](pwa/PWA_ROADMAP.md) |
 
 ---
 
@@ -68,8 +68,7 @@ Per a l'estat fase a fase amb enllaços als specs, vegeu la taula `Estat General
 
 - **P5.3.1** — Revisió UX dels segments (tab dedicat "Pinyes" a event-detail, preview canvas).
 - **Q1** — E2E tests amb Playwright per als fluxos crítics (login → event → assignació → projecció).
-- **P6.1** — PWA mòbil: auth + visualització events + confirmar assistència + veure pinyes readonly.
-- **P6.2** — PWA: notificacions push (FCM/Web Push).
+- **P6.0–P6.9** — PWA mòbil: 10 fases (shell → auth → attendance → detail → family → canvas → profile → TECHNICAL → magic-link → push). Detall: [pwa/PWA_ROADMAP.md](pwa/PWA_ROADMAP.md).
 - **P8** — Dashboard d'estadístiques (assistència per persona/temporada, participació en figures).
 
 > Vegeu la secció "Pròxims Desenvolupaments" del [roadmap](PROJECT_ROADMAP.md) per al detall complet.

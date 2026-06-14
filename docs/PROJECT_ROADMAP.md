@@ -42,7 +42,7 @@
 | R3 | **Refactor** — Simplificació de Rengles i templates | ✅ Completat | — | — | ✅ | Auto-nom/slug, creació de rengles sense formulari, eliminació `startPosition`, desassignació al reduir cordons. Migració `1781300000000`. Detall: [PINYES_REFACTOR_TRACKING.md](PINYES_REFACTOR_TRACKING.md) |
 | I1 | **Infra** — Entorn PRE (Hetzner VPS) | ✅ Completat | — | — | ✅ | Caddy reverse proxy, Docker Compose pre, scripts deploy, cookie secure condicional |
 | I2 | **Infra** — Migració a pnpm | ✅ Completat | — | — | ✅ | pnpm workspace, lockfile, CI adaptat |
-| P6 | PWA Mòbil | ⚪ Pendent | — | — | — | Diferit fins al tall. Estén l'auth de P4.1 als membres |
+| P6 | **PWA Mòbil** (P6.0–P6.9) | 🟡 Dissenyant | [`spec`](pwa/PWA_SPEC.md) | — | — | 10 fases: shell → auth → attendance → detail → family → canvas → profile → TECHNICAL → magic-link → push. Detall: [PWA_ROADMAP.md](pwa/PWA_ROADMAP.md) |
 | P7 | Informes + Notificacions + Features avançades | ⚪ Pendent | — | — | — | Reports d'assistència, FCM, estadístiques, notícies |
 
 **Llegenda:** ⚪ Pendent | 🟡 Dissenyant | 🔵 En curs | ✅ Completat | ❌ Cancel·lat
@@ -69,8 +69,7 @@
 
 | ID | Proposta | Esforç | Impacte | Justificació |
 |----|----------|--------|---------|--------------|
-| P6.1 | **PWA — Auth + Visualització** — Login membre, veure events propis, confirmar assistència, veure pinyes (readonly) | L | Molt alt | Desbloqueig per a tots els membres de la colla. Prerequisit: res (reutilitza AuthModule P4.1) |
-| P6.2 | **PWA — Notificacions push** — FCM/Web Push per a convocatòries i recordatoris | M | Alt | Complementa P6.1 — sense push la PWA perd adopció |
+| P6.0–P6.9 | **PWA Mòbil** — 10 fases (shell → auth → attendance → detail → family → canvas → profile → TECHNICAL → magic-link → push) | L-XL | Molt alt | Desbloqueig per a ~40 membres. Detall: [PWA_ROADMAP.md](pwa/PWA_ROADMAP.md) |
 | P8 | **Dashboard d'Estadístiques** — Assistència per persona/temporada, ranking, participació en figures, gràfics | M | Alt | Dades ja disponibles. Valor per a junta i tècnics |
 
 ### Llarg termini (Q4 2026+)
@@ -103,7 +102,7 @@ P0 (Scaffold)
                                                  ├── P5.3.1 (UX Segments) ← pendent
                                                  ├── P5.13 (Editor Templates v2)
                                                  ├── Q1 (E2E tests) ← recomanat abans P6
-                                                 └── P6 (PWA Mòbil: P6.1 Auth+View → P6.2 Push)
+                                                 └── P6 (PWA Mòbil: P6.0→P6.9, detall a pwa/PWA_ROADMAP.md)
                                                      ├── P8 (Dashboard Estadístiques)
                                                      └── P9 (Multi-tenant) ← estratègic
 
@@ -111,8 +110,9 @@ Decisions clau d'ordre:
   - P5 complet (P5.1→P5.12 + R3): mòdul operatiu de punta a punta amb tècnics
   - P5.3.1 immediat: UX polish necessari abans d'obrir als membres
   - Q1 (E2E) abans P6: xarxa de seguretat contra regressions multi-pàgina
-  - P6 diferit: membres seguiran usant el legacy fins al tall oficial
+  - P6 10 fases independents: Alpha 1 (P6.0-P6.2) és el tall mínim testable
   - P6 reutilitza l'AuthModule de P4.1 sense reimplementar-lo
+  - P6 detall complet: pwa/PWA_ROADMAP.md i pwa/PWA_SPEC.md
   - P9 (multi-tenant) requereix P6 estable i validació amb 1a colla
 ```
 
@@ -149,6 +149,7 @@ El roadmap no duplica el detall tècnic. Cada tema té un doc autoritzat:
 | Tema | Document |
 |------|----------|
 | Mòdul Pinyes (P5.x) — domini, model, cicle de vida, API, frontend | [PINYES_MODULE.md](PINYES_MODULE.md) |
+| PWA Mòbil (P6.x) — spec, roadmap, arquitectura | [pwa/PWA_SPEC.md](pwa/PWA_SPEC.md) · [pwa/PWA_ROADMAP.md](pwa/PWA_ROADMAP.md) |
 | Refactors Pinyes (R1–R3) — auditoria i seguiment | [PINYES_REFACTOR_TRACKING.md](PINYES_REFACTOR_TRACKING.md) |
 | Nodes Ad-Hoc (P5.12) — spec general, 5 fases | [`spec`](specs/2026-06-10-ad-hoc-instance-nodes-design.md) · [`plans/`](specs/plans/) |
 | Dashboard UI — design system, components shared, patterns (P4.3) | [DASHBOARD_UI.md](DASHBOARD_UI.md) |
