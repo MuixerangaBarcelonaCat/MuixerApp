@@ -73,7 +73,7 @@
         @for (panel of openTroncPanels(); track panel.instanceId) {
           @if (getPanelInstance(panel.instanceId); as inst) {
             <aside
-              class="fixed rounded-xl shadow-2xl flex flex-col overflow-hidden"
+              class="fixed tronc-panel-projection"
               [style.top.px]="panel.y"
               [style.left.px]="panel.x"
               [style.width.px]="panel.width"
@@ -86,7 +86,7 @@
               (mousedown)="bringPanelToFront(panel.instanceId)"
             >
               <div
-                class="flex items-center justify-between px-4 py-2 border-b border-white/10 cursor-move select-none flex-shrink-0"
+                class="tronc-panel-projection-header"
                 (mousedown)="onPanelDragStart($event, panel.instanceId)"
               >
                 <span class="text-sm font-semibold text-white truncate">

@@ -676,6 +676,12 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     }
   }
 
+  onTroncNodeUnassigned(nodeId: string): void {
+    const assignment = this.state.assignments().find((a) => a.node.id === nodeId);
+    if (!assignment) return;
+    this.onUnassign(assignment);
+  }
+
   onPersonSelected(person: AvailablePerson): void {
     if (this.isLocked()) return;
     const selectedNodeId = this.state.selectedNodeId();

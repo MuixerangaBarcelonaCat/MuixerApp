@@ -58,6 +58,7 @@ interface ResizeState {
     TroncViewComponent,
   ],
   templateUrl: './projection-view.component.html',
+  styleUrl: './projection-view.component.scss',
 })
 export class ProjectionViewComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);

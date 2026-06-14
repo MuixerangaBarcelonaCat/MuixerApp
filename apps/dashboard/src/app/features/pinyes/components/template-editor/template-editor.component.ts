@@ -86,7 +86,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly layout = inject(LayoutService);
   private readonly toast = inject(ToastService);
-
   readonly helpModal = viewChild.required(TemplateEditorHelpModalComponent);
   readonly figureCanvas = viewChild(FigureCanvasComponent);
 
@@ -312,13 +311,12 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     this.scheduleAutosave();
   }
 
-  onTroncNodeUpdated(event: {
-    nodeId: string;
-    x: number;
-    width: number;
-  }): void {
+  onTroncNodeUpdated(event: { nodeId: string; x: number; width: number; positionType?: string; label?: string }): void {
     this.pushSnapshot('Modificar node de tronc');
-    this.updateNode(event.nodeId, { x: event.x, width: event.width });
+    const patch: Partial<FigureNodeItem> = { x: event.x, width: event.width };
+    if (event.positionType !== undefined) patch.positionType = event.positionType;
+    if (event.label !== undefined) patch.label = event.label;
+    this.updateNode(event.nodeId, patch);
     this.scheduleAutosave();
   }
 
@@ -962,6 +960,9 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
       },
     });
   }
+
+  // TRONC positions are now derived from z-level defaults in TroncViewComponent.
+  // No longer loaded from the Position catalog.
 
   private updateNode(id: string, patch: Partial<FigureNodeItem>): void {
     this.nodes.update((nodes) =>
