@@ -50,13 +50,13 @@ describe('ghost-clone.util', () => {
       const node = makeNode({ x: 200, y: 200, width: 80, rotation: 0 });
       const result = calculateGhostPosition(node);
       expect(result.x).toBe(200);
-      expect(result.y).toBe(200 - (40 + 3));
+      expect(result.y).toBe(200 - 40);
     });
 
     it('places ghost to the right (east) for rotation=90', () => {
       const node = makeNode({ x: 200, y: 200, width: 80, rotation: 90 });
       const result = calculateGhostPosition(node);
-      expect(result.x).toBe(200 + (40 + 3));
+      expect(result.x).toBe(200 + 40);
       expect(result.y).toBe(200);
     });
 
@@ -64,13 +64,13 @@ describe('ghost-clone.util', () => {
       const node = makeNode({ x: 200, y: 200, width: 80, rotation: 180 });
       const result = calculateGhostPosition(node);
       expect(result.x).toBe(200);
-      expect(result.y).toBe(200 + (40 + 3));
+      expect(result.y).toBe(200 + 40);
     });
 
     it('places ghost to the left (west) for rotation=270', () => {
       const node = makeNode({ x: 200, y: 200, width: 80, rotation: 270 });
       const result = calculateGhostPosition(node);
-      expect(result.x).toBe(200 - (40 + 3));
+      expect(result.x).toBe(200 - 40);
       expect(result.y).toBe(200);
     });
 
@@ -88,10 +88,10 @@ describe('ghost-clone.util', () => {
       expect(result.y).toBeLessThan(200);
     });
 
-    it('uses height + default gap (3) for offset distance', () => {
+    it('uses height + default gap (0) for offset distance', () => {
       const node = makeNode({ x: 100, y: 100, width: 60, height: 50, rotation: 0 });
       const result = calculateGhostPosition(node);
-      expect(result.y).toBe(100 - 53);
+      expect(result.y).toBe(100 - 50);
     });
 
     it('respects custom gap', () => {
@@ -116,37 +116,37 @@ describe('ghost-clone.util', () => {
   describe('isGhostEligible', () => {
     it('returns true for PINYA mans', () => {
       expect(
-        isGhostEligible({ zone: FigureZone.PINYA, positionType: 'mans' }),
+        isGhostEligible({ zone: FigureZone.PINYA, positionType: 'mans', renglaPosition: null }, 0),
       ).toBe(true);
     });
 
     it('returns true for PINYA vents', () => {
       expect(
-        isGhostEligible({ zone: FigureZone.PINYA, positionType: 'vents' }),
+        isGhostEligible({ zone: FigureZone.PINYA, positionType: 'vents', renglaPosition: null }, 0),
       ).toBe(true);
     });
 
     it('returns true for PINYA laterals', () => {
       expect(
-        isGhostEligible({ zone: FigureZone.PINYA, positionType: 'laterals' }),
+        isGhostEligible({ zone: FigureZone.PINYA, positionType: 'laterals', renglaPosition: null}, 0),
       ).toBe(true);
     });
 
     it('returns true for PINYA with null positionType', () => {
       expect(
-        isGhostEligible({ zone: FigureZone.PINYA, positionType: null }),
+        isGhostEligible({ zone: FigureZone.PINYA, positionType: null, renglaPosition: null }, 0),
       ).toBe(true);
     });
 
     it('returns false for agulla', () => {
       expect(
-        isGhostEligible({ zone: FigureZone.PINYA, positionType: 'agulla' }),
+        isGhostEligible({ zone: FigureZone.PINYA, positionType: 'agulla', renglaPosition: null}, 0),
       ).toBe(false);
     });
 
     it('returns false for crossa', () => {
       expect(
-        isGhostEligible({ zone: FigureZone.PINYA, positionType: 'crossa' }),
+        isGhostEligible({ zone: FigureZone.PINYA, positionType: 'crossa', renglaPosition: null }, 0),
       ).toBe(false);
     });
 
@@ -155,13 +155,14 @@ describe('ghost-clone.util', () => {
         isGhostEligible({
           zone: FigureZone.PINYA,
           positionType: 'contrafort',
-        }),
+          renglaPosition: null
+        }, 0),
       ).toBe(false);
     });
 
     it('returns true for tap', () => {
       expect(
-        isGhostEligible({ zone: FigureZone.PINYA, positionType: 'tap' }),
+        isGhostEligible({ zone: FigureZone.PINYA, positionType: 'tap', renglaPosition: null }, 0),
       ).toBe(true);
     });
 
@@ -170,19 +171,20 @@ describe('ghost-clone.util', () => {
         isGhostEligible({
           zone: FigureZone.PINYA,
           positionType: 'cordo-obert',
-        }),
+          renglaPosition: null
+        }, 0),
       ).toBe(false);
     });
 
     it('returns false for TRONC zone', () => {
       expect(
-        isGhostEligible({ zone: FigureZone.TRONC, positionType: 'mans' }),
+        isGhostEligible({ zone: FigureZone.TRONC, positionType: 'mans', renglaPosition: null }, 0),
       ).toBe(false);
     });
 
     it('returns false for BASE zone', () => {
       expect(
-        isGhostEligible({ zone: FigureZone.BASE, positionType: null }),
+        isGhostEligible({ zone: FigureZone.BASE, positionType: null, renglaPosition: null }, 0),
       ).toBe(false);
     });
 
@@ -191,7 +193,23 @@ describe('ghost-clone.util', () => {
         isGhostEligible({
           zone: FigureZone.FIGURE_DIRECTION,
           positionType: null,
-        }),
+          renglaPosition: null
+        }, 0),
+      ).toBe(false);
+    });
+
+    it('returns true only for the last node of the rengla', () => {
+      expect(
+        isGhostEligible({ zone: FigureZone.PINYA, positionType: 'mans', renglaPosition: 1 }, 3),
+      ).toBe(false);
+      expect(
+        isGhostEligible({ zone: FigureZone.PINYA, positionType: 'mans', renglaPosition: 2 }, 3),
+      ).toBe(false);
+      expect(
+        isGhostEligible({ zone: FigureZone.PINYA, positionType: 'mans', renglaPosition: 3 }, 3),
+      ).toBe(true);
+      expect(
+        isGhostEligible({ zone: FigureZone.PINYA, positionType: 'mans', renglaPosition: 4 }, 3),
       ).toBe(false);
     });
   });

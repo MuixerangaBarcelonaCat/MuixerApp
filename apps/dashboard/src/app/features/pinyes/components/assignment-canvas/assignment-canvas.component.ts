@@ -437,8 +437,10 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
     this.tabs.set(tabBuilders);
 
-    if (tabBuilders.length > 0) {
-      this.selectTab(tabBuilders[0].instanceId);
+    const instanceId = this.route.snapshot.params['instanceId'] ?? null;
+    const targetId = instanceId ?? tabBuilders[0]?.instanceId;
+    if (targetId) {
+      this.selectTab(targetId);
     }
   }
 
