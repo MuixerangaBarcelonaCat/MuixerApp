@@ -18,6 +18,7 @@ import { FigureTemplateService } from './figure-template.service';
 import { CreateFigureTemplateDto } from './dto/create-figure-template.dto';
 import { UpdateFigureTemplateDto } from './dto/update-figure-template.dto';
 import { FigureTemplateFilterDto } from './dto/figure-template-filter.dto';
+import { SaveFromInstanceDto } from './dto/save-from-instance.dto';
 
 @ApiTags('figure-templates')
 @ApiBearerAuth()
@@ -72,5 +73,22 @@ export class FigureTemplateController {
   @Post(':id/duplicate')
   duplicate(@Param('id', ParseUUIDPipe) id: string) {
     return this.figureTemplateService.duplicate(id);
+  }
+
+  @ApiOperation({ summary: 'Save instance layout back to template (overwrite or new version)' })
+  @Post(':id/save-from-instance')
+  saveFromInstance(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SaveFromInstanceDto,
+  ) {
+    return this.figureTemplateService.saveFromInstance(id, dto);
+  }
+
+  @ApiOperation({ summary: 'Suggest next version name for a template' })
+  @Get(':id/suggest-version-name')
+  async suggestVersionName(@Param('id', ParseUUIDPipe) id: string) {
+    const template = await this.figureTemplateService.findOne(id);
+    const suggestedName = await this.figureTemplateService.suggestVersionName(template.name);
+    return { suggestedName };
   }
 }

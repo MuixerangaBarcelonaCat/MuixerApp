@@ -79,6 +79,7 @@ export interface BulkImportConflict {
 export interface BulkImportResult {
   created: AssignmentDetail[];
   conflicts: BulkImportConflict[];
+  clonedAdHocNodes: number;
 }
 
 export interface CreateAssignmentPayload {
@@ -102,7 +103,7 @@ export interface AvailablePersonsQuery {
 /** Tracks an optimistic UI operation that has been applied locally but not yet confirmed by the server */
 export interface PendingOp {
   id: string;
-  type: 'assign' | 'unassign';
+  type: 'assign' | 'unassign' | 'create-adhoc' | 'delete-adhoc' | 'update-adhoc';
   instanceId: string;
   nodeId: string;
   personId: string | null;
@@ -130,6 +131,32 @@ export interface InstanceNodeItem {
   renglaPosition: number | null;
   sourceNodeId: string | null;
   isSnapshotted: boolean;
+  isAdHoc: boolean;
+  createdById: string | null;
+}
+
+export interface CreateAdHocNodePayload {
+  zone: string;
+  positionType?: string;
+  label: string;
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  rotation?: number;
+  shape?: string;
+  color?: string;
+}
+
+export interface UpdateAdHocNodePayload {
+  label?: string;
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  rotation?: number;
+  color?: string | null;
+  shape?: string;
 }
 
 export interface UpdateInstanceCordonsPayload {
@@ -140,6 +167,7 @@ export interface UpdateInstanceCordonsPayload {
 export interface CordonsResponse {
   numberOfCordons: number | null;
   openCordons: string[] | null;
+  removedAssignments: number;
 }
 
 export interface SwapAssignmentsPayload {

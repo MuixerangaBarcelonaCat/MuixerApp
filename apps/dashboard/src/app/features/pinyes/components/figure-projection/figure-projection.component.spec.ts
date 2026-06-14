@@ -60,6 +60,7 @@ const makeInstance = (overrides: Partial<ProjectionInstance> = {}): ProjectionIn
       ringLevel: null, originNodeId: null,
       renglaId: null, renglaPosition: null,
       sourceNodeId: null, isSnapshotted: false,
+      isAdHoc: false, createdById: null,
     },
     {
       id: 'node-tronc',
@@ -72,6 +73,7 @@ const makeInstance = (overrides: Partial<ProjectionInstance> = {}): ProjectionIn
       ringLevel: null, originNodeId: null,
       renglaId: null, renglaPosition: null,
       sourceNodeId: null, isSnapshotted: false,
+      isAdHoc: false, createdById: null,
     },
     {
       id: 'node-base',
@@ -84,6 +86,7 @@ const makeInstance = (overrides: Partial<ProjectionInstance> = {}): ProjectionIn
       ringLevel: null, originNodeId: null,
       renglaId: null, renglaPosition: null,
       sourceNodeId: null, isSnapshotted: false,
+      isAdHoc: false, createdById: null,
     },
   ],
   assignments: [],

@@ -80,13 +80,6 @@
         }
       }
     },
-    "seed-seasons": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "TS_NODE_PROJECT=tsconfig.base.json ts-node --compilerOptions '{\"module\":\"commonjs\",\"target\":\"es2021\",\"moduleResolution\":\"node\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true}' --transpileOnly -r tsconfig-paths/register apps/api/src/modules/database/scripts/seed-seasons.script.ts",
-        "cwd": "."
-      }
-    },
     "reset-figure-data": {
       "executor": "nx:run-commands",
       "options": {
@@ -98,48 +91,6 @@
       "executor": "nx:run-commands",
       "options": {
         "command": "TS_NODE_PROJECT=tsconfig.base.json ts-node --compilerOptions '{\"module\":\"commonjs\",\"target\":\"es2021\",\"moduleResolution\":\"node\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true}' --transpileOnly -r tsconfig-paths/register apps/api/src/modules/database/scripts/migrate-tronc-units.script.ts",
-        "cwd": "."
-      }
-    },
-    "seed-figures-pd4": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "TS_NODE_PROJECT=tsconfig.base.json ts-node --compilerOptions '{\"module\":\"commonjs\",\"target\":\"es2021\",\"moduleResolution\":\"node\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true}' --transpileOnly -r tsconfig-paths/register apps/api/src/modules/database/scripts/seed-figures/pd4.figure-seed.ts",
-        "cwd": "."
-      }
-    },
-    "seed-figures-pd4-insert": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "TS_NODE_PROJECT=tsconfig.base.json ts-node --compilerOptions '{\"module\":\"commonjs\",\"target\":\"es2021\",\"moduleResolution\":\"node\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true}' --transpileOnly -r tsconfig-paths/register apps/api/src/modules/database/scripts/seed-figures/pd4.figure-seed.ts --insert",
-        "cwd": "."
-      }
-    },
-    "seed-figures-pd3": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "TS_NODE_PROJECT=tsconfig.base.json ts-node --compilerOptions '{\"module\":\"commonjs\",\"target\":\"es2021\",\"moduleResolution\":\"node\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true}' --transpileOnly -r tsconfig-paths/register apps/api/src/modules/database/scripts/seed-figures/pd3.figure-seed.ts",
-        "cwd": "."
-      }
-    },
-    "seed-figures-pd3-insert": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "TS_NODE_PROJECT=tsconfig.base.json ts-node --compilerOptions '{\"module\":\"commonjs\",\"target\":\"es2021\",\"moduleResolution\":\"node\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true}' --transpileOnly -r tsconfig-paths/register apps/api/src/modules/database/scripts/seed-figures/pd3.figure-seed.ts --insert",
-        "cwd": "."
-      }
-    },
-    "seed-figures-pd3-creu": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "TS_NODE_PROJECT=tsconfig.base.json ts-node --compilerOptions '{\"module\":\"commonjs\",\"target\":\"es2021\",\"moduleResolution\":\"node\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true}' --transpileOnly -r tsconfig-paths/register apps/api/src/modules/database/scripts/seed-figures/pd3-creu.figure-seed.ts",
-        "cwd": "."
-      }
-    },
-    "seed-figures-pd3-creu-insert": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "TS_NODE_PROJECT=tsconfig.base.json ts-node --compilerOptions '{\"module\":\"commonjs\",\"target\":\"es2021\",\"moduleResolution\":\"node\",\"experimentalDecorators\":true,\"emitDecoratorMetadata\":true}' --transpileOnly -r tsconfig-paths/register apps/api/src/modules/database/scripts/seed-figures/pd3-creu.figure-seed.ts --insert",
         "cwd": "."
       }
     },

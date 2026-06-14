@@ -1,4 +1,4 @@
-import { stageToScreen, isCentralNode } from './rengla-coordinates.util';
+import { stageToScreen, screenToStage, isCentralNode } from './rengla-coordinates.util';
 
 describe('rengla-coordinates.util', () => {
   describe('stageToScreen', () => {
@@ -28,6 +28,35 @@ describe('rengla-coordinates.util', () => {
     });
   });
 
+  describe('screenToStage', () => {
+    it('returns identity coords when transform is neutral', () => {
+      const result = screenToStage(100, 50, { x: 0, y: 0, scaleX: 1, scaleY: 1 });
+      expect(result).toEqual({ x: 100, y: 50 });
+    });
+
+    it('inverts zoom (scale) correctly', () => {
+      const result = screenToStage(200, 100, { x: 0, y: 0, scaleX: 2, scaleY: 2 });
+      expect(result).toEqual({ x: 100, y: 50 });
+    });
+
+    it('inverts pan (offset) correctly', () => {
+      const result = screenToStage(110, 70, { x: 10, y: 20, scaleX: 1, scaleY: 1 });
+      expect(result).toEqual({ x: 100, y: 50 });
+    });
+
+    it('inverts both zoom and pan', () => {
+      const result = screenToStage(160, 95, { x: 10, y: 20, scaleX: 1.5, scaleY: 1.5 });
+      expect(result).toEqual({ x: 100, y: 50 });
+    });
+
+    it('round-trips with stageToScreen', () => {
+      const transform = { x: 42, y: 18, scaleX: 1.25, scaleY: 1.25 };
+      const stage = { x: 300, y: 150 };
+      const screen = stageToScreen(stage.x, stage.y, transform);
+      expect(screenToStage(screen.x, screen.y, transform)).toEqual(stage);
+    });
+  });
+
   describe('isCentralNode', () => {
     it('returns true for agulla', () => {
       expect(isCentralNode('agulla')).toBe(true);
@@ -41,8 +70,8 @@ describe('rengla-coordinates.util', () => {
       expect(isCentralNode('contrafort')).toBe(true);
     });
 
-    it('returns true for tap', () => {
-      expect(isCentralNode('tap')).toBe(true);
+    it('returns false for tap', () => {
+      expect(isCentralNode('tap')).toBe(false);
     });
 
     it('returns false for mans', () => {

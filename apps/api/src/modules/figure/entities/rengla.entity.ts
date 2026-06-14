@@ -20,14 +20,11 @@ export class Rengla {
   @JoinColumn()
   template: FigureTemplate;
 
-  @Column({ type: 'varchar' })
-  name: string;
+  @Column({ type: 'varchar', nullable: true })
+  name: string | null;
 
   @Column({ type: 'int', default: 0 })
   sortOrder: number;
-
-  @Column({ type: 'int', default: 1 })
-  startPosition: number;
 
   @Column({ type: 'boolean', default: false })
   allowsCordoObert: boolean;

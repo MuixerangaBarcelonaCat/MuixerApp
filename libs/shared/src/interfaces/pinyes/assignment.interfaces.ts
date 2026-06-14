@@ -54,6 +54,8 @@ export interface InstanceNodeItem {
   renglaId: string | null;
   renglaPosition: number | null;
   isSnapshotted: boolean;
+  isAdHoc: boolean;
+  createdById: string | null;
 }
 
 export interface CordonsResponse {
@@ -170,4 +172,5 @@ export interface BulkImportConflict {
 export interface BulkImportResult {
   created: AssignmentDetail[];
   conflicts: BulkImportConflict[];
+  clonedAdHocNodes: number;
 }

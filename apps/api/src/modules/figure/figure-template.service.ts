@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   InternalServerErrorException,
@@ -11,11 +12,14 @@ import { FigureNode } from './entities/figure-node.entity';
 import { Rengla } from './entities/rengla.entity';
 import { CompositionSlot } from '../composition/entities/composition-slot.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
+import { InstanceNode } from '../event-segment/entities/instance-node.entity';
 import { CreateFigureTemplateDto } from './dto/create-figure-template.dto';
 import { UpdateFigureTemplateDto } from './dto/update-figure-template.dto';
 import { FigureTemplateFilterDto } from './dto/figure-template-filter.dto';
 import { CreateFigureNodeDto } from './dto/create-figure-node.dto';
 import { CreateRenglaDto } from './dto/create-rengla.dto';
+import { SaveFromInstanceDto } from './dto/save-from-instance.dto';
+import { FigureZone } from '@muixer/shared';
 
 // ─── Response interfaces ────────────────────────────────────────────────────
 
@@ -45,7 +49,6 @@ export interface RenglaItem {
   id: string;
   name: string;
   sortOrder: number;
-  startPosition: number;
   allowsCordoObert: boolean;
 }
 
@@ -66,6 +69,7 @@ export interface FigureTemplateDetailItem extends FigureTemplateListItem {
   metadata: Record<string, unknown>;
   nodes: FigureNodeItem[];
   rengles: RenglaItem[];
+  adHocInstanceCount: number;
 }
 
 // ─── Service ────────────────────────────────────────────────────────────────
@@ -83,6 +87,8 @@ export class FigureTemplateService {
     private readonly compositionSlotRepository: Repository<CompositionSlot>,
     @InjectRepository(FigureInstance)
     private readonly figureInstanceRepository: Repository<FigureInstance>,
+    @InjectRepository(InstanceNode)
+    private readonly instanceNodeRepository: Repository<InstanceNode>,
   ) {}
 
   async findAll(
@@ -127,15 +133,26 @@ export class FigureTemplateService {
       throw new NotFoundException(`FigureTemplate with ID ${id} not found`);
     }
 
-    return toDetailItem(template);
+    const adHocInstanceCount = await this.instanceNodeRepository
+      .createQueryBuilder('inode')
+      .innerJoin('inode.figureInstance', 'fi')
+      .where('fi.figureTemplateId = :templateId', { templateId: id })
+      .andWhere('fi.snapshotted = true')
+      .andWhere('inode.isAdHoc = true')
+      .select('COUNT(DISTINCT fi.id)', 'count')
+      .getRawOne()
+      .then((r) => parseInt(r?.count ?? '0', 10));
+
+    return toDetailItem(template, adHocInstanceCount);
   }
 
   async create(dto: CreateFigureTemplateDto): Promise<FigureTemplateDetailItem> {
-    await this.assertSlugAvailable(dto.slug);
+    const name = await this.generateUniqueName(dto.name.trim());
+    const slug = await this.generateUniqueSlug(this.slugify(name));
 
     const template = this.templateRepository.create({
-      name: dto.name,
-      slug: dto.slug,
+      name,
+      slug,
       description: dto.description ?? null,
       hasPinya: dto.hasPinya ?? true,
       direction: dto.direction ?? 0,
@@ -166,10 +183,11 @@ export class FigureTemplateService {
       throw new NotFoundException(`FigureTemplate with ID ${id} not found`);
     }
 
-    if (dto.name !== undefined) template.name = dto.name;
-    if (dto.slug !== undefined) {
-      await this.assertSlugAvailable(dto.slug, id);
-      template.slug = dto.slug;
+    if (dto.name !== undefined) {
+      const trimmedName = dto.name.trim();
+      await this.assertNameAvailable(trimmedName, id);
+      template.name = trimmedName;
+      template.slug = await this.generateUniqueSlug(this.slugify(trimmedName), id);
     }
     if (dto.description !== undefined) template.description = dto.description ?? null;
     if (dto.hasPinya !== undefined) template.hasPinya = dto.hasPinya;
@@ -184,6 +202,7 @@ export class FigureTemplateService {
 
     if (dto.nodes !== undefined) {
       await this.syncNodes(template, dto.nodes);
+      await this.autoComputeAllowsCordoObert(id);
     }
 
     if (dto.rengles !== undefined) {
@@ -216,7 +235,7 @@ export class FigureTemplateService {
 
     if (instanceCount > 0) {
       throw new ConflictException(
-        `No es pot esborrar: hi ha ${instanceCount} instància/instàncies que fan servir aquest template.`,
+        `No es pot esborrar: hi ha ${instanceCount} instàncies que fan servir aquesta plantilla.`,
       );
     }
 
@@ -252,6 +271,163 @@ export class FigureTemplateService {
     return this.findOne(savedCopy.id);
   }
 
+  // ─── Save from Instance ─────────────────────────────────────────────────────
+
+  private static readonly SAVEABLE_ZONES: string[] = [
+    FigureZone.PINYA,
+    FigureZone.BASE,
+    FigureZone.TRONC,
+  ];
+
+  async saveFromInstance(
+    templateId: string,
+    dto: SaveFromInstanceDto,
+  ): Promise<FigureTemplateDetailItem> {
+    const template = await this.templateRepository.findOne({
+      where: { id: templateId },
+      relations: ['nodes', 'rengles'],
+    });
+    if (!template) {
+      throw new NotFoundException(`FigureTemplate with ID ${templateId} not found`);
+    }
+
+    const instance = await this.figureInstanceRepository.findOne({
+      where: { id: dto.instanceId },
+      relations: ['instanceNodes', 'figureTemplate'],
+    });
+    if (!instance) {
+      throw new NotFoundException(`FigureInstance with ID ${dto.instanceId} not found`);
+    }
+    if (instance.figureTemplate?.id !== templateId) {
+      throw new BadRequestException('Instance does not belong to this template');
+    }
+    if (!instance.snapshotted) {
+      throw new BadRequestException('Instance is not snapshotted yet');
+    }
+
+    const filteredNodes = (instance.instanceNodes ?? []).filter(
+      (n) => FigureTemplateService.SAVEABLE_ZONES.includes(n.zone),
+    );
+
+    if (filteredNodes.length === 0) {
+      throw new BadRequestException('No saveable nodes in this instance');
+    }
+
+    const nodeDtos = filteredNodes.map((n) => this.instanceNodeToCreateDto(n));
+
+    if (dto.mode === 'overwrite') {
+      await this.syncNodes(template, nodeDtos);
+      return this.findOne(templateId);
+    }
+
+    // new_version: create a new template
+    const versionName = dto.name?.trim() || await this.suggestVersionName(template.name);
+    const versionSlug = this.generateSlug(versionName);
+
+    await this.assertSlugAvailable(versionSlug);
+
+    const newTemplate = this.templateRepository.create({
+      name: versionName,
+      slug: versionSlug,
+      description: template.description,
+      hasPinya: template.hasPinya,
+      direction: template.direction,
+      metadata: template.metadata ?? {},
+    });
+
+    let savedTemplate: FigureTemplate;
+    try {
+      savedTemplate = await this.templateRepository.save(newTemplate);
+    } catch (err) {
+      return this.handleDbError(err);
+    }
+
+    // Copy rengles with new UUIDs, build mapping
+    const existingRengles = template.rengles ?? [];
+    const renglaIdMap = new Map<string, string>();
+
+    if (existingRengles.length > 0) {
+      const newRengles = existingRengles.map((r) => {
+        const newId = this.generateUUID();
+        renglaIdMap.set(r.id, newId);
+        return this.renglaRepository.create({
+          id: newId,
+          template: savedTemplate,
+          name: r.name,
+          sortOrder: r.sortOrder,
+          allowsCordoObert: r.allowsCordoObert,
+        });
+      });
+      await this.renglaRepository.save(newRengles);
+    }
+
+    // Remap renglaIds in node DTOs
+    const remappedDtos = nodeDtos.map((d) => ({
+      ...d,
+      renglaId: d.renglaId ? (renglaIdMap.get(d.renglaId) ?? null) : null,
+    }));
+
+    await this.createNodes(savedTemplate, remappedDtos as CreateFigureNodeDto[]);
+    return this.findOne(savedTemplate.id);
+  }
+
+  async suggestVersionName(baseName: string): Promise<string> {
+    const pattern = baseName.replace(/ v\d+$/, '');
+    const existing = await this.templateRepository
+      .createQueryBuilder('t')
+      .where("t.name LIKE :pattern", { pattern: `${pattern} v%` })
+      .getMany();
+
+    let maxVersion = 1;
+    for (const t of existing) {
+      const match = t.name.match(/ v(\d+)$/);
+      if (match) {
+        maxVersion = Math.max(maxVersion, parseInt(match[1], 10));
+      }
+    }
+    return `${pattern} v${maxVersion + 1}`;
+  }
+
+  private instanceNodeToCreateDto(n: InstanceNode): CreateFigureNodeDto {
+    return {
+      label: n.label,
+      zone: n.zone,
+      positionType: n.positionType ?? undefined,
+      x: n.x,
+      y: n.y,
+      z: n.z,
+      width: n.width,
+      height: n.height,
+      rotation: n.rotation,
+      color: n.color ?? undefined,
+      shape: n.shape,
+      sortOrder: n.sortOrder,
+      climbPath: n.climbPath ?? undefined,
+      ringLevel: n.ringLevel ?? undefined,
+      renglaId: n.renglaId ?? undefined,
+      renglaPosition: n.renglaPosition ?? undefined,
+      metadata: n.metadata,
+    };
+  }
+
+  private generateSlug(name: string): string {
+    return name
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9\s-]/g, '')
+      .trim()
+      .replace(/\s+/g, '-');
+  }
+
+  private generateUUID(): string {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === 'x' ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  }
+
   // ─── Private helpers ────────────────────────────────────────────────────────
 
   private async assertSlugAvailable(slug: string, excludeId?: string): Promise<void> {
@@ -263,14 +439,64 @@ export class FigureTemplateService {
     }
   }
 
+  private async assertNameAvailable(name: string, excludeId?: string): Promise<void> {
+    const existing = await this.templateRepository.findOne({ where: { name } });
+    if (existing && existing.id !== excludeId) {
+      throw new ConflictException(
+        `The name "${name}" is already in use by another figure template`,
+      );
+    }
+  }
+
+  private async generateUniqueName(baseName: string, excludeId?: string): Promise<string> {
+    let candidate = baseName;
+    let suffix = 2;
+    while (true) {
+      const existing = await this.templateRepository.findOne({ where: { name: candidate } });
+      if (!existing || existing.id === excludeId) return candidate;
+      candidate = `${baseName} ${suffix}`;
+      suffix++;
+    }
+  }
+
+  private async generateUniqueSlug(baseSlug: string, excludeId?: string): Promise<string> {
+    let candidate = baseSlug;
+    let suffix = 2;
+    while (true) {
+      const existing = await this.templateRepository.findOne({ where: { slug: candidate } });
+      if (!existing || existing.id === excludeId) return candidate;
+      candidate = `${baseSlug}-${suffix}`;
+      suffix++;
+    }
+  }
+
+  private slugify(name: string): string {
+    return name
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9\s-]/g, '')
+      .trim()
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-');
+  }
+
   private handleDbError(err: unknown): never {
     const pgErr = err as { code?: string; detail?: string };
     if (pgErr?.code === '23505') {
+      const nameMatch = pgErr.detail?.match(/Key \(name\)=\(([^)]+)\)/);
+      if (nameMatch) {
+        throw new ConflictException(
+          `The name "${nameMatch[1]}" is already in use by another figure template`,
+        );
+      }
       const slugMatch = pgErr.detail?.match(/Key \(slug\)=\(([^)]+)\)/);
-      const slug = slugMatch ? slugMatch[1] : 'unknown';
-      throw new ConflictException(
-        `The slug "${slug}" is already in use by another figure template`,
-      );
+      if (slugMatch) {
+        throw new ConflictException(
+          `The slug "${slugMatch[1]}" is already in use by another figure template`,
+        );
+      }
+      throw new ConflictException('A figure template with these values already exists');
     }
     throw new InternalServerErrorException('Unexpected database error');
   }
@@ -358,6 +584,7 @@ export class FigureTemplateService {
   /**
    * Upsert strategy for rengles.
    * On deletion: clears renglaId/renglaPosition on orphaned FigureNodes.
+   * After upsert: auto-computes allowsCordoObert from node data.
    */
   private async syncRengles(
     template: FigureTemplate,
@@ -372,12 +599,12 @@ export class FigureTemplateService {
     const toCreate: Rengla[] = [];
     const incomingIds = new Set<string>();
 
-    for (const dto of incomingDtos) {
+    for (let i = 0; i < incomingDtos.length; i++) {
+      const dto = incomingDtos[i];
       if (dto.id && existingById.has(dto.id)) {
         const rengla = existingById.get(dto.id)!;
-        rengla.name = dto.name;
+        rengla.name = dto.name ?? rengla.name ?? `Rengla ${i + 1}`;
         rengla.sortOrder = dto.sortOrder ?? rengla.sortOrder;
-        rengla.startPosition = dto.startPosition ?? rengla.startPosition;
         rengla.allowsCordoObert = dto.allowsCordoObert ?? rengla.allowsCordoObert;
         toUpdate.push(rengla);
         incomingIds.add(dto.id);
@@ -386,9 +613,8 @@ export class FigureTemplateService {
           this.renglaRepository.create({
             ...(dto.id ? { id: dto.id } : {}),
             template,
-            name: dto.name,
-            sortOrder: dto.sortOrder ?? 0,
-            startPosition: dto.startPosition ?? 1,
+            name: dto.name || `Rengla ${i + 1}`,
+            sortOrder: dto.sortOrder ?? i,
             allowsCordoObert: dto.allowsCordoObert ?? false,
           }),
         );
@@ -412,6 +638,34 @@ export class FigureTemplateService {
         .execute();
 
       await this.renglaRepository.delete({ id: In(toDeleteIds) });
+    }
+
+    await this.autoComputeAllowsCordoObert(template.id);
+  }
+
+  private async autoComputeAllowsCordoObert(templateId: string): Promise<void> {
+    const rengles = await this.renglaRepository.find({
+      where: { template: { id: templateId } },
+    });
+    if (rengles.length === 0) return;
+
+    const nodes = await this.nodeRepository.find({
+      where: { template: { id: templateId } },
+    });
+
+    const updates: Rengla[] = [];
+    for (const rengla of rengles) {
+      const hasCordoObert = nodes.some(
+        (n) => n.renglaId === rengla.id && n.positionType === 'cordo-obert',
+      );
+      if (rengla.allowsCordoObert !== hasCordoObert) {
+        rengla.allowsCordoObert = hasCordoObert;
+        updates.push(rengla);
+      }
+    }
+
+    if (updates.length > 0) {
+      await this.renglaRepository.save(updates);
     }
   }
 }
@@ -469,9 +723,8 @@ function nodeToItem(node: FigureNode): FigureNodeItem {
 function renglaToItem(rengla: Rengla): RenglaItem {
   return {
     id: rengla.id,
-    name: rengla.name,
+    name: rengla.name ?? `Rengla ${rengla.sortOrder + 1}`,
     sortOrder: rengla.sortOrder,
-    startPosition: rengla.startPosition,
     allowsCordoObert: rengla.allowsCordoObert,
   };
 }
@@ -494,11 +747,15 @@ function toListItem(
   };
 }
 
-function toDetailItem(template: FigureTemplate): FigureTemplateDetailItem {
+function toDetailItem(
+  template: FigureTemplate,
+  adHocInstanceCount = 0,
+): FigureTemplateDetailItem {
   return {
     ...toListItem(template),
     metadata: template.metadata,
     nodes: (template.nodes ?? []).map(nodeToItem),
     rengles: (template.rengles ?? []).map(renglaToItem),
+    adHocInstanceCount,
   };
 }

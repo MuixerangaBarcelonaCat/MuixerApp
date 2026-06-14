@@ -51,11 +51,13 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
     shortcuts: [
       { keys: 'Clic', action: 'Seleccionar node' },
       { keys: 'Doble clic', action: 'Editar etiqueta' },
-      { keys: 'Supr / Backspace', action: 'Eliminar node seleccionat' },
       { keys: '⌘/Ctrl + C', action: 'Copiar node' },
       { keys: '⌘/Ctrl + V', action: 'Enganxar node' },
+      { keys: '⌘/Ctrl + D', action: 'Duplicar node' },
+      { keys: 'Supr / Backspace', action: 'Eliminar node seleccionat' },
       { keys: '↑ ↓ ← →', action: 'Moure node (1 px)' },
       { keys: 'Shift + ↑ ↓ ← →', action: 'Moure node (10 px)' },
+      { keys: '⌘/Ctrl + Shift + P', action: 'Previsualitzar / sortir de previsualització' },
       { keys: 'Roda del ratolí', action: 'Zoom' },
       { keys: 'Arrossegar fons', action: 'Desplaçar canvas (pan)' },
     ],
@@ -71,8 +73,19 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
   {
     title: 'Canvas d\'assignació',
     shortcuts: [
+      { keys: 'Clic', action: 'Seleccionar node (per assignar)' },
+      { keys: 'Arrossegar', action: 'Moure node ad-hoc' },
+      { keys: 'Doble clic', action: 'Obrir propietats del node ad-hoc' },
       { keys: 'Tab', action: 'Avançar al node buit següent' },
-      { keys: 'Escape', action: 'Deseleccionar node i persona' },
+      { keys: 'Escape', action: 'Deseleccionar / tancar panells' },
+      { keys: '⌘/Ctrl + C', action: 'Copiar node ad-hoc' },
+      { keys: '⌘/Ctrl + V', action: 'Enganxar node ad-hoc' },
+      { keys: '⌘/Ctrl + D', action: 'Duplicar node ad-hoc' },
+      { keys: 'Supr / Backspace', action: 'Eliminar node ad-hoc' },
+      { keys: '↑ ↓ ← →', action: 'Moure node ad-hoc (1 px)' },
+      { keys: 'Shift + ↑ ↓ ← →', action: 'Moure node ad-hoc (10 px)' },
+      { keys: '⌘/Ctrl + 1…8', action: 'Crear node de pinya (preset ràpid)' },
+      { keys: '⌘/Ctrl + 9', action: 'Crear node Comodí' },
     ],
   },
   {
@@ -172,8 +185,8 @@ const HELP_SECTIONS: HelpSection[] = [
         answer: 'Darrere de cada node de pinya (excepte centrals i cordó obert) apareix un "+" fantasma. Clicant-lo es crea un clon alineat radialment i s\'afegeix automàticament a la mateixa rengla.',
       },
       {
-        question: 'Què és startPosition?',
-        answer: 'Algunes rengles només apareixen a partir d\'un cert cordó. Per exemple, laterals extra que només existeixen a 3+ cordons tenen startPosition = 3.',
+        question: 'Com es crea una rengla?',
+        answer: 'Activeu el mode rengles, cliqueu els nodes en ordre (del centre cap enfora) i premeu "Finalitzar". La rengla es crea automàticament sense cap formulari.',
       },
       {
         question: 'Puc eliminar una rengla?',

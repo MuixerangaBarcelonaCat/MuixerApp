@@ -180,7 +180,7 @@
               target="_blank"
               rel="noopener noreferrer"
               class="link link-primary text-sm font-medium flex items-center gap-1"
-              [attr.aria-label]="'Editar figura ' + slot.figureTemplate.name + ' en una nova pestanya'"
+              [attr.aria-label]="'Edita figura ' + slot.figureTemplate.name + ' en una pestanya nova'"
             >
               {{ slot.figureTemplate.name }}
               <lucide-icon name="ExternalLink" [size]="12" aria-hidden="true" />
@@ -264,10 +264,10 @@
             type="button"
             class="btn btn-error btn-sm gap-2 w-full"
             (click)="deleteSelectedSlot()"
-            aria-label="Eliminar figura de la composició"
+            aria-label="Elimina figura de la composició"
           >
             <lucide-icon name="Trash2" [size]="14" aria-hidden="true" />
-            Eliminar de la composició
+            Elimina de la composició
           </button>
         </div>
       </aside>
@@ -278,7 +278,7 @@
       >
         <lucide-icon name="MousePointerClick" [size]="32" class="text-base-content/20 mb-3" aria-hidden="true" />
         <p class="text-xs text-base-content/40 text-center">
-          Fes clic sobre una figura al llenç per veure les seves propietats
+          Feu clic sobre una figura al llenç per veure les seves propietats
         </p>
       </aside>
     }

@@ -1,8 +1,7 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsBoolean,
   IsInt,
-  IsNotEmpty,
   IsOptional,
   IsString,
   IsUUID,
@@ -15,10 +14,10 @@ export class CreateRenglaDto {
   @IsOptional()
   id?: string;
 
-  @ApiProperty({ description: 'Rengla display name, e.g. "Mans Nord"' })
+  @ApiPropertyOptional({ description: 'Optional display name. Auto-generated if omitted.' })
   @IsString()
-  @IsNotEmpty()
-  name: string;
+  @IsOptional()
+  name?: string;
 
   @ApiPropertyOptional({ default: 0 })
   @IsInt()
@@ -26,13 +25,7 @@ export class CreateRenglaDto {
   @IsOptional()
   sortOrder?: number;
 
-  @ApiPropertyOptional({ description: 'First cordon where this rengla starts existing (1 = always)', default: 1 })
-  @IsInt()
-  @Min(1)
-  @IsOptional()
-  startPosition?: number;
-
-  @ApiPropertyOptional({ description: 'Whether this rengla can have an open cordon at the end', default: false })
+  @ApiPropertyOptional({ description: 'Whether this rengla can have an open cordon at the end (auto-computed from nodes)', default: false })
   @IsBoolean()
   @IsOptional()
   allowsCordoObert?: boolean;

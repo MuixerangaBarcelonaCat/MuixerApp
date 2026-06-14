@@ -1,0 +1,3307 @@
+{
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/acquire-codebase-knowledge/scripts/scan.py": {
+    "mtime": 1781011474.251565,
+    "ast_hash": "1d38afd647943d7cb8b34d06f5a7a370",
+    "semantic_hash": "1d38afd647943d7cb8b34d06f5a7a370"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/api-design-principles/assets/rest-api-template.py": {
+    "mtime": 1778135329.911836,
+    "ast_hash": "555aac62aac8fe64cc1029ac84c9ce95",
+    "semantic_hash": "555aac62aac8fe64cc1029ac84c9ce95"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/brainstorming/scripts/helper.js": {
+    "mtime": 1778135329.9122953,
+    "ast_hash": "cef288b6b4543910ffc7826c3a036a55",
+    "semantic_hash": "cef288b6b4543910ffc7826c3a036a55"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/brainstorming/scripts/start-server.sh": {
+    "mtime": 1778135329.9125745,
+    "ast_hash": "386ba065fd00d2f3d8d5303c26d413f5",
+    "semantic_hash": "386ba065fd00d2f3d8d5303c26d413f5"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/brainstorming/scripts/stop-server.sh": {
+    "mtime": 1778135329.9126585,
+    "ast_hash": "3d59796ec5ca347c5eb95adbc4914bb8",
+    "semantic_hash": "3d59796ec5ca347c5eb95adbc4914bb8"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/scripts/build-agents.ts": {
+    "mtime": 1778135329.916761,
+    "ast_hash": "37872f396ef154f45055879820423e56",
+    "semantic_hash": "37872f396ef154f45055879820423e56"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/scripts/build.sh": {
+    "mtime": 1778135329.9168239,
+    "ast_hash": "d64cf4387dcfce15a68ab4907f3dcfec",
+    "semantic_hash": "d64cf4387dcfce15a68ab4907f3dcfec"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/scripts/package.json": {
+    "mtime": 1778135329.9169538,
+    "ast_hash": "6d49cc14c8d8eca272f6ac5cef1f8236",
+    "semantic_hash": "6d49cc14c8d8eca272f6ac5cef1f8236"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/systematic-debugging/condition-based-waiting-example.ts": {
+    "mtime": 1778135329.9171858,
+    "ast_hash": "8e502a8c1e9c7de15967202615d241d5",
+    "semantic_hash": "8e502a8c1e9c7de15967202615d241d5"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/systematic-debugging/find-polluter.sh": {
+    "mtime": 1778135329.9173565,
+    "ast_hash": "2ae1144fa5a66aa26c13d644a12ad0bf",
+    "semantic_hash": "2ae1144fa5a66aa26c13d644a12ad0bf"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/ui-ux-pro-max/data/_sync_all.py": {
+    "mtime": 1778135329.9180477,
+    "ast_hash": "c5102d726b2b4bdba1c4b7e3d5a55c52",
+    "semantic_hash": "c5102d726b2b4bdba1c4b7e3d5a55c52"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/ui-ux-pro-max/scripts/core.py": {
+    "mtime": 1778135329.9221406,
+    "ast_hash": "0c039e338b3cf639d1f1e3b6aac60b1c",
+    "semantic_hash": "0c039e338b3cf639d1f1e3b6aac60b1c"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/ui-ux-pro-max/scripts/design_system.py": {
+    "mtime": 1778135329.9222145,
+    "ast_hash": "cd84bdf41f59970e6161e113470b6b06",
+    "semantic_hash": "cd84bdf41f59970e6161e113470b6b06"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/ui-ux-pro-max/scripts/search.py": {
+    "mtime": 1778135329.9224672,
+    "ast_hash": "89f1dc15dbd0ecd96999deaf936e3166",
+    "semantic_hash": "89f1dc15dbd0ecd96999deaf936e3166"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/jest.config.ts": {
+    "mtime": 1781011474.353094,
+    "ast_hash": "cbc7034f2c48e04f6ba06db48b4a38b1",
+    "semantic_hash": "cbc7034f2c48e04f6ba06db48b4a38b1"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/project.json": {
+    "mtime": 1781076316.2915144,
+    "ast_hash": "4ff21f7ecc17540bd5dbb108fe2b8f6d",
+    "semantic_hash": "4ff21f7ecc17540bd5dbb108fe2b8f6d"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/app/app.controller.ts": {
+    "mtime": 1781011474.3542974,
+    "ast_hash": "81aee527842bd626fba632b836c2c7ff",
+    "semantic_hash": "81aee527842bd626fba632b836c2c7ff"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/app/app.module.ts": {
+    "mtime": 1781076316.2885575,
+    "ast_hash": "a21dbd7a31915ead0ffd9b17bd99fdc2",
+    "semantic_hash": "a21dbd7a31915ead0ffd9b17bd99fdc2"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/app/app.service.ts": {
+    "mtime": 1778135329.9246814,
+    "ast_hash": "51381315e55736297f010670b09a1b96",
+    "semantic_hash": "51381315e55736297f010670b09a1b96"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/common/interceptors/latency.interceptor.ts": {
+    "mtime": 1778135329.9248805,
+    "ast_hash": "49518016b2583ee7e74e9a857cb508c3",
+    "semantic_hash": "49518016b2583ee7e74e9a857cb508c3"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/data-source.ts": {
+    "mtime": 1781011474.3583272,
+    "ast_hash": "27e7dc9ad4d130bdca80e653779c7168",
+    "semantic_hash": "27e7dc9ad4d130bdca80e653779c7168"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/environments/environment.prod.ts": {
+    "mtime": 1781011474.3618662,
+    "ast_hash": "913d68e7b29c8ccb50e2413917d9c3a8",
+    "semantic_hash": "913d68e7b29c8ccb50e2413917d9c3a8"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/environments/environment.ts": {
+    "mtime": 1781011474.3635864,
+    "ast_hash": "f60a58264996218d1b9bd68ff9a91a7c",
+    "semantic_hash": "f60a58264996218d1b9bd68ff9a91a7c"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/main.ts": {
+    "mtime": 1781011474.3649309,
+    "ast_hash": "bc83cb4a359bf67ace6c3b64f30a8f53",
+    "semantic_hash": "bc83cb4a359bf67ace6c3b64f30a8f53"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/migrations/1748600000000-InitialSchema.ts": {
+    "mtime": 1781011474.3670633,
+    "ast_hash": "3bd515bcd9032b4c15cb3132d52bfcf2",
+    "semantic_hash": "3bd515bcd9032b4c15cb3132d52bfcf2"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/migrations/1749106300000-AddUpdatedAtToRengles.ts": {
+    "mtime": 1781011474.3698344,
+    "ast_hash": "264458d21fab2d066fd2f046fa123972",
+    "semantic_hash": "264458d21fab2d066fd2f046fa123972"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/migrations/1749106400000-AddUpdatedAtToMissingTables.ts": {
+    "mtime": 1781011474.3702939,
+    "ast_hash": "a8b143fbbb73d66d92f7d7c3c02e3408",
+    "semantic_hash": "a8b143fbbb73d66d92f7d7c3c02e3408"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/migrations/1749106500000-AddPersonInstanceUniqueConstraint.ts": {
+    "mtime": 1781011474.371821,
+    "ast_hash": "0bbf05d589ad8ac8644c33675e27be3d",
+    "semantic_hash": "0bbf05d589ad8ac8644c33675e27be3d"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/migrations/1780982679300-RemoveFigureFamily.ts": {
+    "mtime": 1781258922.7840643,
+    "ast_hash": "fb090cba4247230b630551c197bf0af8",
+    "semantic_hash": "fb090cba4247230b630551c197bf0af8"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/migrations/1781000000000-RestoreProjectionColumnsAndReferenceElements.ts": {
+    "mtime": 1781011474.3809748,
+    "ast_hash": "f83ec910c6553243c4b342ef0a8fc771",
+    "semantic_hash": "f83ec910c6553243c4b342ef0a8fc771"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/migrations/1781100000000-DropSourceVariantOrder.ts": {
+    "mtime": 1781011474.3817942,
+    "ast_hash": "9b3416de581bf04d74fe2eb749988cc6",
+    "semantic_hash": "9b3416de581bf04d74fe2eb749988cc6"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/migrations/1781200000000-AddAdHocInstanceNodes.ts": {
+    "mtime": 1781260118.4788969,
+    "ast_hash": "02c6c19412114d429786256b35c6eb5c",
+    "semantic_hash": "02c6c19412114d429786256b35c6eb5c"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/auth/auth.controller.ts": {
+    "mtime": 1781011474.3826795,
+    "ast_hash": "228d53e19bc31384f00f03099dc8808f",
+    "semantic_hash": "228d53e19bc31384f00f03099dc8808f"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/auth/auth.module.ts": {
+    "mtime": 1778135329.9251478,
+    "ast_hash": "308e6ea1e1338969954bff8b052065cf",
+    "semantic_hash": "308e6ea1e1338969954bff8b052065cf"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/auth/auth.service.spec.ts": {
+    "mtime": 1781011474.3831222,
+    "ast_hash": "bd803c438ca7e6d9f1f99e1430442c9d",
+    "semantic_hash": "bd803c438ca7e6d9f1f99e1430442c9d"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/auth/auth.service.ts": {
+    "mtime": 1781011474.3836937,
+    "ast_hash": "6f8acd27df3589f6954c25fc42934e2e",
+    "semantic_hash": "6f8acd27df3589f6954c25fc42934e2e"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/auth/constants/auth.constants.ts": {
+    "mtime": 1778135329.9253743,
+    "ast_hash": "ca2b1a66059d629e08740b159550bf9c",
+    "semantic_hash": "ca2b1a66059d629e08740b159550bf9c"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/auth/decorators/current-user.decorator.ts": {
+    "mtime": 1778135329.9254746,
+    "ast_hash": "d5609bfa55cb8a4874080609047a86ac",
+    "semantic_hash": "d5609bfa55cb8a4874080609047a86ac"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/auth/decorators/public.decorator.ts": {
+    "mtime": 1778135329.9255364,
+    "ast_hash": "67f19281fc65e0f39d2eea04c2062007",
+    "semantic_hash": "67f19281fc65e0f39d2eea04c2062007"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/auth/decorators/roles.decorator.ts": {
+    "mtime": 1778135329.9255943,
+    "ast_hash": "757605746cd336f529a1906975eb4541",
+    "semantic_hash": "757605746cd336f529a1906975eb4541"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/auth/dto/accept-invite.dto.ts": {
+    "mtime": 1781011474.3841922,
+    "ast_hash": "fa3756f196fbb87019b29009485a4075",
+    "semantic_hash": "fa3756f196fbb87019b29009485a4075"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/auth/dto/auth-response.dto.ts": {
+    "mtime": 1778135329.9257522,
+    "ast_hash": "3312a021991b35d7effa0f72faab4f04",
+    "semantic_hash": "3312a021991b35d7effa0f72faab4f04"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/auth/dto/login.dto.ts": {
+    "mtime": 1781011474.384486,
+    "ast_hash": "ee1dd2e60f1bed94546ddbb4a4624865",
+    "semantic_hash": "ee1dd2e60f1bed94546ddbb4a4624865"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/auth/dto/setup-user.dto.ts": {
+    "mtime": 1781011474.3849201,
+    "ast_hash": "4679655d128922106640ed643e7d1c6c",
+    "semantic_hash": "4679655d128922106640ed643e7d1c6c"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/auth/guards/jwt-auth.guard.ts": {
+    "mtime": 1781011474.386998,
+    "ast_hash": "7c80dad04980c1905a0929fea202dd35",
+    "semantic_hash": "7c80dad04980c1905a0929fea202dd35"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/auth/guards/roles.guard.ts": {
+    "mtime": 1781011474.38731,
+    "ast_hash": "8567723a27da5861cc5f9a41d3cd1ad3",
+    "semantic_hash": "8567723a27da5861cc5f9a41d3cd1ad3"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/auth/strategies/jwt.strategy.ts": {
+    "mtime": 1781011474.3876805,
+    "ast_hash": "5581a127d8967ce5eab580f38e432b56",
+    "semantic_hash": "5581a127d8967ce5eab580f38e432b56"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/auth/strategies/local.strategy.ts": {
+    "mtime": 1781011474.390732,
+    "ast_hash": "1d299f78c03d2241c5c8b1738a821204",
+    "semantic_hash": "1d299f78c03d2241c5c8b1738a821204"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/composition/composition-template.controller.spec.ts": {
+    "mtime": 1781076316.2913895,
+    "ast_hash": "6614cc7102893c8da0b68da9bd5cf23f",
+    "semantic_hash": "6614cc7102893c8da0b68da9bd5cf23f"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/composition/composition-template.controller.ts": {
+    "mtime": 1781011474.3958664,
+    "ast_hash": "b4e11c203c95ffcb56c03d90d173e1ad",
+    "semantic_hash": "b4e11c203c95ffcb56c03d90d173e1ad"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/composition/composition-template.service.spec.ts": {
+    "mtime": 1781258922.7857876,
+    "ast_hash": "df4dc2c7c0c0f4ed1d4016957b4d5683",
+    "semantic_hash": "df4dc2c7c0c0f4ed1d4016957b4d5683"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/composition/composition-template.service.ts": {
+    "mtime": 1781258922.7871232,
+    "ast_hash": "61916eac08bd5fe3ea6a728224f6bc49",
+    "semantic_hash": "61916eac08bd5fe3ea6a728224f6bc49"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/composition/composition.module.ts": {
+    "mtime": 1781011474.4550037,
+    "ast_hash": "4f07a8b9dc059db7ef5cb5e5347b5ccc",
+    "semantic_hash": "4f07a8b9dc059db7ef5cb5e5347b5ccc"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/composition/dto/composition-template-filter.dto.ts": {
+    "mtime": 1781011474.458863,
+    "ast_hash": "bf120542e7de7affa63bdad680c2867f",
+    "semantic_hash": "bf120542e7de7affa63bdad680c2867f"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/composition/dto/create-composition-slot.dto.ts": {
+    "mtime": 1781011474.4604003,
+    "ast_hash": "006a151b6541327320a3989c10c9decc",
+    "semantic_hash": "006a151b6541327320a3989c10c9decc"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/composition/dto/create-composition-template.dto.ts": {
+    "mtime": 1781011474.4609153,
+    "ast_hash": "036e9be8006fae1a68a0a516cf048020",
+    "semantic_hash": "036e9be8006fae1a68a0a516cf048020"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/composition/dto/update-composition-template.dto.ts": {
+    "mtime": 1781011474.4620154,
+    "ast_hash": "41f2cfad789ff58851e2c702d800f269",
+    "semantic_hash": "41f2cfad789ff58851e2c702d800f269"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/composition/entities/composition-slot.entity.ts": {
+    "mtime": 1781011474.4625978,
+    "ast_hash": "0065a8c66a182b029b249a4e3ce02970",
+    "semantic_hash": "0065a8c66a182b029b249a4e3ce02970"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/composition/entities/composition-template.entity.ts": {
+    "mtime": 1781011474.4630935,
+    "ast_hash": "67dde56d2d15e165edea5b7ab6db4d62",
+    "semantic_hash": "67dde56d2d15e165edea5b7ab6db4d62"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/database/database.module.ts": {
+    "mtime": 1781258922.7878382,
+    "ast_hash": "ccb2aac7b5dad83590ee4f718049f35b",
+    "semantic_hash": "ccb2aac7b5dad83590ee4f718049f35b"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/database/scripts/migrate-tronc-units.script.ts": {
+    "mtime": 1781011474.4665022,
+    "ast_hash": "2455532f6443dc8d7888385f4d726f43",
+    "semantic_hash": "2455532f6443dc8d7888385f4d726f43"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/database/scripts/reset-figure-data.script.ts": {
+    "mtime": 1781076316.288659,
+    "ast_hash": "fb269779f8cb570639c3090a8e9af3af",
+    "semantic_hash": "fb269779f8cb570639c3090a8e9af3af"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/database/scripts/seed-figures/_seed-helper.ts": {
+    "mtime": 1781076316.2881587,
+    "ast_hash": "d2f18a613f9b0de8c285e096a83b995f",
+    "semantic_hash": "d2f18a613f9b0de8c285e096a83b995f"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/database/scripts/seed-figures/pd3-creu.figure-seed.ts": {
+    "mtime": 1781076316.2915413,
+    "ast_hash": "bc05a73ec9773007398975672d2f974c",
+    "semantic_hash": "bc05a73ec9773007398975672d2f974c"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/database/scripts/seed-figures/pd3.figure-seed.ts": {
+    "mtime": 1781076316.288045,
+    "ast_hash": "56cf260e3a1fe963b41b5d8a980b9f35",
+    "semantic_hash": "56cf260e3a1fe963b41b5d8a980b9f35"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/database/scripts/seed-figures/pd4.figure-seed.ts": {
+    "mtime": 1781076316.291517,
+    "ast_hash": "96b2b74e974fbe888246db30a4d9efae",
+    "semantic_hash": "96b2b74e974fbe888246db30a4d9efae"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/database/scripts/seed-seasons.script.ts": {
+    "mtime": 1781011474.4749165,
+    "ast_hash": "35228e59503f82e3bc930697bc9cc4ab",
+    "semantic_hash": "35228e59503f82e3bc930697bc9cc4ab"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/event-segment/dto/create-instance.dto.ts": {
+    "mtime": 1781011474.4771883,
+    "ast_hash": "e1f6dab6789bc2412cb75ef4f9b03422",
+    "semantic_hash": "e1f6dab6789bc2412cb75ef4f9b03422"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/event-segment/dto/create-segment.dto.ts": {
+    "mtime": 1781011474.478817,
+    "ast_hash": "2d96064cd2def5ae5db83ac6138bc178",
+    "semantic_hash": "2d96064cd2def5ae5db83ac6138bc178"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/event-segment/dto/reorder-instances.dto.ts": {
+    "mtime": 1781011474.4798331,
+    "ast_hash": "3eac2ff5bf573ba78a6d44c391abe375",
+    "semantic_hash": "3eac2ff5bf573ba78a6d44c391abe375"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/event-segment/dto/reorder-segments.dto.ts": {
+    "mtime": 1781011474.4810712,
+    "ast_hash": "961402f75f683688de864d5b293d1607",
+    "semantic_hash": "961402f75f683688de864d5b293d1607"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/event-segment/dto/update-instance.dto.ts": {
+    "mtime": 1781011474.4815323,
+    "ast_hash": "8fb97ac360ce937f51e0ed6b99091630",
+    "semantic_hash": "8fb97ac360ce937f51e0ed6b99091630"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/event-segment/dto/update-projection-layout.dto.ts": {
+    "mtime": 1781011474.4829898,
+    "ast_hash": "470366445bc36c1679ae311291ac960c",
+    "semantic_hash": "470366445bc36c1679ae311291ac960c"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/event-segment/dto/update-segment.dto.ts": {
+    "mtime": 1781011474.484186,
+    "ast_hash": "fb0b6bb23ee36e0a41371a6fce1085c1",
+    "semantic_hash": "fb0b6bb23ee36e0a41371a6fce1085c1"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/event-segment/entities/event-segment.entity.ts": {
+    "mtime": 1781011474.4847846,
+    "ast_hash": "e76069f99a87d7d0b5b051f5fd33f8a8",
+    "semantic_hash": "e76069f99a87d7d0b5b051f5fd33f8a8"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/event-segment/entities/figure-instance.entity.ts": {
+    "mtime": 1781011474.4858527,
+    "ast_hash": "cfbf03ebb161131c2b8c3d9d5b91b7ce",
+    "semantic_hash": "cfbf03ebb161131c2b8c3d9d5b91b7ce"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/event-segment/entities/instance-node.entity.ts": {
+    "mtime": 1781258922.7883375,
+    "ast_hash": "0f166b7298d929b28d16af309e27b875",
+    "semantic_hash": "0f166b7298d929b28d16af309e27b875"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/event-segment/event-segment.controller.spec.ts": {
+    "mtime": 1781253424.9627662,
+    "ast_hash": "7ccba5320207cc2cfe5eae9d9a517e41",
+    "semantic_hash": "7ccba5320207cc2cfe5eae9d9a517e41"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/event-segment/event-segment.controller.ts": {
+    "mtime": 1781253424.9399238,
+    "ast_hash": "12234fc0b1322b52613ccca42e17a662",
+    "semantic_hash": "12234fc0b1322b52613ccca42e17a662"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/event-segment/event-segment.module.ts": {
+    "mtime": 1781253424.9398043,
+    "ast_hash": "82a1d2cfc2ac3b930eab1b564db4d838",
+    "semantic_hash": "82a1d2cfc2ac3b930eab1b564db4d838"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/event-segment/event-segment.service.spec.ts": {
+    "mtime": 1781011474.490849,
+    "ast_hash": "1c754f9abe76853636f4fca66f4562d1",
+    "semantic_hash": "1c754f9abe76853636f4fca66f4562d1"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/event-segment/event-segment.service.ts": {
+    "mtime": 1781076316.2886636,
+    "ast_hash": "44ead6aaf4a4082eda1373e8b2ab181f",
+    "semantic_hash": "44ead6aaf4a4082eda1373e8b2ab181f"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/event-segment/figure-instance.service.spec.ts": {
+    "mtime": 1781011474.492308,
+    "ast_hash": "cf93f2e51238be7f3d1584255eecd341",
+    "semantic_hash": "cf93f2e51238be7f3d1584255eecd341"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/event-segment/figure-instance.service.ts": {
+    "mtime": 1781076316.2884462,
+    "ast_hash": "e85ef6783d013ea04430e23848dc541c",
+    "semantic_hash": "e85ef6783d013ea04430e23848dc541c"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/event-segment/projection.service.ts": {
+    "mtime": 1781253424.918132,
+    "ast_hash": "d8bfee8996a4cfd372eec263f7675a2d",
+    "semantic_hash": "d8bfee8996a4cfd372eec263f7675a2d"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/event/attendance.entity.ts": {
+    "mtime": 1778135329.9269414,
+    "ast_hash": "6caa7b367dee9b2768b8b3d57673d611",
+    "semantic_hash": "6caa7b367dee9b2768b8b3d57673d611"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/event/attendance.service.spec.ts": {
+    "mtime": 1778135329.9270122,
+    "ast_hash": "87edfa67786ad20d383230c839e0e579",
+    "semantic_hash": "87edfa67786ad20d383230c839e0e579"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/event/attendance.service.ts": {
+    "mtime": 1781011474.493635,
+    "ast_hash": "dcbbb1a63a5acb9124a9b2beb4a614de",
+    "semantic_hash": "dcbbb1a63a5acb9124a9b2beb4a614de"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/event/constants/event-sort.constants.ts": {
+    "mtime": 1778135329.9271872,
+    "ast_hash": "bb4f655149ed11d61783fa5856d95008",
+    "semantic_hash": "bb4f655149ed11d61783fa5856d95008"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/event/dto/attendance-filter.dto.ts": {
+    "mtime": 1781011474.4944828,
+    "ast_hash": "22e8a8f797133e75aa9753dc8e20ddac",
+    "semantic_hash": "22e8a8f797133e75aa9753dc8e20ddac"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/event/dto/create-attendance.dto.ts": {
+    "mtime": 1778135329.927372,
+    "ast_hash": "d8d242dbaeeadbf9d341cca634f636f6",
+    "semantic_hash": "d8d242dbaeeadbf9d341cca634f636f6"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/event/dto/create-event.dto.ts": {
+    "mtime": 1778135329.9274359,
+    "ast_hash": "3b68c95928c1a75cea3c347fec1da234",
+    "semantic_hash": "3b68c95928c1a75cea3c347fec1da234"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/event/dto/event-filter.dto.spec.ts": {
+    "mtime": 1778135329.9275005,
+    "ast_hash": "fb41f7bfd8193307cfd3b651dfc2c7e5",
+    "semantic_hash": "fb41f7bfd8193307cfd3b651dfc2c7e5"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/event/dto/event-filter.dto.ts": {
+    "mtime": 1781011474.4948285,
+    "ast_hash": "a539eddeea144369377d9636497f3446",
+    "semantic_hash": "a539eddeea144369377d9636497f3446"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/event/dto/update-attendance.dto.ts": {
+    "mtime": 1778135329.927615,
+    "ast_hash": "d5b28bc67b0958443a9255f86cd0232e",
+    "semantic_hash": "d5b28bc67b0958443a9255f86cd0232e"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/event/dto/update-event.dto.ts": {
+    "mtime": 1778135329.9276686,
+    "ast_hash": "035cf93fe5b4b5919c390b0269705fd2",
+    "semantic_hash": "035cf93fe5b4b5919c390b0269705fd2"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/event/event.controller.spec.ts": {
+    "mtime": 1778135329.9277287,
+    "ast_hash": "e5bf824dea82a217c02d9df671b81dcc",
+    "semantic_hash": "e5bf824dea82a217c02d9df671b81dcc"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/event/event.controller.ts": {
+    "mtime": 1781011474.495143,
+    "ast_hash": "5fe9eb1cd42e4427a635a2a2564f3dda",
+    "semantic_hash": "5fe9eb1cd42e4427a635a2a2564f3dda"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/event/event.entity.ts": {
+    "mtime": 1781011474.5064316,
+    "ast_hash": "2c36ff60dbf337e7850fa90f41b583ba",
+    "semantic_hash": "2c36ff60dbf337e7850fa90f41b583ba"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/event/event.module.ts": {
+    "mtime": 1781084205.314111,
+    "ast_hash": "b17a22ae255f092dfe8114b42037c80d",
+    "semantic_hash": "b17a22ae255f092dfe8114b42037c80d"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/event/event.service.spec.ts": {
+    "mtime": 1781084205.314419,
+    "ast_hash": "3717fd069bfe0c49a5f19820ab829c9f",
+    "semantic_hash": "3717fd069bfe0c49a5f19820ab829c9f"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/event/event.service.ts": {
+    "mtime": 1781084205.3147035,
+    "ast_hash": "192723bb08b0ada8068f706a2446b109",
+    "semantic_hash": "192723bb08b0ada8068f706a2446b109"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/figure/dto/create-figure-node.dto.ts": {
+    "mtime": 1781011474.5111394,
+    "ast_hash": "368e23cc509d44131677db995be9c1a2",
+    "semantic_hash": "368e23cc509d44131677db995be9c1a2"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/figure/dto/create-figure-template.dto.ts": {
+    "mtime": 1781011474.5122504,
+    "ast_hash": "b95de75e6caafc65b9bb2b5bf8a2c0eb",
+    "semantic_hash": "b95de75e6caafc65b9bb2b5bf8a2c0eb"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/figure/dto/create-rengla.dto.ts": {
+    "mtime": 1781011474.5128014,
+    "ast_hash": "8c84a4732a05d4bd7a348cd7961587f5",
+    "semantic_hash": "8c84a4732a05d4bd7a348cd7961587f5"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/figure/dto/figure-template-filter.dto.ts": {
+    "mtime": 1781011474.5141056,
+    "ast_hash": "9343b914c1ca653655f3c57a46b097bd",
+    "semantic_hash": "9343b914c1ca653655f3c57a46b097bd"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/figure/dto/save-from-instance.dto.ts": {
+    "mtime": 1781258922.789069,
+    "ast_hash": "6bf11c24171e281b3f002efc6b6040ed",
+    "semantic_hash": "6bf11c24171e281b3f002efc6b6040ed"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/figure/dto/update-figure-template.dto.ts": {
+    "mtime": 1781011474.5145376,
+    "ast_hash": "90e261800b74291ebb24f9290aa6f900",
+    "semantic_hash": "90e261800b74291ebb24f9290aa6f900"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/figure/entities/figure-node.entity.ts": {
+    "mtime": 1781011474.5152335,
+    "ast_hash": "5c00ec58372ca1bcbe1af21975eb4963",
+    "semantic_hash": "5c00ec58372ca1bcbe1af21975eb4963"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/figure/entities/figure-template.entity.ts": {
+    "mtime": 1781011474.5159063,
+    "ast_hash": "e59f3caedd736ca21d192ffb965e5269",
+    "semantic_hash": "e59f3caedd736ca21d192ffb965e5269"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/figure/entities/rengla.entity.ts": {
+    "mtime": 1781011474.5164924,
+    "ast_hash": "75f28c59a7b9e88c4026cef396bbb8e4",
+    "semantic_hash": "75f28c59a7b9e88c4026cef396bbb8e4"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/figure/figure-template.controller.spec.ts": {
+    "mtime": 1781076316.2883825,
+    "ast_hash": "b42b84df84aca31b0d2be8f061a48ce3",
+    "semantic_hash": "b42b84df84aca31b0d2be8f061a48ce3"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/figure/figure-template.controller.ts": {
+    "mtime": 1781258922.7895694,
+    "ast_hash": "d5f17b771660edbd7130bf70a9fbb91c",
+    "semantic_hash": "d5f17b771660edbd7130bf70a9fbb91c"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/figure/figure-template.service.spec.ts": {
+    "mtime": 1781258922.7900286,
+    "ast_hash": "c4d8a48664468e11efa55ef7b54ab029",
+    "semantic_hash": "c4d8a48664468e11efa55ef7b54ab029"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/figure/figure-template.service.ts": {
+    "mtime": 1781258922.7907243,
+    "ast_hash": "9078464eb20f3d49f333e141dea7dff3",
+    "semantic_hash": "9078464eb20f3d49f333e141dea7dff3"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/figure/figure.module.ts": {
+    "mtime": 1781258922.7912683,
+    "ast_hash": "ec93629b06196e03ce844310e6f0ec9a",
+    "semantic_hash": "ec93629b06196e03ce844310e6f0ec9a"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/node-assignment/available-persons.service.spec.ts": {
+    "mtime": 1781011474.522084,
+    "ast_hash": "140894e86ccf103f86e3593bc07784a9",
+    "semantic_hash": "140894e86ccf103f86e3593bc07784a9"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/node-assignment/available-persons.service.ts": {
+    "mtime": 1781011474.522609,
+    "ast_hash": "aac2e0d1b16d0c1d228b04dc828ef11c",
+    "semantic_hash": "aac2e0d1b16d0c1d228b04dc828ef11c"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/node-assignment/dto/available-persons-query.dto.ts": {
+    "mtime": 1781011474.523882,
+    "ast_hash": "3a10f5a40798aaba5f2563a249606742",
+    "semantic_hash": "3a10f5a40798aaba5f2563a249606742"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/node-assignment/dto/bulk-import-assignment.dto.ts": {
+    "mtime": 1781011474.5249796,
+    "ast_hash": "e294538379cc945a1d62389d6fa72758",
+    "semantic_hash": "e294538379cc945a1d62389d6fa72758"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/node-assignment/dto/create-ad-hoc-node.dto.ts": {
+    "mtime": 1781258922.7917302,
+    "ast_hash": "ea6ca7ae6869830d146342e13c36147c",
+    "semantic_hash": "ea6ca7ae6869830d146342e13c36147c"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/node-assignment/dto/create-assignment.dto.ts": {
+    "mtime": 1781011474.5256777,
+    "ast_hash": "8e421bb1173be3e8e9631d866d4bebe5",
+    "semantic_hash": "8e421bb1173be3e8e9631d866d4bebe5"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/node-assignment/dto/history-query.dto.ts": {
+    "mtime": 1781011474.5295913,
+    "ast_hash": "5ea7ddda6bd3ffd46f36f7a5b5402aeb",
+    "semantic_hash": "5ea7ddda6bd3ffd46f36f7a5b5402aeb"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/node-assignment/dto/swap-assignments.dto.ts": {
+    "mtime": 1781011474.5301368,
+    "ast_hash": "7f1cc72fc4a70fbdcc9ed4d8c9c4845e",
+    "semantic_hash": "7f1cc72fc4a70fbdcc9ed4d8c9c4845e"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/node-assignment/dto/update-ad-hoc-node.dto.ts": {
+    "mtime": 1781258922.7922268,
+    "ast_hash": "875598d756a657a28b83020580c2de29",
+    "semantic_hash": "875598d756a657a28b83020580c2de29"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/node-assignment/dto/update-instance-cordons.dto.ts": {
+    "mtime": 1781011474.5309334,
+    "ast_hash": "a007eb3de79afa06cdf8a67ef7a0862c",
+    "semantic_hash": "a007eb3de79afa06cdf8a67ef7a0862c"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/node-assignment/entities/node-assignment.entity.ts": {
+    "mtime": 1781011474.5335982,
+    "ast_hash": "06bd6b35c5c014fe8b89372838112583",
+    "semantic_hash": "06bd6b35c5c014fe8b89372838112583"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/node-assignment/node-assignment.controller.spec.ts": {
+    "mtime": 1781011474.534596,
+    "ast_hash": "ab532f9519ff95b8eb3764680083cde9",
+    "semantic_hash": "ab532f9519ff95b8eb3764680083cde9"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/node-assignment/node-assignment.controller.ts": {
+    "mtime": 1781258922.7927148,
+    "ast_hash": "eda782419e04ae2ae34a2b108ced380a",
+    "semantic_hash": "eda782419e04ae2ae34a2b108ced380a"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/node-assignment/node-assignment.module.ts": {
+    "mtime": 1781011474.537253,
+    "ast_hash": "f2a557e4e503703467c82e175db14706",
+    "semantic_hash": "f2a557e4e503703467c82e175db14706"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/node-assignment/node-assignment.service.spec.ts": {
+    "mtime": 1781258922.7934036,
+    "ast_hash": "02f68c40edc195b67a3ded6a07e81b91",
+    "semantic_hash": "02f68c40edc195b67a3ded6a07e81b91"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/node-assignment/node-assignment.service.ts": {
+    "mtime": 1781258922.7939165,
+    "ast_hash": "c294cca5e1b8d73aaf9a7705e4e2cf87",
+    "semantic_hash": "c294cca5e1b8d73aaf9a7705e4e2cf87"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/person/constants/person-sort.constants.ts": {
+    "mtime": 1778135329.9281654,
+    "ast_hash": "7739d28d2b234e58a896fe5ccf968bf8",
+    "semantic_hash": "7739d28d2b234e58a896fe5ccf968bf8"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/person/dto/create-person.dto.ts": {
+    "mtime": 1781011474.5451295,
+    "ast_hash": "62847e28683d9bdc437201550e336a49",
+    "semantic_hash": "62847e28683d9bdc437201550e336a49"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/person/dto/create-provisional-person.dto.ts": {
+    "mtime": 1778135329.9283073,
+    "ast_hash": "6653be037578b96d62f4a63f85acd388",
+    "semantic_hash": "6653be037578b96d62f4a63f85acd388"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/person/dto/person-filter.dto.spec.ts": {
+    "mtime": 1778135329.9283555,
+    "ast_hash": "9dad568b82ce26039b5c87c813c144dc",
+    "semantic_hash": "9dad568b82ce26039b5c87c813c144dc"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/person/dto/person-filter.dto.ts": {
+    "mtime": 1781011474.5455847,
+    "ast_hash": "fc06177942cd81b61c0147d51cefb7af",
+    "semantic_hash": "fc06177942cd81b61c0147d51cefb7af"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/person/dto/person-response.dto.ts": {
+    "mtime": 1781011474.545861,
+    "ast_hash": "14e751cc00b2ea7ec87b3406b1b3c763",
+    "semantic_hash": "14e751cc00b2ea7ec87b3406b1b3c763"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/person/dto/update-person.dto.ts": {
+    "mtime": 1781011474.5461133,
+    "ast_hash": "a3fdec2bb9d68b48a0e8d19101677c52",
+    "semantic_hash": "a3fdec2bb9d68b48a0e8d19101677c52"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/person/person.controller.spec.ts": {
+    "mtime": 1778135329.9285638,
+    "ast_hash": "003903588a73a1fe7a06849f55f2dfca",
+    "semantic_hash": "003903588a73a1fe7a06849f55f2dfca"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/person/person.controller.ts": {
+    "mtime": 1781011474.5463355,
+    "ast_hash": "c2c9df133a6a666b64309b44aa34d308",
+    "semantic_hash": "c2c9df133a6a666b64309b44aa34d308"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/person/person.entity.ts": {
+    "mtime": 1781011474.5468192,
+    "ast_hash": "cfd904f0bd24773af0887a9066325a79",
+    "semantic_hash": "cfd904f0bd24773af0887a9066325a79"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/person/person.module.ts": {
+    "mtime": 1781011474.5484889,
+    "ast_hash": "ba414f7b3e945e697fcf87b766f4c675",
+    "semantic_hash": "ba414f7b3e945e697fcf87b766f4c675"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/person/person.service.spec.ts": {
+    "mtime": 1781011474.54893,
+    "ast_hash": "b6aea14526b8d390ffca101b93f6e0b4",
+    "semantic_hash": "b6aea14526b8d390ffca101b93f6e0b4"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/person/person.service.ts": {
+    "mtime": 1781011474.5492933,
+    "ast_hash": "d22d876fb2be81ec7b20b29618da0f3f",
+    "semantic_hash": "d22d876fb2be81ec7b20b29618da0f3f"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/position/dto/create-position.dto.ts": {
+    "mtime": 1778135329.92901,
+    "ast_hash": "c4e786599ceaa6fcf811a7005f40eead",
+    "semantic_hash": "c4e786599ceaa6fcf811a7005f40eead"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/position/dto/update-position.dto.ts": {
+    "mtime": 1781011474.549574,
+    "ast_hash": "e794abad0e0ee434c8b0e91eb60db337",
+    "semantic_hash": "e794abad0e0ee434c8b0e91eb60db337"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/position/position.controller.spec.ts": {
+    "mtime": 1781011474.5505545,
+    "ast_hash": "b227f324fd1d079105891db3584df74a",
+    "semantic_hash": "b227f324fd1d079105891db3584df74a"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/position/position.controller.ts": {
+    "mtime": 1781076316.2884576,
+    "ast_hash": "20c6a0ffd8f62190deccf0c1393d99a9",
+    "semantic_hash": "20c6a0ffd8f62190deccf0c1393d99a9"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/position/position.entity.ts": {
+    "mtime": 1778135329.929168,
+    "ast_hash": "1a6dfba541b025e41b81c5c8c78ee808",
+    "semantic_hash": "1a6dfba541b025e41b81c5c8c78ee808"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/position/position.module.ts": {
+    "mtime": 1778135329.9292274,
+    "ast_hash": "56dd71701c8fe669fafe3e28fa681cf7",
+    "semantic_hash": "56dd71701c8fe669fafe3e28fa681cf7"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/position/position.service.spec.ts": {
+    "mtime": 1781076316.2886393,
+    "ast_hash": "d5ee95e1485b87076495ab5897488406",
+    "semantic_hash": "d5ee95e1485b87076495ab5897488406"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/position/position.service.ts": {
+    "mtime": 1781076316.288573,
+    "ast_hash": "f834f9778c2bbb2324a39b208cf3b4be",
+    "semantic_hash": "f834f9778c2bbb2324a39b208cf3b4be"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/season/dto/create-season.dto.ts": {
+    "mtime": 1781084205.3150415,
+    "ast_hash": "6989a117c88373ee0f8d9f71878645ac",
+    "semantic_hash": "6989a117c88373ee0f8d9f71878645ac"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/season/dto/update-season.dto.ts": {
+    "mtime": 1781084205.3152225,
+    "ast_hash": "039bdae0d885a22ed832e951cc231c37",
+    "semantic_hash": "039bdae0d885a22ed832e951cc231c37"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/season/season.controller.ts": {
+    "mtime": 1781084205.3155017,
+    "ast_hash": "e59c6edc240541ae5eeb5b017aa4bef9",
+    "semantic_hash": "e59c6edc240541ae5eeb5b017aa4bef9"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/season/season.entity.ts": {
+    "mtime": 1778135329.9294996,
+    "ast_hash": "51b43db2d68b80dd10c996c87334a174",
+    "semantic_hash": "51b43db2d68b80dd10c996c87334a174"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/season/season.module.ts": {
+    "mtime": 1778135329.9295495,
+    "ast_hash": "f6b84841b7e08d3e69303082bde91f0c",
+    "semantic_hash": "f6b84841b7e08d3e69303082bde91f0c"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/season/season.service.spec.ts": {
+    "mtime": 1781084205.3158436,
+    "ast_hash": "664df5e5922d7feddebade43f311325b",
+    "semantic_hash": "664df5e5922d7feddebade43f311325b"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/season/season.service.ts": {
+    "mtime": 1781084205.3161864,
+    "ast_hash": "fbd3cffc720ca2bd5de91fbce1e4b55e",
+    "semantic_hash": "fbd3cffc720ca2bd5de91fbce1e4b55e"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/sync/interfaces/legacy-event.interface.ts": {
+    "mtime": 1781011474.5680947,
+    "ast_hash": "bfade2d57965bc28178abe1dbb93f370",
+    "semantic_hash": "bfade2d57965bc28178abe1dbb93f370"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/sync/interfaces/sync-event.interface.ts": {
+    "mtime": 1778135329.929827,
+    "ast_hash": "5ca2810a5a0020c1a9027dabec869087",
+    "semantic_hash": "5ca2810a5a0020c1a9027dabec869087"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/sync/interfaces/sync-strategy.interface.ts": {
+    "mtime": 1778135329.9298782,
+    "ast_hash": "702e14b39e1fbb42cdbeeedeb50b0efb",
+    "semantic_hash": "702e14b39e1fbb42cdbeeedeb50b0efb"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/sync/legacy-api.client.spec.ts": {
+    "mtime": 1778135329.9299285,
+    "ast_hash": "6e7cbae587d972afc989f6ec00ef6493",
+    "semantic_hash": "6e7cbae587d972afc989f6ec00ef6493"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/sync/legacy-api.client.ts": {
+    "mtime": 1781011474.5683477,
+    "ast_hash": "d73aa9d49d4bc7e8b6c51c2d3bca9b08",
+    "semantic_hash": "d73aa9d49d4bc7e8b6c51c2d3bca9b08"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/sync/strategies/attendance-sync.strategy.spec.ts": {
+    "mtime": 1781011474.568615,
+    "ast_hash": "b9a9a70732ead9e600fee97b4c7b8b20",
+    "semantic_hash": "b9a9a70732ead9e600fee97b4c7b8b20"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/sync/strategies/attendance-sync.strategy.ts": {
+    "mtime": 1781011474.569243,
+    "ast_hash": "963be73da290261c8ea6925585530086",
+    "semantic_hash": "963be73da290261c8ea6925585530086"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/sync/strategies/event-sync.strategy.spec.ts": {
+    "mtime": 1781011474.5695121,
+    "ast_hash": "538678be584be2021c7b32b4843b3e87",
+    "semantic_hash": "538678be584be2021c7b32b4843b3e87"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/sync/strategies/event-sync.strategy.ts": {
+    "mtime": 1781011474.569904,
+    "ast_hash": "f2a2ebaa88aa02cb8e5eba16cfc55ed1",
+    "semantic_hash": "f2a2ebaa88aa02cb8e5eba16cfc55ed1"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/sync/strategies/person-sync.strategy.spec.ts": {
+    "mtime": 1781011474.5702326,
+    "ast_hash": "181d0ddeb918eeab8c004f37343bc806",
+    "semantic_hash": "181d0ddeb918eeab8c004f37343bc806"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/sync/strategies/person-sync.strategy.ts": {
+    "mtime": 1781011474.5718944,
+    "ast_hash": "3f31b154e242024ab8a14a1b22ae9231",
+    "semantic_hash": "3f31b154e242024ab8a14a1b22ae9231"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/sync/sync.controller.ts": {
+    "mtime": 1781011474.572231,
+    "ast_hash": "b32112a1042b49013badf64948e27432",
+    "semantic_hash": "b32112a1042b49013badf64948e27432"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/sync/sync.module.ts": {
+    "mtime": 1781011474.5728672,
+    "ast_hash": "03f6139688d4388d316b1f8736fce92a",
+    "semantic_hash": "03f6139688d4388d316b1f8736fce92a"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/user/constants/user-sort.constants.ts": {
+    "mtime": 1781011474.573288,
+    "ast_hash": "6dac611ad2dbbd7b02a30b119609d3b3",
+    "semantic_hash": "6dac611ad2dbbd7b02a30b119609d3b3"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/user/dto/create-user.dto.ts": {
+    "mtime": 1781011474.5738902,
+    "ast_hash": "31000e45be910c1ca1b759d693a1bd6e",
+    "semantic_hash": "31000e45be910c1ca1b759d693a1bd6e"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/user/dto/create-with-invite.dto.ts": {
+    "mtime": 1781011474.5748575,
+    "ast_hash": "b6e9439641e1da0dde4901710fe41941",
+    "semantic_hash": "b6e9439641e1da0dde4901710fe41941"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/user/dto/grant-user-role.dto.ts": {
+    "mtime": 1781011474.5754242,
+    "ast_hash": "b319a4fbd94adc22feb35f7a99d72f5b",
+    "semantic_hash": "b319a4fbd94adc22feb35f7a99d72f5b"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/user/dto/update-user.dto.ts": {
+    "mtime": 1781011474.5759137,
+    "ast_hash": "143d2d707b1ffae56636825d493c0b42",
+    "semantic_hash": "143d2d707b1ffae56636825d493c0b42"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/user/dto/user-filter.dto.ts": {
+    "mtime": 1781011474.576363,
+    "ast_hash": "73d778da0daec01ad4598cb83acbe505",
+    "semantic_hash": "73d778da0daec01ad4598cb83acbe505"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/user/dto/user-response.dto.ts": {
+    "mtime": 1781011474.5764918,
+    "ast_hash": "a3ec88569cfbf7a8ccab777f0789365c",
+    "semantic_hash": "a3ec88569cfbf7a8ccab777f0789365c"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/user/user.controller.ts": {
+    "mtime": 1781011474.5769608,
+    "ast_hash": "9b9374718c47125531da2dacdbd5240a",
+    "semantic_hash": "9b9374718c47125531da2dacdbd5240a"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/user/user.entity.ts": {
+    "mtime": 1781011474.577161,
+    "ast_hash": "6d68392a9c53ed071b96ef74a018dd6f",
+    "semantic_hash": "6d68392a9c53ed071b96ef74a018dd6f"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/user/user.module.ts": {
+    "mtime": 1781011474.5773685,
+    "ast_hash": "b71c13879d93c7d1cdfd8427d7228fb1",
+    "semantic_hash": "b71c13879d93c7d1cdfd8427d7228fb1"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/user/user.service.spec.ts": {
+    "mtime": 1781011474.57893,
+    "ast_hash": "f0eb51aaf6ce44ad99beffd75b40ae6f",
+    "semantic_hash": "f0eb51aaf6ce44ad99beffd75b40ae6f"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/src/modules/user/user.service.ts": {
+    "mtime": 1781011474.579569,
+    "ast_hash": "f303223b7ac3d72e4bbc61b466e2f506",
+    "semantic_hash": "f303223b7ac3d72e4bbc61b466e2f506"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/tsconfig.app.json": {
+    "mtime": 1781011474.5804806,
+    "ast_hash": "9db107402dfeabcd166ddfc7e9cc33c5",
+    "semantic_hash": "9db107402dfeabcd166ddfc7e9cc33c5"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/tsconfig.json": {
+    "mtime": 1778135329.9308984,
+    "ast_hash": "eb861d196c0a66e971cff78f53d621ee",
+    "semantic_hash": "eb861d196c0a66e971cff78f53d621ee"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/tsconfig.migrations.json": {
+    "mtime": 1781011474.580964,
+    "ast_hash": "099bfe0de2478ee9bdd2dd1511ed8fa3",
+    "semantic_hash": "099bfe0de2478ee9bdd2dd1511ed8fa3"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/tsconfig.spec.json": {
+    "mtime": 1778135329.9309525,
+    "ast_hash": "b4a45747eacc3c2cb166e003db1026a6",
+    "semantic_hash": "b4a45747eacc3c2cb166e003db1026a6"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/api/webpack.config.js": {
+    "mtime": 1778135329.9310048,
+    "ast_hash": "6f8d16c851348917ec2a2b93aeb769d2",
+    "semantic_hash": "6f8d16c851348917ec2a2b93aeb769d2"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard-e2e/eslint.config.mjs": {
+    "mtime": 1778135329.9310873,
+    "ast_hash": "0f1d803e920c7daa8bad5b7b4854f3fb",
+    "semantic_hash": "0f1d803e920c7daa8bad5b7b4854f3fb"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard-e2e/playwright.config.ts": {
+    "mtime": 1778135329.9311364,
+    "ast_hash": "376b9904dd5889af8131f76401a46e29",
+    "semantic_hash": "376b9904dd5889af8131f76401a46e29"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard-e2e/project.json": {
+    "mtime": 1778135329.9311838,
+    "ast_hash": "6af874dd0b26f55c652a6abd97774455",
+    "semantic_hash": "6af874dd0b26f55c652a6abd97774455"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard-e2e/src/example.spec.ts": {
+    "mtime": 1778135329.9312713,
+    "ast_hash": "5eef37c29e293b80beb38ca7250042a9",
+    "semantic_hash": "5eef37c29e293b80beb38ca7250042a9"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard-e2e/tsconfig.json": {
+    "mtime": 1778135329.9313183,
+    "ast_hash": "0762052b61de3e06840598876fe1cebc",
+    "semantic_hash": "0762052b61de3e06840598876fe1cebc"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/eslint.config.mjs": {
+    "mtime": 1778135329.9313974,
+    "ast_hash": "e3cffe606b41331b205135abb3408e12",
+    "semantic_hash": "e3cffe606b41331b205135abb3408e12"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/postcss.config.js": {
+    "mtime": 1778135329.9314508,
+    "ast_hash": "8640f9b2e6475cc3f5b1ff4548925765",
+    "semantic_hash": "8640f9b2e6475cc3f5b1ff4548925765"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/project.json": {
+    "mtime": 1781011474.5829084,
+    "ast_hash": "1d4d1801eb7ca40646a60db9e6f481f8",
+    "semantic_hash": "1d4d1801eb7ca40646a60db9e6f481f8"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/proxy.conf.json": {
+    "mtime": 1778135329.9315574,
+    "ast_hash": "322425b836a74351ab6fd8cbe445cf29",
+    "semantic_hash": "322425b836a74351ab6fd8cbe445cf29"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/app.config.ts": {
+    "mtime": 1781023985.2630546,
+    "ast_hash": "02453443354f3ef4fc9bc483d9b412f2",
+    "semantic_hash": "02453443354f3ef4fc9bc483d9b412f2"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/app.routes.ts": {
+    "mtime": 1778135329.933258,
+    "ast_hash": "861357ef88ebacc6868af06caa7b45c5",
+    "semantic_hash": "861357ef88ebacc6868af06caa7b45c5"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/app.spec.ts": {
+    "mtime": 1778135329.9333086,
+    "ast_hash": "80759c609b19ad16b14922a113d4a1b1",
+    "semantic_hash": "80759c609b19ad16b14922a113d4a1b1"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/app.ts": {
+    "mtime": 1778135329.9333606,
+    "ast_hash": "acc1532749f035220eb5e593a2e50fa0",
+    "semantic_hash": "acc1532749f035220eb5e593a2e50fa0"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/core/auth/guards/auth.guard.spec.ts": {
+    "mtime": 1781011474.5850651,
+    "ast_hash": "3d9cc03c717c46e4d5606e82bfbe4383",
+    "semantic_hash": "3d9cc03c717c46e4d5606e82bfbe4383"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/core/auth/guards/auth.guard.ts": {
+    "mtime": 1781011474.5857418,
+    "ast_hash": "b561c2933e8d612a175a073acee714f9",
+    "semantic_hash": "b561c2933e8d612a175a073acee714f9"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/core/auth/guards/role.guard.spec.ts": {
+    "mtime": 1781011474.5868483,
+    "ast_hash": "3104d6008045c8a3cfd4efd7771b964c",
+    "semantic_hash": "3104d6008045c8a3cfd4efd7771b964c"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/core/auth/guards/role.guard.ts": {
+    "mtime": 1778135329.933682,
+    "ast_hash": "80b284eab71a5e004b0e3cb3b899d691",
+    "semantic_hash": "80b284eab71a5e004b0e3cb3b899d691"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/core/auth/interceptors/auth.interceptor.ts": {
+    "mtime": 1781011474.5878096,
+    "ast_hash": "9fdb31041e168cdbcec7d841db1d0b11",
+    "semantic_hash": "9fdb31041e168cdbcec7d841db1d0b11"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/core/auth/models/auth.models.ts": {
+    "mtime": 1778135329.9338515,
+    "ast_hash": "2bc1a8f1506e66d4aee1d03098385c2d",
+    "semantic_hash": "2bc1a8f1506e66d4aee1d03098385c2d"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/core/auth/services/auth.service.spec.ts": {
+    "mtime": 1778135329.9339337,
+    "ast_hash": "fbb1307ae367b8e577fe2046cf436389",
+    "semantic_hash": "fbb1307ae367b8e577fe2046cf436389"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/core/auth/services/auth.service.ts": {
+    "mtime": 1781011474.588606,
+    "ast_hash": "6092daff9746f4240ae36b4ace1ae3b8",
+    "semantic_hash": "6092daff9746f4240ae36b4ace1ae3b8"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/core/services/api.service.ts": {
+    "mtime": 1781011474.5889094,
+    "ast_hash": "17b31b9aa45ae7687c3ef2252db700d3",
+    "semantic_hash": "17b31b9aa45ae7687c3ef2252db700d3"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/core/services/layout.service.ts": {
+    "mtime": 1781258922.7944722,
+    "ast_hash": "80b80f1e6db4a8d2a89c50bf7702e5ae",
+    "semantic_hash": "80b80f1e6db4a8d2a89c50bf7702e5ae"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/core/utils/http-params.util.spec.ts": {
+    "mtime": 1778135329.9342058,
+    "ast_hash": "a51200912841dda841c74c9a1f88f1fe",
+    "semantic_hash": "a51200912841dda841c74c9a1f88f1fe"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/core/utils/http-params.util.ts": {
+    "mtime": 1781011474.5894833,
+    "ast_hash": "1d82da26a76b841d5c3093f1d1a34316",
+    "semantic_hash": "1d82da26a76b841d5c3093f1d1a34316"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/auth/login/login.component.spec.ts": {
+    "mtime": 1781011474.5907996,
+    "ast_hash": "f4c46a6da28a0b39140048e286ffd0b6",
+    "semantic_hash": "f4c46a6da28a0b39140048e286ffd0b6"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/auth/login/login.component.ts": {
+    "mtime": 1781011474.5918272,
+    "ast_hash": "146c8dfa2ca3ef90a0990d3f3cfe1488",
+    "semantic_hash": "146c8dfa2ca3ef90a0990d3f3cfe1488"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/config/components/config-placeholder.component.ts": {
+    "mtime": 1778135329.9346356,
+    "ast_hash": "6e3fb72ba5b8fa1c6e1664603e309809",
+    "semantic_hash": "6e3fb72ba5b8fa1c6e1664603e309809"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/config/components/position-form-modal/position-form-modal.component.ts": {
+    "mtime": 1781011474.5946865,
+    "ast_hash": "7d0d616f13978950492a88ba3d90d460",
+    "semantic_hash": "7d0d616f13978950492a88ba3d90d460"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/config/components/position-list/position-list.component.ts": {
+    "mtime": 1781011474.597273,
+    "ast_hash": "13f81988af88bff97d4e2161bad2cbc6",
+    "semantic_hash": "13f81988af88bff97d4e2161bad2cbc6"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/config/components/season-form-modal/season-form-modal.component.spec.ts": {
+    "mtime": 1781084205.3167427,
+    "ast_hash": "a43bc4b16737bac0e1a568f6c946c845",
+    "semantic_hash": "a43bc4b16737bac0e1a568f6c946c845"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/config/components/season-form-modal/season-form-modal.component.ts": {
+    "mtime": 1781084205.3169942,
+    "ast_hash": "ece0a0742f99ac47a237b79926073df9",
+    "semantic_hash": "ece0a0742f99ac47a237b79926073df9"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/config/components/season-list/season-list.component.spec.ts": {
+    "mtime": 1781084205.3174915,
+    "ast_hash": "fbfaa30700ac817c93392090706ba2ee",
+    "semantic_hash": "fbfaa30700ac817c93392090706ba2ee"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/config/components/season-list/season-list.component.ts": {
+    "mtime": 1781084205.3177946,
+    "ast_hash": "e4ebd88e93ddaf8b754cd9f547806eec",
+    "semantic_hash": "e4ebd88e93ddaf8b754cd9f547806eec"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/config/components/user-form-modal/user-form-modal.component.ts": {
+    "mtime": 1781011474.5988903,
+    "ast_hash": "e8d58e9f20c8e331c16ef8be3e2c3f9e",
+    "semantic_hash": "e8d58e9f20c8e331c16ef8be3e2c3f9e"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/config/components/user-list.component.spec.ts": {
+    "mtime": 1781011474.6005006,
+    "ast_hash": "8abf5f16e49d19ffc643dc40d8cbf54a",
+    "semantic_hash": "8abf5f16e49d19ffc643dc40d8cbf54a"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/config/components/user-list.component.ts": {
+    "mtime": 1781011474.6013947,
+    "ast_hash": "6779f37e47542a04def51d340d151893",
+    "semantic_hash": "6779f37e47542a04def51d340d151893"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/config/config.component.ts": {
+    "mtime": 1778135329.9346879,
+    "ast_hash": "1278100dbd6ba90169aefe291e1ea5b3",
+    "semantic_hash": "1278100dbd6ba90169aefe291e1ea5b3"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/config/config.routes.ts": {
+    "mtime": 1781084205.318145,
+    "ast_hash": "dbead12d9f8ace1b03839b8b03f790f7",
+    "semantic_hash": "dbead12d9f8ace1b03839b8b03f790f7"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/config/models/position.model.ts": {
+    "mtime": 1781011474.6026251,
+    "ast_hash": "efc07de742822d4a9be6ede00728eb7a",
+    "semantic_hash": "efc07de742822d4a9be6ede00728eb7a"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/config/models/user.model.ts": {
+    "mtime": 1781011474.6035914,
+    "ast_hash": "4bea8e91b3741aa4175e2507761eaeea",
+    "semantic_hash": "4bea8e91b3741aa4175e2507761eaeea"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/config/services/position.service.ts": {
+    "mtime": 1781011474.6041784,
+    "ast_hash": "859e0cc4f32839000df32ccff1b8b723",
+    "semantic_hash": "859e0cc4f32839000df32ccff1b8b723"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/config/services/user.service.spec.ts": {
+    "mtime": 1781011474.6047049,
+    "ast_hash": "b968eb46a01468c5e15ecd0b73730f98",
+    "semantic_hash": "b968eb46a01468c5e15ecd0b73730f98"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/config/services/user.service.ts": {
+    "mtime": 1781011474.6069274,
+    "ast_hash": "005bcc4fd596f82fb88ef575a3358d26",
+    "semantic_hash": "005bcc4fd596f82fb88ef575a3358d26"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/events/components/attendance-edit-modal/attendance-edit-modal.component.ts": {
+    "mtime": 1778135329.9349546,
+    "ast_hash": "b15da4d7b271c6172396d7270897492d",
+    "semantic_hash": "b15da4d7b271c6172396d7270897492d"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/events/components/event-detail/event-detail.component.spec.ts": {
+    "mtime": 1781023985.2686372,
+    "ast_hash": "7478dcca88125b368f131f67dd75a869",
+    "semantic_hash": "7478dcca88125b368f131f67dd75a869"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/events/components/event-detail/event-detail.component.ts": {
+    "mtime": 1781258922.797341,
+    "ast_hash": "f11cb08f04db97035894cadaa04da014",
+    "semantic_hash": "f11cb08f04db97035894cadaa04da014"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/events/components/event-form-modal/event-form-modal.component.ts": {
+    "mtime": 1781084205.3187208,
+    "ast_hash": "02ff64ecbd1c075144753b26f8a0efeb",
+    "semantic_hash": "02ff64ecbd1c075144753b26f8a0efeb"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/events/components/event-list/event-list.component.spec.ts": {
+    "mtime": 1781023985.2729244,
+    "ast_hash": "a89661dae6fa4097dec79e1df8d1c8b6",
+    "semantic_hash": "a89661dae6fa4097dec79e1df8d1c8b6"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/events/components/event-list/event-list.component.ts": {
+    "mtime": 1781023985.2738276,
+    "ast_hash": "859dc6d9e77019f612fb0300b7e0df1d",
+    "semantic_hash": "859dc6d9e77019f612fb0300b7e0df1d"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/events/components/event-sync/event-sync.component.ts": {
+    "mtime": 1778135329.9357595,
+    "ast_hash": "69db162893630fc71e84d65e23bd7e10",
+    "semantic_hash": "69db162893630fc71e84d65e23bd7e10"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/events/components/segment-manager/segment-manager.component.spec.ts": {
+    "mtime": 1781011474.612986,
+    "ast_hash": "5a61a7bd914f040a1850981deb4e4b22",
+    "semantic_hash": "5a61a7bd914f040a1850981deb4e4b22"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/events/components/segment-manager/segment-manager.component.ts": {
+    "mtime": 1781011474.6144307,
+    "ast_hash": "f4fcac9d30ace3a41fa6115db4d8b0f2",
+    "semantic_hash": "f4fcac9d30ace3a41fa6115db4d8b0f2"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/events/events.routes.ts": {
+    "mtime": 1778135329.9358075,
+    "ast_hash": "13738e9fd69edbc19ad98a7d573b43cb",
+    "semantic_hash": "13738e9fd69edbc19ad98a7d573b43cb"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/events/models/attendance.model.ts": {
+    "mtime": 1778135329.9359002,
+    "ast_hash": "77510de6d59772b2e0d3f7fbbcb8afbf",
+    "semantic_hash": "77510de6d59772b2e0d3f7fbbcb8afbf"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/events/models/event.model.ts": {
+    "mtime": 1781011474.6149747,
+    "ast_hash": "29b96df12002db0def77e0e5ccc7fa34",
+    "semantic_hash": "29b96df12002db0def77e0e5ccc7fa34"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/events/services/attendance.service.spec.ts": {
+    "mtime": 1781011474.6159344,
+    "ast_hash": "89964223fe37c40c7b5d28ce022e9ba1",
+    "semantic_hash": "89964223fe37c40c7b5d28ce022e9ba1"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/events/services/attendance.service.ts": {
+    "mtime": 1781011474.6161928,
+    "ast_hash": "e4c3d760dfad0f97e65663c97937667d",
+    "semantic_hash": "e4c3d760dfad0f97e65663c97937667d"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/events/services/event.service.spec.ts": {
+    "mtime": 1778135329.9361684,
+    "ast_hash": "2afd48cdc0d4a66ae1aba6edcaea30c0",
+    "semantic_hash": "2afd48cdc0d4a66ae1aba6edcaea30c0"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/events/services/event.service.ts": {
+    "mtime": 1781011474.6164098,
+    "ast_hash": "644160e0cbf4690cfc7d864b16b232fd",
+    "semantic_hash": "644160e0cbf4690cfc7d864b16b232fd"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/events/services/season.service.ts": {
+    "mtime": 1781084205.3189597,
+    "ast_hash": "2ad62319d45d55527468262c6e4e9bd6",
+    "semantic_hash": "2ad62319d45d55527468262c6e4e9bd6"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/home/home.component.ts": {
+    "mtime": 1778135329.9364235,
+    "ast_hash": "a79455d500a1843163350f0a4fd281e6",
+    "semantic_hash": "a79455d500a1843163350f0a4fd281e6"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/home/home.routes.ts": {
+    "mtime": 1778135329.9364743,
+    "ast_hash": "0b2ae71a656c81a138c541b6e7c8ce0d",
+    "semantic_hash": "0b2ae71a656c81a138c541b6e7c8ce0d"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/persons/components/person-detail/modals/person-invitation-modal.component.ts": {
+    "mtime": 1781011474.6219738,
+    "ast_hash": "e51f3e92ea2e39d9d94fd99d690edc8e",
+    "semantic_hash": "e51f3e92ea2e39d9d94fd99d690edc8e"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/persons/components/person-detail/modals/person-link-user-modal.component.ts": {
+    "mtime": 1781011474.6331685,
+    "ast_hash": "e34bc42fd3b8d0214301a7b21d937bc6",
+    "semantic_hash": "e34bc42fd3b8d0214301a7b21d937bc6"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/persons/components/person-detail/person-detail.component.ts": {
+    "mtime": 1781076316.2915454,
+    "ast_hash": "2906fe815605a87193a3b61303cfc0d2",
+    "semantic_hash": "2906fe815605a87193a3b61303cfc0d2"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/persons/components/person-list.component.spec.ts": {
+    "mtime": 1778135329.9368553,
+    "ast_hash": "34d640b5a4422b1b1789168d36d07395",
+    "semantic_hash": "34d640b5a4422b1b1789168d36d07395"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/persons/components/person-list.component.ts": {
+    "mtime": 1781011474.6371028,
+    "ast_hash": "f6930541045a5bcca7f574c9e0e91e03",
+    "semantic_hash": "f6930541045a5bcca7f574c9e0e91e03"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/persons/components/person-sync/person-sync.component.ts": {
+    "mtime": 1778135329.9370663,
+    "ast_hash": "a024ab2214a8b7410432d4a363c20e98",
+    "semantic_hash": "a024ab2214a8b7410432d4a363c20e98"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/persons/models/person.model.ts": {
+    "mtime": 1781011474.6376216,
+    "ast_hash": "47abf24805250b619ac34fd67d83877c",
+    "semantic_hash": "47abf24805250b619ac34fd67d83877c"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/persons/persons.routes.ts": {
+    "mtime": 1781011474.638011,
+    "ast_hash": "0b40a23d2eeb97541219a9729ab67cb6",
+    "semantic_hash": "0b40a23d2eeb97541219a9729ab67cb6"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/persons/services/person.service.spec.ts": {
+    "mtime": 1778135329.9372942,
+    "ast_hash": "58613bb24bd7857ee47a018569392dac",
+    "semantic_hash": "58613bb24bd7857ee47a018569392dac"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/persons/services/person.service.ts": {
+    "mtime": 1781011474.6383312,
+    "ast_hash": "a3c6710bf47fc8fb158390239a5d0b33",
+    "semantic_hash": "a3c6710bf47fc8fb158390239a5d0b33"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/ad-hoc-node-properties/ad-hoc-node-properties.component.ts": {
+    "mtime": 1781258922.801388,
+    "ast_hash": "20397d65f21f04c06838de7e08a1f363",
+    "semantic_hash": "20397d65f21f04c06838de7e08a1f363"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/ad-hoc-nodes-help-modal/ad-hoc-nodes-help-modal.component.spec.ts": {
+    "mtime": 1781258922.8024964,
+    "ast_hash": "c70318904a820f5a1a4da95003280d02",
+    "semantic_hash": "c70318904a820f5a1a4da95003280d02"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/ad-hoc-nodes-help-modal/ad-hoc-nodes-help-modal.component.ts": {
+    "mtime": 1781258922.802975,
+    "ast_hash": "eacb8f16d7d54ee6bad0e19eb57a404b",
+    "semantic_hash": "eacb8f16d7d54ee6bad0e19eb57a404b"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/assignment-canvas/assignment-canvas.component.spec.ts": {
+    "mtime": 1781258922.8043516,
+    "ast_hash": "3674dadd1a038d077941ba3ca2854a84",
+    "semantic_hash": "3674dadd1a038d077941ba3ca2854a84"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/assignment-canvas/assignment-canvas.component.ts": {
+    "mtime": 1781258922.8050544,
+    "ast_hash": "567f5796a36575d240582cc47e9e909c",
+    "semantic_hash": "567f5796a36575d240582cc47e9e909c"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/assignment-canvas/services/assignment-operations.service.ts": {
+    "mtime": 1781011474.6424267,
+    "ast_hash": "5ab886689dfc38c93d8e535579d6f340",
+    "semantic_hash": "5ab886689dfc38c93d8e535579d6f340"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/assignment-canvas/services/assignment-tab.service.ts": {
+    "mtime": 1781011474.643003,
+    "ast_hash": "340280a1d36591cb7dd10ae5a0f7048b",
+    "semantic_hash": "340280a1d36591cb7dd10ae5a0f7048b"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/composition-editor/composition-editor.component.ts": {
+    "mtime": 1781076316.288515,
+    "ast_hash": "af5a0d5809b710ee026501886fe639ad",
+    "semantic_hash": "af5a0d5809b710ee026501886fe639ad"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/cordons-dialog/cordons-dialog.component.spec.ts": {
+    "mtime": 1781076316.2881246,
+    "ast_hash": "a5ac23059daba41c963db542c836b2f2",
+    "semantic_hash": "a5ac23059daba41c963db542c836b2f2"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/cordons-dialog/cordons-dialog.component.ts": {
+    "mtime": 1781076316.2884617,
+    "ast_hash": "8e18bdc43eb906cf2a9c6cd2b76f95d9",
+    "semantic_hash": "8e18bdc43eb906cf2a9c6cd2b76f95d9"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/figure-canvas/figure-canvas.component.ts": {
+    "mtime": 1781258922.8063385,
+    "ast_hash": "b7a99155c024f035923385a05b1486d3",
+    "semantic_hash": "b7a99155c024f035923385a05b1486d3"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/figure-picker-modal/figure-picker-modal.component.spec.ts": {
+    "mtime": 1781076316.288018,
+    "ast_hash": "e63799d86924e217176a58729fab1abc",
+    "semantic_hash": "e63799d86924e217176a58729fab1abc"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/figure-picker-modal/figure-picker-modal.component.ts": {
+    "mtime": 1781076316.2885969,
+    "ast_hash": "02b5239e54de5245055d711b37e0c268",
+    "semantic_hash": "02b5239e54de5245055d711b37e0c268"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/figure-projection/figure-projection.component.spec.ts": {
+    "mtime": 1781258922.8069625,
+    "ast_hash": "226495558e2bc6deae70ccbb6d5b9dff",
+    "semantic_hash": "226495558e2bc6deae70ccbb6d5b9dff"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/figure-projection/figure-projection.component.ts": {
+    "mtime": 1781253424.9396274,
+    "ast_hash": "a0c0a375a77b9d9c535ed11b27466836",
+    "semantic_hash": "a0c0a375a77b9d9c535ed11b27466836"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/import-pinya-modal/import-pinya-modal.component.spec.ts": {
+    "mtime": 1781258922.8076766,
+    "ast_hash": "675f564ef45cd60b7a541a74ee8f043c",
+    "semantic_hash": "675f564ef45cd60b7a541a74ee8f043c"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/import-pinya-modal/import-pinya-modal.component.ts": {
+    "mtime": 1781011474.6845639,
+    "ast_hash": "a443d6156ed1d068cee1208c7eb67008",
+    "semantic_hash": "a443d6156ed1d068cee1208c7eb67008"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/node-popover/node-popover.component.spec.ts": {
+    "mtime": 1781076316.2880914,
+    "ast_hash": "bfa2ac001bf76b23a86644b8b8450d0c",
+    "semantic_hash": "bfa2ac001bf76b23a86644b8b8450d0c"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/node-popover/node-popover.component.ts": {
+    "mtime": 1781011474.6865084,
+    "ast_hash": "207ff96dc6f7fbef2bb60bef39ab9fb9",
+    "semantic_hash": "207ff96dc6f7fbef2bb60bef39ab9fb9"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/person-panel/person-panel.component.spec.ts": {
+    "mtime": 1781011474.6900434,
+    "ast_hash": "32b94e5a81703645d83e67c517b1f6ce",
+    "semantic_hash": "32b94e5a81703645d83e67c517b1f6ce"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/person-panel/person-panel.component.ts": {
+    "mtime": 1781011474.6904573,
+    "ast_hash": "3db85329eb99cfaed052fe50a593e809",
+    "semantic_hash": "3db85329eb99cfaed052fe50a593e809"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/pinyes-onboarding-modal/pinyes-onboarding-modal.component.spec.ts": {
+    "mtime": 1781011474.695064,
+    "ast_hash": "ed7b4e1195e8f55911f821369bd9ad80",
+    "semantic_hash": "ed7b4e1195e8f55911f821369bd9ad80"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/pinyes-onboarding-modal/pinyes-onboarding-modal.component.ts": {
+    "mtime": 1781011474.7682688,
+    "ast_hash": "a3847bfeafeb64222b20ac3953679665",
+    "semantic_hash": "a3847bfeafeb64222b20ac3953679665"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/projection-view/projection-view.component.ts": {
+    "mtime": 1781076526.4463787,
+    "ast_hash": "be074209ef925c72fa00ba5a814edfaa",
+    "semantic_hash": "be074209ef925c72fa00ba5a814edfaa"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/rengla-overlay/rengla-overlay.component.spec.ts": {
+    "mtime": 1781258922.8087873,
+    "ast_hash": "a276fe9f98ac525222da07e84a4a56d4",
+    "semantic_hash": "a276fe9f98ac525222da07e84a4a56d4"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/rengla-overlay/rengla-overlay.component.ts": {
+    "mtime": 1781258922.809172,
+    "ast_hash": "6f5b483fdb2e9aa301b832f8631501ab",
+    "semantic_hash": "6f5b483fdb2e9aa301b832f8631501ab"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/save-as-template-dialog/save-as-template-dialog.component.ts": {
+    "mtime": 1781258922.8099947,
+    "ast_hash": "fe43ddb8ee38e06642ebcd8db0d5c2ca",
+    "semantic_hash": "fe43ddb8ee38e06642ebcd8db0d5c2ca"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/segment-canvas/segment-canvas.component.ts": {
+    "mtime": 1781076316.291502,
+    "ast_hash": "945b48b00bb9971000bb986c0e5e6ff8",
+    "semantic_hash": "945b48b00bb9971000bb986c0e5e6ff8"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/template-editor-help-modal/template-editor-help-modal.component.ts": {
+    "mtime": 1781258922.8107402,
+    "ast_hash": "b9eb3d674bfc8e9aa442002b8b5289a3",
+    "semantic_hash": "b9eb3d674bfc8e9aa442002b8b5289a3"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/template-editor/services/template-editor-state.service.ts": {
+    "mtime": 1781258922.8111293,
+    "ast_hash": "49b85888f6170bf013023c6aa078372a",
+    "semantic_hash": "49b85888f6170bf013023c6aa078372a"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/template-editor/template-editor.component.spec.ts": {
+    "mtime": 1781258922.8124864,
+    "ast_hash": "e1c7d45935a81b69a7122e4603775afd",
+    "semantic_hash": "e1c7d45935a81b69a7122e4603775afd"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/template-editor/template-editor.component.ts": {
+    "mtime": 1781258922.8130245,
+    "ast_hash": "b7dd15d5ec589a1245bad8586cb047ca",
+    "semantic_hash": "b7dd15d5ec589a1245bad8586cb047ca"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/template-list/composition-grid-tab/composition-grid-tab.component.ts": {
+    "mtime": 1781011474.807797,
+    "ast_hash": "3ef85ef2962e4e110aa8d7bcc5f6163b",
+    "semantic_hash": "3ef85ef2962e4e110aa8d7bcc5f6163b"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/template-list/figure-list-tab/figure-list-tab.component.ts": {
+    "mtime": 1781011474.8091507,
+    "ast_hash": "b21c1ffdf03e9c00fe6d9c4d1635d1cd",
+    "semantic_hash": "b21c1ffdf03e9c00fe6d9c4d1635d1cd"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/template-list/template-list.component.spec.ts": {
+    "mtime": 1781076316.2882187,
+    "ast_hash": "ebe2b157783bc4315633c44659c9e790",
+    "semantic_hash": "ebe2b157783bc4315633c44659c9e790"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/template-list/template-list.component.ts": {
+    "mtime": 1781076316.2884789,
+    "ast_hash": "49c2b63264944e0e5af993a66a28ecd4",
+    "semantic_hash": "49c2b63264944e0e5af993a66a28ecd4"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/tronc-view/tronc-view.component.spec.ts": {
+    "mtime": 1781258922.8145738,
+    "ast_hash": "2efe9d5143ef0d43edec5081b1e72d87",
+    "semantic_hash": "2efe9d5143ef0d43edec5081b1e72d87"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/tronc-view/tronc-view.component.ts": {
+    "mtime": 1781258922.8149016,
+    "ast_hash": "f52f4859483f278ff6067d4230749aa2",
+    "semantic_hash": "f52f4859483f278ff6067d4230749aa2"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/models/assignment.model.ts": {
+    "mtime": 1781258922.815898,
+    "ast_hash": "75b68ae07a919a55303df74c772a5e30",
+    "semantic_hash": "75b68ae07a919a55303df74c772a5e30"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/models/composition.model.ts": {
+    "mtime": 1781076316.2882776,
+    "ast_hash": "c94cdc28b856d123f408202242ac25f2",
+    "semantic_hash": "c94cdc28b856d123f408202242ac25f2"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/models/figure-template.model.ts": {
+    "mtime": 1781258922.8164845,
+    "ast_hash": "1b9a416456ccc2dced00cdefe525ed9a",
+    "semantic_hash": "1b9a416456ccc2dced00cdefe525ed9a"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/models/projection.model.ts": {
+    "mtime": 1781253424.9188504,
+    "ast_hash": "11c6b956f52a1ef9280479d39d18bbb1",
+    "semantic_hash": "11c6b956f52a1ef9280479d39d18bbb1"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/models/segment.model.ts": {
+    "mtime": 1781076316.288408,
+    "ast_hash": "80d2e9f9e9f54808c696ccbed472bdf9",
+    "semantic_hash": "80d2e9f9e9f54808c696ccbed472bdf9"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/pinyes.routes.ts": {
+    "mtime": 1781011474.8946908,
+    "ast_hash": "395d889e44ad618706752307a807166f",
+    "semantic_hash": "395d889e44ad618706752307a807166f"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/services/assignment-state.service.spec.ts": {
+    "mtime": 1781258922.8170092,
+    "ast_hash": "3890b2f2137d0e7faf4e56183c58cc4e",
+    "semantic_hash": "3890b2f2137d0e7faf4e56183c58cc4e"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/services/assignment-state.service.ts": {
+    "mtime": 1781258922.8173802,
+    "ast_hash": "e7f2b84d2d84ccac847ad9f0573089ed",
+    "semantic_hash": "e7f2b84d2d84ccac847ad9f0573089ed"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/services/canvas-state.service.ts": {
+    "mtime": 1781076316.2881901,
+    "ast_hash": "ec909ed572cc23ca1f7f7762d86adbb5",
+    "semantic_hash": "ec909ed572cc23ca1f7f7762d86adbb5"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/services/composition-template.service.ts": {
+    "mtime": 1781011474.9037921,
+    "ast_hash": "df25ebf3c18e9d5928dfa5ce02ec9fed",
+    "semantic_hash": "df25ebf3c18e9d5928dfa5ce02ec9fed"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/services/event-segment.service.spec.ts": {
+    "mtime": 1781011474.9071221,
+    "ast_hash": "6d3f70765748b71e788331617675fc17",
+    "semantic_hash": "6d3f70765748b71e788331617675fc17"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/services/event-segment.service.ts": {
+    "mtime": 1781011474.908065,
+    "ast_hash": "cdfc0fbfd9381e6a334135e25be178d6",
+    "semantic_hash": "cdfc0fbfd9381e6a334135e25be178d6"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/services/figure-instance.service.spec.ts": {
+    "mtime": 1781076316.2884893,
+    "ast_hash": "f46d53f87cf8fbfa7a7434719acd9e83",
+    "semantic_hash": "f46d53f87cf8fbfa7a7434719acd9e83"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/services/figure-instance.service.ts": {
+    "mtime": 1781076316.2885454,
+    "ast_hash": "6417b268be6d8762b64885306483bdc1",
+    "semantic_hash": "6417b268be6d8762b64885306483bdc1"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/services/figure-template.service.ts": {
+    "mtime": 1781258922.8177915,
+    "ast_hash": "df29017dfde118dd6cf480fd69c68c6b",
+    "semantic_hash": "df29017dfde118dd6cf480fd69c68c6b"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/services/node-assignment.service.spec.ts": {
+    "mtime": 1781076316.29144,
+    "ast_hash": "90a250eb86a6295a0299510fe9d57ded",
+    "semantic_hash": "90a250eb86a6295a0299510fe9d57ded"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/services/node-assignment.service.ts": {
+    "mtime": 1781258922.8182042,
+    "ast_hash": "d7b52d9930986224a02084f55c6ec99c",
+    "semantic_hash": "d7b52d9930986224a02084f55c6ec99c"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/services/projection.service.spec.ts": {
+    "mtime": 1781253424.9318097,
+    "ast_hash": "d983ba6bf2a16d32d0b148259d98c30f",
+    "semantic_hash": "d983ba6bf2a16d32d0b148259d98c30f"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/services/projection.service.ts": {
+    "mtime": 1781076316.2885423,
+    "ast_hash": "1fdbe8c8a2da199b0ea357453e4692cb",
+    "semantic_hash": "1fdbe8c8a2da199b0ea357453e4692cb"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/services/undo-redo.service.spec.ts": {
+    "mtime": 1781258922.8186746,
+    "ast_hash": "814df26e23f3308bbc472fe4c86699a8",
+    "semantic_hash": "814df26e23f3308bbc472fe4c86699a8"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/services/undo-redo.service.ts": {
+    "mtime": 1781258922.819064,
+    "ast_hash": "dac49396587a00b580a835e629a0967d",
+    "semantic_hash": "dac49396587a00b580a835e629a0967d"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/utils/attendance-display.util.ts": {
+    "mtime": 1781011474.933424,
+    "ast_hash": "249348bdf6a2f9e2852c146d36b64c79",
+    "semantic_hash": "249348bdf6a2f9e2852c146d36b64c79"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/utils/base-ordering.util.spec.ts": {
+    "mtime": 1781011474.9341397,
+    "ast_hash": "ab15f2ff1cfa1ca77fb35f8eee749d89",
+    "semantic_hash": "ab15f2ff1cfa1ca77fb35f8eee749d89"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/utils/base-ordering.util.ts": {
+    "mtime": 1781011474.9467196,
+    "ast_hash": "f841b843d9ac6b86369660af7ca61152",
+    "semantic_hash": "f841b843d9ac6b86369660af7ca61152"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/utils/cordo-obert-reposition.util.spec.ts": {
+    "mtime": 1781258922.8196359,
+    "ast_hash": "a57f86a66ae968a630db4a90008708c4",
+    "semantic_hash": "a57f86a66ae968a630db4a90008708c4"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/utils/cordo-obert-reposition.util.ts": {
+    "mtime": 1781011474.952697,
+    "ast_hash": "b933843f139bcecc3ef250bf407f3ffa",
+    "semantic_hash": "b933843f139bcecc3ef250bf407f3ffa"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/utils/floor-variance.util.spec.ts": {
+    "mtime": 1781076316.2883198,
+    "ast_hash": "b81cf6776e5efe038e064936f41b652c",
+    "semantic_hash": "b81cf6776e5efe038e064936f41b652c"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/utils/floor-variance.util.ts": {
+    "mtime": 1781011474.9742193,
+    "ast_hash": "6beb98c42b3c8697613d0efab08a0f24",
+    "semantic_hash": "6beb98c42b3c8697613d0efab08a0f24"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/utils/ghost-clone.util.spec.ts": {
+    "mtime": 1781258922.8198845,
+    "ast_hash": "9cda7154261b5c69245058eef4f8ff91",
+    "semantic_hash": "9cda7154261b5c69245058eef4f8ff91"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/utils/ghost-clone.util.ts": {
+    "mtime": 1781076316.2881103,
+    "ast_hash": "f1c9893f9c2b72d7b6e83187bf9b3ec5",
+    "semantic_hash": "f1c9893f9c2b72d7b6e83187bf9b3ec5"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/utils/height-display.util.ts": {
+    "mtime": 1781011474.976307,
+    "ast_hash": "d0d0f1d9a5b9d3c94272ad59d9e9faf0",
+    "semantic_hash": "d0d0f1d9a5b9d3c94272ad59d9e9faf0"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/utils/rengla-colors.ts": {
+    "mtime": 1781011474.9768138,
+    "ast_hash": "e89623c2abe5d01ec92c7df4e7822cbf",
+    "semantic_hash": "e89623c2abe5d01ec92c7df4e7822cbf"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/utils/rengla-coordinates.util.spec.ts": {
+    "mtime": 1781258922.820094,
+    "ast_hash": "3ae39dde8b7c15b4c24d4579d35ae8a3",
+    "semantic_hash": "3ae39dde8b7c15b4c24d4579d35ae8a3"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/utils/rengla-coordinates.util.ts": {
+    "mtime": 1781258922.8202796,
+    "ast_hash": "e3e1d8dabe6f04bfbc7e19fbe687a0d3",
+    "semantic_hash": "e3e1d8dabe6f04bfbc7e19fbe687a0d3"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/utils/slugify.util.ts": {
+    "mtime": 1781011474.9862504,
+    "ast_hash": "f14a08175d27cf524464ad24e072879f",
+    "semantic_hash": "f14a08175d27cf524464ad24e072879f"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/sync/global-sync.component.ts": {
+    "mtime": 1781258922.820461,
+    "ast_hash": "d82189860e8ba9194cc932859ae696d1",
+    "semantic_hash": "d82189860e8ba9194cc932859ae696d1"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/sync/sync.routes.ts": {
+    "mtime": 1778135329.937622,
+    "ast_hash": "d7b015cb6b4e5f340ecf3c36f9287264",
+    "semantic_hash": "d7b015cb6b4e5f340ecf3c36f9287264"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/shared/components/data/active-filters/active-filters.component.ts": {
+    "mtime": 1778135329.9378152,
+    "ast_hash": "f9f35fbe74c64835c0c9519e2af9146c",
+    "semantic_hash": "f9f35fbe74c64835c0c9519e2af9146c"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/shared/components/data/column-toggle/column-toggle.component.ts": {
+    "mtime": 1778135329.9379034,
+    "ast_hash": "f61bdfdb18bfe62d0d7945456234c069",
+    "semantic_hash": "f61bdfdb18bfe62d0d7945456234c069"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/shared/components/data/data-table/data-table.component.ts": {
+    "mtime": 1781020533.9708471,
+    "ast_hash": "608e6f4b4c7043fce48bb52cfc515fdb",
+    "semantic_hash": "608e6f4b4c7043fce48bb52cfc515fdb"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/shared/components/data/empty-state/empty-state.component.ts": {
+    "mtime": 1778135329.9381282,
+    "ast_hash": "819876faacfb9e2f932d263e96f9858b",
+    "semantic_hash": "819876faacfb9e2f932d263e96f9858b"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/shared/components/data/filter-bar/filter-bar.component.ts": {
+    "mtime": 1781258922.8208175,
+    "ast_hash": "e4c386ce194108aef1335b789cdb6f6e",
+    "semantic_hash": "e4c386ce194108aef1335b789cdb6f6e"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/shared/components/data/page-header/page-header.component.ts": {
+    "mtime": 1778135329.9383032,
+    "ast_hash": "0d96369587abb7c67b4f39a2271e6542",
+    "semantic_hash": "0d96369587abb7c67b4f39a2271e6542"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/shared/components/data/pagination/pagination.component.ts": {
+    "mtime": 1778135329.9383852,
+    "ast_hash": "361cec966f49bd2e63a87ac0a80aa4ae",
+    "semantic_hash": "361cec966f49bd2e63a87ac0a80aa4ae"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/shared/components/data/stat-card/stat-card.component.spec.ts": {
+    "mtime": 1781023985.2820756,
+    "ast_hash": "f5e2dd9218580ca3414c45617ba901e7",
+    "semantic_hash": "f5e2dd9218580ca3414c45617ba901e7"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/shared/components/data/stat-card/stat-card.component.ts": {
+    "mtime": 1781023985.2826014,
+    "ast_hash": "aca71de3e549859db342feda0b2c272b",
+    "semantic_hash": "aca71de3e549859db342feda0b2c272b"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/shared/components/feedback/toast/toast.component.ts": {
+    "mtime": 1781011475.1448941,
+    "ast_hash": "aa9df4e9596d2d4f3b8e67715c80f412",
+    "semantic_hash": "aa9df4e9596d2d4f3b8e67715c80f412"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/shared/components/feedback/toast/toast.service.ts": {
+    "mtime": 1778135329.9393597,
+    "ast_hash": "6830046cffd20d8ce1be54c7c0b078f5",
+    "semantic_hash": "6830046cffd20d8ce1be54c7c0b078f5"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/shared/components/forms/person-search-input/person-search-input.component.ts": {
+    "mtime": 1778135329.939689,
+    "ast_hash": "94a5e71d5880232d11b36001913dde4d",
+    "semantic_hash": "94a5e71d5880232d11b36001913dde4d"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/shared/components/layout/header/header.component.ts": {
+    "mtime": 1778135329.939901,
+    "ast_hash": "793316b9e62feee22879f8606f31d6d9",
+    "semantic_hash": "793316b9e62feee22879f8606f31d6d9"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/shared/components/layout/tab-nav/tab-nav.component.ts": {
+    "mtime": 1781258922.8210528,
+    "ast_hash": "faa8b96b0cffe063c197f01f3c5bc710",
+    "semantic_hash": "faa8b96b0cffe063c197f01f3c5bc710"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/shared/components/layout/user-chip/user-chip.component.ts": {
+    "mtime": 1778135329.940248,
+    "ast_hash": "1deeeff9425a516119c8c0f7e64373b4",
+    "semantic_hash": "1deeeff9425a516119c8c0f7e64373b4"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/shared/directives/floating-panel-drag.directive.ts": {
+    "mtime": 1781011475.1527653,
+    "ast_hash": "afd8999ba3192a5565c4eb7d70d3c617",
+    "semantic_hash": "afd8999ba3192a5565c4eb7d70d3c617"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/shared/models/column-def.model.ts": {
+    "mtime": 1781023985.2834818,
+    "ast_hash": "37583d009695aab021895bad4094edf7",
+    "semantic_hash": "37583d009695aab021895bad4094edf7"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/shared/models/sort.model.ts": {
+    "mtime": 1778135329.940402,
+    "ast_hash": "512dcb34f58507caadbcc99df86545a1",
+    "semantic_hash": "512dcb34f58507caadbcc99df86545a1"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/shared/utils/color.util.ts": {
+    "mtime": 1778135329.940481,
+    "ast_hash": "cf7bcadfdf62466fad41144b252e8e3d",
+    "semantic_hash": "cf7bcadfdf62466fad41144b252e8e3d"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/shared/utils/date.util.ts": {
+    "mtime": 1778135329.9405308,
+    "ast_hash": "d6c8fee403854c8bb8d1b08062e7b11e",
+    "semantic_hash": "d6c8fee403854c8bb8d1b08062e7b11e"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/shared/utils/index.ts": {
+    "mtime": 1781011475.157324,
+    "ast_hash": "e14d955eede94c81fdecbe3c0ef9e6a0",
+    "semantic_hash": "e14d955eede94c81fdecbe3c0ef9e6a0"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/shared/utils/person.util.spec.ts": {
+    "mtime": 1781011475.1578474,
+    "ast_hash": "d3a3099ee64003e475c2942f12eb15d0",
+    "semantic_hash": "d3a3099ee64003e475c2942f12eb15d0"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/shared/utils/person.util.ts": {
+    "mtime": 1778135329.940989,
+    "ast_hash": "ad688d222851c067727586b8a781ac39",
+    "semantic_hash": "ad688d222851c067727586b8a781ac39"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/shared/utils/uuid.util.ts": {
+    "mtime": 1781011475.1583467,
+    "ast_hash": "6488e21746b8758fb0f7b9946a6840e7",
+    "semantic_hash": "6488e21746b8758fb0f7b9946a6840e7"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/environments/environment.pre.ts": {
+    "mtime": 1781011475.1597753,
+    "ast_hash": "4733ba90e7609afd5bdd8eafff54d510",
+    "semantic_hash": "4733ba90e7609afd5bdd8eafff54d510"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/environments/environment.prod.ts": {
+    "mtime": 1778135329.9410872,
+    "ast_hash": "1ef9ae39b3081027c529eb53b1fa0440",
+    "semantic_hash": "1ef9ae39b3081027c529eb53b1fa0440"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/environments/environment.ts": {
+    "mtime": 1778135329.9412766,
+    "ast_hash": "f542329bf20f04bc3012d5b7c31328e2",
+    "semantic_hash": "f542329bf20f04bc3012d5b7c31328e2"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/main.ts": {
+    "mtime": 1778135329.9414318,
+    "ast_hash": "f3983daa46dc263bf3c8d0dd448a5a01",
+    "semantic_hash": "f3983daa46dc263bf3c8d0dd448a5a01"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/tsconfig.app.json": {
+    "mtime": 1778135329.9415314,
+    "ast_hash": "854eb6a0e6e5592faaa2f4287215741c",
+    "semantic_hash": "854eb6a0e6e5592faaa2f4287215741c"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/tsconfig.json": {
+    "mtime": 1778135329.9415872,
+    "ast_hash": "ca886d1655103914270bae71860576bf",
+    "semantic_hash": "ca886d1655103914270bae71860576bf"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/tsconfig.spec.json": {
+    "mtime": 1778135329.941647,
+    "ast_hash": "ed4b730d976c7f1f8d1f5e29996e8171",
+    "semantic_hash": "ed4b730d976c7f1f8d1f5e29996e8171"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/vitest.config.ts": {
+    "mtime": 1781011475.1600702,
+    "ast_hash": "cabd80545fb2698488c5f4aa5da1cab5",
+    "semantic_hash": "cabd80545fb2698488c5f4aa5da1cab5"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/pwa-e2e/eslint.config.mjs": {
+    "mtime": 1778135329.941738,
+    "ast_hash": "0f1d803e920c7daa8bad5b7b4854f3fb",
+    "semantic_hash": "0f1d803e920c7daa8bad5b7b4854f3fb"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/pwa-e2e/playwright.config.ts": {
+    "mtime": 1778135329.9417927,
+    "ast_hash": "12ec21b51aead84923d50301ff687d6f",
+    "semantic_hash": "12ec21b51aead84923d50301ff687d6f"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/pwa-e2e/project.json": {
+    "mtime": 1778135329.941837,
+    "ast_hash": "1bddfc86f2ba3e1e987b06f09e2ffdbb",
+    "semantic_hash": "1bddfc86f2ba3e1e987b06f09e2ffdbb"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/pwa-e2e/src/example.spec.ts": {
+    "mtime": 1778135329.941914,
+    "ast_hash": "5eef37c29e293b80beb38ca7250042a9",
+    "semantic_hash": "5eef37c29e293b80beb38ca7250042a9"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/pwa-e2e/tsconfig.json": {
+    "mtime": 1778135329.9419653,
+    "ast_hash": "0762052b61de3e06840598876fe1cebc",
+    "semantic_hash": "0762052b61de3e06840598876fe1cebc"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/pwa/eslint.config.mjs": {
+    "mtime": 1778135329.9420419,
+    "ast_hash": "e3cffe606b41331b205135abb3408e12",
+    "semantic_hash": "e3cffe606b41331b205135abb3408e12"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/pwa/postcss.config.js": {
+    "mtime": 1778135329.942154,
+    "ast_hash": "8640f9b2e6475cc3f5b1ff4548925765",
+    "semantic_hash": "8640f9b2e6475cc3f5b1ff4548925765"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/pwa/project.json": {
+    "mtime": 1781011475.1618354,
+    "ast_hash": "f4872860db5a91f134af5e35758447b8",
+    "semantic_hash": "f4872860db5a91f134af5e35758447b8"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/pwa/src/app/app.config.ts": {
+    "mtime": 1778135329.9425879,
+    "ast_hash": "25ddc6e24f978beb13c581a648bef88d",
+    "semantic_hash": "25ddc6e24f978beb13c581a648bef88d"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/pwa/src/app/app.routes.ts": {
+    "mtime": 1778135329.942692,
+    "ast_hash": "32e7f7523f8b914db20f575b8212ca50",
+    "semantic_hash": "32e7f7523f8b914db20f575b8212ca50"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/pwa/src/app/app.spec.ts": {
+    "mtime": 1778135329.9427953,
+    "ast_hash": "9d4d14f0cdcfe1a25b99dc3f43f85655",
+    "semantic_hash": "9d4d14f0cdcfe1a25b99dc3f43f85655"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/pwa/src/app/app.ts": {
+    "mtime": 1778135329.9428482,
+    "ast_hash": "13d71b9df8e54681c3c45d908cad36d9",
+    "semantic_hash": "13d71b9df8e54681c3c45d908cad36d9"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/pwa/src/app/nx-welcome.ts": {
+    "mtime": 1778135329.9429154,
+    "ast_hash": "eb6506c8e365f423788a0c8f6e4ccd33",
+    "semantic_hash": "eb6506c8e365f423788a0c8f6e4ccd33"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/pwa/src/main.ts": {
+    "mtime": 1778135329.9430346,
+    "ast_hash": "f3983daa46dc263bf3c8d0dd448a5a01",
+    "semantic_hash": "f3983daa46dc263bf3c8d0dd448a5a01"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/pwa/tsconfig.app.json": {
+    "mtime": 1778135329.943143,
+    "ast_hash": "854eb6a0e6e5592faaa2f4287215741c",
+    "semantic_hash": "854eb6a0e6e5592faaa2f4287215741c"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/pwa/tsconfig.json": {
+    "mtime": 1778135329.9432032,
+    "ast_hash": "ca886d1655103914270bae71860576bf",
+    "semantic_hash": "ca886d1655103914270bae71860576bf"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/pwa/tsconfig.spec.json": {
+    "mtime": 1778135329.9432666,
+    "ast_hash": "ed4b730d976c7f1f8d1f5e29996e8171",
+    "semantic_hash": "ed4b730d976c7f1f8d1f5e29996e8171"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/data/seeds/seasons.json": {
+    "mtime": 1781011475.1639268,
+    "ast_hash": "ca4bc12b59775727b3910ffd2d446b0e",
+    "semantic_hash": "ca4bc12b59775727b3910ffd2d446b0e"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docker/postgres/init-prod.sql": {
+    "mtime": 1781011475.1708026,
+    "ast_hash": "75f2b819a6239f731a347a9fd3aeddc6",
+    "semantic_hash": "75f2b819a6239f731a347a9fd3aeddc6"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docker/postgres/init.sql": {
+    "mtime": 1781011475.1725085,
+    "ast_hash": "89a53f90ca2706f2b41f28f59dacb338",
+    "semantic_hash": "89a53f90ca2706f2b41f28f59dacb338"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/eslint.config.mjs": {
+    "mtime": 1778135329.9457448,
+    "ast_hash": "a9a406c9f9eb4c89847e88eb29cb8e30",
+    "semantic_hash": "a9a406c9f9eb4c89847e88eb29cb8e30"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/jest.config.ts": {
+    "mtime": 1778135329.9457996,
+    "ast_hash": "905e6ed6c5384b89d9e0266b311986a5",
+    "semantic_hash": "905e6ed6c5384b89d9e0266b311986a5"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/jest.preset.js": {
+    "mtime": 1778135329.9458532,
+    "ast_hash": "2da4313b9bfbafd4533a08756225df42",
+    "semantic_hash": "2da4313b9bfbafd4533a08756225df42"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/libs/shared/eslint.config.mjs": {
+    "mtime": 1778135329.9460385,
+    "ast_hash": "09ca46e0e6fb840f623ed09305490a31",
+    "semantic_hash": "09ca46e0e6fb840f623ed09305490a31"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/libs/shared/package.json": {
+    "mtime": 1778135329.9461484,
+    "ast_hash": "481628b746c9fceb899325bda46824b2",
+    "semantic_hash": "481628b746c9fceb899325bda46824b2"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/libs/shared/project.json": {
+    "mtime": 1778135329.9461997,
+    "ast_hash": "4ad1f0871219109d6e6c156f24daaa06",
+    "semantic_hash": "4ad1f0871219109d6e6c156f24daaa06"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/libs/shared/src/constants/ad-hoc-node.constants.ts": {
+    "mtime": 1781258922.8280346,
+    "ast_hash": "6b50fa2a42b92a7519e68d657ec4fe1d",
+    "semantic_hash": "6b50fa2a42b92a7519e68d657ec4fe1d"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/libs/shared/src/enums/attendance-status.enum.ts": {
+    "mtime": 1781011475.2560544,
+    "ast_hash": "b015510f87adc9ab0d0890f882fdcf1c",
+    "semantic_hash": "b015510f87adc9ab0d0890f882fdcf1c"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/libs/shared/src/enums/availability-status.enum.ts": {
+    "mtime": 1778135329.9464083,
+    "ast_hash": "24ce05eb2f33a6759a4a6a06560ff43f",
+    "semantic_hash": "24ce05eb2f33a6759a4a6a06560ff43f"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/libs/shared/src/enums/client-type.enum.ts": {
+    "mtime": 1778135329.9464583,
+    "ast_hash": "63c9b1d163a01d08f584fa453602cb11",
+    "semantic_hash": "63c9b1d163a01d08f584fa453602cb11"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/libs/shared/src/enums/event-type.enum.ts": {
+    "mtime": 1781011475.256481,
+    "ast_hash": "99c438da3083c5a161dfcc7a99737407",
+    "semantic_hash": "99c438da3083c5a161dfcc7a99737407"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/libs/shared/src/enums/figure-zone.enum.ts": {
+    "mtime": 1781258922.8285446,
+    "ast_hash": "fe4d7f557ab5b52adf034e6c1439bfd5",
+    "semantic_hash": "fe4d7f557ab5b52adf034e6c1439bfd5"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/libs/shared/src/enums/gender.enum.ts": {
+    "mtime": 1778135329.9466205,
+    "ast_hash": "fa3f4c212d49823d022e29fab92f3561",
+    "semantic_hash": "fa3f4c212d49823d022e29fab92f3561"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/libs/shared/src/enums/node-shape.enum.ts": {
+    "mtime": 1781258922.8290594,
+    "ast_hash": "f7636624a96ee6994e8d7e66080e2e0e",
+    "semantic_hash": "f7636624a96ee6994e8d7e66080e2e0e"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/libs/shared/src/enums/onboarding-status.enum.ts": {
+    "mtime": 1778135329.9466763,
+    "ast_hash": "872fa48293f221cb586fa5b97075441e",
+    "semantic_hash": "872fa48293f221cb586fa5b97075441e"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/libs/shared/src/enums/user-role.enum.ts": {
+    "mtime": 1781011475.258818,
+    "ast_hash": "2db115c00590c681a2754469ae17b6c2",
+    "semantic_hash": "2db115c00590c681a2754469ae17b6c2"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/libs/shared/src/index.ts": {
+    "mtime": 1781258922.8296,
+    "ast_hash": "ca48848260a13b40ca1138f3a4295317",
+    "semantic_hash": "ca48848260a13b40ca1138f3a4295317"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/libs/shared/src/interfaces/attendance-summary.interface.ts": {
+    "mtime": 1778135329.9468853,
+    "ast_hash": "d4d01748b5d31f22de22911cd6a74e2e",
+    "semantic_hash": "d4d01748b5d31f22de22911cd6a74e2e"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/libs/shared/src/interfaces/auth.interfaces.ts": {
+    "mtime": 1781011475.2607956,
+    "ast_hash": "fea803e7654c546a6f80f5f7f399c87a",
+    "semantic_hash": "fea803e7654c546a6f80f5f7f399c87a"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/libs/shared/src/interfaces/event-metadata.interface.ts": {
+    "mtime": 1778135329.9469962,
+    "ast_hash": "a53e8d29d561c47f2b6007a410df3e20",
+    "semantic_hash": "a53e8d29d561c47f2b6007a410df3e20"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/libs/shared/src/interfaces/pagination.interface.ts": {
+    "mtime": 1781011475.2626932,
+    "ast_hash": "2b3eede0da0d4f3e2e3b582ccb869b2a",
+    "semantic_hash": "2b3eede0da0d4f3e2e3b582ccb869b2a"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/libs/shared/src/interfaces/pinyes/assignment.interfaces.ts": {
+    "mtime": 1781258922.830181,
+    "ast_hash": "14f576595a61e6de38bb634a8e1e12c0",
+    "semantic_hash": "14f576595a61e6de38bb634a8e1e12c0"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/libs/shared/src/interfaces/pinyes/composition.interfaces.ts": {
+    "mtime": 1781011475.2640238,
+    "ast_hash": "8326a13f76e49adb242a3266d9535248",
+    "semantic_hash": "8326a13f76e49adb242a3266d9535248"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/libs/shared/src/interfaces/pinyes/event-segment.interfaces.ts": {
+    "mtime": 1781011475.2654433,
+    "ast_hash": "bc20f3716cf8343f133cc4f084420a4c",
+    "semantic_hash": "bc20f3716cf8343f133cc4f084420a4c"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/libs/shared/src/interfaces/pinyes/figure.interfaces.ts": {
+    "mtime": 1781258922.8306723,
+    "ast_hash": "12408c9470b6b0663576e6e22f897db6",
+    "semantic_hash": "12408c9470b6b0663576e6e22f897db6"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/libs/shared/src/interfaces/pinyes/index.ts": {
+    "mtime": 1781011475.2690296,
+    "ast_hash": "447035779d9122b045b3bebadb7dd9e9",
+    "semantic_hash": "447035779d9122b045b3bebadb7dd9e9"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/libs/shared/tsconfig.json": {
+    "mtime": 1778135329.9472117,
+    "ast_hash": "2750a9234eae9d31858eacf6e4521ee7",
+    "semantic_hash": "2750a9234eae9d31858eacf6e4521ee7"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/libs/shared/tsconfig.lib.json": {
+    "mtime": 1778135329.947266,
+    "ast_hash": "9a0d6021e895bad45099fb27a75a8278",
+    "semantic_hash": "9a0d6021e895bad45099fb27a75a8278"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/libs/shared/tsconfig.spec.json": {
+    "mtime": 1778135329.9473174,
+    "ast_hash": "355a619c6d7b39d24d2fd5d163db5c36",
+    "semantic_hash": "355a619c6d7b39d24d2fd5d163db5c36"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/nx.json": {
+    "mtime": 1781011475.2713976,
+    "ast_hash": "e90ef32365bfcdc5bff09e6a6d6d962f",
+    "semantic_hash": "e90ef32365bfcdc5bff09e6a6d6d962f"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/package.json": {
+    "mtime": 1781011475.27308,
+    "ast_hash": "5602c175d559e19c919e59411107391c",
+    "semantic_hash": "5602c175d559e19c919e59411107391c"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/scripts/appsistencia_extractor.py": {
+    "mtime": 1778135329.949244,
+    "ast_hash": "e53a2c3971d1eb62b67e095cc019d1e8",
+    "semantic_hash": "e53a2c3971d1eb62b67e095cc019d1e8"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/scripts/baseline-pre-migrations.sh": {
+    "mtime": 1781011475.2803242,
+    "ast_hash": "96f066b0f04f6abd0b70836f3a6f21f5",
+    "semantic_hash": "96f066b0f04f6abd0b70836f3a6f21f5"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/scripts/deploy-pre-first.sh": {
+    "mtime": 1781011475.2808878,
+    "ast_hash": "7335aaa9017cbca2cedf01cc24dfbee9",
+    "semantic_hash": "7335aaa9017cbca2cedf01cc24dfbee9"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/scripts/deploy-pre-update.sh": {
+    "mtime": 1781011475.2818174,
+    "ast_hash": "1723b501f1660a7b5c9d0b48dfb5ff6f",
+    "semantic_hash": "1723b501f1660a7b5c9d0b48dfb5ff6f"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/scripts/docker-entrypoint.sh": {
+    "mtime": 1781011475.2822669,
+    "ast_hash": "8c4dac80fc671ead2457e9367d1a1734",
+    "semantic_hash": "8c4dac80fc671ead2457e9367d1a1734"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/scripts/generate-pre-env.sh": {
+    "mtime": 1781011475.2844748,
+    "ast_hash": "dd33428b7298aa5d75678cce18a6f7c8",
+    "semantic_hash": "dd33428b7298aa5d75678cce18a6f7c8"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/scripts/reset-figure-data-safe.sql": {
+    "mtime": 1781076316.2913752,
+    "ast_hash": "5f32dbfff22bd52f5c3f001c6738521a",
+    "semantic_hash": "5f32dbfff22bd52f5c3f001c6738521a"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/scripts/reset-figure-data.sql": {
+    "mtime": 1781076316.2915688,
+    "ast_hash": "39f348b9b2177a0295e22b0e95c74e32",
+    "semantic_hash": "39f348b9b2177a0295e22b0e95c74e32"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/skills-lock.json": {
+    "mtime": 1781011475.2900908,
+    "ast_hash": "b68cca991c8fbc4385edd69bfe911cb7",
+    "semantic_hash": "b68cca991c8fbc4385edd69bfe911cb7"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/tailwind.config.js": {
+    "mtime": 1778135329.9493685,
+    "ast_hash": "686bea04fd121364e4ac23c1c70bc846",
+    "semantic_hash": "686bea04fd121364e4ac23c1c70bc846"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/tsconfig.base.json": {
+    "mtime": 1778135329.9494288,
+    "ast_hash": "f1298f9b7587b80beab5982eeb1e2f17",
+    "semantic_hash": "f1298f9b7587b80beab5982eeb1e2f17"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/acquire-codebase-knowledge/SKILL.md": {
+    "mtime": 1781011474.2245567,
+    "ast_hash": "e73e392a414c5db9563522a6247c3dea",
+    "semantic_hash": "e73e392a414c5db9563522a6247c3dea"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/acquire-codebase-knowledge/assets/templates/ARCHITECTURE.md": {
+    "mtime": 1781011474.2249331,
+    "ast_hash": "8606cb78c4c5c9fe2d294badac5982b8",
+    "semantic_hash": "8606cb78c4c5c9fe2d294badac5982b8"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/acquire-codebase-knowledge/assets/templates/CONCERNS.md": {
+    "mtime": 1781011474.2250795,
+    "ast_hash": "7315aa726bf8439f8f37d5e107505fc5",
+    "semantic_hash": "7315aa726bf8439f8f37d5e107505fc5"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/acquire-codebase-knowledge/assets/templates/CONVENTIONS.md": {
+    "mtime": 1781011474.2252152,
+    "ast_hash": "ba560dd92eeab9cca2f518d44077b7ab",
+    "semantic_hash": "ba560dd92eeab9cca2f518d44077b7ab"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/acquire-codebase-knowledge/assets/templates/INTEGRATIONS.md": {
+    "mtime": 1781011474.2253463,
+    "ast_hash": "69cd66e3a61f50314079f83cc80a905b",
+    "semantic_hash": "69cd66e3a61f50314079f83cc80a905b"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/acquire-codebase-knowledge/assets/templates/STACK.md": {
+    "mtime": 1781011474.22549,
+    "ast_hash": "19d08a37df126f27530cd09bbe0c22ce",
+    "semantic_hash": "19d08a37df126f27530cd09bbe0c22ce"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/acquire-codebase-knowledge/assets/templates/STRUCTURE.md": {
+    "mtime": 1781011474.2256436,
+    "ast_hash": "2ac7165811912967230f343f4a1d379b",
+    "semantic_hash": "2ac7165811912967230f343f4a1d379b"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/acquire-codebase-knowledge/assets/templates/TESTING.md": {
+    "mtime": 1781011474.2257922,
+    "ast_hash": "60e3c661a2657d9ef851f98d23b1af5e",
+    "semantic_hash": "60e3c661a2657d9ef851f98d23b1af5e"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/acquire-codebase-knowledge/references/inquiry-checkpoints.md": {
+    "mtime": 1781011474.2293017,
+    "ast_hash": "e870ce1a97c66241f1d6e7b403dac3c0",
+    "semantic_hash": "e870ce1a97c66241f1d6e7b403dac3c0"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/acquire-codebase-knowledge/references/stack-detection.md": {
+    "mtime": 1781011474.2295637,
+    "ast_hash": "0fe603bf7c0fe9051bc7a601b105a7aa",
+    "semantic_hash": "0fe603bf7c0fe9051bc7a601b105a7aa"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/angular-component/SKILL.md": {
+    "mtime": 1778135329.9108107,
+    "ast_hash": "62971577974e0c3129c08d75631828af",
+    "semantic_hash": "62971577974e0c3129c08d75631828af"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/angular-component/references/component-patterns.md": {
+    "mtime": 1778135329.9110525,
+    "ast_hash": "a04e3cd4434635d17209b7d0d84a08f5",
+    "semantic_hash": "a04e3cd4434635d17209b7d0d84a08f5"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/angular-signals/SKILL.md": {
+    "mtime": 1778135329.9111776,
+    "ast_hash": "75c1076324e7cf3bc314d4c7bb5bc188",
+    "semantic_hash": "75c1076324e7cf3bc314d4c7bb5bc188"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/angular-signals/references/signal-patterns.md": {
+    "mtime": 1778135329.9114223,
+    "ast_hash": "25e42a273f1b8a01a18e4f4e836ed835",
+    "semantic_hash": "25e42a273f1b8a01a18e4f4e836ed835"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/api-design-principles/SKILL.md": {
+    "mtime": 1778135329.9116592,
+    "ast_hash": "249be86f09c2178596660986e0e2eab5",
+    "semantic_hash": "249be86f09c2178596660986e0e2eab5"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/api-design-principles/assets/api-design-checklist.md": {
+    "mtime": 1778135329.9117727,
+    "ast_hash": "062a5c6b53daf04f9bd4ff13a7aaf2ff",
+    "semantic_hash": "062a5c6b53daf04f9bd4ff13a7aaf2ff"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/api-design-principles/references/graphql-schema-design.md": {
+    "mtime": 1778135329.9119422,
+    "ast_hash": "d47f746cc7b948c7df98035aa702e077",
+    "semantic_hash": "d47f746cc7b948c7df98035aa702e077"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/api-design-principles/references/rest-best-practices.md": {
+    "mtime": 1778135329.9120078,
+    "ast_hash": "b14c342ddf54f065eae48f5ab8193ab9",
+    "semantic_hash": "b14c342ddf54f065eae48f5ab8193ab9"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/brainstorming-batch/SKILL.md": {
+    "mtime": 1781258922.685952,
+    "ast_hash": "61717d707ee0033d4d1ebefc8d0b30f4",
+    "semantic_hash": "61717d707ee0033d4d1ebefc8d0b30f4"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/brainstorming-batch/spec-document-reviewer-prompt.md": {
+    "mtime": 1781258922.6862533,
+    "ast_hash": "ea74c0f2369ae553c62f36af4ed3d424",
+    "semantic_hash": "ea74c0f2369ae553c62f36af4ed3d424"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/brainstorming/SKILL.md": {
+    "mtime": 1778135329.91212,
+    "ast_hash": "02d86f11c496ece51327cca35491c45c",
+    "semantic_hash": "02d86f11c496ece51327cca35491c45c"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/brainstorming/scripts/frame-template.html": {
+    "mtime": 1778135329.9122343,
+    "ast_hash": "84f2390ee8b3cd0c74e6e844e57a851f",
+    "semantic_hash": "84f2390ee8b3cd0c74e6e844e57a851f"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/brainstorming/spec-document-reviewer-prompt.md": {
+    "mtime": 1778135329.912733,
+    "ast_hash": "ea74c0f2369ae553c62f36af4ed3d424",
+    "semantic_hash": "ea74c0f2369ae553c62f36af4ed3d424"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/brainstorming/visual-companion.md": {
+    "mtime": 1778135329.912802,
+    "ast_hash": "98407f42a43e3c3e3aae399376821e7e",
+    "semantic_hash": "98407f42a43e3c3e3aae399376821e7e"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/canvas-design/LICENSE.txt": {
+    "mtime": 1781258922.686852,
+    "ast_hash": "0ee6429f4c66920b6744d818225fb58f",
+    "semantic_hash": "0ee6429f4c66920b6744d818225fb58f"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/canvas-design/SKILL.md": {
+    "mtime": 1781258922.687647,
+    "ast_hash": "3004dffc91611ca480b24d952d33ad46",
+    "semantic_hash": "3004dffc91611ca480b24d952d33ad46"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/canvas-design/canvas-fonts/ArsenalSC-OFL.txt": {
+    "mtime": 1781258922.6881888,
+    "ast_hash": "6ba27859bff46d6040ce48e164b2b6b5",
+    "semantic_hash": "6ba27859bff46d6040ce48e164b2b6b5"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/canvas-design/canvas-fonts/BigShoulders-OFL.txt": {
+    "mtime": 1781258922.6910975,
+    "ast_hash": "db35b3b1166369fabfe18614e67ad0f7",
+    "semantic_hash": "db35b3b1166369fabfe18614e67ad0f7"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/canvas-design/canvas-fonts/Boldonse-OFL.txt": {
+    "mtime": 1781258922.6930194,
+    "ast_hash": "fd1bd9bdc739431ca190a2178b29fe2e",
+    "semantic_hash": "fd1bd9bdc739431ca190a2178b29fe2e"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/canvas-design/canvas-fonts/BricolageGrotesque-OFL.txt": {
+    "mtime": 1781258922.695654,
+    "ast_hash": "c01c6f2840f06aacc97899ab09ec0e01",
+    "semantic_hash": "c01c6f2840f06aacc97899ab09ec0e01"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/canvas-design/canvas-fonts/CrimsonPro-OFL.txt": {
+    "mtime": 1781258922.6995203,
+    "ast_hash": "2b62069b71f49dddd2bde54448a986a0",
+    "semantic_hash": "2b62069b71f49dddd2bde54448a986a0"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/canvas-design/canvas-fonts/DMMono-OFL.txt": {
+    "mtime": 1781258922.701222,
+    "ast_hash": "c6a3ddf00ed346cbb45fdfa0ca2c4b9c",
+    "semantic_hash": "c6a3ddf00ed346cbb45fdfa0ca2c4b9c"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/canvas-design/canvas-fonts/EricaOne-OFL.txt": {
+    "mtime": 1781258922.7023423,
+    "ast_hash": "0312065d0003e7a4ef6a459afd7e1ccb",
+    "semantic_hash": "0312065d0003e7a4ef6a459afd7e1ccb"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/canvas-design/canvas-fonts/GeistMono-OFL.txt": {
+    "mtime": 1781258922.704296,
+    "ast_hash": "9678944f41fc8b46592ca1626f1c0896",
+    "semantic_hash": "9678944f41fc8b46592ca1626f1c0896"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/canvas-design/canvas-fonts/Gloock-OFL.txt": {
+    "mtime": 1781258922.7060416,
+    "ast_hash": "2cc6d168f1171b25a10e825bb7a54ee7",
+    "semantic_hash": "2cc6d168f1171b25a10e825bb7a54ee7"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/canvas-design/canvas-fonts/IBMPlexMono-OFL.txt": {
+    "mtime": 1781258922.7084715,
+    "ast_hash": "30de3a874e3399fc7b9d1bec045d3166",
+    "semantic_hash": "30de3a874e3399fc7b9d1bec045d3166"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/canvas-design/canvas-fonts/InstrumentSans-OFL.txt": {
+    "mtime": 1781258922.7191396,
+    "ast_hash": "35856d470a6adf5d5c4a9bcdfd659bcc",
+    "semantic_hash": "35856d470a6adf5d5c4a9bcdfd659bcc"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/canvas-design/canvas-fonts/Italiana-OFL.txt": {
+    "mtime": 1781258922.7229884,
+    "ast_hash": "233d74d83b54a786d21a429304775aef",
+    "semantic_hash": "233d74d83b54a786d21a429304775aef"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/canvas-design/canvas-fonts/JetBrainsMono-OFL.txt": {
+    "mtime": 1781258922.725851,
+    "ast_hash": "2025a2ee80175b15561a8232e67d74d5",
+    "semantic_hash": "2025a2ee80175b15561a8232e67d74d5"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/canvas-design/canvas-fonts/Jura-OFL.txt": {
+    "mtime": 1781258922.7313285,
+    "ast_hash": "227060bfebf7bcf3f924fafa47d1237d",
+    "semantic_hash": "227060bfebf7bcf3f924fafa47d1237d"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/canvas-design/canvas-fonts/LibreBaskerville-OFL.txt": {
+    "mtime": 1781258922.731981,
+    "ast_hash": "077df2dc77ecd9ca43d6fbc15ed1c0cb",
+    "semantic_hash": "077df2dc77ecd9ca43d6fbc15ed1c0cb"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/canvas-design/canvas-fonts/Lora-OFL.txt": {
+    "mtime": 1781258922.7386866,
+    "ast_hash": "a6f35dd3870842fab964fbcd0ffb2908",
+    "semantic_hash": "a6f35dd3870842fab964fbcd0ffb2908"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/canvas-design/canvas-fonts/NationalPark-OFL.txt": {
+    "mtime": 1781258922.7420518,
+    "ast_hash": "67073750dbf1a5d68e56c4c5ffec8f09",
+    "semantic_hash": "67073750dbf1a5d68e56c4c5ffec8f09"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/canvas-design/canvas-fonts/NothingYouCouldDo-OFL.txt": {
+    "mtime": 1781258922.7438202,
+    "ast_hash": "b3dd666855ec5cd55f351287c80b9eb1",
+    "semantic_hash": "b3dd666855ec5cd55f351287c80b9eb1"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/canvas-design/canvas-fonts/Outfit-OFL.txt": {
+    "mtime": 1781258922.7470615,
+    "ast_hash": "1b36bbe38eb97e26055123ff42f44fc7",
+    "semantic_hash": "1b36bbe38eb97e26055123ff42f44fc7"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/canvas-design/canvas-fonts/PixelifySans-OFL.txt": {
+    "mtime": 1781258922.7493799,
+    "ast_hash": "1f685eb54479bfa39bced4f64798a900",
+    "semantic_hash": "1f685eb54479bfa39bced4f64798a900"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/canvas-design/canvas-fonts/PoiretOne-OFL.txt": {
+    "mtime": 1781258922.7501545,
+    "ast_hash": "954ca844e5dd9e31353213c6a142b9a4",
+    "semantic_hash": "954ca844e5dd9e31353213c6a142b9a4"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/canvas-design/canvas-fonts/RedHatMono-OFL.txt": {
+    "mtime": 1781258922.7530012,
+    "ast_hash": "0787f4274246f7bbf6c429db807e3049",
+    "semantic_hash": "0787f4274246f7bbf6c429db807e3049"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/canvas-design/canvas-fonts/Silkscreen-OFL.txt": {
+    "mtime": 1781258922.7545917,
+    "ast_hash": "ed13fbda3931ec8f3beb063f8fcd2182",
+    "semantic_hash": "ed13fbda3931ec8f3beb063f8fcd2182"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/canvas-design/canvas-fonts/SmoochSans-OFL.txt": {
+    "mtime": 1781258922.7567542,
+    "ast_hash": "da377dd00a998b32d88274b2b17c64be",
+    "semantic_hash": "da377dd00a998b32d88274b2b17c64be"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/canvas-design/canvas-fonts/Tektur-OFL.txt": {
+    "mtime": 1781258922.758884,
+    "ast_hash": "40fd22c803f19bfbdb6383598f3bfacb",
+    "semantic_hash": "40fd22c803f19bfbdb6383598f3bfacb"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/canvas-design/canvas-fonts/WorkSans-OFL.txt": {
+    "mtime": 1781258922.7723613,
+    "ast_hash": "4bf1338afcac74d0c9ea569f07a87fab",
+    "semantic_hash": "4bf1338afcac74d0c9ea569f07a87fab"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/canvas-design/canvas-fonts/YoungSerif-OFL.txt": {
+    "mtime": 1781258922.7753463,
+    "ast_hash": "fa532d4441344be225f3f46d7ce2aabf",
+    "semantic_hash": "fa532d4441344be225f3f46d7ce2aabf"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/find-skills/SKILL.md": {
+    "mtime": 1781258922.7779164,
+    "ast_hash": "efcaee1dd97ebac4f2f4071585cff6b5",
+    "semantic_hash": "efcaee1dd97ebac4f2f4071585cff6b5"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/frontend-design/LICENSE.txt": {
+    "mtime": 1778135329.9129093,
+    "ast_hash": "2ee41112a44fe7014dce33e26468ba93",
+    "semantic_hash": "2ee41112a44fe7014dce33e26468ba93"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/frontend-design/SKILL.md": {
+    "mtime": 1778135329.912977,
+    "ast_hash": "06a0520e81f698334258c73ff0de533b",
+    "semantic_hash": "06a0520e81f698334258c73ff0de533b"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/language-rules/SKILL.md": {
+    "mtime": 1781258922.7788944,
+    "ast_hash": "be69d0dbb488c689453bbc02d8fdc264",
+    "semantic_hash": "be69d0dbb488c689453bbc02d8fdc264"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/language-rules/recull-de-termes.md": {
+    "mtime": 1781258922.7793584,
+    "ast_hash": "e243d99a478ee7c7baf311bf2d73278a",
+    "semantic_hash": "e243d99a478ee7c7baf311bf2d73278a"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/monorepo-management/SKILL.md": {
+    "mtime": 1781258922.7802532,
+    "ast_hash": "286f01267d20aa3461055f6a51b3d2ad",
+    "semantic_hash": "286f01267d20aa3461055f6a51b3d2ad"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/AGENTS.md": {
+    "mtime": 1778135329.9132783,
+    "ast_hash": "8fa8b7fd3d8f94ed825c8d29d3104aa3",
+    "semantic_hash": "8fa8b7fd3d8f94ed825c8d29d3104aa3"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/README.md": {
+    "mtime": 1778135329.9135358,
+    "ast_hash": "6c792a5b760b45bae3a11752e5c22214",
+    "semantic_hash": "6c792a5b760b45bae3a11752e5c22214"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/SKILL.md": {
+    "mtime": 1778135329.9136267,
+    "ast_hash": "90660a2d88fb821e16d835be414ce0ea",
+    "semantic_hash": "90660a2d88fb821e16d835be414ce0ea"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/_sections.md": {
+    "mtime": 1778135329.9137425,
+    "ast_hash": "b0475e012dbf75961b61ab9090429494",
+    "semantic_hash": "b0475e012dbf75961b61ab9090429494"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/_template.md": {
+    "mtime": 1778135329.913808,
+    "ast_hash": "a0d76a2f87f3f80e9a8f3a2a1054aaaf",
+    "semantic_hash": "a0d76a2f87f3f80e9a8f3a2a1054aaaf"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/api-use-dto-serialization.md": {
+    "mtime": 1778135329.913876,
+    "ast_hash": "7862d80c2f090a99aa1d86bbe5b5094d",
+    "semantic_hash": "7862d80c2f090a99aa1d86bbe5b5094d"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/api-use-interceptors.md": {
+    "mtime": 1778135329.9139469,
+    "ast_hash": "0d440b13f739e5041e31ec02373e91b4",
+    "semantic_hash": "0d440b13f739e5041e31ec02373e91b4"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/api-use-pipes.md": {
+    "mtime": 1778135329.9140077,
+    "ast_hash": "27c0787d62133a22a4be5706546ca27b",
+    "semantic_hash": "27c0787d62133a22a4be5706546ca27b"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/api-versioning.md": {
+    "mtime": 1778135329.9140713,
+    "ast_hash": "ce88ddb2b7d88b5759acdaf06de17d3c",
+    "semantic_hash": "ce88ddb2b7d88b5759acdaf06de17d3c"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/arch-avoid-circular-deps.md": {
+    "mtime": 1778135329.9142218,
+    "ast_hash": "b741b1ba02993f0491fbba2fe4959beb",
+    "semantic_hash": "b741b1ba02993f0491fbba2fe4959beb"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/arch-feature-modules.md": {
+    "mtime": 1778135329.9143326,
+    "ast_hash": "b6d237836cd3f45821f2ce0efa946df9",
+    "semantic_hash": "b6d237836cd3f45821f2ce0efa946df9"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/arch-module-sharing.md": {
+    "mtime": 1778135329.9144006,
+    "ast_hash": "154f2f644fac52fb0d3a1666ab7ced7a",
+    "semantic_hash": "154f2f644fac52fb0d3a1666ab7ced7a"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/arch-single-responsibility.md": {
+    "mtime": 1778135329.9144738,
+    "ast_hash": "8172bec0892350a618396f331c55f68d",
+    "semantic_hash": "8172bec0892350a618396f331c55f68d"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/arch-use-events.md": {
+    "mtime": 1778135329.9145374,
+    "ast_hash": "f459db1ec7220dccbedd0a5e048ac00a",
+    "semantic_hash": "f459db1ec7220dccbedd0a5e048ac00a"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/arch-use-repository-pattern.md": {
+    "mtime": 1778135329.9145947,
+    "ast_hash": "22a3c537fa5df151b53b4190b9af1a19",
+    "semantic_hash": "22a3c537fa5df151b53b4190b9af1a19"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/db-avoid-n-plus-one.md": {
+    "mtime": 1778135329.9146533,
+    "ast_hash": "12da6200566da665c83821ccda78120e",
+    "semantic_hash": "12da6200566da665c83821ccda78120e"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/db-use-migrations.md": {
+    "mtime": 1778135329.914716,
+    "ast_hash": "ed0cf125722f64900e29651795cb8e9b",
+    "semantic_hash": "ed0cf125722f64900e29651795cb8e9b"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/db-use-transactions.md": {
+    "mtime": 1778135329.9147756,
+    "ast_hash": "9320bb225f8e3ab91458882ef74ff06f",
+    "semantic_hash": "9320bb225f8e3ab91458882ef74ff06f"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/devops-graceful-shutdown.md": {
+    "mtime": 1778135329.914842,
+    "ast_hash": "bd544da548b60b5ed0c1d9fa47795ee2",
+    "semantic_hash": "bd544da548b60b5ed0c1d9fa47795ee2"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/devops-use-config-module.md": {
+    "mtime": 1778135329.9149113,
+    "ast_hash": "7e808392bf355c1c2c5baa422f53c645",
+    "semantic_hash": "7e808392bf355c1c2c5baa422f53c645"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/devops-use-logging.md": {
+    "mtime": 1778135329.9149745,
+    "ast_hash": "457610347a502aa5653e58daa093be1b",
+    "semantic_hash": "457610347a502aa5653e58daa093be1b"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/di-avoid-service-locator.md": {
+    "mtime": 1778135329.9150398,
+    "ast_hash": "e31d973bf3b5b4da3179b5337ca051ee",
+    "semantic_hash": "e31d973bf3b5b4da3179b5337ca051ee"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/di-interface-segregation.md": {
+    "mtime": 1778135329.915115,
+    "ast_hash": "b56569e89affee45684c6359736fabe5",
+    "semantic_hash": "b56569e89affee45684c6359736fabe5"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/di-liskov-substitution.md": {
+    "mtime": 1778135329.915179,
+    "ast_hash": "bd3647b5a78f785e5042577a435b0e97",
+    "semantic_hash": "bd3647b5a78f785e5042577a435b0e97"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/di-prefer-constructor-injection.md": {
+    "mtime": 1778135329.9152336,
+    "ast_hash": "ecd73323fd9f5eebdbdb4044188162db",
+    "semantic_hash": "ecd73323fd9f5eebdbdb4044188162db"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/di-scope-awareness.md": {
+    "mtime": 1778135329.9152877,
+    "ast_hash": "e93e381aa4668cdf8798ca3a1fba52fd",
+    "semantic_hash": "e93e381aa4668cdf8798ca3a1fba52fd"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/error-handle-async-errors.md": {
+    "mtime": 1778135329.9154186,
+    "ast_hash": "e865e5e57a857a13929c1929e08a795e",
+    "semantic_hash": "e865e5e57a857a13929c1929e08a795e"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/error-throw-http-exceptions.md": {
+    "mtime": 1778135329.9154778,
+    "ast_hash": "1f27955f19d43cdca56648f83890dee8",
+    "semantic_hash": "1f27955f19d43cdca56648f83890dee8"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/error-use-exception-filters.md": {
+    "mtime": 1778135329.9155328,
+    "ast_hash": "c2adcd9ed7b371574f16b987d4b4b574",
+    "semantic_hash": "c2adcd9ed7b371574f16b987d4b4b574"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/micro-use-health-checks.md": {
+    "mtime": 1778135329.9155955,
+    "ast_hash": "7069e3da224e5d74bbd8b2a8ba151cf9",
+    "semantic_hash": "7069e3da224e5d74bbd8b2a8ba151cf9"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/micro-use-patterns.md": {
+    "mtime": 1778135329.9156659,
+    "ast_hash": "7e1ecb4f621aa545987263cf7542aac6",
+    "semantic_hash": "7e1ecb4f621aa545987263cf7542aac6"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/micro-use-queues.md": {
+    "mtime": 1778135329.9157321,
+    "ast_hash": "d907837ee34bcf7f3000e91643905e1c",
+    "semantic_hash": "d907837ee34bcf7f3000e91643905e1c"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/perf-async-hooks.md": {
+    "mtime": 1778135329.9157972,
+    "ast_hash": "1e89d2409baec3ee7dc99ff2668d2718",
+    "semantic_hash": "1e89d2409baec3ee7dc99ff2668d2718"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/perf-lazy-loading.md": {
+    "mtime": 1778135329.91586,
+    "ast_hash": "8c1e78f9cdcbaed37700877788798cdc",
+    "semantic_hash": "8c1e78f9cdcbaed37700877788798cdc"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/perf-optimize-database.md": {
+    "mtime": 1778135329.9159207,
+    "ast_hash": "0fce619ae831e0ba687416d35e8186da",
+    "semantic_hash": "0fce619ae831e0ba687416d35e8186da"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/perf-use-caching.md": {
+    "mtime": 1778135329.91598,
+    "ast_hash": "6c8286b6fe809a26e129cda72e4e31ba",
+    "semantic_hash": "6c8286b6fe809a26e129cda72e4e31ba"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/security-auth-jwt.md": {
+    "mtime": 1778135329.91604,
+    "ast_hash": "276238b090970ad0f9028aba7c2c6f4d",
+    "semantic_hash": "276238b090970ad0f9028aba7c2c6f4d"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/security-rate-limiting.md": {
+    "mtime": 1778135329.9160976,
+    "ast_hash": "11e329713439f6d1da5dd63d639eb3b5",
+    "semantic_hash": "11e329713439f6d1da5dd63d639eb3b5"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/security-sanitize-output.md": {
+    "mtime": 1778135329.916154,
+    "ast_hash": "1d23d4832dbf8588cb38738ee4996703",
+    "semantic_hash": "1d23d4832dbf8588cb38738ee4996703"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/security-use-guards.md": {
+    "mtime": 1778135329.916215,
+    "ast_hash": "c7889eab6a8d559c762d61424d9cea50",
+    "semantic_hash": "c7889eab6a8d559c762d61424d9cea50"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/security-validate-all-input.md": {
+    "mtime": 1778135329.9162736,
+    "ast_hash": "7508d3c6e58846f4e1fc5be44ba4ecb3",
+    "semantic_hash": "7508d3c6e58846f4e1fc5be44ba4ecb3"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/test-e2e-supertest.md": {
+    "mtime": 1778135329.9163337,
+    "ast_hash": "3bcd1a8726298c47fc906e43aeb18a8a",
+    "semantic_hash": "3bcd1a8726298c47fc906e43aeb18a8a"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/test-mock-external-services.md": {
+    "mtime": 1778135329.9163916,
+    "ast_hash": "732ec01a2fdeb1d31d6b38cdfd4f3c3b",
+    "semantic_hash": "732ec01a2fdeb1d31d6b38cdfd4f3c3b"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/nestjs-best-practices/rules/test-use-testing-module.md": {
+    "mtime": 1778135329.9166439,
+    "ast_hash": "aa185490966226a49928a27328fb9ca1",
+    "semantic_hash": "aa185490966226a49928a27328fb9ca1"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/systematic-debugging/CREATION-LOG.md": {
+    "mtime": 1778135329.917051,
+    "ast_hash": "7226812eb1ce6a805732c2ff98712e4a",
+    "semantic_hash": "7226812eb1ce6a805732c2ff98712e4a"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/systematic-debugging/SKILL.md": {
+    "mtime": 1778135329.917124,
+    "ast_hash": "3a08f3330fce34e3b2104e7d97f64af0",
+    "semantic_hash": "3a08f3330fce34e3b2104e7d97f64af0"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/systematic-debugging/condition-based-waiting.md": {
+    "mtime": 1778135329.9172432,
+    "ast_hash": "c64d669f2490aa489c514304c9ad46d3",
+    "semantic_hash": "c64d669f2490aa489c514304c9ad46d3"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/systematic-debugging/defense-in-depth.md": {
+    "mtime": 1778135329.9173014,
+    "ast_hash": "002a0c9e8bee8fc29f85d7a434916977",
+    "semantic_hash": "002a0c9e8bee8fc29f85d7a434916977"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/systematic-debugging/root-cause-tracing.md": {
+    "mtime": 1778135329.9174113,
+    "ast_hash": "9b80d2e7aaff6e64f4c46f51312f126b",
+    "semantic_hash": "9b80d2e7aaff6e64f4c46f51312f126b"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/systematic-debugging/test-academic.md": {
+    "mtime": 1778135329.9174695,
+    "ast_hash": "272ab1d95e755a7ff9479d547168eef9",
+    "semantic_hash": "272ab1d95e755a7ff9479d547168eef9"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/systematic-debugging/test-pressure-1.md": {
+    "mtime": 1778135329.917523,
+    "ast_hash": "3d8805e8946e3889d4de0e906af66c47",
+    "semantic_hash": "3d8805e8946e3889d4de0e906af66c47"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/systematic-debugging/test-pressure-2.md": {
+    "mtime": 1778135329.9175801,
+    "ast_hash": "237f40dfd0b48af48d239ab3af499f7b",
+    "semantic_hash": "237f40dfd0b48af48d239ab3af499f7b"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/systematic-debugging/test-pressure-3.md": {
+    "mtime": 1778135329.9176357,
+    "ast_hash": "42ea1bd281ca8d837f5dd45143762b95",
+    "semantic_hash": "42ea1bd281ca8d837f5dd45143762b95"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/test-driven-development/SKILL.md": {
+    "mtime": 1778135329.917738,
+    "ast_hash": "b349bbcc136f3f50c45f04d0917bdfc9",
+    "semantic_hash": "b349bbcc136f3f50c45f04d0917bdfc9"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/test-driven-development/testing-anti-patterns.md": {
+    "mtime": 1778135329.9177997,
+    "ast_hash": "f4373033bf29f06897cd63c994deb2a7",
+    "semantic_hash": "f4373033bf29f06897cd63c994deb2a7"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.agents/skills/ui-ux-pro-max/SKILL.md": {
+    "mtime": 1778135329.917909,
+    "ast_hash": "333e886d9c027730a6a24b4f34fba801",
+    "semantic_hash": "333e886d9c027730a6a24b4f34fba801"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/.github/workflows/ci.yml": {
+    "mtime": 1781011474.264602,
+    "ast_hash": "67d50a6826174b35bfb5c54609d33937",
+    "semantic_hash": "67d50a6826174b35bfb5c54609d33937"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/CLAUDE.md": {
+    "mtime": 1781258922.7834628,
+    "ast_hash": "8631fb666a0560ce12a272f1ca9be6de",
+    "semantic_hash": "8631fb666a0560ce12a272f1ca9be6de"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/CONTEXT.md": {
+    "mtime": 1781011474.348876,
+    "ast_hash": "c574a0927e7cc314386c60d7a7bca016",
+    "semantic_hash": "c574a0927e7cc314386c60d7a7bca016"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/README.md": {
+    "mtime": 1781011474.3496413,
+    "ast_hash": "d3889757987867748a064c3a7b168d9b",
+    "semantic_hash": "d3889757987867748a064c3a7b168d9b"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/app.html": {
+    "mtime": 1781011474.5844972,
+    "ast_hash": "8798d1635e122105edf687d72a363cce",
+    "semantic_hash": "8798d1635e122105edf687d72a363cce"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/auth/login/login.component.html": {
+    "mtime": 1778135329.9344094,
+    "ast_hash": "1b6da7c8b61fb5c18e65952aad83982f",
+    "semantic_hash": "1b6da7c8b61fb5c18e65952aad83982f"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/config/components/position-form-modal/position-form-modal.component.html": {
+    "mtime": 1781258922.7949095,
+    "ast_hash": "4ce5f29bd087d059d057c7d1d35af2c0",
+    "semantic_hash": "4ce5f29bd087d059d057c7d1d35af2c0"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/config/components/position-list/position-list.component.html": {
+    "mtime": 1781258922.7953124,
+    "ast_hash": "09f1a73679a4b30fca81c0d43e8fc024",
+    "semantic_hash": "09f1a73679a4b30fca81c0d43e8fc024"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/config/components/season-form-modal/season-form-modal.component.html": {
+    "mtime": 1781258922.7956638,
+    "ast_hash": "02a7106e49f3fd6c7c84357a03d03b90",
+    "semantic_hash": "02a7106e49f3fd6c7c84357a03d03b90"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/config/components/season-list/season-list.component.html": {
+    "mtime": 1781258922.795985,
+    "ast_hash": "09d3f8c0afb216b8f051aacf16c797e1",
+    "semantic_hash": "09d3f8c0afb216b8f051aacf16c797e1"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/config/components/user-form-modal/user-form-modal.component.html": {
+    "mtime": 1781258922.7964563,
+    "ast_hash": "7c304f107069c5df840dc419ca218863",
+    "semantic_hash": "7c304f107069c5df840dc419ca218863"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/config/components/user-list.component.html": {
+    "mtime": 1781011474.5998068,
+    "ast_hash": "05e1009d793aa6d003c99b08b53924ed",
+    "semantic_hash": "05e1009d793aa6d003c99b08b53924ed"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/events/components/attendance-edit-modal/attendance-edit-modal.component.html": {
+    "mtime": 1781011474.6073742,
+    "ast_hash": "5ae52fa1f6340a1271f772c936049c2f",
+    "semantic_hash": "5ae52fa1f6340a1271f772c936049c2f"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/events/components/event-detail/event-detail.component.html": {
+    "mtime": 1781258922.7969642,
+    "ast_hash": "71cd2634bc8d29666c0d77ec36ad36b3",
+    "semantic_hash": "71cd2634bc8d29666c0d77ec36ad36b3"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/events/components/event-form-modal/event-form-modal.component.html": {
+    "mtime": 1781084205.3184428,
+    "ast_hash": "92ca0995453010465511381d894057c6",
+    "semantic_hash": "92ca0995453010465511381d894057c6"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/events/components/event-list/event-list.component.html": {
+    "mtime": 1781258922.797673,
+    "ast_hash": "61ef799ec418923e26926c53a75c01d0",
+    "semantic_hash": "61ef799ec418923e26926c53a75c01d0"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/events/components/event-sync/event-sync.component.html": {
+    "mtime": 1781258922.7979941,
+    "ast_hash": "dd882716f60ce8383b0bf4b8a8b411b6",
+    "semantic_hash": "dd882716f60ce8383b0bf4b8a8b411b6"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/events/components/segment-manager/segment-manager.component.html": {
+    "mtime": 1781258922.7983387,
+    "ast_hash": "2d8b085d71f8e10bbdc2f4cc4cdc2408",
+    "semantic_hash": "2d8b085d71f8e10bbdc2f4cc4cdc2408"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/home/home.component.html": {
+    "mtime": 1781258922.7989926,
+    "ast_hash": "21a665f20c70016738abd955f3b4f8b5",
+    "semantic_hash": "21a665f20c70016738abd955f3b4f8b5"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/persons/components/person-detail/modals/person-invitation-modal.component.html": {
+    "mtime": 1781011474.6216745,
+    "ast_hash": "88127f086b821a4fa7ff5f3a0ad982a2",
+    "semantic_hash": "88127f086b821a4fa7ff5f3a0ad982a2"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/persons/components/person-detail/modals/person-link-user-modal.component.html": {
+    "mtime": 1781011474.6278543,
+    "ast_hash": "d391cbcbe7354a2455303fcdb2608e39",
+    "semantic_hash": "d391cbcbe7354a2455303fcdb2608e39"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/persons/components/person-detail/person-detail.component.html": {
+    "mtime": 1781258922.7992578,
+    "ast_hash": "f75ab5e20a978b80b40a13df82b46008",
+    "semantic_hash": "f75ab5e20a978b80b40a13df82b46008"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/persons/components/person-list.component.html": {
+    "mtime": 1781258922.7995784,
+    "ast_hash": "f88fd41753305d1307e5394c92c01e07",
+    "semantic_hash": "f88fd41753305d1307e5394c92c01e07"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/persons/components/person-sync/person-sync.component.html": {
+    "mtime": 1781258922.7998862,
+    "ast_hash": "7b71767146c3a11b354ef43e6f900eb4",
+    "semantic_hash": "7b71767146c3a11b354ef43e6f900eb4"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/ad-hoc-node-properties/ad-hoc-node-properties.component.html": {
+    "mtime": 1781258922.800796,
+    "ast_hash": "a348ef04a9d831f62fda7eeea5c0cbf0",
+    "semantic_hash": "a348ef04a9d831f62fda7eeea5c0cbf0"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/ad-hoc-nodes-help-modal/ad-hoc-nodes-help-modal.component.html": {
+    "mtime": 1781258922.802001,
+    "ast_hash": "6de10352343e133f024a99f626f9325b",
+    "semantic_hash": "6de10352343e133f024a99f626f9325b"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/assignment-canvas/assignment-canvas.component.html": {
+    "mtime": 1781258922.80369,
+    "ast_hash": "2fff82960a022fdcd9a1a6a3deeeb844",
+    "semantic_hash": "2fff82960a022fdcd9a1a6a3deeeb844"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/composition-editor/composition-editor.component.html": {
+    "mtime": 1781258922.8055537,
+    "ast_hash": "12f90f3d8ff8bbf12533baee8d4e9925",
+    "semantic_hash": "12f90f3d8ff8bbf12533baee8d4e9925"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/figure-canvas/figure-canvas.component.html": {
+    "mtime": 1781011474.6511898,
+    "ast_hash": "a579f0c20d7c2702ca6bca9b23f29b39",
+    "semantic_hash": "a579f0c20d7c2702ca6bca9b23f29b39"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/figure-picker-modal/figure-picker-modal.component.html": {
+    "mtime": 1781076316.288166,
+    "ast_hash": "1a5cda8e3d8ea42ea6f2463ab987490e",
+    "semantic_hash": "1a5cda8e3d8ea42ea6f2463ab987490e"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/figure-projection/figure-projection.component.html": {
+    "mtime": 1781253424.9804513,
+    "ast_hash": "b18e3b3b6e071bf87199883811b13d6d",
+    "semantic_hash": "b18e3b3b6e071bf87199883811b13d6d"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/import-pinya-modal/import-pinya-modal.component.html": {
+    "mtime": 1781011474.6807485,
+    "ast_hash": "fb0fac8a23b0ca94dcf78a38a2aaabac",
+    "semantic_hash": "fb0fac8a23b0ca94dcf78a38a2aaabac"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/person-panel/person-panel.component.html": {
+    "mtime": 1781011474.6894279,
+    "ast_hash": "0e8acd72369af70fc10aeff66840c1c3",
+    "semantic_hash": "0e8acd72369af70fc10aeff66840c1c3"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/pinyes-onboarding-modal/pinyes-onboarding-modal.component.html": {
+    "mtime": 1781011474.6931489,
+    "ast_hash": "28cf018198e351bc95fded51cdd4a33b",
+    "semantic_hash": "28cf018198e351bc95fded51cdd4a33b"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/projection-view/projection-view.component.html": {
+    "mtime": 1781258922.8080227,
+    "ast_hash": "4f582aa4ef1719c2588eab2e0771478e",
+    "semantic_hash": "4f582aa4ef1719c2588eab2e0771478e"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/rengla-overlay/rengla-overlay.component.html": {
+    "mtime": 1781258922.8084526,
+    "ast_hash": "8a2d4735d622741a3f4e82dfebab6198",
+    "semantic_hash": "8a2d4735d622741a3f4e82dfebab6198"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/template-editor-help-modal/template-editor-help-modal.component.html": {
+    "mtime": 1781011474.7888365,
+    "ast_hash": "9ff111b6ea08aa9568f363d32fad5416",
+    "semantic_hash": "9ff111b6ea08aa9568f363d32fad5416"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/template-editor/template-editor.component.html": {
+    "mtime": 1781258922.8118262,
+    "ast_hash": "f64f511fcce2c7a762b5759ef7176dbc",
+    "semantic_hash": "f64f511fcce2c7a762b5759ef7176dbc"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/template-list/composition-grid-tab/composition-grid-tab.component.html": {
+    "mtime": 1781258922.8133948,
+    "ast_hash": "bf930ef6fa21db312e70bba254ec9204",
+    "semantic_hash": "bf930ef6fa21db312e70bba254ec9204"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/template-list/figure-list-tab/figure-list-tab.component.html": {
+    "mtime": 1781258922.8136811,
+    "ast_hash": "be10e630c6b5bad929070c6f8665c55d",
+    "semantic_hash": "be10e630c6b5bad929070c6f8665c55d"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/template-list/template-list.component.html": {
+    "mtime": 1781258922.8139668,
+    "ast_hash": "f0f1bab1d5f381dc3ed57acca3a632cf",
+    "semantic_hash": "f0f1bab1d5f381dc3ed57acca3a632cf"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/features/pinyes/components/tronc-view/tronc-view.component.html": {
+    "mtime": 1781258922.8143265,
+    "ast_hash": "9dad7229bfa50146bfd0189930aa5b88",
+    "semantic_hash": "9dad7229bfa50146bfd0189930aa5b88"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/shared/components/data/data-table/data-table.component.html": {
+    "mtime": 1781023985.2813938,
+    "ast_hash": "bacd531234b89fa14d01cf8799d8dce3",
+    "semantic_hash": "bacd531234b89fa14d01cf8799d8dce3"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/shared/components/forms/person-search-input/person-search-input.component.html": {
+    "mtime": 1778135329.939626,
+    "ast_hash": "62179480843b5b56e1d022bb3d95af92",
+    "semantic_hash": "62179480843b5b56e1d022bb3d95af92"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/shared/components/layout/header/header.component.html": {
+    "mtime": 1778135329.9398363,
+    "ast_hash": "3520ca573b8dc9a632f1c310b03f348d",
+    "semantic_hash": "3520ca573b8dc9a632f1c310b03f348d"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/shared/components/layout/tab-nav/tab-nav.component.html": {
+    "mtime": 1778135329.9400065,
+    "ast_hash": "72c4f5b166ebab8025ea58212049bf77",
+    "semantic_hash": "72c4f5b166ebab8025ea58212049bf77"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/app/shared/components/layout/user-chip/user-chip.component.html": {
+    "mtime": 1778135329.9401767,
+    "ast_hash": "c9b66d27ad15feddbb74b9c799ba7896",
+    "semantic_hash": "c9b66d27ad15feddbb74b9c799ba7896"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/src/index.html": {
+    "mtime": 1778135329.9413562,
+    "ast_hash": "bcd81ddbde8c7285f006bbf41d08ed91",
+    "semantic_hash": "bcd81ddbde8c7285f006bbf41d08ed91"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/pwa/src/app/app.html": {
+    "mtime": 1778135329.942645,
+    "ast_hash": "1718d264d3186f32d282c2a740be5992",
+    "semantic_hash": "1718d264d3186f32d282c2a740be5992"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/pwa/src/index.html": {
+    "mtime": 1778135329.9429858,
+    "ast_hash": "e59fe54f5a1c94b992630e8d1c2cb884",
+    "semantic_hash": "e59fe54f5a1c94b992630e8d1c2cb884"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docker-compose.pre.yml": {
+    "mtime": 1781011475.1666858,
+    "ast_hash": "0913c02e271134c861aaf50c47266a0e",
+    "semantic_hash": "0913c02e271134c861aaf50c47266a0e"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docker-compose.prod.yml": {
+    "mtime": 1781011475.1679342,
+    "ast_hash": "3f18f2e0b7c3ceaded193ac57b67e4a7",
+    "semantic_hash": "3f18f2e0b7c3ceaded193ac57b67e4a7"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docker-compose.yml": {
+    "mtime": 1781011475.1688564,
+    "ast_hash": "b058287f47959ef55682c756801cea8e",
+    "semantic_hash": "b058287f47959ef55682c756801cea8e"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/API_APPSISTENCIA.md": {
+    "mtime": 1778135329.9434066,
+    "ast_hash": "7e3d815c93a5eecee0a28eaba76421aa",
+    "semantic_hash": "7e3d815c93a5eecee0a28eaba76421aa"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/AUTH_FLOW.md": {
+    "mtime": 1778135329.943471,
+    "ast_hash": "088ec88a3d525e8b3722688b4091dc8f",
+    "semantic_hash": "088ec88a3d525e8b3722688b4091dc8f"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/CURRENT_STATUS.md": {
+    "mtime": 1781258922.8215625,
+    "ast_hash": "c80e57b9dd8a7dd583037076b7236cae",
+    "semantic_hash": "c80e57b9dd8a7dd583037076b7236cae"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/DASHBOARD_UI.md": {
+    "mtime": 1778135329.9437585,
+    "ast_hash": "3258f4ef56d08800afdd15d309d87ad4",
+    "semantic_hash": "3258f4ef56d08800afdd15d309d87ad4"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/DATA_MODEL.md": {
+    "mtime": 1781011475.1780164,
+    "ast_hash": "99748fe94be5f667cc94a4d102c91625",
+    "semantic_hash": "99748fe94be5f667cc94a4d102c91625"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/DEPLOY_PRE.md": {
+    "mtime": 1781011475.179999,
+    "ast_hash": "e705e39362433cf4ec3284c47a57b27b",
+    "semantic_hash": "e705e39362433cf4ec3284c47a57b27b"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/DOCKER_ARCHITECTURE.md": {
+    "mtime": 1781011475.1870127,
+    "ast_hash": "560da037c94148d36ec6d73c70ed0896",
+    "semantic_hash": "560da037c94148d36ec6d73c70ed0896"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/DOCKER_SETUP.md": {
+    "mtime": 1781011475.187778,
+    "ast_hash": "af2ef1241cb9f9aa80e34cccf63e437b",
+    "semantic_hash": "af2ef1241cb9f9aa80e34cccf63e437b"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/INDEX.md": {
+    "mtime": 1781011475.1884136,
+    "ast_hash": "b995858256e4c7f0d3b04dc02c076558",
+    "semantic_hash": "b995858256e4c7f0d3b04dc02c076558"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/MIGRATION_NPM_TO_PNPM.md": {
+    "mtime": 1781011475.1889403,
+    "ast_hash": "f617715dcc837f33dd762ab6f02caf07",
+    "semantic_hash": "f617715dcc837f33dd762ab6f02caf07"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/P5.13_DEPLOYMENT_GUIDE.md": {
+    "mtime": 1781011475.191048,
+    "ast_hash": "34c33ccf65b3c036a9f6415f200b7237",
+    "semantic_hash": "34c33ccf65b3c036a9f6415f200b7237"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/P5.13_DEPLOY_PRE_STEPS.md": {
+    "mtime": 1781011475.1918285,
+    "ast_hash": "f80109a1c93746f35553c505b3bf1fc6",
+    "semantic_hash": "f80109a1c93746f35553c505b3bf1fc6"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/PHASES_LOG.md": {
+    "mtime": 1781011475.1929128,
+    "ast_hash": "bcb962e48ed85ff82f00255e49e0c180",
+    "semantic_hash": "bcb962e48ed85ff82f00255e49e0c180"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/PINYES_MODULE.md": {
+    "mtime": 1781011475.1962337,
+    "ast_hash": "42085770c8b8c9b269d388ae6c537c26",
+    "semantic_hash": "42085770c8b8c9b269d388ae6c537c26"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/PINYES_REFACTOR_REVIEW.md": {
+    "mtime": 1781011475.1968882,
+    "ast_hash": "79a84bb06fb6de54a027ccdc5b5d48cd",
+    "semantic_hash": "79a84bb06fb6de54a027ccdc5b5d48cd"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/PINYES_REFACTOR_TRACKING.md": {
+    "mtime": 1781263715.918869,
+    "ast_hash": "610ba91c986f5060736d8fbac6437988",
+    "semantic_hash": "610ba91c986f5060736d8fbac6437988"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/PROJECT_ROADMAP.md": {
+    "mtime": 1781258922.8220267,
+    "ast_hash": "21e5faf26ac2c52306fd7cf55c2e2072",
+    "semantic_hash": "21e5faf26ac2c52306fd7cf55c2e2072"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/SSE_AUTH.md": {
+    "mtime": 1778135329.9444628,
+    "ast_hash": "55964a6c3bd5aa984a152eae0f0a3e5f",
+    "semantic_hash": "55964a6c3bd5aa984a152eae0f0a3e5f"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/SYNC_ARCHITECTURE.md": {
+    "mtime": 1781011475.200142,
+    "ast_hash": "f5b9cdbdc64f7da651a4a6bff893f9c1",
+    "semantic_hash": "f5b9cdbdc64f7da651a4a6bff893f9c1"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/VALIDATION_CHECKLIST.md": {
+    "mtime": 1778135329.9446864,
+    "ast_hash": "1d31b03a1cf77929c82de33b4f4d3434",
+    "semantic_hash": "1d31b03a1cf77929c82de33b4f4d3434"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/codebase/.codebase-scan.txt": {
+    "mtime": 1781011475.2013319,
+    "ast_hash": "629b7fe175ddc2bfcd32346949e0167a",
+    "semantic_hash": "629b7fe175ddc2bfcd32346949e0167a"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/codebase/ARCHITECTURE.md": {
+    "mtime": 1781011475.2022624,
+    "ast_hash": "8b4e3ef81a25bc1032ce3177e0d78431",
+    "semantic_hash": "8b4e3ef81a25bc1032ce3177e0d78431"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/codebase/CONCERNS.md": {
+    "mtime": 1781011475.204646,
+    "ast_hash": "8fa7570428f3432eee5c8ea0570e6b51",
+    "semantic_hash": "8fa7570428f3432eee5c8ea0570e6b51"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/codebase/CONVENTIONS.md": {
+    "mtime": 1781011475.2049983,
+    "ast_hash": "7826e866732809442c5bad3962b02004",
+    "semantic_hash": "7826e866732809442c5bad3962b02004"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/codebase/INTEGRATIONS.md": {
+    "mtime": 1781011475.2053053,
+    "ast_hash": "0d206ff457225f4eea5461a525d1b6fb",
+    "semantic_hash": "0d206ff457225f4eea5461a525d1b6fb"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/codebase/STACK.md": {
+    "mtime": 1781011475.2060232,
+    "ast_hash": "884e4657a6117a28184a293e6839b880",
+    "semantic_hash": "884e4657a6117a28184a293e6839b880"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/codebase/STRUCTURE.md": {
+    "mtime": 1781011475.2069721,
+    "ast_hash": "b45a550782b9c43e2bdd384ac6ac902d",
+    "semantic_hash": "b45a550782b9c43e2bdd384ac6ac902d"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/codebase/TESTING.md": {
+    "mtime": 1781011475.2085376,
+    "ast_hash": "96bb1e681783df4973879c134a4d414c",
+    "semantic_hash": "96bb1e681783df4973879c134a4d414c"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/internal/ad-hoc-nodes-manual-tests.md": {
+    "mtime": 1781258922.8225899,
+    "ast_hash": "aa678bbbd18a94f79115f5a9742c7d78",
+    "semantic_hash": "aa678bbbd18a94f79115f5a9742c7d78"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/internal/ad-hoc-nodes-user-guide.md": {
+    "mtime": 1781258922.8231215,
+    "ast_hash": "26e008126840092356df7b0ba2c41c55",
+    "semantic_hash": "26e008126840092356df7b0ba2c41c55"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/reviews/2026-06-10-ad-hoc-nodes-phase-1-code-review.md": {
+    "mtime": 1781258922.8237784,
+    "ast_hash": "80ef7a3e7cd117ed38e04e6b73661a7a",
+    "semantic_hash": "80ef7a3e7cd117ed38e04e6b73661a7a"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/specs/2026-03-26-p0-p1-p2-vertical-slice-persons-design.md": {
+    "mtime": 1778135329.944868,
+    "ast_hash": "db1ed73a80fedcb280081b1f03cf1c88",
+    "semantic_hash": "db1ed73a80fedcb280081b1f03cf1c88"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/specs/2026-03-30-vertical-slice-completion-sync-dashboard-design.md": {
+    "mtime": 1778135329.9450166,
+    "ast_hash": "dcdf980296fe3b608b2bc2f1a81c348a",
+    "semantic_hash": "dcdf980296fe3b608b2bc2f1a81c348a"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/specs/2026-03-31-p3-seasons-events-attendance-sync-design.md": {
+    "mtime": 1778135329.9451768,
+    "ast_hash": "4ba3dc6ba8b9077ab1f920ea5318f745",
+    "semantic_hash": "4ba3dc6ba8b9077ab1f920ea5318f745"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/specs/2026-04-07-p4-1-auth-layer-design.md": {
+    "mtime": 1778135329.9455254,
+    "ast_hash": "a1f03b1c83d212cd2d2a0841fcbaf6b3",
+    "semantic_hash": "a1f03b1c83d212cd2d2a0841fcbaf6b3"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/specs/2026-04-12-p4-2-dashboard-events-attendance-design.md": {
+    "mtime": 1778135329.9456093,
+    "ast_hash": "4c8cfb6e4f4671841d0d168a0ccf6358",
+    "semantic_hash": "4c8cfb6e4f4671841d0d168a0ccf6358"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/specs/2026-04-20-dashboard-design-refactor-design.md": {
+    "mtime": 1781011475.2108562,
+    "ast_hash": "0c5259ee6840e78e680e35abaca6107c",
+    "semantic_hash": "0c5259ee6840e78e680e35abaca6107c"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/specs/2026-05-07-p4-4-docker-local-postgres-design.md": {
+    "mtime": 1781011475.2132194,
+    "ast_hash": "06306684cee5ff17997e39252b04281e",
+    "semantic_hash": "06306684cee5ff17997e39252b04281e"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/specs/2026-05-07-p5-1-tronc-widget-redesign.md": {
+    "mtime": 1781011475.2147524,
+    "ast_hash": "4d38d88b47ea108510a30ded69de496b",
+    "semantic_hash": "4d38d88b47ea108510a30ded69de496b"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/specs/2026-05-07-p5-figures-module-overview-design.md": {
+    "mtime": 1781011475.2159045,
+    "ast_hash": "c8a5f37db0c7ed5265309ac99d929547",
+    "semantic_hash": "c8a5f37db0c7ed5265309ac99d929547"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/specs/2026-05-08-p5-2-compositions-design.md": {
+    "mtime": 1781011475.218894,
+    "ast_hash": "9e58d3115b014f006d77791833ff56a6",
+    "semantic_hash": "9e58d3115b014f006d77791833ff56a6"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/specs/2026-05-10-p5-2-1-composition-editor-fixes.md": {
+    "mtime": 1781011475.2212384,
+    "ast_hash": "68c1e1a5479e902f8bf31789d7ccde6f",
+    "semantic_hash": "68c1e1a5479e902f8bf31789d7ccde6f"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/specs/2026-05-11-p5-3-event-segments-figure-instances.md": {
+    "mtime": 1781011475.223679,
+    "ast_hash": "42e1cae14c98665f8365e5e61ff3e819",
+    "semantic_hash": "42e1cae14c98665f8365e5e61ff3e819"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/specs/2026-05-12-p5-4-node-assignment-design.md": {
+    "mtime": 1781011475.2290583,
+    "ast_hash": "7c8e3a25dfcda5d94939a85f0c6c0dba",
+    "semantic_hash": "7c8e3a25dfcda5d94939a85f0c6c0dba"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/specs/2026-05-19-p5-family-snapshot-redesign.md": {
+    "mtime": 1781011475.2306414,
+    "ast_hash": "552799fbb11166968414b7eb6f83c444",
+    "semantic_hash": "552799fbb11166968414b7eb6f83c444"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/specs/2026-05-20-p5-tronc-visualization-design.md": {
+    "mtime": 1781011475.23415,
+    "ast_hash": "042e95075e4c23feb76f3c8280dde0a9",
+    "semantic_hash": "042e95075e4c23feb76f3c8280dde0a9"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/specs/2026-05-22-p5-8-1-projection-view-design.md": {
+    "mtime": 1781011475.2347717,
+    "ast_hash": "4af8bb800041463927fdf767acf350e4",
+    "semantic_hash": "4af8bb800041463927fdf767acf350e4"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/specs/2026-05-26-p5-10-positions-lock-history-design.md": {
+    "mtime": 1781011475.239484,
+    "ast_hash": "a4675af654e9c220c282ba1effd658b4",
+    "semantic_hash": "a4675af654e9c220c282ba1effd658b4"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/specs/2026-05-28-rengles-integration-spec.md": {
+    "mtime": 1781011475.2450864,
+    "ast_hash": "1f52d7a8a76a19350f3a767f6affd81a",
+    "semantic_hash": "1f52d7a8a76a19350f3a767f6affd81a"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/specs/2026-06-10-ad-hoc-instance-nodes-design.md": {
+    "mtime": 1781258922.8244011,
+    "ast_hash": "88851fa43e7883c3a2209466858abeb1",
+    "semantic_hash": "88851fa43e7883c3a2209466858abeb1"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/specs/2026-06-10-seasons-crud-design.md": {
+    "mtime": 1781084205.3192148,
+    "ast_hash": "324aab161a8897968ddb173a2d570273",
+    "semantic_hash": "324aab161a8897968ddb173a2d570273"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/specs/plans/ad-hoc-nodes-phase-1-plan.md": {
+    "mtime": 1781258922.8249702,
+    "ast_hash": "ff3b0bf1b9b2fbabbfc501f05e3571cd",
+    "semantic_hash": "ff3b0bf1b9b2fbabbfc501f05e3571cd"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/specs/plans/ad-hoc-nodes-phase-2-spec.md": {
+    "mtime": 1781258922.8255951,
+    "ast_hash": "062ccb133a12e4f60a653ab3375f8cef",
+    "semantic_hash": "062ccb133a12e4f60a653ab3375f8cef"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/specs/plans/ad-hoc-nodes-phase-3-spec.md": {
+    "mtime": 1781258922.8261724,
+    "ast_hash": "cb74faf6c2cee30685452afcf7afd0d6",
+    "semantic_hash": "cb74faf6c2cee30685452afcf7afd0d6"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/specs/plans/ad-hoc-nodes-phase-4-spec.md": {
+    "mtime": 1781258922.8266573,
+    "ast_hash": "01ef3c87d9d374707747556bda7d88f9",
+    "semantic_hash": "01ef3c87d9d374707747556bda7d88f9"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/docs/specs/plans/ad-hoc-nodes-phase-5-spec.md": {
+    "mtime": 1781258922.8273299,
+    "ast_hash": "ddfdfc242145dd59a96e585edc1ef217",
+    "semantic_hash": "ddfdfc242145dd59a96e585edc1ef217"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/libs/shared/README.md": {
+    "mtime": 1778135329.9459803,
+    "ast_hash": "b35f8bc39f11efbafa5c128080f8245a",
+    "semantic_hash": "b35f8bc39f11efbafa5c128080f8245a"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/pnpm-workspace.yaml": {
+    "mtime": 1781011475.2796662,
+    "ast_hash": "acc29eb637356c1108e8b65f5c26c25d",
+    "semantic_hash": "acc29eb637356c1108e8b65f5c26c25d"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/public/assets/logoMuixe.jpeg": {
+    "mtime": 1778135329.9317238,
+    "ast_hash": "4ef4da796b73bec2f9bfd494a6b3924d",
+    "semantic_hash": "4ef4da796b73bec2f9bfd494a6b3924d"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/public/assets/logoMuixe.png": {
+    "mtime": 1778135329.9324393,
+    "ast_hash": "d90aadc0bb1cd1dd5b1f22a26e7b5693",
+    "semantic_hash": "d90aadc0bb1cd1dd5b1f22a26e7b5693"
+  },
+  "/Users/lvaquer/Personal/Codi/MuixerApp/apps/dashboard/public/assets/logoMuixe.svg": {
+    "mtime": 1778135329.932925,
+    "ast_hash": "1609eeafdf0497e3c5efa1f8618dcbe6",
+    "semantic_hash": "1609eeafdf0497e3c5efa1f8618dcbe6"
+  }
+}

@@ -23,6 +23,8 @@ function makeNode(overrides: Partial<InstanceNodeItem>): InstanceNodeItem {
     renglaPosition: null,
     sourceNodeId: null,
     isSnapshotted: false,
+    isAdHoc: false,
+    createdById: null,
     ...overrides,
   };
 }

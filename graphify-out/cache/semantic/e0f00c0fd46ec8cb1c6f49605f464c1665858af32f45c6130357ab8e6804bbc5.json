@@ -1,0 +1,1 @@
+{"nodes": [{"id": "workflows_ci_github_actions_pipeline", "label": "GitHub Actions CI Pipeline", "file_type": "concept", "source_file": ".github/workflows/ci.yml", "source_location": "13-16", "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}

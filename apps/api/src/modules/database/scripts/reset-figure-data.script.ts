@@ -42,10 +42,7 @@ async function run(): Promise<void> {
     }
 
     console.log('\nDone. All figure data has been removed.\n');
-    console.log('Run seed scripts to re-populate:\n');
-    console.log('  nx run api:seed-figures-pd3-insert');
-    console.log('  nx run api:seed-figures-pd3-creu-insert');
-    console.log('  nx run api:seed-figures-pd4-insert\n');
+    console.log('Re-create templates from the dashboard at /pinyes.\n');
   } finally {
     await app.close();
   }

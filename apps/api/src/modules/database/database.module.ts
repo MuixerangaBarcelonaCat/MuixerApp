@@ -23,6 +23,7 @@ import { AddPersonInstanceUniqueConstraint1749106500000 } from '../../migrations
 import { RemoveFigureFamily1780982679300 } from '../../migrations/1780982679300-RemoveFigureFamily';
 import { RestoreProjectionColumnsAndReferenceElements1781000000000 } from '../../migrations/1781000000000-RestoreProjectionColumnsAndReferenceElements';
 import { DropSourceVariantOrder1781100000000 } from '../../migrations/1781100000000-DropSourceVariantOrder';
+import { AddAdHocInstanceNodes1781200000000 } from '../../migrations/1781200000000-AddAdHocInstanceNodes';
 
 @Module({
   imports: [
@@ -63,6 +64,7 @@ import { DropSourceVariantOrder1781100000000 } from '../../migrations/1781100000
             RemoveFigureFamily1780982679300,
             RestoreProjectionColumnsAndReferenceElements1781000000000,
             DropSourceVariantOrder1781100000000,
+            AddAdHocInstanceNodes1781200000000,
           ],
           migrationsTableName: 'typeorm_migrations',
           logging: isDevelopment,

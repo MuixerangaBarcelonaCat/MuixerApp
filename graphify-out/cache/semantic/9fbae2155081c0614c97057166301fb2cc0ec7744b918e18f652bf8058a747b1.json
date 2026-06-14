@@ -1,0 +1,1 @@
+{"nodes": [{"id": "rules_devops_use_logging_structured_logging", "label": "Use Structured Logging", "file_type": "concept", "source_file": ".agents/skills/nestjs-best-practices/rules/devops-use-logging.md", "source_location": "frontmatter", "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}

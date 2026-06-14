@@ -16,7 +16,7 @@ import { Component, ChangeDetectionStrategy, input, output } from '@angular/core
               class="btn btn-ghost btn-sm text-base-content/60"
               (click)="clearFilters.emit()"
             >
-              Netejar filtres
+              Neteja filtres
             </button>
           }
         </div>

@@ -39,6 +39,13 @@ export const pinyesRoutes: Routes = [
       ),
   },
   {
+    path: 'events/:eventId/segments/:segmentId/assign/:instanceId',
+    loadComponent: () =>
+      import('./components/assignment-canvas/assignment-canvas.component').then(
+        (m) => m.AssignmentCanvasComponent,
+      ),
+  },
+  {
     path: 'events/:eventId/segments/:segmentId/project',
     loadComponent: () =>
       import('./components/projection-view/projection-view.component').then(

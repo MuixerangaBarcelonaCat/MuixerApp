@@ -12,6 +12,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl } from '@angular/forms';
 import { EventService } from '../../services/event.service';
+import { SeasonService } from '../../services/season.service';
 import { EventDetail, Season, CreateEventPayload, UpdateEventPayload, EventType } from '../../models/event.model';
 
 @Component({
@@ -24,6 +25,7 @@ import { EventDetail, Season, CreateEventPayload, UpdateEventPayload, EventType 
 export class EventFormModalComponent implements OnInit, OnChanges {
   private readonly fb = inject(FormBuilder);
   private readonly eventService = inject(EventService);
+  private readonly seasonService = inject(SeasonService);
 
   readonly EventType = EventType;
 
@@ -38,6 +40,12 @@ export class EventFormModalComponent implements OnInit, OnChanges {
 
   saving = signal(false);
   errorMessage = signal<string | null>(null);
+  loadedSeasons = signal<Season[]>([]);
+
+  readonly allSeasons = computed(() => {
+    const fromInput = this.seasons();
+    return fromInput.length > 0 ? fromInput : this.loadedSeasons();
+  });
 
   form = this.fb.group({
     title: ['', [Validators.required, Validators.maxLength(200)]],
@@ -53,11 +61,36 @@ export class EventFormModalComponent implements OnInit, OnChanges {
   });
 
   ngOnInit() {
-    this.patchFormFromEvent();
+    this.loadSeasonsAndPatch();
   }
 
   ngOnChanges() {
     this.patchFormFromEvent();
+  }
+
+  private loadSeasonsAndPatch(): void {
+    if (this.seasons().length === 0) {
+      this.seasonService.getAll().subscribe({
+        next: (resp) => {
+          this.loadedSeasons.set(resp.data);
+          this.preselectCurrentSeason();
+        },
+      });
+    } else {
+      this.preselectCurrentSeason();
+    }
+    this.patchFormFromEvent();
+  }
+
+  private preselectCurrentSeason(): void {
+    if (this.isEditMode()) return;
+    this.seasonService.getCurrent().subscribe({
+      next: (current) => {
+        if (!this.form.get('seasonId')?.value) {
+          this.form.patchValue({ seasonId: current.id });
+        }
+      },
+    });
   }
 
   private patchFormFromEvent() {

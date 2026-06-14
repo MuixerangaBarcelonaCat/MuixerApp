@@ -165,7 +165,7 @@ export class CompositionTemplateService {
     }
 
     const copy = this.compositionRepository.create({
-      name: `${original.name} (còpia)`,
+      name: original.name,
       slug: `${original.slug}-copia-${Date.now()}`,
       description: original.description,
     });

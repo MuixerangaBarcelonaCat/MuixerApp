@@ -38,4 +38,20 @@ export class FigureTemplateService extends ApiService {
   duplicate(id: string): Observable<FigureTemplateDetail> {
     return this.post<FigureTemplateDetail>(`/figure-templates/${id}/duplicate`, {});
   }
+
+  saveFromInstance(
+    templateId: string,
+    payload: { instanceId: string; mode: 'overwrite' | 'new_version'; name?: string },
+  ): Observable<FigureTemplateDetail> {
+    return this.post<FigureTemplateDetail>(
+      `/figure-templates/${templateId}/save-from-instance`,
+      payload,
+    );
+  }
+
+  suggestVersionName(templateId: string): Observable<{ suggestedName: string }> {
+    return this.get<{ suggestedName: string }>(
+      `/figure-templates/${templateId}/suggest-version-name`,
+    );
+  }
 }

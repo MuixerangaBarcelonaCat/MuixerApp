@@ -1,12 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { FigureTemplateService } from './figure-template.service';
 import { FigureTemplate } from './entities/figure-template.entity';
 import { FigureNode } from './entities/figure-node.entity';
 import { Rengla } from './entities/rengla.entity';
 import { CompositionSlot } from '../composition/entities/composition-slot.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
+import { InstanceNode } from '../event-segment/entities/instance-node.entity';
 import { FigureZone, NodeShape } from '@muixer/shared';
 
 const makeTemplate = (overrides: Partial<FigureTemplate> = {}): FigureTemplate => ({
@@ -55,7 +56,6 @@ const makeRengla = (overrides: Partial<Rengla> = {}): Rengla => ({
   id: 'rengla-uuid',
   name: 'Mans Nord',
   sortOrder: 0,
-  startPosition: 1,
   allowsCordoObert: false,
   template: null as unknown as FigureTemplate,
   createdAt: new Date(),
@@ -99,6 +99,19 @@ describe('FigureTemplateService', () => {
 
   const mockFigureInstanceRepo = {
     count: jest.fn().mockResolvedValue(0),
+    findOne: jest.fn(),
+  };
+
+  const mockInstanceNodeQb = {
+    innerJoin: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    select: jest.fn().mockReturnThis(),
+    getRawOne: jest.fn().mockResolvedValue({ count: '0' }),
+  };
+
+  const mockInstanceNodeRepo = {
+    createQueryBuilder: jest.fn(() => mockInstanceNodeQb),
   };
 
   const mockTemplateRepo = {
@@ -136,6 +149,7 @@ describe('FigureTemplateService', () => {
         { provide: getRepositoryToken(Rengla), useValue: mockRenglaRepo },
         { provide: getRepositoryToken(CompositionSlot), useValue: mockCompositionSlotRepo },
         { provide: getRepositoryToken(FigureInstance), useValue: mockFigureInstanceRepo },
+        { provide: getRepositoryToken(InstanceNode), useValue: mockInstanceNodeRepo },
       ],
     }).compile();
 
@@ -195,7 +209,8 @@ describe('FigureTemplateService', () => {
     it('creates template with slug and name', async () => {
       const saved = makeTemplate({ id: 'new-uuid' });
       mockTemplateRepo.findOne
-        .mockResolvedValueOnce(null) // assertSlugAvailable: slug not taken
+        .mockResolvedValueOnce(null) // generateUniqueName: name not taken
+        .mockResolvedValueOnce(null) // generateUniqueSlug: slug not taken
         .mockResolvedValueOnce({ ...saved, nodes: [] }); // findOne after create
       mockTemplateRepo.save.mockResolvedValue(saved);
 
@@ -207,6 +222,28 @@ describe('FigureTemplateService', () => {
 
       expect(result.id).toBe('new-uuid');
       expect(mockTemplateRepo.save).toHaveBeenCalled();
+    });
+
+    it('auto-suffixes name and slug when name already exists', async () => {
+      const existing = makeTemplate({ id: 'existing-uuid', name: 'Trobada', slug: 'trobada' });
+      const saved = makeTemplate({ id: 'new-uuid', name: 'Trobada 2', slug: 'trobada-2' });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(existing) // generateUniqueName: "Trobada" taken
+        .mockResolvedValueOnce(null) // generateUniqueName: "Trobada 2" free
+        .mockResolvedValueOnce(null) // generateUniqueSlug: "trobada-2" free
+        .mockResolvedValueOnce({ ...saved, nodes: [] });
+      mockTemplateRepo.save.mockImplementation(async (tmpl) => tmpl as FigureTemplate);
+
+      const result = await service.create({
+        name: 'Trobada',
+        slug: 'trobada',
+        nodes: [],
+      });
+
+      expect(mockTemplateRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'Trobada 2', slug: 'trobada-2' }),
+      );
+      expect(result.id).toBe('new-uuid');
     });
   });
 
@@ -343,7 +380,7 @@ describe('FigureTemplateService', () => {
       mockRenglaRepo.find.mockResolvedValue([]);
 
       await service.update('tmpl-uuid', {
-        rengles: [{ name: 'Mans Nord', sortOrder: 0, startPosition: 1 }],
+        rengles: [{ name: 'Mans Nord', sortOrder: 0 }],
       });
 
       expect(mockRenglaRepo.save).toHaveBeenCalled();
@@ -398,12 +435,26 @@ describe('FigureTemplateService', () => {
       const tmpl = makeTemplate({ nodes: [] });
       mockTemplateRepo.findOne
         .mockResolvedValueOnce(tmpl)
-        .mockResolvedValueOnce({ ...tmpl, rengles: [] });
+        .mockResolvedValueOnce(null) // assertNameAvailable
+        .mockResolvedValueOnce(null) // generateUniqueSlug check
+        .mockResolvedValueOnce({ ...tmpl, rengles: [] }); // findOne at end
       mockTemplateRepo.save.mockResolvedValue(tmpl);
 
       await service.update('tmpl-uuid', { name: 'Updated Name' });
 
       expect(mockRenglaRepo.find).not.toHaveBeenCalled();
+    });
+
+    it('rejects update when renaming to an existing name', async () => {
+      const tmpl = makeTemplate({ nodes: [] });
+      const other = makeTemplate({ id: 'other-uuid', name: 'Trobada' });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(tmpl)
+        .mockResolvedValueOnce(other);
+
+      await expect(service.update('tmpl-uuid', { name: 'Trobada' })).rejects.toThrow(
+        ConflictException,
+      );
     });
   });
 
@@ -417,7 +468,7 @@ describe('FigureTemplateService', () => {
     });
 
     it('maps rengles in detail response', async () => {
-      const rengla = makeRengla({ id: 'r1', name: 'Mans Nord', sortOrder: 0, startPosition: 1, allowsCordoObert: true });
+      const rengla = makeRengla({ id: 'r1', name: 'Mans Nord', sortOrder: 0, allowsCordoObert: true });
       const tmpl = makeTemplate({ nodes: [], rengles: [rengla] });
       mockTemplateRepo.findOne.mockResolvedValue(tmpl);
 
@@ -427,7 +478,6 @@ describe('FigureTemplateService', () => {
         id: 'r1',
         name: 'Mans Nord',
         sortOrder: 0,
-        startPosition: 1,
         allowsCordoObert: true,
       });
     });
@@ -475,6 +525,193 @@ describe('FigureTemplateService', () => {
       const saved = mockNodeRepo.save.mock.calls[0][0];
       expect(saved[0].renglaId).toBe('r1');
       expect(saved[0].renglaPosition).toBe(1);
+    });
+  });
+
+  describe('saveFromInstance', () => {
+    const makeInstanceNode = (overrides = {}) => ({
+      id: 'in-1',
+      label: 'MANS',
+      zone: FigureZone.PINYA,
+      positionType: 'mans',
+      x: 100,
+      y: 200,
+      z: 0,
+      width: 80,
+      height: 40,
+      rotation: 0,
+      color: '#FFE082',
+      shape: NodeShape.RECTANGLE,
+      sortOrder: 0,
+      climbPath: null,
+      ringLevel: 1,
+      renglaId: null,
+      renglaPosition: null,
+      metadata: {},
+      isAdHoc: false,
+      sourceNodeId: null,
+      originNodeId: null,
+      createdById: null,
+      createdAt: new Date(),
+      ...overrides,
+    });
+
+    it('throws NotFoundException when template not found', async () => {
+      mockTemplateRepo.findOne.mockResolvedValue(null);
+      await expect(
+        service.saveFromInstance('tmpl-uuid', {
+          instanceId: 'inst-1',
+          mode: 'overwrite',
+        }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws NotFoundException when instance not found', async () => {
+      mockTemplateRepo.findOne.mockResolvedValue(makeTemplate());
+      mockFigureInstanceRepo.findOne.mockResolvedValue(null);
+      await expect(
+        service.saveFromInstance('tmpl-uuid', {
+          instanceId: 'inst-1',
+          mode: 'overwrite',
+        }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws BadRequestException when instance is not snapshotted', async () => {
+      mockTemplateRepo.findOne.mockResolvedValue(makeTemplate());
+      mockFigureInstanceRepo.findOne.mockResolvedValue({
+        id: 'inst-1',
+        snapshotted: false,
+        figureTemplate: { id: 'tmpl-uuid' },
+        instanceNodes: [makeInstanceNode()],
+      });
+      await expect(
+        service.saveFromInstance('tmpl-uuid', {
+          instanceId: 'inst-1',
+          mode: 'overwrite',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('throws BadRequestException when instance belongs to different template', async () => {
+      mockTemplateRepo.findOne.mockResolvedValue(makeTemplate());
+      mockFigureInstanceRepo.findOne.mockResolvedValue({
+        id: 'inst-1',
+        snapshotted: true,
+        figureTemplate: { id: 'other-template-id' },
+        instanceNodes: [makeInstanceNode()],
+      });
+      await expect(
+        service.saveFromInstance('tmpl-uuid', {
+          instanceId: 'inst-1',
+          mode: 'overwrite',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('filters out DECORATION and DIRECTION zones', async () => {
+      const tmpl = makeTemplate({ nodes: [makeNode()] });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(tmpl)
+        .mockResolvedValueOnce({ ...tmpl, rengles: [] });
+      mockFigureInstanceRepo.findOne.mockResolvedValue({
+        id: 'inst-1',
+        snapshotted: true,
+        figureTemplate: { id: 'tmpl-uuid' },
+        instanceNodes: [
+          makeInstanceNode({ id: 'pinya-node', zone: FigureZone.PINYA }),
+          makeInstanceNode({ id: 'deco-node', zone: FigureZone.DECORATION }),
+          makeInstanceNode({ id: 'dir-node', zone: FigureZone.FIGURE_DIRECTION }),
+          makeInstanceNode({ id: 'base-node', zone: FigureZone.BASE }),
+        ],
+      });
+      mockNodeRepo.save.mockResolvedValue([]);
+      mockNodeRepo.delete.mockResolvedValue(undefined);
+
+      await service.saveFromInstance('tmpl-uuid', {
+        instanceId: 'inst-1',
+        mode: 'overwrite',
+      });
+
+      // syncNodes should have been called — the created nodes should only be PINYA + BASE (2 nodes)
+      const createCalls = mockNodeRepo.create.mock.calls;
+      const createdZones = createCalls.map((c) => c[0].zone);
+      expect(createdZones).not.toContain(FigureZone.DECORATION);
+      expect(createdZones).not.toContain(FigureZone.FIGURE_DIRECTION);
+    });
+
+    it('throws BadRequestException when no saveable nodes', async () => {
+      mockTemplateRepo.findOne.mockResolvedValue(makeTemplate());
+      mockFigureInstanceRepo.findOne.mockResolvedValue({
+        id: 'inst-1',
+        snapshotted: true,
+        figureTemplate: { id: 'tmpl-uuid' },
+        instanceNodes: [
+          makeInstanceNode({ zone: FigureZone.DECORATION }),
+        ],
+      });
+      await expect(
+        service.saveFromInstance('tmpl-uuid', {
+          instanceId: 'inst-1',
+          mode: 'overwrite',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('creates new template on new_version mode', async () => {
+      const tmpl = makeTemplate({ rengles: [makeRengla()] });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(tmpl)
+        .mockResolvedValueOnce(null) // assertSlugAvailable
+        .mockResolvedValueOnce({ ...tmpl, nodes: [makeNode()], rengles: [makeRengla()] }); // findOne at end
+      mockFigureInstanceRepo.findOne.mockResolvedValue({
+        id: 'inst-1',
+        snapshotted: true,
+        figureTemplate: { id: 'tmpl-uuid' },
+        instanceNodes: [makeInstanceNode()],
+      });
+      mockTemplateRepo.save.mockResolvedValue({ ...makeTemplate(), id: 'new-tmpl' });
+      mockRenglaRepo.save.mockResolvedValue([]);
+      mockNodeRepo.save.mockResolvedValue([]);
+
+      // Mock suggestVersionName query
+      templateQb.getMany.mockResolvedValue([]);
+
+      await service.saveFromInstance('tmpl-uuid', {
+        instanceId: 'inst-1',
+        mode: 'new_version',
+        name: 'Pilar de 4 v2',
+      });
+
+      expect(mockTemplateRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'Pilar de 4 v2' }),
+      );
+      expect(mockTemplateRepo.save).toHaveBeenCalled();
+    });
+  });
+
+  describe('suggestVersionName', () => {
+    it('suggests v2 when no versions exist', async () => {
+      templateQb.getMany.mockResolvedValue([]);
+      const name = await service.suggestVersionName('Pilar de 4');
+      expect(name).toBe('Pilar de 4 v2');
+    });
+
+    it('suggests v3 when v2 exists', async () => {
+      templateQb.getMany.mockResolvedValue([
+        makeTemplate({ name: 'Pilar de 4 v2' }),
+      ]);
+      const name = await service.suggestVersionName('Pilar de 4');
+      expect(name).toBe('Pilar de 4 v3');
+    });
+
+    it('strips existing version suffix', async () => {
+      templateQb.getMany.mockResolvedValue([
+        makeTemplate({ name: 'Pilar de 4 v2' }),
+        makeTemplate({ name: 'Pilar de 4 v3' }),
+      ]);
+      const name = await service.suggestVersionName('Pilar de 4 v2');
+      expect(name).toBe('Pilar de 4 v4');
     });
   });
 });
