@@ -9,6 +9,9 @@
     "node": ">=22.13.0 <23.0.0"
   },
   "scripts": {
+    "dev:db": "docker compose up -d",
+    "dev:api": "nx serve api",
+    "dev:dashboard": "nx serve dashboard",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f postgres",
