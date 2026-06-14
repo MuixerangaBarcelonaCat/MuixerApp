@@ -10,7 +10,7 @@
   },
   "scripts": {
     "dev:db": "docker compose up -d",
-    "dev:api": "nx serve api",
+    "dev:api": "nx serve api --no-watch",
     "dev:dashboard": "nx serve dashboard",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
