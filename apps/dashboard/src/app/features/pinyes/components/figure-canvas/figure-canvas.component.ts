@@ -14,13 +14,14 @@ import {
 import { FormsModule } from '@angular/forms';
 import Konva from 'konva';
 import { FigureNodeItem } from '../../models/figure-template.model';
-import { CompositionSlotItem } from '../../models/composition.model';
 import { FigureZone, NodeShape, DIRECTION_ZONES } from '@muixer/shared';
 import { AssignmentDetail, HeightMode } from '../../models/assignment.model';
 import {
   calculateGhostPosition,
   isGhostEligible,
 } from '../../utils/ghost-clone.util';
+import { screenToStage } from '../../utils/rengla-coordinates.util';
+import { computeFitTransform } from '../../utils/fit-to-bounds.util';
 
 /** Minimal node shape accepted by the canvas for rendering — both FigureNodeItem and InstanceNodeItem satisfy this */
 export interface CanvasNode {
@@ -57,22 +58,6 @@ export interface CompositionSlotWithNodes {
     name: string;
     hasPinya: boolean;
     nodes: FigureNodeItem[];
-  };
-}
-
-export function compositionSlotItemToCanvasSlot(slot: CompositionSlotItem): CompositionSlotWithNodes {
-  return {
-    slotId: slot.id,
-    label: slot.label,
-    offsetX: slot.offsetX,
-    offsetY: slot.offsetY,
-    sortOrder: slot.sortOrder,
-    figureTemplate: {
-      id: slot.figureTemplate.id,
-      name: slot.figureTemplate.name,
-      hasPinya: slot.figureTemplate.hasPinya,
-      nodes: slot.figureTemplate.nodes,
-    },
   };
 }
 
@@ -232,6 +217,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   private transformer!: Konva.Transformer;
 
   private resizeObserver: ResizeObserver | null = null;
+  private hasAutoFitted = false;
   /** Reused for measuring label text; not attached to the stage. */
   private labelMeasureProbe: Konva.Text | null = null;
 
@@ -396,6 +382,25 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       y: this.stage.y(),
       scaleX: this.stage.scaleX(),
       scaleY: this.stage.scaleY(),
+    };
+  }
+
+  /** Stage-space coordinates at the center of the visible canvas viewport. */
+  getViewportCenter(): { x: number; y: number } {
+    if (!this.stage) {
+      return { x: 0, y: 0 };
+    }
+
+    const transform = this.getStageTransform();
+    const center = screenToStage(
+      this.stage.width() / 2,
+      this.stage.height() / 2,
+      transform,
+    );
+
+    return {
+      x: Math.round(center.x),
+      y: Math.round(center.y),
     };
   }
 
@@ -604,7 +609,6 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.renderAssignmentNodes();
     } else if (this.mode() === 'readonly') {
       this.renderReadonlyNodes();
-      setTimeout(() => this.fitToScreen());
     } else {
       this.renderNodes();
     }
@@ -661,8 +665,18 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     const selectedId = this.selectedNodeId();
     const allNodes = this.nodes() as FigureNodeItem[];
 
+    const renglaMaxPosition = new Map<string, number>();
     for (const node of allNodes) {
-      const group = this.buildNodeGroup(node, isEditor, selectedId === node.id);
+      if (node.renglaId != null && node.renglaPosition != null) {
+        const current = renglaMaxPosition.get(node.renglaId) ?? -Infinity;
+        if (node.renglaPosition > current) {
+          renglaMaxPosition.set(node.renglaId, node.renglaPosition);
+        }
+      }
+    }
+
+    for (const node of allNodes) {
+      const group = this.buildNodeGroup(node, isEditor, selectedId === node.id, renglaMaxPosition);
       this.pinyaLayer.add(group);
     }
 
@@ -1175,7 +1189,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         node.width,
         node.height,
         {
-          maxFontSize: assignment ? 13 : 9,
+          maxFontSize: assignment ? 18 : 9,
           fontStyle: assignment ? 'bold' : 'normal',
           wrap: assignment ? 'none' : 'word',
         },
@@ -1206,12 +1220,28 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
     this.pinyaLayer.add(this.transformer);
     this.pinyaLayer.batchDraw();
+
+    const visibleNodes = this.nodes();
+    if (visibleNodes.length > 0 && !this.hasAutoFitted) {
+      this.hasAutoFitted = true;
+      setTimeout(() => {
+        const fit = computeFitTransform(visibleNodes, this.stage.width(), this.stage.height(), { padding: 20, maxScale: 2 }); // adjust maxScale to taste
+        if (fit) {
+          this.stage.scale({ x: fit.scale, y: fit.scale });
+          this.stage.position({ x: fit.x, y: fit.y });
+          this.zoomLevel.set(fit.scale);
+          this.stage.batchDraw();
+          this.emitStageTransform();
+        }
+      });
+    }
   }
 
   private buildNodeGroup(
     node: FigureNodeItem,
     isEditor: boolean,
     isSelected: boolean,
+    renglaMaxPosition: Map<string, number> = new Map(),
   ): Konva.Group {
     const fill = node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR;
     const stroke = isSelected ? SELECTED_STROKE : NORMAL_STROKE;
@@ -1353,7 +1383,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       // Cursor + ghost hover
       group.on('mouseenter', () => {
         this.stage.container().style.cursor = 'grab';
-        if (isGhostEligible(node)) {
+        if (isGhostEligible(node, renglaMaxPosition.get(node.renglaId ?? '') ?? 0)) {
           this.startGhostTimer(node);
         }
       });
@@ -1378,14 +1408,14 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     if (this.ghostSourceNodeId === node.id) return;
 
     this.hideGhost();
-    this.ghostHoverTimer = setTimeout(() => this.showGhostForNode(node), 1000);
+    this.ghostHoverTimer = setTimeout(() => this.showGhostForNode(node), 250);
   }
 
   private showGhostForNode(node: CanvasNode): void {
     this.hideGhost();
 
     const pos = calculateGhostPosition(node);
-    const strokeColor =
+    const nodeColor =
       node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR;
 
     const ghost = new Konva.Group({
@@ -1396,21 +1426,21 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     });
 
     const shape = createNodeShape(node.shape ?? NodeShape.RECTANGLE, node.width, node.height, {
-      fill: 'transparent',
-      stroke: strokeColor,
+      fill: nodeColor,
+      stroke: 'black',
       strokeWidth: 2,
       dash: [6, 4],
-      opacity: 0.75,
+      opacity: 0.4,
     });
     ghost.add(shape);
 
     ghost.add(
       new Konva.Text({
         text: '+',
-        fontSize: 18,
+        fontSize: 24,
         fontFamily: 'Inter, sans-serif',
-        fill: strokeColor,
-        opacity: 0.7,
+        fill: 'black',
+        opacity: 0.4,
         align: 'center',
         verticalAlign: 'middle',
         width: node.width,

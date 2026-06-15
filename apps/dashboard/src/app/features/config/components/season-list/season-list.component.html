@@ -79,7 +79,7 @@
                 <app-empty-state
                   icon="Calendar"
                   message="No hi ha temporades creades encara"
-                  actionLabel="Crear temporada"
+                  actionLabel="Crea temporada"
                   (actionClick)="openCreateModal()"
                 />
               </td>
@@ -105,19 +105,19 @@
     <div class="modal-box max-w-sm">
       <h3 id="delete-confirm-title" class="font-bold text-lg">Eliminar temporada</h3>
       <p class="py-4 text-sm">
-        Segur que vols eliminar <strong>{{ target.name }}</strong>?
+        Segur que voleu eliminar <strong>{{ target.name }}</strong>?
         @if (target.eventCount > 0) {
           <br />
           <span class="text-warning">Aquesta temporada té {{ target.eventCount }} events associats i no es podrà eliminar.</span>
         }
       </p>
       <div class="modal-action">
-        <button type="button" class="btn btn-ghost btn-sm" (click)="cancelDelete()">Cancel·lar</button>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="cancelDelete()">Cancel·la</button>
         <button type="button" class="btn btn-error btn-sm" [disabled]="deleting()" (click)="executeDelete()">
           @if (deleting()) {
             <span class="loading loading-spinner loading-xs"></span>
           }
-          Eliminar
+          Elimina
         </button>
       </div>
     </div>

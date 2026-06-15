@@ -37,7 +37,7 @@ import {
 import { SegmentDetail } from '../../models/segment.model';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { RenglaModel } from '../../models/figure-template.model';
-import { FigureZone, AD_HOC_PINYA_PRESETS, AD_HOC_DECORATION_PRESETS, AD_HOC_DIRECTION_PRESETS, AdHocNodePreset } from '@muixer/shared';
+import { FigureZone, PINYA_NODE_PRESETS, DECORATION_NODE_PRESETS, DIRECTION_NODE_PRESETS, NodePreset } from '@muixer/shared';
 import { repositionCordoObertNodes } from '../../utils/cordo-obert-reposition.util';
 import { Observable } from 'rxjs';
 import { UndoRedoService, UndoableAction } from '../../services/undo-redo.service';
@@ -106,9 +106,9 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
   readonly saveAsTemplateOpen = signal(false);
 
-  readonly adHocPresets = AD_HOC_PINYA_PRESETS;
-  readonly decorationPresets = AD_HOC_DECORATION_PRESETS;
-  readonly directionPresets = AD_HOC_DIRECTION_PRESETS;
+  readonly adHocPresets = PINYA_NODE_PRESETS;
+  readonly decorationPresets = DECORATION_NODE_PRESETS;
+  readonly directionPresets = DIRECTION_NODE_PRESETS;
 
   readonly eventId = signal('');
   readonly segmentId = signal('');
@@ -437,8 +437,10 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
     this.tabs.set(tabBuilders);
 
-    if (tabBuilders.length > 0) {
-      this.selectTab(tabBuilders[0].instanceId);
+    const instanceId = this.route.snapshot.params['instanceId'] ?? null;
+    const targetId = instanceId ?? tabBuilders[0]?.instanceId;
+    if (targetId) {
+      this.selectTab(targetId);
     }
   }
 
@@ -672,6 +674,12 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
       const rect = target.getBoundingClientRect();
       this.popoverPosition.set({ x: rect.right, y: rect.top + rect.height / 2 });
     }
+  }
+
+  onTroncNodeUnassigned(nodeId: string): void {
+    const assignment = this.state.assignments().find((a) => a.node.id === nodeId);
+    if (!assignment) return;
+    this.onUnassign(assignment);
   }
 
   onPersonSelected(person: AvailablePerson): void {
@@ -1085,9 +1093,9 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
   // ── Ad-hoc node operations ──────────────────────────────────────────────
 
-  readonly pendingLabelPreset = signal<AdHocNodePreset | null>(null);
+  readonly pendingLabelPreset = signal<NodePreset | null>(null);
 
-  onPresetSelected(preset: AdHocNodePreset): void {
+  onPresetSelected(preset: NodePreset): void {
     this.fabDropdownOpen.set(false);
     this.fabDecorationOpen.set(false);
     this.fabDirectionOpen.set(false);
@@ -1130,7 +1138,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
       : 'Ex: Extra mans, Reforç...';
   });
 
-  getDecorationLabel(preset: AdHocNodePreset): string {
+  getDecorationLabel(preset: NodePreset): string {
     const labels: Record<string, string> = {
       rectangle: 'Rectangle',
       arrow: 'Fletxa',

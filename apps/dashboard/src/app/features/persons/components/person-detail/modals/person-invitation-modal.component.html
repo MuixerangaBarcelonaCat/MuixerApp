@@ -34,7 +34,7 @@
 
     <div class="flex justify-end gap-2">
       <button type="button" class="btn btn-ghost btn-sm" (click)="close()" [disabled]="sending()">
-        Cancel·lar
+        Cancel·la
       </button>
       <button type="button" class="btn btn-success btn-sm" (click)="send()" [disabled]="sending() || !email().trim()">
         @if (sending()) {

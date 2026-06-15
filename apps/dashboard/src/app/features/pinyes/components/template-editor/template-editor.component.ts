@@ -1,6 +1,7 @@
 import {
   Component,
   ChangeDetectionStrategy,
+  ElementRef,
   HostListener,
   inject,
   signal,
@@ -14,6 +15,7 @@ import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, Undo2, Redo2, Eye, EyeOff } from 'lucide-angular';
 import { HttpErrorResponse } from '@angular/common/http';
 import { generateUUID } from '../../../../shared/utils/uuid.util';
+import { slugify } from '../../utils/slugify.util';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { CanvasStateService } from '../../services/canvas-state.service';
 import { FigureCanvasComponent, CanvasNode } from '../figure-canvas/figure-canvas.component';
@@ -25,7 +27,7 @@ import {
   CreateFigureNodePayload,
   RenglaModel,
 } from '../../models/figure-template.model';
-import { FigureZone, NodeShape } from '@muixer/shared';
+import { FigureZone, NodeShape, PINYA_NODE_PRESETS, NodePreset } from '@muixer/shared';
 import { RenglaOverlayComponent, RenglaCreatedEvent, RenglaDeletedEvent } from '../rengla-overlay/rengla-overlay.component';
 import { StageTransform } from '../../utils/rengla-coordinates.util';
 import { LayoutService } from '../../../../core/services/layout.service';
@@ -42,27 +44,8 @@ interface TemplateSnapshot {
 
 const MAX_UNDO_STACK = 50;
 
-interface PinyaPosition {
-  positionType: string;
-  label: string;
-  color: string;
-  shape: NodeShape;
-}
-
-// TODO: Adjust default node dimensions to match visual needs
 const DEFAULT_NODE_WIDTH = 80;
 const DEFAULT_NODE_HEIGHT = 40;
-
-const PINYA_POSITIONS: PinyaPosition[] = [
-  { positionType: 'agulla',      label: 'AGULLA',      color: '#0d9488', shape: NodeShape.RECTANGLE },
-  { positionType: 'mans',        label: 'MANS',        color: '#FFE082', shape: NodeShape.RECTANGLE },
-  { positionType: 'laterals',    label: 'LATERALS',    color: '#80DEEA', shape: NodeShape.RECTANGLE },
-  { positionType: 'vents',       label: 'VENTS',       color: '#A5D6A7', shape: NodeShape.RECTANGLE },
-  { positionType: 'cordo-obert', label: 'CORDO OBERT', color: '#FFF9C4', shape: NodeShape.ELLIPSE },
-  { positionType: 'tap',         label: 'TAP',         color: '#be185d', shape: NodeShape.RECTANGLE },
-  { positionType: 'crossa',      label: 'CROSSA',      color: '#9FA8DA', shape: NodeShape.RECTANGLE},
-  { positionType: 'contrafort',  label: 'CONTRAFORT',  color: '#EF9A9A', shape: NodeShape.RECTANGLE },
-];
 
 @Component({
   selector: 'app-template-editor',
@@ -86,12 +69,13 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly layout = inject(LayoutService);
   private readonly toast = inject(ToastService);
-
   readonly helpModal = viewChild.required(TemplateEditorHelpModalComponent);
+  readonly figureCanvas = viewChild(FigureCanvasComponent);
+  readonly presetDropdownRef = viewChild<ElementRef>('presetDropdownRef');
 
   // Template metadata
   templateId = signal<string | null>(null);
-  templateName = signal('Nova Figura');
+  templateName = signal('Figura nova');
   templateSlug = signal('');
   templateDescription = signal('');
   hasPinya = signal(true);
@@ -111,7 +95,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   private pendingAction: (() => void) | null = null;
   readonly needsName = computed(() => {
     const name = this.templateName().trim();
-    return !this.templateId() && (!name || name === 'Nova Figura');
+    return !this.templateId() && (!name || name === 'Figura nova');
   });
 
   // Preview mode
@@ -174,7 +158,15 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   // Enums for template
   readonly FigureZone = FigureZone;
   readonly NodeShape = NodeShape;
-  readonly pinyaPositions = PINYA_POSITIONS;
+  readonly pinyaPositions = PINYA_NODE_PRESETS;
+
+  presetDropdownOpen = signal(false);
+
+  readonly currentPinyaPreset = computed(() => {
+    const node = this.selectedNode();
+    if (!node || node.zone !== FigureZone.PINYA) return null;
+    return PINYA_NODE_PRESETS.find((p) => p.positionType === node.positionType) ?? null;
+  });
 
   readonly pinyaNodes = computed(() =>
     this.nodes().filter((n) => n.zone !== FigureZone.TRONC),
@@ -195,7 +187,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   readonly saveStatusLabel = computed(() => {
     const s = this.saveStatus();
-    if (s === 'saving') return 'Alçant...';
+    if (s === 'saving') return "S'està alçant...";
     if (s === 'saved') return 'Alçat';
     if (s === 'error') return "S'ha produït un error en alçar";
     return '';
@@ -232,6 +224,16 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   onNodeSelected(id: string | null): void {
     this.selectedNodeId.set(id);
+    this.presetDropdownOpen.set(false);
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    if (!this.presetDropdownOpen()) return;
+    const el = this.presetDropdownRef()?.nativeElement;
+    if (el && !el.contains(event.target as Node)) {
+      this.presetDropdownOpen.set(false);
+    }
   }
 
   onNodeMoved(event: { id: string; x: number; y: number }): void {
@@ -311,13 +313,12 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     this.scheduleAutosave();
   }
 
-  onTroncNodeUpdated(event: {
-    nodeId: string;
-    x: number;
-    width: number;
-  }): void {
+  onTroncNodeUpdated(event: { nodeId: string; x: number; width: number; positionType?: string; label?: string }): void {
     this.pushSnapshot('Modificar node de tronc');
-    this.updateNode(event.nodeId, { x: event.x, width: event.width });
+    const patch: Partial<FigureNodeItem> = { x: event.x, width: event.width };
+    if (event.positionType !== undefined) patch.positionType = event.positionType;
+    if (event.label !== undefined) patch.label = event.label;
+    this.updateNode(event.nodeId, patch);
     this.scheduleAutosave();
   }
 
@@ -336,15 +337,15 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     const doAdd = () => {
       this.pushSnapshot('Afegir base');
       const id = generateUUID();
-      const stageCenter = { x: 200, y: 200 };
+      const { x, y } = this.getNewNodePosition();
       const baseNumber = this.baseNodes().length + 1;
       const newNode: FigureNodeItem = {
         id,
         label: `Base ${baseNumber}`,
         zone: FigureZone.BASE,
         positionType: 'base',
-        x: stageCenter.x + Math.random() * 40 - 20,
-        y: stageCenter.y + Math.random() * 40 - 20,
+        x,
+        y,
         z: 0,
         width: DEFAULT_NODE_WIDTH,
         height: DEFAULT_NODE_HEIGHT,
@@ -377,7 +378,23 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   // ── Toolbar actions ────────────────────────────────────────────────────────
 
-  addPinyaNode(pos: PinyaPosition): void {
+  applyPinyaPreset(positionType: string): void {
+    const id = this.selectedNodeId();
+    if (!id) return;
+    const preset = PINYA_NODE_PRESETS.find((p) => p.positionType === positionType);
+    if (!preset) return;
+    this.pushSnapshot('Canviar tipus de posició');
+    this.updateNode(id, {
+      positionType: preset.positionType,
+      label: preset.label,
+      color: preset.color,
+      shape: preset.shape,
+    });
+    this.presetDropdownOpen.set(false);
+    this.scheduleAutosave();
+  }
+
+  addPinyaNode(pos: NodePreset): void {
     this.addNode(
       FigureZone.PINYA,
       0,
@@ -399,14 +416,14 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     const doAdd = () => {
       this.pushSnapshot(`Afegir ${labelOverride ?? 'node'}`);
       const id = generateUUID();
-      const stageCenter = { x: 200, y: 200 };
+      const { x, y } = this.getNewNodePosition();
       const newNode: FigureNodeItem = {
         id,
         label: labelOverride ?? this.defaultLabel(zone, z),
         zone,
         positionType,
-        x: stageCenter.x + Math.random() * 40 - 20,
-        y: stageCenter.y + Math.random() * 40 - 20,
+        x,
+        y,
         z,
         width: DEFAULT_NODE_WIDTH,
         height: DEFAULT_NODE_HEIGHT,
@@ -618,14 +635,14 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   onNameChange(value: string): void {
     this.templateName.set(value);
-    this.templateSlug.set(this.slugify(value));
+    this.templateSlug.set(slugify(value));
     this.scheduleAutosave();
   }
 
   confirmNamePrompt(name: string): void {
     if (!name.trim()) return;
     this.templateName.set(name.trim());
-    this.templateSlug.set(this.slugify(name.trim()));
+    this.templateSlug.set(slugify(name.trim()));
     this.showNamePrompt.set(false);
     if (this.pendingAction) {
       this.pendingAction();
@@ -860,7 +877,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   private save(): void {
     const name = this.templateName().trim();
-    const slug = this.templateSlug().trim() || this.slugify(name);
+    const slug = this.templateSlug().trim() || slugify(name);
     if (!name || !slug) return;
     this.templateSlug.set(slug);
 
@@ -917,14 +934,14 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
           'No es pot esborrar: hi ha instàncies o composicions que fan servir aquesta figura.',
       );
     } else if (err.status === 409 && msgLower.includes('name')) {
-      this.toast.error('Ja existeix una altra figura amb aquest nom. Tria un nom diferent.');
+      this.toast.error('Ja existeix una altra figura amb aquest nom. Trieu un nom diferent.');
     } else if (err.status === 409) {
       this.toast.error(
         msg ||
-          'Conflicte en desar la figura. Prova a canviar el nom.',
+          'Conflicte en alçar la figura. Proveu a canviar el nom.',
       );
     } else {
-      this.toast.error("No s'ha pogut desar la figura. Torna-ho a intentar.");
+      this.toast.error("No s'ha pogut alçar la figura. Torneu-ho a intentar.");
     }
   }
 
@@ -962,10 +979,21 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     });
   }
 
+  // TRONC positions are now derived from z-level defaults in TroncViewComponent.
+  // No longer loaded from the Position catalog.
+
   private updateNode(id: string, patch: Partial<FigureNodeItem>): void {
     this.nodes.update((nodes) =>
       nodes.map((n) => (n.id === id ? { ...n, ...patch } : n)),
     );
+  }
+
+  private getNewNodePosition(spread = 20): { x: number; y: number } {
+    const center = this.figureCanvas()?.getViewportCenter() ?? { x: 0, y: 0 };
+    return {
+      x: Math.round(center.x + Math.random() * spread - spread / 2),
+      y: Math.round(center.y + Math.random() * spread - spread / 2),
+    };
   }
 
   private defaultLabel(zone: FigureZone, z = 0): string {
@@ -976,15 +1004,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     return 'Xicalla Dir.';
   }
 
-  private slugify(name: string): string {
-    return name
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9\s-]/g, '')
-      .trim()
-      .replace(/\s+/g, '-');
-  }
 }
 
 function nodeToPayload(node: FigureNodeItem): CreateFigureNodePayload {

@@ -9,7 +9,7 @@
   >
     <div class="modal-box max-w-lg">
       <div class="flex items-center justify-between mb-4">
-        <h2 id="import-modal-title" class="text-lg font-bold">Importar pinya anterior</h2>
+        <h2 id="import-modal-title" class="text-lg font-bold">Importació de pinya anterior</h2>
         <button type="button" class="btn btn-ghost btn-sm" (click)="close()" aria-label="Tancar">
           <i-lucide [img]="X" class="size-4" />
         </button>
@@ -30,7 +30,7 @@
 
         @if (history().length > 0) {
           <p class="text-sm text-base-content/60 mb-3">
-            Selecciona un event per importar les seves assignacions:
+            Seleccioneu un event per importar les seves assignacions:
           </p>
           <ul class="space-y-1 max-h-64 overflow-y-auto mb-4" role="listbox" aria-label="Pinyes anteriors">
             @for (entry of history(); track entry.instanceId) {
@@ -118,7 +118,7 @@
             } @else {
               <i-lucide [img]="Import" class="size-3" />
             }
-            Importar
+            Importa
           </button>
         }
       </div>

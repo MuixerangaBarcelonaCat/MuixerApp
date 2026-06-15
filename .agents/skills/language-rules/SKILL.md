@@ -241,7 +241,6 @@ Els textos han d'estar en valencià, no en català central:
 | Error genèric | `Error!` / `Hi ha hagut un error!`  | `S'ha produït un error.`             |
 | Confirmació | `Segur que vols eliminar?`          | `Esteu segur que voleu eliminar...?` |
 | Botó d'acció (menú) | `Obrir` / `Alçar`                   | `Obre` / `Alça`                      |
-| Botó d'acció (diàleg app→usuari) | `Acceptar`                          | `Accepteu`                           |
 | Èxit | `Fitxer alçat!`                     | `S'ha alçat el fitxer.`              |
 | Advertiment | `Per favor, comproveu la connexió.` | `Comproveu la connexió.`             |
 | Pregunta binària | `Continuar?`                        | `Voleu continuar?`                   |

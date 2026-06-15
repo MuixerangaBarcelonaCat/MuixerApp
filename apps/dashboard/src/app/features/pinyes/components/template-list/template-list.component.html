@@ -93,7 +93,7 @@
     @else if (!loading() && templates().length === 0) {
       <app-empty-state
         icon="Layers"
-        message="Cap figura creada. Crea la teva primera figura per començar a dissenyar pinyes."
+        message="No hi ha figures. Creeu la primera figura per començar a dissenyar pinyes."
         actionLabel="Figura nova"
         (actionClick)="navigateToCreate()"
       />
@@ -162,7 +162,7 @@
               <div class="card-actions justify-end gap-1 mt-1">
                 @if (confirmDeleteId() === template.id) {
                   <div class="flex items-center gap-2 w-full">
-                    <span class="text-xs text-error flex-1">Eliminar figura?</span>
+                    <span class="text-xs text-error flex-1">Voleu eliminar la figura?</span>
                     <button type="button" class="btn btn-ghost btn-xs" (click)="cancelDelete()">Cancel·la</button>
                     <button type="button" class="btn btn-error btn-xs" (click)="confirmDelete(template.id)">Elimina</button>
                   </div>
@@ -250,7 +250,7 @@
     @else if (!compositionsLoading() && compositions().length === 0) {
       <app-empty-state
         icon="LayoutGrid"
-        message="Cap composició creada. Creeu la vostra primera composició per agrupar figures (ex: 'Altar', '5 de Oros')."
+        message="No hi ha composicions. Creeu la primera composició per agrupar figures (ex: 'Altar', '5 de Oros')."
         actionLabel="Composició nova"
         (actionClick)="navigateToCreateComposition()"
       />
@@ -295,7 +295,7 @@
               <div class="card-actions justify-end gap-1 mt-1">
                 @if (compositionsConfirmDeleteId() === composition.id) {
                   <div class="flex items-center gap-2 w-full">
-                    <span class="text-xs text-error flex-1">Eliminar composició?</span>
+                    <span class="text-xs text-error flex-1">Voleu eliminar la composició?</span>
                     <button type="button" class="btn btn-ghost btn-xs" (click)="cancelDeleteComposition()">Cancel·la</button>
                     <button type="button" class="btn btn-error btn-xs" (click)="confirmDeleteComposition(composition.id)">Elimina</button>
                   </div>
@@ -305,10 +305,10 @@
                     class="btn btn-ghost btn-xs gap-1"
                     [disabled]="compositionsDeletingId() === composition.id"
                     (click)="duplicateComposition(composition.id)"
-                    [attr.aria-label]="'Duplicar composició ' + composition.name"
+                    [attr.aria-label]="'Duplica composició ' + composition.name"
                   >
                     <lucide-icon name="Copy" [size]="13" aria-hidden="true" />
-                    Duplicar
+                    Duplica
                   </button>
                   <button
                     type="button"

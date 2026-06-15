@@ -1,5 +1,5 @@
 import { Injectable, computed, signal } from '@angular/core';
-import { AdHocNodePreset } from '@muixer/shared';
+import { NodePreset } from '@muixer/shared';
 import {
   AssignmentDetail,
   AvailablePerson,
@@ -35,7 +35,7 @@ export class AssignmentStateService {
 
   /** Ad-hoc placement mode */
   readonly isPlacementMode = signal<boolean>(false);
-  readonly placementPreset = signal<AdHocNodePreset | null>(null);
+  readonly placementPreset = signal<NodePreset | null>(null);
   readonly placementCustomLabel = signal<string | null>(null);
 
   /** Current active tab's nodes — set by AssignmentCanvasComponent */
@@ -84,7 +84,7 @@ export class AssignmentStateService {
     this.personListRefreshTrigger.update((n) => n + 1);
   }
 
-  enterPlacementMode(preset: AdHocNodePreset, customLabel?: string): void {
+  enterPlacementMode(preset: NodePreset, customLabel?: string): void {
     this.isPlacementMode.set(true);
     this.placementPreset.set(preset);
     this.placementCustomLabel.set(customLabel ?? null);

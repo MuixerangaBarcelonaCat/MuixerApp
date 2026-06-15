@@ -105,6 +105,10 @@
   height: 14px;
   border-radius: 3px;
   flex-shrink: 0;
+
+  &.node-ellipse {
+    border-radius: 9999px;
+  }
 }
 
 // ── Canvas ────────────────────────────────────────────────────────────────
@@ -181,10 +185,9 @@
 .tronc-floating-panel {
   position: fixed;
   z-index: 30;
-  width: 600px;
-  max-width: 90vw;
+  width: min(600px, calc(100vw - 2rem));
   height: 70vh;
-  max-height: calc(100vh - 80px);
+  max-height: min(70vh, calc(100vh - 80px));
   min-height: 200px;
   background: oklch(var(--b1));
   border: 1px solid oklch(var(--b2));
@@ -195,6 +198,18 @@
   overflow: hidden;
   animation: panel-pop-in 0.15s ease;
   resize: both;
+
+  @media (max-width: 639px) {
+    position: fixed;
+    bottom: 0;
+    left: 0 !important;
+    right: 0;
+    top: auto !important;
+    width: 100%;
+    border-radius: 0.75rem 0.75rem 0 0;
+    max-height: 60vh;
+    resize: none;
+  }
 }
 
 .tronc-floating-header {

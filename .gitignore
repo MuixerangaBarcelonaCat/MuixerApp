@@ -59,3 +59,8 @@ coverage/
 
 # -- PRE ────────────────────────────────────────────────
 scripts/tunnel-pre.sh
+
+# -- Graphify ────────────────────────────────────────────
+graphify-out/
+
+.claude

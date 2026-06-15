@@ -436,9 +436,9 @@ export class CompositionEditorComponent implements OnInit, OnDestroy {
 
   get saveStatusLabel(): string {
     switch (this.saveStatus()) {
-      case 'saving': return 'Guardant...';
-      case 'saved': return 'Guardat ✓';
-      case 'error': return 'Error en guardar';
+      case 'saving': return "S'està alçant...";
+      case 'saved': return 'Alçat ✓';
+      case 'error': return 'Error en alçar';
       default: return '';
     }
   }

@@ -8,7 +8,7 @@ import { EventSegment } from '../event-segment/entities/event-segment.entity';
 import { NodeAssignment } from './entities/node-assignment.entity';
 import { AttendanceStatus, EventType } from '@muixer/shared';
 
-export interface AvailablePersonPositionDto {
+interface AvailablePersonPositionDto {
   id: string;
   name: string;
   slug: string;

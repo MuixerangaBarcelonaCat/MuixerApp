@@ -27,7 +27,7 @@
       @if (loading()) {
         <div class="flex items-center gap-2 py-6 justify-center text-base-content/50 text-sm">
           <span class="loading loading-spinner loading-sm"></span>
-          Carregant segments...
+          S'estan carregant els segments...
         </div>
       }
 
@@ -36,7 +36,7 @@
         <div class="py-8 text-center text-sm text-base-content/50">
           <lucide-icon name="Layers" [size]="40" class="mx-auto mb-2 text-base-content/20" />
           <p>Cap segment creat encara.</p>
-          <p class="mt-1">Afegeix un segment per organitzar les figures que es faran en aquest event.</p>
+          <p class="mt-1">Afegiu un segment per organitzar les figures que es faran en aquest event.</p>
         </div>
       }
 
@@ -85,9 +85,9 @@
                     maxlength="120"
                   />
                   <button type="button" class="btn btn-success btn-xs gap-1" (click)="saveSegmentName(segment)">
-                    <lucide-icon name="Check" [size]="12" /> Desar
+                    <lucide-icon name="Check" [size]="12" /> Alça
                   </button>
-                  <button type="button" class="btn btn-ghost btn-xs" (click)="cancelEdit()">Cancel·lar</button>
+                  <button type="button" class="btn btn-ghost btn-xs" (click)="cancelEdit()">Cancel·la</button>
                 } @else {
                   <button
                     type="button"
@@ -97,7 +97,7 @@
                   >
                     {{ displayName()(segment) }}
                     @if (!segment.name) {
-                      <span class="text-base-content/40 text-xs font-normal ml-1">(auto)</span>
+                      <span class="text-base-content/40 text-xs font-normal ml-1">(automàtic)</span>
                     }
                   </button>
                 }
@@ -137,7 +137,7 @@
                     [class.text-base-content]="isLocked()"
                     [class.opacity-50]="isLocked()"
                     (click)="navigateToAssignment(segment.id)"
-                    [attr.aria-label]="'Assignar persones al segment ' + displayName()(segment)"
+                    [attr.aria-label]="'Assigna persones al segment ' + displayName()(segment)"
                     [title]="isLocked() ? 'Assignacions bloquejades' : ''"
                   >
                     @if (isLocked()) {
@@ -145,16 +145,16 @@
                     } @else {
                       <lucide-icon name="Users" [size]="14" />
                     }
-                    Assignar
+                    Assigna
                   </button>
                   <button
                     type="button"
                     class="btn btn-ghost btn-xs gap-1 text-secondary"
                     (click)="navigateToProjection(segment.id)"
-                    [attr.aria-label]="'Projectar segment ' + displayName()(segment)"
+                    [attr.aria-label]="'Projecta el segment ' + displayName()(segment)"
                   >
                     <lucide-icon name="Monitor" [size]="14" />
-                    Projectar
+                    Projecta
                   </button>
                 }
 
@@ -192,7 +192,7 @@
                 <div class="flex flex-wrap gap-1.5 pl-8 items-center" role="list" [attr.aria-label]="'Figures del segment ' + displayName()(segment)">
                   @for (instance of segment.instances; track instance.id) {
                     <div
-                      class="badge gap-1 pr-1 cursor-default"
+                      class="badge gap-1 pr-1"
                       [class.badge-primary]="!isComposition(instance)"
                       [class.badge-secondary]="isComposition(instance)"
                       role="listitem"
@@ -200,7 +200,14 @@
                       @if (isComposition(instance)) {
                         <lucide-icon name="LayoutGrid" [size]="11" />
                       }
-                      <span class="text-xs">{{ getInstanceLabel(instance) }}</span>
+                      <button
+                        type="button"
+                        class="text-xs hover:underline cursor-pointer"
+                        (click)="navigateToAssignment(segment.id, instance.id)"
+                        [attr.aria-label]="'Assigna ' + getInstanceLabel(instance)"
+                        [attr.data-instance-id]="instance.id">
+                        {{ getInstanceLabel(instance) }}
+                      </button>
                       @if (instance.assignedCount > 0) {
                         <span class="badge badge-xs badge-ghost font-mono" [attr.aria-label]="instance.assignedCount + ' assignades'">
                           {{ instance.assignedCount }}
@@ -224,7 +231,7 @@
                   }
                 </div>
               } @else {
-                <p class="text-xs text-base-content/30 pl-8">Cap figura afegida. Clica "+ Figura" per afegir-ne.</p>
+                <p class="text-xs text-base-content/30 pl-8">Cap figura afegida. Cliqueu "+ Figura" per afegir-ne.</p>
               }
             </div>
           }
@@ -256,7 +263,7 @@
     <div class="modal-box max-w-sm">
       <h3 id="remove-instance-title" class="text-lg font-bold mb-3 text-error">Eliminar figura del segment</h3>
       <p id="remove-instance-desc" class="text-sm text-base-content/70">
-        Vols eliminar
+        Voleu eliminar
         <strong>{{ getInstanceLabel(pendingInstanceRemoval()!.instance) }}</strong>
         del segment?
       </p>
@@ -277,7 +284,7 @@
           (click)="cancelInstanceRemoval()"
           [disabled]="removingInstance()"
         >
-          Cancel·lar
+          Cancel·la
         </button>
         <button
           type="button"
@@ -288,7 +295,7 @@
           @if (removingInstance()) {
             <span class="loading loading-spinner loading-xs"></span>
           }
-          Eliminar
+          Elimina
         </button>
       </div>
     </div>

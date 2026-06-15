@@ -21,7 +21,7 @@ import { FigureTemplateService } from '../../services/figure-template.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { AssignmentDetail, AvailablePerson, BulkImportResult, InstanceNodeItem } from '../../models/assignment.model';
 import { SegmentDetail } from '../../models/segment.model';
-import { FigureZone, NodeShape, AD_HOC_PINYA_PRESETS, AD_HOC_DECORATION_PRESETS, AD_HOC_DIRECTION_PRESETS } from '@muixer/shared';
+import { FigureZone, NodeShape, PINYA_NODE_PRESETS, DECORATION_NODE_PRESETS, DIRECTION_NODE_PRESETS } from '@muixer/shared';
 
 // ── Stub child components ───────────────────────────────────────────────────
 
@@ -575,21 +575,21 @@ describe('AssignmentCanvasComponent', () => {
     };
 
     it('onPresetSelected with non-comodin preset enters placement mode', () => {
-      const preset = AD_HOC_PINYA_PRESETS.find((p) => !p.requiresCustomLabel)!;
+      const preset = PINYA_NODE_PRESETS.find((p) => !p.requiresCustomLabel)!;
       component.onPresetSelected(preset);
       expect(stateService.isPlacementMode()).toBe(true);
       expect(stateService.placementPreset()).toBe(preset);
     });
 
     it('onPresetSelected with comodin opens label input', () => {
-      const comodin = AD_HOC_PINYA_PRESETS.find((p) => p.requiresCustomLabel)!;
+      const comodin = PINYA_NODE_PRESETS.find((p) => p.requiresCustomLabel)!;
       component.onPresetSelected(comodin);
       expect(component.comodinInputOpen()).toBe(true);
       expect(stateService.isPlacementMode()).toBe(false);
     });
 
     it('Escape exits placement mode', () => {
-      const preset = AD_HOC_PINYA_PRESETS[0];
+      const preset = PINYA_NODE_PRESETS[0];
       stateService.enterPlacementMode(preset);
       expect(stateService.isPlacementMode()).toBe(true);
 
@@ -598,7 +598,7 @@ describe('AssignmentCanvasComponent', () => {
     });
 
     it('onCanvasClicked during placement calls createAdHocNode', () => {
-      const preset = AD_HOC_PINYA_PRESETS[0];
+      const preset = PINYA_NODE_PRESETS[0];
       stateService.enterPlacementMode(preset);
       stateService.activeInstanceId.set(INSTANCE_ID);
 
@@ -675,7 +675,7 @@ describe('AssignmentCanvasComponent', () => {
 
   describe('FAB categories & DECORATION presets', () => {
     it('exposes decorationPresets from shared constants', () => {
-      expect(component.decorationPresets).toBe(AD_HOC_DECORATION_PRESETS);
+      expect(component.decorationPresets).toBe(DECORATION_NODE_PRESETS);
       expect(component.decorationPresets.length).toBe(3);
     });
 
@@ -684,7 +684,7 @@ describe('AssignmentCanvasComponent', () => {
     });
 
     it('onPresetSelected with DECORATION preset opens label dialog and stores pendingLabelPreset', () => {
-      const decPreset = AD_HOC_DECORATION_PRESETS[0];
+      const decPreset = DECORATION_NODE_PRESETS[0];
       component.onPresetSelected(decPreset);
 
       expect(component.comodinInputOpen()).toBe(true);
@@ -693,7 +693,7 @@ describe('AssignmentCanvasComponent', () => {
     });
 
     it('confirmComodinLabel uses pendingLabelPreset (not always comodin)', () => {
-      const decPreset = AD_HOC_DECORATION_PRESETS[0];
+      const decPreset = DECORATION_NODE_PRESETS[0];
       component.onPresetSelected(decPreset);
       component.comodinLabel.set('Església');
 
@@ -706,7 +706,7 @@ describe('AssignmentCanvasComponent', () => {
     });
 
     it('cancelComodinInput clears pendingLabelPreset', () => {
-      const decPreset = AD_HOC_DECORATION_PRESETS[1];
+      const decPreset = DECORATION_NODE_PRESETS[1];
       component.onPresetSelected(decPreset);
       expect(component.pendingLabelPreset()).toBe(decPreset);
 
@@ -716,21 +716,21 @@ describe('AssignmentCanvasComponent', () => {
     });
 
     it('labelDialogTitle returns "Etiqueta del node decoratiu" for DECORATION presets', () => {
-      const decPreset = AD_HOC_DECORATION_PRESETS[0];
+      const decPreset = DECORATION_NODE_PRESETS[0];
       component.onPresetSelected(decPreset);
       expect(component.labelDialogTitle()).toBe('Etiqueta del node decoratiu');
     });
 
     it('labelDialogTitle returns "Etiqueta del comodí" for PINYA comodin presets', () => {
-      const comodin = AD_HOC_PINYA_PRESETS.find((p) => p.requiresCustomLabel)!;
+      const comodin = PINYA_NODE_PRESETS.find((p) => p.requiresCustomLabel)!;
       component.onPresetSelected(comodin);
       expect(component.labelDialogTitle()).toBe('Etiqueta del comodí');
     });
 
     it('getDecorationLabel returns Catalan labels for each positionType', () => {
-      const rect = AD_HOC_DECORATION_PRESETS.find((p) => p.positionType === 'rectangle')!;
-      const arrow = AD_HOC_DECORATION_PRESETS.find((p) => p.positionType === 'arrow')!;
-      const circle = AD_HOC_DECORATION_PRESETS.find((p) => p.positionType === 'circle')!;
+      const rect = DECORATION_NODE_PRESETS.find((p) => p.positionType === 'rectangle')!;
+      const arrow = DECORATION_NODE_PRESETS.find((p) => p.positionType === 'arrow')!;
+      const circle = DECORATION_NODE_PRESETS.find((p) => p.positionType === 'circle')!;
 
       expect(component.getDecorationLabel(rect)).toBe('Rectangle');
       expect(component.getDecorationLabel(arrow)).toBe('Fletxa');
@@ -785,7 +785,7 @@ describe('AssignmentCanvasComponent', () => {
     });
 
     it('onCanvasClicked during DECORATION placement calls createAdHocNode with DECORATION zone', () => {
-      const decPreset = AD_HOC_DECORATION_PRESETS[0];
+      const decPreset = DECORATION_NODE_PRESETS[0];
       stateService.enterPlacementMode(decPreset, 'Església');
       stateService.activeInstanceId.set(INSTANCE_ID);
 
@@ -815,7 +815,7 @@ describe('AssignmentCanvasComponent', () => {
     };
 
     it('direction preset enters placement mode directly (no label dialog)', () => {
-      const preset = AD_HOC_DIRECTION_PRESETS[0];
+      const preset = DIRECTION_NODE_PRESETS[0];
       component.onPresetSelected(preset);
 
       expect(stateService.isPlacementMode()).toBe(true);
@@ -823,7 +823,7 @@ describe('AssignmentCanvasComponent', () => {
     });
 
     it('direction node creation via canvas click dispatches createAdHocNode with correct zone', () => {
-      const preset = AD_HOC_DIRECTION_PRESETS[0];
+      const preset = DIRECTION_NODE_PRESETS[0];
       stateService.enterPlacementMode(preset);
       stateService.activeInstanceId.set(INSTANCE_ID);
 
@@ -940,7 +940,7 @@ describe('AssignmentCanvasComponent', () => {
       dispatchCtrlDigit(1);
 
       expect(stateService.isPlacementMode()).toBe(true);
-      expect(stateService.placementPreset()).toBe(AD_HOC_PINYA_PRESETS[0]);
+      expect(stateService.placementPreset()).toBe(PINYA_NODE_PRESETS[0]);
     });
 
     it('Ctrl+9 opens comodin label dialog', () => {
@@ -959,11 +959,11 @@ describe('AssignmentCanvasComponent', () => {
     });
 
     it('Ctrl+1 while already in placement mode does nothing', () => {
-      stateService.enterPlacementMode(AD_HOC_PINYA_PRESETS[2]);
+      stateService.enterPlacementMode(PINYA_NODE_PRESETS[2]);
 
       dispatchCtrlDigit(1);
 
-      expect(stateService.placementPreset()).toBe(AD_HOC_PINYA_PRESETS[2]);
+      expect(stateService.placementPreset()).toBe(PINYA_NODE_PRESETS[2]);
     });
 
     it('Ctrl+1 while help modal open does nothing', () => {
