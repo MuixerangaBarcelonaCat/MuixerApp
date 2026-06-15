@@ -10,7 +10,10 @@ import {
   GitBranchPlus, Layers, Keyboard, HelpCircle, Info, X,
   AlertTriangle, Trash2, Grid3X3, Magnet, Shapes,
   MousePointer2, GripVertical, PanelRightClose, PanelRightOpen,
+  ChevronDown,
 } from 'lucide-angular';
+import { FigureZone, NodeShape, PINYA_NODE_PRESETS } from '@muixer/shared';
+import { FigureNodeItem } from '../../models/figure-template.model';
 import { TemplateEditorComponent } from './template-editor.component';
 import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component';
 import { TroncViewComponent } from '../tronc-view/tronc-view.component';
@@ -116,6 +119,7 @@ describe('TemplateEditorComponent — Preview Mode', () => {
             GitBranchPlus, Layers, Keyboard, HelpCircle, Info, X,
             AlertTriangle, Trash2, Grid3X3, Magnet, Shapes,
             MousePointer2, GripVertical, PanelRightClose, PanelRightOpen,
+            ChevronDown,
           }),
         },
       ],
@@ -220,6 +224,133 @@ describe('TemplateEditorComponent — Preview Mode', () => {
       component.toggleRenglaEditMode();
       expect(component.previewMode()).toBe(false);
       expect(component.renglaEditMode()).toBe(true);
+    });
+  });
+
+  describe('pinya preset dropdown', () => {
+    const makePinyaNode = (overrides: Partial<FigureNodeItem> = {}): FigureNodeItem => ({
+      id: 'node-1',
+      label: 'AGULLA',
+      zone: FigureZone.PINYA,
+      positionType: 'agulla',
+      x: 100, y: 100, z: 0,
+      width: 80, height: 40, rotation: 0,
+      color: '#0d9488',
+      shape: NodeShape.RECTANGLE,
+      sortOrder: 0,
+      climbPath: null, ringLevel: null, originNodeId: null,
+      renglaId: null, renglaPosition: null,
+      metadata: {},
+      ...overrides,
+    });
+
+    beforeEach(() => {
+      component.nodes.set([makePinyaNode()]);
+      component.selectedNodeId.set('node-1');
+      fixture.detectChanges();
+    });
+
+    describe('currentPinyaPreset', () => {
+      it('returns null when no node is selected', () => {
+        component.selectedNodeId.set(null);
+        expect(component.currentPinyaPreset()).toBeNull();
+      });
+
+      it('returns the matching preset when positionType matches', () => {
+        const preset = component.currentPinyaPreset();
+        expect(preset).not.toBeNull();
+        expect(preset?.positionType).toBe('agulla');
+        expect(preset?.label).toBe(PINYA_NODE_PRESETS.find(p => p.positionType === 'agulla')?.label);
+      });
+
+      it('returns null when positionType does not match any preset', () => {
+        component.nodes.set([makePinyaNode({ positionType: 'custom-type' })]);
+        expect(component.currentPinyaPreset()).toBeNull();
+      });
+
+      it('returns null for a non-PINYA node', () => {
+        component.nodes.set([makePinyaNode({ zone: FigureZone.BASE, positionType: 'agulla' })]);
+        expect(component.currentPinyaPreset()).toBeNull();
+      });
+
+      it('returns null when positionType is null', () => {
+        component.nodes.set([makePinyaNode({ positionType: null })]);
+        expect(component.currentPinyaPreset()).toBeNull();
+      });
+    });
+
+    describe('applyPinyaPreset', () => {
+      it('does nothing when no node is selected', () => {
+        component.selectedNodeId.set(null);
+        component.applyPinyaPreset('mans');
+        expect(component.nodes()[0].positionType).toBe('agulla');
+      });
+
+      it('does nothing for an unknown positionType', () => {
+        component.applyPinyaPreset('non-existent');
+        expect(component.nodes()[0].positionType).toBe('agulla');
+      });
+
+      it('updates positionType, label, color and shape from the preset', () => {
+        const mansPreset = PINYA_NODE_PRESETS.find(p => p.positionType === 'mans')!;
+        component.applyPinyaPreset('mans');
+
+        const node = component.nodes()[0];
+        expect(node.positionType).toBe('mans');
+        expect(node.label).toBe(mansPreset.label);
+        expect(node.color).toBe(mansPreset.color);
+        expect(node.shape).toBe(mansPreset.shape);
+      });
+
+      it('does NOT touch renglaId, renglaPosition or ringLevel', () => {
+        component.nodes.set([makePinyaNode({ renglaId: 'rengla-1', renglaPosition: 2, ringLevel: 2 })]);
+        component.applyPinyaPreset('mans');
+
+        const node = component.nodes()[0];
+        expect(node.renglaId).toBe('rengla-1');
+        expect(node.renglaPosition).toBe(2);
+        expect(node.ringLevel).toBe(2);
+      });
+
+      it('does NOT touch x, y, rotation or dimensions', () => {
+        component.nodes.set([makePinyaNode({ x: 42, y: 99, rotation: 45, width: 120, height: 60 })]);
+        component.applyPinyaPreset('mans');
+
+        const node = component.nodes()[0];
+        expect(node.x).toBe(42);
+        expect(node.y).toBe(99);
+        expect(node.rotation).toBe(45);
+        expect(node.width).toBe(120);
+        expect(node.height).toBe(60);
+      });
+
+      it('closes the dropdown after applying a preset', () => {
+        component.presetDropdownOpen.set(true);
+        component.applyPinyaPreset('mans');
+        expect(component.presetDropdownOpen()).toBe(false);
+      });
+    });
+
+    describe('presetDropdownOpen', () => {
+      it('defaults to false', () => {
+        expect(component.presetDropdownOpen()).toBe(false);
+      });
+
+      it('onNodeSelected closes the dropdown', () => {
+        component.presetDropdownOpen.set(true);
+        component.onNodeSelected(null);
+        expect(component.presetDropdownOpen()).toBe(false);
+      });
+
+      it('onNodeSelected to a different node closes the dropdown', () => {
+        component.nodes.set([
+          makePinyaNode({ id: 'node-1' }),
+          makePinyaNode({ id: 'node-2', positionType: 'mans' }),
+        ]);
+        component.presetDropdownOpen.set(true);
+        component.onNodeSelected('node-2');
+        expect(component.presetDropdownOpen()).toBe(false);
+      });
     });
   });
 
