@@ -1,18 +1,20 @@
-<section class="tronc-view" aria-label="Vista del tronc">
+<section class="tronc-view" [class.projection-mode]="mode() === 'projection'" aria-label="Vista del tronc">
 
-  <!-- ── Header ──────────────────────────────────────────────────────────── -->
-  <header class="tronc-header">
-    <span class="text-xs font-semibold uppercase tracking-wide text-base-content/50">Tronc</span>
-    <button
-      type="button"
-      class="btn btn-ghost btn-xs btn-square"
-      (click)="toggleOrientation()"
-      aria-label="Invertir vista del tronc"
-      title="Invertir orientació (P1 dalt / P1 baix)"
-    >
-      <lucide-icon [name]="inverted() ? 'ArrowDownUp' : 'ArrowUpDown'" [size]="14" aria-hidden="true" />
-    </button>
-  </header>
+  <!-- ── Header (hidden in projection mode) ──────────────────────────────── -->
+  @if (mode() !== 'projection') {
+    <header class="tronc-header">
+      <span class="text-xs font-semibold uppercase tracking-wide text-base-content/50">Tronc</span>
+      <button
+        type="button"
+        class="btn btn-ghost btn-xs btn-square"
+        (click)="toggleOrientation()"
+        aria-label="Invertir vista del tronc"
+        title="Invertir orientació (P1 dalt / P1 baix)"
+      >
+        <lucide-icon [name]="inverted() ? 'ArrowDownUp' : 'ArrowUpDown'" [size]="14" aria-hidden="true" />
+      </button>
+    </header>
+  }
 
   <!-- ── No-tronc message ────────────────────────────────────────────────── -->
   @if (!hasTronc() && mode() !== 'editor') {

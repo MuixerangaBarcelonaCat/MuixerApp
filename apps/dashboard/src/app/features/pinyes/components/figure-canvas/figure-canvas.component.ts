@@ -217,6 +217,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   private transformer!: Konva.Transformer;
 
   private resizeObserver: ResizeObserver | null = null;
+  private hasAutoFitted = false;
   /** Reused for measuring label text; not attached to the stage. */
   private labelMeasureProbe: Konva.Text | null = null;
 
@@ -1221,9 +1222,10 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.pinyaLayer.batchDraw();
 
     const visibleNodes = this.nodes();
-    if (visibleNodes.length > 0) {
+    if (visibleNodes.length > 0 && !this.hasAutoFitted) {
+      this.hasAutoFitted = true;
       setTimeout(() => {
-        const fit = computeFitTransform(visibleNodes, this.stage.width(), this.stage.height(), { padding: 20 });
+        const fit = computeFitTransform(visibleNodes, this.stage.width(), this.stage.height(), { padding: 20, maxScale: 2 }); // adjust maxScale to taste
         if (fit) {
           this.stage.scale({ x: fit.scale, y: fit.scale });
           this.stage.position({ x: fit.x, y: fit.y });
