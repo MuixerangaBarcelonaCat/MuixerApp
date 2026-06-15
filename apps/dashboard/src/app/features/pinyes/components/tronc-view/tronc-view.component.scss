@@ -355,3 +355,21 @@
 .floor-delete-btn {
   justify-self: center;
 }
+
+// ── Projection mode (compact) ─────────────────────────────────────────────────
+
+.tronc-view.projection-mode {
+  padding: 0.25rem;
+  gap: 0.15rem;
+
+  .floor-row {
+    grid-template-columns: 1.75rem 1fr;
+    min-height: 1.75rem;
+    gap: 0.25rem;
+  }
+
+  .tronc-node {
+    min-height: 1.75rem;
+    padding: 0.1rem 0.3rem;
+  }
+}
