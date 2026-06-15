@@ -8,6 +8,7 @@ export * from './enums/event-type.enum';
 export * from './enums/attendance-status.enum';
 export * from './enums/client-type.enum';
 export * from './constants/ad-hoc-node.constants';
+export * from './constants/node-preset.constants';
 export * from './interfaces/attendance-summary.interface';
 export * from './interfaces/event-metadata.interface';
 export * from './interfaces/auth.interfaces';
