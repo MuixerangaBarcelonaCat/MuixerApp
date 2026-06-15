@@ -61,11 +61,11 @@
       <button
         type="button"
         class="btn btn-ghost btn-sm gap-1"
-        aria-label="Edita template de la figura"
+        aria-label="Edita plantilla de la figura"
         (click)="onEditTemplate()"
       >
         <i-lucide [img]="Edit" class="size-4" />
-        Edita template
+        Edita plantilla
       </button>
     }
 
@@ -86,11 +86,11 @@
       <a
         [routerLink]="['/pinyes/events', eventId(), 'segments', segmentId(), 'project', activeTab()!.instanceId]"
         class="btn btn-ghost btn-sm gap-1"
-        aria-label="Projectar la figura en pantalla completa"
-        title="Projectar figura"
+        aria-label="Projecta la figura en pantalla completa"
+        title="Projecta la figura"
       >
         <i-lucide [img]="Monitor" class="size-4" aria-hidden="true" />
-        Projectar
+        Projecta
       </a>
     }
   </header>
@@ -200,7 +200,7 @@
             type="button"
             class="btn btn-circle btn-sm btn-ghost"
             (click)="openHelpModal()"
-            aria-label="Ajuda sobre nodes ad-hoc"
+            aria-label="Ajuda sobre nodes manuals"
             title="Ajuda"
           >
             <i-lucide [img]="HelpCircle" class="size-5" />
@@ -328,9 +328,9 @@
       @if (state.isPlacementMode()) {
         <div class="absolute top-2 left-1/2 -translate-x-1/2 z-30 alert alert-info py-2 px-4 shadow-lg max-w-sm" role="status">
           <span class="text-sm">
-            <strong>Mode col·locació:</strong> fes clic al canvas per situar el node.
+            <strong>Mode col·locació:</strong> fes clic a l'àrea de treball per situar el node.
             <button type="button" class="btn btn-xs btn-ghost ml-1" (click)="state.exitPlacementMode()">
-              Cancel·lar
+              Cancel·la
             </button>
           </span>
         </div>
@@ -468,7 +468,7 @@
         [disabled]="isLocked()"
         aria-label="Importar assignacions d'una pinya anterior"
       >
-        Importar pinya
+        Importa pinya
       </button>
     }
   </footer>
@@ -518,7 +518,7 @@
           (click)="cancelDeleteInstance()"
           [disabled]="deletingInstance()"
         >
-          Cancel·lar
+          Cancel·la
         </button>
         <button
           type="button"
@@ -529,7 +529,7 @@
           @if (deletingInstance()) {
             <span class="loading loading-spinner loading-xs"></span>
           }
-          Eliminar
+          Elimina
         </button>
       </div>
     </div>
@@ -551,13 +551,13 @@
       <p id="reset-modal-desc" class="text-sm text-base-content/70">
         Aquesta acció eliminarà
         <strong class="text-error">{{ activeTab()?.assignedCount ?? 0 }} assignacions</strong>
-        i tornarà la figura al template original.
+        i tornarà la figura a la plantilla original.
         Les persones assignades quedaran lliures.
       </p>
       @if (state.hasAdHocNodes()) {
         <div class="alert alert-warning mt-3 py-2 text-sm gap-2">
           <span>
-            <strong>{{ state.adHocNodes().length }} nodes ad-hoc</strong>
+            <strong>{{ state.adHocNodes().length }} nodes manuals</strong>
             també s'eliminaran permanentment.
           </span>
         </div>
@@ -570,7 +570,7 @@
           (click)="cancelReset()"
           [disabled]="resetting()"
         >
-          Cancel·lar
+          Cancel·la
         </button>
         <button
           type="button"
@@ -610,7 +610,7 @@
     aria-modal="true"
   >
     <div class="modal-box max-w-sm">
-      <h3 id="delete-adhoc-title" class="text-lg font-bold mb-3 text-error">Eliminar node ad-hoc</h3>
+      <h3 id="delete-adhoc-title" class="text-lg font-bold mb-3 text-error">Eliminar node manual</h3>
       <p id="delete-adhoc-desc" class="text-sm text-base-content/70">
         El node «<strong>{{ pendingDeleteNodeLabel() }}</strong>» té la persona
         <strong>{{ pendingDeletePersonName() }}</strong> assignada.
@@ -618,10 +618,10 @@
       </p>
       <div class="modal-action">
         <button type="button" class="btn btn-ghost btn-sm" (click)="cancelDeleteAdHocNode()">
-          Cancel·lar
+          Cancel·la
         </button>
         <button type="button" class="btn btn-error btn-sm" (click)="confirmDeleteAdHocNode()">
-          Eliminar
+          Elimina
         </button>
       </div>
     </div>
@@ -655,7 +655,7 @@
       />
       <div class="modal-action">
         <button type="button" class="btn btn-ghost btn-sm" (click)="cancelComodinInput()">
-          Cancel·lar
+          Cancel·la
         </button>
         <button
           type="button"

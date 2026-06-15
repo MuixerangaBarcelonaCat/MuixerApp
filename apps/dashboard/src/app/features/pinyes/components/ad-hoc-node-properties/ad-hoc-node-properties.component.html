@@ -1,7 +1,7 @@
 <div
   class="absolute top-12 left-4 z-30 bg-base-100 border border-base-300 rounded-xl shadow-xl w-64 max-h-[calc(100%-6rem)] overflow-y-auto"
   role="region"
-  aria-label="Propietats del node ad-hoc"
+  aria-label="Propietats del node manual"
 >
   <!-- Header -->
   <div class="flex items-center justify-between px-3 py-2 border-b border-base-200">
@@ -11,8 +11,8 @@
         type="button"
         class="btn btn-ghost btn-xs btn-square"
         (click)="onDuplicate()"
-        aria-label="Duplicar node ad-hoc"
-        title="Duplicar (Ctrl+D)"
+        aria-label="Duplica el node manual"
+        title="Duplica (Ctrl+D)"
       >
         <i-lucide [img]="Copy" class="size-3.5" />
       </button>
@@ -20,8 +20,8 @@
         type="button"
         class="btn btn-ghost btn-xs btn-square text-error"
         (click)="onDelete()"
-        aria-label="Eliminar node ad-hoc"
-        title="Eliminar"
+        aria-label="Elimina el node manual"
+        title="Elimina"
       >
         <i-lucide [img]="Trash2" class="size-3.5" />
       </button>

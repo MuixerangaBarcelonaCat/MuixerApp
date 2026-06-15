@@ -49,7 +49,7 @@ export class TemplateEditorStateService {
 
   // ── Template metadata ────────────────────────────────────────────────────
   readonly templateId = signal<string | null>(null);
-  readonly templateName = signal('Nova Figura');
+  readonly templateName = signal('Figura nova');
   readonly templateSlug = signal('');
   readonly templateDescription = signal('');
   readonly hasPinya = signal(true);
@@ -74,9 +74,9 @@ export class TemplateEditorStateService {
   });
   readonly saveStatusLabel = computed(() => {
     const s = this.saveStatus();
-    if (s === 'saving') return 'Guardant...';
-    if (s === 'saved') return 'Guardat';
-    if (s === 'error') return 'Error en guardar';
+    if (s === 'saving') return "S'està alçant...";
+    if (s === 'saved') return 'Alçat';
+    if (s === 'error') return 'Error en alçar';
     return '';
   });
   readonly baseOrderingValidation = computed(() =>
@@ -95,7 +95,7 @@ export class TemplateEditorStateService {
 
   reset(): void {
     this.templateId.set(null);
-    this.templateName.set('Nova Figura');
+    this.templateName.set('Figura nova');
     this.templateSlug.set('');
     this.templateDescription.set('');
     this.hasPinya.set(true);

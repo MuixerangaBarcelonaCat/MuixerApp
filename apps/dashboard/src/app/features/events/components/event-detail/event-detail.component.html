@@ -33,7 +33,7 @@
             @if (syncState() === 'running') {
               <span class="loading loading-spinner loading-xs"></span> Sincronitzant...
             } @else {
-              <lucide-icon name="RefreshCw" [size]="14" /> Sync
+              <lucide-icon name="RefreshCw" [size]="14" /> Sincronitza
             }
           </button>
         }
@@ -50,7 +50,7 @@
     <div class="card bg-base-100 shadow-sm">
       <div class="card-body items-center gap-3 py-12">
         <span class="loading loading-spinner loading-md text-primary"></span>
-        <p class="text-sm text-base-content/50">Carregant event...</p>
+        <p class="text-sm text-base-content/50">S'està carregant l'event...</p>
       </div>
     </div>
   }
@@ -296,7 +296,7 @@
               />
             </label>
             <button type="button" class="btn btn-primary btn-sm gap-1" (click)="showAddBar.set(!showAddBar()); addError.set(null)">
-              <lucide-icon name="Plus" [size]="14" /> Afegir membre
+              <lucide-icon name="Plus" [size]="14" /> Afegeix membre
             </button>
           </div>
         </div>
