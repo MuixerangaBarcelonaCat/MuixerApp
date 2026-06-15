@@ -5,7 +5,7 @@ import { EventSegment } from './entities/event-segment.entity';
 import { FigureInstance } from './entities/figure-instance.entity';
 import { NodeAssignmentService, AssignmentDetail, InstanceNodeResponse } from '../node-assignment/node-assignment.service';
 
-export interface ProjectionInstanceData {
+interface ProjectionInstanceData {
   id: string;
   label: string | null;
   sortOrder: number;

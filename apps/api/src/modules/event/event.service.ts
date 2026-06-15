@@ -269,7 +269,7 @@ export class EventService {
   }
 }
 
-export interface SeasonRef {
+interface SeasonRef {
   id: string;
   name: string;
 }

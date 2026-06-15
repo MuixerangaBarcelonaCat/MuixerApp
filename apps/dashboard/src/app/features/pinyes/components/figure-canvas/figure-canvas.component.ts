@@ -14,7 +14,6 @@ import {
 import { FormsModule } from '@angular/forms';
 import Konva from 'konva';
 import { FigureNodeItem } from '../../models/figure-template.model';
-import { CompositionSlotItem } from '../../models/composition.model';
 import { FigureZone, NodeShape, DIRECTION_ZONES } from '@muixer/shared';
 import { AssignmentDetail, HeightMode } from '../../models/assignment.model';
 import {
@@ -58,22 +57,6 @@ export interface CompositionSlotWithNodes {
     name: string;
     hasPinya: boolean;
     nodes: FigureNodeItem[];
-  };
-}
-
-export function compositionSlotItemToCanvasSlot(slot: CompositionSlotItem): CompositionSlotWithNodes {
-  return {
-    slotId: slot.id,
-    label: slot.label,
-    offsetX: slot.offsetX,
-    offsetY: slot.offsetY,
-    sortOrder: slot.sortOrder,
-    figureTemplate: {
-      id: slot.figureTemplate.id,
-      name: slot.figureTemplate.name,
-      hasPinya: slot.figureTemplate.hasPinya,
-      nodes: slot.figureTemplate.nodes,
-    },
   };
 }
 

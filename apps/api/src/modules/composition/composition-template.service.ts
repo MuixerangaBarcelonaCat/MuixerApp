@@ -11,7 +11,7 @@ import { CompositionTemplateFilterDto } from './dto/composition-template-filter.
 import { CreateCompositionSlotDto } from './dto/create-composition-slot.dto';
 import { FigureNodeItem } from '../figure/figure-template.service';
 
-export interface CompositionSlotItem {
+interface CompositionSlotItem {
   id: string;
   label: string | null;
   offsetX: number;
