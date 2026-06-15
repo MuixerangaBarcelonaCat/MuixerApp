@@ -360,32 +360,6 @@
               />
             </div>
 
-            <!-- Zone: only editable for non-TRONC nodes -->
-            @if (node.zone !== FigureZone.TRONC) {
-              <div class="form-control mb-3">
-                <label class="label pb-1" [for]="'node-zone-' + node.id">
-                  <span class="label-text text-xs font-medium">Zona</span>
-                </label>
-                <select
-                  [id]="'node-zone-' + node.id"
-                  class="select select-bordered select-sm"
-                  [ngModel]="node.zone"
-                  (ngModelChange)="updateSelectedNodeProp('zone', $event)"
-                >
-                  <option [value]="FigureZone.BASE">Base</option>
-                  <option [value]="FigureZone.PINYA">Pinya</option>
-                  <option [value]="FigureZone.FIGURE_DIRECTION">Direcció Figura</option>
-                  <option [value]="FigureZone.XICALLA_DIRECTION">Direcció Xicalla</option>
-                </select>
-                @if (node.zone === FigureZone.PINYA || node.zone === FigureZone.BASE) {
-                  <div class="label pt-1">
-                    <span class="label-text-alt text-base-content/50">
-                      Els nodes de pinya i base sempre tenen pis = 0
-                    </span>
-                  </div>
-                }
-              </div>
-            }
 
             <!-- Position type: only editable for non-TRONC nodes (for TRONC it is set by the floor preset) -->
             @if (node.zone !== FigureZone.TRONC) {

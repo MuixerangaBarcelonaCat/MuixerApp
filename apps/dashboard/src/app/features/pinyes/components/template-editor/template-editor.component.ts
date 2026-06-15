@@ -63,6 +63,7 @@ const PINYA_POSITIONS: PinyaPosition[] = [
   { positionType: 'tap',         label: 'TAP',         color: '#be185d', shape: NodeShape.RECTANGLE },
   { positionType: 'crossa',      label: 'CROSSA',      color: '#9FA8DA', shape: NodeShape.RECTANGLE},
   { positionType: 'contrafort',  label: 'CONTRAFORT',  color: '#EF9A9A', shape: NodeShape.RECTANGLE },
+  { positionType: 'comodin',     label: '...',         color: '#B0BEC5', shape: NodeShape.RECTANGLE },
 ];
 
 @Component({
