@@ -219,27 +219,35 @@
 
 ### P6.8 — Magic-Link Auth
 
-**Objectiu:** Admins poden generar enllaços d'accés per als membres.
+**Objectiu:** Admins poden generar enllaços d'accés temporals i d'un sol ús per als membres.
 
 **Backend:**
-- Entitat `MagicLinkToken` + migració
-- `POST /api/users/:id/magic-link` — generar (upsert)
-- `POST /api/auth/magic-link` — validar token → JWT + cookie (@Public)
+- Entitat `MagicLinkToken` + migració (camps: `id`, `userId`, `tokenHash`, `expiresAt`, `consumedAt`, `createdAt`, `lastUsedAt`, `revokedAt`, `createdByUserId`)
+- Config: `MAGIC_LINK_TTL_HOURS` env var (default 72h)
+- `POST /api/users/:id/magic-link` — generar (upsert, sets `expiresAt = now + TTL`)
+- `POST /api/auth/magic-link` — validar token (@Public):
+  - Validation order: revoked → expired → consumed → bcrypt match → user active
+  - On success: issue JWT + set `consumedAt` + `lastUsedAt` in transaction
+  - On failure: generic 401 "L'enllaç no és vàlid o ha caducat"
 - `PATCH /api/users/:id/magic-link` — revocar
+- `GET /api/users/:id/magic-link/status` — retorna estat del token (actiu/caducat/consumit/revocat + dates)
 - `PATCH /api/auth/change-password` — canvi de contrasenya (autenticat)
 - Rate limiting: 10 req/min per IP al endpoint de validació
-- Tests
+- Tests: token vàlid, expirat, consumit, revocat, usuari inactiu, rate limit
 
 **Frontend (Dashboard):**
 - Botó "Generar enllaç d'accés" a la gestió d'usuaris
-- Modal amb link copiable + botó copiar al clipboard
+- Modal amb link copiable + botó copiar al clipboard + info caducitat ("Vàlid durant 72h")
+- Badge d'estat del token: actiu (verd) / caducat (gris) / consumit (blau) / revocat (vermell)
+- Dates visibles: creació + caducitat
 - Opció de revocar
+- Opció de regenerar (invalida l'anterior, genera nou amb TTL fresc)
 
 **Frontend (PWA):**
 - `MagicLinkComponent`: landing page que valida el token automàticament
-- Error state: "L'enllaç no és vàlid o ha estat revocat"
+- Error state genèric: "L'enllaç no és vàlid o ha caducat. Contacta amb l'equip tècnic." (cobreix: expirat, consumit, revocat, invàlid)
 
-**Lliurable:** Un admin genera un link, el comparteix per WhatsApp, i el membre entra sense contrasenya.
+**Lliurable:** Un admin genera un link temporal (72h, un sol ús), el comparteix per WhatsApp, i el membre entra sense contrasenya.
 
 **Esforç estimat:** M (1 setmana)
 

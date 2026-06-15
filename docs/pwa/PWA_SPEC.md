@@ -187,6 +187,8 @@ magic_link_tokens
 ├── id              UUID PK
 ├── userId          FK → users.id (unique — one active token per user)
 ├── tokenHash       VARCHAR — bcrypt hash of the raw token
+├── expiresAt       TIMESTAMP — createdAt + configurable TTL (default 72h)
+├── consumedAt      TIMESTAMP (nullable) — set on first successful login
 ├── createdAt       TIMESTAMP
 ├── lastUsedAt      TIMESTAMP (nullable)
 ├── revokedAt       TIMESTAMP (nullable)
@@ -195,24 +197,48 @@ magic_link_tokens
 
 Unique constraint on `userId` (only one active token per user at a time).
 
+**Token lifecycle:**
+- **TTL**: 72 hours from creation (configurable via `MAGIC_LINK_TTL_HOURS` env var). After expiry, the link is dead. Admin can regenerate at any time.
+- **Single-use**: On first successful login via magic-link, `consumedAt` is set. The token cannot be reused. This prevents link sharing, replay attacks, and accidental reuse from browser history.
+- **Revocation**: Admin can revoke at any time (immediate effect, sets `revokedAt`).
+
 #### Flow
 
 1. **Generate (Dashboard):** Admin navigates to user management → clicks "Generar enllaç d'accés" → `POST /api/users/:id/magic-link`
-2. **Backend:** Generates 32-byte random hex token → hashes with bcrypt → stores in `magic_link_tokens` (upsert: replaces any existing token for this user) → returns raw token in response
-3. **Dashboard UI:** Shows copyable link: `https://<pwa-host>/auth/magic?token=<raw-token>`. Admin copies and shares via WhatsApp/Signal.
+2. **Backend:** Generates 32-byte random hex token → hashes with bcrypt → stores in `magic_link_tokens` (upsert: replaces any existing token for this user, sets `expiresAt = now + TTL`) → returns raw token in response
+3. **Dashboard UI:** Shows copyable link: `https://<pwa-host>/auth/magic?token=<raw-token>` + expiry info ("Vàlid durant 72h"). Admin copies and shares via WhatsApp/Signal.
 4. **Member clicks link:** PWA route `/auth/magic` extracts `token` from query params → `POST /api/auth/magic-link { token }`
-5. **Backend validates:** Finds token by iterating active (non-revoked) tokens and bcrypt-comparing → if match: validates `user.isActive === true` → issues JWT + refresh cookie with `clientType: PWA` (7-day TTL) → updates `lastUsedAt`
+5. **Backend validates (in order):**
+   1. Iterates active tokens (non-revoked, non-expired, non-consumed) and bcrypt-compares
+   2. If no match → 401
+   3. Checks `revokedAt IS NULL` → if revoked → 401
+   4. Checks `expiresAt > now` → if expired → 401
+   5. Checks `consumedAt IS NULL` → if already consumed → 401
+   6. Validates `user.isActive === true` → if inactive → 401
+   7. Issues JWT + refresh cookie with `clientType: PWA` (7-day TTL)
+   8. Sets `consumedAt = now` and `lastUsedAt = now` in a single transaction
 6. **PWA:** Receives access token → stores in memory → redirects to `/home`
-7. **Regenerate:** Admin can regenerate anytime → old token invalidated, new token issued
+7. **Regenerate:** Admin can regenerate anytime → old token invalidated (deleted or marked revoked), new token issued with fresh TTL
 8. **Revoke:** Admin can revoke without regenerating → `PATCH /api/users/:id/magic-link` with `{ revoked: true }`
 
+**Error handling:** All validation failures return the same generic message: "L'enllaç no és vàlid o ha caducat. Contacta amb l'equip tècnic." (no information leakage about which specific check failed).
+
+**Dashboard token status display:** The admin UI shows the token state as a badge:
+- `actiu` (green) — valid, not expired, not consumed
+- `caducat` (grey) — expiresAt has passed
+- `consumit` (blue) — member used it successfully
+- `revocat` (red) — admin revoked it
+
 **Security notes:**
-- Token is **persistent** (no expiry) until admin regenerates or revokes
+- Token has a **72-hour TTL** (configurable). After expiry, the link is dead — no indefinite exposure window.
+- Token is **single-use**: consumed on first successful login. Prevents replay and accidental sharing via browser history or chat logs.
+- Token can be **revoked** by admin at any time (immediate effect).
+- Combined: worst-case exposure window is 72h IF the link hasn't been used yet. Once used, it's immediately dead.
 - Token hash stored, never the raw token (bcrypt, VARCHAR(255))
 - Rate limit magic-link validation endpoint (10 req/min per IP)
-- Token is single-user: if shared publicly, only the intended user's session is at risk (mitigated by admin ability to revoke)
+- Token is single-user: if shared publicly, only the intended user's session is at risk (mitigated by admin ability to revoke + automatic expiry)
 - Regenerate/revoke does **not** invalidate existing active sessions (JWT + refresh). Admin can use "Tancar totes les sessions" (`POST /auth/logout-all`) separately if needed
-- Token in URL query string: acceptable for trusted admin→WhatsApp channel at ~40 users. If public exposure occurs, admin revokes immediately
+- Token in URL query string: acceptable for trusted admin→WhatsApp channel at ~40 users. Exposure is time-bounded (72h max) and single-use
 - Raw token returned in API response only to admin (TECHNICAL/ADMIN role); never logged
 - Backend validates `user.isActive` on redeem — inactive accounts cannot use magic-links
 
@@ -444,7 +470,7 @@ With server-side guard: if role is MEMBER, the segment must have `isVisible: tru
 - Shows loading spinner: "Entrant..."
 - Validates via `POST /api/auth/magic-link`
 - Success → redirect to `/home`
-- Error → "L'enllaç no és vàlid o ha estat revocat. Contacta amb l'equip tècnic."
+- Error → "L'enllaç no és vàlid o ha caducat. Contacta amb l'equip tècnic." (covers: expired, consumed, revoked, invalid)
 
 ### 6.3 Home (`/home`)
 
@@ -707,7 +733,8 @@ CORS_ORIGINS=http://localhost:4200,http://localhost:4300,http://<PRE_IP>:4200,ht
 **Auth:**
 - Login with valid/invalid credentials
 - Silent refresh on app load
-- Magic-link login (valid/invalid/revoked token)
+- Magic-link login (valid token, expired token, consumed token, revoked token, invalid token)
+- Magic-link single-use: second attempt with same token fails after first login
 - Redirect to login on expired session
 
 **Attendance:**
