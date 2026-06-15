@@ -151,8 +151,8 @@
               class="floor-add-node-btn"
               [style.grid-column]="getAddNodeButtonGridColumn()"
               (click)="onAddNodeToFloor(floor)"
-              [attr.aria-label]="'Afegir node a ' + floor.pisLabel"
-              title="Afegir node"
+              [attr.aria-label]="'Afegeix node a ' + floor.pisLabel"
+              title="Afegeix node"
             >
               <lucide-icon name="Plus" [size]="12" aria-hidden="true" />
             </button>
@@ -303,10 +303,10 @@
             type="button"
             class="btn btn-primary btn-xs gap-1 flex-1"
             (click)="onAddFloor()"
-            aria-label="Afegir pis"
+            aria-label="Afegeix pis"
           >
             <lucide-icon name="Plus" [size]="12" aria-hidden="true" />
-            Afegir pis
+            Afegeix pis
           </button>
         </div>
       }

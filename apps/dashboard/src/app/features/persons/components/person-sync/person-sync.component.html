@@ -26,7 +26,7 @@
       <div class="flex flex-wrap gap-3 items-center justify-between">
         <div>
           @if (syncState() === 'idle') {
-            <p class="text-sm text-base-content/70">Preparat per sincronitzar. Prem el botó per iniciar.</p>
+            <p class="text-sm text-base-content/70">Preparat per sincronitzar. Premeu el botó per iniciar.</p>
           } @else if (syncState() === 'running') {
             <p class="text-sm font-medium">Sincronitzant... {{ progress() }}%</p>
           } @else if (syncState() === 'complete') {
@@ -42,15 +42,15 @@
           @if (syncState() === 'idle' || syncState() === 'complete' || syncState() === 'error') {
             <button class="btn btn-primary btn-sm gap-1.5" (click)="startSync()" type="button">
               <lucide-icon name="RefreshCw" [size]="14" />
-              {{ syncState() === 'idle' ? 'Iniciar' : 'Tornar a sincronitzar' }}
+              {{ syncState() === 'idle' ? 'Inicia' : 'Torna a sincronitzar' }}
             </button>
           } @else if (syncState() === 'running') {
-            <button class="btn btn-ghost btn-sm" (click)="cancelSync()" type="button">Cancel·lar</button>
+            <button class="btn btn-ghost btn-sm" (click)="cancelSync()" type="button">Cancel·la</button>
           }
           @if (syncState() === 'complete') {
             <button class="btn btn-success btn-sm gap-1.5" (click)="goBackAndReload()" type="button">
               <lucide-icon name="Check" [size]="14" />
-              Finalitzar
+              Finalitza
             </button>
           }
         </div>

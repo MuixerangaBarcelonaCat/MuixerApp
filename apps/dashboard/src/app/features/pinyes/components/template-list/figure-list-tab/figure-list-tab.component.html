@@ -131,11 +131,11 @@
   <div class="modal-box">
     <h3 id="delete-figure-title" class="font-bold text-lg">Eliminar figura</h3>
     <p class="py-4">
-      Segur que vols eliminar «<strong>{{ deleteTargetName() }}</strong>»? Aquesta acció no es pot desfer.
+      Segur que voleu eliminar «<strong>{{ deleteTargetName() }}</strong>»? Aquesta acció no es pot desfer.
     </p>
     <div class="modal-action">
-      <button type="button" class="btn btn-ghost" (click)="onDeleteCancelled()">Cancel·lar</button>
-      <button type="button" class="btn btn-error" (click)="onDeleteConfirmed()">Eliminar</button>
+      <button type="button" class="btn btn-ghost" (click)="onDeleteCancelled()">Cancel·la</button>
+      <button type="button" class="btn btn-error" (click)="onDeleteConfirmed()">Elimina</button>
     </div>
   </div>
   <div class="modal-backdrop" (click)="onDeleteCancelled()" aria-hidden="true"></div>

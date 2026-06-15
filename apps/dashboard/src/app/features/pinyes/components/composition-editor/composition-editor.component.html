@@ -27,16 +27,16 @@
     />
 
     <!-- Inline slug editor -->
-    <label class="sr-only" for="comp-slug-input">Slug</label>
+    <label class="sr-only" for="comp-slug-input">Identificador</label>
     <span class="text-base-content/30 text-sm select-none">/</span>
     <input
       id="comp-slug-input"
       type="text"
       class="input input-ghost input-sm font-mono text-sm text-base-content/60 w-36 focus:bg-base-200 focus:outline-none"
-      placeholder="slug"
+      placeholder="identificador"
       [ngModel]="slugValue()"
       (ngModelChange)="onSlugChange($event)"
-      aria-label="Slug de la composició"
+      aria-label="Identificador de la composició"
     />
 
     <div class="flex-1"></div>
@@ -278,7 +278,7 @@
       >
         <lucide-icon name="MousePointerClick" [size]="32" class="text-base-content/20 mb-3" aria-hidden="true" />
         <p class="text-xs text-base-content/40 text-center">
-          Feu clic sobre una figura al llenç per veure les seves propietats
+          Feu clic sobre una figura per veure les seves propietats
         </p>
       </aside>
     }

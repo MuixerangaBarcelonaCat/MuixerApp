@@ -14,7 +14,7 @@
         <tr>
           <th class="w-12">Color</th>
           <th>Nom</th>
-          <th>Slug</th>
+          <th>Identificador</th>
           <th>Zona</th>
           <th class="text-right">Persones</th>
           <th class="w-24">Accions</th>
@@ -111,19 +111,19 @@
     <div class="modal-box max-w-sm">
       <h3 id="delete-confirm-title" class="font-bold text-lg">Eliminar posició</h3>
       <p class="py-4 text-sm">
-        Segur que vols eliminar <strong>{{ target.name }}</strong>?
+        Segur que voleu eliminar <strong>{{ target.name }}</strong>?
         @if (target.personCount > 0) {
           <br />
           <span class="text-warning">Aquesta posició té {{ target.personCount }} persones assignades.</span>
         }
       </p>
       <div class="modal-action">
-        <button type="button" class="btn btn-ghost btn-sm" (click)="cancelDelete()">Cancel·lar</button>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="cancelDelete()">Cancel·la</button>
         <button type="button" class="btn btn-error btn-sm" [disabled]="deleting()" (click)="executeDelete()">
           @if (deleting()) {
             <span class="loading loading-spinner loading-xs"></span>
           }
-          Eliminar
+          Elimina
         </button>
       </div>
     </div>

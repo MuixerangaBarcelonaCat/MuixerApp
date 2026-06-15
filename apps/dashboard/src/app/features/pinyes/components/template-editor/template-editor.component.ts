@@ -92,7 +92,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   // Template metadata
   templateId = signal<string | null>(null);
-  templateName = signal('Nova Figura');
+  templateName = signal('Figura nova');
   templateSlug = signal('');
   templateDescription = signal('');
   hasPinya = signal(true);
@@ -112,7 +112,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   private pendingAction: (() => void) | null = null;
   readonly needsName = computed(() => {
     const name = this.templateName().trim();
-    return !this.templateId() && (!name || name === 'Nova Figura');
+    return !this.templateId() && (!name || name === 'Figura nova');
   });
 
   // Preview mode
@@ -196,7 +196,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   readonly saveStatusLabel = computed(() => {
     const s = this.saveStatus();
-    if (s === 'saving') return 'Alçant...';
+    if (s === 'saving') return "S'està alçant...";
     if (s === 'saved') return 'Alçat';
     if (s === 'error') return "S'ha produït un error en alçar";
     return '';
@@ -921,10 +921,10 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     } else if (err.status === 409) {
       this.toast.error(
         msg ||
-          'Conflicte en desar la figura. Proveu a canviar el nom.',
+          'Conflicte en alçar la figura. Proveu a canviar el nom.',
       );
     } else {
-      this.toast.error("No s'ha pogut desar la figura. Torneu-ho a intentar.");
+      this.toast.error("No s'ha pogut alçar la figura. Torneu-ho a intentar.");
     }
   }
 
