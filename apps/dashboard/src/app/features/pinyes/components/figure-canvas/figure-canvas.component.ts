@@ -21,6 +21,7 @@ import {
   isGhostEligible,
 } from '../../utils/ghost-clone.util';
 import { screenToStage } from '../../utils/rengla-coordinates.util';
+import { computeFitTransform } from '../../utils/fit-to-bounds.util';
 
 /** Minimal node shape accepted by the canvas for rendering — both FigureNodeItem and InstanceNodeItem satisfy this */
 export interface CanvasNode {
@@ -607,7 +608,6 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.renderAssignmentNodes();
     } else if (this.mode() === 'readonly') {
       this.renderReadonlyNodes();
-      setTimeout(() => this.fitToScreen());
     } else {
       this.renderNodes();
     }
@@ -1188,7 +1188,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         node.width,
         node.height,
         {
-          maxFontSize: assignment ? 13 : 9,
+          maxFontSize: assignment ? 18 : 9,
           fontStyle: assignment ? 'bold' : 'normal',
           wrap: assignment ? 'none' : 'word',
         },
@@ -1219,6 +1219,20 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
     this.pinyaLayer.add(this.transformer);
     this.pinyaLayer.batchDraw();
+
+    const visibleNodes = this.nodes();
+    if (visibleNodes.length > 0) {
+      setTimeout(() => {
+        const fit = computeFitTransform(visibleNodes, this.stage.width(), this.stage.height(), { padding: 20 });
+        if (fit) {
+          this.stage.scale({ x: fit.scale, y: fit.scale });
+          this.stage.position({ x: fit.x, y: fit.y });
+          this.zoomLevel.set(fit.scale);
+          this.stage.batchDraw();
+          this.emitStageTransform();
+        }
+      });
+    }
   }
 
   private buildNodeGroup(

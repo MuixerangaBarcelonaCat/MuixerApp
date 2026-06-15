@@ -5,9 +5,7 @@
   </div>
 } @else if (segmentData()) {
   <div
-    class="flex flex-col h-screen w-screen overflow-hidden"
-    [class.bg-white]="bgColor() === 'white'"
-    [class.bg-black]="bgColor() === 'black'"
+    class="flex flex-col h-screen w-screen overflow-hidden bg-white"
     [class.cursor-none]="!cursorVisible()"
     (mousemove)="onMouseMove()"
     role="main"
@@ -35,15 +33,12 @@
               <app-figure-canvas
                 class="block w-full h-full"
                 mode="readonly"
-                [nodes]="getInstancePinyaNodes(instance)"
+                [nodes]="getInstanceProjectionNodes(instance)"
                 [assignments]="instance.assignments"
               />
 
               <span
-                class="absolute bottom-1 left-0 right-0 text-center text-sm font-semibold pointer-events-none truncate px-2"
-                [class.text-gray-800]="bgColor() === 'white'"
-                [class.text-white]="bgColor() === 'black'"
-                [class.opacity-70]="true"
+                class="absolute bottom-1 left-0 right-0 text-center text-lg font-semibold pointer-events-none truncate px-2 text-gray-800 opacity-70"
                 aria-hidden="true"
               >
                 {{ getInstanceName(instance) }}
@@ -54,12 +49,7 @@
 
               <a
                 [routerLink]="['/pinyes/events', eventId, 'segments', segmentId, 'project', instance.id]"
-                class="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity rounded-md p-1 focus-visible:opacity-100"
-                [class.bg-black]="bgColor() === 'white'"
-                [class.bg-white]="bgColor() === 'black'"
-                [class.text-white]="bgColor() === 'white'"
-                [class.text-black]="bgColor() === 'black'"
-                [class.bg-opacity-50]="true"
+                class="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity rounded-md p-1 focus-visible:opacity-100 bg-black bg-opacity-50 text-white"
                 [attr.aria-label]="'Veure ' + getInstanceName(instance) + ' en pantalla completa'"
                 title="Veure en pantalla completa"
               >
@@ -79,7 +69,7 @@
               [style.width.px]="panel.width"
               [style.height.px]="panel.height"
               [style.zIndex]="panel.zIndex"
-              [style.background]="bgColor() === 'white' ? 'rgba(30,30,30,0.92)' : 'rgba(0,0,0,0.88)'"
+              style="background: rgba(30,30,30,0.92)"
               role="dialog"
               aria-modal="false"
               [attr.aria-label]="'Tronc de ' + getInstanceName(inst)"
@@ -137,7 +127,7 @@
               [style.width]="itemWidthStyle()"
               [style.min-height.px]="200"
               [style.max-height]="itemHeightStyle()"
-              [style.background]="bgColor() === 'white' ? 'rgba(30,30,30,0.92)' : 'rgba(0,0,0,0.88)'"
+              style="background: rgba(30,30,30,0.92)"
             >
               <div class="px-3 py-2 border-b border-white/10 flex-shrink-0">
                 <span
@@ -237,17 +227,6 @@
           Troncs
         </button>
       </div>
-
-      <!-- Background color toggle -->
-      <button
-        type="button"
-        class="flex items-center justify-center rounded-full hover:bg-white/15 p-1 transition-colors"
-        (click)="toggleBgColor()"
-        [attr.aria-label]="bgColor() === 'white' ? 'Canviar fons a negre' : 'Canviar fons a blanc'"
-        title="Alternar fons"
-      >
-        <lucide-icon [name]="bgColor() === 'white' ? 'Moon' : 'Sun'" [size]="14" aria-hidden="true" />
-      </button>
 
       <!-- Help -->
       <button

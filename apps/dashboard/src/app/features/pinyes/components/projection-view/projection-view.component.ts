@@ -81,8 +81,6 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
   /** Pinya view: independently draggable/resizable tronc panels, one per figure. */
   readonly openTroncPanels = signal<TroncPanel[]>([]);
 
-  /** Background color for projection. */
-  readonly bgColor = signal<'white' | 'black'>('white');
 
   // ── Computed ────────────────────────────────────────────────────────────────
 
@@ -273,6 +271,13 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
     return instance.nodes.filter((n) => n.zone !== FigureZone.TRONC);
   }
 
+  getInstanceProjectionNodes(instance: ProjectionInstance) {
+    const assignedNodeIds = new Set(instance.assignments.map((a) => a.node.id));
+    return instance.nodes.filter(
+      (n) => n.zone !== FigureZone.TRONC && !(n.zone === FigureZone.PINYA && !assignedNodeIds.has(n.id)),
+    );
+  }
+
   getInstanceTroncNodes(instance: ProjectionInstance): TroncNodeItem[] {
     return instance.nodes.filter((n) => n.zone === FigureZone.TRONC) as TroncNodeItem[];
   }
@@ -297,12 +302,6 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
       parts.push('CO');
     }
     return parts.join('+');
-  }
-
-  // ── Background color ────────────────────────────────────────────────────────
-
-  toggleBgColor(): void {
-    this.bgColor.update((c) => (c === 'white' ? 'black' : 'white'));
   }
 
   // ── Segment navigation ──────────────────────────────────────────────────────
