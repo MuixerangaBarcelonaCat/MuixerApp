@@ -26,8 +26,8 @@ export const DECORATION_NODE_PRESETS: NodePreset[] = [
 export const PINYA_NODE_PRESETS: NodePreset[] = [
   { zone: FigureZone.PINYA, positionType: 'agulla', label: 'AGULLA', width: 80, height: 40, shape: NodeShape.RECTANGLE, color: '#0d9488', requiresCustomLabel: false },
   { zone: FigureZone.PINYA, positionType: 'mans', label: 'MANS', width: 80, height: 40, shape: NodeShape.RECTANGLE, color: '#FFE082', requiresCustomLabel: false },
-  { zone: FigureZone.PINYA, positionType: 'laterals', label: 'LATERALS', width: 80, height: 40, shape: NodeShape.RECTANGLE, color: '#80DEEA', requiresCustomLabel: false },
-  { zone: FigureZone.PINYA, positionType: 'vents', label: 'VENTS', width: 80, height: 40, shape: NodeShape.RECTANGLE, color: '#A5D6A7', requiresCustomLabel: false },
+  { zone: FigureZone.PINYA, positionType: 'laterals', label: 'LATERAL', width: 80, height: 40, shape: NodeShape.RECTANGLE, color: '#80DEEA', requiresCustomLabel: false },
+  { zone: FigureZone.PINYA, positionType: 'vents', label: 'VENT', width: 80, height: 40, shape: NodeShape.RECTANGLE, color: '#A5D6A7', requiresCustomLabel: false },
   { zone: FigureZone.PINYA, positionType: 'cordo-obert', label: 'CORDÓ OBERT', width: 80, height: 40, shape: NodeShape.ELLIPSE, color: '#FFF9C4', requiresCustomLabel: false },
   { zone: FigureZone.PINYA, positionType: 'tap', label: 'TAP', width: 80, height: 40, shape: NodeShape.RECTANGLE, color: '#be185d', requiresCustomLabel: false },
   { zone: FigureZone.PINYA, positionType: 'crossa', label: 'CROSSA', width: 80, height: 40, shape: NodeShape.RECTANGLE, color: '#9FA8DA', requiresCustomLabel: false },
