@@ -45,14 +45,14 @@ export interface FigureNodeItem {
   metadata: Record<string, unknown>;
 }
 
-export interface RenglaItem {
+interface RenglaItem {
   id: string;
   name: string;
   sortOrder: number;
   allowsCordoObert: boolean;
 }
 
-export interface FigureTemplateListItem {
+interface FigureTemplateListItem {
   id: string;
   name: string;
   slug: string;
@@ -65,7 +65,7 @@ export interface FigureTemplateListItem {
   updatedAt: Date;
 }
 
-export interface FigureTemplateDetailItem extends FigureTemplateListItem {
+interface FigureTemplateDetailItem extends FigureTemplateListItem {
   metadata: Record<string, unknown>;
   nodes: FigureNodeItem[];
   rengles: RenglaItem[];

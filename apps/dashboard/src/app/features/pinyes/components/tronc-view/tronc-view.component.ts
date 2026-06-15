@@ -10,6 +10,7 @@ import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
 import { AssignmentDetail, AttendanceStatus, HeightMode } from '../../models/assignment.model';
 import { floorVariance, varianceLevel, VarianceLevel } from '../../utils/floor-variance.util';
+import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
 
 /**
  * Minimal node shape accepted by TroncViewComponent.
@@ -37,8 +38,6 @@ interface TroncFloor {
   nodes: TroncNodeItem[];
   isBase: boolean;
 }
-
-const HEIGHT_BASELINE = 140;
 
 const MAX_TRONC_Z = 5;
 
@@ -339,7 +338,7 @@ export class TroncViewComponent {
   getHeightDisplay(shoulderHeight: number | null): string {
     if (shoulderHeight == null) return '';
     if (this.heightMode() === 'absolute') return `${shoulderHeight}`;
-    const diff = shoulderHeight - HEIGHT_BASELINE;
+    const diff = shoulderHeight - SHOULDER_HEIGHT_BASELINE_CM;
     return diff >= 0 ? `+${diff}` : `${diff}`;
   }
 

@@ -14,6 +14,7 @@ import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, Undo2, Redo2, Eye, EyeOff } from 'lucide-angular';
 import { HttpErrorResponse } from '@angular/common/http';
 import { generateUUID } from '../../../../shared/utils/uuid.util';
+import { slugify } from '../../utils/slugify.util';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { CanvasStateService } from '../../services/canvas-state.service';
 import { FigureCanvasComponent, CanvasNode } from '../figure-canvas/figure-canvas.component';
@@ -617,14 +618,14 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   onNameChange(value: string): void {
     this.templateName.set(value);
-    this.templateSlug.set(this.slugify(value));
+    this.templateSlug.set(slugify(value));
     this.scheduleAutosave();
   }
 
   confirmNamePrompt(name: string): void {
     if (!name.trim()) return;
     this.templateName.set(name.trim());
-    this.templateSlug.set(this.slugify(name.trim()));
+    this.templateSlug.set(slugify(name.trim()));
     this.showNamePrompt.set(false);
     if (this.pendingAction) {
       this.pendingAction();
@@ -859,7 +860,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   private save(): void {
     const name = this.templateName().trim();
-    const slug = this.templateSlug().trim() || this.slugify(name);
+    const slug = this.templateSlug().trim() || slugify(name);
     if (!name || !slug) return;
     this.templateSlug.set(slug);
 
@@ -986,15 +987,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     return 'Xicalla Dir.';
   }
 
-  private slugify(name: string): string {
-    return name
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9\s-]/g, '')
-      .trim()
-      .replace(/\s+/g, '-');
-  }
 }
 
 function nodeToPayload(node: FigureNodeItem): CreateFigureNodePayload {

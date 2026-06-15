@@ -3,7 +3,6 @@ import { APP_GUARD } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { DatabaseModule } from '../modules/database/database.module';
 import { PositionModule } from '../modules/position/position.module';
 import { UserModule } from '../modules/user/user.module';
@@ -38,8 +37,6 @@ import { RolesGuard } from '../modules/auth/guards/roles.guard';
   ],
   controllers: [AppController],
   providers: [
-    AppService,
-    // Aquest guard limita el nombre de peticions que pot fer cada client en un temps determinat (rate limiting).
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
