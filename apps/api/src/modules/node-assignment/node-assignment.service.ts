@@ -11,9 +11,9 @@ import {
   EventType,
   FigureZone,
   NodeShape,
-  AD_HOC_PINYA_PRESETS,
-  AD_HOC_DECORATION_PRESETS,
-  AD_HOC_DIRECTION_PRESETS,
+  PINYA_NODE_PRESETS,
+  DECORATION_NODE_PRESETS,
+  DIRECTION_NODE_PRESETS,
 } from '@muixer/shared';
 import { CreateAdHocNodeDto } from './dto/create-ad-hoc-node.dto';
 import { UpdateAdHocNodeDto } from './dto/update-ad-hoc-node.dto';
@@ -1101,7 +1101,7 @@ export class NodeAssignmentService {
       instance.snapshotted = true;
     }
 
-    const allPresets = [...AD_HOC_PINYA_PRESETS, ...AD_HOC_DECORATION_PRESETS, ...AD_HOC_DIRECTION_PRESETS];
+    const allPresets = [...PINYA_NODE_PRESETS, ...DECORATION_NODE_PRESETS, ...DIRECTION_NODE_PRESETS];
     const preset = allPresets.find(
       (p) => p.positionType === dto.positionType && p.zone === dto.zone,
     );

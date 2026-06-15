@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { AssignmentStateService } from './assignment-state.service';
 import { AssignmentDetail, AvailablePerson, InstanceNodeItem } from '../models/assignment.model';
-import { AD_HOC_PINYA_PRESETS } from '@muixer/shared';
+import { PINYA_NODE_PRESETS } from '@muixer/shared';
 
 const makeAssignment = (nodeId = 'node-1', personId = 'person-1'): AssignmentDetail => ({
   id: 'assignment-1',
@@ -163,7 +163,7 @@ describe('AssignmentStateService', () => {
   // ── ad-hoc placement mode ─────────────────────────────────────────────────
 
   describe('placement mode', () => {
-    const mansPreset = AD_HOC_PINYA_PRESETS.find((p) => p.positionType === 'mans')!;
+    const mansPreset = PINYA_NODE_PRESETS.find((p) => p.positionType === 'mans')!;
 
     it('isPlacementMode defaults to false', () => {
       expect(service.isPlacementMode()).toBe(false);
@@ -182,7 +182,7 @@ describe('AssignmentStateService', () => {
     });
 
     it('enterPlacementMode stores custom label for comodin', () => {
-      const comodinPreset = AD_HOC_PINYA_PRESETS.find((p) => p.requiresCustomLabel)!;
+      const comodinPreset = PINYA_NODE_PRESETS.find((p) => p.requiresCustomLabel)!;
       service.enterPlacementMode(comodinPreset, 'Extra mans');
 
       expect(service.placementCustomLabel()).toBe('Extra mans');
