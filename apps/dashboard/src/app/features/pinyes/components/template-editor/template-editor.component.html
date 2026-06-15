@@ -362,7 +362,7 @@
 
 
             <!-- Position type: only editable for non-TRONC nodes (for TRONC it is set by the floor preset) -->
-            @if (node.zone !== FigureZone.TRONC) {
+            <!-- @if (node.zone !== FigureZone.TRONC) {
               <div class="form-control mb-3">
                 <label class="label pb-1" [for]="'node-pos-' + node.id">
                   <span class="label-text text-xs font-medium">Tipus de posició</span>
@@ -376,7 +376,7 @@
                   (ngModelChange)="updateSelectedNodeProp('positionType', $event || null)"
                 />
               </div>
-            }
+            } -->
 
             <!-- Ring level: only for PINYA nodes -->
             @if (node.zone === FigureZone.PINYA) {
