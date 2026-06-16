@@ -15,6 +15,7 @@ import { UserDto } from '../../models/user.model';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { PersonSearchInputComponent } from '../../../../shared/components/forms/person-search-input/person-search-input.component';
 import { Person } from '../../../../features/persons/models/person.model';
+import { AuthService } from '../../../../core/auth/services/auth.service';
 
 @Component({
   selector: 'app-user-form-modal',
@@ -27,6 +28,7 @@ export class UserFormModalComponent {
   private readonly fb = inject(FormBuilder);
   private readonly userService = inject(UserService);
   private readonly toast = inject(ToastService);
+  private readonly authService = inject(AuthService);
 
   readonly user = input<UserDto | null>(null);
   readonly saved = output<UserDto>();
@@ -36,7 +38,19 @@ export class UserFormModalComponent {
   readonly linkedPerson = signal<Person | null>(null);
   readonly personWarning = signal<string | null>(null);
 
-  readonly roleOptions: UserRole[] = [UserRole.TECHNICAL, UserRole.ADMIN];
+  readonly roleOptions = computed<UserRole[]>(() =>
+    this.authService.userRole() === UserRole.ADMIN
+      ? [UserRole.TECHNICAL, UserRole.ADMIN]
+      : [UserRole.TECHNICAL],
+  );
+  readonly showRoleField = computed(() => {
+    const editUser = this.user();
+    if (!editUser) return true;
+    return !(
+      editUser.role === UserRole.ADMIN &&
+      this.authService.userRole() !== UserRole.ADMIN
+    );
+  });
   readonly roleLabels: Record<string, string> = {
     [UserRole.TECHNICAL]: 'Tècnica',
     [UserRole.ADMIN]: 'Administrador',
@@ -114,7 +128,10 @@ export class UserFormModalComponent {
       this.userService
         .update(editUser.id, {
           email: raw.email !== editUser.email ? raw.email! : undefined,
-          role: raw.role !== editUser.role ? raw.role! : undefined,
+          role:
+            this.showRoleField() && raw.role !== editUser.role
+              ? raw.role!
+              : undefined,
           personId: person ? person.id : (editUser.person ? null : undefined),
         })
         .subscribe({

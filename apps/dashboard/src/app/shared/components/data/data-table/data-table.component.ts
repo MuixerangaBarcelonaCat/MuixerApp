@@ -4,6 +4,8 @@ import {
   input,
   output,
   computed,
+  signal,
+  HostListener,
 } from '@angular/core';
 import { NgClass } from '@angular/common';
 import { LucideAngularModule } from 'lucide-angular';
@@ -94,5 +96,46 @@ export class DataTableComponent<T extends object> {
     // Show separator before the first past item
     const prevItem = items[index - 1];
     return index === 0 || !sep.predicate(prevItem);
+  }
+
+  readonly openActionsIndex = signal<number | null>(null);
+  readonly menuPosition = signal<{ top: number; left: number } | null>(null);
+
+  toggleActionsMenu(event: Event, index: number): void {
+    event.stopPropagation();
+    if (this.openActionsIndex() === index) {
+      this.closeActionsMenu();
+      return;
+    }
+
+    const button = event.currentTarget as HTMLElement;
+    const rect = button.getBoundingClientRect();
+    const menuWidth = 160;
+
+    this.menuPosition.set({
+      top: rect.bottom + 4,
+      left: Math.max(8, rect.right - menuWidth),
+    });
+    this.openActionsIndex.set(index);
+  }
+
+  closeActionsMenu(): void {
+    this.openActionsIndex.set(null);
+    this.menuPosition.set(null);
+  }
+
+  onRowAction(action: RowAction<T>, item: T): void {
+    action.action(item);
+    this.closeActionsMenu();
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    this.closeActionsMenu();
+  }
+
+  @HostListener('window:scroll')
+  onWindowScroll(): void {
+    this.closeActionsMenu();
   }
 }
