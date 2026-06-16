@@ -27,7 +27,7 @@
       @if (loading()) {
         <div class="flex items-center gap-2 py-6 justify-center text-base-content/50 text-sm">
           <span class="loading loading-spinner loading-sm"></span>
-          Carregant segments...
+          S'estan carregant els segments...
         </div>
       }
 
@@ -85,9 +85,9 @@
                     maxlength="120"
                   />
                   <button type="button" class="btn btn-success btn-xs gap-1" (click)="saveSegmentName(segment)">
-                    <lucide-icon name="Check" [size]="12" /> Alçar
+                    <lucide-icon name="Check" [size]="12" /> Alça
                   </button>
-                  <button type="button" class="btn btn-ghost btn-xs" (click)="cancelEdit()">Cancel·lar</button>
+                  <button type="button" class="btn btn-ghost btn-xs" (click)="cancelEdit()">Cancel·la</button>
                 } @else {
                   <button
                     type="button"
@@ -97,7 +97,7 @@
                   >
                     {{ displayName()(segment) }}
                     @if (!segment.name) {
-                      <span class="text-base-content/40 text-xs font-normal ml-1">(auto)</span>
+                      <span class="text-base-content/40 text-xs font-normal ml-1">(automàtic)</span>
                     }
                   </button>
                 }
@@ -137,7 +137,7 @@
                     [class.text-base-content]="isLocked()"
                     [class.opacity-50]="isLocked()"
                     (click)="navigateToAssignment(segment.id)"
-                    [attr.aria-label]="'Assignar persones al segment ' + displayName()(segment)"
+                    [attr.aria-label]="'Assigna persones al segment ' + displayName()(segment)"
                     [title]="isLocked() ? 'Assignacions bloquejades' : ''"
                   >
                     @if (isLocked()) {
@@ -145,16 +145,16 @@
                     } @else {
                       <lucide-icon name="Users" [size]="14" />
                     }
-                    Assignar
+                    Assigna
                   </button>
                   <button
                     type="button"
                     class="btn btn-ghost btn-xs gap-1 text-secondary"
                     (click)="navigateToProjection(segment.id)"
-                    [attr.aria-label]="'Projectar segment ' + displayName()(segment)"
+                    [attr.aria-label]="'Projecta el segment ' + displayName()(segment)"
                   >
                     <lucide-icon name="Monitor" [size]="14" />
-                    Projectar
+                    Projecta
                   </button>
                 }
 
@@ -204,7 +204,7 @@
                         type="button"
                         class="text-xs hover:underline cursor-pointer"
                         (click)="navigateToAssignment(segment.id, instance.id)"
-                        [attr.aria-label]="'Assignar ' + getInstanceLabel(instance)"
+                        [attr.aria-label]="'Assigna ' + getInstanceLabel(instance)"
                         [attr.data-instance-id]="instance.id">
                         {{ getInstanceLabel(instance) }}
                       </button>
@@ -263,7 +263,7 @@
     <div class="modal-box max-w-sm">
       <h3 id="remove-instance-title" class="text-lg font-bold mb-3 text-error">Eliminar figura del segment</h3>
       <p id="remove-instance-desc" class="text-sm text-base-content/70">
-        Vols eliminar
+        Voleu eliminar
         <strong>{{ getInstanceLabel(pendingInstanceRemoval()!.instance) }}</strong>
         del segment?
       </p>
@@ -284,7 +284,7 @@
           (click)="cancelInstanceRemoval()"
           [disabled]="removingInstance()"
         >
-          Cancel·lar
+          Cancel·la
         </button>
         <button
           type="button"
@@ -295,7 +295,7 @@
           @if (removingInstance()) {
             <span class="loading loading-spinner loading-xs"></span>
           }
-          Eliminar
+          Elimina
         </button>
       </div>
     </div>

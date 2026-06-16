@@ -28,6 +28,7 @@ class FigureCanvasStub {
   readonly nodes = input<CanvasNode[]>([]);
   readonly mode = input<CanvasMode>('readonly');
   readonly assignments = input<AssignmentDetail[]>([]);
+  readonly gridEnabled = input<boolean>(true);
 }
 
 @Component({ selector: 'app-tronc-view', standalone: true, template: '' })

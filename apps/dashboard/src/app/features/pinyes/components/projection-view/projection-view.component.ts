@@ -19,33 +19,6 @@ import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component'
 import { TroncViewComponent, TroncNodeItem } from '../tronc-view/tronc-view.component';
 import { FigureZone } from '@muixer/shared';
 
-type ViewMode = 'pinyes' | 'troncs';
-
-interface TroncPanel {
-  instanceId: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  zIndex: number;
-}
-
-interface DragState {
-  panelId: string;
-  startMouseX: number;
-  startMouseY: number;
-  startPanelX: number;
-  startPanelY: number;
-}
-
-interface ResizeState {
-  panelId: string;
-  startMouseX: number;
-  startMouseY: number;
-  startWidth: number;
-  startHeight: number;
-}
-
 @Component({
   selector: 'app-projection-view',
   standalone: true,
@@ -68,21 +41,12 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
   private readonly projectionService = inject(ProjectionService);
   private readonly toast = inject(ToastService);
 
-  readonly FigureZone = FigureZone;
-
   // ── State signals ───────────────────────────────────────────────────────────
 
   readonly loading = signal(true);
-  readonly viewMode = signal<ViewMode>('pinyes');
   readonly segmentData = signal<ProjectionSegmentData | null>(null);
   readonly cursorVisible = signal(true);
   readonly helpModalOpen = signal(false);
-
-  /** Pinya view: independently draggable/resizable tronc panels, one per figure. */
-  readonly openTroncPanels = signal<TroncPanel[]>([]);
-
-  /** Background color for projection. */
-  readonly bgColor = signal<'white' | 'black'>('white');
 
   // ── Computed ────────────────────────────────────────────────────────────────
 
@@ -109,9 +73,6 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
   segmentId = '';
 
   private cursorTimer: ReturnType<typeof setTimeout> | null = null;
-  private zCounter = 60;
-  private dragState: DragState | null = null;
-  private resizeState: ResizeState | null = null;
 
   // ── Lifecycle ───────────────────────────────────────────────────────────────
 
@@ -120,10 +81,6 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
     const params = this.route.snapshot.params;
     this.eventId = params['eventId'];
     this.segmentId = params['segmentId'];
-
-    const qp = this.route.snapshot.queryParams['view'];
-    if (qp === 'troncs') this.viewMode.set('troncs');
-
     this.loadSegment();
   }
 
@@ -140,46 +97,9 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
     if (event.key === 'ArrowRight') this.navigateSegment('next');
     if (event.key === 'Escape') this.handleEscape();
     if (event.key === 'f' || event.key === 'F') this.toggleBrowserFullscreen();
-    if (event.key === 'e' || event.key === 'E') this.toggleViewMode();
     if (event.key === '?' || event.key === 'h' || event.key === 'H') {
       this.helpModalOpen.update((v) => !v);
     }
-  }
-
-  // ── Drag & resize ───────────────────────────────────────────────────────────
-
-  @HostListener('document:mousemove', ['$event'])
-  onDocumentMouseMove(event: MouseEvent): void {
-    if (this.dragState) {
-      const dx = event.clientX - this.dragState.startMouseX;
-      const dy = event.clientY - this.dragState.startMouseY;
-      const { panelId, startPanelX, startPanelY } = this.dragState;
-      this.openTroncPanels.update((ps) =>
-        ps.map((p) =>
-          p.instanceId === panelId
-            ? { ...p, x: Math.max(0, startPanelX + dx), y: Math.max(0, startPanelY + dy) }
-            : p,
-        ),
-      );
-    }
-    if (this.resizeState) {
-      const dx = event.clientX - this.resizeState.startMouseX;
-      const dy = event.clientY - this.resizeState.startMouseY;
-      const { panelId, startWidth, startHeight } = this.resizeState;
-      this.openTroncPanels.update((ps) =>
-        ps.map((p) =>
-          p.instanceId === panelId
-            ? { ...p, width: Math.max(300, startWidth + dx), height: Math.max(200, startHeight + dy) }
-            : p,
-        ),
-      );
-    }
-  }
-
-  @HostListener('document:mouseup')
-  onDocumentMouseUp(): void {
-    this.dragState = null;
-    this.resizeState = null;
   }
 
   // ── Mouse / cursor management ───────────────────────────────────────────────
@@ -190,87 +110,14 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
     this.cursorTimer = setTimeout(() => this.cursorVisible.set(false), 3000);
   }
 
-  // ── View mode ───────────────────────────────────────────────────────────────
+  // ── Node data accessors ───────────────────────────────────────────────────
 
-  toggleViewMode(): void {
-    const next: ViewMode = this.viewMode() === 'pinyes' ? 'troncs' : 'pinyes';
-    this.viewMode.set(next);
-    this.syncQueryParam();
-  }
-
-  // ── Figure grid interactions (pinya view) ─────────────────────────────────
-
-  onFigureDoubleClicked(instanceId: string): void {
-    const existing = this.openTroncPanels().find((p) => p.instanceId === instanceId);
-    if (existing) {
-      this.bringPanelToFront(instanceId);
-      return;
-    }
-    const offset = this.openTroncPanels().length * 30;
-    this.zCounter++;
-    this.openTroncPanels.update((ps) => [
-      ...ps,
-      { instanceId, x: 16 + offset, y: 100 + offset, width: 600, height: 400, zIndex: this.zCounter },
-    ]);
-  }
-
-  bringPanelToFront(instanceId: string): void {
-    this.zCounter++;
-    const z = this.zCounter;
-    this.openTroncPanels.update((ps) =>
-      ps.map((p) => (p.instanceId === instanceId ? { ...p, zIndex: z } : p)),
+  /** Nodes to render in the pinya canvas: excludes TRONC and unassigned PINYA nodes. */
+  getInstanceProjectionNodes(instance: ProjectionInstance) {
+    const assignedNodeIds = new Set(instance.assignments.map((a) => a.node.id));
+    return instance.nodes.filter(
+      (n) => n.zone !== FigureZone.TRONC && !(n.zone === FigureZone.PINYA && !assignedNodeIds.has(n.id)),
     );
-  }
-
-  closeTroncPanel(instanceId: string): void {
-    this.openTroncPanels.update((ps) => ps.filter((p) => p.instanceId !== instanceId));
-  }
-
-  onPanelDragStart(event: MouseEvent, instanceId: string): void {
-    event.preventDefault();
-    const panel = this.openTroncPanels().find((p) => p.instanceId === instanceId);
-    if (!panel) return;
-    this.bringPanelToFront(instanceId);
-    this.dragState = {
-      panelId: instanceId,
-      startMouseX: event.clientX,
-      startMouseY: event.clientY,
-      startPanelX: panel.x,
-      startPanelY: panel.y,
-    };
-  }
-
-  onPanelResizeStart(event: MouseEvent, instanceId: string): void {
-    event.preventDefault();
-    event.stopPropagation();
-    const panel = this.openTroncPanels().find((p) => p.instanceId === instanceId);
-    if (!panel) return;
-    this.bringPanelToFront(instanceId);
-    this.resizeState = {
-      panelId: instanceId,
-      startMouseX: event.clientX,
-      startMouseY: event.clientY,
-      startWidth: panel.width,
-      startHeight: panel.height,
-    };
-  }
-
-  // ── Panel data accessors ──────────────────────────────────────────────────
-
-  getPanelInstance(instanceId: string): ProjectionInstance | undefined {
-    return this.segmentData()?.instances.find((i) => i.id === instanceId);
-  }
-
-  getPanelTroncNodes(instanceId: string): TroncNodeItem[] {
-    return (this.getPanelInstance(instanceId)?.nodes.filter((n) => n.zone === FigureZone.TRONC) ?? []) as TroncNodeItem[];
-  }
-
-  getPanelBaseNodes(instanceId: string): TroncNodeItem[] {
-    return (this.getPanelInstance(instanceId)?.nodes.filter((n) => n.zone === FigureZone.BASE) ?? []) as TroncNodeItem[];
-  }
-
-  getInstancePinyaNodes(instance: ProjectionInstance) {
-    return instance.nodes.filter((n) => n.zone !== FigureZone.TRONC);
   }
 
   getInstanceTroncNodes(instance: ProjectionInstance): TroncNodeItem[] {
@@ -290,19 +137,9 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
       return null;
     }
     const parts: string[] = [];
-    if (instance.numberOfCordons != null) {
-      parts.push(`${instance.numberOfCordons}C`);
-    }
-    if (instance.openCordons && instance.openCordons.length > 0) {
-      parts.push('CO');
-    }
+    if (instance.numberOfCordons != null) parts.push(`${instance.numberOfCordons}C`);
+    if (instance.openCordons && instance.openCordons.length > 0) parts.push('CO');
     return parts.join('+');
-  }
-
-  // ── Background color ────────────────────────────────────────────────────────
-
-  toggleBgColor(): void {
-    this.bgColor.update((c) => (c === 'white' ? 'black' : 'white'));
   }
 
   // ── Segment navigation ──────────────────────────────────────────────────────
@@ -310,17 +147,10 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
   navigateSegment(direction: 'prev' | 'next'): void {
     const data = this.segmentData();
     if (!data) return;
-    const targetId =
-      direction === 'prev' ? data.segment.prevSegmentId : data.segment.nextSegmentId;
+    const targetId = direction === 'prev' ? data.segment.prevSegmentId : data.segment.nextSegmentId;
     if (!targetId) return;
-
-    const queryParams = this.viewMode() === 'troncs' ? { view: 'troncs' } : {};
-    this.router.navigate(
-      ['/pinyes/events', this.eventId, 'segments', targetId, 'project'],
-      { queryParams },
-    );
+    this.router.navigate(['/pinyes/events', this.eventId, 'segments', targetId, 'project']);
     this.segmentId = targetId;
-    this.openTroncPanels.set([]);
     this.loadSegment();
   }
 
@@ -335,12 +165,6 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
       this.helpModalOpen.set(false);
       return;
     }
-    const panels = this.openTroncPanels();
-    if (panels.length > 0) {
-      const topPanel = panels.reduce((a, b) => (a.zIndex > b.zIndex ? a : b));
-      this.closeTroncPanel(topPanel.instanceId);
-      return;
-    }
     this.goBack();
   }
 
@@ -350,11 +174,6 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
     } else {
       document.exitFullscreen().catch(() => { /* best-effort */ });
     }
-  }
-
-  private syncQueryParam(): void {
-    const queryParams = this.viewMode() === 'troncs' ? { view: 'troncs' } : { view: null };
-    this.router.navigate([], { relativeTo: this.route, queryParams, queryParamsHandling: 'merge' });
   }
 
   private loadSegment(): void {

@@ -14,7 +14,6 @@ import {
 import { FormsModule } from '@angular/forms';
 import Konva from 'konva';
 import { FigureNodeItem } from '../../models/figure-template.model';
-import { CompositionSlotItem } from '../../models/composition.model';
 import { FigureZone, NodeShape, DIRECTION_ZONES } from '@muixer/shared';
 import { AssignmentDetail, HeightMode } from '../../models/assignment.model';
 import {
@@ -22,6 +21,7 @@ import {
   isGhostEligible,
 } from '../../utils/ghost-clone.util';
 import { screenToStage } from '../../utils/rengla-coordinates.util';
+import { computeFitTransform } from '../../utils/fit-to-bounds.util';
 
 /** Minimal node shape accepted by the canvas for rendering — both FigureNodeItem and InstanceNodeItem satisfy this */
 export interface CanvasNode {
@@ -58,22 +58,6 @@ export interface CompositionSlotWithNodes {
     name: string;
     hasPinya: boolean;
     nodes: FigureNodeItem[];
-  };
-}
-
-export function compositionSlotItemToCanvasSlot(slot: CompositionSlotItem): CompositionSlotWithNodes {
-  return {
-    slotId: slot.id,
-    label: slot.label,
-    offsetX: slot.offsetX,
-    offsetY: slot.offsetY,
-    sortOrder: slot.sortOrder,
-    figureTemplate: {
-      id: slot.figureTemplate.id,
-      name: slot.figureTemplate.name,
-      hasPinya: slot.figureTemplate.hasPinya,
-      nodes: slot.figureTemplate.nodes,
-    },
   };
 }
 
@@ -233,6 +217,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   private transformer!: Konva.Transformer;
 
   private resizeObserver: ResizeObserver | null = null;
+  private hasAutoFitted = false;
   /** Reused for measuring label text; not attached to the stage. */
   private labelMeasureProbe: Konva.Text | null = null;
 
@@ -624,7 +609,6 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.renderAssignmentNodes();
     } else if (this.mode() === 'readonly') {
       this.renderReadonlyNodes();
-      setTimeout(() => this.fitToScreen());
     } else {
       this.renderNodes();
     }
@@ -1205,7 +1189,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         node.width,
         node.height,
         {
-          maxFontSize: assignment ? 13 : 9,
+          maxFontSize: assignment ? 18 : 9,
           fontStyle: assignment ? 'bold' : 'normal',
           wrap: assignment ? 'none' : 'word',
         },
@@ -1236,6 +1220,21 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
     this.pinyaLayer.add(this.transformer);
     this.pinyaLayer.batchDraw();
+
+    const visibleNodes = this.nodes();
+    if (visibleNodes.length > 0 && !this.hasAutoFitted) {
+      this.hasAutoFitted = true;
+      setTimeout(() => {
+        const fit = computeFitTransform(visibleNodes, this.stage.width(), this.stage.height(), { padding: 20, maxScale: 2 }); // adjust maxScale to taste
+        if (fit) {
+          this.stage.scale({ x: fit.scale, y: fit.scale });
+          this.stage.position({ x: fit.x, y: fit.y });
+          this.zoomLevel.set(fit.scale);
+          this.stage.batchDraw();
+          this.emitStageTransform();
+        }
+      });
+    }
   }
 
   private buildNodeGroup(

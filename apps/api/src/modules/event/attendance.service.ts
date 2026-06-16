@@ -199,7 +199,7 @@ export class AttendanceService {
   }
 }
 
-export interface AttendancePersonRef {
+interface AttendancePersonRef {
   id: string;
   alias: string;
   name: string;
@@ -208,7 +208,7 @@ export interface AttendancePersonRef {
   positions: { id: string; name: string; color: string | null }[];
 }
 
-export interface AttendanceItem {
+interface AttendanceItem {
   id: string;
   status: AttendanceStatus;
   respondedAt: Date | null;

@@ -1,6 +1,6 @@
-import { EventType, AttendanceStatus, AttendanceSummary, RehearsalMetadata, PerformanceMetadata } from '@muixer/shared';
+import { EventType, AttendanceSummary, RehearsalMetadata, PerformanceMetadata } from '@muixer/shared';
 
-export { EventType, AttendanceStatus };
+export { EventType };
 export type { AttendanceSummary };
 
 export type EventTimeFilter = 'upcoming' | 'past' | 'all';

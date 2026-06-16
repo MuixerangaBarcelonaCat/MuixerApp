@@ -17,7 +17,7 @@
     <lucide-icon name="Search" [size]="16" class="text-base-content/40" aria-hidden="true" />
     <input
       type="search"
-      placeholder="Cerca per no..."
+      placeholder="Cerca per nom..."
       [(ngModel)]="compositionsSearchInput"
       (ngModelChange)="onCompositionsSearchChange($event)"
       class="grow"
@@ -81,7 +81,7 @@
           <div class="card-actions justify-end gap-1 mt-1">
             @if (compositionsConfirmDeleteId() === composition.id) {
               <div class="flex items-center gap-2 w-full">
-                <span class="text-xs text-error flex-1">Eliminar composició?</span>
+                <span class="text-xs text-error flex-1">Voleu eliminar la composició?</span>
                 <button type="button" class="btn btn-ghost btn-xs" (click)="cancelDeleteComposition()">Cancel·la</button>
                 <button type="button" class="btn btn-error btn-xs" (click)="confirmDeleteComposition(composition.id)">Elimina</button>
               </div>
@@ -91,24 +91,24 @@
                 class="btn btn-ghost btn-xs gap-1"
                 [disabled]="compositionsDeletingId() === composition.id"
                 (click)="duplicateComposition(composition.id)"
-                [attr.aria-label]="'Duplicar composició ' + composition.name"
+                [attr.aria-label]="'Duplica composició ' + composition.name"
               >
                 <lucide-icon name="Copy" [size]="13" aria-hidden="true" />
-                Duplicar
+                Duplica
               </button>
               <button
                 type="button"
                 class="btn btn-ghost btn-xs gap-1 text-error hover:bg-error/10"
                 [disabled]="compositionsDeletingId() === composition.id"
                 (click)="requestDeleteComposition(composition.id)"
-                [attr.aria-label]="'Eliminar composició ' + composition.name"
+                [attr.aria-label]="'Elimina composició ' + composition.name"
               >
                 @if (compositionsDeletingId() === composition.id) {
                   <span class="loading loading-spinner loading-xs"></span>
                 } @else {
                   <lucide-icon name="Trash2" [size]="13" aria-hidden="true" />
                 }
-                Eliminar
+                Elimina
               </button>
               <button
                 type="button"

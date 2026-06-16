@@ -105,6 +105,10 @@
   height: 14px;
   border-radius: 3px;
   flex-shrink: 0;
+
+  &.node-ellipse {
+    border-radius: 9999px;
+  }
 }
 
 // ── Canvas ────────────────────────────────────────────────────────────────

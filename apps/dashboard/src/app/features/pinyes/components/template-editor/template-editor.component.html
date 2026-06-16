@@ -106,7 +106,7 @@
         (click)="toggleRenglaEditMode()"
         [attr.aria-pressed]="renglaEditMode()"
         aria-label="Edita rengles"
-        title="Edit rengles"
+        title="Edita les rengles"
       >
         <lucide-icon name="GitBranchPlus" [size]="16" aria-hidden="true" />
         Rengles
@@ -157,7 +157,7 @@
       <span>
         Hi ha {{ adHocInstanceCount() }}
         {{ adHocInstanceCount() === 1 ? 'instància' : 'instàncies' }}
-        amb nodes creats manualment. Els canvis al template no afecten les instàncies ja existents.
+        amb nodes creats manualment. Els canvis a la plantilla no afecten les instàncies ja existents.
       </span>
       <button type="button" class="btn btn-ghost btn-xs" (click)="dismissAdHocBanner()" aria-label="Tancar">
         <lucide-icon name="X" [size]="12" aria-hidden="true" />
@@ -179,8 +179,8 @@
           type="button"
           class="toolbar-btn"
           (click)="onBaseNodeAdded({ sortOrder: baseNodes().length })"
-          title="Afegir Base"
-          aria-label="Afegir node Base"
+          title="Afegeix base"
+          aria-label="Afegeix node base"
         >
           <span class="node-rect" style="background-color: #EEEEEE; border: 1px dashed #a1a1a1;" aria-hidden="true"></span>
           BASE
@@ -214,7 +214,12 @@
             [title]="'Afegir ' + pos.label"
             [attr.aria-label]="'Afegir node ' + pos.label"
           >
-            <span class="node-rect" [style.backgroundColor]="pos.color" aria-hidden="true"></span>
+            <span
+              class="node-rect"
+              [class.node-ellipse]="pos.shape === NodeShape.ELLIPSE"
+              [style.backgroundColor]="pos.color"
+              aria-hidden="true"
+            ></span>
             {{ pos.label }}
           </button>
         }
@@ -228,11 +233,11 @@
           class="toolbar-btn text-error disabled:opacity-30"
           [disabled]="!selectedNodeId()"
           (click)="deleteSelectedNode()"
-          title="Eliminar node seleccionat"
-          aria-label="Eliminar node seleccionat"
+          title="Elimina el node seleccionat"
+          aria-label="Elimina el node seleccionat"
         >
           <lucide-icon name="Trash2" [size]="14" aria-hidden="true" />
-          Eliminar
+          Elimina
         </button>
       </div>
 
@@ -346,6 +351,63 @@
           @if (selectedNode(); as node) {
             <h2 class="panel-title">Propietats del node</h2>
 
+            <!-- Position preset: only for PINYA nodes -->
+            @if (node.zone === FigureZone.PINYA) {
+              <div class="form-control mb-3">
+                <span class="label-text text-xs font-medium mb-1 block">Tipus de posició</span>
+                <div class="relative" #presetDropdownRef>
+                  <!-- Trigger -->
+                  <button
+                    type="button"
+                    class="select select-bordered select-sm w-full flex items-center gap-2 text-left pr-8"
+                    (click)="presetDropdownOpen.update(v => !v)"
+                  >
+                    @if (currentPinyaPreset(); as preset) {
+                      <span
+                        class="w-3 h-3 shrink-0 inline-block border border-black/10"
+                        [class.rounded-full]="preset.shape === NodeShape.ELLIPSE"
+                        [class.rounded-sm]="preset.shape !== NodeShape.ELLIPSE"
+                        [style.backgroundColor]="preset.color ?? '#ccc'"
+                      ></span>
+                      <span>{{ preset.label || preset.positionType }}</span>
+                    } @else {
+                      <span class="w-3 h-3 shrink-0 inline-block rounded-sm bg-base-300 border border-black/10"></span>
+                      <span class="text-base-content/50">Altre</span>
+                    }
+                    <lucide-icon name="ChevronDown" [size]="12" class="ml-auto shrink-0 text-base-content/50" aria-hidden="true" />
+                  </button>
+
+                  <!-- Dropdown list -->
+                  @if (presetDropdownOpen()) {
+                    <ul
+                      class="absolute z-50 left-0 right-0 top-full mt-1 bg-base-100 border border-base-300 rounded-lg shadow-lg py-1 overflow-y-auto"
+                      role="listbox"
+                      [attr.aria-label]="'Tipus de posició de pinya'"
+                    >
+                      @for (preset of pinyaPositions; track preset.positionType) {
+                        <li role="option" [attr.aria-selected]="currentPinyaPreset()?.positionType === preset.positionType">
+                          <button
+                            type="button"
+                            class="w-full flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-base-200 text-left"
+                            [class.bg-base-200]="currentPinyaPreset()?.positionType === preset.positionType"
+                            (click)="applyPinyaPreset(preset.positionType!)"
+                          >
+                            <span
+                              class="w-3 h-3 shrink-0 inline-block border border-black/10"
+                              [class.rounded-full]="preset.shape === NodeShape.ELLIPSE"
+                              [class.rounded-sm]="preset.shape !== NodeShape.ELLIPSE"
+                              [style.backgroundColor]="preset.color ?? '#ccc'"
+                            ></span>
+                            {{ preset.label || preset.positionType }}
+                          </button>
+                        </li>
+                      }
+                    </ul>
+                  }
+                </div>
+              </div>
+            }
+
             <!-- Label -->
             <div class="form-control mb-3">
               <label class="label pb-1" [for]="'node-label-' + node.id">
@@ -359,50 +421,6 @@
                 (ngModelChange)="updateSelectedNodeProp('label', $event)"
               />
             </div>
-
-            <!-- Zone: only editable for non-TRONC nodes -->
-            @if (node.zone !== FigureZone.TRONC) {
-              <div class="form-control mb-3">
-                <label class="label pb-1" [for]="'node-zone-' + node.id">
-                  <span class="label-text text-xs font-medium">Zona</span>
-                </label>
-                <select
-                  [id]="'node-zone-' + node.id"
-                  class="select select-bordered select-sm"
-                  [ngModel]="node.zone"
-                  (ngModelChange)="updateSelectedNodeProp('zone', $event)"
-                >
-                  <option [value]="FigureZone.BASE">Base</option>
-                  <option [value]="FigureZone.PINYA">Pinya</option>
-                  <option [value]="FigureZone.FIGURE_DIRECTION">Direcció Figura</option>
-                  <option [value]="FigureZone.XICALLA_DIRECTION">Direcció Xicalla</option>
-                </select>
-                @if (node.zone === FigureZone.PINYA || node.zone === FigureZone.BASE) {
-                  <div class="label pt-1">
-                    <span class="label-text-alt text-base-content/50">
-                      Els nodes de pinya i base sempre tenen pis = 0
-                    </span>
-                  </div>
-                }
-              </div>
-            }
-
-            <!-- Position type: only editable for non-TRONC nodes (for TRONC it is set by the floor preset) -->
-            @if (node.zone !== FigureZone.TRONC) {
-              <div class="form-control mb-3">
-                <label class="label pb-1" [for]="'node-pos-' + node.id">
-                  <span class="label-text text-xs font-medium">Tipus de posició</span>
-                </label>
-                <input
-                  type="text"
-                  [id]="'node-pos-' + node.id"
-                  class="input input-bordered input-sm"
-                  placeholder="base, segon, cross..."
-                  [ngModel]="node.positionType"
-                  (ngModelChange)="updateSelectedNodeProp('positionType', $event || null)"
-                />
-              </div>
-            }
 
             <!-- Ring level: only for PINYA nodes -->
             @if (node.zone === FigureZone.PINYA) {
@@ -562,7 +580,7 @@
             <div class="flex flex-col items-center justify-center h-full gap-3 text-center px-4">
               <lucide-icon name="MousePointer2" [size]="32" class="text-base-content/20" aria-hidden="true" />
               <p class="text-sm text-base-content/50">
-                Feu clic a un node del canvas per veure i editar les seves propietats
+                Feu clic a un node de l'editor per veure i editar les seves propietats
               </p>
             </div>
           }
@@ -746,14 +764,14 @@
 
       <!-- Canvas -->
       <section aria-labelledby="shortcuts-canvas">
-        <h3 id="shortcuts-canvas" class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-2">Canvas</h3>
+        <h3 id="shortcuts-canvas" class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-2">Vista</h3>
         <ul class="space-y-2" role="list">
           <li class="flex items-center justify-between gap-4">
             <span class="text-sm">Zoom</span>
             <span class="shortcuts-keys"><kbd class="kbd kbd-sm">Roda ratolí</kbd></span>
           </li>
           <li class="flex items-center justify-between gap-4">
-            <span class="text-sm">Desplaça canvas</span>
+            <span class="text-sm">Desplaça la vista</span>
             <span class="shortcuts-keys flex gap-1">
               <kbd class="kbd kbd-sm">Clic mig</kbd>
               <span class="text-base-content/40 text-xs self-center">/</span>
@@ -785,8 +803,8 @@
         aria-label="Nom de la figura"
       />
       <div class="modal-action">
-        <button type="button" class="btn btn-ghost btn-sm" (click)="cancelNamePrompt()">Cancel·lar</button>
-        <button type="button" class="btn btn-primary btn-sm" (click)="confirmNamePrompt(nameInput.value)">Confirmar</button>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="cancelNamePrompt()">Cancel·la</button>
+        <button type="button" class="btn btn-primary btn-sm" (click)="confirmNamePrompt(nameInput.value)">Confirma</button>
       </div>
     </div>
     <button type="button" class="modal-backdrop" (click)="cancelNamePrompt()" aria-label="Tancar"></button>
