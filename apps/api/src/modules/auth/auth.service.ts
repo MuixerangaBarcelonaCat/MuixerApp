@@ -2,15 +2,19 @@ import {
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import crypto from 'crypto';
 import { ClientType, UserProfile, UserRole } from '@muixer/shared';
 import { User } from '../user/user.entity';
 import { Person } from '../person/person.entity';
+import { MailService } from '../mail/mail.service';
+import { getPasswordResetTtlHours } from '../mail/constants/mail.constants';
 import { TokenService } from './token.service';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
@@ -21,6 +25,8 @@ const BCRYPT_ROUNDS = 12;
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
@@ -28,6 +34,7 @@ export class AuthService {
     private readonly personRepo: Repository<Person>,
     private readonly jwtService: JwtService,
     private readonly tokenService: TokenService,
+    private readonly mailService: MailService,
   ) {}
 
   /** Comprova email i contrasenya via bcrypt. Retorna null si l'usuari no existeix, no està actiu o la contrasenya és incorrecta. */
@@ -116,6 +123,12 @@ export class AuthService {
     return this.toUserProfile(user);
   }
 
+  private queueWelcomeEmail(email: string, displayName?: string): void {
+    this.mailService.sendWelcomeEmail(email, displayName).catch((error) => {
+      this.logger.warn(`Failed to send welcome email to ${email}`, error);
+    });
+  }
+
   /** Activa el compte d'un membre a partir del token d'invitació. Valida que el token no hagi caducat i fa auto-login un cop activat. */
   async acceptInvite(dto: AcceptInviteDto): Promise<{ response: AuthResponseDto; refreshToken: string }> {
     const user = await this.userRepo.findOne({
@@ -144,10 +157,64 @@ export class AuthService {
     const accessToken = this.signAccessToken(user);
     const refreshToken = await this.tokenService.createRefreshToken(user, clientType);
 
+    const person = user.person as Person | null;
+    const displayName = person?.alias ?? person?.name ?? undefined;
+    this.queueWelcomeEmail(user.email, displayName);
+
     return {
       response: { accessToken, user: this.toUserProfile(user) },
       refreshToken,
     };
+  }
+
+  /** Genera un token de restabliment i envia el correu. No revela si l'email existeix. */
+  async requestPasswordReset(email: string): Promise<void> {
+    const user = await this.userRepo.findOne({
+      where: { email },
+    });
+
+    if (!user?.isActive || !user.passwordHash) {
+      return;
+    }
+
+    const resetToken = crypto.randomBytes(16).toString('hex');
+    const resetExpiresAt = new Date();
+    resetExpiresAt.setHours(resetExpiresAt.getHours() + getPasswordResetTtlHours());
+
+    await this.userRepo.update(user.id, {
+      resetToken,
+      resetExpiresAt,
+    });
+
+    try {
+      await this.mailService.sendPasswordResetEmail(
+        user.email,
+        resetToken,
+        user.role,
+      );
+    } catch (error) {
+      this.logger.warn(`Failed to send password reset email to ${email}`, error);
+    }
+  }
+
+  /** Restableix la contrasenya amb un token vàlid i revoca totes les sessions actives. */
+  async resetPassword(token: string, password: string): Promise<void> {
+    const user = await this.userRepo.findOne({
+      where: { resetToken: token },
+    });
+
+    if (!user || !user.resetExpiresAt || user.resetExpiresAt < new Date()) {
+      throw new UnauthorizedException('Token de restabliment invàlid o caducat');
+    }
+
+    const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+    await this.userRepo.update(user.id, {
+      passwordHash,
+      resetToken: null,
+      resetExpiresAt: null,
+    });
+
+    await this.tokenService.revokeAllUserTokens(user.id);
   }
 
   /** Crea el primer usuari TECHNICAL via `SETUP_TOKEN`. Si l'email ja existeix, retorna el perfil existent sense crear-ne un de nou (idempotent). */
@@ -184,6 +251,7 @@ export class AuthService {
       relations: ['person'],
     });
     if (reloaded) {
+      this.queueWelcomeEmail(reloaded.email);
       return this.toUserProfile(reloaded);
     } else {
       throw new InternalServerErrorException('No s\'ha pogut crear l\'usuari');

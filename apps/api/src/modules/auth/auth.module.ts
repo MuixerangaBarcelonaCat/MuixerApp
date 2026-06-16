@@ -4,6 +4,7 @@ import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from '../user/user.entity';
 import { Person } from '../person/person.entity';
+import { MailModule } from '../mail/mail.module';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
@@ -16,6 +17,7 @@ import { RolesGuard } from './guards/roles.guard';
 @Module({
   imports: [
     PassportModule,
+    MailModule,
     JwtModule.register({
       secret: process.env['JWT_SECRET'] ?? 'change-me',
       signOptions: { expiresIn: parseInt(process.env['JWT_ACCESS_TTL'] ?? '900', 10) },

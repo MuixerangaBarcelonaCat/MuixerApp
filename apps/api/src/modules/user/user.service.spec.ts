@@ -3,12 +3,14 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import {
   BadRequestException,
   ConflictException,
+  HttpException,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { User } from './user.entity';
 import { Person } from '../person/person.entity';
+import { MailService } from '../mail/mail.service';
 import { UserRole } from '@muixer/shared';
 
 jest.mock('bcrypt', () => ({
@@ -46,6 +48,10 @@ describe('UserService', () => {
   let userQb: Record<string, jest.Mock>;
   let mockUserRepo: Record<string, jest.Mock>;
   let mockPersonRepo: Record<string, jest.Mock>;
+  let mockMailService: {
+    sendInviteEmail: jest.Mock;
+    sendWelcomeEmail: jest.Mock;
+  };
 
   beforeEach(async () => {
     userQb = {
@@ -70,18 +76,21 @@ describe('UserService', () => {
       save: jest.fn(),
     };
 
+    mockMailService = {
+      sendInviteEmail: jest.fn().mockResolvedValue(undefined),
+      sendWelcomeEmail: jest.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UserService,
         { provide: getRepositoryToken(User), useValue: mockUserRepo },
         { provide: getRepositoryToken(Person), useValue: mockPersonRepo },
+        { provide: MailService, useValue: mockMailService },
       ],
     }).compile();
 
     service = module.get<UserService>(UserService);
-
-    // Prevent actual email sending in all tests
-    jest.spyOn(service, 'sendInvitationEmail').mockResolvedValue(undefined);
   });
 
   // ---------------------------------------------------------------------------
@@ -352,6 +361,35 @@ describe('UserService', () => {
       expect(expiry).toBeGreaterThanOrEqual(before + expectedMs - 1000);
       expect(expiry).toBeLessThanOrEqual(after + expectedMs + 1000);
     });
+
+    it('sends invite email via MailService', async () => {
+      const user = makeUser({ isActive: false, email: 'invite@example.com' });
+      mockUserRepo.findOne.mockResolvedValue(user);
+      mockUserRepo.save.mockImplementation(async (u: User) => u);
+
+      await service.sendInvite('user-uuid');
+
+      expect(mockMailService.sendInviteEmail).toHaveBeenCalledWith(
+        'invite@example.com',
+        expect.any(String),
+      );
+    });
+
+    it('throws 429 when an invite was sent within the cooldown window', async () => {
+      process.env['INVITE_COOLDOWN_MINUTES'] = '2';
+      const user = makeUser({
+        isActive: false,
+        inviteToken: 'existing-token',
+        updatedAt: new Date(),
+      });
+      mockUserRepo.findOne.mockResolvedValue(user);
+
+      await expect(service.sendInvite('user-uuid')).rejects.toBeInstanceOf(HttpException);
+
+      expect(mockUserRepo.save).not.toHaveBeenCalled();
+      expect(mockMailService.sendInviteEmail).not.toHaveBeenCalled();
+      delete process.env['INVITE_COOLDOWN_MINUTES'];
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -448,7 +486,9 @@ describe('UserService', () => {
     it('creates user with hashed password, role and isActive=true', async () => {
       mockUserRepo.findOne
         .mockResolvedValueOnce(null) // email check
-        .mockResolvedValueOnce(makeUser({ role: UserRole.TECHNICAL, isActive: true })); // reload
+        .mockResolvedValueOnce(
+          makeUser({ email: 'tech@example.com', role: UserRole.TECHNICAL, isActive: true }),
+        ); // reload
       mockUserRepo.create.mockReturnValue(
         makeUser({ role: UserRole.TECHNICAL, isActive: true }),
       );
@@ -468,6 +508,10 @@ describe('UserService', () => {
       );
       expect(result.role).toBe(UserRole.TECHNICAL);
       expect(result.isActive).toBe(true);
+      expect(mockMailService.sendWelcomeEmail).toHaveBeenCalledWith(
+        'tech@example.com',
+        'jdoe',
+      );
     });
 
     it('links person when personId is provided', async () => {

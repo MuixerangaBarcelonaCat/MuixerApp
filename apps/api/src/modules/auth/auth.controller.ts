@@ -25,6 +25,8 @@ import { ClientType, JwtPayload, UserProfile } from '@muixer/shared';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { SetupUserDto } from './dto/setup-user.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { Public } from './decorators/public.decorator';
@@ -160,6 +162,27 @@ export class AuthController {
     const clientType = response.user.role === 'MEMBER' ? ClientType.PWA : ClientType.DASHBOARD;
     this.setRefreshCookie(res, refreshToken, clientType);
     return response;
+  }
+
+  /** Sol·licita un enllaç de restabliment de contrasenya per correu. Sempre retorna 204 (no revela si l'email existeix). */
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Sol·licitar restabliment de contrasenya' })
+  @ApiResponse({ status: 204, description: 'Si el correu existeix, s\'ha enviat un enllaç de restabliment.' })
+  async forgotPassword(@Body() dto: ForgotPasswordDto): Promise<void> {
+    await this.authService.requestPasswordReset(dto.email);
+  }
+
+  /** Restableix la contrasenya amb el token rebut per correu. */
+  @Public()
+  @Post('reset-password')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Restablir contrasenya amb token' })
+  @ApiResponse({ status: 204, description: 'Contrasenya restablida correctament.' })
+  @ApiResponse({ status: 401, description: 'Token invàlid o caducat.' })
+  async resetPassword(@Body() dto: ResetPasswordDto): Promise<void> {
+    await this.authService.resetPassword(dto.token, dto.password);
   }
 
   /** Crea el primer usuari TECHNICAL del sistema. Requereix la capçalera `X-Setup-Token`. Eliminar SETUP_TOKEN del .env en producció. */

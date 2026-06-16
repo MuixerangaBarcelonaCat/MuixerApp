@@ -65,6 +65,16 @@ export class UserController {
     return this.userService.grantRole(id, dto.role);
   }
 
+  @Post(':id/send-invite')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: "Reenvia l'email d'invitació a un usuari pendent" })
+  @ApiResponse({ status: 204, description: 'Invitació enviada' })
+  @ApiResponse({ status: 400, description: "No s'ha pogut enviar la invitació" })
+  @ApiResponse({ status: 404, description: 'Usuari no trobat' })
+  async sendInvite(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    return this.userService.sendInvite(id);
+  }
+
   @Patch(':id/deactivate')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Desactiva un usuari' })

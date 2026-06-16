@@ -36,11 +36,19 @@
       <button type="button" class="btn btn-ghost btn-sm" (click)="close()" [disabled]="sending()">
         Cancel·la
       </button>
-      <button type="button" class="btn btn-success btn-sm" (click)="send()" [disabled]="sending() || !email().trim()">
+      <button
+        type="button"
+        class="btn btn-success btn-sm"
+        (click)="send()"
+        [disabled]="sending() || !email().trim()"
+        [attr.aria-busy]="sending()"
+      >
         @if (sending()) {
           <span class="loading loading-spinner loading-xs"></span>
+          Enviant…
+        } @else {
+          Envia invitació
         }
-        Envia
       </button>
     </div>
   </div>

@@ -5,12 +5,22 @@ import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { ClientType, UserRole } from '@muixer/shared';
 import { AuthService } from './auth.service';
 import { TokenService } from './token.service';
+import { MailService } from '../mail/mail.service';
 import { User } from '../user/user.entity';
 import { Person } from '../person/person.entity';
 
 jest.mock('bcrypt', () => ({
   compare: jest.fn(),
   hash: jest.fn(),
+}));
+
+jest.mock('crypto', () => ({
+  __esModule: true,
+  default: {
+    randomBytes: jest.fn(() => ({
+      toString: jest.fn(() => 'reset-token-hex'),
+    })),
+  },
 }));
  
 const bcrypt = require('bcrypt') as { compare: jest.Mock; hash: jest.Mock };
@@ -54,11 +64,17 @@ const mockTokenService = () => ({
   rotateRefreshToken: jest.fn(),
 });
 
+const mockMailService = () => ({
+  sendWelcomeEmail: jest.fn().mockResolvedValue(undefined),
+  sendPasswordResetEmail: jest.fn().mockResolvedValue(undefined),
+});
+
 describe('AuthService', () => {
   let service: AuthService;
   let userRepo: ReturnType<typeof mockUserRepo>;
   let personRepo: ReturnType<typeof mockPersonRepo>;
   let tokenService: ReturnType<typeof mockTokenService>;
+  let mailService: ReturnType<typeof mockMailService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -68,6 +84,7 @@ describe('AuthService', () => {
         { provide: getRepositoryToken(Person), useFactory: mockPersonRepo },
         { provide: JwtService, useFactory: mockJwt },
         { provide: TokenService, useFactory: mockTokenService },
+        { provide: MailService, useFactory: mockMailService },
       ],
     }).compile();
 
@@ -75,6 +92,7 @@ describe('AuthService', () => {
     userRepo = module.get(getRepositoryToken(User));
     personRepo = module.get(getRepositoryToken(Person));
     tokenService = module.get(TokenService);
+    mailService = module.get(MailService);
   });
 
   describe('validateUser', () => {
@@ -163,6 +181,10 @@ describe('AuthService', () => {
         user.id,
         expect.objectContaining({ isActive: true, inviteToken: null }),
       );
+      expect(mailService.sendWelcomeEmail).toHaveBeenCalledWith(
+        user.email,
+        undefined,
+      );
     });
 
     it('throws for expired invite token', async () => {
@@ -179,6 +201,78 @@ describe('AuthService', () => {
       await expect(service.acceptInvite({ token: 'bad', password: 'pass123!' })).rejects.toThrow(
         UnauthorizedException,
       );
+    });
+  });
+
+  describe('requestPasswordReset', () => {
+    it('does nothing when user is not found', async () => {
+      userRepo.findOne.mockResolvedValue(null);
+
+      await service.requestPasswordReset('missing@test.cat');
+
+      expect(userRepo.update).not.toHaveBeenCalled();
+      expect(mailService.sendPasswordResetEmail).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when user is inactive', async () => {
+      userRepo.findOne.mockResolvedValue(makeUser({ isActive: false }));
+
+      await service.requestPasswordReset('test@test.cat');
+
+      expect(userRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('stores reset token and sends email for active users', async () => {
+      const user = makeUser({ passwordHash: 'hashed' });
+      userRepo.findOne.mockResolvedValue(user);
+      userRepo.update.mockResolvedValue({});
+
+      await service.requestPasswordReset(user.email);
+
+      expect(userRepo.update).toHaveBeenCalledWith(
+        user.id,
+        expect.objectContaining({
+          resetToken: 'reset-token-hex',
+          resetExpiresAt: expect.any(Date),
+        }),
+      );
+      expect(mailService.sendPasswordResetEmail).toHaveBeenCalledWith(
+        user.email,
+        'reset-token-hex',
+        user.role,
+      );
+    });
+  });
+
+  describe('resetPassword', () => {
+    it('throws when token is invalid or expired', async () => {
+      userRepo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.resetPassword('bad-token', 'newpass123'),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('updates password, clears reset token and revokes sessions', async () => {
+      const user = makeUser({
+        resetToken: 'valid-token',
+        resetExpiresAt: new Date(Date.now() + 3600_000),
+      });
+      userRepo.findOne.mockResolvedValue(user);
+      userRepo.update.mockResolvedValue({});
+      bcrypt.hash.mockResolvedValue('new-hash');
+
+      await service.resetPassword('valid-token', 'newpass123');
+
+      expect(userRepo.update).toHaveBeenCalledWith(
+        user.id,
+        expect.objectContaining({
+          passwordHash: 'new-hash',
+          resetToken: null,
+          resetExpiresAt: null,
+        }),
+      );
+      expect(tokenService.revokeAllUserTokens).toHaveBeenCalledWith(user.id);
     });
   });
 
@@ -203,6 +297,7 @@ describe('AuthService', () => {
 
       const profile = await service.setupUser({ email: 'new@test.cat', password: 'pass1234' });
       expect(profile.id).toBe('user-1');
+      expect(mailService.sendWelcomeEmail).toHaveBeenCalledWith('test@test.cat', undefined);
       delete process.env['SETUP_TOKEN'];
     });
 
@@ -230,6 +325,7 @@ describe('AuthService', () => {
       const profile = await service.setupUser({ email: 'test@test.cat', password: 'pass1234' });
       expect(userRepo.save).not.toHaveBeenCalled();
       expect(profile.email).toBe('test@test.cat');
+      expect(mailService.sendWelcomeEmail).not.toHaveBeenCalled();
       delete process.env['SETUP_TOKEN'];
     });
   });

@@ -1,4 +1,6 @@
 import {
+  HttpException,
+  HttpStatus,
   Injectable,
   UnauthorizedException,
   BadRequestException,
@@ -18,7 +20,9 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { plainToInstance } from 'class-transformer';
 import { USER_SORT_COLUMN_MAP } from './constants/user-sort.constants';
+import { getInviteCooldownMs } from './constants/invite.constants';
 import { UserFilterDto } from './dto/user-filter.dto';
+import { MailService } from '../mail/mail.service';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -29,6 +33,7 @@ export class UserService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Person)
     private readonly personRepository: Repository<Person>,
+    private readonly mailService: MailService,
   ) {}
 
   async create(
@@ -142,6 +147,28 @@ export class UserService {
     });
   }
 
+  private assertInviteCooldown(user: User): void {
+    if (!user.inviteToken || !user.updatedAt) {
+      return;
+    }
+
+    const cooldownMs = getInviteCooldownMs();
+    const elapsedMs = Date.now() - user.updatedAt.getTime();
+    if (elapsedMs >= cooldownMs) {
+      return;
+    }
+
+    const retryAfterSeconds = Math.ceil((cooldownMs - elapsedMs) / 1000);
+    throw new HttpException(
+      {
+        statusCode: HttpStatus.TOO_MANY_REQUESTS,
+        message: 'Cal esperar abans de tornar a enviar la invitació',
+        retryAfterSeconds,
+      },
+      HttpStatus.TOO_MANY_REQUESTS,
+    );
+  }
+
   async sendInvite(userId: string, tokenDurationHours = 72): Promise<void> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
@@ -149,6 +176,7 @@ export class UserService {
     });
     if (!user) throw new UnauthorizedException();
     if (user.isActive) throw new BadRequestException('User is already active');
+    this.assertInviteCooldown(user);
     const inviteToken = crypto.randomBytes(16).toString('hex');
     const expirationDate = new Date();
     expirationDate.setHours(expirationDate.getHours() + tokenDurationHours);
@@ -156,16 +184,11 @@ export class UserService {
     user.inviteExpiresAt = expirationDate;
     await this.userRepository.save(user);
 
-    this.sendInvitationEmail(user.email, inviteToken).catch((err) => {
+    try {
+      await this.mailService.sendInviteEmail(user.email, inviteToken);
+    } catch {
       throw new BadRequestException('Failed to send invite email');
-    });
-  }
-
-  async sendInvitationEmail(email: string, inviteToken: string): Promise<void> {
-    const message =
-      'Here we would send an email to ' + email + ' with token ' + inviteToken;
-    console.log(message);
-    // TODO implement
+    }
   }
 
   async grantRole(userId: string, role: UserRole) {
@@ -247,6 +270,15 @@ export class UserService {
       where: { id: targetUser.id },
       relations: ['person'],
     });
+
+    if (result) {
+      const person = result.person as Person | null;
+      const displayName = person?.alias ?? person?.name ?? undefined;
+      this.mailService.sendWelcomeEmail(result.email, displayName).catch(() => {
+        // Account creation must succeed even if welcome email fails
+      });
+    }
+
     return plainToInstance(UserResponseDto, result, {
       excludeExtraneousValues: true,
     });
