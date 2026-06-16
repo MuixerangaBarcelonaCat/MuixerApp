@@ -35,6 +35,20 @@ services:
       start_period: 30s
       retries: 3
 
+  pwa:
+    build:
+      context: .
+      dockerfile: apps/pwa/Dockerfile
+    image: muixer-pwa-pre:latest
+    container_name: muixer-pwa-pre
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:80/ || exit 1']
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+
   dashboard:
     build:
       context: .
@@ -49,6 +63,8 @@ services:
       - caddy-data:/data
     depends_on:
       api:
+        condition: service_healthy
+      pwa:
         condition: service_healthy
 
 volumes:

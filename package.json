@@ -29,6 +29,10 @@
     "migration:run": "nx run api:migration-run",
     "migration:revert": "nx run api:migration-revert",
     "migration:show": "nx run api:migration-show",
+    "pwa:serve": "nx serve pwa",
+    "pwa:build": "nx build pwa",
+    "pwa:build:pre": "nx build pwa --configuration=pre",
+    "pwa:test": "nx test pwa",
     "ci:local": "npx nx run-many -t lint,test,build --all --exclude=dashboard-e2e,pwa-e2e --parallel=3 --configuration=ci"
   },
   "repository": {

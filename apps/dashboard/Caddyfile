@@ -9,7 +9,13 @@
         reverse_proxy api:3000
     }
 
-    # SPA fallback per a la resta de rutes Angular
+    # PWA: redirect sense trailing slash i proxy al contenidor pwa
+    redir /app /app/ 308
+    handle_path /app/* {
+        reverse_proxy pwa:80
+    }
+
+    # SPA fallback per a la resta de rutes Angular (Dashboard)
     handle {
         root * /srv
         try_files {path} /index.html

@@ -38,6 +38,24 @@
           ],
           "outputHashing": "all"
         },
+        "pre": {
+          "optimization": true,
+          "baseHref": "/app/",
+          "fileReplacements": [
+            {
+              "replace": "apps/pwa/src/environments/environment.ts",
+              "with": "apps/pwa/src/environments/environment.pre.ts"
+            }
+          ],
+          "budgets": [
+            {
+              "type": "initial",
+              "maximumWarning": "500kb",
+              "maximumError": "1mb"
+            }
+          ],
+          "outputHashing": "all"
+        },
         "development": {
           "optimization": false,
           "extractLicenses": false,
@@ -49,6 +67,10 @@
     "serve": {
       "continuous": true,
       "executor": "@angular/build:dev-server",
+      "options": {
+        "port": 4300,
+        "proxyConfig": "apps/pwa/proxy.conf.json"
+      },
       "configurations": {
         "production": {
           "buildTarget": "pwa:build:production"
@@ -76,7 +98,7 @@
       "executor": "@nx/web:file-server",
       "options": {
         "buildTarget": "pwa:build",
-        "port": 4200,
+        "port": 4300,
         "staticFilePath": "dist/apps/pwa/browser",
         "spa": true
       }
