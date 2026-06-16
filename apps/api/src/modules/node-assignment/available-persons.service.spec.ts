@@ -56,6 +56,7 @@ const mockPersonQb = {
   andWhere: jest.fn().mockReturnThis(),
   leftJoinAndSelect: jest.fn().mockReturnThis(),
   orderBy: jest.fn().mockReturnThis(),
+  addOrderBy: jest.fn().mockReturnThis(),
   setParameter: jest.fn().mockReturnThis(),
   getMany: jest.fn().mockResolvedValue([]),
 };
@@ -112,6 +113,7 @@ describe('AvailablePersonsService', () => {
     mockPersonQb.andWhere.mockReturnThis();
     mockPersonQb.leftJoinAndSelect.mockReturnThis();
     mockPersonQb.orderBy.mockReturnThis();
+    mockPersonQb.addOrderBy.mockReturnThis();
     mockPersonQb.setParameter.mockReturnThis();
     mockPersonQb.getMany.mockResolvedValue([]);
 
@@ -142,7 +144,7 @@ describe('AvailablePersonsService', () => {
       expect(result[0].attendanceStatus).toBe(AttendanceStatus.ANIRE);
     });
 
-    it('filters by search — calls andWhere with ILIKE', async () => {
+    it('filters by search — uses unaccent+word_similarity for accent-insensitive, prefix and typo-tolerant matching', async () => {
       mockEventRepo.findOne.mockResolvedValueOnce(makeEvent()).mockResolvedValue(null);
       mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
       mockPersonQb.getMany.mockResolvedValue([]);
@@ -150,8 +152,12 @@ describe('AvailablePersonsService', () => {
       await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, { search: 'pere' });
 
       expect(mockPersonQb.andWhere).toHaveBeenCalledWith(
-        expect.stringContaining('ILIKE'),
-        expect.objectContaining({ search: '%pere%' }),
+        expect.stringContaining('word_similarity'),
+        expect.objectContaining({ searchPattern: '%pere%', rawSearch: 'pere' }),
+      );
+      expect(mockPersonQb.orderBy).toHaveBeenCalledWith(
+        expect.stringContaining('word_similarity'),
+        'DESC',
       );
     });
 
