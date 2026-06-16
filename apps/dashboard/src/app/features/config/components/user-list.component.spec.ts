@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { vi } from 'vitest';
 import { of, throwError } from 'rxjs';
 import {
@@ -35,6 +36,7 @@ import {
 import { UserListComponent } from './user-list.component';
 import { UserService } from '../services/user.service';
 import { ToastService } from '../../../shared/components/feedback/toast/toast.service';
+import { AuthService } from '../../../core/auth/services/auth.service';
 import { PersonService } from '../../../features/persons/services/person.service';
 import { UserRole } from '@muixer/shared';
 import { UserDto } from '../models/user.model';
@@ -65,6 +67,7 @@ const mockResponse = (data: UserDto[] = [mockUser()], total = 1) => ({
 describe('UserListComponent', () => {
   let fixture: ComponentFixture<UserListComponent>;
   let component: UserListComponent;
+  let userRoleSignal: ReturnType<typeof signal<UserRole | null>>;
   let userService: {
     getAll: ReturnType<typeof vi.fn>;
     grantRole: ReturnType<typeof vi.fn>;
@@ -91,12 +94,18 @@ describe('UserListComponent', () => {
       getAll: vi.fn().mockReturnValue(of({ data: [], meta: { total: 0, page: 1, limit: 10 } })),
     };
 
+    const mockAuthService = {
+      userRole: (userRoleSignal = signal<UserRole | null>(UserRole.ADMIN)),
+      currentUser: vi.fn().mockReturnValue({ role: UserRole.ADMIN }),
+    };
+
     await TestBed.configureTestingModule({
       imports: [UserListComponent],
       providers: [
         { provide: UserService, useValue: userService },
         { provide: ToastService, useValue: mockToast },
         { provide: PersonService, useValue: mockPersonService },
+        { provide: AuthService, useValue: mockAuthService },
         {
           provide: LUCIDE_ICONS,
           multi: true,
@@ -456,6 +465,15 @@ describe('UserListComponent', () => {
       expect(component.grantRoleLoading()).toBe(false);
       // modal stays open so user can retry
       expect(component.grantRoleUser()).not.toBeNull();
+    });
+
+    it('hides assign role action for TECHNICAL actors', () => {
+      userRoleSignal.set(UserRole.TECHNICAL);
+      fixture.detectChanges();
+
+      expect(
+        component.tableRowActions().some((action) => action.label === 'Assignar rol'),
+      ).toBe(false);
     });
   });
 
