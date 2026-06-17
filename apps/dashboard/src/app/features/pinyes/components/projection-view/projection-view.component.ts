@@ -15,6 +15,7 @@ import { LayoutService } from '../../../../core/services/layout.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { ProjectionService } from '../../services/projection.service';
 import { ProjectionSegmentData, ProjectionInstance } from '../../models/projection.model';
+import { InstanceNodeItem } from '../../models/assignment.model';
 import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component';
 import { TroncViewComponent, TroncNodeItem } from '../tronc-view/tronc-view.component';
 import { FigureZone } from '@muixer/shared';
@@ -112,12 +113,46 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
 
   // ── Node data accessors ───────────────────────────────────────────────────
 
-  /** Nodes to render in the pinya canvas: excludes TRONC and unassigned PINYA nodes. */
-  getInstanceProjectionNodes(instance: ProjectionInstance) {
+  /** Nodes to render in the pinya canvas: excludes TRONC and unassigned PINYA nodes.
+   *  Assigned cordo-obert nodes collapse to the first empty slot in their rengla. */
+  getInstanceProjectionNodes(instance: ProjectionInstance): InstanceNodeItem[] {
     const assignedNodeIds = new Set(instance.assignments.map((a) => a.node.id));
-    return instance.nodes.filter(
-      (n) => n.zone !== FigureZone.TRONC && !(n.zone === FigureZone.PINYA && !assignedNodeIds.has(n.id)),
-    );
+    const overrides = this.cordoObertOverrides(instance.nodes, assignedNodeIds);
+
+    return instance.nodes
+      .filter((n) => n.zone !== FigureZone.TRONC && !(n.zone === FigureZone.PINYA && !assignedNodeIds.has(n.id)))
+      .map((n) => {
+        const pos = overrides.get(n.id);
+        return pos ? { ...n, x: pos.x, y: pos.y } : n;
+      });
+  }
+
+  private cordoObertOverrides(
+    nodes: InstanceNodeItem[],
+    assignedNodeIds: Set<string>,
+  ): Map<string, { x: number; y: number }> {
+    const overrides = new Map<string, { x: number; y: number }>();
+
+    const byRengla = new Map<string, InstanceNodeItem[]>();
+    for (const node of nodes) {
+      if (!node.renglaId) continue;
+      const list = byRengla.get(node.renglaId) ?? [];
+      list.push(node);
+      byRengla.set(node.renglaId, list);
+    }
+
+    for (const renglaNodes of byRengla.values()) {
+      const sorted = [...renglaNodes].sort((a, b) => (a.renglaPosition ?? 0) - (b.renglaPosition ?? 0));
+      const cordoObert = sorted.find((n) => n.positionType === 'cordo-obert');
+      if (!cordoObert || !assignedNodeIds.has(cordoObert.id)) continue;
+
+      const firstGap = sorted.find((n) => n.id !== cordoObert.id && !assignedNodeIds.has(n.id));
+      if (firstGap) {
+        overrides.set(cordoObert.id, { x: firstGap.x, y: firstGap.y });
+      }
+    }
+
+    return overrides;
   }
 
   getInstanceTroncNodes(instance: ProjectionInstance): TroncNodeItem[] {
