@@ -11,8 +11,9 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { UserRole } from '@muixer/shared';
+import { UserRole, JwtPayload } from '@muixer/shared';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserService } from './user.service';
 import { CreateWithInviteDto } from './dto/create-with-invite.dto';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -32,8 +33,11 @@ export class UserController {
   @ApiResponse({ status: 201, description: 'Usuari creat correctament' })
   @ApiResponse({ status: 400, description: 'Dades invàlides' })
   @ApiResponse({ status: 409, description: 'Email ja existeix' })
-  createUser(@Body() dto: CreateUserDto): Promise<UserResponseDto> {
-    return this.userService.createUser(dto);
+  createUser(
+    @Body() dto: CreateUserDto,
+    @CurrentUser() actor: JwtPayload,
+  ): Promise<UserResponseDto> {
+    return this.userService.createUser(dto, actor.role);
   }
 
   @Post('create-with-invite')
@@ -84,8 +88,9 @@ export class UserController {
   updateUser(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateUserDto,
+    @CurrentUser() actor: JwtPayload,
   ): Promise<UserResponseDto> {
-    return this.userService.updateUser(id, dto);
+    return this.userService.updateUser(id, dto, actor.role);
   }
 
 }

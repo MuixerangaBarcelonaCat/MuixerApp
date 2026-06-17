@@ -79,30 +79,39 @@
       }
 
       <!-- Role -->
-      <fieldset class="form-control">
-        <legend class="label pb-1">
-          <span class="label-text text-xs font-medium">Rol *</span>
-        </legend>
-        <div class="flex gap-4">
-          @for (role of roleOptions; track role) {
-            <label class="label cursor-pointer gap-2">
-              <input
-                type="radio"
-                class="radio radio-sm radio-primary"
-                [value]="role"
-                formControlName="role"
-              />
-              <span class="label-text text-sm">{{ roleLabels[role] }}</span>
-            </label>
-          }
+      @if (showRoleField()) {
+        <fieldset class="form-control">
+          <legend class="label pb-1">
+            <span class="label-text text-xs font-medium">Rol *</span>
+          </legend>
+          <div class="flex gap-4">
+            @for (role of roleOptions(); track role) {
+              <label class="label cursor-pointer gap-2">
+                <input
+                  type="radio"
+                  class="radio radio-sm radio-primary"
+                  [value]="role"
+                  formControlName="role"
+                />
+                <span class="label-text text-sm">{{ roleLabels[role] }}</span>
+              </label>
+            }
+          </div>
+        </fieldset>
+      } @else {
+        <div class="form-control">
+          <div class="label pb-1">
+            <span class="label-text text-xs font-medium">Rol</span>
+          </div>
+          <p class="text-sm">{{ roleLabels[user()!.role] }}</p>
         </div>
-      </fieldset>
+      }
 
       <!-- Actions -->
       <div class="modal-action">
         <button type="button" class="btn btn-ghost btn-sm" (click)="onCancel()">
           Cancel·la
-</button>
+        </button>
         <button
           type="submit"
           class="btn btn-primary btn-sm"

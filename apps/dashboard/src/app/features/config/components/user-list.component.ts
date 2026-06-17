@@ -26,6 +26,7 @@ import {
 import { ColumnDef } from '../../../shared/models/column-def.model';
 import { UserFormModalComponent } from './user-form-modal/user-form-modal.component';
 import { ToastService } from '../../../shared/components/feedback/toast/toast.service';
+import { AuthService } from '../../../core/auth/services/auth.service';
 
 const STORAGE_KEY = 'user-list-visible-columns';
 
@@ -85,11 +86,20 @@ function formatDate(value: string | null): string {
 export class UserListComponent {
   private readonly userService = inject(UserService);
   private readonly toast = inject(ToastService);
+  private readonly authService = inject(AuthService);
 
   readonly allColumns = ALL_COLUMNS;
   readonly UserRole = UserRole;
   readonly roleOptions = Object.values(UserRole);
   readonly roleLabels = ROLE_LABELS;
+  readonly isAdmin = computed(
+    () => this.authService.userRole() === UserRole.ADMIN,
+  );
+  readonly assignableRoles = computed<UserRole[]>(() =>
+    this.isAdmin()
+      ? [UserRole.TECHNICAL, UserRole.ADMIN]
+      : [UserRole.TECHNICAL],
+  );
 
   searchInput = '';
 
@@ -385,23 +395,31 @@ export class UserListComponent {
     })),
   );
 
-  readonly tableRowActions = computed<RowAction<UserDto>[]>(() => [
-    {
-      label: 'Editar',
-      icon: 'Pencil',
-      action: (u: UserDto) => this.openEditModal(u),
-    },
-    {
-      label: 'Assignar rol',
-      icon: 'Shield',
-      action: (u: UserDto) => this.openGrantRole(u),
-    },
-    {
+  readonly tableRowActions = computed<RowAction<UserDto>[]>(() => {
+    const actions: RowAction<UserDto>[] = [
+      {
+        label: 'Editar',
+        icon: 'Pencil',
+        action: (u: UserDto) => this.openEditModal(u),
+      },
+    ];
+
+    if (this.isAdmin()) {
+      actions.push({
+        label: 'Assignar rol',
+        icon: 'Shield',
+        action: (u: UserDto) => this.openGrantRole(u),
+      });
+    }
+
+    actions.push({
       label: 'Desactivar',
       icon: 'UserX',
       action: (u: UserDto) => this.deactivateUser(u),
-    },
-  ]);
+    });
+
+    return actions;
+  });
 
   readonly activeFilterChips = computed<ActiveFilter[]>(() => {
     const chips: ActiveFilter[] = [];
