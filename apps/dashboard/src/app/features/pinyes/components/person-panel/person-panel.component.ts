@@ -187,6 +187,14 @@ export class PersonPanelComponent {
     this.loadPersons();
   }
 
+  selectFirstPerson(): void {
+    const first =
+      this.sortedConfirmedPersons()[0] ??
+      this.pendingPersons()[0] ??
+      this.declinedPersons()[0];
+    if (first) this.selectPerson(first);
+  }
+
   selectPerson(person: AvailablePerson): void {
     this.personSelected.emit(person);
   }

@@ -22,6 +22,7 @@
       placeholder="Cerca per nom o àlies..."
       [value]="search()"
       (input)="onSearchChange($any($event.target).value)"
+      (keydown.enter)="selectFirstPerson()"
       aria-label="Cerca persones"
     />
 
