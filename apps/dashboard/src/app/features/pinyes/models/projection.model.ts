@@ -7,7 +7,7 @@ export interface ProjectionInstance {
   projectionX: number | null;
   projectionY: number | null;
   projectionScale: number;
-  figureTemplate: { id: string; name: string } | null;
+  figureTemplate: { id: string; name: string; hasPinya: boolean } | null;
   nodes: InstanceNodeItem[];
   assignments: AssignmentDetail[];
 }

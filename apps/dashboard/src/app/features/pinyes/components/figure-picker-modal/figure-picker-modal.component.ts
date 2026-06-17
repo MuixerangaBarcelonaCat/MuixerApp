@@ -22,6 +22,12 @@ export interface InstanceSelection {
   compositionTemplateId?: string;
 }
 
+export interface PickerSelectionItem {
+  selection: InstanceSelection;
+  name: string;
+  hasPinya: boolean;
+}
+
 @Component({
   selector: 'app-figure-picker-modal',
   standalone: true,
@@ -33,7 +39,7 @@ export class FigurePickerModalComponent implements OnInit {
   open = input.required<boolean>();
   segmentId = input.required<string>();
 
-  selected = output<InstanceSelection>();
+  confirmed = output<InstanceSelection[]>();
   closed = output<void>();
 
   private readonly figureService = inject(FigureTemplateService);
@@ -46,6 +52,10 @@ export class FigurePickerModalComponent implements OnInit {
 
   figures = signal<FigureTemplateListItem[]>([]);
   compositions = signal<CompositionTemplateListItem[]>([]);
+  selections = signal<PickerSelectionItem[]>([]);
+
+  readonly selectionCount = computed(() => this.selections().length);
+  readonly canConfirm = computed(() => this.selectionCount() > 0);
 
   readonly filteredFigures = computed<FigureTemplateListItem[]>(() => {
     const q = this.search().toLowerCase();
@@ -89,12 +99,35 @@ export class FigurePickerModalComponent implements OnInit {
     });
   }
 
-  selectFigure(figure: FigureTemplateListItem) {
-    this.selected.emit({ figureTemplateId: figure.id });
+  addFigure(figure: FigureTemplateListItem): void {
+    this.selections.update((list) => [
+      ...list,
+      {
+        selection: { figureTemplateId: figure.id },
+        name: figure.name,
+        hasPinya: figure.hasPinya,
+      },
+    ]);
   }
 
-  selectComposition(composition: CompositionTemplateListItem) {
-    this.selected.emit({ compositionTemplateId: composition.id });
+  addComposition(composition: CompositionTemplateListItem): void {
+    this.selections.update((list) => [
+      ...list,
+      {
+        selection: { compositionTemplateId: composition.id },
+        name: composition.name,
+        hasPinya: true,
+      },
+    ]);
+  }
+
+  removeSelection(index: number): void {
+    this.selections.update((list) => list.filter((_, i) => i !== index));
+  }
+
+  confirm(): void {
+    this.confirmed.emit(this.selections().map((s) => s.selection));
+    this.selections.set([]);
   }
 
   setTab(tab: PickerTab) {
@@ -109,6 +142,9 @@ export class FigurePickerModalComponent implements OnInit {
   }
 
   close() {
+    this.selections.set([]);
+    this.search.set('');
+    this.activeTab.set('figures');
     this.closed.emit();
   }
 }

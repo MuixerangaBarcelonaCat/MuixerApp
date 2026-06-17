@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
   LUCIDE_ICONS, LucideIconProvider,
-  ArrowDownUp, ArrowUpDown, Plus, Minus, Trash2, X,
+  ArrowDownUp, ArrowUpDown, Plus, Minus, Trash2, X, ChevronDown, ChevronRight,
 } from 'lucide-angular';
 import { TroncViewComponent, TroncNodeItem } from './tronc-view.component';
 import { AssignmentDetail } from '../../models/assignment.model';
@@ -74,7 +74,7 @@ describe('TroncViewComponent', () => {
         {
           provide: LUCIDE_ICONS,
           multi: true,
-          useFactory: () => new LucideIconProvider({ ArrowDownUp, ArrowUpDown, Plus, Minus, Trash2, X }),
+          useFactory: () => new LucideIconProvider({ ArrowDownUp, ArrowUpDown, Plus, Minus, Trash2, X, ChevronDown, ChevronRight }),
         },
       ],
     }).compileComponents();
@@ -642,14 +642,14 @@ describe('TroncViewComponent', () => {
       expect(colored.length).toBe(0);
     });
 
-    it('does not render z-colored class in projection mode', () => {
+    it('renders z-colored class in projection mode', () => {
       fixture.componentRef.setInput('troncNodes', [makeNode({ positionType: 'segon' })]);
       fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
       fixture.componentRef.setInput('mode', 'projection');
       fixture.detectChanges();
 
       const colored = fixture.nativeElement.querySelectorAll('.tronc-node.z-colored');
-      expect(colored.length).toBe(0);
+      expect(colored.length).toBe(2);
     });
   });
 
@@ -931,6 +931,214 @@ describe('TroncViewComponent', () => {
       const swatch = fixture.nativeElement.querySelector('.color-swatch');
       expect(swatch).not.toBeNull();
       expect(swatch.style.backgroundColor).toBeTruthy();
+    });
+  });
+
+  // ── Directions section (F4) ──────────────────────────────────────────
+
+  describe('directions section (figures netes)', () => {
+    const figDirNode = makeNode({
+      id: 'dir-fig-1',
+      zone: 'FIGURE_DIRECTION',
+      label: 'Dir. Figura',
+      z: 0,
+      x: 0,
+      width: 1,
+    });
+
+    const xicDirNode = makeNode({
+      id: 'dir-xic-1',
+      zone: 'XICALLA_DIRECTION',
+      label: 'Dir. Xicalla',
+      z: 0,
+      x: 0,
+      width: 1,
+    });
+
+    it('does not render directions section when isNetaFigure is false', () => {
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.componentRef.setInput('isNetaFigure', false);
+      fixture.componentRef.setInput('directionNodes', [figDirNode]);
+      fixture.detectChanges();
+
+      const section = fixture.nativeElement.querySelector('.directions-section');
+      expect(section).toBeNull();
+    });
+
+    it('does not render directions section in editor mode', () => {
+      fixture.componentRef.setInput('mode', 'editor');
+      fixture.componentRef.setInput('isNetaFigure', true);
+      fixture.componentRef.setInput('directionNodes', [figDirNode]);
+      fixture.detectChanges();
+
+      const section = fixture.nativeElement.querySelector('.directions-section');
+      expect(section).toBeNull();
+    });
+
+    it('renders directions section in assignment mode for neta figures', () => {
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.componentRef.setInput('isNetaFigure', true);
+      fixture.detectChanges();
+
+      const section = fixture.nativeElement.querySelector('.directions-section');
+      expect(section).not.toBeNull();
+    });
+
+    it('starts collapsed by default', () => {
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.componentRef.setInput('isNetaFigure', true);
+      fixture.detectChanges();
+
+      expect(component.directionsExpanded()).toBe(false);
+      const content = fixture.nativeElement.querySelector('.directions-content');
+      expect(content).toBeNull();
+    });
+
+    it('expands on toggle click', () => {
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.componentRef.setInput('isNetaFigure', true);
+      fixture.detectChanges();
+
+      const toggle = fixture.nativeElement.querySelector('.directions-toggle') as HTMLButtonElement;
+      toggle.click();
+      fixture.detectChanges();
+
+      expect(component.directionsExpanded()).toBe(true);
+      const content = fixture.nativeElement.querySelector('.directions-content');
+      expect(content).not.toBeNull();
+    });
+
+    it('shows "Afegir" buttons when no direction nodes exist', () => {
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.componentRef.setInput('isNetaFigure', true);
+      fixture.componentRef.setInput('directionNodes', []);
+      component.directionsExpanded.set(true);
+      fixture.detectChanges();
+
+      const addButtons = fixture.nativeElement.querySelectorAll('.directions-content .btn-ghost');
+      expect(addButtons.length).toBe(2);
+    });
+
+    it('shows direction node button when a direction node exists', () => {
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.componentRef.setInput('isNetaFigure', true);
+      fixture.componentRef.setInput('directionNodes', [figDirNode]);
+      component.directionsExpanded.set(true);
+      fixture.detectChanges();
+
+      const dirNodes = fixture.nativeElement.querySelectorAll('.direction-node');
+      expect(dirNodes.length).toBe(1);
+    });
+
+    it('figureDirectionNode computed returns FIGURE_DIRECTION node', () => {
+      fixture.componentRef.setInput('directionNodes', [figDirNode, xicDirNode]);
+      fixture.detectChanges();
+
+      expect(component.figureDirectionNode()?.id).toBe('dir-fig-1');
+    });
+
+    it('xicallaDirectionNode computed returns XICALLA_DIRECTION node', () => {
+      fixture.componentRef.setInput('directionNodes', [figDirNode, xicDirNode]);
+      fixture.detectChanges();
+
+      expect(component.xicallaDirectionNode()?.id).toBe('dir-xic-1');
+    });
+
+    it('hasAssignedDirections returns false when no assignments', () => {
+      fixture.componentRef.setInput('directionNodes', [figDirNode]);
+      fixture.componentRef.setInput('assignments', []);
+      fixture.detectChanges();
+
+      expect(component.hasAssignedDirections()).toBe(false);
+    });
+
+    it('hasAssignedDirections returns true when a direction has assignment', () => {
+      fixture.componentRef.setInput('directionNodes', [figDirNode]);
+      fixture.componentRef.setInput('assignments', [
+        makeAssignment('dir-fig-1', 'Pepet'),
+      ]);
+      fixture.detectChanges();
+
+      expect(component.hasAssignedDirections()).toBe(true);
+    });
+
+    it('auto-expands when hasAssignedDirections becomes true', () => {
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.componentRef.setInput('isNetaFigure', true);
+      fixture.componentRef.setInput('directionNodes', [figDirNode]);
+      fixture.componentRef.setInput('assignments', []);
+      fixture.detectChanges();
+
+      expect(component.directionsExpanded()).toBe(false);
+
+      fixture.componentRef.setInput('assignments', [
+        makeAssignment('dir-fig-1', 'Pepet'),
+      ]);
+      fixture.detectChanges();
+
+      expect(component.directionsExpanded()).toBe(true);
+    });
+
+    it('directionAdded emits zone when "Afegir" is clicked', () => {
+      const emitted: { zone: string }[] = [];
+      component.directionAdded.subscribe((e) => emitted.push(e));
+
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.componentRef.setInput('isNetaFigure', true);
+      fixture.componentRef.setInput('directionNodes', []);
+      component.directionsExpanded.set(true);
+      fixture.detectChanges();
+
+      const addButtons = fixture.nativeElement.querySelectorAll('.directions-content .btn-ghost') as NodeListOf<HTMLButtonElement>;
+      addButtons[0].click();
+      fixture.detectChanges();
+
+      expect(emitted.length).toBe(1);
+      expect(emitted[0].zone).toBe('FIGURE_DIRECTION');
+    });
+
+    it('directionRemoved emits nodeId when trash is clicked on unassigned direction', () => {
+      const emitted: string[] = [];
+      component.directionRemoved.subscribe((id) => emitted.push(id));
+
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.componentRef.setInput('isNetaFigure', true);
+      fixture.componentRef.setInput('directionNodes', [figDirNode]);
+      fixture.componentRef.setInput('assignments', []);
+      component.directionsExpanded.set(true);
+      fixture.detectChanges();
+
+      const trashBtn = fixture.nativeElement.querySelector('.directions-content .text-error') as HTMLButtonElement;
+      expect(trashBtn).not.toBeNull();
+      trashBtn.click();
+      fixture.detectChanges();
+
+      expect(emitted).toEqual(['dir-fig-1']);
+    });
+
+    it('renders direction assignments in projection mode for neta figures', () => {
+      fixture.componentRef.setInput('mode', 'projection');
+      fixture.componentRef.setInput('isNetaFigure', true);
+      fixture.componentRef.setInput('directionNodes', [figDirNode]);
+      fixture.componentRef.setInput('assignments', [
+        makeAssignment('dir-fig-1', 'Pepet'),
+      ]);
+      fixture.detectChanges();
+
+      const projRow = fixture.nativeElement.querySelector('.direction-projection-row');
+      expect(projRow).not.toBeNull();
+      expect(projRow.textContent).toContain('Pepet');
+    });
+
+    it('does not render projection directions when no assignments', () => {
+      fixture.componentRef.setInput('mode', 'projection');
+      fixture.componentRef.setInput('isNetaFigure', true);
+      fixture.componentRef.setInput('directionNodes', [figDirNode]);
+      fixture.componentRef.setInput('assignments', []);
+      fixture.detectChanges();
+
+      const projRow = fixture.nativeElement.querySelector('.direction-projection-row');
+      expect(projRow).toBeNull();
     });
   });
 });

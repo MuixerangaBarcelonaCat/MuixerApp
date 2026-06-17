@@ -29,6 +29,171 @@
     </header>
   }
 
+  <!-- ── Directions section (figures netes, assignment mode) ──────────── -->
+  @if (mode() === 'assignment' && isNetaFigure()) {
+    <div class="directions-section" role="region" aria-label="Direccions">
+      <button
+        type="button"
+        class="directions-toggle"
+        (click)="directionsExpanded.update(v => !v)"
+        [attr.aria-expanded]="directionsExpanded()"
+        aria-controls="directions-content"
+      >
+        <lucide-icon [name]="directionsExpanded() ? 'ChevronDown' : 'ChevronRight'" [size]="14" aria-hidden="true" />
+        <span>Direccions</span>
+        @if (hasAssignedDirections()) {
+          <span class="badge badge-xs badge-success ml-1">assignat</span>
+        }
+      </button>
+
+      @if (directionsExpanded()) {
+        <div id="directions-content" class="directions-content">
+
+          <!-- FIGURE_DIRECTION slot -->
+          <div class="direction-slot">
+            <span
+              class="direction-label"
+              [style.border-left-color]="getDirectionColor('FIGURE_DIRECTION')"
+            >Direcció figura</span>
+            @if (figureDirectionNode(); as dirNode) {
+              <button
+                type="button"
+                class="tronc-node direction-node"
+                [class.selected]="isSelected(dirNode.id)"
+                [class.assigned]="isAssigned(dirNode.id)"
+                [style.border-left-color]="getDirectionColor(dirNode.zone)"
+                (click)="onDirectionNodeClick(dirNode, $event)"
+                [attr.aria-label]="getNodeAriaLabel(dirNode)"
+                [attr.aria-pressed]="isSelected(dirNode.id)"
+              >
+                @if (getAssignment(dirNode.id); as assignment) {
+                  <span class="person-alias">{{ assignment.person.alias }}</span>
+                  <span
+                    class="attendance-dot"
+                    [style.background-color]="getAttendanceColor(assignment)"
+                    aria-hidden="true"
+                  ></span>
+                } @else {
+                  <span class="node-label text-base-content/40">Sense assignar</span>
+                }
+              </button>
+              @if (isAssigned(dirNode.id) && isSelected(dirNode.id)) {
+                <button
+                  type="button"
+                  class="unassign-btn"
+                  (click)="onUnassignNode(dirNode.id); $event.stopPropagation()"
+                  aria-label="Desassignar direcció figura"
+                  title="Desassignar"
+                >
+                  <lucide-icon name="X" [size]="10" aria-hidden="true" />
+                </button>
+              }
+              @if (!isAssigned(dirNode.id)) {
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-xs text-error"
+                  (click)="onRemoveDirection(dirNode.id)"
+                  aria-label="Eliminar direcció figura"
+                  title="Eliminar"
+                >
+                  <lucide-icon name="Trash2" [size]="12" aria-hidden="true" />
+                </button>
+              }
+            } @else {
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs gap-1"
+                (click)="directionAdded.emit({ zone: 'FIGURE_DIRECTION' })"
+              >
+                <lucide-icon name="Plus" [size]="12" aria-hidden="true" />
+                Afegir
+              </button>
+            }
+          </div>
+
+          <!-- XICALLA_DIRECTION slot -->
+          <div class="direction-slot">
+            <span
+              class="direction-label"
+              [style.border-left-color]="getDirectionColor('XICALLA_DIRECTION')"
+            >Direcció xicalla</span>
+            @if (xicallaDirectionNode(); as dirNode) {
+              <button
+                type="button"
+                class="tronc-node direction-node"
+                [class.selected]="isSelected(dirNode.id)"
+                [class.assigned]="isAssigned(dirNode.id)"
+                [style.border-left-color]="getDirectionColor(dirNode.zone)"
+                (click)="onDirectionNodeClick(dirNode, $event)"
+                [attr.aria-label]="getNodeAriaLabel(dirNode)"
+                [attr.aria-pressed]="isSelected(dirNode.id)"
+              >
+                @if (getAssignment(dirNode.id); as assignment) {
+                  <span class="person-alias">{{ assignment.person.alias }}</span>
+                  <span
+                    class="attendance-dot"
+                    [style.background-color]="getAttendanceColor(assignment)"
+                    aria-hidden="true"
+                  ></span>
+                } @else {
+                  <span class="node-label text-base-content/40">Sense assignar</span>
+                }
+              </button>
+              @if (isAssigned(dirNode.id) && isSelected(dirNode.id)) {
+                <button
+                  type="button"
+                  class="unassign-btn"
+                  (click)="onUnassignNode(dirNode.id); $event.stopPropagation()"
+                  aria-label="Desassignar direcció xicalla"
+                  title="Desassignar"
+                >
+                  <lucide-icon name="X" [size]="10" aria-hidden="true" />
+                </button>
+              }
+              @if (!isAssigned(dirNode.id)) {
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-xs text-error"
+                  (click)="onRemoveDirection(dirNode.id)"
+                  aria-label="Eliminar direcció xicalla"
+                  title="Eliminar"
+                >
+                  <lucide-icon name="Trash2" [size]="12" aria-hidden="true" />
+                </button>
+              }
+            } @else {
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs gap-1"
+                (click)="directionAdded.emit({ zone: 'XICALLA_DIRECTION' })"
+              >
+                <lucide-icon name="Plus" [size]="12" aria-hidden="true" />
+                Afegir
+              </button>
+            }
+          </div>
+
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ── Directions section (figures netes, projection mode) ─────────── -->
+  @if (mode() === 'projection' && isNetaFigure() && hasAssignedDirections()) {
+    <div class="directions-section projection" role="region" aria-label="Direccions">
+      @for (dir of directionNodes(); track dir.id) {
+        @if (getAssignment(dir.id); as assignment) {
+          <div class="direction-projection-row">
+            <span class="direction-label compact" [style.border-left-color]="getDirectionColor(dir.zone)">
+              {{ getDirectionLabel(dir.zone) }}
+            </span>
+            <span class="text-sm font-medium">{{ assignment.person.alias }}</span>
+          </div>
+        }
+      }
+    </div>
+  }
+
   <!-- ── No-tronc message ────────────────────────────────────────────────── -->
   @if (!hasTronc() && mode() !== 'editor') {
     <div class="alert alert-info py-2 px-3 text-xs mt-2" role="status">
@@ -38,7 +203,11 @@
 
   @if (!hasTronc() && mode() === 'editor') {
     <p class="text-xs text-base-content/40 px-2 mt-2 italic">
-      Afegiu un pis per configurar el tronc.
+      @if (baseNodes().length === 0) {
+        Afegiu bases (botons a baix) per poder configurar el tronc.
+      } @else {
+        Afegiu un pis per configurar el tronc.
+      }
     </p>
   }
 
@@ -72,8 +241,8 @@
                   [class.selected]="isSelected(node.id)"
                   [class.assigned]="isAssigned(node.id)"
                   [class.highlighted]="isHighlighted(node.id)"
-                  [class.z-colored]="mode() === 'assignment'"
-                  [style.border-left-color]="mode() === 'assignment' ? getZLevelColor(node.z) : null"
+                  [class.z-colored]="mode() === 'assignment' || mode() === 'projection'"
+                  [style.border-left-color]="mode() === 'assignment' || mode() === 'projection' ? getZLevelColor(node.z) : null"
                   (click)="onNodeClick(node, $event)"
                   [attr.aria-label]="getNodeAriaLabel(node)"
                   [attr.aria-pressed]="isSelected(node.id)"
@@ -118,9 +287,9 @@
                   [class.selected]="isSelected(node.id)"
                   [class.assigned]="isAssigned(node.id)"
                   [class.highlighted]="isHighlighted(node.id)"
-                  [class.z-colored]="mode() === 'assignment'"
+                  [class.z-colored]="mode() === 'assignment' || mode() === 'projection'"
                   [class.type-colored]="mode() === 'editor' && !!getNodeColor(node)"
-                  [style.border-left-color]="mode() === 'assignment' ? getZLevelColor(node.z) : mode() === 'editor' ? getNodeColor(node) : null"
+                  [style.border-left-color]="mode() === 'assignment' || mode() === 'projection' ? getZLevelColor(node.z) : mode() === 'editor' ? getNodeColor(node) : null"
                   (click)="onNodeClick(node, $event)"
                   [attr.aria-label]="getNodeAriaLabel(node)"
                   [attr.aria-pressed]="isSelected(node.id)"

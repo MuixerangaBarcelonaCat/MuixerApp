@@ -70,7 +70,12 @@ export class FigureProjectionComponent implements OnInit, OnDestroy {
   // ── Derived computed (from activeInstance) ──────────────────────────────────
 
   readonly pinyaNodes = computed(() =>
-    this.activeInstance()?.nodes.filter((n) => n.zone !== FigureZone.TRONC) ?? [],
+    this.activeInstance()?.nodes.filter(
+      (n) =>
+        n.zone === FigureZone.PINYA ||
+        n.zone === FigureZone.BASE ||
+        n.zone === FigureZone.DECORATION,
+    ) ?? [],
   );
 
   readonly troncNodes = computed(() =>
@@ -79,6 +84,16 @@ export class FigureProjectionComponent implements OnInit, OnDestroy {
 
   readonly baseNodes = computed(() =>
     this.activeInstance()?.nodes.filter((n) => n.zone === FigureZone.BASE) ?? [],
+  );
+
+  readonly directionNodes = computed(() =>
+    this.activeInstance()?.nodes.filter(
+      (n) => n.zone === FigureZone.FIGURE_DIRECTION || n.zone === FigureZone.XICALLA_DIRECTION,
+    ) ?? [],
+  );
+
+  readonly isNetaFigure = computed(() =>
+    this.activeInstance()?.figureTemplate?.hasPinya === false,
   );
 
   readonly assignmentList = computed<AssignmentDetail[]>(

@@ -2,13 +2,14 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   input,
   output,
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
-import { TRONC_NODE_PRESETS, TroncNodePreset } from '@muixer/shared';
+import { FigureZone, TRONC_NODE_PRESETS, TroncNodePreset } from '@muixer/shared';
 import { AssignmentDetail, AttendanceStatus, HeightMode } from '../../models/assignment.model';
 import { floorVariance, varianceLevel, VarianceLevel } from '../../utils/floor-variance.util';
 import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
@@ -88,6 +89,12 @@ export class TroncViewComponent {
   /** personId → AttendanceStatus for the next actuació */
   readonly attendanceMap = input<Map<string, AttendanceStatus>>(new Map());
 
+  /** Direction-zone nodes (FIGURE_DIRECTION, XICALLA_DIRECTION) — figures netes only. */
+  readonly directionNodes = input<TroncNodeItem[]>([]);
+
+  /** Whether the current figure is a "figura neta" (hasPinya = false). */
+  readonly isNetaFigure = input<boolean>(false);
+
   // ── Outputs ────────────────────────────────────────────────────────────────
 
   /** Emits the clicked node id. Emits null when deselecting. */
@@ -117,10 +124,47 @@ export class TroncViewComponent {
   /** Assignment mode: request unassignment for a node id. */
   readonly nodeUnassigned = output<string>();
 
+  /** Assignment mode (figures netes): request creating an ad-hoc direction node. */
+  readonly directionAdded = output<{ zone: string }>();
+
+  /** Assignment mode (figures netes): request deleting an ad-hoc direction node. */
+  readonly directionRemoved = output<string>();
+
   // ── Local state ────────────────────────────────────────────────────────────
 
   /** Flip floor order: P1 at top instead of at bottom. */
   readonly inverted = signal(false);
+
+  /** Whether the directions section is expanded. */
+  readonly directionsExpanded = signal(false);
+
+  // ── Direction computed ─────────────────────────────────────────────────────
+
+  readonly figureDirectionNode = computed(() =>
+    this.directionNodes().find((n) => n.zone === FigureZone.FIGURE_DIRECTION) ?? null,
+  );
+
+  readonly xicallaDirectionNode = computed(() =>
+    this.directionNodes().find((n) => n.zone === FigureZone.XICALLA_DIRECTION) ?? null,
+  );
+
+  readonly hasAssignedDirections = computed(() => {
+    const dirs = this.directionNodes();
+    const assigns = this.assignments();
+    return dirs.some((d) => assigns.some((a) => a.node.id === d.id));
+  });
+
+  private prevHadAssignedDirections = false;
+
+  constructor() {
+    effect(() => {
+      const has = this.hasAssignedDirections();
+      if (has && !this.prevHadAssignedDirections) {
+        this.directionsExpanded.set(true);
+      }
+      this.prevHadAssignedDirections = has;
+    });
+  }
 
   // ── Computed ───────────────────────────────────────────────────────────────
 
@@ -412,6 +456,17 @@ export class TroncViewComponent {
     this.nodeUnassigned.emit(nodeId);
   }
 
+  onDirectionNodeClick(node: TroncNodeItem, event: MouseEvent): void {
+    this.nodeSelected.emit(node.id);
+    if (this.isAssigned(node.id)) {
+      this.nodeClicked.emit({ nodeId: node.id, event });
+    }
+  }
+
+  onRemoveDirection(nodeId: string): void {
+    this.directionRemoved.emit(nodeId);
+  }
+
   getNodeAriaLabel(node: TroncNodeItem): string {
     const assignment = this.getAssignment(node.id);
     if (!assignment) return `Node ${node.label}, sense assignar`;
@@ -447,6 +502,14 @@ export class TroncViewComponent {
 
   getNodeColor(node: TroncNodeItem): string | null {
     return node.color ?? null;
+  }
+
+  getDirectionColor(zone: string): string {
+    return zone === FigureZone.FIGURE_DIRECTION ? '#d97706' : '#db2777';
+  }
+
+  getDirectionLabel(zone: string): string {
+    return zone === FigureZone.FIGURE_DIRECTION ? 'Direcció figura' : 'Direcció xicalla';
   }
 
   getPositionTypeBadge(node: TroncNodeItem): string {

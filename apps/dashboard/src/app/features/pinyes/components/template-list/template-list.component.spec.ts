@@ -178,7 +178,7 @@ describe('TemplateListComponent', () => {
   // ── F2: Badge "Tronc" rendering ────────────────────────────────────────
 
   describe('badge Tronc', () => {
-    it('renders badge-info "Tronc" for figures with hasPinya=false', () => {
+    it('renders badge-info "Figura neta" for figures with hasPinya=false', () => {
       figureService.getAll.mockReturnValue(
         of({
           data: [makeTemplate({ id: 'neta-1', name: 'Piló', hasPinya: false })],
@@ -189,7 +189,7 @@ describe('TemplateListComponent', () => {
       fixture.detectChanges();
       const badges = fixture.nativeElement.querySelectorAll('.badge-info');
       expect(badges.length).toBe(1);
-      expect(badges[0].textContent.trim()).toBe('Tronc');
+      expect(badges[0].textContent.trim()).toBe('Figura neta');
     });
 
     it('does NOT render badge-info for figures with hasPinya=true', () => {

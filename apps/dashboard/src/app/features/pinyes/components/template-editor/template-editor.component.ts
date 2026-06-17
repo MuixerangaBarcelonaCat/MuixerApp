@@ -112,6 +112,8 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     this.previewMode() ? 'projection' : 'editor',
   );
 
+  readonly isFiguraNeta = computed(() => this.hasPinya() === false);
+
   // Panel visibility
   propertiesPanelOpen = signal(true);
   shortcutsModalOpen = signal(false);
@@ -211,6 +213,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
       const hasPinyaParam = this.route.snapshot.queryParamMap.get('hasPinya');
       if (hasPinyaParam === 'false') {
         this.hasPinya.set(false);
+        this.autoOpenTroncCentered();
       }
     }
   }
@@ -401,6 +404,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   }
 
   addPinyaNode(pos: NodePreset): void {
+    if (this.isFiguraNeta()) return;
     this.addNode(
       FigureZone.PINYA,
       0,
@@ -451,6 +455,18 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
     if (!this.requireName(doAdd)) return;
     doAdd();
+  }
+
+  // ── Tronc panel auto-open (figures netes) ─────────────────────────────────
+
+  private autoOpenTroncCentered(): void {
+    const panelW = Math.min(window.innerWidth * 0.7, window.innerWidth - 32);
+    const panelH = window.innerHeight * 0.7;
+    this.troncPanelPos.set({
+      x: Math.round((window.innerWidth - panelW) / 2),
+      y: Math.round((window.innerHeight - panelH) / 2),
+    });
+    this.troncDrawerOpen.set(true);
   }
 
   // ── Tronc panel drag ─────────────────────────────────────────────────────
@@ -779,6 +795,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   // ── Rengla mode ──────────────────────────────────────────────────────────
 
   toggleRenglaEditMode(): void {
+    if (this.isFiguraNeta()) return;
     if (this.previewMode()) this.previewMode.set(false);
     this.renglaEditMode.update((v) => !v);
     if (this.renglaEditMode()) {
@@ -976,6 +993,9 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
         this.rengles.set(tmpl.rengles ?? []);
         this.adHocInstanceCount.set(tmpl.adHocInstanceCount ?? 0);
         this.loading.set(false);
+        if (!tmpl.hasPinya) {
+          this.autoOpenTroncCentered();
+        }
       },
       error: () => {
         this.loading.set(false);

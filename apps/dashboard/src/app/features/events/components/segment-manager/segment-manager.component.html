@@ -78,7 +78,8 @@
                     type="text"
                     class="input input-sm input-bordered flex-1 min-w-[140px]"
                     [attr.aria-label]="'Nom del segment'"
-                    [(ngModel)]="editingName"
+                    [ngModel]="editingName()"
+                    (ngModelChange)="editingName.set($event)"
                     (keydown.enter)="saveSegmentName(segment)"
                     (keydown.escape)="cancelEdit()"
                     placeholder="Nom del segment (opcional)"
@@ -246,7 +247,7 @@
   <app-figure-picker-modal
     [open]="pickerOpen()"
     [segmentId]="pickerSegmentId()!"
-    (selected)="onInstanceSelected($event)"
+    (confirmed)="onInstancesConfirmed($event)"
     (closed)="closePicker()"
   />
 }

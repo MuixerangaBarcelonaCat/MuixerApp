@@ -96,27 +96,32 @@
         <!-- {{ previewMode() ? 'Sortir' : 'Previsualitzar' }} -->
       </button>
 
-      <!-- Rengla edit mode toggle -->
-      <button
-        type="button"
-        class="btn btn-sm gap-1"
-        [class.btn-primary]="renglaEditMode()"
-        [class.btn-ghost]="!renglaEditMode()"
-        [disabled]="previewMode()"
-        (click)="toggleRenglaEditMode()"
-        [attr.aria-pressed]="renglaEditMode()"
-        aria-label="Edita rengles"
-        title="Edita les rengles"
-      >
-        <lucide-icon name="GitBranchPlus" [size]="16" aria-hidden="true" />
-        Rengles
-      </button>
+      <!-- Rengla edit mode toggle (pinya-only) -->
+      @if (!isFiguraNeta()) {
+        <button
+          type="button"
+          class="btn btn-sm gap-1"
+          [class.btn-primary]="renglaEditMode()"
+          [class.btn-ghost]="!renglaEditMode()"
+          [disabled]="previewMode()"
+          (click)="toggleRenglaEditMode()"
+          [attr.aria-pressed]="renglaEditMode()"
+          aria-label="Edita rengles"
+          title="Edita les rengles"
+        >
+          <lucide-icon name="GitBranchPlus" [size]="16" aria-hidden="true" />
+          Rengles
+        </button>
+      }
 
       @if (!previewMode()) {
         <!-- Tronc drawer trigger -->
         <button
           type="button"
-          class="btn btn-ghost btn-sm gap-1"
+          class="btn btn-sm gap-1"
+          [class.btn-primary]="isFiguraNeta() && !troncDrawerOpen()"
+          [class.btn-ghost]="!isFiguraNeta() || troncDrawerOpen()"
+          [class.btn-active]="troncDrawerOpen()"
           (click)="troncDrawerOpen.set(true)"
           aria-label="Obrir panell del Tronc"
           title="Tronc"
@@ -124,7 +129,6 @@
           <lucide-icon name="Layers" [size]="16" aria-hidden="true" />
           Tronc
         </button>
-
       }
       <!-- Shortcuts help -->
       <button
@@ -201,29 +205,31 @@
         }
       </div>
 
-      <div class="divider my-1"></div>
+      @if (!isFiguraNeta()) {
+        <div class="divider my-1"></div>
 
-      <!-- Pinya positions -->
-      <div class="toolbar-section">
-        <p class="toolbar-label">Pinya</p>
-        @for (pos of pinyaPositions; track pos.positionType) {
-          <button
-            type="button"
-            class="toolbar-btn"
-            (click)="addPinyaNode(pos)"
-            [title]="'Afegir ' + pos.label"
-            [attr.aria-label]="'Afegir node ' + pos.label"
-          >
-            <span
-              class="node-rect"
-              [class.node-ellipse]="pos.shape === NodeShape.ELLIPSE"
-              [style.backgroundColor]="pos.color"
-              aria-hidden="true"
-            ></span>
-            {{ pos.label }}
-          </button>
-        }
-      </div>
+        <!-- Pinya positions -->
+        <div class="toolbar-section">
+          <p class="toolbar-label">Pinya</p>
+          @for (pos of pinyaPositions; track pos.positionType) {
+            <button
+              type="button"
+              class="toolbar-btn"
+              (click)="addPinyaNode(pos)"
+              [title]="'Afegir ' + pos.label"
+              [attr.aria-label]="'Afegir node ' + pos.label"
+            >
+              <span
+                class="node-rect"
+                [class.node-ellipse]="pos.shape === NodeShape.ELLIPSE"
+                [style.backgroundColor]="pos.color"
+                aria-hidden="true"
+              ></span>
+              {{ pos.label }}
+            </button>
+          }
+        </div>
+      }
 
       <div class="divider my-1"></div>
 
@@ -286,12 +292,19 @@
         <div class="relative w-full h-full">
           @if (pinyaNodes().length === 0 && !previewMode()) {
             <div class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 text-center px-6 pointer-events-none">
-              <lucide-icon name="Shapes" [size]="64" class="text-base-content/20" aria-hidden="true" />
+              <lucide-icon [name]="isFiguraNeta() ? 'Box' : 'Shapes'" [size]="64" class="text-base-content/20" aria-hidden="true" />
               <div>
-                <h3 class="text-lg font-semibold text-base-content mb-1">No hi ha cap node de pinya</h3>
-                <p class="text-sm text-base-content/60">
-                  Afegeix nodes des de la barra d'eines de l'esquerra per començar a dissenyar la figura.
-                </p>
+                @if (isFiguraNeta()) {
+                  <h3 class="text-lg font-semibold text-base-content mb-1">Figura neta</h3>
+                  <p class="text-sm text-base-content/60">
+                    Afegeix baixos des de la barra d'eines i edita el tronc al panell lateral.
+                  </p>
+                } @else {
+                  <h3 class="text-lg font-semibold text-base-content mb-1">No hi ha cap node de pinya</h3>
+                  <p class="text-sm text-base-content/60">
+                    Afegeix nodes des de la barra d'eines de l'esquerra per començar a dissenyar la figura.
+                  </p>
+                }
               </div>
             </div>
           }
@@ -592,9 +605,10 @@
 </div>
 
 <!-- ── Tronc Floating Panel ──────────────────────────────────────────────── -->
-@if (troncDrawerOpen() && !previewMode()) {
+@if (troncDrawerOpen() && (!previewMode() || isFiguraNeta())) {
   <aside
     class="tronc-floating-panel"
+    [class.tronc-floating-panel--neta]="isFiguraNeta()"
     [style.left.px]="troncPanelPos().x"
     [style.top.px]="troncPanelPos().y"
     aria-label="Tronc de la figura"

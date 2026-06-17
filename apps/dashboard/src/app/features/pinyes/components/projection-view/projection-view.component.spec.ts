@@ -24,8 +24,10 @@ class FigureCanvasStub {
 class TroncViewStub {
   readonly troncNodes = input<TroncNodeItem[]>([]);
   readonly baseNodes = input<TroncNodeItem[]>([]);
+  readonly directionNodes = input<TroncNodeItem[]>([]);
   readonly assignments = input<AssignmentDetail[]>([]);
   readonly mode = input<string>('projection');
+  readonly isNetaFigure = input<boolean>(false);
 }
 
 // ── Factories ────────────────────────────────────────────────────────────────
@@ -57,7 +59,7 @@ const makeInstance = (nodes: InstanceNodeItem[], assignedIds: string[]): Project
   label: null,
   sortOrder: 0,
   projectionX: 0, projectionY: 0, projectionScale: 1,
-  figureTemplate: { id: 'fig-1', name: 'pd4' },
+  figureTemplate: { id: 'fig-1', name: 'pd4', hasPinya: true },
   nodes,
   assignments: assignedIds.map(makeAssignment),
 });
@@ -113,13 +115,68 @@ describe('ProjectionViewComponent', () => {
       expect(result.map((n) => n.id)).toEqual(['p1']);
     });
 
-    it('keeps unassigned BASE nodes (base is always shown)', () => {
+    it('includes BASE but excludes DIRECTION nodes', () => {
       const base = makeNode({ id: 'b1', zone: FigureZone.BASE });
-      const instance = makeInstance([base], []);
+      const dir = makeNode({ id: 'd1', zone: FigureZone.FIGURE_DIRECTION });
+      const pinya = makeNode({ id: 'p1', zone: FigureZone.PINYA });
+      const instance = makeInstance([base, dir, pinya], ['p1']);
 
       const result = component.getInstanceProjectionNodes(instance);
 
-      expect(result.map((n) => n.id)).toContain('b1');
+      expect(result.map((n) => n.id)).toEqual(['b1', 'p1']);
+    });
+
+    it('keeps DECORATION nodes regardless of assignment', () => {
+      const deco = makeNode({ id: 'dec1', zone: FigureZone.DECORATION });
+      const pinya = makeNode({ id: 'p1', zone: FigureZone.PINYA });
+      const instance = makeInstance([deco, pinya], ['p1']);
+
+      const result = component.getInstanceProjectionNodes(instance);
+
+      expect(result.map((n) => n.id)).toEqual(['dec1', 'p1']);
+    });
+  });
+
+  // ── isNetaFigure ─────────────────────────────────────────────────────────────
+
+  describe('isNetaFigure', () => {
+    it('returns true when hasPinya is false', () => {
+      const instance = makeInstance([], []);
+      instance.figureTemplate = { id: 'f1', name: 'Piló', hasPinya: false };
+      expect(component.isNetaFigure(instance)).toBe(true);
+    });
+
+    it('returns false when hasPinya is true', () => {
+      const instance = makeInstance([], []);
+      expect(component.isNetaFigure(instance)).toBe(false);
+    });
+
+    it('returns false when figureTemplate is null', () => {
+      const instance = makeInstance([], []);
+      instance.figureTemplate = null;
+      expect(component.isNetaFigure(instance)).toBe(false);
+    });
+  });
+
+  // ── getInstanceDirectionNodes ───────────────────────────────────────────────
+
+  describe('getInstanceDirectionNodes', () => {
+    it('extracts FIGURE_DIRECTION and XICALLA_DIRECTION nodes', () => {
+      const figDir = makeNode({ id: 'fd1', zone: FigureZone.FIGURE_DIRECTION });
+      const xicDir = makeNode({ id: 'xd1', zone: FigureZone.XICALLA_DIRECTION });
+      const tronc = makeNode({ id: 't1', zone: FigureZone.TRONC });
+      const pinya = makeNode({ id: 'p1', zone: FigureZone.PINYA });
+      const instance = makeInstance([figDir, xicDir, tronc, pinya], []);
+
+      const result = component.getInstanceDirectionNodes(instance);
+      expect(result.map((n) => n.id)).toEqual(['fd1', 'xd1']);
+    });
+
+    it('returns empty array when no direction nodes exist', () => {
+      const tronc = makeNode({ id: 't1', zone: FigureZone.TRONC });
+      const instance = makeInstance([tronc], []);
+
+      expect(component.getInstanceDirectionNodes(instance)).toEqual([]);
     });
   });
 

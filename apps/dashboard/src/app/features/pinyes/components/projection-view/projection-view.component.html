@@ -26,42 +26,70 @@
             [style.height]="itemHeightStyle()"
           >
 
-            <!-- Capçalera: nom de figura + tronc -->
-            <div
-              class="flex-shrink-0 bg-white border-b border-gray-200 overflow-hidden"
-              style="max-height: 30%"
-            >
-              <div class="px-2 pt-1 pb-0.5 flex items-baseline gap-1">
+            @if (isNetaFigure(instance)) {
+              <!-- ── Figura neta: TroncView com a contingut principal ──────── -->
+              <div class="px-2 pt-1 pb-0.5 flex items-baseline gap-1 flex-shrink-0 border-b border-gray-200">
                 <span class="text-base font-semibold text-gray-900 truncate">{{ getInstanceName(instance) }}</span>
+                <span class="badge badge-xs badge-info flex-shrink-0">Figura neta</span>
               </div>
-              <div class="overflow-y-auto">
+              <div class="flex-1 min-h-0 flex items-center justify-center overflow-y-auto p-2 relative">
                 <app-tronc-view
+                  class="w-full max-w-md"
                   mode="projection"
                   [troncNodes]="getInstanceTroncNodes(instance)"
                   [baseNodes]="getInstanceBaseNodes(instance)"
+                  [directionNodes]="getInstanceDirectionNodes(instance)"
+                  [isNetaFigure]="true"
                   [assignments]="instance.assignments"
                 />
+                <a
+                  [routerLink]="['/pinyes/events', eventId, 'segments', segmentId, 'project', instance.id]"
+                  class="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity rounded-md p-1 focus-visible:opacity-100 bg-black/50 text-white"
+                  [attr.aria-label]="'Obre ' + getInstanceName(instance) + ' en pantalla completa'"
+                  title="Obre en pantalla completa"
+                >
+                  <lucide-icon name="Maximize2" [size]="14" aria-hidden="true" />
+                </a>
               </div>
-            </div>
-
-            <!-- Pinya -->
-            <div class="flex-1 min-h-0 relative">
-              <app-figure-canvas
-                class="block w-full h-full"
-                mode="readonly"
-                [gridEnabled]="false"
-                [nodes]="getInstanceProjectionNodes(instance)"
-                [assignments]="instance.assignments"
-              />
-              <a
-                [routerLink]="['/pinyes/events', eventId, 'segments', segmentId, 'project', instance.id]"
-                class="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity rounded-md p-1 focus-visible:opacity-100 bg-black/50 text-white"
-                [attr.aria-label]="'Obre ' + getInstanceName(instance) + ' en pantalla completa'"
-                title="Obre en pantalla completa"
+            } @else {
+              <!-- ── Figura completa: tronc header + pinya canvas ──────────── -->
+              <div
+                class="flex-shrink-0 bg-white border-b border-gray-200 overflow-hidden"
+                style="max-height: 30%"
               >
-                <lucide-icon name="Maximize2" [size]="14" aria-hidden="true" />
-              </a>
-            </div>
+                <div class="px-2 pt-1 pb-0.5 flex items-baseline gap-1">
+                  <span class="text-base font-semibold text-gray-900 truncate">{{ getInstanceName(instance) }}</span>
+                </div>
+                <div class="overflow-y-auto">
+                  <app-tronc-view
+                    mode="projection"
+                    [troncNodes]="getInstanceTroncNodes(instance)"
+                    [baseNodes]="getInstanceBaseNodes(instance)"
+                    [directionNodes]="getInstanceDirectionNodes(instance)"
+                    [isNetaFigure]="false"
+                    [assignments]="instance.assignments"
+                  />
+                </div>
+              </div>
+
+              <div class="flex-1 min-h-0 relative">
+                <app-figure-canvas
+                  class="block w-full h-full"
+                  mode="readonly"
+                  [gridEnabled]="false"
+                  [nodes]="getInstanceProjectionNodes(instance)"
+                  [assignments]="instance.assignments"
+                />
+                <a
+                  [routerLink]="['/pinyes/events', eventId, 'segments', segmentId, 'project', instance.id]"
+                  class="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity rounded-md p-1 focus-visible:opacity-100 bg-black/50 text-white"
+                  [attr.aria-label]="'Obre ' + getInstanceName(instance) + ' en pantalla completa'"
+                  title="Obre en pantalla completa"
+                >
+                  <lucide-icon name="Maximize2" [size]="14" aria-hidden="true" />
+                </a>
+              </div>
+            }
 
           </div>
         }

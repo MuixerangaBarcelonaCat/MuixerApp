@@ -42,6 +42,7 @@ interface InstanceTab {
   instanceId: string;
   label: string;
   figureTemplateId: string | null;
+  hasPinya: boolean;
   snapshotted: boolean;
   nodes: InstanceNodeItem[];
   assignedCount: number;
@@ -185,9 +186,14 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     return this.state.assignments().find((a) => a.node.id === node.id) ?? null;
   });
 
-  /** Nodes rendered on the pinya Konva canvas (PINYA + BASE + direction zones, no TRONC). */
+  /** Nodes rendered on the Konva canvas (PINYA + BASE + DECORATION — spatial x,y nodes). */
   readonly activePinyaNodes = computed(() =>
-    this.activeNodes().filter((n) => n.zone !== FigureZone.TRONC),
+    this.activeNodes().filter(
+      (n) =>
+        n.zone === FigureZone.PINYA ||
+        n.zone === FigureZone.BASE ||
+        n.zone === FigureZone.DECORATION,
+    ),
   );
 
   /** TRONC-zone nodes passed to the tronc panel. */
@@ -199,6 +205,21 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly activeBaseNodes = computed(() =>
     this.activeNodes().filter((n) => n.zone === FigureZone.BASE),
   );
+
+  /** Direction-zone nodes passed to the tronc panel (figures netes only). */
+  readonly activeDirectionNodes = computed(() =>
+    this.activeNodes().filter(
+      (n) =>
+        n.zone === FigureZone.FIGURE_DIRECTION ||
+        n.zone === FigureZone.XICALLA_DIRECTION,
+    ),
+  );
+
+  /** Whether the active tab is a figura neta (hasPinya = false). */
+  readonly isActiveTabTroncOnly = computed(() => {
+    const tab = this.activeTab();
+    return tab ? tab.hasPinya === false : false;
+  });
 
   /** Cast attendanceRegistry to AttendanceStatus map for TroncViewComponent. */
   readonly troncAttendanceMap = computed(
@@ -368,7 +389,9 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   }
 
   private advanceToNextEmptyNodeFromCurrent(): void {
-    const nodes = this.activeNodes();
+    const nodes = this.activeNodes().filter(
+      (n) => n.zone !== FigureZone.DECORATION,
+    );
     if (nodes.length === 0) return;
     const assignments = this.state.assignments();
     const assignedNodeIds = new Set(assignments.map((a) => a.node.id));
@@ -415,6 +438,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
         instanceId: instance.id,
         label: instance.label ?? instance.figureTemplate?.name ?? '?',
         figureTemplateId: instance.figureTemplate?.id ?? null,
+        hasPinya: instance.figureTemplate?.hasPinya ?? true,
         snapshotted: instance.snapshotted,
         nodes: [],
         assignedCount: 0,
@@ -434,6 +458,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
   onTroncDragStart(event: MouseEvent): void {
     if ((event.target as HTMLElement).closest('button')) return;
+    if (this.isActiveTabTroncOnly()) return;
     this.troncDragging = true;
     const pos = this.troncPanelPos();
     this.troncDragOffset = { x: event.clientX - pos.x, y: event.clientY - pos.y };
@@ -462,6 +487,9 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     this.highlightedNodeIds.set(new Set());
     this.undoRedo.clear();
     this.loadTabData(instanceId);
+
+    const tab = this.tabs().find((t) => t.instanceId === instanceId);
+    this.troncPanelOpen.set(tab ? !tab.hasPinya : false);
   }
 
   private loadTabData(instanceId: string): void {
@@ -470,6 +498,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
     this.assignmentService.getInstanceNodes(instanceId).subscribe({
       next: (resp) => {
+        if (this.state.activeInstanceId() !== instanceId) return;
         const assignableCount = resp.data.filter(
           (n) => n.zone !== FigureZone.DECORATION,
         ).length;
@@ -480,14 +509,13 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
               : t,
           ),
         );
-        if (this.state.activeInstanceId() === instanceId) {
-          this.state.activeTabNodes.set(resp.data);
-        }
+        this.state.activeTabNodes.set(resp.data);
       },
     });
 
     this.assignmentService.getByInstance(instanceId).subscribe({
       next: (resp) => {
+        if (this.state.activeInstanceId() !== instanceId) return;
         this.state.assignments.set(resp.data);
         this.tabs.update((list) =>
           list.map((t) =>
@@ -589,8 +617,8 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const activeNodes = this.activePinyaNodes();
-    const clickedNode = activeNodes.find((n) => n.id === nodeId);
+    const allNodes = this.activeNodes();
+    const clickedNode = allNodes.find((n) => n.id === nodeId);
     const isDecorationNode = clickedNode?.zone === FigureZone.DECORATION;
 
     if (isDecorationNode) {
@@ -654,6 +682,48 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     const assignment = this.state.assignments().find((a) => a.node.id === nodeId);
     if (!assignment) return;
     this.onUnassign(assignment);
+  }
+
+  // ── Direction ad-hoc handlers (figures netes) ──────────────────────────
+
+  onDirectionAdded(event: { zone: string }): void {
+    const instanceId = this.state.activeInstanceId();
+    if (!instanceId || this.isLocked()) return;
+
+    const preset = DIRECTION_NODE_PRESETS.find((p) => p.zone === event.zone);
+    if (!preset) return;
+
+    this.assignmentService
+      .createAdHocNode(instanceId, {
+        zone: preset.zone,
+        label: preset.label,
+        x: 0,
+        y: 0,
+        width: preset.width,
+        height: preset.height,
+        shape: preset.shape,
+        color: preset.color ?? undefined,
+      })
+      .subscribe({
+        next: () => this.loadTabData(instanceId),
+        error: () => this.toast.error('No s\'ha pogut crear la direcció.'),
+      });
+  }
+
+  onDirectionRemoved(nodeId: string): void {
+    const instanceId = this.state.activeInstanceId();
+    if (!instanceId || this.isLocked()) return;
+
+    const hasAssignment = this.state.assignments().some((a) => a.node.id === nodeId);
+    if (hasAssignment) {
+      this.toast.error('Treu l\'assignació abans d\'eliminar la direcció.');
+      return;
+    }
+
+    this.assignmentService.deleteAdHocNode(instanceId, nodeId).subscribe({
+      next: () => this.loadTabData(instanceId),
+      error: () => this.toast.error('No s\'ha pogut eliminar la direcció.'),
+    });
   }
 
   onPersonSelected(person: AvailablePerson): void {
@@ -985,7 +1055,9 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   // ─── Helpers ────────────────────────────────────────────────────────────
 
   private advanceToNextEmptyNode(justAssignedNodeId: string): void {
-    const nodes = this.activeNodes();
+    const nodes = this.activeNodes().filter(
+      (n) => n.zone !== FigureZone.DECORATION,
+    );
     const assignments = this.state.assignments();
     const assignedNodeIds = new Set(assignments.map((a) => a.node.id));
     const currentIndex = nodes.findIndex((n) => n.id === justAssignedNodeId);
@@ -1479,6 +1551,11 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   }
 
   goBack(): void {
-    this.location.back();
+    const returnUrl = this.route.snapshot.queryParams['returnUrl'];
+    if (returnUrl) {
+      this.router.navigateByUrl(returnUrl);
+    } else {
+      this.location.back();
+    }
   }
 }

@@ -113,14 +113,18 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
 
   // ── Node data accessors ───────────────────────────────────────────────────
 
-  /** Nodes to render in the pinya canvas: excludes TRONC and unassigned PINYA nodes.
+  /** Nodes to render on the Konva canvas: PINYA + BASE + DECORATION (spatial x,y nodes).
+   *  Excludes TRONC/DIRECTION (shown in tronc header) and unassigned PINYA nodes.
    *  Assigned cordo-obert nodes collapse to the first empty slot in their rengla. */
   getInstanceProjectionNodes(instance: ProjectionInstance): InstanceNodeItem[] {
     const assignedNodeIds = new Set(instance.assignments.map((a) => a.node.id));
     const overrides = this.cordoObertOverrides(instance.nodes, assignedNodeIds);
 
     return instance.nodes
-      .filter((n) => n.zone !== FigureZone.TRONC && !(n.zone === FigureZone.PINYA && !assignedNodeIds.has(n.id)))
+      .filter((n) =>
+        (n.zone === FigureZone.PINYA || n.zone === FigureZone.BASE || n.zone === FigureZone.DECORATION) &&
+        !(n.zone === FigureZone.PINYA && !assignedNodeIds.has(n.id)),
+      )
       .map((n) => {
         const pos = overrides.get(n.id);
         return pos ? { ...n, x: pos.x, y: pos.y } : n;
@@ -163,6 +167,16 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
     return instance.nodes.filter((n) => n.zone === FigureZone.BASE) as TroncNodeItem[];
   }
 
+  getInstanceDirectionNodes(instance: ProjectionInstance): TroncNodeItem[] {
+    return instance.nodes.filter(
+      (n) => n.zone === FigureZone.FIGURE_DIRECTION || n.zone === FigureZone.XICALLA_DIRECTION,
+    ) as TroncNodeItem[];
+  }
+
+  isNetaFigure(instance: ProjectionInstance): boolean {
+    return instance.figureTemplate?.hasPinya === false;
+  }
+
   getInstanceName(instance: ProjectionInstance): string {
     return instance.label ?? instance.figureTemplate?.name ?? 'Figura';
   }
@@ -180,7 +194,12 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
   }
 
   goBack(): void {
-    this.location.back();
+    const returnUrl = this.route.snapshot.queryParams['returnUrl'];
+    if (returnUrl) {
+      this.router.navigateByUrl(returnUrl);
+    } else {
+      this.location.back();
+    }
   }
 
   // ── Private helpers ─────────────────────────────────────────────────────────
