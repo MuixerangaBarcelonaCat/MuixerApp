@@ -7,13 +7,37 @@ import {
   output,
   signal,
 } from '@angular/core';
-import { LucideAngularModule, Minus, Plus } from 'lucide-angular';
+import { ChevronDown, ChevronRight, LucideAngularModule, Minus, Plus } from 'lucide-angular';
 import { RenglaModel } from '../../models/figure-template.model';
 
 export interface CordonsDialogSaveEvent {
   numberOfCordons: number | null;
   openCordons: string[];
 }
+
+interface NodeForGrouping {
+  renglaId: string | null;
+  positionType: string | null;
+  renglaPosition: number | null;
+}
+
+interface RenglaGroup {
+  key: string;
+  label: string;
+  rengles: RenglaModel[];
+}
+
+const POSITION_TYPE_LABELS: Record<string, string> = {
+  agulla: 'Agulla',
+  mans: 'Mans',
+  laterals: 'Laterals',
+  vents: 'Vents',
+  'cordo-obert': 'Cordó obert',
+  tap: 'Tap',
+  crossa: 'Crossa',
+  contrafort: 'Contrafort',
+  comodin: 'Comodí',
+};
 
 @Component({
   selector: 'app-cordons-dialog',
@@ -74,23 +98,114 @@ export interface CordonsDialogSaveEvent {
           @if (rengles().length > 0) {
             <div class="divider my-2"></div>
             <div class="form-control">
-              <span class="label" id="cordo-obert-label">
+              <div class="flex items-center justify-between mb-2">
                 <span class="label-text font-medium">Cordó obert</span>
-              </span>
-              <div class="space-y-2 max-h-48 overflow-y-auto">
-                @for (rengla of rengles(); track rengla.id) {
-                  <label class="flex items-center gap-3 cursor-pointer px-2 py-1.5 rounded hover:bg-base-200 transition-colors">
-                    <input
-                      type="checkbox"
-                      class="checkbox checkbox-sm checkbox-primary"
-                      [checked]="isRenglaOpen(rengla.id)"
-                      (change)="toggleRengla(rengla.id)"
-                      [attr.aria-label]="'Cordó obert per ' + rengla.name"
-                    />
-                    <span class="text-sm">{{ rengla.name }}</span>
-                  </label>
-                }
+                <div class="flex gap-1">
+                  <button
+                    type="button"
+                    class="btn btn-xs btn-ghost"
+                    [disabled]="allOpen()"
+                    (click)="toggleAll(true)"
+                  >
+                    Activa totes
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-xs btn-ghost"
+                    [disabled]="noneOpen()"
+                    (click)="toggleAll(false)"
+                  >
+                    Desactiva totes
+                  </button>
+                </div>
               </div>
+
+              @if (!isGrouped()) {
+                <!-- Flat list with single expand toggle -->
+                <button
+                  type="button"
+                  class="btn btn-xs btn-ghost self-start gap-1 mb-1"
+                  (click)="toggleGroupExpand('all')"
+                >
+                  <i-lucide
+                    [img]="isGroupExpanded('all') ? ChevronDown : ChevronRight"
+                    class="size-3"
+                  />
+                  {{ isGroupExpanded('all') ? 'Amaga' : 'Mostra' }} les rengles
+                  <span class="text-base-content/50">({{ openCount() }}/{{ rengles().length }})</span>
+                </button>
+                @if (isGroupExpanded('all')) {
+                  <div class="space-y-0.5 max-h-56 overflow-y-auto">
+                    @for (rengla of rengles(); track rengla.id) {
+                      <label class="flex items-center gap-3 cursor-pointer px-2 py-1.5 rounded hover:bg-base-200 transition-colors">
+                        <input
+                          type="checkbox"
+                          class="checkbox checkbox-sm checkbox-primary"
+                          [checked]="isRenglaOpen(rengla.id)"
+                          (change)="toggleRengla(rengla.id)"
+                          [attr.aria-label]="'Cordó obert per ' + rengla.name"
+                        />
+                        <span class="text-sm">{{ rengla.name }}</span>
+                      </label>
+                    }
+                  </div>
+                }
+              } @else {
+                <!-- Grouped view with per-group expand toggles -->
+                <div class="space-y-0.5 max-h-64 overflow-y-auto">
+                  @for (group of groupedRengles(); track group.key) {
+                    <div class="sticky top-0 bg-base-100 z-10 flex items-center justify-between px-1 py-1">
+                      <button
+                        type="button"
+                        class="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-base-content/50 hover:text-base-content transition-colors"
+                        (click)="toggleGroupExpand(group.key)"
+                        [attr.aria-expanded]="isGroupExpanded(group.key)"
+                      >
+                        <i-lucide
+                          [img]="isGroupExpanded(group.key) ? ChevronDown : ChevronRight"
+                          class="size-3 shrink-0"
+                        />
+                        {{ group.label }}
+                        <span class="font-normal text-base-content/40 normal-case tracking-normal">
+                          ({{ groupOpenCount(group.rengles) }}/{{ group.rengles.length }})
+                        </span>
+                      </button>
+                      <div class="flex gap-1 shrink-0">
+                        <button
+                          type="button"
+                          class="btn btn-xs btn-ghost"
+                          [disabled]="isGroupAllOpen(group.rengles)"
+                          (click)="toggleGroup(group.rengles, true)"
+                        >
+                          Activa
+                        </button>
+                        <button
+                          type="button"
+                          class="btn btn-xs btn-ghost"
+                          [disabled]="isGroupNoneOpen(group.rengles)"
+                          (click)="toggleGroup(group.rengles, false)"
+                        >
+                          Desactiva
+                        </button>
+                      </div>
+                    </div>
+                    @if (isGroupExpanded(group.key)) {
+                      @for (rengla of group.rengles; track rengla.id) {
+                        <label class="flex items-center gap-3 cursor-pointer pl-6 pr-2 py-1.5 rounded hover:bg-base-200 transition-colors">
+                          <input
+                            type="checkbox"
+                            class="checkbox checkbox-sm checkbox-primary"
+                            [checked]="isRenglaOpen(rengla.id)"
+                            (change)="toggleRengla(rengla.id)"
+                            [attr.aria-label]="'Cordó obert per ' + rengla.name"
+                          />
+                          <span class="text-sm">{{ rengla.name }}</span>
+                        </label>
+                      }
+                    }
+                  }
+                </div>
+              }
             </div>
           }
 
@@ -122,15 +237,19 @@ export class CordonsDialogComponent {
   readonly openCordons = input.required<string[]>();
   readonly rengles = input.required<RenglaModel[]>();
   readonly maxCordons = input.required<number>();
+  readonly nodes = input<NodeForGrouping[]>([]);
 
   readonly saved = output<CordonsDialogSaveEvent>();
   readonly closed = output<void>();
 
   readonly Minus = Minus;
   readonly Plus = Plus;
+  readonly ChevronDown = ChevronDown;
+  readonly ChevronRight = ChevronRight;
 
   readonly localCordons = signal<number | null>(null);
   readonly localOpenCordons = signal<string[]>([]);
+  readonly expandedGroups = signal<Set<string>>(new Set());
 
   readonly hasChanges = computed(() => {
     return (
@@ -139,12 +258,77 @@ export class CordonsDialogComponent {
     );
   });
 
+  readonly groupedRengles = computed((): RenglaGroup[] => {
+    const rengles = this.rengles();
+    const nodes = this.nodes();
+
+    if (nodes.length === 0) {
+      return [{ key: 'all', label: '', rengles }];
+    }
+
+    const renglaToType = new Map<string, string>();
+    for (const rengla of rengles) {
+      const firstNode = nodes
+        .filter((n) => n.renglaId === rengla.id && n.renglaPosition !== null)
+        .sort((a, b) => (a.renglaPosition ?? 0) - (b.renglaPosition ?? 0))[0];
+      renglaToType.set(rengla.id, firstNode?.positionType ?? 'other');
+    }
+
+    const groupOrder: string[] = [];
+    const groupMap = new Map<string, RenglaModel[]>();
+    for (const rengla of rengles) {
+      const key = renglaToType.get(rengla.id) ?? 'other';
+      if (!groupMap.has(key)) {
+        groupOrder.push(key);
+        groupMap.set(key, []);
+      }
+      groupMap.get(key)!.push(rengla);
+    }
+
+    return groupOrder.map((key) => ({
+      key,
+      label: POSITION_TYPE_LABELS[key] ?? key,
+      rengles: groupMap.get(key)!,
+    }));
+  });
+
+  readonly isGrouped = computed(() => this.groupedRengles().length > 1);
+
+  readonly allOpen = computed(() =>
+    this.rengles().length > 0 && this.rengles().every((r) => this.isRenglaOpen(r.id)),
+  );
+
+  readonly noneOpen = computed(() =>
+    this.rengles().every((r) => !this.isRenglaOpen(r.id)),
+  );
+
+  readonly openCount = computed(() =>
+    this.rengles().filter((r) => this.isRenglaOpen(r.id)).length,
+  );
+
   constructor() {
     effect(() => {
       if (this.open()) {
         this.localCordons.set(this.numberOfCordons());
         this.localOpenCordons.set([...(this.openCordons() ?? [])]);
+        this.expandedGroups.set(new Set());
       }
+    });
+  }
+
+  isGroupExpanded(key: string): boolean {
+    return this.expandedGroups().has(key);
+  }
+
+  toggleGroupExpand(key: string): void {
+    this.expandedGroups.update((set) => {
+      const next = new Set(set);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
     });
   }
 
@@ -173,12 +357,39 @@ export class CordonsDialogComponent {
     return this.localOpenCordons().includes(renglaId);
   }
 
+  isGroupAllOpen(rengles: RenglaModel[]): boolean {
+    return rengles.every((r) => this.isRenglaOpen(r.id));
+  }
+
+  isGroupNoneOpen(rengles: RenglaModel[]): boolean {
+    return rengles.every((r) => !this.isRenglaOpen(r.id));
+  }
+
+  groupOpenCount(rengles: RenglaModel[]): number {
+    return rengles.filter((r) => this.isRenglaOpen(r.id)).length;
+  }
+
   toggleRengla(renglaId: string): void {
     this.localOpenCordons.update((list) =>
-      list.includes(renglaId)
-        ? list.filter((id) => id !== renglaId)
-        : [...list, renglaId],
+      list.includes(renglaId) ? list.filter((id) => id !== renglaId) : [...list, renglaId],
     );
+  }
+
+  toggleGroup(rengles: RenglaModel[], open: boolean): void {
+    const ids = rengles.map((r) => r.id);
+    if (open) {
+      this.localOpenCordons.update((list) => [...new Set([...list, ...ids])]);
+    } else {
+      this.localOpenCordons.update((list) => list.filter((id) => !ids.includes(id)));
+    }
+  }
+
+  toggleAll(open: boolean): void {
+    if (open) {
+      this.localOpenCordons.set(this.rengles().map((r) => r.id));
+    } else {
+      this.localOpenCordons.set([]);
+    }
   }
 
   onSave(): void {

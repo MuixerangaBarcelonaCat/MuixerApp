@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideHttpClient } from '@angular/common/http';
 import { environment } from '../../../../environments/environment';
 import { NodeAssignmentService } from './node-assignment.service';
+import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../shared/utils/person.util';
 
 const BASE = environment.apiUrl;
 const INSTANCE_ID = 'instance-uuid-1';
@@ -85,14 +86,14 @@ describe('NodeAssignmentService', () => {
 
   it('getAvailablePersons sends GET with query params to /events/:id/segments/:id/available-persons', () => {
     service
-      .getAvailablePersons(EVENT_ID, SEGMENT_ID, { search: 'pere', height: 140, excludeAssigned: true })
+      .getAvailablePersons(EVENT_ID, SEGMENT_ID, { search: 'pere', height: SHOULDER_HEIGHT_BASELINE_CM, excludeAssigned: true })
       .subscribe();
     const req = httpMock.expectOne((r) =>
       r.url === `${BASE}/events/${EVENT_ID}/segments/${SEGMENT_ID}/available-persons`,
     );
     expect(req.request.method).toBe('GET');
     expect(req.request.params.get('search')).toBe('pere');
-    expect(req.request.params.get('height')).toBe('140');
+    expect(req.request.params.get('height')).toBe(String(SHOULDER_HEIGHT_BASELINE_CM));
     expect(req.request.params.get('excludeAssigned')).toBe('true');
     req.flush({ data: [] });
   });

@@ -24,10 +24,12 @@
             [attr.aria-label]="tab.label + ': ' + tab.assignedCount + ' de ' + tab.totalCount + ' assignades'"
           >
             {{ tab.label }}
-            <span class="badge badge-xs"
-              [class]="tab.assignedCount === tab.totalCount ? 'badge-success' : 'badge-ghost'">
-              {{ tab.assignedCount }}/{{ tab.totalCount }}
-            </span>
+            @if (tab.totalCount > 0) {
+              <span class="badge badge-xs"
+                [class]="tab.assignedCount === tab.totalCount ? 'badge-success' : 'badge-ghost'">
+                {{ tab.assignedCount }}/{{ tab.totalCount }}
+              </span>
+            }
           </button>
           <button
             type="button"
@@ -379,6 +381,7 @@
           [activeNodePositionType]="selectedNode()?.positionType ?? null"
           (personSelected)="onPersonSelected($event)"
           (assignedPersonSelected)="onAssignedPersonSelected($event)"
+          (unassignRequested)="onUnassign($event)"
         />
       </aside>
     }
@@ -596,6 +599,7 @@
   [openCordons]="activeTab()?.openCordons ?? []"
   [rengles]="renglesWithCordoObert()"
   [maxCordons]="maxCordons()"
+  [nodes]="activeNodes()"
   (saved)="onCordonsSaved($event)"
   (closed)="onCordonsDialogClosed()"
 />

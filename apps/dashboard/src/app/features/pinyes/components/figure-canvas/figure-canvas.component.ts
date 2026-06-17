@@ -22,6 +22,7 @@ import {
 } from '../../utils/ghost-clone.util';
 import { screenToStage } from '../../utils/rengla-coordinates.util';
 import { computeFitTransform } from '../../utils/fit-to-bounds.util';
+import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
 
 /** Minimal node shape accepted by the canvas for rendering — both FigureNodeItem and InstanceNodeItem satisfy this */
 export interface CanvasNode {
@@ -945,7 +946,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         y: node.y,
         rotation: node.rotation,
         draggable: isAdHoc,
-        opacity: isDecoration ? 0.6 : 1,
+        opacity: 1,
       });
 
       const shape = createNodeShape(
@@ -965,11 +966,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       if (assignment) {
         const alias = assignment.person.alias;
         const textFill = isDecoration
-          ? (node.color ? this.getContrastColor(node.color) : DECORATION_STROKE)
+          ? (node.color ? this.getContrastColor(node.color) : '#000000')
           : this.getContrastColor(fill);
         const shoulderH = assignment.person.shoulderHeight;
         const hasValidHeight =
-          shoulderH !== null && shoulderH !== 0 && shoulderH !== 140;
+          shoulderH !== null && shoulderH !== 0;
         const nextStatus = nextPerformanceMap.get(assignment.person.id);
 
         group.add(
@@ -993,12 +994,12 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         if (hasValidHeight) {
           const heightText =
             heightMode === 'relative'
-              ? `${shoulderH! >= 140 ? '+' : ''}${shoulderH! - 140}`
+              ? `${shoulderH! >= SHOULDER_HEIGHT_BASELINE_CM ? '+' : ''}${shoulderH! - SHOULDER_HEIGHT_BASELINE_CM}`
               : `${shoulderH}`;
           group.add(
             new Konva.Text({
               text: heightText,
-              fontSize: 7,
+              fontSize: 10,
               fontFamily: 'Inter, sans-serif',
               fill: textFill,
               opacity: 0.75,
@@ -1039,7 +1040,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         }
       } else {
         const textFill = isDecoration
-          ? (node.color ? this.getContrastColor(node.color) : DECORATION_STROKE)
+          ? (node.color ? this.getContrastColor(node.color) : '#000000')
           : this.getContrastColor(fill);
         group.add(
           new Konva.Text({
@@ -1165,7 +1166,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         y: node.y,
         rotation: node.rotation,
         draggable: false,
-        opacity: isDecoration ? 0.4 : 1,
+        opacity: 1,
       });
 
       const shape = createNodeShape(
@@ -1181,7 +1182,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       group.add(shape);
 
       const textFill = isDecoration
-        ? (node.color ? this.getContrastColor(node.color) : DECORATION_STROKE)
+        ? (node.color ? this.getContrastColor(node.color) : '#000000')
         : this.getContrastColor(fill);
       const displayText = assignment ? assignment.person.alias : node.label;
       const { fontSize, wrap } = this.fitFontSizeForNode(
@@ -1189,7 +1190,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         node.width,
         node.height,
         {
-          maxFontSize: assignment ? 18 : 9,
+          maxFontSize: assignment || isDecoration ? 18 : 9,
           fontStyle: assignment ? 'bold' : 'normal',
           wrap: assignment ? 'none' : 'word',
         },
@@ -1202,7 +1203,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           fontStyle: assignment ? 'bold' : 'normal',
           fontFamily: 'Inter, sans-serif',
           fill: textFill,
-          opacity: assignment ? 1 : 0.5,
+          opacity: assignment || isDecoration ? 1 : 0.5,
           align: 'center',
           verticalAlign: 'middle',
           width: node.width,

@@ -2,13 +2,14 @@ import { TestBed } from '@angular/core/testing';
 import { AssignmentStateService } from './assignment-state.service';
 import { AssignmentDetail, AvailablePerson, InstanceNodeItem } from '../models/assignment.model';
 import { PINYA_NODE_PRESETS } from '@muixer/shared';
+import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../shared/utils/person.util';
 
 const makeAssignment = (nodeId = 'node-1', personId = 'person-1'): AssignmentDetail => ({
   id: 'assignment-1',
   figureInstanceId: 'instance-1',
   compositionSlotId: null,
   node: { id: nodeId, label: 'pd4-1', zone: 'TRONC', z: 1, positionType: 'pd4', sortOrder: 0, ringLevel: null, originNodeId: null, sourceNodeId: null },
-  person: { id: personId, alias: 'Pepet', name: 'Pere', firstSurname: 'Garcia', shoulderHeight: 140 },
+  person: { id: personId, alias: 'Pepet', name: 'Pere', firstSurname: 'Garcia', shoulderHeight: SHOULDER_HEIGHT_BASELINE_CM },
 });
 
 const makeAvailablePerson = (id = 'person-1', status: AvailablePerson['attendanceStatus'] = 'ANIRE'): AvailablePerson => ({
@@ -16,7 +17,7 @@ const makeAvailablePerson = (id = 'person-1', status: AvailablePerson['attendanc
   alias: 'Pepet',
   name: 'Pere',
   firstSurname: 'Garcia',
-  shoulderHeight: 140,
+  shoulderHeight: SHOULDER_HEIGHT_BASELINE_CM,
   isXicalla: false,
   attendanceStatus: status,
   nextPerformanceStatus: null,

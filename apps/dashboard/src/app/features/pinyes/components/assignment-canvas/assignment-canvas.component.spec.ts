@@ -22,6 +22,7 @@ import { ToastService } from '../../../../shared/components/feedback/toast/toast
 import { AssignmentDetail, AvailablePerson, BulkImportResult, InstanceNodeItem } from '../../models/assignment.model';
 import { SegmentDetail } from '../../models/segment.model';
 import { FigureZone, NodeShape, PINYA_NODE_PRESETS, DECORATION_NODE_PRESETS, DIRECTION_NODE_PRESETS } from '@muixer/shared';
+import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
 
 // ── Stub child components ───────────────────────────────────────────────────
 
@@ -157,7 +158,7 @@ const makeAssignment = (nodeId = 'inode-1', personId = 'person-1'): AssignmentDe
   figureInstanceId: INSTANCE_ID,
   compositionSlotId: null,
   node: { id: nodeId, label: 'base-1', zone: 'BASE', z: 0, positionType: null, sortOrder: 0, ringLevel: null, originNodeId: null, sourceNodeId: 'node-1' },
-  person: { id: personId, alias: 'Pepet', name: 'Pere', firstSurname: 'Garcia', shoulderHeight: 140 },
+  person: { id: personId, alias: 'Pepet', name: 'Pere', firstSurname: 'Garcia', shoulderHeight: SHOULDER_HEIGHT_BASELINE_CM },
 });
 
 const makeAvailablePerson = (id = 'person-1'): AvailablePerson => ({
@@ -165,7 +166,7 @@ const makeAvailablePerson = (id = 'person-1'): AvailablePerson => ({
   alias: 'Pepet',
   name: 'Pere',
   firstSurname: 'Garcia',
-  shoulderHeight: 140,
+  shoulderHeight: SHOULDER_HEIGHT_BASELINE_CM,
   isXicalla: false,
   attendanceStatus: 'ANIRE',
   nextPerformanceStatus: null,

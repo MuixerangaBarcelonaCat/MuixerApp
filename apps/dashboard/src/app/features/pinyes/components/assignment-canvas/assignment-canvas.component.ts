@@ -303,9 +303,16 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
       const selectedId = this.state.selectedNodeId();
       if (!selectedId) return;
       const node = this.activeNodes().find((n) => n.id === selectedId);
-      if (!node?.isAdHoc) return;
-      event.preventDefault();
 
+      if (!node?.isAdHoc) {
+        const assignment = this.state.assignments().find((a) => a.node.id === selectedId);
+        if (!assignment) return;
+        event.preventDefault();
+        this.onUnassign(assignment);
+        return;
+      }
+
+      event.preventDefault();
       const isAssigned = this.state.assignments().some((a) => a.node.id === selectedId);
       if (isAssigned) {
         this.pendingDeleteNodeId.set(selectedId);
@@ -485,10 +492,13 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
     this.assignmentService.getInstanceNodes(instanceId).subscribe({
       next: (resp) => {
+        const assignableCount = resp.data.filter(
+          (n) => n.zone !== FigureZone.DECORATION,
+        ).length;
         this.tabs.update((list) =>
           list.map((t) =>
             t.instanceId === instanceId
-              ? { ...t, nodes: resp.data, totalCount: resp.data.length }
+              ? { ...t, nodes: resp.data, totalCount: assignableCount }
               : t,
           ),
         );
@@ -627,6 +637,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     if (isDecorationNode) {
       this.state.setSelectedNodeId(nodeId);
       this.popoverAssignment.set(null);
+      this.adHocPropertiesOpen.set(true);
       return;
     }
 
@@ -639,6 +650,8 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
       ? this.state.assignments().find((a) => a.node.id === previouslySelectedNodeId)
       : null;
 
+    const isAdHoc = !!clickedNode?.isAdHoc;
+
     if (clickedNodeAssignment && previousNodeAssignment && previouslySelectedNodeId !== nodeId) {
       this.triggerSwap(previousNodeAssignment, clickedNodeAssignment);
       this.state.setSelectedNodeId(null);
@@ -646,6 +659,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     } else if (clickedNodeAssignment) {
       this.popoverAssignment.set(clickedNodeAssignment);
       this.state.setSelectedNodeId(nodeId);
+      if (isAdHoc) this.adHocPropertiesOpen.set(true);
     } else {
       const pendingPersonId = this.state.selectedPersonId();
       this.state.setSelectedNodeId(nodeId);
@@ -654,6 +668,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
       if (pendingPersonId) {
         this.triggerAssign(nodeId, pendingPersonId);
       }
+      if (isAdHoc) this.adHocPropertiesOpen.set(true);
     }
   }
 
@@ -797,7 +812,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
         this.tabs.update((list) =>
           list.map((t) =>
             t.instanceId === instanceId
-              ? { ...t, nodes: resp.data, totalCount: resp.data.length, snapshotted: true }
+              ? { ...t, nodes: resp.data, totalCount: resp.data.filter((n) => n.zone !== FigureZone.DECORATION).length, snapshotted: true }
               : t,
           ),
         );
