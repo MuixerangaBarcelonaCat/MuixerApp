@@ -596,6 +596,7 @@
   [openCordons]="activeTab()?.openCordons ?? []"
   [rengles]="renglesWithCordoObert()"
   [maxCordons]="maxCordons()"
+  [nodes]="activeNodes()"
   (saved)="onCordonsSaved($event)"
   (closed)="onCordonsDialogClosed()"
 />
