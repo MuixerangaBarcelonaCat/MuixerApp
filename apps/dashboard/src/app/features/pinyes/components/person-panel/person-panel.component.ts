@@ -16,6 +16,7 @@ import { LucideAngularModule, RefreshCw, ChevronDown, ChevronUp } from 'lucide-a
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
 import { AvailablePerson, AssignmentDetail, HeightMode } from '../../models/assignment.model';
+import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
 
 @Component({
   selector: 'app-person-panel',
@@ -141,7 +142,7 @@ export class PersonPanelComponent {
     if (this.search()) query['search'] = this.search();
     if (this.height() !== null) {
       const heightValue = this.height()!;
-      const absoluteHeight = this.heightMode() === 'relative' ? 140 + heightValue : heightValue;
+      const absoluteHeight = this.heightMode() === 'relative' ? SHOULDER_HEIGHT_BASELINE_CM + heightValue : heightValue;
       query['height'] = absoluteHeight;
     }
     if (!this.showXicalla()) query['isXicalla'] = false;
@@ -200,10 +201,10 @@ export class PersonPanelComponent {
   }
 
   formatHeight(person: AvailablePerson): string {
-    if (person.shoulderHeight === null || person.shoulderHeight === 0 || person.shoulderHeight === 140) return '-';
+    if (person.shoulderHeight === null || person.shoulderHeight === 0) return '-';
     const h = person.shoulderHeight;
     if (this.heightMode() === 'relative') {
-      const diff = h - 140;
+      const diff = h - SHOULDER_HEIGHT_BASELINE_CM;
       return diff >= 0 ? `+${diff}` : `${diff}`;
     }
     return `${h} cm`;

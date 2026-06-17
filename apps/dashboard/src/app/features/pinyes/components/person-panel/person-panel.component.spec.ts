@@ -8,6 +8,7 @@ import {
 import { PersonPanelComponent } from './person-panel.component';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AvailablePerson } from '../../models/assignment.model';
+import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
 
 const makeAvailablePerson = (
   id = 'person-1',
@@ -18,7 +19,7 @@ const makeAvailablePerson = (
   alias: 'Pepet',
   name: 'Pere',
   firstSurname: 'Garcia',
-  shoulderHeight: 140,
+  shoulderHeight: SHOULDER_HEIGHT_BASELINE_CM,
   isXicalla: false,
   attendanceStatus: status,
   nextPerformanceStatus: null,

@@ -22,6 +22,7 @@ import {
 } from '../../utils/ghost-clone.util';
 import { screenToStage } from '../../utils/rengla-coordinates.util';
 import { computeFitTransform } from '../../utils/fit-to-bounds.util';
+import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
 
 /** Minimal node shape accepted by the canvas for rendering — both FigureNodeItem and InstanceNodeItem satisfy this */
 export interface CanvasNode {
@@ -969,7 +970,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           : this.getContrastColor(fill);
         const shoulderH = assignment.person.shoulderHeight;
         const hasValidHeight =
-          shoulderH !== null && shoulderH !== 0 && shoulderH !== 140;
+          shoulderH !== null && shoulderH !== 0;
         const nextStatus = nextPerformanceMap.get(assignment.person.id);
 
         group.add(
@@ -993,12 +994,12 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         if (hasValidHeight) {
           const heightText =
             heightMode === 'relative'
-              ? `${shoulderH! >= 140 ? '+' : ''}${shoulderH! - 140}`
+              ? `${shoulderH! >= SHOULDER_HEIGHT_BASELINE_CM ? '+' : ''}${shoulderH! - SHOULDER_HEIGHT_BASELINE_CM}`
               : `${shoulderH}`;
           group.add(
             new Konva.Text({
               text: heightText,
-              fontSize: 7,
+              fontSize: 10,
               fontFamily: 'Inter, sans-serif',
               fill: textFill,
               opacity: 0.75,

@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { LucideAngularModule, X, UserMinus } from 'lucide-angular';
 import { AssignmentDetail, HeightMode } from '../../models/assignment.model';
+import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
 
 @Component({
   selector: 'app-node-popover',
@@ -79,9 +80,9 @@ export class NodePopoverComponent {
 
   readonly heightDisplay = computed(() => {
     const h = this.assignment()?.person?.shoulderHeight;
-    if (h === null || h === undefined) return '-';
+    if (h === null || h === undefined || h === 0) return '-';
     if (this.heightMode() === 'relative') {
-      const diff = h - 140;
+      const diff = h - SHOULDER_HEIGHT_BASELINE_CM;
       return diff >= 0 ? `+${diff}` : `${diff}`;
     }
     return `${h} cm`;
