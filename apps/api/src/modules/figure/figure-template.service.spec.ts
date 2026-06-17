@@ -56,7 +56,6 @@ const makeRengla = (overrides: Partial<Rengla> = {}): Rengla => ({
   id: 'rengla-uuid',
   name: 'Mans Nord',
   sortOrder: 0,
-  allowsCordoObert: false,
   template: null as unknown as FigureTemplate,
   createdAt: new Date(),
   ...overrides,
@@ -468,7 +467,7 @@ describe('FigureTemplateService', () => {
     });
 
     it('maps rengles in detail response', async () => {
-      const rengla = makeRengla({ id: 'r1', name: 'Mans Nord', sortOrder: 0, allowsCordoObert: true });
+      const rengla = makeRengla({ id: 'r1', name: 'Mans Nord', sortOrder: 0 });
       const tmpl = makeTemplate({ nodes: [], rengles: [rengla] });
       mockTemplateRepo.findOne.mockResolvedValue(tmpl);
 
@@ -478,7 +477,6 @@ describe('FigureTemplateService', () => {
         id: 'r1',
         name: 'Mans Nord',
         sortOrder: 0,
-        allowsCordoObert: true,
       });
     });
 

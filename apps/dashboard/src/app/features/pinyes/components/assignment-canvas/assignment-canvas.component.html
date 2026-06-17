@@ -44,21 +44,6 @@
       }
     </div>
 
-    @if (hasCordonsConfig()) {
-      <button
-        type="button"
-        class="btn btn-sm btn-outline gap-1"
-        (click)="openCordonsDialog()"
-        aria-label="Configurar cordons visibles"
-      >
-        <i-lucide [img]="SlidersHorizontal" class="size-4" />
-        Cordons
-        @if (activeTab()?.numberOfCordons) {
-          <span class="badge badge-xs badge-info">{{ activeTab()!.numberOfCordons }}</span>
-        }
-      </button>
-    }
-
     @if (activeTab()?.figureTemplateId) {
       <button
         type="button"
@@ -591,18 +576,6 @@
     <button type="button" class="modal-backdrop" (click)="cancelReset()" aria-label="Tancar"></button>
   </dialog>
 }
-
-<!-- Cordons dialog -->
-<app-cordons-dialog
-  [open]="cordonsDialogOpen()"
-  [numberOfCordons]="activeTab()?.numberOfCordons ?? null"
-  [openCordons]="activeTab()?.openCordons ?? []"
-  [rengles]="renglesWithCordoObert()"
-  [maxCordons]="maxCordons()"
-  [nodes]="activeNodes()"
-  (saved)="onCordonsSaved($event)"
-  (closed)="onCordonsDialogClosed()"
-/>
 
 <!-- Delete ad-hoc node modal -->
 @if (deleteAdHocModalOpen()) {

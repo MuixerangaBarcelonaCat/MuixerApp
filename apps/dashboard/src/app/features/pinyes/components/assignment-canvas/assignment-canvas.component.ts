@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Location } from '@angular/common';
-import { LucideAngularModule, ArrowLeft, Users, Edit, RefreshCw, Trash2, X, PanelLeft, PanelLeftClose, Monitor, Lock, SlidersHorizontal, Plus, HelpCircle, Undo2, Redo2, Save } from 'lucide-angular';
+import { LucideAngularModule, ArrowLeft, Users, Edit, RefreshCw, Trash2, X, PanelLeft, PanelLeftClose, Monitor, Lock, Plus, HelpCircle, Undo2, Redo2, Save } from 'lucide-angular';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { NodeAssignmentService, LockStatus } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
@@ -21,7 +21,6 @@ import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component'
 import { PersonPanelComponent } from '../person-panel/person-panel.component';
 import { ImportPinyaModalComponent } from '../import-pinya-modal/import-pinya-modal.component';
 import { TroncViewComponent } from '../tronc-view/tronc-view.component';
-import { CordonsDialogComponent, CordonsDialogSaveEvent } from '../cordons-dialog/cordons-dialog.component';
 import { AdHocNodesHelpModalComponent } from '../ad-hoc-nodes-help-modal/ad-hoc-nodes-help-modal.component';
 import { AdHocNodePropertiesComponent } from '../ad-hoc-node-properties/ad-hoc-node-properties.component';
 import { SaveAsTemplateDialogComponent, SaveAsTemplateResult } from '../save-as-template-dialog/save-as-template-dialog.component';
@@ -35,10 +34,7 @@ import {
   UpdateAdHocNodePayload,
 } from '../../models/assignment.model';
 import { SegmentDetail } from '../../models/segment.model';
-import { FigureTemplateService } from '../../services/figure-template.service';
-import { RenglaModel } from '../../models/figure-template.model';
 import { FigureZone, PINYA_NODE_PRESETS, DECORATION_NODE_PRESETS, DIRECTION_NODE_PRESETS, NodePreset } from '@muixer/shared';
-import { repositionCordoObertNodes } from '../../utils/cordo-obert-reposition.util';
 import { Observable } from 'rxjs';
 import { UndoRedoService, UndoableAction } from '../../services/undo-redo.service';
 
@@ -47,8 +43,6 @@ interface InstanceTab {
   label: string;
   figureTemplateId: string | null;
   snapshotted: boolean;
-  numberOfCordons: number | null;
-  openCordons: string[] | null;
   nodes: InstanceNodeItem[];
   assignedCount: number;
   totalCount: number;
@@ -65,7 +59,6 @@ interface InstanceTab {
     PersonPanelComponent,
     ImportPinyaModalComponent,
     TroncViewComponent,
-    CordonsDialogComponent,
     AdHocNodesHelpModalComponent,
     AdHocNodePropertiesComponent,
     SaveAsTemplateDialogComponent,
@@ -81,7 +74,6 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   private readonly layout = inject(LayoutService);
   private readonly assignmentService = inject(NodeAssignmentService);
   private readonly segmentService = inject(EventSegmentService);
-  private readonly figureTemplateService = inject(FigureTemplateService);
   private readonly instanceService = inject(FigureInstanceService);
   private readonly toast = inject(ToastService);
   readonly state = inject(AssignmentStateService);
@@ -97,7 +89,6 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly PanelLeftClose = PanelLeftClose;
   readonly Monitor = Monitor;
   readonly Lock = Lock;
-  readonly SlidersHorizontal = SlidersHorizontal;
   readonly Plus = Plus;
   readonly HelpCircle = HelpCircle;
   readonly Undo2 = Undo2;
@@ -158,14 +149,6 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   private moveOrigin: { x: number; y: number } | null = null;
   private static readonly MOVE_COALESCE_MS = 500;
 
-  readonly templateRengles = signal<RenglaModel[]>([]);
-  readonly maxCordons = signal(0);
-  readonly renglesWithCordoObert = computed(() =>
-    this.templateRengles().filter((r) => r.allowsCordoObert),
-  );
-  readonly hasCordonsConfig = computed(() => this.templateRengles().length > 0);
-  readonly cordonsDialogOpen = signal(false);
-
   // Floating tronc panel drag state
   readonly troncPanelPos = signal({ x: 16, y: 60 });
   private troncDragging = false;
@@ -203,11 +186,9 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   });
 
   /** Nodes rendered on the pinya Konva canvas (PINYA + BASE + direction zones, no TRONC). */
-  readonly activePinyaNodes = computed(() => {
-    const nodes = this.activeNodes().filter((n) => n.zone !== FigureZone.TRONC);
-    const tab = this.activeTab();
-    return repositionCordoObertNodes(nodes, tab?.numberOfCordons ?? null);
-  });
+  readonly activePinyaNodes = computed(() =>
+    this.activeNodes().filter((n) => n.zone !== FigureZone.TRONC),
+  );
 
   /** TRONC-zone nodes passed to the tronc panel. */
   readonly activeTroncNodes = computed(() =>
@@ -435,8 +416,6 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
         label: instance.label ?? instance.figureTemplate?.name ?? '?',
         figureTemplateId: instance.figureTemplate?.id ?? null,
         snapshotted: instance.snapshotted,
-        numberOfCordons: instance.numberOfCordons ?? null,
-        openCordons: instance.openCordons ?? null,
         nodes: [],
         assignedCount: 0,
         totalCount: 0,
@@ -483,7 +462,6 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     this.highlightedNodeIds.set(new Set());
     this.undoRedo.clear();
     this.loadTabData(instanceId);
-    this.loadTemplateRenglesForTab(instanceId);
   }
 
   private loadTabData(instanceId: string): void {
@@ -518,25 +496,6 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
               : t,
           ),
         );
-      },
-    });
-  }
-
-  private loadTemplateRenglesForTab(instanceId: string): void {
-    const tab = this.tabs().find((t) => t.instanceId === instanceId);
-    if (!tab?.figureTemplateId) return;
-    this.loadTemplateRengles(tab.figureTemplateId);
-  }
-
-  private loadTemplateRengles(templateId: string): void {
-    this.figureTemplateService.getOne(templateId).subscribe({
-      next: (template) => {
-        this.templateRengles.set(template.rengles ?? []);
-        const maxPos = (template.nodes ?? []).reduce(
-          (max, n) => (n.renglaPosition != null && n.renglaPosition > max ? n.renglaPosition : max),
-          0,
-        );
-        this.maxCordons.set(maxPos);
       },
     });
   }
@@ -934,48 +893,6 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     });
   }
 
-  // ─── Cordons dialog ─────────────────────────────────────────────────────
-
-  openCordonsDialog(): void {
-    this.cordonsDialogOpen.set(true);
-  }
-
-  onCordonsSaved(event: CordonsDialogSaveEvent): void {
-    const instanceId = this.state.activeInstanceId();
-    if (!instanceId) return;
-
-    this.cordonsDialogOpen.set(false);
-    this.assignmentService.updateCordons(instanceId, {
-      numberOfCordons: event.numberOfCordons,
-      openCordons: event.openCordons.length > 0 ? event.openCordons : null,
-    }).subscribe({
-      next: (resp) => {
-        this.tabs.update((list) =>
-          list.map((t) =>
-            t.instanceId === instanceId
-              ? { ...t, numberOfCordons: resp.numberOfCordons, openCordons: resp.openCordons }
-              : t,
-          ),
-        );
-        this.refreshInstanceNodes(instanceId);
-        if (resp.removedAssignments > 0) {
-          this.toast.warning(
-            `S'han desassignat ${resp.removedAssignments} persones dels cordons eliminats.`,
-          );
-        } else {
-          this.toast.success('Configuració de cordons actualitzada.');
-        }
-      },
-      error: () => {
-        this.toast.error('Error en actualitzar els cordons.');
-      },
-    });
-  }
-
-  onCordonsDialogClosed(): void {
-    this.cordonsDialogOpen.set(false);
-  }
-
   // ─── Reset snapshot ────────────────────────────────────────────────────
 
   openResetModal(): void {
@@ -1007,7 +924,6 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
         );
         this.state.assignments.set([]);
         this.loadTabData(instanceId);
-        this.loadTemplateRenglesForTab(instanceId);
         this.state.refreshPersonList();
       },
       error: (err) => {
