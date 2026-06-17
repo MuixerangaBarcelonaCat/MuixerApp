@@ -208,6 +208,10 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
       this.loadTemplate(id);
     } else {
       this.canvasState.reset();
+      const hasPinyaParam = this.route.snapshot.queryParamMap.get('hasPinya');
+      if (hasPinyaParam === 'false') {
+        this.hasPinya.set(false);
+      }
     }
   }
 

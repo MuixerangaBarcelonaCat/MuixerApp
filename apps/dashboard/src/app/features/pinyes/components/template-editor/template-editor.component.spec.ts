@@ -82,7 +82,12 @@ describe('TemplateEditorComponent — Preview Mode', () => {
   let fixture: ComponentFixture<TemplateEditorComponent>;
 
   const mockRouter = { navigate: vi.fn() };
-  const mockRoute = { snapshot: { paramMap: { get: vi.fn().mockReturnValue(null) } } };
+  const mockRoute = {
+    snapshot: {
+      paramMap: { get: vi.fn().mockReturnValue(null) },
+      queryParamMap: { get: vi.fn().mockReturnValue(null) },
+    },
+  };
   const mockFigureTemplateService = {
     getOne: vi.fn().mockReturnValue(of({ id: '1', name: 'Test', slug: 'test', nodes: [], rengles: [], hasPinya: true })),
     create: vi.fn().mockReturnValue(of({ id: '1' })),
@@ -410,6 +415,55 @@ describe('TemplateEditorComponent — Preview Mode', () => {
       component.onKeyDown(event);
       expect(component.previewMode()).toBe(false);
       document.body.removeChild(input);
+    });
+  });
+
+  // ── F2: hasPinya query param ──────────────────────────────────────────
+
+  describe('hasPinya query param on create', () => {
+    it('defaults hasPinya to true when no query param', () => {
+      expect(component.hasPinya()).toBe(true);
+    });
+
+    it('sets hasPinya to false when ?hasPinya=false on new template', async () => {
+      const routeWithParam = {
+        snapshot: {
+          paramMap: { get: vi.fn().mockReturnValue(null) },
+          queryParamMap: { get: vi.fn().mockImplementation((key: string) => key === 'hasPinya' ? 'false' : null) },
+        },
+      };
+
+      await TestBed.resetTestingModule();
+      await TestBed.configureTestingModule({
+        imports: [TemplateEditorComponent],
+        providers: [
+          { provide: Router, useValue: mockRouter },
+          { provide: ActivatedRoute, useValue: routeWithParam },
+          { provide: FigureTemplateService, useValue: mockFigureTemplateService },
+          { provide: CanvasStateService, useValue: mockCanvasState },
+          { provide: LayoutService, useValue: mockLayout },
+          { provide: ToastService, useValue: mockToast },
+          {
+            provide: LUCIDE_ICONS,
+            useValue: new LucideIconProvider({
+              ArrowLeft, Undo2, Redo2, Eye, EyeOff,
+              GitBranchPlus, Layers, Keyboard, HelpCircle, Info, X,
+              AlertTriangle, Trash2, Grid3X3, Magnet, Shapes,
+              MousePointer2, GripVertical, PanelRightClose, PanelRightOpen,
+              ChevronDown,
+            }),
+          },
+        ],
+      })
+        .overrideComponent(TemplateEditorComponent, {
+          remove: { imports: [FigureCanvasComponent, TroncViewComponent, TemplateEditorHelpModalComponent, RenglaOverlayComponent] },
+          add: { imports: [StubFigureCanvas, StubTroncView, StubHelpModal, StubRenglaOverlay] },
+        })
+        .compileComponents();
+
+      const f = TestBed.createComponent(TemplateEditorComponent);
+      f.detectChanges();
+      expect(f.componentInstance.hasPinya()).toBe(false);
     });
   });
 });
