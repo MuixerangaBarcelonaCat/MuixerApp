@@ -492,10 +492,13 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
     this.assignmentService.getInstanceNodes(instanceId).subscribe({
       next: (resp) => {
+        const assignableCount = resp.data.filter(
+          (n) => n.zone !== FigureZone.DECORATION,
+        ).length;
         this.tabs.update((list) =>
           list.map((t) =>
             t.instanceId === instanceId
-              ? { ...t, nodes: resp.data, totalCount: resp.data.length }
+              ? { ...t, nodes: resp.data, totalCount: assignableCount }
               : t,
           ),
         );
@@ -809,7 +812,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
         this.tabs.update((list) =>
           list.map((t) =>
             t.instanceId === instanceId
-              ? { ...t, nodes: resp.data, totalCount: resp.data.length, snapshotted: true }
+              ? { ...t, nodes: resp.data, totalCount: resp.data.filter((n) => n.zone !== FigureZone.DECORATION).length, snapshotted: true }
               : t,
           ),
         );
