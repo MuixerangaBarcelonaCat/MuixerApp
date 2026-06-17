@@ -130,9 +130,11 @@
   <ul
     class="menu bg-base-100 rounded-box z-50 w-40 p-1 shadow-lg border border-base-300 fixed"
     role="menu"
+    tabindex="-1"
     [style.top.px]="position.top"
     [style.left.px]="position.left"
     (click)="$event.stopPropagation()"
+    (keydown)="$event.stopPropagation()"
   >
     @for (action of rowActions(); track action.label) {
       <li role="none">

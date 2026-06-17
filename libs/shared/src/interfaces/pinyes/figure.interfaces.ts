@@ -27,7 +27,6 @@ export interface RenglaItem {
   id: string;
   name: string | null;
   sortOrder: number;
-  allowsCordoObert: boolean;
 }
 
 export interface FigureTemplateListItem {

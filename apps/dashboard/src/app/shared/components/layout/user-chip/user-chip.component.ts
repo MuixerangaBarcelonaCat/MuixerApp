@@ -5,7 +5,7 @@ import { AuthService } from '../../../../core/auth/services/auth.service';
 
 const ROLE_LABELS: Record<UserRole, string> = {
   [UserRole.ADMIN]: 'Admin',
-  [UserRole.TECHNICAL]: 'Tècnic',
+  [UserRole.TECHNICAL]: 'Tècnica',
   [UserRole.MEMBER]: 'Membre',
 };
 

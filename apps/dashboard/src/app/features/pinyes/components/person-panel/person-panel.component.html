@@ -22,6 +22,7 @@
       placeholder="Cerca per nom o àlies..."
       [value]="search()"
       (input)="onSearchChange($any($event.target).value)"
+      (keydown.enter)="selectFirstPerson()"
       aria-label="Cerca persones"
     />
 
@@ -50,6 +51,25 @@
       </label>
     </div>
   </div>
+
+  <!-- Assignació actual del node seleccionat -->
+  @if (selectedAssignment(); as assignment) {
+    <div class="px-2 py-2 border-b border-base-200 bg-base-200/40 flex items-center justify-between gap-1">
+      <span class="text-xs font-semibold truncate min-w-0">
+        {{ assignment.person.alias || assignment.person.name + ' ' + assignment.person.firstSurname }}
+      </span>
+      <button
+        type="button"
+        class="btn btn-xs btn-outline btn-error shrink-0 gap-1"
+        (click)="requestUnassign()"
+        aria-label="Desassigna la persona d'este node"
+        title="Desassigna (Supr)"
+      >
+        <i-lucide [img]="UserX" class="size-3" />
+        Desassigna
+      </button>
+    </div>
+  }
 
   <!-- Loading -->
   @if (loading()) {

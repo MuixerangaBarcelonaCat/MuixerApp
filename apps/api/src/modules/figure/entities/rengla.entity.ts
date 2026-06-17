@@ -26,9 +26,6 @@ export class Rengla {
   @Column({ type: 'int', default: 0 })
   sortOrder: number;
 
-  @Column({ type: 'boolean', default: false })
-  allowsCordoObert: boolean;
-
   @CreateDateColumn()
   createdAt: Date;
 }

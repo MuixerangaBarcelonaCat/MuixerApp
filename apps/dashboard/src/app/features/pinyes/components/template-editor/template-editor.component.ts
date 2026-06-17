@@ -797,7 +797,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
       id: renglaId,
       name: event.rengla.name,
       sortOrder: event.rengla.sortOrder,
-      allowsCordoObert: event.rengla.allowsCordoObert,
     };
     this.rengles.update((r) => [...r, newRengla]);
 

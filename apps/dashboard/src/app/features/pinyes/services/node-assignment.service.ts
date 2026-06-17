@@ -7,7 +7,6 @@ import {
   AvailablePersonsQuery,
   BulkImportPayload,
   BulkImportResult,
-  CordonsResponse,
   CreateAdHocNodePayload,
   CreateAssignmentPayload,
   EventAssignmentSummary,
@@ -18,7 +17,6 @@ import {
   PersonAssignmentHistory,
   SwapAssignmentsPayload,
   UpdateAdHocNodePayload,
-  UpdateInstanceCordonsPayload,
 } from '../models/assignment.model';
 
 @Injectable({
@@ -49,10 +47,6 @@ export class NodeAssignmentService extends ApiService {
       `/figure-instances/${instanceId}/assignments/swap`,
       payload,
     );
-  }
-
-  updateCordons(instanceId: string, payload: UpdateInstanceCordonsPayload): Observable<CordonsResponse> {
-    return this.patch<CordonsResponse>(`/figure-instances/${instanceId}/cordons`, payload);
   }
 
   resetSnapshot(instanceId: string): Observable<{ removedAssignments: number; deletedAdHocCount: number }> {

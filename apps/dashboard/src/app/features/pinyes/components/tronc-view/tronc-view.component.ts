@@ -354,7 +354,7 @@ export class TroncViewComponent {
   }
 
   getHeightDisplay(shoulderHeight: number | null): string {
-    if (shoulderHeight == null) return '';
+    if (shoulderHeight == null || shoulderHeight === 0) return '';
     if (this.heightMode() === 'absolute') return `${shoulderHeight}`;
     const diff = shoulderHeight - SHOULDER_HEIGHT_BASELINE_CM;
     return diff >= 0 ? `+${diff}` : `${diff}`;

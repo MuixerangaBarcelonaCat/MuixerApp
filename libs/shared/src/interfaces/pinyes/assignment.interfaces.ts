@@ -58,11 +58,6 @@ export interface InstanceNodeItem {
   createdById: string | null;
 }
 
-export interface CordonsResponse {
-  numberOfCordons: number | null;
-  openCordons: string[] | null;
-}
-
 // ── Available persons ───────────────────────────────────────────────────────
 
 export interface AvailablePersonPosition {

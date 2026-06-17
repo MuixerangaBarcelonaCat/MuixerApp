@@ -12,7 +12,6 @@ import {
   Circle,
   Building2,
   GitCommitHorizontal,
-  SlidersHorizontal,
   RotateCcw,
   Keyboard,
   Search,
@@ -194,30 +193,7 @@ const HELP_SECTIONS: HelpSection[] = [
       },
       {
         question: 'Què passa si un node no té rengla?',
-        answer: 'Nodes sense rengla (agulla, crossa, contrafort, tap) sempre es mostren independentment del nombre de cordons seleccionat a l\'assignació.',
-      },
-    ],
-  },
-  {
-    id: 'cordons',
-    title: 'Cordons',
-    icon: SlidersHorizontal,
-    items: [
-      {
-        question: 'Com funciona el selector de cordons?',
-        answer: 'A l\'assignació, el botó "Cordons" obre un diàleg on tries quants cordons mostrar. Només es veuen les posicions amb renglaPosition ≤ numberOfCordons.',
-      },
-      {
-        question: 'Què és el cordó obert?',
-        answer: 'El cordó obert és una posició extra al final d\'una rengla per a la persona que vigila la figura des de fora. S\'activa per rengla des del selector de cordons.',
-      },
-      {
-        question: 'Canviar cordons afecta les assignacions?',
-        answer: 'No. Amagar cordons només oculta visualment les posicions. Les assignacions existents es mantenen intactes i reapareixen en tornar a mostrar el cordó.',
-      },
-      {
-        question: 'La configuració de cordons es guarda?',
-        answer: 'Sí. La configuració (numberOfCordons i openCordons) es desa a la instància i persisteix entre sessions.',
+        answer: 'Nodes sense rengla (agulla, crossa, contrafort, tap) no pertanyen a cap cordó i sempre es mostren.',
       },
     ],
   },

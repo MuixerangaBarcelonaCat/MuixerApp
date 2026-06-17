@@ -33,9 +33,6 @@
             >
               <div class="px-2 pt-1 pb-0.5 flex items-baseline gap-1">
                 <span class="text-base font-semibold text-gray-900 truncate">{{ getInstanceName(instance) }}</span>
-                @if (getCordonsLabel(instance); as cordonsLabel) {
-                  <span class="text-xs text-gray-500 font-normal shrink-0">({{ cordonsLabel }})</span>
-                }
               </div>
               <div class="overflow-y-auto">
                 <app-tronc-view

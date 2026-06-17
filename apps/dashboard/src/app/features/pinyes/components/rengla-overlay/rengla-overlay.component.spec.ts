@@ -35,7 +35,6 @@ const makeRengla = (overrides: Partial<RenglaModel> = {}): RenglaModel => ({
   id: crypto.randomUUID(),
   name: 'MANS',
   sortOrder: 0,
-  allowsCordoObert: false,
   ...overrides,
 });
 
@@ -186,27 +185,11 @@ describe('RenglaOverlayComponent', () => {
       expect(createdSpy).toHaveBeenCalledTimes(1);
       const event = createdSpy.mock.calls[0][0] as RenglaCreatedEvent;
       expect(event.rengla.name).toBe('Rengla 1');
-      expect(event.rengla.allowsCordoObert).toBe(false);
       expect(event.nodeAssignments).toEqual([
         { nodeId: 'n1', renglaPosition: 1 },
         { nodeId: 'n2', renglaPosition: 2 },
         { nodeId: 'n3', renglaPosition: 3 },
       ]);
-    });
-
-    it('auto-sets allowsCordoObert if last node is cordo-obert', () => {
-      const nodes = [
-        makeNode({ id: 'n1', positionType: 'mans' }),
-        makeNode({ id: 'n2', positionType: 'cordo-obert' }),
-      ];
-      setInputs(nodes);
-      component.startCreating();
-      component.onNodeClick('n1');
-      component.onNodeClick('n2');
-      component.finishCreating();
-
-      const event = createdSpy.mock.calls[0][0] as RenglaCreatedEvent;
-      expect(event.rengla.allowsCordoObert).toBe(true);
     });
 
     it('clears state after finishCreating', () => {

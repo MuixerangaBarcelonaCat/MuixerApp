@@ -12,6 +12,7 @@ import { AssignmentDetail, HeightMode, InstanceNodeItem, UpdateAdHocNodePayload 
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { FigureZone, NodeShape, DIRECTION_ZONES } from '@muixer/shared';
+import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
 
 @Component({
   selector: 'app-ad-hoc-node-properties',
@@ -53,9 +54,9 @@ export class AdHocNodePropertiesComponent {
 
   readonly heightDisplay = computed(() => {
     const h = this.assignment()?.person?.shoulderHeight;
-    if (h === null || h === undefined) return null;
+    if (h === null || h === undefined || h === 0) return null;
     if (this.heightMode() === 'relative') {
-      const diff = h - 140;
+      const diff = h - SHOULDER_HEIGHT_BASELINE_CM;
       return diff >= 0 ? `+${diff}` : `${diff}`;
     }
     return `${h} cm`;
