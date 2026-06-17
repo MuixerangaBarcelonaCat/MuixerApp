@@ -303,9 +303,16 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
       const selectedId = this.state.selectedNodeId();
       if (!selectedId) return;
       const node = this.activeNodes().find((n) => n.id === selectedId);
-      if (!node?.isAdHoc) return;
-      event.preventDefault();
 
+      if (!node?.isAdHoc) {
+        const assignment = this.state.assignments().find((a) => a.node.id === selectedId);
+        if (!assignment) return;
+        event.preventDefault();
+        this.onUnassign(assignment);
+        return;
+      }
+
+      event.preventDefault();
       const isAssigned = this.state.assignments().some((a) => a.node.id === selectedId);
       if (isAssigned) {
         this.pendingDeleteNodeId.set(selectedId);

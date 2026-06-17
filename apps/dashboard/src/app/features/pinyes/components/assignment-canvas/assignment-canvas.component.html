@@ -379,6 +379,7 @@
           [activeNodePositionType]="selectedNode()?.positionType ?? null"
           (personSelected)="onPersonSelected($event)"
           (assignedPersonSelected)="onAssignedPersonSelected($event)"
+          (unassignRequested)="onUnassign($event)"
         />
       </aside>
     }
