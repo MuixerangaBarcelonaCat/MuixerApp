@@ -627,6 +627,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     if (isDecorationNode) {
       this.state.setSelectedNodeId(nodeId);
       this.popoverAssignment.set(null);
+      this.adHocPropertiesOpen.set(true);
       return;
     }
 
@@ -639,6 +640,8 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
       ? this.state.assignments().find((a) => a.node.id === previouslySelectedNodeId)
       : null;
 
+    const isAdHoc = !!clickedNode?.isAdHoc;
+
     if (clickedNodeAssignment && previousNodeAssignment && previouslySelectedNodeId !== nodeId) {
       this.triggerSwap(previousNodeAssignment, clickedNodeAssignment);
       this.state.setSelectedNodeId(null);
@@ -646,6 +649,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     } else if (clickedNodeAssignment) {
       this.popoverAssignment.set(clickedNodeAssignment);
       this.state.setSelectedNodeId(nodeId);
+      if (isAdHoc) this.adHocPropertiesOpen.set(true);
     } else {
       const pendingPersonId = this.state.selectedPersonId();
       this.state.setSelectedNodeId(nodeId);
@@ -654,6 +658,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
       if (pendingPersonId) {
         this.triggerAssign(nodeId, pendingPersonId);
       }
+      if (isAdHoc) this.adHocPropertiesOpen.set(true);
     }
   }
 

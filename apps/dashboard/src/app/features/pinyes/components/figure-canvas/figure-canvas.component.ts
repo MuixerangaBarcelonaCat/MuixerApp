@@ -946,7 +946,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         y: node.y,
         rotation: node.rotation,
         draggable: isAdHoc,
-        opacity: isDecoration ? 0.6 : 1,
+        opacity: 1,
       });
 
       const shape = createNodeShape(
@@ -966,7 +966,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       if (assignment) {
         const alias = assignment.person.alias;
         const textFill = isDecoration
-          ? (node.color ? this.getContrastColor(node.color) : DECORATION_STROKE)
+          ? (node.color ? this.getContrastColor(node.color) : '#000000')
           : this.getContrastColor(fill);
         const shoulderH = assignment.person.shoulderHeight;
         const hasValidHeight =
@@ -1040,7 +1040,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         }
       } else {
         const textFill = isDecoration
-          ? (node.color ? this.getContrastColor(node.color) : DECORATION_STROKE)
+          ? (node.color ? this.getContrastColor(node.color) : '#000000')
           : this.getContrastColor(fill);
         group.add(
           new Konva.Text({
@@ -1166,7 +1166,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         y: node.y,
         rotation: node.rotation,
         draggable: false,
-        opacity: isDecoration ? 0.4 : 1,
+        opacity: 1,
       });
 
       const shape = createNodeShape(
@@ -1182,7 +1182,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       group.add(shape);
 
       const textFill = isDecoration
-        ? (node.color ? this.getContrastColor(node.color) : DECORATION_STROKE)
+        ? (node.color ? this.getContrastColor(node.color) : '#000000')
         : this.getContrastColor(fill);
       const displayText = assignment ? assignment.person.alias : node.label;
       const { fontSize, wrap } = this.fitFontSizeForNode(
@@ -1190,7 +1190,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         node.width,
         node.height,
         {
-          maxFontSize: assignment ? 18 : 9,
+          maxFontSize: assignment || isDecoration ? 18 : 9,
           fontStyle: assignment ? 'bold' : 'normal',
           wrap: assignment ? 'none' : 'word',
         },
@@ -1203,7 +1203,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           fontStyle: assignment ? 'bold' : 'normal',
           fontFamily: 'Inter, sans-serif',
           fill: textFill,
-          opacity: assignment ? 1 : 0.5,
+          opacity: assignment || isDecoration ? 1 : 0.5,
           align: 'center',
           verticalAlign: 'middle',
           width: node.width,
