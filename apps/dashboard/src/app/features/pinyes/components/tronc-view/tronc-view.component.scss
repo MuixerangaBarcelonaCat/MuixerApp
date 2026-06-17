@@ -27,6 +27,37 @@
   flex-shrink: 0;
 }
 
+.tronc-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.add-floor-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.25rem;
+  border: 1px dashed oklch(var(--bc) / 0.15);
+  background: transparent;
+  color: oklch(var(--bc) / 0.3);
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
+
+  &:hover {
+    background: oklch(var(--p) / 0.06);
+    border-color: oklch(var(--p) / 0.3);
+    color: oklch(var(--p));
+  }
+
+  &:focus-visible {
+    outline: 2px solid oklch(var(--p));
+    outline-offset: 1px;
+  }
+}
+
 // ── Floors container ─────────────────────────────────────────────────────────
 
 .floors-container {
@@ -284,11 +315,6 @@
   padding: 0 0.25rem;
 }
 
-.add-floor-row {
-  display: flex;
-  gap: 0.25rem;
-  align-items: center;
-}
 
 // ── Stepper controls ──────────────────────────────────────────────────────────
 
@@ -356,6 +382,85 @@
   justify-self: center;
 }
 
+// ── Type-colored nodes (editor mode) ──────────────────────────────────────────
+
+.tronc-node.type-colored {
+  border-left-width: 3px;
+  border-left-style: solid;
+}
+
+.type-badge {
+  position: absolute;
+  top: 2px;
+  right: 3px;
+  font-size: 0.55rem;
+  font-weight: 700;
+  line-height: 1;
+  opacity: 0.8;
+}
+
+// ── Preset tags ───────────────────────────────────────────────────────────────
+
+.preset-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.15rem 0;
+}
+
+.preset-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.25rem;
+  border: 1px solid oklch(var(--b3));
+  background: oklch(var(--b2));
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: oklch(var(--bc) / 0.7);
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
+  white-space: nowrap;
+
+  &:hover {
+    border-color: var(--preset-color, oklch(var(--bc) / 0.3));
+    background: color-mix(in srgb, var(--preset-color, transparent) 10%, oklch(var(--b2)));
+  }
+
+  &:focus-visible {
+    outline: 2px solid oklch(var(--p));
+    outline-offset: 1px;
+  }
+
+  &.active {
+    background: var(--preset-color);
+    border-color: var(--preset-color);
+    color: #fff;
+  }
+}
+
+// ── Color indicator row ───────────────────────────────────────────────────────
+
+.color-indicator-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.25rem;
+}
+
+.color-swatch {
+  display: inline-block;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  border: 1px solid oklch(var(--bc) / 0.15);
+  flex-shrink: 0;
+}
+
+.color-value {
+  color: oklch(var(--bc) / 0.5);
+  font-family: monospace;
+}
 
 // ── Projection mode (compact) ─────────────────────────────────────────────────
 

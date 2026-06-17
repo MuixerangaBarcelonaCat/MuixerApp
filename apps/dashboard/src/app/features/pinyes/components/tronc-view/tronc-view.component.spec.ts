@@ -17,6 +17,7 @@ function makeNode(overrides: Partial<TroncNodeItem> = {}): TroncNodeItem {
     z: 1,
     width: 1,
     sortOrder: 0,
+    color: null,
     ...overrides,
   };
 }
@@ -31,6 +32,7 @@ function makeBaseNode(overrides: Partial<TroncNodeItem> = {}): TroncNodeItem {
     z: 0,
     width: 80, // pinya canvas pixel dimension, treated as 1 in tronc view
     sortOrder: 0,
+    color: null,
     ...overrides,
   };
 }
@@ -759,6 +761,176 @@ describe('TroncViewComponent', () => {
     it('does not render progress badges', () => {
       const progressBadges = fixture.nativeElement.querySelectorAll('.progress-badge');
       expect(progressBadges.length).toBe(0);
+    });
+  });
+
+  // ── positionType tags (F1) ───────────────────────────────────────────────
+
+  describe('positionType preset tags', () => {
+    it('renders preset tags when a TRONC node is selected in editor mode', () => {
+      fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'n1', z: 1 })]);
+      fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
+      fixture.componentRef.setInput('mode', 'editor');
+      fixture.componentRef.setInput('selectedNodeId', 'n1');
+      fixture.detectChanges();
+
+      const tags = fixture.nativeElement.querySelectorAll('.preset-tag');
+      expect(tags.length).toBe(7);
+    });
+
+    it('does not render preset tags when no node is selected', () => {
+      fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'n1', z: 1 })]);
+      fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
+      fixture.componentRef.setInput('mode', 'editor');
+      fixture.componentRef.setInput('selectedNodeId', null);
+      fixture.detectChanges();
+
+      const tags = fixture.nativeElement.querySelectorAll('.preset-tag');
+      expect(tags.length).toBe(0);
+    });
+
+    it('marks the active tag with .active class', () => {
+      fixture.componentRef.setInput('troncNodes', [
+        makeNode({ id: 'n1', z: 1, positionType: 'terceres' }),
+      ]);
+      fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
+      fixture.componentRef.setInput('mode', 'editor');
+      fixture.componentRef.setInput('selectedNodeId', 'n1');
+      fixture.detectChanges();
+
+      const activeTags = fixture.nativeElement.querySelectorAll('.preset-tag.active');
+      expect(activeTags.length).toBe(1);
+      expect(activeTags[0].textContent.trim()).toContain('Terçes');
+    });
+
+    it('onPositionTypeChange emits nodeUpdated with positionType and color', () => {
+      const emitted: { nodeId: string; positionType?: string; color?: string | null }[] = [];
+      fixture.componentRef.instance.nodeUpdated.subscribe((e) => emitted.push(e));
+
+      const node = makeNode({ id: 'n1', label: 'Segones', positionType: 'segones', color: '#1E88E5' });
+      const preset = { positionType: 'puntal', label: 'Puntal', color: '#795548' };
+      component.onPositionTypeChange(node, preset);
+
+      expect(emitted.length).toBe(1);
+      expect(emitted[0].positionType).toBe('puntal');
+      expect(emitted[0].color).toBe('#795548');
+    });
+
+    it('onPositionTypeChange updates label when it is a default preset label', () => {
+      const emitted: { nodeId: string; label?: string }[] = [];
+      fixture.componentRef.instance.nodeUpdated.subscribe((e) => emitted.push(e));
+
+      const node = makeNode({ id: 'n1', label: 'Segones', positionType: 'segones', color: '#1E88E5' });
+      const preset = { positionType: 'puntal', label: 'Puntal', color: '#795548' };
+      component.onPositionTypeChange(node, preset);
+
+      expect(emitted[0].label).toBe('Puntal');
+    });
+
+    it('onPositionTypeChange does not change label when it is custom', () => {
+      const emitted: { nodeId: string; label?: string }[] = [];
+      fixture.componentRef.instance.nodeUpdated.subscribe((e) => emitted.push(e));
+
+      const node = makeNode({ id: 'n1', label: 'Mon node custom', positionType: 'segones', color: '#1E88E5' });
+      const preset = { positionType: 'puntal', label: 'Puntal', color: '#795548' };
+      component.onPositionTypeChange(node, preset);
+
+      expect(emitted[0].label).toBeUndefined();
+    });
+  });
+
+  // ── Type-colored visual feedback (F1) ──────────────────────────────────
+
+  describe('type-colored node rendering', () => {
+    it('renders type-colored class on TRONC nodes in editor mode when color is set', () => {
+      fixture.componentRef.setInput('troncNodes', [
+        makeNode({ id: 'n1', z: 1, color: '#1E88E5' }),
+      ]);
+      fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
+      fixture.componentRef.setInput('mode', 'editor');
+      fixture.detectChanges();
+
+      const colored = fixture.nativeElement.querySelectorAll('.tronc-node.type-colored');
+      expect(colored.length).toBe(1);
+    });
+
+    it('does not render type-colored class when color is null', () => {
+      fixture.componentRef.setInput('troncNodes', [
+        makeNode({ id: 'n1', z: 1, color: null }),
+      ]);
+      fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
+      fixture.componentRef.setInput('mode', 'editor');
+      fixture.detectChanges();
+
+      const colored = fixture.nativeElement.querySelectorAll('.tronc-node.type-colored');
+      expect(colored.length).toBe(0);
+    });
+
+    it('renders type-badge inside TRONC node in editor mode', () => {
+      fixture.componentRef.setInput('troncNodes', [
+        makeNode({ id: 'n1', z: 1, positionType: 'segones', color: '#1E88E5' }),
+      ]);
+      fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
+      fixture.componentRef.setInput('mode', 'editor');
+      fixture.detectChanges();
+
+      const badges = fixture.nativeElement.querySelectorAll('.type-badge');
+      expect(badges.length).toBe(1);
+      expect(badges[0].textContent.trim()).toContain('Seg');
+    });
+
+    it('does not render type-badge in assignment mode', () => {
+      fixture.componentRef.setInput('troncNodes', [
+        makeNode({ id: 'n1', z: 1, positionType: 'segones', color: '#1E88E5' }),
+      ]);
+      fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.detectChanges();
+
+      const badges = fixture.nativeElement.querySelectorAll('.type-badge');
+      expect(badges.length).toBe(0);
+    });
+  });
+
+  // ── getPositionTypeBadge ───────────────────────────────────────────────
+
+  describe('getPositionTypeBadge', () => {
+    it('returns "Seg" for segones', () => {
+      expect(component.getPositionTypeBadge(makeNode({ positionType: 'segones' }))).toBe('Seg');
+    });
+
+    it('returns "Ter" for terceres', () => {
+      expect(component.getPositionTypeBadge(makeNode({ positionType: 'terceres' }))).toBe('Ter');
+    });
+
+    it('returns "Xiq" for xiqueta', () => {
+      expect(component.getPositionTypeBadge(makeNode({ positionType: 'xiqueta' }))).toBe('Xiq');
+    });
+
+    it('returns first 3 chars for unknown positionType', () => {
+      expect(component.getPositionTypeBadge(makeNode({ positionType: 'custom-type' }))).toBe('cus');
+    });
+
+    it('returns empty string when positionType is null', () => {
+      expect(component.getPositionTypeBadge(makeNode({ positionType: null }))).toBe('');
+    });
+  });
+
+  // ── Color indicator ────────────────────────────────────────────────────
+
+  describe('color indicator', () => {
+    it('renders color swatch when TRONC node is selected in editor', () => {
+      fixture.componentRef.setInput('troncNodes', [
+        makeNode({ id: 'n1', z: 1, color: '#43A047' }),
+      ]);
+      fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
+      fixture.componentRef.setInput('mode', 'editor');
+      fixture.componentRef.setInput('selectedNodeId', 'n1');
+      fixture.detectChanges();
+
+      const swatch = fixture.nativeElement.querySelector('.color-swatch');
+      expect(swatch).not.toBeNull();
+      expect(swatch.style.backgroundColor).toBeTruthy();
     });
   });
 });

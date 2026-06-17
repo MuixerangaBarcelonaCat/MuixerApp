@@ -4,15 +4,28 @@
   @if (mode() !== 'projection') {
     <header class="tronc-header">
       <span class="text-xs font-semibold uppercase tracking-wide text-base-content/50">Tronc</span>
-      <button
-        type="button"
-        class="btn btn-ghost btn-xs btn-square"
-        (click)="toggleOrientation()"
-        aria-label="Invertir vista del tronc"
-        title="Invertir orientació (P1 dalt / P1 baix)"
-      >
-        <lucide-icon [name]="inverted() ? 'ArrowDownUp' : 'ArrowUpDown'" [size]="14" aria-hidden="true" />
-      </button>
+      <div class="tronc-header-actions">
+        @if (mode() === 'editor' && canAddFloor()) {
+          <button
+            type="button"
+            class="add-floor-btn"
+            (click)="onAddFloor()"
+            aria-label="Afegeix pis"
+            title="Afegeix pis"
+          >
+            <lucide-icon name="Plus" [size]="12" aria-hidden="true" />
+          </button>
+        }
+        <button
+          type="button"
+          class="btn btn-ghost btn-xs btn-square"
+          (click)="toggleOrientation()"
+          aria-label="Invertir vista del tronc"
+          title="Invertir orientació (P1 dalt / P1 baix)"
+        >
+          <lucide-icon [name]="inverted() ? 'ArrowDownUp' : 'ArrowUpDown'" [size]="14" aria-hidden="true" />
+        </button>
+      </div>
     </header>
   }
 
@@ -106,11 +119,17 @@
                   [class.assigned]="isAssigned(node.id)"
                   [class.highlighted]="isHighlighted(node.id)"
                   [class.z-colored]="mode() === 'assignment'"
-                  [style.border-left-color]="mode() === 'assignment' ? getZLevelColor(node.z) : null"
+                  [class.type-colored]="mode() === 'editor' && !!getNodeColor(node)"
+                  [style.border-left-color]="mode() === 'assignment' ? getZLevelColor(node.z) : mode() === 'editor' ? getNodeColor(node) : null"
                   (click)="onNodeClick(node, $event)"
                   [attr.aria-label]="getNodeAriaLabel(node)"
                   [attr.aria-pressed]="isSelected(node.id)"
                 >
+                  @if (mode() === 'editor' && getPositionTypeBadge(node)) {
+                    <span class="type-badge" [style.color]="getNodeColor(node)" aria-hidden="true">
+                      {{ getPositionTypeBadge(node) }}
+                    </span>
+                  }
                   @if (getAssignment(node.id); as assignment) {
                     @if (mode() !== 'projection') {
                       <span class="height-badge" aria-hidden="true">
@@ -215,6 +234,37 @@
             />
           </div>
 
+          <!-- positionType tags -->
+          <div class="form-control">
+            <span class="label-text text-xs py-0">Tipus</span>
+            <div class="preset-tags" role="radiogroup" aria-label="Tipus de posició">
+              @for (preset of presets; track preset.positionType) {
+                <button
+                  type="button"
+                  class="preset-tag"
+                  [class.active]="isPresetActive(node, preset)"
+                  [style.--preset-color]="preset.color"
+                  [attr.aria-pressed]="isPresetActive(node, preset)"
+                  (click)="onPositionTypeChange(node, preset)"
+                  [title]="preset.label"
+                >
+                  {{ preset.label }}
+                </button>
+              }
+            </div>
+          </div>
+
+          <!-- Color indicator -->
+          <div class="color-indicator-row">
+            <span class="label-text text-xs">Color</span>
+            <span
+              class="color-swatch"
+              [style.background-color]="getNodeColor(node) ?? '#78909C'"
+              aria-hidden="true"
+            ></span>
+            <span class="color-value text-xs">{{ getNodeColor(node) ?? '—' }}</span>
+          </div>
+
           <!-- Stepper controls for x / width -->
           <div class="node-props-row">
             <div
@@ -296,20 +346,6 @@
         <div class="divider my-1"></div>
       }
 
-      <!-- Add floor button -->
-      @if (canAddFloor()) {
-        <div class="add-floor-row">
-          <button
-            type="button"
-            class="btn btn-primary btn-xs gap-1 flex-1"
-            (click)="onAddFloor()"
-            aria-label="Afegeix pis"
-          >
-            <lucide-icon name="Plus" [size]="12" aria-hidden="true" />
-            Afegeix pis
-          </button>
-        </div>
-      }
 
     </div>
   }

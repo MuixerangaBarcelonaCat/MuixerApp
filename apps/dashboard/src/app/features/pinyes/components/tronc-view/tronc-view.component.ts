@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
+import { TRONC_NODE_PRESETS, TroncNodePreset } from '@muixer/shared';
 import { AssignmentDetail, AttendanceStatus, HeightMode } from '../../models/assignment.model';
 import { floorVariance, varianceLevel, VarianceLevel } from '../../utils/floor-variance.util';
 import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
@@ -29,6 +30,7 @@ export interface TroncNodeItem {
    *  For BASE nodes: always treated as 1. */
   width: number;
   sortOrder: number;
+  color: string | null;
 }
 
 interface TroncFloor {
@@ -41,13 +43,13 @@ interface TroncFloor {
 
 const MAX_TRONC_Z = 5;
 
-/** Conventional floor defaults per z-level (1-based above base). */
-const TRONC_Z_DEFAULTS: Record<number, { label: string; positionType: string }> = {
-  1: { label: 'Segones', positionType: 'segones' },
-  2: { label: 'Terçes', positionType: 'terceres' },
-  3: { label: 'Quartes', positionType: 'quartes' },
-  4: { label: 'Quintes', positionType: 'quintes' },
-  5: { label: 'Sisenes', positionType: 'sisenes' },
+/** Conventional floor defaults per z-level (1-based above base). Derived from shared presets. */
+const TRONC_Z_DEFAULTS: Record<number, { label: string; positionType: string; color: string }> = {
+  1: TRONC_NODE_PRESETS.find((p) => p.positionType === 'segones')!,
+  2: TRONC_NODE_PRESETS.find((p) => p.positionType === 'terceres')!,
+  3: TRONC_NODE_PRESETS.find((p) => p.positionType === 'quartes')!,
+  4: TRONC_NODE_PRESETS.find((p) => p.positionType === 'quintes')!,
+  5: { label: 'Sisenes', positionType: 'sisenes', color: '#546E7A' },
 };
 
 /** Palette for tronc z-level color coding. */
@@ -95,7 +97,7 @@ export class TroncViewComponent {
   readonly nodeClicked = output<{ nodeId: string; event: MouseEvent }>();
 
   /** Editor only: position/width/positionType changed for a TRONC node. */
-  readonly nodeUpdated = output<{ nodeId: string; x: number; width: number; positionType?: string; label?: string }>();
+  readonly nodeUpdated = output<{ nodeId: string; x: number; width: number; positionType?: string; label?: string; color?: string | null }>();
 
   /** Editor only: create a new TRONC node on the given floor. */
   readonly nodeAdded = output<{ z: number; positionType: string; label: string; sortOrder: number }>();
@@ -269,6 +271,18 @@ export class TroncViewComponent {
     });
   }
 
+  onPositionTypeChange(node: TroncNodeItem, preset: TroncNodePreset): void {
+    const isLabelDefault = this.isDefaultLabel(node);
+    this.nodeUpdated.emit({
+      nodeId: node.id,
+      x: node.x,
+      width: node.width,
+      positionType: preset.positionType,
+      color: preset.color,
+      ...(isLabelDefault ? { label: preset.label } : {}),
+    });
+  }
+
   onAddFloor(): void {
     if (!this.canAddFloor()) return;
     const nextZ = this.maxExistingZ() + 1;
@@ -316,6 +330,10 @@ export class TroncViewComponent {
   toggleOrientation(): void {
     this.inverted.update((v) => !v);
   }
+
+  // ── Presets exposed to template ──────────────────────────────────────────────
+
+  readonly presets = TRONC_NODE_PRESETS;
 
   // ── Template helpers ───────────────────────────────────────────────────────
 
@@ -425,6 +443,35 @@ export class TroncViewComponent {
   getAddNodeButtonGridColumn(): string {
     const halfCols = this.totalColumns();
     return `${halfCols + 1} / span 2`;
+  }
+
+  getNodeColor(node: TroncNodeItem): string | null {
+    return node.color ?? null;
+  }
+
+  getPositionTypeBadge(node: TroncNodeItem): string {
+    if (!node.positionType) return '';
+    const abbrevMap: Record<string, string> = {
+      segones: 'Seg',
+      terceres: 'Ter',
+      quartes: 'Qua',
+      quintes: 'Qui',
+      sisenes: 'Sis',
+      puntal: 'Pun',
+      'alçadora': 'Alç',
+      xiqueta: 'Xiq',
+    };
+    return abbrevMap[node.positionType] ?? node.positionType.slice(0, 3);
+  }
+
+  isPresetActive(node: TroncNodeItem, preset: TroncNodePreset): boolean {
+    return node.positionType === preset.positionType;
+  }
+
+  /** Whether the node's label matches a known preset label (auto-generated). */
+  private isDefaultLabel(node: TroncNodeItem): boolean {
+    return TRONC_NODE_PRESETS.some((p) => p.label === node.label) ||
+      Object.values(TRONC_Z_DEFAULTS).some((d) => d.label === node.label);
   }
 
   private getDominantPositionType(nodes: TroncNodeItem[]): string {

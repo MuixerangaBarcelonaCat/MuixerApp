@@ -27,7 +27,7 @@ import {
   CreateFigureNodePayload,
   RenglaModel,
 } from '../../models/figure-template.model';
-import { FigureZone, NodeShape, PINYA_NODE_PRESETS, NodePreset } from '@muixer/shared';
+import { FigureZone, NodeShape, PINYA_NODE_PRESETS, NodePreset, TRONC_NODE_PRESETS } from '@muixer/shared';
 import { RenglaOverlayComponent, RenglaCreatedEvent, RenglaDeletedEvent } from '../rengla-overlay/rengla-overlay.component';
 import { StageTransform } from '../../utils/rengla-coordinates.util';
 import { LayoutService } from '../../../../core/services/layout.service';
@@ -276,6 +276,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
         (max, n) => Math.max(max, n.x + n.width),
         0,
       );
+      const presetColor = TRONC_NODE_PRESETS.find((p) => p.positionType === event.positionType)?.color ?? null;
       const newNode: FigureNodeItem = {
         id,
         label: event.label,
@@ -287,7 +288,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
         width: 1,
         height: 40,
         rotation: 0,
-        color: null,
+        color: presetColor,
         shape: NodeShape.RECTANGLE,
         sortOrder: event.sortOrder,
         climbPath: null,
@@ -313,11 +314,12 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     this.scheduleAutosave();
   }
 
-  onTroncNodeUpdated(event: { nodeId: string; x: number; width: number; positionType?: string; label?: string }): void {
+  onTroncNodeUpdated(event: { nodeId: string; x: number; width: number; positionType?: string; label?: string; color?: string | null }): void {
     this.pushSnapshot('Modificar node de tronc');
     const patch: Partial<FigureNodeItem> = { x: event.x, width: event.width };
     if (event.positionType !== undefined) patch.positionType = event.positionType;
     if (event.label !== undefined) patch.label = event.label;
+    if (event.color !== undefined) patch.color = event.color;
     this.updateNode(event.nodeId, patch);
     this.scheduleAutosave();
   }
