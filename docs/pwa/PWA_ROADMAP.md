@@ -12,7 +12,7 @@
 
 | Fase | Nom | Backend | Frontend | Estat | Spec/Notes |
 |------|-----|---------|----------|-------|------------|
-| P6.0 | Infraestructura i App Shell | Config CORS/port | Scaffold, shell, tabs | ⚪ Pendent | — |
+| P6.0 | Infraestructura i App Shell | Config CORS/port | Scaffold, shell, tabs | 🔵 En curs | Branca: `feat/pwa-app-start` |
 | P6.1 | Auth (bàsic) | — (endpoints existents) | Login, guards, interceptor | ⚪ Pendent | — |
 | P6.2 | Events i Assistència | `MeModule` + endpoints | Llista events, Home, attendance | ⚪ Pendent | — |
 | P6.3 | Detall d'Event | Segments visibles per MEMBER | Detall, accordion, info figures | ⚪ Pendent | — |

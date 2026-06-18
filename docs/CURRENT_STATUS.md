@@ -7,24 +7,25 @@
 > - **Història cronològica** → [PHASES_LOG.md](PHASES_LOG.md)
 > - **Detall tècnic** → docs dedicats (vegeu taula al final)
 >
-> **Branca activa:** `story/deploy-server-pre` · **Frontier:** P5.12 completat + refactor presets unificats · **Pendent destacat:** P5.3.1 (UX segments), Q1 (E2E), P6 (PWA)
+> **Branca activa:** `feat/pwa-app-start` · **Frontier:** P5.13 (Figures Netes) completat + UX1 + R4 · **En curs:** P6.0 (PWA App Shell) · **Pendent destacat:** P6.1 (PWA Auth), P5.3.1 (UX segments), Q1 (E2E)
 
 ---
 
 ## Resum
 
-Projecte en **desenvolupament actiu**. Completat: tot P0–P5.12 + refactors (R1, R2) + infra (I1, I2).
-El Mòdul Pinyes és operatiu de punta a punta (templates → composicions → segments → assignació →
-snapshot → troncs → projecció → posicions/historials → rengles → **nodes ad-hoc**).
-Eliminades FigureFamily i ReferenceElement (simplificació de model). Entorn PRE desplegat a Hetzner.
-Pendent principal: UX polish segments (P5.3.1), E2E tests (Q1), i la PWA mòbil (P6).
+Projecte en **desenvolupament actiu**. Completat: tot P0–P5.13 + refactors (R1–R4) + UX1 + FIX1 + infra (I1, I2).
+El Mòdul Pinyes és operatiu i refinat de punta a punta (templates → composicions → segments → assignació →
+snapshot → troncs → projecció → posicions/historials → rengles → nodes ad-hoc → **figures netes**).
+Eliminades FigureFamily i ReferenceElement. Entorn PRE desplegat a Hetzner.
+**PWA en curs** (P6.0 — App Shell iniciat a `feat/pwa-app-start`).
 
-**Canvis recents (merge develop → pre):**
-- **Presets unificats:** `AdHocNodePreset` → `NodePreset`, `AD_HOC_*_PRESETS` → `*_NODE_PRESETS` (fitxer `node-preset.constants.ts`). Tots els presets (pinya, decoració, direcció) comparteixen la mateixa interfície.
-- **Labels en majúscules:** Els presets pinya usen labels tipus identificador (`AGULLA`, `LATERAL`, `VENT`) en lloc de title-case.
-- **Terminologia UI:** "Cancel·lar" → "Cancel·la", "Afegir" → "Afegeix", "Eliminar" → "Elimina" (imperatiu en català).
-- **Selector de zona ocult:** Amagat el selector de zona i tipus de posició en el formulari d'edició de posicions.
-- **Projecció tronc inline:** Vista de tronc integrada dins de cada targeta de la projecció (abans era en panells flotants).
+**Canvis recents (juny 10–18):**
+- **P5.13 Figures Netes:** Tronc editor de primera classe per a figures `hasPinya: false`. Propietats de node, selecció per tags, integració completa assignació/projecció.
+- **Millores Assignació (UX1):** Fuzzy search amb accents, assignar amb Enter, desassignació, cordons oberts agrupats a final de rengla, nodes decoratius no comptabilitzats, alçada 0 visible.
+- **Millores Projecció:** Vista tronc inline, moviment cordó obert al final, millores visuals.
+- **Refactor Troncs (R4):** Refactoritzat troncs (#23/#25), eliminat codi mort i utilitats duplicades (#24), refactoritzats cordons/rengles (#12), eliminat diàleg de cordons.
+- **Seguretat rols (FIX1):** Guard admin grant (#33) — ADMIN-only per assignar/modificar ADMIN. Ghost clone fix, canvas viewport center, selector zona ocult, presets unificats.
+- **PWA iniciat:** Spec P6.0–P6.9 aprovada. Scaffold, Docker health checks, manifest, meta tags, routes bàsiques.
 
 Per a l'estat fase a fase amb enllaços als specs, vegeu la taula `Estat General` del
 [roadmap](PROJECT_ROADMAP.md).
@@ -67,15 +68,17 @@ Per a l'estat fase a fase amb enllaços als specs, vegeu la taula `Estat General
 
 | | Estat | |
 |--|-------|--|
-| PWA | 🟡 Spec aprovada | P6.0–P6.9 dissenyat. Spec: [pwa/PWA_SPEC.md](pwa/PWA_SPEC.md) · Roadmap: [pwa/PWA_ROADMAP.md](pwa/PWA_ROADMAP.md) |
+| PWA | 🔵 P6.0 en curs | App Shell iniciat (scaffold, routing, tabs, Docker). Spec: [pwa/PWA_SPEC.md](pwa/PWA_SPEC.md) · Roadmap: [pwa/PWA_ROADMAP.md](pwa/PWA_ROADMAP.md) |
 
 ---
 
 ## En curs i pròxims passos
 
+- **P6.0** 🔵 — PWA App Shell (scaffold, bottom tabs, Docker, manifest). Branca: `feat/pwa-app-start`.
+- **P6.1** — PWA Auth (login, guards, interceptor). Pròxim immediat.
+- **P6.2** — PWA Events + Assistència (`MeModule`, home, confirmar/declinar). **Alpha 1 cut.**
 - **P5.3.1** — Revisió UX dels segments (tab dedicat "Pinyes" a event-detail, preview canvas).
 - **Q1** — E2E tests amb Playwright per als fluxos crítics (login → event → assignació → projecció).
-- **P6.0–P6.9** — PWA mòbil: 10 fases (shell → auth → attendance → detail → family → canvas → profile → TECHNICAL → magic-link → push). Detall: [pwa/PWA_ROADMAP.md](pwa/PWA_ROADMAP.md).
 - **P8** — Dashboard d'estadístiques (assistència per persona/temporada, participació en figures).
 
 > Vegeu la secció "Pròxims Desenvolupaments" del [roadmap](PROJECT_ROADMAP.md) per al detall complet.
@@ -88,7 +91,7 @@ Per a l'estat fase a fase amb enllaços als specs, vegeu la taula `Estat General
 |------|----------|-----------|
 | Backend sync | N+1 queries (300 persones ≈ 600 queries). Solució: bulk upsert TypeORM | Baixa |
 | Dashboard | Cobertura E2E parcial (falten tests de navegació/detall, Playwright/Cypress) | Mitjana |
-| PWA | No implementada (scaffold buit) | Baixa (post-P5) |
+| PWA | P6.0 en curs — scaffold iniciat, funcionalitat encara buida | Mitjana (actiu) |
 
 ---
 
