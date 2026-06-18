@@ -44,6 +44,36 @@
       }
     </div>
 
+    @if (showCordonsControl()) {
+      <div class="flex items-center gap-1 border-l border-base-300 pl-3 ml-1" role="group" aria-label="Cordons visibles">
+        @if (maxCordons() === 0) {
+          <span class="text-xs text-base-content/40 italic select-none">Sense rengles</span>
+        } @else {
+          <button
+            type="button"
+            class="btn btn-xs btn-outline btn-square"
+            (click)="decrementCordons()"
+            [disabled]="currentCordons() !== null && currentCordons()! <= 1"
+            aria-label="Reduir cordons"
+          >
+            <i-lucide [img]="Minus" class="size-3" />
+          </button>
+          <span class="text-xs font-medium min-w-[5rem] text-center select-none" aria-live="polite">
+            {{ currentCordonsLabel() }}
+          </span>
+          <button
+            type="button"
+            class="btn btn-xs btn-outline btn-square"
+            (click)="incrementCordons()"
+            [disabled]="currentCordons() === null"
+            aria-label="Augmentar cordons"
+          >
+            <i-lucide [img]="Plus" class="size-3" />
+          </button>
+        }
+      </div>
+    }
+
     @if (activeTab()?.figureTemplateId) {
       <button
         type="button"
@@ -444,6 +474,24 @@
       Lliures: <strong>{{ state.freePersonsCount() }}</strong>
     </span>
 
+    <!-- Total needed across all figures vs confirmed adults -->
+    <span
+      class="text-base-content/60"
+      [class.text-warning]="isOverCapacity()"
+      [class.font-semibold]="isOverCapacity()"
+    >
+      @if (personsLoaded()) {
+        Persones: {{ totalNeededAllTabs() }} necessàries / {{ state.totalConfirmedCount() }} confirmades
+        @if (isOverCapacity()) {
+          <span class="text-xs text-warning ml-1" title="Calen més persones de les confirmades">
+            ⚠ falten {{ totalNeededAllTabs() - state.totalConfirmedCount() }}
+          </span>
+        }
+      } @else {
+        Persones: {{ totalNeededAllTabs() }} necessàries
+      }
+    </span>
+
     <div class="flex-1"></div>
 
     <!-- Reset snapshot button -->
@@ -616,6 +664,37 @@
       </div>
     </div>
     <button type="button" class="modal-backdrop" (click)="cancelDeleteAdHocNode()" aria-label="Tancar"></button>
+  </dialog>
+}
+
+<!-- Cordons reduction confirmation modal -->
+@if (cordonsConfirmOpen()) {
+  <dialog
+    class="modal modal-open"
+    role="alertdialog"
+    aria-labelledby="cordons-confirm-title"
+    aria-describedby="cordons-confirm-desc"
+    aria-modal="true"
+  >
+    <div class="modal-box max-w-sm">
+      <h3 id="cordons-confirm-title" class="text-lg font-bold mb-3 text-warning">Reduir cordons</h3>
+      <p id="cordons-confirm-desc" class="text-sm text-base-content/70">
+        Reduir els cordons eliminarà
+        <strong class="text-warning">{{ cordonsConfirmCount() }}
+          {{ cordonsConfirmCount() === 1 ? 'persona assignada' : 'persones assignades' }}</strong>
+        que es troben als cordons que seran amagats.
+        Aquestes persones quedaran lliures.
+      </p>
+      <div class="modal-action">
+        <button type="button" class="btn btn-ghost btn-sm" (click)="cancelCordonsReduction()">
+          Cancel·la
+        </button>
+        <button type="button" class="btn btn-warning btn-sm" (click)="confirmCordonsReduction()">
+          Reduir igualment
+        </button>
+      </div>
+    </div>
+    <button type="button" class="modal-backdrop" (click)="cancelCordonsReduction()" aria-label="Tancar"></button>
   </dialog>
 }
 

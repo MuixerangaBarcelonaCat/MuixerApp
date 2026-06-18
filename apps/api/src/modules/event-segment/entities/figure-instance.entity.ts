@@ -44,6 +44,10 @@ export class FigureInstance {
   @Column({ type: 'boolean', default: false })
   snapshotted: boolean;
 
+  /** How many cordons to show. NULL = all visible. */
+  @Column({ type: 'int', nullable: true })
+  numberOfCordons: number | null;
+
   @Column({ type: 'float', nullable: true })
   projectionX: number | null;
 

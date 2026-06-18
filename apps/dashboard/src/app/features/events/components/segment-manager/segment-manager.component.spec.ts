@@ -33,6 +33,7 @@ const makeInstance = (overrides = {}) => ({
   sortOrder: 0,
   snapshotted: false,
   assignedCount: 0,
+  numberOfCordons: null,
   projectionX: null,
   projectionY: null,
   projectionScale: 1,
@@ -125,8 +126,8 @@ describe('SegmentManagerComponent', () => {
       const seg = makeSegment({
         name: null,
         instances: [
-          { id: 'i1', label: null, sortOrder: 0, snapshotted: false, assignedCount: 0, projectionX: null, projectionY: null, projectionScale: 1, figureTemplate: { id: 'f1', name: 'pd4', hasPinya: true }, compositionTemplate: null },
-          { id: 'i2', label: null, sortOrder: 1, snapshotted: false, assignedCount: 0, projectionX: null, projectionY: null, projectionScale: 1, figureTemplate: null, compositionTemplate: { id: 'c1', name: 'Altar' } },
+          { id: 'i1', label: null, sortOrder: 0, snapshotted: false, assignedCount: 0, numberOfCordons: null, projectionX: null, projectionY: null, projectionScale: 1, figureTemplate: { id: 'f1', name: 'pd4', hasPinya: true }, compositionTemplate: null },
+          { id: 'i2', label: null, sortOrder: 1, snapshotted: false, assignedCount: 0, numberOfCordons: null, projectionX: null, projectionY: null, projectionScale: 1, figureTemplate: null, compositionTemplate: { id: 'c1', name: 'Altar' } },
         ],
       });
       expect(component.displayName()(seg)).toBe('pd4 + Altar');

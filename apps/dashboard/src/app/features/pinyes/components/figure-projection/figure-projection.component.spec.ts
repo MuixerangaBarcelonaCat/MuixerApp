@@ -45,6 +45,7 @@ const makeInstance = (overrides: Partial<ProjectionInstance> = {}): ProjectionIn
   id: 'inst-uuid',
   label: null,
   sortOrder: 0,
+  numberOfCordons: null,
   projectionX: 100,
   projectionY: 200,
   projectionScale: 1,

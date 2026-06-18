@@ -135,6 +135,18 @@ describe('AssignmentStateService', () => {
       ]);
       expect(service.freePersonsCount()).toBe(0);
     });
+
+    it('counts ASSISTIT persons as confirmed and free', () => {
+      service.confirmedPersons.set([
+        makeAvailablePerson('person-1', 'ANIRE'),
+        makeAvailablePerson('person-2', 'ASSISTIT'),
+        makeAvailablePerson('person-3', 'PENDENT'),
+      ]);
+      service.assignments.set([]);
+
+      expect(service.totalConfirmedCount()).toBe(2);
+      expect(service.freePersonsCount()).toBe(2);
+    });
   });
 
   // ── reset ──────────────────────────────────────────────────────────────────

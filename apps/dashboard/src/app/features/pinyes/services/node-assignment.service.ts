@@ -7,6 +7,7 @@ import {
   AvailablePersonsQuery,
   BulkImportPayload,
   BulkImportResult,
+  CordonsResponse,
   CreateAdHocNodePayload,
   CreateAssignmentPayload,
   EventAssignmentSummary,
@@ -17,6 +18,7 @@ import {
   PersonAssignmentHistory,
   SwapAssignmentsPayload,
   UpdateAdHocNodePayload,
+  UpdateInstanceCordonsPayload,
 } from '../models/assignment.model';
 
 @Injectable({
@@ -69,6 +71,10 @@ export class NodeAssignmentService extends ApiService {
 
   bulkImport(instanceId: string, payload: BulkImportPayload): Observable<BulkImportResult> {
     return this.post<BulkImportResult>(`/figure-instances/${instanceId}/assignments/bulk`, payload);
+  }
+
+  updateCordons(instanceId: string, payload: UpdateInstanceCordonsPayload): Observable<CordonsResponse> {
+    return this.patch<CordonsResponse>(`/figure-instances/${instanceId}/cordons`, payload);
   }
 
   getAvailablePersons(
