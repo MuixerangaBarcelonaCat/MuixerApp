@@ -79,14 +79,13 @@ export class TokenService {
    * Valida el token, el marca com a usat i en genera un de nou dins de la mateixa família.
    * Si el token ja havia estat usat anteriorment (reutilització detectada), revoca tota la família per prevenció.
    */
-  async rotateRefreshToken(rawToken: string): Promise<{ newRawToken: string; userId: string }> {
+  async rotateRefreshToken(rawToken: string): Promise<{ newRawToken: string; userId: string; clientType: ClientType }> {
     const tokenHash = this.hash(rawToken);
     const stored = await this.refreshTokenRepo.findOne({ where: { tokenHash } });
 
     if (!stored) throw new UnauthorizedException('Token invàlid');
 
     if (stored.usedAt !== null) {
-      // Reuse detected — revoke entire family
       await this.refreshTokenRepo.update(
         { family: stored.family },
         { revokedAt: new Date() },
@@ -97,14 +96,12 @@ export class TokenService {
     if (stored.revokedAt !== null) throw new UnauthorizedException('Token revocat');
     if (stored.expiresAt < new Date()) throw new UnauthorizedException('Token caducat');
 
-    // Mark current as used
     await this.refreshTokenRepo.update(stored.id, { usedAt: new Date() });
 
-    // Load the user entity for signing
     const userRef = { id: stored.userId } as User;
     const newRawToken = await this.createRefreshToken(userRef, stored.clientType, stored.family);
 
-    return { newRawToken, userId: stored.userId };
+    return { newRawToken, userId: stored.userId, clientType: stored.clientType };
   }
 
   /** Revoca un token específic marcant-lo amb `revokedAt`. Usat en logout normal (sessió actual). */

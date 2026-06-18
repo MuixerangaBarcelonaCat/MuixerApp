@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { ClientType, UserProfile, UserRole } from '@muixer/shared';
 import { User } from '../user/user.entity';
@@ -80,8 +80,8 @@ export class AuthService {
   }
 
   /** Rota el refresh token (invalida l'antic, emet un de nou) i retorna un nou access token. Llança 401 si el token és invàlid, revocat o caducat. */
-  async refresh(rawRefreshToken: string): Promise<{ response: AuthResponseDto; newRefreshToken: string }> {
-    const { newRawToken, userId } = await this.tokenService.rotateRefreshToken(rawRefreshToken);
+  async refresh(rawRefreshToken: string): Promise<{ response: AuthResponseDto; newRefreshToken: string; clientType: ClientType }> {
+    const { newRawToken, userId, clientType } = await this.tokenService.rotateRefreshToken(rawRefreshToken);
 
     const user = await this.userRepo.findOne({
       where: { id: userId },
@@ -93,6 +93,7 @@ export class AuthService {
     return {
       response: { accessToken, user: this.toUserProfile(user) },
       newRefreshToken: newRawToken,
+      clientType,
     };
   }
 
@@ -117,7 +118,7 @@ export class AuthService {
   }
 
   /** Activa el compte d'un membre a partir del token d'invitació. Valida que el token no hagi caducat i fa auto-login un cop activat. */
-  async acceptInvite(dto: AcceptInviteDto): Promise<{ response: AuthResponseDto; refreshToken: string }> {
+  async acceptInvite(dto: AcceptInviteDto): Promise<{ response: AuthResponseDto; refreshToken: string; clientType: ClientType }> {
     const user = await this.userRepo.findOne({
       where: { inviteToken: dto.token },
       relations: ['person'],
@@ -147,6 +148,7 @@ export class AuthService {
     return {
       response: { accessToken, user: this.toUserProfile(user) },
       refreshToken,
+      clientType,
     };
   }
 

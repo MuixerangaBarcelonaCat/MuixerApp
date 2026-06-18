@@ -84,6 +84,36 @@ describe('TokenService', () => {
       expect(repo.update).toHaveBeenCalledWith('rt-id', { usedAt: expect.any(Date) });
       expect(result.newRawToken).toBe(newToken);
       expect(result.userId).toBe('user-uuid');
+      expect(result.clientType).toBe(ClientType.DASHBOARD);
+    });
+
+    it('returns the stored clientType (PWA)', async () => {
+      const rawToken = 'pwa-jwt';
+      const stored: Partial<RefreshToken> = {
+        id: 'rt-pwa',
+        userId: 'user-pwa',
+        tokenHash: hash(rawToken),
+        family: 'family-pwa',
+        clientType: ClientType.PWA,
+        expiresAt: new Date(Date.now() + 3600_000),
+        usedAt: null,
+        revokedAt: null,
+        createdAt: new Date(),
+      };
+
+      repo.findOne.mockResolvedValue(stored);
+      repo.update.mockResolvedValue({});
+      const newToken = 'new-pwa-jwt';
+      jest.spyOn(service, 'createRefreshToken').mockResolvedValue(newToken);
+
+      const result = await service.rotateRefreshToken(rawToken);
+
+      expect(result.clientType).toBe(ClientType.PWA);
+      expect(service.createRefreshToken).toHaveBeenCalledWith(
+        { id: 'user-pwa' },
+        ClientType.PWA,
+        'family-pwa',
+      );
     });
 
     it('revokes entire family when token has already been used (reuse detected)', async () => {

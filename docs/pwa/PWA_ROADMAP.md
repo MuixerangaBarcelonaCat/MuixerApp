@@ -12,8 +12,8 @@
 
 | Fase | Nom | Backend | Frontend | Estat | Spec/Notes |
 |------|-----|---------|----------|-------|------------|
-| P6.0 | Infraestructura i App Shell | Config CORS/port | Scaffold, shell, tabs | 🔵 En curs | Branca: `feat/pwa-app-start` |
-| P6.1 | Auth (bàsic) | — (endpoints existents) | Login, guards, interceptor | ⚪ Pendent | — |
+| P6.0 | Infraestructura i App Shell | Config CORS/port | Scaffold, shell, tabs | ✅ Completat | Branca: `feat/pwa-app-start` |
+| P6.1 | Auth (bàsic) | Fix clientType refresh | Login, guards, interceptor | ✅ Completat | Branca: `feat/pwa-app-start` |
 | P6.2 | Events i Assistència | `MeModule` + endpoints | Llista events, Home, attendance | ⚪ Pendent | — |
 | P6.3 | Detall d'Event | Segments visibles per MEMBER | Detall, accordion, info figures | ⚪ Pendent | — |
 | P6.4 | Gestió Familiar | `PersonGuardian` entity | Person selector, attendance gestionada | ⚪ Pendent | — |
@@ -326,3 +326,94 @@ P6.9 (Push) ← independent, requereix P6.0 + P6.1
 
 > **Alpha 1** és el punt on la comissió pot començar a provar amb membres reals.
 > Recomanem arribar a Alpha 1 abans de cap altra funcionalitat.
+
+---
+
+## Proves Manuals — Post-P6.1 (Pre-P6.2 Checklist)
+
+Proves a executar contra el backend local (`nx serve api`) + PWA (`nx serve pwa`) amb la DB amb seed data.
+
+### Prerequisits
+
+- [ ] Backend en marxa a `:3000` amb CORS habilitat per `localhost:4300`
+- [ ] PWA servida a `:4300` amb proxy configurat
+- [ ] Almenys 1 usuari MEMBER amb `person` vinculada a la DB
+- [ ] Almenys 1 usuari MEMBER sense `person` vinculada
+- [ ] Almenys 1 usuari TECHNICAL amb `person` vinculada
+
+### Login — Happy Path
+
+| # | Prova | Resultat esperat |
+|---|-------|------------------|
+| 1 | Accedir a `localhost:4300` sense sessió | Redirect a `/login` |
+| 2 | Introduir email + password correctes (MEMBER) | Redirect a `/home`, splash desapareix |
+| 3 | Veure la Home amb tab bar visible | 3 tabs: Inici (actiu), Events, Perfil |
+| 4 | Verificar que el NoPersonBanner NO apareix (user amb person) | Banner ocult |
+| 5 | Login amb usuari MEMBER sense person | Banner groc "Compte no vinculat" visible |
+| 6 | Login amb usuari TECHNICAL | Accés concedit, funciona igual que MEMBER |
+
+### Login — Error Handling
+
+| # | Prova | Resultat esperat |
+|---|-------|------------------|
+| 7 | Submit amb camps buits | Botó desactivat, no es fa request |
+| 8 | Email invàlid (ex: `foo@`) + tocar camp | Missatge "Correu electrònic no vàlid" sota el camp |
+| 9 | Credencials incorrectes | Alert vermell: "Correu electrònic o contrasenya incorrectes." |
+| 10 | Reintentar després d'error | Alert desapareix, loading spinner actiu |
+| 11 | Backend aturat (network error) | Mostra missatge d'error (nota: mostra el genèric de credencials) |
+
+### Session Refresh
+
+| # | Prova | Resultat esperat |
+|---|-------|------------------|
+| 12 | Recarregar pàgina (F5) estant autenticat | Splash → silent refresh OK → Home (sense login) |
+| 13 | Esperar > 15 min (access token expirat), fer acció | Interceptor fa refresh transparent, acció completa |
+| 14 | Invalidar cookie manualment (DevTools), fer acció | Toast "La sessió ha expirat", redirect a `/login` |
+| 15 | Múltiples requests simultànies amb token expirat | Només 1 request de refresh (deduplication) |
+
+### Guards i Routing
+
+| # | Prova | Resultat esperat |
+|---|-------|------------------|
+| 16 | Navegar a `/home` sense sessió | Redirect a `/login` |
+| 17 | Navegar a `/events` sense sessió | Redirect a `/login` |
+| 18 | Navegar a `/login` amb sessió activa | Redirect a `/home` (alreadyAuthGuard) |
+| 19 | URL inexistent (ex: `/foo`) | Redirect a `/home` (wildcard `**`) |
+| 20 | Tab navigation (Inici → Events → Perfil) | Canvi de vista, tab actiu canvia |
+
+### Cookies i Seguretat
+
+| # | Prova | Resultat esperat |
+|---|-------|------------------|
+| 21 | Inspeccionar cookie `muixer_refresh` (DevTools > Application) | httpOnly=true, path=/api/auth, SameSite=Lax |
+| 22 | Login des de PWA → verificar `clientType: PWA` al request body | Visible a Network tab |
+| 23 | Refresh des de PWA → cookie amb maxAge 7 dies | Verificable a Response headers |
+| 24 | Access token NO és a localStorage ni cookies | Només en memòria (signals) |
+
+### UX i Accessibilitat
+
+| # | Prova | Resultat esperat |
+|---|-------|------------------|
+| 25 | Tab + Enter al formulari de login | Navegable per teclat, submit funciona |
+| 26 | Splash screen durant init | Logo + spinner visible brevment, desapareix un cop `isReady` |
+| 27 | Toast container funcional | (Trigger manual via DevTools) Toast apareix i desapareix en 3-5s |
+| 28 | Responsive: obrir en viewport mòbil (375px) | Layout correcte, no overflow horitzontal |
+| 29 | `autocomplete="email"` i `autocomplete="current-password"` | Navegador ofereix autocompletar |
+| 30 | Screen reader: labels linkats als inputs | `for`/`id` correctes, ARIA roles presents |
+
+### Backend — Refresh Token Fix
+
+| # | Prova | Resultat esperat |
+|---|-------|------------------|
+| 31 | Login PWA (TECHNICAL user) → refresh → verificar cookie TTL | Cookie TTL = 7d (no 8h de Dashboard) |
+| 32 | Login Dashboard (TECHNICAL user) → refresh → verificar cookie TTL | Cookie TTL = 8h |
+| 33 | Reutilitzar un refresh token ja usat | 401 "Token reutilitzat detectat", tota la família revocada |
+| 34 | Usar un refresh token revocat | 401 "Token revocat" |
+| 35 | Usar un refresh token expirat | 401 "Token caducat" |
+
+### Known Issues (deute tècnic a adreçar)
+
+- `hasLinkedPerson` retorna `true` quan `currentUser` és `null` (bug menor, no afecta runtime perquè shell viu darrere guard)
+- Error de login genèric per a errors de xarxa (hauria de diferenciar 401 vs network failure)
+- Import no usat de `DataSource` a `auth.service.ts` backend
+- `cleanupExpiredTokens` fa una query redundant (la 2a DELETE és subset de la 1a)
