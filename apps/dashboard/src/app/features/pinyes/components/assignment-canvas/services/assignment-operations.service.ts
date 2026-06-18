@@ -10,11 +10,10 @@ import {
   PendingOp,
 } from '../../../models/assignment.model';
 import { FigureZone } from '@muixer/shared';
-import { CordonsDialogSaveEvent } from '../../cordons-dialog/cordons-dialog.component';
 
 /**
  * Component-scoped service owning all assignment mutation operations:
- * assign, unassign, swap, cordons, reset, delete instance.
+ * assign, unassign, swap, reset, delete instance.
  */
 @Injectable()
 export class AssignmentOperationsService {
@@ -168,33 +167,6 @@ export class AssignmentOperationsService {
         this.toast.error('Error en desassignar la persona.');
       },
     });
-  }
-
-  saveCordons(event: CordonsDialogSaveEvent, onSuccess: () => void): void {
-    const instanceId = this.state.activeInstanceId();
-    if (!instanceId) return;
-
-    this.assignmentService
-      .updateCordons(instanceId, {
-        numberOfCordons: event.numberOfCordons,
-        openCordons: event.openCordons.length > 0 ? event.openCordons : null,
-      })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (resp) => {
-          this.tab.updateTabCordons(instanceId, resp.numberOfCordons, resp.openCordons);
-          this.tab.refreshInstanceNodes(instanceId);
-          if (resp.removedAssignments > 0) {
-            this.toast.warning(
-              `S'han desassignat ${resp.removedAssignments} persones dels cordons eliminats.`,
-            );
-          } else {
-            this.toast.success('Configuració de cordons actualitzada.');
-          }
-          onSuccess();
-        },
-        error: () => this.toast.error('Error en actualitzar els cordons.'),
-      });
   }
 
   resetSnapshot(onSuccess: (removed: number) => void, onError: () => void): void {

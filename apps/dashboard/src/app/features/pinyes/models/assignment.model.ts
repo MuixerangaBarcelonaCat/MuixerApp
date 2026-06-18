@@ -159,17 +159,6 @@ export interface UpdateAdHocNodePayload {
   shape?: string;
 }
 
-export interface UpdateInstanceCordonsPayload {
-  numberOfCordons?: number | null;
-  openCordons?: string[] | null;
-}
-
-export interface CordonsResponse {
-  numberOfCordons: number | null;
-  openCordons: string[] | null;
-  removedAssignments: number;
-}
-
 export interface SwapAssignmentsPayload {
   assignmentIdA: string;
   assignmentIdB: string;

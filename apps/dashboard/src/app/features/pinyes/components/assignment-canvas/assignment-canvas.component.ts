@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Location } from '@angular/common';
-import { LucideAngularModule, ArrowLeft, Users, Edit, RefreshCw, Trash2, X, PanelLeft, PanelLeftClose, Monitor, Lock, SlidersHorizontal, Plus, HelpCircle, Undo2, Redo2, Save } from 'lucide-angular';
+import { LucideAngularModule, ArrowLeft, Users, Edit, RefreshCw, Trash2, X, PanelLeft, PanelLeftClose, Monitor, Lock, Plus, HelpCircle, Undo2, Redo2, Save } from 'lucide-angular';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { NodeAssignmentService, LockStatus } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
@@ -21,7 +21,6 @@ import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component'
 import { PersonPanelComponent } from '../person-panel/person-panel.component';
 import { ImportPinyaModalComponent } from '../import-pinya-modal/import-pinya-modal.component';
 import { TroncViewComponent } from '../tronc-view/tronc-view.component';
-import { CordonsDialogComponent, CordonsDialogSaveEvent } from '../cordons-dialog/cordons-dialog.component';
 import { AdHocNodesHelpModalComponent } from '../ad-hoc-nodes-help-modal/ad-hoc-nodes-help-modal.component';
 import { AdHocNodePropertiesComponent } from '../ad-hoc-node-properties/ad-hoc-node-properties.component';
 import { SaveAsTemplateDialogComponent, SaveAsTemplateResult } from '../save-as-template-dialog/save-as-template-dialog.component';
@@ -35,10 +34,7 @@ import {
   UpdateAdHocNodePayload,
 } from '../../models/assignment.model';
 import { SegmentDetail } from '../../models/segment.model';
-import { FigureTemplateService } from '../../services/figure-template.service';
-import { RenglaModel } from '../../models/figure-template.model';
 import { FigureZone, PINYA_NODE_PRESETS, DECORATION_NODE_PRESETS, DIRECTION_NODE_PRESETS, NodePreset } from '@muixer/shared';
-import { repositionCordoObertNodes } from '../../utils/cordo-obert-reposition.util';
 import { Observable } from 'rxjs';
 import { UndoRedoService, UndoableAction } from '../../services/undo-redo.service';
 
@@ -46,9 +42,8 @@ interface InstanceTab {
   instanceId: string;
   label: string;
   figureTemplateId: string | null;
+  hasPinya: boolean;
   snapshotted: boolean;
-  numberOfCordons: number | null;
-  openCordons: string[] | null;
   nodes: InstanceNodeItem[];
   assignedCount: number;
   totalCount: number;
@@ -65,7 +60,6 @@ interface InstanceTab {
     PersonPanelComponent,
     ImportPinyaModalComponent,
     TroncViewComponent,
-    CordonsDialogComponent,
     AdHocNodesHelpModalComponent,
     AdHocNodePropertiesComponent,
     SaveAsTemplateDialogComponent,
@@ -81,7 +75,6 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   private readonly layout = inject(LayoutService);
   private readonly assignmentService = inject(NodeAssignmentService);
   private readonly segmentService = inject(EventSegmentService);
-  private readonly figureTemplateService = inject(FigureTemplateService);
   private readonly instanceService = inject(FigureInstanceService);
   private readonly toast = inject(ToastService);
   readonly state = inject(AssignmentStateService);
@@ -97,7 +90,6 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly PanelLeftClose = PanelLeftClose;
   readonly Monitor = Monitor;
   readonly Lock = Lock;
-  readonly SlidersHorizontal = SlidersHorizontal;
   readonly Plus = Plus;
   readonly HelpCircle = HelpCircle;
   readonly Undo2 = Undo2;
@@ -158,14 +150,6 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   private moveOrigin: { x: number; y: number } | null = null;
   private static readonly MOVE_COALESCE_MS = 500;
 
-  readonly templateRengles = signal<RenglaModel[]>([]);
-  readonly maxCordons = signal(0);
-  readonly renglesWithCordoObert = computed(() =>
-    this.templateRengles().filter((r) => r.allowsCordoObert),
-  );
-  readonly hasCordonsConfig = computed(() => this.templateRengles().length > 0);
-  readonly cordonsDialogOpen = signal(false);
-
   // Floating tronc panel drag state
   readonly troncPanelPos = signal({ x: 16, y: 60 });
   private troncDragging = false;
@@ -202,12 +186,15 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     return this.state.assignments().find((a) => a.node.id === node.id) ?? null;
   });
 
-  /** Nodes rendered on the pinya Konva canvas (PINYA + BASE + direction zones, no TRONC). */
-  readonly activePinyaNodes = computed(() => {
-    const nodes = this.activeNodes().filter((n) => n.zone !== FigureZone.TRONC);
-    const tab = this.activeTab();
-    return repositionCordoObertNodes(nodes, tab?.numberOfCordons ?? null);
-  });
+  /** Nodes rendered on the Konva canvas (PINYA + BASE + DECORATION — spatial x,y nodes). */
+  readonly activePinyaNodes = computed(() =>
+    this.activeNodes().filter(
+      (n) =>
+        n.zone === FigureZone.PINYA ||
+        n.zone === FigureZone.BASE ||
+        n.zone === FigureZone.DECORATION,
+    ),
+  );
 
   /** TRONC-zone nodes passed to the tronc panel. */
   readonly activeTroncNodes = computed(() =>
@@ -218,6 +205,21 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly activeBaseNodes = computed(() =>
     this.activeNodes().filter((n) => n.zone === FigureZone.BASE),
   );
+
+  /** Direction-zone nodes passed to the tronc panel (figures netes only). */
+  readonly activeDirectionNodes = computed(() =>
+    this.activeNodes().filter(
+      (n) =>
+        n.zone === FigureZone.FIGURE_DIRECTION ||
+        n.zone === FigureZone.XICALLA_DIRECTION,
+    ),
+  );
+
+  /** Whether the active tab is a figura neta (hasPinya = false). */
+  readonly isActiveTabTroncOnly = computed(() => {
+    const tab = this.activeTab();
+    return tab ? tab.hasPinya === false : false;
+  });
 
   /** Cast attendanceRegistry to AttendanceStatus map for TroncViewComponent. */
   readonly troncAttendanceMap = computed(
@@ -303,9 +305,16 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
       const selectedId = this.state.selectedNodeId();
       if (!selectedId) return;
       const node = this.activeNodes().find((n) => n.id === selectedId);
-      if (!node?.isAdHoc) return;
-      event.preventDefault();
 
+      if (!node?.isAdHoc) {
+        const assignment = this.state.assignments().find((a) => a.node.id === selectedId);
+        if (!assignment) return;
+        event.preventDefault();
+        this.onUnassign(assignment);
+        return;
+      }
+
+      event.preventDefault();
       const isAssigned = this.state.assignments().some((a) => a.node.id === selectedId);
       if (isAssigned) {
         this.pendingDeleteNodeId.set(selectedId);
@@ -380,7 +389,9 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   }
 
   private advanceToNextEmptyNodeFromCurrent(): void {
-    const nodes = this.activeNodes();
+    const nodes = this.activeNodes().filter(
+      (n) => n.zone !== FigureZone.DECORATION,
+    );
     if (nodes.length === 0) return;
     const assignments = this.state.assignments();
     const assignedNodeIds = new Set(assignments.map((a) => a.node.id));
@@ -427,9 +438,8 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
         instanceId: instance.id,
         label: instance.label ?? instance.figureTemplate?.name ?? '?',
         figureTemplateId: instance.figureTemplate?.id ?? null,
+        hasPinya: instance.figureTemplate?.hasPinya ?? true,
         snapshotted: instance.snapshotted,
-        numberOfCordons: instance.numberOfCordons ?? null,
-        openCordons: instance.openCordons ?? null,
         nodes: [],
         assignedCount: 0,
         totalCount: 0,
@@ -448,6 +458,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
   onTroncDragStart(event: MouseEvent): void {
     if ((event.target as HTMLElement).closest('button')) return;
+    if (this.isActiveTabTroncOnly()) return;
     this.troncDragging = true;
     const pos = this.troncPanelPos();
     this.troncDragOffset = { x: event.clientX - pos.x, y: event.clientY - pos.y };
@@ -476,7 +487,9 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     this.highlightedNodeIds.set(new Set());
     this.undoRedo.clear();
     this.loadTabData(instanceId);
-    this.loadTemplateRenglesForTab(instanceId);
+
+    const tab = this.tabs().find((t) => t.instanceId === instanceId);
+    this.troncPanelOpen.set(tab ? !tab.hasPinya : false);
   }
 
   private loadTabData(instanceId: string): void {
@@ -485,21 +498,24 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
     this.assignmentService.getInstanceNodes(instanceId).subscribe({
       next: (resp) => {
+        if (this.state.activeInstanceId() !== instanceId) return;
+        const assignableCount = resp.data.filter(
+          (n) => n.zone !== FigureZone.DECORATION,
+        ).length;
         this.tabs.update((list) =>
           list.map((t) =>
             t.instanceId === instanceId
-              ? { ...t, nodes: resp.data, totalCount: resp.data.length }
+              ? { ...t, nodes: resp.data, totalCount: assignableCount }
               : t,
           ),
         );
-        if (this.state.activeInstanceId() === instanceId) {
-          this.state.activeTabNodes.set(resp.data);
-        }
+        this.state.activeTabNodes.set(resp.data);
       },
     });
 
     this.assignmentService.getByInstance(instanceId).subscribe({
       next: (resp) => {
+        if (this.state.activeInstanceId() !== instanceId) return;
         this.state.assignments.set(resp.data);
         this.tabs.update((list) =>
           list.map((t) =>
@@ -508,25 +524,6 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
               : t,
           ),
         );
-      },
-    });
-  }
-
-  private loadTemplateRenglesForTab(instanceId: string): void {
-    const tab = this.tabs().find((t) => t.instanceId === instanceId);
-    if (!tab?.figureTemplateId) return;
-    this.loadTemplateRengles(tab.figureTemplateId);
-  }
-
-  private loadTemplateRengles(templateId: string): void {
-    this.figureTemplateService.getOne(templateId).subscribe({
-      next: (template) => {
-        this.templateRengles.set(template.rengles ?? []);
-        const maxPos = (template.nodes ?? []).reduce(
-          (max, n) => (n.renglaPosition != null && n.renglaPosition > max ? n.renglaPosition : max),
-          0,
-        );
-        this.maxCordons.set(maxPos);
       },
     });
   }
@@ -620,13 +617,14 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const activeNodes = this.activePinyaNodes();
-    const clickedNode = activeNodes.find((n) => n.id === nodeId);
+    const allNodes = this.activeNodes();
+    const clickedNode = allNodes.find((n) => n.id === nodeId);
     const isDecorationNode = clickedNode?.zone === FigureZone.DECORATION;
 
     if (isDecorationNode) {
       this.state.setSelectedNodeId(nodeId);
       this.popoverAssignment.set(null);
+      this.adHocPropertiesOpen.set(true);
       return;
     }
 
@@ -639,6 +637,8 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
       ? this.state.assignments().find((a) => a.node.id === previouslySelectedNodeId)
       : null;
 
+    const isAdHoc = !!clickedNode?.isAdHoc;
+
     if (clickedNodeAssignment && previousNodeAssignment && previouslySelectedNodeId !== nodeId) {
       this.triggerSwap(previousNodeAssignment, clickedNodeAssignment);
       this.state.setSelectedNodeId(null);
@@ -646,6 +646,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     } else if (clickedNodeAssignment) {
       this.popoverAssignment.set(clickedNodeAssignment);
       this.state.setSelectedNodeId(nodeId);
+      if (isAdHoc) this.adHocPropertiesOpen.set(true);
     } else {
       const pendingPersonId = this.state.selectedPersonId();
       this.state.setSelectedNodeId(nodeId);
@@ -654,6 +655,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
       if (pendingPersonId) {
         this.triggerAssign(nodeId, pendingPersonId);
       }
+      if (isAdHoc) this.adHocPropertiesOpen.set(true);
     }
   }
 
@@ -680,6 +682,48 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     const assignment = this.state.assignments().find((a) => a.node.id === nodeId);
     if (!assignment) return;
     this.onUnassign(assignment);
+  }
+
+  // ── Direction ad-hoc handlers (figures netes) ──────────────────────────
+
+  onDirectionAdded(event: { zone: string }): void {
+    const instanceId = this.state.activeInstanceId();
+    if (!instanceId || this.isLocked()) return;
+
+    const preset = DIRECTION_NODE_PRESETS.find((p) => p.zone === event.zone);
+    if (!preset) return;
+
+    this.assignmentService
+      .createAdHocNode(instanceId, {
+        zone: preset.zone,
+        label: preset.label,
+        x: 0,
+        y: 0,
+        width: preset.width,
+        height: preset.height,
+        shape: preset.shape,
+        color: preset.color ?? undefined,
+      })
+      .subscribe({
+        next: () => this.loadTabData(instanceId),
+        error: () => this.toast.error('No s\'ha pogut crear la direcció.'),
+      });
+  }
+
+  onDirectionRemoved(nodeId: string): void {
+    const instanceId = this.state.activeInstanceId();
+    if (!instanceId || this.isLocked()) return;
+
+    const hasAssignment = this.state.assignments().some((a) => a.node.id === nodeId);
+    if (hasAssignment) {
+      this.toast.error('Treu l\'assignació abans d\'eliminar la direcció.');
+      return;
+    }
+
+    this.assignmentService.deleteAdHocNode(instanceId, nodeId).subscribe({
+      next: () => this.loadTabData(instanceId),
+      error: () => this.toast.error('No s\'ha pogut eliminar la direcció.'),
+    });
   }
 
   onPersonSelected(person: AvailablePerson): void {
@@ -797,7 +841,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
         this.tabs.update((list) =>
           list.map((t) =>
             t.instanceId === instanceId
-              ? { ...t, nodes: resp.data, totalCount: resp.data.length, snapshotted: true }
+              ? { ...t, nodes: resp.data, totalCount: resp.data.filter((n) => n.zone !== FigureZone.DECORATION).length, snapshotted: true }
               : t,
           ),
         );
@@ -919,48 +963,6 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     });
   }
 
-  // ─── Cordons dialog ─────────────────────────────────────────────────────
-
-  openCordonsDialog(): void {
-    this.cordonsDialogOpen.set(true);
-  }
-
-  onCordonsSaved(event: CordonsDialogSaveEvent): void {
-    const instanceId = this.state.activeInstanceId();
-    if (!instanceId) return;
-
-    this.cordonsDialogOpen.set(false);
-    this.assignmentService.updateCordons(instanceId, {
-      numberOfCordons: event.numberOfCordons,
-      openCordons: event.openCordons.length > 0 ? event.openCordons : null,
-    }).subscribe({
-      next: (resp) => {
-        this.tabs.update((list) =>
-          list.map((t) =>
-            t.instanceId === instanceId
-              ? { ...t, numberOfCordons: resp.numberOfCordons, openCordons: resp.openCordons }
-              : t,
-          ),
-        );
-        this.refreshInstanceNodes(instanceId);
-        if (resp.removedAssignments > 0) {
-          this.toast.warning(
-            `S'han desassignat ${resp.removedAssignments} persones dels cordons eliminats.`,
-          );
-        } else {
-          this.toast.success('Configuració de cordons actualitzada.');
-        }
-      },
-      error: () => {
-        this.toast.error('Error en actualitzar els cordons.');
-      },
-    });
-  }
-
-  onCordonsDialogClosed(): void {
-    this.cordonsDialogOpen.set(false);
-  }
-
   // ─── Reset snapshot ────────────────────────────────────────────────────
 
   openResetModal(): void {
@@ -992,7 +994,6 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
         );
         this.state.assignments.set([]);
         this.loadTabData(instanceId);
-        this.loadTemplateRenglesForTab(instanceId);
         this.state.refreshPersonList();
       },
       error: (err) => {
@@ -1054,7 +1055,9 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   // ─── Helpers ────────────────────────────────────────────────────────────
 
   private advanceToNextEmptyNode(justAssignedNodeId: string): void {
-    const nodes = this.activeNodes();
+    const nodes = this.activeNodes().filter(
+      (n) => n.zone !== FigureZone.DECORATION,
+    );
     const assignments = this.state.assignments();
     const assignedNodeIds = new Set(assignments.map((a) => a.node.id));
     const currentIndex = nodes.findIndex((n) => n.id === justAssignedNodeId);
@@ -1548,6 +1551,11 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   }
 
   goBack(): void {
-    this.location.back();
+    const returnUrl = this.route.snapshot.queryParams['returnUrl'];
+    if (returnUrl) {
+      this.router.navigateByUrl(returnUrl);
+    } else {
+      this.location.back();
+    }
   }
 }

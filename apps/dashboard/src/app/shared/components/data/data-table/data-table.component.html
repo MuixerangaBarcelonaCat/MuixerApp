@@ -1,4 +1,4 @@
-<div class="card bg-base-100 shadow-sm overflow-hidden">
+<div class="card bg-base-100 shadow-sm">
   <div class="overflow-x-auto">
     <table class="table table-sm table-zebra">
       <thead class="sticky top-0 z-10 bg-base-100 border-b border-base-300">
@@ -100,28 +100,15 @@
 
               @if (rowActions().length > 0) {
                 <td class="text-right" (click)="$event.stopPropagation()">
-                  <div class="dropdown dropdown-end">
-                    <button tabindex="0" class="btn btn-ghost btn-xs" type="button" aria-label="Accions">
-                      <lucide-icon name="MoreHorizontal" [size]="16" />
-                    </button>
-                    <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 w-40 p-1 shadow-lg border border-base-300">
-                      @for (action of rowActions(); track action.label) {
-                        <li>
-                          <button
-                            type="button"
-                            class="text-sm"
-                            [ngClass]="action.class ?? ''"
-                            (click)="action.action(item)"
-                          >
-                            @if (action.icon) {
-                              <lucide-icon [name]="action.icon" [size]="14" />
-                            }
-                            {{ action.label }}
-                          </button>
-                        </li>
-                      }
-                    </ul>
-                  </div>
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-xs"
+                    aria-label="Accions"
+                    [attr.aria-expanded]="openActionsIndex() === idx"
+                    (click)="toggleActionsMenu($event, idx)"
+                  >
+                    <lucide-icon name="MoreHorizontal" [size]="16" />
+                  </button>
                 </td>
               }
             </tr>
@@ -131,3 +118,39 @@
     </table>
   </div>
 </div>
+
+@if (openActionsIndex() !== null && menuPosition(); as position) {
+  <button
+    type="button"
+    class="fixed inset-0 z-40 cursor-default bg-transparent"
+    aria-label="Tancar menú d'accions"
+    (click)="closeActionsMenu()"
+  ></button>
+
+  <ul
+    class="menu bg-base-100 rounded-box z-50 w-40 p-1 shadow-lg border border-base-300 fixed"
+    role="menu"
+    tabindex="-1"
+    [style.top.px]="position.top"
+    [style.left.px]="position.left"
+    (click)="$event.stopPropagation()"
+    (keydown)="$event.stopPropagation()"
+  >
+    @for (action of rowActions(); track action.label) {
+      <li role="none">
+        <button
+          type="button"
+          class="text-sm"
+          role="menuitem"
+          [ngClass]="action.class ?? ''"
+          (click)="onRowAction(action, items()[openActionsIndex()!])"
+        >
+          @if (action.icon) {
+            <lucide-icon [name]="action.icon" [size]="14" />
+          }
+          {{ action.label }}
+        </button>
+      </li>
+    }
+  </ul>
+}

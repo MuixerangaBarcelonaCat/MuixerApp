@@ -170,14 +170,10 @@ export class RenglaOverlayComponent {
     const ids = this.pendingNodeIds();
     if (ids.length < 1) return;
 
-    const lastNode = this.nodes().find((n) => n.id === ids[ids.length - 1]);
-    const hasCordoObert = lastNode?.positionType === 'cordo-obert';
-
     this.renglaCreated.emit({
       rengla: {
         name: `Rengla ${this.rengles().length + 1}`,
         sortOrder: this.rengles().length,
-        allowsCordoObert: hasCordoObert,
       },
       nodeAssignments: ids.map((nodeId, i) => ({
         nodeId,

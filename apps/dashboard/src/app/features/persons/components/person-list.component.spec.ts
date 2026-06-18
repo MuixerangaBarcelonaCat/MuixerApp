@@ -11,6 +11,7 @@ import {
 import { PersonListComponent } from './person-list.component';
 import { PersonService } from '../services/person.service';
 import { AvailabilityStatus, OnboardingStatus } from '@muixer/shared';
+import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../shared/utils/person.util';
 
 describe('PersonListComponent', () => {
   let fixture: ComponentFixture<PersonListComponent>;
@@ -29,7 +30,7 @@ describe('PersonListComponent', () => {
     email: null,
     phone: null,
     birthDate: null,
-    shoulderHeight: 140,
+    shoulderHeight: SHOULDER_HEIGHT_BASELINE_CM,
     isXicalla: false,
     isMember: false,
     availability: AvailabilityStatus.AVAILABLE,

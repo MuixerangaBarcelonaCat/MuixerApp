@@ -3,6 +3,7 @@ import {
   UnauthorizedException,
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -179,12 +180,17 @@ export class UserService {
     });
   }
 
-  async createUser(dto: CreateUserDto): Promise<UserResponseDto> {
+  async createUser(
+    dto: CreateUserDto,
+    actorRole: UserRole,
+  ): Promise<UserResponseDto> {
     if (dto.role === UserRole.MEMBER) {
       throw new BadRequestException(
         'Use create-with-invite endpoint for MEMBER users',
       );
     }
+
+    this.assertCanAssignRole(actorRole, UserRole.MEMBER, dto.role);
 
     const existingUser = await this.userRepository.findOne({
       where: { email: dto.email },
@@ -255,6 +261,7 @@ export class UserService {
   async updateUser(
     userId: string,
     dto: UpdateUserDto,
+    actorRole: UserRole,
   ): Promise<UserResponseDto> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
@@ -273,6 +280,7 @@ export class UserService {
     }
 
     if (dto.role !== undefined) {
+      this.assertCanAssignRole(actorRole, user.role, dto.role);
       user.role = dto.role;
     }
 
@@ -327,5 +335,21 @@ export class UserService {
     if (!user) throw new NotFoundException('User not found');
     user.isActive = false;
     await this.userRepository.save(user);
+  }
+
+  private assertCanAssignRole(
+    actorRole: UserRole,
+    targetCurrentRole: UserRole,
+    newRole: UserRole,
+  ): void {
+    if (actorRole === UserRole.ADMIN) {
+      return;
+    }
+
+    if (newRole === UserRole.ADMIN || targetCurrentRole === UserRole.ADMIN) {
+      throw new ForbiddenException(
+        'Solament un administrador pot assignar el rol d\'administrador',
+      );
+    }
   }
 }

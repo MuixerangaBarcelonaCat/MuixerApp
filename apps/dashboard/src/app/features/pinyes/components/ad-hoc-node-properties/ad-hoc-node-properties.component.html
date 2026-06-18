@@ -180,7 +180,7 @@
     <div class="form-control">
       <label class="label pb-1" [for]="'adhoc-color-' + node().id">
         <span class="label-text text-xs font-medium">
-          {{ isDecoration() ? 'Color de fons' : 'Color' }}
+          Color
         </span>
       </label>
       <div class="flex items-center gap-2">
@@ -204,11 +204,6 @@
           </button>
         }
       </div>
-      @if (isDecoration()) {
-        <p class="text-xs text-base-content/50 mt-1">
-          El traç es manté gris; el color aplica només al fons.
-        </p>
-      }
     </div>
   </div>
 </div>

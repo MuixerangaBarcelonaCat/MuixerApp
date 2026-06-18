@@ -1,6 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
-  IsBoolean,
   IsInt,
   IsOptional,
   IsString,
@@ -24,9 +23,4 @@ export class CreateRenglaDto {
   @Min(0)
   @IsOptional()
   sortOrder?: number;
-
-  @ApiPropertyOptional({ description: 'Whether this rengla can have an open cordon at the end (auto-computed from nodes)', default: false })
-  @IsBoolean()
-  @IsOptional()
-  allowsCordoObert?: boolean;
 }

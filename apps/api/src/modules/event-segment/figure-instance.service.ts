@@ -207,16 +207,24 @@ export class FigureInstanceService {
       throw new NotFoundException(`FigureInstance with ID ${id} not found`);
     }
 
+    const countResult = await this.dataSource.query(
+      `SELECT COUNT(*) as count FROM node_assignments WHERE "figureInstanceId" = $1`,
+      [id],
+    );
+    const assignedCount = parseInt(countResult[0]?.count ?? '0', 10);
+
     return {
       id: instance.id,
       label: instance.label,
       sortOrder: instance.sortOrder,
       snapshotted: instance.snapshotted,
-      assignedCount: 0,
-      numberOfCordons: instance.numberOfCordons,
-      openCordons: instance.openCordons,
+      assignedCount,
       figureTemplate: instance.figureTemplate
-        ? { id: instance.figureTemplate.id, name: instance.figureTemplate.name }
+        ? {
+            id: instance.figureTemplate.id,
+            name: instance.figureTemplate.name,
+            hasPinya: instance.figureTemplate.hasPinya,
+          }
         : null,
       compositionTemplate: instance.compositionTemplate
         ? { id: instance.compositionTemplate.id, name: instance.compositionTemplate.name }

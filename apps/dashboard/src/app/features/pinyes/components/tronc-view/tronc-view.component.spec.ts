@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
   LUCIDE_ICONS, LucideIconProvider,
-  ArrowDownUp, ArrowUpDown, Plus, Minus, Trash2, X,
+  ArrowDownUp, ArrowUpDown, Plus, Minus, Trash2, X, ChevronDown, ChevronRight,
 } from 'lucide-angular';
 import { TroncViewComponent, TroncNodeItem } from './tronc-view.component';
 import { AssignmentDetail } from '../../models/assignment.model';
@@ -17,6 +17,7 @@ function makeNode(overrides: Partial<TroncNodeItem> = {}): TroncNodeItem {
     z: 1,
     width: 1,
     sortOrder: 0,
+    color: null,
     ...overrides,
   };
 }
@@ -31,6 +32,7 @@ function makeBaseNode(overrides: Partial<TroncNodeItem> = {}): TroncNodeItem {
     z: 0,
     width: 80, // pinya canvas pixel dimension, treated as 1 in tronc view
     sortOrder: 0,
+    color: null,
     ...overrides,
   };
 }
@@ -72,7 +74,7 @@ describe('TroncViewComponent', () => {
         {
           provide: LUCIDE_ICONS,
           multi: true,
-          useFactory: () => new LucideIconProvider({ ArrowDownUp, ArrowUpDown, Plus, Minus, Trash2, X }),
+          useFactory: () => new LucideIconProvider({ ArrowDownUp, ArrowUpDown, Plus, Minus, Trash2, X, ChevronDown, ChevronRight }),
         },
       ],
     }).compileComponents();
@@ -640,14 +642,14 @@ describe('TroncViewComponent', () => {
       expect(colored.length).toBe(0);
     });
 
-    it('does not render z-colored class in projection mode', () => {
+    it('renders z-colored class in projection mode', () => {
       fixture.componentRef.setInput('troncNodes', [makeNode({ positionType: 'segon' })]);
       fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
       fixture.componentRef.setInput('mode', 'projection');
       fixture.detectChanges();
 
       const colored = fixture.nativeElement.querySelectorAll('.tronc-node.z-colored');
-      expect(colored.length).toBe(0);
+      expect(colored.length).toBe(2);
     });
   });
 
@@ -759,6 +761,384 @@ describe('TroncViewComponent', () => {
     it('does not render progress badges', () => {
       const progressBadges = fixture.nativeElement.querySelectorAll('.progress-badge');
       expect(progressBadges.length).toBe(0);
+    });
+  });
+
+  // ── positionType tags (F1) ───────────────────────────────────────────────
+
+  describe('positionType preset tags', () => {
+    it('renders preset tags when a TRONC node is selected in editor mode', () => {
+      fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'n1', z: 1 })]);
+      fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
+      fixture.componentRef.setInput('mode', 'editor');
+      fixture.componentRef.setInput('selectedNodeId', 'n1');
+      fixture.detectChanges();
+
+      const tags = fixture.nativeElement.querySelectorAll('.preset-tag');
+      expect(tags.length).toBe(7);
+    });
+
+    it('does not render preset tags when no node is selected', () => {
+      fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'n1', z: 1 })]);
+      fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
+      fixture.componentRef.setInput('mode', 'editor');
+      fixture.componentRef.setInput('selectedNodeId', null);
+      fixture.detectChanges();
+
+      const tags = fixture.nativeElement.querySelectorAll('.preset-tag');
+      expect(tags.length).toBe(0);
+    });
+
+    it('marks the active tag with .active class', () => {
+      fixture.componentRef.setInput('troncNodes', [
+        makeNode({ id: 'n1', z: 1, positionType: 'terceres' }),
+      ]);
+      fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
+      fixture.componentRef.setInput('mode', 'editor');
+      fixture.componentRef.setInput('selectedNodeId', 'n1');
+      fixture.detectChanges();
+
+      const activeTags = fixture.nativeElement.querySelectorAll('.preset-tag.active');
+      expect(activeTags.length).toBe(1);
+      expect(activeTags[0].textContent.trim()).toContain('Terçes');
+    });
+
+    it('onPositionTypeChange emits nodeUpdated with positionType and color', () => {
+      const emitted: { nodeId: string; positionType?: string; color?: string | null }[] = [];
+      fixture.componentRef.instance.nodeUpdated.subscribe((e) => emitted.push(e));
+
+      const node = makeNode({ id: 'n1', label: 'Segones', positionType: 'segones', color: '#1E88E5' });
+      const preset = { positionType: 'puntal', label: 'Puntal', color: '#795548' };
+      component.onPositionTypeChange(node, preset);
+
+      expect(emitted.length).toBe(1);
+      expect(emitted[0].positionType).toBe('puntal');
+      expect(emitted[0].color).toBe('#795548');
+    });
+
+    it('onPositionTypeChange updates label when it is a default preset label', () => {
+      const emitted: { nodeId: string; label?: string }[] = [];
+      fixture.componentRef.instance.nodeUpdated.subscribe((e) => emitted.push(e));
+
+      const node = makeNode({ id: 'n1', label: 'Segones', positionType: 'segones', color: '#1E88E5' });
+      const preset = { positionType: 'puntal', label: 'Puntal', color: '#795548' };
+      component.onPositionTypeChange(node, preset);
+
+      expect(emitted[0].label).toBe('Puntal');
+    });
+
+    it('onPositionTypeChange does not change label when it is custom', () => {
+      const emitted: { nodeId: string; label?: string }[] = [];
+      fixture.componentRef.instance.nodeUpdated.subscribe((e) => emitted.push(e));
+
+      const node = makeNode({ id: 'n1', label: 'Mon node custom', positionType: 'segones', color: '#1E88E5' });
+      const preset = { positionType: 'puntal', label: 'Puntal', color: '#795548' };
+      component.onPositionTypeChange(node, preset);
+
+      expect(emitted[0].label).toBeUndefined();
+    });
+  });
+
+  // ── Type-colored visual feedback (F1) ──────────────────────────────────
+
+  describe('type-colored node rendering', () => {
+    it('renders type-colored class on TRONC nodes in editor mode when color is set', () => {
+      fixture.componentRef.setInput('troncNodes', [
+        makeNode({ id: 'n1', z: 1, color: '#1E88E5' }),
+      ]);
+      fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
+      fixture.componentRef.setInput('mode', 'editor');
+      fixture.detectChanges();
+
+      const colored = fixture.nativeElement.querySelectorAll('.tronc-node.type-colored');
+      expect(colored.length).toBe(1);
+    });
+
+    it('does not render type-colored class when color is null', () => {
+      fixture.componentRef.setInput('troncNodes', [
+        makeNode({ id: 'n1', z: 1, color: null }),
+      ]);
+      fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
+      fixture.componentRef.setInput('mode', 'editor');
+      fixture.detectChanges();
+
+      const colored = fixture.nativeElement.querySelectorAll('.tronc-node.type-colored');
+      expect(colored.length).toBe(0);
+    });
+
+    it('renders type-badge inside TRONC node in editor mode', () => {
+      fixture.componentRef.setInput('troncNodes', [
+        makeNode({ id: 'n1', z: 1, positionType: 'segones', color: '#1E88E5' }),
+      ]);
+      fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
+      fixture.componentRef.setInput('mode', 'editor');
+      fixture.detectChanges();
+
+      const badges = fixture.nativeElement.querySelectorAll('.type-badge');
+      expect(badges.length).toBe(1);
+      expect(badges[0].textContent.trim()).toContain('Seg');
+    });
+
+    it('does not render type-badge in assignment mode', () => {
+      fixture.componentRef.setInput('troncNodes', [
+        makeNode({ id: 'n1', z: 1, positionType: 'segones', color: '#1E88E5' }),
+      ]);
+      fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.detectChanges();
+
+      const badges = fixture.nativeElement.querySelectorAll('.type-badge');
+      expect(badges.length).toBe(0);
+    });
+  });
+
+  // ── getPositionTypeBadge ───────────────────────────────────────────────
+
+  describe('getPositionTypeBadge', () => {
+    it('returns "Seg" for segones', () => {
+      expect(component.getPositionTypeBadge(makeNode({ positionType: 'segones' }))).toBe('Seg');
+    });
+
+    it('returns "Ter" for terceres', () => {
+      expect(component.getPositionTypeBadge(makeNode({ positionType: 'terceres' }))).toBe('Ter');
+    });
+
+    it('returns "Xiq" for xiqueta', () => {
+      expect(component.getPositionTypeBadge(makeNode({ positionType: 'xiqueta' }))).toBe('Xiq');
+    });
+
+    it('returns first 3 chars for unknown positionType', () => {
+      expect(component.getPositionTypeBadge(makeNode({ positionType: 'custom-type' }))).toBe('cus');
+    });
+
+    it('returns empty string when positionType is null', () => {
+      expect(component.getPositionTypeBadge(makeNode({ positionType: null }))).toBe('');
+    });
+  });
+
+  // ── Color indicator ────────────────────────────────────────────────────
+
+  describe('color indicator', () => {
+    it('renders color swatch when TRONC node is selected in editor', () => {
+      fixture.componentRef.setInput('troncNodes', [
+        makeNode({ id: 'n1', z: 1, color: '#43A047' }),
+      ]);
+      fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
+      fixture.componentRef.setInput('mode', 'editor');
+      fixture.componentRef.setInput('selectedNodeId', 'n1');
+      fixture.detectChanges();
+
+      const swatch = fixture.nativeElement.querySelector('.color-swatch');
+      expect(swatch).not.toBeNull();
+      expect(swatch.style.backgroundColor).toBeTruthy();
+    });
+  });
+
+  // ── Directions section (F4) ──────────────────────────────────────────
+
+  describe('directions section (figures netes)', () => {
+    const figDirNode = makeNode({
+      id: 'dir-fig-1',
+      zone: 'FIGURE_DIRECTION',
+      label: 'Dir. Figura',
+      z: 0,
+      x: 0,
+      width: 1,
+    });
+
+    const xicDirNode = makeNode({
+      id: 'dir-xic-1',
+      zone: 'XICALLA_DIRECTION',
+      label: 'Dir. Xicalla',
+      z: 0,
+      x: 0,
+      width: 1,
+    });
+
+    it('does not render directions section when isNetaFigure is false', () => {
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.componentRef.setInput('isNetaFigure', false);
+      fixture.componentRef.setInput('directionNodes', [figDirNode]);
+      fixture.detectChanges();
+
+      const section = fixture.nativeElement.querySelector('.directions-section');
+      expect(section).toBeNull();
+    });
+
+    it('does not render directions section in editor mode', () => {
+      fixture.componentRef.setInput('mode', 'editor');
+      fixture.componentRef.setInput('isNetaFigure', true);
+      fixture.componentRef.setInput('directionNodes', [figDirNode]);
+      fixture.detectChanges();
+
+      const section = fixture.nativeElement.querySelector('.directions-section');
+      expect(section).toBeNull();
+    });
+
+    it('renders directions section in assignment mode for neta figures', () => {
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.componentRef.setInput('isNetaFigure', true);
+      fixture.detectChanges();
+
+      const section = fixture.nativeElement.querySelector('.directions-section');
+      expect(section).not.toBeNull();
+    });
+
+    it('starts collapsed by default', () => {
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.componentRef.setInput('isNetaFigure', true);
+      fixture.detectChanges();
+
+      expect(component.directionsExpanded()).toBe(false);
+      const content = fixture.nativeElement.querySelector('.directions-content');
+      expect(content).toBeNull();
+    });
+
+    it('expands on toggle click', () => {
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.componentRef.setInput('isNetaFigure', true);
+      fixture.detectChanges();
+
+      const toggle = fixture.nativeElement.querySelector('.directions-toggle') as HTMLButtonElement;
+      toggle.click();
+      fixture.detectChanges();
+
+      expect(component.directionsExpanded()).toBe(true);
+      const content = fixture.nativeElement.querySelector('.directions-content');
+      expect(content).not.toBeNull();
+    });
+
+    it('shows "Afegir" buttons when no direction nodes exist', () => {
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.componentRef.setInput('isNetaFigure', true);
+      fixture.componentRef.setInput('directionNodes', []);
+      component.directionsExpanded.set(true);
+      fixture.detectChanges();
+
+      const addButtons = fixture.nativeElement.querySelectorAll('.directions-content .btn-ghost');
+      expect(addButtons.length).toBe(2);
+    });
+
+    it('shows direction node button when a direction node exists', () => {
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.componentRef.setInput('isNetaFigure', true);
+      fixture.componentRef.setInput('directionNodes', [figDirNode]);
+      component.directionsExpanded.set(true);
+      fixture.detectChanges();
+
+      const dirNodes = fixture.nativeElement.querySelectorAll('.direction-node');
+      expect(dirNodes.length).toBe(1);
+    });
+
+    it('figureDirectionNode computed returns FIGURE_DIRECTION node', () => {
+      fixture.componentRef.setInput('directionNodes', [figDirNode, xicDirNode]);
+      fixture.detectChanges();
+
+      expect(component.figureDirectionNode()?.id).toBe('dir-fig-1');
+    });
+
+    it('xicallaDirectionNode computed returns XICALLA_DIRECTION node', () => {
+      fixture.componentRef.setInput('directionNodes', [figDirNode, xicDirNode]);
+      fixture.detectChanges();
+
+      expect(component.xicallaDirectionNode()?.id).toBe('dir-xic-1');
+    });
+
+    it('hasAssignedDirections returns false when no assignments', () => {
+      fixture.componentRef.setInput('directionNodes', [figDirNode]);
+      fixture.componentRef.setInput('assignments', []);
+      fixture.detectChanges();
+
+      expect(component.hasAssignedDirections()).toBe(false);
+    });
+
+    it('hasAssignedDirections returns true when a direction has assignment', () => {
+      fixture.componentRef.setInput('directionNodes', [figDirNode]);
+      fixture.componentRef.setInput('assignments', [
+        makeAssignment('dir-fig-1', 'Pepet'),
+      ]);
+      fixture.detectChanges();
+
+      expect(component.hasAssignedDirections()).toBe(true);
+    });
+
+    it('auto-expands when hasAssignedDirections becomes true', () => {
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.componentRef.setInput('isNetaFigure', true);
+      fixture.componentRef.setInput('directionNodes', [figDirNode]);
+      fixture.componentRef.setInput('assignments', []);
+      fixture.detectChanges();
+
+      expect(component.directionsExpanded()).toBe(false);
+
+      fixture.componentRef.setInput('assignments', [
+        makeAssignment('dir-fig-1', 'Pepet'),
+      ]);
+      fixture.detectChanges();
+
+      expect(component.directionsExpanded()).toBe(true);
+    });
+
+    it('directionAdded emits zone when "Afegir" is clicked', () => {
+      const emitted: { zone: string }[] = [];
+      component.directionAdded.subscribe((e) => emitted.push(e));
+
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.componentRef.setInput('isNetaFigure', true);
+      fixture.componentRef.setInput('directionNodes', []);
+      component.directionsExpanded.set(true);
+      fixture.detectChanges();
+
+      const addButtons = fixture.nativeElement.querySelectorAll('.directions-content .btn-ghost') as NodeListOf<HTMLButtonElement>;
+      addButtons[0].click();
+      fixture.detectChanges();
+
+      expect(emitted.length).toBe(1);
+      expect(emitted[0].zone).toBe('FIGURE_DIRECTION');
+    });
+
+    it('directionRemoved emits nodeId when trash is clicked on unassigned direction', () => {
+      const emitted: string[] = [];
+      component.directionRemoved.subscribe((id) => emitted.push(id));
+
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.componentRef.setInput('isNetaFigure', true);
+      fixture.componentRef.setInput('directionNodes', [figDirNode]);
+      fixture.componentRef.setInput('assignments', []);
+      component.directionsExpanded.set(true);
+      fixture.detectChanges();
+
+      const trashBtn = fixture.nativeElement.querySelector('.directions-content .text-error') as HTMLButtonElement;
+      expect(trashBtn).not.toBeNull();
+      trashBtn.click();
+      fixture.detectChanges();
+
+      expect(emitted).toEqual(['dir-fig-1']);
+    });
+
+    it('renders direction assignments in projection mode for neta figures', () => {
+      fixture.componentRef.setInput('mode', 'projection');
+      fixture.componentRef.setInput('isNetaFigure', true);
+      fixture.componentRef.setInput('directionNodes', [figDirNode]);
+      fixture.componentRef.setInput('assignments', [
+        makeAssignment('dir-fig-1', 'Pepet'),
+      ]);
+      fixture.detectChanges();
+
+      const projRow = fixture.nativeElement.querySelector('.direction-projection-row');
+      expect(projRow).not.toBeNull();
+      expect(projRow.textContent).toContain('Pepet');
+    });
+
+    it('does not render projection directions when no assignments', () => {
+      fixture.componentRef.setInput('mode', 'projection');
+      fixture.componentRef.setInput('isNetaFigure', true);
+      fixture.componentRef.setInput('directionNodes', [figDirNode]);
+      fixture.componentRef.setInput('assignments', []);
+      fixture.detectChanges();
+
+      const projRow = fixture.nativeElement.querySelector('.direction-projection-row');
+      expect(projRow).toBeNull();
     });
   });
 });

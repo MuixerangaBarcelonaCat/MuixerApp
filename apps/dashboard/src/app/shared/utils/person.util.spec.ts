@@ -47,21 +47,21 @@ describe('person.util', () => {
   });
 
   it('formatShoulderHeightCm shows cm', () => {
-    expect(formatShoulderHeightCm(140)).toBe('140 cm');
+    expect(formatShoulderHeightCm(SHOULDER_HEIGHT_BASELINE_CM)).toBe(`${SHOULDER_HEIGHT_BASELINE_CM} cm`);
     expect(formatShoulderHeightCm(null)).toBe('—');
   });
 
   it('formatShoulderHeightRelative uses baseline 140', () => {
     expect(formatShoulderHeightRelative(150, SHOULDER_HEIGHT_BASELINE_CM)).toBe('+10');
     expect(formatShoulderHeightRelative(135, SHOULDER_HEIGHT_BASELINE_CM)).toBe('-5');
-    expect(formatShoulderHeightRelative(140, SHOULDER_HEIGHT_BASELINE_CM)).toBe('0');
+    expect(formatShoulderHeightRelative(SHOULDER_HEIGHT_BASELINE_CM, SHOULDER_HEIGHT_BASELINE_CM)).toBe('0');
     expect(formatShoulderHeightRelative(null)).toBe('—');
   });
 
   it('shoulderHeightRelativeTone classifies delta', () => {
     expect(shoulderHeightRelativeTone(150)).toBe('positive');
     expect(shoulderHeightRelativeTone(135)).toBe('negative');
-    expect(shoulderHeightRelativeTone(140)).toBe('zero');
+    expect(shoulderHeightRelativeTone(SHOULDER_HEIGHT_BASELINE_CM)).toBe('zero');
     expect(shoulderHeightRelativeTone(null)).toBe('empty');
   });
 });

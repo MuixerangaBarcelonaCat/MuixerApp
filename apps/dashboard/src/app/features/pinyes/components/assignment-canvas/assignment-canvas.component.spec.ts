@@ -17,11 +17,11 @@ import { AdHocNodesHelpModalComponent } from '../ad-hoc-nodes-help-modal/ad-hoc-
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
 import { EventSegmentService } from '../../services/event-segment.service';
-import { FigureTemplateService } from '../../services/figure-template.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { AssignmentDetail, AvailablePerson, BulkImportResult, InstanceNodeItem } from '../../models/assignment.model';
 import { SegmentDetail } from '../../models/segment.model';
 import { FigureZone, NodeShape, PINYA_NODE_PRESETS, DECORATION_NODE_PRESETS, DIRECTION_NODE_PRESETS } from '@muixer/shared';
+import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
 
 // ── Stub child components ───────────────────────────────────────────────────
 
@@ -80,6 +80,8 @@ class StubImportModal {
 class StubTroncView {
   readonly troncNodes = input<unknown[]>([]);
   readonly baseNodes = input<unknown[]>([]);
+  readonly directionNodes = input<unknown[]>([]);
+  readonly isNetaFigure = input<boolean>(false);
   readonly assignments = input<AssignmentDetail[]>([]);
   readonly selectedNodeId = input<string | null>(null);
   readonly mode = input<string>('assignment');
@@ -88,6 +90,9 @@ class StubTroncView {
   readonly attendanceMap = input<Map<string, string>>(new Map());
   readonly nodeSelected = output<string | null>();
   readonly nodeClicked = output<{ nodeId: string; event: MouseEvent }>();
+  readonly nodeUnassigned = output<string>();
+  readonly directionAdded = output<{ zone: string }>();
+  readonly directionRemoved = output<string>();
 }
 
 @Component({ selector: 'app-ad-hoc-nodes-help-modal', standalone: true, template: '' })
@@ -109,12 +114,10 @@ const makeInstance = (overrides = {}) => ({
   sortOrder: 0,
   snapshotted: false,
   assignedCount: 0,
-  numberOfCordons: null,
-  openCordons: null,
   projectionX: null,
   projectionY: null,
   projectionScale: 1,
-  figureTemplate: { id: TEMPLATE_ID, name: 'pd4' },
+  figureTemplate: { id: TEMPLATE_ID, name: 'pd4', hasPinya: true },
   compositionTemplate: null,
   ...overrides,
 });
@@ -133,23 +136,8 @@ const makeSegment = (instanceOverrides = {}): SegmentDetail => ({
 const makeInstanceNodes = (): InstanceNodeItem[] => [
   { id: 'inode-1', label: 'base-1', zone: FigureZone.BASE, z: 0, positionType: null, x: 100, y: 100, width: 60, height: 40, rotation: 0, color: null, shape: NodeShape.ELLIPSE, sortOrder: 0, ringLevel: null, originNodeId: null, renglaId: null, renglaPosition: null, sourceNodeId: 'node-1', isSnapshotted: false, isAdHoc: false, createdById: null },
   { id: 'inode-2', label: 'tronc-1', zone: FigureZone.TRONC, z: 1, positionType: null, x: 200, y: 100, width: 60, height: 40, rotation: 0, color: null, shape: NodeShape.ELLIPSE, sortOrder: 1, ringLevel: null, originNodeId: null, renglaId: null, renglaPosition: null, sourceNodeId: 'node-2', isSnapshotted: false, isAdHoc: false, createdById: null },
+  { id: 'inode-3', label: 'pinya-1', zone: FigureZone.PINYA, z: 0, positionType: null, x: 150, y: 150, width: 60, height: 40, rotation: 0, color: null, shape: NodeShape.ELLIPSE, sortOrder: 2, ringLevel: 1, originNodeId: null, renglaId: null, renglaPosition: null, sourceNodeId: 'node-3', isSnapshotted: false, isAdHoc: false, createdById: null },
 ];
-
-const makeTemplate = () => ({
-  id: TEMPLATE_ID,
-  name: 'pd4',
-  slug: 'pd4',
-  description: null,
-  hasPinya: true,
-  direction: 0,
-  nodeCount: 2,
-  renglaCount: 0,
-  metadata: {},
-  nodes: [],
-  rengles: [],
-  createdAt: '2026-01-01',
-  updatedAt: '2026-01-01',
-});
 
 let assignmentIdCounter = 0;
 const makeAssignment = (nodeId = 'inode-1', personId = 'person-1'): AssignmentDetail => ({
@@ -157,7 +145,7 @@ const makeAssignment = (nodeId = 'inode-1', personId = 'person-1'): AssignmentDe
   figureInstanceId: INSTANCE_ID,
   compositionSlotId: null,
   node: { id: nodeId, label: 'base-1', zone: 'BASE', z: 0, positionType: null, sortOrder: 0, ringLevel: null, originNodeId: null, sourceNodeId: 'node-1' },
-  person: { id: personId, alias: 'Pepet', name: 'Pere', firstSurname: 'Garcia', shoulderHeight: 140 },
+  person: { id: personId, alias: 'Pepet', name: 'Pere', firstSurname: 'Garcia', shoulderHeight: SHOULDER_HEIGHT_BASELINE_CM },
 });
 
 const makeAvailablePerson = (id = 'person-1'): AvailablePerson => ({
@@ -165,7 +153,7 @@ const makeAvailablePerson = (id = 'person-1'): AvailablePerson => ({
   alias: 'Pepet',
   name: 'Pere',
   firstSurname: 'Garcia',
-  shoulderHeight: 140,
+  shoulderHeight: SHOULDER_HEIGHT_BASELINE_CM,
   isXicalla: false,
   attendanceStatus: 'ANIRE',
   nextPerformanceStatus: null,
@@ -181,7 +169,6 @@ interface MockAssignmentService {
   assign: MockFn;
   unassign: MockFn;
   swap: MockFn;
-  updateCordons: MockFn;
   resetSnapshot: MockFn;
   bulkImport: MockFn;
   getHistory: MockFn;
@@ -198,7 +185,6 @@ describe('AssignmentCanvasComponent', () => {
   let component: AssignmentCanvasComponent;
   let assignmentService: MockAssignmentService;
   let segmentService: { getByEvent: MockFn };
-  let figureTemplateService: { getOne: MockFn };
   let toastService: { success: MockFn; error: MockFn; info: MockFn; warning: MockFn };
   let routerMock: { navigate: MockFn };
   let stateService: AssignmentStateService;
@@ -214,7 +200,6 @@ describe('AssignmentCanvasComponent', () => {
         a: makeAssignment('inode-1', 'person-2'),
         b: makeAssignment('inode-2', 'person-1'),
       })),
-      updateCordons: vi.fn().mockReturnValue(of({ numberOfCordons: null, openCordons: null, removedAssignments: 0 })),
       resetSnapshot: vi.fn().mockReturnValue(of({ removedAssignments: 0, deletedAdHocCount: 0 })),
       bulkImport: vi.fn().mockReturnValue(of({ created: [], conflicts: [], clonedAdHocNodes: 0 })),
       getHistory: vi.fn().mockReturnValue(of({ data: [] })),
@@ -228,10 +213,6 @@ describe('AssignmentCanvasComponent', () => {
 
     segmentService = {
       getByEvent: vi.fn().mockReturnValue(of({ data: [makeSegment()] })),
-    };
-
-    figureTemplateService = {
-      getOne: vi.fn().mockReturnValue(of(makeTemplate())),
     };
 
     toastService = {
@@ -250,7 +231,6 @@ describe('AssignmentCanvasComponent', () => {
       providers: [
         { provide: NodeAssignmentService, useValue: assignmentService },
         { provide: EventSegmentService, useValue: segmentService },
-        { provide: FigureTemplateService, useValue: figureTemplateService },
         { provide: ToastService, useValue: toastService },
         { provide: Router, useValue: routerMock },
         {
@@ -427,43 +407,6 @@ describe('AssignmentCanvasComponent', () => {
     });
   });
 
-  // ── cordons ──────────────────────────────────────────────────────────────
-
-  describe('cordons', () => {
-    it('hasCordonsConfig is false when no rengles are loaded', () => {
-      expect(component.hasCordonsConfig()).toBe(false);
-    });
-
-    it('hasCordonsConfig is true when rengles are present', () => {
-      component['templateRengles'].set([
-        { id: 'r1', name: 'Mans', sortOrder: 0, allowsCordoObert: true },
-      ]);
-      expect(component.hasCordonsConfig()).toBe(true);
-    });
-
-    it('renglesWithCordoObert filters only allowsCordoObert=true', () => {
-      component['templateRengles'].set([
-        { id: 'r1', name: 'Mans', sortOrder: 0, allowsCordoObert: true },
-        { id: 'r2', name: 'Vents', sortOrder: 1, allowsCordoObert: false },
-      ]);
-      expect(component.renglesWithCordoObert().length).toBe(1);
-      expect(component.renglesWithCordoObert()[0].id).toBe('r1');
-    });
-
-    it('onCordonsSaved calls updateCordons and reloads nodes', () => {
-      assignmentService.updateCordons.mockReturnValue(of({ numberOfCordons: 2, openCordons: null, removedAssignments: 0 }));
-      assignmentService.getInstanceNodes.mockReturnValue(of({ data: makeInstanceNodes() }));
-
-      component.onCordonsSaved({ numberOfCordons: 2, openCordons: [] });
-
-      expect(assignmentService.updateCordons).toHaveBeenCalledWith(INSTANCE_ID, {
-        numberOfCordons: 2,
-        openCordons: null,
-      });
-      expect(toastService.success).toHaveBeenCalled();
-    });
-  });
-
   // ── tabs ──────────────────────────────────────────────────────────────────
 
   describe('tabs', () => {
@@ -473,8 +416,7 @@ describe('AssignmentCanvasComponent', () => {
         ...list,
         {
           instanceId: secondInstanceId, label: 'pd3', figureTemplateId: TEMPLATE_ID,
-          snapshotted: false,
-          numberOfCordons: null, openCordons: null,
+          snapshotted: false, hasPinya: true,
           nodes: [], assignedCount: 0, totalCount: 0,
         },
       ]);
@@ -528,10 +470,11 @@ describe('AssignmentCanvasComponent', () => {
       fixture.detectChanges();
     });
 
-    it('activePinyaNodes excludes TRONC-zone nodes', () => {
+    it('activePinyaNodes contains PINYA, BASE, and DECORATION nodes', () => {
       const pinyaNodes = component.activePinyaNodes();
-      expect(pinyaNodes.every((n) => n.zone !== FigureZone.TRONC)).toBe(true);
-      expect(pinyaNodes.length).toBe(allNodes.filter((n) => n.zone !== FigureZone.TRONC).length);
+      const spatialZones: string[] = [FigureZone.PINYA, FigureZone.BASE, FigureZone.DECORATION];
+      expect(pinyaNodes.every((n) => spatialZones.includes(n.zone))).toBe(true);
+      expect(pinyaNodes.length).toBe(allNodes.filter((n) => spatialZones.includes(n.zone)).length);
     });
 
     it('activeTroncNodes contains only TRONC-zone nodes', () => {
@@ -972,6 +915,74 @@ describe('AssignmentCanvasComponent', () => {
       dispatchCtrlDigit(1);
 
       expect(stateService.isPlacementMode()).toBe(false);
+    });
+  });
+
+  // ── Tronc-first detection (F4) ────────────────────────────────────────
+
+  describe('tronc-first detection (figures netes)', () => {
+    it('isActiveTabTroncOnly returns false for default setup (hasPinya=true)', () => {
+      expect(component.isActiveTabTroncOnly()).toBe(false);
+    });
+
+    it('tabs reflect hasPinya from segment data', () => {
+      expect(component.tabs()[0].hasPinya).toBe(true);
+    });
+
+    it('isActiveTabTroncOnly returns true when hasPinya is false', () => {
+      const netaSegment = makeSegment({ figureTemplate: { id: TEMPLATE_ID, name: 'pdt', hasPinya: false } });
+      segmentService.getByEvent = vi.fn().mockReturnValue(of({ data: [netaSegment] }));
+      assignmentService.getInstanceNodes = vi.fn().mockReturnValue(of({ data: makeInstanceNodes() }));
+      assignmentService.getByInstance = vi.fn().mockReturnValue(of({ data: [] }));
+      assignmentService.getLockStatus = vi.fn().mockReturnValue(of({ locked: false, lockDate: null, lockDays: 2 }));
+
+      component.ngOnInit();
+
+      expect(component.isActiveTabTroncOnly()).toBe(true);
+      expect(component.troncPanelOpen()).toBe(true);
+    });
+
+    it('activeDirectionNodes filters direction zones', () => {
+      const nodesWithDir: InstanceNodeItem[] = [
+        ...makeInstanceNodes(),
+        { id: 'dir-fig', label: 'Dir. Figura', zone: FigureZone.FIGURE_DIRECTION, z: 0, positionType: null, x: 0, y: 0, width: 1, height: 1, rotation: 0, color: '#d97706', shape: NodeShape.ELLIPSE, sortOrder: 10, ringLevel: null, originNodeId: null, renglaId: null, renglaPosition: null, sourceNodeId: null, isSnapshotted: false, isAdHoc: true, createdById: null },
+      ];
+      assignmentService.getInstanceNodes = vi.fn().mockReturnValue(of({ data: nodesWithDir }));
+      assignmentService.getByInstance = vi.fn().mockReturnValue(of({ data: [] }));
+
+      component.selectTab(INSTANCE_ID);
+
+      expect(component.activeDirectionNodes().length).toBe(1);
+      expect(component.activeDirectionNodes()[0].zone).toBe(FigureZone.FIGURE_DIRECTION);
+    });
+  });
+
+  // ── Direction handlers (F4) ───────────────────────────────────────────
+
+  describe('direction ad-hoc handlers', () => {
+    it('onDirectionAdded calls createAdHocNode with correct preset', () => {
+      component.onDirectionAdded({ zone: 'FIGURE_DIRECTION' });
+
+      expect(assignmentService.createAdHocNode).toHaveBeenCalledWith(
+        INSTANCE_ID,
+        expect.objectContaining({ zone: 'FIGURE_DIRECTION' }),
+      );
+    });
+
+    it('onDirectionRemoved calls deleteAdHocNode when no assignment exists', () => {
+      stateService.assignments.set([]);
+
+      component.onDirectionRemoved('dir-node-1');
+
+      expect(assignmentService.deleteAdHocNode).toHaveBeenCalledWith(INSTANCE_ID, 'dir-node-1');
+    });
+
+    it('onDirectionRemoved shows toast error when assignment exists', () => {
+      stateService.assignments.set([makeAssignment('dir-node-1', 'person-1')]);
+
+      component.onDirectionRemoved('dir-node-1');
+
+      expect(toastService.error).toHaveBeenCalled();
     });
   });
 });

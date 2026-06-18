@@ -27,7 +27,7 @@ import {
   CreateFigureNodePayload,
   RenglaModel,
 } from '../../models/figure-template.model';
-import { FigureZone, NodeShape, PINYA_NODE_PRESETS, NodePreset } from '@muixer/shared';
+import { FigureZone, NodeShape, PINYA_NODE_PRESETS, NodePreset, TRONC_NODE_PRESETS } from '@muixer/shared';
 import { RenglaOverlayComponent, RenglaCreatedEvent, RenglaDeletedEvent } from '../rengla-overlay/rengla-overlay.component';
 import { StageTransform } from '../../utils/rengla-coordinates.util';
 import { LayoutService } from '../../../../core/services/layout.service';
@@ -111,6 +111,8 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   readonly troncMode = computed<'editor' | 'projection'>(() =>
     this.previewMode() ? 'projection' : 'editor',
   );
+
+  readonly isFiguraNeta = computed(() => this.hasPinya() === false);
 
   // Panel visibility
   propertiesPanelOpen = signal(true);
@@ -208,6 +210,11 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
       this.loadTemplate(id);
     } else {
       this.canvasState.reset();
+      const hasPinyaParam = this.route.snapshot.queryParamMap.get('hasPinya');
+      if (hasPinyaParam === 'false') {
+        this.hasPinya.set(false);
+        this.autoOpenTroncCentered();
+      }
     }
   }
 
@@ -276,6 +283,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
         (max, n) => Math.max(max, n.x + n.width),
         0,
       );
+      const presetColor = TRONC_NODE_PRESETS.find((p) => p.positionType === event.positionType)?.color ?? null;
       const newNode: FigureNodeItem = {
         id,
         label: event.label,
@@ -287,7 +295,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
         width: 1,
         height: 40,
         rotation: 0,
-        color: null,
+        color: presetColor,
         shape: NodeShape.RECTANGLE,
         sortOrder: event.sortOrder,
         climbPath: null,
@@ -313,11 +321,12 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     this.scheduleAutosave();
   }
 
-  onTroncNodeUpdated(event: { nodeId: string; x: number; width: number; positionType?: string; label?: string }): void {
+  onTroncNodeUpdated(event: { nodeId: string; x: number; width: number; positionType?: string; label?: string; color?: string | null }): void {
     this.pushSnapshot('Modificar node de tronc');
     const patch: Partial<FigureNodeItem> = { x: event.x, width: event.width };
     if (event.positionType !== undefined) patch.positionType = event.positionType;
     if (event.label !== undefined) patch.label = event.label;
+    if (event.color !== undefined) patch.color = event.color;
     this.updateNode(event.nodeId, patch);
     this.scheduleAutosave();
   }
@@ -395,6 +404,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   }
 
   addPinyaNode(pos: NodePreset): void {
+    if (this.isFiguraNeta()) return;
     this.addNode(
       FigureZone.PINYA,
       0,
@@ -445,6 +455,18 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
     if (!this.requireName(doAdd)) return;
     doAdd();
+  }
+
+  // ── Tronc panel auto-open (figures netes) ─────────────────────────────────
+
+  private autoOpenTroncCentered(): void {
+    const panelW = Math.min(window.innerWidth * 0.7, window.innerWidth - 32);
+    const panelH = window.innerHeight * 0.7;
+    this.troncPanelPos.set({
+      x: Math.round((window.innerWidth - panelW) / 2),
+      y: Math.round((window.innerHeight - panelH) / 2),
+    });
+    this.troncDrawerOpen.set(true);
   }
 
   // ── Tronc panel drag ─────────────────────────────────────────────────────
@@ -773,6 +795,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   // ── Rengla mode ──────────────────────────────────────────────────────────
 
   toggleRenglaEditMode(): void {
+    if (this.isFiguraNeta()) return;
     if (this.previewMode()) this.previewMode.set(false);
     this.renglaEditMode.update((v) => !v);
     if (this.renglaEditMode()) {
@@ -791,7 +814,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
       id: renglaId,
       name: event.rengla.name,
       sortOrder: event.rengla.sortOrder,
-      allowsCordoObert: event.rengla.allowsCordoObert,
     };
     this.rengles.update((r) => [...r, newRengla]);
 
@@ -971,6 +993,9 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
         this.rengles.set(tmpl.rengles ?? []);
         this.adHocInstanceCount.set(tmpl.adHocInstanceCount ?? 0);
         this.loading.set(false);
+        if (!tmpl.hasPinya) {
+          this.autoOpenTroncCentered();
+        }
       },
       error: () => {
         this.loading.set(false);

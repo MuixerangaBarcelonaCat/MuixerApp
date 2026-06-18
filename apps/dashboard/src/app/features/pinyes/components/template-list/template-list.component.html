@@ -27,15 +27,26 @@
         Composició nova
       </button>
     } @else {
-      <button
-        type="button"
-        class="btn btn-primary gap-2"
-        (click)="navigateToCreate()"
-        aria-label="Crea figura nova"
-      >
-        <lucide-icon name="Plus" [size]="18" aria-hidden="true" />
-        Figura nova
-      </button>
+      <div class="flex items-center gap-2">
+        <button
+          type="button"
+          class="btn btn-primary gap-2"
+          (click)="navigateToCreate()"
+          aria-label="Crea figura nova"
+        >
+          <lucide-icon name="Plus" [size]="18" aria-hidden="true" />
+          Figura nova
+        </button>
+        <button
+          type="button"
+          class="btn btn-outline gap-2"
+          (click)="navigateToCreateFiguraNeta()"
+          aria-label="Crea figura neta (sense pinya)"
+        >
+          <lucide-icon name="Plus" [size]="18" aria-hidden="true" />
+          Figura neta
+        </button>
+      </div>
     }
   </div>
 
@@ -66,22 +77,48 @@
   <!-- ══════════════════ FIGURES TAB ══════════════════ -->
   @if (activeTab() === 'figures') {
 
-    <!-- Search -->
-    <div class="flex gap-3 items-center">
-      <label class="input input-bordered flex items-center gap-2 flex-1 max-w-sm">
-        <lucide-icon name="Search" [size]="16" class="text-base-content/40" aria-hidden="true" />
-        <input
-          type="search"
-          placeholder="Cerca per nom..."
-          [(ngModel)]="searchInput"
-          (ngModelChange)="onSearchChange($event)"
-          class="grow"
-          aria-label="Cerca figures"
-        />
-      </label>
-      @if (loading() && templates().length > 0) {
-        <span class="loading loading-spinner loading-sm text-primary" aria-label="Carregant..."></span>
-      }
+    <!-- Search + filter -->
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div class="flex gap-3 items-center">
+        <label class="input input-bordered flex items-center gap-2 flex-1 max-w-sm">
+          <lucide-icon name="Search" [size]="16" class="text-base-content/40" aria-hidden="true" />
+          <input
+            type="search"
+            placeholder="Cerca per nom..."
+            [(ngModel)]="searchInput"
+            (ngModelChange)="onSearchChange($event)"
+            class="grow"
+            aria-label="Cerca figures"
+          />
+        </label>
+        @if (loading() && templates().length > 0) {
+          <span class="loading loading-spinner loading-sm text-primary" aria-label="Carregant..."></span>
+        }
+      </div>
+
+      <div class="join" role="radiogroup" aria-label="Filtre de tipus de figura">
+        <button
+          type="button"
+          class="join-item btn btn-sm"
+          [class.btn-active]="hasPinyaFilter() === undefined"
+          [attr.aria-pressed]="hasPinyaFilter() === undefined"
+          (click)="setHasPinyaFilter(undefined)"
+        >Totes</button>
+        <button
+          type="button"
+          class="join-item btn btn-sm"
+          [class.btn-active]="hasPinyaFilter() === true"
+          [attr.aria-pressed]="hasPinyaFilter() === true"
+          (click)="setHasPinyaFilter(true)"
+        >Amb pinya</button>
+        <button
+          type="button"
+          class="join-item btn btn-sm"
+          [class.btn-active]="hasPinyaFilter() === false"
+          [attr.aria-pressed]="hasPinyaFilter() === false"
+          (click)="setHasPinyaFilter(false)"
+        >Figures netes</button>
+      </div>
     </div>
 
     @if (loading() && templates().length === 0) {
@@ -142,16 +179,11 @@
                 <p class="text-xs text-base-content/50 font-mono mt-0.5">{{ template.slug }}</p>
               </div>
 
-              <div class="flex items-center gap-1.5 flex-wrap">
-                <span class="badge badge-ghost badge-sm gap-1">
-                  <lucide-icon
-                    [name]="template.hasPinya ? 'Layers' : 'AlignJustify'"
-                    [size]="10"
-                    aria-hidden="true"
-                  />
-                  {{ hasPinyaLabel(template.hasPinya) }}
-                </span>
-              </div>
+              @if (!template.hasPinya) {
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="badge badge-xs badge-info">Figura neta</span>
+                </div>
+              }
 
               @if (template.description) {
                 <p class="text-xs text-base-content/60 line-clamp-2">{{ template.description }}</p>

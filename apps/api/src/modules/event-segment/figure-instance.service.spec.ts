@@ -65,6 +65,7 @@ const mockCompositionRepo = {
 
 const mockDataSource = {
   transaction: jest.fn().mockImplementation((cb) => cb({ update: jest.fn() })),
+  query: jest.fn().mockResolvedValue([{ count: '0' }]),
 };
 
 describe('FigureInstanceService', () => {

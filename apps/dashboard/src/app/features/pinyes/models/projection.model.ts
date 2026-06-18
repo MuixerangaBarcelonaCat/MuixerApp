@@ -4,12 +4,10 @@ export interface ProjectionInstance {
   id: string;
   label: string | null;
   sortOrder: number;
-  numberOfCordons: number | null;
-  openCordons: string[] | null;
   projectionX: number | null;
   projectionY: number | null;
   projectionScale: number;
-  figureTemplate: { id: string; name: string } | null;
+  figureTemplate: { id: string; name: string; hasPinya: boolean } | null;
   nodes: InstanceNodeItem[];
   assignments: AssignmentDetail[];
 }

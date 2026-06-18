@@ -6,7 +6,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import {
   EventType,
   FigureZone,
@@ -241,18 +241,6 @@ function figureNodeToResponse(node: FigureNode): InstanceNodeResponse {
 }
 
 
-export function isNodeVisible(
-  node: { renglaId: string | null; renglaPosition: number | null; positionType: string | null },
-  numberOfCordons: number | null,
-  openCordons: string[] | null,
-): boolean {
-  if (!node.renglaId || node.renglaPosition === null) return true;
-  if (node.positionType === 'cordo-obert') {
-    return openCordons?.includes(node.renglaId) ?? false;
-  }
-  return node.renglaPosition <= (numberOfCordons ?? Infinity);
-}
-
 // ─── Service ────────────────────────────────────────────────────────────────
 
 @Injectable()
@@ -311,12 +299,6 @@ export class NodeAssignmentService {
       allNodes = (template?.nodes ?? [])
         .sort((a, b) => a.sortOrder - b.sortOrder)
         .map(figureNodeToResponse);
-    }
-
-    if (instance.numberOfCordons !== null || (instance.openCordons && instance.openCordons.length > 0)) {
-      return allNodes.filter((node) =>
-        isNodeVisible(node, instance.numberOfCordons, instance.openCordons),
-      );
     }
 
     return allNodes;
@@ -984,50 +966,6 @@ export class NodeAssignmentService {
     return { created, conflicts, clonedAdHocNodes };
   }
 
-
-  // ── Cordons — update numberOfCordons / openCordons on instance ─────────────
-
-  async updateCordons(
-    instanceId: string,
-    dto: { numberOfCordons?: number | null; openCordons?: string[] | null },
-  ): Promise<{ numberOfCordons: number | null; openCordons: string[] | null; removedAssignments: number }> {
-    const instance = await this.figureInstanceRepository.findOne({
-      where: { id: instanceId },
-    });
-    if (!instance) {
-      throw new NotFoundException(`FigureInstance with ID ${instanceId} not found`);
-    }
-
-    if (dto.numberOfCordons !== undefined) {
-      instance.numberOfCordons = dto.numberOfCordons;
-    }
-    if (dto.openCordons !== undefined) {
-      instance.openCordons = dto.openCordons;
-    }
-
-    await this.figureInstanceRepository.save(instance);
-
-    let removedAssignments = 0;
-    const allNodes = await this.instanceNodeRepository.find({
-      where: { figureInstance: { id: instanceId } },
-    });
-    const hiddenNodeIds = allNodes
-      .filter((n) => !isNodeVisible(n, instance.numberOfCordons, instance.openCordons))
-      .map((n) => n.id);
-
-    if (hiddenNodeIds.length > 0) {
-      const result = await this.assignmentRepository.delete({
-        instanceNode: { id: In(hiddenNodeIds) },
-      });
-      removedAssignments = result.affected ?? 0;
-    }
-
-    return {
-      numberOfCordons: instance.numberOfCordons,
-      openCordons: instance.openCordons,
-      removedAssignments,
-    };
-  }
 
   // ── Lock — Assignment lock after event date ────────────────────────────────
 

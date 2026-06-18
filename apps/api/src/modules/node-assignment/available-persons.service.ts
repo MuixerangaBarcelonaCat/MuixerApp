@@ -92,8 +92,15 @@ export class AvailablePersonsService {
 
     if (search) {
       qb.andWhere(
-        '(person.alias ILIKE :search OR person.name ILIKE :search OR person.firstSurname ILIKE :search)',
-        { search: `%${search}%` },
+        `(
+          unaccent(lower(person.alias)) LIKE unaccent(lower(:searchPattern))
+          OR unaccent(lower(person.name)) LIKE unaccent(lower(:searchPattern))
+          OR GREATEST(
+            word_similarity(unaccent(lower(:rawSearch)), unaccent(lower(person.alias))),
+            word_similarity(unaccent(lower(:rawSearch)), unaccent(lower(person.name)))
+          ) > 0.2
+        )`,
+        { searchPattern: `%${search}%`, rawSearch: search },
       );
     }
 
@@ -113,7 +120,20 @@ export class AvailablePersonsService {
       );
     }
 
-    if (height !== undefined) {
+    if (search) {
+      qb.orderBy(
+        `GREATEST(
+          word_similarity(unaccent(lower(:rawSearch)), unaccent(lower(person.alias)))
+        )`,
+        'DESC',
+      );
+      if (height !== undefined) {
+        qb.addOrderBy(`ABS(COALESCE(person.shoulderHeight, 0) - :height)`, 'ASC');
+        qb.setParameter('height', height);
+      } else {
+        qb.addOrderBy('person.alias', 'ASC');
+      }
+    } else if (height !== undefined) {
       qb.orderBy(`ABS(COALESCE(person.shoulderHeight, 0) - :height)`, 'ASC');
       qb.setParameter('height', height);
     } else {

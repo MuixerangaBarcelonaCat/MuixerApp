@@ -35,20 +35,20 @@ class FigureCanvasStub {
 class TroncViewStub {
   readonly troncNodes = input<TroncNodeItem[]>([]);
   readonly baseNodes = input<TroncNodeItem[]>([]);
+  readonly directionNodes = input<TroncNodeItem[]>([]);
   readonly assignments = input<AssignmentDetail[]>([]);
   readonly mode = input<string>('assignment');
+  readonly isNetaFigure = input<boolean>(false);
 }
 
 const makeInstance = (overrides: Partial<ProjectionInstance> = {}): ProjectionInstance => ({
   id: 'inst-uuid',
   label: null,
   sortOrder: 0,
-  numberOfCordons: null,
-  openCordons: null,
   projectionX: 100,
   projectionY: 200,
   projectionScale: 1,
-  figureTemplate: { id: 'fig-uuid', name: 'Pinet Doble de 4' },
+  figureTemplate: { id: 'fig-uuid', name: 'Pinet Doble de 4', hasPinya: true },
   nodes: [
     {
       id: 'node-pinya',
@@ -134,9 +134,10 @@ describe('FigureProjectionComponent', () => {
 
   // ── Node filtering ─────────────────────────────────────────────────────────
 
-  it('pinya nodes include PINYA and BASE zones (excludes TRONC)', () => {
+  it('pinya nodes include PINYA, BASE, and DECORATION zones', () => {
     const pinyaNodes = component.pinyaNodes();
-    expect(pinyaNodes.every((n) => n.zone !== FigureZone.TRONC)).toBe(true);
+    const spatialZones: string[] = [FigureZone.PINYA, FigureZone.BASE, FigureZone.DECORATION];
+    expect(pinyaNodes.every((n) => spatialZones.includes(n.zone))).toBe(true);
     expect(pinyaNodes.length).toBe(2);
   });
 
@@ -187,6 +188,92 @@ describe('FigureProjectionComponent', () => {
     expect(component.troncPanelOpen()).toBe(true);
     const panel = fixture.nativeElement.querySelector('[aria-label="Tronc de la figura"]');
     expect(panel).not.toBeNull();
+  });
+
+  // ── isNetaFigure computed ─────────────────────────────────────────────────
+
+  describe('isNetaFigure', () => {
+    it('returns false for a standard figure (hasPinya = true)', () => {
+      expect(component.isNetaFigure()).toBe(false);
+    });
+
+    it('returns true for a figura neta (hasPinya = false)', () => {
+      fixture.componentRef.setInput('instance', makeInstance({ figureTemplate: { id: 'f1', name: 'Piló', hasPinya: false } }));
+      fixture.detectChanges();
+      expect(component.isNetaFigure()).toBe(true);
+    });
+
+    it('returns false when figureTemplate is null', () => {
+      fixture.componentRef.setInput('instance', makeInstance({ figureTemplate: null }));
+      fixture.detectChanges();
+      expect(component.isNetaFigure()).toBe(false);
+    });
+  });
+
+  // ── directionNodes computed ────────────────────────────────────────────────
+
+  describe('directionNodes', () => {
+    it('extracts FIGURE_DIRECTION and XICALLA_DIRECTION nodes', () => {
+      const nodesWithDirections = [
+        ...makeInstance().nodes,
+        {
+          id: 'dir-fig', label: 'Dir. figura', zone: FigureZone.FIGURE_DIRECTION,
+          positionType: null, x: 0, y: 0, z: 0, width: 1, height: 1, rotation: 0,
+          color: null, shape: 'RECT' as const, sortOrder: 0, ringLevel: null,
+          originNodeId: null, renglaId: null, renglaPosition: null,
+          sourceNodeId: null, isSnapshotted: false, isAdHoc: true, createdById: null,
+        },
+        {
+          id: 'dir-xic', label: 'Dir. xicalla', zone: FigureZone.XICALLA_DIRECTION,
+          positionType: null, x: 0, y: 0, z: 0, width: 1, height: 1, rotation: 0,
+          color: null, shape: 'RECT' as const, sortOrder: 0, ringLevel: null,
+          originNodeId: null, renglaId: null, renglaPosition: null,
+          sourceNodeId: null, isSnapshotted: false, isAdHoc: true, createdById: null,
+        },
+      ];
+      fixture.componentRef.setInput('instance', makeInstance({ nodes: nodesWithDirections }));
+      fixture.detectChanges();
+
+      const dirs = component.directionNodes();
+      expect(dirs.map((d) => d.id)).toEqual(['dir-fig', 'dir-xic']);
+    });
+  });
+
+  // ── Conditional rendering (neta vs completa) ──────────────────────────────
+
+  describe('conditional layout', () => {
+    it('renders figure canvas for standard figures', () => {
+      const canvas = fixture.nativeElement.querySelector('app-figure-canvas');
+      expect(canvas).not.toBeNull();
+    });
+
+    it('does not render figure canvas for figures netes', () => {
+      fixture.componentRef.setInput('instance', makeInstance({ figureTemplate: { id: 'f1', name: 'Piló', hasPinya: false } }));
+      fixture.detectChanges();
+      const canvas = fixture.nativeElement.querySelector('app-figure-canvas');
+      expect(canvas).toBeNull();
+    });
+
+    it('renders centered tronc-view for figures netes', () => {
+      fixture.componentRef.setInput('instance', makeInstance({ figureTemplate: { id: 'f1', name: 'Piló', hasPinya: false } }));
+      fixture.detectChanges();
+      const centeredTronc = fixture.nativeElement.querySelector('.tronc-centered-main app-tronc-view');
+      expect(centeredTronc).not.toBeNull();
+    });
+
+    it('does not show floating tronc panel toggle for figures netes', () => {
+      fixture.componentRef.setInput('instance', makeInstance({ figureTemplate: { id: 'f1', name: 'Piló', hasPinya: false } }));
+      fixture.detectChanges();
+      const panel = fixture.nativeElement.querySelector('[aria-label="Tronc de la figura"]');
+      expect(panel).toBeNull();
+      const toggle = fixture.nativeElement.querySelector('[aria-label="Obrir panell del Tronc"]');
+      expect(toggle).toBeNull();
+    });
+
+    it('shows floating tronc panel for standard figures', () => {
+      const panel = fixture.nativeElement.querySelector('[aria-label="Tronc de la figura"]');
+      expect(panel).not.toBeNull();
+    });
   });
 
   // ── Navigation (embedded mode) ─────────────────────────────────────────────
