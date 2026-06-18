@@ -7,7 +7,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { NodeAssignmentService } from './node-assignment.service';
+import { NodeAssignmentService, isNodeVisible } from './node-assignment.service';
 import { NodeAssignment } from './entities/node-assignment.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
 import { InstanceNode } from '../event-segment/entities/instance-node.entity';
@@ -147,6 +147,7 @@ const mockAssignmentRepo = {
   create: jest.fn(),
   save: jest.fn(),
   remove: jest.fn(),
+  delete: jest.fn(),
   count: jest.fn(),
   createQueryBuilder: jest.fn().mockReturnValue(mockQb),
 };
@@ -154,6 +155,7 @@ const mockAssignmentRepo = {
 const mockInstanceRepo = {
   find: jest.fn(),
   findOne: jest.fn(),
+  save: jest.fn(),
   update: jest.fn(),
   createQueryBuilder: jest.fn(),
 };
@@ -1593,5 +1595,68 @@ describe('NodeAssignmentService', () => {
       expect(nodeData.renglaId).toBe('r-uuid');
       expect(nodeData.renglaPosition).toBe(2);
     });
+  });
+
+  describe('updateCordons', () => {
+    it('updates numberOfCordons and returns result', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ numberOfCordons: null }));
+      mockInstanceRepo.save.mockResolvedValue({});
+      mockInstanceNodeRepo.find.mockResolvedValue([
+        makeInstanceNode({ renglaId: 'r1', renglaPosition: 1 }),
+        makeInstanceNode({ id: 'hidden-node', renglaId: 'r1', renglaPosition: 3 }),
+      ]);
+      mockAssignmentRepo.delete.mockResolvedValue({ affected: 1 });
+
+      const result = await service.updateCordons(INSTANCE_ID, { numberOfCordons: 2 });
+
+      expect(mockInstanceRepo.save).toHaveBeenCalled();
+      expect(result.numberOfCordons).toBe(2);
+      expect(result.removedAssignments).toBe(1);
+    });
+
+    it('throws NotFoundException if instance not found', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.updateCordons('non-existent', { numberOfCordons: 3 }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('does not remove assignments when setting numberOfCordons to null', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ numberOfCordons: 3 }));
+      mockInstanceRepo.save.mockResolvedValue({});
+
+      const result = await service.updateCordons(INSTANCE_ID, { numberOfCordons: null });
+
+      expect(result.numberOfCordons).toBeNull();
+      expect(result.removedAssignments).toBe(0);
+      expect(mockAssignmentRepo.delete).not.toHaveBeenCalled();
+    });
+  });
+});
+
+// ─── isNodeVisible unit tests ─────────────────────────────────────────────────
+
+describe('isNodeVisible', () => {
+  it('returns true when numberOfCordons is null', () => {
+    expect(isNodeVisible({ renglaId: 'r1', renglaPosition: 5 }, null)).toBe(true);
+  });
+
+  it('returns true when node has no renglaId', () => {
+    expect(isNodeVisible({ renglaId: null, renglaPosition: null }, 2)).toBe(true);
+  });
+
+  it('returns true when node has no renglaPosition', () => {
+    expect(isNodeVisible({ renglaId: 'r1', renglaPosition: null }, 2)).toBe(true);
+  });
+
+  it('returns true when renglaPosition <= numberOfCordons', () => {
+    expect(isNodeVisible({ renglaId: 'r1', renglaPosition: 2 }, 3)).toBe(true);
+    expect(isNodeVisible({ renglaId: 'r1', renglaPosition: 3 }, 3)).toBe(true);
+  });
+
+  it('returns false when renglaPosition > numberOfCordons', () => {
+    expect(isNodeVisible({ renglaId: 'r1', renglaPosition: 4 }, 3)).toBe(false);
+    expect(isNodeVisible({ renglaId: 'r1', renglaPosition: 10 }, 2)).toBe(false);
   });
 });

@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Location } from '@angular/common';
-import { LucideAngularModule, ArrowLeft, Users, Edit, RefreshCw, Trash2, X, PanelLeft, PanelLeftClose, Monitor, Lock, Plus, HelpCircle, Undo2, Redo2, Save } from 'lucide-angular';
+import { LucideAngularModule, ArrowLeft, Users, Edit, RefreshCw, Trash2, X, PanelLeft, PanelLeftClose, Monitor, Lock, Plus, Minus, HelpCircle, Undo2, Redo2, Save } from 'lucide-angular';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { NodeAssignmentService, LockStatus } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
@@ -44,6 +44,7 @@ interface InstanceTab {
   figureTemplateId: string | null;
   hasPinya: boolean;
   snapshotted: boolean;
+  numberOfCordons: number | null;
   nodes: InstanceNodeItem[];
   assignedCount: number;
   totalCount: number;
@@ -91,6 +92,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly Monitor = Monitor;
   readonly Lock = Lock;
   readonly Plus = Plus;
+  readonly Minus = Minus;
   readonly HelpCircle = HelpCircle;
   readonly Undo2 = Undo2;
   readonly Redo2 = Redo2;
@@ -119,6 +121,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
   readonly lockStatus = signal<LockStatus | null>(null);
   readonly isLocked = computed(() => this.lockStatus()?.locked ?? false);
+  readonly personsLoaded = signal(false);
 
   readonly troncPanelOpen = signal(false);
   readonly adHocPropertiesOpen = signal(false);
@@ -186,9 +189,19 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     return this.state.assignments().find((a) => a.node.id === node.id) ?? null;
   });
 
+  /** Nodes after applying the cordons visibility filter. */
+  readonly visibleNodes = computed(() => {
+    const cordons = this.currentCordons();
+    const nodes = this.activeNodes();
+    if (cordons === null) return nodes;
+    return nodes.filter((n) =>
+      !n.renglaId || n.renglaPosition === null || n.renglaPosition <= cordons,
+    );
+  });
+
   /** Nodes rendered on the Konva canvas (PINYA + BASE + DECORATION — spatial x,y nodes). */
   readonly activePinyaNodes = computed(() =>
-    this.activeNodes().filter(
+    this.visibleNodes().filter(
       (n) =>
         n.zone === FigureZone.PINYA ||
         n.zone === FigureZone.BASE ||
@@ -198,17 +211,17 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
   /** TRONC-zone nodes passed to the tronc panel. */
   readonly activeTroncNodes = computed(() =>
-    this.activeNodes().filter((n) => n.zone === FigureZone.TRONC),
+    this.visibleNodes().filter((n) => n.zone === FigureZone.TRONC),
   );
 
   /** BASE-zone nodes passed to the tronc panel (P1 row). */
   readonly activeBaseNodes = computed(() =>
-    this.activeNodes().filter((n) => n.zone === FigureZone.BASE),
+    this.visibleNodes().filter((n) => n.zone === FigureZone.BASE),
   );
 
   /** Direction-zone nodes passed to the tronc panel (figures netes only). */
   readonly activeDirectionNodes = computed(() =>
-    this.activeNodes().filter(
+    this.visibleNodes().filter(
       (n) =>
         n.zone === FigureZone.FIGURE_DIRECTION ||
         n.zone === FigureZone.XICALLA_DIRECTION,
@@ -219,6 +232,28 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly isActiveTabTroncOnly = computed(() => {
     const tab = this.activeTab();
     return tab ? tab.hasPinya === false : false;
+  });
+
+  // ─── Cordons visibility ─────────────────────────────────────────────────
+
+  readonly maxCordons = computed(() =>
+    this.activeNodes().reduce(
+      (max, n) => (n.renglaPosition != null && n.renglaPosition > max ? n.renglaPosition : max),
+      0,
+    ),
+  );
+
+  readonly currentCordons = computed(() => this.activeTab()?.numberOfCordons ?? null);
+
+  readonly showCordonsControl = computed(
+    () => !!this.activeTab()?.figureTemplateId && !this.isLocked(),
+  );
+
+  readonly currentCordonsLabel = computed(() => {
+    const current = this.currentCordons();
+    const max = this.maxCordons();
+    if (current === null) return 'Tots';
+    return `Cordó ${current}/${max}`;
   });
 
   /** Cast attendanceRegistry to AttendanceStatus map for TroncViewComponent. */
@@ -232,6 +267,21 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     return `${tab.assignedCount}/${tab.totalCount}`;
   });
 
+  readonly totalNeededAllTabs = computed(() =>
+    this.tabs().reduce((sum, t) => sum + t.totalCount, 0),
+  );
+
+  readonly totalAssignedAllTabs = computed(() =>
+    this.tabs().reduce((sum, t) => sum + t.assignedCount, 0),
+  );
+
+  readonly isOverCapacity = computed(() => {
+    if (!this.personsLoaded()) return false;
+    const needed = this.totalNeededAllTabs();
+    const confirmed = this.state.totalConfirmedCount();
+    return needed > 0 && needed > confirmed;
+  });
+
   readonly attendanceMap = computed(() => this.state.attendanceRegistry());
   readonly nextPerformanceMap = computed(() => this.state.nextPerformanceRegistry());
 
@@ -242,6 +292,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     this.segmentId.set(params['segmentId']);
     this.state.reset();
     this.loadSegment();
+    this.loadConfirmedPersons();
 
     this.assignmentService.getLockStatus(this.eventId()).subscribe({
       next: (status) => this.lockStatus.set(status),
@@ -410,6 +461,31 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Eagerly loads the full (unfiltered) person list so totalConfirmedCount
+   * and freePersonsCount are accurate independently of the person panel.
+   */
+  private loadConfirmedPersons(): void {
+    this.assignmentService
+      .getAvailablePersons(this.eventId(), this.segmentId(), { excludeAssigned: false, isXicalla: false })
+      .subscribe({
+        next: (resp) => {
+          this.state.confirmedPersons.set(resp.data);
+          this.personsLoaded.set(true);
+          this.state.attendanceRegistry.update((m) => {
+            const updated = new Map(m);
+            resp.data.forEach((p) => updated.set(p.id, p.attendanceStatus));
+            return updated;
+          });
+          this.state.nextPerformanceRegistry.update((m) => {
+            const updated = new Map(m);
+            resp.data.forEach((p) => updated.set(p.id, p.nextPerformanceStatus ?? null));
+            return updated;
+          });
+        },
+      });
+  }
+
   private loadSegment(): void {
     this.loading.set(true);
     this.segmentService.getByEvent(this.eventId()).subscribe({
@@ -440,8 +516,9 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
         figureTemplateId: instance.figureTemplate?.id ?? null,
         hasPinya: instance.figureTemplate?.hasPinya ?? true,
         snapshotted: instance.snapshotted,
+        numberOfCordons: instance.numberOfCordons ?? null,
         nodes: [],
-        assignedCount: 0,
+        assignedCount: instance.assignedCount ?? 0,
         totalCount: 0,
       }));
 
@@ -451,6 +528,45 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     const targetId = instanceId ?? tabBuilders[0]?.instanceId;
     if (targetId) {
       this.selectTab(targetId);
+    }
+
+    this.loadAllTabNodeCounts(tabBuilders, targetId);
+  }
+
+  /**
+   * Eagerly fetches node counts for all tabs so totalNeededAllTabs
+   * reflects the full segment, not just the active tab.
+   */
+  private loadAllTabNodeCounts(tabs: InstanceTab[], activeId: string | undefined): void {
+    for (const tab of tabs) {
+      if (tab.instanceId === activeId) continue;
+      this.assignmentService.getInstanceNodes(tab.instanceId).subscribe({
+        next: (resp) => {
+          const cordons = this.tabs().find((t) => t.instanceId === tab.instanceId)?.numberOfCordons ?? null;
+          const assignableCount = resp.data.filter(
+            (n) => n.zone !== FigureZone.DECORATION && this.isNodeVisibleByCordons(n, cordons),
+          ).length;
+          this.tabs.update((list) =>
+            list.map((t) =>
+              t.instanceId === tab.instanceId
+                ? { ...t, totalCount: assignableCount }
+                : t,
+            ),
+          );
+        },
+      });
+
+      this.assignmentService.getByInstance(tab.instanceId).subscribe({
+        next: (resp) => {
+          this.tabs.update((list) =>
+            list.map((t) =>
+              t.instanceId === tab.instanceId
+                ? { ...t, assignedCount: resp.data.length }
+                : t,
+            ),
+          );
+        },
+      });
     }
   }
 
@@ -499,8 +615,9 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     this.assignmentService.getInstanceNodes(instanceId).subscribe({
       next: (resp) => {
         if (this.state.activeInstanceId() !== instanceId) return;
+        const cordons = this.tabs().find((t) => t.instanceId === instanceId)?.numberOfCordons ?? null;
         const assignableCount = resp.data.filter(
-          (n) => n.zone !== FigureZone.DECORATION,
+          (n) => n.zone !== FigureZone.DECORATION && this.isNodeVisibleByCordons(n, cordons),
         ).length;
         this.tabs.update((list) =>
           list.map((t) =>
@@ -838,10 +955,15 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   private refreshInstanceNodes(instanceId: string): void {
     this.assignmentService.getInstanceNodes(instanceId).subscribe({
       next: (resp) => {
+        const tab = this.tabs().find((t) => t.instanceId === instanceId);
+        const cordons = tab?.numberOfCordons ?? null;
+        const visibleAssignable = resp.data.filter(
+          (n) => n.zone !== FigureZone.DECORATION && this.isNodeVisibleByCordons(n, cordons),
+        );
         this.tabs.update((list) =>
           list.map((t) =>
             t.instanceId === instanceId
-              ? { ...t, nodes: resp.data, totalCount: resp.data.filter((n) => n.zone !== FigureZone.DECORATION).length, snapshotted: true }
+              ? { ...t, nodes: resp.data, totalCount: visibleAssignable.length, snapshotted: true }
               : t,
           ),
         );
@@ -853,10 +975,27 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
             if (this.state.activeInstanceId() === instanceId) {
               this.state.assignments.set(assignResp.data);
             }
+            this.tabs.update((list) =>
+              list.map((t) =>
+                t.instanceId === instanceId
+                  ? { ...t, assignedCount: assignResp.data.length }
+                  : t,
+              ),
+            );
           },
         });
       },
     });
+  }
+
+  private isNodeVisibleByCordons(
+    node: { renglaId?: string | null; renglaPosition?: number | null },
+    numberOfCordons: number | null,
+  ): boolean {
+    if (numberOfCordons === null) return true;
+    if (!node.renglaId) return true;
+    if (node.renglaPosition === null || node.renglaPosition === undefined) return true;
+    return node.renglaPosition <= numberOfCordons;
   }
 
   private triggerUnassignThenAssign(
@@ -959,6 +1098,86 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
         this.updateTabCount(instanceId);
         this.state.refreshPersonList();
         this.toast.error('Error en desassignar la persona.');
+      },
+    });
+  }
+
+  // ─── Cordons visibility ─────────────────────────────────────────────────
+
+  incrementCordons(): void {
+    const current = this.currentCordons();
+    const max = this.maxCordons();
+    if (current === null) return;
+    const next = current >= max ? null : current + 1;
+    this.applyCordons(next);
+  }
+
+  decrementCordons(): void {
+    const current = this.currentCordons();
+    const max = this.maxCordons();
+    if (current !== null && current <= 1) return;
+    const next = current === null ? Math.max(1, max - 1) : current - 1;
+
+    const affectedCount = this.countAssignmentsInHiddenCordons(next);
+    if (affectedCount > 0) {
+      this.pendingCordonsValue.set(next);
+      this.cordonsConfirmCount.set(affectedCount);
+      this.cordonsConfirmOpen.set(true);
+    } else {
+      this.applyCordons(next);
+    }
+  }
+
+  readonly cordonsConfirmOpen = signal(false);
+  readonly cordonsConfirmCount = signal(0);
+  readonly pendingCordonsValue = signal<number | null>(null);
+
+  confirmCordonsReduction(): void {
+    const value = this.pendingCordonsValue();
+    this.cordonsConfirmOpen.set(false);
+    this.applyCordons(value);
+  }
+
+  cancelCordonsReduction(): void {
+    this.cordonsConfirmOpen.set(false);
+    this.pendingCordonsValue.set(null);
+  }
+
+  private countAssignmentsInHiddenCordons(newCordons: number | null): number {
+    if (newCordons === null) return 0;
+    const nodes = this.activeNodes();
+    const assignments = this.state.assignments();
+    const hiddenNodeIds = new Set(
+      nodes
+        .filter((n) => n.renglaId && n.renglaPosition !== null && n.renglaPosition > newCordons)
+        .map((n) => n.id),
+    );
+    return assignments.filter((a) => hiddenNodeIds.has(a.node.id)).length;
+  }
+
+  private applyCordons(value: number | null): void {
+    const instanceId = this.state.activeInstanceId();
+    if (!instanceId) return;
+
+    this.assignmentService.updateCordons(instanceId, { numberOfCordons: value }).subscribe({
+      next: (resp) => {
+        this.tabs.update((list) =>
+          list.map((t) =>
+            t.instanceId === instanceId
+              ? { ...t, numberOfCordons: resp.numberOfCordons }
+              : t,
+          ),
+        );
+        this.refreshInstanceNodes(instanceId);
+        if (resp.removedAssignments > 0) {
+          this.toast.warning(
+            `S'han desassignat ${resp.removedAssignments} persones dels cordons eliminats.`,
+          );
+          this.state.refreshPersonList();
+        }
+      },
+      error: () => {
+        this.toast.error('Error en actualitzar els cordons.');
       },
     });
   }

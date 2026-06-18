@@ -58,6 +58,7 @@ const makeInstance = (nodes: InstanceNodeItem[], assignedIds: string[]): Project
   id: 'inst-1',
   label: null,
   sortOrder: 0,
+  numberOfCordons: null,
   projectionX: 0, projectionY: 0, projectionScale: 1,
   figureTemplate: { id: 'fig-1', name: 'pd4', hasPinya: true },
   nodes,

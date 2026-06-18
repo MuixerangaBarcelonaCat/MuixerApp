@@ -15,7 +15,7 @@ import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, RefreshCw, ChevronDown, ChevronUp, UserX } from 'lucide-angular';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
-import { AvailablePerson, AssignmentDetail, HeightMode } from '../../models/assignment.model';
+import { AvailablePerson, AssignmentDetail, HeightMode, isConfirmedAttendance } from '../../models/assignment.model';
 import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
 
 @Component({
@@ -66,7 +66,7 @@ export class PersonPanelComponent {
   );
 
   readonly confirmedPersons = computed(() =>
-    this.freePersons().filter((p) => p.attendanceStatus === 'ANIRE'),
+    this.freePersons().filter((p) => isConfirmedAttendance(p.attendanceStatus)),
   );
 
   readonly sortedConfirmedPersons = computed(() => {
@@ -160,9 +160,12 @@ export class PersonPanelComponent {
       .subscribe({
         next: (resp) => {
           this.persons.set(resp.data);
-          this.state.confirmedPersons.set(resp.data);
 
-          // Update persistent registries on every load (merge, not replace)
+          const isUnfiltered = !this.search() && this.height() === null;
+          if (isUnfiltered) {
+            this.state.confirmedPersons.set(resp.data);
+          }
+
           this.state.attendanceRegistry.update((m) => {
             const updated = new Map(m);
             resp.data.forEach((p) => updated.set(p.id, p.attendanceStatus));
