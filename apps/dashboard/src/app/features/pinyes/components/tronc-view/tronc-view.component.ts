@@ -2,12 +2,14 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   input,
   output,
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
+import { FigureZone, TRONC_NODE_PRESETS, TroncNodePreset } from '@muixer/shared';
 import { AssignmentDetail, AttendanceStatus, HeightMode } from '../../models/assignment.model';
 import { floorVariance, varianceLevel, VarianceLevel } from '../../utils/floor-variance.util';
 import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
@@ -29,6 +31,7 @@ export interface TroncNodeItem {
    *  For BASE nodes: always treated as 1. */
   width: number;
   sortOrder: number;
+  color: string | null;
 }
 
 interface TroncFloor {
@@ -41,13 +44,13 @@ interface TroncFloor {
 
 const MAX_TRONC_Z = 5;
 
-/** Conventional floor defaults per z-level (1-based above base). */
-const TRONC_Z_DEFAULTS: Record<number, { label: string; positionType: string }> = {
-  1: { label: 'Segones', positionType: 'segones' },
-  2: { label: 'Terçes', positionType: 'terceres' },
-  3: { label: 'Quartes', positionType: 'quartes' },
-  4: { label: 'Quintes', positionType: 'quintes' },
-  5: { label: 'Sisenes', positionType: 'sisenes' },
+/** Conventional floor defaults per z-level (1-based above base). Derived from shared presets. */
+const TRONC_Z_DEFAULTS: Record<number, { label: string; positionType: string; color: string }> = {
+  1: TRONC_NODE_PRESETS.find((p) => p.positionType === 'segones')!,
+  2: TRONC_NODE_PRESETS.find((p) => p.positionType === 'terceres')!,
+  3: TRONC_NODE_PRESETS.find((p) => p.positionType === 'quartes')!,
+  4: TRONC_NODE_PRESETS.find((p) => p.positionType === 'quintes')!,
+  5: { label: 'Sisenes', positionType: 'sisenes', color: '#546E7A' },
 };
 
 /** Palette for tronc z-level color coding. */
@@ -86,6 +89,12 @@ export class TroncViewComponent {
   /** personId → AttendanceStatus for the next actuació */
   readonly attendanceMap = input<Map<string, AttendanceStatus>>(new Map());
 
+  /** Direction-zone nodes (FIGURE_DIRECTION, XICALLA_DIRECTION) — figures netes only. */
+  readonly directionNodes = input<TroncNodeItem[]>([]);
+
+  /** Whether the current figure is a "figura neta" (hasPinya = false). */
+  readonly isNetaFigure = input<boolean>(false);
+
   // ── Outputs ────────────────────────────────────────────────────────────────
 
   /** Emits the clicked node id. Emits null when deselecting. */
@@ -95,7 +104,7 @@ export class TroncViewComponent {
   readonly nodeClicked = output<{ nodeId: string; event: MouseEvent }>();
 
   /** Editor only: position/width/positionType changed for a TRONC node. */
-  readonly nodeUpdated = output<{ nodeId: string; x: number; width: number; positionType?: string; label?: string }>();
+  readonly nodeUpdated = output<{ nodeId: string; x: number; width: number; positionType?: string; label?: string; color?: string | null }>();
 
   /** Editor only: create a new TRONC node on the given floor. */
   readonly nodeAdded = output<{ z: number; positionType: string; label: string; sortOrder: number }>();
@@ -115,10 +124,47 @@ export class TroncViewComponent {
   /** Assignment mode: request unassignment for a node id. */
   readonly nodeUnassigned = output<string>();
 
+  /** Assignment mode (figures netes): request creating an ad-hoc direction node. */
+  readonly directionAdded = output<{ zone: string }>();
+
+  /** Assignment mode (figures netes): request deleting an ad-hoc direction node. */
+  readonly directionRemoved = output<string>();
+
   // ── Local state ────────────────────────────────────────────────────────────
 
   /** Flip floor order: P1 at top instead of at bottom. */
   readonly inverted = signal(false);
+
+  /** Whether the directions section is expanded. */
+  readonly directionsExpanded = signal(false);
+
+  // ── Direction computed ─────────────────────────────────────────────────────
+
+  readonly figureDirectionNode = computed(() =>
+    this.directionNodes().find((n) => n.zone === FigureZone.FIGURE_DIRECTION) ?? null,
+  );
+
+  readonly xicallaDirectionNode = computed(() =>
+    this.directionNodes().find((n) => n.zone === FigureZone.XICALLA_DIRECTION) ?? null,
+  );
+
+  readonly hasAssignedDirections = computed(() => {
+    const dirs = this.directionNodes();
+    const assigns = this.assignments();
+    return dirs.some((d) => assigns.some((a) => a.node.id === d.id));
+  });
+
+  private prevHadAssignedDirections = false;
+
+  constructor() {
+    effect(() => {
+      const has = this.hasAssignedDirections();
+      if (has && !this.prevHadAssignedDirections) {
+        this.directionsExpanded.set(true);
+      }
+      this.prevHadAssignedDirections = has;
+    });
+  }
 
   // ── Computed ───────────────────────────────────────────────────────────────
 
@@ -269,6 +315,18 @@ export class TroncViewComponent {
     });
   }
 
+  onPositionTypeChange(node: TroncNodeItem, preset: TroncNodePreset): void {
+    const isLabelDefault = this.isDefaultLabel(node);
+    this.nodeUpdated.emit({
+      nodeId: node.id,
+      x: node.x,
+      width: node.width,
+      positionType: preset.positionType,
+      color: preset.color,
+      ...(isLabelDefault ? { label: preset.label } : {}),
+    });
+  }
+
   onAddFloor(): void {
     if (!this.canAddFloor()) return;
     const nextZ = this.maxExistingZ() + 1;
@@ -316,6 +374,10 @@ export class TroncViewComponent {
   toggleOrientation(): void {
     this.inverted.update((v) => !v);
   }
+
+  // ── Presets exposed to template ──────────────────────────────────────────────
+
+  readonly presets = TRONC_NODE_PRESETS;
 
   // ── Template helpers ───────────────────────────────────────────────────────
 
@@ -394,6 +456,17 @@ export class TroncViewComponent {
     this.nodeUnassigned.emit(nodeId);
   }
 
+  onDirectionNodeClick(node: TroncNodeItem, event: MouseEvent): void {
+    this.nodeSelected.emit(node.id);
+    if (this.isAssigned(node.id)) {
+      this.nodeClicked.emit({ nodeId: node.id, event });
+    }
+  }
+
+  onRemoveDirection(nodeId: string): void {
+    this.directionRemoved.emit(nodeId);
+  }
+
   getNodeAriaLabel(node: TroncNodeItem): string {
     const assignment = this.getAssignment(node.id);
     if (!assignment) return `Node ${node.label}, sense assignar`;
@@ -425,6 +498,43 @@ export class TroncViewComponent {
   getAddNodeButtonGridColumn(): string {
     const halfCols = this.totalColumns();
     return `${halfCols + 1} / span 2`;
+  }
+
+  getNodeColor(node: TroncNodeItem): string | null {
+    return node.color ?? null;
+  }
+
+  getDirectionColor(zone: string): string {
+    return zone === FigureZone.FIGURE_DIRECTION ? '#d97706' : '#db2777';
+  }
+
+  getDirectionLabel(zone: string): string {
+    return zone === FigureZone.FIGURE_DIRECTION ? 'Direcció figura' : 'Direcció xicalla';
+  }
+
+  getPositionTypeBadge(node: TroncNodeItem): string {
+    if (!node.positionType) return '';
+    const abbrevMap: Record<string, string> = {
+      segones: 'Seg',
+      terceres: 'Ter',
+      quartes: 'Qua',
+      quintes: 'Qui',
+      sisenes: 'Sis',
+      puntal: 'Pun',
+      'alçadora': 'Alç',
+      xiqueta: 'Xiq',
+    };
+    return abbrevMap[node.positionType] ?? node.positionType.slice(0, 3);
+  }
+
+  isPresetActive(node: TroncNodeItem, preset: TroncNodePreset): boolean {
+    return node.positionType === preset.positionType;
+  }
+
+  /** Whether the node's label matches a known preset label (auto-generated). */
+  private isDefaultLabel(node: TroncNodeItem): boolean {
+    return TRONC_NODE_PRESETS.some((p) => p.label === node.label) ||
+      Object.values(TRONC_Z_DEFAULTS).some((d) => d.label === node.label);
   }
 
   private getDominantPositionType(nodes: TroncNodeItem[]): string {

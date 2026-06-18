@@ -149,7 +149,11 @@
       @if (!loading() && activePinyaNodes().length === 0 && activeNodes().length > 0) {
         <div class="flex flex-col items-center justify-center h-full gap-3 text-base-content/50">
           <i-lucide [img]="Users" class="size-12" />
-          <p class="text-sm">Aquesta figura no té nodes de pinya. Consulta el panell del tronc.</p>
+          @if (isActiveTabTroncOnly()) {
+            <p class="text-sm">Figura neta — utilitza el panell del tronc per assignar.</p>
+          } @else {
+            <p class="text-sm">Aquesta figura no té nodes de pinya. Consulta el panell del tronc.</p>
+          }
         </div>
       }
 
@@ -193,44 +197,46 @@
             <i-lucide [img]="HelpCircle" class="size-5" />
           </button>
 
-          <!-- Direction FAB -->
-          <div class="relative">
-            <button
-              type="button"
-              class="btn btn-circle shadow-lg"
-              style="background-color: #d97706; border-color: #d97706; color: white;"
-              (click)="fabDirectionOpen.set(!fabDirectionOpen())"
-              aria-label="Afegir node de direcció"
-              aria-haspopup="true"
-              [attr.aria-expanded]="fabDirectionOpen()"
-              title="Direccions"
-            >
-              <span class="text-xs font-bold">Dir</span>
-            </button>
-            @if (fabDirectionOpen()) {
-              <ul
-                class="menu bg-base-100 rounded-box shadow-xl w-48 p-2 absolute bottom-full right-0 mb-2 z-50"
-                role="menu"
+          <!-- Direction FAB (hidden for figures netes — managed inside TroncView) -->
+          @if (!isActiveTabTroncOnly()) {
+            <div class="relative">
+              <button
+                type="button"
+                class="btn btn-circle shadow-lg"
+                style="background-color: #d97706; border-color: #d97706; color: white;"
+                (click)="fabDirectionOpen.set(!fabDirectionOpen())"
+                aria-label="Afegir node de direcció"
+                aria-haspopup="true"
+                [attr.aria-expanded]="fabDirectionOpen()"
+                title="Direccions"
               >
-                @for (preset of directionPresets; track preset.zone) {
-                  <li role="none">
-                    <button
-                      type="button"
-                      role="menuitem"
-                      class="flex items-center gap-2 text-sm"
-                      (click)="onPresetSelected(preset); fabDirectionOpen.set(false)"
-                    >
-                      <span
-                        class="inline-block w-3 h-3 rounded-sm shrink-0"
-                        [style.backgroundColor]="preset.color"
-                      ></span>
-                      {{ preset.label }}
-                    </button>
-                  </li>
-                }
-              </ul>
-            }
-          </div>
+                <span class="text-xs font-bold">Dir</span>
+              </button>
+              @if (fabDirectionOpen()) {
+                <ul
+                  class="menu bg-base-100 rounded-box shadow-xl w-48 p-2 absolute bottom-full right-0 mb-2 z-50"
+                  role="menu"
+                >
+                  @for (preset of directionPresets; track preset.zone) {
+                    <li role="none">
+                      <button
+                        type="button"
+                        role="menuitem"
+                        class="flex items-center gap-2 text-sm"
+                        (click)="onPresetSelected(preset); fabDirectionOpen.set(false)"
+                      >
+                        <span
+                          class="inline-block w-3 h-3 rounded-sm shrink-0"
+                          [style.backgroundColor]="preset.color"
+                        ></span>
+                        {{ preset.label }}
+                      </button>
+                    </li>
+                  }
+                </ul>
+              }
+            </div>
+          }
 
           <!-- Decoration FAB -->
           <div class="relative">
@@ -271,43 +277,45 @@
             }
           </div>
 
-          <!-- Pinya FAB (primary) -->
-          <div class="relative">
-            <button
-              type="button"
-              class="btn btn-circle btn-primary shadow-lg"
-              (click)="fabDropdownOpen.set(!fabDropdownOpen())"
-              aria-label="Afegir node de pinya"
-              aria-haspopup="true"
-              [attr.aria-expanded]="fabDropdownOpen()"
-              title="Pinya"
-            >
-              <i-lucide [img]="Plus" class="size-5" />
-            </button>
-            @if (fabDropdownOpen()) {
-              <ul
-                class="menu bg-base-100 rounded-box shadow-xl w-56 p-2 absolute bottom-full right-0 mb-2 z-50 max-h-80 overflow-y-auto"
-                role="menu"
+          <!-- Pinya FAB (hidden for figures netes) -->
+          @if (!isActiveTabTroncOnly()) {
+            <div class="relative">
+              <button
+                type="button"
+                class="btn btn-circle btn-primary shadow-lg"
+                (click)="fabDropdownOpen.set(!fabDropdownOpen())"
+                aria-label="Afegir node de pinya"
+                aria-haspopup="true"
+                [attr.aria-expanded]="fabDropdownOpen()"
+                title="Pinya"
               >
-                @for (preset of adHocPresets; track preset.positionType) {
-                  <li role="none">
-                    <button
-                      type="button"
-                      role="menuitem"
-                      class="flex items-center gap-2 text-sm"
-                      (click)="onPresetSelected(preset); fabDropdownOpen.set(false)"
-                    >
-                      <span
-                        class="inline-block w-3 h-3 rounded-sm shrink-0"
-                        [style.backgroundColor]="preset.color"
-                      ></span>
-                      {{ preset.requiresCustomLabel ? 'Comodí (etiqueta lliure)' : preset.label }}
-                    </button>
-                  </li>
-                }
-              </ul>
-            }
-          </div>
+                <i-lucide [img]="Plus" class="size-5" />
+              </button>
+              @if (fabDropdownOpen()) {
+                <ul
+                  class="menu bg-base-100 rounded-box shadow-xl w-56 p-2 absolute bottom-full right-0 mb-2 z-50 max-h-80 overflow-y-auto"
+                  role="menu"
+                >
+                  @for (preset of adHocPresets; track preset.positionType) {
+                    <li role="none">
+                      <button
+                        type="button"
+                        role="menuitem"
+                        class="flex items-center gap-2 text-sm"
+                        (click)="onPresetSelected(preset); fabDropdownOpen.set(false)"
+                      >
+                        <span
+                          class="inline-block w-3 h-3 rounded-sm shrink-0"
+                          [style.backgroundColor]="preset.color"
+                        ></span>
+                        {{ preset.requiresCustomLabel ? 'Comodí (etiqueta lliure)' : preset.label }}
+                      </button>
+                    </li>
+                  }
+                </ul>
+              }
+            </div>
+          }
         </div>
       }
 
@@ -376,8 +384,9 @@
 @if (troncPanelOpen()) {
   <aside
     class="tronc-floating-panel"
-    [style.left.px]="troncPanelPos().x"
-    [style.top.px]="troncPanelPos().y"
+    [class.tronc-expanded]="isActiveTabTroncOnly()"
+    [style.left.px]="isActiveTabTroncOnly() ? null : troncPanelPos().x"
+    [style.top.px]="isActiveTabTroncOnly() ? null : troncPanelPos().y"
     aria-label="Tronc de la figura"
     tabindex="-1"
     (keydown.escape)="troncPanelOpen.set(false)"
@@ -401,6 +410,8 @@
       class="tronc-floating-body"
       [troncNodes]="activeTroncNodes()"
       [baseNodes]="activeBaseNodes()"
+      [directionNodes]="activeDirectionNodes()"
+      [isNetaFigure]="isActiveTabTroncOnly()"
       [assignments]="state.assignments()"
       [selectedNodeId]="state.selectedNodeId()"
       [mode]="'assignment'"
@@ -410,6 +421,8 @@
       (nodeSelected)="onNodeSelected($event)"
       (nodeClicked)="onTroncNodeClicked($event)"
       (nodeUnassigned)="onTroncNodeUnassigned($event)"
+      (directionAdded)="onDirectionAdded($event)"
+      (directionRemoved)="onDirectionRemoved($event)"
     />
   </aside>
 }

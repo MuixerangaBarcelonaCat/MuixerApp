@@ -10,10 +10,14 @@ import {
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
+import { forkJoin } from 'rxjs';
 import { EventSegmentService } from '../../../pinyes/services/event-segment.service';
 import { FigureInstanceService } from '../../../pinyes/services/figure-instance.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
-import { FigurePickerModalComponent } from '../../../pinyes/components/figure-picker-modal/figure-picker-modal.component';
+import {
+  FigurePickerModalComponent,
+  InstanceSelection,
+} from '../../../pinyes/components/figure-picker-modal/figure-picker-modal.component';
 import { SegmentDetail, InstanceDetail } from '../../../pinyes/models/segment.model';
 
 interface PendingInstanceRemoval {
@@ -167,19 +171,32 @@ export class SegmentManagerComponent implements OnInit {
     this.pickerSegmentId.set(null);
   }
 
-  onInstanceSelected(selection: { figureTemplateId?: string; compositionTemplateId?: string }) {
+  onInstancesConfirmed(selections: InstanceSelection[]): void {
     const segmentId = this.pickerSegmentId();
-    if (!segmentId) return;
+    if (!segmentId || selections.length === 0) return;
 
-    this.instanceService.create(this.eventId(), segmentId, selection).subscribe({
-      next: (instance) => {
+    forkJoin(
+      selections.map((sel) =>
+        this.instanceService.create(this.eventId(), segmentId, sel),
+      ),
+    ).subscribe({
+      next: (instances) => {
         this.segments.update((list) =>
           list.map((s) =>
-            s.id === segmentId ? { ...s, instances: [...s.instances, instance] } : s,
+            s.id === segmentId
+              ? { ...s, instances: [...s.instances, ...instances] }
+              : s,
           ),
         );
+        const count = instances.length;
+        this.toast.success(
+          count === 1
+            ? '1 figura afegida.'
+            : `${count} figures afegides.`,
+        );
+        this.closePicker();
       },
-      error: () => this.toast.error('Error en afegir la figura.'),
+      error: () => this.toast.error('Error en afegir les figures.'),
     });
   }
 
@@ -228,10 +245,17 @@ export class SegmentManagerComponent implements OnInit {
     if (instanceId) {
       route.push(instanceId);
     }
-    this.router.navigate(route);
+    this.router.navigate(route, { queryParams: { returnUrl: this.currentReturnUrl() } });
   }
 
   navigateToProjection(segmentId: string): void {
-    this.router.navigate(['/pinyes/events', this.eventId(), 'segments', segmentId, 'project']);
+    this.router.navigate(
+      ['/pinyes/events', this.eventId(), 'segments', segmentId, 'project'],
+      { queryParams: { returnUrl: this.currentReturnUrl() } },
+    );
+  }
+
+  private currentReturnUrl(): string {
+    return this.router.url.split('?')[0];
   }
 }

@@ -58,6 +58,7 @@ export class TemplateListComponent implements OnInit {
   searchInput = '';
   deletingId = signal<string | null>(null);
   confirmDeleteId = signal<string | null>(null);
+  readonly hasPinyaFilter = signal<boolean | undefined>(undefined);
   readonly totalPages = computed(() => Math.ceil(this.total() / this.limit()));
 
   compositions = signal<CompositionTemplateListItem[]>([]);
@@ -110,6 +111,18 @@ export class TemplateListComponent implements OnInit {
     this.router.navigate(['/pinyes/templates/new']);
   }
 
+  navigateToCreateFiguraNeta(): void {
+    this.router.navigate(['/pinyes/templates/new'], {
+      queryParams: { hasPinya: 'false' },
+    });
+  }
+
+  setHasPinyaFilter(value: boolean | undefined): void {
+    this.hasPinyaFilter.set(value);
+    this.page.set(1);
+    this.loadTemplates();
+  }
+
   navigateToEdit(id: string) {
     this.router.navigate(['/pinyes/templates', id, 'edit']);
   }
@@ -151,10 +164,6 @@ export class TemplateListComponent implements OnInit {
       },
       error: () => this.loading.set(false),
     });
-  }
-
-  hasPinyaLabel(hasPinya: boolean): string {
-    return hasPinya ? 'Pinya + Tronc' : 'Només Tronc';
   }
 
   formatDate(dateStr: string): string {
@@ -222,13 +231,14 @@ export class TemplateListComponent implements OnInit {
     this.loading.set(true);
     const filters: FigureTemplateFilterParams = {
       search: this.search() || undefined,
+      hasPinya: this.hasPinyaFilter(),
       page: this.page(),
       limit: this.limit(),
     };
     this.figureTemplateService.getAll(filters).subscribe({
       next: (resp) => {
         this.templates.set(resp.data);
-        this.total.set(resp.data.length);
+        this.total.set(resp.meta.total);
         this.loading.set(false);
       },
       error: () => this.loading.set(false),

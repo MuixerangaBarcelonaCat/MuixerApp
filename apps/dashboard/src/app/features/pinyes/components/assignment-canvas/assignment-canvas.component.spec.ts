@@ -80,6 +80,8 @@ class StubImportModal {
 class StubTroncView {
   readonly troncNodes = input<unknown[]>([]);
   readonly baseNodes = input<unknown[]>([]);
+  readonly directionNodes = input<unknown[]>([]);
+  readonly isNetaFigure = input<boolean>(false);
   readonly assignments = input<AssignmentDetail[]>([]);
   readonly selectedNodeId = input<string | null>(null);
   readonly mode = input<string>('assignment');
@@ -88,6 +90,9 @@ class StubTroncView {
   readonly attendanceMap = input<Map<string, string>>(new Map());
   readonly nodeSelected = output<string | null>();
   readonly nodeClicked = output<{ nodeId: string; event: MouseEvent }>();
+  readonly nodeUnassigned = output<string>();
+  readonly directionAdded = output<{ zone: string }>();
+  readonly directionRemoved = output<string>();
 }
 
 @Component({ selector: 'app-ad-hoc-nodes-help-modal', standalone: true, template: '' })
@@ -112,7 +117,7 @@ const makeInstance = (overrides = {}) => ({
   projectionX: null,
   projectionY: null,
   projectionScale: 1,
-  figureTemplate: { id: TEMPLATE_ID, name: 'pd4' },
+  figureTemplate: { id: TEMPLATE_ID, name: 'pd4', hasPinya: true },
   compositionTemplate: null,
   ...overrides,
 });
@@ -131,6 +136,7 @@ const makeSegment = (instanceOverrides = {}): SegmentDetail => ({
 const makeInstanceNodes = (): InstanceNodeItem[] => [
   { id: 'inode-1', label: 'base-1', zone: FigureZone.BASE, z: 0, positionType: null, x: 100, y: 100, width: 60, height: 40, rotation: 0, color: null, shape: NodeShape.ELLIPSE, sortOrder: 0, ringLevel: null, originNodeId: null, renglaId: null, renglaPosition: null, sourceNodeId: 'node-1', isSnapshotted: false, isAdHoc: false, createdById: null },
   { id: 'inode-2', label: 'tronc-1', zone: FigureZone.TRONC, z: 1, positionType: null, x: 200, y: 100, width: 60, height: 40, rotation: 0, color: null, shape: NodeShape.ELLIPSE, sortOrder: 1, ringLevel: null, originNodeId: null, renglaId: null, renglaPosition: null, sourceNodeId: 'node-2', isSnapshotted: false, isAdHoc: false, createdById: null },
+  { id: 'inode-3', label: 'pinya-1', zone: FigureZone.PINYA, z: 0, positionType: null, x: 150, y: 150, width: 60, height: 40, rotation: 0, color: null, shape: NodeShape.ELLIPSE, sortOrder: 2, ringLevel: 1, originNodeId: null, renglaId: null, renglaPosition: null, sourceNodeId: 'node-3', isSnapshotted: false, isAdHoc: false, createdById: null },
 ];
 
 let assignmentIdCounter = 0;
@@ -410,7 +416,7 @@ describe('AssignmentCanvasComponent', () => {
         ...list,
         {
           instanceId: secondInstanceId, label: 'pd3', figureTemplateId: TEMPLATE_ID,
-          snapshotted: false,
+          snapshotted: false, hasPinya: true,
           nodes: [], assignedCount: 0, totalCount: 0,
         },
       ]);
@@ -464,10 +470,11 @@ describe('AssignmentCanvasComponent', () => {
       fixture.detectChanges();
     });
 
-    it('activePinyaNodes excludes TRONC-zone nodes', () => {
+    it('activePinyaNodes contains PINYA, BASE, and DECORATION nodes', () => {
       const pinyaNodes = component.activePinyaNodes();
-      expect(pinyaNodes.every((n) => n.zone !== FigureZone.TRONC)).toBe(true);
-      expect(pinyaNodes.length).toBe(allNodes.filter((n) => n.zone !== FigureZone.TRONC).length);
+      const spatialZones: string[] = [FigureZone.PINYA, FigureZone.BASE, FigureZone.DECORATION];
+      expect(pinyaNodes.every((n) => spatialZones.includes(n.zone))).toBe(true);
+      expect(pinyaNodes.length).toBe(allNodes.filter((n) => spatialZones.includes(n.zone)).length);
     });
 
     it('activeTroncNodes contains only TRONC-zone nodes', () => {
@@ -908,6 +915,74 @@ describe('AssignmentCanvasComponent', () => {
       dispatchCtrlDigit(1);
 
       expect(stateService.isPlacementMode()).toBe(false);
+    });
+  });
+
+  // ── Tronc-first detection (F4) ────────────────────────────────────────
+
+  describe('tronc-first detection (figures netes)', () => {
+    it('isActiveTabTroncOnly returns false for default setup (hasPinya=true)', () => {
+      expect(component.isActiveTabTroncOnly()).toBe(false);
+    });
+
+    it('tabs reflect hasPinya from segment data', () => {
+      expect(component.tabs()[0].hasPinya).toBe(true);
+    });
+
+    it('isActiveTabTroncOnly returns true when hasPinya is false', () => {
+      const netaSegment = makeSegment({ figureTemplate: { id: TEMPLATE_ID, name: 'pdt', hasPinya: false } });
+      segmentService.getByEvent = vi.fn().mockReturnValue(of({ data: [netaSegment] }));
+      assignmentService.getInstanceNodes = vi.fn().mockReturnValue(of({ data: makeInstanceNodes() }));
+      assignmentService.getByInstance = vi.fn().mockReturnValue(of({ data: [] }));
+      assignmentService.getLockStatus = vi.fn().mockReturnValue(of({ locked: false, lockDate: null, lockDays: 2 }));
+
+      component.ngOnInit();
+
+      expect(component.isActiveTabTroncOnly()).toBe(true);
+      expect(component.troncPanelOpen()).toBe(true);
+    });
+
+    it('activeDirectionNodes filters direction zones', () => {
+      const nodesWithDir: InstanceNodeItem[] = [
+        ...makeInstanceNodes(),
+        { id: 'dir-fig', label: 'Dir. Figura', zone: FigureZone.FIGURE_DIRECTION, z: 0, positionType: null, x: 0, y: 0, width: 1, height: 1, rotation: 0, color: '#d97706', shape: NodeShape.ELLIPSE, sortOrder: 10, ringLevel: null, originNodeId: null, renglaId: null, renglaPosition: null, sourceNodeId: null, isSnapshotted: false, isAdHoc: true, createdById: null },
+      ];
+      assignmentService.getInstanceNodes = vi.fn().mockReturnValue(of({ data: nodesWithDir }));
+      assignmentService.getByInstance = vi.fn().mockReturnValue(of({ data: [] }));
+
+      component.selectTab(INSTANCE_ID);
+
+      expect(component.activeDirectionNodes().length).toBe(1);
+      expect(component.activeDirectionNodes()[0].zone).toBe(FigureZone.FIGURE_DIRECTION);
+    });
+  });
+
+  // ── Direction handlers (F4) ───────────────────────────────────────────
+
+  describe('direction ad-hoc handlers', () => {
+    it('onDirectionAdded calls createAdHocNode with correct preset', () => {
+      component.onDirectionAdded({ zone: 'FIGURE_DIRECTION' });
+
+      expect(assignmentService.createAdHocNode).toHaveBeenCalledWith(
+        INSTANCE_ID,
+        expect.objectContaining({ zone: 'FIGURE_DIRECTION' }),
+      );
+    });
+
+    it('onDirectionRemoved calls deleteAdHocNode when no assignment exists', () => {
+      stateService.assignments.set([]);
+
+      component.onDirectionRemoved('dir-node-1');
+
+      expect(assignmentService.deleteAdHocNode).toHaveBeenCalledWith(INSTANCE_ID, 'dir-node-1');
+    });
+
+    it('onDirectionRemoved shows toast error when assignment exists', () => {
+      stateService.assignments.set([makeAssignment('dir-node-1', 'person-1')]);
+
+      component.onDirectionRemoved('dir-node-1');
+
+      expect(toastService.error).toHaveBeenCalled();
     });
   });
 });
