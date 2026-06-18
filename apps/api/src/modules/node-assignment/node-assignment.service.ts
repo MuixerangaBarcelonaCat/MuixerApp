@@ -242,16 +242,14 @@ function figureNodeToResponse(node: FigureNode): InstanceNodeResponse {
 
 
 export function isNodeVisible(
-  node: { renglaId: string | null; renglaPosition: number | null; positionType: string | null },
+  node: { renglaId: string | null; renglaPosition: number | null },
   numberOfCordons: number | null,
-  openCordons: string[] | null,
 ): boolean {
+  if (numberOfCordons === null) return true;
   if (!node.renglaId || node.renglaPosition === null) return true;
-  if (node.positionType === 'cordo-obert') {
-    return openCordons?.includes(node.renglaId) ?? false;
-  }
-  return node.renglaPosition <= (numberOfCordons ?? Infinity);
+  return node.renglaPosition <= numberOfCordons;
 }
+
 
 // ─── Service ────────────────────────────────────────────────────────────────
 
@@ -311,12 +309,6 @@ export class NodeAssignmentService {
       allNodes = (template?.nodes ?? [])
         .sort((a, b) => a.sortOrder - b.sortOrder)
         .map(figureNodeToResponse);
-    }
-
-    if (instance.numberOfCordons !== null || (instance.openCordons && instance.openCordons.length > 0)) {
-      return allNodes.filter((node) =>
-        isNodeVisible(node, instance.numberOfCordons, instance.openCordons),
-      );
     }
 
     return allNodes;
@@ -985,12 +977,12 @@ export class NodeAssignmentService {
   }
 
 
-  // ── Cordons — update numberOfCordons / openCordons on instance ─────────────
+  // ── Cordons — update numberOfCordons on instance ────────────────────────────
 
   async updateCordons(
     instanceId: string,
-    dto: { numberOfCordons?: number | null; openCordons?: string[] | null },
-  ): Promise<{ numberOfCordons: number | null; openCordons: string[] | null; removedAssignments: number }> {
+    dto: { numberOfCordons?: number | null },
+  ): Promise<{ numberOfCordons: number | null; removedAssignments: number }> {
     const instance = await this.figureInstanceRepository.findOne({
       where: { id: instanceId },
     });
@@ -1001,30 +993,29 @@ export class NodeAssignmentService {
     if (dto.numberOfCordons !== undefined) {
       instance.numberOfCordons = dto.numberOfCordons;
     }
-    if (dto.openCordons !== undefined) {
-      instance.openCordons = dto.openCordons;
-    }
 
     await this.figureInstanceRepository.save(instance);
 
     let removedAssignments = 0;
-    const allNodes = await this.instanceNodeRepository.find({
-      where: { figureInstance: { id: instanceId } },
-    });
-    const hiddenNodeIds = allNodes
-      .filter((n) => !isNodeVisible(n, instance.numberOfCordons, instance.openCordons))
-      .map((n) => n.id);
 
-    if (hiddenNodeIds.length > 0) {
-      const result = await this.assignmentRepository.delete({
-        instanceNode: { id: In(hiddenNodeIds) },
+    if (instance.numberOfCordons !== null) {
+      const allNodes = await this.instanceNodeRepository.find({
+        where: { figureInstance: { id: instanceId } },
       });
-      removedAssignments = result.affected ?? 0;
+      const hiddenNodeIds = allNodes
+        .filter((n) => !isNodeVisible(n, instance.numberOfCordons))
+        .map((n) => n.id);
+
+      if (hiddenNodeIds.length > 0) {
+        const result = await this.assignmentRepository.delete({
+          instanceNode: { id: In(hiddenNodeIds) },
+        });
+        removedAssignments = result.affected ?? 0;
+      }
     }
 
     return {
       numberOfCordons: instance.numberOfCordons,
-      openCordons: instance.openCordons,
       removedAssignments,
     };
   }

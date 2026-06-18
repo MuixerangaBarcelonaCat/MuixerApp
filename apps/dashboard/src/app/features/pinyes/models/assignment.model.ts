@@ -1,6 +1,11 @@
 export type AttendanceStatus = 'PENDENT' | 'ANIRE' | 'NO_VAIG' | 'ASSISTIT' | 'NO_PRESENTAT';
 export type HeightMode = 'relative' | 'absolute';
 
+/** Adults confirmed for the event (pre- or post-attendance). */
+export function isConfirmedAttendance(status: AttendanceStatus): boolean {
+  return status === 'ANIRE' || status === 'ASSISTIT';
+}
+
 export interface AssignmentNodeDetail {
   id: string;
   label: string;
@@ -161,12 +166,10 @@ export interface UpdateAdHocNodePayload {
 
 export interface UpdateInstanceCordonsPayload {
   numberOfCordons?: number | null;
-  openCordons?: string[] | null;
 }
 
 export interface CordonsResponse {
   numberOfCordons: number | null;
-  openCordons: string[] | null;
   removedAssignments: number;
 }
 

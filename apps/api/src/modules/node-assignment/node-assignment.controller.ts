@@ -88,7 +88,7 @@ export class NodeAssignmentController {
     return this.assignmentService.bulkImport(instanceId, dto);
   }
 
-  @ApiOperation({ summary: 'Update cordon configuration (numberOfCordons, openCordons) for a figure instance' })
+  @ApiOperation({ summary: 'Update cordon visibility (numberOfCordons) for a figure instance' })
   @Patch('figure-instances/:instanceId/cordons')
   updateCordons(
     @Param('instanceId', ParseUUIDPipe) instanceId: string,
@@ -96,7 +96,6 @@ export class NodeAssignmentController {
   ) {
     return this.assignmentService.updateCordons(instanceId, dto);
   }
-
 
   @ApiOperation({ summary: 'Reset snapshot: remove all assignments and instance nodes, revert to live template' })
   @Post('figure-instances/:instanceId/reset')

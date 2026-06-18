@@ -40,11 +40,10 @@ export class PinyesOnboardingModalComponent {
       icon: Layers,
     },
     {
-      title: 'Rengles i cordons',
+      title: 'Rengles',
       description:
-        'Una rengla és la línia de posicions des del centre de la pinya cap al cordó extern. ' +
-        'A l\'assignació, el selector de cordons controla quants cordons es mostren. ' +
-        'Canviar el nombre de cordons no elimina assignacions — només les amaga o mostra.',
+        'Una rengla és la línia de posicions des del centre de la pinya cap enfora. ' +
+        'Cada posició dins la rengla correspon a un cordó diferent (1r, 2n, 3r...).',
       icon: GitCommitHorizontal,
     },
     {
@@ -52,7 +51,7 @@ export class PinyesOnboardingModalComponent {
       description:
         'Les assignacions es fan sobre una còpia de la figura (snapshot). ' +
         'Editar el template original no afecta les assignacions existents. ' +
-        'Pots importar assignacions de pinyes anteriors i configurar cordons per instància.',
+        'Pots importar assignacions de pinyes anteriors.',
       icon: UserCheck,
     },
   ];

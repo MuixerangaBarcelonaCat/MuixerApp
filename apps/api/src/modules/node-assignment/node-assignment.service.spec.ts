@@ -147,6 +147,7 @@ const mockAssignmentRepo = {
   create: jest.fn(),
   save: jest.fn(),
   remove: jest.fn(),
+  delete: jest.fn(),
   count: jest.fn(),
   createQueryBuilder: jest.fn().mockReturnValue(mockQb),
 };
@@ -154,6 +155,7 @@ const mockAssignmentRepo = {
 const mockInstanceRepo = {
   find: jest.fn(),
   findOne: jest.fn(),
+  save: jest.fn(),
   update: jest.fn(),
   createQueryBuilder: jest.fn(),
 };
@@ -961,63 +963,6 @@ describe('NodeAssignmentService', () => {
     });
   });
 
-  describe('getInstanceNodes — cordon filtering', () => {
-    it('filters nodes by numberOfCordons', async () => {
-      const node1 = makeInstanceNode({ id: 'n1', renglaId: 'r1', renglaPosition: 1, positionType: 'mans' });
-      const node2 = makeInstanceNode({ id: 'n2', renglaId: 'r1', renglaPosition: 2, positionType: 'mans' });
-      const node3 = makeInstanceNode({ id: 'n3', renglaId: 'r1', renglaPosition: 3, positionType: 'mans' });
-
-      mockInstanceRepo.findOne.mockResolvedValue({
-        id: INSTANCE_ID,
-        snapshotted: true,
-        numberOfCordons: 2,
-        openCordons: null,
-        figureTemplate: { id: TEMPLATE_ID },
-      });
-      mockInstanceNodeRepo.find.mockResolvedValue([node1, node2, node3]);
-
-      const result = await service.getInstanceNodes(INSTANCE_ID);
-      expect(result).toHaveLength(2);
-      expect(result.map((n) => n.id)).toEqual(['n1', 'n2']);
-    });
-
-    it('shows all nodes when numberOfCordons is null', async () => {
-      const node1 = makeInstanceNode({ id: 'n1', renglaId: 'r1', renglaPosition: 1 });
-      const node2 = makeInstanceNode({ id: 'n2', renglaId: 'r1', renglaPosition: 2 });
-
-      mockInstanceRepo.findOne.mockResolvedValue({
-        id: INSTANCE_ID,
-        snapshotted: true,
-        numberOfCordons: null,
-        openCordons: null,
-        figureTemplate: { id: TEMPLATE_ID },
-      });
-      mockInstanceNodeRepo.find.mockResolvedValue([node1, node2]);
-
-      const result = await service.getInstanceNodes(INSTANCE_ID);
-      expect(result).toHaveLength(2);
-    });
-
-    it('shows cordo-obert only for rengles in openCordons', async () => {
-      const regularNode = makeInstanceNode({ id: 'n1', renglaId: 'r1', renglaPosition: 1, positionType: 'mans' });
-      const cordoObertNode = makeInstanceNode({ id: 'n2', renglaId: 'r1', renglaPosition: 2, positionType: 'cordo-obert' });
-      const cordoObertOther = makeInstanceNode({ id: 'n3', renglaId: 'r2', renglaPosition: 2, positionType: 'cordo-obert' });
-
-      mockInstanceRepo.findOne.mockResolvedValue({
-        id: INSTANCE_ID,
-        snapshotted: true,
-        numberOfCordons: null,
-        openCordons: ['r1'],
-        figureTemplate: { id: TEMPLATE_ID },
-      });
-      mockInstanceNodeRepo.find.mockResolvedValue([regularNode, cordoObertNode, cordoObertOther]);
-
-      const result = await service.getInstanceNodes(INSTANCE_ID);
-      expect(result).toHaveLength(2);
-      expect(result.map((n) => n.id)).toEqual(['n1', 'n2']);
-    });
-  });
-
   // ── Ad-hoc node CRUD ──────────────────────────────────────────────────
 
   describe('createAdHocNode', () => {
@@ -1599,8 +1544,6 @@ describe('NodeAssignmentService', () => {
       const savedInstance = {
         id: INSTANCE_ID,
         snapshotted: false,
-        numberOfCordons: null,
-        openCordons: null,
         figureTemplate: { id: TEMPLATE_ID },
         segment: makeSegment(),
         compositionTemplate: null,
@@ -1653,40 +1596,67 @@ describe('NodeAssignmentService', () => {
       expect(nodeData.renglaPosition).toBe(2);
     });
   });
+
+  describe('updateCordons', () => {
+    it('updates numberOfCordons and returns result', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ numberOfCordons: null }));
+      mockInstanceRepo.save.mockResolvedValue({});
+      mockInstanceNodeRepo.find.mockResolvedValue([
+        makeInstanceNode({ renglaId: 'r1', renglaPosition: 1 }),
+        makeInstanceNode({ id: 'hidden-node', renglaId: 'r1', renglaPosition: 3 }),
+      ]);
+      mockAssignmentRepo.delete.mockResolvedValue({ affected: 1 });
+
+      const result = await service.updateCordons(INSTANCE_ID, { numberOfCordons: 2 });
+
+      expect(mockInstanceRepo.save).toHaveBeenCalled();
+      expect(result.numberOfCordons).toBe(2);
+      expect(result.removedAssignments).toBe(1);
+    });
+
+    it('throws NotFoundException if instance not found', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.updateCordons('non-existent', { numberOfCordons: 3 }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('does not remove assignments when setting numberOfCordons to null', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ numberOfCordons: 3 }));
+      mockInstanceRepo.save.mockResolvedValue({});
+
+      const result = await service.updateCordons(INSTANCE_ID, { numberOfCordons: null });
+
+      expect(result.numberOfCordons).toBeNull();
+      expect(result.removedAssignments).toBe(0);
+      expect(mockAssignmentRepo.delete).not.toHaveBeenCalled();
+    });
+  });
 });
 
-describe('isNodeVisible (pure function)', () => {
-  it('returns true for nodes without renglaId', () => {
-    expect(isNodeVisible({ renglaId: null, renglaPosition: null, positionType: 'mans' }, 2, null)).toBe(true);
+// ─── isNodeVisible unit tests ─────────────────────────────────────────────────
+
+describe('isNodeVisible', () => {
+  it('returns true when numberOfCordons is null', () => {
+    expect(isNodeVisible({ renglaId: 'r1', renglaPosition: 5 }, null)).toBe(true);
   });
 
-  it('returns true for nodes without renglaPosition', () => {
-    expect(isNodeVisible({ renglaId: 'r1', renglaPosition: null, positionType: 'mans' }, 2, null)).toBe(true);
+  it('returns true when node has no renglaId', () => {
+    expect(isNodeVisible({ renglaId: null, renglaPosition: null }, 2)).toBe(true);
+  });
+
+  it('returns true when node has no renglaPosition', () => {
+    expect(isNodeVisible({ renglaId: 'r1', renglaPosition: null }, 2)).toBe(true);
   });
 
   it('returns true when renglaPosition <= numberOfCordons', () => {
-    expect(isNodeVisible({ renglaId: 'r1', renglaPosition: 2, positionType: 'mans' }, 3, null)).toBe(true);
-    expect(isNodeVisible({ renglaId: 'r1', renglaPosition: 2, positionType: 'mans' }, 2, null)).toBe(true);
+    expect(isNodeVisible({ renglaId: 'r1', renglaPosition: 2 }, 3)).toBe(true);
+    expect(isNodeVisible({ renglaId: 'r1', renglaPosition: 3 }, 3)).toBe(true);
   });
 
   it('returns false when renglaPosition > numberOfCordons', () => {
-    expect(isNodeVisible({ renglaId: 'r1', renglaPosition: 3, positionType: 'mans' }, 2, null)).toBe(false);
-  });
-
-  it('shows all cordon nodes when numberOfCordons is null', () => {
-    expect(isNodeVisible({ renglaId: 'r1', renglaPosition: 99, positionType: 'mans' }, null, null)).toBe(true);
-  });
-
-  it('hides cordo-obert nodes when rengla is not in openCordons', () => {
-    expect(isNodeVisible({ renglaId: 'r1', renglaPosition: 3, positionType: 'cordo-obert' }, null, [])).toBe(false);
-    expect(isNodeVisible({ renglaId: 'r1', renglaPosition: 3, positionType: 'cordo-obert' }, null, ['r2'])).toBe(false);
-  });
-
-  it('shows cordo-obert nodes when rengla is in openCordons', () => {
-    expect(isNodeVisible({ renglaId: 'r1', renglaPosition: 3, positionType: 'cordo-obert' }, null, ['r1'])).toBe(true);
-  });
-
-  it('hides cordo-obert when openCordons is null', () => {
-    expect(isNodeVisible({ renglaId: 'r1', renglaPosition: 3, positionType: 'cordo-obert' }, null, null)).toBe(false);
+    expect(isNodeVisible({ renglaId: 'r1', renglaPosition: 4 }, 3)).toBe(false);
+    expect(isNodeVisible({ renglaId: 'r1', renglaPosition: 10 }, 2)).toBe(false);
   });
 });

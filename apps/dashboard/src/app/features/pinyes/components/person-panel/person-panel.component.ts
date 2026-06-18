@@ -12,10 +12,11 @@ import {
   untracked,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { LucideAngularModule, RefreshCw, ChevronDown, ChevronUp } from 'lucide-angular';
+import { LucideAngularModule, RefreshCw, ChevronDown, ChevronUp, UserX } from 'lucide-angular';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
-import { AvailablePerson, AssignmentDetail, HeightMode } from '../../models/assignment.model';
+import { AvailablePerson, AssignmentDetail, HeightMode, isConfirmedAttendance } from '../../models/assignment.model';
+import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
 
 @Component({
   selector: 'app-person-panel',
@@ -36,6 +37,7 @@ export class PersonPanelComponent {
 
   readonly personSelected = output<AvailablePerson>();
   readonly assignedPersonSelected = output<{ personId: string; instanceId: string }>();
+  readonly unassignRequested = output<AssignmentDetail>();
 
   private readonly assignmentService = inject(NodeAssignmentService);
   private readonly state = inject(AssignmentStateService);
@@ -43,6 +45,7 @@ export class PersonPanelComponent {
   readonly RefreshCw = RefreshCw;
   readonly ChevronDown = ChevronDown;
   readonly ChevronUp = ChevronUp;
+  readonly UserX = UserX;
 
   readonly persons = signal<AvailablePerson[]>([]);
   readonly loading = signal(false);
@@ -52,12 +55,18 @@ export class PersonPanelComponent {
   readonly altresExpanded = signal(false);
   readonly assignadesExpanded = signal(true);
 
+  readonly selectedAssignment = computed(() => {
+    const nodeId = this.selectedNodeId();
+    if (!nodeId) return null;
+    return this.assignments().find((a) => a.node.id === nodeId) ?? null;
+  });
+
   readonly freePersons = computed(() =>
     this.persons().filter((p) => !p.assignedInSegment),
   );
 
   readonly confirmedPersons = computed(() =>
-    this.freePersons().filter((p) => p.attendanceStatus === 'ANIRE'),
+    this.freePersons().filter((p) => isConfirmedAttendance(p.attendanceStatus)),
   );
 
   readonly sortedConfirmedPersons = computed(() => {
@@ -141,7 +150,7 @@ export class PersonPanelComponent {
     if (this.search()) query['search'] = this.search();
     if (this.height() !== null) {
       const heightValue = this.height()!;
-      const absoluteHeight = this.heightMode() === 'relative' ? 140 + heightValue : heightValue;
+      const absoluteHeight = this.heightMode() === 'relative' ? SHOULDER_HEIGHT_BASELINE_CM + heightValue : heightValue;
       query['height'] = absoluteHeight;
     }
     if (!this.showXicalla()) query['isXicalla'] = false;
@@ -151,9 +160,12 @@ export class PersonPanelComponent {
       .subscribe({
         next: (resp) => {
           this.persons.set(resp.data);
-          this.state.confirmedPersons.set(resp.data);
 
-          // Update persistent registries on every load (merge, not replace)
+          const isUnfiltered = !this.search() && this.height() === null;
+          if (isUnfiltered) {
+            this.state.confirmedPersons.set(resp.data);
+          }
+
           this.state.attendanceRegistry.update((m) => {
             const updated = new Map(m);
             resp.data.forEach((p) => updated.set(p.id, p.attendanceStatus));
@@ -186,6 +198,20 @@ export class PersonPanelComponent {
     this.loadPersons();
   }
 
+  selectFirstPerson(): void {
+    const first =
+      this.sortedConfirmedPersons()[0] ??
+      this.pendingPersons()[0] ??
+      this.declinedPersons()[0];
+    if (first) this.selectPerson(first);
+  }
+
+  requestUnassign(): void {
+    const assignment = this.selectedAssignment();
+    if (!assignment) return;
+    this.unassignRequested.emit(assignment);
+  }
+
   selectPerson(person: AvailablePerson): void {
     this.personSelected.emit(person);
   }
@@ -200,10 +226,10 @@ export class PersonPanelComponent {
   }
 
   formatHeight(person: AvailablePerson): string {
-    if (person.shoulderHeight === null || person.shoulderHeight === 0 || person.shoulderHeight === 140) return '-';
+    if (person.shoulderHeight === null || person.shoulderHeight === 0) return '-';
     const h = person.shoulderHeight;
     if (this.heightMode() === 'relative') {
-      const diff = h - 140;
+      const diff = h - SHOULDER_HEIGHT_BASELINE_CM;
       return diff >= 0 ? `+${diff}` : `${diff}`;
     }
     return `${h} cm`;

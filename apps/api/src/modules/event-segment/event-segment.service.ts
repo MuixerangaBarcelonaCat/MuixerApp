@@ -18,8 +18,7 @@ export interface InstanceRef {
   snapshotted: boolean;
   assignedCount: number;
   numberOfCordons: number | null;
-  openCordons: string[] | null;
-  figureTemplate: { id: string; name: string } | null;
+  figureTemplate: { id: string; name: string; hasPinya: boolean } | null;
   compositionTemplate: { id: string; name: string } | null;
 }
 
@@ -204,10 +203,13 @@ function toSegmentWithInstances(segment: EventSegment, countMap: Map<string, num
       sortOrder: instance.sortOrder,
       snapshotted: instance.snapshotted,
       assignedCount: countMap.get(instance.id) ?? 0,
-      numberOfCordons: instance.numberOfCordons,
-      openCordons: instance.openCordons,
+      numberOfCordons: instance.numberOfCordons ?? null,
       figureTemplate: instance.figureTemplate
-        ? { id: instance.figureTemplate.id, name: instance.figureTemplate.name }
+        ? {
+            id: instance.figureTemplate.id,
+            name: instance.figureTemplate.name,
+            hasPinya: instance.figureTemplate.hasPinya,
+          }
         : null,
       compositionTemplate: instance.compositionTemplate
         ? { id: instance.compositionTemplate.id, name: instance.compositionTemplate.name }

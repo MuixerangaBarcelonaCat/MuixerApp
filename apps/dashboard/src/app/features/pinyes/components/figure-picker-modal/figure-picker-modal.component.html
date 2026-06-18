@@ -9,7 +9,7 @@
   <div class="modal-box max-w-lg">
     <!-- Header -->
     <div class="flex items-center justify-between mb-4">
-      <h2 id="picker-modal-title" class="text-lg font-bold">Afegir figura o composició</h2>
+      <h2 id="picker-modal-title" class="text-lg font-bold">Afegir figures al segment</h2>
       <button
         type="button"
         class="btn btn-ghost btn-sm btn-circle"
@@ -77,17 +77,25 @@
           }
         </p>
       } @else {
-        <ul class="space-y-1 max-h-80 overflow-y-auto" role="listbox" aria-label="Llista de figures">
+        <ul class="space-y-0.5 max-h-80 overflow-y-auto" role="list" aria-label="Figures disponibles">
           @for (figure of filteredFigures(); track figure.id) {
-            <li role="option" [attr.aria-selected]="false">
+            <li class="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-base-200 transition-colors">
+              <div class="flex items-center gap-2 min-w-0">
+                <lucide-icon name="Hexagon" [size]="14" class="text-primary shrink-0" aria-hidden="true" />
+                <span class="font-medium text-sm truncate">{{ figure.name }}</span>
+                @if (!figure.hasPinya) {
+                  <span class="badge badge-xs badge-info shrink-0">Tronc</span>
+                }
+                <span class="text-xs text-base-content/40 shrink-0">{{ figure.nodeCount }} nodes</span>
+              </div>
               <button
                 type="button"
-                class="w-full text-left btn btn-ghost btn-sm justify-start gap-2 h-auto py-2"
-                (click)="selectFigure(figure)"
+                class="btn btn-ghost btn-xs gap-1 shrink-0 ml-2"
+                (click)="addFigure(figure)"
+                [attr.aria-label]="'Afegir ' + figure.name"
               >
-                <lucide-icon name="Hexagon" [size]="14" class="text-primary shrink-0" aria-hidden="true" />
-                <span class="font-medium text-sm">{{ figure.name }}</span>
-                <span class="text-xs text-base-content/40 ml-auto">{{ figure.nodeCount }} nodes</span>
+                <lucide-icon name="Plus" [size]="14" aria-hidden="true" />
+                Afegir
               </button>
             </li>
           }
@@ -106,17 +114,22 @@
           @if (search()) { Cap composició trobada per "{{ search() }}" } @else { Cap composició creada encara }
         </p>
       } @else {
-        <ul class="space-y-1 max-h-72 overflow-y-auto" role="listbox" aria-label="Llista de composicions">
+        <ul class="space-y-0.5 max-h-72 overflow-y-auto" role="list" aria-label="Composicions disponibles">
           @for (composition of filteredCompositions(); track composition.id) {
-            <li role="option" [attr.aria-selected]="false">
+            <li class="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-base-200 transition-colors">
+              <div class="flex items-center gap-2 min-w-0">
+                <lucide-icon name="LayoutGrid" [size]="14" class="text-secondary shrink-0" aria-hidden="true" />
+                <span class="font-medium text-sm truncate">{{ composition.name }}</span>
+                <span class="text-xs text-base-content/40 shrink-0">{{ composition.slotCount }} figures</span>
+              </div>
               <button
                 type="button"
-                class="w-full text-left btn btn-ghost btn-sm justify-start gap-2 h-auto py-2"
-                (click)="selectComposition(composition)"
+                class="btn btn-ghost btn-xs gap-1 shrink-0 ml-2"
+                (click)="addComposition(composition)"
+                [attr.aria-label]="'Afegir ' + composition.name"
               >
-                <lucide-icon name="LayoutGrid" [size]="14" class="text-secondary shrink-0" aria-hidden="true" />
-                <span class="font-medium text-sm">{{ composition.name }}</span>
-                <span class="text-xs text-base-content/40 ml-auto">{{ composition.slotCount }} figures</span>
+                <lucide-icon name="Plus" [size]="14" aria-hidden="true" />
+                Afegir
               </button>
             </li>
           }
@@ -124,9 +137,49 @@
       }
     }
 
-    <!-- Footer info -->
-    <p class="text-xs text-base-content/40 mt-3 text-center">
-      Pots afegir múltiples figures sense tancar el diàleg.
-    </p>
+    <!-- Selected items section -->
+    @if (selectionCount() > 0) {
+      <div class="divider text-xs text-base-content/50 my-2">
+        Seleccionades ({{ selectionCount() }})
+      </div>
+      <ul class="space-y-0.5 max-h-40 overflow-y-auto" role="list" aria-label="Figures seleccionades">
+        @for (item of selections(); track $index) {
+          <li class="flex items-center justify-between px-2 py-1">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="text-xs text-base-content/50 font-mono shrink-0">{{ $index + 1 }}.</span>
+              <span class="text-sm truncate">{{ item.name }}</span>
+              @if (!item.hasPinya) {
+                <span class="badge badge-xs badge-info shrink-0">Tronc</span>
+              }
+            </div>
+            <button
+              type="button"
+              class="btn btn-ghost btn-xs shrink-0 ml-2"
+              (click)="removeSelection($index)"
+              [attr.aria-label]="'Treure ' + item.name + ' de la selecció'"
+            >
+              <lucide-icon name="Trash2" [size]="14" aria-hidden="true" />
+            </button>
+          </li>
+        }
+      </ul>
+    } @else {
+      <p class="text-xs text-base-content/40 mt-3 text-center">
+        Cap figura seleccionada. Fes clic a «Afegir» per seleccionar figures.
+      </p>
+    }
+
+    <!-- Footer actions -->
+    <div class="modal-action mt-4">
+      <button type="button" class="btn btn-ghost btn-sm" (click)="close()">Cancel·la</button>
+      <button
+        type="button"
+        class="btn btn-primary btn-sm"
+        [disabled]="!canConfirm()"
+        (click)="confirm()"
+      >
+        Confirma ({{ selectionCount() }})
+      </button>
+    </div>
   </div>
 </dialog>

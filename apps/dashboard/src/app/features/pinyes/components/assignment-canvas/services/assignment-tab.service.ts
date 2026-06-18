@@ -2,15 +2,12 @@ import { Injectable, DestroyRef, inject, signal, computed } from '@angular/core'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NodeAssignmentService } from '../../../services/node-assignment.service';
 import { EventSegmentService } from '../../../services/event-segment.service';
-import { FigureTemplateService } from '../../../services/figure-template.service';
 import { FigureInstanceService } from '../../../services/figure-instance.service';
 import { AssignmentStateService } from '../../../services/assignment-state.service';
 import { ToastService } from '../../../../../shared/components/feedback/toast/toast.service';
 import { SegmentDetail } from '../../../models/segment.model';
-import { RenglaModel } from '../../../models/figure-template.model';
 import { FigureZone } from '@muixer/shared';
 import { InstanceNodeItem } from '../../../models/assignment.model';
-import { repositionCordoObertNodes } from '../../../utils/cordo-obert-reposition.util';
 
 export interface InstanceTab {
   instanceId: string;
@@ -18,7 +15,6 @@ export interface InstanceTab {
   figureTemplateId: string | null;
   snapshotted: boolean;
   numberOfCordons: number | null;
-  openCordons: string[] | null;
   nodes: InstanceNodeItem[];
   assignedCount: number;
   totalCount: number;
@@ -30,7 +26,6 @@ export interface InstanceTab {
 @Injectable()
 export class AssignmentTabService {
   private readonly segmentService = inject(EventSegmentService);
-  private readonly figureTemplateService = inject(FigureTemplateService);
   private readonly assignmentService = inject(NodeAssignmentService);
   readonly instanceService = inject(FigureInstanceService);
   private readonly state = inject(AssignmentStateService);
@@ -40,8 +35,6 @@ export class AssignmentTabService {
   readonly tabs = signal<InstanceTab[]>([]);
   readonly segment = signal<SegmentDetail | null>(null);
   readonly loading = signal(false);
-  readonly templateRengles = signal<RenglaModel[]>([]);
-  readonly maxCordons = signal(0);
 
   readonly activeTab = computed(() =>
     this.tabs().find((t) => t.instanceId === this.state.activeInstanceId()) ?? null,
@@ -49,11 +42,9 @@ export class AssignmentTabService {
 
   readonly activeNodes = computed(() => this.activeTab()?.nodes ?? []);
 
-  readonly activePinyaNodes = computed(() => {
-    const nodes = this.activeNodes().filter((n) => n.zone !== FigureZone.TRONC);
-    const tab = this.activeTab();
-    return repositionCordoObertNodes(nodes, tab?.numberOfCordons ?? null);
-  });
+  readonly activePinyaNodes = computed(() =>
+    this.activeNodes().filter((n) => n.zone !== FigureZone.TRONC),
+  );
 
   readonly activeTroncNodes = computed(() =>
     this.activeNodes().filter((n) => n.zone === FigureZone.TRONC),
@@ -62,12 +53,6 @@ export class AssignmentTabService {
   readonly activeBaseNodes = computed(() =>
     this.activeNodes().filter((n) => n.zone === FigureZone.BASE),
   );
-
-  readonly renglesWithCordoObert = computed(() =>
-    this.templateRengles().filter((r) => r.allowsCordoObert),
-  );
-
-  readonly hasCordonsConfig = computed(() => this.templateRengles().length > 0);
 
   private eventId = '';
   private segmentId = '';
@@ -83,16 +68,20 @@ export class AssignmentTabService {
     this.state.selectedNodeId.set(null);
     this.state.assignments.set([]);
     this.loadTabData(instanceId);
-    this.loadTemplateRenglesForTab(instanceId);
   }
 
   loadTabData(instanceId: string): void {
     this.assignmentService.getInstanceNodes(instanceId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (resp) => {
+        const tab = this.tabs().find((t) => t.instanceId === instanceId);
+        const cordons = tab?.numberOfCordons ?? null;
+        const assignableCount = resp.data.filter(
+          (n) => n.zone !== FigureZone.DECORATION && this.isNodeVisibleByCordons(n, cordons),
+        ).length;
         this.tabs.update((list) =>
           list.map((t) =>
             t.instanceId === instanceId
-              ? { ...t, nodes: resp.data, totalCount: resp.data.length }
+              ? { ...t, nodes: resp.data, totalCount: assignableCount }
               : t,
           ),
         );
@@ -116,10 +105,15 @@ export class AssignmentTabService {
   refreshInstanceNodes(instanceId: string): void {
     this.assignmentService.getInstanceNodes(instanceId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (resp) => {
+        const tab = this.tabs().find((t) => t.instanceId === instanceId);
+        const cordons = tab?.numberOfCordons ?? null;
+        const assignableCount = resp.data.filter(
+          (n) => n.zone !== FigureZone.DECORATION && this.isNodeVisibleByCordons(n, cordons),
+        ).length;
         this.tabs.update((list) =>
           list.map((t) =>
             t.instanceId === instanceId
-              ? { ...t, nodes: resp.data, totalCount: resp.data.length, snapshotted: true }
+              ? { ...t, nodes: resp.data, totalCount: assignableCount, snapshotted: true }
               : t,
           ),
         );
@@ -132,6 +126,16 @@ export class AssignmentTabService {
         });
       },
     });
+  }
+
+  private isNodeVisibleByCordons(
+    node: { renglaId?: string | null; renglaPosition?: number | null },
+    numberOfCordons: number | null,
+  ): boolean {
+    if (numberOfCordons === null) return true;
+    if (!node.renglaId) return true;
+    if (node.renglaPosition === null || node.renglaPosition === undefined) return true;
+    return node.renglaPosition <= numberOfCordons;
   }
 
   updateTabCount(instanceId: string): void {
@@ -161,14 +165,6 @@ export class AssignmentTabService {
     const remaining = this.tabs().filter((t) => t.instanceId !== instanceId);
     this.tabs.set(remaining);
     return remaining;
-  }
-
-  updateTabCordons(instanceId: string, numberOfCordons: number | null, openCordons: string[] | null): void {
-    this.tabs.update((list) =>
-      list.map((t) =>
-        t.instanceId === instanceId ? { ...t, numberOfCordons, openCordons } : t,
-      ),
-    );
   }
 
   getEventId(): string { return this.eventId; }
@@ -204,7 +200,6 @@ export class AssignmentTabService {
         figureTemplateId: instance.figureTemplate?.id ?? null,
         snapshotted: instance.snapshotted,
         numberOfCordons: instance.numberOfCordons ?? null,
-        openCordons: instance.openCordons ?? null,
         nodes: [],
         assignedCount: 0,
         totalCount: 0,
@@ -216,19 +211,4 @@ export class AssignmentTabService {
     }
   }
 
-  private loadTemplateRenglesForTab(instanceId: string): void {
-    const tab = this.tabs().find((t) => t.instanceId === instanceId);
-    if (!tab?.figureTemplateId) return;
-
-    this.figureTemplateService.getOne(tab.figureTemplateId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (template) => {
-        this.templateRengles.set(template.rengles ?? []);
-        const maxPos = (template.nodes ?? []).reduce(
-          (max, n) => (n.renglaPosition != null && n.renglaPosition > max ? n.renglaPosition : max),
-          0,
-        );
-        this.maxCordons.set(maxPos);
-      },
-    });
-  }
 }

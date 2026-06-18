@@ -7,7 +7,6 @@ export interface InstanceRef {
   snapshotted: boolean;
   assignedCount: number;
   numberOfCordons: number | null;
-  openCordons: string[] | null;
   figureTemplate: { id: string; name: string } | null;
   compositionTemplate: { id: string; name: string } | null;
 }
@@ -28,7 +27,6 @@ export interface ProjectionInstance {
   label: string | null;
   sortOrder: number;
   numberOfCordons: number | null;
-  openCordons: string[] | null;
   figureTemplate: { id: string; name: string } | null;
   nodes: InstanceNodeItem[];
   assignments: AssignmentDetail[];

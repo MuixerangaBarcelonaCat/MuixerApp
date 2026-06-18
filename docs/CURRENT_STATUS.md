@@ -7,7 +7,7 @@
 > - **Història cronològica** → [PHASES_LOG.md](PHASES_LOG.md)
 > - **Detall tècnic** → docs dedicats (vegeu taula al final)
 >
-> **Branca activa:** `feat/assignar-nodes-nous` · **Frontier:** P5.12 completat · **Pendent destacat:** P5.3.1 (UX segments), Q1 (E2E), P6 (PWA)
+> **Branca activa:** `story/deploy-server-pre` · **Frontier:** P5.12 completat + refactor presets unificats · **Pendent destacat:** P5.3.1 (UX segments), Q1 (E2E), P6 (PWA)
 
 ---
 
@@ -18,6 +18,13 @@ El Mòdul Pinyes és operatiu de punta a punta (templates → composicions → s
 snapshot → troncs → projecció → posicions/historials → rengles → **nodes ad-hoc**).
 Eliminades FigureFamily i ReferenceElement (simplificació de model). Entorn PRE desplegat a Hetzner.
 Pendent principal: UX polish segments (P5.3.1), E2E tests (Q1), i la PWA mòbil (P6).
+
+**Canvis recents (merge develop → pre):**
+- **Presets unificats:** `AdHocNodePreset` → `NodePreset`, `AD_HOC_*_PRESETS` → `*_NODE_PRESETS` (fitxer `node-preset.constants.ts`). Tots els presets (pinya, decoració, direcció) comparteixen la mateixa interfície.
+- **Labels en majúscules:** Els presets pinya usen labels tipus identificador (`AGULLA`, `LATERAL`, `VENT`) en lloc de title-case.
+- **Terminologia UI:** "Cancel·lar" → "Cancel·la", "Afegir" → "Afegeix", "Eliminar" → "Elimina" (imperatiu en català).
+- **Selector de zona ocult:** Amagat el selector de zona i tipus de posició en el formulari d'edició de posicions.
+- **Projecció tronc inline:** Vista de tronc integrada dins de cada targeta de la projecció (abans era en panells flotants).
 
 Per a l'estat fase a fase amb enllaços als specs, vegeu la taula `Estat General` del
 [roadmap](PROJECT_ROADMAP.md).

@@ -6,6 +6,7 @@ import {
   HeightMode,
   InstanceNodeItem,
   PendingOp,
+  isConfirmedAttendance,
 } from '../models/assignment.model';
 
 @Injectable({
@@ -47,19 +48,22 @@ export class AssignmentStateService {
   );
   readonly hasAdHocNodes = computed(() => this.adHocNodes().length > 0);
 
-  /** Number of confirmed (ANIRE) persons not yet assigned in the current segment */
+  /** Number of confirmed adults not yet assigned in the current segment */
   readonly freePersonsCount = computed(() => {
     const confirmed = this.confirmedPersons();
-    const assigned = this.assignments();
-    const assignedPersonIds = new Set(assigned.map((a) => a.person.id));
+    const localAssigned = this.assignments();
+    const localAssignedIds = new Set(localAssigned.map((a) => a.person.id));
     return confirmed.filter(
-      (p) => p.attendanceStatus === 'ANIRE' && !assignedPersonIds.has(p.id),
+      (p) =>
+        isConfirmedAttendance(p.attendanceStatus) &&
+        !p.assignedInSegment &&
+        !localAssignedIds.has(p.id),
     ).length;
   });
 
-  /** Total ANIRE persons */
+  /** Total confirmed adults (ANIRE + ASSISTIT) */
   readonly totalConfirmedCount = computed(
-    () => this.confirmedPersons().filter((p) => p.attendanceStatus === 'ANIRE').length,
+    () => this.confirmedPersons().filter((p) => isConfirmedAttendance(p.attendanceStatus)).length,
   );
 
   setSelectedNodeId(nodeId: string | null): void {

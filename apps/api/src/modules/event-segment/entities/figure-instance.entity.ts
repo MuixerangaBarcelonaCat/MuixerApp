@@ -48,10 +48,6 @@ export class FigureInstance {
   @Column({ type: 'int', nullable: true })
   numberOfCordons: number | null;
 
-  /** Rengla IDs with open cordon active. NULL = none. */
-  @Column({ type: 'jsonb', nullable: true })
-  openCordons: string[] | null;
-
   @Column({ type: 'float', nullable: true })
   projectionX: number | null;
 

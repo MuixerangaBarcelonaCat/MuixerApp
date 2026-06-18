@@ -49,7 +49,6 @@ interface RenglaItem {
   id: string;
   name: string;
   sortOrder: number;
-  allowsCordoObert: boolean;
 }
 
 interface FigureTemplateListItem {
@@ -202,7 +201,6 @@ export class FigureTemplateService {
 
     if (dto.nodes !== undefined) {
       await this.syncNodes(template, dto.nodes);
-      await this.autoComputeAllowsCordoObert(id);
     }
 
     if (dto.rengles !== undefined) {
@@ -355,7 +353,6 @@ export class FigureTemplateService {
           template: savedTemplate,
           name: r.name,
           sortOrder: r.sortOrder,
-          allowsCordoObert: r.allowsCordoObert,
         });
       });
       await this.renglaRepository.save(newRengles);
@@ -581,11 +578,6 @@ export class FigureTemplateService {
     if (toDeleteIds.length > 0) await this.nodeRepository.delete({ id: In(toDeleteIds) });
   }
 
-  /**
-   * Upsert strategy for rengles.
-   * On deletion: clears renglaId/renglaPosition on orphaned FigureNodes.
-   * After upsert: auto-computes allowsCordoObert from node data.
-   */
   private async syncRengles(
     template: FigureTemplate,
     incomingDtos: CreateRenglaDto[],
@@ -605,7 +597,6 @@ export class FigureTemplateService {
         const rengla = existingById.get(dto.id)!;
         rengla.name = dto.name ?? rengla.name ?? `Rengla ${i + 1}`;
         rengla.sortOrder = dto.sortOrder ?? rengla.sortOrder;
-        rengla.allowsCordoObert = dto.allowsCordoObert ?? rengla.allowsCordoObert;
         toUpdate.push(rengla);
         incomingIds.add(dto.id);
       } else {
@@ -615,7 +606,6 @@ export class FigureTemplateService {
             template,
             name: dto.name || `Rengla ${i + 1}`,
             sortOrder: dto.sortOrder ?? i,
-            allowsCordoObert: dto.allowsCordoObert ?? false,
           }),
         );
       }
@@ -638,34 +628,6 @@ export class FigureTemplateService {
         .execute();
 
       await this.renglaRepository.delete({ id: In(toDeleteIds) });
-    }
-
-    await this.autoComputeAllowsCordoObert(template.id);
-  }
-
-  private async autoComputeAllowsCordoObert(templateId: string): Promise<void> {
-    const rengles = await this.renglaRepository.find({
-      where: { template: { id: templateId } },
-    });
-    if (rengles.length === 0) return;
-
-    const nodes = await this.nodeRepository.find({
-      where: { template: { id: templateId } },
-    });
-
-    const updates: Rengla[] = [];
-    for (const rengla of rengles) {
-      const hasCordoObert = nodes.some(
-        (n) => n.renglaId === rengla.id && n.positionType === 'cordo-obert',
-      );
-      if (rengla.allowsCordoObert !== hasCordoObert) {
-        rengla.allowsCordoObert = hasCordoObert;
-        updates.push(rengla);
-      }
-    }
-
-    if (updates.length > 0) {
-      await this.renglaRepository.save(updates);
     }
   }
 }
@@ -725,7 +687,6 @@ function renglaToItem(rengla: Rengla): RenglaItem {
     id: rengla.id,
     name: rengla.name ?? `Rengla ${rengla.sortOrder + 1}`,
     sortOrder: rengla.sortOrder,
-    allowsCordoObert: rengla.allowsCordoObert,
   };
 }
 

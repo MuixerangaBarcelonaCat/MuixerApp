@@ -63,7 +63,14 @@ scripts/tunnel-pre.sh
 # -- Graphify ────────────────────────────────────────────
 graphify-out/
 
+<<<<<<< HEAD
 .claude
 
 # -- Gemini Gem (context extern, no pujar a git) ──────────
+=======
+# -- Claude ──────────────────────────────────────────────
+.claude
+
+# -- Gemini ──────────────────────────────────────────────
+>>>>>>> develop
 .gem/

@@ -51,10 +51,6 @@ export class NodeAssignmentService extends ApiService {
     );
   }
 
-  updateCordons(instanceId: string, payload: UpdateInstanceCordonsPayload): Observable<CordonsResponse> {
-    return this.patch<CordonsResponse>(`/figure-instances/${instanceId}/cordons`, payload);
-  }
-
   resetSnapshot(instanceId: string): Observable<{ removedAssignments: number; deletedAdHocCount: number }> {
     return this.post<{ removedAssignments: number; deletedAdHocCount: number }>(`/figure-instances/${instanceId}/reset`, {});
   }
@@ -75,6 +71,10 @@ export class NodeAssignmentService extends ApiService {
 
   bulkImport(instanceId: string, payload: BulkImportPayload): Observable<BulkImportResult> {
     return this.post<BulkImportResult>(`/figure-instances/${instanceId}/assignments/bulk`, payload);
+  }
+
+  updateCordons(instanceId: string, payload: UpdateInstanceCordonsPayload): Observable<CordonsResponse> {
+    return this.patch<CordonsResponse>(`/figure-instances/${instanceId}/cordons`, payload);
   }
 
   getAvailablePersons(

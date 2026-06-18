@@ -10,11 +10,10 @@ interface ProjectionInstanceData {
   label: string | null;
   sortOrder: number;
   numberOfCordons: number | null;
-  openCordons: string[] | null;
   projectionX: number | null;
   projectionY: number | null;
   projectionScale: number;
-  figureTemplate: { id: string; name: string } | null;
+  figureTemplate: { id: string; name: string; hasPinya: boolean } | null;
   nodes: InstanceNodeResponse[];
   assignments: AssignmentDetail[];
 }
@@ -66,29 +65,37 @@ export class ProjectionService {
       order: { sortOrder: 'ASC' },
     });
 
-    const projectionInstances: ProjectionInstanceData[] = await Promise.all(
-      instances.map(async (instance) => {
-        const [nodes, assignments] = await Promise.all([
+    const projectionInstances: ProjectionInstanceData[] = [];
+    for (const instance of instances) {
+      let nodes: InstanceNodeResponse[] = [];
+      let assignments: AssignmentDetail[] = [];
+
+      if (instance.figureTemplate) {
+        [nodes, assignments] = await Promise.all([
           this.nodeAssignmentService.getInstanceNodes(instance.id),
           this.nodeAssignmentService.getByInstance(instance.id),
         ]);
-        return {
-          id: instance.id,
-          label: instance.label,
-          sortOrder: instance.sortOrder,
-          numberOfCordons: instance.numberOfCordons,
-          openCordons: instance.openCordons,
-          projectionX: instance.projectionX,
-          projectionY: instance.projectionY,
-          projectionScale: instance.projectionScale,
-          figureTemplate: instance.figureTemplate
-            ? { id: instance.figureTemplate.id, name: instance.figureTemplate.name }
-            : null,
-          nodes,
-          assignments,
-        };
-      }),
-    );
+      }
+
+      projectionInstances.push({
+        id: instance.id,
+        label: instance.label,
+        sortOrder: instance.sortOrder,
+        numberOfCordons: instance.numberOfCordons ?? null,
+        projectionX: instance.projectionX,
+        projectionY: instance.projectionY,
+        projectionScale: instance.projectionScale,
+        figureTemplate: instance.figureTemplate
+          ? {
+              id: instance.figureTemplate.id,
+              name: instance.figureTemplate.name,
+              hasPinya: instance.figureTemplate.hasPinya,
+            }
+          : null,
+        nodes,
+        assignments,
+      });
+    }
 
     return {
       segment: {

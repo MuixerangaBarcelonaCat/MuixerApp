@@ -5,11 +5,10 @@ export interface InstanceDetail {
   snapshotted: boolean;
   assignedCount: number;
   numberOfCordons: number | null;
-  openCordons: string[] | null;
   projectionX: number | null;
   projectionY: number | null;
   projectionScale: number;
-  figureTemplate: { id: string; name: string } | null;
+  figureTemplate: { id: string; name: string; hasPinya: boolean } | null;
   compositionTemplate: { id: string; name: string } | null;
 }
 
