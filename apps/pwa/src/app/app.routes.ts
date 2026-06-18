@@ -40,6 +40,13 @@ export const appRoutes: Routes = [
           ),
       },
       {
+        path: 'events/:id',
+        loadComponent: () =>
+          import('./features/events/event-detail/event-detail.component').then(
+            (m) => m.EventDetailComponent,
+          ),
+      },
+      {
         path: 'profile',
         loadComponent: () =>
           import('./features/profile/profile.component').then(

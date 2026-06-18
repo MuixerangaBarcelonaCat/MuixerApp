@@ -1,0 +1,41 @@
+<app-mobile-header title="Inici" />
+
+<section class="py-2">
+  <h2 class="text-xl font-semibold mb-4">{{ greeting() }}</h2>
+
+  @if (isLoading()) {
+    <div class="flex flex-col gap-3">
+      <app-skeleton-card [count]="3" />
+    </div>
+  } @else if (!hasEvents()) {
+    <app-empty-state message="No hi ha events propers programats." />
+  } @else {
+    <div class="flex flex-col gap-6" aria-live="polite">
+      @if (nextRehearsals().length > 0) {
+        <div>
+          <h3 class="text-sm font-medium text-base-content/60 uppercase tracking-wider mb-2">
+            Propers assajos
+          </h3>
+          <div class="flex flex-col gap-3">
+            @for (event of nextRehearsals(); track event.id) {
+              <app-event-card [event]="event" />
+            }
+          </div>
+        </div>
+      }
+
+      @if (nextPerformances().length > 0) {
+        <div>
+          <h3 class="text-sm font-medium text-base-content/60 uppercase tracking-wider mb-2">
+            Properes actuacions
+          </h3>
+          <div class="flex flex-col gap-3">
+            @for (event of nextPerformances(); track event.id) {
+              <app-event-card [event]="event" />
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+</section>

@@ -14,7 +14,7 @@
 |------|-----|---------|----------|-------|------------|
 | P6.0 | Infraestructura i App Shell | Config CORS/port | Scaffold, shell, tabs | ✅ Completat | Branca: `feat/pwa-app-start` |
 | P6.1 | Auth (bàsic) | Fix clientType refresh | Login, guards, interceptor | ✅ Completat | Branca: `feat/pwa-app-start` |
-| P6.2 | Events i Assistència | `MeModule` + endpoints | Llista events, Home, attendance | ⚪ Pendent | — |
+| P6.2 | Events i Assistència | `MeModule` + endpoints | Llista events, Home, attendance | 🟡 Dissenyant | [Spec](specs/P6.2-events-attendance-spec.md) |
 | P6.3 | Detall d'Event | Segments visibles per MEMBER | Detall, accordion, info figures | ⚪ Pendent | — |
 | P6.4 | Gestió Familiar | `PersonGuardian` entity | Person selector, attendance gestionada | ⚪ Pendent | — |
 | P6.5 | Canvas Pinyes | Relaxar endpoint projecció | Konva readonly, touch, highlight | ⚪ Pendent | — |
@@ -417,3 +417,134 @@ Proves a executar contra el backend local (`nx serve api`) + PWA (`nx serve pwa`
 - Error de login genèric per a errors de xarxa (hauria de diferenciar 401 vs network failure)
 - Import no usat de `DataSource` a `auth.service.ts` backend
 - `cleanupExpiredTokens` fa una query redundant (la 2a DELETE és subset de la 1a)
+
+---
+
+## Proves Manuals — Post-P6.2 (Pre-P6.3 Checklist)
+
+Proves a executar contra el backend local (`nx serve api`) + PWA (`nx serve pwa`) amb la DB amb seed data.
+
+### Prerequisits
+
+- [ ] Backend en marxa a `:3000` amb `MeModule` registrat
+- [ ] PWA servida a `:4300`
+- [ ] Sessió activa (login completat — P6.1 provat)
+- [ ] Temporada actual amb almenys 5 events (3 ASSAIG + 2 ACTUACIÓ)
+- [ ] Almenys 2 events futurs i 2 events passats a la temporada
+- [ ] Almenys 1 event amb assistència ja registrada per l'usuari (via Dashboard)
+- [ ] Almenys 1 usuari MEMBER sense `person` vinculada
+
+### Home — Contingut
+
+| # | Prova | Resultat esperat |
+|---|-------|------------------|
+| 1 | Obrir Home (tab Inici) | Salutació "Hola, {nom}" visible |
+| 2 | Home amb events futurs | Card del pròxim assaig visible |
+| 3 | Home amb events futurs | Card de la pròxima actuació visible |
+| 4 | Card d'assaig mostra data formatada | "Dilluns 16 de juny" (dia setmana + dia + mes) |
+| 5 | Card d'actuació mostra títol | Títol de l'event (no data com a títol) |
+| 6 | Cards mostren ubicació i hora | Icones MapPin + Clock amb dades |
+| 7 | Home sense events futurs | Missatge "No hi ha events programats." |
+| 8 | Login amb user sense person | Home mostra llista buida (sense error) |
+
+### Home — Navegació
+
+| # | Prova | Resultat esperat |
+|---|-------|------------------|
+| 9 | Tocar card d'assaig | Navega a `/events/:id` (event detail) |
+| 10 | Tocar card d'actuació | Navega a `/events/:id` (event detail) |
+
+### Home — Skeleton Loading
+
+| # | Prova | Resultat esperat |
+|---|-------|------------------|
+| 11 | Recarregar Home (o throttle a Slow 3G) | 2-3 skeleton cards visibles durant càrrega |
+| 12 | Skeleton desapareix quan dades arriben | Cards reals substitueixen skeletons |
+
+### Llista Events — Visualització
+
+| # | Prova | Resultat esperat |
+|---|-------|------------------|
+| 13 | Obrir tab Events | Llista de cards d'events propers visible |
+| 14 | Cards d'ASSAIG | `border-secondary` esquerra (4px), títol = data formatada |
+| 15 | Cards d'ACTUACIÓ | `border-primary` esquerra (4px), títol = títol event |
+| 16 | Cada card mostra botó d'assistència | Botó amb estat actual (Pendent/Vinc/No vinc) |
+| 17 | Scroll per la llista | Llista scorrejable sense problemes |
+
+### Llista Events — Filtres
+
+| # | Prova | Resultat esperat |
+|---|-------|------------------|
+| 18 | Tab "Propers" actiu per defecte | Events futurs visibles, ordenats ASC |
+| 19 | Tocar tab "Passats" | Events passats visibles, ordenats DESC |
+| 20 | Tocar tab "Tots" | Tots els events (propers primer, després passats) |
+| 21 | Tornar a "Propers" | Només events futurs de nou |
+| 22 | Filtre sense resultats | Empty state "No hi ha events per mostrar." |
+
+### Llista Events — Pull-to-Refresh
+
+| # | Prova | Resultat esperat |
+|---|-------|------------------|
+| 23 | Tirar cap avall a la llista (touch) | Spinner apareix, dades es recarreguen |
+| 24 | Pull-to-refresh completa | Spinner desapareix, llista actualitzada |
+
+### Assistència — Toggle
+
+| # | Prova | Resultat esperat |
+|---|-------|------------------|
+| 25 | Tocar botó "Pendent" | Canvia a "Vinc" (verd) immediatament (optimistic) |
+| 26 | Tocar botó "Vinc" | Canvia a "No vinc" (vermell) immediatament |
+| 27 | Tocar botó "No vinc" | Canvia a "Vinc" (verd) immediatament |
+| 28 | Després de canvi exitós | Toast "Assistència actualitzada." visible (3s) |
+| 29 | Error d'API (backend aturat) | Botó reverteix a estat anterior + toast error |
+
+### Assistència — Validacions
+
+| # | Prova | Resultat esperat |
+|---|-------|------------------|
+| 30 | Event passat: tocar botó assistència | Botó disabled, no es pot canviar |
+| 31 | User sense person: tocar botó | No es mostra botó (o mostra disabled) |
+| 32 | Assistència existent (via Dashboard): veure estat | Estat correcte reflectit al botó |
+| 33 | Canviar assistència i recarregar | Nou estat persistit correctament |
+
+### Detall Event (Placeholder)
+
+| # | Prova | Resultat esperat |
+|---|-------|------------------|
+| 34 | Tocar card → detall | Pàgina amb data, hora, ubicació visible |
+| 35 | Botó d'assistència al detall | Funcional, mateix comportament que a la llista |
+| 36 | Descripció de l'event | Visible si l'event en té |
+| 37 | Botó enrere | Torna a la vista anterior |
+
+### API — Backend MeModule
+
+| # | Prova | Resultat esperat |
+|---|-------|------------------|
+| 38 | `GET /me/events` (Swagger o curl) | Retorna `{ data: MeEvent[], meta }` |
+| 39 | `GET /me/events?type=ASSAIG` | Només assajos |
+| 40 | `GET /me/events?timeFilter=past` | Només events passats |
+| 41 | `PUT /me/events/:id/attendance { status: "ANIRE" }` | 200, crea o actualitza |
+| 42 | `PUT /me/events/:id/attendance { status: "ASSISTIT" }` | 400, status no permès |
+| 43 | `PUT /me/events/:id/attendance` (event passat) | 400, "L'event ja ha passat" |
+| 44 | `GET /me/events` sense sessió | 401 |
+| 45 | `GET /me/events` amb JWT d'un user sense person | `{ data: [], meta: { total: 0 } }` |
+
+### UX i Accessibilitat
+
+| # | Prova | Resultat esperat |
+|---|-------|------------------|
+| 46 | Viewport mòbil (375px) | Cards full-width, no overflow horitzontal |
+| 47 | Viewport tablet (768px) | Layout adaptat, cards centrades |
+| 48 | Tab navigation (teclat) | Cards i botons focusables amb Tab |
+| 49 | Enter sobre card focusada | Navega al detall |
+| 50 | Screen reader: botó assistència | `aria-label` llegible (ex: "Canviar assistència a Vinc") |
+| 51 | Colors: botó Vinc vs No vinc | Contrast ≥ 4.5:1 (success/error sobre fons) |
+| 52 | Estat assistència expressat amb text | No depèn només del color (icona + text) |
+
+### Performance
+
+| # | Prova | Resultat esperat |
+|---|-------|------------------|
+| 53 | Temps de càrrega Home (Network Normal) | < 2s fins a cards visibles |
+| 54 | Temps de càrrega Event List (20 events) | < 2s fins a cards visibles |
+| 55 | Canvi de filtre (Propers → Passats) | < 1s amb skeleton transició |

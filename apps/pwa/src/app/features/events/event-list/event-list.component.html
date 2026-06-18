@@ -1,0 +1,32 @@
+<app-mobile-header title="Events" />
+
+<nav class="tabs tabs-bordered w-full mb-4" role="tablist" aria-label="Filtre d'events">
+  @for (tab of tabs; track tab.key) {
+    <button
+      type="button"
+      role="tab"
+      class="tab flex-1"
+      [class.tab-active]="activeFilter() === tab.key"
+      [attr.aria-selected]="activeFilter() === tab.key"
+      (click)="setFilter(tab.key)"
+    >
+      {{ tab.label }}
+    </button>
+  }
+</nav>
+
+<app-pull-to-refresh (refresh)="onRefresh()">
+  <section class="flex flex-col gap-3 pb-4" aria-live="polite">
+    @if (isLoading()) {
+      <app-skeleton-card [count]="4" />
+    } @else if (hasError()) {
+      <app-empty-state message="Error carregant els events. Torna-ho a provar." />
+    } @else if (events().length === 0) {
+      <app-empty-state [message]="emptyMessage()" />
+    } @else {
+      @for (event of events(); track event.id) {
+        <app-event-card [event]="event" />
+      }
+    }
+  </section>
+</app-pull-to-refresh>
