@@ -9,6 +9,7 @@ interface ProjectionInstanceData {
   id: string;
   label: string | null;
   sortOrder: number;
+  numberOfCordons: number | null;
   projectionX: number | null;
   projectionY: number | null;
   projectionScale: number;
@@ -80,6 +81,7 @@ export class ProjectionService {
         id: instance.id,
         label: instance.label,
         sortOrder: instance.sortOrder,
+        numberOfCordons: instance.numberOfCordons ?? null,
         projectionX: instance.projectionX,
         projectionY: instance.projectionY,
         projectionScale: instance.projectionScale,

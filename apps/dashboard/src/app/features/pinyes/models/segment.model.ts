@@ -4,6 +4,7 @@ export interface InstanceDetail {
   sortOrder: number;
   snapshotted: boolean;
   assignedCount: number;
+  numberOfCordons: number | null;
   projectionX: number | null;
   projectionY: number | null;
   projectionScale: number;

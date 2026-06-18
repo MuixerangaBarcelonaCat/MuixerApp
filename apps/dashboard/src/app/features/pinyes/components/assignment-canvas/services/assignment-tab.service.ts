@@ -14,6 +14,7 @@ export interface InstanceTab {
   label: string;
   figureTemplateId: string | null;
   snapshotted: boolean;
+  numberOfCordons: number | null;
   nodes: InstanceNodeItem[];
   assignedCount: number;
   totalCount: number;
@@ -72,10 +73,15 @@ export class AssignmentTabService {
   loadTabData(instanceId: string): void {
     this.assignmentService.getInstanceNodes(instanceId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (resp) => {
+        const tab = this.tabs().find((t) => t.instanceId === instanceId);
+        const cordons = tab?.numberOfCordons ?? null;
+        const assignableCount = resp.data.filter(
+          (n) => n.zone !== FigureZone.DECORATION && this.isNodeVisibleByCordons(n, cordons),
+        ).length;
         this.tabs.update((list) =>
           list.map((t) =>
             t.instanceId === instanceId
-              ? { ...t, nodes: resp.data, totalCount: resp.data.length }
+              ? { ...t, nodes: resp.data, totalCount: assignableCount }
               : t,
           ),
         );
@@ -99,10 +105,15 @@ export class AssignmentTabService {
   refreshInstanceNodes(instanceId: string): void {
     this.assignmentService.getInstanceNodes(instanceId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (resp) => {
+        const tab = this.tabs().find((t) => t.instanceId === instanceId);
+        const cordons = tab?.numberOfCordons ?? null;
+        const assignableCount = resp.data.filter(
+          (n) => n.zone !== FigureZone.DECORATION && this.isNodeVisibleByCordons(n, cordons),
+        ).length;
         this.tabs.update((list) =>
           list.map((t) =>
             t.instanceId === instanceId
-              ? { ...t, nodes: resp.data, totalCount: resp.data.length, snapshotted: true }
+              ? { ...t, nodes: resp.data, totalCount: assignableCount, snapshotted: true }
               : t,
           ),
         );
@@ -115,6 +126,16 @@ export class AssignmentTabService {
         });
       },
     });
+  }
+
+  private isNodeVisibleByCordons(
+    node: { renglaId?: string | null; renglaPosition?: number | null },
+    numberOfCordons: number | null,
+  ): boolean {
+    if (numberOfCordons === null) return true;
+    if (!node.renglaId) return true;
+    if (node.renglaPosition === null || node.renglaPosition === undefined) return true;
+    return node.renglaPosition <= numberOfCordons;
   }
 
   updateTabCount(instanceId: string): void {
@@ -178,6 +199,7 @@ export class AssignmentTabService {
         label: instance.label ?? instance.figureTemplate?.name ?? '?',
         figureTemplateId: instance.figureTemplate?.id ?? null,
         snapshotted: instance.snapshotted,
+        numberOfCordons: instance.numberOfCordons ?? null,
         nodes: [],
         assignedCount: 0,
         totalCount: 0,

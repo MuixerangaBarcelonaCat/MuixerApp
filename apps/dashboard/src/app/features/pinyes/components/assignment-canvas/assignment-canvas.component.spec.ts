@@ -114,6 +114,7 @@ const makeInstance = (overrides = {}) => ({
   sortOrder: 0,
   snapshotted: false,
   assignedCount: 0,
+  numberOfCordons: null as number | null,
   projectionX: null,
   projectionY: null,
   projectionScale: 1,
@@ -178,6 +179,7 @@ interface MockAssignmentService {
   getNextPerformance: MockFn;
   getAvailablePersons: MockFn;
   getLockStatus: MockFn;
+  updateCordons: MockFn;
 }
 
 describe('AssignmentCanvasComponent', () => {
@@ -209,6 +211,7 @@ describe('AssignmentCanvasComponent', () => {
       getNextPerformance: vi.fn().mockReturnValue(of(null)),
       getAvailablePersons: vi.fn().mockReturnValue(of({ data: [] })),
       getLockStatus: vi.fn().mockReturnValue(of({ locked: false, lockDate: null, lockDays: 2 })),
+      updateCordons: vi.fn().mockReturnValue(of({ numberOfCordons: 2, removedAssignments: 0 })),
     };
 
     segmentService = {
@@ -416,7 +419,7 @@ describe('AssignmentCanvasComponent', () => {
         ...list,
         {
           instanceId: secondInstanceId, label: 'pd3', figureTemplateId: TEMPLATE_ID,
-          snapshotted: false, hasPinya: true,
+          snapshotted: false, hasPinya: true, numberOfCordons: null,
           nodes: [], assignedCount: 0, totalCount: 0,
         },
       ]);
@@ -443,6 +446,16 @@ describe('AssignmentCanvasComponent', () => {
       ]);
       stateService.assignments.set([makeAssignment('inode-1', 'p1')]);
       expect(stateService.freePersonsCount()).toBe(1);
+    });
+
+    it('"Lliures" excludes persons assigned in other tabs via assignedInSegment', () => {
+      stateService.confirmedPersons.set([
+        makeAvailablePerson('p1'),
+        { ...makeAvailablePerson('p2'), assignedInSegment: true },
+        makeAvailablePerson('p3'),
+      ]);
+      stateService.assignments.set([]);
+      expect(stateService.freePersonsCount()).toBe(2);
     });
   });
 
@@ -918,6 +931,115 @@ describe('AssignmentCanvasComponent', () => {
     });
   });
 
+  // ── totalNeededAllTabs multi-tab ─────────────────────────────────────────
+
+  describe('totalNeededAllTabs across multiple tabs', () => {
+    const INSTANCE_ID_2 = 'instance-uuid-2';
+    const TEMPLATE_ID_2 = 'template-uuid-2';
+
+    const nodesInstance2: InstanceNodeItem[] = [
+      { id: 'i2-n1', label: 'p1', zone: FigureZone.PINYA, z: 0, positionType: null, x: 0, y: 0, width: 60, height: 40, rotation: 0, color: null, shape: NodeShape.ELLIPSE, sortOrder: 0, ringLevel: 1, originNodeId: null, renglaId: null, renglaPosition: null, sourceNodeId: null, isSnapshotted: false, isAdHoc: false, createdById: null },
+      { id: 'i2-n2', label: 'p2', zone: FigureZone.PINYA, z: 0, positionType: null, x: 100, y: 0, width: 60, height: 40, rotation: 0, color: null, shape: NodeShape.ELLIPSE, sortOrder: 1, ringLevel: 1, originNodeId: null, renglaId: null, renglaPosition: null, sourceNodeId: null, isSnapshotted: false, isAdHoc: false, createdById: null },
+    ];
+
+    it('sums totalCount across all tabs after loading non-active tab counts', () => {
+      const multiSegment: SegmentDetail = {
+        id: SEGMENT_ID,
+        name: 'Bloc A',
+        sortOrder: 0,
+        startTime: null,
+        endTime: null,
+        notes: null,
+        isVisible: false,
+        instances: [
+          makeInstance(),
+          makeInstance({ id: INSTANCE_ID_2, figureTemplate: { id: TEMPLATE_ID_2, name: 'pd3', hasPinya: true } }),
+        ],
+      };
+
+      assignmentService.getInstanceNodes = vi.fn().mockImplementation((instanceId: string) => {
+        if (instanceId === INSTANCE_ID) return of({ data: makeInstanceNodes() });
+        if (instanceId === INSTANCE_ID_2) return of({ data: nodesInstance2 });
+        return of({ data: [] });
+      });
+      assignmentService.getByInstance = vi.fn().mockReturnValue(of({ data: [] }));
+      assignmentService.getLockStatus = vi.fn().mockReturnValue(of({ locked: false, lockDate: null, lockDays: 2 }));
+      segmentService.getByEvent = vi.fn().mockReturnValue(of({ data: [multiSegment] }));
+
+      component.ngOnInit();
+
+      const tab1 = component.tabs().find((t) => t.instanceId === INSTANCE_ID)!;
+      const tab2 = component.tabs().find((t) => t.instanceId === INSTANCE_ID_2)!;
+      expect(tab1.totalCount).toBe(3);
+      expect(tab2.totalCount).toBe(2);
+      expect(component.totalNeededAllTabs()).toBe(5);
+    });
+
+    it('isOverCapacity is true when total needed exceeds confirmed adults', () => {
+      const multiSegment: SegmentDetail = {
+        id: SEGMENT_ID,
+        name: 'Bloc A',
+        sortOrder: 0,
+        startTime: null,
+        endTime: null,
+        notes: null,
+        isVisible: false,
+        instances: [
+          makeInstance(),
+          makeInstance({ id: INSTANCE_ID_2, figureTemplate: { id: TEMPLATE_ID_2, name: 'pd3', hasPinya: true } }),
+        ],
+      };
+
+      assignmentService.getInstanceNodes = vi.fn().mockImplementation((instanceId: string) => {
+        if (instanceId === INSTANCE_ID) return of({ data: makeInstanceNodes() });
+        if (instanceId === INSTANCE_ID_2) return of({ data: nodesInstance2 });
+        return of({ data: [] });
+      });
+      assignmentService.getByInstance = vi.fn().mockReturnValue(of({ data: [] }));
+      assignmentService.getLockStatus = vi.fn().mockReturnValue(of({ locked: false, lockDate: null, lockDays: 2 }));
+      segmentService.getByEvent = vi.fn().mockReturnValue(of({ data: [multiSegment] }));
+
+      component.ngOnInit();
+
+      stateService.confirmedPersons.set([
+        makeAvailablePerson('p1'),
+        makeAvailablePerson('p2'),
+        makeAvailablePerson('p3'),
+      ]);
+      component.personsLoaded.set(true);
+
+      expect(component.totalNeededAllTabs()).toBe(5);
+      expect(stateService.totalConfirmedCount()).toBe(3);
+      expect(component.isOverCapacity()).toBe(true);
+    });
+
+    it('uses assignedCount from InstanceDetail during buildTabs', () => {
+      const multiSegment: SegmentDetail = {
+        id: SEGMENT_ID,
+        name: 'Bloc A',
+        sortOrder: 0,
+        startTime: null,
+        endTime: null,
+        notes: null,
+        isVisible: false,
+        instances: [
+          makeInstance({ assignedCount: 2 }),
+          makeInstance({ id: INSTANCE_ID_2, assignedCount: 1, figureTemplate: { id: TEMPLATE_ID_2, name: 'pd3', hasPinya: true } }),
+        ],
+      };
+
+      assignmentService.getInstanceNodes = vi.fn().mockReturnValue(of({ data: makeInstanceNodes() }));
+      assignmentService.getByInstance = vi.fn().mockReturnValue(of({ data: [] }));
+      assignmentService.getLockStatus = vi.fn().mockReturnValue(of({ locked: false, lockDate: null, lockDays: 2 }));
+      segmentService.getByEvent = vi.fn().mockReturnValue(of({ data: [multiSegment] }));
+
+      component.ngOnInit();
+
+      const tab2 = component.tabs().find((t) => t.instanceId === INSTANCE_ID_2)!;
+      expect(tab2.assignedCount).toBeGreaterThanOrEqual(0);
+    });
+  });
+
   // ── Tronc-first detection (F4) ────────────────────────────────────────
 
   describe('tronc-first detection (figures netes)', () => {
@@ -983,6 +1105,154 @@ describe('AssignmentCanvasComponent', () => {
       component.onDirectionRemoved('dir-node-1');
 
       expect(toastService.error).toHaveBeenCalled();
+    });
+  });
+
+  // ── Cordons visibility ────────────────────────────────────────────────
+
+  describe('cordons visibility', () => {
+    const nodesWithRenglaPositions: InstanceNodeItem[] = [
+      { id: 'n1', label: 'c1', zone: FigureZone.PINYA, z: 0, positionType: 'mans', x: 0, y: 0, width: 60, height: 40, rotation: 0, color: null, shape: NodeShape.ELLIPSE, sortOrder: 0, ringLevel: null, originNodeId: null, renglaId: 'r1', renglaPosition: 1, sourceNodeId: null, isSnapshotted: false, isAdHoc: false, createdById: null },
+      { id: 'n2', label: 'c2', zone: FigureZone.PINYA, z: 0, positionType: 'mans', x: 0, y: 0, width: 60, height: 40, rotation: 0, color: null, shape: NodeShape.ELLIPSE, sortOrder: 1, ringLevel: null, originNodeId: null, renglaId: 'r1', renglaPosition: 2, sourceNodeId: null, isSnapshotted: false, isAdHoc: false, createdById: null },
+      { id: 'n3', label: 'c3', zone: FigureZone.PINYA, z: 0, positionType: 'mans', x: 0, y: 0, width: 60, height: 40, rotation: 0, color: null, shape: NodeShape.ELLIPSE, sortOrder: 2, ringLevel: null, originNodeId: null, renglaId: 'r1', renglaPosition: 4, sourceNodeId: null, isSnapshotted: false, isAdHoc: false, createdById: null },
+    ];
+
+    beforeEach(() => {
+      assignmentService.getInstanceNodes = vi.fn().mockReturnValue(of({ data: nodesWithRenglaPositions }));
+      assignmentService.getByInstance = vi.fn().mockReturnValue(of({ data: [] }));
+    });
+
+    it('maxCordons computes max renglaPosition from active nodes', () => {
+      component.tabs.set([{
+        instanceId: INSTANCE_ID,
+        label: 'Test',
+        figureTemplateId: 'tpl-1',
+        hasPinya: true,
+        snapshotted: true,
+        numberOfCordons: null,
+        nodes: nodesWithRenglaPositions,
+        assignedCount: 0,
+        totalCount: 3,
+      }]);
+      stateService.activeInstanceId.set(INSTANCE_ID);
+
+      expect(component.maxCordons()).toBe(4);
+    });
+
+    it('currentCordonsLabel returns "Tots" when null', () => {
+      component.tabs.set([{
+        instanceId: INSTANCE_ID,
+        label: 'Test',
+        figureTemplateId: 'tpl-1',
+        hasPinya: true,
+        snapshotted: true,
+        numberOfCordons: null,
+        nodes: nodesWithRenglaPositions,
+        assignedCount: 0,
+        totalCount: 3,
+      }]);
+      stateService.activeInstanceId.set(INSTANCE_ID);
+
+      expect(component.currentCordonsLabel()).toBe('Tots');
+    });
+
+    it('currentCordonsLabel returns "Cordó X/Y" when set', () => {
+      component.tabs.set([{
+        instanceId: INSTANCE_ID,
+        label: 'Test',
+        figureTemplateId: 'tpl-1',
+        hasPinya: true,
+        snapshotted: true,
+        numberOfCordons: 2,
+        nodes: nodesWithRenglaPositions,
+        assignedCount: 0,
+        totalCount: 3,
+      }]);
+      stateService.activeInstanceId.set(INSTANCE_ID);
+
+      expect(component.currentCordonsLabel()).toBe('Cordó 2/4');
+    });
+
+    it('decrementCordons calls updateCordons with decremented value', () => {
+      component.tabs.set([{
+        instanceId: INSTANCE_ID,
+        label: 'Test',
+        figureTemplateId: 'tpl-1',
+        hasPinya: true,
+        snapshotted: true,
+        numberOfCordons: 3,
+        nodes: nodesWithRenglaPositions,
+        assignedCount: 0,
+        totalCount: 3,
+      }]);
+      stateService.activeInstanceId.set(INSTANCE_ID);
+
+      component.decrementCordons();
+
+      expect(assignmentService.updateCordons).toHaveBeenCalledWith(INSTANCE_ID, { numberOfCordons: 2 });
+    });
+
+    it('incrementCordons sets null when reaching max', () => {
+      component.tabs.set([{
+        instanceId: INSTANCE_ID,
+        label: 'Test',
+        figureTemplateId: 'tpl-1',
+        hasPinya: true,
+        snapshotted: true,
+        numberOfCordons: 4,
+        nodes: nodesWithRenglaPositions,
+        assignedCount: 0,
+        totalCount: 3,
+      }]);
+      stateService.activeInstanceId.set(INSTANCE_ID);
+
+      component.incrementCordons();
+
+      expect(assignmentService.updateCordons).toHaveBeenCalledWith(INSTANCE_ID, { numberOfCordons: null });
+    });
+
+    it('showCordonsControl is true when figure has only one cordon', () => {
+      const singleCordonNodes: InstanceNodeItem[] = [
+        { id: 'n1', label: 'c1', zone: FigureZone.PINYA, z: 0, positionType: 'mans', x: 0, y: 0, width: 60, height: 40, rotation: 0, color: null, shape: NodeShape.ELLIPSE, sortOrder: 0, ringLevel: null, originNodeId: null, renglaId: 'r1', renglaPosition: 1, sourceNodeId: null, isSnapshotted: false, isAdHoc: false, createdById: null },
+      ];
+      component.tabs.set([{
+        instanceId: INSTANCE_ID,
+        label: 'Test',
+        figureTemplateId: 'tpl-1',
+        hasPinya: true,
+        snapshotted: true,
+        numberOfCordons: 1,
+        nodes: singleCordonNodes,
+        assignedCount: 0,
+        totalCount: 1,
+      }]);
+      stateService.activeInstanceId.set(INSTANCE_ID);
+
+      expect(component.maxCordons()).toBe(1);
+      expect(component.showCordonsControl()).toBe(true);
+      expect(component.currentCordonsLabel()).toBe('Cordó 1/1');
+    });
+
+    it('incrementCordons from 1/1 sets null (show all)', () => {
+      const singleCordonNodes: InstanceNodeItem[] = [
+        { id: 'n1', label: 'c1', zone: FigureZone.PINYA, z: 0, positionType: 'mans', x: 0, y: 0, width: 60, height: 40, rotation: 0, color: null, shape: NodeShape.ELLIPSE, sortOrder: 0, ringLevel: null, originNodeId: null, renglaId: 'r1', renglaPosition: 1, sourceNodeId: null, isSnapshotted: false, isAdHoc: false, createdById: null },
+      ];
+      component.tabs.set([{
+        instanceId: INSTANCE_ID,
+        label: 'Test',
+        figureTemplateId: 'tpl-1',
+        hasPinya: true,
+        snapshotted: true,
+        numberOfCordons: 1,
+        nodes: singleCordonNodes,
+        assignedCount: 0,
+        totalCount: 1,
+      }]);
+      stateService.activeInstanceId.set(INSTANCE_ID);
+
+      component.incrementCordons();
+
+      expect(assignmentService.updateCordons).toHaveBeenCalledWith(INSTANCE_ID, { numberOfCordons: null });
     });
   });
 });

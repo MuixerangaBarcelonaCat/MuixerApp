@@ -23,6 +23,7 @@ import { CreateAdHocNodeDto } from './dto/create-ad-hoc-node.dto';
 import { UpdateAdHocNodeDto } from './dto/update-ad-hoc-node.dto';
 import { BulkImportAssignmentDto } from './dto/bulk-import-assignment.dto';
 import { SwapAssignmentsDto } from './dto/swap-assignments.dto';
+import { UpdateInstanceCordonsDto } from './dto/update-instance-cordons.dto';
 import { HistoryQueryDto } from './dto/history-query.dto';
 
 @ApiTags('node-assignments')
@@ -85,6 +86,15 @@ export class NodeAssignmentController {
     @Body() dto: BulkImportAssignmentDto,
   ) {
     return this.assignmentService.bulkImport(instanceId, dto);
+  }
+
+  @ApiOperation({ summary: 'Update cordon visibility (numberOfCordons) for a figure instance' })
+  @Patch('figure-instances/:instanceId/cordons')
+  updateCordons(
+    @Param('instanceId', ParseUUIDPipe) instanceId: string,
+    @Body() dto: UpdateInstanceCordonsDto,
+  ) {
+    return this.assignmentService.updateCordons(instanceId, dto);
   }
 
   @ApiOperation({ summary: 'Reset snapshot: remove all assignments and instance nodes, revert to live template' })
