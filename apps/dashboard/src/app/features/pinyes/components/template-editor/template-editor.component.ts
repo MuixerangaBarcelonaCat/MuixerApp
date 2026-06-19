@@ -28,7 +28,7 @@ import {
   RenglaModel,
 } from '../../models/figure-template.model';
 import { FigureZone, NodeShape, PINYA_NODE_PRESETS, NodePreset, TRONC_NODE_PRESETS } from '@muixer/shared';
-import { RenglaOverlayComponent, RenglaCreatedEvent, RenglaDeletedEvent } from '../rengla-overlay/rengla-overlay.component';
+import { RenglaOverlayComponent, RenglaCreatedEvent, RenglaDeletedEvent, RenglaStartChangedEvent } from '../rengla-overlay/rengla-overlay.component';
 import { StageTransform } from '../../utils/rengla-coordinates.util';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
@@ -842,6 +842,27 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
           ? { ...n, renglaId: null, renglaPosition: null, ringLevel: null }
           : n,
       ),
+    );
+    this.scheduleAutosave();
+  }
+
+  onRenglaStartChanged(event: RenglaStartChangedEvent): void {
+    const renglaNodes = this.nodes().filter(
+      (n) => n.renglaId === event.renglaId && n.renglaPosition !== null,
+    );
+    if (renglaNodes.length === 0) return;
+
+    const currentMin = Math.min(...renglaNodes.map((n) => n.renglaPosition as number));
+    const offset = event.newStart - currentMin;
+    if (offset === 0) return;
+
+    this.pushSnapshot('Canviar posició inicial de rengla');
+    this.nodes.update((nodes) =>
+      nodes.map((n) => {
+        if (n.renglaId !== event.renglaId || n.renglaPosition === null) return n;
+        const newPos = n.renglaPosition + offset;
+        return { ...n, renglaPosition: newPos, ringLevel: newPos };
+      }),
     );
     this.scheduleAutosave();
   }

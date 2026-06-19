@@ -1255,7 +1255,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
       next: (result) => {
         this.resetting.set(false);
         this.resetModalOpen.set(false);
-        let resetMsg = `S'han eliminat ${result.removedAssignments} assignacions. La figura torna al template original.`;
+        let resetMsg = `S'han eliminat ${result.removedAssignments} assignacions. La figura torna a la plantilla original.`;
         if (result.deletedAdHocCount > 0) {
           resetMsg += ` S'han eliminat ${result.deletedAdHocCount} nodes ad-hoc.`;
         }
