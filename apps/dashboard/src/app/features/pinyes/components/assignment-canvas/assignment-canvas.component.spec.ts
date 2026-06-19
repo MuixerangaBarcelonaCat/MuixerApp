@@ -1156,7 +1156,7 @@ describe('AssignmentCanvasComponent', () => {
       expect(component.currentCordonsLabel()).toBe('Tots');
     });
 
-    it('currentCordonsLabel returns "Cordó X/Y" when set', () => {
+    it('currentCordonsLabel returns "X/Y" when set', () => {
       component.tabs.set([{
         instanceId: INSTANCE_ID,
         label: 'Test',
@@ -1170,7 +1170,7 @@ describe('AssignmentCanvasComponent', () => {
       }]);
       stateService.activeInstanceId.set(INSTANCE_ID);
 
-      expect(component.currentCordonsLabel()).toBe('Cordó 2/4');
+      expect(component.currentCordonsLabel()).toBe('2/4');
     });
 
     it('decrementCordons calls updateCordons with decremented value', () => {
@@ -1230,7 +1230,7 @@ describe('AssignmentCanvasComponent', () => {
 
       expect(component.maxCordons()).toBe(1);
       expect(component.showCordonsControl()).toBe(true);
-      expect(component.currentCordonsLabel()).toBe('Cordó 1/1');
+      expect(component.currentCordonsLabel()).toBe('1/1');
     });
 
     it('incrementCordons from 1/1 sets null (show all)', () => {

@@ -19,6 +19,7 @@ import { InstanceNodeItem } from '../../models/assignment.model';
 import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component';
 import { TroncViewComponent, TroncNodeItem } from '../tronc-view/tronc-view.component';
 import { FigureZone } from '@muixer/shared';
+import { computeCordoObertOverrides } from '../../utils/cordo-obert.util';
 
 @Component({
   selector: 'app-projection-view',
@@ -118,7 +119,13 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
    *  Assigned cordo-obert nodes collapse to the first empty slot in their rengla. */
   getInstanceProjectionNodes(instance: ProjectionInstance): InstanceNodeItem[] {
     const assignedNodeIds = new Set(instance.assignments.map((a) => a.node.id));
-    const overrides = this.cordoObertOverrides(instance.nodes, assignedNodeIds);
+    const overrides = computeCordoObertOverrides(
+      instance.nodes,
+      (co, others) =>
+        assignedNodeIds.has(co.id)
+          ? others.find((n) => !assignedNodeIds.has(n.id))
+          : undefined,
+    );
 
     return instance.nodes
       .filter((n) =>
@@ -129,34 +136,6 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
         const pos = overrides.get(n.id);
         return pos ? { ...n, x: pos.x, y: pos.y } : n;
       });
-  }
-
-  private cordoObertOverrides(
-    nodes: InstanceNodeItem[],
-    assignedNodeIds: Set<string>,
-  ): Map<string, { x: number; y: number }> {
-    const overrides = new Map<string, { x: number; y: number }>();
-
-    const byRengla = new Map<string, InstanceNodeItem[]>();
-    for (const node of nodes) {
-      if (!node.renglaId) continue;
-      const list = byRengla.get(node.renglaId) ?? [];
-      list.push(node);
-      byRengla.set(node.renglaId, list);
-    }
-
-    for (const renglaNodes of byRengla.values()) {
-      const sorted = [...renglaNodes].sort((a, b) => (a.renglaPosition ?? 0) - (b.renglaPosition ?? 0));
-      const cordoObert = sorted.find((n) => n.positionType === 'cordo-obert');
-      if (!cordoObert || !assignedNodeIds.has(cordoObert.id)) continue;
-
-      const firstGap = sorted.find((n) => n.id !== cordoObert.id && !assignedNodeIds.has(n.id));
-      if (firstGap) {
-        overrides.set(cordoObert.id, { x: firstGap.x, y: firstGap.y });
-      }
-    }
-
-    return overrides;
   }
 
   getInstanceTroncNodes(instance: ProjectionInstance): TroncNodeItem[] {

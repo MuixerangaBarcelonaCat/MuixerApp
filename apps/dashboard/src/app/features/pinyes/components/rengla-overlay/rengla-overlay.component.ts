@@ -22,6 +22,11 @@ export interface RenglaDeletedEvent {
   renglaId: string;
 }
 
+export interface RenglaStartChangedEvent {
+  renglaId: string;
+  newStart: number;
+}
+
 interface ScreenNode {
   id: string;
   label: string;
@@ -50,10 +55,12 @@ export class RenglaOverlayComponent {
 
   readonly renglaCreated = output<RenglaCreatedEvent>();
   readonly renglaDeleted = output<RenglaDeletedEvent>();
+  readonly renglaStartChanged = output<RenglaStartChangedEvent>();
 
   readonly creatingRengla = signal(false);
   readonly pendingNodeIds = signal<string[]>([]);
   readonly selectedRenglaId = signal<string | null>(null);
+  readonly startPosition = signal(1);
 
   /** PINYA nodes eligible for rengla assignment (excludes central nodes) */
   readonly eligibleNodes = computed(() =>
@@ -133,11 +140,21 @@ export class RenglaOverlayComponent {
     return id ? (this.rengles().find((r) => r.id === id) ?? null) : null;
   });
 
+  readonly selectedRenglaStartPosition = computed(() => {
+    const id = this.selectedRenglaId();
+    if (!id) return 1;
+    const positions = this.nodes()
+      .filter((n) => n.renglaId === id && n.renglaPosition !== null)
+      .map((n) => n.renglaPosition as number);
+    return positions.length > 0 ? Math.min(...positions) : 1;
+  });
+
   // -- Actions --
 
   startCreating(): void {
     this.creatingRengla.set(true);
     this.pendingNodeIds.set([]);
+    this.startPosition.set(1);
     this.selectedRenglaId.set(null);
   }
 
@@ -169,6 +186,7 @@ export class RenglaOverlayComponent {
   finishCreating(): void {
     const ids = this.pendingNodeIds();
     if (ids.length < 1) return;
+    const start = this.startPosition();
 
     this.renglaCreated.emit({
       rengla: {
@@ -177,7 +195,7 @@ export class RenglaOverlayComponent {
       },
       nodeAssignments: ids.map((nodeId, i) => ({
         nodeId,
-        renglaPosition: i + 1,
+        renglaPosition: start + i,
       })),
     });
 
@@ -187,6 +205,22 @@ export class RenglaOverlayComponent {
   cancelCreate(): void {
     this.creatingRengla.set(false);
     this.pendingNodeIds.set([]);
+    this.startPosition.set(1);
+  }
+
+  onStartPositionChange(event: Event): void {
+    const value = parseInt((event.target as HTMLInputElement).value, 10);
+    if (!isNaN(value) && value >= 1) {
+      this.startPosition.set(value);
+    }
+  }
+
+  onSelectedStartPositionChange(event: Event): void {
+    const id = this.selectedRenglaId();
+    if (!id) return;
+    const value = parseInt((event.target as HTMLInputElement).value, 10);
+    if (isNaN(value) || value < 1) return;
+    this.renglaStartChanged.emit({ renglaId: id, newStart: value });
   }
 
   deleteSelectedRengla(): void {

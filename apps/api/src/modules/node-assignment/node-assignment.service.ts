@@ -6,7 +6,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import {
   EventType,
   FigureZone,
@@ -238,16 +238,6 @@ function figureNodeToResponse(node: FigureNode): InstanceNodeResponse {
     isAdHoc: false,
     createdById: null,
   };
-}
-
-
-export function isNodeVisible(
-  node: { renglaId: string | null; renglaPosition: number | null },
-  numberOfCordons: number | null,
-): boolean {
-  if (numberOfCordons === null) return true;
-  if (!node.renglaId || node.renglaPosition === null) return true;
-  return node.renglaPosition <= numberOfCordons;
 }
 
 
@@ -982,7 +972,7 @@ export class NodeAssignmentService {
   async updateCordons(
     instanceId: string,
     dto: { numberOfCordons?: number | null },
-  ): Promise<{ numberOfCordons: number | null; removedAssignments: number }> {
+  ): Promise<{ numberOfCordons: number | null }> {
     const instance = await this.figureInstanceRepository.findOne({
       where: { id: instanceId },
     });
@@ -996,28 +986,7 @@ export class NodeAssignmentService {
 
     await this.figureInstanceRepository.save(instance);
 
-    let removedAssignments = 0;
-
-    if (instance.numberOfCordons !== null) {
-      const allNodes = await this.instanceNodeRepository.find({
-        where: { figureInstance: { id: instanceId } },
-      });
-      const hiddenNodeIds = allNodes
-        .filter((n) => !isNodeVisible(n, instance.numberOfCordons))
-        .map((n) => n.id);
-
-      if (hiddenNodeIds.length > 0) {
-        const result = await this.assignmentRepository.delete({
-          instanceNode: { id: In(hiddenNodeIds) },
-        });
-        removedAssignments = result.affected ?? 0;
-      }
-    }
-
-    return {
-      numberOfCordons: instance.numberOfCordons,
-      removedAssignments,
-    };
+    return { numberOfCordons: instance.numberOfCordons };
   }
 
   // ── Lock — Assignment lock after event date ────────────────────────────────
