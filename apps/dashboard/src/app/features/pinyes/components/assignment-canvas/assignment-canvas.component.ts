@@ -459,7 +459,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   }
 
   private advanceToNextEmptyNodeFromCurrent(): void {
-    const nodes = this.activeNodes().filter(
+    const nodes = this.visibleNodes().filter(
       (n) => n.zone !== FigureZone.DECORATION,
     );
     if (nodes.length === 0) return;
@@ -1331,7 +1331,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   // ─── Helpers ────────────────────────────────────────────────────────────
 
   private advanceToNextEmptyNode(justAssignedNodeId: string): void {
-    const nodes = this.activeNodes().filter(
+    const nodes = this.visibleNodes().filter(
       (n) => n.zone !== FigureZone.DECORATION,
     );
     const assignments = this.state.assignments();
