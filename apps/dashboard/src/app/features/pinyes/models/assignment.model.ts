@@ -170,7 +170,6 @@ export interface UpdateInstanceCordonsPayload {
 
 export interface CordonsResponse {
   numberOfCordons: number | null;
-  removedAssignments: number;
 }
 
 export interface SwapAssignmentsPayload {

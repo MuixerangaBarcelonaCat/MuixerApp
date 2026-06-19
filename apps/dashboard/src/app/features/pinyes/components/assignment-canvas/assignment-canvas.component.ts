@@ -35,8 +35,9 @@ import {
 } from '../../models/assignment.model';
 import { SegmentDetail } from '../../models/segment.model';
 import { FigureZone, PINYA_NODE_PRESETS, DECORATION_NODE_PRESETS, DIRECTION_NODE_PRESETS, NodePreset } from '@muixer/shared';
-import { Observable } from 'rxjs';
+import { forkJoin, Observable } from 'rxjs';
 import { UndoRedoService, UndoableAction } from '../../services/undo-redo.service';
+import { computeCordoObertOverrides } from '../../utils/cordo-obert.util';
 
 interface InstanceTab {
   instanceId: string;
@@ -189,14 +190,29 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     return this.state.assignments().find((a) => a.node.id === node.id) ?? null;
   });
 
-  /** Nodes after applying the cordons visibility filter. */
+  /** Nodes after applying the cordons visibility filter. Cordons oberts are always visible
+   *  and are repositioned to the last hidden node in their rengla. */
   readonly visibleNodes = computed(() => {
     const cordons = this.currentCordons();
     const nodes = this.activeNodes();
     if (cordons === null) return nodes;
-    return nodes.filter((n) =>
-      !n.renglaId || n.renglaPosition === null || n.renglaPosition <= cordons,
+
+    const filtered = nodes.filter(
+      (n) =>
+        n.positionType === 'cordo-obert' ||
+        !n.renglaId || n.renglaPosition === null || n.renglaPosition <= cordons,
     );
+
+    const overrides = computeCordoObertOverrides(
+      nodes,
+      (_, others) => others.find((n) => n.renglaPosition !== null && n.renglaPosition > cordons),
+    );
+
+    if (overrides.size === 0) return filtered;
+    return filtered.map((n) => {
+      const pos = overrides.get(n.id);
+      return pos ? { ...n, x: pos.x, y: pos.y } : n;
+    });
   });
 
   /** Nodes rendered on the Konva canvas (PINYA + BASE + DECORATION — spatial x,y nodes). */
@@ -238,7 +254,10 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
   readonly maxCordons = computed(() =>
     this.activeNodes().reduce(
-      (max, n) => (n.renglaPosition != null && n.renglaPosition > max ? n.renglaPosition : max),
+      (max, n) =>
+        n.positionType !== 'cordo-obert' && n.renglaPosition != null && n.renglaPosition > max
+          ? n.renglaPosition
+          : max,
       0,
     ),
   );
@@ -253,7 +272,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     const current = this.currentCordons();
     const max = this.maxCordons();
     if (current === null) return 'Tots';
-    return `Cordó ${current}/${max}`;
+    return `${current}/${max}`;
   });
 
   /** Cast attendanceRegistry to AttendanceStatus map for TroncViewComponent. */
@@ -989,10 +1008,11 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   }
 
   private isNodeVisibleByCordons(
-    node: { renglaId?: string | null; renglaPosition?: number | null },
+    node: { renglaId?: string | null; renglaPosition?: number | null; positionType?: string | null },
     numberOfCordons: number | null,
   ): boolean {
     if (numberOfCordons === null) return true;
+    if (node.positionType === 'cordo-obert') return true;
     if (!node.renglaId) return true;
     if (node.renglaPosition === null || node.renglaPosition === undefined) return true;
     return node.renglaPosition <= numberOfCordons;
@@ -1134,8 +1154,45 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
   confirmCordonsReduction(): void {
     const value = this.pendingCordonsValue();
+    const instanceId = this.state.activeInstanceId();
     this.cordonsConfirmOpen.set(false);
-    this.applyCordons(value);
+
+    if (!instanceId || value === null) {
+      this.applyCordons(value);
+      return;
+    }
+
+    const nodes = this.activeNodes();
+    const assignments = this.state.assignments();
+    const hiddenNodeIds = new Set(
+      nodes
+        .filter(
+          (n) =>
+            n.positionType !== 'cordo-obert' &&
+            n.renglaId &&
+            n.renglaPosition !== null &&
+            n.renglaPosition > value,
+        )
+        .map((n) => n.id),
+    );
+    const affected = assignments.filter((a) => hiddenNodeIds.has(a.node.id));
+
+    if (affected.length === 0) {
+      this.applyCordons(value);
+      return;
+    }
+
+    forkJoin(affected.map((a) => this.assignmentService.unassign(instanceId, a.id))).subscribe({
+      next: () => {
+        const removedIds = new Set(affected.map((a) => a.id));
+        this.state.assignments.update((list) => list.filter((a) => !removedIds.has(a.id)));
+        this.state.refreshPersonList();
+        this.applyCordons(value);
+      },
+      error: () => {
+        this.toast.error('Error en desassignar les persones dels cordons eliminats.');
+      },
+    });
   }
 
   cancelCordonsReduction(): void {
@@ -1149,7 +1206,13 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     const assignments = this.state.assignments();
     const hiddenNodeIds = new Set(
       nodes
-        .filter((n) => n.renglaId && n.renglaPosition !== null && n.renglaPosition > newCordons)
+        .filter(
+          (n) =>
+            n.positionType !== 'cordo-obert' &&
+            n.renglaId &&
+            n.renglaPosition !== null &&
+            n.renglaPosition > newCordons,
+        )
         .map((n) => n.id),
     );
     return assignments.filter((a) => hiddenNodeIds.has(a.node.id)).length;
@@ -1169,12 +1232,6 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
           ),
         );
         this.refreshInstanceNodes(instanceId);
-        if (resp.removedAssignments > 0) {
-          this.toast.warning(
-            `S'han desassignat ${resp.removedAssignments} persones dels cordons eliminats.`,
-          );
-          this.state.refreshPersonList();
-        }
       },
       error: () => {
         this.toast.error('Error en actualitzar els cordons.');

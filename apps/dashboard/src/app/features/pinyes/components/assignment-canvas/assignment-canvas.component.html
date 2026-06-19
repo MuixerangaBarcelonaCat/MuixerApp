@@ -59,7 +59,7 @@
             <i-lucide [img]="Minus" class="size-3" />
           </button>
           <span class="text-xs font-medium min-w-[5rem] text-center select-none" aria-live="polite">
-            {{ currentCordonsLabel() }}
+            Cordons {{ currentCordonsLabel() }}
           </span>
           <button
             type="button"
@@ -484,7 +484,7 @@
         Persones: {{ totalNeededAllTabs() }} necessàries / {{ state.totalConfirmedCount() }} confirmades
         @if (isOverCapacity()) {
           <span class="text-xs text-warning ml-1" title="Calen més persones de les confirmades">
-            ⚠ falten {{ totalNeededAllTabs() - state.totalConfirmedCount() }}
+            ⚠ en falten {{ totalNeededAllTabs() - state.totalConfirmedCount() }}
           </span>
         }
       } @else {
@@ -555,7 +555,7 @@
           <i-lucide [img]="Users" class="size-4 shrink-0" />
           <span>
             <strong>{{ pendingDeleteTab()!.assignedCount }} assignacions</strong>
-            es perdran i les persones tornaran al panel.
+            es perdran.
           </span>
         </div>
       }
@@ -679,7 +679,7 @@
     <div class="modal-box max-w-sm">
       <h3 id="cordons-confirm-title" class="text-lg font-bold mb-3 text-warning">Reduir cordons</h3>
       <p id="cordons-confirm-desc" class="text-sm text-base-content/70">
-        Reduir els cordons eliminarà
+        Reduir els cordons desassignarà
         <strong class="text-warning">{{ cordonsConfirmCount() }}
           {{ cordonsConfirmCount() === 1 ? 'persona assignada' : 'persones assignades' }}</strong>
         que es troben als cordons que seran amagats.
