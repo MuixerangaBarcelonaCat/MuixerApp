@@ -21,8 +21,7 @@ RUN ./node_modules/.bin/nx build shared --configuration=production && \
 # Stage 3: Serve static files with Caddy
 FROM caddy:alpine AS runner
 
-# Copy Caddy configuration
-COPY apps/dashboard/Caddyfile /etc/caddy/Caddyfile
+# Caddyfile is mounted at runtime via docker-compose.pre.yml
 
 # Copy the built Angular app
 COPY --from=build /app/dist/apps/dashboard/browser /srv

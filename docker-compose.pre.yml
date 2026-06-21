@@ -46,6 +46,7 @@ services:
       - '80:80'
       - '443:443'
     volumes:
+      - ./apps/dashboard/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
     depends_on:
       api:
