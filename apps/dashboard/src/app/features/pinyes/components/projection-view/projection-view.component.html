@@ -19,7 +19,7 @@
         style="justify-content: center; align-content: center; gap: 3px;"
         aria-label="Figures en projecció"
       >
-        @for (instance of segmentData()!.instances; track instance.id) {
+        @for (instance of filteredInstances(); track instance.id) {
           <div
             class="relative overflow-hidden group flex flex-col border border-gray-200"
             [style.width]="itemWidthStyle()"
@@ -41,14 +41,16 @@
                   [directionNodes]="getInstanceDirectionNodes(instance)"
                   [assignments]="instance.assignments"
                 />
-                <a
-                  [routerLink]="['/pinyes/events', eventId, 'segments', segmentId, 'project', instance.id]"
-                  class="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity rounded-md p-1 focus-visible:opacity-100 bg-black/50 text-white"
-                  [attr.aria-label]="'Obre ' + getInstanceName(instance) + ' en pantalla completa'"
-                  title="Obre en pantalla completa"
-                >
-                  <lucide-icon name="Maximize2" [size]="14" aria-hidden="true" />
-                </a>
+                @if (!instanceId) {
+                  <a
+                    [routerLink]="['/pinyes/events', eventId, 'segments', segmentId, 'project', instance.id]"
+                    class="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity rounded-md p-1 focus-visible:opacity-100 bg-black/50 text-white"
+                    [attr.aria-label]="'Obre ' + getInstanceName(instance) + ' en pantalla completa'"
+                    title="Obre en pantalla completa"
+                  >
+                    <lucide-icon name="Maximize2" [size]="14" aria-hidden="true" />
+                  </a>
+                }
               </div>
             } @else {
               <!-- ── Figura completa: tronc header + pinya canvas ──────────── -->
@@ -78,14 +80,16 @@
                   [nodes]="getInstanceProjectionNodes(instance)"
                   [assignments]="instance.assignments"
                 />
-                <a
-                  [routerLink]="['/pinyes/events', eventId, 'segments', segmentId, 'project', instance.id]"
-                  class="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity rounded-md p-1 focus-visible:opacity-100 bg-black/50 text-white"
-                  [attr.aria-label]="'Obre ' + getInstanceName(instance) + ' en pantalla completa'"
-                  title="Obre en pantalla completa"
-                >
-                  <lucide-icon name="Maximize2" [size]="14" aria-hidden="true" />
-                </a>
+                @if (!instanceId) {
+                  <a
+                    [routerLink]="['/pinyes/events', eventId, 'segments', segmentId, 'project', instance.id]"
+                    class="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity rounded-md p-1 focus-visible:opacity-100 bg-black/50 text-white"
+                    [attr.aria-label]="'Obre ' + getInstanceName(instance) + ' en pantalla completa'"
+                    title="Obre en pantalla completa"
+                  >
+                    <lucide-icon name="Maximize2" [size]="14" aria-hidden="true" />
+                  </a>
+                }
               </div>
             }
 
