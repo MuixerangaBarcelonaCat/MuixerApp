@@ -115,12 +115,12 @@ export class TroncViewComponent {
 
   // ── Direction computed ─────────────────────────────────────────────────────
 
-  readonly figureDirectionNode = computed(() =>
-    this.directionNodes().find((n) => n.zone === FigureZone.FIGURE_DIRECTION) ?? null,
+  readonly figureDirectionNodes = computed(() =>
+    this.directionNodes().filter((n) => n.zone === FigureZone.FIGURE_DIRECTION),
   );
 
-  readonly xicallaDirectionNode = computed(() =>
-    this.directionNodes().find((n) => n.zone === FigureZone.XICALLA_DIRECTION) ?? null,
+  readonly xicallaDirectionNodes = computed(() =>
+    this.directionNodes().filter((n) => n.zone === FigureZone.XICALLA_DIRECTION),
   );
 
   readonly hasAssignedDirections = computed(() => {

@@ -996,18 +996,18 @@ describe('TroncViewComponent', () => {
       expect(dirNodes.length).toBe(1);
     });
 
-    it('figureDirectionNode computed returns FIGURE_DIRECTION node', () => {
+    it('figureDirectionNodes computed returns FIGURE_DIRECTION nodes', () => {
       fixture.componentRef.setInput('directionNodes', [figDirNode, xicDirNode]);
       fixture.detectChanges();
 
-      expect(component.figureDirectionNode()?.id).toBe('dir-fig-1');
+      expect(component.figureDirectionNodes().map((n) => n.id)).toEqual(['dir-fig-1']);
     });
 
-    it('xicallaDirectionNode computed returns XICALLA_DIRECTION node', () => {
+    it('xicallaDirectionNodes computed returns XICALLA_DIRECTION nodes', () => {
       fixture.componentRef.setInput('directionNodes', [figDirNode, xicDirNode]);
       fixture.detectChanges();
 
-      expect(component.xicallaDirectionNode()?.id).toBe('dir-xic-1');
+      expect(component.xicallaDirectionNodes().map((n) => n.id)).toEqual(['dir-xic-1']);
     });
 
     it('hasAssignedDirections returns false when no assignments', () => {
