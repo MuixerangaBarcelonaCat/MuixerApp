@@ -50,7 +50,6 @@ export interface FigureTemplateDetail extends FigureTemplateListItem {
 
 export interface FigureTemplateFilterParams {
   search?: string;
-  hasPinya?: boolean;
   page?: number;
   limit?: number;
 }
@@ -81,7 +80,6 @@ export interface CreateFigureTemplatePayload {
   name: string;
   slug: string;
   description?: string;
-  hasPinya?: boolean;
   direction?: number;
   metadata?: Record<string, unknown>;
   nodes: CreateFigureNodePayload[];
@@ -90,7 +88,6 @@ export interface CreateFigureTemplatePayload {
 export interface UpdateFigureTemplatePayload {
   name?: string;
   description?: string;
-  hasPinya?: boolean;
   direction?: number;
   metadata?: Record<string, unknown>;
   nodes?: CreateFigureNodePayload[];

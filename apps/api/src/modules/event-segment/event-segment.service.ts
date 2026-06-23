@@ -60,7 +60,12 @@ export class EventSegmentService {
       segments.flatMap((s) => (s.instances ?? []).map((i) => i.id)),
     );
 
-    return segments.map((s) => toSegmentWithInstances(s, countMap));
+    const allTemplateIds = segments.flatMap((s) =>
+      (s.instances ?? []).filter((i) => i.figureTemplate).map((i) => i.figureTemplate!.id),
+    );
+    const pinyaTemplateIds = await this.loadPinyaTemplateIds(allTemplateIds);
+
+    return segments.map((s) => toSegmentWithInstances(s, countMap, pinyaTemplateIds));
   }
 
   async create(eventId: string, dto: CreateSegmentDto): Promise<SegmentWithInstances> {
@@ -171,7 +176,22 @@ export class EventSegmentService {
       (segment.instances ?? []).map((i) => i.id),
     );
 
-    return toSegmentWithInstances(segment, countMap);
+    const pinyaTemplateIds = await this.loadPinyaTemplateIds(
+      (segment.instances ?? []).filter((i) => i.figureTemplate).map((i) => i.figureTemplate!.id),
+    );
+
+    return toSegmentWithInstances(segment, countMap, pinyaTemplateIds);
+  }
+
+  private async loadPinyaTemplateIds(templateIds: string[]): Promise<Set<string>> {
+    const set = new Set<string>();
+    if (templateIds.length === 0) return set;
+    const rows: { templateId: string }[] = await this.dataSource.query(
+      `SELECT DISTINCT "templateId" FROM figure_nodes WHERE zone = 'PINYA' AND "templateId" = ANY($1)`,
+      [templateIds],
+    );
+    for (const row of rows) set.add(row.templateId);
+    return set;
   }
 
   private async loadAssignmentCounts(instanceIds: string[]): Promise<Map<string, number>> {
@@ -188,7 +208,7 @@ export class EventSegmentService {
   }
 }
 
-function toSegmentWithInstances(segment: EventSegment, countMap: Map<string, number>): SegmentWithInstances {
+function toSegmentWithInstances(segment: EventSegment, countMap: Map<string, number>, pinyaTemplateIds: Set<string>): SegmentWithInstances {
   return {
     id: segment.id,
     name: segment.name,
@@ -208,7 +228,7 @@ function toSegmentWithInstances(segment: EventSegment, countMap: Map<string, num
         ? {
             id: instance.figureTemplate.id,
             name: instance.figureTemplate.name,
-            hasPinya: instance.figureTemplate.hasPinya,
+            hasPinya: pinyaTemplateIds.has(instance.figureTemplate.id),
           }
         : null,
       compositionTemplate: instance.compositionTemplate

@@ -258,7 +258,7 @@ function toDetailItem(composition: CompositionTemplate): CompositionTemplateDeta
       id: slot.figureTemplate.id,
       name: slot.figureTemplate.name,
       slug: slot.figureTemplate.slug,
-      hasPinya: slot.figureTemplate.hasPinya,
+      hasPinya: (slot.figureTemplate.nodes ?? []).some((n) => n.zone === 'PINYA'),
       direction: slot.figureTemplate.direction,
       nodeCount: (slot.figureTemplate.nodes ?? []).length,
       nodes: (slot.figureTemplate.nodes ?? []).map((node) => ({

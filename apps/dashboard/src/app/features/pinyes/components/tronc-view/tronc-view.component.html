@@ -29,8 +29,8 @@
     </header>
   }
 
-  <!-- ── Directions section (figures netes, assignment mode) ──────────── -->
-  @if (mode() === 'assignment' && isNetaFigure()) {
+  <!-- ── Directions section (assignment mode) ─────────────────────────── -->
+  @if (mode() === 'assignment') {
     <div class="directions-section" role="region" aria-label="Direccions">
       <button
         type="button"
@@ -77,17 +77,6 @@
                   <span class="node-label text-base-content/40">Sense assignar</span>
                 }
               </button>
-              @if (isAssigned(dirNode.id) && isSelected(dirNode.id)) {
-                <button
-                  type="button"
-                  class="unassign-btn"
-                  (click)="onUnassignNode(dirNode.id); $event.stopPropagation()"
-                  aria-label="Desassignar direcció figura"
-                  title="Desassignar"
-                >
-                  <lucide-icon name="X" [size]="10" aria-hidden="true" />
-                </button>
-              }
               @if (!isAssigned(dirNode.id)) {
                 <button
                   type="button"
@@ -139,17 +128,6 @@
                   <span class="node-label text-base-content/40">Sense assignar</span>
                 }
               </button>
-              @if (isAssigned(dirNode.id) && isSelected(dirNode.id)) {
-                <button
-                  type="button"
-                  class="unassign-btn"
-                  (click)="onUnassignNode(dirNode.id); $event.stopPropagation()"
-                  aria-label="Desassignar direcció xicalla"
-                  title="Desassignar"
-                >
-                  <lucide-icon name="X" [size]="10" aria-hidden="true" />
-                </button>
-              }
               @if (!isAssigned(dirNode.id)) {
                 <button
                   type="button"
@@ -178,8 +156,8 @@
     </div>
   }
 
-  <!-- ── Directions section (figures netes, projection mode) ─────────── -->
-  @if (mode() === 'projection' && isNetaFigure() && hasAssignedDirections()) {
+  <!-- ── Directions section (projection mode) ─────────────────────────── -->
+  @if (mode() === 'projection' && hasAssignedDirections()) {
     <div class="directions-section projection" role="region" aria-label="Direccions">
       @for (dir of directionNodes(); track dir.id) {
         @if (getAssignment(dir.id); as assignment) {
@@ -242,7 +220,7 @@
                   [class.assigned]="isAssigned(node.id)"
                   [class.highlighted]="isHighlighted(node.id)"
                   [class.z-colored]="mode() === 'assignment' || mode() === 'projection'"
-                  [style.border-left-color]="mode() === 'assignment' || mode() === 'projection' ? getZLevelColor(node.z) : null"
+                  [style.border-left-color]="mode() !== 'editor' ? (getNodeColor(node) ?? getZLevelColor(node.z)) : null"
                   (click)="onNodeClick(node, $event)"
                   [attr.aria-label]="getNodeAriaLabel(node)"
                   [attr.aria-pressed]="isSelected(node.id)"
@@ -265,17 +243,6 @@
                     <span class="node-label">{{ node.label }}</span>
                   }
                 </button>
-                @if (mode() === 'assignment' && isAssigned(node.id) && isSelected(node.id)) {
-                  <button
-                    type="button"
-                    class="unassign-btn"
-                    (click)="onUnassignNode(node.id); $event.stopPropagation()"
-                    aria-label="Desassignar"
-                    title="Desassignar"
-                  >
-                    <lucide-icon name="X" [size]="10" aria-hidden="true" />
-                  </button>
-                }
               </div>
             }
           } @else {
@@ -289,7 +256,7 @@
                   [class.highlighted]="isHighlighted(node.id)"
                   [class.z-colored]="mode() === 'assignment' || mode() === 'projection'"
                   [class.type-colored]="mode() === 'editor' && !!getNodeColor(node)"
-                  [style.border-left-color]="mode() === 'assignment' || mode() === 'projection' ? getZLevelColor(node.z) : mode() === 'editor' ? getNodeColor(node) : null"
+                  [style.border-left-color]="getNodeColor(node) ?? (mode() !== 'editor' ? getZLevelColor(node.z) : null)"
                   (click)="onNodeClick(node, $event)"
                   [attr.aria-label]="getNodeAriaLabel(node)"
                   [attr.aria-pressed]="isSelected(node.id)"
@@ -317,17 +284,6 @@
                     <span class="node-label">{{ node.label }}</span>
                   }
                 </button>
-                @if (mode() === 'assignment' && isAssigned(node.id) && isSelected(node.id)) {
-                  <button
-                    type="button"
-                    class="unassign-btn"
-                    (click)="onUnassignNode(node.id); $event.stopPropagation()"
-                    aria-label="Desassignar"
-                    title="Desassignar"
-                  >
-                    <lucide-icon name="X" [size]="10" aria-hidden="true" />
-                  </button>
-                }
               </div>
             }
           }
@@ -422,18 +378,6 @@
               }
             </div>
           </div>
-
-          <!-- Color indicator -->
-          <div class="color-indicator-row">
-            <span class="label-text text-xs">Color</span>
-            <span
-              class="color-swatch"
-              [style.background-color]="getNodeColor(node) ?? '#78909C'"
-              aria-hidden="true"
-            ></span>
-            <span class="color-value text-xs">{{ getNodeColor(node) ?? '—' }}</span>
-          </div>
-
           <!-- Stepper controls for x / width -->
           <div class="node-props-row">
             <div

@@ -207,11 +207,20 @@ export class FigureInstanceService {
       throw new NotFoundException(`FigureInstance with ID ${id} not found`);
     }
 
-    const countResult = await this.dataSource.query(
-      `SELECT COUNT(*) as count FROM node_assignments WHERE "figureInstanceId" = $1`,
-      [id],
-    );
+    const [countResult, pinyaResult] = await Promise.all([
+      this.dataSource.query(
+        `SELECT COUNT(*) as count FROM node_assignments WHERE "figureInstanceId" = $1`,
+        [id],
+      ),
+      instance.figureTemplate
+        ? this.dataSource.query(
+            `SELECT COUNT(*) as count FROM figure_nodes WHERE zone = 'PINYA' AND "templateId" = $1`,
+            [instance.figureTemplate.id],
+          )
+        : Promise.resolve([{ count: '0' }]),
+    ]);
     const assignedCount = parseInt(countResult[0]?.count ?? '0', 10);
+    const hasPinya = parseInt(pinyaResult[0]?.count ?? '0', 10) > 0;
 
     return {
       id: instance.id,
@@ -224,7 +233,7 @@ export class FigureInstanceService {
         ? {
             id: instance.figureTemplate.id,
             name: instance.figureTemplate.name,
-            hasPinya: instance.figureTemplate.hasPinya,
+            hasPinya,
           }
         : null,
       compositionTemplate: instance.compositionTemplate

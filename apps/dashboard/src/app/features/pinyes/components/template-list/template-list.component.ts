@@ -58,7 +58,6 @@ export class TemplateListComponent implements OnInit {
   searchInput = '';
   deletingId = signal<string | null>(null);
   confirmDeleteId = signal<string | null>(null);
-  readonly hasPinyaFilter = signal<boolean | undefined>(undefined);
   readonly totalPages = computed(() => Math.ceil(this.total() / this.limit()));
 
   compositions = signal<CompositionTemplateListItem[]>([]);
@@ -109,18 +108,6 @@ export class TemplateListComponent implements OnInit {
 
   navigateToCreate() {
     this.router.navigate(['/pinyes/templates/new']);
-  }
-
-  navigateToCreateFiguraNeta(): void {
-    this.router.navigate(['/pinyes/templates/new'], {
-      queryParams: { hasPinya: 'false' },
-    });
-  }
-
-  setHasPinyaFilter(value: boolean | undefined): void {
-    this.hasPinyaFilter.set(value);
-    this.page.set(1);
-    this.loadTemplates();
   }
 
   navigateToEdit(id: string) {
@@ -231,7 +218,6 @@ export class TemplateListComponent implements OnInit {
     this.loading.set(true);
     const filters: FigureTemplateFilterParams = {
       search: this.search() || undefined,
-      hasPinya: this.hasPinyaFilter(),
       page: this.page(),
       limit: this.limit(),
     };

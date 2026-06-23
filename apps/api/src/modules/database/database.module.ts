@@ -24,6 +24,7 @@ import { RemoveFigureFamily1780982679300 } from '../../migrations/1780982679300-
 import { RestoreProjectionColumnsAndReferenceElements1781000000000 } from '../../migrations/1781000000000-RestoreProjectionColumnsAndReferenceElements';
 import { DropSourceVariantOrder1781100000000 } from '../../migrations/1781100000000-DropSourceVariantOrder';
 import { AddAdHocInstanceNodes1781200000000 } from '../../migrations/1781200000000-AddAdHocInstanceNodes';
+import { DropHasPinya1781700000000 } from '../../migrations/1781700000000-DropHasPinya';
 
 @Module({
   imports: [
@@ -65,6 +66,7 @@ import { AddAdHocInstanceNodes1781200000000 } from '../../migrations/17812000000
             RestoreProjectionColumnsAndReferenceElements1781000000000,
             DropSourceVariantOrder1781100000000,
             AddAdHocInstanceNodes1781200000000,
+            DropHasPinya1781700000000,
           ],
           migrationsTableName: 'typeorm_migrations',
           logging: isDevelopment,

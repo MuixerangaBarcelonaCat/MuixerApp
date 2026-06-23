@@ -199,11 +199,6 @@
   animation: panel-pop-in 0.15s ease;
   resize: both;
 
-  &--neta {
-    width: min(70vw, calc(100vw - 2rem));
-    min-width: 500px;
-  }
-
   @media (max-width: 639px) {
     position: fixed;
     bottom: 0;
@@ -214,11 +209,6 @@
     border-radius: 0.75rem 0.75rem 0 0;
     max-height: 60vh;
     resize: none;
-
-    &--neta {
-      width: 100%;
-      min-width: unset;
-    }
   }
 }
 

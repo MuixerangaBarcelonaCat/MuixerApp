@@ -89,7 +89,7 @@ export class ProjectionService {
           ? {
               id: instance.figureTemplate.id,
               name: instance.figureTemplate.name,
-              hasPinya: instance.figureTemplate.hasPinya,
+              hasPinya: nodes.some((n) => n.zone === 'PINYA'),
             }
           : null,
         nodes,

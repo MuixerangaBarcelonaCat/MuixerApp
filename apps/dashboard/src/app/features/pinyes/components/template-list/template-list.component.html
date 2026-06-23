@@ -27,26 +27,15 @@
         Composició nova
       </button>
     } @else {
-      <div class="flex items-center gap-2">
-        <button
-          type="button"
-          class="btn btn-primary gap-2"
-          (click)="navigateToCreate()"
-          aria-label="Crea figura nova"
-        >
-          <lucide-icon name="Plus" [size]="18" aria-hidden="true" />
-          Figura nova
-        </button>
-        <button
-          type="button"
-          class="btn btn-outline gap-2"
-          (click)="navigateToCreateFiguraNeta()"
-          aria-label="Crea figura neta (sense pinya)"
-        >
-          <lucide-icon name="Plus" [size]="18" aria-hidden="true" />
-          Figura neta
-        </button>
-      </div>
+      <button
+        type="button"
+        class="btn btn-primary gap-2"
+        (click)="navigateToCreate()"
+        aria-label="Crea figura nova"
+      >
+        <lucide-icon name="Plus" [size]="18" aria-hidden="true" />
+        Figura nova
+      </button>
     }
   </div>
 
@@ -96,29 +85,6 @@
         }
       </div>
 
-      <div class="join" role="radiogroup" aria-label="Filtre de tipus de figura">
-        <button
-          type="button"
-          class="join-item btn btn-sm"
-          [class.btn-active]="hasPinyaFilter() === undefined"
-          [attr.aria-pressed]="hasPinyaFilter() === undefined"
-          (click)="setHasPinyaFilter(undefined)"
-        >Totes</button>
-        <button
-          type="button"
-          class="join-item btn btn-sm"
-          [class.btn-active]="hasPinyaFilter() === true"
-          [attr.aria-pressed]="hasPinyaFilter() === true"
-          (click)="setHasPinyaFilter(true)"
-        >Amb pinya</button>
-        <button
-          type="button"
-          class="join-item btn btn-sm"
-          [class.btn-active]="hasPinyaFilter() === false"
-          [attr.aria-pressed]="hasPinyaFilter() === false"
-          (click)="setHasPinyaFilter(false)"
-        >Figures netes</button>
-      </div>
     </div>
 
     @if (loading() && templates().length === 0) {

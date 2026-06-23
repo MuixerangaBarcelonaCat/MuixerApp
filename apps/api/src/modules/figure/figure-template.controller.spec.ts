@@ -9,7 +9,6 @@ const mockDetail = {
   name: 'Pilar de 4 — 2C',
   slug: 'pd4-2c',
   description: null,
-  hasPinya: true,
   direction: 0,
   nodeCount: 0,
   metadata: {},
