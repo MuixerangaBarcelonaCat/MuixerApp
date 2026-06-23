@@ -52,8 +52,13 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
 
   // ── Computed ────────────────────────────────────────────────────────────────
 
+  readonly filteredInstances = computed(() => {
+    const instances = this.segmentData()?.instances ?? [];
+    return this.instanceId ? instances.filter((i) => i.id === this.instanceId) : instances;
+  });
+
   readonly gridCols = computed(() => {
-    const n = this.segmentData()?.instances.length ?? 0;
+    const n = this.filteredInstances().length;
     if (n <= 1) return 1;
     if (n === 2) return 2;
     if (n === 3) return 3;
@@ -62,7 +67,7 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
   });
 
   readonly gridRows = computed(() => {
-    const n = this.segmentData()?.instances.length ?? 0;
+    const n = this.filteredInstances().length;
     return Math.ceil(n / this.gridCols());
   });
 
@@ -73,6 +78,7 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
 
   eventId = '';
   segmentId = '';
+  instanceId = '';
 
   private cursorTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -83,6 +89,7 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
     const params = this.route.snapshot.params;
     this.eventId = params['eventId'];
     this.segmentId = params['segmentId'];
+    this.instanceId = params['instanceId'] ?? '';
     this.loadSegment();
   }
 

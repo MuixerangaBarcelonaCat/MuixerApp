@@ -15,7 +15,6 @@ const makeTemplate = (overrides: Partial<FigureTemplate> = {}): FigureTemplate =
   name: 'Pilar de 4 — 2C',
   slug: 'pd4-2c',
   description: null,
-  hasPinya: true,
   direction: 0,
   metadata: {},
   nodes: [],
@@ -167,14 +166,6 @@ describe('FigureTemplateService', () => {
       expect(templateQb.andWhere).toHaveBeenCalledWith(
         expect.stringContaining('ILIKE'),
         expect.objectContaining({ search: '%pd4%' }),
-      );
-    });
-
-    it('applies hasPinya filter', async () => {
-      await service.findAll({ hasPinya: false });
-      expect(templateQb.andWhere).toHaveBeenCalledWith(
-        'template.hasPinya = :hasPinya',
-        { hasPinya: false },
       );
     });
 

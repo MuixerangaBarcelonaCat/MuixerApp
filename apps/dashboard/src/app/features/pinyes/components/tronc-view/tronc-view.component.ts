@@ -9,7 +9,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
-import { FigureZone, TRONC_NODE_PRESETS, TroncNodePreset } from '@muixer/shared';
+import { FigureZone, TRONC_NODE_PRESETS, TRONC_Z_DEFAULTS, TroncNodePreset } from '@muixer/shared';
 import { AssignmentDetail, AttendanceStatus, HeightMode } from '../../models/assignment.model';
 import { floorVariance, varianceLevel, VarianceLevel } from '../../utils/floor-variance.util';
 import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
@@ -44,24 +44,6 @@ interface TroncFloor {
 
 const MAX_TRONC_Z = 5;
 
-/** Conventional floor defaults per z-level (1-based above base). Derived from shared presets. */
-const TRONC_Z_DEFAULTS: Record<number, { label: string; positionType: string; color: string }> = {
-  1: TRONC_NODE_PRESETS.find((p) => p.positionType === 'segones')!,
-  2: TRONC_NODE_PRESETS.find((p) => p.positionType === 'terceres')!,
-  3: TRONC_NODE_PRESETS.find((p) => p.positionType === 'quartes')!,
-  4: TRONC_NODE_PRESETS.find((p) => p.positionType === 'quintes')!,
-  5: { label: 'Sisenes', positionType: 'sisenes', color: '#546E7A' },
-};
-
-/** Palette for tronc z-level color coding. */
-const Z_LEVEL_COLORS: Record<number, string> = {
-  0: '#607D8B',
-  1: '#1E88E5',
-  2: '#43A047',
-  3: '#FB8C00',
-  4: '#8E24AA',
-  5: '#E53935',
-};
 
 @Component({
   selector: 'app-tronc-view',
@@ -89,11 +71,7 @@ export class TroncViewComponent {
   /** personId → AttendanceStatus for the next actuació */
   readonly attendanceMap = input<Map<string, AttendanceStatus>>(new Map());
 
-  /** Direction-zone nodes (FIGURE_DIRECTION, XICALLA_DIRECTION) — figures netes only. */
   readonly directionNodes = input<TroncNodeItem[]>([]);
-
-  /** Whether the current figure is a "figura neta" (hasPinya = false). */
-  readonly isNetaFigure = input<boolean>(false);
 
   // ── Outputs ────────────────────────────────────────────────────────────────
 
@@ -124,10 +102,7 @@ export class TroncViewComponent {
   /** Assignment mode: request unassignment for a node id. */
   readonly nodeUnassigned = output<string>();
 
-  /** Assignment mode (figures netes): request creating an ad-hoc direction node. */
   readonly directionAdded = output<{ zone: string }>();
-
-  /** Assignment mode (figures netes): request deleting an ad-hoc direction node. */
   readonly directionRemoved = output<string>();
 
   // ── Local state ────────────────────────────────────────────────────────────
@@ -140,12 +115,12 @@ export class TroncViewComponent {
 
   // ── Direction computed ─────────────────────────────────────────────────────
 
-  readonly figureDirectionNode = computed(() =>
-    this.directionNodes().find((n) => n.zone === FigureZone.FIGURE_DIRECTION) ?? null,
+  readonly figureDirectionNodes = computed(() =>
+    this.directionNodes().filter((n) => n.zone === FigureZone.FIGURE_DIRECTION),
   );
 
-  readonly xicallaDirectionNode = computed(() =>
-    this.directionNodes().find((n) => n.zone === FigureZone.XICALLA_DIRECTION) ?? null,
+  readonly xicallaDirectionNodes = computed(() =>
+    this.directionNodes().filter((n) => n.zone === FigureZone.XICALLA_DIRECTION),
   );
 
   readonly hasAssignedDirections = computed(() => {
@@ -449,7 +424,7 @@ export class TroncViewComponent {
   }
 
   getZLevelColor(z: number): string {
-    return Z_LEVEL_COLORS[z] ?? '#78909C';
+    return TRONC_Z_DEFAULTS[z]?.color ?? (z === 0 ? '#607D8B' : '#78909C');
   }
 
   onUnassignNode(nodeId: string): void {
@@ -514,17 +489,8 @@ export class TroncViewComponent {
 
   getPositionTypeBadge(node: TroncNodeItem): string {
     if (!node.positionType) return '';
-    const abbrevMap: Record<string, string> = {
-      segones: 'Seg',
-      terceres: 'Ter',
-      quartes: 'Qua',
-      quintes: 'Qui',
-      sisenes: 'Sis',
-      puntal: 'Pun',
-      'alçadora': 'Alç',
-      xiqueta: 'Xiq',
-    };
-    return abbrevMap[node.positionType] ?? node.positionType.slice(0, 3);
+    const preset = TRONC_NODE_PRESETS.find((p) => p.positionType === node.positionType);
+    return preset?.abbrev ?? node.positionType.slice(0, 3);
   }
 
   isPresetActive(node: TroncNodeItem, preset: TroncNodePreset): boolean {
@@ -533,8 +499,7 @@ export class TroncViewComponent {
 
   /** Whether the node's label matches a known preset label (auto-generated). */
   private isDefaultLabel(node: TroncNodeItem): boolean {
-    return TRONC_NODE_PRESETS.some((p) => p.label === node.label) ||
-      Object.values(TRONC_Z_DEFAULTS).some((d) => d.label === node.label);
+    return TRONC_NODE_PRESETS.some((p) => p.label === node.label);
   }
 
   private getDominantPositionType(nodes: TroncNodeItem[]): string {

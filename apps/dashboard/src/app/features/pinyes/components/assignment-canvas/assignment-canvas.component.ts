@@ -103,7 +103,6 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
   readonly adHocPresets = PINYA_NODE_PRESETS;
   readonly decorationPresets = DECORATION_NODE_PRESETS;
-  readonly directionPresets = DIRECTION_NODE_PRESETS;
 
   readonly eventId = signal('');
   readonly segmentId = signal('');
@@ -147,7 +146,6 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly clipboardAdHocNode = signal<{ zone: string; positionType: string | null; label: string; width: number; height: number; shape: string; color: string | null; rotation: number } | null>(null);
   readonly fabDropdownOpen = signal(false);
   readonly fabDecorationOpen = signal(false);
-  readonly fabDirectionOpen = signal(false);
 
   private lastMoveUndoTime = 0;
   private lastMoveNodeId: string | null = null;
@@ -343,10 +341,6 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
         this.fabDecorationOpen.set(false);
         return;
       }
-      if (this.fabDirectionOpen()) {
-        this.fabDirectionOpen.set(false);
-        return;
-      }
       if (this.state.isPlacementMode()) {
         this.state.exitPlacementMode();
         return;
@@ -385,13 +379,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
       }
 
       event.preventDefault();
-      const isAssigned = this.state.assignments().some((a) => a.node.id === selectedId);
-      if (isAssigned) {
-        this.pendingDeleteNodeId.set(selectedId);
-        this.deleteAdHocModalOpen.set(true);
-      } else {
-        this.deleteAdHocNode(selectedId);
-      }
+      this.onAdHocDeleteFromPanel(selectedId);
       return;
     }
 
@@ -739,7 +727,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   onNodeSelected(nodeId: string | null): void {
     this.fabDropdownOpen.set(false);
     this.fabDecorationOpen.set(false);
-    this.fabDirectionOpen.set(false);
+
     if (this.isLocked()) return;
 
     const previousNodeId = this.state.selectedNodeId();
@@ -1377,7 +1365,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   onPresetSelected(preset: NodePreset): void {
     this.fabDropdownOpen.set(false);
     this.fabDecorationOpen.set(false);
-    this.fabDirectionOpen.set(false);
+
     if (preset.requiresCustomLabel) {
       this.pendingLabelPreset.set(preset);
       this.comodinInputOpen.set(true);

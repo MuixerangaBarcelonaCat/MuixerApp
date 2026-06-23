@@ -52,8 +52,6 @@ export class TemplateEditorStateService {
   readonly templateName = signal('Figura nova');
   readonly templateSlug = signal('');
   readonly templateDescription = signal('');
-  readonly hasPinya = signal(true);
-
   // ── Node state ───────────────────────────────────────────────────────────
   readonly nodes = signal<FigureNodeItem[]>([]);
   readonly selectedNodeId = signal<string | null>(null);
@@ -98,7 +96,6 @@ export class TemplateEditorStateService {
     this.templateName.set('Figura nova');
     this.templateSlug.set('');
     this.templateDescription.set('');
-    this.hasPinya.set(true);
     this.nodes.set([]);
     this.selectedNodeId.set(null);
     this.rengles.set([]);
@@ -114,7 +111,6 @@ export class TemplateEditorStateService {
         this.templateName.set(tmpl.name);
         this.templateSlug.set(tmpl.slug);
         this.templateDescription.set(tmpl.description ?? '');
-        this.hasPinya.set(tmpl.hasPinya);
         this.nodes.set(tmpl.nodes);
         this.rengles.set(tmpl.rengles ?? []);
         this.loading.set(false);
@@ -335,11 +331,6 @@ export class TemplateEditorStateService {
     this.scheduleAutosave();
   }
 
-  onHasPinyaChange(value: boolean): void {
-    this.hasPinya.set(value);
-    this.scheduleAutosave();
-  }
-
   // ── Persistence ───────────────────────────────────────────────────────────
 
   scheduleAutosave(): void {
@@ -367,7 +358,7 @@ export class TemplateEditorStateService {
       });
     } else {
       this.figureTemplateService
-        .create({ name, slug, hasPinya: this.hasPinya(), nodes: payload.nodes ?? [] })
+        .create({ name, slug, nodes: payload.nodes ?? [] })
         .pipe(takeUntilDestroyed(this.destroyRef))
         .subscribe({
           next: (created) => {
@@ -407,7 +398,6 @@ export class TemplateEditorStateService {
     return {
       name: this.templateName().trim(),
       description: this.templateDescription().trim() || undefined,
-      hasPinya: this.hasPinya(),
       nodes: this.nodes().map(nodeToPayload),
       rengles: this.rengles(),
     };

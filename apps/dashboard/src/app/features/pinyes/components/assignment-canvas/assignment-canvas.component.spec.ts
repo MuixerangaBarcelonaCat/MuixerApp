@@ -566,7 +566,17 @@ describe('AssignmentCanvasComponent', () => {
       );
     });
 
-    it('Backspace on selected ad-hoc node (unassigned) calls deleteAdHocNode', () => {
+    it('Backspace on selected ad-hoc node (unassigned) calls deleteAdHocNode if not assigned', () => {
+      const nodesWithAdHoc = [...makeInstanceNodes(), adHocNode];
+      component.tabs.update((list) => list.map((t) => ({ ...t, nodes: nodesWithAdHoc })));
+      stateService.selectedNodeId.set('adhoc-1');
+      stateService.assignments.set([]);
+      fixture.detectChanges();
+
+      dispatchKey('Delete');
+      expect(assignmentService.deleteAdHocNode).toHaveBeenCalledWith(INSTANCE_ID, 'adhoc-1');
+    });
+    it('Backspace on selected ad-hoc node (unassigned) calls unassign if assigned', () => {
       const nodesWithAdHoc = [...makeInstanceNodes(), adHocNode];
       component.tabs.update((list) => list.map((t) => ({ ...t, nodes: nodesWithAdHoc })));
       stateService.selectedNodeId.set('adhoc-1');

@@ -547,8 +547,8 @@ describe('TroncViewComponent', () => {
     fixture.detectChanges();
     component.onAddFloor();
     expect(emitted[0].z).toBe(1);
-    expect(emitted[0].positionType).toBe('segones');
-    expect(emitted[0].label).toBe('Segones');
+    expect(emitted[0].positionType).toBe('segona');
+    expect(emitted[0].label).toBe('Segona');
   });
 
   it('onAddFloor uses correct z-level default for z=2', () => {
@@ -559,8 +559,8 @@ describe('TroncViewComponent', () => {
     fixture.detectChanges();
     component.onAddFloor();
     expect(emitted[0].z).toBe(2);
-    expect(emitted[0].positionType).toBe('terceres');
-    expect(emitted[0].label).toBe('Terçes');
+    expect(emitted[0].positionType).toBe('terça');
+    expect(emitted[0].label).toBe('Terça');
   });
 
   it('onRemoveFloor emits floorRemoved for topmost z', () => {
@@ -775,7 +775,7 @@ describe('TroncViewComponent', () => {
       fixture.detectChanges();
 
       const tags = fixture.nativeElement.querySelectorAll('.preset-tag');
-      expect(tags.length).toBe(7);
+      expect(tags.length).toBe(8);
     });
 
     it('does not render preset tags when no node is selected', () => {
@@ -791,7 +791,7 @@ describe('TroncViewComponent', () => {
 
     it('marks the active tag with .active class', () => {
       fixture.componentRef.setInput('troncNodes', [
-        makeNode({ id: 'n1', z: 1, positionType: 'terceres' }),
+        makeNode({ id: 'n1', z: 1, positionType: 'terça' }),
       ]);
       fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
       fixture.componentRef.setInput('mode', 'editor');
@@ -800,15 +800,15 @@ describe('TroncViewComponent', () => {
 
       const activeTags = fixture.nativeElement.querySelectorAll('.preset-tag.active');
       expect(activeTags.length).toBe(1);
-      expect(activeTags[0].textContent.trim()).toContain('Terçes');
+      expect(activeTags[0].textContent.trim()).toContain('Terça');
     });
 
     it('onPositionTypeChange emits nodeUpdated with positionType and color', () => {
       const emitted: { nodeId: string; positionType?: string; color?: string | null }[] = [];
       fixture.componentRef.instance.nodeUpdated.subscribe((e) => emitted.push(e));
 
-      const node = makeNode({ id: 'n1', label: 'Segones', positionType: 'segones', color: '#1E88E5' });
-      const preset = { positionType: 'puntal', label: 'Puntal', color: '#795548' };
+      const node = makeNode({ id: 'n1', label: 'Segona', positionType: 'segona', color: '#1E88E5' });
+      const preset = { positionType: 'puntal', label: 'Puntal', color: '#795548', abbrev: 'Pun' };
       component.onPositionTypeChange(node, preset);
 
       expect(emitted.length).toBe(1);
@@ -820,8 +820,8 @@ describe('TroncViewComponent', () => {
       const emitted: { nodeId: string; label?: string }[] = [];
       fixture.componentRef.instance.nodeUpdated.subscribe((e) => emitted.push(e));
 
-      const node = makeNode({ id: 'n1', label: 'Segones', positionType: 'segones', color: '#1E88E5' });
-      const preset = { positionType: 'puntal', label: 'Puntal', color: '#795548' };
+      const node = makeNode({ id: 'n1', label: 'Segona', positionType: 'segona', color: '#1E88E5' });
+      const preset = { positionType: 'puntal', label: 'Puntal', color: '#795548', abbrev: 'Pun' };
       component.onPositionTypeChange(node, preset);
 
       expect(emitted[0].label).toBe('Puntal');
@@ -832,7 +832,7 @@ describe('TroncViewComponent', () => {
       fixture.componentRef.instance.nodeUpdated.subscribe((e) => emitted.push(e));
 
       const node = makeNode({ id: 'n1', label: 'Mon node custom', positionType: 'segones', color: '#1E88E5' });
-      const preset = { positionType: 'puntal', label: 'Puntal', color: '#795548' };
+      const preset = { positionType: 'puntal', label: 'Puntal', color: '#795548', abbrev: 'Pun' };
       component.onPositionTypeChange(node, preset);
 
       expect(emitted[0].label).toBeUndefined();
@@ -868,7 +868,7 @@ describe('TroncViewComponent', () => {
 
     it('renders type-badge inside TRONC node in editor mode', () => {
       fixture.componentRef.setInput('troncNodes', [
-        makeNode({ id: 'n1', z: 1, positionType: 'segones', color: '#1E88E5' }),
+        makeNode({ id: 'n1', z: 1, positionType: 'segona', color: '#1E88E5' }),
       ]);
       fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
       fixture.componentRef.setInput('mode', 'editor');
@@ -895,12 +895,12 @@ describe('TroncViewComponent', () => {
   // ── getPositionTypeBadge ───────────────────────────────────────────────
 
   describe('getPositionTypeBadge', () => {
-    it('returns "Seg" for segones', () => {
-      expect(component.getPositionTypeBadge(makeNode({ positionType: 'segones' }))).toBe('Seg');
+    it('returns "Seg" for segona', () => {
+      expect(component.getPositionTypeBadge(makeNode({ positionType: 'segona' }))).toBe('Seg');
     });
 
-    it('returns "Ter" for terceres', () => {
-      expect(component.getPositionTypeBadge(makeNode({ positionType: 'terceres' }))).toBe('Ter');
+    it('returns "Ter" for terça', () => {
+      expect(component.getPositionTypeBadge(makeNode({ positionType: 'terça' }))).toBe('Ter');
     });
 
     it('returns "Xiq" for xiqueta', () => {
@@ -913,24 +913,6 @@ describe('TroncViewComponent', () => {
 
     it('returns empty string when positionType is null', () => {
       expect(component.getPositionTypeBadge(makeNode({ positionType: null }))).toBe('');
-    });
-  });
-
-  // ── Color indicator ────────────────────────────────────────────────────
-
-  describe('color indicator', () => {
-    it('renders color swatch when TRONC node is selected in editor', () => {
-      fixture.componentRef.setInput('troncNodes', [
-        makeNode({ id: 'n1', z: 1, color: '#43A047' }),
-      ]);
-      fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
-      fixture.componentRef.setInput('mode', 'editor');
-      fixture.componentRef.setInput('selectedNodeId', 'n1');
-      fixture.detectChanges();
-
-      const swatch = fixture.nativeElement.querySelector('.color-swatch');
-      expect(swatch).not.toBeNull();
-      expect(swatch.style.backgroundColor).toBeTruthy();
     });
   });
 
@@ -955,19 +937,8 @@ describe('TroncViewComponent', () => {
       width: 1,
     });
 
-    it('does not render directions section when isNetaFigure is false', () => {
-      fixture.componentRef.setInput('mode', 'assignment');
-      fixture.componentRef.setInput('isNetaFigure', false);
-      fixture.componentRef.setInput('directionNodes', [figDirNode]);
-      fixture.detectChanges();
-
-      const section = fixture.nativeElement.querySelector('.directions-section');
-      expect(section).toBeNull();
-    });
-
     it('does not render directions section in editor mode', () => {
       fixture.componentRef.setInput('mode', 'editor');
-      fixture.componentRef.setInput('isNetaFigure', true);
       fixture.componentRef.setInput('directionNodes', [figDirNode]);
       fixture.detectChanges();
 
@@ -975,9 +946,8 @@ describe('TroncViewComponent', () => {
       expect(section).toBeNull();
     });
 
-    it('renders directions section in assignment mode for neta figures', () => {
+    it('renders directions section in assignment mode', () => {
       fixture.componentRef.setInput('mode', 'assignment');
-      fixture.componentRef.setInput('isNetaFigure', true);
       fixture.detectChanges();
 
       const section = fixture.nativeElement.querySelector('.directions-section');
@@ -986,7 +956,6 @@ describe('TroncViewComponent', () => {
 
     it('starts collapsed by default', () => {
       fixture.componentRef.setInput('mode', 'assignment');
-      fixture.componentRef.setInput('isNetaFigure', true);
       fixture.detectChanges();
 
       expect(component.directionsExpanded()).toBe(false);
@@ -996,7 +965,6 @@ describe('TroncViewComponent', () => {
 
     it('expands on toggle click', () => {
       fixture.componentRef.setInput('mode', 'assignment');
-      fixture.componentRef.setInput('isNetaFigure', true);
       fixture.detectChanges();
 
       const toggle = fixture.nativeElement.querySelector('.directions-toggle') as HTMLButtonElement;
@@ -1010,7 +978,6 @@ describe('TroncViewComponent', () => {
 
     it('shows "Afegir" buttons when no direction nodes exist', () => {
       fixture.componentRef.setInput('mode', 'assignment');
-      fixture.componentRef.setInput('isNetaFigure', true);
       fixture.componentRef.setInput('directionNodes', []);
       component.directionsExpanded.set(true);
       fixture.detectChanges();
@@ -1021,7 +988,6 @@ describe('TroncViewComponent', () => {
 
     it('shows direction node button when a direction node exists', () => {
       fixture.componentRef.setInput('mode', 'assignment');
-      fixture.componentRef.setInput('isNetaFigure', true);
       fixture.componentRef.setInput('directionNodes', [figDirNode]);
       component.directionsExpanded.set(true);
       fixture.detectChanges();
@@ -1030,18 +996,18 @@ describe('TroncViewComponent', () => {
       expect(dirNodes.length).toBe(1);
     });
 
-    it('figureDirectionNode computed returns FIGURE_DIRECTION node', () => {
+    it('figureDirectionNodes computed returns FIGURE_DIRECTION nodes', () => {
       fixture.componentRef.setInput('directionNodes', [figDirNode, xicDirNode]);
       fixture.detectChanges();
 
-      expect(component.figureDirectionNode()?.id).toBe('dir-fig-1');
+      expect(component.figureDirectionNodes().map((n) => n.id)).toEqual(['dir-fig-1']);
     });
 
-    it('xicallaDirectionNode computed returns XICALLA_DIRECTION node', () => {
+    it('xicallaDirectionNodes computed returns XICALLA_DIRECTION nodes', () => {
       fixture.componentRef.setInput('directionNodes', [figDirNode, xicDirNode]);
       fixture.detectChanges();
 
-      expect(component.xicallaDirectionNode()?.id).toBe('dir-xic-1');
+      expect(component.xicallaDirectionNodes().map((n) => n.id)).toEqual(['dir-xic-1']);
     });
 
     it('hasAssignedDirections returns false when no assignments', () => {
@@ -1064,7 +1030,6 @@ describe('TroncViewComponent', () => {
 
     it('auto-expands when hasAssignedDirections becomes true', () => {
       fixture.componentRef.setInput('mode', 'assignment');
-      fixture.componentRef.setInput('isNetaFigure', true);
       fixture.componentRef.setInput('directionNodes', [figDirNode]);
       fixture.componentRef.setInput('assignments', []);
       fixture.detectChanges();
@@ -1084,7 +1049,6 @@ describe('TroncViewComponent', () => {
       component.directionAdded.subscribe((e) => emitted.push(e));
 
       fixture.componentRef.setInput('mode', 'assignment');
-      fixture.componentRef.setInput('isNetaFigure', true);
       fixture.componentRef.setInput('directionNodes', []);
       component.directionsExpanded.set(true);
       fixture.detectChanges();
@@ -1102,7 +1066,6 @@ describe('TroncViewComponent', () => {
       component.directionRemoved.subscribe((id) => emitted.push(id));
 
       fixture.componentRef.setInput('mode', 'assignment');
-      fixture.componentRef.setInput('isNetaFigure', true);
       fixture.componentRef.setInput('directionNodes', [figDirNode]);
       fixture.componentRef.setInput('assignments', []);
       component.directionsExpanded.set(true);
@@ -1116,9 +1079,8 @@ describe('TroncViewComponent', () => {
       expect(emitted).toEqual(['dir-fig-1']);
     });
 
-    it('renders direction assignments in projection mode for neta figures', () => {
+    it('renders direction assignments in projection mode', () => {
       fixture.componentRef.setInput('mode', 'projection');
-      fixture.componentRef.setInput('isNetaFigure', true);
       fixture.componentRef.setInput('directionNodes', [figDirNode]);
       fixture.componentRef.setInput('assignments', [
         makeAssignment('dir-fig-1', 'Pepet'),
@@ -1132,7 +1094,6 @@ describe('TroncViewComponent', () => {
 
     it('does not render projection directions when no assignments', () => {
       fixture.componentRef.setInput('mode', 'projection');
-      fixture.componentRef.setInput('isNetaFigure', true);
       fixture.componentRef.setInput('directionNodes', [figDirNode]);
       fixture.componentRef.setInput('assignments', []);
       fixture.detectChanges();

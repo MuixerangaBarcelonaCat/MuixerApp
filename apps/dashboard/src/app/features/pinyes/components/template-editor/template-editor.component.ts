@@ -78,7 +78,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   templateName = signal('Figura nova');
   templateSlug = signal('');
   templateDescription = signal('');
-  hasPinya = signal(true);
 
   // Nodes
   nodes = signal<FigureNodeItem[]>([]);
@@ -111,8 +110,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   readonly troncMode = computed<'editor' | 'projection'>(() =>
     this.previewMode() ? 'projection' : 'editor',
   );
-
-  readonly isFiguraNeta = computed(() => this.hasPinya() === false);
 
   // Panel visibility
   propertiesPanelOpen = signal(true);
@@ -210,11 +207,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
       this.loadTemplate(id);
     } else {
       this.canvasState.reset();
-      const hasPinyaParam = this.route.snapshot.queryParamMap.get('hasPinya');
-      if (hasPinyaParam === 'false') {
-        this.hasPinya.set(false);
-        this.autoOpenTroncCentered();
-      }
     }
   }
 
@@ -404,7 +396,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   }
 
   addPinyaNode(pos: NodePreset): void {
-    if (this.isFiguraNeta()) return;
     this.addNode(
       FigureZone.PINYA,
       0,
@@ -455,18 +446,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
     if (!this.requireName(doAdd)) return;
     doAdd();
-  }
-
-  // ── Tronc panel auto-open (figures netes) ─────────────────────────────────
-
-  private autoOpenTroncCentered(): void {
-    const panelW = Math.min(window.innerWidth * 0.7, window.innerWidth - 32);
-    const panelH = window.innerHeight * 0.7;
-    this.troncPanelPos.set({
-      x: Math.round((window.innerWidth - panelW) / 2),
-      y: Math.round((window.innerHeight - panelH) / 2),
-    });
-    this.troncDrawerOpen.set(true);
   }
 
   // ── Tronc panel drag ─────────────────────────────────────────────────────
@@ -686,11 +665,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     return true;
   }
 
-  onHasPinyaChange(value: boolean): void {
-    this.hasPinya.set(value);
-    this.scheduleAutosave();
-  }
-
   // ── Canvas controls ────────────────────────────────────────────────────────
 
   toggleGrid(): void {
@@ -795,7 +769,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   // ── Rengla mode ──────────────────────────────────────────────────────────
 
   toggleRenglaEditMode(): void {
-    if (this.isFiguraNeta()) return;
     if (this.previewMode()) this.previewMode.set(false);
     this.renglaEditMode.update((v) => !v);
     if (this.renglaEditMode()) {
@@ -938,7 +911,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
         .create({
           name,
           slug,
-          hasPinya: this.hasPinya(),
           nodes: payload.nodes ?? [],
         })
         .subscribe({
@@ -992,7 +964,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     return {
       name: this.templateName().trim(),
       description: this.templateDescription().trim() || undefined,
-      hasPinya: this.hasPinya(),
       nodes: this.nodes().map(nodeToPayload),
       rengles: this.rengles(),
     };
@@ -1009,14 +980,10 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
         this.templateName.set(tmpl.name);
         this.templateSlug.set(tmpl.slug);
         this.templateDescription.set(tmpl.description ?? '');
-        this.hasPinya.set(tmpl.hasPinya);
         this.nodes.set(tmpl.nodes);
         this.rengles.set(tmpl.rengles ?? []);
         this.adHocInstanceCount.set(tmpl.adHocInstanceCount ?? 0);
         this.loading.set(false);
-        if (!tmpl.hasPinya) {
-          this.autoOpenTroncCentered();
-        }
       },
       error: () => {
         this.loading.set(false);
