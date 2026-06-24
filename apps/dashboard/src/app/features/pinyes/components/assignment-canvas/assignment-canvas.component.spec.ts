@@ -116,6 +116,8 @@ const makeInstance = (overrides = {}) => ({
   snapshotted: false,
   assignedCount: 0,
   pinyaAssignedCount: 0,
+  pinyaCapacity: null as number | null,
+  totalCordons: null as number | null,
   numberOfCordons: null as number | null,
   projectionX: null,
   projectionY: null,

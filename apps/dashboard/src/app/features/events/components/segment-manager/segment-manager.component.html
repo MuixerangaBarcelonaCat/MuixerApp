@@ -7,20 +7,45 @@
           <lucide-icon [name]="ICON_FIGURA" [size]="18" class="text-primary" />
           Pinyes i Figures
         </h2>
-        <button
-          type="button"
-          class="btn btn-primary btn-sm gap-1"
-          [disabled]="saving()"
-          (click)="createSegment()"
-          aria-label="Afegir segment nou"
-        >
-          @if (saving()) {
-            <span class="loading loading-spinner loading-xs"></span>
-          } @else {
-            <lucide-icon name="Plus" [size]="14" />
-          }
-          Segment nou
-        </button>
+
+        <div class="flex items-center gap-2 flex-wrap">
+          <!-- Pinyes / Troncs toggle -->
+          <div class="join" role="group" aria-label="Mode de visualització">
+            <button
+              type="button"
+              class="join-item btn btn-xs"
+              [class.btn-primary]="viewMode() === 'pinyes'"
+              [class.btn-ghost]="viewMode() !== 'pinyes'"
+              (click)="setViewMode('pinyes')"
+            >
+              Pinyes
+            </button>
+            <button
+              type="button"
+              class="join-item btn btn-xs"
+              [class.btn-primary]="viewMode() === 'troncs'"
+              [class.btn-ghost]="viewMode() !== 'troncs'"
+              (click)="setViewMode('troncs')"
+            >
+              Troncs
+            </button>
+          </div>
+
+          <button
+            type="button"
+            class="btn btn-primary btn-sm gap-1"
+            [disabled]="saving()"
+            (click)="createSegment()"
+            aria-label="Afegir segment nou"
+          >
+            @if (saving()) {
+              <span class="loading loading-spinner loading-xs"></span>
+            } @else {
+              <lucide-icon name="Plus" [size]="14" />
+            }
+            Segment nou
+          </button>
+        </div>
       </div>
 
       <!-- Loading -->
@@ -42,33 +67,40 @@
 
       <!-- Segments list -->
       @if (!loading() && segments().length > 0) {
-        <div class="space-y-3" role="list" aria-label="Llista de segments">
-          @for (segment of segments(); track segment.id; let i = $index; let last = $last) {
-            <div class="border border-base-300 rounded-box overflow-hidden" role="listitem">
+        <div
+          class="space-y-3"
+          role="list"
+          aria-label="Llista de segments"
+          cdkDropList
+          [cdkDropListData]="segments()"
+          (cdkDropListDropped)="onSegmentDropped($event)"
+        >
+          @for (segment of segments(); track segment.id; let i = $index) {
+            <div
+              class="border border-base-300 rounded-box overflow-hidden"
+              role="listitem"
+              cdkDrag
+              [cdkDragData]="segment"
+            >
 
               <!-- Segment header row -->
               <div class="flex items-center gap-2 px-3 py-2.5 bg-base-200/40 flex-wrap">
-                <!-- Reorder -->
-                <div class="flex gap-0.5 shrink-0">
-                  <button
-                    type="button"
-                    class="btn btn-ghost btn-xs px-1 py-0.5 h-auto min-h-0"
-                    [disabled]="i === 0"
-                    (click)="moveSegment(segment, 'up')"
-                    aria-label="Moure segment amunt"
-                  >
-                    <lucide-icon name="ChevronUp" [size]="14" />
-                  </button>
-                  <button
-                    type="button"
-                    class="btn btn-ghost btn-xs px-1 py-0.5 h-auto min-h-0"
-                    [disabled]="last"
-                    (click)="moveSegment(segment, 'down')"
-                    aria-label="Moure segment avall"
-                  >
-                    <lucide-icon name="ChevronDown" [size]="14" />
-                  </button>
-                </div>
+
+                <!-- Drag handle -->
+                <button
+                  type="button"
+                  cdkDragHandle
+                  class="btn btn-ghost btn-xs px-1 cursor-grab active:cursor-grabbing text-base-content/30 hover:text-base-content/70 shrink-0"
+                  aria-label="Arrossega per reordenar el segment"
+                >
+                  <lucide-icon name="GripVertical" [size]="14" />
+                </button>
+
+                <!-- Order badge -->
+                <span
+                  class="flex items-center justify-center w-6 h-6 rounded text-xs font-bold text-primary-content bg-primary shrink-0"
+                  [attr.aria-label]="'Segment ' + (i + 1)"
+                >{{ i + 1 }}</span>
 
                 <!-- Name or edit input -->
                 @if (editingSegmentId() === segment.id) {
@@ -181,6 +213,9 @@
                 </div>
               </div>
 
+              <!-- CDK drag placeholder -->
+              <div *cdkDragPlaceholder class="h-12 bg-base-200/60 border-2 border-dashed border-base-300 rounded-box m-1"></div>
+
               <!-- Time + Notes info (if set) -->
               @if (segment.startTime || segment.endTime || segment.notes) {
                 <div class="text-xs text-base-content/50 flex flex-wrap gap-3 px-4 py-1.5 border-b border-base-200">
@@ -201,34 +236,86 @@
 
               <!-- Instance rows -->
               @if (segment.instances.length > 0) {
-                <div role="list" [attr.aria-label]="'Figures del segment ' + displayName()(segment)">
-                  @for (instance of segment.instances; track instance.id) {
+                <div
+                  role="list"
+                  [attr.aria-label]="'Figures del segment ' + displayName()(segment)"
+                  cdkDropList
+                  [cdkDropListData]="segment.instances"
+                  (cdkDropListDropped)="onInstanceDropped(segment, $event)"
+                >
+                  @for (instance of segment.instances; track instance.id; let flast = $last) {
                     <div
-                      class="flex items-center gap-2 px-3 py-2 border-b border-base-200 last:border-b-0 hover:bg-base-200/30"
+                      class="flex gap-2 px-3 border-b border-base-200 last:border-b-0 hover:bg-base-200/30"
+                      [class.items-center]="viewMode() === 'pinyes'"
+                      [class.items-start]="viewMode() === 'troncs'"
+                      [class.min-h-11]="viewMode() === 'pinyes'"
+                      [class.py-2]="viewMode() === 'pinyes'"
+                      [class.py-2.5]="viewMode() === 'troncs'"
                       role="listitem"
+                      cdkDrag
+                      [cdkDragData]="instance"
                     >
-                      <!-- Figure name (click → assignment for this instance) -->
+                      <!-- Instance drag handle -->
                       <button
                         type="button"
-                        class="flex-1 flex items-center gap-2 text-sm text-left font-medium hover:text-primary truncate"
-                        (click)="navigateToAssignment(segment.id, instance.id)"
-                        [attr.aria-label]="'Assigna ' + getInstanceLabel(instance)"
-                        [attr.data-instance-id]="instance.id"
+                        cdkDragHandle
+                        class="btn btn-ghost btn-xs px-0.5 py-0 h-auto min-h-0 cursor-grab active:cursor-grabbing text-base-content/25 hover:text-base-content/60 shrink-0 self-center"
+                        aria-label="Arrossega per reordenar"
                       >
-                        {{ getInstanceLabel(instance) }}
-                        <!-- Assigned count -->
-                        @if (instance.assignedCount > 0) {
-                          <span class="flex items-center gap-0.5 text-xs text-base-content/50 shrink-0" [attr.aria-label]="instance.assignedCount + ' assignades'">
-                            <lucide-icon [name]="ICON_PERSONA" [size]="11" />
-                            {{ instance.assignedCount }}
-                          </span>
-                        }
+                        <lucide-icon name="GripVertical" [size]="12" />
                       </button>
+
+                      <!-- Figure name + info block -->
+                      <div class="flex-1 min-w-0">
+                        <button
+                          type="button"
+                          class="flex items-center gap-2 text-sm text-left font-medium hover:text-primary w-full truncate"
+                          (click)="navigateToAssignment(segment.id, instance.id)"
+                          [attr.aria-label]="'Assigna ' + getInstanceLabel(instance)"
+                          [attr.data-instance-id]="instance.id"
+                        >
+                          <span class="truncate">{{ getInstanceLabel(instance) }}</span>
+
+                          <!-- Pinya mode: assigned count -->
+                          @if (viewMode() === 'pinyes') {
+                            @if (instance.figureTemplate?.hasPinya && instance.figureMode !== 'REMAT' && instance.pinyaCapacity !== null) {
+                              <span class="flex items-center gap-0.5 text-xs text-base-content/50 shrink-0 font-normal" [attr.aria-label]="instance.pinyaAssignedCount + ' de ' + instance.pinyaCapacity + ' assignades a la pinya'">
+                                <lucide-icon [name]="ICON_PERSONA" [size]="11" />
+                                {{ instance.pinyaAssignedCount }}/{{ instance.pinyaCapacity }}
+                                @if (showCordonsBadge(instance)) {
+                                  <span class="text-base-content/40">({{ instance.numberOfCordons }} cor.)</span>
+                                }
+                              </span>
+                            } @else if (instance.assignedCount > 0) {
+                              <span class="flex items-center gap-0.5 text-xs text-base-content/50 shrink-0 font-normal" [attr.aria-label]="instance.assignedCount + ' assignades'">
+                                <lucide-icon [name]="ICON_FIGURA_NETA" [size]="11" />
+                              </span>
+                            }
+                          }
+                        </button>
+
+                        <!-- Tronc mode: floor summary -->
+                        @if (viewMode() === 'troncs') {
+                          @if (troncLoading()) {
+                            <span class="text-xs text-base-content/30 mt-0.5 block">S'estan carregant...</span>
+                          } @else if (instance.snapshotted) {
+                            @if (troncSummaryText(instance); as summary) {
+                              <p class="text-xs text-base-content/60 mt-0.5 leading-snug break-words" [attr.aria-label]="'Tronc de ' + getInstanceLabel(instance)">
+                                {{ summary }}
+                              </p>
+                            } @else {
+                              <span class="text-xs text-base-content/30 mt-0.5 block">Sense assignacions al tronc</span>
+                            }
+                          } @else {
+                            <span class="text-xs text-base-content/30 mt-0.5 block">Sense assignacions</span>
+                          }
+                        }
+                      </div>
 
                       <!-- Mode selector or static 'Neta' label -->
                       @if (figureModeOptions(instance); as options) {
                         <select
-                          class="select select-xs h-6 min-h-0 text-xs py-0 px-1.5 border-base-300 rounded w-24 shrink-0"
+                          class="select select-xs h-6 min-h-0 text-xs py-0 px-1.5 border-base-300 rounded w-24 shrink-0 self-center"
                           [attr.aria-label]="'Mode de ' + getInstanceLabel(instance)"
                           [value]="instance.figureMode"
                           (change)="updateFigureMode(segment, instance, $any($event.target).value)"
@@ -238,13 +325,24 @@
                           }
                         </select>
                       } @else {
-                        <span class="badge badge-ghost badge-xs shrink-0 w-16 justify-left">Neta</span>
+                        <span class="badge badge-ghost badge-xs shrink-0 w-16 justify-left self-center">Neta</span>
                       }
+
+                      <!-- Copy to segment -->
+                      <button
+                        type="button"
+                        class="btn btn-ghost btn-xs shrink-0 self-center"
+                        (click)="openCopyPicker(segment.id, instance.id)"
+                        [attr.aria-label]="'Copia ' + getInstanceLabel(instance) + ' a un altre segment'"
+                        title="Copia a un altre segment"
+                      >
+                        <lucide-icon name="Copy" [size]="12" />
+                      </button>
 
                       <!-- Delete instance -->
                       <button
                         type="button"
-                        class="btn btn-ghost btn-xs text-error shrink-0"
+                        class="btn btn-ghost btn-xs text-error shrink-0 self-center"
                         (click)="removeInstance(segment, instance)"
                         [attr.aria-label]="'Treure ' + getInstanceLabel(instance) + ' del segment'"
                       >
@@ -273,6 +371,49 @@
     (confirmed)="onInstancesConfirmed($event)"
     (closed)="closePicker()"
   />
+}
+
+<!-- Copy to segment modal -->
+@if (copyPickerInstanceId() && copyPickerSegmentId()) {
+  <dialog
+    class="modal modal-open"
+    aria-labelledby="copy-picker-title"
+    aria-modal="true"
+  >
+    <div class="modal-box max-w-xs">
+      <h3 id="copy-picker-title" class="font-bold mb-3">Copia la figura al segment:</h3>
+      @if (otherSegments(copyPickerSegmentId()!).length === 0) {
+        <p class="text-sm text-base-content/50 mb-3">Cap altre segment disponible.</p>
+      } @else {
+        <div class="space-y-1 mb-3">
+          @for (target of otherSegments(copyPickerSegmentId()!); track target.id) {
+            <button
+              type="button"
+              class="btn btn-ghost btn-sm w-full justify-start"
+              [disabled]="copyingInstance()"
+              (click)="copyToSegment(target.id)"
+            >
+              @if (copyingInstance()) {
+                <span class="loading loading-spinner loading-xs"></span>
+              }
+              {{ displayName()(target) }}
+            </button>
+          }
+        </div>
+      }
+      <div class="modal-action">
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm"
+          (click)="closeCopyPicker()"
+          [disabled]="copyingInstance()"
+        >
+          Cancel·la
+        </button>
+      </div>
+    </div>
+    <button type="button" class="modal-backdrop" (click)="closeCopyPicker()" aria-label="Tancar"></button>
+  </dialog>
 }
 
 <!-- Remove instance confirmation modal -->

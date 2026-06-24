@@ -24,6 +24,7 @@ import { CreateInstanceDto } from './dto/create-instance.dto';
 import { UpdateInstanceDto } from './dto/update-instance.dto';
 import { ReorderInstancesDto } from './dto/reorder-instances.dto';
 import { UpdateProjectionLayoutDto } from './dto/update-projection-layout.dto';
+import { CopyInstanceDto } from './dto/copy-instance.dto';
 
 @ApiTags('event-segments')
 @ApiBearerAuth()
@@ -143,5 +144,22 @@ export class EventSegmentController {
     @Param('segmentId', ParseUUIDPipe) segmentId: string,
   ): Promise<ProjectionData> {
     return this.projectionService.getProjection(eventId, segmentId);
+  }
+
+  @ApiOperation({ summary: 'Copy a figure instance to another segment within the same event' })
+  @Post(':segmentId/instances/:instanceId/copy')
+  copyInstance(
+    @Param('eventId', ParseUUIDPipe) eventId: string,
+    @Param('segmentId', ParseUUIDPipe) segmentId: string,
+    @Param('instanceId', ParseUUIDPipe) instanceId: string,
+    @Body() dto: CopyInstanceDto,
+  ) {
+    return this.instanceService.copy(eventId, segmentId, instanceId, dto.targetSegmentId);
+  }
+
+  @ApiOperation({ summary: 'Get compact tronc floor data for all snapshotted instances in the event' })
+  @Get('tronc-view')
+  getTroncView(@Param('eventId', ParseUUIDPipe) eventId: string) {
+    return this.segmentService.getTroncView(eventId);
   }
 }

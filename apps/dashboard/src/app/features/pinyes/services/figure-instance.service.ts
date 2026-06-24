@@ -7,6 +7,10 @@ import {
   UpdateInstancePayload,
 } from '../models/segment.model';
 
+export interface CopyInstancePayload {
+  targetSegmentId: string;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -40,6 +44,13 @@ export class FigureInstanceService extends ApiService {
     return this.patch<void>(
       `/events/${eventId}/segments/${segmentId}/instances/reorder`,
       { instanceIds },
+    );
+  }
+
+  copy(eventId: string, segmentId: string, instanceId: string, payload: CopyInstancePayload): Observable<InstanceDetail> {
+    return this.post<InstanceDetail>(
+      `/events/${eventId}/segments/${segmentId}/instances/${instanceId}/copy`,
+      payload,
     );
   }
 }

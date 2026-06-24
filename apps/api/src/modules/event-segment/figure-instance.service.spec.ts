@@ -252,6 +252,57 @@ describe('FigureInstanceService', () => {
     });
   });
 
+  describe('copy', () => {
+    const TARGET_SEGMENT_ID = 'segment-uuid-2';
+
+    it('creates a new instance in the target segment with the same template', async () => {
+      const sourceWithRelations = makeInstance({
+        figureTemplate: makeFigureTemplate(),
+        compositionTemplate: null,
+      });
+      mockInstanceRepo.findOne
+        .mockResolvedValueOnce(sourceWithRelations)  // assertInstanceBelongsToSegment (source)
+        .mockResolvedValueOnce(makeInstance());       // findOneById after save
+
+      const targetSegment = { id: TARGET_SEGMENT_ID, event: { id: EVENT_ID } } as any;
+      mockSegmentRepo.findOne
+        .mockResolvedValueOnce(makeSegment())         // assertSegmentBelongsToEvent (source)
+        .mockResolvedValueOnce(targetSegment);        // assertSegmentBelongsToEvent (target)
+
+      mockInstanceRepo.create.mockReturnValue(makeInstance());
+      mockInstanceRepo.save.mockResolvedValue(makeInstance());
+
+      const result = await service.copy(EVENT_ID, SEGMENT_ID, INSTANCE_ID, TARGET_SEGMENT_ID);
+
+      expect(mockInstanceRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ segment: targetSegment, label: null }),
+      );
+      expect(result.id).toBe(INSTANCE_ID);
+    });
+
+    it('throws 404 if source instance is not found', async () => {
+      mockInstanceRepo.findOne.mockResolvedValueOnce(null);
+
+      await expect(
+        service.copy(EVENT_ID, SEGMENT_ID, INSTANCE_ID, TARGET_SEGMENT_ID),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws 404 if target segment does not belong to event', async () => {
+      mockInstanceRepo.findOne.mockResolvedValueOnce(makeInstance({
+        figureTemplate: makeFigureTemplate(),
+        compositionTemplate: null,
+      }));
+      mockSegmentRepo.findOne
+        .mockResolvedValueOnce(makeSegment())  // source segment
+        .mockResolvedValueOnce(null);           // target segment not found
+
+      await expect(
+        service.copy(EVENT_ID, SEGMENT_ID, INSTANCE_ID, TARGET_SEGMENT_ID),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
   describe('reorder', () => {
     it('reassigns sortOrder via transaction', async () => {
       mockSegmentRepo.findOne.mockResolvedValue(makeSegment());

@@ -9,8 +9,9 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { LucideAngularModule } from 'lucide-angular';
-import { ICON_FIGURA, ICON_PERSONA, ICON_COMPOSITION } from '../../../../shared/constants/domain-icons';
+import { ICON_FIGURA, ICON_PERSONA, ICON_COMPOSITION, ICON_FIGURA_NETA } from '../../../../shared/constants/domain-icons';
 import { forkJoin } from 'rxjs';
 import { EventSegmentService } from '../../../pinyes/services/event-segment.service';
 import { FigureInstanceService } from '../../../pinyes/services/figure-instance.service';
@@ -19,7 +20,15 @@ import {
   FigurePickerModalComponent,
   InstanceSelection,
 } from '../../../pinyes/components/figure-picker-modal/figure-picker-modal.component';
-import { SegmentDetail, InstanceDetail, FigureMode } from '../../../pinyes/models/segment.model';
+import {
+  SegmentDetail,
+  InstanceDetail,
+  FigureMode,
+  InstanceTroncSummary,
+  TroncFloorData,
+} from '../../../pinyes/models/segment.model';
+
+export type ViewMode = 'pinyes' | 'troncs';
 
 interface PendingInstanceRemoval {
   segment: SegmentDetail;
@@ -36,7 +45,7 @@ interface PendingModeChange {
   selector: 'app-segment-manager',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule, FigurePickerModalComponent],
+  imports: [FormsModule, LucideAngularModule, FigurePickerModalComponent, DragDropModule],
   templateUrl: './segment-manager.component.html',
 })
 export class SegmentManagerComponent implements OnInit {
@@ -45,6 +54,7 @@ export class SegmentManagerComponent implements OnInit {
   readonly ICON_FIGURA = ICON_FIGURA;
   readonly ICON_PERSONA = ICON_PERSONA;
   readonly ICON_COMPOSITION = ICON_COMPOSITION;
+  readonly ICON_FIGURA_NETA = ICON_FIGURA_NETA;
 
   private readonly segmentService = inject(EventSegmentService);
   private readonly instanceService = inject(FigureInstanceService);
@@ -66,6 +76,15 @@ export class SegmentManagerComponent implements OnInit {
 
   pendingModeChange = signal<PendingModeChange | null>(null);
   savingModeChange = signal(false);
+
+  viewMode = signal<ViewMode>('pinyes');
+  troncData = signal<Map<string, TroncFloorData[]>>(new Map());
+  troncLoading = signal(false);
+  troncDataLoaded = signal(false);
+
+  copyPickerInstanceId = signal<string | null>(null);
+  copyPickerSegmentId = signal<string | null>(null);
+  copyingInstance = signal(false);
 
   segmentTotalAssigned = computed(() => (segment: SegmentDetail): number =>
     segment.instances.reduce((sum, i) => sum + (i.assignedCount ?? 0), 0),
@@ -93,6 +112,30 @@ export class SegmentManagerComponent implements OnInit {
       error: () => {
         this.loading.set(false);
         this.toast.error('Error en carregar els segments.');
+      },
+    });
+  }
+
+  setViewMode(mode: ViewMode): void {
+    this.viewMode.set(mode);
+    if (mode === 'troncs' && !this.troncDataLoaded()) {
+      this.loadTroncView();
+    }
+  }
+
+  private loadTroncView(): void {
+    this.troncLoading.set(true);
+    this.segmentService.getTroncView(this.eventId()).subscribe({
+      next: (summaries: InstanceTroncSummary[]) => {
+        const map = new Map<string, TroncFloorData[]>();
+        for (const s of summaries) map.set(s.instanceId, s.floors);
+        this.troncData.set(map);
+        this.troncDataLoaded.set(true);
+        this.troncLoading.set(false);
+      },
+      error: () => {
+        this.troncLoading.set(false);
+        this.toast.error('Error en carregar les dades del tronc.');
       },
     });
   }
@@ -156,13 +199,12 @@ export class SegmentManagerComponent implements OnInit {
     });
   }
 
-  moveSegment(segment: SegmentDetail, direction: 'up' | 'down') {
-    const list = [...this.segments()];
-    const idx = list.findIndex((s) => s.id === segment.id);
-    const newIdx = direction === 'up' ? idx - 1 : idx + 1;
-    if (newIdx < 0 || newIdx >= list.length) return;
+  onSegmentDropped(event: CdkDragDrop<SegmentDetail[]>): void {
+    const { previousIndex, currentIndex } = event;
+    if (previousIndex === currentIndex) return;
 
-    [list[idx], list[newIdx]] = [list[newIdx], list[idx]];
+    const list = [...this.segments()];
+    moveItemInArray(list, previousIndex, currentIndex);
     const reordered = list.map((s, i) => ({ ...s, sortOrder: i }));
     this.segments.set(reordered);
 
@@ -170,6 +212,62 @@ export class SegmentManagerComponent implements OnInit {
       error: () => {
         this.toast.error('Error en reordenar els segments.');
         this.loadSegments();
+      },
+    });
+  }
+
+  onInstanceDropped(segment: SegmentDetail, event: CdkDragDrop<InstanceDetail[]>): void {
+    const { previousIndex, currentIndex } = event;
+    if (previousIndex === currentIndex) return;
+
+    const instances = [...segment.instances];
+    moveItemInArray(instances, previousIndex, currentIndex);
+    const reordered = instances.map((i, pos) => ({ ...i, sortOrder: pos }));
+
+    this.segments.update((list) =>
+      list.map((s) => (s.id === segment.id ? { ...s, instances: reordered } : s)),
+    );
+
+    this.instanceService.reorder(this.eventId(), segment.id, reordered.map((i) => i.id)).subscribe({
+      error: () => {
+        this.toast.error('Error en reordenar les figures.');
+        this.loadSegments();
+      },
+    });
+  }
+
+  openCopyPicker(segmentId: string, instanceId: string): void {
+    this.copyPickerSegmentId.set(segmentId);
+    this.copyPickerInstanceId.set(instanceId);
+  }
+
+  closeCopyPicker(): void {
+    this.copyPickerSegmentId.set(null);
+    this.copyPickerInstanceId.set(null);
+  }
+
+  copyToSegment(targetSegmentId: string): void {
+    const sourceSegmentId = this.copyPickerSegmentId();
+    const instanceId = this.copyPickerInstanceId();
+    if (!sourceSegmentId || !instanceId) return;
+
+    this.copyingInstance.set(true);
+    this.instanceService.copy(this.eventId(), sourceSegmentId, instanceId, { targetSegmentId }).subscribe({
+      next: (newInstance) => {
+        this.segments.update((list) =>
+          list.map((s) =>
+            s.id === targetSegmentId
+              ? { ...s, instances: [...s.instances, newInstance] }
+              : s,
+          ),
+        );
+        this.copyingInstance.set(false);
+        this.closeCopyPicker();
+        this.toast.success('Figura copiada al segment.');
+      },
+      error: () => {
+        this.copyingInstance.set(false);
+        this.toast.error('Error en copiar la figura.');
       },
     });
   }
@@ -271,6 +369,8 @@ export class SegmentManagerComponent implements OnInit {
   updateFigureMode(segment: SegmentDetail, instance: InstanceDetail, mode: FigureMode): void {
     if (mode === 'REMAT' && instance.pinyaAssignedCount > 0) {
       this.pendingModeChange.set({ segment, instance, mode });
+      // Optimistically reflect the selection so Angular controls the DOM value
+      this.setInstanceMode(segment.id, instance.id, mode);
       return;
     }
     this.applyModeChange(segment, instance, mode);
@@ -280,14 +380,43 @@ export class SegmentManagerComponent implements OnInit {
     const pending = this.pendingModeChange();
     if (!pending) return;
     this.savingModeChange.set(true);
-    this.applyModeChange(pending.segment, pending.instance, pending.mode, () => {
-      this.savingModeChange.set(false);
-      this.pendingModeChange.set(null);
+    this.instanceService.update(this.eventId(), pending.segment.id, pending.instance.id, { figureMode: pending.mode }).subscribe({
+      next: (updated) => {
+        this.segments.update((list) =>
+          list.map((s) =>
+            s.id === pending.segment.id
+              ? { ...s, instances: s.instances.map((i) => (i.id === updated.id ? updated : i)) }
+              : s,
+          ),
+        );
+        this.savingModeChange.set(false);
+        this.pendingModeChange.set(null);
+      },
+      error: () => {
+        this.setInstanceMode(pending.segment.id, pending.instance.id, pending.instance.figureMode);
+        this.toast.error('Error en actualitzar el mode de la figura.');
+        this.savingModeChange.set(false);
+        this.pendingModeChange.set(null);
+      },
     });
   }
 
   cancelModeChange(): void {
+    const pending = this.pendingModeChange();
+    if (!pending) return;
+    // Revert the optimistic update so the dropdown resets to the original value
+    this.setInstanceMode(pending.segment.id, pending.instance.id, pending.instance.figureMode);
     this.pendingModeChange.set(null);
+  }
+
+  private setInstanceMode(segmentId: string, instanceId: string, mode: FigureMode): void {
+    this.segments.update((list) =>
+      list.map((s) =>
+        s.id === segmentId
+          ? { ...s, instances: s.instances.map((i) => (i.id === instanceId ? { ...i, figureMode: mode } : i)) }
+          : s,
+      ),
+    );
   }
 
   private applyModeChange(
@@ -312,6 +441,52 @@ export class SegmentManagerComponent implements OnInit {
         onDone?.();
       },
     });
+  }
+
+  showCordonsBadge(instance: InstanceDetail): boolean {
+    return (
+      !!instance.figureTemplate?.hasPinya &&
+      instance.figureMode !== 'REMAT' &&
+      instance.numberOfCordons !== null &&
+      instance.totalCordons !== null &&
+      instance.numberOfCordons < instance.totalCordons
+    );
+  }
+
+  troncSummaryText(instance: InstanceDetail): string | null {
+    const floors = this.troncData().get(instance.id);
+    if (!floors || floors.length === 0) return null;
+
+    let displayFloors = [...floors].sort((a, b) => {
+      if (a.isBase && !b.isBase) return -1;
+      if (!a.isBase && b.isBase) return 1;
+      return a.z - b.z;
+    });
+
+    if (instance.figureMode === 'REMAT') {
+      displayFloors = displayFloors.filter((f) => !f.isBase);
+    }
+
+    if (instance.figureMode === 'PEU') {
+      let lastAssignedIdx = -1;
+      for (let i = displayFloors.length - 1; i >= 0; i--) {
+        if (displayFloors[i].slots.some((s) => s !== null)) {
+          lastAssignedIdx = i;
+          break;
+        }
+      }
+      displayFloors = lastAssignedIdx >= 0 ? displayFloors.slice(0, lastAssignedIdx + 1) : [];
+    }
+
+    if (displayFloors.length === 0) return null;
+
+    return displayFloors
+      .map((f) => f.slots.map((s) => s ?? '?').join(' - '))
+      .join(' // ');
+  }
+
+  otherSegments(currentSegmentId: string): SegmentDetail[] {
+    return this.segments().filter((s) => s.id !== currentSegmentId);
   }
 
   navigateToAssignment(segmentId: string, instanceId: string | null = null): void {

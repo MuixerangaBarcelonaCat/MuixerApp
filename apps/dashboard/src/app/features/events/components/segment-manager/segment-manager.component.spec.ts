@@ -2,18 +2,22 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import { of, throwError } from 'rxjs';
 import { Router } from '@angular/router';
+import { DragDropModule, CdkDragDrop } from '@angular/cdk/drag-drop';
 import {
   LUCIDE_ICONS, LucideIconProvider,
-  Check, ChevronDown, ChevronUp, CirclePile, Clock, Eye, EyeOff, FileText, Hexagon, Layers,
-  LayoutGrid, Monitor, Plus, Trash2, Users, X,
+  Check, CirclePile, Clock, Copy, Eye, EyeOff, FileText, GripVertical, Hexagon, Layers,
+  LayoutGrid, Lock, Monitor, Plus, Trash2, Users, X,
 } from 'lucide-angular';
 import { SegmentManagerComponent } from './segment-manager.component';
 import { EventSegmentService } from '../../../pinyes/services/event-segment.service';
 import { FigureInstanceService } from '../../../pinyes/services/figure-instance.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
-import { SegmentDetail } from '../../../pinyes/models/segment.model';
+import { SegmentDetail, InstanceDetail } from '../../../pinyes/models/segment.model';
 
 const EVENT_ID = 'event-uuid-1';
+
+const makeDrop = <T>(previousIndex: number, currentIndex: number): CdkDragDrop<T[]> =>
+  ({ previousIndex, currentIndex } as unknown as CdkDragDrop<T[]>);
 
 const makeSegment = (overrides: Partial<SegmentDetail> = {}): SegmentDetail => ({
   id: 'seg-uuid-1',
@@ -27,13 +31,15 @@ const makeSegment = (overrides: Partial<SegmentDetail> = {}): SegmentDetail => (
   ...overrides,
 });
 
-const makeInstance = (overrides = {}) => ({
+const makeInstance = (overrides: Partial<InstanceDetail> = {}): InstanceDetail => ({
   id: 'inst-uuid-1',
   label: null,
   sortOrder: 0,
   snapshotted: false,
   assignedCount: 0,
   pinyaAssignedCount: 0,
+  pinyaCapacity: null,
+  totalCordons: null,
   numberOfCordons: null,
   projectionX: null,
   projectionY: null,
@@ -59,12 +65,15 @@ describe('SegmentManagerComponent', () => {
       update: vi.fn(),
       remove: vi.fn(),
       reorder: vi.fn(),
+      getTroncView: vi.fn().mockReturnValue(of([])),
     };
 
     instanceService = {
       create: vi.fn(),
       remove: vi.fn(),
       update: vi.fn(),
+      reorder: vi.fn().mockReturnValue(of(undefined)),
+      copy: vi.fn(),
     };
 
     toastService = {
@@ -75,7 +84,7 @@ describe('SegmentManagerComponent', () => {
     routerMock = { navigate: vi.fn(), url: '/rehearsals/event-123' };
 
     await TestBed.configureTestingModule({
-      imports: [SegmentManagerComponent],
+      imports: [SegmentManagerComponent, DragDropModule],
       providers: [
         { provide: EventSegmentService, useValue: segmentService },
         { provide: FigureInstanceService, useValue: instanceService },
@@ -84,8 +93,8 @@ describe('SegmentManagerComponent', () => {
         {
           provide: LUCIDE_ICONS, multi: true,
           useFactory: () => new LucideIconProvider({
-            Check, ChevronDown, ChevronUp, CirclePile, Clock, Eye, EyeOff, FileText, Hexagon, Layers,
-            LayoutGrid, Monitor, Plus, Trash2, Users, X,
+            Check, CirclePile, Clock, Copy, Eye, EyeOff, FileText, GripVertical, Hexagon, Layers,
+            LayoutGrid, Lock, Monitor, Plus, Trash2, Users, X,
           }),
         },
       ],
@@ -129,8 +138,8 @@ describe('SegmentManagerComponent', () => {
       const seg = makeSegment({
         name: null,
         instances: [
-          { id: 'i1', label: null, sortOrder: 0, snapshotted: false, assignedCount: 0, pinyaAssignedCount: 0, numberOfCordons: null, projectionX: null, projectionY: null, projectionScale: 1, figureMode: 'COMPLETA' as const, figureTemplate: { id: 'f1', name: 'pd4', hasPinya: true }, compositionTemplate: null },
-          { id: 'i2', label: null, sortOrder: 1, snapshotted: false, assignedCount: 0, pinyaAssignedCount: 0, numberOfCordons: null, projectionX: null, projectionY: null, projectionScale: 1, figureMode: 'COMPLETA' as const, figureTemplate: null, compositionTemplate: { id: 'c1', name: 'Altar' } },
+          makeInstance({ id: 'i1', figureTemplate: { id: 'f1', name: 'pd4', hasPinya: true }, compositionTemplate: null }),
+          makeInstance({ id: 'i2', figureTemplate: null, compositionTemplate: { id: 'c1', name: 'Altar' } }),
         ],
       });
       expect(component.displayName()(seg)).toBe('pd4 + Altar');
@@ -197,27 +206,53 @@ describe('SegmentManagerComponent', () => {
     });
   });
 
-  describe('moveSegment()', () => {
-    it('moves segment up and calls reorder', () => {
+  describe('onSegmentDropped()', () => {
+    it('reorders segments and calls service', () => {
       const seg0 = makeSegment({ id: 'seg-0', sortOrder: 0 });
       const seg1 = makeSegment({ id: 'seg-1', sortOrder: 1 });
       component.segments.set([seg0, seg1]);
       (segmentService.reorder as ReturnType<typeof vi.fn>).mockReturnValue(of(undefined));
 
-      component.moveSegment(seg1, 'up');
+      component.onSegmentDropped(makeDrop(1, 0));
 
       expect(component.segments()[0].id).toBe('seg-1');
       expect(component.segments()[1].id).toBe('seg-0');
       expect(segmentService.reorder).toHaveBeenCalledWith(EVENT_ID, ['seg-1', 'seg-0']);
     });
 
-    it('does nothing when moving the first segment up', () => {
+    it('does nothing when previousIndex equals currentIndex', () => {
       const seg = makeSegment({ id: 'seg-0', sortOrder: 0 });
       component.segments.set([seg]);
 
-      component.moveSegment(seg, 'up');
+      component.onSegmentDropped(makeDrop(0, 0));
 
       expect(segmentService.reorder).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('onInstanceDropped()', () => {
+    it('reorders instances and calls service', () => {
+      const inst0 = makeInstance({ id: 'inst-0', sortOrder: 0 });
+      const inst1 = makeInstance({ id: 'inst-1', sortOrder: 1 });
+      const seg = makeSegment({ id: 'seg-1', instances: [inst0, inst1] });
+      component.segments.set([seg]);
+
+      component.onInstanceDropped(seg, makeDrop(0, 1));
+
+      const updatedInstances = component.segments()[0].instances;
+      expect(updatedInstances[0].id).toBe('inst-1');
+      expect(updatedInstances[1].id).toBe('inst-0');
+      expect(instanceService.reorder).toHaveBeenCalledWith(EVENT_ID, 'seg-1', ['inst-1', 'inst-0']);
+    });
+
+    it('does nothing when previousIndex equals currentIndex', () => {
+      const inst = makeInstance({ id: 'inst-0', sortOrder: 0 });
+      const seg = makeSegment({ id: 'seg-1', instances: [inst] });
+      component.segments.set([seg]);
+
+      component.onInstanceDropped(seg, makeDrop(0, 0));
+
+      expect(instanceService.reorder).not.toHaveBeenCalled();
     });
   });
 
@@ -350,7 +385,7 @@ describe('SegmentManagerComponent', () => {
       });
       component.segments.set([seg]);
       fixture.detectChanges();
-    
+
       const button = fixture.nativeElement.querySelector('[data-instance-id="inst-1"]');
       button.click();
       expect(routerMock.navigate).toHaveBeenCalledWith(
@@ -408,6 +443,214 @@ describe('SegmentManagerComponent', () => {
 
       const badge = fixture.nativeElement.querySelector('.badge');
       expect(badge?.textContent?.trim()).toBe('Neta');
+    });
+
+    it('renders segment order number badge', () => {
+      const seg0 = makeSegment({ id: 'seg-0', sortOrder: 0 });
+      const seg1 = makeSegment({ id: 'seg-1', name: 'Bloc B', sortOrder: 1 });
+      component.segments.set([seg0, seg1]);
+      fixture.detectChanges();
+
+      const badges = fixture.nativeElement.querySelectorAll('[aria-label^="Segment "]');
+      expect(badges[0].textContent.trim()).toBe('1');
+      expect(badges[1].textContent.trim()).toBe('2');
+    });
+  });
+
+  describe('viewMode toggle', () => {
+    it('starts in pinyes mode by default', () => {
+      expect(component.viewMode()).toBe('pinyes');
+    });
+
+    it('switches to troncs mode and loads tronc data', () => {
+      (segmentService.getTroncView as ReturnType<typeof vi.fn>).mockReturnValue(of([]));
+
+      component.setViewMode('troncs');
+
+      expect(component.viewMode()).toBe('troncs');
+      expect(segmentService.getTroncView).toHaveBeenCalledWith(EVENT_ID);
+    });
+
+    it('does not reload tronc data if already loaded', () => {
+      (segmentService.getTroncView as ReturnType<typeof vi.fn>).mockReturnValue(of([]));
+
+      component.setViewMode('troncs');
+      component.setViewMode('pinyes');
+      component.setViewMode('troncs');
+
+      expect(segmentService.getTroncView).toHaveBeenCalledTimes(1);
+    });
+
+    it('stores tronc floor data indexed by instanceId', () => {
+      const summary = [
+        { instanceId: 'inst-1', floors: [{ z: 0, isBase: true, slots: ['Pepet', null] }] },
+      ];
+      (segmentService.getTroncView as ReturnType<typeof vi.fn>).mockReturnValue(of(summary));
+
+      component.setViewMode('troncs');
+
+      expect(component.troncData().get('inst-1')).toEqual(summary[0].floors);
+    });
+
+    it('shows error toast when tronc view fails', () => {
+      (segmentService.getTroncView as ReturnType<typeof vi.fn>).mockReturnValue(
+        throwError(() => new Error()),
+      );
+
+      component.setViewMode('troncs');
+
+      expect(toastService.error).toHaveBeenCalledWith('Error en carregar les dades del tronc.');
+    });
+  });
+
+  describe('showCordonsBadge()', () => {
+    it('returns true when numberOfCordons is set and less than totalCordons', () => {
+      const inst = makeInstance({
+        figureTemplate: { id: 'f1', name: 'pd4', hasPinya: true },
+        figureMode: 'COMPLETA',
+        numberOfCordons: 3,
+        totalCordons: 5,
+        pinyaCapacity: 30,
+      });
+      expect(component.showCordonsBadge(inst)).toBe(true);
+    });
+
+    it('returns false for REMAT instances', () => {
+      const inst = makeInstance({
+        figureTemplate: { id: 'f1', name: 'pd4', hasPinya: true },
+        figureMode: 'REMAT',
+        numberOfCordons: 3,
+        totalCordons: 5,
+      });
+      expect(component.showCordonsBadge(inst)).toBe(false);
+    });
+
+    it('returns false when numberOfCordons equals totalCordons', () => {
+      const inst = makeInstance({
+        figureTemplate: { id: 'f1', name: 'pd4', hasPinya: true },
+        figureMode: 'COMPLETA',
+        numberOfCordons: 5,
+        totalCordons: 5,
+      });
+      expect(component.showCordonsBadge(inst)).toBe(false);
+    });
+
+    it('returns false when numberOfCordons is null', () => {
+      const inst = makeInstance({
+        figureTemplate: { id: 'f1', name: 'pd4', hasPinya: true },
+        figureMode: 'COMPLETA',
+        numberOfCordons: null,
+        totalCordons: 5,
+      });
+      expect(component.showCordonsBadge(inst)).toBe(false);
+    });
+
+    it('returns false for figura neta (no pinya)', () => {
+      const inst = makeInstance({
+        figureTemplate: { id: 'f1', name: 'pd3n', hasPinya: false },
+        figureMode: 'COMPLETA',
+        numberOfCordons: 3,
+        totalCordons: 5,
+      });
+      expect(component.showCordonsBadge(inst)).toBe(false);
+    });
+  });
+
+  describe('troncSummaryText()', () => {
+    const floors = [
+      { z: 0, isBase: true, slots: ['Pepet', null, 'Maria'] },
+      { z: 1, isBase: false, slots: ['Joan', '?'] },
+      { z: 2, isBase: false, slots: [null] },
+    ];
+
+    beforeEach(() => {
+      component.troncData.set(new Map([['inst-1', floors]]));
+    });
+
+    it('returns null when no data for instance', () => {
+      const inst = makeInstance({ id: 'inst-999' });
+      expect(component.troncSummaryText(inst)).toBeNull();
+    });
+
+    it('formats COMPLETA with all floors (base to top)', () => {
+      const inst = makeInstance({ id: 'inst-1', figureMode: 'COMPLETA' });
+      const result = component.troncSummaryText(inst);
+      expect(result).toBe('Pepet - ? - Maria // Joan - ? // ?');
+    });
+
+    it('excludes BASE floor for REMAT', () => {
+      const inst = makeInstance({ id: 'inst-1', figureMode: 'REMAT' });
+      const result = component.troncSummaryText(inst);
+      expect(result).toBe('Joan - ? // ?');
+    });
+
+    it('trims unassigned topmost floors for PEU', () => {
+      const inst = makeInstance({ id: 'inst-1', figureMode: 'PEU' });
+      const result = component.troncSummaryText(inst);
+      // floor z=2 is entirely null → trimmed; z=1 has 'Joan' → kept; z=0 (base) kept
+      expect(result).toBe('Pepet - ? - Maria // Joan - ?');
+    });
+
+    it('returns null for PEU when all floors are unassigned', () => {
+      component.troncData.set(new Map([['inst-2', [
+        { z: 0, isBase: true, slots: [null, null] },
+        { z: 1, isBase: false, slots: [null] },
+      ]]]));
+      const inst = makeInstance({ id: 'inst-2', figureMode: 'PEU' });
+      expect(component.troncSummaryText(inst)).toBeNull();
+    });
+  });
+
+  describe('copy to segment', () => {
+    it('openCopyPicker sets copyPickerInstanceId and copyPickerSegmentId', () => {
+      component.openCopyPicker('seg-1', 'inst-1');
+      expect(component.copyPickerSegmentId()).toBe('seg-1');
+      expect(component.copyPickerInstanceId()).toBe('inst-1');
+    });
+
+    it('closeCopyPicker clears both pickers', () => {
+      component.openCopyPicker('seg-1', 'inst-1');
+      component.closeCopyPicker();
+      expect(component.copyPickerSegmentId()).toBeNull();
+      expect(component.copyPickerInstanceId()).toBeNull();
+    });
+
+    it('copyToSegment calls copy service and appends to target segment', () => {
+      const sourceSeg = makeSegment({ id: 'seg-1', instances: [makeInstance({ id: 'inst-1' })] });
+      const targetSeg = makeSegment({ id: 'seg-2', name: 'Bloc B', instances: [] });
+      component.segments.set([sourceSeg, targetSeg]);
+
+      const newInst = makeInstance({ id: 'inst-new' });
+      (instanceService.copy as ReturnType<typeof vi.fn>).mockReturnValue(of(newInst));
+
+      component.openCopyPicker('seg-1', 'inst-1');
+      component.copyToSegment('seg-2');
+
+      expect(instanceService.copy).toHaveBeenCalledWith(EVENT_ID, 'seg-1', 'inst-1', { targetSegmentId: 'seg-2' });
+      expect(component.segments().find((s) => s.id === 'seg-2')!.instances).toHaveLength(1);
+      expect(toastService.success).toHaveBeenCalledWith('Figura copiada al segment.');
+      expect(component.copyPickerInstanceId()).toBeNull();
+    });
+
+    it('shows error toast when copy fails', () => {
+      const sourceSeg = makeSegment({ id: 'seg-1', instances: [makeInstance()] });
+      component.segments.set([sourceSeg]);
+      (instanceService.copy as ReturnType<typeof vi.fn>).mockReturnValue(throwError(() => new Error()));
+
+      component.openCopyPicker('seg-1', 'inst-uuid-1');
+      component.copyToSegment('seg-2');
+
+      expect(toastService.error).toHaveBeenCalledWith('Error en copiar la figura.');
+    });
+
+    it('otherSegments returns all segments except the given one', () => {
+      const seg1 = makeSegment({ id: 'seg-1' });
+      const seg2 = makeSegment({ id: 'seg-2', name: 'Bloc B' });
+      const seg3 = makeSegment({ id: 'seg-3', name: 'Bloc C' });
+      component.segments.set([seg1, seg2, seg3]);
+
+      expect(component.otherSegments('seg-1')).toHaveLength(2);
+      expect(component.otherSegments('seg-1').map((s) => s.id)).toEqual(['seg-2', 'seg-3']);
     });
   });
 
