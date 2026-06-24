@@ -44,14 +44,12 @@
       @if (!loading() && segments().length > 0) {
         <div class="space-y-3" role="list" aria-label="Llista de segments">
           @for (segment of segments(); track segment.id; let i = $index; let last = $last) {
-            <div
-              class="border border-base-300 rounded-box p-3 space-y-2"
-              role="listitem"
-            >
+            <div class="border border-base-300 rounded-box overflow-hidden" role="listitem">
+
               <!-- Segment header row -->
-              <div class="flex items-center gap-2 flex-wrap">
+              <div class="flex items-center gap-2 px-3 py-2.5 bg-base-200/40 flex-wrap">
                 <!-- Reorder -->
-                <div class="flex flex-col gap-0.5">
+                <div class="flex gap-0.5 shrink-0">
                   <button
                     type="button"
                     class="btn btn-ghost btn-xs px-1 py-0.5 h-auto min-h-0"
@@ -92,7 +90,7 @@
                 } @else {
                   <button
                     type="button"
-                    class="font-medium text-sm flex-1 text-left hover:text-primary transition-colors"
+                    class="font-semibold text-sm flex-1 text-left hover:text-primary transition-colors"
                     (click)="startEdit(segment.id, segment.name ?? '')"
                     [title]="'Edita nom del segment'"
                   >
@@ -103,76 +101,89 @@
                   </button>
                 }
 
-                <!-- Visibility toggle -->
-                <button
-                  type="button"
-                  class="btn btn-ghost btn-xs gap-1"
-                  (click)="toggleVisibility(segment)"
-                  [title]="segment.isVisible ? 'Visible als membres — clica per ocultar' : 'Ocult als membres — clica per publicar'"
-                  [attr.aria-pressed]="segment.isVisible"
-                >
-                  @if (segment.isVisible) {
-                    <lucide-icon name="Eye" [size]="14" class="text-success" />
-                  } @else {
-                    <lucide-icon name="EyeOff" [size]="14" class="text-base-content/40" />
+                <!-- Right-side actions -->
+                <div class="flex items-center gap-1 shrink-0 ml-auto">
+                  <!-- Assigned total pill -->
+                  @if (segmentTotalAssigned()(segment) > 0) {
+                    <span class="badge badge-ghost badge-sm gap-1 font-normal" [attr.aria-label]="segmentTotalAssigned()(segment) + ' assignades'">
+                      <lucide-icon [name]="ICON_PERSONA" [size]="11" />
+                      {{ segmentTotalAssigned()(segment) }}
+                    </span>
                   }
-                </button>
 
-                <!-- Add figure button -->
-                <button
-                  type="button"
-                  class="btn btn-ghost btn-xs gap-1"
-                  (click)="openPicker(segment.id)"
-                  aria-label="Afegir figura o composició al segment"
-                >
-                  <lucide-icon name="Plus" [size]="14" />
-                  Figura
-                </button>
+                  <!-- Visibility toggle -->
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-xs"
+                    (click)="toggleVisibility(segment)"
+                    [title]="segment.isVisible ? 'Visible als membres — clica per ocultar' : 'Ocult als membres — clica per publicar'"
+                    [attr.aria-pressed]="segment.isVisible"
+                  >
+                    @if (segment.isVisible) {
+                      <lucide-icon name="Eye" [size]="14" class="text-success" />
+                    } @else {
+                      <lucide-icon name="EyeOff" [size]="14" class="text-base-content/40" />
+                    }
+                  </button>
 
-                <!-- Assign persons button -->
-                @if (segment.instances.length > 0) {
+                  <!-- Add figure -->
                   <button
                     type="button"
                     class="btn btn-ghost btn-xs gap-1"
-                    [class.text-primary]="!isLocked()"
-                    [class.text-base-content]="isLocked()"
-                    [class.opacity-50]="isLocked()"
-                    (click)="navigateToAssignment(segment.id)"
-                    [attr.aria-label]="'Assigna persones al segment ' + displayName()(segment)"
-                    [title]="isLocked() ? 'Assignacions bloquejades' : ''"
+                    (click)="openPicker(segment.id)"
+                    aria-label="Afegir figura o composició al segment"
                   >
-                    @if (isLocked()) {
-                      <lucide-icon name="Lock" [size]="14" aria-hidden="true" />
-                    } @else {
-                      <lucide-icon [name]="ICON_PERSONA" [size]="14" />
-                    }
-                    Assigna
+                    <lucide-icon name="Plus" [size]="14" />
+                    Figura
                   </button>
+
+                  <!-- Assign all -->
+                  @if (segment.instances.length > 0) {
+                    <button
+                      type="button"
+                      class="btn btn-ghost btn-xs gap-1"
+                      [class.text-primary]="!isLocked()"
+                      [class.text-base-content]="isLocked()"
+                      [class.opacity-50]="isLocked()"
+                      (click)="navigateToAssignment(segment.id)"
+                      [attr.aria-label]="'Assigna persones al segment ' + displayName()(segment)"
+                      [title]="isLocked() ? 'Assignacions bloquejades' : ''"
+                    >
+                      @if (isLocked()) {
+                        <lucide-icon name="Lock" [size]="14" aria-hidden="true" />
+                      } @else {
+                        <lucide-icon [name]="ICON_PERSONA" [size]="14" />
+                      }
+                      Assigna
+                    </button>
+
+                    <!-- Project -->
+                    <button
+                      type="button"
+                      class="btn btn-ghost btn-xs gap-1 text-secondary"
+                      (click)="navigateToProjection(segment.id)"
+                      [attr.aria-label]="'Projecta el segment ' + displayName()(segment)"
+                    >
+                      <lucide-icon name="Monitor" [size]="14" />
+                      Projecta
+                    </button>
+                  }
+
+                  <!-- Delete segment -->
                   <button
                     type="button"
-                    class="btn btn-ghost btn-xs gap-1 text-secondary"
-                    (click)="navigateToProjection(segment.id)"
-                    [attr.aria-label]="'Projecta el segment ' + displayName()(segment)"
+                    class="btn btn-ghost btn-xs text-error hover:bg-error/10"
+                    (click)="removeSegment(segment)"
+                    aria-label="Eliminar segment"
                   >
-                    <lucide-icon name="Monitor" [size]="14" />
-                    Projecta
+                    <lucide-icon name="Trash2" [size]="14" />
                   </button>
-                }
-
-                <!-- Delete segment -->
-                <button
-                  type="button"
-                  class="btn btn-ghost btn-xs text-error hover:bg-error/10"
-                  (click)="removeSegment(segment)"
-                  aria-label="Eliminar segment"
-                >
-                  <lucide-icon name="Trash2" [size]="14" />
-                </button>
+                </div>
               </div>
 
               <!-- Time + Notes info (if set) -->
               @if (segment.startTime || segment.endTime || segment.notes) {
-                <div class="text-xs text-base-content/50 flex flex-wrap gap-3 pl-8">
+                <div class="text-xs text-base-content/50 flex flex-wrap gap-3 px-4 py-1.5 border-b border-base-200">
                   @if (segment.startTime || segment.endTime) {
                     <span>
                       <lucide-icon name="Clock" [size]="11" class="inline mr-0.5" />
@@ -188,52 +199,64 @@
                 </div>
               }
 
-              <!-- Instances (figure badges) -->
+              <!-- Instance rows -->
               @if (segment.instances.length > 0) {
-                <div class="flex flex-wrap gap-1.5 pl-8 items-center" role="list" [attr.aria-label]="'Figures del segment ' + displayName()(segment)">
+                <div role="list" [attr.aria-label]="'Figures del segment ' + displayName()(segment)">
                   @for (instance of segment.instances; track instance.id) {
                     <div
-                      class="badge gap-1 pr-1"
-                      [class.badge-primary]="!isComposition(instance)"
-                      [class.badge-secondary]="isComposition(instance)"
+                      class="flex items-center gap-2 px-3 py-2 border-b border-base-200 last:border-b-0 hover:bg-base-200/30"
                       role="listitem"
                     >
-                      @if (isComposition(instance)) {
-                        <lucide-icon [name]="ICON_COMPOSITION" [size]="11" />
-                      }
+                      <!-- Figure name (click → assignment for this instance) -->
                       <button
                         type="button"
-                        class="text-xs hover:underline cursor-pointer"
+                        class="flex-1 flex items-center gap-2 text-sm text-left font-medium hover:text-primary truncate"
                         (click)="navigateToAssignment(segment.id, instance.id)"
                         [attr.aria-label]="'Assigna ' + getInstanceLabel(instance)"
-                        [attr.data-instance-id]="instance.id">
+                        [attr.data-instance-id]="instance.id"
+                      >
                         {{ getInstanceLabel(instance) }}
+                        <!-- Assigned count -->
+                        @if (instance.assignedCount > 0) {
+                          <span class="flex items-center gap-0.5 text-xs text-base-content/50 shrink-0" [attr.aria-label]="instance.assignedCount + ' assignades'">
+                            <lucide-icon [name]="ICON_PERSONA" [size]="11" />
+                            {{ instance.assignedCount }}
+                          </span>
+                        }
                       </button>
-                      @if (instance.assignedCount > 0) {
-                        <span class="badge badge-xs badge-ghost font-mono" [attr.aria-label]="instance.assignedCount + ' assignades'">
-                          {{ instance.assignedCount }}
-                        </span>
+
+                      <!-- Mode selector or static 'Neta' label -->
+                      @if (figureModeOptions(instance); as options) {
+                        <select
+                          class="select select-xs h-6 min-h-0 text-xs py-0 px-1.5 border-base-300 rounded w-24 shrink-0"
+                          [attr.aria-label]="'Mode de ' + getInstanceLabel(instance)"
+                          [value]="instance.figureMode"
+                          (change)="updateFigureMode(segment, instance, $any($event.target).value)"
+                        >
+                          @for (opt of options; track opt.value) {
+                            <option [value]="opt.value">{{ opt.label }}</option>
+                          }
+                        </select>
+                      } @else {
+                        <span class="badge badge-ghost badge-xs shrink-0 w-16 justify-left">Neta</span>
                       }
+
+                      <!-- Delete instance -->
                       <button
                         type="button"
-                        class="ml-0.5 hover:opacity-70 transition-opacity"
+                        class="btn btn-ghost btn-xs text-error shrink-0"
                         (click)="removeInstance(segment, instance)"
                         [attr.aria-label]="'Treure ' + getInstanceLabel(instance) + ' del segment'"
                       >
-                        <lucide-icon name="X" [size]="11" />
+                        <lucide-icon name="X" [size]="12" />
                       </button>
                     </div>
                   }
-                  @if (segmentTotalAssigned()(segment) > 0) {
-                    <span class="text-xs text-base-content/50 ml-1">
-                      <lucide-icon [name]="ICON_PERSONA" [size]="11" class="inline mr-0.5" />
-                      {{ segmentTotalAssigned()(segment) }} assignades
-                    </span>
-                  }
                 </div>
               } @else {
-                <p class="text-xs text-base-content/30 pl-8">Cap figura afegida. Cliqueu "+ Figura" per afegir-ne.</p>
+                <p class="text-xs text-base-content/40 px-4 py-3">Cap figura afegida. Cliqueu "+ Figura" per afegir-ne.</p>
               }
+
             </div>
           }
         </div>
@@ -301,5 +324,51 @@
       </div>
     </div>
     <button type="button" class="modal-backdrop" (click)="cancelInstanceRemoval()" aria-label="Tancar"></button>
+  </dialog>
+}
+
+<!-- REMAT mode change confirmation modal -->
+@if (pendingModeChange()) {
+  <dialog
+    class="modal modal-open"
+    role="alertdialog"
+    aria-labelledby="remat-confirm-title"
+    aria-describedby="remat-confirm-desc"
+    aria-modal="true"
+  >
+    <div class="modal-box max-w-sm">
+      <h3 id="remat-confirm-title" class="text-lg font-bold mb-3">Canviar a Remat</h3>
+      <p id="remat-confirm-desc" class="text-sm text-base-content/70">
+        Canviar <strong>{{ getInstanceLabel(pendingModeChange()!.instance) }}</strong> a
+        <strong>Remat</strong> desassignarà
+        <strong>{{ pendingModeChange()!.instance.pinyaAssignedCount }}
+          {{ pendingModeChange()!.instance.pinyaAssignedCount === 1 ? 'persona' : 'persones' }}
+        </strong>
+        de la pinya.
+      </p>
+      <p class="text-xs text-warning mt-2">Aquesta acció no es pot desfer.</p>
+      <div class="modal-action">
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm"
+          (click)="cancelModeChange()"
+          [disabled]="savingModeChange()"
+        >
+          Cancel·la
+        </button>
+        <button
+          type="button"
+          class="btn btn-warning btn-sm gap-1"
+          (click)="confirmModeChange()"
+          [disabled]="savingModeChange()"
+        >
+          @if (savingModeChange()) {
+            <span class="loading loading-spinner loading-xs"></span>
+          }
+          Canvia a Remat
+        </button>
+      </div>
+    </div>
+    <button type="button" class="modal-backdrop" (click)="cancelModeChange()" aria-label="Tancar"></button>
   </dialog>
 }

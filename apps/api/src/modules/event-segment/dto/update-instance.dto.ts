@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
 import { Type } from 'class-transformer';
+import { FigureMode } from '@muixer/shared';
 
 export class UpdateInstanceDto {
   @ApiPropertyOptional({ description: 'Label override for this instance' })
@@ -14,4 +15,9 @@ export class UpdateInstanceDto {
   @IsOptional()
   @Type(() => Number)
   sortOrder?: number;
+
+  @ApiPropertyOptional({ enum: FigureMode, description: 'Build mode for the figure' })
+  @IsEnum(FigureMode)
+  @IsOptional()
+  figureMode?: FigureMode;
 }

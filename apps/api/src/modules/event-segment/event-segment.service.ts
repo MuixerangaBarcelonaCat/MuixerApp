@@ -10,6 +10,7 @@ import { Event } from '../event/event.entity';
 import { CreateSegmentDto } from './dto/create-segment.dto';
 import { UpdateSegmentDto } from './dto/update-segment.dto';
 import { ReorderSegmentsDto } from './dto/reorder-segments.dto';
+import { FigureMode } from '@muixer/shared';
 
 export interface InstanceRef {
   id: string;
@@ -17,7 +18,9 @@ export interface InstanceRef {
   sortOrder: number;
   snapshotted: boolean;
   assignedCount: number;
+  pinyaAssignedCount: number;
   numberOfCordons: number | null;
+  figureMode: FigureMode;
   figureTemplate: { id: string; name: string; hasPinya: boolean } | null;
   compositionTemplate: { id: string; name: string } | null;
 }
@@ -56,16 +59,19 @@ export class EventSegmentService {
       .addOrderBy('instance.sortOrder', 'ASC')
       .getMany();
 
-    const countMap = await this.loadAssignmentCounts(
-      segments.flatMap((s) => (s.instances ?? []).map((i) => i.id)),
-    );
+    const instanceIds = segments.flatMap((s) => (s.instances ?? []).map((i) => i.id));
+
+    const [countMap, pinyaAssignedMap] = await Promise.all([
+      this.loadAssignmentCounts(instanceIds),
+      this.loadPinyaAssignmentCounts(instanceIds),
+    ]);
 
     const allTemplateIds = segments.flatMap((s) =>
       (s.instances ?? []).filter((i) => i.figureTemplate).map((i) => i.figureTemplate!.id),
     );
     const pinyaTemplateIds = await this.loadPinyaTemplateIds(allTemplateIds);
 
-    return segments.map((s) => toSegmentWithInstances(s, countMap, pinyaTemplateIds));
+    return segments.map((s) => toSegmentWithInstances(s, countMap, pinyaAssignedMap, pinyaTemplateIds));
   }
 
   async create(eventId: string, dto: CreateSegmentDto): Promise<SegmentWithInstances> {
@@ -172,15 +178,18 @@ export class EventSegmentService {
       throw new NotFoundException(`Segment with ID ${id} not found`);
     }
 
-    const countMap = await this.loadAssignmentCounts(
-      (segment.instances ?? []).map((i) => i.id),
-    );
+    const instanceIds = (segment.instances ?? []).map((i) => i.id);
+
+    const [countMap, pinyaAssignedMap] = await Promise.all([
+      this.loadAssignmentCounts(instanceIds),
+      this.loadPinyaAssignmentCounts(instanceIds),
+    ]);
 
     const pinyaTemplateIds = await this.loadPinyaTemplateIds(
       (segment.instances ?? []).filter((i) => i.figureTemplate).map((i) => i.figureTemplate!.id),
     );
 
-    return toSegmentWithInstances(segment, countMap, pinyaTemplateIds);
+    return toSegmentWithInstances(segment, countMap, pinyaAssignedMap, pinyaTemplateIds);
   }
 
   private async loadPinyaTemplateIds(templateIds: string[]): Promise<Set<string>> {
@@ -206,9 +215,31 @@ export class EventSegmentService {
     }
     return map;
   }
+
+  private async loadPinyaAssignmentCounts(instanceIds: string[]): Promise<Map<string, number>> {
+    const map = new Map<string, number>();
+    if (instanceIds.length === 0) return map;
+    const rows: { figureInstanceId: string; count: string }[] = await this.dataSource.query(
+      `SELECT na."figureInstanceId", COUNT(*) as count
+       FROM node_assignments na
+       JOIN instance_nodes inode ON na."instanceNodeId" = inode.id
+       WHERE na."figureInstanceId" = ANY($1) AND inode.zone IN ('PINYA', 'BASE')
+       GROUP BY na."figureInstanceId"`,
+      [instanceIds],
+    );
+    for (const row of rows) {
+      map.set(row.figureInstanceId, parseInt(row.count, 10));
+    }
+    return map;
+  }
 }
 
-function toSegmentWithInstances(segment: EventSegment, countMap: Map<string, number>, pinyaTemplateIds: Set<string>): SegmentWithInstances {
+function toSegmentWithInstances(
+  segment: EventSegment,
+  countMap: Map<string, number>,
+  pinyaAssignedMap: Map<string, number>,
+  pinyaTemplateIds: Set<string>,
+): SegmentWithInstances {
   return {
     id: segment.id,
     name: segment.name,
@@ -223,7 +254,9 @@ function toSegmentWithInstances(segment: EventSegment, countMap: Map<string, num
       sortOrder: instance.sortOrder,
       snapshotted: instance.snapshotted,
       assignedCount: countMap.get(instance.id) ?? 0,
+      pinyaAssignedCount: pinyaAssignedMap.get(instance.id) ?? 0,
       numberOfCordons: instance.numberOfCordons ?? null,
+      figureMode: instance.figureMode,
       figureTemplate: instance.figureTemplate
         ? {
             id: instance.figureTemplate.id,

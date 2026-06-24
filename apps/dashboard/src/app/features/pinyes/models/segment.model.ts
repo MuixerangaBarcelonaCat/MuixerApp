@@ -1,13 +1,17 @@
+export type FigureMode = 'COMPLETA' | 'PEU' | 'REMAT';
+
 export interface InstanceDetail {
   id: string;
   label: string | null;
   sortOrder: number;
   snapshotted: boolean;
   assignedCount: number;
+  pinyaAssignedCount: number;
   numberOfCordons: number | null;
   projectionX: number | null;
   projectionY: number | null;
   projectionScale: number;
+  figureMode: FigureMode;
   figureTemplate: { id: string; name: string; hasPinya: boolean } | null;
   compositionTemplate: { id: string; name: string } | null;
 }
@@ -47,4 +51,5 @@ export interface CreateInstancePayload {
 export interface UpdateInstancePayload {
   label?: string | null;
   sortOrder?: number;
+  figureMode?: FigureMode;
 }

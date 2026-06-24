@@ -19,11 +19,17 @@ import {
   FigurePickerModalComponent,
   InstanceSelection,
 } from '../../../pinyes/components/figure-picker-modal/figure-picker-modal.component';
-import { SegmentDetail, InstanceDetail } from '../../../pinyes/models/segment.model';
+import { SegmentDetail, InstanceDetail, FigureMode } from '../../../pinyes/models/segment.model';
 
 interface PendingInstanceRemoval {
   segment: SegmentDetail;
   instance: InstanceDetail;
+}
+
+interface PendingModeChange {
+  segment: SegmentDetail;
+  instance: InstanceDetail;
+  mode: FigureMode;
 }
 
 @Component({
@@ -57,6 +63,9 @@ export class SegmentManagerComponent implements OnInit {
 
   pendingInstanceRemoval = signal<PendingInstanceRemoval | null>(null);
   removingInstance = signal(false);
+
+  pendingModeChange = signal<PendingModeChange | null>(null);
+  savingModeChange = signal(false);
 
   segmentTotalAssigned = computed(() => (segment: SegmentDetail): number =>
     segment.instances.reduce((sum, i) => sum + (i.assignedCount ?? 0), 0),
@@ -237,11 +246,72 @@ export class SegmentManagerComponent implements OnInit {
   }
 
   getInstanceLabel(instance: InstanceDetail): string {
-    return instance.label ?? instance.figureTemplate?.name ?? instance.compositionTemplate?.name ?? '?';
+    const base = instance.label ?? instance.figureTemplate?.name ?? instance.compositionTemplate?.name ?? '?';
+    if (instance.figureTemplate?.hasPinya) {
+      if (instance.figureMode === 'PEU') return `Peu de ${base}`;
+      if (instance.figureMode === 'REMAT') return `Remat de ${base}`;
+    }
+    return base;
   }
 
   isComposition(instance: InstanceDetail): boolean {
     return !!instance.compositionTemplate;
+  }
+
+  figureModeOptions(instance: InstanceDetail): { value: FigureMode; label: string }[] | null {
+    if (!instance.figureTemplate) return null;
+    if (!instance.figureTemplate.hasPinya) return null;
+    return [
+      { value: 'COMPLETA', label: 'Completa' },
+      { value: 'PEU', label: 'Peu' },
+      { value: 'REMAT', label: 'Remat' },
+    ];
+  }
+
+  updateFigureMode(segment: SegmentDetail, instance: InstanceDetail, mode: FigureMode): void {
+    if (mode === 'REMAT' && instance.pinyaAssignedCount > 0) {
+      this.pendingModeChange.set({ segment, instance, mode });
+      return;
+    }
+    this.applyModeChange(segment, instance, mode);
+  }
+
+  confirmModeChange(): void {
+    const pending = this.pendingModeChange();
+    if (!pending) return;
+    this.savingModeChange.set(true);
+    this.applyModeChange(pending.segment, pending.instance, pending.mode, () => {
+      this.savingModeChange.set(false);
+      this.pendingModeChange.set(null);
+    });
+  }
+
+  cancelModeChange(): void {
+    this.pendingModeChange.set(null);
+  }
+
+  private applyModeChange(
+    segment: SegmentDetail,
+    instance: InstanceDetail,
+    mode: FigureMode,
+    onDone?: () => void,
+  ): void {
+    this.instanceService.update(this.eventId(), segment.id, instance.id, { figureMode: mode }).subscribe({
+      next: (updated) => {
+        this.segments.update((list) =>
+          list.map((s) =>
+            s.id === segment.id
+              ? { ...s, instances: s.instances.map((i) => (i.id === updated.id ? updated : i)) }
+              : s,
+          ),
+        );
+        onDone?.();
+      },
+      error: () => {
+        this.toast.error('Error en actualitzar el mode de la figura.');
+        onDone?.();
+      },
+    });
   }
 
   navigateToAssignment(segmentId: string, instanceId: string | null = null): void {

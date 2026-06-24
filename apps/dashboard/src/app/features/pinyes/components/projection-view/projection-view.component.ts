@@ -159,11 +159,14 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
   }
 
   isNetaFigure(instance: ProjectionInstance): boolean {
-    return instance.figureTemplate?.hasPinya === false;
+    return instance.figureTemplate?.hasPinya === false || instance.figureMode === 'REMAT';
   }
 
   getInstanceName(instance: ProjectionInstance): string {
-    return instance.label ?? instance.figureTemplate?.name ?? 'Figura';
+    const base = instance.label ?? instance.figureTemplate?.name ?? 'Figura';
+    if (instance.figureMode === 'PEU') return `Peu de ${base}`;
+    if (instance.figureMode === 'REMAT') return `Remat de ${base}`;
+    return base;
   }
 
   // ── Segment navigation ──────────────────────────────────────────────────────

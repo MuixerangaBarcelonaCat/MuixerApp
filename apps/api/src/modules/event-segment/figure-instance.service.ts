@@ -14,6 +14,7 @@ import { UpdateInstanceDto } from './dto/update-instance.dto';
 import { ReorderInstancesDto } from './dto/reorder-instances.dto';
 import { UpdateProjectionLayoutDto } from './dto/update-projection-layout.dto';
 import { InstanceRef } from './event-segment.service';
+import { FigureMode } from '@muixer/shared';
 
 @Injectable()
 export class FigureInstanceService {
@@ -96,6 +97,12 @@ export class FigureInstanceService {
 
     if (dto.label !== undefined) instance.label = dto.label ?? null;
     if (dto.sortOrder !== undefined) instance.sortOrder = dto.sortOrder;
+    if (dto.figureMode !== undefined) {
+      instance.figureMode = dto.figureMode;
+      if (dto.figureMode === FigureMode.REMAT) {
+        await this.deletePinyaAssignments(instanceId);
+      }
+    }
 
     await this.instanceRepository.save(instance);
     return this.findOneById(instance.id);
@@ -207,7 +214,7 @@ export class FigureInstanceService {
       throw new NotFoundException(`FigureInstance with ID ${id} not found`);
     }
 
-    const [countResult, pinyaResult] = await Promise.all([
+    const [countResult, pinyaResult, pinyaAssignedResult] = await Promise.all([
       this.dataSource.query(
         `SELECT COUNT(*) as count FROM node_assignments WHERE "figureInstanceId" = $1`,
         [id],
@@ -218,9 +225,16 @@ export class FigureInstanceService {
             [instance.figureTemplate.id],
           )
         : Promise.resolve([{ count: '0' }]),
+      this.dataSource.query(
+        `SELECT COUNT(*) as count FROM node_assignments na
+         JOIN instance_nodes inode ON na."instanceNodeId" = inode.id
+         WHERE na."figureInstanceId" = $1 AND inode.zone IN ('PINYA', 'BASE')`,
+        [id],
+      ),
     ]);
     const assignedCount = parseInt(countResult[0]?.count ?? '0', 10);
     const hasPinya = parseInt(pinyaResult[0]?.count ?? '0', 10) > 0;
+    const pinyaAssignedCount = parseInt(pinyaAssignedResult[0]?.count ?? '0', 10);
 
     return {
       id: instance.id,
@@ -228,7 +242,9 @@ export class FigureInstanceService {
       sortOrder: instance.sortOrder,
       snapshotted: instance.snapshotted,
       assignedCount,
+      pinyaAssignedCount,
       numberOfCordons: instance.numberOfCordons ?? null,
+      figureMode: instance.figureMode ?? FigureMode.COMPLETA,
       figureTemplate: instance.figureTemplate
         ? {
             id: instance.figureTemplate.id,
@@ -240,5 +256,16 @@ export class FigureInstanceService {
         ? { id: instance.compositionTemplate.id, name: instance.compositionTemplate.name }
         : null,
     };
+  }
+
+  private async deletePinyaAssignments(instanceId: string): Promise<void> {
+    await this.dataSource.query(
+      `DELETE FROM node_assignments
+       WHERE "figureInstanceId" = $1
+       AND "instanceNodeId" IN (
+         SELECT id FROM instance_nodes WHERE "figureInstanceId" = $1 AND zone IN ('PINYA', 'BASE')
+       )`,
+      [instanceId],
+    );
   }
 }

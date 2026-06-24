@@ -44,6 +44,7 @@ interface InstanceTab {
   label: string;
   figureTemplateId: string | null;
   hasPinya: boolean;
+  figureMode: string;
   snapshotted: boolean;
   numberOfCordons: number | null;
   nodes: InstanceNodeItem[];
@@ -246,10 +247,10 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     ),
   );
 
-  /** Whether the active tab is a figura neta (hasPinya = false). */
+  /** Whether the active tab shows only tronc: figura neta (hasPinya = false) or REMAT mode. */
   readonly isActiveTabTroncOnly = computed(() => {
     const tab = this.activeTab();
-    return tab ? tab.hasPinya === false : false;
+    return tab ? tab.hasPinya === false || tab.figureMode === 'REMAT' : false;
   });
 
   /** Nodes for the inline projection preview: like activePinyaNodes but hiding unassigned pinya positions. */
@@ -534,6 +535,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
         label: instance.label ?? instance.figureTemplate?.name ?? '?',
         figureTemplateId: instance.figureTemplate?.id ?? null,
         hasPinya: instance.figureTemplate?.hasPinya ?? true,
+        figureMode: instance.figureMode ?? 'COMPLETA',
         snapshotted: instance.snapshotted,
         numberOfCordons: instance.numberOfCordons ?? null,
         nodes: [],
@@ -631,7 +633,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     this.loadTabData(instanceId);
 
     const tab = this.tabs().find((t) => t.instanceId === instanceId);
-    this.setViewMode(tab && !tab.hasPinya ? 'tronc' : 'pinya');
+    this.setViewMode(tab && (!tab.hasPinya || tab.figureMode === 'REMAT') ? 'tronc' : 'pinya');
   }
 
   private loadTabData(instanceId: string): void {

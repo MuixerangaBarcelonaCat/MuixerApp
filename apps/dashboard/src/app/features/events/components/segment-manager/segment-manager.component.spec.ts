@@ -33,10 +33,12 @@ const makeInstance = (overrides = {}) => ({
   sortOrder: 0,
   snapshotted: false,
   assignedCount: 0,
+  pinyaAssignedCount: 0,
   numberOfCordons: null,
   projectionX: null,
   projectionY: null,
   projectionScale: 1,
+  figureMode: 'COMPLETA' as const,
   figureTemplate: { id: 'fig-1', name: 'pd4', hasPinya: true },
   compositionTemplate: null,
   ...overrides,
@@ -62,6 +64,7 @@ describe('SegmentManagerComponent', () => {
     instanceService = {
       create: vi.fn(),
       remove: vi.fn(),
+      update: vi.fn(),
     };
 
     toastService = {
@@ -126,8 +129,8 @@ describe('SegmentManagerComponent', () => {
       const seg = makeSegment({
         name: null,
         instances: [
-          { id: 'i1', label: null, sortOrder: 0, snapshotted: false, assignedCount: 0, numberOfCordons: null, projectionX: null, projectionY: null, projectionScale: 1, figureTemplate: { id: 'f1', name: 'pd4', hasPinya: true }, compositionTemplate: null },
-          { id: 'i2', label: null, sortOrder: 1, snapshotted: false, assignedCount: 0, numberOfCordons: null, projectionX: null, projectionY: null, projectionScale: 1, figureTemplate: null, compositionTemplate: { id: 'c1', name: 'Altar' } },
+          { id: 'i1', label: null, sortOrder: 0, snapshotted: false, assignedCount: 0, pinyaAssignedCount: 0, numberOfCordons: null, projectionX: null, projectionY: null, projectionScale: 1, figureMode: 'COMPLETA' as const, figureTemplate: { id: 'f1', name: 'pd4', hasPinya: true }, compositionTemplate: null },
+          { id: 'i2', label: null, sortOrder: 1, snapshotted: false, assignedCount: 0, pinyaAssignedCount: 0, numberOfCordons: null, projectionX: null, projectionY: null, projectionScale: 1, figureMode: 'COMPLETA' as const, figureTemplate: null, compositionTemplate: { id: 'c1', name: 'Altar' } },
         ],
       });
       expect(component.displayName()(seg)).toBe('pd4 + Altar');
@@ -367,6 +370,136 @@ describe('SegmentManagerComponent', () => {
         ['/pinyes/events', EVENT_ID, 'segments', 'seg-uuid-1', 'assign', 'inst-uuid-1'],
         { queryParams: { returnUrl: '/rehearsals/event-123' } },
       );
+    });
+  });
+
+  describe('layout', () => {
+    it('renders each instance as its own row', () => {
+      const seg = makeSegment({
+        id: 'seg-1',
+        instances: [makeInstance({ id: 'inst-1' }), makeInstance({ id: 'inst-2' })],
+      });
+      component.segments.set([seg]);
+      fixture.detectChanges();
+
+      const instanceButtons = fixture.nativeElement.querySelectorAll('[data-instance-id]');
+      expect(instanceButtons.length).toBe(2);
+    });
+
+    it('shows mode selector for figures with pinya', () => {
+      const seg = makeSegment({
+        id: 'seg-1',
+        instances: [makeInstance({ id: 'inst-1', figureTemplate: { id: 'f1', name: 'pd4', hasPinya: true } })],
+      });
+      component.segments.set([seg]);
+      fixture.detectChanges();
+
+      const select = fixture.nativeElement.querySelector('select[aria-label]');
+      expect(select).toBeTruthy();
+    });
+
+    it('shows Neta badge for figures without pinya', () => {
+      const seg = makeSegment({
+        id: 'seg-1',
+        instances: [makeInstance({ id: 'inst-1', figureTemplate: { id: 'f1', name: 'pd3n', hasPinya: false } })],
+      });
+      component.segments.set([seg]);
+      fixture.detectChanges();
+
+      const badge = fixture.nativeElement.querySelector('.badge');
+      expect(badge?.textContent?.trim()).toBe('Neta');
+    });
+  });
+
+  describe('updateFigureMode()', () => {
+    it('calls service directly when switching to PEU (no confirmation needed)', () => {
+      const seg = makeSegment({ id: 'seg-1', instances: [makeInstance({ pinyaAssignedCount: 5 })] });
+      const inst = seg.instances[0];
+      const updated = makeInstance({ figureMode: 'PEU' as const });
+      (instanceService.update as ReturnType<typeof vi.fn>).mockReturnValue(of(updated));
+      component.segments.set([seg]);
+
+      component.updateFigureMode(seg, inst, 'PEU');
+
+      expect(instanceService.update).toHaveBeenCalledWith(EVENT_ID, seg.id, inst.id, { figureMode: 'PEU' });
+      expect(component.pendingModeChange()).toBeNull();
+    });
+
+    it('calls service directly for REMAT when pinyaAssignedCount is 0', () => {
+      const seg = makeSegment({ id: 'seg-1', instances: [makeInstance({ pinyaAssignedCount: 0 })] });
+      const inst = seg.instances[0];
+      const updated = makeInstance({ figureMode: 'REMAT' as const });
+      (instanceService.update as ReturnType<typeof vi.fn>).mockReturnValue(of(updated));
+      component.segments.set([seg]);
+
+      component.updateFigureMode(seg, inst, 'REMAT');
+
+      expect(instanceService.update).toHaveBeenCalledWith(EVENT_ID, seg.id, inst.id, { figureMode: 'REMAT' });
+      expect(component.pendingModeChange()).toBeNull();
+    });
+
+    it('opens confirmation dialog when switching to REMAT with pinya assignments', () => {
+      const seg = makeSegment({ id: 'seg-1', instances: [makeInstance({ pinyaAssignedCount: 3 })] });
+      const inst = seg.instances[0];
+      component.segments.set([seg]);
+
+      component.updateFigureMode(seg, inst, 'REMAT');
+
+      expect(instanceService.update).not.toHaveBeenCalled();
+      expect(component.pendingModeChange()).toEqual({ segment: seg, instance: inst, mode: 'REMAT' });
+    });
+
+    it('shows the REMAT confirmation dialog in the DOM', () => {
+      const seg = makeSegment({ id: 'seg-1', instances: [makeInstance({ pinyaAssignedCount: 2 })] });
+      const inst = seg.instances[0];
+      component.segments.set([seg]);
+      component.updateFigureMode(seg, inst, 'REMAT');
+      fixture.detectChanges();
+
+      const dialog = fixture.nativeElement.querySelector('[aria-labelledby="remat-confirm-title"]');
+      expect(dialog).toBeTruthy();
+    });
+  });
+
+  describe('confirmModeChange()', () => {
+    it('calls service with pending mode and clears dialog on success', () => {
+      const seg = makeSegment({ id: 'seg-1', instances: [makeInstance({ pinyaAssignedCount: 3 })] });
+      const inst = seg.instances[0];
+      const updated = makeInstance({ figureMode: 'REMAT' as const, pinyaAssignedCount: 0 });
+      (instanceService.update as ReturnType<typeof vi.fn>).mockReturnValue(of(updated));
+      component.segments.set([seg]);
+      component.pendingModeChange.set({ segment: seg, instance: inst, mode: 'REMAT' });
+
+      component.confirmModeChange();
+
+      expect(instanceService.update).toHaveBeenCalledWith(EVENT_ID, seg.id, inst.id, { figureMode: 'REMAT' });
+      expect(component.pendingModeChange()).toBeNull();
+    });
+
+    it('clears dialog and shows toast on API error', () => {
+      const seg = makeSegment({ id: 'seg-1', instances: [makeInstance({ pinyaAssignedCount: 1 })] });
+      const inst = seg.instances[0];
+      (instanceService.update as ReturnType<typeof vi.fn>).mockReturnValue(throwError(() => new Error()));
+      component.segments.set([seg]);
+      component.pendingModeChange.set({ segment: seg, instance: inst, mode: 'REMAT' });
+
+      component.confirmModeChange();
+
+      expect(toastService.error).toHaveBeenCalled();
+      expect(component.pendingModeChange()).toBeNull();
+      expect(component.savingModeChange()).toBe(false);
+    });
+  });
+
+  describe('cancelModeChange()', () => {
+    it('clears pendingModeChange', () => {
+      const seg = makeSegment({ id: 'seg-1', instances: [makeInstance()] });
+      const inst = seg.instances[0];
+      component.pendingModeChange.set({ segment: seg, instance: inst, mode: 'REMAT' });
+
+      component.cancelModeChange();
+
+      expect(component.pendingModeChange()).toBeNull();
     });
   });
 });

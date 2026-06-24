@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { EventSegment } from './entities/event-segment.entity';
 import { FigureInstance } from './entities/figure-instance.entity';
 import { NodeAssignmentService, AssignmentDetail, InstanceNodeResponse } from '../node-assignment/node-assignment.service';
+import { FigureMode } from '@muixer/shared';
 
 interface ProjectionInstanceData {
   id: string;
@@ -13,6 +14,7 @@ interface ProjectionInstanceData {
   projectionX: number | null;
   projectionY: number | null;
   projectionScale: number;
+  figureMode: FigureMode;
   figureTemplate: { id: string; name: string; hasPinya: boolean } | null;
   nodes: InstanceNodeResponse[];
   assignments: AssignmentDetail[];
@@ -77,6 +79,11 @@ export class ProjectionService {
         ]);
       }
 
+      const figureMode = instance.figureMode ?? FigureMode.COMPLETA;
+      const hasPinyaNodes = nodes.some((n) => n.zone === 'PINYA');
+      // REMAT behaves like a figura neta: no pinya in projection
+      const hasPinya = hasPinyaNodes && figureMode !== FigureMode.REMAT;
+
       projectionInstances.push({
         id: instance.id,
         label: instance.label,
@@ -85,11 +92,12 @@ export class ProjectionService {
         projectionX: instance.projectionX,
         projectionY: instance.projectionY,
         projectionScale: instance.projectionScale,
+        figureMode,
         figureTemplate: instance.figureTemplate
           ? {
               id: instance.figureTemplate.id,
               name: instance.figureTemplate.name,
-              hasPinya: nodes.some((n) => n.zone === 'PINYA'),
+              hasPinya,
             }
           : null,
         nodes,

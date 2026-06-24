@@ -60,6 +60,7 @@ const makeInstance = (nodes: InstanceNodeItem[], assignedIds: string[]): Project
   sortOrder: 0,
   numberOfCordons: null,
   projectionX: 0, projectionY: 0, projectionScale: 1,
+  figureMode: 'COMPLETA',
   figureTemplate: { id: 'fig-1', name: 'pd4', hasPinya: true },
   nodes,
   assignments: assignedIds.map(makeAssignment),
