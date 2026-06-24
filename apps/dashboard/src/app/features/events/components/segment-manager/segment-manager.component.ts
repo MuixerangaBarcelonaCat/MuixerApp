@@ -146,7 +146,6 @@ export class SegmentManagerComponent implements OnInit {
       next: (segment) => {
         this.segments.update((list) => [...list, segment]);
         this.saving.set(false);
-        this.startEdit(segment.id, segment.name ?? '');
       },
       error: () => {
         this.saving.set(false);
@@ -487,6 +486,10 @@ export class SegmentManagerComponent implements OnInit {
 
   otherSegments(currentSegmentId: string): SegmentDetail[] {
     return this.segments().filter((s) => s.id !== currentSegmentId);
+  }
+
+  segmentNumber(segmentId: string): number {
+    return this.segments().findIndex((s) => s.id === segmentId) + 1;
   }
 
   navigateToAssignment(segmentId: string, instanceId: string | null = null): void {

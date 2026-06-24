@@ -122,13 +122,14 @@
                 } @else {
                   <button
                     type="button"
-                    class="font-semibold text-sm flex-1 text-left hover:text-primary transition-colors"
+                    class="font-semibold text-sm flex-1 text-left hover:text-primary transition-colors flex items-center gap-1.5"
                     (click)="startEdit(segment.id, segment.name ?? '')"
                     [title]="'Edita nom del segment'"
                   >
                     {{ displayName()(segment) }}
+                    <lucide-icon name="Pencil" [size]="11" class="text-base-content/30 shrink-0" aria-hidden="true" />
                     @if (!segment.name) {
-                      <span class="text-base-content/40 text-xs font-normal ml-1">(automàtic)</span>
+                      <span class="text-base-content/40 text-xs font-normal">(automàtic)</span>
                     }
                   </button>
                 }
@@ -148,7 +149,7 @@
                     type="button"
                     class="btn btn-ghost btn-xs"
                     (click)="toggleVisibility(segment)"
-                    [title]="segment.isVisible ? 'Visible als membres — clica per ocultar' : 'Ocult als membres — clica per publicar'"
+                    [title]="segment.isVisible ? 'Visible als membres — cliqueu per ocultar' : 'Ocult als membres — cliqueu per publicar'"
                     [attr.aria-pressed]="segment.isVisible"
                   >
                     @if (segment.isVisible) {
@@ -325,7 +326,9 @@
                           }
                         </select>
                       } @else {
-                        <span class="badge badge-ghost badge-xs shrink-0 w-16 justify-left self-center">Neta</span>
+                        <span class="badge badge-ghost badge-xs shrink-0 w-16 justify-left self-center flex items-center gap-1">
+                          <lucide-icon [name]="ICON_FIGURA_NETA" [size]="10" aria-hidden="true" />Neta
+                        </span>
                       }
 
                       <!-- Copy to segment -->
@@ -389,13 +392,14 @@
           @for (target of otherSegments(copyPickerSegmentId()!); track target.id) {
             <button
               type="button"
-              class="btn btn-ghost btn-sm w-full justify-start"
+              class="btn btn-ghost btn-sm w-full justify-start gap-2"
               [disabled]="copyingInstance()"
               (click)="copyToSegment(target.id)"
             >
               @if (copyingInstance()) {
                 <span class="loading loading-spinner loading-xs"></span>
               }
+              <span class="flex items-center justify-center w-5 h-5 rounded text-xs font-bold text-primary-content bg-primary shrink-0">{{ segmentNumber(target.id) }}</span>
               {{ displayName()(target) }}
             </button>
           }

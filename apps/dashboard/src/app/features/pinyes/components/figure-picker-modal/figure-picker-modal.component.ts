@@ -1,12 +1,15 @@
 import {
+  AfterViewInit,
   ChangeDetectionStrategy,
   Component,
   computed,
+  ElementRef,
   inject,
   input,
   OnInit,
   output,
   signal,
+  ViewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
@@ -36,11 +39,13 @@ export interface PickerSelectionItem {
   imports: [FormsModule, LucideAngularModule],
   templateUrl: './figure-picker-modal.component.html',
 })
-export class FigurePickerModalComponent implements OnInit {
+export class FigurePickerModalComponent implements OnInit, AfterViewInit {
   readonly ICON_TEMPLATE = ICON_TEMPLATE;
   readonly ICON_COMPOSITION = ICON_COMPOSITION;
   open = input.required<boolean>();
   segmentId = input.required<string>();
+
+  @ViewChild('searchInput') searchInputRef!: ElementRef<HTMLInputElement>;
 
   confirmed = output<InstanceSelection[]>();
   closed = output<void>();
@@ -80,6 +85,10 @@ export class FigurePickerModalComponent implements OnInit {
     this.loadCompositions();
   }
 
+  ngAfterViewInit() {
+    this.searchInputRef?.nativeElement.focus();
+  }
+
   private loadFigures() {
     this.loadingFigures.set(true);
     this.figureService.getAll({ limit: 200 }).subscribe({
@@ -100,6 +109,26 @@ export class FigurePickerModalComponent implements OnInit {
       },
       error: () => this.loadingCompositions.set(false),
     });
+  }
+
+  addFirstResult(): void {
+    if (!this.search()) {
+      if (this.canConfirm()) this.confirm();
+      return;
+    }
+    if (this.activeTab() === 'figures') {
+      const first = this.filteredFigures()[0];
+      if (first) {
+        this.addFigure(first);
+        this.search.set('');
+      }
+    } else {
+      const first = this.filteredCompositions()[0];
+      if (first) {
+        this.addComposition(first);
+        this.search.set('');
+      }
+    }
   }
 
   addFigure(figure: FigureTemplateListItem): void {

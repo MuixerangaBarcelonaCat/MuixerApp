@@ -6,7 +6,7 @@ import { DragDropModule, CdkDragDrop } from '@angular/cdk/drag-drop';
 import {
   LUCIDE_ICONS, LucideIconProvider,
   Check, CirclePile, Clock, Copy, Eye, EyeOff, FileText, GripVertical, Hexagon, Layers,
-  LayoutGrid, Lock, Monitor, Plus, Trash2, Users, X,
+  LayoutGrid, Lock, Monitor, Pencil, Plus, Sparkles, Trash2, Users, X,
 } from 'lucide-angular';
 import { SegmentManagerComponent } from './segment-manager.component';
 import { EventSegmentService } from '../../../pinyes/services/event-segment.service';
@@ -94,7 +94,7 @@ describe('SegmentManagerComponent', () => {
           provide: LUCIDE_ICONS, multi: true,
           useFactory: () => new LucideIconProvider({
             Check, CirclePile, Clock, Copy, Eye, EyeOff, FileText, GripVertical, Hexagon, Layers,
-            LayoutGrid, Lock, Monitor, Plus, Trash2, Users, X,
+            LayoutGrid, Lock, Monitor, Pencil, Plus, Sparkles, Trash2, Users, X,
           }),
         },
       ],

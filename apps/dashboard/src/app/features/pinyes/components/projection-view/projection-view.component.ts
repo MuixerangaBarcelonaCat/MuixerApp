@@ -19,6 +19,7 @@ import { InstanceNodeItem } from '../../models/assignment.model';
 import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component';
 import { TroncViewComponent, TroncNodeItem } from '../tronc-view/tronc-view.component';
 import { FigureZone } from '@muixer/shared';
+import { ICON_FIGURA_NETA } from '../../../../shared/constants/domain-icons';
 import { computeCordoObertOverrides } from '../../utils/cordo-obert.util';
 
 @Component({
@@ -36,6 +37,8 @@ import { computeCordoObertOverrides } from '../../utils/cordo-obert.util';
   styleUrl: './projection-view.component.scss',
 })
 export class ProjectionViewComponent implements OnInit, OnDestroy {
+  readonly ICON_FIGURA_NETA = ICON_FIGURA_NETA;
+
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly layoutService = inject(LayoutService);
