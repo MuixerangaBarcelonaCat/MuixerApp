@@ -4,7 +4,7 @@ import { of, throwError } from 'rxjs';
 import { Router } from '@angular/router';
 import {
   LUCIDE_ICONS, LucideIconProvider,
-  Check, ChevronDown, ChevronUp, Clock, Eye, EyeOff, FileText, Hexagon, Layers,
+  Check, ChevronDown, ChevronUp, CirclePile, Clock, Eye, EyeOff, FileText, Hexagon, Layers,
   LayoutGrid, Monitor, Plus, Trash2, Users, X,
 } from 'lucide-angular';
 import { SegmentManagerComponent } from './segment-manager.component';
@@ -81,7 +81,7 @@ describe('SegmentManagerComponent', () => {
         {
           provide: LUCIDE_ICONS, multi: true,
           useFactory: () => new LucideIconProvider({
-            Check, ChevronDown, ChevronUp, Clock, Eye, EyeOff, FileText, Hexagon, Layers,
+            Check, ChevronDown, ChevronUp, CirclePile, Clock, Eye, EyeOff, FileText, Hexagon, Layers,
             LayoutGrid, Monitor, Plus, Trash2, Users, X,
           }),
         },

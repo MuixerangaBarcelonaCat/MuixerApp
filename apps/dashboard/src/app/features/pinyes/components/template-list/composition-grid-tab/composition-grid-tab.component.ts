@@ -10,6 +10,7 @@ import {
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
+import { ICON_COMPOSITION } from '../../../../../shared/constants/domain-icons';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CompositionTemplateService } from '../../../services/composition-template.service';
 import { ToastService } from '../../../../../shared/components/feedback/toast/toast.service';
@@ -27,6 +28,8 @@ import { EmptyStateComponent } from '../../../../../shared/components/data/empty
   templateUrl: './composition-grid-tab.component.html',
 })
 export class CompositionGridTabComponent implements OnInit {
+  readonly ICON_COMPOSITION = ICON_COMPOSITION;
+
   private readonly compositionTemplateService = inject(CompositionTemplateService);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);

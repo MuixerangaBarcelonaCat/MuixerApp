@@ -6,7 +6,7 @@ import { of } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
   LUCIDE_ICONS, LucideIconProvider,
-  ArrowLeft, Undo2, Redo2, Eye, EyeOff,
+  ArrowLeft, ChessRook, Flower, GitCommitHorizontal, Undo2, Redo2, Eye, EyeOff,
   GitBranchPlus, Layers, Keyboard, HelpCircle, Info, X,
   AlertTriangle, Trash2, Grid3X3, Magnet, Shapes,
   MousePointer2, GripVertical, PanelRightClose, PanelRightOpen,
@@ -121,7 +121,7 @@ describe('TemplateEditorComponent — Preview Mode', () => {
         {
           provide: LUCIDE_ICONS,
           useValue: new LucideIconProvider({
-            ArrowLeft, Undo2, Redo2, Eye, EyeOff,
+            ArrowLeft, ChessRook, Flower, GitCommitHorizontal, Undo2, Redo2, Eye, EyeOff,
             GitBranchPlus, Layers, Keyboard, HelpCircle, Info, X,
             AlertTriangle, Trash2, Grid3X3, Magnet, Shapes,
             MousePointer2, GripVertical, PanelRightClose, PanelRightOpen,

@@ -8,9 +8,9 @@ import {
   OnInit,
   signal,
 } from '@angular/core';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Location } from '@angular/common';
-import { LucideAngularModule, ArrowLeft, Users, Edit, RefreshCw, Trash2, X, PanelLeft, PanelLeftClose, Monitor, Lock, Plus, Minus, HelpCircle, Undo2, Redo2, Save } from 'lucide-angular';
+import { LucideAngularModule, ArrowLeft, Users, Edit, RefreshCw, Trash2, X, PanelLeft, PanelLeftClose, Monitor, Lock, Plus, Minus, HelpCircle, Undo2, Redo2, Save, Flower, ChessRook, Shapes } from 'lucide-angular';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { NodeAssignmentService, LockStatus } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
@@ -56,7 +56,6 @@ interface InstanceTab {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    RouterLink,
     LucideAngularModule,
     FigureCanvasComponent,
     PersonPanelComponent,
@@ -98,6 +97,9 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly Undo2 = Undo2;
   readonly Redo2 = Redo2;
   readonly SaveIcon = Save;
+  readonly Flower = Flower;
+  readonly ChessRook = ChessRook;
+  readonly Shapes = Shapes;
 
   readonly saveAsTemplateOpen = signal(false);
 
@@ -145,7 +147,9 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly comodinLabel = signal('');
   readonly clipboardAdHocNode = signal<{ zone: string; positionType: string | null; label: string; width: number; height: number; shape: string; color: string | null; rotation: number } | null>(null);
   readonly fabDropdownOpen = signal(false);
-  readonly fabDecorationOpen = signal(false);
+  readonly decorationPickerOpen = signal(false);
+
+  readonly viewMode = signal<'pinya' | 'tronc' | 'decoration' | 'projecta'>('pinya');
 
   private lastMoveUndoTime = 0;
   private lastMoveNodeId: string | null = null;
@@ -248,6 +252,14 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     return tab ? tab.hasPinya === false : false;
   });
 
+  /** Nodes for the inline projection preview: like activePinyaNodes but hiding unassigned pinya positions. */
+  readonly projectionNodes = computed(() => {
+    const assignedIds = new Set(this.state.assignments().map((a) => a.node.id));
+    return this.activePinyaNodes().filter(
+      (n) => n.zone !== FigureZone.PINYA || assignedIds.has(n.id),
+    );
+  });
+
   // ─── Cordons visibility ─────────────────────────────────────────────────
 
   readonly maxCordons = computed(() =>
@@ -337,8 +349,8 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
         this.fabDropdownOpen.set(false);
         return;
       }
-      if (this.fabDecorationOpen()) {
-        this.fabDecorationOpen.set(false);
+      if (this.decorationPickerOpen()) {
+        this.decorationPickerOpen.set(false);
         return;
       }
       if (this.state.isPlacementMode()) {
@@ -602,6 +614,13 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     this.troncDragging = false;
   }
 
+  setViewMode(mode: 'pinya' | 'tronc' | 'decoration' | 'projecta'): void {
+    this.viewMode.set(mode);
+    this.troncPanelOpen.set(mode === 'tronc');
+    this.decorationPickerOpen.set(mode === 'decoration');
+    this.fabDropdownOpen.set(false);
+  }
+
   selectTab(instanceId: string): void {
     this.state.activeInstanceId.set(instanceId);
     this.state.selectedNodeId.set(null);
@@ -612,7 +631,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     this.loadTabData(instanceId);
 
     const tab = this.tabs().find((t) => t.instanceId === instanceId);
-    this.troncPanelOpen.set(tab ? !tab.hasPinya : false);
+    this.setViewMode(tab && !tab.hasPinya ? 'tronc' : 'pinya');
   }
 
   private loadTabData(instanceId: string): void {
@@ -726,7 +745,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
   onNodeSelected(nodeId: string | null): void {
     this.fabDropdownOpen.set(false);
-    this.fabDecorationOpen.set(false);
+    this.decorationPickerOpen.set(false);
 
     if (this.isLocked()) return;
 
@@ -767,6 +786,9 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
       this.triggerSwap(previousNodeAssignment, clickedNodeAssignment);
       this.state.setSelectedNodeId(null);
       this.popoverAssignment.set(null);
+    } else if (!clickedNodeAssignment && previousNodeAssignment && previouslySelectedNodeId && previouslySelectedNodeId !== nodeId) {
+      // Move: previously selected assigned node → this empty node
+      this.triggerUnassignThenAssign(previousNodeAssignment, nodeId, previousNodeAssignment.person.id);
     } else if (clickedNodeAssignment) {
       this.popoverAssignment.set(clickedNodeAssignment);
       this.state.setSelectedNodeId(nodeId);
@@ -1364,7 +1386,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
   onPresetSelected(preset: NodePreset): void {
     this.fabDropdownOpen.set(false);
-    this.fabDecorationOpen.set(false);
+    this.decorationPickerOpen.set(false);
 
     if (preset.requiresCustomLabel) {
       this.pendingLabelPreset.set(preset);
@@ -1408,6 +1430,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   getDecorationLabel(preset: NodePreset): string {
     const labels: Record<string, string> = {
       rectangle: 'Rectangle',
+      ellipse: 'El·lipse',
       arrow: 'Fletxa',
       circle: 'Cercle',
     };

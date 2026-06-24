@@ -32,6 +32,11 @@ export const appRoutes: Route[] = [
           import('./features/events/events.routes').then((m) => m.performanceRoutes),
       },
       {
+        path: 'events',
+        loadChildren: () =>
+          import('./features/events/events.routes').then((m) => m.eventRoutes),
+      },
+      {
         path: 'sync',
         loadChildren: () =>
           import('./features/sync/sync.routes').then((m) => m.syncRoutes),

@@ -9,7 +9,7 @@ import {
   signal,
 } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { CommonModule, Location } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { LucideAngularModule } from 'lucide-angular';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
@@ -38,7 +38,6 @@ import { computeCordoObertOverrides } from '../../utils/cordo-obert.util';
 export class ProjectionViewComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
-  private readonly location = inject(Location);
   private readonly layoutService = inject(LayoutService);
   private readonly projectionService = inject(ProjectionService);
   private readonly toast = inject(ToastService);
@@ -180,12 +179,7 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
   }
 
   goBack(): void {
-    const returnUrl = this.route.snapshot.queryParams['returnUrl'];
-    if (returnUrl) {
-      this.router.navigateByUrl(returnUrl);
-    } else {
-      this.location.back();
-    }
+    this.router.navigate(['/events', this.eventId]);
   }
 
   // ── Private helpers ─────────────────────────────────────────────────────────

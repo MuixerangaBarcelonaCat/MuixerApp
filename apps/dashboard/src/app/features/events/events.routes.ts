@@ -41,22 +41,17 @@ const detailRoute = {
     import('./components/event-detail/event-detail.component').then((m) => m.EventDetailComponent),
 };
 
-/**
- * Rutes per a assajos (/rehearsals).
- * Inclou: llistat, sincronització i detall d'assajos.
- */
+/** Rutes per a assajos (/rehearsals). Llistat i sincronització. */
 export const rehearsalRoutes: Routes = [
   listRoute(EventType.ASSAIG),
   syncRoute(EventType.ASSAIG),
-  detailRoute,
 ];
 
-/**
- * Rutes per a actuacions (/performances).
- * Inclou: llistat, sincronització i detall d'actuacions.
- */
+/** Rutes per a actuacions (/performances). Llistat i sincronització. */
 export const performanceRoutes: Routes = [
   listRoute(EventType.ACTUACIO),
   syncRoute(EventType.ACTUACIO),
-  detailRoute,
 ];
+
+/** Ruta de detall d'un event sense tipus (/events/:id). */
+export const eventRoutes: Routes = [detailRoute];

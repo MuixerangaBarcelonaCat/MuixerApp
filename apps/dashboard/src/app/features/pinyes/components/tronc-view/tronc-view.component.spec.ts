@@ -954,16 +954,16 @@ describe('TroncViewComponent', () => {
       expect(section).not.toBeNull();
     });
 
-    it('starts collapsed by default', () => {
+    it('starts expanded by default', () => {
       fixture.componentRef.setInput('mode', 'assignment');
       fixture.detectChanges();
 
-      expect(component.directionsExpanded()).toBe(false);
+      expect(component.directionsExpanded()).toBe(true);
       const content = fixture.nativeElement.querySelector('.directions-content');
-      expect(content).toBeNull();
+      expect(content).not.toBeNull();
     });
 
-    it('expands on toggle click', () => {
+    it('collapses on toggle click', () => {
       fixture.componentRef.setInput('mode', 'assignment');
       fixture.detectChanges();
 
@@ -971,9 +971,9 @@ describe('TroncViewComponent', () => {
       toggle.click();
       fixture.detectChanges();
 
-      expect(component.directionsExpanded()).toBe(true);
+      expect(component.directionsExpanded()).toBe(false);
       const content = fixture.nativeElement.querySelector('.directions-content');
-      expect(content).not.toBeNull();
+      expect(content).toBeNull();
     });
 
     it('shows "Afegir" buttons when no direction nodes exist', () => {
@@ -1034,6 +1034,7 @@ describe('TroncViewComponent', () => {
       fixture.componentRef.setInput('assignments', []);
       fixture.detectChanges();
 
+      component.directionsExpanded.set(false);
       expect(component.directionsExpanded()).toBe(false);
 
       fixture.componentRef.setInput('assignments', [

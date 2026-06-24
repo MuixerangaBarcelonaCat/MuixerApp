@@ -18,7 +18,6 @@ import {
   ArrowDown,
   ArrowLeft,
   ArrowUp,
-  Building2,
   Calendar,
   CalendarRange,
   Check,
@@ -27,16 +26,20 @@ import {
   ChevronRight,
   ChevronUp,
   ChevronsUpDown,
+  ChessRook,
+  CirclePile,
   Clock,
   Construction,
   Copy,
+  DraftingCompass,
   ExternalLink,
   Eye,
+  Flower,
+  GitCommitHorizontal,
   Grid3X3,
   Home,
   Keyboard,
   LayoutGrid,
-  Layers,
   List,
   Lock,
   Magnet,
@@ -56,29 +59,31 @@ import {
   Settings,
   Shapes,
   Shield,
+  Sparkles,
   Star,
   Tag,
   Trash2,
   UserCog,
   UserX,
   Users,
-  X, Hexagon, EyeOff, FolderOpen, Info, GitBranch, HelpCircle, PlusCircle, UserCheck, Edit, Import, ArrowUpDown, ArrowDownUp,
+  X, EyeOff, FolderOpen, Info, GitBranch, HelpCircle, PlusCircle, UserCheck, Edit, Import, ArrowUpDown, ArrowDownUp,
   GripVertical, PanelLeft, PanelLeftClose, Monitor, PlusSquare, Square, MoveRight, Moon, Sun,
-  BookOpen, RotateCcw, History, UserPlus, GitBranchPlus, Baby, UsersRound, StickyNote
+  BookOpen, RotateCcw, History, UserPlus, Baby, UsersRound, StickyNote
 } from 'lucide-angular';
 
 const icons = {
   AlertCircle, AlertTriangle, AlignJustify, ArrowDown, ArrowLeft, ArrowUp,
-  Building2, Calendar, CalendarRange, Check,
+  Calendar, CalendarRange, Check,
   ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown,
-  Clock, Construction, Copy, ExternalLink, Eye,
-  Grid3X3, Home, Keyboard, LayoutGrid, Layers, List, Lock, Magnet, Mail, Maximize2, Menu, Minus,
+  ChessRook, CirclePile, Clock, Construction, Copy, DraftingCompass, ExternalLink, Eye,
+  Flower, GitCommitHorizontal,
+  Grid3X3, Home, Keyboard, LayoutGrid, List, Lock, Magnet, Mail, Maximize2, Menu, Minus,
   MoreHorizontal, MousePointer2, MousePointerClick,
   PanelRightClose, PanelRightOpen, Pencil, Plus, RefreshCw, Search, Settings, Shapes, Shield,
-  Star, Tag, Trash2, UserCog, UserX, Users, X, Hexagon, EyeOff, FolderOpen, Info, GitBranch,
+  Sparkles, Star, Tag, Trash2, UserCog, UserX, Users, X, EyeOff, FolderOpen, Info, GitBranch,
   HelpCircle, PlusCircle, UserCheck, Edit, Import, ArrowUpDown, ArrowDownUp,
   GripVertical, PanelLeft, PanelLeftClose, Monitor, PlusSquare, Square, MoveRight, Moon, Sun,
-  BookOpen, RotateCcw, History, UserPlus, GitBranchPlus, Baby, UsersRound, StickyNote
+  BookOpen, RotateCcw, History, UserPlus, Baby, UsersRound, StickyNote
 };
 
 export const appConfig: ApplicationConfig = {

@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
+import { ICON_TEMPLATE, ICON_COMPOSITION } from '../../../../shared/constants/domain-icons';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { CompositionTemplateService } from '../../services/composition-template.service';
 import { FigureTemplateListItem } from '../../models/figure-template.model';
@@ -36,6 +37,8 @@ export interface PickerSelectionItem {
   templateUrl: './figure-picker-modal.component.html',
 })
 export class FigurePickerModalComponent implements OnInit {
+  readonly ICON_TEMPLATE = ICON_TEMPLATE;
+  readonly ICON_COMPOSITION = ICON_COMPOSITION;
   open = input.required<boolean>();
   segmentId = input.required<string>();
 

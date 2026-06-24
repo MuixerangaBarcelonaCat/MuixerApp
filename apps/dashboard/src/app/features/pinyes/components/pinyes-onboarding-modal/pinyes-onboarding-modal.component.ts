@@ -6,18 +6,17 @@ import {
 } from '@angular/core';
 import {
   LucideAngularModule,
-  Layers,
-  GitCommitHorizontal,
   UserCheck,
   X,
 } from 'lucide-angular';
+import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 
 const STORAGE_KEY = 'muixer_pinyes_onboarding_dismissed';
 
 interface OnboardingStep {
   title: string;
   description: string;
-  icon: typeof Layers;
+  icon: typeof DOMAIN_ICONS.FIGURA;
 }
 
 @Component({
@@ -37,14 +36,14 @@ export class PinyesOnboardingModalComponent {
       description:
         'Cada figura defineix totes les posicions de tots els cordons (ex: "Pinet doble de 4"). ' +
         'Les rengles defineixen les línies radials de posicions del centre cap enfora.',
-      icon: Layers,
+      icon: DOMAIN_ICONS.FIGURA,
     },
     {
       title: 'Rengles',
       description:
         'Una rengla és la línia de posicions des del centre de la pinya cap enfora. ' +
         'Cada posició dins la rengla correspon a un cordó diferent (1r, 2n, 3r...).',
-      icon: GitCommitHorizontal,
+      icon: DOMAIN_ICONS.RENGLA,
     },
     {
       title: 'Assignacions',

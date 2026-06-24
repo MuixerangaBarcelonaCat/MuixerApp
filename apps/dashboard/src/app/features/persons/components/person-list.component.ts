@@ -2,6 +2,7 @@ import { Component, ChangeDetectionStrategy, computed, inject, signal } from '@a
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
+import { ICON_PERSONA } from '../../../shared/constants/domain-icons';
 import { PersonService } from '../services/person.service';
 import { Person, Position, PersonFilterParams, PersonSortOrder } from '../models/person.model';
 import {
@@ -62,6 +63,8 @@ export const ALL_COLUMNS: ColumnDef[] = [
   templateUrl: './person-list.component.html',
 })
 export class PersonListComponent {
+  readonly ICON_PERSONA = ICON_PERSONA;
+
   private readonly personService = inject(PersonService);
   private readonly router = inject(Router);
 

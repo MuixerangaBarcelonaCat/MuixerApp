@@ -323,8 +323,7 @@ export class PersonDetailComponent implements OnInit {
   }
 
   navigateToEvent(entry: PersonAssignmentEntry) {
-    const base = entry.eventType === 'ACTUACIO' ? '/performances' : '/rehearsals';
-    this.router.navigate([base, entry.eventId]);
+    this.router.navigate(['/events', entry.eventId]);
   }
 
   protected readonly getFullName = getFullName;

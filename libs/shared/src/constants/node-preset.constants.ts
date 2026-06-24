@@ -19,6 +19,7 @@ export const DIRECTION_NODE_PRESETS: NodePreset[] = [
 
 export const DECORATION_NODE_PRESETS: NodePreset[] = [
   { zone: FigureZone.DECORATION, positionType: 'rectangle', label: '', width: 120, height: 80, shape: NodeShape.RECTANGLE, color: null, requiresCustomLabel: true },
+  { zone: FigureZone.DECORATION, positionType: 'ellipse', label: '', width: 100, height: 60, shape: NodeShape.ELLIPSE, color: null, requiresCustomLabel: true },
   { zone: FigureZone.DECORATION, positionType: 'arrow', label: '', width: 80, height: 30, shape: NodeShape.ARROW, color: null, requiresCustomLabel: true },
   { zone: FigureZone.DECORATION, positionType: 'circle', label: '', width: 60, height: 60, shape: NodeShape.CIRCLE, color: null, requiresCustomLabel: true },
 ];

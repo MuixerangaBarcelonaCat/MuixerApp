@@ -3,6 +3,7 @@ import { NgClass } from '@angular/common';
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
+import { ICON_XICALLA, ICON_PERSONA } from '../../../../shared/constants/domain-icons';
 import { EventService } from '../../services/event.service';
 import { AttendanceService } from '../../services/attendance.service';
 import { SeasonService } from '../../services/season.service';
@@ -49,14 +50,15 @@ type SyncState = 'idle' | 'running' | 'complete' | 'error';
   templateUrl: './event-detail.component.html',
 })
 export class EventDetailComponent implements OnInit, OnDestroy {
+  readonly ICON_XICALLA = ICON_XICALLA;
+  readonly ICON_PERSONA = ICON_PERSONA;
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
   private readonly toast = inject(ToastService);
 
   private get listBase(): string {
-    const url = this.router.url;
-    return url.startsWith('/performances') ? '/performances' : '/rehearsals';
+    return this.event()?.eventType === EventType.ACTUACIO ? '/performances' : '/rehearsals';
   }
   private readonly eventService = inject(EventService);
   private readonly attendanceService = inject(AttendanceService);
@@ -528,14 +530,14 @@ export class EventDetailComponent implements OnInit, OnDestroy {
       {
         label: 'Adults',
         value: adults,
-        icon: 'Users',
+        icon: ICON_PERSONA,
         iconClass: 'text-primary',
         hidden: false,
       },
       {
         label: 'Xicalla',
         value: summary.children,
-        icon: 'Baby',
+        icon: ICON_XICALLA,
         iconClass: 'text-info',
         hidden: false,
       },

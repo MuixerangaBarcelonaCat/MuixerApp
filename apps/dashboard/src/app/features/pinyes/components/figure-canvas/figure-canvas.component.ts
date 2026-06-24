@@ -168,6 +168,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   readonly nextPerformanceMap = input<Map<string, string | null>>(new Map());
   readonly highlightedNodeIds = input<Set<string>>(new Set());
   readonly isPlacementMode = input<boolean>(false);
+  readonly decorationOpacity = input<number>(1);
 
   readonly nodeSelected = output<string | null>();
   readonly nodeClicked = output<{ nodeId: string; x: number; y: number }>();
@@ -268,6 +269,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.nextPerformanceMap();
       this.selectedNodeId();
       this.highlightedNodeIds();
+      this.decorationOpacity();
       if (!this.stage) return;
       if (this.mode() === 'assignment') {
         untracked(() => {
@@ -684,6 +686,10 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.pinyaLayer.add(this.transformer);
 
     this.pinyaLayer.batchDraw();
+
+    if (allNodes.length > 0) {
+      this.hasAutoFitted = true;
+    }
   }
 
   private renderCompositionSlots(): void {
@@ -946,7 +952,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         y: node.y,
         rotation: node.rotation,
         draggable: isAdHoc,
-        opacity: 1,
+        opacity: isDecoration ? this.decorationOpacity() : 1,
       });
 
       const shape = createNodeShape(

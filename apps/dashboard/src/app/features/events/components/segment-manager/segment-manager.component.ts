@@ -10,6 +10,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
+import { ICON_FIGURA, ICON_PERSONA, ICON_COMPOSITION } from '../../../../shared/constants/domain-icons';
 import { forkJoin } from 'rxjs';
 import { EventSegmentService } from '../../../pinyes/services/event-segment.service';
 import { FigureInstanceService } from '../../../pinyes/services/figure-instance.service';
@@ -35,6 +36,9 @@ interface PendingInstanceRemoval {
 export class SegmentManagerComponent implements OnInit {
   eventId = input.required<string>();
   isLocked = input<boolean>(false);
+  readonly ICON_FIGURA = ICON_FIGURA;
+  readonly ICON_PERSONA = ICON_PERSONA;
+  readonly ICON_COMPOSITION = ICON_COMPOSITION;
 
   private readonly segmentService = inject(EventSegmentService);
   private readonly instanceService = inject(FigureInstanceService);
