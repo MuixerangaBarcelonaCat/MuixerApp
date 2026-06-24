@@ -3,14 +3,14 @@ import { provideRouter } from '@angular/router';
 import {
   LUCIDE_ICONS, LucideIconProvider,
   AlertCircle, AlertTriangle, ArrowLeft, Calendar, Check, ChevronDown,
-  ChevronsUpDown, Clock, Construction, Eye, Home, Layers, Lock, Mail, Menu,
+  ChevronsUpDown, Clock, Construction, DraftingCompass, Eye, Home, Layers, Lock, Mail, Menu,
   MoreHorizontal, Plus, RefreshCw, Search, Settings, Star, UserX, Users,
 } from 'lucide-angular';
 import { App } from './app';
 
 const allIcons = {
   AlertCircle, AlertTriangle, ArrowLeft, Calendar, Check, ChevronDown,
-  ChevronsUpDown, Clock, Construction, Eye, Home, Layers, Lock, Mail, Menu,
+  ChevronsUpDown, Clock, Construction, DraftingCompass, Eye, Home, Layers, Lock, Mail, Menu,
   MoreHorizontal, Plus, RefreshCw, Search, Settings, Star, UserX, Users,
 };
 

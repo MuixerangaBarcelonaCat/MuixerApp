@@ -104,7 +104,7 @@
   <!-- Estat buit -->
   @if (!loading() && users().length === 0) {
     <app-empty-state
-      icon="Users"
+      [icon]="ICON_PERSONA"
       message="No s'han trobat usuaris amb els filtres actuals"
       actionLabel="Netejar filtres"
       (actionClick)="clearFilters()"

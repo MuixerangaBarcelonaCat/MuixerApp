@@ -13,6 +13,7 @@ import {
 import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, Undo2, Redo2, Eye, EyeOff } from 'lucide-angular';
+import { ICON_TRONC, ICON_RENGLA, ICON_PINYA } from '../../../../shared/constants/domain-icons';
 import { HttpErrorResponse } from '@angular/common/http';
 import { generateUUID } from '../../../../shared/utils/uuid.util';
 import { slugify } from '../../utils/slugify.util';
@@ -63,6 +64,10 @@ const DEFAULT_NODE_HEIGHT = 40;
   styleUrl: './template-editor.component.scss',
 })
 export class TemplateEditorComponent implements OnInit, OnDestroy {
+  readonly ICON_TRONC = ICON_TRONC;
+  readonly ICON_RENGLA = ICON_RENGLA;
+  readonly ICON_PINYA = ICON_PINYA;
+
   private readonly figureTemplateService = inject(FigureTemplateService);
   private readonly canvasState = inject(CanvasStateService);
   private readonly router = inject(Router);
@@ -768,10 +773,21 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   // ── Rengla mode ──────────────────────────────────────────────────────────
 
+  activatePinyaMode(): void {
+    if (this.renglaEditMode()) this.toggleRenglaEditMode();
+    this.troncDrawerOpen.set(false);
+  }
+
+  activateTroncMode(): void {
+    if (this.renglaEditMode()) this.toggleRenglaEditMode();
+    this.troncDrawerOpen.set(true);
+  }
+
   toggleRenglaEditMode(): void {
     if (this.previewMode()) this.previewMode.set(false);
     this.renglaEditMode.update((v) => !v);
     if (this.renglaEditMode()) {
+      this.troncDrawerOpen.set(false);
       this.selectedNodeId.set(null);
     }
   }

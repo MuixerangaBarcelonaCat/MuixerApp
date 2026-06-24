@@ -36,7 +36,7 @@
 } @else if (!compositionsLoading() && compositions().length === 0) {
   <div class="mt-4">
     <app-empty-state
-      icon="LayoutGrid"
+      [icon]="ICON_COMPOSITION"
       message="No hi ha composicions. Creeu la primera composició per agrupar figures (ex: 'Altar', '5 d'Oros')."
       actionLabel="Composició nova"
       (actionClick)="navigateToCreateComposition()"
@@ -55,7 +55,7 @@
           (click)="navigateToEditComposition(composition.id)"
           [attr.aria-label]="'Edita composició ' + composition.name"
         >
-          <lucide-icon name="LayoutGrid" [size]="40" class="text-secondary/40" aria-hidden="true" />
+          <lucide-icon [name]="ICON_COMPOSITION" [size]="40" class="text-secondary/40" aria-hidden="true" />
           <span class="badge badge-secondary badge-sm absolute top-2 right-2">{{ composition.slotCount }} figures</span>
         </button>
 

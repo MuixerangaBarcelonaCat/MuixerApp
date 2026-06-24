@@ -9,6 +9,7 @@ import {
 import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
+import { ICON_FIGURA, ICON_ASSAIG, ICON_ACTUACIO } from '../../../../shared/constants/domain-icons';
 import { EventService } from '../../services/event.service';
 import { SeasonService } from '../../services/season.service';
 import { EventFormModalComponent } from '../event-form-modal/event-form-modal.component';
@@ -79,6 +80,8 @@ export class EventListComponent implements OnInit {
 
   readonly EventType = EventType;
   readonly ALL_EVENT_COLUMNS = ALL_EVENT_COLUMNS;
+  readonly ICON_ASSAIG = ICON_ASSAIG;
+  readonly ICON_ACTUACIO = ICON_ACTUACIO;
   Math = Math;
 
   searchInput = '';
@@ -207,8 +210,7 @@ export class EventListComponent implements OnInit {
   }
 
   navigateToEvent(id: string) {
-    const base = this.eventType() === EventType.ASSAIG ? '/rehearsals' : '/performances';
-    this.router.navigate([base, id]);
+    this.router.navigate(['/events', id]);
   }
 
   navigateToSync() {
@@ -218,8 +220,7 @@ export class EventListComponent implements OnInit {
 
   onEventCreated(event: EventDetail) {
     this.showCreateModal.set(false);
-    const base = this.eventType() === EventType.ASSAIG ? '/rehearsals' : '/performances';
-    this.router.navigate([base, event.id]);
+    this.router.navigate(['/events', event.id]);
   }
 
   toggleColumn(key: string) {
@@ -453,7 +454,7 @@ export class EventListComponent implements OnInit {
     },
     {
       label: 'Gestionar pinyes',
-      icon: 'Layers',
+      icon: ICON_FIGURA,
       action: (item: EventListItem) => this.navigateToEvent(item.id),
     },
   ]);

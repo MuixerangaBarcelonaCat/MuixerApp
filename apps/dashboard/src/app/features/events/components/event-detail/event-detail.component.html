@@ -92,13 +92,13 @@
       <app-stat-card
         label="Adults "
         [value]="adultsCount()"
-        icon="Users"
+        [icon]="ICON_PERSONA"
         accentClass="text-primary"
       />
       <app-stat-card
         label="Xicalla"
         [value]="ev.attendanceSummary.children"
-        icon="Baby"
+        [icon]="ICON_XICALLA"
         accentClass="text-info"
       />
       <!-- <app-stat-card
@@ -396,7 +396,7 @@
                       >{{ getStatusLabel(att.status) }}</button>
                       @if (att.person.isXicalla) {
                         <span class="badge badge-info badge-sm ml-0.5 gap-0.5" title="Xicalla">
-                          <lucide-icon name="Baby" [size]="10" />
+                          <lucide-icon [name]="ICON_XICALLA" [size]="10" />
                         </span>
                       }
                       @if (att.notes) {

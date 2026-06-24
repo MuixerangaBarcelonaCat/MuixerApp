@@ -43,7 +43,7 @@
       />
     } @else {
       <app-empty-state
-        icon="Layers"
+        [icon]="ICON_TEMPLATE"
         message="Crea la primera figura per dissenyar i assignar posicions."
         actionLabel="Figura nova"
         (actionClick)="openNewFigure()"
@@ -77,7 +77,7 @@
                   </span>
                   @if (figure.renglaCount > 0) {
                     <span class="badge badge-ghost badge-sm gap-1">
-                      <lucide-icon name="Rows3" [size]="10" aria-hidden="true" />
+                      <lucide-icon [name]="ICON_RENGLA" [size]="10" aria-hidden="true" />
                       {{ figure.renglaCount }} rengle{{ figure.renglaCount !== 1 ? 's' : '' }}
                     </span>
                   }

@@ -36,6 +36,7 @@ class StubFigureCanvas {
   readonly nextPerformanceMap = input<Map<string, string | null>>(new Map());
   readonly highlightedNodeIds = input<Set<string>>(new Set());
   readonly isPlacementMode = input<boolean>(false);
+  readonly decorationOpacity = input<number>(1);
   readonly nodeSelected = output<string | null>();
   readonly nodeClicked = output<{ nodeId: string; x: number; y: number }>();
   readonly nodeDoubleClicked = output<string>();
@@ -642,7 +643,7 @@ describe('AssignmentCanvasComponent', () => {
   describe('FAB categories & DECORATION presets', () => {
     it('exposes decorationPresets from shared constants', () => {
       expect(component.decorationPresets).toBe(DECORATION_NODE_PRESETS);
-      expect(component.decorationPresets.length).toBe(3);
+      expect(component.decorationPresets.length).toBe(4);
     });
 
     it('all decoration presets require custom label', () => {

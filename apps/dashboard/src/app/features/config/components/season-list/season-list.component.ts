@@ -12,6 +12,7 @@ import { ToastService } from '../../../../shared/components/feedback/toast/toast
 import { PageHeaderComponent } from '../../../../shared/components/data/page-header/page-header.component';
 import { EmptyStateComponent } from '../../../../shared/components/data/empty-state/empty-state.component';
 import { SeasonFormModalComponent } from '../season-form-modal/season-form-modal.component';
+import { ICON_ASSAIG } from '../../../../shared/constants/domain-icons';
 
 @Component({
   selector: 'app-season-list',
@@ -26,6 +27,8 @@ import { SeasonFormModalComponent } from '../season-form-modal/season-form-modal
   templateUrl: './season-list.component.html',
 })
 export class SeasonListComponent {
+  readonly ICON_ASSAIG = ICON_ASSAIG;
+
   private readonly seasonService = inject(SeasonService);
   private readonly toast = inject(ToastService);
 

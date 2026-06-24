@@ -101,7 +101,7 @@
   <!-- Estat buit -->
   @if (!loading() && events().length === 0) {
     <app-empty-state
-      [icon]="eventType() === EventType.ASSAIG ? 'Calendar' : 'Star'"
+      [icon]="eventType() === EventType.ASSAIG ? ICON_ASSAIG : ICON_ACTUACIO"
       [message]="'No s\'han trobat ' + (eventType() === EventType.ASSAIG ? 'assajos' : 'actuacions') + ' amb els filtres actuals'"
       actionLabel="Netejar filtres"
       (actionClick)="clearFilters()"

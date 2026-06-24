@@ -373,9 +373,9 @@ describe('EventListComponent', () => {
       expect(router.navigate).toHaveBeenCalledWith(['/rehearsals', 'sync']);
     });
 
-    it('navigateToEvent goes to /rehearsals/:id for ASSAIG', () => {
+    it('navigateToEvent goes to /events/:id', () => {
       component.navigateToEvent('event-123');
-      expect(router.navigate).toHaveBeenCalledWith(['/rehearsals', 'event-123']);
+      expect(router.navigate).toHaveBeenCalledWith(['/events', 'event-123']);
     });
   });
 

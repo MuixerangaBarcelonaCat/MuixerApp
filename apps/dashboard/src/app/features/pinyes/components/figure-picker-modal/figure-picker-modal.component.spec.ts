@@ -3,7 +3,7 @@ import { vi } from 'vitest';
 import { of } from 'rxjs';
 import {
   LUCIDE_ICONS, LucideIconProvider,
-  Hexagon, LayoutGrid, Search, X, Plus, Trash2,
+  DraftingCompass, Hexagon, LayoutGrid, Search, X, Plus, Trash2,
 } from 'lucide-angular';
 import { FigurePickerModalComponent, InstanceSelection } from './figure-picker-modal.component';
 import { FigureTemplateService } from '../../services/figure-template.service';
@@ -59,7 +59,7 @@ describe('FigurePickerModalComponent', () => {
         { provide: CompositionTemplateService, useValue: compositionService },
         {
           provide: LUCIDE_ICONS, multi: true,
-          useFactory: () => new LucideIconProvider({ Hexagon, LayoutGrid, Search, X, Plus, Trash2 }),
+          useFactory: () => new LucideIconProvider({ DraftingCompass, Hexagon, LayoutGrid, Search, X, Plus, Trash2 }),
         },
       ],
     }).compileComponents();

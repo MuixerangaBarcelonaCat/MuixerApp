@@ -4,7 +4,7 @@ import { vi } from 'vitest';
 import { of } from 'rxjs';
 import {
   LUCIDE_ICONS, LucideIconProvider,
-  Plus, Search, ChevronDown, ChevronRight, FolderOpen, Layers, LayoutGrid,
+  DraftingCompass, Plus, Search, ChevronDown, ChevronRight, FolderOpen, Layers, LayoutGrid,
   GitBranch, Pencil, Trash2, Copy, X, Info, ChevronLeft, HelpCircle, AlertTriangle,
   BookOpen, RotateCcw, ArrowUpDown, History, AlignJustify,
 } from 'lucide-angular';
@@ -74,7 +74,7 @@ describe('TemplateListComponent', () => {
         {
           provide: LUCIDE_ICONS, multi: true,
           useFactory: () => new LucideIconProvider({
-            Plus, Search, ChevronDown, ChevronRight, FolderOpen, Layers, LayoutGrid,
+            DraftingCompass, Plus, Search, ChevronDown, ChevronRight, FolderOpen, Layers, LayoutGrid,
             GitBranch, Pencil, Trash2, Copy, X, Info, ChevronLeft, HelpCircle, AlertTriangle,
             BookOpen, RotateCcw, ArrowUpDown, History, AlignJustify,
           }),

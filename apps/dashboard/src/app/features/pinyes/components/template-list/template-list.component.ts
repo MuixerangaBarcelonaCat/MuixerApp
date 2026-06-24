@@ -9,6 +9,7 @@ import {
 import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
+import { ICON_TEMPLATE, ICON_COMPOSITION } from '../../../../shared/constants/domain-icons';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { CompositionTemplateService } from '../../services/composition-template.service';
@@ -40,6 +41,9 @@ type ActiveTab = 'figures' | 'compositions';
   styleUrl: './template-list.component.scss',
 })
 export class TemplateListComponent implements OnInit {
+  readonly ICON_TEMPLATE = ICON_TEMPLATE;
+  readonly ICON_COMPOSITION = ICON_COMPOSITION;
+
   private readonly figureTemplateService = inject(FigureTemplateService);
   private readonly compositionTemplateService = inject(CompositionTemplateService);
   private readonly router = inject(Router);

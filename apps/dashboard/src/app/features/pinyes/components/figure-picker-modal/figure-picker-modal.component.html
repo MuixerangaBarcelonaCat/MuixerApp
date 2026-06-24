@@ -30,7 +30,7 @@
         [attr.aria-selected]="activeTab() === 'figures'"
         (click)="setTab('figures')"
       >
-        <lucide-icon name="Hexagon" [size]="14" class="mr-1" aria-hidden="true" />
+        <lucide-icon [name]="ICON_TEMPLATE" [size]="14" class="mr-1" aria-hidden="true" />
         Figures
       </button>
       <button
@@ -41,7 +41,7 @@
         [attr.aria-selected]="activeTab() === 'composicions'"
         (click)="setTab('composicions')"
       >
-        <lucide-icon name="LayoutGrid" [size]="14" class="mr-1" aria-hidden="true" />
+        <lucide-icon [name]="ICON_COMPOSITION" [size]="14" class="mr-1" aria-hidden="true" />
         Composicions
         @if (compositions().length > 0) {
           <span class="badge badge-xs ml-1">{{ compositions().length }}</span>
@@ -81,7 +81,7 @@
           @for (figure of filteredFigures(); track figure.id) {
             <li class="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-base-200 transition-colors">
               <div class="flex items-center gap-2 min-w-0">
-                <lucide-icon name="Hexagon" [size]="14" class="text-primary shrink-0" aria-hidden="true" />
+                <lucide-icon [name]="ICON_TEMPLATE" [size]="14" class="text-primary shrink-0" aria-hidden="true" />
                 <span class="font-medium text-sm truncate">{{ figure.name }}</span>
                 @if (!figure.hasPinya) {
                   <span class="badge badge-xs badge-info shrink-0">Tronc</span>
@@ -118,7 +118,7 @@
           @for (composition of filteredCompositions(); track composition.id) {
             <li class="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-base-200 transition-colors">
               <div class="flex items-center gap-2 min-w-0">
-                <lucide-icon name="LayoutGrid" [size]="14" class="text-secondary shrink-0" aria-hidden="true" />
+                <lucide-icon [name]="ICON_COMPOSITION" [size]="14" class="text-secondary shrink-0" aria-hidden="true" />
                 <span class="font-medium text-sm truncate">{{ composition.name }}</span>
                 <span class="text-xs text-base-content/40 shrink-0">{{ composition.slotCount }} figures</span>
               </div>

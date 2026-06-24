@@ -1,6 +1,7 @@
 import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
+import { ICON_PERSONA, ICON_ASSAIG, ICON_ACTUACIO } from '../../shared/constants/domain-icons';
 
 @Component({
   selector: 'app-global-sync',
@@ -36,7 +37,7 @@ import { LucideAngularModule } from 'lucide-angular';
         <div class="card bg-base-100 shadow-sm border-l-4 border-primary">
           <div class="card-body p-4">
             <div class="flex items-center gap-2 mb-2">
-              <lucide-icon name="Users" [size]="20" class="text-primary" />
+              <lucide-icon [name]="ICON_PERSONA" [size]="20" class="text-primary" />
               <h2 class="font-semibold">Persones</h2>
             </div>
             <p class="text-xs text-base-content/60 mb-3">Importa totes les persones i membres del cens legacy.</p>
@@ -50,7 +51,7 @@ import { LucideAngularModule } from 'lucide-angular';
         <div class="card bg-base-100 shadow-sm border-l-4 border-info">
           <div class="card-body p-4">
             <div class="flex items-center gap-2 mb-2">
-              <lucide-icon name="Calendar" [size]="20" class="text-info" />
+              <lucide-icon [name]="ICON_ASSAIG" [size]="20" class="text-info" />
               <h2 class="font-semibold">Assajos</h2>
             </div>
             <p class="text-xs text-base-content/60 mb-3">Importa tots els assajos i l'historial d'assistència.</p>
@@ -64,7 +65,7 @@ import { LucideAngularModule } from 'lucide-angular';
         <div class="card bg-base-100 shadow-sm border-l-4 border-success">
           <div class="card-body p-4">
             <div class="flex items-center gap-2 mb-2">
-              <lucide-icon name="Star" [size]="20" class="text-success" />
+              <lucide-icon [name]="ICON_ACTUACIO" [size]="20" class="text-success" />
               <h2 class="font-semibold">Actuacions</h2>
             </div>
             <p class="text-xs text-base-content/60 mb-3">Importa totes les actuacions i l'historial d'assistència.</p>
@@ -86,4 +87,8 @@ import { LucideAngularModule } from 'lucide-angular';
     </div>
   `,
 })
-export class GlobalSyncComponent {}
+export class GlobalSyncComponent {
+  readonly ICON_PERSONA = ICON_PERSONA;
+  readonly ICON_ASSAIG = ICON_ASSAIG;
+  readonly ICON_ACTUACIO = ICON_ACTUACIO;
+}

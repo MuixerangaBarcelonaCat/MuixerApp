@@ -111,7 +111,7 @@ export class TroncViewComponent {
   readonly inverted = signal(false);
 
   /** Whether the directions section is expanded. */
-  readonly directionsExpanded = signal(false);
+  readonly directionsExpanded = signal(true);
 
   // ── Direction computed ─────────────────────────────────────────────────────
 

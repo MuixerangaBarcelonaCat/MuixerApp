@@ -9,15 +9,13 @@ import {
 } from '@angular/core';
 import {
   LucideAngularModule,
-  Circle,
-  Building2,
-  GitCommitHorizontal,
   RotateCcw,
   Keyboard,
   Search,
   X,
   ChevronDown,
 } from 'lucide-angular';
+import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 
 const STORAGE_KEY = 'muixer_template_editor_help_dismissed';
 const TAB_STORAGE_KEY = 'muixer_help_last_tab';
@@ -40,7 +38,7 @@ export interface ShortcutGroup {
 export interface HelpSection {
   id: string;
   title: string;
-  icon: typeof Circle;
+  icon: typeof DOMAIN_ICONS.PINYA;
   items: HelpItem[];
 }
 
@@ -103,7 +101,7 @@ const HELP_SECTIONS: HelpSection[] = [
   {
     id: 'pinya',
     title: 'Pinya',
-    icon: Circle,
+    icon: DOMAIN_ICONS.PINYA,
     items: [
       {
         question: 'Com afegeixo posicions a la pinya?',
@@ -138,7 +136,7 @@ const HELP_SECTIONS: HelpSection[] = [
   {
     id: 'tronc',
     title: 'Tronc',
-    icon: Building2,
+    icon: DOMAIN_ICONS.TRONC,
     items: [
       {
         question: 'Com accedeixo al tronc?',
@@ -169,7 +167,7 @@ const HELP_SECTIONS: HelpSection[] = [
   {
     id: 'rengles',
     title: 'Rengles',
-    icon: GitCommitHorizontal,
+    icon: DOMAIN_ICONS.RENGLA,
     items: [
       {
         question: 'Què és una rengla?',
