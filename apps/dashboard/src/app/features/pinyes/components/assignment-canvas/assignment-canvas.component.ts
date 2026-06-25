@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Location } from '@angular/common';
-import { LucideAngularModule, ArrowLeft, Users, Edit, RefreshCw, Trash2, X, PanelLeft, PanelLeftClose, Monitor, Lock, Plus, Minus, HelpCircle, Undo2, Redo2, Save, Flower, ChessRook, Shapes, Sparkles } from 'lucide-angular';
+import { LucideAngularModule, ArrowLeft, Users, Edit, RefreshCw, Trash2, X, PanelLeft, PanelLeftClose, Monitor, Lock, Plus, Minus, CircleQuestionMark, Undo2, Redo2, Save, Flower, ChessRook, Shapes, Sparkles } from 'lucide-angular';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { NodeAssignmentService, LockStatus } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
@@ -94,7 +94,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly Lock = Lock;
   readonly Plus = Plus;
   readonly Minus = Minus;
-  readonly HelpCircle = HelpCircle;
+  readonly CircleQuestionMark = CircleQuestionMark;
   readonly Undo2 = Undo2;
   readonly Redo2 = Redo2;
   readonly SaveIcon = Save;
@@ -219,25 +219,29 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     });
   });
 
-  /** Nodes rendered on the Konva canvas (PINYA + BASE + DECORATION — spatial x,y nodes). */
-  readonly activePinyaNodes = computed(() =>
-    this.visibleNodes().filter(
+  /** Nodes rendered on the Konva canvas (PINYA + BASE + DECORATION — spatial x,y nodes).
+   *  BASE nodes are excluded for REMAT mode only. */
+  readonly activePinyaNodes = computed(() => {
+    const hideBase = this.activeTab()?.figureMode === 'REMAT';
+    return this.visibleNodes().filter(
       (n) =>
         n.zone === FigureZone.PINYA ||
-        n.zone === FigureZone.BASE ||
+        (!hideBase && n.zone === FigureZone.BASE) ||
         n.zone === FigureZone.DECORATION,
-    ),
-  );
+    );
+  });
 
   /** TRONC-zone nodes passed to the tronc panel. */
   readonly activeTroncNodes = computed(() =>
     this.visibleNodes().filter((n) => n.zone === FigureZone.TRONC),
   );
 
-  /** BASE-zone nodes passed to the tronc panel (P1 row). */
-  readonly activeBaseNodes = computed(() =>
-    this.visibleNodes().filter((n) => n.zone === FigureZone.BASE),
-  );
+  /** BASE-zone nodes passed to the tronc panel (P1 row).
+   *  Hidden for REMAT mode only. */
+  readonly activeBaseNodes = computed(() => {
+    if (this.activeTab()?.figureMode === 'REMAT') return [];
+    return this.visibleNodes().filter((n) => n.zone === FigureZone.BASE);
+  });
 
   /** Direction-zone nodes passed to the tronc panel (figures netes only). */
   readonly activeDirectionNodes = computed(() =>
@@ -248,10 +252,10 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     ),
   );
 
-  /** Whether the active tab shows only tronc: figura neta (hasPinya = false) or REMAT mode. */
+  /** Whether the active tab shows only tronc: figura neta (hasPinya = false), REMAT or NETA mode. */
   readonly isActiveTabTroncOnly = computed(() => {
     const tab = this.activeTab();
-    return tab ? tab.hasPinya === false || tab.figureMode === 'REMAT' : false;
+    return tab ? tab.hasPinya === false || tab.figureMode === 'REMAT' || tab.figureMode === 'NETA' : false;
   });
 
   /** Nodes for the inline projection preview: like activePinyaNodes but hiding unassigned pinya positions. */
@@ -634,7 +638,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     this.loadTabData(instanceId);
 
     const tab = this.tabs().find((t) => t.instanceId === instanceId);
-    this.setViewMode(tab && (!tab.hasPinya || tab.figureMode === 'REMAT') ? 'tronc' : 'pinya');
+    this.setViewMode(tab && (!tab.hasPinya || tab.figureMode === 'REMAT' || tab.figureMode === 'NETA') ? 'tronc' : 'pinya');
   }
 
   private loadTabData(instanceId: string): void {
@@ -784,6 +788,9 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
       : null;
 
     const isAdHoc = !!clickedNode?.isAdHoc;
+    const isDirectionNode =
+      clickedNode?.zone === FigureZone.FIGURE_DIRECTION ||
+      clickedNode?.zone === FigureZone.XICALLA_DIRECTION;
 
     if (clickedNodeAssignment && previousNodeAssignment && previouslySelectedNodeId !== nodeId) {
       this.triggerSwap(previousNodeAssignment, clickedNodeAssignment);
@@ -795,7 +802,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     } else if (clickedNodeAssignment) {
       this.popoverAssignment.set(clickedNodeAssignment);
       this.state.setSelectedNodeId(nodeId);
-      if (isAdHoc) this.adHocPropertiesOpen.set(true);
+      if (isAdHoc && !isDirectionNode) this.adHocPropertiesOpen.set(true);
     } else {
       const pendingPersonId = this.state.selectedPersonId();
       this.state.setSelectedNodeId(nodeId);
@@ -804,7 +811,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
       if (pendingPersonId) {
         this.triggerAssign(nodeId, pendingPersonId);
       }
-      if (isAdHoc) this.adHocPropertiesOpen.set(true);
+      if (isAdHoc && !isDirectionNode) this.adHocPropertiesOpen.set(true);
     }
   }
 
@@ -814,7 +821,8 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
   onNodeDoubleClicked(nodeId: string): void {
     const node = this.activeNodes().find((n) => n.id === nodeId);
-    if (node?.isAdHoc) {
+    const isDirection = node?.zone === FigureZone.FIGURE_DIRECTION || node?.zone === FigureZone.XICALLA_DIRECTION;
+    if (node?.isAdHoc && !isDirection) {
       this.adHocPropertiesOpen.set(true);
     }
   }
@@ -845,6 +853,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     this.assignmentService
       .createAdHocNode(instanceId, {
         zone: preset.zone,
+        positionType: preset.positionType ?? undefined,
         label: preset.label,
         x: 0,
         y: 0,

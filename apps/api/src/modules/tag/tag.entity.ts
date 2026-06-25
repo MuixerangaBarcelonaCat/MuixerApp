@@ -1,8 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
-import { FigureZone } from '@muixer/shared';
 
 @Entity('positions')
-export class Position {
+export class Tag {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -21,8 +20,8 @@ export class Position {
   @Column({ type: 'varchar', nullable: true })
   color: string | null;
 
-  @Column({ type: 'enum', enum: FigureZone, nullable: true })
-  zone: FigureZone | null;
+  @Column({ type: 'text', array: true, default: '{}' })
+  positionTypes: string[];
 
   @CreateDateColumn()
   createdAt: Date;

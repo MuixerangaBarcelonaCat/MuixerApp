@@ -39,6 +39,7 @@ export interface AvailablePersonPosition {
   name: string;
   slug: string;
   color: string | null;
+  positionTypes: string[];
 }
 
 export interface AvailablePerson {

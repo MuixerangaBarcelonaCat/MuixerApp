@@ -601,6 +601,19 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.stage.width(container.clientWidth);
     this.stage.height(container.clientHeight);
     this.renderGrid();
+
+    if (this.mode() === 'readonly') {
+      const nodes = this.nodes();
+      if (nodes.length > 0) {
+        const fit = computeFitTransform(nodes, this.stage.width(), this.stage.height(), { padding: 20, maxScale: 2 });
+        if (fit) {
+          this.stage.scale({ x: fit.scale, y: fit.scale });
+          this.stage.position({ x: fit.x, y: fit.y });
+          this.zoomLevel.set(fit.scale);
+        }
+      }
+    }
+
     this.stage.batchDraw();
   }
 

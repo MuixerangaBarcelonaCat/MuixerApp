@@ -1,10 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi, type Mock } from 'vitest';
 import { of } from 'rxjs';
-import {
-  LUCIDE_ICONS, LucideIconProvider,
-  RefreshCw, ChevronDown, ChevronUp,
-} from 'lucide-angular';
+import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { PersonPanelComponent } from './person-panel.component';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AvailablePerson } from '../../models/assignment.model';
@@ -46,10 +43,7 @@ describe('PersonPanelComponent', () => {
       imports: [PersonPanelComponent],
       providers: [
         { provide: NodeAssignmentService, useValue: assignmentService },
-        {
-          provide: LUCIDE_ICONS, multi: true,
-          useFactory: () => new LucideIconProvider({ RefreshCw, ChevronDown, ChevronUp }),
-        },
+        allLucideIconsProvider,
       ],
     }).compileComponents();
 
@@ -181,8 +175,8 @@ describe('PersonPanelComponent', () => {
   // ── sortedConfirmedPersons (F2 intelligent filter) ─────────────────────────
 
   describe('sortedConfirmedPersons', () => {
-    const posVents = { id: 'pos-vents', name: 'Vents', slug: 'vents', color: '#A5D6A7' };
-    const posAgulla = { id: 'pos-agulla', name: 'Agulla', slug: 'agulla', color: '#0d9488' };
+    const posVents = { id: 'pos-vents', name: 'Vents', slug: 'vents', color: '#A5D6A7', positionTypes: ['vents'] };
+    const posAgulla = { id: 'pos-agulla', name: 'Agulla', slug: 'agulla', color: '#0d9488', positionTypes: ['agulla'] };
 
     it('returns confirmedPersons in original order when activeNodePositionType is null', () => {
       const persons = [

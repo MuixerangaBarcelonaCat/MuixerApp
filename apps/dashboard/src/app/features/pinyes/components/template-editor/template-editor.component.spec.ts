@@ -4,14 +4,7 @@ import { signal } from '@angular/core';
 import { vi } from 'vitest';
 import { of } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
-import {
-  LUCIDE_ICONS, LucideIconProvider,
-  ArrowLeft, ChessRook, Flower, GitCommitHorizontal, Undo2, Redo2, Eye, EyeOff,
-  GitBranchPlus, Layers, Keyboard, HelpCircle, Info, X,
-  AlertTriangle, Trash2, Grid3X3, Magnet, Shapes,
-  MousePointer2, GripVertical, PanelRightClose, PanelRightOpen,
-  ChevronDown,
-} from 'lucide-angular';
+import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { FigureZone, NodeShape, PINYA_NODE_PRESETS } from '@muixer/shared';
 import { FigureNodeItem } from '../../models/figure-template.model';
 import { TemplateEditorComponent } from './template-editor.component';
@@ -118,16 +111,7 @@ describe('TemplateEditorComponent — Preview Mode', () => {
         { provide: CanvasStateService, useValue: mockCanvasState },
         { provide: LayoutService, useValue: mockLayout },
         { provide: ToastService, useValue: mockToast },
-        {
-          provide: LUCIDE_ICONS,
-          useValue: new LucideIconProvider({
-            ArrowLeft, ChessRook, Flower, GitCommitHorizontal, Undo2, Redo2, Eye, EyeOff,
-            GitBranchPlus, Layers, Keyboard, HelpCircle, Info, X,
-            AlertTriangle, Trash2, Grid3X3, Magnet, Shapes,
-            MousePointer2, GripVertical, PanelRightClose, PanelRightOpen,
-            ChevronDown,
-          }),
-        },
+        allLucideIconsProvider,
       ],
     })
       .overrideComponent(TemplateEditorComponent, {

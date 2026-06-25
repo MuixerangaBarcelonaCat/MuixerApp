@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { PersonSyncStrategy } from './person-sync.strategy';
 import { LegacyApiClient, LegacyPerson } from '../legacy-api.client';
 import { Person } from '../../person/person.entity';
-import { Position } from '../../position/position.entity';
+import { Tag } from '../../tag/tag.entity';
 import { AvailabilityStatus, OnboardingStatus } from '@muixer/shared';
 import { User } from '../../user/user.entity';
 
@@ -29,7 +29,7 @@ describe('PersonSyncStrategy', () => {
   let strategy: PersonSyncStrategy;
   let legacyApiClient: jest.Mocked<LegacyApiClient>;
   let personRepository: jest.Mocked<Repository<Person>>;
-  let positionRepository: jest.Mocked<Repository<Position>>;
+  let positionRepository: jest.Mocked<Repository<Tag>>;
 
   const mockLegacyPerson: LegacyPerson = {
     id: '123',
@@ -104,7 +104,7 @@ describe('PersonSyncStrategy', () => {
         PersonSyncStrategy,
         { provide: LegacyApiClient, useValue: mockLegacyClient },
         { provide: getRepositoryToken(Person), useValue: mockPersonRepo },
-        { provide: getRepositoryToken(Position), useValue: mockPositionRepo },
+        { provide: getRepositoryToken(Tag), useValue: mockPositionRepo },
         { provide: getRepositoryToken(User), useValue: mockUserRepo },
       ],
     }).compile();
@@ -113,7 +113,7 @@ describe('PersonSyncStrategy', () => {
       strategy: module.get<PersonSyncStrategy>(PersonSyncStrategy),
       legacyApiClient: module.get(LegacyApiClient) as jest.Mocked<LegacyApiClient>,
       personRepository: module.get(getRepositoryToken(Person)) as jest.Mocked<Repository<Person>>,
-      positionRepository: module.get(getRepositoryToken(Position)) as jest.Mocked<Repository<Position>>,
+      positionRepository: module.get(getRepositoryToken(Tag)) as jest.Mocked<Repository<Tag>>,
     };
   }
 
@@ -137,8 +137,8 @@ describe('PersonSyncStrategy', () => {
       legacyApiClient.login.mockResolvedValue();
       legacyApiClient.getCastellers.mockResolvedValue([mockLegacyPerson]);
       positionRepository.findOne.mockResolvedValue(null);
-      positionRepository.create.mockReturnValue({} as Position);
-      positionRepository.save.mockResolvedValue({} as Position);
+      positionRepository.create.mockReturnValue({} as Tag);
+      positionRepository.save.mockResolvedValue({} as Tag);
       personRepository.findOne.mockResolvedValue(null);
       personRepository.create.mockReturnValue({} as Person);
       personRepository.save.mockResolvedValue({} as Person);
@@ -195,8 +195,8 @@ describe('PersonSyncStrategy', () => {
       legacyApiClient.login.mockResolvedValue();
       legacyApiClient.getCastellers.mockResolvedValue([mockLegacyPerson]);
       positionRepository.findOne.mockResolvedValue(null);
-      positionRepository.create.mockReturnValue({} as Position);
-      positionRepository.save.mockResolvedValue({} as Position);
+      positionRepository.create.mockReturnValue({} as Tag);
+      positionRepository.save.mockResolvedValue({} as Tag);
       personRepository.findOne.mockResolvedValue(null);
       personRepository.create.mockImplementation((d) => d as Person);
       personRepository.save.mockResolvedValue({} as Person);

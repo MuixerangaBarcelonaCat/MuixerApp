@@ -1,4 +1,4 @@
-export type FigureMode = 'COMPLETA' | 'PEU' | 'REMAT';
+export type FigureMode = 'COMPLETA' | 'PEU' | 'REMAT' | 'NETA';
 
 export interface InstanceDetail {
   id: string;

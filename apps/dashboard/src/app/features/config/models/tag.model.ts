@@ -1,29 +1,27 @@
-import { FigureZone } from '@muixer/shared';
-
-export interface PositionWithCount {
+export interface TagWithCount {
   id: string;
   name: string;
   slug: string;
   shortDescription: string | null;
   longDescription: string | null;
   color: string | null;
-  zone: FigureZone | null;
+  positionTypes: string[];
   personCount: number;
 }
 
-export interface CreatePositionDto {
+export interface CreateTagDto {
   name: string;
   slug: string;
   shortDescription?: string;
   longDescription?: string;
   color?: string;
-  zone?: FigureZone;
+  positionTypes?: string[];
 }
 
-export interface UpdatePositionDto {
+export interface UpdateTagDto {
   name?: string;
   shortDescription?: string;
   longDescription?: string;
   color?: string;
-  zone?: FigureZone;
+  positionTypes?: string[];
 }

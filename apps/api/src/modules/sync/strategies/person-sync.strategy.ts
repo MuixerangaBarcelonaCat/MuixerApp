@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Observable, Subscriber } from 'rxjs';
 import { Person } from '../../person/person.entity';
-import { Position } from '../../position/position.entity';
+import { Tag } from '../../tag/tag.entity';
 import { User } from '../../user/user.entity';
 import { UserRole } from '@muixer/shared';
 import { LegacyApiClient, LegacyPerson } from '../legacy-api.client';
@@ -12,25 +12,24 @@ import { SyncStrategy } from '../interfaces/sync-strategy.interface';
 import {
   AvailabilityStatus,
   OnboardingStatus,
-  FigureZone,
 } from '@muixer/shared';
 
 const POSITION_MAPPING: Record<
   string,
-  { name: string; slug: string; zone: FigureZone | null; color: string }
+  { name: string; slug: string; positionTypes: string[]; color: string }
 > = {
-  PRIMERES: { name: 'Primeres', slug: 'primeres', zone: FigureZone.TRONC, color: '#E53935' },
-  VENTS: { name: 'Vents', slug: 'vents', zone: FigureZone.PINYA, color: '#1E88E5' },
-  LATERALS: { name: 'Laterals', slug: 'laterals', zone: FigureZone.PINYA, color: '#43A047' },
-  CONTRAFORTS: { name: 'Contraforts', slug: 'contraforts', zone: FigureZone.PINYA, color: '#FB8C00' },
-  '2NS LATERALS': { name: 'Segons Laterals', slug: 'segons-laterals', zone: FigureZone.PINYA, color: '#8E24AA' },
-  CROSSES: { name: 'Crosses', slug: 'crosses', zone: FigureZone.PINYA, color: '#00897B' },
-  CANALLA: { name: 'Xicalla', slug: 'xicalla', zone: null, color: '#FFB300' },
-  'NENS COLLA': { name: 'Nens Colla', slug: 'nens-colla', zone: null, color: '#FFB300' },
-  ACOMPANYANTS: { name: 'Acompanyants', slug: 'acompanyants', zone: null, color: '#78909C' },
-  ALTRES: { name: 'Altres', slug: 'altres', zone: null, color: '#9E9E9E' },
-  NOVATOS: { name: 'Novatos', slug: 'novatos', zone: null, color: '#5C6BC0' },
-  'IMATGE I PARADETA': { name: 'Imatge i Paradeta', slug: 'imatge-paradeta', zone: null, color: '#EC407A' },
+  PRIMERES: { name: 'Mans', slug: 'mans', positionTypes: ['mans'], color: '#FFE082' },
+  VENTS: { name: 'Vent', slug: 'vent', positionTypes: ['vents'], color: '#A5D6A7' },
+  LATERALS: { name: 'Lateral', slug: 'lateral', positionTypes: ['laterals'], color: '#80DEEA' },
+  CONTRAFORTS: { name: 'Contrafort', slug: 'contrafort', positionTypes: ['contrafort'], color: '#EF9A9A' },
+  '2NS LATERALS': { name: 'Segon Lateral', slug: 'segon-lateral', positionTypes: ['laterals'], color: '#8E24AA' },
+  CROSSES: { name: 'Crossa', slug: 'crossa', positionTypes: ['crossa'], color: '#9FA8DA' },
+  CANALLA: { name: 'Xicalla', slug: 'xicalla', positionTypes: [], color: '#FFB300' },
+  'NENS COLLA': { name: 'Nens Colla', slug: 'nens-colla', positionTypes: [], color: '#FFB300' },
+  ACOMPANYANTS: { name: 'Acompanyants', slug: 'acompanyants', positionTypes: [], color: '#78909C' },
+  ALTRES: { name: 'Altres', slug: 'altres', positionTypes: [], color: '#9E9E9E0DEEA' },
+  NOVATOS: { name: 'Novatos', slug: 'novatos', positionTypes: [], color: '#5C6BC0' },
+  'IMATGE I PARADETA': { name: 'Imatge i Paradeta', slug: 'imatge-paradeta', positionTypes: [], color: '#EC407A' },
 };
 
 /**
@@ -47,8 +46,8 @@ export class PersonSyncStrategy implements SyncStrategy {
     private readonly legacyApiClient: LegacyApiClient,
     @InjectRepository(Person)
     private readonly personRepository: Repository<Person>,
-    @InjectRepository(Position)
-    private readonly positionRepository: Repository<Position>,
+    @InjectRepository(Tag)
+    private readonly positionRepository: Repository<Tag>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
   ) {}
@@ -367,16 +366,15 @@ export class PersonSyncStrategy implements SyncStrategy {
       const position = this.positionRepository.create({
         name: mapping.name,
         slug: mapping.slug,
-        zone: mapping.zone,
+        positionTypes: mapping.positionTypes,
         color: mapping.color,
       });
       await this.positionRepository.save(position);
-
-      subscriber.next({
-        type: 'progress',
-        entity: 'position',
-        message: `Posició: ${mapping.name}`,
-      });
+      subscriber.next({ type: 'progress', entity: 'position', message: `Posició creada: ${mapping.name}` });
+    } else {
+      existing.positionTypes = mapping.positionTypes;
+      existing.color = mapping.color;
+      await this.positionRepository.save(existing);
     }
   }
 
@@ -533,7 +531,7 @@ export class PersonSyncStrategy implements SyncStrategy {
     return fallback;
   }
 
-  private async resolvePositions(posicio: string): Promise<Position[]> {
+  private async resolvePositions(posicio: string): Promise<Tag[]> {
     if (!posicio) return [];
 
     const parts = posicio

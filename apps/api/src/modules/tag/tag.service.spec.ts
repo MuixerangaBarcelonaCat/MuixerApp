@@ -1,20 +1,19 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { NotFoundException, ConflictException } from '@nestjs/common';
-import { Position } from './position.entity';
-import { PositionService } from './position.service';
-import { FigureZone } from '@muixer/shared';
+import { Tag } from './tag.entity';
+import { TagService } from './tag.service';
 
-const POS_ID = 'pos-uuid-1';
+const TAG_ID = 'tag-uuid-1';
 
-const makePosition = (overrides: Partial<Position> = {}): Partial<Position> => ({
-  id: POS_ID,
+const makeTag = (overrides: Partial<Tag> = {}): Partial<Tag> => ({
+  id: TAG_ID,
   name: 'Vents',
   slug: 'vents',
   shortDescription: null,
   longDescription: null,
   color: '#ff0000',
-  zone: FigureZone.PINYA,
+  positionTypes: [],
   createdAt: new Date(),
   updatedAt: new Date(),
   ...overrides,
@@ -31,7 +30,7 @@ const mockQb = {
 const mockRepo = {
   find: jest.fn(),
   findOne: jest.fn(),
-  create: jest.fn((data: Record<string, unknown>) => ({ ...data, id: POS_ID })),
+  create: jest.fn((data: Record<string, unknown>) => ({ ...data, id: TAG_ID })),
   save: jest.fn(),
   update: jest.fn(),
   delete: jest.fn(),
@@ -39,8 +38,8 @@ const mockRepo = {
   createQueryBuilder: jest.fn().mockReturnValue(mockQb),
 };
 
-describe('PositionService', () => {
-  let service: PositionService;
+describe('TagService', () => {
+  let service: TagService;
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -52,19 +51,19 @@ describe('PositionService', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        PositionService,
-        { provide: getRepositoryToken(Position), useValue: mockRepo },
+        TagService,
+        { provide: getRepositoryToken(Tag), useValue: mockRepo },
       ],
     }).compile();
 
-    service = module.get<PositionService>(PositionService);
+    service = module.get<TagService>(TagService);
   });
 
   describe('findAll', () => {
-    it('returns positions with personCount via QueryBuilder', async () => {
-      const pos = makePosition();
+    it('returns tags with personCount via QueryBuilder', async () => {
+      const tag = makeTag();
       mockQb.getRawAndEntities.mockResolvedValue({
-        entities: [pos],
+        entities: [tag],
         raw: [{ personCount: 5 }],
       });
 
@@ -73,13 +72,13 @@ describe('PositionService', () => {
       expect(result).toHaveLength(1);
       expect(result[0].name).toBe('Vents');
       expect(result[0].personCount).toBe(5);
-      expect(mockRepo.createQueryBuilder).toHaveBeenCalledWith('position');
+      expect(mockRepo.createQueryBuilder).toHaveBeenCalledWith('tag');
     });
 
     it('defaults personCount to 0 when raw is null', async () => {
-      const pos = makePosition();
+      const tag = makeTag();
       mockQb.getRawAndEntities.mockResolvedValue({
-        entities: [pos],
+        entities: [tag],
         raw: [{}],
       });
 
@@ -89,10 +88,10 @@ describe('PositionService', () => {
   });
 
   describe('findOne', () => {
-    it('returns position by ID', async () => {
-      mockRepo.findOne.mockResolvedValue(makePosition());
-      const result = await service.findOne(POS_ID);
-      expect(result.id).toBe(POS_ID);
+    it('returns tag by ID', async () => {
+      mockRepo.findOne.mockResolvedValue(makeTag());
+      const result = await service.findOne(TAG_ID);
+      expect(result.id).toBe(TAG_ID);
     });
 
     it('throws NotFoundException if not found', async () => {
@@ -102,9 +101,9 @@ describe('PositionService', () => {
   });
 
   describe('create', () => {
-    it('creates position successfully', async () => {
+    it('creates tag successfully', async () => {
       const dto = { name: 'Vents', slug: 'vents' };
-      mockRepo.save.mockResolvedValue(makePosition());
+      mockRepo.save.mockResolvedValue(makeTag());
 
       const result = await service.create(dto);
 
@@ -121,44 +120,44 @@ describe('PositionService', () => {
   });
 
   describe('update', () => {
-    it('updates position and returns refreshed entity', async () => {
-      const updated = makePosition({ name: 'Mans' });
+    it('updates tag and returns refreshed entity', async () => {
+      const updated = makeTag({ name: 'Mans' });
       mockRepo.findOne.mockResolvedValue(updated);
       mockRepo.save.mockResolvedValue(updated);
 
-      const result = await service.update(POS_ID, { name: 'Mans' });
+      const result = await service.update(TAG_ID, { name: 'Mans' });
 
       expect(result.name).toBe('Mans');
     });
 
     it('throws ConflictException on duplicate slug during update', async () => {
-      mockRepo.findOne.mockResolvedValue(makePosition());
+      mockRepo.findOne.mockResolvedValue(makeTag());
       mockRepo.save.mockRejectedValue({ code: '23505' });
 
-      await expect(service.update(POS_ID, { name: 'Dup' })).rejects.toThrow(ConflictException);
+      await expect(service.update(TAG_ID, { name: 'Dup' })).rejects.toThrow(ConflictException);
     });
   });
 
   describe('remove', () => {
-    it('deletes position when no persons assigned', async () => {
-      mockRepo.findOne.mockResolvedValue(makePosition());
+    it('deletes tag when no persons assigned', async () => {
+      mockRepo.findOne.mockResolvedValue(makeTag());
       mockRepo.query.mockResolvedValue([{ count: 0 }]);
       mockRepo.delete.mockResolvedValue({});
 
-      await service.remove(POS_ID);
+      await service.remove(TAG_ID);
 
-      expect(mockRepo.delete).toHaveBeenCalledWith(POS_ID);
+      expect(mockRepo.delete).toHaveBeenCalledWith(TAG_ID);
     });
 
     it('throws ConflictException when persons are assigned', async () => {
-      mockRepo.findOne.mockResolvedValue(makePosition());
+      mockRepo.findOne.mockResolvedValue(makeTag());
       mockRepo.query.mockResolvedValue([{ count: 3 }]);
 
-      await expect(service.remove(POS_ID)).rejects.toThrow(ConflictException);
+      await expect(service.remove(TAG_ID)).rejects.toThrow(ConflictException);
       expect(mockRepo.delete).not.toHaveBeenCalled();
     });
 
-    it('throws NotFoundException if position not found', async () => {
+    it('throws NotFoundException if tag not found', async () => {
       mockRepo.findOne.mockResolvedValue(null);
       await expect(service.remove('bad-id')).rejects.toThrow(NotFoundException);
     });

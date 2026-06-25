@@ -4,7 +4,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { DatabaseModule } from '../modules/database/database.module';
-import { PositionModule } from '../modules/position/position.module';
+import { TagModule } from '../modules/tag/tag.module';
 import { UserModule } from '../modules/user/user.module';
 import { PersonModule } from '../modules/person/person.module';
 import { SyncModule } from '../modules/sync/sync.module';
@@ -23,7 +23,7 @@ import { RolesGuard } from '../modules/auth/guards/roles.guard';
     ScheduleModule.forRoot(),
     ThrottlerModule.forRoot({ throttlers: [{ ttl: 60000, limit: 100 }] }),
     DatabaseModule,
-    PositionModule,
+    TagModule,
     UserModule,
     PersonModule,
     SyncModule,

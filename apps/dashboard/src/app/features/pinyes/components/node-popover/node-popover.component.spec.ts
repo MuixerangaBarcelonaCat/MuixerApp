@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi, type Mock } from 'vitest';
-import { LUCIDE_ICONS, LucideIconProvider, X, UserMinus } from 'lucide-angular';
+import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { NodePopoverComponent } from './node-popover.component';
 import { AssignmentDetail } from '../../models/assignment.model';
 
@@ -28,10 +28,7 @@ describe('NodePopoverComponent', () => {
     await TestBed.configureTestingModule({
       imports: [NodePopoverComponent],
       providers: [
-        {
-          provide: LUCIDE_ICONS, multi: true,
-          useFactory: () => new LucideIconProvider({ X, UserMinus }),
-        },
+        allLucideIconsProvider,
       ],
     }).compileComponents();
 

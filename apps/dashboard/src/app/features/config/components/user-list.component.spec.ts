@@ -2,37 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { vi } from 'vitest';
 import { of, throwError } from 'rxjs';
-import {
-  LUCIDE_ICONS,
-  LucideIconProvider,
-  AlertCircle,
-  AlertTriangle,
-  ArrowLeft,
-  Calendar,
-  Check,
-  ChevronDown,
-  ChevronUp,
-  ChevronsUpDown,
-  Clock,
-  Construction,
-  Eye,
-  Home,
-  Layers,
-  Lock,
-  Mail,
-  Menu,
-  MoreHorizontal,
-  Pencil,
-  Plus,
-  RefreshCw,
-  Search,
-  Settings,
-  Shield,
-  Star,
-  UserPlus,
-  UserX,
-  Users,
-} from 'lucide-angular';
+import { allLucideIconsProvider } from '../../../../testing/lucide-test-provider';
 import { UserListComponent } from './user-list.component';
 import { UserService } from '../services/user.service';
 import { ToastService } from '../../../shared/components/feedback/toast/toast.service';
@@ -106,40 +76,7 @@ describe('UserListComponent', () => {
         { provide: ToastService, useValue: mockToast },
         { provide: PersonService, useValue: mockPersonService },
         { provide: AuthService, useValue: mockAuthService },
-        {
-          provide: LUCIDE_ICONS,
-          multi: true,
-          useFactory: () =>
-            new LucideIconProvider({
-              AlertCircle,
-              AlertTriangle,
-              ArrowLeft,
-              Calendar,
-              Check,
-              ChevronDown,
-              ChevronUp,
-              ChevronsUpDown,
-              Clock,
-              Construction,
-              Eye,
-              Home,
-              Layers,
-              Lock,
-              Mail,
-              Menu,
-              MoreHorizontal,
-              Pencil,
-              Plus,
-              RefreshCw,
-              Search,
-              Settings,
-              Shield,
-              Star,
-              UserPlus,
-              UserX,
-              Users,
-            }),
-        },
+        allLucideIconsProvider,
       ],
     }).compileComponents();
 

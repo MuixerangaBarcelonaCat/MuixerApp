@@ -25,7 +25,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronUp,
-  ChevronsUpDown,
+  ChevronsUpDown, ChevronsDown, ChevronsUp,
   ChessRook,
   CirclePile,
   Clock,
@@ -66,7 +66,7 @@ import {
   UserCog,
   UserX,
   Users,
-  X, EyeOff, FolderOpen, Info, GitBranch, HelpCircle, PlusCircle, UserCheck, Edit, Import, ArrowUpDown, ArrowDownUp,
+  X, EyeOff, FolderOpen, Info, GitBranch, CircleQuestionMark, PlusCircle, UserCheck, Edit, Import, ArrowUpDown, ArrowDownUp,
   GripVertical, PanelLeft, PanelLeftClose, Monitor, PlusSquare, Square, MoveRight, Moon, Sun,
   BookOpen, RotateCcw, History, UserPlus, Baby, UsersRound, StickyNote
 } from 'lucide-angular';
@@ -74,14 +74,14 @@ import {
 const icons = {
   AlertCircle, AlertTriangle, AlignJustify, ArrowDown, ArrowLeft, ArrowUp,
   Calendar, CalendarRange, Check,
-  ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown,
+  ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown, ChevronsDown, ChevronsUp,
   ChessRook, CirclePile, Clock, Construction, Copy, DraftingCompass, ExternalLink, Eye,
   Flower, GitCommitHorizontal,
   Grid3X3, Home, Keyboard, LayoutGrid, List, Lock, Magnet, Mail, Maximize2, Menu, Minus,
   MoreHorizontal, MousePointer2, MousePointerClick,
   PanelRightClose, PanelRightOpen, Pencil, Plus, RefreshCw, Search, Settings, Shapes, Shield,
   Sparkles, Star, Tag, Trash2, UserCog, UserX, Users, X, EyeOff, FolderOpen, Info, GitBranch,
-  HelpCircle, PlusCircle, UserCheck, Edit, Import, ArrowUpDown, ArrowDownUp,
+  CircleQuestionMark, PlusCircle, UserCheck, Edit, Import, ArrowUpDown, ArrowDownUp,
   GripVertical, PanelLeft, PanelLeftClose, Monitor, PlusSquare, Square, MoveRight, Moon, Sun,
   BookOpen, RotateCcw, History, UserPlus, Baby, UsersRound, StickyNote
 };

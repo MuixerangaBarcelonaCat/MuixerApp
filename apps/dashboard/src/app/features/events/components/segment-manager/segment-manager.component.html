@@ -9,6 +9,32 @@
         </h2>
 
         <div class="flex items-center gap-2 flex-wrap">
+          <!-- Collapse / expand all -->
+          @if (segments().length > 0) {
+            <div class="join" role="group" aria-label="Plegar o desplegar tots els segments">
+              <button
+                type="button"
+                class="join-item btn btn-ghost btn-xs gap-1"
+                (click)="expandAll()"
+                title="Desplega tots els segments"
+                aria-label="Desplega tots els segments"
+              >
+                <lucide-icon name="ChevronsDown" [size]="13" />
+                Desplega
+              </button>
+              <button
+                type="button"
+                class="join-item btn btn-ghost btn-xs gap-1"
+                (click)="collapseAll()"
+                title="Plega tots els segments"
+                aria-label="Plega tots els segments"
+              >
+                <lucide-icon name="ChevronsUp" [size]="13" />
+                Plega
+              </button>
+            </div>
+          }
+
           <!-- Pinyes / Troncs toggle -->
           <div class="join" role="group" aria-label="Mode de visualització">
             <button
@@ -101,6 +127,21 @@
                   class="flex items-center justify-center w-6 h-6 rounded text-xs font-bold text-primary-content bg-primary shrink-0"
                   [attr.aria-label]="'Segment ' + (i + 1)"
                 >{{ i + 1 }}</span>
+
+                <!-- Collapse toggle -->
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-xs px-1 shrink-0 text-base-content/40 hover:text-base-content/80"
+                  (click)="toggleCollapse(segment.id)"
+                  [attr.aria-label]="isCollapsed(segment.id) ? 'Desplega el segment' : 'Plega el segment'"
+                  [attr.aria-expanded]="!isCollapsed(segment.id)"
+                >
+                  @if (isCollapsed(segment.id)) {
+                    <lucide-icon name="ChevronRight" [size]="14" />
+                  } @else {
+                    <lucide-icon name="ChevronDown" [size]="14" />
+                  }
+                </button>
 
                 <!-- Name or edit input -->
                 @if (editingSegmentId() === segment.id) {
@@ -218,7 +259,7 @@
               <div *cdkDragPlaceholder class="h-12 bg-base-200/60 border-2 border-dashed border-base-300 rounded-box m-1"></div>
 
               <!-- Time + Notes info (if set) -->
-              @if (segment.startTime || segment.endTime || segment.notes) {
+              @if (!isCollapsed(segment.id) && (segment.startTime || segment.endTime || segment.notes)) {
                 <div class="text-xs text-base-content/50 flex flex-wrap gap-3 px-4 py-1.5 border-b border-base-200">
                   @if (segment.startTime || segment.endTime) {
                     <span>
@@ -236,7 +277,7 @@
               }
 
               <!-- Instance rows -->
-              @if (segment.instances.length > 0) {
+              @if (!isCollapsed(segment.id) && segment.instances.length > 0) {
                 <div
                   role="list"
                   [attr.aria-label]="'Figures del segment ' + displayName()(segment)"
@@ -279,7 +320,7 @@
 
                           <!-- Pinya mode: assigned count -->
                           @if (viewMode() === 'pinyes') {
-                            @if (instance.figureTemplate?.hasPinya && instance.figureMode !== 'REMAT' && instance.pinyaCapacity !== null) {
+                            @if (instance.figureTemplate?.hasPinya && instance.figureMode !== 'REMAT' && instance.figureMode !== 'NETA' && instance.pinyaCapacity !== null) {
                               <span class="flex items-center gap-0.5 text-xs text-base-content/50 shrink-0 font-normal" [attr.aria-label]="instance.pinyaAssignedCount + ' de ' + instance.pinyaCapacity + ' assignades a la pinya'">
                                 <lucide-icon [name]="ICON_PERSONA" [size]="11" />
                                 {{ instance.pinyaAssignedCount }}/{{ instance.pinyaCapacity }}
@@ -322,7 +363,7 @@
                           (change)="updateFigureMode(segment, instance, $any($event.target).value)"
                         >
                           @for (opt of options; track opt.value) {
-                            <option [value]="opt.value">{{ opt.label }}</option>
+                            <option [value]="opt.value" [selected]="opt.value === instance.figureMode">{{ opt.label }}</option>
                           }
                         </select>
                       } @else {
@@ -354,7 +395,7 @@
                     </div>
                   }
                 </div>
-              } @else {
+              } @else if (!isCollapsed(segment.id)) {
                 <p class="text-xs text-base-content/40 px-4 py-3">Cap figura afegida. Cliqueu "+ Figura" per afegir-ne.</p>
               }
 
@@ -472,7 +513,7 @@
   </dialog>
 }
 
-<!-- REMAT mode change confirmation modal -->
+<!-- REMAT / NETA mode change confirmation modal -->
 @if (pendingModeChange()) {
   <dialog
     class="modal modal-open"
@@ -482,14 +523,16 @@
     aria-modal="true"
   >
     <div class="modal-box max-w-sm">
-      <h3 id="remat-confirm-title" class="text-lg font-bold mb-3">Canviar a Remat</h3>
+      <h3 id="remat-confirm-title" class="text-lg font-bold mb-3">
+        {{ pendingModeChange()!.mode === 'NETA' ? 'Canviar a Figura neta' : 'Canviar a Remat' }}
+      </h3>
       <p id="remat-confirm-desc" class="text-sm text-base-content/70">
         Canviar <strong>{{ getInstanceLabel(pendingModeChange()!.instance) }}</strong> a
-        <strong>Remat</strong> desassignarà
+        <strong>{{ pendingModeChange()!.mode === 'NETA' ? 'Figura neta' : 'Remat' }}</strong> desassignarà
         <strong>{{ pendingModeChange()!.instance.pinyaAssignedCount }}
           {{ pendingModeChange()!.instance.pinyaAssignedCount === 1 ? 'persona' : 'persones' }}
         </strong>
-        de la pinya.
+        {{ pendingModeChange()!.mode === 'NETA' ? 'de la pinya.' : 'de la pinya i la base.' }}
       </p>
       <p class="text-xs text-warning mt-2">Aquesta acció no es pot desfer.</p>
       <div class="modal-action">
@@ -510,7 +553,7 @@
           @if (savingModeChange()) {
             <span class="loading loading-spinner loading-xs"></span>
           }
-          Canvia a Remat
+          {{ pendingModeChange()!.mode === 'NETA' ? 'Canvia a Figura neta' : 'Canvia a Remat' }}
         </button>
       </div>
     </div>

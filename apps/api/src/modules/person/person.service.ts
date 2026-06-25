@@ -7,7 +7,7 @@ import { CreatePersonDto } from './dto/create-person.dto';
 import { UpdatePersonDto } from './dto/update-person.dto';
 import { PersonFilterDto } from './dto/person-filter.dto';
 import { PersonResponseDto } from './dto/person-response.dto';
-import { Position } from '../position/position.entity';
+import { Tag } from '../tag/tag.entity';
 import { User } from '../user/user.entity';
 import {
   PERSON_SORT_COLUMN_MAP,
@@ -23,8 +23,8 @@ export class PersonService {
   constructor(
     @InjectRepository(Person)
     private readonly personRepository: Repository<Person>,
-    @InjectRepository(Position)
-    private readonly positionRepository: Repository<Position>,
+    @InjectRepository(Tag)
+    private readonly positionRepository: Repository<Tag>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
   ) {}

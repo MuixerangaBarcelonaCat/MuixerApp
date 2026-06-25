@@ -1,7 +1,6 @@
-import { IsString, IsOptional, IsEnum, MaxLength } from 'class-validator';
-import { FigureZone } from '@muixer/shared';
+import { IsString, IsOptional, MaxLength, IsArray } from 'class-validator';
 
-export class CreatePositionDto {
+export class CreateTagDto {
   @IsString()
   @MaxLength(100)
   name: string;
@@ -24,7 +23,8 @@ export class CreatePositionDto {
   @MaxLength(7)
   color?: string;
 
-  @IsEnum(FigureZone)
+  @IsArray()
+  @IsString({ each: true })
   @IsOptional()
-  zone?: FigureZone;
+  positionTypes?: string[];
 }

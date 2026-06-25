@@ -13,17 +13,16 @@
   >
 
     <!-- ── Grid de figures ────────────────────────────────────────────────────── -->
-    <div class="flex flex-1 overflow-hidden">
-      <div
-        class="flex flex-wrap w-full h-full p-1 overflow-hidden"
-        style="justify-content: center; align-content: center; gap: 3px;"
-        aria-label="Figures en projecció"
-      >
-        @for (instance of filteredInstances(); track instance.id) {
+    <div #figuresContainer class="relative flex-1 overflow-hidden" aria-label="Figures en projecció">
+
+      @for (instance of filteredInstances(); track instance.id) {
+        @if (cellsById().get(instance.id); as cell) {
           <div
-            class="relative overflow-hidden group flex flex-col border border-gray-200"
-            [style.width]="itemWidthStyle()"
-            [style.height]="itemHeightStyle()"
+            class="absolute overflow-hidden group flex flex-col border border-gray-200"
+            [style.left.px]="cell.x"
+            [style.top.px]="cell.y"
+            [style.width.px]="cell.width"
+            [style.height.px]="cell.height"
           >
 
             @if (isNetaFigure(instance)) {
@@ -56,10 +55,7 @@
               </div>
             } @else {
               <!-- ── Figura completa: tronc header + pinya canvas ──────────── -->
-              <div
-                class="flex-shrink-0 bg-white border-b border-gray-200 overflow-hidden"
-                style="max-height: 30%"
-              >
+              <div class="flex-shrink-0 bg-white border-b border-gray-200 overflow-hidden">
                 <div class="px-2 pt-1 pb-0.5 flex items-baseline gap-1">
                   <span class="text-base font-semibold text-gray-900 truncate">{{ getInstanceName(instance) }}</span>
                 </div>
@@ -97,7 +93,8 @@
 
           </div>
         }
-      </div>
+      }
+
     </div>
 
     <!-- ── HUD flotant ────────────────────────────────────────────────────────── -->
@@ -151,7 +148,7 @@
         aria-label="Ajuda de dreceres de teclat"
         title="Ajuda (?)"
       >
-        <lucide-icon name="HelpCircle" [size]="14" aria-hidden="true" />
+        <lucide-icon name="CircleQuestionMark" [size]="14" aria-hidden="true" />
       </button>
     </nav>
 

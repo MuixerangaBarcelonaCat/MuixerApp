@@ -9,7 +9,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { Gender, AvailabilityStatus, OnboardingStatus } from '@muixer/shared';
-import { Position } from '../position/position.entity';
+import { Tag } from '../tag/tag.entity';
 import { User } from '../user/user.entity';
 
 @Entity('persons')
@@ -74,9 +74,9 @@ export class Person {
   @Column({ type: 'timestamp', nullable: true })
   lastSyncedAt: Date | null;
 
-  @ManyToMany(() => Position)
+  @ManyToMany(() => Tag)
   @JoinTable({ name: 'person_positions' })
-  positions: Position[];
+  positions: Tag[];
 
   @ManyToOne(() => User, { nullable: true })
   managedBy: User | null;

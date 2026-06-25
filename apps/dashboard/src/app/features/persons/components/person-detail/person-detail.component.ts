@@ -11,8 +11,8 @@ import { ActivatedRoute, Router, RouterModule, RouterLink } from '@angular/route
 import { PersonService } from '../../services/person.service';
 import { Person, UpdatePersonDto } from '../../models/person.model';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
-import { PositionService } from '../../../config/services/position.service';
-import { PositionWithCount } from '../../../config/models/position.model';
+import { TagService } from '../../../config/services/tag.service';
+import { TagWithCount } from '../../../config/models/tag.model';
 import { NodeAssignmentService } from '../../../pinyes/services/node-assignment.service';
 import { SeasonService } from '../../../events/services/season.service';
 import { PersonAssignmentEntry } from '../../../pinyes/models/assignment.model';
@@ -47,7 +47,7 @@ import { PersonLinkUserModalComponent } from './modals/person-link-user-modal.co
 })
 export class PersonDetailComponent implements OnInit {
   private readonly personService = inject(PersonService);
-  private readonly positionService = inject(PositionService);
+  private readonly tagService = inject(TagService);
   private readonly nodeAssignmentService = inject(NodeAssignmentService);
   private readonly seasonService = inject(SeasonService);
   private readonly route = inject(ActivatedRoute);
@@ -68,7 +68,7 @@ export class PersonDetailComponent implements OnInit {
 
   isNew = computed(() => !this.route.snapshot.paramMap.get('id'));
 
-  allPositions = signal<PositionWithCount[]>([]);
+  allPositions = signal<TagWithCount[]>([]);
   selectedPositionIds = signal<string[]>([]);
 
   invitationModalOpen = signal(false);
@@ -110,8 +110,8 @@ export class PersonDetailComponent implements OnInit {
   readonly Math = Math;
 
   ngOnInit() {
-    this.positionService.getAll().subscribe({
-      next: (positions) => this.allPositions.set(positions),
+    this.tagService.getAll().subscribe({
+      next: (tags) => this.allPositions.set(tags),
     });
 
     this.seasonService.getAll().subscribe({

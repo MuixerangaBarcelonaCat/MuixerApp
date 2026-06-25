@@ -1,10 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import { of } from 'rxjs';
-import {
-  LUCIDE_ICONS, LucideIconProvider,
-  DraftingCompass, Hexagon, LayoutGrid, Search, X, Plus, Trash2,
-} from 'lucide-angular';
+import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { FigurePickerModalComponent, InstanceSelection } from './figure-picker-modal.component';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { CompositionTemplateService } from '../../services/composition-template.service';
@@ -57,10 +54,7 @@ describe('FigurePickerModalComponent', () => {
       providers: [
         { provide: FigureTemplateService, useValue: figureService },
         { provide: CompositionTemplateService, useValue: compositionService },
-        {
-          provide: LUCIDE_ICONS, multi: true,
-          useFactory: () => new LucideIconProvider({ DraftingCompass, Hexagon, LayoutGrid, Search, X, Plus, Trash2 }),
-        },
+        allLucideIconsProvider,
       ],
     }).compileComponents();
 

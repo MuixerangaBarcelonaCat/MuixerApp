@@ -370,7 +370,7 @@ function toSegmentWithInstances(
     isVisible: segment.isVisible,
     instances: (segment.instances ?? []).map((instance) => {
       const hasPinya = instance.figureTemplate ? pinyaTemplateIds.has(instance.figureTemplate.id) : false;
-      const showPinyaData = hasPinya && instance.figureMode !== FigureMode.REMAT;
+      const showPinyaData = hasPinya && instance.figureMode !== FigureMode.REMAT && instance.figureMode !== FigureMode.NETA;
       return {
         id: instance.id,
         label: instance.label,

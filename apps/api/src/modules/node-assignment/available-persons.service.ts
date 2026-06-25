@@ -13,6 +13,7 @@ interface AvailablePersonPositionDto {
   name: string;
   slug: string;
   color: string | null;
+  positionTypes: string[];
 }
 
 export interface AvailablePersonDto {
@@ -212,6 +213,7 @@ export class AvailablePersonsService {
           name: p.name,
           slug: p.slug,
           color: p.color,
+          positionTypes: p.positionTypes ?? [],
         })),
       };
     });
