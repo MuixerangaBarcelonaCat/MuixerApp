@@ -141,7 +141,7 @@
         <i-lucide [img]="ChessRook" class="size-4" aria-hidden="true" />
         Tronc
       </button>
-      @if (!isLocked()) {
+      @if (!isLocked() && !isActiveTabTroncOnly()) {
         <div class="relative">
           <button
             type="button"

@@ -11,6 +11,11 @@ import { PageHeaderComponent } from '../../../../shared/components/data/page-hea
 import { EmptyStateComponent } from '../../../../shared/components/data/empty-state/empty-state.component';
 import { TagFormModalComponent } from '../tag-form-modal/tag-form-modal.component';
 import { getContrastColor } from '../../../../shared/utils';
+import {
+  TRONC_NODE_PRESETS,
+  PINYA_NODE_PRESETS,
+  DIRECTION_NODE_PRESETS,
+} from '@muixer/shared';
 
 @Component({
   selector: 'app-tags-list',
@@ -35,6 +40,16 @@ export class TagsListComponent {
   readonly deleting = signal(false);
 
   readonly getContrastColor = getContrastColor;
+
+  readonly positionTypeMeta: Record<string, { label: string; color: string }> = [
+    ...TRONC_NODE_PRESETS.map((p) => ({ positionType: p.positionType, label: p.label, color: p.color })),
+    ...PINYA_NODE_PRESETS.map((p) => ({ positionType: p.positionType as string, label: p.label, color: p.color ?? '#64748b' })),
+    ...DIRECTION_NODE_PRESETS.map((p) => ({ positionType: p.positionType as string, label: p.label, color: p.color ?? '#64748b' })),
+    { positionType: 'base', label: 'Base', color: '#64748b' },
+  ].reduce<Record<string, { label: string; color: string }>>((acc, p) => {
+    acc[p.positionType] = { label: p.label, color: p.color };
+    return acc;
+  }, {});
 
   constructor() {
     this.loadTags();

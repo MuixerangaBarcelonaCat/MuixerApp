@@ -3,7 +3,6 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { NotFoundException, ConflictException } from '@nestjs/common';
 import { Tag } from './tag.entity';
 import { TagService } from './tag.service';
-import { FigureZone } from '@muixer/shared';
 
 const TAG_ID = 'tag-uuid-1';
 
@@ -14,7 +13,7 @@ const makeTag = (overrides: Partial<Tag> = {}): Partial<Tag> => ({
   shortDescription: null,
   longDescription: null,
   color: '#ff0000',
-  zone: FigureZone.PINYA,
+  positionTypes: [],
   createdAt: new Date(),
   updatedAt: new Date(),
   ...overrides,

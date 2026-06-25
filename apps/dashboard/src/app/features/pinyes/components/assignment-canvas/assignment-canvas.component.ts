@@ -788,6 +788,9 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
       : null;
 
     const isAdHoc = !!clickedNode?.isAdHoc;
+    const isDirectionNode =
+      clickedNode?.zone === FigureZone.FIGURE_DIRECTION ||
+      clickedNode?.zone === FigureZone.XICALLA_DIRECTION;
 
     if (clickedNodeAssignment && previousNodeAssignment && previouslySelectedNodeId !== nodeId) {
       this.triggerSwap(previousNodeAssignment, clickedNodeAssignment);
@@ -799,7 +802,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     } else if (clickedNodeAssignment) {
       this.popoverAssignment.set(clickedNodeAssignment);
       this.state.setSelectedNodeId(nodeId);
-      if (isAdHoc) this.adHocPropertiesOpen.set(true);
+      if (isAdHoc && !isDirectionNode) this.adHocPropertiesOpen.set(true);
     } else {
       const pendingPersonId = this.state.selectedPersonId();
       this.state.setSelectedNodeId(nodeId);
@@ -808,7 +811,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
       if (pendingPersonId) {
         this.triggerAssign(nodeId, pendingPersonId);
       }
-      if (isAdHoc) this.adHocPropertiesOpen.set(true);
+      if (isAdHoc && !isDirectionNode) this.adHocPropertiesOpen.set(true);
     }
   }
 
@@ -818,7 +821,8 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
   onNodeDoubleClicked(nodeId: string): void {
     const node = this.activeNodes().find((n) => n.id === nodeId);
-    if (node?.isAdHoc) {
+    const isDirection = node?.zone === FigureZone.FIGURE_DIRECTION || node?.zone === FigureZone.XICALLA_DIRECTION;
+    if (node?.isAdHoc && !isDirection) {
       this.adHocPropertiesOpen.set(true);
     }
   }

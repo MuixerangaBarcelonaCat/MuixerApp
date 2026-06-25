@@ -22,12 +22,12 @@ const POSITION_MAPPING: Record<
   VENTS: { name: 'Vent', slug: 'vent', positionTypes: ['vents'], color: '#A5D6A7' },
   LATERALS: { name: 'Lateral', slug: 'lateral', positionTypes: ['laterals'], color: '#80DEEA' },
   CONTRAFORTS: { name: 'Contrafort', slug: 'contrafort', positionTypes: ['contrafort'], color: '#EF9A9A' },
-  '2NS LATERALS': { name: 'Segon Lateral', slug: 'segon-lateral', positionTypes: ['laterals'], color: '#80DEEA' },
+  '2NS LATERALS': { name: 'Segon Lateral', slug: 'segon-lateral', positionTypes: ['laterals'], color: '#8E24AA' },
   CROSSES: { name: 'Crossa', slug: 'crossa', positionTypes: ['crossa'], color: '#9FA8DA' },
   CANALLA: { name: 'Xicalla', slug: 'xicalla', positionTypes: [], color: '#FFB300' },
   'NENS COLLA': { name: 'Nens Colla', slug: 'nens-colla', positionTypes: [], color: '#FFB300' },
   ACOMPANYANTS: { name: 'Acompanyants', slug: 'acompanyants', positionTypes: [], color: '#78909C' },
-  ALTRES: { name: 'Altres', slug: 'altres', positionTypes: [], color: '#9E9E9E' },
+  ALTRES: { name: 'Altres', slug: 'altres', positionTypes: [], color: '#9E9E9E0DEEA' },
   NOVATOS: { name: 'Novatos', slug: 'novatos', positionTypes: [], color: '#5C6BC0' },
   'IMATGE I PARADETA': { name: 'Imatge i Paradeta', slug: 'imatge-paradeta', positionTypes: [], color: '#EC407A' },
 };
@@ -370,12 +370,11 @@ export class PersonSyncStrategy implements SyncStrategy {
         color: mapping.color,
       });
       await this.positionRepository.save(position);
-
-      subscriber.next({
-        type: 'progress',
-        entity: 'position',
-        message: `Posició: ${mapping.name}`,
-      });
+      subscriber.next({ type: 'progress', entity: 'position', message: `Posició creada: ${mapping.name}` });
+    } else {
+      existing.positionTypes = mapping.positionTypes;
+      existing.color = mapping.color;
+      await this.positionRepository.save(existing);
     }
   }
 

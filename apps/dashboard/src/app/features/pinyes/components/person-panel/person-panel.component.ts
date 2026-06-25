@@ -54,6 +54,7 @@ export class PersonPanelComponent {
   readonly showXicalla = signal(false);
   readonly altresExpanded = signal(false);
   readonly assignadesExpanded = signal(true);
+  private hasTypedSinceNodeSelected = false;
 
   readonly selectedAssignment = computed(() => {
     const nodeId = this.selectedNodeId();
@@ -72,10 +73,12 @@ export class PersonPanelComponent {
   readonly sortedConfirmedPersons = computed(() => {
     const posType = this.activeNodePositionType();
     const persons = this.confirmedPersons();
+    console.log(posType);
+    console.log(persons);
     if (!posType) return persons;
     return [...persons].sort((a, b) => {
-      const aMatch = a.positions.some((p) => p.slug === posType) ? 1 : 0;
-      const bMatch = b.positions.some((p) => p.slug === posType) ? 1 : 0;
+      const aMatch = a.positions.some((p) => (p.positionTypes ?? []).includes(posType)) ? 1 : 0;
+      const bMatch = b.positions.some((p) => (p.positionTypes ?? []).includes(posType)) ? 1 : 0;
       return bMatch - aMatch;
     });
   });
@@ -124,6 +127,7 @@ export class PersonPanelComponent {
     effect(() => {
       const nodeId = this.selectedNodeId();
       if (nodeId !== null) {
+        this.hasTypedSinceNodeSelected = false;
         setTimeout(() => this.focusSearch(), 0);
       }
     });
@@ -184,6 +188,9 @@ export class PersonPanelComponent {
   }
 
   onSearchChange(value: string): void {
+    if (value.length > 0) {
+      this.hasTypedSinceNodeSelected = true;
+    }
     this.search.set(value);
     this.loadPersons();
   }
@@ -210,6 +217,23 @@ export class PersonPanelComponent {
     const assignment = this.selectedAssignment();
     if (!assignment) return;
     this.unassignRequested.emit(assignment);
+  }
+
+  onSearchKeyDown(event: KeyboardEvent): void {
+    if (event.key === 'Enter') {
+      this.selectFirstPerson();
+      return;
+    }
+    if (event.key === 'Backspace') {
+      const input = event.target as HTMLInputElement;
+      if (input.value === '' && !this.hasTypedSinceNodeSelected) {
+        const assignment = this.selectedAssignment();
+        if (assignment) {
+          event.preventDefault();
+          this.requestUnassign();
+        }
+      }
+    }
   }
 
   selectPerson(person: AvailablePerson): void {

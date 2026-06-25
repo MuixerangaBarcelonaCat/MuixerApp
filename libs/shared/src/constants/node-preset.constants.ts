@@ -45,6 +45,7 @@ export const DIRECTION_NODE_PRESETS: NodePreset[] = [
 ];
 
 export const DIRECTION_ZONES = DIRECTION_NODE_PRESETS.map((p) => p.zone);
+export const DIRECTION_POSITION_TYPES = DIRECTION_NODE_PRESETS.map((p) => p.positionType as string);
 
 export const DECORATION_NODE_PRESETS: NodePreset[] = [
   { zone: FigureZone.DECORATION, positionType: 'rectangle', label: '', width: 120, height: 80, shape: NodeShape.RECTANGLE, color: null, requiresCustomLabel: true },

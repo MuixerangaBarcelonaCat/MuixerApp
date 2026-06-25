@@ -175,8 +175,8 @@ describe('PersonPanelComponent', () => {
   // ── sortedConfirmedPersons (F2 intelligent filter) ─────────────────────────
 
   describe('sortedConfirmedPersons', () => {
-    const posVents = { id: 'pos-vents', name: 'Vents', slug: 'vents', color: '#A5D6A7' };
-    const posAgulla = { id: 'pos-agulla', name: 'Agulla', slug: 'agulla', color: '#0d9488' };
+    const posVents = { id: 'pos-vents', name: 'Vents', slug: 'vents', color: '#A5D6A7', positionTypes: ['vents'] };
+    const posAgulla = { id: 'pos-agulla', name: 'Agulla', slug: 'agulla', color: '#0d9488', positionTypes: ['agulla'] };
 
     it('returns confirmedPersons in original order when activeNodePositionType is null', () => {
       const persons = [

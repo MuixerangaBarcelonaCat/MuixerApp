@@ -38,9 +38,9 @@ describe('PersonService', () => {
     req.flush({ data: [], meta: { total: 0, page: 1, limit: 50 } });
   });
 
-  it('getPositions requests /positions', () => {
+  it('getPositions requests /tags', () => {
     service.getPositions().subscribe((p) => expect(p).toEqual([]));
-    const req = httpMock.expectOne(`${environment.apiUrl}/positions`);
+    const req = httpMock.expectOne(`${environment.apiUrl}/tags`);
     expect(req.request.method).toBe('GET');
     req.flush([]);
   });

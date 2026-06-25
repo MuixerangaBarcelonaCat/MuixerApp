@@ -21,6 +21,7 @@ import {
   DECORATION_POSITION_TYPES,
   DecorationPositionType,
   DIRECTION_ZONES,
+  DIRECTION_POSITION_TYPES,
   AD_HOC_ALLOWED_ZONES_PHASE3,
 } from '@muixer/shared';
 
@@ -48,7 +49,7 @@ export class IsValidPositionTypeConstraint
       );
     }
     if ((DIRECTION_ZONES as readonly FigureZone[]).includes(obj.zone)) {
-      return !positionType;
+      return !positionType || DIRECTION_POSITION_TYPES.includes(positionType);
     }
     return false;
   }

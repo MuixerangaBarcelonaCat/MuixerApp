@@ -48,7 +48,12 @@
                 @if (pos.positionTypes?.length) {
                   <div class="flex flex-wrap gap-1">
                     @for (pt of pos.positionTypes; track pt) {
-                      <span class="badge badge-ghost badge-sm font-mono">{{ pt }}</span>
+                      @let meta = positionTypeMeta[pt];
+                      <span
+                        class="badge badge-sm border-0"
+                        [style.background-color]="meta?.color ?? '#64748b'"
+                        [style.color]="getContrastColor(meta?.color ?? '#64748b')"
+                      >{{ meta?.label ?? pt }}</span>
                     }
                   </div>
                 } @else {

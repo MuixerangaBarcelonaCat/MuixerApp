@@ -292,8 +292,8 @@ describe('AvailablePersonsService', () => {
       const result = await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, {});
 
       expect(result[0].positions).toHaveLength(2);
-      expect(result[0].positions[0]).toEqual({ id: pos1.id, name: pos1.name, slug: 'agulla', color: '#0d9488' });
-      expect(result[0].positions[1]).toEqual({ id: pos2.id, name: pos2.name, slug: 'vents', color: '#A5D6A7' });
+      expect(result[0].positions[0]).toEqual({ id: pos1.id, name: pos1.name, slug: 'agulla', color: '#0d9488', positionTypes: [] });
+      expect(result[0].positions[1]).toEqual({ id: pos2.id, name: pos2.name, slug: 'vents', color: '#A5D6A7', positionTypes: [] });
     });
 
     it('returns empty positions[] when person has no positions', async () => {
