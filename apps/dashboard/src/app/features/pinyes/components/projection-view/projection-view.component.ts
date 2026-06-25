@@ -1,9 +1,12 @@
 import {
+  AfterViewInit,
   ChangeDetectionStrategy,
   Component,
+  ElementRef,
   HostListener,
   OnDestroy,
   OnInit,
+  ViewChild,
   computed,
   inject,
   signal,
@@ -21,6 +24,7 @@ import { TroncViewComponent, TroncNodeItem } from '../tronc-view/tronc-view.comp
 import { FigureZone } from '@muixer/shared';
 import { ICON_FIGURA_NETA } from '../../../../shared/constants/domain-icons';
 import { computeCordoObertOverrides } from '../../utils/cordo-obert.util';
+import { computeProjectionLayout, ProjectionCell } from '../../utils/projection-layout.util';
 
 @Component({
   selector: 'app-projection-view',
@@ -36,8 +40,10 @@ import { computeCordoObertOverrides } from '../../utils/cordo-obert.util';
   templateUrl: './projection-view.component.html',
   styleUrl: './projection-view.component.scss',
 })
-export class ProjectionViewComponent implements OnInit, OnDestroy {
+export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly ICON_FIGURA_NETA = ICON_FIGURA_NETA;
+
+  @ViewChild('figuresContainer') private readonly figuresContainerRef!: ElementRef<HTMLDivElement>;
 
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -52,6 +58,10 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
   readonly cursorVisible = signal(true);
   readonly helpModalOpen = signal(false);
 
+  /** Actual pixel size of the figures container (updated by ResizeObserver). */
+  private readonly containerWidth = signal(window.innerWidth);
+  private readonly containerHeight = signal(window.innerHeight);
+
   // ── Computed ────────────────────────────────────────────────────────────────
 
   readonly filteredInstances = computed(() => {
@@ -59,22 +69,20 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
     return this.instanceId ? instances.filter((i) => i.id === this.instanceId) : instances;
   });
 
-  readonly gridCols = computed(() => {
-    const n = this.filteredInstances().length;
-    if (n <= 1) return 1;
-    if (n === 2) return 2;
-    if (n === 3) return 3;
-    if (n === 4) return 2;
-    return 3;
-  });
+  /** Absolute-positioned layout cells, one per instance. */
+  readonly layout = computed(() =>
+    computeProjectionLayout(
+      this.filteredInstances(),
+      this.containerWidth(),
+      this.containerHeight(),
+    ),
+  );
 
-  readonly gridRows = computed(() => {
-    const n = this.filteredInstances().length;
-    return Math.ceil(n / this.gridCols());
+  readonly cellsById = computed(() => {
+    const m = new Map<string, ProjectionCell>();
+    for (const cell of this.layout()) m.set(cell.instanceId, cell);
+    return m;
   });
-
-  readonly itemWidthStyle = computed(() => `calc(${100 / this.gridCols()}% - 6px)`);
-  readonly itemHeightStyle = computed(() => `calc(${100 / this.gridRows()}% - 6px)`);
 
   // ── Route params ────────────────────────────────────────────────────────────
 
@@ -83,6 +91,7 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
   instanceId = '';
 
   private cursorTimer: ReturnType<typeof setTimeout> | null = null;
+  private resizeObserver: ResizeObserver | null = null;
 
   // ── Lifecycle ───────────────────────────────────────────────────────────────
 
@@ -95,9 +104,21 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
     this.loadSegment();
   }
 
+  ngAfterViewInit(): void {
+    this.resizeObserver = new ResizeObserver((entries) => {
+      const rect = entries[0]?.contentRect;
+      if (rect) {
+        this.containerWidth.set(rect.width);
+        this.containerHeight.set(rect.height);
+      }
+    });
+    this.resizeObserver.observe(this.figuresContainerRef.nativeElement);
+  }
+
   ngOnDestroy(): void {
     this.layoutService.exitFullscreen();
     if (this.cursorTimer) clearTimeout(this.cursorTimer);
+    this.resizeObserver?.disconnect();
   }
 
   // ── Keyboard shortcuts ──────────────────────────────────────────────────────
