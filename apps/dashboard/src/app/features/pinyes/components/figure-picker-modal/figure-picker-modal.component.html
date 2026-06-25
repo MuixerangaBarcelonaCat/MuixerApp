@@ -53,11 +53,13 @@
     <label class="input input-sm input-bordered flex items-center gap-2 mb-3">
       <lucide-icon name="Search" [size]="14" class="text-base-content/40" aria-hidden="true" />
       <input
+        #searchInput
         type="search"
         class="grow bg-transparent outline-none text-sm"
         [placeholder]="activeTab() === 'figures' ? 'Cerca figura...' : 'Cerca composició...'"
         [ngModel]="search()"
         (ngModelChange)="search.set($event)"
+        (keydown.enter)="addFirstResult()"
         aria-label="Cerca"
       />
     </label>

@@ -14,6 +14,7 @@ import { UpdateInstanceDto } from './dto/update-instance.dto';
 import { ReorderInstancesDto } from './dto/reorder-instances.dto';
 import { UpdateProjectionLayoutDto } from './dto/update-projection-layout.dto';
 import { InstanceRef } from './event-segment.service';
+import { FigureMode } from '@muixer/shared';
 
 @Injectable()
 export class FigureInstanceService {
@@ -96,6 +97,12 @@ export class FigureInstanceService {
 
     if (dto.label !== undefined) instance.label = dto.label ?? null;
     if (dto.sortOrder !== undefined) instance.sortOrder = dto.sortOrder;
+    if (dto.figureMode !== undefined) {
+      instance.figureMode = dto.figureMode;
+      if (dto.figureMode === FigureMode.REMAT) {
+        await this.deletePinyaAssignments(instanceId);
+      }
+    }
 
     await this.instanceRepository.save(instance);
     return this.findOneById(instance.id);
@@ -132,6 +139,43 @@ export class FigureInstanceService {
         await manager.update(FigureInstance, { id: dto.instanceIds[i] }, { sortOrder: i });
       }
     });
+  }
+
+  async copy(
+    eventId: string,
+    segmentId: string,
+    instanceId: string,
+    targetSegmentId: string,
+  ): Promise<InstanceRef> {
+    const sourceInstance = await this.instanceRepository.findOne({
+      where: { id: instanceId, segment: { id: segmentId } },
+      relations: ['figureTemplate', 'compositionTemplate'],
+    });
+    if (!sourceInstance) {
+      throw new NotFoundException(`Instance with ID ${instanceId} not found in segment ${segmentId}`);
+    }
+
+    await this.assertSegmentBelongsToEvent(eventId, segmentId);
+    const targetSegment = await this.assertSegmentBelongsToEvent(eventId, targetSegmentId);
+
+    const maxOrder = await this.instanceRepository
+      .createQueryBuilder('instance')
+      .select('MAX(instance.sortOrder)', 'max')
+      .where('instance.segment = :segmentId', { segmentId: targetSegmentId })
+      .getRawOne<{ max: number | null }>();
+
+    const sortOrder = (maxOrder?.max ?? -1) + 1;
+
+    const newInstance = this.instanceRepository.create({
+      segment: targetSegment,
+      figureTemplate: sourceInstance.figureTemplate ?? null,
+      compositionTemplate: sourceInstance.compositionTemplate ?? null,
+      label: sourceInstance.label,
+      sortOrder,
+    });
+
+    const saved = await this.instanceRepository.save(newInstance);
+    return this.findOneById(saved.id);
   }
 
   async updateProjectionLayout(
@@ -207,7 +251,9 @@ export class FigureInstanceService {
       throw new NotFoundException(`FigureInstance with ID ${id} not found`);
     }
 
-    const [countResult, pinyaResult] = await Promise.all([
+    const hasPinyaFigure = !!instance.figureTemplate && instance.figureMode !== FigureMode.REMAT;
+
+    const [countResult, pinyaResult, pinyaAssignedResult, capacityResult, cordonsResult] = await Promise.all([
       this.dataSource.query(
         `SELECT COUNT(*) as count FROM node_assignments WHERE "figureInstanceId" = $1`,
         [id],
@@ -218,9 +264,46 @@ export class FigureInstanceService {
             [instance.figureTemplate.id],
           )
         : Promise.resolve([{ count: '0' }]),
+      this.dataSource.query(
+        `SELECT COUNT(*) as count FROM node_assignments na
+         JOIN instance_nodes inode ON na."instanceNodeId" = inode.id
+         WHERE na."figureInstanceId" = $1 AND inode.zone IN ('PINYA', 'BASE')`,
+        [id],
+      ),
+      hasPinyaFigure
+        ? instance.snapshotted
+          ? this.dataSource.query(
+              `SELECT COUNT(*) as capacity
+               FROM instance_nodes in_
+               LEFT JOIN rengles r ON r.id = in_."renglaId"
+               WHERE in_."figureInstanceId" = $1
+               AND in_.zone IN ('PINYA', 'BASE')
+               AND ($2::int IS NULL OR in_.zone = 'BASE' OR r."sortOrder" < $2::int)`,
+              [id, instance.numberOfCordons],
+            )
+          : this.dataSource.query(
+              `SELECT COUNT(*) as capacity
+               FROM figure_nodes fn
+               LEFT JOIN rengles r ON r.id = fn."renglaId"
+               WHERE fn."templateId" = $1
+               AND fn.zone IN ('PINYA', 'BASE')
+               AND ($2::int IS NULL OR fn.zone = 'BASE' OR r."sortOrder" < $2::int)`,
+              [instance.figureTemplate!.id, instance.numberOfCordons],
+            )
+        : Promise.resolve([{ capacity: '0' }]),
+      hasPinyaFigure && instance.figureTemplate
+        ? this.dataSource.query(
+            `SELECT COUNT(*) as total FROM rengles WHERE "templateId" = $1`,
+            [instance.figureTemplate.id],
+          )
+        : Promise.resolve([{ total: '0' }]),
     ]);
+
     const assignedCount = parseInt(countResult[0]?.count ?? '0', 10);
     const hasPinya = parseInt(pinyaResult[0]?.count ?? '0', 10) > 0;
+    const pinyaAssignedCount = parseInt(pinyaAssignedResult[0]?.count ?? '0', 10);
+    const pinyaCapacity = hasPinyaFigure ? parseInt(capacityResult[0]?.capacity ?? '0', 10) : null;
+    const totalCordons = hasPinyaFigure ? parseInt(cordonsResult[0]?.total ?? '0', 10) : null;
 
     return {
       id: instance.id,
@@ -228,7 +311,11 @@ export class FigureInstanceService {
       sortOrder: instance.sortOrder,
       snapshotted: instance.snapshotted,
       assignedCount,
+      pinyaAssignedCount,
+      pinyaCapacity,
+      totalCordons,
       numberOfCordons: instance.numberOfCordons ?? null,
+      figureMode: instance.figureMode ?? FigureMode.COMPLETA,
       figureTemplate: instance.figureTemplate
         ? {
             id: instance.figureTemplate.id,
@@ -240,5 +327,16 @@ export class FigureInstanceService {
         ? { id: instance.compositionTemplate.id, name: instance.compositionTemplate.name }
         : null,
     };
+  }
+
+  private async deletePinyaAssignments(instanceId: string): Promise<void> {
+    await this.dataSource.query(
+      `DELETE FROM node_assignments
+       WHERE "figureInstanceId" = $1
+       AND "instanceNodeId" IN (
+         SELECT id FROM instance_nodes WHERE "figureInstanceId" = $1 AND zone IN ('PINYA', 'BASE')
+       )`,
+      [instanceId],
+    );
   }
 }

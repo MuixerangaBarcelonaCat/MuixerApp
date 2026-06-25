@@ -3,6 +3,7 @@ import { Observable } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
 import {
   CreateSegmentPayload,
+  InstanceTroncSummary,
   SegmentDetail,
   UpdateSegmentPayload,
 } from '../models/segment.model';
@@ -29,5 +30,9 @@ export class EventSegmentService extends ApiService {
 
   reorder(eventId: string, segmentIds: string[]): Observable<void> {
     return this.patch<void>(`/events/${eventId}/segments/reorder`, { segmentIds });
+  }
+
+  getTroncView(eventId: string): Observable<InstanceTroncSummary[]> {
+    return this.get<InstanceTroncSummary[]>(`/events/${eventId}/segments/tronc-view`);
   }
 }

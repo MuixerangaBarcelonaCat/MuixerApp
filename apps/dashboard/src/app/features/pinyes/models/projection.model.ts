@@ -1,4 +1,5 @@
 import { AssignmentDetail, InstanceNodeItem } from './assignment.model';
+import { FigureMode } from './segment.model';
 
 export interface ProjectionInstance {
   id: string;
@@ -8,6 +9,7 @@ export interface ProjectionInstance {
   projectionX: number | null;
   projectionY: number | null;
   projectionScale: number;
+  figureMode: FigureMode;
   figureTemplate: { id: string; name: string; hasPinya: boolean } | null;
   nodes: InstanceNodeItem[];
   assignments: AssignmentDetail[];

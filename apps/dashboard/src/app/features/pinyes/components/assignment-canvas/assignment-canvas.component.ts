@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Location } from '@angular/common';
-import { LucideAngularModule, ArrowLeft, Users, Edit, RefreshCw, Trash2, X, PanelLeft, PanelLeftClose, Monitor, Lock, Plus, Minus, HelpCircle, Undo2, Redo2, Save, Flower, ChessRook, Shapes } from 'lucide-angular';
+import { LucideAngularModule, ArrowLeft, Users, Edit, RefreshCw, Trash2, X, PanelLeft, PanelLeftClose, Monitor, Lock, Plus, Minus, HelpCircle, Undo2, Redo2, Save, Flower, ChessRook, Shapes, Sparkles } from 'lucide-angular';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { NodeAssignmentService, LockStatus } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
@@ -44,6 +44,7 @@ interface InstanceTab {
   label: string;
   figureTemplateId: string | null;
   hasPinya: boolean;
+  figureMode: string;
   snapshotted: boolean;
   numberOfCordons: number | null;
   nodes: InstanceNodeItem[];
@@ -100,6 +101,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly Flower = Flower;
   readonly ChessRook = ChessRook;
   readonly Shapes = Shapes;
+  readonly Sparkles = Sparkles;
 
   readonly saveAsTemplateOpen = signal(false);
 
@@ -246,10 +248,10 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     ),
   );
 
-  /** Whether the active tab is a figura neta (hasPinya = false). */
+  /** Whether the active tab shows only tronc: figura neta (hasPinya = false) or REMAT mode. */
   readonly isActiveTabTroncOnly = computed(() => {
     const tab = this.activeTab();
-    return tab ? tab.hasPinya === false : false;
+    return tab ? tab.hasPinya === false || tab.figureMode === 'REMAT' : false;
   });
 
   /** Nodes for the inline projection preview: like activePinyaNodes but hiding unassigned pinya positions. */
@@ -534,6 +536,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
         label: instance.label ?? instance.figureTemplate?.name ?? '?',
         figureTemplateId: instance.figureTemplate?.id ?? null,
         hasPinya: instance.figureTemplate?.hasPinya ?? true,
+        figureMode: instance.figureMode ?? 'COMPLETA',
         snapshotted: instance.snapshotted,
         numberOfCordons: instance.numberOfCordons ?? null,
         nodes: [],
@@ -631,7 +634,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     this.loadTabData(instanceId);
 
     const tab = this.tabs().find((t) => t.instanceId === instanceId);
-    this.setViewMode(tab && !tab.hasPinya ? 'tronc' : 'pinya');
+    this.setViewMode(tab && (!tab.hasPinya || tab.figureMode === 'REMAT') ? 'tronc' : 'pinya');
   }
 
   private loadTabData(instanceId: string): void {

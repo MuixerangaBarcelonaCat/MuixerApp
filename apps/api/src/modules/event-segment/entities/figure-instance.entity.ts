@@ -13,6 +13,7 @@ import { FigureTemplate } from '../../figure/entities/figure-template.entity';
 import { CompositionTemplate } from '../../composition/entities/composition-template.entity';
 import type { NodeAssignment } from '../../node-assignment/entities/node-assignment.entity';
 import type { InstanceNode } from './instance-node.entity';
+import { FigureMode } from '@muixer/shared';
 
 @Entity('figure_instances')
 export class FigureInstance {
@@ -36,6 +37,9 @@ export class FigureInstance {
 
   @Column({ type: 'int' })
   sortOrder: number;
+
+  @Column({ type: 'enum', enum: FigureMode, default: FigureMode.COMPLETA })
+  figureMode: FigureMode;
 
   /**
    * True once nodes have been snapshotted into InstanceNode rows on first assignment.

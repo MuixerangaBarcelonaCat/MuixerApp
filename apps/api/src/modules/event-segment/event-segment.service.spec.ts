@@ -53,6 +53,7 @@ const mockEventRepo = {
 
 const mockDataSource = {
   transaction: jest.fn().mockImplementation((cb) => cb({ update: jest.fn() })),
+  query: jest.fn().mockResolvedValue([]),
 };
 
 describe('EventSegmentService', () => {
@@ -166,6 +167,85 @@ describe('EventSegmentService', () => {
       mockSegmentRepo.findOne.mockResolvedValue(null);
 
       await expect(service.remove(EVENT_ID, SEGMENT_ID)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('findAllByEvent — pinyaCapacity and totalCordons', () => {
+    it('includes pinyaCapacity and totalCordons for instances with pinya', async () => {
+      const figTemplate = { id: 'fig-uuid-1', name: 'pd4' } as any;
+      const instance = { id: 'inst-uuid-1', snapshotted: false, figureTemplate: figTemplate, compositionTemplate: null, figureMode: 'COMPLETA', label: null, sortOrder: 0, numberOfCordons: null } as any;
+      const seg = makeSegment({ instances: [instance] });
+
+      mockEventRepo.findOne.mockResolvedValue(makeEvent());
+      mockSegmentQb.getMany.mockResolvedValue([seg]);
+      mockDataSource.query
+        .mockResolvedValueOnce([])               // loadAssignmentCounts
+        .mockResolvedValueOnce([])               // loadPinyaAssignmentCounts
+        .mockResolvedValueOnce([{ templateId: 'fig-uuid-1' }])  // loadPinyaTemplateIds
+        .mockResolvedValueOnce([{ instance_id: 'inst-uuid-1', capacity: '32' }])  // loadPinyaCapacities (notSnapped)
+        .mockResolvedValueOnce([{ templateId: 'fig-uuid-1', total: '4' }]);        // loadTotalCordons
+
+      const result = await service.findAllByEvent(EVENT_ID);
+
+      expect(result[0].instances[0].pinyaCapacity).toBe(32);
+      expect(result[0].instances[0].totalCordons).toBe(4);
+    });
+
+    it('returns null pinyaCapacity and totalCordons for REMAT instances', async () => {
+      const figTemplate = { id: 'fig-uuid-1', name: 'pd4' } as any;
+      const instance = { id: 'inst-uuid-1', snapshotted: false, figureTemplate: figTemplate, compositionTemplate: null, figureMode: 'REMAT', label: null, sortOrder: 0, numberOfCordons: null } as any;
+      const seg = makeSegment({ instances: [instance] });
+
+      mockEventRepo.findOne.mockResolvedValue(makeEvent());
+      mockSegmentQb.getMany.mockResolvedValue([seg]);
+      mockDataSource.query
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ templateId: 'fig-uuid-1' }])
+        .mockResolvedValueOnce([])   // capacity query not called for non-snapped but REMAT skips it
+        .mockResolvedValueOnce([]);
+
+      const result = await service.findAllByEvent(EVENT_ID);
+
+      expect(result[0].instances[0].pinyaCapacity).toBeNull();
+      expect(result[0].instances[0].totalCordons).toBeNull();
+    });
+  });
+
+  describe('getTroncView', () => {
+    it('throws 404 if event does not exist', async () => {
+      mockEventRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.getTroncView(EVENT_ID)).rejects.toThrow(NotFoundException);
+    });
+
+    it('returns empty array when no snapshotted instances', async () => {
+      mockEventRepo.findOne.mockResolvedValue(makeEvent());
+      mockDataSource.query.mockResolvedValueOnce([]);
+
+      const result = await service.getTroncView(EVENT_ID);
+
+      expect(result).toEqual([]);
+    });
+
+    it('builds floor structure from node rows', async () => {
+      mockEventRepo.findOne.mockResolvedValue(makeEvent());
+      mockDataSource.query.mockResolvedValueOnce([
+        { instance_id: 'inst-1', zone: 'BASE', z: 0, sort_order: 0, alias: 'Pepet' },
+        { instance_id: 'inst-1', zone: 'BASE', z: 0, sort_order: 1, alias: null },
+        { instance_id: 'inst-1', zone: 'TRONC', z: 1, sort_order: 0, alias: 'Maria' },
+        { instance_id: 'inst-1', zone: 'TRONC', z: 2, sort_order: 0, alias: null },
+      ]);
+
+      const result = await service.getTroncView(EVENT_ID);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].instanceId).toBe('inst-1');
+      const floors = result[0].floors;
+      const baseFloor = floors.find((f) => f.isBase);
+      const troncFloor1 = floors.find((f) => !f.isBase && f.z === 1);
+      expect(baseFloor?.slots).toEqual(['Pepet', null]);
+      expect(troncFloor1?.slots).toEqual(['Maria']);
     });
   });
 

@@ -7,6 +7,7 @@ import { FigureInstance } from './entities/figure-instance.entity';
 import { EventSegment } from './entities/event-segment.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
 import { CompositionTemplate } from '../composition/entities/composition-template.entity';
+import { FigureMode } from '@muixer/shared';
 
 const EVENT_ID = 'event-uuid-1';
 const SEGMENT_ID = 'segment-uuid-1';
@@ -171,6 +172,54 @@ describe('FigureInstanceService', () => {
       expect(result.id).toBe(INSTANCE_ID);
     });
 
+    it('deletes pinya and base assignments when figureMode is REMAT', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.findOne
+        .mockResolvedValueOnce(makeInstance())
+        .mockResolvedValueOnce(makeInstance({ figureMode: FigureMode.REMAT }));
+      mockInstanceRepo.save.mockResolvedValue(makeInstance());
+
+      await service.update(EVENT_ID, SEGMENT_ID, INSTANCE_ID, { figureMode: FigureMode.REMAT });
+
+      const deleteCalls = mockDataSource.query.mock.calls.filter(
+        (call: unknown[]) => typeof call[0] === 'string' && (call[0] as string).includes('DELETE'),
+      );
+      expect(deleteCalls.length).toBeGreaterThan(0);
+      expect(deleteCalls[0][1]).toEqual([INSTANCE_ID]);
+    });
+
+    it('does NOT delete pinya assignments when figureMode is PEU', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.findOne
+        .mockResolvedValueOnce(makeInstance())
+        .mockResolvedValueOnce(makeInstance({ figureMode: FigureMode.PEU }));
+      mockInstanceRepo.save.mockResolvedValue(makeInstance());
+
+      await service.update(EVENT_ID, SEGMENT_ID, INSTANCE_ID, { figureMode: FigureMode.PEU });
+
+      const deleteCalls = mockDataSource.query.mock.calls.filter(
+        (call: unknown[]) => typeof call[0] === 'string' && (call[0] as string).includes('DELETE'),
+      );
+      expect(deleteCalls.length).toBe(0);
+    });
+
+    it('returns pinyaAssignedCount from findOneById query', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.findOne
+        .mockResolvedValueOnce(makeInstance())
+        .mockResolvedValueOnce(makeInstance());
+      mockInstanceRepo.save.mockResolvedValue(makeInstance());
+      mockDataSource.query
+        .mockResolvedValueOnce([{ count: '3' }])  // assignedCount
+        .mockResolvedValueOnce([{ count: '1' }])  // hasPinya (figure_nodes)
+        .mockResolvedValueOnce([{ count: '2' }]); // pinyaAssignedCount
+
+      const result = await service.update(EVENT_ID, SEGMENT_ID, INSTANCE_ID, { label: 'x' });
+
+      expect(result.pinyaAssignedCount).toBe(2);
+      expect(result.assignedCount).toBe(3);
+    });
+
     it('throws 404 if instance does not belong to segment', async () => {
       mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
       mockInstanceRepo.findOne.mockResolvedValue(null);
@@ -199,6 +248,57 @@ describe('FigureInstanceService', () => {
 
       await expect(
         service.remove(EVENT_ID, SEGMENT_ID, INSTANCE_ID),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('copy', () => {
+    const TARGET_SEGMENT_ID = 'segment-uuid-2';
+
+    it('creates a new instance in the target segment with the same template', async () => {
+      const sourceWithRelations = makeInstance({
+        figureTemplate: makeFigureTemplate(),
+        compositionTemplate: null,
+      });
+      mockInstanceRepo.findOne
+        .mockResolvedValueOnce(sourceWithRelations)  // assertInstanceBelongsToSegment (source)
+        .mockResolvedValueOnce(makeInstance());       // findOneById after save
+
+      const targetSegment = { id: TARGET_SEGMENT_ID, event: { id: EVENT_ID } } as any;
+      mockSegmentRepo.findOne
+        .mockResolvedValueOnce(makeSegment())         // assertSegmentBelongsToEvent (source)
+        .mockResolvedValueOnce(targetSegment);        // assertSegmentBelongsToEvent (target)
+
+      mockInstanceRepo.create.mockReturnValue(makeInstance());
+      mockInstanceRepo.save.mockResolvedValue(makeInstance());
+
+      const result = await service.copy(EVENT_ID, SEGMENT_ID, INSTANCE_ID, TARGET_SEGMENT_ID);
+
+      expect(mockInstanceRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ segment: targetSegment, label: null }),
+      );
+      expect(result.id).toBe(INSTANCE_ID);
+    });
+
+    it('throws 404 if source instance is not found', async () => {
+      mockInstanceRepo.findOne.mockResolvedValueOnce(null);
+
+      await expect(
+        service.copy(EVENT_ID, SEGMENT_ID, INSTANCE_ID, TARGET_SEGMENT_ID),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws 404 if target segment does not belong to event', async () => {
+      mockInstanceRepo.findOne.mockResolvedValueOnce(makeInstance({
+        figureTemplate: makeFigureTemplate(),
+        compositionTemplate: null,
+      }));
+      mockSegmentRepo.findOne
+        .mockResolvedValueOnce(makeSegment())  // source segment
+        .mockResolvedValueOnce(null);           // target segment not found
+
+      await expect(
+        service.copy(EVENT_ID, SEGMENT_ID, INSTANCE_ID, TARGET_SEGMENT_ID),
       ).rejects.toThrow(NotFoundException);
     });
   });

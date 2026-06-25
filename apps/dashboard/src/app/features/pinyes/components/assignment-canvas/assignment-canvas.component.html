@@ -284,7 +284,9 @@
           <div class="flex flex-col items-center justify-center h-full gap-3 text-base-content/50">
             <i-lucide [img]="Users" class="size-12" />
             @if (isActiveTabTroncOnly()) {
-              <p class="text-sm">Figura neta — utilitza el panell del tronc per assignar.</p>
+              <p class="text-sm flex items-center gap-1.5">
+                <i-lucide [img]="Sparkles" class="size-4 shrink-0" aria-hidden="true" />Figura neta — utilitza el panell del tronc per assignar.
+              </p>
             } @else {
               <p class="text-sm">Aquesta figura no té nodes de pinya. Consulta el panell del tronc.</p>
             }
