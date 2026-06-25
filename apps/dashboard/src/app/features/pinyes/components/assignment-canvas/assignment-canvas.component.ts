@@ -219,25 +219,29 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     });
   });
 
-  /** Nodes rendered on the Konva canvas (PINYA + BASE + DECORATION — spatial x,y nodes). */
-  readonly activePinyaNodes = computed(() =>
-    this.visibleNodes().filter(
+  /** Nodes rendered on the Konva canvas (PINYA + BASE + DECORATION — spatial x,y nodes).
+   *  BASE nodes are excluded for REMAT mode only. */
+  readonly activePinyaNodes = computed(() => {
+    const hideBase = this.activeTab()?.figureMode === 'REMAT';
+    return this.visibleNodes().filter(
       (n) =>
         n.zone === FigureZone.PINYA ||
-        n.zone === FigureZone.BASE ||
+        (!hideBase && n.zone === FigureZone.BASE) ||
         n.zone === FigureZone.DECORATION,
-    ),
-  );
+    );
+  });
 
   /** TRONC-zone nodes passed to the tronc panel. */
   readonly activeTroncNodes = computed(() =>
     this.visibleNodes().filter((n) => n.zone === FigureZone.TRONC),
   );
 
-  /** BASE-zone nodes passed to the tronc panel (P1 row). */
-  readonly activeBaseNodes = computed(() =>
-    this.visibleNodes().filter((n) => n.zone === FigureZone.BASE),
-  );
+  /** BASE-zone nodes passed to the tronc panel (P1 row).
+   *  Hidden for REMAT mode only. */
+  readonly activeBaseNodes = computed(() => {
+    if (this.activeTab()?.figureMode === 'REMAT') return [];
+    return this.visibleNodes().filter((n) => n.zone === FigureZone.BASE);
+  });
 
   /** Direction-zone nodes passed to the tronc panel (figures netes only). */
   readonly activeDirectionNodes = computed(() =>
@@ -248,10 +252,10 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     ),
   );
 
-  /** Whether the active tab shows only tronc: figura neta (hasPinya = false) or REMAT mode. */
+  /** Whether the active tab shows only tronc: figura neta (hasPinya = false), REMAT or NETA mode. */
   readonly isActiveTabTroncOnly = computed(() => {
     const tab = this.activeTab();
-    return tab ? tab.hasPinya === false || tab.figureMode === 'REMAT' : false;
+    return tab ? tab.hasPinya === false || tab.figureMode === 'REMAT' || tab.figureMode === 'NETA' : false;
   });
 
   /** Nodes for the inline projection preview: like activePinyaNodes but hiding unassigned pinya positions. */
@@ -634,7 +638,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     this.loadTabData(instanceId);
 
     const tab = this.tabs().find((t) => t.instanceId === instanceId);
-    this.setViewMode(tab && (!tab.hasPinya || tab.figureMode === 'REMAT') ? 'tronc' : 'pinya');
+    this.setViewMode(tab && (!tab.hasPinya || tab.figureMode === 'REMAT' || tab.figureMode === 'NETA') ? 'tronc' : 'pinya');
   }
 
   private loadTabData(instanceId: string): void {

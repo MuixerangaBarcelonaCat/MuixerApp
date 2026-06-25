@@ -146,9 +146,11 @@ export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy
 
   /** Nodes to render on the Konva canvas: PINYA + BASE + DECORATION (spatial x,y nodes).
    *  Excludes TRONC/DIRECTION (shown in tronc header) and unassigned PINYA nodes.
+   *  BASE nodes are excluded for REMAT and NETA modes.
    *  Assigned cordo-obert nodes collapse to the first empty slot in their rengla. */
   getInstanceProjectionNodes(instance: ProjectionInstance): InstanceNodeItem[] {
     const assignedNodeIds = new Set(instance.assignments.map((a) => a.node.id));
+    const hideBase = instance.figureMode === 'REMAT';
     const overrides = computeCordoObertOverrides(
       instance.nodes,
       (co, others) =>
@@ -159,7 +161,7 @@ export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy
 
     return instance.nodes
       .filter((n) =>
-        (n.zone === FigureZone.PINYA || n.zone === FigureZone.BASE || n.zone === FigureZone.DECORATION) &&
+        (n.zone === FigureZone.PINYA || (!hideBase && n.zone === FigureZone.BASE) || n.zone === FigureZone.DECORATION) &&
         !(n.zone === FigureZone.PINYA && !assignedNodeIds.has(n.id)),
       )
       .map((n) => {
@@ -173,6 +175,7 @@ export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   getInstanceBaseNodes(instance: ProjectionInstance): TroncNodeItem[] {
+    if (instance.figureMode === 'REMAT') return [];
     return instance.nodes.filter((n) => n.zone === FigureZone.BASE) as TroncNodeItem[];
   }
 
@@ -183,14 +186,20 @@ export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   isNetaFigure(instance: ProjectionInstance): boolean {
-    return instance.figureTemplate?.hasPinya === false || instance.figureMode === 'REMAT';
+    return instance.figureTemplate?.hasPinya === false || instance.figureMode === 'REMAT' || instance.figureMode === 'NETA';
   }
 
   getInstanceName(instance: ProjectionInstance): string {
     const base = instance.label ?? instance.figureTemplate?.name ?? 'Figura';
     if (instance.figureMode === 'PEU') return `Peu de ${base}`;
     if (instance.figureMode === 'REMAT') return `Remat de ${base}`;
+    if (instance.figureMode === 'NETA') return `${base} ${this.netaSuffix(base)}`;
     return base;
+  }
+
+  private netaSuffix(name: string): string {
+    const firstWord = name.trim().split(/\s+/)[0] ?? '';
+    return firstWord.endsWith('a') ? 'neta' : 'net';
   }
 
   // ── Segment navigation ──────────────────────────────────────────────────────

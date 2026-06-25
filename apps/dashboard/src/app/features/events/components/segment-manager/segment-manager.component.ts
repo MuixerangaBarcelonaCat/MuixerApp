@@ -347,8 +347,14 @@ export class SegmentManagerComponent implements OnInit {
     if (instance.figureTemplate?.hasPinya) {
       if (instance.figureMode === 'PEU') return `Peu de ${base}`;
       if (instance.figureMode === 'REMAT') return `Remat de ${base}`;
+      if (instance.figureMode === 'NETA') return `${base} ${this.netaSuffix(base)}`;
     }
     return base;
+  }
+
+  netaSuffix(name: string): string {
+    const firstWord = name.trim().split(/\s+/)[0] ?? '';
+    return firstWord.endsWith('a') ? 'neta' : 'net';
   }
 
   isComposition(instance: InstanceDetail): boolean {
@@ -362,11 +368,12 @@ export class SegmentManagerComponent implements OnInit {
       { value: 'COMPLETA', label: 'Completa' },
       { value: 'PEU', label: 'Peu' },
       { value: 'REMAT', label: 'Remat' },
+      { value: 'NETA', label: 'Neta' },
     ];
   }
 
   updateFigureMode(segment: SegmentDetail, instance: InstanceDetail, mode: FigureMode): void {
-    if (mode === 'REMAT' && instance.pinyaAssignedCount > 0) {
+    if ((mode === 'REMAT' || mode === 'NETA') && instance.pinyaAssignedCount > 0) {
       this.pendingModeChange.set({ segment, instance, mode });
       // Optimistically reflect the selection so Angular controls the DOM value
       this.setInstanceMode(segment.id, instance.id, mode);
@@ -446,6 +453,7 @@ export class SegmentManagerComponent implements OnInit {
     return (
       !!instance.figureTemplate?.hasPinya &&
       instance.figureMode !== 'REMAT' &&
+      instance.figureMode !== 'NETA' &&
       instance.numberOfCordons !== null &&
       instance.totalCordons !== null &&
       instance.numberOfCordons < instance.totalCordons

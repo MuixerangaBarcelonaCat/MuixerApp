@@ -279,7 +279,7 @@
 
                           <!-- Pinya mode: assigned count -->
                           @if (viewMode() === 'pinyes') {
-                            @if (instance.figureTemplate?.hasPinya && instance.figureMode !== 'REMAT' && instance.pinyaCapacity !== null) {
+                            @if (instance.figureTemplate?.hasPinya && instance.figureMode !== 'REMAT' && instance.figureMode !== 'NETA' && instance.pinyaCapacity !== null) {
                               <span class="flex items-center gap-0.5 text-xs text-base-content/50 shrink-0 font-normal" [attr.aria-label]="instance.pinyaAssignedCount + ' de ' + instance.pinyaCapacity + ' assignades a la pinya'">
                                 <lucide-icon [name]="ICON_PERSONA" [size]="11" />
                                 {{ instance.pinyaAssignedCount }}/{{ instance.pinyaCapacity }}
@@ -322,7 +322,7 @@
                           (change)="updateFigureMode(segment, instance, $any($event.target).value)"
                         >
                           @for (opt of options; track opt.value) {
-                            <option [value]="opt.value">{{ opt.label }}</option>
+                            <option [value]="opt.value" [selected]="opt.value === instance.figureMode">{{ opt.label }}</option>
                           }
                         </select>
                       } @else {
@@ -472,7 +472,7 @@
   </dialog>
 }
 
-<!-- REMAT mode change confirmation modal -->
+<!-- REMAT / NETA mode change confirmation modal -->
 @if (pendingModeChange()) {
   <dialog
     class="modal modal-open"
@@ -482,14 +482,16 @@
     aria-modal="true"
   >
     <div class="modal-box max-w-sm">
-      <h3 id="remat-confirm-title" class="text-lg font-bold mb-3">Canviar a Remat</h3>
+      <h3 id="remat-confirm-title" class="text-lg font-bold mb-3">
+        {{ pendingModeChange()!.mode === 'NETA' ? 'Canviar a Figura neta' : 'Canviar a Remat' }}
+      </h3>
       <p id="remat-confirm-desc" class="text-sm text-base-content/70">
         Canviar <strong>{{ getInstanceLabel(pendingModeChange()!.instance) }}</strong> a
-        <strong>Remat</strong> desassignarà
+        <strong>{{ pendingModeChange()!.mode === 'NETA' ? 'Figura neta' : 'Remat' }}</strong> desassignarà
         <strong>{{ pendingModeChange()!.instance.pinyaAssignedCount }}
           {{ pendingModeChange()!.instance.pinyaAssignedCount === 1 ? 'persona' : 'persones' }}
         </strong>
-        de la pinya.
+        {{ pendingModeChange()!.mode === 'NETA' ? 'de la pinya.' : 'de la pinya i la base.' }}
       </p>
       <p class="text-xs text-warning mt-2">Aquesta acció no es pot desfer.</p>
       <div class="modal-action">
@@ -510,7 +512,7 @@
           @if (savingModeChange()) {
             <span class="loading loading-spinner loading-xs"></span>
           }
-          Canvia a Remat
+          {{ pendingModeChange()!.mode === 'NETA' ? 'Canvia a Figura neta' : 'Canvia a Remat' }}
         </button>
       </div>
     </div>

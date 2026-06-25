@@ -81,8 +81,8 @@ export class ProjectionService {
 
       const figureMode = instance.figureMode ?? FigureMode.COMPLETA;
       const hasPinyaNodes = nodes.some((n) => n.zone === 'PINYA');
-      // REMAT behaves like a figura neta: no pinya in projection
-      const hasPinya = hasPinyaNodes && figureMode !== FigureMode.REMAT;
+      // REMAT and NETA behave like a figura neta: no pinya in projection
+      const hasPinya = hasPinyaNodes && figureMode !== FigureMode.REMAT && figureMode !== FigureMode.NETA;
 
       projectionInstances.push({
         id: instance.id,

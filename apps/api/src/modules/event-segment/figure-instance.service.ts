@@ -101,6 +101,8 @@ export class FigureInstanceService {
       instance.figureMode = dto.figureMode;
       if (dto.figureMode === FigureMode.REMAT) {
         await this.deletePinyaAssignments(instanceId);
+      } else if (dto.figureMode === FigureMode.NETA) {
+        await this.deletePinyaOnlyAssignments(instanceId);
       }
     }
 
@@ -251,7 +253,7 @@ export class FigureInstanceService {
       throw new NotFoundException(`FigureInstance with ID ${id} not found`);
     }
 
-    const hasPinyaFigure = !!instance.figureTemplate && instance.figureMode !== FigureMode.REMAT;
+    const hasPinyaFigure = !!instance.figureTemplate && instance.figureMode !== FigureMode.REMAT && instance.figureMode !== FigureMode.NETA;
 
     const [countResult, pinyaResult, pinyaAssignedResult, capacityResult, cordonsResult] = await Promise.all([
       this.dataSource.query(
@@ -335,6 +337,17 @@ export class FigureInstanceService {
        WHERE "figureInstanceId" = $1
        AND "instanceNodeId" IN (
          SELECT id FROM instance_nodes WHERE "figureInstanceId" = $1 AND zone IN ('PINYA', 'BASE')
+       )`,
+      [instanceId],
+    );
+  }
+
+  private async deletePinyaOnlyAssignments(instanceId: string): Promise<void> {
+    await this.dataSource.query(
+      `DELETE FROM node_assignments
+       WHERE "figureInstanceId" = $1
+       AND "instanceNodeId" IN (
+         SELECT id FROM instance_nodes WHERE "figureInstanceId" = $1 AND zone = 'PINYA'
        )`,
       [instanceId],
     );
