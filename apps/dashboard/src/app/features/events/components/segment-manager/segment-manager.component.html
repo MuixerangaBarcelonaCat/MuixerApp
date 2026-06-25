@@ -9,6 +9,32 @@
         </h2>
 
         <div class="flex items-center gap-2 flex-wrap">
+          <!-- Collapse / expand all -->
+          @if (segments().length > 0) {
+            <div class="join" role="group" aria-label="Plegar o desplegar tots els segments">
+              <button
+                type="button"
+                class="join-item btn btn-ghost btn-xs gap-1"
+                (click)="expandAll()"
+                title="Desplega tots els segments"
+                aria-label="Desplega tots els segments"
+              >
+                <lucide-icon name="ChevronsDown" [size]="13" />
+                Desplega
+              </button>
+              <button
+                type="button"
+                class="join-item btn btn-ghost btn-xs gap-1"
+                (click)="collapseAll()"
+                title="Plega tots els segments"
+                aria-label="Plega tots els segments"
+              >
+                <lucide-icon name="ChevronsUp" [size]="13" />
+                Plega
+              </button>
+            </div>
+          }
+
           <!-- Pinyes / Troncs toggle -->
           <div class="join" role="group" aria-label="Mode de visualització">
             <button
@@ -101,6 +127,21 @@
                   class="flex items-center justify-center w-6 h-6 rounded text-xs font-bold text-primary-content bg-primary shrink-0"
                   [attr.aria-label]="'Segment ' + (i + 1)"
                 >{{ i + 1 }}</span>
+
+                <!-- Collapse toggle -->
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-xs px-1 shrink-0 text-base-content/40 hover:text-base-content/80"
+                  (click)="toggleCollapse(segment.id)"
+                  [attr.aria-label]="isCollapsed(segment.id) ? 'Desplega el segment' : 'Plega el segment'"
+                  [attr.aria-expanded]="!isCollapsed(segment.id)"
+                >
+                  @if (isCollapsed(segment.id)) {
+                    <lucide-icon name="ChevronRight" [size]="14" />
+                  } @else {
+                    <lucide-icon name="ChevronDown" [size]="14" />
+                  }
+                </button>
 
                 <!-- Name or edit input -->
                 @if (editingSegmentId() === segment.id) {
@@ -218,7 +259,7 @@
               <div *cdkDragPlaceholder class="h-12 bg-base-200/60 border-2 border-dashed border-base-300 rounded-box m-1"></div>
 
               <!-- Time + Notes info (if set) -->
-              @if (segment.startTime || segment.endTime || segment.notes) {
+              @if (!isCollapsed(segment.id) && (segment.startTime || segment.endTime || segment.notes)) {
                 <div class="text-xs text-base-content/50 flex flex-wrap gap-3 px-4 py-1.5 border-b border-base-200">
                   @if (segment.startTime || segment.endTime) {
                     <span>
@@ -236,7 +277,7 @@
               }
 
               <!-- Instance rows -->
-              @if (segment.instances.length > 0) {
+              @if (!isCollapsed(segment.id) && segment.instances.length > 0) {
                 <div
                   role="list"
                   [attr.aria-label]="'Figures del segment ' + displayName()(segment)"
@@ -354,7 +395,7 @@
                     </div>
                   }
                 </div>
-              } @else {
+              } @else if (!isCollapsed(segment.id)) {
                 <p class="text-xs text-base-content/40 px-4 py-3">Cap figura afegida. Cliqueu "+ Figura" per afegir-ne.</p>
               }
 

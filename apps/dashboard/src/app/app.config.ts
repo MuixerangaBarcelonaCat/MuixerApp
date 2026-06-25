@@ -25,7 +25,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronUp,
-  ChevronsUpDown,
+  ChevronsUpDown, ChevronsDown, ChevronsUp,
   ChessRook,
   CirclePile,
   Clock,
@@ -74,7 +74,7 @@ import {
 const icons = {
   AlertCircle, AlertTriangle, AlignJustify, ArrowDown, ArrowLeft, ArrowUp,
   Calendar, CalendarRange, Check,
-  ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown,
+  ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown, ChevronsDown, ChevronsUp,
   ChessRook, CirclePile, Clock, Construction, Copy, DraftingCompass, ExternalLink, Eye,
   Flower, GitCommitHorizontal,
   Grid3X3, Home, Keyboard, LayoutGrid, List, Lock, Magnet, Mail, Maximize2, Menu, Minus,

@@ -82,6 +82,8 @@ export class SegmentManagerComponent implements OnInit {
   troncLoading = signal(false);
   troncDataLoaded = signal(false);
 
+  collapsedSegments = signal<Set<string>>(new Set());
+
   copyPickerInstanceId = signal<string | null>(null);
   copyPickerSegmentId = signal<string | null>(null);
   copyingInstance = signal(false);
@@ -94,7 +96,7 @@ export class SegmentManagerComponent implements OnInit {
     if (segment.name) return segment.name;
     if (!segment.instances.length) return 'Segment sense nom';
     return segment.instances
-      .map((i) => i.figureTemplate?.name ?? i.compositionTemplate?.name ?? '?')
+      .map((i) => this.getInstanceLabel(i))
       .join(' + ');
   });
 
@@ -490,6 +492,30 @@ export class SegmentManagerComponent implements OnInit {
     return displayFloors
       .map((f) => f.slots.map((s) => s ?? '?').join(' - '))
       .join(' // ');
+  }
+
+  isCollapsed(segmentId: string): boolean {
+    return this.collapsedSegments().has(segmentId);
+  }
+
+  toggleCollapse(segmentId: string): void {
+    this.collapsedSegments.update((set) => {
+      const next = new Set(set);
+      if (next.has(segmentId)) {
+        next.delete(segmentId);
+      } else {
+        next.add(segmentId);
+      }
+      return next;
+    });
+  }
+
+  collapseAll(): void {
+    this.collapsedSegments.set(new Set(this.segments().map((s) => s.id)));
+  }
+
+  expandAll(): void {
+    this.collapsedSegments.set(new Set());
   }
 
   otherSegments(currentSegmentId: string): SegmentDetail[] {
