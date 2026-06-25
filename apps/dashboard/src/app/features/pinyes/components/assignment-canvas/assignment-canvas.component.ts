@@ -849,6 +849,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     this.assignmentService
       .createAdHocNode(instanceId, {
         zone: preset.zone,
+        positionType: preset.positionType ?? undefined,
         label: preset.label,
         x: 0,
         y: 0,

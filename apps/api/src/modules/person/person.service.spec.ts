@@ -3,14 +3,14 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PersonService } from './person.service';
 import { Person } from './person.entity';
-import { Position } from '../position/position.entity';
+import { Tag } from '../tag/tag.entity';
 import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { User } from '../user/user.entity';
 
 describe('PersonService', () => {
   let service: PersonService;
   let personRepository: Repository<Person>;
-  let positionRepository: Repository<Position>;
+  let positionRepository: Repository<Tag>;
 
   const mockQueryBuilder = {
     leftJoinAndSelect: jest.fn().mockReturnThis(),
@@ -49,7 +49,7 @@ describe('PersonService', () => {
           useValue: mockPersonRepository,
         },
         {
-          provide: getRepositoryToken(Position),
+          provide: getRepositoryToken(Tag),
           useValue: mockPositionRepository,
         },
         {
@@ -63,8 +63,8 @@ describe('PersonService', () => {
     personRepository = module.get<Repository<Person>>(
       getRepositoryToken(Person),
     );
-    positionRepository = module.get<Repository<Position>>(
-      getRepositoryToken(Position),
+    positionRepository = module.get<Repository<Tag>>(
+      getRepositoryToken(Tag),
     );
   });
 

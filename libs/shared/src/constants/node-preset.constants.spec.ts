@@ -1,7 +1,6 @@
 import { FigureZone } from '../enums/figure-zone.enum';
 import { NodeShape } from '../enums/node-shape.enum';
-import { TRONC_NODE_PRESETS, TRONC_Z_DEFAULTS, TroncNodePreset } from './ad-hoc-node.constants';
-import { PINYA_NODE_PRESETS, DIRECTION_NODE_PRESETS, DECORATION_NODE_PRESETS } from './node-preset.constants';
+import { TRONC_NODE_PRESETS, TRONC_Z_DEFAULTS, TroncNodePreset, PINYA_NODE_PRESETS, DIRECTION_NODE_PRESETS, DECORATION_NODE_PRESETS } from './node-preset.constants';
 
 describe('TRONC_NODE_PRESETS', () => {
   it('has at least 5 presets', () => {

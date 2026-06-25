@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Position } from '../position/position.entity';
+import { Tag } from '../tag/tag.entity';
 import { User } from '../user/user.entity';
 import { Person } from '../person/person.entity';
 import { Season } from '../season/season.entity';
@@ -25,6 +25,7 @@ import { RestoreProjectionColumnsAndReferenceElements1781000000000 } from '../..
 import { DropSourceVariantOrder1781100000000 } from '../../migrations/1781100000000-DropSourceVariantOrder';
 import { AddAdHocInstanceNodes1781200000000 } from '../../migrations/1781200000000-AddAdHocInstanceNodes';
 import { DropHasPinya1781700000000 } from '../../migrations/1781700000000-DropHasPinya';
+import { TagPositionTypes1782000000000 } from '../../migrations/1782000000000-TagPositionTypes';
 
 @Module({
   imports: [
@@ -38,7 +39,7 @@ import { DropHasPinya1781700000000 } from '../../migrations/1781700000000-DropHa
           url: process.env.DATABASE_URL,
           ssl: sslEnabled ? { rejectUnauthorized: false } : false,
           entities: [
-            Position,
+            Tag,
             User,
             Person,
             Season,
@@ -67,6 +68,7 @@ import { DropHasPinya1781700000000 } from '../../migrations/1781700000000-DropHa
             DropSourceVariantOrder1781100000000,
             AddAdHocInstanceNodes1781200000000,
             DropHasPinya1781700000000,
+            TagPositionTypes1782000000000,
           ],
           migrationsTableName: 'typeorm_migrations',
           logging: isDevelopment,
