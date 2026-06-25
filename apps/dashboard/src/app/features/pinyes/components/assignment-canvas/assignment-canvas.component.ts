@@ -532,12 +532,23 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     });
   }
 
+  private computeInstanceLabel(base: string, figureMode: string): string {
+    if (figureMode === 'PEU') return `Peu de ${base}`;
+    if (figureMode === 'REMAT') return `Remat de ${base}`;
+    if (figureMode === 'NETA') {
+      const firstWord = base.trim().split(/\s+/)[0] ?? '';
+      const suffix = firstWord.endsWith('a') ? 'neta' : 'net';
+      return `${base} ${suffix}`;
+    }
+    return base;
+  }
+
   private buildTabs(seg: SegmentDetail): void {
     const tabBuilders = seg.instances
       .filter((i) => !!i.figureTemplate)
       .map((instance): InstanceTab => ({
         instanceId: instance.id,
-        label: instance.label ?? instance.figureTemplate?.name ?? '?',
+        label: this.computeInstanceLabel(instance.label ?? instance.figureTemplate?.name ?? '?', instance.figureMode ?? 'COMPLETA'),
         figureTemplateId: instance.figureTemplate?.id ?? null,
         hasPinya: instance.figureTemplate?.hasPinya ?? true,
         figureMode: instance.figureMode ?? 'COMPLETA',
