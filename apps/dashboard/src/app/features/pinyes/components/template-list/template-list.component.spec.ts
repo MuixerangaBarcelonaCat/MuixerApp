@@ -2,12 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, ActivatedRoute } from '@angular/router';
 import { vi } from 'vitest';
 import { of } from 'rxjs';
-import {
-  LUCIDE_ICONS, LucideIconProvider,
-  DraftingCompass, Plus, Search, ChevronDown, ChevronRight, FolderOpen, Layers, LayoutGrid,
-  GitBranch, Pencil, Trash2, Copy, X, Info, ChevronLeft, HelpCircle, AlertTriangle,
-  BookOpen, RotateCcw, ArrowUpDown, History, AlignJustify, Sparkles,
-} from 'lucide-angular';
+import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { TemplateListComponent } from './template-list.component';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { CompositionTemplateService } from '../../services/composition-template.service';
@@ -71,14 +66,7 @@ describe('TemplateListComponent', () => {
         { provide: FigureTemplateService, useValue: figureService },
         { provide: CompositionTemplateService, useValue: compositionService },
         { provide: ToastService, useValue: toastService },
-        {
-          provide: LUCIDE_ICONS, multi: true,
-          useFactory: () => new LucideIconProvider({
-            DraftingCompass, Plus, Search, ChevronDown, ChevronRight, FolderOpen, Layers, LayoutGrid,
-            GitBranch, Pencil, Trash2, Copy, X, Info, ChevronLeft, HelpCircle, AlertTriangle,
-            BookOpen, RotateCcw, ArrowUpDown, History, AlignJustify, Sparkles,
-          }),
-        },
+        allLucideIconsProvider,
       ],
     }).compileComponents();
 

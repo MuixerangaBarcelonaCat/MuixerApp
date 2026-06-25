@@ -3,10 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import { of, throwError } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
-import {
-  LUCIDE_ICONS, LucideIconProvider,
-  ArrowLeft, Users, Edit, RefreshCw, Plus, PanelLeft, PanelLeftClose, HelpCircle,
-} from 'lucide-angular';
+import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { AssignmentCanvasComponent } from './assignment-canvas.component';
 import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component';
 import { PersonPanelComponent } from '../person-panel/person-panel.component';
@@ -245,10 +242,7 @@ describe('AssignmentCanvasComponent', () => {
           provide: ActivatedRoute,
           useValue: { snapshot: { params: { eventId: EVENT_ID, segmentId: SEGMENT_ID } } },
         },
-        {
-          provide: LUCIDE_ICONS, multi: true,
-          useFactory: () => new LucideIconProvider({ ArrowLeft, Users, Edit, RefreshCw, Plus, PanelLeft, PanelLeftClose, HelpCircle }),
-        },
+        allLucideIconsProvider,
       ],
     })
     .overrideComponent(AssignmentCanvasComponent, {

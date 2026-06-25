@@ -3,12 +3,7 @@ import { Router } from '@angular/router';
 import { ActivatedRoute } from '@angular/router';
 import { vi } from 'vitest';
 import { of } from 'rxjs';
-import {
-  LUCIDE_ICONS, LucideIconProvider,
-  AlertCircle, AlertTriangle, ArrowLeft, Calendar, Check, ChevronDown, ChevronUp,
-  ChevronsUpDown, Clock, Construction, Eye, Home, Layers, Lock, Mail, Menu,
-  MoreHorizontal, Plus, RefreshCw, Search, Settings, Star, UserX, Users,
-} from 'lucide-angular';
+import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { EventListComponent, ALL_EVENT_COLUMNS, getAdultsCount } from './event-list.component';
 import { EventService } from '../../services/event.service';
 import { SeasonService } from '../../services/season.service';
@@ -64,14 +59,7 @@ describe('EventListComponent', () => {
         { provide: SeasonService, useValue: seasonService },
         { provide: ActivatedRoute, useValue: mockActivatedRoute },
         { provide: Router, useValue: router },
-        {
-          provide: LUCIDE_ICONS, multi: true,
-          useFactory: () => new LucideIconProvider({
-            AlertCircle, AlertTriangle, ArrowLeft, Calendar, Check, ChevronDown, ChevronUp,
-            ChevronsUpDown, Clock, Construction, Eye, Home, Layers, Lock, Mail, Menu,
-            MoreHorizontal, Plus, RefreshCw, Search, Settings, Star, UserX, Users,
-          }),
-        },
+        allLucideIconsProvider,
       ],
     }).compileComponents();
 
@@ -117,14 +105,7 @@ describe('EventListComponent', () => {
           { provide: SeasonService, useValue: seasonService },
           { provide: ActivatedRoute, useValue: mockActivatedRoute },
           { provide: Router, useValue: router },
-          {
-            provide: LUCIDE_ICONS, multi: true,
-            useFactory: () => new LucideIconProvider({
-              AlertCircle, AlertTriangle, ArrowLeft, Calendar, Check, ChevronDown, ChevronUp,
-              ChevronsUpDown, Clock, Construction, Eye, Home, Layers, Lock, Mail, Menu,
-              MoreHorizontal, Plus, RefreshCw, Search, Settings, Star, UserX, Users,
-            }),
-          },
+          allLucideIconsProvider,
         ],
       }).compileComponents();
       const f = TestBed.createComponent(EventListComponent);
@@ -380,14 +361,6 @@ describe('EventListComponent', () => {
   });
 
   describe('ACTUACIO event type', () => {
-    const iconProvider = {
-      provide: LUCIDE_ICONS, multi: true,
-      useFactory: () => new LucideIconProvider({
-        AlertCircle, AlertTriangle, ArrowLeft, Calendar, Check, ChevronDown, ChevronUp,
-        ChevronsUpDown, Clock, Construction, Eye, Home, Layers, Lock, Mail, Menu,
-        MoreHorizontal, Plus, RefreshCw, Search, Settings, Star, UserX, Users,
-      }),
-    };
 
     it('sets page title to Actuacions for ACTUACIO type', async () => {
       const routeActuacio = { snapshot: { data: { eventType: EventType.ACTUACIO } } };
@@ -399,7 +372,7 @@ describe('EventListComponent', () => {
           { provide: SeasonService, useValue: seasonService },
           { provide: ActivatedRoute, useValue: routeActuacio },
           { provide: Router, useValue: router },
-          iconProvider,
+          allLucideIconsProvider,
         ],
       }).compileComponents();
       const f = TestBed.createComponent(EventListComponent);
@@ -418,7 +391,7 @@ describe('EventListComponent', () => {
           { provide: SeasonService, useValue: seasonService },
           { provide: ActivatedRoute, useValue: routeActuacio },
           { provide: Router, useValue: router },
-          iconProvider,
+          allLucideIconsProvider,
         ],
       }).compileComponents();
       const f = TestBed.createComponent(EventListComponent);

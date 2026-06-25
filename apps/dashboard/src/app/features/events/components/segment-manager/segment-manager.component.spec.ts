@@ -3,11 +3,7 @@ import { vi } from 'vitest';
 import { of, throwError } from 'rxjs';
 import { Router } from '@angular/router';
 import { DragDropModule, CdkDragDrop } from '@angular/cdk/drag-drop';
-import {
-  LUCIDE_ICONS, LucideIconProvider,
-  Check, CirclePile, Clock, Copy, Eye, EyeOff, FileText, GripVertical, Hexagon, Layers,
-  LayoutGrid, Lock, Monitor, Pencil, Plus, Sparkles, Trash2, Users, X,
-} from 'lucide-angular';
+import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { SegmentManagerComponent } from './segment-manager.component';
 import { EventSegmentService } from '../../../pinyes/services/event-segment.service';
 import { FigureInstanceService } from '../../../pinyes/services/figure-instance.service';
@@ -90,13 +86,7 @@ describe('SegmentManagerComponent', () => {
         { provide: FigureInstanceService, useValue: instanceService },
         { provide: ToastService, useValue: toastService },
         { provide: Router, useValue: routerMock },
-        {
-          provide: LUCIDE_ICONS, multi: true,
-          useFactory: () => new LucideIconProvider({
-            Check, CirclePile, Clock, Copy, Eye, EyeOff, FileText, GripVertical, Hexagon, Layers,
-            LayoutGrid, Lock, Monitor, Pencil, Plus, Sparkles, Trash2, Users, X,
-          }),
-        },
+        allLucideIconsProvider,
       ],
     }).compileComponents();
 

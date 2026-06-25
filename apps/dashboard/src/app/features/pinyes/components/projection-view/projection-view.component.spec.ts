@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Component, input } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { of } from 'rxjs';
-import { LUCIDE_ICONS, LucideIconProvider, ArrowLeft, Maximize2, HelpCircle } from 'lucide-angular';
+import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { ProjectionViewComponent } from './projection-view.component';
 import { ProjectionInstance } from '../../models/projection.model';
 import { InstanceNodeItem, AssignmentDetail } from '../../models/assignment.model';
@@ -73,6 +73,13 @@ describe('ProjectionViewComponent', () => {
   let component: ProjectionViewComponent;
 
   beforeEach(async () => {
+    class ResizeObserverStub {
+      observe = vi.fn();
+      unobserve = vi.fn();
+      disconnect = vi.fn();
+    }
+    vi.stubGlobal('ResizeObserver', ResizeObserverStub);
+
     await TestBed.configureTestingModule({
       imports: [ProjectionViewComponent],
       providers: [
@@ -80,7 +87,7 @@ describe('ProjectionViewComponent', () => {
         { provide: ToastService, useValue: { error: vi.fn() } },
         { provide: Router, useValue: { navigate: vi.fn() } },
         { provide: ActivatedRoute, useValue: { snapshot: { params: { eventId: 'e1', segmentId: 's1' } } } },
-        { provide: LUCIDE_ICONS, multi: true, useFactory: () => new LucideIconProvider({ ArrowLeft, Maximize2, HelpCircle }) },
+        allLucideIconsProvider,
       ],
     })
     .overrideComponent(ProjectionViewComponent, {

@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Location } from '@angular/common';
-import { LucideAngularModule, ArrowLeft, Users, Edit, RefreshCw, Trash2, X, PanelLeft, PanelLeftClose, Monitor, Lock, Plus, Minus, HelpCircle, Undo2, Redo2, Save, Flower, ChessRook, Shapes, Sparkles } from 'lucide-angular';
+import { LucideAngularModule, ArrowLeft, Users, Edit, RefreshCw, Trash2, X, PanelLeft, PanelLeftClose, Monitor, Lock, Plus, Minus, CircleQuestionMark, Undo2, Redo2, Save, Flower, ChessRook, Shapes, Sparkles } from 'lucide-angular';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { NodeAssignmentService, LockStatus } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
@@ -94,7 +94,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly Lock = Lock;
   readonly Plus = Plus;
   readonly Minus = Minus;
-  readonly HelpCircle = HelpCircle;
+  readonly CircleQuestionMark = CircleQuestionMark;
   readonly Undo2 = Undo2;
   readonly Redo2 = Redo2;
   readonly SaveIcon = Save;

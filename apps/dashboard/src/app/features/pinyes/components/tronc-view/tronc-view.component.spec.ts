@@ -1,9 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { describe, it, expect, beforeEach } from 'vitest';
-import {
-  LUCIDE_ICONS, LucideIconProvider,
-  ArrowDownUp, ArrowUpDown, Plus, Minus, Trash2, X, ChevronDown, ChevronRight,
-} from 'lucide-angular';
+import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { TroncViewComponent, TroncNodeItem } from './tronc-view.component';
 import { AssignmentDetail } from '../../models/assignment.model';
 
@@ -71,11 +68,7 @@ describe('TroncViewComponent', () => {
     await TestBed.configureTestingModule({
       imports: [TroncViewComponent],
       providers: [
-        {
-          provide: LUCIDE_ICONS,
-          multi: true,
-          useFactory: () => new LucideIconProvider({ ArrowDownUp, ArrowUpDown, Plus, Minus, Trash2, X, ChevronDown, ChevronRight }),
-        },
+        allLucideIconsProvider,
       ],
     }).compileComponents();
 

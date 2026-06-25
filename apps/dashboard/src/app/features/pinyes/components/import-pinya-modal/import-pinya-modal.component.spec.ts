@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi, type Mock } from 'vitest';
 import { of, throwError } from 'rxjs';
-import { LUCIDE_ICONS, LucideIconProvider, Import, X } from 'lucide-angular';
+import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { ImportPinyaModalComponent } from './import-pinya-modal.component';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { FigureHistoryEntry, BulkImportResult } from '../../models/assignment.model';
@@ -45,10 +45,7 @@ describe('ImportPinyaModalComponent', () => {
       imports: [ImportPinyaModalComponent],
       providers: [
         { provide: NodeAssignmentService, useValue: assignmentService },
-        {
-          provide: LUCIDE_ICONS, multi: true,
-          useFactory: () => new LucideIconProvider({ Import, X }),
-        },
+        allLucideIconsProvider,
       ],
     }).compileComponents();
 
