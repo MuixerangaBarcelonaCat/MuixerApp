@@ -34,6 +34,7 @@ class StubFigureCanvas {
   readonly highlightedNodeIds = input<Set<string>>(new Set());
   readonly isPlacementMode = input<boolean>(false);
   readonly decorationOpacity = input<number>(1);
+  readonly isPast = input<boolean>(false);
   readonly nodeSelected = output<string | null>();
   readonly nodeClicked = output<{ nodeId: string; x: number; y: number }>();
   readonly nodeDoubleClicked = output<string>();
@@ -50,6 +51,7 @@ class StubPersonPanel {
   readonly assignments = input<AssignmentDetail[]>([]);
   readonly heightMode = input<string>('relative');
   readonly activeNodePositionType = input<string | null>(null);
+  readonly isPast = input<boolean>(false);
   readonly personSelected = output<AvailablePerson>();
   readonly assignedPersonSelected = output<{ personId: string; instanceId: string }>();
 }
@@ -86,6 +88,7 @@ class StubTroncView {
   readonly heightMode = input<string>('relative');
   readonly highlightedNodeIds = input<Set<string>>(new Set());
   readonly attendanceMap = input<Map<string, string>>(new Map());
+  readonly isPast = input<boolean>(false);
   readonly nodeSelected = output<string | null>();
   readonly nodeClicked = output<{ nodeId: string; event: MouseEvent }>();
   readonly nodeUnassigned = output<string>();
@@ -240,7 +243,7 @@ describe('AssignmentCanvasComponent', () => {
         { provide: Router, useValue: routerMock },
         {
           provide: ActivatedRoute,
-          useValue: { snapshot: { params: { eventId: EVENT_ID, segmentId: SEGMENT_ID } } },
+          useValue: { snapshot: { params: { eventId: EVENT_ID, segmentId: SEGMENT_ID }, queryParamMap: { get: vi.fn().mockReturnValue(null) } } },
         },
         allLucideIconsProvider,
       ],

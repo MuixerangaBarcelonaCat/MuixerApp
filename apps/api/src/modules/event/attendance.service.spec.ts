@@ -12,7 +12,7 @@ const makePerson = (overrides: Partial<Person> = {}): Person =>
 
 const makeEvent = (): Partial<Event> => ({
   id: 'ev-1',
-  attendanceSummary: { confirmed: 0, declined: 0, pending: 0, attended: 0, lateCancel: 0, children: 0, total: 0 },
+  attendanceSummary: { confirmed: 0, declined: 0, pending: 0, attended: 0, lateCancel: 0, children: 0, childrenAttended: 0, total: 0 },
 });
 
 const makeAttendance = (status: AttendanceStatus): Attendance =>

@@ -89,6 +89,79 @@ describe('PersonPanelComponent', () => {
     });
   });
 
+  // ── isPast mode ────────────────────────────────────────────────────────────
+
+  describe('isPast=true grouping', () => {
+    beforeEach(() => {
+      const persons = [
+        makeAvailablePerson('p1', 'ASSISTIT'),
+        makeAvailablePerson('p2', 'ANIRE'),
+        makeAvailablePerson('p3', 'NO_VAIG'),
+        makeAvailablePerson('p4', 'PENDENT'),
+      ];
+      assignmentService.getAvailablePersons.mockReturnValue(of({ data: persons }));
+      fixture.componentRef.setInput('isPast', true);
+      component.loadPersons();
+      fixture.detectChanges();
+    });
+
+    it('confirmedPersons only includes ASSISTIT', () => {
+      expect(component.confirmedPersons()).toHaveLength(1);
+      expect(component.confirmedPersons()[0].id).toBe('p1');
+    });
+
+    it('noShowPersons includes ANIRE (confirmed but no-show)', () => {
+      expect(component.noShowPersons()).toHaveLength(1);
+      expect(component.noShowPersons()[0].id).toBe('p2');
+    });
+
+    it('pendingPersons is empty (PENDENT treated as declined)', () => {
+      expect(component.pendingPersons()).toHaveLength(0);
+    });
+
+    it('declinedPersons includes NO_VAIG and PENDENT', () => {
+      expect(component.declinedPersons()).toHaveLength(2);
+      const ids = component.declinedPersons().map((p) => p.id);
+      expect(ids).toContain('p3');
+      expect(ids).toContain('p4');
+    });
+  });
+
+  describe('isPast=false grouping (default)', () => {
+    beforeEach(() => {
+      const persons = [
+        makeAvailablePerson('p1', 'ASSISTIT'),
+        makeAvailablePerson('p2', 'ANIRE'),
+        makeAvailablePerson('p3', 'NO_VAIG'),
+        makeAvailablePerson('p4', 'PENDENT'),
+      ];
+      assignmentService.getAvailablePersons.mockReturnValue(of({ data: persons }));
+      fixture.componentRef.setInput('isPast', false);
+      component.loadPersons();
+      fixture.detectChanges();
+    });
+
+    it('confirmedPersons includes ANIRE and ASSISTIT', () => {
+      const ids = component.confirmedPersons().map((p) => p.id);
+      expect(ids).toContain('p1');
+      expect(ids).toContain('p2');
+    });
+
+    it('noShowPersons is empty', () => {
+      expect(component.noShowPersons()).toHaveLength(0);
+    });
+
+    it('pendingPersons includes PENDENT', () => {
+      expect(component.pendingPersons()).toHaveLength(1);
+      expect(component.pendingPersons()[0].id).toBe('p4');
+    });
+
+    it('declinedPersons includes only NO_VAIG', () => {
+      expect(component.declinedPersons()).toHaveLength(1);
+      expect(component.declinedPersons()[0].id).toBe('p3');
+    });
+  });
+
   // ── filtering ──────────────────────────────────────────────────────────────
 
   describe('filtering', () => {

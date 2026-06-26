@@ -463,6 +463,70 @@ describe('TroncViewComponent', () => {
     expect(emitted).toEqual(['base-99']);
   });
 
+  // ── getAttendanceColor ────────────────────────────────────────────────────
+
+  describe('getAttendanceColor', () => {
+    it('ASSISTIT → green regardless of isPast', () => {
+      const a = makeAssignment('node-1', 'Pepet');
+      fixture.componentRef.setInput('assignments', [a]);
+      fixture.componentRef.setInput('attendanceMap', new Map([['person-node-1', 'ASSISTIT']]));
+      fixture.detectChanges();
+      expect(component.getAttendanceColor(a)).toBe('oklch(var(--su))');
+    });
+
+    it('ANIRE → green for future event (isPast=false)', () => {
+      const a = makeAssignment('node-1', 'Pepet');
+      fixture.componentRef.setInput('assignments', [a]);
+      fixture.componentRef.setInput('attendanceMap', new Map([['person-node-1', 'ANIRE']]));
+      fixture.componentRef.setInput('isPast', false);
+      fixture.detectChanges();
+      expect(component.getAttendanceColor(a)).toBe('oklch(var(--su))');
+    });
+
+    it('ANIRE → amber for past event (isPast=true)', () => {
+      const a = makeAssignment('node-1', 'Pepet');
+      fixture.componentRef.setInput('assignments', [a]);
+      fixture.componentRef.setInput('attendanceMap', new Map([['person-node-1', 'ANIRE']]));
+      fixture.componentRef.setInput('isPast', true);
+      fixture.detectChanges();
+      expect(component.getAttendanceColor(a)).toBe('oklch(var(--wa))');
+    });
+
+    it('NO_VAIG → red regardless of isPast', () => {
+      const a = makeAssignment('node-1', 'Pepet');
+      fixture.componentRef.setInput('assignments', [a]);
+      fixture.componentRef.setInput('attendanceMap', new Map([['person-node-1', 'NO_VAIG']]));
+      fixture.detectChanges();
+      expect(component.getAttendanceColor(a)).toBe('oklch(var(--er))');
+    });
+
+    it('PENDENT → muted for future event (isPast=false)', () => {
+      const a = makeAssignment('node-1', 'Pepet');
+      fixture.componentRef.setInput('assignments', [a]);
+      fixture.componentRef.setInput('attendanceMap', new Map([['person-node-1', 'PENDENT']]));
+      fixture.componentRef.setInput('isPast', false);
+      fixture.detectChanges();
+      expect(component.getAttendanceColor(a)).toBe('oklch(var(--bc) / 0.2)');
+    });
+
+    it('PENDENT → red for past event (isPast=true)', () => {
+      const a = makeAssignment('node-1', 'Pepet');
+      fixture.componentRef.setInput('assignments', [a]);
+      fixture.componentRef.setInput('attendanceMap', new Map([['person-node-1', 'PENDENT']]));
+      fixture.componentRef.setInput('isPast', true);
+      fixture.detectChanges();
+      expect(component.getAttendanceColor(a)).toBe('oklch(var(--er))');
+    });
+
+    it('no status → muted fallback', () => {
+      const a = makeAssignment('node-1', 'Pepet');
+      fixture.componentRef.setInput('assignments', [a]);
+      fixture.componentRef.setInput('attendanceMap', new Map());
+      fixture.detectChanges();
+      expect(component.getAttendanceColor(a)).toBe('oklch(var(--bc) / 0.2)');
+    });
+  });
+
   // ── No-tronc state ────────────────────────────────────────────────────────
 
   it('hasTronc is false when no nodes exist', () => {

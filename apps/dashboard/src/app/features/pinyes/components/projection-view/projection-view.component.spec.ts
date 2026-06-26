@@ -83,7 +83,7 @@ describe('ProjectionViewComponent', () => {
     await TestBed.configureTestingModule({
       imports: [ProjectionViewComponent],
       providers: [
-        { provide: ProjectionService, useValue: { getProjection: vi.fn().mockReturnValue(of({ segment: { id: 's1', name: null, sortOrder: 0, prevSegmentId: null, nextSegmentId: null }, instances: [] })) } },
+        { provide: ProjectionService, useValue: { getProjection: vi.fn().mockReturnValue(of({ segment: { id: 's1', name: null, sortOrder: 0, prevSegmentId: null, nextSegmentId: null }, instances: [], personAttendance: {} })) } },
         { provide: ToastService, useValue: { error: vi.fn() } },
         { provide: Router, useValue: { navigate: vi.fn() } },
         { provide: ActivatedRoute, useValue: { snapshot: { params: { eventId: 'e1', segmentId: 's1' } } } },
@@ -99,6 +99,36 @@ describe('ProjectionViewComponent', () => {
     fixture = TestBed.createComponent(ProjectionViewComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
+  });
+
+  // ── attendanceMap ────────────────────────────────────────────────────────────
+
+  describe('attendanceMap', () => {
+    it('is empty map when personAttendance is not provided', () => {
+      expect(component.attendanceMap().size).toBe(0);
+    });
+
+    it('builds Map from personAttendance object', () => {
+      component.segmentData.set({
+        segment: { id: 's1', name: null, sortOrder: 0, prevSegmentId: null, nextSegmentId: null },
+        instances: [],
+        personAttendance: { 'person-1': 'ASSISTIT', 'person-2': 'NO_VAIG' },
+      } as Parameters<typeof component.segmentData.set>[0]);
+
+      const map = component.attendanceMap();
+      expect(map.get('person-1')).toBe('ASSISTIT');
+      expect(map.get('person-2')).toBe('NO_VAIG');
+    });
+
+    it('returns an empty map when personAttendance is empty', () => {
+      component.segmentData.set({
+        segment: { id: 's1', name: null, sortOrder: 0, prevSegmentId: null, nextSegmentId: null },
+        instances: [],
+        personAttendance: {},
+      } as Parameters<typeof component.segmentData.set>[0]);
+
+      expect(component.attendanceMap().size).toBe(0);
+    });
   });
 
   // ── getInstanceProjectionNodes ───────────────────────────────────────────────
