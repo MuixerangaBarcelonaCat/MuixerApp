@@ -19,6 +19,7 @@ import { AssignmentDetail, HeightMode } from '../../models/assignment.model';
 import {
   calculateGhostPosition,
   isGhostEligible,
+  isGhostPositionOccupied,
 } from '../../utils/ghost-clone.util';
 import { screenToStage } from '../../utils/rengla-coordinates.util';
 import { computeFitTransform } from '../../utils/fit-to-bounds.util';
@@ -1464,6 +1465,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.hideGhost();
 
     const pos = calculateGhostPosition(node);
+    if (isGhostPositionOccupied(pos, this.nodes())) return;
     const nodeColor =
       node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR;
 
