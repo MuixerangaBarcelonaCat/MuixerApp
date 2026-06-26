@@ -18,6 +18,7 @@ import { LayoutService } from '../../../../core/services/layout.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { ProjectionService } from '../../services/projection.service';
 import { ProjectionSegmentData, ProjectionInstance } from '../../models/projection.model';
+import { AttendanceStatus } from '../../models/assignment.model';
 import { InstanceNodeItem } from '../../models/assignment.model';
 import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component';
 import { TroncViewComponent, TroncNodeItem } from '../tronc-view/tronc-view.component';
@@ -67,6 +68,18 @@ export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy
   readonly filteredInstances = computed(() => {
     const instances = this.segmentData()?.instances ?? [];
     return this.instanceId ? instances.filter((i) => i.id === this.instanceId) : instances;
+  });
+
+  /** personId → attendanceStatus, derived from the projection response. */
+  readonly attendanceMap = computed(() => {
+    const map = new Map<string, AttendanceStatus>();
+    const pa = this.segmentData()?.personAttendance;
+    if (pa) {
+      for (const [personId, status] of Object.entries(pa)) {
+        map.set(personId, status as AttendanceStatus);
+      }
+    }
+    return map;
   });
 
   /** Absolute-positioned layout cells, one per instance. */

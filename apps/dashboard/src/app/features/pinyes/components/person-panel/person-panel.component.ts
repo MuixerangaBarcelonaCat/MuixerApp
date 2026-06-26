@@ -34,6 +34,7 @@ export class PersonPanelComponent {
   readonly assignments = input<AssignmentDetail[]>([]);
   readonly heightMode = input<HeightMode>('relative');
   readonly activeNodePositionType = input<string | null>(null);
+  readonly isPast = input<boolean>(false);
 
   readonly personSelected = output<AvailablePerson>();
   readonly assignedPersonSelected = output<{ personId: string; instanceId: string }>();
@@ -67,28 +68,45 @@ export class PersonPanelComponent {
   );
 
   readonly confirmedPersons = computed(() =>
-    this.freePersons().filter((p) => isConfirmedAttendance(p.attendanceStatus)),
+    this.isPast()
+      ? this.freePersons().filter((p) => p.attendanceStatus === 'ASSISTIT')
+      : this.freePersons().filter((p) => isConfirmedAttendance(p.attendanceStatus)),
   );
 
-  readonly sortedConfirmedPersons = computed(() => {
+  private sortByPosition(persons: AvailablePerson[]): AvailablePerson[] {
     const posType = this.activeNodePositionType();
-    const persons = this.confirmedPersons();
-    console.log(posType);
-    console.log(persons);
     if (!posType) return persons;
     return [...persons].sort((a, b) => {
       const aMatch = a.positions.some((p) => (p.positionTypes ?? []).includes(posType)) ? 1 : 0;
       const bMatch = b.positions.some((p) => (p.positionTypes ?? []).includes(posType)) ? 1 : 0;
       return bMatch - aMatch;
     });
-  });
+  }
+
+  readonly sortedConfirmedPersons = computed(() =>
+    this.sortByPosition(this.confirmedPersons()),
+  );
+
+  readonly noShowPersons = computed(() =>
+    this.isPast()
+      ? this.freePersons().filter((p) => p.attendanceStatus === 'ANIRE')
+      : [],
+  );
+
+  readonly sortedNoShowPersons = computed(() =>
+    this.sortByPosition(this.noShowPersons()),
+  );
 
   readonly pendingPersons = computed(() =>
-    this.freePersons().filter((p) => p.attendanceStatus === 'PENDENT'),
+    this.isPast()
+      ? []
+      : this.freePersons().filter((p) => p.attendanceStatus === 'PENDENT'),
   );
 
   readonly declinedPersons = computed(() =>
-    this.freePersons().filter((p) => p.attendanceStatus === 'NO_VAIG'),
+    this.isPast()
+      ? this.freePersons().filter((p) => p.attendanceStatus === 'NO_VAIG' || p.attendanceStatus === 'PENDENT')
+      : this.freePersons().filter((p) => p.attendanceStatus === 'NO_VAIG'),
   );
 
   readonly assignedPersons = computed(() => {

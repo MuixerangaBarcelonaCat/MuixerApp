@@ -53,5 +53,13 @@ export const performanceRoutes: Routes = [
   syncRoute(EventType.ACTUACIO),
 ];
 
+const confirmationRoute = {
+  path: ':id/confirmation',
+  loadComponent: () =>
+    import('./components/attendance-confirmation/attendance-confirmation.component').then(
+      (m) => m.AttendanceConfirmationComponent,
+    ),
+};
+
 /** Ruta de detall d'un event sense tipus (/events/:id). */
-export const eventRoutes: Routes = [detailRoute];
+export const eventRoutes: Routes = [detailRoute, confirmationRoute];

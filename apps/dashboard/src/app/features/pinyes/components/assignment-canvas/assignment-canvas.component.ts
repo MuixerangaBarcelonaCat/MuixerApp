@@ -110,6 +110,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
   readonly eventId = signal('');
   readonly segmentId = signal('');
+  readonly isPast = signal(false);
   readonly loading = signal(false);
   readonly segment = signal<SegmentDetail | null>(null);
   readonly tabs = signal<InstanceTab[]>([]);
@@ -325,6 +326,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     const params = this.route.snapshot.params;
     this.eventId.set(params['eventId']);
     this.segmentId.set(params['segmentId']);
+    this.isPast.set(this.route.snapshot.queryParamMap.get('past') === '1');
     this.state.reset();
     this.loadSegment();
     this.loadConfirmedPersons();

@@ -369,7 +369,7 @@ export class EventListComponent implements OnInit {
   }
 
   getDeclinedCount(summary: AttendanceSummary, isPast: boolean): number {
-    return isPast ? summary.declined + summary.noShow : summary.declined;
+    return summary.declined;
   }
 
   /** Group separator to split upcoming vs past events */
@@ -381,10 +381,10 @@ export class EventListComponent implements OnInit {
   formatAttendance(item: EventListItem): string {
     const isPast = this.isEventPast(item.date, item.startTime);
     const s = item.attendanceSummary;
-    const yes = isPast ? s.attended : s.confirmed;
-    const no = isPast ? s.declined + s.noShow : s.declined;
-    const pend = s.pending;
-    return `✓${yes} ✗${no} ?${pend}`;
+    if (isPast) {
+      return `✓${s.attended} !${s.confirmed} ✗${s.declined}`;
+    }
+    return `✓${s.confirmed} ✗${s.declined} ?${s.pending}`;
   }
 
   formatAdults(item: EventListItem): string {
@@ -403,13 +403,17 @@ export class EventListComponent implements OnInit {
   private attendancePills(item: EventListItem): ColumnPill[] {
     const isPast = this.isEventPast(item.date, item.startTime);
     const s = item.attendanceSummary;
-    const yes = isPast ? s.attended : s.confirmed;
-    const no = isPast ? s.declined + s.noShow : s.declined;
-    const pend = s.pending;
+    if (isPast) {
+      return [
+        { text: `✓${s.attended}`, class: 'text-success' },
+        { text: `!${s.confirmed}`, class: 'text-warning' },
+        { text: `✗${s.declined}`, class: 'text-error' },
+      ];
+    }
     return [
-      { text: `✓${yes}`, class: 'text-success' },
-      { text: `✗${no}`, class: 'text-error' },
-      { text: `?${pend}`, class: 'text-base-content/40' },
+      { text: `✓${s.confirmed}`, class: 'text-success' },
+      { text: `✗${s.declined}`, class: 'text-error' },
+      { text: `?${s.pending}`, class: 'text-base-content/40' },
     ];
   }
 

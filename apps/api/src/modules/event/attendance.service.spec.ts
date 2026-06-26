@@ -12,7 +12,7 @@ const makePerson = (overrides: Partial<Person> = {}): Person =>
 
 const makeEvent = (): Partial<Event> => ({
   id: 'ev-1',
-  attendanceSummary: { confirmed: 0, declined: 0, pending: 0, attended: 0, noShow: 0, lateCancel: 0, children: 0, total: 0 },
+  attendanceSummary: { confirmed: 0, declined: 0, pending: 0, attended: 0, lateCancel: 0, children: 0, total: 0 },
 });
 
 const makeAttendance = (status: AttendanceStatus): Attendance =>
@@ -157,7 +157,7 @@ describe('AttendanceService', () => {
       repos.attendanceRepo.findOne = jest.fn().mockResolvedValue(att);
       service = await buildModule(repos);
 
-      const result = await service.update('ev-1', 'att-1', { status: AttendanceStatus.NO_PRESENTAT, notes: 'No va aparèixer' });
+      const result = await service.update('ev-1', 'att-1', { status: AttendanceStatus.ASSISTIT, notes: 'Va aparèixer' });
       expect(result).toHaveProperty('attendance');
       expect(result).toHaveProperty('summary');
       expect(repos.attendanceRepo.save).toHaveBeenCalled();
@@ -238,7 +238,7 @@ describe('AttendanceService', () => {
         { ...makeAttendance(AttendanceStatus.ASSISTIT), person: makePerson({ isXicalla: true }) },
         makeAttendance(AttendanceStatus.NO_VAIG),
         makeAttendance(AttendanceStatus.PENDENT),
-        makeAttendance(AttendanceStatus.NO_PRESENTAT),
+        makeAttendance(AttendanceStatus.ANIRE),
         makeAttendance(AttendanceStatus.ANIRE),
       ];
       const repos = makeRepos(attendances);
@@ -251,8 +251,7 @@ describe('AttendanceService', () => {
       expect(summary.attended).toBe(2);
       expect(summary.declined).toBe(1);
       expect(summary.pending).toBe(1);
-      expect(summary.noShow).toBe(1);
-      expect(summary.confirmed).toBe(1);
+      expect(summary.confirmed).toBe(2);
       expect(summary.children).toBe(1);
       expect(summary.total).toBe(6);
     });

@@ -196,6 +196,12 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     this.toast.success('Esdeveniment actualitzat correctament.');
   }
 
+  goToConfirmation() {
+    const ev = this.event();
+    if (!ev) return;
+    this.router.navigate(['/events', ev.id, 'confirmation']);
+  }
+
   private loadAssignmentSummary(eventId: string) {
     this.summaryLoading.set(true);
     this.nodeAssignmentService.getEventAssignmentSummary(eventId).subscribe({
@@ -468,22 +474,21 @@ export class EventDetailComponent implements OnInit, OnDestroy {
   getStatusLabel(status: AttendanceStatus): string {
     const past = this.isPast();
     const labels: Record<AttendanceStatus, string> = {
-      [AttendanceStatus.PENDENT]: 'Sense resposta',
-      [AttendanceStatus.ANIRE]: 'Aniré',
+      [AttendanceStatus.PENDENT]: past ? 'Sense resposta' : 'Pendent',
+      [AttendanceStatus.ANIRE]: past ? 'No presentat' : 'Aniré',
       [AttendanceStatus.NO_VAIG]: past ? 'No va anar' : 'No vaig',
       [AttendanceStatus.ASSISTIT]: 'Assistit',
-      [AttendanceStatus.NO_PRESENTAT]: 'No presentat',
     };
     return labels[status] ?? status;
   }
 
   getStatusBadgeClass(status: AttendanceStatus): string {
+    const past = this.isPast();
     const classes: Record<AttendanceStatus, string> = {
       [AttendanceStatus.PENDENT]: 'badge-ghost',
-      [AttendanceStatus.ANIRE]: 'badge-success',
+      [AttendanceStatus.ANIRE]: past ? 'badge-warning' : 'badge-success',
       [AttendanceStatus.NO_VAIG]: 'badge-error',
       [AttendanceStatus.ASSISTIT]: 'badge-success',
-      [AttendanceStatus.NO_PRESENTAT]: 'badge-warning',
     };
     return classes[status] ?? 'badge-ghost';
   }
@@ -501,8 +506,8 @@ export class EventDetailComponent implements OnInit, OnDestroy {
       },
       {
         label: 'No presentat',
-        value: summary.noShow,
-        icon: 'AlertTriangle',
+        value: summary.confirmed,
+        icon: 'UserMinus',
         iconClass: 'text-warning',
         hidden: !past,
       },

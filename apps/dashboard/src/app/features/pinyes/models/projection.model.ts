@@ -1,4 +1,4 @@
-import { AssignmentDetail, InstanceNodeItem } from './assignment.model';
+import { AssignmentDetail, AttendanceStatus, InstanceNodeItem } from './assignment.model';
 import { FigureMode } from './segment.model';
 
 export interface ProjectionInstance {
@@ -24,6 +24,7 @@ export interface ProjectionSegmentData {
     nextSegmentId: string | null;
   };
   instances: ProjectionInstance[];
+  personAttendance: Record<string, AttendanceStatus>;
 }
 
 export interface InstanceLayoutUpdate {

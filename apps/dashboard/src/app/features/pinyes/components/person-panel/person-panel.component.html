@@ -81,7 +81,7 @@
   <!-- Person list -->
   @if (!loading()) {
     <div class="flex-1 overflow-y-auto">
-      <!-- Confirmades (ANIRE, free) -->
+      <!-- Confirmades / Assistits -->
       <div class="px-2 pt-2 pb-1">
         <p class="text-xs font-semibold text-success mb-1">
           Confirmades ({{ confirmedPersons().length }})
@@ -116,9 +116,44 @@
           </button>
         }
         @if (confirmedPersons().length === 0) {
-          <p class="text-xs text-base-content/40 px-2 py-1">Cap persona confirmada lliure</p>
+          <p class="text-xs text-base-content/40 px-2 py-1">
+            Cap persona confirmada lliure
+          </p>
         }
       </div>
+
+      <!-- No presentades (only when isPast, ANIRE) -->
+      @if (isPast() && noShowPersons().length > 0) {
+        <div class="px-2 pb-1 border-t border-base-200">
+          <p class="text-xs font-semibold text-warning mt-1.5 mb-1">
+            No presentades ({{ noShowPersons().length }})
+          </p>
+          @for (person of sortedNoShowPersons(); track person.id) {
+            @let posType = activeNodePositionType();
+            @let matchPos = posType ? (person.positions.find(p => (p.positionTypes ?? []).includes(posType)) ?? null) : null;
+            <button
+              type="button"
+              class="w-full text-left px-2 py-1.5 rounded hover:bg-base-200 active:bg-base-300 transition-colors flex items-center justify-between gap-2 text-xs opacity-70"
+              [class.opacity-60]="posType && !matchPos"
+              (click)="selectPerson(person)"
+              [attr.aria-label]="'Seleccionar ' + person.alias"
+            >
+              <span class="flex items-center gap-1.5 min-w-0">
+                @if (matchPos) {
+                  <span
+                    class="w-2 h-2 rounded-full shrink-0"
+                    [style.background-color]="matchPos.color ?? 'currentColor'"
+                  ></span>
+                }
+                <span class="truncate">{{ person.alias }}</span>
+              </span>
+              @if (formatHeight(person) !== '-') {
+                <span class="text-base-content/50 shrink-0">{{ formatHeight(person) }}</span>
+              }
+            </button>
+          }
+        </div>
+      }
 
       <!-- Assignades (already placed in a node) -->
       @if (assignedPersons().length > 0) {
@@ -154,7 +189,7 @@
         </div>
       }
 
-      <!-- Altres (PENDENT + NO_VAIG, free) -->
+      <!-- Altres / No van venir -->
       <div class="border-t border-base-200">
         <button
           type="button"
@@ -163,24 +198,27 @@
           [attr.aria-expanded]="altresExpanded()"
           aria-controls="altres-panel"
         >
-          <span>Altres ({{ pendingPersons().length + declinedPersons().length }})</span>
+          <span>
+            {{ isPast() ? 'No van venir' : 'Altres' }}
+            ({{ pendingPersons().length + declinedPersons().length }})
+          </span>
           <i-lucide [img]="altresExpanded() ? ChevronUp : ChevronDown" class="size-3" />
         </button>
 
         @if (altresExpanded()) {
           <div id="altres-panel" class="px-2 pb-2">
-            
-            <!-- No vindran -->
+
+            <!-- No vindran / No van venir (NO_VAIG; post-event also PENDENT) -->
             @if (declinedPersons().length > 0) {
               <p class="text-xs font-medium text-error mt-1.5 mb-1">
-                No vindran ({{ declinedPersons().length }})
+                {{ isPast() ? 'No van venir' : 'No vindran' }} ({{ declinedPersons().length }})
               </p>
               @for (person of declinedPersons(); track person.id) {
                 <button
                   type="button"
                   class="w-full text-left px-2 py-1.5 rounded hover:bg-base-200 active:bg-base-300 transition-colors flex items-center justify-between gap-2 text-xs opacity-60"
                   (click)="selectPerson(person)"
-                  [attr.aria-label]="'Seleccionar ' + person.alias + ' (no vindrà)'"
+                  [attr.aria-label]="'Seleccionar ' + person.alias"
                 >
                   <span class="flex items-center gap-1.5 min-w-0">
                     <span class="line-through truncate">{{ person.alias }}</span>
@@ -194,7 +232,8 @@
                 </button>
               }
             }
-            <!-- Pendents -->
+
+            <!-- Pendents (pre-event only) -->
             @if (pendingPersons().length > 0) {
               <p class="text-xs font-medium text-warning mt-1.5 mb-1">
                 Pendents ({{ pendingPersons().length }})

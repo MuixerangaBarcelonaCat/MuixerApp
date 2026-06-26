@@ -30,6 +30,7 @@ export class AdHocNodePropertiesComponent {
   readonly assignment = input<AssignmentDetail | null>(null);
   readonly heightMode = input<HeightMode>('relative');
   readonly attendanceStatus = input<string | null>(null);
+  readonly isPast = input<boolean>(false);
   readonly closed = output<void>();
   readonly nodeUpdated = output<void>();
   readonly deleteRequested = output<string>();
@@ -64,7 +65,8 @@ export class AdHocNodePropertiesComponent {
 
   readonly attendanceBadgeClass = computed(() => {
     const status = this.attendanceStatus();
-    if (status === 'ANIRE') return 'badge-success';
+    if (status === 'ASSISTIT') return 'badge-success';
+    if (status === 'ANIRE') return this.isPast() ? 'badge-warning' : 'badge-success';
     if (status === 'NO_VAIG') return 'badge-error';
     if (status === 'PENDENT') return 'badge-warning';
     return 'badge-ghost';
@@ -72,7 +74,8 @@ export class AdHocNodePropertiesComponent {
 
   readonly attendanceLabel = computed(() => {
     const status = this.attendanceStatus();
-    if (status === 'ANIRE') return 'Vinc';
+    if (status === 'ASSISTIT') return 'Assistit';
+    if (status === 'ANIRE') return this.isPast() ? 'No presentat' : 'Vinc';
     if (status === 'NO_VAIG') return 'No vinc';
     if (status === 'PENDENT') return 'Pendent';
     return 'Assignat/da';

@@ -41,6 +41,8 @@
                   [baseNodes]="getInstanceBaseNodes(instance)"
                   [directionNodes]="getInstanceDirectionNodes(instance)"
                   [assignments]="instance.assignments"
+                  [attendanceMap]="attendanceMap()"
+                  [isPast]="true"
                 />
                 @if (!instanceId) {
                   <a
@@ -66,6 +68,8 @@
                     [baseNodes]="getInstanceBaseNodes(instance)"
                     [directionNodes]="getInstanceDirectionNodes(instance)"
                     [assignments]="instance.assignments"
+                    [attendanceMap]="attendanceMap()"
+                    [isPast]="true"
                   />
                 </div>
               </div>
@@ -77,6 +81,8 @@
                   [gridEnabled]="false"
                   [nodes]="getInstanceProjectionNodes(instance)"
                   [assignments]="instance.assignments"
+                  [attendanceMap]="attendanceMap()"
+                  [isPast]="true"
                 />
                 @if (!instanceId) {
                   <a

@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { EventSegment } from './entities/event-segment.entity';
 import { FigureInstance } from './entities/figure-instance.entity';
 import { Event } from '../event/event.entity';
+import { Attendance } from '../event/attendance.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
 import { CompositionTemplate } from '../composition/entities/composition-template.entity';
 import { EventSegmentController } from './event-segment.controller';
@@ -16,6 +17,7 @@ import { NodeAssignmentModule } from '../node-assignment/node-assignment.module'
       EventSegment,
       FigureInstance,
       Event,
+      Attendance,
       FigureTemplate,
       CompositionTemplate,
     ]),

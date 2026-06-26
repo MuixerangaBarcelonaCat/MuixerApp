@@ -3,8 +3,10 @@ export interface AttendanceSummary {
   declined: number;
   pending: number;
   attended: number;
-  noShow: number;
   lateCancel: number;
+  /** Xicalla with ANIRE or ASSISTIT — used for pre-event adult count. */
   children: number;
+  /** Xicalla with ASSISTIT — used for post-event adult count. */
+  childrenAttended: number;
   total: number;
 }

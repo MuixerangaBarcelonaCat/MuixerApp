@@ -21,7 +21,7 @@ const makeEvent = (overrides: Partial<Event> = {}): Event => ({
   information: null,
   countsForStatistics: true,
   metadata: {},
-  attendanceSummary: { confirmed: 0, declined: 0, pending: 0, attended: 69, noShow: 0, lateCancel: 0, children: 11, total: 80 },
+  attendanceSummary: { confirmed: 0, declined: 0, pending: 0, attended: 69, lateCancel: 0, children: 11, total: 80 },
   season: { id: 's1', name: 'Temporada 2025-2026' } as Season,
   legacyId: '1',
   legacyType: 'assaig',

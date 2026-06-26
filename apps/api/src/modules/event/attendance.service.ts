@@ -176,12 +176,14 @@ export class AttendanceService {
       declined: attendances.filter((a) => a.status === AttendanceStatus.NO_VAIG).length,
       pending: attendances.filter((a) => a.status === AttendanceStatus.PENDENT).length,
       attended: attendances.filter((a) => a.status === AttendanceStatus.ASSISTIT).length,
-      noShow: attendances.filter((a) => a.status === AttendanceStatus.NO_PRESENTAT).length,
       lateCancel: 0,
       children: attendances.filter(
         (a) =>
           [AttendanceStatus.ANIRE, AttendanceStatus.ASSISTIT].includes(a.status) &&
           a.person.isXicalla,
+      ).length,
+      childrenAttended: attendances.filter(
+        (a) => a.status === AttendanceStatus.ASSISTIT && a.person.isXicalla,
       ).length,
       total: attendances.length,
     };

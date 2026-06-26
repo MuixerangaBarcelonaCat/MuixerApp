@@ -1,4 +1,4 @@
-export type AttendanceStatus = 'PENDENT' | 'ANIRE' | 'NO_VAIG' | 'ASSISTIT' | 'NO_PRESENTAT';
+export type AttendanceStatus = 'PENDENT' | 'ANIRE' | 'NO_VAIG' | 'ASSISTIT';
 export type HeightMode = 'relative' | 'absolute';
 
 /** Adults confirmed for the event (pre- or post-attendance). */
