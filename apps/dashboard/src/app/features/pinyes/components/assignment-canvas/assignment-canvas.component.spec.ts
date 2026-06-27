@@ -366,12 +366,29 @@ describe('AssignmentCanvasComponent', () => {
   // ── auto-advance ──────────────────────────────────────────────────────────
 
   describe('auto-advance', () => {
-    it('after assign, advances to next empty node', () => {
+    it('after assign, advances to next empty node using smart priority order', () => {
       const nodes = makeInstanceNodes();
       component.tabs.update((tabs) => tabs.map((t) => ({ ...t, nodes })));
       stateService.assignments.set([]);
       assignmentService.assign.mockReturnValue(of(makeAssignment('inode-1', 'person-1')));
 
+      stateService.setSelectedNodeId('inode-1');
+      component.onPersonSelected(makeAvailablePerson());
+
+      // inode-3 is PINYA pinya-rest, which comes before TRONC (inode-2) in priority order
+      expect(stateService.selectedNodeId()).toBe('inode-3');
+    });
+
+    it('uses tronc buckets when the tronc panel is open, not pinya buckets', () => {
+      const nodes = makeInstanceNodes();
+      component.tabs.update((tabs) => tabs.map((t) => ({ ...t, nodes })));
+      stateService.assignments.set([]);
+      component.troncPanelOpen.set(true);
+
+      // inode-1 (BASE) is first in the tronc list; after assigning it the next
+      // visible unassigned node is inode-2 (TRONC z=1), NOT inode-3 (PINYA which
+      // is excluded from the tronc list entirely)
+      assignmentService.assign.mockReturnValue(of(makeAssignment('inode-1', 'person-1')));
       stateService.setSelectedNodeId('inode-1');
       component.onPersonSelected(makeAvailablePerson());
 

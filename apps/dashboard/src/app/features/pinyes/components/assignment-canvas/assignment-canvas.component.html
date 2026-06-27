@@ -513,10 +513,10 @@
         class="btn btn-xs btn-outline btn-error gap-1"
         (click)="openResetModal()"
         [disabled]="isLocked()"
-        aria-label="Reinicialitzar la figura: elimina totes les assignacions i torna al template original"
+        aria-label="Reinicialitza la figura: elimina totes les assignacions i torna al template original"
       >
         <i-lucide [img]="Trash2" class="size-3" />
-        Reinicialitzar
+        Reinicialitza
       </button>
     }
 
@@ -608,7 +608,7 @@
     aria-modal="true"
   >
     <div class="modal-box max-w-sm">
-      <h3 id="reset-modal-title" class="text-lg font-bold mb-3 text-error">Reinicialitzar figura</h3>
+      <h3 id="reset-modal-title" class="text-lg font-bold mb-3 text-error">Reinicialitza figura</h3>
       <p id="reset-modal-desc" class="text-sm text-base-content/70">
         Aquesta acció eliminarà
         <strong class="text-error">{{ activeTab()?.assignedCount ?? 0 }} assignacions</strong>

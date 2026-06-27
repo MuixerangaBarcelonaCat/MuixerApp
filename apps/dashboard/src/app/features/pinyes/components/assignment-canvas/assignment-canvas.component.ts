@@ -38,6 +38,7 @@ import { FigureZone, PINYA_NODE_PRESETS, DECORATION_NODE_PRESETS, DIRECTION_NODE
 import { forkJoin, Observable } from 'rxjs';
 import { UndoRedoService, UndoableAction } from '../../services/undo-redo.service';
 import { computeCordoObertOverrides } from '../../utils/cordo-obert.util';
+import { buildPinyaBuckets, buildTroncBuckets, pickNextAssignableNode } from '../../utils/assignment-order.util';
 
 interface InstanceTab {
   instanceId: string;
@@ -1366,21 +1367,18 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   // ─── Helpers ────────────────────────────────────────────────────────────
 
   private advanceToNextEmptyNode(justAssignedNodeId: string): void {
-    const nodes = this.visibleNodes().filter(
-      (n) => n.zone !== FigureZone.DECORATION,
-    );
-    const assignments = this.state.assignments();
-    const assignedNodeIds = new Set(assignments.map((a) => a.node.id));
-    const currentIndex = nodes.findIndex((n) => n.id === justAssignedNodeId);
-    if (currentIndex === -1) return;
+    const allNodes = this.activeNodes();
+    const justAssignedNode = allNodes.find((n) => n.id === justAssignedNodeId);
+    if (!justAssignedNode) return;
 
-    for (let i = currentIndex + 1; i < nodes.length; i++) {
-      if (!assignedNodeIds.has(nodes[i].id)) {
-        this.state.setSelectedNodeId(nodes[i].id);
-        return;
-      }
-    }
-    this.state.setSelectedNodeId(null);
+    const visibleIds = new Set(this.visibleNodes().map((n) => n.id));
+    const assignedIds = new Set(this.state.assignments().map((a) => a.node.id));
+
+    const buckets = this.troncPanelOpen()
+      ? buildTroncBuckets(allNodes)
+      : buildPinyaBuckets(allNodes);
+    const next = pickNextAssignableNode(buckets, justAssignedNodeId, assignedIds, visibleIds);
+    this.state.setSelectedNodeId(next?.id ?? null);
   }
 
   private updateTabCount(instanceId: string): void {
