@@ -534,6 +534,7 @@ export class SegmentManagerComponent implements OnInit {
     }
     const qp: Record<string, string> = { returnUrl: this.currentReturnUrl() };
     if (this.isPast()) qp['past'] = '1';
+    if (this.viewMode() === 'troncs') qp['view'] = 'tronc';
     this.router.navigate(route, { queryParams: qp });
   }
 

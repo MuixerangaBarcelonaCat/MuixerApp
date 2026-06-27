@@ -447,6 +447,47 @@ describe('AssignmentCanvasComponent', () => {
       expect(stateService.activeInstanceId()).toBe(secondInstanceId);
       expect(assignmentService.getByInstance).toHaveBeenCalledWith(secondInstanceId);
     });
+
+    it('selectTab uses tronc view when defaultView is tronc, even for pinya figures', () => {
+      component.defaultView.set('tronc');
+
+      const secondInstanceId = 'instance-uuid-2';
+      component.tabs.update((list) => [
+        ...list,
+        {
+          instanceId: secondInstanceId, label: 'pd3', figureTemplateId: TEMPLATE_ID,
+          snapshotted: false, hasPinya: true, figureMode: 'COMPLETA' as const, numberOfCordons: null,
+          nodes: [], assignedCount: 0, totalCount: 0,
+        },
+      ]);
+
+      component.selectTab(secondInstanceId);
+
+      expect(component.viewMode()).toBe('tronc');
+      expect(component.troncPanelOpen()).toBe(true);
+    });
+
+    it('selectTab uses pinya view for pinya figures when defaultView is null', () => {
+      component.defaultView.set(null);
+
+      const secondInstanceId = 'instance-uuid-2';
+      component.tabs.update((list) => [
+        ...list,
+        {
+          instanceId: secondInstanceId, label: 'pd3', figureTemplateId: TEMPLATE_ID,
+          snapshotted: false, hasPinya: true, figureMode: 'COMPLETA' as const, numberOfCordons: null,
+          nodes: [], assignedCount: 0, totalCount: 0,
+        },
+      ]);
+
+      component.selectTab(secondInstanceId);
+
+      expect(component.viewMode()).toBe('pinya');
+    });
+
+    it('defaultView is null by default (pinya mode preserved)', () => {
+      expect(component.defaultView()).toBeNull();
+    });
   });
 
   // ── bottom bar ────────────────────────────────────────────────────────────

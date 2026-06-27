@@ -63,9 +63,10 @@ export class AttendanceEditModalComponent implements OnChanges {
 
   statusButtonClass(status: AttendanceStatus): string {
     const isSelected = this.selectedStatus() === status;
+    const past = this.isPast();
     const base = 'btn btn-sm';
     const map: Record<AttendanceStatus, string> = {
-      [AttendanceStatus.ANIRE]: isSelected ? 'btn-success' : 'btn-outline btn-success',
+      [AttendanceStatus.ANIRE]: past? (isSelected ? 'btn-warning' : 'btn-outline btn-warning') : (isSelected ? 'btn-success' : 'btn-outline btn-success'),
       [AttendanceStatus.NO_VAIG]: isSelected ? 'btn-error' : 'btn-outline btn-error',
       [AttendanceStatus.PENDENT]: isSelected ? 'btn-ghost btn-active' : 'btn-ghost',
       [AttendanceStatus.ASSISTIT]: isSelected ? 'btn-success' : 'btn-outline btn-success',

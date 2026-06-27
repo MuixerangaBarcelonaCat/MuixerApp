@@ -41,6 +41,7 @@ describe('AttendanceService', () => {
       leftJoinAndSelect: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
+      setParameter: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
       skip: jest.fn().mockReturnThis(),
       take: jest.fn().mockReturnThis(),
@@ -106,6 +107,20 @@ describe('AttendanceService', () => {
         'attendance.status = :status',
         { status: AttendanceStatus.ASSISTIT },
       );
+    });
+
+    it('filters by positionIds when provided', async () => {
+      const repos = makeRepos([makeAttendance(AttendanceStatus.ANIRE)]);
+      service = await buildModule(repos);
+      await service.findByEvent('ev-1', { positionIds: ['pos-1'] });
+      expect(repos.attendanceRepo.attQb.setParameter).toHaveBeenCalledWith('positionIds', ['pos-1']);
+    });
+
+    it('does not add positionIds filter when array is empty', async () => {
+      const repos = makeRepos([makeAttendance(AttendanceStatus.ANIRE)]);
+      service = await buildModule(repos);
+      await service.findByEvent('ev-1', { positionIds: [] });
+      expect(repos.attendanceRepo.attQb.setParameter).not.toHaveBeenCalled();
     });
   });
 

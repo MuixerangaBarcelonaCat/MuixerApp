@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import { EventDetailComponent } from './event-detail.component';
 import { AttendanceStatus } from '@muixer/shared';
 import { AttendanceSummary } from '../../models/event.model';
@@ -209,5 +210,15 @@ describe('EventDetailComponent — getStatusBadgeClass', () => {
     it('NO_VAIG → badge-error for past event', () => {
       expect(component.getStatusBadgeClass(AttendanceStatus.NO_VAIG)).toBe('badge-error');
     });
+  });
+});
+
+describe('EventDetailComponent — navigateToPerson', () => {
+  it('navigates to /persons/:id', () => {
+    const comp = Object.create(EventDetailComponent.prototype) as EventDetailComponent;
+    const navigateMock = vi.fn();
+    (comp as unknown as { router: unknown }).router = { navigate: navigateMock };
+    comp.navigateToPerson('person-123');
+    expect(navigateMock).toHaveBeenCalledWith(['/persons', 'person-123']);
   });
 });

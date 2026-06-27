@@ -154,6 +154,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly decorationPickerOpen = signal(false);
 
   readonly viewMode = signal<'pinya' | 'tronc' | 'decoration' | 'projecta'>('pinya');
+  readonly defaultView = signal<'tronc' | null>(null);
 
   private lastMoveUndoTime = 0;
   private lastMoveNodeId: string | null = null;
@@ -328,6 +329,8 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     this.eventId.set(params['eventId']);
     this.segmentId.set(params['segmentId']);
     this.isPast.set(this.route.snapshot.queryParamMap.get('past') === '1');
+    const viewParam = this.route.snapshot.queryParamMap.get('view');
+    this.defaultView.set(viewParam === 'tronc' ? 'tronc' : null);
     this.state.reset();
     this.loadSegment();
     this.loadConfirmedPersons();
@@ -652,7 +655,8 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     this.loadTabData(instanceId);
 
     const tab = this.tabs().find((t) => t.instanceId === instanceId);
-    this.setViewMode(tab && (!tab.hasPinya || tab.figureMode === 'REMAT' || tab.figureMode === 'NETA') ? 'tronc' : 'pinya');
+    const isTroncOnly = tab && (!tab.hasPinya || tab.figureMode === 'REMAT' || tab.figureMode === 'NETA');
+    this.setViewMode(isTroncOnly || this.defaultView() === 'tronc' ? 'tronc' : 'pinya');
   }
 
   private loadTabData(instanceId: string): void {
