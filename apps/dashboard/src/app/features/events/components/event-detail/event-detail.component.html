@@ -340,19 +340,23 @@
                 @for (att of attendances(); track att.id) {
                   <tr class="hover">
                     <td class="font-medium text-sm whitespace-nowrap">
-                      <!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
                       <span
                         class="link link-hover cursor-pointer"
+                        tabindex="0"
+                        role="link"
                         (click)="navigateToPerson(att.person.id)"
+                        (keydown.enter)="navigateToPerson(att.person.id)"
                         [attr.title]="'Veure ' + att.person.alias"
                       >{{ att.person.alias }}</span>
                       @if (att.person.isProvisional) { <span class="badge badge-xs badge-warning ml-1">Prov.</span> }
                     </td>
                     <td class="text-sm text-base-content/70 whitespace-nowrap">
-                      <!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
                       <span
                         class="link link-hover cursor-pointer"
+                        tabindex="0"
+                        role="link"
                         (click)="navigateToPerson(att.person.id)"
+                        (keydown.enter)="navigateToPerson(att.person.id)"
                       >{{ att.person.name }} {{ att.person.firstSurname }}</span>
                     </td>
                     <td>

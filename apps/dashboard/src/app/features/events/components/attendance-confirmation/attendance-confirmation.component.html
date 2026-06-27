@@ -69,12 +69,14 @@
     } @else {
       <div class="flex-1 overflow-y-auto flex flex-col gap-2 px-4 pb-4">
         @for (att of results(); track att.id) {
-          <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -->
           <div
             class="bg-white rounded-2xl px-5 py-7 flex items-center gap-4 cursor-pointer select-none shadow-sm transition-all hover:shadow-md active:scale-[0.99]"
             [class.opacity-40]="confirmingId() === att.id"
             [class.pointer-events-none]="confirmingId() !== null"
+            tabindex="0"
+            role="button"
             (click)="confirm(att)"
+            (keydown.enter)="confirm(att)"
           >
             @if (confirmingId() === att.id) {
               <span class="loading loading-spinner loading-sm text-primary shrink-0"></span>
