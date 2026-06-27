@@ -70,6 +70,7 @@ export class TroncViewComponent {
 
   /** personId → AttendanceStatus for the next actuació */
   readonly attendanceMap = input<Map<string, AttendanceStatus>>(new Map());
+  readonly isPast = input<boolean>(false);
 
   readonly directionNodes = input<TroncNodeItem[]>([]);
 
@@ -386,8 +387,11 @@ export class TroncViewComponent {
 
   getAttendanceColor(assignment: AssignmentDetail): string {
     const status = this.getAttendanceStatus(assignment);
-    if (status === 'ANIRE' || status === 'ASSISTIT') return 'oklch(var(--su))';
-    if (status === 'NO_VAIG' || status === 'NO_PRESENTAT') return 'oklch(var(--er))';
+    const past = this.isPast();
+    if (status === 'ASSISTIT') return 'oklch(var(--su))';
+    if (status === 'ANIRE') return past ? 'oklch(var(--wa))' : 'oklch(var(--su))';
+    if (status === 'NO_VAIG') return 'oklch(var(--er))';
+    if (status === 'PENDENT') return past ? 'oklch(var(--er))' : 'oklch(var(--bc) / 0.2)';
     return 'oklch(var(--bc) / 0.2)';
   }
 

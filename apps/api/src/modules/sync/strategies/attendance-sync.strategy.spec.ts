@@ -82,7 +82,7 @@ describe('AttendanceSyncStrategy', () => {
     describe('past ASSAIG', () => {
       it.each([
         ['Vinc', AttendanceStatus.ASSISTIT],
-        ['Potser', AttendanceStatus.NO_PRESENTAT],
+        ['Potser', AttendanceStatus.ANIRE],
         ['No vinc', AttendanceStatus.NO_VAIG],
         [null, AttendanceStatus.PENDENT],
       ])('estat=%s → %s', (estat, expected) => {
@@ -107,7 +107,7 @@ describe('AttendanceSyncStrategy', () => {
         ['Vinc amb autocar', AttendanceStatus.ASSISTIT],
         ['Vinc amb cotxe', AttendanceStatus.ASSISTIT],
         ['No vinc', AttendanceStatus.NO_VAIG],
-        ['Potser', AttendanceStatus.NO_PRESENTAT],
+        ['Potser', AttendanceStatus.ANIRE],
         [null, AttendanceStatus.PENDENT],
       ])('estat=%s → %s', (estat, expected) => {
         expect(strategy.mapAttendanceStatus(estat as XlsxAttendanceRow['estat'], EventType.ACTUACIO, true)).toBe(expected);

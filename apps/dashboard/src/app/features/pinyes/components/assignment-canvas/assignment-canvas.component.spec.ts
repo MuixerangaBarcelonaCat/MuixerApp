@@ -34,6 +34,7 @@ class StubFigureCanvas {
   readonly highlightedNodeIds = input<Set<string>>(new Set());
   readonly isPlacementMode = input<boolean>(false);
   readonly decorationOpacity = input<number>(1);
+  readonly isPast = input<boolean>(false);
   readonly nodeSelected = output<string | null>();
   readonly nodeClicked = output<{ nodeId: string; x: number; y: number }>();
   readonly nodeDoubleClicked = output<string>();
@@ -50,6 +51,7 @@ class StubPersonPanel {
   readonly assignments = input<AssignmentDetail[]>([]);
   readonly heightMode = input<string>('relative');
   readonly activeNodePositionType = input<string | null>(null);
+  readonly isPast = input<boolean>(false);
   readonly personSelected = output<AvailablePerson>();
   readonly assignedPersonSelected = output<{ personId: string; instanceId: string }>();
 }
@@ -86,6 +88,7 @@ class StubTroncView {
   readonly heightMode = input<string>('relative');
   readonly highlightedNodeIds = input<Set<string>>(new Set());
   readonly attendanceMap = input<Map<string, string>>(new Map());
+  readonly isPast = input<boolean>(false);
   readonly nodeSelected = output<string | null>();
   readonly nodeClicked = output<{ nodeId: string; event: MouseEvent }>();
   readonly nodeUnassigned = output<string>();
@@ -240,7 +243,7 @@ describe('AssignmentCanvasComponent', () => {
         { provide: Router, useValue: routerMock },
         {
           provide: ActivatedRoute,
-          useValue: { snapshot: { params: { eventId: EVENT_ID, segmentId: SEGMENT_ID } } },
+          useValue: { snapshot: { params: { eventId: EVENT_ID, segmentId: SEGMENT_ID }, queryParamMap: { get: vi.fn().mockReturnValue(null) } } },
         },
         allLucideIconsProvider,
       ],
@@ -363,12 +366,29 @@ describe('AssignmentCanvasComponent', () => {
   // ── auto-advance ──────────────────────────────────────────────────────────
 
   describe('auto-advance', () => {
-    it('after assign, advances to next empty node', () => {
+    it('after assign, advances to next empty node using smart priority order', () => {
       const nodes = makeInstanceNodes();
       component.tabs.update((tabs) => tabs.map((t) => ({ ...t, nodes })));
       stateService.assignments.set([]);
       assignmentService.assign.mockReturnValue(of(makeAssignment('inode-1', 'person-1')));
 
+      stateService.setSelectedNodeId('inode-1');
+      component.onPersonSelected(makeAvailablePerson());
+
+      // inode-3 is PINYA pinya-rest, which comes before TRONC (inode-2) in priority order
+      expect(stateService.selectedNodeId()).toBe('inode-3');
+    });
+
+    it('uses tronc buckets when the tronc panel is open, not pinya buckets', () => {
+      const nodes = makeInstanceNodes();
+      component.tabs.update((tabs) => tabs.map((t) => ({ ...t, nodes })));
+      stateService.assignments.set([]);
+      component.troncPanelOpen.set(true);
+
+      // inode-1 (BASE) is first in the tronc list; after assigning it the next
+      // visible unassigned node is inode-2 (TRONC z=1), NOT inode-3 (PINYA which
+      // is excluded from the tronc list entirely)
+      assignmentService.assign.mockReturnValue(of(makeAssignment('inode-1', 'person-1')));
       stateService.setSelectedNodeId('inode-1');
       component.onPersonSelected(makeAvailablePerson());
 
@@ -426,6 +446,47 @@ describe('AssignmentCanvasComponent', () => {
       component.selectTab(secondInstanceId);
       expect(stateService.activeInstanceId()).toBe(secondInstanceId);
       expect(assignmentService.getByInstance).toHaveBeenCalledWith(secondInstanceId);
+    });
+
+    it('selectTab uses tronc view when defaultView is tronc, even for pinya figures', () => {
+      component.defaultView.set('tronc');
+
+      const secondInstanceId = 'instance-uuid-2';
+      component.tabs.update((list) => [
+        ...list,
+        {
+          instanceId: secondInstanceId, label: 'pd3', figureTemplateId: TEMPLATE_ID,
+          snapshotted: false, hasPinya: true, figureMode: 'COMPLETA' as const, numberOfCordons: null,
+          nodes: [], assignedCount: 0, totalCount: 0,
+        },
+      ]);
+
+      component.selectTab(secondInstanceId);
+
+      expect(component.viewMode()).toBe('tronc');
+      expect(component.troncPanelOpen()).toBe(true);
+    });
+
+    it('selectTab uses pinya view for pinya figures when defaultView is null', () => {
+      component.defaultView.set(null);
+
+      const secondInstanceId = 'instance-uuid-2';
+      component.tabs.update((list) => [
+        ...list,
+        {
+          instanceId: secondInstanceId, label: 'pd3', figureTemplateId: TEMPLATE_ID,
+          snapshotted: false, hasPinya: true, figureMode: 'COMPLETA' as const, numberOfCordons: null,
+          nodes: [], assignedCount: 0, totalCount: 0,
+        },
+      ]);
+
+      component.selectTab(secondInstanceId);
+
+      expect(component.viewMode()).toBe('pinya');
+    });
+
+    it('defaultView is null by default (pinya mode preserved)', () => {
+      expect(component.defaultView()).toBeNull();
     });
   });
 

@@ -51,6 +51,7 @@ interface PendingModeChange {
 export class SegmentManagerComponent implements OnInit {
   eventId = input.required<string>();
   isLocked = input<boolean>(false);
+  isPast = input<boolean>(false);
   readonly ICON_FIGURA = ICON_FIGURA;
   readonly ICON_PERSONA = ICON_PERSONA;
   readonly ICON_COMPOSITION = ICON_COMPOSITION;
@@ -531,7 +532,10 @@ export class SegmentManagerComponent implements OnInit {
     if (instanceId) {
       route.push(instanceId);
     }
-    this.router.navigate(route, { queryParams: { returnUrl: this.currentReturnUrl() } });
+    const qp: Record<string, string> = { returnUrl: this.currentReturnUrl() };
+    if (this.isPast()) qp['past'] = '1';
+    if (this.viewMode() === 'troncs') qp['view'] = 'tronc';
+    this.router.navigate(route, { queryParams: qp });
   }
 
   navigateToProjection(segmentId: string): void {

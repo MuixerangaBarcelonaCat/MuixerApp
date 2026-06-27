@@ -161,7 +161,7 @@ describe('EventController', () => {
   // --- updateAttendance ---
   describe('updateAttendance', () => {
     it('delegates to attendanceService.update', async () => {
-      const dto = { status: AttendanceStatus.NO_PRESENTAT, notes: 'No va aparèixer' };
+      const dto = { status: AttendanceStatus.ASSISTIT, notes: 'Va aparèixer' };
       await controller.updateAttendance('ev-uuid', 'att-uuid', dto);
       expect(attendanceService.update).toHaveBeenCalledWith('ev-uuid', 'att-uuid', dto);
     });

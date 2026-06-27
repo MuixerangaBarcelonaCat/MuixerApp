@@ -30,7 +30,7 @@ export class AttendanceService {
       throw new NotFoundException(`Event with ID ${eventId} not found`);
     }
 
-    const { status, search, page = 1, limit = 100 } = filters;
+    const { status, search, positionIds, page = 1, limit = 100 } = filters;
 
     const qb = this.attendanceRepository
       .createQueryBuilder('attendance')
@@ -47,6 +47,20 @@ export class AttendanceService {
         '(unaccent(person.alias) ILIKE unaccent(:search) OR unaccent(person.name) ILIKE unaccent(:search) OR unaccent(person.firstSurname) ILIKE unaccent(:search))',
         { search: `%${search}%` },
       );
+    }
+
+    if (positionIds && positionIds.length > 0) {
+      qb.andWhere((subQb) => {
+        const subQuery = subQb
+          .subQuery()
+          .select('sub_person.id')
+          .from(Person, 'sub_person')
+          .innerJoin('sub_person.positions', 'sub_position')
+          .where('sub_position.id IN (:...positionIds)')
+          .getQuery();
+        return 'person.id IN ' + subQuery;
+      });
+      qb.setParameter('positionIds', positionIds);
     }
 
     const total = await qb.getCount();
@@ -176,12 +190,14 @@ export class AttendanceService {
       declined: attendances.filter((a) => a.status === AttendanceStatus.NO_VAIG).length,
       pending: attendances.filter((a) => a.status === AttendanceStatus.PENDENT).length,
       attended: attendances.filter((a) => a.status === AttendanceStatus.ASSISTIT).length,
-      noShow: attendances.filter((a) => a.status === AttendanceStatus.NO_PRESENTAT).length,
       lateCancel: 0,
       children: attendances.filter(
         (a) =>
           [AttendanceStatus.ANIRE, AttendanceStatus.ASSISTIT].includes(a.status) &&
           a.person.isXicalla,
+      ).length,
+      childrenAttended: attendances.filter(
+        (a) => a.status === AttendanceStatus.ASSISTIT && a.person.isXicalla,
       ).length,
       total: attendances.length,
     };

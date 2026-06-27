@@ -27,6 +27,7 @@ export interface AttendanceItem {
 export interface AttendanceFilterParams {
   status?: AttendanceStatus;
   search?: string;
+  positionIds?: string[];
   page?: number;
   limit?: number;
 }

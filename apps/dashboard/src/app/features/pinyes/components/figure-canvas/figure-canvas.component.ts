@@ -19,6 +19,7 @@ import { AssignmentDetail, HeightMode } from '../../models/assignment.model';
 import {
   calculateGhostPosition,
   isGhostEligible,
+  isGhostPositionOccupied,
 } from '../../utils/ghost-clone.util';
 import { screenToStage } from '../../utils/rengla-coordinates.util';
 import { computeFitTransform } from '../../utils/fit-to-bounds.util';
@@ -169,6 +170,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   readonly highlightedNodeIds = input<Set<string>>(new Set());
   readonly isPlacementMode = input<boolean>(false);
   readonly decorationOpacity = input<number>(1);
+  readonly isPast = input<boolean>(false);
 
   readonly nodeSelected = output<string | null>();
   readonly nodeClicked = output<{ nodeId: string; x: number; y: number }>();
@@ -922,9 +924,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     const assignmentByNodeId = new Map(assignments.map((a) => [a.node.id, a]));
     const highlighted = this.highlightedNodeIds();
 
+    const past = this.isPast();
     const ATTENDANCE_COLORS: Record<string, string> = {
-      ANIRE: '#22c55e',
-      PENDENT: '#f59e0b',
+      ANIRE: past ? '#f59e0b' : '#22c55e',
+      ASSISTIT: '#22c55e',
+      PENDENT: past ? '#ef4444' : '#f59e0b',
       NO_VAIG: '#ef4444',
     };
 
@@ -1043,8 +1047,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         }
 
         const attendanceStatus = attendanceMap.get(assignment.person.id);
-        if (attendanceStatus) {
-          const badgeColor = ATTENDANCE_COLORS[attendanceStatus] ?? '#6b7280';
+        const badgeColor = attendanceStatus ? ATTENDANCE_COLORS[attendanceStatus] : undefined;
+        if (badgeColor && attendanceStatus !== 'ASSISTIT') {
           group.add(
             new Konva.Circle({
               x: node.width / 2 - 5,
@@ -1171,6 +1175,14 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
     const assignments = this.assignments();
     const assignmentByNodeId = new Map(assignments.map((a) => [a.node.id, a]));
+    const attendanceMap = this.attendanceMap();
+    const past = this.isPast();
+    const ATTENDANCE_COLORS: Record<string, string> = {
+      ANIRE: past ? '#f59e0b' : '#22c55e',
+      ASSISTIT: '#22c55e',
+      PENDENT: past ? '#ef4444' : '#f59e0b',
+      NO_VAIG: '#ef4444',
+    };
 
     for (const node of this.nodes()) {
       const assignment = assignmentByNodeId.get(node.id);
@@ -1234,6 +1246,24 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           ellipsis: false,
         }),
       );
+
+      if (assignment) {
+        const attendanceStatus = attendanceMap.get(assignment.person.id);
+        const badgeColor = attendanceStatus ? ATTENDANCE_COLORS[attendanceStatus] : undefined;
+        if (badgeColor && attendanceStatus !== 'ASSISTIT') {
+          group.add(
+            new Konva.Circle({
+              x: node.width / 2 - 5,
+              y: -node.height / 2 + 5,
+              radius: 5,
+              fill: badgeColor,
+              stroke: '#ffffff',
+              strokeWidth: 1,
+              listening: false,
+            }),
+          );
+        }
+      }
 
       this.pinyaLayer.add(group);
     }
@@ -1435,6 +1465,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.hideGhost();
 
     const pos = calculateGhostPosition(node);
+    if (isGhostPositionOccupied(pos, this.nodes())) return;
     const nodeColor =
       node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR;
 

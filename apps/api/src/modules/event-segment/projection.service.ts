@@ -3,8 +3,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EventSegment } from './entities/event-segment.entity';
 import { FigureInstance } from './entities/figure-instance.entity';
+import { Attendance } from '../event/attendance.entity';
 import { NodeAssignmentService, AssignmentDetail, InstanceNodeResponse } from '../node-assignment/node-assignment.service';
-import { FigureMode } from '@muixer/shared';
+import { AttendanceStatus, FigureMode } from '@muixer/shared';
 
 interface ProjectionInstanceData {
   id: string;
@@ -29,6 +30,8 @@ export interface ProjectionData {
     nextSegmentId: string | null;
   };
   instances: ProjectionInstanceData[];
+  /** personId → AttendanceStatus for all attendances in this event */
+  personAttendance: Record<string, AttendanceStatus>;
 }
 
 @Injectable()
@@ -38,6 +41,8 @@ export class ProjectionService {
     private readonly segmentRepository: Repository<EventSegment>,
     @InjectRepository(FigureInstance)
     private readonly instanceRepository: Repository<FigureInstance>,
+    @InjectRepository(Attendance)
+    private readonly attendanceRepository: Repository<Attendance>,
     private readonly nodeAssignmentService: NodeAssignmentService,
   ) {}
 
@@ -105,6 +110,16 @@ export class ProjectionService {
       });
     }
 
+    const attendances = await this.attendanceRepository.find({
+      where: { event: { id: eventId } },
+      relations: ['person'],
+      select: { id: true, status: true, person: { id: true } },
+    });
+    const personAttendance: Record<string, AttendanceStatus> = {};
+    for (const a of attendances) {
+      personAttendance[a.person.id] = a.status;
+    }
+
     return {
       segment: {
         id: segment.id,
@@ -114,6 +129,7 @@ export class ProjectionService {
         nextSegmentId,
       },
       instances: projectionInstances,
+      personAttendance,
     };
   }
 }

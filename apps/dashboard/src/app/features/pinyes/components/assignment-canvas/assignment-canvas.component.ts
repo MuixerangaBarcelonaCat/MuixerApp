@@ -38,6 +38,7 @@ import { FigureZone, PINYA_NODE_PRESETS, DECORATION_NODE_PRESETS, DIRECTION_NODE
 import { forkJoin, Observable } from 'rxjs';
 import { UndoRedoService, UndoableAction } from '../../services/undo-redo.service';
 import { computeCordoObertOverrides } from '../../utils/cordo-obert.util';
+import { buildPinyaBuckets, buildTroncBuckets, pickNextAssignableNode } from '../../utils/assignment-order.util';
 
 interface InstanceTab {
   instanceId: string;
@@ -110,6 +111,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
   readonly eventId = signal('');
   readonly segmentId = signal('');
+  readonly isPast = signal(false);
   readonly loading = signal(false);
   readonly segment = signal<SegmentDetail | null>(null);
   readonly tabs = signal<InstanceTab[]>([]);
@@ -152,6 +154,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly decorationPickerOpen = signal(false);
 
   readonly viewMode = signal<'pinya' | 'tronc' | 'decoration' | 'projecta'>('pinya');
+  readonly defaultView = signal<'tronc' | null>(null);
 
   private lastMoveUndoTime = 0;
   private lastMoveNodeId: string | null = null;
@@ -325,6 +328,9 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     const params = this.route.snapshot.params;
     this.eventId.set(params['eventId']);
     this.segmentId.set(params['segmentId']);
+    this.isPast.set(this.route.snapshot.queryParamMap.get('past') === '1');
+    const viewParam = this.route.snapshot.queryParamMap.get('view');
+    this.defaultView.set(viewParam === 'tronc' ? 'tronc' : null);
     this.state.reset();
     this.loadSegment();
     this.loadConfirmedPersons();
@@ -532,12 +538,23 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     });
   }
 
+  private computeInstanceLabel(base: string, figureMode: string): string {
+    if (figureMode === 'PEU') return `Peu de ${base}`;
+    if (figureMode === 'REMAT') return `Remat de ${base}`;
+    if (figureMode === 'NETA') {
+      const firstWord = base.trim().split(/\s+/)[0] ?? '';
+      const suffix = firstWord.endsWith('a') ? 'neta' : 'net';
+      return `${base} ${suffix}`;
+    }
+    return base;
+  }
+
   private buildTabs(seg: SegmentDetail): void {
     const tabBuilders = seg.instances
       .filter((i) => !!i.figureTemplate)
       .map((instance): InstanceTab => ({
         instanceId: instance.id,
-        label: instance.label ?? instance.figureTemplate?.name ?? '?',
+        label: this.computeInstanceLabel(instance.label ?? instance.figureTemplate?.name ?? '?', instance.figureMode ?? 'COMPLETA'),
         figureTemplateId: instance.figureTemplate?.id ?? null,
         hasPinya: instance.figureTemplate?.hasPinya ?? true,
         figureMode: instance.figureMode ?? 'COMPLETA',
@@ -638,7 +655,8 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     this.loadTabData(instanceId);
 
     const tab = this.tabs().find((t) => t.instanceId === instanceId);
-    this.setViewMode(tab && (!tab.hasPinya || tab.figureMode === 'REMAT' || tab.figureMode === 'NETA') ? 'tronc' : 'pinya');
+    const isTroncOnly = tab && (!tab.hasPinya || tab.figureMode === 'REMAT' || tab.figureMode === 'NETA');
+    this.setViewMode(isTroncOnly || this.defaultView() === 'tronc' ? 'tronc' : 'pinya');
   }
 
   private loadTabData(instanceId: string): void {
@@ -1353,21 +1371,18 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   // ─── Helpers ────────────────────────────────────────────────────────────
 
   private advanceToNextEmptyNode(justAssignedNodeId: string): void {
-    const nodes = this.visibleNodes().filter(
-      (n) => n.zone !== FigureZone.DECORATION,
-    );
-    const assignments = this.state.assignments();
-    const assignedNodeIds = new Set(assignments.map((a) => a.node.id));
-    const currentIndex = nodes.findIndex((n) => n.id === justAssignedNodeId);
-    if (currentIndex === -1) return;
+    const allNodes = this.activeNodes();
+    const justAssignedNode = allNodes.find((n) => n.id === justAssignedNodeId);
+    if (!justAssignedNode) return;
 
-    for (let i = currentIndex + 1; i < nodes.length; i++) {
-      if (!assignedNodeIds.has(nodes[i].id)) {
-        this.state.setSelectedNodeId(nodes[i].id);
-        return;
-      }
-    }
-    this.state.setSelectedNodeId(null);
+    const visibleIds = new Set(this.visibleNodes().map((n) => n.id));
+    const assignedIds = new Set(this.state.assignments().map((a) => a.node.id));
+
+    const buckets = this.troncPanelOpen()
+      ? buildTroncBuckets(allNodes)
+      : buildPinyaBuckets(allNodes);
+    const next = pickNextAssignableNode(buckets, justAssignedNodeId, assignedIds, visibleIds);
+    this.state.setSelectedNodeId(next?.id ?? null);
   }
 
   private updateTabCount(instanceId: string): void {

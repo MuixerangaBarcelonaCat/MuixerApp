@@ -264,8 +264,8 @@ export class EventSegmentService {
          JOIN figure_nodes fn ON fn."templateId" = fi."figureTemplateId"
          LEFT JOIN rengles r ON r.id = fn."renglaId"
          WHERE fi.id = ANY($1)
-         AND fn.zone IN ('PINYA', 'BASE')
-         AND (fi."numberOfCordons" IS NULL OR fn.zone = 'BASE' OR r."sortOrder" < fi."numberOfCordons")
+         AND fn.zone IN ('PINYA')
+         AND (fi."numberOfCordons" IS NULL OR r."sortOrder" IS NULL OR r."sortOrder" <= fi."numberOfCordons")
          GROUP BY fi.id`,
         [notSnapped.map((i) => i.id)],
       );
@@ -279,8 +279,8 @@ export class EventSegmentService {
          JOIN figure_instances fi ON fi.id = in_."figureInstanceId"
          LEFT JOIN rengles r ON r.id = in_."renglaId"
          WHERE in_."figureInstanceId" = ANY($1)
-         AND in_.zone IN ('PINYA', 'BASE')
-         AND (fi."numberOfCordons" IS NULL OR in_.zone = 'BASE' OR r."sortOrder" < fi."numberOfCordons")
+         AND in_.zone IN ('PINYA')
+         AND (fi."numberOfCordons" IS NULL OR r."sortOrder" IS NULL OR r."sortOrder" <= fi."numberOfCordons")
          GROUP BY in_."figureInstanceId"`,
         [snapped.map((i) => i.id)],
       );
