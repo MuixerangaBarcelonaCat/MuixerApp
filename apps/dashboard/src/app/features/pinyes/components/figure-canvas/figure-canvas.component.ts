@@ -23,6 +23,7 @@ import {
 } from '../../utils/ghost-clone.util';
 import { screenToStage } from '../../utils/rengla-coordinates.util';
 import { computeFitTransform } from '../../utils/fit-to-bounds.util';
+import { fitFontSize } from '../../utils/fit-font-size.util';
 import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
 
 /** Minimal node shape accepted by the canvas for rendering — both FigureNodeItem and InstanceNodeItem satisfy this */
@@ -1577,11 +1578,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
     const wrapper = this.containerRef.nativeElement.parentElement!;
 
-    const input = document.createElement('input');
-    input.type = 'text';
+    const input = document.createElement('textarea');
     input.value = node.label ?? '';
     input.className = 'label-editor';
     input.setAttribute('aria-label', "Edita l'etiqueta del node");
+    input.maxLength = 500;
 
     Object.assign(input.style, {
       position: 'absolute',
@@ -1590,6 +1591,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       width: `${inputWidth}px`,
       height: `${inputHeight}px`,
       fontSize: `${Math.max(9, 10 * stageScale)}px`,
+      resize: 'none',
+      overflowY: 'auto',
     });
 
     let committed = false;
@@ -1611,7 +1614,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     };
 
     input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
+      if (e.key === 'Enter' && e.shiftKey) {
         e.preventDefault();
         commit();
       } else if (e.key === 'Escape') {
@@ -1667,22 +1670,17 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     probe.text(text);
     probe.fontStyle(opts.fontStyle ?? 'normal');
     probe.wrap(wrap);
-    if (wrap === 'word') {
-      probe.width(maxW);
-    } else {
-      probe.width(0);
-    }
+    probe.width(wrap === 'word' ? maxW : 0);
 
-    for (let fontSize = maxFont; fontSize >= minFont; fontSize -= 0.5) {
-      probe.fontSize(fontSize);
-      const size = probe.measureSize(text);
-      const fitsWidth = wrap === 'word' || size.width <= maxW;
-      if (fitsWidth && size.height <= maxH) {
-        return { fontSize, wrap };
-      }
-    }
+    const fontSize = fitFontSize(maxFont, minFont, maxW, maxH, wrap, (fs) => {
+      probe.fontSize(fs);
+      return {
+        width: probe.getTextWidth(),
+        height: probe.getTextHeight(),
+      };
+    });
 
-    return { fontSize: minFont, wrap };
+    return { fontSize, wrap };
   }
 
   /** Returns #000 or #fff depending on background luminance */

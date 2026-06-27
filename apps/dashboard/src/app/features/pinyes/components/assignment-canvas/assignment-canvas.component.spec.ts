@@ -731,6 +731,17 @@ describe('AssignmentCanvasComponent', () => {
       expect(component.pendingLabelPreset()).toBeNull();
     });
 
+    it('confirmComodinLabel preserves multiline label with internal newlines', () => {
+      const decPreset = DECORATION_NODE_PRESETS[0];
+      component.onPresetSelected(decPreset);
+      const multilineLabel = 'Primera línia\nSegona línia';
+      component.comodinLabel.set(multilineLabel);
+
+      component.confirmComodinLabel();
+
+      expect(stateService.placementCustomLabel()).toBe(multilineLabel);
+    });
+
     it('cancelComodinInput clears pendingLabelPreset', () => {
       const decPreset = DECORATION_NODE_PRESETS[1];
       component.onPresetSelected(decPreset);
