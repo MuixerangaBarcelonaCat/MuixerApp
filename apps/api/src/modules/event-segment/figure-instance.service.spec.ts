@@ -303,6 +303,172 @@ describe('FigureInstanceService', () => {
     });
   });
 
+  describe('saveDistribution', () => {
+    it('batch-updates distribution fields for each listed instance in a transaction', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([makeInstance()]);
+      const mockUpdate = jest.fn();
+      mockDataSource.transaction.mockImplementation((cb: (m: { update: jest.Mock }) => Promise<void>) =>
+        cb({ update: mockUpdate }),
+      );
+
+      await service.saveDistribution(EVENT_ID, SEGMENT_ID, {
+        items: [
+          {
+            instanceId: INSTANCE_ID,
+            x: 100,
+            y: 200,
+            angle: 45,
+            troncPanelX: 10,
+            troncPanelY: 20,
+            troncPanelWidth: 150,
+            troncPanelHeight: 80,
+          },
+        ],
+      });
+
+      expect(mockUpdate).toHaveBeenCalledWith(
+        FigureInstance,
+        { id: INSTANCE_ID },
+        {
+          projectionX: 100,
+          projectionY: 200,
+          projectionAngle: 45,
+          troncPanelX: 10,
+          troncPanelY: 20,
+          troncPanelWidth: 150,
+          troncPanelHeight: 80,
+        },
+      );
+    });
+
+    it('allows null tronc panel fields', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([makeInstance()]);
+      const mockUpdate = jest.fn();
+      mockDataSource.transaction.mockImplementation((cb: (m: { update: jest.Mock }) => Promise<void>) =>
+        cb({ update: mockUpdate }),
+      );
+
+      await service.saveDistribution(EVENT_ID, SEGMENT_ID, {
+        items: [{ instanceId: INSTANCE_ID, x: 0, y: 0, angle: 0, troncPanelX: null, troncPanelY: null, troncPanelWidth: null, troncPanelHeight: null }],
+      });
+
+      expect(mockUpdate).toHaveBeenCalledWith(
+        FigureInstance,
+        { id: INSTANCE_ID },
+        expect.objectContaining({ troncPanelX: null, troncPanelY: null }),
+      );
+    });
+
+    it('throws 404 if segment does not belong to event', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.saveDistribution(EVENT_ID, SEGMENT_ID, { items: [] }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws 400 if an instance ID does not belong to the segment', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([makeInstance()]);
+
+      await expect(
+        service.saveDistribution(EVENT_ID, SEGMENT_ID, {
+          items: [{ instanceId: 'non-existent-uuid', x: 0, y: 0, angle: 0, troncPanelX: null, troncPanelY: null, troncPanelWidth: null, troncPanelHeight: null }],
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('clearDistribution', () => {
+    it('nullifies all distribution columns for every instance in the segment', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+
+      await service.clearDistribution(EVENT_ID, SEGMENT_ID);
+
+      const updateCall = mockDataSource.query.mock.calls.find(
+        (call: unknown[]) => typeof call[0] === 'string' && (call[0] as string).includes('UPDATE'),
+      );
+      expect(updateCall).toBeDefined();
+      expect(updateCall![1]).toEqual([SEGMENT_ID]);
+    });
+
+    it('throws 404 if segment does not belong to event', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.clearDistribution(EVENT_ID, SEGMENT_ID),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('getDistribution', () => {
+    const makeInstanceWithNodes = () => ({
+      ...makeInstance(),
+      figureTemplate: {
+        id: FIGURE_ID,
+        name: 'pd4',
+        nodes: [
+          { id: 'node-1', label: 'A1', zone: 'PINYA', x: 0, y: 0, width: 30, height: 30, rotation: 0, color: null, shape: 'RECTANGLE' },
+          { id: 'node-2', label: 'B1', zone: 'TRONC', x: 0, y: -50, width: 30, height: 30, rotation: 0, color: null, shape: 'RECTANGLE' },
+        ],
+      },
+      projectionX: 100,
+      projectionY: 200,
+      projectionAngle: 30,
+      troncPanelX: 10,
+      troncPanelY: 20,
+      troncPanelWidth: 150,
+      troncPanelHeight: 80,
+    });
+
+    it('returns segment info and items with only PINYA/BASE nodes', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue({ ...makeSegment(), name: 'Segment 1' });
+      mockInstanceRepo.find.mockResolvedValue([makeInstanceWithNodes()]);
+
+      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      expect(result.segment.id).toBe(SEGMENT_ID);
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].figureTemplate.nodes).toHaveLength(1);
+      expect(result.items[0].figureTemplate.nodes[0].zone).toBe('PINYA');
+    });
+
+    it('maps distribution fields from the instance', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([makeInstanceWithNodes()]);
+
+      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      expect(result.items[0].projectionX).toBe(100);
+      expect(result.items[0].projectionY).toBe(200);
+      expect(result.items[0].projectionAngle).toBe(30);
+      expect(result.items[0].troncPanelX).toBe(10);
+      expect(result.items[0].troncPanelWidth).toBe(150);
+    });
+
+    it('excludes instances without a figureTemplate', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([
+        makeInstanceWithNodes(),
+        { ...makeInstance(), figureTemplate: null },
+      ]);
+
+      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      expect(result.items).toHaveLength(1);
+    });
+
+    it('throws 404 if segment does not belong to event', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.getDistribution(EVENT_ID, SEGMENT_ID),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
   describe('reorder', () => {
     it('reassigns sortOrder via transaction', async () => {
       mockSegmentRepo.findOne.mockResolvedValue(makeSegment());

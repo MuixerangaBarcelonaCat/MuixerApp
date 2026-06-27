@@ -15,6 +15,11 @@ interface ProjectionInstanceData {
   projectionX: number | null;
   projectionY: number | null;
   projectionScale: number;
+  projectionAngle: number | null;
+  troncPanelX: number | null;
+  troncPanelY: number | null;
+  troncPanelWidth: number | null;
+  troncPanelHeight: number | null;
   figureMode: FigureMode;
   figureTemplate: { id: string; name: string; hasPinya: boolean } | null;
   nodes: InstanceNodeResponse[];
@@ -30,6 +35,8 @@ export interface ProjectionData {
     nextSegmentId: string | null;
   };
   instances: ProjectionInstanceData[];
+  /** true if at least one instance has a custom distribution position set */
+  hasDistribution: boolean;
   /** personId → AttendanceStatus for all attendances in this event */
   personAttendance: Record<string, AttendanceStatus>;
 }
@@ -97,6 +104,11 @@ export class ProjectionService {
         projectionX: instance.projectionX,
         projectionY: instance.projectionY,
         projectionScale: instance.projectionScale,
+        projectionAngle: instance.projectionAngle ?? null,
+        troncPanelX: instance.troncPanelX ?? null,
+        troncPanelY: instance.troncPanelY ?? null,
+        troncPanelWidth: instance.troncPanelWidth ?? null,
+        troncPanelHeight: instance.troncPanelHeight ?? null,
         figureMode,
         figureTemplate: instance.figureTemplate
           ? {
@@ -120,6 +132,8 @@ export class ProjectionService {
       personAttendance[a.person.id] = a.status;
     }
 
+    const hasDistribution = projectionInstances.some((i) => i.projectionX !== null);
+
     return {
       segment: {
         id: segment.id,
@@ -129,6 +143,7 @@ export class ProjectionService {
         nextSegmentId,
       },
       instances: projectionInstances,
+      hasDistribution,
       personAttendance,
     };
   }

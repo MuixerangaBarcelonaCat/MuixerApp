@@ -161,4 +161,58 @@ describe('ProjectionService', () => {
     expect(result.instances).toHaveLength(1);
     expect(result.instances[0].figureTemplate).toBeNull();
   });
+
+  // ── hasDistribution ───────────────────────────────────────────────────────
+
+  it('returns hasDistribution=false when no instances have projectionX set', async () => {
+    mockInstanceRepo.find.mockResolvedValue([makeInstance()]);
+    const result = await service.getProjection(EVENT_ID, SEGMENT_ID);
+    expect(result.hasDistribution).toBe(false);
+  });
+
+  it('returns hasDistribution=true when at least one instance has projectionX set', async () => {
+    mockInstanceRepo.find.mockResolvedValue([
+      { ...makeInstance(), projectionX: 100, projectionY: 200 },
+    ]);
+    const result = await service.getProjection(EVENT_ID, SEGMENT_ID);
+    expect(result.hasDistribution).toBe(true);
+  });
+
+  it('returns hasDistribution=false for empty segment', async () => {
+    mockInstanceRepo.find.mockResolvedValue([]);
+    const result = await service.getProjection(EVENT_ID, SEGMENT_ID);
+    expect(result.hasDistribution).toBe(false);
+  });
+
+  // ── distribution fields in instances ─────────────────────────────────────
+
+  it('includes projectionAngle and troncPanel fields in projection instances', async () => {
+    mockInstanceRepo.find.mockResolvedValue([
+      {
+        ...makeInstance(),
+        projectionX: 100,
+        projectionY: 200,
+        projectionAngle: 45,
+        troncPanelX: 10,
+        troncPanelY: 20,
+        troncPanelWidth: 150,
+        troncPanelHeight: 80,
+      },
+    ]);
+    const result = await service.getProjection(EVENT_ID, SEGMENT_ID);
+    const inst = result.instances[0];
+    expect(inst.projectionAngle).toBe(45);
+    expect(inst.troncPanelX).toBe(10);
+    expect(inst.troncPanelY).toBe(20);
+    expect(inst.troncPanelWidth).toBe(150);
+    expect(inst.troncPanelHeight).toBe(80);
+  });
+
+  it('returns null distribution fields when not set', async () => {
+    mockInstanceRepo.find.mockResolvedValue([makeInstance()]);
+    const result = await service.getProjection(EVENT_ID, SEGMENT_ID);
+    const inst = result.instances[0];
+    expect(inst.projectionAngle).toBeNull();
+    expect(inst.troncPanelX).toBeNull();
+  });
 });

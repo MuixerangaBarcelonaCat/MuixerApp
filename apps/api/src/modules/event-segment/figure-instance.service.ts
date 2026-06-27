@@ -13,8 +13,40 @@ import { CreateInstanceDto } from './dto/create-instance.dto';
 import { UpdateInstanceDto } from './dto/update-instance.dto';
 import { ReorderInstancesDto } from './dto/reorder-instances.dto';
 import { UpdateProjectionLayoutDto } from './dto/update-projection-layout.dto';
+import { UpdateSegmentDistributionDto } from './dto/update-segment-distribution.dto';
 import { InstanceRef } from './event-segment.service';
-import { FigureMode } from '@muixer/shared';
+
+export interface DistributionNodeItem {
+  id: string;
+  label: string;
+  zone: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+  color: string | null;
+  shape: string;
+}
+
+export interface DistributionItem {
+  instanceId: string;
+  label: string | null;
+  figureTemplate: { id: string; name: string; nodes: DistributionNodeItem[] };
+  projectionX: number | null;
+  projectionY: number | null;
+  projectionAngle: number | null;
+  troncPanelX: number | null;
+  troncPanelY: number | null;
+  troncPanelWidth: number | null;
+  troncPanelHeight: number | null;
+}
+
+export interface SegmentDistributionData {
+  segment: { id: string; name: string | null };
+  items: DistributionItem[];
+}
+import { FigureMode, FigureZone } from '@muixer/shared';
 
 @Injectable()
 export class FigureInstanceService {
@@ -208,6 +240,99 @@ export class FigureInstanceService {
         );
       }
     });
+  }
+
+  async saveDistribution(
+    eventId: string,
+    segmentId: string,
+    dto: UpdateSegmentDistributionDto,
+  ): Promise<void> {
+    await this.assertSegmentBelongsToEvent(eventId, segmentId);
+
+    const existing = await this.instanceRepository.find({
+      where: { segment: { id: segmentId } },
+      select: ['id'],
+    });
+    const existingIds = new Set(existing.map((i) => i.id));
+    const invalid = dto.items.filter((item) => !existingIds.has(item.instanceId));
+    if (invalid.length > 0) {
+      throw new BadRequestException(
+        `Instance IDs not found in segment: ${invalid.map((i) => i.instanceId).join(', ')}`,
+      );
+    }
+
+    await this.dataSource.transaction(async (manager) => {
+      for (const item of dto.items) {
+        await manager.update(FigureInstance, { id: item.instanceId }, {
+          projectionX: item.x,
+          projectionY: item.y,
+          projectionAngle: item.angle,
+          troncPanelX: item.troncPanelX ?? null,
+          troncPanelY: item.troncPanelY ?? null,
+          troncPanelWidth: item.troncPanelWidth ?? null,
+          troncPanelHeight: item.troncPanelHeight ?? null,
+        });
+      }
+    });
+  }
+
+  async clearDistribution(eventId: string, segmentId: string): Promise<void> {
+    await this.assertSegmentBelongsToEvent(eventId, segmentId);
+
+    await this.dataSource.query(
+      `UPDATE figure_instances
+       SET "projectionX" = NULL, "projectionY" = NULL, "projectionAngle" = NULL,
+           "troncPanelX" = NULL, "troncPanelY" = NULL,
+           "troncPanelWidth" = NULL, "troncPanelHeight" = NULL
+       WHERE "segmentId" = $1`,
+      [segmentId],
+    );
+  }
+
+  async getDistribution(eventId: string, segmentId: string): Promise<SegmentDistributionData> {
+    const segment = await this.assertSegmentBelongsToEvent(eventId, segmentId);
+
+    const instances = await this.instanceRepository.find({
+      where: { segment: { id: segmentId } },
+      relations: ['figureTemplate', 'figureTemplate.nodes'],
+      order: { sortOrder: 'ASC' },
+    });
+
+    const CANVAS_ZONES = new Set([FigureZone.PINYA, FigureZone.BASE]);
+
+    const items: DistributionItem[] = instances
+      .filter((inst) => inst.figureTemplate !== null)
+      .map((inst) => ({
+        instanceId: inst.id,
+        label: inst.label,
+        figureTemplate: {
+          id: inst.figureTemplate!.id,
+          name: inst.figureTemplate!.name,
+          nodes: (inst.figureTemplate!.nodes ?? [])
+            .filter((n) => CANVAS_ZONES.has(n.zone as FigureZone))
+            .map((n) => ({
+              id: n.id,
+              label: n.label,
+              zone: n.zone,
+              x: n.x,
+              y: n.y,
+              width: n.width,
+              height: n.height,
+              rotation: n.rotation,
+              color: n.color,
+              shape: n.shape,
+            })),
+        },
+        projectionX: inst.projectionX,
+        projectionY: inst.projectionY,
+        projectionAngle: inst.projectionAngle,
+        troncPanelX: inst.troncPanelX,
+        troncPanelY: inst.troncPanelY,
+        troncPanelWidth: inst.troncPanelWidth,
+        troncPanelHeight: inst.troncPanelHeight,
+      }));
+
+    return { segment: { id: segment.id, name: segment.name }, items };
   }
 
   private async assertSegmentBelongsToEvent(
