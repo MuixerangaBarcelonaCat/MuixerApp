@@ -125,6 +125,7 @@
 <!-- Modal creació event -->
 @if (showCreateModal()) {
   <app-event-form-modal
+    [presetEventType]="eventType()"
     (saved)="onEventCreated($event)"
     (closed)="showCreateModal.set(false)"
   />
