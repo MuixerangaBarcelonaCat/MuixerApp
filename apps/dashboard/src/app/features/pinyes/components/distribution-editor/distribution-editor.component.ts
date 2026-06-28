@@ -49,8 +49,6 @@ export class DistributionEditorComponent implements OnInit, OnDestroy {
 
   @ViewChild(FigureCanvasComponent) private canvasRef?: FigureCanvasComponent;
 
-  private saveDebounce: ReturnType<typeof setTimeout> | undefined;
-
   ngOnInit(): void {
     this.layoutService.requestFullscreen();
     this.canvasState.reset();
@@ -59,7 +57,6 @@ export class DistributionEditorComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.layoutService.exitFullscreen();
-    clearTimeout(this.saveDebounce);
   }
 
   private loadDistribution(): void {
@@ -107,7 +104,7 @@ export class DistributionEditorComponent implements OnInit, OnDestroy {
           : s,
       ),
     );
-    this.scheduleSave();
+    this.save();
   }
 
   fitAll(): void {
@@ -150,14 +147,7 @@ export class DistributionEditorComponent implements OnInit, OnDestroy {
     }
   }
 
-  private scheduleSave(): void {
-    clearTimeout(this.saveDebounce);
-    this.saveStatus.set('saving');
-    this.saveDebounce = setTimeout(() => this.saveImmediately(), 1500);
-  }
-
-  private saveImmediately(): void {
-    clearTimeout(this.saveDebounce);
+  private save(): void {
     const items: InstanceDistributionPayload[] = this.slots().map((s) => ({
       instanceId: s.slotId,
       x: s.offsetX,

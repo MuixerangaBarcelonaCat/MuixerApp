@@ -158,8 +158,7 @@ describe('DistributionEditorComponent', () => {
     expect(slot?.angle).toBe(45);
   });
 
-  it('onSlotMoved schedules saveDistribution after debounce', () => {
-    vi.useFakeTimers();
+  it('onSlotMoved saves distribution immediately', () => {
     distributionService.getDistribution.mockReturnValue(
       of(makeDistributionData([itemWithPosition(INST_A, 0, 0)])),
     );
@@ -168,9 +167,7 @@ describe('DistributionEditorComponent', () => {
     const comp = fixture.componentInstance;
 
     comp.onSlotMoved({ slotId: INST_A, offsetX: 100, offsetY: 100, angle: 0 });
-    expect(distributionService.saveDistribution).not.toHaveBeenCalled();
 
-    vi.advanceTimersByTime(1500);
     expect(distributionService.saveDistribution).toHaveBeenCalledWith(
       EVENT_ID,
       SEGMENT_ID,

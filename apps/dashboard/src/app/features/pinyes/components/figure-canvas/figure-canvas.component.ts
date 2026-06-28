@@ -327,7 +327,6 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.stage.scale({ x: 1, y: 1 });
     this.stage.position({ x: 0, y: 0 });
     this.zoomLevel.set(1);
-    this.renderGrid();
     this.stage.batchDraw();
     this.emitStageTransform();
   }
@@ -375,7 +374,6 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.stage.scale({ x: newScale, y: newScale });
     this.stage.position({ x: newX, y: newY });
     this.zoomLevel.set(newScale);
-    this.renderGrid();
     this.stage.batchDraw();
     this.emitStageTransform();
   }
@@ -432,7 +430,6 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     });
 
     this.zoomLevel.set(level);
-    this.renderGrid();
     this.stage.batchDraw();
     this.emitStageTransform();
   }
@@ -509,7 +506,6 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         x: stageStart.x + (pos.x - panStart.x),
         y: stageStart.y + (pos.y - panStart.y),
       });
-      this.renderGrid();
       this.stage.batchDraw();
       this.emitStageTransform();
     });
@@ -619,7 +615,6 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           this.stage.scale({ x: fit.scale, y: fit.scale });
           this.stage.position({ x: fit.x, y: fit.y });
           this.zoomLevel.set(fit.scale);
-          this.renderGrid();
         }
       }
     }
@@ -649,37 +644,28 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     }
 
     const spacing = this.gridSpacing();
-    const scale = this.stage.scaleX();
-    const sx = this.stage.x();
-    const sy = this.stage.y();
     const width = this.stage.width();
     const height = this.stage.height();
 
-    // Convert viewport edges to layer coordinates so lines cover the visible area
-    const startX = Math.floor(-sx / scale / spacing) * spacing;
-    const endX = Math.ceil((width - sx) / scale / spacing) * spacing;
-    const startY = Math.floor(-sy / scale / spacing) * spacing;
-    const endY = Math.ceil((height - sy) / scale / spacing) * spacing;
+    const cols = Math.ceil(width / spacing) + 2;
+    const rows = Math.ceil(height / spacing) + 2;
 
-    // Keep line thickness 1 screen-pixel regardless of zoom
-    const strokeWidth = 1 / scale;
-
-    for (let x = startX; x <= endX; x += spacing) {
+    for (let i = 0; i < cols; i++) {
       this.gridLayer.add(
         new Konva.Line({
-          points: [x, startY, x, endY],
+          points: [i * spacing, 0, i * spacing, rows * spacing],
           stroke: GRID_COLOR,
-          strokeWidth,
+          strokeWidth: 1,
           listening: false,
         }),
       );
     }
-    for (let y = startY; y <= endY; y += spacing) {
+    for (let j = 0; j < rows; j++) {
       this.gridLayer.add(
         new Konva.Line({
-          points: [startX, y, endX, y],
+          points: [0, j * spacing, cols * spacing, j * spacing],
           stroke: GRID_COLOR,
-          strokeWidth,
+          strokeWidth: 1,
           listening: false,
         }),
       );
@@ -914,7 +900,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
       slotGroup.on('dragmove', () => {
         if (this.snapToGrid()) {
-          const spacing = this.gridSpacing();
+          const spacing = this.gridSpacing() / 4;
           slotGroup.x(this.snapValue(slotGroup.x(), spacing));
           slotGroup.y(this.snapValue(slotGroup.y(), spacing));
         }
@@ -1316,6 +1302,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         node.height,
         {
           maxFontSize: assignment || isDecoration ? 18 : 9,
+          minFontSize: 5,
           fontStyle: assignment ? 'bold' : 'normal',
           wrap: assignment ? 'none' : 'word',
         },
@@ -1763,13 +1750,13 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     probe.text(text);
     probe.fontStyle(opts.fontStyle ?? 'normal');
     probe.wrap(wrap);
-    probe.width(wrap === 'word' ? maxW : 0);
+    probe.setAttr('width', wrap === 'word' ? maxW : undefined);
 
     const fontSize = fitFontSize(maxFont, minFont, maxW, maxH, wrap, (fs) => {
       probe.fontSize(fs);
       return {
-        width: probe.getTextWidth(),
-        height: probe.getTextHeight(),
+        width: probe.getWidth(),
+        height: probe.getHeight(),
       };
     });
 
