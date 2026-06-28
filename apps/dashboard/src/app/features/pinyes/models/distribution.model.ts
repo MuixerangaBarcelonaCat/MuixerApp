@@ -1,9 +1,30 @@
-import { FigureNodeItem } from './figure-template.model';
+export interface DistributionNodeItem {
+  id: string;
+  label: string;
+  zone: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+  color: string | null;
+  shape: string;
+  renglaId: string | null;
+  renglaPosition: number | null;
+}
+
+export interface DistributionAssignment {
+  figureNodeId: string;
+  personAlias: string;
+}
 
 export interface DistributionItem {
   instanceId: string;
   label: string | null;
-  figureTemplate: { id: string; name: string; nodes: FigureNodeItem[] };
+  figureMode: string;
+  numberOfCordons: number | null;
+  assignments: DistributionAssignment[];
+  figureTemplate: { id: string; name: string; nodes: DistributionNodeItem[] };
   projectionX: number | null;
   projectionY: number | null;
   projectionAngle: number | null;

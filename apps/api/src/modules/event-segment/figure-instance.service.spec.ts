@@ -404,14 +404,18 @@ describe('FigureInstanceService', () => {
   });
 
   describe('getDistribution', () => {
+    const RENGLA_ID = 'rengla-uuid-1';
+
     const makeInstanceWithNodes = () => ({
       ...makeInstance(),
+      figureMode: FigureMode.COMPLETA,
+      numberOfCordons: null as number | null,
       figureTemplate: {
         id: FIGURE_ID,
         name: 'pd4',
         nodes: [
-          { id: 'node-1', label: 'A1', zone: 'PINYA', x: 0, y: 0, width: 30, height: 30, rotation: 0, color: null, shape: 'RECTANGLE' },
-          { id: 'node-2', label: 'B1', zone: 'TRONC', x: 0, y: -50, width: 30, height: 30, rotation: 0, color: null, shape: 'RECTANGLE' },
+          { id: 'node-1', label: 'A1', zone: 'PINYA', x: 0, y: 0, width: 30, height: 30, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null },
+          { id: 'node-2', label: 'B1', zone: 'TRONC', x: 0, y: -50, width: 30, height: 30, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null },
         ],
       },
       projectionX: 100,
@@ -426,6 +430,7 @@ describe('FigureInstanceService', () => {
     it('returns segment info and items with only PINYA/BASE nodes', async () => {
       mockSegmentRepo.findOne.mockResolvedValue({ ...makeSegment(), name: 'Segment 1' });
       mockInstanceRepo.find.mockResolvedValue([makeInstanceWithNodes()]);
+      mockDataSource.query.mockResolvedValue([]);
 
       const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
 
@@ -438,6 +443,7 @@ describe('FigureInstanceService', () => {
     it('maps distribution fields from the instance', async () => {
       mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
       mockInstanceRepo.find.mockResolvedValue([makeInstanceWithNodes()]);
+      mockDataSource.query.mockResolvedValue([]);
 
       const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
 
@@ -454,6 +460,7 @@ describe('FigureInstanceService', () => {
         makeInstanceWithNodes(),
         { ...makeInstance(), figureTemplate: null },
       ]);
+      mockDataSource.query.mockResolvedValue([]);
 
       const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
 
@@ -466,6 +473,78 @@ describe('FigureInstanceService', () => {
       await expect(
         service.getDistribution(EVENT_ID, SEGMENT_ID),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it('returns figureMode for each item', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([{ ...makeInstanceWithNodes(), figureMode: FigureMode.PEU }]);
+      mockDataSource.query.mockResolvedValue([]);
+
+      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      expect(result.items[0].figureMode).toBe(FigureMode.PEU);
+    });
+
+    it('returns numberOfCordons for each item', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([{ ...makeInstanceWithNodes(), numberOfCordons: 2 }]);
+      mockDataSource.query.mockResolvedValue([]);
+
+      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      expect(result.items[0].numberOfCordons).toBe(2);
+    });
+
+    it('returns renglaId and renglaPosition on nodes', async () => {
+      const inst = {
+        ...makeInstanceWithNodes(),
+        figureTemplate: {
+          id: FIGURE_ID,
+          name: 'pd4',
+          nodes: [{ id: 'node-1', label: 'A1', zone: 'PINYA', x: 0, y: 0, width: 30, height: 30, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: RENGLA_ID, renglaPosition: 2 }],
+        },
+      };
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([inst]);
+      mockDataSource.query.mockResolvedValue([]);
+
+      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      expect(result.items[0].figureTemplate.nodes[0].renglaId).toBe(RENGLA_ID);
+      expect(result.items[0].figureTemplate.nodes[0].renglaPosition).toBe(2);
+    });
+
+    it('returns null renglaId and renglaPosition for nodes without a rengla', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([makeInstanceWithNodes()]);
+      mockDataSource.query.mockResolvedValue([]);
+
+      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      expect(result.items[0].figureTemplate.nodes[0].renglaId).toBeNull();
+      expect(result.items[0].figureTemplate.nodes[0].renglaPosition).toBeNull();
+    });
+
+    it('returns assignments with person aliases', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([makeInstanceWithNodes()]);
+      mockDataSource.query.mockResolvedValue([
+        { instanceId: INSTANCE_ID, figureNodeId: 'node-1', personAlias: 'JoanP' },
+      ]);
+
+      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      expect(result.items[0].assignments).toEqual([{ figureNodeId: 'node-1', personAlias: 'JoanP' }]);
+    });
+
+    it('returns empty assignments when no one is assigned', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([makeInstanceWithNodes()]);
+      mockDataSource.query.mockResolvedValue([]);
+
+      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      expect(result.items[0].assignments).toEqual([]);
     });
   });
 

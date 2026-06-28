@@ -26,11 +26,21 @@ export interface DistributionNodeItem {
   rotation: number;
   color: string | null;
   shape: string;
+  renglaId: string | null;
+  renglaPosition: number | null;
+}
+
+export interface DistributionAssignment {
+  figureNodeId: string;
+  personAlias: string;
 }
 
 export interface DistributionItem {
   instanceId: string;
   label: string | null;
+  figureMode: string;
+  numberOfCordons: number | null;
+  assignments: DistributionAssignment[];
   figureTemplate: { id: string; name: string; nodes: DistributionNodeItem[] };
   projectionX: number | null;
   projectionY: number | null;
@@ -267,39 +277,65 @@ export class FigureInstanceService {
       order: { sortOrder: 'ASC' },
     });
 
+    const figureInstances = instances.filter((inst) => inst.figureTemplate !== null);
+    const instanceIds = figureInstances.map((inst) => inst.id);
+
+    type AssignmentRow = { instanceId: string; figureNodeId: string; personAlias: string };
+    let allAssignmentRows: AssignmentRow[] = [];
+    if (instanceIds.length > 0) {
+      allAssignmentRows = await this.dataSource.query(
+        `SELECT na."figureInstanceId" AS "instanceId", inode."sourceNodeId" AS "figureNodeId", p.alias AS "personAlias"
+         FROM node_assignments na
+         JOIN instance_nodes inode ON na."instanceNodeId" = inode.id
+         JOIN persons p ON na."personId" = p.id
+         WHERE na."figureInstanceId" = ANY($1)`,
+        [instanceIds],
+      );
+    }
+
+    const assignmentsByInstance = new Map<string, DistributionAssignment[]>();
+    for (const row of allAssignmentRows) {
+      const list = assignmentsByInstance.get(row.instanceId) ?? [];
+      list.push({ figureNodeId: row.figureNodeId, personAlias: row.personAlias });
+      assignmentsByInstance.set(row.instanceId, list);
+    }
+
     const CANVAS_ZONES = new Set([FigureZone.PINYA, FigureZone.BASE]);
 
-    const items: DistributionItem[] = instances
-      .filter((inst) => inst.figureTemplate !== null)
-      .map((inst) => ({
-        instanceId: inst.id,
-        label: inst.label,
-        figureTemplate: {
-          id: inst.figureTemplate!.id,
-          name: inst.figureTemplate!.name,
-          nodes: (inst.figureTemplate!.nodes ?? [])
-            .filter((n) => CANVAS_ZONES.has(n.zone as FigureZone))
-            .map((n) => ({
-              id: n.id,
-              label: n.label,
-              zone: n.zone,
-              x: n.x,
-              y: n.y,
-              width: n.width,
-              height: n.height,
-              rotation: n.rotation,
-              color: n.color,
-              shape: n.shape,
-            })),
-        },
-        projectionX: inst.projectionX,
-        projectionY: inst.projectionY,
-        projectionAngle: inst.projectionAngle,
-        troncPanelX: inst.troncPanelX,
-        troncPanelY: inst.troncPanelY,
-        troncPanelWidth: inst.troncPanelWidth,
-        troncPanelHeight: inst.troncPanelHeight,
-      }));
+    const items: DistributionItem[] = figureInstances.map((inst) => ({
+      instanceId: inst.id,
+      label: inst.label,
+      figureMode: inst.figureMode ?? FigureMode.COMPLETA,
+      numberOfCordons: inst.numberOfCordons ?? null,
+      assignments: assignmentsByInstance.get(inst.id) ?? [],
+      figureTemplate: {
+        id: inst.figureTemplate!.id,
+        name: inst.figureTemplate!.name,
+        nodes: (inst.figureTemplate!.nodes ?? [])
+          .filter((n) => CANVAS_ZONES.has(n.zone as FigureZone))
+          .map((n) => ({
+            id: n.id,
+            label: n.label,
+            zone: n.zone,
+            x: n.x,
+            y: n.y,
+            width: n.width,
+            height: n.height,
+            rotation: n.rotation,
+            color: n.color,
+            shape: n.shape,
+            renglaId: n.renglaId,
+            renglaPosition: n.renglaPosition,
+          })),
+      },
+      projectionX: inst.projectionX,
+      projectionY: inst.projectionY,
+      projectionAngle: inst.projectionAngle,
+      troncPanelX: inst.troncPanelX,
+      troncPanelY: inst.troncPanelY,
+      troncPanelWidth: inst.troncPanelWidth,
+      troncPanelHeight: inst.troncPanelHeight,
+    }));
 
     return { segment: { id: segment.id, name: segment.name }, items };
   }

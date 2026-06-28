@@ -17,6 +17,9 @@ const mockDistributionData: SegmentDistributionData = {
     {
       instanceId: INSTANCE_ID,
       label: null,
+      figureMode: 'COMPLETA',
+      numberOfCordons: null,
+      assignments: [],
       figureTemplate: { id: 'fig-uuid', name: 'pd4', nodes: [] },
       projectionX: 100,
       projectionY: 200,

@@ -76,20 +76,41 @@ export class DistributionEditorComponent implements OnInit, OnDestroy {
   private mapItemsToSlots(items: DistributionItem[]): CompositionSlotWithNodes[] {
     const hasPositions = items.some((i) => i.projectionX !== null);
 
-    return items.map((item, index) => ({
-      slotId: item.instanceId,
-      label: item.label,
-      offsetX: hasPositions ? (item.projectionX ?? index * AUTO_PLACE_GAP) : index * AUTO_PLACE_GAP,
-      offsetY: hasPositions ? (item.projectionY ?? 0) : 0,
-      sortOrder: index,
-      angle: hasPositions ? (item.projectionAngle ?? 0) : 0,
-      figureTemplate: {
-        id: item.figureTemplate.id,
-        name: item.figureTemplate.name,
-        hasPinya: item.figureTemplate.nodes.some((n) => n.zone === 'PINYA'),
-        nodes: item.figureTemplate.nodes,
-      },
-    }));
+    return items.map((item, index) => {
+      const filteredNodes = item.figureTemplate.nodes.filter((n) => {
+        if (n.zone !== 'PINYA') return true;
+        if (item.numberOfCordons === null) return true;
+        return !n.renglaId || n.renglaPosition === null || n.renglaPosition <= item.numberOfCordons;
+      });
+
+      return {
+        slotId: item.instanceId,
+        label: this.computeSlotLabel(item),
+        offsetX: hasPositions ? (item.projectionX ?? index * AUTO_PLACE_GAP) : index * AUTO_PLACE_GAP,
+        offsetY: hasPositions ? (item.projectionY ?? 0) : 0,
+        sortOrder: index,
+        angle: hasPositions ? (item.projectionAngle ?? 0) : 0,
+        assignments: item.assignments,
+        figureTemplate: {
+          id: item.figureTemplate.id,
+          name: item.figureTemplate.name,
+          hasPinya: filteredNodes.some((n) => n.zone === 'PINYA'),
+          nodes: filteredNodes as any,
+        },
+      };
+    });
+  }
+
+  private computeSlotLabel(item: DistributionItem): string {
+    const base = item.label ?? item.figureTemplate.name;
+    if (item.figureMode === 'PEU') return `Peu de ${base}`;
+    if (item.figureMode === 'REMAT') return `Remat de ${base}`;
+    if (item.figureMode === 'NETA') {
+      const firstWord = base.trim().split(/\s+/)[0] ?? '';
+      const suffix = firstWord.endsWith('a') ? 'neta' : 'net';
+      return `${base} ${suffix}`;
+    }
+    return base;
   }
 
   onSlotSelected(slotId: string | null): void {

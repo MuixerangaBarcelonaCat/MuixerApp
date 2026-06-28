@@ -29,10 +29,24 @@ const SEGMENT_ID = 'seg-uuid-1';
 const INST_A = 'inst-a';
 const INST_B = 'inst-b';
 
+const makeDistributionNode = (id: string, zone: string, renglaId: string | null = null, renglaPosition: number | null = null) => ({
+  id,
+  label: id,
+  zone,
+  x: 0, y: 0, width: 30, height: 30, rotation: 0,
+  color: null,
+  shape: 'RECTANGLE',
+  renglaId,
+  renglaPosition,
+});
+
 const itemWithPosition = (instanceId: string, x: number, y: number, angle = 0) => ({
   instanceId,
-  label: null,
-  figureTemplate: { id: 'fig-1', name: 'pd4', nodes: [] },
+  label: null as string | null,
+  figureMode: 'COMPLETA',
+  numberOfCordons: null as number | null,
+  assignments: [] as { figureNodeId: string; personAlias: string }[],
+  figureTemplate: { id: 'fig-1', name: 'pd4', nodes: [] as ReturnType<typeof makeDistributionNode>[] },
   projectionX: x,
   projectionY: y,
   projectionAngle: angle,
@@ -188,5 +202,152 @@ describe('DistributionEditorComponent', () => {
   it('calls exitFullscreen on destroy', () => {
     component.ngOnDestroy();
     expect(layoutService.exitFullscreen).toHaveBeenCalled();
+  });
+
+  describe('slot label computation', () => {
+    const makeItem = (figureMode: string, label: string | null, templateName = 'Pilar') => ({
+      ...itemWithPosition(INST_A, 0, 0),
+      figureMode,
+      label,
+      figureTemplate: { id: 'fig-1', name: templateName, nodes: [] },
+    });
+
+    it('uses the template name when label is null and figureMode is COMPLETA', () => {
+      distributionService.getDistribution.mockReturnValue(
+        of(makeDistributionData([makeItem('COMPLETA', null, 'Pilar')])),
+      );
+      const fixture = TestBed.createComponent(DistributionEditorComponent);
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.compositionSlots()[0].label).toBe('Pilar');
+    });
+
+    it('uses the instance label over the template name', () => {
+      distributionService.getDistribution.mockReturnValue(
+        of(makeDistributionData([makeItem('COMPLETA', 'Pilar central', 'Pilar')])),
+      );
+      const fixture = TestBed.createComponent(DistributionEditorComponent);
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.compositionSlots()[0].label).toBe('Pilar central');
+    });
+
+    it('prefixes "Peu de" when figureMode is PEU', () => {
+      distributionService.getDistribution.mockReturnValue(
+        of(makeDistributionData([makeItem('PEU', null, 'Pilar')])),
+      );
+      const fixture = TestBed.createComponent(DistributionEditorComponent);
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.compositionSlots()[0].label).toBe('Peu de Pilar');
+    });
+
+    it('prefixes "Remat de" when figureMode is REMAT', () => {
+      distributionService.getDistribution.mockReturnValue(
+        of(makeDistributionData([makeItem('REMAT', null, 'Pilar')])),
+      );
+      const fixture = TestBed.createComponent(DistributionEditorComponent);
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.compositionSlots()[0].label).toBe('Remat de Pilar');
+    });
+
+    it('adds "neta" suffix for a name ending in "a" when figureMode is NETA', () => {
+      distributionService.getDistribution.mockReturnValue(
+        of(makeDistributionData([makeItem('NETA', null, 'Castella')])),
+      );
+      const fixture = TestBed.createComponent(DistributionEditorComponent);
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.compositionSlots()[0].label).toBe('Castella neta');
+    });
+
+    it('adds "net" suffix for a non-feminine name when figureMode is NETA', () => {
+      distributionService.getDistribution.mockReturnValue(
+        of(makeDistributionData([makeItem('NETA', null, 'Pilar')])),
+      );
+      const fixture = TestBed.createComponent(DistributionEditorComponent);
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.compositionSlots()[0].label).toBe('Pilar net');
+    });
+  });
+
+  describe('cordon filtering', () => {
+    it('shows all nodes when numberOfCordons is null', () => {
+      const item = {
+        ...itemWithPosition(INST_A, 0, 0),
+        numberOfCordons: null,
+        figureTemplate: {
+          id: 'fig-1', name: 'Pilar',
+          nodes: [
+            makeDistributionNode('n1', 'PINYA', 'rengla-1', 1),
+            makeDistributionNode('n2', 'PINYA', 'rengla-1', 2),
+          ],
+        },
+      };
+      distributionService.getDistribution.mockReturnValue(of(makeDistributionData([item])));
+      const fixture = TestBed.createComponent(DistributionEditorComponent);
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.compositionSlots()[0].figureTemplate.nodes).toHaveLength(2);
+    });
+
+    it('hides PINYA nodes whose renglaPosition > numberOfCordons', () => {
+      const item = {
+        ...itemWithPosition(INST_A, 0, 0),
+        numberOfCordons: 1,
+        figureTemplate: {
+          id: 'fig-1', name: 'Pilar',
+          nodes: [
+            makeDistributionNode('n1', 'PINYA', 'rengla-1', 1),
+            makeDistributionNode('n2', 'PINYA', 'rengla-1', 2),
+          ],
+        },
+      };
+      distributionService.getDistribution.mockReturnValue(of(makeDistributionData([item])));
+      const fixture = TestBed.createComponent(DistributionEditorComponent);
+      fixture.detectChanges();
+
+      const nodes = fixture.componentInstance.compositionSlots()[0].figureTemplate.nodes;
+      expect(nodes).toHaveLength(1);
+      expect(nodes[0].id).toBe('n1');
+    });
+
+    it('always includes BASE nodes regardless of numberOfCordons', () => {
+      const item = {
+        ...itemWithPosition(INST_A, 0, 0),
+        numberOfCordons: 0,
+        figureTemplate: {
+          id: 'fig-1', name: 'Pilar',
+          nodes: [
+            makeDistributionNode('b1', 'BASE', null, null),
+            makeDistributionNode('n1', 'PINYA', 'rengla-1', 1),
+          ],
+        },
+      };
+      distributionService.getDistribution.mockReturnValue(of(makeDistributionData([item])));
+      const fixture = TestBed.createComponent(DistributionEditorComponent);
+      fixture.detectChanges();
+
+      const nodes = fixture.componentInstance.compositionSlots()[0].figureTemplate.nodes;
+      expect(nodes.some((n) => n.id === 'b1')).toBe(true);
+    });
+  });
+
+  describe('slot assignments', () => {
+    it('passes assignments from the item to the slot', () => {
+      const item = {
+        ...itemWithPosition(INST_A, 0, 0),
+        assignments: [{ figureNodeId: 'n1', personAlias: 'JoanP' }],
+      };
+      distributionService.getDistribution.mockReturnValue(of(makeDistributionData([item])));
+      const fixture = TestBed.createComponent(DistributionEditorComponent);
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.compositionSlots()[0].assignments).toEqual([
+        { figureNodeId: 'n1', personAlias: 'JoanP' },
+      ]);
+    });
   });
 });

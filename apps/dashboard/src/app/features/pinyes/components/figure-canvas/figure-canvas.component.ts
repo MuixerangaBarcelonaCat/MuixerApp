@@ -58,6 +58,8 @@ export interface CompositionSlotWithNodes {
   sortOrder: number;
   /** Rotation in degrees. Used by distribution editor; composition editor leaves this undefined (treated as 0). */
   angle?: number;
+  /** Person assignments per node. Used in distribution editor to show assigned person alias. */
+  assignments?: { figureNodeId: string; personAlias: string }[];
   figureTemplate: {
     id: string;
     name: string;
@@ -846,8 +848,15 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           }),
         );
 
+        // Build assignment lookup for this slot (figureNodeId → personAlias)
+        const assignmentMap = new Map<string, string>();
+        for (const a of slot.assignments ?? []) {
+          assignmentMap.set(a.figureNodeId, a.personAlias);
+        }
+
         // Render pinya-view nodes (read-only)
         for (const node of pinyaNodes) {
+          const personAlias = assignmentMap.get(node.id);
           const fill =
             node.color ?? NODE_COLORS[node.zone] ?? DEFAULT_NODE_COLOR;
           const nodeGroup = new Konva.Group({
@@ -868,8 +877,9 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           const textFill = this.getContrastColor(fill);
           nodeGroup.add(
             new Konva.Text({
-              text: node.label,
-              fontSize: 10,
+              text: personAlias ?? node.label,
+              fontSize: personAlias ? 11 : 10,
+              fontStyle: personAlias ? 'bold' : 'normal',
               fontFamily: 'Inter, sans-serif',
               fill: textFill,
               align: 'center',
@@ -879,7 +889,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
               x: -node.width / 2,
               y: -node.height / 2 + 4,
               listening: false,
-              wrap: 'word',
+              wrap: 'none',
+              ellipsis: true,
             }),
           );
 
