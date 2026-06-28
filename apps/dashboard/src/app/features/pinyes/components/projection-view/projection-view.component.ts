@@ -26,6 +26,26 @@ import { ICON_FIGURA_NETA } from '../../../../shared/constants/domain-icons';
 import { computeCordoObertOverrides } from '../../utils/cordo-obert.util';
 import { computeProjectionLayout, computeDistributionLayout, computeDistributionTransform, ProjectionCell, DistributionCell } from '../../utils/projection-layout.util';
 
+// Natural size constants matching TroncViewComponent's CSS grid:
+// 1 grid unit = 2 half-units, each half-unit min 40px (2.5rem) → 80px per grid unit.
+// Label column adds another 40px.
+const TRONC_HALF_UNIT_PX = 40;
+const TRONC_LABEL_COL_PX = 40;
+const TRONC_FLOOR_ROW_PX = 48;
+const TRONC_HEADER_PX = 32;
+const TRONC_GAP_PX = 16;
+
+interface DistributionTroncPanel {
+  instance: ProjectionInstance;
+  /** CSS left/top for the container div (at natural scale, before CSS transform). */
+  screenX: number;
+  screenY: number;
+  /** Natural (unscaled) dimensions passed to TroncViewComponent's container. */
+  naturalW: number;
+  naturalH: number;
+  scale: number;
+}
+
 @Component({
   selector: 'app-projection-view',
   standalone: true,
@@ -176,6 +196,57 @@ export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy
   readonly distributionAssignments = computed((): AssignmentDetail[] => {
     if (!this.hasDistribution()) return [];
     return this.filteredInstances().flatMap((inst) => inst.assignments);
+  });
+
+  /** Tronc panels positioned in screen space for the distribution view. */
+  readonly distributionTroncPanels = computed((): DistributionTroncPanel[] => {
+    if (!this.hasDistribution()) return [];
+    const instances = this.filteredInstances();
+    const { scale, offsetX, offsetY } = computeDistributionTransform(
+      instances,
+      this.containerWidth(),
+      this.containerHeight(),
+    );
+
+    return instances.flatMap((inst) => {
+      const troncNodes = this.getInstanceTroncNodes(inst);
+      const dirNodes = this.getInstanceDirectionNodes(inst);
+      if (troncNodes.length === 0 && dirNodes.length === 0) return [];
+
+      const troncGridCols = troncNodes.reduce((max, n) => Math.max(max, n.x + n.width), 0);
+      const distinctZ = new Set(troncNodes.map((n) => n.z)).size;
+      const hasFigDir = dirNodes.some((n) => n.zone === FigureZone.FIGURE_DIRECTION);
+      const hasXicDir = dirNodes.some((n) => n.zone === FigureZone.XICALLA_DIRECTION);
+      const troncGridRows = distinctZ + (hasFigDir ? 1 : 0) + (hasXicDir ? 1 : 0);
+      if (troncGridCols === 0 || troncGridRows === 0) return [];
+
+      // Natural pixel size matching TroncViewComponent's CSS grid minimum:
+      // 1 grid unit = 2 half-units × TRONC_HALF_UNIT_PX, plus a label column.
+      const naturalW = troncGridCols * 2 * TRONC_HALF_UNIT_PX + TRONC_LABEL_COL_PX;
+      const naturalH = troncGridRows * TRONC_FLOOR_ROW_PX + TRONC_HEADER_PX;
+
+      let screenX: number, screenY: number;
+      if (inst.troncPanelX != null && inst.troncPanelY != null) {
+        screenX = inst.troncPanelX * scale + offsetX;
+        screenY = inst.troncPanelY * scale + offsetY;
+      } else {
+        const pinyaBaseNodes = inst.nodes.filter(
+          (n) => n.zone === FigureZone.PINYA || n.zone === FigureZone.BASE,
+        );
+        const mnY = pinyaBaseNodes.length > 0 ? Math.min(...pinyaBaseNodes.map((n) => n.y - n.height / 2)) : 0;
+        const mxY = pinyaBaseNodes.length > 0 ? Math.max(...pinyaBaseNodes.map((n) => n.y + n.height / 2)) : 0;
+        const figHalfH = (mxY - mnY) / 2;
+        const figScreenX = (inst.projectionX ?? 0) * scale + offsetX;
+        const figScreenY = (inst.projectionY ?? 0) * scale + offsetY;
+        // left/top set to the CSS position of the container at natural size.
+        // CSS transform: scale(scale) with transform-origin top-left keeps top-left fixed,
+        // so visual center X = screenX + naturalW*scale/2 aligns with figure center.
+        screenX = figScreenX - (naturalW * scale) / 2;
+        screenY = figScreenY - figHalfH * scale - naturalH * scale - TRONC_GAP_PX * scale;
+      }
+
+      return [{ instance: inst, screenX, screenY, naturalW, naturalH, scale }];
+    });
   });
 
   // ── Route params ────────────────────────────────────────────────────────────

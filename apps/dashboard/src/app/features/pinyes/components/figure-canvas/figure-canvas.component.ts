@@ -60,6 +60,12 @@ export interface CompositionSlotWithNodes {
   angle?: number;
   /** Person assignments per node. Used in distribution editor to show assigned person alias. */
   assignments?: { figureNodeId: string; personAlias: string }[];
+  /** Tronc grid dimensions (distribution editor only). */
+  troncGridCols?: number;
+  troncGridRows?: number;
+  /** Tronc panel position in world coords. null = linked (auto above figure). */
+  troncPanelX?: number | null;
+  troncPanelY?: number | null;
   figureTemplate: {
     id: string;
     name: string;
@@ -67,6 +73,12 @@ export interface CompositionSlotWithNodes {
     nodes: FigureNodeItem[];
   };
 }
+
+const TRONC_CELL_PX = 40;
+const TRONC_TITLE_HEIGHT_PX = 24;
+const TRONC_GAP_PX = 16;
+const TRONC_FILL = 'rgba(139,92,246,0.12)';
+const TRONC_STROKE = '#8b5cf6';
 
 const GRID_COLOR = '#e5e7eb';
 const NODE_COLORS: Record<string, string> = {
@@ -193,6 +205,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     offsetX: number;
     offsetY: number;
     angle: number;
+  }>();
+  readonly troncMoved = output<{
+    slotId: string;
+    troncPanelX: number | null;
+    troncPanelY: number | null;
   }>();
   readonly nodeDoubleClicked = output<string>();
   readonly stageTransformChanged = output<{
@@ -937,10 +954,121 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       });
 
       this.pinyaLayer.add(slotGroup);
+
+      // Tronc panel — distribution mode only (slot.angle defined + tronc data present)
+      if (slot.angle !== undefined && slot.troncGridCols && slot.troncGridRows) {
+        this.renderTroncPanel(slot, slotGroup);
+      }
     }
 
     this.pinyaLayer.add(this.transformer);
     this.pinyaLayer.batchDraw();
+  }
+
+  private computeLinkedTroncPosition(
+    slotGroup: Konva.Group,
+    figureHalfHeight: number,
+    troncW: number,
+    troncH: number,
+  ): { x: number; y: number } {
+    return {
+      x: slotGroup.x() - troncW / 2,
+      y: slotGroup.y() - figureHalfHeight - troncH - TRONC_GAP_PX,
+    };
+  }
+
+  private renderTroncPanel(slot: CompositionSlotWithNodes, slotGroup: Konva.Group): void {
+    const troncW = (slot.troncGridCols ?? 0) * TRONC_CELL_PX;
+    const troncH = (slot.troncGridRows ?? 0) * TRONC_CELL_PX + TRONC_TITLE_HEIGHT_PX;
+
+    // Bounding box for pivot computation (same logic as renderCompositionSlots)
+    const pinyaNodes = slot.figureTemplate.nodes.filter(
+      (n) => n.zone === FigureZone.PINYA || n.zone === FigureZone.BASE,
+    );
+    let minY = 0, maxY = 0;
+    if (pinyaNodes.length > 0) {
+      minY = Math.min(...pinyaNodes.map((n) => n.y - n.height / 2));
+      maxY = Math.max(...pinyaNodes.map((n) => n.y + n.height / 2));
+    }
+    const figureHalfHeight = (maxY - minY) / 2;
+
+    let isLinked = slot.troncPanelX == null;
+    const linked = this.computeLinkedTroncPosition(slotGroup, figureHalfHeight, troncW, troncH);
+
+    const troncGroup = new Konva.Group({
+      x: isLinked ? linked.x : (slot.troncPanelX ?? linked.x),
+      y: isLinked ? linked.y : (slot.troncPanelY ?? linked.y),
+      draggable: true,
+    });
+
+    troncGroup.add(new Konva.Rect({
+      x: 0,
+      y: 0,
+      width: troncW,
+      height: troncH,
+      fill: TRONC_FILL,
+      stroke: TRONC_STROKE,
+      strokeWidth: 1.5,
+      dash: [6, 3],
+      cornerRadius: 4,
+      listening: true,
+    }));
+
+    troncGroup.add(new Konva.Text({
+      x: 0,
+      y: 0,
+      width: troncW,
+      height: TRONC_TITLE_HEIGHT_PX,
+      text: slot.label ?? slot.figureTemplate.name,
+      fontSize: 10,
+      fontFamily: 'Inter, sans-serif',
+      fill: TRONC_STROKE,
+      align: 'center',
+      verticalAlign: 'middle',
+      listening: false,
+    }));
+
+    // Keep tronc in sync when figure is dragged (linked mode)
+    slotGroup.on('dragmove.tronc', () => {
+      if (!isLinked) return;
+      const pos = this.computeLinkedTroncPosition(slotGroup, figureHalfHeight, troncW, troncH);
+      troncGroup.x(pos.x);
+      troncGroup.y(pos.y);
+      this.pinyaLayer.batchDraw();
+    });
+
+    slotGroup.on('dragend.tronc', () => {
+      if (!isLinked) return;
+      const pos = this.computeLinkedTroncPosition(slotGroup, figureHalfHeight, troncW, troncH);
+      troncGroup.x(pos.x);
+      troncGroup.y(pos.y);
+    });
+
+    troncGroup.on('dragend', () => {
+      isLinked = false;
+      this.troncMoved.emit({
+        slotId: slot.slotId,
+        troncPanelX: Math.round(troncGroup.x()),
+        troncPanelY: Math.round(troncGroup.y()),
+      });
+    });
+
+    troncGroup.on('mouseenter', () => {
+      this.stage.container().style.cursor = 'grab';
+    });
+    troncGroup.on('mouseleave', () => {
+      this.stage.container().style.cursor = 'default';
+    });
+    troncGroup.on('dblclick dbltap', () => {
+      isLinked = true;
+      const pos = this.computeLinkedTroncPosition(slotGroup, figureHalfHeight, troncW, troncH);
+      troncGroup.x(pos.x);
+      troncGroup.y(pos.y);
+      this.pinyaLayer.batchDraw();
+      this.troncMoved.emit({ slotId: slot.slotId, troncPanelX: null, troncPanelY: null });
+    });
+
+    this.pinyaLayer.add(troncGroup);
   }
 
   private makeRotationHandle(slotId: string, slotGroup: Konva.Group, x: number, y: number): Konva.Circle {

@@ -25,6 +25,8 @@ export interface DistributionItem {
   numberOfCordons: number | null;
   assignments: DistributionAssignment[];
   figureTemplate: { id: string; name: string; nodes: DistributionNodeItem[] };
+  troncGridCols: number;
+  troncGridRows: number;
   projectionX: number | null;
   projectionY: number | null;
   projectionAngle: number | null;

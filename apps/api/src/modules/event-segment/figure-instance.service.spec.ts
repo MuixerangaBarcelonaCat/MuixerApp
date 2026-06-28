@@ -546,6 +546,95 @@ describe('FigureInstanceService', () => {
 
       expect(result.items[0].assignments).toEqual([]);
     });
+
+    it('computes troncGridCols as max(x + width) across TRONC nodes', async () => {
+      const inst = {
+        ...makeInstanceWithNodes(),
+        figureTemplate: {
+          id: FIGURE_ID,
+          name: 'pd4',
+          nodes: [
+            { id: 'p1', label: 'A1', zone: 'PINYA', x: 0, y: 0, width: 30, height: 30, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 0 },
+            { id: 't1', label: 'Seg', zone: 'TRONC', x: 0, y: 0, width: 2, height: 1, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 1 },
+            { id: 't2', label: 'Ter', zone: 'TRONC', x: 0.5, y: 0, width: 1.5, height: 1, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 2 },
+          ],
+        },
+      };
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([inst]);
+      mockDataSource.query.mockResolvedValue([]);
+
+      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      expect(result.items[0].troncGridCols).toBe(2);
+    });
+
+    it('computes troncGridRows as number of distinct z-levels in TRONC nodes', async () => {
+      const inst = {
+        ...makeInstanceWithNodes(),
+        figureTemplate: {
+          id: FIGURE_ID,
+          name: 'pd4',
+          nodes: [
+            { id: 'p1', label: 'A1', zone: 'PINYA', x: 0, y: 0, width: 30, height: 30, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 0 },
+            { id: 't1', label: 'Seg', zone: 'TRONC', x: 0, y: 0, width: 2, height: 1, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 1 },
+            { id: 't2', label: 'Ter', zone: 'TRONC', x: 0, y: 0, width: 2, height: 1, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 2 },
+            { id: 't3', label: 'Ter2', zone: 'TRONC', x: 0.5, y: 0, width: 1.5, height: 1, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 2 },
+          ],
+        },
+      };
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([inst]);
+      mockDataSource.query.mockResolvedValue([]);
+
+      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      expect(result.items[0].troncGridRows).toBe(2);
+    });
+
+    it('adds 1 to troncGridRows for each direction zone present', async () => {
+      const inst = {
+        ...makeInstanceWithNodes(),
+        figureTemplate: {
+          id: FIGURE_ID,
+          name: 'pd4',
+          nodes: [
+            { id: 'p1', label: 'A1', zone: 'PINYA', x: 0, y: 0, width: 30, height: 30, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 0 },
+            { id: 't1', label: 'Seg', zone: 'TRONC', x: 0, y: 0, width: 2, height: 1, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 1 },
+            { id: 'd1', label: 'Dir fig', zone: 'FIGURE_DIRECTION', x: 0, y: 0, width: 90, height: 44, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 0 },
+            { id: 'd2', label: 'Dir xic', zone: 'XICALLA_DIRECTION', x: 0, y: 0, width: 90, height: 44, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 0 },
+          ],
+        },
+      };
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([inst]);
+      mockDataSource.query.mockResolvedValue([]);
+
+      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      expect(result.items[0].troncGridRows).toBe(3); // 1 tronc floor + 1 fig dir + 1 xicalla dir
+    });
+
+    it('returns troncGridCols 0 and troncGridRows 0 when no tronc or direction nodes', async () => {
+      const inst = {
+        ...makeInstanceWithNodes(),
+        figureTemplate: {
+          id: FIGURE_ID,
+          name: 'pd4',
+          nodes: [
+            { id: 'p1', label: 'A1', zone: 'PINYA', x: 0, y: 0, width: 30, height: 30, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 0 },
+          ],
+        },
+      };
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([inst]);
+      mockDataSource.query.mockResolvedValue([]);
+
+      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      expect(result.items[0].troncGridCols).toBe(0);
+      expect(result.items[0].troncGridRows).toBe(0);
+    });
   });
 
   describe('reorder', () => {

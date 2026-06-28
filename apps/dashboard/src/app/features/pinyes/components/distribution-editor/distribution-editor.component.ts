@@ -91,6 +91,10 @@ export class DistributionEditorComponent implements OnInit, OnDestroy {
         sortOrder: index,
         angle: hasPositions ? (item.projectionAngle ?? 0) : 0,
         assignments: item.assignments,
+        troncGridCols: item.troncGridCols,
+        troncGridRows: item.troncGridRows,
+        troncPanelX: item.troncPanelX,
+        troncPanelY: item.troncPanelY,
         figureTemplate: {
           id: item.figureTemplate.id,
           name: item.figureTemplate.name,
@@ -122,6 +126,17 @@ export class DistributionEditorComponent implements OnInit, OnDestroy {
       current.map((s) =>
         s.slotId === event.slotId
           ? { ...s, offsetX: event.offsetX, offsetY: event.offsetY, angle: event.angle }
+          : s,
+      ),
+    );
+    this.save();
+  }
+
+  onTroncMoved(event: { slotId: string; troncPanelX: number | null; troncPanelY: number | null }): void {
+    this.slots.update((current) =>
+      current.map((s) =>
+        s.slotId === event.slotId
+          ? { ...s, troncPanelX: event.troncPanelX, troncPanelY: event.troncPanelY }
           : s,
       ),
     );
@@ -174,8 +189,8 @@ export class DistributionEditorComponent implements OnInit, OnDestroy {
       x: s.offsetX,
       y: s.offsetY,
       angle: s.angle ?? 0,
-      troncPanelX: null,
-      troncPanelY: null,
+      troncPanelX: s.troncPanelX ?? null,
+      troncPanelY: s.troncPanelY ?? null,
       troncPanelWidth: null,
       troncPanelHeight: null,
     }));

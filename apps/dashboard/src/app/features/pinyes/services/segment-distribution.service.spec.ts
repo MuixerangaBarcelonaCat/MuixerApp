@@ -21,6 +21,8 @@ const mockDistributionData: SegmentDistributionData = {
       numberOfCordons: null,
       assignments: [],
       figureTemplate: { id: 'fig-uuid', name: 'pd4', nodes: [] },
+      troncGridCols: 2,
+      troncGridRows: 3,
       projectionX: 100,
       projectionY: 200,
       projectionAngle: 45,

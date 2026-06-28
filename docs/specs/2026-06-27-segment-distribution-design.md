@@ -32,8 +32,8 @@ Allow users to define a **custom spatial layout** for the figure instances withi
 | `projectionAngle` | `float` | `0` | YES | Rotation in degrees |
 | `troncPanelX` | `float` | — | YES | X of the tronc panel rectangle on the distribution canvas |
 | `troncPanelY` | `float` | — | YES | Y of the tronc panel rectangle |
-| `troncPanelWidth` | `float` | — | YES | Width of the tronc panel |
-| `troncPanelHeight` | `float` | — | YES | Height of the tronc panel |
+| `troncPanelWidth` | `float` | — | YES | Width of the tronc panel (reserved; not written in Phase 5) |
+| `troncPanelHeight` | `float` | — | YES | Height of the tronc panel (reserved; not written in Phase 5) |
 
 **Existing columns kept as-is:** `projectionX`, `projectionY` already exist, we will reuse them. There is also `projectionScale` which will remain unused for now.
 
@@ -63,8 +63,8 @@ class InstanceDistributionDto {
   angle: number;               // degrees
   troncPanelX: number | null;
   troncPanelY: number | null;
-  troncPanelWidth: number | null;
-  troncPanelHeight: number | null;
+  troncPanelWidth: number | null;   // reserved; ignored in Phase 5
+  troncPanelHeight: number | null;  // reserved; ignored in Phase 5
 }
 
 class UpdateSegmentDistributionDto {
@@ -118,7 +118,7 @@ interface ProjectionSegmentData {
 GET /events/:eventId/segments/:segmentId/distribution
 ```
 
-Returns the segment's instances with their figure template nodes (pinya + base nodes only, for canvas rendering) and current distribution fields.
+Returns the segment's instances with their figure template nodes (pinya + base nodes only, for canvas rendering), computed tronc grid dimensions, and current distribution fields.
 
 ```typescript
 interface SegmentDistributionData {
@@ -130,13 +130,17 @@ interface DistributionItem {
   instanceId: string;
   label: string | null;
   figureTemplate: { id: string; name: string; nodes: FigureNodeItem[] };
+  // Tronc grid dimensions — computed by backend from template's tronc nodes (never stored).
+  // Used by frontend to derive pixel size. See Phase 5 for formula.
+  troncGridCols: number;
+  troncGridRows: number;
   projectionX: number | null;
   projectionY: number | null;
   projectionAngle: number;
   troncPanelX: number | null;
   troncPanelY: number | null;
-  troncPanelWidth: number | null;
-  troncPanelHeight: number | null;
+  troncPanelWidth: number | null;   // reserved; always null for now
+  troncPanelHeight: number | null;  // reserved; always null for now
 }
 ```
 
@@ -294,12 +298,64 @@ Tronc panel positioning (the separate draggable `troncPanelX/Y/Width/Height` rec
 
 ### Phase 5 — Tronc panel positioning (deferred)
 
-- Add separate draggable tronc panel rectangle per instance in the distribution canvas.
-- Adds a `troncPanelMoved` output (new, separate from `slotMoved`).
-- Stores and loads `troncPanelX/Y/Width/Height` via existing columns.
-- Projection view renders tronc panel as absolutely-positioned `<div>` at stored coordinates instead of inline above the pinya canvas.
-
 **Prerequisite:** Phases 1–4 complete.
+
+#### 5.1 Tronc pixel size (computed, never stored)
+
+The tronc panel for each figure has a natural pixel size determined solely by its template's tronc nodes. The backend computes two values and returns them in `DistributionItem`:
+
+- **`troncGridCols`** — `max(node.x + node.width)` across all tronc nodes of the template (in grid units, supporting 0.5 u steps).
+- **`troncGridRows`** — number of position rows (rengles) + 1 if a figure-direction row exists + 1 if a xicalla-direction row exists.
+
+The frontend converts to pixels using a shared constant `TRONC_CELL_PX` (same cell size used by `TroncViewComponent`):
+
+```
+troncNaturalWidth  = troncGridCols × TRONC_CELL_PX
+troncNaturalHeight = troncGridRows × TRONC_CELL_PX + TRONC_TITLE_HEIGHT_PX
+```
+
+`troncPanelWidth/Height` columns remain `null` and are ignored in this phase (reserved for a future user-resize feature).
+
+#### 5.2 Scaling
+
+The tronc panel scales exactly like the pinya figure it belongs to. In both the distribution editor and the projection view, the pinya is already rendered at some scale factor `s` (determined by the canvas zoom or the projection layout). The tronc panel is rendered at the same `s`:
+
+```
+renderedTroncWidth  = troncNaturalWidth  × s
+renderedTroncHeight = troncNaturalHeight × s
+```
+
+This means a tronc that is 80 × 60 px at natural size appears as 40 × 30 px when `s = 0.5`. No special scaling logic is needed — placing the tronc element inside the same Konva group (or CSS transform context) as its figure is sufficient.
+
+#### 5.3 Tronc panel positioning
+
+**Default: linked mode (auto-positioned above the pinya).**
+
+`troncPanelX/Y == null` means the tronc panel is linked to its figure and its position is computed at render time:
+
+```
+tronc_x = figure.x + (figureWidth / 2) - (troncNaturalWidth / 2)
+tronc_y = figure.y - troncNaturalHeight - TRONC_GAP_PX
+```
+
+This places the tronc centred horizontally above the pinya, with a small gap. In the distribution editor, when a figure is dragged, its linked tronc moves with it automatically — no separate drag needed and nothing extra to save.
+
+**Detached mode (explicit x/y):** when the user drags the tronc rect independently in the editor, `troncPanelX/Y` are stored. From that point the tronc is independent of further figure moves.
+
+A "re-link" affordance (chain icon on the selected tronc rect) resets `troncPanelX/Y` to `null` and snaps the tronc back to the computed position.
+
+Both the distribution editor and the projection view use the same linked/detached logic.
+
+#### 5.4 Implementation tasks (when positioning is resolved)
+
+- Extend `GET /distribution` backend to compute and return `troncGridCols/Rows` from tronc nodes.
+- Add `troncGridCols/Rows` to `DistributionItem` frontend model.
+- Add a separate draggable tronc rect per figure group in the distribution canvas.
+- Add a `troncMoved` output to `FigureCanvasComponent` carrying `{ slotId, troncPanelX, troncPanelY }`.
+- Wire `troncMoved` → autosave in `DistributionEditorComponent` (merged into items state alongside `slotMoved`).
+- Projection view: render tronc panel as absolutely-positioned element at `(troncPanelX, troncPanelY)` instead of inline above the pinya canvas.
+
+**Prerequisite:** Phases 1–5 complete.
 
 ---
 

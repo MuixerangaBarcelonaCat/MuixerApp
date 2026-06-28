@@ -26,6 +26,28 @@
           [attendanceMap]="attendanceMap()"
           [isPast]="true"
         />
+        <!-- ── Panells de tronc per a cada figura ─────────────────────────────── -->
+        @for (panel of distributionTroncPanels(); track panel.instance.id) {
+          <div
+            class="absolute pointer-events-none overflow-hidden origin-top-left"
+            [style.left.px]="panel.screenX"
+            [style.top.px]="panel.screenY"
+            [style.width.px]="panel.naturalW"
+            [style.height.px]="panel.naturalH"
+            [style.transform]="'scale(' + panel.scale + ')'"
+          >
+            <app-tronc-view
+              class="block w-full h-full"
+              mode="projection"
+              [troncNodes]="getInstanceTroncNodes(panel.instance)"
+              [baseNodes]="getInstanceBaseNodes(panel.instance)"
+              [directionNodes]="getInstanceDirectionNodes(panel.instance)"
+              [assignments]="panel.instance.assignments"
+              [attendanceMap]="attendanceMap()"
+              [isPast]="true"
+            />
+          </div>
+        }
       } @else {
 
       @for (instance of filteredInstances(); track instance.id) {

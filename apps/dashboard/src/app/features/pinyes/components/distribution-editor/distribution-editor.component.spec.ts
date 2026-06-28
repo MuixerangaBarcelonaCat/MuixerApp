@@ -1,4 +1,4 @@
-import { Component, input } from '@angular/core';
+import { Component, input, output } from '@angular/core';
 import { Location } from '@angular/common';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
@@ -21,6 +21,8 @@ class FigureCanvasStub {
   readonly gridEnabled = input<boolean>(false);
   readonly gridSpacing = input<number>(20);
   readonly snapToGrid = input<boolean>(false);
+  readonly slotMoved = output<{ slotId: string; offsetX: number; offsetY: number; angle: number }>();
+  readonly troncMoved = output<{ slotId: string; troncPanelX: number | null; troncPanelY: number | null }>();
   fitAllSlots() {}
 }
 
@@ -47,6 +49,8 @@ const itemWithPosition = (instanceId: string, x: number, y: number, angle = 0) =
   numberOfCordons: null as number | null,
   assignments: [] as { figureNodeId: string; personAlias: string }[],
   figureTemplate: { id: 'fig-1', name: 'pd4', nodes: [] as ReturnType<typeof makeDistributionNode>[] },
+  troncGridCols: 2,
+  troncGridRows: 3,
   projectionX: x,
   projectionY: y,
   projectionAngle: angle,
@@ -348,6 +352,96 @@ describe('DistributionEditorComponent', () => {
       expect(fixture.componentInstance.compositionSlots()[0].assignments).toEqual([
         { figureNodeId: 'n1', personAlias: 'JoanP' },
       ]);
+    });
+  });
+
+  describe('tronc panel data', () => {
+    it('maps troncGridCols and troncGridRows from item into slot', () => {
+      const item = { ...itemWithPosition(INST_A, 0, 0), troncGridCols: 3, troncGridRows: 5 };
+      distributionService.getDistribution.mockReturnValue(of(makeDistributionData([item])));
+      const fixture = TestBed.createComponent(DistributionEditorComponent);
+      fixture.detectChanges();
+
+      const slot = fixture.componentInstance.compositionSlots()[0];
+      expect(slot.troncGridCols).toBe(3);
+      expect(slot.troncGridRows).toBe(5);
+    });
+
+    it('maps troncPanelX/Y from item into slot when set', () => {
+      const item = { ...itemWithPosition(INST_A, 0, 0), troncPanelX: 50, troncPanelY: 80 };
+      distributionService.getDistribution.mockReturnValue(of(makeDistributionData([item])));
+      const fixture = TestBed.createComponent(DistributionEditorComponent);
+      fixture.detectChanges();
+
+      const slot = fixture.componentInstance.compositionSlots()[0];
+      expect(slot.troncPanelX).toBe(50);
+      expect(slot.troncPanelY).toBe(80);
+    });
+
+    it('maps troncPanelX/Y as null when not set (linked mode)', () => {
+      const item = { ...itemWithPosition(INST_A, 0, 0), troncPanelX: null, troncPanelY: null };
+      distributionService.getDistribution.mockReturnValue(of(makeDistributionData([item])));
+      const fixture = TestBed.createComponent(DistributionEditorComponent);
+      fixture.detectChanges();
+
+      const slot = fixture.componentInstance.compositionSlots()[0];
+      expect(slot.troncPanelX).toBeNull();
+      expect(slot.troncPanelY).toBeNull();
+    });
+  });
+
+  describe('onTroncMoved', () => {
+    it('updates troncPanelX/Y on the matching slot', () => {
+      distributionService.getDistribution.mockReturnValue(
+        of(makeDistributionData([itemWithPosition(INST_A, 0, 0)])),
+      );
+      const fixture = TestBed.createComponent(DistributionEditorComponent);
+      fixture.detectChanges();
+      const comp = fixture.componentInstance;
+
+      comp.onTroncMoved({ slotId: INST_A, troncPanelX: 120, troncPanelY: 80 });
+
+      const slot = comp.compositionSlots().find((s) => s.slotId === INST_A);
+      expect(slot?.troncPanelX).toBe(120);
+      expect(slot?.troncPanelY).toBe(80);
+    });
+
+    it('saves after troncMoved with the detached position', () => {
+      distributionService.getDistribution.mockReturnValue(
+        of(makeDistributionData([itemWithPosition(INST_A, 10, 20)])),
+      );
+      const fixture = TestBed.createComponent(DistributionEditorComponent);
+      fixture.detectChanges();
+      const comp = fixture.componentInstance;
+
+      comp.onTroncMoved({ slotId: INST_A, troncPanelX: 120, troncPanelY: 80 });
+
+      expect(distributionService.saveDistribution).toHaveBeenCalledWith(
+        EVENT_ID,
+        SEGMENT_ID,
+        expect.arrayContaining([
+          expect.objectContaining({ instanceId: INST_A, troncPanelX: 120, troncPanelY: 80 }),
+        ]),
+      );
+    });
+
+    it('saves troncPanelX/Y as null when re-linked (null passed)', () => {
+      distributionService.getDistribution.mockReturnValue(
+        of(makeDistributionData([itemWithPosition(INST_A, 10, 20)])),
+      );
+      const fixture = TestBed.createComponent(DistributionEditorComponent);
+      fixture.detectChanges();
+      const comp = fixture.componentInstance;
+
+      comp.onTroncMoved({ slotId: INST_A, troncPanelX: null, troncPanelY: null });
+
+      expect(distributionService.saveDistribution).toHaveBeenCalledWith(
+        EVENT_ID,
+        SEGMENT_ID,
+        expect.arrayContaining([
+          expect.objectContaining({ instanceId: INST_A, troncPanelX: null, troncPanelY: null }),
+        ]),
+      );
     });
   });
 });
