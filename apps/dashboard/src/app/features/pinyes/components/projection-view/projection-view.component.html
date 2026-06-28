@@ -15,18 +15,27 @@
     <!-- ── Grid de figures ────────────────────────────────────────────────────── -->
     <div #figuresContainer class="relative flex-1 overflow-hidden" aria-label="Figures en projecció">
 
+      @if (hasDistribution()) {
+        <!-- ── Distribució: canvas unificat amb totes les figures ─────────────── -->
+        <app-figure-canvas
+          class="block w-full h-full"
+          mode="readonly"
+          [gridEnabled]="false"
+          [nodes]="distributionNodes()"
+          [assignments]="distributionAssignments()"
+          [attendanceMap]="attendanceMap()"
+          [isPast]="true"
+        />
+      } @else {
+
       @for (instance of filteredInstances(); track instance.id) {
-        @let activeCell = hasDistribution()
-          ? distributionCellsById().get(instance.id)
-          : cellsById().get(instance.id);
-        @if (activeCell) {
+        @if (cellsById().get(instance.id); as cell) {
           <div
             class="absolute overflow-hidden group flex flex-col border border-gray-200"
-            [style.left.px]="activeCell.x"
-            [style.top.px]="activeCell.y"
-            [style.width.px]="activeCell.width"
-            [style.height.px]="activeCell.height"
-            [style.transform]="hasDistribution() && $any(activeCell).angle ? 'rotate(' + $any(activeCell).angle + 'deg)' : null"
+            [style.left.px]="cell.x"
+            [style.top.px]="cell.y"
+            [style.width.px]="cell.width"
+            [style.height.px]="cell.height"
           >
 
             @if (isNetaFigure(instance)) {
@@ -104,6 +113,8 @@
           </div>
         }
       }
+
+      } <!-- end @else (no distribution) -->
 
     </div>
 

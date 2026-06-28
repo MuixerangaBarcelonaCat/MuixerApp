@@ -18,14 +18,13 @@ import { LayoutService } from '../../../../core/services/layout.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { ProjectionService } from '../../services/projection.service';
 import { ProjectionSegmentData, ProjectionInstance } from '../../models/projection.model';
-import { AttendanceStatus } from '../../models/assignment.model';
-import { InstanceNodeItem } from '../../models/assignment.model';
+import { AttendanceStatus, AssignmentDetail, InstanceNodeItem } from '../../models/assignment.model';
 import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component';
 import { TroncViewComponent, TroncNodeItem } from '../tronc-view/tronc-view.component';
 import { FigureZone } from '@muixer/shared';
 import { ICON_FIGURA_NETA } from '../../../../shared/constants/domain-icons';
 import { computeCordoObertOverrides } from '../../utils/cordo-obert.util';
-import { computeProjectionLayout, computeDistributionLayout, ProjectionCell, DistributionCell } from '../../utils/projection-layout.util';
+import { computeProjectionLayout, computeDistributionLayout, computeDistributionTransform, ProjectionCell, DistributionCell } from '../../utils/projection-layout.util';
 
 @Component({
   selector: 'app-projection-view',
@@ -111,6 +110,72 @@ export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy
       m.set(cell.instanceId, cell);
     }
     return m;
+  });
+
+  /**
+   * All pinya/base/decoration nodes from every instance, translated into a shared
+   * screen-space coordinate system using each instance's stored distribution position.
+   * Empty when no distribution is active.
+   *
+   * The distribution editor shifts the Konva group's rotation pivot to the visual
+   * center of each figure's PINYA+BASE bounding box (slotGroup.offsetX/Y). The stored
+   * projectionX/Y therefore represents the world position of that center, not the
+   * top-left corner. Rotation must be applied around the same center.
+   */
+  readonly distributionNodes = computed((): InstanceNodeItem[] => {
+    if (!this.hasDistribution()) return [];
+    const instances = this.filteredInstances();
+    const { scale, offsetX, offsetY } = computeDistributionTransform(
+      instances,
+      this.containerWidth(),
+      this.containerHeight(),
+    );
+    const result: InstanceNodeItem[] = [];
+    for (const inst of instances) {
+      const projX = inst.projectionX ?? 0;
+      const projY = inst.projectionY ?? 0;
+      const angleRad = ((inst.projectionAngle ?? 0) * Math.PI) / 180;
+      const cosA = Math.cos(angleRad);
+      const sinA = Math.sin(angleRad);
+
+      // Compute the figure's rotation pivot — the center of its PINYA+BASE bounding box.
+      // This matches the offsetX/Y the distribution editor applies to the Konva group.
+      const pinyaBaseNodes = inst.nodes.filter(
+        (n) => n.zone === FigureZone.PINYA || n.zone === FigureZone.BASE,
+      );
+      let centerX = 0;
+      let centerY = 0;
+      if (pinyaBaseNodes.length > 0) {
+        const mnX = Math.min(...pinyaBaseNodes.map((n) => n.x - n.width / 2));
+        const mxX = Math.max(...pinyaBaseNodes.map((n) => n.x + n.width / 2));
+        const mnY = Math.min(...pinyaBaseNodes.map((n) => n.y - n.height / 2));
+        const mxY = Math.max(...pinyaBaseNodes.map((n) => n.y + n.height / 2));
+        centerX = (mnX + mxX) / 2;
+        centerY = (mnY + mxY) / 2;
+      }
+
+      for (const node of this.getInstanceProjectionNodes(inst)) {
+        const relX = node.x - centerX;
+        const relY = node.y - centerY;
+        const rotX = cosA * relX - sinA * relY;
+        const rotY = sinA * relX + cosA * relY;
+        result.push({
+          ...node,
+          x: (projX + rotX) * scale + offsetX,
+          y: (projY + rotY) * scale + offsetY,
+          width: node.width * scale,
+          height: node.height * scale,
+          rotation: node.rotation + (inst.projectionAngle ?? 0),
+        });
+      }
+    }
+    return result;
+  });
+
+  /** Combined assignments from all instances for the unified distribution canvas. */
+  readonly distributionAssignments = computed((): AssignmentDetail[] => {
+    if (!this.hasDistribution()) return [];
+    return this.filteredInstances().flatMap((inst) => inst.assignments);
   });
 
   // ── Route params ────────────────────────────────────────────────────────────

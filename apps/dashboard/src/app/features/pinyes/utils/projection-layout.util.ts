@@ -438,6 +438,56 @@ export function computeProjectionLayout(
   return rowFits ? rowResult.cells : colResult.cells;
 }
 
+export interface DistributionTransform {
+  scale: number;
+  offsetX: number;
+  offsetY: number;
+}
+
+/**
+ * Compute the scale + translation that maps canvas-space distribution coordinates to
+ * screen-space, fitting all instance bounding boxes within the given screen dimensions.
+ */
+export function computeDistributionTransform(
+  instances: ProjectionInstance[],
+  screenW: number,
+  screenH: number,
+): DistributionTransform {
+  if (instances.length === 0) return { scale: 1, offsetX: 0, offsetY: 0 };
+
+  const PADDING = 24;
+
+  const rawRects = instances.map((inst, index) => {
+    const m = toMetrics(inst);
+    const naturalW = Math.max(m.minWidth, m.pinyaW > 0 ? m.pinyaW : m.minWidth);
+    const naturalH = m.troncPx + (m.pinyaH > 0 ? m.pinyaH : 0);
+    return {
+      x: inst.projectionX ?? index * (naturalW + GAP_PX),
+      y: inst.projectionY ?? 0,
+      width: naturalW,
+      height: naturalH,
+    };
+  });
+
+  const minX = Math.min(...rawRects.map((r) => r.x));
+  const minY = Math.min(...rawRects.map((r) => r.y));
+  const maxX = Math.max(...rawRects.map((r) => r.x + r.width));
+  const maxY = Math.max(...rawRects.map((r) => r.y + r.height));
+  const bbW = maxX - minX;
+  const bbH = maxY - minY;
+
+  if (bbW <= 0 || bbH <= 0) return { scale: 1, offsetX: 0, offsetY: 0 };
+
+  const scale = Math.min(
+    (screenW - PADDING * 2) / bbW,
+    (screenH - PADDING * 2) / bbH,
+  );
+  const offsetX = (screenW - bbW * scale) / 2 - minX * scale;
+  const offsetY = (screenH - bbH * scale) / 2 - minY * scale;
+
+  return { scale, offsetX, offsetY };
+}
+
 /**
  * Compute absolutely-positioned layout cells for a segment with a custom distribution.
  *
@@ -452,45 +502,22 @@ export function computeDistributionLayout(
 ): DistributionCell[] {
   if (instances.length === 0) return [];
 
-  const PADDING = 24;
+  const { scale, offsetX, offsetY } = computeDistributionTransform(instances, screenW, screenH);
 
-  const rawCells: DistributionCell[] = instances.map((inst, index) => {
+  return instances.map((inst, index) => {
     const m = toMetrics(inst);
     const naturalW = Math.max(m.minWidth, m.pinyaW > 0 ? m.pinyaW : m.minWidth);
     const naturalH = m.troncPx + (m.pinyaH > 0 ? m.pinyaH : 0);
+    const rawX = inst.projectionX ?? index * (naturalW + GAP_PX);
+    const rawY = inst.projectionY ?? 0;
 
     return {
       instanceId: inst.id,
-      x: inst.projectionX ?? index * (naturalW + GAP_PX),
-      y: inst.projectionY ?? 0,
-      width: naturalW,
-      height: naturalH,
+      x: Math.round(rawX * scale + offsetX),
+      y: Math.round(rawY * scale + offsetY),
+      width: Math.round(naturalW * scale),
+      height: Math.round(naturalH * scale),
       angle: inst.projectionAngle ?? 0,
     };
   });
-
-  const minX = Math.min(...rawCells.map((c) => c.x));
-  const minY = Math.min(...rawCells.map((c) => c.y));
-  const maxX = Math.max(...rawCells.map((c) => c.x + c.width));
-  const maxY = Math.max(...rawCells.map((c) => c.y + c.height));
-  const bbW = maxX - minX;
-  const bbH = maxY - minY;
-
-  if (bbW <= 0 || bbH <= 0) return rawCells;
-
-  const scale = Math.min(
-    (screenW - PADDING * 2) / bbW,
-    (screenH - PADDING * 2) / bbH,
-  );
-
-  const offsetX = (screenW - bbW * scale) / 2 - minX * scale;
-  const offsetY = (screenH - bbH * scale) / 2 - minY * scale;
-
-  return rawCells.map((c) => ({
-    ...c,
-    x: Math.round(c.x * scale + offsetX),
-    y: Math.round(c.y * scale + offsetY),
-    width: Math.round(c.width * scale),
-    height: Math.round(c.height * scale),
-  }));
 }

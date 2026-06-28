@@ -357,4 +357,75 @@ describe('ProjectionViewComponent', () => {
       expect(cell1.x).toBeLessThan(cell2.x);
     });
   });
+
+  // ── distributionNodes ────────────────────────────────────────────────────────
+
+  describe('distributionNodes', () => {
+    it('returns empty array when hasDistribution is false', () => {
+      component.segmentData.set({
+        segment: { id: 's1', name: null, sortOrder: 0, prevSegmentId: null, nextSegmentId: null },
+        instances: [makeInstance([makeNode({ id: 'n1', zone: FigureZone.PINYA })], ['n1'])],
+        personAttendance: {},
+        hasDistribution: false,
+      });
+      expect(component.distributionNodes().length).toBe(0);
+    });
+
+    it('returns combined nodes from all instances when hasDistribution is true', () => {
+      const n1 = makeNode({ id: 'n1', zone: FigureZone.PINYA, x: 0, y: 0 });
+      const n2 = makeNode({ id: 'n2', zone: FigureZone.PINYA, x: 0, y: 0 });
+      const inst1 = makeInstance([n1], ['n1'], { id: 'i1', projectionX: 0, projectionY: 0 });
+      const inst2 = makeInstance([n2], ['n2'], { id: 'i2', projectionX: 300, projectionY: 0 });
+      component.segmentData.set({
+        segment: { id: 's1', name: null, sortOrder: 0, prevSegmentId: null, nextSegmentId: null },
+        instances: [inst1, inst2],
+        personAttendance: {},
+        hasDistribution: true,
+      });
+      expect(component.distributionNodes().length).toBe(2);
+    });
+
+    it('applies projectionX/Y offset so horizontally-separated instances produce different node x positions', () => {
+      const n1 = makeNode({ id: 'n1', zone: FigureZone.PINYA, x: 0, y: 0 });
+      const n2 = makeNode({ id: 'n2', zone: FigureZone.PINYA, x: 0, y: 0 });
+      const inst1 = makeInstance([n1], ['n1'], { id: 'i1', projectionX: 0, projectionY: 0 });
+      const inst2 = makeInstance([n2], ['n2'], { id: 'i2', projectionX: 400, projectionY: 0 });
+      component.segmentData.set({
+        segment: { id: 's1', name: null, sortOrder: 0, prevSegmentId: null, nextSegmentId: null },
+        instances: [inst1, inst2],
+        personAttendance: {},
+        hasDistribution: true,
+      });
+      const nodes = component.distributionNodes();
+      const xValues = nodes.map((n) => n.x);
+      expect(xValues[0]).not.toEqual(xValues[1]);
+    });
+  });
+
+  // ── distributionAssignments ──────────────────────────────────────────────────
+
+  describe('distributionAssignments', () => {
+    it('returns empty array when hasDistribution is false', () => {
+      const inst = makeInstance([], ['n1'], { id: 'i1' });
+      component.segmentData.set({
+        segment: { id: 's1', name: null, sortOrder: 0, prevSegmentId: null, nextSegmentId: null },
+        instances: [inst],
+        personAttendance: {},
+        hasDistribution: false,
+      });
+      expect(component.distributionAssignments().length).toBe(0);
+    });
+
+    it('returns assignments from all instances when hasDistribution is true', () => {
+      const inst1 = makeInstance([], ['n1'], { id: 'i1' });
+      const inst2 = makeInstance([], ['n2'], { id: 'i2' });
+      component.segmentData.set({
+        segment: { id: 's1', name: null, sortOrder: 0, prevSegmentId: null, nextSegmentId: null },
+        instances: [inst1, inst2],
+        personAttendance: {},
+        hasDistribution: true,
+      });
+      expect(component.distributionAssignments().length).toBe(2);
+    });
+  });
 });
