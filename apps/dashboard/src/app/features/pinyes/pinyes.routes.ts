@@ -32,6 +32,13 @@ export const pinyesRoutes: Routes = [
       ),
   },
   {
+    path: 'events/:eventId/segments/:segmentId/distribute',
+    loadComponent: () =>
+      import('./components/distribution-editor/distribution-editor.component').then(
+        (m) => m.DistributionEditorComponent,
+      ),
+  },
+  {
     path: 'events/:eventId/segments/:segmentId/assign',
     loadComponent: () =>
       import('./components/assignment-canvas/assignment-canvas.component').then(

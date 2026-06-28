@@ -25,7 +25,7 @@ import { TroncViewComponent, TroncNodeItem } from '../tronc-view/tronc-view.comp
 import { FigureZone } from '@muixer/shared';
 import { ICON_FIGURA_NETA } from '../../../../shared/constants/domain-icons';
 import { computeCordoObertOverrides } from '../../utils/cordo-obert.util';
-import { computeProjectionLayout, ProjectionCell } from '../../utils/projection-layout.util';
+import { computeProjectionLayout, computeDistributionLayout, ProjectionCell, DistributionCell } from '../../utils/projection-layout.util';
 
 @Component({
   selector: 'app-projection-view',
@@ -82,7 +82,9 @@ export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy
     return map;
   });
 
-  /** Absolute-positioned layout cells, one per instance. */
+  readonly hasDistribution = computed(() => this.segmentData()?.hasDistribution ?? false);
+
+  /** Absolute-positioned layout cells, one per instance. Used when no distribution is set. */
   readonly layout = computed(() =>
     computeProjectionLayout(
       this.filteredInstances(),
@@ -94,6 +96,20 @@ export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy
   readonly cellsById = computed(() => {
     const m = new Map<string, ProjectionCell>();
     for (const cell of this.layout()) m.set(cell.instanceId, cell);
+    return m;
+  });
+
+  /** Distribution-mode cells keyed by instanceId. Empty when no distribution is active. */
+  readonly distributionCellsById = computed((): Map<string, DistributionCell> => {
+    if (!this.hasDistribution()) return new Map();
+    const m = new Map<string, DistributionCell>();
+    for (const cell of computeDistributionLayout(
+      this.filteredInstances(),
+      this.containerWidth(),
+      this.containerHeight(),
+    )) {
+      m.set(cell.instanceId, cell);
+    }
     return m;
   });
 

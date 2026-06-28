@@ -16,13 +16,17 @@
     <div #figuresContainer class="relative flex-1 overflow-hidden" aria-label="Figures en projecció">
 
       @for (instance of filteredInstances(); track instance.id) {
-        @if (cellsById().get(instance.id); as cell) {
+        @let activeCell = hasDistribution()
+          ? distributionCellsById().get(instance.id)
+          : cellsById().get(instance.id);
+        @if (activeCell) {
           <div
             class="absolute overflow-hidden group flex flex-col border border-gray-200"
-            [style.left.px]="cell.x"
-            [style.top.px]="cell.y"
-            [style.width.px]="cell.width"
-            [style.height.px]="cell.height"
+            [style.left.px]="activeCell.x"
+            [style.top.px]="activeCell.y"
+            [style.width.px]="activeCell.width"
+            [style.height.px]="activeCell.height"
+            [style.transform]="hasDistribution() && $any(activeCell).angle ? 'rotate(' + $any(activeCell).angle + 'deg)' : null"
           >
 
             @if (isNetaFigure(instance)) {

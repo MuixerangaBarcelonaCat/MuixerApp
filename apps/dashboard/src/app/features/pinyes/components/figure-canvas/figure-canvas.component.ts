@@ -56,6 +56,8 @@ export interface CompositionSlotWithNodes {
   offsetX: number;
   offsetY: number;
   sortOrder: number;
+  /** Rotation in degrees. Used by distribution editor; composition editor leaves this undefined (treated as 0). */
+  angle?: number;
   figureTemplate: {
     id: string;
     name: string;
@@ -141,7 +143,6 @@ function createNodeShape(
 }
 const SELECTED_STROKE = '#f59e0b';
 const NORMAL_STROKE = '#1e1b4b';
-const COMPOSITION_SLOT_SCALE = 0.5;
 
 @Component({
   selector: 'app-figure-canvas',
@@ -189,6 +190,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     slotId: string;
     offsetX: number;
     offsetY: number;
+    angle: number;
   }>();
   readonly nodeDoubleClicked = output<string>();
   readonly stageTransformChanged = output<{
@@ -325,6 +327,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.stage.scale({ x: 1, y: 1 });
     this.stage.position({ x: 0, y: 0 });
     this.zoomLevel.set(1);
+    this.renderGrid();
     this.stage.batchDraw();
     this.emitStageTransform();
   }
@@ -372,6 +375,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.stage.scale({ x: newScale, y: newScale });
     this.stage.position({ x: newX, y: newY });
     this.zoomLevel.set(newScale);
+    this.renderGrid();
     this.stage.batchDraw();
     this.emitStageTransform();
   }
@@ -428,6 +432,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     });
 
     this.zoomLevel.set(level);
+    this.renderGrid();
     this.stage.batchDraw();
     this.emitStageTransform();
   }
@@ -504,6 +509,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         x: stageStart.x + (pos.x - panStart.x),
         y: stageStart.y + (pos.y - panStart.y),
       });
+      this.renderGrid();
       this.stage.batchDraw();
       this.emitStageTransform();
     });
@@ -613,6 +619,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           this.stage.scale({ x: fit.scale, y: fit.scale });
           this.stage.position({ x: fit.x, y: fit.y });
           this.zoomLevel.set(fit.scale);
+          this.renderGrid();
         }
       }
     }
@@ -642,28 +649,37 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     }
 
     const spacing = this.gridSpacing();
+    const scale = this.stage.scaleX();
+    const sx = this.stage.x();
+    const sy = this.stage.y();
     const width = this.stage.width();
     const height = this.stage.height();
 
-    const cols = Math.ceil(width / spacing) + 2;
-    const rows = Math.ceil(height / spacing) + 2;
+    // Convert viewport edges to layer coordinates so lines cover the visible area
+    const startX = Math.floor(-sx / scale / spacing) * spacing;
+    const endX = Math.ceil((width - sx) / scale / spacing) * spacing;
+    const startY = Math.floor(-sy / scale / spacing) * spacing;
+    const endY = Math.ceil((height - sy) / scale / spacing) * spacing;
 
-    for (let i = 0; i < cols; i++) {
+    // Keep line thickness 1 screen-pixel regardless of zoom
+    const strokeWidth = 1 / scale;
+
+    for (let x = startX; x <= endX; x += spacing) {
       this.gridLayer.add(
         new Konva.Line({
-          points: [i * spacing, 0, i * spacing, rows * spacing],
+          points: [x, startY, x, endY],
           stroke: GRID_COLOR,
-          strokeWidth: 1,
+          strokeWidth,
           listening: false,
         }),
       );
     }
-    for (let j = 0; j < rows; j++) {
+    for (let y = startY; y <= endY; y += spacing) {
       this.gridLayer.add(
         new Konva.Line({
-          points: [0, j * spacing, cols * spacing, j * spacing],
+          points: [startX, y, endX, y],
           stroke: GRID_COLOR,
-          strokeWidth: 1,
+          strokeWidth,
           listening: false,
         }),
       );
@@ -730,9 +746,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         id: slot.slotId,
         x: slot.offsetX,
         y: slot.offsetY,
+        rotation: slot.angle ?? 0,
         draggable: true,
-        scaleX: COMPOSITION_SLOT_SCALE,
-        scaleY: COMPOSITION_SLOT_SCALE,
       });
 
       if (pinyaNodes.length === 0) {
@@ -781,6 +796,10 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
             listening: false,
           }),
         );
+
+        if (slot.angle !== undefined && isSelected) {
+          slotGroup.add(this.makeRotationHandle(slot.slotId, slotGroup, 0, -phH / 2 - 32));
+        }
       } else {
         // Compute bounding box for the bounding rect
         let minX = Infinity,
@@ -796,6 +815,15 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
         const padding = 8;
         const labelHeight = 16;
+
+        // Shift Konva's rotation/scale pivot to the figure's visual center so that
+        // rotation (in distribution mode) happens around the actual center of mass.
+        // slotGroup.x/y then represents the visual-center position, which is what
+        // we store in projectionX/Y.
+        if (slot.angle !== undefined) {
+          slotGroup.offsetX((minX + maxX) / 2);
+          slotGroup.offsetY((minY + maxY) / 2);
+        }
 
         // Bounding rect with listening: true — acts as the hit area for the whole group
         slotGroup.add(
@@ -871,6 +899,12 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
           slotGroup.add(nodeGroup);
         }
+
+        if (slot.angle !== undefined && isSelected) {
+          const handleX = (minX + maxX) / 2;
+          const handleY = minY - padding - labelHeight - 32;
+          slotGroup.add(this.makeRotationHandle(slot.slotId, slotGroup, handleX, handleY));
+        }
       }
 
       // Slot group interaction — same for real slots and placeholders
@@ -891,6 +925,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           slotId: slot.slotId,
           offsetX: Math.round(slotGroup.x()),
           offsetY: Math.round(slotGroup.y()),
+          angle: slotGroup.rotation(),
         });
       });
 
@@ -909,6 +944,64 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
     this.pinyaLayer.add(this.transformer);
     this.pinyaLayer.batchDraw();
+  }
+
+  private makeRotationHandle(slotId: string, slotGroup: Konva.Group, x: number, y: number): Konva.Circle {
+    const handle = new Konva.Circle({
+      x,
+      y,
+      radius: 10,
+      fill: '#f59e0b',
+      stroke: '#ffffff',
+      strokeWidth: 3,
+      draggable: false,
+      listening: true,
+      cursor: 'crosshair',
+    });
+
+    handle.on('mousedown touchstart', (e) => {
+      e.cancelBubble = true;
+      slotGroup.draggable(false); // prevent parent drag while rotating
+
+      const stageEl = this.stage.container();
+      const groupX = slotGroup.x();
+      const groupY = slotGroup.y();
+
+      const toLayer = (clientX: number, clientY: number) => {
+        const rect = stageEl.getBoundingClientRect();
+        return {
+          x: (clientX - rect.left - this.stage.x()) / this.stage.scaleX(),
+          y: (clientY - rect.top - this.stage.y()) / this.stage.scaleY(),
+        };
+      };
+
+      const onMove = (ev: MouseEvent) => {
+        const lp = toLayer(ev.clientX, ev.clientY);
+        let angleDeg = (Math.atan2(lp.y - groupY, lp.x - groupX) * 180) / Math.PI + 90;
+        if (this.snapToGrid()) {
+          angleDeg = Math.round(angleDeg / 15) * 15;
+        }
+        slotGroup.rotation(angleDeg);
+        this.pinyaLayer.batchDraw();
+      };
+
+      const onUp = () => {
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+        slotGroup.draggable(true);
+        this.slotMoved.emit({
+          slotId,
+          offsetX: Math.round(slotGroup.x()),
+          offsetY: Math.round(slotGroup.y()),
+          angle: slotGroup.rotation(),
+        });
+      };
+
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+    });
+
+    return handle;
   }
 
   private renderAssignmentNodes(): void {

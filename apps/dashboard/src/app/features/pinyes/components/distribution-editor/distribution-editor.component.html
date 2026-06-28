@@ -1,0 +1,77 @@
+<div class="flex flex-col h-screen bg-base-200 overflow-hidden">
+
+  <!-- Top bar -->
+  <header class="flex items-center gap-3 px-4 h-14 bg-base-100 border-b border-base-200 shrink-0 z-10">
+    <button
+      type="button"
+      class="btn btn-ghost btn-sm gap-2"
+      (click)="goBack()"
+      aria-label="Torna enrere"
+    >
+      <lucide-icon name="ArrowLeft" [size]="16" aria-hidden="true" />
+      Torna
+    </button>
+
+    <div class="divider divider-horizontal m-0 h-6"></div>
+
+    <span class="font-semibold text-sm text-base-content truncate max-w-48">
+      {{ segmentName() ?? 'Distribució' }}
+    </span>
+
+    <div class="flex-1"></div>
+
+    <!-- Save status -->
+    <span class="text-xs" [class]="saveStatusClass" aria-live="polite">
+      {{ saveStatusLabel }}
+    </span>
+
+    <!-- Snap toggle -->
+    <button
+      type="button"
+      class="btn btn-ghost btn-sm gap-1.5"
+      [class.btn-active]="snapToGrid"
+      (click)="toggleSnap()"
+      aria-pressed="{{ snapToGrid }}"
+      aria-label="Alterna l'ajust a la graella"
+    >
+      <lucide-icon name="Magnet" [size]="15" aria-hidden="true" />
+      Ajusta
+    </button>
+
+    <div class="divider divider-horizontal m-0 h-6"></div>
+
+    <!-- Clear distribution -->
+    <button
+      type="button"
+      class="btn btn-ghost btn-sm gap-1.5 text-error hover:bg-error/10"
+      (click)="clearDistribution()"
+      aria-label="Esborra la distribució i torna al disseny automàtic"
+    >
+      <lucide-icon name="RotateCcw" [size]="15" aria-hidden="true" />
+      Esborra distribució
+    </button>
+  </header>
+
+  <!-- Canvas -->
+  <main class="flex-1 relative overflow-hidden" aria-label="Llenç de distribució">
+    @if (loading()) {
+      <div class="absolute inset-0 flex items-center justify-center bg-base-200/50 z-20">
+        <span class="loading loading-spinner loading-lg text-primary" aria-label="S'està carregant..."></span>
+      </div>
+    }
+
+    @if (!loading()) {
+      <app-figure-canvas
+        mode="composition"
+        [compositionSlots]="compositionSlots()"
+        [selectedSlotId]="selectedSlotId()"
+        [gridEnabled]="gridEnabled"
+        [gridSpacing]="gridSpacing"
+        [snapToGrid]="snapToGrid"
+        (slotSelected)="onSlotSelected($event)"
+        (slotMoved)="onSlotMoved($event)"
+      />
+    }
+  </main>
+
+</div>

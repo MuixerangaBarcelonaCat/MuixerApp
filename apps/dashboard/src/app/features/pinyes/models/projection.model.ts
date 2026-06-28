@@ -9,6 +9,11 @@ export interface ProjectionInstance {
   projectionX: number | null;
   projectionY: number | null;
   projectionScale: number;
+  projectionAngle: number;
+  troncPanelX: number | null;
+  troncPanelY: number | null;
+  troncPanelWidth: number | null;
+  troncPanelHeight: number | null;
   figureMode: FigureMode;
   figureTemplate: { id: string; name: string; hasPinya: boolean } | null;
   nodes: InstanceNodeItem[];
@@ -25,11 +30,5 @@ export interface ProjectionSegmentData {
   };
   instances: ProjectionInstance[];
   personAttendance: Record<string, AttendanceStatus>;
-}
-
-export interface InstanceLayoutUpdate {
-  instanceId: string;
-  x: number;
-  y: number;
-  scale: number;
+  hasDistribution: boolean;
 }

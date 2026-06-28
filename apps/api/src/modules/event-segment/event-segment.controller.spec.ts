@@ -48,7 +48,6 @@ const mockInstanceService: Partial<FigureInstanceService> = {
   update: jest.fn().mockResolvedValue(mockInstance),
   remove: jest.fn().mockResolvedValue(undefined),
   reorder: jest.fn().mockResolvedValue(undefined),
-  updateProjectionLayout: jest.fn().mockResolvedValue(undefined),
 };
 
 const mockProjectionService: Partial<ProjectionService> = {
@@ -146,15 +145,7 @@ describe('EventSegmentController', () => {
     });
   });
 
-  describe('updateProjectionLayout', () => {
-    it('delegates to instance service and returns void (204)', async () => {
-      const dto = { layouts: [{ instanceId: INSTANCE_ID, x: 100, y: 200, scale: 1.0 }] };
-      await expect(controller.updateProjectionLayout(EVENT_ID, SEGMENT_ID, dto)).resolves.toBeUndefined();
-      expect(mockInstanceService.updateProjectionLayout).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID, dto);
-    });
-  });
-
-  describe('getProjection', () => {
+describe('getProjection', () => {
     it('delegates to projection service and returns aggregated data', async () => {
       const result = await controller.getProjection(EVENT_ID, SEGMENT_ID);
       expect(result).toEqual(mockProjectionData);

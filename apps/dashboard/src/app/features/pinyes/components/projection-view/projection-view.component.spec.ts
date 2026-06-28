@@ -54,16 +54,19 @@ const makeAssignment = (nodeId: string): AssignmentDetail => ({
   person: { id: 'p1', alias: 'Pepet', name: 'Pere', firstSurname: 'G', shoulderHeight: null },
 });
 
-const makeInstance = (nodes: InstanceNodeItem[], assignedIds: string[]): ProjectionInstance => ({
+const makeInstance = (nodes: InstanceNodeItem[], assignedIds: string[], overrides: Partial<ProjectionInstance> = {}): ProjectionInstance => ({
   id: 'inst-1',
   label: null,
   sortOrder: 0,
   numberOfCordons: null,
-  projectionX: 0, projectionY: 0, projectionScale: 1,
+  projectionX: null, projectionY: null, projectionScale: 1,
+  projectionAngle: 0,
+  troncPanelX: null, troncPanelY: null, troncPanelWidth: null, troncPanelHeight: null,
   figureMode: 'COMPLETA',
   figureTemplate: { id: 'fig-1', name: 'pd4', hasPinya: true },
   nodes,
   assignments: assignedIds.map(makeAssignment),
+  ...overrides,
 });
 
 // ── Suite ─────────────────────────────────────────────────────────────────────
@@ -83,7 +86,7 @@ describe('ProjectionViewComponent', () => {
     await TestBed.configureTestingModule({
       imports: [ProjectionViewComponent],
       providers: [
-        { provide: ProjectionService, useValue: { getProjection: vi.fn().mockReturnValue(of({ segment: { id: 's1', name: null, sortOrder: 0, prevSegmentId: null, nextSegmentId: null }, instances: [], personAttendance: {} })) } },
+        { provide: ProjectionService, useValue: { getProjection: vi.fn().mockReturnValue(of({ segment: { id: 's1', name: null, sortOrder: 0, prevSegmentId: null, nextSegmentId: null }, instances: [], personAttendance: {}, hasDistribution: false })) } },
         { provide: ToastService, useValue: { error: vi.fn() } },
         { provide: Router, useValue: { navigate: vi.fn() } },
         { provide: ActivatedRoute, useValue: { snapshot: { params: { eventId: 'e1', segmentId: 's1' } } } },
@@ -113,6 +116,7 @@ describe('ProjectionViewComponent', () => {
         segment: { id: 's1', name: null, sortOrder: 0, prevSegmentId: null, nextSegmentId: null },
         instances: [],
         personAttendance: { 'person-1': 'ASSISTIT', 'person-2': 'NO_VAIG' },
+        hasDistribution: false,
       } as Parameters<typeof component.segmentData.set>[0]);
 
       const map = component.attendanceMap();
@@ -125,6 +129,7 @@ describe('ProjectionViewComponent', () => {
         segment: { id: 's1', name: null, sortOrder: 0, prevSegmentId: null, nextSegmentId: null },
         instances: [],
         personAttendance: {},
+        hasDistribution: false,
       } as Parameters<typeof component.segmentData.set>[0]);
 
       expect(component.attendanceMap().size).toBe(0);
@@ -280,6 +285,76 @@ describe('ProjectionViewComponent', () => {
       // r2: no gaps → co stays at original position
       expect(result.find((n) => n.id === 'r2co')!.x).toBe(150);
       expect(result.find((n) => n.id === 'r2co')!.y).toBe(200);
+    });
+  });
+
+  // ── hasDistribution ──────────────────────────────────────────────────────────
+
+  describe('hasDistribution', () => {
+    it('returns false when segmentData is null', () => {
+      component.segmentData.set(null);
+      expect(component.hasDistribution()).toBe(false);
+    });
+
+    it('returns false when segmentData has hasDistribution=false', () => {
+      component.segmentData.set({
+        segment: { id: 's1', name: null, sortOrder: 0, prevSegmentId: null, nextSegmentId: null },
+        instances: [],
+        personAttendance: {},
+        hasDistribution: false,
+      });
+      expect(component.hasDistribution()).toBe(false);
+    });
+
+    it('returns true when segmentData has hasDistribution=true', () => {
+      component.segmentData.set({
+        segment: { id: 's1', name: null, sortOrder: 0, prevSegmentId: null, nextSegmentId: null },
+        instances: [],
+        personAttendance: {},
+        hasDistribution: true,
+      });
+      expect(component.hasDistribution()).toBe(true);
+    });
+  });
+
+  // ── distributionCellsById ────────────────────────────────────────────────────
+
+  describe('distributionCellsById', () => {
+    it('returns empty map when hasDistribution is false', () => {
+      component.segmentData.set({
+        segment: { id: 's1', name: null, sortOrder: 0, prevSegmentId: null, nextSegmentId: null },
+        instances: [makeInstance([], [], { id: 'inst-A', projectionX: 100, projectionY: 200, projectionAngle: 45 })],
+        personAttendance: {},
+        hasDistribution: false,
+      });
+      expect(component.distributionCellsById().size).toBe(0);
+    });
+
+    it('maps stored projectionX/Y to cell position and stores angle when hasDistribution is true', () => {
+      const inst = makeInstance([], [], { id: 'inst-A', projectionX: 100, projectionY: 200, projectionAngle: 30 });
+      component.segmentData.set({
+        segment: { id: 's1', name: null, sortOrder: 0, prevSegmentId: null, nextSegmentId: null },
+        instances: [inst],
+        personAttendance: {},
+        hasDistribution: true,
+      });
+      const cell = component.distributionCellsById().get('inst-A');
+      expect(cell).toBeDefined();
+      expect(cell!.angle).toBe(30);
+    });
+
+    it('two instances are positioned relative to each other, preserving spatial order', () => {
+      const inst1 = makeInstance([], [], { id: 'i1', projectionX: 0, projectionY: 0, projectionAngle: 0 });
+      const inst2 = makeInstance([], [], { id: 'i2', projectionX: 400, projectionY: 0, projectionAngle: 0 });
+      component.segmentData.set({
+        segment: { id: 's1', name: null, sortOrder: 0, prevSegmentId: null, nextSegmentId: null },
+        instances: [inst1, inst2],
+        personAttendance: {},
+        hasDistribution: true,
+      });
+      const cell1 = component.distributionCellsById().get('i1')!;
+      const cell2 = component.distributionCellsById().get('i2')!;
+      expect(cell1.x).toBeLessThan(cell2.x);
     });
   });
 });

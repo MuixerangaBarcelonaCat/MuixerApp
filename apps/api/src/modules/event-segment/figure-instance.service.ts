@@ -12,7 +12,6 @@ import { CompositionTemplate } from '../composition/entities/composition-templat
 import { CreateInstanceDto } from './dto/create-instance.dto';
 import { UpdateInstanceDto } from './dto/update-instance.dto';
 import { ReorderInstancesDto } from './dto/reorder-instances.dto';
-import { UpdateProjectionLayoutDto } from './dto/update-projection-layout.dto';
 import { UpdateSegmentDistributionDto } from './dto/update-segment-distribution.dto';
 import { InstanceRef } from './event-segment.service';
 
@@ -210,36 +209,6 @@ export class FigureInstanceService {
 
     const saved = await this.instanceRepository.save(newInstance);
     return this.findOneById(saved.id);
-  }
-
-  async updateProjectionLayout(
-    eventId: string,
-    segmentId: string,
-    dto: UpdateProjectionLayoutDto,
-  ): Promise<void> {
-    await this.assertSegmentBelongsToEvent(eventId, segmentId);
-
-    const existing = await this.instanceRepository.find({
-      where: { segment: { id: segmentId } },
-      select: ['id'],
-    });
-    const existingIds = new Set(existing.map((i) => i.id));
-    const invalid = dto.layouts.filter((l) => !existingIds.has(l.instanceId));
-    if (invalid.length > 0) {
-      throw new BadRequestException(
-        `Instance IDs not found in segment: ${invalid.map((l) => l.instanceId).join(', ')}`,
-      );
-    }
-
-    await this.dataSource.transaction(async (manager) => {
-      for (const layout of dto.layouts) {
-        await manager.update(
-          FigureInstance,
-          { id: layout.instanceId },
-          { projectionX: layout.x, projectionY: layout.y, projectionScale: layout.scale },
-        );
-      }
-    });
   }
 
   async saveDistribution(

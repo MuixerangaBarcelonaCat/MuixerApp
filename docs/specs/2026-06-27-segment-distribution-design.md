@@ -2,7 +2,7 @@
 
 > **Status:** Draft
 > **Created:** 2026-06-27
-> **Phases:** 4 (independently deployable)
+> **Phases:** 5 (independently deployable)
 > **Branch prefix:** `feat/segment-distribution-phase-X`
 
 ## 1. Executive Summary
@@ -154,52 +154,55 @@ Lazy-loaded. Added to `pinyes.routes.ts`.
 
 ### 4.2 New component — `DistributionEditorComponent`
 
-Fullscreen canvas editor (uses `layoutService.requestFullscreen()`).
+Fullscreen canvas editor, **copied from `CompositionEditorComponent`** and adapted. Compositions will be removed in a future cleanup; code is deliberately shared.
 
-**Layout:** single-panel (no sidebars). Top bar with: back button, segment name, save status indicator, grid toggle, snap toggle, fit-all button, "Esborra distribució" (delete) button.
+**Removed vs. composition editor:**
+- Left sidebar (figure picker) — instances are fixed, no adding/removing
+- Name / slug / description inputs
+- Z-order (bring forward / send backward) controls
+- Right slot-properties sidebar
 
-**Canvas:** `FigureCanvasComponent` in new `distribution` mode (see §4.3).
+**Kept:**
+- Fullscreen layout via `layoutService.requestFullscreen()`
+- Top bar: back button, segment name, save status indicator, grid toggle, snap toggle, fit-all button
+- Autosave: debounced 1 500 ms after any move/rotate, calls `PUT .../distribution`
 
-**Autosave:** debounced 1 500 ms after any move/rotate. Calls `PUT .../distribution`.
+**Added:**
+- "Esborra distribució" button in top bar → confirmation dialog → `DELETE .../distribution` → navigate back
 
-**"Esborra distribució":** confirmation dialog → calls `DELETE .../distribution` → navigates back.
+**Initial positions:** on first open, if no distribution exists yet (`projectionX` is null on all instances), figures are auto-placed in a horizontal row spaced 50 px apart as a starting point. The user then drags to their preferred layout before the first autosave fires.
 
-**Initial positions:** on first open, if no distribution exists yet, figures are auto-placed in a horizontal row spaced by their bounding-box width + 50 px gap (as a starting point).
+### 4.3 `FigureCanvasComponent` — extend `composition` mode for rotation
 
-**Tronc panel:** each figure has a separate draggable semi-transparent blue rectangle on the canvas representing the tronc panel. If a figure has no tronc panel set yet, a default rectangle is shown at a fixed offset below the figure. Moving the tronc rectangle emits its new position.
+**No new canvas mode is added.** Instead, `CompositionSlotWithNodes` gains an optional `angle` field:
 
-### 4.3 `FigureCanvasComponent` — new `distribution` mode
-
-New inputs:
 ```typescript
-readonly distributionItems = input<DistributionCanvasItem[]>([]);
-```
-
-```typescript
-interface DistributionCanvasItem {
-  instanceId: string;
+export interface CompositionSlotWithNodes {
+  slotId: string;
   label: string | null;
-  nodes: FigureNodeItem[];           // pinya + base nodes only
-  x: number;
-  y: number;
-  angle: number;
-  troncPanel: { x: number; y: number; width: number; height: number } | null;
+  offsetX: number;
+  offsetY: number;
+  sortOrder: number;
+  angle?: number;   // degrees — used by distribution editor; ignored by composition editor
+  figureTemplate: { ... };
 }
 ```
 
-New outputs:
+In `renderCompositionSlots()`, the Konva group is created with `rotation: slot.angle ?? 0`.
+
+A rotation handle (small circle, 8 px radius, positioned 24 px above the bounding rect top-centre) is added to each slot group. Dragging the handle calculates `Math.atan2(dy, dx)` from the group centre and updates the group's `rotation`. On `pointerup` on the handle the existing `slotMoved` output is reused, now carrying the current rotation:
+
 ```typescript
-readonly instanceMoved = output<{ instanceId: string; x: number; y: number; angle: number }>();
-readonly troncPanelMoved = output<{ instanceId: string; x: number; y: number; width: number; height: number }>();
+// slotMoved output extended:
+readonly slotMoved = output<{
+  slotId: string;
+  offsetX: number;
+  offsetY: number;
+  angle: number;   // 0 when not rotated (composition editor receives 0 and ignores it)
+}>();
 ```
 
-**Rendering (`distribution` mode):**
-- Each `DistributionCanvasItem` is a Konva `Group` at `(x, y)` with `rotation: angle`.
-- Draggable (drag emits `instanceMoved`).
-- Rotatable via a small rotation handle (circle at top-center of the bounding rect); drag on the handle updates rotation and emits `instanceMoved`.
-- Interior: same node rendering as `composition` mode (pinya + base nodes, read-only).
-- Bounding rect + label like composition mode.
-- Tronc panel: separate draggable Konva `Rect` (blue, semi-transparent, `listening: true`) at `(troncPanel.x, troncPanel.y)` with `(troncPanel.width × troncPanel.height)`. Drag emits `troncPanelMoved`. The tronc panel rect is NOT inside the figure group — it's a sibling so it can be positioned independently.
+Composition editor calls that already listen to `slotMoved` continue to work — they just ignore the `angle` field.
 
 ### 4.4 New frontend service — `SegmentDistributionService`
 
@@ -214,7 +217,6 @@ clearDistribution(eventId: string, segmentId: string): Observable<void>
 Added in the segment header row actions, between "Assigna" and "Projecta":
 
 ```html
-<!-- Distribueix -->
 @if (segment.instances.length > 1) {
   <button
     type="button"
@@ -228,80 +230,82 @@ Added in the segment header row actions, between "Assigna" and "Projecta":
 }
 ```
 
-Only shown when the segment has more than one instance (single-instance segments don't need a distribution).
-
-Badge on the button when a distribution is already set (e.g. filled icon or accent color variant).
+Only shown when the segment has more than one instance. Badge/filled variant when a distribution is already set.
 
 ### 4.6 `ProjectionViewComponent` — use distribution if available
 
-In `projection-view.component.ts`:
-
 - Check `segmentData().hasDistribution`.
-- If `true`: skip `computeProjectionLayout`; instead position each instance at `(distributionX, distributionY)` with `rotation: distributionAngle`. The projection canvas becomes a free-position absolute container (same as now) but with user-defined coordinates instead of auto-computed ones.
-- The tronc panel for each figure is rendered as a separate absolutely-positioned `<div>` at `(troncPanelX, troncPanelY)` with the given width/height (contains `app-tronc-view`), rather than inline above the pinya canvas.
-- If `hasDistribution === false`: keep the current auto-layout unchanged.
+- If `true`: skip `computeProjectionLayout`; position each instance card at `(projectionX, projectionY)` with `transform: rotate(projectionAngle deg)` (absolute positioning within the projection container).
+- If `false`: keep existing `computeProjectionLayout` path unchanged.
+
+Tronc panel positioning (the separate draggable `troncPanelX/Y/Width/Height` rect) is deferred to Phase 5.
 
 ---
 
 ## 5. Implementation Phases
 
-### Phase 1 — Backend: data model + API
+### Phase 1 — Backend: data model + API ✅ Done
 
-- Add 7 columns to `FigureInstance` entity.
-- Write TypeORM migration.
-- Add `UpdateSegmentDistributionDto`, `InstanceDistributionDto` DTOs.
-- Implement `saveDistribution()` and `clearDistribution()` in `FigureInstanceService` (or new `SegmentDistributionService` on the backend).
-- Add the two new controller endpoints (`PUT` + `DELETE`) in `EventSegmentController`.
-- Implement `getDistribution()` in `EventSegmentService` (returns instances with template nodes).
-- Add `GET` endpoint in controller.
-- Extend `ProjectionService.getProjection()` to include distribution fields + `hasDistribution`.
-- Unit tests for new service methods.
+- Added 5 new columns to `FigureInstance` (`projectionAngle`, `troncPanelX/Y/Width/Height`; `projectionX/Y` already existed).
+- Migration `1782200000000-AddSegmentDistributionFields.ts`.
+- `UpdateSegmentDistributionDto` / `InstanceDistributionDto`.
+- `saveDistribution()`, `clearDistribution()`, `getDistribution()` in `FigureInstanceService`.
+- `GET/PUT/DELETE :segmentId/distribution` endpoints in `EventSegmentController`.
+- `ProjectionService.getProjection()` extended with distribution fields + `hasDistribution`.
+- 30 new tests, all passing.
 
-**Deliverable:** all backend endpoints functional, tested, documented in Swagger.
+### Phase 2 — Frontend: canvas rotation + `SegmentDistributionService`
 
-### Phase 2 — Frontend: `distribution` canvas mode
+- Add `angle?: number` to `CompositionSlotWithNodes` in `FigureCanvasComponent`.
+- Apply `rotation: slot.angle ?? 0` to slot Konva groups in `renderCompositionSlots()`.
+- Add rotation handle per slot group; reuse `slotMoved` output extended with `angle`.
+- Create `SegmentDistributionService` (3 HTTP methods: get / save / clear).
+- Add frontend models: `SegmentDistributionData`, `DistributionItem` (in `distribution.model.ts`).
+- Tests: `SegmentDistributionService` HTTP calls.
 
-- Add `distribution` mode to `FigureCanvasComponent`:
-  - `distributionItems` input.
-  - `instanceMoved` + `troncPanelMoved` outputs.
-  - `renderDistributionItems()` private method (figure groups with rotation handle + tronc panel rect).
-  - Hook into existing `renderAll()` dispatch.
-- Add `SegmentDistributionService` frontend service.
-- Add models (`SegmentDistributionData`, `DistributionItem`, `DistributionCanvasItem`).
-
-**Deliverable:** canvas mode works in isolation (testable with hardcoded data).
+**Deliverable:** canvas supports rotation; service layer ready.
 
 ### Phase 3 — Frontend: `DistributionEditorComponent` + routing
 
-- Create `DistributionEditorComponent`:
-  - Loads distribution data via `SegmentDistributionService`.
-  - Auto-places figures if no distribution exists.
-  - Wires `instanceMoved` / `troncPanelMoved` → local state update → autosave debounce.
-  - Top bar with save status, grid/snap toggles, fit-all, "Esborra distribució" button.
-- Register route `/pinyes/events/:eventId/segments/:segmentId/distribute`.
-- Add `navigateToDistribution()` method to `SegmentManagerComponent`.
-- Add "Distribueix" button to `segment-manager.component.html`.
+- Create `DistributionEditorComponent` (copy of `CompositionEditorComponent`, stripped down):
+  - No figure picker sidebar, no name/slug inputs, no z-order controls, no right panel.
+  - Loads via `SegmentDistributionService.getDistribution()`.
+  - Maps `DistributionItem[]` → `CompositionSlotWithNodes[]` (`instanceId` → `slotId`, `projectionX/Y` → `offsetX/Y`, `projectionAngle` → `angle`).
+  - Auto-places in a row if no distribution set yet.
+  - Wires `slotMoved` → local state update → 1 500 ms autosave debounce → `saveDistribution()`.
+  - Top bar: back, segment name, save status, grid toggle, snap toggle, fit-all, "Esborra distribució" button.
+- Register route `/pinyes/events/:eventId/segments/:segmentId/distribute` in `pinyes.routes.ts`.
+- Add `navigateToDistribution(segmentId)` to `SegmentManagerComponent`.
+- Add "Distribueix" button (only if `instances.length > 1`).
+- Tests: editor load → auto-place, `slotMoved` → autosave debounce, clear flow.
 
-**Deliverable:** users can open the editor, move figures, and the layout is persisted.
+**Deliverable:** users can open the editor, drag/rotate figures, layout is persisted.
 
 ### Phase 4 — Frontend: projection view integration
 
-- Extend `ProjectionInstance` frontend model with distribution fields.
-- Extend `ProjectionSegmentData` frontend model with `hasDistribution`.
-- In `ProjectionViewComponent`:
-  - Branch on `hasDistribution`.
-  - If `true`: render each figure at `(distributionX, distributionY)` with CSS `transform: rotate(distributionAngle deg)`.
-  - Tronc panel: render as separate absolutely-positioned `<div>` using `troncPanelX/Y/Width/Height`.
-  - If `false`: keep existing `computeProjectionLayout` path unchanged.
-- Add "Esborra distribució" button in projection HUD (allows resetting to auto-layout from projection view).
+- Extend `ProjectionInstance` frontend model with `projectionAngle`, `hasDistribution`.
+- Extend `ProjectionSegmentData` with `hasDistribution`.
+- In `ProjectionViewComponent`: branch on `hasDistribution`:
+  - `true`: position each instance at `(projectionX, projectionY)` with `transform: rotate(projectionAngle deg)` (CSS absolute positioning).
+  - `false`: keep existing `computeProjectionLayout` path unchanged.
+- Tests: projection model mapping, layout branch logic.
 
-**Deliverable:** full end-to-end feature working.
+**Deliverable:** end-to-end — editor → save → projection renders custom positions.
+
+### Phase 5 — Tronc panel positioning (deferred)
+
+- Add separate draggable tronc panel rectangle per instance in the distribution canvas.
+- Adds a `troncPanelMoved` output (new, separate from `slotMoved`).
+- Stores and loads `troncPanelX/Y/Width/Height` via existing columns.
+- Projection view renders tronc panel as absolutely-positioned `<div>` at stored coordinates instead of inline above the pinya canvas.
+
+**Prerequisite:** Phases 1–4 complete.
 
 ---
 
-## 6. Out of Scope
+## 6. Out of Scope (indefinitely)
 
-- Editing the rotation numerically (only canvas drag for now).
-- Tronc panel resize handles (size is set once via initial default; can be repositioned but not resized on canvas — resize via direct drag of panel corners could be a follow-up).
+- Tronc panel resize on canvas (drag corners to resize — deferred past Phase 5).
+- Editing rotation numerically (drag-only for now).
 - Per-instance scale (explicitly excluded — figures are natural size).
-- The compositions feature is left untouched; this feature does not delete or replace it yet.
+- Removing the compositions feature (planned but separate cleanup task).

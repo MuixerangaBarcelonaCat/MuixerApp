@@ -26,6 +26,10 @@ export interface ProjectionCell {
   height: number;
 }
 
+export interface DistributionCell extends ProjectionCell {
+  angle: number;
+}
+
 // ── Internal types ────────────────────────────────────────────────────────────
 
 interface FigureMetrics {
@@ -432,4 +436,61 @@ export function computeProjectionLayout(
     return rowResult.minZoom >= colResult.minZoom ? rowResult.cells : colResult.cells;
   }
   return rowFits ? rowResult.cells : colResult.cells;
+}
+
+/**
+ * Compute absolutely-positioned layout cells for a segment with a custom distribution.
+ *
+ * Uses stored `projectionX/Y` as canvas-space positions. All positions are scaled
+ * uniformly to fit the screen while preserving the relative spatial layout the user
+ * defined in the distribution editor. Each cell carries the stored rotation angle.
+ */
+export function computeDistributionLayout(
+  instances: ProjectionInstance[],
+  screenW: number,
+  screenH: number,
+): DistributionCell[] {
+  if (instances.length === 0) return [];
+
+  const PADDING = 24;
+
+  const rawCells: DistributionCell[] = instances.map((inst, index) => {
+    const m = toMetrics(inst);
+    const naturalW = Math.max(m.minWidth, m.pinyaW > 0 ? m.pinyaW : m.minWidth);
+    const naturalH = m.troncPx + (m.pinyaH > 0 ? m.pinyaH : 0);
+
+    return {
+      instanceId: inst.id,
+      x: inst.projectionX ?? index * (naturalW + GAP_PX),
+      y: inst.projectionY ?? 0,
+      width: naturalW,
+      height: naturalH,
+      angle: inst.projectionAngle ?? 0,
+    };
+  });
+
+  const minX = Math.min(...rawCells.map((c) => c.x));
+  const minY = Math.min(...rawCells.map((c) => c.y));
+  const maxX = Math.max(...rawCells.map((c) => c.x + c.width));
+  const maxY = Math.max(...rawCells.map((c) => c.y + c.height));
+  const bbW = maxX - minX;
+  const bbH = maxY - minY;
+
+  if (bbW <= 0 || bbH <= 0) return rawCells;
+
+  const scale = Math.min(
+    (screenW - PADDING * 2) / bbW,
+    (screenH - PADDING * 2) / bbH,
+  );
+
+  const offsetX = (screenW - bbW * scale) / 2 - minX * scale;
+  const offsetY = (screenH - bbH * scale) / 2 - minY * scale;
+
+  return rawCells.map((c) => ({
+    ...c,
+    x: Math.round(c.x * scale + offsetX),
+    y: Math.round(c.y * scale + offsetY),
+    width: Math.round(c.width * scale),
+    height: Math.round(c.height * scale),
+  }));
 }
