@@ -80,8 +80,7 @@ describe('TroncViewComponent', () => {
   // ── Floor grouping ────────────────────────────────────────────────────────
 
   it('shows no floors when no nodes are provided', () => {
-    expect(component.floors().length).toBe(1); // P1 (bases) always rendered
-    expect(component.floors()[0].isBase).toBe(true);
+    expect(component.floors().length).toBe(0);
   });
 
   it('groups TRONC nodes by z into separate floors', () => {

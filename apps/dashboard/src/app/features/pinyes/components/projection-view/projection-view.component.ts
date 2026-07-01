@@ -19,21 +19,14 @@ import { ToastService } from '../../../../shared/components/feedback/toast/toast
 import { ProjectionService } from '../../services/projection.service';
 import { ProjectionSegmentData, ProjectionInstance } from '../../models/projection.model';
 import { AttendanceStatus, AssignmentDetail, InstanceNodeItem } from '../../models/assignment.model';
-import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component';
+import { FigureCanvasComponent, OutlineBox } from '../figure-canvas/figure-canvas.component';
 import { TroncViewComponent, TroncNodeItem } from '../tronc-view/tronc-view.component';
 import { FigureZone } from '@muixer/shared';
 import { ICON_FIGURA_NETA } from '../../../../shared/constants/domain-icons';
 import { computeCordoObertOverrides } from '../../utils/cordo-obert.util';
 import { computeProjectionLayout, computeDistributionLayout, computeDistributionTransform, ProjectionCell, DistributionCell } from '../../utils/projection-layout.util';
-
-// Natural size constants matching TroncViewComponent's CSS grid:
-// 1 grid unit = 2 half-units, each half-unit min 40px (2.5rem) → 80px per grid unit.
-// Label column adds another 40px.
-const TRONC_HALF_UNIT_PX = 40;
-const TRONC_LABEL_COL_PX = 40;
-const TRONC_FLOOR_ROW_PX = 48;
-const TRONC_HEADER_PX = 32;
-const TRONC_GAP_PX = 16;
+import { computeTroncNaturalSize, TRONC_GAP_PX } from '../../utils/tronc-size.util';
+import { getFigureColor } from '../../utils/figure-palette.util';
 
 interface DistributionTroncPanel {
   instance: ProjectionInstance;
@@ -44,7 +37,9 @@ interface DistributionTroncPanel {
   naturalW: number;
   naturalH: number;
   scale: number;
+  color: string;
 }
+
 
 @Component({
   selector: 'app-projection-view',
@@ -81,6 +76,9 @@ export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy
   /** Actual pixel size of the figures container (updated by ResizeObserver). */
   private readonly containerWidth = signal(window.innerWidth);
   private readonly containerHeight = signal(window.innerHeight);
+
+  /** Real Konva stage transform — updated via (stageTransformChanged) from FigureCanvasComponent. */
+  private readonly stageTransform = signal({ x: 0, y: 0, scaleX: 1, scaleY: 1 });
 
   // ── Computed ────────────────────────────────────────────────────────────────
 
@@ -198,54 +196,158 @@ export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy
     return this.filteredInstances().flatMap((inst) => inst.assignments);
   });
 
-  /** Tronc panels positioned in screen space for the distribution view. */
-  readonly distributionTroncPanels = computed((): DistributionTroncPanel[] => {
+  /**
+   * Virtual bounding boxes (in Konva canvas units, x/y = center) for each instance's linked tronc
+   * panel. Passed to FigureCanvasComponent as fitExtraBounds so the initial auto-fit reserves space
+   * for the tronc panels above each figure.
+   *
+   * Derivation: the tronc top in canvas units =
+   *   canvasCY − figHalfH × distScale − (naturalH + TRONC_GAP_PX) × distScale
+   * (same geometry as distributionTroncPanels, converted from screen to canvas by dividing stageScale)
+   */
+  readonly distributionFitBounds = computed((): { x: number; y: number; width: number; height: number }[] => {
     if (!this.hasDistribution()) return [];
     const instances = this.filteredInstances();
-    const { scale, offsetX, offsetY } = computeDistributionTransform(
+    const { scale: distScale, offsetX, offsetY } = computeDistributionTransform(
       instances,
       this.containerWidth(),
       this.containerHeight(),
     );
 
-    return instances.flatMap((inst) => {
-      const troncNodes = this.getInstanceTroncNodes(inst);
-      const dirNodes = this.getInstanceDirectionNodes(inst);
-      if (troncNodes.length === 0 && dirNodes.length === 0) return [];
+    return instances.map((inst) => {
+      const { naturalW, naturalH } = this.getTroncPanelNaturalSize(inst);
+      const troncW = naturalW * distScale;
+      const troncH = naturalH * distScale;
 
-      const troncGridCols = troncNodes.reduce((max, n) => Math.max(max, n.x + n.width), 0);
-      const distinctZ = new Set(troncNodes.map((n) => n.z)).size;
-      const hasFigDir = dirNodes.some((n) => n.zone === FigureZone.FIGURE_DIRECTION);
-      const hasXicDir = dirNodes.some((n) => n.zone === FigureZone.XICALLA_DIRECTION);
-      const troncGridRows = distinctZ + (hasFigDir ? 1 : 0) + (hasXicDir ? 1 : 0);
-      if (troncGridCols === 0 || troncGridRows === 0) return [];
+      if (inst.troncPanelX != null && inst.troncPanelY != null) {
+        // Detached: panel top-left is stored in world coords.
+        const panelCanvasX = inst.troncPanelX * distScale + offsetX;
+        const panelCanvasY = inst.troncPanelY * distScale + offsetY;
+        return { x: panelCanvasX + troncW / 2, y: panelCanvasY + troncH / 2, width: troncW, height: troncH };
+      }
 
-      // Natural pixel size matching TroncViewComponent's CSS grid minimum:
-      // 1 grid unit = 2 half-units × TRONC_HALF_UNIT_PX, plus a label column.
-      const naturalW = troncGridCols * 2 * TRONC_HALF_UNIT_PX + TRONC_LABEL_COL_PX;
-      const naturalH = troncGridRows * TRONC_FLOOR_ROW_PX + TRONC_HEADER_PX;
+      // Linked: panel sits above the figure's pinya top edge.
+      const pinyaBaseNodes = inst.nodes.filter(
+        (n) => n.zone === FigureZone.PINYA || n.zone === FigureZone.BASE,
+      );
+      const mnY = pinyaBaseNodes.length > 0 ? Math.min(...pinyaBaseNodes.map((n) => n.y - n.height / 2)) : 0;
+      const mxY = pinyaBaseNodes.length > 0 ? Math.max(...pinyaBaseNodes.map((n) => n.y + n.height / 2)) : 0;
+      const figHalfH = (mxY - mnY) / 2;
+      const canvasCX = (inst.projectionX ?? 0) * distScale + offsetX;
+      const canvasCY = (inst.projectionY ?? 0) * distScale + offsetY;
+      const troncCenterY = canvasCY - figHalfH * distScale - TRONC_GAP_PX * distScale - troncH / 2;
+      return { x: canvasCX, y: troncCenterY, width: troncW, height: troncH };
+    });
+  });
+
+  /**
+   * Tronc panels for the distribution view.
+   *
+   * Positioning uses two stacked transforms:
+   *   distScale/offset  — from computeDistributionTransform, converts world → canvas-world
+   *                       (this is the same transform used by distributionNodes())
+   *   stageScale/stageXY — real Konva stage transform, set by (stageTransformChanged)
+   *
+   * screen = canvasWorld * stageScale + stageXY
+   *        = (world * distScale + distOffset) * stageScale + stageXY
+   *
+   * The overlay div is rendered at natural pixel size and scaled with CSS transform: scale(totalScale)
+   * so TroncViewComponent gets full space to render and is then visually scaled down.
+   */
+  readonly distributionTroncPanels = computed((): DistributionTroncPanel[] => {
+    if (!this.hasDistribution()) return [];
+    const instances = this.filteredInstances();
+    const { scale: distScale, offsetX, offsetY } = computeDistributionTransform(
+      instances,
+      this.containerWidth(),
+      this.containerHeight(),
+    );
+    const { x: stageX, y: stageY, scaleX: stageScale } = this.stageTransform();
+    const totalScale = distScale * stageScale;
+
+    return instances.map((inst, instIndex) => {
+      const { naturalW, naturalH } = this.getTroncPanelNaturalSize(inst);
+
+      // Figure center in canvas-world coords (matches distributionNodes() computation).
+      const canvasCX = (inst.projectionX ?? 0) * distScale + offsetX;
+      const canvasCY = (inst.projectionY ?? 0) * distScale + offsetY;
+
+      // Figure center in screen coords.
+      const figScreenX = canvasCX * stageScale + stageX;
+      const figScreenY = canvasCY * stageScale + stageY;
+
+      // Figure visual half-height (world coords → screen via totalScale).
+      const pinyaBaseNodes = inst.nodes.filter(
+        (n) => n.zone === FigureZone.PINYA || n.zone === FigureZone.BASE,
+      );
+      const mnY = pinyaBaseNodes.length > 0 ? Math.min(...pinyaBaseNodes.map((n) => n.y - n.height / 2)) : 0;
+      const mxY = pinyaBaseNodes.length > 0 ? Math.max(...pinyaBaseNodes.map((n) => n.y + n.height / 2)) : 0;
+      const figHalfH = (mxY - mnY) / 2;
 
       let screenX: number, screenY: number;
       if (inst.troncPanelX != null && inst.troncPanelY != null) {
-        screenX = inst.troncPanelX * scale + offsetX;
-        screenY = inst.troncPanelY * scale + offsetY;
+        // Detached: stored world position → canvas-world → screen.
+        const panelCanvasX = inst.troncPanelX * distScale + offsetX;
+        const panelCanvasY = inst.troncPanelY * distScale + offsetY;
+        screenX = panelCanvasX * stageScale + stageX;
+        screenY = panelCanvasY * stageScale + stageY;
       } else {
-        const pinyaBaseNodes = inst.nodes.filter(
-          (n) => n.zone === FigureZone.PINYA || n.zone === FigureZone.BASE,
-        );
-        const mnY = pinyaBaseNodes.length > 0 ? Math.min(...pinyaBaseNodes.map((n) => n.y - n.height / 2)) : 0;
-        const mxY = pinyaBaseNodes.length > 0 ? Math.max(...pinyaBaseNodes.map((n) => n.y + n.height / 2)) : 0;
-        const figHalfH = (mxY - mnY) / 2;
-        const figScreenX = (inst.projectionX ?? 0) * scale + offsetX;
-        const figScreenY = (inst.projectionY ?? 0) * scale + offsetY;
-        // left/top set to the CSS position of the container at natural size.
-        // CSS transform: scale(scale) with transform-origin top-left keeps top-left fixed,
-        // so visual center X = screenX + naturalW*scale/2 aligns with figure center.
-        screenX = figScreenX - (naturalW * scale) / 2;
-        screenY = figScreenY - figHalfH * scale - naturalH * scale - TRONC_GAP_PX * scale;
+        // Linked: centred above figure. With CSS transform: scale(totalScale) origin top-left,
+        // visual width = naturalW * totalScale, so CSS left = figScreenX - naturalW*totalScale/2.
+        screenX = figScreenX - (naturalW * totalScale) / 2;
+        screenY = figScreenY - figHalfH * totalScale - naturalH * totalScale - TRONC_GAP_PX * totalScale;
       }
 
-      return [{ instance: inst, screenX, screenY, naturalW, naturalH, scale }];
+      return { instance: inst, screenX, screenY, naturalW, naturalH, scale: totalScale, color: getFigureColor(instIndex) };
+    });
+  });
+
+  /** Canvas-space outlines for each pinya/base node, rendered inside Konva below the node layer. */
+  readonly distributionNodeOutlines = computed((): OutlineBox[] => {
+    if (!this.hasDistribution()) return [];
+    const instances = this.filteredInstances();
+    const { scale: distScale, offsetX, offsetY } = computeDistributionTransform(
+      instances,
+      this.containerWidth(),
+      this.containerHeight(),
+    );
+
+    return instances.flatMap((inst, instIndex) => {
+      const color = getFigureColor(instIndex);
+      const projX = inst.projectionX ?? 0;
+      const projY = inst.projectionY ?? 0;
+      const angleRad = ((inst.projectionAngle ?? 0) * Math.PI) / 180;
+      const cosA = Math.cos(angleRad);
+      const sinA = Math.sin(angleRad);
+
+      const pinyaBaseNodes = inst.nodes.filter(
+        (n) => n.zone === FigureZone.PINYA || n.zone === FigureZone.BASE,
+      );
+      let centerX = 0, centerY = 0;
+      if (pinyaBaseNodes.length > 0) {
+        const mnX = Math.min(...pinyaBaseNodes.map((n) => n.x - n.width / 2));
+        const mxX = Math.max(...pinyaBaseNodes.map((n) => n.x + n.width / 2));
+        const mnY = Math.min(...pinyaBaseNodes.map((n) => n.y - n.height / 2));
+        const mxY = Math.max(...pinyaBaseNodes.map((n) => n.y + n.height / 2));
+        centerX = (mnX + mxX) / 2;
+        centerY = (mnY + mxY) / 2;
+      }
+
+      return this.getInstanceProjectionNodes(inst).map((node): OutlineBox => {
+        const relX = node.x - centerX;
+        const relY = node.y - centerY;
+        const rotX = cosA * relX - sinA * relY;
+        const rotY = sinA * relX + cosA * relY;
+        return {
+          x: (projX + rotX) * distScale + offsetX,
+          y: (projY + rotY) * distScale + offsetY,
+          width: node.width * distScale,
+          height: node.height * distScale,
+          rotation: (inst.projectionAngle ?? 0) + (node.rotation ?? 0),
+          color,
+          shape: (node as { shape?: string }).shape ?? 'RECTANGLE',
+        };
+      });
     });
   });
 
@@ -297,6 +399,10 @@ export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy
     if (event.key === '?' || event.key === 'h' || event.key === 'H') {
       this.helpModalOpen.update((v) => !v);
     }
+  }
+
+  onStageTransformChanged(t: { x: number; y: number; scaleX: number; scaleY: number }): void {
+    this.stageTransform.set(t);
   }
 
   // ── Mouse / cursor management ───────────────────────────────────────────────
@@ -399,6 +505,20 @@ export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy
     } else {
       document.exitFullscreen().catch(() => { /* best-effort */ });
     }
+  }
+
+  private getTroncPanelNaturalSize(inst: ProjectionInstance): { naturalW: number; naturalH: number } {
+    const troncNodes = this.getInstanceTroncNodes(inst);
+    const dirNodes = this.getInstanceDirectionNodes(inst);
+    const baseNodes = this.getInstanceBaseNodes(inst);
+    const troncGridCols = troncNodes.reduce((max, n) => Math.max(max, n.x + n.width), 0);
+    const distinctZ = new Set(troncNodes.map((n) => n.z)).size;
+    const hasFigDir = dirNodes.some((n) => n.zone === FigureZone.FIGURE_DIRECTION);
+    const hasXicDir = dirNodes.some((n) => n.zone === FigureZone.XICALLA_DIRECTION);
+    const troncGridRows = distinctZ + (hasFigDir ? 1 : 0) + (hasXicDir ? 1 : 0);
+    const gridRows = troncGridRows + (baseNodes.length > 0 ? 1 : 0);
+    const { naturalW, naturalH } = computeTroncNaturalSize(troncGridCols, gridRows);
+    return { naturalW, naturalH: naturalH };
   }
 
   private loadSegment(): void {

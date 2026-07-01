@@ -74,6 +74,12 @@ export class TroncViewComponent {
 
   readonly directionNodes = input<TroncNodeItem[]>([]);
 
+  /** Projection mode only: color used for the panel border and tinted background. */
+  readonly panelColor = input<string | null>(null);
+
+  /** Projection mode only: figure name shown as a header inside the panel. */
+  readonly figureName = input<string | null>(null);
+
   // ── Outputs ────────────────────────────────────────────────────────────────
 
   /** Emits the clicked node id. Emits null when deselecting. */
@@ -183,15 +189,13 @@ export class TroncViewComponent {
       }),
     );
 
-    const baseFloor: TroncFloor = {
-      z: 0,
-      pisLabel: 'P1',
-      positionTypeLabel: 'Bases',
-      nodes: this.sortedBases(),
-      isBase: true,
-    };
+    const sortedBases = this.sortedBases();
+    const baseFloor: TroncFloor | null = sortedBases.length > 0
+      ? { z: 0, pisLabel: 'P1', positionTypeLabel: 'Bases', nodes: sortedBases, isBase: true }
+      : null;
 
-    return [...troncFloors, baseFloor].sort((a, b) => b.z - a.z);
+    const allFloors = baseFloor ? [...troncFloors, baseFloor] : troncFloors;
+    return allFloors.sort((a, b) => b.z - a.z);
   });
 
   readonly varianceByFloor = computed(() => {
@@ -488,7 +492,7 @@ export class TroncViewComponent {
   }
 
   getDirectionLabel(zone: string): string {
-    return zone === FigureZone.FIGURE_DIRECTION ? 'Direcció figura' : 'Direcció xicalla';
+    return zone === FigureZone.FIGURE_DIRECTION ? 'Dir.' : 'Xic.';
   }
 
   getPositionTypeBadge(node: TroncNodeItem): string {

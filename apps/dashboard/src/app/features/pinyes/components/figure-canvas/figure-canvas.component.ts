@@ -25,6 +25,8 @@ import { screenToStage } from '../../utils/rengla-coordinates.util';
 import { computeFitTransform } from '../../utils/fit-to-bounds.util';
 import { fitFontSize } from '../../utils/fit-font-size.util';
 import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
+import { computeTroncNaturalSize, TRONC_GAP_PX } from '../../utils/tronc-size.util';
+import { getFigureColor } from '../../utils/figure-palette.util';
 
 /** Minimal node shape accepted by the canvas for rendering — both FigureNodeItem and InstanceNodeItem satisfy this */
 export interface CanvasNode {
@@ -50,6 +52,16 @@ export interface CanvasNode {
 
 export type CanvasMode = 'editor' | 'readonly' | 'composition' | 'assignment';
 
+export interface OutlineBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+  color: string;
+  shape: string;
+}
+
 export interface CompositionSlotWithNodes {
   slotId: string;
   label: string | null;
@@ -74,11 +86,6 @@ export interface CompositionSlotWithNodes {
   };
 }
 
-const TRONC_CELL_PX = 40;
-const TRONC_TITLE_HEIGHT_PX = 24;
-const TRONC_GAP_PX = 16;
-const TRONC_FILL = 'rgba(139,92,246,0.12)';
-const TRONC_STROKE = '#8b5cf6';
 
 const GRID_COLOR = '#e5e7eb';
 const NODE_COLORS: Record<string, string> = {
@@ -187,6 +194,10 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   readonly isPlacementMode = input<boolean>(false);
   readonly decorationOpacity = input<number>(1);
   readonly isPast = input<boolean>(false);
+  /** Extra bounding boxes (in canvas space, x/y = center) included in the readonly fit but not rendered. */
+  readonly fitExtraBounds = input<{ x: number; y: number; width: number; height: number }[]>([]);
+  /** Outline shapes rendered in a layer BELOW pinyaLayer. Each box matches a node's canvas-space position. */
+  readonly outlineBoxes = input<OutlineBox[]>([]);
 
   readonly nodeSelected = output<string | null>();
   readonly nodeClicked = output<{ nodeId: string; x: number; y: number }>();
@@ -239,11 +250,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
   private stage!: Konva.Stage;
   private gridLayer!: Konva.Layer;
+  private outlineLayer!: Konva.Layer;
   private pinyaLayer!: Konva.Layer;
   private transformer!: Konva.Transformer;
 
   private resizeObserver: ResizeObserver | null = null;
-  private hasAutoFitted = false;
   /** Reused for measuring label text; not attached to the stage. */
   private labelMeasureProbe: Konva.Text | null = null;
 
@@ -303,6 +314,12 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       } else if (this.mode() === 'readonly') {
         untracked(() => this.renderReadonlyNodes());
       }
+    });
+
+    effect(() => {
+      this.outlineBoxes();
+      if (!this.stage) return;
+      untracked(() => this.renderOutlines());
     });
 
     effect(() => {
@@ -471,6 +488,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.stage = new Konva.Stage({ container, width, height });
 
     this.gridLayer = new Konva.Layer({ listening: false });
+    this.outlineLayer = new Konva.Layer({ listening: false });
     this.pinyaLayer = new Konva.Layer();
 
     // Transformer for resizing nodes
@@ -487,7 +505,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     });
     this.pinyaLayer.add(this.transformer);
 
-    this.stage.add(this.gridLayer, this.pinyaLayer);
+    this.stage.add(this.gridLayer, this.outlineLayer, this.pinyaLayer);
 
     this.setupStageInteraction();
   }
@@ -620,6 +638,19 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.pinyaLayer.batchDraw();
   }
 
+  private applyReadonlyFit(): void {
+    const nodes = this.nodes();
+    if (nodes.length === 0) return;
+    const allBounds = [...nodes, ...this.fitExtraBounds()];
+    const fit = computeFitTransform(allBounds, this.stage.width(), this.stage.height(), { padding: 20, maxScale: 2 });
+    if (fit) {
+      this.stage.scale({ x: fit.scale, y: fit.scale });
+      this.stage.position({ x: fit.x, y: fit.y });
+      this.zoomLevel.set(fit.scale);
+      this.emitStageTransform();
+    }
+  }
+
   private resizeStage(): void {
     const container = this.containerRef.nativeElement;
     this.stage.width(container.clientWidth);
@@ -627,15 +658,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.renderGrid();
 
     if (this.mode() === 'readonly') {
-      const nodes = this.nodes();
-      if (nodes.length > 0) {
-        const fit = computeFitTransform(nodes, this.stage.width(), this.stage.height(), { padding: 20, maxScale: 2 });
-        if (fit) {
-          this.stage.scale({ x: fit.scale, y: fit.scale });
-          this.stage.position({ x: fit.x, y: fit.y });
-          this.zoomLevel.set(fit.scale);
-        }
-      }
+      this.applyReadonlyFit();
     }
 
     this.stage.batchDraw();
@@ -643,6 +666,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
   private renderAll(): void {
     this.renderGrid();
+    this.renderOutlines();
     if (this.mode() === 'composition') {
       this.renderCompositionSlots();
     } else if (this.mode() === 'assignment') {
@@ -724,9 +748,6 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
     this.pinyaLayer.batchDraw();
 
-    if (allNodes.length > 0) {
-      this.hasAutoFitted = true;
-    }
   }
 
   private renderCompositionSlots(): void {
@@ -830,6 +851,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           slotGroup.offsetY((minY + maxY) / 2);
         }
 
+        const figColor = getFigureColor(slot.sortOrder);
+
         // Bounding rect with listening: true — acts as the hit area for the whole group
         slotGroup.add(
           new Konva.Rect({
@@ -837,10 +860,10 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
             y: minY - padding - labelHeight,
             width: maxX - minX + padding * 2,
             height: maxY - minY + padding * 2 + labelHeight,
-            stroke: isSelected ? SELECTED_STROKE : '#94a3b8',
+            stroke: isSelected ? SELECTED_STROKE : figColor,
             strokeWidth: isSelected ? 2 : 1,
             dash: [6, 3],
-            fill: isSelected ? 'rgba(245,158,11,0.05)' : 'transparent',
+            fill: isSelected ? 'rgba(245,158,11,0.05)' : figColor + '14',
             cornerRadius: 6,
             listening: true,
           }),
@@ -957,7 +980,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
       // Tronc panel — distribution mode only (slot.angle defined + tronc data present)
       if (slot.angle !== undefined && slot.troncGridCols && slot.troncGridRows) {
-        this.renderTroncPanel(slot, slotGroup);
+        this.renderTroncPanel(slot, slotGroup, getFigureColor(slot.sortOrder));
       }
     }
 
@@ -977,9 +1000,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     };
   }
 
-  private renderTroncPanel(slot: CompositionSlotWithNodes, slotGroup: Konva.Group): void {
-    const troncW = (slot.troncGridCols ?? 0) * TRONC_CELL_PX;
-    const troncH = (slot.troncGridRows ?? 0) * TRONC_CELL_PX + TRONC_TITLE_HEIGHT_PX;
+  private renderTroncPanel(slot: CompositionSlotWithNodes, slotGroup: Konva.Group, figColor: string): void {
+    const { naturalW: troncW, naturalH: troncH } = computeTroncNaturalSize(slot.troncGridCols ?? 0, slot.troncGridRows ?? 0);
 
     // Bounding box for pivot computation (same logic as renderCompositionSlots)
     const pinyaNodes = slot.figureTemplate.nodes.filter(
@@ -1006,8 +1028,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       y: 0,
       width: troncW,
       height: troncH,
-      fill: TRONC_FILL,
-      stroke: TRONC_STROKE,
+      fill: figColor + '20',
+      stroke: figColor,
       strokeWidth: 1.5,
       dash: [6, 3],
       cornerRadius: 4,
@@ -1018,11 +1040,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       x: 0,
       y: 0,
       width: troncW,
-      height: TRONC_TITLE_HEIGHT_PX,
+      height: troncH,
       text: slot.label ?? slot.figureTemplate.name,
       fontSize: 10,
       fontFamily: 'Inter, sans-serif',
-      fill: TRONC_STROKE,
+      fill: figColor,
       align: 'center',
       verticalAlign: 'middle',
       listening: false,
@@ -1491,20 +1513,31 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.pinyaLayer.add(this.transformer);
     this.pinyaLayer.batchDraw();
 
-    const visibleNodes = this.nodes();
-    if (visibleNodes.length > 0 && !this.hasAutoFitted) {
-      this.hasAutoFitted = true;
+    if (this.nodes().length > 0) {
       setTimeout(() => {
-        const fit = computeFitTransform(visibleNodes, this.stage.width(), this.stage.height(), { padding: 20, maxScale: 2 }); // adjust maxScale to taste
-        if (fit) {
-          this.stage.scale({ x: fit.scale, y: fit.scale });
-          this.stage.position({ x: fit.x, y: fit.y });
-          this.zoomLevel.set(fit.scale);
-          this.stage.batchDraw();
-          this.emitStageTransform();
-        }
+        this.applyReadonlyFit();
+        this.stage.batchDraw();
       });
     }
+  }
+
+  private renderOutlines(): void {
+    this.outlineLayer.destroyChildren();
+    for (const box of this.outlineBoxes()) {
+      const group = new Konva.Group({ x: box.x, y: box.y, rotation: box.rotation });
+      const shape = createNodeShape(box.shape, box.width, box.height, {
+        fill: box.color,
+        stroke: 'transparent',
+        strokeWidth: 0,
+      });
+      shape.shadowColor(box.color);
+      shape.shadowBlur(15);
+      shape.shadowOpacity(0.95);
+      shape.shadowOffset({ x: 0, y: 0 });
+      group.add(shape);
+      this.outlineLayer.add(group);
+    }
+    this.outlineLayer.batchDraw();
   }
 
   private buildNodeGroup(

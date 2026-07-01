@@ -77,7 +77,9 @@ export class DistributionEditorComponent implements OnInit, OnDestroy {
     const hasPositions = items.some((i) => i.projectionX !== null);
 
     return items.map((item, index) => {
+      const isRematOrNeta = item.figureMode === 'REMAT' || item.figureMode === 'NETA';
       const filteredNodes = item.figureTemplate.nodes.filter((n) => {
+        if (n.zone === 'PINYA' && isRematOrNeta) return false;
         if (n.zone !== 'PINYA') return true;
         if (item.numberOfCordons === null) return true;
         return !n.renglaId || n.renglaPosition === null || n.renglaPosition <= item.numberOfCordons;

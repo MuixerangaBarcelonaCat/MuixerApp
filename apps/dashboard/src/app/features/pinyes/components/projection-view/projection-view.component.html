@@ -17,6 +17,7 @@
 
       @if (hasDistribution()) {
         <!-- ── Distribució: canvas unificat amb totes les figures ─────────────── -->
+        <!-- ── Canvas unificat: pinya nodes + outlines per figura (renderitzats al Konva) ─── -->
         <app-figure-canvas
           class="block w-full h-full"
           mode="readonly"
@@ -25,8 +26,11 @@
           [assignments]="distributionAssignments()"
           [attendanceMap]="attendanceMap()"
           [isPast]="true"
+          [fitExtraBounds]="distributionFitBounds()"
+          [outlineBoxes]="distributionNodeOutlines()"
+          (stageTransformChanged)="onStageTransformChanged($event)"
         />
-        <!-- ── Panells de tronc per a cada figura ─────────────────────────────── -->
+
         @for (panel of distributionTroncPanels(); track panel.instance.id) {
           <div
             class="absolute pointer-events-none overflow-hidden origin-top-left"
@@ -45,6 +49,8 @@
               [assignments]="panel.instance.assignments"
               [attendanceMap]="attendanceMap()"
               [isPast]="true"
+              [panelColor]="panel.color"
+              [figureName]="getInstanceName(panel.instance)"
             />
           </div>
         }

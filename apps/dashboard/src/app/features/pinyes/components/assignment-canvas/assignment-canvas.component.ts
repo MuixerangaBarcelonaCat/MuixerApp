@@ -1856,7 +1856,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   onEditTemplate(): void {
     const templateId = this.activeTab()?.figureTemplateId;
     if (!templateId) return;
-    this.toast.info('Els canvis al template no afecten instàncies ja creades.');
+    this.toast.info('Els canvis a la plantilla no afecten instàncies ja creades.');
     this.router.navigate(['/pinyes', 'templates', templateId, 'edit']);
   }
 

@@ -1,7 +1,7 @@
 import { Component, input, output } from '@angular/core';
 import { Location } from '@angular/common';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter, Router } from '@angular/router';
+import { provideRouter } from '@angular/router';
 import { ActivatedRoute } from '@angular/router';
 import { of } from 'rxjs';
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
@@ -23,6 +23,7 @@ class FigureCanvasStub {
   readonly snapToGrid = input<boolean>(false);
   readonly slotMoved = output<{ slotId: string; offsetX: number; offsetY: number; angle: number }>();
   readonly troncMoved = output<{ slotId: string; troncPanelX: number | null; troncPanelY: number | null }>();
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
   fitAllSlots() {}
 }
 
@@ -77,7 +78,6 @@ describe('DistributionEditorComponent', () => {
   let distributionService: { getDistribution: ReturnType<typeof vi.fn>; saveDistribution: ReturnType<typeof vi.fn>; clearDistribution: ReturnType<typeof vi.fn> };
   let layoutService: { requestFullscreen: ReturnType<typeof vi.fn>; exitFullscreen: ReturnType<typeof vi.fn> };
   let location: Location;
-  let router: Router;
 
   beforeEach(async () => {
     distributionService = {
@@ -113,7 +113,6 @@ describe('DistributionEditorComponent', () => {
     })
     .compileComponents();
 
-    router = TestBed.inject(Router);
     location = TestBed.inject(Location);
     const fixture = TestBed.createComponent(DistributionEditorComponent);
     component = fixture.componentInstance;
@@ -194,6 +193,7 @@ describe('DistributionEditorComponent', () => {
   });
 
   it('clearDistribution calls service and navigates back', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
     const backSpy = vi.spyOn(location, 'back').mockImplementation(() => {});
     distributionService.clearDistribution.mockReturnValue(of(null));
 
