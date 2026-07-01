@@ -49,14 +49,6 @@ describe('NodeAssignmentService', () => {
     req.flush({});
   });
 
-  it('assign sends POST with compositionSlotId when provided', () => {
-    const payload = { nodeId: 'node-uuid-1', personId: 'person-uuid-1', compositionSlotId: 'slot-uuid-1' };
-    service.assign(INSTANCE_ID, payload).subscribe();
-    const req = httpMock.expectOne(`${BASE}/figure-instances/${INSTANCE_ID}/assignments`);
-    expect(req.request.body).toEqual(payload);
-    req.flush({});
-  });
-
   it('swap sends POST to /figure-instances/:id/assignments/swap', () => {
     const payload = { assignmentIdA: 'a-uuid', assignmentIdB: 'b-uuid' };
     service.swap(INSTANCE_ID, payload).subscribe();

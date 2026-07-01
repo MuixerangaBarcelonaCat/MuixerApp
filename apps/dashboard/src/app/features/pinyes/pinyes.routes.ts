@@ -18,20 +18,6 @@ export const pinyesRoutes: Routes = [
       ),
   },
   {
-    path: 'compositions/new',
-    loadComponent: () =>
-      import('./components/composition-editor/composition-editor.component').then(
-        (m) => m.CompositionEditorComponent,
-      ),
-  },
-  {
-    path: 'compositions/:id/edit',
-    loadComponent: () =>
-      import('./components/composition-editor/composition-editor.component').then(
-        (m) => m.CompositionEditorComponent,
-      ),
-  },
-  {
     path: 'events/:eventId/segments/:segmentId/distribute',
     loadComponent: () =>
       import('./components/distribution-editor/distribution-editor.component').then(

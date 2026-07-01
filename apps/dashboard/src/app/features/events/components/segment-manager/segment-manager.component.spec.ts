@@ -42,7 +42,6 @@ const makeInstance = (overrides: Partial<InstanceDetail> = {}): InstanceDetail =
   projectionScale: 1,
   figureMode: 'COMPLETA' as const,
   figureTemplate: { id: 'fig-1', name: 'pd4', hasPinya: true },
-  compositionTemplate: null,
   ...overrides,
 });
 
@@ -128,11 +127,11 @@ describe('SegmentManagerComponent', () => {
       const seg = makeSegment({
         name: null,
         instances: [
-          makeInstance({ id: 'i1', figureTemplate: { id: 'f1', name: 'pd4', hasPinya: true }, compositionTemplate: null }),
-          makeInstance({ id: 'i2', figureTemplate: null, compositionTemplate: { id: 'c1', name: 'Altar' } }),
+          makeInstance({ id: 'i1', figureTemplate: { id: 'f1', name: 'pd4', hasPinya: true } }),
+          makeInstance({ id: 'i2', figureTemplate: { id: 'f2', name: 'Morera', hasPinya: true } }),
         ],
       });
-      expect(component.displayName()(seg)).toBe('pd4 + Altar');
+      expect(component.displayName()(seg)).toBe('pd4 + Morera');
     });
 
     it('returns fallback when name is null and no instances', () => {

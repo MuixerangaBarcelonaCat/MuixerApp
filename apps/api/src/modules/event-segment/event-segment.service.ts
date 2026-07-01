@@ -24,7 +24,6 @@ export interface InstanceRef {
   numberOfCordons: number | null;
   figureMode: FigureMode;
   figureTemplate: { id: string; name: string; hasPinya: boolean } | null;
-  compositionTemplate: { id: string; name: string } | null;
 }
 
 export interface TroncFloorData {
@@ -66,7 +65,6 @@ export class EventSegmentService {
       .createQueryBuilder('segment')
       .leftJoinAndSelect('segment.instances', 'instance')
       .leftJoinAndSelect('instance.figureTemplate', 'figureTemplate')
-      .leftJoinAndSelect('instance.compositionTemplate', 'compositionTemplate')
       .where('segment.event = :eventId', { eventId })
       .orderBy('segment.sortOrder', 'ASC')
       .addOrderBy('instance.sortOrder', 'ASC')
@@ -185,7 +183,6 @@ export class EventSegmentService {
       .createQueryBuilder('segment')
       .leftJoinAndSelect('segment.instances', 'instance')
       .leftJoinAndSelect('instance.figureTemplate', 'figureTemplate')
-      .leftJoinAndSelect('instance.compositionTemplate', 'compositionTemplate')
       .where('segment.id = :id', { id })
       .orderBy('instance.sortOrder', 'ASC')
       .getOne();
@@ -390,9 +387,6 @@ function toSegmentWithInstances(
               name: instance.figureTemplate.name,
               hasPinya,
             }
-          : null,
-        compositionTemplate: instance.compositionTemplate
-          ? { id: instance.compositionTemplate.id, name: instance.compositionTemplate.name }
           : null,
       };
     }),

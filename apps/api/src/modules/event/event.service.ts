@@ -231,7 +231,7 @@ export class EventService {
       summary.segmentCount += 1;
 
       const figureNames = (segment.instances ?? []).map((i) =>
-        i.figureTemplate?.name ?? i.compositionTemplate?.name ?? '',
+        i.figureTemplate?.name ?? '',
       );
 
       summary.instanceCount += figureNames.length;

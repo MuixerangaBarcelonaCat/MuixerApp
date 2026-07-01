@@ -4,9 +4,7 @@ import { of } from 'rxjs';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { FigurePickerModalComponent, InstanceSelection } from './figure-picker-modal.component';
 import { FigureTemplateService } from '../../services/figure-template.service';
-import { CompositionTemplateService } from '../../services/composition-template.service';
 import { FigureTemplateListItem } from '../../models/figure-template.model';
-import { CompositionTemplateListItem } from '../../models/composition.model';
 
 const makeFigure = (overrides: Partial<FigureTemplateListItem> = {}): FigureTemplateListItem => ({
   id: 'fig-uuid-1',
@@ -22,22 +20,10 @@ const makeFigure = (overrides: Partial<FigureTemplateListItem> = {}): FigureTemp
   ...overrides,
 });
 
-const makeComposition = (overrides: Partial<CompositionTemplateListItem> = {}): CompositionTemplateListItem => ({
-  id: 'comp-uuid-1',
-  name: 'Altar',
-  slug: 'altar',
-  description: null,
-  slotCount: 3,
-  createdAt: '2026-01-01T00:00:00.000Z',
-  updatedAt: '2026-01-01T00:00:00.000Z',
-  ...overrides,
-});
-
 describe('FigurePickerModalComponent', () => {
   let fixture: ComponentFixture<FigurePickerModalComponent>;
   let component: FigurePickerModalComponent;
   let figureService: { getAll: ReturnType<typeof vi.fn> };
-  let compositionService: { getAll: ReturnType<typeof vi.fn> };
   let confirmedSpy: (...args: unknown[]) => void;
   let closedSpy: (...args: unknown[]) => void;
 
@@ -45,15 +31,11 @@ describe('FigurePickerModalComponent', () => {
     figureService = {
       getAll: vi.fn().mockReturnValue(of({ data: [makeFigure()], meta: { total: 1, page: 1, limit: 200 } })),
     };
-    compositionService = {
-      getAll: vi.fn().mockReturnValue(of({ data: [makeComposition()], meta: { total: 1, page: 1, limit: 200 } })),
-    };
 
     await TestBed.configureTestingModule({
       imports: [FigurePickerModalComponent],
       providers: [
         { provide: FigureTemplateService, useValue: figureService },
-        { provide: CompositionTemplateService, useValue: compositionService },
         allLucideIconsProvider,
       ],
     }).compileComponents();
@@ -75,9 +57,8 @@ describe('FigurePickerModalComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('loads figures and compositions on init', () => {
+  it('loads figures on init', () => {
     expect(figureService.getAll).toHaveBeenCalledWith({ limit: 200 });
-    expect(compositionService.getAll).toHaveBeenCalledWith({ limit: 200 });
   });
 
   it('shows figures tab by default', () => {
@@ -119,18 +100,6 @@ describe('FigurePickerModalComponent', () => {
       });
     });
 
-    it('addComposition appends to selections with hasPinya=true', () => {
-      const composition = makeComposition();
-      component.addComposition(composition);
-
-      expect(component.selections()).toHaveLength(1);
-      expect(component.selections()[0]).toEqual({
-        selection: { compositionTemplateId: 'comp-uuid-1' },
-        name: 'Altar',
-        hasPinya: true,
-      });
-    });
-
     it('allows adding the same figure twice (duplicate valid)', () => {
       const figure = makeFigure();
       component.addFigure(figure);
@@ -138,15 +107,6 @@ describe('FigurePickerModalComponent', () => {
 
       expect(component.selections()).toHaveLength(2);
       expect(component.selectionCount()).toBe(2);
-    });
-
-    it('allows mixing figures and compositions', () => {
-      component.addFigure(makeFigure());
-      component.addComposition(makeComposition());
-
-      expect(component.selections()).toHaveLength(2);
-      expect(component.selections()[0].selection.figureTemplateId).toBe('fig-uuid-1');
-      expect(component.selections()[1].selection.compositionTemplateId).toBe('comp-uuid-1');
     });
 
     it('removeSelection removes item by index', () => {
@@ -183,15 +143,15 @@ describe('FigurePickerModalComponent', () => {
   });
 
   describe('confirm', () => {
-    it('emits confirmed with array of InstanceSelection (parent handles close)', () => {
+    it('emits confirmed with array of InstanceSelection', () => {
       component.addFigure(makeFigure({ id: 'fig-1' }));
-      component.addComposition(makeComposition({ id: 'comp-1' }));
+      component.addFigure(makeFigure({ id: 'fig-2' }));
 
       component.confirm();
 
       expect(confirmedSpy).toHaveBeenCalledWith([
         { figureTemplateId: 'fig-1' },
-        { compositionTemplateId: 'comp-1' },
+        { figureTemplateId: 'fig-2' },
       ]);
       expect(closedSpy).not.toHaveBeenCalled();
     });
@@ -276,7 +236,7 @@ describe('FigurePickerModalComponent', () => {
 
     it('confirm button is enabled with selections and shows count', () => {
       component.addFigure(makeFigure());
-      component.addComposition(makeComposition());
+      component.addFigure(makeFigure({ id: 'fig-2' }));
       fixture.detectChanges();
 
       const confirmBtn = fixture.nativeElement.querySelector('button.btn-primary');

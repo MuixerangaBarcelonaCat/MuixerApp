@@ -13,7 +13,6 @@ import { FigureInstance } from '../event-segment/entities/figure-instance.entity
 import { InstanceNode } from '../event-segment/entities/instance-node.entity';
 import { FigureNode } from '../figure/entities/figure-node.entity';
 import { Person } from '../person/person.entity';
-import { CompositionSlot } from '../composition/entities/composition-slot.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
 import { Event } from '../event/event.entity';
@@ -102,7 +101,6 @@ const makeTemplate = (overrides: any = {}): any => ({
 const makeInstance = (overrides: Record<string, any> = {}): any => ({
   id: INSTANCE_ID,
   figureTemplate: { id: TEMPLATE_ID },
-  compositionTemplate: null,
   segment: makeSegment(),
   snapshotted: true,
   instanceNodes: [makeInstanceNode()],
@@ -116,7 +114,6 @@ const makeAssignment = (overrides: Partial<NodeAssignment> = {}): Partial<NodeAs
   figureInstance: makeInstance() as any,
   instanceNode: makeInstanceNode() as any,
   person: makePerson() as any,
-  compositionSlot: null,
   createdAt: new Date(),
   updatedAt: new Date(),
   ...overrides,
@@ -181,7 +178,6 @@ const mockFigureNodeRepo = {
 };
 
 const mockPersonRepo = { findOne: jest.fn() };
-const mockSlotRepo = { findOne: jest.fn() };
 const mockTemplateRepo = { findOne: jest.fn() };
 const mockSegmentRepo = { findOne: jest.fn(), find: jest.fn() };
 const mockEventRepo = { findOne: jest.fn() };
@@ -213,7 +209,6 @@ describe('NodeAssignmentService', () => {
         { provide: getRepositoryToken(InstanceNode), useValue: mockInstanceNodeRepo },
         { provide: getRepositoryToken(FigureNode), useValue: mockFigureNodeRepo },
         { provide: getRepositoryToken(Person), useValue: mockPersonRepo },
-        { provide: getRepositoryToken(CompositionSlot), useValue: mockSlotRepo },
         { provide: getRepositoryToken(FigureTemplate), useValue: mockTemplateRepo },
         { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
         { provide: getRepositoryToken(Event), useValue: mockEventRepo },
@@ -1021,16 +1016,6 @@ describe('NodeAssignmentService', () => {
       expect(mockDataSource.transaction).toHaveBeenCalled();
     });
 
-    it('rejects composition instance with 400', async () => {
-      mockInstanceRepo.findOne.mockResolvedValue(
-        makeInstance({ compositionTemplate: { id: 'comp-1' }, figureTemplate: null }),
-      );
-
-      await expect(
-        service.createAdHocNode(INSTANCE_ID, adHocDto, 'user-1'),
-      ).rejects.toThrow(BadRequestException);
-    });
-
     it('rejects when event is locked', async () => {
       process.env.ASSIGNMENT_LOCK_DAYS = '2';
       const lockedDate = new Date();
@@ -1545,7 +1530,6 @@ describe('NodeAssignmentService', () => {
         snapshotted: false,
         figureTemplate: { id: TEMPLATE_ID },
         segment: makeSegment(),
-        compositionTemplate: null,
       };
 
       mockInstanceRepo.findOne.mockResolvedValue(savedInstance);

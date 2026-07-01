@@ -346,7 +346,7 @@ export class SegmentManagerComponent implements OnInit {
   }
 
   getInstanceLabel(instance: InstanceDetail): string {
-    const base = instance.label ?? instance.figureTemplate?.name ?? instance.compositionTemplate?.name ?? '?';
+    const base = instance.label ?? instance.figureTemplate?.name ?? '?';
     if (instance.figureTemplate?.hasPinya) {
       if (instance.figureMode === 'PEU') return `Peu de ${base}`;
       if (instance.figureMode === 'REMAT') return `Remat de ${base}`;
@@ -360,8 +360,8 @@ export class SegmentManagerComponent implements OnInit {
     return firstWord.endsWith('a') ? 'neta' : 'net';
   }
 
-  isComposition(instance: InstanceDetail): boolean {
-    return !!instance.compositionTemplate;
+  isComposition(_instance: InstanceDetail): boolean {
+    return false;
   }
 
   figureModeOptions(instance: InstanceDetail): { value: FigureMode; label: string }[] | null {

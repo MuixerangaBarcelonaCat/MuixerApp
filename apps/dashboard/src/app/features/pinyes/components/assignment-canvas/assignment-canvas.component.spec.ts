@@ -124,7 +124,6 @@ const makeInstance = (overrides = {}) => ({
   projectionScale: 1,
   figureMode: 'COMPLETA' as const,
   figureTemplate: { id: TEMPLATE_ID, name: 'pd4', hasPinya: true },
-  compositionTemplate: null,
   ...overrides,
 });
 
@@ -149,7 +148,6 @@ let assignmentIdCounter = 0;
 const makeAssignment = (nodeId = 'inode-1', personId = 'person-1'): AssignmentDetail => ({
   id: `assignment-${++assignmentIdCounter}`,
   figureInstanceId: INSTANCE_ID,
-  compositionSlotId: null,
   node: { id: nodeId, label: 'base-1', zone: 'BASE', z: 0, positionType: null, sortOrder: 0, ringLevel: null, originNodeId: null, sourceNodeId: 'node-1' },
   person: { id: personId, alias: 'Pepet', name: 'Pere', firstSurname: 'Garcia', shoulderHeight: SHOULDER_HEIGHT_BASELINE_CM },
 });

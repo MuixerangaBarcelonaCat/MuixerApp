@@ -8,7 +8,6 @@ import { DataSource, Repository } from 'typeorm';
 import { FigureInstance } from './entities/figure-instance.entity';
 import { EventSegment } from './entities/event-segment.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
-import { CompositionTemplate } from '../composition/entities/composition-template.entity';
 import { CreateInstanceDto } from './dto/create-instance.dto';
 import { UpdateInstanceDto } from './dto/update-instance.dto';
 import { ReorderInstancesDto } from './dto/reorder-instances.dto';
@@ -68,8 +67,6 @@ export class FigureInstanceService {
     private readonly segmentRepository: Repository<EventSegment>,
     @InjectRepository(FigureTemplate)
     private readonly figureTemplateRepository: Repository<FigureTemplate>,
-    @InjectRepository(CompositionTemplate)
-    private readonly compositionTemplateRepository: Repository<CompositionTemplate>,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -78,36 +75,17 @@ export class FigureInstanceService {
     segmentId: string,
     dto: CreateInstanceDto,
   ): Promise<InstanceRef> {
-    const hasFigure = !!dto.figureTemplateId;
-    const hasComposition = !!dto.compositionTemplateId;
-
-    if (hasFigure === hasComposition) {
-      throw new BadRequestException(
-        'Exactly one of figureTemplateId or compositionTemplateId must be provided',
-      );
+    if (!dto.figureTemplateId) {
+      throw new BadRequestException('figureTemplateId must be provided');
     }
 
     const segment = await this.assertSegmentBelongsToEvent(eventId, segmentId);
 
-    let figureTemplate: FigureTemplate | null = null;
-    let compositionTemplate: CompositionTemplate | null = null;
-
-    if (dto.figureTemplateId) {
-      figureTemplate = await this.figureTemplateRepository.findOne({
-        where: { id: dto.figureTemplateId },
-      });
-      if (!figureTemplate) {
-        throw new NotFoundException(`FigureTemplate with ID ${dto.figureTemplateId} not found`);
-      }
-    }
-
-    if (dto.compositionTemplateId) {
-      compositionTemplate = await this.compositionTemplateRepository.findOne({
-        where: { id: dto.compositionTemplateId },
-      });
-      if (!compositionTemplate) {
-        throw new NotFoundException(`CompositionTemplate with ID ${dto.compositionTemplateId} not found`);
-      }
+    const figureTemplate = await this.figureTemplateRepository.findOne({
+      where: { id: dto.figureTemplateId },
+    });
+    if (!figureTemplate) {
+      throw new NotFoundException(`FigureTemplate with ID ${dto.figureTemplateId} not found`);
     }
 
     const maxOrder = await this.instanceRepository
@@ -121,7 +99,6 @@ export class FigureInstanceService {
     const instance = this.instanceRepository.create({
       segment,
       figureTemplate,
-      compositionTemplate,
       label: dto.label ?? null,
       sortOrder,
     });
@@ -194,7 +171,7 @@ export class FigureInstanceService {
   ): Promise<InstanceRef> {
     const sourceInstance = await this.instanceRepository.findOne({
       where: { id: instanceId, segment: { id: segmentId } },
-      relations: ['figureTemplate', 'compositionTemplate'],
+      relations: ['figureTemplate'],
     });
     if (!sourceInstance) {
       throw new NotFoundException(`Instance with ID ${instanceId} not found in segment ${segmentId}`);
@@ -214,7 +191,6 @@ export class FigureInstanceService {
     const newInstance = this.instanceRepository.create({
       segment: targetSegment,
       figureTemplate: sourceInstance.figureTemplate ?? null,
-      compositionTemplate: sourceInstance.compositionTemplate ?? null,
       label: sourceInstance.label,
       sortOrder,
     });
@@ -391,7 +367,7 @@ export class FigureInstanceService {
   private async findOneById(id: string): Promise<InstanceRef> {
     const instance = await this.instanceRepository.findOne({
       where: { id },
-      relations: ['figureTemplate', 'compositionTemplate'],
+      relations: ['figureTemplate'],
     });
 
     if (!instance) {
@@ -469,9 +445,6 @@ export class FigureInstanceService {
             name: instance.figureTemplate.name,
             hasPinya,
           }
-        : null,
-      compositionTemplate: instance.compositionTemplate
-        ? { id: instance.compositionTemplate.id, name: instance.compositionTemplate.name }
         : null,
     };
   }

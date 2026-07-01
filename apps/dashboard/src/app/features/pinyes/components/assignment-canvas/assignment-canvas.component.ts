@@ -938,7 +938,6 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     const tempAssignment: AssignmentDetail = {
       id: `temp-${Date.now()}`,
       figureInstanceId: instanceId,
-      compositionSlotId: null,
       node: {
         id: nodeId,
         label: matchedNode?.label ?? '',

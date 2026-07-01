@@ -29,7 +29,6 @@ export interface AssignmentPersonDetail {
 export interface AssignmentDetail {
   id: string;
   figureInstanceId: string;
-  compositionSlotId: string | null;
   node: AssignmentNodeDetail;
   person: AssignmentPersonDetail;
 }
@@ -91,12 +90,10 @@ export interface BulkImportResult {
 export interface CreateAssignmentPayload {
   nodeId: string;
   personId: string;
-  compositionSlotId?: string;
 }
 
 export interface BulkImportPayload {
   sourceInstanceId: string;
-  sourceCompositionSlotId?: string;
 }
 
 export interface AvailablePersonsQuery {

@@ -43,9 +43,6 @@
       >
         <lucide-icon [name]="ICON_COMPOSITION" [size]="14" class="mr-1" aria-hidden="true" />
         Composicions
-        @if (compositions().length > 0) {
-          <span class="badge badge-xs ml-1">{{ compositions().length }}</span>
-        }
       </button>
     </div>
 
@@ -107,36 +104,7 @@
 
     <!-- Composition list -->
     @if (activeTab() === 'composicions') {
-      @if (loadingCompositions()) {
-        <div class="flex items-center justify-center py-8 gap-2 text-sm text-base-content/50">
-          <span class="loading loading-spinner loading-sm"></span> S'estan carregant les composicions...
-        </div>
-      } @else if (filteredCompositions().length === 0) {
-        <p class="text-center text-sm text-base-content/40 py-8">
-          @if (search()) { Cap composició trobada per "{{ search() }}" } @else { Cap composició creada encara }
-        </p>
-      } @else {
-        <ul class="space-y-0.5 max-h-72 overflow-y-auto" role="list" aria-label="Composicions disponibles">
-          @for (composition of filteredCompositions(); track composition.id) {
-            <li class="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-base-200 transition-colors">
-              <div class="flex items-center gap-2 min-w-0">
-                <lucide-icon [name]="ICON_COMPOSITION" [size]="14" class="text-secondary shrink-0" aria-hidden="true" />
-                <span class="font-medium text-sm truncate">{{ composition.name }}</span>
-                <span class="text-xs text-base-content/40 shrink-0">{{ composition.slotCount }} figures</span>
-              </div>
-              <button
-                type="button"
-                class="btn btn-ghost btn-xs gap-1 shrink-0 ml-2"
-                (click)="addComposition(composition)"
-                [attr.aria-label]="'Afegir ' + composition.name"
-              >
-                <lucide-icon name="Plus" [size]="14" aria-hidden="true" />
-                Afegir
-              </button>
-            </li>
-          }
-        </ul>
-      }
+      <p class="text-center text-sm text-base-content/40 py-8">Les composicions estaran disponibles properament.</p>
     }
 
     <!-- Selected items section -->

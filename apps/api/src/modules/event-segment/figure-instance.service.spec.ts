@@ -6,14 +6,12 @@ import { FigureInstanceService } from './figure-instance.service';
 import { FigureInstance } from './entities/figure-instance.entity';
 import { EventSegment } from './entities/event-segment.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
-import { CompositionTemplate } from '../composition/entities/composition-template.entity';
 import { FigureMode } from '@muixer/shared';
 
 const EVENT_ID = 'event-uuid-1';
 const SEGMENT_ID = 'segment-uuid-1';
 const INSTANCE_ID = 'instance-uuid-1';
 const FIGURE_ID = 'fig-uuid-1';
-const COMPOSITION_ID = 'comp-uuid-1';
 
 const makeSegment = (): EventSegment =>
   ({ id: SEGMENT_ID, event: { id: EVENT_ID } } as EventSegment);
@@ -21,16 +19,12 @@ const makeSegment = (): EventSegment =>
 const makeFigureTemplate = (): FigureTemplate =>
   ({ id: FIGURE_ID, name: 'pd4' } as FigureTemplate);
 
-const makeComposition = (): CompositionTemplate =>
-  ({ id: COMPOSITION_ID, name: 'Altar' } as CompositionTemplate);
-
 const makeInstance = (overrides: Partial<FigureInstance> = {}): FigureInstance =>
   ({
     id: INSTANCE_ID,
     label: null,
     sortOrder: 0,
     figureTemplate: makeFigureTemplate(),
-    compositionTemplate: null,
     segment: makeSegment(),
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -60,10 +54,6 @@ const mockFigureTemplateRepo = {
   findOne: jest.fn(),
 };
 
-const mockCompositionRepo = {
-  findOne: jest.fn(),
-};
-
 const mockDataSource = {
   transaction: jest.fn().mockImplementation((cb) => cb({ update: jest.fn() })),
   query: jest.fn().mockResolvedValue([{ count: '0' }]),
@@ -79,7 +69,6 @@ describe('FigureInstanceService', () => {
         { provide: getRepositoryToken(FigureInstance), useValue: mockInstanceRepo },
         { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
         { provide: getRepositoryToken(FigureTemplate), useValue: mockFigureTemplateRepo },
-        { provide: getRepositoryToken(CompositionTemplate), useValue: mockCompositionRepo },
         { provide: DataSource, useValue: mockDataSource },
       ],
     }).compile();
@@ -105,29 +94,7 @@ describe('FigureInstanceService', () => {
       expect(result.figureTemplate?.id).toBe(FIGURE_ID);
     });
 
-    it('creates an instance with a compositionTemplate', async () => {
-      const instanceWithComp = makeInstance({ figureTemplate: null, compositionTemplate: makeComposition() });
-      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
-      mockCompositionRepo.findOne.mockResolvedValue(makeComposition());
-      mockInstanceRepo.create.mockReturnValue(instanceWithComp);
-      mockInstanceRepo.save.mockResolvedValue(instanceWithComp);
-      mockInstanceRepo.findOne.mockResolvedValue(instanceWithComp);
-
-      const result = await service.create(EVENT_ID, SEGMENT_ID, { compositionTemplateId: COMPOSITION_ID });
-
-      expect(result.compositionTemplate?.id).toBe(COMPOSITION_ID);
-    });
-
-    it('throws 400 if both figureTemplateId and compositionTemplateId are provided', async () => {
-      await expect(
-        service.create(EVENT_ID, SEGMENT_ID, {
-          figureTemplateId: FIGURE_ID,
-          compositionTemplateId: COMPOSITION_ID,
-        }),
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('throws 400 if neither figureTemplateId nor compositionTemplateId is provided', async () => {
+    it('throws 400 if figureTemplateId is not provided', async () => {
       await expect(service.create(EVENT_ID, SEGMENT_ID, {})).rejects.toThrow(BadRequestException);
     });
 
@@ -148,14 +115,6 @@ describe('FigureInstanceService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('throws 404 if compositionTemplate is not found', async () => {
-      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
-      mockCompositionRepo.findOne.mockResolvedValue(null);
-
-      await expect(
-        service.create(EVENT_ID, SEGMENT_ID, { compositionTemplateId: COMPOSITION_ID }),
-      ).rejects.toThrow(NotFoundException);
-    });
   });
 
   describe('update', () => {
@@ -258,7 +217,6 @@ describe('FigureInstanceService', () => {
     it('creates a new instance in the target segment with the same template', async () => {
       const sourceWithRelations = makeInstance({
         figureTemplate: makeFigureTemplate(),
-        compositionTemplate: null,
       });
       mockInstanceRepo.findOne
         .mockResolvedValueOnce(sourceWithRelations)  // assertInstanceBelongsToSegment (source)
@@ -291,7 +249,6 @@ describe('FigureInstanceService', () => {
     it('throws 404 if target segment does not belong to event', async () => {
       mockInstanceRepo.findOne.mockResolvedValueOnce(makeInstance({
         figureTemplate: makeFigureTemplate(),
-        compositionTemplate: null,
       }));
       mockSegmentRepo.findOne
         .mockResolvedValueOnce(makeSegment())  // source segment
