@@ -6,6 +6,8 @@ import { FigureInstanceService } from './figure-instance.service';
 import { FigureInstance } from './entities/figure-instance.entity';
 import { EventSegment } from './entities/event-segment.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
+import { Composition } from '../composition/entities/composition.entity';
+import { EventSegmentService } from './event-segment.service';
 import { FigureMode } from '@muixer/shared';
 
 const EVENT_ID = 'event-uuid-1';
@@ -55,8 +57,16 @@ const mockFigureTemplateRepo = {
 };
 
 const mockDataSource = {
-  transaction: jest.fn().mockImplementation((cb) => cb({ update: jest.fn() })),
+  transaction: jest.fn().mockImplementation((cb) => cb({ update: jest.fn(), save: jest.fn() })),
   query: jest.fn().mockResolvedValue([{ count: '0' }]),
+};
+
+const mockCompositionRepo = {
+  findOne: jest.fn(),
+};
+
+const mockSegmentService = {
+  getOne: jest.fn(),
 };
 
 describe('FigureInstanceService', () => {
@@ -69,6 +79,8 @@ describe('FigureInstanceService', () => {
         { provide: getRepositoryToken(FigureInstance), useValue: mockInstanceRepo },
         { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
         { provide: getRepositoryToken(FigureTemplate), useValue: mockFigureTemplateRepo },
+        { provide: getRepositoryToken(Composition), useValue: mockCompositionRepo },
+        { provide: EventSegmentService, useValue: mockSegmentService },
         { provide: DataSource, useValue: mockDataSource },
       ],
     }).compile();
@@ -619,6 +631,113 @@ describe('FigureInstanceService', () => {
       await expect(
         service.reorder(EVENT_ID, SEGMENT_ID, { instanceIds: [] }),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('applyComposition', () => {
+    const COMPOSITION_ID = 'comp-uuid-1';
+
+    beforeEach(() => {
+      mockDataSource.transaction.mockImplementation((cb: (m: { save: jest.Mock; update: jest.Mock }) => Promise<unknown>) =>
+        cb({ save: jest.fn(), update: jest.fn() }),
+      );
+    });
+
+    const makeCompositionEntry = (overrides = {}) => ({
+      id: 'entry-1',
+      label: 'Central',
+      offsetX: 100,
+      offsetY: 200,
+      angle: 45,
+      troncPanelX: 10,
+      troncPanelY: 20,
+      figureMode: FigureMode.COMPLETA,
+      numberOfCordons: 2,
+      sortOrder: 0,
+      figureTemplate: makeFigureTemplate(),
+      ...overrides,
+    });
+
+    it('throws 404 when composition not found', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockCompositionRepo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.applyComposition(EVENT_ID, SEGMENT_ID, COMPOSITION_ID),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws 404 when segment not found', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.applyComposition(EVENT_ID, SEGMENT_ID, COMPOSITION_ID),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('creates instances with distribution fields from composition entries', async () => {
+      const entry = makeCompositionEntry();
+      const composition = {
+        id: COMPOSITION_ID,
+        name: 'Altar',
+        entries: [entry],
+      };
+      const updatedSegment = { id: SEGMENT_ID, name: 'Altar', instances: [] };
+
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockCompositionRepo.findOne.mockResolvedValue(composition);
+      mockInstanceQb.getRawOne.mockResolvedValue({ max: null });
+      mockInstanceRepo.create.mockImplementation((dto) => ({ ...dto, id: 'new-inst' }));
+      mockInstanceRepo.save.mockResolvedValue({});
+      mockSegmentService.getOne.mockResolvedValue(updatedSegment);
+
+      const result = await service.applyComposition(EVENT_ID, SEGMENT_ID, COMPOSITION_ID);
+
+      expect(mockInstanceRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectionX: 100,
+          projectionY: 200,
+          projectionAngle: 45,
+          troncPanelX: 10,
+          troncPanelY: 20,
+          figureMode: FigureMode.COMPLETA,
+          numberOfCordons: 2,
+          label: 'Central',
+        }),
+      );
+      expect(result).toBe(updatedSegment);
+    });
+
+    it('updates segment name to composition name in transaction', async () => {
+      const composition = { id: COMPOSITION_ID, name: 'Altar', entries: [] };
+      const updatedSegment = { id: SEGMENT_ID, name: 'Altar', instances: [] };
+      const mockManager = { save: jest.fn(), update: jest.fn() };
+      mockDataSource.transaction.mockImplementationOnce((cb: (mgr: typeof mockManager) => Promise<unknown>) => cb(mockManager));
+
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockCompositionRepo.findOne.mockResolvedValue(composition);
+      mockSegmentService.getOne.mockResolvedValue(updatedSegment);
+
+      await service.applyComposition(EVENT_ID, SEGMENT_ID, COMPOSITION_ID);
+
+      expect(mockManager.save).toHaveBeenCalledWith(
+        EventSegment,
+        expect.objectContaining({ id: SEGMENT_ID, name: 'Altar' }),
+      );
+    });
+
+    it('returns updated SegmentWithInstances from segmentService', async () => {
+      const composition = { id: COMPOSITION_ID, name: 'Castell', entries: [] };
+      const updatedSegment = { id: SEGMENT_ID, name: 'Castell', instances: [] };
+
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockCompositionRepo.findOne.mockResolvedValue(composition);
+      mockSegmentService.getOne.mockResolvedValue(updatedSegment);
+
+      const result = await service.applyComposition(EVENT_ID, SEGMENT_ID, COMPOSITION_ID);
+
+      expect(mockSegmentService.getOne).toHaveBeenCalledWith(SEGMENT_ID);
+      expect(result.name).toBe('Castell');
     });
   });
 });

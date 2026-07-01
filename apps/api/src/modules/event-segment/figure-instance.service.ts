@@ -8,11 +8,12 @@ import { DataSource, Repository } from 'typeorm';
 import { FigureInstance } from './entities/figure-instance.entity';
 import { EventSegment } from './entities/event-segment.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
+import { Composition } from '../composition/entities/composition.entity';
 import { CreateInstanceDto } from './dto/create-instance.dto';
 import { UpdateInstanceDto } from './dto/update-instance.dto';
 import { ReorderInstancesDto } from './dto/reorder-instances.dto';
 import { UpdateSegmentDistributionDto } from './dto/update-segment-distribution.dto';
-import { InstanceRef } from './event-segment.service';
+import { EventSegmentService, InstanceRef, SegmentWithInstances } from './event-segment.service';
 
 export interface DistributionNodeItem {
   id: string;
@@ -67,6 +68,9 @@ export class FigureInstanceService {
     private readonly segmentRepository: Repository<EventSegment>,
     @InjectRepository(FigureTemplate)
     private readonly figureTemplateRepository: Repository<FigureTemplate>,
+    @InjectRepository(Composition)
+    private readonly compositionRepository: Repository<Composition>,
+    private readonly segmentService: EventSegmentService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -469,5 +473,54 @@ export class FigureInstanceService {
        )`,
       [instanceId],
     );
+  }
+
+  async applyComposition(
+    eventId: string,
+    segmentId: string,
+    compositionId: string,
+  ): Promise<SegmentWithInstances> {
+    const segment = await this.assertSegmentBelongsToEvent(eventId, segmentId);
+
+    const composition = await this.compositionRepository.findOne({
+      where: { id: compositionId },
+      relations: ['entries', 'entries.figureTemplate'],
+      order: { entries: { sortOrder: 'ASC' } },
+    });
+    if (!composition) {
+      throw new NotFoundException(`Composition with ID ${compositionId} not found`);
+    }
+
+    await this.dataSource.transaction(async (manager) => {
+      await manager.save(EventSegment, { id: segment.id, name: composition.name });
+
+      for (const entry of composition.entries ?? []) {
+        const maxOrder = await this.instanceRepository
+          .createQueryBuilder('instance')
+          .select('MAX(instance.sortOrder)', 'max')
+          .where('instance.segment = :segmentId', { segmentId })
+          .getRawOne<{ max: number | null }>();
+
+        const sortOrder = (maxOrder?.max ?? -1) + 1;
+
+        const instance = this.instanceRepository.create({
+          segment,
+          figureTemplate: entry.figureTemplate,
+          label: entry.label,
+          figureMode: entry.figureMode,
+          numberOfCordons: entry.numberOfCordons,
+          sortOrder,
+          projectionX: entry.offsetX,
+          projectionY: entry.offsetY,
+          projectionAngle: entry.angle,
+          troncPanelX: entry.troncPanelX,
+          troncPanelY: entry.troncPanelY,
+        });
+
+        await manager.save(FigureInstance, instance);
+      }
+    });
+
+    return this.segmentService.getOne(segmentId);
   }
 }

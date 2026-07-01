@@ -8,8 +8,10 @@ export class DropOldCompositionTables1782300000000 implements MigrationInterface
     await queryRunner.query(`ALTER TABLE "node_assignments" DROP CONSTRAINT IF EXISTS "UQ_node_assignments_instance_person_slot"`);
     await queryRunner.query(`ALTER TABLE "node_assignments" DROP COLUMN IF EXISTS "compositionSlotId"`);
 
-    // Add simpler unique constraints without compositionSlotId
+    // Add simpler unique constraints without compositionSlotId (drop first to be idempotent)
+    await queryRunner.query(`ALTER TABLE "node_assignments" DROP CONSTRAINT IF EXISTS "UQ_node_assignments_instance_node"`);
     await queryRunner.query(`ALTER TABLE "node_assignments" ADD CONSTRAINT "UQ_node_assignments_instance_node" UNIQUE ("figureInstanceId", "instanceNodeId")`);
+    await queryRunner.query(`ALTER TABLE "node_assignments" DROP CONSTRAINT IF EXISTS "UQ_node_assignments_instance_person"`);
     await queryRunner.query(`ALTER TABLE "node_assignments" ADD CONSTRAINT "UQ_node_assignments_instance_person" UNIQUE ("figureInstanceId", "personId")`);
 
     // Nullify and drop compositionTemplateId from figure_instances

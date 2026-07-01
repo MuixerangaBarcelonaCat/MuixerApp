@@ -178,6 +178,10 @@ export class EventSegmentService {
     return segment;
   }
 
+  async getOne(id: string): Promise<SegmentWithInstances> {
+    return this.findOneById(id);
+  }
+
   private async findOneById(id: string): Promise<SegmentWithInstances> {
     const segment = await this.segmentRepository
       .createQueryBuilder('segment')
