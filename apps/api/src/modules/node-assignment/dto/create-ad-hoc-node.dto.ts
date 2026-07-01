@@ -70,7 +70,7 @@ export class CreateAdHocNodeDto {
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @IsNotEmpty()
-  @MaxLength(100)
+  @MaxLength(500)
   label: string;
 
   @IsNumber()
