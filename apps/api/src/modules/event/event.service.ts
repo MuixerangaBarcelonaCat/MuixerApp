@@ -213,7 +213,6 @@ export class EventService {
       .leftJoinAndSelect('segment.event', 'event')
       .leftJoinAndSelect('segment.instances', 'instance')
       .leftJoinAndSelect('instance.figureTemplate', 'figureTemplate')
-      .leftJoinAndSelect('instance.compositionTemplate', 'compositionTemplate')
       .where('event.id IN (:...eventIds)', { eventIds })
       .orderBy('segment.sortOrder', 'ASC')
       .addOrderBy('instance.sortOrder', 'ASC')
