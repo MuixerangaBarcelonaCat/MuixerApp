@@ -6,7 +6,6 @@ function makeAssignment(nodeId: string, shoulderHeight: number | null): Assignme
   return {
     id: `assign-${nodeId}`,
     figureInstanceId: 'instance-1',
-    compositionSlotId: null,
     node: {
       id: nodeId,
       label: 'Node',

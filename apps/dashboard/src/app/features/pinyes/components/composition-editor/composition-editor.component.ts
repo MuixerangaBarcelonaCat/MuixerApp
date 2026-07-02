@@ -11,21 +11,24 @@ import {
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
-import { CompositionTemplateService } from '../../services/composition-template.service';
+import { CompositionService } from '../../services/composition.service';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { CanvasStateService } from '../../services/canvas-state.service';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { FigureCanvasComponent, CompositionSlotWithNodes } from '../figure-canvas/figure-canvas.component';
+import { filterNodesByFigureMode } from '../../utils/figure-mode-filter.util';
 import {
-  CompositionTemplateDetail,
-  CompositionSlotItem,
-  CreateCompositionSlotPayload,
-  CreateCompositionTemplatePayload,
-  UpdateCompositionTemplatePayload,
+  CompositionDetail,
+  CompositionEntryItem,
+  CreateCompositionEntryPayload,
 } from '../../models/composition.model';
+import { FigureMode } from '../../models/segment.model';
 import { FigureTemplateListItem } from '../../models/figure-template.model';
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
+const ADD_STAGGER_GAP = 24;
+const ADD_STAGGER_COUNT = 5;
 
 @Component({
   selector: 'app-composition-editor',
@@ -35,410 +38,193 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
   templateUrl: './composition-editor.component.html',
 })
 export class CompositionEditorComponent implements OnInit, OnDestroy {
-  private readonly compositionService = inject(CompositionTemplateService);
+  private readonly compositionService = inject(CompositionService);
   private readonly figureTemplateService = inject(FigureTemplateService);
   private readonly canvasState = inject(CanvasStateService);
   private readonly layoutService = inject(LayoutService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
-  // State
-  composition = signal<CompositionTemplateDetail | null>(null);
-  selectedSlotId = signal<string | null>(null);
-  availableTemplates = signal<FigureTemplateListItem[]>([]);
-  figurePickerSearch = signal('');
-  figurePickerSearchInput = '';
-  saveStatus = signal<SaveStatus>('idle');
-  isNew = signal(false);
-  loading = signal(false);
+  readonly compositionId = signal<string | null>(this.route.snapshot.paramMap.get('id'));
+  readonly name = signal('');
+  readonly entries = signal<CompositionEntryItem[]>([]);
+  readonly selectedEntryId = signal<string | null>(null);
+  readonly saveStatus = signal<SaveStatus>('idle');
+  readonly loading = signal(true);
+  readonly search = signal('');
+  readonly figureTemplates = signal<FigureTemplateListItem[]>([]);
 
-  // Inline editing fields (local, synced to composition on save)
-  nameValue = signal('');
-  slugValue = signal('');
-  descriptionValue = signal('');
+  readonly compositionSlots = computed<CompositionSlotWithNodes[]>(() =>
+    this.entries().map((entry) => this.mapEntryToSlot(entry)),
+  );
 
-  @ViewChild(FigureCanvasComponent) private canvasRef?: FigureCanvasComponent;
+  readonly selectedEntry = computed(
+    () => this.entries().find((e) => e.id === this.selectedEntryId()) ?? null,
+  );
 
-  private saveDebounce: ReturnType<typeof setTimeout> | undefined;
-  private figureSearchDebounce: ReturnType<typeof setTimeout> | undefined;
-  private autoSlugEnabled = true;
-
-  readonly compositionSlots = computed((): CompositionSlotWithNodes[] => {
-    const comp = this.composition();
-    if (!comp) return [];
-    return comp.slots.map((slot) => ({
-      slotId: slot.id,
-      label: slot.label,
-      offsetX: slot.offsetX,
-      offsetY: slot.offsetY,
-      sortOrder: slot.sortOrder,
-      figureTemplate: {
-        id: slot.figureTemplate.id,
-        name: slot.figureTemplate.name,
-        hasPinya: slot.figureTemplate.hasPinya,
-        nodes: slot.figureTemplate.nodes,
-      },
-    }));
+  readonly filteredTemplates = computed<FigureTemplateListItem[]>(() => {
+    const q = this.search().toLowerCase();
+    const all = this.figureTemplates();
+    if (!q) return all;
+    return all.filter((t) => t.name.toLowerCase().includes(q));
   });
 
-  readonly selectedSlot = computed((): CompositionSlotItem | null => {
-    const comp = this.composition();
-    const id = this.selectedSlotId();
-    if (!comp || !id) return null;
-    return comp.slots.find((s) => s.id === id) ?? null;
-  });
-
-  readonly filteredTemplates = computed(() => {
-    const search = this.figurePickerSearch().toLowerCase();
-    if (!search) return this.availableTemplates();
-    return this.availableTemplates().filter(
-      (t) =>
-        t.name.toLowerCase().includes(search) || t.slug.toLowerCase().includes(search),
-    );
-  });
+  // Queried by template ref (not by type) so tests can substitute a stub component for FigureCanvasComponent.
+  @ViewChild('canvas') private canvasRef?: FigureCanvasComponent;
 
   ngOnInit(): void {
     this.layoutService.requestFullscreen();
-    this.canvasState.reset();
+    this.loadFigureTemplates();
 
-    const id = this.route.snapshot.paramMap.get('id');
-    this.isNew.set(!id);
-
+    const id = this.compositionId();
     if (id) {
-      this.loading.set(true);
-      this.compositionService.getOne(id).subscribe({
-        next: (comp) => {
-          this.composition.set(comp);
-          this.nameValue.set(comp.name);
-          this.slugValue.set(comp.slug);
-          this.descriptionValue.set(comp.description ?? '');
-          this.autoSlugEnabled = false;
-          this.loading.set(false);
-        },
-        error: () => {
-          this.loading.set(false);
-          this.router.navigate(['/pinyes'], { queryParams: { tab: 'compositions' } });
-        },
-      });
+      this.loadComposition(id);
     } else {
-      this.nameValue.set('');
-      this.slugValue.set('');
-      this.descriptionValue.set('');
+      this.loading.set(false);
     }
-
-    this.loadAvailableTemplates();
   }
 
   ngOnDestroy(): void {
     this.layoutService.exitFullscreen();
-    clearTimeout(this.saveDebounce);
-    clearTimeout(this.figureSearchDebounce);
   }
 
-  // --- Name/slug/description changes ---
-
-  onNameChange(value: string): void {
-    this.nameValue.set(value);
-    if (this.autoSlugEnabled) {
-      this.slugValue.set(this.generateSlug(value));
-    }
-    this.scheduleSave();
+  private loadComposition(id: string): void {
+    this.compositionService.getOne(id).subscribe({
+      next: (detail) => {
+        this.applySavedDetail(detail);
+        this.loading.set(false);
+        this.scheduleInitialCenter();
+      },
+      error: () => {
+        this.loading.set(false);
+        this.goBack();
+      },
+    });
   }
 
-  onSlugChange(value: string): void {
-    this.autoSlugEnabled = false;
-    this.slugValue.set(value);
-    this.scheduleSave();
+  /** Runs once after the canvas has rendered the loaded content, to center the viewport on it. */
+  private scheduleInitialCenter(): void {
+    setTimeout(() => this.canvasRef?.centerOnContent());
   }
 
-  onDescriptionChange(value: string): void {
-    this.descriptionValue.set(value);
-    this.scheduleSave();
+  private loadFigureTemplates(): void {
+    this.figureTemplateService.getAll({ limit: 200 }).subscribe({
+      next: (resp) => this.figureTemplates.set(resp.data),
+      error: () => undefined,
+    });
   }
 
-  // --- Figure picker ---
+  private mapEntryToSlot(entry: CompositionEntryItem): CompositionSlotWithNodes {
+    const filteredNodes = filterNodesByFigureMode(
+      entry.figureTemplate.nodes,
+      entry.figureMode,
+      entry.numberOfCordons,
+    );
 
-  onFigurePickerSearchChange(value: string): void {
-    clearTimeout(this.figureSearchDebounce);
-    this.figureSearchDebounce = setTimeout(() => {
-      this.figurePickerSearch.set(value);
-    }, 200);
-  }
-
-  addFigure(figureTemplate: FigureTemplateListItem): void {
-    const comp = this.composition();
-    if (!comp && this.isNew()) {
-      if (!this.nameValue().trim()) {
-        const defaultName = `Composició amb ${figureTemplate.name}`;
-        this.nameValue.set(defaultName);
-        this.slugValue.set(this.generateSlug(defaultName));
-      }
-      // First save to get an ID, then add the figure and save again
-      this.saveImmediately(() => {
-        this.doAddFigure(figureTemplate);
-        this.saveImmediately();
-      });
-      return;
-    }
-    this.doAddFigure(figureTemplate);
-    // Save immediately so the API returns real nodes, replacing the placeholder
-    this.saveImmediately();
-  }
-
-  private doAddFigure(figureTemplate: FigureTemplateListItem): void {
-    const comp = this.composition();
-    if (!comp) return;
-
-    const existingSortOrders = comp.slots.map((s) => s.sortOrder);
-    const newSortOrder = existingSortOrders.length === 0
-      ? 0
-      : Math.max(...existingSortOrders) + 1;
-
-    const newSlot: CompositionSlotItem = {
-      id: `temp-${Date.now()}`,
-      label: null,
-      offsetX: comp.slots.length * 200,
-      offsetY: 0,
-      sortOrder: newSortOrder,
+    return {
+      slotId: entry.id,
+      label: entry.label,
+      offsetX: entry.offsetX,
+      offsetY: entry.offsetY,
+      angle: entry.angle,
+      sortOrder: entry.sortOrder,
+      troncGridCols: entry.troncGridCols,
+      troncGridRows: entry.troncGridRows,
+      troncPanelX: entry.troncPanelX,
+      troncPanelY: entry.troncPanelY,
       figureTemplate: {
-        ...figureTemplate,
-        nodes: [],
-        rengles: [],
-        metadata: {},
-        direction: 0,
+        id: entry.figureTemplate.id,
+        name: entry.figureTemplate.name,
+        hasPinya: filteredNodes.some((n) => n.zone === 'PINYA'),
+        nodes: filteredNodes,
       },
     };
-
-    this.composition.set({ ...comp, slots: [...comp.slots, newSlot] });
   }
-
-  // --- Canvas events ---
 
   onSlotSelected(slotId: string | null): void {
-    this.selectedSlotId.set(slotId);
+    this.selectedEntryId.set(slotId);
   }
 
-  onSlotMoved(event: { slotId: string; offsetX: number; offsetY: number }): void {
-    const comp = this.composition();
-    if (!comp) return;
+  onSlotMoved(event: { slotId: string; offsetX: number; offsetY: number; angle: number }): void {
+    this.patchEntry(event.slotId, {
+      offsetX: event.offsetX,
+      offsetY: event.offsetY,
+      angle: event.angle,
+    });
+  }
 
-    const updatedSlots = comp.slots.map((s) =>
-      s.id === event.slotId
-        ? { ...s, offsetX: event.offsetX, offsetY: event.offsetY }
-        : s,
-    );
-    this.composition.set({ ...comp, slots: updatedSlots });
+  onTroncMoved(event: { slotId: string; troncPanelX: number | null; troncPanelY: number | null }): void {
+    this.patchEntry(event.slotId, {
+      troncPanelX: event.troncPanelX,
+      troncPanelY: event.troncPanelY,
+    });
+  }
 
-    if (this.selectedSlotId() === event.slotId) {
-      // Force computed re-run
-      this.selectedSlotId.set(event.slotId);
+  updateName(value: string): void {
+    this.name.set(value);
+    this.performSave();
+  }
+
+  updateLabel(id: string, value: string): void {
+    this.patchEntry(id, { label: value.trim() ? value : null });
+  }
+
+  updateOffsetX(id: string, value: number): void {
+    this.patchEntry(id, { offsetX: value });
+  }
+
+  updateOffsetY(id: string, value: number): void {
+    this.patchEntry(id, { offsetY: value });
+  }
+
+  updateAngle(id: string, value: number): void {
+    this.patchEntry(id, { angle: value });
+  }
+
+  updateFigureMode(id: string, figureMode: FigureMode): void {
+    const patch: Partial<CompositionEntryItem> = { figureMode };
+    if (figureMode === 'REMAT' || figureMode === 'NETA') {
+      patch.numberOfCordons = null;
     }
-
-    this.scheduleSave();
+    this.patchEntry(id, patch);
   }
 
-  // --- Slot property panel ---
-
-  onSlotLabelChange(value: string): void {
-    this.updateSelectedSlot({ label: value || null });
-    this.scheduleSave();
+  updateNumberOfCordons(id: string, value: number | null): void {
+    this.patchEntry(id, { numberOfCordons: value });
   }
 
-  onSlotOffsetXChange(value: number): void {
-    this.updateSelectedSlot({ offsetX: value });
-    this.scheduleSave();
+  addFigureTemplate(template: FigureTemplateListItem): void {
+    const entry = this.buildNewEntry(template);
+    this.entries.update((list) => [...list, entry]);
+
+    if (!this.compositionId()) {
+      if (!this.name().trim()) this.name.set(template.name);
+      this.createComposition();
+    } else {
+      this.performSave();
+    }
   }
 
-  onSlotOffsetYChange(value: number): void {
-    this.updateSelectedSlot({ offsetY: value });
-    this.scheduleSave();
+  removeEntry(id: string): void {
+    this.entries.update((list) => list.filter((e) => e.id !== id));
+    if (this.selectedEntryId() === id) this.selectedEntryId.set(null);
+    this.performSave();
   }
-
-  deleteSelectedSlot(): void {
-    const slot = this.selectedSlot();
-    const comp = this.composition();
-    if (!slot || !comp) return;
-
-    this.composition.set({
-      ...comp,
-      slots: comp.slots.filter((s) => s.id !== slot.id),
-    });
-    this.selectedSlotId.set(null);
-    this.scheduleSave();
-  }
-
-  // --- Z-order controls ---
-
-  bringForward(): void {
-    const comp = this.composition();
-    const slotId = this.selectedSlotId();
-    if (!comp || !slotId) return;
-
-    const sorted = [...comp.slots].sort((a, b) => a.sortOrder - b.sortOrder);
-    const idx = sorted.findIndex((s) => s.id === slotId);
-    if (idx === -1 || idx === sorted.length - 1) return;
-
-    const current = sorted[idx];
-    const next = sorted[idx + 1];
-    const updatedSlots = comp.slots.map((s) => {
-      if (s.id === current.id) return { ...s, sortOrder: next.sortOrder };
-      if (s.id === next.id) return { ...s, sortOrder: current.sortOrder };
-      return s;
-    });
-
-    this.composition.set({ ...comp, slots: updatedSlots });
-    this.scheduleSave();
-  }
-
-  sendBackward(): void {
-    const comp = this.composition();
-    const slotId = this.selectedSlotId();
-    if (!comp || !slotId) return;
-
-    const sorted = [...comp.slots].sort((a, b) => a.sortOrder - b.sortOrder);
-    const idx = sorted.findIndex((s) => s.id === slotId);
-    if (idx <= 0) return;
-
-    const current = sorted[idx];
-    const prev = sorted[idx - 1];
-    const updatedSlots = comp.slots.map((s) => {
-      if (s.id === current.id) return { ...s, sortOrder: prev.sortOrder };
-      if (s.id === prev.id) return { ...s, sortOrder: current.sortOrder };
-      return s;
-    });
-
-    this.composition.set({ ...comp, slots: updatedSlots });
-    this.scheduleSave();
-  }
-
-  // --- Canvas fit ---
-
-  fitAll(): void {
-    this.canvasRef?.fitAllSlots();
-  }
-
-  // --- Navigation ---
 
   goBack(): void {
     this.router.navigate(['/pinyes'], { queryParams: { tab: 'compositions' } });
   }
 
-  get gridEnabled(): boolean {
-    return this.canvasState.gridEnabled();
-  }
+  get gridSpacing(): number { return this.canvasState.gridSpacing(); }
+  get snapToGrid(): boolean { return this.canvasState.snapToGrid(); }
 
-  get gridSpacing(): number {
-    return this.canvasState.gridSpacing();
-  }
-
-  get snapToGrid(): boolean {
-    return this.canvasState.snapToGrid();
-  }
-
-  toggleGrid(): void {
-    this.canvasState.gridEnabled.set(!this.canvasState.gridEnabled());
-  }
-
-  toggleSnap(): void {
-    this.canvasState.snapToGrid.set(!this.canvasState.snapToGrid());
-  }
-
-  // --- Save logic ---
-
-  private scheduleSave(): void {
-    clearTimeout(this.saveDebounce);
-    this.saveStatus.set('saving');
-    this.saveDebounce = setTimeout(() => this.saveImmediately(), 2000);
-  }
-
-  private saveImmediately(afterSave?: () => void): void {
-    clearTimeout(this.saveDebounce);
-
-    const comp = this.composition();
-    const name = this.nameValue().trim();
-    const slug = this.slugValue().trim();
-
-    if (!name || !slug) {
-      this.saveStatus.set('error');
-      return;
-    }
-
-    const slots: CreateCompositionSlotPayload[] = (comp?.slots ?? []).map((s) => ({
-      figureTemplateId: s.figureTemplate.id,
-      label: s.label ?? undefined,
-      offsetX: s.offsetX,
-      offsetY: s.offsetY,
-      sortOrder: s.sortOrder,
-    }));
-
-    this.saveStatus.set('saving');
-
-    if (!comp) {
-      const payload: CreateCompositionTemplatePayload = {
-        name,
-        slug,
-        description: this.descriptionValue() || undefined,
-        slots,
-      };
-
-      this.compositionService.create(payload).subscribe({
-        next: (created) => {
-          this.composition.set(created);
-          this.autoSlugEnabled = false;
-          this.saveStatus.set('saved');
-          this.router.navigate(['/pinyes/compositions', created.id, 'edit'], {
-            replaceUrl: true,
-          });
-          afterSave?.();
-        },
-        error: () => this.saveStatus.set('error'),
-      });
-    } else {
-      const payload: UpdateCompositionTemplatePayload = {
-        name,
-        slug,
-        description: this.descriptionValue() || undefined,
-        slots,
-      };
-
-      this.compositionService.update(comp.id, payload).subscribe({
-        next: (updated) => {
-          // The API deletes and recreates all slots on every save, so slot IDs change.
-          // Re-match the currently selected slot by figureTemplateId + sortOrder so the
-          // right panel stays open after autosave.
-          const prevSlotId = this.selectedSlotId();
-          this.composition.set(updated);
-          if (prevSlotId) {
-            const prevSlot = comp.slots.find((s) => s.id === prevSlotId);
-            if (prevSlot) {
-              const newSlot = updated.slots.find(
-                (s) =>
-                  s.figureTemplate.id === prevSlot.figureTemplate.id &&
-                  s.sortOrder === prevSlot.sortOrder,
-              );
-              if (newSlot) {
-                this.selectedSlotId.set(newSlot.id);
-              } else {
-                this.selectedSlotId.set(null);
-              }
-            } else {
-              // Selected slot was a temp ID not yet in the saved composition (race condition)
-              this.selectedSlotId.set(null);
-            }
-          }
-          this.saveStatus.set('saved');
-          afterSave?.();
-        },
-        error: () => this.saveStatus.set('error'),
-      });
-    }
-  }
+  toggleSnap(): void { this.canvasState.snapToGrid.set(!this.canvasState.snapToGrid()); }
 
   get saveStatusLabel(): string {
     switch (this.saveStatus()) {
       case 'saving': return "S'està alçant...";
       case 'saved': return 'Alçat ✓';
-      case 'error': return 'Error en alçar';
+      case 'error': return "Error en alçar";
       default: return '';
     }
   }
@@ -452,48 +238,86 @@ export class CompositionEditorComponent implements OnInit, OnDestroy {
     }
   }
 
-  get isTopSlot(): boolean {
-    const comp = this.composition();
-    const slot = this.selectedSlot();
-    if (!comp || !slot || comp.slots.length <= 1) return true;
-    return slot.sortOrder === Math.max(...comp.slots.map((s) => s.sortOrder));
+  private buildNewEntry(template: FigureTemplateListItem): CompositionEntryItem {
+    const center = this.canvasRef?.getViewportCenter() ?? { x: 0, y: 0 };
+    const stagger = (this.entries().length % ADD_STAGGER_COUNT) * ADD_STAGGER_GAP;
+    return {
+      id: `temp-${Date.now()}-${this.entries().length}`,
+      label: null,
+      offsetX: center.x + stagger,
+      offsetY: center.y + stagger,
+      angle: 0,
+      troncPanelX: null,
+      troncPanelY: null,
+      figureMode: 'COMPLETA',
+      numberOfCordons: null,
+      sortOrder: this.entries().length,
+      troncGridCols: 0,
+      troncGridRows: 0,
+      figureTemplate: {
+        id: template.id,
+        name: template.name,
+        hasPinya: template.hasPinya,
+        direction: template.direction,
+        nodes: [],
+      },
+    };
   }
 
-  get isBottomSlot(): boolean {
-    const comp = this.composition();
-    const slot = this.selectedSlot();
-    if (!comp || !slot || comp.slots.length <= 1) return true;
-    return slot.sortOrder === Math.min(...comp.slots.map((s) => s.sortOrder));
+  private patchEntry(id: string, patch: Partial<CompositionEntryItem>): void {
+    this.entries.update((list) => list.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+    this.performSave();
   }
 
-  // --- Helpers ---
-
-  private updateSelectedSlot(patch: Partial<CompositionSlotItem>): void {
-    const comp = this.composition();
-    const slotId = this.selectedSlotId();
-    if (!comp || !slotId) return;
-
-    const updatedSlots = comp.slots.map((s) =>
-      s.id === slotId ? { ...s, ...patch } : s,
-    );
-    this.composition.set({ ...comp, slots: updatedSlots });
+  private buildEntriesPayload(): CreateCompositionEntryPayload[] {
+    return this.entries().map((e, index) => ({
+      figureTemplateId: e.figureTemplate.id,
+      label: e.label ?? undefined,
+      offsetX: e.offsetX,
+      offsetY: e.offsetY,
+      angle: e.angle,
+      troncPanelX: e.troncPanelX ?? null,
+      troncPanelY: e.troncPanelY ?? null,
+      figureMode: e.figureMode,
+      numberOfCordons: e.numberOfCordons ?? null,
+      sortOrder: index,
+    }));
   }
 
-  private loadAvailableTemplates(): void {
-    this.figureTemplateService.getAll({ limit: 100 }).subscribe({
-      next: (resp) => this.availableTemplates.set(resp.data),
-      error: () => { /* silently ignore — non-critical prefetch */ },
+  private applySavedDetail(detail: CompositionDetail): void {
+    this.name.set(detail.name);
+    this.entries.set([...detail.entries].sort((a, b) => a.sortOrder - b.sortOrder));
+  }
+
+  private createComposition(): void {
+    this.saveStatus.set('saving');
+    this.compositionService.create({ name: this.name(), entries: this.buildEntriesPayload() }).subscribe({
+      next: (detail) => {
+        this.compositionId.set(detail.id);
+        this.applySavedDetail(detail);
+        this.saveStatus.set('saved');
+        this.router.navigate(['/pinyes/compositions', detail.id, 'edit'], { replaceUrl: true });
+      },
+      error: () => this.saveStatus.set('error'),
     });
   }
 
-  private generateSlug(name: string): string {
-    return name
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9\s-]/g, '')
-      .trim()
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-');
+  private performSave(): void {
+    const id = this.compositionId();
+    if (!id) return;
+
+    const selectedIndex = this.entries().findIndex((e) => e.id === this.selectedEntryId());
+    this.saveStatus.set('saving');
+    this.compositionService.update(id, { name: this.name(), entries: this.buildEntriesPayload() }).subscribe({
+      next: (detail) => {
+        const sorted = [...detail.entries].sort((a, b) => a.sortOrder - b.sortOrder);
+        this.entries.set(sorted);
+        if (selectedIndex >= 0 && sorted[selectedIndex]) {
+          this.selectedEntryId.set(sorted[selectedIndex].id);
+        }
+        this.saveStatus.set('saved');
+      },
+      error: () => this.saveStatus.set('error'),
+    });
   }
 }

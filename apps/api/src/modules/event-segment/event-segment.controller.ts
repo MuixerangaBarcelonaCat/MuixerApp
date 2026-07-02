@@ -25,6 +25,7 @@ import { UpdateInstanceDto } from './dto/update-instance.dto';
 import { ReorderInstancesDto } from './dto/reorder-instances.dto';
 import { UpdateSegmentDistributionDto } from './dto/update-segment-distribution.dto';
 import { CopyInstanceDto } from './dto/copy-instance.dto';
+import { ApplyCompositionDto } from './dto/apply-composition.dto';
 
 @ApiTags('event-segments')
 @ApiBearerAuth()
@@ -174,6 +175,16 @@ export class EventSegmentController {
     @Body() dto: CopyInstanceDto,
   ) {
     return this.instanceService.copy(eventId, segmentId, instanceId, dto.targetSegmentId);
+  }
+
+  @ApiOperation({ summary: 'Apply a composition to a segment — creates instances with distribution positions, renames segment' })
+  @Post(':segmentId/apply-composition')
+  applyComposition(
+    @Param('eventId', ParseUUIDPipe) eventId: string,
+    @Param('segmentId', ParseUUIDPipe) segmentId: string,
+    @Body() dto: ApplyCompositionDto,
+  ) {
+    return this.instanceService.applyComposition(eventId, segmentId, dto.compositionId);
   }
 
   @ApiOperation({ summary: 'Get compact tronc floor data for all snapshotted instances in the event' })

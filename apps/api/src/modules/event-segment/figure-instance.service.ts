@@ -8,12 +8,12 @@ import { DataSource, Repository } from 'typeorm';
 import { FigureInstance } from './entities/figure-instance.entity';
 import { EventSegment } from './entities/event-segment.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
-import { CompositionTemplate } from '../composition/entities/composition-template.entity';
+import { Composition } from '../composition/entities/composition.entity';
 import { CreateInstanceDto } from './dto/create-instance.dto';
 import { UpdateInstanceDto } from './dto/update-instance.dto';
 import { ReorderInstancesDto } from './dto/reorder-instances.dto';
 import { UpdateSegmentDistributionDto } from './dto/update-segment-distribution.dto';
-import { InstanceRef } from './event-segment.service';
+import { EventSegmentService, InstanceRef, SegmentWithInstances } from './event-segment.service';
 
 export interface DistributionNodeItem {
   id: string;
@@ -68,8 +68,9 @@ export class FigureInstanceService {
     private readonly segmentRepository: Repository<EventSegment>,
     @InjectRepository(FigureTemplate)
     private readonly figureTemplateRepository: Repository<FigureTemplate>,
-    @InjectRepository(CompositionTemplate)
-    private readonly compositionTemplateRepository: Repository<CompositionTemplate>,
+    @InjectRepository(Composition)
+    private readonly compositionRepository: Repository<Composition>,
+    private readonly segmentService: EventSegmentService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -78,36 +79,17 @@ export class FigureInstanceService {
     segmentId: string,
     dto: CreateInstanceDto,
   ): Promise<InstanceRef> {
-    const hasFigure = !!dto.figureTemplateId;
-    const hasComposition = !!dto.compositionTemplateId;
-
-    if (hasFigure === hasComposition) {
-      throw new BadRequestException(
-        'Exactly one of figureTemplateId or compositionTemplateId must be provided',
-      );
+    if (!dto.figureTemplateId) {
+      throw new BadRequestException('figureTemplateId must be provided');
     }
 
     const segment = await this.assertSegmentBelongsToEvent(eventId, segmentId);
 
-    let figureTemplate: FigureTemplate | null = null;
-    let compositionTemplate: CompositionTemplate | null = null;
-
-    if (dto.figureTemplateId) {
-      figureTemplate = await this.figureTemplateRepository.findOne({
-        where: { id: dto.figureTemplateId },
-      });
-      if (!figureTemplate) {
-        throw new NotFoundException(`FigureTemplate with ID ${dto.figureTemplateId} not found`);
-      }
-    }
-
-    if (dto.compositionTemplateId) {
-      compositionTemplate = await this.compositionTemplateRepository.findOne({
-        where: { id: dto.compositionTemplateId },
-      });
-      if (!compositionTemplate) {
-        throw new NotFoundException(`CompositionTemplate with ID ${dto.compositionTemplateId} not found`);
-      }
+    const figureTemplate = await this.figureTemplateRepository.findOne({
+      where: { id: dto.figureTemplateId },
+    });
+    if (!figureTemplate) {
+      throw new NotFoundException(`FigureTemplate with ID ${dto.figureTemplateId} not found`);
     }
 
     const maxOrder = await this.instanceRepository
@@ -121,7 +103,6 @@ export class FigureInstanceService {
     const instance = this.instanceRepository.create({
       segment,
       figureTemplate,
-      compositionTemplate,
       label: dto.label ?? null,
       sortOrder,
     });
@@ -194,7 +175,7 @@ export class FigureInstanceService {
   ): Promise<InstanceRef> {
     const sourceInstance = await this.instanceRepository.findOne({
       where: { id: instanceId, segment: { id: segmentId } },
-      relations: ['figureTemplate', 'compositionTemplate'],
+      relations: ['figureTemplate'],
     });
     if (!sourceInstance) {
       throw new NotFoundException(`Instance with ID ${instanceId} not found in segment ${segmentId}`);
@@ -214,7 +195,6 @@ export class FigureInstanceService {
     const newInstance = this.instanceRepository.create({
       segment: targetSegment,
       figureTemplate: sourceInstance.figureTemplate ?? null,
-      compositionTemplate: sourceInstance.compositionTemplate ?? null,
       label: sourceInstance.label,
       sortOrder,
     });
@@ -391,7 +371,7 @@ export class FigureInstanceService {
   private async findOneById(id: string): Promise<InstanceRef> {
     const instance = await this.instanceRepository.findOne({
       where: { id },
-      relations: ['figureTemplate', 'compositionTemplate'],
+      relations: ['figureTemplate'],
     });
 
     if (!instance) {
@@ -470,9 +450,6 @@ export class FigureInstanceService {
             hasPinya,
           }
         : null,
-      compositionTemplate: instance.compositionTemplate
-        ? { id: instance.compositionTemplate.id, name: instance.compositionTemplate.name }
-        : null,
     };
   }
 
@@ -496,5 +473,54 @@ export class FigureInstanceService {
        )`,
       [instanceId],
     );
+  }
+
+  async applyComposition(
+    eventId: string,
+    segmentId: string,
+    compositionId: string,
+  ): Promise<SegmentWithInstances> {
+    const segment = await this.assertSegmentBelongsToEvent(eventId, segmentId);
+
+    const composition = await this.compositionRepository.findOne({
+      where: { id: compositionId },
+      relations: ['entries', 'entries.figureTemplate'],
+      order: { entries: { sortOrder: 'ASC' } },
+    });
+    if (!composition) {
+      throw new NotFoundException(`Composition with ID ${compositionId} not found`);
+    }
+
+    await this.dataSource.transaction(async (manager) => {
+      await manager.save(EventSegment, { id: segment.id, name: composition.name });
+
+      for (const entry of composition.entries ?? []) {
+        const maxOrder = await this.instanceRepository
+          .createQueryBuilder('instance')
+          .select('MAX(instance.sortOrder)', 'max')
+          .where('instance.segment = :segmentId', { segmentId })
+          .getRawOne<{ max: number | null }>();
+
+        const sortOrder = (maxOrder?.max ?? -1) + 1;
+
+        const instance = this.instanceRepository.create({
+          segment,
+          figureTemplate: entry.figureTemplate,
+          label: entry.label,
+          figureMode: entry.figureMode,
+          numberOfCordons: entry.numberOfCordons,
+          sortOrder,
+          projectionX: entry.offsetX,
+          projectionY: entry.offsetY,
+          projectionAngle: entry.angle,
+          troncPanelX: entry.troncPanelX,
+          troncPanelY: entry.troncPanelY,
+        });
+
+        await manager.save(FigureInstance, instance);
+      }
+    });
+
+    return this.segmentService.getOne(segmentId);
   }
 }

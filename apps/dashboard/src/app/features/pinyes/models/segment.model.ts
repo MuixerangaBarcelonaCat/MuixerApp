@@ -15,7 +15,6 @@ export interface InstanceDetail {
   projectionScale: number;
   figureMode: FigureMode;
   figureTemplate: { id: string; name: string; hasPinya: boolean } | null;
-  compositionTemplate: { id: string; name: string } | null;
 }
 
 export interface TroncFloorData {
@@ -57,7 +56,6 @@ export interface UpdateSegmentPayload {
 
 export interface CreateInstancePayload {
   figureTemplateId?: string;
-  compositionTemplateId?: string;
   label?: string;
 }
 

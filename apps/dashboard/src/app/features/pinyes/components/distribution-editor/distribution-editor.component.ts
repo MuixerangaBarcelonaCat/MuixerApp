@@ -16,6 +16,7 @@ import { CanvasStateService } from '../../services/canvas-state.service';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { FigureCanvasComponent, CompositionSlotWithNodes } from '../figure-canvas/figure-canvas.component';
 import { DistributionItem, InstanceDistributionPayload } from '../../models/distribution.model';
+import { filterNodesByFigureMode } from '../../utils/figure-mode-filter.util';
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -47,7 +48,8 @@ export class DistributionEditorComponent implements OnInit, OnDestroy {
 
   readonly compositionSlots = computed(() => this.slots());
 
-  @ViewChild(FigureCanvasComponent) private canvasRef?: FigureCanvasComponent;
+  // Queried by template ref (not by type) so tests can substitute a stub component for FigureCanvasComponent.
+  @ViewChild('canvas') private canvasRef?: FigureCanvasComponent;
 
   ngOnInit(): void {
     this.layoutService.requestFullscreen();
@@ -65,6 +67,7 @@ export class DistributionEditorComponent implements OnInit, OnDestroy {
         this.segmentName.set(data.segment.name);
         this.slots.set(this.mapItemsToSlots(data.items));
         this.loading.set(false);
+        this.scheduleInitialCenter();
       },
       error: () => {
         this.loading.set(false);
@@ -73,17 +76,20 @@ export class DistributionEditorComponent implements OnInit, OnDestroy {
     });
   }
 
+  /** Runs once after the canvas has rendered the loaded content, to center the viewport on it. */
+  private scheduleInitialCenter(): void {
+    setTimeout(() => this.canvasRef?.centerOnContent());
+  }
+
   private mapItemsToSlots(items: DistributionItem[]): CompositionSlotWithNodes[] {
     const hasPositions = items.some((i) => i.projectionX !== null);
 
     return items.map((item, index) => {
-      const isRematOrNeta = item.figureMode === 'REMAT' || item.figureMode === 'NETA';
-      const filteredNodes = item.figureTemplate.nodes.filter((n) => {
-        if (n.zone === 'PINYA' && isRematOrNeta) return false;
-        if (n.zone !== 'PINYA') return true;
-        if (item.numberOfCordons === null) return true;
-        return !n.renglaId || n.renglaPosition === null || n.renglaPosition <= item.numberOfCordons;
-      });
+      const filteredNodes = filterNodesByFigureMode(
+        item.figureTemplate.nodes,
+        item.figureMode,
+        item.numberOfCordons,
+      );
 
       return {
         slotId: item.instanceId,
@@ -145,10 +151,6 @@ export class DistributionEditorComponent implements OnInit, OnDestroy {
     this.save();
   }
 
-  fitAll(): void {
-    this.canvasRef?.fitAllSlots();
-  }
-
   async clearDistribution(): Promise<void> {
     this.distributionService.clearDistribution(this.eventId, this.segmentId).subscribe({
       next: () => this.goBack(),
@@ -160,11 +162,9 @@ export class DistributionEditorComponent implements OnInit, OnDestroy {
     this.location.back();
   }
 
-  get gridEnabled(): boolean { return this.canvasState.gridEnabled(); }
   get gridSpacing(): number { return this.canvasState.gridSpacing(); }
   get snapToGrid(): boolean { return this.canvasState.snapToGrid(); }
 
-  toggleGrid(): void { this.canvasState.gridEnabled.set(!this.canvasState.gridEnabled()); }
   toggleSnap(): void { this.canvasState.snapToGrid.set(!this.canvasState.snapToGrid()); }
 
   get saveStatusLabel(): string {

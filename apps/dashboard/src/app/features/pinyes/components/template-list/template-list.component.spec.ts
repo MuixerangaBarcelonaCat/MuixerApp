@@ -5,7 +5,6 @@ import { of } from 'rxjs';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { TemplateListComponent } from './template-list.component';
 import { FigureTemplateService } from '../../services/figure-template.service';
-import { CompositionTemplateService } from '../../services/composition-template.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { FigureTemplateListItem } from '../../models/figure-template.model';
 
@@ -34,7 +33,6 @@ describe('TemplateListComponent', () => {
     duplicate: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>;
   };
-  let compositionService: { getAll: ReturnType<typeof vi.fn>; remove: ReturnType<typeof vi.fn>; duplicate: ReturnType<typeof vi.fn> };
   let toastService: { error: ReturnType<typeof vi.fn>; success: ReturnType<typeof vi.fn> };
 
   const paginatedTemplates = { data: [makeTemplate()], meta: { total: 1, page: 1, limit: 25 } };
@@ -48,11 +46,6 @@ describe('TemplateListComponent', () => {
       duplicate: vi.fn().mockReturnValue(of(makeTemplate({ id: 'dup-1' }))),
       create: vi.fn().mockReturnValue(of(makeTemplate({ id: 'new-1' }))),
     };
-    compositionService = {
-      getAll: vi.fn().mockReturnValue(of({ data: [], meta: { total: 0, page: 1, limit: 25 } })),
-      remove: vi.fn().mockReturnValue(of(undefined)),
-      duplicate: vi.fn().mockReturnValue(of({})),
-    };
     toastService = { error: vi.fn(), success: vi.fn() };
 
     await TestBed.configureTestingModule({
@@ -64,7 +57,6 @@ describe('TemplateListComponent', () => {
           useValue: { snapshot: { queryParamMap: { get: vi.fn().mockReturnValue(null) } } },
         },
         { provide: FigureTemplateService, useValue: figureService },
-        { provide: CompositionTemplateService, useValue: compositionService },
         { provide: ToastService, useValue: toastService },
         allLucideIconsProvider,
       ],
@@ -94,9 +86,9 @@ describe('TemplateListComponent', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/pinyes/templates/new']);
   });
 
-  it('setTab("compositions") loads compositions', () => {
+  it('setTab("compositions") switches tab without loading from service', () => {
     component.setTab('compositions');
-    expect(compositionService.getAll).toHaveBeenCalled();
+    expect(component.activeTab()).toBe('compositions');
   });
 
   // ── Pagination ─────────────────────────────────────────────────────────

@@ -10,7 +10,6 @@ import { In, Repository } from 'typeorm';
 import { FigureTemplate } from './entities/figure-template.entity';
 import { FigureNode } from './entities/figure-node.entity';
 import { Rengla } from './entities/rengla.entity';
-import { CompositionSlot } from '../composition/entities/composition-slot.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
 import { InstanceNode } from '../event-segment/entities/instance-node.entity';
 import { CreateFigureTemplateDto } from './dto/create-figure-template.dto';
@@ -82,8 +81,6 @@ export class FigureTemplateService {
     private readonly nodeRepository: Repository<FigureNode>,
     @InjectRepository(Rengla)
     private readonly renglaRepository: Repository<Rengla>,
-    @InjectRepository(CompositionSlot)
-    private readonly compositionSlotRepository: Repository<CompositionSlot>,
     @InjectRepository(FigureInstance)
     private readonly figureInstanceRepository: Repository<FigureInstance>,
     @InjectRepository(InstanceNode)
@@ -215,16 +212,6 @@ export class FigureTemplateService {
 
     if (!template) {
       throw new NotFoundException(`FigureTemplate with ID ${id} not found`);
-    }
-
-    const slotCount = await this.compositionSlotRepository.count({
-      where: { figureTemplate: { id } },
-    });
-
-    if (slotCount > 0) {
-      throw new ConflictException(
-        `No es pot esborrar: s'utilitza en ${slotCount} composició/composicions.`,
-      );
     }
 
     const instanceCount = await this.figureInstanceRepository.count({

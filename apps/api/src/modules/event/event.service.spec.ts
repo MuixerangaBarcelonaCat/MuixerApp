@@ -167,8 +167,8 @@ describe('EventService', () => {
           name: 'Bloc 1',
           event: { id: 'evt-uuid' },
           instances: [
-            { figureTemplate: { name: 'pd4' }, compositionTemplate: null },
-            { figureTemplate: null, compositionTemplate: { name: 'Altar' } },
+            { figureTemplate: { name: 'pd4' } },
+            { figureTemplate: { name: 'Morera' } },
           ],
         },
       ]);
@@ -179,7 +179,7 @@ describe('EventService', () => {
       expect(summary).not.toBeNull();
       expect(summary!.segmentCount).toBe(1);
       expect(summary!.instanceCount).toBe(2);
-      expect(summary!.segments[0].figureNames).toEqual(['pd4', 'Altar']);
+      expect(summary!.segments[0].figureNames).toEqual(['pd4', 'Morera']);
     });
 
     it('defaults to chronological smart sort when no sortBy given', async () => {

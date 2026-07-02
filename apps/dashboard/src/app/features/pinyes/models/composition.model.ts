@@ -1,61 +1,78 @@
-import { FigureTemplateDetail } from './figure-template.model';
+import { FigureNodeItem } from './figure-template.model';
+import { FigureMode } from './segment.model';
 
-export interface CompositionSlotItem {
+export interface CompositionEntryItem {
   id: string;
   label: string | null;
   offsetX: number;
   offsetY: number;
+  angle: number;
+  troncPanelX: number | null;
+  troncPanelY: number | null;
+  figureMode: FigureMode;
+  numberOfCordons: number | null;
   sortOrder: number;
-  figureTemplate: FigureTemplateDetail;
+  troncGridCols: number;
+  troncGridRows: number;
+  figureTemplate: {
+    id: string;
+    name: string;
+    hasPinya: boolean;
+    direction: number;
+    nodes: FigureNodeItem[];
+  };
 }
 
-export interface CompositionTemplateListItem {
+export interface CompositionDetail {
   id: string;
   name: string;
-  slug: string;
   description: string | null;
-  slotCount: number;
+  entries: CompositionEntryItem[];
   createdAt: string;
   updatedAt: string;
 }
 
-export interface CompositionTemplateDetail extends CompositionTemplateListItem {
-  slots: CompositionSlotItem[];
+export interface CompositionListItem {
+  id: string;
+  name: string;
+  description: string | null;
+  entryCount: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export interface CompositionTemplateFilterParams {
+export interface CreateCompositionEntryPayload {
+  figureTemplateId: string;
+  label?: string;
+  offsetX: number;
+  offsetY: number;
+  angle: number;
+  troncPanelX?: number | null;
+  troncPanelY?: number | null;
+  figureMode?: FigureMode;
+  numberOfCordons?: number | null;
+  sortOrder?: number;
+}
+
+export interface CreateCompositionPayload {
+  name: string;
+  description?: string;
+  entries?: CreateCompositionEntryPayload[];
+}
+
+export interface UpdateCompositionPayload {
+  name?: string;
+  description?: string;
+  entries?: CreateCompositionEntryPayload[];
+}
+
+export interface CompositionFilterParams {
   search?: string;
   page?: number;
   limit?: number;
 }
 
-export interface CreateCompositionSlotPayload {
-  figureTemplateId: string;
-  label?: string;
-  offsetX: number;
-  offsetY: number;
-  sortOrder?: number;
-}
-
-export interface CreateCompositionTemplatePayload {
-  name: string;
-  slug: string;
-  description?: string;
-  slots: CreateCompositionSlotPayload[];
-}
-
-export interface UpdateCompositionTemplatePayload {
-  name?: string;
-  slug?: string;
-  description?: string;
-  slots?: CreateCompositionSlotPayload[];
-}
-
-export interface PaginatedCompositionTemplates {
-  data: CompositionTemplateListItem[];
-  meta: {
-    total: number;
-    page: number;
-    limit: number;
-  };
+export interface PaginatedCompositions {
+  data: CompositionListItem[];
+  meta: { total: number; page: number; limit: number };
 }

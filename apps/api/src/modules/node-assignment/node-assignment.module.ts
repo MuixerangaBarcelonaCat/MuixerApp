@@ -7,7 +7,6 @@ import { FigureNode } from '../figure/entities/figure-node.entity';
 import { Person } from '../person/person.entity';
 import { Attendance } from '../event/attendance.entity';
 import { Event } from '../event/event.entity';
-import { CompositionSlot } from '../composition/entities/composition-slot.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
 import { NodeAssignmentController } from './node-assignment.controller';
@@ -24,7 +23,6 @@ import { AvailablePersonsService } from './available-persons.service';
       Person,
       Attendance,
       Event,
-      CompositionSlot,
       EventSegment,
       FigureTemplate,
     ]),

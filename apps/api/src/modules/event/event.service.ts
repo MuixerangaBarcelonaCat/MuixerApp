@@ -213,7 +213,6 @@ export class EventService {
       .leftJoinAndSelect('segment.event', 'event')
       .leftJoinAndSelect('segment.instances', 'instance')
       .leftJoinAndSelect('instance.figureTemplate', 'figureTemplate')
-      .leftJoinAndSelect('instance.compositionTemplate', 'compositionTemplate')
       .where('event.id IN (:...eventIds)', { eventIds })
       .orderBy('segment.sortOrder', 'ASC')
       .addOrderBy('instance.sortOrder', 'ASC')
@@ -231,7 +230,7 @@ export class EventService {
       summary.segmentCount += 1;
 
       const figureNames = (segment.instances ?? []).map((i) =>
-        i.figureTemplate?.name ?? i.compositionTemplate?.name ?? '',
+        i.figureTemplate?.name ?? '',
       );
 
       summary.instanceCount += figureNames.length;

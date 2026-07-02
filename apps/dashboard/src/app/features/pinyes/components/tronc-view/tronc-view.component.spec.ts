@@ -38,7 +38,6 @@ function makeAssignment(nodeId: string, alias: string, shoulderHeight: number | 
   return {
     id: `assign-${nodeId}`,
     figureInstanceId: 'instance-1',
-    compositionSlotId: null,
     node: {
       id: nodeId,
       label: 'Node',

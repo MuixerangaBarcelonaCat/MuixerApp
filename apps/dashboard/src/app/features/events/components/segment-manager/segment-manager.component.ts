@@ -15,6 +15,7 @@ import { ICON_FIGURA, ICON_PERSONA, ICON_COMPOSITION, ICON_FIGURA_NETA } from '.
 import { forkJoin } from 'rxjs';
 import { EventSegmentService } from '../../../pinyes/services/event-segment.service';
 import { FigureInstanceService } from '../../../pinyes/services/figure-instance.service';
+import { CompositionService } from '../../../pinyes/services/composition.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import {
   FigurePickerModalComponent,
@@ -59,6 +60,7 @@ export class SegmentManagerComponent implements OnInit {
 
   private readonly segmentService = inject(EventSegmentService);
   private readonly instanceService = inject(FigureInstanceService);
+  private readonly compositionService = inject(CompositionService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
 
@@ -313,6 +315,22 @@ export class SegmentManagerComponent implements OnInit {
     });
   }
 
+  onCompositionSelected(event: { compositionId: string; compositionName: string }): void {
+    const segmentId = this.pickerSegmentId();
+    if (!segmentId) return;
+
+    this.compositionService.applyToSegment(this.eventId(), segmentId, event.compositionId).subscribe({
+      next: (updatedSegment) => {
+        this.segments.update((list) =>
+          list.map((s) => (s.id === segmentId ? updatedSegment : s)),
+        );
+        this.toast.success(`Composició «${event.compositionName}» aplicada.`);
+        this.closePicker();
+      },
+      error: () => this.toast.error('No s\'ha pogut aplicar la composició.'),
+    });
+  }
+
   removeInstance(segment: SegmentDetail, instance: InstanceDetail) {
     this.pendingInstanceRemoval.set({ segment, instance });
   }
@@ -346,7 +364,7 @@ export class SegmentManagerComponent implements OnInit {
   }
 
   getInstanceLabel(instance: InstanceDetail): string {
-    const base = instance.label ?? instance.figureTemplate?.name ?? instance.compositionTemplate?.name ?? '?';
+    const base = instance.label ?? instance.figureTemplate?.name ?? '?';
     if (instance.figureTemplate?.hasPinya) {
       if (instance.figureMode === 'PEU') return `Peu de ${base}`;
       if (instance.figureMode === 'REMAT') return `Remat de ${base}`;
@@ -360,8 +378,8 @@ export class SegmentManagerComponent implements OnInit {
     return firstWord.endsWith('a') ? 'neta' : 'net';
   }
 
-  isComposition(instance: InstanceDetail): boolean {
-    return !!instance.compositionTemplate;
+  isComposition(_instance: InstanceDetail): boolean {
+    return false;
   }
 
   figureModeOptions(instance: InstanceDetail): { value: FigureMode; label: string }[] | null {

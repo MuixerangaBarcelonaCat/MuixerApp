@@ -15,15 +15,14 @@ import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
 import { ICON_TEMPLATE, ICON_COMPOSITION } from '../../../../shared/constants/domain-icons';
 import { FigureTemplateService } from '../../services/figure-template.service';
-import { CompositionTemplateService } from '../../services/composition-template.service';
 import { FigureTemplateListItem } from '../../models/figure-template.model';
-import { CompositionTemplateListItem } from '../../models/composition.model';
+import { CompositionService } from '../../services/composition.service';
+import { CompositionListItem } from '../../models/composition.model';
 
 export type PickerTab = 'figures' | 'composicions';
 
 export interface InstanceSelection {
-  figureTemplateId?: string;
-  compositionTemplateId?: string;
+  figureTemplateId: string;
 }
 
 export interface PickerSelectionItem {
@@ -48,10 +47,11 @@ export class FigurePickerModalComponent implements OnInit, AfterViewInit {
   @ViewChild('searchInput') searchInputRef!: ElementRef<HTMLInputElement>;
 
   confirmed = output<InstanceSelection[]>();
+  compositionSelected = output<{ compositionId: string; compositionName: string }>();
   closed = output<void>();
 
   private readonly figureService = inject(FigureTemplateService);
-  private readonly compositionService = inject(CompositionTemplateService);
+  private readonly compositionService = inject(CompositionService);
 
   activeTab = signal<PickerTab>('figures');
   search = signal('');
@@ -59,11 +59,14 @@ export class FigurePickerModalComponent implements OnInit, AfterViewInit {
   loadingCompositions = signal(false);
 
   figures = signal<FigureTemplateListItem[]>([]);
-  compositions = signal<CompositionTemplateListItem[]>([]);
   selections = signal<PickerSelectionItem[]>([]);
+
+  compositions = signal<CompositionListItem[]>([]);
+  selectedComposition = signal<CompositionListItem | null>(null);
 
   readonly selectionCount = computed(() => this.selections().length);
   readonly canConfirm = computed(() => this.selectionCount() > 0);
+  readonly canApplyComposition = computed(() => this.selectedComposition() !== null);
 
   readonly filteredFigures = computed<FigureTemplateListItem[]>(() => {
     const q = this.search().toLowerCase();
@@ -72,13 +75,16 @@ export class FigurePickerModalComponent implements OnInit, AfterViewInit {
     return all.filter((f) => f.name.toLowerCase().includes(q));
   });
 
-  readonly filteredCompositions = computed(() => {
+  readonly hasAnyFigure = computed(() => this.filteredFigures().length > 0);
+
+  readonly filteredCompositions = computed<CompositionListItem[]>(() => {
     const q = this.search().toLowerCase();
-    if (!q) return this.compositions();
-    return this.compositions().filter((c) => c.name.toLowerCase().includes(q));
+    const all = this.compositions();
+    if (!q) return all;
+    return all.filter((c) => c.name.toLowerCase().includes(q));
   });
 
-  readonly hasAnyFigure = computed(() => this.filteredFigures().length > 0);
+  readonly hasAnyComposition = computed(() => this.filteredCompositions().length > 0);
 
   ngOnInit() {
     this.loadFigures();
@@ -111,6 +117,17 @@ export class FigurePickerModalComponent implements OnInit, AfterViewInit {
     });
   }
 
+  selectComposition(composition: CompositionListItem): void {
+    this.selectedComposition.set(composition);
+  }
+
+  applyComposition(): void {
+    const composition = this.selectedComposition();
+    if (!composition) return;
+    this.compositionSelected.emit({ compositionId: composition.id, compositionName: composition.name });
+    this.close();
+  }
+
   addFirstResult(): void {
     if (!this.search()) {
       if (this.canConfirm()) this.confirm();
@@ -120,12 +137,6 @@ export class FigurePickerModalComponent implements OnInit, AfterViewInit {
       const first = this.filteredFigures()[0];
       if (first) {
         this.addFigure(first);
-        this.search.set('');
-      }
-    } else {
-      const first = this.filteredCompositions()[0];
-      if (first) {
-        this.addComposition(first);
         this.search.set('');
       }
     }
@@ -142,17 +153,6 @@ export class FigurePickerModalComponent implements OnInit, AfterViewInit {
     ]);
   }
 
-  addComposition(composition: CompositionTemplateListItem): void {
-    this.selections.update((list) => [
-      ...list,
-      {
-        selection: { compositionTemplateId: composition.id },
-        name: composition.name,
-        hasPinya: true,
-      },
-    ]);
-  }
-
   removeSelection(index: number): void {
     this.selections.update((list) => list.filter((_, i) => i !== index));
   }
@@ -165,6 +165,7 @@ export class FigurePickerModalComponent implements OnInit, AfterViewInit {
   setTab(tab: PickerTab) {
     this.activeTab.set(tab);
     this.search.set('');
+    this.selectedComposition.set(null);
   }
 
   onBackdropClick(event: MouseEvent) {
@@ -175,6 +176,7 @@ export class FigurePickerModalComponent implements OnInit, AfterViewInit {
 
   close() {
     this.selections.set([]);
+    this.selectedComposition.set(null);
     this.search.set('');
     this.activeTab.set('figures');
     this.closed.emit();

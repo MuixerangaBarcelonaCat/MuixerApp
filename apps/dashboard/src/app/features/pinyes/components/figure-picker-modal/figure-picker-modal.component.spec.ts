@@ -4,9 +4,9 @@ import { of } from 'rxjs';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { FigurePickerModalComponent, InstanceSelection } from './figure-picker-modal.component';
 import { FigureTemplateService } from '../../services/figure-template.service';
-import { CompositionTemplateService } from '../../services/composition-template.service';
 import { FigureTemplateListItem } from '../../models/figure-template.model';
-import { CompositionTemplateListItem } from '../../models/composition.model';
+import { CompositionService } from '../../services/composition.service';
+import { CompositionListItem } from '../../models/composition.model';
 
 const makeFigure = (overrides: Partial<FigureTemplateListItem> = {}): FigureTemplateListItem => ({
   id: 'fig-uuid-1',
@@ -22,12 +22,11 @@ const makeFigure = (overrides: Partial<FigureTemplateListItem> = {}): FigureTemp
   ...overrides,
 });
 
-const makeComposition = (overrides: Partial<CompositionTemplateListItem> = {}): CompositionTemplateListItem => ({
+const makeComposition = (overrides: Partial<CompositionListItem> = {}): CompositionListItem => ({
   id: 'comp-uuid-1',
-  name: 'Altar',
-  slug: 'altar',
+  name: 'Pilars de plaça',
   description: null,
-  slotCount: 3,
+  entryCount: 3,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
   ...overrides,
@@ -40,6 +39,7 @@ describe('FigurePickerModalComponent', () => {
   let compositionService: { getAll: ReturnType<typeof vi.fn> };
   let confirmedSpy: (...args: unknown[]) => void;
   let closedSpy: (...args: unknown[]) => void;
+  let compositionSelectedSpy: (...args: unknown[]) => void;
 
   beforeEach(async () => {
     figureService = {
@@ -53,7 +53,7 @@ describe('FigurePickerModalComponent', () => {
       imports: [FigurePickerModalComponent],
       providers: [
         { provide: FigureTemplateService, useValue: figureService },
-        { provide: CompositionTemplateService, useValue: compositionService },
+        { provide: CompositionService, useValue: compositionService },
         allLucideIconsProvider,
       ],
     }).compileComponents();
@@ -65,8 +65,10 @@ describe('FigurePickerModalComponent', () => {
 
     confirmedSpy = vi.fn();
     closedSpy = vi.fn();
+    compositionSelectedSpy = vi.fn();
     component.confirmed.subscribe((val: InstanceSelection[]) => confirmedSpy(val));
     component.closed.subscribe(() => closedSpy());
+    component.compositionSelected.subscribe((val) => compositionSelectedSpy(val));
 
     fixture.detectChanges();
   });
@@ -75,9 +77,8 @@ describe('FigurePickerModalComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('loads figures and compositions on init', () => {
+  it('loads figures on init', () => {
     expect(figureService.getAll).toHaveBeenCalledWith({ limit: 200 });
-    expect(compositionService.getAll).toHaveBeenCalledWith({ limit: 200 });
   });
 
   it('shows figures tab by default', () => {
@@ -119,18 +120,6 @@ describe('FigurePickerModalComponent', () => {
       });
     });
 
-    it('addComposition appends to selections with hasPinya=true', () => {
-      const composition = makeComposition();
-      component.addComposition(composition);
-
-      expect(component.selections()).toHaveLength(1);
-      expect(component.selections()[0]).toEqual({
-        selection: { compositionTemplateId: 'comp-uuid-1' },
-        name: 'Altar',
-        hasPinya: true,
-      });
-    });
-
     it('allows adding the same figure twice (duplicate valid)', () => {
       const figure = makeFigure();
       component.addFigure(figure);
@@ -138,15 +127,6 @@ describe('FigurePickerModalComponent', () => {
 
       expect(component.selections()).toHaveLength(2);
       expect(component.selectionCount()).toBe(2);
-    });
-
-    it('allows mixing figures and compositions', () => {
-      component.addFigure(makeFigure());
-      component.addComposition(makeComposition());
-
-      expect(component.selections()).toHaveLength(2);
-      expect(component.selections()[0].selection.figureTemplateId).toBe('fig-uuid-1');
-      expect(component.selections()[1].selection.compositionTemplateId).toBe('comp-uuid-1');
     });
 
     it('removeSelection removes item by index', () => {
@@ -183,15 +163,15 @@ describe('FigurePickerModalComponent', () => {
   });
 
   describe('confirm', () => {
-    it('emits confirmed with array of InstanceSelection (parent handles close)', () => {
+    it('emits confirmed with array of InstanceSelection', () => {
       component.addFigure(makeFigure({ id: 'fig-1' }));
-      component.addComposition(makeComposition({ id: 'comp-1' }));
+      component.addFigure(makeFigure({ id: 'fig-2' }));
 
       component.confirm();
 
       expect(confirmedSpy).toHaveBeenCalledWith([
         { figureTemplateId: 'fig-1' },
-        { compositionTemplateId: 'comp-1' },
+        { figureTemplateId: 'fig-2' },
       ]);
       expect(closedSpy).not.toHaveBeenCalled();
     });
@@ -276,7 +256,7 @@ describe('FigurePickerModalComponent', () => {
 
     it('confirm button is enabled with selections and shows count', () => {
       component.addFigure(makeFigure());
-      component.addComposition(makeComposition());
+      component.addFigure(makeFigure({ id: 'fig-2' }));
       fixture.detectChanges();
 
       const confirmBtn = fixture.nativeElement.querySelector('button.btn-primary');
@@ -291,6 +271,99 @@ describe('FigurePickerModalComponent', () => {
       const selectedList = fixture.nativeElement.querySelector('ul[aria-label="Figures seleccionades"]');
       const badge = selectedList?.querySelector('.badge-info');
       expect(badge?.textContent.trim()).toBe('Tronc');
+    });
+  });
+
+  describe('composicions tab', () => {
+    it('loads compositions on init', () => {
+      expect(compositionService.getAll).toHaveBeenCalledWith({ limit: 200 });
+    });
+
+    it('displays compositions from service', () => {
+      expect(component.compositions()).toHaveLength(1);
+      expect(component.compositions()[0].name).toBe('Pilars de plaça');
+    });
+
+    it('filters compositions by search query on name', () => {
+      component.compositions.set([
+        makeComposition({ id: 'c1', name: 'Pilars de plaça' }),
+        makeComposition({ id: 'c2', name: 'Torres altes' }),
+      ]);
+      component.search.set('torres');
+      expect(component.filteredCompositions()).toHaveLength(1);
+      expect(component.filteredCompositions()[0].name).toBe('Torres altes');
+    });
+
+    it('has no composition selected by default', () => {
+      expect(component.selectedComposition()).toBeNull();
+      expect(component.canApplyComposition()).toBe(false);
+    });
+
+    it('selectComposition sets the selected composition', () => {
+      const composition = makeComposition();
+      component.selectComposition(composition);
+
+      expect(component.selectedComposition()).toEqual(composition);
+      expect(component.canApplyComposition()).toBe(true);
+    });
+
+    it('switching tabs clears the selected composition', () => {
+      component.selectComposition(makeComposition());
+      component.setTab('figures');
+
+      expect(component.selectedComposition()).toBeNull();
+    });
+
+    it('applyComposition does nothing when no composition is selected', () => {
+      component.applyComposition();
+
+      expect(compositionSelectedSpy).not.toHaveBeenCalled();
+    });
+
+    it('applyComposition emits compositionSelected and closes the modal', () => {
+      component.selectComposition(makeComposition({ id: 'comp-1', name: 'Pilars de plaça' }));
+
+      component.applyComposition();
+
+      expect(compositionSelectedSpy).toHaveBeenCalledWith({
+        compositionId: 'comp-1',
+        compositionName: 'Pilars de plaça',
+      });
+      expect(closedSpy).toHaveBeenCalled();
+      expect(component.selectedComposition()).toBeNull();
+    });
+
+    describe('template rendering', () => {
+      beforeEach(() => {
+        component.setTab('composicions');
+        fixture.detectChanges();
+      });
+
+      it('shows compositions in a list', () => {
+        const list = fixture.nativeElement.querySelector('ul[aria-label="Composicions disponibles"]');
+        expect(list).toBeTruthy();
+        expect(list.querySelectorAll('li').length).toBe(1);
+      });
+
+      it('shows entry count for each composition', () => {
+        const list = fixture.nativeElement.querySelector('ul[aria-label="Composicions disponibles"]');
+        expect(list.textContent).toContain('3 figures');
+      });
+
+      it('"Aplica" button is disabled until a composition is selected', () => {
+        const applyBtn = fixture.nativeElement.querySelector('button.btn-primary');
+        expect(applyBtn?.disabled).toBe(true);
+      });
+
+      it('clicking a composition card selects it and enables "Aplica"', () => {
+        const card = fixture.nativeElement.querySelector('ul[aria-label="Composicions disponibles"] li button');
+        card.click();
+        fixture.detectChanges();
+
+        const applyBtn = fixture.nativeElement.querySelector('button.btn-primary');
+        expect(applyBtn?.disabled).toBe(false);
+        expect(applyBtn?.textContent).toContain('Pilars de plaça');
+      });
     });
   });
 });
