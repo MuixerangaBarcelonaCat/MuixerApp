@@ -50,7 +50,7 @@ const makeAssignment = (nodeId: string): AssignmentDetail => ({
   id: `asgn-${nodeId}`,
   figureInstanceId: 'inst-1',
   node: { id: nodeId, label: '', zone: FigureZone.PINYA, z: 0, positionType: null, sortOrder: 0, ringLevel: null, originNodeId: null, sourceNodeId: null },
-  person: { id: 'p1', alias: 'Pepet', name: 'Pere', firstSurname: 'G', shoulderHeight: null },
+  person: { id: 'p1', alias: 'Pepet', name: 'Pere', firstSurname: 'G', shoulderHeight: null, notes: null },
 });
 
 const makeInstance = (nodes: InstanceNodeItem[], assignedIds: string[], overrides: Partial<ProjectionInstance> = {}): ProjectionInstance => ({

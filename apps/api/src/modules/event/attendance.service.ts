@@ -221,6 +221,7 @@ interface AttendancePersonRef {
   name: string;
   firstSurname: string;
   isXicalla: boolean;
+  notes: string | null;
   positions: { id: string; name: string; color: string | null }[];
 }
 
@@ -244,6 +245,7 @@ function toAttendanceItem(a: Attendance): AttendanceItem {
       name: a.person.name,
       firstSurname: a.person.firstSurname,
       isXicalla: a.person.isXicalla,
+      notes: a.person.notes,
       positions: (a.person.positions ?? []).map((p) => ({
         id: p.id,
         name: p.name,

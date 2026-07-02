@@ -337,11 +337,11 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly attendanceMap = computed(() => this.state.attendanceRegistry());
   readonly nextPerformanceMap = computed(() => this.state.nextPerformanceRegistry());
 
-  /** positions + isXicalla by personId, used to render the person hover card in tronc-view / figure-canvas. */
+  /** positions + isXicalla + notes by personId, used to render the person hover card in tronc-view / figure-canvas. */
   readonly personDetailsMap = computed(() => {
-    const map = new Map<string, { positions: AvailablePersonPosition[]; isXicalla: boolean }>();
+    const map = new Map<string, { positions: AvailablePersonPosition[]; isXicalla: boolean; notes: string | null }>();
     for (const p of this.state.confirmedPersons()) {
-      map.set(p.id, { positions: p.positions, isXicalla: p.isXicalla });
+      map.set(p.id, { positions: p.positions, isXicalla: p.isXicalla, notes: p.notes });
     }
     return map;
   });
@@ -1054,7 +1054,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
         originNodeId: matchedNode?.originNodeId ?? null,
         sourceNodeId: matchedNode?.sourceNodeId ?? null,
       },
-      person: { id: personId, alias: '...', name: '', firstSurname: '', shoulderHeight: null },
+      person: { id: personId, alias: '...', name: '', firstSurname: '', shoulderHeight: null, notes: null },
     };
     this.state.assignments.update((list) => [...list, tempAssignment]);
     this.state.setSelectedNodeId(null);

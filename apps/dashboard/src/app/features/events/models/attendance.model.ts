@@ -13,6 +13,7 @@ export interface AttendancePerson {
   firstSurname: string;
   isXicalla: boolean;
   isProvisional?: boolean;
+  notes: string | null;
   positions: AttendancePosition[];
 }
 

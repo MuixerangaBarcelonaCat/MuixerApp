@@ -7,6 +7,7 @@ const makeInfo = (overrides: Partial<PersonHoverInfo> = {}): PersonHoverInfo => 
   attendanceStatus: 'ANIRE',
   isXicalla: false,
   shoulderHeight: null,
+  notes: null,
   positions: [],
   ...overrides,
 });

@@ -18,6 +18,7 @@ import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
 import { AvailablePerson, AssignmentDetail, HeightMode, PersonHoverInfo, isConfirmedAttendance } from '../../models/assignment.model';
 import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
+import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { PersonHoverCardComponent } from '../person-hover-card/person-hover-card.component';
 import { TagService } from '../../../config/services/tag.service';
 import { TagWithCount } from '../../../config/models/tag.model';
@@ -60,6 +61,7 @@ export class PersonPanelComponent {
   readonly ChevronDown = ChevronDown;
   readonly ChevronUp = ChevronUp;
   readonly UserX = UserX;
+  readonly ICON_OBSERVACIONS = DOMAIN_ICONS.OBSERVACIONS;
 
   readonly persons = signal<AvailablePerson[]>([]);
   readonly loading = signal(false);
@@ -162,6 +164,7 @@ export class PersonPanelComponent {
           name: assignment.person.name,
           firstSurname: assignment.person.firstSurname,
           shoulderHeight: assignment.person.shoulderHeight,
+          notes: assignment.person.notes,
           isXicalla: false,
           attendanceStatus: 'ANIRE',
           nextPerformanceStatus: null,
@@ -462,6 +465,7 @@ export class PersonPanelComponent {
       attendanceStatus: person.attendanceStatus,
       isXicalla: person.isXicalla,
       shoulderHeight: person.shoulderHeight,
+      notes: person.notes,
       positions: person.positions,
     };
   }

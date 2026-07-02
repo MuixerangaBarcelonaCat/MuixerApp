@@ -48,6 +48,7 @@ export interface AssignmentDetail {
     name: string;
     firstSurname: string;
     shoulderHeight: number | null;
+    notes: string | null;
   };
 }
 
@@ -181,6 +182,7 @@ function toAssignmentDetail(assignment: NodeAssignment): AssignmentDetail {
       name: (assignment.person as any).name,
       firstSurname: (assignment.person as any).firstSurname,
       shoulderHeight: (assignment.person as any).shoulderHeight ?? null,
+      notes: (assignment.person as any).notes ?? null,
     },
   };
 }

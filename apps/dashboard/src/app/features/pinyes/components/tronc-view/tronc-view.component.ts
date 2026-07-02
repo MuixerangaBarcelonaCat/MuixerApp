@@ -14,6 +14,7 @@ import { AssignmentDetail, AttendanceStatus, AvailablePersonPosition, HeightMode
 import { floorVariance, varianceLevel, VarianceLevel } from '../../utils/floor-variance.util';
 import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
 import { PersonHoverCardComponent } from '../person-hover-card/person-hover-card.component';
+import { ICON_OBSERVACIONS } from '../../../../shared/constants/domain-icons';
 
 /**
  * Minimal node shape accepted by TroncViewComponent.
@@ -73,8 +74,10 @@ export class TroncViewComponent {
   readonly attendanceMap = input<Map<string, AttendanceStatus>>(new Map());
   readonly isPast = input<boolean>(false);
 
-  /** personId → positions/isXicalla, used to render the hover card on assigned nodes. */
-  readonly personDetailsMap = input<Map<string, { positions: AvailablePersonPosition[]; isXicalla: boolean }>>(new Map());
+  /** personId → positions/isXicalla/notes, used to render the hover card on assigned nodes. */
+  readonly personDetailsMap = input<Map<string, { positions: AvailablePersonPosition[]; isXicalla: boolean; notes: string | null }>>(new Map());
+
+  readonly ICON_OBSERVACIONS = ICON_OBSERVACIONS;
 
   readonly directionNodes = input<TroncNodeItem[]>([]);
 
@@ -395,6 +398,10 @@ export class TroncViewComponent {
     return this.attendanceMap().get(personId) ?? null;
   }
 
+  getNotes(assignment: AssignmentDetail): string | null {
+    return this.personDetailsMap().get(assignment.person.id)?.notes ?? null;
+  }
+
   onNodeHover(event: MouseEvent, nodeId: string): void {
     const assignment = this.getAssignment(nodeId);
     if (!assignment) {
@@ -410,6 +417,7 @@ export class TroncViewComponent {
         attendanceStatus: this.getAttendanceStatus(assignment),
         isXicalla: details?.isXicalla ?? false,
         shoulderHeight: assignment.person.shoulderHeight,
+        notes: details?.notes ?? null,
         positions: details?.positions ?? [],
       },
       top: rect.top,

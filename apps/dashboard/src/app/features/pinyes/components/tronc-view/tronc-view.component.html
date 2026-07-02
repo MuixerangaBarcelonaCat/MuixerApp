@@ -75,7 +75,12 @@
                 [attr.aria-pressed]="isSelected(dirNode.id)"
               >
                 @if (getAssignment(dirNode.id); as assignment) {
-                  <span class="person-alias">{{ assignment.person.alias }}</span>
+                  <span class="alias-row">
+                    <span class="person-alias">{{ assignment.person.alias }}</span>
+                    @if (getNotes(assignment); as notes) {
+                      <lucide-icon [name]="ICON_OBSERVACIONS" [size]="10" class="text-warning shrink-0" [attr.aria-label]="'Observacions: ' + notes" [title]="notes" />
+                    }
+                  </span>
                   <span
                     class="attendance-dot"
                     [style.background-color]="getAttendanceColor(assignment)"
@@ -127,7 +132,12 @@
                 [attr.aria-pressed]="isSelected(dirNode.id)"
               >
                 @if (getAssignment(dirNode.id); as assignment) {
-                  <span class="person-alias">{{ assignment.person.alias }}</span>
+                  <span class="alias-row">
+                    <span class="person-alias">{{ assignment.person.alias }}</span>
+                    @if (getNotes(assignment); as notes) {
+                      <lucide-icon [name]="ICON_OBSERVACIONS" [size]="10" class="text-warning shrink-0" [attr.aria-label]="'Observacions: ' + notes" [title]="notes" />
+                    }
+                  </span>
                   <span
                     class="attendance-dot"
                     [style.background-color]="getAttendanceColor(assignment)"
@@ -248,7 +258,12 @@
                         {{ getHeightDisplay(assignment.person.shoulderHeight) }}
                       </span>
                     }
-                    <span class="person-alias" [class.text-base]="mode() === 'projection'">{{ assignment.person.alias }}</span>
+                    <span class="alias-row">
+                      <span class="person-alias" [class.text-base]="mode() === 'projection'">{{ assignment.person.alias }}</span>
+                      @if (mode() !== 'projection' && getNotes(assignment); as notes) {
+                        <lucide-icon [name]="ICON_OBSERVACIONS" [size]="10" class="text-warning shrink-0" [attr.aria-label]="'Observacions: ' + notes" [title]="notes" />
+                      }
+                    </span>
                     @if (mode() !== 'projection') {
                       <span
                         class="attendance-dot"
@@ -291,7 +306,12 @@
                         {{ getHeightDisplay(assignment.person.shoulderHeight) }}
                       </span>
                     }
-                    <span class="person-alias" [class.text-base]="mode() === 'projection'">{{ assignment.person.alias }}</span>
+                    <span class="alias-row">
+                      <span class="person-alias" [class.text-base]="mode() === 'projection'">{{ assignment.person.alias }}</span>
+                      @if (mode() !== 'projection' && getNotes(assignment); as notes) {
+                        <lucide-icon [name]="ICON_OBSERVACIONS" [size]="10" class="text-warning shrink-0" [attr.aria-label]="'Observacions: ' + notes" [title]="notes" />
+                      }
+                    </span>
                     @if (mode() !== 'projection') {
                       <span
                         class="attendance-dot"

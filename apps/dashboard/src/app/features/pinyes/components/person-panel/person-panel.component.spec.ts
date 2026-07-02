@@ -19,6 +19,7 @@ const makeAvailablePerson = (
   firstSurname: 'Garcia',
   shoulderHeight: SHOULDER_HEIGHT_BASELINE_CM,
   isXicalla: false,
+  notes: null,
   attendanceStatus: status,
   nextPerformanceStatus: null,
   assignedInSegment: false,

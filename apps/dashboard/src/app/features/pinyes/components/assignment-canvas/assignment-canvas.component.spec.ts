@@ -153,7 +153,7 @@ const makeAssignment = (nodeId = 'inode-1', personId = 'person-1'): AssignmentDe
   id: `assignment-${++assignmentIdCounter}`,
   figureInstanceId: INSTANCE_ID,
   node: { id: nodeId, label: 'base-1', zone: 'BASE', z: 0, positionType: null, sortOrder: 0, ringLevel: null, originNodeId: null, sourceNodeId: 'node-1' },
-  person: { id: personId, alias: 'Pepet', name: 'Pere', firstSurname: 'Garcia', shoulderHeight: SHOULDER_HEIGHT_BASELINE_CM },
+  person: { id: personId, alias: 'Pepet', name: 'Pere', firstSurname: 'Garcia', shoulderHeight: SHOULDER_HEIGHT_BASELINE_CM, notes: null },
 });
 
 const makeAvailablePerson = (id = 'person-1'): AvailablePerson => ({
@@ -163,6 +163,7 @@ const makeAvailablePerson = (id = 'person-1'): AvailablePerson => ({
   firstSurname: 'Garcia',
   shoulderHeight: SHOULDER_HEIGHT_BASELINE_CM,
   isXicalla: false,
+  notes: null,
   attendanceStatus: 'ANIRE',
   nextPerformanceStatus: null,
   assignedInSegment: false,

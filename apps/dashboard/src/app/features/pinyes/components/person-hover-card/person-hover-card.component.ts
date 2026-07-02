@@ -1,12 +1,15 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { LucideAngularModule } from 'lucide-angular';
 import { AttendanceStatus, AvailablePersonPosition, HeightMode, PersonHoverInfo } from '../../models/assignment.model';
 import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
 import { getContrastColor } from '../../../../shared/utils/color.util';
+import { ICON_OBSERVACIONS } from '../../../../shared/constants/domain-icons';
 
 @Component({
   selector: 'app-person-hover-card',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [LucideAngularModule],
   template: `
     <div
       class="px-2.5 py-2 text-xs"
@@ -47,6 +50,13 @@ import { getContrastColor } from '../../../../shared/utils/color.util';
           }
         </div>
       }
+
+      @if (info().notes; as notes) {
+        <div class="flex items-start gap-1 mt-1.5 pt-1.5 border-t border-base-300 text-warning">
+          <lucide-icon [name]="ICON_OBSERVACIONS" [size]="12" class="shrink-0 mt-0.5" />
+          <span class="whitespace-pre-wrap break-words">{{ notes }}</span>
+        </div>
+      }
     </div>
   `,
 })
@@ -60,6 +70,7 @@ export class PersonHoverCardComponent {
   readonly activeNodePositionType = input<string | null>(null);
 
   readonly getContrastColor = getContrastColor;
+  readonly ICON_OBSERVACIONS = ICON_OBSERVACIONS;
 
   readonly sortedPositions = computed(() => {
     const posType = this.activeNodePositionType();

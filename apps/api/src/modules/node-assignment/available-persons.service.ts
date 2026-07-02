@@ -23,6 +23,7 @@ export interface AvailablePersonDto {
   firstSurname: string;
   shoulderHeight: number | null;
   isXicalla: boolean;
+  notes: string | null;
   attendanceStatus: AttendanceStatus;
   nextPerformanceStatus: AttendanceStatus | null;
   assignedInSegment: boolean;
@@ -226,6 +227,7 @@ export class AvailablePersonsService {
         firstSurname: person.firstSurname,
         shoulderHeight: person.shoulderHeight,
         isXicalla: person.isXicalla,
+        notes: person.notes,
         attendanceStatus,
         nextPerformanceStatus,
         assignedInSegment: !excludeAssignedBool && assignedDetails.has(person.id),

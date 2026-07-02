@@ -247,6 +247,9 @@
                 ></span>
               }
               <span class="font-medium truncate">{{ person.alias }}</span>
+              @if (person.notes) {
+                <i-lucide [img]="ICON_OBSERVACIONS" class="size-2.5 text-warning shrink-0" [attr.aria-label]="'Observacions: ' + person.notes" [title]="person.notes" />
+              }
               @if (person.nextPerformanceStatus === 'ANIRE') {
                 <span class="text-base-content/50 shrink-0" aria-label="Vindrà a la propera actuació" title="Vindrà a la propera actuació">🎭</span>
               }
@@ -289,6 +292,9 @@
                   ></span>
                 }
                 <span class="truncate">{{ person.alias }}</span>
+                @if (person.notes) {
+                  <i-lucide [img]="ICON_OBSERVACIONS" class="size-2.5 text-warning shrink-0" [attr.aria-label]="'Observacions: ' + person.notes" [title]="person.notes" />
+                }
               </span>
               @if (formatHeight(person) !== '-') {
                 <span class="text-base-content/50 shrink-0">{{ formatHeight(person) }}</span>
@@ -335,6 +341,9 @@
                       ></span>
                     }
                     <span class="truncate text-base-content/60">{{ person.alias }}</span>
+                    @if (person.notes) {
+                      <i-lucide [img]="ICON_OBSERVACIONS" class="size-2.5 text-warning shrink-0" [attr.aria-label]="'Observacions: ' + person.notes" [title]="person.notes" />
+                    }
                   </span>
                   <span class="badge badge-xs badge-info shrink-0">{{ person.assignedNodeLabel || 'Assignada' }}</span>
                 </button>
@@ -379,6 +388,9 @@
                 >
                   <span class="flex items-center gap-1.5 min-w-0">
                     <span class="line-through truncate">{{ person.alias }}</span>
+                    @if (person.notes) {
+                      <i-lucide [img]="ICON_OBSERVACIONS" class="size-2.5 text-warning shrink-0" [attr.aria-label]="'Observacions: ' + person.notes" [title]="person.notes" />
+                    }
                     @if (person.nextPerformanceStatus === 'ANIRE') {
                       <span class="text-base-content/50 shrink-0" aria-label="Vindrà a la propera actuació">🎭</span>
                     }
@@ -406,6 +418,9 @@
                 >
                   <span class="flex items-center gap-1.5 min-w-0">
                     <span class="truncate">{{ person.alias }}</span>
+                    @if (person.notes) {
+                      <i-lucide [img]="ICON_OBSERVACIONS" class="size-2.5 text-warning shrink-0" [attr.aria-label]="'Observacions: ' + person.notes" [title]="person.notes" />
+                    }
                     @if (person.nextPerformanceStatus === 'ANIRE') {
                       <span class="text-base-content/50 shrink-0" aria-label="Vindrà a la propera actuació">🎭</span>
                     }

@@ -24,6 +24,7 @@ export interface AssignmentPersonDetail {
   name: string;
   firstSurname: string;
   shoulderHeight: number | null;
+  notes: string | null;
 }
 
 export interface AssignmentDetail {
@@ -47,6 +48,7 @@ export interface PersonHoverInfo {
   attendanceStatus: AttendanceStatus | null;
   isXicalla: boolean;
   shoulderHeight: number | null;
+  notes: string | null;
   positions: AvailablePersonPosition[];
 }
 
@@ -57,6 +59,7 @@ export interface AvailablePerson {
   firstSurname: string;
   shoulderHeight: number | null;
   isXicalla: boolean;
+  notes: string | null;
   attendanceStatus: AttendanceStatus;
   nextPerformanceStatus: AttendanceStatus | null;
   assignedInSegment: boolean;

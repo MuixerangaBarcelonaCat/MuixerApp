@@ -15,6 +15,7 @@ const makePerson = (alias = 'Pepet'): AttendanceItem['person'] => ({
   name: 'Pere',
   firstSurname: 'Garcia',
   isXicalla: false,
+  notes: null,
   positions: [],
 });
 
