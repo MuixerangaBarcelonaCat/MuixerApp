@@ -41,6 +41,15 @@ export interface AvailablePersonPosition {
   positionTypes: string[];
 }
 
+/** Minimal person data needed to render the hover card shown across person-panel, tronc-view and figure-canvas. */
+export interface PersonHoverInfo {
+  alias: string;
+  attendanceStatus: AttendanceStatus | null;
+  isXicalla: boolean;
+  shoulderHeight: number | null;
+  positions: AvailablePersonPosition[];
+}
+
 export interface AvailablePerson {
   id: string;
   alias: string;
@@ -101,6 +110,7 @@ export interface AvailablePersonsQuery {
   height?: number;
   isXicalla?: boolean;
   excludeAssigned?: boolean;
+  positionId?: string;
 }
 
 /** Tracks an optimistic UI operation that has been applied locally but not yet confirmed by the server */

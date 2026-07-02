@@ -36,6 +36,7 @@ export interface AvailablePersonsQuery {
   height?: number;
   isXicalla?: boolean;
   excludeAssigned?: boolean;
+  positionId?: string;
 }
 
 @Injectable()
@@ -72,7 +73,7 @@ export class AvailablePersonsService {
       );
     }
 
-    const { search, height } = query;
+    const { search, height, positionId } = query;
 
     // HTTP query params arrive as strings — coerce booleans explicitly
     const raw = query as unknown as Record<string, string | boolean | undefined>;
@@ -109,6 +110,20 @@ export class AvailablePersonsService {
       qb.andWhere('person.isXicalla = :isXicalla', { isXicalla: isXicallaBool });
     }
 
+    if (positionId) {
+      qb.andWhere((qbSub) => {
+        const subQuery = qbSub
+          .subQuery()
+          .select('sub_person.id')
+          .from(Person, 'sub_person')
+          .innerJoin('sub_person.positions', 'sub_position')
+          .where('sub_position.id = :positionId')
+          .getQuery();
+        return 'person.id IN ' + subQuery;
+      });
+      qb.setParameter('positionId', positionId);
+    }
+
     if (excludeAssignedBool) {
       qb.andWhere(
         `NOT EXISTS (
@@ -129,13 +144,21 @@ export class AvailablePersonsService {
         'DESC',
       );
       if (height !== undefined) {
+        qb.addOrderBy(
+          `CASE WHEN person.shoulderHeight IS NULL OR person.shoulderHeight = 0 THEN 1 ELSE 0 END`,
+          'ASC',
+        );
         qb.addOrderBy(`ABS(COALESCE(person.shoulderHeight, 0) - :height)`, 'ASC');
         qb.setParameter('height', height);
       } else {
         qb.addOrderBy('person.alias', 'ASC');
       }
     } else if (height !== undefined) {
-      qb.orderBy(`ABS(COALESCE(person.shoulderHeight, 0) - :height)`, 'ASC');
+      qb.orderBy(
+        `CASE WHEN person.shoulderHeight IS NULL OR person.shoulderHeight = 0 THEN 1 ELSE 0 END`,
+        'ASC',
+      );
+      qb.addOrderBy(`ABS(COALESCE(person.shoulderHeight, 0) - :height)`, 'ASC');
       qb.setParameter('height', height);
     } else {
       qb.orderBy('person.alias', 'ASC');

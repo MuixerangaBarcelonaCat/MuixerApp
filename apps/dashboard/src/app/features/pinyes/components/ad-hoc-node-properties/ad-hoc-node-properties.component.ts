@@ -5,6 +5,7 @@ import {
   input,
   output,
   inject,
+  signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, X, Trash2, UserMinus, Copy } from 'lucide-angular';
@@ -83,8 +84,52 @@ export class AdHocNodePropertiesComponent {
 
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
+  private readonly rotationPreview = signal<number | null>(null);
+  readonly rotationDisplay = computed(
+    () => this.rotationPreview() ?? this.node().rotation,
+  );
+
+  private readonly labelPreview = signal<string | null>(null);
+  readonly labelDisplay = computed(
+    () => this.labelPreview() ?? this.node().label,
+  );
+
+  private readonly colorPreview = signal<string | null | undefined>(undefined);
+  readonly colorDisplay = computed(
+    () => (this.colorPreview() === undefined ? this.node().color : this.colorPreview()),
+  );
+
   close(): void {
     this.closed.emit();
+  }
+
+  onRotationPreview(value: number): void {
+    this.rotationPreview.set(value);
+  }
+
+  onRotationCommit(value: number): void {
+    this.rotationPreview.set(null);
+    this.commitProperty('rotation', value);
+  }
+
+  onLabelPreview(value: string): void {
+    this.labelPreview.set(value);
+  }
+
+  onLabelCommit(): void {
+    const value = this.labelPreview();
+    this.labelPreview.set(null);
+    if (value === null) return;
+    this.commitProperty('label', value);
+  }
+
+  onColorPreview(value: string): void {
+    this.colorPreview.set(value);
+  }
+
+  onColorCommit(value: string): void {
+    this.colorPreview.set(undefined);
+    this.commitProperty('color', value);
   }
 
   onPropChange(
@@ -97,7 +142,7 @@ export class AdHocNodePropertiesComponent {
   }
 
   clearDecorationFill(): void {
-    this.onPropChange('color', null);
+    this.commitProperty('color', null);
   }
 
   onDelete(): void {
@@ -108,15 +153,27 @@ export class AdHocNodePropertiesComponent {
     this.duplicateRequested.emit();
   }
 
+  private commitProperty(
+    key: keyof UpdateAdHocNodePayload,
+    value: string | number | null,
+  ): void {
+    if (this.debounceTimer) clearTimeout(this.debounceTimer);
+    const payload: UpdateAdHocNodePayload = { [key]: value };
+    this.propertyChanged.emit({ nodeId: this.node().id, patch: payload });
+    this.sendUpdate(payload);
+  }
+
   private debouncedUpdate(payload: UpdateAdHocNodePayload): void {
     if (this.debounceTimer) clearTimeout(this.debounceTimer);
-    this.debounceTimer = setTimeout(() => {
-      this.assignmentService
-        .updateAdHocNode(this.instanceId(), this.node().id, payload)
-        .subscribe({
-          next: () => this.nodeUpdated.emit(),
-          error: () => this.toast.error('Error en actualitzar el node.'),
-        });
-    }, 300);
+    this.debounceTimer = setTimeout(() => this.sendUpdate(payload), 300);
+  }
+
+  private sendUpdate(payload: UpdateAdHocNodePayload): void {
+    this.assignmentService
+      .updateAdHocNode(this.instanceId(), this.node().id, payload)
+      .subscribe({
+        next: () => this.nodeUpdated.emit(),
+        error: () => this.toast.error('Error en actualitzar el node.'),
+      });
   }
 }

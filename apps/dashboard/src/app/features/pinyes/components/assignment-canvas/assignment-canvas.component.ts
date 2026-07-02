@@ -24,10 +24,12 @@ import { TroncViewComponent } from '../tronc-view/tronc-view.component';
 import { AdHocNodesHelpModalComponent } from '../ad-hoc-nodes-help-modal/ad-hoc-nodes-help-modal.component';
 import { AdHocNodePropertiesComponent } from '../ad-hoc-node-properties/ad-hoc-node-properties.component';
 import { SaveAsTemplateDialogComponent, SaveAsTemplateResult } from '../save-as-template-dialog/save-as-template-dialog.component';
+import { AlreadyAssignedDialogComponent } from '../already-assigned-dialog/already-assigned-dialog.component';
 import {
   AssignmentDetail,
   AttendanceStatus,
   AvailablePerson,
+  AvailablePersonPosition,
   BulkImportResult,
   InstanceNodeItem,
   PendingOp,
@@ -66,6 +68,7 @@ interface InstanceTab {
     AdHocNodesHelpModalComponent,
     AdHocNodePropertiesComponent,
     SaveAsTemplateDialogComponent,
+    AlreadyAssignedDialogComponent,
   ],
   templateUrl: './assignment-canvas.component.html',
   styleUrl: './assignment-canvas.component.scss',
@@ -124,6 +127,17 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly deleteInstanceModalOpen = signal(false);
   readonly deletingInstance = signal(false);
   readonly pendingDeleteTab = signal<InstanceTab | null>(null);
+
+  readonly reassignDialog = signal<{
+    personId: string;
+    personAlias: string;
+    oldInstanceId: string;
+    oldAssignmentId: string;
+    oldNodeLabel: string;
+    figureName: string;
+    targetInstanceId: string;
+    targetNodeId: string;
+  } | null>(null);
 
   readonly lockStatus = signal<LockStatus | null>(null);
   readonly isLocked = computed(() => this.lockStatus()?.locked ?? false);
@@ -322,6 +336,15 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
   readonly attendanceMap = computed(() => this.state.attendanceRegistry());
   readonly nextPerformanceMap = computed(() => this.state.nextPerformanceRegistry());
+
+  /** positions + isXicalla by personId, used to render the person hover card in tronc-view / figure-canvas. */
+  readonly personDetailsMap = computed(() => {
+    const map = new Map<string, { positions: AvailablePersonPosition[]; isXicalla: boolean }>();
+    for (const p of this.state.confirmedPersons()) {
+      map.set(p.id, { positions: p.positions, isXicalla: p.isXicalla });
+    }
+    return map;
+  });
 
   ngOnInit(): void {
     this.layout.requestFullscreen();
@@ -700,14 +723,96 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     const targetTab = this.tabs().find((t) => t.instanceId === event.instanceId);
     if (!targetTab) return;
 
-    this.selectTab(event.instanceId);
+    const targetNodeId = this.state.selectedNodeId();
+    const targetInstanceId = this.state.activeInstanceId();
 
     this.assignmentService.getByInstance(event.instanceId).subscribe({
       next: (resp) => {
         const assignment = resp.data.find((a) => a.person.id === event.personId);
+        if (!assignment) return;
+
+        if (targetNodeId && targetInstanceId) {
+          this.reassignDialog.set({
+            personId: event.personId,
+            personAlias: assignment.person.alias || `${assignment.person.name} ${assignment.person.firstSurname}`,
+            oldInstanceId: event.instanceId,
+            oldAssignmentId: assignment.id,
+            oldNodeLabel: assignment.node.label,
+            figureName: targetTab.label,
+            targetInstanceId,
+            targetNodeId,
+          });
+          return;
+        }
+
+        this.navigateToAssignedNode(event.instanceId, event.personId);
+      },
+    });
+  }
+
+  private navigateToAssignedNode(instanceId: string, personId: string): void {
+    this.selectTab(instanceId);
+    this.assignmentService.getByInstance(instanceId).subscribe({
+      next: (resp) => {
+        const assignment = resp.data.find((a) => a.person.id === personId);
         if (assignment) {
           this.state.setSelectedNodeId(assignment.node.id);
         }
+      },
+    });
+  }
+
+  onReassignDialogClosed(): void {
+    this.reassignDialog.set(null);
+  }
+
+  onReassignDialogView(): void {
+    const dialog = this.reassignDialog();
+    if (!dialog) return;
+    this.reassignDialog.set(null);
+    this.navigateToAssignedNode(dialog.oldInstanceId, dialog.personId);
+  }
+
+  onReassignDialogConfirm(): void {
+    const dialog = this.reassignDialog();
+    if (!dialog) return;
+    this.reassignDialog.set(null);
+    this.triggerReassignToNode(
+      dialog.oldInstanceId,
+      dialog.oldAssignmentId,
+      dialog.targetInstanceId,
+      dialog.targetNodeId,
+      dialog.personId,
+    );
+  }
+
+  private triggerReassignToNode(
+    oldInstanceId: string,
+    oldAssignmentId: string,
+    targetInstanceId: string,
+    targetNodeId: string,
+    personId: string,
+  ): void {
+    const isSameInstance = oldInstanceId === targetInstanceId;
+    const snapshot = isSameInstance ? [...this.state.assignments()] : null;
+    if (isSameInstance) {
+      this.state.assignments.update((list) => list.filter((a) => a.id !== oldAssignmentId));
+    }
+
+    this.assignmentService.unassign(oldInstanceId, oldAssignmentId).subscribe({
+      next: () => {
+        if (isSameInstance) {
+          this.updateTabCount(oldInstanceId);
+        } else {
+          this.refreshInstanceNodes(oldInstanceId);
+        }
+        this.triggerAssign(targetNodeId, personId);
+      },
+      error: () => {
+        if (isSameInstance && snapshot) {
+          this.state.assignments.set(snapshot);
+        }
+        this.toast.error('Error en reassignar la persona.');
       },
     });
   }

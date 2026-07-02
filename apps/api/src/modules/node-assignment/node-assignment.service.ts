@@ -1029,7 +1029,7 @@ export class NodeAssignmentService {
 
     const instance = await this.figureInstanceRepository.findOne({
       where: { id: instanceId },
-      relations: ['figureTemplate', 'compositionTemplate', 'segment'],
+      relations: ['figureTemplate', 'segment'],
     });
     if (!instance) {
       throw new NotFoundException(`FigureInstance with ID ${instanceId} not found`);

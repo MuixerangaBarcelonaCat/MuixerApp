@@ -69,6 +69,8 @@
                 [class.assigned]="isAssigned(dirNode.id)"
                 [style.border-left-color]="getDirectionColor(dirNode.zone)"
                 (click)="onDirectionNodeClick(dirNode, $event)"
+                (mouseenter)="onNodeHover($event, dirNode.id)"
+                (mouseleave)="onNodeLeave()"
                 [attr.aria-label]="getNodeAriaLabel(dirNode)"
                 [attr.aria-pressed]="isSelected(dirNode.id)"
               >
@@ -119,6 +121,8 @@
                 [class.assigned]="isAssigned(dirNode.id)"
                 [style.border-left-color]="getDirectionColor(dirNode.zone)"
                 (click)="onDirectionNodeClick(dirNode, $event)"
+                (mouseenter)="onNodeHover($event, dirNode.id)"
+                (mouseleave)="onNodeLeave()"
                 [attr.aria-label]="getNodeAriaLabel(dirNode)"
                 [attr.aria-pressed]="isSelected(dirNode.id)"
               >
@@ -233,6 +237,8 @@
                   [class.z-colored]="mode() === 'assignment' || mode() === 'projection'"
                   [style.border-left-color]="mode() !== 'editor' ? (getNodeColor(node) ?? getZLevelColor(node.z)) : null"
                   (click)="onNodeClick(node, $event)"
+                  (mouseenter)="onNodeHover($event, node.id)"
+                  (mouseleave)="onNodeLeave()"
                   [attr.aria-label]="getNodeAriaLabel(node)"
                   [attr.aria-pressed]="isSelected(node.id)"
                 >
@@ -269,6 +275,8 @@
                   [class.type-colored]="mode() === 'editor' && !!getNodeColor(node)"
                   [style.border-left-color]="getNodeColor(node) ?? (mode() !== 'editor' ? getZLevelColor(node.z) : null)"
                   (click)="onNodeClick(node, $event)"
+                  (mouseenter)="onNodeHover($event, node.id)"
+                  (mouseleave)="onNodeLeave()"
                   [attr.aria-label]="getNodeAriaLabel(node)"
                   [attr.aria-pressed]="isSelected(node.id)"
                 >
@@ -471,6 +479,21 @@
       }
 
 
+    </div>
+  }
+
+  @if (hoveredPerson(); as hovered) {
+    <div
+      class="fixed z-50 pointer-events-none"
+      [style.top.px]="hovered.top"
+      [style.left.px]="hovered.left"
+    >
+      <app-person-hover-card
+        [info]="hovered.info"
+        [isPast]="isPast()"
+        [heightMode]="heightMode()"
+        [activeNodePositionType]="hovered.positionType"
+      />
     </div>
   }
 

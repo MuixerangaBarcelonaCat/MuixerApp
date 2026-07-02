@@ -15,7 +15,8 @@ import { FormsModule } from '@angular/forms';
 import Konva from 'konva';
 import { FigureNodeItem } from '../../models/figure-template.model';
 import { FigureZone, NodeShape, DIRECTION_ZONES } from '@muixer/shared';
-import { AssignmentDetail, HeightMode } from '../../models/assignment.model';
+import { AssignmentDetail, AttendanceStatus, AvailablePersonPosition, HeightMode, PersonHoverInfo } from '../../models/assignment.model';
+import { PersonHoverCardComponent } from '../person-hover-card/person-hover-card.component';
 import {
   calculateGhostPosition,
   isGhostEligible,
@@ -169,7 +170,7 @@ const NORMAL_STROKE = '#1e1b4b';
   selector: 'app-figure-canvas',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule],
+  imports: [FormsModule, PersonHoverCardComponent],
   templateUrl: './figure-canvas.component.html',
   styleUrl: './figure-canvas.component.scss',
 })
@@ -194,6 +195,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   readonly isPlacementMode = input<boolean>(false);
   readonly decorationOpacity = input<number>(1);
   readonly isPast = input<boolean>(false);
+  /** personId → positions/isXicalla, used to render the hover card on assigned nodes. */
+  readonly personDetailsMap = input<Map<string, { positions: AvailablePersonPosition[]; isXicalla: boolean }>>(new Map());
   /** Extra bounding boxes (in canvas space, x/y = center) included in the readonly fit but not rendered. */
   readonly fitExtraBounds = input<{ x: number; y: number; width: number; height: number }[]>([]);
   /** Outline shapes rendered in a layer BELOW pinyaLayer. Each box matches a node's canvas-space position. */
@@ -265,6 +268,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   private adHocTooltip: Konva.Label | null = null;
 
   readonly zoomLevel = signal(1);
+  readonly hoveredPerson = signal<{ info: PersonHoverInfo; top: number; left: number; positionType: string | null } | null>(null);
 
   constructor() {
     effect(() => {
@@ -1337,6 +1341,23 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
             }),
           );
         }
+
+        const personDetails = this.personDetailsMap().get(assignment.person.id);
+        group.on('mouseenter.personHover', (e) => {
+          this.hoveredPerson.set({
+            info: {
+              alias,
+              attendanceStatus: (attendanceStatus as AttendanceStatus) ?? null,
+              isXicalla: personDetails?.isXicalla ?? false,
+              shoulderHeight: shoulderH,
+              positions: personDetails?.positions ?? [],
+            },
+            top: e.evt.clientY + 12,
+            left: e.evt.clientX + 12,
+            positionType: node.positionType,
+          });
+        });
+        group.on('mouseleave.personHover', () => this.hoveredPerson.set(null));
       } else {
         const textFill = isDecoration
           ? (node.color ? this.getContrastColor(node.color) : '#000000')
