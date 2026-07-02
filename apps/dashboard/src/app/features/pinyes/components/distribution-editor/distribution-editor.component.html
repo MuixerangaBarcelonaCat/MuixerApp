@@ -62,10 +62,11 @@
 
     @if (!loading()) {
       <app-figure-canvas
+        #canvas
         mode="composition"
         [compositionSlots]="compositionSlots()"
         [selectedSlotId]="selectedSlotId()"
-        [gridEnabled]="gridEnabled"
+        [gridEnabled]="true"
         [gridSpacing]="gridSpacing"
         [snapToGrid]="snapToGrid"
         (slotSelected)="onSlotSelected($event)"

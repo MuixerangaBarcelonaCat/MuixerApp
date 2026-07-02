@@ -7,6 +7,7 @@ import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provi
 import { SegmentManagerComponent } from './segment-manager.component';
 import { EventSegmentService } from '../../../pinyes/services/event-segment.service';
 import { FigureInstanceService } from '../../../pinyes/services/figure-instance.service';
+import { CompositionService } from '../../../pinyes/services/composition.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { SegmentDetail, InstanceDetail } from '../../../pinyes/models/segment.model';
 
@@ -50,6 +51,7 @@ describe('SegmentManagerComponent', () => {
   let component: SegmentManagerComponent;
   let segmentService: Partial<EventSegmentService>;
   let instanceService: Partial<FigureInstanceService>;
+  let compositionService: { applyToSegment: ReturnType<typeof vi.fn> };
   let toastService: { success: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
   let routerMock: { navigate: ReturnType<typeof vi.fn>; url: string };
 
@@ -71,6 +73,10 @@ describe('SegmentManagerComponent', () => {
       copy: vi.fn(),
     };
 
+    compositionService = {
+      applyToSegment: vi.fn(),
+    };
+
     toastService = {
       success: vi.fn(),
       error: vi.fn(),
@@ -83,6 +89,7 @@ describe('SegmentManagerComponent', () => {
       providers: [
         { provide: EventSegmentService, useValue: segmentService },
         { provide: FigureInstanceService, useValue: instanceService },
+        { provide: CompositionService, useValue: compositionService },
         { provide: ToastService, useValue: toastService },
         { provide: Router, useValue: routerMock },
         allLucideIconsProvider,
@@ -352,6 +359,61 @@ describe('SegmentManagerComponent', () => {
       component.onInstancesConfirmed([]);
 
       expect(instanceService.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('onCompositionSelected()', () => {
+    it('calls applyToSegment and replaces the matching segment in state', () => {
+      const seg = makeSegment({ id: 'seg-1', name: null, instances: [] });
+      component.segments.set([seg]);
+      component.pickerSegmentId.set('seg-1');
+
+      const updatedSegment = makeSegment({
+        id: 'seg-1',
+        name: 'Pilars de plaça',
+        instances: [makeInstance({ id: 'inst-1' })],
+      });
+      compositionService.applyToSegment.mockReturnValue(of(updatedSegment));
+
+      component.onCompositionSelected({ compositionId: 'comp-1', compositionName: 'Pilars de plaça' });
+
+      expect(compositionService.applyToSegment).toHaveBeenCalledWith(EVENT_ID, 'seg-1', 'comp-1');
+      expect(component.segments()[0]).toEqual(updatedSegment);
+    });
+
+    it('shows a success toast and closes the picker', () => {
+      const seg = makeSegment({ id: 'seg-1' });
+      component.segments.set([seg]);
+      component.pickerOpen.set(true);
+      component.pickerSegmentId.set('seg-1');
+
+      compositionService.applyToSegment.mockReturnValue(of(makeSegment({ id: 'seg-1' })));
+
+      component.onCompositionSelected({ compositionId: 'comp-1', compositionName: 'Pilars de plaça' });
+
+      expect(toastService.success).toHaveBeenCalledWith('Composició «Pilars de plaça» aplicada.');
+      expect(component.pickerOpen()).toBe(false);
+      expect(component.pickerSegmentId()).toBeNull();
+    });
+
+    it('shows an error toast on failure', () => {
+      const seg = makeSegment({ id: 'seg-1' });
+      component.segments.set([seg]);
+      component.pickerSegmentId.set('seg-1');
+
+      compositionService.applyToSegment.mockReturnValue(throwError(() => new Error('API error')));
+
+      component.onCompositionSelected({ compositionId: 'comp-1', compositionName: 'Pilars de plaça' });
+
+      expect(toastService.error).toHaveBeenCalledWith('No s\'ha pogut aplicar la composició.');
+    });
+
+    it('does nothing when there is no open segment', () => {
+      component.pickerSegmentId.set(null);
+
+      component.onCompositionSelected({ compositionId: 'comp-1', compositionName: 'Pilars de plaça' });
+
+      expect(compositionService.applyToSegment).not.toHaveBeenCalled();
     });
   });
 

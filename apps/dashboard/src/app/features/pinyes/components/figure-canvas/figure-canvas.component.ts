@@ -367,18 +367,25 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.emitStageTransform();
   }
 
-  fitAllSlots(): void {
-    // Collect all slot groups (exclude the Transformer which is also a Group subclass)
+  /** Bottom-right canvas button: in composition mode, center on content without changing zoom; otherwise reset to 100%. */
+  onFitClick(): void {
+    if (this.mode() === 'composition') {
+      this.centerOnContent();
+    } else {
+      this.fitToScreen();
+    }
+  }
+
+  /** Union bounding box (layer-local/scene coords) of all rendered slot groups, or null if none. */
+  private getContentBounds(): { minX: number; minY: number; maxX: number; maxY: number } | null {
+    // Collect all slot groups (exclude the Transformer, which is also a Konva.Group subclass —
+    // note plain Konva.Group instances never set `.className`, only `.nodeType`, so `instanceof` is required here).
     const groups = this.pinyaLayer
       .getChildren()
-      .filter((node) => node.className === 'Group') as Konva.Group[];
+      .filter((node) => node instanceof Konva.Group && !(node instanceof Konva.Transformer));
 
-    if (groups.length === 0) {
-      this.fitToScreen();
-      return;
-    }
+    if (groups.length === 0) return null;
 
-    // Compute union bounding box in layer-local (scene) coordinates
     let minX = Infinity,
       minY = Infinity,
       maxX = -Infinity,
@@ -391,25 +398,24 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       maxY = Math.max(maxY, rect.y + rect.height);
     }
 
-    const bbW = maxX - minX;
-    const bbH = maxY - minY;
-    if (bbW <= 0 || bbH <= 0) {
-      this.fitToScreen();
-      return;
-    }
+    if (maxX - minX <= 0 || maxY - minY <= 0) return null;
+    return { minX, minY, maxX, maxY };
+  }
 
-    const padding = 40;
-    const scaleX = (this.stage.width() - padding * 2) / bbW;
-    const scaleY = (this.stage.height() - padding * 2) / bbH;
-    const newScale = Math.min(scaleX, scaleY, 2);
+  /** Centers the viewport on the bounding box of the rendered content, keeping the current zoom scale. */
+  centerOnContent(): void {
+    const bounds = this.getContentBounds();
+    if (!bounds) return;
 
-    // Center the bounding box in the viewport
-    const newX = (this.stage.width() - bbW * newScale) / 2 - minX * newScale;
-    const newY = (this.stage.height() - bbH * newScale) / 2 - minY * newScale;
+    const { minX, minY, maxX, maxY } = bounds;
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+    const scale = this.stage.scaleX();
 
-    this.stage.scale({ x: newScale, y: newScale });
-    this.stage.position({ x: newX, y: newY });
-    this.zoomLevel.set(newScale);
+    this.stage.position({
+      x: this.stage.width() / 2 - centerX * scale,
+      y: this.stage.height() / 2 - centerY * scale,
+    });
     this.stage.batchDraw();
     this.emitStageTransform();
   }
@@ -472,6 +478,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
   private emitStageTransform(): void {
     if (!this.stage) return;
+    this.renderGrid();
     this.stageTransformChanged.emit({
       x: this.stage.x(),
       y: this.stage.y(),
@@ -678,6 +685,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  /**
+   * Draws grid lines covering the currently visible world-space rect (derived from the stage's
+   * pan/zoom transform), so the grid always fills the viewport instead of being anchored to a
+   * fixed area around world (0,0).
+   */
   private renderGrid(): void {
     this.gridLayer.destroyChildren();
 
@@ -687,26 +699,41 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     }
 
     const spacing = this.gridSpacing();
+    const scale = this.stage.scaleX() || 1;
     const width = this.stage.width();
     const height = this.stage.height();
 
-    const cols = Math.ceil(width / spacing) + 2;
-    const rows = Math.ceil(height / spacing) + 2;
+    const worldLeft = -this.stage.x() / scale;
+    const worldTop = -this.stage.y() / scale;
+    const worldRight = worldLeft + width / scale;
+    const worldBottom = worldTop + height / scale;
 
-    for (let i = 0; i < cols; i++) {
+    const startCol = Math.floor(worldLeft / spacing) - 1;
+    const endCol = Math.ceil(worldRight / spacing) + 1;
+    const startRow = Math.floor(worldTop / spacing) - 1;
+    const endRow = Math.ceil(worldBottom / spacing) + 1;
+
+    const top = startRow * spacing;
+    const bottom = endRow * spacing;
+    const left = startCol * spacing;
+    const right = endCol * spacing;
+
+    for (let i = startCol; i <= endCol; i++) {
+      const x = i * spacing;
       this.gridLayer.add(
         new Konva.Line({
-          points: [i * spacing, 0, i * spacing, rows * spacing],
+          points: [x, top, x, bottom],
           stroke: GRID_COLOR,
           strokeWidth: 1,
           listening: false,
         }),
       );
     }
-    for (let j = 0; j < rows; j++) {
+    for (let j = startRow; j <= endRow; j++) {
+      const y = j * spacing;
       this.gridLayer.add(
         new Konva.Line({
-          points: [0, j * spacing, cols * spacing, j * spacing],
+          points: [left, y, right, y],
           stroke: GRID_COLOR,
           strokeWidth: 1,
           listening: false,
@@ -1064,6 +1091,14 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       const pos = this.computeLinkedTroncPosition(slotGroup, figureHalfHeight, troncW, troncH);
       troncGroup.x(pos.x);
       troncGroup.y(pos.y);
+    });
+
+    troncGroup.on('dragmove', () => {
+      if (this.snapToGrid()) {
+        const spacing = this.gridSpacing() / 4;
+        troncGroup.x(this.snapValue(troncGroup.x(), spacing));
+        troncGroup.y(this.snapValue(troncGroup.y(), spacing));
+      }
     });
 
     troncGroup.on('dragend', () => {

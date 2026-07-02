@@ -426,6 +426,7 @@
     [open]="pickerOpen()"
     [segmentId]="pickerSegmentId()!"
     (confirmed)="onInstancesConfirmed($event)"
+    (compositionSelected)="onCompositionSelected($event)"
     (closed)="closePicker()"
   />
 }

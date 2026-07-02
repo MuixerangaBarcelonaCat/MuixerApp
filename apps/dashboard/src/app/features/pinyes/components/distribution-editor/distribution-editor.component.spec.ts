@@ -1,6 +1,7 @@
 import { Component, input, output } from '@angular/core';
 import { Location } from '@angular/common';
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
 import { ActivatedRoute } from '@angular/router';
 import { of } from 'rxjs';
@@ -23,8 +24,7 @@ class FigureCanvasStub {
   readonly snapToGrid = input<boolean>(false);
   readonly slotMoved = output<{ slotId: string; offsetX: number; offsetY: number; angle: number }>();
   readonly troncMoved = output<{ slotId: string; troncPanelX: number | null; troncPanelY: number | null }>();
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
-  fitAllSlots() {}
+  centerOnContent = vi.fn();
 }
 
 const EVENT_ID = 'event-uuid-1';
@@ -130,6 +130,22 @@ describe('DistributionEditorComponent', () => {
 
   it('loads distribution data on init', () => {
     expect(distributionService.getDistribution).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID);
+  });
+
+  it('centers the viewport on the loaded content after data arrives', () => {
+    vi.useFakeTimers();
+    distributionService.getDistribution.mockReturnValue(
+      of(makeDistributionData([itemWithPosition(INST_A, 100, 200)])),
+    );
+    const fixture = TestBed.createComponent(DistributionEditorComponent);
+    fixture.detectChanges();
+    const canvasStub = fixture.debugElement.query(By.directive(FigureCanvasStub))
+      ?.componentInstance as FigureCanvasStub;
+
+    expect(canvasStub.centerOnContent).not.toHaveBeenCalled();
+    vi.runAllTimers();
+
+    expect(canvasStub.centerOnContent).toHaveBeenCalledTimes(1);
   });
 
   it('auto-places items in a row when projectionX is null', () => {
