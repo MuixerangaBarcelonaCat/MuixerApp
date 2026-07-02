@@ -1,0 +1,45 @@
+<div class="relative inline-block" #wrapper>
+  <button
+    type="button"
+    class="btn btn-outline btn-sm gap-2"
+    [disabled]="disabled()"
+    (click)="toggle()"
+    [attr.aria-expanded]="open()"
+    aria-haspopup="dialog"
+    aria-label="Tria un emoji per a les observacions tècniques"
+  >
+    @if (value()) {
+      <span class="text-base leading-none">{{ value() }}</span>
+    } @else {
+      <span class="text-base-content/50 text-xs">Sense emoji</span>
+    }
+    <lucide-icon name="ChevronDown" [size]="12" />
+  </button>
+
+  @if (open()) {
+    <div
+      class="absolute z-50 mt-1 bg-base-100 border border-base-300 rounded-box shadow-lg p-2 w-[26rem]"
+      role="dialog"
+      aria-label="Selector d'emoji"
+    >
+      <div class="flex items-center justify-between mb-1.5">
+        <span class="text-xs font-medium text-base-content/60">Freqüents</span>
+        @if (value()) {
+          <button type="button" class="btn btn-ghost btn-xs" (click)="select(null)">Cap</button>
+        }
+      </div>
+      <div class="flex flex-wrap gap-1 mb-2">
+        @for (emoji of commonEmojis; track emoji) {
+          <button
+            type="button"
+            class="btn btn-ghost btn-xs text-base px-1.5"
+            [class.btn-active]="value() === emoji"
+            (click)="select(emoji)"
+            [attr.aria-label]="'Emoji ' + emoji"
+          >{{ emoji }}</button>
+        }
+      </div>
+      <emoji-picker (emoji-click)="onEmojiClick($event)" style="width: 100%; height: 520px;"></emoji-picker>
+    </div>
+  }
+</div>

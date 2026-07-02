@@ -8,6 +8,7 @@ const makeInfo = (overrides: Partial<PersonHoverInfo> = {}): PersonHoverInfo => 
   isXicalla: false,
   shoulderHeight: null,
   notes: null,
+  notesEmoji: null,
   positions: [],
   ...overrides,
 });

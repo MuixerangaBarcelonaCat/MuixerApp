@@ -53,7 +53,11 @@ import { ICON_OBSERVACIONS } from '../../../../shared/constants/domain-icons';
 
       @if (info().notes; as notes) {
         <div class="flex items-start gap-1 mt-1.5 pt-1.5 border-t border-base-300 text-warning">
-          <lucide-icon [name]="ICON_OBSERVACIONS" [size]="12" class="shrink-0 mt-0.5" />
+          @if (info().notesEmoji; as emoji) {
+            <span class="shrink-0 mt-0.5 leading-none">{{ emoji }}</span>
+          } @else {
+            <lucide-icon [name]="ICON_OBSERVACIONS" [size]="12" class="shrink-0 mt-0.5" />
+          }
           <span class="whitespace-pre-wrap break-words">{{ notes }}</span>
         </div>
       }

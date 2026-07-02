@@ -14,6 +14,7 @@ export interface AttendancePerson {
   isXicalla: boolean;
   isProvisional?: boolean;
   notes: string | null;
+  notesEmoji: string | null;
   positions: AttendancePosition[];
 }
 

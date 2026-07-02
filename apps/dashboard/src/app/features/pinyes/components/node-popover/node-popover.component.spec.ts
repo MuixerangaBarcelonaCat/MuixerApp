@@ -15,6 +15,7 @@ const makeAssignment = (): AssignmentDetail => ({
     firstSurname: 'Garcia',
     shoulderHeight: 142,
     notes: null,
+    notesEmoji: null,
   },
 });
 

@@ -45,7 +45,7 @@ export class AssignmentOperationsService {
         originNodeId: matchedNode?.originNodeId ?? null,
         sourceNodeId: matchedNode?.sourceNodeId ?? null,
       },
-      person: { id: personId, alias: '...', name: '', firstSurname: '', shoulderHeight: null, notes: null },
+      person: { id: personId, alias: '...', name: '', firstSurname: '', shoulderHeight: null, notes: null, notesEmoji: null },
     };
 
     this.state.assignments.update((list) => [...list, tempAssignment]);

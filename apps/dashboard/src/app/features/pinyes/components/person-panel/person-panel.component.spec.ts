@@ -20,6 +20,7 @@ const makeAvailablePerson = (
   shoulderHeight: SHOULDER_HEIGHT_BASELINE_CM,
   isXicalla: false,
   notes: null,
+  notesEmoji: null,
   attendanceStatus: status,
   nextPerformanceStatus: null,
   assignedInSegment: false,

@@ -80,6 +80,9 @@ importers:
       dotenv:
         specifier: ^17.3.1
         version: 17.4.2
+      emoji-picker-element:
+        specifier: ^1.29.1
+        version: 1.29.1
       konva:
         specifier: ^10.3.0
         version: 10.3.0
@@ -4775,6 +4778,9 @@ packages:
   emittery@0.13.1:
     resolution: {integrity: sha512-DeWwawk6r5yR9jFgnDKYt4sLS0LmHJJi3ZOnb5/JdbYwj3nW+FxQnHIjhBKz8YLC7oRNPVM9NQ47I3CVx34eqQ==}
     engines: {node: '>=12'}
+
+  emoji-picker-element@1.29.1:
+    resolution: {integrity: sha512-TOiHzu9Dqib3x4MwcAi3wi3RdyT4SoeB4b15AvH1ks4SBwTl7DeebhZ0d3x6dNi4XfNU7IGRZ7NBQllj0RqwrQ==}
 
   emoji-regex@10.6.0:
     resolution: {integrity: sha512-toUI84YS5YmxW219erniWD0CIVOo46xGKColeNQRgOzDorgBi1v4D71/OFzgD9GO2UGKIv1C3Sp8DAn0+j5w7A==}
@@ -13999,6 +14005,8 @@ snapshots:
   electron-to-chromium@1.5.344: {}
 
   emittery@0.13.1: {}
+
+  emoji-picker-element@1.29.1: {}
 
   emoji-regex@10.6.0: {}
 

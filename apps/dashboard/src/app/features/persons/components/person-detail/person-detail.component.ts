@@ -31,6 +31,7 @@ import { EmptyStateComponent } from '../../../../shared/components/data/empty-st
 import { PaginationComponent } from '../../../../shared/components/data/pagination/pagination.component';
 import { PersonInvitationModalComponent } from './modals/person-invitation-modal.component';
 import { PersonLinkUserModalComponent } from './modals/person-link-user-modal.component';
+import { EmojiPickerComponent } from '../../../../shared/components/forms/emoji-picker/emoji-picker.component';
 
 @Component({
   standalone: true,
@@ -42,6 +43,7 @@ import { PersonLinkUserModalComponent } from './modals/person-link-user-modal.co
     PaginationComponent,
     PersonInvitationModalComponent,
     PersonLinkUserModalComponent,
+    EmojiPickerComponent,
   ],
   templateUrl: './person-detail.component.html',
 })
@@ -93,6 +95,7 @@ export class PersonDetailComponent implements OnInit {
     birthDate: [''],
     shoulderHeight: [null as number | null],
     notes: [''],
+    notesEmoji: [null as string | null],
     isActive: [true],
     isMember: [false],
     isXicalla: [false],
@@ -155,6 +158,10 @@ export class PersonDetailComponent implements OnInit {
     );
   }
 
+  onNotesEmojiChange(emoji: string | null): void {
+    this.form.patchValue({ notesEmoji: emoji });
+  }
+
   isPositionSelected(positionId: string): boolean {
     return this.selectedPositionIds().includes(positionId);
   }
@@ -177,6 +184,7 @@ export class PersonDetailComponent implements OnInit {
       birthDate: raw.birthDate || undefined,
       shoulderHeight: raw.shoulderHeight ?? undefined,
       notes: raw.notes ?? undefined,
+      notesEmoji: raw.notesEmoji ?? null,
       isActive: raw.isActive ?? undefined,
       isMember: raw.isMember ?? undefined,
       isXicalla: raw.isXicalla ?? undefined,
@@ -260,6 +268,7 @@ export class PersonDetailComponent implements OnInit {
       birthDate: person.birthDate ?? '',
       shoulderHeight: person.shoulderHeight ?? null,
       notes: person.notes ?? '',
+      notesEmoji: person.notesEmoji ?? null,
       isActive: person.isActive,
       isMember: person.isMember,
       isXicalla: person.isXicalla,

@@ -24,6 +24,7 @@ function makeAssignment(nodeId: string, shoulderHeight: number | null): Assignme
       firstSurname: 'Person',
       shoulderHeight,
       notes: null,
+      notesEmoji: null,
     },
   };
 }

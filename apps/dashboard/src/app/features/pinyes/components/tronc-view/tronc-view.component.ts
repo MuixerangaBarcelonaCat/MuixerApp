@@ -74,8 +74,8 @@ export class TroncViewComponent {
   readonly attendanceMap = input<Map<string, AttendanceStatus>>(new Map());
   readonly isPast = input<boolean>(false);
 
-  /** personId → positions/isXicalla/notes, used to render the hover card on assigned nodes. */
-  readonly personDetailsMap = input<Map<string, { positions: AvailablePersonPosition[]; isXicalla: boolean; notes: string | null }>>(new Map());
+  /** personId → positions/isXicalla/notes/notesEmoji, used to render the hover card on assigned nodes. */
+  readonly personDetailsMap = input<Map<string, { positions: AvailablePersonPosition[]; isXicalla: boolean; notes: string | null; notesEmoji: string | null }>>(new Map());
 
   readonly ICON_OBSERVACIONS = ICON_OBSERVACIONS;
 
@@ -402,6 +402,10 @@ export class TroncViewComponent {
     return this.personDetailsMap().get(assignment.person.id)?.notes ?? null;
   }
 
+  getNotesEmoji(assignment: AssignmentDetail): string | null {
+    return this.personDetailsMap().get(assignment.person.id)?.notesEmoji ?? null;
+  }
+
   onNodeHover(event: MouseEvent, nodeId: string): void {
     const assignment = this.getAssignment(nodeId);
     if (!assignment) {
@@ -418,6 +422,7 @@ export class TroncViewComponent {
         isXicalla: details?.isXicalla ?? false,
         shoulderHeight: assignment.person.shoulderHeight,
         notes: details?.notes ?? null,
+        notesEmoji: details?.notesEmoji ?? null,
         positions: details?.positions ?? [],
       },
       top: rect.top,

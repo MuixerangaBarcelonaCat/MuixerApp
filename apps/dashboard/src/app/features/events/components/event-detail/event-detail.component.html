@@ -351,7 +351,11 @@
                       @if (att.person.isProvisional) { <span class="badge badge-xs badge-warning ml-1">Prov.</span> }
                       @if (att.person.notes) {
                         <span class="tooltip tooltip-right ml-1" [attr.data-tip]="att.person.notes">
-                          <lucide-icon [name]="ICON_OBSERVACIONS" [size]="12" class="text-warning align-middle" />
+                          @if (att.person.notesEmoji) {
+                            <span class="text-xs align-middle">{{ att.person.notesEmoji }}</span>
+                          } @else {
+                            <lucide-icon [name]="ICON_OBSERVACIONS" [size]="12" class="text-warning align-middle" />
+                          }
                         </span>
                       }
                     </td>

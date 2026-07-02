@@ -308,7 +308,12 @@
               }
               @if (person()!.notes) {
                 <div class="flex flex-col gap-1">
-                  <dt class="text-xs text-base-content/50 font-medium">Observacions tècniques</dt>
+                  <dt class="text-xs text-base-content/50 font-medium flex items-center gap-1">
+                    @if (person()!.notesEmoji) {
+                      <span class="leading-none">{{ person()!.notesEmoji }}</span>
+                    }
+                    Observacions tècniques
+                  </dt>
                   <dd class="text-sm bg-base-200 rounded-lg p-3 whitespace-pre-wrap">{{ person()!.notes }}</dd>
                 </div>
               }
@@ -385,11 +390,15 @@
               </div>
 
               <div class="form-control">
-                <label class="label py-0">
-                  <span class="label-text text-xs text-base-content/50 font-medium">Observacions tècniques</span>
-                  <textarea class="textarea textarea-bordered textarea-sm w-full"
-                            formControlName="notes" placeholder="Observacions tècniques..." rows="4"></textarea>
-                </label>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="label-text text-xs text-base-content/50 font-medium" for="notes-textarea">Observacions tècniques</label>
+                  <app-emoji-picker
+                    [value]="form.value.notesEmoji ?? null"
+                    (valueChange)="onNotesEmojiChange($event)"
+                  />
+                </div>
+                <textarea id="notes-textarea" class="textarea textarea-bordered textarea-sm w-full"
+                          formControlName="notes" placeholder="Observacions tècniques..." rows="4"></textarea>
               </div>
 
             </div>

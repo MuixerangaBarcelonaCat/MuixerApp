@@ -196,7 +196,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   readonly decorationOpacity = input<number>(1);
   readonly isPast = input<boolean>(false);
   /** personId → positions/isXicalla, used to render the hover card on assigned nodes. */
-  readonly personDetailsMap = input<Map<string, { positions: AvailablePersonPosition[]; isXicalla: boolean; notes: string | null }>>(new Map());
+  readonly personDetailsMap = input<Map<string, { positions: AvailablePersonPosition[]; isXicalla: boolean; notes: string | null; notesEmoji: string | null }>>(new Map());
   /** Extra bounding boxes (in canvas space, x/y = center) included in the readonly fit but not rendered. */
   readonly fitExtraBounds = input<{ x: number; y: number; width: number; height: number }[]>([]);
   /** Outline shapes rendered in a layer BELOW pinyaLayer. Each box matches a node's canvas-space position. */
@@ -1010,7 +1010,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.pinyaLayer.add(slotGroup);
 
       // Tronc panel — distribution mode only (slot.angle defined + tronc data present)
-      if (slot.angle !== undefined && slot.troncGridCols && slot.troncGridRows) {
+      if (slot.angle !== undefined && slot.troncGridCols !== undefined && slot.troncGridRows !== undefined) {
         this.renderTroncPanel(slot, slotGroup, getFigureColor(slot.sortOrder));
       }
     }
@@ -1373,7 +1373,17 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           probe.fontSize(11);
           probe.text(alias);
           const badgeX = Math.min(probe.getTextWidth() / 2 + 8, node.width / 2 - 5);
-          group.add(this.buildObservationBadge(badgeX, 0));
+          group.add(
+            personDetails.notesEmoji
+              ? new Konva.Text({
+                  text: personDetails.notesEmoji,
+                  fontSize: 12,
+                  x: badgeX - 6,
+                  y: -6,
+                  listening: false,
+                })
+              : this.buildObservationBadge(badgeX, 0),
+          );
         }
 
         group.on('mouseenter.personHover', (e) => {
@@ -1384,6 +1394,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
               isXicalla: personDetails?.isXicalla ?? false,
               shoulderHeight: shoulderH,
               notes: personDetails?.notes ?? null,
+              notesEmoji: personDetails?.notesEmoji ?? null,
               positions: personDetails?.positions ?? [],
             },
             top: e.evt.clientY + 12,

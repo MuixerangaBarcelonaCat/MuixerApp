@@ -165,6 +165,7 @@ export class PersonPanelComponent {
           firstSurname: assignment.person.firstSurname,
           shoulderHeight: assignment.person.shoulderHeight,
           notes: assignment.person.notes,
+          notesEmoji: assignment.person.notesEmoji,
           isXicalla: false,
           attendanceStatus: 'ANIRE',
           nextPerformanceStatus: null,
@@ -466,6 +467,7 @@ export class PersonPanelComponent {
       isXicalla: person.isXicalla,
       shoulderHeight: person.shoulderHeight,
       notes: person.notes,
+      notesEmoji: person.notesEmoji,
       positions: person.positions,
     };
   }
