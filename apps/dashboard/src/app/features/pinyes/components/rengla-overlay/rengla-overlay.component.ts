@@ -11,7 +11,7 @@ import { LucideAngularModule } from 'lucide-angular';
 import { FigureNodeItem, RenglaModel } from '../../models/figure-template.model';
 import { FigureZone } from '@muixer/shared';
 import { StageTransform, stageToScreen, isCentralNode } from '../../utils/rengla-coordinates.util';
-import { getRenglaColor } from '../../utils/rengla-colors';
+import { getFigureColor } from '../../utils/figure-palette.util';
 
 export interface RenglaCreatedEvent {
   rengla: Omit<RenglaModel, 'id'>;
@@ -105,7 +105,7 @@ export class RenglaOverlayComponent {
 
       return {
         rengla: r,
-        color: getRenglaColor(idx),
+        color: getFigureColor(idx),
         points,
       };
     });

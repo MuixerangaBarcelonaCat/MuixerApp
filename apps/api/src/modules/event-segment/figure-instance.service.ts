@@ -12,9 +12,52 @@ import { CompositionTemplate } from '../composition/entities/composition-templat
 import { CreateInstanceDto } from './dto/create-instance.dto';
 import { UpdateInstanceDto } from './dto/update-instance.dto';
 import { ReorderInstancesDto } from './dto/reorder-instances.dto';
-import { UpdateProjectionLayoutDto } from './dto/update-projection-layout.dto';
+import { UpdateSegmentDistributionDto } from './dto/update-segment-distribution.dto';
 import { InstanceRef } from './event-segment.service';
-import { FigureMode } from '@muixer/shared';
+
+export interface DistributionNodeItem {
+  id: string;
+  label: string;
+  zone: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+  color: string | null;
+  shape: string;
+  renglaId: string | null;
+  renglaPosition: number | null;
+}
+
+export interface DistributionAssignment {
+  figureNodeId: string;
+  personAlias: string;
+}
+
+export interface DistributionItem {
+  instanceId: string;
+  label: string | null;
+  figureMode: string;
+  numberOfCordons: number | null;
+  assignments: DistributionAssignment[];
+  figureTemplate: { id: string; name: string; nodes: DistributionNodeItem[] };
+  troncGridCols: number;
+  troncGridRows: number;
+  projectionX: number | null;
+  projectionY: number | null;
+  projectionAngle: number | null;
+  troncPanelX: number | null;
+  troncPanelY: number | null;
+  troncPanelWidth: number | null;
+  troncPanelHeight: number | null;
+}
+
+export interface SegmentDistributionData {
+  segment: { id: string; name: string | null };
+  items: DistributionItem[];
+}
+import { FigureMode, FigureZone } from '@muixer/shared';
 
 @Injectable()
 export class FigureInstanceService {
@@ -180,10 +223,10 @@ export class FigureInstanceService {
     return this.findOneById(saved.id);
   }
 
-  async updateProjectionLayout(
+  async saveDistribution(
     eventId: string,
     segmentId: string,
-    dto: UpdateProjectionLayoutDto,
+    dto: UpdateSegmentDistributionDto,
   ): Promise<void> {
     await this.assertSegmentBelongsToEvent(eventId, segmentId);
 
@@ -192,22 +235,124 @@ export class FigureInstanceService {
       select: ['id'],
     });
     const existingIds = new Set(existing.map((i) => i.id));
-    const invalid = dto.layouts.filter((l) => !existingIds.has(l.instanceId));
+    const invalid = dto.items.filter((item) => !existingIds.has(item.instanceId));
     if (invalid.length > 0) {
       throw new BadRequestException(
-        `Instance IDs not found in segment: ${invalid.map((l) => l.instanceId).join(', ')}`,
+        `Instance IDs not found in segment: ${invalid.map((i) => i.instanceId).join(', ')}`,
       );
     }
 
     await this.dataSource.transaction(async (manager) => {
-      for (const layout of dto.layouts) {
-        await manager.update(
-          FigureInstance,
-          { id: layout.instanceId },
-          { projectionX: layout.x, projectionY: layout.y, projectionScale: layout.scale },
-        );
+      for (const item of dto.items) {
+        await manager.update(FigureInstance, { id: item.instanceId }, {
+          projectionX: item.x,
+          projectionY: item.y,
+          projectionAngle: item.angle,
+          troncPanelX: item.troncPanelX ?? null,
+          troncPanelY: item.troncPanelY ?? null,
+          troncPanelWidth: item.troncPanelWidth ?? null,
+          troncPanelHeight: item.troncPanelHeight ?? null,
+        });
       }
     });
+  }
+
+  async clearDistribution(eventId: string, segmentId: string): Promise<void> {
+    await this.assertSegmentBelongsToEvent(eventId, segmentId);
+
+    await this.dataSource.query(
+      `UPDATE figure_instances
+       SET "projectionX" = NULL, "projectionY" = NULL, "projectionAngle" = NULL,
+           "troncPanelX" = NULL, "troncPanelY" = NULL,
+           "troncPanelWidth" = NULL, "troncPanelHeight" = NULL
+       WHERE "segmentId" = $1`,
+      [segmentId],
+    );
+  }
+
+  async getDistribution(eventId: string, segmentId: string): Promise<SegmentDistributionData> {
+    const segment = await this.assertSegmentBelongsToEvent(eventId, segmentId);
+
+    const instances = await this.instanceRepository.find({
+      where: { segment: { id: segmentId } },
+      relations: ['figureTemplate', 'figureTemplate.nodes'],
+      order: { sortOrder: 'ASC' },
+    });
+
+    const figureInstances = instances.filter((inst) => inst.figureTemplate !== null);
+    const instanceIds = figureInstances.map((inst) => inst.id);
+
+    type AssignmentRow = { instanceId: string; figureNodeId: string; personAlias: string };
+    let allAssignmentRows: AssignmentRow[] = [];
+    if (instanceIds.length > 0) {
+      allAssignmentRows = await this.dataSource.query(
+        `SELECT na."figureInstanceId" AS "instanceId", inode."sourceNodeId" AS "figureNodeId", p.alias AS "personAlias"
+         FROM node_assignments na
+         JOIN instance_nodes inode ON na."instanceNodeId" = inode.id
+         JOIN persons p ON na."personId" = p.id
+         WHERE na."figureInstanceId" = ANY($1)`,
+        [instanceIds],
+      );
+    }
+
+    const assignmentsByInstance = new Map<string, DistributionAssignment[]>();
+    for (const row of allAssignmentRows) {
+      const list = assignmentsByInstance.get(row.instanceId) ?? [];
+      list.push({ figureNodeId: row.figureNodeId, personAlias: row.personAlias });
+      assignmentsByInstance.set(row.instanceId, list);
+    }
+
+    const CANVAS_ZONES = new Set([FigureZone.PINYA, FigureZone.BASE]);
+
+    const items: DistributionItem[] = figureInstances.map((inst) => {
+      const allNodes = inst.figureTemplate!.nodes ?? [];
+
+      const troncNodes = allNodes.filter((n) => n.zone === FigureZone.TRONC);
+      const troncGridCols = troncNodes.reduce((max, n) => Math.max(max, n.x + n.width), 0);
+      const distinctZLevels = new Set(troncNodes.map((n) => n.z)).size;
+      const hasFigureDirection = allNodes.some((n) => n.zone === FigureZone.FIGURE_DIRECTION);
+      const hasXicallaDirection = allNodes.some((n) => n.zone === FigureZone.XICALLA_DIRECTION);
+      const troncGridRows = distinctZLevels + (hasFigureDirection ? 1 : 0) + (hasXicallaDirection ? 1 : 0);
+
+      return {
+        instanceId: inst.id,
+        label: inst.label,
+        figureMode: inst.figureMode ?? FigureMode.COMPLETA,
+        numberOfCordons: inst.numberOfCordons ?? null,
+        assignments: assignmentsByInstance.get(inst.id) ?? [],
+        figureTemplate: {
+          id: inst.figureTemplate!.id,
+          name: inst.figureTemplate!.name,
+          nodes: allNodes
+            .filter((n) => CANVAS_ZONES.has(n.zone as FigureZone))
+            .map((n) => ({
+              id: n.id,
+              label: n.label,
+              zone: n.zone,
+              x: n.x,
+              y: n.y,
+              width: n.width,
+              height: n.height,
+              rotation: n.rotation,
+              color: n.color,
+              shape: n.shape,
+              renglaId: n.renglaId,
+              renglaPosition: n.renglaPosition,
+            })),
+        },
+        troncGridCols,
+        troncGridRows,
+        projectionX: inst.projectionX,
+        projectionY: inst.projectionY,
+        projectionAngle: inst.projectionAngle,
+        troncPanelX: inst.troncPanelX,
+        troncPanelY: inst.troncPanelY,
+        troncPanelWidth: inst.troncPanelWidth,
+        troncPanelHeight: inst.troncPanelHeight,
+      };
+    });
+
+    return { segment: { id: segment.id, name: segment.name }, items };
   }
 
   private async assertSegmentBelongsToEvent(

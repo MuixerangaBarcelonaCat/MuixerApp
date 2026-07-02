@@ -221,7 +221,13 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   }
 
   goBack(): void {
-    this.router.navigate(['/pinyes']);
+    if (this.autosaveTimer) {
+      clearTimeout(this.autosaveTimer);
+      this.autosaveTimer = null;
+      this.save(() => this.router.navigate(['/pinyes']));
+    } else {
+      this.router.navigate(['/pinyes']);
+    }
   }
 
   // ── Canvas events ──────────────────────────────────────────────────────────
@@ -904,13 +910,19 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   private scheduleAutosave(): void {
     if (this.autosaveTimer) clearTimeout(this.autosaveTimer);
-    this.autosaveTimer = setTimeout(() => this.save(), 2000);
+    this.autosaveTimer = setTimeout(() => {
+      this.autosaveTimer = null;
+      this.save();
+    }, 2000);
   }
 
-  private save(): void {
+  private save(afterSave?: () => void): void {
     const name = this.templateName().trim();
     const slug = this.templateSlug().trim() || slugify(name);
-    if (!name || !slug) return;
+    if (!name || !slug) {
+      afterSave?.();
+      return;
+    }
     this.templateSlug.set(slug);
 
     this.saveStatus.set('saving');
@@ -919,8 +931,8 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
     if (id) {
       this.figureTemplateService.update(id, payload).subscribe({
-        next: () => this.onSaveSuccess(),
-        error: (err: HttpErrorResponse) => this.onSaveError(err),
+        next: () => { this.onSaveSuccess(); afterSave?.(); },
+        error: (err: HttpErrorResponse) => { this.onSaveError(err); afterSave?.(); },
       });
     } else {
       this.figureTemplateService
@@ -938,8 +950,9 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
               replaceUrl: true,
             });
             this.onSaveSuccess();
+            afterSave?.();
           },
-          error: (err: HttpErrorResponse) => this.onSaveError(err),
+          error: (err: HttpErrorResponse) => { this.onSaveError(err); afterSave?.(); },
         });
     }
   }

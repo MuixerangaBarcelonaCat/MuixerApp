@@ -689,7 +689,7 @@ describe('AssignmentCanvasComponent', () => {
 
       component.onEditTemplate();
       expect(toastService.info).toHaveBeenCalledWith(
-        'Els canvis al template no afecten instàncies ja creades.',
+        'Els canvis a la plantilla no afecten instàncies ja creades.',
       );
       expect(routerMock.navigate).toHaveBeenCalledWith(
         ['/pinyes', 'templates', TEMPLATE_ID, 'edit'],

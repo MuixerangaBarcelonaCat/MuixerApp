@@ -545,6 +545,12 @@ export class SegmentManagerComponent implements OnInit {
     );
   }
 
+  navigateToDistribution(segmentId: string): void {
+    this.router.navigate(
+      ['/pinyes/events', this.eventId(), 'segments', segmentId, 'distribute'],
+    );
+  }
+
   private currentReturnUrl(): string {
     return this.router.url.split('?')[0];
   }

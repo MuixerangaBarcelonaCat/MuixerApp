@@ -61,6 +61,21 @@ export class FigureInstance {
   @Column({ type: 'float', default: 1.0 })
   projectionScale: number;
 
+  @Column({ type: 'float', nullable: true })
+  projectionAngle: number | null;
+
+  @Column({ type: 'float', nullable: true })
+  troncPanelX: number | null;
+
+  @Column({ type: 'float', nullable: true })
+  troncPanelY: number | null;
+
+  @Column({ type: 'float', nullable: true })
+  troncPanelWidth: number | null;
+
+  @Column({ type: 'float', nullable: true })
+  troncPanelHeight: number | null;
+
   @OneToMany('InstanceNode', (node: InstanceNode) => node.figureInstance, { cascade: true })
   instanceNodes: InstanceNode[];
 

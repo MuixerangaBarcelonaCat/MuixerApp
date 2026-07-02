@@ -23,7 +23,7 @@ import { ReorderSegmentsDto } from './dto/reorder-segments.dto';
 import { CreateInstanceDto } from './dto/create-instance.dto';
 import { UpdateInstanceDto } from './dto/update-instance.dto';
 import { ReorderInstancesDto } from './dto/reorder-instances.dto';
-import { UpdateProjectionLayoutDto } from './dto/update-projection-layout.dto';
+import { UpdateSegmentDistributionDto } from './dto/update-segment-distribution.dto';
 import { CopyInstanceDto } from './dto/copy-instance.dto';
 
 @ApiTags('event-segments')
@@ -126,15 +126,34 @@ export class EventSegmentController {
     return this.instanceService.remove(eventId, segmentId, id);
   }
 
-  @ApiOperation({ summary: 'Batch update projection positions for all instances in a segment' })
-  @Put(':segmentId/instances/projection-layout')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  updateProjectionLayout(
+@ApiOperation({ summary: 'Get distribution data for a segment (instances with template nodes and distribution fields)' })
+  @Get(':segmentId/distribution')
+  getDistribution(
     @Param('eventId', ParseUUIDPipe) eventId: string,
     @Param('segmentId', ParseUUIDPipe) segmentId: string,
-    @Body() dto: UpdateProjectionLayoutDto,
+  ) {
+    return this.instanceService.getDistribution(eventId, segmentId);
+  }
+
+  @ApiOperation({ summary: 'Batch save distribution positions for all instances in a segment' })
+  @Put(':segmentId/distribution')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  saveDistribution(
+    @Param('eventId', ParseUUIDPipe) eventId: string,
+    @Param('segmentId', ParseUUIDPipe) segmentId: string,
+    @Body() dto: UpdateSegmentDistributionDto,
   ): Promise<void> {
-    return this.instanceService.updateProjectionLayout(eventId, segmentId, dto);
+    return this.instanceService.saveDistribution(eventId, segmentId, dto);
+  }
+
+  @ApiOperation({ summary: 'Clear distribution for a segment (reset all instances to auto-layout)' })
+  @Delete(':segmentId/distribution')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  clearDistribution(
+    @Param('eventId', ParseUUIDPipe) eventId: string,
+    @Param('segmentId', ParseUUIDPipe) segmentId: string,
+  ): Promise<void> {
+    return this.instanceService.clearDistribution(eventId, segmentId);
   }
 
   @ApiOperation({ summary: 'Get all projection data for a segment (instances with nodes, assignments)' })

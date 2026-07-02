@@ -303,6 +303,340 @@ describe('FigureInstanceService', () => {
     });
   });
 
+  describe('saveDistribution', () => {
+    it('batch-updates distribution fields for each listed instance in a transaction', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([makeInstance()]);
+      const mockUpdate = jest.fn();
+      mockDataSource.transaction.mockImplementation((cb: (m: { update: jest.Mock }) => Promise<void>) =>
+        cb({ update: mockUpdate }),
+      );
+
+      await service.saveDistribution(EVENT_ID, SEGMENT_ID, {
+        items: [
+          {
+            instanceId: INSTANCE_ID,
+            x: 100,
+            y: 200,
+            angle: 45,
+            troncPanelX: 10,
+            troncPanelY: 20,
+            troncPanelWidth: 150,
+            troncPanelHeight: 80,
+          },
+        ],
+      });
+
+      expect(mockUpdate).toHaveBeenCalledWith(
+        FigureInstance,
+        { id: INSTANCE_ID },
+        {
+          projectionX: 100,
+          projectionY: 200,
+          projectionAngle: 45,
+          troncPanelX: 10,
+          troncPanelY: 20,
+          troncPanelWidth: 150,
+          troncPanelHeight: 80,
+        },
+      );
+    });
+
+    it('allows null tronc panel fields', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([makeInstance()]);
+      const mockUpdate = jest.fn();
+      mockDataSource.transaction.mockImplementation((cb: (m: { update: jest.Mock }) => Promise<void>) =>
+        cb({ update: mockUpdate }),
+      );
+
+      await service.saveDistribution(EVENT_ID, SEGMENT_ID, {
+        items: [{ instanceId: INSTANCE_ID, x: 0, y: 0, angle: 0, troncPanelX: null, troncPanelY: null, troncPanelWidth: null, troncPanelHeight: null }],
+      });
+
+      expect(mockUpdate).toHaveBeenCalledWith(
+        FigureInstance,
+        { id: INSTANCE_ID },
+        expect.objectContaining({ troncPanelX: null, troncPanelY: null }),
+      );
+    });
+
+    it('throws 404 if segment does not belong to event', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.saveDistribution(EVENT_ID, SEGMENT_ID, { items: [] }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws 400 if an instance ID does not belong to the segment', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([makeInstance()]);
+
+      await expect(
+        service.saveDistribution(EVENT_ID, SEGMENT_ID, {
+          items: [{ instanceId: 'non-existent-uuid', x: 0, y: 0, angle: 0, troncPanelX: null, troncPanelY: null, troncPanelWidth: null, troncPanelHeight: null }],
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('clearDistribution', () => {
+    it('nullifies all distribution columns for every instance in the segment', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+
+      await service.clearDistribution(EVENT_ID, SEGMENT_ID);
+
+      const updateCall = mockDataSource.query.mock.calls.find(
+        (call: unknown[]) => typeof call[0] === 'string' && (call[0] as string).includes('UPDATE'),
+      );
+      expect(updateCall).toBeDefined();
+      expect(updateCall![1]).toEqual([SEGMENT_ID]);
+    });
+
+    it('throws 404 if segment does not belong to event', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.clearDistribution(EVENT_ID, SEGMENT_ID),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('getDistribution', () => {
+    const RENGLA_ID = 'rengla-uuid-1';
+
+    const makeInstanceWithNodes = () => ({
+      ...makeInstance(),
+      figureMode: FigureMode.COMPLETA,
+      numberOfCordons: null as number | null,
+      figureTemplate: {
+        id: FIGURE_ID,
+        name: 'pd4',
+        nodes: [
+          { id: 'node-1', label: 'A1', zone: 'PINYA', x: 0, y: 0, width: 30, height: 30, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null },
+          { id: 'node-2', label: 'B1', zone: 'TRONC', x: 0, y: -50, width: 30, height: 30, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null },
+        ],
+      },
+      projectionX: 100,
+      projectionY: 200,
+      projectionAngle: 30,
+      troncPanelX: 10,
+      troncPanelY: 20,
+      troncPanelWidth: 150,
+      troncPanelHeight: 80,
+    });
+
+    it('returns segment info and items with only PINYA/BASE nodes', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue({ ...makeSegment(), name: 'Segment 1' });
+      mockInstanceRepo.find.mockResolvedValue([makeInstanceWithNodes()]);
+      mockDataSource.query.mockResolvedValue([]);
+
+      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      expect(result.segment.id).toBe(SEGMENT_ID);
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].figureTemplate.nodes).toHaveLength(1);
+      expect(result.items[0].figureTemplate.nodes[0].zone).toBe('PINYA');
+    });
+
+    it('maps distribution fields from the instance', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([makeInstanceWithNodes()]);
+      mockDataSource.query.mockResolvedValue([]);
+
+      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      expect(result.items[0].projectionX).toBe(100);
+      expect(result.items[0].projectionY).toBe(200);
+      expect(result.items[0].projectionAngle).toBe(30);
+      expect(result.items[0].troncPanelX).toBe(10);
+      expect(result.items[0].troncPanelWidth).toBe(150);
+    });
+
+    it('excludes instances without a figureTemplate', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([
+        makeInstanceWithNodes(),
+        { ...makeInstance(), figureTemplate: null },
+      ]);
+      mockDataSource.query.mockResolvedValue([]);
+
+      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      expect(result.items).toHaveLength(1);
+    });
+
+    it('throws 404 if segment does not belong to event', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.getDistribution(EVENT_ID, SEGMENT_ID),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('returns figureMode for each item', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([{ ...makeInstanceWithNodes(), figureMode: FigureMode.PEU }]);
+      mockDataSource.query.mockResolvedValue([]);
+
+      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      expect(result.items[0].figureMode).toBe(FigureMode.PEU);
+    });
+
+    it('returns numberOfCordons for each item', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([{ ...makeInstanceWithNodes(), numberOfCordons: 2 }]);
+      mockDataSource.query.mockResolvedValue([]);
+
+      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      expect(result.items[0].numberOfCordons).toBe(2);
+    });
+
+    it('returns renglaId and renglaPosition on nodes', async () => {
+      const inst = {
+        ...makeInstanceWithNodes(),
+        figureTemplate: {
+          id: FIGURE_ID,
+          name: 'pd4',
+          nodes: [{ id: 'node-1', label: 'A1', zone: 'PINYA', x: 0, y: 0, width: 30, height: 30, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: RENGLA_ID, renglaPosition: 2 }],
+        },
+      };
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([inst]);
+      mockDataSource.query.mockResolvedValue([]);
+
+      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      expect(result.items[0].figureTemplate.nodes[0].renglaId).toBe(RENGLA_ID);
+      expect(result.items[0].figureTemplate.nodes[0].renglaPosition).toBe(2);
+    });
+
+    it('returns null renglaId and renglaPosition for nodes without a rengla', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([makeInstanceWithNodes()]);
+      mockDataSource.query.mockResolvedValue([]);
+
+      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      expect(result.items[0].figureTemplate.nodes[0].renglaId).toBeNull();
+      expect(result.items[0].figureTemplate.nodes[0].renglaPosition).toBeNull();
+    });
+
+    it('returns assignments with person aliases', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([makeInstanceWithNodes()]);
+      mockDataSource.query.mockResolvedValue([
+        { instanceId: INSTANCE_ID, figureNodeId: 'node-1', personAlias: 'JoanP' },
+      ]);
+
+      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      expect(result.items[0].assignments).toEqual([{ figureNodeId: 'node-1', personAlias: 'JoanP' }]);
+    });
+
+    it('returns empty assignments when no one is assigned', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([makeInstanceWithNodes()]);
+      mockDataSource.query.mockResolvedValue([]);
+
+      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      expect(result.items[0].assignments).toEqual([]);
+    });
+
+    it('computes troncGridCols as max(x + width) across TRONC nodes', async () => {
+      const inst = {
+        ...makeInstanceWithNodes(),
+        figureTemplate: {
+          id: FIGURE_ID,
+          name: 'pd4',
+          nodes: [
+            { id: 'p1', label: 'A1', zone: 'PINYA', x: 0, y: 0, width: 30, height: 30, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 0 },
+            { id: 't1', label: 'Seg', zone: 'TRONC', x: 0, y: 0, width: 2, height: 1, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 1 },
+            { id: 't2', label: 'Ter', zone: 'TRONC', x: 0.5, y: 0, width: 1.5, height: 1, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 2 },
+          ],
+        },
+      };
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([inst]);
+      mockDataSource.query.mockResolvedValue([]);
+
+      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      expect(result.items[0].troncGridCols).toBe(2);
+    });
+
+    it('computes troncGridRows as number of distinct z-levels in TRONC nodes', async () => {
+      const inst = {
+        ...makeInstanceWithNodes(),
+        figureTemplate: {
+          id: FIGURE_ID,
+          name: 'pd4',
+          nodes: [
+            { id: 'p1', label: 'A1', zone: 'PINYA', x: 0, y: 0, width: 30, height: 30, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 0 },
+            { id: 't1', label: 'Seg', zone: 'TRONC', x: 0, y: 0, width: 2, height: 1, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 1 },
+            { id: 't2', label: 'Ter', zone: 'TRONC', x: 0, y: 0, width: 2, height: 1, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 2 },
+            { id: 't3', label: 'Ter2', zone: 'TRONC', x: 0.5, y: 0, width: 1.5, height: 1, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 2 },
+          ],
+        },
+      };
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([inst]);
+      mockDataSource.query.mockResolvedValue([]);
+
+      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      expect(result.items[0].troncGridRows).toBe(2);
+    });
+
+    it('adds 1 to troncGridRows for each direction zone present', async () => {
+      const inst = {
+        ...makeInstanceWithNodes(),
+        figureTemplate: {
+          id: FIGURE_ID,
+          name: 'pd4',
+          nodes: [
+            { id: 'p1', label: 'A1', zone: 'PINYA', x: 0, y: 0, width: 30, height: 30, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 0 },
+            { id: 't1', label: 'Seg', zone: 'TRONC', x: 0, y: 0, width: 2, height: 1, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 1 },
+            { id: 'd1', label: 'Dir fig', zone: 'FIGURE_DIRECTION', x: 0, y: 0, width: 90, height: 44, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 0 },
+            { id: 'd2', label: 'Dir xic', zone: 'XICALLA_DIRECTION', x: 0, y: 0, width: 90, height: 44, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 0 },
+          ],
+        },
+      };
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([inst]);
+      mockDataSource.query.mockResolvedValue([]);
+
+      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      expect(result.items[0].troncGridRows).toBe(3); // 1 tronc floor + 1 fig dir + 1 xicalla dir
+    });
+
+    it('returns troncGridCols 0 and troncGridRows 0 when no tronc or direction nodes', async () => {
+      const inst = {
+        ...makeInstanceWithNodes(),
+        figureTemplate: {
+          id: FIGURE_ID,
+          name: 'pd4',
+          nodes: [
+            { id: 'p1', label: 'A1', zone: 'PINYA', x: 0, y: 0, width: 30, height: 30, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: null, renglaPosition: null, z: 0 },
+          ],
+        },
+      };
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([inst]);
+      mockDataSource.query.mockResolvedValue([]);
+
+      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      expect(result.items[0].troncGridCols).toBe(0);
+      expect(result.items[0].troncGridRows).toBe(0);
+    });
+  });
+
   describe('reorder', () => {
     it('reassigns sortOrder via transaction', async () => {
       mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
