@@ -9,7 +9,7 @@
 3. [Bugs & correctness](#2-bugs--correctness)
 4. [Architecture](#3-architecture)
 5. [Code smells & bad practices](#4-code-smells--bad-practices)
-6. [Frontend (dashboard)](#5-frontend-dashboard)
+6. [Frontend (dashboard)](#5-frontend-dashboard) — moved to [02-frontend-audit.md](02-frontend-audit.md)
 7. [Dependencies & tooling](#6-dependencies--tooling)
 8. [Tests](#7-tests)
 9. [Documentation drift](#8-documentation-drift)
@@ -29,13 +29,13 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 | 2. Bugs & correctness     | 2 (2 ✅)     | 9 (8 ✅)       | 10 (8 ✅, 1 🚫)       | 1 (1 🚫)      | 22 (18 ✅, 2 🚫)      |
 | 3. Architecture           | —           | 3 (2 ✅)       | 8 (2 ✅)             | —            | 11 (4 ✅)            |
 | 4. Code smells            | —           | 1 (1 ✅)       | 11 (3 ✅)            | 3            | 15 (4 ✅)            |
-| 5. Frontend (dashboard)   | —           | 2             | 11                  | 3            | 16                  |
+| 5. Frontend (dashboard)   | moved to [02-frontend-audit.md](02-frontend-audit.md) — 81 findings, 20 🟠 / 50 🟡 / 11 🔵 | | | | |
 | 6. Dependencies & tooling | 1 (1 ✅)     | —             | 2 (2 ✅)             | 1 (1 ✅)      | 4 (4 ✅)             |
-| 7. Tests                  | —           | 3 (1 ✅)       | 3                   | 2            | 8 (1 ✅)             |
-| **Total**                 | **5 (5 ✅)** | **29 (22 ✅)** | **49 (18 ✅, 2 🚫)** | **11 (2 ✅, 1 🚫)** | **94 (47 ✅, 3 🚫)** |
+| 7. Tests (backend only — dashboard test findings moved to [02-frontend-audit.md](02-frontend-audit.md)) | — | 2 (1 ✅) | — | 1 | 3 (1 ✅) |
+| **Total (this document)** | **5 (5 ✅)** | **26 (22 ✅)** | **35 (18 ✅, 2 🚫)** | **7 (2 ✅, 1 🚫)** | **73 (47 ✅, 3 🚫)** |
 
 
-*(✅ counts reflect fixes applied so far in this branch; 🚫 marks findings deliberately closed as won't-fix, with reasoning inline; both are updated as findings are resolved.)*
+*(✅ counts reflect fixes applied so far in this branch; 🚫 marks findings deliberately closed as won't-fix, with reasoning inline; both are updated as findings are resolved. Frontend findings — formerly §5 — now live entirely in [02-frontend-audit.md](02-frontend-audit.md) and are excluded from this total.)*
 
 **Fix first — ranked across every section, not just by original discovery order:**
 
@@ -54,9 +54,9 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 | 10  | 🟠✅ [SEC-3](#-sec-3--setup-endpoint-non-constant-time-token-comparison-unlimited-use--fixed) Setup endpoint mints ADMIN accounts forever while `SETUP_TOKEN` is set — **FIXED**                                                   | `auth.controller.ts`                |
 | 11  | 🟠✅ [BUG-17](#-bug-17--lazy-snapshot-has-a-check-then-act-race-duplicate-instance-nodes--fixed) Lazy-snapshot race duplicates instance nodes under concurrent first-assignment — **FIXED**                                        | `node-assignment.service.ts:340`    |
 | 12  | 🟠✅ [BUG-11](#-bug-11--applycomposition-sortorder-computed-outside-the-transaction--duplicated-orders--fixed) `applyComposition` gives every figure the same `sortOrder` (cross-connection read inside a transaction) — **FIXED** | `figure-instance.service.ts`        |
-| 13  | 🟠 [FE-13](#-fe-13--template-editor-pending-autosave-is-discarded-on-most-exits) Template editor silently drops pending autosave on most exit paths (data loss)                                                                   | `template-editor.component.ts`      |
-| 14  | 🟠 [FE-6](#-fe-6--rotation-handle-breaks-on-touch-devices-and-can-leak-window-listeners) Rotation handle dead on touch devices + leaves the slot permanently un-draggable                                                         | `figure-canvas.component.ts:1148`   |
-| 15  | 🟠 [TEST-3](#7-tests) Dashboard coverage is bimodal — pinyes core 90%+, but critical modals (incl. role assignment) sit at 0-11%                                                                                                  | dashboard                           |
+| 13  | 🟠 [FE-BUG-26](02-frontend-audit.md#-fe-bug-26--template-editor-pending-autosave-is-discarded-on-most-exits-carried-from-audit-01-previously-fe-13) Template editor silently drops pending autosave on most exit paths (data loss) — see [02-frontend-audit.md](02-frontend-audit.md)                                                                   | `template-editor.component.ts`      |
+| 14  | 🟠 [FE-BUG-22](02-frontend-audit.md#-fe-bug-22--rotation-handle-breaks-on-touch-devices-and-can-leak-window-listeners-carried-from-audit-01-previously-fe-6) Rotation handle dead on touch devices + leaves the slot permanently un-draggable — see [02-frontend-audit.md](02-frontend-audit.md)                                                         | `figure-canvas.component.ts:1148`   |
+| 15  | 🟠 FE-TEST-2 Dashboard coverage is bimodal — pinyes core 90%+, but critical modals (incl. role assignment) sit at 0-11% — see [02-frontend-audit.md](02-frontend-audit.md)                                                                                                  | dashboard                           |
 
 
 The single highest-leverage structural change is **ARCH-1** (centralized, validated config): it eliminates SEC-1, the scattered `process.env` reads, and the import-time env parsing in one move. ✅ **Fixed** — see below.
@@ -342,7 +342,7 @@ The promise is not awaited, and throwing inside `.catch` of a floating promise p
 
 **Fix applied:** `TokenService.rotateRefreshToken` now returns the stored `clientType` alongside `newRawToken`/`userId`. `AuthService.refresh` threads it through instead of re-deriving anything from role. `AuthController.refresh` now sets the cookie from that returned `clientType` directly — the `role === 'MEMBER' ? PWA : DASHBOARD` guess is gone entirely.
 
-**Scope addition (per explicit request):** while fixing this, also added a role gate on **login** (not just refresh): `AuthService.login` now rejects with `UnauthorizedException` when `clientType === DASHBOARD` and the user's role isn't `ADMIN`/`TECHNICAL` — MEMBER accounts can only ever authenticate via the PWA client. This closes the gap BUG-5 was symptomatic of: previously nothing stopped a MEMBER from requesting a `DASHBOARD` session at login, which is exactly the divergence (role implies one clientType, the stored token says another) that made the old role-guessing logic wrong in the first place. `acceptInvite` already self-selected `clientType` from role (MEMBER→PWA, else→DASHBOARD) and needed no change — it can't produce a MEMBER+DASHBOARD combination by construction. The dashboard frontend always sends `clientType: DASHBOARD` on login, so a MEMBER now gets a clean 401 there instead of the confusing successful-login-then-bounced-to-`/login` behavior described in FE-2 (FE-2's frontend messaging is still open, but its backend root cause is closed).
+**Scope addition (per explicit request):** while fixing this, also added a role gate on **login** (not just refresh): `AuthService.login` now rejects with `UnauthorizedException` when `clientType === DASHBOARD` and the user's role isn't `ADMIN`/`TECHNICAL` — MEMBER accounts can only ever authenticate via the PWA client. This closes the gap BUG-5 was symptomatic of: previously nothing stopped a MEMBER from requesting a `DASHBOARD` session at login, which is exactly the divergence (role implies one clientType, the stored token says another) that made the old role-guessing logic wrong in the first place. `acceptInvite` already self-selected `clientType` from role (MEMBER→PWA, else→DASHBOARD) and needed no change — it can't produce a MEMBER+DASHBOARD combination by construction. The dashboard frontend always sends `clientType: DASHBOARD` on login, so a MEMBER now gets a clean 401 there instead of the confusing successful-login-then-bounced-to-`/login` behavior described in [02-frontend-audit.md](02-frontend-audit.md)'s FE-UX-8 (frontend messaging is still open there, but its backend root cause is closed here).
 
 Covered by TDD: `token.service.spec.ts` asserts the returned `clientType`; `auth.service.spec.ts` gained a `describe('refresh', ...)` block (previously **untested**) plus login-restriction cases (`MEMBER`+`DASHBOARD` rejected, all roles allowed via `PWA`, `ADMIN`/`TECHNICAL` allowed via `DASHBOARD`); `auth.controller.spec.ts` gained a regression test using a deliberately role/clientType-divergent fixture (`TECHNICAL` role, `PWA` session) proving the cookie TTL follows the stored `clientType` and not the role.
 
@@ -589,76 +589,7 @@ None of this is wrong at ~200 persons/colla scale, but these are the endpoints t
 
 ## 5. Frontend (dashboard)
 
-The Angular app is in good shape: standalone components + signals + OnPush throughout, **zoneless** (no `zone.js` polyfill — the modern setup, consistently paired with signal-driven CD), no NgRx ceremony, in-memory access token with silent refresh and a shared in-flight refresh observable (`share()`), guards that await `whenReady()`, no `innerHTML`/`bypassSecurityTrust`* anywhere, optimistic updates with snapshot rollback and a real undo/redo stack in the assignment canvas, and consistent use of the shared table/filter components. Findings:
-
-### 🟡 FE-1 — Interceptor scopes by substring and attaches the token to *any* URL
-
-`auth.interceptor.ts:19`: `req.url.includes('/auth/')` — substring matching to skip auth endpoints, and the Bearer header is added to **every other request regardless of host**. Today all calls go to `environment.apiUrl`, but the first integration with an external HTTP API will silently leak access tokens. Scope both checks to `req.url.startsWith(environment.apiUrl)`.
-
-### 🟡 FE-2 — Non-TECHNICAL/ADMIN login loops back to the login page with no message
-
-`app.routes.ts:11` guards the entire app with `rolesGuard(TECHNICAL, ADMIN)`; `rolesGuard` redirects failures to `/login`; `LoginComponent` navigates to `/` on success. A MEMBER user logging into the dashboard therefore authenticates successfully and lands back on the login form with no explanation. Show a "no access" state (and consider that `rolesGuard` redirecting an *authenticated* user to `/login` is the wrong destination in general).
-
-### 🟡 FE-3 — God components in the pinyes feature
-
-`figure-canvas.component.ts` (2 070 lines), `assignment-canvas.component.ts` (1 979 lines + 789-line template), `template-editor.component.ts` (1 073 lines). Some state is already extracted (`AssignmentStateService`, `template-editor-state.service`), but the components still mix Konva scene management, drag logic, API orchestration and UI state. This is where every future bug in the flagship feature will hide. Extracting the Konva layer/node management into plain (testable) classes would pay off quickly.
-
-### 🟡 FE-4 — Route-scoped state in a root singleton
-
-`AssignmentStateService` is `providedIn: 'root'` but holds per-canvas state, relying on components calling `reset()` at the right moments. Any exit path that skips `reset()` (error navigation, deep-link) leaks the previous segment's selections into the next. Providing it at the route/component level gives automatic scoping and disposal.
-
-### 🟠 FE-6 — Rotation handle breaks on touch devices and can leak window listeners
-
-`figure-canvas.component.ts:1148-1188` (`makeRotationHandle`): the handle listens on `'mousedown touchstart'`, immediately sets `slotGroup.draggable(false)`, then registers **only** `window mousemove/mouseup` listeners. On a touch device (`touchstart`) no touch-move/touch-end handlers exist, so `onUp` never fires: the rotation never happens **and the slot stays permanently un-draggable**. The projection/distribution views are exactly the screens most likely to run on a tablet. Additionally, if the component is destroyed mid-rotation, the `window` listeners are never removed (cleanup only happens in `onUp`).
-
-### 🟡 FE-7 — Canvas rendering strategy: full scene rebuild on every state change
-
-Every tracked signal change (`selectedNodeId`, `assignments`, `attendanceMap`, `highlightedNodeIds`…) triggers `pinyaLayer.destroyChildren()` + reconstruction of **all** Konva groups (`renderNodes`/`renderAssignmentNodes`, `figure-canvas.component.ts:751,1218`). Clicking a node rebuilds the whole scene; `emitStageTransform()` additionally calls `renderGrid()` — which destroys and recreates every grid line — **on every mousemove during panning**. Fine at ~100 nodes on desktop, but it's O(n) object churn per interaction and will be the first thing to hurt on weaker hardware (projection screens, tablets). Konva supports targeted updates (`findOne(#id)` + attr changes) — worth it at least for selection highlight and the pan-time grid.
-
-### 🟡 FE-8 — `effect()` dependency omission: badges rendered from untracked signals
-
-The assignment-mode render effect (`figure-canvas.component.ts:303-321`) tracks `nodes/assignments/attendanceMap/…` but `renderAssignmentNodes` also reads `this.personDetailsMap()` and `this.isPast()` **inside `untracked()`**. `personDetailsMap` arrives asynchronously (built from the confirmed-persons load): if persons resolve after the assignments render, the observation badges / notes emojis / hover data are missing until some *other* tracked signal happens to change. Classic stale-render from an unregistered dependency — add them to the tracked reads (`isPast` is set once from the URL, so it's only `personDetailsMap` that bites).
-
-### 🟡 FE-9 — Error-handling of HTTP calls is inconsistent; several subscribes fail silently
-
-There is no global HTTP error interceptor/toast: each of the ~140 `.subscribe()` sites decides for itself. In `assignment-canvas.component.ts` (37 subscribes) the important mutations do roll back optimistic state and toast (`error:` at 1104-1114 is exemplary) — but several loads have **no error callback at all**: `getLockStatus` (l. 361 — if it fails, the lock silently doesn't apply in the UI), `refreshInstanceNodes` (l. 1119, nested subscribe without error), tab loads at 609/625. A failed load leaves spinners/state frozen with no message. A small `handleError` helper (or a global interceptor for non-401s) would make failure behavior uniform.
-
-### 🟡 FE-10 — Nested-subscribe pyramids and hand-rolled Observable wrappers
-
-Same file: sequential flows are built by nesting `.subscribe()` inside `next:` (e.g. `refreshInstanceNodes` l. 1119→1136), and undo/redo actions re-wrap calls as `new Observable((sub) => { obs.subscribe({...}) })` — the pattern repeats 6× (l. 858, 1092, 1251, 1700, 1769, 1818). The wrapper drops unsubscription propagation and is equivalent to `obs.pipe(map(() => void 0))`. `switchMap`/`concatMap` would also give cancellation on rapid tab switching, which today relies on ad-hoc `activeInstanceId() === instanceId` guards.
-
-### 🟡 FE-11 — Route params read once via `snapshot`
-
-`assignment-canvas.component.ts:349-356` (and other routed components) read `route.snapshot.params` in `ngOnInit` and never subscribe to param changes. If the router ever navigates between two segments on the same route (prev/next segment navigation already exists in the projection view), the component instance is reused and keeps rendering the **old** segment. Subscribe to `route.params`/use `input()` route bindings (`withComponentInputBinding`) instead.
-
-### 🔵 FE-12 — Assignment canvas a11y & small correctness notes
-
-- `Tab` is globally hijacked (`preventDefault` on every keydown, l. 409-413) to mean "next empty node" — keyboard users can never reach the toolbar buttons. Consider scoping it to when the canvas has focus.
-- Optimistic ids built from `Date.now()` (`temp-${Date.now()}`, `op-${Date.now()}`, l. 1044,1063) collide on fast double actions; `crypto.randomUUID()` is right there (an unused `uuid.util.ts` even exists).
-- `getContrastColor` (`figure-canvas.component.ts:2040`) assumes 6-digit hex; a named/`rgb()` color yields `NaN` luminance → always white text.
-
-### 🟠 FE-13 — Template editor: pending autosave is discarded on most exits
-
-`template-editor.component.ts`: edits schedule a **2-second debounced autosave** (`scheduleAutosave`). The flush-before-leave logic exists only in `goBack()` (cancel timer → `save(() => navigate)`). Every other exit path — browser back, sidebar navigation, deep link, logout — goes through `ngOnDestroy`, which just `clearTimeout`s the pending save: **the last ~2 s of edits are silently lost**. There is also no `canDeactivate` guard and no `beforeunload` listener for tab-close while a save is pending or in flight. Flush in `ngOnDestroy` too (or a `CanDeactivate` guard + `beforeunload` when `saveStatus() !== 'idle'`).
-
-### 🟡 FE-14 — Pagination `@for` uses a duplicated track key
-
-`pagination.component.ts:41,92-98`: `pageNumbers()` inserts the ellipsis sentinel `-1` **twice** (before and after the current window, e.g. page 5 of 10 → `[1, -1, 4, 5, 6, -1, 10]`), but the template iterates with `track p`. Duplicate track keys make Angular throw **NG0955** and fall back to degraded list reconciliation on exactly the pages where both ellipses show. Use `track $index` here (or unique sentinels).
-
-### 🟡 FE-15 — Person search: debounce without cancellation → stale results race
-
-`person-search-input.component.ts:37-59`: the 300 ms `setTimeout` debounce dedupes typing bursts, but once two requests are actually in flight (keystrokes >300 ms apart on a slow network) nothing cancels the first — an out-of-order response overwrites the newer results. The idiomatic fix (`Subject` + `debounceTime` + `switchMap`) removes both the manual timer and the race. Also `searchText` is a plain mutable field in an otherwise signal-based zoneless component — it works (event-driven CD) but breaks the house style.
-
-### 🔵 FE-16 — Two parallel undo/redo implementations in the same feature
-
-The assignment canvas uses the command-based `UndoRedoService` (execute/undo observables), while the template editor ships its own snapshot-based stack (`undoStack: signal<TemplateSnapshot[]>`, `template-editor.component.ts:140-152`). Two mental models, two sets of edge cases, one feature. Note also `UndoRedoService.run()` sets `isBusy` **eagerly** but returns a cold observable — if a caller ever forgets to subscribe, the action is popped off the stack, never executed, and `isBusy` stays `true`.
-
-### 🔵 FE-17 — Misc
-
-- `person-sync.component.ts:67`: `JSON.parse(event.data)` in the SSE handler without try/catch — one malformed event kills the stream handler.
-- `person-sync.component.ts:126`, `event-sync.component.ts:133`: `window.location.reload()` to refresh data after sync — a full app reload in an SPA; re-fetching the affected stores achieves the same without losing state.
-- 39 `setTimeout(...)` calls (mostly scroll/focus nudges) and 9 stray `console.`* calls in production code.
-- 143 `.subscribe(` vs 19 `takeUntilDestroyed` — most are one-shot HTTP calls (fine), but the long-lived ones (polling, `interval`, router events) deserve an audit pass.
+> **Moved.** The frontend audit now lives in its own document: [02-frontend-audit.md](02-frontend-audit.md). It supersedes this section (and the dashboard-specific parts of §7 Tests) entirely, organized under `FE-BUG`, `FE-ARCH`, `FE-ERR`, `FE-UX`, `FE-A11Y`, `FE-PERF`, `FE-API`, `FE-SM`, `FE-LANG` and `FE-TEST` codes.
 
 ---
 
@@ -673,7 +604,7 @@ The assignment canvas uses the command-based `UndoRedoService` (execute/undo obs
 
 ## 7. Tests
 
-*(both suites were executed for this audit — numbers below are measured, not estimated)*
+*(both suites were executed for this audit — numbers below are measured, not estimated. Backend findings only — the dashboard's test coverage, gaps and e2e status are covered in full in [02-frontend-audit.md](02-frontend-audit.md)'s Tests section.)*
 
 **Measured coverage (2026-07-05):**
 
@@ -686,23 +617,16 @@ The assignment canvas uses the command-based `UndoRedoService` (execute/undo obs
 
 The CLAUDE.md claim "Coverage threshold: 70 % (enforced in CI)" is wrong on both counts (see §8). The API threshold sits 12 points below actual coverage, so coverage can erode silently for a long time before CI complains.
 
-**What's genuinely good:**
+**What's genuinely good (API):**
 
 - The API's domain core is well tested: event-segment **89.7 %**, composition **90.6 %**, figure **86.9 %**, node-assignment **84.7 %** statements — services, controllers, sync strategies, even DTO-validation specs.
-- Dashboard spec quality in the pinyes feature is high: `assignment-canvas.component.spec.ts` (1 350 lines) and `tronc-view.component.spec.ts` (1 163 lines) use proper TestBed setups with typed stub child components via `overrideComponent`, exercising real behavior. `figure-canvas.component.ts` reaches **98.9 %** without a spec of its own because the editor/composition/distribution specs render the **real Konva canvas** as a child.
-- Frontend auth guards *are* tested (`auth.guard.spec`, `role.guard.spec`) — unlike their backend counterparts.
 
 **Gaps (ordered by risk):**
 
 - 🟠✅ **TEST-1** — **FIXED.** Backend `auth/guards` and `auth/strategies` are at **0 %** — `JwtAuthGuard` (the `@Public()` bypass), `RolesGuard`, `JwtStrategy` (including the `?token=` extractor, SEC-4) and `LocalStrategy` have no tests at all. These four files are the entire authorization enforcement layer. Same for `AuthController`/`UserController` (auth module overall: 57 %) — a trivial controller test would have caught BUG-1 (the dead `grant-role` route).
-**Fix applied:** added `jwt-auth.guard.spec.ts` (Public bypass + Passport delegation), `roles.guard.spec.ts` (no-roles/empty-roles/no-user/role-match/role-mismatch), `local.strategy.spec.ts` (valid/invalid credentials), `auth.controller.spec.ts` (all 7 routes: login, refresh, logout, logout-all, getMe, acceptInvite, setupUser incl. the SETUP_TOKEN gate), and `user.controller.spec.ts` (all 6 routes). `JwtStrategy` was already covered as part of SEC-1. Guards, strategies and both controllers are now at 100% statement coverage. Note: these are unit tests calling controller methods directly, so they do **not** exercise NestJS's route-path parameter binding — they wouldn't have caught BUG-1 (the dead `grant-role` route needed `:id` in the path). BUG-1 has since been fixed separately, with its own route-metadata assertion added to `user.controller.spec.ts` (see above) rather than a full HTTP-level/e2e test (still tracked under TEST-2/TEST-6).
+**Fix applied:** added `jwt-auth.guard.spec.ts` (Public bypass + Passport delegation), `roles.guard.spec.ts` (no-roles/empty-roles/no-user/role-match/role-mismatch), `local.strategy.spec.ts` (valid/invalid credentials), `auth.controller.spec.ts` (all 7 routes: login, refresh, logout, logout-all, getMe, acceptInvite, setupUser incl. the SETUP_TOKEN gate), and `user.controller.spec.ts` (all 6 routes). `JwtStrategy` was already covered as part of SEC-1. Guards, strategies and both controllers are now at 100% statement coverage. Note: these are unit tests calling controller methods directly, so they do **not** exercise NestJS's route-path parameter binding — they wouldn't have caught BUG-1 (the dead `grant-role` route needed `:id` in the path). BUG-1 has since been fixed separately, with its own route-metadata assertion added to `user.controller.spec.ts` (see above) rather than a full HTTP-level/e2e test (still tracked under TEST-2 below and the frontend audit's e2e finding).
 - 🟠 **TEST-2** Everything is unit-tested against mocked repositories; there are **no integration tests against a real Postgres**. The bugs found in this audit that unit tests structurally *cannot* catch are precisely the SQL/transaction ones (BUG-3 invalid ORDER BY path, BUG-11 cross-connection MAX inside a transaction, BUG-12 diverging capacity SQL, BUG-17 snapshot race). A small testcontainers-style suite for the raw-SQL services would close this class.
-- 🟠 **TEST-3** Dashboard coverage is bimodal: next to the 90 %+ pinyes core sit near-zero areas — `event-detail.component.ts` **5.9 %** (its spec cleverly tests only pure helpers via `Object.create(prototype)`, never the component behavior), `template-editor.component.ts` **28.9 %**, `projection-view.component.ts` **40.9 %**, and every modal at 0-11 % (`user-form-modal` 4.3 %, `attendance-edit-modal` 5.4 %, `save-as-template-dialog` 2.5 %, `already-assigned-dialog` 5.7 %). The **user-form-modal** is where roles are assigned in the UI.
-- 🟡 **TEST-4** `projection-layout.util.ts` — 523 lines of pure layout math, the ideal unit-test target — is at **27 %** (lines 129-438 untouched). Likewise the trivially testable `date.util`, `uuid.util`, `slugify.util` and `fit-to-bounds.util` are at **0 %**.
-- 🟡 **TEST-5** The shared component kit that every list page relies on is half-tested: `data-table` 51 %, `pagination` 44 % (page-navigation logic in l. 32-60 uncovered), `person-search-input` **8.6 %**, `user-chip` 23 %, toast component 47 %. There is also no spec for `authInterceptor` (the 401-refresh-retry flow) or `ApiService`.
-- 🟡 **TEST-6** Playwright e2e projects exist (`dashboard-e2e`) but are excluded from CI and `ci:local` — dead scaffolding until wired up. With zero e2e, nothing ever exercises frontend + API + Postgres together (TEST-2's gap squared).
-- 🔵 **TEST-7** API `collectCoverageFrom` includes `src/migrations/`** (0 %, pure DDL) — it dilutes the global number by several points and makes the 55 % gate softer than it looks for actual application code. Exclude migrations (and consider raising the gate to match the real ~72-75 % that the app code likely has).
-- 🔵 **TEST-8** Most big `.html` templates report 0 % (e.g. `assignment-canvas.component.html`, 789 lines, despite its 1 350-line spec rendering the component). Template-level regressions (bindings, `@if`/`@for` branches) are effectively unmeasured — worth checking whether the `@angular/build:unit-test` coverage mapping is attributing template code correctly.
+- 🔵 **TEST-3** API `collectCoverageFrom` includes `src/migrations/`** (0 %, pure DDL) — it dilutes the global number by several points and makes the 55 % gate softer than it looks for actual application code. Exclude migrations (and consider raising the gate to match the real ~72-75 % that the app code likely has).
 
 ---
 
