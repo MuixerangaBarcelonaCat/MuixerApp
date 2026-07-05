@@ -3,7 +3,7 @@ import { NgClass } from '@angular/common';
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
-import { ICON_XICALLA, ICON_PERSONA } from '../../../../shared/constants/domain-icons';
+import { ICON_XICALLA, ICON_PERSONA, ICON_OBSERVACIONS } from '../../../../shared/constants/domain-icons';
 import { EventService } from '../../services/event.service';
 import { AttendanceService } from '../../services/attendance.service';
 import { SeasonService } from '../../services/season.service';
@@ -49,6 +49,7 @@ type SyncState = 'idle' | 'running' | 'complete' | 'error';
 export class EventDetailComponent implements OnInit, OnDestroy {
   readonly ICON_XICALLA = ICON_XICALLA;
   readonly ICON_PERSONA = ICON_PERSONA;
+  readonly ICON_OBSERVACIONS = ICON_OBSERVACIONS;
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);

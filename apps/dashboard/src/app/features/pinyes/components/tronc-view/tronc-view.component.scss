@@ -209,6 +209,18 @@
   white-space: nowrap;
 }
 
+.alias-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.alias-row .person-alias {
+  min-width: 0;
+}
+
 .attendance-dot {
   position: absolute;
   bottom: 3px;

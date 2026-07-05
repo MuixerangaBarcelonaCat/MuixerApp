@@ -55,6 +55,7 @@ export class AssignmentStateService {
     const localAssignedIds = new Set(localAssigned.map((a) => a.person.id));
     return confirmed.filter(
       (p) =>
+        !p.isXicalla &&
         isConfirmedAttendance(p.attendanceStatus) &&
         !p.assignedInSegment &&
         !localAssignedIds.has(p.id),
@@ -63,7 +64,7 @@ export class AssignmentStateService {
 
   /** Total confirmed adults (ANIRE + ASSISTIT) */
   readonly totalConfirmedCount = computed(
-    () => this.confirmedPersons().filter((p) => isConfirmedAttendance(p.attendanceStatus)).length,
+    () => this.confirmedPersons().filter((p) => !p.isXicalla && isConfirmedAttendance(p.attendanceStatus)).length,
   );
 
   setSelectedNodeId(nodeId: string | null): void {

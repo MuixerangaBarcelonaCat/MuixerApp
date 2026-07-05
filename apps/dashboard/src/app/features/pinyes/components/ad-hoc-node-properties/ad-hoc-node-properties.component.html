@@ -66,14 +66,27 @@
       <label class="label pb-1" [for]="'adhoc-label-' + node().id">
         <span class="label-text text-xs font-medium">Etiqueta</span>
       </label>
-      <input
-        type="text"
-        [id]="'adhoc-label-' + node().id"
-        class="input input-bordered input-sm"
-        [ngModel]="node().label"
-        (ngModelChange)="onPropChange('label', $event)"
-        maxlength="100"
-      />
+      @if (isDecoration()) {
+        <textarea
+          [id]="'adhoc-label-' + node().id"
+          class="textarea textarea-bordered textarea-sm resize-none"
+          rows="3"
+          [ngModel]="labelDisplay()"
+          (ngModelChange)="onLabelPreview($event)"
+          (blur)="onLabelCommit()"
+          maxlength="500"
+        ></textarea>
+      } @else {
+        <input
+          type="text"
+          [id]="'adhoc-label-' + node().id"
+          class="input input-bordered input-sm"
+          [ngModel]="labelDisplay()"
+          (ngModelChange)="onLabelPreview($event)"
+          (blur)="onLabelCommit()"
+          maxlength="50"
+        />
+      }
     </div>
 
     <!-- Shape -->
@@ -138,10 +151,11 @@
           [id]="'adhoc-rot-' + node().id"
           class="range range-xs flex-1"
           min="0" max="360" step="1"
-          [ngModel]="node().rotation"
-          (ngModelChange)="onPropChange('rotation', +$event)"
+          [ngModel]="rotationDisplay()"
+          (ngModelChange)="onRotationPreview(+$event)"
+          (change)="onRotationCommit(+$any($event.target).value)"
         />
-        <span class="text-xs font-mono w-10 text-right">{{ node().rotation }}°</span>
+        <span class="text-xs font-mono w-10 text-right">{{ rotationDisplay() }}°</span>
       </div>
     </div>
 
@@ -188,11 +202,12 @@
           type="color"
           [id]="'adhoc-color-' + node().id"
           class="w-8 h-8 rounded cursor-pointer border border-base-300"
-          [ngModel]="node().color ?? (isDecoration() ? '#e5e7eb' : '#6b7280')"
-          (ngModelChange)="onPropChange('color', $event)"
+          [ngModel]="colorDisplay() ?? (isDecoration() ? '#e5e7eb' : '#6b7280')"
+          (ngModelChange)="onColorPreview($event)"
+          (change)="onColorCommit($any($event.target).value)"
         />
         <span class="text-xs font-mono text-base-content/60">
-          {{ node().color ?? (isDecoration() ? 'Sense fons' : '#6b7280') }}
+          {{ colorDisplay() ?? (isDecoration() ? 'Sense fons' : '#6b7280') }}
         </span>
         @if (isDecoration() && node().color) {
           <button

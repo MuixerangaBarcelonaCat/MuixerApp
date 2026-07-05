@@ -48,6 +48,8 @@ export interface AssignmentDetail {
     name: string;
     firstSurname: string;
     shoulderHeight: number | null;
+    notes: string | null;
+    notesEmoji: string | null;
   };
 }
 
@@ -181,6 +183,8 @@ function toAssignmentDetail(assignment: NodeAssignment): AssignmentDetail {
       name: (assignment.person as any).name,
       firstSurname: (assignment.person as any).firstSurname,
       shoulderHeight: (assignment.person as any).shoulderHeight ?? null,
+      notes: (assignment.person as any).notes ?? null,
+      notesEmoji: (assignment.person as any).notesEmoji ?? null,
     },
   };
 }
@@ -1029,7 +1033,7 @@ export class NodeAssignmentService {
 
     const instance = await this.figureInstanceRepository.findOne({
       where: { id: instanceId },
-      relations: ['figureTemplate', 'compositionTemplate', 'segment'],
+      relations: ['figureTemplate', 'segment'],
     });
     if (!instance) {
       throw new NotFoundException(`FigureInstance with ID ${instanceId} not found`);

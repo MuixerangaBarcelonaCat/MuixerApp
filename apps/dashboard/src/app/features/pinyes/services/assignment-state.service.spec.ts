@@ -8,7 +8,7 @@ const makeAssignment = (nodeId = 'node-1', personId = 'person-1'): AssignmentDet
   id: 'assignment-1',
   figureInstanceId: 'instance-1',
   node: { id: nodeId, label: 'pd4-1', zone: 'TRONC', z: 1, positionType: 'pd4', sortOrder: 0, ringLevel: null, originNodeId: null, sourceNodeId: null },
-  person: { id: personId, alias: 'Pepet', name: 'Pere', firstSurname: 'Garcia', shoulderHeight: SHOULDER_HEIGHT_BASELINE_CM },
+  person: { id: personId, alias: 'Pepet', name: 'Pere', firstSurname: 'Garcia', shoulderHeight: SHOULDER_HEIGHT_BASELINE_CM, notes: null, notesEmoji: null },
 });
 
 const makeAvailablePerson = (id = 'person-1', status: AvailablePerson['attendanceStatus'] = 'ANIRE'): AvailablePerson => ({
@@ -18,6 +18,8 @@ const makeAvailablePerson = (id = 'person-1', status: AvailablePerson['attendanc
   firstSurname: 'Garcia',
   shoulderHeight: SHOULDER_HEIGHT_BASELINE_CM,
   isXicalla: false,
+  notes: null,
+  notesEmoji: null,
   attendanceStatus: status,
   nextPerformanceStatus: null,
   assignedInSegment: false,

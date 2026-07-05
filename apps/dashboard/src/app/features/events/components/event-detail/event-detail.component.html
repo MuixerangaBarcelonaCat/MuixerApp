@@ -349,6 +349,15 @@
                         [attr.title]="'Veure ' + att.person.alias"
                       >{{ att.person.alias }}</span>
                       @if (att.person.isProvisional) { <span class="badge badge-xs badge-warning ml-1">Prov.</span> }
+                      @if (att.person.notes) {
+                        <span class="tooltip tooltip-right ml-1" [attr.data-tip]="att.person.notes">
+                          @if (att.person.notesEmoji) {
+                            <span class="text-xs align-middle">{{ att.person.notesEmoji }}</span>
+                          } @else {
+                            <lucide-icon [name]="ICON_OBSERVACIONS" [size]="12" class="text-warning align-middle" />
+                          }
+                        </span>
+                      }
                     </td>
                     <td class="text-sm text-base-content/70 whitespace-nowrap">
                       <span

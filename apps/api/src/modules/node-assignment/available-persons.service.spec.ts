@@ -174,6 +174,17 @@ describe('AvailablePersonsService', () => {
       );
     });
 
+    it('filters by positionId', async () => {
+      mockEventRepo.findOne.mockResolvedValueOnce(makeEvent()).mockResolvedValue(null);
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockPersonQb.getMany.mockResolvedValue([]);
+
+      await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, { positionId: 'pos-agulla' });
+
+      expect(mockPersonQb.andWhere).toHaveBeenCalledWith(expect.any(Function));
+      expect(mockPersonQb.setParameter).toHaveBeenCalledWith('positionId', 'pos-agulla');
+    });
+
     it('sorts by height proximity when height param present', async () => {
       mockEventRepo.findOne.mockResolvedValueOnce(makeEvent()).mockResolvedValue(null);
       mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
@@ -182,10 +193,27 @@ describe('AvailablePersonsService', () => {
       await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, { height: 140 });
 
       expect(mockPersonQb.orderBy).toHaveBeenCalledWith(
+        expect.stringContaining('CASE'),
+        'ASC',
+      );
+      expect(mockPersonQb.addOrderBy).toHaveBeenCalledWith(
         expect.stringContaining('ABS'),
         'ASC',
       );
       expect(mockPersonQb.setParameter).toHaveBeenCalledWith('height', 140);
+    });
+
+    it('sorts persons without a set shoulderHeight to the end regardless of sort direction', async () => {
+      mockEventRepo.findOne.mockResolvedValueOnce(makeEvent()).mockResolvedValue(null);
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockPersonQb.getMany.mockResolvedValue([]);
+
+      await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, { height: -835 });
+
+      expect(mockPersonQb.orderBy).toHaveBeenCalledWith(
+        expect.stringContaining('IS NULL OR person.shoulderHeight = 0'),
+        'ASC',
+      );
     });
 
     it('excludes assigned persons when excludeAssigned=true (default)', async () => {

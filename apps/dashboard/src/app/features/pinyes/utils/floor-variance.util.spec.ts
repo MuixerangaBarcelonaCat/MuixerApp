@@ -23,6 +23,8 @@ function makeAssignment(nodeId: string, shoulderHeight: number | null): Assignme
       name: 'Test',
       firstSurname: 'Person',
       shoulderHeight,
+      notes: null,
+      notesEmoji: null,
     },
   };
 }

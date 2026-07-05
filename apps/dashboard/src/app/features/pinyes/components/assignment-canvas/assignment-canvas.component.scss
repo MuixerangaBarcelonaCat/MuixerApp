@@ -7,11 +7,14 @@
 // ── Tronc floating panel ──────────────────────────────────────────────────
 
 .tronc-floating-panel {
+  // Centered via inset + auto margins (not `transform`): a `transform` on this
+  // ancestor would make it the containing block for descendant `position: fixed`
+  // elements (e.g. the person hover-card in app-tronc-view), breaking both their
+  // viewport-relative positioning and letting `overflow: hidden` below clip them.
   position: fixed;
   z-index: 30;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+  inset: 0;
+  margin: auto;
   width: min(600px, calc(100vw - 2rem));
   height: 70vh;
   max-height: min(70vh, calc(100vh - 80px));
@@ -27,10 +30,8 @@
   resize: both;
 
   @media (max-width: 639px) {
-    left: 0;
-    top: auto;
-    bottom: 0;
-    transform: none;
+    inset: auto 0 0 0;
+    margin: 0;
     width: 100%;
     border-radius: 0.75rem 0.75rem 0 0;
     max-height: 60vh;
@@ -77,6 +78,6 @@
 }
 
 @keyframes panel-pop-in {
-  from { opacity: 0; transform: translate(-50%, -48%) scale(0.97); }
-  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: scale(1); }
 }

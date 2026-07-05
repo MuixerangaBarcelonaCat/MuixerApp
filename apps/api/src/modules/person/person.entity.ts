@@ -62,6 +62,9 @@ export class Person {
   @Column({ type: 'text', nullable: true })
   notes: string | null;
 
+  @Column({ type: 'varchar', length: 16, nullable: true })
+  notesEmoji: string | null;
+
   @Column({ type: 'date', nullable: true })
   shirtDate: Date | null;
 

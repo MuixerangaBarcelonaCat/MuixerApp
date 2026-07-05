@@ -55,6 +55,8 @@ function makeAssignment(nodeId: string, alias: string, shoulderHeight: number | 
       name: 'Test',
       firstSurname: 'User',
       shoulderHeight,
+      notes: null,
+      notesEmoji: null,
     },
   };
 }

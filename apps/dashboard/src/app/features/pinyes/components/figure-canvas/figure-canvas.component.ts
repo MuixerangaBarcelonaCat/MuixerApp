@@ -15,7 +15,8 @@ import { FormsModule } from '@angular/forms';
 import Konva from 'konva';
 import { FigureNodeItem } from '../../models/figure-template.model';
 import { FigureZone, NodeShape, DIRECTION_ZONES } from '@muixer/shared';
-import { AssignmentDetail, HeightMode } from '../../models/assignment.model';
+import { AssignmentDetail, AttendanceStatus, AvailablePersonPosition, HeightMode, PersonHoverInfo } from '../../models/assignment.model';
+import { PersonHoverCardComponent } from '../person-hover-card/person-hover-card.component';
 import {
   calculateGhostPosition,
   isGhostEligible,
@@ -169,7 +170,7 @@ const NORMAL_STROKE = '#1e1b4b';
   selector: 'app-figure-canvas',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule],
+  imports: [FormsModule, PersonHoverCardComponent],
   templateUrl: './figure-canvas.component.html',
   styleUrl: './figure-canvas.component.scss',
 })
@@ -194,6 +195,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   readonly isPlacementMode = input<boolean>(false);
   readonly decorationOpacity = input<number>(1);
   readonly isPast = input<boolean>(false);
+  /** personId → positions/isXicalla, used to render the hover card on assigned nodes. */
+  readonly personDetailsMap = input<Map<string, { positions: AvailablePersonPosition[]; isXicalla: boolean; notes: string | null; notesEmoji: string | null }>>(new Map());
   /** Extra bounding boxes (in canvas space, x/y = center) included in the readonly fit but not rendered. */
   readonly fitExtraBounds = input<{ x: number; y: number; width: number; height: number }[]>([]);
   /** Outline shapes rendered in a layer BELOW pinyaLayer. Each box matches a node's canvas-space position. */
@@ -265,6 +268,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   private adHocTooltip: Konva.Label | null = null;
 
   readonly zoomLevel = signal(1);
+  readonly hoveredPerson = signal<{ info: PersonHoverInfo; top: number; left: number; positionType: string | null } | null>(null);
 
   constructor() {
     effect(() => {
@@ -1006,7 +1010,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.pinyaLayer.add(slotGroup);
 
       // Tronc panel — distribution mode only (slot.angle defined + tronc data present)
-      if (slot.angle !== undefined && slot.troncGridCols && slot.troncGridRows) {
+      if (slot.angle !== undefined && slot.troncGridCols !== undefined && slot.troncGridRows !== undefined) {
         this.renderTroncPanel(slot, slotGroup, getFigureColor(slot.sortOrder));
       }
     }
@@ -1186,6 +1190,31 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     return handle;
   }
 
+  /** Small "circle-alert" glyph (matches ICON_OBSERVACIONS) marking a person with technical observations. */
+  private buildObservationBadge(x: number, y: number): Konva.Group {
+    const group = new Konva.Group({ x, y, listening: false });
+    group.add(
+      new Konva.Circle({
+        radius: 5,
+        fill: '#f59e0b',
+        stroke: '#ffffff',
+        strokeWidth: 1,
+      }),
+      new Konva.Line({
+        points: [0, -2, 0, 0.5],
+        stroke: '#ffffff',
+        strokeWidth: 1,
+        lineCap: 'round',
+      }),
+      new Konva.Circle({
+        y: 2.3,
+        radius: 0.6,
+        fill: '#ffffff',
+      }),
+    );
+    return group;
+  }
+
   private renderAssignmentNodes(): void {
     this.transformer.nodes([]);
     this.transformer.remove();
@@ -1337,6 +1366,43 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
             }),
           );
         }
+
+        const personDetails = this.personDetailsMap().get(assignment.person.id);
+        if (personDetails?.notes) {
+          const probe = this.getLabelMeasureProbe();
+          probe.fontSize(11);
+          probe.text(alias);
+          const badgeX = Math.min(probe.getTextWidth() / 2 + 8, node.width / 2 - 5);
+          group.add(
+            personDetails.notesEmoji
+              ? new Konva.Text({
+                  text: personDetails.notesEmoji,
+                  fontSize: 12,
+                  x: badgeX - 6,
+                  y: -6,
+                  listening: false,
+                })
+              : this.buildObservationBadge(badgeX, 0),
+          );
+        }
+
+        group.on('mouseenter.personHover', (e) => {
+          this.hoveredPerson.set({
+            info: {
+              alias,
+              attendanceStatus: (attendanceStatus as AttendanceStatus) ?? null,
+              isXicalla: personDetails?.isXicalla ?? false,
+              shoulderHeight: shoulderH,
+              notes: personDetails?.notes ?? null,
+              notesEmoji: personDetails?.notesEmoji ?? null,
+              positions: personDetails?.positions ?? [],
+            },
+            top: e.evt.clientY + 12,
+            left: e.evt.clientX + 12,
+            positionType: node.positionType,
+          });
+        });
+        group.on('mouseleave.personHover', () => this.hoveredPerson.set(null));
       } else {
         const textFill = isDecoration
           ? (node.color ? this.getContrastColor(node.color) : '#000000')

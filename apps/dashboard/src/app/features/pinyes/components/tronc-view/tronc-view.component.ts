@@ -10,9 +10,11 @@ import {
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
 import { FigureZone, TRONC_NODE_PRESETS, TRONC_Z_DEFAULTS, TroncNodePreset } from '@muixer/shared';
-import { AssignmentDetail, AttendanceStatus, HeightMode } from '../../models/assignment.model';
+import { AssignmentDetail, AttendanceStatus, AvailablePersonPosition, HeightMode, PersonHoverInfo } from '../../models/assignment.model';
 import { floorVariance, varianceLevel, VarianceLevel } from '../../utils/floor-variance.util';
 import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
+import { PersonHoverCardComponent } from '../person-hover-card/person-hover-card.component';
+import { ICON_OBSERVACIONS } from '../../../../shared/constants/domain-icons';
 
 /**
  * Minimal node shape accepted by TroncViewComponent.
@@ -49,7 +51,7 @@ const MAX_TRONC_Z = 5;
   selector: 'app-tronc-view',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule],
+  imports: [FormsModule, LucideAngularModule, PersonHoverCardComponent],
   templateUrl: './tronc-view.component.html',
   styleUrl: './tronc-view.component.scss',
 })
@@ -71,6 +73,11 @@ export class TroncViewComponent {
   /** personId → AttendanceStatus for the next actuació */
   readonly attendanceMap = input<Map<string, AttendanceStatus>>(new Map());
   readonly isPast = input<boolean>(false);
+
+  /** personId → positions/isXicalla/notes/notesEmoji, used to render the hover card on assigned nodes. */
+  readonly personDetailsMap = input<Map<string, { positions: AvailablePersonPosition[]; isXicalla: boolean; notes: string | null; notesEmoji: string | null }>>(new Map());
+
+  readonly ICON_OBSERVACIONS = ICON_OBSERVACIONS;
 
   readonly directionNodes = input<TroncNodeItem[]>([]);
 
@@ -119,6 +126,8 @@ export class TroncViewComponent {
 
   /** Whether the directions section is expanded. */
   readonly directionsExpanded = signal(true);
+
+  readonly hoveredPerson = signal<{ info: PersonHoverInfo; top: number; left: number; positionType: string | null } | null>(null);
 
   // ── Direction computed ─────────────────────────────────────────────────────
 
@@ -387,6 +396,43 @@ export class TroncViewComponent {
   getAttendanceStatus(assignment: AssignmentDetail): AttendanceStatus | null {
     const personId = assignment.person.id;
     return this.attendanceMap().get(personId) ?? null;
+  }
+
+  getNotes(assignment: AssignmentDetail): string | null {
+    return this.personDetailsMap().get(assignment.person.id)?.notes ?? null;
+  }
+
+  getNotesEmoji(assignment: AssignmentDetail): string | null {
+    return this.personDetailsMap().get(assignment.person.id)?.notesEmoji ?? null;
+  }
+
+  onNodeHover(event: MouseEvent, nodeId: string): void {
+    const assignment = this.getAssignment(nodeId);
+    if (!assignment) {
+      this.hoveredPerson.set(null);
+      return;
+    }
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const details = this.personDetailsMap().get(assignment.person.id);
+    const node = [...this.troncNodes(), ...this.baseNodes(), ...this.directionNodes()].find((n) => n.id === nodeId);
+    this.hoveredPerson.set({
+      info: {
+        alias: assignment.person.alias,
+        attendanceStatus: this.getAttendanceStatus(assignment),
+        isXicalla: details?.isXicalla ?? false,
+        shoulderHeight: assignment.person.shoulderHeight,
+        notes: details?.notes ?? null,
+        notesEmoji: details?.notesEmoji ?? null,
+        positions: details?.positions ?? [],
+      },
+      top: rect.top,
+      left: rect.right + 8,
+      positionType: node?.positionType ?? null,
+    });
+  }
+
+  onNodeLeave(): void {
+    this.hoveredPerson.set(null);
   }
 
   getAttendanceColor(assignment: AssignmentDetail): string {

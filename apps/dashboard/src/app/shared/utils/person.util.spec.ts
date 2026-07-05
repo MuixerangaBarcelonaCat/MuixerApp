@@ -27,6 +27,7 @@ describe('person.util', () => {
     onboardingStatus: OnboardingStatus.NOT_APPLICABLE,
     shirtDate: null,
     notes: null,
+    notesEmoji: null,
     isActive: true,
     positions: [],
     managedBy: null,

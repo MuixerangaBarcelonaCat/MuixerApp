@@ -1,5 +1,6 @@
 import { Component, input, output } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { vi } from 'vitest';
 import { of, throwError } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -31,6 +32,7 @@ class StubFigureCanvas {
   readonly heightMode = input<string>('relative');
   readonly attendanceMap = input<Map<string, string>>(new Map());
   readonly nextPerformanceMap = input<Map<string, string | null>>(new Map());
+  readonly personDetailsMap = input<Map<string, unknown>>(new Map());
   readonly highlightedNodeIds = input<Set<string>>(new Set());
   readonly isPlacementMode = input<boolean>(false);
   readonly decorationOpacity = input<number>(1);
@@ -51,6 +53,7 @@ class StubPersonPanel {
   readonly assignments = input<AssignmentDetail[]>([]);
   readonly heightMode = input<string>('relative');
   readonly activeNodePositionType = input<string | null>(null);
+  readonly selectedNodeZone = input<string | null>(null);
   readonly isPast = input<boolean>(false);
   readonly personSelected = output<AvailablePerson>();
   readonly assignedPersonSelected = output<{ personId: string; instanceId: string }>();
@@ -89,6 +92,7 @@ class StubTroncView {
   readonly highlightedNodeIds = input<Set<string>>(new Set());
   readonly attendanceMap = input<Map<string, string>>(new Map());
   readonly isPast = input<boolean>(false);
+  readonly personDetailsMap = input<Map<string, unknown>>(new Map());
   readonly nodeSelected = output<string | null>();
   readonly nodeClicked = output<{ nodeId: string; event: MouseEvent }>();
   readonly nodeUnassigned = output<string>();
@@ -149,7 +153,7 @@ const makeAssignment = (nodeId = 'inode-1', personId = 'person-1'): AssignmentDe
   id: `assignment-${++assignmentIdCounter}`,
   figureInstanceId: INSTANCE_ID,
   node: { id: nodeId, label: 'base-1', zone: 'BASE', z: 0, positionType: null, sortOrder: 0, ringLevel: null, originNodeId: null, sourceNodeId: 'node-1' },
-  person: { id: personId, alias: 'Pepet', name: 'Pere', firstSurname: 'Garcia', shoulderHeight: SHOULDER_HEIGHT_BASELINE_CM },
+  person: { id: personId, alias: 'Pepet', name: 'Pere', firstSurname: 'Garcia', shoulderHeight: SHOULDER_HEIGHT_BASELINE_CM, notes: null, notesEmoji: null },
 });
 
 const makeAvailablePerson = (id = 'person-1'): AvailablePerson => ({
@@ -159,6 +163,8 @@ const makeAvailablePerson = (id = 'person-1'): AvailablePerson => ({
   firstSurname: 'Garcia',
   shoulderHeight: SHOULDER_HEIGHT_BASELINE_CM,
   isXicalla: false,
+  notes: null,
+  notesEmoji: null,
   attendanceStatus: 'ANIRE',
   nextPerformanceStatus: null,
   assignedInSegment: false,

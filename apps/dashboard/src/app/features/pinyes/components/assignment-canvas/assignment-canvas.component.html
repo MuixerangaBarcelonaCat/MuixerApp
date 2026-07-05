@@ -261,6 +261,7 @@
             [heightMode]="state.heightMode()"
             [attendanceMap]="attendanceMap()"
             [nextPerformanceMap]="nextPerformanceMap()"
+            [personDetailsMap]="personDetailsMap()"
             [highlightedNodeIds]="highlightedNodeIds()"
             [isPlacementMode]="state.isPlacementMode()"
             [isPast]="isPast()"
@@ -419,6 +420,7 @@
           [assignments]="state.assignments()"
           [heightMode]="state.heightMode()"
           [activeNodePositionType]="selectedNode()?.positionType ?? null"
+          [selectedNodeZone]="selectedNode()?.zone ?? null"
           [isPast]="isPast()"
           (personSelected)="onPersonSelected($event)"
           (assignedPersonSelected)="onAssignedPersonSelected($event)"
@@ -460,6 +462,7 @@
       [highlightedNodeIds]="highlightedNodeIds()"
       [attendanceMap]="troncAttendanceMap()"
       [isPast]="isPast()"
+      [personDetailsMap]="personDetailsMap()"
       (nodeSelected)="onNodeSelected($event)"
       (nodeClicked)="onTroncNodeClicked($event)"
       (nodeUnassigned)="onTroncNodeUnassigned($event)"
@@ -769,5 +772,18 @@
     [instanceNodes]="activeNodes()"
     (closed)="onSaveAsTemplateClosed()"
     (saved)="onSaveAsTemplateResult($event)"
+  />
+}
+
+<!-- Already assigned person dialog -->
+@if (reassignDialog(); as dialog) {
+  <app-already-assigned-dialog
+    [open]="true"
+    [personAlias]="dialog.personAlias"
+    [nodeLabel]="dialog.oldNodeLabel"
+    [figureName]="dialog.figureName"
+    (closed)="onReassignDialogClosed()"
+    (viewRequested)="onReassignDialogView()"
+    (reassignRequested)="onReassignDialogConfirm()"
   />
 }

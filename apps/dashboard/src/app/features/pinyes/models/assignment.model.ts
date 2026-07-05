@@ -24,6 +24,8 @@ export interface AssignmentPersonDetail {
   name: string;
   firstSurname: string;
   shoulderHeight: number | null;
+  notes: string | null;
+  notesEmoji: string | null;
 }
 
 export interface AssignmentDetail {
@@ -41,6 +43,17 @@ export interface AvailablePersonPosition {
   positionTypes: string[];
 }
 
+/** Minimal person data needed to render the hover card shown across person-panel, tronc-view and figure-canvas. */
+export interface PersonHoverInfo {
+  alias: string;
+  attendanceStatus: AttendanceStatus | null;
+  isXicalla: boolean;
+  shoulderHeight: number | null;
+  notes: string | null;
+  notesEmoji: string | null;
+  positions: AvailablePersonPosition[];
+}
+
 export interface AvailablePerson {
   id: string;
   alias: string;
@@ -48,6 +61,8 @@ export interface AvailablePerson {
   firstSurname: string;
   shoulderHeight: number | null;
   isXicalla: boolean;
+  notes: string | null;
+  notesEmoji: string | null;
   attendanceStatus: AttendanceStatus;
   nextPerformanceStatus: AttendanceStatus | null;
   assignedInSegment: boolean;
@@ -101,6 +116,7 @@ export interface AvailablePersonsQuery {
   height?: number;
   isXicalla?: boolean;
   excludeAssigned?: boolean;
+  positionId?: string;
 }
 
 /** Tracks an optimistic UI operation that has been applied locally but not yet confirmed by the server */
