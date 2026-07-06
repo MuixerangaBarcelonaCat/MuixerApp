@@ -25,14 +25,14 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 
 | Section                   | 🔴          | 🟠            | 🟡                  | 🔵           | Total               |
 | ------------------------- | ----------- | ------------- | ------------------- | ------------ | ------------------- |
-| 1. Security               | 2 (2 ✅)     | 11 (10 ✅)     | 4 (2 ✅, 1 🚫)       | 1 (1 ✅)      | 18 (15 ✅, 1 🚫)     |
+| 1. Security               | 2 (2 ✅)     | 11 (10 ✅)     | 4 (3 ✅, 1 🚫)       | 1 (1 ✅)      | 18 (16 ✅, 1 🚫)     |
 | 2. Bugs & correctness     | 2 (2 ✅)     | 9 (7 ✅)       | 10 (5 ✅)            | 1            | 22 (14 ✅)           |
 | 3. Architecture           | —           | 3 (2 ✅)       | 8 (2 ✅)             | —            | 11 (4 ✅)            |
 | 4. Code smells            | —           | 1 (1 ✅)       | 11 (3 ✅)            | 3            | 15 (4 ✅)            |
 | 5. Frontend (dashboard)   | —           | 2             | 11                  | 3            | 16                  |
 | 6. Dependencies & tooling | 1 (1 ✅)     | —             | 2 (2 ✅)             | 1 (1 ✅)      | 4 (4 ✅)             |
 | 7. Tests                  | —           | 3 (1 ✅)       | 3                   | 2            | 8 (1 ✅)             |
-| **Total**                 | **5 (5 ✅)** | **29 (21 ✅)** | **49 (14 ✅, 1 🚫)** | **11 (2 ✅)** | **94 (42 ✅, 1 🚫)** |
+| **Total**                 | **5 (5 ✅)** | **29 (21 ✅)** | **49 (15 ✅, 1 🚫)** | **11 (2 ✅)** | **94 (43 ✅, 1 🚫)** |
 
 
 *(✅ counts reflect fixes applied so far in this branch; 🚫 marks findings deliberately closed as won't-fix, with reasoning inline; both are updated as findings are resolved.)*
@@ -240,9 +240,11 @@ The final image explicitly bypasses `pnpm-lock.yaml`, so every build resolves **
 
 **Fix applied:** Nx's `generatePackageJson` (webpack `NxAppWebpackPlugin`) already pins every statically-imported dependency to its exact resolved version in `dist/apps/api/package.json` — the only reason the Dockerfile fell back to an unpinned `pnpm add` was that `pg` is required dynamically by typeorm (driver lookup by the `type: 'postgres'` string), so Nx's static scan never saw it and never pinned it. Added `import 'pg'` in `database.module.ts` so Nx's dependency scan picks it up like every other package, with the exact version resolved from the workspace lockfile (verified: `pg@8.20.0`, matching `pnpm-lock.yaml`). The Dockerfile's stage 3 now reduces to a single deterministic `pnpm install --prod` — no lockfile needed since every dependency in the generated `package.json` is an exact pin, not a semver range. Verified by building the actual production image end-to-end and confirming the installed `typeorm`/`pg` versions match the workspace lockfile exactly, and that the app boots and attempts a real Postgres connection (no missing-module errors).
 
-### 🟡 SEC-15 — `rejectUnauthorized: false` for SSL DB connections
+### 🟡✅ SEC-15 — `rejectUnauthorized: false` for SSL DB connections — FIXED
 
 `database.module.ts:50` and `data-source.ts:11`: when `DB_SSL=true` (managed Postgres), TLS is used **without certificate validation** — the connection is encrypted but MITM-able. Supply the provider CA (`ssl: { ca }`) or at least make this an explicit, documented exception.
+
+**Fix applied:** extracted the duplicated inline `ssl` logic from both `database.module.ts` and `data-source.ts` (the TypeORM CLI entrypoint, which bypasses Nest's `ConfigModule` entirely, so it needed its own guard) into a shared `resolveDbSslOptions(env)` util (`apps/api/src/modules/database/resolve-db-ssl-options.util.ts`). It now **requires** a new `DB_SSL_CA` env var (the provider's CA certificate, PEM content) whenever `DB_SSL=true`, and connects with `{ ca, rejectUnauthorized: true }` — actual certificate validation instead of none. If `DB_SSL=true` and `DB_SSL_CA` is missing or empty, it throws immediately, crashing app bootstrap / the migration CLI rather than silently falling back to an unverified connection. Verified end-to-end via the real `migration:show` CLI command: crashes with the `DB_SSL_CA` error message when misconfigured, proceeds normally (to the expected `ECONNREFUSED` against no running DB) when `DB_SSL=false`. `.env.example` / `.env.production.example` document the new variable. Covered by 5 new specs in `resolve-db-ssl-options.util.spec.ts` (off, disabled, valid CA, missing CA throws, empty CA throws) — written and confirmed failing before the util existed, per TDD.
 
 ### 🟠✅ SEC-16 — Sync endpoints: state-changing GETs, no concurrency guard — FIXED
 

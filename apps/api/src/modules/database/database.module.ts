@@ -21,18 +21,18 @@ import { InstanceNode } from '../event-segment/entities/instance-node.entity';
 import { NodeAssignment } from '../node-assignment/entities/node-assignment.entity';
 import { Rengla } from '../figure/entities/rengla.entity';
 import { migrations } from '../../migrations';
+import { resolveDbSslOptions } from './resolve-db-ssl-options.util';
 
 @Module({
   imports: [
     TypeOrmModule.forRootAsync({
       useFactory: () => {
         const isDevelopment = process.env.NODE_ENV !== 'production';
-        const sslEnabled = process.env.DB_SSL === 'true';
 
         return {
           type: 'postgres',
           url: process.env.DATABASE_URL,
-          ssl: sslEnabled ? { rejectUnauthorized: false } : false,
+          ssl: resolveDbSslOptions(process.env),
           entities: [
             Tag,
             User,
