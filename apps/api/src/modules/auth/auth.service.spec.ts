@@ -244,6 +244,32 @@ describe('AuthService', () => {
       userRepo.findOne.mockResolvedValue(null);
       await expect(service.getMe('missing')).rejects.toThrow(UnauthorizedException);
     });
+
+    it('loads person.managedBy so the profile can include the managing user\'s email (BUG-7)', async () => {
+      userRepo.findOne.mockResolvedValue(makeUser());
+      await service.getMe('user-1');
+
+      expect(userRepo.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({ relations: expect.arrayContaining(['person', 'person.managedBy']) }),
+      );
+    });
+
+    it('returns person.email from the managing user, not null (BUG-7)', async () => {
+      const user = makeUser({
+        person: {
+          id: 'person-1',
+          name: 'Joan',
+          firstSurname: 'Prat',
+          alias: 'JoanP',
+          managedBy: { email: 'parent@test.cat' },
+        } as unknown as Person,
+      });
+      userRepo.findOne.mockResolvedValue(user);
+
+      const profile = await service.getMe('user-1');
+
+      expect(profile.person?.email).toBe('parent@test.cat');
+    });
   });
 
   describe('acceptInvite', () => {

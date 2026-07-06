@@ -49,7 +49,7 @@ export class AuthService {
   async validateUser(email: string, password: string): Promise<User | null> {
     const user = await this.userRepo.findOne({
       where: { email },
-      relations: ['person'],
+      relations: ['person', 'person.managedBy'],
     });
 
     // Always run bcrypt.compare, even when the user doesn't exist, comparing
@@ -122,7 +122,7 @@ export class AuthService {
 
     const user = await this.userRepo.findOne({
       where: { id: userId },
-      relations: ['person'],
+      relations: ['person', 'person.managedBy'],
     });
     if (!user || !user.isActive) throw new UnauthorizedException();
 
@@ -148,7 +148,7 @@ export class AuthService {
   async getMe(userId: string): Promise<UserProfile> {
     const user = await this.userRepo.findOne({
       where: { id: userId },
-      relations: ['person'],
+      relations: ['person', 'person.managedBy'],
     });
     if (!user) throw new UnauthorizedException();
     return this.toUserProfile(user);
@@ -158,7 +158,7 @@ export class AuthService {
   async acceptInvite(dto: AcceptInviteDto): Promise<{ response: AuthResponseDto; refreshToken: string }> {
     const user = await this.userRepo.findOne({
       where: { inviteToken: hashToken(dto.token) },
-      relations: ['person'],
+      relations: ['person', 'person.managedBy'],
     });
 
     if (!user || !user.inviteExpiresAt || user.inviteExpiresAt < new Date()) {
@@ -225,7 +225,7 @@ export class AuthService {
 
       return manager.findOne(User, {
         where: { id: saved.id },
-        relations: ['person'],
+        relations: ['person', 'person.managedBy'],
       });
     });
 
