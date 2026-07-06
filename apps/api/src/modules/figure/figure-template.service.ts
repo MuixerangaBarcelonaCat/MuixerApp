@@ -555,9 +555,9 @@ export class FigureTemplateService {
         node.sortOrder = dto.sortOrder ?? 0;
         node.climbPath = dto.climbPath ?? null;
         node.ringLevel = dto.ringLevel ?? null;
-        node.originNodeId = dto.originNodeId ?? node.originNodeId;
-        node.renglaId = dto.renglaId ?? node.renglaId;
-        node.renglaPosition = dto.renglaPosition ?? node.renglaPosition;
+        if (dto.originNodeId !== undefined) node.originNodeId = dto.originNodeId;
+        if (dto.renglaId !== undefined) node.renglaId = dto.renglaId;
+        if (dto.renglaPosition !== undefined) node.renglaPosition = dto.renglaPosition;
         node.metadata = dto.metadata ?? {};
         toUpdate.push(node);
         incomingIds.add(dto.id);

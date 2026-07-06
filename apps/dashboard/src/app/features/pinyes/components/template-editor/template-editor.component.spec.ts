@@ -7,7 +7,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { FigureZone, NodeShape, PINYA_NODE_PRESETS } from '@muixer/shared';
 import { FigureNodeItem } from '../../models/figure-template.model';
-import { TemplateEditorComponent } from './template-editor.component';
+import { TemplateEditorComponent, nodeToPayload } from './template-editor.component';
 import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component';
 import { TroncViewComponent } from '../tronc-view/tronc-view.component';
 import { TemplateEditorHelpModalComponent } from '../template-editor-help-modal/template-editor-help-modal.component';
@@ -403,4 +403,47 @@ describe('TemplateEditorComponent — Preview Mode', () => {
     });
   });
 
+});
+
+describe('nodeToPayload', () => {
+  const baseNode: FigureNodeItem = {
+    id: 'node-1',
+    label: 'AGULLA',
+    zone: FigureZone.PINYA,
+    positionType: 'agulla',
+    x: 100, y: 100, z: 0,
+    width: 80, height: 40, rotation: 0,
+    color: '#0d9488',
+    shape: NodeShape.RECTANGLE,
+    sortOrder: 0,
+    climbPath: null, ringLevel: null, originNodeId: null,
+    renglaId: null, renglaPosition: null,
+    metadata: {},
+  };
+
+  it('sends renglaId, renglaPosition and originNodeId as null when the node has no rengla — not undefined', () => {
+    const payload = nodeToPayload({
+      ...baseNode,
+      renglaId: null,
+      renglaPosition: null,
+      originNodeId: null,
+    });
+
+    expect(payload.renglaId).toBeNull();
+    expect(payload.renglaPosition).toBeNull();
+    expect(payload.originNodeId).toBeNull();
+  });
+
+  it('sends renglaId, renglaPosition and originNodeId as-is when the node belongs to a rengla', () => {
+    const payload = nodeToPayload({
+      ...baseNode,
+      renglaId: 'rengla-1',
+      renglaPosition: 2,
+      originNodeId: 'origin-1',
+    });
+
+    expect(payload.renglaId).toBe('rengla-1');
+    expect(payload.renglaPosition).toBe(2);
+    expect(payload.originNodeId).toBe('origin-1');
+  });
 });

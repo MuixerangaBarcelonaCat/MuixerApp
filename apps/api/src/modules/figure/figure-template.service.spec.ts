@@ -558,6 +558,54 @@ describe('FigureTemplateService', () => {
       expect(saved[0].renglaId).toBe('r1');
       expect(saved[0].renglaPosition).toBe(1);
     });
+
+    it('clears renglaId, renglaPosition and originNodeId when the DTO sends null', async () => {
+      const existingNode = makeNode({
+        id: 'node-1',
+        renglaId: 'r1',
+        renglaPosition: 3,
+        originNodeId: 'origin-1',
+      });
+      const tmpl = makeTemplate({ nodes: [existingNode] });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(tmpl)
+        .mockResolvedValueOnce({ ...tmpl, rengles: [] });
+      mockTemplateRepo.save.mockResolvedValue(tmpl);
+
+      await service.update('tmpl-uuid', {
+        nodes: [
+          { ...NODE_DTO, id: 'node-1', renglaId: null, renglaPosition: null, originNodeId: null },
+        ],
+      });
+
+      const saved = mockNodeRepo.save.mock.calls[0][0];
+      expect(saved[0].renglaId).toBeNull();
+      expect(saved[0].renglaPosition).toBeNull();
+      expect(saved[0].originNodeId).toBeNull();
+    });
+
+    it('leaves renglaId, renglaPosition and originNodeId untouched when the DTO omits them', async () => {
+      const existingNode = makeNode({
+        id: 'node-1',
+        renglaId: 'r1',
+        renglaPosition: 3,
+        originNodeId: 'origin-1',
+      });
+      const tmpl = makeTemplate({ nodes: [existingNode] });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(tmpl)
+        .mockResolvedValueOnce({ ...tmpl, rengles: [] });
+      mockTemplateRepo.save.mockResolvedValue(tmpl);
+
+      await service.update('tmpl-uuid', {
+        nodes: [{ ...NODE_DTO, id: 'node-1' }],
+      });
+
+      const saved = mockNodeRepo.save.mock.calls[0][0];
+      expect(saved[0].renglaId).toBe('r1');
+      expect(saved[0].renglaPosition).toBe(3);
+      expect(saved[0].originNodeId).toBe('origin-1');
+    });
   });
 
   describe('saveFromInstance', () => {

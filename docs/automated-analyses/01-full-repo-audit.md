@@ -26,13 +26,13 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 | Section                   | 🔴          | 🟠            | 🟡                  | 🔵           | Total               |
 | ------------------------- | ----------- | ------------- | ------------------- | ------------ | ------------------- |
 | 1. Security               | 2 (2 ✅)     | 11 (10 ✅)     | 4 (3 ✅, 1 🚫)       | 1 (1 ✅)      | 18 (16 ✅, 1 🚫)     |
-| 2. Bugs & correctness     | 2 (2 ✅)     | 9 (7 ✅)       | 10 (6 ✅)            | 1            | 22 (15 ✅)           |
+| 2. Bugs & correctness     | 2 (2 ✅)     | 9 (8 ✅)       | 10 (6 ✅)            | 1            | 22 (16 ✅)           |
 | 3. Architecture           | —           | 3 (2 ✅)       | 8 (2 ✅)             | —            | 11 (4 ✅)            |
 | 4. Code smells            | —           | 1 (1 ✅)       | 11 (3 ✅)            | 3            | 15 (4 ✅)            |
 | 5. Frontend (dashboard)   | —           | 2             | 11                  | 3            | 16                  |
 | 6. Dependencies & tooling | 1 (1 ✅)     | —             | 2 (2 ✅)             | 1 (1 ✅)      | 4 (4 ✅)             |
 | 7. Tests                  | —           | 3 (1 ✅)       | 3                   | 2            | 8 (1 ✅)             |
-| **Total**                 | **5 (5 ✅)** | **29 (21 ✅)** | **49 (16 ✅, 1 🚫)** | **11 (2 ✅)** | **94 (44 ✅, 1 🚫)** |
+| **Total**                 | **5 (5 ✅)** | **29 (22 ✅)** | **49 (16 ✅, 1 🚫)** | **11 (2 ✅)** | **94 (45 ✅, 1 🚫)** |
 
 
 *(✅ counts reflect fixes applied so far in this branch; 🚫 marks findings deliberately closed as won't-fix, with reasoning inline; both are updated as findings are resolved.)*
@@ -405,7 +405,7 @@ Same instance, two endpoints, two different capacity numbers (off by the BASE no
 
 **Fix applied:** for `figureMode` transitions to `REMAT`/`NETA`, the assignment deletion and the instance save now run inside a single `dataSource.transaction`: `deletePinyaAssignments`/`deletePinyaOnlyAssignments` take the transaction's `EntityManager` (instead of querying via `dataSource` directly) and `manager.save(FigureInstance, instance)` persists the mode change in the same transaction, so a failed delete or save rolls back both together. Other `update()` paths (label/sortOrder-only edits, or a `figureMode` change that isn't `REMAT`/`NETA`) keep the plain `instanceRepository.save`, since there's nothing to keep atomic with. Covered by new specs in `figure-instance.service.spec.ts` asserting the delete and the save both go through the same transaction manager, and that a rejected delete leaves neither the delete nor the save persisted (rollback).
 
-### 🟠 BUG-14 — Template node updates can never *clear* `renglaId` / `renglaPosition` / `originNodeId`
+### 🟠✅ BUG-14 — Template node updates can never *clear* `renglaId` / `renglaPosition` / `originNodeId` — FIXED
 
 `figure-template.service.ts:546-548` (`syncNodes` upsert):
 
@@ -416,6 +416,13 @@ node.renglaPosition = dto.renglaPosition ?? node.renglaPosition;
 ```
 
 Sending `null`/omitting falls back to the previous value, so detaching a node from a rengla through the editor's save endpoint is silently ignored (the value only ever clears when the whole rengla is deleted via `syncRengles`). Use an explicit `!== undefined` check like the rest of the codebase does.
+
+**Fix applied — both ends of the round-trip, not just the backend upsert:**
+
+1. `figure-template.service.ts`'s `syncNodes` now does `if (dto.field !== undefined) node.field = dto.field;` for all three fields, matching the `!== undefined` pattern already used elsewhere (e.g. `season.service.ts`, `event-segment.service.ts`). `CreateFigureNodeDto.originNodeId`/`renglaId`/`renglaPosition` were widened from `?string` to `?(string | null)` (and `?number | null` for the position) — `@IsOptional()` already treats `null` the same as `undefined` for validation purposes, so no validator changes were needed, only the TS type had to admit the value the finding is about.
+2. Tracing the fix through, the dashboard's `nodeToPayload()` (`template-editor.component.ts`) — the function that builds the outgoing node payload on every autosave — turned out to have the exact same bug on the client: `originNodeId: node.originNodeId ?? undefined` (and the same for `renglaId`/`renglaPosition`) silently converted a locally-cleared `null` back into `undefined` before it ever reached the API. Fixing only the backend would have left the finding practically unfixed, since this is the only code path that saves node edits. All three now pass the local `FigureNodeItem` value straight through (`originNodeId: node.originNodeId`, etc.), and `CreateFigureNodePayload`'s matching fields (`figure-template.model.ts`) were widened the same way as the backend DTO.
+
+Covered by: two new cases in `figure-template.service.spec.ts` (`syncNodes` clears all three fields when the DTO sends explicit `null`; leaves them untouched when the DTO omits them entirely) and a new `nodeToPayload` describe block in `template-editor.component.spec.ts` (asserts `null` survives the payload build both when the node has no rengla and when it does). `nodeToPayload` was exported for direct unit testing. Full `nx test api` (675/675) and `nx test dashboard` (969/971, 2 pre-existing skips) pass; both `nx lint` targets clean (0 errors).
 
 ### 🟡✅ BUG-15 — Duplicating a template twice → 500 — FIXED
 
