@@ -12,6 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { ConfigService } from '@nestjs/config';
 import { Request, Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import {
@@ -39,6 +40,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly tokenService: TokenService,
+    private readonly configService: ConfigService,
   ) {}
 
   /** Configura la cookie httpOnly del refresh token amb el TTL adequat per al tipus de client. */
@@ -50,7 +52,9 @@ export class AuthController {
       sameSite: 'lax',
       path: '/api/auth',
       maxAge: maxAge * 1000,
-      secure: process.env['COOKIE_SECURE'] !== 'false' && process.env['NODE_ENV'] === 'production',
+      secure:
+        this.configService.get<string>('COOKIE_SECURE') !== 'false' &&
+        this.configService.get<string>('NODE_ENV') === 'production',
     });
   }
 
@@ -174,7 +178,7 @@ export class AuthController {
     @Headers('x-setup-token') setupToken: string,
     @Body() dto: SetupUserDto,
   ): Promise<UserProfile> {
-    const expected = process.env['SETUP_TOKEN'];
+    const expected = this.configService.get<string>('SETUP_TOKEN');
     if (!expected) throw new ForbiddenException('Setup no disponible');
     if (setupToken !== expected) throw new ForbiddenException('Token de configuració invàlid');
     return this.authService.setupUser(dto);

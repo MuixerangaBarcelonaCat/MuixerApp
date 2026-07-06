@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { ClientType, UserRole } from '@muixer/shared';
 import { AuthService } from './auth.service';
@@ -54,6 +55,10 @@ const mockTokenService = () => ({
   rotateRefreshToken: jest.fn(),
 });
 
+const mockConfigService = () => ({
+  get: jest.fn((key: string) => process.env[key]),
+});
+
 describe('AuthService', () => {
   let service: AuthService;
   let userRepo: ReturnType<typeof mockUserRepo>;
@@ -68,6 +73,7 @@ describe('AuthService', () => {
         { provide: getRepositoryToken(Person), useFactory: mockPersonRepo },
         { provide: JwtService, useFactory: mockJwt },
         { provide: TokenService, useFactory: mockTokenService },
+        { provide: ConfigService, useFactory: mockConfigService },
       ],
     }).compile();
 

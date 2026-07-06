@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -28,6 +29,7 @@ export class AuthService {
     private readonly personRepo: Repository<Person>,
     private readonly jwtService: JwtService,
     private readonly tokenService: TokenService,
+    private readonly configService: ConfigService,
   ) {}
 
   /** Comprova email i contrasenya via bcrypt. Retorna null si l'usuari no existeix, no està actiu o la contrasenya és incorrecta. */
@@ -152,7 +154,7 @@ export class AuthService {
 
   /** Crea el primer usuari TECHNICAL via `SETUP_TOKEN`. Si l'email ja existeix, retorna el perfil existent sense crear-ne un de nou (idempotent). */
   async setupUser(dto: SetupUserDto): Promise<UserProfile> {
-    const setupToken = process.env['SETUP_TOKEN'];
+    const setupToken = this.configService.get<string>('SETUP_TOKEN');
     if (!setupToken) throw new ForbiddenException('Setup no disponible');
 
     const existing = await this.userRepo.findOne({

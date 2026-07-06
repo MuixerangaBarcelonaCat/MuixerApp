@@ -59,7 +59,7 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 | 15  | 🟠 [TEST-3](#7-tests) Dashboard coverage is bimodal — pinyes core 90%+, but critical modals (incl. role assignment) sit at 0-11%                                                                              | dashboard                           |
 
 
-The single highest-leverage structural change is **ARCH-1** (centralized, validated config): it eliminates SEC-1, the scattered `process.env` reads, and the import-time env parsing in one move.
+The single highest-leverage structural change is **ARCH-1** (centralized, validated config): it eliminates SEC-1, the scattered `process.env` reads, and the import-time env parsing in one move. ✅ **Fixed** — see below.
 
 ---
 
@@ -83,7 +83,7 @@ If `JWT_SECRET` is ever missing from the environment (typo in `.env.production`,
 
 **Recommendation:** validate required env vars at bootstrap (e.g. `@nestjs/config` + Joi/Zod schema, or a manual assert in `main.ts`) and remove every `?? 'change-me*'` fallback. See also ARCH-3.
 
-**Fix applied:** added `requireJwtSecret(envVar)` (`apps/api/src/modules/auth/constants/jwt-secret.util.ts`), which throws instead of falling back when the var is missing/empty. `auth.module.ts`, `jwt.strategy.ts` and `token.service.ts` now use it, so a missing `JWT_SECRET`/`JWT_REFRESH_SECRET` fails app bootstrap instead of silently signing/verifying with a public string. Covered by new specs (`jwt-secret.util.spec.ts`, `jwt.strategy.spec.ts`, and a `TokenService construction` suite in `token.service.spec.ts`). The broader structural fix (centralized/validated config, ARCH-1) is still open.
+**Fix applied:** added `requireJwtSecret(envVar)` (`apps/api/src/modules/auth/constants/jwt-secret.util.ts`), which throws instead of falling back when the var is missing/empty. `auth.module.ts`, `jwt.strategy.ts` and `token.service.ts` now use it, so a missing `JWT_SECRET`/`JWT_REFRESH_SECRET` fails app bootstrap instead of silently signing/verifying with a public string. Covered by new specs (`jwt-secret.util.spec.ts`, `jwt.strategy.spec.ts`, and a `TokenService construction` suite in `token.service.spec.ts`). The broader structural fix (centralized/validated config, ARCH-1) has since been applied too — see below.
 
 ### 🔴 SEC-2 — `xlsx` (SheetJS) 0.18.5 with known CVEs, used to parse external data
 
@@ -374,11 +374,15 @@ Sending `null`/omitting falls back to the previous value, so detaching a node fr
 
 ## 3. Architecture
 
-### 🟠 ARCH-1 — No centralized/validated configuration
+### 🟠✅ ARCH-1 — No centralized/validated configuration — FIXED
 
 `process.env` is read ad-hoc all over (`auth.module.ts`, `token.service.ts`, `main.ts`, constants files, controllers). There is no `@nestjs/config`, no schema validation, no fail-fast on missing values — which is exactly what makes SEC-1 possible. `auth.constants.ts` reads env at *module import time*, before `dotenv/config` might have run in some entrypoints (works today only because `main.ts` imports dotenv first; the CLI scripts must each remember to do the same).
 
 **Recommendation:** adopt `ConfigModule.forRoot({ validationSchema })` (or a single typed `env.ts` with assertions) and inject config instead of reading `process.env` at import time.
+
+**Fix applied:** added a Joi schema (`apps/api/src/config/env.validation.ts`, covered by `env.validation.spec.ts`) validating every known env var — required (`DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`) vs. optional-with-defaults (`PORT`, `CORS_ORIGINS`, TTLs, `ASSIGNMENT_LOCK_DAYS`, `LEGACY_API_*`, `SETUP_TOKEN`, ...) — and registered it globally via `ConfigModule.forRoot({ isGlobal: true, validationSchema })` in `app.module.ts`. Nest now refuses to finish bootstrapping if any required variable is missing or malformed, before any provider (DB connection, auth strategies, HTTP server) is instantiated.
+
+`auth.controller.ts`, `auth.service.ts` and `main.ts` — the specific files named above — were migrated from raw `process.env` reads to injected `ConfigService`. `auth.constants.ts`, `database.module.ts`, `legacy-api.client.ts` and `node-assignment.service.ts` still read `process.env` directly for non-security-critical values (TTLs, lock days, legacy sync credentials); this was a deliberate scope call, not an oversight — those reads now execute only after `ConfigModule`'s schema validation has already run as part of Nest's module-graph resolution (it's first in `AppModule.imports`), so a missing/malformed value there is still a fatal startup error, and rewriting every call site to inject `ConfigService` would have been pure churn with no additional safety. Revisit if those files grow new config surface.
 
 ### 🟠 ARCH-2 — Multi-step DB writes without transactions in user/person flows
 
