@@ -423,6 +423,46 @@ describe('NodeAssignmentService', () => {
         service.assign(INSTANCE_ID, { nodeId: INSTANCE_NODE_ID, personId: PERSON_ID }),
       ).rejects.toThrow(ConflictException);
     });
+
+    it('passes the instance segment to assignmentRepository.create so it can be constraint-checked at the DB level', async () => {
+      const inode = makeInstanceNode();
+      const instance = makeInstance({ snapshotted: true });
+      mockInstanceRepo.findOne.mockResolvedValue(instance);
+      mockPersonRepo.findOne.mockResolvedValue(makePerson());
+      mockInstanceNodeRepo.findOne.mockResolvedValue(inode);
+      mockAssignmentRepo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue(makeAssignment());
+      mockAssignmentRepo.create.mockReturnValue(makeAssignment());
+      mockAssignmentRepo.save.mockResolvedValue(makeAssignment());
+
+      await service.assign(INSTANCE_ID, { nodeId: INSTANCE_NODE_ID, personId: PERSON_ID });
+
+      expect(mockAssignmentRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ segment: instance.segment }),
+      );
+    });
+
+    it('throws ConflictException (not a raw 500) when a concurrent assign wins the race and the DB unique constraint fires', async () => {
+      const inode = makeInstanceNode();
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
+      mockPersonRepo.findOne.mockResolvedValue(makePerson());
+      mockInstanceNodeRepo.findOne.mockResolvedValue(inode);
+      mockAssignmentRepo.findOne
+        .mockResolvedValueOnce(null) // node not occupied (pre-check — loses the race)
+        .mockResolvedValueOnce(null); // person not in instance (pre-check — loses the race)
+      mockAssignmentRepo.create.mockReturnValue(makeAssignment());
+      const dbError = Object.assign(new Error('duplicate key value violates unique constraint'), {
+        code: '23505',
+        detail: 'Key (segmentId, personId)=(segment-uuid-1, person-uuid-1) already exists.',
+      });
+      mockAssignmentRepo.save.mockRejectedValue(dbError);
+
+      await expect(
+        service.assign(INSTANCE_ID, { nodeId: INSTANCE_NODE_ID, personId: PERSON_ID }),
+      ).rejects.toThrow(ConflictException);
+    });
   });
 
   // ── swap ──────────────────────────────────────────────────────────────
@@ -465,6 +505,40 @@ describe('NodeAssignmentService', () => {
       expect(txManager.save).toHaveBeenCalledTimes(1);
       expect(result.a.id).toBe(ASSIGNMENT_ID);
       expect(result.b.id).toBe(ASSIGNMENT_ID_B);
+    });
+
+    it('sets segment on both recreated rows so the DB unique constraint still applies after a swap', async () => {
+      const assignmentA = makeAssignment();
+      const assignmentB = makeAssignmentB();
+
+      mockAssignmentRepo.findOne
+        .mockResolvedValueOnce(assignmentA)
+        .mockResolvedValueOnce(assignmentB)
+        .mockResolvedValueOnce(assignmentA)
+        .mockResolvedValueOnce(assignmentB);
+
+      const txManager = {
+        delete: jest.fn().mockResolvedValue(undefined),
+        create: jest.fn().mockImplementation((_entity: any, data: any) => data),
+        save: jest.fn().mockResolvedValue(undefined),
+      };
+      mockDataSource.transaction.mockImplementation((cb: any) => cb(txManager));
+
+      await service.swap(INSTANCE_ID, {
+        assignmentIdA: ASSIGNMENT_ID,
+        assignmentIdB: ASSIGNMENT_ID_B,
+      });
+
+      expect(txManager.create).toHaveBeenNthCalledWith(
+        1,
+        NodeAssignment,
+        expect.objectContaining({ segment: assignmentA.figureInstance!.segment }),
+      );
+      expect(txManager.create).toHaveBeenNthCalledWith(
+        2,
+        NodeAssignment,
+        expect.objectContaining({ segment: assignmentB.figureInstance!.segment }),
+      );
     });
 
     it('throws NotFoundException if assignment A not found', async () => {

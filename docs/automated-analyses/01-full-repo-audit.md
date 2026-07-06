@@ -26,13 +26,13 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 | Section                   | 🔴          | 🟠            | 🟡                  | 🔵           | Total               |
 | ------------------------- | ----------- | ------------- | ------------------- | ------------ | ------------------- |
 | 1. Security               | 2 (2 ✅)     | 11 (10 ✅)     | 4 (3 ✅, 1 🚫)       | 1 (1 ✅)      | 18 (16 ✅, 1 🚫)     |
-| 2. Bugs & correctness     | 2 (2 ✅)     | 9 (8 ✅)       | 10 (6 ✅)            | 1            | 22 (16 ✅)           |
+| 2. Bugs & correctness     | 2 (2 ✅)     | 9 (8 ✅)       | 10 (7 ✅)            | 1            | 22 (17 ✅)           |
 | 3. Architecture           | —           | 3 (2 ✅)       | 8 (2 ✅)             | —            | 11 (4 ✅)            |
 | 4. Code smells            | —           | 1 (1 ✅)       | 11 (3 ✅)            | 3            | 15 (4 ✅)            |
 | 5. Frontend (dashboard)   | —           | 2             | 11                  | 3            | 16                  |
 | 6. Dependencies & tooling | 1 (1 ✅)     | —             | 2 (2 ✅)             | 1 (1 ✅)      | 4 (4 ✅)             |
 | 7. Tests                  | —           | 3 (1 ✅)       | 3                   | 2            | 8 (1 ✅)             |
-| **Total**                 | **5 (5 ✅)** | **29 (22 ✅)** | **49 (16 ✅, 1 🚫)** | **11 (2 ✅)** | **94 (45 ✅, 1 🚫)** |
+| **Total**                 | **5 (5 ✅)** | **29 (22 ✅)** | **49 (17 ✅, 1 🚫)** | **11 (2 ✅)** | **94 (46 ✅, 1 🚫)** |
 
 
 *(✅ counts reflect fixes applied so far in this branch; 🚫 marks findings deliberately closed as won't-fix, with reasoning inline; both are updated as findings are resolved.)*
@@ -444,9 +444,16 @@ As a structural backstop — for any current or future code path that inserts `I
 
 Covered by two new specs in `node-assignment.service.spec.ts`: one asserting the conditional `UPDATE` runs (with the exact criteria) before `manager.save` is called (call-order assertion), and one simulating a lost race (`update` resolves `{ affected: 0 }`) asserting no `InstanceNode` is built/inserted and the template is never even fetched — the returned node comes entirely from the read-back.
 
-### 🟡 BUG-18 — Assignment conflict checks are TOCTOU; segment-level rule has no DB constraint
+### 🟡✅ BUG-18 — Assignment conflict checks are TOCTOU; segment-level rule has no DB constraint — FIXED
 
 `assign()` does three read-then-insert conflict checks. The node and person cases are backed by DB unique constraints (`@Unique(['figureInstance','instanceNode'])`, `@Unique(['figureInstance','person'])`) so a race "only" produces a 500 instead of 409. But the third rule — *person may appear only once per segment* — exists **only in application code**: two concurrent assigns into different instances of the same segment can both pass and persist, violating the domain invariant that a person can't be in two figures at once.
+
+**Fix applied — both halves of the finding:**
+
+1. **DB constraint for the segment-level rule.** Postgres can't uniquely constrain across a join (`node_assignments` doesn't know its segment directly — only its `figureInstance`, which belongs to a segment), so `NodeAssignment` gains a `segment` relation (`entities/node-assignment.entity.ts`), denormalized from `figureInstance.segment` and backed by a new `@Unique(['segment', 'person'])`. Migration `1782700000000-AddNodeAssignmentSegment` adds the `segmentId` column, backfills it from `figure_instances` for every existing row, sets it `NOT NULL`, adds the FK to `event_segments` and the unique constraint — mirroring the style of the BUG-17 migration. `assign()` now sets `segment: instance.segment` when creating a row; `swap()` (the only other place that inserts `NodeAssignment` rows) was updated the same way — its `figureInstance`/`figureInstance.segment` relations are now loaded so both recreated rows keep a valid `segmentId`.
+2. **409 on the race, not 500.** `assign()`'s final `assignmentRepository.save(assignment)` is now wrapped in a `try/catch`; a new `toAssignConflictError()` helper inspects a caught Postgres unique-violation (`code === '23505'`) and translates it into the same `ConflictException` message the corresponding pre-check would have thrown (segment / instance-person / node, disambiguated by which constraint's columns appear in the error `detail`) — any other error is rethrown unchanged. This closes the TOCTOU window for all three conflict rules at once: even though the pre-checks still run first (cheap, unchanged), whichever of two concurrent requests loses the race now gets a clean 409 from the DB constraint instead of an unhandled `QueryFailedError` surfacing as a 500.
+
+Covered by three new specs in `node-assignment.service.spec.ts`: `assign()` passes `segment: instance.segment` to `assignmentRepository.create`; `assign()` converts a `23505` thrown by `save()` into `ConflictException` instead of letting the raw error propagate (written and confirmed failing first — initially against a plain rejected object, corrected to a real `Error`-shaped rejection once that turned out to be the right way to reproduce what pg's driver actually throws); and `swap()` sets `segment` on both recreated rows. Full `nx test api` (678/678), `nx lint api`/`nx build api` (0 errors) and `nx test dashboard` (969/971, pre-existing skips) all pass.
 
 ### 🟠✅ BUG-19 — `deactivateMissingPersons` trusts the legacy fetch blindly — FIXED
 

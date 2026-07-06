@@ -417,9 +417,15 @@ export class NodeAssignmentService {
       figureInstance: instance,
       instanceNode,
       person,
+      segment: instance.segment,
     });
 
-    const saved = await this.assignmentRepository.save(assignment);
+    let saved: NodeAssignment;
+    try {
+      saved = await this.assignmentRepository.save(assignment);
+    } catch (err) {
+      throw this.toAssignConflictError(err);
+    }
 
     const populated = await this.assignmentRepository.findOne({
       where: { id: saved.id },
@@ -440,11 +446,11 @@ export class NodeAssignmentService {
     const [assignmentA, assignmentB] = await Promise.all([
       this.assignmentRepository.findOne({
         where: { id: dto.assignmentIdA },
-        relations: ['figureInstance', 'instanceNode', 'person'],
+        relations: ['figureInstance', 'figureInstance.segment', 'instanceNode', 'person'],
       }),
       this.assignmentRepository.findOne({
         where: { id: dto.assignmentIdB },
-        relations: ['figureInstance', 'instanceNode', 'person'],
+        relations: ['figureInstance', 'figureInstance.segment', 'instanceNode', 'person'],
       }),
     ]);
 
@@ -470,12 +476,14 @@ export class NodeAssignmentService {
         figureInstance: assignmentA.figureInstance,
         instanceNode: assignmentA.instanceNode,
         person: assignmentB.person,
+        segment: assignmentA.figureInstance.segment,
       });
       const newB = manager.create(NodeAssignment, {
         id: dto.assignmentIdB,
         figureInstance: assignmentB.figureInstance,
         instanceNode: assignmentB.instanceNode,
         person: assignmentA.person,
+        segment: assignmentB.figureInstance.segment,
       });
 
       await manager.save(NodeAssignment, [newA, newB]);
@@ -1148,6 +1156,23 @@ export class NodeAssignmentService {
 
   private assertNotComposition(_instance: FigureInstance): void {
     // compositions removed in Phase 0
+  }
+
+  /**
+   * Translates a Postgres unique-violation (23505) racing another concurrent
+   * assign() into the same ConflictException the pre-checks throw, instead of
+   * letting it surface as a raw 500 (BUG-18). Any other error is rethrown as-is.
+   */
+  private toAssignConflictError(err: unknown): Error {
+    const pgErr = err as { code?: string; detail?: string };
+    if (pgErr?.code !== '23505') return err as Error;
+    if (pgErr.detail?.includes('segmentId')) {
+      return new ConflictException('Person is already assigned in another figure instance of this segment');
+    }
+    if (pgErr.detail?.includes('personId')) {
+      return new ConflictException('Person is already assigned in this figure instance');
+    }
+    return new ConflictException('Node is already occupied in this figure instance');
   }
 
   // ── B.1 — Snapshot helper ─────────────────────────────────────────────────

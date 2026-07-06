@@ -21,6 +21,7 @@ import { DropOldCompositionTables1782300000000 } from './1782300000000-DropOldCo
 import { CreateCompositions1782400000000 } from './1782400000000-CreateCompositions';
 import { AddPersonNotesEmoji1782500000000 } from './1782500000000-AddPersonNotesEmoji';
 import { AddInstanceNodeSourceUniqueIndex1782600000000 } from './1782600000000-AddInstanceNodeSourceUniqueIndex';
+import { AddNodeAssignmentSegment1782700000000 } from './1782700000000-AddNodeAssignmentSegment';
 
 export const migrations: (new () => MigrationInterface)[] = [
   InitialSchema1748600000000,
@@ -45,4 +46,5 @@ export const migrations: (new () => MigrationInterface)[] = [
   CreateCompositions1782400000000,
   AddPersonNotesEmoji1782500000000,
   AddInstanceNodeSourceUniqueIndex1782600000000,
+  AddNodeAssignmentSegment1782700000000,
 ];
