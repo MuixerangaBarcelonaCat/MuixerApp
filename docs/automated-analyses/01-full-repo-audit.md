@@ -181,9 +181,9 @@ Production runs behind Caddy (`docker-compose.pre.yml` / prod), but `main.ts` ne
 
 **Recommendation:** `app.set('trust proxy', 1)` (via `app.getHttpAdapter().getInstance()`), make sure Caddy sets `X-Forwarded-For`, and verify the throttler sees real client IPs.
 
-**Fix applied:** added `configureTrustProxy(app)` (`apps/api/src/common/utils/configure-trust-proxy.util.ts`), called from `bootstrap()` in `main.ts` right after the Nest app is created. It sets `trust proxy: 1` on the underlying Express instance, so `req.ip` (and therefore `ThrottlerGuard`) resolves the real client IP from `X-Forwarded-For` set by Caddy instead of Caddy's own address. Covered by `configure-trust-proxy.util.spec.ts`, which boots a real Nest/Express app and asserts `req.ip` matches a spoofed `X-Forwarded-For` header once `configureTrustProxy` runs — a real end-to-end check of the Express setting rather than a mock. Note this only trusts a *single* hop; it should be revisited if [SEC-9](#-sec-9--pre-production-compose-publishes-postgresql-and-the-api-to-the-host) is left open, since a client that reaches the API directly (bypassing Caddy on the exposed `3000:3000` port) could otherwise spoof its own `X-Forwarded-For`.
+**Fix applied:** added `configureTrustProxy(app)` (`apps/api/src/common/utils/configure-trust-proxy.util.ts`), called from `bootstrap()` in `main.ts` right after the Nest app is created. It sets `trust proxy: 1` on the underlying Express instance, so `req.ip` (and therefore `ThrottlerGuard`) resolves the real client IP from `X-Forwarded-For` set by Caddy instead of Caddy's own address. Covered by `configure-trust-proxy.util.spec.ts`, which boots a real Nest/Express app and asserts `req.ip` matches a spoofed `X-Forwarded-For` header once `configureTrustProxy` runs — a real end-to-end check of the Express setting rather than a mock. Note this only trusts a *single* hop; that was only safe once [SEC-9](#-sec-9--pre-production-compose-publishes-postgresql-and-the-api-to-the-host-fixed) bound the API's port to loopback, since a client that could reach the API directly (bypassing Caddy on a publicly exposed `3000:3000`) would otherwise be able to spoof its own `X-Forwarded-For`.
 
-### 🟠 SEC-9 — Pre-production compose publishes PostgreSQL (and the API) to the host
+### 🟠✅ SEC-9 — Pre-production compose publishes PostgreSQL (and the API) to the host — FIXED
 
 `docker-compose.pre.yml`:
 
@@ -196,6 +196,8 @@ postgres:
 On a VPS this exposes Postgres to the Internet unless an external firewall intervenes — and Docker's iptables rules famously bypass UFW. The API is also published directly on `3000:3000` even though Caddy is the intended entrypoint. The prod compose gets it right for Postgres (no ports) but still publishes the API on `3000:3000`.
 
 **Recommendation:** remove the `ports` mapping for postgres in pre (containers reach it over the internal network), or bind to loopback (`127.0.0.1:5432:5432`); same for the API unless it must be reachable without Caddy.
+
+**Fix applied:** debugging access to both ports is still needed, so instead of removing the mappings entirely, `docker-compose.pre.yml` now binds them to loopback only — `127.0.0.1:5432:5432` and `127.0.0.1:3000:3000` — and `docker-compose.prod.yml`'s API port gets the same treatment (`127.0.0.1:3000:3000`; Postgres there already had no `ports` mapping). Docker still won't punch a hole through UFW for these, but they stay reachable via `psql -h 127.0.0.1` / `curl localhost:3000` on the host itself, or over an SSH tunnel from a workstation. `dashboard`'s `80`/`443` mappings are left as-is since Caddy is meant to be the public entrypoint.
 
 ### 🟡 SEC-10 — Swagger UI exposed in production
 
