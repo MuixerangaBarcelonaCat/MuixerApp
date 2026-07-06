@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
@@ -8,6 +9,13 @@ import { AuthService } from './auth.service';
 import { TokenService } from './token.service';
 import { User } from '../user/user.entity';
 import { Person } from '../person/person.entity';
+
+const makeTransactionManager = () => ({
+  create: jest.fn((_entity: unknown, data: unknown) => data),
+  save: jest.fn((_entity: unknown, data: unknown) => Promise.resolve(data)),
+  findOne: jest.fn(),
+  query: jest.fn().mockResolvedValue([]),
+});
 
 jest.mock('bcrypt', () => ({
   compare: jest.fn(),
@@ -61,10 +69,15 @@ const mockConfigService = () => ({
   get: jest.fn((key: string) => process.env[key]),
 });
 
+const mockDataSource = () => ({
+  transaction: jest.fn(),
+});
+
 describe('AuthService', () => {
   let service: AuthService;
   let userRepo: ReturnType<typeof mockUserRepo>;
   let tokenService: ReturnType<typeof mockTokenService>;
+  let dataSource: ReturnType<typeof mockDataSource>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -75,12 +88,14 @@ describe('AuthService', () => {
         { provide: JwtService, useFactory: mockJwt },
         { provide: TokenService, useFactory: mockTokenService },
         { provide: ConfigService, useFactory: mockConfigService },
+        { provide: DataSource, useFactory: mockDataSource },
       ],
     }).compile();
 
     service = module.get(AuthService);
     userRepo = module.get(getRepositoryToken(User));
     tokenService = module.get(TokenService);
+    dataSource = module.get(DataSource);
   });
 
   describe('validateUser', () => {
@@ -296,17 +311,44 @@ describe('AuthService', () => {
       process.env['SETUP_TOKEN'] = 'secret';
       userRepo.count.mockResolvedValue(0);
       const saved = makeUser({ role: UserRole.ADMIN });
-      userRepo.findOne.mockResolvedValue(saved); // reload after save
       bcrypt.hash.mockResolvedValue('hashed-pw');
-      userRepo.create.mockReturnValue(saved);
-      userRepo.save.mockResolvedValue(saved);
+
+      const manager = makeTransactionManager();
+      manager.save.mockResolvedValueOnce(saved); // user save
+      manager.findOne.mockResolvedValueOnce(saved); // reload after save
+      dataSource.transaction.mockImplementation((cb: (m: unknown) => unknown) => cb(manager));
 
       const profile = await service.setupUser({ email: 'new@test.cat', password: 'pass1234' });
 
-      expect(userRepo.create).toHaveBeenCalledWith(
+      expect(manager.create).toHaveBeenCalledWith(
+        User,
         expect.objectContaining({ role: UserRole.ADMIN }),
       );
       expect(profile.role).toBe(UserRole.ADMIN);
+    });
+
+    it('links personId inside the same transaction as user creation', async () => {
+      process.env['SETUP_TOKEN'] = 'secret';
+      userRepo.count.mockResolvedValue(0);
+      const saved = makeUser({ id: 'user-1', role: UserRole.ADMIN });
+      bcrypt.hash.mockResolvedValue('hashed-pw');
+
+      const manager = makeTransactionManager();
+      manager.save.mockResolvedValueOnce(saved);
+      manager.findOne.mockResolvedValueOnce(saved);
+      dataSource.transaction.mockImplementation((cb: (m: unknown) => unknown) => cb(manager));
+
+      await service.setupUser({
+        email: 'new@test.cat',
+        password: 'pass1234',
+        personId: 'person-1',
+      });
+
+      expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+      expect(manager.query).toHaveBeenCalledWith(
+        'UPDATE users SET person_id = $1 WHERE id = $2',
+        ['person-1', 'user-1'],
+      );
     });
   });
 });

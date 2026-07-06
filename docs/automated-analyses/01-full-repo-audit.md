@@ -27,12 +27,12 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 | ------------------------- | ----------- | ------------ | ------------ | ------------ | ------------- |
 | 1. Security               | 2 (1 ✅)     | 11 (4 ✅)     | 4            | 1 (1 ✅)      | 18 (6 ✅)      |
 | 2. Bugs & correctness     | 2 (1 ✅)     | 9 (3 ✅)      | 10 (1 ✅)     | 1            | 22 (5 ✅)      |
-| 3. Architecture           | —           | 3 (1 ✅)      | 8 (1 ✅)      | —            | 11 (2 ✅)      |
+| 3. Architecture           | —           | 3 (2 ✅)      | 8 (1 ✅)      | —            | 11 (3 ✅)      |
 | 4. Code smells            | —           | 1            | 11 (2 ✅)     | 3            | 15 (2 ✅)      |
 | 5. Frontend (dashboard)   | —           | 2            | 11           | 3            | 16            |
 | 6. Dependencies & tooling | 1           | —            | 2            | 1            | 5             |
 | 7. Tests                  | —           | 3 (1 ✅)      | 3            | 2            | 8 (1 ✅)       |
-| **Total**                 | **5 (2 ✅)** | **29 (9 ✅)** | **49 (4 ✅)** | **11 (1 ✅)** | **94** (16 ✅) |
+| **Total**                 | **5 (2 ✅)** | **29 (10 ✅)** | **49 (4 ✅)** | **11 (1 ✅)** | **94** (17 ✅) |
 
 
 *(✅ counts reflect fixes applied so far in this branch; updated as findings are resolved.)*
@@ -417,25 +417,24 @@ Sending `null`/omitting falls back to the previous value, so detaching a node fr
 
 `auth.controller.ts`, `auth.service.ts` and `main.ts` — the specific files named above — were migrated from raw `process.env` reads to injected `ConfigService`. `auth.constants.ts`, `database.module.ts`, `legacy-api.client.ts` and `node-assignment.service.ts` still read `process.env` directly for non-security-critical values (TTLs, lock days, legacy sync credentials); this was a deliberate scope call, not an oversight — those reads now execute only after `ConfigModule`'s schema validation has already run as part of Nest's module-graph resolution (it's first in `AppModule.imports`), so a missing/malformed value there is still a fatal startup error, and rewriting every call site to inject `ConfigService` would have been pure churn with no additional safety. Revisit if those files grow new config surface.
 
-### 🟠🟡 ARCH-2 — Multi-step DB writes without transactions in user/person flows — PARTIALLY FIXED
+### 🟠✅ ARCH-2 — Multi-step DB writes without transactions in user/person flows — FIXED
 
 Examples:
 
 - ✅ `UserService.createWithInvite`: create user → save person.managedBy → sendInvite (3 writes, no transaction). A failure mid-way leaves a user without a linked person or without an invite.
 - ✅ `UserService.createUser`: save user → save person → re-fetch.
-- `AuthService.setupUser`: save user → raw SQL update of `person_id` → re-fetch. **Still open** — lives in the auth module, out of scope for this pass (tracked separately, also touches SM-3's raw-SQL smell).
+- ✅ `AuthService.setupUser`: save user → raw SQL update of `person_id` → re-fetch.
 
 The figures module reportedly snapshots inside a transaction (to be verified below), so the pattern is known — it's just not applied consistently.
 
 **Recommendation:** wrap multi-entity mutations in `dataSource.transaction(...)`.
 
-**Fix applied (user.service.ts only):** `UserService` now injects `DataSource` and wraps the multi-entity writes in both methods in `dataSource.transaction(...)`, matching the pattern already used in `node-assignment.service.ts`:
-- `createWithInvite`: user creation and `person.managedBy` linking now happen inside one transaction (via `manager.create`/`manager.save`), so a failure between the two can no longer leave an orphaned user or an unlinked person. `sendInvite` (the invite-token generation + email send) intentionally stays outside the transaction and unchanged — it's a separate, already-idempotent concern with its own error handling (BUG-4), not a case of "leaving inconsistent DB state."
-- `createUser`: the user save (new or upgraded-stub branch), the `person.managedBy` link, and the final reload are now all done through the same transaction `manager`, replacing the previous three separate repository calls.
+**Fix applied:** all three call sites now inject `DataSource` and wrap their multi-entity writes in `dataSource.transaction(...)`, matching the pattern already used in `node-assignment.service.ts`:
+- `UserService.createWithInvite`: user creation and `person.managedBy` linking now happen inside one transaction (via `manager.create`/`manager.save`), so a failure between the two can no longer leave an orphaned user or an unlinked person. `sendInvite` (the invite-token generation + email send) intentionally stays outside the transaction and unchanged — it's a separate, already-idempotent concern with its own error handling (BUG-4), not a case of "leaving inconsistent DB state."
+- `UserService.createUser`: the user save (new or upgraded-stub branch), the `person.managedBy` link, and the final reload are now all done through the same transaction `manager`, replacing the previous three separate repository calls.
+- `AuthService.setupUser`: the user save, the raw-SQL `person_id` update, and the final reload now all run through the same transaction `manager` (`manager.query(...)` instead of `this.userRepo.query(...)`). The success log line was also moved to after the transaction resolves, so bootstrap is no longer logged as "created" if the person link or reload subsequently fails. The raw SQL itself and its lack of a `personId` existence check are unchanged — that's SM-3's concern, not ARCH-2's, and remains open.
 
-`AuthService.setupUser` was deliberately left out of this fix — it's a different module/service and wasn't part of what this pass covered; it remains open.
-
-Covered by updated specs using a mocked `DataSource.transaction`/manager (mirroring `node-assignment.service.spec.ts`'s existing pattern), asserting the transaction is invoked exactly once per call and that both entities are saved through the same manager.
+Covered by updated/new specs in `user.service.spec.ts` and `auth.service.spec.ts` using a mocked `DataSource.transaction`/manager (mirroring `node-assignment.service.spec.ts`'s existing pattern), asserting the transaction is invoked exactly once per call and that the relevant writes go through the same manager.
 
 ### 🟡✅ ARCH-3 — Refresh tokens are JWTs whose signature is never verified — FIXED
 

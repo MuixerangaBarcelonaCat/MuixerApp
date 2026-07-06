@@ -41,6 +41,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly tokenService: TokenService,
     private readonly configService: ConfigService,
+    private readonly dataSource: DataSource,
   ) {}
 
   /** Comprova email i contrasenya via bcrypt. Retorna null si l'usuari no existeix, no està actiu o la contrasenya és incorrecta. */
@@ -203,29 +204,32 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
-    const user = this.userRepo.create({
-      email: dto.email,
-      passwordHash,
-      role: UserRole.ADMIN,
-      isActive: true,
-    });
-    const saved = await this.userRepo.save(user);
-    this.logger.log(`Usuari ADMIN de bootstrap creat (email=${dto.email})`);
-
     const personId = dto.personId;
 
-    if (personId) {
-      await this.userRepo.query(
-        `UPDATE users SET person_id = $1 WHERE id = $2`,
-        [personId, saved.id],
-      );
-    }
+    const reloaded = await this.dataSource.transaction(async (manager) => {
+      const user = manager.create(User, {
+        email: dto.email,
+        passwordHash,
+        role: UserRole.ADMIN,
+        isActive: true,
+      });
+      const saved = await manager.save(User, user);
 
-    const reloaded = await this.userRepo.findOne({
-      where: { id: saved.id },
-      relations: ['person'],
+      if (personId) {
+        await manager.query(
+          `UPDATE users SET person_id = $1 WHERE id = $2`,
+          [personId, saved.id],
+        );
+      }
+
+      return manager.findOne(User, {
+        where: { id: saved.id },
+        relations: ['person'],
+      });
     });
+
     if (reloaded) {
+      this.logger.log(`Usuari ADMIN de bootstrap creat (email=${dto.email})`);
       return this.toUserProfile(reloaded);
     } else {
       throw new InternalServerErrorException('No s\'ha pogut crear l\'usuari');
