@@ -38,6 +38,7 @@ describe('PersonService', () => {
 
   const mockUserRepository = {
     sendInvitation: jest.fn(),
+    findOne: jest.fn(),
   }
 
   beforeEach(async () => {
@@ -356,6 +357,32 @@ describe('PersonService', () => {
       await expect(
         service.update('1', { isProvisional: false, alias: 'JoanNou' }),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('loads the managedBy relation so the promotion check sees it', async () => {
+      const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: 'García', isProvisional: true, positions: [], mentor: null, managedBy: { id: 'user_id' } };
+      mockPersonRepository.findOne.mockResolvedValue(provisionalPerson);
+      mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
+
+      await service.update('1', { isProvisional: false, alias: 'JoanGarcia' });
+
+      expect(mockPersonRepository.findOne).toHaveBeenCalledWith({
+        where: { id: '1' },
+        relations: ['positions', 'mentor', 'managedBy'],
+      });
+    });
+
+    it('promotes when managedById is provided in the same request even if the person has no manager yet', async () => {
+      const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: 'García', isProvisional: true, positions: [], mentor: null, managedBy: null };
+      mockPersonRepository.findOne.mockResolvedValue(provisionalPerson);
+      mockUserRepository.findOne.mockResolvedValue({ id: 'user_id' });
+      mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
+
+      await service.update('1', { isProvisional: false, alias: 'JoanGarcia', managedById: 'user_id' });
+
+      expect(mockPersonRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ isProvisional: false, managedBy: { id: 'user_id' } }),
+      );
     });
 
     it('throws BadRequestException when promoting with ~ alias', async () => {

@@ -214,7 +214,7 @@ export class PersonService {
   ): Promise<PersonResponseDto> {
     const person = await this.personRepository.findOne({
       where: { id },
-      relations: ['positions', 'mentor'],
+      relations: ['positions', 'mentor', 'managedBy'],
     });
 
     if (!person) {
@@ -223,6 +223,20 @@ export class PersonService {
 
     const { positionIds, mentorId, isProvisional, managedById, ...personData } =
       updatePersonDto;
+
+    if (managedById !== undefined) {
+      if (managedById) {
+        const user = await this.userRepository.findOne({
+          where: { id: managedById },
+        });
+        if (!user) {
+          throw new NotFoundException(`User with ID ${managedById} not found`);
+        }
+        person.managedBy = user;
+      } else {
+        person.managedBy = null;
+      }
+    }
 
     // Handle isProvisional transitions
     if (isProvisional !== undefined) {
@@ -290,20 +304,6 @@ export class PersonService {
         person.mentor = mentor;
       } else {
         person.mentor = null;
-      }
-    }
-
-    if (managedById !== undefined) {
-      if (managedById) {
-        const user = await this.userRepository.findOne({
-          where: { id: managedById },
-        });
-        if (!user) {
-          throw new NotFoundException(`User with ID ${managedById} not found`);
-        }
-        person.managedBy = user;
-      } else {
-        person.managedBy = null;
       }
     }
 

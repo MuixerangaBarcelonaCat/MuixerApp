@@ -26,13 +26,13 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 | Section                   | 🔴          | 🟠           | 🟡           | 🔵           | Total         |
 | ------------------------- | ----------- | ------------ | ------------ | ------------ | ------------- |
 | 1. Security               | 2 (1 ✅)     | 11 (4 ✅)     | 4 (1 ✅)      | 1 (1 ✅)      | 18 (7 ✅)      |
-| 2. Bugs & correctness     | 2 (1 ✅)     | 9 (3 ✅)      | 10 (1 ✅)     | 1            | 22 (5 ✅)      |
+| 2. Bugs & correctness     | 2 (2 ✅)     | 9 (3 ✅)      | 10 (1 ✅)     | 1            | 22 (6 ✅)      |
 | 3. Architecture           | —           | 3 (2 ✅)      | 8 (1 ✅)      | —            | 11 (3 ✅)      |
 | 4. Code smells            | —           | 1            | 11 (2 ✅)     | 3            | 15 (2 ✅)      |
 | 5. Frontend (dashboard)   | —           | 2            | 11           | 3            | 16            |
 | 6. Dependencies & tooling | 1           | —            | 2            | 1            | 5             |
 | 7. Tests                  | —           | 3 (1 ✅)      | 3            | 2            | 8 (1 ✅)       |
-| **Total**                 | **5 (2 ✅)** | **29 (10 ✅)** | **49 (5 ✅)** | **11 (1 ✅)** | **94** (18 ✅) |
+| **Total**                 | **5 (3 ✅)** | **29 (10 ✅)** | **49 (5 ✅)** | **11 (1 ✅)** | **94** (19 ✅) |
 
 
 *(✅ counts reflect fixes applied so far in this branch; updated as findings are resolved.)*
@@ -44,7 +44,7 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
 | 1   | 🔴✅ [SEC-1](#-sec-1--hardcoded-fallback-jwt-secrets-change-me--fixed) Fallback JWT secret `'change-me'` — silent full-auth bypass if the env var is ever missing — **FIXED**                                  | `auth.module.ts`, `jwt.strategy.ts` |
 | 2   | 🔴✅ [BUG-1](#-bug-1--patch-usersgrant-role-can-never-work-missing-id-in-route--fixed) `PATCH /users/grant-role` endpoint can never work (route bug) — **FIXED**                                               | `user.controller.ts:62`             |
-| 3   | 🔴 [BUG-2](#-bug-2--promoting-a-provisional-person-always-fails) Provisional-person promotion always fails (`managedBy` never loaded)                                                                         | `person.service.ts:250`             |
+| 3   | 🔴✅ [BUG-2](#-bug-2--promoting-a-provisional-person-always-fails--fixed) Provisional-person promotion always fails (`managedBy` never loaded) — **FIXED**                                                     | `person.service.ts:250`             |
 | 4   | 🔴 [SEC-2](#-sec-2--xlsx-sheetjs-0185-with-known-cves-used-to-parse-external-data) `xlsx` 0.18.5 with known CVEs, used to parse external data                                                                 | `legacy-api.client.ts`              |
 | 5   | 🟠✅ [SEC-7](#-sec-7--technical-users-can-modify-and-deactivate-admin-accounts--fixed) TECHNICAL users can deactivate/edit ADMIN accounts — **FIXED**                                                          | `user.service.ts`                   |
 | 6   | 🟠 [SEC-14](#-sec-14--production-image-installs-unpinned-dependencies) Prod Docker image installs unpinned deps (`--no-lockfile`)                                                                             | `apps/api/Dockerfile`               |
@@ -271,7 +271,7 @@ The route declares **no `:id` path parameter**, yet the handler reads `@Param('i
 
 **Fix applied:** `user.controller.ts:62` now declares `@Patch(':id/grant-role')`, ahead of the generic `@Patch(':id')` handler so route precedence still resolves correctly. The dashboard's `UserService.grantRole` (`user.service.ts:38`) was updated to match — it now calls `PATCH /users/:id/grant-role` with only `{ role }` in the body instead of `PATCH /users/grant-role` with `{ userId, role }`. Covered by a route-metadata assertion in `user.controller.spec.ts` (fails without the `:id` segment) and an updated `user.service.spec.ts` request-shape test.
 
-### 🔴 BUG-2 — Promoting a provisional person always fails
+### 🔴✅ BUG-2 — Promoting a provisional person always fails — FIXED
 
 `person.service.ts:211-255`. The promotion path (provisional → regular) requires the person to have a managing user:
 
@@ -289,6 +289,8 @@ if (!person.managedBy) {
 `managedBy` is never in `relations`, so `person.managedBy` is always `undefined` and the check **always throws**, even for persons that do have a manager. Passing `managedById` in the same request doesn't help either, because that field is processed *after* the check (line 296).
 
 **Fix:** load `managedBy` in the `findOne` relations and consider `dto.managedById` in the check (`dto.managedById ?? person.managedBy`).
+
+**Fix applied:** `PersonService.update`'s initial `findOne` now includes `'managedBy'` in `relations`, so an already-linked manager is visible to the promotion check. The `managedById` handling block (resolve the `User`, throw `NotFoundException` if missing, assign or clear `person.managedBy`) was moved from after the `isProvisional` block to *before* it, so a `managedById` supplied in the same promotion request is applied to `person.managedBy` before the `!person.managedBy` check runs — a person can now be promoted and given a manager in one call. Covered by two new specs in `person.service.spec.ts`: one asserting `findOne` is called with `relations: ['positions', 'mentor', 'managedBy']`, another asserting promotion succeeds when `managedById` is passed for a person with no prior manager. Full `nx test api` suite (636/636) and `nx lint api` pass.
 
 ### 🟠✅ BUG-3 — Sorting users by `alias` generates invalid SQL — FIXED
 
