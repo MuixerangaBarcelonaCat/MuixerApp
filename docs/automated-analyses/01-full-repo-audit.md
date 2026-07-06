@@ -26,13 +26,13 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 | Section                   | 🔴          | 🟠            | 🟡                  | 🔵           | Total               |
 | ------------------------- | ----------- | ------------- | ------------------- | ------------ | ------------------- |
 | 1. Security               | 2 (2 ✅)     | 11 (10 ✅)     | 4 (3 ✅, 1 🚫)       | 1 (1 ✅)      | 18 (16 ✅, 1 🚫)     |
-| 2. Bugs & correctness     | 2 (2 ✅)     | 9 (8 ✅)       | 10 (8 ✅)            | 1            | 22 (18 ✅)           |
+| 2. Bugs & correctness     | 2 (2 ✅)     | 9 (8 ✅)       | 10 (8 ✅, 1 🚫)       | 1            | 22 (18 ✅, 1 🚫)      |
 | 3. Architecture           | —           | 3 (2 ✅)       | 8 (2 ✅)             | —            | 11 (4 ✅)            |
 | 4. Code smells            | —           | 1 (1 ✅)       | 11 (3 ✅)            | 3            | 15 (4 ✅)            |
 | 5. Frontend (dashboard)   | —           | 2             | 11                  | 3            | 16                  |
 | 6. Dependencies & tooling | 1 (1 ✅)     | —             | 2 (2 ✅)             | 1 (1 ✅)      | 4 (4 ✅)             |
 | 7. Tests                  | —           | 3 (1 ✅)       | 3                   | 2            | 8 (1 ✅)             |
-| **Total**                 | **5 (5 ✅)** | **29 (22 ✅)** | **49 (18 ✅, 1 🚫)** | **11 (2 ✅)** | **94 (47 ✅, 1 🚫)** |
+| **Total**                 | **5 (5 ✅)** | **29 (22 ✅)** | **49 (18 ✅, 2 🚫)** | **11 (2 ✅)** | **94 (47 ✅, 2 🚫)** |
 
 
 *(✅ counts reflect fixes applied so far in this branch; 🚫 marks findings deliberately closed as won't-fix, with reasoning inline; both are updated as findings are resolved.)*
@@ -463,9 +463,11 @@ Covered by three new specs in `node-assignment.service.spec.ts`: `assign()` pass
 
 As a consequence, `upsertPerson()` also had to stop reactivating persons on the update path: if a `legacyId` match exists but that person has `isActive: false` (i.e. was manually deactivated in MuixerApp while still present in the legacy census), sync now treats it like a brand-new legacy record — it calls `createPerson()` to create a **fresh, independent, active** person with the same `legacyId` (no unique constraint on that column) rather than reusing/reactivating the deactivated row. The deactivated person is left completely untouched. Covered by new specs in `person-sync.strategy.spec.ts` asserting `personRepository.create()` (not `.save()` on the old record) is called with `isActive: true` when the existing `legacyId` match is inactive, and that the deactivated record itself is never passed to `save()`.
 
-### 🟡 BUG-20 — Legacy session never re-authenticates on expiry
+### 🟡🚫 BUG-20 — Legacy session never re-authenticates on expiry — WON'T FIX
 
 `legacy-api.client.ts`: every fetch does `if (!this.sessionCookie) await this.login()` — but once set, the cookie is assumed valid forever. When the PHP session expires, subsequent calls receive the login page; `extractRows` then throws "Invalid response format" (and detail endpoints silently cast HTML to typed objects). No retry-with-relogin, and `validateStatus: () => true` means non-200s pass through unnoticed in the detail/JSON endpoints.
+
+**Won't fix — reasoning:** the legacy sync is a temporary migration bridge (`sync` module), not a long-lived integration — it exists only to bootstrap/backfill MuixerApp's own data until the legacy system is retired. A failed sync run due to a mid-run session expiry is already visible (the `error` SSE event + `errorCount` in the completion summary) and safely re-triggerable by hand with no lasting damage — sync is idempotent per person. Adding retry-with-relogin logic is real complexity (detecting an expired session from a 200-with-login-page-body response, re-authenticating mid-run, resuming without double-processing) for a code path that will be deleted once the legacy system is gone. Not worth it for a feature with a temporary purpose.
 
 ### 🟡✅ BUG-21 — Person sync unconditionally overwrites `managedBy` — FIXED
 
