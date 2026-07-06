@@ -9,9 +9,12 @@ import { Router } from '@angular/router';
 import { EventType, MeEvent } from '@muixer/shared';
 import { LucideAngularModule, MapPin, Clock } from 'lucide-angular';
 import { AttendanceButtonComponent } from '../attendance-button/attendance-button.component';
-import { FormatEventDatePipe } from '../../../../shared/pipes/format-event-date.pipe';
 
-const datePipe = new FormatEventDatePipe();
+const DATE_FORMATTER = new Intl.DateTimeFormat('ca', {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+});
 
 @Component({
   selector: 'app-event-card',
@@ -35,7 +38,7 @@ export class EventCardComponent {
   protected readonly cardTitle = computed(() => {
     const ev = this.event();
     return ev.eventType === EventType.ASSAIG
-      ? datePipe.transform(ev.date)
+      ? this.formatDate(ev.date)
       : ev.title;
   });
 
@@ -43,7 +46,7 @@ export class EventCardComponent {
     const ev = this.event();
     return ev.eventType === EventType.ASSAIG
       ? 'Assaig'
-      : datePipe.transform(ev.date);
+      : this.formatDate(ev.date);
   });
 
   protected readonly accentClass = computed(() =>
@@ -52,5 +55,12 @@ export class EventCardComponent {
 
   navigateToDetail(): void {
     this.router.navigate(['/events', this.event().id]);
+  }
+
+  private formatDate(dateStr: string): string {
+    const date = new Date(dateStr + 'T00:00:00');
+    if (isNaN(date.getTime())) return '';
+    const formatted = DATE_FORMATTER.format(date);
+    return formatted.charAt(0).toUpperCase() + formatted.slice(1);
   }
 }

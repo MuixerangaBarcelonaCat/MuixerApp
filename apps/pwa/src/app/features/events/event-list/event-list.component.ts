@@ -1,12 +1,15 @@
 import {
   Component,
   ChangeDetectionStrategy,
+  DestroyRef,
   inject,
   signal,
   computed,
   OnInit,
   ViewChild,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Subject, switchMap, catchError, EMPTY, tap } from 'rxjs';
 import { MeEvent } from '@muixer/shared';
 import { MobileHeaderComponent } from '../../../shared/components/mobile-header/mobile-header.component';
 import { SkeletonCardComponent } from '../../../shared/components/skeleton-card/skeleton-card.component';
@@ -45,6 +48,8 @@ export class EventListComponent implements OnInit {
   @ViewChild(PullToRefreshComponent) pullToRefresh?: PullToRefreshComponent;
 
   private readonly eventService = inject(EventService);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly filterTrigger$ = new Subject<MeEventFilters>();
 
   protected readonly tabs = TABS;
   protected readonly activeFilter = signal<TimeFilter>('upcoming');
@@ -60,6 +65,26 @@ export class EventListComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    this.filterTrigger$.pipe(
+      tap(() => {
+        this.isLoading.set(true);
+        this.hasError.set(false);
+      }),
+      switchMap((filters) => this.eventService.findAll(filters).pipe(
+        catchError(() => {
+          this.hasError.set(true);
+          this.isLoading.set(false);
+          this.pullToRefresh?.complete();
+          return EMPTY;
+        }),
+      )),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe((res) => {
+      this.events.set(res.data);
+      this.isLoading.set(false);
+      this.pullToRefresh?.complete();
+    });
+
     this.loadEvents();
   }
 
@@ -74,25 +99,9 @@ export class EventListComponent implements OnInit {
   }
 
   private loadEvents(): void {
-    this.isLoading.set(true);
-    this.hasError.set(false);
-
-    const filters: MeEventFilters = {
+    this.filterTrigger$.next({
       timeFilter: this.activeFilter(),
       limit: 50,
-    };
-
-    this.eventService.findAll(filters).subscribe({
-      next: (res) => {
-        this.events.set(res.data);
-        this.isLoading.set(false);
-        this.pullToRefresh?.complete();
-      },
-      error: () => {
-        this.hasError.set(true);
-        this.isLoading.set(false);
-        this.pullToRefresh?.complete();
-      },
     });
   }
 }

@@ -1,11 +1,14 @@
 import {
   Component,
   ChangeDetectionStrategy,
+  DestroyRef,
   inject,
   signal,
+  computed,
   OnInit,
   input,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MeEventDetail, EventType } from '@muixer/shared';
 import { LucideAngularModule, MapPin, Clock, Info } from 'lucide-angular';
 import { MobileHeaderComponent } from '../../../shared/components/mobile-header/mobile-header.component';
@@ -35,16 +38,20 @@ export class EventDetailComponent implements OnInit {
   protected readonly Info = Info;
 
   private readonly eventService = inject(EventService);
+  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly event = signal<MeEventDetail | null>(null);
   protected readonly isLoading = signal(true);
   protected readonly hasError = signal(false);
 
-  protected readonly isAssaig = () =>
-    this.event()?.eventType === EventType.ASSAIG;
+  protected readonly isAssaig = computed(
+    () => this.event()?.eventType === EventType.ASSAIG,
+  );
 
   ngOnInit(): void {
-    this.eventService.findOne(this.id()).subscribe({
+    this.eventService.findOne(this.id()).pipe(
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe({
       next: (ev) => {
         this.event.set(ev);
         this.isLoading.set(false);

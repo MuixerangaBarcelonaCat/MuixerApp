@@ -1,11 +1,13 @@
 import {
   Component,
   ChangeDetectionStrategy,
+  DestroyRef,
   inject,
   signal,
   computed,
   OnInit,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MeEvent } from '@muixer/shared';
 import { MobileHeaderComponent } from '../../shared/components/mobile-header/mobile-header.component';
 import { SkeletonCardComponent } from '../../shared/components/skeleton-card/skeleton-card.component';
@@ -29,6 +31,7 @@ import { HomeService } from './services/home.service';
 export class HomeComponent implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly homeService = inject(HomeService);
+  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly isLoading = signal(true);
   protected readonly nextRehearsals = signal<MeEvent[]>([]);
@@ -45,7 +48,9 @@ export class HomeComponent implements OnInit {
   );
 
   ngOnInit(): void {
-    this.homeService.loadHomeData().subscribe({
+    this.homeService.loadHomeData().pipe(
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe({
       next: (data) => {
         this.nextRehearsals.set(data.nextRehearsals);
         this.nextPerformances.set(data.nextPerformances);

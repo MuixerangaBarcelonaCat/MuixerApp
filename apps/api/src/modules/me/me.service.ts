@@ -67,7 +67,7 @@ export class MeService {
       qb.andWhere('event."eventType" = :type', { type });
     }
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = this.getLocalToday();
     if (timeFilter === 'upcoming') {
       qb.andWhere('event.date >= :today', { today });
       qb.orderBy('event.date', 'ASC').addOrderBy('event."startTime"', 'ASC');
@@ -140,7 +140,7 @@ export class MeService {
       throw new NotFoundException(`Event with ID ${eventId} not found`);
     }
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = this.getLocalToday();
     const eventDate = event.date instanceof Date
       ? event.date.toISOString().slice(0, 10)
       : String(event.date);
@@ -175,6 +175,16 @@ export class MeService {
       status: attendance.status,
       respondedAt: attendance.respondedAt!.toISOString(),
     };
+  }
+
+  private getLocalToday(): string {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Madrid',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    return formatter.format(new Date());
   }
 
   private async resolvePersonId(userId: string): Promise<string | null> {

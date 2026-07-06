@@ -73,6 +73,7 @@
       <app-attendance-button
         [eventId]="event()!.id"
         [status]="event()!.myAttendance?.status ?? null"
+        [ariaContext]="event()!.title"
       />
     </div>
   </section>

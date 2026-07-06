@@ -38,7 +38,9 @@ export class PullToRefreshComponent implements AfterViewInit, OnDestroy {
 
   private readonly el = inject(ElementRef<HTMLElement>);
   private readonly zone = inject(NgZone);
+  private readonly THRESHOLD = 60;
   private startY = 0;
+  private currentY = 0;
   private pulling = false;
 
   private touchStartFn = (e: TouchEvent) => this.onTouchStart(e);
@@ -67,16 +69,19 @@ export class PullToRefreshComponent implements AfterViewInit, OnDestroy {
   }
 
   private onTouchStart(e: TouchEvent): void {
-    if (window.scrollY === 0) {
+    const el = this.el.nativeElement;
+    if (el.scrollTop === 0 && window.scrollY === 0) {
       this.startY = e.touches[0].clientY;
+      this.currentY = this.startY;
       this.pulling = true;
     }
   }
 
   private onTouchMove(e: TouchEvent): void {
     if (!this.pulling) return;
-    const dy = e.touches[0].clientY - this.startY;
-    if (dy > 10) {
+    this.currentY = e.touches[0].clientY;
+    const dy = this.currentY - this.startY;
+    if (dy > this.THRESHOLD) {
       this.zone.run(() => this.isPulling.set(true));
     }
   }
@@ -84,8 +89,9 @@ export class PullToRefreshComponent implements AfterViewInit, OnDestroy {
   private onTouchEnd(): void {
     if (!this.pulling) return;
     this.pulling = false;
+    const dy = this.currentY - this.startY;
 
-    if (this.isPulling() && !this.isRefreshing()) {
+    if (dy >= this.THRESHOLD && !this.isRefreshing()) {
       this.zone.run(() => {
         this.isRefreshing.set(true);
         this.refresh.emit();

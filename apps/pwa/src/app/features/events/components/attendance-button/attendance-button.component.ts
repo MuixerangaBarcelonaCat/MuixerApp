@@ -34,7 +34,7 @@ const STATUS_CYCLE: AttendanceStatus[] = [
       class="btn btn-sm min-w-[5.5rem]"
       [class]="buttonClass()"
       [disabled]="disabled() || isPending()"
-      [attr.aria-label]="'Assistència: ' + displayLabel()"
+      [attr.aria-label]="ariaLabel()"
       aria-live="polite"
       (click)="toggle()"
     >
@@ -49,6 +49,7 @@ export class AttendanceButtonComponent {
   readonly status = input<AttendanceStatus | null>(null);
   readonly eventId = input.required<string>();
   readonly disabled = input(false);
+  readonly ariaContext = input('');
   readonly statusChanged = output<AttendanceStatus>();
 
   private readonly eventService = inject(EventService);
@@ -67,6 +68,11 @@ export class AttendanceButtonComponent {
   protected readonly buttonClass = computed(
     () => STATUS_CONFIG[this.displayStatus()]?.class ?? 'btn-warning',
   );
+  protected readonly ariaLabel = computed(() => {
+    const ctx = this.ariaContext();
+    const label = this.displayLabel();
+    return ctx ? `Assistència ${ctx}: ${label}` : `Assistència: ${label}`;
+  });
 
   constructor() {
     effect(() => {
