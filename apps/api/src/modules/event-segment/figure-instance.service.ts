@@ -491,17 +491,19 @@ export class FigureInstanceService {
       throw new NotFoundException(`Composition with ID ${compositionId} not found`);
     }
 
+    const maxOrder = await this.instanceRepository
+      .createQueryBuilder('instance')
+      .select('MAX(instance.sortOrder)', 'max')
+      .where('instance.segment = :segmentId', { segmentId })
+      .getRawOne<{ max: number | null }>();
+
+    let nextSortOrder = (maxOrder?.max ?? -1) + 1;
+
     await this.dataSource.transaction(async (manager) => {
       await manager.save(EventSegment, { id: segment.id, name: composition.name });
 
       for (const entry of composition.entries ?? []) {
-        const maxOrder = await this.instanceRepository
-          .createQueryBuilder('instance')
-          .select('MAX(instance.sortOrder)', 'max')
-          .where('instance.segment = :segmentId', { segmentId })
-          .getRawOne<{ max: number | null }>();
-
-        const sortOrder = (maxOrder?.max ?? -1) + 1;
+        const sortOrder = nextSortOrder++;
 
         const instance = this.instanceRepository.create({
           segment,

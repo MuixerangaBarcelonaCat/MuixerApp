@@ -26,13 +26,13 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 | Section                   | 🔴          | 🟠            | 🟡            | 🔵           | Total         |
 | ------------------------- | ----------- | ------------- | ------------- | ------------ | ------------- |
 | 1. Security               | 2 (2 ✅)     | 11 (6 ✅)      | 4 (1 ✅)       | 1 (1 ✅)      | 18 (10 ✅)     |
-| 2. Bugs & correctness     | 2 (2 ✅)     | 9 (4 ✅)       | 10 (3 ✅)      | 1            | 22 (9 ✅)      |
+| 2. Bugs & correctness     | 2 (2 ✅)     | 9 (5 ✅)       | 10 (3 ✅)      | 1            | 22 (10 ✅)     |
 | 3. Architecture           | —           | 3 (2 ✅)       | 8 (2 ✅)       | —            | 11 (4 ✅)      |
 | 4. Code smells            | —           | 1 (1 ✅)       | 11 (3 ✅)      | 3            | 15 (4 ✅)      |
 | 5. Frontend (dashboard)   | —           | 2             | 11            | 3            | 16            |
 | 6. Dependencies & tooling | 1 (1 ✅)     | —             | 2 (2 ✅)       | 1 (1 ✅)      | 4 (4 ✅)       |
 | 7. Tests                  | —           | 3 (1 ✅)       | 3             | 2            | 8 (1 ✅)       |
-| **Total**                 | **5 (5 ✅)** | **29 (14 ✅)** | **49 (11 ✅)** | **11 (2 ✅)** | **94 (32 ✅)** |
+| **Total**                 | **5 (5 ✅)** | **29 (15 ✅)** | **49 (11 ✅)** | **11 (2 ✅)** | **94 (33 ✅)** |
 
 
 *(✅ counts reflect fixes applied so far in this branch; updated as findings are resolved.)*
@@ -53,7 +53,7 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 | 9   | 🟠✅ [BUG-19](#-bug-19--deactivatemissingpersons-trusts-the-legacy-fetch-blindly--fixed) Sync can mass-deactivate the census on a partial legacy response — **FIXED**                                          | `person-sync.strategy.ts`           |
 | 10  | 🟠✅ [SEC-3](#-sec-3--setup-endpoint-non-constant-time-token-comparison-unlimited-use--fixed) Setup endpoint mints ADMIN accounts forever while `SETUP_TOKEN` is set — **FIXED**                               | `auth.controller.ts`                |
 | 11  | 🟠✅ [BUG-17](#-bug-17--lazy-snapshot-has-a-check-then-act-race-duplicate-instance-nodes--fixed) Lazy-snapshot race duplicates instance nodes under concurrent first-assignment — **FIXED**                   | `node-assignment.service.ts:340`    |
-| 12  | 🟠 [BUG-11](#-bug-11--applycomposition-sortorder-computed-outside-the-transaction--duplicated-orders) `applyComposition` gives every figure the same `sortOrder` (cross-connection read inside a transaction) | `figure-instance.service.ts`        |
+| 12  | 🟠✅ [BUG-11](#-bug-11--applycomposition-sortorder-computed-outside-the-transaction--duplicated-orders--fixed) `applyComposition` gives every figure the same `sortOrder` (cross-connection read inside a transaction) — **FIXED** | `figure-instance.service.ts`        |
 | 13  | 🟠 [FE-13](#-fe-13--template-editor-pending-autosave-is-discarded-on-most-exits) Template editor silently drops pending autosave on most exit paths (data loss)                                               | `template-editor.component.ts`      |
 | 14  | 🟠 [FE-6](#-fe-6--rotation-handle-breaks-on-touch-devices-and-can-leak-window-listeners) Rotation handle dead on touch devices + leaves the slot permanently un-draggable                                     | `figure-canvas.component.ts:1148`   |
 | 15  | 🟠 [TEST-3](#7-tests) Dashboard coverage is bimodal — pinyes core 90%+, but critical modals (incl. role assignment) sit at 0-11%                                                                              | dashboard                           |
@@ -360,9 +360,11 @@ This was originally paired with an explicit `deactivatedManually` flag + migrati
 
 **Fix applied:** `PersonService.update` now runs a pre-check whenever the final `alias` to be saved differs from the person's current alias — covering both the demotion-derived `~`-prefixed alias and any plain alias edit in the same method. It looks up an existing person with that alias and throws `ConflictException` if a *different* person (`conflict.id !== person.id`) already has it, before `Object.assign`/`save` runs. This is the same TOCTOU-tolerant pattern already used by `createProvisional` (a pre-check, not a DB-level fix — the race window itself is accepted as low-risk, matching the existing `createProvisional` precedent) — it turns the previously-unhandled `QueryFailedError` → 500 into a clean 409 for both the demotion path and general alias updates via `update`. Covered by three new specs in `person.service.spec.ts`: demotion-collision → `ConflictException` (and `save` never called), plain alias-update collision → `ConflictException`, and a free-alias update still succeeds. Full `nx test api` suite (639/639) and `nx lint api` pass.
 
-### 🟠 BUG-11 — `applyComposition`: sortOrder computed outside the transaction → duplicated orders
+### 🟠✅ BUG-11 — `applyComposition`: sortOrder computed outside the transaction → duplicated orders — FIXED
 
 `figure-instance.service.ts:494-522`. Inside the `dataSource.transaction(...)` loop, `MAX(sortOrder)` is queried through `this.instanceRepository` — i.e. on a **different connection** than the transaction's manager. Under READ COMMITTED it cannot see the rows the transaction just inserted, so the max never advances: **every entry of the composition receives the same `sortOrder`**, and the resulting figures render in nondeterministic order. Fix: query the max once via `manager` (or compute `base + i`).
+
+**Fix applied:** the `MAX(sortOrder)` query now runs once, before the transaction starts, and the loop increments a local counter (`nextSortOrder++`) for each entry instead of re-querying per iteration — the `base + i` option from the recommendation, simpler than threading the transaction's `manager` into the query builder and correct since nothing else can concurrently insert instances into this segment while `applyComposition` runs (the transaction still exists to guard the actual inserts alongside the segment-name update). Covered by a new spec in `figure-instance.service.spec.ts` that reproduces the bug's exact symptom — a composition with 3 entries and a query mock that always returns the same stale max, simulating a connection that can't see its own transaction's uncommitted rows — asserting the created instances get sequential `sortOrder` (6, 7, 8) rather than the same value three times. Verified red against the old implementation first (produced `[6, 6, 6]`).
 
 ### 🟠 BUG-12 — Two different "pinya capacity" formulas
 

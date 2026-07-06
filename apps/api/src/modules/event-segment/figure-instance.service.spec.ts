@@ -739,5 +739,26 @@ describe('FigureInstanceService', () => {
       expect(mockSegmentService.getOne).toHaveBeenCalledWith(SEGMENT_ID);
       expect(result.name).toBe('Castell');
     });
+
+    it('assigns a distinct, incrementing sortOrder to each composition entry', async () => {
+      const entries = [
+        makeCompositionEntry({ id: 'entry-1', label: 'First' }),
+        makeCompositionEntry({ id: 'entry-2', label: 'Second' }),
+        makeCompositionEntry({ id: 'entry-3', label: 'Third' }),
+      ];
+      const composition = { id: COMPOSITION_ID, name: 'Altar', entries };
+      const updatedSegment = { id: SEGMENT_ID, name: 'Altar', instances: [] };
+
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockCompositionRepo.findOne.mockResolvedValue(composition);
+      mockInstanceQb.getRawOne.mockResolvedValue({ max: 5 });
+      mockInstanceRepo.create.mockImplementation((dto) => ({ ...dto, id: 'new-inst' }));
+      mockSegmentService.getOne.mockResolvedValue(updatedSegment);
+
+      await service.applyComposition(EVENT_ID, SEGMENT_ID, COMPOSITION_ID);
+
+      const sortOrders = mockInstanceRepo.create.mock.calls.map(([dto]) => dto.sortOrder);
+      expect(sortOrders).toEqual([6, 7, 8]);
+    });
   });
 });
