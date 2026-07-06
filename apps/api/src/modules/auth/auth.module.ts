@@ -34,6 +34,6 @@ import { requireJwtSecret } from './constants/jwt-secret.util';
     JwtAuthGuard,
     RolesGuard,
   ],
-  exports: [JwtAuthGuard, RolesGuard, AuthService],
+  exports: [JwtAuthGuard, RolesGuard, AuthService, TokenService],
 })
 export class AuthModule {}

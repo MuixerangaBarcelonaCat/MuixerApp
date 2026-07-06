@@ -21,6 +21,7 @@ import { plainToInstance } from 'class-transformer';
 import { USER_SORT_COLUMN_MAP } from './constants/user-sort.constants';
 import { UserFilterDto } from './dto/user-filter.dto';
 import { hashToken } from '../../common/utils/hash-token.util';
+import { TokenService } from '../auth/token.service';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -32,6 +33,7 @@ export class UserService {
     @InjectRepository(Person)
     private readonly personRepository: Repository<Person>,
     private readonly dataSource: DataSource,
+    private readonly tokenService: TokenService,
   ) {}
 
   async create(
@@ -368,6 +370,10 @@ export class UserService {
 
     const saved = await this.userRepository.save(user);
 
+    if (dto.isActive === false) {
+      await this.tokenService.revokeAllUserTokens(userId);
+    }
+
     return plainToInstance(UserResponseDto, saved, {
       excludeExtraneousValues: true,
     });
@@ -397,6 +403,7 @@ export class UserService {
 
     user.isActive = false;
     await this.userRepository.save(user);
+    await this.tokenService.revokeAllUserTokens(userId);
   }
 
   private assertCanAssignRole(

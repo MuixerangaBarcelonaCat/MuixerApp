@@ -13,6 +13,7 @@ import { User } from './user.entity';
 import { Person } from '../person/person.entity';
 import { UserRole } from '@muixer/shared';
 import { hashToken } from '../../common/utils/hash-token.util';
+import { TokenService } from '../auth/token.service';
 
 const makeTransactionManager = () => ({
   create: jest.fn((_entity: unknown, data: unknown) => data),
@@ -56,6 +57,7 @@ describe('UserService', () => {
   let mockUserRepo: Record<string, jest.Mock>;
   let mockPersonRepo: Record<string, jest.Mock>;
   let mockDataSource: { transaction: jest.Mock };
+  let mockTokenService: { revokeAllUserTokens: jest.Mock };
 
   beforeEach(async () => {
     userQb = {
@@ -84,12 +86,17 @@ describe('UserService', () => {
       transaction: jest.fn(),
     };
 
+    mockTokenService = {
+      revokeAllUserTokens: jest.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UserService,
         { provide: getRepositoryToken(User), useValue: mockUserRepo },
         { provide: getRepositoryToken(Person), useValue: mockPersonRepo },
         { provide: DataSource, useValue: mockDataSource },
+        { provide: TokenService, useValue: mockTokenService },
       ],
     }).compile();
 
@@ -689,6 +696,31 @@ describe('UserService', () => {
       expect(result.isActive).toBe(false);
     });
 
+    it('revokes all refresh tokens when isActive is set to false (SEC-12)', async () => {
+      const user = makeUser({ isActive: true });
+      mockUserRepo.findOne
+        .mockResolvedValueOnce(user)
+        .mockResolvedValueOnce({ ...user, isActive: false });
+      mockUserRepo.save.mockResolvedValue({ ...user, isActive: false });
+
+      await service.updateUser('user-uuid', { isActive: false }, UserRole.ADMIN, 'actor-uuid');
+
+      expect(mockTokenService.revokeAllUserTokens).toHaveBeenCalledWith('user-uuid');
+    });
+
+    it('does not revoke tokens when isActive is not touched', async () => {
+      const user = makeUser({ isActive: true });
+      mockUserRepo.findOne
+        .mockResolvedValueOnce(user)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ ...user, email: 'new@mail.com' });
+      mockUserRepo.save.mockResolvedValue({ ...user, email: 'new@mail.com' });
+
+      await service.updateUser('user-uuid', { email: 'new@mail.com' }, UserRole.ADMIN, 'actor-uuid');
+
+      expect(mockTokenService.revokeAllUserTokens).not.toHaveBeenCalled();
+    });
+
     it('unlinks person when personId is null', async () => {
       const person = makePerson();
       const user = makeUser({ person: person as unknown as Person });
@@ -861,6 +893,16 @@ describe('UserService', () => {
       expect(mockUserRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({ isActive: false }),
       );
+    });
+
+    it('revokes all refresh tokens for the deactivated user (SEC-12)', async () => {
+      const user = makeUser({ isActive: true });
+      mockUserRepo.findOne.mockResolvedValue(user);
+      mockUserRepo.save.mockResolvedValue({ ...user, isActive: false });
+
+      await service.deactivateUser('user-uuid', UserRole.ADMIN, 'actor-uuid');
+
+      expect(mockTokenService.revokeAllUserTokens).toHaveBeenCalledWith('user-uuid');
     });
 
     it('throws ForbiddenException when a user tries to deactivate their own account', async () => {

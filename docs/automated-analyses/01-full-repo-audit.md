@@ -25,14 +25,14 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 
 | Section                   | 🔴          | 🟠           | 🟡           | 🔵           | Total         |
 | ------------------------- | ----------- | ------------ | ------------ | ------------ | ------------- |
-| 1. Security               | 2 (1 ✅)     | 11 (4 ✅)     | 4            | 1 (1 ✅)      | 18 (6 ✅)      |
+| 1. Security               | 2 (1 ✅)     | 11 (4 ✅)     | 4 (1 ✅)      | 1 (1 ✅)      | 18 (7 ✅)      |
 | 2. Bugs & correctness     | 2 (1 ✅)     | 9 (3 ✅)      | 10 (1 ✅)     | 1            | 22 (5 ✅)      |
 | 3. Architecture           | —           | 3 (2 ✅)      | 8 (1 ✅)      | —            | 11 (3 ✅)      |
 | 4. Code smells            | —           | 1            | 11 (2 ✅)     | 3            | 15 (2 ✅)      |
 | 5. Frontend (dashboard)   | —           | 2            | 11           | 3            | 16            |
 | 6. Dependencies & tooling | 1           | —            | 2            | 1            | 5             |
 | 7. Tests                  | —           | 3 (1 ✅)      | 3            | 2            | 8 (1 ✅)       |
-| **Total**                 | **5 (2 ✅)** | **29 (10 ✅)** | **49 (4 ✅)** | **11 (1 ✅)** | **94** (17 ✅) |
+| **Total**                 | **5 (2 ✅)** | **29 (10 ✅)** | **49 (5 ✅)** | **11 (1 ✅)** | **94** (18 ✅) |
 
 
 *(✅ counts reflect fixes applied so far in this branch; updated as findings are resolved.)*
@@ -205,11 +205,13 @@ On a VPS this exposes Postgres to the Internet unless an external firewall inter
 
 No `helmet` (or equivalent) in `main.ts`. The API mostly serves JSON, but Swagger UI is HTML, and default headers (`X-Content-Type-Options`, `Strict-Transport-Security` if TLS terminates at Caddy but is misconfigured, etc.) are cheap defense-in-depth.
 
-### 🟡 SEC-12 — Deactivating a user does not revoke their sessions
+### 🟡✅ SEC-12 — Deactivating a user does not revoke their sessions — FIXED
 
 `UserService.deactivateUser` only flips `isActive`. Existing refresh tokens are *effectively* dead (refresh re-checks `isActive`) but the current **access token stays valid until expiry** (default 15 min) since `JwtStrategy.validate` never touches the DB. Combined with SEC-7 this window matters.
 
 **Recommendation:** call `tokenService.revokeAllUserTokens(userId)` on deactivation; optionally check `isActive` in the JWT strategy for sensitive endpoints.
+
+**Fix applied:** `UserService` now injects `TokenService` (exported from `AuthModule`, which `UserModule` now imports — no circular dependency, since `AuthModule` reaches `User`/`Person` directly via `TypeOrmModule.forFeature`, not via `UserModule`) and calls `tokenService.revokeAllUserTokens(userId)` after flipping `isActive` to `false` — in **both** places that can deactivate an account: `deactivateUser` and `updateUser` (`dto.isActive === false`), since the generic `PATCH /users/:id` can deactivate a user too and would otherwise have left the same gap open. This still doesn't touch the *current* access token (unchanged from the finding — that requires the JWT strategy to hit the DB, a bigger tradeoff not undertaken here), but it closes the refresh-token side immediately instead of relying on the next refresh call to notice `isActive: false`. Covered by new specs in `user.service.spec.ts` asserting `revokeAllUserTokens` is called with the target `userId` on both paths, and that `updateUser` does *not* call it when `isActive` isn't part of the update.
 
 ### 🔵✅ SEC-13 — User enumeration via login timing — FIXED
 
