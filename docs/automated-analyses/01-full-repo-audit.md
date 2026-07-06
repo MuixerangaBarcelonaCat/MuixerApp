@@ -23,19 +23,19 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 **Findings by section:**
 
 
-| Section                   | 🔴          | 🟠            | 🟡            | 🔵           | Total         |
-| ------------------------- | ----------- | ------------- | ------------- | ------------ | ------------- |
-| 1. Security               | 2 (2 ✅)     | 11 (10 ✅)     | 4 (1 ✅)       | 1 (1 ✅)      | 18 (14 ✅)     |
-| 2. Bugs & correctness     | 2 (2 ✅)     | 9 (7 ✅)       | 10 (5 ✅)      | 1            | 22 (14 ✅)     |
-| 3. Architecture           | —           | 3 (2 ✅)       | 8 (2 ✅)       | —            | 11 (4 ✅)      |
-| 4. Code smells            | —           | 1 (1 ✅)       | 11 (3 ✅)      | 3            | 15 (4 ✅)      |
-| 5. Frontend (dashboard)   | —           | 2             | 11            | 3            | 16            |
-| 6. Dependencies & tooling | 1 (1 ✅)     | —             | 2 (2 ✅)       | 1 (1 ✅)      | 4 (4 ✅)       |
-| 7. Tests                  | —           | 3 (1 ✅)       | 3             | 2            | 8 (1 ✅)       |
-| **Total**                 | **5 (5 ✅)** | **29 (21 ✅)** | **49 (13 ✅)** | **11 (2 ✅)** | **94 (41 ✅)** |
+| Section                   | 🔴          | 🟠            | 🟡                 | 🔵           | Total              |
+| ------------------------- | ----------- | ------------- | ------------------ | ------------ | ------------------ |
+| 1. Security               | 2 (2 ✅)     | 11 (10 ✅)     | 4 (1 ✅, 1 🚫)       | 1 (1 ✅)      | 18 (14 ✅, 1 🚫)     |
+| 2. Bugs & correctness     | 2 (2 ✅)     | 9 (7 ✅)       | 10 (5 ✅)           | 1            | 22 (14 ✅)          |
+| 3. Architecture           | —           | 3 (2 ✅)       | 8 (2 ✅)            | —            | 11 (4 ✅)           |
+| 4. Code smells            | —           | 1 (1 ✅)       | 11 (3 ✅)           | 3            | 15 (4 ✅)           |
+| 5. Frontend (dashboard)   | —           | 2             | 11                  | 3            | 16                 |
+| 6. Dependencies & tooling | 1 (1 ✅)     | —             | 2 (2 ✅)            | 1 (1 ✅)      | 4 (4 ✅)            |
+| 7. Tests                  | —           | 3 (1 ✅)       | 3                   | 2            | 8 (1 ✅)            |
+| **Total**                 | **5 (5 ✅)** | **29 (21 ✅)** | **49 (13 ✅, 1 🚫)** | **11 (2 ✅)** | **94 (41 ✅, 1 🚫)** |
 
 
-*(✅ counts reflect fixes applied so far in this branch; updated as findings are resolved.)*
+*(✅ counts reflect fixes applied so far in this branch; 🚫 marks findings deliberately closed as won't-fix, with reasoning inline; both are updated as findings are resolved.)*
 
 **Fix first — ranked across every section, not just by original discovery order:**
 
@@ -199,11 +199,13 @@ On a VPS this exposes Postgres to the Internet unless an external firewall inter
 
 **Fix applied:** debugging access to both ports is still needed, so instead of removing the mappings entirely, `docker-compose.pre.yml` now binds them to loopback only — `127.0.0.1:5432:5432` and `127.0.0.1:3000:3000` — and `docker-compose.prod.yml`'s API port gets the same treatment (`127.0.0.1:3000:3000`; Postgres there already had no `ports` mapping). Docker still won't punch a hole through UFW for these, but they stay reachable via `psql -h 127.0.0.1` / `curl localhost:3000` on the host itself, or over an SSH tunnel from a workstation. `dashboard`'s `80`/`443` mappings are left as-is since Caddy is meant to be the public entrypoint.
 
-### 🟡 SEC-10 — Swagger UI exposed in production
+### 🟡🚫 SEC-10 — Swagger UI exposed in production — WON'T FIX
 
 `main.ts` sets up Swagger unconditionally at `/api/docs`. `SwaggerModule` serves its UI/JSON outside the global guards, so the full API surface (routes, DTOs, roles) is publicly readable in prod — useful recon material.
 
 **Recommendation:** gate it behind `NODE_ENV !== 'production'` (or basic auth).
+
+**Won't fix — reasoning:** this project is open source, so the route surface, DTOs and role requirements are already fully readable in the repo itself; gating Swagger doesn't remove that information, it only makes a determined reader clone the repo instead of opening a URL. The one thing a live Swagger UI adds beyond public source is convenience for *low-effort* recon: automated scanners specifically probe for `/api/docs`/`/swagger-json` on public IPs, and it ships a ready-made "try it out" client, both of which a repo checkout doesn't hand you as directly. Also note pre already leaves it exposed regardless (SEC-18 is about pre being an accessible-by-IP, real-user-data environment), so gating only prod wouldn't close that path. Given the real vulnerability surface is behind auth either way (all routes are `JwtAuthGuard`-protected by default), the residual risk here is bot-tier recon convenience, not exploitable exposure — not worth the added `NODE_ENV` branching in `main.ts` for this project's threat model. Revisit if the API ever handles more sensitive data or the source stops being public.
 
 ### 🟡 SEC-11 — No security headers (`helmet`)
 
