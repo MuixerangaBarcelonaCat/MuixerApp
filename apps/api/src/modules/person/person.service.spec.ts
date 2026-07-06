@@ -214,22 +214,18 @@ describe('PersonService', () => {
   });
 
   describe('deactivate', () => {
-    it('should deactivate a person and update lastSyncedAt', async () => {
+    it('should deactivate a person without touching lastSyncedAt (that field belongs to the legacy sync)', async () => {
+      const originalLastSyncedAt = new Date('2024-01-01');
       const mockPerson = {
         id: '123',
         name: 'Test',
         alias: 'test',
         isActive: true,
-        lastSyncedAt: null,
-      };
-      const deactivatedPerson = {
-        ...mockPerson,
-        isActive: false,
-        lastSyncedAt: expect.any(Date),
+        lastSyncedAt: originalLastSyncedAt,
       };
 
       mockPersonRepository.findOne.mockResolvedValue(mockPerson);
-      mockPersonRepository.save.mockResolvedValue(deactivatedPerson);
+      mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
 
       const result = await service.deactivate('123');
 
@@ -242,7 +238,7 @@ describe('PersonService', () => {
         expect.objectContaining({
           id: '123',
           isActive: false,
-          lastSyncedAt: expect.any(Date),
+          lastSyncedAt: originalLastSyncedAt,
         }),
       );
     });
@@ -257,22 +253,18 @@ describe('PersonService', () => {
   });
 
   describe('activate', () => {
-    it('should activate a person and update lastSyncedAt', async () => {
+    it('should activate a person without touching lastSyncedAt (that field belongs to the legacy sync)', async () => {
+      const originalLastSyncedAt = new Date('2024-01-01');
       const mockPerson = {
         id: '123',
         name: 'Test',
         alias: 'test',
         isActive: false,
-        lastSyncedAt: new Date('2024-01-01'),
-      };
-      const activatedPerson = {
-        ...mockPerson,
-        isActive: true,
-        lastSyncedAt: expect.any(Date),
+        lastSyncedAt: originalLastSyncedAt,
       };
 
       mockPersonRepository.findOne.mockResolvedValue(mockPerson);
-      mockPersonRepository.save.mockResolvedValue(activatedPerson);
+      mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
 
       const result = await service.activate('123');
 
@@ -285,7 +277,7 @@ describe('PersonService', () => {
         expect.objectContaining({
           id: '123',
           isActive: true,
-          lastSyncedAt: expect.any(Date),
+          lastSyncedAt: originalLastSyncedAt,
         }),
       );
     });

@@ -347,7 +347,7 @@ export class PersonService {
     await this.personRepository.save(person);
   }
 
-  /** Desactiva una persona i actualitza `lastSyncedAt`. Equivalent al soft delete però retorna el DTO actualitzat. */
+  /** Desactiva una persona manualment. Equivalent al soft delete però retorna el DTO actualitzat. */
   async deactivate(id: string): Promise<PersonResponseDto> {
     const person = await this.personRepository.findOne({
       where: { id },
@@ -359,7 +359,6 @@ export class PersonService {
     }
 
     person.isActive = false;
-    person.lastSyncedAt = new Date();
 
     const saved = await this.personRepository.save(person);
     return plainToInstance(PersonResponseDto, saved, {
@@ -367,7 +366,7 @@ export class PersonService {
     });
   }
 
-  /** Reactiva una persona prèviament desactivada i actualitza `lastSyncedAt`. */
+  /** Reactiva una persona prèviament desactivada manualment. */
   async activate(id: string): Promise<PersonResponseDto> {
     const person = await this.personRepository.findOne({
       where: { id },
@@ -379,7 +378,6 @@ export class PersonService {
     }
 
     person.isActive = true;
-    person.lastSyncedAt = new Date();
 
     const saved = await this.personRepository.save(person);
     return plainToInstance(PersonResponseDto, saved, {

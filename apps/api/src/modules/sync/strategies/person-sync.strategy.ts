@@ -34,8 +34,11 @@ const POSITION_MAPPING: Record<
 
 /**
  * Estratègia de sincronització de persones des del legacy APPsistència.
- * Carrega totes les persones de `/api/castellers`, aplica la merge strategy
- * (CREATE per a noves, UPDATE parcial per a existents) i desactiva les que desapareixen.
+ * Carrega totes les persones de `/api/castellers` i aplica la merge strategy
+ * (CREATE per a noves o per a legacyIds que coincideixen amb una persona
+ * desactivada manualment, UPDATE parcial per a existents actives).
+ * El sync MAI desactiva ni reactiva persones: la desactivació és sempre una
+ * acció manual (`PersonService.deactivate`/`softDelete`), i el sync la respecta.
  */
 @Injectable()
 export class PersonSyncStrategy implements SyncStrategy {
@@ -183,14 +186,6 @@ export class PersonSyncStrategy implements SyncStrategy {
         }
       }
 
-      subscriber.next({
-        type: 'progress',
-        entity: 'sync',
-        message: 'Marcant persones inactives...',
-      });
-
-      const deactivatedCount = await this.deactivateMissingPersons(legacyPersons);
-
       // ── Step 3: Assign each user's main person ──
 
       subscriber.next({
@@ -205,8 +200,8 @@ export class PersonSyncStrategy implements SyncStrategy {
       subscriber.next({
         type: 'complete',
         entity: 'sync',
-        message: `${legacyPersons.length} processades: ${newCount} noves, ${updateCount} actualitzades, ${deactivatedCount} desactivades, ${errorCount} errors${warnSuffix}`,
-        detail: { new: newCount, updated: updateCount, deactivated: deactivatedCount, errors: errorCount, aliasWarnings: warnCount },
+        message: `${legacyPersons.length} processades: ${newCount} noves, ${updateCount} actualitzades, ${errorCount} errors${warnSuffix}`,
+        detail: { new: newCount, updated: updateCount, errors: errorCount, aliasWarnings: warnCount },
       });
 
       subscriber.complete();
@@ -393,7 +388,10 @@ export class PersonSyncStrategy implements SyncStrategy {
       relations: ['positions'],
     });
 
-    if (!existing) {
+    // A manually-deactivated person (BUG-9) must never be silently reactivated by
+    // sync. Treat this legacyId as if it were new: create a fresh, active person
+    // and leave the deactivated record untouched.
+    if (!existing || !existing.isActive) {
       return this.createPerson(legacyPerson, managedByUser, subscriber, onWarn);
     } else {
       return this.updatePerson(existing, legacyPerson, managedByUser, subscriber, onWarn);
@@ -462,8 +460,8 @@ export class PersonSyncStrategy implements SyncStrategy {
     // Always re-link to the user derived from the legacy email
     existing.managedBy = managedByUser ?? null;
 
-    // Mark as active (present in legacy API)
-    existing.isActive = true;
+    // existing.isActive is already true here — upsertPerson() routes inactive
+    // (manually-deactivated) persons to createPerson() instead.
     existing.lastSyncedAt = new Date();
 
     // NEVER update: positions, isXicalla, notes (MuixerApp owns these)
@@ -585,24 +583,4 @@ export class PersonSyncStrategy implements SyncStrategy {
     return map[estatAcollida] || OnboardingStatus.NOT_APPLICABLE;
   }
 
-  private async deactivateMissingPersons(
-    legacyPersons: LegacyPerson[],
-  ): Promise<number> {
-    const legacyIds = legacyPersons.map((p) => p.id);
-
-    if (legacyIds.length === 0) {
-      return 0;
-    }
-
-    const result = await this.personRepository
-      .createQueryBuilder()
-      .update(Person)
-      .set({ isActive: false, lastSyncedAt: new Date() })
-      .where('legacyId NOT IN (:...legacyIds)', { legacyIds })
-      .andWhere('legacyId IS NOT NULL')
-      .andWhere('isActive = :isActive', { isActive: true })
-      .execute();
-
-    return result.affected || 0;
-  }
 }

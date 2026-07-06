@@ -26,13 +26,13 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 | Section                   | 🔴          | 🟠           | 🟡           | 🔵           | Total         |
 | ------------------------- | ----------- | ------------ | ------------ | ------------ | ------------- |
 | 1. Security               | 2 (1 ✅)     | 11 (4 ✅)     | 4 (1 ✅)      | 1 (1 ✅)      | 18 (7 ✅)      |
-| 2. Bugs & correctness     | 2 (2 ✅)     | 9 (3 ✅)      | 10 (2 ✅)     | 1            | 22 (7 ✅)      |
+| 2. Bugs & correctness     | 2 (2 ✅)     | 9 (4 ✅)      | 10 (3 ✅)     | 1            | 22 (9 ✅)      |
 | 3. Architecture           | —           | 3 (2 ✅)      | 8 (1 ✅)      | —            | 11 (3 ✅)      |
 | 4. Code smells            | —           | 1            | 11 (3 ✅)     | 3            | 15 (3 ✅)      |
 | 5. Frontend (dashboard)   | —           | 2            | 11           | 3            | 16            |
 | 6. Dependencies & tooling | 1           | —            | 2            | 1            | 5             |
 | 7. Tests                  | —           | 3 (1 ✅)      | 3            | 2            | 8 (1 ✅)       |
-| **Total**                 | **5 (3 ✅)** | **29 (10 ✅)** | **49 (7 ✅)** | **11 (1 ✅)** | **94** (21 ✅) |
+| **Total**                 | **5 (3 ✅)** | **29 (11 ✅)** | **49 (8 ✅)** | **11 (1 ✅)** | **94** (23 ✅) |
 
 
 *(✅ counts reflect fixes applied so far in this branch; updated as findings are resolved.)*
@@ -50,7 +50,7 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 | 6   | 🟠 [SEC-14](#-sec-14--production-image-installs-unpinned-dependencies) Prod Docker image installs unpinned deps (`--no-lockfile`)                                                                             | `apps/api/Dockerfile`               |
 | 7   | 🟠✅ [TEST-1](#7-tests) Backend auth guards & strategies at **0% coverage** — the entire authz enforcement layer is untested — **FIXED**                                                                       | `auth/guards`, `auth/strategies`    |
 | 8   | 🟠 [SEC-8](#-sec-8--no-trust-proxy--per-ip-throttling-is-broken-behind-the-reverse-proxy) Missing `trust proxy` → rate limiting shared by all users behind Caddy                                              | `main.ts`                           |
-| 9   | 🟠 [BUG-19](#-bug-19--deactivatemissingpersons-trusts-the-legacy-fetch-blindly) Sync can mass-deactivate the census on a partial legacy response                                                              | `person-sync.strategy.ts`           |
+| 9   | 🟠✅ [BUG-19](#-bug-19--deactivatemissingpersons-trusts-the-legacy-fetch-blindly--fixed) Sync can mass-deactivate the census on a partial legacy response — **FIXED**                                          | `person-sync.strategy.ts`           |
 | 10  | 🟠✅ [SEC-3](#-sec-3--setup-endpoint-non-constant-time-token-comparison-unlimited-use--fixed) Setup endpoint mints ADMIN accounts forever while `SETUP_TOKEN` is set — **FIXED**                               | `auth.controller.ts`                |
 | 11  | 🟠 [BUG-17](#-bug-17--lazy-snapshot-has-a-check-then-act-race-duplicate-instance-nodes) Lazy-snapshot race duplicates instance nodes under concurrent first-assignment                                        | `node-assignment.service.ts:340`    |
 | 12  | 🟠 [BUG-11](#-bug-11--applycomposition-sortorder-computed-outside-the-transaction--duplicated-orders) `applyComposition` gives every figure the same `sortOrder` (cross-connection read inside a transaction) | `figure-instance.service.ts`        |
@@ -342,9 +342,13 @@ Covered by TDD: `token.service.spec.ts` asserts the returned `clientType`; `auth
 
 `person-response.dto.ts:69-70` exposes `email`, but the `Person` entity has no `email` column (contact email apparently lives on the managing `User`). The field is always `undefined` in every person response — dead API surface that the frontend may be blindly trusting.
 
-### 🟡 BUG-9 — Manual activate/deactivate of a person overwrites `lastSyncedAt`
+### 🟡✅ BUG-9 — Manual activate/deactivate of a person overwrites `lastSyncedAt` — FIXED
 
 `person.service.ts:338,358` set `lastSyncedAt = new Date()` on manual (de)activation. That column is the bookkeeping marker of the **legacy sync** (`person-sync.strategy.ts` sets it on every synced/deactivated record). Manually touching it makes a hand-edited person look "just synced", which can confuse any sync logic that reasons about staleness. Semantics mixing; use a different marker (or plain `updatedAt`).
+
+**Fix applied:** `PersonService.deactivate` and `PersonService.activate` no longer touch `lastSyncedAt` at all — it's now written exclusively by `PersonSyncStrategy` (`createPerson`/`updatePerson`), so it reliably means "last time the legacy sync touched this record." `updatedAt` (already present via `@UpdateDateColumn`) covers the "when was this last edited" need for manual actions, with no new column required.
+
+This was originally paired with an explicit `deactivatedManually` flag + migration to stop the legacy sync from silently reactivating a manually-deactivated person on its next run. That approach was replaced by a simpler, more fundamental fix — see **BUG-19** below, which removes the sync's ability to touch `isActive` at all (in either direction), making a separate manual/automatic marker unnecessary. Covered by updated specs in `person.service.spec.ts` asserting `lastSyncedAt` is left untouched by both methods.
 
 ### 🟡✅ BUG-10 — Provisional alias truncation can collide; unique violations surface as 500 — FIXED
 
@@ -397,9 +401,13 @@ Sending `null`/omitting falls back to the previous value, so detaching a node fr
 
 `assign()` does three read-then-insert conflict checks. The node and person cases are backed by DB unique constraints (`@Unique(['figureInstance','instanceNode'])`, `@Unique(['figureInstance','person'])`) so a race "only" produces a 500 instead of 409. But the third rule — *person may appear only once per segment* — exists **only in application code**: two concurrent assigns into different instances of the same segment can both pass and persist, violating the domain invariant that a person can't be in two figures at once.
 
-### 🟠 BUG-19 — `deactivateMissingPersons` trusts the legacy fetch blindly
+### 🟠✅ BUG-19 — `deactivateMissingPersons` trusts the legacy fetch blindly — FIXED
 
 `person-sync.strategy.ts:588-607`: after a sync, every person whose `legacyId` was not in the fetched list is deactivated. The only guard is `legacyIds.length === 0`. If the legacy API ever returns a **partial** list (WAF page for some rows, changed server-side filter, pagination change), the sync mass-deactivates most of the census in one UPDATE. A sanity threshold ("refuse to deactivate more than N% in one run") turns a silent disaster into a visible warning.
+
+**Fix applied — bigger than the original recommendation:** rather than adding a sanity threshold around the risky bulk-deactivation query, `deactivateMissingPersons()` was **removed entirely**, along with its call site and the "desactivades" count in the sync's completion event. The underlying design decision (from the BUG-9 fix, above) is that **the legacy sync must never deactivate — or reactivate — a person; `isActive` is exclusively a manual, human decision** (`PersonService.deactivate`/`softDelete`/`activate`). A partial or empty legacy fetch can therefore no longer mass-deactivate anything, because sync no longer deactivates *anyone*, partial fetch or not — the entire class of failure is gone, not just throttled.
+
+As a consequence, `upsertPerson()` also had to stop reactivating persons on the update path: if a `legacyId` match exists but that person has `isActive: false` (i.e. was manually deactivated in MuixerApp while still present in the legacy census), sync now treats it like a brand-new legacy record — it calls `createPerson()` to create a **fresh, independent, active** person with the same `legacyId` (no unique constraint on that column) rather than reusing/reactivating the deactivated row. The deactivated person is left completely untouched. Covered by new specs in `person-sync.strategy.spec.ts` asserting `personRepository.create()` (not `.save()` on the old record) is called with `isActive: true` when the existing `legacyId` match is inactive, and that the deactivated record itself is never passed to `save()`.
 
 ### 🟡 BUG-20 — Legacy session never re-authenticates on expiry
 
@@ -462,7 +470,7 @@ All entities use `type: 'timestamp'` (e.g. `refresh-token.entity.ts:36`, `user.e
 
 ### 🟡 ARCH-6 — Duplicate soft-delete paths on Person
 
-`softDelete` (204, used by `DELETE /persons/:id`) and `deactivate` (200 + DTO, used by `PATCH /persons/:id/deactivate`) do the same thing with different side effects (`lastSyncedAt`, see BUG-9) — two code paths to maintain for one concept.
+`softDelete` (204, used by `DELETE /persons/:id`) and `deactivate` (200 + DTO, used by `PATCH /persons/:id/deactivate`) do the same thing with a different response shape/status — two code paths to maintain for one concept. (They used to also differ in a `lastSyncedAt` side effect — see BUG-9, now fixed — but that gap is closed; the duplication itself is still open.)
 
 ### 🟡 ARCH-7 — No graceful shutdown
 
