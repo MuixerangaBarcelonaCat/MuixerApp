@@ -26,13 +26,13 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 | Section                   | 🔴          | 🟠            | 🟡                  | 🔵           | Total               |
 | ------------------------- | ----------- | ------------- | ------------------- | ------------ | ------------------- |
 | 1. Security               | 2 (2 ✅)     | 11 (10 ✅)     | 4 (3 ✅, 1 🚫)       | 1 (1 ✅)      | 18 (16 ✅, 1 🚫)     |
-| 2. Bugs & correctness     | 2 (2 ✅)     | 9 (7 ✅)       | 10 (5 ✅)            | 1            | 22 (14 ✅)           |
+| 2. Bugs & correctness     | 2 (2 ✅)     | 9 (7 ✅)       | 10 (6 ✅)            | 1            | 22 (15 ✅)           |
 | 3. Architecture           | —           | 3 (2 ✅)       | 8 (2 ✅)             | —            | 11 (4 ✅)            |
 | 4. Code smells            | —           | 1 (1 ✅)       | 11 (3 ✅)            | 3            | 15 (4 ✅)            |
 | 5. Frontend (dashboard)   | —           | 2             | 11                  | 3            | 16                  |
 | 6. Dependencies & tooling | 1 (1 ✅)     | —             | 2 (2 ✅)             | 1 (1 ✅)      | 4 (4 ✅)             |
 | 7. Tests                  | —           | 3 (1 ✅)       | 3                   | 2            | 8 (1 ✅)             |
-| **Total**                 | **5 (5 ✅)** | **29 (21 ✅)** | **49 (15 ✅, 1 🚫)** | **11 (2 ✅)** | **94 (43 ✅, 1 🚫)** |
+| **Total**                 | **5 (5 ✅)** | **29 (21 ✅)** | **49 (16 ✅, 1 🚫)** | **11 (2 ✅)** | **94 (44 ✅, 1 🚫)** |
 
 
 *(✅ counts reflect fixes applied so far in this branch; 🚫 marks findings deliberately closed as won't-fix, with reasoning inline; both are updated as findings are resolved.)*
@@ -358,9 +358,17 @@ Covered by TDD: `token.service.spec.ts` asserts the returned `clientType`; `auth
 
 **Fix applied:** all five `userRepository.findOne` calls that feed `toUserProfile` (`validateUser`, `refresh`, `getMe`, `acceptInvite`, `setupUser`) now load `relations: ['person', 'person.managedBy']` instead of just `['person']`. The mapping logic in `toUserProfile` was already correct (`person.managedBy?.email ?? null`) — the only bug was the missing relation, so no mapping changes were needed. Covered by new specs in `auth.service.spec.ts`: one asserting `getMe` requests `person.managedBy` in its `relations`, and one asserting the returned profile's `person.email` reflects `person.managedBy.email` end-to-end instead of `null`.
 
-### 🟡 BUG-8 — `PersonResponseDto.email` doesn't exist on the entity
+### 🟡✅ BUG-8 — `PersonResponseDto.email` doesn't exist on the entity — FIXED
 
 `person-response.dto.ts:69-70` exposes `email`, but the `Person` entity has no `email` column (contact email apparently lives on the managing `User`). The field is always `undefined` in every person response — dead API surface that the frontend may be blindly trusting.
+
+**Fix applied:** confirmed the frontend was in fact blindly trusting it in two places, both now removed along with the dead field itself:
+
+- `PersonResponseDto.email` (`person-response.dto.ts`) removed — the real email (of the linked `User`, when one exists) is already exposed correctly via `managedBy.email` (see BUG-7).
+- `email` removed from `PERSON_SORT_BY_FIELDS`/`PERSON_SORT_COLUMN_MAP` (`person-sort.constants.ts`). This was worse than dead: `person.email` doesn't exist as a column at all, so `GET /persons?sortBy=email` didn't return blank results, it threw a raw Postgres "column does not exist" error → 500. It's now rejected by `@IsIn(PERSON_SORT_BY_FIELDS)` with a clean 400 instead, like any other invalid `sortBy`.
+- Dashboard: removed the phantom `email` column from `person-list.component.ts`'s `ALL_COLUMNS` (always rendered `—`, and its `sortField: 'email'` was the trigger for the 500 above), removed `email` from the `Person`/`UpdatePersonDto` frontend models, and removed the dead prefill branch in `user-form-modal.component.ts` (`onPersonSelected`) that tried to copy `person.email` into the invite form's email field — it could never fire since the field was always `undefined`.
+
+Covered by a new spec in `person-filter.dto.spec.ts` asserting `sortBy: 'email'` is now rejected by validation. Full `nx test api` (673/673) and `nx test dashboard` (967/967) pass; both `nx lint` targets are clean (0 errors).
 
 ### 🟡✅ BUG-9 — Manual activate/deactivate of a person overwrites `lastSyncedAt` — FIXED
 

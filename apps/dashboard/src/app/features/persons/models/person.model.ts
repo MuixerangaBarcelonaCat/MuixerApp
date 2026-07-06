@@ -20,7 +20,6 @@ export interface Person {
   firstSurname: string;
   secondSurname: string | null;
   alias: string;
-  email: string | null;
   phone: string | null;
   birthDate: string | null;
   shoulderHeight: number | null;
@@ -80,7 +79,6 @@ export interface UpdatePersonDto {
   firstSurname: string;
   secondSurname: string | null;
   alias: string;
-  email: string | null;
   phone: string | null;
   birthDate: string | null;
   shoulderHeight: number | null;

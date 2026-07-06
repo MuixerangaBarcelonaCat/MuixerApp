@@ -67,9 +67,6 @@ export class PersonResponseDto {
   alias: string;
 
   @Expose()
-  email: string | null;
-
-  @Expose()
   phone: string | null;
 
   @Expose()

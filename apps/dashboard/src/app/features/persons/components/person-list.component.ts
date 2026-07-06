@@ -30,7 +30,6 @@ const STORAGE_KEY = 'person-list-visible-columns';
 export const ALL_COLUMNS: ColumnDef[] = [
   { key: 'alias', label: 'Alies', defaultVisible: true, sortField: 'alias' },
   { key: 'fullName', label: 'Nom complet', defaultVisible: true, sortField: 'name' },
-  { key: 'email', label: 'Correu', defaultVisible: false, sortField: 'email' },
   { key: 'phone', label: 'Telèfon', defaultVisible: false, sortField: 'phone' },
   { key: 'birthDate', label: 'Data naixement', defaultVisible: false, sortField: 'birthDate' },
   { key: 'shoulderHeight', label: 'Alçada', defaultVisible: false, sortField: 'shoulderHeight' },
