@@ -93,6 +93,9 @@ describe('TokenService', () => {
       );
       expect(result.newRawToken).toBe(newToken);
       expect(result.userId).toBe('user-uuid');
+      // BUG-5: the caller must use this stored clientType for the cookie TTL,
+      // not re-derive it from the user's role.
+      expect(result.clientType).toBe(ClientType.DASHBOARD);
     });
 
     it('revokes entire family when the atomic usedAt claim affects zero rows (reuse or lost race)', async () => {

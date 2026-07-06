@@ -85,7 +85,9 @@ export class TokenService {
    * i es revoca tota la família. Un `findOne` seguit d'un `update` separats permetria que dues
    * peticions concurrents amb el mateix token passessin totes dues la comprovació (SEC-5).
    */
-  async rotateRefreshToken(rawToken: string): Promise<{ newRawToken: string; userId: string }> {
+  async rotateRefreshToken(
+    rawToken: string,
+  ): Promise<{ newRawToken: string; userId: string; clientType: ClientType }> {
     const tokenHash = this.hash(rawToken);
     const stored = await this.refreshTokenRepo.findOne({ where: { tokenHash } });
 
@@ -111,7 +113,7 @@ export class TokenService {
     const userRef = { id: stored.userId } as User;
     const newRawToken = await this.createRefreshToken(userRef, stored.clientType, stored.family);
 
-    return { newRawToken, userId: stored.userId };
+    return { newRawToken, userId: stored.userId, clientType: stored.clientType };
   }
 
   /** Revoca un token específic marcant-lo amb `revokedAt`. Usat en logout normal (sessió actual). */

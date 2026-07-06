@@ -102,12 +102,8 @@ export class AuthController {
     const rawToken = (req.cookies as Record<string, string>)[this.tokenService.cookieName];
     if (!rawToken) throw new ForbiddenException('No refresh token');
 
-    const { response, newRefreshToken } = await this.authService.refresh(rawToken);
+    const { response, newRefreshToken, clientType } = await this.authService.refresh(rawToken);
 
-    // Determine clientType from existing cookie to set new cookie TTL correctly
-    const clientType = (response.user.role as string) === 'MEMBER'
-      ? ClientType.PWA
-      : ClientType.DASHBOARD;
     this.setRefreshCookie(res, newRefreshToken, clientType);
     return response;
   }

@@ -6,6 +6,7 @@ import { ClientType, UserRole } from '@muixer/shared';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { TokenService } from './token.service';
+import { JWT_REFRESH_TTL_DASHBOARD, JWT_REFRESH_TTL_PWA } from './constants/auth.constants';
 
 const mockAuthService = () => ({
   login: jest.fn(),
@@ -86,6 +87,7 @@ describe('AuthController', () => {
       authService.refresh.mockResolvedValue({
         response: { accessToken: 'new-access', user: { role: UserRole.TECHNICAL } },
         newRefreshToken: 'new-refresh-token',
+        clientType: ClientType.DASHBOARD,
       });
       const req = { cookies: { muixer_rt: 'old-refresh-token' } } as unknown as Request;
       const res = mockResponse();
@@ -95,6 +97,25 @@ describe('AuthController', () => {
       expect(authService.refresh).toHaveBeenCalledWith('old-refresh-token');
       expect(result.accessToken).toBe('new-access');
       expect(res.cookie).toHaveBeenCalledWith('muixer_rt', 'new-refresh-token', expect.anything());
+    });
+
+    it('sets the cookie TTL from the clientType returned by the service, not the user role (BUG-5)', async () => {
+      // A TECHNICAL user whose *session* is a PWA one — role and clientType
+      // diverge on purpose here to prove the cookie TTL follows the stored
+      // clientType, not a role-based guess.
+      authService.refresh.mockResolvedValue({
+        response: { accessToken: 'new-access', user: { role: UserRole.TECHNICAL } },
+        newRefreshToken: 'new-refresh-token',
+        clientType: ClientType.PWA,
+      });
+      const req = { cookies: { muixer_rt: 'old-refresh-token' } } as unknown as Request;
+      const res = mockResponse();
+
+      await controller.refresh(req, res);
+
+      const [, , options] = (res.cookie as jest.Mock).mock.calls[0];
+      expect(options.maxAge).toBe(JWT_REFRESH_TTL_PWA * 1000);
+      expect(options.maxAge).not.toBe(JWT_REFRESH_TTL_DASHBOARD * 1000);
     });
   });
 

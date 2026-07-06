@@ -133,6 +133,73 @@ describe('AuthService', () => {
       expect(refreshToken).toBe('refresh-token');
       expect(tokenService.createRefreshToken).toHaveBeenCalledWith(user, ClientType.DASHBOARD);
     });
+
+    it('throws UnauthorizedException when a MEMBER tries to log in via the dashboard client', async () => {
+      const member = makeUser({ role: UserRole.MEMBER });
+
+      await expect(service.login(member, ClientType.DASHBOARD)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(tokenService.createRefreshToken).not.toHaveBeenCalled();
+    });
+
+    it.each([UserRole.ADMIN, UserRole.TECHNICAL])(
+      'allows %s to log in via the dashboard client',
+      async (role) => {
+        const user = makeUser({ role });
+        const { response } = await service.login(user, ClientType.DASHBOARD);
+        expect(response.accessToken).toBe('access-token');
+      },
+    );
+
+    it.each([UserRole.ADMIN, UserRole.TECHNICAL, UserRole.MEMBER])(
+      'allows %s to log in via the PWA client',
+      async (role) => {
+        const user = makeUser({ role });
+        const { response } = await service.login(user, ClientType.PWA);
+        expect(response.accessToken).toBe('access-token');
+      },
+    );
+  });
+
+  describe('refresh', () => {
+    it('rotates the token and returns the stored clientType for the cookie (BUG-5)', async () => {
+      const user = makeUser({ role: UserRole.ADMIN });
+      tokenService.rotateRefreshToken.mockResolvedValue({
+        newRawToken: 'new-refresh-token',
+        userId: user.id,
+        clientType: ClientType.PWA,
+      });
+      userRepo.findOne.mockResolvedValue(user);
+
+      const result = await service.refresh('old-refresh-token');
+
+      expect(result.newRefreshToken).toBe('new-refresh-token');
+      expect(result.clientType).toBe(ClientType.PWA);
+      expect(result.response.accessToken).toBe('access-token');
+    });
+
+    it('throws UnauthorizedException when the user no longer exists', async () => {
+      tokenService.rotateRefreshToken.mockResolvedValue({
+        newRawToken: 'new-refresh-token',
+        userId: 'missing-user',
+        clientType: ClientType.PWA,
+      });
+      userRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.refresh('old-refresh-token')).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('throws UnauthorizedException when the user is inactive', async () => {
+      tokenService.rotateRefreshToken.mockResolvedValue({
+        newRawToken: 'new-refresh-token',
+        userId: 'user-1',
+        clientType: ClientType.PWA,
+      });
+      userRepo.findOne.mockResolvedValue(makeUser({ isActive: false }));
+
+      await expect(service.refresh('old-refresh-token')).rejects.toThrow(UnauthorizedException);
+    });
   });
 
   describe('logout', () => {

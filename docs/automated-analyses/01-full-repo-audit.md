@@ -26,13 +26,13 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 | Section                   | 🔴          | 🟠           | 🟡     | 🔵     | Total        |
 | ------------------------- | ----------- | ------------ | ------ | ------ | ------------ |
 | 1. Security               | 2 (1 ✅)     | 11 (3 ✅)     | 4      | 1 (1 ✅)     | 18 (5 ✅)     |
-| 2. Bugs & correctness     | 2           | 9            | 10     | 1           | 22           |
+| 2. Bugs & correctness     | 2           | 9 (1 ✅)      | 10     | 1           | 22 (1 ✅)     |
 | 3. Architecture           | —           | 3 (1 ✅)      | 8      | —           | 11 (1 ✅)     |
 | 4. Code smells            | —           | 1            | 11     | 3           | 15           |
 | 5. Frontend (dashboard)   | —           | 2            | 11     | 3           | 16           |
 | 6. Dependencies & tooling | (1)         | —            | 2      | 1           | 4            |
 | 7. Tests                  | —           | 3 (1 ✅)      | 3      | 2           | 8 (1 ✅)      |
-| **Total**                 | **4 (1 ✅)** | **29 (5 ✅)** | **49** | **11 (1 ✅)** | **93** (7 ✅) |
+| **Total**                 | **4 (1 ✅)** | **29 (6 ✅)** | **49** | **11 (1 ✅)** | **93** (8 ✅) |
 
 
 *(✅ counts reflect fixes applied so far in this branch; updated as findings are resolved.)*
@@ -298,11 +298,17 @@ The promise is not awaited, and throwing inside `.catch` of a floating promise p
 
 **Fix:** `await` it (and decide whether a mail failure should roll back the invite fields).
 
-### 🟠 BUG-5 — Refresh cookie TTL derived from role instead of the token's stored `clientType`
+### 🟠✅ BUG-5 — Refresh cookie TTL derived from role instead of the token's stored `clientType` — FIXED
 
 `auth.controller.ts:99-103`: on refresh, the cookie max-age is chosen by `role === 'MEMBER' ? PWA : DASHBOARD`. But `clientType` is already persisted on the `RefreshToken` row (and embedded in the JWT payload). A TECHNICAL/ADMIN user logged in from the PWA gets a token valid 7 days in the DB but a cookie that dies after 8 h (and vice versa) — silent forced logouts / TTL mismatch.
 
 **Fix:** return `clientType` from `TokenService.rotateRefreshToken` (it reads the stored row anyway) and use that.
+
+**Fix applied:** `TokenService.rotateRefreshToken` now returns the stored `clientType` alongside `newRawToken`/`userId`. `AuthService.refresh` threads it through instead of re-deriving anything from role. `AuthController.refresh` now sets the cookie from that returned `clientType` directly — the `role === 'MEMBER' ? PWA : DASHBOARD` guess is gone entirely.
+
+**Scope addition (per explicit request):** while fixing this, also added a role gate on **login** (not just refresh): `AuthService.login` now rejects with `UnauthorizedException` when `clientType === DASHBOARD` and the user's role isn't `ADMIN`/`TECHNICAL` — MEMBER accounts can only ever authenticate via the PWA client. This closes the gap BUG-5 was symptomatic of: previously nothing stopped a MEMBER from requesting a `DASHBOARD` session at login, which is exactly the divergence (role implies one clientType, the stored token says another) that made the old role-guessing logic wrong in the first place. `acceptInvite` already self-selected `clientType` from role (MEMBER→PWA, else→DASHBOARD) and needed no change — it can't produce a MEMBER+DASHBOARD combination by construction. The dashboard frontend always sends `clientType: DASHBOARD` on login, so a MEMBER now gets a clean 401 there instead of the confusing successful-login-then-bounced-to-`/login` behavior described in FE-2 (FE-2's frontend messaging is still open, but its backend root cause is closed).
+
+Covered by TDD: `token.service.spec.ts` asserts the returned `clientType`; `auth.service.spec.ts` gained a `describe('refresh', ...)` block (previously **untested**) plus login-restriction cases (`MEMBER`+`DASHBOARD` rejected, all roles allowed via `PWA`, `ADMIN`/`TECHNICAL` allowed via `DASHBOARD`); `auth.controller.spec.ts` gained a regression test using a deliberately role/clientType-divergent fixture (`TECHNICAL` role, `PWA` session) proving the cookie TTL follows the stored `clientType` and not the role.
 
 ### 🟡 BUG-6 — Token-cleanup cron: second delete is dead code
 

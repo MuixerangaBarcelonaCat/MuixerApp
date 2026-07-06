@@ -88,8 +88,16 @@ export class AuthService {
     };
   }
 
-  /** Genera un access token i un refresh token per al client indicat. El refresh token es guarda com a hash SHA-256 a la DB. */
+  /**
+   * Genera un access token i un refresh token per al client indicat. El refresh token es guarda
+   * com a hash SHA-256 a la DB. Només ADMIN/TECHNICAL poden iniciar sessió des del dashboard;
+   * qualsevol rol pot fer-ho des de la PWA.
+   */
   async login(user: User, clientType: ClientType): Promise<{ response: AuthResponseDto; refreshToken: string }> {
+    if (clientType === ClientType.DASHBOARD && ![UserRole.ADMIN, UserRole.TECHNICAL].includes(user.role)) {
+      throw new UnauthorizedException('Només els usuaris tècnics o administradors poden accedir al panell de gestió');
+    }
+
     const accessToken = this.signAccessToken(user);
     const refreshToken = await this.tokenService.createRefreshToken(user, clientType);
     return {
@@ -98,9 +106,16 @@ export class AuthService {
     };
   }
 
-  /** Rota el refresh token (invalida l'antic, emet un de nou) i retorna un nou access token. Llança 401 si el token és invàlid, revocat o caducat. */
-  async refresh(rawRefreshToken: string): Promise<{ response: AuthResponseDto; newRefreshToken: string }> {
-    const { newRawToken, userId } = await this.tokenService.rotateRefreshToken(rawRefreshToken);
+  /**
+   * Rota el refresh token (invalida l'antic, emet un de nou) i retorna un nou access token.
+   * Llança 401 si el token és invàlid, revocat o caducat. Retorna el `clientType` emmagatzemat
+   * al token perquè el crider fixi el TTL de la cookie correctament — mai s'ha de re-derivar
+   * del rol de l'usuari, ja que poden divergir (BUG-5).
+   */
+  async refresh(
+    rawRefreshToken: string,
+  ): Promise<{ response: AuthResponseDto; newRefreshToken: string; clientType: ClientType }> {
+    const { newRawToken, userId, clientType } = await this.tokenService.rotateRefreshToken(rawRefreshToken);
 
     const user = await this.userRepo.findOne({
       where: { id: userId },
@@ -112,6 +127,7 @@ export class AuthService {
     return {
       response: { accessToken, user: this.toUserProfile(user) },
       newRefreshToken: newRawToken,
+      clientType,
     };
   }
 
