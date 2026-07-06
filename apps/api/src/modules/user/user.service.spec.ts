@@ -283,8 +283,10 @@ describe('UserService', () => {
       mockUserRepo.save.mockResolvedValue(createdUser);
       mockPersonRepo.save.mockResolvedValue(person);
 
-      // sendInvite will call findOne internally — mock it for that call
-      mockUserRepo.findOne.mockResolvedValue({ ...createdUser, isActive: false });
+      // no email conflict, then sendInvite's internal findOne
+      mockUserRepo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ ...createdUser, isActive: false });
 
       const result = await service.createWithInvite({ personId: 'person-uuid', email: 'new@user.com' });
 
@@ -302,13 +304,27 @@ describe('UserService', () => {
       mockUserRepo.create.mockReturnValue(createdUser);
       mockUserRepo.save.mockResolvedValue(createdUser);
       mockPersonRepo.save.mockResolvedValue(person);
-      mockUserRepo.findOne.mockResolvedValue({ ...createdUser, isActive: false });
+      mockUserRepo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ ...createdUser, isActive: false });
 
       await service.createWithInvite({ personId: 'person-uuid', email: 'new@user.com' });
 
       expect(mockPersonRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({ managedBy: createdUser }),
       );
+    });
+
+    it('throws ConflictException when email already exists', async () => {
+      const person = makePerson({ managedBy: null });
+      mockPersonRepo.findOne.mockResolvedValue(person);
+      mockUserRepo.findOne.mockResolvedValueOnce(makeUser({ email: 'taken@user.com' }));
+
+      await expect(
+        service.createWithInvite({ personId: 'person-uuid', email: 'taken@user.com' }),
+      ).rejects.toThrow(ConflictException);
+
+      expect(mockUserRepo.create).not.toHaveBeenCalled();
     });
   });
 

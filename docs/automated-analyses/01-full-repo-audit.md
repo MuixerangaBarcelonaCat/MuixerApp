@@ -28,11 +28,11 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 | 1. Security               | 2 (1 ✅)     | 11 (4 ✅)     | 4            | 1 (1 ✅)      | 18 (6 ✅)      |
 | 2. Bugs & correctness     | 2 (1 ✅)     | 9 (3 ✅)      | 10 (1 ✅)     | 1            | 22 (5 ✅)      |
 | 3. Architecture           | —           | 3 (1 ✅)      | 8 (1 ✅)      | —            | 11 (2 ✅)      |
-| 4. Code smells            | —           | 1            | 11 (1 ✅)     | 3            | 15 (1 ✅)      |
+| 4. Code smells            | —           | 1            | 11 (2 ✅)     | 3            | 15 (2 ✅)      |
 | 5. Frontend (dashboard)   | —           | 2            | 11           | 3            | 16            |
 | 6. Dependencies & tooling | 1           | —            | 2            | 1            | 5             |
 | 7. Tests                  | —           | 3 (1 ✅)      | 3            | 2            | 8 (1 ✅)       |
-| **Total**                 | **5 (2 ✅)** | **29 (9 ✅)** | **49 (3 ✅)** | **11 (1 ✅)** | **94** (15 ✅) |
+| **Total**                 | **5 (2 ✅)** | **29 (9 ✅)** | **49 (4 ✅)** | **11 (1 ✅)** | **94** (16 ✅) |
 
 
 *(✅ counts reflect fixes applied so far in this branch; updated as findings are resolved.)*
@@ -484,7 +484,7 @@ None of this is wrong at ~200 persons/colla scale, but these are the endpoints t
 - 🟡 **SM-3** `auth.service.ts:176-179`: raw SQL `UPDATE users SET person_id = ...` inside an otherwise repository-based service; bypasses entity hooks and `updatedAt`. Also no existence check on `personId` → FK violation → 500.
 - 🟡 **SM-4** `main.ts:1-4`: scaffold comment “This is not a production server yet!” on a production API; `const cookieParser = require('cookie-parser')` instead of an ES import.
 - 🟡✅ **SM-5** — **FIXED.** `user.service.ts:172-181` (`grantRole`) saves then re-fetches the user (2 extra queries); `updateUser` re-fetches too. Minor, but the pattern repeats. **Fix applied:** both methods now build the `UserResponseDto` from the entity returned by `save()` (TypeORM populates generated columns like `updatedAt` onto that same reference) instead of issuing a redundant third/second `findOne`. `grantRole`'s initial load now includes `relations: ['person']` up front so the relation survives without a refetch. Covered by new specs asserting `findOne` is called exactly once per method for the no-conflict-check path.
-- 🟡 **SM-6** `UserService.createWithInvite` doesn't pre-check email uniqueness → DB unique violation surfaces as 500 instead of 409 (the generic `createUser` *does* check).
+- 🟡✅ **SM-6** — **FIXED.** `UserService.createWithInvite` doesn't pre-check email uniqueness → DB unique violation surfaces as 500 instead of 409 (the generic `createUser` *does* check). **Fix applied:** `createWithInvite` now checks `userRepository.findOne({ where: { email: dto.email } })` up front and throws `ConflictException` (409) if a user with that email already exists, before touching the person or creating anything — mirroring `createUser`'s existing check (though without its "upgrade a passwordless stub" branch, which is specific to admin-created accounts and out of scope here). The dashboard's invitation modal (`person-invitation-modal.component.ts:46-49`) already surfaces `err.error.message` as-is, so no frontend change was needed. Covered by a new spec asserting the 409 and that `userRepository.create` is never reached.
 - 🔵 **SM-7** `AuthController.login` types `req.user` inline and then casts with `Parameters<typeof this.authService.login>[0]` — noisy; a small `RequestWithUser` interface is clearer.
 - 🟠 **SM-8** `figure-template.service.ts:405-411`: hand-rolled `generateUUID()` using `Math.random()`. Node's `crypto.randomUUID()` is already used elsewhere in the codebase (`token.service.ts`); `Math.random` is not collision-safe and this duplicate implementation is strictly worse.
 - 🟡 **SM-9** Pervasive `(x as any)` casts to reach `Person` fields (`node-assignment.service.ts:182-187,602,611,720,813` …) — a consequence of `type`-only imports erasing entity types. Fixing the entity typing (TypeORM `Relation<T>`) removes the need for every cast.

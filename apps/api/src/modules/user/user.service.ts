@@ -122,6 +122,13 @@ export class UserService {
   }
 
   async createWithInvite(dto: CreateWithInviteDto): Promise<UserResponseDto> {
+    const existingUser = await this.userRepository.findOne({
+      where: { email: dto.email },
+    });
+    if (existingUser) {
+      throw new ConflictException('A user with this email already exists');
+    }
+
     const person = await this.personRepository.findOne({
       where: { id: dto.personId },
     });
