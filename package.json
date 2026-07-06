@@ -119,6 +119,7 @@
     "dotenv": "^17.3.1",
     "emoji-picker-element": "^1.29.1",
     "exceljs": "^4.4.0",
+    "helmet": "^8.2.0",
     "joi": "^18.2.3",
     "konva": "^10.3.0",
     "lucide-angular": "^1.0.0",

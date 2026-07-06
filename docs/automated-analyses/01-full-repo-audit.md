@@ -25,14 +25,14 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 
 | Section                   | 🔴          | 🟠            | 🟡                  | 🔵           | Total               |
 | ------------------------- | ----------- | ------------- | ------------------- | ------------ | ------------------- |
-| 1. Security               | 2 (2 ✅)     | 11 (10 ✅)     | 4 (1 ✅, 1 🚫)       | 1 (1 ✅)      | 18 (14 ✅, 1 🚫)     |
+| 1. Security               | 2 (2 ✅)     | 11 (10 ✅)     | 4 (2 ✅, 1 🚫)       | 1 (1 ✅)      | 18 (15 ✅, 1 🚫)     |
 | 2. Bugs & correctness     | 2 (2 ✅)     | 9 (7 ✅)       | 10 (5 ✅)            | 1            | 22 (14 ✅)           |
 | 3. Architecture           | —           | 3 (2 ✅)       | 8 (2 ✅)             | —            | 11 (4 ✅)            |
 | 4. Code smells            | —           | 1 (1 ✅)       | 11 (3 ✅)            | 3            | 15 (4 ✅)            |
 | 5. Frontend (dashboard)   | —           | 2             | 11                  | 3            | 16                  |
 | 6. Dependencies & tooling | 1 (1 ✅)     | —             | 2 (2 ✅)             | 1 (1 ✅)      | 4 (4 ✅)             |
 | 7. Tests                  | —           | 3 (1 ✅)       | 3                   | 2            | 8 (1 ✅)             |
-| **Total**                 | **5 (5 ✅)** | **29 (21 ✅)** | **49 (13 ✅, 1 🚫)** | **11 (2 ✅)** | **94 (41 ✅, 1 🚫)** |
+| **Total**                 | **5 (5 ✅)** | **29 (21 ✅)** | **49 (14 ✅, 1 🚫)** | **11 (2 ✅)** | **94 (42 ✅, 1 🚫)** |
 
 
 *(✅ counts reflect fixes applied so far in this branch; 🚫 marks findings deliberately closed as won't-fix, with reasoning inline; both are updated as findings are resolved.)*
@@ -207,9 +207,11 @@ On a VPS this exposes Postgres to the Internet unless an external firewall inter
 
 **Won't fix — reasoning:** this project is open source, so the route surface, DTOs and role requirements are already fully readable in the repo itself; gating Swagger doesn't remove that information, it only makes a determined reader clone the repo instead of opening a URL. The one thing a live Swagger UI adds beyond public source is convenience for *low-effort* recon: automated scanners specifically probe for `/api/docs`/`/swagger-json` on public IPs, and it ships a ready-made "try it out" client, both of which a repo checkout doesn't hand you as directly. Also note pre already leaves it exposed regardless (SEC-18 is about pre being an accessible-by-IP, real-user-data environment), so gating only prod wouldn't close that path. Given the real vulnerability surface is behind auth either way (all routes are `JwtAuthGuard`-protected by default), the residual risk here is bot-tier recon convenience, not exploitable exposure — not worth the added `NODE_ENV` branching in `main.ts` for this project's threat model, since the convenience for debugging of having Swagger in production outweighs it. Revisit if the API ever handles more sensitive data or the source stops being public.
 
-### 🟡 SEC-11 — No security headers (`helmet`)
+### 🟡✅ SEC-11 — No security headers (`helmet`) — FIXED
 
 No `helmet` (or equivalent) in `main.ts`. The API mostly serves JSON, but Swagger UI is HTML, and default headers (`X-Content-Type-Options`, `Strict-Transport-Security` if TLS terminates at Caddy but is misconfigured, etc.) are cheap defense-in-depth.
+
+**Fix applied:** added the `helmet` dependency and a `configureHelmet(app)` util (`apps/api/src/common/utils/configure-helmet.util.ts`), following the same pattern as the existing `configureTrustProxy` util from SEC-8, wired into `bootstrap()` in `main.ts` right after `configureTrustProxy`. Covered by a new spec (`configure-helmet.util.spec.ts`) that boots a real minimal Nest HTTP server (not mocked) and asserts `x-content-type-options: nosniff`, `x-frame-options: SAMEORIGIN`, and `strict-transport-security` are present on a real response — written and confirmed failing (module not found) before the util existed, per TDD. Full `nx test api` suite (667 tests) still green.
 
 ### 🟡✅ SEC-12 — Deactivating a user does not revoke their sessions — FIXED
 
