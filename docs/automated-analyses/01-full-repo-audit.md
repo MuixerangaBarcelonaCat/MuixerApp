@@ -25,14 +25,14 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 
 | Section                   | 🔴          | 🟠            | 🟡            | 🔵           | Total         |
 | ------------------------- | ----------- | ------------- | ------------- | ------------ | ------------- |
-| 1. Security               | 2 (2 ✅)     | 11 (6 ✅)      | 4 (1 ✅)       | 1 (1 ✅)      | 18 (10 ✅)     |
-| 2. Bugs & correctness     | 2 (2 ✅)     | 9 (5 ✅)       | 10 (3 ✅)      | 1            | 22 (10 ✅)     |
+| 1. Security               | 2 (2 ✅)     | 11 (10 ✅)     | 4 (1 ✅)       | 1 (1 ✅)      | 18 (14 ✅)     |
+| 2. Bugs & correctness     | 2 (2 ✅)     | 9 (7 ✅)       | 10 (5 ✅)      | 1            | 22 (14 ✅)     |
 | 3. Architecture           | —           | 3 (2 ✅)       | 8 (2 ✅)       | —            | 11 (4 ✅)      |
 | 4. Code smells            | —           | 1 (1 ✅)       | 11 (3 ✅)      | 3            | 15 (4 ✅)      |
 | 5. Frontend (dashboard)   | —           | 2             | 11            | 3            | 16            |
 | 6. Dependencies & tooling | 1 (1 ✅)     | —             | 2 (2 ✅)       | 1 (1 ✅)      | 4 (4 ✅)       |
 | 7. Tests                  | —           | 3 (1 ✅)       | 3             | 2            | 8 (1 ✅)       |
-| **Total**                 | **5 (5 ✅)** | **29 (15 ✅)** | **49 (11 ✅)** | **11 (2 ✅)** | **94 (33 ✅)** |
+| **Total**                 | **5 (5 ✅)** | **29 (21 ✅)** | **49 (13 ✅)** | **11 (2 ✅)** | **94 (41 ✅)** |
 
 
 *(✅ counts reflect fixes applied so far in this branch; updated as findings are resolved.)*
@@ -240,11 +240,13 @@ The final image explicitly bypasses `pnpm-lock.yaml`, so every build resolves **
 
 `database.module.ts:50` and `data-source.ts:11`: when `DB_SSL=true` (managed Postgres), TLS is used **without certificate validation** — the connection is encrypted but MITM-able. Supply the provider CA (`ssl: { ca }`) or at least make this an explicit, documented exception.
 
-### 🟠 SEC-16 — Sync endpoints: state-changing GETs, no concurrency guard
+### 🟠✅ SEC-16 — Sync endpoints: state-changing GETs, no concurrency guard — FIXED
 
 `sync.controller.ts` — `GET /sync/persons|events|all` are **GET requests with heavy side effects** (bulk upserts + mass deactivation). Because they're SSE they also authenticate via `?token=` (SEC-4), so the URL that triggers a full data-mutation lands in access logs. There is **no lock**: two admins (or a reconnecting EventSource — browsers auto-reconnect SSE by re-issuing the GET!) run the same sync concurrently, racing alias-uniqueness checks and upserts. An in-process mutex (or advisory lock) that rejects a second concurrent sync would remove the whole class.
 
-### 🟠 SEC-17 — Assignment lock (`ASSIGNMENT_LOCK_DAYS`) is bypassable
+**Fix applied:** new `SyncLockService` — a simple in-process mutex (`tryAcquire()`/`release()`) — shared by all four `/sync` endpoints via a `runLocked()` wrapper in `SyncController`. If a sync is already running, the second call gets an immediate `{ type: 'error', message: 'Ja hi ha una sincronització en curs' }` SSE event and completes without touching any strategy; the lock is released via RxJS `finalize()` so it's freed whether the stream completes, errors, or is unsubscribed (e.g. the client navigating away). This covers `/sync/persons`, `/sync/events`, `/sync/events/:eventId/attendance`, and `/sync/all` uniformly, including cross-endpoint races (e.g. `/sync/all` no longer able to start while `/sync/persons` is running) that the previous per-strategy `isSyncing` flags didn't catch. Covered by `sync-lock.service.spec.ts` and new `sync.controller.spec.ts` tests asserting the second concurrent call is rejected without invoking the strategy, that the lock is released on completion, and that the lock is shared across different endpoints.
+
+### 🟠✅ SEC-17 — Assignment lock (`ASSIGNMENT_LOCK_DAYS`) is bypassable — FIXED
 
 The lock (`checkEventLock`) protects `assign`, `swap`, `unassign`, `resetSnapshot`, `bulkImport` and the ad-hoc node CRUD in `node-assignment.service.ts`. But other mutations of locked data skip it:
 
@@ -253,6 +255,8 @@ The lock (`checkEventLock`) protects `assign`, `swap`, `unassign`, `resetSnapsho
 - `FigureInstanceService.remove` — deleting a whole instance (cascades all its assignments) is not lock-checked either.
 
 If the lock is meant to freeze historical events (it throws `ForbiddenException`, so it is an access-control rule), it must cover every mutation path of instance/assignment data for that event.
+
+**Fix applied:** `NodeAssignmentService.checkEventLock` was made public (previously `private`) so it can be reused instead of re-implemented, and is now also called from `NodeAssignmentService.updateCordons` (before touching `numberOfCordons`) and from `FigureInstanceService.update`/`remove` — `FigureInstanceService` gets `NodeAssignmentService` injected (already available via `NodeAssignmentModule`, imported by `EventSegmentModule`, with no circular dependency). In `update()`, the check runs whenever `figureMode` is provided at all (not just for `REMAT`/`NETA`), before any mutation; in `remove()`, it runs before the instance (and its cascaded assignments) is deleted. Plain metadata edits (label/sortOrder with no `figureMode` change) are intentionally left unlocked, since they don't touch assignment data. Covered by new specs in `node-assignment.service.spec.ts` (`updateCordons` throws `ForbiddenException` and never saves when locked) and `figure-instance.service.spec.ts` (`update`/`remove` throw and perform no deletion/removal when locked; a plain label update does not trigger the lock check at all).
 
 ### 🟠 SEC-18 — Pre-production runs over plain HTTP with session cookies
 
@@ -340,9 +344,11 @@ Covered by TDD: `token.service.spec.ts` asserts the returned `clientType`; `auth
 
 **Fix applied:** second `delete` now keys off `revokedAt` alone via TypeORM's `And(Not(IsNull()), LessThan(thirtyDaysAgo))`, generating `WHERE revoked_at IS NOT NULL AND revoked_at < now-30d` — matching the doc-comment's actual intent instead of duplicating the first query's `expiresAt` condition. Covered by an updated `token.service.spec.ts` asserting the second `delete` call's criteria has no `expiresAt` key and combines both `revokedAt` conditions via `And`.
 
-### 🟡 BUG-7 — `UserProfile.person.email` is always `null`
+### 🟡✅ BUG-7 — `UserProfile.person.email` is always `null` — FIXED
 
 `auth.service.ts:66`: `email: person.managedBy?.email ?? null`, but every caller loads only `relations: ['person']` — `person.managedBy` is never populated, so login/`/auth/me` always return `person.email: null`.
+
+**Fix applied:** all five `userRepository.findOne` calls that feed `toUserProfile` (`validateUser`, `refresh`, `getMe`, `acceptInvite`, `setupUser`) now load `relations: ['person', 'person.managedBy']` instead of just `['person']`. The mapping logic in `toUserProfile` was already correct (`person.managedBy?.email ?? null`) — the only bug was the missing relation, so no mapping changes were needed. Covered by new specs in `auth.service.spec.ts`: one asserting `getMe` requests `person.managedBy` in its `relations`, and one asserting the returned profile's `person.email` reflects `person.managedBy.email` end-to-end instead of `null`.
 
 ### 🟡 BUG-8 — `PersonResponseDto.email` doesn't exist on the entity
 
@@ -377,9 +383,11 @@ The same concept is computed with different SQL in two places:
 
 Same instance, two endpoints, two different capacity numbers (off by the BASE nodes and by one cordon). The dashboard shows whichever it fetched last — inconsistent "assigned/capacity" badges. One definition should exist in one place.
 
-### 🟠 BUG-13 — `figureMode` change deletes assignments before saving, non-transactionally
+### 🟠✅ BUG-13 — `figureMode` change deletes assignments before saving, non-transactionally — FIXED
 
 `figure-instance.service.ts:124-133`: when switching to `REMAT`/`NETA`, pinya assignments are deleted **first** and the instance is saved **after**, with no transaction. If the save fails (or the request dies in between), assignments are gone but the mode never changed. Wrap both in one transaction (and see SEC-17: no lock check either).
+
+**Fix applied:** for `figureMode` transitions to `REMAT`/`NETA`, the assignment deletion and the instance save now run inside a single `dataSource.transaction`: `deletePinyaAssignments`/`deletePinyaOnlyAssignments` take the transaction's `EntityManager` (instead of querying via `dataSource` directly) and `manager.save(FigureInstance, instance)` persists the mode change in the same transaction, so a failed delete or save rolls back both together. Other `update()` paths (label/sortOrder-only edits, or a `figureMode` change that isn't `REMAT`/`NETA`) keep the plain `instanceRepository.save`, since there's nothing to keep atomic with. Covered by new specs in `figure-instance.service.spec.ts` asserting the delete and the save both go through the same transaction manager, and that a rejected delete leaves neither the delete nor the save persisted (rollback).
 
 ### 🟠 BUG-14 — Template node updates can never *clear* `renglaId` / `renglaPosition` / `originNodeId`
 
@@ -393,9 +401,11 @@ node.renglaPosition = dto.renglaPosition ?? node.renglaPosition;
 
 Sending `null`/omitting falls back to the previous value, so detaching a node from a rengla through the editor's save endpoint is silently ignored (the value only ever clears when the whole rengla is deleted via `syncRengles`). Use an explicit `!== undefined` check like the rest of the codebase does.
 
-### 🟡 BUG-15 — Duplicating a template twice → 500
+### 🟡✅ BUG-15 — Duplicating a template twice → 500 — FIXED
 
 `figure-template.service.ts:230-256`: `duplicate()` names the copy `"<name> (còpia)"`; `name` has a unique constraint and, unlike `create`/`update`, this save is **not** wrapped in `handleDbError`. Duplicating the same template twice throws a raw `QueryFailedError` → 500 instead of a 409 (or an auto-suffixed name via the existing `generateUniqueName`).
+
+**Fix applied:** new `generateCopyName(originalName)` helper (parallel to the existing `generateUniqueName`) strips any trailing `(còpia)`/`(còpia N)` suffix from the original name first, then probes `"<base> (còpia)"`, `"<base> (còpia 2)"`, `"<base> (còpia 3)"`... against `templateRepository.findOne` until it finds a free name. `duplicate()` now calls this instead of hardcoding `` `${original.name} (còpia)` ``, so duplicating the same template repeatedly always gets a free name instead of hitting the unique constraint. The stripping step also means duplicating a template that is itself already named `"X (còpia)"` collides with the original on the first probe and correctly lands on `"X (còpia 2)"`, rather than stacking to `"X (còpia) (còpia)"`. Covered by new specs in `figure-template.service.spec.ts`: first duplicate gets `(còpia)`, a second duplicate gets `(còpia 2)`, a third gets `(còpia 3)`, and duplicating an already-`(còpia)`-named template produces `(còpia 2)` instead of stacking.
 
 ### 🟡 BUG-16 — Fuzzy search ordering ignores name similarity
 
