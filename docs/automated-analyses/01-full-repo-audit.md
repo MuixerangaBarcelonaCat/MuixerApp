@@ -23,19 +23,19 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 **Findings by section:**
 
 
-| Section                   | 🔴          | 🟠            | 🟡     | 🔵     | Total   |
-| ------------------------- | ----------- | ------------- | ------ | ------ | ------- |
-| 1. Security               | 2 (1 ✅)    | 11 (2 ✅)     | 4      | 1      | 18      |
-| 2. Bugs & correctness     | 2           | 9             | 10     | 1      | 22      |
-| 3. Architecture           | —           | 3 (1 ✅)      | 8      | —      | 11      |
-| 4. Code smells            | —           | 1             | 11     | 3      | 15      |
-| 5. Frontend (dashboard)   | —           | 2             | 11     | 3      | 16      |
-| 6. Dependencies & tooling | (1)         | —             | 2      | 1      | 4       |
-| 7. Tests                  | —           | 3 (1 ✅)      | 3      | 2      | 8       |
-| **Total**                 | **4 (1 ✅)** | **29 (4 ✅)** | **49** | **11** | **~93** |
+| Section                   | 🔴          | 🟠           | 🟡     | 🔵     | Total        |
+| ------------------------- | ----------- | ------------ | ------ | ------ | ------------ |
+| 1. Security               | 2 (1 ✅)     | 11 (3 ✅)     | 4      | 1      | 18 (4 ✅)     |
+| 2. Bugs & correctness     | 2           | 9            | 10     | 1      | 22           |
+| 3. Architecture           | —           | 3 (1 ✅)      | 8      | —      | 11 (1 ✅)     |
+| 4. Code smells            | —           | 1            | 11     | 3      | 15           |
+| 5. Frontend (dashboard)   | —           | 2            | 11     | 3      | 16           |
+| 6. Dependencies & tooling | (1)         | —            | 2      | 1      | 4            |
+| 7. Tests                  | —           | 3 (1 ✅)      | 3      | 2      | 8 (1 ✅)      |
+| **Total**                 | **4 (1 ✅)** | **29 (5 ✅)** | **49** | **11** | **93** (6 ✅) |
+
 
 *(✅ counts reflect fixes applied so far in this branch; updated as findings are resolved.)*
-
 
 *DEP-1 is a cross-reference to SEC-2 (same underlying `xlsx` CVE issue), not an independent finding.*
 
@@ -53,7 +53,7 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 | 7   | 🟠✅ [TEST-1](#7-tests) Backend auth guards & strategies at **0% coverage** — the entire authz enforcement layer is untested — **FIXED**                                                                       | `auth/guards`, `auth/strategies`    |
 | 8   | 🟠 [SEC-8](#-sec-8--no-trust-proxy--per-ip-throttling-is-broken-behind-the-reverse-proxy) Missing `trust proxy` → rate limiting shared by all users behind Caddy                                              | `main.ts`                           |
 | 9   | 🟠 [BUG-19](#-bug-19--deactivatemissingpersons-trusts-the-legacy-fetch-blindly) Sync can mass-deactivate the census on a partial legacy response                                                              | `person-sync.strategy.ts`           |
-| 10  | 🟠✅ [SEC-3](#-sec-3--setup-endpoint-non-constant-time-token-comparison-unlimited-use--fixed) Setup endpoint mints ADMIN accounts forever while `SETUP_TOKEN` is set — **FIXED**                              | `auth.controller.ts`                |
+| 10  | 🟠✅ [SEC-3](#-sec-3--setup-endpoint-non-constant-time-token-comparison-unlimited-use--fixed) Setup endpoint mints ADMIN accounts forever while `SETUP_TOKEN` is set — **FIXED**                               | `auth.controller.ts`                |
 | 11  | 🟠 [BUG-17](#-bug-17--lazy-snapshot-has-a-check-then-act-race-duplicate-instance-nodes) Lazy-snapshot race duplicates instance nodes under concurrent first-assignment                                        | `node-assignment.service.ts:340`    |
 | 12  | 🟠 [BUG-11](#-bug-11--applycomposition-sortorder-computed-outside-the-transaction--duplicated-orders) `applyComposition` gives every figure the same `sortOrder` (cross-connection read inside a transaction) | `figure-instance.service.ts`        |
 | 13  | 🟠 [FE-13](#-fe-13--template-editor-pending-autosave-is-discarded-on-most-exits) Template editor silently drops pending autosave on most exit paths (data loss)                                               | `template-editor.component.ts`      |
@@ -130,7 +130,7 @@ if (setupToken !== expected) throw new ForbiddenException(...);
 
 **Fix applied:** split into two Passport strategies. The default `JwtStrategy` now only accepts the `Authorization` header (the `?token=` extractor was removed from it entirely). A new `SseJwtStrategy` (`jwt-sse`) carries the query-param extractor — factored into a standalone, unit-tested `extractSseQueryToken()` — and is only reachable via a new `@SseAuth()` decorator. `JwtAuthGuard` (the sole global guard) checks for `@SseAuth()` metadata (same `Reflector` pattern as `@Public()`) and routes those requests to the SSE strategy instead of the default one; every other route can no longer authenticate via query string even if a valid token is passed that way. `SyncController` (the only SSE controller — `/sync/persons`, `/sync/events`, `/sync/events/:id/attendance`, `/sync/all`) is now the only place `@SseAuth()` is applied. Covered by `sse-token-extractor.util.spec.ts`, `jwt-sse.strategy.spec.ts`, and new `JwtAuthGuard` cases proving public/SSE/default requests are routed to the correct strategy and that the default strategy is never invoked for `@SseAuth()` routes.
 
-### 🟠 SEC-5 — Refresh token rotation is not atomic (race weakens reuse detection)
+### 🟠✅ SEC-5 — Refresh token rotation is not atomic (race weakens reuse detection) — FIXED
 
 `token.service.ts:82-108` (`rotateRefreshToken`) does `findOne` → check `usedAt` → `update(...usedAt)` as three separate steps. Two concurrent requests presenting the same refresh token can both pass the `usedAt === null` check and both obtain fresh tokens: the family-revocation reuse detection is bypassed, and a stolen-token replay racing the legitimate client goes unnoticed.
 
@@ -142,6 +142,8 @@ WHERE id = $1 AND used_at IS NULL AND revoked_at IS NULL
 ```
 
 and treat `affected === 0` as reuse.
+
+**Fix applied:** `rotateRefreshToken` now marks the token used via a single conditional `update({ id, usedAt: IsNull() }, { usedAt: new Date() })` instead of a separate read-check-write. The prior `stored.usedAt !== null` branch (racy — read from a snapshot that could be stale by the time the write happened) was removed; reuse detection now keys off `claim.affected === 0`, which is true both for a genuinely-already-used token and for a request that loses the race to a concurrent one, so both cases correctly revoke the whole token family. `revokedAt`/`expiresAt` checks still happen from the initial read (no concurrent-double-redeem risk there — only forward-moving state). Covered by an updated `token.service.spec.ts`: one test asserts the exact atomic `WHERE id = ... AND usedAt IS NULL` shape of the claim, another asserts that `affected: 0` triggers family revocation regardless of the reason.
 
 ### 🟠 SEC-6 — Invite tokens: stored in plaintext and printed to logs
 
@@ -581,7 +583,7 @@ The CLAUDE.md claim "Coverage threshold: 70 % (enforced in CI)" is wrong on both
 **Gaps (ordered by risk):**
 
 - 🟠✅ **TEST-1** — **FIXED.** Backend `auth/guards` and `auth/strategies` are at **0 %** — `JwtAuthGuard` (the `@Public()` bypass), `RolesGuard`, `JwtStrategy` (including the `?token=` extractor, SEC-4) and `LocalStrategy` have no tests at all. These four files are the entire authorization enforcement layer. Same for `AuthController`/`UserController` (auth module overall: 57 %) — a trivial controller test would have caught BUG-1 (the dead `grant-role` route).
-  **Fix applied:** added `jwt-auth.guard.spec.ts` (Public bypass + Passport delegation), `roles.guard.spec.ts` (no-roles/empty-roles/no-user/role-match/role-mismatch), `local.strategy.spec.ts` (valid/invalid credentials), `auth.controller.spec.ts` (all 7 routes: login, refresh, logout, logout-all, getMe, acceptInvite, setupUser incl. the SETUP_TOKEN gate), and `user.controller.spec.ts` (all 6 routes). `JwtStrategy` was already covered as part of SEC-1. Guards, strategies and both controllers are now at 100% statement coverage. Note: these are unit tests calling controller methods directly, so they do **not** exercise NestJS's route-path parameter binding — they wouldn't have caught BUG-1 (the dead `grant-role` route needs `:id` in the path), which requires an HTTP-level/e2e test (see TEST-2/TEST-6) and remains open as its own finding.
+**Fix applied:** added `jwt-auth.guard.spec.ts` (Public bypass + Passport delegation), `roles.guard.spec.ts` (no-roles/empty-roles/no-user/role-match/role-mismatch), `local.strategy.spec.ts` (valid/invalid credentials), `auth.controller.spec.ts` (all 7 routes: login, refresh, logout, logout-all, getMe, acceptInvite, setupUser incl. the SETUP_TOKEN gate), and `user.controller.spec.ts` (all 6 routes). `JwtStrategy` was already covered as part of SEC-1. Guards, strategies and both controllers are now at 100% statement coverage. Note: these are unit tests calling controller methods directly, so they do **not** exercise NestJS's route-path parameter binding — they wouldn't have caught BUG-1 (the dead `grant-role` route needs `:id` in the path), which requires an HTTP-level/e2e test (see TEST-2/TEST-6) and remains open as its own finding.
 - 🟠 **TEST-2** Everything is unit-tested against mocked repositories; there are **no integration tests against a real Postgres**. The bugs found in this audit that unit tests structurally *cannot* catch are precisely the SQL/transaction ones (BUG-3 invalid ORDER BY path, BUG-11 cross-connection MAX inside a transaction, BUG-12 diverging capacity SQL, BUG-17 snapshot race). A small testcontainers-style suite for the raw-SQL services would close this class.
 - 🟠 **TEST-3** Dashboard coverage is bimodal: next to the 90 %+ pinyes core sit near-zero areas — `event-detail.component.ts` **5.9 %** (its spec cleverly tests only pure helpers via `Object.create(prototype)`, never the component behavior), `template-editor.component.ts` **28.9 %**, `projection-view.component.ts` **40.9 %**, and every modal at 0-11 % (`user-form-modal` 4.3 %, `attendance-edit-modal` 5.4 %, `save-as-template-dialog` 2.5 %, `already-assigned-dialog` 5.7 %). The **user-form-modal** is where roles are assigned in the UI.
 - 🟡 **TEST-4** `projection-layout.util.ts` — 523 lines of pure layout math, the ideal unit-test target — is at **27 %** (lines 129-438 untouched). Likewise the trivially testable `date.util`, `uuid.util`, `slugify.util` and `fit-to-bounds.util` are at **0 %**.

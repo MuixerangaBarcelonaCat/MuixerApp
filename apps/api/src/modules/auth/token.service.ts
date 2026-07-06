@@ -78,29 +78,34 @@ export class TokenService {
   }
 
   /**
-   * Valida el token, el marca com a usat i en genera un de nou dins de la mateixa família.
-   * Si el token ja havia estat usat anteriorment (reutilització detectada), revoca tota la família per prevenció.
+   * Valida el token, el marca com a usat de forma atòmica i en genera un de nou dins de la
+   * mateixa família. La marca com a usat és un únic UPDATE condicionat a `usedAt IS NULL`:
+   * si afecta 0 files, algú (una reutilització, o una petició concurrent que ha guanyat la
+   * cursa pel mateix token) ja l'ha reclamat abans — es tracta com a reutilització detectada
+   * i es revoca tota la família. Un `findOne` seguit d'un `update` separats permetria que dues
+   * peticions concurrents amb el mateix token passessin totes dues la comprovació (SEC-5).
    */
   async rotateRefreshToken(rawToken: string): Promise<{ newRawToken: string; userId: string }> {
     const tokenHash = this.hash(rawToken);
     const stored = await this.refreshTokenRepo.findOne({ where: { tokenHash } });
 
     if (!stored) throw new UnauthorizedException('Token invàlid');
+    if (stored.revokedAt !== null) throw new UnauthorizedException('Token revocat');
+    if (stored.expiresAt < new Date()) throw new UnauthorizedException('Token caducat');
 
-    if (stored.usedAt !== null) {
-      // Reuse detected — revoke entire family
+    const claim = await this.refreshTokenRepo.update(
+      { id: stored.id, usedAt: IsNull() },
+      { usedAt: new Date() },
+    );
+
+    if (claim.affected === 0) {
+      // Reuse detected (or lost the race) — revoke entire family
       await this.refreshTokenRepo.update(
         { family: stored.family },
         { revokedAt: new Date() },
       );
       throw new UnauthorizedException('Token reutilitzat detectat');
     }
-
-    if (stored.revokedAt !== null) throw new UnauthorizedException('Token revocat');
-    if (stored.expiresAt < new Date()) throw new UnauthorizedException('Token caducat');
-
-    // Mark current as used
-    await this.refreshTokenRepo.update(stored.id, { usedAt: new Date() });
 
     // Load the user entity for signing
     const userRef = { id: stored.userId } as User;
