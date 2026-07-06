@@ -58,7 +58,9 @@ const mockFigureTemplateRepo = {
 };
 
 const mockDataSource = {
-  transaction: jest.fn().mockImplementation((cb) => cb({ update: jest.fn(), save: jest.fn() })),
+  transaction: jest.fn().mockImplementation((cb) =>
+    cb({ update: jest.fn(), save: jest.fn(), query: jest.fn().mockResolvedValue([]) }),
+  ),
   query: jest.fn().mockResolvedValue([{ count: '0' }]),
 };
 
@@ -150,20 +152,46 @@ describe('FigureInstanceService', () => {
       expect(result.id).toBe(INSTANCE_ID);
     });
 
-    it('deletes pinya and base assignments when figureMode is REMAT', async () => {
+    it('deletes pinya and base assignments and saves the instance in the same transaction when figureMode is REMAT', async () => {
       mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
       mockInstanceRepo.findOne
         .mockResolvedValueOnce(makeInstance())
         .mockResolvedValueOnce(makeInstance({ figureMode: FigureMode.REMAT }));
-      mockInstanceRepo.save.mockResolvedValue(makeInstance());
+
+      const txManager = { update: jest.fn(), save: jest.fn(), query: jest.fn().mockResolvedValue([]) };
+      mockDataSource.transaction.mockImplementationOnce((cb: (m: typeof txManager) => Promise<unknown>) => cb(txManager));
 
       await service.update(EVENT_ID, SEGMENT_ID, INSTANCE_ID, { figureMode: FigureMode.REMAT });
 
-      const deleteCalls = mockDataSource.query.mock.calls.filter(
+      const deleteCalls = txManager.query.mock.calls.filter(
         (call: unknown[]) => typeof call[0] === 'string' && (call[0] as string).includes('DELETE'),
       );
       expect(deleteCalls.length).toBeGreaterThan(0);
       expect(deleteCalls[0][1]).toEqual([INSTANCE_ID]);
+      expect(txManager.save).toHaveBeenCalledWith(
+        FigureInstance,
+        expect.objectContaining({ id: INSTANCE_ID, figureMode: FigureMode.REMAT }),
+      );
+      expect(mockInstanceRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('rolls back the figureMode change when assignment deletion fails', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance());
+
+      const txManager = {
+        update: jest.fn(),
+        save: jest.fn(),
+        query: jest.fn().mockRejectedValue(new Error('boom')),
+      };
+      mockDataSource.transaction.mockImplementationOnce((cb: (m: typeof txManager) => Promise<unknown>) => cb(txManager));
+
+      await expect(
+        service.update(EVENT_ID, SEGMENT_ID, INSTANCE_ID, { figureMode: FigureMode.REMAT }),
+      ).rejects.toThrow('boom');
+
+      expect(txManager.save).not.toHaveBeenCalled();
+      expect(mockInstanceRepo.save).not.toHaveBeenCalled();
     });
 
     it('does NOT delete pinya assignments when figureMode is PEU', async () => {
