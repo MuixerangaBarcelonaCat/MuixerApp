@@ -26,13 +26,13 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 | Section                   | 🔴          | 🟠            | 🟡                  | 🔵           | Total               |
 | ------------------------- | ----------- | ------------- | ------------------- | ------------ | ------------------- |
 | 1. Security               | 2 (2 ✅)     | 11 (10 ✅)     | 4 (3 ✅, 1 🚫)       | 1 (1 ✅)      | 18 (16 ✅, 1 🚫)     |
-| 2. Bugs & correctness     | 2 (2 ✅)     | 9 (8 ✅)       | 10 (8 ✅, 1 🚫)       | 1            | 22 (18 ✅, 1 🚫)      |
+| 2. Bugs & correctness     | 2 (2 ✅)     | 9 (8 ✅)       | 10 (8 ✅, 1 🚫)       | 1 (1 🚫)      | 22 (18 ✅, 2 🚫)      |
 | 3. Architecture           | —           | 3 (2 ✅)       | 8 (2 ✅)             | —            | 11 (4 ✅)            |
 | 4. Code smells            | —           | 1 (1 ✅)       | 11 (3 ✅)            | 3            | 15 (4 ✅)            |
 | 5. Frontend (dashboard)   | —           | 2             | 11                  | 3            | 16                  |
 | 6. Dependencies & tooling | 1 (1 ✅)     | —             | 2 (2 ✅)             | 1 (1 ✅)      | 4 (4 ✅)             |
 | 7. Tests                  | —           | 3 (1 ✅)       | 3                   | 2            | 8 (1 ✅)             |
-| **Total**                 | **5 (5 ✅)** | **29 (22 ✅)** | **49 (18 ✅, 2 🚫)** | **11 (2 ✅)** | **94 (47 ✅, 2 🚫)** |
+| **Total**                 | **5 (5 ✅)** | **29 (22 ✅)** | **49 (18 ✅, 2 🚫)** | **11 (2 ✅, 1 🚫)** | **94 (47 ✅, 3 🚫)** |
 
 
 *(✅ counts reflect fixes applied so far in this branch; 🚫 marks findings deliberately closed as won't-fix, with reasoning inline; both are updated as findings are resolved.)*
@@ -477,9 +477,11 @@ As a consequence, `upsertPerson()` also had to stop reactivating persons on the 
 
 Covered by two new specs in `person-sync.strategy.spec.ts`: an empty-email legacy record no longer nulls out an existing manual `managedBy` link (written and confirmed failing first — the old code did overwrite it with `null`); a legacy record with a (new) email still re-links `managedBy` to the resolved user, guarding the intended "changed email wins" behavior against regression. Full `nx test api` (680/680) and `nx lint api` (0 errors) pass.
 
-### 🔵 BUG-22 — `swap` re-creates assignments, resetting their timestamps
+### 🔵🚫 BUG-22 — `swap` re-creates assignments, resetting their timestamps — WON'T FIX
 
 `node-assignment.service.ts:464-482` deletes and re-inserts both rows (keeping ids) instead of updating `personId`. `createdAt` is reset, so any future auditing/history based on assignment age is distorted. A two-`UPDATE` approach with deferred constraint checking (or a temporary sentinel) keeps history intact.
+
+**Won't fix — reasoning:** resetting `createdAt` on swap is intended, not a bug. Moving a person into a node via swap is domain-equivalent to unassigning them and creating a fresh assignment elsewhere — there's no meaningful "this assignment has existed since X" history to preserve across a swap, since the person's relationship to *that specific node* did start at the swap. Preserving the original timestamp would misrepresent how long the person has actually held that node.
 
 ---
 
