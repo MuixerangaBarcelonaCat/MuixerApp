@@ -26,13 +26,13 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 | Section                   | 🔴          | 🟠           | 🟡           | 🔵           | Total         |
 | ------------------------- | ----------- | ------------ | ------------ | ------------ | ------------- |
 | 1. Security               | 2 (1 ✅)     | 11 (4 ✅)     | 4            | 1 (1 ✅)      | 18 (6 ✅)      |
-| 2. Bugs & correctness     | 2 (1 ✅)     | 9 (1 ✅)      | 10 (1 ✅)     | 1            | 22 (3 ✅)      |
+| 2. Bugs & correctness     | 2 (1 ✅)     | 9 (2 ✅)      | 10 (1 ✅)     | 1            | 22 (4 ✅)      |
 | 3. Architecture           | —           | 3 (1 ✅)      | 8 (1 ✅)      | —            | 11 (2 ✅)      |
 | 4. Code smells            | —           | 1            | 11           | 3            | 15            |
 | 5. Frontend (dashboard)   | —           | 2            | 11           | 3            | 16            |
 | 6. Dependencies & tooling | 1           | —            | 2            | 1            | 5             |
 | 7. Tests                  | —           | 3 (1 ✅)      | 3            | 2            | 8 (1 ✅)       |
-| **Total**                 | **5 (2 ✅)** | **29 (7 ✅)** | **49 (2 ✅)** | **11 (1 ✅)** | **94** (12 ✅) |
+| **Total**                 | **5 (2 ✅)** | **29 (8 ✅)** | **49 (2 ✅)** | **11 (1 ✅)** | **94** (13 ✅) |
 
 
 *(✅ counts reflect fixes applied so far in this branch; updated as findings are resolved.)*
@@ -284,11 +284,13 @@ if (!person.managedBy) {
 
 **Fix:** load `managedBy` in the `findOne` relations and consider `dto.managedById` in the check (`dto.managedById ?? person.managedBy`).
 
-### 🟠 BUG-3 — Sorting users by `alias` generates invalid SQL
+### 🟠✅ BUG-3 — Sorting users by `alias` generates invalid SQL — FIXED
 
 `user-sort.constants.ts:14` maps `alias → 'user.person.alias'`, but the query in `UserService.findAll` joins the relation under the alias `person`. TypeORM will not resolve the three-segment path `user.person.alias`; it passes it through to SQL where Postgres reads it as `schema.table.column` and errors (500) on `GET /users?sortBy=alias`.
 
 **Fix:** map it to `'person.alias'` (the join alias). The `Partial<Record<...>>` type of the map also silently tolerates missing keys — a plain `Record` would catch this at compile time.
+
+**Fix applied:** `user-sort.constants.ts:14` now maps `alias → 'person.alias'`, matching the join alias used in `UserService.findAll`'s `leftJoinAndSelect('user.person', 'person')`. Also tightened `USER_SORT_COLUMN_MAP`'s type from `Partial<Record<UserSortByField, string>>` to `Record<UserSortByField, string>`, so a future missing/mistyped sort key fails at compile time instead of silently falling through to the default sort. Covered by a new spec in `user.service.spec.ts` asserting `orderBy` is called with `'person.alias'` (not the invalid three-segment path) when sorting by alias. Full suite: 620/620 passing, lint clean.
 
 ### 🟠 BUG-4 — `sendInvite`: floating promise + `throw` inside `.catch`
 

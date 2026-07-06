@@ -170,6 +170,11 @@ describe('UserService', () => {
       expect(userQb.orderBy).toHaveBeenCalledWith('user.createdAt', 'ASC');
     });
 
+    it('sorts by alias using the person join alias, not a three-segment path', async () => {
+      await service.findAll({ sortBy: 'alias', sortOrder: 'ASC' });
+      expect(userQb.orderBy).toHaveBeenCalledWith('person.alias', 'ASC');
+    });
+
     it('applies pagination — skip and take', async () => {
       await service.findAll({ page: 3, limit: 10 });
       expect(userQb.skip).toHaveBeenCalledWith(20);
