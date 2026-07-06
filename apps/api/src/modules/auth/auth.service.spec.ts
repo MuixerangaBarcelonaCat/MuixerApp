@@ -9,6 +9,7 @@ import { AuthService } from './auth.service';
 import { TokenService } from './token.service';
 import { User } from '../user/user.entity';
 import { Person } from '../person/person.entity';
+import { hashToken } from '../../common/utils/hash-token.util';
 
 const makeTransactionManager = () => ({
   create: jest.fn((_entity: unknown, data: unknown) => data),
@@ -278,6 +279,24 @@ describe('AuthService', () => {
       userRepo.findOne.mockResolvedValue(null);
       await expect(service.acceptInvite({ token: 'bad', password: 'pass123!' })).rejects.toThrow(
         UnauthorizedException,
+      );
+    });
+
+    it('looks up the invite by the hash of the raw token, never the raw token itself', async () => {
+      const user = makeUser({
+        inviteToken: hashToken('valid-token'),
+        inviteExpiresAt: new Date(Date.now() + 3600_000),
+        isActive: false,
+        passwordHash: '',
+      });
+      userRepo.findOne.mockResolvedValue(user);
+      userRepo.update.mockResolvedValue({});
+      bcrypt.hash.mockResolvedValue('new-hash');
+
+      await service.acceptInvite({ token: 'valid-token', password: 'newpass123' });
+
+      expect(userRepo.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { inviteToken: hashToken('valid-token') } }),
       );
     });
   });

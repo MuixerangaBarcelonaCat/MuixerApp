@@ -143,12 +143,16 @@ and treat `affected === 0` as reuse.
 
 **Fix applied:** `rotateRefreshToken` now marks the token used via a single conditional `update({ id, usedAt: IsNull() }, { usedAt: new Date() })` instead of a separate read-check-write. The prior `stored.usedAt !== null` branch (racy — read from a snapshot that could be stale by the time the write happened) was removed; reuse detection now keys off `claim.affected === 0`, which is true both for a genuinely-already-used token and for a request that loses the race to a concurrent one, so both cases correctly revoke the whole token family. `revokedAt`/`expiresAt` checks still happen from the initial read (no concurrent-double-redeem risk there — only forward-moving state). Covered by an updated `token.service.spec.ts`: one test asserts the exact atomic `WHERE id = ... AND usedAt IS NULL` shape of the claim, another asserts that `affected: 0` triggers family revocation regardless of the reason.
 
-### 🟠 SEC-6 — Invite tokens: stored in plaintext and printed to logs
+### 🟠✅ SEC-6 — Invite tokens: stored in plaintext and printed to logs — PARTIALLY FIXED (storage)
 
-- `user.entity.ts:33` — `inviteToken` is stored as-is; `AuthService.acceptInvite` looks it up by plaintext equality. Refresh tokens are correctly stored as SHA-256 hashes, invite tokens are not. A DB dump/backup leak allows takeover of every pending account. (Same will apply to `resetToken` when implemented.)
-- `user.service.ts:165-170` — `sendInvitationEmail` is a stub that `console.log`s the email + invite token, so live tokens land in server logs.
+- ✅ `user.entity.ts:33` — `inviteToken` is stored as-is; `AuthService.acceptInvite` looks it up by plaintext equality. Refresh tokens are correctly stored as SHA-256 hashes, invite tokens are not. A DB dump/backup leak allows takeover of every pending account. (Same will apply to `resetToken` when implemented.)
+- `user.service.ts:165-170` — `sendInvitationEmail` is a stub that `console.log`s the email + invite token, so live tokens land in server logs. **Deliberately left as-is** — see note below.
 
 **Recommendation:** store `sha256(inviteToken)`, look up by hash; never log the token (log the user id instead).
+
+**Fix applied (storage only):** added a shared `hashToken()` util (`common/utils/hash-token.util.ts`, SHA-256 hex digest, mirroring `TokenService`'s existing private `hash()` for refresh tokens). `UserService.sendInvite` now stores `hashToken(inviteToken)` in the `inviteToken` column instead of the raw value; `AuthService.acceptInvite` now looks it up via `where: { inviteToken: hashToken(dto.token) } }` instead of plaintext equality. A DB dump no longer yields usable invite tokens. Covered by new specs in `hash-token.util.spec.ts`, `user.service.spec.ts` (asserts the stored value is the hash, not the raw token handed to the email step), and `auth.service.spec.ts` (asserts the lookup uses the hash).
+
+**Logging — explicitly not fixed, per product decision:** the recommendation to stop logging the raw token was **not** applied. `sendInvitationEmail` is a stub standing in for a real mailer that doesn't exist yet (`// TODO implement`); until it's built, the `console.log` line is the only way to retrieve a usable invite link in development/staging. It still prints the raw token, now with a comment flagging it must be removed once real email sending ships. This is a conscious, temporary exception — the token no longer touches the database in plaintext (the part that mattered for a DB-leak scenario), only ephemeral server logs during this bootstrapping period.
 
 ### 🟠✅ SEC-7 — TECHNICAL users can modify and deactivate ADMIN accounts — FIXED
 

@@ -20,6 +20,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { plainToInstance } from 'class-transformer';
 import { USER_SORT_COLUMN_MAP } from './constants/user-sort.constants';
 import { UserFilterDto } from './dto/user-filter.dto';
+import { hashToken } from '../../common/utils/hash-token.util';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -166,7 +167,7 @@ export class UserService {
     const inviteToken = crypto.randomBytes(16).toString('hex');
     const expirationDate = new Date();
     expirationDate.setHours(expirationDate.getHours() + tokenDurationHours);
-    user.inviteToken = inviteToken;
+    user.inviteToken = hashToken(inviteToken);
     user.inviteExpiresAt = expirationDate;
     await this.userRepository.save(user);
 
@@ -176,10 +177,12 @@ export class UserService {
   }
 
   async sendInvitationEmail(email: string, inviteToken: string): Promise<void> {
+    // TODO implement real email sending, then remove this log — it prints the
+    // raw invite token so it's usable in dev without a mailer, but it must not
+    // ship to production once emails actually go out (SEC-6).
     const message =
       'Here we would send an email to ' + email + ' with token ' + inviteToken;
     console.log(message);
-    // TODO implement
   }
 
   async grantRole(userId: string, role: UserRole, actorId: string) {

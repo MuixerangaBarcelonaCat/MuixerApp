@@ -18,6 +18,7 @@ import { AuthResponseDto } from './dto/auth-response.dto';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
 import { SetupUserDto } from './dto/setup-user.dto';
 import { JWT_ACCESS_TTL } from './constants/auth.constants';
+import { hashToken } from '../../common/utils/hash-token.util';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -156,7 +157,7 @@ export class AuthService {
   /** Activa el compte d'un membre a partir del token d'invitació. Valida que el token no hagi caducat i fa auto-login un cop activat. */
   async acceptInvite(dto: AcceptInviteDto): Promise<{ response: AuthResponseDto; refreshToken: string }> {
     const user = await this.userRepo.findOne({
-      where: { inviteToken: dto.token },
+      where: { inviteToken: hashToken(dto.token) },
       relations: ['person'],
     });
 

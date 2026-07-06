@@ -12,6 +12,7 @@ import { UserService } from './user.service';
 import { User } from './user.entity';
 import { Person } from '../person/person.entity';
 import { UserRole } from '@muixer/shared';
+import { hashToken } from '../../common/utils/hash-token.util';
 
 const makeTransactionManager = () => ({
   create: jest.fn((_entity: unknown, data: unknown) => data),
@@ -402,6 +403,23 @@ describe('UserService', () => {
       await expect(service.sendInvite('user-uuid')).rejects.toThrow(
         BadRequestException,
       );
+    });
+
+    it('stores a hash of the invite token, not the raw token, while still emailing the raw token', async () => {
+      const user = makeUser({ isActive: false });
+      mockUserRepo.findOne.mockResolvedValue(user);
+      mockUserRepo.save.mockImplementation(async (u: User) => u);
+      const sendEmailSpy = jest
+        .spyOn(service, 'sendInvitationEmail')
+        .mockResolvedValue(undefined);
+
+      await service.sendInvite('user-uuid');
+
+      const savedUser = mockUserRepo.save.mock.calls[0][0] as User;
+      const rawTokenSentByEmail = sendEmailSpy.mock.calls[0][1];
+
+      expect(savedUser.inviteToken).not.toBe(rawTokenSentByEmail);
+      expect(savedUser.inviteToken).toBe(hashToken(rawTokenSentByEmail));
     });
   });
 
