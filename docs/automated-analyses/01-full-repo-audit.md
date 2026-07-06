@@ -27,12 +27,12 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 | ------------------------- | ----------- | ------------- | ------------- | ------------ | ------------- |
 | 1. Security               | 2 (2 ✅)     | 11 (6 ✅)      | 4 (1 ✅)       | 1 (1 ✅)      | 18 (10 ✅)     |
 | 2. Bugs & correctness     | 2 (2 ✅)     | 9 (4 ✅)       | 10 (3 ✅)      | 1            | 22 (9 ✅)      |
-| 3. Architecture           | —           | 3 (2 ✅)       | 8 (1 ✅)       | —            | 11 (3 ✅)      |
+| 3. Architecture           | —           | 3 (2 ✅)       | 8 (2 ✅)       | —            | 11 (4 ✅)      |
 | 4. Code smells            | —           | 1 (1 ✅)       | 11 (3 ✅)      | 3            | 15 (4 ✅)      |
 | 5. Frontend (dashboard)   | —           | 2             | 11            | 3            | 16            |
 | 6. Dependencies & tooling | 1 (1 ✅)     | —             | 2 (2 ✅)       | 1 (1 ✅)      | 4 (4 ✅)       |
 | 7. Tests                  | —           | 3 (1 ✅)       | 3             | 2            | 8 (1 ✅)       |
-| **Total**                 | **5 (5 ✅)** | **29 (14 ✅)** | **49 (10 ✅)** | **11 (2 ✅)** | **94 (31 ✅)** |
+| **Total**                 | **5 (5 ✅)** | **29 (14 ✅)** | **49 (11 ✅)** | **11 (2 ✅)** | **94 (32 ✅)** |
 
 
 *(✅ counts reflect fixes applied so far in this branch; updated as findings are resolved.)*
@@ -503,9 +503,11 @@ None of this is wrong at ~200 persons/colla scale, but these are the endpoints t
 - Pinya capacity duplicated with diverging formulas (BUG-12).
 - `slugify()` in `figure-template.service.ts` exists twice in the same file (`generateSlug` and `slugify`, identical bodies except one `-+` collapse).
 
-### 🟡 ARCH-10 — Migrations registered in two places
+### 🟡✅ ARCH-10 — Migrations registered in two places — FIXED
 
 `database.module.ts:71-92` hand-maintains an import list of all 20 migrations, while `data-source.ts:13` (used by the CLI and the prod entrypoint) uses a glob. A migration added to the folder but forgotten in the array runs in prod but **not** in dev (`migrationsRun: isDevelopment`) — silent schema drift between environments. Use the glob (or a shared `migrations/index.ts`) in both.
+
+**Fix applied:** the audit's own snapshot had already drifted — `1782500000000-AddPersonNotesEmoji` existed as a file but was missing from `database.module.ts`'s array, confirming the bug live. Globbing wasn't viable for `database.module.ts` since the API is webpack-bundled for production (`apps/api/webpack.config.js`) and dynamic glob-based `require`s don't survive bundling — that's exactly why that file hand-listed migrations as static imports in the first place. Instead, added `apps/api/src/migrations/index.ts` exporting a single `migrations` array built from static imports of every migration file, and pointed both `database.module.ts` and `data-source.ts` at it — one list, two consumers, no more possibility of divergence. Added `migrations/index.spec.ts`, which reads the migrations directory at test time and asserts every file on disk has a corresponding entry in the array (by reconstructing the expected class name from the filename) — this test fails the moment someone adds a migration file without registering it in `index.ts`.
 
 ### 🟡 ARCH-11 — Inconsistent delete-protection policy across the event aggregate
 
