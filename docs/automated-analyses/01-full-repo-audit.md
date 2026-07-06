@@ -42,7 +42,7 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 
 | #   | Finding                                                                                                                                                                                                       | Where                               |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| 1   | 🔴 [SEC-1](#-sec-1--hardcoded-fallback-jwt-secrets-change-me) Fallback JWT secret `'change-me'` — silent full-auth bypass if the env var is ever missing                                                      | `auth.module.ts`, `jwt.strategy.ts` |
+| 1   | 🔴✅ [SEC-1](#-sec-1--hardcoded-fallback-jwt-secrets-change-me--fixed) Fallback JWT secret `'change-me'` — silent full-auth bypass if the env var is ever missing — **FIXED**                                  | `auth.module.ts`, `jwt.strategy.ts` |
 | 2   | 🔴 [BUG-1](#-bug-1--patch-usersgrant-role-can-never-work-missing-id-in-route) `PATCH /users/grant-role` endpoint can never work (route bug)                                                                   | `user.controller.ts:62`             |
 | 3   | 🔴 [BUG-2](#-bug-2--promoting-a-provisional-person-always-fails) Provisional-person promotion always fails (`managedBy` never loaded)                                                                         | `person.service.ts:250`             |
 | 4   | 🔴 [SEC-2](#-sec-2--xlsx-sheetjs-0185-with-known-cves-used-to-parse-external-data) `xlsx` 0.18.5 with known CVEs, used to parse external data                                                                 | `legacy-api.client.ts`              |
@@ -65,7 +65,7 @@ The single highest-leverage structural change is **ARCH-1** (centralized, valida
 
 ## 1. Security
 
-### 🔴 SEC-1 — Hardcoded fallback JWT secrets (`'change-me'`)
+### 🔴✅ SEC-1 — Hardcoded fallback JWT secrets (`'change-me'`) — FIXED
 
 `apps/api/src/modules/auth/auth.module.ts:20` and `apps/api/src/modules/auth/strategies/jwt.strategy.ts:25`:
 
@@ -82,6 +82,8 @@ secret: process.env['JWT_REFRESH_SECRET'] ?? 'change-me-refresh',
 If `JWT_SECRET` is ever missing from the environment (typo in `.env.production`, forgotten var in a new deploy, CI e2e environment…), the API silently signs **and verifies** access tokens with a publicly known string. Anyone can then forge a token with `role: "ADMIN"` and full access. A missing secret should be a **fatal startup error**, never a silent fallback.
 
 **Recommendation:** validate required env vars at bootstrap (e.g. `@nestjs/config` + Joi/Zod schema, or a manual assert in `main.ts`) and remove every `?? 'change-me*'` fallback. See also ARCH-3.
+
+**Fix applied:** added `requireJwtSecret(envVar)` (`apps/api/src/modules/auth/constants/jwt-secret.util.ts`), which throws instead of falling back when the var is missing/empty. `auth.module.ts`, `jwt.strategy.ts` and `token.service.ts` now use it, so a missing `JWT_SECRET`/`JWT_REFRESH_SECRET` fails app bootstrap instead of silently signing/verifying with a public string. Covered by new specs (`jwt-secret.util.spec.ts`, `jwt.strategy.spec.ts`, and a `TokenService construction` suite in `token.service.spec.ts`). The broader structural fix (centralized/validated config, ARCH-1) is still open.
 
 ### 🔴 SEC-2 — `xlsx` (SheetJS) 0.18.5 with known CVEs, used to parse external data
 
@@ -569,7 +571,7 @@ The CLAUDE.md claim "Coverage threshold: 70 % (enforced in CI)" is wrong on both
 - 🟡 **TEST-4** `projection-layout.util.ts` — 523 lines of pure layout math, the ideal unit-test target — is at **27 %** (lines 129-438 untouched). Likewise the trivially testable `date.util`, `uuid.util`, `slugify.util` and `fit-to-bounds.util` are at **0 %**.
 - 🟡 **TEST-5** The shared component kit that every list page relies on is half-tested: `data-table` 51 %, `pagination` 44 % (page-navigation logic in l. 32-60 uncovered), `person-search-input` **8.6 %**, `user-chip` 23 %, toast component 47 %. There is also no spec for `authInterceptor` (the 401-refresh-retry flow) or `ApiService`.
 - 🟡 **TEST-6** Playwright e2e projects exist (`dashboard-e2e`) but are excluded from CI and `ci:local` — dead scaffolding until wired up. With zero e2e, nothing ever exercises frontend + API + Postgres together (TEST-2's gap squared).
-- 🔵 **TEST-7** API `collectCoverageFrom` includes `src/migrations/*`* (0 %, pure DDL) — it dilutes the global number by several points and makes the 55 % gate softer than it looks for actual application code. Exclude migrations (and consider raising the gate to match the real ~72-75 % that the app code likely has).
+- 🔵 **TEST-7** API `collectCoverageFrom` includes `src/migrations/`** (0 %, pure DDL) — it dilutes the global number by several points and makes the 55 % gate softer than it looks for actual application code. Exclude migrations (and consider raising the gate to match the real ~72-75 % that the app code likely has).
 - 🔵 **TEST-8** Most big `.html` templates report 0 % (e.g. `assignment-canvas.component.html`, 789 lines, despite its 1 350-line spec rendering the component). Template-level regressions (bindings, `@if`/`@for` branches) are effectively unmeasured — worth checking whether the `@angular/build:unit-test` coverage mapping is attributing template code correctly.
 
 ---

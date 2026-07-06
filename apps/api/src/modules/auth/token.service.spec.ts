@@ -20,6 +20,8 @@ const mockJwt = () => ({
 
 const hash = (t: string) => createHash('sha256').update(t).digest('hex');
 
+process.env['JWT_REFRESH_SECRET'] = 'test-refresh-secret';
+
 describe('TokenService', () => {
   let service: TokenService;
   let repo: ReturnType<typeof mockRepo>;
@@ -183,5 +185,21 @@ describe('TokenService', () => {
 
       expect(logSpy).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('TokenService construction', () => {
+  const original = process.env['JWT_REFRESH_SECRET'];
+
+  afterEach(() => {
+    if (original === undefined) delete process.env['JWT_REFRESH_SECRET'];
+    else process.env['JWT_REFRESH_SECRET'] = original;
+  });
+
+  it('throws when JWT_REFRESH_SECRET is not set', () => {
+    delete process.env['JWT_REFRESH_SECRET'];
+    expect(() => new TokenService(mockRepo() as never, mockJwt() as never)).toThrow(
+      /JWT_REFRESH_SECRET/,
+    );
   });
 });

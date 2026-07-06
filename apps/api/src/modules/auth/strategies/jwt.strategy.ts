@@ -3,6 +3,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { JwtPayload } from '@muixer/shared';
 import { Request } from 'express';
+import { requireJwtSecret } from '../constants/jwt-secret.util';
 
 /**
  * Estratègia Passport per validar el JWT en peticions autenticades.
@@ -22,7 +23,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         },
       ]),
       ignoreExpiration: false,
-      secretOrKey: process.env['JWT_SECRET'] ?? 'change-me',
+      secretOrKey: requireJwtSecret('JWT_SECRET'),
     });
   }
 

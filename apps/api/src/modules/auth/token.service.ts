@@ -12,10 +12,12 @@ import {
   JWT_REFRESH_TTL_PWA,
   REFRESH_TOKEN_COOKIE,
 } from './constants/auth.constants';
+import { requireJwtSecret } from './constants/jwt-secret.util';
 
 @Injectable()
 export class TokenService {
   private readonly logger = new Logger(TokenService.name);
+  private readonly refreshSecret = requireJwtSecret('JWT_REFRESH_SECRET');
 
   constructor(
     @InjectRepository(RefreshToken)
@@ -54,7 +56,7 @@ export class TokenService {
     const rawToken: string = await this.jwtService.signAsync(
       { sub: user.id, family: tokenFamily, clientType },
       {
-        secret: process.env['JWT_REFRESH_SECRET'] ?? 'change-me-refresh',
+        secret: this.refreshSecret,
         expiresIn: ttl,
       },
     );
