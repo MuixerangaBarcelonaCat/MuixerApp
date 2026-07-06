@@ -45,7 +45,7 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 | 1   | 🔴✅ [SEC-1](#-sec-1--hardcoded-fallback-jwt-secrets-change-me--fixed) Fallback JWT secret `'change-me'` — silent full-auth bypass if the env var is ever missing — **FIXED**                                  | `auth.module.ts`, `jwt.strategy.ts` |
 | 2   | 🔴✅ [BUG-1](#-bug-1--patch-usersgrant-role-can-never-work-missing-id-in-route--fixed) `PATCH /users/grant-role` endpoint can never work (route bug) — **FIXED**                                               | `user.controller.ts:62`             |
 | 3   | 🔴✅ [BUG-2](#-bug-2--promoting-a-provisional-person-always-fails--fixed) Provisional-person promotion always fails (`managedBy` never loaded) — **FIXED**                                                     | `person.service.ts:250`             |
-| 4   | 🔴 [SEC-2](#-sec-2--xlsx-sheetjs-0185-with-known-cves-used-to-parse-external-data) `xlsx` 0.18.5 with known CVEs, used to parse external data                                                                 | `legacy-api.client.ts`              |
+| 4   | 🔴✅ [SEC-2](#-sec-2--xlsx-sheetjs-0185-with-known-cves-used-to-parse-external-data--fixed) `xlsx` 0.18.5 with known CVEs, used to parse external data — **FIXED**                                            | `legacy-api.client.ts`              |
 | 5   | 🟠✅ [SEC-7](#-sec-7--technical-users-can-modify-and-deactivate-admin-accounts--fixed) TECHNICAL users can deactivate/edit ADMIN accounts — **FIXED**                                                          | `user.service.ts`                   |
 | 6   | 🟠 [SEC-14](#-sec-14--production-image-installs-unpinned-dependencies) Prod Docker image installs unpinned deps (`--no-lockfile`)                                                                             | `apps/api/Dockerfile`               |
 | 7   | 🟠✅ [TEST-1](#7-tests) Backend auth guards & strategies at **0% coverage** — the entire authz enforcement layer is untested — **FIXED**                                                                       | `auth/guards`, `auth/strategies`    |
@@ -85,16 +85,16 @@ If `JWT_SECRET` is ever missing from the environment (typo in `.env.production`,
 
 **Fix applied:** added `requireJwtSecret(envVar)` (`apps/api/src/modules/auth/constants/jwt-secret.util.ts`), which throws instead of falling back when the var is missing/empty. `auth.module.ts`, `jwt.strategy.ts` and `token.service.ts` now use it, so a missing `JWT_SECRET`/`JWT_REFRESH_SECRET` fails app bootstrap instead of silently signing/verifying with a public string. Covered by new specs (`jwt-secret.util.spec.ts`, `jwt.strategy.spec.ts`, and a `TokenService construction` suite in `token.service.spec.ts`). The broader structural fix (centralized/validated config, ARCH-1) has since been applied too — see below.
 
-### 🔴 SEC-2 — `xlsx` (SheetJS) 0.18.5 with known CVEs, used to parse external data
+### 🔴✅ SEC-2 — `xlsx` (SheetJS) 0.18.5 with known CVEs, used to parse external data — FIXED
 
-`package.json` pins `"xlsx": "^0.18.5"`. The npm-published package has been abandoned since 2022 and has unfixed vulnerabilities on npm:
+`package.json` pinned `"xlsx": "^0.18.5"`. The npm-published package has been abandoned since 2022 and has unfixed vulnerabilities on npm:
 
 - **CVE-2023-30533** — Prototype pollution when parsing crafted files.
 - **CVE-2024-22363** — ReDoS.
 
-It *is* used to parse data downloaded from the legacy server (`apps/api/src/modules/sync/legacy-api.client.ts:3`), i.e. external input. Fixed versions (≥0.19.3 / ≥0.20.2) are only distributed via `https://cdn.sheetjs.com`.
+It was used to parse data downloaded from the legacy server (`apps/api/src/modules/sync/legacy-api.client.ts:3`), i.e. external input. Fixed versions (≥0.19.3 / ≥0.20.2) are only distributed via `https://cdn.sheetjs.com`, which has its own downsides (not on the npm registry, so it bypasses `npm audit`/Dependabot/Renovate tracking, requires a hardcoded tarball URL, and depends on a third-party CDN's uptime for every install).
 
-**Recommendation:** switch to the official SheetJS CDN distribution or migrate to a maintained alternative (e.g. `exceljs`).
+**Fix applied:** replaced `xlsx` with the actively-maintained `exceljs` (npm registry) in `legacy-api.client.ts`'s `getAssistenciesXlsx`. The `xlsx` dependency was removed from `package.json`. Covered by a new characterization test in `legacy-api.client.spec.ts` that builds a real xlsx buffer and asserts the parsed attendance rows, verified green against the old implementation before the migration and again after.
 
 ### 🟠✅ SEC-3 — Setup endpoint: non-constant-time token comparison, unlimited use — FIXED
 
@@ -599,7 +599,7 @@ The assignment canvas uses the command-based `UndoRedoService` (execute/undo obs
 
 ## 6. Dependencies & tooling
 
-- 🔴 **DEP-1** `xlsx@^0.18.5` — see SEC-2.
+- 🔴✅ **DEP-1** `xlsx@^0.18.5` — see SEC-2. **FIXED** — replaced with `exceljs`.
 - 🟡 **DEP-2** `reflect-metadata@^0.1.14` — NestJS 11 supports `^0.2.x`; 0.1 is the legacy line.
 - 🟡 **DEP-3** `@types/node: 20.19.9` pinned to Node 20 API surface while `engines` demands Node ≥22.13 — type definitions don't match the runtime.
 - 🔵 **DEP-4** CI is well designed (Nx affected on PRs, frozen lockfile, cache), which makes the Dockerfile's `--no-lockfile` (SEC-14) the odd one out.

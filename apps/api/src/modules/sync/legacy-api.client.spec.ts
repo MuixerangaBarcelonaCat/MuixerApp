@@ -1,8 +1,19 @@
 import { LegacyApiClient } from './legacy-api.client';
 import axios from 'axios';
+import { Workbook } from 'exceljs';
 
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
+
+async function buildAttendanceXlsxBuffer(): Promise<Buffer> {
+  const workbook = new Workbook();
+  const sheet = workbook.addWorksheet('Assistencia');
+  sheet.addRow(['Id', 'Persona', 'Comentari', 'Estat', 'Instant']);
+  sheet.addRow(['1', 'Garcia, Joan / Joani', 'Cap', ' Vinc ', '01/01/2026 10:00:00']);
+  sheet.addRow(['2', 'Lopez, Maria', null, null, null]);
+  const arrayBuffer = await workbook.xlsx.writeBuffer();
+  return Buffer.from(arrayBuffer);
+}
 
 describe('LegacyApiClient', () => {
   let client: LegacyApiClient;
@@ -163,6 +174,46 @@ describe('LegacyApiClient', () => {
       });
 
       await expect(client.getCastellers()).rejects.toThrow('Invalid response format from /api/castellers');
+    });
+  });
+
+  describe('getAssistenciesXlsx', () => {
+    it('parses attendance rows from a real xlsx buffer, skipping the header', async () => {
+      loginSuccessMocks();
+
+      mockAxiosInstance.get.mockResolvedValueOnce({
+        status: 200,
+        data: await buildAttendanceXlsxBuffer(),
+      });
+
+      const rows = await client.getAssistenciesXlsx('42');
+
+      expect(rows).toEqual([
+        {
+          legacyPersonId: '1',
+          personLabel: 'Garcia, Joan / Joani',
+          notes: 'Cap',
+          estat: 'Vinc',
+          instant: '01/01/2026 10:00:00',
+        },
+        {
+          legacyPersonId: '2',
+          personLabel: 'Lopez, Maria',
+          notes: null,
+          estat: null,
+          instant: null,
+        },
+      ]);
+    });
+
+    it('throws when the download response is not HTTP 200', async () => {
+      loginSuccessMocks();
+
+      mockAxiosInstance.get.mockResolvedValueOnce({ status: 500, data: Buffer.from('') });
+
+      await expect(client.getAssistenciesXlsx('42')).rejects.toThrow(
+        'XLSX download failed for event 42: HTTP 500',
+      );
     });
   });
 });
