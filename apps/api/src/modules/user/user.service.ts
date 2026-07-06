@@ -170,7 +170,10 @@ export class UserService {
   }
 
   async grantRole(userId: string, role: UserRole, actorId: string) {
-    const user = await this.userRepository.findOne({ where: { id: userId } });
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['person'],
+    });
     if (!user) throw new NotFoundException('User not found');
 
     if (userId === actorId && role !== user.role) {
@@ -180,9 +183,8 @@ export class UserService {
     }
 
     user.role = role;
-    await this.userRepository.save(user);
-    const output = await this.userRepository.findOne({ where: { id: userId } , relations: ['person'] });
-    return plainToInstance(UserResponseDto, output, {
+    const saved = await this.userRepository.save(user);
+    return plainToInstance(UserResponseDto, saved, {
       excludeExtraneousValues: true,
     });
   }
@@ -345,13 +347,9 @@ export class UserService {
       }
     }
 
-    await this.userRepository.save(user);
+    const saved = await this.userRepository.save(user);
 
-    const result = await this.userRepository.findOne({
-      where: { id: userId },
-      relations: ['person'],
-    });
-    return plainToInstance(UserResponseDto, result, {
+    return plainToInstance(UserResponseDto, saved, {
       excludeExtraneousValues: true,
     });
   }

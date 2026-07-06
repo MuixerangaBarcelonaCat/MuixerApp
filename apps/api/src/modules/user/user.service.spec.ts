@@ -415,6 +415,20 @@ describe('UserService', () => {
         service.grantRole('user-uuid', UserRole.TECHNICAL, 'user-uuid'),
       ).rejects.toThrow(ForbiddenException);
     });
+
+    it('loads the person relation up front and does not re-fetch after saving', async () => {
+      const user = makeUser({ role: UserRole.MEMBER });
+      mockUserRepo.findOne.mockResolvedValue(user);
+      mockUserRepo.save.mockResolvedValue({ ...user, role: UserRole.ADMIN });
+
+      await service.grantRole('user-uuid', UserRole.ADMIN, 'actor-uuid');
+
+      expect(mockUserRepo.findOne).toHaveBeenCalledTimes(1);
+      expect(mockUserRepo.findOne).toHaveBeenCalledWith({
+        where: { id: 'user-uuid' },
+        relations: ['person'],
+      });
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -727,6 +741,22 @@ describe('UserService', () => {
         'user-uuid',
       );
       expect(result.email).toBe('new@mail.com');
+    });
+
+    it('does not re-fetch the user after saving when email is unchanged', async () => {
+      const user = makeUser({ isActive: true });
+      mockUserRepo.findOne.mockResolvedValueOnce(user);
+      mockUserRepo.save.mockResolvedValue({ ...user, isActive: false });
+
+      const result = await service.updateUser(
+        'user-uuid',
+        { isActive: false },
+        UserRole.ADMIN,
+        'actor-uuid',
+      );
+
+      expect(mockUserRepo.findOne).toHaveBeenCalledTimes(1);
+      expect(result.isActive).toBe(false);
     });
   });
 
