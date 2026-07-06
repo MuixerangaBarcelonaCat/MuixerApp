@@ -11,6 +11,7 @@ import { Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
+import { ICON_TEMPLATE, ICON_RENGLA } from '../../../../../shared/constants/domain-icons';
 import { FigureTemplateListItem } from '@muixer/shared';
 import { FigureTemplateService } from '../../../services/figure-template.service';
 import { ToastService } from '../../../../../shared/components/feedback/toast/toast.service';
@@ -25,6 +26,8 @@ import { EmptyStateComponent } from '../../../../../shared/components/data/empty
 })
 export class FigureListTabComponent implements OnInit {
   readonly openHelpModal = output<void>();
+  readonly ICON_TEMPLATE = ICON_TEMPLATE;
+  readonly ICON_RENGLA = ICON_RENGLA;
 
   private readonly figureService = inject(FigureTemplateService);
   private readonly router = inject(Router);

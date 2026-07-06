@@ -10,9 +10,9 @@ import {
 } from 'typeorm';
 import { EventSegment } from './event-segment.entity';
 import { FigureTemplate } from '../../figure/entities/figure-template.entity';
-import { CompositionTemplate } from '../../composition/entities/composition-template.entity';
 import type { NodeAssignment } from '../../node-assignment/entities/node-assignment.entity';
 import type { InstanceNode } from './instance-node.entity';
+import { FigureMode } from '@muixer/shared';
 
 @Entity('figure_instances')
 export class FigureInstance {
@@ -27,15 +27,14 @@ export class FigureInstance {
   @JoinColumn()
   figureTemplate: FigureTemplate | null;
 
-  @ManyToOne(() => CompositionTemplate, (composition) => composition.instances, { nullable: true, onDelete: 'RESTRICT' })
-  @JoinColumn()
-  compositionTemplate: CompositionTemplate | null;
-
   @Column({ type: 'varchar', nullable: true })
   label: string | null;
 
   @Column({ type: 'int' })
   sortOrder: number;
+
+  @Column({ type: 'enum', enum: FigureMode, default: FigureMode.COMPLETA })
+  figureMode: FigureMode;
 
   /**
    * True once nodes have been snapshotted into InstanceNode rows on first assignment.
@@ -56,6 +55,21 @@ export class FigureInstance {
 
   @Column({ type: 'float', default: 1.0 })
   projectionScale: number;
+
+  @Column({ type: 'float', nullable: true })
+  projectionAngle: number | null;
+
+  @Column({ type: 'float', nullable: true })
+  troncPanelX: number | null;
+
+  @Column({ type: 'float', nullable: true })
+  troncPanelY: number | null;
+
+  @Column({ type: 'float', nullable: true })
+  troncPanelWidth: number | null;
+
+  @Column({ type: 'float', nullable: true })
+  troncPanelHeight: number | null;
 
   @OneToMany('InstanceNode', (node: InstanceNode) => node.figureInstance, { cascade: true })
   instanceNodes: InstanceNode[];

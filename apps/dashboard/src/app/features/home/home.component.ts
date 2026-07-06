@@ -1,6 +1,7 @@
 import { Component, ChangeDetectionStrategy, inject, signal, OnInit, computed } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
+import { ICON_TEMPLATE, ICON_ASSAIG, ICON_ACTUACIO, ICON_PERSONA } from '../../shared/constants/domain-icons';
 import { EventService } from '../events/services/event.service';
 import { PersonService } from '../persons/services/person.service';
 import { AuthService } from '../../core/auth/services/auth.service';
@@ -15,6 +16,11 @@ import { EmptyStateComponent } from '../../shared/components/data/empty-state/em
   templateUrl: './home.component.html',
 })
 export class HomeComponent implements OnInit {
+  readonly ICON_TEMPLATE = ICON_TEMPLATE;
+  readonly ICON_ASSAIG = ICON_ASSAIG;
+  readonly ICON_ACTUACIO = ICON_ACTUACIO;
+  readonly ICON_PERSONA = ICON_PERSONA;
+
   private readonly eventService = inject(EventService);
   private readonly personService = inject(PersonService);
   private readonly auth = inject(AuthService);

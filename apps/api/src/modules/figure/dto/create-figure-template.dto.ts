@@ -1,7 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsArray,
-  IsBoolean,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -26,11 +25,6 @@ export class CreateFigureTemplateDto {
   @IsString()
   @IsOptional()
   description?: string;
-
-  @ApiPropertyOptional({ default: true })
-  @IsBoolean()
-  @IsOptional()
-  hasPinya?: boolean;
 
   @ApiPropertyOptional({ description: 'Default direction in degrees (0–360)', default: 0 })
   @IsNumber()

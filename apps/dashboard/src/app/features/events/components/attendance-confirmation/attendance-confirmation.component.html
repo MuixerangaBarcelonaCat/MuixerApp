@@ -1,0 +1,113 @@
+<!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
+<div class="fixed inset-0 z-50 flex bg-primary p-8" (keydown.escape)="goBack()">
+
+  <!-- Esquerra: camp + teclat -->
+  <div class="w-3/5 flex flex-col p-4 gap-3 justify-center p-r-8">
+
+    <div class="w-full flex justify-center mb-10">
+      <img
+        src="/assets/logoMuixe.svg"
+        alt="Logo MuixerApp"
+        onerror="this.style.display='none'"
+        class="w-1/3 max-w-xs object-contain"
+      >
+    </div>
+
+    <!-- Camp de cerca (no editable) -->
+    <div
+      class="w-full rounded-2xl bg-white px-5 py-4 text-4xl font-mono tracking-widest text-base-content min-h-[4.5rem] flex items-center select-none shadow-sm"
+      aria-label="Cerca"
+    >
+      @if (query()) {
+        <span>{{ query() }}</span><span class="animate-pulse text-primary">|</span>
+      } @else {
+        <span class="text-base-content/30 text-2xl font-sans font-normal tracking-normal"></span>
+      }
+    </div>
+
+    <!-- Teclat virtual: totes les claus de la mateixa mida (basat en la fila de 10) -->
+    <div class="flex flex-col gap-2">
+      @for (row of KEYBOARD_ROWS; track $index) {
+        <div class="flex gap-2 justify-center">
+          @for (key of row; track $index) {
+            @if (key === '') {
+              <div class="w-[calc((60vw-6.5rem)/10)] aspect-square invisible"></div>
+            } @else {
+              <button
+                type="button"
+                [class]="key === '⌫'
+                  ? 'w-[calc((60vw-6.5rem)/10)] aspect-square rounded-xl bg-error text-error-content font-bold text-2xl shadow active:scale-95 transition-transform'
+                  : 'w-[calc((60vw-6.5rem)/10)] aspect-square rounded-xl bg-white text-base-content font-bold text-2xl shadow active:scale-95 transition-transform hover:bg-base-200'"
+                (click)="onKey(key)"
+              >{{ key }}</button>
+            }
+          }
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Dreta: llista de participants -->
+  <div class="w-2/5 bg-primary flex flex-col overflow-hidden">
+
+    <!-- Capçalera: confirmació recent + tanca -->
+    <div class="px-5 py-4 flex items-center justify-between">
+      <div>
+        @if (recentlyConfirmed()) {
+          <span class="badge badge-success gap-1 px-3 py-3 text-sm font-semibold">
+            ✓ {{ recentlyConfirmed() }}
+          </span>
+        }
+      </div>
+      <button
+        type="button"
+        class="btn btn-ghost text-primary-content/80 hover:text-primary-content hover:bg-primary-content/10"
+        (click)="goBack()"
+      >Tanca ✕</button>
+    </div>
+
+    <!-- Cos de la llista -->
+    @if (query().length < 2) {
+      <div class="flex-1"></div>
+    } @else if (loading()) {
+      <div class="flex-1 flex items-center justify-center gap-3 text-primary-content/60">
+        <span class="loading loading-spinner loading-md"></span>
+      </div>
+    } @else if (results().length === 0) {
+      <div class="flex-1 flex items-center justify-center px-6">
+        <p class="text-center text-primary-content/50 text-sm">
+          Cap membre coincidix amb «{{ query() }}».
+        </p>
+      </div>
+    } @else {
+      <div class="flex-1 overflow-y-auto flex flex-col gap-2 px-4 pb-4">
+        @for (att of results(); track att.id) {
+          <div
+            class="bg-white rounded-2xl px-5 py-7 flex items-center gap-4 cursor-pointer select-none shadow-sm transition-all hover:shadow-md active:scale-[0.99]"
+            [class.opacity-40]="confirmingId() === att.id"
+            [class.pointer-events-none]="confirmingId() !== null"
+            tabindex="0"
+            role="button"
+            (click)="confirm(att)"
+            (keydown.enter)="confirm(att)"
+          >
+            @if (confirmingId() === att.id) {
+              <span class="loading loading-spinner loading-sm text-primary shrink-0"></span>
+            }
+            <div class="flex flex-col min-w-0">
+              <span class="text-2xl font-bold font-mono text-base-content leading-tight truncate">
+                {{ att.person.alias }}
+              </span>
+              <span class="text-sm text-base-content/60 truncate">
+                {{ att.person.name }} {{ att.person.firstSurname }}
+              </span>
+              @if (att.person.isXicalla) {
+                <span class="badge badge-info badge-xs mt-1 w-fit">Xicalla</span>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </div>
+</div>

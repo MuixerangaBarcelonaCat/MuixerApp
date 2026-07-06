@@ -1,4 +1,4 @@
-export type AttendanceStatus = 'PENDENT' | 'ANIRE' | 'NO_VAIG' | 'ASSISTIT' | 'NO_PRESENTAT';
+export type AttendanceStatus = 'PENDENT' | 'ANIRE' | 'NO_VAIG' | 'ASSISTIT';
 export type HeightMode = 'relative' | 'absolute';
 
 /** Adults confirmed for the event (pre- or post-attendance). */
@@ -24,12 +24,13 @@ export interface AssignmentPersonDetail {
   name: string;
   firstSurname: string;
   shoulderHeight: number | null;
+  notes: string | null;
+  notesEmoji: string | null;
 }
 
 export interface AssignmentDetail {
   id: string;
   figureInstanceId: string;
-  compositionSlotId: string | null;
   node: AssignmentNodeDetail;
   person: AssignmentPersonDetail;
 }
@@ -39,6 +40,18 @@ export interface AvailablePersonPosition {
   name: string;
   slug: string;
   color: string | null;
+  positionTypes: string[];
+}
+
+/** Minimal person data needed to render the hover card shown across person-panel, tronc-view and figure-canvas. */
+export interface PersonHoverInfo {
+  alias: string;
+  attendanceStatus: AttendanceStatus | null;
+  isXicalla: boolean;
+  shoulderHeight: number | null;
+  notes: string | null;
+  notesEmoji: string | null;
+  positions: AvailablePersonPosition[];
 }
 
 export interface AvailablePerson {
@@ -48,6 +61,8 @@ export interface AvailablePerson {
   firstSurname: string;
   shoulderHeight: number | null;
   isXicalla: boolean;
+  notes: string | null;
+  notesEmoji: string | null;
   attendanceStatus: AttendanceStatus;
   nextPerformanceStatus: AttendanceStatus | null;
   assignedInSegment: boolean;
@@ -90,12 +105,10 @@ export interface BulkImportResult {
 export interface CreateAssignmentPayload {
   nodeId: string;
   personId: string;
-  compositionSlotId?: string;
 }
 
 export interface BulkImportPayload {
   sourceInstanceId: string;
-  sourceCompositionSlotId?: string;
 }
 
 export interface AvailablePersonsQuery {
@@ -103,6 +116,7 @@ export interface AvailablePersonsQuery {
   height?: number;
   isXicalla?: boolean;
   excludeAssigned?: boolean;
+  positionId?: string;
 }
 
 /** Tracks an optimistic UI operation that has been applied locally but not yet confirmed by the server */
@@ -170,7 +184,6 @@ export interface UpdateInstanceCordonsPayload {
 
 export interface CordonsResponse {
   numberOfCordons: number | null;
-  removedAssignments: number;
 }
 
 export interface SwapAssignmentsPayload {

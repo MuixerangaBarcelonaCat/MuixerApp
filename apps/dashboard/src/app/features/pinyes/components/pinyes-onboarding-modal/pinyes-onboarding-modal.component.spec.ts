@@ -1,14 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
-import {
-  LUCIDE_ICONS,
-  LucideIconProvider,
-  Layers,
-  PlusCircle,
-  UserCheck,
-  HelpCircle,
-  X,
-} from 'lucide-angular';
+import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { PinyesOnboardingModalComponent } from './pinyes-onboarding-modal.component';
 
 const STORAGE_KEY = 'muixer_pinyes_onboarding_dismissed';
@@ -22,14 +14,7 @@ describe('PinyesOnboardingModalComponent', () => {
 
     await TestBed.configureTestingModule({
       imports: [PinyesOnboardingModalComponent],
-      providers: [
-        {
-          provide: LUCIDE_ICONS,
-          multi: true,
-          useFactory: () =>
-            new LucideIconProvider({ Layers, PlusCircle, UserCheck, HelpCircle, X }),
-        },
-      ],
+      providers: [allLucideIconsProvider],
     }).compileComponents();
 
     fixture = TestBed.createComponent(PinyesOnboardingModalComponent);

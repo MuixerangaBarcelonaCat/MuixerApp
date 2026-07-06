@@ -59,7 +59,7 @@
             <i-lucide [img]="Minus" class="size-3" />
           </button>
           <span class="text-xs font-medium min-w-[5rem] text-center select-none" aria-live="polite">
-            {{ currentCordonsLabel() }}
+            Cordons {{ currentCordonsLabel() }}
           </span>
           <button
             type="button"
@@ -99,17 +99,6 @@
       </button>
     }
 
-    @if (activeTab()) {
-      <a
-        [routerLink]="['/pinyes/events', eventId(), 'segments', segmentId(), 'project', activeTab()!.instanceId]"
-        class="btn btn-ghost btn-sm gap-1"
-        aria-label="Projecta la figura en pantalla completa"
-        title="Projecta la figura"
-      >
-        <i-lucide [img]="Monitor" class="size-4" aria-hidden="true" />
-        Projecta
-      </a>
-    }
   </header>
 
   <!-- Lock banner -->
@@ -123,79 +112,198 @@
     </div>
   }
 
+  <!-- Mode bar -->
+  @if (activeTab()) {
+    <div class="flex items-center gap-2 px-4 py-1.5 bg-base-100 border-b border-base-200 shrink-0">
+      @if (!isActiveTabTroncOnly()) {
+        <button
+          type="button"
+          class="btn btn-sm gap-1"
+          [class.btn-primary]="viewMode() === 'pinya'"
+          [class.btn-ghost]="viewMode() !== 'pinya'"
+          (click)="setViewMode('pinya')"
+          [attr.aria-pressed]="viewMode() === 'pinya'"
+          aria-label="Mode pinya"
+        >
+          <i-lucide [img]="Flower" class="size-4" aria-hidden="true" />
+          Pinya
+        </button>
+      }
+      <button
+        type="button"
+        class="btn btn-sm gap-1"
+        [class.btn-primary]="viewMode() === 'tronc'"
+        [class.btn-ghost]="viewMode() !== 'tronc'"
+        (click)="setViewMode('tronc')"
+        [attr.aria-pressed]="viewMode() === 'tronc'"
+        aria-label="Mode tronc"
+      >
+        <i-lucide [img]="ChessRook" class="size-4" aria-hidden="true" />
+        Tronc
+      </button>
+      @if (!isLocked() && !isActiveTabTroncOnly()) {
+        <div class="relative">
+          <button
+            type="button"
+            class="btn btn-sm gap-1"
+            [class.btn-primary]="viewMode() === 'decoration'"
+            [class.btn-ghost]="viewMode() !== 'decoration'"
+            (click)="setViewMode('decoration')"
+            [attr.aria-pressed]="viewMode() === 'decoration'"
+            aria-label="Mode decoració"
+          >
+            <i-lucide [img]="Shapes" class="size-4" aria-hidden="true" />
+            Decoració
+          </button>
+          @if (decorationPickerOpen()) {
+            <ul
+              class="absolute left-0 top-full mt-1 bg-base-100 border border-base-300 rounded-lg shadow-lg z-50 p-1 min-w-48"
+              role="menu"
+            >
+              @for (preset of decorationPresets; track preset.positionType) {
+                <li role="none">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    class="w-full flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-base-200 text-left rounded"
+                    (click)="onPresetSelected(preset); decorationPickerOpen.set(false)"
+                  >
+                    <span
+                      class="inline-block w-3 h-3 rounded-sm shrink-0 border border-base-content/20"
+                      [style.backgroundColor]="preset.color"
+                    ></span>
+                    {{ getDecorationLabel(preset) }}
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      }
+
+      <!-- Projecta mode -->
+      @if (activeTab()) {
+        <button
+          type="button"
+          class="btn btn-sm gap-1"
+          [class.btn-primary]="viewMode() === 'projecta'"
+          [class.btn-ghost]="viewMode() !== 'projecta'"
+          (click)="setViewMode('projecta')"
+          [attr.aria-pressed]="viewMode() === 'projecta'"
+          aria-label="Mode previsualització"
+        >
+          <i-lucide [img]="Monitor" class="size-4" aria-hidden="true" />
+          Previsualitza
+        </button>
+      }
+    </div>
+  }
+
   <!-- Main content: canvas + person panel -->
   <div class="flex flex-1 overflow-hidden">
 
     <!-- Canvas area -->
     <main class="flex-1 relative overflow-hidden">
 
-      <!-- Tronc drawer trigger (floating top-left) -->
-      <button
-        type="button"
-        class="tronc-drawer-trigger"
-        (click)="troncPanelOpen.set(true)"
-        aria-label="Obrir panell del Tronc"
-        title="Tronc"
-      >
-        <i-lucide [img]="PanelLeft" class="size-4" />
-        Tronc
-      </button>
-
-      @if (loading()) {
-        <div class="absolute inset-0 flex items-center justify-center bg-base-100/80 z-10">
-          <span class="loading loading-spinner loading-lg text-primary"></span>
-        </div>
-      }
-
-      @if (!loading() && activePinyaNodes().length > 0) {
-        <app-figure-canvas
-          class="w-full h-full block"
-          [class.cursor-crosshair]="state.isPlacementMode()"
-          [nodes]="activePinyaNodes()"
-          mode="assignment"
-          [selectedNodeId]="state.selectedNodeId()"
-          [assignments]="state.assignments()"
-          [heightMode]="state.heightMode()"
-          [attendanceMap]="attendanceMap()"
-          [nextPerformanceMap]="nextPerformanceMap()"
-          [highlightedNodeIds]="highlightedNodeIds()"
-          [isPlacementMode]="state.isPlacementMode()"
-          (nodeSelected)="onNodeSelected($event)"
-          (nodeClicked)="onNodeClicked($event)"
-          (nodeDoubleClicked)="onNodeDoubleClicked($event)"
-          (canvasClicked)="onCanvasClicked($event)"
-          (adHocNodeMoved)="onAdHocNodeMoved($event)"
-          (adHocNodeTransformed)="onAdHocNodeTransformed($event)"
-        />
-      }
-
-      @if (!loading() && activePinyaNodes().length === 0 && activeNodes().length === 0 && tabs().length > 0) {
-        <div class="flex flex-col items-center justify-center h-full gap-3 text-base-content/50">
-          <i-lucide [img]="Users" class="size-12" />
-          <p class="text-sm">Carregant nodes de la figura...</p>
-        </div>
-      }
-
-      @if (!loading() && activePinyaNodes().length === 0 && activeNodes().length > 0) {
-        <div class="flex flex-col items-center justify-center h-full gap-3 text-base-content/50">
-          <i-lucide [img]="Users" class="size-12" />
+      <!-- ── Projection preview mode ────────────────────────────────────── -->
+      @if (viewMode() === 'projecta' && activeTab() && !loading()) {
+        <div class="flex flex-col h-full bg-white overflow-hidden">
           @if (isActiveTabTroncOnly()) {
-            <p class="text-sm">Figura neta — utilitza el panell del tronc per assignar.</p>
+            <div class="flex-1 min-h-0 overflow-y-auto flex items-center justify-center p-4">
+              <app-tronc-view
+                class="w-full max-w-lg"
+                mode="projection"
+                [troncNodes]="activeTroncNodes()"
+                [baseNodes]="activeBaseNodes()"
+                [directionNodes]="activeDirectionNodes()"
+                [assignments]="state.assignments()"
+              />
+            </div>
           } @else {
-            <p class="text-sm">Aquesta figura no té nodes de pinya. Consulta el panell del tronc.</p>
+            <div class="flex-shrink-0 border-b border-gray-200 overflow-y-auto" style="max-height: 30%">
+              <app-tronc-view
+                mode="projection"
+                [troncNodes]="activeTroncNodes()"
+                [baseNodes]="activeBaseNodes()"
+                [directionNodes]="activeDirectionNodes()"
+                [assignments]="state.assignments()"
+              />
+            </div>
+            <div class="flex-1 min-h-0 relative">
+              <app-figure-canvas
+                class="block w-full h-full"
+                mode="readonly"
+                [gridEnabled]="false"
+                [nodes]="projectionNodes()"
+                [assignments]="state.assignments()"
+              />
+            </div>
           }
         </div>
       }
 
-      @if (!loading() && tabs().length === 0) {
-        <div class="flex flex-col items-center justify-center h-full gap-3 text-base-content/50">
-          <i-lucide [img]="Users" class="size-12" />
-          <p class="text-sm">Aquest segment no té figures per assignar.</p>
-        </div>
-      }
+      <!-- ── Normal assignment view ─────────────────────────────────────── -->
+      @if (viewMode() !== 'projecta') {
+        @if (loading()) {
+          <div class="absolute inset-0 flex items-center justify-center bg-base-100/80 z-10">
+            <span class="loading loading-spinner loading-lg text-primary"></span>
+          </div>
+        }
 
-      <!-- Ad-hoc FAB + help + undo/redo -->
-      @if (!isLocked() && activeTab()) {
+        @if (!loading() && activePinyaNodes().length > 0) {
+          <app-figure-canvas
+            class="w-full h-full block"
+            [class.cursor-crosshair]="state.isPlacementMode()"
+            [nodes]="activePinyaNodes()"
+            mode="assignment"
+            [selectedNodeId]="state.selectedNodeId()"
+            [assignments]="state.assignments()"
+            [heightMode]="state.heightMode()"
+            [attendanceMap]="attendanceMap()"
+            [nextPerformanceMap]="nextPerformanceMap()"
+            [personDetailsMap]="personDetailsMap()"
+            [highlightedNodeIds]="highlightedNodeIds()"
+            [isPlacementMode]="state.isPlacementMode()"
+            [isPast]="isPast()"
+            [decorationOpacity]="viewMode() === 'pinya' ? 0.5 : 1"
+            (nodeSelected)="onNodeSelected($event)"
+            (nodeClicked)="onNodeClicked($event)"
+            (nodeDoubleClicked)="onNodeDoubleClicked($event)"
+            (canvasClicked)="onCanvasClicked($event)"
+            (adHocNodeMoved)="onAdHocNodeMoved($event)"
+            (adHocNodeTransformed)="onAdHocNodeTransformed($event)"
+          />
+        }
+
+        @if (!loading() && activePinyaNodes().length === 0 && activeNodes().length === 0 && tabs().length > 0) {
+          <div class="flex flex-col items-center justify-center h-full gap-3 text-base-content/50">
+            <i-lucide [img]="Users" class="size-12" />
+            <p class="text-sm">Carregant nodes de la figura...</p>
+          </div>
+        }
+
+        @if (!loading() && activePinyaNodes().length === 0 && activeNodes().length > 0) {
+          <div class="flex flex-col items-center justify-center h-full gap-3 text-base-content/50">
+            <i-lucide [img]="Users" class="size-12" />
+            @if (isActiveTabTroncOnly()) {
+              <p class="text-sm flex items-center gap-1.5">
+                <i-lucide [img]="Sparkles" class="size-4 shrink-0" aria-hidden="true" />Figura neta — utilitza el panell del tronc per assignar.
+              </p>
+            } @else {
+              <p class="text-sm">Aquesta figura no té nodes de pinya. Consulta el panell del tronc.</p>
+            }
+          </div>
+        }
+
+        @if (!loading() && tabs().length === 0) {
+          <div class="flex flex-col items-center justify-center h-full gap-3 text-base-content/50">
+            <i-lucide [img]="Users" class="size-12" />
+            <p class="text-sm">Aquest segment no té figures per assignar.</p>
+          </div>
+        }
+
+        <!-- Ad-hoc FAB + help + undo/redo -->
+        @if (!isLocked() && activeTab()) {
         <div class="absolute bottom-4 right-4 flex items-center gap-2 z-20">
           <button
             type="button"
@@ -224,88 +332,8 @@
             aria-label="Ajuda sobre nodes manuals"
             title="Ajuda"
           >
-            <i-lucide [img]="HelpCircle" class="size-5" />
+            <i-lucide [img]="CircleQuestionMark" class="size-5" />
           </button>
-
-          <!-- Direction FAB (hidden for figures netes — managed inside TroncView) -->
-          @if (!isActiveTabTroncOnly()) {
-            <div class="relative">
-              <button
-                type="button"
-                class="btn btn-circle shadow-lg"
-                style="background-color: #d97706; border-color: #d97706; color: white;"
-                (click)="fabDirectionOpen.set(!fabDirectionOpen())"
-                aria-label="Afegir node de direcció"
-                aria-haspopup="true"
-                [attr.aria-expanded]="fabDirectionOpen()"
-                title="Direccions"
-              >
-                <span class="text-xs font-bold">Dir</span>
-              </button>
-              @if (fabDirectionOpen()) {
-                <ul
-                  class="menu bg-base-100 rounded-box shadow-xl w-48 p-2 absolute bottom-full right-0 mb-2 z-50"
-                  role="menu"
-                >
-                  @for (preset of directionPresets; track preset.zone) {
-                    <li role="none">
-                      <button
-                        type="button"
-                        role="menuitem"
-                        class="flex items-center gap-2 text-sm"
-                        (click)="onPresetSelected(preset); fabDirectionOpen.set(false)"
-                      >
-                        <span
-                          class="inline-block w-3 h-3 rounded-sm shrink-0"
-                          [style.backgroundColor]="preset.color"
-                        ></span>
-                        {{ preset.label }}
-                      </button>
-                    </li>
-                  }
-                </ul>
-              }
-            </div>
-          }
-
-          <!-- Decoration FAB -->
-          <div class="relative">
-            <button
-              type="button"
-              class="btn btn-circle shadow-lg"
-              style="background-color: #6b7280; border-color: #6b7280; color: white;"
-              (click)="fabDecorationOpen.set(!fabDecorationOpen())"
-              aria-label="Afegir node decoratiu"
-              aria-haspopup="true"
-              [attr.aria-expanded]="fabDecorationOpen()"
-              title="Decoratiu"
-            >
-              <span class="text-xs font-bold">Dec</span>
-            </button>
-            @if (fabDecorationOpen()) {
-              <ul
-                class="menu bg-base-100 rounded-box shadow-xl w-48 p-2 absolute bottom-full right-0 mb-2 z-50"
-                role="menu"
-              >
-                @for (preset of decorationPresets; track preset.positionType) {
-                  <li role="none">
-                    <button
-                      type="button"
-                      role="menuitem"
-                      class="flex items-center gap-2 text-sm"
-                      (click)="onPresetSelected(preset); fabDecorationOpen.set(false)"
-                    >
-                      <span
-                        class="inline-block w-3 h-3 rounded-sm shrink-0 border border-base-content/30"
-                        [style.backgroundColor]="preset.color"
-                      ></span>
-                      {{ getDecorationLabel(preset) }} (etiqueta lliure)
-                    </button>
-                  </li>
-                }
-              </ul>
-            }
-          </div>
 
           <!-- Pinya FAB (hidden for figures netes) -->
           @if (!isActiveTabTroncOnly()) {
@@ -349,51 +377,41 @@
         </div>
       }
 
-      <!-- Placement mode banner -->
-      @if (state.isPlacementMode()) {
-        <div class="absolute top-2 left-1/2 -translate-x-1/2 z-30 alert alert-info py-2 px-4 shadow-lg max-w-sm" role="status">
-          <span class="text-sm">
-            <strong>Mode col·locació:</strong> fes clic a l'àrea de treball per situar el node.
-            <button type="button" class="btn btn-xs btn-ghost ml-1" (click)="state.exitPlacementMode()">
-              Cancel·la
-            </button>
-          </span>
-        </div>
-      }
+        <!-- Placement mode banner -->
+        @if (state.isPlacementMode()) {
+          <div class="absolute top-2 left-1/2 -translate-x-1/2 z-30 alert alert-info py-2 px-4 shadow-lg max-w-sm" role="status">
+            <span class="text-sm">
+              <strong>Mode col·locació:</strong> fes clic a l'àrea de treball per situar el node.
+              <button type="button" class="btn btn-xs btn-ghost ml-1" (click)="state.exitPlacementMode()">
+                Cancel·la
+              </button>
+            </span>
+          </div>
+        }
 
-      <!-- Ad-hoc node properties panel (opens on double-click) -->
-      @if (adHocNodeForPanel(); as adHocNode) {
-        <app-ad-hoc-node-properties
-          [node]="adHocNode"
-          [instanceId]="state.activeInstanceId()!"
-          [assignment]="selectedAdHocAssignment()"
-          [heightMode]="state.heightMode()"
-          [attendanceStatus]="selectedAdHocAssignment() ? getAttendanceStatus(selectedAdHocAssignment()!) : null"
-          (closed)="adHocPropertiesOpen.set(false)"
-          (propertyChanged)="onAdHocPropertyChanged($event)"
-          (nodeUpdated)="onAdHocNodeUpdated()"
-          (deleteRequested)="onAdHocDeleteFromPanel($event)"
-          (duplicateRequested)="duplicateSelectedAdHocNode()"
-          (unassign)="onUnassign($event)"
-        />
-      }
-
-      <!-- Node popover (disabled) de moment ho mantenim tot al popover app-ad-hoc-node-properties -->
-      <!-- @if (popoverAssignment()) {
-        <app-node-popover
-          [assignment]="popoverAssignment()"
-          [position]="popoverPosition()"
-          [heightMode]="state.heightMode()"
-          [attendanceStatus]="getAttendanceStatus(popoverAssignment()!)"
-          (unassign)="onUnassign($event)"
-          (close)="popoverAssignment.set(null)"
-        />
-      } -->
+        <!-- Ad-hoc node properties panel (opens on double-click) -->
+        @if (adHocNodeForPanel(); as adHocNode) {
+          <app-ad-hoc-node-properties
+            [node]="adHocNode"
+            [instanceId]="state.activeInstanceId()!"
+            [assignment]="selectedAdHocAssignment()"
+            [heightMode]="state.heightMode()"
+            [attendanceStatus]="selectedAdHocAssignment() ? getAttendanceStatus(selectedAdHocAssignment()!) : null"
+            [isPast]="isPast()"
+            (closed)="adHocPropertiesOpen.set(false)"
+            (propertyChanged)="onAdHocPropertyChanged($event)"
+            (nodeUpdated)="onAdHocNodeUpdated()"
+            (deleteRequested)="onAdHocDeleteFromPanel($event)"
+            (duplicateRequested)="duplicateSelectedAdHocNode()"
+            (unassign)="onUnassign($event)"
+          />
+        }
+      } <!-- end @if viewMode() !== 'projecta' -->
     </main>
 
     <!-- Person panel (right sidebar) -->
 
-    @if (!isLocked() && !state.panelCollapsed() && eventId() && segmentId()) {
+    @if (!isLocked() && !state.panelCollapsed() && eventId() && segmentId() && viewMode() !== 'projecta' && viewMode() !== 'decoration') {
       <aside class="w-64 shrink-0 overflow-hidden">
         <app-person-panel
           [eventId]="eventId()"
@@ -402,6 +420,8 @@
           [assignments]="state.assignments()"
           [heightMode]="state.heightMode()"
           [activeNodePositionType]="selectedNode()?.positionType ?? null"
+          [selectedNodeZone]="selectedNode()?.zone ?? null"
+          [isPast]="isPast()"
           (personSelected)="onPersonSelected($event)"
           (assignedPersonSelected)="onAssignedPersonSelected($event)"
           (unassignRequested)="onUnassign($event)"
@@ -415,22 +435,16 @@
   <aside
     class="tronc-floating-panel"
     [class.tronc-expanded]="isActiveTabTroncOnly()"
-    [style.left.px]="isActiveTabTroncOnly() ? null : troncPanelPos().x"
-    [style.top.px]="isActiveTabTroncOnly() ? null : troncPanelPos().y"
     aria-label="Tronc de la figura"
     tabindex="-1"
-    (keydown.escape)="troncPanelOpen.set(false)"
+    (keydown.escape)="setViewMode('pinya')"
   >
-    <div
-      class="tronc-floating-header"
-      (mousedown)="onTroncDragStart($event)"
-    >
-      <i-lucide [img]="PanelLeft" class="drag-handle size-3.5" aria-hidden="true" />
+    <div class="tronc-floating-header">
       <h2 class="tronc-floating-title">Tronc</h2>
       <button
         type="button"
         class="btn btn-ghost btn-xs btn-square"
-        (click)="troncPanelOpen.set(false)"
+        (click)="setViewMode('pinya')"
         aria-label="Tancar panell del Tronc"
       >
         <i-lucide [img]="X" class="size-3.5" aria-hidden="true" />
@@ -441,13 +455,14 @@
       [troncNodes]="activeTroncNodes()"
       [baseNodes]="activeBaseNodes()"
       [directionNodes]="activeDirectionNodes()"
-      [isNetaFigure]="isActiveTabTroncOnly()"
       [assignments]="state.assignments()"
       [selectedNodeId]="state.selectedNodeId()"
       [mode]="'assignment'"
       [heightMode]="state.heightMode()"
       [highlightedNodeIds]="highlightedNodeIds()"
       [attendanceMap]="troncAttendanceMap()"
+      [isPast]="isPast()"
+      [personDetailsMap]="personDetailsMap()"
       (nodeSelected)="onNodeSelected($event)"
       (nodeClicked)="onTroncNodeClicked($event)"
       (nodeUnassigned)="onTroncNodeUnassigned($event)"
@@ -484,7 +499,7 @@
         Persones: {{ totalNeededAllTabs() }} necessàries / {{ state.totalConfirmedCount() }} confirmades
         @if (isOverCapacity()) {
           <span class="text-xs text-warning ml-1" title="Calen més persones de les confirmades">
-            ⚠ falten {{ totalNeededAllTabs() - state.totalConfirmedCount() }}
+            ⚠ en falten {{ totalNeededAllTabs() - state.totalConfirmedCount() }}
           </span>
         }
       } @else {
@@ -501,10 +516,10 @@
         class="btn btn-xs btn-outline btn-error gap-1"
         (click)="openResetModal()"
         [disabled]="isLocked()"
-        aria-label="Reinicialitzar la figura: elimina totes les assignacions i torna al template original"
+        aria-label="Reinicialitza la figura: elimina totes les assignacions i torna al template original"
       >
         <i-lucide [img]="Trash2" class="size-3" />
-        Reinicialitzar
+        Reinicialitza
       </button>
     }
 
@@ -555,7 +570,7 @@
           <i-lucide [img]="Users" class="size-4 shrink-0" />
           <span>
             <strong>{{ pendingDeleteTab()!.assignedCount }} assignacions</strong>
-            es perdran i les persones tornaran al panel.
+            es perdran.
           </span>
         </div>
       }
@@ -596,7 +611,7 @@
     aria-modal="true"
   >
     <div class="modal-box max-w-sm">
-      <h3 id="reset-modal-title" class="text-lg font-bold mb-3 text-error">Reinicialitzar figura</h3>
+      <h3 id="reset-modal-title" class="text-lg font-bold mb-3 text-error">Reinicialitza figura</h3>
       <p id="reset-modal-desc" class="text-sm text-base-content/70">
         Aquesta acció eliminarà
         <strong class="text-error">{{ activeTab()?.assignedCount ?? 0 }} assignacions</strong>
@@ -679,7 +694,7 @@
     <div class="modal-box max-w-sm">
       <h3 id="cordons-confirm-title" class="text-lg font-bold mb-3 text-warning">Reduir cordons</h3>
       <p id="cordons-confirm-desc" class="text-sm text-base-content/70">
-        Reduir els cordons eliminarà
+        Reduir els cordons desassignarà
         <strong class="text-warning">{{ cordonsConfirmCount() }}
           {{ cordonsConfirmCount() === 1 ? 'persona assignada' : 'persones assignades' }}</strong>
         que es troben als cordons que seran amagats.
@@ -711,17 +726,18 @@
       <label for="comodin-input" class="label">
         <span class="label-text">Escriu el nom del node:</span>
       </label>
-      <input
+      <textarea
         id="comodin-input"
-        type="text"
-        class="input input-bordered w-full"
+        class="textarea textarea-bordered w-full resize-none"
+        rows="3"
         [value]="comodinLabel()"
         (input)="comodinLabel.set($any($event.target).value)"
-        (keydown.enter)="confirmComodinLabel()"
+        (keydown.shift.enter)="confirmComodinLabel(); $event.preventDefault()"
         [placeholder]="labelDialogPlaceholder()"
-        maxlength="100"
+        maxlength="500"
         autofocus
-      />
+      ></textarea>
+      <p class="text-xs text-base-content/40 mt-1">Majúscules + Retorn per a col·locar</p>
       <div class="modal-action">
         <button type="button" class="btn btn-ghost btn-sm" (click)="cancelComodinInput()">
           Cancel·la
@@ -756,5 +772,18 @@
     [instanceNodes]="activeNodes()"
     (closed)="onSaveAsTemplateClosed()"
     (saved)="onSaveAsTemplateResult($event)"
+  />
+}
+
+<!-- Already assigned person dialog -->
+@if (reassignDialog(); as dialog) {
+  <app-already-assigned-dialog
+    [open]="true"
+    [personAlias]="dialog.personAlias"
+    [nodeLabel]="dialog.oldNodeLabel"
+    [figureName]="dialog.figureName"
+    (closed)="onReassignDialogClosed()"
+    (viewRequested)="onReassignDialogView()"
+    (reassignRequested)="onReassignDialogConfirm()"
   />
 }

@@ -1,13 +1,12 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi, type Mock } from 'vitest';
-import { LUCIDE_ICONS, LucideIconProvider, X, UserMinus } from 'lucide-angular';
+import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { NodePopoverComponent } from './node-popover.component';
 import { AssignmentDetail } from '../../models/assignment.model';
 
 const makeAssignment = (): AssignmentDetail => ({
   id: 'assignment-1',
   figureInstanceId: 'instance-1',
-  compositionSlotId: null,
   node: { id: 'node-1', label: 'pd4-1', zone: 'TRONC', z: 1, positionType: 'pd4', sortOrder: 0, ringLevel: null, originNodeId: null, sourceNodeId: null },
   person: {
     id: 'person-1',
@@ -15,6 +14,8 @@ const makeAssignment = (): AssignmentDetail => ({
     name: 'Pere',
     firstSurname: 'Garcia',
     shoulderHeight: 142,
+    notes: null,
+    notesEmoji: null,
   },
 });
 
@@ -28,10 +29,7 @@ describe('NodePopoverComponent', () => {
     await TestBed.configureTestingModule({
       imports: [NodePopoverComponent],
       providers: [
-        {
-          provide: LUCIDE_ICONS, multi: true,
-          useFactory: () => new LucideIconProvider({ X, UserMinus }),
-        },
+        allLucideIconsProvider,
       ],
     }).compileComponents();
 

@@ -31,12 +31,19 @@ export class EventFormModalComponent implements OnInit, OnChanges {
 
   event = input<EventDetail | null>(null);
   seasons = input<Season[]>([]);
+  presetEventType = input<EventType | null>(null);
 
   saved = output<EventDetail>();
   closed = output<void>();
 
   isEditMode = computed(() => this.event() !== null);
-  modalTitle = computed(() => this.isEditMode() ? 'Editar esdeveniment' : 'Nou esdeveniment');
+  modalTitle = computed(() => {
+    if (this.isEditMode()) return 'Editar esdeveniment';
+    const preset = this.presetEventType();
+    if (preset === EventType.ASSAIG) return 'Assaig nou';
+    if (preset === EventType.ACTUACIO) return 'Actuació nova';
+    return 'Nou esdeveniment';
+  });
 
   saving = signal(false);
   errorMessage = signal<string | null>(null);
@@ -96,6 +103,7 @@ export class EventFormModalComponent implements OnInit, OnChanges {
   private patchFormFromEvent() {
     const ev = this.event();
     if (ev) {
+      this.form.get('eventType')?.enable();
       this.form.patchValue({
         title: ev.title,
         eventType: ev.eventType,
@@ -109,10 +117,19 @@ export class EventFormModalComponent implements OnInit, OnChanges {
         seasonId: ev.season?.id ?? '',
       });
     } else {
+      const preset = this.presetEventType();
+      const defaultTitle = preset === EventType.ASSAIG ? 'Assaig general'
+        : '';
       this.form.reset({
-        eventType: EventType.ASSAIG,
+        title: defaultTitle,
+        eventType: preset ?? EventType.ASSAIG,
         countsForStatistics: true,
       });
+      if (preset) {
+        this.form.get('eventType')?.disable();
+      } else {
+        this.form.get('eventType')?.enable();
+      }
     }
   }
 

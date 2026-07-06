@@ -6,7 +6,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import {
   EventType,
   FigureZone,
@@ -22,7 +22,6 @@ import { FigureInstance } from '../event-segment/entities/figure-instance.entity
 import { InstanceNode } from '../event-segment/entities/instance-node.entity';
 import { FigureNode } from '../figure/entities/figure-node.entity';
 import { Person } from '../person/person.entity';
-import { CompositionSlot } from '../composition/entities/composition-slot.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
 import { Event } from '../event/event.entity';
@@ -32,7 +31,6 @@ import { Event } from '../event/event.entity';
 export interface AssignmentDetail {
   id: string;
   figureInstanceId: string;
-  compositionSlotId: string | null;
   node: {
     id: string;
     label: string;
@@ -50,6 +48,8 @@ export interface AssignmentDetail {
     name: string;
     firstSurname: string;
     shoulderHeight: number | null;
+    notes: string | null;
+    notesEmoji: string | null;
   };
 }
 
@@ -166,7 +166,6 @@ function toAssignmentDetail(assignment: NodeAssignment): AssignmentDetail {
   return {
     id: assignment.id,
     figureInstanceId: assignment.figureInstance.id,
-    compositionSlotId: assignment.compositionSlot?.id ?? null,
     node: {
       id: node.id,
       label: node.label,
@@ -184,6 +183,8 @@ function toAssignmentDetail(assignment: NodeAssignment): AssignmentDetail {
       name: (assignment.person as any).name,
       firstSurname: (assignment.person as any).firstSurname,
       shoulderHeight: (assignment.person as any).shoulderHeight ?? null,
+      notes: (assignment.person as any).notes ?? null,
+      notesEmoji: (assignment.person as any).notesEmoji ?? null,
     },
   };
 }
@@ -241,16 +242,6 @@ function figureNodeToResponse(node: FigureNode): InstanceNodeResponse {
 }
 
 
-export function isNodeVisible(
-  node: { renglaId: string | null; renglaPosition: number | null },
-  numberOfCordons: number | null,
-): boolean {
-  if (numberOfCordons === null) return true;
-  if (!node.renglaId || node.renglaPosition === null) return true;
-  return node.renglaPosition <= numberOfCordons;
-}
-
-
 // ─── Service ────────────────────────────────────────────────────────────────
 
 @Injectable()
@@ -266,8 +257,6 @@ export class NodeAssignmentService {
     private readonly figureNodeRepository: Repository<FigureNode>,
     @InjectRepository(Person)
     private readonly personRepository: Repository<Person>,
-    @InjectRepository(CompositionSlot)
-    private readonly compositionSlotRepository: Repository<CompositionSlot>,
     @InjectRepository(FigureTemplate)
     private readonly figureTemplateRepository: Repository<FigureTemplate>,
     @InjectRepository(EventSegment)
@@ -324,7 +313,7 @@ export class NodeAssignmentService {
 
     const assignments = await this.assignmentRepository.find({
       where: { figureInstance: { id: instanceId } },
-      relations: ['instanceNode', 'person', 'compositionSlot', 'figureInstance'],
+      relations: ['instanceNode', 'person', 'figureInstance'],
     });
 
     return assignments.map(toAssignmentDetail);
@@ -334,13 +323,13 @@ export class NodeAssignmentService {
 
   async assign(
     instanceId: string,
-    dto: { nodeId: string; personId: string; compositionSlotId?: string },
+    dto: { nodeId: string; personId: string },
   ): Promise<AssignmentDetail> {
     await this.checkEventLock(instanceId);
 
     const instance = await this.figureInstanceRepository.findOne({
       where: { id: instanceId },
-      relations: ['figureTemplate', 'compositionTemplate', 'segment'],
+      relations: ['figureTemplate', 'segment'],
     });
     if (!instance) {
       throw new NotFoundException(`FigureInstance with ID ${instanceId} not found`);
@@ -387,15 +376,10 @@ export class NodeAssignmentService {
       throw new NotFoundException(`Person with ID ${dto.personId} not found`);
     }
 
-    const compositionSlot = dto.compositionSlotId
-      ? await this.compositionSlotRepository.findOne({ where: { id: dto.compositionSlotId } })
-      : null;
-
     const nodeConflict = await this.assignmentRepository.findOne({
       where: {
         figureInstance: { id: instanceId },
         instanceNode: { id: instanceNode.id },
-        ...(compositionSlot ? { compositionSlot: { id: compositionSlot.id } } : { compositionSlot: null as any }),
       },
     });
     if (nodeConflict) {
@@ -408,7 +392,6 @@ export class NodeAssignmentService {
       where: {
         figureInstance: { id: instanceId },
         person: { id: dto.personId },
-        ...(compositionSlot ? { compositionSlot: { id: compositionSlot.id } } : { compositionSlot: null as any }),
       },
     });
     if (personConflict) {
@@ -434,14 +417,13 @@ export class NodeAssignmentService {
       figureInstance: instance,
       instanceNode,
       person,
-      compositionSlot,
     });
 
     const saved = await this.assignmentRepository.save(assignment);
 
     const populated = await this.assignmentRepository.findOne({
       where: { id: saved.id },
-      relations: ['instanceNode', 'person', 'compositionSlot', 'figureInstance'],
+      relations: ['instanceNode', 'person', 'figureInstance'],
     });
 
     return toAssignmentDetail(populated!);
@@ -458,11 +440,11 @@ export class NodeAssignmentService {
     const [assignmentA, assignmentB] = await Promise.all([
       this.assignmentRepository.findOne({
         where: { id: dto.assignmentIdA },
-        relations: ['figureInstance', 'instanceNode', 'person', 'compositionSlot'],
+        relations: ['figureInstance', 'instanceNode', 'person'],
       }),
       this.assignmentRepository.findOne({
         where: { id: dto.assignmentIdB },
-        relations: ['figureInstance', 'instanceNode', 'person', 'compositionSlot'],
+        relations: ['figureInstance', 'instanceNode', 'person'],
       }),
     ]);
 
@@ -488,14 +470,12 @@ export class NodeAssignmentService {
         figureInstance: assignmentA.figureInstance,
         instanceNode: assignmentA.instanceNode,
         person: assignmentB.person,
-        compositionSlot: assignmentA.compositionSlot,
       });
       const newB = manager.create(NodeAssignment, {
         id: dto.assignmentIdB,
         figureInstance: assignmentB.figureInstance,
         instanceNode: assignmentB.instanceNode,
         person: assignmentA.person,
-        compositionSlot: assignmentB.compositionSlot,
       });
 
       await manager.save(NodeAssignment, [newA, newB]);
@@ -504,11 +484,11 @@ export class NodeAssignmentService {
     const [updatedA, updatedB] = await Promise.all([
       this.assignmentRepository.findOne({
         where: { id: dto.assignmentIdA },
-        relations: ['instanceNode', 'person', 'compositionSlot', 'figureInstance'],
+        relations: ['instanceNode', 'person', 'figureInstance'],
       }),
       this.assignmentRepository.findOne({
         where: { id: dto.assignmentIdB },
-        relations: ['instanceNode', 'person', 'compositionSlot', 'figureInstance'],
+        relations: ['instanceNode', 'person', 'figureInstance'],
       }),
     ]);
 
@@ -767,13 +747,13 @@ export class NodeAssignmentService {
 
   async bulkImport(
     instanceId: string,
-    dto: { sourceInstanceId: string; sourceCompositionSlotId?: string },
+    dto: { sourceInstanceId: string },
   ): Promise<BulkImportResult> {
     await this.checkEventLock(instanceId);
 
     const targetInstance = await this.figureInstanceRepository.findOne({
       where: { id: instanceId },
-      relations: ['figureTemplate', 'compositionTemplate', 'segment', 'instanceNodes'],
+      relations: ['figureTemplate', 'segment', 'instanceNodes'],
     });
     if (!targetInstance) {
       throw new NotFoundException(`Target FigureInstance with ID ${instanceId} not found`);
@@ -796,7 +776,7 @@ export class NodeAssignmentService {
       await this.snapshotInstance(targetInstance);
       const refreshed = await this.figureInstanceRepository.findOne({
         where: { id: instanceId },
-        relations: ['figureTemplate', 'compositionTemplate', 'segment', 'instanceNodes'],
+        relations: ['figureTemplate', 'segment', 'instanceNodes'],
       });
       if (refreshed) {
         targetInstance.snapshotted = refreshed.snapshotted;
@@ -807,11 +787,8 @@ export class NodeAssignmentService {
     const sourceAssignments = await this.assignmentRepository.find({
       where: {
         figureInstance: { id: dto.sourceInstanceId },
-        ...(dto.sourceCompositionSlotId
-          ? { compositionSlot: { id: dto.sourceCompositionSlotId } }
-          : {}),
       },
-      relations: ['instanceNode', 'person', 'compositionSlot', 'figureInstance'],
+      relations: ['instanceNode', 'person', 'figureInstance'],
     });
 
     const created: AssignmentDetail[] = [];
@@ -880,7 +857,6 @@ export class NodeAssignmentService {
         const detail = await this.assign(instanceId, {
           nodeId: targetNode.id,
           personId,
-          compositionSlotId: undefined,
         });
         created.push(detail);
       } catch {
@@ -960,7 +936,6 @@ export class NodeAssignmentService {
           await this.assign(instanceId, {
             nodeId: savedClone.id,
             personId,
-            compositionSlotId: undefined,
           });
         } catch {
           conflicts.push({
@@ -982,7 +957,7 @@ export class NodeAssignmentService {
   async updateCordons(
     instanceId: string,
     dto: { numberOfCordons?: number | null },
-  ): Promise<{ numberOfCordons: number | null; removedAssignments: number }> {
+  ): Promise<{ numberOfCordons: number | null }> {
     const instance = await this.figureInstanceRepository.findOne({
       where: { id: instanceId },
     });
@@ -996,28 +971,7 @@ export class NodeAssignmentService {
 
     await this.figureInstanceRepository.save(instance);
 
-    let removedAssignments = 0;
-
-    if (instance.numberOfCordons !== null) {
-      const allNodes = await this.instanceNodeRepository.find({
-        where: { figureInstance: { id: instanceId } },
-      });
-      const hiddenNodeIds = allNodes
-        .filter((n) => !isNodeVisible(n, instance.numberOfCordons))
-        .map((n) => n.id);
-
-      if (hiddenNodeIds.length > 0) {
-        const result = await this.assignmentRepository.delete({
-          instanceNode: { id: In(hiddenNodeIds) },
-        });
-        removedAssignments = result.affected ?? 0;
-      }
-    }
-
-    return {
-      numberOfCordons: instance.numberOfCordons,
-      removedAssignments,
-    };
+    return { numberOfCordons: instance.numberOfCordons };
   }
 
   // ── Lock — Assignment lock after event date ────────────────────────────────
@@ -1079,7 +1033,7 @@ export class NodeAssignmentService {
 
     const instance = await this.figureInstanceRepository.findOne({
       where: { id: instanceId },
-      relations: ['figureTemplate', 'compositionTemplate', 'segment'],
+      relations: ['figureTemplate', 'segment'],
     });
     if (!instance) {
       throw new NotFoundException(`FigureInstance with ID ${instanceId} not found`);
@@ -1189,12 +1143,8 @@ export class NodeAssignmentService {
     });
   }
 
-  private assertNotComposition(instance: FigureInstance): void {
-    if (instance.compositionTemplate) {
-      throw new BadRequestException(
-        'Les instàncies de composició no suporten nodes ad-hoc.',
-      );
-    }
+  private assertNotComposition(_instance: FigureInstance): void {
+    // compositions removed in Phase 0
   }
 
   // ── B.1 — Snapshot helper ─────────────────────────────────────────────────

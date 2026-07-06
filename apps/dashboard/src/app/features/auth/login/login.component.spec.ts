@@ -4,7 +4,7 @@ import { Router } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
 import { vi } from 'vitest';
 import { of, throwError } from 'rxjs';
-import { LUCIDE_ICONS, LucideIconProvider, Mail, Lock } from 'lucide-angular';
+import { allLucideIconsProvider } from '../../../../testing/lucide-test-provider';
 import { LoginComponent } from './login.component';
 import { AuthService } from '../../../core/auth/services/auth.service';
 
@@ -23,7 +23,7 @@ describe('LoginComponent', () => {
       imports: [LoginComponent, ReactiveFormsModule, RouterTestingModule],
       providers: [
         { provide: AuthService, useValue: mockAuthService },
-        { provide: LUCIDE_ICONS, multi: true, useFactory: () => new LucideIconProvider({ Mail, Lock }) },
+        allLucideIconsProvider,
       ],
     }).compileComponents();
 

@@ -1,18 +1,15 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { CompositionTemplate } from './entities/composition-template.entity';
-import { CompositionSlot } from './entities/composition-slot.entity';
+import { Composition } from './entities/composition.entity';
+import { CompositionEntry } from './entities/composition-entry.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
-import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
-import { CompositionTemplateController } from './composition-template.controller';
-import { CompositionTemplateService } from './composition-template.service';
+import { CompositionController } from './composition.controller';
+import { CompositionService } from './composition.service';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([CompositionTemplate, CompositionSlot, FigureTemplate, FigureInstance]),
-  ],
-  controllers: [CompositionTemplateController],
-  providers: [CompositionTemplateService],
-  exports: [CompositionTemplateService],
+  imports: [TypeOrmModule.forFeature([Composition, CompositionEntry, FigureTemplate])],
+  controllers: [CompositionController],
+  providers: [CompositionService],
+  exports: [CompositionService],
 })
 export class CompositionModule {}

@@ -10,7 +10,6 @@ import { In, Repository } from 'typeorm';
 import { FigureTemplate } from './entities/figure-template.entity';
 import { FigureNode } from './entities/figure-node.entity';
 import { Rengla } from './entities/rengla.entity';
-import { CompositionSlot } from '../composition/entities/composition-slot.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
 import { InstanceNode } from '../event-segment/entities/instance-node.entity';
 import { CreateFigureTemplateDto } from './dto/create-figure-template.dto';
@@ -82,8 +81,6 @@ export class FigureTemplateService {
     private readonly nodeRepository: Repository<FigureNode>,
     @InjectRepository(Rengla)
     private readonly renglaRepository: Repository<Rengla>,
-    @InjectRepository(CompositionSlot)
-    private readonly compositionSlotRepository: Repository<CompositionSlot>,
     @InjectRepository(FigureInstance)
     private readonly figureInstanceRepository: Repository<FigureInstance>,
     @InjectRepository(InstanceNode)
@@ -93,22 +90,24 @@ export class FigureTemplateService {
   async findAll(
     filters: FigureTemplateFilterDto,
   ): Promise<{ data: FigureTemplateListItem[]; total: number }> {
-    const { search, hasPinya, page = 1, limit = 25 } = filters;
+    const { search, page = 1, limit = 25 } = filters;
 
     const qb = this.templateRepository
       .createQueryBuilder('template')
       .loadRelationCountAndMap('template.nodeCount', 'template.nodes')
-      .loadRelationCountAndMap('template.renglaCount', 'template.rengles');
+      .loadRelationCountAndMap('template.renglaCount', 'template.rengles')
+      .loadRelationCountAndMap(
+        'template.pinyaNodeCount',
+        'template.nodes',
+        'pinyaNode',
+        (qb) => qb.andWhere("pinyaNode.zone = 'PINYA'"),
+      );
 
     if (search) {
       qb.andWhere(
         '(unaccent(template.name) ILIKE unaccent(:search) OR template.slug ILIKE :search)',
         { search: `%${search}%` },
       );
-    }
-
-    if (hasPinya !== undefined) {
-      qb.andWhere('template.hasPinya = :hasPinya', { hasPinya });
     }
 
     const total = await qb.getCount();
@@ -153,7 +152,6 @@ export class FigureTemplateService {
       name,
       slug,
       description: dto.description ?? null,
-      hasPinya: dto.hasPinya ?? true,
       direction: dto.direction ?? 0,
       metadata: dto.metadata ?? {},
     });
@@ -189,7 +187,6 @@ export class FigureTemplateService {
       template.slug = await this.generateUniqueSlug(this.slugify(trimmedName), id);
     }
     if (dto.description !== undefined) template.description = dto.description ?? null;
-    if (dto.hasPinya !== undefined) template.hasPinya = dto.hasPinya;
     if (dto.direction !== undefined) template.direction = dto.direction;
     if (dto.metadata !== undefined) template.metadata = dto.metadata ?? {};
 
@@ -215,16 +212,6 @@ export class FigureTemplateService {
 
     if (!template) {
       throw new NotFoundException(`FigureTemplate with ID ${id} not found`);
-    }
-
-    const slotCount = await this.compositionSlotRepository.count({
-      where: { figureTemplate: { id } },
-    });
-
-    if (slotCount > 0) {
-      throw new ConflictException(
-        `No es pot esborrar: s'utilitza en ${slotCount} composició/composicions.`,
-      );
     }
 
     const instanceCount = await this.figureInstanceRepository.count({
@@ -254,7 +241,6 @@ export class FigureTemplateService {
       name: `${original.name} (còpia)`,
       slug: `${original.slug}-copia-${Date.now()}`,
       description: original.description,
-      hasPinya: original.hasPinya,
       direction: original.direction,
       metadata: original.metadata,
     });
@@ -328,7 +314,6 @@ export class FigureTemplateService {
       name: versionName,
       slug: versionSlug,
       description: template.description,
-      hasPinya: template.hasPinya,
       direction: template.direction,
       metadata: template.metadata ?? {},
     });
@@ -691,15 +676,15 @@ function renglaToItem(rengla: Rengla): RenglaItem {
 }
 
 function toListItem(
-  template: FigureTemplate & { nodeCount?: number; renglaCount?: number },
+  template: FigureTemplate & { nodeCount?: number; renglaCount?: number; pinyaNodeCount?: number },
 ): FigureTemplateListItem {
-  const t = template as unknown as { nodeCount: number; renglaCount: number };
+  const t = template as unknown as { nodeCount: number; renglaCount: number; pinyaNodeCount: number };
   return {
     id: template.id,
     name: template.name,
     slug: template.slug,
     description: template.description,
-    hasPinya: template.hasPinya,
+    hasPinya: (t.pinyaNodeCount ?? 0) > 0,
     direction: template.direction,
     nodeCount: t.nodeCount ?? 0,
     renglaCount: t.renglaCount ?? 0,
@@ -714,6 +699,7 @@ function toDetailItem(
 ): FigureTemplateDetailItem {
   return {
     ...toListItem(template),
+    hasPinya: (template.nodes ?? []).some((n) => n.zone === FigureZone.PINYA),
     metadata: template.metadata,
     nodes: (template.nodes ?? []).map(nodeToItem),
     rengles: (template.rengles ?? []).map(renglaToItem),

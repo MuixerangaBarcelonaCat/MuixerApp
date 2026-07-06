@@ -9,6 +9,7 @@ import {
 import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
+import { ICON_FIGURA, ICON_ASSAIG, ICON_ACTUACIO } from '../../../../shared/constants/domain-icons';
 import { EventService } from '../../services/event.service';
 import { SeasonService } from '../../services/season.service';
 import { EventFormModalComponent } from '../event-form-modal/event-form-modal.component';
@@ -79,6 +80,8 @@ export class EventListComponent implements OnInit {
 
   readonly EventType = EventType;
   readonly ALL_EVENT_COLUMNS = ALL_EVENT_COLUMNS;
+  readonly ICON_ASSAIG = ICON_ASSAIG;
+  readonly ICON_ACTUACIO = ICON_ACTUACIO;
   Math = Math;
 
   searchInput = '';
@@ -207,8 +210,7 @@ export class EventListComponent implements OnInit {
   }
 
   navigateToEvent(id: string) {
-    const base = this.eventType() === EventType.ASSAIG ? '/rehearsals' : '/performances';
-    this.router.navigate([base, id]);
+    this.router.navigate(['/events', id]);
   }
 
   navigateToSync() {
@@ -218,8 +220,7 @@ export class EventListComponent implements OnInit {
 
   onEventCreated(event: EventDetail) {
     this.showCreateModal.set(false);
-    const base = this.eventType() === EventType.ASSAIG ? '/rehearsals' : '/performances';
-    this.router.navigate([base, event.id]);
+    this.router.navigate(['/events', event.id]);
   }
 
   toggleColumn(key: string) {
@@ -368,7 +369,7 @@ export class EventListComponent implements OnInit {
   }
 
   getDeclinedCount(summary: AttendanceSummary, isPast: boolean): number {
-    return isPast ? summary.declined + summary.noShow : summary.declined;
+    return summary.declined;
   }
 
   /** Group separator to split upcoming vs past events */
@@ -380,10 +381,10 @@ export class EventListComponent implements OnInit {
   formatAttendance(item: EventListItem): string {
     const isPast = this.isEventPast(item.date, item.startTime);
     const s = item.attendanceSummary;
-    const yes = isPast ? s.attended : s.confirmed;
-    const no = isPast ? s.declined + s.noShow : s.declined;
-    const pend = s.pending;
-    return `✓${yes} ✗${no} ?${pend}`;
+    if (isPast) {
+      return `✓${s.attended} !${s.confirmed} ✗${s.declined}`;
+    }
+    return `✓${s.confirmed} ✗${s.declined} ?${s.pending}`;
   }
 
   formatAdults(item: EventListItem): string {
@@ -402,13 +403,17 @@ export class EventListComponent implements OnInit {
   private attendancePills(item: EventListItem): ColumnPill[] {
     const isPast = this.isEventPast(item.date, item.startTime);
     const s = item.attendanceSummary;
-    const yes = isPast ? s.attended : s.confirmed;
-    const no = isPast ? s.declined + s.noShow : s.declined;
-    const pend = s.pending;
+    if (isPast) {
+      return [
+        { text: `✓${s.attended}`, class: 'text-success' },
+        { text: `!${s.confirmed}`, class: 'text-warning' },
+        { text: `✗${s.declined}`, class: 'text-error' },
+      ];
+    }
     return [
-      { text: `✓${yes}`, class: 'text-success' },
-      { text: `✗${no}`, class: 'text-error' },
-      { text: `?${pend}`, class: 'text-base-content/40' },
+      { text: `✓${s.confirmed}`, class: 'text-success' },
+      { text: `✗${s.declined}`, class: 'text-error' },
+      { text: `?${s.pending}`, class: 'text-base-content/40' },
     ];
   }
 
@@ -453,7 +458,7 @@ export class EventListComponent implements OnInit {
     },
     {
       label: 'Gestionar pinyes',
-      icon: 'Layers',
+      icon: ICON_FIGURA,
       action: (item: EventListItem) => this.navigateToEvent(item.id),
     },
   ]);

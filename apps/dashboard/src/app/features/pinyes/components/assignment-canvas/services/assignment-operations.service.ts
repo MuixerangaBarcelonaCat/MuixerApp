@@ -34,7 +34,6 @@ export class AssignmentOperationsService {
     const tempAssignment: AssignmentDetail = {
       id: `temp-${Date.now()}`,
       figureInstanceId: instanceId,
-      compositionSlotId: null,
       node: {
         id: nodeId,
         label: matchedNode?.label ?? '',
@@ -46,7 +45,7 @@ export class AssignmentOperationsService {
         originNodeId: matchedNode?.originNodeId ?? null,
         sourceNodeId: matchedNode?.sourceNodeId ?? null,
       },
-      person: { id: personId, alias: '...', name: '', firstSurname: '', shoulderHeight: null },
+      person: { id: personId, alias: '...', name: '', firstSurname: '', shoulderHeight: null, notes: null, notesEmoji: null },
     };
 
     this.state.assignments.update((list) => [...list, tempAssignment]);

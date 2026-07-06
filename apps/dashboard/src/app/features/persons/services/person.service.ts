@@ -30,7 +30,7 @@ export class PersonService extends ApiService {
 
   /** Carrega totes les posicions muixerangueres disponibles (per als filtres i formularis). */
   getPositions(): Observable<Position[]> {
-    return this.get<Position[]>('/positions');
+    return this.get<Position[]>('/tags');
   }
 
   /** Crea una persona provisional amb l'àlies indicat. El backend afegeix automàticament el prefix `~`. */

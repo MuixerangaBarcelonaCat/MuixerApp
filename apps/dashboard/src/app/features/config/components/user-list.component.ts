@@ -7,6 +7,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
+import { ICON_PERSONA } from '../../../shared/constants/domain-icons';
 import { UserService } from '../services/user.service';
 import { UserDto, UserFilterParams, UserSortOrder } from '../models/user.model';
 import { UserRole } from '@muixer/shared';
@@ -84,6 +85,8 @@ function formatDate(value: string | null): string {
   templateUrl: './user-list.component.html',
 })
 export class UserListComponent {
+  readonly ICON_PERSONA = ICON_PERSONA;
+
   private readonly userService = inject(UserService);
   private readonly toast = inject(ToastService);
   private readonly authService = inject(AuthService);

@@ -185,6 +185,9 @@
 .tronc-floating-panel {
   position: fixed;
   z-index: 30;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   width: min(600px, calc(100vw - 2rem));
   height: 70vh;
   max-height: min(70vh, calc(100vh - 80px));
@@ -199,26 +202,15 @@
   animation: panel-pop-in 0.15s ease;
   resize: both;
 
-  &--neta {
-    width: min(70vw, calc(100vw - 2rem));
-    min-width: 500px;
-  }
-
   @media (max-width: 639px) {
-    position: fixed;
+    left: 0;
+    top: auto;
     bottom: 0;
-    left: 0 !important;
-    right: 0;
-    top: auto !important;
+    transform: none;
     width: 100%;
     border-radius: 0.75rem 0.75rem 0 0;
     max-height: 60vh;
     resize: none;
-
-    &--neta {
-      width: 100%;
-      min-width: unset;
-    }
   }
 }
 
@@ -229,18 +221,7 @@
   padding: 0.5rem 0.5rem 0.5rem 0.75rem;
   border-bottom: 1px solid oklch(var(--b2));
   flex-shrink: 0;
-  cursor: grab;
-  user-select: none;
   min-height: 40px;
-
-  &:active {
-    cursor: grabbing;
-  }
-}
-
-.drag-handle {
-  color: oklch(var(--bc) / 0.3);
-  flex-shrink: 0;
 }
 
 .tronc-floating-title {

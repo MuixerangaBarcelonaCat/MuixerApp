@@ -6,58 +6,29 @@
       type="button"
       class="btn btn-ghost btn-sm gap-2"
       (click)="goBack()"
-      aria-label="Tornar a la llista de composicions"
+      aria-label="Torna enrere"
     >
       <lucide-icon name="ArrowLeft" [size]="16" aria-hidden="true" />
-      Composicions
+      Torna
     </button>
 
     <div class="divider divider-horizontal m-0 h-6"></div>
 
-    <!-- Inline name editor -->
-    <label class="sr-only" for="comp-name-input">Nom de la composició</label>
     <input
-      id="comp-name-input"
       type="text"
-      class="input input-ghost input-sm font-semibold text-base-content w-48 focus:bg-base-200 focus:outline-none"
+      class="input input-bordered input-sm w-56 font-semibold"
       placeholder="Nom de la composició"
-      [ngModel]="nameValue()"
-      (ngModelChange)="onNameChange($event)"
+      [ngModel]="name()"
+      (ngModelChange)="updateName($event)"
       aria-label="Nom de la composició"
-    />
-
-    <!-- Inline slug editor -->
-    <label class="sr-only" for="comp-slug-input">Identificador</label>
-    <span class="text-base-content/30 text-sm select-none">/</span>
-    <input
-      id="comp-slug-input"
-      type="text"
-      class="input input-ghost input-sm font-mono text-sm text-base-content/60 w-36 focus:bg-base-200 focus:outline-none"
-      placeholder="identificador"
-      [ngModel]="slugValue()"
-      (ngModelChange)="onSlugChange($event)"
-      aria-label="Identificador de la composició"
     />
 
     <div class="flex-1"></div>
 
-    <!-- Save status indicator -->
+    <!-- Save status -->
     <span class="text-xs" [class]="saveStatusClass" aria-live="polite">
       {{ saveStatusLabel }}
     </span>
-
-    <!-- Grid toggle -->
-    <button
-      type="button"
-      class="btn btn-ghost btn-sm gap-1.5"
-      [class.btn-active]="gridEnabled"
-      (click)="toggleGrid()"
-      aria-pressed="{{ gridEnabled }}"
-      aria-label="Alternar graella"
-    >
-      <lucide-icon name="Grid3X3" [size]="15" aria-hidden="true" />
-      Graella
-    </button>
 
     <!-- Snap toggle -->
     <button
@@ -66,222 +37,186 @@
       [class.btn-active]="snapToGrid"
       (click)="toggleSnap()"
       aria-pressed="{{ snapToGrid }}"
-      aria-label="Alternar ajust a la graella"
+      aria-label="Alterna l'ajust a la graella"
     >
       <lucide-icon name="Magnet" [size]="15" aria-hidden="true" />
       Ajusta
     </button>
-
-    <!-- Fit all -->
-    <button
-      type="button"
-      class="btn btn-ghost btn-sm gap-1.5"
-      (click)="fitAll()"
-      aria-label="Enquadrar totes les figures"
-    >
-      <lucide-icon name="Maximize2" [size]="15" aria-hidden="true" />
-      Enquadrar
-    </button>
   </header>
 
-  <!-- Main area -->
-  <div class="flex flex-1 overflow-hidden">
+  <div class="flex-1 flex overflow-hidden">
 
-    <!-- Left panel: Figure picker -->
-    <aside
-      class="w-64 bg-base-100 border-r border-base-200 flex flex-col shrink-0 overflow-hidden"
-      aria-label="Selector de figures"
-    >
+    <!-- Left panel: figure template picker -->
+    <aside class="w-70 shrink-0 bg-base-100 border-r border-base-200 flex flex-col overflow-hidden" aria-label="Figures disponibles">
       <div class="p-3 border-b border-base-200">
-        <h2 class="text-xs font-semibold text-base-content/50 uppercase tracking-wider mb-2">
-          Figures disponibles
-        </h2>
-        <label class="input input-bordered input-sm flex items-center gap-2">
-          <lucide-icon name="Search" [size]="13" class="text-base-content/40" aria-hidden="true" />
+        <label class="input input-sm input-bordered flex items-center gap-2">
+          <lucide-icon name="Search" [size]="14" class="text-base-content/40" aria-hidden="true" />
           <input
             type="search"
-            placeholder="Cerca figura..."
-            [(ngModel)]="figurePickerSearchInput"
-            (ngModelChange)="onFigurePickerSearchChange($event)"
-            class="grow text-sm"
-            aria-label="Cerca figures disponibles"
+            class="grow bg-transparent outline-none text-sm"
+            placeholder="Cerca..."
+            [ngModel]="search()"
+            (ngModelChange)="search.set($event)"
+            aria-label="Cerca figures"
           />
         </label>
       </div>
 
-      <ul class="flex-1 overflow-y-auto p-2 flex flex-col gap-1" role="list">
-        @for (tmpl of filteredTemplates(); track tmpl.id) {
+      <ul class="flex-1 overflow-y-auto space-y-0.5 p-2" role="list">
+        @for (t of filteredTemplates(); track t.id) {
           <li>
             <button
               type="button"
-              class="btn btn-ghost btn-sm w-full justify-start gap-2 text-left normal-case font-normal"
-              (click)="addFigure(tmpl)"
-              [attr.aria-label]="'Afegir ' + tmpl.name + ' a la composició'"
+              class="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-base-200 transition-colors text-left"
+              (click)="addFigureTemplate(t)"
+              [attr.aria-label]="'Afegeix ' + t.name"
             >
-              <span
-                class="badge badge-xs shrink-0"
-                [class]="tmpl.hasPinya ? 'badge-primary' : 'badge-ghost'"
-                aria-hidden="true"
-              >
-                {{ tmpl.nodeCount }}
-              </span>
-              <span class="truncate text-xs">{{ tmpl.name }}</span>
-              @if (tmpl.hasPinya) {
-                <lucide-icon name="Plus" [size]="12" class="ml-auto shrink-0 text-base-content/40" aria-hidden="true" />
+              <span class="font-medium text-sm truncate">{{ t.name }}</span>
+              @if (!t.hasPinya) {
+                <span class="badge badge-xs badge-info shrink-0">Tronc</span>
               }
             </button>
           </li>
         } @empty {
-          <li class="flex items-center justify-center py-10 text-xs text-base-content/30">
-            Cap figura trobada
-          </li>
+          <li class="text-center text-sm text-base-content/40 py-8">Cap figura trobada</li>
         }
       </ul>
     </aside>
 
-    <!-- Center: Canvas -->
+    <!-- Center: canvas -->
     <main class="flex-1 relative overflow-hidden" aria-label="Llenç de la composició">
       @if (loading()) {
         <div class="absolute inset-0 flex items-center justify-center bg-base-200/50 z-20">
-          <span class="loading loading-spinner loading-lg text-primary" aria-label="Carregant..."></span>
+          <span class="loading loading-spinner loading-lg text-primary" aria-label="S'està carregant..."></span>
         </div>
       }
 
       @if (!loading()) {
         <app-figure-canvas
+          #canvas
           mode="composition"
           [compositionSlots]="compositionSlots()"
-          [selectedSlotId]="selectedSlotId()"
-          [gridEnabled]="gridEnabled"
+          [selectedSlotId]="selectedEntryId()"
+          [gridEnabled]="true"
           [gridSpacing]="gridSpacing"
           [snapToGrid]="snapToGrid"
           (slotSelected)="onSlotSelected($event)"
           (slotMoved)="onSlotMoved($event)"
+          (troncMoved)="onTroncMoved($event)"
         />
       }
     </main>
 
-    <!-- Right panel: Slot properties -->
-    @if (selectedSlot(); as slot) {
-      <aside
-        class="w-64 bg-base-100 border-l border-base-200 flex flex-col shrink-0 overflow-y-auto"
-        aria-label="Propietats de la figura seleccionada"
-      >
-        <div class="p-4 flex flex-col gap-5">
-          <h2 class="text-xs font-semibold text-base-content/50 uppercase tracking-wider">
-            Propietats del Slot
-          </h2>
+    <!-- Right panel: entry properties -->
+    @if (selectedEntry(); as entry) {
+      <aside class="w-70 shrink-0 bg-base-100 border-l border-base-200 flex flex-col overflow-y-auto p-3 space-y-3" aria-label="Propietats de la figura">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-semibold">Propietats</h3>
+        </div>
 
-          <!-- Figure link -->
-          <div class="flex flex-col gap-1">
-            <span class="text-xs text-base-content/50">Figura base</span>
-            <a
-              [routerLink]="['/pinyes/templates', slot.figureTemplate.id, 'edit']"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="link link-primary text-sm font-medium flex items-center gap-1"
-              [attr.aria-label]="'Edita figura ' + slot.figureTemplate.name + ' en una pestanya nova'"
-            >
-              {{ slot.figureTemplate.name }}
-              <lucide-icon name="ExternalLink" [size]="12" aria-hidden="true" />
-            </a>
-          </div>
+        <div class="form-control">
+          <label class="label pb-1" [for]="'entry-label-' + entry.id">
+            <span class="label-text text-xs font-medium">Nom</span>
+          </label>
+          <input
+            type="text"
+            [id]="'entry-label-' + entry.id"
+            class="input input-bordered input-sm"
+            [placeholder]="entry.figureTemplate.name"
+            [ngModel]="entry.label"
+            (ngModelChange)="updateLabel(entry.id, $event)"
+          />
+        </div>
 
-          <!-- Label -->
+        <div class="form-control">
+          <label class="label pb-1" [for]="'entry-mode-' + entry.id">
+            <span class="label-text text-xs font-medium">Mode</span>
+          </label>
+          <select
+            [id]="'entry-mode-' + entry.id"
+            class="select select-bordered select-sm"
+            [ngModel]="entry.figureMode"
+            (ngModelChange)="updateFigureMode(entry.id, $event)"
+          >
+            <option value="COMPLETA">Completa</option>
+            <option value="PEU">Peu</option>
+            <option value="REMAT">Remat</option>
+            <option value="NETA">Neta</option>
+          </select>
+        </div>
+
+        @if (entry.figureMode === 'COMPLETA' || entry.figureMode === 'PEU') {
           <div class="form-control">
-            <label class="label pb-1" for="slot-label-input">
-              <span class="label-text text-xs">Etiqueta personalitzada</span>
+            <label class="label pb-1" [for]="'entry-cordons-' + entry.id">
+              <span class="label-text text-xs font-medium">Cordons</span>
             </label>
             <input
-              id="slot-label-input"
-              type="text"
-              class="input input-bordered input-sm"
-              placeholder="Ex: pd4 central"
-              [ngModel]="slot.label ?? ''"
-              (ngModelChange)="onSlotLabelChange($event)"
-            />
-          </div>
-
-          <!-- Offset X -->
-          <div class="form-control">
-            <label class="label pb-1" for="slot-offset-x">
-              <span class="label-text text-xs">Offset X</span>
-            </label>
-            <input
-              id="slot-offset-x"
               type="number"
+              [id]="'entry-cordons-' + entry.id"
               class="input input-bordered input-sm font-mono"
-              [ngModel]="slot.offsetX"
-              (ngModelChange)="onSlotOffsetXChange(+$event)"
+              placeholder="Tots"
+              min="1"
+              [ngModel]="entry.numberOfCordons"
+              (ngModelChange)="updateNumberOfCordons(entry.id, $event === '' ? null : +$event)"
             />
           </div>
+        }
 
-          <!-- Offset Y -->
-          <div class="form-control">
-            <label class="label pb-1" for="slot-offset-y">
-              <span class="label-text text-xs">Offset Y</span>
-            </label>
-            <input
-              id="slot-offset-y"
-              type="number"
-              class="input input-bordered input-sm font-mono"
-              [ngModel]="slot.offsetY"
-              (ngModelChange)="onSlotOffsetYChange(+$event)"
-            />
-          </div>
-
-          <!-- Z-order controls -->
-          <div class="flex flex-col gap-1">
-            <span class="text-xs text-base-content/50">Ordre de capes</span>
-            <div class="flex gap-2">
-              <button
-                type="button"
-                class="btn btn-ghost btn-sm flex-1 gap-1"
-                (click)="bringForward()"
-                [disabled]="isTopSlot"
-                aria-label="Porta al davant"
-              >
-                <lucide-icon name="ArrowUp" [size]="13" aria-hidden="true" />
-                Davant
-              </button>
-              <button
-                type="button"
-                class="btn btn-ghost btn-sm flex-1 gap-1"
-                (click)="sendBackward()"
-                [disabled]="isBottomSlot"
-                aria-label="Porta al darrere"
-              >
-                <lucide-icon name="ArrowDown" [size]="13" aria-hidden="true" />
-                Darrere
-              </button>
+        <div>
+          <p class="label-text text-xs font-medium mb-1">Posició</p>
+          <div class="grid grid-cols-2 gap-2">
+            <div class="form-control">
+              <label class="label pb-0.5" [for]="'entry-x-' + entry.id">
+                <span class="label-text text-xs">X</span>
+              </label>
+              <input
+                type="number"
+                [id]="'entry-x-' + entry.id"
+                class="input input-bordered input-sm font-mono"
+                [ngModel]="entry.offsetX"
+                (ngModelChange)="updateOffsetX(entry.id, +$event)"
+              />
+            </div>
+            <div class="form-control">
+              <label class="label pb-0.5" [for]="'entry-y-' + entry.id">
+                <span class="label-text text-xs">Y</span>
+              </label>
+              <input
+                type="number"
+                [id]="'entry-y-' + entry.id"
+                class="input input-bordered input-sm font-mono"
+                [ngModel]="entry.offsetY"
+                (ngModelChange)="updateOffsetY(entry.id, +$event)"
+              />
             </div>
           </div>
-
-          <div class="divider my-0"></div>
-
-          <!-- Delete slot button -->
-          <button
-            type="button"
-            class="btn btn-error btn-sm gap-2 w-full"
-            (click)="deleteSelectedSlot()"
-            aria-label="Elimina figura de la composició"
-          >
-            <lucide-icon name="Trash2" [size]="14" aria-hidden="true" />
-            Elimina de la composició
-          </button>
         </div>
-      </aside>
-    } @else {
-      <aside
-        class="w-64 bg-base-100 border-l border-base-200 flex flex-col items-center justify-center shrink-0 p-6"
-        aria-label="Cap figura seleccionada"
-      >
-        <lucide-icon name="MousePointerClick" [size]="32" class="text-base-content/20 mb-3" aria-hidden="true" />
-        <p class="text-xs text-base-content/40 text-center">
-          Feu clic sobre una figura per veure les seves propietats
-        </p>
+
+        <div class="form-control">
+          <label class="label pb-1" [for]="'entry-angle-' + entry.id">
+            <span class="label-text text-xs font-medium">Angle</span>
+          </label>
+          <input
+            type="number"
+            [id]="'entry-angle-' + entry.id"
+            class="input input-bordered input-sm font-mono"
+            [ngModel]="entry.angle"
+            (ngModelChange)="updateAngle(entry.id, +$event)"
+          />
+        </div>
+
+        <button
+          type="button"
+          class="btn btn-error btn-outline btn-sm gap-1.5 mt-2"
+          (click)="removeEntry(entry.id)"
+          [attr.aria-label]="'Elimina ' + (entry.label ?? entry.figureTemplate.name)"
+        >
+          <lucide-icon name="Trash2" [size]="14" aria-hidden="true" />
+          Elimina
+        </button>
       </aside>
     }
 
   </div>
+
 </div>

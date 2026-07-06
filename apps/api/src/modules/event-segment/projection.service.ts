@@ -3,7 +3,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EventSegment } from './entities/event-segment.entity';
 import { FigureInstance } from './entities/figure-instance.entity';
+import { Attendance } from '../event/attendance.entity';
 import { NodeAssignmentService, AssignmentDetail, InstanceNodeResponse } from '../node-assignment/node-assignment.service';
+import { AttendanceStatus, FigureMode } from '@muixer/shared';
 
 interface ProjectionInstanceData {
   id: string;
@@ -13,6 +15,12 @@ interface ProjectionInstanceData {
   projectionX: number | null;
   projectionY: number | null;
   projectionScale: number;
+  projectionAngle: number | null;
+  troncPanelX: number | null;
+  troncPanelY: number | null;
+  troncPanelWidth: number | null;
+  troncPanelHeight: number | null;
+  figureMode: FigureMode;
   figureTemplate: { id: string; name: string; hasPinya: boolean } | null;
   nodes: InstanceNodeResponse[];
   assignments: AssignmentDetail[];
@@ -27,6 +35,10 @@ export interface ProjectionData {
     nextSegmentId: string | null;
   };
   instances: ProjectionInstanceData[];
+  /** true if at least one instance has a custom distribution position set */
+  hasDistribution: boolean;
+  /** personId → AttendanceStatus for all attendances in this event */
+  personAttendance: Record<string, AttendanceStatus>;
 }
 
 @Injectable()
@@ -36,6 +48,8 @@ export class ProjectionService {
     private readonly segmentRepository: Repository<EventSegment>,
     @InjectRepository(FigureInstance)
     private readonly instanceRepository: Repository<FigureInstance>,
+    @InjectRepository(Attendance)
+    private readonly attendanceRepository: Repository<Attendance>,
     private readonly nodeAssignmentService: NodeAssignmentService,
   ) {}
 
@@ -77,6 +91,11 @@ export class ProjectionService {
         ]);
       }
 
+      const figureMode = instance.figureMode ?? FigureMode.COMPLETA;
+      const hasPinyaNodes = nodes.some((n) => n.zone === 'PINYA');
+      // REMAT and NETA behave like a figura neta: no pinya in projection
+      const hasPinya = hasPinyaNodes && figureMode !== FigureMode.REMAT && figureMode !== FigureMode.NETA;
+
       projectionInstances.push({
         id: instance.id,
         label: instance.label,
@@ -85,17 +104,35 @@ export class ProjectionService {
         projectionX: instance.projectionX,
         projectionY: instance.projectionY,
         projectionScale: instance.projectionScale,
+        projectionAngle: instance.projectionAngle ?? null,
+        troncPanelX: instance.troncPanelX ?? null,
+        troncPanelY: instance.troncPanelY ?? null,
+        troncPanelWidth: instance.troncPanelWidth ?? null,
+        troncPanelHeight: instance.troncPanelHeight ?? null,
+        figureMode,
         figureTemplate: instance.figureTemplate
           ? {
               id: instance.figureTemplate.id,
               name: instance.figureTemplate.name,
-              hasPinya: instance.figureTemplate.hasPinya,
+              hasPinya,
             }
           : null,
         nodes,
         assignments,
       });
     }
+
+    const attendances = await this.attendanceRepository.find({
+      where: { event: { id: eventId } },
+      relations: ['person'],
+      select: { id: true, status: true, person: { id: true } },
+    });
+    const personAttendance: Record<string, AttendanceStatus> = {};
+    for (const a of attendances) {
+      personAttendance[a.person.id] = a.status;
+    }
+
+    const hasDistribution = projectionInstances.some((i) => i.projectionX !== null);
 
     return {
       segment: {
@@ -106,6 +143,8 @@ export class ProjectionService {
         nextSegmentId,
       },
       instances: projectionInstances,
+      hasDistribution,
+      personAttendance,
     };
   }
 }

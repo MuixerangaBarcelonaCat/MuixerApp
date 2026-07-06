@@ -31,6 +31,7 @@ export interface Person {
   onboardingStatus: OnboardingStatus;
   shirtDate: string | null;
   notes: string | null;
+  notesEmoji: string | null;
   isActive: boolean;
   positions: Position[];
   managedBy: User | null;
@@ -90,6 +91,7 @@ export interface UpdatePersonDto {
   onboardingStatus: OnboardingStatus;
   shirtDate: string | null;
   notes: string | null;
+  notesEmoji: string | null;
   isActive: boolean;
   positions: string[];
   managedById: string | null;

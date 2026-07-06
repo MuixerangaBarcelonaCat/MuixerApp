@@ -1,18 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import { of, throwError } from 'rxjs';
-import {
-  LUCIDE_ICONS,
-  LucideIconProvider,
-  Calendar,
-  Home,
-  Layers,
-  Menu,
-  Plus,
-  Settings,
-  Star,
-  Users,
-} from 'lucide-angular';
+import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { provideRouter } from '@angular/router';
 import { SeasonListComponent } from './season-list.component';
 import { SeasonService } from '../../../events/services/season.service';
@@ -57,21 +46,7 @@ describe('SeasonListComponent', () => {
       providers: [
         { provide: SeasonService, useValue: seasonService },
         { provide: ToastService, useValue: toast },
-        {
-          provide: LUCIDE_ICONS,
-          multi: true,
-          useFactory: () =>
-            new LucideIconProvider({
-              Calendar,
-              Home,
-              Layers,
-              Menu,
-              Plus,
-              Settings,
-              Star,
-              Users,
-            }),
-        },
+        allLucideIconsProvider,
         provideRouter([]),
       ],
     }).compileComponents();

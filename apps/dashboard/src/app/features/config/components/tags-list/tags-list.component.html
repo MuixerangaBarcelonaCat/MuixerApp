@@ -1,0 +1,137 @@
+<div class="space-y-4">
+
+  <!-- Capçalera -->
+  <app-page-header title="Etiquetes" [count]="tags().length">
+    <button type="button" class="btn btn-primary btn-sm" (click)="openCreateModal()">
+        Etiqueta nova
+    </button>
+  </app-page-header>
+
+  <!-- Taula -->
+  <div class="overflow-x-auto">
+    <table class="table table-sm w-full" role="table">
+      <thead>
+        <tr>
+          <th class="w-8">Color</th>
+          <th>Nom</th>
+          <th>Posicions</th>
+          <th class="text-right w-24">Persones</th>
+          <th class="w-28">Accions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (loading()) {
+          @for (_ of [1,2,3,4,5]; track $index) {
+            <tr>
+              <td><div class="skeleton h-4 w-4 rounded-full"></div></td>
+              <td><div class="skeleton h-3 w-24"></div></td>
+              <td><div class="skeleton h-3 w-16"></div></td>
+              <td class="text-right"><div class="skeleton h-3 w-6 ml-auto"></div></td>
+              <td><div class="skeleton h-3 w-20"></div></td>
+            </tr>
+          }
+        } @else {
+          @for (pos of tags(); track pos.id) {
+            <tr class="hover">
+              <td>
+                @if (pos.color) {
+                  <span
+                    class="inline-block h-4 w-4 rounded-full border border-base-content/10"
+                    [style.background]="pos.color"
+                  ></span>
+                } @else {
+                  <span class="inline-block h-4 w-4 rounded-full bg-base-300"></span>
+                }
+              </td>
+              <td class="font-medium">{{ pos.name }}</td>
+              <td>
+                @if (pos.positionTypes?.length) {
+                  <div class="flex flex-wrap gap-1">
+                    @for (pt of pos.positionTypes; track pt) {
+                      @let meta = positionTypeMeta[pt];
+                      <span
+                        class="badge badge-sm border-0"
+                        [style.background-color]="meta?.color ?? '#64748b'"
+                        [style.color]="getContrastColor(meta?.color ?? '#64748b')"
+                      >{{ meta?.label ?? pt }}</span>
+                    }
+                  </div>
+                } @else {
+                  <span class="text-base-content/40">—</span>
+                }
+              </td>
+              <td class="text-right tabular-nums">{{ pos.personCount }}</td>
+              <td>
+                <div class="flex gap-1">
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-xs"
+                    (click)="openEditModal(pos)"
+                    aria-label="Edita {{ pos.name }}"
+                  >
+                    Edita
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-xs text-error"
+                    (click)="confirmDelete(pos)"
+                    aria-label="Elimina {{ pos.name }}"
+                  >
+                    Elimina
+                  </button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="5">
+                <app-empty-state
+                  icon="Tags"
+                  message="No hi ha etiquetes creades encara"
+                  actionLabel="Crea etiqueta"
+                  (actionClick)="openCreateModal()"
+                />
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<!-- Modal: Crear / Editar posició -->
+@if (modalOpen()) {
+  <app-tag-form-modal
+    [position]="selectedTag()"
+    (saved)="onModalSaved()"
+    (cancelled)="onModalCancelled()"
+  />
+}
+
+<!-- Modal: Confirmar eliminació -->
+@if (confirmDeleteTarget(); as target) {
+  <dialog class="modal modal-open" aria-modal="true" role="alertdialog" aria-labelledby="delete-confirm-title">
+    <div class="modal-box max-w-sm">
+      <h3 id="delete-confirm-title" class="font-bold text-lg">Eliminar etiqueta</h3>
+      <p class="py-4 text-sm">
+        Segur que voleu eliminar <strong>{{ target.name }}</strong>?
+        @if (target.personCount > 0) {
+          <br />
+          <span class="text-warning">Aquesta etiqueta té {{ target.personCount }} persones assignades.</span>
+        }
+      </p>
+      <div class="modal-action">
+        <button type="button" class="btn btn-ghost btn-sm" (click)="cancelDelete()">Cancel·la</button>
+        <button type="button" class="btn btn-error btn-sm" [disabled]="deleting()" (click)="executeDelete()">
+          @if (deleting()) {
+            <span class="loading loading-spinner loading-xs"></span>
+          }
+          Elimina
+        </button>
+      </div>
+    </div>
+    <div class="modal-backdrop" (click)="cancelDelete()" (keydown.enter)="cancelDelete()" tabindex="0" role="button" aria-label="Tancar"></div>
+  </dialog>
+}

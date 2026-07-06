@@ -5,7 +5,6 @@ import { FigureTemplateService } from './figure-template.service';
 import { FigureTemplate } from './entities/figure-template.entity';
 import { FigureNode } from './entities/figure-node.entity';
 import { Rengla } from './entities/rengla.entity';
-import { CompositionSlot } from '../composition/entities/composition-slot.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
 import { InstanceNode } from '../event-segment/entities/instance-node.entity';
 import { FigureZone, NodeShape } from '@muixer/shared';
@@ -15,7 +14,6 @@ const makeTemplate = (overrides: Partial<FigureTemplate> = {}): FigureTemplate =
   name: 'Pilar de 4 — 2C',
   slug: 'pd4-2c',
   description: null,
-  hasPinya: true,
   direction: 0,
   metadata: {},
   nodes: [],
@@ -92,10 +90,6 @@ describe('FigureTemplateService', () => {
     find: jest.fn().mockResolvedValue([]),
   };
 
-  const mockCompositionSlotRepo = {
-    count: jest.fn().mockResolvedValue(0),
-  };
-
   const mockFigureInstanceRepo = {
     count: jest.fn().mockResolvedValue(0),
     findOne: jest.fn(),
@@ -146,7 +140,6 @@ describe('FigureTemplateService', () => {
         { provide: getRepositoryToken(FigureTemplate), useValue: mockTemplateRepo },
         { provide: getRepositoryToken(FigureNode), useValue: mockNodeRepo },
         { provide: getRepositoryToken(Rengla), useValue: mockRenglaRepo },
-        { provide: getRepositoryToken(CompositionSlot), useValue: mockCompositionSlotRepo },
         { provide: getRepositoryToken(FigureInstance), useValue: mockFigureInstanceRepo },
         { provide: getRepositoryToken(InstanceNode), useValue: mockInstanceNodeRepo },
       ],
@@ -167,14 +160,6 @@ describe('FigureTemplateService', () => {
       expect(templateQb.andWhere).toHaveBeenCalledWith(
         expect.stringContaining('ILIKE'),
         expect.objectContaining({ search: '%pd4%' }),
-      );
-    });
-
-    it('applies hasPinya filter', async () => {
-      await service.findAll({ hasPinya: false });
-      expect(templateQb.andWhere).toHaveBeenCalledWith(
-        'template.hasPinya = :hasPinya',
-        { hasPinya: false },
       );
     });
 
@@ -318,7 +303,6 @@ describe('FigureTemplateService', () => {
     it('removes template', async () => {
       const tmpl = makeTemplate();
       mockTemplateRepo.findOne.mockResolvedValue(tmpl);
-      mockCompositionSlotRepo.count.mockResolvedValue(0);
       mockFigureInstanceRepo.count.mockResolvedValue(0);
       mockTemplateRepo.remove.mockResolvedValue(tmpl);
 
@@ -331,17 +315,9 @@ describe('FigureTemplateService', () => {
       await expect(service.remove('bad-uuid')).rejects.toThrow(NotFoundException);
     });
 
-    it('throws ConflictException when template is used in a composition slot', async () => {
-      const tmpl = makeTemplate();
-      mockTemplateRepo.findOne.mockResolvedValue(tmpl);
-      mockCompositionSlotRepo.count.mockResolvedValue(2);
-      await expect(service.remove('tmpl-uuid')).rejects.toThrow(ConflictException);
-    });
-
     it('throws ConflictException when template is used in figure instances', async () => {
       const tmpl = makeTemplate();
       mockTemplateRepo.findOne.mockResolvedValue(tmpl);
-      mockCompositionSlotRepo.count.mockResolvedValue(0);
       mockFigureInstanceRepo.count.mockResolvedValue(3);
       await expect(service.remove('tmpl-uuid')).rejects.toThrow(ConflictException);
     });

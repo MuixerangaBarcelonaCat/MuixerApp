@@ -1,12 +1,10 @@
 import { Component, input, output } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { vi } from 'vitest';
 import { of, throwError } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
-import {
-  LUCIDE_ICONS, LucideIconProvider,
-  ArrowLeft, Users, Edit, RefreshCw, Plus, PanelLeft, PanelLeftClose, HelpCircle,
-} from 'lucide-angular';
+import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { AssignmentCanvasComponent } from './assignment-canvas.component';
 import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component';
 import { PersonPanelComponent } from '../person-panel/person-panel.component';
@@ -34,8 +32,11 @@ class StubFigureCanvas {
   readonly heightMode = input<string>('relative');
   readonly attendanceMap = input<Map<string, string>>(new Map());
   readonly nextPerformanceMap = input<Map<string, string | null>>(new Map());
+  readonly personDetailsMap = input<Map<string, unknown>>(new Map());
   readonly highlightedNodeIds = input<Set<string>>(new Set());
   readonly isPlacementMode = input<boolean>(false);
+  readonly decorationOpacity = input<number>(1);
+  readonly isPast = input<boolean>(false);
   readonly nodeSelected = output<string | null>();
   readonly nodeClicked = output<{ nodeId: string; x: number; y: number }>();
   readonly nodeDoubleClicked = output<string>();
@@ -52,6 +53,8 @@ class StubPersonPanel {
   readonly assignments = input<AssignmentDetail[]>([]);
   readonly heightMode = input<string>('relative');
   readonly activeNodePositionType = input<string | null>(null);
+  readonly selectedNodeZone = input<string | null>(null);
+  readonly isPast = input<boolean>(false);
   readonly personSelected = output<AvailablePerson>();
   readonly assignedPersonSelected = output<{ personId: string; instanceId: string }>();
 }
@@ -88,6 +91,8 @@ class StubTroncView {
   readonly heightMode = input<string>('relative');
   readonly highlightedNodeIds = input<Set<string>>(new Set());
   readonly attendanceMap = input<Map<string, string>>(new Map());
+  readonly isPast = input<boolean>(false);
+  readonly personDetailsMap = input<Map<string, unknown>>(new Map());
   readonly nodeSelected = output<string | null>();
   readonly nodeClicked = output<{ nodeId: string; event: MouseEvent }>();
   readonly nodeUnassigned = output<string>();
@@ -114,12 +119,15 @@ const makeInstance = (overrides = {}) => ({
   sortOrder: 0,
   snapshotted: false,
   assignedCount: 0,
+  pinyaAssignedCount: 0,
+  pinyaCapacity: null as number | null,
+  totalCordons: null as number | null,
   numberOfCordons: null as number | null,
   projectionX: null,
   projectionY: null,
   projectionScale: 1,
+  figureMode: 'COMPLETA' as const,
   figureTemplate: { id: TEMPLATE_ID, name: 'pd4', hasPinya: true },
-  compositionTemplate: null,
   ...overrides,
 });
 
@@ -144,9 +152,8 @@ let assignmentIdCounter = 0;
 const makeAssignment = (nodeId = 'inode-1', personId = 'person-1'): AssignmentDetail => ({
   id: `assignment-${++assignmentIdCounter}`,
   figureInstanceId: INSTANCE_ID,
-  compositionSlotId: null,
   node: { id: nodeId, label: 'base-1', zone: 'BASE', z: 0, positionType: null, sortOrder: 0, ringLevel: null, originNodeId: null, sourceNodeId: 'node-1' },
-  person: { id: personId, alias: 'Pepet', name: 'Pere', firstSurname: 'Garcia', shoulderHeight: SHOULDER_HEIGHT_BASELINE_CM },
+  person: { id: personId, alias: 'Pepet', name: 'Pere', firstSurname: 'Garcia', shoulderHeight: SHOULDER_HEIGHT_BASELINE_CM, notes: null, notesEmoji: null },
 });
 
 const makeAvailablePerson = (id = 'person-1'): AvailablePerson => ({
@@ -156,6 +163,8 @@ const makeAvailablePerson = (id = 'person-1'): AvailablePerson => ({
   firstSurname: 'Garcia',
   shoulderHeight: SHOULDER_HEIGHT_BASELINE_CM,
   isXicalla: false,
+  notes: null,
+  notesEmoji: null,
   attendanceStatus: 'ANIRE',
   nextPerformanceStatus: null,
   assignedInSegment: false,
@@ -238,12 +247,9 @@ describe('AssignmentCanvasComponent', () => {
         { provide: Router, useValue: routerMock },
         {
           provide: ActivatedRoute,
-          useValue: { snapshot: { params: { eventId: EVENT_ID, segmentId: SEGMENT_ID } } },
+          useValue: { snapshot: { params: { eventId: EVENT_ID, segmentId: SEGMENT_ID }, queryParamMap: { get: vi.fn().mockReturnValue(null) } } },
         },
-        {
-          provide: LUCIDE_ICONS, multi: true,
-          useFactory: () => new LucideIconProvider({ ArrowLeft, Users, Edit, RefreshCw, Plus, PanelLeft, PanelLeftClose, HelpCircle }),
-        },
+        allLucideIconsProvider,
       ],
     })
     .overrideComponent(AssignmentCanvasComponent, {
@@ -364,12 +370,29 @@ describe('AssignmentCanvasComponent', () => {
   // ── auto-advance ──────────────────────────────────────────────────────────
 
   describe('auto-advance', () => {
-    it('after assign, advances to next empty node', () => {
+    it('after assign, advances to next empty node using smart priority order', () => {
       const nodes = makeInstanceNodes();
       component.tabs.update((tabs) => tabs.map((t) => ({ ...t, nodes })));
       stateService.assignments.set([]);
       assignmentService.assign.mockReturnValue(of(makeAssignment('inode-1', 'person-1')));
 
+      stateService.setSelectedNodeId('inode-1');
+      component.onPersonSelected(makeAvailablePerson());
+
+      // inode-3 is PINYA pinya-rest, which comes before TRONC (inode-2) in priority order
+      expect(stateService.selectedNodeId()).toBe('inode-3');
+    });
+
+    it('uses tronc buckets when the tronc panel is open, not pinya buckets', () => {
+      const nodes = makeInstanceNodes();
+      component.tabs.update((tabs) => tabs.map((t) => ({ ...t, nodes })));
+      stateService.assignments.set([]);
+      component.troncPanelOpen.set(true);
+
+      // inode-1 (BASE) is first in the tronc list; after assigning it the next
+      // visible unassigned node is inode-2 (TRONC z=1), NOT inode-3 (PINYA which
+      // is excluded from the tronc list entirely)
+      assignmentService.assign.mockReturnValue(of(makeAssignment('inode-1', 'person-1')));
       stateService.setSelectedNodeId('inode-1');
       component.onPersonSelected(makeAvailablePerson());
 
@@ -419,7 +442,7 @@ describe('AssignmentCanvasComponent', () => {
         ...list,
         {
           instanceId: secondInstanceId, label: 'pd3', figureTemplateId: TEMPLATE_ID,
-          snapshotted: false, hasPinya: true, numberOfCordons: null,
+          snapshotted: false, hasPinya: true, figureMode: 'COMPLETA', numberOfCordons: null,
           nodes: [], assignedCount: 0, totalCount: 0,
         },
       ]);
@@ -427,6 +450,47 @@ describe('AssignmentCanvasComponent', () => {
       component.selectTab(secondInstanceId);
       expect(stateService.activeInstanceId()).toBe(secondInstanceId);
       expect(assignmentService.getByInstance).toHaveBeenCalledWith(secondInstanceId);
+    });
+
+    it('selectTab uses tronc view when defaultView is tronc, even for pinya figures', () => {
+      component.defaultView.set('tronc');
+
+      const secondInstanceId = 'instance-uuid-2';
+      component.tabs.update((list) => [
+        ...list,
+        {
+          instanceId: secondInstanceId, label: 'pd3', figureTemplateId: TEMPLATE_ID,
+          snapshotted: false, hasPinya: true, figureMode: 'COMPLETA' as const, numberOfCordons: null,
+          nodes: [], assignedCount: 0, totalCount: 0,
+        },
+      ]);
+
+      component.selectTab(secondInstanceId);
+
+      expect(component.viewMode()).toBe('tronc');
+      expect(component.troncPanelOpen()).toBe(true);
+    });
+
+    it('selectTab uses pinya view for pinya figures when defaultView is null', () => {
+      component.defaultView.set(null);
+
+      const secondInstanceId = 'instance-uuid-2';
+      component.tabs.update((list) => [
+        ...list,
+        {
+          instanceId: secondInstanceId, label: 'pd3', figureTemplateId: TEMPLATE_ID,
+          snapshotted: false, hasPinya: true, figureMode: 'COMPLETA' as const, numberOfCordons: null,
+          nodes: [], assignedCount: 0, totalCount: 0,
+        },
+      ]);
+
+      component.selectTab(secondInstanceId);
+
+      expect(component.viewMode()).toBe('pinya');
+    });
+
+    it('defaultView is null by default (pinya mode preserved)', () => {
+      expect(component.defaultView()).toBeNull();
     });
   });
 
@@ -566,7 +630,17 @@ describe('AssignmentCanvasComponent', () => {
       );
     });
 
-    it('Backspace on selected ad-hoc node (unassigned) calls deleteAdHocNode', () => {
+    it('Backspace on selected ad-hoc node (unassigned) calls deleteAdHocNode if not assigned', () => {
+      const nodesWithAdHoc = [...makeInstanceNodes(), adHocNode];
+      component.tabs.update((list) => list.map((t) => ({ ...t, nodes: nodesWithAdHoc })));
+      stateService.selectedNodeId.set('adhoc-1');
+      stateService.assignments.set([]);
+      fixture.detectChanges();
+
+      dispatchKey('Delete');
+      expect(assignmentService.deleteAdHocNode).toHaveBeenCalledWith(INSTANCE_ID, 'adhoc-1');
+    });
+    it('Backspace on selected ad-hoc node (unassigned) calls unassign if assigned', () => {
       const nodesWithAdHoc = [...makeInstanceNodes(), adHocNode];
       component.tabs.update((list) => list.map((t) => ({ ...t, nodes: nodesWithAdHoc })));
       stateService.selectedNodeId.set('adhoc-1');
@@ -619,7 +693,7 @@ describe('AssignmentCanvasComponent', () => {
 
       component.onEditTemplate();
       expect(toastService.info).toHaveBeenCalledWith(
-        'Els canvis al template no afecten instàncies ja creades.',
+        'Els canvis a la plantilla no afecten instàncies ja creades.',
       );
       expect(routerMock.navigate).toHaveBeenCalledWith(
         ['/pinyes', 'templates', TEMPLATE_ID, 'edit'],
@@ -632,7 +706,7 @@ describe('AssignmentCanvasComponent', () => {
   describe('FAB categories & DECORATION presets', () => {
     it('exposes decorationPresets from shared constants', () => {
       expect(component.decorationPresets).toBe(DECORATION_NODE_PRESETS);
-      expect(component.decorationPresets.length).toBe(3);
+      expect(component.decorationPresets.length).toBe(4);
     });
 
     it('all decoration presets require custom label', () => {
@@ -659,6 +733,17 @@ describe('AssignmentCanvasComponent', () => {
       expect(stateService.placementPreset()).toBe(decPreset);
       expect(stateService.placementCustomLabel()).toBe('Església');
       expect(component.pendingLabelPreset()).toBeNull();
+    });
+
+    it('confirmComodinLabel preserves multiline label with internal newlines', () => {
+      const decPreset = DECORATION_NODE_PRESETS[0];
+      component.onPresetSelected(decPreset);
+      const multilineLabel = 'Primera línia\nSegona línia';
+      component.comodinLabel.set(multilineLabel);
+
+      component.confirmComodinLabel();
+
+      expect(stateService.placementCustomLabel()).toBe(multilineLabel);
     });
 
     it('cancelComodinInput clears pendingLabelPreset', () => {
@@ -1128,6 +1213,7 @@ describe('AssignmentCanvasComponent', () => {
         label: 'Test',
         figureTemplateId: 'tpl-1',
         hasPinya: true,
+        figureMode: 'COMPLETA' as const,
         snapshotted: true,
         numberOfCordons: null,
         nodes: nodesWithRenglaPositions,
@@ -1145,6 +1231,7 @@ describe('AssignmentCanvasComponent', () => {
         label: 'Test',
         figureTemplateId: 'tpl-1',
         hasPinya: true,
+        figureMode: 'COMPLETA' as const,
         snapshotted: true,
         numberOfCordons: null,
         nodes: nodesWithRenglaPositions,
@@ -1156,12 +1243,13 @@ describe('AssignmentCanvasComponent', () => {
       expect(component.currentCordonsLabel()).toBe('Tots');
     });
 
-    it('currentCordonsLabel returns "Cordó X/Y" when set', () => {
+    it('currentCordonsLabel returns "X/Y" when set', () => {
       component.tabs.set([{
         instanceId: INSTANCE_ID,
         label: 'Test',
         figureTemplateId: 'tpl-1',
         hasPinya: true,
+        figureMode: 'COMPLETA' as const,
         snapshotted: true,
         numberOfCordons: 2,
         nodes: nodesWithRenglaPositions,
@@ -1170,7 +1258,7 @@ describe('AssignmentCanvasComponent', () => {
       }]);
       stateService.activeInstanceId.set(INSTANCE_ID);
 
-      expect(component.currentCordonsLabel()).toBe('Cordó 2/4');
+      expect(component.currentCordonsLabel()).toBe('2/4');
     });
 
     it('decrementCordons calls updateCordons with decremented value', () => {
@@ -1179,6 +1267,7 @@ describe('AssignmentCanvasComponent', () => {
         label: 'Test',
         figureTemplateId: 'tpl-1',
         hasPinya: true,
+        figureMode: 'COMPLETA' as const,
         snapshotted: true,
         numberOfCordons: 3,
         nodes: nodesWithRenglaPositions,
@@ -1198,6 +1287,7 @@ describe('AssignmentCanvasComponent', () => {
         label: 'Test',
         figureTemplateId: 'tpl-1',
         hasPinya: true,
+        figureMode: 'COMPLETA' as const,
         snapshotted: true,
         numberOfCordons: 4,
         nodes: nodesWithRenglaPositions,
@@ -1220,6 +1310,7 @@ describe('AssignmentCanvasComponent', () => {
         label: 'Test',
         figureTemplateId: 'tpl-1',
         hasPinya: true,
+        figureMode: 'COMPLETA' as const,
         snapshotted: true,
         numberOfCordons: 1,
         nodes: singleCordonNodes,
@@ -1230,7 +1321,7 @@ describe('AssignmentCanvasComponent', () => {
 
       expect(component.maxCordons()).toBe(1);
       expect(component.showCordonsControl()).toBe(true);
-      expect(component.currentCordonsLabel()).toBe('Cordó 1/1');
+      expect(component.currentCordonsLabel()).toBe('1/1');
     });
 
     it('incrementCordons from 1/1 sets null (show all)', () => {
@@ -1242,6 +1333,7 @@ describe('AssignmentCanvasComponent', () => {
         label: 'Test',
         figureTemplateId: 'tpl-1',
         hasPinya: true,
+        figureMode: 'COMPLETA' as const,
         snapshotted: true,
         numberOfCordons: 1,
         nodes: singleCordonNodes,

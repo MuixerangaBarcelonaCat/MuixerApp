@@ -100,6 +100,9 @@ export class PersonResponseDto {
   notes: string | null;
 
   @Expose()
+  notesEmoji: string | null;
+
+  @Expose()
   isActive: boolean;
 
   @Expose()

@@ -1,23 +1,11 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  DestroyRef,
-  OnInit,
-  computed,
-  inject,
-  signal,
-} from '@angular/core';
-import { Router } from '@angular/router';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { CompositionTemplateService } from '../../../services/composition-template.service';
-import { ToastService } from '../../../../../shared/components/feedback/toast/toast.service';
-import {
-  CompositionTemplateListItem,
-  CompositionTemplateFilterParams,
-} from '../../../models/composition.model';
+import { ICON_COMPOSITION } from '../../../../../shared/constants/domain-icons';
 import { EmptyStateComponent } from '../../../../../shared/components/data/empty-state/empty-state.component';
+import { CompositionService } from '../../../services/composition.service';
+import { CompositionFilterParams, CompositionListItem } from '../../../models/composition.model';
 
 @Component({
   selector: 'app-composition-grid-tab',
@@ -27,84 +15,81 @@ import { EmptyStateComponent } from '../../../../../shared/components/data/empty
   templateUrl: './composition-grid-tab.component.html',
 })
 export class CompositionGridTabComponent implements OnInit {
-  private readonly compositionTemplateService = inject(CompositionTemplateService);
-  private readonly router = inject(Router);
-  private readonly toast = inject(ToastService);
-  private readonly destroyRef = inject(DestroyRef);
+  readonly ICON_COMPOSITION = ICON_COMPOSITION;
 
-  readonly compositions = signal<CompositionTemplateListItem[]>([]);
-  readonly compositionsTotal = signal(0);
-  readonly compositionsPage = signal(1);
-  readonly compositionsLimit = signal(25);
-  readonly compositionsLoading = signal(false);
-  readonly compositionsSearch = signal('');
-  compositionsSearchInput = '';
-  readonly compositionsDeletingId = signal<string | null>(null);
-  readonly compositionsConfirmDeleteId = signal<string | null>(null);
-  readonly compositionsTotalPages = computed(() =>
-    Math.ceil(this.compositionsTotal() / this.compositionsLimit()),
-  );
+  private readonly compositionService = inject(CompositionService);
+  private readonly router = inject(Router);
 
   private searchTimeout: ReturnType<typeof setTimeout> | undefined;
+
+  compositions = signal<CompositionListItem[]>([]);
+  total = signal(0);
+  page = signal(1);
+  limit = signal(25);
+  loading = signal(false);
+  search = signal('');
+  searchInput = '';
+  deletingId = signal<string | null>(null);
+  confirmDeleteId = signal<string | null>(null);
+  duplicatingId = signal<string | null>(null);
+
+  readonly totalPages = computed(() => Math.ceil(this.total() / this.limit()));
 
   ngOnInit(): void {
     this.loadCompositions();
   }
 
-  onCompositionsSearchChange(value: string): void {
+  onSearchChange(value: string): void {
     clearTimeout(this.searchTimeout);
     this.searchTimeout = setTimeout(() => {
-      this.compositionsSearch.set(value);
-      this.compositionsPage.set(1);
+      this.search.set(value);
+      this.page.set(1);
       this.loadCompositions();
     }, 300);
   }
 
-  goToCompositionsPage(p: number): void {
-    if (p < 1 || p > this.compositionsTotalPages()) return;
-    this.compositionsPage.set(p);
+  goToPage(p: number): void {
+    if (p < 1 || p > this.totalPages()) return;
+    this.page.set(p);
     this.loadCompositions();
   }
 
-  navigateToCreateComposition(): void {
+  navigateToCreate(): void {
     this.router.navigate(['/pinyes/compositions/new']);
   }
 
-  navigateToEditComposition(id: string): void {
+  navigateToEdit(id: string): void {
     this.router.navigate(['/pinyes/compositions', id, 'edit']);
   }
 
-  requestDeleteComposition(id: string): void {
-    this.compositionsConfirmDeleteId.set(id);
+  requestDelete(id: string): void {
+    this.confirmDeleteId.set(id);
   }
 
-  cancelDeleteComposition(): void {
-    this.compositionsConfirmDeleteId.set(null);
+  cancelDelete(): void {
+    this.confirmDeleteId.set(null);
   }
 
-  confirmDeleteComposition(id: string): void {
-    this.compositionsConfirmDeleteId.set(null);
-    this.compositionsDeletingId.set(id);
-    this.compositionTemplateService.remove(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+  confirmDelete(id: string): void {
+    this.confirmDeleteId.set(null);
+    this.deletingId.set(id);
+    this.compositionService.remove(id).subscribe({
       next: () => {
-        this.compositionsDeletingId.set(null);
+        this.deletingId.set(null);
         this.loadCompositions();
       },
-      error: () => {
-        this.compositionsDeletingId.set(null);
-        this.toast.error('No s\'ha pogut eliminar la composició.');
-      },
+      error: () => this.deletingId.set(null),
     });
   }
 
-  duplicateComposition(id: string): void {
-    this.compositionsLoading.set(true);
-    this.compositionTemplateService.duplicate(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+  duplicate(id: string): void {
+    this.duplicatingId.set(id);
+    this.compositionService.duplicate(id).subscribe({
       next: (copy) => {
-        this.compositionsLoading.set(false);
+        this.duplicatingId.set(null);
         this.router.navigate(['/pinyes/compositions', copy.id, 'edit']);
       },
-      error: () => this.compositionsLoading.set(false),
+      error: () => this.duplicatingId.set(null),
     });
   }
 
@@ -114,19 +99,19 @@ export class CompositionGridTabComponent implements OnInit {
   }
 
   private loadCompositions(): void {
-    this.compositionsLoading.set(true);
-    const filters: CompositionTemplateFilterParams = {
-      search: this.compositionsSearch() || undefined,
-      page: this.compositionsPage(),
-      limit: this.compositionsLimit(),
+    this.loading.set(true);
+    const filters: CompositionFilterParams = {
+      search: this.search() || undefined,
+      page: this.page(),
+      limit: this.limit(),
     };
-    this.compositionTemplateService.getAll(filters).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    this.compositionService.getAll(filters).subscribe({
       next: (resp) => {
         this.compositions.set(resp.data);
-        this.compositionsTotal.set(resp.meta.total);
-        this.compositionsLoading.set(false);
+        this.total.set(resp.meta.total);
+        this.loading.set(false);
       },
-      error: () => this.compositionsLoading.set(false),
+      error: () => this.loading.set(false),
     });
   }
 }

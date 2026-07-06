@@ -13,6 +13,7 @@ import {
 import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, Undo2, Redo2, Eye, EyeOff } from 'lucide-angular';
+import { ICON_TRONC, ICON_RENGLA, ICON_PINYA } from '../../../../shared/constants/domain-icons';
 import { HttpErrorResponse } from '@angular/common/http';
 import { generateUUID } from '../../../../shared/utils/uuid.util';
 import { slugify } from '../../utils/slugify.util';
@@ -28,7 +29,7 @@ import {
   RenglaModel,
 } from '../../models/figure-template.model';
 import { FigureZone, NodeShape, PINYA_NODE_PRESETS, NodePreset, TRONC_NODE_PRESETS } from '@muixer/shared';
-import { RenglaOverlayComponent, RenglaCreatedEvent, RenglaDeletedEvent } from '../rengla-overlay/rengla-overlay.component';
+import { RenglaOverlayComponent, RenglaCreatedEvent, RenglaDeletedEvent, RenglaStartChangedEvent } from '../rengla-overlay/rengla-overlay.component';
 import { StageTransform } from '../../utils/rengla-coordinates.util';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
@@ -63,6 +64,10 @@ const DEFAULT_NODE_HEIGHT = 40;
   styleUrl: './template-editor.component.scss',
 })
 export class TemplateEditorComponent implements OnInit, OnDestroy {
+  readonly ICON_TRONC = ICON_TRONC;
+  readonly ICON_RENGLA = ICON_RENGLA;
+  readonly ICON_PINYA = ICON_PINYA;
+
   private readonly figureTemplateService = inject(FigureTemplateService);
   private readonly canvasState = inject(CanvasStateService);
   private readonly router = inject(Router);
@@ -78,7 +83,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   templateName = signal('Figura nova');
   templateSlug = signal('');
   templateDescription = signal('');
-  hasPinya = signal(true);
 
   // Nodes
   nodes = signal<FigureNodeItem[]>([]);
@@ -111,8 +115,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   readonly troncMode = computed<'editor' | 'projection'>(() =>
     this.previewMode() ? 'projection' : 'editor',
   );
-
-  readonly isFiguraNeta = computed(() => this.hasPinya() === false);
 
   // Panel visibility
   propertiesPanelOpen = signal(true);
@@ -210,11 +212,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
       this.loadTemplate(id);
     } else {
       this.canvasState.reset();
-      const hasPinyaParam = this.route.snapshot.queryParamMap.get('hasPinya');
-      if (hasPinyaParam === 'false') {
-        this.hasPinya.set(false);
-        this.autoOpenTroncCentered();
-      }
     }
   }
 
@@ -224,7 +221,13 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   }
 
   goBack(): void {
-    this.router.navigate(['/pinyes']);
+    if (this.autosaveTimer) {
+      clearTimeout(this.autosaveTimer);
+      this.autosaveTimer = null;
+      this.save(() => this.router.navigate(['/pinyes']));
+    } else {
+      this.router.navigate(['/pinyes']);
+    }
   }
 
   // ── Canvas events ──────────────────────────────────────────────────────────
@@ -404,7 +407,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   }
 
   addPinyaNode(pos: NodePreset): void {
-    if (this.isFiguraNeta()) return;
     this.addNode(
       FigureZone.PINYA,
       0,
@@ -455,18 +457,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
     if (!this.requireName(doAdd)) return;
     doAdd();
-  }
-
-  // ── Tronc panel auto-open (figures netes) ─────────────────────────────────
-
-  private autoOpenTroncCentered(): void {
-    const panelW = Math.min(window.innerWidth * 0.7, window.innerWidth - 32);
-    const panelH = window.innerHeight * 0.7;
-    this.troncPanelPos.set({
-      x: Math.round((window.innerWidth - panelW) / 2),
-      y: Math.round((window.innerHeight - panelH) / 2),
-    });
-    this.troncDrawerOpen.set(true);
   }
 
   // ── Tronc panel drag ─────────────────────────────────────────────────────
@@ -686,11 +676,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     return true;
   }
 
-  onHasPinyaChange(value: boolean): void {
-    this.hasPinya.set(value);
-    this.scheduleAutosave();
-  }
-
   // ── Canvas controls ────────────────────────────────────────────────────────
 
   toggleGrid(): void {
@@ -794,11 +779,21 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   // ── Rengla mode ──────────────────────────────────────────────────────────
 
+  activatePinyaMode(): void {
+    if (this.renglaEditMode()) this.toggleRenglaEditMode();
+    this.troncDrawerOpen.set(false);
+  }
+
+  activateTroncMode(): void {
+    if (this.renglaEditMode()) this.toggleRenglaEditMode();
+    this.troncDrawerOpen.set(true);
+  }
+
   toggleRenglaEditMode(): void {
-    if (this.isFiguraNeta()) return;
     if (this.previewMode()) this.previewMode.set(false);
     this.renglaEditMode.update((v) => !v);
     if (this.renglaEditMode()) {
+      this.troncDrawerOpen.set(false);
       this.selectedNodeId.set(null);
     }
   }
@@ -842,6 +837,27 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
           ? { ...n, renglaId: null, renglaPosition: null, ringLevel: null }
           : n,
       ),
+    );
+    this.scheduleAutosave();
+  }
+
+  onRenglaStartChanged(event: RenglaStartChangedEvent): void {
+    const renglaNodes = this.nodes().filter(
+      (n) => n.renglaId === event.renglaId && n.renglaPosition !== null,
+    );
+    if (renglaNodes.length === 0) return;
+
+    const currentMin = Math.min(...renglaNodes.map((n) => n.renglaPosition as number));
+    const offset = event.newStart - currentMin;
+    if (offset === 0) return;
+
+    this.pushSnapshot('Canviar posició inicial de rengla');
+    this.nodes.update((nodes) =>
+      nodes.map((n) => {
+        if (n.renglaId !== event.renglaId || n.renglaPosition === null) return n;
+        const newPos = n.renglaPosition + offset;
+        return { ...n, renglaPosition: newPos, ringLevel: newPos };
+      }),
     );
     this.scheduleAutosave();
   }
@@ -894,13 +910,19 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   private scheduleAutosave(): void {
     if (this.autosaveTimer) clearTimeout(this.autosaveTimer);
-    this.autosaveTimer = setTimeout(() => this.save(), 2000);
+    this.autosaveTimer = setTimeout(() => {
+      this.autosaveTimer = null;
+      this.save();
+    }, 2000);
   }
 
-  private save(): void {
+  private save(afterSave?: () => void): void {
     const name = this.templateName().trim();
     const slug = this.templateSlug().trim() || slugify(name);
-    if (!name || !slug) return;
+    if (!name || !slug) {
+      afterSave?.();
+      return;
+    }
     this.templateSlug.set(slug);
 
     this.saveStatus.set('saving');
@@ -909,15 +931,14 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
     if (id) {
       this.figureTemplateService.update(id, payload).subscribe({
-        next: () => this.onSaveSuccess(),
-        error: (err: HttpErrorResponse) => this.onSaveError(err),
+        next: () => { this.onSaveSuccess(); afterSave?.(); },
+        error: (err: HttpErrorResponse) => { this.onSaveError(err); afterSave?.(); },
       });
     } else {
       this.figureTemplateService
         .create({
           name,
           slug,
-          hasPinya: this.hasPinya(),
           nodes: payload.nodes ?? [],
         })
         .subscribe({
@@ -929,8 +950,9 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
               replaceUrl: true,
             });
             this.onSaveSuccess();
+            afterSave?.();
           },
-          error: (err: HttpErrorResponse) => this.onSaveError(err),
+          error: (err: HttpErrorResponse) => { this.onSaveError(err); afterSave?.(); },
         });
     }
   }
@@ -971,7 +993,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     return {
       name: this.templateName().trim(),
       description: this.templateDescription().trim() || undefined,
-      hasPinya: this.hasPinya(),
       nodes: this.nodes().map(nodeToPayload),
       rengles: this.rengles(),
     };
@@ -988,14 +1009,10 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
         this.templateName.set(tmpl.name);
         this.templateSlug.set(tmpl.slug);
         this.templateDescription.set(tmpl.description ?? '');
-        this.hasPinya.set(tmpl.hasPinya);
         this.nodes.set(tmpl.nodes);
         this.rengles.set(tmpl.rengles ?? []);
         this.adHocInstanceCount.set(tmpl.adHocInstanceCount ?? 0);
         this.loading.set(false);
-        if (!tmpl.hasPinya) {
-          this.autoOpenTroncCentered();
-        }
       },
       error: () => {
         this.loading.set(false);

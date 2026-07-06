@@ -24,9 +24,6 @@ export class FigureTemplate {
   @Column({ type: 'text', nullable: true })
   description: string | null;
 
-  @Column({ type: 'boolean', default: true })
-  hasPinya: boolean;
-
   @Column({ type: 'float', default: 0 })
   direction: number;
 

@@ -59,6 +59,20 @@ export function calculateGhostPosition(
 }
 
 /**
+ * Returns true if any node in `existingNodes` is within `tolerance` pixels
+ * of `ghostPos` on both axes (Chebyshev distance ≤ tolerance).
+ */
+export function isGhostPositionOccupied(
+  ghostPos: { x: number; y: number },
+  existingNodes: readonly { x: number; y: number }[],
+  tolerance = 1,
+): boolean {
+  return existingNodes.some(
+    (n) => Math.abs(n.x - ghostPos.x) <= tolerance && Math.abs(n.y - ghostPos.y) <= tolerance,
+  );
+}
+
+/**
  * Only PINYA nodes that are not central (agulla, crossa, contrafort, tap)
  * and not cordó obert are eligible for ghost clone.
  */

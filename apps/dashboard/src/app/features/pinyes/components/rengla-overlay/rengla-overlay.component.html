@@ -101,7 +101,7 @@
           font-weight="bold"
           font-family="Inter, sans-serif"
           class="select-none"
-        >{{ i + 1 }}</text>
+        >{{ startPosition() + i }}</text>
       </g>
     }
   }
@@ -160,6 +160,17 @@
           {{ pendingNodeIds().length }} nodes seleccionats
         }
       </span>
+      <div class="flex items-center gap-1 border-l border-base-200 pl-2 ml-1">
+        <label for="rengla-start-pos" class="text-xs text-base-content/60 whitespace-nowrap">Primer cordó</label>
+        <input
+          id="rengla-start-pos"
+          type="number"
+          min="1"
+          class="input input-xs input-bordered w-14 text-center"
+          [value]="startPosition()"
+          (change)="onStartPositionChange($event)"
+        />
+      </div>
       <button
         type="button"
         class="btn btn-primary btn-sm"
@@ -181,6 +192,17 @@
   } @else if (selectedRengla(); as sel) {
     <div class="flex items-center gap-2 bg-base-100 shadow-lg rounded-box px-4 py-2 border border-base-300">
       <span class="text-sm font-medium">{{ sel.name }}</span>
+      <div class="flex items-center gap-1 border-l border-base-200 pl-2 ml-1">
+        <label for="rengla-edit-start-pos" class="text-xs text-base-content/60 whitespace-nowrap">Primer cordó</label>
+        <input
+          id="rengla-edit-start-pos"
+          type="number"
+          min="1"
+          class="input input-xs input-bordered w-14 text-center"
+          [value]="selectedRenglaStartPosition()"
+          (change)="onSelectedStartPositionChange($event)"
+        />
+      </div>
       <button
         type="button"
         class="btn btn-ghost btn-sm text-error"

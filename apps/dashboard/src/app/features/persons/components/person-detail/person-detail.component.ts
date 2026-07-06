@@ -11,8 +11,8 @@ import { ActivatedRoute, Router, RouterModule, RouterLink } from '@angular/route
 import { PersonService } from '../../services/person.service';
 import { Person, UpdatePersonDto } from '../../models/person.model';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
-import { PositionService } from '../../../config/services/position.service';
-import { PositionWithCount } from '../../../config/models/position.model';
+import { TagService } from '../../../config/services/tag.service';
+import { TagWithCount } from '../../../config/models/tag.model';
 import { NodeAssignmentService } from '../../../pinyes/services/node-assignment.service';
 import { SeasonService } from '../../../events/services/season.service';
 import { PersonAssignmentEntry } from '../../../pinyes/models/assignment.model';
@@ -31,6 +31,7 @@ import { EmptyStateComponent } from '../../../../shared/components/data/empty-st
 import { PaginationComponent } from '../../../../shared/components/data/pagination/pagination.component';
 import { PersonInvitationModalComponent } from './modals/person-invitation-modal.component';
 import { PersonLinkUserModalComponent } from './modals/person-link-user-modal.component';
+import { EmojiPickerComponent } from '../../../../shared/components/forms/emoji-picker/emoji-picker.component';
 
 @Component({
   standalone: true,
@@ -42,12 +43,13 @@ import { PersonLinkUserModalComponent } from './modals/person-link-user-modal.co
     PaginationComponent,
     PersonInvitationModalComponent,
     PersonLinkUserModalComponent,
+    EmojiPickerComponent,
   ],
   templateUrl: './person-detail.component.html',
 })
 export class PersonDetailComponent implements OnInit {
   private readonly personService = inject(PersonService);
-  private readonly positionService = inject(PositionService);
+  private readonly tagService = inject(TagService);
   private readonly nodeAssignmentService = inject(NodeAssignmentService);
   private readonly seasonService = inject(SeasonService);
   private readonly route = inject(ActivatedRoute);
@@ -68,7 +70,7 @@ export class PersonDetailComponent implements OnInit {
 
   isNew = computed(() => !this.route.snapshot.paramMap.get('id'));
 
-  allPositions = signal<PositionWithCount[]>([]);
+  allPositions = signal<TagWithCount[]>([]);
   selectedPositionIds = signal<string[]>([]);
 
   invitationModalOpen = signal(false);
@@ -93,6 +95,7 @@ export class PersonDetailComponent implements OnInit {
     birthDate: [''],
     shoulderHeight: [null as number | null],
     notes: [''],
+    notesEmoji: [null as string | null],
     isActive: [true],
     isMember: [false],
     isXicalla: [false],
@@ -110,8 +113,8 @@ export class PersonDetailComponent implements OnInit {
   readonly Math = Math;
 
   ngOnInit() {
-    this.positionService.getAll().subscribe({
-      next: (positions) => this.allPositions.set(positions),
+    this.tagService.getAll().subscribe({
+      next: (tags) => this.allPositions.set(tags),
     });
 
     this.seasonService.getAll().subscribe({
@@ -155,6 +158,10 @@ export class PersonDetailComponent implements OnInit {
     );
   }
 
+  onNotesEmojiChange(emoji: string | null): void {
+    this.form.patchValue({ notesEmoji: emoji });
+  }
+
   isPositionSelected(positionId: string): boolean {
     return this.selectedPositionIds().includes(positionId);
   }
@@ -177,6 +184,7 @@ export class PersonDetailComponent implements OnInit {
       birthDate: raw.birthDate || undefined,
       shoulderHeight: raw.shoulderHeight ?? undefined,
       notes: raw.notes ?? undefined,
+      notesEmoji: raw.notesEmoji ?? null,
       isActive: raw.isActive ?? undefined,
       isMember: raw.isMember ?? undefined,
       isXicalla: raw.isXicalla ?? undefined,
@@ -260,6 +268,7 @@ export class PersonDetailComponent implements OnInit {
       birthDate: person.birthDate ?? '',
       shoulderHeight: person.shoulderHeight ?? null,
       notes: person.notes ?? '',
+      notesEmoji: person.notesEmoji ?? null,
       isActive: person.isActive,
       isMember: person.isMember,
       isXicalla: person.isXicalla,
@@ -323,8 +332,7 @@ export class PersonDetailComponent implements OnInit {
   }
 
   navigateToEvent(entry: PersonAssignmentEntry) {
-    const base = entry.eventType === 'ACTUACIO' ? '/performances' : '/rehearsals';
-    this.router.navigate([base, entry.eventId]);
+    this.router.navigate(['/events', entry.eventId]);
   }
 
   protected readonly getFullName = getFullName;

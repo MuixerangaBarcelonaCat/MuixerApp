@@ -8,12 +8,56 @@ import { DataSource, Repository } from 'typeorm';
 import { FigureInstance } from './entities/figure-instance.entity';
 import { EventSegment } from './entities/event-segment.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
-import { CompositionTemplate } from '../composition/entities/composition-template.entity';
+import { Composition } from '../composition/entities/composition.entity';
 import { CreateInstanceDto } from './dto/create-instance.dto';
 import { UpdateInstanceDto } from './dto/update-instance.dto';
 import { ReorderInstancesDto } from './dto/reorder-instances.dto';
-import { UpdateProjectionLayoutDto } from './dto/update-projection-layout.dto';
-import { InstanceRef } from './event-segment.service';
+import { UpdateSegmentDistributionDto } from './dto/update-segment-distribution.dto';
+import { EventSegmentService, InstanceRef, SegmentWithInstances } from './event-segment.service';
+
+export interface DistributionNodeItem {
+  id: string;
+  label: string;
+  zone: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+  color: string | null;
+  shape: string;
+  renglaId: string | null;
+  renglaPosition: number | null;
+}
+
+export interface DistributionAssignment {
+  figureNodeId: string;
+  personAlias: string;
+}
+
+export interface DistributionItem {
+  instanceId: string;
+  label: string | null;
+  figureMode: string;
+  numberOfCordons: number | null;
+  assignments: DistributionAssignment[];
+  figureTemplate: { id: string; name: string; nodes: DistributionNodeItem[] };
+  troncGridCols: number;
+  troncGridRows: number;
+  projectionX: number | null;
+  projectionY: number | null;
+  projectionAngle: number | null;
+  troncPanelX: number | null;
+  troncPanelY: number | null;
+  troncPanelWidth: number | null;
+  troncPanelHeight: number | null;
+}
+
+export interface SegmentDistributionData {
+  segment: { id: string; name: string | null };
+  items: DistributionItem[];
+}
+import { FigureMode, FigureZone } from '@muixer/shared';
 
 @Injectable()
 export class FigureInstanceService {
@@ -24,8 +68,9 @@ export class FigureInstanceService {
     private readonly segmentRepository: Repository<EventSegment>,
     @InjectRepository(FigureTemplate)
     private readonly figureTemplateRepository: Repository<FigureTemplate>,
-    @InjectRepository(CompositionTemplate)
-    private readonly compositionTemplateRepository: Repository<CompositionTemplate>,
+    @InjectRepository(Composition)
+    private readonly compositionRepository: Repository<Composition>,
+    private readonly segmentService: EventSegmentService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -34,36 +79,17 @@ export class FigureInstanceService {
     segmentId: string,
     dto: CreateInstanceDto,
   ): Promise<InstanceRef> {
-    const hasFigure = !!dto.figureTemplateId;
-    const hasComposition = !!dto.compositionTemplateId;
-
-    if (hasFigure === hasComposition) {
-      throw new BadRequestException(
-        'Exactly one of figureTemplateId or compositionTemplateId must be provided',
-      );
+    if (!dto.figureTemplateId) {
+      throw new BadRequestException('figureTemplateId must be provided');
     }
 
     const segment = await this.assertSegmentBelongsToEvent(eventId, segmentId);
 
-    let figureTemplate: FigureTemplate | null = null;
-    let compositionTemplate: CompositionTemplate | null = null;
-
-    if (dto.figureTemplateId) {
-      figureTemplate = await this.figureTemplateRepository.findOne({
-        where: { id: dto.figureTemplateId },
-      });
-      if (!figureTemplate) {
-        throw new NotFoundException(`FigureTemplate with ID ${dto.figureTemplateId} not found`);
-      }
-    }
-
-    if (dto.compositionTemplateId) {
-      compositionTemplate = await this.compositionTemplateRepository.findOne({
-        where: { id: dto.compositionTemplateId },
-      });
-      if (!compositionTemplate) {
-        throw new NotFoundException(`CompositionTemplate with ID ${dto.compositionTemplateId} not found`);
-      }
+    const figureTemplate = await this.figureTemplateRepository.findOne({
+      where: { id: dto.figureTemplateId },
+    });
+    if (!figureTemplate) {
+      throw new NotFoundException(`FigureTemplate with ID ${dto.figureTemplateId} not found`);
     }
 
     const maxOrder = await this.instanceRepository
@@ -77,7 +103,6 @@ export class FigureInstanceService {
     const instance = this.instanceRepository.create({
       segment,
       figureTemplate,
-      compositionTemplate,
       label: dto.label ?? null,
       sortOrder,
     });
@@ -96,6 +121,14 @@ export class FigureInstanceService {
 
     if (dto.label !== undefined) instance.label = dto.label ?? null;
     if (dto.sortOrder !== undefined) instance.sortOrder = dto.sortOrder;
+    if (dto.figureMode !== undefined) {
+      instance.figureMode = dto.figureMode;
+      if (dto.figureMode === FigureMode.REMAT) {
+        await this.deletePinyaAssignments(instanceId);
+      } else if (dto.figureMode === FigureMode.NETA) {
+        await this.deletePinyaOnlyAssignments(instanceId);
+      }
+    }
 
     await this.instanceRepository.save(instance);
     return this.findOneById(instance.id);
@@ -134,10 +167,46 @@ export class FigureInstanceService {
     });
   }
 
-  async updateProjectionLayout(
+  async copy(
     eventId: string,
     segmentId: string,
-    dto: UpdateProjectionLayoutDto,
+    instanceId: string,
+    targetSegmentId: string,
+  ): Promise<InstanceRef> {
+    const sourceInstance = await this.instanceRepository.findOne({
+      where: { id: instanceId, segment: { id: segmentId } },
+      relations: ['figureTemplate'],
+    });
+    if (!sourceInstance) {
+      throw new NotFoundException(`Instance with ID ${instanceId} not found in segment ${segmentId}`);
+    }
+
+    await this.assertSegmentBelongsToEvent(eventId, segmentId);
+    const targetSegment = await this.assertSegmentBelongsToEvent(eventId, targetSegmentId);
+
+    const maxOrder = await this.instanceRepository
+      .createQueryBuilder('instance')
+      .select('MAX(instance.sortOrder)', 'max')
+      .where('instance.segment = :segmentId', { segmentId: targetSegmentId })
+      .getRawOne<{ max: number | null }>();
+
+    const sortOrder = (maxOrder?.max ?? -1) + 1;
+
+    const newInstance = this.instanceRepository.create({
+      segment: targetSegment,
+      figureTemplate: sourceInstance.figureTemplate ?? null,
+      label: sourceInstance.label,
+      sortOrder,
+    });
+
+    const saved = await this.instanceRepository.save(newInstance);
+    return this.findOneById(saved.id);
+  }
+
+  async saveDistribution(
+    eventId: string,
+    segmentId: string,
+    dto: UpdateSegmentDistributionDto,
   ): Promise<void> {
     await this.assertSegmentBelongsToEvent(eventId, segmentId);
 
@@ -146,22 +215,124 @@ export class FigureInstanceService {
       select: ['id'],
     });
     const existingIds = new Set(existing.map((i) => i.id));
-    const invalid = dto.layouts.filter((l) => !existingIds.has(l.instanceId));
+    const invalid = dto.items.filter((item) => !existingIds.has(item.instanceId));
     if (invalid.length > 0) {
       throw new BadRequestException(
-        `Instance IDs not found in segment: ${invalid.map((l) => l.instanceId).join(', ')}`,
+        `Instance IDs not found in segment: ${invalid.map((i) => i.instanceId).join(', ')}`,
       );
     }
 
     await this.dataSource.transaction(async (manager) => {
-      for (const layout of dto.layouts) {
-        await manager.update(
-          FigureInstance,
-          { id: layout.instanceId },
-          { projectionX: layout.x, projectionY: layout.y, projectionScale: layout.scale },
-        );
+      for (const item of dto.items) {
+        await manager.update(FigureInstance, { id: item.instanceId }, {
+          projectionX: item.x,
+          projectionY: item.y,
+          projectionAngle: item.angle,
+          troncPanelX: item.troncPanelX ?? null,
+          troncPanelY: item.troncPanelY ?? null,
+          troncPanelWidth: item.troncPanelWidth ?? null,
+          troncPanelHeight: item.troncPanelHeight ?? null,
+        });
       }
     });
+  }
+
+  async clearDistribution(eventId: string, segmentId: string): Promise<void> {
+    await this.assertSegmentBelongsToEvent(eventId, segmentId);
+
+    await this.dataSource.query(
+      `UPDATE figure_instances
+       SET "projectionX" = NULL, "projectionY" = NULL, "projectionAngle" = NULL,
+           "troncPanelX" = NULL, "troncPanelY" = NULL,
+           "troncPanelWidth" = NULL, "troncPanelHeight" = NULL
+       WHERE "segmentId" = $1`,
+      [segmentId],
+    );
+  }
+
+  async getDistribution(eventId: string, segmentId: string): Promise<SegmentDistributionData> {
+    const segment = await this.assertSegmentBelongsToEvent(eventId, segmentId);
+
+    const instances = await this.instanceRepository.find({
+      where: { segment: { id: segmentId } },
+      relations: ['figureTemplate', 'figureTemplate.nodes'],
+      order: { sortOrder: 'ASC' },
+    });
+
+    const figureInstances = instances.filter((inst) => inst.figureTemplate !== null);
+    const instanceIds = figureInstances.map((inst) => inst.id);
+
+    type AssignmentRow = { instanceId: string; figureNodeId: string; personAlias: string };
+    let allAssignmentRows: AssignmentRow[] = [];
+    if (instanceIds.length > 0) {
+      allAssignmentRows = await this.dataSource.query(
+        `SELECT na."figureInstanceId" AS "instanceId", inode."sourceNodeId" AS "figureNodeId", p.alias AS "personAlias"
+         FROM node_assignments na
+         JOIN instance_nodes inode ON na."instanceNodeId" = inode.id
+         JOIN persons p ON na."personId" = p.id
+         WHERE na."figureInstanceId" = ANY($1)`,
+        [instanceIds],
+      );
+    }
+
+    const assignmentsByInstance = new Map<string, DistributionAssignment[]>();
+    for (const row of allAssignmentRows) {
+      const list = assignmentsByInstance.get(row.instanceId) ?? [];
+      list.push({ figureNodeId: row.figureNodeId, personAlias: row.personAlias });
+      assignmentsByInstance.set(row.instanceId, list);
+    }
+
+    const CANVAS_ZONES = new Set([FigureZone.PINYA, FigureZone.BASE]);
+
+    const items: DistributionItem[] = figureInstances.map((inst) => {
+      const allNodes = inst.figureTemplate!.nodes ?? [];
+
+      const troncNodes = allNodes.filter((n) => n.zone === FigureZone.TRONC);
+      const troncGridCols = troncNodes.reduce((max, n) => Math.max(max, n.x + n.width), 0);
+      const distinctZLevels = new Set(troncNodes.map((n) => n.z)).size;
+      const hasFigureDirection = allNodes.some((n) => n.zone === FigureZone.FIGURE_DIRECTION);
+      const hasXicallaDirection = allNodes.some((n) => n.zone === FigureZone.XICALLA_DIRECTION);
+      const troncGridRows = distinctZLevels + (hasFigureDirection ? 1 : 0) + (hasXicallaDirection ? 1 : 0);
+
+      return {
+        instanceId: inst.id,
+        label: inst.label,
+        figureMode: inst.figureMode ?? FigureMode.COMPLETA,
+        numberOfCordons: inst.numberOfCordons ?? null,
+        assignments: assignmentsByInstance.get(inst.id) ?? [],
+        figureTemplate: {
+          id: inst.figureTemplate!.id,
+          name: inst.figureTemplate!.name,
+          nodes: allNodes
+            .filter((n) => CANVAS_ZONES.has(n.zone as FigureZone))
+            .map((n) => ({
+              id: n.id,
+              label: n.label,
+              zone: n.zone,
+              x: n.x,
+              y: n.y,
+              width: n.width,
+              height: n.height,
+              rotation: n.rotation,
+              color: n.color,
+              shape: n.shape,
+              renglaId: n.renglaId,
+              renglaPosition: n.renglaPosition,
+            })),
+        },
+        troncGridCols,
+        troncGridRows,
+        projectionX: inst.projectionX,
+        projectionY: inst.projectionY,
+        projectionAngle: inst.projectionAngle,
+        troncPanelX: inst.troncPanelX,
+        troncPanelY: inst.troncPanelY,
+        troncPanelWidth: inst.troncPanelWidth,
+        troncPanelHeight: inst.troncPanelHeight,
+      };
+    });
+
+    return { segment: { id: segment.id, name: segment.name }, items };
   }
 
   private async assertSegmentBelongsToEvent(
@@ -200,18 +371,66 @@ export class FigureInstanceService {
   private async findOneById(id: string): Promise<InstanceRef> {
     const instance = await this.instanceRepository.findOne({
       where: { id },
-      relations: ['figureTemplate', 'compositionTemplate'],
+      relations: ['figureTemplate'],
     });
 
     if (!instance) {
       throw new NotFoundException(`FigureInstance with ID ${id} not found`);
     }
 
-    const countResult = await this.dataSource.query(
-      `SELECT COUNT(*) as count FROM node_assignments WHERE "figureInstanceId" = $1`,
-      [id],
-    );
+    const hasPinyaFigure = !!instance.figureTemplate && instance.figureMode !== FigureMode.REMAT && instance.figureMode !== FigureMode.NETA;
+
+    const [countResult, pinyaResult, pinyaAssignedResult, capacityResult, cordonsResult] = await Promise.all([
+      this.dataSource.query(
+        `SELECT COUNT(*) as count FROM node_assignments WHERE "figureInstanceId" = $1`,
+        [id],
+      ),
+      instance.figureTemplate
+        ? this.dataSource.query(
+            `SELECT COUNT(*) as count FROM figure_nodes WHERE zone = 'PINYA' AND "templateId" = $1`,
+            [instance.figureTemplate.id],
+          )
+        : Promise.resolve([{ count: '0' }]),
+      this.dataSource.query(
+        `SELECT COUNT(*) as count FROM node_assignments na
+         JOIN instance_nodes inode ON na."instanceNodeId" = inode.id
+         WHERE na."figureInstanceId" = $1 AND inode.zone IN ('PINYA', 'BASE')`,
+        [id],
+      ),
+      hasPinyaFigure
+        ? instance.snapshotted
+          ? this.dataSource.query(
+              `SELECT COUNT(*) as capacity
+               FROM instance_nodes in_
+               LEFT JOIN rengles r ON r.id = in_."renglaId"
+               WHERE in_."figureInstanceId" = $1
+               AND in_.zone IN ('PINYA', 'BASE')
+               AND ($2::int IS NULL OR in_.zone = 'BASE' OR r."sortOrder" < $2::int)`,
+              [id, instance.numberOfCordons],
+            )
+          : this.dataSource.query(
+              `SELECT COUNT(*) as capacity
+               FROM figure_nodes fn
+               LEFT JOIN rengles r ON r.id = fn."renglaId"
+               WHERE fn."templateId" = $1
+               AND fn.zone IN ('PINYA', 'BASE')
+               AND ($2::int IS NULL OR fn.zone = 'BASE' OR r."sortOrder" < $2::int)`,
+              [instance.figureTemplate!.id, instance.numberOfCordons],
+            )
+        : Promise.resolve([{ capacity: '0' }]),
+      hasPinyaFigure && instance.figureTemplate
+        ? this.dataSource.query(
+            `SELECT COUNT(*) as total FROM rengles WHERE "templateId" = $1`,
+            [instance.figureTemplate.id],
+          )
+        : Promise.resolve([{ total: '0' }]),
+    ]);
+
     const assignedCount = parseInt(countResult[0]?.count ?? '0', 10);
+    const hasPinya = parseInt(pinyaResult[0]?.count ?? '0', 10) > 0;
+    const pinyaAssignedCount = parseInt(pinyaAssignedResult[0]?.count ?? '0', 10);
+    const pinyaCapacity = hasPinyaFigure ? parseInt(capacityResult[0]?.capacity ?? '0', 10) : null;
+    const totalCordons = hasPinyaFigure ? parseInt(cordonsResult[0]?.total ?? '0', 10) : null;
 
     return {
       id: instance.id,
@@ -219,17 +438,89 @@ export class FigureInstanceService {
       sortOrder: instance.sortOrder,
       snapshotted: instance.snapshotted,
       assignedCount,
+      pinyaAssignedCount,
+      pinyaCapacity,
+      totalCordons,
       numberOfCordons: instance.numberOfCordons ?? null,
+      figureMode: instance.figureMode ?? FigureMode.COMPLETA,
       figureTemplate: instance.figureTemplate
         ? {
             id: instance.figureTemplate.id,
             name: instance.figureTemplate.name,
-            hasPinya: instance.figureTemplate.hasPinya,
+            hasPinya,
           }
         : null,
-      compositionTemplate: instance.compositionTemplate
-        ? { id: instance.compositionTemplate.id, name: instance.compositionTemplate.name }
-        : null,
     };
+  }
+
+  private async deletePinyaAssignments(instanceId: string): Promise<void> {
+    await this.dataSource.query(
+      `DELETE FROM node_assignments
+       WHERE "figureInstanceId" = $1
+       AND "instanceNodeId" IN (
+         SELECT id FROM instance_nodes WHERE "figureInstanceId" = $1 AND zone IN ('PINYA', 'BASE')
+       )`,
+      [instanceId],
+    );
+  }
+
+  private async deletePinyaOnlyAssignments(instanceId: string): Promise<void> {
+    await this.dataSource.query(
+      `DELETE FROM node_assignments
+       WHERE "figureInstanceId" = $1
+       AND "instanceNodeId" IN (
+         SELECT id FROM instance_nodes WHERE "figureInstanceId" = $1 AND zone = 'PINYA'
+       )`,
+      [instanceId],
+    );
+  }
+
+  async applyComposition(
+    eventId: string,
+    segmentId: string,
+    compositionId: string,
+  ): Promise<SegmentWithInstances> {
+    const segment = await this.assertSegmentBelongsToEvent(eventId, segmentId);
+
+    const composition = await this.compositionRepository.findOne({
+      where: { id: compositionId },
+      relations: ['entries', 'entries.figureTemplate'],
+      order: { entries: { sortOrder: 'ASC' } },
+    });
+    if (!composition) {
+      throw new NotFoundException(`Composition with ID ${compositionId} not found`);
+    }
+
+    await this.dataSource.transaction(async (manager) => {
+      await manager.save(EventSegment, { id: segment.id, name: composition.name });
+
+      for (const entry of composition.entries ?? []) {
+        const maxOrder = await this.instanceRepository
+          .createQueryBuilder('instance')
+          .select('MAX(instance.sortOrder)', 'max')
+          .where('instance.segment = :segmentId', { segmentId })
+          .getRawOne<{ max: number | null }>();
+
+        const sortOrder = (maxOrder?.max ?? -1) + 1;
+
+        const instance = this.instanceRepository.create({
+          segment,
+          figureTemplate: entry.figureTemplate,
+          label: entry.label,
+          figureMode: entry.figureMode,
+          numberOfCordons: entry.numberOfCordons,
+          sortOrder,
+          projectionX: entry.offsetX,
+          projectionY: entry.offsetY,
+          projectionAngle: entry.angle,
+          troncPanelX: entry.troncPanelX,
+          troncPanelY: entry.troncPanelY,
+        });
+
+        await manager.save(FigureInstance, instance);
+      }
+    });
+
+    return this.segmentService.getOne(segmentId);
   }
 }

@@ -2,6 +2,7 @@ import {
   calculatePinyaCentroid,
   calculateGhostPosition,
   isGhostEligible,
+  isGhostPositionOccupied,
   GhostPositionInput,
 } from './ghost-clone.util';
 import { FigureZone } from '@muixer/shared';
@@ -211,6 +212,60 @@ describe('ghost-clone.util', () => {
       expect(
         isGhostEligible({ zone: FigureZone.PINYA, positionType: 'mans', renglaPosition: 4 }, 3),
       ).toBe(false);
+    });
+  });
+
+  // ── isGhostPositionOccupied ────────────────────────────────────────────
+
+  describe('isGhostPositionOccupied', () => {
+    it('returns false when there are no existing nodes', () => {
+      expect(isGhostPositionOccupied({ x: 100, y: 200 }, [])).toBe(false);
+    });
+
+    it('returns false when no node is within 1px tolerance', () => {
+      const nodes = [{ x: 102, y: 200 }, { x: 100, y: 202 }];
+      expect(isGhostPositionOccupied({ x: 100, y: 200 }, nodes)).toBe(false);
+    });
+
+    it('returns true when a node is at the exact same position', () => {
+      const nodes = [{ x: 100, y: 200 }];
+      expect(isGhostPositionOccupied({ x: 100, y: 200 }, nodes)).toBe(true);
+    });
+
+    it('returns true when a node is within 1px on x axis', () => {
+      const nodes = [{ x: 100.5, y: 200 }];
+      expect(isGhostPositionOccupied({ x: 100, y: 200 }, nodes)).toBe(true);
+    });
+
+    it('returns true when a node is within 1px on y axis', () => {
+      const nodes = [{ x: 100, y: 200.5 }];
+      expect(isGhostPositionOccupied({ x: 100, y: 200 }, nodes)).toBe(true);
+    });
+
+    it('returns true when a node is exactly 1px away', () => {
+      const nodes = [{ x: 101, y: 200 }];
+      expect(isGhostPositionOccupied({ x: 100, y: 200 }, nodes)).toBe(true);
+    });
+
+    it('returns false when a node is more than 1px away on both axes', () => {
+      const nodes = [{ x: 101.5, y: 200 }];
+      expect(isGhostPositionOccupied({ x: 100, y: 200 }, nodes)).toBe(false);
+    });
+
+    it('returns true when any one of many nodes is within tolerance', () => {
+      const nodes = [
+        { x: 50, y: 50 },
+        { x: 300, y: 300 },
+        { x: 100, y: 200 },
+      ];
+      expect(isGhostPositionOccupied({ x: 100, y: 200 }, nodes)).toBe(true);
+    });
+
+    it('checks both axes simultaneously — diagonal 1px does not qualify', () => {
+      // distance is sqrt(2) > 1 but neither axis alone exceeds 1
+      // The check is max(|dx|, |dy|) ≤ 1 (Chebyshev), so (0.8, 0.8) IS within tolerance
+      const nodes = [{ x: 100.8, y: 200.8 }];
+      expect(isGhostPositionOccupied({ x: 100, y: 200 }, nodes)).toBe(true);
     });
   });
 });

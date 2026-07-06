@@ -6,7 +6,6 @@ function makeAssignment(nodeId: string, shoulderHeight: number | null): Assignme
   return {
     id: `assign-${nodeId}`,
     figureInstanceId: 'instance-1',
-    compositionSlotId: null,
     node: {
       id: nodeId,
       label: 'Node',
@@ -24,6 +23,8 @@ function makeAssignment(nodeId: string, shoulderHeight: number | null): Assignme
       name: 'Test',
       firstSurname: 'Person',
       shoulderHeight,
+      notes: null,
+      notesEmoji: null,
     },
   };
 }
