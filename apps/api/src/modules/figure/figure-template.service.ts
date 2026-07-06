@@ -5,6 +5,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { FigureTemplate } from './entities/figure-template.entity';
@@ -331,7 +332,7 @@ export class FigureTemplateService {
 
     if (existingRengles.length > 0) {
       const newRengles = existingRengles.map((r) => {
-        const newId = this.generateUUID();
+        const newId = randomUUID();
         renglaIdMap.set(r.id, newId);
         return this.renglaRepository.create({
           id: newId,
@@ -400,14 +401,6 @@ export class FigureTemplateService {
       .replace(/[^a-z0-9\s-]/g, '')
       .trim()
       .replace(/\s+/g, '-');
-  }
-
-  private generateUUID(): string {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-      const r = (Math.random() * 16) | 0;
-      const v = c === 'x' ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    });
   }
 
   // ─── Private helpers ────────────────────────────────────────────────────────

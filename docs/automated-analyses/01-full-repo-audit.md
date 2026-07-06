@@ -28,11 +28,11 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 | 1. Security               | 2 (2 ✅)     | 11 (6 ✅)       | 4 (1 ✅)       | 1 (1 ✅)      | 18 (10 ✅)      |
 | 2. Bugs & correctness     | 2 (2 ✅)     | 9 (4 ✅)        | 10 (3 ✅)      | 1            | 22 (9 ✅)       |
 | 3. Architecture           | —           | 3 (2 ✅)        | 8 (1 ✅)       | —            | 11 (3 ✅)       |
-| 4. Code smells            | —           | 1              | 11 (3 ✅)      | 3            | 15 (3 ✅)       |
+| 4. Code smells            | —           | 1 (1 ✅)        | 11 (3 ✅)      | 3            | 15 (4 ✅)       |
 | 5. Frontend (dashboard)   | —           | 2              | 11            | 3            | 16             |
 | 6. Dependencies & tooling | 1 (1 ✅)     | —              | 2 (2 ✅)       | 1 (1 ✅)      | 4 (4 ✅)        |
 | 7. Tests                  | —           | 3 (1 ✅)        | 3             | 2            | 8 (1 ✅)        |
-| **Total**                 | **5 (5 ✅)** | **29 (13 ✅)** | **49 (10 ✅)** | **11 (2 ✅)** | **94 (30 ✅)** |
+| **Total**                 | **5 (5 ✅)** | **29 (14 ✅)** | **49 (10 ✅)** | **11 (2 ✅)** | **94 (31 ✅)** |
 
 
 *(✅ counts reflect fixes applied so far in this branch; updated as findings are resolved.)*
