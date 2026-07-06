@@ -23,16 +23,18 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 **Findings by section:**
 
 
-| Section                   | 🔴    | 🟠     | 🟡     | 🔵     | Total   |
-| ------------------------- | ----- | ------ | ------ | ------ | ------- |
-| 1. Security               | 2     | 11     | 4      | 1      | 18      |
-| 2. Bugs & correctness     | 2     | 9      | 10     | 1      | 22      |
-| 3. Architecture           | —     | 3      | 8      | —      | 11      |
-| 4. Code smells            | —     | 1      | 11     | 3      | 15      |
-| 5. Frontend (dashboard)   | —     | 2      | 11     | 3      | 16      |
-| 6. Dependencies & tooling | (1)   | —      | 2      | 1      | 4       |
-| 7. Tests                  | —     | 3      | 3      | 2      | 8       |
-| **Total**                 | **4** | **29** | **49** | **11** | **~93** |
+| Section                   | 🔴          | 🟠            | 🟡     | 🔵     | Total   |
+| ------------------------- | ----------- | ------------- | ------ | ------ | ------- |
+| 1. Security               | 2 (1 ✅)    | 11 (2 ✅)     | 4      | 1      | 18      |
+| 2. Bugs & correctness     | 2           | 9             | 10     | 1      | 22      |
+| 3. Architecture           | —           | 3 (1 ✅)      | 8      | —      | 11      |
+| 4. Code smells            | —           | 1             | 11     | 3      | 15      |
+| 5. Frontend (dashboard)   | —           | 2             | 11     | 3      | 16      |
+| 6. Dependencies & tooling | (1)         | —             | 2      | 1      | 4       |
+| 7. Tests                  | —           | 3 (1 ✅)      | 3      | 2      | 8       |
+| **Total**                 | **4 (1 ✅)** | **29 (4 ✅)** | **49** | **11** | **~93** |
+
+*(✅ counts reflect fixes applied so far in this branch; updated as findings are resolved.)*
 
 
 *DEP-1 is a cross-reference to SEC-2 (same underlying `xlsx` CVE issue), not an independent finding.*
@@ -117,7 +119,7 @@ if (setupToken !== expected) throw new ForbiddenException(...);
 3. Both the controller (bad/missing token) and the service (already-bootstrapped refusal, successful creation) now log every use via `Logger`, without logging the password or the token value itself.
 4. **Scope addition (per explicit request, not in the original finding):** the endpoint only ever creates an **ADMIN** account now — `SetupUserDto.role` was removed entirely (client can no longer request `TECHNICAL`), and `AuthService.setupUser` hardcodes `role: UserRole.ADMIN`. Rationale: since the endpoint is now single-use, accidentally bootstrapping a `TECHNICAL` account would permanently lock the system out of ADMIN-only features (nothing else can grant the ADMIN role). `nx build api`, `nx lint api` and the full `nx test api` suite (590 tests) pass.
 
-### 🟠 SEC-4 — JWT accepted via `?token=` query parameter on every endpoint
+### 🟠✅ SEC-4 — JWT accepted via `?token=` query parameter on every endpoint — FIXED
 
 `jwt.strategy.ts:16-23` registers a query-string extractor globally (added for SSE, which can't set headers). Consequences:
 
@@ -125,6 +127,8 @@ if (setupToken !== expected) throw new ForbiddenException(...);
 - The extractor applies to **all** endpoints, not just the SSE ones.
 
 **Recommendation:** scope the query extractor to the SSE routes only (separate strategy/guard), or use short-lived single-purpose tokens for SSE, or authenticate SSE via the httpOnly cookie.
+
+**Fix applied:** split into two Passport strategies. The default `JwtStrategy` now only accepts the `Authorization` header (the `?token=` extractor was removed from it entirely). A new `SseJwtStrategy` (`jwt-sse`) carries the query-param extractor — factored into a standalone, unit-tested `extractSseQueryToken()` — and is only reachable via a new `@SseAuth()` decorator. `JwtAuthGuard` (the sole global guard) checks for `@SseAuth()` metadata (same `Reflector` pattern as `@Public()`) and routes those requests to the SSE strategy instead of the default one; every other route can no longer authenticate via query string even if a valid token is passed that way. `SyncController` (the only SSE controller — `/sync/persons`, `/sync/events`, `/sync/events/:id/attendance`, `/sync/all`) is now the only place `@SseAuth()` is applied. Covered by `sse-token-extractor.util.spec.ts`, `jwt-sse.strategy.spec.ts`, and new `JwtAuthGuard` cases proving public/SSE/default requests are routed to the correct strategy and that the default strategy is never invoked for `@SseAuth()` routes.
 
 ### 🟠 SEC-5 — Refresh token rotation is not atomic (race weakens reuse detection)
 

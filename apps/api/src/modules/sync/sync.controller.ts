@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Observable, concat, map } from 'rxjs';
 import { UserRole } from '@muixer/shared';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { SseAuth } from '../auth/decorators/sse-auth.decorator';
 import { PersonSyncStrategy } from './strategies/person-sync.strategy';
 import { EventSyncStrategy } from './strategies/event-sync.strategy';
 import { AttendanceSyncStrategy } from './strategies/attendance-sync.strategy';
@@ -16,6 +17,7 @@ interface MessageEvent {
 @ApiBearerAuth()
 @Controller('sync')
 @Roles(UserRole.ADMIN)
+@SseAuth()
 export class SyncController {
   constructor(
     private readonly personSyncStrategy: PersonSyncStrategy,

@@ -2,26 +2,19 @@ import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { JwtPayload } from '@muixer/shared';
-import { Request } from 'express';
 import { requireJwtSecret } from '../constants/jwt-secret.util';
 
 /**
- * Estratègia Passport per validar el JWT en peticions autenticades.
- * Suporta dos extractors: Bearer token de la capçalera Authorization (peticions HTTP normals)
- * i paràmetre `?token=` de la query string (necessari per a SSE, que no suporta capçaleres personalitzades).
+ * Estratègia Passport per validar el JWT en peticions autenticades. Només
+ * accepta el Bearer token de la capçalera Authorization — les rutes SSE
+ * (que no poden enviar capçaleres) usen `SseJwtStrategy` en el seu lloc,
+ * activada explícitament amb `@SseAuth()` (SEC-4).
  */
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor() {
     super({
-      jwtFromRequest: ExtractJwt.fromExtractors([
-        ExtractJwt.fromAuthHeaderAsBearerToken(),
-        (req: Request) => {
-          // Support SSE via query parameter
-          const token = req.query?.['token'] as string | undefined;
-          return token ?? null;
-        },
-      ]),
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       secretOrKey: requireJwtSecret('JWT_SECRET'),
     });

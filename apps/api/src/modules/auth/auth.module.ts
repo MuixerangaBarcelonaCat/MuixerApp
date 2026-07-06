@@ -10,6 +10,7 @@ import { AuthService } from './auth.service';
 import { TokenService } from './token.service';
 import { LocalStrategy } from './strategies/local.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { SseJwtStrategy } from './strategies/jwt-sse.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { requireJwtSecret } from './constants/jwt-secret.util';
@@ -29,6 +30,7 @@ import { requireJwtSecret } from './constants/jwt-secret.util';
     TokenService,
     LocalStrategy,
     JwtStrategy,
+    SseJwtStrategy,
     JwtAuthGuard,
     RolesGuard,
   ],
