@@ -26,13 +26,13 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 | Section                   | 🔴          | 🟠           | 🟡           | 🔵           | Total         |
 | ------------------------- | ----------- | ------------ | ------------ | ------------ | ------------- |
 | 1. Security               | 2 (1 ✅)     | 11 (4 ✅)     | 4            | 1 (1 ✅)      | 18 (6 ✅)      |
-| 2. Bugs & correctness     | 2 (1 ✅)     | 9 (2 ✅)      | 10 (1 ✅)     | 1            | 22 (4 ✅)      |
+| 2. Bugs & correctness     | 2 (1 ✅)     | 9 (3 ✅)      | 10 (1 ✅)     | 1            | 22 (5 ✅)      |
 | 3. Architecture           | —           | 3 (1 ✅)      | 8 (1 ✅)      | —            | 11 (2 ✅)      |
 | 4. Code smells            | —           | 1            | 11           | 3            | 15            |
 | 5. Frontend (dashboard)   | —           | 2            | 11           | 3            | 16            |
 | 6. Dependencies & tooling | 1           | —            | 2            | 1            | 5             |
 | 7. Tests                  | —           | 3 (1 ✅)      | 3            | 2            | 8 (1 ✅)       |
-| **Total**                 | **5 (2 ✅)** | **29 (8 ✅)** | **49 (2 ✅)** | **11 (1 ✅)** | **94** (13 ✅) |
+| **Total**                 | **5 (2 ✅)** | **29 (9 ✅)** | **49 (2 ✅)** | **11 (1 ✅)** | **94** (14 ✅) |
 
 
 *(✅ counts reflect fixes applied so far in this branch; updated as findings are resolved.)*
@@ -292,7 +292,7 @@ if (!person.managedBy) {
 
 **Fix applied:** `user-sort.constants.ts:14` now maps `alias → 'person.alias'`, matching the join alias used in `UserService.findAll`'s `leftJoinAndSelect('user.person', 'person')`. Also tightened `USER_SORT_COLUMN_MAP`'s type from `Partial<Record<UserSortByField, string>>` to `Record<UserSortByField, string>`, so a future missing/mistyped sort key fails at compile time instead of silently falling through to the default sort. Covered by a new spec in `user.service.spec.ts` asserting `orderBy` is called with `'person.alias'` (not the invalid three-segment path) when sorting by alias. Full suite: 620/620 passing, lint clean.
 
-### 🟠 BUG-4 — `sendInvite`: floating promise + `throw` inside `.catch`
+### 🟠✅ BUG-4 — `sendInvite`: floating promise + `throw` inside `.catch` — FIXED
 
 `user.service.ts:160-163`:
 
@@ -305,6 +305,8 @@ this.sendInvitationEmail(user.email, inviteToken).catch((err) => {
 The promise is not awaited, and throwing inside `.catch` of a floating promise produces an **unhandled promise rejection** (process-fatal in Node by default) instead of a 400 — the HTTP response has typically already been sent. Today the stub can't reject, but the moment a real mailer lands here this becomes a crash vector.
 
 **Fix:** `await` it (and decide whether a mail failure should roll back the invite fields).
+
+**Fix applied:** added `await` in front of the `sendInvitationEmail(...).catch(...)` chain (`user.service.ts:160`) — the only change requested, no rollback of invite fields added. The rejection now propagates as a normal `BadRequestException` through `sendInvite`'s `async` call stack instead of becoming an unhandled rejection. Verified with a new spec that mocks `sendInvitationEmail` to reject and asserts `sendInvite(...)` itself rejects with `BadRequestException` — before the fix this test crashed the Jest worker process with an uncaught `BadRequestException` (the exact failure mode the finding described), confirming the bug was real.
 
 ### 🟠✅ BUG-5 — Refresh cookie TTL derived from role instead of the token's stored `clientType` — FIXED
 

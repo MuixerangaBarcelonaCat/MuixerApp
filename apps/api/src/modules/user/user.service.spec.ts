@@ -358,6 +358,19 @@ describe('UserService', () => {
       expect(expiry).toBeGreaterThanOrEqual(before + expectedMs - 1000);
       expect(expiry).toBeLessThanOrEqual(after + expectedMs + 1000);
     });
+
+    it('rejects with BadRequestException when sendInvitationEmail fails, instead of resolving', async () => {
+      const user = makeUser({ isActive: false });
+      mockUserRepo.findOne.mockResolvedValue(user);
+      mockUserRepo.save.mockResolvedValue(user);
+      jest
+        .spyOn(service, 'sendInvitationEmail')
+        .mockRejectedValue(new Error('SMTP down'));
+
+      await expect(service.sendInvite('user-uuid')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
   });
 
   // ---------------------------------------------------------------------------

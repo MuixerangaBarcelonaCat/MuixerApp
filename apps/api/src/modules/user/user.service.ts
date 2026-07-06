@@ -157,7 +157,7 @@ export class UserService {
     user.inviteExpiresAt = expirationDate;
     await this.userRepository.save(user);
 
-    this.sendInvitationEmail(user.email, inviteToken).catch((err) => {
+    await this.sendInvitationEmail(user.email, inviteToken).catch((err) => {
       throw new BadRequestException('Failed to send invite email');
     });
   }
