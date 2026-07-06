@@ -14,6 +14,7 @@ import { UpdateInstanceDto } from './dto/update-instance.dto';
 import { ReorderInstancesDto } from './dto/reorder-instances.dto';
 import { UpdateSegmentDistributionDto } from './dto/update-segment-distribution.dto';
 import { EventSegmentService, InstanceRef, SegmentWithInstances } from './event-segment.service';
+import { NodeAssignmentService } from '../node-assignment/node-assignment.service';
 
 export interface DistributionNodeItem {
   id: string;
@@ -71,6 +72,7 @@ export class FigureInstanceService {
     @InjectRepository(Composition)
     private readonly compositionRepository: Repository<Composition>,
     private readonly segmentService: EventSegmentService,
+    private readonly nodeAssignmentService: NodeAssignmentService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -122,6 +124,7 @@ export class FigureInstanceService {
     if (dto.label !== undefined) instance.label = dto.label ?? null;
     if (dto.sortOrder !== undefined) instance.sortOrder = dto.sortOrder;
     if (dto.figureMode !== undefined) {
+      await this.nodeAssignmentService.checkEventLock(instanceId);
       instance.figureMode = dto.figureMode;
       if (dto.figureMode === FigureMode.REMAT) {
         await this.deletePinyaAssignments(instanceId);
@@ -136,6 +139,7 @@ export class FigureInstanceService {
 
   async remove(eventId: string, segmentId: string, instanceId: string): Promise<void> {
     const instance = await this.assertInstanceBelongsToSegment(eventId, segmentId, instanceId);
+    await this.nodeAssignmentService.checkEventLock(instanceId);
     await this.instanceRepository.remove(instance);
   }
 

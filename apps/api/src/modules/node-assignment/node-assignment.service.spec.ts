@@ -1666,5 +1666,22 @@ describe('NodeAssignmentService', () => {
 
       expect(result.numberOfCordons).toBeNull();
     });
+
+    it('throws ForbiddenException when event is locked', async () => {
+      process.env.ASSIGNMENT_LOCK_DAYS = '2';
+      const lockedDate = new Date();
+      lockedDate.setDate(lockedDate.getDate() - 10);
+
+      mockInstanceRepo.findOne.mockResolvedValue(
+        makeInstance({
+          segment: { id: SEGMENT_ID, event: { id: 'event-uuid-1', date: lockedDate.toISOString().slice(0, 10) } },
+        }),
+      );
+
+      await expect(
+        service.updateCordons(INSTANCE_ID, { numberOfCordons: 2 }),
+      ).rejects.toThrow(ForbiddenException);
+      expect(mockInstanceRepo.save).not.toHaveBeenCalled();
+    });
   });
 });

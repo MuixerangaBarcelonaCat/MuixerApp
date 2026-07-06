@@ -958,6 +958,8 @@ export class NodeAssignmentService {
     instanceId: string,
     dto: { numberOfCordons?: number | null },
   ): Promise<{ numberOfCordons: number | null }> {
+    await this.checkEventLock(instanceId);
+
     const instance = await this.figureInstanceRepository.findOne({
       where: { id: instanceId },
     });
@@ -998,7 +1000,8 @@ export class NodeAssignmentService {
     };
   }
 
-  private async checkEventLock(instanceId: string): Promise<void> {
+  /** Shared by NodeAssignmentService's own mutations and by FigureInstanceService for the paths that also touch assignment data (mode change, instance removal). */
+  async checkEventLock(instanceId: string): Promise<void> {
     const lockDays = parseInt(process.env.ASSIGNMENT_LOCK_DAYS ?? '2', 10);
     if (lockDays <= 0) return;
 

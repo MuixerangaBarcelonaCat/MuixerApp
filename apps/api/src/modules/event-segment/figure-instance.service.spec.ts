@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { FigureInstanceService } from './figure-instance.service';
 import { FigureInstance } from './entities/figure-instance.entity';
@@ -8,6 +8,7 @@ import { EventSegment } from './entities/event-segment.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
 import { Composition } from '../composition/entities/composition.entity';
 import { EventSegmentService } from './event-segment.service';
+import { NodeAssignmentService } from '../node-assignment/node-assignment.service';
 import { FigureMode } from '@muixer/shared';
 
 const EVENT_ID = 'event-uuid-1';
@@ -69,6 +70,10 @@ const mockSegmentService = {
   getOne: jest.fn(),
 };
 
+const mockNodeAssignmentService = {
+  checkEventLock: jest.fn(),
+};
+
 describe('FigureInstanceService', () => {
   let service: FigureInstanceService;
 
@@ -81,12 +86,14 @@ describe('FigureInstanceService', () => {
         { provide: getRepositoryToken(FigureTemplate), useValue: mockFigureTemplateRepo },
         { provide: getRepositoryToken(Composition), useValue: mockCompositionRepo },
         { provide: EventSegmentService, useValue: mockSegmentService },
+        { provide: NodeAssignmentService, useValue: mockNodeAssignmentService },
         { provide: DataSource, useValue: mockDataSource },
       ],
     }).compile();
 
     service = module.get<FigureInstanceService>(FigureInstanceService);
     jest.clearAllMocks();
+    mockNodeAssignmentService.checkEventLock.mockResolvedValue(undefined);
     mockInstanceRepo.createQueryBuilder.mockReturnValue(mockInstanceQb);
     mockInstanceQb.select.mockReturnThis();
     mockInstanceQb.where.mockReturnThis();
@@ -199,6 +206,35 @@ describe('FigureInstanceService', () => {
         service.update(EVENT_ID, SEGMENT_ID, INSTANCE_ID, {}),
       ).rejects.toThrow(NotFoundException);
     });
+
+    it('throws ForbiddenException and does not delete assignments when event is locked', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance());
+      mockNodeAssignmentService.checkEventLock.mockRejectedValue(new ForbiddenException('locked'));
+
+      await expect(
+        service.update(EVENT_ID, SEGMENT_ID, INSTANCE_ID, { figureMode: FigureMode.REMAT }),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(mockNodeAssignmentService.checkEventLock).toHaveBeenCalledWith(INSTANCE_ID);
+      const deleteCalls = mockDataSource.query.mock.calls.filter(
+        (call: unknown[]) => typeof call[0] === 'string' && (call[0] as string).includes('DELETE'),
+      );
+      expect(deleteCalls).toHaveLength(0);
+      expect(mockInstanceRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('does not check the lock when figureMode is not changing', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.findOne
+        .mockResolvedValueOnce(makeInstance())
+        .mockResolvedValueOnce(makeInstance({ label: 'Central' }));
+      mockInstanceRepo.save.mockResolvedValue(makeInstance());
+
+      await service.update(EVENT_ID, SEGMENT_ID, INSTANCE_ID, { label: 'Central' });
+
+      expect(mockNodeAssignmentService.checkEventLock).not.toHaveBeenCalled();
+    });
   });
 
   describe('remove', () => {
@@ -210,6 +246,7 @@ describe('FigureInstanceService', () => {
 
       await service.remove(EVENT_ID, SEGMENT_ID, INSTANCE_ID);
 
+      expect(mockNodeAssignmentService.checkEventLock).toHaveBeenCalledWith(INSTANCE_ID);
       expect(mockInstanceRepo.remove).toHaveBeenCalledWith(instance);
     });
 
@@ -220,6 +257,18 @@ describe('FigureInstanceService', () => {
       await expect(
         service.remove(EVENT_ID, SEGMENT_ID, INSTANCE_ID),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws ForbiddenException and does not remove the instance when event is locked', async () => {
+      const instance = makeInstance();
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.findOne.mockResolvedValue(instance);
+      mockNodeAssignmentService.checkEventLock.mockRejectedValue(new ForbiddenException('locked'));
+
+      await expect(
+        service.remove(EVENT_ID, SEGMENT_ID, INSTANCE_ID),
+      ).rejects.toThrow(ForbiddenException);
+      expect(mockInstanceRepo.remove).not.toHaveBeenCalled();
     });
   });
 
