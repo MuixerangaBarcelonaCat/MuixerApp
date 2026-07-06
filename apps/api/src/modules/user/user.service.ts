@@ -7,7 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { Person } from '../person/person.entity';
@@ -30,6 +30,7 @@ export class UserService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Person)
     private readonly personRepository: Repository<Person>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async create(
@@ -135,16 +136,21 @@ export class UserService {
     if (!person) throw new BadRequestException('Person not found');
     if (person.managedBy)
       throw new BadRequestException('Person is already managed by an user');
-    const user = this.userRepository.create({
-      email: dto.email,
-      role: UserRole.MEMBER,
-      person,
-      isActive: false,
+
+    const createdUser = await this.dataSource.transaction(async (manager) => {
+      const user = manager.create(User, {
+        email: dto.email,
+        role: UserRole.MEMBER,
+        person,
+        isActive: false,
+      });
+      const savedUser = await manager.save(User, user);
+      person.managedBy = savedUser;
+      await manager.save(Person, person);
+      return savedUser;
     });
-    const createdUser = await this.userRepository.save(user);
-    person.managedBy = createdUser;
-    await this.personRepository.save(person);
-    await this.sendInvite(user.id);
+
+    await this.sendInvite(createdUser.id);
     return plainToInstance(UserResponseDto, createdUser, {
       excludeExtraneousValues: true,
     });
@@ -238,37 +244,40 @@ export class UserService {
       }
     }
 
-    let targetUser: User;
+    const result = await this.dataSource.transaction(async (manager) => {
+      let targetUser: User;
 
-    if (existingUser) {
-      // Upgrade the stub account: set credentials, role and activate
-      existingUser.passwordHash = passwordHash;
-      existingUser.role = dto.role;
-      existingUser.isActive = true;
-      existingUser.inviteToken = null;
-      existingUser.inviteExpiresAt = null;
-      if (person) existingUser.person = person;
-      targetUser = await this.userRepository.save(existingUser);
-    } else {
-      const newUser = this.userRepository.create({
-        email: dto.email,
-        passwordHash,
-        role: dto.role,
-        isActive: true,
-        ...(person ? { person } : {}),
+      if (existingUser) {
+        // Upgrade the stub account: set credentials, role and activate
+        existingUser.passwordHash = passwordHash;
+        existingUser.role = dto.role;
+        existingUser.isActive = true;
+        existingUser.inviteToken = null;
+        existingUser.inviteExpiresAt = null;
+        if (person) existingUser.person = person;
+        targetUser = await manager.save(User, existingUser);
+      } else {
+        const newUser = manager.create(User, {
+          email: dto.email,
+          passwordHash,
+          role: dto.role,
+          isActive: true,
+          ...(person ? { person } : {}),
+        });
+        targetUser = await manager.save(User, newUser);
+      }
+
+      if (person) {
+        person.managedBy = targetUser;
+        await manager.save(Person, person);
+      }
+
+      return manager.findOne(User, {
+        where: { id: targetUser.id },
+        relations: ['person'],
       });
-      targetUser = await this.userRepository.save(newUser);
-    }
-
-    if (person) {
-      person.managedBy = targetUser;
-      await this.personRepository.save(person);
-    }
-
-    const result = await this.userRepository.findOne({
-      where: { id: targetUser.id },
-      relations: ['person'],
     });
+
     return plainToInstance(UserResponseDto, result, {
       excludeExtraneousValues: true,
     });

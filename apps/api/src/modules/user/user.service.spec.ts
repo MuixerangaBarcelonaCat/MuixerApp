@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import {
   BadRequestException,
   ConflictException,
@@ -11,6 +12,12 @@ import { UserService } from './user.service';
 import { User } from './user.entity';
 import { Person } from '../person/person.entity';
 import { UserRole } from '@muixer/shared';
+
+const makeTransactionManager = () => ({
+  create: jest.fn((_entity: unknown, data: unknown) => data),
+  save: jest.fn((_entity: unknown, data: unknown) => Promise.resolve(data)),
+  findOne: jest.fn(),
+});
 
 jest.mock('bcrypt', () => ({
   hash: jest.fn().mockResolvedValue('hashed-password'),
@@ -47,6 +54,7 @@ describe('UserService', () => {
   let userQb: Record<string, jest.Mock>;
   let mockUserRepo: Record<string, jest.Mock>;
   let mockPersonRepo: Record<string, jest.Mock>;
+  let mockDataSource: { transaction: jest.Mock };
 
   beforeEach(async () => {
     userQb = {
@@ -71,11 +79,16 @@ describe('UserService', () => {
       save: jest.fn(),
     };
 
+    mockDataSource = {
+      transaction: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UserService,
         { provide: getRepositoryToken(User), useValue: mockUserRepo },
         { provide: getRepositoryToken(Person), useValue: mockPersonRepo },
+        { provide: DataSource, useValue: mockDataSource },
       ],
     }).compile();
 
@@ -279,9 +292,9 @@ describe('UserService', () => {
       mockPersonRepo.findOne.mockResolvedValue(person);
 
       const createdUser = makeUser({ isActive: false, person });
-      mockUserRepo.create.mockReturnValue(createdUser);
-      mockUserRepo.save.mockResolvedValue(createdUser);
-      mockPersonRepo.save.mockResolvedValue(person);
+      const manager = makeTransactionManager();
+      manager.save.mockResolvedValueOnce(createdUser); // user save
+      mockDataSource.transaction.mockImplementation((cb: (m: unknown) => unknown) => cb(manager));
 
       // no email conflict, then sendInvite's internal findOne
       mockUserRepo.findOne
@@ -290,27 +303,30 @@ describe('UserService', () => {
 
       const result = await service.createWithInvite({ personId: 'person-uuid', email: 'new@user.com' });
 
-      expect(mockUserRepo.create).toHaveBeenCalledWith(
+      expect(manager.create).toHaveBeenCalledWith(
+        User,
         expect.objectContaining({ role: UserRole.MEMBER, isActive: false }),
       );
       expect(result.isActive).toBe(false);
     });
 
-    it('associates person to created user', async () => {
+    it('associates person to created user, atomically with the user creation', async () => {
       const person = makePerson({ managedBy: null });
       mockPersonRepo.findOne.mockResolvedValue(person);
 
       const createdUser = makeUser({ isActive: false, person });
-      mockUserRepo.create.mockReturnValue(createdUser);
-      mockUserRepo.save.mockResolvedValue(createdUser);
-      mockPersonRepo.save.mockResolvedValue(person);
+      const manager = makeTransactionManager();
+      manager.save.mockResolvedValueOnce(createdUser); // user save
+      mockDataSource.transaction.mockImplementation((cb: (m: unknown) => unknown) => cb(manager));
       mockUserRepo.findOne
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce({ ...createdUser, isActive: false });
 
       await service.createWithInvite({ personId: 'person-uuid', email: 'new@user.com' });
 
-      expect(mockPersonRepo.save).toHaveBeenCalledWith(
+      expect(mockDataSource.transaction).toHaveBeenCalledTimes(1);
+      expect(manager.save).toHaveBeenCalledWith(
+        Person,
         expect.objectContaining({ managedBy: createdUser }),
       );
     });
@@ -473,14 +489,22 @@ describe('UserService', () => {
 
     it('upgrades a credential-less stub account (from sync/invite) instead of rejecting', async () => {
       const stubUser = makeUser({ passwordHash: null as unknown as string, isActive: false, role: UserRole.MEMBER });
-      mockUserRepo.findOne
-        .mockResolvedValueOnce(stubUser) // email check finds stub
-        .mockResolvedValueOnce({ ...stubUser, role: UserRole.TECHNICAL, isActive: true, passwordHash: 'hashed-password' }); // reload
-      mockUserRepo.save.mockResolvedValue({ ...stubUser, role: UserRole.TECHNICAL, isActive: true });
+      mockUserRepo.findOne.mockResolvedValueOnce(stubUser); // email check finds stub
+
+      const manager = makeTransactionManager();
+      manager.save.mockResolvedValueOnce({ ...stubUser, role: UserRole.TECHNICAL, isActive: true }); // user save
+      manager.findOne.mockResolvedValueOnce({
+        ...stubUser,
+        role: UserRole.TECHNICAL,
+        isActive: true,
+        passwordHash: 'hashed-password',
+      }); // reload
+      mockDataSource.transaction.mockImplementation((cb: (m: unknown) => unknown) => cb(manager));
 
       const result = await service.createUser(createDto, UserRole.ADMIN);
 
-      expect(mockUserRepo.save).toHaveBeenCalledWith(
+      expect(manager.save).toHaveBeenCalledWith(
+        User,
         expect.objectContaining({ role: UserRole.TECHNICAL, isActive: true }),
       );
       expect(result.role).toBe(UserRole.TECHNICAL);
@@ -506,19 +530,17 @@ describe('UserService', () => {
     });
 
     it('creates user with hashed password, role and isActive=true', async () => {
-      mockUserRepo.findOne
-        .mockResolvedValueOnce(null) // email check
-        .mockResolvedValueOnce(makeUser({ role: UserRole.TECHNICAL, isActive: true })); // reload
-      mockUserRepo.create.mockReturnValue(
-        makeUser({ role: UserRole.TECHNICAL, isActive: true }),
-      );
-      mockUserRepo.save.mockResolvedValue(
-        makeUser({ role: UserRole.TECHNICAL, isActive: true }),
-      );
+      mockUserRepo.findOne.mockResolvedValueOnce(null); // email check
+
+      const manager = makeTransactionManager();
+      manager.save.mockResolvedValueOnce(makeUser({ role: UserRole.TECHNICAL, isActive: true })); // user save
+      manager.findOne.mockResolvedValueOnce(makeUser({ role: UserRole.TECHNICAL, isActive: true })); // reload
+      mockDataSource.transaction.mockImplementation((cb: (m: unknown) => unknown) => cb(manager));
 
       const result = await service.createUser(createDto, UserRole.ADMIN);
 
-      expect(mockUserRepo.create).toHaveBeenCalledWith(
+      expect(manager.create).toHaveBeenCalledWith(
+        User,
         expect.objectContaining({
           email: 'tech@example.com',
           passwordHash: 'hashed-password',
@@ -539,19 +561,21 @@ describe('UserService', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('links person when personId is provided', async () => {
+    it('links person when personId is provided, atomically with the user save', async () => {
       const person = makePerson({ managedBy: null });
-      mockUserRepo.findOne
-        .mockResolvedValueOnce(null) // email check
-        .mockResolvedValueOnce(makeUser({ person })); // reload
+      mockUserRepo.findOne.mockResolvedValueOnce(null); // email check
       mockPersonRepo.findOne.mockResolvedValue(person);
-      mockUserRepo.create.mockReturnValue(makeUser({ person }));
-      mockUserRepo.save.mockResolvedValue(makeUser({ person }));
-      mockPersonRepo.save.mockResolvedValue(person);
+
+      const manager = makeTransactionManager();
+      manager.save.mockResolvedValueOnce(makeUser({ person })); // user save
+      manager.findOne.mockResolvedValueOnce(makeUser({ person })); // reload
+      mockDataSource.transaction.mockImplementation((cb: (m: unknown) => unknown) => cb(manager));
 
       await service.createUser({ ...createDto, personId: 'person-uuid' }, UserRole.ADMIN);
 
-      expect(mockPersonRepo.save).toHaveBeenCalledWith(
+      expect(mockDataSource.transaction).toHaveBeenCalledTimes(1);
+      expect(manager.save).toHaveBeenCalledWith(
+        Person,
         expect.objectContaining({ managedBy: expect.any(Object) }),
       );
     });
