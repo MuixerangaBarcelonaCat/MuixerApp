@@ -245,6 +245,7 @@ docker exec -it muixer-postgres-pre psql -U muixer_pre -d muixer_pre -c \
 | `DATABASE_URL` | `postgresql://muixer_pre:<password>@postgres:5432/muixer_pre` | Hostname `postgres` (servei Docker) |
 | `DB_SYNC` | *(comentat)* | `true` només al primer arrencament si no hi ha migracions |
 | `CORS_ORIGINS` | `http://204.168.221.131` | IP del servidor sense trailing slash |
+| `SITE_ADDRESS` | *(comentat)* | Domini per activar HTTPS (p.ex. `pre.muixerapp.cat`). Sense definir, Caddy serveix per `:80` |
 | `COOKIE_SECURE` | `false` | `false` mentre s'accedeix per HTTP. Canviar a `true` amb HTTPS |
 | `LEGACY_API_URL` | `https://colla-muixeranguera.appsistencia.cat` | No canviar |
 | `LEGACY_API_USERNAME` | Credencial legacy | Demanar a l'administrador |
@@ -299,27 +300,22 @@ echo "SETUP_TOKEN=$(uuidgen)"
 
 ## Habilitar HTTPS (quan hi hagi domini)
 
-Quan el servidor tingui un nom de domini apuntant a `204.168.221.131`, activar HTTPS és un canvi d'una sola línia al `Caddyfile`:
+Quan el servidor tingui un nom de domini apuntant a `204.168.221.131`, activar HTTPS **no requereix tocar el `Caddyfile`**: `apps/dashboard/Caddyfile` llegeix l'adreça del lloc de la variable d'entorn `SITE_ADDRESS` (per defecte `:80` si no està definida). Només cal actualitzar `.env.pre`:
 
-```diff
-# apps/dashboard/Caddyfile
--:80 {
-+pre.muixerapp.cat {
 ```
-
-Caddy obtindrà i renovarà el certificat Let's Encrypt automàticament. Reconstruir la imatge i fer redeploy:
-
-```bash
-docker compose -f docker-compose.pre.yml up -d --build dashboard
-```
-
-Un cop activat HTTPS, actualitzar al `.env.pre`:
-```
+SITE_ADDRESS=pre.muixerapp.cat
 COOKIE_SECURE=true
 CORS_ORIGINS=https://pre.muixerapp.cat
 ```
 
-I reiniciar l'API: `docker compose -f docker-compose.pre.yml restart api`
+I redesplegar el servei `dashboard` (calen les variables noves al contenidor, no cal rebuild de la imatge) i reiniciar l'API:
+
+```bash
+docker compose -f docker-compose.pre.yml up -d dashboard
+docker compose -f docker-compose.pre.yml restart api
+```
+
+Caddy obtindrà i renovarà el certificat Let's Encrypt automàticament en detectar el domini.
 
 > El volum `caddy-data` persisteix els certificats entre redeploys per evitar re-emissions innecessàries (Let's Encrypt té límit de 5 certificats/domini/setmana).
 

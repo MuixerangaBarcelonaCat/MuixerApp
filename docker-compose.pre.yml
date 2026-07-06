@@ -42,6 +42,7 @@ services:
     image: muixer-dashboard-pre:latest
     container_name: muixer-dashboard-pre
     restart: unless-stopped
+    env_file: .env.pre
     ports:
       - '80:80'
       - '443:443'
