@@ -28,11 +28,11 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 | 1. Security               | 2 (1 ✅)     | 11 (4 ✅)     | 4 (1 ✅)      | 1 (1 ✅)      | 18 (7 ✅)      |
 | 2. Bugs & correctness     | 2 (2 ✅)     | 9 (3 ✅)      | 10 (2 ✅)     | 1            | 22 (7 ✅)      |
 | 3. Architecture           | —           | 3 (2 ✅)      | 8 (1 ✅)      | —            | 11 (3 ✅)      |
-| 4. Code smells            | —           | 1            | 11 (2 ✅)     | 3            | 15 (2 ✅)      |
+| 4. Code smells            | —           | 1            | 11 (3 ✅)     | 3            | 15 (3 ✅)      |
 | 5. Frontend (dashboard)   | —           | 2            | 11           | 3            | 16            |
 | 6. Dependencies & tooling | 1           | —            | 2            | 1            | 5             |
 | 7. Tests                  | —           | 3 (1 ✅)      | 3            | 2            | 8 (1 ✅)       |
-| **Total**                 | **5 (3 ✅)** | **29 (10 ✅)** | **49 (6 ✅)** | **11 (1 ✅)** | **94** (20 ✅) |
+| **Total**                 | **5 (3 ✅)** | **29 (10 ✅)** | **49 (7 ✅)** | **11 (1 ✅)** | **94** (21 ✅) |
 
 
 *(✅ counts reflect fixes applied so far in this branch; updated as findings are resolved.)*
@@ -497,7 +497,7 @@ None of this is wrong at ~200 persons/colla scale, but these are the endpoints t
 ## 4. Code smells & bad practices
 
 - 🟡 **SM-1** `user.entity.ts:13-14`: `type PersonRef = any` to dodge a circular import. TypeORM ships `Relation<T>` exactly for this; `import type` also breaks the cycle without `any`.
-- 🟡 **SM-2** `person.service.ts:153,276`: `findByIds()` is deprecated in TypeORM 0.3 (`findBy({ id: In(...) })`), and silently ignores non-existent IDs — a typo'd position UUID just vanishes instead of erroring.
+- 🟡✅ **SM-2** — **FIXED.** `person.service.ts:153,276`: `findByIds()` is deprecated in TypeORM 0.3 (`findBy({ id: In(...) })`), and silently ignores non-existent IDs — a typo'd position UUID just vanishes instead of erroring. **Fix applied:** both call sites now go through a new private `findPositionsOrThrow()` helper, which resolves ids via `positionRepository.findBy({ id: In(positionIds) })` and throws `NotFoundException` when the returned count doesn't match the requested id count — a typo'd/nonexistent position id now errors instead of silently vanishing from the person's positions. Covered by new specs in `person.service.spec.ts` for both `create` and `update` (missing id → `NotFoundException`, `save` never called; valid ids → `findBy` called with `In([...])`).
 - 🟡 **SM-3** `auth.service.ts:176-179`: raw SQL `UPDATE users SET person_id = ...` inside an otherwise repository-based service; bypasses entity hooks and `updatedAt`. Also no existence check on `personId` → FK violation → 500.
 - 🟡 **SM-4** `main.ts:1-4`: scaffold comment “This is not a production server yet!” on a production API; `const cookieParser = require('cookie-parser')` instead of an ES import.
 - 🟡✅ **SM-5** — **FIXED.** `user.service.ts:172-181` (`grantRole`) saves then re-fetches the user (2 extra queries); `updateUser` re-fetches too. Minor, but the pattern repeats. **Fix applied:** both methods now build the `UserResponseDto` from the entity returned by `save()` (TypeORM populates generated columns like `updatedAt` onto that same reference) instead of issuing a redundant third/second `findOne`. `grantRole`'s initial load now includes `relations: ['person']` up front so the relation survives without a refetch. Covered by new specs asserting `findOne` is called exactly once per method for the no-conflict-check path.

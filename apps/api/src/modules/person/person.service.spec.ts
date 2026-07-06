@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { PersonService } from './person.service';
 import { Person } from './person.entity';
 import { Tag } from '../tag/tag.entity';
@@ -33,7 +33,7 @@ describe('PersonService', () => {
   };
 
   const mockPositionRepository = {
-    findByIds: jest.fn(),
+    findBy: jest.fn(),
   };
 
   const mockUserRepository = {
@@ -130,7 +130,7 @@ describe('PersonService', () => {
       ];
       const mockPerson = { id: '123', ...createDto, positions: mockPositions };
 
-      mockPositionRepository.findByIds.mockResolvedValue(mockPositions);
+      mockPositionRepository.findBy.mockResolvedValue(mockPositions);
       mockPersonRepository.create.mockReturnValue(mockPerson);
       mockPersonRepository.save.mockResolvedValue(mockPerson);
 
@@ -139,10 +139,25 @@ describe('PersonService', () => {
       expect(result.id).toBe('123');
       expect(result.name).toBe('Test');
       expect(result.alias).toBe('testuser');
-      expect(mockPositionRepository.findByIds).toHaveBeenCalledWith([
-        'pos1',
-        'pos2',
+      expect(mockPositionRepository.findBy).toHaveBeenCalledWith({
+        id: In(['pos1', 'pos2']),
+      });
+    });
+
+    it('throws NotFoundException when a position id does not exist', async () => {
+      const createDto = {
+        name: 'Test',
+        firstSurname: 'User',
+        alias: 'testuser',
+        positionIds: ['pos1', 'typo-id'],
+      };
+      mockPositionRepository.findBy.mockResolvedValue([
+        { id: 'pos1', name: 'Position 1' },
       ]);
+      mockPersonRepository.create.mockReturnValue({ id: '123', ...createDto });
+
+      await expect(service.create(createDto)).rejects.toThrow(NotFoundException);
+      expect(mockPersonRepository.save).not.toHaveBeenCalled();
     });
   });
 
@@ -439,6 +454,31 @@ describe('PersonService', () => {
       expect(mockPersonRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({ isProvisional: false, alias: 'JoanGarcia', firstSurname: 'García' }),
       );
+    });
+  });
+
+  describe('update positions', () => {
+    it('throws NotFoundException when a position id does not exist', async () => {
+      const person = { id: '1', alias: 'Joan', name: 'Joan', firstSurname: 'García', isProvisional: false, positions: [], mentor: null };
+      mockPersonRepository.findOne.mockResolvedValue(person);
+      mockPositionRepository.findBy.mockResolvedValue([{ id: 'pos1', name: 'Position 1' }]);
+
+      await expect(
+        service.update('1', { positionIds: ['pos1', 'typo-id'] }),
+      ).rejects.toThrow(NotFoundException);
+      expect(mockPersonRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('uses findBy/In to resolve positions', async () => {
+      const person = { id: '1', alias: 'Joan', name: 'Joan', firstSurname: 'García', isProvisional: false, positions: [], mentor: null };
+      const mockPositions = [{ id: 'pos1', name: 'Position 1' }];
+      mockPersonRepository.findOne.mockResolvedValue(person);
+      mockPositionRepository.findBy.mockResolvedValue(mockPositions);
+      mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
+
+      await service.update('1', { positionIds: ['pos1'] });
+
+      expect(mockPositionRepository.findBy).toHaveBeenCalledWith({ id: In(['pos1']) });
     });
   });
 });
