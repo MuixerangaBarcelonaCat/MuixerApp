@@ -40,6 +40,7 @@ import { RemoveNoPresentat1782100000000 } from '../../migrations/1782100000000-R
 import { AddSegmentDistributionFields1782200000000 } from '../../migrations/1782200000000-AddSegmentDistributionFields';
 import { DropOldCompositionTables1782300000000 } from '../../migrations/1782300000000-DropOldCompositionTables';
 import { CreateCompositions1782400000000 } from '../../migrations/1782400000000-CreateCompositions';
+import { AddInstanceNodeSourceUniqueIndex1782600000000 } from '../../migrations/1782600000000-AddInstanceNodeSourceUniqueIndex';
 
 @Module({
   imports: [
@@ -93,6 +94,7 @@ import { CreateCompositions1782400000000 } from '../../migrations/1782400000000-
             AddSegmentDistributionFields1782200000000,
             DropOldCompositionTables1782300000000,
             CreateCompositions1782400000000,
+            AddInstanceNodeSourceUniqueIndex1782600000000,
           ],
           migrationsTableName: 'typeorm_migrations',
           logging: isDevelopment,

@@ -133,7 +133,8 @@ const mockQb = {
 const makeTransactionManager = (savedNodes: any[] = []) => ({
   create: jest.fn((_entity: any, data: any) => ({ ...data, id: 'new-inode-uuid' })),
   save: jest.fn().mockResolvedValue(savedNodes),
-  update: jest.fn().mockResolvedValue({}),
+  update: jest.fn().mockResolvedValue({ affected: 1 }),
+  find: jest.fn().mockResolvedValue(savedNodes),
 });
 
 // ─── Mock repositories ────────────────────────────────────────────────────
@@ -1577,6 +1578,64 @@ describe('NodeAssignmentService', () => {
       const nodeData = instanceNodeCreateCall![1];
       expect(nodeData.renglaId).toBe('r-uuid');
       expect(nodeData.renglaPosition).toBe(2);
+    });
+  });
+
+  describe('snapshotInstance — concurrent first assignment (BUG-17)', () => {
+    it('atomically claims the snapshot (conditional UPDATE) before copying template nodes', async () => {
+      const unsnapshottedInstance = makeInstance({ snapshotted: false });
+      const snapshotNode = makeInstanceNode({ id: 'new-inode-uuid', sourceNodeId: FIGURE_NODE_ID });
+      const manager = makeTransactionManager([snapshotNode]);
+
+      mockInstanceRepo.findOne.mockResolvedValue(unsnapshottedInstance);
+      mockTemplateRepo.findOne.mockResolvedValue(makeTemplate());
+      mockDataSource.transaction.mockImplementation((cb: any) => cb(manager));
+      mockPersonRepo.findOne.mockResolvedValue(makePerson());
+      mockAssignmentRepo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue(makeAssignment({ instanceNode: snapshotNode as any }));
+      mockAssignmentRepo.create.mockReturnValue(makeAssignment({ instanceNode: snapshotNode as any }));
+      mockAssignmentRepo.save.mockResolvedValue({ id: ASSIGNMENT_ID });
+
+      await service.assign(INSTANCE_ID, { nodeId: FIGURE_NODE_ID, personId: PERSON_ID });
+
+      expect(manager.update).toHaveBeenCalledWith(
+        FigureInstance,
+        { id: INSTANCE_ID, snapshotted: false },
+        { snapshotted: true },
+      );
+      const updateOrder = manager.update.mock.invocationCallOrder[0];
+      const saveOrder = manager.save.mock.invocationCallOrder[0];
+      expect(updateOrder).toBeLessThan(saveOrder);
+    });
+
+    it("reads back the winner's persisted nodes instead of inserting duplicates when the claim loses the race", async () => {
+      const unsnapshottedInstance = makeInstance({ snapshotted: false });
+      const winnerNode = makeInstanceNode({ id: 'winner-inode-uuid', sourceNodeId: FIGURE_NODE_ID });
+      const manager = makeTransactionManager();
+      manager.update.mockResolvedValue({ affected: 0 });
+      manager.find.mockResolvedValue([winnerNode]);
+
+      mockInstanceRepo.findOne.mockResolvedValue(unsnapshottedInstance);
+      mockDataSource.transaction.mockImplementation((cb: any) => cb(manager));
+      mockPersonRepo.findOne.mockResolvedValue(makePerson());
+      mockAssignmentRepo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue(makeAssignment({ instanceNode: winnerNode as any }));
+      mockAssignmentRepo.create.mockReturnValue(makeAssignment({ instanceNode: winnerNode as any }));
+      mockAssignmentRepo.save.mockResolvedValue({ id: ASSIGNMENT_ID });
+
+      const result = await service.assign(INSTANCE_ID, {
+        nodeId: FIGURE_NODE_ID,
+        personId: PERSON_ID,
+      });
+
+      expect(manager.create).not.toHaveBeenCalled();
+      expect(manager.save).not.toHaveBeenCalled();
+      expect(mockTemplateRepo.findOne).not.toHaveBeenCalled();
+      expect(result.node.id).toBe('winner-inode-uuid');
     });
   });
 

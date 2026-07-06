@@ -1152,26 +1152,41 @@ export class NodeAssignmentService {
   /**
    * Copies all FigureNode rows from the instance's template into InstanceNode rows
    * owned by this instance. Marks the instance as snapshotted. Runs in a transaction.
-   * Returns the newly created InstanceNode rows.
+   * Returns the InstanceNode rows for the instance (freshly created, or — if a
+   * concurrent caller already snapshotted it first — the winner's rows).
+   *
+   * The `UPDATE ... WHERE snapshotted = false` below is an atomic claim (BUG-17):
+   * Postgres serializes concurrent UPDATEs on the same row, so a second caller's
+   * claim blocks until the first commits, then correctly loses (0 rows affected)
+   * instead of both callers copying the template nodes twice.
    */
   private async snapshotInstance(instance: FigureInstance): Promise<InstanceNode[]> {
     if (!instance.figureTemplate) {
       throw new BadRequestException('Cannot snapshot a composition-based instance');
     }
-
-    const template = await this.figureTemplateRepository.findOne({
-      where: { id: instance.figureTemplate.id },
-      relations: ['nodes'],
-    });
-
-    if (!template) {
-      throw new NotFoundException(`FigureTemplate ${instance.figureTemplate.id} not found`);
-    }
-
-    const allNodes = template.nodes ?? [];
+    const figureTemplateId = instance.figureTemplate.id;
 
     return this.dataSource.transaction(async (manager) => {
-      const instanceNodes = allNodes.map((node) =>
+      const claim = await manager.update(
+        FigureInstance,
+        { id: instance.id, snapshotted: false },
+        { snapshotted: true },
+      );
+
+      if (!claim.affected) {
+        return manager.find(InstanceNode, { where: { figureInstance: { id: instance.id } } });
+      }
+
+      const template = await this.figureTemplateRepository.findOne({
+        where: { id: figureTemplateId },
+        relations: ['nodes'],
+      });
+
+      if (!template) {
+        throw new NotFoundException(`FigureTemplate ${figureTemplateId} not found`);
+      }
+
+      const instanceNodes = (template.nodes ?? []).map((node) =>
         manager.create(InstanceNode, {
           figureInstance: instance,
           sourceNodeId: node.id,
@@ -1196,13 +1211,7 @@ export class NodeAssignmentService {
         }),
       );
 
-      const saved = await manager.save(InstanceNode, instanceNodes);
-
-      await manager.update(FigureInstance, instance.id, {
-        snapshotted: true,
-      });
-
-      return saved;
+      return manager.save(InstanceNode, instanceNodes);
     });
   }
 }

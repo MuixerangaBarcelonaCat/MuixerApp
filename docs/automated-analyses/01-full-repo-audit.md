@@ -23,15 +23,15 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 **Findings by section:**
 
 
-| Section                   | 🔴          | 🟠             | 🟡            | 🔵           | Total          |
-| ------------------------- | ----------- | -------------- | ------------- | ------------ | -------------- |
-| 1. Security               | 2 (2 ✅)     | 11 (6 ✅)       | 4 (1 ✅)       | 1 (1 ✅)      | 18 (10 ✅)      |
-| 2. Bugs & correctness     | 2 (2 ✅)     | 9 (4 ✅)        | 10 (3 ✅)      | 1            | 22 (9 ✅)       |
-| 3. Architecture           | —           | 3 (2 ✅)        | 8 (1 ✅)       | —            | 11 (3 ✅)       |
-| 4. Code smells            | —           | 1 (1 ✅)        | 11 (3 ✅)      | 3            | 15 (4 ✅)       |
-| 5. Frontend (dashboard)   | —           | 2              | 11            | 3            | 16             |
-| 6. Dependencies & tooling | 1 (1 ✅)     | —              | 2 (2 ✅)       | 1 (1 ✅)      | 4 (4 ✅)        |
-| 7. Tests                  | —           | 3 (1 ✅)        | 3             | 2            | 8 (1 ✅)        |
+| Section                   | 🔴          | 🟠            | 🟡            | 🔵           | Total         |
+| ------------------------- | ----------- | ------------- | ------------- | ------------ | ------------- |
+| 1. Security               | 2 (2 ✅)     | 11 (6 ✅)      | 4 (1 ✅)       | 1 (1 ✅)      | 18 (10 ✅)     |
+| 2. Bugs & correctness     | 2 (2 ✅)     | 9 (4 ✅)       | 10 (3 ✅)      | 1            | 22 (9 ✅)      |
+| 3. Architecture           | —           | 3 (2 ✅)       | 8 (1 ✅)       | —            | 11 (3 ✅)      |
+| 4. Code smells            | —           | 1 (1 ✅)       | 11 (3 ✅)      | 3            | 15 (4 ✅)      |
+| 5. Frontend (dashboard)   | —           | 2             | 11            | 3            | 16            |
+| 6. Dependencies & tooling | 1 (1 ✅)     | —             | 2 (2 ✅)       | 1 (1 ✅)      | 4 (4 ✅)       |
+| 7. Tests                  | —           | 3 (1 ✅)       | 3             | 2            | 8 (1 ✅)       |
 | **Total**                 | **5 (5 ✅)** | **29 (14 ✅)** | **49 (10 ✅)** | **11 (2 ✅)** | **94 (31 ✅)** |
 
 
@@ -47,12 +47,12 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 | 3   | 🔴✅ [BUG-2](#-bug-2--promoting-a-provisional-person-always-fails--fixed) Provisional-person promotion always fails (`managedBy` never loaded) — **FIXED**                                                     | `person.service.ts:250`             |
 | 4   | 🔴✅ [SEC-2](#-sec-2--xlsx-sheetjs-0185-with-known-cves-used-to-parse-external-data--fixed) `xlsx` 0.18.5 with known CVEs, used to parse external data — **FIXED**                                             | `legacy-api.client.ts`              |
 | 5   | 🟠✅ [SEC-7](#-sec-7--technical-users-can-modify-and-deactivate-admin-accounts--fixed) TECHNICAL users can deactivate/edit ADMIN accounts — **FIXED**                                                          | `user.service.ts`                   |
-| 6   | 🟠✅ [SEC-14](#-sec-14--production-image-installs-unpinned-dependencies--fixed) Prod Docker image installs unpinned deps (`--no-lockfile`) — **FIXED**                                                        | `apps/api/Dockerfile`               |
+| 6   | 🟠✅ [SEC-14](#-sec-14--production-image-installs-unpinned-dependencies--fixed) Prod Docker image installs unpinned deps (`--no-lockfile`) — **FIXED**                                                         | `apps/api/Dockerfile`               |
 | 7   | 🟠✅ [TEST-1](#7-tests) Backend auth guards & strategies at **0% coverage** — the entire authz enforcement layer is untested — **FIXED**                                                                       | `auth/guards`, `auth/strategies`    |
 | 8   | 🟠✅ [SEC-8](#-sec-8--no-trust-proxy--per-ip-throttling-is-broken-behind-the-reverse-proxy--fixed) Missing `trust proxy` → rate limiting shared by all users behind Caddy — **FIXED**                          | `main.ts`                           |
 | 9   | 🟠✅ [BUG-19](#-bug-19--deactivatemissingpersons-trusts-the-legacy-fetch-blindly--fixed) Sync can mass-deactivate the census on a partial legacy response — **FIXED**                                          | `person-sync.strategy.ts`           |
 | 10  | 🟠✅ [SEC-3](#-sec-3--setup-endpoint-non-constant-time-token-comparison-unlimited-use--fixed) Setup endpoint mints ADMIN accounts forever while `SETUP_TOKEN` is set — **FIXED**                               | `auth.controller.ts`                |
-| 11  | 🟠 [BUG-17](#-bug-17--lazy-snapshot-has-a-check-then-act-race-duplicate-instance-nodes) Lazy-snapshot race duplicates instance nodes under concurrent first-assignment                                        | `node-assignment.service.ts:340`    |
+| 11  | 🟠✅ [BUG-17](#-bug-17--lazy-snapshot-has-a-check-then-act-race-duplicate-instance-nodes--fixed) Lazy-snapshot race duplicates instance nodes under concurrent first-assignment — **FIXED**                   | `node-assignment.service.ts:340`    |
 | 12  | 🟠 [BUG-11](#-bug-11--applycomposition-sortorder-computed-outside-the-transaction--duplicated-orders) `applyComposition` gives every figure the same `sortOrder` (cross-connection read inside a transaction) | `figure-instance.service.ts`        |
 | 13  | 🟠 [FE-13](#-fe-13--template-editor-pending-autosave-is-discarded-on-most-exits) Template editor silently drops pending autosave on most exit paths (data loss)                                               | `template-editor.component.ts`      |
 | 14  | 🟠 [FE-6](#-fe-6--rotation-handle-breaks-on-touch-devices-and-can-leak-window-listeners) Rotation handle dead on touch devices + leaves the slot permanently un-draggable                                     | `figure-canvas.component.ts:1148`   |
@@ -397,9 +397,15 @@ Sending `null`/omitting falls back to the previous value, so detaching a node fr
 
 `available-persons.service.ts:142-147`: the ORDER BY uses `GREATEST(word_similarity(:rawSearch, alias))` — `GREATEST` with a **single argument**. The WHERE clause matches on alias *or* name similarity, but results that matched via `name` are then ranked only by alias similarity. The second `word_similarity(... person.name)` argument was evidently lost.
 
-### 🟠 BUG-17 — Lazy snapshot has a check-then-act race (duplicate instance nodes)
+### 🟠✅ BUG-17 — Lazy snapshot has a check-then-act race (duplicate instance nodes) — FIXED
 
 `node-assignment.service.ts:340-350` (also `bulkImport`, `createAdHocNode`): `if (!instance.snapshotted) { await this.snapshotInstance(...) }`. Two concurrent first assignments both read `snapshotted = false` and both run the snapshot transaction → **every template node is copied twice** into `instance_nodes` (there is no unique constraint on `(figureInstanceId, sourceNodeId)`). The canvas then renders duplicated nodes. Fix: unique partial index on `(figureInstanceId, sourceNodeId)` + `ON CONFLICT DO NOTHING`, or claim the snapshot atomically (`UPDATE ... SET snapshotted = true WHERE id = $1 AND snapshotted = false` and only the winner copies).
+
+**Fix applied — both of the above, not either/or:** `snapshotInstance()` now opens its transaction with an atomic claim, `manager.update(FigureInstance, { id: instance.id, snapshotted: false }, { snapshotted: true })`, *before* reading the template or building any `InstanceNode` rows. Postgres serializes concurrent `UPDATE`s on the same row (the loser's statement blocks until the winner commits, then re-evaluates its `WHERE snapshotted = false` and correctly sees 0 rows affected), so the loser never builds or inserts anything — it just reads back the winner's already-committed `InstanceNode` rows via `manager.find(InstanceNode, { where: { figureInstance: { id: instance.id } } })` and returns those instead. This was the deciding factor over the `ON CONFLICT DO NOTHING` half of the recommendation on its own: `assign()` immediately does `snapshotNodes.find(n => n.sourceNodeId === dto.nodeId)` and uses that row's `id` to create the `NodeAssignment` — with `orIgnore()`, the loser's in-memory rows would never have been the ones actually persisted (no `RETURNING` for skipped conflicting rows), so it would've needed this same read-back path anyway. `bulkImport` and `createAdHocNode` were unaffected by the change (they either reload the instance from the DB afterward or don't use the snapshot's return value).
+
+As a structural backstop — for any current or future code path that inserts `InstanceNode`s without going through this atomic claim — migration `1782600000000-AddInstanceNodeSourceUniqueIndex` adds a unique partial index on `("figureInstanceId", "sourceNodeId") WHERE "sourceNodeId" IS NOT NULL` (ad-hoc nodes, which have no `sourceNodeId`, are intentionally excluded and unaffected), mirrored on the `InstanceNode` entity via `@Index(..., { unique: true, where: ... })` for schema-truthfulness (synchronize is off; the index itself comes from the migration). The migration also does a best-effort de-dup of any rows the race may have already produced on a live database — keeping the oldest row per `(figureInstanceId, sourceNodeId)` pair and skipping any row still referenced by a `node_assignments` row (which has `ON DELETE RESTRICT`) — so the constraint doesn't fail to create on an already-affected database.
+
+Covered by two new specs in `node-assignment.service.spec.ts`: one asserting the conditional `UPDATE` runs (with the exact criteria) before `manager.save` is called (call-order assertion), and one simulating a lost race (`update` resolves `{ affected: 0 }`) asserting no `InstanceNode` is built/inserted and the template is never even fetched — the returned node comes entirely from the read-back.
 
 ### 🟡 BUG-18 — Assignment conflict checks are TOCTOU; segment-level rule has no DB constraint
 
@@ -516,7 +522,7 @@ None of this is wrong at ~200 persons/colla scale, but these are the endpoints t
 - 🟡✅ **SM-5** — **FIXED.** `user.service.ts:172-181` (`grantRole`) saves then re-fetches the user (2 extra queries); `updateUser` re-fetches too. Minor, but the pattern repeats. **Fix applied:** both methods now build the `UserResponseDto` from the entity returned by `save()` (TypeORM populates generated columns like `updatedAt` onto that same reference) instead of issuing a redundant third/second `findOne`. `grantRole`'s initial load now includes `relations: ['person']` up front so the relation survives without a refetch. Covered by new specs asserting `findOne` is called exactly once per method for the no-conflict-check path.
 - 🟡✅ **SM-6** — **FIXED.** `UserService.createWithInvite` doesn't pre-check email uniqueness → DB unique violation surfaces as 500 instead of 409 (the generic `createUser` *does* check). **Fix applied:** `createWithInvite` now checks `userRepository.findOne({ where: { email: dto.email } })` up front and throws `ConflictException` (409) if a user with that email already exists, before touching the person or creating anything — mirroring `createUser`'s existing check (though without its "upgrade a passwordless stub" branch, which is specific to admin-created accounts and out of scope here). The dashboard's invitation modal (`person-invitation-modal.component.ts:46-49`) already surfaces `err.error.message` as-is, so no frontend change was needed. Covered by a new spec asserting the 409 and that `userRepository.create` is never reached.
 - 🔵 **SM-7** `AuthController.login` types `req.user` inline and then casts with `Parameters<typeof this.authService.login>[0]` — noisy; a small `RequestWithUser` interface is clearer.
-- 🟠 **SM-8** `figure-template.service.ts:405-411`: hand-rolled `generateUUID()` using `Math.random()`. Node's `crypto.randomUUID()` is already used elsewhere in the codebase (`token.service.ts`); `Math.random` is not collision-safe and this duplicate implementation is strictly worse.
+- 🟠✅  **SM-8** `figure-template.service.ts:405-411`: hand-rolled `generateUUID()` using `Math.random()`. Node's `crypto.randomUUID()` is already used elsewhere in the codebase (`token.service.ts`); `Math.random` is not collision-safe and this duplicate implementation is strictly worse.
 - 🟡 **SM-9** Pervasive `(x as any)` casts to reach `Person` fields (`node-assignment.service.ts:182-187,602,611,720,813` …) — a consequence of `type`-only imports erasing entity types. Fixing the entity typing (TypeORM `Relation<T>`) removes the need for every cast.
 - 🟡 **SM-10** `figure-template.service.ts` `handleDbError`: any non-unique-violation DB error becomes a bare 500 "Unexpected database error" **without logging the original error** — undiagnosable in production.
 - 🟡 **SM-11** Template editor saves (`update` → `syncNodes` + `syncRengles`) and `saveFromInstance` run multiple dependent writes **without a transaction** — a failure mid-save leaves the template half-updated (nodes updated, deletions skipped, rengles inconsistent).
