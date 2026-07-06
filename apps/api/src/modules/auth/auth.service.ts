@@ -2,6 +2,7 @@ import {
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -22,6 +23,8 @@ const BCRYPT_ROUNDS = 12;
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
@@ -152,25 +155,31 @@ export class AuthService {
     };
   }
 
-  /** Crea el primer usuari TECHNICAL via `SETUP_TOKEN`. Si l'email ja existeix, retorna el perfil existent sense crear-ne un de nou (idempotent). */
+  /**
+   * Crea el primer usuari ADMIN del sistema via `SETUP_TOKEN`. Bootstrap d'un sol ús:
+   * es refusa tan bon punt existeix qualsevol usuari, abans de consultar res per email
+   * (evita que l'endpoint es converteixi en un oracle d'existència de comptes un cop
+   * ja hi ha usuaris — SEC-3).
+   */
   async setupUser(dto: SetupUserDto): Promise<UserProfile> {
     const setupToken = this.configService.get<string>('SETUP_TOKEN');
     if (!setupToken) throw new ForbiddenException('Setup no disponible');
 
-    const existing = await this.userRepo.findOne({
-      where: { email: dto.email },
-      relations: ['person'],
-    });
-    if (existing) return this.toUserProfile(existing);
+    const userCount = await this.userRepo.count();
+    if (userCount > 0) {
+      this.logger.warn(`Setup rebutjat: el sistema ja té usuaris (email=${dto.email})`);
+      throw new ForbiddenException('Setup no disponible: el sistema ja està inicialitzat');
+    }
 
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
     const user = this.userRepo.create({
       email: dto.email,
       passwordHash,
-      role: dto.role ?? UserRole.TECHNICAL,
+      role: UserRole.ADMIN,
       isActive: true,
     });
     const saved = await this.userRepo.save(user);
+    this.logger.log(`Usuari ADMIN de bootstrap creat (email=${dto.email})`);
 
     const personId = dto.personId;
 

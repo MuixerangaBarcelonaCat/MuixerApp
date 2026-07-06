@@ -183,6 +183,23 @@ describe('AuthController', () => {
       expect(authService.setupUser).not.toHaveBeenCalled();
     });
 
+    it('throws ForbiddenException (not a raw crash) when the token has the same length but differs', async () => {
+      process.env['SETUP_TOKEN'] = 'expected-token';
+
+      await expect(
+        controller.setupUser('expected-tokeX', { email: 'a@b.cat', password: 'pw' }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('throws ForbiddenException (not a raw crash) when the header is missing entirely', async () => {
+      process.env['SETUP_TOKEN'] = 'expected-token';
+
+      await expect(
+        controller.setupUser(undefined as never, { email: 'a@b.cat', password: 'pw' }),
+      ).rejects.toThrow(ForbiddenException);
+      expect(authService.setupUser).not.toHaveBeenCalled();
+    });
+
     it('creates the user when the token matches', async () => {
       process.env['SETUP_TOKEN'] = 'expected-token';
       authService.setupUser.mockResolvedValue({ id: 'new-user' });

@@ -6,6 +6,7 @@ import {
   Headers,
   HttpCode,
   HttpStatus,
+  Logger,
   Post,
   Req,
   Res,
@@ -14,6 +15,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
 import { Request, Response } from 'express';
+import { safeCompare } from '../../common/utils/timing-safe-equal.util';
 import { Throttle } from '@nestjs/throttler';
 import {
   ApiTags,
@@ -37,6 +39,8 @@ import { JWT_REFRESH_TTL_DASHBOARD, JWT_REFRESH_TTL_PWA } from './constants/auth
 @Controller('auth')
 @Throttle({ default: { limit: 10, ttl: 60000 } })
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(
     private readonly authService: AuthService,
     private readonly tokenService: TokenService,
@@ -166,21 +170,28 @@ export class AuthController {
     return response;
   }
 
-  /** Crea el primer usuari TECHNICAL del sistema. Requereix la capçalera `X-Setup-Token`. Eliminar SETUP_TOKEN del .env en producció. */
+  /** Crea el primer usuari ADMIN del sistema. Requereix la capçalera `X-Setup-Token`. Bootstrap d'un sol ús: es refusa si ja existeix qualsevol usuari. */
   @Public()
   @Post('setup/user')
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Crear el primer usuari TECHNICAL del sistema (bootstrap)' })
+  @ApiOperation({ summary: 'Crear el primer usuari ADMIN del sistema (bootstrap d\'un sol ús)' })
   @ApiHeader({ name: 'x-setup-token', description: 'Token de bootstrap (variable SETUP_TOKEN del .env)', required: true })
-  @ApiResponse({ status: 201, description: 'Usuari creat o retornat si ja existia (idempotent).' })
-  @ApiResponse({ status: 403, description: 'SETUP_TOKEN no configurat o token incorrecte.' })
+  @ApiResponse({ status: 201, description: 'Usuari ADMIN creat correctament.' })
+  @ApiResponse({ status: 403, description: 'SETUP_TOKEN no configurat, token incorrecte, o el sistema ja té usuaris.' })
   async setupUser(
     @Headers('x-setup-token') setupToken: string,
     @Body() dto: SetupUserDto,
   ): Promise<UserProfile> {
     const expected = this.configService.get<string>('SETUP_TOKEN');
-    if (!expected) throw new ForbiddenException('Setup no disponible');
-    if (setupToken !== expected) throw new ForbiddenException('Token de configuració invàlid');
+    if (!expected) {
+      this.logger.warn(`Setup rebutjat: SETUP_TOKEN no configurat (email=${dto.email})`);
+      throw new ForbiddenException('Setup no disponible');
+    }
+    if (!safeCompare(setupToken ?? '', expected)) {
+      this.logger.warn(`Setup rebutjat: token invàlid (email=${dto.email})`);
+      throw new ForbiddenException('Token de configuració invàlid');
+    }
+    this.logger.log(`Setup endpoint invocat (email=${dto.email})`);
     return this.authService.setupUser(dto);
   }
 }

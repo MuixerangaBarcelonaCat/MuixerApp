@@ -51,7 +51,7 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 | 7   | 🟠✅ [TEST-1](#7-tests) Backend auth guards & strategies at **0% coverage** — the entire authz enforcement layer is untested — **FIXED**                                                                       | `auth/guards`, `auth/strategies`    |
 | 8   | 🟠 [SEC-8](#-sec-8--no-trust-proxy--per-ip-throttling-is-broken-behind-the-reverse-proxy) Missing `trust proxy` → rate limiting shared by all users behind Caddy                                              | `main.ts`                           |
 | 9   | 🟠 [BUG-19](#-bug-19--deactivatemissingpersons-trusts-the-legacy-fetch-blindly) Sync can mass-deactivate the census on a partial legacy response                                                              | `person-sync.strategy.ts`           |
-| 10  | 🟠 [SEC-3](#-sec-3--setup-endpoint-non-constant-time-token-comparison-unlimited-use) Setup endpoint mints ADMIN accounts forever while `SETUP_TOKEN` is set                                                   | `auth.controller.ts`                |
+| 10  | 🟠✅ [SEC-3](#-sec-3--setup-endpoint-non-constant-time-token-comparison-unlimited-use--fixed) Setup endpoint mints ADMIN accounts forever while `SETUP_TOKEN` is set — **FIXED**                              | `auth.controller.ts`                |
 | 11  | 🟠 [BUG-17](#-bug-17--lazy-snapshot-has-a-check-then-act-race-duplicate-instance-nodes) Lazy-snapshot race duplicates instance nodes under concurrent first-assignment                                        | `node-assignment.service.ts:340`    |
 | 12  | 🟠 [BUG-11](#-bug-11--applycomposition-sortorder-computed-outside-the-transaction--duplicated-orders) `applyComposition` gives every figure the same `sortOrder` (cross-connection read inside a transaction) | `figure-instance.service.ts`        |
 | 13  | 🟠 [FE-13](#-fe-13--template-editor-pending-autosave-is-discarded-on-most-exits) Template editor silently drops pending autosave on most exit paths (data loss)                                               | `template-editor.component.ts`      |
@@ -96,7 +96,7 @@ It *is* used to parse data downloaded from the legacy server (`apps/api/src/modu
 
 **Recommendation:** switch to the official SheetJS CDN distribution or migrate to a maintained alternative (e.g. `exceljs`).
 
-### 🟠 SEC-3 — Setup endpoint: non-constant-time token comparison, unlimited use
+### 🟠✅ SEC-3 — Setup endpoint: non-constant-time token comparison, unlimited use — FIXED
 
 `auth.controller.ts:179`:
 
@@ -109,6 +109,13 @@ if (setupToken !== expected) throw new ForbiddenException(...);
 3. Idempotent lookup by email returns the existing profile, which also makes it an **email-existence oracle**.
 
 **Recommendation:** refuse setup when `userRepo.count() > 0` (true bootstrap), use `timingSafeEqual`, and log every use of the endpoint.
+
+**Fix applied:**
+
+1. Added `safeCompare()` (`apps/api/src/common/utils/timing-safe-equal.util.ts`, TDD-covered) — compares buffer lengths first (cheap, non-secret), then `crypto.timingSafeEqual`, so mismatched-length tokens return `false` instead of throwing. Wired into `AuthController.setupUser` in place of `!==`.
+2. `AuthService.setupUser` now calls `userRepo.count()` **before** touching anything else and throws `ForbiddenException` if any user already exists — this is a true one-time bootstrap, not a standing account-creation endpoint. Since the count check runs first, it also structurally closes point 3: the endpoint never reaches the email lookup once the system is bootstrapped, so it can't be used as an email-existence oracle post-bootstrap. The old idempotent "return existing user by email" branch was removed as dead code (unreachable once the count gate is in place).
+3. Both the controller (bad/missing token) and the service (already-bootstrapped refusal, successful creation) now log every use via `Logger`, without logging the password or the token value itself.
+4. **Scope addition (per explicit request, not in the original finding):** the endpoint only ever creates an **ADMIN** account now — `SetupUserDto.role` was removed entirely (client can no longer request `TECHNICAL`), and `AuthService.setupUser` hardcodes `role: UserRole.ADMIN`. Rationale: since the endpoint is now single-use, accidentally bootstrapping a `TECHNICAL` account would permanently lock the system out of ADMIN-only features (nothing else can grant the ADMIN role). `nx build api`, `nx lint api` and the full `nx test api` suite (590 tests) pass.
 
 ### 🟠 SEC-4 — JWT accepted via `?token=` query parameter on every endpoint
 

@@ -35,6 +35,7 @@ const makeUser = (overrides: Partial<User> = {}): User =>
 
 const mockUserRepo = () => ({
   findOne: jest.fn(),
+  count: jest.fn(),
   create: jest.fn(),
   save: jest.fn(),
   update: jest.fn(),
@@ -62,7 +63,6 @@ const mockConfigService = () => ({
 describe('AuthService', () => {
   let service: AuthService;
   let userRepo: ReturnType<typeof mockUserRepo>;
-  let personRepo: ReturnType<typeof mockPersonRepo>;
   let tokenService: ReturnType<typeof mockTokenService>;
 
   beforeEach(async () => {
@@ -79,7 +79,6 @@ describe('AuthService', () => {
 
     service = module.get(AuthService);
     userRepo = module.get(getRepositoryToken(User));
-    personRepo = module.get(getRepositoryToken(Person));
     tokenService = module.get(TokenService);
   });
 
@@ -189,6 +188,10 @@ describe('AuthService', () => {
   });
 
   describe('setupUser', () => {
+    afterEach(() => {
+      delete process.env['SETUP_TOKEN'];
+    });
+
     it('throws when SETUP_TOKEN env var is not set', async () => {
       delete process.env['SETUP_TOKEN'];
       await expect(
@@ -196,47 +199,34 @@ describe('AuthService', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('creates a new TECHNICAL user by default', async () => {
+    it('throws when a user already exists — this is a true one-time bootstrap, not a general admin-creation endpoint', async () => {
       process.env['SETUP_TOKEN'] = 'secret';
-      const saved = makeUser({ role: UserRole.TECHNICAL });
-      userRepo.findOne
-        .mockResolvedValueOnce(null)   // check existing user
-        .mockResolvedValueOnce(saved); // reload after save
-      personRepo.findOne.mockResolvedValueOnce(null); // no person match by email
+      userRepo.count.mockResolvedValue(1);
+
+      await expect(
+        service.setupUser({ email: 'a@b.cat', password: 'pass1234' }),
+      ).rejects.toThrow(ForbiddenException);
+      // Must refuse before looking anything up by email — otherwise the endpoint
+      // becomes an email-existence oracle even after bootstrap is complete.
+      expect(userRepo.findOne).not.toHaveBeenCalled();
+      expect(userRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('creates the first user as ADMIN when the system has no users yet', async () => {
+      process.env['SETUP_TOKEN'] = 'secret';
+      userRepo.count.mockResolvedValue(0);
+      const saved = makeUser({ role: UserRole.ADMIN });
+      userRepo.findOne.mockResolvedValue(saved); // reload after save
       bcrypt.hash.mockResolvedValue('hashed-pw');
       userRepo.create.mockReturnValue(saved);
       userRepo.save.mockResolvedValue(saved);
 
       const profile = await service.setupUser({ email: 'new@test.cat', password: 'pass1234' });
-      expect(profile.id).toBe('user-1');
-      delete process.env['SETUP_TOKEN'];
-    });
 
-    it('creates an ADMIN user when role is specified', async () => {
-      process.env['SETUP_TOKEN'] = 'secret';
-      const saved = makeUser({ role: UserRole.ADMIN });
-      userRepo.findOne
-        .mockResolvedValueOnce(null)   // check existing user
-        .mockResolvedValueOnce(saved); // reload after save
-      personRepo.findOne.mockResolvedValueOnce(null); // no person match by email
-      bcrypt.hash.mockResolvedValue('hashed-pw');
-      userRepo.create.mockReturnValue(saved);
-      userRepo.save.mockResolvedValue(saved);
-
-      const profile = await service.setupUser({ email: 'admin@test.cat', password: 'pass1234', role: UserRole.ADMIN });
+      expect(userRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ role: UserRole.ADMIN }),
+      );
       expect(profile.role).toBe(UserRole.ADMIN);
-      delete process.env['SETUP_TOKEN'];
-    });
-
-    it('is idempotent — returns existing user if email already exists', async () => {
-      process.env['SETUP_TOKEN'] = 'secret';
-      const existing = makeUser();
-      userRepo.findOne.mockResolvedValue(existing);
-
-      const profile = await service.setupUser({ email: 'test@test.cat', password: 'pass1234' });
-      expect(userRepo.save).not.toHaveBeenCalled();
-      expect(profile.email).toBe('test@test.cat');
-      delete process.env['SETUP_TOKEN'];
     });
   });
 });
