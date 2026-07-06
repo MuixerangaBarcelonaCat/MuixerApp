@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { JwtService } from '@nestjs/jwt';
-import { IsNull } from 'typeorm';
+import { And, IsNull, LessThan, Not } from 'typeorm';
 import { createHash } from 'crypto';
 import { ClientType } from '@muixer/shared';
 import { TokenService } from './token.service';
@@ -15,38 +14,27 @@ const mockRepo = () => ({
   delete: jest.fn(),
 });
 
-const mockJwt = () => ({
-  signAsync: jest.fn(),
-});
-
 const hash = (t: string) => createHash('sha256').update(t).digest('hex');
-
-process.env['JWT_REFRESH_SECRET'] = 'test-refresh-secret';
 
 describe('TokenService', () => {
   let service: TokenService;
   let repo: ReturnType<typeof mockRepo>;
-  let jwt: ReturnType<typeof mockJwt>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TokenService,
         { provide: getRepositoryToken(RefreshToken), useFactory: mockRepo },
-        { provide: JwtService, useFactory: mockJwt },
       ],
     }).compile();
 
     service = module.get(TokenService);
     repo = module.get(getRepositoryToken(RefreshToken));
-    jwt = module.get(JwtService);
   });
 
   describe('createRefreshToken', () => {
-    it('signs a JWT and stores its hash', async () => {
-      const rawToken = 'signed-jwt-string';
-      jwt.signAsync.mockResolvedValue(rawToken);
-      repo.create.mockReturnValue({ tokenHash: hash(rawToken) });
+    it('generates an opaque random token and stores its hash (ARCH-3: no JWT signing)', async () => {
+      repo.create.mockImplementation((entity) => entity);
       repo.save.mockResolvedValue({});
 
       const result = await service.createRefreshToken(
@@ -54,10 +42,23 @@ describe('TokenService', () => {
         ClientType.DASHBOARD,
       );
 
-      expect(result).toBe(rawToken);
+      // 32 random bytes, hex-encoded — validity is decided entirely by the
+      // DB row (SEC-5/ARCH-3), so there is nothing to sign or verify.
+      expect(result).toMatch(/^[0-9a-f]{64}$/);
       expect(repo.save).toHaveBeenCalled();
       const savedEntity = repo.create.mock.calls[0][0] as { tokenHash: string };
-      expect(savedEntity.tokenHash).toBe(hash(rawToken));
+      expect(savedEntity.tokenHash).toBe(hash(result));
+    });
+
+    it('generates a different token on every call', async () => {
+      repo.create.mockImplementation((entity) => entity);
+      repo.save.mockResolvedValue({});
+      const user = { id: 'user-uuid' } as Parameters<typeof service.createRefreshToken>[0];
+
+      const first = await service.createRefreshToken(user, ClientType.DASHBOARD);
+      const second = await service.createRefreshToken(user, ClientType.DASHBOARD);
+
+      expect(first).not.toBe(second);
     });
   });
 
@@ -177,22 +178,29 @@ describe('TokenService', () => {
   });
 
   describe('cleanupExpiredTokens', () => {
-    it('deletes expired tokens older than 30 days', async () => {
+    it('deletes tokens expired more than 30 days ago', async () => {
       repo.delete.mockResolvedValue({ affected: 3 });
 
       await service.cleanupExpiredTokens();
 
       expect(repo.delete).toHaveBeenCalledTimes(2);
-      // First call: all expired tokens older than 30 days
       expect(repo.delete).toHaveBeenNthCalledWith(
         1,
         expect.objectContaining({ expiresAt: expect.anything() }),
       );
-      // Second call: revoked tokens older than 30 days
-      expect(repo.delete).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining({ revokedAt: expect.anything(), expiresAt: expect.anything() }),
-      );
+    });
+
+    it('deletes tokens revoked more than 30 days ago — independent of expiresAt (BUG-6)', async () => {
+      repo.delete.mockResolvedValue({ affected: 3 });
+
+      await service.cleanupExpiredTokens();
+
+      // The old second condition (`revokedAt IS NOT NULL AND expiresAt < now-30d`) was a strict
+      // subset of the first delete's criteria and could never match anything on its own. It must
+      // key off revokedAt exclusively: `revokedAt IS NOT NULL AND revokedAt < now-30d`.
+      expect(repo.delete).toHaveBeenNthCalledWith(2, {
+        revokedAt: And(Not(IsNull()), LessThan(expect.any(Date))),
+      });
     });
 
     it('does not log when no tokens are deleted', async () => {
@@ -203,21 +211,5 @@ describe('TokenService', () => {
 
       expect(logSpy).not.toHaveBeenCalled();
     });
-  });
-});
-
-describe('TokenService construction', () => {
-  const original = process.env['JWT_REFRESH_SECRET'];
-
-  afterEach(() => {
-    if (original === undefined) delete process.env['JWT_REFRESH_SECRET'];
-    else process.env['JWT_REFRESH_SECRET'] = original;
-  });
-
-  it('throws when JWT_REFRESH_SECRET is not set', () => {
-    delete process.env['JWT_REFRESH_SECRET'];
-    expect(() => new TokenService(mockRepo() as never, mockJwt() as never)).toThrow(
-      /JWT_REFRESH_SECRET/,
-    );
   });
 });

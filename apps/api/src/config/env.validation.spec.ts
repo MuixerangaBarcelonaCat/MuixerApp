@@ -3,7 +3,6 @@ import { envValidationSchema } from './env.validation';
 const validEnv = {
   DATABASE_URL: 'postgresql://user:pass@localhost:5432/db',
   JWT_SECRET: 'a-sufficiently-long-secret',
-  JWT_REFRESH_SECRET: 'a-different-sufficiently-long-secret',
 };
 
 function validate(env: Record<string, string>) {
@@ -21,15 +20,17 @@ describe('envValidationSchema', () => {
     expect(error).toBeUndefined();
   });
 
-  it.each(['DATABASE_URL', 'JWT_SECRET', 'JWT_REFRESH_SECRET'])(
-    'rejects a missing %s',
-    (key) => {
-      const env = { ...validEnv };
-      delete (env as Record<string, string>)[key];
-      const { error } = validate(env);
-      expect(error?.message).toContain(key);
-    },
-  );
+  it.each(['DATABASE_URL', 'JWT_SECRET'])('rejects a missing %s', (key) => {
+    const env = { ...validEnv };
+    delete (env as Record<string, string>)[key];
+    const { error } = validate(env);
+    expect(error?.message).toContain(key);
+  });
+
+  it('ignores a leftover JWT_REFRESH_SECRET (refresh tokens are opaque, not JWTs — ARCH-3)', () => {
+    const { error } = validate({ ...validEnv, JWT_REFRESH_SECRET: 'no-longer-used' });
+    expect(error).toBeUndefined();
+  });
 
   it('fills in defaults for optional numeric/string variables', () => {
     const { value, error } = validate(validEnv);

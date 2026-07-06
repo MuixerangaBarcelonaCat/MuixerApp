@@ -109,8 +109,9 @@ export class AuthService {
   /**
    * Rota el refresh token (invalida l'antic, emet un de nou) i retorna un nou access token.
    * Llança 401 si el token és invàlid, revocat o caducat. Retorna el `clientType` emmagatzemat
-   * al token perquè el crider fixi el TTL de la cookie correctament — mai s'ha de re-derivar
-   * del rol de l'usuari, ja que poden divergir (BUG-5).
+   * al token: el rol de l'usuari i el `clientType` de la sessió són independents (p. ex. un
+   * ADMIN pot tenir una sessió PWA), així que el TTL de la cookie s'ha de fixar a partir
+   * d'aquest valor, mai del rol.
    */
   async refresh(
     rawRefreshToken: string,

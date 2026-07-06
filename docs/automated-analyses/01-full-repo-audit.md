@@ -26,13 +26,13 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 | Section                   | 🔴          | 🟠           | 🟡     | 🔵     | Total        |
 | ------------------------- | ----------- | ------------ | ------ | ------ | ------------ |
 | 1. Security               | 2 (1 ✅)     | 11 (3 ✅)     | 4      | 1 (1 ✅)     | 18 (5 ✅)     |
-| 2. Bugs & correctness     | 2           | 9 (1 ✅)      | 10     | 1           | 22 (1 ✅)     |
-| 3. Architecture           | —           | 3 (1 ✅)      | 8      | —           | 11 (1 ✅)     |
+| 2. Bugs & correctness     | 2           | 9 (1 ✅)      | 10 (1 ✅)  | 1           | 22 (2 ✅)     |
+| 3. Architecture           | —           | 3 (1 ✅)      | 8 (1 ✅)   | —           | 11 (2 ✅)     |
 | 4. Code smells            | —           | 1            | 11     | 3           | 15           |
 | 5. Frontend (dashboard)   | —           | 2            | 11     | 3           | 16           |
 | 6. Dependencies & tooling | (1)         | —            | 2      | 1           | 4            |
 | 7. Tests                  | —           | 3 (1 ✅)      | 3      | 2           | 8 (1 ✅)      |
-| **Total**                 | **4 (1 ✅)** | **29 (6 ✅)** | **49** | **11 (1 ✅)** | **93** (8 ✅) |
+| **Total**                 | **4 (1 ✅)** | **29 (6 ✅)** | **49 (2 ✅)** | **11 (1 ✅)** | **93** (10 ✅) |
 
 
 *(✅ counts reflect fixes applied so far in this branch; updated as findings are resolved.)*
@@ -310,9 +310,11 @@ The promise is not awaited, and throwing inside `.catch` of a floating promise p
 
 Covered by TDD: `token.service.spec.ts` asserts the returned `clientType`; `auth.service.spec.ts` gained a `describe('refresh', ...)` block (previously **untested**) plus login-restriction cases (`MEMBER`+`DASHBOARD` rejected, all roles allowed via `PWA`, `ADMIN`/`TECHNICAL` allowed via `DASHBOARD`); `auth.controller.spec.ts` gained a regression test using a deliberately role/clientType-divergent fixture (`TECHNICAL` role, `PWA` session) proving the cookie TTL follows the stored `clientType` and not the role.
 
-### 🟡 BUG-6 — Token-cleanup cron: second delete is dead code
+### 🟡✅ BUG-6 — Token-cleanup cron: second delete is dead code — FIXED
 
 `token.service.ts:126-138`. The first `delete` removes everything with `expiresAt < now-30d`. The second one targets `revokedAt IS NOT NULL AND expiresAt < now-30d` — a strict **subset of what the first query just deleted**; it always affects 0 rows. Per the doc-comment, the intent was "revoked more than 30 days ago", i.e. `revokedAt: LessThan(thirtyDaysAgo)`. Consequence: revoked-but-unexpired tokens linger ~30 days past expiry instead of 30 days past revocation. Harmless in practice, but the code doesn't do what it says.
+
+**Fix applied:** second `delete` now keys off `revokedAt` alone via TypeORM's `And(Not(IsNull()), LessThan(thirtyDaysAgo))`, generating `WHERE revoked_at IS NOT NULL AND revoked_at < now-30d` — matching the doc-comment's actual intent instead of duplicating the first query's `expiresAt` condition. Covered by an updated `token.service.spec.ts` asserting the second `delete` call's criteria has no `expiresAt` key and combines both `revokedAt` conditions via `And`.
 
 ### 🟡 BUG-7 — `UserProfile.person.email` is always `null`
 
@@ -417,9 +419,11 @@ The figures module reportedly snapshots inside a transaction (to be verified bel
 
 **Recommendation:** wrap multi-entity mutations in `dataSource.transaction(...)`.
 
-### 🟡 ARCH-3 — Refresh tokens are JWTs whose signature is never verified
+### 🟡✅ ARCH-3 — Refresh tokens are JWTs whose signature is never verified — FIXED
 
 `rotateRefreshToken` looks the raw string up by SHA-256 hash; it never calls `jwtVerify`. The DB row is the actual source of truth (`expiresAt`, `revokedAt`, `usedAt`). So the JWT signing/payload machinery (and the separate `JWT_REFRESH_SECRET`) adds complexity without adding security — an opaque 256-bit random string would be simpler and smaller. Not a vulnerability (unguessable thanks to the `family` UUID + signature), just accidental complexity that invites the false belief that JWT expiry/signature are being enforced.
+
+**Fix applied:** `TokenService.createRefreshToken` now generates the raw token via `randomBytes(32).toString('hex')` instead of `jwtService.signAsync(...)`. `JwtService`/`JWT_REFRESH_SECRET` are no longer part of `TokenService` at all — the constructor only takes the `RefreshToken` repository now. `JWT_REFRESH_SECRET` was removed from the Joi env schema, `.env.example`, CI, and the living docs that documented it (`README.md`, `CONTEXT.md`, `docs/AUTH_FLOW.md`, `docs/DEPLOY_PRE.md`, `docs/codebase/STACK.md`, `docs/codebase/INTEGRATIONS.md`); dated design-proposal docs under `docs/specs/` were left as historical records. The access token is unaffected — it's still a genuinely stateless, signature-verified JWT (`JWT_SECRET`), which is the case where a JWT is actually doing real work. Covered by an updated `token.service.spec.ts`: asserts the raw token matches `/^[0-9a-f]{64}$/` (32 random bytes, hex), that two calls never produce the same token, and that its hash is what gets stored — the `JwtService` mock and the "throws when `JWT_REFRESH_SECRET` is missing" construction test were removed as they no longer apply.
 
 ### 🟡 ARCH-4 — `timestamp` (without time zone) everywhere
 

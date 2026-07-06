@@ -251,7 +251,6 @@ docker exec -it muixer-postgres-pre psql -U muixer_pre -d muixer_pre -c \
 | `LEGACY_API_PASSWORD` | Credencial legacy | Demanar a l'administrador |
 | `JWT_SECRET` | **Generar** | `openssl rand -base64 48` — mínim 64 chars |
 | `JWT_ACCESS_TTL` | `900` | 15 minuts en segons |
-| `JWT_REFRESH_SECRET` | **Generar** | **Ha de ser diferent de `JWT_SECRET`** |
 | `JWT_REFRESH_TTL_DASHBOARD` | `28800` | 8 hores en segons |
 | `JWT_REFRESH_TTL_PWA` | `604800` | 7 dies en segons |
 | `REFRESH_TOKEN_COOKIE` | `muixer_rt` | No canviar |
@@ -265,7 +264,6 @@ docker exec -it muixer-postgres-pre psql -U muixer_pre -d muixer_pre -c \
 ```bash
 echo "POSTGRES_PASSWORD=$(openssl rand -base64 32)"
 echo "JWT_SECRET=$(openssl rand -base64 48)"
-echo "JWT_REFRESH_SECRET=$(openssl rand -base64 48)"
 echo "SETUP_TOKEN=$(uuidgen)"
 ```
 
