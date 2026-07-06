@@ -49,7 +49,7 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 | 5   | 🟠✅ [SEC-7](#-sec-7--technical-users-can-modify-and-deactivate-admin-accounts--fixed) TECHNICAL users can deactivate/edit ADMIN accounts — **FIXED**                                                          | `user.service.ts`                   |
 | 6   | 🟠✅ [SEC-14](#-sec-14--production-image-installs-unpinned-dependencies--fixed) Prod Docker image installs unpinned deps (`--no-lockfile`) — **FIXED**                                                        | `apps/api/Dockerfile`               |
 | 7   | 🟠✅ [TEST-1](#7-tests) Backend auth guards & strategies at **0% coverage** — the entire authz enforcement layer is untested — **FIXED**                                                                       | `auth/guards`, `auth/strategies`    |
-| 8   | 🟠 [SEC-8](#-sec-8--no-trust-proxy--per-ip-throttling-is-broken-behind-the-reverse-proxy) Missing `trust proxy` → rate limiting shared by all users behind Caddy                                              | `main.ts`                           |
+| 8   | 🟠✅ [SEC-8](#-sec-8--no-trust-proxy--per-ip-throttling-is-broken-behind-the-reverse-proxy--fixed) Missing `trust proxy` → rate limiting shared by all users behind Caddy — **FIXED**                          | `main.ts`                           |
 | 9   | 🟠✅ [BUG-19](#-bug-19--deactivatemissingpersons-trusts-the-legacy-fetch-blindly--fixed) Sync can mass-deactivate the census on a partial legacy response — **FIXED**                                          | `person-sync.strategy.ts`           |
 | 10  | 🟠✅ [SEC-3](#-sec-3--setup-endpoint-non-constant-time-token-comparison-unlimited-use--fixed) Setup endpoint mints ADMIN accounts forever while `SETUP_TOKEN` is set — **FIXED**                               | `auth.controller.ts`                |
 | 11  | 🟠 [BUG-17](#-bug-17--lazy-snapshot-has-a-check-then-act-race-duplicate-instance-nodes) Lazy-snapshot race duplicates instance nodes under concurrent first-assignment                                        | `node-assignment.service.ts:340`    |
@@ -172,7 +172,7 @@ Self-deactivation is now blocked too (any role, not just ADMIN — including the
 
 Self-*demotion* was the same footgun and was still open after the above: an ADMIN could change their own `role` via `updateUser`, and — since `grantRole` is ADMIN-only at the route level — an ADMIN could also grant themselves a lower role via `PATCH /users/:id/grant-role`, either way locking themselves out of ADMIN-only features with nobody else able to reverse it if they were the only admin. Both paths now reject with `ForbiddenException` when `userId === actorId` and the new role differs from the current one (a same-role no-op call is not blocked). `grantRole` also gained an `actorId` parameter for this check, threaded from `@CurrentUser().sub` in the controller.
 
-### 🟠 SEC-8 — No `trust proxy` ⇒ per-IP throttling is broken behind the reverse proxy
+### 🟠✅ SEC-8 — No `trust proxy` ⇒ per-IP throttling is broken behind the reverse proxy — FIXED
 
 Production runs behind Caddy (`docker-compose.pre.yml` / prod), but `main.ts` never sets Express `trust proxy`. `@nestjs/throttler` keys on `req.ip`, which will always be the proxy's IP:
 
@@ -180,6 +180,8 @@ Production runs behind Caddy (`docker-compose.pre.yml` / prod), but `main.ts` ne
 - The stricter 10 req/min limit on `/auth/`* is shared by the whole colla, and an attacker brute-forcing login throttles *everyone* while their own attempts blend into the shared bucket (no per-attacker limit).
 
 **Recommendation:** `app.set('trust proxy', 1)` (via `app.getHttpAdapter().getInstance()`), make sure Caddy sets `X-Forwarded-For`, and verify the throttler sees real client IPs.
+
+**Fix applied:** added `configureTrustProxy(app)` (`apps/api/src/common/utils/configure-trust-proxy.util.ts`), called from `bootstrap()` in `main.ts` right after the Nest app is created. It sets `trust proxy: 1` on the underlying Express instance, so `req.ip` (and therefore `ThrottlerGuard`) resolves the real client IP from `X-Forwarded-For` set by Caddy instead of Caddy's own address. Covered by `configure-trust-proxy.util.spec.ts`, which boots a real Nest/Express app and asserts `req.ip` matches a spoofed `X-Forwarded-For` header once `configureTrustProxy` runs — a real end-to-end check of the Express setting rather than a mock. Note this only trusts a *single* hop; it should be revisited if [SEC-9](#-sec-9--pre-production-compose-publishes-postgresql-and-the-api-to-the-host) is left open, since a client that reaches the API directly (bypassing Caddy on the exposed `3000:3000` port) could otherwise spoof its own `X-Forwarded-For`.
 
 ### 🟠 SEC-9 — Pre-production compose publishes PostgreSQL (and the API) to the host
 
