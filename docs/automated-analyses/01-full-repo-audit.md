@@ -23,16 +23,16 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 **Findings by section:**
 
 
-| Section                   | 🔴          | 🟠           | 🟡           | 🔵           | Total         |
-| ------------------------- | ----------- | ------------ | ------------ | ------------ | ------------- |
-| 1. Security               | 2 (1 ✅)     | 11 (4 ✅)     | 4 (1 ✅)      | 1 (1 ✅)      | 18 (7 ✅)      |
-| 2. Bugs & correctness     | 2 (2 ✅)     | 9 (4 ✅)      | 10 (3 ✅)     | 1            | 22 (9 ✅)      |
-| 3. Architecture           | —           | 3 (2 ✅)      | 8 (1 ✅)      | —            | 11 (3 ✅)      |
-| 4. Code smells            | —           | 1            | 11 (3 ✅)     | 3            | 15 (3 ✅)      |
-| 5. Frontend (dashboard)   | —           | 2            | 11           | 3            | 16            |
-| 6. Dependencies & tooling | 1           | —            | 2            | 1            | 5             |
-| 7. Tests                  | —           | 3 (1 ✅)      | 3            | 2            | 8 (1 ✅)       |
-| **Total**                 | **5 (3 ✅)** | **29 (11 ✅)** | **49 (8 ✅)** | **11 (1 ✅)** | **94** (23 ✅) |
+| Section                   | 🔴          | 🟠             | 🟡            | 🔵           | Total          |
+| ------------------------- | ----------- | -------------- | ------------- | ------------ | -------------- |
+| 1. Security               | 2 (2 ✅)     | 11 (6 ✅)       | 4 (1 ✅)       | 1 (1 ✅)      | 18 (10 ✅)      |
+| 2. Bugs & correctness     | 2 (2 ✅)     | 9 (4 ✅)        | 10 (3 ✅)      | 1            | 22 (9 ✅)       |
+| 3. Architecture           | —           | 3 (2 ✅)        | 8 (1 ✅)       | —            | 11 (3 ✅)       |
+| 4. Code smells            | —           | 1              | 11 (3 ✅)      | 3            | 15 (3 ✅)       |
+| 5. Frontend (dashboard)   | —           | 2              | 11            | 3            | 16             |
+| 6. Dependencies & tooling | 1 (1 ✅)     | —              | 2 (2 ✅)       | 1 (1 ✅)      | 4 (4 ✅)        |
+| 7. Tests                  | —           | 3 (1 ✅)        | 3             | 2            | 8 (1 ✅)        |
+| **Total**                 | **5 (5 ✅)** | **29 (13 ✅)** | **49 (10 ✅)** | **11 (2 ✅)** | **94 (30 ✅)** |
 
 
 *(✅ counts reflect fixes applied so far in this branch; updated as findings are resolved.)*
@@ -45,9 +45,9 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 | 1   | 🔴✅ [SEC-1](#-sec-1--hardcoded-fallback-jwt-secrets-change-me--fixed) Fallback JWT secret `'change-me'` — silent full-auth bypass if the env var is ever missing — **FIXED**                                  | `auth.module.ts`, `jwt.strategy.ts` |
 | 2   | 🔴✅ [BUG-1](#-bug-1--patch-usersgrant-role-can-never-work-missing-id-in-route--fixed) `PATCH /users/grant-role` endpoint can never work (route bug) — **FIXED**                                               | `user.controller.ts:62`             |
 | 3   | 🔴✅ [BUG-2](#-bug-2--promoting-a-provisional-person-always-fails--fixed) Provisional-person promotion always fails (`managedBy` never loaded) — **FIXED**                                                     | `person.service.ts:250`             |
-| 4   | 🔴✅ [SEC-2](#-sec-2--xlsx-sheetjs-0185-with-known-cves-used-to-parse-external-data--fixed) `xlsx` 0.18.5 with known CVEs, used to parse external data — **FIXED**                                            | `legacy-api.client.ts`              |
+| 4   | 🔴✅ [SEC-2](#-sec-2--xlsx-sheetjs-0185-with-known-cves-used-to-parse-external-data--fixed) `xlsx` 0.18.5 with known CVEs, used to parse external data — **FIXED**                                             | `legacy-api.client.ts`              |
 | 5   | 🟠✅ [SEC-7](#-sec-7--technical-users-can-modify-and-deactivate-admin-accounts--fixed) TECHNICAL users can deactivate/edit ADMIN accounts — **FIXED**                                                          | `user.service.ts`                   |
-| 6   | 🟠 [SEC-14](#-sec-14--production-image-installs-unpinned-dependencies) Prod Docker image installs unpinned deps (`--no-lockfile`)                                                                             | `apps/api/Dockerfile`               |
+| 6   | 🟠✅ [SEC-14](#-sec-14--production-image-installs-unpinned-dependencies--fixed) Prod Docker image installs unpinned deps (`--no-lockfile`) — **FIXED**                                                        | `apps/api/Dockerfile`               |
 | 7   | 🟠✅ [TEST-1](#7-tests) Backend auth guards & strategies at **0% coverage** — the entire authz enforcement layer is untested — **FIXED**                                                                       | `auth/guards`, `auth/strategies`    |
 | 8   | 🟠 [SEC-8](#-sec-8--no-trust-proxy--per-ip-throttling-is-broken-behind-the-reverse-proxy) Missing `trust proxy` → rate limiting shared by all users behind Caddy                                              | `main.ts`                           |
 | 9   | 🟠✅ [BUG-19](#-bug-19--deactivatemissingpersons-trusts-the-legacy-fetch-blindly--fixed) Sync can mass-deactivate the census on a partial legacy response — **FIXED**                                          | `person-sync.strategy.ts`           |
@@ -219,7 +219,7 @@ No `helmet` (or equivalent) in `main.ts`. The API mostly serves JSON, but Swagge
 
 **Fix applied:** added a `dummyPasswordHash` (bcrypt hash of a fixed string, same `BCRYPT_ROUNDS` cost as real password hashes) computed once per `AuthService` instance. `validateUser` now always calls `bcrypt.compare` exactly once — against `user?.passwordHash ?? dummyPasswordHash` — before checking existence/`isActive`/validity, so the (deliberately slow) bcrypt call always runs regardless of whether the email is registered. Covered by a new test asserting `bcrypt.compare` is still invoked when `userRepo.findOne` resolves `null`.
 
-### 🟠 SEC-14 — Production image installs unpinned dependencies
+### 🟠✅ SEC-14 — Production image installs unpinned dependencies — FIXED
 
 `apps/api/Dockerfile:29-30`:
 
@@ -229,6 +229,8 @@ RUN pnpm install --prod --no-lockfile && \
 ```
 
 The final image explicitly bypasses `pnpm-lock.yaml`, so every build resolves **whatever the latest matching versions are that day** — the production `typeorm`/`pg`/`bcrypt` can differ from what CI tested, and a compromised or broken upstream release lands straight in prod. Generate the dist `package.json` with exact pinned versions (or copy the workspace lockfile and use `--frozen-lockfile`).
+
+**Fix applied:** Nx's `generatePackageJson` (webpack `NxAppWebpackPlugin`) already pins every statically-imported dependency to its exact resolved version in `dist/apps/api/package.json` — the only reason the Dockerfile fell back to an unpinned `pnpm add` was that `pg` is required dynamically by typeorm (driver lookup by the `type: 'postgres'` string), so Nx's static scan never saw it and never pinned it. Added `import 'pg'` in `database.module.ts` so Nx's dependency scan picks it up like every other package, with the exact version resolved from the workspace lockfile (verified: `pg@8.20.0`, matching `pnpm-lock.yaml`). The Dockerfile's stage 3 now reduces to a single deterministic `pnpm install --prod` — no lockfile needed since every dependency in the generated `package.json` is an exact pin, not a semver range. Verified by building the actual production image end-to-end and confirming the installed `typeorm`/`pg` versions match the workspace lockfile exactly, and that the app boots and attempts a real Postgres connection (no missing-module errors).
 
 ### 🟡 SEC-15 — `rejectUnauthorized: false` for SSL DB connections
 
@@ -448,6 +450,7 @@ The figures module reportedly snapshots inside a transaction (to be verified bel
 **Recommendation:** wrap multi-entity mutations in `dataSource.transaction(...)`.
 
 **Fix applied:** all three call sites now inject `DataSource` and wrap their multi-entity writes in `dataSource.transaction(...)`, matching the pattern already used in `node-assignment.service.ts`:
+
 - `UserService.createWithInvite`: user creation and `person.managedBy` linking now happen inside one transaction (via `manager.create`/`manager.save`), so a failure between the two can no longer leave an orphaned user or an unlinked person. `sendInvite` (the invite-token generation + email send) intentionally stays outside the transaction and unchanged — it's a separate, already-idempotent concern with its own error handling (BUG-4), not a case of "leaving inconsistent DB state."
 - `UserService.createUser`: the user save (new or upgraded-stub branch), the `person.managedBy` link, and the final reload are now all done through the same transaction `manager`, replacing the previous three separate repository calls.
 - `AuthService.setupUser`: the user save, the raw-SQL `person_id` update, and the final reload now all run through the same transaction `manager` (`manager.query(...)` instead of `this.userRepo.query(...)`). The success log line was also moved to after the transaction resolves, so bootstrap is no longer logged as "created" if the person link or reload subsequently fails. The raw SQL itself and its lack of a `personId` existence check are unchanged — that's SM-3's concern, not ARCH-2's, and remains open.
@@ -600,9 +603,9 @@ The assignment canvas uses the command-based `UndoRedoService` (execute/undo obs
 ## 6. Dependencies & tooling
 
 - 🔴✅ **DEP-1** `xlsx@^0.18.5` — see SEC-2. **FIXED** — replaced with `exceljs`.
-- 🟡 **DEP-2** `reflect-metadata@^0.1.14` — NestJS 11 supports `^0.2.x`; 0.1 is the legacy line.
-- 🟡 **DEP-3** `@types/node: 20.19.9` pinned to Node 20 API surface while `engines` demands Node ≥22.13 — type definitions don't match the runtime.
-- 🔵 **DEP-4** CI is well designed (Nx affected on PRs, frozen lockfile, cache), which makes the Dockerfile's `--no-lockfile` (SEC-14) the odd one out.
+- 🟡✅ **DEP-2** `reflect-metadata@^0.1.14` — NestJS 11 supports `^0.2.x`; 0.1 is the legacy line. **FIXED** — bumped to `^0.2.2`.
+- 🟡✅ **DEP-3** `@types/node: 20.19.9` pinned to Node 20 API surface while `engines` demands Node ≥22.13 — type definitions don't match the runtime. **FIXED** — bumped to `22.20.0`.
+- 🔵✅ **DEP-4** CI is well designed (Nx affected on PRs, frozen lockfile, cache), which made the Dockerfile's `--no-lockfile` (SEC-14) the odd one out. **FIXED** — see SEC-14; the Dockerfile no longer bypasses pinned versions, so CI and the prod image now install the same dependency graph.
 
 ---
 

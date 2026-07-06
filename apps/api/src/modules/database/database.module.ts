@@ -1,5 +1,9 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+// typeorm requires `pg` dynamically (driver lookup by the `type: 'postgres'` string above),
+// so Nx's static dependency scan won't see it and won't pin it in the generated production
+// package.json unless it's imported directly somewhere in the bundle.
+import 'pg';
 import { Tag } from '../tag/tag.entity';
 import { User } from '../user/user.entity';
 import { Person } from '../person/person.entity';
