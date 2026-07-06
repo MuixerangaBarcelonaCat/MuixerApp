@@ -26,13 +26,13 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 | Section                   | 🔴          | 🟠           | 🟡           | 🔵           | Total         |
 | ------------------------- | ----------- | ------------ | ------------ | ------------ | ------------- |
 | 1. Security               | 2 (1 ✅)     | 11 (4 ✅)     | 4 (1 ✅)      | 1 (1 ✅)      | 18 (7 ✅)      |
-| 2. Bugs & correctness     | 2 (2 ✅)     | 9 (3 ✅)      | 10 (1 ✅)     | 1            | 22 (6 ✅)      |
+| 2. Bugs & correctness     | 2 (2 ✅)     | 9 (3 ✅)      | 10 (2 ✅)     | 1            | 22 (7 ✅)      |
 | 3. Architecture           | —           | 3 (2 ✅)      | 8 (1 ✅)      | —            | 11 (3 ✅)      |
 | 4. Code smells            | —           | 1            | 11 (2 ✅)     | 3            | 15 (2 ✅)      |
 | 5. Frontend (dashboard)   | —           | 2            | 11           | 3            | 16            |
 | 6. Dependencies & tooling | 1           | —            | 2            | 1            | 5             |
 | 7. Tests                  | —           | 3 (1 ✅)      | 3            | 2            | 8 (1 ✅)       |
-| **Total**                 | **5 (3 ✅)** | **29 (10 ✅)** | **49 (5 ✅)** | **11 (1 ✅)** | **94** (19 ✅) |
+| **Total**                 | **5 (3 ✅)** | **29 (10 ✅)** | **49 (6 ✅)** | **11 (1 ✅)** | **94** (20 ✅) |
 
 
 *(✅ counts reflect fixes applied so far in this branch; updated as findings are resolved.)*
@@ -346,9 +346,11 @@ Covered by TDD: `token.service.spec.ts` asserts the returned `clientType`; `auth
 
 `person.service.ts:338,358` set `lastSyncedAt = new Date()` on manual (de)activation. That column is the bookkeeping marker of the **legacy sync** (`person-sync.strategy.ts` sets it on every synced/deactivated record). Manually touching it makes a hand-edited person look "just synced", which can confuse any sync logic that reasons about staleness. Semantics mixing; use a different marker (or plain `updatedAt`).
 
-### 🟡 BUG-10 — Provisional alias truncation can collide; unique violations surface as 500
+### 🟡✅ BUG-10 — Provisional alias truncation can collide; unique violations surface as 500 — FIXED
 
 `person.service.ts:177-204` and the demotion path both build `~` + alias and `.slice(0, 20)`. Two distinct 20-char aliases can truncate to the same value; `createProvisional` pre-checks existence (TOCTOU race aside) but the **demotion path performs no check** — the DB unique constraint then throws and reaches the client as an unhandled 500 instead of a 409. Same for alias conflicts in `update` generally.
+
+**Fix applied:** `PersonService.update` now runs a pre-check whenever the final `alias` to be saved differs from the person's current alias — covering both the demotion-derived `~`-prefixed alias and any plain alias edit in the same method. It looks up an existing person with that alias and throws `ConflictException` if a *different* person (`conflict.id !== person.id`) already has it, before `Object.assign`/`save` runs. This is the same TOCTOU-tolerant pattern already used by `createProvisional` (a pre-check, not a DB-level fix — the race window itself is accepted as low-risk, matching the existing `createProvisional` precedent) — it turns the previously-unhandled `QueryFailedError` → 500 into a clean 409 for both the demotion path and general alias updates via `update`. Covered by three new specs in `person.service.spec.ts`: demotion-collision → `ConflictException` (and `save` never called), plain alias-update collision → `ConflictException`, and a free-alias update still succeeds. Full `nx test api` suite (639/639) and `nx lint api` pass.
 
 ### 🟠 BUG-11 — `applyComposition`: sortOrder computed outside the transaction → duplicated orders
 

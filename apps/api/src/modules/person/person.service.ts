@@ -283,6 +283,17 @@ export class PersonService {
       person.isProvisional = isProvisional;
     }
 
+    if (personData.alias !== undefined && personData.alias !== person.alias) {
+      const conflict = await this.personRepository.findOne({
+        where: { alias: personData.alias },
+      });
+      if (conflict && conflict.id !== person.id) {
+        throw new ConflictException(
+          `Ja existeix una persona amb l'àlies "${personData.alias}".`,
+        );
+      }
+    }
+
     Object.assign(person, personData);
 
     if (positionIds !== undefined) {

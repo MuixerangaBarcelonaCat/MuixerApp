@@ -334,6 +334,42 @@ describe('PersonService', () => {
       );
     });
 
+    it('throws ConflictException (not a raw DB error) when demotion prefix collides with an existing alias', async () => {
+      const regularPerson = { id: '1', alias: 'JoanExisting', name: 'Joan', firstSurname: 'García', isProvisional: false, positions: [], mentor: null };
+      const otherPerson = { id: '2', alias: '~JoanExisting' };
+      mockPersonRepository.findOne
+        .mockResolvedValueOnce(regularPerson)
+        .mockResolvedValueOnce(otherPerson);
+
+      await expect(service.update('1', { isProvisional: true })).rejects.toThrow(ConflictException);
+      expect(mockPersonRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('throws ConflictException when a plain alias update collides with another person', async () => {
+      const person = { id: '1', alias: 'OldAlias', name: 'Joan', firstSurname: 'García', isProvisional: false, positions: [], mentor: null };
+      const otherPerson = { id: '2', alias: 'TakenAlias' };
+      mockPersonRepository.findOne
+        .mockResolvedValueOnce(person)
+        .mockResolvedValueOnce(otherPerson);
+
+      await expect(service.update('1', { alias: 'TakenAlias' })).rejects.toThrow(ConflictException);
+      expect(mockPersonRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('allows updating alias when the new alias is free', async () => {
+      const person = { id: '1', alias: 'OldAlias', name: 'Joan', firstSurname: 'García', isProvisional: false, positions: [], mentor: null };
+      mockPersonRepository.findOne
+        .mockResolvedValueOnce(person)
+        .mockResolvedValueOnce(null);
+      mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
+
+      await service.update('1', { alias: 'FreeAlias' });
+
+      expect(mockPersonRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ alias: 'FreeAlias' }),
+      );
+    });
+
     it('throws BadRequestException when promoting without name', async () => {
       const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: '', isProvisional: true, positions: [], mentor: null, managedBy: {'id': 'user_id'} };
       mockPersonRepository.findOne.mockResolvedValue(provisionalPerson);
