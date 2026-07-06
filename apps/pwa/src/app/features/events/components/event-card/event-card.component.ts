@@ -2,19 +2,15 @@ import {
   Component,
   ChangeDetectionStrategy,
   input,
+  output,
   computed,
   inject,
 } from '@angular/core';
 import { Router } from '@angular/router';
-import { EventType, MeEvent } from '@muixer/shared';
+import { AttendanceStatus, EventType, MeEvent } from '@muixer/shared';
 import { LucideAngularModule, MapPin, Clock } from 'lucide-angular';
 import { AttendanceButtonComponent } from '../attendance-button/attendance-button.component';
-
-const DATE_FORMATTER = new Intl.DateTimeFormat('ca', {
-  weekday: 'long',
-  day: 'numeric',
-  month: 'long',
-});
+import { formatEventDate } from '../../../../shared/pipes/format-event-date.pipe';
 
 @Component({
   selector: 'app-event-card',
@@ -25,6 +21,7 @@ const DATE_FORMATTER = new Intl.DateTimeFormat('ca', {
 })
 export class EventCardComponent {
   readonly event = input.required<MeEvent>();
+  readonly attendanceChanged = output<{ eventId: string; status: AttendanceStatus }>();
 
   protected readonly MapPin = MapPin;
   protected readonly Clock = Clock;
@@ -38,7 +35,7 @@ export class EventCardComponent {
   protected readonly cardTitle = computed(() => {
     const ev = this.event();
     return ev.eventType === EventType.ASSAIG
-      ? this.formatDate(ev.date)
+      ? formatEventDate(ev.date)
       : ev.title;
   });
 
@@ -46,7 +43,7 @@ export class EventCardComponent {
     const ev = this.event();
     return ev.eventType === EventType.ASSAIG
       ? 'Assaig'
-      : this.formatDate(ev.date);
+      : formatEventDate(ev.date);
   });
 
   protected readonly accentClass = computed(() =>
@@ -57,10 +54,7 @@ export class EventCardComponent {
     this.router.navigate(['/events', this.event().id]);
   }
 
-  private formatDate(dateStr: string): string {
-    const date = new Date(dateStr + 'T00:00:00');
-    if (isNaN(date.getTime())) return '';
-    const formatted = DATE_FORMATTER.format(date);
-    return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+  onAttendanceChanged(status: AttendanceStatus): void {
+    this.attendanceChanged.emit({ eventId: this.event().id, status });
   }
 }

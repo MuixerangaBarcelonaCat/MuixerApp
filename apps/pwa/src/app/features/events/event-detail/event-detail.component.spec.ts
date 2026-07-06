@@ -17,7 +17,7 @@ const MOCK_DETAIL: MeEventDetail = {
   locationUrl: 'https://maps.google.com',
   description: 'Actuació principal',
   information: 'Portar mocador',
-  attendanceSummary: { confirmed: 5, declined: 2, pending: 3, attended: 0, noShow: 0, lateCancel: 0, children: 1, total: 10 },
+  attendanceSummary: { confirmed: 5, declined: 2, pending: 3, attended: 0, lateCancel: 0, children: 1, childrenAttended: 0, total: 10 },
   myAttendance: null,
 };
 

@@ -1,32 +1,86 @@
 <app-mobile-header title="Events" />
 
-<nav class="tabs tabs-bordered w-full mb-4" role="tablist" aria-label="Filtre d'events">
-  @for (tab of tabs; track tab.key) {
-    <button
-      type="button"
-      role="tab"
-      class="tab flex-1"
-      [class.tab-active]="activeFilter() === tab.key"
-      [attr.aria-selected]="activeFilter() === tab.key"
-      (click)="setFilter(tab.key)"
-    >
-      {{ tab.label }}
-    </button>
-  }
-</nav>
-
-<app-pull-to-refresh (refresh)="onRefresh()">
-  <section class="flex flex-col gap-3 pb-4" aria-live="polite">
-    @if (isLoading()) {
-      <app-skeleton-card [count]="4" />
-    } @else if (hasError()) {
-      <app-empty-state message="Error carregant els events. Torna-ho a provar." />
-    } @else if (events().length === 0) {
-      <app-empty-state [message]="emptyMessage()" />
-    } @else {
-      @for (event of events(); track event.id) {
-        <app-event-card [event]="event" />
+<div class="flex items-center gap-2 mb-4">
+  @if (viewMode() === 'list') {
+    <nav class="tabs tabs-bordered flex-1" role="tablist" aria-label="Filtre d'events">
+      @for (tab of tabs; track tab.key) {
+        <button
+          type="button"
+          role="tab"
+          class="tab flex-1"
+          [class.tab-active]="activeFilter() === tab.key"
+          [attr.aria-selected]="activeFilter() === tab.key"
+          (click)="setFilter(tab.key)"
+        >
+          {{ tab.label }}
+        </button>
       }
+    </nav>
+  } @else {
+    <span class="flex-1"></span>
+  }
+
+  <button
+    type="button"
+    class="btn btn-ghost btn-sm btn-square"
+    [attr.aria-label]="viewMode() === 'list' ? 'Veure calendari' : 'Veure llista'"
+    (click)="toggleView()"
+  >
+    @if (viewMode() === 'list') {
+      <lucide-icon [img]="CalendarIcon" [size]="20" />
+    } @else {
+      <lucide-icon [img]="ListIcon" [size]="20" />
     }
-  </section>
+  </button>
+</div>
+
+<app-pull-to-refresh #pullRef (refresh)="onRefresh()">
+  @if (viewMode() === 'list') {
+    <section class="flex flex-col gap-3 pb-4" aria-live="polite">
+      @if (isLoading()) {
+        <app-skeleton-card [count]="4" />
+      } @else if (hasError()) {
+        <app-empty-state message="Error carregant els events. Torna-ho a provar." />
+      } @else if (events().length === 0) {
+        <app-empty-state [message]="emptyMessage()" />
+      } @else {
+        @for (event of events(); track event.id) {
+          <app-event-card [event]="event" />
+        }
+      }
+    </section>
+  } @else {
+    <section aria-live="polite">
+      @if (isCalendarLoading() && allSeasonEvents().length === 0) {
+        <div class="flex flex-col gap-2" aria-busy="true">
+          <div class="h-8 bg-base-300 rounded animate-pulse w-1/2 mx-auto mb-2"></div>
+          <div class="grid grid-cols-7 gap-1">
+            @for (i of [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21]; track i) {
+              <div class="h-12 bg-base-300 rounded animate-pulse"></div>
+            }
+          </div>
+        </div>
+      } @else {
+        <app-calendar-view
+          [events]="allSeasonEvents()"
+          [selectedDate]="selectedDate()"
+          (selectedDateChange)="onSelectedDateChange($event)"
+        />
+
+        @if (selectedDate() && selectedDayEvents().length > 0) {
+          <section class="flex flex-col gap-3 pt-2 pb-4">
+            <h3 class="text-sm font-medium text-base-content/60">
+              Events del {{ selectedDateLabel() }}
+            </h3>
+            @for (ev of selectedDayEvents(); track ev.id) {
+              <app-event-card
+                [event]="ev"
+                (attendanceChanged)="onAttendanceChanged($event)"
+              />
+            }
+          </section>
+        }
+      }
+    </section>
+  }
 </app-pull-to-refresh>

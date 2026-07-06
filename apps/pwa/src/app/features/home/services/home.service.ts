@@ -4,8 +4,8 @@ import { EventType, MeEvent } from '@muixer/shared';
 import { EventService } from '../../events/services/event.service';
 
 export interface HomeData {
-  nextRehearsals: MeEvent[];
-  nextPerformances: MeEvent[];
+  nextRehearsal: MeEvent | null;
+  nextPerformance: MeEvent | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -14,17 +14,17 @@ export class HomeService {
 
   loadHomeData(): Observable<HomeData> {
     return forkJoin({
-      nextRehearsals: this.eventService
-        .findAll({ timeFilter: 'upcoming', type: EventType.ASSAIG, limit: 2 })
+      nextRehearsal: this.eventService
+        .findAll({ timeFilter: 'upcoming', type: EventType.ASSAIG, limit: 1 })
         .pipe(
-          map((r) => r.data),
-          catchError(() => of([])),
+          map((r) => r.data[0] ?? null),
+          catchError(() => of(null)),
         ),
-      nextPerformances: this.eventService
-        .findAll({ timeFilter: 'upcoming', type: EventType.ACTUACIO, limit: 2 })
+      nextPerformance: this.eventService
+        .findAll({ timeFilter: 'upcoming', type: EventType.ACTUACIO, limit: 1 })
         .pipe(
-          map((r) => r.data),
-          catchError(() => of([])),
+          map((r) => r.data[0] ?? null),
+          catchError(() => of(null)),
         ),
     });
   }

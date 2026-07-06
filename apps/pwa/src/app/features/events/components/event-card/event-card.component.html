@@ -16,6 +16,7 @@
       <app-attendance-button
         [eventId]="event().id"
         [status]="event().myAttendance?.status ?? null"
+        (statusChanged)="onAttendanceChanged($event)"
         (click)="$event.stopPropagation()"
         (keydown.enter)="$event.stopPropagation()"
       />

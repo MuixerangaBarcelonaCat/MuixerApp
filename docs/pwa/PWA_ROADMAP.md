@@ -14,8 +14,9 @@
 |------|-----|---------|----------|-------|------------|
 | P6.0 | Infraestructura i App Shell | Config CORS/port | Scaffold, shell, tabs | ✅ Completat | Branca: `feat/pwa-app-start` |
 | P6.1 | Auth (bàsic) | Fix clientType refresh | Login, guards, interceptor | ✅ Completat | Branca: `feat/pwa-app-start` |
-| P6.2 | Events i Assistència | `MeModule` + endpoints | Llista events, Home, attendance | 🟡 Dissenyant | [Spec](specs/P6.2-events-attendance-spec.md) |
-| P6.3 | Detall d'Event | Segments visibles per MEMBER | Detall, accordion, info figures | ⚪ Pendent | — |
+| P6.2 | Events i Assistència | `MeModule` + endpoints | Llista events, Home, attendance | ✅ Completat | [Spec](specs/P6.2-events-attendance-spec.md) |
+| P6.3 | Home Refactor | — | Home: 1 card/tipus, avatar, pull-to-refresh | ✅ Completat | [Spec](specs/P6.3-home-spec.md) |
+| P6.3.1 | Calendar View | — | Vista calendari mensual a Events tab | 🔵 En curs | [Spec](specs/P6.4-calendar-spec.md) |
 | P6.4 | Gestió Familiar | `PersonGuardian` entity | Person selector, attendance gestionada | ⚪ Pendent | — |
 | P6.5 | Canvas Pinyes | Relaxar endpoint projecció | Konva readonly, touch, highlight | ⚪ Pendent | — |
 | P6.6 | Perfil i Configuració | Endpoint estadístiques | Perfil, logout, stats | ⚪ Pendent | — |

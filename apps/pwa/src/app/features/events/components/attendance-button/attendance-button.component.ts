@@ -1,6 +1,7 @@
 import {
   Component,
   ChangeDetectionStrategy,
+  DestroyRef,
   input,
   output,
   signal,
@@ -8,6 +9,7 @@ import {
   effect,
   inject,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AttendanceStatus } from '@muixer/shared';
 import { EventService } from '../../services/event.service';
 import { ToastService } from '../../../../shared/services/toast.service';
@@ -54,6 +56,7 @@ export class AttendanceButtonComponent {
 
   private readonly eventService = inject(EventService);
   private readonly toast = inject(ToastService);
+  private readonly destroyRef = inject(DestroyRef);
 
   private readonly localStatus = signal<AttendanceStatus | null>(null);
   private readonly previousStatus = signal<AttendanceStatus | null>(null);
@@ -89,7 +92,9 @@ export class AttendanceButtonComponent {
     this.localStatus.set(next);
     this.isPending.set(true);
 
-    this.eventService.updateAttendance(this.eventId(), next).subscribe({
+    this.eventService.updateAttendance(this.eventId(), next).pipe(
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe({
       next: () => {
         this.toast.success('Assistència actualitzada.');
         this.statusChanged.emit(next);

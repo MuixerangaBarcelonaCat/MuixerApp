@@ -1,41 +1,52 @@
 <app-mobile-header title="Inici" />
 
 <section class="py-2">
-  <h2 class="text-xl font-semibold mb-4">{{ greeting() }}</h2>
+  <div class="flex items-center gap-3 mb-5">
+    @if (avatarInitial(); as initial) {
+      <div
+        class="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10 text-primary font-semibold text-lg shrink-0"
+        aria-hidden="true"
+      >
+        {{ initial }}
+      </div>
+    } @else {
+      <div
+        class="flex items-center justify-center w-10 h-10 rounded-full bg-base-300 text-base-content/50 shrink-0"
+        aria-hidden="true"
+      >
+        <lucide-icon [img]="UserIcon" [size]="20" />
+      </div>
+    }
+    <h2 class="text-xl font-semibold">{{ greeting() }}</h2>
+  </div>
 
-  @if (isLoading()) {
-    <div class="flex flex-col gap-3">
-      <app-skeleton-card [count]="3" />
-    </div>
-  } @else if (!hasEvents()) {
-    <app-empty-state message="No hi ha events propers programats." />
-  } @else {
-    <div class="flex flex-col gap-6" aria-live="polite">
-      @if (nextRehearsals().length > 0) {
-        <div>
-          <h3 class="text-sm font-medium text-base-content/60 uppercase tracking-wider mb-2">
-            Propers assajos
-          </h3>
-          <div class="flex flex-col gap-3">
-            @for (event of nextRehearsals(); track event.id) {
-              <app-event-card [event]="event" />
-            }
+  <app-pull-to-refresh #pullRef (refresh)="reload()">
+    @if (isLoading()) {
+      <div class="flex flex-col gap-3" aria-busy="true">
+        <app-skeleton-card [count]="2" />
+      </div>
+    } @else if (!hasEvents()) {
+      <app-empty-state message="No hi ha events propers programats." />
+    } @else {
+      <div class="flex flex-col gap-6" aria-live="polite">
+        @if (nextRehearsal(); as rehearsal) {
+          <div>
+            <h3 class="text-sm font-medium text-base-content/60 uppercase tracking-wider mb-2">
+              Pròxim assaig
+            </h3>
+            <app-event-card [event]="rehearsal" />
           </div>
-        </div>
-      }
+        }
 
-      @if (nextPerformances().length > 0) {
-        <div>
-          <h3 class="text-sm font-medium text-base-content/60 uppercase tracking-wider mb-2">
-            Properes actuacions
-          </h3>
-          <div class="flex flex-col gap-3">
-            @for (event of nextPerformances(); track event.id) {
-              <app-event-card [event]="event" />
-            }
+        @if (nextPerformance(); as performance) {
+          <div>
+            <h3 class="text-sm font-medium text-base-content/60 uppercase tracking-wider mb-2">
+              Pròxima actuació
+            </h3>
+            <app-event-card [event]="performance" />
           </div>
-        </div>
-      }
-    </div>
-  }
+        }
+      </div>
+    }
+  </app-pull-to-refresh>
 </section>
