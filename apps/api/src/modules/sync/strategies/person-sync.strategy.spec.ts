@@ -280,6 +280,62 @@ describe('PersonSyncStrategy', () => {
         },
       });
     });
+
+    it('does not remove a manually-created managedBy link when the legacy record has no email (BUG-21)', (done) => {
+      const manuallyLinkedUser = { id: 'manual-user-uuid', email: 'manual@muixerapp.cat' };
+      const existingPerson = {
+        id: 'uuid-1',
+        legacyId: '123',
+        name: 'OldName',
+        isActive: true,
+        positions: [],
+        notes: null,
+        managedBy: manuallyLinkedUser,
+      } as unknown as Person;
+
+      legacyApiClient.login.mockResolvedValue();
+      legacyApiClient.getCastellers.mockResolvedValue([{ ...mockLegacyPerson, email: '' }]);
+      personRepository.findOne.mockResolvedValue(existingPerson);
+      personRepository.save.mockResolvedValue(existingPerson);
+
+      strategy.execute().subscribe({
+        complete: () => {
+          expect(personRepository.save).toHaveBeenCalledWith(
+            expect.objectContaining({ managedBy: manuallyLinkedUser }),
+          );
+          done();
+        },
+      });
+    });
+
+    it('re-links managedBy to the new user when the legacy record has a different email (BUG-21)', (done) => {
+      const oldManager = { id: 'old-user-uuid', email: 'old@example.com' };
+      const existingPerson = {
+        id: 'uuid-1',
+        legacyId: '123',
+        name: 'OldName',
+        isActive: true,
+        positions: [],
+        notes: null,
+        managedBy: oldManager,
+      } as unknown as Person;
+
+      legacyApiClient.login.mockResolvedValue();
+      legacyApiClient.getCastellers.mockResolvedValue([mockLegacyPerson]); // email: joan@example.com
+      personRepository.findOne.mockResolvedValue(existingPerson);
+      personRepository.save.mockResolvedValue(existingPerson);
+
+      strategy.execute().subscribe({
+        complete: () => {
+          expect(personRepository.save).toHaveBeenCalledWith(
+            expect.objectContaining({
+              managedBy: expect.objectContaining({ id: 'user-uuid' }),
+            }),
+          );
+          done();
+        },
+      });
+    });
   });
 
   // ─── deriveUniqueAlias — alias resolution logic ───────────────────────────────

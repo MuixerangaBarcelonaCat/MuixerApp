@@ -457,8 +457,13 @@ export class PersonSyncStrategy implements SyncStrategy {
     existing.onboardingStatus = this.mapOnboarding(legacyPerson.estat_acollida);
     existing.shirtDate = this.parseDate(legacyPerson.instant_camisa);
 
-    // Always re-link to the user derived from the legacy email
-    existing.managedBy = managedByUser ?? null;
+    // Re-link only when the legacy record carries an email (BUG-21): a different
+    // legacy email always wins and re-points the link (including to a brand-new
+    // user), but an empty legacy email must never sever a managedBy link created
+    // manually in MuixerApp — it just means the legacy side has nothing to say.
+    if (legacyPerson.email) {
+      existing.managedBy = managedByUser;
+    }
 
     // existing.isActive is already true here — upsertPerson() routes inactive
     // (manually-deactivated) persons to createPerson() instead.

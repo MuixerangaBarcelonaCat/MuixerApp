@@ -26,13 +26,13 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 | Section                   | 🔴          | 🟠            | 🟡                  | 🔵           | Total               |
 | ------------------------- | ----------- | ------------- | ------------------- | ------------ | ------------------- |
 | 1. Security               | 2 (2 ✅)     | 11 (10 ✅)     | 4 (3 ✅, 1 🚫)       | 1 (1 ✅)      | 18 (16 ✅, 1 🚫)     |
-| 2. Bugs & correctness     | 2 (2 ✅)     | 9 (8 ✅)       | 10 (7 ✅)            | 1            | 22 (17 ✅)           |
+| 2. Bugs & correctness     | 2 (2 ✅)     | 9 (8 ✅)       | 10 (8 ✅)            | 1            | 22 (18 ✅)           |
 | 3. Architecture           | —           | 3 (2 ✅)       | 8 (2 ✅)             | —            | 11 (4 ✅)            |
 | 4. Code smells            | —           | 1 (1 ✅)       | 11 (3 ✅)            | 3            | 15 (4 ✅)            |
 | 5. Frontend (dashboard)   | —           | 2             | 11                  | 3            | 16                  |
 | 6. Dependencies & tooling | 1 (1 ✅)     | —             | 2 (2 ✅)             | 1 (1 ✅)      | 4 (4 ✅)             |
 | 7. Tests                  | —           | 3 (1 ✅)       | 3                   | 2            | 8 (1 ✅)             |
-| **Total**                 | **5 (5 ✅)** | **29 (22 ✅)** | **49 (17 ✅, 1 🚫)** | **11 (2 ✅)** | **94 (46 ✅, 1 🚫)** |
+| **Total**                 | **5 (5 ✅)** | **29 (22 ✅)** | **49 (18 ✅, 1 🚫)** | **11 (2 ✅)** | **94 (47 ✅, 1 🚫)** |
 
 
 *(✅ counts reflect fixes applied so far in this branch; 🚫 marks findings deliberately closed as won't-fix, with reasoning inline; both are updated as findings are resolved.)*
@@ -467,9 +467,13 @@ As a consequence, `upsertPerson()` also had to stop reactivating persons on the 
 
 `legacy-api.client.ts`: every fetch does `if (!this.sessionCookie) await this.login()` — but once set, the cookie is assumed valid forever. When the PHP session expires, subsequent calls receive the login page; `extractRows` then throws "Invalid response format" (and detail endpoints silently cast HTML to typed objects). No retry-with-relogin, and `validateStatus: () => true` means non-200s pass through unnoticed in the detail/JSON endpoints.
 
-### 🟡 BUG-21 — Person sync unconditionally overwrites `managedBy`
+### 🟡✅ BUG-21 — Person sync unconditionally overwrites `managedBy` — FIXED
 
 `person-sync.strategy.ts:462-463`: on every sync, `existing.managedBy = managedByUser ?? null`. Any person↔user link created manually in MuixerApp is silently severed on the next sync if the legacy record has no (or a different) email. Combined with BUG-2 (promotion requires `managedBy`), manual fixes don't survive a sync.
+
+**Fix applied:** `updatePerson()` now only touches `existing.managedBy` when `legacyPerson.email` is non-empty — `if (legacyPerson.email) { existing.managedBy = managedByUser; }`. A legacy record with a real email still always wins and re-points the link (to a different user, or to one for the first time), matching the explicit requirement that a *changed* legacy email must still take over — only an *absent* legacy email now leaves a manually-created MuixerApp link untouched instead of nulling it out. `managedByUser` is guaranteed non-null whenever `legacyPerson.email` is truthy (`upsertUsers` creates a `User` row for every unique non-empty email in the same sync batch beforehand), so no additional null-handling was needed inside the guard.
+
+Covered by two new specs in `person-sync.strategy.spec.ts`: an empty-email legacy record no longer nulls out an existing manual `managedBy` link (written and confirmed failing first — the old code did overwrite it with `null`); a legacy record with a (new) email still re-links `managedBy` to the resolved user, guarding the intended "changed email wins" behavior against regression. Full `nx test api` (680/680) and `nx lint api` (0 errors) pass.
 
 ### 🔵 BUG-22 — `swap` re-creates assignments, resetting their timestamps
 
