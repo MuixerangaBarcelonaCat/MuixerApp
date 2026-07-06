@@ -12,9 +12,10 @@ import { Person } from '../person/person.entity';
 jest.mock('bcrypt', () => ({
   compare: jest.fn(),
   hash: jest.fn(),
+  hashSync: jest.fn().mockReturnValue('dummy-hash'),
 }));
- 
-const bcrypt = require('bcrypt') as { compare: jest.Mock; hash: jest.Mock };
+
+const bcrypt = require('bcrypt') as { compare: jest.Mock; hash: jest.Mock; hashSync: jest.Mock };
 
 const makeUser = (overrides: Partial<User> = {}): User =>
   ({
@@ -109,6 +110,18 @@ describe('AuthService', () => {
       userRepo.findOne.mockResolvedValue(null);
       const result = await service.validateUser('nope@test.cat', 'pass');
       expect(result).toBeNull();
+    });
+
+    it('still runs bcrypt.compare when the user does not exist (prevents user-enumeration via timing, SEC-13)', async () => {
+      userRepo.findOne.mockResolvedValue(null);
+      bcrypt.compare.mockResolvedValue(false);
+
+      await service.validateUser('nope@test.cat', 'pass');
+
+      // toHaveBeenLastCalledWith, not toHaveBeenCalledWith: bcrypt.compare is a
+      // shared mock across every test in this file with no reset in between,
+      // so only the most recent call reliably reflects this test's own action.
+      expect(bcrypt.compare).toHaveBeenLastCalledWith('pass', expect.any(String));
     });
   });
 

@@ -25,6 +25,14 @@ const BCRYPT_ROUNDS = 12;
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
+  /**
+   * Hash bcrypt "senyal" amb el mateix cost (BCRYPT_ROUNDS) que els hashes reals.
+   * Es compara contra aquest hash quan l'email no existeix, perquè `validateUser`
+   * trigui el mateix temps tant si l'email té compte com si no (SEC-13, evita
+   * enumeració d'usuaris per timing de login).
+   */
+  private readonly dummyPasswordHash = bcrypt.hashSync('sec-13-dummy-password', BCRYPT_ROUNDS);
+
   constructor(
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
@@ -41,9 +49,15 @@ export class AuthService {
       where: { email },
       relations: ['person'],
     });
-    if (!user || !user.isActive) return null;
-    const valid = await bcrypt.compare(password, user.passwordHash);
-    return valid ? user : null;
+
+    // Always run bcrypt.compare, even when the user doesn't exist, comparing
+    // against a dummy hash of equal cost — otherwise a missing user short-circuits
+    // before the (deliberately slow) bcrypt call, and the timing difference reveals
+    // which emails have accounts.
+    const valid = await bcrypt.compare(password, user?.passwordHash ?? this.dummyPasswordHash);
+
+    if (!user || !user.isActive || !valid) return null;
+    return user;
   }
 
   /** Genera un JWT d'accés amb payload {sub, email, role} i el TTL configurat a JWT_ACCESS_TTL. */

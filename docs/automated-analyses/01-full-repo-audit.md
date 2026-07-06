@@ -25,14 +25,14 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 
 | Section                   | 🔴          | 🟠           | 🟡     | 🔵     | Total        |
 | ------------------------- | ----------- | ------------ | ------ | ------ | ------------ |
-| 1. Security               | 2 (1 ✅)     | 11 (3 ✅)     | 4      | 1      | 18 (4 ✅)     |
-| 2. Bugs & correctness     | 2           | 9            | 10     | 1      | 22           |
-| 3. Architecture           | —           | 3 (1 ✅)      | 8      | —      | 11 (1 ✅)     |
-| 4. Code smells            | —           | 1            | 11     | 3      | 15           |
-| 5. Frontend (dashboard)   | —           | 2            | 11     | 3      | 16           |
-| 6. Dependencies & tooling | (1)         | —            | 2      | 1      | 4            |
-| 7. Tests                  | —           | 3 (1 ✅)      | 3      | 2      | 8 (1 ✅)      |
-| **Total**                 | **4 (1 ✅)** | **29 (5 ✅)** | **49** | **11** | **93** (6 ✅) |
+| 1. Security               | 2 (1 ✅)     | 11 (3 ✅)     | 4      | 1 (1 ✅)     | 18 (5 ✅)     |
+| 2. Bugs & correctness     | 2           | 9            | 10     | 1           | 22           |
+| 3. Architecture           | —           | 3 (1 ✅)      | 8      | —           | 11 (1 ✅)     |
+| 4. Code smells            | —           | 1            | 11     | 3           | 15           |
+| 5. Frontend (dashboard)   | —           | 2            | 11     | 3           | 16           |
+| 6. Dependencies & tooling | (1)         | —            | 2      | 1           | 4            |
+| 7. Tests                  | —           | 3 (1 ✅)      | 3      | 2           | 8 (1 ✅)      |
+| **Total**                 | **4 (1 ✅)** | **29 (5 ✅)** | **49** | **11 (1 ✅)** | **93** (7 ✅) |
 
 
 *(✅ counts reflect fixes applied so far in this branch; updated as findings are resolved.)*
@@ -203,9 +203,11 @@ No `helmet` (or equivalent) in `main.ts`. The API mostly serves JSON, but Swagge
 
 **Recommendation:** call `tokenService.revokeAllUserTokens(userId)` on deactivation; optionally check `isActive` in the JWT strategy for sensitive endpoints.
 
-### 🔵 SEC-13 — User enumeration via login timing
+### 🔵✅ SEC-13 — User enumeration via login timing — FIXED
 
 `AuthService.validateUser` only runs `bcrypt.compare` when the email exists — a measurable timing difference. Classic mitigation: compare against a dummy hash when the user is not found. Low priority given throttling.
+
+**Fix applied:** added a `dummyPasswordHash` (bcrypt hash of a fixed string, same `BCRYPT_ROUNDS` cost as real password hashes) computed once per `AuthService` instance. `validateUser` now always calls `bcrypt.compare` exactly once — against `user?.passwordHash ?? dummyPasswordHash` — before checking existence/`isActive`/validity, so the (deliberately slow) bcrypt call always runs regardless of whether the email is registered. Covered by a new test asserting `bcrypt.compare` is still invoked when `userRepo.findOne` resolves `null`.
 
 ### 🟠 SEC-14 — Production image installs unpinned dependencies
 
