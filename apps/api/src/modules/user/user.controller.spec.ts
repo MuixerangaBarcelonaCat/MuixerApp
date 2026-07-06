@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { PATH_METADATA } from '@nestjs/common/constants';
 import { UserRole } from '@muixer/shared';
 import { UserController } from './user.controller';
 import { UserService } from './user.service';
@@ -56,24 +57,34 @@ describe('UserController', () => {
     expect(result).toEqual({ data: [], total: 0 });
   });
 
-  it('grantRole delegates to UserService with the id and role', async () => {
+  it('grantRole route declares the :id path param so the handler can receive it', () => {
+    const path = Reflect.getMetadata(PATH_METADATA, UserController.prototype.grantRole);
+
+    expect(path).toBe(':id/grant-role');
+  });
+
+  it('grantRole delegates to UserService with the id, role and actor id', async () => {
     service.grantRole.mockResolvedValue({ id: 'user-1', role: UserRole.ADMIN });
 
-    const result = await controller.grantRole('user-1', { role: UserRole.ADMIN });
+    const result = await controller.grantRole(
+      'user-1',
+      { role: UserRole.ADMIN },
+      { sub: 'actor-1', role: UserRole.ADMIN } as never,
+    );
 
-    expect(service.grantRole).toHaveBeenCalledWith('user-1', UserRole.ADMIN);
+    expect(service.grantRole).toHaveBeenCalledWith('user-1', UserRole.ADMIN, 'actor-1');
     expect(result).toEqual({ id: 'user-1', role: UserRole.ADMIN });
   });
 
-  it('deactivateUser delegates to UserService with the id', async () => {
+  it('deactivateUser delegates to UserService with the id, actor role and actor id', async () => {
     service.deactivateUser.mockResolvedValue(undefined);
 
-    await controller.deactivateUser('user-1');
+    await controller.deactivateUser('user-1', { sub: 'actor-1', role: UserRole.ADMIN } as never);
 
-    expect(service.deactivateUser).toHaveBeenCalledWith('user-1');
+    expect(service.deactivateUser).toHaveBeenCalledWith('user-1', UserRole.ADMIN, 'actor-1');
   });
 
-  it('updateUser delegates to UserService with the id, dto and actor role', async () => {
+  it('updateUser delegates to UserService with the id, dto, actor role and actor id', async () => {
     service.updateUser.mockResolvedValue({ id: 'user-1', email: 'new@b.cat' });
     const dto = { email: 'new@b.cat' };
 
@@ -82,7 +93,7 @@ describe('UserController', () => {
       role: UserRole.ADMIN,
     } as never);
 
-    expect(service.updateUser).toHaveBeenCalledWith('user-1', dto, UserRole.ADMIN);
+    expect(service.updateUser).toHaveBeenCalledWith('user-1', dto, UserRole.ADMIN, 'actor-1');
     expect(result).toEqual({ id: 'user-1', email: 'new@b.cat' });
   });
 });

@@ -362,7 +362,9 @@ describe('UserService', () => {
   describe('grantRole', () => {
     it('throws NotFoundException when user not found', async () => {
       mockUserRepo.findOne.mockResolvedValue(null);
-      await expect(service.grantRole('missing-id', UserRole.ADMIN)).rejects.toThrow(NotFoundException);
+      await expect(
+        service.grantRole('missing-id', UserRole.ADMIN, 'actor-uuid'),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('updates the role and returns UserResponseDto', async () => {
@@ -370,7 +372,7 @@ describe('UserService', () => {
       mockUserRepo.findOne.mockResolvedValue(user);
       mockUserRepo.save.mockResolvedValue({ ...user, role: UserRole.ADMIN });
 
-      const result = await service.grantRole('user-uuid', UserRole.ADMIN);
+      const result = await service.grantRole('user-uuid', UserRole.ADMIN, 'actor-uuid');
 
       expect(mockUserRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({ role: UserRole.ADMIN }),
@@ -383,8 +385,17 @@ describe('UserService', () => {
       mockUserRepo.findOne.mockResolvedValue(user);
       mockUserRepo.save.mockResolvedValue(user);
 
-      const result = await service.grantRole('user-uuid', UserRole.ADMIN);
+      const result = await service.grantRole('user-uuid', UserRole.ADMIN, 'actor-uuid');
       expect((result as unknown as Record<string, unknown>)['passwordHash']).toBeUndefined();
+    });
+
+    it('throws ForbiddenException when an ADMIN actor grants themselves a different role', async () => {
+      const user = makeUser({ role: UserRole.ADMIN });
+      mockUserRepo.findOne.mockResolvedValue(user);
+
+      await expect(
+        service.grantRole('user-uuid', UserRole.TECHNICAL, 'user-uuid'),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 
@@ -506,7 +517,7 @@ describe('UserService', () => {
     it('throws NotFoundException when user not found', async () => {
       mockUserRepo.findOne.mockResolvedValue(null);
       await expect(
-        service.updateUser('missing-id', { email: 'new@mail.com' }, UserRole.ADMIN),
+        service.updateUser('missing-id', { email: 'new@mail.com' }, UserRole.ADMIN, 'actor-uuid'),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -516,7 +527,7 @@ describe('UserService', () => {
         .mockResolvedValueOnce(user) // load user
         .mockResolvedValueOnce(makeUser({ id: 'other-user' })); // email check
       await expect(
-        service.updateUser('user-uuid', { email: 'taken@mail.com' }, UserRole.ADMIN),
+        service.updateUser('user-uuid', { email: 'taken@mail.com' }, UserRole.ADMIN, 'actor-uuid'),
       ).rejects.toThrow(ConflictException);
     });
 
@@ -530,7 +541,7 @@ describe('UserService', () => {
 
       const result = await service.updateUser('user-uuid', {
         email: 'new@mail.com',
-      }, UserRole.ADMIN);
+      }, UserRole.ADMIN, 'actor-uuid');
       expect(result.email).toBe('new@mail.com');
     });
 
@@ -543,7 +554,7 @@ describe('UserService', () => {
 
       const result = await service.updateUser('user-uuid', {
         role: UserRole.ADMIN,
-      }, UserRole.ADMIN);
+      }, UserRole.ADMIN, 'actor-uuid');
       expect(result.role).toBe(UserRole.ADMIN);
     });
 
@@ -556,6 +567,7 @@ describe('UserService', () => {
           'user-uuid',
           { role: UserRole.ADMIN },
           UserRole.TECHNICAL,
+          'actor-uuid',
         ),
       ).rejects.toThrow(ForbiddenException);
     });
@@ -571,6 +583,7 @@ describe('UserService', () => {
         'user-uuid',
         { role: UserRole.TECHNICAL },
         UserRole.ADMIN,
+        'actor-uuid',
       );
       expect(result.role).toBe(UserRole.TECHNICAL);
     });
@@ -582,7 +595,7 @@ describe('UserService', () => {
         .mockResolvedValueOnce({ ...user, isActive: false });
       mockUserRepo.save.mockResolvedValue({ ...user, isActive: false });
 
-      const result = await service.updateUser('user-uuid', { isActive: false }, UserRole.ADMIN);
+      const result = await service.updateUser('user-uuid', { isActive: false }, UserRole.ADMIN, 'actor-uuid');
       expect(result.isActive).toBe(false);
     });
 
@@ -598,7 +611,7 @@ describe('UserService', () => {
 
       const result = await service.updateUser('user-uuid', {
         personId: null,
-      }, UserRole.ADMIN);
+      }, UserRole.ADMIN, 'actor-uuid');
       expect(result.person).toBeNull();
     });
 
@@ -609,8 +622,93 @@ describe('UserService', () => {
         makePerson({ managedBy: makeUser({ id: 'other-user' }) }),
       );
       await expect(
-        service.updateUser('user-uuid', { personId: 'person-uuid' }, UserRole.ADMIN),
+        service.updateUser('user-uuid', { personId: 'person-uuid' }, UserRole.ADMIN, 'actor-uuid'),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('throws ForbiddenException when TECHNICAL actor edits an ADMIN account email', async () => {
+      const user = makeUser({ role: UserRole.ADMIN });
+      mockUserRepo.findOne.mockResolvedValueOnce(user);
+
+      await expect(
+        service.updateUser(
+          'user-uuid',
+          { email: 'new@mail.com' },
+          UserRole.TECHNICAL,
+          'actor-uuid',
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('throws ForbiddenException when TECHNICAL actor deactivates an ADMIN account via updateUser', async () => {
+      const user = makeUser({ role: UserRole.ADMIN });
+      mockUserRepo.findOne.mockResolvedValueOnce(user);
+
+      await expect(
+        service.updateUser('user-uuid', { isActive: false }, UserRole.TECHNICAL, 'actor-uuid'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('allows ADMIN actor to edit another ADMIN account', async () => {
+      const user = makeUser({ role: UserRole.ADMIN });
+      mockUserRepo.findOne
+        .mockResolvedValueOnce(user)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ ...user, email: 'new@mail.com' });
+      mockUserRepo.save.mockResolvedValue({ ...user, email: 'new@mail.com' });
+
+      const result = await service.updateUser(
+        'user-uuid',
+        { email: 'new@mail.com' },
+        UserRole.ADMIN,
+        'actor-uuid',
+      );
+      expect(result.email).toBe('new@mail.com');
+    });
+
+    it('throws ForbiddenException when an ADMIN actor tries to deactivate their own account', async () => {
+      const user = makeUser({ role: UserRole.ADMIN, isActive: true });
+      mockUserRepo.findOne.mockResolvedValueOnce(user);
+
+      await expect(
+        service.updateUser(
+          'user-uuid',
+          { isActive: false },
+          UserRole.ADMIN,
+          'user-uuid',
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('throws ForbiddenException when an ADMIN actor tries to change their own role', async () => {
+      const user = makeUser({ role: UserRole.ADMIN });
+      mockUserRepo.findOne.mockResolvedValueOnce(user);
+
+      await expect(
+        service.updateUser(
+          'user-uuid',
+          { role: UserRole.TECHNICAL },
+          UserRole.ADMIN,
+          'user-uuid',
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('allows an actor to update their own account when isActive is not touched', async () => {
+      const user = makeUser({ role: UserRole.ADMIN });
+      mockUserRepo.findOne
+        .mockResolvedValueOnce(user)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ ...user, email: 'new@mail.com' });
+      mockUserRepo.save.mockResolvedValue({ ...user, email: 'new@mail.com' });
+
+      const result = await service.updateUser(
+        'user-uuid',
+        { email: 'new@mail.com' },
+        UserRole.ADMIN,
+        'user-uuid',
+      );
+      expect(result.email).toBe('new@mail.com');
     });
   });
 
@@ -621,9 +719,9 @@ describe('UserService', () => {
   describe('deactivateUser', () => {
     it('throws NotFoundException when user not found', async () => {
       mockUserRepo.findOne.mockResolvedValue(null);
-      await expect(service.deactivateUser('missing-id')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.deactivateUser('missing-id', UserRole.ADMIN, 'actor-uuid'),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('sets isActive to false and saves', async () => {
@@ -631,11 +729,41 @@ describe('UserService', () => {
       mockUserRepo.findOne.mockResolvedValue(user);
       mockUserRepo.save.mockResolvedValue({ ...user, isActive: false });
 
-      await service.deactivateUser('user-uuid');
+      await service.deactivateUser('user-uuid', UserRole.ADMIN, 'actor-uuid');
 
       expect(mockUserRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({ isActive: false }),
       );
+    });
+
+    it('throws ForbiddenException when TECHNICAL actor deactivates an ADMIN account', async () => {
+      const user = makeUser({ role: UserRole.ADMIN, isActive: true });
+      mockUserRepo.findOne.mockResolvedValue(user);
+
+      await expect(
+        service.deactivateUser('user-uuid', UserRole.TECHNICAL, 'actor-uuid'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('allows ADMIN actor to deactivate an ADMIN account', async () => {
+      const user = makeUser({ role: UserRole.ADMIN, isActive: true });
+      mockUserRepo.findOne.mockResolvedValue(user);
+      mockUserRepo.save.mockResolvedValue({ ...user, isActive: false });
+
+      await service.deactivateUser('user-uuid', UserRole.ADMIN, 'actor-uuid');
+
+      expect(mockUserRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ isActive: false }),
+      );
+    });
+
+    it('throws ForbiddenException when a user tries to deactivate their own account', async () => {
+      const user = makeUser({ role: UserRole.ADMIN, isActive: true });
+      mockUserRepo.findOne.mockResolvedValue(user);
+
+      await expect(
+        service.deactivateUser('user-uuid', UserRole.ADMIN, 'user-uuid'),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 });

@@ -23,21 +23,19 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 **Findings by section:**
 
 
-| Section                   | 🔴          | 🟠           | 🟡     | 🔵     | Total        |
-| ------------------------- | ----------- | ------------ | ------ | ------ | ------------ |
-| 1. Security               | 2 (1 ✅)     | 11 (3 ✅)     | 4      | 1 (1 ✅)     | 18 (5 ✅)     |
-| 2. Bugs & correctness     | 2           | 9 (1 ✅)      | 10 (1 ✅)  | 1           | 22 (2 ✅)     |
-| 3. Architecture           | —           | 3 (1 ✅)      | 8 (1 ✅)   | —           | 11 (2 ✅)     |
-| 4. Code smells            | —           | 1            | 11     | 3           | 15           |
-| 5. Frontend (dashboard)   | —           | 2            | 11     | 3           | 16           |
-| 6. Dependencies & tooling | (1)         | —            | 2      | 1           | 4            |
-| 7. Tests                  | —           | 3 (1 ✅)      | 3      | 2           | 8 (1 ✅)      |
-| **Total**                 | **4 (1 ✅)** | **29 (6 ✅)** | **49 (2 ✅)** | **11 (1 ✅)** | **93** (10 ✅) |
+| Section                   | 🔴          | 🟠           | 🟡           | 🔵           | Total         |
+| ------------------------- | ----------- | ------------ | ------------ | ------------ | ------------- |
+| 1. Security               | 2 (1 ✅)     | 11 (4 ✅)     | 4            | 1 (1 ✅)      | 18 (6 ✅)      |
+| 2. Bugs & correctness     | 2 (1 ✅)     | 9 (1 ✅)      | 10 (1 ✅)     | 1            | 22 (3 ✅)      |
+| 3. Architecture           | —           | 3 (1 ✅)      | 8 (1 ✅)      | —            | 11 (2 ✅)      |
+| 4. Code smells            | —           | 1            | 11           | 3            | 15            |
+| 5. Frontend (dashboard)   | —           | 2            | 11           | 3            | 16            |
+| 6. Dependencies & tooling | 1           | —            | 2            | 1            | 5             |
+| 7. Tests                  | —           | 3 (1 ✅)      | 3            | 2            | 8 (1 ✅)       |
+| **Total**                 | **5 (2 ✅)** | **29 (7 ✅)** | **49 (2 ✅)** | **11 (1 ✅)** | **94** (12 ✅) |
 
 
 *(✅ counts reflect fixes applied so far in this branch; updated as findings are resolved.)*
-
-*DEP-1 is a cross-reference to SEC-2 (same underlying `xlsx` CVE issue), not an independent finding.*
 
 **Fix first — ranked across every section, not just by original discovery order:**
 
@@ -45,10 +43,10 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 | #   | Finding                                                                                                                                                                                                       | Where                               |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
 | 1   | 🔴✅ [SEC-1](#-sec-1--hardcoded-fallback-jwt-secrets-change-me--fixed) Fallback JWT secret `'change-me'` — silent full-auth bypass if the env var is ever missing — **FIXED**                                  | `auth.module.ts`, `jwt.strategy.ts` |
-| 2   | 🔴 [BUG-1](#-bug-1--patch-usersgrant-role-can-never-work-missing-id-in-route) `PATCH /users/grant-role` endpoint can never work (route bug)                                                                   | `user.controller.ts:62`             |
+| 2   | 🔴✅ [BUG-1](#-bug-1--patch-usersgrant-role-can-never-work-missing-id-in-route--fixed) `PATCH /users/grant-role` endpoint can never work (route bug) — **FIXED**                                               | `user.controller.ts:62`             |
 | 3   | 🔴 [BUG-2](#-bug-2--promoting-a-provisional-person-always-fails) Provisional-person promotion always fails (`managedBy` never loaded)                                                                         | `person.service.ts:250`             |
 | 4   | 🔴 [SEC-2](#-sec-2--xlsx-sheetjs-0185-with-known-cves-used-to-parse-external-data) `xlsx` 0.18.5 with known CVEs, used to parse external data                                                                 | `legacy-api.client.ts`              |
-| 5   | 🟠 [SEC-7](#-sec-7--technical-users-can-modify-and-deactivate-admin-accounts) TECHNICAL users can deactivate/edit ADMIN accounts                                                                              | `user.service.ts`                   |
+| 5   | 🟠✅ [SEC-7](#-sec-7--technical-users-can-modify-and-deactivate-admin-accounts--fixed) TECHNICAL users can deactivate/edit ADMIN accounts — **FIXED**                                                          | `user.service.ts`                   |
 | 6   | 🟠 [SEC-14](#-sec-14--production-image-installs-unpinned-dependencies) Prod Docker image installs unpinned deps (`--no-lockfile`)                                                                             | `apps/api/Dockerfile`               |
 | 7   | 🟠✅ [TEST-1](#7-tests) Backend auth guards & strategies at **0% coverage** — the entire authz enforcement layer is untested — **FIXED**                                                                       | `auth/guards`, `auth/strategies`    |
 | 8   | 🟠 [SEC-8](#-sec-8--no-trust-proxy--per-ip-throttling-is-broken-behind-the-reverse-proxy) Missing `trust proxy` → rate limiting shared by all users behind Caddy                                              | `main.ts`                           |
@@ -152,7 +150,7 @@ and treat `affected === 0` as reuse.
 
 **Recommendation:** store `sha256(inviteToken)`, look up by hash; never log the token (log the user id instead).
 
-### 🟠 SEC-7 — TECHNICAL users can modify and deactivate ADMIN accounts
+### 🟠✅ SEC-7 — TECHNICAL users can modify and deactivate ADMIN accounts — FIXED
 
 `UserController` is class-guarded with `@Roles(ADMIN, TECHNICAL)`. The role-hierarchy check (`assertCanAssignRole`) only runs when `dto.role` is present. So a TECHNICAL user can, on an **ADMIN** account:
 
@@ -160,9 +158,15 @@ and treat `affected === 0` as reuse.
 - flip `isActive` false→true or true→false (`PATCH /users/:id` and `PATCH /users/:id/deactivate`),
 - relink its `person`.
 
-Net effect: a TECHNICAL user can lock every ADMIN out of the system — a privilege-inversion. There is also no self-protection (a user can deactivate themselves).
+Net effect: a TECHNICAL user can lock every ADMIN out of the system — a privilege-inversion. There was also no self-protection (a user could deactivate themselves).
 
 **Recommendation:** in `updateUser`/`deactivateUser`, reject when `target.role === ADMIN && actor.role !== ADMIN`; consider preventing self-deactivation.
+
+**Fix applied:** both `UserService.updateUser` and `UserService.deactivateUser` (`user.service.ts`) now reject with `ForbiddenException` up front — before touching `email`, `isActive`, `role` or `personId` — whenever `target.role === ADMIN && actorRole !== ADMIN`. This blocks the whole field set in one guard, not just the `role` field. `deactivateUser` previously took no actor at all; its signature now requires `actorRole`, and `UserController.deactivateUser` (`user.controller.ts:72-81`) passes `@CurrentUser().role` through. Covered by new specs in `user.service.spec.ts` (TECHNICAL blocked from editing/deactivating an ADMIN account; ADMIN still allowed) and an updated `user.controller.spec.ts` assertion for the new `deactivateUser` signature.
+
+Self-deactivation is now blocked too (any role, not just ADMIN — including the sole-admin case, on purpose, to avoid ever needing a "last admin" carve-out): both `updateUser` (when `dto.isActive === false`) and `deactivateUser` throw `ForbiddenException` when `userId === actorId`. Both methods now take an `actorId` param; the controller passes `@CurrentUser().sub`. The dashboard needed no change — `UserService.deactivate`'s existing error handler (`user-list.component.ts:362-365`) already surfaces `err.error.message`, so the Catalan `ForbiddenException` message renders as a toast automatically. Admin-on-admin and TECHNICAL-on-TECHNICAL deactivation remain allowed (standard same/higher-tier peer model), consistent with `assertCanAssignRole`'s existing ADMIN-bypass semantics.
+
+Self-*demotion* was the same footgun and was still open after the above: an ADMIN could change their own `role` via `updateUser`, and — since `grantRole` is ADMIN-only at the route level — an ADMIN could also grant themselves a lower role via `PATCH /users/:id/grant-role`, either way locking themselves out of ADMIN-only features with nobody else able to reverse it if they were the only admin. Both paths now reject with `ForbiddenException` when `userId === actorId` and the new role differs from the current one (a same-role no-op call is not blocked). `grantRole` also gained an `actorId` parameter for this check, threaded from `@CurrentUser().sub` in the controller.
 
 ### 🟠 SEC-8 — No `trust proxy` ⇒ per-IP throttling is broken behind the reverse proxy
 
@@ -246,7 +250,7 @@ If the lock is meant to freeze historical events (it throws `ForbiddenException`
 
 ## 2. Bugs & correctness
 
-### 🔴 BUG-1 — `PATCH /users/grant-role` can never work (missing `:id` in route)
+### 🔴✅ BUG-1 — `PATCH /users/grant-role` can never work (missing `:id` in route) — FIXED
 
 `user.controller.ts:62-70`:
 
@@ -258,6 +262,8 @@ grantRole(@Param('id', ParseUUIDPipe) id: string, @Body() dto: GrantUserRoleDto)
 The route declares **no `:id` path parameter**, yet the handler reads `@Param('id')` through `ParseUUIDPipe`. Every call receives `undefined`, the pipe throws, and the endpoint always returns `400 Validation failed (uuid is expected)`. `GrantUserRoleDto` only carries `role`, so the target user cannot be specified at all. The ADMIN "grant role" feature is dead on arrival (role changes only work through the generic `PATCH /users/:id`).
 
 **Fix:** `@Patch(':id/grant-role')` (declared *before* `@Patch(':id')` to keep route precedence).
+
+**Fix applied:** `user.controller.ts:62` now declares `@Patch(':id/grant-role')`, ahead of the generic `@Patch(':id')` handler so route precedence still resolves correctly. The dashboard's `UserService.grantRole` (`user.service.ts:38`) was updated to match — it now calls `PATCH /users/:id/grant-role` with only `{ role }` in the body instead of `PATCH /users/grant-role` with `{ userId, role }`. Covered by a route-metadata assertion in `user.controller.spec.ts` (fails without the `:id` segment) and an updated `user.service.spec.ts` request-shape test.
 
 ### 🔴 BUG-2 — Promoting a provisional person always fails
 
@@ -595,7 +601,7 @@ The CLAUDE.md claim "Coverage threshold: 70 % (enforced in CI)" is wrong on both
 **Gaps (ordered by risk):**
 
 - 🟠✅ **TEST-1** — **FIXED.** Backend `auth/guards` and `auth/strategies` are at **0 %** — `JwtAuthGuard` (the `@Public()` bypass), `RolesGuard`, `JwtStrategy` (including the `?token=` extractor, SEC-4) and `LocalStrategy` have no tests at all. These four files are the entire authorization enforcement layer. Same for `AuthController`/`UserController` (auth module overall: 57 %) — a trivial controller test would have caught BUG-1 (the dead `grant-role` route).
-**Fix applied:** added `jwt-auth.guard.spec.ts` (Public bypass + Passport delegation), `roles.guard.spec.ts` (no-roles/empty-roles/no-user/role-match/role-mismatch), `local.strategy.spec.ts` (valid/invalid credentials), `auth.controller.spec.ts` (all 7 routes: login, refresh, logout, logout-all, getMe, acceptInvite, setupUser incl. the SETUP_TOKEN gate), and `user.controller.spec.ts` (all 6 routes). `JwtStrategy` was already covered as part of SEC-1. Guards, strategies and both controllers are now at 100% statement coverage. Note: these are unit tests calling controller methods directly, so they do **not** exercise NestJS's route-path parameter binding — they wouldn't have caught BUG-1 (the dead `grant-role` route needs `:id` in the path), which requires an HTTP-level/e2e test (see TEST-2/TEST-6) and remains open as its own finding.
+**Fix applied:** added `jwt-auth.guard.spec.ts` (Public bypass + Passport delegation), `roles.guard.spec.ts` (no-roles/empty-roles/no-user/role-match/role-mismatch), `local.strategy.spec.ts` (valid/invalid credentials), `auth.controller.spec.ts` (all 7 routes: login, refresh, logout, logout-all, getMe, acceptInvite, setupUser incl. the SETUP_TOKEN gate), and `user.controller.spec.ts` (all 6 routes). `JwtStrategy` was already covered as part of SEC-1. Guards, strategies and both controllers are now at 100% statement coverage. Note: these are unit tests calling controller methods directly, so they do **not** exercise NestJS's route-path parameter binding — they wouldn't have caught BUG-1 (the dead `grant-role` route needed `:id` in the path). BUG-1 has since been fixed separately, with its own route-metadata assertion added to `user.controller.spec.ts` (see above) rather than a full HTTP-level/e2e test (still tracked under TEST-2/TEST-6).
 - 🟠 **TEST-2** Everything is unit-tested against mocked repositories; there are **no integration tests against a real Postgres**. The bugs found in this audit that unit tests structurally *cannot* catch are precisely the SQL/transaction ones (BUG-3 invalid ORDER BY path, BUG-11 cross-connection MAX inside a transaction, BUG-12 diverging capacity SQL, BUG-17 snapshot race). A small testcontainers-style suite for the raw-SQL services would close this class.
 - 🟠 **TEST-3** Dashboard coverage is bimodal: next to the 90 %+ pinyes core sit near-zero areas — `event-detail.component.ts` **5.9 %** (its spec cleverly tests only pure helpers via `Object.create(prototype)`, never the component behavior), `template-editor.component.ts` **28.9 %**, `projection-view.component.ts` **40.9 %**, and every modal at 0-11 % (`user-form-modal` 4.3 %, `attendance-edit-modal` 5.4 %, `save-as-template-dialog` 2.5 %, `already-assigned-dialog` 5.7 %). The **user-form-modal** is where roles are assigned in the UI.
 - 🟡 **TEST-4** `projection-layout.util.ts` — 523 lines of pure layout math, the ideal unit-test target — is at **27 %** (lines 129-438 untouched). Likewise the trivially testable `date.util`, `uuid.util`, `slugify.util` and `fit-to-bounds.util` are at **0 %**.

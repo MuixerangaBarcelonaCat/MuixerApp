@@ -169,9 +169,16 @@ export class UserService {
     // TODO implement
   }
 
-  async grantRole(userId: string, role: UserRole) {
+  async grantRole(userId: string, role: UserRole, actorId: string) {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
+
+    if (userId === actorId && role !== user.role) {
+      throw new ForbiddenException(
+        'No us podeu canviar el vostre propi rol',
+      );
+    }
+
     user.role = role;
     await this.userRepository.save(user);
     const output = await this.userRepository.findOne({ where: { id: userId } , relations: ['person'] });
@@ -200,7 +207,7 @@ export class UserService {
     // If the email exists and already has a password (active account), reject.
     // If it exists without credentials (sync/invite stub), upgrade it instead.
     if (existingUser && existingUser.passwordHash) {
-      throw new ConflictException('A user with this email already exists');
+      throw new ConflictException('Ja existeix un usuari amb aquest email');
     }
 
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
@@ -262,6 +269,7 @@ export class UserService {
     userId: string,
     dto: UpdateUserDto,
     actorRole: UserRole,
+    actorId: string,
   ): Promise<UserResponseDto> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
@@ -269,12 +277,32 @@ export class UserService {
     });
     if (!user) throw new NotFoundException('User not found');
 
+    if (user.role === UserRole.ADMIN && actorRole !== UserRole.ADMIN) {
+      throw new ForbiddenException(
+        'Solament un administrador pot modificar un compte ADMIN',
+      );
+    }
+
+    if (dto.isActive === false && userId === actorId) {
+      throw new ForbiddenException(
+        'No us podeu desactivar el vostre propi compte',
+      );
+    }
+
+    if (
+      dto.role !== undefined &&
+      dto.role !== user.role &&
+      userId === actorId
+    ) {
+      throw new ForbiddenException('No us podeu canviar el vostre propi rol');
+    }
+
     if (dto.email && dto.email !== user.email) {
       const existing = await this.userRepository.findOne({
         where: { email: dto.email },
       });
       if (existing) {
-        throw new ConflictException('A user with this email already exists');
+        throw new ConflictException('Ja existeix un usuari amb aquest email');
       }
       user.email = dto.email;
     }
@@ -328,11 +356,28 @@ export class UserService {
     });
   }
 
-  async deactivateUser(userId: string): Promise<void> {
+  async deactivateUser(
+    userId: string,
+    actorRole: UserRole,
+    actorId: string,
+  ): Promise<void> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
     });
     if (!user) throw new NotFoundException('User not found');
+
+    if (user.role === UserRole.ADMIN && actorRole !== UserRole.ADMIN) {
+      throw new ForbiddenException(
+        'Solament un administrador pot modificar un compte ADMIN',
+      );
+    }
+
+    if (userId === actorId) {
+      throw new ForbiddenException(
+        'No us podeu desactivar el vostre propi compte',
+      );
+    }
+
     user.isActive = false;
     await this.userRepository.save(user);
   }
