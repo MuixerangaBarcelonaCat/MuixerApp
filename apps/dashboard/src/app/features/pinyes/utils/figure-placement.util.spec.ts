@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import {
   DEFAULT_PLACEMENT_GAP,
+  computeFigureBoundingBoxes,
   figureExtentFromNodes,
   placeFigures,
   placeNewFigure,
 } from './figure-placement.util';
+import { CompositionSlotWithNodes } from '../components/figure-canvas/figure-canvas.component';
 
 describe('placeFigures', () => {
   it('returns an empty array when there are no figures', () => {
@@ -90,5 +92,84 @@ describe('figureExtentFromNodes', () => {
 
   it('returns a zero-size extent when there are no nodes', () => {
     expect(figureExtentFromNodes('a', [])).toEqual({ instanceId: 'a', width: 0, height: 0 });
+  });
+});
+
+describe('computeFigureBoundingBoxes', () => {
+  const makeSlotNode = (x: number, y: number, width: number, height: number) => ({
+    id: `${x}-${y}`,
+    label: 'n',
+    zone: 'PINYA',
+    positionType: null,
+    x,
+    y,
+    z: 0,
+    width,
+    height,
+    rotation: 0,
+    color: null,
+    shape: 'RECTANGLE',
+    sortOrder: 0,
+    ringLevel: null,
+    originNodeId: null,
+    renglaId: null,
+    renglaPosition: null,
+  });
+
+  const makeSlot = (
+    slotId: string,
+    offsetX: number,
+    offsetY: number,
+    nodes: ReturnType<typeof makeSlotNode>[],
+    label: string | null = null,
+  ): CompositionSlotWithNodes => ({
+    slotId,
+    label,
+    offsetX,
+    offsetY,
+    sortOrder: 0,
+    angle: 0,
+    figureTemplate: {
+      id: `tpl-${slotId}`,
+      name: slotId,
+      hasPinya: true,
+      nodes: nodes as unknown as CompositionSlotWithNodes['figureTemplate']['nodes'],
+    },
+  });
+
+  it('returns an empty array for no slots', () => {
+    expect(computeFigureBoundingBoxes([])).toEqual([]);
+  });
+
+  it('computes the world-space bounding box of a slot from its node extents and offset', () => {
+    // Node spans x:[-20,20] y:[-10,10] -> width 40, height 20, centered at node origin.
+    // Slot offset represents that center in world space (100, 200).
+    const slot = makeSlot('a', 100, 200, [makeSlotNode(0, 0, 40, 20)]);
+
+    const [box] = computeFigureBoundingBoxes([slot]);
+
+    expect(box).toEqual({ slotId: 'a', label: 'a', x: 80, y: 190, width: 40, height: 20 });
+  });
+
+  it('uses the slot label when set, falling back to the template name', () => {
+    const slot = makeSlot('a', 0, 0, [makeSlotNode(0, 0, 10, 10)], 'Pilar de 4');
+
+    const [box] = computeFigureBoundingBoxes([slot]);
+
+    expect(box.label).toBe('Pilar de 4');
+  });
+
+  it('skips slots with no nodes', () => {
+    const slot = makeSlot('a', 0, 0, []);
+
+    expect(computeFigureBoundingBoxes([slot])).toEqual([]);
+  });
+
+  it('unions the extents of multiple nodes in the same slot', () => {
+    const slot = makeSlot('a', 0, 0, [makeSlotNode(-50, 0, 10, 10), makeSlotNode(50, 0, 10, 10)]);
+
+    const [box] = computeFigureBoundingBoxes([slot]);
+
+    expect(box.width).toBe(110);
   });
 });

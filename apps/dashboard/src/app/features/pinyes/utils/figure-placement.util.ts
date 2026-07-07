@@ -1,14 +1,18 @@
 /**
- * Mock placement algorithm for figures on the segment canvas (P5.9).
+ * Figure geometry for the segment canvas (P5.9): placement (mock
+ * space-optimizing algorithm), node-extent measurement, and world-space
+ * bounding boxes derived from that geometry (used by the troncs minimap).
  *
- * Lays figures out in a horizontal line, left to right, separated by a fixed
- * gap. Tronc panels are left "linked" (troncPanelX/Y = null), which the canvas
- * renders automatically above each figure. To be replaced by a real
- * space-optimizing algorithm with the same signatures.
+ * Placement lays figures out in a horizontal line, left to right, separated
+ * by a fixed gap. Tronc panels are left "linked" (troncPanelX/Y = null),
+ * which the canvas renders automatically above each figure. To be replaced
+ * by a real space-optimizing algorithm with the same signatures.
  *
  * Coordinates follow the distribution-slot convention: x/y is the world
  * position of the figure's bounding-box center.
  */
+
+import { CompositionSlotWithNodes } from '../components/figure-canvas/figure-canvas.component';
 
 export const DEFAULT_PLACEMENT_GAP = 100;
 
@@ -84,4 +88,44 @@ export function figureExtentFromNodes(
     maxY = Math.max(maxY, n.y + n.height / 2);
   }
   return { instanceId, width: maxX - minX, height: maxY - minY };
+}
+
+export interface FigureBoundingBox {
+  slotId: string;
+  label: string;
+  /** World-space top-left corner. */
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * World-space bounding box of each slot's rendered nodes, for the troncs
+ * minimap. `slot.offsetX/offsetY` is the visual center of the slot's node
+ * extents (the same pivot convention used by the canvas), so the box
+ * top-left is derived by subtracting half the extent from
+ * `figureExtentFromNodes`.
+ */
+export function computeFigureBoundingBoxes(
+  slots: CompositionSlotWithNodes[],
+): FigureBoundingBox[] {
+  const boxes: FigureBoundingBox[] = [];
+
+  for (const slot of slots) {
+    const nodes = slot.figureTemplate.nodes;
+    if (nodes.length === 0) continue;
+
+    const { width, height } = figureExtentFromNodes(slot.slotId, nodes);
+    boxes.push({
+      slotId: slot.slotId,
+      label: slot.label ?? slot.figureTemplate.name,
+      x: slot.offsetX - width / 2,
+      y: slot.offsetY - height / 2,
+      width,
+      height,
+    });
+  }
+
+  return boxes;
 }

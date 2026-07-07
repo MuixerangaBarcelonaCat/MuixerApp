@@ -17,6 +17,11 @@ class StubPinyesTab {
   readonly isPast = input(false);
 }
 
+@Component({ selector: 'app-troncs-tab', standalone: true, template: '' })
+class StubTroncsTab {
+  readonly isPast = input(false);
+}
+
 const EVENT_ID = 'event-1';
 const SEGMENT_ID = 'seg-1';
 
@@ -97,7 +102,7 @@ describe('SegmentWorkspaceComponent', () => {
             { provide: SegmentWorkspaceStateService, useValue: ws },
             UndoRedoService,
           ],
-          imports: [LucideAngularModule, StubPinyesTab],
+          imports: [LucideAngularModule, StubPinyesTab, StubTroncsTab],
         },
       })
       .compileComponents();
@@ -181,6 +186,12 @@ describe('SegmentWorkspaceComponent', () => {
   it('selects the first instance when no figure is specified', async () => {
     await setup();
     expect(ws.selectInstance).toHaveBeenCalledWith('inst-a');
+  });
+
+  it('shows the troncs tab content when troncs is active', async () => {
+    const fixture = await setup({ queryParams: { tab: 'troncs' } });
+    const troncsTab = fixture.nativeElement.querySelector('app-troncs-tab');
+    expect(troncsTab).toBeTruthy();
   });
 
   it('marks the workspace as past from the past query param', async () => {
