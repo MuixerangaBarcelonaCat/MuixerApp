@@ -181,15 +181,15 @@
         </div>
       }
 
-      <!-- Projecta mode -->
+      <!-- Previsualitza mode -->
       @if (activeTab()) {
         <button
           type="button"
           class="btn btn-sm gap-1"
-          [class.btn-primary]="viewMode() === 'projecta'"
-          [class.btn-ghost]="viewMode() !== 'projecta'"
-          (click)="setViewMode('projecta')"
-          [attr.aria-pressed]="viewMode() === 'projecta'"
+          [class.btn-primary]="viewMode() === 'previsualitza'"
+          [class.btn-ghost]="viewMode() !== 'previsualitza'"
+          (click)="setViewMode('previsualitza')"
+          [attr.aria-pressed]="viewMode() === 'previsualitza'"
           aria-label="Mode previsualització"
         >
           <i-lucide [img]="Monitor" class="size-4" aria-hidden="true" />
@@ -206,7 +206,7 @@
     <main class="flex-1 relative overflow-hidden">
 
       <!-- ── Projection preview mode ────────────────────────────────────── -->
-      @if (viewMode() === 'projecta' && activeTab() && !loading()) {
+      @if (viewMode() === 'previsualitza' && activeTab() && !loading()) {
         <div class="flex flex-col h-full bg-white overflow-hidden">
           @if (isActiveTabTroncOnly()) {
             <div class="flex-1 min-h-0 overflow-y-auto flex items-center justify-center p-4">
@@ -243,7 +243,7 @@
       }
 
       <!-- ── Normal assignment view ─────────────────────────────────────── -->
-      @if (viewMode() !== 'projecta') {
+      @if (viewMode() !== 'previsualitza') {
         @if (loading()) {
           <div class="absolute inset-0 flex items-center justify-center bg-base-100/80 z-10">
             <span class="loading loading-spinner loading-lg text-primary"></span>
@@ -406,12 +406,12 @@
             (unassign)="onUnassign($event)"
           />
         }
-      } <!-- end @if viewMode() !== 'projecta' -->
+      } <!-- end @if viewMode() !== 'previsualitza' -->
     </main>
 
     <!-- Person panel (right sidebar) -->
 
-    @if (!isLocked() && !state.panelCollapsed() && eventId() && segmentId() && viewMode() !== 'projecta' && viewMode() !== 'decoration') {
+    @if (!isLocked() && !state.panelCollapsed() && eventId() && segmentId() && viewMode() !== 'previsualitza' && viewMode() !== 'decoration') {
       <aside class="w-64 shrink-0 overflow-hidden">
         <app-person-panel
           [eventId]="eventId()"

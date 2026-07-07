@@ -41,15 +41,15 @@ export const pinyesRoutes: Routes = [
   {
     path: 'events/:eventId/segments/:segmentId/assign',
     loadComponent: () =>
-      import('./components/assignment-canvas/assignment-canvas.component').then(
-        (m) => m.AssignmentCanvasComponent,
+      import('./components/segment-workspace/segment-workspace.component').then(
+        (m) => m.SegmentWorkspaceComponent,
       ),
   },
   {
     path: 'events/:eventId/segments/:segmentId/assign/:instanceId',
     loadComponent: () =>
-      import('./components/assignment-canvas/assignment-canvas.component').then(
-        (m) => m.AssignmentCanvasComponent,
+      import('./components/segment-workspace/segment-workspace.component').then(
+        (m) => m.SegmentWorkspaceComponent,
       ),
   },
   {

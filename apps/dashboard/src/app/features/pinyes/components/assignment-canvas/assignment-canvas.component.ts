@@ -167,7 +167,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly fabDropdownOpen = signal(false);
   readonly decorationPickerOpen = signal(false);
 
-  readonly viewMode = signal<'pinya' | 'tronc' | 'decoration' | 'projecta'>('pinya');
+  readonly viewMode = signal<'pinya' | 'tronc' | 'decoration' | 'previsualitza'>('pinya');
   readonly defaultView = signal<'tronc' | null>(null);
 
   private lastMoveUndoTime = 0;
@@ -661,7 +661,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     this.troncDragging = false;
   }
 
-  setViewMode(mode: 'pinya' | 'tronc' | 'decoration' | 'projecta'): void {
+  setViewMode(mode: 'pinya' | 'tronc' | 'decoration' | 'previsualitza'): void {
     this.viewMode.set(mode);
     this.troncPanelOpen.set(mode === 'tronc');
     this.decorationPickerOpen.set(mode === 'decoration');
