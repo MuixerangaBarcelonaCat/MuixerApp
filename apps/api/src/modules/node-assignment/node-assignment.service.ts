@@ -417,9 +417,15 @@ export class NodeAssignmentService {
       figureInstance: instance,
       instanceNode,
       person,
+      segment: instance.segment,
     });
 
-    const saved = await this.assignmentRepository.save(assignment);
+    let saved: NodeAssignment;
+    try {
+      saved = await this.assignmentRepository.save(assignment);
+    } catch (err) {
+      throw this.toAssignConflictError(err);
+    }
 
     const populated = await this.assignmentRepository.findOne({
       where: { id: saved.id },
@@ -440,11 +446,11 @@ export class NodeAssignmentService {
     const [assignmentA, assignmentB] = await Promise.all([
       this.assignmentRepository.findOne({
         where: { id: dto.assignmentIdA },
-        relations: ['figureInstance', 'instanceNode', 'person'],
+        relations: ['figureInstance', 'figureInstance.segment', 'instanceNode', 'person'],
       }),
       this.assignmentRepository.findOne({
         where: { id: dto.assignmentIdB },
-        relations: ['figureInstance', 'instanceNode', 'person'],
+        relations: ['figureInstance', 'figureInstance.segment', 'instanceNode', 'person'],
       }),
     ]);
 
@@ -470,12 +476,14 @@ export class NodeAssignmentService {
         figureInstance: assignmentA.figureInstance,
         instanceNode: assignmentA.instanceNode,
         person: assignmentB.person,
+        segment: assignmentA.figureInstance.segment,
       });
       const newB = manager.create(NodeAssignment, {
         id: dto.assignmentIdB,
         figureInstance: assignmentB.figureInstance,
         instanceNode: assignmentB.instanceNode,
         person: assignmentA.person,
+        segment: assignmentB.figureInstance.segment,
       });
 
       await manager.save(NodeAssignment, [newA, newB]);
@@ -958,6 +966,8 @@ export class NodeAssignmentService {
     instanceId: string,
     dto: { numberOfCordons?: number | null },
   ): Promise<{ numberOfCordons: number | null }> {
+    await this.checkEventLock(instanceId);
+
     const instance = await this.figureInstanceRepository.findOne({
       where: { id: instanceId },
     });
@@ -998,7 +1008,8 @@ export class NodeAssignmentService {
     };
   }
 
-  private async checkEventLock(instanceId: string): Promise<void> {
+  /** Shared by NodeAssignmentService's own mutations and by FigureInstanceService for the paths that also touch assignment data (mode change, instance removal). */
+  async checkEventLock(instanceId: string): Promise<void> {
     const lockDays = parseInt(process.env.ASSIGNMENT_LOCK_DAYS ?? '2', 10);
     if (lockDays <= 0) return;
 
@@ -1147,31 +1158,63 @@ export class NodeAssignmentService {
     // compositions removed in Phase 0
   }
 
+  /**
+   * Translates a Postgres unique-violation (23505) racing another concurrent
+   * assign() into the same ConflictException the pre-checks throw, instead of
+   * letting it surface as a raw 500 (BUG-18). Any other error is rethrown as-is.
+   */
+  private toAssignConflictError(err: unknown): Error {
+    const pgErr = err as { code?: string; detail?: string };
+    if (pgErr?.code !== '23505') return err as Error;
+    if (pgErr.detail?.includes('segmentId')) {
+      return new ConflictException('Person is already assigned in another figure instance of this segment');
+    }
+    if (pgErr.detail?.includes('personId')) {
+      return new ConflictException('Person is already assigned in this figure instance');
+    }
+    return new ConflictException('Node is already occupied in this figure instance');
+  }
+
   // ── B.1 — Snapshot helper ─────────────────────────────────────────────────
 
   /**
    * Copies all FigureNode rows from the instance's template into InstanceNode rows
    * owned by this instance. Marks the instance as snapshotted. Runs in a transaction.
-   * Returns the newly created InstanceNode rows.
+   * Returns the InstanceNode rows for the instance (freshly created, or — if a
+   * concurrent caller already snapshotted it first — the winner's rows).
+   *
+   * The `UPDATE ... WHERE snapshotted = false` below is an atomic claim (BUG-17):
+   * Postgres serializes concurrent UPDATEs on the same row, so a second caller's
+   * claim blocks until the first commits, then correctly loses (0 rows affected)
+   * instead of both callers copying the template nodes twice.
    */
   private async snapshotInstance(instance: FigureInstance): Promise<InstanceNode[]> {
     if (!instance.figureTemplate) {
       throw new BadRequestException('Cannot snapshot a composition-based instance');
     }
-
-    const template = await this.figureTemplateRepository.findOne({
-      where: { id: instance.figureTemplate.id },
-      relations: ['nodes'],
-    });
-
-    if (!template) {
-      throw new NotFoundException(`FigureTemplate ${instance.figureTemplate.id} not found`);
-    }
-
-    const allNodes = template.nodes ?? [];
+    const figureTemplateId = instance.figureTemplate.id;
 
     return this.dataSource.transaction(async (manager) => {
-      const instanceNodes = allNodes.map((node) =>
+      const claim = await manager.update(
+        FigureInstance,
+        { id: instance.id, snapshotted: false },
+        { snapshotted: true },
+      );
+
+      if (!claim.affected) {
+        return manager.find(InstanceNode, { where: { figureInstance: { id: instance.id } } });
+      }
+
+      const template = await this.figureTemplateRepository.findOne({
+        where: { id: figureTemplateId },
+        relations: ['nodes'],
+      });
+
+      if (!template) {
+        throw new NotFoundException(`FigureTemplate ${figureTemplateId} not found`);
+      }
+
+      const instanceNodes = (template.nodes ?? []).map((node) =>
         manager.create(InstanceNode, {
           figureInstance: instance,
           sourceNodeId: node.id,
@@ -1196,13 +1239,7 @@ export class NodeAssignmentService {
         }),
       );
 
-      const saved = await manager.save(InstanceNode, instanceNodes);
-
-      await manager.update(FigureInstance, instance.id, {
-        snapshotted: true,
-      });
-
-      return saved;
+      return manager.save(InstanceNode, instanceNodes);
     });
   }
 }

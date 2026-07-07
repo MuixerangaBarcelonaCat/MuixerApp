@@ -11,6 +11,7 @@ import { LegacyApiClient } from './legacy-api.client';
 import { PersonSyncStrategy } from './strategies/person-sync.strategy';
 import { EventSyncStrategy } from './strategies/event-sync.strategy';
 import { AttendanceSyncStrategy } from './strategies/attendance-sync.strategy';
+import { SyncLockService } from './sync-lock.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Person, Tag, Event, Attendance, Season, User])],
@@ -20,6 +21,7 @@ import { AttendanceSyncStrategy } from './strategies/attendance-sync.strategy';
     PersonSyncStrategy,
     EventSyncStrategy,
     AttendanceSyncStrategy,
+    SyncLockService,
   ],
 })
 export class SyncModule {}

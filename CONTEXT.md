@@ -748,7 +748,6 @@ nx test dashboard                    # Tests frontend
 | `DATABASE_URL` | Connection string PostgreSQL |
 | `DB_SSL` | `true` (prod) / `false` (dev Docker) |
 | `JWT_SECRET` | Secret per als access tokens |
-| `JWT_REFRESH_SECRET` | Secret per als refresh tokens |
 | `CORS_ORIGINS` | Array d'orígens permesos (Dashboard + PWA) |
 | `SETUP_TOKEN` | Token per bootstrap del primer usuari |
 | `LEGACY_API_URL` | URL de l'API legacy per al sync |

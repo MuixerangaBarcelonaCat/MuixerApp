@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios, { AxiosInstance } from 'axios';
-import * as XLSX from 'xlsx';
+import { Workbook } from 'exceljs';
 import {
   LegacyAssaig,
   LegacyAssaigDetail,
@@ -284,26 +284,28 @@ export class LegacyApiClient {
       throw new Error(`XLSX download failed for event ${eventId}: HTTP ${resp.status}`);
     }
 
-    const workbook = XLSX.read(resp.data, { type: 'buffer', cellDates: false });
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const raw: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
+    const workbook = new Workbook();
+    await workbook.xlsx.load(resp.data);
+    const sheet = workbook.worksheets[0];
 
     const rows: XlsxAttendanceRow[] = [];
-    for (const row of raw) {
-      const id = row[0];
+    sheet.eachRow((row) => {
+      // row.values is 1-indexed: index 0 is unused, column A is index 1
+      const values = row.values as unknown[];
+      const id = values[1];
       // Skip header/section-separator rows (Id column = 'Id')
-      if (!id || id === 'Id') continue;
+      if (!id || id === 'Id') return;
 
-      const rawEstat = (row[3] as string | null) ?? null;
+      const rawEstat = (values[4] as string | null) ?? null;
       const estat = rawEstat ? rawEstat.trim() : null;
       rows.push({
         legacyPersonId: String(id),
-        personLabel: String(row[1] ?? ''),
-        notes: (row[2] as string | null) || null,
+        personLabel: String(values[2] ?? ''),
+        notes: (values[3] as string | null) || null,
         estat,
-        instant: (row[4] as string | null) || null,
+        instant: (values[5] as string | null) || null,
       });
-    }
+    });
 
     this.logger.log(`Parsed ${rows.length} rows from XLSX for event ${eventId}`);
     await this.delay(100);

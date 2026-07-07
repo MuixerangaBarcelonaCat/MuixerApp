@@ -17,7 +17,6 @@ describe('person.util', () => {
     firstSurname: 'Puig',
     secondSurname: null,
     alias: 'jo',
-    email: null,
     phone: null,
     birthDate: null,
     shoulderHeight: 150,

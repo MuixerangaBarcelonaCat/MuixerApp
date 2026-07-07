@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { FigureInstance } from './entities/figure-instance.entity';
 import { EventSegment } from './entities/event-segment.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
@@ -14,6 +14,7 @@ import { UpdateInstanceDto } from './dto/update-instance.dto';
 import { ReorderInstancesDto } from './dto/reorder-instances.dto';
 import { UpdateSegmentDistributionDto } from './dto/update-segment-distribution.dto';
 import { EventSegmentService, InstanceRef, SegmentWithInstances } from './event-segment.service';
+import { NodeAssignmentService } from '../node-assignment/node-assignment.service';
 
 export interface DistributionNodeItem {
   id: string;
@@ -71,6 +72,7 @@ export class FigureInstanceService {
     @InjectRepository(Composition)
     private readonly compositionRepository: Repository<Composition>,
     private readonly segmentService: EventSegmentService,
+    private readonly nodeAssignmentService: NodeAssignmentService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -122,20 +124,31 @@ export class FigureInstanceService {
     if (dto.label !== undefined) instance.label = dto.label ?? null;
     if (dto.sortOrder !== undefined) instance.sortOrder = dto.sortOrder;
     if (dto.figureMode !== undefined) {
+      await this.nodeAssignmentService.checkEventLock(instanceId);
       instance.figureMode = dto.figureMode;
-      if (dto.figureMode === FigureMode.REMAT) {
-        await this.deletePinyaAssignments(instanceId);
-      } else if (dto.figureMode === FigureMode.NETA) {
-        await this.deletePinyaOnlyAssignments(instanceId);
-      }
     }
 
-    await this.instanceRepository.save(instance);
+    if (dto.figureMode === FigureMode.REMAT || dto.figureMode === FigureMode.NETA) {
+      // Deletion + save must commit or roll back together: otherwise a failed save after
+      // the delete would leave assignments gone but figureMode unchanged (see BUG-13).
+      await this.dataSource.transaction(async (manager) => {
+        if (dto.figureMode === FigureMode.REMAT) {
+          await this.deletePinyaAssignments(instanceId, manager);
+        } else {
+          await this.deletePinyaOnlyAssignments(instanceId, manager);
+        }
+        await manager.save(FigureInstance, instance);
+      });
+    } else {
+      await this.instanceRepository.save(instance);
+    }
+
     return this.findOneById(instance.id);
   }
 
   async remove(eventId: string, segmentId: string, instanceId: string): Promise<void> {
     const instance = await this.assertInstanceBelongsToSegment(eventId, segmentId, instanceId);
+    await this.nodeAssignmentService.checkEventLock(instanceId);
     await this.instanceRepository.remove(instance);
   }
 
@@ -453,8 +466,8 @@ export class FigureInstanceService {
     };
   }
 
-  private async deletePinyaAssignments(instanceId: string): Promise<void> {
-    await this.dataSource.query(
+  private async deletePinyaAssignments(instanceId: string, manager: EntityManager): Promise<void> {
+    await manager.query(
       `DELETE FROM node_assignments
        WHERE "figureInstanceId" = $1
        AND "instanceNodeId" IN (
@@ -464,8 +477,8 @@ export class FigureInstanceService {
     );
   }
 
-  private async deletePinyaOnlyAssignments(instanceId: string): Promise<void> {
-    await this.dataSource.query(
+  private async deletePinyaOnlyAssignments(instanceId: string, manager: EntityManager): Promise<void> {
+    await manager.query(
       `DELETE FROM node_assignments
        WHERE "figureInstanceId" = $1
        AND "instanceNodeId" IN (
@@ -491,17 +504,19 @@ export class FigureInstanceService {
       throw new NotFoundException(`Composition with ID ${compositionId} not found`);
     }
 
+    const maxOrder = await this.instanceRepository
+      .createQueryBuilder('instance')
+      .select('MAX(instance.sortOrder)', 'max')
+      .where('instance.segment = :segmentId', { segmentId })
+      .getRawOne<{ max: number | null }>();
+
+    let nextSortOrder = (maxOrder?.max ?? -1) + 1;
+
     await this.dataSource.transaction(async (manager) => {
       await manager.save(EventSegment, { id: segment.id, name: composition.name });
 
       for (const entry of composition.entries ?? []) {
-        const maxOrder = await this.instanceRepository
-          .createQueryBuilder('instance')
-          .select('MAX(instance.sortOrder)', 'max')
-          .where('instance.segment = :segmentId', { segmentId })
-          .getRawOne<{ max: number | null }>();
-
-        const sortOrder = (maxOrder?.max ?? -1) + 1;
+        const sortOrder = nextSortOrder++;
 
         const instance = this.instanceRepository.create({
           segment,

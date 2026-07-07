@@ -84,21 +84,21 @@ export class CreateFigureNodeDto {
   @IsOptional()
   ringLevel?: number;
 
-  @ApiPropertyOptional({ description: 'Root ancestor node ID (set automatically on variant derivation)' })
+  @ApiPropertyOptional({ description: 'Root ancestor node ID (set automatically on variant derivation). Send null to clear.' })
   @IsUUID()
   @IsOptional()
-  originNodeId?: string;
+  originNodeId?: string | null;
 
-  @ApiPropertyOptional({ description: 'Rengla UUID this node belongs to' })
+  @ApiPropertyOptional({ description: 'Rengla UUID this node belongs to. Send null to detach from its rengla.' })
   @IsUUID()
   @IsOptional()
-  renglaId?: string;
+  renglaId?: string | null;
 
-  @ApiPropertyOptional({ description: 'Position within the rengla (1 = first cordon)' })
+  @ApiPropertyOptional({ description: 'Position within the rengla (1 = first cordon). Send null to clear.' })
   @IsInt()
   @Min(1)
   @IsOptional()
-  renglaPosition?: number;
+  renglaPosition?: number | null;
 
   @ApiPropertyOptional()
   @IsOptional()

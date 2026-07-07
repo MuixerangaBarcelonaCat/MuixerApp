@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { plainToInstance } from 'class-transformer';
 import { Person } from './person.entity';
 import { CreatePersonDto } from './dto/create-person.dto';
@@ -127,6 +127,19 @@ export class PersonService {
     return PERSON_SORT_COLUMN_MAP[sortBy] ?? PERSON_SORT_COLUMN_MAP.alias;
   }
 
+  /** Resolves position ids to `Tag` entities, throwing if any id doesn't exist instead of silently dropping it. */
+  private async findPositionsOrThrow(positionIds: string[]): Promise<Tag[]> {
+    const positions = await this.positionRepository.findBy({
+      id: In(positionIds),
+    });
+    if (positions.length !== positionIds.length) {
+      throw new NotFoundException(
+        'One or more positions were not found',
+      );
+    }
+    return positions;
+  }
+
   /** Retorna una persona per ID incloent posicions, mentor i gestor. Llança NotFoundException si no existeix. */
   async findOne(id: string): Promise<PersonResponseDto> {
     const person = await this.personRepository.findOne({
@@ -150,7 +163,7 @@ export class PersonService {
     const person = this.personRepository.create(personData);
 
     if (positionIds && positionIds.length > 0) {
-      person.positions = await this.positionRepository.findByIds(positionIds);
+      person.positions = await this.findPositionsOrThrow(positionIds);
     }
 
     if (mentorId) {
@@ -214,7 +227,7 @@ export class PersonService {
   ): Promise<PersonResponseDto> {
     const person = await this.personRepository.findOne({
       where: { id },
-      relations: ['positions', 'mentor'],
+      relations: ['positions', 'mentor', 'managedBy'],
     });
 
     if (!person) {
@@ -223,6 +236,20 @@ export class PersonService {
 
     const { positionIds, mentorId, isProvisional, managedById, ...personData } =
       updatePersonDto;
+
+    if (managedById !== undefined) {
+      if (managedById) {
+        const user = await this.userRepository.findOne({
+          where: { id: managedById },
+        });
+        if (!user) {
+          throw new NotFoundException(`User with ID ${managedById} not found`);
+        }
+        person.managedBy = user;
+      } else {
+        person.managedBy = null;
+      }
+    }
 
     // Handle isProvisional transitions
     if (isProvisional !== undefined) {
@@ -269,11 +296,22 @@ export class PersonService {
       person.isProvisional = isProvisional;
     }
 
+    if (personData.alias !== undefined && personData.alias !== person.alias) {
+      const conflict = await this.personRepository.findOne({
+        where: { alias: personData.alias },
+      });
+      if (conflict && conflict.id !== person.id) {
+        throw new ConflictException(
+          `Ja existeix una persona amb l'àlies "${personData.alias}".`,
+        );
+      }
+    }
+
     Object.assign(person, personData);
 
     if (positionIds !== undefined) {
       if (positionIds.length > 0) {
-        person.positions = await this.positionRepository.findByIds(positionIds);
+        person.positions = await this.findPositionsOrThrow(positionIds);
       } else {
         person.positions = [];
       }
@@ -293,20 +331,6 @@ export class PersonService {
       }
     }
 
-    if (managedById !== undefined) {
-      if (managedById) {
-        const user = await this.userRepository.findOne({
-          where: { id: managedById },
-        });
-        if (!user) {
-          throw new NotFoundException(`User with ID ${managedById} not found`);
-        }
-        person.managedBy = user;
-      } else {
-        person.managedBy = null;
-      }
-    }
-
     const saved = await this.personRepository.save(person);
     return plainToInstance(PersonResponseDto, saved, {
       excludeExtraneousValues: true,
@@ -323,7 +347,7 @@ export class PersonService {
     await this.personRepository.save(person);
   }
 
-  /** Desactiva una persona i actualitza `lastSyncedAt`. Equivalent al soft delete però retorna el DTO actualitzat. */
+  /** Desactiva una persona manualment. Equivalent al soft delete però retorna el DTO actualitzat. */
   async deactivate(id: string): Promise<PersonResponseDto> {
     const person = await this.personRepository.findOne({
       where: { id },
@@ -335,7 +359,6 @@ export class PersonService {
     }
 
     person.isActive = false;
-    person.lastSyncedAt = new Date();
 
     const saved = await this.personRepository.save(person);
     return plainToInstance(PersonResponseDto, saved, {
@@ -343,7 +366,7 @@ export class PersonService {
     });
   }
 
-  /** Reactiva una persona prèviament desactivada i actualitza `lastSyncedAt`. */
+  /** Reactiva una persona prèviament desactivada manualment. */
   async activate(id: string): Promise<PersonResponseDto> {
     const person = await this.personRepository.findOne({
       where: { id },
@@ -355,7 +378,6 @@ export class PersonService {
     }
 
     person.isActive = true;
-    person.lastSyncedAt = new Date();
 
     const saved = await this.personRepository.save(person);
     return plainToInstance(PersonResponseDto, saved, {

@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { FigureInstanceService } from './figure-instance.service';
 import { FigureInstance } from './entities/figure-instance.entity';
@@ -8,6 +8,7 @@ import { EventSegment } from './entities/event-segment.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
 import { Composition } from '../composition/entities/composition.entity';
 import { EventSegmentService } from './event-segment.service';
+import { NodeAssignmentService } from '../node-assignment/node-assignment.service';
 import { FigureMode } from '@muixer/shared';
 
 const EVENT_ID = 'event-uuid-1';
@@ -57,7 +58,9 @@ const mockFigureTemplateRepo = {
 };
 
 const mockDataSource = {
-  transaction: jest.fn().mockImplementation((cb) => cb({ update: jest.fn(), save: jest.fn() })),
+  transaction: jest.fn().mockImplementation((cb) =>
+    cb({ update: jest.fn(), save: jest.fn(), query: jest.fn().mockResolvedValue([]) }),
+  ),
   query: jest.fn().mockResolvedValue([{ count: '0' }]),
 };
 
@@ -67,6 +70,10 @@ const mockCompositionRepo = {
 
 const mockSegmentService = {
   getOne: jest.fn(),
+};
+
+const mockNodeAssignmentService = {
+  checkEventLock: jest.fn(),
 };
 
 describe('FigureInstanceService', () => {
@@ -81,12 +88,14 @@ describe('FigureInstanceService', () => {
         { provide: getRepositoryToken(FigureTemplate), useValue: mockFigureTemplateRepo },
         { provide: getRepositoryToken(Composition), useValue: mockCompositionRepo },
         { provide: EventSegmentService, useValue: mockSegmentService },
+        { provide: NodeAssignmentService, useValue: mockNodeAssignmentService },
         { provide: DataSource, useValue: mockDataSource },
       ],
     }).compile();
 
     service = module.get<FigureInstanceService>(FigureInstanceService);
     jest.clearAllMocks();
+    mockNodeAssignmentService.checkEventLock.mockResolvedValue(undefined);
     mockInstanceRepo.createQueryBuilder.mockReturnValue(mockInstanceQb);
     mockInstanceQb.select.mockReturnThis();
     mockInstanceQb.where.mockReturnThis();
@@ -143,20 +152,46 @@ describe('FigureInstanceService', () => {
       expect(result.id).toBe(INSTANCE_ID);
     });
 
-    it('deletes pinya and base assignments when figureMode is REMAT', async () => {
+    it('deletes pinya and base assignments and saves the instance in the same transaction when figureMode is REMAT', async () => {
       mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
       mockInstanceRepo.findOne
         .mockResolvedValueOnce(makeInstance())
         .mockResolvedValueOnce(makeInstance({ figureMode: FigureMode.REMAT }));
-      mockInstanceRepo.save.mockResolvedValue(makeInstance());
+
+      const txManager = { update: jest.fn(), save: jest.fn(), query: jest.fn().mockResolvedValue([]) };
+      mockDataSource.transaction.mockImplementationOnce((cb: (m: typeof txManager) => Promise<unknown>) => cb(txManager));
 
       await service.update(EVENT_ID, SEGMENT_ID, INSTANCE_ID, { figureMode: FigureMode.REMAT });
 
-      const deleteCalls = mockDataSource.query.mock.calls.filter(
+      const deleteCalls = txManager.query.mock.calls.filter(
         (call: unknown[]) => typeof call[0] === 'string' && (call[0] as string).includes('DELETE'),
       );
       expect(deleteCalls.length).toBeGreaterThan(0);
       expect(deleteCalls[0][1]).toEqual([INSTANCE_ID]);
+      expect(txManager.save).toHaveBeenCalledWith(
+        FigureInstance,
+        expect.objectContaining({ id: INSTANCE_ID, figureMode: FigureMode.REMAT }),
+      );
+      expect(mockInstanceRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('rolls back the figureMode change when assignment deletion fails', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance());
+
+      const txManager = {
+        update: jest.fn(),
+        save: jest.fn(),
+        query: jest.fn().mockRejectedValue(new Error('boom')),
+      };
+      mockDataSource.transaction.mockImplementationOnce((cb: (m: typeof txManager) => Promise<unknown>) => cb(txManager));
+
+      await expect(
+        service.update(EVENT_ID, SEGMENT_ID, INSTANCE_ID, { figureMode: FigureMode.REMAT }),
+      ).rejects.toThrow('boom');
+
+      expect(txManager.save).not.toHaveBeenCalled();
+      expect(mockInstanceRepo.save).not.toHaveBeenCalled();
     });
 
     it('does NOT delete pinya assignments when figureMode is PEU', async () => {
@@ -199,6 +234,35 @@ describe('FigureInstanceService', () => {
         service.update(EVENT_ID, SEGMENT_ID, INSTANCE_ID, {}),
       ).rejects.toThrow(NotFoundException);
     });
+
+    it('throws ForbiddenException and does not delete assignments when event is locked', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance());
+      mockNodeAssignmentService.checkEventLock.mockRejectedValue(new ForbiddenException('locked'));
+
+      await expect(
+        service.update(EVENT_ID, SEGMENT_ID, INSTANCE_ID, { figureMode: FigureMode.REMAT }),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(mockNodeAssignmentService.checkEventLock).toHaveBeenCalledWith(INSTANCE_ID);
+      const deleteCalls = mockDataSource.query.mock.calls.filter(
+        (call: unknown[]) => typeof call[0] === 'string' && (call[0] as string).includes('DELETE'),
+      );
+      expect(deleteCalls).toHaveLength(0);
+      expect(mockInstanceRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('does not check the lock when figureMode is not changing', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.findOne
+        .mockResolvedValueOnce(makeInstance())
+        .mockResolvedValueOnce(makeInstance({ label: 'Central' }));
+      mockInstanceRepo.save.mockResolvedValue(makeInstance());
+
+      await service.update(EVENT_ID, SEGMENT_ID, INSTANCE_ID, { label: 'Central' });
+
+      expect(mockNodeAssignmentService.checkEventLock).not.toHaveBeenCalled();
+    });
   });
 
   describe('remove', () => {
@@ -210,6 +274,7 @@ describe('FigureInstanceService', () => {
 
       await service.remove(EVENT_ID, SEGMENT_ID, INSTANCE_ID);
 
+      expect(mockNodeAssignmentService.checkEventLock).toHaveBeenCalledWith(INSTANCE_ID);
       expect(mockInstanceRepo.remove).toHaveBeenCalledWith(instance);
     });
 
@@ -220,6 +285,18 @@ describe('FigureInstanceService', () => {
       await expect(
         service.remove(EVENT_ID, SEGMENT_ID, INSTANCE_ID),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws ForbiddenException and does not remove the instance when event is locked', async () => {
+      const instance = makeInstance();
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.findOne.mockResolvedValue(instance);
+      mockNodeAssignmentService.checkEventLock.mockRejectedValue(new ForbiddenException('locked'));
+
+      await expect(
+        service.remove(EVENT_ID, SEGMENT_ID, INSTANCE_ID),
+      ).rejects.toThrow(ForbiddenException);
+      expect(mockInstanceRepo.remove).not.toHaveBeenCalled();
     });
   });
 
@@ -738,6 +815,27 @@ describe('FigureInstanceService', () => {
 
       expect(mockSegmentService.getOne).toHaveBeenCalledWith(SEGMENT_ID);
       expect(result.name).toBe('Castell');
+    });
+
+    it('assigns a distinct, incrementing sortOrder to each composition entry', async () => {
+      const entries = [
+        makeCompositionEntry({ id: 'entry-1', label: 'First' }),
+        makeCompositionEntry({ id: 'entry-2', label: 'Second' }),
+        makeCompositionEntry({ id: 'entry-3', label: 'Third' }),
+      ];
+      const composition = { id: COMPOSITION_ID, name: 'Altar', entries };
+      const updatedSegment = { id: SEGMENT_ID, name: 'Altar', instances: [] };
+
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockCompositionRepo.findOne.mockResolvedValue(composition);
+      mockInstanceQb.getRawOne.mockResolvedValue({ max: 5 });
+      mockInstanceRepo.create.mockImplementation((dto) => ({ ...dto, id: 'new-inst' }));
+      mockSegmentService.getOne.mockResolvedValue(updatedSegment);
+
+      await service.applyComposition(EVENT_ID, SEGMENT_ID, COMPOSITION_ID);
+
+      const sortOrders = mockInstanceRepo.create.mock.calls.map(([dto]) => dto.sortOrder);
+      expect(sortOrders).toEqual([6, 7, 8]);
     });
   });
 });

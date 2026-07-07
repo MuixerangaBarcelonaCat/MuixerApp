@@ -26,8 +26,7 @@ FROM node:22-alpine AS prod-deps
 WORKDIR /app
 RUN corepack enable
 COPY --from=build /app/dist/apps/api/package.json ./
-RUN pnpm install --prod --no-lockfile && \
-    pnpm add pg tslib bcrypt typeorm dotenv --no-lockfile
+RUN pnpm install --prod
 
 # Stage 4: Final lightweight runner image
 FROM node:22-alpine AS runner

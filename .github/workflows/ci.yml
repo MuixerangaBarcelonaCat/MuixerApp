@@ -20,7 +20,6 @@ jobs:
       NODE_ENV: test
       DATABASE_URL: postgresql://ci:ci@localhost:5432/ci_test
       JWT_SECRET: ci-secret-not-real
-      JWT_REFRESH_SECRET: ci-refresh-secret-not-real
       JWT_ACCESS_TTL: 900
       JWT_REFRESH_TTL_DASHBOARD: 28800
       JWT_REFRESH_TTL_PWA: 604800

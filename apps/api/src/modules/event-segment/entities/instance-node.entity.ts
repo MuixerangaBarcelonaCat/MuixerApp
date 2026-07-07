@@ -18,6 +18,10 @@ import type { User } from '../../user/user.entity';
  */
 @Entity('instance_nodes')
 @Index('idx_instance_nodes_instance_adhoc', ['figureInstance', 'isAdHoc'])
+@Index('UQ_instance_nodes_instance_source', ['figureInstance', 'sourceNodeId'], {
+  unique: true,
+  where: '"sourceNodeId" IS NOT NULL',
+})
 export class InstanceNode {
   @PrimaryGeneratedColumn('uuid')
   id: string;

@@ -1,11 +1,13 @@
 import { Controller, Get, Param, ParseUUIDPipe, Sse } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { Observable, concat, map } from 'rxjs';
+import { Observable, concat, map, finalize, of } from 'rxjs';
 import { UserRole } from '@muixer/shared';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { SseAuth } from '../auth/decorators/sse-auth.decorator';
 import { PersonSyncStrategy } from './strategies/person-sync.strategy';
 import { EventSyncStrategy } from './strategies/event-sync.strategy';
 import { AttendanceSyncStrategy } from './strategies/attendance-sync.strategy';
+import { SyncLockService } from './sync-lock.service';
 import { SyncEvent } from './interfaces/sync-event.interface';
 
 interface MessageEvent {
@@ -16,11 +18,13 @@ interface MessageEvent {
 @ApiBearerAuth()
 @Controller('sync')
 @Roles(UserRole.ADMIN)
+@SseAuth()
 export class SyncController {
   constructor(
     private readonly personSyncStrategy: PersonSyncStrategy,
     private readonly eventSyncStrategy: EventSyncStrategy,
     private readonly attendanceSyncStrategy: AttendanceSyncStrategy,
+    private readonly syncLock: SyncLockService,
   ) {}
 
   /** Inicia la sincronització de membres (persones) des del legacy APPsistència. Emet events SSE de progrés mentre s'executa. */
@@ -28,9 +32,7 @@ export class SyncController {
   @Sse()
   @ApiOperation({ summary: 'Sincronitzar membres des del legacy API (SSE stream)' })
   syncPersons(): Observable<MessageEvent> {
-    return this.personSyncStrategy.execute().pipe(
-      map((event: SyncEvent) => ({ data: JSON.stringify(event) })),
-    );
+    return this.runLocked(() => this.personSyncStrategy.execute());
   }
 
   /** Inicia la sincronització d'esdeveniments (assajos + actuacions) i la seva assistència. Inclou la creació de temporades i el parsing dels XLSX. */
@@ -38,9 +40,7 @@ export class SyncController {
   @Sse()
   @ApiOperation({ summary: 'Sincronitzar esdeveniments i assistència des del legacy API (SSE stream)' })
   syncEvents(): Observable<MessageEvent> {
-    return this.eventSyncStrategy.execute().pipe(
-      map((event: SyncEvent) => ({ data: JSON.stringify(event) })),
-    );
+    return this.runLocked(() => this.eventSyncStrategy.execute());
   }
 
   /** Sincronitza l'assistència d'un sol event per UUID (bypass de la sync global d'events). Útil per actualitzar dades puntuals. */
@@ -50,9 +50,7 @@ export class SyncController {
   syncSingleEventAttendance(
     @Param('eventId', ParseUUIDPipe) eventId: string,
   ): Observable<MessageEvent> {
-    return this.attendanceSyncStrategy.executeSingleEvent(eventId).pipe(
-      map((event: SyncEvent) => ({ data: JSON.stringify(event) })),
-    );
+    return this.runLocked(() => this.attendanceSyncStrategy.executeSingleEvent(eventId));
   }
 
   /** Executa la sincronització completa en seqüència: primer persones, després esdeveniments i assistència. */
@@ -60,11 +58,27 @@ export class SyncController {
   @Sse()
   @ApiOperation({ summary: 'Sincronitzar tot (membres + esdeveniments + assistència) des del legacy API (SSE stream)' })
   syncAll(): Observable<MessageEvent> {
-    return concat(
-      this.personSyncStrategy.execute(),
-      this.eventSyncStrategy.execute(),
-    ).pipe(
+    return this.runLocked(() =>
+      concat(this.personSyncStrategy.execute(), this.eventSyncStrategy.execute()),
+    );
+  }
+
+  /**
+   * Runs a sync only if no other sync is currently in progress (in-process mutex shared
+   * across all /sync endpoints — prevents concurrent runs, including SSE auto-reconnects).
+   */
+  private runLocked(factory: () => Observable<SyncEvent>): Observable<MessageEvent> {
+    if (!this.syncLock.tryAcquire()) {
+      return of<SyncEvent>({
+        type: 'error',
+        entity: 'sync',
+        message: 'Ja hi ha una sincronització en curs',
+      }).pipe(map((event) => ({ data: JSON.stringify(event) })));
+    }
+
+    return factory().pipe(
       map((event: SyncEvent) => ({ data: JSON.stringify(event) })),
+      finalize(() => this.syncLock.release()),
     );
   }
 }

@@ -7,7 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { Person } from '../person/person.entity';
@@ -20,6 +20,8 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { plainToInstance } from 'class-transformer';
 import { USER_SORT_COLUMN_MAP } from './constants/user-sort.constants';
 import { UserFilterDto } from './dto/user-filter.dto';
+import { hashToken } from '../../common/utils/hash-token.util';
+import { TokenService } from '../auth/token.service';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -30,6 +32,8 @@ export class UserService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Person)
     private readonly personRepository: Repository<Person>,
+    private readonly dataSource: DataSource,
+    private readonly tokenService: TokenService,
   ) {}
 
   async create(
@@ -122,22 +126,34 @@ export class UserService {
   }
 
   async createWithInvite(dto: CreateWithInviteDto): Promise<UserResponseDto> {
+    const existingUser = await this.userRepository.findOne({
+      where: { email: dto.email },
+    });
+    if (existingUser) {
+      throw new ConflictException('A user with this email already exists');
+    }
+
     const person = await this.personRepository.findOne({
       where: { id: dto.personId },
     });
     if (!person) throw new BadRequestException('Person not found');
     if (person.managedBy)
       throw new BadRequestException('Person is already managed by an user');
-    const user = this.userRepository.create({
-      email: dto.email,
-      role: UserRole.MEMBER,
-      person,
-      isActive: false,
+
+    const createdUser = await this.dataSource.transaction(async (manager) => {
+      const user = manager.create(User, {
+        email: dto.email,
+        role: UserRole.MEMBER,
+        person,
+        isActive: false,
+      });
+      const savedUser = await manager.save(User, user);
+      person.managedBy = savedUser;
+      await manager.save(Person, person);
+      return savedUser;
     });
-    const createdUser = await this.userRepository.save(user);
-    person.managedBy = createdUser;
-    await this.personRepository.save(person);
-    await this.sendInvite(user.id);
+
+    await this.sendInvite(createdUser.id);
     return plainToInstance(UserResponseDto, createdUser, {
       excludeExtraneousValues: true,
     });
@@ -153,29 +169,40 @@ export class UserService {
     const inviteToken = crypto.randomBytes(16).toString('hex');
     const expirationDate = new Date();
     expirationDate.setHours(expirationDate.getHours() + tokenDurationHours);
-    user.inviteToken = inviteToken;
+    user.inviteToken = hashToken(inviteToken);
     user.inviteExpiresAt = expirationDate;
     await this.userRepository.save(user);
 
-    this.sendInvitationEmail(user.email, inviteToken).catch((err) => {
+    await this.sendInvitationEmail(user.email, inviteToken).catch((err) => {
       throw new BadRequestException('Failed to send invite email');
     });
   }
 
   async sendInvitationEmail(email: string, inviteToken: string): Promise<void> {
+    // TODO implement real email sending, then remove this log — it prints the
+    // raw invite token so it's usable in dev without a mailer, but it must not
+    // ship to production once emails actually go out (SEC-6).
     const message =
       'Here we would send an email to ' + email + ' with token ' + inviteToken;
     console.log(message);
-    // TODO implement
   }
 
-  async grantRole(userId: string, role: UserRole) {
-    const user = await this.userRepository.findOne({ where: { id: userId } });
+  async grantRole(userId: string, role: UserRole, actorId: string) {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['person'],
+    });
     if (!user) throw new NotFoundException('User not found');
+
+    if (userId === actorId && role !== user.role) {
+      throw new ForbiddenException(
+        'No us podeu canviar el vostre propi rol',
+      );
+    }
+
     user.role = role;
-    await this.userRepository.save(user);
-    const output = await this.userRepository.findOne({ where: { id: userId } , relations: ['person'] });
-    return plainToInstance(UserResponseDto, output, {
+    const saved = await this.userRepository.save(user);
+    return plainToInstance(UserResponseDto, saved, {
       excludeExtraneousValues: true,
     });
   }
@@ -200,7 +227,7 @@ export class UserService {
     // If the email exists and already has a password (active account), reject.
     // If it exists without credentials (sync/invite stub), upgrade it instead.
     if (existingUser && existingUser.passwordHash) {
-      throw new ConflictException('A user with this email already exists');
+      throw new ConflictException('Ja existeix un usuari amb aquest email');
     }
 
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
@@ -222,37 +249,40 @@ export class UserService {
       }
     }
 
-    let targetUser: User;
+    const result = await this.dataSource.transaction(async (manager) => {
+      let targetUser: User;
 
-    if (existingUser) {
-      // Upgrade the stub account: set credentials, role and activate
-      existingUser.passwordHash = passwordHash;
-      existingUser.role = dto.role;
-      existingUser.isActive = true;
-      existingUser.inviteToken = null;
-      existingUser.inviteExpiresAt = null;
-      if (person) existingUser.person = person;
-      targetUser = await this.userRepository.save(existingUser);
-    } else {
-      const newUser = this.userRepository.create({
-        email: dto.email,
-        passwordHash,
-        role: dto.role,
-        isActive: true,
-        ...(person ? { person } : {}),
+      if (existingUser) {
+        // Upgrade the stub account: set credentials, role and activate
+        existingUser.passwordHash = passwordHash;
+        existingUser.role = dto.role;
+        existingUser.isActive = true;
+        existingUser.inviteToken = null;
+        existingUser.inviteExpiresAt = null;
+        if (person) existingUser.person = person;
+        targetUser = await manager.save(User, existingUser);
+      } else {
+        const newUser = manager.create(User, {
+          email: dto.email,
+          passwordHash,
+          role: dto.role,
+          isActive: true,
+          ...(person ? { person } : {}),
+        });
+        targetUser = await manager.save(User, newUser);
+      }
+
+      if (person) {
+        person.managedBy = targetUser;
+        await manager.save(Person, person);
+      }
+
+      return manager.findOne(User, {
+        where: { id: targetUser.id },
+        relations: ['person'],
       });
-      targetUser = await this.userRepository.save(newUser);
-    }
-
-    if (person) {
-      person.managedBy = targetUser;
-      await this.personRepository.save(person);
-    }
-
-    const result = await this.userRepository.findOne({
-      where: { id: targetUser.id },
-      relations: ['person'],
     });
+
     return plainToInstance(UserResponseDto, result, {
       excludeExtraneousValues: true,
     });
@@ -262,6 +292,7 @@ export class UserService {
     userId: string,
     dto: UpdateUserDto,
     actorRole: UserRole,
+    actorId: string,
   ): Promise<UserResponseDto> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
@@ -269,12 +300,32 @@ export class UserService {
     });
     if (!user) throw new NotFoundException('User not found');
 
+    if (user.role === UserRole.ADMIN && actorRole !== UserRole.ADMIN) {
+      throw new ForbiddenException(
+        'Solament un administrador pot modificar un compte ADMIN',
+      );
+    }
+
+    if (dto.isActive === false && userId === actorId) {
+      throw new ForbiddenException(
+        'No us podeu desactivar el vostre propi compte',
+      );
+    }
+
+    if (
+      dto.role !== undefined &&
+      dto.role !== user.role &&
+      userId === actorId
+    ) {
+      throw new ForbiddenException('No us podeu canviar el vostre propi rol');
+    }
+
     if (dto.email && dto.email !== user.email) {
       const existing = await this.userRepository.findOne({
         where: { email: dto.email },
       });
       if (existing) {
-        throw new ConflictException('A user with this email already exists');
+        throw new ConflictException('Ja existeix un usuari amb aquest email');
       }
       user.email = dto.email;
     }
@@ -317,24 +368,42 @@ export class UserService {
       }
     }
 
-    await this.userRepository.save(user);
+    const saved = await this.userRepository.save(user);
 
-    const result = await this.userRepository.findOne({
-      where: { id: userId },
-      relations: ['person'],
-    });
-    return plainToInstance(UserResponseDto, result, {
+    if (dto.isActive === false) {
+      await this.tokenService.revokeAllUserTokens(userId);
+    }
+
+    return plainToInstance(UserResponseDto, saved, {
       excludeExtraneousValues: true,
     });
   }
 
-  async deactivateUser(userId: string): Promise<void> {
+  async deactivateUser(
+    userId: string,
+    actorRole: UserRole,
+    actorId: string,
+  ): Promise<void> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
     });
     if (!user) throw new NotFoundException('User not found');
+
+    if (user.role === UserRole.ADMIN && actorRole !== UserRole.ADMIN) {
+      throw new ForbiddenException(
+        'Solament un administrador pot modificar un compte ADMIN',
+      );
+    }
+
+    if (userId === actorId) {
+      throw new ForbiddenException(
+        'No us podeu desactivar el vostre propi compte',
+      );
+    }
+
     user.isActive = false;
     await this.userRepository.save(user);
+    await this.tokenService.revokeAllUserTokens(userId);
   }
 
   private assertCanAssignRole(

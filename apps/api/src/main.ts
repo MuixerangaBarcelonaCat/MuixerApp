@@ -6,16 +6,22 @@
 import 'dotenv/config';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
- 
+
 const cookieParser = require('cookie-parser');
 import { AppModule } from './app/app.module';
 import { LatencyInterceptor } from './common/interceptors/latency.interceptor';
+import { configureTrustProxy } from './common/utils/configure-trust-proxy.util';
+import { configureHelmet } from './common/utils/configure-helmet.util';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const configService = app.get(ConfigService);
+  configureTrustProxy(app);
+  configureHelmet(app);
   app.use(cookieParser());
-  
+
   const globalPrefix = 'api';
   app.setGlobalPrefix(globalPrefix);
   
@@ -29,7 +35,10 @@ async function bootstrap() {
     }),
   );
   
-  const corsOrigins = process.env.CORS_ORIGINS?.split(',').map((o) => o.trim()) ?? ['http://localhost:4200'];
+  const corsOrigins = configService
+    .get<string>('CORS_ORIGINS', 'http://localhost:4200')
+    .split(',')
+    .map((o) => o.trim());
   app.enableCors({
     origin: corsOrigins,
     credentials: true,
@@ -52,7 +61,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
   
-  const port = process.env.PORT || 3000;
+  const port = configService.get<number>('PORT', 3000);
   await app.listen(port);
   Logger.log(
     `🚀 Application is running on: http://localhost:${port}/${globalPrefix}`,

@@ -22,7 +22,7 @@ POST /auth/login                    →     LocalStrategy.validate()
                                           AuthService.login(user, clientType)
                                           ├─ signAccessToken(user) → JWT {sub, email, role}
                                           ├─ tokenService.createRefreshToken(user, clientType)
-                                          │   ├─ sign JWT refresh (sub, family, clientType)
+                                          │   ├─ randomBytes(32) → token opac
                                           │   ├─ SHA-256 hash → DB (refresh_tokens)
                                           │   └─ return rawToken
                                           │
@@ -165,7 +165,6 @@ POST /auth/invite/accept                →     AuthController.acceptInvite()
 | Variable | Exemple | Descripció |
 |----------|---------|------------|
 | `JWT_SECRET` | `strong-random-64-chars` | Secret per signar access tokens |
-| `JWT_REFRESH_SECRET` | `different-strong-secret` | Secret per signar refresh tokens (separat!) |
 | `JWT_ACCESS_TTL` | `900` | Vida access token en segons (15 min) |
 | `JWT_REFRESH_TTL_DASHBOARD` | `28800` | Vida refresh token Dashboard en segons (8h) |
 | `JWT_REFRESH_TTL_PWA` | `604800` | Vida refresh token PWA en segons (7 dies) |

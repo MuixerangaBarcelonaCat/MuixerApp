@@ -73,14 +73,14 @@ describe('UserService', () => {
     req.flush({ data: [], total: 0 });
   });
 
-  it('grantRole sends PATCH to /users/grant-role with userId in body', () => {
+  it('grantRole sends PATCH to /users/:id/grant-role with the role in body', () => {
     service.grantRole('user-uuid', UserRole.ADMIN).subscribe();
 
     const req = httpMock.expectOne(
-      `${environment.apiUrl}/users/grant-role`,
+      `${environment.apiUrl}/users/user-uuid/grant-role`,
     );
     expect(req.request.method).toBe('PATCH');
-    expect(req.request.body).toEqual({ userId: 'user-uuid', role: UserRole.ADMIN });
+    expect(req.request.body).toEqual({ role: UserRole.ADMIN });
     req.flush({ id: 'user-uuid', role: UserRole.ADMIN });
   });
 });

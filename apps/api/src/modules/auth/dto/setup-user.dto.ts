@@ -1,9 +1,15 @@
-import { IsEmail, IsEnum, IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
+import { IsEmail, IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { UserRole } from '@muixer/shared';
 
+/**
+ * This endpoint bootstraps the very first account of the system and always
+ * creates it as ADMIN — it does not accept a role. Bootstrapping any lesser
+ * role here would permanently lock ADMIN-only features behind no ADMIN
+ * account, since the endpoint refuses to run again once any user exists
+ * (SEC-3).
+ */
 export class SetupUserDto {
-  @ApiProperty({ description: 'Correu electrònic del primer usuari tècnic', example: 'admin@muixeranga.cat' })
+  @ApiProperty({ description: 'Correu electrònic del primer usuari ADMIN', example: 'admin@muixeranga.cat' })
   @IsEmail()
   email: string;
 
@@ -11,11 +17,6 @@ export class SetupUserDto {
   @IsString()
   @MinLength(8)
   password: string;
-
-  @ApiPropertyOptional({ description: 'Rol assignat a l\'usuari creat. Per defecte TECHNICAL.', enum: [UserRole.TECHNICAL, UserRole.ADMIN] })
-  @IsEnum([UserRole.TECHNICAL, UserRole.ADMIN])
-  @IsOptional()
-  role?: UserRole.TECHNICAL | UserRole.ADMIN;
 
   @ApiPropertyOptional({ description: 'UUID de la persona a vincular amb el compte d\'usuari (opcional)' })
   @IsUUID()

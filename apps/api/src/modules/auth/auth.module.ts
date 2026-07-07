@@ -10,14 +10,16 @@ import { AuthService } from './auth.service';
 import { TokenService } from './token.service';
 import { LocalStrategy } from './strategies/local.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { SseJwtStrategy } from './strategies/jwt-sse.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
+import { requireJwtSecret } from './constants/jwt-secret.util';
 
 @Module({
   imports: [
     PassportModule,
     JwtModule.register({
-      secret: process.env['JWT_SECRET'] ?? 'change-me',
+      secret: requireJwtSecret('JWT_SECRET'),
       signOptions: { expiresIn: parseInt(process.env['JWT_ACCESS_TTL'] ?? '900', 10) },
     }),
     TypeOrmModule.forFeature([User, Person, RefreshToken]),
@@ -28,9 +30,10 @@ import { RolesGuard } from './guards/roles.guard';
     TokenService,
     LocalStrategy,
     JwtStrategy,
+    SseJwtStrategy,
     JwtAuthGuard,
     RolesGuard,
   ],
-  exports: [JwtAuthGuard, RolesGuard, AuthService],
+  exports: [JwtAuthGuard, RolesGuard, AuthService, TokenService],
 })
 export class AuthModule {}

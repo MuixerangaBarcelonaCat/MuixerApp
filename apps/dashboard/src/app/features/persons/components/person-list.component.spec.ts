@@ -22,7 +22,6 @@ describe('PersonListComponent', () => {
     firstSurname: 'User',
     secondSurname: null,
     alias: 'tester',
-    email: null,
     phone: null,
     birthDate: null,
     shoulderHeight: SHOULDER_HEIGHT_BASELINE_CM,

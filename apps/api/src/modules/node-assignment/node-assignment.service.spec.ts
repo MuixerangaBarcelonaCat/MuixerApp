@@ -133,7 +133,8 @@ const mockQb = {
 const makeTransactionManager = (savedNodes: any[] = []) => ({
   create: jest.fn((_entity: any, data: any) => ({ ...data, id: 'new-inode-uuid' })),
   save: jest.fn().mockResolvedValue(savedNodes),
-  update: jest.fn().mockResolvedValue({}),
+  update: jest.fn().mockResolvedValue({ affected: 1 }),
+  find: jest.fn().mockResolvedValue(savedNodes),
 });
 
 // ─── Mock repositories ────────────────────────────────────────────────────
@@ -422,6 +423,46 @@ describe('NodeAssignmentService', () => {
         service.assign(INSTANCE_ID, { nodeId: INSTANCE_NODE_ID, personId: PERSON_ID }),
       ).rejects.toThrow(ConflictException);
     });
+
+    it('passes the instance segment to assignmentRepository.create so it can be constraint-checked at the DB level', async () => {
+      const inode = makeInstanceNode();
+      const instance = makeInstance({ snapshotted: true });
+      mockInstanceRepo.findOne.mockResolvedValue(instance);
+      mockPersonRepo.findOne.mockResolvedValue(makePerson());
+      mockInstanceNodeRepo.findOne.mockResolvedValue(inode);
+      mockAssignmentRepo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue(makeAssignment());
+      mockAssignmentRepo.create.mockReturnValue(makeAssignment());
+      mockAssignmentRepo.save.mockResolvedValue(makeAssignment());
+
+      await service.assign(INSTANCE_ID, { nodeId: INSTANCE_NODE_ID, personId: PERSON_ID });
+
+      expect(mockAssignmentRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ segment: instance.segment }),
+      );
+    });
+
+    it('throws ConflictException (not a raw 500) when a concurrent assign wins the race and the DB unique constraint fires', async () => {
+      const inode = makeInstanceNode();
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
+      mockPersonRepo.findOne.mockResolvedValue(makePerson());
+      mockInstanceNodeRepo.findOne.mockResolvedValue(inode);
+      mockAssignmentRepo.findOne
+        .mockResolvedValueOnce(null) // node not occupied (pre-check — loses the race)
+        .mockResolvedValueOnce(null); // person not in instance (pre-check — loses the race)
+      mockAssignmentRepo.create.mockReturnValue(makeAssignment());
+      const dbError = Object.assign(new Error('duplicate key value violates unique constraint'), {
+        code: '23505',
+        detail: 'Key (segmentId, personId)=(segment-uuid-1, person-uuid-1) already exists.',
+      });
+      mockAssignmentRepo.save.mockRejectedValue(dbError);
+
+      await expect(
+        service.assign(INSTANCE_ID, { nodeId: INSTANCE_NODE_ID, personId: PERSON_ID }),
+      ).rejects.toThrow(ConflictException);
+    });
   });
 
   // ── swap ──────────────────────────────────────────────────────────────
@@ -464,6 +505,40 @@ describe('NodeAssignmentService', () => {
       expect(txManager.save).toHaveBeenCalledTimes(1);
       expect(result.a.id).toBe(ASSIGNMENT_ID);
       expect(result.b.id).toBe(ASSIGNMENT_ID_B);
+    });
+
+    it('sets segment on both recreated rows so the DB unique constraint still applies after a swap', async () => {
+      const assignmentA = makeAssignment();
+      const assignmentB = makeAssignmentB();
+
+      mockAssignmentRepo.findOne
+        .mockResolvedValueOnce(assignmentA)
+        .mockResolvedValueOnce(assignmentB)
+        .mockResolvedValueOnce(assignmentA)
+        .mockResolvedValueOnce(assignmentB);
+
+      const txManager = {
+        delete: jest.fn().mockResolvedValue(undefined),
+        create: jest.fn().mockImplementation((_entity: any, data: any) => data),
+        save: jest.fn().mockResolvedValue(undefined),
+      };
+      mockDataSource.transaction.mockImplementation((cb: any) => cb(txManager));
+
+      await service.swap(INSTANCE_ID, {
+        assignmentIdA: ASSIGNMENT_ID,
+        assignmentIdB: ASSIGNMENT_ID_B,
+      });
+
+      expect(txManager.create).toHaveBeenNthCalledWith(
+        1,
+        NodeAssignment,
+        expect.objectContaining({ segment: assignmentA.figureInstance!.segment }),
+      );
+      expect(txManager.create).toHaveBeenNthCalledWith(
+        2,
+        NodeAssignment,
+        expect.objectContaining({ segment: assignmentB.figureInstance!.segment }),
+      );
     });
 
     it('throws NotFoundException if assignment A not found', async () => {
@@ -1580,6 +1655,64 @@ describe('NodeAssignmentService', () => {
     });
   });
 
+  describe('snapshotInstance — concurrent first assignment (BUG-17)', () => {
+    it('atomically claims the snapshot (conditional UPDATE) before copying template nodes', async () => {
+      const unsnapshottedInstance = makeInstance({ snapshotted: false });
+      const snapshotNode = makeInstanceNode({ id: 'new-inode-uuid', sourceNodeId: FIGURE_NODE_ID });
+      const manager = makeTransactionManager([snapshotNode]);
+
+      mockInstanceRepo.findOne.mockResolvedValue(unsnapshottedInstance);
+      mockTemplateRepo.findOne.mockResolvedValue(makeTemplate());
+      mockDataSource.transaction.mockImplementation((cb: any) => cb(manager));
+      mockPersonRepo.findOne.mockResolvedValue(makePerson());
+      mockAssignmentRepo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue(makeAssignment({ instanceNode: snapshotNode as any }));
+      mockAssignmentRepo.create.mockReturnValue(makeAssignment({ instanceNode: snapshotNode as any }));
+      mockAssignmentRepo.save.mockResolvedValue({ id: ASSIGNMENT_ID });
+
+      await service.assign(INSTANCE_ID, { nodeId: FIGURE_NODE_ID, personId: PERSON_ID });
+
+      expect(manager.update).toHaveBeenCalledWith(
+        FigureInstance,
+        { id: INSTANCE_ID, snapshotted: false },
+        { snapshotted: true },
+      );
+      const updateOrder = manager.update.mock.invocationCallOrder[0];
+      const saveOrder = manager.save.mock.invocationCallOrder[0];
+      expect(updateOrder).toBeLessThan(saveOrder);
+    });
+
+    it("reads back the winner's persisted nodes instead of inserting duplicates when the claim loses the race", async () => {
+      const unsnapshottedInstance = makeInstance({ snapshotted: false });
+      const winnerNode = makeInstanceNode({ id: 'winner-inode-uuid', sourceNodeId: FIGURE_NODE_ID });
+      const manager = makeTransactionManager();
+      manager.update.mockResolvedValue({ affected: 0 });
+      manager.find.mockResolvedValue([winnerNode]);
+
+      mockInstanceRepo.findOne.mockResolvedValue(unsnapshottedInstance);
+      mockDataSource.transaction.mockImplementation((cb: any) => cb(manager));
+      mockPersonRepo.findOne.mockResolvedValue(makePerson());
+      mockAssignmentRepo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue(makeAssignment({ instanceNode: winnerNode as any }));
+      mockAssignmentRepo.create.mockReturnValue(makeAssignment({ instanceNode: winnerNode as any }));
+      mockAssignmentRepo.save.mockResolvedValue({ id: ASSIGNMENT_ID });
+
+      const result = await service.assign(INSTANCE_ID, {
+        nodeId: FIGURE_NODE_ID,
+        personId: PERSON_ID,
+      });
+
+      expect(manager.create).not.toHaveBeenCalled();
+      expect(manager.save).not.toHaveBeenCalled();
+      expect(mockTemplateRepo.findOne).not.toHaveBeenCalled();
+      expect(result.node.id).toBe('winner-inode-uuid');
+    });
+  });
+
   describe('updateCordons', () => {
     it('saves numberOfCordons and returns it', async () => {
       mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ numberOfCordons: null }));
@@ -1606,6 +1739,23 @@ describe('NodeAssignmentService', () => {
       const result = await service.updateCordons(INSTANCE_ID, { numberOfCordons: null });
 
       expect(result.numberOfCordons).toBeNull();
+    });
+
+    it('throws ForbiddenException when event is locked', async () => {
+      process.env.ASSIGNMENT_LOCK_DAYS = '2';
+      const lockedDate = new Date();
+      lockedDate.setDate(lockedDate.getDate() - 10);
+
+      mockInstanceRepo.findOne.mockResolvedValue(
+        makeInstance({
+          segment: { id: SEGMENT_ID, event: { id: 'event-uuid-1', date: lockedDate.toISOString().slice(0, 10) } },
+        }),
+      );
+
+      await expect(
+        service.updateCordons(INSTANCE_ID, { numberOfCordons: 2 }),
+      ).rejects.toThrow(ForbiddenException);
+      expect(mockInstanceRepo.save).not.toHaveBeenCalled();
     });
   });
 });
