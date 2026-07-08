@@ -68,8 +68,8 @@ export interface CreateEventPayload {
   startTime?: string;
   location?: string;
   locationUrl?: string;
-  description?: string;
-  information?: string;
+  description?: string | null;
+  information?: string | null;
   countsForStatistics?: boolean;
   seasonId?: string;
 }

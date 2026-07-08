@@ -18,6 +18,7 @@ import {
 import { Event } from '../event/event.entity';
 import { Attendance } from '../event/attendance.entity';
 import { User } from '../user/user.entity';
+import { getLocalToday } from '../../common/utils/date.util';
 import { SeasonService } from '../season/season.service';
 import { AttendanceService } from '../event/attendance.service';
 import { MeEventFilterDto } from './dto/me-event-filter.dto';
@@ -67,7 +68,7 @@ export class MeService {
       qb.andWhere('event."eventType" = :type', { type });
     }
 
-    const today = this.getLocalToday();
+    const today = getLocalToday();
     if (timeFilter === 'upcoming') {
       qb.andWhere('event.date >= :today', { today });
       qb.orderBy('event.date', 'ASC').addOrderBy('event."startTime"', 'ASC');
@@ -140,7 +141,7 @@ export class MeService {
       throw new NotFoundException(`Event with ID ${eventId} not found`);
     }
 
-    const today = this.getLocalToday();
+    const today = getLocalToday();
     const eventDate = event.date instanceof Date
       ? event.date.toISOString().slice(0, 10)
       : String(event.date);
@@ -148,25 +149,24 @@ export class MeService {
       throw new BadRequestException('No es pot modificar l\'assistència d\'un event passat');
     }
 
-    let attendance = await this.attendanceRepository.findOne({
-      where: { person: { id: personId }, event: { id: eventId } },
-    });
-
     const now = new Date();
 
-    if (attendance) {
-      attendance.status = dto.status;
-      attendance.respondedAt = now;
-      attendance = await this.attendanceRepository.save(attendance);
-    } else {
-      attendance = this.attendanceRepository.create({
-        status: dto.status,
-        respondedAt: now,
+    await this.attendanceRepository.upsert(
+      {
         person: { id: personId } as never,
         event: { id: eventId } as never,
-      });
-      attendance = await this.attendanceRepository.save(attendance);
-    }
+        status: dto.status,
+        respondedAt: now,
+      },
+      {
+        conflictPaths: ['person', 'event'],
+        skipUpdateIfNoValuesChanged: true,
+      },
+    );
+
+    const attendance = await this.attendanceRepository.findOneOrFail({
+      where: { person: { id: personId }, event: { id: eventId } },
+    });
 
     await this.attendanceService.recalculateSummary(eventId);
 
@@ -177,15 +177,7 @@ export class MeService {
     };
   }
 
-  private getLocalToday(): string {
-    const formatter = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Europe/Madrid',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
-    return formatter.format(new Date());
-  }
+
 
   private async resolvePersonId(userId: string): Promise<string | null> {
     const user = await this.userRepository.findOne({

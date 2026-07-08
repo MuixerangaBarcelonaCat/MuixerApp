@@ -6,10 +6,9 @@ import {
 } from '@angular/common/http/testing';
 import { HttpClient } from '@angular/common/http';
 import { Component } from '@angular/core';
-import { provideRouter, Router } from '@angular/router';
+import { provideRouter } from '@angular/router';
 import { authInterceptor } from './auth.interceptor';
 import { AuthService } from '../services/auth.service';
-import { ToastService } from '../../../shared/services/toast.service';
 import { of, throwError } from 'rxjs';
 
 @Component({ standalone: true, template: '' })
@@ -22,15 +21,15 @@ describe('authInterceptor', () => {
     getAccessToken: ReturnType<typeof vi.fn>;
     refresh: ReturnType<typeof vi.fn>;
     clearState: ReturnType<typeof vi.fn>;
+    handleSessionExpired: ReturnType<typeof vi.fn>;
   };
-  let router: Router;
-  let toast: ToastService;
 
   beforeEach(() => {
     authService = {
       getAccessToken: vi.fn().mockReturnValue('test-token'),
       refresh: vi.fn(),
       clearState: vi.fn(),
+      handleSessionExpired: vi.fn(),
     };
 
     TestBed.configureTestingModule({
@@ -46,8 +45,6 @@ describe('authInterceptor', () => {
 
     http = TestBed.inject(HttpClient);
     httpTesting = TestBed.inject(HttpTestingController);
-    router = TestBed.inject(Router);
-    toast = TestBed.inject(ToastService);
   });
 
   afterEach(() => {
@@ -62,12 +59,20 @@ describe('authInterceptor', () => {
     req.flush([]);
   });
 
-  it('skips Bearer for /auth/ URLs', () => {
+  it('skips Bearer for /auth/login and /auth/refresh URLs', () => {
     http.post('/api/auth/refresh', {}).subscribe();
 
     const req = httpTesting.expectOne('/api/auth/refresh');
     expect(req.request.headers.has('Authorization')).toBe(false);
     expect(req.request.withCredentials).toBe(true);
+    req.flush({});
+  });
+
+  it('adds Bearer for /auth/logout URL', () => {
+    http.post('/api/auth/logout', {}).subscribe();
+
+    const req = httpTesting.expectOne('/api/auth/logout');
+    expect(req.request.headers.get('Authorization')).toBe('Bearer test-token');
     req.flush({});
   });
 
@@ -87,8 +92,7 @@ describe('authInterceptor', () => {
     retryReq.flush([]);
   });
 
-  it('redirects to /login on refresh failure', () => {
-    const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+  it('calls handleSessionExpired on refresh failure', () => {
     authService.refresh.mockReturnValue(
       throwError(() => new Error('refresh failed')),
     );
@@ -99,24 +103,6 @@ describe('authInterceptor', () => {
       .expectOne('/api/events')
       .flush(null, { status: 401, statusText: 'Unauthorized' });
 
-    expect(authService.clearState).toHaveBeenCalled();
-    expect(navigateSpy).toHaveBeenCalledWith(['/login']);
-  });
-
-  it('shows toast on session expiry', () => {
-    const toastSpy = vi.spyOn(toast, 'error');
-    authService.refresh.mockReturnValue(
-      throwError(() => new Error('refresh failed')),
-    );
-
-    http.get('/api/events').subscribe({ error: () => void 0 });
-
-    httpTesting
-      .expectOne('/api/events')
-      .flush(null, { status: 401, statusText: 'Unauthorized' });
-
-    expect(toastSpy).toHaveBeenCalledWith(
-      'La sessió ha expirat. Torna a entrar.',
-    );
+    expect(authService.handleSessionExpired).toHaveBeenCalled();
   });
 });

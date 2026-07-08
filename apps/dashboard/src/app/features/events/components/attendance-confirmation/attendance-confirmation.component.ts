@@ -6,7 +6,7 @@ import {
   OnInit,
   OnDestroy,
 } from '@angular/core';
-import { Router, ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { AttendanceService } from '../../services/attendance.service';
 import { AttendanceItem } from '../../models/attendance.model';
@@ -37,7 +37,6 @@ export class AttendanceConfirmationComponent implements OnInit, OnDestroy {
 
   query = signal('');
   results = signal<AttendanceItem[]>([]);
-  total = signal(0);
   loading = signal(true);
   confirmingId = signal<string | null>(null);
   recentlyConfirmed = signal<string | null>(null);
@@ -75,7 +74,6 @@ export class AttendanceConfirmationComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (resp) => {
           this.results.set(resp.data.filter((a) => a.status !== AttendanceStatus.ASSISTIT));
-          this.total.set(resp.meta.total);
           this.loading.set(false);
         },
         error: () => this.loading.set(false),
@@ -101,6 +99,6 @@ export class AttendanceConfirmationComponent implements OnInit, OnDestroy {
   }
 
   goBack() {
-    this.router.navigate(['..'], { relativeTo: this.route });
+    this.router.navigateByUrl(this.router.url.replace('/confirmation', ''));
   }
 }

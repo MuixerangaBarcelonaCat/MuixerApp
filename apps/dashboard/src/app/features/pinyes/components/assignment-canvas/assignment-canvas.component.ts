@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Location } from '@angular/common';
-import { LucideAngularModule, ArrowLeft, Users, Edit, RefreshCw, Trash2, X, PanelLeft, PanelLeftClose, Monitor, Lock, Plus, Minus, CircleQuestionMark, Undo2, Redo2, Save, Flower, ChessRook, Shapes, Sparkles } from 'lucide-angular';
+import { LucideAngularModule, ArrowLeft, Users, Edit, RefreshCw, Trash2, X, Monitor, Lock, Plus, Minus, CircleQuestionMark, Undo2, Redo2, Save, Flower, ChessRook, Shapes, Sparkles } from 'lucide-angular';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { NodeAssignmentService, LockStatus } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
@@ -92,8 +92,6 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   readonly RefreshCw = RefreshCw;
   readonly Trash2 = Trash2;
   readonly X = X;
-  readonly PanelLeft = PanelLeft;
-  readonly PanelLeftClose = PanelLeftClose;
   readonly Monitor = Monitor;
   readonly Lock = Lock;
   readonly Plus = Plus;
@@ -366,6 +364,8 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.layout.exitFullscreen();
     this.undoRedo.clear();
+    document.removeEventListener('mousemove', this.onTroncDragMoveBound);
+    document.removeEventListener('mouseup', this.onTroncDragEndBound);
   }
 
   @HostListener('document:keydown', ['$event'])
@@ -638,6 +638,20 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
   // ── Tronc panel drag ─────────────────────────────────────────────────────
 
+  private readonly onTroncDragMoveBound = (event: MouseEvent) => {
+    if (!this.troncDragging) return;
+    this.troncPanelPos.set({
+      x: event.clientX - this.troncDragOffset.x,
+      y: event.clientY - this.troncDragOffset.y,
+    });
+  };
+
+  private readonly onTroncDragEndBound = () => {
+    this.troncDragging = false;
+    document.removeEventListener('mousemove', this.onTroncDragMoveBound);
+    document.removeEventListener('mouseup', this.onTroncDragEndBound);
+  };
+
   onTroncDragStart(event: MouseEvent): void {
     if ((event.target as HTMLElement).closest('button')) return;
     if (this.isActiveTabTroncOnly()) return;
@@ -645,20 +659,8 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     const pos = this.troncPanelPos();
     this.troncDragOffset = { x: event.clientX - pos.x, y: event.clientY - pos.y };
     event.preventDefault();
-  }
-
-  @HostListener('document:mousemove', ['$event'])
-  onTroncDragMove(event: MouseEvent): void {
-    if (!this.troncDragging) return;
-    this.troncPanelPos.set({
-      x: event.clientX - this.troncDragOffset.x,
-      y: event.clientY - this.troncDragOffset.y,
-    });
-  }
-
-  @HostListener('document:mouseup')
-  onTroncDragEnd(): void {
-    this.troncDragging = false;
+    document.addEventListener('mousemove', this.onTroncDragMoveBound);
+    document.addEventListener('mouseup', this.onTroncDragEndBound);
   }
 
   setViewMode(mode: 'pinya' | 'tronc' | 'decoration' | 'projecta'): void {
@@ -794,7 +796,9 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     personId: string,
   ): void {
     const isSameInstance = oldInstanceId === targetInstanceId;
-    const snapshot = isSameInstance ? [...this.state.assignments()] : null;
+    const removedAssignment = isSameInstance
+      ? this.state.assignments().find((a) => a.id === oldAssignmentId) ?? null
+      : null;
     if (isSameInstance) {
       this.state.assignments.update((list) => list.filter((a) => a.id !== oldAssignmentId));
     }
@@ -809,8 +813,8 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
         this.triggerAssign(targetNodeId, personId);
       },
       error: () => {
-        if (isSameInstance && snapshot) {
-          this.state.assignments.set(snapshot);
+        if (isSameInstance && removedAssignment) {
+          this.state.assignments.update((list) => [...list, removedAssignment]);
         }
         this.toast.error('Error en reassignar la persona.');
       },
@@ -1038,7 +1042,6 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     if (!instanceId) return;
     const tab = this.activeTab();
 
-    const snapshot = [...this.state.assignments()];
     const matchedNode = this.activeNodes().find((n) => n.id === nodeId);
     const tempAssignment: AssignmentDetail = {
       id: `temp-${Date.now()}`,
@@ -1065,7 +1068,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
       instanceId,
       nodeId,
       personId,
-      previousAssignments: snapshot,
+      previousAssignments: [],
     };
     this.state.pendingOperations.update((ops) => [...ops, op]);
 
@@ -1102,7 +1105,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
         this.undoRedo.push(action);
       },
       error: (err) => {
-        this.state.assignments.set(op.previousAssignments);
+        this.state.assignments.update((list) => list.filter((a) => a.id !== tempAssignment.id));
         this.state.pendingOperations.update((ops) => ops.filter((o) => o.id !== op.id));
         this.updateTabCount(instanceId);
         this.state.refreshPersonList();
@@ -1126,7 +1129,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
         this.tabs.update((list) =>
           list.map((t) =>
             t.instanceId === instanceId
-              ? { ...t, nodes: resp.data, totalCount: visibleAssignable.length, snapshotted: true }
+              ? { ...t, nodes: resp.data, totalCount: visibleAssignable.length }
               : t,
           ),
         );
@@ -1170,7 +1173,6 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     const instanceId = this.state.activeInstanceId();
     if (!instanceId) return;
 
-    const snapshot = [...this.state.assignments()];
     this.state.assignments.update((list) => list.filter((a) => a.id !== existing.id));
     this.state.setSelectedNodeId(null);
 
@@ -1179,7 +1181,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
         this.triggerAssign(nodeId, newPersonId);
       },
       error: () => {
-        this.state.assignments.set(snapshot);
+        this.state.assignments.update((list) => [...list, existing]);
         this.toast.error('Error en desassignar la persona.');
       },
     });
@@ -1189,13 +1191,13 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
     const instanceId = this.state.activeInstanceId();
     if (!instanceId) return;
 
-    const snapshot = [...this.state.assignments()];
+    const originalPerson1 = assignment1.person;
+    const originalPerson2 = assignment2.person;
 
-    // Optimistic update
     this.state.assignments.update((list) =>
       list.map((a) => {
-        if (a.id === assignment1.id) return { ...a, person: assignment2.person };
-        if (a.id === assignment2.id) return { ...a, person: assignment1.person };
+        if (a.id === assignment1.id) return { ...a, person: originalPerson2 };
+        if (a.id === assignment2.id) return { ...a, person: originalPerson1 };
         return a;
       }),
     );
@@ -1217,7 +1219,13 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
           this.toast.success('Persones intercanviades correctament.');
         },
         error: () => {
-          this.state.assignments.set(snapshot);
+          this.state.assignments.update((list) =>
+            list.map((a) => {
+              if (a.id === assignment1.id) return { ...a, person: originalPerson1 };
+              if (a.id === assignment2.id) return { ...a, person: originalPerson2 };
+              return a;
+            }),
+          );
           this.toast.error("Error en l'intercanvi de persones.");
         },
       });
@@ -1230,7 +1238,6 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
 
     const nodeId = assignment.node.id;
     const personId = assignment.person.id;
-    const snapshot = [...this.state.assignments()];
     this.state.assignments.update((list) => list.filter((a) => a.id !== assignment.id));
     this.popoverAssignment.set(null);
     this.state.setSelectedNodeId(null);
@@ -1258,7 +1265,7 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
         this.undoRedo.push(action);
       },
       error: () => {
-        this.state.assignments.set(snapshot);
+        this.state.assignments.update((list) => [...list, assignment]);
         this.updateTabCount(instanceId);
         this.state.refreshPersonList();
         this.toast.error('Error en desassignar la persona.');
@@ -1334,6 +1341,12 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
         this.applyCordons(value);
       },
       error: () => {
+        this.assignmentService.getByInstance(instanceId).subscribe({
+          next: (resp) => {
+            this.state.assignments.set(resp.data);
+            this.updateTabCount(instanceId);
+          },
+        });
         this.toast.error('Error en desassignar les persones dels cordons eliminats.');
       },
     });
@@ -1904,13 +1917,6 @@ export class AssignmentCanvasComponent implements OnInit, OnDestroy {
         this.refreshInstanceNodes(instanceId);
       },
     });
-  }
-
-  onAdHocNodeUpdated(): void {
-    const instanceId = this.state.activeInstanceId();
-    if (instanceId) {
-      this.refreshInstanceNodes(instanceId);
-    }
   }
 
   onAdHocDeleteFromPanel(nodeId: string): void {

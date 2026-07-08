@@ -9,6 +9,7 @@ import {
   input,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { SlicePipe } from '@angular/common';
 import { MeEventDetail, EventType } from '@muixer/shared';
 import { LucideAngularModule, MapPin, Clock, Info } from 'lucide-angular';
 import { MobileHeaderComponent } from '../../../shared/components/mobile-header/mobile-header.component';
@@ -27,6 +28,7 @@ import { EventService } from '../services/event.service';
     SkeletonCardComponent,
     AttendanceButtonComponent,
     FormatEventDatePipe,
+    SlicePipe,
   ],
   templateUrl: './event-detail.component.html',
 })
@@ -47,6 +49,12 @@ export class EventDetailComponent implements OnInit {
   protected readonly isAssaig = computed(
     () => this.event()?.eventType === EventType.ASSAIG,
   );
+
+  protected readonly isPast = computed(() => {
+    const date = this.event()?.date;
+    if (!date) return false;
+    return date < new Date().toISOString().slice(0, 10);
+  });
 
   ngOnInit(): void {
     this.eventService.findOne(this.id()).pipe(

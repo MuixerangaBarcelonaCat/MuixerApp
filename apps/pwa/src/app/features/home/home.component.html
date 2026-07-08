@@ -34,7 +34,10 @@
             <h3 class="text-sm font-medium text-base-content/60 uppercase tracking-wider mb-2">
               Pròxim assaig
             </h3>
-            <app-event-card [event]="rehearsal" />
+            <app-event-card
+              [event]="rehearsal"
+              (attendanceChanged)="onAttendanceChanged($event)"
+            />
           </div>
         }
 
@@ -43,7 +46,10 @@
             <h3 class="text-sm font-medium text-base-content/60 uppercase tracking-wider mb-2">
               Pròxima actuació
             </h3>
-            <app-event-card [event]="performance" />
+            <app-event-card
+              [event]="performance"
+              (attendanceChanged)="onAttendanceChanged($event)"
+            />
           </div>
         }
       </div>

@@ -1,7 +1,6 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  computed,
   inject,
   input,
   OnInit,
@@ -11,8 +10,8 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { LucideAngularModule } from 'lucide-angular';
-import { ICON_FIGURA, ICON_PERSONA, ICON_COMPOSITION, ICON_FIGURA_NETA } from '../../../../shared/constants/domain-icons';
-import { forkJoin } from 'rxjs';
+import { ICON_FIGURA, ICON_PERSONA, ICON_FIGURA_NETA } from '../../../../shared/constants/domain-icons';
+import { from, concatMap, toArray } from 'rxjs';
 import { EventSegmentService } from '../../../pinyes/services/event-segment.service';
 import { FigureInstanceService } from '../../../pinyes/services/figure-instance.service';
 import { CompositionService } from '../../../pinyes/services/composition.service';
@@ -55,7 +54,6 @@ export class SegmentManagerComponent implements OnInit {
   isPast = input<boolean>(false);
   readonly ICON_FIGURA = ICON_FIGURA;
   readonly ICON_PERSONA = ICON_PERSONA;
-  readonly ICON_COMPOSITION = ICON_COMPOSITION;
   readonly ICON_FIGURA_NETA = ICON_FIGURA_NETA;
 
   private readonly segmentService = inject(EventSegmentService);
@@ -91,17 +89,17 @@ export class SegmentManagerComponent implements OnInit {
   copyPickerSegmentId = signal<string | null>(null);
   copyingInstance = signal(false);
 
-  segmentTotalAssigned = computed(() => (segment: SegmentDetail): number =>
-    segment.instances.reduce((sum, i) => sum + (i.assignedCount ?? 0), 0),
-  );
+  segmentTotalAssigned(segment: SegmentDetail): number {
+    return segment.instances.reduce((sum, i) => sum + (i.assignedCount ?? 0), 0);
+  }
 
-  displayName = computed(() => (segment: SegmentDetail): string => {
+  displayName(segment: SegmentDetail): string {
     if (segment.name) return segment.name;
     if (!segment.instances.length) return 'Segment sense nom';
     return segment.instances
       .map((i) => this.getInstanceLabel(i))
       .join(' + ');
-  });
+  }
 
   ngOnInit() {
     this.loadSegments();
@@ -190,7 +188,7 @@ export class SegmentManagerComponent implements OnInit {
   }
 
   removeSegment(segment: SegmentDetail) {
-    const displayedName = this.displayName()(segment);
+    const displayedName = this.displayName(segment);
     if (!confirm(`Segur que vols eliminar "${displayedName}" i totes les seves figures? Aquesta acció no es pot desfer.`)) {
       return;
     }
@@ -290,10 +288,11 @@ export class SegmentManagerComponent implements OnInit {
     const segmentId = this.pickerSegmentId();
     if (!segmentId || selections.length === 0) return;
 
-    forkJoin(
-      selections.map((sel) =>
+    from(selections).pipe(
+      concatMap((sel) =>
         this.instanceService.create(this.eventId(), segmentId, sel),
       ),
+      toArray(),
     ).subscribe({
       next: (instances) => {
         this.segments.update((list) =>
@@ -303,15 +302,17 @@ export class SegmentManagerComponent implements OnInit {
               : s,
           ),
         );
-        const count = instances.length;
         this.toast.success(
-          count === 1
+          instances.length === 1
             ? '1 figura afegida.'
-            : `${count} figures afegides.`,
+            : `${instances.length} figures afegides.`,
         );
         this.closePicker();
       },
-      error: () => this.toast.error('Error en afegir les figures.'),
+      error: () => {
+        this.toast.error('Error en afegir les figures.');
+        this.loadSegments();
+      },
     });
   }
 
@@ -376,10 +377,6 @@ export class SegmentManagerComponent implements OnInit {
   netaSuffix(name: string): string {
     const firstWord = name.trim().split(/\s+/)[0] ?? '';
     return firstWord.endsWith('a') ? 'neta' : 'net';
-  }
-
-  isComposition(_instance: InstanceDetail): boolean {
-    return false;
   }
 
   figureModeOptions(instance: InstanceDetail): { value: FigureMode; label: string }[] | null {
@@ -452,6 +449,9 @@ export class SegmentManagerComponent implements OnInit {
     mode: FigureMode,
     onDone?: () => void,
   ): void {
+    const previousMode = instance.figureMode;
+    this.setInstanceMode(segment.id, instance.id, mode);
+
     this.instanceService.update(this.eventId(), segment.id, instance.id, { figureMode: mode }).subscribe({
       next: (updated) => {
         this.segments.update((list) =>
@@ -464,6 +464,7 @@ export class SegmentManagerComponent implements OnInit {
         onDone?.();
       },
       error: () => {
+        this.setInstanceMode(segment.id, instance.id, previousMode);
         this.toast.error('Error en actualitzar el mode de la figura.');
         onDone?.();
       },

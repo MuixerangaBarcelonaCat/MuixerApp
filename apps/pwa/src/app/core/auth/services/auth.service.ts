@@ -4,12 +4,14 @@ import { Router } from '@angular/router';
 import { catchError, finalize, map, Observable, of, share, tap } from 'rxjs';
 import { ClientType } from '@muixer/shared';
 import { AuthResponse, LoginRequest, UserProfile } from '../models/auth.models';
+import { ToastService } from '../../../shared/services/toast.service';
 import { environment } from '../../../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
+  private readonly toast = inject(ToastService);
 
   private readonly _currentUser = signal<UserProfile | null>(null);
   private readonly _accessToken = signal<string | null>(null);
@@ -21,6 +23,7 @@ export class AuthService {
   });
 
   private _refreshInProgress$: Observable<void> | null = null;
+  private _sessionExpiredHandled = false;
 
   readonly currentUser = this._currentUser.asReadonly();
   readonly isAuthenticated = computed(() => this._currentUser() !== null);
@@ -50,6 +53,15 @@ export class AuthService {
   clearState(): void {
     this._currentUser.set(null);
     this._accessToken.set(null);
+  }
+
+  handleSessionExpired(): void {
+    if (this._sessionExpiredHandled) return;
+    this._sessionExpiredHandled = true;
+    this.clearState();
+    this.toast.error('La sessió ha expirat. Torna a entrar.');
+    this.router.navigate(['/login']);
+    setTimeout(() => { this._sessionExpiredHandled = false; }, 2000);
   }
 
   login(credentials: Omit<LoginRequest, 'clientType'>): Observable<void> {

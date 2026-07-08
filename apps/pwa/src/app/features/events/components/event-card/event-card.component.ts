@@ -7,6 +7,7 @@ import {
   inject,
 } from '@angular/core';
 import { Router } from '@angular/router';
+import { SlicePipe } from '@angular/common';
 import { AttendanceStatus, EventType, MeEvent } from '@muixer/shared';
 import { LucideAngularModule, MapPin, Clock } from 'lucide-angular';
 import { AttendanceButtonComponent } from '../attendance-button/attendance-button.component';
@@ -16,7 +17,7 @@ import { formatEventDate } from '../../../../shared/pipes/format-event-date.pipe
   selector: 'app-event-card',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule, AttendanceButtonComponent],
+  imports: [LucideAngularModule, AttendanceButtonComponent, SlicePipe],
   templateUrl: './event-card.component.html',
 })
 export class EventCardComponent {
@@ -31,6 +32,11 @@ export class EventCardComponent {
   protected readonly isAssaig = computed(
     () => this.event().eventType === EventType.ASSAIG,
   );
+
+  protected readonly isPast = computed(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    return this.event().date < today;
+  });
 
   protected readonly cardTitle = computed(() => {
     const ev = this.event();

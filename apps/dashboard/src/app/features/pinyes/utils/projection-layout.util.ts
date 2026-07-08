@@ -398,7 +398,6 @@ export function computeProjectionLayout(
   }
 
   const metrics = instances.map(toMetrics);
-  console.log(metrics);
 
   // Upper bound: the scale at which even a single figure fills the full screen height.
   // Above this, no layout can be feasible.
@@ -428,9 +427,6 @@ export function computeProjectionLayout(
 
   const rowResult = buildRowCells(rowPack, screenW, screenH);
   const colResult = buildColCells(colPack, screenW, screenH);
-
-  console.log(rowResult);
-  console.log(colResult);
 
   if (rowFits && colFits) {
     return rowResult.minZoom >= colResult.minZoom ? rowResult.cells : colResult.cells;

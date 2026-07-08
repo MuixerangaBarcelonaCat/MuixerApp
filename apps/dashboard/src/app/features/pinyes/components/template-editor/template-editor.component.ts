@@ -506,13 +506,13 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
     if (this.previewMode()) return;
 
-    if (isMod && event.key === 'z' && !event.shiftKey) {
+    if (isMod && event.key.toLowerCase() === 'z' && !event.shiftKey) {
       event.preventDefault();
       this.performUndo();
       return;
     }
 
-    if (isMod && event.key === 'z' && event.shiftKey) {
+    if (isMod && event.key.toLowerCase() === 'z' && event.shiftKey) {
       event.preventDefault();
       this.performRedo();
       return;

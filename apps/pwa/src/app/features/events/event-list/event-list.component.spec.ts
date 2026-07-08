@@ -153,20 +153,20 @@ describe('EventListComponent', () => {
 
   it('should load all season events when switching to calendar', () => {
     eventService.findAll.mockReturnValue(
-      of({ data: MOCK_EVENTS_SEASON, meta: { total: 3, page: 1, limit: 100 } }),
+      of({ data: MOCK_EVENTS_SEASON, meta: { total: 3, page: 1, limit: 200 } }),
     );
 
     component.toggleView();
     fixture.detectChanges();
 
     expect(eventService.findAll).toHaveBeenCalledWith(
-      expect.objectContaining({ timeFilter: 'all', limit: 100 }),
+      expect.objectContaining({ timeFilter: 'all', limit: 200 }),
     );
   });
 
   it('should show event cards when a day is selected', () => {
     eventService.findAll.mockReturnValue(
-      of({ data: MOCK_EVENTS_SEASON, meta: { total: 3, page: 1, limit: 100 } }),
+      of({ data: MOCK_EVENTS_SEASON, meta: { total: 3, page: 1, limit: 200 } }),
     );
 
     component.toggleView();
@@ -181,7 +181,7 @@ describe('EventListComponent', () => {
 
   it('should hide expanded cards when day is deselected', () => {
     eventService.findAll.mockReturnValue(
-      of({ data: MOCK_EVENTS_SEASON, meta: { total: 3, page: 1, limit: 100 } }),
+      of({ data: MOCK_EVENTS_SEASON, meta: { total: 3, page: 1, limit: 200 } }),
     );
 
     component.toggleView();
@@ -198,7 +198,7 @@ describe('EventListComponent', () => {
 
   it('should refresh calendar data on pull-to-refresh in calendar mode', () => {
     eventService.findAll.mockReturnValue(
-      of({ data: MOCK_EVENTS_SEASON, meta: { total: 3, page: 1, limit: 100 } }),
+      of({ data: MOCK_EVENTS_SEASON, meta: { total: 3, page: 1, limit: 200 } }),
     );
 
     component.toggleView();
@@ -213,7 +213,7 @@ describe('EventListComponent', () => {
 
   it('should update calendar dot when attendance changes', () => {
     eventService.findAll.mockReturnValue(
-      of({ data: MOCK_EVENTS_SEASON, meta: { total: 3, page: 1, limit: 100 } }),
+      of({ data: MOCK_EVENTS_SEASON, meta: { total: 3, page: 1, limit: 200 } }),
     );
 
     component.toggleView();

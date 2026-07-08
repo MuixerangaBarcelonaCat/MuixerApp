@@ -330,9 +330,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       const placement = this.isPlacementMode();
       if (!this.stage) return;
       untracked(() => {
-        if (placement) {
-          this.stage.container().style.cursor = 'crosshair';
-        }
+        this.stage.container().style.cursor = placement ? 'crosshair' : 'default';
       });
     });
   }

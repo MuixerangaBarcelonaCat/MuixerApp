@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   ElementRef,
   ViewChild,
   computed,
@@ -11,8 +12,10 @@ import {
   signal,
   untracked,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, RefreshCw, ChevronDown, ChevronUp, UserX } from 'lucide-angular';
+import { Subject, debounceTime, switchMap } from 'rxjs';
 import { FigureZone } from '@muixer/shared';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
@@ -56,6 +59,8 @@ export class PersonPanelComponent {
   private readonly assignmentService = inject(NodeAssignmentService);
   private readonly state = inject(AssignmentStateService);
   private readonly tagService = inject(TagService);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly loadPersons$ = new Subject<void>();
 
   readonly RefreshCw = RefreshCw;
   readonly ChevronDown = ChevronDown;
@@ -248,27 +253,52 @@ export class PersonPanelComponent {
   constructor() {
     this.tagService.getAll().subscribe((tags) => this.tags.set(tags));
 
+    this.loadPersons$.pipe(
+      debounceTime(250),
+      switchMap(() => {
+        this.loading.set(true);
+        const query: Record<string, any> = { excludeAssigned: false };
+        const sortMode = this.heightSortMode();
+        if (sortMode !== null) {
+          const heightValue = sortMode === 'max' ? 1000 : -1000;
+          query['height'] = this.heightMode() === 'relative' ? SHOULDER_HEIGHT_BASELINE_CM + heightValue : heightValue;
+        } else if (this.height() !== null) {
+          const heightValue = this.height()!;
+          query['height'] = this.heightMode() === 'relative' ? SHOULDER_HEIGHT_BASELINE_CM + heightValue : heightValue;
+        }
+        if (!this.showXicalla()) query['isXicalla'] = false;
+        if (this.selectedPositionId()) query['positionId'] = this.selectedPositionId();
+        return this.assignmentService.getAvailablePersons(this.eventId(), this.segmentId(), query);
+      }),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe({
+      next: (resp) => {
+        this.persons.set(resp.data);
+        this.loading.set(false);
+      },
+      error: () => this.loading.set(false),
+    });
+
     effect(() => {
       const nodeId = this.selectedNodeId();
-      if (nodeId !== null) {
-        this.hasTypedSinceNodeSelected = false;
-        setTimeout(() => {
-          if (document.activeElement === this.heightInputRef?.nativeElement) return;
-          this.focusSearch();
-        }, 0);
-        // Auto-toggle the Xicalla filter to match the selected node's zone.
-        // Left untouched when a node is deselected (nodeId === null).
-        // Goes through onXicallaChange (not a direct signal set) so the person
-        // list is actually re-fetched with the new filter, same as a manual toggle.
-        this.onXicallaChange(this.selectedNodeZone() === FigureZone.TRONC);
-      }
+      const zone = this.selectedNodeZone();
+      untracked(() => {
+        if (nodeId !== null) {
+          this.hasTypedSinceNodeSelected = false;
+          setTimeout(() => {
+            if (document.activeElement === this.heightInputRef?.nativeElement) return;
+            this.focusSearch();
+          }, 0);
+          this.onXicallaChange(zone === FigureZone.TRONC);
+        }
+      });
     });
 
     effect(() => {
       this.state.personListRefreshTrigger();
       untracked(() => {
         if (this.eventId() && this.segmentId()) {
-          this.loadPersons();
+          this.loadPersons$.next();
           this.loadRegistries();
         }
       });
@@ -303,31 +333,7 @@ export class PersonPanelComponent {
   }
 
   loadPersons(): void {
-    this.loading.set(true);
-    const query: Record<string, any> = {
-      excludeAssigned: false,
-    };
-    const sortMode = this.heightSortMode();
-    if (sortMode !== null) {
-      const heightValue = sortMode === 'max' ? 1000 : -1000;
-      query['height'] = this.heightMode() === 'relative' ? SHOULDER_HEIGHT_BASELINE_CM + heightValue : heightValue;
-    } else if (this.height() !== null) {
-      const heightValue = this.height()!;
-      const absoluteHeight = this.heightMode() === 'relative' ? SHOULDER_HEIGHT_BASELINE_CM + heightValue : heightValue;
-      query['height'] = absoluteHeight;
-    }
-    if (!this.showXicalla()) query['isXicalla'] = false;
-    if (this.selectedPositionId()) query['positionId'] = this.selectedPositionId();
-
-    this.assignmentService
-      .getAvailablePersons(this.eventId(), this.segmentId(), query)
-      .subscribe({
-        next: (resp) => {
-          this.persons.set(resp.data);
-          this.loading.set(false);
-        },
-        error: () => this.loading.set(false),
-      });
+    this.loadPersons$.next();
   }
 
   onSearchChange(value: string): void {

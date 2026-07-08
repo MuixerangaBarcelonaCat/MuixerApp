@@ -519,8 +519,8 @@ export class TroncViewComponent {
     const halfCols = this.totalColumns();
     const realCols = halfCols / 2;
     const minSize = realCols > 7 ? '1.5rem' : realCols > 4 ? '2rem' : '2.5rem';
-    // Add 2 extra half-columns (= 1 real column) for the add-node button
-    return `repeat(${halfCols}, minmax(${minSize}, 1fr)) 2.5rem`;
+    const base = `repeat(${halfCols}, minmax(${minSize}, 1fr))`;
+    return this.mode() === 'editor' ? `${base} 2.5rem` : base;
   }
 
   /** Grid column for the add-node button (always in the extra column at the end). */

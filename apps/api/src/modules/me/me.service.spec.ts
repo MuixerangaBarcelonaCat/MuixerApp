@@ -34,7 +34,7 @@ const mockEvent: Partial<Event> = {
   information: 'Info',
   attendanceSummary: {
     confirmed: 0, declined: 0, pending: 0, attended: 0,
-    noShow: 0, lateCancel: 0, children: 0, total: 0,
+    lateCancel: 0, children: 0, childrenAttended: 0, total: 0,
   },
 };
 
@@ -67,6 +67,8 @@ describe('MeService', () => {
             findOne: jest.fn(),
             create: jest.fn(),
             save: jest.fn(),
+            upsert: jest.fn(),
+            findOneOrFail: jest.fn(),
           },
         },
         {
@@ -300,48 +302,49 @@ describe('MeService', () => {
   });
 
   describe('upsertAttendance', () => {
-    it('should create new attendance record', async () => {
+    it('should create new attendance record via upsert', async () => {
       userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1' } } as User);
       eventRepo.findOne.mockResolvedValue({
         ...mockEvent,
         date: new Date('2026-12-01'),
       } as Event);
-      attendanceRepo.findOne.mockResolvedValue(null);
+      attendanceRepo.upsert.mockResolvedValue(undefined as never);
 
-      const created = {
+      const persisted = {
         id: 'att-new',
         status: AttendanceStatus.ANIRE,
         respondedAt: new Date(),
       };
-      attendanceRepo.create.mockReturnValue(created as never);
-      attendanceRepo.save.mockResolvedValue(created as never);
+      attendanceRepo.findOneOrFail.mockResolvedValue(persisted as never);
       attendanceService.recalculateSummary.mockResolvedValue(undefined);
 
       const result = await service.upsertAttendance(mockUser, 'event-1', {
         status: AttendanceStatus.ANIRE,
       });
 
+      expect(attendanceRepo.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({ status: AttendanceStatus.ANIRE }),
+        expect.objectContaining({ conflictPaths: ['person', 'event'] }),
+      );
       expect(result.id).toBe('att-new');
       expect(result.status).toBe(AttendanceStatus.ANIRE);
       expect(attendanceService.recalculateSummary).toHaveBeenCalledWith('event-1');
     });
 
-    it('should update existing attendance record', async () => {
+    it('should update existing attendance record via upsert', async () => {
       userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1' } } as User);
       eventRepo.findOne.mockResolvedValue({
         ...mockEvent,
         date: new Date('2026-12-01'),
       } as Event);
+      attendanceRepo.upsert.mockResolvedValue(undefined as never);
 
-      const existing = {
+      const updated = {
         id: 'att-1',
-        status: AttendanceStatus.PENDENT,
-        respondedAt: null,
+        status: AttendanceStatus.NO_VAIG,
+        respondedAt: new Date(),
       };
-      attendanceRepo.findOne.mockResolvedValue(existing as never);
-
-      const updated = { ...existing, status: AttendanceStatus.NO_VAIG, respondedAt: new Date() };
-      attendanceRepo.save.mockResolvedValue(updated as never);
+      attendanceRepo.findOneOrFail.mockResolvedValue(updated as never);
       attendanceService.recalculateSummary.mockResolvedValue(undefined);
 
       const result = await service.upsertAttendance(mockUser, 'event-1', {
@@ -386,11 +389,10 @@ describe('MeService', () => {
         ...mockEvent,
         date: new Date('2026-12-01'),
       } as Event);
-      attendanceRepo.findOne.mockResolvedValue(null);
+      attendanceRepo.upsert.mockResolvedValue(undefined as never);
 
-      const created = { id: 'att-new', status: AttendanceStatus.ANIRE, respondedAt: new Date() };
-      attendanceRepo.create.mockReturnValue(created as never);
-      attendanceRepo.save.mockResolvedValue(created as never);
+      const persisted = { id: 'att-new', status: AttendanceStatus.ANIRE, respondedAt: new Date() };
+      attendanceRepo.findOneOrFail.mockResolvedValue(persisted as never);
       attendanceService.recalculateSummary.mockResolvedValue(undefined);
 
       await service.upsertAttendance(mockUser, 'event-1', { status: AttendanceStatus.ANIRE });

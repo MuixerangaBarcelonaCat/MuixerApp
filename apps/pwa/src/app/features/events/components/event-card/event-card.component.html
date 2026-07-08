@@ -16,6 +16,7 @@
       <app-attendance-button
         [eventId]="event().id"
         [status]="event().myAttendance?.status ?? null"
+        [disabled]="isPast()"
         (statusChanged)="onAttendanceChanged($event)"
         (click)="$event.stopPropagation()"
         (keydown.enter)="$event.stopPropagation()"
@@ -26,7 +27,7 @@
       @if (event().startTime) {
         <span class="flex items-center gap-1">
           <lucide-icon [img]="Clock" [size]="14" aria-hidden="true" />
-          {{ event().startTime }}
+          {{ event().startTime | slice:0:5 }}
         </span>
       }
       @if (event().location) {

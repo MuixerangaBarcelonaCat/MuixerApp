@@ -127,7 +127,7 @@ describe('SegmentManagerComponent', () => {
   describe('displayName()', () => {
     it('returns custom name when set', () => {
       const seg = makeSegment({ name: 'Bloc A' });
-      expect(component.displayName()(seg)).toBe('Bloc A');
+      expect(component.displayName(seg)).toBe('Bloc A');
     });
 
     it('auto-generates from instances when name is null', () => {
@@ -138,12 +138,12 @@ describe('SegmentManagerComponent', () => {
           makeInstance({ id: 'i2', figureTemplate: { id: 'f2', name: 'Morera', hasPinya: true } }),
         ],
       });
-      expect(component.displayName()(seg)).toBe('pd4 + Morera');
+      expect(component.displayName(seg)).toBe('pd4 + Morera');
     });
 
     it('returns fallback when name is null and no instances', () => {
       const seg = makeSegment({ name: null, instances: [] });
-      expect(component.displayName()(seg)).toBe('Segment sense nom');
+      expect(component.displayName(seg)).toBe('Segment sense nom');
     });
   });
 

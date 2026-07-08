@@ -269,6 +269,12 @@ export class UserService {
     });
     if (!user) throw new NotFoundException('User not found');
 
+    if (actorRole !== UserRole.ADMIN && user.role === UserRole.ADMIN) {
+      throw new ForbiddenException(
+        'Solament un administrador pot modificar un altre administrador',
+      );
+    }
+
     if (dto.email && dto.email !== user.email) {
       const existing = await this.userRepository.findOne({
         where: { email: dto.email },

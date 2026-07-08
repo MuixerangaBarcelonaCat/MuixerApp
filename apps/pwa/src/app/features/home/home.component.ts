@@ -9,7 +9,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { MeEvent } from '@muixer/shared';
+import { AttendanceStatus, MeEvent } from '@muixer/shared';
 import { LucideAngularModule, User } from 'lucide-angular';
 import { MobileHeaderComponent } from '../../shared/components/mobile-header/mobile-header.component';
 import { SkeletonCardComponent } from '../../shared/components/skeleton-card/skeleton-card.component';
@@ -67,6 +67,22 @@ export class HomeComponent implements OnInit {
 
   protected reload(): void {
     this.loadData();
+  }
+
+  protected onAttendanceChanged(change: { eventId: string; status: AttendanceStatus }): void {
+    const patch = (ev: MeEvent | null): MeEvent | null => {
+      if (!ev || ev.id !== change.eventId) return ev;
+      return {
+        ...ev,
+        myAttendance: {
+          id: ev.myAttendance?.id ?? '',
+          status: change.status,
+          respondedAt: new Date().toISOString(),
+        },
+      };
+    };
+    this.nextRehearsal.update(patch);
+    this.nextPerformance.update(patch);
   }
 
   private loadData(): void {

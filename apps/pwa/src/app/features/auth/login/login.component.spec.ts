@@ -49,7 +49,7 @@ describe('LoginComponent', () => {
 
   it('calls login service with form values', () => {
     component.form.setValue({ email: 'a@b.cat', password: 'pass123' });
-    vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
     authService.login.mockReturnValue(of(void 0));
 
     component.onSubmit();
@@ -61,13 +61,13 @@ describe('LoginComponent', () => {
   });
 
   it('navigates to /home on successful login', () => {
-    const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    const navigateSpy = vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
     authService.login.mockReturnValue(of(void 0));
 
     component.form.setValue({ email: 'a@b.cat', password: 'pass123' });
     component.onSubmit();
 
-    expect(navigateSpy).toHaveBeenCalledWith(['/home']);
+    expect(navigateSpy).toHaveBeenCalledWith('/home');
   });
 
   it('shows loading state while login in progress', () => {
@@ -79,7 +79,7 @@ describe('LoginComponent', () => {
 
     expect(component.isLoading()).toBe(true);
 
-    vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
     subject.next();
     subject.complete();
   });
@@ -97,7 +97,7 @@ describe('LoginComponent', () => {
     );
     expect(component.isLoading()).toBe(false);
 
-    vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
     authService.login.mockReturnValue(of(void 0));
     component.onSubmit();
     expect(component.errorMessage()).toBeNull();

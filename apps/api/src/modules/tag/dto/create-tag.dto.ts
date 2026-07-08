@@ -1,11 +1,13 @@
-import { IsString, IsOptional, MaxLength, IsArray } from 'class-validator';
+import { IsString, IsOptional, MaxLength, IsArray, IsNotEmpty } from 'class-validator';
 
 export class CreateTagDto {
   @IsString()
+  @IsNotEmpty()
   @MaxLength(100)
   name: string;
 
   @IsString()
+  @IsNotEmpty()
   @MaxLength(100)
   slug: string;
 

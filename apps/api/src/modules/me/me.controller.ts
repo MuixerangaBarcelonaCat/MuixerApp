@@ -14,8 +14,10 @@ import {
   MeEvent,
   MeEventDetail,
   AttendanceResponse,
+  UserRole,
 } from '@muixer/shared';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { MeService } from './me.service';
 import { MeEventFilterDto } from './dto/me-event-filter.dto';
 import { UpdateMyAttendanceDto } from './dto/update-my-attendance.dto';
@@ -23,6 +25,7 @@ import { UpdateMyAttendanceDto } from './dto/update-my-attendance.dto';
 @ApiTags('me')
 @ApiBearerAuth()
 @Controller('me')
+@Roles(UserRole.MEMBER, UserRole.TECHNICAL, UserRole.ADMIN)
 export class MeController {
   constructor(private readonly meService: MeService) {}
 

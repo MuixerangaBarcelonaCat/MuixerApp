@@ -24,6 +24,7 @@
       },
       "configurations": {
         "production": {
+          "serviceWorker": "apps/pwa/ngsw-config.json",
           "budgets": [
             {
               "type": "initial",
@@ -39,6 +40,7 @@
           "outputHashing": "all"
         },
         "pre": {
+          "serviceWorker": "apps/pwa/ngsw-config.json",
           "optimization": true,
           "baseHref": "/app/",
           "fileReplacements": [

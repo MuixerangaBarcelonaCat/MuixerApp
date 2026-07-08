@@ -71,6 +71,7 @@ export class EventListComponent implements OnInit {
   protected readonly isCalendarLoading = signal(false);
   protected readonly selectedDate = signal<string | null>(null);
   private readonly calendarDataLoaded = signal(false);
+  protected readonly isTruncated = signal(false);
 
   protected readonly selectedDayEvents = computed(() => {
     const date = this.selectedDate();
@@ -110,6 +111,7 @@ export class EventListComponent implements OnInit {
       )
       .subscribe((res) => {
         this.events.set(res.data);
+        this.isTruncated.set(res.meta.total > res.data.length);
         this.isLoading.set(false);
         this.pullToRefresh()?.complete();
       });
@@ -173,7 +175,7 @@ export class EventListComponent implements OnInit {
   private loadAllSeasonEvents(): void {
     this.isCalendarLoading.set(true);
     this.eventService
-      .findAll({ timeFilter: 'all', limit: 100 })
+      .findAll({ timeFilter: 'all', limit: 200 })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (res) => {

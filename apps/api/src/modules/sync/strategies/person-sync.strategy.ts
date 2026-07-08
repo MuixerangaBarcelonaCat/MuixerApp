@@ -27,7 +27,7 @@ const POSITION_MAPPING: Record<
   CANALLA: { name: 'Xicalla', slug: 'xicalla', positionTypes: [], color: '#FFB300' },
   'NENS COLLA': { name: 'Nens Colla', slug: 'nens-colla', positionTypes: [], color: '#FFB300' },
   ACOMPANYANTS: { name: 'Acompanyants', slug: 'acompanyants', positionTypes: [], color: '#78909C' },
-  ALTRES: { name: 'Altres', slug: 'altres', positionTypes: [], color: '#9E9E9E0DEEA' },
+  ALTRES: { name: 'Altres', slug: 'altres', positionTypes: [], color: '#9E9E9E' },
   NOVATOS: { name: 'Novatos', slug: 'novatos', positionTypes: [], color: '#5C6BC0' },
   'IMATGE I PARADETA': { name: 'Imatge i Paradeta', slug: 'imatge-paradeta', positionTypes: [], color: '#EC407A' },
 };
@@ -371,10 +371,6 @@ export class PersonSyncStrategy implements SyncStrategy {
       });
       await this.positionRepository.save(position);
       subscriber.next({ type: 'progress', entity: 'position', message: `Posició creada: ${mapping.name}` });
-    } else {
-      existing.positionTypes = mapping.positionTypes;
-      existing.color = mapping.color;
-      await this.positionRepository.save(existing);
     }
   }
 

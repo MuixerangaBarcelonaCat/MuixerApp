@@ -34,7 +34,8 @@ import { ColumnDef, ColumnPill, GroupSeparator } from '../../../../shared/models
 
 export function getAdultsCount(summary: AttendanceSummary, isPast: boolean): number {
   const positive = isPast ? summary.attended : summary.confirmed;
-  return Math.max(0, positive - summary.children);
+  const kids = isPast ? summary.childrenAttended : summary.children;
+  return Math.max(0, positive - kids);
 }
 
 export const ALL_EVENT_COLUMNS: ColumnDef[] = [
@@ -368,24 +369,11 @@ export class EventListComponent implements OnInit {
     return isPast ? summary.attended : summary.confirmed;
   }
 
-  getDeclinedCount(summary: AttendanceSummary, isPast: boolean): number {
-    return summary.declined;
-  }
-
   /** Group separator to split upcoming vs past events */
   readonly groupSeparator = computed<GroupSeparator<EventListItem>>(() => ({
     predicate: (item: EventListItem) => this.isEventPast(item.date, item.startTime),
     label: 'Events passats',
   }));
-
-  formatAttendance(item: EventListItem): string {
-    const isPast = this.isEventPast(item.date, item.startTime);
-    const s = item.attendanceSummary;
-    if (isPast) {
-      return `✓${s.attended} !${s.confirmed} ✗${s.declined}`;
-    }
-    return `✓${s.confirmed} ✗${s.declined} ?${s.pending}`;
-  }
 
   formatAdults(item: EventListItem): string {
     const isPast = this.isEventPast(item.date, item.startTime);

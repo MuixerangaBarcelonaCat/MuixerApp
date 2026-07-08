@@ -167,7 +167,7 @@
                     (click)="startEdit(segment.id, segment.name ?? '')"
                     [title]="'Edita nom del segment'"
                   >
-                    {{ displayName()(segment) }}
+                    {{ displayName(segment) }}
                     <lucide-icon name="Pencil" [size]="11" class="text-base-content/30 shrink-0" aria-hidden="true" />
                     @if (!segment.name) {
                       <span class="text-base-content/40 text-xs font-normal">(automàtic)</span>
@@ -178,10 +178,10 @@
                 <!-- Right-side actions -->
                 <div class="flex items-center gap-1 shrink-0 ml-auto">
                   <!-- Assigned total pill -->
-                  @if (segmentTotalAssigned()(segment) > 0) {
-                    <span class="badge badge-ghost badge-sm gap-1 font-normal" [attr.aria-label]="segmentTotalAssigned()(segment) + ' assignades'">
+                  @if (segmentTotalAssigned(segment) > 0) {
+                    <span class="badge badge-ghost badge-sm gap-1 font-normal" [attr.aria-label]="segmentTotalAssigned(segment) + ' assignades'">
                       <lucide-icon [name]="ICON_PERSONA" [size]="11" />
-                      {{ segmentTotalAssigned()(segment) }}
+                      {{ segmentTotalAssigned(segment) }}
                     </span>
                   }
 
@@ -220,7 +220,7 @@
                       [class.text-base-content]="isLocked()"
                       [class.opacity-50]="isLocked()"
                       (click)="navigateToAssignment(segment.id)"
-                      [attr.aria-label]="'Assigna persones al segment ' + displayName()(segment)"
+                      [attr.aria-label]="'Assigna persones al segment ' + displayName(segment)"
                       [title]="isLocked() ? 'Assignacions bloquejades' : ''"
                     >
                       @if (isLocked()) {
@@ -236,7 +236,7 @@
                       type="button"
                       class="btn btn-ghost btn-xs gap-1 text-secondary"
                       (click)="navigateToProjection(segment.id)"
-                      [attr.aria-label]="'Projecta el segment ' + displayName()(segment)"
+                      [attr.aria-label]="'Projecta el segment ' + displayName(segment)"
                     >
                       <lucide-icon name="Monitor" [size]="14" />
                       Projecta
@@ -248,7 +248,7 @@
                         type="button"
                         class="btn btn-ghost btn-xs gap-1 text-primary"
                         (click)="navigateToDistribution(segment.id)"
-                        [attr.aria-label]="'Distribueix les figures del segment ' + displayName()(segment)"
+                        [attr.aria-label]="'Distribueix les figures del segment ' + displayName(segment)"
                       >
                         <lucide-icon name="LayoutGrid" [size]="14" />
                         Distribueix
@@ -293,7 +293,7 @@
               @if (!isCollapsed(segment.id) && segment.instances.length > 0) {
                 <div
                   role="list"
-                  [attr.aria-label]="'Figures del segment ' + displayName()(segment)"
+                  [attr.aria-label]="'Figures del segment ' + displayName(segment)"
                   cdkDropList
                   [cdkDropListData]="segment.instances"
                   (cdkDropListDropped)="onInstanceDropped(segment, $event)"
@@ -455,7 +455,7 @@
                 <span class="loading loading-spinner loading-xs"></span>
               }
               <span class="flex items-center justify-center w-5 h-5 rounded text-xs font-bold text-primary-content bg-primary shrink-0">{{ segmentNumber(target.id) }}</span>
-              {{ displayName()(target) }}
+              {{ displayName(target) }}
             </button>
           }
         </div>

@@ -80,7 +80,7 @@
               @for (col of displayColumns(); track col.key; let first = $first) {
                 <td
                   class="whitespace-nowrap"
-                  [ngClass]="{ 'sticky left-0 z-[1] font-medium': first }"
+                  [ngClass]="{ 'sticky left-0 z-[1] bg-[inherit] font-medium': first }"
                 >
                   @if (col.type === 'badge' && col.badgeClass) {
                     <span class="badge badge-sm" [ngClass]="col.badgeClass(item)">
@@ -104,8 +104,8 @@
                     type="button"
                     class="btn btn-ghost btn-xs"
                     aria-label="Accions"
-                    [attr.aria-expanded]="openActionsIndex() === idx"
-                    (click)="toggleActionsMenu($event, idx)"
+                    [attr.aria-expanded]="openActionsItem() === item"
+                    (click)="toggleActionsMenu($event, item)"
                   >
                     <lucide-icon name="MoreHorizontal" [size]="16" />
                   </button>
@@ -119,7 +119,7 @@
   </div>
 </div>
 
-@if (openActionsIndex() !== null && menuPosition(); as position) {
+@if (openActionsItem() !== null && menuPosition(); as position) {
   <button
     type="button"
     class="fixed inset-0 z-40 cursor-default bg-transparent"
@@ -143,7 +143,7 @@
           class="text-sm"
           role="menuitem"
           [ngClass]="action.class ?? ''"
-          (click)="onRowAction(action, items()[openActionsIndex()!])"
+          (click)="onRowAction(action)"
         >
           @if (action.icon) {
             <lucide-icon [name]="action.icon" [size]="14" />

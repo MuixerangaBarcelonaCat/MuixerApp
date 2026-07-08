@@ -22,5 +22,5 @@ import { Component, ChangeDetectionStrategy, input } from '@angular/core';
   `,
 })
 export class SplashScreenComponent {
-  logoUrl = input('images/logo-placeholder.svg');
+  logoUrl = input('images/logoMuixe.png');
 }

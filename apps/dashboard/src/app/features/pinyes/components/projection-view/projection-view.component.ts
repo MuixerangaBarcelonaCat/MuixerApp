@@ -496,6 +496,7 @@ export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy
       this.helpModalOpen.set(false);
       return;
     }
+    if (document.fullscreenElement) return;
     this.goBack();
   }
 

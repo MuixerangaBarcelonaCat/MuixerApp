@@ -45,7 +45,7 @@ export class TagFormModalComponent {
   private readonly tagService = inject(TagService);
   private readonly toast = inject(ToastService);
 
-  readonly position = input<TagWithCount | null>(null);
+  readonly tag = input<TagWithCount | null>(null);
   readonly saved = output<TagWithCount>();
   readonly cancelled = output<void>();
 
@@ -94,17 +94,17 @@ export class TagFormModalComponent {
 
   constructor() {
     effect(() => {
-      const pos = this.position();
-      if (pos) {
+      const t = this.tag();
+      if (t) {
         this.form.patchValue({
-          name: pos.name,
-          slug: pos.slug,
-          shortDescription: pos.shortDescription ?? '',
-          longDescription: pos.longDescription ?? '',
-          color: pos.color ?? DEFAULT_COLOR,
+          name: t.name,
+          slug: t.slug,
+          shortDescription: t.shortDescription ?? '',
+          longDescription: t.longDescription ?? '',
+          color: t.color ?? DEFAULT_COLOR,
         });
         this.form.get('slug')!.disable();
-        this.selectedPositionTypes.set(pos.positionTypes ?? []);
+        this.selectedPositionTypes.set(t.positionTypes ?? []);
       } else {
         this.form.reset({ color: DEFAULT_COLOR });
         this.form.get('slug')!.enable();
@@ -114,7 +114,7 @@ export class TagFormModalComponent {
   }
 
   get isEditMode(): boolean {
-    return !!this.position();
+    return !!this.tag();
   }
 
   onNameInput(): void {
@@ -160,12 +160,12 @@ export class TagFormModalComponent {
     if (this.isEditMode) {
       const dto: UpdateTagDto = {
         name: raw.name ?? undefined,
-        shortDescription: raw.shortDescription || undefined,
-        longDescription: raw.longDescription || undefined,
-        color: raw.color || undefined,
+        shortDescription: raw.shortDescription || null,
+        longDescription: raw.longDescription || null,
+        color: raw.color || null,
         positionTypes,
       };
-      this.tagService.update(this.position()!.id, dto).subscribe({
+      this.tagService.update(this.tag()!.id, dto).subscribe({
         next: (updated) => {
           this.saving.set(false);
           this.toast.success('Etiqueta actualitzada correctament.');

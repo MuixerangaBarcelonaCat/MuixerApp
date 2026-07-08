@@ -6,8 +6,8 @@ import {
   output,
   signal,
   computed,
-  effect,
   inject,
+  linkedSignal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AttendanceStatus } from '@muixer/shared';
@@ -18,6 +18,7 @@ const STATUS_CONFIG: Record<string, { label: string; class: string }> = {
   [AttendanceStatus.ANIRE]: { label: 'Vinc', class: 'btn-success' },
   [AttendanceStatus.NO_VAIG]: { label: 'No vinc', class: 'btn-error' },
   [AttendanceStatus.PENDENT]: { label: 'Pendent', class: 'btn-warning' },
+  [AttendanceStatus.ASSISTIT]: { label: 'He assistit', class: 'btn-info' },
 };
 
 const STATUS_CYCLE: AttendanceStatus[] = [
@@ -35,7 +36,7 @@ const STATUS_CYCLE: AttendanceStatus[] = [
       type="button"
       class="btn btn-sm min-w-[5.5rem]"
       [class]="buttonClass()"
-      [disabled]="disabled() || isPending()"
+      [disabled]="isEffectivelyDisabled()"
       [attr.aria-label]="ariaLabel()"
       aria-live="polite"
       (click)="toggle()"
@@ -58,12 +59,17 @@ export class AttendanceButtonComponent {
   private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
 
-  private readonly localStatus = signal<AttendanceStatus | null>(null);
-  private readonly previousStatus = signal<AttendanceStatus | null>(null);
+  private readonly localStatus = linkedSignal(() => this.status());
   protected readonly isPending = signal(false);
 
   protected readonly displayStatus = computed(
     () => this.localStatus() ?? AttendanceStatus.PENDENT,
+  );
+  protected readonly isLocked = computed(
+    () => this.displayStatus() === AttendanceStatus.ASSISTIT,
+  );
+  protected readonly isEffectivelyDisabled = computed(
+    () => this.disabled() || this.isPending() || this.isLocked(),
   );
   protected readonly displayLabel = computed(
     () => STATUS_CONFIG[this.displayStatus()]?.label ?? 'Pendent',
@@ -77,18 +83,12 @@ export class AttendanceButtonComponent {
     return ctx ? `Assistència ${ctx}: ${label}` : `Assistència: ${label}`;
   });
 
-  constructor() {
-    effect(() => {
-      this.localStatus.set(this.status());
-    });
-  }
-
   toggle(): void {
-    if (this.disabled() || this.isPending()) return;
+    if (this.isEffectivelyDisabled()) return;
 
     const current = this.localStatus() ?? AttendanceStatus.PENDENT;
+    const previous = current;
     const next = this.getNextStatus(current);
-    this.previousStatus.set(current);
     this.localStatus.set(next);
     this.isPending.set(true);
 
@@ -101,7 +101,7 @@ export class AttendanceButtonComponent {
         this.isPending.set(false);
       },
       error: () => {
-        this.localStatus.set(this.previousStatus());
+        this.localStatus.set(previous);
         this.toast.error("No s'ha pogut actualitzar l'assistència.");
         this.isPending.set(false);
       },

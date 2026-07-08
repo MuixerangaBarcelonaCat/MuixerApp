@@ -45,7 +45,15 @@
         <app-empty-state [message]="emptyMessage()" />
       } @else {
         @for (event of events(); track event.id) {
-          <app-event-card [event]="event" />
+          <app-event-card
+            [event]="event"
+            (attendanceChanged)="onAttendanceChanged($event)"
+          />
+        }
+        @if (isTruncated()) {
+          <p class="text-center text-sm text-base-content/50 py-2">
+            Hi ha més events. Canvia el filtre per veure'ls tots.
+          </p>
         }
       }
     </section>

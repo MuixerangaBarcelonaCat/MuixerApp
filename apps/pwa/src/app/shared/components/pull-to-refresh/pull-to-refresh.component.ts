@@ -46,6 +46,7 @@ export class PullToRefreshComponent implements AfterViewInit, OnDestroy {
   private touchStartFn = (e: TouchEvent) => this.onTouchStart(e);
   private touchMoveFn = (e: TouchEvent) => this.onTouchMove(e);
   private touchEndFn = () => this.onTouchEnd();
+  private touchCancelFn = () => this.onTouchCancel();
 
   ngAfterViewInit(): void {
     this.zone.runOutsideAngular(() => {
@@ -53,6 +54,7 @@ export class PullToRefreshComponent implements AfterViewInit, OnDestroy {
       el.addEventListener('touchstart', this.touchStartFn, { passive: true });
       el.addEventListener('touchmove', this.touchMoveFn, { passive: true });
       el.addEventListener('touchend', this.touchEndFn, { passive: true });
+      el.addEventListener('touchcancel', this.touchCancelFn, { passive: true });
     });
   }
 
@@ -61,6 +63,7 @@ export class PullToRefreshComponent implements AfterViewInit, OnDestroy {
     el.removeEventListener('touchstart', this.touchStartFn);
     el.removeEventListener('touchmove', this.touchMoveFn);
     el.removeEventListener('touchend', this.touchEndFn);
+    el.removeEventListener('touchcancel', this.touchCancelFn);
   }
 
   complete(): void {
@@ -84,6 +87,11 @@ export class PullToRefreshComponent implements AfterViewInit, OnDestroy {
     if (dy > this.THRESHOLD) {
       this.zone.run(() => this.isPulling.set(true));
     }
+  }
+
+  private onTouchCancel(): void {
+    this.pulling = false;
+    this.zone.run(() => this.isPulling.set(false));
   }
 
   private onTouchEnd(): void {

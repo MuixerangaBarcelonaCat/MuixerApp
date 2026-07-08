@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { LucideAngularModule, Mail, Lock, AlertCircle } from 'lucide-angular';
 import { AuthService } from '../../../core/auth/services/auth.service';
 
@@ -14,6 +14,7 @@ import { AuthService } from '../../../core/auth/services/auth.service';
 export class LoginComponent {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly fb = inject(FormBuilder);
 
   protected readonly Mail = Mail;
@@ -36,7 +37,10 @@ export class LoginComponent {
 
     const { email, password } = this.form.getRawValue();
     this.authService.login({ email, password }).subscribe({
-      next: () => this.router.navigate(['/home']),
+      next: () => {
+        const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
+        this.router.navigateByUrl(returnUrl || '/home');
+      },
       error: () => {
         this.errorMessage.set('Correu electrònic o contrasenya incorrectes.');
         this.isLoading.set(false);

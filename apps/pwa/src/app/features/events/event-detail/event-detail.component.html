@@ -27,7 +27,7 @@
           @if (event()!.startTime) {
             <span class="flex items-center gap-1">
               <lucide-icon [img]="Clock" [size]="16" aria-hidden="true" />
-              {{ event()!.startTime }}
+              {{ event()!.startTime! | slice:0:5 }}
             </span>
           }
           @if (event()!.location) {
@@ -73,6 +73,7 @@
       <app-attendance-button
         [eventId]="event()!.id"
         [status]="event()!.myAttendance?.status ?? null"
+        [disabled]="isPast()"
         [ariaContext]="event()!.title"
       />
     </div>

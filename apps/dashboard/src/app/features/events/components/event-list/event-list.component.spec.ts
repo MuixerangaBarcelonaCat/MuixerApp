@@ -291,26 +291,18 @@ describe('EventListComponent', () => {
     });
   });
 
-  describe('getConfirmedCount / getDeclinedCount', () => {
+  describe('getConfirmedCount', () => {
     const summary = {
       confirmed: 10, declined: 5, pending: 3,
       attended: 20, lateCancel: 1, children: 4, childrenAttended: 2, total: 40,
     };
 
-    it('returns attended for past event (getConfirmedCount)', () => {
+    it('returns attended for past event', () => {
       expect(component.getConfirmedCount(summary, true)).toBe(20);
     });
 
-    it('returns confirmed for future event (getConfirmedCount)', () => {
+    it('returns confirmed for future event', () => {
       expect(component.getConfirmedCount(summary, false)).toBe(10);
-    });
-
-    it('returns declined for past event (getDeclinedCount)', () => {
-      expect(component.getDeclinedCount(summary, true)).toBe(5);
-    });
-
-    it('returns declined for future event (getDeclinedCount)', () => {
-      expect(component.getDeclinedCount(summary, false)).toBe(5);
     });
   });
 
@@ -324,8 +316,8 @@ describe('EventListComponent', () => {
       expect(getAdultsCount(summary, false)).toBe(6);
     });
 
-    it('returns attended - children for past event', () => {
-      expect(getAdultsCount(summary, true)).toBe(16);
+    it('returns attended - childrenAttended for past event', () => {
+      expect(getAdultsCount(summary, true)).toBe(18);
     });
 
     it('returns 0 when children exceed positive count', () => {
@@ -336,29 +328,6 @@ describe('EventListComponent', () => {
     it('returns 0 when positive count is 0', () => {
       const zero = { ...summary, confirmed: 0, children: 0 };
       expect(getAdultsCount(zero, false)).toBe(0);
-    });
-  });
-
-  describe('formatAttendance', () => {
-    const makeSummary = () => ({
-      confirmed: 5, declined: 3, pending: 7, attended: 20,
-      lateCancel: 1, children: 2, childrenAttended: 1, total: 35,
-    });
-
-    it('shows ✓attended !confirmed ✗declined for past events', () => {
-      const item = {
-        date: '2020-01-01', startTime: null,
-        attendanceSummary: makeSummary(),
-      } as Parameters<typeof component.formatAttendance>[0];
-      expect(component.formatAttendance(item)).toBe('✓20 !5 ✗3');
-    });
-
-    it('shows ✓confirmed ✗declined ?pending for future events', () => {
-      const item = {
-        date: '2099-01-01', startTime: null,
-        attendanceSummary: makeSummary(),
-      } as Parameters<typeof component.formatAttendance>[0];
-      expect(component.formatAttendance(item)).toBe('✓5 ✗3 ?7');
     });
   });
 

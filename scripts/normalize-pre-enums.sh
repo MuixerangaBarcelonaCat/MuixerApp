@@ -56,6 +56,8 @@ echo ""
 # Resolve actual type names from reference columns
 ZONE_TYPE=$(get_udt "instance_nodes" "zone")
 SHAPE_TYPE=$(get_udt "instance_nodes" "shape")
+FN_ZONE_TYPE=$(get_udt "figure_nodes" "zone")
+FN_SHAPE_TYPE=$(get_udt "figure_nodes" "shape")
 ROLE_TYPE=$(get_udt "users" "role")
 GENDER_TYPE=$(get_udt "persons" "gender")
 AVAIL_TYPE=$(get_udt "persons" "availabilityStatus")
@@ -67,6 +69,8 @@ REF_TYPE=$(get_udt "reference_elements" "type")
 
 echo "  instance_nodes.zone    → $ZONE_TYPE"
 echo "  instance_nodes.shape   → $SHAPE_TYPE"
+echo "  figure_nodes.zone      → $FN_ZONE_TYPE"
+echo "  figure_nodes.shape     → $FN_SHAPE_TYPE"
 echo "  users.role             → $ROLE_TYPE"
 echo "  persons.gender         → $GENDER_TYPE"
 echo "  persons.availabilityStatus → $AVAIL_TYPE"
@@ -80,6 +84,12 @@ echo ""
 echo "🔧 Renaming to canonical names..."
 rename_enum "$ZONE_TYPE" "figure_zone_enum"
 rename_enum "$SHAPE_TYPE" "node_shape_enum"
+if [ -n "$FN_ZONE_TYPE" ] && [ "$FN_ZONE_TYPE" != "figure_zone_enum" ]; then
+  rename_enum "$FN_ZONE_TYPE" "figure_zone_enum"
+fi
+if [ -n "$FN_SHAPE_TYPE" ] && [ "$FN_SHAPE_TYPE" != "node_shape_enum" ]; then
+  rename_enum "$FN_SHAPE_TYPE" "node_shape_enum"
+fi
 rename_enum "$ROLE_TYPE" "user_role_enum"
 rename_enum "$GENDER_TYPE" "gender_enum"
 rename_enum "$AVAIL_TYPE" "availability_status_enum"

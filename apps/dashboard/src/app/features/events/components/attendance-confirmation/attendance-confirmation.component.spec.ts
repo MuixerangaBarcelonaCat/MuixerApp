@@ -37,14 +37,14 @@ describe('AttendanceConfirmationComponent', () => {
   let fixture: ComponentFixture<AttendanceConfirmationComponent>;
   let component: AttendanceConfirmationComponent;
   let attendanceService: { getByEvent: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> };
-  let routerMock: { navigate: ReturnType<typeof vi.fn> };
+  let routerMock: { navigate: ReturnType<typeof vi.fn>; navigateByUrl: ReturnType<typeof vi.fn>; url: string };
 
   beforeEach(async () => {
     attendanceService = {
       getByEvent: vi.fn().mockReturnValue(of(makePaginatedResponse([]))),
       update: vi.fn().mockReturnValue(of({ attendance: makeAttendance(), summary: {} })),
     };
-    routerMock = { navigate: vi.fn() };
+    routerMock = { navigate: vi.fn(), navigateByUrl: vi.fn(), url: `/rehearsals/${EVENT_ID}/confirmation` };
 
     await TestBed.configureTestingModule({
       imports: [AttendanceConfirmationComponent],
@@ -180,8 +180,8 @@ describe('AttendanceConfirmationComponent', () => {
 
   // ── goBack ────────────────────────────────────────────────────────────────
 
-  it('goBack navigates to parent route', () => {
+  it('goBack navigates to event detail by removing /confirmation from URL', () => {
     component.goBack();
-    expect(routerMock.navigate).toHaveBeenCalledWith(['..'], expect.any(Object));
+    expect(routerMock.navigateByUrl).toHaveBeenCalledWith(`/rehearsals/${EVENT_ID}`);
   });
 });

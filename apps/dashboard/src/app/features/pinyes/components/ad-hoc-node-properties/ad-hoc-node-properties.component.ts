@@ -4,14 +4,11 @@ import {
   computed,
   input,
   output,
-  inject,
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, X, Trash2, UserMinus, Copy } from 'lucide-angular';
 import { AssignmentDetail, HeightMode, InstanceNodeItem, UpdateAdHocNodePayload } from '../../models/assignment.model';
-import { NodeAssignmentService } from '../../services/node-assignment.service';
-import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { FigureZone, NodeShape, DIRECTION_ZONES } from '@muixer/shared';
 import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
 
@@ -23,9 +20,6 @@ import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.uti
   templateUrl: './ad-hoc-node-properties.component.html',
 })
 export class AdHocNodePropertiesComponent {
-  private readonly assignmentService = inject(NodeAssignmentService);
-  private readonly toast = inject(ToastService);
-
   readonly node = input.required<InstanceNodeItem>();
   readonly instanceId = input.required<string>();
   readonly assignment = input<AssignmentDetail | null>(null);
@@ -33,7 +27,6 @@ export class AdHocNodePropertiesComponent {
   readonly attendanceStatus = input<string | null>(null);
   readonly isPast = input<boolean>(false);
   readonly closed = output<void>();
-  readonly nodeUpdated = output<void>();
   readonly deleteRequested = output<string>();
   readonly duplicateRequested = output<void>();
   readonly propertyChanged = output<{ nodeId: string; patch: Partial<UpdateAdHocNodePayload> }>();
@@ -81,8 +74,6 @@ export class AdHocNodePropertiesComponent {
     if (status === 'PENDENT') return 'Pendent';
     return 'Assignat/da';
   });
-
-  private debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   private readonly rotationPreview = signal<number | null>(null);
   readonly rotationDisplay = computed(
@@ -136,9 +127,7 @@ export class AdHocNodePropertiesComponent {
     key: keyof UpdateAdHocNodePayload,
     value: string | number | null,
   ): void {
-    const payload: UpdateAdHocNodePayload = { [key]: value };
-    this.propertyChanged.emit({ nodeId: this.node().id, patch: payload });
-    this.debouncedUpdate(payload);
+    this.propertyChanged.emit({ nodeId: this.node().id, patch: { [key]: value } });
   }
 
   clearDecorationFill(): void {
@@ -157,23 +146,6 @@ export class AdHocNodePropertiesComponent {
     key: keyof UpdateAdHocNodePayload,
     value: string | number | null,
   ): void {
-    if (this.debounceTimer) clearTimeout(this.debounceTimer);
-    const payload: UpdateAdHocNodePayload = { [key]: value };
-    this.propertyChanged.emit({ nodeId: this.node().id, patch: payload });
-    this.sendUpdate(payload);
-  }
-
-  private debouncedUpdate(payload: UpdateAdHocNodePayload): void {
-    if (this.debounceTimer) clearTimeout(this.debounceTimer);
-    this.debounceTimer = setTimeout(() => this.sendUpdate(payload), 300);
-  }
-
-  private sendUpdate(payload: UpdateAdHocNodePayload): void {
-    this.assignmentService
-      .updateAdHocNode(this.instanceId(), this.node().id, payload)
-      .subscribe({
-        next: () => this.nodeUpdated.emit(),
-        error: () => this.toast.error('Error en actualitzar el node.'),
-      });
+    this.propertyChanged.emit({ nodeId: this.node().id, patch: { [key]: value } });
   }
 }

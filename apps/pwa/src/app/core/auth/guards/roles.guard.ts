@@ -12,5 +12,9 @@ export const rolesGuard = (...allowedRoles: UserRole[]): CanActivateFn =>
 
     const role = auth.userRole();
     if (role && allowedRoles.includes(role)) return true;
+
+    if (role) {
+      auth.clearState();
+    }
     return router.createUrlTree(['/login']);
   };

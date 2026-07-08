@@ -1,16 +1,21 @@
 import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { Router } from '@angular/router';
 import { catchError, switchMap, throwError } from 'rxjs';
 import { AuthService } from '../services/auth.service';
-import { ToastService } from '../../../shared/services/toast.service';
+import { environment } from '../../../../environments/environment';
+
+const AUTH_PASSTHROUGH_PATHS = ['/auth/login', '/auth/refresh'];
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);
-  const router = inject(Router);
-  const toast = inject(ToastService);
 
-  if (req.url.includes('/auth/')) {
+  const isApiRequest = req.url.startsWith(environment.apiUrl);
+  if (!isApiRequest) return next(req);
+
+  const isAuthPassthrough = AUTH_PASSTHROUGH_PATHS.some((path) =>
+    req.url.startsWith(`${environment.apiUrl}${path}`),
+  );
+  if (isAuthPassthrough) {
     return next(req.clone({ withCredentials: true }));
   }
 
@@ -27,16 +32,14 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       return authService.refresh().pipe(
         switchMap(() => {
           const newToken = authService.getAccessToken();
-          const retryReq = authReq.clone({
+          const retryReq = req.clone({
             withCredentials: true,
             ...(newToken ? { setHeaders: { Authorization: `Bearer ${newToken}` } } : {}),
           });
           return next(retryReq);
         }),
         catchError((refreshErr) => {
-          authService.clearState();
-          toast.error('La sessió ha expirat. Torna a entrar.');
-          router.navigate(['/login']);
+          authService.handleSessionExpired();
           return throwError(() => refreshErr);
         }),
       );
