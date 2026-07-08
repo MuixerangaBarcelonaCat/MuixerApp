@@ -1048,7 +1048,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
 }
 
-function nodeToPayload(node: FigureNodeItem): CreateFigureNodePayload {
+export function nodeToPayload(node: FigureNodeItem): CreateFigureNodePayload {
   return {
     id: node.id,
     label: node.label,
@@ -1065,9 +1065,9 @@ function nodeToPayload(node: FigureNodeItem): CreateFigureNodePayload {
     sortOrder: node.sortOrder,
     climbPath: node.climbPath ?? undefined,
     ringLevel: node.ringLevel ?? undefined,
-    originNodeId: node.originNodeId ?? undefined,
-    renglaId: node.renglaId ?? undefined,
-    renglaPosition: node.renglaPosition ?? undefined,
+    originNodeId: node.originNodeId,
+    renglaId: node.renglaId,
+    renglaPosition: node.renglaPosition,
     metadata: node.metadata,
   };
 }

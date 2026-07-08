@@ -12,7 +12,7 @@
 |---------|-------|----------|--------------|------------|-----------|
 | **NeonDB (PostgreSQL)** | Base de dades | Font de veritat de totes les dades de MuixerApp | `DATABASE_URL` (connection string) | Alta | `modules/database/database.module.ts` |
 | **APPsistència legacy** | API REST (PHP) + XLSX | Migració de dades: persones, events, assistència | Cookie PHP (`PHPSESSID`) via login per formulari | Temporal (fins al tall) | `modules/sync/legacy-api.client.ts` |
-| **JWT (intern)** | Mecanisme d'auth | Autenticació i autorització de l'API | Tokens firmats amb `JWT_SECRET` / `JWT_REFRESH_SECRET` | Alta | `modules/auth/` |
+| **JWT (intern)** | Mecanisme d'auth | Autenticació i autorització de l'API | Access token firmat amb `JWT_SECRET`; refresh token opac guardat a DB | Alta | `modules/auth/` |
 | **Swagger UI** | Documentació API | Interfície de consulta dels endpoints REST | Bearer token (via UI) | Baixa | `apps/api/src/main.ts` |
 
 ---
@@ -79,7 +79,7 @@ Servei extern PHP (`muixerangadebarcelona.appsistencia.cat`) que conté les dade
 | Component | Detall |
 |-----------|--------|
 | **Access token** | JWT firmat amb `JWT_SECRET`, vida: 15 min (`JWT_ACCESS_TTL=900`) |
-| **Refresh token** | JWT firmat amb `JWT_REFRESH_SECRET`, guardat com SHA-256 hash a DB |
+| **Refresh token** | String opac aleatori (256 bits), guardat com SHA-256 hash a DB |
 | **Vida refresh (Dashboard)** | 8 hores (`JWT_REFRESH_TTL_DASHBOARD=28800`) |
 | **Vida refresh (PWA)** | 7 dies (`JWT_REFRESH_TTL_PWA=604800`) |
 | **Cookie** | `muixer_rt` — httpOnly, sameSite: lax, secure en producció |
@@ -92,7 +92,7 @@ Servei extern PHP (`muixerangadebarcelona.appsistencia.cat`) que conté les dade
 
 - **Font**: fitxer `.env` (copiar de `.env.example`). **Mai al repositori** (`.gitignore` inclou `.env`)
 - **Credencials del legacy** (`LEGACY_API_USERNAME`, `LEGACY_API_PASSWORD`): secrets de l'usuari de lectura del sistema legacy
-- **JWT secrets**: dues claus separades (`JWT_SECRET` per a access, `JWT_REFRESH_SECRET` per a refresh)
+- **JWT secret**: `JWT_SECRET` per a l'access token (el refresh token és un string opac, no un JWT — no necessita secret)
 - **`SETUP_TOKEN`**: token d'un sol ús per crear el primer usuari TECHNICAL. Ha d'eliminar-se del `.env` en producció
 - **Cap credencial hardcoded** identificada al codi font
 

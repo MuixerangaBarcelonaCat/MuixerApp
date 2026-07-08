@@ -70,9 +70,9 @@ export interface CreateFigureNodePayload {
   sortOrder?: number;
   climbPath?: string;
   ringLevel?: number;
-  originNodeId?: string;
-  renglaId?: string;
-  renglaPosition?: number;
+  originNodeId?: string | null;
+  renglaId?: string | null;
+  renglaPosition?: number | null;
   metadata?: Record<string, unknown>;
 }
 

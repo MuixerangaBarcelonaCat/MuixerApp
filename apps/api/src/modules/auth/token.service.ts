@@ -1,9 +1,8 @@
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { LessThan, Not, IsNull, Repository } from 'typeorm';
-import { createHash, randomUUID } from 'crypto';
+import { And, LessThan, Not, IsNull, Repository } from 'typeorm';
+import { createHash, randomBytes, randomUUID } from 'crypto';
 import { ClientType } from '@muixer/shared';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { User } from '../user/user.entity';
@@ -20,7 +19,6 @@ export class TokenService {
   constructor(
     @InjectRepository(RefreshToken)
     private readonly refreshTokenRepo: Repository<RefreshToken>,
-    private readonly jwtService: JwtService,
   ) {}
 
   /** Calcula el hash SHA-256 d'un token en clar per emmagatzemar-lo de forma segura a la DB. */
@@ -40,8 +38,10 @@ export class TokenService {
   }
 
   /**
-   * Crea un nou refresh token JWT, el guarda com a hash SHA-256 a la DB i retorna el token en clar.
-   * Si s'especifica `family`, el token pertany a una família de rotació existent; sinó en crea una de nova.
+   * Crea un nou refresh token opac (256 bits aleatoris), el guarda com a hash SHA-256 a la DB
+   * i retorna el token en clar. La validesa la decideix sempre la fila de la DB
+   * (expiresAt/revokedAt/usedAt). Si s'especifica `family`, el token pertany a una família de
+   * rotació existent; sinó en crea una de nova.
    */
   async createRefreshToken(
     user: User,
@@ -51,13 +51,7 @@ export class TokenService {
     const ttl = this.ttlForClient(clientType);
     const tokenFamily = family ?? randomUUID();
 
-    const rawToken: string = await this.jwtService.signAsync(
-      { sub: user.id, family: tokenFamily, clientType },
-      {
-        secret: process.env['JWT_REFRESH_SECRET'] ?? 'change-me-refresh',
-        expiresIn: ttl,
-      },
-    );
+    const rawToken = randomBytes(32).toString('hex');
 
     const expiresAt = new Date(Date.now() + ttl * 1000);
 
@@ -76,16 +70,29 @@ export class TokenService {
   }
 
   /**
-   * Valida el token, el marca com a usat i en genera un de nou dins de la mateixa família.
-   * Si el token ja havia estat usat anteriorment (reutilització detectada), revoca tota la família per prevenció.
+   * Valida el token, el marca com a usat de forma atòmica i en genera un de nou dins de la
+   * mateixa família. La marca com a usat és un únic UPDATE condicionat a `usedAt IS NULL`:
+   * si afecta 0 files, algú (una reutilització, o una petició concurrent que ha guanyat la
+   * cursa pel mateix token) ja l'ha reclamat abans — es tracta com a reutilització detectada
+   * i es revoca tota la família. Un `findOne` seguit d'un `update` separats permetria que dues
+   * peticions concurrents amb el mateix token passessin totes dues la comprovació (SEC-5).
    */
-  async rotateRefreshToken(rawToken: string): Promise<{ newRawToken: string; userId: string; clientType: ClientType }> {
+  async rotateRefreshToken(
+    rawToken: string,
+  ): Promise<{ newRawToken: string; userId: string; clientType: ClientType }> {
     const tokenHash = this.hash(rawToken);
     const stored = await this.refreshTokenRepo.findOne({ where: { tokenHash } });
 
     if (!stored) throw new UnauthorizedException('Token invàlid');
+    if (stored.revokedAt !== null) throw new UnauthorizedException('Token revocat');
+    if (stored.expiresAt < new Date()) throw new UnauthorizedException('Token caducat');
 
-    if (stored.usedAt !== null) {
+    const claim = await this.refreshTokenRepo.update(
+      { id: stored.id, usedAt: IsNull() },
+      { usedAt: new Date() },
+    );
+
+    if (claim.affected === 0) {
       await this.refreshTokenRepo.update(
         { family: stored.family },
         { revokedAt: new Date() },
@@ -93,10 +100,6 @@ export class TokenService {
       throw new UnauthorizedException('Token reutilitzat detectat');
     }
 
-    if (stored.revokedAt !== null) throw new UnauthorizedException('Token revocat');
-    if (stored.expiresAt < new Date()) throw new UnauthorizedException('Token caducat');
-
-    await this.refreshTokenRepo.update(stored.id, { usedAt: new Date() });
 
     const userRef = { id: stored.userId } as User;
     const newRawToken = await this.createRefreshToken(userRef, stored.clientType, stored.family);
@@ -129,8 +132,7 @@ export class TokenService {
     });
 
     const revokedResult = await this.refreshTokenRepo.delete({
-      revokedAt: Not(IsNull()),
-      expiresAt: LessThan(thirtyDaysAgo),
+      revokedAt: And(Not(IsNull()), LessThan(thirtyDaysAgo)),
     });
 
     const total = (expiredResult.affected ?? 0) + (revokedResult.affected ?? 0);

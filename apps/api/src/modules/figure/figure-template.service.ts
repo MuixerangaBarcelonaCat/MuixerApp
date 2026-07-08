@@ -5,6 +5,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { FigureTemplate } from './entities/figure-template.entity';
@@ -237,9 +238,12 @@ export class FigureTemplateService {
       throw new NotFoundException(`FigureTemplate with ID ${id} not found`);
     }
 
+    const name = await this.generateCopyName(original.name);
+    const slug = await this.generateUniqueSlug(this.slugify(name));
+
     const copy = this.templateRepository.create({
-      name: `${original.name} (còpia)`,
-      slug: `${original.slug}-copia-${Date.now()}`,
+      name,
+      slug,
       description: original.description,
       direction: original.direction,
       metadata: original.metadata,
@@ -331,7 +335,7 @@ export class FigureTemplateService {
 
     if (existingRengles.length > 0) {
       const newRengles = existingRengles.map((r) => {
-        const newId = this.generateUUID();
+        const newId = randomUUID();
         renglaIdMap.set(r.id, newId);
         return this.renglaRepository.create({
           id: newId,
@@ -402,14 +406,6 @@ export class FigureTemplateService {
       .replace(/\s+/g, '-');
   }
 
-  private generateUUID(): string {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-      const r = (Math.random() * 16) | 0;
-      const v = c === 'x' ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    });
-  }
-
   // ─── Private helpers ────────────────────────────────────────────────────────
 
   private async assertSlugAvailable(slug: string, excludeId?: string): Promise<void> {
@@ -427,6 +423,22 @@ export class FigureTemplateService {
       throw new ConflictException(
         `The name "${name}" is already in use by another figure template`,
       );
+    }
+  }
+
+  /**
+   * Builds the name for a duplicated template: "X (còpia)", or "X (còpia 2)", "X (còpia 3)"...
+   * if that's already taken. Strips any existing "(còpia)"/"(còpia N)" suffix first, so
+   * duplicating a template that is itself already a copy doesn't stack suffixes.
+   */
+  private async generateCopyName(originalName: string): Promise<string> {
+    const base = originalName.replace(/\s*\(còpia(?:\s+\d+)?\)$/i, '');
+    let suffix = 1;
+    while (true) {
+      const candidate = suffix === 1 ? `${base} (còpia)` : `${base} (còpia ${suffix})`;
+      const existing = await this.templateRepository.findOne({ where: { name: candidate } });
+      if (!existing) return candidate;
+      suffix++;
     }
   }
 
@@ -543,9 +555,9 @@ export class FigureTemplateService {
         node.sortOrder = dto.sortOrder ?? 0;
         node.climbPath = dto.climbPath ?? null;
         node.ringLevel = dto.ringLevel ?? null;
-        node.originNodeId = dto.originNodeId ?? node.originNodeId;
-        node.renglaId = dto.renglaId ?? node.renglaId;
-        node.renglaPosition = dto.renglaPosition ?? node.renglaPosition;
+        if (dto.originNodeId !== undefined) node.originNodeId = dto.originNodeId;
+        if (dto.renglaId !== undefined) node.renglaId = dto.renglaId;
+        if (dto.renglaPosition !== undefined) node.renglaPosition = dto.renglaPosition;
         node.metadata = dto.metadata ?? {};
         toUpdate.push(node);
         incomingIds.add(dto.id);

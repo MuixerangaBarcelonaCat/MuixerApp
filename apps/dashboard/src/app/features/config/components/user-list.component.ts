@@ -323,8 +323,10 @@ export class UserListComponent {
         this.grantRoleLoading.set(false);
         this.closeGrantRole();
       },
-      error: () => {
+      error: (err) => {
         this.grantRoleLoading.set(false);
+        const msg = err?.error?.message ?? 'Error en assignar el rol.';
+        this.toast.error(msg);
       },
     });
   }

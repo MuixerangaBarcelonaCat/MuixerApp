@@ -326,22 +326,80 @@ describe('FigureTemplateService', () => {
   describe('duplicate', () => {
     it('creates a copy with modified name', async () => {
       const original = makeTemplate({ nodes: [makeNode()] });
-      mockTemplateRepo.findOne.mockResolvedValueOnce(original);
       const copyTemplate = makeTemplate({ id: 'copy-uuid', name: 'Pilar de 4 — 2C (còpia)' });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(original) // find original
+        .mockResolvedValueOnce(null) // "(còpia)" name is free
+        .mockResolvedValueOnce(null) // slug is free
+        .mockResolvedValueOnce({ ...copyTemplate, nodes: [] }); // final findOne
       mockTemplateRepo.save.mockResolvedValue(copyTemplate);
-      mockTemplateRepo.findOne.mockResolvedValueOnce({ ...copyTemplate, nodes: [] });
       mockNodeRepo.save.mockResolvedValue([]);
 
       const result = await service.duplicate('tmpl-uuid');
 
       expect(result.id).toBe('copy-uuid');
       const savedArg = mockTemplateRepo.save.mock.calls[0][0];
-      expect(savedArg.name).toContain('(còpia)');
+      expect(savedArg.name).toBe('Pilar de 4 — 2C (còpia)');
     });
 
     it('throws NotFoundException when original not found', async () => {
       mockTemplateRepo.findOne.mockResolvedValue(null);
       await expect(service.duplicate('bad-uuid')).rejects.toThrow(NotFoundException);
+    });
+
+    it('appends "(còpia 2)" when "(còpia)" name is already taken', async () => {
+      const original = makeTemplate({ nodes: [] });
+      const existingCopy = makeTemplate({ id: 'copy-uuid-1', name: 'Pilar de 4 — 2C (còpia)' });
+      const copyTemplate = makeTemplate({ id: 'copy-uuid-2', name: 'Pilar de 4 — 2C (còpia 2)' });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(original) // find original
+        .mockResolvedValueOnce(existingCopy) // "(còpia)" is taken
+        .mockResolvedValueOnce(null) // "(còpia 2)" is free
+        .mockResolvedValueOnce(null) // slug is free
+        .mockResolvedValueOnce({ ...copyTemplate, nodes: [] }); // final findOne
+      mockTemplateRepo.save.mockResolvedValue(copyTemplate);
+
+      await service.duplicate('tmpl-uuid');
+
+      const savedArg = mockTemplateRepo.save.mock.calls[0][0];
+      expect(savedArg.name).toBe('Pilar de 4 — 2C (còpia 2)');
+    });
+
+    it('increments past "(còpia 2)" to "(còpia 3)" when both already exist', async () => {
+      const original = makeTemplate({ nodes: [] });
+      const copy1 = makeTemplate({ id: 'copy-1', name: 'Pilar de 4 — 2C (còpia)' });
+      const copy2 = makeTemplate({ id: 'copy-2', name: 'Pilar de 4 — 2C (còpia 2)' });
+      const copyTemplate = makeTemplate({ id: 'copy-3', name: 'Pilar de 4 — 2C (còpia 3)' });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(original) // find original
+        .mockResolvedValueOnce(copy1) // "(còpia)" is taken
+        .mockResolvedValueOnce(copy2) // "(còpia 2)" is taken
+        .mockResolvedValueOnce(null) // "(còpia 3)" is free
+        .mockResolvedValueOnce(null) // slug is free
+        .mockResolvedValueOnce({ ...copyTemplate, nodes: [] }); // final findOne
+      mockTemplateRepo.save.mockResolvedValue(copyTemplate);
+
+      await service.duplicate('tmpl-uuid');
+
+      const savedArg = mockTemplateRepo.save.mock.calls[0][0];
+      expect(savedArg.name).toBe('Pilar de 4 — 2C (còpia 3)');
+    });
+
+    it('duplicating a template already named "(còpia)" produces "(còpia 2)", not "(còpia) (còpia)"', async () => {
+      const original = makeTemplate({ name: 'Pilar de 4 — 2C (còpia)', nodes: [] });
+      const copyTemplate = makeTemplate({ id: 'copy-uuid', name: 'Pilar de 4 — 2C (còpia 2)' });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(original) // find original
+        .mockResolvedValueOnce(original) // "(còpia)" candidate collides with the original itself
+        .mockResolvedValueOnce(null) // "(còpia 2)" is free
+        .mockResolvedValueOnce(null) // slug is free
+        .mockResolvedValueOnce({ ...copyTemplate, nodes: [] }); // final findOne
+      mockTemplateRepo.save.mockResolvedValue(copyTemplate);
+
+      await service.duplicate('tmpl-uuid');
+
+      const savedArg = mockTemplateRepo.save.mock.calls[0][0];
+      expect(savedArg.name).toBe('Pilar de 4 — 2C (còpia 2)');
     });
   });
 
@@ -499,6 +557,54 @@ describe('FigureTemplateService', () => {
       const saved = mockNodeRepo.save.mock.calls[0][0];
       expect(saved[0].renglaId).toBe('r1');
       expect(saved[0].renglaPosition).toBe(1);
+    });
+
+    it('clears renglaId, renglaPosition and originNodeId when the DTO sends null', async () => {
+      const existingNode = makeNode({
+        id: 'node-1',
+        renglaId: 'r1',
+        renglaPosition: 3,
+        originNodeId: 'origin-1',
+      });
+      const tmpl = makeTemplate({ nodes: [existingNode] });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(tmpl)
+        .mockResolvedValueOnce({ ...tmpl, rengles: [] });
+      mockTemplateRepo.save.mockResolvedValue(tmpl);
+
+      await service.update('tmpl-uuid', {
+        nodes: [
+          { ...NODE_DTO, id: 'node-1', renglaId: null, renglaPosition: null, originNodeId: null },
+        ],
+      });
+
+      const saved = mockNodeRepo.save.mock.calls[0][0];
+      expect(saved[0].renglaId).toBeNull();
+      expect(saved[0].renglaPosition).toBeNull();
+      expect(saved[0].originNodeId).toBeNull();
+    });
+
+    it('leaves renglaId, renglaPosition and originNodeId untouched when the DTO omits them', async () => {
+      const existingNode = makeNode({
+        id: 'node-1',
+        renglaId: 'r1',
+        renglaPosition: 3,
+        originNodeId: 'origin-1',
+      });
+      const tmpl = makeTemplate({ nodes: [existingNode] });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(tmpl)
+        .mockResolvedValueOnce({ ...tmpl, rengles: [] });
+      mockTemplateRepo.save.mockResolvedValue(tmpl);
+
+      await service.update('tmpl-uuid', {
+        nodes: [{ ...NODE_DTO, id: 'node-1' }],
+      });
+
+      const saved = mockNodeRepo.save.mock.calls[0][0];
+      expect(saved[0].renglaId).toBe('r1');
+      expect(saved[0].renglaPosition).toBe(3);
+      expect(saved[0].originNodeId).toBe('origin-1');
     });
   });
 

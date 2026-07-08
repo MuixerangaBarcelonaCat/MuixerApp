@@ -45,6 +45,10 @@ describe('UserListComponent', () => {
     update: ReturnType<typeof vi.fn>;
     deactivate: ReturnType<typeof vi.fn>;
   };
+  let toastService: {
+    success: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(async () => {
     userService = {
@@ -55,10 +59,11 @@ describe('UserListComponent', () => {
       deactivate: vi.fn(),
     };
 
-    const mockToast = {
+    toastService = {
       success: vi.fn(),
       error: vi.fn(),
     };
+    const mockToast = toastService;
 
     const mockPersonService = {
       getAll: vi.fn().mockReturnValue(of({ data: [], meta: { total: 0, page: 1, limit: 10 } })),
@@ -402,6 +407,36 @@ describe('UserListComponent', () => {
       expect(component.grantRoleLoading()).toBe(false);
       // modal stays open so user can retry
       expect(component.grantRoleUser()).not.toBeNull();
+    });
+
+    it('confirmGrantRole shows the backend error message in a toast', () => {
+      const user = mockUser({ role: UserRole.MEMBER });
+      userService.grantRole.mockReturnValue(
+        throwError(() => ({ error: { message: 'No et pots canviar el teu propi rol' } })),
+      );
+      component.users.set([user]);
+
+      component.openGrantRole(user);
+      component.grantRoleSelected.set(UserRole.ADMIN);
+      component.confirmGrantRole();
+
+      expect(toastService.error).toHaveBeenCalledWith(
+        'No et pots canviar el teu propi rol',
+      );
+    });
+
+    it('confirmGrantRole falls back to a generic message when the backend gives none', () => {
+      const user = mockUser({ role: UserRole.MEMBER });
+      userService.grantRole.mockReturnValue(throwError(() => new Error('fail')));
+      component.users.set([user]);
+
+      component.openGrantRole(user);
+      component.grantRoleSelected.set(UserRole.ADMIN);
+      component.confirmGrantRole();
+
+      expect(toastService.error).toHaveBeenCalledWith(
+        'Error en assignar el rol.',
+      );
     });
 
     it('hides assign role action for TECHNICAL actors', () => {

@@ -1,11 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { ForbiddenException } from '@nestjs/common';
-import { Response, Request } from 'express';
+import { Request, Response } from 'express';
 import { ClientType, UserRole } from '@muixer/shared';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { TokenService } from './token.service';
-import { JWT_REFRESH_TTL_DASHBOARD, JWT_REFRESH_TTL_PWA, REFRESH_TOKEN_COOKIE } from './constants/auth.constants';
+import { JWT_REFRESH_TTL_DASHBOARD, JWT_REFRESH_TTL_PWA } from './constants/auth.constants';
 
 const mockAuthService = () => ({
   login: jest.fn(),
@@ -18,23 +19,22 @@ const mockAuthService = () => ({
 });
 
 const mockTokenService = () => ({
-  cookieName: REFRESH_TOKEN_COOKIE,
-  revokeToken: jest.fn(),
+  cookieName: 'muixer_rt',
 });
 
-const mockResponse = (): Partial<Response> => ({
-  cookie: jest.fn(),
-  clearCookie: jest.fn(),
+const mockConfigService = () => ({
+  get: jest.fn((key: string) => process.env[key]),
 });
 
-const mockRequest = (cookies: Record<string, string> = {}): Partial<Request> => ({
-  cookies,
-});
+const mockResponse = () =>
+  ({
+    cookie: jest.fn(),
+    clearCookie: jest.fn(),
+  }) as unknown as Response;
 
 describe('AuthController', () => {
   let controller: AuthController;
   let authService: ReturnType<typeof mockAuthService>;
-  let res: ReturnType<typeof mockResponse>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -42,104 +42,193 @@ describe('AuthController', () => {
       providers: [
         { provide: AuthService, useFactory: mockAuthService },
         { provide: TokenService, useFactory: mockTokenService },
+        { provide: ConfigService, useFactory: mockConfigService },
       ],
     }).compile();
 
     controller = module.get(AuthController);
     authService = module.get(AuthService);
-    res = mockResponse();
+  });
+
+  describe('login', () => {
+    it('logs in and sets the refresh token cookie', async () => {
+      authService.login.mockResolvedValue({
+        response: { accessToken: 'access', user: { role: UserRole.TECHNICAL } },
+        refreshToken: 'refresh-token',
+      });
+      const res = mockResponse();
+      const req = { user: { id: 'u1', email: 'a@b.cat', role: UserRole.TECHNICAL, isActive: true, person: null } };
+
+      const result = await controller.login(
+        { email: 'a@b.cat', password: 'pw', clientType: ClientType.DASHBOARD },
+        req as never,
+        res,
+      );
+
+      expect(result.accessToken).toBe('access');
+      expect(res.cookie).toHaveBeenCalledWith(
+        'muixer_rt',
+        'refresh-token',
+        expect.objectContaining({ httpOnly: true, path: '/api/auth' }),
+      );
+    });
   });
 
   describe('refresh', () => {
-    it('throws ForbiddenException when no cookie', async () => {
-      const req = mockRequest({});
-      await expect(
-        controller.refresh(req as Request, res as Response),
-      ).rejects.toThrow(ForbiddenException);
+    it('throws ForbiddenException when there is no refresh token cookie', async () => {
+      const req = { cookies: {} } as unknown as Request;
+      const res = mockResponse();
+
+      await expect(controller.refresh(req, res)).rejects.toThrow(ForbiddenException);
+      expect(authService.refresh).not.toHaveBeenCalled();
     });
 
-    it('sets cookie with PWA TTL when stored clientType is PWA', async () => {
+    it('rotates the refresh token and sets a new cookie', async () => {
       authService.refresh.mockResolvedValue({
-        response: {
-          accessToken: 'at',
-          user: { id: 'u1', email: 'a@b.cat', role: UserRole.TECHNICAL, isActive: true, person: null },
-        },
-        newRefreshToken: 'new-rt',
-        clientType: ClientType.PWA,
-      });
-      const req = mockRequest({ [REFRESH_TOKEN_COOKIE]: 'old-rt' });
-
-      await controller.refresh(req as Request, res as Response);
-
-      expect(res.cookie).toHaveBeenCalledWith(
-        REFRESH_TOKEN_COOKIE,
-        'new-rt',
-        expect.objectContaining({ maxAge: JWT_REFRESH_TTL_PWA * 1000 }),
-      );
-    });
-
-    it('sets cookie with DASHBOARD TTL when stored clientType is DASHBOARD', async () => {
-      authService.refresh.mockResolvedValue({
-        response: {
-          accessToken: 'at',
-          user: { id: 'u1', email: 'a@b.cat', role: UserRole.MEMBER, isActive: true, person: null },
-        },
-        newRefreshToken: 'new-rt',
+        response: { accessToken: 'new-access', user: { role: UserRole.TECHNICAL } },
+        newRefreshToken: 'new-refresh-token',
         clientType: ClientType.DASHBOARD,
       });
-      const req = mockRequest({ [REFRESH_TOKEN_COOKIE]: 'old-rt' });
+      const req = { cookies: { muixer_rt: 'old-refresh-token' } } as unknown as Request;
+      const res = mockResponse();
 
-      await controller.refresh(req as Request, res as Response);
+      const result = await controller.refresh(req, res);
 
-      expect(res.cookie).toHaveBeenCalledWith(
-        REFRESH_TOKEN_COOKIE,
-        'new-rt',
-        expect.objectContaining({ maxAge: JWT_REFRESH_TTL_DASHBOARD * 1000 }),
-      );
+      expect(authService.refresh).toHaveBeenCalledWith('old-refresh-token');
+      expect(result.accessToken).toBe('new-access');
+      expect(res.cookie).toHaveBeenCalledWith('muixer_rt', 'new-refresh-token', expect.anything());
     });
 
-    it('uses stored clientType, not user role (TECHNICAL via PWA keeps PWA TTL)', async () => {
+    it('sets the cookie TTL from the clientType returned by the service, not the user role (BUG-5)', async () => {
       authService.refresh.mockResolvedValue({
-        response: {
-          accessToken: 'at',
-          user: { id: 'u1', email: 'tech@b.cat', role: UserRole.TECHNICAL, isActive: true, person: null },
-        },
-        newRefreshToken: 'new-rt',
+        response: { accessToken: 'new-access', user: { role: UserRole.TECHNICAL } },
+        newRefreshToken: 'new-refresh-token',
         clientType: ClientType.PWA,
       });
-      const req = mockRequest({ [REFRESH_TOKEN_COOKIE]: 'old-rt' });
+      const req = { cookies: { muixer_rt: 'old-refresh-token' } } as unknown as Request;
+      const res = mockResponse();
 
-      await controller.refresh(req as Request, res as Response);
+      await controller.refresh(req, res);
 
-      expect(res.cookie).toHaveBeenCalledWith(
-        REFRESH_TOKEN_COOKIE,
-        'new-rt',
-        expect.objectContaining({ maxAge: JWT_REFRESH_TTL_PWA * 1000 }),
-      );
+      const [, , options] = (res.cookie as jest.Mock).mock.calls[0];
+      expect(options.maxAge).toBe(JWT_REFRESH_TTL_PWA * 1000);
+      expect(options.maxAge).not.toBe(JWT_REFRESH_TTL_DASHBOARD * 1000);
+    });
+  });
+
+  describe('logout', () => {
+    it('revokes the refresh token and clears the cookie', async () => {
+      const req = { cookies: { muixer_rt: 'raw-token' } } as unknown as Request;
+      const res = mockResponse();
+
+      await controller.logout(req, res);
+
+      expect(authService.logout).toHaveBeenCalledWith('raw-token');
+      expect(res.clearCookie).toHaveBeenCalledWith('muixer_rt', { path: '/api/auth' });
+    });
+
+    it('clears the cookie without calling the service when there is no token', async () => {
+      const req = { cookies: {} } as unknown as Request;
+      const res = mockResponse();
+
+      await controller.logout(req, res);
+
+      expect(authService.logout).not.toHaveBeenCalled();
+      expect(res.clearCookie).toHaveBeenCalled();
+    });
+  });
+
+  describe('logoutAll', () => {
+    it('revokes all sessions for the current user and clears the cookie', async () => {
+      const res = mockResponse();
+
+      await controller.logoutAll({ sub: 'user-1' } as never, res);
+
+      expect(authService.logoutAll).toHaveBeenCalledWith('user-1');
+      expect(res.clearCookie).toHaveBeenCalled();
+    });
+  });
+
+  describe('getMe', () => {
+    it('returns the profile for the authenticated user', async () => {
+      authService.getMe.mockResolvedValue({ id: 'user-1' });
+
+      const result = await controller.getMe({ sub: 'user-1' } as never);
+
+      expect(authService.getMe).toHaveBeenCalledWith('user-1');
+      expect(result).toEqual({ id: 'user-1' });
     });
   });
 
   describe('acceptInvite', () => {
-    it('sets cookie with clientType from service', async () => {
+    it('activates the account and sets the refresh cookie', async () => {
       authService.acceptInvite.mockResolvedValue({
-        response: {
-          accessToken: 'at',
-          user: { id: 'u1', email: 'a@b.cat', role: UserRole.MEMBER, isActive: true, person: null },
-        },
-        refreshToken: 'rt',
-        clientType: ClientType.PWA,
+        response: { accessToken: 'access', user: { role: UserRole.MEMBER } },
+        refreshToken: 'refresh-token',
+      });
+      const res = mockResponse();
+
+      const result = await controller.acceptInvite({ token: 'invite-token', password: 'pw' }, res);
+
+      expect(result.accessToken).toBe('access');
+      expect(res.cookie).toHaveBeenCalledWith('muixer_rt', 'refresh-token', expect.anything());
+    });
+  });
+
+  describe('setupUser', () => {
+    const original = process.env['SETUP_TOKEN'];
+
+    afterEach(() => {
+      if (original === undefined) delete process.env['SETUP_TOKEN'];
+      else process.env['SETUP_TOKEN'] = original;
+    });
+
+    it('throws ForbiddenException when SETUP_TOKEN is not configured', async () => {
+      delete process.env['SETUP_TOKEN'];
+
+      await expect(
+        controller.setupUser('anything', { email: 'a@b.cat', password: 'pw' }),
+      ).rejects.toThrow(ForbiddenException);
+      expect(authService.setupUser).not.toHaveBeenCalled();
+    });
+
+    it('throws ForbiddenException when the provided token does not match', async () => {
+      process.env['SETUP_TOKEN'] = 'expected-token';
+
+      await expect(
+        controller.setupUser('wrong-token', { email: 'a@b.cat', password: 'pw' }),
+      ).rejects.toThrow(ForbiddenException);
+      expect(authService.setupUser).not.toHaveBeenCalled();
+    });
+
+    it('throws ForbiddenException (not a raw crash) when the token has the same length but differs', async () => {
+      process.env['SETUP_TOKEN'] = 'expected-token';
+
+      await expect(
+        controller.setupUser('expected-tokeX', { email: 'a@b.cat', password: 'pw' }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('throws ForbiddenException (not a raw crash) when the header is missing entirely', async () => {
+      process.env['SETUP_TOKEN'] = 'expected-token';
+
+      await expect(
+        controller.setupUser(undefined as never, { email: 'a@b.cat', password: 'pw' }),
+      ).rejects.toThrow(ForbiddenException);
+      expect(authService.setupUser).not.toHaveBeenCalled();
+    });
+
+    it('creates the user when the token matches', async () => {
+      process.env['SETUP_TOKEN'] = 'expected-token';
+      authService.setupUser.mockResolvedValue({ id: 'new-user' });
+
+      const result = await controller.setupUser('expected-token', {
+        email: 'a@b.cat',
+        password: 'pw',
       });
 
-      await controller.acceptInvite(
-        { token: 'invite-tok', password: 'pass123!' },
-        res as Response,
-      );
-
-      expect(res.cookie).toHaveBeenCalledWith(
-        REFRESH_TOKEN_COOKIE,
-        'rt',
-        expect.objectContaining({ maxAge: JWT_REFRESH_TTL_PWA * 1000 }),
-      );
+      expect(authService.setupUser).toHaveBeenCalledWith({ email: 'a@b.cat', password: 'pw' });
+      expect(result).toEqual({ id: 'new-user' });
     });
   });
 });

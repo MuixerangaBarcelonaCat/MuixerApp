@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
+import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AppController } from './app.controller';
+import { envValidationSchema } from '../config/env.validation';
 import { DatabaseModule } from '../modules/database/database.module';
 import { TagModule } from '../modules/tag/tag.module';
 import { UserModule } from '../modules/user/user.module';
@@ -21,6 +23,11 @@ import { RolesGuard } from '../modules/auth/guards/roles.guard';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      validationSchema: envValidationSchema,
+      validationOptions: { allowUnknown: true, abortEarly: false },
+    }),
     ScheduleModule.forRoot(),
     ThrottlerModule.forRoot({ throttlers: [{ ttl: 60000, limit: 100 }] }),
     DatabaseModule,

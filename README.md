@@ -94,7 +94,6 @@ Canvia com a mínim aquests valors al `.env`:
 | Variable | Descripció |
 | -------- | ---------- |
 | `JWT_SECRET` | Secret aleatori per als access tokens |
-| `JWT_REFRESH_SECRET` | Secret diferent per als refresh tokens |
 | `SETUP_TOKEN` | Token per crear el primer usuari (p.ex. un UUID) |
 | `LEGACY_API_USERNAME` / `LEGACY_API_PASSWORD` | Només si vols sincronitzar amb Appsistència legacy |
 

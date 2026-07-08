@@ -70,7 +70,7 @@
     "@types/bcrypt": "^6.0.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/jest": "^30.0.0",
-    "@types/node": "20.19.9",
+    "@types/node": "22.20.0",
     "@types/passport-jwt": "^4.0.1",
     "@types/passport-local": "^1.0.38",
     "@typescript-eslint/utils": "^8.40.0",
@@ -106,6 +106,7 @@
     "@angular/router": "~21.2.0",
     "@angular/service-worker": "~21.2.0",
     "@nestjs/common": "^11.1.17",
+    "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.1.17",
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/mapped-types": "^2.1.0",
@@ -122,6 +123,9 @@
     "cookie-parser": "^1.4.7",
     "dotenv": "^17.3.1",
     "emoji-picker-element": "^1.29.1",
+    "exceljs": "^4.4.0",
+    "helmet": "^8.2.0",
+    "joi": "^18.2.3",
     "konva": "^10.3.0",
     "lucide-angular": "^1.0.0",
     "nest-commander": "^3.20.1",
@@ -129,12 +133,11 @@
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
     "pg": "^8.20.0",
-    "reflect-metadata": "^0.1.14",
+    "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "tailwindcss": "^3.4.19",
     "tslib": "^2.3.0",
-    "typeorm": "^0.3.28",
-    "xlsx": "^0.18.5"
+    "typeorm": "^0.3.28"
   },
   "pnpm": {
     "overrides": {

@@ -23,6 +23,10 @@ describe('PersonFilterDto', () => {
     await expect(validateDto({ sortBy: 'invalidColumn', sortOrder: 'ASC' })).rejects.toBeDefined();
   });
 
+  it('rejects sortBy=email — Person has no email column', async () => {
+    await expect(validateDto({ sortBy: 'email', sortOrder: 'ASC' })).rejects.toBeDefined();
+  });
+
   it('rejects invalid sortOrder', async () => {
     await expect(validateDto({ sortBy: 'alias', sortOrder: 'down' })).rejects.toBeDefined();
   });
