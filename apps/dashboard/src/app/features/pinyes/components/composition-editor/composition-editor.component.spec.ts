@@ -24,6 +24,7 @@ class FigureCanvasStub {
   readonly gridEnabled = input<boolean>(false);
   readonly gridSpacing = input<number>(20);
   readonly snapToGrid = input<boolean>(false);
+  readonly cordoObertOpacity = input<number>(1);
   readonly slotSelected = output<string | null>();
   readonly slotMoved = output<{ slotId: string; offsetX: number; offsetY: number; angle: number }>();
   readonly troncMoved = output<{ slotId: string; troncPanelX: number | null; troncPanelY: number | null }>();
@@ -33,7 +34,13 @@ class FigureCanvasStub {
 
 const COMPOSITION_ID = 'comp-uuid-1';
 
-const makeNode = (id: string, zone: FigureZone, renglaId: string | null = null, renglaPosition: number | null = null) => ({
+const makeNode = (
+  id: string,
+  zone: FigureZone,
+  renglaId: string | null = null,
+  renglaPosition: number | null = null,
+  overrides: { positionType?: string | null; x?: number; y?: number } = {},
+) => ({
   id,
   label: id,
   zone,
@@ -53,6 +60,7 @@ const makeNode = (id: string, zone: FigureZone, renglaId: string | null = null, 
   renglaId,
   renglaPosition,
   metadata: {},
+  ...overrides,
 });
 
 const makeEntry = (overrides: Partial<CompositionEntryItem> = {}): CompositionEntryItem => ({
@@ -231,6 +239,66 @@ describe('CompositionEditorComponent', () => {
     expect(slot?.figureTemplate.nodes.some((n) => n.zone === 'PINYA')).toBe(false);
     expect(slot?.figureTemplate.nodes.some((n) => n.zone === 'BASE')).toBe(true);
     expect(component.entries().find((e) => e.id === 'entry-1')?.numberOfCordons).toBeNull();
+  });
+
+  it('renders cordo-obert nodes at half opacity', async () => {
+    const { canvasStub } = await setup(COMPOSITION_ID);
+    expect(canvasStub.cordoObertOpacity()).toBe(0.5);
+  });
+
+  it('always keeps a cordo-obert PINYA node even when its renglaPosition exceeds numberOfCordons', async () => {
+    compositionService.getOne.mockReturnValue(
+      of(
+        makeDetail([
+          makeEntry({
+            numberOfCordons: 1,
+            figureTemplate: {
+              id: 'fig-1',
+              name: 'Pilar',
+              hasPinya: true,
+              direction: 0,
+              nodes: [
+                makeNode('n1', FigureZone.PINYA, 'r1', 1),
+                makeNode('n2', FigureZone.PINYA, 'r1', 2, { positionType: 'cordo-obert' }),
+              ],
+            },
+          }),
+        ]),
+      ),
+    );
+    const { component } = await setup(COMPOSITION_ID);
+
+    const slot = component.compositionSlots().find((s) => s.slotId === 'entry-1');
+    expect(slot?.figureTemplate.nodes.map((n) => n.id).sort()).toEqual(['n1', 'n2']);
+  });
+
+  it('repositions a cordo-obert node to the position of the first hidden node in its rengla', async () => {
+    compositionService.getOne.mockReturnValue(
+      of(
+        makeDetail([
+          makeEntry({
+            numberOfCordons: 1,
+            figureTemplate: {
+              id: 'fig-1',
+              name: 'Pilar',
+              hasPinya: true,
+              direction: 0,
+              nodes: [
+                makeNode('n1', FigureZone.PINYA, 'r1', 1, { x: 10, y: 10 }),
+                makeNode('n2', FigureZone.PINYA, 'r1', 2, { x: 20, y: 20 }),
+                makeNode('co', FigureZone.PINYA, 'r1', 3, { positionType: 'cordo-obert', x: 30, y: 30 }),
+              ],
+            },
+          }),
+        ]),
+      ),
+    );
+    const { component } = await setup(COMPOSITION_ID);
+
+    const slot = component.compositionSlots().find((s) => s.slotId === 'entry-1');
+    const cordoObert = slot?.figureTemplate.nodes.find((n) => n.id === 'co');
+    expect(cordoObert?.x).toBe(20);
+    expect(cordoObert?.y).toBe(20);
   });
 
   it('removeEntry removes the entry from local state and clears selection', async () => {

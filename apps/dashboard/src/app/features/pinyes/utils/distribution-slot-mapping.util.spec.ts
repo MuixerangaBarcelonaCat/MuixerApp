@@ -20,6 +20,7 @@ const makeDistributionNode = (
   shape: 'RECTANGLE',
   renglaId: null,
   renglaPosition: null,
+  positionType: null,
   ...overrides,
 });
 
@@ -127,6 +128,54 @@ describe('mapDistributionItemsToSlots', () => {
     const [slot] = mapDistributionItemsToSlots([item]);
 
     expect(slot.figureTemplate.nodes.map((n) => n.id).sort()).toEqual(['b1', 'n1']);
+  });
+
+  it('always includes a cordo-obert PINYA node even when its renglaPosition exceeds numberOfCordons', () => {
+    const item = {
+      ...itemWithPosition('a', 0, 0),
+      numberOfCordons: 1,
+      figureTemplate: {
+        id: 'fig-1',
+        name: 'Pilar',
+        nodes: [
+          makeDistributionNode('b1', 'BASE'),
+          makeDistributionNode('n1', 'PINYA', { renglaId: 'r1', renglaPosition: 1 }),
+          makeDistributionNode('n2', 'PINYA', { renglaId: 'r1', renglaPosition: 2, positionType: 'cordo-obert' }),
+        ],
+      },
+    };
+
+    const [slot] = mapDistributionItemsToSlots([item]);
+
+    expect(slot.figureTemplate.nodes.map((n) => n.id).sort()).toEqual(['b1', 'n1', 'n2']);
+  });
+
+  it('repositions a cordo-obert node to the position of the first hidden node in its rengla', () => {
+    const item = {
+      ...itemWithPosition('a', 0, 0),
+      numberOfCordons: 1,
+      figureTemplate: {
+        id: 'fig-1',
+        name: 'Pilar',
+        nodes: [
+          makeDistributionNode('n1', 'PINYA', { renglaId: 'r1', renglaPosition: 1, x: 10, y: 10 }),
+          makeDistributionNode('n2', 'PINYA', { renglaId: 'r1', renglaPosition: 2, x: 20, y: 20 }),
+          makeDistributionNode('co', 'PINYA', {
+            renglaId: 'r1',
+            renglaPosition: 3,
+            positionType: 'cordo-obert',
+            x: 30,
+            y: 30,
+          }),
+        ],
+      },
+    };
+
+    const [slot] = mapDistributionItemsToSlots([item]);
+
+    const cordoObert = slot.figureTemplate.nodes.find((n) => n.id === 'co');
+    expect(cordoObert?.x).toBe(20);
+    expect(cordoObert?.y).toBe(20);
   });
 });
 

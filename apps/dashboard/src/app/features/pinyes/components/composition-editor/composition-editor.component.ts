@@ -18,6 +18,7 @@ import { LayoutService } from '../../../../core/services/layout.service';
 import { FigureCanvasComponent, CompositionSlotWithNodes } from '../figure-canvas/figure-canvas.component';
 import { FigurePropertiesPanelComponent, FigurePropertiesEntry } from '../figure-properties-panel/figure-properties-panel.component';
 import { computeMaxCordons, filterNodesByFigureMode } from '../../utils/figure-mode-filter.util';
+import { repositionCordoObertNodes } from '../../utils/cordo-obert.util';
 import {
   CompositionDetail,
   CompositionEntryItem,
@@ -137,6 +138,12 @@ export class CompositionEditorComponent implements OnInit, OnDestroy {
       entry.figureTemplate.nodes,
       entry.figureMode,
       entry.numberOfCordons,
+      { keepCordoObert: true },
+    );
+    const positionedNodes = repositionCordoObertNodes(
+      entry.figureTemplate.nodes,
+      filteredNodes,
+      entry.numberOfCordons,
     );
 
     return {
@@ -153,8 +160,8 @@ export class CompositionEditorComponent implements OnInit, OnDestroy {
       figureTemplate: {
         id: entry.figureTemplate.id,
         name: entry.figureTemplate.name,
-        hasPinya: filteredNodes.some((n) => n.zone === 'PINYA'),
-        nodes: filteredNodes,
+        hasPinya: positionedNodes.some((n) => n.zone === 'PINYA'),
+        nodes: positionedNodes,
       },
     };
   }

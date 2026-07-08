@@ -2,6 +2,7 @@ import { DistributionItem } from '../models/distribution.model';
 import { CompositionSlotWithNodes } from '../components/figure-canvas/figure-canvas.component';
 import { filterNodesByFigureMode } from './figure-mode-filter.util';
 import { figureExtentFromNodes, placeNewFigure } from './figure-placement.util';
+import { repositionCordoObertNodes } from './cordo-obert.util';
 
 /**
  * Maps segment distribution items into canvas slots, shared by the standalone
@@ -19,8 +20,14 @@ export function mapDistributionItemsToSlots(
       item.figureTemplate.nodes,
       item.figureMode,
       item.numberOfCordons,
+      { keepCordoObert: true },
     );
-    const extent = figureExtentFromNodes(item.instanceId, filteredNodes);
+    const positionedNodes = repositionCordoObertNodes(
+      item.figureTemplate.nodes,
+      filteredNodes,
+      item.numberOfCordons,
+    );
+    const extent = figureExtentFromNodes(item.instanceId, positionedNodes);
 
     let offsetX: number;
     let offsetY: number;
@@ -52,8 +59,8 @@ export function mapDistributionItemsToSlots(
       figureTemplate: {
         id: item.figureTemplate.id,
         name: item.figureTemplate.name,
-        hasPinya: filteredNodes.some((n) => n.zone === 'PINYA'),
-        nodes: filteredNodes as unknown as CompositionSlotWithNodes['figureTemplate']['nodes'],
+        hasPinya: positionedNodes.some((n) => n.zone === 'PINYA'),
+        nodes: positionedNodes as unknown as CompositionSlotWithNodes['figureTemplate']['nodes'],
       },
     };
   });

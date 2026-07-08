@@ -29,6 +29,7 @@ export interface DistributionNodeItem {
   shape: string;
   renglaId: string | null;
   renglaPosition: number | null;
+  positionType: string | null;
 }
 
 export interface DistributionAssignment {
@@ -272,7 +273,12 @@ export class FigureInstanceService {
       order: { sortOrder: 'ASC' },
     });
 
-    const figureInstances = instances.filter((inst) => inst.figureTemplate !== null);
+    // `sortOrder` isn't guaranteed unique across instances (duplicates exist in
+    // practice), so ties must be broken deterministically here — otherwise
+    // Postgres can return a different row order on each call.
+    const figureInstances = instances
+      .filter((inst) => inst.figureTemplate !== null)
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.id.localeCompare(b.id));
     const instanceIds = figureInstances.map((inst) => inst.id);
 
     type AssignmentRow = { instanceId: string; figureNodeId: string; personAlias: string };
@@ -331,6 +337,7 @@ export class FigureInstanceService {
               shape: n.shape,
               renglaId: n.renglaId,
               renglaPosition: n.renglaPosition,
+              positionType: n.positionType,
             })),
         },
         troncGridCols,

@@ -2,18 +2,26 @@ export interface FigureModeFilterableNode {
   zone: string;
   renglaId: string | null;
   renglaPosition: number | null;
+  positionType?: string | null;
+}
+
+export interface FilterNodesByFigureModeOptions {
+  /** Keep cordo-obert PINYA nodes even when their renglaPosition exceeds numberOfCordons. */
+  keepCordoObert?: boolean;
 }
 
 export function filterNodesByFigureMode<T extends FigureModeFilterableNode>(
   nodes: T[],
   figureMode: string,
   numberOfCordons: number | null,
+  options: FilterNodesByFigureModeOptions = {},
 ): T[] {
   const isRematOrNeta = figureMode === 'REMAT' || figureMode === 'NETA';
   return nodes.filter((n) => {
     if (n.zone === 'PINYA' && isRematOrNeta) return false;
     if (n.zone !== 'PINYA') return true;
     if (numberOfCordons === null) return true;
+    if (options.keepCordoObert && n.positionType === 'cordo-obert') return true;
     return !n.renglaId || n.renglaPosition === null || n.renglaPosition <= numberOfCordons;
   });
 }

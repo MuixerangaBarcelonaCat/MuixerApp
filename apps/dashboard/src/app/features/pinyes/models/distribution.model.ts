@@ -11,6 +11,7 @@ export interface DistributionNodeItem {
   shape: string;
   renglaId: string | null;
   renglaPosition: number | null;
+  positionType: string | null;
 }
 
 export interface DistributionAssignment {

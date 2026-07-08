@@ -22,6 +22,7 @@ class FigureCanvasStub {
   readonly gridEnabled = input<boolean>(false);
   readonly gridSpacing = input<number>(20);
   readonly snapToGrid = input<boolean>(false);
+  readonly cordoObertOpacity = input<number>(1);
   readonly slotMoved = output<{ slotId: string; offsetX: number; offsetY: number; angle: number }>();
   readonly troncMoved = output<{ slotId: string; troncPanelX: number | null; troncPanelY: number | null }>();
   centerOnContent = vi.fn();
@@ -41,6 +42,7 @@ const makeDistributionNode = (id: string, zone: string, renglaId: string | null 
   shape: 'RECTANGLE',
   renglaId,
   renglaPosition,
+  positionType: null,
 });
 
 const itemWithPosition = (instanceId: string, x: number, y: number, angle = 0) => ({
@@ -130,6 +132,15 @@ describe('DistributionEditorComponent', () => {
 
   it('loads distribution data on init', () => {
     expect(distributionService.getDistribution).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID);
+  });
+
+  it('renders cordo-obert nodes at half opacity', () => {
+    const fixture = TestBed.createComponent(DistributionEditorComponent);
+    fixture.detectChanges();
+    const canvasStub = fixture.debugElement.query(By.directive(FigureCanvasStub))
+      ?.componentInstance as FigureCanvasStub;
+
+    expect(canvasStub.cordoObertOpacity()).toBe(0.5);
   });
 
   it('centers the viewport on the loaded content after data arrives', () => {

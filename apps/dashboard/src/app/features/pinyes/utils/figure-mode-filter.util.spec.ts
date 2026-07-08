@@ -50,6 +50,24 @@ describe('filterNodesByFigureMode', () => {
     const result = filterNodesByFigureMode(nodes, 'NETA', null);
     expect(result.map((n) => n.id)).toEqual(['b1']);
   });
+
+  it('keeps a cordo-obert PINYA node beyond numberOfCordons when keepCordoObert is set', () => {
+    const nodes = [
+      node('n1', 'PINYA', 'r1', 1),
+      node('n2', 'PINYA', 'r1', 3, 'cordo-obert'),
+    ];
+    const result = filterNodesByFigureMode(nodes, 'COMPLETA', 1, { keepCordoObert: true });
+    expect(result.map((n) => n.id)).toEqual(['n1', 'n2']);
+  });
+
+  it('still removes a cordo-obert PINYA node beyond numberOfCordons when keepCordoObert is not set', () => {
+    const nodes = [
+      node('n1', 'PINYA', 'r1', 1),
+      node('n2', 'PINYA', 'r1', 3, 'cordo-obert'),
+    ];
+    const result = filterNodesByFigureMode(nodes, 'COMPLETA', 1);
+    expect(result.map((n) => n.id)).toEqual(['n1']);
+  });
 });
 
 describe('computeMaxCordons', () => {
