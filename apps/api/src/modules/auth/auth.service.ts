@@ -8,7 +8,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { ClientType, UserProfile, UserRole } from '@muixer/shared';
 import { User } from '../user/user.entity';
@@ -208,7 +208,7 @@ export class AuthService {
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
     const personId = dto.personId;
 
-    const reloaded = await this.dataSource.transaction(async (manager) => {
+    const reloaded = await this.dataSource.transaction(async (manager: EntityManager) => {
       const user = manager.create(User, {
         email: dto.email,
         passwordHash,
