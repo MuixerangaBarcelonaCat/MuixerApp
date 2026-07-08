@@ -1,49 +1,51 @@
 <app-mobile-header
-  [title]="event()?.title ?? 'Detall event'"
+  [title]="headerTitle()"
   [showBack]="true"
+  fallbackRoute="/events"
 />
 
 @if (isLoading()) {
   <app-skeleton-card [count]="1" />
 } @else if (hasError() || !event()) {
-  <div class="card bg-base-100 shadow-sm">
-    <div class="card-body p-4">
-      <p class="text-base-content/60">No s'ha pogut carregar l'event.</p>
-    </div>
-  </div>
+  <app-empty-state
+    message="No s'ha pogut carregar la informació. Torneu-ho a provar."
+    actionLabel="Torna-ho a provar"
+    (action)="eventResource.reload()"
+  />
 } @else {
+  @let ev = event()!;
   <section class="flex flex-col gap-4 pb-4">
     <div
       class="card bg-base-100 shadow-sm border-l-4"
       [class]="isAssaig() ? 'border-secondary' : 'border-primary'"
     >
       <div class="card-body p-4">
-        <h2 class="card-title text-lg">{{ event()!.title }}</h2>
+        <h2 class="card-title text-lg">{{ ev.title }}</h2>
         <p class="text-sm text-base-content/60">
-          {{ event()!.date | formatEventDate }}
+          {{ ev.date | formatEventDate }}
         </p>
 
         <div class="flex flex-wrap items-center gap-4 mt-2 text-sm text-base-content/70">
-          @if (event()!.startTime) {
+          @if (ev.startTime) {
             <span class="flex items-center gap-1">
               <lucide-icon [img]="Clock" [size]="16" aria-hidden="true" />
-              {{ event()!.startTime! | slice:0:5 }}
+              {{ ev.startTime | slice:0:5 }}
             </span>
           }
-          @if (event()!.location) {
+          @if (ev.location) {
             <span class="flex items-center gap-1">
               <lucide-icon [img]="MapPin" [size]="16" aria-hidden="true" />
-              @if (event()!.locationUrl) {
+              @if (ev.locationUrl) {
                 <a
-                  [href]="event()!.locationUrl"
+                  [href]="ev.locationUrl"
                   target="_blank"
                   rel="noopener noreferrer"
                   class="link link-primary"
                 >
-                  {{ event()!.location }}
+                  {{ ev.location }}
                 </a>
               } @else {
-                {{ event()!.location }}
+                {{ ev.location }}
               }
             </span>
           }
@@ -51,18 +53,18 @@
       </div>
     </div>
 
-    @if (event()!.description || event()!.information) {
+    @if (ev.description || ev.information) {
       <div class="card bg-base-100 shadow-sm">
         <div class="card-body p-4">
-          @if (event()!.description) {
+          @if (ev.description) {
             <p class="text-sm text-base-content/80 whitespace-pre-line">
-              {{ event()!.description }}
+              {{ ev.description }}
             </p>
           }
-          @if (event()!.information) {
+          @if (ev.information) {
             <div class="flex items-start gap-2 mt-2 text-sm text-base-content/60">
               <lucide-icon [img]="Info" [size]="16" class="mt-0.5 shrink-0" aria-hidden="true" />
-              <p class="whitespace-pre-line">{{ event()!.information }}</p>
+              <p class="whitespace-pre-line">{{ ev.information }}</p>
             </div>
           }
         </div>
@@ -71,10 +73,10 @@
 
     <div class="flex justify-center mt-2">
       <app-attendance-button
-        [eventId]="event()!.id"
-        [status]="event()!.myAttendance?.status ?? null"
+        [eventId]="ev.id"
+        [status]="ev.myAttendance?.status ?? null"
         [disabled]="isPast()"
-        [ariaContext]="event()!.title"
+        [ariaContext]="ev.title"
       />
     </div>
   </section>

@@ -10,7 +10,7 @@ import { Component, ChangeDetectionStrategy, input } from '@angular/core';
         class="card bg-base-100 shadow-sm animate-pulse"
         role="status"
         aria-busy="true"
-        aria-label="Carregant contingut"
+        aria-label="S'està carregant el contingut"
       >
         <div class="card-body p-4 space-y-2">
           <div class="h-4 bg-base-300 rounded w-3/4"></div>

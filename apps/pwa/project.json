@@ -91,7 +91,7 @@
       "options": {},
       "configurations": {
         "ci": {
-          "coverage": false
+          "coverage": true
         }
       }
     },

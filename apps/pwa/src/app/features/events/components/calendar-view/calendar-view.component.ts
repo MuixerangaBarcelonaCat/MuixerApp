@@ -54,21 +54,35 @@ const DAY_LABEL_FORMATTER = new Intl.DateTimeFormat('ca', {
   month: 'long',
 });
 
-const ATTENDANCE_LABELS: Record<string, string> = {
+const ATTENDANCE_LABELS: Record<AttendanceStatus, string> = {
   [AttendanceStatus.ANIRE]: 'Vinc',
   [AttendanceStatus.NO_VAIG]: 'No vinc',
   [AttendanceStatus.PENDENT]: 'Pendent',
+  [AttendanceStatus.ASSISTIT]: 'He assistit',
 };
 
-const DOT_CLASSES: Record<string, string> = {
-  [`${AttendanceStatus.ANIRE}_${EventType.ASSAIG}`]: 'bg-secondary',
-  [`${AttendanceStatus.ANIRE}_${EventType.ACTUACIO}`]: 'bg-primary',
-  [`${AttendanceStatus.NO_VAIG}_${EventType.ASSAIG}`]: 'bg-error',
-  [`${AttendanceStatus.NO_VAIG}_${EventType.ACTUACIO}`]: 'bg-error',
-  [`${AttendanceStatus.PENDENT}_${EventType.ASSAIG}`]: 'border border-secondary',
-  [`${AttendanceStatus.PENDENT}_${EventType.ACTUACIO}`]: 'border border-primary',
-  [`null_${EventType.ASSAIG}`]: 'border border-secondary',
-  [`null_${EventType.ACTUACIO}`]: 'border border-primary',
+const DOT_CLASSES: Record<AttendanceStatus, Record<EventType, string>> = {
+  [AttendanceStatus.ANIRE]: {
+    [EventType.ASSAIG]: 'bg-secondary',
+    [EventType.ACTUACIO]: 'bg-primary',
+  },
+  [AttendanceStatus.NO_VAIG]: {
+    [EventType.ASSAIG]: 'bg-error',
+    [EventType.ACTUACIO]: 'bg-error',
+  },
+  [AttendanceStatus.PENDENT]: {
+    [EventType.ASSAIG]: 'border border-secondary',
+    [EventType.ACTUACIO]: 'border border-primary',
+  },
+  [AttendanceStatus.ASSISTIT]: {
+    [EventType.ASSAIG]: 'bg-info',
+    [EventType.ACTUACIO]: 'bg-info',
+  },
+};
+
+const NULL_DOT_CLASSES: Record<EventType, string> = {
+  [EventType.ASSAIG]: 'border border-secondary',
+  [EventType.ACTUACIO]: 'border border-primary',
 };
 
 const SWIPE_THRESHOLD = 50;
@@ -92,11 +106,14 @@ export class CalendarViewComponent implements AfterViewInit, OnDestroy {
   private readonly el = inject(ElementRef<HTMLElement>);
   private readonly zone = inject(NgZone);
   private touchStartX = 0;
+  private touchStartY = 0;
 
   protected readonly currentMonth = signal({
     year: new Date().getFullYear(),
     month: new Date().getMonth(),
   });
+
+  protected readonly focusedDate = signal(this.todayStr());
 
   protected readonly monthLabel = computed(() => {
     const { year, month } = this.currentMonth();
@@ -112,11 +129,13 @@ export class CalendarViewComponent implements AfterViewInit, OnDestroy {
 
   private readonly touchStartFn = (e: TouchEvent) => {
     this.touchStartX = e.touches[0].clientX;
+    this.touchStartY = e.touches[0].clientY;
   };
 
   private readonly touchEndFn = (e: TouchEvent) => {
     const dx = e.changedTouches[0].clientX - this.touchStartX;
-    if (Math.abs(dx) >= SWIPE_THRESHOLD) {
+    const dy = e.changedTouches[0].clientY - this.touchStartY;
+    if (Math.abs(dx) >= SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy) * 1.5) {
       this.zone.run(() => {
         if (dx < 0) this.nextMonth();
         else this.previousMonth();
@@ -161,8 +180,48 @@ export class CalendarViewComponent implements AfterViewInit, OnDestroy {
   }
 
   dotClasses(ev: CalendarDayEvent): string {
-    const key = `${ev.attendanceStatus ?? 'null'}_${ev.eventType}`;
-    return DOT_CLASSES[key] ?? 'border border-base-content/30';
+    if (ev.attendanceStatus == null) {
+      return NULL_DOT_CLASSES[ev.eventType];
+    }
+    return DOT_CLASSES[ev.attendanceStatus][ev.eventType];
+  }
+
+  onDayKeydown(event: KeyboardEvent, day: CalendarDay): void {
+    const date = parseLocalDate(day.date);
+    if (!date) return;
+    let target: Date | null = null;
+
+    switch (event.key) {
+      case 'ArrowRight': target = this.addDays(date, 1); break;
+      case 'ArrowLeft': target = this.addDays(date, -1); break;
+      case 'ArrowDown': target = this.addDays(date, 7); break;
+      case 'ArrowUp': target = this.addDays(date, -7); break;
+      case 'Home': target = new Date(date.getFullYear(), date.getMonth(), 1); break;
+      case 'End': target = new Date(date.getFullYear(), date.getMonth() + 1, 0); break;
+      case 'Enter':
+      case ' ':
+        this.selectDay(day);
+        event.preventDefault();
+        return;
+      default: return;
+    }
+    event.preventDefault();
+    if (!target) return;
+
+    const targetMonth = target.getMonth();
+    const targetYear = target.getFullYear();
+    const { year, month } = this.currentMonth();
+    if (targetMonth !== month || targetYear !== year) {
+      this.currentMonth.set({ year: targetYear, month: targetMonth });
+    }
+    const targetDateStr = this.formatDate(target);
+    this.focusedDate.set(targetDateStr);
+    queueMicrotask(() => {
+      const el = this.el.nativeElement.querySelector(
+        `[data-date="${targetDateStr}"]`,
+      ) as HTMLElement | null;
+      el?.focus();
+    });
   }
 
   dayAriaLabel(day: CalendarDay): string {
@@ -173,10 +232,16 @@ export class CalendarViewComponent implements AfterViewInit, OnDestroy {
 
     const eventDescs = day.events.map((ev) => {
       const type = ev.eventType === EventType.ASSAIG ? 'Assaig' : 'Actuació';
-      const status = ATTENDANCE_LABELS[ev.attendanceStatus ?? ''] ?? 'Pendent';
+      const status = ev.attendanceStatus ? ATTENDANCE_LABELS[ev.attendanceStatus] : 'Pendent';
       return `${type}, ${status}`;
     });
     return `${dateLabel}, ${eventDescs.join('; ')}`;
+  }
+
+  private addDays(date: Date, days: number): Date {
+    const result = new Date(date);
+    result.setDate(result.getDate() + days);
+    return result;
   }
 
   private buildMonthGrid(year: number, month: number, events: MeEvent[]): CalendarDay[][] {

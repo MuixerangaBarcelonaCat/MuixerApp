@@ -93,7 +93,7 @@ describe('HomeService', () => {
     expect(data.nextPerformance).toBeNull();
   });
 
-  it('should handle API error gracefully and return null', async () => {
+  it('should propagate API error from forkJoin', async () => {
     eventService.findAll.mockImplementation((filters: { type: EventType }) => {
       if (filters.type === EventType.ASSAIG) {
         return throwError(() => new Error('Network error'));
@@ -101,9 +101,7 @@ describe('HomeService', () => {
       return of({ data: [MOCK_PERFORMANCE], meta: { total: 1, page: 1, limit: 1 } });
     });
 
-    const data = await firstValueFrom(service.loadHomeData());
-
-    expect(data.nextRehearsal).toBeNull();
-    expect(data.nextPerformance).toEqual(MOCK_PERFORMANCE);
+    await expect(firstValueFrom(service.loadHomeData()))
+      .rejects.toThrow('Network error');
   });
 });

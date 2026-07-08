@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, input } from '@angular/core';
+import { Component, ChangeDetectionStrategy, input, output } from '@angular/core';
 import { LucideAngularModule, Calendar, LucideIconData } from 'lucide-angular';
 
 @Component({
@@ -15,10 +15,21 @@ import { LucideAngularModule, Calendar, LucideIconData } from 'lucide-angular';
         aria-hidden="true"
       />
       <p class="text-base-content/60 text-sm">{{ message() }}</p>
+      @if (actionLabel()) {
+        <button
+          type="button"
+          class="btn btn-sm btn-primary mt-4"
+          (click)="action.emit()"
+        >
+          {{ actionLabel() }}
+        </button>
+      }
     </div>
   `,
 })
 export class EmptyStateComponent {
   icon = input<LucideIconData>(Calendar);
   message = input.required<string>();
+  actionLabel = input<string | undefined>(undefined);
+  action = output<void>();
 }

@@ -2,8 +2,7 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { catchError, finalize, map, Observable, of, share, tap } from 'rxjs';
-import { UserRole, ClientType } from '@muixer/shared';
-import { AuthResponse, LoginRequest, UserProfile } from '../models/auth.models';
+import { AuthResponse, ClientType, LoginRequest, UserProfile, UserRole } from '@muixer/shared';
 import { environment } from '../../../../environments/environment';
 
 @Injectable({ providedIn: 'root' })

@@ -1,4 +1,5 @@
 import { TestBed, ComponentFixture } from '@angular/core/testing';
+import { ApplicationRef } from '@angular/core';
 import { of, throwError } from 'rxjs';
 import { EventType, MeEventDetail } from '@muixer/shared';
 import { EventDetailComponent } from './event-detail.component';
@@ -32,9 +33,9 @@ describe('EventDetailComponent', () => {
   let fixture: ComponentFixture<TestHostComponent>;
   let eventService: { findOne: ReturnType<typeof vi.fn>; updateAttendance: ReturnType<typeof vi.fn> };
 
-  beforeEach(async () => {
+  async function setup(findOneReturn = of(MOCK_DETAIL)) {
     eventService = {
-      findOne: vi.fn().mockReturnValue(of(MOCK_DETAIL)),
+      findOne: vi.fn().mockReturnValue(findOneReturn),
       updateAttendance: vi.fn(),
     };
 
@@ -47,52 +48,44 @@ describe('EventDetailComponent', () => {
       ],
     }).compileComponents();
 
-    fixture = TestBed.createComponent(TestHostComponent);
-    fixture.detectChanges();
-  });
+    const f = TestBed.createComponent(TestHostComponent);
+    f.detectChanges();
+    await TestBed.inject(ApplicationRef).whenStable();
+    f.detectChanges();
+    return f;
+  }
 
-  it('should load event detail', () => {
+  it('should load event detail', async () => {
+    fixture = await setup();
     expect(eventService.findOne).toHaveBeenCalledWith('ev-1');
   });
 
-  it('should display event title', () => {
+  it('should display event title', async () => {
+    fixture = await setup();
     const title = fixture.nativeElement.querySelector('.card-title');
+    expect(title).toBeTruthy();
     expect(title.textContent).toContain('Festa Major');
   });
 
-  it('should display description', () => {
-    const text = fixture.nativeElement.textContent;
-    expect(text).toContain('Actuació principal');
+  it('should display description', async () => {
+    fixture = await setup();
+    expect(fixture.nativeElement.textContent).toContain('Actuació principal');
   });
 
-  it('should display information', () => {
-    const text = fixture.nativeElement.textContent;
-    expect(text).toContain('Portar mocador');
+  it('should display information', async () => {
+    fixture = await setup();
+    expect(fixture.nativeElement.textContent).toContain('Portar mocador');
   });
 
-  it('should show location with link', () => {
+  it('should show location with link', async () => {
+    fixture = await setup();
     const link = fixture.nativeElement.querySelector('a.link');
     expect(link).toBeTruthy();
     expect(link.textContent).toContain('Plaça Sant Jaume');
   });
 
   it('should show error state on failure', async () => {
-    eventService.findOne.mockReturnValue(throwError(() => new Error('fail')));
-
-    TestBed.resetTestingModule();
-    await TestBed.configureTestingModule({
-      imports: [TestHostComponent],
-      providers: [
-        provideRouter([]),
-        { provide: EventService, useValue: eventService },
-        { provide: ToastService, useValue: { success: vi.fn(), error: vi.fn() } },
-      ],
-    }).compileComponents();
-
-    const newFixture = TestBed.createComponent(TestHostComponent);
-    newFixture.detectChanges();
-
-    const text = newFixture.nativeElement.textContent;
-    expect(text).toContain("No s'ha pogut carregar");
+    fixture = await setup(throwError(() => new Error('fail')));
+    expect(fixture.nativeElement.textContent).toContain("No s'ha pogut carregar");
   });
 });

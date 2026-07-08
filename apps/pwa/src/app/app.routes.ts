@@ -27,6 +27,7 @@ export const appRoutes: Routes = [
       { path: '', redirectTo: 'home', pathMatch: 'full' },
       {
         path: 'home',
+        title: 'Inici',
         loadComponent: () =>
           import('./features/home/home.component').then(
             (m) => m.HomeComponent,
@@ -34,6 +35,7 @@ export const appRoutes: Routes = [
       },
       {
         path: 'events',
+        title: 'Agenda',
         loadComponent: () =>
           import('./features/events/event-list/event-list.component').then(
             (m) => m.EventListComponent,
@@ -41,6 +43,7 @@ export const appRoutes: Routes = [
       },
       {
         path: 'events/:id',
+        title: 'Detall',
         loadComponent: () =>
           import('./features/events/event-detail/event-detail.component').then(
             (m) => m.EventDetailComponent,
@@ -48,6 +51,7 @@ export const appRoutes: Routes = [
       },
       {
         path: 'profile',
+        title: 'Perfil',
         loadComponent: () =>
           import('./features/profile/profile.component').then(
             (m) => m.ProfileComponent,

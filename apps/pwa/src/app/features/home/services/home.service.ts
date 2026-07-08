@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable, forkJoin, map, catchError, of } from 'rxjs';
+import { Observable, forkJoin, map } from 'rxjs';
 import { EventType, MeEvent } from '@muixer/shared';
 import { EventService } from '../../events/services/event.service';
 
@@ -16,16 +16,10 @@ export class HomeService {
     return forkJoin({
       nextRehearsal: this.eventService
         .findAll({ timeFilter: 'upcoming', type: EventType.ASSAIG, limit: 1 })
-        .pipe(
-          map((r) => r.data[0] ?? null),
-          catchError(() => of(null)),
-        ),
+        .pipe(map((r) => r.data[0] ?? null)),
       nextPerformance: this.eventService
         .findAll({ timeFilter: 'upcoming', type: EventType.ACTUACIO, limit: 1 })
-        .pipe(
-          map((r) => r.data[0] ?? null),
-          catchError(() => of(null)),
-        ),
+        .pipe(map((r) => r.data[0] ?? null)),
     });
   }
 }

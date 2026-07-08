@@ -17,7 +17,6 @@ interface Tab {
     <nav
       class="fixed bottom-0 inset-x-0 bg-base-100 border-t border-base-300 z-50"
       style="padding-bottom: env(safe-area-inset-bottom, 0px)"
-      role="tablist"
       aria-label="Navegació principal"
     >
       <div class="flex justify-around items-center h-14">
@@ -28,10 +27,9 @@ interface Tab {
             #rla="routerLinkActive"
             class="flex flex-col items-center justify-center w-full h-full
                    text-base-content/60 transition-colors duration-200"
-            role="tab"
-            [attr.aria-selected]="rla.isActive"
+            [attr.aria-current]="rla.isActive ? 'page' : null"
           >
-            <lucide-icon [img]="tab.icon" [size]="22" />
+            <lucide-icon [img]="tab.icon" [size]="22" aria-hidden="true" />
             <span class="text-xs mt-0.5 font-medium">{{ tab.label }}</span>
           </a>
         }
@@ -42,7 +40,7 @@ interface Tab {
 export class BottomTabBarComponent {
   readonly tabs: Tab[] = [
     { path: '/home', label: 'Inici', icon: Home },
-    { path: '/events', label: 'Events', icon: Calendar },
+    { path: '/events', label: 'Agenda', icon: Calendar },
     { path: '/profile', label: 'Perfil', icon: User },
   ];
 }

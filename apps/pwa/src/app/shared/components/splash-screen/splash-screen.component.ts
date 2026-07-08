@@ -8,7 +8,7 @@ import { Component, ChangeDetectionStrategy, input } from '@angular/core';
     <div
       class="fixed inset-0 flex items-center justify-center bg-base-200 z-[9999]"
       role="status"
-      aria-label="Carregant aplicació"
+      aria-label="S'està carregant l'aplicació"
     >
       <div class="text-center">
         <img

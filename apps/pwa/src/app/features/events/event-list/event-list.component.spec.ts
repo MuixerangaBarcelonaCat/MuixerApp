@@ -1,4 +1,5 @@
 import { TestBed, ComponentFixture } from '@angular/core/testing';
+import { ApplicationRef } from '@angular/core';
 import { of, throwError } from 'rxjs';
 import { AttendanceStatus, EventType, MeEvent } from '@muixer/shared';
 import { EventListComponent } from './event-list.component';
@@ -54,6 +55,12 @@ describe('EventListComponent', () => {
   let component: EventListComponent;
   let eventService: { findAll: ReturnType<typeof vi.fn>; updateAttendance: ReturnType<typeof vi.fn> };
 
+  async function stable(): Promise<void> {
+    fixture.detectChanges();
+    await TestBed.inject(ApplicationRef).whenStable();
+    fixture.detectChanges();
+  }
+
   beforeEach(async () => {
     eventService = {
       findAll: vi.fn().mockReturnValue(
@@ -72,10 +79,10 @@ describe('EventListComponent', () => {
 
     fixture = TestBed.createComponent(EventListComponent);
     component = fixture.componentInstance;
-    fixture.detectChanges();
+    await stable();
   });
 
-  // --- Existing list tests ---
+  // --- List view tests ---
 
   it('should create', () => {
     expect(component).toBeTruthy();
@@ -92,26 +99,27 @@ describe('EventListComponent', () => {
     expect(cards.length).toBe(1);
   });
 
-  it('should show empty state when no events', () => {
+  it('should show empty state when no events', async () => {
     eventService.findAll.mockReturnValue(
       of({ data: [], meta: { total: 0, page: 1, limit: 50 } }),
     );
     component.setFilter('past');
-    fixture.detectChanges();
+    await stable();
     const emptyState = fixture.nativeElement.querySelector('app-empty-state');
     expect(emptyState).toBeTruthy();
   });
 
-  it('should show error state on error', () => {
+  it('should show error state on error', async () => {
     eventService.findAll.mockReturnValue(throwError(() => new Error('fail')));
     component.setFilter('all');
-    fixture.detectChanges();
+    await stable();
     const emptyState = fixture.nativeElement.querySelector('app-empty-state');
     expect(emptyState).toBeTruthy();
   });
 
-  it('should switch filter tabs', () => {
+  it('should switch filter tabs', async () => {
     component.setFilter('past');
+    await stable();
     expect(eventService.findAll).toHaveBeenCalledWith(
       expect.objectContaining({ timeFilter: 'past' }),
     );
@@ -131,9 +139,12 @@ describe('EventListComponent', () => {
     expect(tabs.length).toBe(3);
   });
 
-  it('should toggle to calendar view', () => {
+  it('should toggle to calendar view', async () => {
+    eventService.findAll.mockReturnValue(
+      of({ data: MOCK_EVENTS_SEASON, meta: { total: 3, page: 1, limit: 300 } }),
+    );
     component.toggleView();
-    fixture.detectChanges();
+    await stable();
 
     const calendarView = fixture.nativeElement.querySelector('app-calendar-view');
     expect(calendarView).toBeTruthy();
@@ -141,36 +152,36 @@ describe('EventListComponent', () => {
     expect(tabs.length).toBe(0);
   });
 
-  it('should toggle back to list view', () => {
+  it('should toggle back to list view', async () => {
     component.toggleView();
-    fixture.detectChanges();
+    await stable();
     component.toggleView();
-    fixture.detectChanges();
+    await stable();
 
     const calendarView = fixture.nativeElement.querySelector('app-calendar-view');
     expect(calendarView).toBeFalsy();
   });
 
-  it('should load all season events when switching to calendar', () => {
+  it('should load all season events with limit 300 when switching to calendar', async () => {
     eventService.findAll.mockReturnValue(
-      of({ data: MOCK_EVENTS_SEASON, meta: { total: 3, page: 1, limit: 200 } }),
+      of({ data: MOCK_EVENTS_SEASON, meta: { total: 3, page: 1, limit: 300 } }),
     );
 
     component.toggleView();
-    fixture.detectChanges();
+    await stable();
 
     expect(eventService.findAll).toHaveBeenCalledWith(
-      expect.objectContaining({ timeFilter: 'all', limit: 200 }),
+      expect.objectContaining({ timeFilter: 'all', limit: 300 }),
     );
   });
 
-  it('should show event cards when a day is selected', () => {
+  it('should show event cards when a day is selected', async () => {
     eventService.findAll.mockReturnValue(
-      of({ data: MOCK_EVENTS_SEASON, meta: { total: 3, page: 1, limit: 200 } }),
+      of({ data: MOCK_EVENTS_SEASON, meta: { total: 3, page: 1, limit: 300 } }),
     );
 
     component.toggleView();
-    fixture.detectChanges();
+    await stable();
 
     component.onSelectedDateChange('2026-07-07');
     fixture.detectChanges();
@@ -179,13 +190,13 @@ describe('EventListComponent', () => {
     expect(cards.length).toBe(2);
   });
 
-  it('should hide expanded cards when day is deselected', () => {
+  it('should hide expanded cards when day is deselected', async () => {
     eventService.findAll.mockReturnValue(
-      of({ data: MOCK_EVENTS_SEASON, meta: { total: 3, page: 1, limit: 200 } }),
+      of({ data: MOCK_EVENTS_SEASON, meta: { total: 3, page: 1, limit: 300 } }),
     );
 
     component.toggleView();
-    fixture.detectChanges();
+    await stable();
 
     component.onSelectedDateChange('2026-07-07');
     fixture.detectChanges();
@@ -196,28 +207,28 @@ describe('EventListComponent', () => {
     expect(heading).toBeFalsy();
   });
 
-  it('should refresh calendar data on pull-to-refresh in calendar mode', () => {
+  it('should refresh calendar data on pull-to-refresh in calendar mode', async () => {
     eventService.findAll.mockReturnValue(
-      of({ data: MOCK_EVENTS_SEASON, meta: { total: 3, page: 1, limit: 200 } }),
+      of({ data: MOCK_EVENTS_SEASON, meta: { total: 3, page: 1, limit: 300 } }),
     );
 
     component.toggleView();
-    fixture.detectChanges();
+    await stable();
     const callCountBefore = eventService.findAll.mock.calls.length;
 
     component.onRefresh();
-    fixture.detectChanges();
+    await stable();
 
     expect(eventService.findAll.mock.calls.length).toBeGreaterThan(callCountBefore);
   });
 
-  it('should update calendar dot when attendance changes', () => {
+  it('should update calendar when attendance changes', async () => {
     eventService.findAll.mockReturnValue(
-      of({ data: MOCK_EVENTS_SEASON, meta: { total: 3, page: 1, limit: 200 } }),
+      of({ data: MOCK_EVENTS_SEASON, meta: { total: 3, page: 1, limit: 300 } }),
     );
 
     component.toggleView();
-    fixture.detectChanges();
+    await stable();
 
     component.onAttendanceChanged({ eventId: 'ev-1', status: AttendanceStatus.ANIRE });
     fixture.detectChanges();

@@ -5,6 +5,7 @@ import {
   inject,
 } from '@angular/core';
 import { Location } from '@angular/common';
+import { Router } from '@angular/router';
 import { LucideAngularModule, ArrowLeft } from 'lucide-angular';
 
 @Component({
@@ -18,7 +19,7 @@ import { LucideAngularModule, ArrowLeft } from 'lucide-angular';
         <button
           (click)="goBack()"
           class="btn btn-ghost btn-circle btn-sm"
-          aria-label="Tornar enrere"
+          aria-label="Torna enrere"
         >
           <lucide-icon [img]="ArrowLeft" [size]="20" />
         </button>
@@ -30,11 +31,17 @@ import { LucideAngularModule, ArrowLeft } from 'lucide-angular';
 export class MobileHeaderComponent {
   title = input.required<string>();
   showBack = input(false);
+  fallbackRoute = input('/home');
 
   protected readonly ArrowLeft = ArrowLeft;
   private readonly location = inject(Location);
+  private readonly router = inject(Router);
 
   goBack(): void {
-    this.location.back();
+    if ((window.history?.length ?? 0) > 1) {
+      this.location.back();
+    } else {
+      this.router.navigate([this.fallbackRoute()]);
+    }
   }
 }

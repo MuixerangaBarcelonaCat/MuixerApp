@@ -46,8 +46,10 @@
             role="gridcell"
             [attr.aria-selected]="selectedDate() === day.date"
             [attr.aria-label]="dayAriaLabel(day)"
-            [tabindex]="day.isCurrentMonth ? 0 : -1"
+            [attr.data-date]="day.date"
+            [tabindex]="day.date === focusedDate() ? 0 : -1"
             (click)="selectDay(day)"
+            (keydown)="onDayKeydown($event, day)"
           >
             <span class="text-sm leading-tight">{{ day.dayNumber }}</span>
             @if (day.events.length > 0) {

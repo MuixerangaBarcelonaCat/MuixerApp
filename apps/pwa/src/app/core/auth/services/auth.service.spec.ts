@@ -5,9 +5,8 @@ import {
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
-import { ClientType, UserRole } from '@muixer/shared';
+import { AuthResponse, ClientType, UserProfile, UserRole } from '@muixer/shared';
 import { AuthService } from './auth.service';
-import { AuthResponse, UserProfile } from '../models/auth.models';
 
 const mockUser: UserProfile = {
   id: 'u1',

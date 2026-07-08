@@ -25,8 +25,14 @@
       <div class="flex flex-col gap-3" aria-busy="true">
         <app-skeleton-card [count]="2" />
       </div>
+    } @else if (hasError()) {
+      <app-empty-state
+        message="No s'han pogut carregar els assajos i les actuacions. Torneu-ho a provar."
+        actionLabel="Torna-ho a provar"
+        (action)="reload()"
+      />
     } @else if (!hasEvents()) {
-      <app-empty-state message="No hi ha events propers programats." />
+      <app-empty-state message="No hi ha assajos ni actuacions propers programats." />
     } @else {
       <div class="flex flex-col gap-6" aria-live="polite">
         @if (nextRehearsal(); as rehearsal) {

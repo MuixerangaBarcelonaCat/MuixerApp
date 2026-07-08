@@ -2,9 +2,8 @@ import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { Router } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
-import { UserRole, ClientType } from '@muixer/shared';
+import { AuthResponse, ClientType, UserProfile, UserRole } from '@muixer/shared';
 import { AuthService } from './auth.service';
-import { AuthResponse, UserProfile } from '../models/auth.models';
 
 const mockProfile: UserProfile = {
   id: 'u1',

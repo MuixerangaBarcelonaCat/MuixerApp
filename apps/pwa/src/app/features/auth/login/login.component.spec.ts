@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { HttpErrorResponse } from '@angular/common/http';
 import { provideRouter, Router } from '@angular/router';
 import { of, throwError, Subject } from 'rxjs';
 import { LoginComponent } from './login.component';
@@ -84,9 +85,9 @@ describe('LoginComponent', () => {
     subject.complete();
   });
 
-  it('shows error message on failed login and clears on retry', () => {
+  it('shows 401 error message on failed login and clears on retry', () => {
     authService.login.mockReturnValueOnce(
-      throwError(() => new Error('401')),
+      throwError(() => new HttpErrorResponse({ status: 401 })),
     );
 
     component.form.setValue({ email: 'a@b.cat', password: 'wrongpass' });
@@ -101,5 +102,31 @@ describe('LoginComponent', () => {
     authService.login.mockReturnValue(of(void 0));
     component.onSubmit();
     expect(component.errorMessage()).toBeNull();
+  });
+
+  it('shows rate-limit message on 429', () => {
+    authService.login.mockReturnValueOnce(
+      throwError(() => new HttpErrorResponse({ status: 429 })),
+    );
+
+    component.form.setValue({ email: 'a@b.cat', password: 'pass123' });
+    component.onSubmit();
+
+    expect(component.errorMessage()).toBe(
+      'Massa intents. Espereu un moment i torneu-ho a provar.',
+    );
+  });
+
+  it('shows server error message on 500+', () => {
+    authService.login.mockReturnValueOnce(
+      throwError(() => new HttpErrorResponse({ status: 500 })),
+    );
+
+    component.form.setValue({ email: 'a@b.cat', password: 'pass123' });
+    component.onSubmit();
+
+    expect(component.errorMessage()).toBe(
+      "No s'ha pogut connectar amb el servidor. Comproveu la connexió.",
+    );
   });
 });

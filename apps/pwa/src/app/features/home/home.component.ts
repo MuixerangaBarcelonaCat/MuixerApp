@@ -1,14 +1,12 @@
 import {
   Component,
   ChangeDetectionStrategy,
-  DestroyRef,
   inject,
-  signal,
   computed,
-  OnInit,
+  effect,
   viewChild,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { rxResource } from '@angular/core/rxjs-interop';
 import { AttendanceStatus, MeEvent } from '@muixer/shared';
 import { LucideAngularModule, User } from 'lucide-angular';
 import { MobileHeaderComponent } from '../../shared/components/mobile-header/mobile-header.component';
@@ -33,17 +31,25 @@ import { HomeService } from './services/home.service';
   ],
   templateUrl: './home.component.html',
 })
-export class HomeComponent implements OnInit {
+export class HomeComponent {
   private readonly auth = inject(AuthService);
   private readonly homeService = inject(HomeService);
-  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly pullToRefresh = viewChild<PullToRefreshComponent>('pullRef');
   protected readonly UserIcon = User;
 
-  protected readonly isLoading = signal(true);
-  protected readonly nextRehearsal = signal<MeEvent | null>(null);
-  protected readonly nextPerformance = signal<MeEvent | null>(null);
+  protected readonly homeResource = rxResource({
+    stream: () => this.homeService.loadHomeData(),
+  });
+
+  protected readonly isLoading = this.homeResource.isLoading;
+  protected readonly hasError = computed(() => !!this.homeResource.error());
+  protected readonly nextRehearsal = computed(() =>
+    this.homeResource.error() ? null : (this.homeResource.value()?.nextRehearsal ?? null),
+  );
+  protected readonly nextPerformance = computed(() =>
+    this.homeResource.error() ? null : (this.homeResource.value()?.nextPerformance ?? null),
+  );
 
   protected readonly greeting = computed(() => {
     const person = this.auth.currentUser()?.person;
@@ -61,45 +67,36 @@ export class HomeComponent implements OnInit {
     () => this.nextRehearsal() !== null || this.nextPerformance() !== null,
   );
 
-  ngOnInit(): void {
-    this.loadData();
+  constructor() {
+    effect(() => {
+      if (!this.isLoading()) {
+        this.pullToRefresh()?.complete();
+      }
+    });
   }
 
   protected reload(): void {
-    this.loadData();
+    this.homeResource.reload();
   }
 
   protected onAttendanceChanged(change: { eventId: string; status: AttendanceStatus }): void {
-    const patch = (ev: MeEvent | null): MeEvent | null => {
-      if (!ev || ev.id !== change.eventId) return ev;
-      return {
-        ...ev,
-        myAttendance: {
-          id: ev.myAttendance?.id ?? '',
-          status: change.status,
-          respondedAt: new Date().toISOString(),
-        },
+    this.homeResource.update((current) => {
+      if (!current) return current;
+      const patch = (ev: MeEvent | null): MeEvent | null => {
+        if (!ev || ev.id !== change.eventId) return ev;
+        return {
+          ...ev,
+          myAttendance: {
+            id: ev.myAttendance?.id ?? '',
+            status: change.status,
+            respondedAt: new Date().toISOString(),
+          },
+        };
       };
-    };
-    this.nextRehearsal.update(patch);
-    this.nextPerformance.update(patch);
-  }
-
-  private loadData(): void {
-    this.isLoading.set(true);
-    this.homeService.loadHomeData().pipe(
-      takeUntilDestroyed(this.destroyRef),
-    ).subscribe({
-      next: (data) => {
-        this.nextRehearsal.set(data.nextRehearsal);
-        this.nextPerformance.set(data.nextPerformance);
-        this.isLoading.set(false);
-        this.pullToRefresh()?.complete();
-      },
-      error: () => {
-        this.isLoading.set(false);
-        this.pullToRefresh()?.complete();
-      },
+      return {
+        nextRehearsal: patch(current.nextRehearsal),
+        nextPerformance: patch(current.nextPerformance),
+      };
     });
   }
 }

@@ -12,7 +12,7 @@ import { LucideAngularModule, AlertTriangle } from 'lucide-angular';
       <div>
         <p class="font-medium">Compte no vinculat</p>
         <p class="text-sm">
-          El teu compte no està vinculat a cap membre. Contacta amb l'equip
+          El compte no està vinculat a cap membre. Contacteu amb l'equip
           tècnic.
         </p>
       </div>

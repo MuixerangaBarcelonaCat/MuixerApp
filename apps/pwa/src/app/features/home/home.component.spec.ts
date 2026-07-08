@@ -1,4 +1,5 @@
 import { TestBed, ComponentFixture } from '@angular/core/testing';
+import { ApplicationRef } from '@angular/core';
 import { of, Subject } from 'rxjs';
 import { EventType, MeEvent, UserRole } from '@muixer/shared';
 import { HomeComponent } from './home.component';
@@ -35,9 +36,12 @@ const MOCK_PERFORMANCE: MeEvent = {
   myAttendance: null,
 };
 
-function createTestBed(homeData: HomeData, person: Record<string, unknown> | null = { id: 'p-1', name: 'Joan', firstSurname: 'Garcia', alias: 'Joanet', email: null }) {
+function createTestBed(homeData: HomeData | Subject<HomeData>, person: Record<string, unknown> | null = { id: 'p-1', name: 'Joan', firstSurname: 'Garcia', alias: 'Joanet', email: null }) {
+  const isSubject = homeData instanceof Subject;
   const homeService = {
-    loadHomeData: vi.fn().mockReturnValue(of(homeData)),
+    loadHomeData: vi.fn().mockReturnValue(
+      isSubject ? homeData.asObservable() : of(homeData),
+    ),
   };
 
   TestBed.configureTestingModule({
@@ -65,6 +69,12 @@ function createTestBed(homeData: HomeData, person: Record<string, unknown> | nul
   return { homeService };
 }
 
+async function stableFixture(fixture: ComponentFixture<HomeComponent>): Promise<void> {
+  fixture.detectChanges();
+  await TestBed.inject(ApplicationRef).whenStable();
+  fixture.detectChanges();
+}
+
 describe('HomeComponent', () => {
   let fixture: ComponentFixture<HomeComponent>;
 
@@ -76,7 +86,7 @@ describe('HomeComponent', () => {
       });
       await TestBed.compileComponents();
       fixture = TestBed.createComponent(HomeComponent);
-      fixture.detectChanges();
+      await stableFixture(fixture);
     });
 
     it('should create', () => {
@@ -84,8 +94,7 @@ describe('HomeComponent', () => {
     });
 
     it('should display greeting with alias', () => {
-      const text = fixture.nativeElement.textContent;
-      expect(text).toContain('Hola, Joanet!');
+      expect(fixture.nativeElement.textContent).toContain('Hola, Joanet!');
     });
 
     it('should display avatar with initial', () => {
@@ -95,13 +104,11 @@ describe('HomeComponent', () => {
     });
 
     it('should display next rehearsal section', () => {
-      const text = fixture.nativeElement.textContent;
-      expect(text).toContain('Pròxim assaig');
+      expect(fixture.nativeElement.textContent).toContain('Pròxim assaig');
     });
 
     it('should display next performance section', () => {
-      const text = fixture.nativeElement.textContent;
-      expect(text).toContain('Pròxima actuació');
+      expect(fixture.nativeElement.textContent).toContain('Pròxima actuació');
     });
 
     it('should render exactly 2 event cards', () => {
@@ -115,7 +122,7 @@ describe('HomeComponent', () => {
       createTestBed({ nextRehearsal: MOCK_REHEARSAL, nextPerformance: null });
       await TestBed.compileComponents();
       fixture = TestBed.createComponent(HomeComponent);
-      fixture.detectChanges();
+      await stableFixture(fixture);
     });
 
     it('should render 1 event card', () => {
@@ -124,8 +131,7 @@ describe('HomeComponent', () => {
     });
 
     it('should not show performance section', () => {
-      const text = fixture.nativeElement.textContent;
-      expect(text).not.toContain('Pròxima actuació');
+      expect(fixture.nativeElement.textContent).not.toContain('Pròxima actuació');
     });
   });
 
@@ -134,7 +140,7 @@ describe('HomeComponent', () => {
       createTestBed({ nextRehearsal: null, nextPerformance: null });
       await TestBed.compileComponents();
       fixture = TestBed.createComponent(HomeComponent);
-      fixture.detectChanges();
+      await stableFixture(fixture);
     });
 
     it('should show empty state', () => {
@@ -148,12 +154,11 @@ describe('HomeComponent', () => {
       createTestBed({ nextRehearsal: null, nextPerformance: null }, null);
       await TestBed.compileComponents();
       fixture = TestBed.createComponent(HomeComponent);
-      fixture.detectChanges();
+      await stableFixture(fixture);
     });
 
     it('should display generic greeting', () => {
-      const text = fixture.nativeElement.textContent;
-      expect(text).toContain('Hola!');
+      expect(fixture.nativeElement.textContent).toContain('Hola!');
     });
 
     it('should show fallback avatar icon', () => {
@@ -173,12 +178,13 @@ describe('HomeComponent', () => {
       homeService = result.homeService;
       await TestBed.compileComponents();
       fixture = TestBed.createComponent(HomeComponent);
-      fixture.detectChanges();
+      await stableFixture(fixture);
     });
 
-    it('should call loadHomeData again on reload', () => {
+    it('should reload resource on pull-to-refresh', async () => {
       expect(homeService.loadHomeData).toHaveBeenCalledTimes(1);
       (fixture.componentInstance as unknown as { reload(): void }).reload();
+      await stableFixture(fixture);
       expect(homeService.loadHomeData).toHaveBeenCalledTimes(2);
     });
   });
@@ -186,19 +192,7 @@ describe('HomeComponent', () => {
   describe('loading state', () => {
     beforeEach(async () => {
       const subject = new Subject<HomeData>();
-      TestBed.configureTestingModule({
-        imports: [HomeComponent],
-        providers: [
-          provideRouter([]),
-          { provide: HomeService, useValue: { loadHomeData: () => subject.asObservable() } },
-          {
-            provide: AuthService,
-            useValue: { currentUser: () => ({ person: { name: 'Test', alias: null } }) },
-          },
-          { provide: EventService, useValue: { updateAttendance: vi.fn() } },
-          { provide: ToastService, useValue: { success: vi.fn(), error: vi.fn() } },
-        ],
-      });
+      createTestBed(subject, { name: 'Test', alias: null });
       await TestBed.compileComponents();
       fixture = TestBed.createComponent(HomeComponent);
       fixture.detectChanges();

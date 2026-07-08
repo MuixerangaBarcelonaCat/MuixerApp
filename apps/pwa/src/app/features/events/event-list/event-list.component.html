@@ -1,16 +1,18 @@
-<app-mobile-header title="Events" />
+<app-mobile-header title="Agenda" />
 
 <div class="flex items-center gap-2 mb-4">
   @if (viewMode() === 'list') {
-    <nav class="tabs tabs-bordered flex-1" role="tablist" aria-label="Filtre d'events">
-      @for (tab of tabs; track tab.key) {
+    <nav class="tabs tabs-bordered flex-1" role="tablist" aria-label="Filtre d'assajos i actuacions">
+      @for (tab of tabs; track tab.key; let i = $index) {
         <button
           type="button"
           role="tab"
           class="tab flex-1"
           [class.tab-active]="activeFilter() === tab.key"
           [attr.aria-selected]="activeFilter() === tab.key"
+          [tabindex]="activeFilter() === tab.key ? 0 : -1"
           (click)="setFilter(tab.key)"
+          (keydown)="onFilterKeydown($event, i)"
         >
           {{ tab.label }}
         </button>
@@ -23,7 +25,7 @@
   <button
     type="button"
     class="btn btn-ghost btn-sm btn-square"
-    [attr.aria-label]="viewMode() === 'list' ? 'Veure calendari' : 'Veure llista'"
+    [attr.aria-label]="viewMode() === 'list' ? 'Mostra el calendari' : 'Mostra la llista'"
     (click)="toggleView()"
   >
     @if (viewMode() === 'list') {
@@ -40,7 +42,11 @@
       @if (isLoading()) {
         <app-skeleton-card [count]="4" />
       } @else if (hasError()) {
-        <app-empty-state message="Error carregant els events. Torna-ho a provar." />
+        <app-empty-state
+          message="S'ha produït un error en carregar els assajos i les actuacions. Torneu-ho a provar."
+          actionLabel="Torna-ho a provar"
+          (action)="onRefresh()"
+        />
       } @else if (events().length === 0) {
         <app-empty-state [message]="emptyMessage()" />
       } @else {
@@ -52,7 +58,7 @@
         }
         @if (isTruncated()) {
           <p class="text-center text-sm text-base-content/50 py-2">
-            Hi ha més events. Canvia el filtre per veure'ls tots.
+            Hi ha més assajos i actuacions. Canvieu el filtre per veure'ls tots.
           </p>
         }
       }
@@ -68,6 +74,12 @@
             }
           </div>
         </div>
+      } @else if (hasCalendarError()) {
+        <app-empty-state
+          message="No s'ha pogut carregar el calendari. Torneu-ho a provar."
+          actionLabel="Torna-ho a provar"
+          (action)="loadAllSeasonEvents()"
+        />
       } @else {
         <app-calendar-view
           [events]="allSeasonEvents()"
@@ -75,10 +87,16 @@
           (selectedDateChange)="onSelectedDateChange($event)"
         />
 
+        @if (isCalendarTruncated()) {
+          <p class="text-center text-xs text-warning py-1">
+            El calendari no mostra tots els assajos i actuacions de la temporada.
+          </p>
+        }
+
         @if (selectedDate() && selectedDayEvents().length > 0) {
           <section class="flex flex-col gap-3 pt-2 pb-4">
             <h3 class="text-sm font-medium text-base-content/60">
-              Events del {{ selectedDateLabel() }}
+              {{ selectedDayHeading() }} {{ selectedDateLabel() }}
             </h3>
             @for (ev of selectedDayEvents(); track ev.id) {
               <app-event-card

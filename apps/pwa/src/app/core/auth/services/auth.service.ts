@@ -2,8 +2,7 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { catchError, finalize, map, Observable, of, share, tap } from 'rxjs';
-import { ClientType } from '@muixer/shared';
-import { AuthResponse, LoginRequest, UserProfile } from '../models/auth.models';
+import { AuthResponse, ClientType, LoginRequest, UserProfile } from '@muixer/shared';
 import { ToastService } from '../../../shared/services/toast.service';
 import { environment } from '../../../../environments/environment';
 
@@ -59,7 +58,7 @@ export class AuthService {
     if (this._sessionExpiredHandled) return;
     this._sessionExpiredHandled = true;
     this.clearState();
-    this.toast.error('La sessió ha expirat. Torna a entrar.');
+    this.toast.error('La sessió ha caducat. Torneu a entrar.');
     this.router.navigate(['/login']);
     setTimeout(() => { this._sessionExpiredHandled = false; }, 2000);
   }
