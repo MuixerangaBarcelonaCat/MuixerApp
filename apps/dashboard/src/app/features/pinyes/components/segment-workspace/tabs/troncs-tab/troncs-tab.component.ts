@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { LucideAngularModule, Map as MapIcon } from 'lucide-angular';
 import { TroncViewComponent, TroncNodeItem } from '../../../tronc-view/tronc-view.component';
 import { PersonPanelComponent } from '../../../person-panel/person-panel.component';
@@ -40,7 +40,7 @@ interface TroncFigure {
   imports: [LucideAngularModule, TroncViewComponent, PersonPanelComponent],
   templateUrl: './troncs-tab.component.html',
 })
-export class TroncsTabComponent {
+export class TroncsTabComponent implements OnInit {
   readonly ws = inject(SegmentWorkspaceStateService);
   readonly state = inject(AssignmentStateService);
   private readonly assignmentService = inject(NodeAssignmentService);
@@ -48,6 +48,12 @@ export class TroncsTabComponent {
   private readonly undoRedo = inject(UndoRedoService);
 
   readonly isPast = input(false);
+
+  ngOnInit(): void {
+    // Positions/cordons/mode may have changed in another tab (e.g. Distribució)
+    // since the workspace's one-time load(); pull the latest on activation.
+    this.ws.refresh();
+  }
 
   readonly MapIcon = MapIcon;
 

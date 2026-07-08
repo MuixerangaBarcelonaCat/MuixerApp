@@ -15,12 +15,10 @@ import { SegmentDistributionService } from '../../services/segment-distribution.
 import { CanvasStateService } from '../../services/canvas-state.service';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { FigureCanvasComponent, CompositionSlotWithNodes } from '../figure-canvas/figure-canvas.component';
-import { DistributionItem, InstanceDistributionPayload } from '../../models/distribution.model';
-import { filterNodesByFigureMode } from '../../utils/figure-mode-filter.util';
+import { InstanceDistributionPayload } from '../../models/distribution.model';
+import { mapDistributionItemsToSlots } from '../../utils/distribution-slot-mapping.util';
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
-
-const AUTO_PLACE_GAP = 300;
 
 @Component({
   selector: 'app-distribution-editor',
@@ -65,7 +63,7 @@ export class DistributionEditorComponent implements OnInit, OnDestroy {
     this.distributionService.getDistribution(this.eventId, this.segmentId).subscribe({
       next: (data) => {
         this.segmentName.set(data.segment.name);
-        this.slots.set(this.mapItemsToSlots(data.items));
+        this.slots.set(mapDistributionItemsToSlots(data.items));
         this.loading.set(false);
         this.scheduleInitialCenter();
       },
@@ -79,50 +77,6 @@ export class DistributionEditorComponent implements OnInit, OnDestroy {
   /** Runs once after the canvas has rendered the loaded content, to center the viewport on it. */
   private scheduleInitialCenter(): void {
     setTimeout(() => this.canvasRef?.centerOnContent());
-  }
-
-  private mapItemsToSlots(items: DistributionItem[]): CompositionSlotWithNodes[] {
-    const hasPositions = items.some((i) => i.projectionX !== null);
-
-    return items.map((item, index) => {
-      const filteredNodes = filterNodesByFigureMode(
-        item.figureTemplate.nodes,
-        item.figureMode,
-        item.numberOfCordons,
-      );
-
-      return {
-        slotId: item.instanceId,
-        label: this.computeSlotLabel(item),
-        offsetX: hasPositions ? (item.projectionX ?? index * AUTO_PLACE_GAP) : index * AUTO_PLACE_GAP,
-        offsetY: hasPositions ? (item.projectionY ?? 0) : 0,
-        sortOrder: index,
-        angle: hasPositions ? (item.projectionAngle ?? 0) : 0,
-        assignments: item.assignments,
-        troncGridCols: item.troncGridCols,
-        troncGridRows: item.troncGridRows,
-        troncPanelX: item.troncPanelX,
-        troncPanelY: item.troncPanelY,
-        figureTemplate: {
-          id: item.figureTemplate.id,
-          name: item.figureTemplate.name,
-          hasPinya: filteredNodes.some((n) => n.zone === 'PINYA'),
-          nodes: filteredNodes as any,
-        },
-      };
-    });
-  }
-
-  private computeSlotLabel(item: DistributionItem): string {
-    const base = item.label ?? item.figureTemplate.name;
-    if (item.figureMode === 'PEU') return `Peu de ${base}`;
-    if (item.figureMode === 'REMAT') return `Remat de ${base}`;
-    if (item.figureMode === 'NETA') {
-      const firstWord = base.trim().split(/\s+/)[0] ?? '';
-      const suffix = firstWord.endsWith('a') ? 'neta' : 'net';
-      return `${base} ${suffix}`;
-    }
-    return base;
   }
 
   onSlotSelected(slotId: string | null): void {

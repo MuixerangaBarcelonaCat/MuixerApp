@@ -17,6 +17,7 @@ import { SegmentWorkspaceStateService } from '../../services/segment-workspace-s
 import { UndoRedoService } from '../../services/undo-redo.service';
 import { PinyesTabComponent } from './tabs/pinyes-tab/pinyes-tab.component';
 import { TroncsTabComponent } from './tabs/troncs-tab/troncs-tab.component';
+import { DistribucioTabComponent } from './tabs/distribucio-tab/distribucio-tab.component';
 
 export type WorkspaceTab = 'pinyes' | 'troncs' | 'distribucio' | 'nodes' | 'previsualitza';
 
@@ -26,7 +27,7 @@ const WORKSPACE_TABS: WorkspaceTab[] = ['pinyes', 'troncs', 'distribucio', 'node
   selector: 'app-segment-workspace',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule, PinyesTabComponent, TroncsTabComponent],
+  imports: [LucideAngularModule, PinyesTabComponent, TroncsTabComponent, DistribucioTabComponent],
   templateUrl: './segment-workspace.component.html',
   providers: [SegmentWorkspaceStateService, UndoRedoService],
 })

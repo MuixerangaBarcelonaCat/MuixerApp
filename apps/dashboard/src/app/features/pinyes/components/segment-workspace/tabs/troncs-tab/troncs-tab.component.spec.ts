@@ -174,6 +174,7 @@ describe('TroncsTabComponent', () => {
     deleteAdHocNode: MockFn;
   };
   let toast: { success: MockFn; error: MockFn; info: MockFn };
+  let refreshSpy: ReturnType<typeof vi.spyOn>;
 
   const setup = async (opts: {
     instances?: InstanceDetail[];
@@ -232,6 +233,7 @@ describe('TroncsTabComponent', () => {
     ws = TestBed.inject(SegmentWorkspaceStateService);
     state = TestBed.inject(AssignmentStateService);
     ws.load(EVENT_ID, SEGMENT_ID);
+    refreshSpy = vi.spyOn(ws, 'refresh');
 
     fixture = TestBed.createComponent(TroncsTabComponent);
     component = fixture.componentInstance;
@@ -253,6 +255,12 @@ describe('TroncsTabComponent', () => {
       });
 
       expect(troncStubs()).toHaveLength(2);
+    });
+
+    it('refreshes the workspace on init so figures edited in other tabs show up-to-date', async () => {
+      await setup();
+
+      expect(refreshSpy).toHaveBeenCalled();
     });
 
     it('skips figures with no tronc/base/direction nodes', async () => {

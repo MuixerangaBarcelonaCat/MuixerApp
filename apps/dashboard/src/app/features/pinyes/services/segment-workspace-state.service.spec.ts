@@ -448,4 +448,49 @@ describe('SegmentWorkspaceStateService', () => {
       expect(state.selectedNodeId()).toBeNull();
     });
   });
+
+  describe('refresh', () => {
+    it('re-fetches numberOfCordons, figureMode and label for existing instances, keeping their loaded nodes', () => {
+      configure({
+        segment: makeSegment([makeInstance('inst-a', { numberOfCordons: 1, figureMode: 'COMPLETA' })]),
+        nodesByInstance: { 'inst-a': [makeNode('n1', 'PINYA')] },
+      });
+      service.load(EVENT_ID, SEGMENT_ID);
+      expect(service.instances()[0].nodes).toHaveLength(1);
+
+      segmentService.getByEvent.mockReturnValue(
+        of({
+          data: [makeSegment([makeInstance('inst-a', { numberOfCordons: 3, figureMode: 'PEU' })])],
+        }),
+      );
+      service.refresh();
+
+      const inst = service.instances()[0];
+      expect(inst.numberOfCordons).toBe(3);
+      expect(inst.figureMode).toBe('PEU');
+      expect(inst.nodes).toHaveLength(1);
+    });
+
+    it('re-fetches distribution positions', () => {
+      configure();
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      distributionService.getDistribution.mockReturnValue(
+        of({
+          segment: { id: SEGMENT_ID, name: 'Bloc 1' },
+          items: [makeDistributionItem('inst-a', { projectionX: 999, projectionY: 111, projectionAngle: 0 })],
+        }),
+      );
+      service.refresh();
+
+      expect(service.distributionByInstance().get('inst-a')?.projectionX).toBe(999);
+    });
+
+    it('does nothing when called before load (no event/segment id yet)', () => {
+      configure();
+
+      expect(() => service.refresh()).not.toThrow();
+      expect(segmentService.getByEvent).not.toHaveBeenCalled();
+    });
+  });
 });

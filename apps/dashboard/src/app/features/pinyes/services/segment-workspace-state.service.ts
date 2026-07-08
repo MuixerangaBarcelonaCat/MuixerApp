@@ -178,6 +178,51 @@ export class SegmentWorkspaceStateService {
     });
   }
 
+  /**
+   * Re-fetches segment instance fields (label, figureMode, numberOfCordons,
+   * snapshotted, assignedCount) and distribution positions, merging them into
+   * the already-loaded instances. Call on tab activation so a figure edited in
+   * one tab (e.g. cordons/mode/position in Distribució) shows up-to-date in
+   * others (e.g. Pinyes, Troncs) — those signals are otherwise only populated
+   * once by `load()` and go stale across tab switches.
+   */
+  refresh(): void {
+    const eventId = this.eventId();
+    const segmentId = this.segmentId();
+    if (!eventId || !segmentId) return;
+
+    this.segmentService.getByEvent(eventId).subscribe({
+      next: (resp) => {
+        const seg = resp.data.find((s) => s.id === segmentId);
+        if (!seg) return;
+        this.segment.set(seg);
+        this.instances.update((list) =>
+          list.map((existing) => {
+            const fresh = seg.instances.find((i) => i.id === existing.instanceId);
+            if (!fresh) return existing;
+            return {
+              ...existing,
+              label: this.computeInstanceLabel(
+                fresh.label ?? fresh.figureTemplate?.name ?? '?',
+                fresh.figureMode ?? 'COMPLETA',
+              ),
+              figureMode: fresh.figureMode ?? 'COMPLETA',
+              numberOfCordons: fresh.numberOfCordons ?? null,
+              snapshotted: fresh.snapshotted,
+              assignedCount: fresh.assignedCount ?? existing.assignedCount,
+            };
+          }),
+        );
+      },
+    });
+
+    this.distributionService.getDistribution(eventId, segmentId).subscribe({
+      next: (data) => {
+        this.distributionByInstance.set(new Map(data.items.map((i) => [i.instanceId, i])));
+      },
+    });
+  }
+
   /** Reloads nodes + assignments for one instance and merges them into workspace state. */
   refreshInstance(instanceId: string): void {
     this.assignmentService.getInstanceNodes(instanceId).subscribe({

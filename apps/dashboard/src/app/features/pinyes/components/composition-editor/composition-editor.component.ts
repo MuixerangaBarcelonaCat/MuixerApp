@@ -16,7 +16,8 @@ import { FigureTemplateService } from '../../services/figure-template.service';
 import { CanvasStateService } from '../../services/canvas-state.service';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { FigureCanvasComponent, CompositionSlotWithNodes } from '../figure-canvas/figure-canvas.component';
-import { filterNodesByFigureMode } from '../../utils/figure-mode-filter.util';
+import { FigurePropertiesPanelComponent, FigurePropertiesEntry } from '../figure-properties-panel/figure-properties-panel.component';
+import { computeMaxCordons, filterNodesByFigureMode } from '../../utils/figure-mode-filter.util';
 import {
   CompositionDetail,
   CompositionEntryItem,
@@ -34,7 +35,7 @@ const ADD_STAGGER_COUNT = 5;
   selector: 'app-composition-editor',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule, FigureCanvasComponent, RouterModule],
+  imports: [FormsModule, LucideAngularModule, FigureCanvasComponent, FigurePropertiesPanelComponent, RouterModule],
   templateUrl: './composition-editor.component.html',
 })
 export class CompositionEditorComponent implements OnInit, OnDestroy {
@@ -61,6 +62,23 @@ export class CompositionEditorComponent implements OnInit, OnDestroy {
   readonly selectedEntry = computed(
     () => this.entries().find((e) => e.id === this.selectedEntryId()) ?? null,
   );
+
+  readonly propertiesEntry = computed<FigurePropertiesEntry | null>(() => {
+    const entry = this.selectedEntry();
+    if (!entry) return null;
+    return {
+      id: entry.id,
+      label: entry.label,
+      figureTemplateName: entry.figureTemplate.name,
+      figureMode: entry.figureMode,
+      numberOfCordons: entry.numberOfCordons,
+      maxCordons: computeMaxCordons(entry.figureTemplate.nodes),
+      hasPinya: entry.figureTemplate.hasPinya,
+      offsetX: entry.offsetX,
+      offsetY: entry.offsetY,
+      angle: entry.angle,
+    };
+  });
 
   readonly filteredTemplates = computed<FigureTemplateListItem[]>(() => {
     const q = this.search().toLowerCase();

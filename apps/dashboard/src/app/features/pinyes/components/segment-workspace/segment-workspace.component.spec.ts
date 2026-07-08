@@ -22,6 +22,9 @@ class StubTroncsTab {
   readonly isPast = input(false);
 }
 
+@Component({ selector: 'app-distribucio-tab', standalone: true, template: '' })
+class StubDistribucioTab {}
+
 const EVENT_ID = 'event-1';
 const SEGMENT_ID = 'seg-1';
 
@@ -102,7 +105,7 @@ describe('SegmentWorkspaceComponent', () => {
             { provide: SegmentWorkspaceStateService, useValue: ws },
             UndoRedoService,
           ],
-          imports: [LucideAngularModule, StubPinyesTab, StubTroncsTab],
+          imports: [LucideAngularModule, StubPinyesTab, StubTroncsTab, StubDistribucioTab],
         },
       })
       .compileComponents();
@@ -192,6 +195,12 @@ describe('SegmentWorkspaceComponent', () => {
     const fixture = await setup({ queryParams: { tab: 'troncs' } });
     const troncsTab = fixture.nativeElement.querySelector('app-troncs-tab');
     expect(troncsTab).toBeTruthy();
+  });
+
+  it('shows the distribucio tab content when distribucio is active', async () => {
+    const fixture = await setup({ queryParams: { tab: 'distribucio' } });
+    const distribucioTab = fixture.nativeElement.querySelector('app-distribucio-tab');
+    expect(distribucioTab).toBeTruthy();
   });
 
   it('marks the workspace as past from the past query param', async () => {

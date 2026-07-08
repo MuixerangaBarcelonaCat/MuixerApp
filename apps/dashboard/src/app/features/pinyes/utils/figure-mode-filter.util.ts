@@ -17,3 +17,23 @@ export function filterNodesByFigureMode<T extends FigureModeFilterableNode>(
     return !n.renglaId || n.renglaPosition === null || n.renglaPosition <= numberOfCordons;
   });
 }
+
+export interface CordonsCountableNode {
+  zone: string;
+  positionType?: string | null;
+  renglaPosition: number | null;
+}
+
+/** Highest rengla position among a figure's PINYA nodes — the number of cordons it has. */
+export function computeMaxCordons(nodes: CordonsCountableNode[]): number {
+  return nodes.reduce(
+    (max, n) =>
+      n.zone === 'PINYA' &&
+      n.positionType !== 'cordo-obert' &&
+      n.renglaPosition !== null &&
+      n.renglaPosition > max
+        ? n.renglaPosition
+        : max,
+    0,
+  );
+}

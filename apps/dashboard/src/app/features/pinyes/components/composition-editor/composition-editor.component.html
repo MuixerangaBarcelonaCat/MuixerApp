@@ -108,112 +108,18 @@
     </main>
 
     <!-- Right panel: entry properties -->
-    @if (selectedEntry(); as entry) {
+    @if (propertiesEntry(); as entry) {
       <aside class="w-70 shrink-0 bg-base-100 border-l border-base-200 flex flex-col overflow-y-auto p-3 space-y-3" aria-label="Propietats de la figura">
-        <div class="flex items-center justify-between">
-          <h3 class="text-sm font-semibold">Propietats</h3>
-        </div>
-
-        <div class="form-control">
-          <label class="label pb-1" [for]="'entry-label-' + entry.id">
-            <span class="label-text text-xs font-medium">Nom</span>
-          </label>
-          <input
-            type="text"
-            [id]="'entry-label-' + entry.id"
-            class="input input-bordered input-sm"
-            [placeholder]="entry.figureTemplate.name"
-            [ngModel]="entry.label"
-            (ngModelChange)="updateLabel(entry.id, $event)"
-          />
-        </div>
-
-        <div class="form-control">
-          <label class="label pb-1" [for]="'entry-mode-' + entry.id">
-            <span class="label-text text-xs font-medium">Mode</span>
-          </label>
-          <select
-            [id]="'entry-mode-' + entry.id"
-            class="select select-bordered select-sm"
-            [ngModel]="entry.figureMode"
-            (ngModelChange)="updateFigureMode(entry.id, $event)"
-          >
-            <option value="COMPLETA">Completa</option>
-            <option value="PEU">Peu</option>
-            <option value="REMAT">Remat</option>
-            <option value="NETA">Neta</option>
-          </select>
-        </div>
-
-        @if (entry.figureMode === 'COMPLETA' || entry.figureMode === 'PEU') {
-          <div class="form-control">
-            <label class="label pb-1" [for]="'entry-cordons-' + entry.id">
-              <span class="label-text text-xs font-medium">Cordons</span>
-            </label>
-            <input
-              type="number"
-              [id]="'entry-cordons-' + entry.id"
-              class="input input-bordered input-sm font-mono"
-              placeholder="Tots"
-              min="1"
-              [ngModel]="entry.numberOfCordons"
-              (ngModelChange)="updateNumberOfCordons(entry.id, $event === '' ? null : +$event)"
-            />
-          </div>
-        }
-
-        <div>
-          <p class="label-text text-xs font-medium mb-1">Posició</p>
-          <div class="grid grid-cols-2 gap-2">
-            <div class="form-control">
-              <label class="label pb-0.5" [for]="'entry-x-' + entry.id">
-                <span class="label-text text-xs">X</span>
-              </label>
-              <input
-                type="number"
-                [id]="'entry-x-' + entry.id"
-                class="input input-bordered input-sm font-mono"
-                [ngModel]="entry.offsetX"
-                (ngModelChange)="updateOffsetX(entry.id, +$event)"
-              />
-            </div>
-            <div class="form-control">
-              <label class="label pb-0.5" [for]="'entry-y-' + entry.id">
-                <span class="label-text text-xs">Y</span>
-              </label>
-              <input
-                type="number"
-                [id]="'entry-y-' + entry.id"
-                class="input input-bordered input-sm font-mono"
-                [ngModel]="entry.offsetY"
-                (ngModelChange)="updateOffsetY(entry.id, +$event)"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div class="form-control">
-          <label class="label pb-1" [for]="'entry-angle-' + entry.id">
-            <span class="label-text text-xs font-medium">Angle</span>
-          </label>
-          <input
-            type="number"
-            [id]="'entry-angle-' + entry.id"
-            class="input input-bordered input-sm font-mono"
-            [ngModel]="entry.angle"
-            (ngModelChange)="updateAngle(entry.id, +$event)"
-          />
-        </div>
-
-        <button
-          type="button"
-          class="btn btn-error btn-outline btn-sm gap-1.5 mt-2"
-          (click)="removeEntry(entry.id)"
-          [attr.aria-label]="'Elimina ' + (entry.label ?? entry.figureTemplate.name)"
-        >
-          <lucide-icon name="Trash2" [size]="14" aria-hidden="true" />
-          Elimina
-        </button>
+        <app-figure-properties-panel
+          [entry]="entry"
+          (labelChanged)="updateLabel($event.id, $event.value ?? '')"
+          (figureModeChanged)="updateFigureMode($event.id, $event.value)"
+          (numberOfCordonsChanged)="updateNumberOfCordons($event.id, $event.value)"
+          (offsetXChanged)="updateOffsetX($event.id, $event.value)"
+          (offsetYChanged)="updateOffsetY($event.id, $event.value)"
+          (angleChanged)="updateAngle($event.id, $event.value)"
+          (removeRequested)="removeEntry($event)"
+        />
       </aside>
     }
 

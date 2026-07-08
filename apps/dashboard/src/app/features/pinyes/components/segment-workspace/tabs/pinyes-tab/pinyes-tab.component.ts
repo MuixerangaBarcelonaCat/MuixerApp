@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   HostListener,
+  OnInit,
   ViewChild,
   computed,
   effect,
@@ -52,7 +53,7 @@ import { buildPinyaBuckets, pickNextAssignableNode } from '../../../../utils/ass
   ],
   templateUrl: './pinyes-tab.component.html',
 })
-export class PinyesTabComponent {
+export class PinyesTabComponent implements OnInit {
   readonly ws = inject(SegmentWorkspaceStateService);
   readonly state = inject(AssignmentStateService);
   private readonly assignmentService = inject(NodeAssignmentService);
@@ -74,6 +75,12 @@ export class PinyesTabComponent {
         setTimeout(() => this.canvasRef?.centerOnContent());
       }
     });
+  }
+
+  ngOnInit(): void {
+    // Positions/cordons/mode may have changed in another tab (e.g. Distribució)
+    // since the workspace's one-time load(); pull the latest on activation.
+    this.ws.refresh();
   }
 
   readonly selectedRef = signal<SegmentNodeRef | null>(null);

@@ -236,7 +236,7 @@ rotation/cordons/mode; instance update endpoint calls; destructive mode-change
 confirm).
 
 **Phase 6 — Nodes extra tab.** Figure selector, dimming, node palette (normal
-presets + ad-hoc + decorations + comodí), properties panel on the right,
+presets + comodí + decorations), properties panel on the right,
 add/edit/delete/copy-paste ad-hoc nodes scoped to the selected figure.
 
 **Phase 7 — Previsualitza tab.** Embed segment projection view; verify identical
