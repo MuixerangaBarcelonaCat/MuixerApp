@@ -406,6 +406,34 @@ describe('SegmentWorkspaceStateService', () => {
       expect(cordoObert?.y).toBe(20);
     });
 
+    it('keeps an auto-placed figure position stable when its nodes change later (e.g. adding an ad-hoc node)', () => {
+      configure({
+        segment: makeSegment([makeInstance('inst-a'), makeInstance('inst-b')]),
+        nodesByInstance: {
+          'inst-a': [makeNode('n1', 'PINYA', { width: 100, height: 40 })],
+          'inst-b': [makeNode('n2', 'PINYA', { width: 100, height: 40 })],
+        },
+      });
+      service.load(EVENT_ID, SEGMENT_ID);
+      const initialOffsetX = service.pinyaSlots().find((s) => s.slotId === 'inst-b')?.offsetX;
+
+      assignmentService.getInstanceNodes.mockImplementation((instanceId: string) =>
+        of({
+          data:
+            instanceId === 'inst-a'
+              ? [
+                  makeNode('n1', 'PINYA', { width: 100, height: 40 }),
+                  makeNode('adhoc-1', 'PINYA', { x: 600, width: 40, height: 40, isAdHoc: true }),
+                ]
+              : [makeNode('n2', 'PINYA', { width: 100, height: 40 })],
+        }),
+      );
+      service.refreshInstance('inst-a');
+
+      const offsetXAfter = service.pinyaSlots().find((s) => s.slotId === 'inst-b')?.offsetX;
+      expect(offsetXAfter).toBe(initialOffsetX);
+    });
+
     it('skips instances with no pinya-canvas nodes', () => {
       configure({
         segment: makeSegment([makeInstance('inst-a'), makeInstance('inst-b')]),

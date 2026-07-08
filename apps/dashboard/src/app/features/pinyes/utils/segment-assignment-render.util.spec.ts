@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildSegmentRenderNodes } from './segment-assignment-render.util';
+import { boundingBoxCenter, buildSegmentRenderNodes, stageToSlotLocal } from './segment-assignment-render.util';
 import { CompositionSlotWithNodes } from '../components/figure-canvas/figure-canvas.component';
 import { AssignmentDetail } from '../models/assignment.model';
 
@@ -136,5 +136,45 @@ describe('buildSegmentRenderNodes', () => {
     const result = buildSegmentRenderNodes(slots, [], null, new Set(), new Set());
 
     expect(result.map((r) => r.slotId)).toEqual(['inst-a', 'inst-b']);
+  });
+});
+
+describe('boundingBoxCenter', () => {
+  it('returns the origin for an empty node set', () => {
+    expect(boundingBoxCenter([])).toEqual({ x: 0, y: 0 });
+  });
+
+  it('returns the center of the union bounding box', () => {
+    const center = boundingBoxCenter([
+      { x: 0, y: 0, width: 20, height: 20 },
+      { x: 100, y: 40, width: 20, height: 20 },
+    ]);
+    expect(center).toEqual({ x: 50, y: 20 });
+  });
+});
+
+describe('stageToSlotLocal', () => {
+  it('subtracts the slot offset when there is no rotation and the pivot is at the origin', () => {
+    const slot = makeSlot('inst-a', [], { offsetX: 100, offsetY: 50, angle: 0 });
+
+    const result = stageToSlotLocal({ x: 110, y: 60 }, slot, { x: 0, y: 0 });
+
+    expect(result).toEqual({ x: 10, y: 10 });
+  });
+
+  it('maps a click at the slot origin to the pivot', () => {
+    const slot = makeSlot('inst-a', [], { offsetX: 500, offsetY: 300, angle: 0 });
+
+    const result = stageToSlotLocal({ x: 500, y: 300 }, slot, { x: 100, y: 100 });
+
+    expect(result).toEqual({ x: 100, y: 100 });
+  });
+
+  it('accounts for the slot rotation (inverse-rotates the click around the pivot)', () => {
+    const slot = makeSlot('inst-a', [], { offsetX: 0, offsetY: 0, angle: 90 });
+
+    const result = stageToSlotLocal({ x: 0, y: 10 }, slot, { x: 0, y: 0 });
+
+    expect(result).toEqual({ x: 10, y: 0 });
   });
 });

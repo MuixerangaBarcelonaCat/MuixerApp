@@ -51,6 +51,9 @@ export class SegmentWorkspaceStateService {
   readonly lockStatus = signal<LockStatus | null>(null);
   readonly personsLoaded = signal(false);
 
+  // Frozen per instance so adding/moving an ad-hoc node doesn't reflow other figures.
+  private readonly autoPlacementExtentCache = new Map<string, { width: number; height: number }>();
+
   readonly segmentName = computed(() => this.segment()?.name ?? null);
   readonly isLocked = computed(() => this.lockStatus()?.locked ?? false);
 
@@ -75,7 +78,7 @@ export class SegmentWorkspaceStateService {
       if (item?.projectionX != null) {
         placedExtents.push({
           x: item.projectionX,
-          width: figureExtentFromNodes(instance.instanceId, nodes).width,
+          width: this.stableAutoPlacementExtent(instance.instanceId, nodes).width,
         });
       }
     }
@@ -90,11 +93,9 @@ export class SegmentWorkspaceStateService {
         offsetY = item.projectionY ?? 0;
         angle = item.projectionAngle ?? 0;
       } else {
-        const placed = placeNewFigure(placedExtents, figureExtentFromNodes(instance.instanceId, nodes));
-        placedExtents.push({
-          x: placed.x,
-          width: figureExtentFromNodes(instance.instanceId, nodes).width,
-        });
+        const extent = this.stableAutoPlacementExtent(instance.instanceId, nodes);
+        const placed = placeNewFigure(placedExtents, { instanceId: instance.instanceId, ...extent });
+        placedExtents.push({ x: placed.x, width: extent.width });
         offsetX = placed.x;
         offsetY = placed.y;
         angle = placed.angle;
@@ -118,12 +119,25 @@ export class SegmentWorkspaceStateService {
     });
   });
 
+  /** Extent used for auto-placement, computed once per instance and reused thereafter. */
+  private stableAutoPlacementExtent(
+    instanceId: string,
+    nodes: InstanceNodeItem[],
+  ): { width: number; height: number } {
+    const cached = this.autoPlacementExtentCache.get(instanceId);
+    if (cached) return cached;
+    const extent = figureExtentFromNodes(instanceId, nodes);
+    if (nodes.length > 0) this.autoPlacementExtentCache.set(instanceId, extent);
+    return extent;
+  }
+
   load(eventId: string, segmentId: string): void {
     this.eventId.set(eventId);
     this.segmentId.set(segmentId);
     this.loading.set(true);
     this.notFound.set(false);
     this.state.reset();
+    this.autoPlacementExtentCache.clear();
 
     this.segmentService.getByEvent(eventId).subscribe({
       next: (resp) => {

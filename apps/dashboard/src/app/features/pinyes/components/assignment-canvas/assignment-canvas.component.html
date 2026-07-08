@@ -391,20 +391,22 @@
 
         <!-- Ad-hoc node properties panel (opens on double-click) -->
         @if (adHocNodeForPanel(); as adHocNode) {
-          <app-ad-hoc-node-properties
-            [node]="adHocNode"
-            [instanceId]="state.activeInstanceId()!"
-            [assignment]="selectedAdHocAssignment()"
-            [heightMode]="state.heightMode()"
-            [attendanceStatus]="selectedAdHocAssignment() ? getAttendanceStatus(selectedAdHocAssignment()!) : null"
-            [isPast]="isPast()"
-            (closed)="adHocPropertiesOpen.set(false)"
-            (propertyChanged)="onAdHocPropertyChanged($event)"
-            (nodeUpdated)="onAdHocNodeUpdated()"
-            (deleteRequested)="onAdHocDeleteFromPanel($event)"
-            (duplicateRequested)="duplicateSelectedAdHocNode()"
-            (unassign)="onUnassign($event)"
-          />
+          <div class="absolute top-12 left-4 z-30 border border-base-300 shadow-xl w-64 max-h-[calc(100%-6rem)]">
+            <app-ad-hoc-node-properties
+              [node]="adHocNode"
+              [instanceId]="state.activeInstanceId()!"
+              [assignment]="selectedAdHocAssignment()"
+              [heightMode]="state.heightMode()"
+              [attendanceStatus]="selectedAdHocAssignment() ? getAttendanceStatus(selectedAdHocAssignment()!) : null"
+              [isPast]="isPast()"
+              (closed)="adHocPropertiesOpen.set(false)"
+              (propertyChanged)="onAdHocPropertyChanged($event)"
+              (nodeUpdated)="onAdHocNodeUpdated()"
+              (deleteRequested)="onAdHocDeleteFromPanel($event)"
+              (duplicateRequested)="duplicateSelectedAdHocNode()"
+              (unassign)="onUnassign($event)"
+            />
+          </div>
         }
       } <!-- end @if viewMode() !== 'previsualitza' -->
     </main>
@@ -748,7 +750,7 @@
           (click)="confirmComodinLabel()"
           [disabled]="!comodinLabel().trim()"
         >
-          Col·locar
+          Col·loca
         </button>
       </div>
     </div>

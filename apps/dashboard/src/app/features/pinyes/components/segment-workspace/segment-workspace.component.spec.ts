@@ -25,6 +25,11 @@ class StubTroncsTab {
 @Component({ selector: 'app-distribucio-tab', standalone: true, template: '' })
 class StubDistribucioTab {}
 
+@Component({ selector: 'app-nodes-tab', standalone: true, template: '' })
+class StubNodesTab {
+  readonly isPast = input(false);
+}
+
 const EVENT_ID = 'event-1';
 const SEGMENT_ID = 'seg-1';
 
@@ -105,7 +110,7 @@ describe('SegmentWorkspaceComponent', () => {
             { provide: SegmentWorkspaceStateService, useValue: ws },
             UndoRedoService,
           ],
-          imports: [LucideAngularModule, StubPinyesTab, StubTroncsTab, StubDistribucioTab],
+          imports: [LucideAngularModule, StubPinyesTab, StubTroncsTab, StubDistribucioTab, StubNodesTab],
         },
       })
       .compileComponents();
@@ -201,6 +206,12 @@ describe('SegmentWorkspaceComponent', () => {
     const fixture = await setup({ queryParams: { tab: 'distribucio' } });
     const distribucioTab = fixture.nativeElement.querySelector('app-distribucio-tab');
     expect(distribucioTab).toBeTruthy();
+  });
+
+  it('shows the nodes tab content when nodes is active', async () => {
+    const fixture = await setup({ queryParams: { tab: 'nodes' } });
+    const nodesTab = fixture.nativeElement.querySelector('app-nodes-tab');
+    expect(nodesTab).toBeTruthy();
   });
 
   it('marks the workspace as past from the past query param', async () => {

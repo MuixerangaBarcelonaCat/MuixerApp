@@ -54,8 +54,7 @@ export const DECORATION_NODE_PRESETS: NodePreset[] = [
   { zone: FigureZone.DECORATION, positionType: 'circle', label: '', width: 60, height: 60, shape: NodeShape.CIRCLE, color: null, requiresCustomLabel: true },
 ];
 
-// 'ellipse' is excluded — it is not a valid ad-hoc positionType from the API side
-export const DECORATION_POSITION_TYPES = ['rectangle', 'arrow', 'circle'] as const;
+export const DECORATION_POSITION_TYPES = ['rectangle', 'ellipse', 'arrow', 'circle'] as const;
 export type DecorationPositionType = (typeof DECORATION_POSITION_TYPES)[number];
 
 export const PINYA_NODE_PRESETS: NodePreset[] = [

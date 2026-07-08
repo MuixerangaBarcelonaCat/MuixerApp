@@ -29,9 +29,11 @@ import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.uti
 import { computeTroncNaturalSize, TRONC_GAP_PX } from '../../utils/tronc-size.util';
 import { getFigureColor } from '../../utils/figure-palette.util';
 import {
+  boundingBoxCenter,
   buildSegmentRenderNodes,
   SegmentNodeRef,
   SegmentRenderNode,
+  stageToSlotLocal,
 } from '../../utils/segment-assignment-render.util';
 
 /** Minimal node shape accepted by the canvas for rendering — both FigureNodeItem and InstanceNodeItem satisfy this */
@@ -209,6 +211,10 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   // Segment-assignment mode inputs (multi-figure assignment on one canvas)
   readonly selectedSegmentNode = input<SegmentNodeRef | null>(null);
   readonly dimmedSlotIds = input<Set<string>>(new Set());
+  /** Slot ad-hoc nodes are created into when `canvasClicked` fires in placement mode. */
+  readonly placementSlotId = input<string | null>(null);
+  /** Whether ad-hoc nodes can be dragged/rotated/resized directly on this canvas (Nodes extra tab only). */
+  readonly adHocNodesEditable = input<boolean>(false);
 
   readonly nodeSelected = output<string | null>();
   readonly nodeClicked = output<{ nodeId: string; x: number; y: number }>();
@@ -262,6 +268,10 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   readonly segmentNodeSelected = output<SegmentNodeRef | null>();
   readonly segmentNodeClicked = output<SegmentNodeRef & { x: number; y: number }>();
   readonly segmentNodeDoubleClicked = output<SegmentNodeRef>();
+  readonly segmentAdHocNodeMoved = output<SegmentNodeRef & { x: number; y: number }>();
+  readonly segmentAdHocNodeTransformed = output<
+    SegmentNodeRef & { x: number; y: number; width: number; height: number; rotation: number }
+  >();
 
   private stage!: Konva.Stage;
   private gridLayer!: Konva.Layer;
@@ -278,6 +288,9 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   private ghostLeaveTimer: ReturnType<typeof setTimeout> | null = null;
   private ghostSourceNodeId: string | null = null;
   private adHocTooltip: Konva.Label | null = null;
+  // Slot rotation/offset pivot, frozen on first render so adding or moving a node
+  // never recenters the figure. Shared with the placement click-to-local math.
+  private readonly segmentSlotPivotCache = new Map<string, { x: number; y: number }>();
 
   readonly zoomLevel = signal(1);
   readonly hoveredPerson = signal<{ info: PersonHoverInfo; top: number; left: number; positionType: string | null } | null>(null);
@@ -628,10 +641,20 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           if (pos) {
             const scale = this.stage.scaleX();
             const stagePos = this.stage.position();
-            this.canvasClicked.emit({
-              x: Math.round((pos.x - stagePos.x) / scale),
-              y: Math.round((pos.y - stagePos.y) / scale),
-            });
+            const stagePoint = {
+              x: (pos.x - stagePos.x) / scale,
+              y: (pos.y - stagePos.y) / scale,
+            };
+            if (this.mode() === 'segment-assignment') {
+              const targetSlot = this.compositionSlots().find((s) => s.slotId === this.placementSlotId());
+              this.canvasClicked.emit(
+                targetSlot
+                  ? stageToSlotLocal(stagePoint, targetSlot, this.slotPivot(targetSlot))
+                  : { x: Math.round(stagePoint.x), y: Math.round(stagePoint.y) },
+              );
+            } else {
+              this.canvasClicked.emit({ x: Math.round(stagePoint.x), y: Math.round(stagePoint.y) });
+            }
           }
           return;
         }
@@ -1545,6 +1568,15 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.pinyaLayer.batchDraw();
   }
 
+  /** Frozen bbox-center pivot for a slot, computed once from its current nodes. */
+  private slotPivot(slot: CompositionSlotWithNodes): { x: number; y: number } {
+    const cached = this.segmentSlotPivotCache.get(slot.slotId);
+    if (cached) return cached;
+    const pivot = boundingBoxCenter(slot.figureTemplate.nodes);
+    this.segmentSlotPivotCache.set(slot.slotId, pivot);
+    return pivot;
+  }
+
   /**
    * Segment-assignment mode: all figures of a segment on one canvas at their
    * distributed positions, with assignment-style interactive nodes. Slots are
@@ -1571,6 +1603,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     }
 
     const sortedSlots = [...this.compositionSlots()].sort((a, b) => a.sortOrder - b.sortOrder);
+    const editable = this.adHocNodesEditable();
+    let selectedEditableGroup: Konva.Group | null = null;
 
     for (const slot of sortedSlots) {
       const slotNodes = bySlot.get(slot.slotId) ?? [];
@@ -1587,6 +1621,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         maxY = Math.max(maxY, rn.node.y + rn.node.height / 2);
       }
 
+      const pivot = this.slotPivot(slot);
+
       const slotGroup = new Konva.Group({
         id: `slot-${slot.slotId}`,
         x: slot.offsetX,
@@ -1594,9 +1630,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         rotation: slot.angle ?? 0,
         draggable: false,
       });
-      // Same pivot convention as distribution: offsetX/Y is the bbox center.
-      slotGroup.offsetX((minX + maxX) / 2);
-      slotGroup.offsetY((minY + maxY) / 2);
+      slotGroup.offsetX(pivot.x);
+      slotGroup.offsetY(pivot.y);
 
       const isDimmedSlot = this.dimmedSlotIds().has(slot.slotId);
       const labelHeight = 16;
@@ -1620,13 +1655,21 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       );
 
       for (const rn of slotNodes) {
-        slotGroup.add(this.buildSegmentAssignmentNodeGroup(rn));
+        const nodeGroup = this.buildSegmentAssignmentNodeGroup(rn);
+        slotGroup.add(nodeGroup);
+        if (editable && rn.isSelected && rn.node.isAdHoc) {
+          selectedEditableGroup = nodeGroup;
+        }
       }
 
       this.pinyaLayer.add(slotGroup);
     }
 
     this.pinyaLayer.add(this.transformer);
+    if (selectedEditableGroup) {
+      this.transformer.nodes([selectedEditableGroup]);
+      this.transformer.moveToTop();
+    }
     this.pinyaLayer.batchDraw();
   }
 
@@ -1660,12 +1703,14 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           : NORMAL_STROKE;
     const strokeWidth = rn.isSelected ? 3 : rn.isHighlighted ? 2.5 : isDecoration ? 2 : 1.5;
 
+    const isEditable = isAdHoc && this.adHocNodesEditable();
+
     const group = new Konva.Group({
       id: rn.key,
       x: node.x,
       y: node.y,
       rotation: node.rotation,
-      draggable: false,
+      draggable: isEditable,
       opacity: rn.isDimmed ? 0.25 : isDecoration ? this.decorationOpacity() : 1,
     });
 
@@ -1831,12 +1876,52 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.segmentNodeDoubleClicked.emit(ref);
     });
 
-    group.on('mouseenter', () => {
-      this.setCursor('pointer');
-    });
-    group.on('mouseleave', () => {
-      this.setCursor('default');
-    });
+    if (isEditable) {
+      group.on('dragstart', () => {
+        this.setCursor('grabbing');
+      });
+
+      group.on('dragend', () => {
+        this.setCursor('grab');
+        this.segmentAdHocNodeMoved.emit({
+          ...ref,
+          x: Math.round(group.x()),
+          y: Math.round(group.y()),
+        });
+      });
+
+      group.on('transformend', () => {
+        const scaleX = group.scaleX();
+        const scaleY = group.scaleY();
+        group.scaleX(1);
+        group.scaleY(1);
+
+        this.segmentAdHocNodeTransformed.emit({
+          ...ref,
+          x: Math.round(group.x()),
+          y: Math.round(group.y()),
+          width: Math.max(20, Math.round(node.width * scaleX)),
+          height: Math.max(20, Math.round(node.height * scaleY)),
+          rotation: ((Math.round(group.rotation()) % 360) + 360) % 360,
+        });
+      });
+
+      group.on('mouseenter', () => {
+        this.setCursor('grab');
+        if (!isDecoration) this.showAdHocTooltip(group);
+      });
+      group.on('mouseleave', () => {
+        this.setCursor('default');
+        this.hideAdHocTooltip();
+      });
+    } else {
+      group.on('mouseenter', () => {
+        this.setCursor('pointer');
+      });
+      group.on('mouseleave', () => {
+        this.setCursor('default');
+      });
+    }
 
     return group;
   }
@@ -2379,9 +2464,13 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
   private showAdHocTooltip(group: Konva.Group): void {
     this.hideAdHocTooltip();
+    // Absolute position relative to pinyaLayer: identical to group.x()/y() for
+    // flat 'assignment'-mode groups, but required for segment-assignment mode
+    // where the group is nested inside an offset/rotated per-slot group.
+    const pos = group.getAbsolutePosition(this.pinyaLayer);
     const label = new Konva.Label({
-      x: group.x(),
-      y: group.y() - 28,
+      x: pos.x,
+      y: pos.y - 28,
       opacity: 0.85,
     });
     label.add(new Konva.Tag({ fill: '#1f2937', cornerRadius: 4, pointerDirection: 'down', pointerWidth: 8, pointerHeight: 4 }));

@@ -1,6 +1,6 @@
 import { FigureZone } from '../enums/figure-zone.enum';
 import { NodeShape } from '../enums/node-shape.enum';
-import { TRONC_NODE_PRESETS, TRONC_Z_DEFAULTS, TroncNodePreset, PINYA_NODE_PRESETS, DIRECTION_NODE_PRESETS, DECORATION_NODE_PRESETS } from './node-preset.constants';
+import { TRONC_NODE_PRESETS, TRONC_Z_DEFAULTS, TroncNodePreset, PINYA_NODE_PRESETS, DIRECTION_NODE_PRESETS, DECORATION_NODE_PRESETS, DECORATION_POSITION_TYPES } from './node-preset.constants';
 
 describe('TRONC_NODE_PRESETS', () => {
   it('has at least 5 presets', () => {
@@ -159,5 +159,11 @@ describe('DECORATION_NODE_PRESETS', () => {
     expect(shapes).toContain(NodeShape.RECTANGLE);
     expect(shapes).toContain(NodeShape.ARROW);
     expect(shapes).toContain(NodeShape.CIRCLE);
+  });
+
+  it('every preset has a positionType accepted by the backend', () => {
+    for (const preset of DECORATION_NODE_PRESETS) {
+      expect(DECORATION_POSITION_TYPES).toContain(preset.positionType);
+    }
   });
 });
