@@ -109,19 +109,26 @@ All nodes (PINYA, TRONC, BASE, directions) live in `figure_nodes` per template.
 
 **Pinyes routes:**
 ```
-/pinyes                                                   → TemplateListComponent
-/pinyes/templates/:id/edit                                → TemplateEditorComponent
-/pinyes/compositions/:id/edit                             → CompositionEditorComponent
-/pinyes/events/:eventId/segments/:segmentId/assign        → AssignmentCanvasComponent
-/pinyes/events/:eventId/segments/:segmentId/project       → ProjectionViewComponent (P5.8.1)
-/pinyes/events/:eventId/segments/:segmentId/project/:id   → FigureProjectionComponent
+/pinyes                                                    → TemplateListComponent
+/pinyes/templates/:id/edit                                 → TemplateEditorComponent
+/pinyes/compositions/:id/edit                              → CompositionEditorComponent
+/pinyes/events/:eventId/segments/:segmentId/assign         → SegmentWorkspaceComponent
+/pinyes/events/:eventId/segments/:segmentId/assign/:id     → SegmentWorkspaceComponent (:id preselects a figure)
+/pinyes/events/:eventId/segments/:segmentId/project        → ProjectionViewComponent
+/pinyes/events/:eventId/segments/:segmentId/project/:id    → ProjectionViewComponent (filtered to one figure)
 ```
+
+There is no separate distribution route — `SegmentWorkspaceComponent`'s Distribució tab covers it.
+
+**`SegmentWorkspaceComponent`** (`components/segment-workspace/`) is the unified per-segment workspace: 5 tabs (Pinyes, Troncs, Distribució, Nodes extra, Previsualitza) backed by `SegmentWorkspaceStateService` (provided per workspace instance), composing the root `AssignmentStateService` for selection/assignment state. `?tab=` and `?figure=` query params drive deep-linking; `UndoRedoService` is provided at the workspace level so undo history spans tabs. The Previsualitza tab embeds `ProjectionViewComponent` directly (`[embedded]="true"`) rather than duplicating projection rendering.
 
 **`TroncViewComponent`** uses CSS Grid with doubled internal grid (`x*2`, `width*2`) to support 0.5u steps. Modes: `editor` | `assignment` | `projection`.
 
-**`FigureCanvasComponent`** Konva modes: `editor` | `assignment` | `readonly` | `composition`.
+**`FigureCanvasComponent`** Konva modes: `editor` | `assignment` | `segment-assignment` | `readonly` | `composition`. `segment-assignment` renders multiple figures (slots) on one canvas with assignment interactions, used by the segment workspace tabs.
 
 **`AssignmentStateService`** holds global canvas state via signals: `selectedNodeId`, `selectedPersonId`, `activeInstanceId`, `assignments`, `confirmedPersons`, `pendingOperations`.
+
+**Figure placement mock** (`utils/figure-placement.util.ts`) — `placeFigures`/`placeNewFigure` lay figures out left-to-right with a gap; used both by the workspace tabs and by `ProjectionViewComponent` whenever a figure has no saved distribution position (`projectionX === null`), so the projection view always renders through its single unified canvas instead of a separate split-screen fallback. Stable signature, to be replaced later by a real space-optimizing algorithm.
 
 ---
 

@@ -30,6 +30,7 @@ class StubFigureCanvas {
   readonly gridEnabled = input<boolean>(false);
   readonly gridSpacing = input<number>(20);
   readonly snapToGrid = input<boolean>(false);
+  readonly cordoObertOpacity = input<number>(1);
   readonly slotSelected = output<string | null>();
   readonly slotMoved = output<{ slotId: string; offsetX: number; offsetY: number; angle: number }>();
   readonly troncMoved = output<{ slotId: string; troncPanelX: number | null; troncPanelY: number | null }>();
@@ -89,7 +90,7 @@ const makeSegment = (instances: InstanceDetail[]): SegmentDetail => ({
 const makeDistributionNode = (
   id: string,
   zone: string,
-  overrides: { renglaId?: string | null; renglaPosition?: number | null } = {},
+  overrides: { renglaId?: string | null; renglaPosition?: number | null; positionType?: string | null } = {},
 ) => ({
   id,
   label: id,
@@ -103,6 +104,7 @@ const makeDistributionNode = (
   shape: 'RECTANGLE',
   renglaId: null,
   renglaPosition: null,
+  positionType: null,
   ...overrides,
 });
 
@@ -214,6 +216,11 @@ describe('DistribucioTabComponent', () => {
       const stub = canvasStub();
       expect(stub.mode()).toBe('composition');
       expect(stub.compositionSlots().map((s) => s.slotId)).toEqual([INST_A, INST_B]);
+    });
+
+    it('renders cordo-obert nodes at half opacity', async () => {
+      await setup();
+      expect(canvasStub().cordoObertOpacity()).toBe(0.5);
     });
 
     it('centers the viewport on the content once after load', async () => {
@@ -362,6 +369,27 @@ describe('DistribucioTabComponent', () => {
       fixture.detectChanges();
 
       expect(panelStub()?.entry().maxCordons).toBe(4);
+    });
+
+    it('excludes cordo-obert nodes from maxCordons', async () => {
+      await setup({
+        items: [
+          makeDistributionItem(INST_A, {
+            figureTemplate: {
+              id: 'tpl-a',
+              name: 'Figura a',
+              nodes: [
+                makeDistributionNode('n1', 'PINYA', { renglaId: 'r1', renglaPosition: 1 }),
+                makeDistributionNode('n2', 'PINYA', { renglaId: 'r1', renglaPosition: 4, positionType: 'cordo-obert' }),
+              ],
+            },
+          }),
+        ],
+      });
+      component.onSlotSelected(INST_A);
+      fixture.detectChanges();
+
+      expect(panelStub()?.entry().maxCordons).toBe(1);
     });
 
     it('sources hasPinya from the workspace instance (template-intrinsic, not distribution data)', async () => {

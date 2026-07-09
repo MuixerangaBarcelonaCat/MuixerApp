@@ -478,17 +478,9 @@ describe('SegmentManagerComponent', () => {
       );
     });
 
-    it('passes view=tronc when in troncs view mode', () => {
+    it('does not pass a view param, in either view mode', () => {
       (segmentService.getTroncView as ReturnType<typeof vi.fn>).mockReturnValue(of([]));
       component.setViewMode('troncs');
-      component.navigateToAssignment('seg-uuid-1');
-      expect(routerMock.navigate).toHaveBeenCalledWith(
-        ['/pinyes/events', EVENT_ID, 'segments', 'seg-uuid-1', 'assign'],
-        { queryParams: { returnUrl: '/rehearsals/event-123', view: 'tronc' } },
-      );
-    });
-
-    it('does not pass view param in pinyes view mode', () => {
       component.navigateToAssignment('seg-uuid-1');
       expect(routerMock.navigate).toHaveBeenCalledWith(
         ['/pinyes/events', EVENT_ID, 'segments', 'seg-uuid-1', 'assign'],

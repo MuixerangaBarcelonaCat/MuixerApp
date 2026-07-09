@@ -30,6 +30,9 @@ class StubNodesTab {
   readonly isPast = input(false);
 }
 
+@Component({ selector: 'app-previsualitza-tab', standalone: true, template: '' })
+class StubPrevisualitzaTab {}
+
 const EVENT_ID = 'event-1';
 const SEGMENT_ID = 'seg-1';
 
@@ -110,7 +113,14 @@ describe('SegmentWorkspaceComponent', () => {
             { provide: SegmentWorkspaceStateService, useValue: ws },
             UndoRedoService,
           ],
-          imports: [LucideAngularModule, StubPinyesTab, StubTroncsTab, StubDistribucioTab, StubNodesTab],
+          imports: [
+          LucideAngularModule,
+          StubPinyesTab,
+          StubTroncsTab,
+          StubDistribucioTab,
+          StubNodesTab,
+          StubPrevisualitzaTab,
+        ],
         },
       })
       .compileComponents();
@@ -212,6 +222,12 @@ describe('SegmentWorkspaceComponent', () => {
     const fixture = await setup({ queryParams: { tab: 'nodes' } });
     const nodesTab = fixture.nativeElement.querySelector('app-nodes-tab');
     expect(nodesTab).toBeTruthy();
+  });
+
+  it('shows the previsualitza tab content when previsualitza is active', async () => {
+    const fixture = await setup({ queryParams: { tab: 'previsualitza' } });
+    const previsualitzaTab = fixture.nativeElement.querySelector('app-previsualitza-tab');
+    expect(previsualitzaTab).toBeTruthy();
   });
 
   it('marks the workspace as past from the past query param', async () => {

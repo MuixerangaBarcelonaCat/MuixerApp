@@ -9,15 +9,21 @@ import { ProjectionInstance } from '../../models/projection.model';
 import { InstanceNodeItem, AssignmentDetail } from '../../models/assignment.model';
 import { ProjectionService } from '../../services/projection.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
+import { LayoutService } from '../../../../core/services/layout.service';
 import { FigureZone, NodeShape } from '@muixer/shared';
-import { CanvasNode, CanvasMode } from '../figure-canvas/figure-canvas.component';
-import { TroncNodeItem } from '../tronc-view/tronc-view.component';
+import { CanvasNode, CanvasMode, FigureCanvasComponent } from '../figure-canvas/figure-canvas.component';
+import { TroncNodeItem, TroncViewComponent } from '../tronc-view/tronc-view.component';
 
 @Component({ selector: 'app-figure-canvas', standalone: true, template: '' })
 class FigureCanvasStub {
   readonly nodes = input<CanvasNode[]>([]);
   readonly mode = input<CanvasMode>('readonly');
   readonly assignments = input<AssignmentDetail[]>([]);
+  readonly gridEnabled = input<boolean>(true);
+  readonly attendanceMap = input<Map<string, string>>(new Map());
+  readonly isPast = input<boolean>(false);
+  readonly fitExtraBounds = input<{ x: number; y: number; width: number; height: number }[]>([]);
+  readonly outlineBoxes = input<unknown[]>([]);
 }
 
 @Component({ selector: 'app-tronc-view', standalone: true, template: '' })
@@ -28,6 +34,10 @@ class TroncViewStub {
   readonly assignments = input<AssignmentDetail[]>([]);
   readonly mode = input<string>('projection');
   readonly isNetaFigure = input<boolean>(false);
+  readonly attendanceMap = input<Map<string, string>>(new Map());
+  readonly isPast = input<boolean>(false);
+  readonly panelColor = input<string>('');
+  readonly figureName = input<string>('');
 }
 
 // ── Factories ────────────────────────────────────────────────────────────────
@@ -93,7 +103,7 @@ describe('ProjectionViewComponent', () => {
       ],
     })
     .overrideComponent(ProjectionViewComponent, {
-      remove: { imports: [] },
+      remove: { imports: [FigureCanvasComponent, TroncViewComponent] },
       add: { imports: [FigureCanvasStub, TroncViewStub] },
     })
     .compileComponents();
@@ -177,27 +187,6 @@ describe('ProjectionViewComponent', () => {
       const result = component.getInstanceProjectionNodes(instance);
 
       expect(result.map((n) => n.id)).toEqual(['dec1', 'p1']);
-    });
-  });
-
-  // ── isNetaFigure ─────────────────────────────────────────────────────────────
-
-  describe('isNetaFigure', () => {
-    it('returns true when hasPinya is false', () => {
-      const instance = makeInstance([], []);
-      instance.figureTemplate = { id: 'f1', name: 'Piló', hasPinya: false };
-      expect(component.isNetaFigure(instance)).toBe(true);
-    });
-
-    it('returns false when hasPinya is true', () => {
-      const instance = makeInstance([], []);
-      expect(component.isNetaFigure(instance)).toBe(false);
-    });
-
-    it('returns false when figureTemplate is null', () => {
-      const instance = makeInstance([], []);
-      instance.figureTemplate = null;
-      expect(component.isNetaFigure(instance)).toBe(false);
     });
   });
 
@@ -287,49 +276,10 @@ describe('ProjectionViewComponent', () => {
     });
   });
 
-  // ── hasDistribution ──────────────────────────────────────────────────────────
+  // ── effectivePositions / effectiveInstances ─────────────────────────────────
 
-  describe('hasDistribution', () => {
-    it('returns false when segmentData is null', () => {
-      component.segmentData.set(null);
-      expect(component.hasDistribution()).toBe(false);
-    });
-
-    it('returns false when segmentData has hasDistribution=false', () => {
-      component.segmentData.set({
-        segment: { id: 's1', name: null, sortOrder: 0, prevSegmentId: null, nextSegmentId: null },
-        instances: [],
-        personAttendance: {},
-        hasDistribution: false,
-      });
-      expect(component.hasDistribution()).toBe(false);
-    });
-
-    it('returns true when segmentData has hasDistribution=true', () => {
-      component.segmentData.set({
-        segment: { id: 's1', name: null, sortOrder: 0, prevSegmentId: null, nextSegmentId: null },
-        instances: [],
-        personAttendance: {},
-        hasDistribution: true,
-      });
-      expect(component.hasDistribution()).toBe(true);
-    });
-  });
-
-  // ── distributionCellsById ────────────────────────────────────────────────────
-
-  describe('distributionCellsById', () => {
-    it('returns empty map when hasDistribution is false', () => {
-      component.segmentData.set({
-        segment: { id: 's1', name: null, sortOrder: 0, prevSegmentId: null, nextSegmentId: null },
-        instances: [makeInstance([], [], { id: 'inst-A', projectionX: 100, projectionY: 200, projectionAngle: 45 })],
-        personAttendance: {},
-        hasDistribution: false,
-      });
-      expect(component.distributionCellsById().size).toBe(0);
-    });
-
-    it('maps stored projectionX/Y to cell position and stores angle when hasDistribution is true', () => {
+  describe('effectivePositions', () => {
+    it('keeps the stored position when projectionX is set', () => {
       const inst = makeInstance([], [], { id: 'inst-A', projectionX: 100, projectionY: 200, projectionAngle: 30 });
       component.segmentData.set({
         segment: { id: 's1', name: null, sortOrder: 0, prevSegmentId: null, nextSegmentId: null },
@@ -337,37 +287,68 @@ describe('ProjectionViewComponent', () => {
         personAttendance: {},
         hasDistribution: true,
       });
-      const cell = component.distributionCellsById().get('inst-A');
-      expect(cell).toBeDefined();
-      expect(cell!.angle).toBe(30);
+      expect(component.effectivePositions().get('inst-A')).toEqual({ x: 100, y: 200, angle: 30 });
     });
 
-    it('two instances are positioned relative to each other, preserving spatial order', () => {
-      const inst1 = makeInstance([], [], { id: 'i1', projectionX: 0, projectionY: 0, projectionAngle: 0 });
-      const inst2 = makeInstance([], [], { id: 'i2', projectionX: 400, projectionY: 0, projectionAngle: 0 });
+    it('mock-places instances with no saved position, in increasing x order', () => {
+      const inst1 = makeInstance([makeNode({ zone: FigureZone.PINYA })], [], { id: 'i1', projectionX: null });
+      const inst2 = makeInstance([makeNode({ zone: FigureZone.PINYA })], [], { id: 'i2', projectionX: null });
       component.segmentData.set({
         segment: { id: 's1', name: null, sortOrder: 0, prevSegmentId: null, nextSegmentId: null },
         instances: [inst1, inst2],
         personAttendance: {},
+        hasDistribution: false,
+      });
+      const positions = component.effectivePositions();
+      expect(positions.get('i1')).toBeDefined();
+      expect(positions.get('i2')).toBeDefined();
+      expect(positions.get('i1')!.x).toBeLessThan(positions.get('i2')!.x);
+    });
+
+    it('places a mock instance to the right of an already-distributed one, without overlap', () => {
+      const stored = makeInstance([makeNode({ zone: FigureZone.PINYA, width: 200, height: 200 })], [], {
+        id: 'stored',
+        projectionX: 0,
+        projectionY: 0,
+      });
+      const mock = makeInstance([makeNode({ zone: FigureZone.PINYA })], [], { id: 'mock', projectionX: null });
+      component.segmentData.set({
+        segment: { id: 's1', name: null, sortOrder: 0, prevSegmentId: null, nextSegmentId: null },
+        instances: [stored, mock],
+        personAttendance: {},
         hasDistribution: true,
       });
-      const cell1 = component.distributionCellsById().get('i1')!;
-      const cell2 = component.distributionCellsById().get('i2')!;
-      expect(cell1.x).toBeLessThan(cell2.x);
+      const positions = component.effectivePositions();
+      expect(positions.get('mock')!.x).toBeGreaterThan(positions.get('stored')!.x);
+    });
+  });
+
+  describe('effectiveInstances', () => {
+    it('fills in projectionX/Y/Angle for instances with no saved position', () => {
+      const inst = makeInstance([makeNode({ zone: FigureZone.PINYA })], [], { id: 'i1', projectionX: null });
+      component.segmentData.set({
+        segment: { id: 's1', name: null, sortOrder: 0, prevSegmentId: null, nextSegmentId: null },
+        instances: [inst],
+        personAttendance: {},
+        hasDistribution: false,
+      });
+      const [effective] = component.effectiveInstances();
+      expect(effective.projectionX).not.toBeNull();
+      expect(effective.projectionY).not.toBeNull();
     });
   });
 
   // ── distributionNodes ────────────────────────────────────────────────────────
 
   describe('distributionNodes', () => {
-    it('returns empty array when hasDistribution is false', () => {
+    it('mock-places and renders nodes even when no distribution was ever saved', () => {
       component.segmentData.set({
         segment: { id: 's1', name: null, sortOrder: 0, prevSegmentId: null, nextSegmentId: null },
         instances: [makeInstance([makeNode({ id: 'n1', zone: FigureZone.PINYA })], ['n1'])],
         personAttendance: {},
         hasDistribution: false,
       });
-      expect(component.distributionNodes().length).toBe(0);
+      expect(component.distributionNodes().length).toBe(1);
     });
 
     it('returns combined nodes from all instances when hasDistribution is true', () => {
@@ -404,7 +385,7 @@ describe('ProjectionViewComponent', () => {
   // ── distributionAssignments ──────────────────────────────────────────────────
 
   describe('distributionAssignments', () => {
-    it('returns empty array when hasDistribution is false', () => {
+    it('returns assignments even when no distribution was ever saved', () => {
       const inst = makeInstance([], ['n1'], { id: 'i1' });
       component.segmentData.set({
         segment: { id: 's1', name: null, sortOrder: 0, prevSegmentId: null, nextSegmentId: null },
@@ -412,7 +393,7 @@ describe('ProjectionViewComponent', () => {
         personAttendance: {},
         hasDistribution: false,
       });
-      expect(component.distributionAssignments().length).toBe(0);
+      expect(component.distributionAssignments().length).toBe(1);
     });
 
     it('returns assignments from all instances when hasDistribution is true', () => {
@@ -425,6 +406,63 @@ describe('ProjectionViewComponent', () => {
         hasDistribution: true,
       });
       expect(component.distributionAssignments().length).toBe(2);
+    });
+  });
+
+  // ── embedded mode ─────────────────────────────────────────────────────────────
+
+  describe('embedded mode', () => {
+    async function createEmbedded(embedded: boolean, instanceIdParam = 'inst-x') {
+      class ResizeObserverStub {
+        observe = vi.fn();
+        unobserve = vi.fn();
+        disconnect = vi.fn();
+      }
+      vi.stubGlobal('ResizeObserver', ResizeObserverStub);
+
+      const layoutService = { requestFullscreen: vi.fn(), exitFullscreen: vi.fn() };
+
+      TestBed.resetTestingModule();
+      await TestBed.configureTestingModule({
+        imports: [ProjectionViewComponent],
+        providers: [
+          { provide: ProjectionService, useValue: { getProjection: vi.fn().mockReturnValue(of({ segment: { id: 's1', name: null, sortOrder: 0, prevSegmentId: null, nextSegmentId: null }, instances: [], personAttendance: {}, hasDistribution: false })) } },
+          { provide: ToastService, useValue: { error: vi.fn() } },
+          { provide: Router, useValue: { navigate: vi.fn() } },
+          { provide: ActivatedRoute, useValue: { snapshot: { params: { eventId: 'e1', segmentId: 's1', instanceId: instanceIdParam } } } },
+          { provide: LayoutService, useValue: layoutService },
+          allLucideIconsProvider,
+        ],
+      })
+        .overrideComponent(ProjectionViewComponent, {
+          remove: { imports: [FigureCanvasComponent, TroncViewComponent] },
+          add: { imports: [FigureCanvasStub, TroncViewStub] },
+        })
+        .compileComponents();
+
+      const embeddedFixture = TestBed.createComponent(ProjectionViewComponent);
+      embeddedFixture.componentRef.setInput('embedded', embedded);
+      embeddedFixture.detectChanges();
+      return { fixture: embeddedFixture, layoutService };
+    }
+
+    it('does not manage fullscreen when embedded', async () => {
+      const { fixture: f, layoutService } = await createEmbedded(true);
+      expect(layoutService.requestFullscreen).not.toHaveBeenCalled();
+      f.destroy();
+      expect(layoutService.exitFullscreen).not.toHaveBeenCalled();
+    });
+
+    it('manages fullscreen when not embedded (default)', async () => {
+      const { fixture: f, layoutService } = await createEmbedded(false);
+      expect(layoutService.requestFullscreen).toHaveBeenCalled();
+      f.destroy();
+      expect(layoutService.exitFullscreen).toHaveBeenCalled();
+    });
+
+    it('ignores the route instanceId param when embedded, always showing the full segment', async () => {
+      const { fixture: f } = await createEmbedded(true, 'inst-x');
+      expect(f.componentInstance.instanceId).toBe('');
     });
   });
 });

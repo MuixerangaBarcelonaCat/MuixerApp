@@ -9,9 +9,10 @@ import {
   ViewChild,
   computed,
   inject,
+  input,
   signal,
 } from '@angular/core';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { LucideAngularModule } from 'lucide-angular';
 import { LayoutService } from '../../../../core/services/layout.service';
@@ -22,9 +23,9 @@ import { AttendanceStatus, AssignmentDetail, InstanceNodeItem } from '../../mode
 import { FigureCanvasComponent, OutlineBox } from '../figure-canvas/figure-canvas.component';
 import { TroncViewComponent, TroncNodeItem } from '../tronc-view/tronc-view.component';
 import { FigureZone } from '@muixer/shared';
-import { ICON_FIGURA_NETA } from '../../../../shared/constants/domain-icons';
 import { computeCordoObertOverrides } from '../../utils/cordo-obert.util';
-import { computeProjectionLayout, computeDistributionLayout, computeDistributionTransform, ProjectionCell, DistributionCell } from '../../utils/projection-layout.util';
+import { computeDistributionTransform, computeInstanceNaturalExtent } from '../../utils/projection-layout.util';
+import { placeNewFigure } from '../../utils/figure-placement.util';
 import { computeTroncNaturalSize, TRONC_GAP_PX } from '../../utils/tronc-size.util';
 import { getFigureColor } from '../../utils/figure-palette.util';
 
@@ -47,7 +48,6 @@ interface DistributionTroncPanel {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
-    RouterLink,
     LucideAngularModule,
     FigureCanvasComponent,
     TroncViewComponent,
@@ -56,7 +56,9 @@ interface DistributionTroncPanel {
   styleUrl: './projection-view.component.scss',
 })
 export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy {
-  readonly ICON_FIGURA_NETA = ICON_FIGURA_NETA;
+  /** True when rendered inside another shell (e.g. the segment workspace's Previsualitza tab),
+   *  which already owns fullscreen layout — the standalone route always leaves this false. */
+  readonly embedded = input(false);
 
   @ViewChild('figuresContainer') private readonly figuresContainerRef!: ElementRef<HTMLDivElement>;
 
@@ -99,41 +101,50 @@ export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy
     return map;
   });
 
-  readonly hasDistribution = computed(() => this.segmentData()?.hasDistribution ?? false);
+  /**
+   * Per-instance world position, resolved for every instance regardless of whether a
+   * distribution was ever saved: stored projectionX/Y/Angle when present, otherwise a
+   * position from the placement mock (`placeNewFigure`), laid out to the right of
+   * whatever is already placed (stored or previously mock-placed) so figures never
+   * overlap. This replaces the old per-instance screen-splitting fallback — the
+   * projection view always renders through the single unified canvas below.
+   */
+  readonly effectivePositions = computed((): Map<string, { x: number; y: number; angle: number }> => {
+    const instances = this.filteredInstances();
+    const positions = new Map<string, { x: number; y: number; angle: number }>();
+    const placedExtents: { x: number; width: number }[] = [];
 
-  /** Absolute-positioned layout cells, one per instance. Used when no distribution is set. */
-  readonly layout = computed(() =>
-    computeProjectionLayout(
-      this.filteredInstances(),
-      this.containerWidth(),
-      this.containerHeight(),
-    ),
-  );
+    for (const inst of instances) {
+      if (inst.projectionX == null) continue;
+      positions.set(inst.id, { x: inst.projectionX, y: inst.projectionY ?? 0, angle: inst.projectionAngle ?? 0 });
+      placedExtents.push({ x: inst.projectionX, width: computeInstanceNaturalExtent(inst).width });
+    }
 
-  readonly cellsById = computed(() => {
-    const m = new Map<string, ProjectionCell>();
-    for (const cell of this.layout()) m.set(cell.instanceId, cell);
-    return m;
+    for (const inst of instances) {
+      if (inst.projectionX != null) continue;
+      const extent = computeInstanceNaturalExtent(inst);
+      const placed = placeNewFigure(placedExtents, { instanceId: inst.id, ...extent });
+      placedExtents.push({ x: placed.x, width: extent.width });
+      positions.set(inst.id, { x: placed.x, y: placed.y, angle: placed.angle });
+    }
+
+    return positions;
   });
 
-  /** Distribution-mode cells keyed by instanceId. Empty when no distribution is active. */
-  readonly distributionCellsById = computed((): Map<string, DistributionCell> => {
-    if (!this.hasDistribution()) return new Map();
-    const m = new Map<string, DistributionCell>();
-    for (const cell of computeDistributionLayout(
-      this.filteredInstances(),
-      this.containerWidth(),
-      this.containerHeight(),
-    )) {
-      m.set(cell.instanceId, cell);
-    }
-    return m;
+  /** `filteredInstances()` with every projectionX/Y/Angle resolved via `effectivePositions`. */
+  readonly effectiveInstances = computed((): ProjectionInstance[] => {
+    const positions = this.effectivePositions();
+    return this.filteredInstances().map((inst) => {
+      const pos = positions.get(inst.id);
+      if (!pos) return inst;
+      return { ...inst, projectionX: pos.x, projectionY: pos.y, projectionAngle: pos.angle };
+    });
   });
 
   /**
    * All pinya/base/decoration nodes from every instance, translated into a shared
-   * screen-space coordinate system using each instance's stored distribution position.
-   * Empty when no distribution is active.
+   * screen-space coordinate system using each instance's effective (stored or
+   * mock-placed) distribution position.
    *
    * The distribution editor shifts the Konva group's rotation pivot to the visual
    * center of each figure's PINYA+BASE bounding box (slotGroup.offsetX/Y). The stored
@@ -141,8 +152,7 @@ export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy
    * top-left corner. Rotation must be applied around the same center.
    */
   readonly distributionNodes = computed((): InstanceNodeItem[] => {
-    if (!this.hasDistribution()) return [];
-    const instances = this.filteredInstances();
+    const instances = this.effectiveInstances();
     const { scale, offsetX, offsetY } = computeDistributionTransform(
       instances,
       this.containerWidth(),
@@ -191,10 +201,9 @@ export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy
   });
 
   /** Combined assignments from all instances for the unified distribution canvas. */
-  readonly distributionAssignments = computed((): AssignmentDetail[] => {
-    if (!this.hasDistribution()) return [];
-    return this.filteredInstances().flatMap((inst) => inst.assignments);
-  });
+  readonly distributionAssignments = computed((): AssignmentDetail[] =>
+    this.effectiveInstances().flatMap((inst) => inst.assignments),
+  );
 
   /**
    * Virtual bounding boxes (in Konva canvas units, x/y = center) for each instance's linked tronc
@@ -206,8 +215,7 @@ export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy
    * (same geometry as distributionTroncPanels, converted from screen to canvas by dividing stageScale)
    */
   readonly distributionFitBounds = computed((): { x: number; y: number; width: number; height: number }[] => {
-    if (!this.hasDistribution()) return [];
-    const instances = this.filteredInstances();
+    const instances = this.effectiveInstances();
     const { scale: distScale, offsetX, offsetY } = computeDistributionTransform(
       instances,
       this.containerWidth(),
@@ -255,8 +263,7 @@ export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy
    * so TroncViewComponent gets full space to render and is then visually scaled down.
    */
   readonly distributionTroncPanels = computed((): DistributionTroncPanel[] => {
-    if (!this.hasDistribution()) return [];
-    const instances = this.filteredInstances();
+    const instances = this.effectiveInstances();
     const { scale: distScale, offsetX, offsetY } = computeDistributionTransform(
       instances,
       this.containerWidth(),
@@ -304,8 +311,7 @@ export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy
 
   /** Canvas-space outlines for each pinya/base node, rendered inside Konva below the node layer. */
   readonly distributionNodeOutlines = computed((): OutlineBox[] => {
-    if (!this.hasDistribution()) return [];
-    const instances = this.filteredInstances();
+    const instances = this.effectiveInstances();
     const { scale: distScale, offsetX, offsetY } = computeDistributionTransform(
       instances,
       this.containerWidth(),
@@ -363,11 +369,13 @@ export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy
   // ── Lifecycle ───────────────────────────────────────────────────────────────
 
   ngOnInit(): void {
-    this.layoutService.requestFullscreen();
+    if (!this.embedded()) {
+      this.layoutService.requestFullscreen();
+    }
     const params = this.route.snapshot.params;
     this.eventId = params['eventId'];
     this.segmentId = params['segmentId'];
-    this.instanceId = params['instanceId'] ?? '';
+    this.instanceId = this.embedded() ? '' : (params['instanceId'] ?? '');
     this.loadSegment();
   }
 
@@ -383,7 +391,9 @@ export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   ngOnDestroy(): void {
-    this.layoutService.exitFullscreen();
+    if (!this.embedded()) {
+      this.layoutService.exitFullscreen();
+    }
     if (this.cursorTimer) clearTimeout(this.cursorTimer);
     this.resizeObserver?.disconnect();
   }
@@ -454,10 +464,6 @@ export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy
     return instance.nodes.filter(
       (n) => n.zone === FigureZone.FIGURE_DIRECTION || n.zone === FigureZone.XICALLA_DIRECTION,
     ) as TroncNodeItem[];
-  }
-
-  isNetaFigure(instance: ProjectionInstance): boolean {
-    return instance.figureTemplate?.hasPinya === false || instance.figureMode === 'REMAT' || instance.figureMode === 'NETA';
   }
 
   getInstanceName(instance: ProjectionInstance): string {
