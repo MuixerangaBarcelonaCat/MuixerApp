@@ -402,8 +402,10 @@ export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy
 
   @HostListener('document:keydown', ['$event'])
   onKeyDown(event: KeyboardEvent): void {
-    if (event.key === 'ArrowLeft') this.navigateSegment('prev');
-    if (event.key === 'ArrowRight') this.navigateSegment('next');
+    if (!this.embedded()) {
+      if (event.key === 'ArrowLeft') this.navigateSegment('prev');
+      if (event.key === 'ArrowRight') this.navigateSegment('next');
+    }
     if (event.key === 'Escape') this.handleEscape();
     if (event.key === 'f' || event.key === 'F') this.toggleBrowserFullscreen();
     if (event.key === '?' || event.key === 'h' || event.key === 'H') {
@@ -489,6 +491,14 @@ export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy
     this.router.navigate(['/pinyes/events', this.eventId, 'segments', targetId, 'project']);
     this.segmentId = targetId;
     this.loadSegment();
+  }
+
+  /** The browser back button leaves the projection the same way the HUD arrow does.
+   *  No-op when embedded — the host shell (e.g. the segment workspace) owns that. */
+  @HostListener('window:popstate')
+  onPopState(): void {
+    if (this.embedded()) return;
+    this.goBack();
   }
 
   goBack(): void {

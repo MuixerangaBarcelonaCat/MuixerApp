@@ -478,9 +478,17 @@ describe('SegmentManagerComponent', () => {
       );
     });
 
-    it('does not pass a view param, in either view mode', () => {
+    it('passes tab=troncs when in troncs view mode, so the workspace opens on the Troncs tab', () => {
       (segmentService.getTroncView as ReturnType<typeof vi.fn>).mockReturnValue(of([]));
       component.setViewMode('troncs');
+      component.navigateToAssignment('seg-uuid-1');
+      expect(routerMock.navigate).toHaveBeenCalledWith(
+        ['/pinyes/events', EVENT_ID, 'segments', 'seg-uuid-1', 'assign'],
+        { queryParams: { returnUrl: '/rehearsals/event-123', tab: 'troncs' } },
+      );
+    });
+
+    it('does not pass a tab param in pinyes view mode', () => {
       component.navigateToAssignment('seg-uuid-1');
       expect(routerMock.navigate).toHaveBeenCalledWith(
         ['/pinyes/events', EVENT_ID, 'segments', 'seg-uuid-1', 'assign'],

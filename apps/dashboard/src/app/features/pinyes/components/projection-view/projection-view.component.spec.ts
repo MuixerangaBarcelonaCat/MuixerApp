@@ -409,6 +409,20 @@ describe('ProjectionViewComponent', () => {
     });
   });
 
+  // ── browser back button ─────────────────────────────────────────────────────
+
+  describe('browser back button', () => {
+    it('navigates back to the event (like the HUD arrow) when the browser back button is pressed', () => {
+      const router = TestBed.inject(Router);
+      const navigateSpy = vi.spyOn(router, 'navigate');
+      component.eventId = 'e1';
+
+      window.dispatchEvent(new PopStateEvent('popstate'));
+
+      expect(navigateSpy).toHaveBeenCalledWith(['/events', 'e1']);
+    });
+  });
+
   // ── embedded mode ─────────────────────────────────────────────────────────────
 
   describe('embedded mode', () => {
@@ -463,6 +477,41 @@ describe('ProjectionViewComponent', () => {
     it('ignores the route instanceId param when embedded, always showing the full segment', async () => {
       const { fixture: f } = await createEmbedded(true, 'inst-x');
       expect(f.componentInstance.instanceId).toBe('');
+    });
+
+    it('hides the floating HUD nav when embedded', async () => {
+      const { fixture: f } = await createEmbedded(true);
+      expect(f.nativeElement.querySelector('nav')).toBeNull();
+    });
+
+    it('shows the floating HUD nav when not embedded', async () => {
+      const { fixture: f } = await createEmbedded(false);
+      expect(f.nativeElement.querySelector('nav')).not.toBeNull();
+    });
+
+    it('ignores segment-navigation arrow keys when embedded', async () => {
+      const { fixture: f } = await createEmbedded(true);
+      const navigateSpy = vi.spyOn(f.componentInstance, 'navigateSegment');
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+      expect(navigateSpy).not.toHaveBeenCalled();
+    });
+
+    it('handles segment-navigation arrow keys when not embedded', async () => {
+      const { fixture: f } = await createEmbedded(false);
+      const navigateSpy = vi.spyOn(f.componentInstance, 'navigateSegment');
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
+      expect(navigateSpy).toHaveBeenCalledWith('prev');
+    });
+
+    it('ignores the browser back button when embedded — the host shell owns it', async () => {
+      const { fixture: f } = await createEmbedded(true);
+      const router = TestBed.inject(Router);
+      const navigateSpy = vi.spyOn(router, 'navigate');
+
+      window.dispatchEvent(new PopStateEvent('popstate'));
+
+      expect(navigateSpy).not.toHaveBeenCalled();
     });
   });
 });

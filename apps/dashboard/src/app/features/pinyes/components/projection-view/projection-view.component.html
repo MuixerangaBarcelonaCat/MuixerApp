@@ -68,59 +68,61 @@
     </div>
 
     <!-- ── HUD flotant ────────────────────────────────────────────────────────── -->
-    <nav
-      class="fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-full bg-black/60 text-white/80 text-sm backdrop-blur-sm z-50"
-      aria-label="Navegació de la projecció"
-    >
-      <button
-        type="button"
-        class="flex items-center justify-center rounded-full hover:bg-white/15 p-1 transition-colors"
-        (click)="goBack()"
-        aria-label="Torna a l'esdeveniment"
-        title="Torna a l'esdeveniment (Escape)"
+    @if (!embedded()) {
+      <nav
+        class="fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-full bg-black/60 text-white/80 text-sm backdrop-blur-sm z-50"
+        aria-label="Navegació de la projecció"
       >
-        <lucide-icon name="ArrowLeft" [size]="16" aria-hidden="true" />
-      </button>
-
-      <span class="w-px h-4 bg-white/20" aria-hidden="true"></span>
-
-      <span class="truncate max-w-[200px]">{{ segmentData()!.segment.name ?? 'Segment' }}</span>
-
-      @if (segmentData()!.segment.prevSegmentId) {
         <button
           type="button"
-          class="flex items-center justify-center"
-          (click)="navigateSegment('prev')"
-          aria-label="Segment anterior"
-          title="Segment anterior (←)"
+          class="flex items-center justify-center rounded-full hover:bg-white/15 p-1 transition-colors"
+          (click)="goBack()"
+          aria-label="Torna a l'esdeveniment"
+          title="Torna a l'esdeveniment (Escape)"
         >
-          <kbd class="kbd kbd-sm bg-white/10 border-white/20 text-white/70 cursor-pointer hover:bg-white/20">←</kbd>
+          <lucide-icon name="ArrowLeft" [size]="16" aria-hidden="true" />
         </button>
-      }
-      @if (segmentData()!.segment.nextSegmentId) {
+
+        <span class="w-px h-4 bg-white/20" aria-hidden="true"></span>
+
+        <span class="truncate max-w-[200px]">{{ segmentData()!.segment.name ?? 'Segment' }}</span>
+
+        @if (segmentData()!.segment.prevSegmentId) {
+          <button
+            type="button"
+            class="flex items-center justify-center"
+            (click)="navigateSegment('prev')"
+            aria-label="Segment anterior"
+            title="Segment anterior (←)"
+          >
+            <kbd class="kbd kbd-sm bg-white/10 border-white/20 text-white/70 cursor-pointer hover:bg-white/20">←</kbd>
+          </button>
+        }
+        @if (segmentData()!.segment.nextSegmentId) {
+          <button
+            type="button"
+            class="flex items-center justify-center"
+            (click)="navigateSegment('next')"
+            aria-label="Segment següent"
+            title="Segment següent (→)"
+          >
+            <kbd class="kbd kbd-sm bg-white/10 border-white/20 text-white/70 cursor-pointer hover:bg-white/20">→</kbd>
+          </button>
+        }
+
+        <span class="w-px h-4 bg-white/20" aria-hidden="true"></span>
+
         <button
           type="button"
-          class="flex items-center justify-center"
-          (click)="navigateSegment('next')"
-          aria-label="Segment següent"
-          title="Segment següent (→)"
+          class="flex items-center justify-center rounded-full hover:bg-white/15 p-1 transition-colors"
+          (click)="helpModalOpen.set(true)"
+          aria-label="Ajuda de dreceres de teclat"
+          title="Ajuda (?)"
         >
-          <kbd class="kbd kbd-sm bg-white/10 border-white/20 text-white/70 cursor-pointer hover:bg-white/20">→</kbd>
+          <lucide-icon name="CircleQuestionMark" [size]="14" aria-hidden="true" />
         </button>
-      }
-
-      <span class="w-px h-4 bg-white/20" aria-hidden="true"></span>
-
-      <button
-        type="button"
-        class="flex items-center justify-center rounded-full hover:bg-white/15 p-1 transition-colors"
-        (click)="helpModalOpen.set(true)"
-        aria-label="Ajuda de dreceres de teclat"
-        title="Ajuda (?)"
-      >
-        <lucide-icon name="CircleQuestionMark" [size]="14" aria-hidden="true" />
-      </button>
-    </nav>
+      </nav>
+    }
 
   </div>
 

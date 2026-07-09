@@ -246,4 +246,28 @@ describe('SegmentWorkspaceComponent', () => {
     expect(backSpy).toHaveBeenCalled();
     backSpy.mockRestore();
   });
+
+  describe('browser back button', () => {
+    it('navigates to returnUrl (like the back arrow) when the browser back button is pressed', async () => {
+      const fixture = await setup({ queryParams: { returnUrl: '/rehearsals/event-123' } });
+      const router = TestBed.inject(Router);
+      const navigateByUrlSpy = vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
+
+      window.dispatchEvent(new PopStateEvent('popstate'));
+
+      expect(navigateByUrlSpy).toHaveBeenCalledWith('/rehearsals/event-123', { replaceUrl: true });
+      fixture.destroy();
+    });
+
+    it('falls back to native back navigation when there is no returnUrl', async () => {
+      const backSpy = vi.spyOn(Location.prototype, 'back').mockImplementation(() => undefined);
+      const fixture = await setup();
+
+      window.dispatchEvent(new PopStateEvent('popstate'));
+
+      expect(backSpy).toHaveBeenCalled();
+      backSpy.mockRestore();
+      fixture.destroy();
+    });
+  });
 });

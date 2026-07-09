@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  HostListener,
   OnDestroy,
   OnInit,
   effect,
@@ -123,10 +124,16 @@ export class SegmentWorkspaceComponent implements OnInit, OnDestroy {
     });
   }
 
+  /** The browser back button leaves the workspace the same way the back arrow does. */
+  @HostListener('window:popstate')
+  onPopState(): void {
+    this.goBack();
+  }
+
   goBack(): void {
     const returnUrl = this.route.snapshot.queryParams['returnUrl'];
     if (returnUrl) {
-      this.router.navigateByUrl(returnUrl);
+      this.router.navigateByUrl(returnUrl, { replaceUrl: true });
     } else {
       this.location.back();
     }
