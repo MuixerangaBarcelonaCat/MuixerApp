@@ -70,7 +70,10 @@ export class PinyesTabComponent implements OnInit {
 
   constructor() {
     effect(() => {
-      if (this.ws.pinyaSlots().length > 0 && !this.initialCenterDone) {
+      // Wait for every figure's nodes to have loaded — fitting on an early,
+      // partial pinyaSlots() emission freezes the viewport on an incomplete
+      // layout, since nothing re-fits once the rest of the figures arrive.
+      if (this.ws.instancesHydrated() && this.ws.pinyaSlots().length > 0 && !this.initialCenterDone) {
         this.initialCenterDone = true;
         setTimeout(() => this.canvasRef?.centerOnContent());
       }
