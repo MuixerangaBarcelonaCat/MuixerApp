@@ -1,0 +1,70 @@
+<div class="flex flex-col h-full min-h-0 bg-base-100">
+  <!-- Header -->
+  <header class="flex items-center gap-3 px-4 py-2 border-b border-base-300 shrink-0">
+    <button
+      type="button"
+      class="btn btn-ghost btn-sm btn-square"
+      (click)="goBack()"
+      aria-label="Torna arrere"
+    >
+      <lucide-icon [img]="ArrowLeft" [size]="18" aria-hidden="true" />
+    </button>
+
+    <div class="min-w-0">
+      <h1 class="text-base font-semibold truncate">
+        {{ ws.segmentName() ?? 'Segment' }}
+      </h1>
+    </div>
+
+    @if (ws.isLocked()) {
+      <span class="badge badge-warning gap-1" role="status">
+        <lucide-icon [img]="Lock" [size]="12" aria-hidden="true" />
+        Bloquejat
+      </span>
+    }
+
+    <!-- Workspace tabs -->
+    <nav role="tablist" class="tabs tabs-boxed ml-4" aria-label="Vistes del segment">
+      @for (tab of tabDefs; track tab.id) {
+        <button
+          type="button"
+          role="tab"
+          class="tab gap-1.5"
+          [class.tab-active]="activeTab() === tab.id"
+          [attr.aria-selected]="activeTab() === tab.id"
+          (click)="setTab(tab.id)"
+        >
+          <lucide-icon [img]="tab.icon" [size]="14" aria-hidden="true" />
+          {{ tab.label }}
+        </button>
+      }
+    </nav>
+  </header>
+
+  <!-- Tab content -->
+  <div class="flex-1 min-h-0">
+    @if (ws.loading()) {
+      <div class="flex items-center justify-center h-full">
+        <span class="loading loading-spinner loading-lg" aria-label="S'està carregant..."></span>
+      </div>
+    } @else {
+      @switch (activeTab()) {
+        @case ('pinyes') {
+          <app-pinyes-tab class="block h-full min-h-0" [isPast]="isPast()" />
+        }
+        @case ('troncs') {
+          <app-troncs-tab class="block h-full min-h-0" [isPast]="isPast()" />
+        }
+        @case ('distribucio') {
+          <app-distribucio-tab class="block h-full min-h-0" />
+        }
+        @case ('nodes') {
+          <app-nodes-tab class="block h-full min-h-0" [isPast]="isPast()" />
+        }
+        @case ('previsualitza') {
+          <app-previsualitza-tab class="block h-full min-h-0" />
+        }
+      }
+    }
+  </div>
+</div>

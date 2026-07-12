@@ -241,19 +241,6 @@
                       <lucide-icon name="Monitor" [size]="14" />
                       Projecta
                     </button>
-
-                    <!-- Distribute -->
-                    @if (segment.instances.length > 1) {
-                      <button
-                        type="button"
-                        class="btn btn-ghost btn-xs gap-1 text-primary"
-                        (click)="navigateToDistribution(segment.id)"
-                        [attr.aria-label]="'Distribueix les figures del segment ' + displayName(segment)"
-                      >
-                        <lucide-icon name="LayoutGrid" [size]="14" />
-                        Distribueix
-                      </button>
-                    }
                   }
 
                   <!-- Delete segment -->
@@ -526,7 +513,7 @@
     <button type="button" class="modal-backdrop" (click)="cancelInstanceRemoval()" aria-label="Tancar"></button>
   </dialog>
 }
-
+      
 <!-- REMAT / NETA mode change confirmation modal -->
 @if (pendingModeChange()) {
   <dialog

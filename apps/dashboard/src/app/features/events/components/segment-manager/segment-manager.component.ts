@@ -553,7 +553,7 @@ export class SegmentManagerComponent implements OnInit {
     }
     const qp: Record<string, string> = { returnUrl: this.currentReturnUrl() };
     if (this.isPast()) qp['past'] = '1';
-    if (this.viewMode() === 'troncs') qp['view'] = 'tronc';
+    if (this.viewMode() === 'troncs') qp['tab'] = 'troncs';
     this.router.navigate(route, { queryParams: qp });
   }
 
@@ -561,12 +561,6 @@ export class SegmentManagerComponent implements OnInit {
     this.router.navigate(
       ['/pinyes/events', this.eventId(), 'segments', segmentId, 'project'],
       { queryParams: { returnUrl: this.currentReturnUrl() } },
-    );
-  }
-
-  navigateToDistribution(segmentId: string): void {
-    this.router.navigate(
-      ['/pinyes/events', this.eventId(), 'segments', segmentId, 'distribute'],
     );
   }
 

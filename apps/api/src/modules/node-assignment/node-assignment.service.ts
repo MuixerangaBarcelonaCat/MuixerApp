@@ -6,7 +6,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import {
   EventType,
   FigureZone,
@@ -990,7 +990,42 @@ export class NodeAssignmentService {
 
     await this.figureInstanceRepository.save(instance);
 
+    if (instance.numberOfCordons !== null) {
+      await this.removeAssignmentsBeyondCordons(instanceId, instance.numberOfCordons);
+    }
+
     return { numberOfCordons: instance.numberOfCordons };
+  }
+
+  /**
+   * Deletes assignments on PINYA nodes whose renglaPosition falls beyond
+   * numberOfCordons — those nodes become hidden from the assignment UI, so an
+   * assignment on one would otherwise silently linger and reappear if cordons
+   * are later increased again. cordo-obert nodes are exempt: they stay
+   * assignable regardless of numberOfCordons.
+   */
+  private async removeAssignmentsBeyondCordons(instanceId: string, numberOfCordons: number): Promise<void> {
+    const hiddenNodes = await this.instanceNodeRepository.find({
+      where: { figureInstance: { id: instanceId } },
+    });
+    const hiddenNodeIds = hiddenNodes
+      .filter(
+        (n) =>
+          n.zone === FigureZone.PINYA &&
+          n.positionType !== 'cordo-obert' &&
+          n.renglaPosition !== null &&
+          n.renglaPosition > numberOfCordons,
+      )
+      .map((n) => n.id);
+    if (hiddenNodeIds.length === 0) return;
+
+    const assignments = await this.assignmentRepository.find({
+      where: { figureInstance: { id: instanceId }, instanceNode: { id: In(hiddenNodeIds) } },
+      relations: ['instanceNode'],
+    });
+    if (assignments.length === 0) return;
+
+    await this.assignmentRepository.remove(assignments);
   }
 
   // ── Lock — Assignment lock after event date ────────────────────────────────
