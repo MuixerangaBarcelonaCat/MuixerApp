@@ -10,7 +10,13 @@ import { DistributionItem } from '../models/distribution.model';
 import { InstanceNodeItem } from '../models/assignment.model';
 import { CompositionSlotWithNodes } from '../components/figure-canvas/figure-canvas.component';
 import { computeCordoObertOverrides } from '../utils/cordo-obert.util';
-import { figureExtentFromNodes, placeNewFigure } from '../utils/figure-placement.util';
+import {
+  figureExtentFromNodes,
+  placeFigures,
+  placeNewFigure,
+  PlacedFigurePosition,
+} from '../utils/figure-placement.util';
+import { pivotNodesFor } from '../utils/segment-assignment-render.util';
 
 export interface WorkspaceInstance {
   instanceId: string;
@@ -54,6 +60,20 @@ export class SegmentWorkspaceStateService {
   // Frozen per instance so adding/moving an ad-hoc node doesn't reflow other figures.
   private readonly autoPlacementExtentCache = new Map<string, { width: number; height: number }>();
 
+  /**
+   * True once every instance's initial node fetch (triggered by `load()`) has
+   * settled (success or error). Consumers that fit a camera/viewport to
+   * `pinyaSlots()` must wait for this — fitting on the first partial emission
+   * (e.g. only 1 of 3 figures loaded) freezes the viewport on an incomplete
+   * layout, since nothing re-fits once the rest of the figures arrive.
+   */
+  readonly instancesHydrated = signal(true);
+  private readonly pendingInitialNodeLoads = new Set<string>();
+  private readonly autoPlacementSpecCache = new Map<
+    string,
+    { pivotNodes: InstanceNodeItem[]; occupiedNodes: InstanceNodeItem[] }
+  >();
+
   readonly segmentName = computed(() => this.segment()?.name ?? null);
   readonly isLocked = computed(() => this.lockStatus()?.locked ?? false);
 
@@ -78,13 +98,33 @@ export class SegmentWorkspaceStateService {
       if (item?.projectionX != null) {
         placedExtents.push({
           x: item.projectionX,
-          width: this.stableAutoPlacementExtent(instance.instanceId, nodes).width,
+          // PINYA+BASE only, matching Distribució's own placeNewFigure fallback extent.
+          width: this.stableAutoPlacementExtent(instance.instanceId, pivotNodesFor(nodes)).width,
         });
       }
     }
 
+    // Fully-unplaced segment → space-optimizing layout for all figures at once,
+    // matching the Distribució tab exactly: pivot = PINYA+BASE only (the
+    // rotation-pivot convention every canvas mode uses), occupancy = the full
+    // rendered set (PINYA+BASE+DECORATION, cordons/REMAT-filtered already by
+    // pinyaCanvasNodesFor) so cordons/mode still shape packing space.
+    let optimizedByInstance = new Map<string, PlacedFigurePosition>();
+    if (entries.length > 0 && placedExtents.length === 0) {
+      const specs = entries.map(({ instance, nodes }) => {
+        const stable = this.stableAutoPlacementSpec(instance.instanceId, nodes);
+        return {
+          ...figureExtentFromNodes(instance.instanceId, stable.pivotNodes),
+          nodes: stable.pivotNodes,
+          occupiedNodes: stable.occupiedNodes,
+        };
+      });
+      optimizedByInstance = new Map(placeFigures(specs).map((p) => [p.instanceId, p]));
+    }
+
     return entries.map(({ instance, nodes }, index) => {
       const item = distribution.get(instance.instanceId);
+      const optimized = optimizedByInstance.get(instance.instanceId);
       let offsetX: number;
       let offsetY: number;
       let angle: number;
@@ -92,8 +132,12 @@ export class SegmentWorkspaceStateService {
         offsetX = item.projectionX;
         offsetY = item.projectionY ?? 0;
         angle = item.projectionAngle ?? 0;
+      } else if (optimized) {
+        offsetX = optimized.x;
+        offsetY = optimized.y;
+        angle = optimized.angle;
       } else {
-        const extent = this.stableAutoPlacementExtent(instance.instanceId, nodes);
+        const extent = this.stableAutoPlacementExtent(instance.instanceId, pivotNodesFor(nodes));
         const placed = placeNewFigure(placedExtents, { instanceId: instance.instanceId, ...extent });
         placedExtents.push({ x: placed.x, width: extent.width });
         offsetX = placed.x;
@@ -131,11 +175,29 @@ export class SegmentWorkspaceStateService {
     return extent;
   }
 
+  /**
+   * Pivot (PINYA+BASE only) and occupancy (the full rendered set) node lists
+   * for the space-optimizing auto-placement, frozen per instance the first
+   * time they're seen and reused thereafter — so adding an ad-hoc node to one
+   * figure never reflows the others.
+   */
+  private stableAutoPlacementSpec(
+    instanceId: string,
+    occupiedNodes: InstanceNodeItem[],
+  ): { pivotNodes: InstanceNodeItem[]; occupiedNodes: InstanceNodeItem[] } {
+    const cached = this.autoPlacementSpecCache.get(instanceId);
+    if (cached) return cached;
+    const value = { pivotNodes: pivotNodesFor(occupiedNodes), occupiedNodes };
+    if (occupiedNodes.length > 0) this.autoPlacementSpecCache.set(instanceId, value);
+    return value;
+  }
+
   load(eventId: string, segmentId: string): void {
     this.eventId.set(eventId);
     this.segmentId.set(segmentId);
     this.loading.set(true);
     this.notFound.set(false);
+    this.instancesHydrated.set(false);
     this.state.reset();
     this.autoPlacementExtentCache.clear();
 
@@ -169,6 +231,11 @@ export class SegmentWorkspaceStateService {
             })),
         );
         this.loading.set(false);
+        this.pendingInitialNodeLoads.clear();
+        for (const instance of this.instances()) {
+          this.pendingInitialNodeLoads.add(instance.instanceId);
+        }
+        this.instancesHydrated.set(this.pendingInitialNodeLoads.size === 0);
         for (const instance of this.instances()) {
           this.refreshInstance(instance.instanceId);
         }
@@ -253,7 +320,9 @@ export class SegmentWorkspaceStateService {
             return { ...i, nodes: resp.data, totalCount, snapshotted };
           }),
         );
+        this.markInitialNodeLoadComplete(instanceId);
       },
+      error: () => this.markInitialNodeLoadComplete(instanceId),
     });
 
     this.assignmentService.getByInstance(instanceId).subscribe({
@@ -269,6 +338,12 @@ export class SegmentWorkspaceStateService {
         );
       },
     });
+  }
+
+  private markInitialNodeLoadComplete(instanceId: string): void {
+    if (this.pendingInitialNodeLoads.delete(instanceId) && this.pendingInitialNodeLoads.size === 0) {
+      this.instancesHydrated.set(true);
+    }
   }
 
   selectInstance(instanceId: string | null): void {

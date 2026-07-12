@@ -31,6 +31,7 @@ import { getFigureColor } from '../../utils/figure-palette.util';
 import {
   boundingBoxCenter,
   buildSegmentRenderNodes,
+  pivotNodesFor,
   SegmentNodeRef,
   SegmentRenderNode,
   stageToSlotLocal,
@@ -1575,7 +1576,10 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   private slotPivot(slot: CompositionSlotWithNodes): { x: number; y: number } {
     const cached = this.segmentSlotPivotCache.get(slot.slotId);
     if (cached) return cached;
-    const pivot = boundingBoxCenter(slot.figureTemplate.nodes);
+    // PINYA+BASE only, matching the pivot every other view/canvas mode uses
+    // (composition/distribution mode below, distributionNodes in the
+    // projection view) — decoration is still drawn but must never shift it.
+    const pivot = boundingBoxCenter(pivotNodesFor(slot.figureTemplate.nodes));
     this.segmentSlotPivotCache.set(slot.slotId, pivot);
     return pivot;
   }

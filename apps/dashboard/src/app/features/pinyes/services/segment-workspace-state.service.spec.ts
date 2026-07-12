@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { describe, it, expect, vi } from 'vitest';
 import { SegmentWorkspaceStateService } from './segment-workspace-state.service';
 import { AssignmentStateService } from './assignment-state.service';
@@ -293,6 +293,47 @@ describe('SegmentWorkspaceStateService', () => {
     });
   });
 
+  describe('instancesHydrated', () => {
+    it('is true immediately when the segment has no instances', () => {
+      configure({ segment: makeSegment([]) });
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      expect(service.instancesHydrated()).toBe(true);
+    });
+
+    it('stays false until every instance has finished loading its nodes (so a camera fit does not run on a partial layout)', () => {
+      configure({ segment: makeSegment([makeInstance('inst-a'), makeInstance('inst-b')]) });
+      const subjectA = new Subject<{ data: InstanceNodeItem[] }>();
+      const subjectB = new Subject<{ data: InstanceNodeItem[] }>();
+      assignmentService.getInstanceNodes.mockImplementation((instanceId: string) =>
+        instanceId === 'inst-a' ? subjectA : subjectB,
+      );
+
+      service.load(EVENT_ID, SEGMENT_ID);
+      expect(service.instancesHydrated()).toBe(false);
+
+      subjectA.next({ data: [makeNode('n1', 'PINYA')] });
+      expect(service.instancesHydrated()).toBe(false);
+
+      subjectB.next({ data: [makeNode('n2', 'PINYA')] });
+      expect(service.instancesHydrated()).toBe(true);
+    });
+
+    it('still counts an instance as loaded when its node fetch errors', () => {
+      configure({ segment: makeSegment([makeInstance('inst-a')]) });
+      const subjectA = new Subject<{ data: InstanceNodeItem[] }>();
+      assignmentService.getInstanceNodes.mockReturnValue(subjectA);
+
+      service.load(EVENT_ID, SEGMENT_ID);
+      expect(service.instancesHydrated()).toBe(false);
+
+      subjectA.error(new Error('boom'));
+
+      expect(service.instancesHydrated()).toBe(true);
+    });
+  });
+
   describe('pinyaSlots', () => {
     it('uses stored distribution positions when present', () => {
       const seg = makeSegment([makeInstance('inst-a')]);
@@ -329,6 +370,21 @@ describe('SegmentWorkspaceStateService', () => {
       expect(b.offsetY).toBe(0);
       expect(b.offsetX).toBeGreaterThan(a.offsetX);
       expect(a.angle).toBe(0);
+    });
+
+    it('wraps auto-placed figures into multiple rows when one row would limit the fit-to-screen zoom', () => {
+      const ids = ['inst-a', 'inst-b', 'inst-c', 'inst-d', 'inst-e', 'inst-f'];
+      configure({
+        segment: makeSegment(ids.map((id) => makeInstance(id))),
+        nodesByInstance: Object.fromEntries(
+          ids.map((id) => [id, [makeNode(`n-${id}`, 'PINYA', { width: 400, height: 300 })]]),
+        ),
+      });
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      const ys = new Set(service.pinyaSlots().map((s) => s.offsetY));
+      expect(ys.size).toBeGreaterThan(1);
     });
 
     it('auto-places unpositioned figures to the right of positioned ones', () => {
@@ -446,6 +502,50 @@ describe('SegmentWorkspaceStateService', () => {
       service.load(EVENT_ID, SEGMENT_ID);
 
       expect(service.pinyaSlots().map((s) => s.slotId)).toEqual(['inst-b']);
+    });
+
+    it('matches the Distribució tab layout exactly for a fully-unplaced segment (same pivot/occupancy, same cordons/mode filtering)', async () => {
+      const { mapDistributionItemsToSlots } = await import('../utils/distribution-slot-mapping.util');
+
+      const figNodes = (idPrefix: string) => [
+        makeNode(`${idPrefix}-p1`, 'PINYA', { x: 200, y: 150, width: 400, height: 300, renglaId: 'r1', renglaPosition: 1 }),
+        makeNode(`${idPrefix}-p2`, 'PINYA', { x: 200, y: 250, width: 400, height: 300, renglaId: 'r1', renglaPosition: 2 }),
+        makeNode(`${idPrefix}-b1`, 'BASE', { x: 200, y: 320, width: 100, height: 40 }),
+        makeNode(`${idPrefix}-d1`, 'DECORATION', { x: -900, y: -900, width: 10, height: 10 }),
+      ];
+      const ids = ['a', 'b', 'c'];
+      configure({
+        segment: makeSegment(ids.map((id) => makeInstance(id, { numberOfCordons: 1 }))),
+        nodesByInstance: Object.fromEntries(ids.map((id) => [id, figNodes(id)])),
+      });
+
+      service.load(EVENT_ID, SEGMENT_ID);
+      const slots = mapDistributionItemsToSlots(
+        ids.map((id) => ({
+          instanceId: id,
+          label: null,
+          figureMode: 'COMPLETA',
+          numberOfCordons: 1,
+          assignments: [],
+          figureTemplate: { id: `tpl-${id}`, name: `Figura ${id}`, nodes: figNodes(id) },
+          troncGridCols: 2,
+          troncGridRows: 1,
+          projectionX: null,
+          projectionY: null,
+          projectionAngle: null,
+          troncPanelX: null,
+          troncPanelY: null,
+          troncPanelWidth: null,
+          troncPanelHeight: null,
+        })),
+      );
+
+      const pinyaSlots = service.pinyaSlots();
+      for (const slot of slots) {
+        const pinyaSlot = pinyaSlots.find((s) => s.slotId === slot.slotId)!;
+        expect(pinyaSlot.offsetX).toBe(slot.offsetX);
+        expect(pinyaSlot.offsetY).toBe(slot.offsetY);
+      }
     });
   });
 

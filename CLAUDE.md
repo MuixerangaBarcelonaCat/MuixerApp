@@ -128,7 +128,7 @@ There is no separate distribution route — `SegmentWorkspaceComponent`'s Distri
 
 **`AssignmentStateService`** holds global canvas state via signals: `selectedNodeId`, `selectedPersonId`, `activeInstanceId`, `assignments`, `confirmedPersons`, `pendingOperations`.
 
-**Figure placement mock** (`utils/figure-placement.util.ts`) — `placeFigures`/`placeNewFigure` lay figures out left-to-right with a gap; used both by the workspace tabs and by `ProjectionViewComponent` whenever a figure has no saved distribution position (`projectionX === null`), so the projection view always renders through its single unified canvas instead of a separate split-screen fallback. Stable signature, to be replaced later by a real space-optimizing algorithm.
+**Figure placement** (`utils/figure-placement.util.ts`) — `placeFigures` is a deterministic space-optimizing layout: figures are packed into rows (segment order = reading order), choosing the row partition that maximizes the fit-to-screen zoom for a reference screen; tronc panels are then placed near their own figure by candidate scoring.
 
 ---
 
@@ -147,16 +147,11 @@ There is no separate distribution route — `SegmentWorkspaceComponent`'s Distri
 - Coverage threshold: 70% (enforced in CI via `--configuration=ci`)
 - Test a single backend file: `nx test api --testFile=<path>`
 
+## Development guidelines
+
+Always read the TDD skill and apply it when writing code. Read and apply any other relevant skills before you start.
+
 ---
-
-## P5.8.1 — Projection view (in progress)
-
-Current branch `story/deploy-server-pre` contains work on the fullscreen projection feature. Key additions:
-- `FigureInstance` has `projectionX`, `projectionY`, `projectionScale` fields
-- `ReferenceElement` entity (RECTANGLE | ARROW) scoped to an event, with `hiddenInSegments` JSONB
-- Endpoint `PUT /segments/:id/instances/projection-layout` for batch position updates
-- Endpoint `GET /segments/:id/projection` for optimized projection data
-- New components: `ProjectionViewComponent`, `SegmentCanvasComponent`, `FigureProjectionComponent`
 
 ## graphify
 

@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { boundingBoxCenter, buildSegmentRenderNodes, stageToSlotLocal } from './segment-assignment-render.util';
+import {
+  boundingBoxCenter,
+  buildSegmentRenderNodes,
+  pivotNodesFor,
+  stageToSlotLocal,
+} from './segment-assignment-render.util';
 import { CompositionSlotWithNodes } from '../components/figure-canvas/figure-canvas.component';
 import { AssignmentDetail } from '../models/assignment.model';
 
@@ -150,6 +155,25 @@ describe('boundingBoxCenter', () => {
       { x: 100, y: 40, width: 20, height: 20 },
     ]);
     expect(center).toEqual({ x: 50, y: 20 });
+  });
+});
+
+describe('pivotNodesFor', () => {
+  it('keeps only PINYA and BASE nodes — matching the pivot every other canvas mode uses', () => {
+    const nodes = [
+      makeSlotNode('p1', { zone: 'PINYA' }),
+      makeSlotNode('b1', { zone: 'BASE' }),
+      makeSlotNode('d1', { zone: 'DECORATION' }),
+      makeSlotNode('t1', { zone: 'TRONC' }),
+    ];
+
+    expect(pivotNodesFor(nodes).map((n) => n.id).sort()).toEqual(['b1', 'p1']);
+  });
+
+  it('returns an empty array when there are no PINYA/BASE nodes (e.g. a NETA figure)', () => {
+    const nodes = [makeSlotNode('d1', { zone: 'DECORATION' })];
+
+    expect(pivotNodesFor(nodes)).toEqual([]);
   });
 });
 

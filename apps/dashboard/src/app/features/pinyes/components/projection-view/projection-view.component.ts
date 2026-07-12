@@ -25,7 +25,12 @@ import { TroncViewComponent, TroncNodeItem } from '../tronc-view/tronc-view.comp
 import { FigureZone } from '@muixer/shared';
 import { computeCordoObertOverrides } from '../../utils/cordo-obert.util';
 import { computeDistributionTransform, computeInstanceNaturalExtent } from '../../utils/projection-layout.util';
-import { placeNewFigure } from '../../utils/figure-placement.util';
+import {
+  figureExtentFromNodes,
+  placeFigures,
+  placeNewFigure,
+  PlacedFigurePosition,
+} from '../../utils/figure-placement.util';
 import { computeTroncNaturalSize, TRONC_GAP_PX } from '../../utils/tronc-size.util';
 import { getFigureColor } from '../../utils/figure-palette.util';
 
@@ -109,6 +114,42 @@ export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy
    * overlap. This replaces the old per-instance screen-splitting fallback — the
    * projection view always renders through the single unified canvas below.
    */
+  /**
+   * Space-optimizing placements for fully-unplaced segments, built from the
+   * same inputs as the Distribució tab (`mapDistributionItemsToSlots`): pinya
+   * canvas node extents plus the derived tronc panel size (including the base
+   * row). Empty when any instance has a saved position.
+   *
+   * The pivot node set (`nodes`, defining each figure's placed x/y) MUST be
+   * raw, unfiltered PINYA+BASE — exactly what `distributionNodes` uses as its
+   * Konva rotation pivot (see its doc comment). Using any other set (assigned-
+   * only PINYA, or including DECORATION) shifts the figure's actual rendered
+   * position away from what placement assumed, misaligning the tronc panel
+   * against real nodes — including the figure's own BASE row. Decoration and
+   * assignment status still matter for `occupiedNodes`: they block tronc
+   * placement without affecting the pivot.
+   */
+  private readonly batchPlacements = computed((): Map<string, PlacedFigurePosition> => {
+    const instances = this.filteredInstances();
+    if (instances.length === 0 || instances.some((inst) => inst.projectionX != null)) {
+      return new Map();
+    }
+    const specs = instances.map((inst) => {
+      const pivotNodes = inst.nodes.filter(
+        (n) => n.zone === FigureZone.PINYA || n.zone === FigureZone.BASE,
+      );
+      const occupiedNodes = this.getInstanceProjectionNodes(inst);
+      const { naturalW, naturalH } = this.getTroncPanelNaturalSize(inst);
+      return {
+        ...figureExtentFromNodes(inst.id, pivotNodes),
+        nodes: pivotNodes,
+        occupiedNodes,
+        tronc: { width: naturalW, height: naturalH },
+      };
+    });
+    return new Map(placeFigures(specs).map((p) => [p.instanceId, p]));
+  });
+
   readonly effectivePositions = computed((): Map<string, { x: number; y: number; angle: number }> => {
     const instances = this.filteredInstances();
     const positions = new Map<string, { x: number; y: number; angle: number }>();
@@ -118,6 +159,15 @@ export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy
       if (inst.projectionX == null) continue;
       positions.set(inst.id, { x: inst.projectionX, y: inst.projectionY ?? 0, angle: inst.projectionAngle ?? 0 });
       placedExtents.push({ x: inst.projectionX, width: computeInstanceNaturalExtent(inst).width });
+    }
+
+    // Fully-unplaced segment → same layout Distribució shows.
+    const batch = this.batchPlacements();
+    if (batch.size > 0) {
+      for (const placed of batch.values()) {
+        positions.set(placed.instanceId, { x: placed.x, y: placed.y, angle: placed.angle });
+      }
+      return positions;
     }
 
     for (const inst of instances) {
@@ -134,10 +184,19 @@ export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy
   /** `filteredInstances()` with every projectionX/Y/Angle resolved via `effectivePositions`. */
   readonly effectiveInstances = computed((): ProjectionInstance[] => {
     const positions = this.effectivePositions();
+    const batch = this.batchPlacements();
     return this.filteredInstances().map((inst) => {
       const pos = positions.get(inst.id);
       if (!pos) return inst;
-      return { ...inst, projectionX: pos.x, projectionY: pos.y, projectionAngle: pos.angle };
+      const placed = batch.get(inst.id);
+      return {
+        ...inst,
+        projectionX: pos.x,
+        projectionY: pos.y,
+        projectionAngle: pos.angle,
+        troncPanelX: inst.troncPanelX ?? placed?.troncPanelX ?? null,
+        troncPanelY: inst.troncPanelY ?? placed?.troncPanelY ?? null,
+      };
     });
   });
 
@@ -430,10 +489,21 @@ export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy
   /** Nodes to render on the Konva canvas: PINYA + BASE + DECORATION (spatial x,y nodes).
    *  Excludes TRONC/DIRECTION (shown in tronc header) and unassigned PINYA nodes.
    *  BASE nodes are excluded for REMAT and NETA modes.
+   *  PINYA nodes beyond numberOfCordons are excluded even if (stale-)assigned —
+   *  reducing cordons does not auto-unassign anyone server-side, but the
+   *  structure physically doesn't have that cordon anymore. cordo-obert nodes
+   *  are exempt (matches Distribució's filterNodesByFigureMode keepCordoObert).
    *  Assigned cordo-obert nodes collapse to the first empty slot in their rengla. */
   getInstanceProjectionNodes(instance: ProjectionInstance): InstanceNodeItem[] {
     const assignedNodeIds = new Set(instance.assignments.map((a) => a.node.id));
     const hideBase = instance.figureMode === 'REMAT';
+    const cordons = instance.numberOfCordons;
+    const withinCordons = (n: InstanceNodeItem) =>
+      cordons === null ||
+      n.positionType === 'cordo-obert' ||
+      !n.renglaId ||
+      n.renglaPosition === null ||
+      n.renglaPosition <= cordons;
     const overrides = computeCordoObertOverrides(
       instance.nodes,
       (co, others) =>
@@ -445,7 +515,8 @@ export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy
     return instance.nodes
       .filter((n) =>
         (n.zone === FigureZone.PINYA || (!hideBase && n.zone === FigureZone.BASE) || n.zone === FigureZone.DECORATION) &&
-        !(n.zone === FigureZone.PINYA && !assignedNodeIds.has(n.id)),
+        !(n.zone === FigureZone.PINYA && !assignedNodeIds.has(n.id)) &&
+        (n.zone !== FigureZone.PINYA || withinCordons(n)),
       )
       .map((n) => {
         const pos = overrides.get(n.id);

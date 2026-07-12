@@ -290,7 +290,7 @@ describe('ProjectionViewComponent', () => {
       expect(component.effectivePositions().get('inst-A')).toEqual({ x: 100, y: 200, angle: 30 });
     });
 
-    it('mock-places instances with no saved position, in increasing x order', () => {
+    it('auto-places instances with no saved position in reading order (right of, or below, the previous one)', () => {
       const inst1 = makeInstance([makeNode({ zone: FigureZone.PINYA })], [], { id: 'i1', projectionX: null });
       const inst2 = makeInstance([makeNode({ zone: FigureZone.PINYA })], [], { id: 'i2', projectionX: null });
       component.segmentData.set({
@@ -300,9 +300,31 @@ describe('ProjectionViewComponent', () => {
         hasDistribution: false,
       });
       const positions = component.effectivePositions();
-      expect(positions.get('i1')).toBeDefined();
-      expect(positions.get('i2')).toBeDefined();
-      expect(positions.get('i1')!.x).toBeLessThan(positions.get('i2')!.x);
+      const p1 = positions.get('i1');
+      const p2 = positions.get('i2');
+      expect(p1).toBeDefined();
+      expect(p2).toBeDefined();
+      const sameRow = p2!.y === p1!.y;
+      expect(sameRow ? p2!.x > p1!.x : p2!.y > p1!.y).toBe(true);
+    });
+
+    it('wraps fully-unplaced segments into multiple rows when one row would limit the fit-to-screen zoom', () => {
+      const instances = ['i1', 'i2', 'i3', 'i4', 'i5', 'i6'].map((id) =>
+        makeInstance([makeNode({ zone: FigureZone.PINYA, width: 400, height: 300 })], [], {
+          id,
+          projectionX: null,
+        }),
+      );
+      component.segmentData.set({
+        segment: { id: 's1', name: null, sortOrder: 0, prevSegmentId: null, nextSegmentId: null },
+        instances,
+        personAttendance: {},
+        hasDistribution: false,
+      });
+
+      const positions = component.effectivePositions();
+      const ys = new Set([...positions.values()].map((p) => p.y));
+      expect(ys.size).toBeGreaterThan(1);
     });
 
     it('places a mock instance to the right of an already-distributed one, without overlap', () => {
@@ -335,6 +357,171 @@ describe('ProjectionViewComponent', () => {
       const [effective] = component.effectiveInstances();
       expect(effective.projectionX).not.toBeNull();
       expect(effective.projectionY).not.toBeNull();
+    });
+
+    it('fills in troncPanelX/Y for fully-unplaced segments so tronc panels render detached', () => {
+      const nodes = [
+        makeNode({ id: 'p1', zone: FigureZone.PINYA, x: 200, y: 150, width: 400, height: 300 }),
+        makeNode({ id: 'b1', zone: FigureZone.BASE, x: 200, y: 320, width: 100, height: 40 }),
+        makeNode({ id: 't1', zone: FigureZone.TRONC, x: 0, y: 0, z: 0, width: 2, height: 1 }),
+      ];
+      component.segmentData.set({
+        segment: { id: 's1', name: null, sortOrder: 0, prevSegmentId: null, nextSegmentId: null },
+        instances: [makeInstance(nodes, [], { id: 'i1', projectionX: null })],
+        personAttendance: {},
+        hasDistribution: false,
+      });
+
+      const [effective] = component.effectiveInstances();
+      expect(effective.troncPanelX).not.toBeNull();
+      expect(effective.troncPanelY).not.toBeNull();
+    });
+
+    it('does not waste packing space on an unassigned PINYA node (occupancy, not the raw pivot, drives spacing)', () => {
+      // The pivot (raw PINYA+BASE) still determines rotation/position
+      // internally, but PACKING SPACE is reserved from occupancy — what
+      // getInstanceProjectionNodes actually draws. An unassigned PINYA node
+      // (e.g. beyond numberOfCordons) is invisible, so it must not push a
+      // neighboring figure away — this is what lets cordons/assignment still
+      // shape the auto-placed layout, without breaking pivot/render alignment.
+      const small = makeNode({ id: 'small', zone: FigureZone.PINYA, x: 50, y: 50, width: 100, height: 100 });
+      const unassignedPinya = makeNode({
+        id: 'unassigned',
+        zone: FigureZone.PINYA,
+        x: 1000,
+        y: 1000,
+        width: 2000,
+        height: 2000,
+      });
+      const a = makeInstance([small, unassignedPinya], ['small'], { id: 'a', projectionX: null, numberOfCordons: 1 });
+      const b = makeInstance(
+        [makeNode({ id: 'b-small', zone: FigureZone.PINYA, x: 50, y: 50, width: 100, height: 100 })],
+        ['b-small'],
+        { id: 'b', projectionX: null },
+      );
+      component.segmentData.set({
+        segment: { id: 's1', name: null, sortOrder: 0, prevSegmentId: null, nextSegmentId: null },
+        instances: [a, b],
+        personAttendance: {},
+        hasDistribution: false,
+      });
+
+      const positions = component.effectivePositions();
+      expect(positions.get('b')!.x).toBeLessThan(500);
+    });
+
+
+    it('always includes BASE nodes in the pivot bbox, even when unassigned', () => {
+      // BASE nodes are assignable but must count toward the figure's pivot
+      // regardless of assignment status (they represent real physical structure).
+      const a = makeInstance(
+        [makeNode({ id: 'base', zone: FigureZone.BASE, x: 1000, y: 1000, width: 1800, height: 1800 })],
+        [],
+        { id: 'a', projectionX: null },
+      );
+      const b = makeInstance(
+        [makeNode({ id: 'b-small', zone: FigureZone.PINYA, x: 50, y: 50, width: 100, height: 100 })],
+        ['b-small'],
+        { id: 'b', projectionX: null },
+      );
+      component.segmentData.set({
+        segment: { id: 's1', name: null, sortOrder: 0, prevSegmentId: null, nextSegmentId: null },
+        instances: [a, b],
+        personAttendance: {},
+        hasDistribution: false,
+      });
+
+      const positions = component.effectivePositions();
+      expect(positions.get('b')!.x).toBeGreaterThan(1500);
+    });
+
+    it('still blocks tronc placement with a DECORATION node, even though it is excluded from the pivot bbox', () => {
+      // Decoration must never affect where the figure is *placed* (see the
+      // pivot test above), but it is real, always-drawn content, so a tronc
+      // panel must never be positioned on top of it.
+      const nodes = [
+        makeNode({ id: 'p1', zone: FigureZone.PINYA, x: 0, y: 0, width: 600, height: 400 }),
+        makeNode({ id: 'd1', zone: FigureZone.DECORATION, x: -450, y: 0, width: 300, height: 400 }),
+      ];
+      const troncNode = makeNode({ id: 't1', zone: FigureZone.TRONC, x: 0, y: 0, z: 0, width: 2, height: 1 });
+      const a = makeInstance([...nodes, troncNode], ['p1'], { id: 'a', projectionX: null });
+      component.segmentData.set({
+        segment: { id: 's1', name: null, sortOrder: 0, prevSegmentId: null, nextSegmentId: null },
+        instances: [a],
+        personAttendance: {},
+        hasDistribution: false,
+      });
+
+      const [effective] = component.effectiveInstances();
+      expect(effective.troncPanelX).not.toBeNull();
+      // Decoration world box: pivot (PINYA-only bbox center = 0,0) + local
+      // offset (-450,0), half-extent 150×200.
+      const pivotX = component.effectivePositions().get('a')!.x;
+      const pivotY = component.effectivePositions().get('a')!.y;
+      const decoBox = { left: pivotX - 450 - 150, right: pivotX - 450 + 150, top: pivotY - 200, bottom: pivotY + 200 };
+      const { naturalW, naturalH } = component['getTroncPanelNaturalSize'](effective);
+      const troncBox = {
+        left: effective.troncPanelX as number,
+        right: (effective.troncPanelX as number) + naturalW,
+        top: effective.troncPanelY as number,
+        bottom: (effective.troncPanelY as number) + naturalH,
+      };
+      const overlaps =
+        troncBox.left < decoBox.right &&
+        decoBox.left < troncBox.right &&
+        troncBox.top < decoBox.bottom &&
+        decoBox.top < troncBox.bottom;
+      expect(overlaps).toBe(false);
+    });
+
+    it('lays out fully-unplaced segments exactly like the distribution mapping when every cordon position is assigned (Distribució parity)', async () => {
+      const { mapDistributionItemsToSlots } = await import('../../utils/distribution-slot-mapping.util');
+
+      const figNodes = (idPrefix: string) => [
+        makeNode({ id: `${idPrefix}-p1`, zone: FigureZone.PINYA, x: 200, y: 150, width: 400, height: 300 }),
+        makeNode({ id: `${idPrefix}-b1`, zone: FigureZone.BASE, x: 200, y: 320, width: 100, height: 40 }),
+        makeNode({ id: `${idPrefix}-t1`, zone: FigureZone.TRONC, x: 0, y: 0, z: 0, width: 2, height: 1 }),
+      ];
+      const ids = ['i1', 'i2', 'i3'];
+      component.segmentData.set({
+        segment: { id: 's1', name: null, sortOrder: 0, prevSegmentId: null, nextSegmentId: null },
+        instances: ids.map((id) =>
+          makeInstance(figNodes(id), [`${id}-p1`], { id, projectionX: null }),
+        ),
+        personAttendance: {},
+        hasDistribution: false,
+      });
+
+      // Backend-shaped distribution items for the same figures: troncGridCols =
+      // max(x + width) over tronc nodes (2), troncGridRows = distinct z levels (1).
+      const slots = mapDistributionItemsToSlots(
+        ids.map((id) => ({
+          instanceId: id,
+          label: null,
+          figureMode: 'COMPLETA',
+          numberOfCordons: null,
+          assignments: [],
+          figureTemplate: { id: `fig-${id}`, name: id, nodes: figNodes(id) },
+          troncGridCols: 2,
+          troncGridRows: 1,
+          projectionX: null,
+          projectionY: null,
+          projectionAngle: null,
+          troncPanelX: null,
+          troncPanelY: null,
+          troncPanelWidth: null,
+          troncPanelHeight: null,
+        })),
+      );
+
+      const effective = component.effectiveInstances();
+      for (const slot of slots) {
+        const inst = effective.find((i) => i.id === slot.slotId)!;
+        expect(inst.projectionX).toBe(slot.offsetX);
+        expect(inst.projectionY).toBe(slot.offsetY);
+        expect(inst.troncPanelX).toBe(slot.troncPanelX);
+        expect(inst.troncPanelY).toBe(slot.troncPanelY);
+      }
     });
   });
 

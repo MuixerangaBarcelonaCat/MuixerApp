@@ -456,6 +456,141 @@ describe('DistribucioTabComponent', () => {
       expect(assignmentService.updateCordons).toHaveBeenCalledWith(INST_A, { numberOfCordons: 2 });
       expect(distributionService.getDistribution).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID);
     });
+
+    it('does not call updateCordons directly when decreasing cordons would remove assignments — asks for confirmation first', async () => {
+      const items = [
+        makeDistributionItem(INST_A, {
+          numberOfCordons: 3,
+          figureTemplate: {
+            id: 'tpl-a',
+            name: 'Figura a',
+            nodes: [
+              makeDistributionNode('n1', 'PINYA', { renglaId: 'r1', renglaPosition: 1 }),
+              makeDistributionNode('n2', 'PINYA', { renglaId: 'r1', renglaPosition: 2 }),
+            ],
+          },
+          assignments: [{ figureNodeId: 'n2', personAlias: 'JoanP' }],
+        }),
+      ];
+      await setup({ items });
+      component.onSlotSelected(INST_A);
+
+      component.onNumberOfCordonsChanged({ id: INST_A, value: 1 });
+
+      expect(assignmentService.updateCordons).not.toHaveBeenCalled();
+      expect(component.pendingCordonsChange()).toEqual({ id: INST_A, value: 1, affectedCount: 1 });
+    });
+
+    it('calls updateCordons once the pending cordons change is confirmed', async () => {
+      const items = [
+        makeDistributionItem(INST_A, {
+          numberOfCordons: 3,
+          figureTemplate: {
+            id: 'tpl-a',
+            name: 'Figura a',
+            nodes: [makeDistributionNode('n2', 'PINYA', { renglaId: 'r1', renglaPosition: 2 })],
+          },
+          assignments: [{ figureNodeId: 'n2', personAlias: 'JoanP' }],
+        }),
+      ];
+      await setup({ items });
+      component.onSlotSelected(INST_A);
+      component.onNumberOfCordonsChanged({ id: INST_A, value: 1 });
+      distributionService.getDistribution.mockClear();
+
+      component.confirmCordonsChange();
+
+      expect(assignmentService.updateCordons).toHaveBeenCalledWith(INST_A, { numberOfCordons: 1 });
+      expect(distributionService.getDistribution).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID);
+      expect(component.pendingCordonsChange()).toBeNull();
+    });
+
+    it('does not call updateCordons when the pending cordons change is cancelled', async () => {
+      const items = [
+        makeDistributionItem(INST_A, {
+          numberOfCordons: 3,
+          figureTemplate: {
+            id: 'tpl-a',
+            name: 'Figura a',
+            nodes: [makeDistributionNode('n2', 'PINYA', { renglaId: 'r1', renglaPosition: 2 })],
+          },
+          assignments: [{ figureNodeId: 'n2', personAlias: 'JoanP' }],
+        }),
+      ];
+      await setup({ items });
+      component.onSlotSelected(INST_A);
+      component.onNumberOfCordonsChanged({ id: INST_A, value: 1 });
+
+      component.cancelCordonsChange();
+
+      expect(assignmentService.updateCordons).not.toHaveBeenCalled();
+      expect(component.pendingCordonsChange()).toBeNull();
+    });
+
+    it('does not ask for confirmation when decreasing cordons affects no assignments', async () => {
+      const items = [
+        makeDistributionItem(INST_A, {
+          numberOfCordons: 3,
+          figureTemplate: {
+            id: 'tpl-a',
+            name: 'Figura a',
+            nodes: [makeDistributionNode('n2', 'PINYA', { renglaId: 'r1', renglaPosition: 2 })],
+          },
+          assignments: [],
+        }),
+      ];
+      await setup({ items });
+      component.onSlotSelected(INST_A);
+
+      component.onNumberOfCordonsChanged({ id: INST_A, value: 1 });
+
+      expect(assignmentService.updateCordons).toHaveBeenCalledWith(INST_A, { numberOfCordons: 1 });
+      expect(component.pendingCordonsChange()).toBeNull();
+    });
+
+    it('does not ask for confirmation when increasing cordons', async () => {
+      const items = [
+        makeDistributionItem(INST_A, {
+          numberOfCordons: 1,
+          figureTemplate: {
+            id: 'tpl-a',
+            name: 'Figura a',
+            nodes: [makeDistributionNode('n2', 'PINYA', { renglaId: 'r1', renglaPosition: 2 })],
+          },
+          assignments: [{ figureNodeId: 'n2', personAlias: 'JoanP' }],
+        }),
+      ];
+      await setup({ items });
+      component.onSlotSelected(INST_A);
+
+      component.onNumberOfCordonsChanged({ id: INST_A, value: 3 });
+
+      expect(assignmentService.updateCordons).toHaveBeenCalledWith(INST_A, { numberOfCordons: 3 });
+      expect(component.pendingCordonsChange()).toBeNull();
+    });
+
+    it('does not count a cordo-obert node assignment as affected (it stays visible regardless of cordons)', async () => {
+      const items = [
+        makeDistributionItem(INST_A, {
+          numberOfCordons: 3,
+          figureTemplate: {
+            id: 'tpl-a',
+            name: 'Figura a',
+            nodes: [
+              makeDistributionNode('co', 'PINYA', { renglaId: 'r1', renglaPosition: 2, positionType: 'cordo-obert' }),
+            ],
+          },
+          assignments: [{ figureNodeId: 'co', personAlias: 'JoanP' }],
+        }),
+      ];
+      await setup({ items });
+      component.onSlotSelected(INST_A);
+
+      component.onNumberOfCordonsChanged({ id: INST_A, value: 1 });
+
+      expect(assignmentService.updateCordons).toHaveBeenCalledWith(INST_A, { numberOfCordons: 1 });
+      expect(component.pendingCordonsChange()).toBeNull();
+    });
   });
 
   describe('reset distribution', () => {

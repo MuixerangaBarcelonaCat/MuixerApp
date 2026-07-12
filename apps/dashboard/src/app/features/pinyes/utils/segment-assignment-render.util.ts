@@ -56,6 +56,17 @@ export function buildSegmentRenderNodes(
   return result;
 }
 
+/**
+ * PINYA + BASE only — the pivot node set matching the rotation pivot used by
+ * every other canvas mode (composition/distribution, distributionNodes in the
+ * projection view). Decoration and other zones are still drawn, but must
+ * never shift the pivot, or the figure renders shifted from where placement
+ * assumed — misaligning nodes/tronc panels against what's actually drawn.
+ */
+export function pivotNodesFor<T extends { zone: string }>(nodes: T[]): T[] {
+  return nodes.filter((n) => n.zone === 'PINYA' || n.zone === 'BASE');
+}
+
 /** Center of the bounding box of a set of nodes (each x/y is its own center). */
 export function boundingBoxCenter(
   nodes: { x: number; y: number; width: number; height: number }[],

@@ -278,6 +278,66 @@ describe('PinyesTabComponent', () => {
 
       expect(refreshSpy).toHaveBeenCalled();
     });
+
+    it('does not center the viewport until every figure has finished loading its nodes (avoids freezing on a partial layout)', async () => {
+      vi.useFakeTimers();
+      const segment = makeSegment([makeInstance(INST_A), makeInstance('inst-b')]);
+      const subjectA = new Subject<{ data: InstanceNodeItem[] }>();
+      const subjectB = new Subject<{ data: InstanceNodeItem[] }>();
+      assignmentService = {
+        getInstanceNodes: vi.fn((instanceId: string) => (instanceId === INST_A ? subjectA : subjectB)),
+        getByInstance: vi.fn(() => of({ data: [] })),
+        getAvailablePersons: vi.fn().mockReturnValue(of({ data: [] })),
+        getLockStatus: vi.fn().mockReturnValue(of({ locked: false, lockDate: null, lockDays: 3 })),
+        assign: vi.fn(),
+        unassign: vi.fn(),
+        swap: vi.fn(),
+        resetSnapshot: vi.fn(),
+      };
+      toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
+
+      await TestBed.configureTestingModule({
+        imports: [PinyesTabComponent],
+        providers: [
+          allLucideIconsProvider,
+          SegmentWorkspaceStateService,
+          AssignmentStateService,
+          UndoRedoService,
+          { provide: EventSegmentService, useValue: { getByEvent: vi.fn().mockReturnValue(of({ data: [segment] })) } },
+          {
+            provide: SegmentDistributionService,
+            useValue: { getDistribution: vi.fn().mockReturnValue(of({ segment: { id: SEGMENT_ID, name: 'Bloc 1' }, items: [] })) },
+          },
+          { provide: NodeAssignmentService, useValue: assignmentService },
+          { provide: ToastService, useValue: toast },
+        ],
+      })
+        .overrideComponent(PinyesTabComponent, {
+          remove: { imports: [FigureCanvasComponent, PersonPanelComponent, ImportPinyaModalComponent] },
+          add: { imports: [StubFigureCanvas, StubPersonPanel, StubImportModal] },
+        })
+        .compileComponents();
+
+      ws = TestBed.inject(SegmentWorkspaceStateService);
+      ws.load(EVENT_ID, SEGMENT_ID);
+      fixture = TestBed.createComponent(PinyesTabComponent);
+      component = fixture.componentInstance;
+      fixture.detectChanges();
+
+      // Only figure A has loaded so far — pinyaSlots() is already non-empty,
+      // but centering now would freeze the viewport on a 1-figure layout.
+      subjectA.next({ data: [makeNode('n1', 'PINYA')] });
+      fixture.detectChanges();
+      vi.runAllTimers();
+      expect(canvasStub().centerOnContent).not.toHaveBeenCalled();
+
+      subjectB.next({ data: [makeNode('n2', 'PINYA')] });
+      fixture.detectChanges();
+      vi.runAllTimers();
+      expect(canvasStub().centerOnContent).toHaveBeenCalledTimes(1);
+
+      vi.useRealTimers();
+    });
   });
 
   describe('node selection', () => {

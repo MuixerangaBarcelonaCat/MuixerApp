@@ -161,11 +161,55 @@ export class DistribucioTabComponent implements OnInit {
       });
   }
 
+  readonly pendingCordonsChange = signal<{ id: string; value: number | null; affectedCount: number } | null>(null);
+
   onNumberOfCordonsChanged(event: { id: string; value: number | null }): void {
-    this.assignmentService.updateCordons(event.id, { numberOfCordons: event.value }).subscribe({
+    const affectedCount = this.countAssignmentsBeyondCordons(event.id, event.value);
+    if (affectedCount > 0) {
+      this.pendingCordonsChange.set({ id: event.id, value: event.value, affectedCount });
+      return;
+    }
+    this.applyCordonsChange(event.id, event.value);
+  }
+
+  confirmCordonsChange(): void {
+    const pending = this.pendingCordonsChange();
+    if (!pending) return;
+    this.applyCordonsChange(pending.id, pending.value);
+    this.pendingCordonsChange.set(null);
+  }
+
+  cancelCordonsChange(): void {
+    this.pendingCordonsChange.set(null);
+  }
+
+  private applyCordonsChange(id: string, value: number | null): void {
+    this.assignmentService.updateCordons(id, { numberOfCordons: value }).subscribe({
       next: () => this.loadDistribution(),
       error: () => this.toast.error("No s'han pogut actualitzar els cordons."),
     });
+  }
+
+  /** Number of existing assignments on PINYA nodes that a reduced cordons value would hide (cordo-obert exempt). */
+  private countAssignmentsBeyondCordons(instanceId: string, numberOfCordons: number | null): number {
+    if (numberOfCordons === null) return 0;
+    const item = this.items().find((i) => i.instanceId === instanceId);
+    if (!item) return 0;
+
+    const hiddenNodeIds = new Set(
+      item.figureTemplate.nodes
+        .filter(
+          (n) =>
+            n.zone === 'PINYA' &&
+            n.positionType !== 'cordo-obert' &&
+            n.renglaPosition !== null &&
+            n.renglaPosition > numberOfCordons,
+        )
+        .map((n) => n.id),
+    );
+    if (hiddenNodeIds.size === 0) return 0;
+
+    return item.assignments.filter((a) => hiddenNodeIds.has(a.figureNodeId)).length;
   }
 
   private currentSlotTransform(slotId: string): { offsetX: number; offsetY: number; angle: number } {
