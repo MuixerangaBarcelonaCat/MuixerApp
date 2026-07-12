@@ -1,0 +1,76 @@
+<div class="flex h-full min-h-0">
+  <!-- Canvas -->
+  <div class="relative flex-1 min-w-0">
+    @if (loading()) {
+      <div class="absolute inset-0 z-10 flex items-center justify-center bg-base-100/80">
+        <span class="loading loading-spinner loading-lg text-primary" aria-label="S'està carregant..."></span>
+      </div>
+    }
+
+    <app-figure-canvas
+      #canvas
+      mode="composition"
+      [compositionSlots]="slots()"
+      [selectedSlotId]="selectedSlotId()"
+      [gridEnabled]="true"
+      [gridSpacing]="gridSpacing"
+      [snapToGrid]="snapToGrid"
+      [cordoObertOpacity]="0.5"
+      (slotSelected)="onSlotSelected($event)"
+      (slotMoved)="onSlotMoved($event)"
+      (troncMoved)="onTroncMoved($event)"
+    />
+
+    <button
+      type="button"
+      class="btn btn-sm btn-outline btn-error gap-1.5 absolute bottom-3 right-3 shadow"
+      (click)="onResetDistribution()"
+      aria-label="Esborra la distribució i torna al disseny automàtic"
+    >
+      <lucide-icon name="RotateCcw" [size]="15" aria-hidden="true" />
+     Optimitza distribució
+    </button>
+  </div>
+
+  <!-- Properties panel -->
+  @if (propertiesEntry(); as entry) {
+    <aside class="w-70 shrink-0 bg-base-100 border-l border-base-300 flex flex-col overflow-y-auto p-3 space-y-3" aria-label="Propietats de la figura">
+      <app-figure-properties-panel
+        [entry]="entry"
+        [showRemove]="false"
+        (labelChanged)="onLabelChanged($event)"
+        (figureModeChanged)="onFigureModeChanged($event)"
+        (numberOfCordonsChanged)="onNumberOfCordonsChanged($event)"
+        (offsetXChanged)="onOffsetXChanged($event)"
+        (offsetYChanged)="onOffsetYChanged($event)"
+        (angleChanged)="onAngleChanged($event)"
+      />
+    </aside>
+  }
+</div>
+
+<!-- Cordons reduction confirmation modal -->
+@if (pendingCordonsChange(); as pending) {
+  <dialog
+    class="modal modal-open"
+    role="alertdialog"
+    aria-labelledby="cordons-modal-title"
+    aria-describedby="cordons-modal-desc"
+    aria-modal="true"
+  >
+    <div class="modal-box max-w-sm">
+      <h3 id="cordons-modal-title" class="text-lg font-bold mb-3 text-error">Redueix els cordons</h3>
+      <p id="cordons-modal-desc" class="text-sm text-base-content/70">
+        Esta acció eliminarà
+        <strong class="text-error">{{ pending.affectedCount }} assignacions</strong>
+        dels cordons que deixaran de mostrar-se. Les persones assignades quedaran lliures.
+      </p>
+      <p class="text-xs text-warning mt-2">Esta acció no es pot desfer.</p>
+      <div class="modal-action">
+        <button type="button" class="btn btn-ghost btn-sm" (click)="cancelCordonsChange()">Cancel·la</button>
+        <button type="button" class="btn btn-error btn-sm" (click)="confirmCordonsChange()">Elimina-les</button>
+      </div>
+    </div>
+    <button type="button" class="modal-backdrop" (click)="cancelCordonsChange()" aria-label="Tanca"></button>
+  </dialog>
+}

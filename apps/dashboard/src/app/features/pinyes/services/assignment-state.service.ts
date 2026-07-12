@@ -39,7 +39,7 @@ export class AssignmentStateService {
   readonly placementPreset = signal<NodePreset | null>(null);
   readonly placementCustomLabel = signal<string | null>(null);
 
-  /** Current active tab's nodes — set by AssignmentCanvasComponent */
+  /** Current active tab's nodes */
   readonly activeTabNodes = signal<InstanceNodeItem[]>([]);
 
   /** Derived: only ad-hoc nodes from the active tab */

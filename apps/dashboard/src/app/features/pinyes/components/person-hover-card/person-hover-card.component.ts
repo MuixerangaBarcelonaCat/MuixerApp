@@ -115,7 +115,7 @@ export class PersonHoverCardComponent {
 
   statusLabel(): string {
     const status = this.info().attendanceStatus;
-    if (!status) return 'Sense estat';
+    if (!status) return '';
     const past = this.isPast();
     const labels: Record<AttendanceStatus, string> = {
       PENDENT: 'Pendent',

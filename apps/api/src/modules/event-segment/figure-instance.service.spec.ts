@@ -681,6 +681,45 @@ describe('FigureInstanceService', () => {
       expect(result.items[0].troncGridCols).toBe(0);
       expect(result.items[0].troncGridRows).toBe(0);
     });
+
+    it('returns items sorted by sortOrder then id, regardless of repository row order', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      const instA = { ...makeInstanceWithNodes(), id: 'aaa-instance', sortOrder: 0 };
+      const instB = { ...makeInstanceWithNodes(), id: 'bbb-instance', sortOrder: 0 };
+      const instC = { ...makeInstanceWithNodes(), id: 'ccc-instance', sortOrder: 1 };
+      // Simulates duplicate sortOrder values combined with a repository that
+      // doesn't preserve a stable row order across calls (e.g. Postgres ties).
+      mockInstanceRepo.find.mockResolvedValue([instC, instB, instA]);
+      mockDataSource.query.mockResolvedValue([]);
+
+      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      expect(result.items.map((i) => i.instanceId)).toEqual([
+        'aaa-instance',
+        'bbb-instance',
+        'ccc-instance',
+      ]);
+    });
+
+    it('returns positionType on nodes', async () => {
+      const inst = {
+        ...makeInstanceWithNodes(),
+        figureTemplate: {
+          id: FIGURE_ID,
+          name: 'pd4',
+          nodes: [
+            { id: 'node-1', label: 'A1', zone: 'PINYA', x: 0, y: 0, width: 30, height: 30, rotation: 0, color: null, shape: 'RECTANGLE', renglaId: 'r1', renglaPosition: 2, positionType: 'cordo-obert' },
+          ],
+        },
+      };
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([inst]);
+      mockDataSource.query.mockResolvedValue([]);
+
+      const result = await service.getDistribution(EVENT_ID, SEGMENT_ID);
+
+      expect(result.items[0].figureTemplate.nodes[0].positionType).toBe('cordo-obert');
+    });
   });
 
   describe('reorder', () => {

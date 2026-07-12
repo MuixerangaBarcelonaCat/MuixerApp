@@ -1,0 +1,182 @@
+<div class="flex flex-col h-full min-h-0">
+<div class="flex flex-1 min-h-0">
+  <!-- Canvas -->
+  <div class="relative flex-1 min-w-0">
+    @if (ws.pinyaSlots().length === 0) {
+      <div class="absolute inset-0 z-10 flex items-center justify-center text-base-content/50">
+        Este segment no té cap figura amb pinya.
+      </div>
+    }
+
+    <app-figure-canvas
+      #canvas
+      mode="segment-assignment"
+      [compositionSlots]="ws.pinyaSlots()"
+      [assignments]="state.assignments()"
+      [selectedSegmentNode]="selectedRef()"
+      [heightMode]="state.heightMode()"
+      [attendanceMap]="attendanceMap()"
+      [nextPerformanceMap]="nextPerformanceMap()"
+      [personDetailsMap]="personDetailsMap()"
+      [highlightedNodeIds]="highlightedNodeIds()"
+      [isPast]="isPast()"
+      (segmentNodeSelected)="onSegmentNodeSelected($event)"
+      (segmentNodeClicked)="onSegmentNodeClicked($event)"
+    />
+
+    @if (popoverAssignment(); as assignment) {
+      <app-node-popover
+        [assignment]="assignment"
+        [position]="popoverPosition()"
+        [heightMode]="state.heightMode()"
+        [attendanceStatus]="getAttendanceStatus(assignment)"
+        (unassign)="onUnassign($event)"
+        (close)="popoverAssignment.set(null)"
+      />
+    }
+  </div>
+
+  <!-- Person panel -->
+  <app-person-panel
+    class="w-80 shrink-0 border-l border-base-300 h-full min-h-0"
+    [eventId]="ws.eventId()"
+    [segmentId]="ws.segmentId()"
+    [selectedNodeId]="state.selectedNodeId()"
+    [assignments]="state.assignments()"
+    [heightMode]="state.heightMode()"
+    [activeNodePositionType]="selectedNodePositionType()"
+    [selectedNodeZone]="selectedNodeZone()"
+    [isPast]="isPast()"
+    (personSelected)="onPersonSelected($event)"
+    (assignedPersonSelected)="onAssignedPersonSelected($event)"
+    (unassignRequested)="onUnassign($event)"
+  />
+</div>
+
+<!-- Footer toolbar -->
+<footer class="flex items-center gap-3 px-4 py-2 bg-base-100 border-t border-base-200 shrink-0 text-sm">
+  <div class="flex-1"></div>
+
+  <!-- Reset snapshot -->
+  @if (resetCandidates().length > 0) {
+    <div class="dropdown dropdown-top dropdown-end" [class.dropdown-open]="resetMenuOpen()">
+      <button
+        type="button"
+        class="btn btn-xs btn-outline btn-error gap-1"
+        (click)="openReset()"
+        [disabled]="ws.isLocked()"
+        aria-label="Reinicialitza una figura: elimina totes les assignacions i torna a la plantilla original"
+      >
+        <lucide-icon [img]="Trash2" [size]="12" aria-hidden="true" />
+        Reinicialitza
+      </button>
+      @if (resetMenuOpen()) {
+        <ul class="dropdown-content menu bg-base-100 rounded-box z-20 w-56 p-2 shadow" role="menu">
+          @for (candidate of resetCandidates(); track candidate.instanceId) {
+            <li role="none">
+              <button type="button" role="menuitem" (click)="chooseResetFigure(candidate.instanceId)">
+                {{ candidate.label }}
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  }
+
+  <!-- Import pinya -->
+  @if (importCandidates().length > 0) {
+    <div class="dropdown dropdown-top dropdown-end" [class.dropdown-open]="importMenuOpen()">
+      <button
+        type="button"
+        class="btn btn-xs btn-outline gap-1"
+        (click)="openImport()"
+        [disabled]="ws.isLocked()"
+        aria-label="Importa les assignacions d'una pinya anterior"
+      >
+        Importa pinya
+      </button>
+      @if (importMenuOpen()) {
+        <ul class="dropdown-content menu bg-base-100 rounded-box z-20 w-56 p-2 shadow" role="menu">
+          @for (candidate of importCandidates(); track candidate.instanceId) {
+            <li role="none">
+              <button type="button" role="menuitem" (click)="chooseImportFigure(candidate.instanceId)">
+                {{ candidate.label }}
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  }
+</footer>
+</div>
+
+<!-- Import modal -->
+@if (importTarget(); as target) {
+  <app-import-pinya-modal
+    [figureTemplateId]="target.figureTemplateId"
+    [currentInstanceId]="target.instanceId"
+    [open]="true"
+    (importCompleted)="onImportCompleted($event)"
+    (closed)="onImportClosed()"
+  />
+}
+
+<!-- Reset confirmation modal -->
+@if (resetTarget()) {
+  <dialog
+    class="modal modal-open"
+    role="alertdialog"
+    aria-labelledby="reset-modal-title"
+    aria-describedby="reset-modal-desc"
+    aria-modal="true"
+  >
+    <div class="modal-box max-w-sm">
+      <h3 id="reset-modal-title" class="text-lg font-bold mb-3 text-error">
+        Reinicialitza {{ resetTargetInstance()?.label }}
+      </h3>
+      <p id="reset-modal-desc" class="text-sm text-base-content/70">
+        Esta acció eliminarà
+        <strong class="text-error">{{ resetTargetAssignedCount() }} assignacions</strong>
+        i tornarà la figura a la plantilla original.
+        Les persones assignades quedaran lliures.
+      </p>
+      <p class="text-xs text-warning mt-2">Esta acció no es pot desfer.</p>
+      <div class="modal-action">
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm"
+          (click)="cancelReset()"
+          [disabled]="resetting()"
+        >
+          Cancel·la
+        </button>
+        <button
+          type="button"
+          class="btn btn-error btn-sm gap-1"
+          (click)="confirmReset()"
+          [disabled]="resetting()"
+        >
+          @if (resetting()) {
+            <span class="loading loading-spinner loading-xs"></span>
+          }
+          Elimina-ho tot
+        </button>
+      </div>
+    </div>
+    <button type="button" class="modal-backdrop" (click)="cancelReset()" aria-label="Tanca"></button>
+  </dialog>
+}
+
+@if (reassignDialog(); as dialog) {
+  <app-already-assigned-dialog
+    [open]="true"
+    [personAlias]="dialog.personAlias"
+    [nodeLabel]="dialog.oldNodeLabel"
+    [figureName]="dialog.figureName"
+    (closed)="onReassignDialogClosed()"
+    (viewRequested)="onReassignDialogView()"
+    (reassignRequested)="onReassignDialogConfirm()"
+  />
+}

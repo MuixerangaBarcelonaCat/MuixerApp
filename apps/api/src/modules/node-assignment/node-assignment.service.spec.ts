@@ -201,6 +201,7 @@ describe('NodeAssignmentService', () => {
     mockQb.andWhere.mockReturnThis();
     mockQb.getOne.mockResolvedValue(null);
     mockDataSource.query.mockResolvedValue([]);
+    mockInstanceNodeRepo.find.mockResolvedValue([]);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -1756,6 +1757,71 @@ describe('NodeAssignmentService', () => {
         service.updateCordons(INSTANCE_ID, { numberOfCordons: 2 }),
       ).rejects.toThrow(ForbiddenException);
       expect(mockInstanceRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('removes assignments on PINYA nodes whose renglaPosition is beyond the new numberOfCordons', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ numberOfCordons: 3 }));
+      mockInstanceRepo.save.mockResolvedValue({});
+      const hiddenNode = makeInstanceNode({ id: 'inode-hidden', renglaId: 'r1', renglaPosition: 2 });
+      const keptNode = makeInstanceNode({ id: 'inode-kept', renglaId: 'r1', renglaPosition: 1 });
+      mockInstanceNodeRepo.find.mockResolvedValue([hiddenNode, keptNode]);
+      const hiddenAssignment = makeAssignment({ id: 'as-hidden', instanceNode: hiddenNode as any });
+      mockAssignmentRepo.find.mockResolvedValue([hiddenAssignment]);
+      mockAssignmentRepo.remove.mockResolvedValue({});
+
+      await service.updateCordons(INSTANCE_ID, { numberOfCordons: 1 });
+
+      expect(mockAssignmentRepo.remove).toHaveBeenCalledWith([hiddenAssignment]);
+    });
+
+    it('keeps assignments on cordo-obert PINYA nodes even beyond the new numberOfCordons', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ numberOfCordons: 3 }));
+      mockInstanceRepo.save.mockResolvedValue({});
+      const cordoObertNode = makeInstanceNode({
+        id: 'inode-co',
+        renglaId: 'r1',
+        renglaPosition: 2,
+        positionType: 'cordo-obert',
+      });
+      mockInstanceNodeRepo.find.mockResolvedValue([cordoObertNode]);
+
+      await service.updateCordons(INSTANCE_ID, { numberOfCordons: 1 });
+
+      expect(mockAssignmentRepo.find).not.toHaveBeenCalled();
+      expect(mockAssignmentRepo.remove).not.toHaveBeenCalled();
+    });
+
+    it('keeps assignments on BASE nodes regardless of numberOfCordons', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ numberOfCordons: 3 }));
+      mockInstanceRepo.save.mockResolvedValue({});
+      const baseNode = makeInstanceNode({ id: 'inode-base', zone: FigureZone.BASE, renglaId: null, renglaPosition: null });
+      mockInstanceNodeRepo.find.mockResolvedValue([baseNode]);
+
+      await service.updateCordons(INSTANCE_ID, { numberOfCordons: 1 });
+
+      expect(mockAssignmentRepo.remove).not.toHaveBeenCalled();
+    });
+
+    it('does not remove any assignment when numberOfCordons is increased or set to null (unlimited)', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ numberOfCordons: 1 }));
+      mockInstanceRepo.save.mockResolvedValue({});
+      const node = makeInstanceNode({ id: 'inode-1', renglaId: 'r1', renglaPosition: 5 });
+      mockInstanceNodeRepo.find.mockResolvedValue([node]);
+
+      await service.updateCordons(INSTANCE_ID, { numberOfCordons: null });
+
+      expect(mockAssignmentRepo.remove).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when there are no now-hidden nodes', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ numberOfCordons: 3 }));
+      mockInstanceRepo.save.mockResolvedValue({});
+      mockInstanceNodeRepo.find.mockResolvedValue([]);
+
+      await service.updateCordons(INSTANCE_ID, { numberOfCordons: 1 });
+
+      expect(mockAssignmentRepo.find).not.toHaveBeenCalled();
+      expect(mockAssignmentRepo.remove).not.toHaveBeenCalled();
     });
   });
 });
