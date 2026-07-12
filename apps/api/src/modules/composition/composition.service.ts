@@ -270,7 +270,7 @@ export class CompositionService {
           color: n.color,
           shape: n.shape,
           sortOrder: n.sortOrder,
-          climbPath: n.climbPath,
+          climbIndicator: n.climbIndicator,
           ringLevel: n.ringLevel,
           originNodeId: n.originNodeId,
           renglaId: n.renglaId,

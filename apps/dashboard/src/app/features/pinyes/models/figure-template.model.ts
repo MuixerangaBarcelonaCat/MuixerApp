@@ -14,7 +14,7 @@ export interface FigureNodeItem {
   color: string | null;
   shape: NodeShape;
   sortOrder: number;
-  climbPath: string | null;
+  climbIndicator: string | null;
   ringLevel: number | null;
   originNodeId: string | null;
   renglaId: string | null;
@@ -68,7 +68,7 @@ export interface CreateFigureNodePayload {
   color?: string;
   shape: NodeShape;
   sortOrder?: number;
-  climbPath?: string;
+  climbIndicator?: string;
   ringLevel?: number;
   originNodeId?: string | null;
   renglaId?: string | null;

@@ -152,7 +152,7 @@ describe('CompositionService', () => {
         color: null,
         shape: 'rectangle',
         sortOrder: 0,
-        climbPath: null,
+        climbIndicator: null,
         ringLevel: null,
         originNodeId: null,
         renglaId: null,

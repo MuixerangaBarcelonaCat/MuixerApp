@@ -767,6 +767,7 @@ describe('PersonPanelComponent', () => {
         z: 0,
         positionType: null,
         sortOrder: 0,
+        climbIndicator: null,
         ringLevel: null,
         originNodeId: null,
         sourceNodeId: null,

@@ -50,7 +50,7 @@ const makeNode = (overrides: Partial<InstanceNodeItem> = {}): InstanceNodeItem =
   x: 100, y: 100, z: 0,
   width: 60, height: 40, rotation: 0,
   color: null, shape: NodeShape.ELLIPSE,
-  sortOrder: 0, ringLevel: null,
+  sortOrder: 0, climbIndicator: null, ringLevel: null,
   originNodeId: null, renglaId: null, renglaPosition: null,
   sourceNodeId: null, isSnapshotted: true, isAdHoc: false, createdById: null,
   ...overrides,
@@ -59,7 +59,7 @@ const makeNode = (overrides: Partial<InstanceNodeItem> = {}): InstanceNodeItem =
 const makeAssignment = (nodeId: string): AssignmentDetail => ({
   id: `asgn-${nodeId}`,
   figureInstanceId: 'inst-1',
-  node: { id: nodeId, label: '', zone: FigureZone.PINYA, z: 0, positionType: null, sortOrder: 0, ringLevel: null, originNodeId: null, sourceNodeId: null },
+  node: { id: nodeId, label: '', zone: FigureZone.PINYA, z: 0, positionType: null, sortOrder: 0, climbIndicator: null, ringLevel: null, originNodeId: null, sourceNodeId: null },
   person: { id: 'p1', alias: 'Pepet', name: 'Pere', firstSurname: 'G', shoulderHeight: null, notes: null, notesEmoji: null },
 });
 

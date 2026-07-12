@@ -54,7 +54,7 @@ const makeNode = (
   color: null,
   shape: NodeShape.RECTANGLE,
   sortOrder: 0,
-  climbPath: null,
+  climbIndicator: null,
   ringLevel: null,
   originNodeId: null,
   renglaId,

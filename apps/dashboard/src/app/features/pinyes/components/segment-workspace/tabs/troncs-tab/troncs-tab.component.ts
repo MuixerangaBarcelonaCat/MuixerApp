@@ -335,6 +335,7 @@ export class TroncsTabComponent implements OnInit {
         z: matchedNode?.z ?? 0,
         positionType: matchedNode?.positionType ?? null,
         sortOrder: matchedNode?.sortOrder ?? 0,
+        climbIndicator: matchedNode?.climbIndicator ?? null,
         ringLevel: matchedNode?.ringLevel ?? null,
         originNodeId: matchedNode?.originNodeId ?? null,
         sourceNodeId: matchedNode?.sourceNodeId ?? null,

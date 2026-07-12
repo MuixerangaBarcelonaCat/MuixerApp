@@ -25,6 +25,7 @@ import {
 import { screenToStage } from '../../utils/rengla-coordinates.util';
 import { computeFitTransform } from '../../utils/fit-to-bounds.util';
 import { fitFontSize } from '../../utils/fit-font-size.util';
+import { formatAssignedLabel } from '../../utils/assigned-label.util';
 import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
 import { computeTroncNaturalSize, TRONC_GAP_PX } from '../../utils/tronc-size.util';
 import { getFigureColor } from '../../utils/figure-palette.util';
@@ -52,6 +53,7 @@ export interface CanvasNode {
   color: string | null;
   shape: string;
   sortOrder: number;
+  climbIndicator?: string | null;
   ringLevel?: number | null;
   originNodeId?: string | null;
   renglaId?: string | null;
@@ -1010,7 +1012,9 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           const textFill = this.getContrastColor(fill);
           nodeGroup.add(
             new Konva.Text({
-              text: personAlias ?? node.label,
+              text: personAlias
+                ? formatAssignedLabel(personAlias, node.climbIndicator)
+                : formatAssignedLabel(node.label, node.climbIndicator),
               fontSize: personAlias ? 11 : 10,
               fontStyle: personAlias ? 'bold' : 'normal',
               fontFamily: 'Inter, sans-serif',
@@ -1471,7 +1475,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           : this.getContrastColor(fill);
         group.add(
           new Konva.Text({
-            text: node.label,
+            text: formatAssignedLabel(node.label, node.climbIndicator),
             fontSize: 9,
             fontFamily: 'Inter, sans-serif',
             fill: textFill,
@@ -1736,7 +1740,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     group.add(shape);
 
     if (assignment) {
-      const alias = assignment.person.alias;
+      const alias = formatAssignedLabel(assignment.person.alias, node.climbIndicator);
       const textFill = isDecoration
         ? (node.color ? this.getContrastColor(node.color) : '#000000')
         : this.getContrastColor(fill);
@@ -1852,7 +1856,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         : this.getContrastColor(fill);
       group.add(
         new Konva.Text({
-          text: node.label,
+          text: formatAssignedLabel(node.label, node.climbIndicator),
           fontSize: 9,
           fontFamily: 'Inter, sans-serif',
           fill: textFill,
@@ -1980,7 +1984,10 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       const textFill = isDecoration
         ? (node.color ? this.getContrastColor(node.color) : '#000000')
         : this.getContrastColor(fill);
-      const displayText = assignment ? assignment.person.alias : node.label;
+      const displayText = formatAssignedLabel(
+        assignment ? assignment.person.alias : node.label,
+        node.climbIndicator,
+      );
       const { fontSize, wrap } = this.fitFontSizeForNode(
         displayText,
         node.width,

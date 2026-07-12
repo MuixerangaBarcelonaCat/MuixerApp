@@ -39,6 +39,7 @@ export interface AssignmentDetail {
     z: number;
     positionType: string | null;
     sortOrder: number;
+    climbIndicator: string | null;
     ringLevel: number | null;
     originNodeId: string | null;
     sourceNodeId: string | null;
@@ -76,6 +77,7 @@ export interface InstanceNodeResponse {
   color: string | null;
   shape: string;
   sortOrder: number;
+  climbIndicator: string | null;
   ringLevel: number | null;
   renglaId: string | null;
   renglaPosition: number | null;
@@ -180,6 +182,7 @@ function toAssignmentDetail(assignment: NodeAssignment): AssignmentDetail {
       z: node.z,
       positionType: node.positionType,
       sortOrder: node.sortOrder,
+      climbIndicator: node.climbIndicator,
       ringLevel: node.ringLevel,
       originNodeId: node.originNodeId,
       sourceNodeId: node.sourceNodeId,
@@ -213,6 +216,7 @@ function instanceNodeToResponse(node: InstanceNode): InstanceNodeResponse {
     color: node.color,
     shape: node.shape,
     sortOrder: node.sortOrder,
+    climbIndicator: node.climbIndicator,
     ringLevel: node.ringLevel,
     renglaId: node.renglaId,
     renglaPosition: node.renglaPosition,
@@ -239,6 +243,7 @@ function figureNodeToResponse(node: FigureNode): InstanceNodeResponse {
     color: node.color,
     shape: node.shape,
     sortOrder: node.sortOrder,
+    climbIndicator: node.climbIndicator,
     ringLevel: node.ringLevel,
     renglaId: node.renglaId,
     renglaPosition: node.renglaPosition,
@@ -981,7 +986,7 @@ export class NodeAssignmentService {
         color: sourceAdHoc.color,
         shape: sourceAdHoc.shape,
         sortOrder: nextSortOrder++,
-        climbPath: sourceAdHoc.climbPath,
+        climbIndicator: sourceAdHoc.climbIndicator,
         ringLevel: sourceAdHoc.ringLevel,
         renglaId: null,
         renglaPosition: null,
@@ -1185,7 +1190,7 @@ export class NodeAssignmentService {
             : (preset?.color ?? '#B0BEC5')),
         shape: dto.shape ?? preset?.shape ?? NodeShape.RECTANGLE,
         sortOrder: nextSortOrder,
-        climbPath: null,
+        climbIndicator: null,
         ringLevel: null,
         renglaId: null,
         renglaPosition: null,
@@ -1326,7 +1331,7 @@ export class NodeAssignmentService {
           color: node.color,
           shape: node.shape,
           sortOrder: node.sortOrder,
-          climbPath: node.climbPath,
+          climbIndicator: node.climbIndicator,
           ringLevel: node.ringLevel,
           renglaId: node.renglaId,
           renglaPosition: node.renglaPosition,

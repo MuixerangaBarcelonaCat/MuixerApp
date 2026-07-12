@@ -51,7 +51,7 @@ const makeFigureNode = (overrides: Partial<FigureNode> = {}): Partial<FigureNode
   color: null,
   shape: NodeShape.RECTANGLE,
   sortOrder: 5,
-  climbPath: null,
+  climbIndicator: null,
   ringLevel: 1,
   originNodeId: null,
   renglaId: null,
@@ -74,7 +74,7 @@ const makeInstanceNode = (overrides: Partial<InstanceNode> = {}): Partial<Instan
   color: null,
   shape: NodeShape.RECTANGLE,
   sortOrder: 5,
-  climbPath: null,
+  climbIndicator: null,
   ringLevel: 1,
   sourceNodeId: FIGURE_NODE_ID,
   originNodeId: null,
@@ -249,6 +249,18 @@ describe('NodeAssignmentService', () => {
       expect(result).toEqual([]);
     });
 
+    it('includes the node climbIndicator', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance());
+      const a = makeAssignment({
+        instanceNode: makeInstanceNode({ climbIndicator: 'X' }) as any,
+      });
+      mockAssignmentRepo.find.mockResolvedValue([a]);
+
+      const result = await service.getByInstance(INSTANCE_ID);
+
+      expect(result[0].node.climbIndicator).toBe('X');
+    });
+
     it('throws NotFoundException if instance not found', async () => {
       mockInstanceRepo.findOne.mockResolvedValue(null);
       await expect(service.getByInstance(INSTANCE_ID)).rejects.toThrow(NotFoundException);
@@ -287,6 +299,28 @@ describe('NodeAssignmentService', () => {
     it('throws NotFoundException if instance not found', async () => {
       mockInstanceRepo.findOne.mockResolvedValue(null);
       await expect(service.getInstanceNodes(INSTANCE_ID)).rejects.toThrow(NotFoundException);
+    });
+
+    it('includes climbIndicator for snapshotted InstanceNodes', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
+      mockInstanceNodeRepo.find.mockResolvedValue([makeInstanceNode({ climbIndicator: 'X' })]);
+
+      const result = await service.getInstanceNodes(INSTANCE_ID);
+
+      expect(result[0].climbIndicator).toBe('X');
+    });
+
+    it('includes climbIndicator for live FigureNodes (unsnapshotted instance)', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(
+        makeInstance({ snapshotted: false, figureTemplate: { id: TEMPLATE_ID } }),
+      );
+      mockTemplateRepo.findOne.mockResolvedValue(
+        makeTemplate({ nodes: [makeFigureNode({ climbIndicator: 'X' })] }),
+      );
+
+      const result = await service.getInstanceNodes(INSTANCE_ID);
+
+      expect(result[0].climbIndicator).toBe('X');
     });
   });
 

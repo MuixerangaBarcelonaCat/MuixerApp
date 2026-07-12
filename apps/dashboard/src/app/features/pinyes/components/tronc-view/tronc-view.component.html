@@ -267,7 +267,7 @@
                       </span>
                     }
                     <span class="alias-row">
-                      <span class="person-alias" [class.text-base]="mode() === 'projection'">{{ assignment.person.alias }}</span>
+                      <span class="person-alias" [class.text-base]="mode() === 'projection'">{{ displayAlias(node, assignment) }}</span>
                       @if (mode() !== 'projection' && getNotes(assignment); as notes) {
                         @if (getNotesEmoji(assignment); as emoji) {
                           <span class="text-xs leading-none shrink-0" [attr.aria-label]="'Observacions: ' + notes" [title]="notes">{{ emoji }}</span>
@@ -284,7 +284,7 @@
                       ></span>
                     }
                   } @else {
-                    <span class="node-label">{{ node.label }}</span>
+                    <span class="node-label">{{ displayLabel(node) }}</span>
                   }
                 </button>
               </div>
@@ -319,7 +319,7 @@
                       </span>
                     }
                     <span class="alias-row">
-                      <span class="person-alias" [class.text-base]="mode() === 'projection'">{{ assignment.person.alias }}</span>
+                      <span class="person-alias" [class.text-base]="mode() === 'projection'">{{ displayAlias(node, assignment) }}</span>
                       @if (mode() !== 'projection' && getNotes(assignment); as notes) {
                         @if (getNotesEmoji(assignment); as emoji) {
                           <span class="text-xs leading-none shrink-0" [attr.aria-label]="'Observacions: ' + notes" [title]="notes">{{ emoji }}</span>
@@ -336,7 +336,7 @@
                       ></span>
                     }
                   } @else {
-                    <span class="node-label">{{ node.label }}</span>
+                    <span class="node-label">{{ displayLabel(node) }}</span>
                   }
                 </button>
               </div>
@@ -393,8 +393,8 @@
 
       <div class="divider my-1"></div>
 
-      <!-- Selected TRONC node controls -->
-      @if (selectedTroncNode(); as node) {
+      <!-- Selected TRONC or BASE node controls -->
+      @if (selectedFloorNode(); as node) {
         <div class="selected-node-controls">
           <p class="controls-label">Node: <strong>{{ node.label }}</strong></p>
 
@@ -414,6 +414,23 @@
             />
           </div>
 
+          <!-- Indicator (short marker shown next to the assigned person, e.g. "X") -->
+          <div class="form-control">
+            <label class="label py-0" [for]="'tronc-indicator-' + node.id">
+              <span class="label-text text-xs">Indicador</span>
+            </label>
+            <input
+              type="text"
+              [id]="'tronc-indicator-' + node.id"
+              class="input input-bordered input-xs w-16"
+              [ngModel]="node.climbIndicator"
+              (ngModelChange)="onIndicatorChange(node, $event)"
+              aria-label="Indicador curt mostrat al costat de la persona assignada"
+              maxlength="4"
+            />
+          </div>
+
+          @if (node.zone === 'TRONC') {
           <!-- positionType tags -->
           <div class="form-control">
             <span class="label-text text-xs py-0">Tipus</span>
@@ -509,6 +526,7 @@
               <lucide-icon name="Trash2" [size]="12" aria-hidden="true" />
             </button>
           </div>
+          }
         </div>
 
         <div class="divider my-1"></div>

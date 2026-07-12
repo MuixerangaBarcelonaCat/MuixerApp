@@ -7,7 +7,7 @@ import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../shared/utils/person.util';
 const makeAssignment = (nodeId = 'node-1', personId = 'person-1'): AssignmentDetail => ({
   id: 'assignment-1',
   figureInstanceId: 'instance-1',
-  node: { id: nodeId, label: 'pd4-1', zone: 'TRONC', z: 1, positionType: 'pd4', sortOrder: 0, ringLevel: null, originNodeId: null, sourceNodeId: null },
+  node: { id: nodeId, label: 'pd4-1', zone: 'TRONC', z: 1, positionType: 'pd4', sortOrder: 0, climbIndicator: null, ringLevel: null, originNodeId: null, sourceNodeId: null },
   person: { id: personId, alias: 'Pepet', name: 'Pere', firstSurname: 'Garcia', shoulderHeight: SHOULDER_HEIGHT_BASELINE_CM, notes: null, notesEmoji: null },
 });
 
@@ -223,7 +223,7 @@ describe('AssignmentStateService', () => {
       x: 0, y: 0, z: 0,
       width: 80, height: 40, rotation: 0,
       color: null, shape: 'RECTANGLE',
-      sortOrder: 0, ringLevel: null,
+      sortOrder: 0, climbIndicator: null, ringLevel: null,
       originNodeId: null, renglaId: null,
       renglaPosition: null, sourceNodeId: null,
       isSnapshotted: true,

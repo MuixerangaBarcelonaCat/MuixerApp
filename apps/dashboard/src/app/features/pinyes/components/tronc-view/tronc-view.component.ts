@@ -15,6 +15,7 @@ import { floorVariance, varianceLevel, VarianceLevel } from '../../utils/floor-v
 import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
 import { PersonHoverCardComponent } from '../person-hover-card/person-hover-card.component';
 import { ICON_OBSERVACIONS } from '../../../../shared/constants/domain-icons';
+import { formatAssignedLabel } from '../../utils/assigned-label.util';
 
 /**
  * Minimal node shape accepted by TroncViewComponent.
@@ -34,6 +35,8 @@ export interface TroncNodeItem {
   width: number;
   sortOrder: number;
   color: string | null;
+  /** Short marker shown next to the assigned person's name, e.g. "X". */
+  climbIndicator: string | null;
 }
 
 interface TroncFloor {
@@ -96,7 +99,7 @@ export class TroncViewComponent {
   readonly nodeClicked = output<{ nodeId: string; event: MouseEvent }>();
 
   /** Editor only: position/width/positionType changed for a TRONC node. */
-  readonly nodeUpdated = output<{ nodeId: string; x: number; width: number; positionType?: string; label?: string; color?: string | null }>();
+  readonly nodeUpdated = output<{ nodeId: string; x: number; width: number; positionType?: string; label?: string; color?: string | null; climbIndicator?: string | null }>();
 
   /** Editor only: create a new TRONC node on the given floor. */
   readonly nodeAdded = output<{ z: number; positionType: string; label: string; sortOrder: number }>();
@@ -241,6 +244,16 @@ export class TroncViewComponent {
     return this.troncNodes().find((n) => n.id === id) ?? null;
   });
 
+  /** The currently selected BASE node (null if TRONC or nothing selected). */
+  readonly selectedBaseNode = computed(() => {
+    const id = this.selectedNodeId();
+    if (!id) return null;
+    return this.baseNodes().find((n) => n.id === id) ?? null;
+  });
+
+  /** The currently selected TRONC or BASE node, whichever matches (null if neither). */
+  readonly selectedFloorNode = computed(() => this.selectedTroncNode() ?? this.selectedBaseNode());
+
   /** All z levels that currently have tronc nodes. */
   readonly existingZLevels = computed(() =>
     new Set(this.troncNodes().map((n) => n.z)),
@@ -301,6 +314,15 @@ export class TroncViewComponent {
       x: node.x,
       width: node.width,
       label: label.trim(),
+    });
+  }
+
+  onIndicatorChange(node: TroncNodeItem, indicator: string): void {
+    this.nodeUpdated.emit({
+      nodeId: node.id,
+      x: node.x,
+      width: node.width,
+      climbIndicator: indicator.trim() || null,
     });
   }
 
@@ -498,9 +520,19 @@ export class TroncViewComponent {
 
   getNodeAriaLabel(node: TroncNodeItem): string {
     const assignment = this.getAssignment(node.id);
-    if (!assignment) return `Node ${node.label}, sense assignar`;
+    if (!assignment) return `Node ${this.displayLabel(node)}, sense assignar`;
     const height = this.getHeightDisplay(assignment.person.shoulderHeight);
-    return `${node.label}: ${assignment.person.alias}, alçada ${height}`;
+    return `${node.label}: ${this.displayAlias(node, assignment)}, alçada ${height}`;
+  }
+
+  /** Person alias with the node's climb indicator appended, e.g. "Marta (X)". */
+  displayAlias(node: TroncNodeItem, assignment: AssignmentDetail): string {
+    return formatAssignedLabel(assignment.person.alias, node.climbIndicator);
+  }
+
+  /** Node label with its climb indicator appended, e.g. "Segona (X)", shown when unassigned. */
+  displayLabel(node: TroncNodeItem): string {
+    return formatAssignedLabel(node.label, node.climbIndicator);
   }
 
   /** CSS grid-column for a TRONC node (doubled grid: 0.5u = 1 column). */

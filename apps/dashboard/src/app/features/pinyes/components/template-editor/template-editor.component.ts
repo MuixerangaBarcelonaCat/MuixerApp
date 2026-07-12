@@ -301,7 +301,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
         color: presetColor,
         shape: NodeShape.RECTANGLE,
         sortOrder: event.sortOrder,
-        climbPath: null,
+        climbIndicator: null,
         ringLevel: null,
         originNodeId: null,
         renglaId: null,
@@ -324,12 +324,13 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     this.scheduleAutosave();
   }
 
-  onTroncNodeUpdated(event: { nodeId: string; x: number; width: number; positionType?: string; label?: string; color?: string | null }): void {
+  onTroncNodeUpdated(event: { nodeId: string; x: number; width: number; positionType?: string; label?: string; color?: string | null; climbIndicator?: string | null }): void {
     this.pushSnapshot('Modificar node de tronc');
     const patch: Partial<FigureNodeItem> = { x: event.x, width: event.width };
     if (event.positionType !== undefined) patch.positionType = event.positionType;
     if (event.label !== undefined) patch.label = event.label;
     if (event.color !== undefined) patch.color = event.color;
+    if (event.climbIndicator !== undefined) patch.climbIndicator = event.climbIndicator;
     this.updateNode(event.nodeId, patch);
     this.scheduleAutosave();
   }
@@ -365,7 +366,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
         color: '#EEEEEE',
         shape: NodeShape.RECTANGLE,
         sortOrder: event.sortOrder,
-        climbPath: null,
+        climbIndicator: null,
         ringLevel: null,
         originNodeId: null,
         renglaId: null,
@@ -443,7 +444,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
         color,
         shape: shape,
         sortOrder: this.nodes().length,
-        climbPath: null,
+        climbIndicator: null,
         ringLevel: null,
         originNodeId: null,
         renglaId: null,
@@ -889,7 +890,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
         color: source.color,
         shape: source.shape,
         sortOrder: this.nodes().length,
-        climbPath: null,
+        climbIndicator: null,
         ringLevel: null,
         originNodeId: null,
         renglaId: null,
@@ -1063,7 +1064,7 @@ export function nodeToPayload(node: FigureNodeItem): CreateFigureNodePayload {
     color: node.color ?? undefined,
     shape: node.shape,
     sortOrder: node.sortOrder,
-    climbPath: node.climbPath ?? undefined,
+    climbIndicator: node.climbIndicator ?? undefined,
     ringLevel: node.ringLevel ?? undefined,
     originNodeId: node.originNodeId,
     renglaId: node.renglaId,

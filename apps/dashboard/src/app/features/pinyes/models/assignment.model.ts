@@ -13,6 +13,7 @@ export interface AssignmentNodeDetail {
   z: number;
   positionType: string | null;
   sortOrder: number;
+  climbIndicator: string | null;
   ringLevel: number | null;
   originNodeId: string | null;
   sourceNodeId: string | null;
@@ -144,6 +145,7 @@ export interface InstanceNodeItem {
   color: string | null;
   shape: string;
   sortOrder: number;
+  climbIndicator: string | null;
   ringLevel: number | null;
   originNodeId: string | null;
   renglaId: string | null;

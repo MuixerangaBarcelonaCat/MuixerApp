@@ -84,7 +84,7 @@ export class InstanceNode {
   sortOrder: number;
 
   @Column({ type: 'varchar', nullable: true })
-  climbPath: string | null;
+  climbIndicator: string | null;
 
   @Column({ type: 'int', nullable: true })
   ringLevel: number | null;
