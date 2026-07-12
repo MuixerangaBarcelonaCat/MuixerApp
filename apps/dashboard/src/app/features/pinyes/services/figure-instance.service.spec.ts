@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideHttpClient } from '@angular/common/http';
 import { environment } from '../../../../environments/environment';
 import { FigureInstanceService } from './figure-instance.service';
+import { SegmentMoveConflictResolution } from '@muixer/shared';
 
 const BASE = environment.apiUrl;
 const EVENT_ID = 'event-uuid-1';
@@ -55,5 +56,38 @@ describe('FigureInstanceService', () => {
     expect(req.request.method).toBe('PATCH');
     expect(req.request.body).toEqual({ instanceIds: [INSTANCE_ID] });
     req.flush(null);
+  });
+
+  describe('move', () => {
+    const TARGET_SEGMENT_ID = 'segment-uuid-2';
+
+    it('sends PATCH to instances/:id/move with targetSegmentId and targetIndex, no query params', () => {
+      service
+        .move(EVENT_ID, SEGMENT_ID, INSTANCE_ID, { targetSegmentId: TARGET_SEGMENT_ID, targetIndex: 2 })
+        .subscribe();
+
+      const req = httpMock.expectOne(
+        (r) => r.url === `${INSTANCES_BASE}/${INSTANCE_ID}/move`,
+      );
+      expect(req.request.method).toBe('PATCH');
+      expect(req.request.body).toEqual({ targetSegmentId: TARGET_SEGMENT_ID, targetIndex: 2 });
+      expect(req.request.params.has('conflictResolution')).toBe(false);
+      req.flush({});
+    });
+
+    it('forwards conflictResolution as a query param when provided', () => {
+      service
+        .move(EVENT_ID, SEGMENT_ID, INSTANCE_ID, {
+          targetSegmentId: TARGET_SEGMENT_ID,
+          conflictResolution: SegmentMoveConflictResolution.KEEP_MOVED,
+        })
+        .subscribe();
+
+      const req = httpMock.expectOne(
+        (r) => r.url === `${INSTANCES_BASE}/${INSTANCE_ID}/move`,
+      );
+      expect(req.request.params.get('conflictResolution')).toBe(SegmentMoveConflictResolution.KEEP_MOVED);
+      req.flush({});
+    });
   });
 });

@@ -277,14 +277,19 @@
               }
 
               <!-- Instance rows -->
-              @if (!isCollapsed(segment.id) && segment.instances.length > 0) {
+              @if (!isCollapsed(segment.id)) {
                 <div
                   role="list"
                   [attr.aria-label]="'Figures del segment ' + displayName()(segment)"
+                  [id]="'instances-' + segment.id"
                   cdkDropList
-                  [cdkDropListData]="segment.instances"
+                  [cdkDropListData]="segment"
+                  [cdkDropListConnectedTo]="instanceDropListIds()"
                   (cdkDropListDropped)="onInstanceDropped(segment, $event)"
                 >
+                  @if (segment.instances.length === 0) {
+                    <p class="text-xs text-base-content/40 px-4 py-3">Cap figura afegida. Cliqueu "+ Figura" per afegir-ne.</p>
+                  }
                   @for (instance of segment.instances; track instance.id; let flast = $last) {
                     <div
                       class="flex gap-2 px-3 border-b border-base-200 last:border-b-0 hover:bg-base-200/30"
@@ -296,6 +301,7 @@
                       role="listitem"
                       cdkDrag
                       [cdkDragData]="instance"
+                      [cdkDragDisabled]="movingInstanceId() === instance.id"
                     >
                       <!-- Instance drag handle -->
                       <button
@@ -395,8 +401,6 @@
                     </div>
                   }
                 </div>
-              } @else if (!isCollapsed(segment.id)) {
-                <p class="text-xs text-base-content/40 px-4 py-3">Cap figura afegida. Cliqueu "+ Figura" per afegir-ne.</p>
               }
 
             </div>
@@ -559,5 +563,65 @@
       </div>
     </div>
     <button type="button" class="modal-backdrop" (click)="cancelModeChange()" aria-label="Tancar"></button>
+  </dialog>
+}
+
+<!-- Segment move conflict resolution modal -->
+@if (pendingMoveConflict(); as conflict) {
+  <dialog
+    class="modal modal-open"
+    role="alertdialog"
+    aria-labelledby="move-conflict-title"
+    aria-describedby="move-conflict-desc"
+    aria-modal="true"
+  >
+    <div class="modal-box max-w-sm">
+      <h3 id="move-conflict-title" class="text-lg font-bold mb-3 text-warning">Conflicte de persones al segment</h3>
+      <p id="move-conflict-desc" class="text-sm text-base-content/70">
+        <strong>{{ conflict.total }}</strong>
+        {{ conflict.total === 1 ? 'persona ja està assignada' : 'persones ja estan assignades' }}
+        a una altra figura d'este segment
+        @if (conflict.tronc > 0) {
+          ({{ conflict.tronc }} al tronc)
+        }
+      </p>
+      <p class="text-sm text-base-content/70 mt-2">Trieu com voleu resoldre el conflicte:</p>
+      <div class="flex flex-col gap-2 mt-6">
+        <button
+          type="button"
+          class="btn btn-outline w-full h-auto whitespace-normal py-2"
+          [disabled]="resolvingMoveConflict()"
+          (click)="resolveMoveConflict(SegmentMoveConflictResolution.KEEP_TARGET)"
+        >
+          <span class="flex flex-col items-start gap-0.5 text-left w-full">
+            <span class="text-sm">Conserva les assignacions existents</span>
+            <span class="text-xs font-normal opacity-60">Es llevaran estes persones de la figura moguda</span>
+          </span>
+        </button>
+        <button
+          type="button"
+          class="btn btn-outline w-full h-auto whitespace-normal py-2"
+          [disabled]="resolvingMoveConflict()"
+          (click)="resolveMoveConflict(SegmentMoveConflictResolution.KEEP_MOVED)"
+        >
+          <span class="flex flex-col items-start gap-0.5 text-left w-full">
+            <span class="text-sm">Conserva la figura moguda</span>
+            <span class="text-xs font-normal opacity-60">Es llevaran estes persones de les altres figures del segment</span>
+          </span>
+        </button>
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm w-full"
+          [disabled]="resolvingMoveConflict()"
+          (click)="cancelMoveConflict()"
+        >
+          @if (resolvingMoveConflict()) {
+            <span class="loading loading-spinner loading-xs"></span>
+          }
+          Cancel·la
+        </button>
+      </div>
+    </div>
+    <button type="button" class="modal-backdrop" (click)="cancelMoveConflict()" aria-label="Tancar"></button>
   </dialog>
 }

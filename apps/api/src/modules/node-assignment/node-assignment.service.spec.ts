@@ -6,7 +6,7 @@ import {
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import { NodeAssignmentService } from './node-assignment.service';
 import { NodeAssignment } from './entities/node-assignment.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
@@ -16,7 +16,7 @@ import { Person } from '../person/person.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
 import { Event } from '../event/event.entity';
-import { EventType, FigureZone, NodeShape } from '@muixer/shared';
+import { EventType, FigureZone, NodeShape, SegmentMoveConflictResolution } from '@muixer/shared';
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -614,6 +614,152 @@ describe('NodeAssignmentService', () => {
       mockAssignmentRepo.findOne.mockResolvedValue(a);
 
       await expect(service.unassign(INSTANCE_ID, ASSIGNMENT_ID)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ── getSegmentMoveConflicts ─────────────────────────────────────────────
+
+  describe('getSegmentMoveConflicts', () => {
+    const TARGET_SEGMENT_ID = 'segment-uuid-2';
+    const OTHER_PERSON_ID = 'person-uuid-2';
+
+    it('flags isTronc=false when both sides are PINYA', async () => {
+      const movingAssignment = makeAssignment({
+        person: makePerson(PERSON_ID) as any,
+        instanceNode: makeInstanceNode({ zone: FigureZone.PINYA }) as any,
+      });
+      const targetAssignment = makeAssignment({
+        id: ASSIGNMENT_ID_B,
+        person: makePerson(PERSON_ID) as any,
+        instanceNode: makeInstanceNode({ zone: FigureZone.PINYA }) as any,
+      });
+      mockAssignmentRepo.find
+        .mockResolvedValueOnce([movingAssignment]) // moving instance assignments
+        .mockResolvedValueOnce([targetAssignment]); // target segment assignments
+
+      const result = await service.getSegmentMoveConflicts(INSTANCE_ID, TARGET_SEGMENT_ID);
+
+      expect(result).toEqual([{ personId: PERSON_ID, isTronc: false }]);
+    });
+
+    it('flags isTronc=true when the moving-instance assignment is TRONC', async () => {
+      const movingAssignment = makeAssignment({
+        person: makePerson(PERSON_ID) as any,
+        instanceNode: makeInstanceNode({ zone: FigureZone.TRONC }) as any,
+      });
+      const targetAssignment = makeAssignment({
+        id: ASSIGNMENT_ID_B,
+        person: makePerson(PERSON_ID) as any,
+        instanceNode: makeInstanceNode({ zone: FigureZone.PINYA }) as any,
+      });
+      mockAssignmentRepo.find
+        .mockResolvedValueOnce([movingAssignment])
+        .mockResolvedValueOnce([targetAssignment]);
+
+      const result = await service.getSegmentMoveConflicts(INSTANCE_ID, TARGET_SEGMENT_ID);
+
+      expect(result).toEqual([{ personId: PERSON_ID, isTronc: true }]);
+    });
+
+    it('flags isTronc=true when the target-segment assignment is BASE', async () => {
+      const movingAssignment = makeAssignment({
+        person: makePerson(PERSON_ID) as any,
+        instanceNode: makeInstanceNode({ zone: FigureZone.PINYA }) as any,
+      });
+      const targetAssignment = makeAssignment({
+        id: ASSIGNMENT_ID_B,
+        person: makePerson(PERSON_ID) as any,
+        instanceNode: makeInstanceNode({ zone: FigureZone.BASE }) as any,
+      });
+      mockAssignmentRepo.find
+        .mockResolvedValueOnce([movingAssignment])
+        .mockResolvedValueOnce([targetAssignment]);
+
+      const result = await service.getSegmentMoveConflicts(INSTANCE_ID, TARGET_SEGMENT_ID);
+
+      expect(result).toEqual([{ personId: PERSON_ID, isTronc: true }]);
+    });
+
+    it('returns no conflicts when no persons overlap', async () => {
+      const movingAssignment = makeAssignment({ person: makePerson(PERSON_ID) as any });
+      const targetAssignment = makeAssignment({
+        id: ASSIGNMENT_ID_B,
+        person: makePerson(OTHER_PERSON_ID) as any,
+      });
+      mockAssignmentRepo.find
+        .mockResolvedValueOnce([movingAssignment])
+        .mockResolvedValueOnce([targetAssignment]);
+
+      const result = await service.getSegmentMoveConflicts(INSTANCE_ID, TARGET_SEGMENT_ID);
+
+      expect(result).toEqual([]);
+    });
+
+    it('queries assignments scoped to the moving instance and to the target segment', async () => {
+      mockAssignmentRepo.find.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+
+      await service.getSegmentMoveConflicts(INSTANCE_ID, TARGET_SEGMENT_ID);
+
+      expect(mockAssignmentRepo.find).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { figureInstance: { id: INSTANCE_ID } } }),
+      );
+      expect(mockAssignmentRepo.find).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { segment: { id: TARGET_SEGMENT_ID } } }),
+      );
+    });
+  });
+
+  // ── resolveSegmentMoveConflicts ─────────────────────────────────────────
+
+  describe('resolveSegmentMoveConflicts', () => {
+    const TARGET_SEGMENT_ID = 'segment-uuid-2';
+
+    it('KEEP_TARGET deletes the conflicting persons from the moving instance', async () => {
+      const manager = { delete: jest.fn() } as any;
+
+      await service.resolveSegmentMoveConflicts(
+        INSTANCE_ID,
+        TARGET_SEGMENT_ID,
+        [PERSON_ID],
+        SegmentMoveConflictResolution.KEEP_TARGET,
+        manager,
+      );
+
+      expect(manager.delete).toHaveBeenCalledWith(NodeAssignment, {
+        figureInstance: { id: INSTANCE_ID },
+        person: In([PERSON_ID]),
+      });
+    });
+
+    it('KEEP_MOVED deletes the conflicting persons from the target segment', async () => {
+      const manager = { delete: jest.fn() } as any;
+
+      await service.resolveSegmentMoveConflicts(
+        INSTANCE_ID,
+        TARGET_SEGMENT_ID,
+        [PERSON_ID],
+        SegmentMoveConflictResolution.KEEP_MOVED,
+        manager,
+      );
+
+      expect(manager.delete).toHaveBeenCalledWith(NodeAssignment, {
+        segment: { id: TARGET_SEGMENT_ID },
+        person: In([PERSON_ID]),
+      });
+    });
+
+    it('does nothing when there are no conflicting persons', async () => {
+      const manager = { delete: jest.fn() } as any;
+
+      await service.resolveSegmentMoveConflicts(
+        INSTANCE_ID,
+        TARGET_SEGMENT_ID,
+        [],
+        SegmentMoveConflictResolution.KEEP_TARGET,
+        manager,
+      );
+
+      expect(manager.delete).not.toHaveBeenCalled();
     });
   });
 

@@ -9,10 +9,12 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { LucideAngularModule } from 'lucide-angular';
 import { ICON_FIGURA, ICON_PERSONA, ICON_COMPOSITION, ICON_FIGURA_NETA } from '../../../../shared/constants/domain-icons';
 import { forkJoin } from 'rxjs';
+import { SegmentMoveConflictResolution } from '@muixer/shared';
 import { EventSegmentService } from '../../../pinyes/services/event-segment.service';
 import { FigureInstanceService } from '../../../pinyes/services/figure-instance.service';
 import { CompositionService } from '../../../pinyes/services/composition.service';
@@ -27,6 +29,7 @@ import {
   FigureMode,
   InstanceTroncSummary,
   TroncFloorData,
+  MoveInstanceResult,
 } from '../../../pinyes/models/segment.model';
 
 export type ViewMode = 'pinyes' | 'troncs';
@@ -40,6 +43,15 @@ interface PendingModeChange {
   segment: SegmentDetail;
   instance: InstanceDetail;
   mode: FigureMode;
+}
+
+interface PendingMoveConflict {
+  sourceSegmentId: string;
+  targetSegmentId: string;
+  instanceId: string;
+  targetIndex: number;
+  total: number;
+  tronc: number;
 }
 
 @Component({
@@ -57,6 +69,7 @@ export class SegmentManagerComponent implements OnInit {
   readonly ICON_PERSONA = ICON_PERSONA;
   readonly ICON_COMPOSITION = ICON_COMPOSITION;
   readonly ICON_FIGURA_NETA = ICON_FIGURA_NETA;
+  readonly SegmentMoveConflictResolution = SegmentMoveConflictResolution;
 
   private readonly segmentService = inject(EventSegmentService);
   private readonly instanceService = inject(FigureInstanceService);
@@ -90,6 +103,12 @@ export class SegmentManagerComponent implements OnInit {
   copyPickerInstanceId = signal<string | null>(null);
   copyPickerSegmentId = signal<string | null>(null);
   copyingInstance = signal(false);
+
+  movingInstanceId = signal<string | null>(null);
+  pendingMoveConflict = signal<PendingMoveConflict | null>(null);
+  resolvingMoveConflict = signal(false);
+
+  instanceDropListIds = computed(() => this.segments().map((s) => 'instances-' + s.id));
 
   segmentTotalAssigned = computed(() => (segment: SegmentDetail): number =>
     segment.instances.reduce((sum, i) => sum + (i.assignedCount ?? 0), 0),
@@ -220,7 +239,17 @@ export class SegmentManagerComponent implements OnInit {
     });
   }
 
-  onInstanceDropped(segment: SegmentDetail, event: CdkDragDrop<InstanceDetail[]>): void {
+  onInstanceDropped(segment: SegmentDetail, event: CdkDragDrop<SegmentDetail>): void {
+    if (event.previousContainer !== event.container) {
+      this.moveInstanceAcrossSegments(
+        event.previousContainer.data,
+        segment,
+        event.item.data as InstanceDetail,
+        event.currentIndex,
+      );
+      return;
+    }
+
     const { previousIndex, currentIndex } = event;
     if (previousIndex === currentIndex) return;
 
@@ -238,6 +267,90 @@ export class SegmentManagerComponent implements OnInit {
         this.loadSegments();
       },
     });
+  }
+
+  private moveInstanceAcrossSegments(
+    sourceSegment: SegmentDetail,
+    targetSegment: SegmentDetail,
+    instance: InstanceDetail,
+    targetIndex: number,
+  ): void {
+    this.movingInstanceId.set(instance.id);
+    this.instanceService
+      .move(this.eventId(), sourceSegment.id, instance.id, {
+        targetSegmentId: targetSegment.id,
+        targetIndex,
+      })
+      .subscribe({
+        next: (result) => {
+          this.movingInstanceId.set(null);
+          this.applyMoveResult(result);
+        },
+        error: (err: HttpErrorResponse) => {
+          this.movingInstanceId.set(null);
+          this.handleMoveError(err, sourceSegment.id, targetSegment.id, instance.id, targetIndex);
+        },
+      });
+  }
+
+  private applyMoveResult(result: MoveInstanceResult): void {
+    this.segments.update((list) =>
+      list.map((s) => {
+        if (s.id === result.sourceSegment.id) return result.sourceSegment;
+        if (s.id === result.targetSegment.id) return result.targetSegment;
+        return s;
+      }),
+    );
+  }
+
+  private handleMoveError(
+    err: HttpErrorResponse,
+    sourceSegmentId: string,
+    targetSegmentId: string,
+    instanceId: string,
+    targetIndex: number,
+  ): void {
+    if (err.status === 409 && err.error?.code === 'SEGMENT_MOVE_CONFLICT') {
+      this.pendingMoveConflict.set({
+        sourceSegmentId,
+        targetSegmentId,
+        instanceId,
+        targetIndex,
+        total: err.error.total,
+        tronc: err.error.tronc,
+      });
+      return;
+    }
+    this.toast.error('Error en moure la figura de segment.');
+  }
+
+  resolveMoveConflict(resolution: SegmentMoveConflictResolution): void {
+    const pending = this.pendingMoveConflict();
+    if (!pending) return;
+
+    this.resolvingMoveConflict.set(true);
+    this.instanceService
+      .move(this.eventId(), pending.sourceSegmentId, pending.instanceId, {
+        targetSegmentId: pending.targetSegmentId,
+        targetIndex: pending.targetIndex,
+        conflictResolution: resolution,
+      })
+      .subscribe({
+        next: (result) => {
+          this.resolvingMoveConflict.set(false);
+          this.pendingMoveConflict.set(null);
+          this.applyMoveResult(result);
+        },
+        error: () => {
+          this.resolvingMoveConflict.set(false);
+          this.pendingMoveConflict.set(null);
+          this.toast.error('Error en moure la figura de segment.');
+        },
+      });
+  }
+
+  cancelMoveConflict(): void {
+    this.pendingMoveConflict.set(null);
   }
 
   openCopyPicker(segmentId: string, instanceId: string): void {

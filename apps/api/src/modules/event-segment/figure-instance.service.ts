@@ -1,14 +1,17 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
+import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { FigureInstance } from './entities/figure-instance.entity';
 import { EventSegment } from './entities/event-segment.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
 import { Composition } from '../composition/entities/composition.entity';
+import { NodeAssignment } from '../node-assignment/entities/node-assignment.entity';
 import { CreateInstanceDto } from './dto/create-instance.dto';
 import { UpdateInstanceDto } from './dto/update-instance.dto';
 import { ReorderInstancesDto } from './dto/reorder-instances.dto';
@@ -59,7 +62,12 @@ export interface SegmentDistributionData {
   segment: { id: string; name: string | null };
   items: DistributionItem[];
 }
-import { FigureMode, FigureZone } from '@muixer/shared';
+import { FigureMode, FigureZone, SegmentMoveConflictResolution } from '@muixer/shared';
+
+export interface MoveInstanceResult {
+  sourceSegment: SegmentWithInstances;
+  targetSegment: SegmentWithInstances;
+}
 
 @Injectable()
 export class FigureInstanceService {
@@ -215,6 +223,78 @@ export class FigureInstanceService {
 
     const saved = await this.instanceRepository.save(newInstance);
     return this.findOneById(saved.id);
+  }
+
+  async move(
+    eventId: string,
+    segmentId: string,
+    instanceId: string,
+    targetSegmentId: string,
+    targetIndex?: number,
+    resolution?: SegmentMoveConflictResolution,
+  ): Promise<MoveInstanceResult> {
+    if (segmentId === targetSegmentId) {
+      throw new BadRequestException('targetSegmentId must be different from the current segment');
+    }
+
+    await this.assertInstanceBelongsToSegment(eventId, segmentId, instanceId);
+    const targetSegment = await this.assertSegmentBelongsToEvent(eventId, targetSegmentId);
+
+    await this.nodeAssignmentService.checkEventLock(instanceId);
+
+    const conflicts = await this.nodeAssignmentService.getSegmentMoveConflicts(instanceId, targetSegmentId);
+
+    if (conflicts.length > 0 && !resolution) {
+      throw new ConflictException({
+        code: 'SEGMENT_MOVE_CONFLICT',
+        total: conflicts.length,
+        tronc: conflicts.filter((c) => c.isTronc).length,
+      });
+    }
+
+    const targetInstances = await this.instanceRepository.find({
+      where: { segment: { id: targetSegmentId } },
+      select: ['id'],
+      order: { sortOrder: 'ASC' },
+    });
+    const orderedIds = targetInstances.map((i) => i.id);
+    const insertAt = Math.min(Math.max(targetIndex ?? orderedIds.length, 0), orderedIds.length);
+    orderedIds.splice(insertAt, 0, instanceId);
+
+    await this.dataSource.transaction(async (manager) => {
+      if (conflicts.length > 0 && resolution) {
+        const personIds = conflicts.map((c) => c.personId);
+        await this.nodeAssignmentService.resolveSegmentMoveConflicts(
+          instanceId,
+          targetSegmentId,
+          personIds,
+          resolution,
+          manager,
+        );
+      }
+
+      for (let i = 0; i < orderedIds.length; i++) {
+        if (orderedIds[i] === instanceId) {
+          await manager.update(
+            FigureInstance,
+            { id: instanceId },
+            { segment: { id: targetSegment.id }, sortOrder: i } as QueryDeepPartialEntity<FigureInstance>,
+          );
+        } else {
+          await manager.update(FigureInstance, { id: orderedIds[i] }, { sortOrder: i });
+        }
+      }
+      await manager.update(
+        NodeAssignment,
+        { figureInstance: { id: instanceId } },
+        { segment: { id: targetSegment.id } } as QueryDeepPartialEntity<NodeAssignment>,
+      );
+    });
+
+    return {
+      sourceSegment: await this.segmentService.getOne(segmentId),
+      targetSegment: await this.segmentService.getOne(targetSegmentId),
+    };
   }
 
   async saveDistribution(

@@ -6,7 +6,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import {
   EventType,
   FigureZone,
@@ -14,6 +14,7 @@ import {
   PINYA_NODE_PRESETS,
   DECORATION_NODE_PRESETS,
   DIRECTION_NODE_PRESETS,
+  SegmentMoveConflictResolution,
 } from '@muixer/shared';
 import { CreateAdHocNodeDto } from './dto/create-ad-hoc-node.dto';
 import { UpdateAdHocNodeDto } from './dto/update-ad-hoc-node.dto';
@@ -51,6 +52,12 @@ export interface AssignmentDetail {
     notes: string | null;
     notesEmoji: string | null;
   };
+}
+
+export interface SegmentMoveConflict {
+  personId: string;
+  /** true if the person occupies a TRONC/BASE node in either the moving instance or the target segment */
+  isTronc: boolean;
 }
 
 export interface InstanceNodeResponse {
@@ -526,6 +533,59 @@ export class NodeAssignmentService {
     }
 
     await this.assignmentRepository.remove(assignment);
+  }
+
+  // ── Segment move — cross-segment person conflicts ──────────────────────────
+
+  async getSegmentMoveConflicts(
+    instanceId: string,
+    targetSegmentId: string,
+  ): Promise<SegmentMoveConflict[]> {
+    const [movingAssignments, targetAssignments] = await Promise.all([
+      this.assignmentRepository.find({
+        where: { figureInstance: { id: instanceId } },
+        relations: ['instanceNode', 'person'],
+      }),
+      this.assignmentRepository.find({
+        where: { segment: { id: targetSegmentId } },
+        relations: ['instanceNode', 'person'],
+      }),
+    ]);
+
+    const TRONC_ZONES = new Set([FigureZone.TRONC, FigureZone.BASE]);
+    const targetByPersonId = new Map(targetAssignments.map((a) => [a.person.id, a]));
+
+    return movingAssignments
+      .filter((a) => targetByPersonId.has(a.person.id))
+      .map((a) => {
+        const targetAssignment = targetByPersonId.get(a.person.id)!;
+        const isTronc =
+          TRONC_ZONES.has(a.instanceNode.zone as FigureZone) ||
+          TRONC_ZONES.has(targetAssignment.instanceNode.zone as FigureZone);
+        return { personId: a.person.id, isTronc };
+      });
+  }
+
+  async resolveSegmentMoveConflicts(
+    instanceId: string,
+    targetSegmentId: string,
+    personIds: string[],
+    resolution: SegmentMoveConflictResolution,
+    manager: EntityManager,
+  ): Promise<void> {
+    if (personIds.length === 0) return;
+
+    if (resolution === SegmentMoveConflictResolution.KEEP_TARGET) {
+      await manager.delete(NodeAssignment, {
+        figureInstance: { id: instanceId },
+        person: In(personIds),
+      });
+    } else {
+      await manager.delete(NodeAssignment, {
+        segment: { id: targetSegmentId },
+        person: In(personIds),
+      });
+    }
   }
 
   // ── Reset snapshot — wipe all assignments + instance nodes ────────────────
