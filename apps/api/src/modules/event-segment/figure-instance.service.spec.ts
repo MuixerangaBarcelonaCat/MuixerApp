@@ -231,6 +231,39 @@ describe('FigureInstanceService', () => {
       expect(result.assignedCount).toBe(3);
     });
 
+    it('excludes cordo-obert nodes from pinyaCapacity when cordonsObertsEnabled is false', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.findOne
+        .mockResolvedValueOnce(makeInstance())
+        .mockResolvedValueOnce(makeInstance({ cordonsObertsEnabled: false, snapshotted: true }));
+      mockInstanceRepo.save.mockResolvedValue(makeInstance());
+
+      await service.update(EVENT_ID, SEGMENT_ID, INSTANCE_ID, { label: 'x' });
+
+      const capacityCall = mockDataSource.query.mock.calls.find(
+        (call: unknown[]) => typeof call[0] === 'string' && (call[0] as string).includes('as capacity'),
+      );
+      expect(capacityCall).toBeDefined();
+      expect(capacityCall![0]).toContain('cordo-obert');
+      expect(capacityCall![1]).toContain(false);
+    });
+
+    it('includes cordo-obert nodes in pinyaCapacity when cordonsObertsEnabled is true', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.findOne
+        .mockResolvedValueOnce(makeInstance())
+        .mockResolvedValueOnce(makeInstance({ cordonsObertsEnabled: true, snapshotted: true }));
+      mockInstanceRepo.save.mockResolvedValue(makeInstance());
+
+      await service.update(EVENT_ID, SEGMENT_ID, INSTANCE_ID, { label: 'x' });
+
+      const capacityCall = mockDataSource.query.mock.calls.find(
+        (call: unknown[]) => typeof call[0] === 'string' && (call[0] as string).includes('as capacity'),
+      );
+      expect(capacityCall).toBeDefined();
+      expect(capacityCall![1]).toContain(true);
+    });
+
     it('throws 404 if instance does not belong to segment', async () => {
       mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
       mockInstanceRepo.findOne.mockResolvedValue(null);
@@ -955,6 +988,7 @@ describe('FigureInstanceService', () => {
       troncPanelY: 20,
       figureMode: FigureMode.COMPLETA,
       numberOfCordons: 2,
+      cordonsObertsEnabled: false,
       sortOrder: 0,
       figureTemplate: makeFigureTemplate(),
       ...overrides,
@@ -1004,6 +1038,7 @@ describe('FigureInstanceService', () => {
           troncPanelY: 20,
           figureMode: FigureMode.COMPLETA,
           numberOfCordons: 2,
+          cordonsObertsEnabled: false,
           label: 'Central',
         }),
       );

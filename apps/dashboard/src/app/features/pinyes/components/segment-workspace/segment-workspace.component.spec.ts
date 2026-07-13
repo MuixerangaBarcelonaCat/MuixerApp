@@ -45,6 +45,7 @@ const makeWorkspaceInstance = (id: string): WorkspaceInstance => ({
   figureMode: 'COMPLETA',
   snapshotted: false,
   numberOfCordons: null,
+  cordonsObertsEnabled: true,
   nodes: [],
   assignedCount: 0,
   totalCount: 0,

@@ -2003,5 +2003,57 @@ describe('NodeAssignmentService', () => {
       expect(mockAssignmentRepo.find).not.toHaveBeenCalled();
       expect(mockAssignmentRepo.remove).not.toHaveBeenCalled();
     });
+
+    it('saves cordonsObertsEnabled and returns it', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ cordonsObertsEnabled: true }));
+      mockInstanceRepo.save.mockResolvedValue({});
+      mockInstanceNodeRepo.find.mockResolvedValue([]);
+
+      const result = await service.updateCordons(INSTANCE_ID, { cordonsObertsEnabled: false });
+
+      expect(mockInstanceRepo.save).toHaveBeenCalled();
+      expect(result.cordonsObertsEnabled).toBe(false);
+    });
+
+    it('removes assignments on cordo-obert nodes when cordonsObertsEnabled is turned off', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ cordonsObertsEnabled: true }));
+      mockInstanceRepo.save.mockResolvedValue({});
+      const cordoObertNode = makeInstanceNode({ id: 'inode-co', positionType: 'cordo-obert' });
+      const otherNode = makeInstanceNode({ id: 'inode-other', positionType: 'mans' });
+      mockInstanceNodeRepo.find.mockResolvedValue([cordoObertNode, otherNode]);
+      const cordoObertAssignment = makeAssignment({ id: 'as-co', instanceNode: cordoObertNode as any });
+      mockAssignmentRepo.find.mockResolvedValue([cordoObertAssignment]);
+      mockAssignmentRepo.remove.mockResolvedValue({});
+
+      await service.updateCordons(INSTANCE_ID, { cordonsObertsEnabled: false });
+
+      expect(mockAssignmentRepo.remove).toHaveBeenCalledWith([cordoObertAssignment]);
+    });
+
+    it('does not remove assignments when cordonsObertsEnabled is turned on', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(
+        makeInstance({ cordonsObertsEnabled: false, numberOfCordons: null }),
+      );
+      mockInstanceRepo.save.mockResolvedValue({});
+
+      await service.updateCordons(INSTANCE_ID, { cordonsObertsEnabled: true });
+
+      expect(mockInstanceNodeRepo.find).not.toHaveBeenCalled();
+      expect(mockAssignmentRepo.remove).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when cordonsObertsEnabled stays true and there are no cordo-obert nodes', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(
+        makeInstance({ cordonsObertsEnabled: true, numberOfCordons: null }),
+      );
+      mockInstanceRepo.save.mockResolvedValue({});
+      const otherNode = makeInstanceNode({ id: 'inode-other', positionType: 'mans' });
+      mockInstanceNodeRepo.find.mockResolvedValue([otherNode]);
+
+      await service.updateCordons(INSTANCE_ID, { cordonsObertsEnabled: false });
+
+      expect(mockAssignmentRepo.find).not.toHaveBeenCalled();
+      expect(mockAssignmentRepo.remove).not.toHaveBeenCalled();
+    });
   });
 });

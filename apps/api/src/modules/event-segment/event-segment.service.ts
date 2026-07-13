@@ -22,6 +22,7 @@ export interface InstanceRef {
   pinyaCapacity: number | null;
   totalCordons: number | null;
   numberOfCordons: number | null;
+  cordonsObertsEnabled: boolean;
   figureMode: FigureMode;
   figureTemplate: { id: string; name: string; hasPinya: boolean } | null;
 }
@@ -267,6 +268,7 @@ export class EventSegmentService {
          WHERE fi.id = ANY($1)
          AND fn.zone IN ('PINYA')
          AND (fi."numberOfCordons" IS NULL OR r."sortOrder" IS NULL OR r."sortOrder" <= fi."numberOfCordons")
+         AND (fi."cordonsObertsEnabled" = true OR fn."positionType" != 'cordo-obert')
          GROUP BY fi.id`,
         [notSnapped.map((i) => i.id)],
       );
@@ -282,6 +284,7 @@ export class EventSegmentService {
          WHERE in_."figureInstanceId" = ANY($1)
          AND in_.zone IN ('PINYA')
          AND (fi."numberOfCordons" IS NULL OR r."sortOrder" IS NULL OR r."sortOrder" <= fi."numberOfCordons")
+         AND (fi."cordonsObertsEnabled" = true OR in_."positionType" != 'cordo-obert')
          GROUP BY in_."figureInstanceId"`,
         [snapped.map((i) => i.id)],
       );
@@ -384,6 +387,7 @@ function toSegmentWithInstances(
           ? (totalCordonsMap.get(instance.figureTemplate.id) ?? 0)
           : null,
         numberOfCordons: instance.numberOfCordons ?? null,
+        cordonsObertsEnabled: instance.cordonsObertsEnabled,
         figureMode: instance.figureMode,
         figureTemplate: instance.figureTemplate
           ? {

@@ -15,7 +15,6 @@
       [gridEnabled]="true"
       [gridSpacing]="gridSpacing"
       [snapToGrid]="snapToGrid"
-      [cordoObertOpacity]="0.5"
       (slotSelected)="onSlotSelected($event)"
       (slotMoved)="onSlotMoved($event)"
       (troncMoved)="onTroncMoved($event)"
@@ -41,6 +40,7 @@
         (labelChanged)="onLabelChanged($event)"
         (figureModeChanged)="onFigureModeChanged($event)"
         (numberOfCordonsChanged)="onNumberOfCordonsChanged($event)"
+        (cordonsObertsEnabledChanged)="onCordonsObertsEnabledChanged($event)"
         (offsetXChanged)="onOffsetXChanged($event)"
         (offsetYChanged)="onOffsetYChanged($event)"
         (angleChanged)="onAngleChanged($event)"
@@ -72,5 +72,31 @@
       </div>
     </div>
     <button type="button" class="modal-backdrop" (click)="cancelCordonsChange()" aria-label="Tanca"></button>
+  </dialog>
+}
+
+<!-- Cordons oberts disable confirmation modal -->
+@if (pendingCordonsObertsChange(); as pendingOberts) {
+  <dialog
+    class="modal modal-open"
+    role="alertdialog"
+    aria-labelledby="cordons-oberts-modal-title"
+    aria-describedby="cordons-oberts-modal-desc"
+    aria-modal="true"
+  >
+    <div class="modal-box max-w-sm">
+      <h3 id="cordons-oberts-modal-title" class="text-lg font-bold mb-3 text-error">Desactiva els cordons oberts</h3>
+      <p id="cordons-oberts-modal-desc" class="text-sm text-base-content/70">
+        Esta acció eliminarà
+        <strong class="text-error">{{ pendingOberts.affectedCount }} assignacions</strong>
+        dels cordons oberts. Les persones assignades quedaran lliures.
+      </p>
+      <p class="text-xs text-warning mt-2">Esta acció no es pot desfer.</p>
+      <div class="modal-action">
+        <button type="button" class="btn btn-ghost btn-sm" (click)="cancelCordonsObertsChange()">Cancel·la</button>
+        <button type="button" class="btn btn-error btn-sm" (click)="confirmCordonsObertsChange()">Elimina-les</button>
+      </div>
+    </div>
+    <button type="button" class="modal-backdrop" (click)="cancelCordonsObertsChange()" aria-label="Tanca"></button>
   </dialog>
 }

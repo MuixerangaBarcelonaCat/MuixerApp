@@ -500,6 +500,7 @@ describe('ProjectionViewComponent', () => {
           label: null,
           figureMode: 'COMPLETA',
           numberOfCordons: null,
+          cordonsObertsEnabled: true,
           assignments: [],
           figureTemplate: { id: `fig-${id}`, name: id, nodes: figNodes(id) },
           troncGridCols: 2,

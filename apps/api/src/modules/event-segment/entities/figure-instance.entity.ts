@@ -47,6 +47,10 @@ export class FigureInstance {
   @Column({ type: 'int', nullable: true })
   numberOfCordons: number | null;
 
+  /** Whether cordo-obert nodes are shown/assignable for this instance. */
+  @Column({ type: 'boolean', default: true })
+  cordonsObertsEnabled: boolean;
+
   @Column({ type: 'float', nullable: true })
   projectionX: number | null;
 

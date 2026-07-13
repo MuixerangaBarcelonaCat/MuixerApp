@@ -24,6 +24,7 @@ export interface DistributionItem {
   label: string | null;
   figureMode: string;
   numberOfCordons: number | null;
+  cordonsObertsEnabled: boolean;
   assignments: DistributionAssignment[];
   figureTemplate: { id: string; name: string; nodes: DistributionNodeItem[] };
   troncGridCols: number;

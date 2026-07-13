@@ -50,6 +50,7 @@ const makeInstance = (id: string, overrides: Partial<InstanceDetail> = {}): Inst
   pinyaCapacity: null,
   totalCordons: null,
   numberOfCordons: null,
+  cordonsObertsEnabled: true,
   projectionX: null,
   projectionY: null,
   projectionScale: 1,
@@ -77,6 +78,7 @@ const makeDistributionItem = (
   label: null,
   figureMode: 'COMPLETA',
   numberOfCordons: null,
+  cordonsObertsEnabled: true,
   assignments: [],
   figureTemplate: { id: `tpl-${instanceId}`, name: `Figura ${instanceId}`, nodes: [] },
   troncGridCols: 2,
@@ -464,6 +466,23 @@ describe('SegmentWorkspaceStateService', () => {
       expect(cordoObert?.y).toBe(20);
     });
 
+    it('excludes cordo-obert nodes entirely when cordonsObertsEnabled is false', () => {
+      configure({
+        segment: makeSegment([makeInstance('inst-a', { numberOfCordons: null, cordonsObertsEnabled: false })]),
+        nodesByInstance: {
+          'inst-a': [
+            makeNode('n1', 'PINYA', { renglaId: 'r1', renglaPosition: 1 }),
+            makeNode('co', 'PINYA', { renglaId: 'r1', renglaPosition: 2, positionType: 'cordo-obert' }),
+          ],
+        },
+      });
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      const ids = service.pinyaSlots()[0].figureTemplate.nodes.map((n) => n.id);
+      expect(ids).toEqual(['n1']);
+    });
+
     it('keeps an auto-placed figure position stable when its nodes change later (e.g. adding an ad-hoc node)', () => {
       configure({
         segment: makeSegment([makeInstance('inst-a'), makeInstance('inst-b')]),
@@ -528,6 +547,7 @@ describe('SegmentWorkspaceStateService', () => {
           label: null,
           figureMode: 'COMPLETA',
           numberOfCordons: 1,
+          cordonsObertsEnabled: true,
           assignments: [],
           figureTemplate: { id: `tpl-${id}`, name: `Figura ${id}`, nodes: figNodes(id) },
           troncGridCols: 2,

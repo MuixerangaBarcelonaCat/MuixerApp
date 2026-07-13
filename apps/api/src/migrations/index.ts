@@ -23,6 +23,7 @@ import { AddPersonNotesEmoji1782500000000 } from './1782500000000-AddPersonNotes
 import { AddInstanceNodeSourceUniqueIndex1782600000000 } from './1782600000000-AddInstanceNodeSourceUniqueIndex';
 import { AddNodeAssignmentSegment1782700000000 } from './1782700000000-AddNodeAssignmentSegment';
 import { RenameClimbPathToClimbIndicator1782800000000 } from './1782800000000-RenameClimbPathToClimbIndicator';
+import { AddCordonsObertsEnabled1782900000000 } from './1782900000000-AddCordonsObertsEnabled';
 
 export const migrations: (new () => MigrationInterface)[] = [
   InitialSchema1748600000000,
@@ -49,4 +50,5 @@ export const migrations: (new () => MigrationInterface)[] = [
   AddInstanceNodeSourceUniqueIndex1782600000000,
   AddNodeAssignmentSegment1782700000000,
   RenameClimbPathToClimbIndicator1782800000000,
+  AddCordonsObertsEnabled1782900000000,
 ];

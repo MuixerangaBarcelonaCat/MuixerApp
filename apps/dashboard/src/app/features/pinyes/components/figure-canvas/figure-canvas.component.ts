@@ -218,8 +218,6 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   readonly placementSlotId = input<string | null>(null);
   /** Whether ad-hoc nodes can be dragged/rotated/resized directly on this canvas (Nodes extra tab only). */
   readonly adHocNodesEditable = input<boolean>(false);
-  /** Opacity applied to cordo-obert nodes in composition mode (distribution editor/tab). */
-  readonly cordoObertOpacity = input<number>(1);
 
   readonly nodeSelected = output<string | null>();
   readonly nodeClicked = output<{ nodeId: string; x: number; y: number }>();
@@ -999,7 +997,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
             rotation: node.rotation,
             draggable: false,
             listening: false,
-            opacity: node.positionType === 'cordo-obert' && !personAlias ? this.cordoObertOpacity() : 1,
+            opacity: 1,
           });
 
           const shape = createNodeShape(node.shape ?? NodeShape.RECTANGLE, node.width, node.height, {

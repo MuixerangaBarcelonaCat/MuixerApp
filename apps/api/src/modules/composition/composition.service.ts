@@ -31,6 +31,7 @@ export interface CompositionEntryItem {
   troncPanelY: number | null;
   figureMode: string;
   numberOfCordons: number | null;
+  cordonsObertsEnabled: boolean;
   sortOrder: number;
   troncGridCols: number;
   troncGridRows: number;
@@ -170,6 +171,7 @@ export class CompositionService {
         troncPanelY: e.troncPanelY ?? undefined,
         figureMode: e.figureMode,
         numberOfCordons: e.numberOfCordons ?? undefined,
+        cordonsObertsEnabled: e.cordonsObertsEnabled,
         sortOrder: e.sortOrder,
       }));
       await this.syncEntries(savedCopy.id, entryDtos);
@@ -198,6 +200,7 @@ export class CompositionService {
         troncPanelY: dto.troncPanelY ?? null,
         figureMode: dto.figureMode,
         numberOfCordons: dto.numberOfCordons ?? null,
+        cordonsObertsEnabled: dto.cordonsObertsEnabled ?? true,
         sortOrder: dto.sortOrder ?? 0,
       });
       entries.push(entry);
@@ -248,6 +251,7 @@ export class CompositionService {
       troncPanelY: entry.troncPanelY,
       figureMode: entry.figureMode,
       numberOfCordons: entry.numberOfCordons,
+      cordonsObertsEnabled: entry.cordonsObertsEnabled,
       sortOrder: entry.sortOrder,
       troncGridCols,
       troncGridRows,

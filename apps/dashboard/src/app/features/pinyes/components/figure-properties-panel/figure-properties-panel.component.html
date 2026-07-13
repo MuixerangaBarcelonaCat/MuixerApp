@@ -43,7 +43,7 @@
     @if (entry().maxCordons === 0) {
       <span class="text-xs text-base-content/40 italic">Sense rengles</span>
     } @else {
-      <div class="flex items-center gap-1">
+      <div class="flex items-center gap-1 p-1">
         <button
           type="button"
           class="btn btn-xs btn-outline btn-square"
@@ -68,6 +68,21 @@
       </div>
     }
   </div>
+
+  @if (entry().hasCordoObertNodes) {
+    <div class="form-control pb-3">
+      <label class="label cursor-pointer justify-start gap-2 py-0">
+        <input
+          type="checkbox"
+          data-cordons-oberts-checkbox
+          class="checkbox checkbox-sm"
+          [checked]="entry().cordonsObertsEnabled"
+          (change)="onCordonsObertsEnabledChange($any($event.target).checked)"
+        />
+        <span class="label-text text-xs font-medium">Cordons oberts</span>
+      </label>
+    </div>
+  }
 }
 
 <div>

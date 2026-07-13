@@ -1029,8 +1029,8 @@ export class NodeAssignmentService {
 
   async updateCordons(
     instanceId: string,
-    dto: { numberOfCordons?: number | null },
-  ): Promise<{ numberOfCordons: number | null }> {
+    dto: { numberOfCordons?: number | null; cordonsObertsEnabled?: boolean },
+  ): Promise<{ numberOfCordons: number | null; cordonsObertsEnabled: boolean }> {
     await this.checkEventLock(instanceId);
 
     const instance = await this.figureInstanceRepository.findOne({
@@ -1040,8 +1040,13 @@ export class NodeAssignmentService {
       throw new NotFoundException(`FigureInstance with ID ${instanceId} not found`);
     }
 
+    const disablingCordonsOberts = dto.cordonsObertsEnabled === false && instance.cordonsObertsEnabled !== false;
+
     if (dto.numberOfCordons !== undefined) {
       instance.numberOfCordons = dto.numberOfCordons;
+    }
+    if (dto.cordonsObertsEnabled !== undefined) {
+      instance.cordonsObertsEnabled = dto.cordonsObertsEnabled;
     }
 
     await this.figureInstanceRepository.save(instance);
@@ -1049,8 +1054,11 @@ export class NodeAssignmentService {
     if (instance.numberOfCordons !== null) {
       await this.removeAssignmentsBeyondCordons(instanceId, instance.numberOfCordons);
     }
+    if (disablingCordonsOberts) {
+      await this.removeCordoObertAssignments(instanceId);
+    }
 
-    return { numberOfCordons: instance.numberOfCordons };
+    return { numberOfCordons: instance.numberOfCordons, cordonsObertsEnabled: instance.cordonsObertsEnabled };
   }
 
   /**
@@ -1077,6 +1085,26 @@ export class NodeAssignmentService {
 
     const assignments = await this.assignmentRepository.find({
       where: { figureInstance: { id: instanceId }, instanceNode: { id: In(hiddenNodeIds) } },
+      relations: ['instanceNode'],
+    });
+    if (assignments.length === 0) return;
+
+    await this.assignmentRepository.remove(assignments);
+  }
+
+  /**
+   * Deletes assignments on cordo-obert nodes — called when cordonsObertsEnabled
+   * is turned off, since those nodes become hidden from the assignment UI.
+   */
+  private async removeCordoObertAssignments(instanceId: string): Promise<void> {
+    const nodes = await this.instanceNodeRepository.find({
+      where: { figureInstance: { id: instanceId } },
+    });
+    const cordoObertNodeIds = nodes.filter((n) => n.positionType === 'cordo-obert').map((n) => n.id);
+    if (cordoObertNodeIds.length === 0) return;
+
+    const assignments = await this.assignmentRepository.find({
+      where: { figureInstance: { id: instanceId }, instanceNode: { id: In(cordoObertNodeIds) } },
       relations: ['instanceNode'],
     });
     if (assignments.length === 0) return;

@@ -12,6 +12,7 @@ export interface InstanceDetail {
   pinyaCapacity: number | null;
   totalCordons: number | null;
   numberOfCordons: number | null;
+  cordonsObertsEnabled: boolean;
   projectionX: number | null;
   projectionY: number | null;
   projectionScale: number;

@@ -182,10 +182,12 @@ export interface UpdateAdHocNodePayload {
 
 export interface UpdateInstanceCordonsPayload {
   numberOfCordons?: number | null;
+  cordonsObertsEnabled?: boolean;
 }
 
 export interface CordonsResponse {
   numberOfCordons: number | null;
+  cordonsObertsEnabled: boolean;
 }
 
 export interface SwapAssignmentsPayload {

@@ -27,6 +27,7 @@ export interface WorkspaceInstance {
   figureMode: string;
   snapshotted: boolean;
   numberOfCordons: number | null;
+  cordonsObertsEnabled: boolean;
   nodes: InstanceNodeItem[];
   assignedCount: number;
   totalCount: number;
@@ -225,6 +226,7 @@ export class SegmentWorkspaceStateService {
               figureMode: instance.figureMode ?? 'COMPLETA',
               snapshotted: instance.snapshotted,
               numberOfCordons: instance.numberOfCordons ?? null,
+              cordonsObertsEnabled: instance.cordonsObertsEnabled,
               nodes: [],
               assignedCount: instance.assignedCount ?? 0,
               totalCount: 0,
@@ -289,6 +291,7 @@ export class SegmentWorkspaceStateService {
               ),
               figureMode: fresh.figureMode ?? 'COMPLETA',
               numberOfCordons: fresh.numberOfCordons ?? null,
+              cordonsObertsEnabled: fresh.cordonsObertsEnabled,
               snapshotted: fresh.snapshotted,
               assignedCount: fresh.assignedCount ?? existing.assignedCount,
             };
@@ -354,7 +357,9 @@ export class SegmentWorkspaceStateService {
   /** Nodes of one instance after cordons filtering and cordo-obert repositioning. */
   visibleNodesFor(instance: WorkspaceInstance): InstanceNodeItem[] {
     const cordons = instance.numberOfCordons;
-    const nodes = instance.nodes;
+    const nodes = instance.cordonsObertsEnabled
+      ? instance.nodes
+      : instance.nodes.filter((n) => n.positionType !== 'cordo-obert');
     if (cordons === null) return nodes;
 
     const filtered = nodes.filter(

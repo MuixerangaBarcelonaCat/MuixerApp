@@ -45,6 +45,7 @@ export interface DistributionItem {
   label: string | null;
   figureMode: string;
   numberOfCordons: number | null;
+  cordonsObertsEnabled: boolean;
   assignments: DistributionAssignment[];
   figureTemplate: { id: string; name: string; nodes: DistributionNodeItem[] };
   troncGridCols: number;
@@ -398,6 +399,7 @@ export class FigureInstanceService {
         label: inst.label,
         figureMode: inst.figureMode ?? FigureMode.COMPLETA,
         numberOfCordons: inst.numberOfCordons ?? null,
+        cordonsObertsEnabled: inst.cordonsObertsEnabled,
         assignments: assignmentsByInstance.get(inst.id) ?? [],
         figureTemplate: {
           id: inst.figureTemplate!.id,
@@ -505,8 +507,9 @@ export class FigureInstanceService {
                LEFT JOIN rengles r ON r.id = in_."renglaId"
                WHERE in_."figureInstanceId" = $1
                AND in_.zone IN ('PINYA', 'BASE')
-               AND ($2::int IS NULL OR in_.zone = 'BASE' OR r."sortOrder" < $2::int)`,
-              [id, instance.numberOfCordons],
+               AND ($2::int IS NULL OR in_.zone = 'BASE' OR r."sortOrder" < $2::int)
+               AND ($3::boolean = true OR in_."positionType" != 'cordo-obert')`,
+              [id, instance.numberOfCordons, instance.cordonsObertsEnabled],
             )
           : this.dataSource.query(
               `SELECT COUNT(*) as capacity
@@ -514,8 +517,9 @@ export class FigureInstanceService {
                LEFT JOIN rengles r ON r.id = fn."renglaId"
                WHERE fn."templateId" = $1
                AND fn.zone IN ('PINYA', 'BASE')
-               AND ($2::int IS NULL OR fn.zone = 'BASE' OR r."sortOrder" < $2::int)`,
-              [instance.figureTemplate!.id, instance.numberOfCordons],
+               AND ($2::int IS NULL OR fn.zone = 'BASE' OR r."sortOrder" < $2::int)
+               AND ($3::boolean = true OR fn."positionType" != 'cordo-obert')`,
+              [instance.figureTemplate!.id, instance.numberOfCordons, instance.cordonsObertsEnabled],
             )
         : Promise.resolve([{ capacity: '0' }]),
       hasPinyaFigure && instance.figureTemplate
@@ -542,6 +546,7 @@ export class FigureInstanceService {
       pinyaCapacity,
       totalCordons,
       numberOfCordons: instance.numberOfCordons ?? null,
+      cordonsObertsEnabled: instance.cordonsObertsEnabled,
       figureMode: instance.figureMode ?? FigureMode.COMPLETA,
       figureTemplate: instance.figureTemplate
         ? {
@@ -611,6 +616,7 @@ export class FigureInstanceService {
           label: entry.label,
           figureMode: entry.figureMode,
           numberOfCordons: entry.numberOfCordons,
+          cordonsObertsEnabled: entry.cordonsObertsEnabled,
           sortOrder,
           projectionX: entry.offsetX,
           projectionY: entry.offsetY,

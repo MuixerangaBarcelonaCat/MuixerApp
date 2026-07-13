@@ -58,6 +58,7 @@ const makeInstance = (overrides: Partial<InstanceDetail> = {}): InstanceDetail =
   pinyaCapacity: null,
   totalCordons: null,
   numberOfCordons: null,
+  cordonsObertsEnabled: true,
   projectionX: null,
   projectionY: null,
   projectionScale: 1,
