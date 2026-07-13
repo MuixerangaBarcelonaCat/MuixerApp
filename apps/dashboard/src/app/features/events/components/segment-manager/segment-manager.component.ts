@@ -19,6 +19,7 @@ import { FiguresViewModeService, FiguresViewMode } from '../../../pinyes/service
 import { EventSegmentService } from '../../../pinyes/services/event-segment.service';
 import { FigureInstanceService } from '../../../pinyes/services/figure-instance.service';
 import { CompositionService } from '../../../pinyes/services/composition.service';
+import { NodeAssignmentService } from '../../../pinyes/services/node-assignment.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import {
   FigurePickerModalComponent,
@@ -32,6 +33,7 @@ import {
   TroncFloorData,
   MoveInstanceResult,
 } from '../../../pinyes/models/segment.model';
+import { EventFigureSummary, FigureAreaCount } from '../../../pinyes/models/assignment.model';
 
 export type ViewMode = FiguresViewMode;
 
@@ -75,6 +77,7 @@ export class SegmentManagerComponent implements OnInit {
   private readonly segmentService = inject(EventSegmentService);
   private readonly instanceService = inject(FigureInstanceService);
   private readonly compositionService = inject(CompositionService);
+  private readonly nodeAssignmentService = inject(NodeAssignmentService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
   private readonly viewModeService = inject(FiguresViewModeService);
@@ -112,9 +115,14 @@ export class SegmentManagerComponent implements OnInit {
 
   instanceDropListIds = computed(() => this.segments().map((s) => 'instances-' + s.id));
 
-  segmentTotalAssigned = computed(() => (segment: SegmentDetail): number =>
-    segment.instances.reduce((sum, i) => sum + (i.assignedCount ?? 0), 0),
-  );
+  private readonly figuresBySegment = signal<Map<string, EventFigureSummary[]>>(new Map());
+  private readonly figureSummaryByInstance = computed(() => {
+    const map = new Map<string, EventFigureSummary>();
+    for (const figures of this.figuresBySegment().values()) {
+      for (const f of figures) map.set(f.instanceId, f);
+    }
+    return map;
+  });
 
   displayName = computed(() => (segment: SegmentDetail): string => {
     if (segment.name) return segment.name;
@@ -126,9 +134,19 @@ export class SegmentManagerComponent implements OnInit {
 
   ngOnInit() {
     this.loadSegments();
+    this.loadAssignmentSummary();
     if (this.viewMode() === 'troncs') {
       this.loadTroncView();
     }
+  }
+
+  private loadAssignmentSummary(): void {
+    this.nodeAssignmentService.getEventAssignmentSummary(this.eventId()).subscribe({
+      next: (summary) => {
+        this.figuresBySegment.set(new Map(summary.segments.map((s) => [s.segmentId, s.figures])));
+      },
+      error: () => undefined,
+    });
   }
 
   private loadSegments() {
@@ -586,6 +604,50 @@ export class SegmentManagerComponent implements OnInit {
         onDone?.();
       },
     });
+  }
+
+  /** "12/20 pinya (2 cor.), 15/24 total" — pinya fragment omitted when the figure has no pinya positions. */
+  figurePinyaLabel(instance: InstanceDetail): string | null {
+    const summary = this.figureSummaryByInstance().get(instance.id);
+    if (!summary) return null;
+
+    const totalPart = `${this.formatAreaCount(summary.total)} total`;
+    if (summary.pinya.total === 0) return totalPart;
+
+    const cordonsPart = this.showCordonsBadge(instance) ? ` (${instance.numberOfCordons} cor.)` : '';
+    return `${this.formatAreaCount(summary.pinya)} pinya${cordonsPart}, ${totalPart}`;
+  }
+
+  /** "23/35 pinyes, 29/45 total" (pinya mode) or "4/10 troncs, 29/45 total" (troncs mode). */
+  segmentPeopleLabel(segment: SegmentDetail): string | null {
+    const figures = this.figuresBySegment().get(segment.id);
+    if (!figures || figures.length === 0) return null;
+
+    const total = this.sumAreaCounts(figures, (f) => f.total);
+    const totalPart = `${this.formatAreaCount(total)} total`;
+
+    if (this.viewMode() === 'troncs') {
+      const tronc = this.sumAreaCounts(figures, (f) => f.tronc);
+      return `${this.formatAreaCount(tronc)} troncs, ${totalPart}`;
+    }
+
+    const pinya = this.sumAreaCounts(figures, (f) => f.pinya);
+    if (pinya.total === 0) return totalPart;
+    return `${this.formatAreaCount(pinya)} pinyes, ${totalPart}`;
+  }
+
+  private formatAreaCount(count: FigureAreaCount): string {
+    return `${count.assigned}/${count.total}`;
+  }
+
+  private sumAreaCounts(
+    figures: EventFigureSummary[],
+    select: (f: EventFigureSummary) => FigureAreaCount,
+  ): FigureAreaCount {
+    return figures.reduce(
+      (acc, f) => ({ assigned: acc.assigned + select(f).assigned, total: acc.total + select(f).total }),
+      { assigned: 0, total: 0 },
+    );
   }
 
   showCordonsBadge(instance: InstanceDetail): boolean {

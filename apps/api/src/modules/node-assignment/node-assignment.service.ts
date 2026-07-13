@@ -9,6 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import {
   EventType,
+  FigureMode,
   FigureZone,
   NodeShape,
   PINYA_NODE_PRESETS,
@@ -135,13 +136,23 @@ export interface PersonAssignmentHistory {
   meta: { total: number; page: number; limit: number };
 }
 
+export interface FigureAreaCount {
+  assigned: number;
+  total: number;
+}
+
 export interface EventFigureSummary {
   instanceId: string;
   figureName: string;
   snapshotted: boolean;
-  totalNodes: number;
-  assignedNodes: number;
-  assignments: {
+  /** PINYA nodes only, filtered by numberOfCordons/cordonsObertsEnabled and zeroed for REMAT/NETA. */
+  pinya: FigureAreaCount;
+  /** TRONC + BASE nodes (BASE excluded for REMAT). */
+  tronc: FigureAreaCount;
+  /** pinya + tronc + direction nodes; DECORATION excluded (not assignable). */
+  total: FigureAreaCount;
+  /** TRONC/BASE assignments only, unfiltered by figureMode — still needed for name display. */
+  troncBaseAssignments: {
     nodeLabel: string;
     positionType: string | null;
     zone: FigureZone;
@@ -776,6 +787,7 @@ export class NodeAssignmentService {
         where: { segment: { id: segment.id } },
         relations: [
           'figureTemplate',
+          'figureTemplate.nodes',
           'instanceNodes',
           'assignments',
           'assignments.instanceNode',
@@ -783,26 +795,12 @@ export class NodeAssignmentService {
         ],
       });
 
-      const figures: EventFigureSummary[] = instances.map((fi) => {
-        const totalNodes = fi.instanceNodes?.length ?? 0;
-        const assignments = (fi.assignments ?? []).map((a) => ({
-          nodeLabel: a.instanceNode.label,
-          positionType: a.instanceNode.positionType ?? null,
-          zone: a.instanceNode.zone as FigureZone,
-          z: a.instanceNode.z,
-          personAlias: (a.person as any).alias as string,
-          personId: a.person.id,
-        }));
-
-        return {
-          instanceId: fi.id,
-          figureName: fi.figureTemplate?.name ?? 'Sense plantilla',
-          snapshotted: fi.snapshotted,
-          totalNodes,
-          assignedNodes: assignments.length,
-          assignments,
-        };
-      });
+      const figures: EventFigureSummary[] = instances.map((fi) => ({
+        instanceId: fi.id,
+        figureName: fi.figureTemplate?.name ?? 'Sense plantilla',
+        snapshotted: fi.snapshotted,
+        ...this.computeInstanceAreaSummary(fi),
+      }));
 
       result.push({
         segmentId: segment.id,
@@ -813,6 +811,83 @@ export class NodeAssignmentService {
     }
 
     return { segments: result };
+  }
+
+  /**
+   * Buckets a figure instance's nodes/assignments into pinya/tronc/total area
+   * counts, applying the same visibility rules used elsewhere for capacity:
+   * PINYA nodes respect numberOfCordons + cordonsObertsEnabled and are zeroed
+   * for REMAT/NETA; BASE counts as tronc except for REMAT; direction nodes
+   * (FIGURE_DIRECTION/XICALLA_DIRECTION) count only toward total; DECORATION
+   * is excluded entirely (not assignable).
+   */
+  private computeInstanceAreaSummary(fi: FigureInstance): {
+    pinya: FigureAreaCount;
+    tronc: FigureAreaCount;
+    total: FigureAreaCount;
+    troncBaseAssignments: EventFigureSummary['troncBaseAssignments'];
+  } {
+    const nodes = fi.snapshotted ? (fi.instanceNodes ?? []) : (fi.figureTemplate?.nodes ?? []);
+    const figureMode = fi.figureMode ?? FigureMode.COMPLETA;
+    const numberOfCordons = fi.numberOfCordons ?? null;
+    const cordonsObertsEnabled = fi.cordonsObertsEnabled;
+
+    const isPinya = (n: { zone: string; positionType: string | null; renglaPosition: number | null }): boolean => {
+      if (n.zone !== FigureZone.PINYA) return false;
+      if (figureMode === FigureMode.REMAT || figureMode === FigureMode.NETA) return false;
+      if (n.positionType === 'cordo-obert') return cordonsObertsEnabled;
+      if (numberOfCordons === null) return true;
+      return n.renglaPosition === null || n.renglaPosition <= numberOfCordons;
+    };
+    const isTronc = (n: { zone: string }): boolean =>
+      n.zone === FigureZone.TRONC || (n.zone === FigureZone.BASE && figureMode !== FigureMode.REMAT);
+    const isDirection = (n: { zone: string }): boolean =>
+      n.zone === FigureZone.FIGURE_DIRECTION || n.zone === FigureZone.XICALLA_DIRECTION;
+
+    let pinyaTotal = 0;
+    let troncTotal = 0;
+    let directionTotal = 0;
+    for (const n of nodes) {
+      if (isPinya(n)) pinyaTotal++;
+      else if (isTronc(n)) troncTotal++;
+      else if (isDirection(n)) directionTotal++;
+    }
+
+    let pinyaAssigned = 0;
+    let troncAssigned = 0;
+    let directionAssigned = 0;
+    const troncBaseAssignments: EventFigureSummary['troncBaseAssignments'] = [];
+    for (const a of fi.assignments ?? []) {
+      const n = a.instanceNode;
+      if (!n) continue;
+      if (isPinya(n)) {
+        pinyaAssigned++;
+      } else if (isTronc(n)) {
+        troncAssigned++;
+      } else if (isDirection(n)) {
+        directionAssigned++;
+      }
+      if (n.zone === FigureZone.TRONC || n.zone === FigureZone.BASE) {
+        troncBaseAssignments.push({
+          nodeLabel: n.label,
+          positionType: n.positionType ?? null,
+          zone: n.zone as FigureZone,
+          z: n.z,
+          personAlias: (a.person as any).alias as string,
+          personId: a.person.id,
+        });
+      }
+    }
+
+    return {
+      pinya: { assigned: pinyaAssigned, total: pinyaTotal },
+      tronc: { assigned: troncAssigned, total: troncTotal },
+      total: {
+        assigned: pinyaAssigned + troncAssigned + directionAssigned,
+        total: pinyaTotal + troncTotal + directionTotal,
+      },
+      troncBaseAssignments,
+    };
   }
 
 

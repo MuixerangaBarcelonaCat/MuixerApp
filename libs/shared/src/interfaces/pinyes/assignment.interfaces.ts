@@ -135,13 +135,19 @@ export interface EventAssignmentEntry {
   personId: string;
 }
 
+export interface FigureAreaCount {
+  assigned: number;
+  total: number;
+}
+
 export interface EventFigureSummary {
   instanceId: string;
   figureName: string;
   snapshotted: boolean;
-  totalNodes: number;
-  assignedNodes: number;
-  assignments: EventAssignmentEntry[];
+  pinya: FigureAreaCount;
+  tronc: FigureAreaCount;
+  total: FigureAreaCount;
+  troncBaseAssignments: EventAssignmentEntry[];
 }
 
 export interface EventSegmentSummary {

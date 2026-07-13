@@ -177,11 +177,11 @@
 
                 <!-- Right-side actions -->
                 <div class="flex items-center gap-1 shrink-0 ml-auto">
-                  <!-- Assigned total pill -->
-                  @if (segmentTotalAssigned()(segment) > 0) {
-                    <span class="badge badge-ghost badge-sm gap-1 font-normal" [attr.aria-label]="segmentTotalAssigned()(segment) + ' assignades'">
+                  <!-- Assigned/total people pill -->
+                  @if (segmentPeopleLabel(segment); as label) {
+                    <span class="badge badge-ghost badge-sm gap-1 font-normal" [attr.aria-label]="label">
                       <lucide-icon [name]="ICON_PERSONA" [size]="11" />
-                      {{ segmentTotalAssigned()(segment) }}
+                      {{ label }}
                     </span>
                   }
 
@@ -324,19 +324,12 @@
                         >
                           <span class="truncate">{{ getInstanceLabel(instance) }}</span>
 
-                          <!-- Pinya mode: assigned count -->
+                          <!-- Pinya mode: assigned/total counts -->
                           @if (viewMode() === 'pinyes') {
-                            @if (instance.figureTemplate?.hasPinya && instance.figureMode !== 'REMAT' && instance.figureMode !== 'NETA' && instance.pinyaCapacity !== null) {
-                              <span class="flex items-center gap-0.5 text-xs text-base-content/50 shrink-0 font-normal" [attr.aria-label]="instance.pinyaAssignedCount + ' de ' + instance.pinyaCapacity + ' assignades a la pinya'">
+                            @if (figurePinyaLabel(instance); as label) {
+                              <span class="flex items-center gap-0.5 text-xs text-base-content/50 shrink-0 font-normal" [attr.aria-label]="label">
                                 <lucide-icon [name]="ICON_PERSONA" [size]="11" />
-                                {{ instance.pinyaAssignedCount }}/{{ instance.pinyaCapacity }}
-                                @if (showCordonsBadge(instance)) {
-                                  <span class="text-base-content/40">({{ instance.numberOfCordons }} cor.)</span>
-                                }
-                              </span>
-                            } @else if (instance.assignedCount > 0) {
-                              <span class="flex items-center gap-0.5 text-xs text-base-content/50 shrink-0 font-normal" [attr.aria-label]="instance.assignedCount + ' assignades'">
-                                <lucide-icon [name]="ICON_FIGURA_NETA" [size]="11" />
+                                {{ label }}
                               </span>
                             }
                           }

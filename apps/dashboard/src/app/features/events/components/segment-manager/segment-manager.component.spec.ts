@@ -10,8 +10,10 @@ import { SegmentManagerComponent } from './segment-manager.component';
 import { EventSegmentService } from '../../../pinyes/services/event-segment.service';
 import { FigureInstanceService } from '../../../pinyes/services/figure-instance.service';
 import { CompositionService } from '../../../pinyes/services/composition.service';
+import { NodeAssignmentService } from '../../../pinyes/services/node-assignment.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { SegmentDetail, InstanceDetail } from '../../../pinyes/models/segment.model';
+import { EventAssignmentSummary, EventFigureSummary } from '../../../pinyes/models/assignment.model';
 
 const EVENT_ID = 'event-uuid-1';
 
@@ -67,12 +69,26 @@ const makeInstance = (overrides: Partial<InstanceDetail> = {}): InstanceDetail =
   ...overrides,
 });
 
+const makeAreaCount = (assigned: number, total: number) => ({ assigned, total });
+
+const makeFigureSummary = (overrides: Partial<EventFigureSummary> = {}): EventFigureSummary => ({
+  instanceId: 'inst-uuid-1',
+  figureName: 'pd4',
+  snapshotted: true,
+  pinya: makeAreaCount(0, 0),
+  tronc: makeAreaCount(0, 0),
+  total: makeAreaCount(0, 0),
+  troncBaseAssignments: [],
+  ...overrides,
+});
+
 describe('SegmentManagerComponent', () => {
   let fixture: ComponentFixture<SegmentManagerComponent>;
   let component: SegmentManagerComponent;
   let segmentService: Partial<EventSegmentService>;
   let instanceService: Partial<FigureInstanceService>;
   let compositionService: { applyToSegment: ReturnType<typeof vi.fn> };
+  let nodeAssignmentService: { getEventAssignmentSummary: ReturnType<typeof vi.fn> };
   let toastService: { success: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
   let routerMock: { navigate: ReturnType<typeof vi.fn>; url: string };
 
@@ -100,6 +116,10 @@ describe('SegmentManagerComponent', () => {
       applyToSegment: vi.fn(),
     };
 
+    nodeAssignmentService = {
+      getEventAssignmentSummary: vi.fn().mockReturnValue(of({ segments: [] } satisfies EventAssignmentSummary)),
+    };
+
     toastService = {
       success: vi.fn(),
       error: vi.fn(),
@@ -113,6 +133,7 @@ describe('SegmentManagerComponent', () => {
         { provide: EventSegmentService, useValue: segmentService },
         { provide: FigureInstanceService, useValue: instanceService },
         { provide: CompositionService, useValue: compositionService },
+        { provide: NodeAssignmentService, useValue: nodeAssignmentService },
         { provide: ToastService, useValue: toastService },
         { provide: Router, useValue: routerMock },
         allLucideIconsProvider,
@@ -135,6 +156,10 @@ describe('SegmentManagerComponent', () => {
 
   it('loads segments on init', () => {
     expect(segmentService.getByEvent).toHaveBeenCalledWith(EVENT_ID);
+  });
+
+  it('loads the event assignment summary on init', () => {
+    expect(nodeAssignmentService.getEventAssignmentSummary).toHaveBeenCalledWith(EVENT_ID);
   });
 
   it('shows empty state when no segments', () => {
@@ -763,6 +788,7 @@ describe('SegmentManagerComponent', () => {
           { provide: EventSegmentService, useValue: segmentService },
           { provide: FigureInstanceService, useValue: instanceService },
           { provide: CompositionService, useValue: compositionService },
+          { provide: NodeAssignmentService, useValue: nodeAssignmentService },
           { provide: ToastService, useValue: toastService },
           { provide: Router, useValue: routerMock },
           allLucideIconsProvider,
@@ -776,6 +802,147 @@ describe('SegmentManagerComponent', () => {
 
       expect(otherFixture.componentInstance.viewMode()).toBe('troncs');
       expect(segmentService.getTroncView).toHaveBeenCalledWith(EVENT_ID);
+    });
+  });
+
+  describe('figurePinyaLabel()', () => {
+    const loadSummary = (summary: EventAssignmentSummary) => {
+      (nodeAssignmentService.getEventAssignmentSummary as ReturnType<typeof vi.fn>).mockReturnValue(of(summary));
+      component.ngOnInit();
+    };
+
+    it('formats assigned/total pinya with cordons and grand total', () => {
+      loadSummary({
+        segments: [
+          {
+            segmentId: 'seg-1',
+            segmentName: 'Bloc 1',
+            sortOrder: 0,
+            figures: [
+              makeFigureSummary({
+                instanceId: 'inst-uuid-1',
+                pinya: makeAreaCount(12, 20),
+                total: makeAreaCount(15, 24),
+              }),
+            ],
+          },
+        ],
+      });
+      const inst = makeInstance({ id: 'inst-uuid-1', numberOfCordons: 2, totalCordons: 4 });
+
+      expect(component.figurePinyaLabel(inst)).toBe('12/20 pinya (2 cor.), 15/24 total');
+    });
+
+    it('omits the cordons qualifier when not configured', () => {
+      loadSummary({
+        segments: [
+          {
+            segmentId: 'seg-1',
+            segmentName: 'Bloc 1',
+            sortOrder: 0,
+            figures: [
+              makeFigureSummary({
+                instanceId: 'inst-uuid-1',
+                pinya: makeAreaCount(12, 20),
+                total: makeAreaCount(15, 24),
+              }),
+            ],
+          },
+        ],
+      });
+      const inst = makeInstance({ id: 'inst-uuid-1', numberOfCordons: null, totalCordons: 4 });
+
+      expect(component.figurePinyaLabel(inst)).toBe('12/20 pinya, 15/24 total');
+    });
+
+    it('omits the pinya fragment when there are no available pinya positions', () => {
+      loadSummary({
+        segments: [
+          {
+            segmentId: 'seg-1',
+            segmentName: 'Bloc 1',
+            sortOrder: 0,
+            figures: [
+              makeFigureSummary({
+                instanceId: 'inst-uuid-1',
+                pinya: makeAreaCount(0, 0),
+                total: makeAreaCount(3, 3),
+              }),
+            ],
+          },
+        ],
+      });
+      const inst = makeInstance({ id: 'inst-uuid-1', figureMode: 'REMAT' });
+
+      expect(component.figurePinyaLabel(inst)).toBe('3/3 total');
+    });
+
+    it('returns null when there is no summary data for the instance', () => {
+      const inst = makeInstance({ id: 'unknown-instance' });
+      expect(component.figurePinyaLabel(inst)).toBeNull();
+    });
+  });
+
+  describe('segmentPeopleLabel()', () => {
+    const loadSummary = (summary: EventAssignmentSummary) => {
+      (nodeAssignmentService.getEventAssignmentSummary as ReturnType<typeof vi.fn>).mockReturnValue(of(summary));
+      component.ngOnInit();
+    };
+
+    it('sums pinya and total across figures in pinya mode', () => {
+      loadSummary({
+        segments: [
+          {
+            segmentId: 'seg-1',
+            segmentName: 'Bloc 1',
+            sortOrder: 0,
+            figures: [
+              makeFigureSummary({ pinya: makeAreaCount(12, 20), total: makeAreaCount(15, 24) }),
+              makeFigureSummary({ instanceId: 'inst-2', pinya: makeAreaCount(11, 15), total: makeAreaCount(14, 21) }),
+            ],
+          },
+        ],
+      });
+
+      expect(component.segmentPeopleLabel(makeSegment({ id: 'seg-1' }))).toBe('23/35 pinyes, 29/45 total');
+    });
+
+    it('sums tronc and total across figures in troncs mode', () => {
+      component.setViewMode('troncs');
+      loadSummary({
+        segments: [
+          {
+            segmentId: 'seg-1',
+            segmentName: 'Bloc 1',
+            sortOrder: 0,
+            figures: [
+              makeFigureSummary({ tronc: makeAreaCount(2, 5), total: makeAreaCount(15, 24) }),
+              makeFigureSummary({ instanceId: 'inst-2', tronc: makeAreaCount(2, 5), total: makeAreaCount(14, 21) }),
+            ],
+          },
+        ],
+      });
+
+      expect(component.segmentPeopleLabel(makeSegment({ id: 'seg-1' }))).toBe('4/10 troncs, 29/45 total');
+    });
+
+    it('omits the pinyes fragment when the segment has no available pinya positions', () => {
+      loadSummary({
+        segments: [
+          {
+            segmentId: 'seg-1',
+            segmentName: 'Bloc 1',
+            sortOrder: 0,
+            figures: [makeFigureSummary({ pinya: makeAreaCount(0, 0), total: makeAreaCount(3, 3) })],
+          },
+        ],
+      });
+
+      expect(component.segmentPeopleLabel(makeSegment({ id: 'seg-1' }))).toBe('3/3 total');
+    });
+
+    it('returns null when there is no summary data for the segment', () => {
+      expect(component.segmentPeopleLabel(makeSegment({ id: 'unknown-segment' }))).toBeNull();
     });
   });
 

@@ -942,14 +942,17 @@ describe('NodeAssignmentService', () => {
       await expect(service.getEventAssignmentSummary('bad-id')).rejects.toThrow(NotFoundException);
     });
 
-    it('returns segments with figures and assignments', async () => {
+    it('returns segments with figures and area breakdown', async () => {
       const person = makePerson();
       const iNode = makeInstanceNode();
       const assignment = { ...makeAssignment(), instanceNode: iNode, person };
       const figureInstance = {
         id: 'fi-1',
-        figureTemplate: { id: TEMPLATE_ID, name: 'Muixeranga de 5' },
+        figureTemplate: { id: TEMPLATE_ID, name: 'Muixeranga de 5', nodes: [] },
         snapshotted: true,
+        cordonsObertsEnabled: true,
+        numberOfCordons: null,
+        figureMode: 'COMPLETA',
         instanceNodes: [iNode],
         assignments: [assignment],
       };
@@ -965,9 +968,10 @@ describe('NodeAssignmentService', () => {
       expect(result.segments[0].segmentName).toBe('Bloc 1');
       expect(result.segments[0].figures).toHaveLength(1);
       expect(result.segments[0].figures[0].figureName).toBe('Muixeranga de 5');
-      expect(result.segments[0].figures[0].totalNodes).toBe(1);
-      expect(result.segments[0].figures[0].assignedNodes).toBe(1);
-      expect(result.segments[0].figures[0].assignments[0].personAlias).toBe('Pepet');
+      expect(result.segments[0].figures[0].pinya).toEqual({ assigned: 1, total: 1 });
+      expect(result.segments[0].figures[0].tronc).toEqual({ assigned: 0, total: 0 });
+      expect(result.segments[0].figures[0].total).toEqual({ assigned: 1, total: 1 });
+      expect(result.segments[0].figures[0].troncBaseAssignments).toEqual([]);
     });
 
     it('returns empty segments array when event has no segments', async () => {
@@ -977,6 +981,206 @@ describe('NodeAssignmentService', () => {
       const result = await service.getEventAssignmentSummary('e1');
 
       expect(result.segments).toEqual([]);
+    });
+
+    it('excludes cordo-obert PINYA nodes from the pinya bucket when cordonsObertsEnabled is false', async () => {
+      const normalNode = makeInstanceNode({ id: 'n1', zone: FigureZone.PINYA });
+      const cordoObertNode = makeInstanceNode({ id: 'n2', zone: FigureZone.PINYA, positionType: 'cordo-obert' });
+      const figureInstance = {
+        id: 'fi-1',
+        figureTemplate: { id: TEMPLATE_ID, name: 'Pilar', nodes: [] },
+        snapshotted: true,
+        cordonsObertsEnabled: false,
+        numberOfCordons: null,
+        figureMode: 'COMPLETA',
+        instanceNodes: [normalNode, cordoObertNode],
+        assignments: [],
+      };
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
+      mockSegmentRepo.find.mockResolvedValue([{ id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 }]);
+      mockInstanceRepo.find.mockResolvedValue([figureInstance]);
+
+      const result = await service.getEventAssignmentSummary('e1');
+
+      expect(result.segments[0].figures[0].pinya.total).toBe(1);
+    });
+
+    it('excludes PINYA nodes beyond numberOfCordons from the pinya bucket', async () => {
+      const kept = makeInstanceNode({ id: 'n1', zone: FigureZone.PINYA, renglaId: 'r1', renglaPosition: 1 });
+      const hidden = makeInstanceNode({ id: 'n2', zone: FigureZone.PINYA, renglaId: 'r1', renglaPosition: 2 });
+      const figureInstance = {
+        id: 'fi-1',
+        figureTemplate: { id: TEMPLATE_ID, name: 'Pilar', nodes: [] },
+        snapshotted: true,
+        cordonsObertsEnabled: true,
+        numberOfCordons: 1,
+        figureMode: 'COMPLETA',
+        instanceNodes: [kept, hidden],
+        assignments: [],
+      };
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
+      mockSegmentRepo.find.mockResolvedValue([{ id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 }]);
+      mockInstanceRepo.find.mockResolvedValue([figureInstance]);
+
+      const result = await service.getEventAssignmentSummary('e1');
+
+      expect(result.segments[0].figures[0].pinya.total).toBe(1);
+    });
+
+    it('zeroes the pinya bucket for REMAT and NETA figures', async () => {
+      const pinyaNode = makeInstanceNode({ zone: FigureZone.PINYA });
+      const figureInstance = {
+        id: 'fi-1',
+        figureTemplate: { id: TEMPLATE_ID, name: 'Pilar', nodes: [] },
+        snapshotted: true,
+        cordonsObertsEnabled: true,
+        numberOfCordons: null,
+        figureMode: 'REMAT',
+        instanceNodes: [pinyaNode],
+        assignments: [],
+      };
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
+      mockSegmentRepo.find.mockResolvedValue([{ id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 }]);
+      mockInstanceRepo.find.mockResolvedValue([figureInstance]);
+
+      const result = await service.getEventAssignmentSummary('e1');
+
+      expect(result.segments[0].figures[0].pinya.total).toBe(0);
+    });
+
+    it('counts BASE nodes as part of the tronc bucket, but excludes them for REMAT figures', async () => {
+      const troncNode = makeInstanceNode({ id: 't1', zone: FigureZone.TRONC });
+      const baseNode = makeInstanceNode({ id: 'b1', zone: FigureZone.BASE });
+      const figureInstance = {
+        id: 'fi-1',
+        figureTemplate: { id: TEMPLATE_ID, name: 'Pilar', nodes: [] },
+        snapshotted: true,
+        cordonsObertsEnabled: true,
+        numberOfCordons: null,
+        figureMode: 'REMAT',
+        instanceNodes: [troncNode, baseNode],
+        assignments: [],
+      };
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
+      mockSegmentRepo.find.mockResolvedValue([{ id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 }]);
+      mockInstanceRepo.find.mockResolvedValue([figureInstance]);
+
+      const result = await service.getEventAssignmentSummary('e1');
+
+      expect(result.segments[0].figures[0].tronc.total).toBe(1);
+    });
+
+    it('counts direction nodes toward total but not toward pinya or tronc', async () => {
+      const directionNode = makeInstanceNode({ zone: FigureZone.FIGURE_DIRECTION });
+      const figureInstance = {
+        id: 'fi-1',
+        figureTemplate: { id: TEMPLATE_ID, name: 'Pilar', nodes: [] },
+        snapshotted: true,
+        cordonsObertsEnabled: true,
+        numberOfCordons: null,
+        figureMode: 'COMPLETA',
+        instanceNodes: [directionNode],
+        assignments: [],
+      };
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
+      mockSegmentRepo.find.mockResolvedValue([{ id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 }]);
+      mockInstanceRepo.find.mockResolvedValue([figureInstance]);
+
+      const result = await service.getEventAssignmentSummary('e1');
+
+      expect(result.segments[0].figures[0].pinya.total).toBe(0);
+      expect(result.segments[0].figures[0].tronc.total).toBe(0);
+      expect(result.segments[0].figures[0].total.total).toBe(1);
+    });
+
+    it('excludes DECORATION nodes entirely', async () => {
+      const decorationNode = makeInstanceNode({ zone: FigureZone.DECORATION });
+      const figureInstance = {
+        id: 'fi-1',
+        figureTemplate: { id: TEMPLATE_ID, name: 'Pilar', nodes: [] },
+        snapshotted: true,
+        cordonsObertsEnabled: true,
+        numberOfCordons: null,
+        figureMode: 'COMPLETA',
+        instanceNodes: [decorationNode],
+        assignments: [],
+      };
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
+      mockSegmentRepo.find.mockResolvedValue([{ id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 }]);
+      mockInstanceRepo.find.mockResolvedValue([figureInstance]);
+
+      const result = await service.getEventAssignmentSummary('e1');
+
+      expect(result.segments[0].figures[0].total.total).toBe(0);
+    });
+
+    it('uses the figure template nodes (not instance nodes) for non-snapshotted instances', async () => {
+      const templateNode = makeFigureNode({ zone: FigureZone.PINYA });
+      const figureInstance = {
+        id: 'fi-1',
+        figureTemplate: { id: TEMPLATE_ID, name: 'Pilar', nodes: [templateNode] },
+        snapshotted: false,
+        cordonsObertsEnabled: true,
+        numberOfCordons: null,
+        figureMode: 'COMPLETA',
+        instanceNodes: [],
+        assignments: [],
+      };
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
+      mockSegmentRepo.find.mockResolvedValue([{ id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 }]);
+      mockInstanceRepo.find.mockResolvedValue([figureInstance]);
+
+      const result = await service.getEventAssignmentSummary('e1');
+
+      expect(result.segments[0].figures[0].pinya.total).toBe(1);
+    });
+
+    it('includes TRONC and BASE assignments in troncBaseAssignments with person alias', async () => {
+      const person = makePerson();
+      const troncNode = makeInstanceNode({ id: 't1', zone: FigureZone.TRONC, label: 'MANS' });
+      const troncAssignment = { ...makeAssignment(), instanceNode: troncNode, person };
+      const figureInstance = {
+        id: 'fi-1',
+        figureTemplate: { id: TEMPLATE_ID, name: 'Pilar', nodes: [] },
+        snapshotted: true,
+        cordonsObertsEnabled: true,
+        numberOfCordons: null,
+        figureMode: 'COMPLETA',
+        instanceNodes: [troncNode],
+        assignments: [troncAssignment],
+      };
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
+      mockSegmentRepo.find.mockResolvedValue([{ id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 }]);
+      mockInstanceRepo.find.mockResolvedValue([figureInstance]);
+
+      const result = await service.getEventAssignmentSummary('e1');
+
+      expect(result.segments[0].figures[0].troncBaseAssignments).toEqual([
+        { nodeLabel: 'MANS', positionType: 'mans', zone: FigureZone.TRONC, z: 0, personAlias: 'Pepet', personId: PERSON_ID },
+      ]);
+    });
+
+    it('does not include PINYA assignments in troncBaseAssignments', async () => {
+      const person = makePerson();
+      const pinyaNode = makeInstanceNode({ id: 'p1', zone: FigureZone.PINYA });
+      const pinyaAssignment = { ...makeAssignment(), instanceNode: pinyaNode, person };
+      const figureInstance = {
+        id: 'fi-1',
+        figureTemplate: { id: TEMPLATE_ID, name: 'Pilar', nodes: [] },
+        snapshotted: true,
+        cordonsObertsEnabled: true,
+        numberOfCordons: null,
+        figureMode: 'COMPLETA',
+        instanceNodes: [pinyaNode],
+        assignments: [pinyaAssignment],
+      };
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
+      mockSegmentRepo.find.mockResolvedValue([{ id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 }]);
+      mockInstanceRepo.find.mockResolvedValue([figureInstance]);
+
+      const result = await service.getEventAssignmentSummary('e1');
+
+      expect(result.segments[0].figures[0].troncBaseAssignments).toEqual([]);
     });
   });
 
