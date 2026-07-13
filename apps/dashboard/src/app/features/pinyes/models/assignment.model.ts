@@ -17,6 +17,7 @@ export interface AssignmentNodeDetail {
   ringLevel: number | null;
   originNodeId: string | null;
   sourceNodeId: string | null;
+  renglaPosition?: number | null;
 }
 
 export interface AssignmentPersonDetail {
@@ -69,6 +70,7 @@ export interface AvailablePerson {
   assignedInSegment: boolean;
   assignedInstanceId?: string;
   assignedNodeLabel?: string;
+  assignedNodeCordon?: number | null;
   positions: AvailablePersonPosition[];
 }
 
@@ -222,6 +224,7 @@ export interface PersonAssignmentEntry {
   positionType: string | null;
   zone: string;
   z: number;
+  renglaPosition: number | null;
 }
 
 export interface PersonAssignmentHistory {

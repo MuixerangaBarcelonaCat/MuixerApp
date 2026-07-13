@@ -449,7 +449,6 @@
                     <th>Segment</th>
                     <th>Figura</th>
                     <th>Posició</th>
-                    <th>Zona</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -464,10 +463,7 @@
                       </td>
                       <td class="text-sm text-base-content/70">{{ entry.segmentName }}</td>
                       <td class="text-sm">{{ entry.figureName }}</td>
-                      <td class="text-sm font-medium">{{ entry.nodeLabel }}</td>
-                      <td>
-                        <span class="badge badge-ghost badge-sm">{{ entry.zone }}</span>
-                      </td>
+                      <td class="text-sm font-medium">{{ formatNodeCordonLabel(entry.nodeLabel, entry.renglaPosition) }}</td>
                     </tr>
                   }
                 </tbody>

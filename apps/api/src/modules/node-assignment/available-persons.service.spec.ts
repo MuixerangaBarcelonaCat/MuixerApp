@@ -238,7 +238,7 @@ describe('AvailablePersonsService', () => {
         {
           person: { id: PERSON_ID_1 },
           figureInstance: { id: 'instance-uuid-1' },
-          instanceNode: { label: 'Node A' },
+          instanceNode: { label: 'Node A', renglaPosition: 2 },
         },
       ]);
       mockAttendanceRepo.find.mockResolvedValue([]);
@@ -249,6 +249,26 @@ describe('AvailablePersonsService', () => {
       expect(result[0].assignedInSegment).toBe(true);
       expect(result[0].assignedInstanceId).toBe('instance-uuid-1');
       expect(result[0].assignedNodeLabel).toBe('Node A');
+      expect(result[0].assignedNodeCordon).toBe(2);
+    });
+
+    it('returns null assignedNodeCordon when the assigned node has no cordon', async () => {
+      mockEventRepo.findOne.mockResolvedValueOnce(makeEvent()).mockResolvedValue(null);
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      const person = makePerson();
+      mockPersonQb.getMany.mockResolvedValue([person]);
+      mockAssignmentRepo.find.mockResolvedValue([
+        {
+          person: { id: PERSON_ID_1 },
+          figureInstance: { id: 'instance-uuid-1' },
+          instanceNode: { label: 'Node A', renglaPosition: null },
+        },
+      ]);
+      mockAttendanceRepo.find.mockResolvedValue([]);
+
+      const result = await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, { excludeAssigned: false });
+
+      expect(result[0].assignedNodeCordon).toBeNull();
     });
 
     it('returns nextPerformanceStatus when event is ASSAIG', async () => {

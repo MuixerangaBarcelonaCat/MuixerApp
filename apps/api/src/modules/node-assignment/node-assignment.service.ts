@@ -44,6 +44,7 @@ export interface AssignmentDetail {
     ringLevel: number | null;
     originNodeId: string | null;
     sourceNodeId: string | null;
+    renglaPosition: number | null;
   };
   person: {
     id: string;
@@ -129,6 +130,7 @@ export interface PersonAssignmentEntry {
   positionType: string | null;
   zone: FigureZone;
   z: number;
+  renglaPosition: number | null;
 }
 
 export interface PersonAssignmentHistory {
@@ -197,6 +199,7 @@ function toAssignmentDetail(assignment: NodeAssignment): AssignmentDetail {
       ringLevel: node.ringLevel,
       originNodeId: node.originNodeId,
       sourceNodeId: node.sourceNodeId,
+      renglaPosition: node.renglaPosition,
     },
     person: {
       id: assignment.person.id,
@@ -735,6 +738,7 @@ export class NodeAssignmentService {
         'inode.positionType AS "positionType"',
         'inode.zone AS "zone"',
         'inode.z AS "z"',
+        'inode.renglaPosition AS "renglaPosition"',
       ]);
 
     if (query.seasonId) {
@@ -762,6 +766,7 @@ export class NodeAssignmentService {
       positionType: r.positionType ?? null,
       zone: r.zone as FigureZone,
       z: Number(r.z),
+      renglaPosition: r.renglaPosition !== null && r.renglaPosition !== undefined ? Number(r.renglaPosition) : null,
     }));
 
     return { data, meta: { total, page, limit } };

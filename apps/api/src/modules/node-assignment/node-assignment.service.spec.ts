@@ -418,6 +418,28 @@ describe('NodeAssignmentService', () => {
       expect(result.node.id).toBe(INSTANCE_NODE_ID);
     });
 
+    it('includes the node cordon (renglaPosition) in the assignment detail', async () => {
+      const inode = makeInstanceNode({ renglaPosition: 2 });
+      const a = makeAssignment({ instanceNode: inode as any });
+
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
+      mockPersonRepo.findOne.mockResolvedValue(makePerson());
+      mockInstanceNodeRepo.findOne.mockResolvedValue(inode);
+      mockAssignmentRepo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue(a);
+      mockAssignmentRepo.create.mockReturnValue(a);
+      mockAssignmentRepo.save.mockResolvedValue(a);
+
+      const result = await service.assign(INSTANCE_ID, {
+        nodeId: INSTANCE_NODE_ID,
+        personId: PERSON_ID,
+      });
+
+      expect(result.node.renglaPosition).toBe(2);
+    });
+
     it('throws ConflictException if node already occupied', async () => {
       const inode = makeInstanceNode();
       mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
@@ -890,14 +912,14 @@ describe('NodeAssignmentService', () => {
           eventType: EventType.ACTUACIO, segmentName: 'Bloc 1',
           instanceId: 'fi-1', figureName: 'Muixeranga de 5',
           figureSlug: 'muixeranga-de-5',
-          nodeLabel: 'MANS', positionType: 'mans', zone: FigureZone.PINYA, z: 0,
+          nodeLabel: 'MANS', positionType: 'mans', zone: FigureZone.PINYA, z: 0, renglaPosition: 2,
         },
         {
           eventId: 'e2', eventTitle: 'Assaig', eventDate: '2026-05-05',
           eventType: EventType.ASSAIG, segmentName: 'Bloc 2',
           instanceId: 'fi-2', figureName: 'Pilar de 4',
           figureSlug: 'pilar-de-4',
-          nodeLabel: 'AGULLA', positionType: 'agulla', zone: FigureZone.PINYA, z: 1,
+          nodeLabel: 'AGULLA', positionType: 'agulla', zone: FigureZone.PINYA, z: 1, renglaPosition: null,
         },
       ]);
 
@@ -906,7 +928,21 @@ describe('NodeAssignmentService', () => {
       expect(result.data).toHaveLength(2);
       expect(result.data[0].eventTitle).toBe('Diada');
       expect(result.data[0].eventType).toBe(EventType.ACTUACIO);
+      expect(result.data[0].renglaPosition).toBe(2);
+      expect(result.data[1].renglaPosition).toBeNull();
       expect(result.meta.total).toBe(2);
+    });
+
+    it('selects the instance node cordon (renglaPosition)', async () => {
+      mockPersonRepo.findOne.mockResolvedValue(makePerson());
+      mockPersonHistoryQb.getCount.mockResolvedValue(0);
+      mockPersonHistoryQb.getRawMany.mockResolvedValue([]);
+
+      await service.getPersonHistory(PERSON_ID);
+
+      expect(mockPersonHistoryQb.select).toHaveBeenCalledWith(
+        expect.arrayContaining(['inode.renglaPosition AS "renglaPosition"']),
+      );
     });
 
     it('applies seasonId filter when provided', async () => {
