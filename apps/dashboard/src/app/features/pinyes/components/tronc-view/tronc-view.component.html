@@ -267,7 +267,13 @@
                       </span>
                     }
                     <span class="alias-row">
-                      <span class="person-alias" [class.text-base]="mode() === 'projection'">{{ displayAlias(node, assignment) }}</span>
+                      <span
+                        class="person-alias"
+                        [class.text-base]="mode() === 'projection'"
+                        appFitText
+                        [fitTextEnabled]="mode() === 'projection'"
+                        [fitTextValue]="displayAlias(node, assignment)"
+                      >{{ displayAlias(node, assignment) }}</span>
                       @if (mode() !== 'projection' && getNotes(assignment); as notes) {
                         @if (getNotesEmoji(assignment); as emoji) {
                           <span class="text-xs leading-none shrink-0" [attr.aria-label]="'Observacions: ' + notes" [title]="notes">{{ emoji }}</span>
@@ -319,7 +325,13 @@
                       </span>
                     }
                     <span class="alias-row">
-                      <span class="person-alias" [class.text-base]="mode() === 'projection'">{{ displayAlias(node, assignment) }}</span>
+                      <span
+                        class="person-alias"
+                        [class.text-base]="mode() === 'projection'"
+                        appFitText
+                        [fitTextEnabled]="mode() === 'projection'"
+                        [fitTextValue]="displayAlias(node, assignment)"
+                      >{{ displayAlias(node, assignment) }}</span>
                       @if (mode() !== 'projection' && getNotes(assignment); as notes) {
                         @if (getNotesEmoji(assignment); as emoji) {
                           <span class="text-xs leading-none shrink-0" [attr.aria-label]="'Observacions: ' + notes" [title]="notes">{{ emoji }}</span>

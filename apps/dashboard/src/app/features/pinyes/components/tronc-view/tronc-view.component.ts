@@ -16,6 +16,7 @@ import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.uti
 import { PersonHoverCardComponent } from '../person-hover-card/person-hover-card.component';
 import { ICON_OBSERVACIONS } from '../../../../shared/constants/domain-icons';
 import { formatAssignedLabel } from '../../utils/assigned-label.util';
+import { FitTextDirective } from '../../directives/fit-text.directive';
 
 /**
  * Minimal node shape accepted by TroncViewComponent.
@@ -54,7 +55,7 @@ const MAX_TRONC_Z = 5;
   selector: 'app-tronc-view',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule, PersonHoverCardComponent],
+  imports: [FormsModule, LucideAngularModule, PersonHoverCardComponent, FitTextDirective],
   templateUrl: './tronc-view.component.html',
   styleUrl: './tronc-view.component.scss',
 })
