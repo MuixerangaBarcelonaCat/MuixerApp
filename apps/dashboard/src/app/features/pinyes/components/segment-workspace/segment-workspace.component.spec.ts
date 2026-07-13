@@ -2,7 +2,7 @@ import { Component, input, signal } from '@angular/core';
 import { Location } from '@angular/common';
 import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { ActivatedRoute, Router, provideRouter } from '@angular/router';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { LucideAngularModule } from 'lucide-angular';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { SegmentWorkspaceComponent } from './segment-workspace.component';
@@ -171,6 +171,49 @@ describe('SegmentWorkspaceComponent', () => {
   it('falls back to pinyes for an unknown tab query param', async () => {
     const fixture = await setup({ queryParams: { tab: 'nope' } });
     expect(fixture.componentInstance.activeTab()).toBe('pinyes');
+  });
+
+  describe('remembered pinyes/troncs tab', () => {
+    afterEach(() => {
+      localStorage.clear();
+    });
+
+    it('defaults to the last remembered pinyes/troncs tab when no tab query param is present', async () => {
+      localStorage.setItem('muixer.pinyes.viewMode', 'troncs');
+      const fixture = await setup();
+      expect(fixture.componentInstance.activeTab()).toBe('troncs');
+    });
+
+    it('prefers the tab query param over the remembered tab', async () => {
+      localStorage.setItem('muixer.pinyes.viewMode', 'troncs');
+      const fixture = await setup({ queryParams: { tab: 'pinyes' } });
+      expect(fixture.componentInstance.activeTab()).toBe('pinyes');
+    });
+
+    it('ignores a remembered value that is not pinyes or troncs', async () => {
+      localStorage.setItem('muixer.pinyes.viewMode', 'distribucio');
+      const fixture = await setup();
+      expect(fixture.componentInstance.activeTab()).toBe('pinyes');
+    });
+
+    it('remembers the pinyes tab when selected via setTab', async () => {
+      const fixture = await setup({ queryParams: { tab: 'troncs' } });
+      fixture.componentInstance.setTab('pinyes');
+      expect(localStorage.getItem('muixer.pinyes.viewMode')).toBe('pinyes');
+    });
+
+    it('remembers the troncs tab when selected via setTab', async () => {
+      const fixture = await setup();
+      fixture.componentInstance.setTab('troncs');
+      expect(localStorage.getItem('muixer.pinyes.viewMode')).toBe('troncs');
+    });
+
+    it('does not overwrite the remembered tab when a non pinyes/troncs tab is selected', async () => {
+      localStorage.setItem('muixer.pinyes.viewMode', 'pinyes');
+      const fixture = await setup();
+      fixture.componentInstance.setTab('distribucio');
+      expect(localStorage.getItem('muixer.pinyes.viewMode')).toBe('pinyes');
+    });
   });
 
   it('setTab updates the active tab and syncs the query param', async () => {

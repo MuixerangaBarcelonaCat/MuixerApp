@@ -15,6 +15,7 @@ import { LucideAngularModule } from 'lucide-angular';
 import { ICON_FIGURA, ICON_PERSONA, ICON_COMPOSITION, ICON_FIGURA_NETA } from '../../../../shared/constants/domain-icons';
 import { forkJoin } from 'rxjs';
 import { SegmentMoveConflictResolution } from '@muixer/shared';
+import { FiguresViewModeService, FiguresViewMode } from '../../../pinyes/services/figures-view-mode.service';
 import { EventSegmentService } from '../../../pinyes/services/event-segment.service';
 import { FigureInstanceService } from '../../../pinyes/services/figure-instance.service';
 import { CompositionService } from '../../../pinyes/services/composition.service';
@@ -32,7 +33,7 @@ import {
   MoveInstanceResult,
 } from '../../../pinyes/models/segment.model';
 
-export type ViewMode = 'pinyes' | 'troncs';
+export type ViewMode = FiguresViewMode;
 
 interface PendingInstanceRemoval {
   segment: SegmentDetail;
@@ -76,6 +77,7 @@ export class SegmentManagerComponent implements OnInit {
   private readonly compositionService = inject(CompositionService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
+  private readonly viewModeService = inject(FiguresViewModeService);
 
   segments = signal<SegmentDetail[]>([]);
   loading = signal(false);
@@ -93,7 +95,7 @@ export class SegmentManagerComponent implements OnInit {
   pendingModeChange = signal<PendingModeChange | null>(null);
   savingModeChange = signal(false);
 
-  viewMode = signal<ViewMode>('pinyes');
+  viewMode = this.viewModeService.mode;
   troncData = signal<Map<string, TroncFloorData[]>>(new Map());
   troncLoading = signal(false);
   troncDataLoaded = signal(false);
@@ -124,6 +126,9 @@ export class SegmentManagerComponent implements OnInit {
 
   ngOnInit() {
     this.loadSegments();
+    if (this.viewMode() === 'troncs') {
+      this.loadTroncView();
+    }
   }
 
   private loadSegments() {
@@ -141,7 +146,7 @@ export class SegmentManagerComponent implements OnInit {
   }
 
   setViewMode(mode: ViewMode): void {
-    this.viewMode.set(mode);
+    this.viewModeService.set(mode);
     if (mode === 'troncs' && !this.troncDataLoaded()) {
       this.loadTroncView();
     }

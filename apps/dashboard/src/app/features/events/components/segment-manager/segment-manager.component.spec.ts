@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { vi } from 'vitest';
+import { vi, afterEach } from 'vitest';
 import { of, throwError } from 'rxjs';
 import { Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -76,6 +76,7 @@ describe('SegmentManagerComponent', () => {
   let routerMock: { navigate: ReturnType<typeof vi.fn>; url: string };
 
   beforeEach(async () => {
+    localStorage.clear();
     segmentService = {
       getByEvent: vi.fn().mockReturnValue(of({ data: [] })),
       create: vi.fn(),
@@ -121,6 +122,10 @@ describe('SegmentManagerComponent', () => {
     component = fixture.componentInstance;
     fixture.componentRef.setInput('eventId', EVENT_ID);
     fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    localStorage.clear();
   });
 
   it('creates successfully', () => {
@@ -738,6 +743,38 @@ describe('SegmentManagerComponent', () => {
       component.setViewMode('troncs');
 
       expect(toastService.error).toHaveBeenCalledWith('Error en carregar les dades del tronc.');
+    });
+
+    it('persists the selected mode so it is remembered across events', () => {
+      (segmentService.getTroncView as ReturnType<typeof vi.fn>).mockReturnValue(of([]));
+
+      component.setViewMode('troncs');
+
+      expect(localStorage.getItem('muixer.pinyes.viewMode')).toBe('troncs');
+    });
+
+    it('restores a remembered troncs mode on init and loads tronc data', async () => {
+      localStorage.setItem('muixer.pinyes.viewMode', 'troncs');
+      TestBed.resetTestingModule();
+      await TestBed.configureTestingModule({
+        imports: [SegmentManagerComponent, DragDropModule],
+        providers: [
+          { provide: EventSegmentService, useValue: segmentService },
+          { provide: FigureInstanceService, useValue: instanceService },
+          { provide: CompositionService, useValue: compositionService },
+          { provide: ToastService, useValue: toastService },
+          { provide: Router, useValue: routerMock },
+          allLucideIconsProvider,
+        ],
+      }).compileComponents();
+      (segmentService.getTroncView as ReturnType<typeof vi.fn>).mockReturnValue(of([]));
+
+      const otherFixture = TestBed.createComponent(SegmentManagerComponent);
+      otherFixture.componentRef.setInput('eventId', EVENT_ID);
+      otherFixture.detectChanges();
+
+      expect(otherFixture.componentInstance.viewMode()).toBe('troncs');
+      expect(segmentService.getTroncView).toHaveBeenCalledWith(EVENT_ID);
     });
   });
 

@@ -13,6 +13,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { LucideAngularModule, ArrowLeft, Shapes, Monitor, Lock } from 'lucide-angular';
 import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { LayoutService } from '../../../../core/services/layout.service';
+import { FiguresViewModeService, FiguresViewMode } from '../../services/figures-view-mode.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { SegmentWorkspaceStateService } from '../../services/segment-workspace-state.service';
 import { UndoRedoService } from '../../services/undo-redo.service';
@@ -25,6 +26,9 @@ import { PrevisualitzaTabComponent } from './tabs/previsualitza-tab/previsualitz
 export type WorkspaceTab = 'pinyes' | 'troncs' | 'distribucio' | 'nodes' | 'previsualitza';
 
 const WORKSPACE_TABS: WorkspaceTab[] = ['pinyes', 'troncs', 'distribucio', 'nodes', 'previsualitza'];
+
+const isFiguresViewMode = (value: unknown): value is FiguresViewMode =>
+  value === 'pinyes' || value === 'troncs';
 
 @Component({
   selector: 'app-segment-workspace',
@@ -46,6 +50,7 @@ export class SegmentWorkspaceComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly location = inject(Location);
   private readonly layout = inject(LayoutService);
+  private readonly viewModeService = inject(FiguresViewModeService);
   private readonly toast = inject(ToastService);
   readonly ws = inject(SegmentWorkspaceStateService);
 
@@ -97,6 +102,8 @@ export class SegmentWorkspaceComponent implements OnInit, OnDestroy {
     const tabParam = queryParams['tab'] as WorkspaceTab | undefined;
     if (tabParam && WORKSPACE_TABS.includes(tabParam)) {
       this.activeTab.set(tabParam);
+    } else {
+      this.activeTab.set(this.viewModeService.mode());
     }
 
     this.isPast.set(queryParams['past'] === '1');
@@ -116,6 +123,9 @@ export class SegmentWorkspaceComponent implements OnInit, OnDestroy {
 
   setTab(tab: WorkspaceTab): void {
     this.activeTab.set(tab);
+    if (isFiguresViewMode(tab)) {
+      this.viewModeService.set(tab);
+    }
     this.router.navigate([], {
       relativeTo: this.route,
       queryParams: { tab },
