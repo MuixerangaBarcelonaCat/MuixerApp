@@ -643,4 +643,49 @@ describe('SegmentWorkspaceStateService', () => {
       expect(segmentService.getByEvent).not.toHaveBeenCalled();
     });
   });
+
+  describe('segment navigation (prev/next/position)', () => {
+    const makeSegmentWithId = (id: string, sortOrder: number): SegmentDetail => ({
+      ...makeSegment([makeInstance(`inst-${id}`)]),
+      id,
+      sortOrder,
+    });
+
+    it('exposes previous/next segment ids and 1-based position among siblings', () => {
+      const segments = [
+        makeSegmentWithId('seg-a', 0),
+        makeSegmentWithId(SEGMENT_ID, 1),
+        makeSegmentWithId('seg-c', 2),
+      ];
+      configure({ segment: segments[1] });
+      segmentService.getByEvent.mockReturnValue(of({ data: segments }));
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      expect(service.previousSegmentId()).toBe('seg-a');
+      expect(service.nextSegmentId()).toBe('seg-c');
+      expect(service.segmentPosition()).toEqual({ current: 2, total: 3 });
+    });
+
+    it('returns null for previousSegmentId on the first segment and nextSegmentId on the last', () => {
+      const segments = [makeSegmentWithId(SEGMENT_ID, 0), makeSegmentWithId('seg-b', 1)];
+      configure({ segment: segments[0] });
+      segmentService.getByEvent.mockReturnValue(of({ data: segments }));
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      expect(service.previousSegmentId()).toBeNull();
+      expect(service.nextSegmentId()).toBe('seg-b');
+    });
+
+    it('returns null for segmentPosition and both neighbours when the segment is a lone segment', () => {
+      configure();
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      expect(service.previousSegmentId()).toBeNull();
+      expect(service.nextSegmentId()).toBeNull();
+      expect(service.segmentPosition()).toEqual({ current: 1, total: 1 });
+    });
+  });
 });

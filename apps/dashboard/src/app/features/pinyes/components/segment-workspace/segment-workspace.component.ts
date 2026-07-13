@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   HostListener,
   OnDestroy,
   OnInit,
@@ -8,9 +9,10 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Location } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
-import { LucideAngularModule, ArrowLeft, Shapes, Monitor, Lock } from 'lucide-angular';
+import { LucideAngularModule, ArrowLeft, ChevronLeft, ChevronRight, Shapes, Monitor, Lock } from 'lucide-angular';
 import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { FiguresViewModeService, FiguresViewMode } from '../../services/figures-view-mode.service';
@@ -49,12 +51,15 @@ export class SegmentWorkspaceComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly location = inject(Location);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly layout = inject(LayoutService);
   private readonly viewModeService = inject(FiguresViewModeService);
   private readonly toast = inject(ToastService);
   readonly ws = inject(SegmentWorkspaceStateService);
 
   readonly ArrowLeft = ArrowLeft;
+  readonly ChevronLeft = ChevronLeft;
+  readonly ChevronRight = ChevronRight;
   readonly Lock = Lock;
 
   readonly activeTab = signal<WorkspaceTab>('pinyes');
@@ -96,7 +101,6 @@ export class SegmentWorkspaceComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.layout.requestFullscreen();
 
-    const params = this.route.snapshot.params;
     const queryParams = this.route.snapshot.queryParams;
 
     const tabParam = queryParams['tab'] as WorkspaceTab | undefined;
@@ -108,13 +112,39 @@ export class SegmentWorkspaceComponent implements OnInit, OnDestroy {
 
     this.isPast.set(queryParams['past'] === '1');
 
-    const figureId = queryParams['figure'] ?? params['instanceId'] ?? null;
+    const figureId = queryParams['figure'] ?? this.route.snapshot.params['instanceId'] ?? null;
     if (figureId) {
       this.explicitFigureRequested = true;
       this.ws.selectInstance(figureId);
     }
 
-    this.ws.load(params['eventId'], params['segmentId']);
+    // Sibling-segment navigation (prev/next arrows) reuses this component instance and
+    // only changes the route params, so the workspace must reload on every emission —
+    // not just the first, unlike a plain snapshot read.
+    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
+      const eventId = params.get('eventId')!;
+      const segmentId = params.get('segmentId')!;
+      if (eventId === this.ws.eventId() && segmentId === this.ws.segmentId()) return;
+      if (this.ws.eventId()) {
+        // Not the initial load — reset per-segment selection state before switching.
+        this.notFoundHandled = false;
+        this.explicitFigureRequested = false;
+        this.ws.selectInstance(null);
+      }
+      this.ws.load(eventId, segmentId);
+    });
+  }
+
+  navigateToSegment(segmentId: string | null): void {
+    if (!segmentId) return;
+    const queryParams: Record<string, string> = { tab: this.activeTab() };
+    if (this.isPast()) queryParams['past'] = '1';
+    const returnUrl = this.route.snapshot.queryParams['returnUrl'];
+    if (returnUrl) queryParams['returnUrl'] = returnUrl;
+    this.router.navigate(
+      ['/pinyes/events', this.ws.eventId(), 'segments', segmentId, 'assign'],
+      { queryParams },
+    );
   }
 
   ngOnDestroy(): void {

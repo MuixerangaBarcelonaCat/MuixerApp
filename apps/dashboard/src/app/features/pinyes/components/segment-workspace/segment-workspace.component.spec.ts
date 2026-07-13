@@ -1,7 +1,8 @@
 import { Component, input, signal } from '@angular/core';
 import { Location } from '@angular/common';
 import { TestBed, ComponentFixture } from '@angular/core/testing';
-import { ActivatedRoute, Router, provideRouter } from '@angular/router';
+import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
+import { BehaviorSubject } from 'rxjs';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { LucideAngularModule } from 'lucide-angular';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
@@ -53,31 +54,42 @@ const makeWorkspaceInstance = (id: string): WorkspaceInstance => ({
 
 type WsMock = ReturnType<typeof makeWsMock>;
 
-const makeWsMock = () => ({
-  eventId: signal(''),
-  segmentId: signal(''),
-  loading: signal(false),
-  notFound: signal(false),
-  segment: signal(null),
-  segmentName: signal<string | null>('Bloc 1'),
-  instances: signal<WorkspaceInstance[]>([makeWorkspaceInstance('inst-a'), makeWorkspaceInstance('inst-b')]),
-  distributionByInstance: signal(new Map()),
-  selectedInstanceId: signal<string | null>(null),
-  selectedInstance: signal<WorkspaceInstance | null>(null),
-  lockStatus: signal(null),
-  isLocked: signal(false),
-  personsLoaded: signal(true),
-  pinyaSlots: signal([]),
-  load: vi.fn(),
-  refreshInstance: vi.fn(),
-  selectInstance: vi.fn(),
-  visibleNodesFor: vi.fn().mockReturnValue([]),
-});
+const makeWsMock = () => {
+  const eventId = signal('');
+  const segmentId = signal('');
+  return {
+    eventId,
+    segmentId,
+    loading: signal(false),
+    notFound: signal(false),
+    segment: signal(null),
+    segmentName: signal<string | null>('Bloc 1'),
+    previousSegmentId: signal<string | null>(null),
+    nextSegmentId: signal<string | null>(null),
+    segmentPosition: signal<{ current: number; total: number } | null>(null),
+    instances: signal<WorkspaceInstance[]>([makeWorkspaceInstance('inst-a'), makeWorkspaceInstance('inst-b')]),
+    distributionByInstance: signal(new Map()),
+    selectedInstanceId: signal<string | null>(null),
+    selectedInstance: signal<WorkspaceInstance | null>(null),
+    lockStatus: signal(null),
+    isLocked: signal(false),
+    personsLoaded: signal(true),
+    pinyaSlots: signal([]),
+    load: vi.fn((id: string, segId: string) => {
+      eventId.set(id);
+      segmentId.set(segId);
+    }),
+    refreshInstance: vi.fn(),
+    selectInstance: vi.fn(),
+    visibleNodesFor: vi.fn().mockReturnValue([]),
+  };
+};
 
 describe('SegmentWorkspaceComponent', () => {
   let ws: WsMock;
   let layoutService: { requestFullscreen: ReturnType<typeof vi.fn>; exitFullscreen: ReturnType<typeof vi.fn> };
   let toast: { success: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn>; info: ReturnType<typeof vi.fn> };
+  let paramMap$: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
 
   const setup = async (opts: { queryParams?: Record<string, string>; instanceIdParam?: string } = {}) => {
     ws = makeWsMock();
@@ -87,6 +99,7 @@ describe('SegmentWorkspaceComponent', () => {
     const params: Record<string, string> = { eventId: EVENT_ID, segmentId: SEGMENT_ID };
     if (opts.instanceIdParam) params['instanceId'] = opts.instanceIdParam;
     const queryParams = opts.queryParams ?? {};
+    paramMap$ = new BehaviorSubject(convertToParamMap(params));
 
     await TestBed.configureTestingModule({
       imports: [SegmentWorkspaceComponent],
@@ -104,6 +117,7 @@ describe('SegmentWorkspaceComponent', () => {
               queryParams,
               queryParamMap: { get: (key: string) => queryParams[key] ?? null },
             },
+            paramMap: paramMap$,
           },
         },
       ],
@@ -289,6 +303,80 @@ describe('SegmentWorkspaceComponent', () => {
     expect(toast.error).toHaveBeenCalled();
     expect(backSpy).toHaveBeenCalled();
     backSpy.mockRestore();
+  });
+
+  describe('prev/next segment navigation', () => {
+    it('disables both arrows when there is no sibling segment', async () => {
+      const fixture = await setup();
+      const buttons = fixture.nativeElement.querySelectorAll(
+        '[aria-label="Segment anterior"], [aria-label="Segment següent"]',
+      );
+      expect(Array.from(buttons).every((b) => (b as HTMLButtonElement).disabled)).toBe(true);
+    });
+
+    it('shows the segment position when available', async () => {
+      const fixture = await setup();
+      ws.segmentPosition.set({ current: 3, total: 7 });
+      fixture.detectChanges();
+      expect(fixture.nativeElement.textContent).toContain('3/7');
+    });
+
+    it('enables the next arrow and navigates to the next segment on click', async () => {
+      const fixture = await setup({ queryParams: { tab: 'troncs' } });
+      ws.nextSegmentId.set('seg-2');
+      fixture.detectChanges();
+      const router = TestBed.inject(Router);
+      const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+
+      const nextButton = fixture.nativeElement.querySelector(
+        '[aria-label="Segment següent"]',
+      ) as HTMLButtonElement;
+      expect(nextButton.disabled).toBe(false);
+      nextButton.click();
+
+      expect(navigateSpy).toHaveBeenCalledWith(
+        ['/pinyes/events', EVENT_ID, 'segments', 'seg-2', 'assign'],
+        { queryParams: { tab: 'troncs' } },
+      );
+    });
+
+    it('navigates to the previous segment preserving the past and returnUrl query params', async () => {
+      const fixture = await setup({ queryParams: { past: '1', returnUrl: '/rehearsals/event-123' } });
+      ws.previousSegmentId.set('seg-0');
+      fixture.detectChanges();
+      const router = TestBed.inject(Router);
+      const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+
+      const prevButton = fixture.nativeElement.querySelector(
+        '[aria-label="Segment anterior"]',
+      ) as HTMLButtonElement;
+      prevButton.click();
+
+      expect(navigateSpy).toHaveBeenCalledWith(
+        ['/pinyes/events', EVENT_ID, 'segments', 'seg-0', 'assign'],
+        { queryParams: { tab: 'pinyes', past: '1', returnUrl: '/rehearsals/event-123' } },
+      );
+    });
+
+    it('reloads the workspace and resets selection when the route segmentId changes', async () => {
+      await setup();
+      ws.load.mockClear();
+      ws.selectInstance.mockClear();
+
+      paramMap$.next(convertToParamMap({ eventId: EVENT_ID, segmentId: 'seg-2' }));
+
+      expect(ws.load).toHaveBeenCalledWith(EVENT_ID, 'seg-2');
+      expect(ws.selectInstance).toHaveBeenCalledWith(null);
+    });
+
+    it('does not reload when the paramMap re-emits the same ids', async () => {
+      await setup();
+      ws.load.mockClear();
+
+      paramMap$.next(convertToParamMap({ eventId: EVENT_ID, segmentId: SEGMENT_ID }));
+
+      expect(ws.load).not.toHaveBeenCalled();
+    });
   });
 
   describe('browser back button', () => {
