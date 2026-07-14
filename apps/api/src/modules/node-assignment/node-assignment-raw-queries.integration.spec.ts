@@ -163,4 +163,39 @@ describe('NodeAssignmentService raw multi-join queries (integration)', () => {
     const targetAssignments = await assignmentRepo.find({ where: { figureInstance: { id: targetInstance.id } } });
     expect(targetAssignments).toHaveLength(2);
   });
+
+  it('is safe to retry after a simulated crash mid-import — already-imported entries are reported as conflicts, not duplicated, and the rest complete', async () => {
+    const { event, template, instance: sourceInstance } = await makeFigureWithNodesAndAssignments(3, 3);
+
+    const instanceRepo = db.dataSource.getRepository(FigureInstance);
+    const segmentRepo = db.dataSource.getRepository(EventSegment);
+    const targetSegment = await segmentRepo.save({ event, sortOrder: 1 });
+    const targetInstance = await instanceRepo.save({
+      segment: targetSegment,
+      figureTemplate: template,
+      sortOrder: 0,
+      snapshotted: false,
+    });
+
+    // Simulate the request dying right after the first entry was imported, but before bulkImport
+    // returned: hand-import just one assignment directly (this also triggers the target's lazy
+    // snapshot, exactly as bulkImport's own first iteration would have).
+    const [firstSourceAssignment] = await db.dataSource
+      .getRepository(NodeAssignment)
+      .find({ where: { figureInstance: { id: sourceInstance.id } }, relations: ['instanceNode', 'person'] });
+    await service.assign(targetInstance.id, {
+      nodeId: firstSourceAssignment.instanceNode.sourceNodeId as string,
+      personId: firstSourceAssignment.person.id,
+    });
+
+    // Retry the full bulkImport — as an operator would after seeing the request fail.
+    const result = await service.bulkImport(targetInstance.id, { sourceInstanceId: sourceInstance.id });
+
+    expect(result.conflicts).toHaveLength(1); // the one "pre-crash" entry, reported harmlessly
+    expect(result.created).toHaveLength(2); // the remaining two complete on retry
+
+    const assignmentRepo = db.dataSource.getRepository(NodeAssignment);
+    const targetAssignments = await assignmentRepo.find({ where: { figureInstance: { id: targetInstance.id } } });
+    expect(targetAssignments).toHaveLength(3); // no duplicates, nothing lost
+  });
 });

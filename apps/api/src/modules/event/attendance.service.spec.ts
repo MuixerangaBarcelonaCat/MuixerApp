@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import { NotFoundException, ConflictException } from '@nestjs/common';
 import { AttendanceService } from './attendance.service';
 import { Attendance } from './attendance.entity';
@@ -51,6 +52,24 @@ describe('AttendanceService', () => {
 
     const savedAtt = attendances[0] ?? makeAttendance(AttendanceStatus.ANIRE);
 
+    const lockQb = {
+      setLock: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      getOne: jest.fn().mockResolvedValue(event),
+    };
+
+    const manager = {
+      createQueryBuilder: jest.fn(() => lockQb),
+      find: jest.fn().mockResolvedValue(attendances),
+      update: jest.fn().mockResolvedValue(undefined),
+      lockQb,
+    };
+
+    const dataSource = {
+      transaction: jest.fn((cb: (m: typeof manager) => unknown) => cb(manager)),
+      manager,
+    };
+
     return {
       attendanceRepo: {
         createQueryBuilder: jest.fn(() => attQb),
@@ -68,6 +87,7 @@ describe('AttendanceService', () => {
       personRepo: {
         findOne: jest.fn().mockResolvedValue(person),
       },
+      dataSource,
     };
   };
 
@@ -78,6 +98,7 @@ describe('AttendanceService', () => {
         { provide: getRepositoryToken(Attendance), useValue: repos.attendanceRepo },
         { provide: getRepositoryToken(Event), useValue: repos.eventRepo },
         { provide: getRepositoryToken(Person), useValue: repos.personRepo },
+        { provide: DataSource, useValue: repos.dataSource },
       ],
     }).compile();
     return module.get<AttendanceService>(AttendanceService);
@@ -137,7 +158,7 @@ describe('AttendanceService', () => {
       expect(result).toHaveProperty('attendance');
       expect(result).toHaveProperty('summary');
       expect(repos.attendanceRepo.save).toHaveBeenCalled();
-      expect(repos.eventRepo.update).toHaveBeenCalled();
+      expect(repos.dataSource.manager.update).toHaveBeenCalled();
     });
 
     it('throws NotFoundException when event does not exist', async () => {
@@ -204,7 +225,7 @@ describe('AttendanceService', () => {
       service = await buildModule(repos);
 
       await service.update('ev-1', 'att-1', { status: AttendanceStatus.ASSISTIT });
-      expect(repos.eventRepo.update).toHaveBeenCalled();
+      expect(repos.dataSource.manager.update).toHaveBeenCalled();
     });
   });
 
@@ -241,7 +262,7 @@ describe('AttendanceService', () => {
       service = await buildModule(repos);
 
       await service.remove('ev-1', 'att-1');
-      expect(repos.eventRepo.update).toHaveBeenCalled();
+      expect(repos.dataSource.manager.update).toHaveBeenCalled();
     });
   });
 
@@ -261,7 +282,7 @@ describe('AttendanceService', () => {
 
       await service.recalculateSummary('ev-1');
 
-      const [, partialUpdate] = repos.eventRepo.update.mock.calls[0];
+      const [, , partialUpdate] = repos.dataSource.manager.update.mock.calls[0];
       const summary = partialUpdate.attendanceSummary;
       expect(summary.attended).toBe(2);
       expect(summary.declined).toBe(1);
@@ -269,6 +290,36 @@ describe('AttendanceService', () => {
       expect(summary.confirmed).toBe(2);
       expect(summary.children).toBe(1);
       expect(summary.total).toBe(6);
+    });
+
+    it('runs inside a transaction', async () => {
+      const repos = makeRepos([]);
+      service = await buildModule(repos);
+
+      await service.recalculateSummary('ev-1');
+
+      expect(repos.dataSource.transaction).toHaveBeenCalledTimes(1);
+    });
+
+    it('takes a pessimistic write lock on the event row before reading attendances (serializes concurrent recalculations)', async () => {
+      const repos = makeRepos([]);
+      service = await buildModule(repos);
+
+      const callOrder: string[] = [];
+      repos.dataSource.manager.lockQb.getOne.mockImplementation(async () => {
+        callOrder.push('lock');
+        return makeEvent();
+      });
+      repos.dataSource.manager.find.mockImplementation(async () => {
+        callOrder.push('find');
+        return [];
+      });
+
+      await service.recalculateSummary('ev-1');
+
+      expect(repos.dataSource.manager.createQueryBuilder).toHaveBeenCalledWith(Event, 'event');
+      expect(repos.dataSource.manager.lockQb.setLock).toHaveBeenCalledWith('pessimistic_write');
+      expect(callOrder).toEqual(['lock', 'find']);
     });
   });
 });
