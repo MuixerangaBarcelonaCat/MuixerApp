@@ -26,6 +26,6 @@ export class Rengla {
   @Column({ type: 'int', default: 0 })
   sortOrder: number;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 }

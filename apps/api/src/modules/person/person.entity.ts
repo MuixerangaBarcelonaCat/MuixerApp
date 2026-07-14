@@ -74,7 +74,7 @@ export class Person {
   @Column({ type: 'varchar', nullable: true })
   legacyId: string | null;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   lastSyncedAt: Date | null;
 
   @ManyToMany(() => Tag)
@@ -87,9 +87,9 @@ export class Person {
   @ManyToOne(() => Person, { nullable: true })
   mentor: Person | null;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date;
 }
