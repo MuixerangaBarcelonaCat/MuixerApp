@@ -27,7 +27,7 @@ The problems live one layer up, and they cluster into four themes:
 
 1. **The list/CRUD layer is copy-pasted, not shared.** Every list page re-implements the same ~300 lines of search-debounce/filter/sort/pagination/column-persistence orchestration with slightly diverging behavior, dead leftovers, and no request cancellation — so several pages can render stale data when responses arrive out of order (provably self-racing in the event list, which double-fetches on every load).
 2. **An abandoned refactor is sitting in the tree.** Three fully-written services (~910 lines) that were clearly meant to break up the god components are referenced by nobody, alongside a half-dead `CanvasStateService`, six dead methods in the event list alone, dead signals, a dead API method that would 404 if called, and — until fixed — a full form whose data was silently thrown away on submit (FE-BUG-2 ✅).
-3. **Failure paths are an afterthought.** Auth aside, error handling is per-call-site and wildly inconsistent: silent `console.error`, silent nothing, `errorMessage` signals, toasts — and one real logout-on-transient-error bug in the interceptor's retry path (FE-BUG-1). Long-lived resources (two SSE `EventSource`s) leak on navigation.
+3. **Failure paths are an afterthought.** Auth aside, error handling is per-call-site and wildly inconsistent: silent `console.error`, silent nothing, `errorMessage` signals, toasts — and one real logout-on-transient-error bug in the interceptor's retry path (FE-BUG-1 ✅). Long-lived resources (two SSE `EventSource`s) leak on navigation.
 4. **Destructive-action and modal UX is unsystematic.** Three different confirmation patterns coexist (inline modal / native `confirm()` / none at all); the shared `app-confirm-dialog` documented in CLAUDE.md does not exist; user deactivation has no confirmation *and no UI path back*; modals discard typed data on backdrop click, and none trap focus.
 
 The best code in the app (the pinya assignment flow, the projection layout math, the person panel's ranked search) is also where a couple of the subtlest bugs are (incomplete undo history FE-BUG-7 ✅, stale projection filter FE-BUG-9).
@@ -36,7 +36,7 @@ The best code in the app (the pinya assignment flow, the projection layout math,
 
 | Section | Code | 🔴 | 🟠 | 🟡 | 🔵 | Total |
 | --- | --- | --- | --- | --- | --- | --- |
-| Bugs & correctness | `FE-BUG` | — | 9 (3 ✅) | 16 | 3 | 28 (3 ✅) |
+| Bugs & correctness | `FE-BUG` | — | 9 (4 ✅) | 16 | 3 | 28 (4 ✅) |
 | Architecture & state (incl. dead code) | `FE-ARCH` | — | 3 | 9 | 4 | 16 |
 | Error handling | `FE-ERR` | — | 1 | 3 | — | 4 |
 | UX & interface consistency | `FE-UX` | — | 2 | 5 | 1 | 8 |
@@ -46,7 +46,7 @@ The best code in the app (the pinya assignment flow, the projection layout math,
 | Code smells | `FE-SM` | — | — | 5 | 2 | 7 |
 | UI text | `FE-LANG` | — | — | 2 | — | 2 |
 | Tests | `FE-TEST` | — | 2 | 2 | — | 4 |
-| **Total** | | **—** | **20 (3 ✅)** | **50** | **11** | **81 (3 ✅)** |
+| **Total** | | **—** | **20 (4 ✅)** | **50** | **11** | **81 (4 ✅)** |
 
 *(✅ counts reflect fixes applied so far in this branch; updated as findings are resolved.)*
 
@@ -54,7 +54,7 @@ The best code in the app (the pinya assignment flow, the projection layout math,
 
 ## 1. Bugs & correctness
 
-### 🟠 FE-BUG-1 — Interceptor logs the user out when a *retried* request fails for any reason
+### 🟠✅ FE-BUG-1 — Interceptor logs the user out when a *retried* request fails for any reason — FIXED
 
 `core/auth/interceptors/auth.interceptor.ts:31-49`. After a 401, the interceptor refreshes and retries the original request. The retry runs inside the same `switchMap` chain, and the inner `catchError` — written for *refresh* failures — catches **retry** failures too:
 
@@ -72,6 +72,8 @@ return authService.refresh().pipe(
 Sequence: access token expires → any request 401s → refresh **succeeds** → retry hits a transient 500 (or the resource was deleted → 404) → the user's whole session is torn down and they land on `/login`, losing in-progress work (e.g. an open assignment canvas). Only refresh errors should clear state; retry errors should propagate to the caller like any first-attempt error.
 
 **Recommendation:** split the pipeline — `catchError` scoped to `authService.refresh()` only, e.g. `refresh().pipe(catchError(clearAndRedirect), switchMap(() => next(retryReq)))`.
+
+**Fix applied:** `catchError` (clear state + redirect to `/login`) now wraps only `authService.refresh()`, placed *before* the `switchMap` that issues the retry — so it fires solely on refresh failures. Retry failures (500, 404, network error, …) fall through untouched and propagate to the original caller, exactly like a first-attempt error; the session and any in-progress work (e.g. an open assignment canvas) survive. Covered by a new `auth.interceptor.spec.ts` (two cases: retry failure after successful refresh does not clear state/redirect; refresh failure does). Full `nx test dashboard` suite (1267/1267) and `nx lint dashboard` pass.
 
 ### 🟠✅ FE-BUG-2 — "Persona nova" collects a full form, then silently discards everything except the alias — FIXED
 
