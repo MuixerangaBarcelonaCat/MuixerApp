@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, computed, effect, inject, signal, ElementRef, ViewChild, AfterViewInit } from '@angular/core';
+import { Component, ChangeDetectionStrategy, computed, effect, inject, signal, ElementRef, ViewChild, AfterViewInit, OnDestroy } from '@angular/core';
 import { NgClass } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
@@ -14,7 +14,7 @@ type SyncState = 'idle' | 'running' | 'complete' | 'error';
   imports: [RouterModule, LucideAngularModule, NgClass],
   templateUrl: './person-sync.component.html',
 })
-export class PersonSyncComponent implements AfterViewInit {
+export class PersonSyncComponent implements AfterViewInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
 
@@ -46,6 +46,10 @@ export class PersonSyncComponent implements AfterViewInit {
 
   ngAfterViewInit() {
     this.scrollToBottom();
+  }
+
+  ngOnDestroy() {
+    this.closeEventSource();
   }
 
   startSync() {

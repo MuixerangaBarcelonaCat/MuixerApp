@@ -27,7 +27,7 @@ The problems live one layer up, and they cluster into four themes:
 
 1. **The list/CRUD layer is copy-pasted, not shared.** Every list page re-implements the same ~300 lines of search-debounce/filter/sort/pagination/column-persistence orchestration with slightly diverging behavior, dead leftovers, and no request cancellation — so several pages can render stale data when responses arrive out of order (provably self-racing in the event list, which double-fetches on every load).
 2. **An abandoned refactor is sitting in the tree.** Three fully-written services (~910 lines) that were clearly meant to break up the god components are referenced by nobody, alongside a half-dead `CanvasStateService`, six dead methods in the event list alone, dead signals, a dead API method that would 404 if called, and — until fixed — a full form whose data was silently thrown away on submit (FE-BUG-2 ✅).
-3. **Failure paths are an afterthought.** Auth aside, error handling is per-call-site and wildly inconsistent: silent `console.error`, silent nothing, `errorMessage` signals, toasts — and one real logout-on-transient-error bug in the interceptor's retry path (FE-BUG-1 ✅). Long-lived resources (two SSE `EventSource`s) leak on navigation.
+3. **Failure paths are an afterthought.** Auth aside, error handling is per-call-site and wildly inconsistent: silent `console.error`, silent nothing, `errorMessage` signals, toasts — and one real logout-on-transient-error bug in the interceptor's retry path (FE-BUG-1 ✅). Long-lived resources (two SSE `EventSource`s) used to leak on navigation (FE-BUG-6 ✅).
 4. **Destructive-action and modal UX is unsystematic.** Three different confirmation patterns coexist (inline modal / native `confirm()` / none at all); the shared `app-confirm-dialog` documented in CLAUDE.md does not exist; user deactivation has no confirmation *and no UI path back*; modals discard typed data on backdrop click, and none trap focus.
 
 The best code in the app (the pinya assignment flow, the projection layout math, the person panel's ranked search) is also where a couple of the subtlest bugs are (incomplete undo history FE-BUG-7 ✅, stale projection filter FE-BUG-9).
@@ -36,7 +36,7 @@ The best code in the app (the pinya assignment flow, the projection layout math,
 
 | Section | Code | 🔴 | 🟠 | 🟡 | 🔵 | Total |
 | --- | --- | --- | --- | --- | --- | --- |
-| Bugs & correctness | `FE-BUG` | — | 9 (4 ✅) | 16 | 3 | 28 (4 ✅) |
+| Bugs & correctness | `FE-BUG` | — | 9 (5 ✅) | 16 | 3 | 28 (5 ✅) |
 | Architecture & state (incl. dead code) | `FE-ARCH` | — | 3 | 9 | 4 | 16 |
 | Error handling | `FE-ERR` | — | 1 | 3 | — | 4 |
 | UX & interface consistency | `FE-UX` | — | 2 | 5 | 1 | 8 |
@@ -46,7 +46,7 @@ The best code in the app (the pinya assignment flow, the projection layout math,
 | Code smells | `FE-SM` | — | — | 5 | 2 | 7 |
 | UI text | `FE-LANG` | — | — | 2 | — | 2 |
 | Tests | `FE-TEST` | — | 2 | 2 | — | 4 |
-| **Total** | | **—** | **20 (4 ✅)** | **50** | **11** | **81 (4 ✅)** |
+| **Total** | | **—** | **20 (5 ✅)** | **50** | **11** | **81 (5 ✅)** |
 
 *(✅ counts reflect fixes applied so far in this branch; updated as findings are resolved.)*
 
@@ -105,9 +105,11 @@ The `/persons/new` route renders the **entire** edit form — Nom and Primer cog
 2. There is **no UI path to reactivate**: the edit modal never sends `isActive` (the `UpdateUserPayload.isActive` field exists but no control is bound to it), and no "Activar" row action exists. Once deactivated, recovery requires a raw API call.
 3. The "Desactivar" menu item still renders for already-inactive users and silently no-ops (`if (!user.isActive) return;`).
 
-### 🟠 FE-BUG-6 — Both sync screens leak their `EventSource` on navigation
+### 🟠✅ FE-BUG-6 — Both sync screens leak their `EventSource` on navigation — FIXED
 
 `persons/components/person-sync/person-sync.component.ts` and `events/components/event-sync/event-sync.component.ts` create an `EventSource` in `startSync()` and close it only on complete/error/cancel. **Neither component implements `OnDestroy`.** Navigating away mid-sync leaves the SSE connection open indefinitely: the browser holds the socket, `onmessage` keeps firing into a destroyed component's signals, and the server-side sync lock (audit-01 SEC-16's `SyncLockService`) stays held by a stream nobody is watching. `event-detail.component.ts` gets this right (`ngOnDestroy` → `closeSyncEventSource()`, line 377) — copy that.
+
+**Fix applied:** both components now implement `OnDestroy` and call their existing (already-idempotent) `closeEventSource()` helper from `ngOnDestroy` — the same one-line pattern `event-detail.component.ts` already used. Covered by new `person-sync.component.spec.ts` and `event-sync.component.spec.ts` (each starts a sync against a mocked `EventSource`, destroys the fixture mid-sync, and asserts `.close()` was called). Full `nx test dashboard` suite (1269/1271, 2 pre-existing skips) and `nx lint dashboard` pass.
 
 ### 🟠✅ FE-BUG-7 — Assignment-canvas undo history is incomplete for moves and swaps — FIXED
 
