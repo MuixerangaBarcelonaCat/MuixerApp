@@ -88,6 +88,9 @@ export class TroncViewComponent {
   /** Projection mode only: color used for the panel border and tinted background. */
   readonly panelColor = input<string | null>(null);
 
+  /** Projection mode only: color used for the panel border, if different from panelColor. */
+  readonly panelBorderColor = input<string | null>(null);
+
   /** Projection mode only: figure name shown as a header inside the panel. */
   readonly figureName = input<string | null>(null);
 

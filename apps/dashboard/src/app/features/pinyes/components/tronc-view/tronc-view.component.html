@@ -1,7 +1,7 @@
 <section
   class="tronc-view"
   [class.projection-mode]="mode() === 'projection'"
-  [style.border]="mode() === 'projection' && panelColor() ? '2px solid ' + panelColor() : null"
+  [style.border]="mode() === 'projection' && panelColor() ? '2px solid ' + (panelBorderColor() ?? panelColor()) : null"
   [style.background-color]="mode() === 'projection' && panelColor() ? panelColor() + '33' : null"
   aria-label="Vista del tronc"
 >

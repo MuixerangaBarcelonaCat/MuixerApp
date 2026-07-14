@@ -2060,7 +2060,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         strokeWidth: 0,
       });
       shape.shadowColor(box.color);
-      shape.shadowBlur(15);
+      shape.shadowBlur(30);
       shape.shadowOpacity(0.95);
       shape.shadowOffset({ x: 0, y: 0 });
       group.add(shape);
