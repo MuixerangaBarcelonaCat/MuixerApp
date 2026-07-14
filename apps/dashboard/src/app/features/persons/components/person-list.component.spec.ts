@@ -108,4 +108,30 @@ describe('PersonListComponent', () => {
     expect(tagBadge).toBeTruthy();
     expect(tagBadge?.style.backgroundColor).toBe('rgb(255, 0, 0)');
   });
+
+  it('does not render a "Tots" option', () => {
+    const buttons = Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLElement[];
+    expect(buttons.some(b => b.textContent?.trim() === 'Tots')).toBe(false);
+  });
+
+  it('defaults to the "Cens" selector and excludes provisional persons', () => {
+    expect(personService.getAll).toHaveBeenCalledWith(
+      expect.objectContaining({ isProvisional: false }),
+    );
+    const buttons = Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLElement[];
+    const censButton = buttons.find(b => b.textContent?.trim() === 'Cens');
+    expect(censButton?.className).toContain('btn-active');
+  });
+
+  it('switching the selector to "Provisionals" filters by provisional persons', () => {
+    fixture.componentInstance.setProvisionalTab('provisionals');
+    fixture.detectChanges();
+
+    expect(personService.getAll).toHaveBeenCalledWith(
+      expect.objectContaining({ isProvisional: true }),
+    );
+    const buttons = Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLElement[];
+    const provisionalsButton = buttons.find(b => b.textContent?.trim() === 'Provisionals');
+    expect(provisionalsButton?.className).toContain('btn-active');
+  });
 });
