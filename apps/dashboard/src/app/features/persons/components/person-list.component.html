@@ -5,7 +5,7 @@
     <button
       type="button"
       class="btn btn-primary btn-sm gap-1.5"
-      (click)="navigateToNewPerson()"
+      (click)="openNewPersonModal()"
     >
       <lucide-icon name="Plus" [size]="14" />
       Persona nova
@@ -148,6 +148,13 @@
       [totalItems]="totalPersons()"
       (pageChange)="goToPage($event)"
       (limitChange)="onLimitChange($event)"
+    />
+  }
+
+  @if (newPersonModalOpen()) {
+    <app-person-new-modal
+      (closed)="newPersonModalOpen.set(false)"
+      (created)="onPersonCreated($event)"
     />
   }
 

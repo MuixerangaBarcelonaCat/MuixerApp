@@ -26,7 +26,7 @@ The dashboard's foundations are genuinely modern and consistent: zoneless Angula
 The problems live one layer up, and they cluster into four themes:
 
 1. **The list/CRUD layer is copy-pasted, not shared.** Every list page re-implements the same ~300 lines of search-debounce/filter/sort/pagination/column-persistence orchestration with slightly diverging behavior, dead leftovers, and no request cancellation — so several pages can render stale data when responses arrive out of order (provably self-racing in the event list, which double-fetches on every load).
-2. **An abandoned refactor is sitting in the tree.** Three fully-written services (~910 lines) that were clearly meant to break up the god components are referenced by nobody, alongside a half-dead `CanvasStateService`, six dead methods in the event list alone, dead signals, a dead API method that would 404 if called, and a full form whose data is silently thrown away on submit (FE-BUG-2).
+2. **An abandoned refactor is sitting in the tree.** Three fully-written services (~910 lines) that were clearly meant to break up the god components are referenced by nobody, alongside a half-dead `CanvasStateService`, six dead methods in the event list alone, dead signals, a dead API method that would 404 if called, and — until fixed — a full form whose data was silently thrown away on submit (FE-BUG-2 ✅).
 3. **Failure paths are an afterthought.** Auth aside, error handling is per-call-site and wildly inconsistent: silent `console.error`, silent nothing, `errorMessage` signals, toasts — and one real logout-on-transient-error bug in the interceptor's retry path (FE-BUG-1). Long-lived resources (two SSE `EventSource`s) leak on navigation.
 4. **Destructive-action and modal UX is unsystematic.** Three different confirmation patterns coexist (inline modal / native `confirm()` / none at all); the shared `app-confirm-dialog` documented in CLAUDE.md does not exist; user deactivation has no confirmation *and no UI path back*; modals discard typed data on backdrop click, and none trap focus.
 
@@ -36,7 +36,7 @@ The best code in the app (the pinya assignment flow, the projection layout math,
 
 | Section | Code | 🔴 | 🟠 | 🟡 | 🔵 | Total |
 | --- | --- | --- | --- | --- | --- | --- |
-| Bugs & correctness | `FE-BUG` | — | 9 | 16 | 3 | 28 |
+| Bugs & correctness | `FE-BUG` | — | 9 (1 ✅) | 16 | 3 | 28 (1 ✅) |
 | Architecture & state (incl. dead code) | `FE-ARCH` | — | 3 | 9 | 4 | 16 |
 | Error handling | `FE-ERR` | — | 1 | 3 | — | 4 |
 | UX & interface consistency | `FE-UX` | — | 2 | 5 | 1 | 8 |
@@ -46,7 +46,9 @@ The best code in the app (the pinya assignment flow, the projection layout math,
 | Code smells | `FE-SM` | — | — | 5 | 2 | 7 |
 | UI text | `FE-LANG` | — | — | 2 | — | 2 |
 | Tests | `FE-TEST` | — | 2 | 2 | — | 4 |
-| **Total** | | **—** | **20** | **50** | **11** | **81** |
+| **Total** | | **—** | **20 (1 ✅)** | **50** | **11** | **81 (1 ✅)** |
+
+*(✅ counts reflect fixes applied so far in this branch; updated as findings are resolved.)*
 
 ---
 
@@ -71,7 +73,7 @@ Sequence: access token expires → any request 401s → refresh **succeeds** →
 
 **Recommendation:** split the pipeline — `catchError` scoped to `authService.refresh()` only, e.g. `refresh().pipe(catchError(clearAndRedirect), switchMap(() => next(retryReq)))`.
 
-### 🟠 FE-BUG-2 — "Persona nova" collects a full form, then silently discards everything except the alias
+### 🟠✅ FE-BUG-2 — "Persona nova" collects a full form, then silently discards everything except the alias — FIXED
 
 `persons/components/person-detail/person-detail.component.ts:198-200`:
 
@@ -82,6 +84,8 @@ const request$ = id
 ```
 
 The `/persons/new` route renders the **entire** edit form — Nom and Primer cognom marked required (`*`), phone, birth date, shoulder height, colla info, positions (`person-detail.component.html:160-230`) — the user fills it in, presses "Crea", and every field except `alias` is thrown away (`createProvisional` posts `{ alias }` only). The person then loads with empty name/surname and the typed data is unrecoverable. Either the new-person form should ask only for the alias (matching what the flow actually does), or creation should chain `createProvisional` + `update` with the rest of the payload.
+
+**Fix applied:** the new-person form now matches what the flow actually does. "Persona nova" opens a small `app-person-new-modal` (`persons/components/modals/person-new-modal.component.ts`) with just an alias input and "Crea"/"Cancel·la" buttons; on success it navigates to `/persons/:id` (the newly created person's edit panel). The `/persons/new` route and all `isNew()`-gated creation branches in `PersonDetailComponent` (the ternary above, the "Crea" button label, the conditional Cancel·la button) were removed — `PersonDetailComponent` now only ever edits an existing person, matching the route it's actually reachable from. Covered by a new `person-new-modal.component.spec.ts` (render, disabled-when-empty, cancel, success, error paths). Full `nx test dashboard` suite (1219/1219) and `nx lint dashboard` pass.
 
 ### 🟠 FE-BUG-3 — Data-table row-actions menu can act on the wrong row
 
@@ -493,7 +497,7 @@ Ranked across all findings by (user damage × likelihood), not by section:
 | --- | --- | --- | --- |
 | 1 | 🟠 [FE-BUG-1](#-fe-bug-1--interceptor-logs-the-user-out-when-a-retried-request-fails-for-any-reason) Interceptor logs users out on any post-refresh retry failure | Session + unsaved work lost on a transient 500; app-wide | `auth.interceptor.ts` |
 | 2 | 🟠 [FE-BUG-26](#-fe-bug-26--template-editor-pending-autosave-is-discarded-on-most-exits) Template editor drops pending autosave on most exits | Silent data loss in the flagship editor | `template-editor.component.ts` |
-| 3 | 🟠 [FE-BUG-2](#-fe-bug-2--persona-nova-collects-a-full-form-then-silently-discards-everything-except-the-alias) "Persona nova" discards every field but the alias | Silent data loss on a primary flow, guaranteed on every use | `person-detail.component.ts` |
+| 3 | 🟠✅ [FE-BUG-2](#-fe-bug-2--persona-nova-collects-a-full-form-then-silently-discards-everything-except-the-alias--fixed) "Persona nova" discards every field but the alias — **FIXED** | Silent data loss on a primary flow, guaranteed on every use | `person-detail.component.ts` |
 | 4 | 🟠 [FE-BUG-7](#-fe-bug-7--assignment-canvas-undo-history-is-incomplete-for-moves-and-swaps) Undo after a move drops the person; swaps unrecorded | Corrupts the mental model of the most-used tool during assajos | `assignment-canvas.component.ts` |
 | 5 | 🟠 [FE-BUG-6](#-fe-bug-6--both-sync-screens-leak-their-eventsource-on-navigation) SSE `EventSource` leaks on navigation (×2 screens) | Holds the server-side sync lock with nobody watching | `person-sync` / `event-sync` |
 | 6 | 🟠 [FE-BUG-22](#-fe-bug-22--rotation-handle-breaks-on-touch-devices-and-can-leak-window-listeners) Rotation handle dead on touch + listener leak | Projection/distribution run on tablets | `figure-canvas.component.ts:1148` |
