@@ -84,9 +84,9 @@ export class FigureNode {
   @Column({ type: 'jsonb', default: {} })
   metadata: Record<string, unknown>;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date;
 }

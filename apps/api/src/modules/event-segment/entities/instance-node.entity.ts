@@ -110,6 +110,6 @@ export class InstanceNode {
   @Column({ type: 'uuid', nullable: true })
   createdById: string | null;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 }

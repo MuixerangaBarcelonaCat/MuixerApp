@@ -161,6 +161,20 @@ describe('AvailablePersonsService', () => {
       );
     });
 
+    it('orders by name similarity too, not just alias (a name-only match should rank by its own score)', async () => {
+      mockEventRepo.findOne.mockResolvedValueOnce(makeEvent()).mockResolvedValue(null);
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockPersonQb.getMany.mockResolvedValue([]);
+
+      await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, { search: 'pere' });
+
+      const orderByCall = mockPersonQb.orderBy.mock.calls.find(
+        (call: unknown[]) => typeof call[0] === 'string' && (call[0] as string).includes('word_similarity'),
+      );
+      expect(orderByCall).toBeDefined();
+      expect(orderByCall![0]).toContain('person.name');
+    });
+
     it('filters by isXicalla', async () => {
       mockEventRepo.findOne.mockResolvedValueOnce(makeEvent()).mockResolvedValue(null);
       mockSegmentRepo.findOne.mockResolvedValue(makeSegment());

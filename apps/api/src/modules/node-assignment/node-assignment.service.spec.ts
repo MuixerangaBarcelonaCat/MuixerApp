@@ -1453,6 +1453,41 @@ describe('NodeAssignmentService', () => {
     });
   });
 
+  // ── checkEventLockByEventId ─────────────────────────────────────────
+
+  describe('checkEventLockByEventId', () => {
+    it('throws ForbiddenException for an old event', async () => {
+      const oldDate = new Date();
+      oldDate.setDate(oldDate.getDate() - 10);
+      process.env.ASSIGNMENT_LOCK_DAYS = '2';
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1', date: oldDate });
+
+      await expect(service.checkEventLockByEventId('e1')).rejects.toThrow(ForbiddenException);
+    });
+
+    it('does not throw for a recent event', async () => {
+      const today = new Date();
+      process.env.ASSIGNMENT_LOCK_DAYS = '2';
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1', date: today });
+
+      await expect(service.checkEventLockByEventId('e1')).resolves.toBeUndefined();
+    });
+
+    it('does not throw when ASSIGNMENT_LOCK_DAYS=0 (lock disabled)', async () => {
+      process.env.ASSIGNMENT_LOCK_DAYS = '0';
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1', date: new Date('2020-01-01') });
+
+      await expect(service.checkEventLockByEventId('e1')).resolves.toBeUndefined();
+    });
+
+    it('does not throw when the event is not found', async () => {
+      process.env.ASSIGNMENT_LOCK_DAYS = '2';
+      mockEventRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.checkEventLockByEventId('missing')).resolves.toBeUndefined();
+    });
+  });
+
   // ── Ad-hoc node CRUD ──────────────────────────────────────────────────
 
   describe('createAdHocNode', () => {

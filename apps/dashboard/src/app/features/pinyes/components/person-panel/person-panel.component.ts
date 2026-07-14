@@ -96,6 +96,9 @@ export class PersonPanelComponent {
     return this.assignments().find((a) => a.node.id === nodeId) ?? null;
   });
 
+  /** Person picked to be assigned to the next node click — drives the row highlight below. */
+  readonly selectedPersonId = computed(() => this.state.selectedPersonId());
+
   /** True while a height filter or Max/Min sort is active — used to exclude persons with no shoulder height set. */
   readonly heightSelectionActive = computed(() => this.height() !== null || this.heightSortMode() !== null);
 

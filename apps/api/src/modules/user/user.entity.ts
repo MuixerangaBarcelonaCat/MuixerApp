@@ -6,12 +6,10 @@ import {
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  Relation,
 } from 'typeorm';
 import { UserRole } from '@muixer/shared';
-
-// Forward reference to avoid circular import — type only
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type PersonRef = any;
+import type { Person } from '../person/person.entity';
 
 @Entity('users')
 export class User {
@@ -33,22 +31,22 @@ export class User {
   @Column({ type: 'varchar', nullable: true })
   inviteToken: string | null;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   inviteExpiresAt: Date | null;
 
   @Column({ type: 'varchar', nullable: true })
   resetToken: string | null;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   resetExpiresAt: Date | null;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date;
 
   @OneToOne('Person', 'user', { nullable: true, eager: false })
   @JoinColumn({ name: 'person_id' })
-  person: PersonRef | null;
+  person: Relation<Person> | null;
 }

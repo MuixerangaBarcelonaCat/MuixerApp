@@ -81,9 +81,9 @@ export class FigureInstance {
   @OneToMany('NodeAssignment', (a: NodeAssignment) => a.figureInstance, { cascade: true })
   assignments: NodeAssignment[];
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date;
 }

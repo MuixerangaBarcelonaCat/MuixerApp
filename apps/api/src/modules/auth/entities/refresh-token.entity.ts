@@ -33,15 +33,15 @@ export class RefreshToken {
   @Column({ name: 'client_type', type: 'enum', enum: ClientType })
   clientType: ClientType;
 
-  @Column({ name: 'expires_at', type: 'timestamp' })
+  @Column({ name: 'expires_at', type: 'timestamptz' })
   expiresAt: Date;
 
-  @Column({ name: 'used_at', type: 'timestamp', nullable: true })
+  @Column({ name: 'used_at', type: 'timestamptz', nullable: true })
   usedAt: Date | null;
 
-  @Column({ name: 'revoked_at', type: 'timestamp', nullable: true })
+  @Column({ name: 'revoked_at', type: 'timestamptz', nullable: true })
   revokedAt: Date | null;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 }

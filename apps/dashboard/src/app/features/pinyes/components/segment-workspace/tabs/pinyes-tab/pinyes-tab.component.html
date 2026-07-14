@@ -8,6 +8,30 @@
       </div>
     }
 
+    <!-- Undo/redo -->
+    <div class="absolute top-2 right-2 z-10 flex items-center gap-1 bg-base-100/90 backdrop-blur rounded-lg shadow border border-base-300 p-1">
+      <button
+        type="button"
+        class="btn btn-ghost btn-xs btn-square"
+        [disabled]="!canUndo() || ws.isLocked()"
+        (click)="performUndo()"
+        [attr.aria-label]="undoDescription() ? 'Desfer: ' + undoDescription() : 'Desfer'"
+        [title]="undoDescription() ? 'Desfer: ' + undoDescription() : 'Desfer (Ctrl+Z)'"
+      >
+        <lucide-icon [img]="Undo2" [size]="14" aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        class="btn btn-ghost btn-xs btn-square"
+        [disabled]="!canRedo() || ws.isLocked()"
+        (click)="performRedo()"
+        [attr.aria-label]="redoDescription() ? 'Refer: ' + redoDescription() : 'Refer'"
+        [title]="redoDescription() ? 'Refer: ' + redoDescription() : 'Refer (Ctrl+Shift+Z)'"
+      >
+        <lucide-icon [img]="Redo2" [size]="14" aria-hidden="true" />
+      </button>
+    </div>
+
     <app-figure-canvas
       #canvas
       mode="segment-assignment"

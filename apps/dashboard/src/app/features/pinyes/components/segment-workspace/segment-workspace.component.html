@@ -79,10 +79,10 @@
     } @else {
       @switch (activeTab()) {
         @case ('pinyes') {
-          <app-pinyes-tab class="block h-full min-h-0" [isPast]="isPast()" />
+          <app-pinyes-tab class="block h-full min-h-0" [isPast]="isPast()" (crossTabSelect)="onCrossTabSelect($event)" />
         }
         @case ('troncs') {
-          <app-troncs-tab class="block h-full min-h-0" [isPast]="isPast()" />
+          <app-troncs-tab class="block h-full min-h-0" [isPast]="isPast()" (crossTabSelect)="onCrossTabSelect($event)" />
         }
         @case ('distribucio') {
           <app-distribucio-tab class="block h-full min-h-0" />

@@ -3,11 +3,12 @@ import {
   ConflictException,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import { FigureTemplate } from './entities/figure-template.entity';
 import { FigureNode } from './entities/figure-node.entity';
 import { Rengla } from './entities/rengla.entity';
@@ -75,6 +76,8 @@ interface FigureTemplateDetailItem extends FigureTemplateListItem {
 
 @Injectable()
 export class FigureTemplateService {
+  private readonly logger = new Logger(FigureTemplateService.name);
+
   constructor(
     @InjectRepository(FigureTemplate)
     private readonly templateRepository: Repository<FigureTemplate>,
@@ -86,6 +89,7 @@ export class FigureTemplateService {
     private readonly figureInstanceRepository: Repository<FigureInstance>,
     @InjectRepository(InstanceNode)
     private readonly instanceNodeRepository: Repository<InstanceNode>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async findAll(
@@ -146,7 +150,8 @@ export class FigureTemplateService {
   }
 
   async create(dto: CreateFigureTemplateDto): Promise<FigureTemplateDetailItem> {
-    const name = await this.generateUniqueName(dto.name.trim());
+    const name = dto.name.trim();
+    await this.assertNameAvailable(name);
     const slug = await this.generateUniqueSlug(this.slugify(name));
 
     const template = this.templateRepository.create({
@@ -191,19 +196,28 @@ export class FigureTemplateService {
     if (dto.direction !== undefined) template.direction = dto.direction;
     if (dto.metadata !== undefined) template.metadata = dto.metadata ?? {};
 
-    try {
-      await this.templateRepository.save(template);
-    } catch (err) {
-      this.handleDbError(err);
-    }
+    // Name/nodes/rengles writes must commit or roll back together: otherwise a failure
+    // partway through leaves the template renamed but with stale nodes, or nodes synced
+    // but rengles left inconsistent (see SM-11).
+    await this.dataSource.transaction(async (manager) => {
+      const templateRepo = manager.getRepository(FigureTemplate);
+      const nodeRepo = manager.getRepository(FigureNode);
+      const renglaRepo = manager.getRepository(Rengla);
 
-    if (dto.nodes !== undefined) {
-      await this.syncNodes(template, dto.nodes);
-    }
+      try {
+        await templateRepo.save(template);
+      } catch (err) {
+        this.handleDbError(err);
+      }
 
-    if (dto.rengles !== undefined) {
-      await this.syncRengles(template, dto.rengles);
-    }
+      if (dto.nodes !== undefined) {
+        await this.syncNodes(template, dto.nodes, nodeRepo);
+      }
+
+      if (dto.rengles !== undefined) {
+        await this.syncRengles(template, dto.rengles, nodeRepo, renglaRepo);
+      }
+    });
 
     return this.findOne(id);
   }
@@ -304,7 +318,11 @@ export class FigureTemplateService {
     const nodeDtos = filteredNodes.map((n) => this.instanceNodeToCreateDto(n));
 
     if (dto.mode === 'overwrite') {
-      await this.syncNodes(template, nodeDtos);
+      // syncNodes issues several dependent writes (update/create/delete); they must
+      // commit or roll back together (see SM-11).
+      await this.dataSource.transaction(async (manager) => {
+        await this.syncNodes(template, nodeDtos, manager.getRepository(FigureNode));
+      });
       return this.findOne(templateId);
     }
 
@@ -314,46 +332,55 @@ export class FigureTemplateService {
 
     await this.assertSlugAvailable(versionSlug);
 
-    const newTemplate = this.templateRepository.create({
-      name: versionName,
-      slug: versionSlug,
-      description: template.description,
-      direction: template.direction,
-      metadata: template.metadata ?? {},
+    // New template + copied rengles + copied nodes must commit or roll back together —
+    // a failure partway through would otherwise leave an orphan half-built version (see SM-11).
+    let savedTemplate!: FigureTemplate;
+    await this.dataSource.transaction(async (manager) => {
+      const templateRepo = manager.getRepository(FigureTemplate);
+      const renglaRepo = manager.getRepository(Rengla);
+      const nodeRepo = manager.getRepository(FigureNode);
+
+      const newTemplate = templateRepo.create({
+        name: versionName,
+        slug: versionSlug,
+        description: template.description,
+        direction: template.direction,
+        metadata: template.metadata ?? {},
+      });
+
+      try {
+        savedTemplate = await templateRepo.save(newTemplate);
+      } catch (err) {
+        this.handleDbError(err);
+      }
+
+      // Copy rengles with new UUIDs, build mapping
+      const existingRengles = template.rengles ?? [];
+      const renglaIdMap = new Map<string, string>();
+
+      if (existingRengles.length > 0) {
+        const newRengles = existingRengles.map((r) => {
+          const newId = randomUUID();
+          renglaIdMap.set(r.id, newId);
+          return renglaRepo.create({
+            id: newId,
+            template: savedTemplate,
+            name: r.name,
+            sortOrder: r.sortOrder,
+          });
+        });
+        await renglaRepo.save(newRengles);
+      }
+
+      // Remap renglaIds in node DTOs
+      const remappedDtos = nodeDtos.map((d) => ({
+        ...d,
+        renglaId: d.renglaId ? (renglaIdMap.get(d.renglaId) ?? null) : null,
+      }));
+
+      await this.createNodes(savedTemplate, remappedDtos as CreateFigureNodeDto[], nodeRepo);
     });
 
-    let savedTemplate: FigureTemplate;
-    try {
-      savedTemplate = await this.templateRepository.save(newTemplate);
-    } catch (err) {
-      return this.handleDbError(err);
-    }
-
-    // Copy rengles with new UUIDs, build mapping
-    const existingRengles = template.rengles ?? [];
-    const renglaIdMap = new Map<string, string>();
-
-    if (existingRengles.length > 0) {
-      const newRengles = existingRengles.map((r) => {
-        const newId = randomUUID();
-        renglaIdMap.set(r.id, newId);
-        return this.renglaRepository.create({
-          id: newId,
-          template: savedTemplate,
-          name: r.name,
-          sortOrder: r.sortOrder,
-        });
-      });
-      await this.renglaRepository.save(newRengles);
-    }
-
-    // Remap renglaIds in node DTOs
-    const remappedDtos = nodeDtos.map((d) => ({
-      ...d,
-      renglaId: d.renglaId ? (renglaIdMap.get(d.renglaId) ?? null) : null,
-    }));
-
-    await this.createNodes(savedTemplate, remappedDtos as CreateFigureNodeDto[]);
     return this.findOne(savedTemplate.id);
   }
 
@@ -442,17 +469,6 @@ export class FigureTemplateService {
     }
   }
 
-  private async generateUniqueName(baseName: string, excludeId?: string): Promise<string> {
-    let candidate = baseName;
-    let suffix = 2;
-    while (true) {
-      const existing = await this.templateRepository.findOne({ where: { name: candidate } });
-      if (!existing || existing.id === excludeId) return candidate;
-      candidate = `${baseName} ${suffix}`;
-      suffix++;
-    }
-  }
-
   private async generateUniqueSlug(baseSlug: string, excludeId?: string): Promise<string> {
     let candidate = baseSlug;
     let suffix = 2;
@@ -492,12 +508,17 @@ export class FigureTemplateService {
       }
       throw new ConflictException('A figure template with these values already exists');
     }
+    this.logger.error(err);
     throw new InternalServerErrorException('Unexpected database error');
   }
 
-  private async createNodes(template: FigureTemplate, dtos: CreateFigureNodeDto[]): Promise<void> {
+  private async createNodes(
+    template: FigureTemplate,
+    dtos: CreateFigureNodeDto[],
+    nodeRepo: Repository<FigureNode> = this.nodeRepository,
+  ): Promise<void> {
     const nodes = dtos.map((dto) =>
-      this.nodeRepository.create({
+      nodeRepo.create({
         template,
         label: dto.label,
         zone: dto.zone,
@@ -519,7 +540,7 @@ export class FigureTemplateService {
         metadata: dto.metadata ?? {},
       }),
     );
-    await this.nodeRepository.save(nodes);
+    await nodeRepo.save(nodes);
   }
 
   /**
@@ -530,6 +551,7 @@ export class FigureTemplateService {
   private async syncNodes(
     template: FigureTemplate,
     incomingDtos: CreateFigureNodeDto[],
+    nodeRepo: Repository<FigureNode> = this.nodeRepository,
   ): Promise<void> {
     const existingNodes = template.nodes ?? [];
     const existingById = new Map(existingNodes.map((n) => [n.id, n]));
@@ -570,16 +592,18 @@ export class FigureTemplateService {
       .filter((n) => !incomingIds.has(n.id))
       .map((n) => n.id);
 
-    if (toUpdate.length > 0) await this.nodeRepository.save(toUpdate);
-    if (toCreate.length > 0) await this.createNodes(template, toCreate);
-    if (toDeleteIds.length > 0) await this.nodeRepository.delete({ id: In(toDeleteIds) });
+    if (toUpdate.length > 0) await nodeRepo.save(toUpdate);
+    if (toCreate.length > 0) await this.createNodes(template, toCreate, nodeRepo);
+    if (toDeleteIds.length > 0) await nodeRepo.delete({ id: In(toDeleteIds) });
   }
 
   private async syncRengles(
     template: FigureTemplate,
     incomingDtos: CreateRenglaDto[],
+    nodeRepo: Repository<FigureNode> = this.nodeRepository,
+    renglaRepo: Repository<Rengla> = this.renglaRepository,
   ): Promise<void> {
-    const existingRengles = await this.renglaRepository.find({
+    const existingRengles = await renglaRepo.find({
       where: { template: { id: template.id } },
     });
     const existingById = new Map(existingRengles.map((r) => [r.id, r]));
@@ -598,7 +622,7 @@ export class FigureTemplateService {
         incomingIds.add(dto.id);
       } else {
         toCreate.push(
-          this.renglaRepository.create({
+          renglaRepo.create({
             ...(dto.id ? { id: dto.id } : {}),
             template,
             name: dto.name || `Rengla ${i + 1}`,
@@ -612,11 +636,11 @@ export class FigureTemplateService {
       .filter((r) => !incomingIds.has(r.id))
       .map((r) => r.id);
 
-    if (toUpdate.length > 0) await this.renglaRepository.save(toUpdate);
-    if (toCreate.length > 0) await this.renglaRepository.save(toCreate);
+    if (toUpdate.length > 0) await renglaRepo.save(toUpdate);
+    if (toCreate.length > 0) await renglaRepo.save(toCreate);
 
     if (toDeleteIds.length > 0) {
-      await this.nodeRepository
+      await nodeRepo
         .createQueryBuilder()
         .update(FigureNode)
         .set({ renglaId: null, renglaPosition: null })
@@ -624,7 +648,7 @@ export class FigureTemplateService {
         .andWhere('templateId = :templateId', { templateId: template.id })
         .execute();
 
-      await this.renglaRepository.delete({ id: In(toDeleteIds) });
+      await renglaRepo.delete({ id: In(toDeleteIds) });
     }
   }
 }

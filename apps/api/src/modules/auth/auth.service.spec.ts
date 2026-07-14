@@ -3,7 +3,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { ClientType, UserRole } from '@muixer/shared';
 import { AuthService } from './auth.service';
 import { TokenService } from './token.service';
@@ -14,6 +14,7 @@ import { hashToken } from '../../common/utils/hash-token.util';
 const makeTransactionManager = () => ({
   create: jest.fn((_entity: unknown, data: unknown) => data),
   save: jest.fn((_entity: unknown, data: unknown) => Promise.resolve(data)),
+  update: jest.fn().mockResolvedValue({ affected: 1 }),
   findOne: jest.fn(),
   query: jest.fn().mockResolvedValue([]),
 });
@@ -77,6 +78,7 @@ const mockDataSource = () => ({
 describe('AuthService', () => {
   let service: AuthService;
   let userRepo: ReturnType<typeof mockUserRepo>;
+  let personRepo: ReturnType<typeof mockPersonRepo>;
   let tokenService: ReturnType<typeof mockTokenService>;
   let dataSource: ReturnType<typeof mockDataSource>;
 
@@ -95,6 +97,7 @@ describe('AuthService', () => {
 
     service = module.get(AuthService);
     userRepo = module.get(getRepositoryToken(User));
+    personRepo = module.get(getRepositoryToken(Person));
     tokenService = module.get(TokenService);
     dataSource = module.get(DataSource);
   });
@@ -372,9 +375,10 @@ describe('AuthService', () => {
       expect(profile.role).toBe(UserRole.ADMIN);
     });
 
-    it('links personId inside the same transaction as user creation', async () => {
+    it('links personId inside the same transaction as user creation, via the entity manager rather than raw SQL', async () => {
       process.env['SETUP_TOKEN'] = 'secret';
       userRepo.count.mockResolvedValue(0);
+      personRepo.findOne.mockResolvedValue({ id: 'person-1' });
       const saved = makeUser({ id: 'user-1', role: UserRole.ADMIN });
       bcrypt.hash.mockResolvedValue('hashed-pw');
 
@@ -390,10 +394,25 @@ describe('AuthService', () => {
       });
 
       expect(dataSource.transaction).toHaveBeenCalledTimes(1);
-      expect(manager.query).toHaveBeenCalledWith(
-        'UPDATE users SET person_id = $1 WHERE id = $2',
-        ['person-1', 'user-1'],
-      );
+      expect(manager.query).not.toHaveBeenCalled();
+      expect(manager.update).toHaveBeenCalledWith(User, 'user-1', {
+        person: { id: 'person-1' },
+      });
+    });
+
+    it('throws NotFoundException when personId does not reference an existing person', async () => {
+      process.env['SETUP_TOKEN'] = 'secret';
+      userRepo.count.mockResolvedValue(0);
+      personRepo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.setupUser({
+          email: 'new@test.cat',
+          password: 'pass1234',
+          personId: 'missing-person',
+        }),
+      ).rejects.toThrow(NotFoundException);
+      expect(dataSource.transaction).not.toHaveBeenCalled();
     });
   });
 });

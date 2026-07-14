@@ -12,7 +12,7 @@ import { Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { LucideAngularModule } from 'lucide-angular';
-import { ICON_FIGURA, ICON_PERSONA, ICON_COMPOSITION, ICON_FIGURA_NETA } from '../../../../shared/constants/domain-icons';
+import { ICON_FIGURA, ICON_PERSONA, ICON_COMPOSITION, ICON_FIGURA_NETA, ICON_PINYA, ICON_TRONC } from '../../../../shared/constants/domain-icons';
 import { forkJoin } from 'rxjs';
 import { SegmentMoveConflictResolution } from '@muixer/shared';
 import { FiguresViewModeService, FiguresViewMode } from '../../../pinyes/services/figures-view-mode.service';
@@ -72,6 +72,8 @@ export class SegmentManagerComponent implements OnInit {
   readonly ICON_PERSONA = ICON_PERSONA;
   readonly ICON_COMPOSITION = ICON_COMPOSITION;
   readonly ICON_FIGURA_NETA = ICON_FIGURA_NETA;
+  readonly ICON_PINYA = ICON_PINYA;
+  readonly ICON_TRONC = ICON_TRONC;
   readonly SegmentMoveConflictResolution = SegmentMoveConflictResolution;
 
   private readonly segmentService = inject(EventSegmentService);

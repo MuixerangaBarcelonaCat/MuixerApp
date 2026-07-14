@@ -450,6 +450,86 @@ describe('UserListComponent', () => {
   });
 
   // ---------------------------------------------------------------------------
+  // Deactivate / reactivate confirmation
+  // ---------------------------------------------------------------------------
+
+  describe('status change (deactivate/activate)', () => {
+    function statusAction() {
+      const action = component
+        .tableRowActions()
+        .find((a) => typeof a.label === 'function');
+      if (!action) throw new Error('status change row action not found');
+      return action;
+    }
+
+    it('labels the row action "Desactivar" for an active user and "Activar" for an inactive one', () => {
+      const resolveLabel = statusAction().label as (u: UserDto) => string;
+      expect(resolveLabel(mockUser({ isActive: true }))).toBe('Desactivar');
+      expect(resolveLabel(mockUser({ isActive: false }))).toBe('Activar');
+    });
+
+    it('clicking the row action opens a confirmation for the right direction', () => {
+      const action = statusAction();
+      const activeUser = mockUser({ isActive: true });
+      action.action(activeUser);
+      expect(component.statusChangeTarget()).toEqual({ user: activeUser, activate: false });
+
+      component.closeStatusChangeConfirm();
+      const inactiveUser = mockUser({ isActive: false });
+      action.action(inactiveUser);
+      expect(component.statusChangeTarget()).toEqual({ user: inactiveUser, activate: true });
+    });
+
+    it('closeStatusChangeConfirm clears the pending target', () => {
+      component.openDeactivateConfirm(mockUser());
+      component.closeStatusChangeConfirm();
+      expect(component.statusChangeTarget()).toBeNull();
+    });
+
+    it('confirming a deactivation calls deactivate() and updates the list', () => {
+      const user = mockUser({ isActive: true });
+      userService.deactivate.mockReturnValue(of(undefined));
+      component.users.set([user]);
+
+      component.openDeactivateConfirm(user);
+      component.confirmStatusChange();
+
+      expect(userService.deactivate).toHaveBeenCalledWith(user.id);
+      expect(component.users()[0].isActive).toBe(false);
+      expect(component.statusChangeTarget()).toBeNull();
+      expect(toastService.success).toHaveBeenCalled();
+    });
+
+    it('confirming a reactivation calls update({ isActive: true }) and updates the list', () => {
+      const user = mockUser({ isActive: false });
+      const updated = mockUser({ isActive: true });
+      userService.update.mockReturnValue(of(updated));
+      component.users.set([user]);
+
+      component.openActivateConfirm(user);
+      component.confirmStatusChange();
+
+      expect(userService.update).toHaveBeenCalledWith(user.id, { isActive: true });
+      expect(component.users()[0].isActive).toBe(true);
+      expect(component.statusChangeTarget()).toBeNull();
+      expect(toastService.success).toHaveBeenCalled();
+    });
+
+    it('keeps the dialog open and toasts on error', () => {
+      const user = mockUser({ isActive: true });
+      userService.deactivate.mockReturnValue(throwError(() => new Error('fail')));
+      component.users.set([user]);
+
+      component.openDeactivateConfirm(user);
+      component.confirmStatusChange();
+
+      expect(component.statusChangeLoading()).toBe(false);
+      expect(component.statusChangeTarget()).not.toBeNull();
+      expect(toastService.error).toHaveBeenCalled();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // Column visibility
   // ---------------------------------------------------------------------------
 

@@ -133,6 +133,10 @@ export class UserListComponent {
   showFormModal = signal(false);
   editingUser = signal<UserDto | null>(null);
 
+  // Deactivate/reactivate confirmation modal state
+  statusChangeTarget = signal<{ user: UserDto; activate: boolean } | null>(null);
+  statusChangeLoading = signal(false);
+
   totalPages = computed(() => Math.ceil(this.totalUsers() / this.limit()));
 
   hasFilterChips = computed(() => {
@@ -352,20 +356,47 @@ export class UserListComponent {
     this.loadUsers();
   }
 
-  deactivateUser(user: UserDto): void {
-    if (!user.isActive) return;
-    this.userService.deactivate(user.id).subscribe({
-      next: () => {
-        this.toast.success('Usuari desactivat correctament.');
-        this.users.update((list) =>
-          list.map((u) => (u.id === user.id ? { ...u, isActive: false } : u)),
-        );
-      },
-      error: (err) => {
-        const msg = err?.error?.message ?? "Error en desactivar l'usuari.";
-        this.toast.error(msg);
-      },
-    });
+  openDeactivateConfirm(user: UserDto): void {
+    this.statusChangeTarget.set({ user, activate: false });
+  }
+
+  openActivateConfirm(user: UserDto): void {
+    this.statusChangeTarget.set({ user, activate: true });
+  }
+
+  closeStatusChangeConfirm(): void {
+    this.statusChangeTarget.set(null);
+    this.statusChangeLoading.set(false);
+  }
+
+  confirmStatusChange(): void {
+    const target = this.statusChangeTarget();
+    if (!target) return;
+    const { user, activate } = target;
+
+    this.statusChangeLoading.set(true);
+    const onSuccess = () => {
+      this.users.update((list) =>
+        list.map((u) => (u.id === user.id ? { ...u, isActive: activate } : u)),
+      );
+      this.toast.success(
+        activate ? 'Usuari activat correctament.' : 'Usuari desactivat correctament.',
+      );
+      this.closeStatusChangeConfirm();
+    };
+    const onError = (err: { error?: { message?: string } }) => {
+      this.statusChangeLoading.set(false);
+      const msg =
+        err?.error?.message ??
+        (activate ? "Error en activar l'usuari." : "Error en desactivar l'usuari.");
+      this.toast.error(msg);
+    };
+
+    if (activate) {
+      this.userService.update(user.id, { isActive: true }).subscribe({ next: onSuccess, error: onError });
+    } else {
+      this.userService.deactivate(user.id).subscribe({ next: onSuccess, error: onError });
+    }
   }
 
   getCellValue(user: UserDto, key: string): string {
@@ -418,9 +449,10 @@ export class UserListComponent {
     }
 
     actions.push({
-      label: 'Desactivar',
-      icon: 'UserX',
-      action: (u: UserDto) => this.deactivateUser(u),
+      label: (u: UserDto) => (u.isActive ? 'Desactivar' : 'Activar'),
+      icon: (u: UserDto) => (u.isActive ? 'UserX' : 'UserCheck'),
+      action: (u: UserDto) =>
+        u.isActive ? this.openDeactivateConfirm(u) : this.openActivateConfirm(u),
     });
 
     return actions;

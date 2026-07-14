@@ -44,6 +44,7 @@
               [class.btn-ghost]="viewMode() !== 'pinyes'"
               (click)="setViewMode('pinyes')"
             >
+              <lucide-icon [name]="ICON_PINYA" [size]="13" />
               Pinyes
             </button>
             <button
@@ -53,24 +54,27 @@
               [class.btn-ghost]="viewMode() !== 'troncs'"
               (click)="setViewMode('troncs')"
             >
+              <lucide-icon [name]="ICON_TRONC" [size]="14" />
               Troncs
             </button>
           </div>
 
-          <button
-            type="button"
-            class="btn btn-primary btn-sm gap-1"
-            [disabled]="saving()"
-            (click)="createSegment()"
-            aria-label="Afegir segment nou"
-          >
-            @if (saving()) {
-              <span class="loading loading-spinner loading-xs"></span>
-            } @else {
-              <lucide-icon name="Plus" [size]="14" />
-            }
-            Segment nou
-          </button>
+          @if (!isLocked()) {
+            <button
+              type="button"
+              class="btn btn-primary btn-sm gap-1"
+              [disabled]="saving()"
+              (click)="createSegment()"
+              aria-label="Afegir segment nou"
+            >
+              @if (saving()) {
+                <span class="loading loading-spinner loading-xs"></span>
+              } @else {
+                <lucide-icon name="Plus" [size]="14" />
+              }
+              Segment nou
+            </button>
+          }
         </div>
       </div>
 
@@ -99,6 +103,7 @@
           aria-label="Llista de segments"
           cdkDropList
           [cdkDropListData]="segments()"
+          [cdkDropListDisabled]="isLocked()"
           (cdkDropListDropped)="onSegmentDropped($event)"
         >
           @for (segment of segments(); track segment.id; let i = $index) {
@@ -107,20 +112,23 @@
               role="listitem"
               cdkDrag
               [cdkDragData]="segment"
+              [cdkDragDisabled]="isLocked()"
             >
 
               <!-- Segment header row -->
               <div class="flex items-center gap-2 px-3 py-2.5 bg-base-200/40 flex-wrap">
 
                 <!-- Drag handle -->
-                <button
-                  type="button"
-                  cdkDragHandle
-                  class="btn btn-ghost btn-xs px-1 cursor-grab active:cursor-grabbing text-base-content/30 hover:text-base-content/70 shrink-0"
-                  aria-label="Arrossega per reordenar el segment"
-                >
-                  <lucide-icon name="GripVertical" [size]="14" />
-                </button>
+                @if (!isLocked()) {
+                  <button
+                    type="button"
+                    cdkDragHandle
+                    class="btn btn-ghost btn-xs px-1 cursor-grab active:cursor-grabbing text-base-content/30 hover:text-base-content/70 shrink-0"
+                    aria-label="Arrossega per reordenar el segment"
+                  >
+                    <lucide-icon name="GripVertical" [size]="14" />
+                  </button>
+                }
 
                 <!-- Order badge -->
                 <span
@@ -160,12 +168,23 @@
                     <lucide-icon name="Check" [size]="12" /> Alça
                   </button>
                   <button type="button" class="btn btn-ghost btn-xs" (click)="cancelEdit()">Cancel·la</button>
+                } @else if (isLocked()) {
+                  <span
+                    class="font-semibold text-sm flex-1 flex items-center gap-1.5"
+                    data-testid="segment-name-readonly"
+                  >
+                    {{ displayName()(segment) }}
+                    @if (!segment.name) {
+                      <span class="text-base-content/40 text-xs font-normal">(automàtic)</span>
+                    }
+                  </span>
                 } @else {
                   <button
                     type="button"
                     class="font-semibold text-sm flex-1 text-left hover:text-primary transition-colors flex items-center gap-1.5"
                     (click)="startEdit(segment.id, segment.name ?? '')"
-                    [title]="'Edita nom del segment'"
+                    title="Edita nom del segment"
+                    data-testid="segment-rename-trigger"
                   >
                     {{ displayName()(segment) }}
                     <lucide-icon name="Pencil" [size]="11" class="text-base-content/30 shrink-0" aria-hidden="true" />
@@ -201,15 +220,17 @@
                   </button>
 
                   <!-- Add figure -->
-                  <button
-                    type="button"
-                    class="btn btn-ghost btn-xs gap-1"
-                    (click)="openPicker(segment.id)"
-                    aria-label="Afegir figura o composició al segment"
-                  >
-                    <lucide-icon name="Plus" [size]="14" />
-                    Figura
-                  </button>
+                  @if (!isLocked()) {
+                    <button
+                      type="button"
+                      class="btn btn-ghost btn-xs gap-1"
+                      (click)="openPicker(segment.id)"
+                      aria-label="Afegir figura o composició al segment"
+                    >
+                      <lucide-icon name="Plus" [size]="14" />
+                      Figura
+                    </button>
+                  }
 
                   <!-- Assign all -->
                   @if (segment.instances.length > 0) {
@@ -244,14 +265,16 @@
                   }
 
                   <!-- Delete segment -->
-                  <button
-                    type="button"
-                    class="btn btn-ghost btn-xs text-error hover:bg-error/10"
-                    (click)="removeSegment(segment)"
-                    aria-label="Eliminar segment"
-                  >
-                    <lucide-icon name="Trash2" [size]="14" />
-                  </button>
+                  @if (!isLocked()) {
+                    <button
+                      type="button"
+                      class="btn btn-ghost btn-xs text-error hover:bg-error/10"
+                      (click)="removeSegment(segment)"
+                      aria-label="Eliminar segment"
+                    >
+                      <lucide-icon name="Trash2" [size]="14" />
+                    </button>
+                  }
                 </div>
               </div>
 
@@ -285,6 +308,7 @@
                   cdkDropList
                   [cdkDropListData]="segment"
                   [cdkDropListConnectedTo]="instanceDropListIds()"
+                  [cdkDropListDisabled]="isLocked()"
                   (cdkDropListDropped)="onInstanceDropped(segment, $event)"
                 >
                   @if (segment.instances.length === 0) {
@@ -301,17 +325,19 @@
                       role="listitem"
                       cdkDrag
                       [cdkDragData]="instance"
-                      [cdkDragDisabled]="movingInstanceId() === instance.id"
+                      [cdkDragDisabled]="movingInstanceId() === instance.id || isLocked()"
                     >
                       <!-- Instance drag handle -->
-                      <button
-                        type="button"
-                        cdkDragHandle
-                        class="btn btn-ghost btn-xs px-0.5 py-0 h-auto min-h-0 cursor-grab active:cursor-grabbing text-base-content/25 hover:text-base-content/60 shrink-0 self-center"
-                        aria-label="Arrossega per reordenar"
-                      >
-                        <lucide-icon name="GripVertical" [size]="12" />
-                      </button>
+                      @if (!isLocked()) {
+                        <button
+                          type="button"
+                          cdkDragHandle
+                          class="btn btn-ghost btn-xs px-0.5 py-0 h-auto min-h-0 cursor-grab active:cursor-grabbing text-base-content/25 hover:text-base-content/60 shrink-0 self-center"
+                          aria-label="Arrossega per reordenar"
+                        >
+                          <lucide-icon name="GripVertical" [size]="12" />
+                        </button>
+                      }
 
                       <!-- Figure name + info block -->
                       <div class="flex-1 min-w-0">
@@ -359,6 +385,8 @@
                           class="select select-xs h-6 min-h-0 text-xs py-0 px-1.5 border-base-300 rounded w-24 shrink-0 self-center"
                           [attr.aria-label]="'Mode de ' + getInstanceLabel(instance)"
                           [value]="instance.figureMode"
+                          [disabled]="isLocked()"
+                          [title]="isLocked() ? 'Event bloquejat' : ''"
                           (change)="updateFigureMode(segment, instance, $any($event.target).value)"
                         >
                           @for (opt of options; track opt.value) {
@@ -372,25 +400,29 @@
                       }
 
                       <!-- Copy to segment -->
-                      <button
-                        type="button"
-                        class="btn btn-ghost btn-xs shrink-0 self-center"
-                        (click)="openCopyPicker(segment.id, instance.id)"
-                        [attr.aria-label]="'Copia ' + getInstanceLabel(instance) + ' a un altre segment'"
-                        title="Copia a un altre segment"
-                      >
-                        <lucide-icon name="Copy" [size]="12" />
-                      </button>
+                      @if (!isLocked()) {
+                        <button
+                          type="button"
+                          class="btn btn-ghost btn-xs shrink-0 self-center"
+                          (click)="openCopyPicker(segment.id, instance.id)"
+                          [attr.aria-label]="'Copia ' + getInstanceLabel(instance) + ' a un altre segment'"
+                          title="Copia a un altre segment"
+                        >
+                          <lucide-icon name="Copy" [size]="12" />
+                        </button>
+                      }
 
                       <!-- Delete instance -->
-                      <button
-                        type="button"
-                        class="btn btn-ghost btn-xs text-error shrink-0 self-center"
-                        (click)="removeInstance(segment, instance)"
-                        [attr.aria-label]="'Treure ' + getInstanceLabel(instance) + ' del segment'"
-                      >
-                        <lucide-icon name="X" [size]="12" />
-                      </button>
+                      @if (!isLocked()) {
+                        <button
+                          type="button"
+                          class="btn btn-ghost btn-xs text-error shrink-0 self-center"
+                          (click)="removeInstance(segment, instance)"
+                          [attr.aria-label]="'Treure ' + getInstanceLabel(instance) + ' del segment'"
+                        >
+                          <lucide-icon name="X" [size]="12" />
+                        </button>
+                      }
                     </div>
                   }
                 </div>

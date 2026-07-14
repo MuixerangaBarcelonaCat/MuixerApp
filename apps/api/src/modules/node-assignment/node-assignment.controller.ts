@@ -17,7 +17,7 @@ import { UserRole } from '@muixer/shared';
 import { JwtPayload } from '@muixer/shared';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { NodeAssignmentService } from './node-assignment.service';
-import { AvailablePersonsService, AvailablePersonsQuery } from './available-persons.service';
+import { AvailablePersonsService } from './available-persons.service';
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
 import { CreateAdHocNodeDto } from './dto/create-ad-hoc-node.dto';
 import { UpdateAdHocNodeDto } from './dto/update-ad-hoc-node.dto';
@@ -25,6 +25,7 @@ import { BulkImportAssignmentDto } from './dto/bulk-import-assignment.dto';
 import { SwapAssignmentsDto } from './dto/swap-assignments.dto';
 import { UpdateInstanceCordonsDto } from './dto/update-instance-cordons.dto';
 import { HistoryQueryDto } from './dto/history-query.dto';
+import { AvailablePersonsQueryDto } from './dto/available-persons-query.dto';
 
 @ApiTags('node-assignments')
 @ApiBearerAuth()
@@ -140,7 +141,7 @@ export class NodeAssignmentController {
   async getAvailablePersons(
     @Param('eventId', ParseUUIDPipe) eventId: string,
     @Param('segmentId', ParseUUIDPipe) segmentId: string,
-    @Query() query: AvailablePersonsQuery,
+    @Query() query: AvailablePersonsQueryDto,
   ) {
     const data = await this.availablePersonsService.getAvailablePersons(eventId, segmentId, query);
     return { data };

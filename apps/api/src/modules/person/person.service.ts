@@ -347,25 +347,6 @@ export class PersonService {
     await this.personRepository.save(person);
   }
 
-  /** Desactiva una persona manualment. Equivalent al soft delete però retorna el DTO actualitzat. */
-  async deactivate(id: string): Promise<PersonResponseDto> {
-    const person = await this.personRepository.findOne({
-      where: { id },
-      relations: ['positions', 'mentor'],
-    });
-
-    if (!person) {
-      throw new NotFoundException(`Person with ID ${id} not found`);
-    }
-
-    person.isActive = false;
-
-    const saved = await this.personRepository.save(person);
-    return plainToInstance(PersonResponseDto, saved, {
-      excludeExtraneousValues: true,
-    });
-  }
-
   /** Reactiva una persona prèviament desactivada manualment. */
   async activate(id: string): Promise<PersonResponseDto> {
     const person = await this.personRepository.findOne({

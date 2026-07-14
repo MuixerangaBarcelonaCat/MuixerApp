@@ -16,13 +16,6 @@ export const personsRoutes: Route[] = [
       ),
   },
   {
-    path: 'new',
-    loadComponent: () =>
-      import('./components/person-detail/person-detail.component').then(
-        (m) => m.PersonDetailComponent,
-      ),
-  },
-  {
     path: ':id',
     loadComponent: () =>
       import('./components/person-detail/person-detail.component').then(

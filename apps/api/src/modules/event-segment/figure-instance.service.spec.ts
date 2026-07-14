@@ -75,6 +75,7 @@ const mockSegmentService = {
 
 const mockNodeAssignmentService = {
   checkEventLock: jest.fn(),
+  checkEventLockByEventId: jest.fn(),
   getSegmentMoveConflicts: jest.fn(),
   resolveSegmentMoveConflicts: jest.fn(),
 };
@@ -99,6 +100,7 @@ describe('FigureInstanceService', () => {
     service = module.get<FigureInstanceService>(FigureInstanceService);
     jest.clearAllMocks();
     mockNodeAssignmentService.checkEventLock.mockResolvedValue(undefined);
+    mockNodeAssignmentService.checkEventLockByEventId.mockResolvedValue(undefined);
     mockNodeAssignmentService.getSegmentMoveConflicts.mockResolvedValue([]);
     mockNodeAssignmentService.resolveSegmentMoveConflicts.mockResolvedValue(undefined);
     mockInstanceRepo.createQueryBuilder.mockReturnValue(mockInstanceQb);
@@ -139,6 +141,19 @@ describe('FigureInstanceService', () => {
       await expect(
         service.create(EVENT_ID, SEGMENT_ID, { figureTemplateId: FIGURE_ID }),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws ForbiddenException and does not create when event is locked', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockFigureTemplateRepo.findOne.mockResolvedValue(makeFigureTemplate());
+      mockNodeAssignmentService.checkEventLockByEventId.mockRejectedValue(new ForbiddenException('locked'));
+
+      await expect(
+        service.create(EVENT_ID, SEGMENT_ID, { figureTemplateId: FIGURE_ID }),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(mockNodeAssignmentService.checkEventLockByEventId).toHaveBeenCalledWith(EVENT_ID);
+      expect(mockInstanceRepo.save).not.toHaveBeenCalled();
     });
 
   });
@@ -229,39 +244,6 @@ describe('FigureInstanceService', () => {
 
       expect(result.pinyaAssignedCount).toBe(2);
       expect(result.assignedCount).toBe(3);
-    });
-
-    it('excludes cordo-obert nodes from pinyaCapacity when cordonsObertsEnabled is false', async () => {
-      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
-      mockInstanceRepo.findOne
-        .mockResolvedValueOnce(makeInstance())
-        .mockResolvedValueOnce(makeInstance({ cordonsObertsEnabled: false, snapshotted: true }));
-      mockInstanceRepo.save.mockResolvedValue(makeInstance());
-
-      await service.update(EVENT_ID, SEGMENT_ID, INSTANCE_ID, { label: 'x' });
-
-      const capacityCall = mockDataSource.query.mock.calls.find(
-        (call: unknown[]) => typeof call[0] === 'string' && (call[0] as string).includes('as capacity'),
-      );
-      expect(capacityCall).toBeDefined();
-      expect(capacityCall![0]).toContain('cordo-obert');
-      expect(capacityCall![1]).toContain(false);
-    });
-
-    it('includes cordo-obert nodes in pinyaCapacity when cordonsObertsEnabled is true', async () => {
-      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
-      mockInstanceRepo.findOne
-        .mockResolvedValueOnce(makeInstance())
-        .mockResolvedValueOnce(makeInstance({ cordonsObertsEnabled: true, snapshotted: true }));
-      mockInstanceRepo.save.mockResolvedValue(makeInstance());
-
-      await service.update(EVENT_ID, SEGMENT_ID, INSTANCE_ID, { label: 'x' });
-
-      const capacityCall = mockDataSource.query.mock.calls.find(
-        (call: unknown[]) => typeof call[0] === 'string' && (call[0] as string).includes('as capacity'),
-      );
-      expect(capacityCall).toBeDefined();
-      expect(capacityCall![1]).toContain(true);
     });
 
     it('throws 404 if instance does not belong to segment', async () => {
@@ -384,6 +366,24 @@ describe('FigureInstanceService', () => {
       await expect(
         service.copy(EVENT_ID, SEGMENT_ID, INSTANCE_ID, TARGET_SEGMENT_ID),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws ForbiddenException and does not copy when event is locked', async () => {
+      const targetSegment = { id: TARGET_SEGMENT_ID, event: { id: EVENT_ID } } as any;
+      mockInstanceRepo.findOne.mockResolvedValueOnce(makeInstance({
+        figureTemplate: makeFigureTemplate(),
+      }));
+      mockSegmentRepo.findOne
+        .mockResolvedValueOnce(makeSegment())
+        .mockResolvedValueOnce(targetSegment);
+      mockNodeAssignmentService.checkEventLockByEventId.mockRejectedValue(new ForbiddenException('locked'));
+
+      await expect(
+        service.copy(EVENT_ID, SEGMENT_ID, INSTANCE_ID, TARGET_SEGMENT_ID),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(mockNodeAssignmentService.checkEventLockByEventId).toHaveBeenCalledWith(EVENT_ID);
+      expect(mockInstanceRepo.save).not.toHaveBeenCalled();
     });
   });
 
@@ -967,6 +967,18 @@ describe('FigureInstanceService', () => {
         service.reorder(EVENT_ID, SEGMENT_ID, { instanceIds: [] }),
       ).rejects.toThrow(NotFoundException);
     });
+
+    it('throws ForbiddenException and does not reorder when event is locked', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockInstanceRepo.find.mockResolvedValue([makeInstance()]);
+      mockNodeAssignmentService.checkEventLockByEventId.mockRejectedValue(new ForbiddenException('locked'));
+
+      await expect(
+        service.reorder(EVENT_ID, SEGMENT_ID, { instanceIds: [INSTANCE_ID] }),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(mockDataSource.transaction).not.toHaveBeenCalled();
+    });
   });
 
   describe('applyComposition', () => {
@@ -1009,6 +1021,18 @@ describe('FigureInstanceService', () => {
       await expect(
         service.applyComposition(EVENT_ID, SEGMENT_ID, COMPOSITION_ID),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws ForbiddenException and does not apply when event is locked', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockCompositionRepo.findOne.mockResolvedValue({ id: COMPOSITION_ID, name: 'Comp', entries: [makeCompositionEntry()] });
+      mockNodeAssignmentService.checkEventLockByEventId.mockRejectedValue(new ForbiddenException('locked'));
+
+      await expect(
+        service.applyComposition(EVENT_ID, SEGMENT_ID, COMPOSITION_ID),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(mockDataSource.transaction).not.toHaveBeenCalled();
     });
 
     it('creates instances with distribution fields from composition entries', async () => {

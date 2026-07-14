@@ -4,6 +4,7 @@ import { of } from 'rxjs';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { PersonPanelComponent } from './person-panel.component';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
+import { AssignmentStateService } from '../../services/assignment-state.service';
 import { AvailablePerson } from '../../models/assignment.model';
 import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
 import { TagService } from '../../../config/services/tag.service';
@@ -504,6 +505,41 @@ describe('PersonPanelComponent', () => {
       const callCount = assignmentService.getAvailablePersons.mock.calls.length;
       component.loadPersons();
       expect(assignmentService.getAvailablePersons.mock.calls.length).toBeGreaterThan(callCount);
+    });
+  });
+
+  // ── selected-person highlight (pending assignment) ─────────────────────────
+
+  describe('selected-person highlight', () => {
+    it('highlights the person picked to be assigned on the next node click', () => {
+      const state = TestBed.inject(AssignmentStateService);
+      const persons = [makeAvailablePerson('p1'), makeAvailablePerson('p2', 'ANIRE', { alias: 'Altre' })];
+      assignmentService.getAvailablePersons.mockReturnValue(of({ data: persons }));
+      component.loadPersons();
+      fixture.detectChanges();
+
+      state.setSelectedPersonId('p1');
+      fixture.detectChanges();
+
+      const buttons = Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLElement[];
+      const selected = buttons.find((b) => b.getAttribute('aria-label') === 'Seleccionar Pepet');
+      const other = buttons.find((b) => b.getAttribute('aria-label') === 'Seleccionar Altre');
+
+      expect(selected?.getAttribute('aria-pressed')).toBe('true');
+      expect(selected?.className).toContain('bg-primary');
+      expect(other?.getAttribute('aria-pressed')).toBe('false');
+      expect(other?.className).not.toContain('bg-primary');
+    });
+
+    it('clears the highlight once a node is selected instead (mutually exclusive with selectedNodeId)', () => {
+      const state = TestBed.inject(AssignmentStateService);
+      state.setSelectedPersonId('p1');
+      expect(component.selectedPersonId()).toBe('p1');
+
+      state.setSelectedNodeId('node-1');
+      fixture.detectChanges();
+
+      expect(component.selectedPersonId()).toBeNull();
     });
   });
 

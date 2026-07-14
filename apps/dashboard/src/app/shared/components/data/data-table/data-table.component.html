@@ -146,7 +146,7 @@
     (click)="$event.stopPropagation()"
     (keydown)="$event.stopPropagation()"
   >
-    @for (action of rowActions(); track action.label) {
+    @for (action of visibleRowActions(); track $index) {
       <li role="none">
         <button
           type="button"
@@ -155,10 +155,10 @@
           [ngClass]="action.class ?? ''"
           (click)="onRowAction(action, items()[openActionsIndex()!])"
         >
-          @if (action.icon) {
-            <lucide-icon [name]="action.icon" [size]="14" />
+          @if (resolveIcon(action, items()[openActionsIndex()!]); as icon) {
+            <lucide-icon [name]="icon" [size]="14" />
           }
-          {{ action.label }}
+          {{ resolveLabel(action, items()[openActionsIndex()!]) }}
         </button>
       </li>
     }

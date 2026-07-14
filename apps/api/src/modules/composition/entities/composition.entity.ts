@@ -22,9 +22,9 @@ export class Composition {
   @OneToMany(() => CompositionEntry, (e) => e.composition, { cascade: true })
   entries: CompositionEntry[];
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date;
 }

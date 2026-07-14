@@ -103,7 +103,6 @@ const makeInstance = (id: string, overrides: Partial<InstanceDetail> = {}): Inst
   snapshotted: false,
   assignedCount: 0,
   pinyaAssignedCount: 0,
-  pinyaCapacity: null,
   totalCordons: null,
   numberOfCordons: null,
   cordonsObertsEnabled: true,
@@ -127,13 +126,18 @@ const makeSegment = (instances: InstanceDetail[]): SegmentDetail => ({
 });
 
 let assignmentSeq = 0;
-const makeAssignment = (instanceId: string, nodeId: string, personId = `p-${++assignmentSeq}`): AssignmentDetail => ({
+const makeAssignment = (
+  instanceId: string,
+  nodeId: string,
+  personId = `p-${++assignmentSeq}`,
+  zone = 'PINYA',
+): AssignmentDetail => ({
   id: `as-${assignmentSeq}`,
   figureInstanceId: instanceId,
   node: {
     id: nodeId,
     label: nodeId,
-    zone: 'PINYA',
+    zone,
     z: 0,
     positionType: null,
     sortOrder: 0,
@@ -175,6 +179,7 @@ describe('PinyesTabComponent', () => {
   let component: PinyesTabComponent;
   let ws: SegmentWorkspaceStateService;
   let state: AssignmentStateService;
+  let undoRedo: UndoRedoService;
   let assignmentService: {
     getInstanceNodes: MockFn;
     getByInstance: MockFn;
@@ -243,6 +248,7 @@ describe('PinyesTabComponent', () => {
 
     ws = TestBed.inject(SegmentWorkspaceStateService);
     state = TestBed.inject(AssignmentStateService);
+    undoRedo = TestBed.inject(UndoRedoService);
     ws.load(EVENT_ID, SEGMENT_ID);
     refreshSpy = vi.spyOn(ws, 'refresh');
 
@@ -581,6 +587,213 @@ describe('PinyesTabComponent', () => {
     });
   });
 
+  describe('undo/redo (FE-BUG-7): move and swap are fully reversible', () => {
+    let dynSeq = 0;
+    const dynamicAssignment = (instanceId: string, nodeId: string, personId: string): AssignmentDetail => ({
+      id: `dyn-${++dynSeq}`,
+      figureInstanceId: instanceId,
+      node: {
+        id: nodeId,
+        label: nodeId,
+        zone: 'PINYA',
+        z: 0,
+        positionType: null,
+        sortOrder: 0,
+        climbIndicator: null,
+        ringLevel: null,
+        originNodeId: null,
+        sourceNodeId: null,
+      },
+      person: {
+        id: personId,
+        alias: `Alias ${personId}`,
+        name: 'Nom',
+        firstSurname: 'Cognom',
+        shoulderHeight: null,
+        notes: null,
+        notesEmoji: null,
+      },
+    });
+
+    it('move: undo restores the person to the original node, redo re-applies the move', async () => {
+      const existing = makeAssignment(INST_A, 'n1', 'p-1');
+      await setup({
+        instances: [makeInstance(INST_A, { snapshotted: true })],
+        assignmentsByInstance: { [INST_A]: [existing] },
+      });
+      assignmentService.assign.mockImplementation(
+        (instanceId: string, payload: { nodeId: string; personId: string }) =>
+          of(dynamicAssignment(instanceId, payload.nodeId, payload.personId)),
+      );
+
+      component.onNodeDropped({ slotId: INST_A, nodeId: 'n1' }, { slotId: INST_A, nodeId: 'n2' });
+      expect(state.assignments().find((a) => a.node.id === 'n2')?.person.id).toBe('p-1');
+      expect(state.assignments().find((a) => a.node.id === 'n1')).toBeUndefined();
+
+      undoRedo.undo().subscribe();
+      expect(state.assignments().find((a) => a.node.id === 'n1')?.person.id).toBe('p-1');
+      expect(state.assignments().find((a) => a.node.id === 'n2')).toBeUndefined();
+
+      undoRedo.redo().subscribe();
+      expect(state.assignments().find((a) => a.node.id === 'n2')?.person.id).toBe('p-1');
+      expect(state.assignments().find((a) => a.node.id === 'n1')).toBeUndefined();
+    });
+
+    it('same-figure swap: undo swaps back, redo re-swaps', async () => {
+      const a1 = { ...makeAssignment(INST_A, 'n1', 'p-1'), id: 'assign-a1' };
+      const a2 = { ...makeAssignment(INST_A, 'n2', 'p-2'), id: 'assign-a2' };
+      await setup({ assignmentsByInstance: { [INST_A]: [a1, a2] } });
+
+      let occupant1 = a1.person;
+      let occupant2 = a2.person;
+      assignmentService.swap.mockImplementation(() => {
+        [occupant1, occupant2] = [occupant2, occupant1];
+        return of({ a: { ...a1, person: occupant1 }, b: { ...a2, person: occupant2 } });
+      });
+
+      component.onNodeDropped({ slotId: INST_A, nodeId: 'n1' }, { slotId: INST_A, nodeId: 'n2' });
+      expect(state.assignments().find((a) => a.node.id === 'n1')?.person.id).toBe('p-2');
+      expect(state.assignments().find((a) => a.node.id === 'n2')?.person.id).toBe('p-1');
+
+      undoRedo.undo().subscribe();
+      expect(state.assignments().find((a) => a.node.id === 'n1')?.person.id).toBe('p-1');
+      expect(state.assignments().find((a) => a.node.id === 'n2')?.person.id).toBe('p-2');
+
+      undoRedo.redo().subscribe();
+      expect(state.assignments().find((a) => a.node.id === 'n1')?.person.id).toBe('p-2');
+      expect(state.assignments().find((a) => a.node.id === 'n2')?.person.id).toBe('p-1');
+    });
+
+    it('cross-figure swap: undo restores original persons, redo re-swaps', async () => {
+      const a1 = { ...makeAssignment(INST_A, 'n1', 'p-1'), id: 'assign-a1' };
+      const a2 = { ...makeAssignment(INST_B, 'm1', 'p-2'), id: 'assign-a2' };
+      await setup({
+        instances: [makeInstance(INST_A, { snapshotted: true }), makeInstance(INST_B, { snapshotted: true })],
+        nodesByInstance: {
+          [INST_A]: [makeNode('n1', 'PINYA')],
+          [INST_B]: [makeNode('m1', 'PINYA')],
+        },
+        assignmentsByInstance: { [INST_A]: [a1], [INST_B]: [a2] },
+      });
+      assignmentService.assign.mockImplementation(
+        (instanceId: string, payload: { nodeId: string; personId: string }) =>
+          of(dynamicAssignment(instanceId, payload.nodeId, payload.personId)),
+      );
+
+      component.onNodeDropped({ slotId: INST_A, nodeId: 'n1' }, { slotId: INST_B, nodeId: 'm1' });
+      expect(state.assignments().find((a) => a.figureInstanceId === INST_A)?.person.id).toBe('p-2');
+      expect(state.assignments().find((a) => a.figureInstanceId === INST_B)?.person.id).toBe('p-1');
+
+      undoRedo.undo().subscribe();
+      expect(state.assignments().find((a) => a.figureInstanceId === INST_A)?.person.id).toBe('p-1');
+      expect(state.assignments().find((a) => a.figureInstanceId === INST_B)?.person.id).toBe('p-2');
+
+      undoRedo.redo().subscribe();
+      expect(state.assignments().find((a) => a.figureInstanceId === INST_A)?.person.id).toBe('p-2');
+      expect(state.assignments().find((a) => a.figureInstanceId === INST_B)?.person.id).toBe('p-1');
+    });
+
+    it('reassign dialog confirm: undo restores the person to the original node', async () => {
+      const existing = makeAssignment(INST_A, 'n1', 'p-1');
+      await setup({
+        instances: [makeInstance(INST_A, { snapshotted: true }), makeInstance(INST_B, { snapshotted: true })],
+        nodesByInstance: {
+          [INST_A]: [makeNode('n1', 'PINYA')],
+          [INST_B]: [makeNode('m1', 'PINYA')],
+        },
+        assignmentsByInstance: { [INST_A]: [existing] },
+      });
+      assignmentService.assign.mockImplementation(
+        (instanceId: string, payload: { nodeId: string; personId: string }) =>
+          of(dynamicAssignment(instanceId, payload.nodeId, payload.personId)),
+      );
+      component.onSegmentNodeSelected({ slotId: INST_B, nodeId: 'm1' });
+      component.onAssignedPersonSelected({ personId: 'p-1', instanceId: INST_A });
+
+      component.onReassignDialogConfirm();
+      expect(state.assignments().find((a) => a.figureInstanceId === INST_B)?.person.id).toBe('p-1');
+      expect(state.assignments().find((a) => a.figureInstanceId === INST_A)).toBeUndefined();
+
+      undoRedo.undo().subscribe();
+      expect(state.assignments().find((a) => a.figureInstanceId === INST_A)?.person.id).toBe('p-1');
+      expect(state.assignments().find((a) => a.figureInstanceId === INST_B)).toBeUndefined();
+    });
+
+    it('plain assign: undo removes it from state, redo re-adds it', async () => {
+      await setup({ instances: [makeInstance(INST_A, { snapshotted: true })] });
+      assignmentService.assign.mockImplementation(
+        (instanceId: string, payload: { nodeId: string; personId: string }) =>
+          of(dynamicAssignment(instanceId, payload.nodeId, payload.personId)),
+      );
+      component.onSegmentNodeSelected({ slotId: INST_A, nodeId: 'n1' });
+      component.onPersonSelected(makePerson('p-9'));
+      expect(state.assignments().some((a) => a.node.id === 'n1')).toBe(true);
+
+      undoRedo.undo().subscribe();
+      expect(state.assignments().some((a) => a.node.id === 'n1')).toBe(false);
+
+      undoRedo.redo().subscribe();
+      expect(state.assignments().some((a) => a.node.id === 'n1')).toBe(true);
+    });
+
+    it('plain unassign: undo restores it in state, redo removes it again', async () => {
+      const existing = makeAssignment(INST_A, 'n1', 'p-1');
+      await setup({ assignmentsByInstance: { [INST_A]: [existing] } });
+      assignmentService.assign.mockImplementation(
+        (instanceId: string, payload: { nodeId: string; personId: string }) =>
+          of(dynamicAssignment(instanceId, payload.nodeId, payload.personId)),
+      );
+
+      component.onUnassign(existing);
+      expect(state.assignments()).toHaveLength(0);
+
+      undoRedo.undo().subscribe();
+      expect(state.assignments().find((a) => a.node.id === 'n1')?.person.id).toBe('p-1');
+
+      undoRedo.redo().subscribe();
+      expect(state.assignments()).toHaveLength(0);
+    });
+  });
+
+  describe('undo/redo keyboard shortcuts and guards', () => {
+    it('Ctrl+Z triggers performUndo', async () => {
+      await setup();
+      const spy = vi.spyOn(component, 'performUndo');
+
+      component.onKeyDown(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true }));
+
+      expect(spy).toHaveBeenCalled();
+    });
+
+    it('Ctrl+Shift+Z triggers performRedo', async () => {
+      await setup();
+      const spy = vi.spyOn(component, 'performRedo');
+
+      component.onKeyDown(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, shiftKey: true }));
+
+      expect(spy).toHaveBeenCalled();
+    });
+
+    it('performUndo does nothing when there is no history', async () => {
+      await setup();
+      const undoSpy = vi.spyOn(undoRedo, 'undo');
+
+      component.performUndo();
+
+      expect(undoSpy).not.toHaveBeenCalled();
+    });
+
+    it('performUndo does nothing when the workspace is locked', async () => {
+      const existing = makeAssignment(INST_A, 'n1', 'p-1');
+      await setup({ locked: true, assignmentsByInstance: { [INST_A]: [existing] } });
+      const undoSpy = vi.spyOn(undoRedo, 'undo');
+
+      component.performUndo();
+
+      expect(undoSpy).not.toHaveBeenCalled();
+    });
+  });
+
   describe('import pinya', () => {
     it('opens the import modal directly when the segment has a single figure', async () => {
       await setup();
@@ -736,6 +949,8 @@ describe('PinyesTabComponent', () => {
         personId: 'p-1',
         targetInstanceId: INST_B,
         targetNodeId: 'm1',
+        // figureName is the figure the person is CURRENTLY in (INST_A), not the target (INST_B).
+        figureName: 'Figura inst-a',
       });
     });
 
@@ -756,6 +971,62 @@ describe('PinyesTabComponent', () => {
 
       expect(assignmentService.unassign).toHaveBeenCalledWith(INST_A, existing.id);
       expect(assignmentService.assign).toHaveBeenCalledWith(INST_B, { nodeId: 'm1', personId: 'p-1' });
+    });
+  });
+
+  describe('cross-tab "Anar-hi" navigation', () => {
+    it('emits crossTabSelect instead of selecting locally when the person is on a TRONC node', async () => {
+      const existing = makeAssignment(INST_A, 't1', 'p-1', 'TRONC');
+      await setup({ assignmentsByInstance: { [INST_A]: [existing] } });
+      const emitSpy = vi.fn();
+      component.crossTabSelect.subscribe(emitSpy);
+
+      component.onAssignedPersonSelected({ personId: 'p-1', instanceId: INST_A });
+
+      expect(emitSpy).toHaveBeenCalledWith({ tab: 'troncs', ref: { slotId: INST_A, nodeId: 't1' } });
+      expect(component.selectedRef()).toBeNull();
+    });
+
+    it('selects locally (no tab switch) when the person is on a BASE node', async () => {
+      const existing = makeAssignment(INST_A, 'b1', 'p-1', 'BASE');
+      await setup({ assignmentsByInstance: { [INST_A]: [existing] } });
+      const emitSpy = vi.fn();
+      component.crossTabSelect.subscribe(emitSpy);
+
+      component.onAssignedPersonSelected({ personId: 'p-1', instanceId: INST_A });
+
+      expect(emitSpy).not.toHaveBeenCalled();
+      expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'b1' });
+    });
+
+    it('"Anar-hi" on the reassign dialog also switches tabs for a TRONC assignment', async () => {
+      const existing = makeAssignment(INST_A, 't1', 'p-1', 'TRONC');
+      await setup({
+        instances: [makeInstance(INST_A), makeInstance(INST_B)],
+        nodesByInstance: {
+          [INST_A]: [makeNode('t1', 'TRONC')],
+          [INST_B]: [makeNode('m1', 'PINYA')],
+        },
+        assignmentsByInstance: { [INST_A]: [existing] },
+      });
+      component.onSegmentNodeSelected({ slotId: INST_B, nodeId: 'm1' });
+      component.onAssignedPersonSelected({ personId: 'p-1', instanceId: INST_A });
+      const emitSpy = vi.fn();
+      component.crossTabSelect.subscribe(emitSpy);
+
+      component.onReassignDialogView();
+
+      expect(emitSpy).toHaveBeenCalledWith({ tab: 'troncs', ref: { slotId: INST_A, nodeId: 't1' } });
+    });
+
+    it('consumes a pending cross-tab selection on init and selects the requested node', async () => {
+      await setup({ assignmentsByInstance: { [INST_A]: [] } });
+      ws.pendingSelection.set({ slotId: INST_A, nodeId: 'n1' });
+
+      component.ngOnInit();
+
+      expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'n1' });
+      expect(ws.pendingSelection()).toBeNull();
     });
   });
 });

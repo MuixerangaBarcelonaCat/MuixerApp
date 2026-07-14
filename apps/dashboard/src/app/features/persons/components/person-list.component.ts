@@ -24,6 +24,7 @@ import { DataTableComponent, RowAction } from '../../../shared/components/data/d
 import { ActiveFilter } from '../../../shared/components/data/active-filters/active-filters.component';
 import { ColumnDef } from '../../../shared/models/column-def.model';
 import { EventType } from '@muixer/shared';
+import { PersonNewModalComponent } from './modals/person-new-modal.component';
 
 const STORAGE_KEY = 'person-list-visible-columns';
 
@@ -58,6 +59,7 @@ export const ALL_COLUMNS: ColumnDef[] = [
     PaginationComponent,
     EmptyStateComponent,
     DataTableComponent,
+    PersonNewModalComponent,
   ],
   templateUrl: './person-list.component.html',
 })
@@ -92,6 +94,7 @@ export class PersonListComponent {
   totalPersons = signal(0);
   positions = signal<Position[]>([]);
   loading = signal(false);
+  newPersonModalOpen = signal(false);
 
   totalPages = computed(() => Math.ceil(this.totalPersons() / this.limit()));
 
@@ -214,8 +217,13 @@ export class PersonListComponent {
     this.router.navigate(['/persons/sync-start']);
   }
 
-  navigateToNewPerson() {
-    this.router.navigate(['/persons/new']);
+  openNewPersonModal() {
+    this.newPersonModalOpen.set(true);
+  }
+
+  onPersonCreated(person: Person) {
+    this.newPersonModalOpen.set(false);
+    this.router.navigate(['/persons', person.id]);
   }
 
   formatShoulderHeightDisplay(value: number | null): string {

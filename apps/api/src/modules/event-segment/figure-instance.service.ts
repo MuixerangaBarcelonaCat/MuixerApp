@@ -96,6 +96,7 @@ export class FigureInstanceService {
     }
 
     const segment = await this.assertSegmentBelongsToEvent(eventId, segmentId);
+    await this.nodeAssignmentService.checkEventLockByEventId(eventId);
 
     const figureTemplate = await this.figureTemplateRepository.findOne({
       where: { id: dto.figureTemplateId },
@@ -168,6 +169,7 @@ export class FigureInstanceService {
     dto: ReorderInstancesDto,
   ): Promise<void> {
     await this.assertSegmentBelongsToEvent(eventId, segmentId);
+    await this.nodeAssignmentService.checkEventLockByEventId(eventId);
 
     const existing = await this.instanceRepository.find({
       where: { segment: { id: segmentId } },
@@ -206,6 +208,7 @@ export class FigureInstanceService {
 
     await this.assertSegmentBelongsToEvent(eventId, segmentId);
     const targetSegment = await this.assertSegmentBelongsToEvent(eventId, targetSegmentId);
+    await this.nodeAssignmentService.checkEventLockByEventId(eventId);
 
     const maxOrder = await this.instanceRepository
       .createQueryBuilder('instance')
@@ -482,7 +485,7 @@ export class FigureInstanceService {
 
     const hasPinyaFigure = !!instance.figureTemplate && instance.figureMode !== FigureMode.REMAT && instance.figureMode !== FigureMode.NETA;
 
-    const [countResult, pinyaResult, pinyaAssignedResult, capacityResult, cordonsResult] = await Promise.all([
+    const [countResult, pinyaResult, pinyaAssignedResult, cordonsResult] = await Promise.all([
       this.dataSource.query(
         `SELECT COUNT(*) as count FROM node_assignments WHERE "figureInstanceId" = $1`,
         [id],
@@ -499,29 +502,6 @@ export class FigureInstanceService {
          WHERE na."figureInstanceId" = $1 AND inode.zone IN ('PINYA', 'BASE')`,
         [id],
       ),
-      hasPinyaFigure
-        ? instance.snapshotted
-          ? this.dataSource.query(
-              `SELECT COUNT(*) as capacity
-               FROM instance_nodes in_
-               LEFT JOIN rengles r ON r.id = in_."renglaId"
-               WHERE in_."figureInstanceId" = $1
-               AND in_.zone IN ('PINYA', 'BASE')
-               AND ($2::int IS NULL OR in_.zone = 'BASE' OR r."sortOrder" < $2::int)
-               AND ($3::boolean = true OR in_."positionType" != 'cordo-obert')`,
-              [id, instance.numberOfCordons, instance.cordonsObertsEnabled],
-            )
-          : this.dataSource.query(
-              `SELECT COUNT(*) as capacity
-               FROM figure_nodes fn
-               LEFT JOIN rengles r ON r.id = fn."renglaId"
-               WHERE fn."templateId" = $1
-               AND fn.zone IN ('PINYA', 'BASE')
-               AND ($2::int IS NULL OR fn.zone = 'BASE' OR r."sortOrder" < $2::int)
-               AND ($3::boolean = true OR fn."positionType" != 'cordo-obert')`,
-              [instance.figureTemplate!.id, instance.numberOfCordons, instance.cordonsObertsEnabled],
-            )
-        : Promise.resolve([{ capacity: '0' }]),
       hasPinyaFigure && instance.figureTemplate
         ? this.dataSource.query(
             `SELECT COUNT(*) as total FROM rengles WHERE "templateId" = $1`,
@@ -533,7 +513,6 @@ export class FigureInstanceService {
     const assignedCount = parseInt(countResult[0]?.count ?? '0', 10);
     const hasPinya = parseInt(pinyaResult[0]?.count ?? '0', 10) > 0;
     const pinyaAssignedCount = parseInt(pinyaAssignedResult[0]?.count ?? '0', 10);
-    const pinyaCapacity = hasPinyaFigure ? parseInt(capacityResult[0]?.capacity ?? '0', 10) : null;
     const totalCordons = hasPinyaFigure ? parseInt(cordonsResult[0]?.total ?? '0', 10) : null;
 
     return {
@@ -543,7 +522,6 @@ export class FigureInstanceService {
       snapshotted: instance.snapshotted,
       assignedCount,
       pinyaAssignedCount,
-      pinyaCapacity,
       totalCordons,
       numberOfCordons: instance.numberOfCordons ?? null,
       cordonsObertsEnabled: instance.cordonsObertsEnabled,
@@ -586,6 +564,7 @@ export class FigureInstanceService {
     compositionId: string,
   ): Promise<SegmentWithInstances> {
     const segment = await this.assertSegmentBelongsToEvent(eventId, segmentId);
+    await this.nodeAssignmentService.checkEventLockByEventId(eventId);
 
     const composition = await this.compositionRepository.findOne({
       where: { id: compositionId },

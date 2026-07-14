@@ -8,6 +8,7 @@ import {
   ElementRef,
   ViewChild,
   AfterViewInit,
+  OnDestroy,
 } from '@angular/core';
 import { NgClass } from '@angular/common';
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
@@ -25,7 +26,7 @@ type SyncState = 'idle' | 'running' | 'complete' | 'error';
   imports: [RouterModule, LucideAngularModule, NgClass],
   templateUrl: './event-sync.component.html',
 })
-export class EventSyncComponent implements AfterViewInit {
+export class EventSyncComponent implements AfterViewInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly authService = inject(AuthService);
@@ -63,6 +64,10 @@ export class EventSyncComponent implements AfterViewInit {
 
   ngAfterViewInit() {
     this.scrollToBottom();
+  }
+
+  ngOnDestroy() {
+    this.closeEventSource();
   }
 
   startSync() {

@@ -39,9 +39,9 @@ export class FigureTemplate {
   @OneToMany(() => FigureInstance, (instance) => instance.figureTemplate)
   instances: FigureInstance[];
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date;
 }

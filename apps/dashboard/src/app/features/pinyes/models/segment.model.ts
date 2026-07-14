@@ -9,7 +9,6 @@ export interface InstanceDetail {
   snapshotted: boolean;
   assignedCount: number;
   pinyaAssignedCount: number;
-  pinyaCapacity: number | null;
   totalCordons: number | null;
   numberOfCordons: number | null;
   cordonsObertsEnabled: boolean;

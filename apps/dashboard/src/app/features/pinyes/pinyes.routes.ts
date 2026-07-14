@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { TemplateListComponent } from './components/template-list/template-list.component';
+import { unsavedChangesGuard } from '../../core/guards/unsaved-changes.guard';
 
 export const pinyesRoutes: Routes = [
   { path: '', component: TemplateListComponent },
@@ -9,6 +10,7 @@ export const pinyesRoutes: Routes = [
       import('./components/template-editor/template-editor.component').then(
         (m) => m.TemplateEditorComponent,
       ),
+    canDeactivate: [unsavedChangesGuard],
   },
   {
     path: 'templates/:id/edit',
@@ -16,6 +18,7 @@ export const pinyesRoutes: Routes = [
       import('./components/template-editor/template-editor.component').then(
         (m) => m.TemplateEditorComponent,
       ),
+    canDeactivate: [unsavedChangesGuard],
   },
   {
     path: 'compositions/new',

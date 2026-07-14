@@ -31,9 +31,9 @@ export class Season {
   @OneToMany(() => Event, (event) => event.season)
   events: Event[];
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date;
 }

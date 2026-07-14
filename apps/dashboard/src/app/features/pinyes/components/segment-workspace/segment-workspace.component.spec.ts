@@ -75,6 +75,7 @@ const makeWsMock = () => {
     isLocked: signal(false),
     personsLoaded: signal(true),
     pinyaSlots: signal([]),
+    pendingSelection: signal<{ slotId: string; nodeId: string } | null>(null),
     load: vi.fn((id: string, segId: string) => {
       eventId.set(id);
       segmentId.set(segId);
@@ -247,6 +248,18 @@ describe('SegmentWorkspaceComponent', () => {
         replaceUrl: true,
       }),
     );
+  });
+
+  it('onCrossTabSelect stashes the target ref and switches tabs (FE-BUG: "Anar-hi" onto the other tab)', async () => {
+    const fixture = await setup();
+    const router = TestBed.inject(Router);
+    vi.spyOn(router, 'navigate').mockResolvedValue(true);
+
+    fixture.componentInstance.onCrossTabSelect({ tab: 'troncs', ref: { slotId: 'inst-a', nodeId: 'n1' } });
+
+    expect(ws.pendingSelection()).toEqual({ slotId: 'inst-a', nodeId: 'n1' });
+    expect(fixture.componentInstance.activeTab()).toBe('troncs');
+    localStorage.clear();
   });
 
   it('preselects the figure from the figure query param', async () => {

@@ -15,9 +15,10 @@ import { getContrastColor } from '../../../utils/color.util';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface RowAction<T = any> {
-  label: string;
-  icon?: string;
+  label: string | ((item: T) => string);
+  icon?: string | ((item: T) => string | undefined);
   class?: string;
+  hidden?: (item: T) => boolean;
   action: (item: T) => void;
 }
 
@@ -130,6 +131,25 @@ export class DataTableComponent<T extends object> {
   onRowAction(action: RowAction<T>, item: T): void {
     action.action(item);
     this.closeActionsMenu();
+  }
+
+  readonly openItem = computed<T | null>(() => {
+    const idx = this.openActionsIndex();
+    return idx !== null ? (this.items()[idx] ?? null) : null;
+  });
+
+  readonly visibleRowActions = computed<RowAction<T>[]>(() => {
+    const item = this.openItem();
+    if (!item) return this.rowActions();
+    return this.rowActions().filter((a) => !a.hidden?.(item));
+  });
+
+  resolveLabel(action: RowAction<T>, item: T): string {
+    return typeof action.label === 'function' ? action.label(item) : action.label;
+  }
+
+  resolveIcon(action: RowAction<T>, item: T): string | undefined {
+    return typeof action.icon === 'function' ? action.icon(item) : action.icon;
   }
 
   @HostListener('document:keydown.escape')

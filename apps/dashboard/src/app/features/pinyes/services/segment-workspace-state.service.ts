@@ -16,7 +16,7 @@ import {
   placeNewFigure,
   PlacedFigurePosition,
 } from '../utils/figure-placement.util';
-import { pivotNodesFor } from '../utils/segment-assignment-render.util';
+import { pivotNodesFor, SegmentNodeRef } from '../utils/segment-assignment-render.util';
 
 export interface WorkspaceInstance {
   instanceId: string;
@@ -59,6 +59,8 @@ export class SegmentWorkspaceStateService {
   readonly selectedInstanceId = signal<string | null>(null);
   readonly lockStatus = signal<LockStatus | null>(null);
   readonly personsLoaded = signal(false);
+  /** Handoff for cross-tab navigation: set before switching tabs, consumed by the tab's ngOnInit. */
+  readonly pendingSelection = signal<SegmentNodeRef | null>(null);
 
   // Frozen per instance so adding/moving an ad-hoc node doesn't reflow other figures.
   private readonly autoPlacementExtentCache = new Map<string, { width: number; height: number }>();
@@ -220,6 +222,7 @@ export class SegmentWorkspaceStateService {
     this.notFound.set(false);
     this.instancesHydrated.set(false);
     this.state.reset();
+    this.pendingSelection.set(null);
     this.autoPlacementExtentCache.clear();
 
     this.segmentService.getByEvent(eventId).subscribe({

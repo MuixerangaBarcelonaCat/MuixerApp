@@ -41,9 +41,9 @@ export class EventSegment {
   @OneToMany(() => FigureInstance, (instance) => instance.segment, { cascade: true })
   instances: FigureInstance[];
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date;
 }

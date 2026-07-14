@@ -17,14 +17,16 @@ export default {
     '!src/main.ts',
     '!src/**/scripts/**',
     '!src/**/seeds/**',
+    '!src/migrations/**',
   ],
   coverageThreshold: {
     global: {
-      statements: 55,
-      branches: 50,
-      functions: 55,
-      lines: 55,
+      statements: 75,
+      branches: 70,
+      functions: 78,
+      lines: 76,
     },
   },
   testMatch: ['**/*.spec.ts'],
+  testPathIgnorePatterns: ['/node_modules/', '\\.integration\\.spec\\.ts$'],
 };
