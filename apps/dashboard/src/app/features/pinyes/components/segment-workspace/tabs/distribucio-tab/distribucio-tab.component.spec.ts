@@ -65,7 +65,6 @@ const makeInstance = (id: string, overrides: Partial<InstanceDetail> = {}): Inst
   snapshotted: false,
   assignedCount: 0,
   pinyaAssignedCount: 0,
-  pinyaCapacity: null,
   totalCordons: null,
   numberOfCordons: null,
   cordonsObertsEnabled: true,

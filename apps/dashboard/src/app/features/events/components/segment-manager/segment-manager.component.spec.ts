@@ -57,7 +57,6 @@ const makeInstance = (overrides: Partial<InstanceDetail> = {}): InstanceDetail =
   snapshotted: false,
   assignedCount: 0,
   pinyaAssignedCount: 0,
-  pinyaCapacity: null,
   totalCordons: null,
   numberOfCordons: null,
   cordonsObertsEnabled: true,
@@ -953,7 +952,6 @@ describe('SegmentManagerComponent', () => {
         figureMode: 'COMPLETA',
         numberOfCordons: 3,
         totalCordons: 5,
-        pinyaCapacity: 30,
       });
       expect(component.showCordonsBadge(inst)).toBe(true);
     });

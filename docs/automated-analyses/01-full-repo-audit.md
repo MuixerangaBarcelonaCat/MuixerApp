@@ -25,14 +25,14 @@ Overall this is a healthy codebase. Backend: consistent module structure, global
 
 | Section                   | 🔴          | 🟠            | 🟡                  | 🔵           | Total               |
 | ------------------------- | ----------- | ------------- | ------------------- | ------------ | ------------------- |
-| 1. Security               | 2 (2 ✅)     | 11 (10 ✅)     | 4 (3 ✅, 1 🚫)       | 1 (1 ✅)      | 18 (16 ✅, 1 🚫)     |
-| 2. Bugs & correctness     | 2 (2 ✅)     | 9 (8 ✅)       | 10 (8 ✅, 1 🚫)       | 1 (1 🚫)      | 22 (18 ✅, 2 🚫)      |
+| 1. Security               | 2 (2 ✅)     | 11 (11 ✅)     | 4 (3 ✅, 1 🚫)       | 1 (1 ✅)      | 18 (17 ✅, 1 🚫)     |
+| 2. Bugs & correctness     | 2 (2 ✅)     | 9 (9 ✅)       | 10 (9 ✅, 1 🚫)       | 1 (1 🚫)      | 22 (20 ✅, 2 🚫)      |
 | 3. Architecture           | —           | 3 (2 ✅)       | 8 (2 ✅)             | —            | 11 (4 ✅)            |
 | 4. Code smells            | —           | 1 (1 ✅)       | 11 (3 ✅)            | 3            | 15 (4 ✅)            |
 | 5. Frontend (dashboard)   | moved to [02-frontend-audit.md](02-frontend-audit.md) — 81 findings, 20 🟠 / 50 🟡 / 11 🔵 | | | | |
 | 6. Dependencies & tooling | 1 (1 ✅)     | —             | 2 (2 ✅)             | 1 (1 ✅)      | 4 (4 ✅)             |
 | 7. Tests (backend only — dashboard test findings moved to [02-frontend-audit.md](02-frontend-audit.md)) | — | 2 (1 ✅) | — | 1 | 3 (1 ✅) |
-| **Total (this document)** | **5 (5 ✅)** | **26 (22 ✅)** | **35 (18 ✅, 2 🚫)** | **7 (2 ✅, 1 🚫)** | **73 (47 ✅, 3 🚫)** |
+| **Total (this document)** | **5 (5 ✅)** | **26 (24 ✅)** | **35 (19 ✅, 2 🚫)** | **7 (2 ✅, 1 🚫)** | **73 (50 ✅, 3 🚫)** |
 
 
 *(✅ counts reflect fixes applied so far in this branch; 🚫 marks findings deliberately closed as won't-fix, with reasoning inline; both are updated as findings are resolved. Frontend findings — formerly §5 — now live entirely in [02-frontend-audit.md](02-frontend-audit.md) and are excluded from this total.)*
@@ -390,14 +390,16 @@ This was originally paired with an explicit `deactivatedManually` flag + migrati
 
 **Fix applied:** the `MAX(sortOrder)` query now runs once, before the transaction starts, and the loop increments a local counter (`nextSortOrder++`) for each entry instead of re-querying per iteration — the `base + i` option from the recommendation, simpler than threading the transaction's `manager` into the query builder and correct since nothing else can concurrently insert instances into this segment while `applyComposition` runs (the transaction still exists to guard the actual inserts alongside the segment-name update). Covered by a new spec in `figure-instance.service.spec.ts` that reproduces the bug's exact symptom — a composition with 3 entries and a query mock that always returns the same stale max, simulating a connection that can't see its own transaction's uncommitted rows — asserting the created instances get sequential `sortOrder` (6, 7, 8) rather than the same value three times. Verified red against the old implementation first (produced `[6, 6, 6]`).
 
-### 🟠 BUG-12 — Two different "pinya capacity" formulas
+### 🟠✅ BUG-12 — Two different "pinya capacity" formulas — FIXED
 
-The same concept is computed with different SQL in two places:
+The same concept was computed with different SQL in two places:
 
-- `event-segment.service.ts:254-292` (`loadPinyaCapacities`, used by segment lists): counts `zone IN ('PINYA')` with `r."sortOrder" <= fi."numberOfCordons"`.
-- `figure-instance.service.ts:400-420` (`findOneById`, returned after each instance mutation): counts `zone IN ('PINYA','BASE')` with `r."sortOrder" < $2` (strict).
+- `event-segment.service.ts:254-292` (`loadPinyaCapacities`, used by segment lists): counted `zone IN ('PINYA')` with `r."sortOrder" <= fi."numberOfCordons"`.
+- `figure-instance.service.ts:400-420` (`findOneById`, returned after each instance mutation): counted `zone IN ('PINYA','BASE')` with `r."sortOrder" < $2` (strict).
 
-Same instance, two endpoints, two different capacity numbers (off by the BASE nodes and by one cordon). The dashboard shows whichever it fetched last — inconsistent "assigned/capacity" badges. One definition should exist in one place.
+Same instance, two endpoints, two different capacity numbers (off by the BASE nodes and by one cordon). Re-checked as still-reproducing as of 2026-07-14 (both queries had since grown extra `cordonsObertsEnabled`/snapshotted-vs-template branches, but the core BASE-inclusion and `<=` vs `<` divergence was never reconciled between the two call sites).
+
+**Fix applied — removed instead of unified.** Traced every consumer of the `pinyaCapacity` field (`InstanceRef`/`InstanceDetail`) across both apps: the segment-list endpoint's value is never read by any dashboard component or template, and the `findOneById` value only ever flows back into the same `InstanceDetail` objects held in component state (`segment-manager.component.ts`'s `create`/mode-change handlers) — again with no template binding or code path reading `.pinyaCapacity`. The only other references were fixture/assertion lines in spec files. Since the field was dead API surface with two silently-diverging implementations behind it, rather than fix the formula in two places (and re-verify which of the two divergent semantics — BASE inclusion, inclusive vs. strict cordon cutoff — was "correct"), both `loadPinyaCapacities` (`event-segment.service.ts`) and the capacity sub-query in `findOneById` (`figure-instance.service.ts`) were deleted outright, along with the `pinyaCapacity` field from `InstanceRef` (API) and `InstanceDetail` (dashboard model). This removes the entire class of bug rather than reconciling it, since there was no consumer whose behavior depended on the value being present or correct. `assignedCount`/`pinyaAssignedCount`/`totalCordons` (all already consistent between the two call sites) are unaffected. Covered by updated specs in `event-segment.service.spec.ts` and `figure-instance.service.spec.ts` (the tests that asserted the now-removed capacity SQL's shape were deleted; the remaining `totalCordons`/`cordonsObertsEnabled`/`pinyaAssignedCount` assertions were kept and still pass) and corresponding fixture cleanup across the dashboard's `*.spec.ts` files that built `InstanceDetail` mocks. Full `nx test api` (733/733) and `nx test dashboard` (1213/1215, 2 pre-existing skips) pass; both `nx lint` targets are clean (0 errors).
 
 ### 🟠✅ BUG-13 — `figureMode` change deletes assignments before saving, non-transactionally — FIXED
 
@@ -430,9 +432,13 @@ Covered by: two new cases in `figure-template.service.spec.ts` (`syncNodes` clea
 
 **Fix applied:** new `generateCopyName(originalName)` helper (parallel to the existing `generateUniqueName`) strips any trailing `(còpia)`/`(còpia N)` suffix from the original name first, then probes `"<base> (còpia)"`, `"<base> (còpia 2)"`, `"<base> (còpia 3)"`... against `templateRepository.findOne` until it finds a free name. `duplicate()` now calls this instead of hardcoding ``${original.name} (còpia)``, so duplicating the same template repeatedly always gets a free name instead of hitting the unique constraint. The stripping step also means duplicating a template that is itself already named `"X (còpia)"` collides with the original on the first probe and correctly lands on `"X (còpia 2)"`, rather than stacking to `"X (còpia) (còpia)"`. Covered by new specs in `figure-template.service.spec.ts`: first duplicate gets `(còpia)`, a second duplicate gets `(còpia 2)`, a third gets `(còpia 3)`, and duplicating an already-`(còpia)`-named template produces `(còpia 2)` instead of stacking.
 
-### 🟡 BUG-16 — Fuzzy search ordering ignores name similarity
+### 🟡✅ BUG-16 — Fuzzy search ordering ignores name similarity — FIXED
 
-`available-persons.service.ts:142-147`: the ORDER BY uses `GREATEST(word_similarity(:rawSearch, alias))` — `GREATEST` with a **single argument**. The WHERE clause matches on alias *or* name similarity, but results that matched via `name` are then ranked only by alias similarity. The second `word_similarity(... person.name)` argument was evidently lost.
+`available-persons.service.ts:142-147`: the ORDER BY used `GREATEST(word_similarity(:rawSearch, alias))` — `GREATEST` with a **single argument**. The WHERE clause matches on alias *or* name similarity, but results that matched via `name` were then ranked only by alias similarity. The second `word_similarity(... person.name)` argument was evidently lost.
+
+Re-checked as still open as of 2026-07-14 — a later commit (`4970d13`, "fix: accents i fuzzy search en assignacio") reworked this same query for accent-insensitivity but reproduced the exact same single-argument `GREATEST` in the `ORDER BY`, so fuzzy search was never disabled and the bug never went away.
+
+**Fix applied:** `ORDER BY` now mirrors the `WHERE` clause's `GREATEST(...)`, adding the missing `word_similarity(unaccent(lower(:rawSearch)), unaccent(lower(person.name)))` term. A person that matches primarily by name (not alias) is now ranked by whichever field actually scored higher, instead of always by (irrelevant) alias similarity. Covered by a new spec in `available-persons.service.spec.ts` asserting the `ORDER BY` SQL string contains `person.name` — written and confirmed failing first (the string only contained `person.alias`) before the fix. Full `nx test api` (734/734) passes; `nx lint api` is clean (0 errors).
 
 ### 🟠✅ BUG-17 — Lazy snapshot has a check-then-act race (duplicate instance nodes) — FIXED
 
@@ -552,7 +558,7 @@ None of this is wrong at ~200 persons/colla scale, but these are the endpoints t
 
 - Conflict rules (node occupied / person in instance / person in segment) implemented twice: in `assign()` and again inline in `bulkImport()`.
 - Event-lock logic duplicated between `getLockStatus` and `checkEventLock`.
-- Pinya capacity duplicated with diverging formulas (BUG-12).
+- ~~Pinya capacity duplicated with diverging formulas~~ — resolved by removing the field entirely, see [BUG-12](#-bug-12--two-different-pinya-capacity-formulas--fixed).
 - `slugify()` in `figure-template.service.ts` exists twice in the same file (`generateSlug` and `slugify`, identical bodies except one `-+` collapse).
 
 ### 🟡✅ ARCH-10 — Migrations registered in two places — FIXED

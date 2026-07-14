@@ -142,7 +142,8 @@ export class AvailablePersonsService {
     if (search) {
       qb.orderBy(
         `GREATEST(
-          word_similarity(unaccent(lower(:rawSearch)), unaccent(lower(person.alias)))
+          word_similarity(unaccent(lower(:rawSearch)), unaccent(lower(person.alias))),
+          word_similarity(unaccent(lower(:rawSearch)), unaccent(lower(person.name)))
         )`,
         'DESC',
       );

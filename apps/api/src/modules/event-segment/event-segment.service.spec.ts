@@ -170,8 +170,8 @@ describe('EventSegmentService', () => {
     });
   });
 
-  describe('findAllByEvent — pinyaCapacity and totalCordons', () => {
-    it('includes pinyaCapacity and totalCordons for instances with pinya', async () => {
+  describe('findAllByEvent — totalCordons', () => {
+    it('includes totalCordons for instances with pinya', async () => {
       const figTemplate = { id: 'fig-uuid-1', name: 'pd4' } as any;
       const instance = { id: 'inst-uuid-1', snapshotted: false, figureTemplate: figTemplate, compositionTemplate: null, figureMode: 'COMPLETA', label: null, sortOrder: 0, numberOfCordons: null } as any;
       const seg = makeSegment({ instances: [instance] });
@@ -182,12 +182,10 @@ describe('EventSegmentService', () => {
         .mockResolvedValueOnce([])               // loadAssignmentCounts
         .mockResolvedValueOnce([])               // loadPinyaAssignmentCounts
         .mockResolvedValueOnce([{ templateId: 'fig-uuid-1' }])  // loadPinyaTemplateIds
-        .mockResolvedValueOnce([{ instance_id: 'inst-uuid-1', capacity: '32' }])  // loadPinyaCapacities (notSnapped)
         .mockResolvedValueOnce([{ templateId: 'fig-uuid-1', total: '4' }]);        // loadTotalCordons
 
       const result = await service.findAllByEvent(EVENT_ID);
 
-      expect(result[0].instances[0].pinyaCapacity).toBe(32);
       expect(result[0].instances[0].totalCordons).toBe(4);
     });
 
@@ -212,7 +210,6 @@ describe('EventSegmentService', () => {
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([{ templateId: 'fig-uuid-1' }])
-        .mockResolvedValueOnce([{ instance_id: 'inst-uuid-1', capacity: '32' }])
         .mockResolvedValueOnce([{ templateId: 'fig-uuid-1', total: '4' }]);
 
       const result = await service.findAllByEvent(EVENT_ID);
@@ -220,7 +217,7 @@ describe('EventSegmentService', () => {
       expect(result[0].instances[0].cordonsObertsEnabled).toBe(false);
     });
 
-    it('returns null pinyaCapacity and totalCordons for REMAT instances', async () => {
+    it('returns null totalCordons for REMAT instances', async () => {
       const figTemplate = { id: 'fig-uuid-1', name: 'pd4' } as any;
       const instance = { id: 'inst-uuid-1', snapshotted: false, figureTemplate: figTemplate, compositionTemplate: null, figureMode: 'REMAT', label: null, sortOrder: 0, numberOfCordons: null } as any;
       const seg = makeSegment({ instances: [instance] });
@@ -231,47 +228,11 @@ describe('EventSegmentService', () => {
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([{ templateId: 'fig-uuid-1' }])
-        .mockResolvedValueOnce([])   // capacity query not called for non-snapped but REMAT skips it
         .mockResolvedValueOnce([]);
 
       const result = await service.findAllByEvent(EVENT_ID);
 
-      expect(result[0].instances[0].pinyaCapacity).toBeNull();
       expect(result[0].instances[0].totalCordons).toBeNull();
-    });
-
-    it('excludes cordo-obert nodes from pinyaCapacity when cordonsObertsEnabled is false', async () => {
-      const figTemplate = { id: 'fig-uuid-1', name: 'pd4' } as any;
-      const instance = {
-        id: 'inst-uuid-1',
-        snapshotted: false,
-        figureTemplate: figTemplate,
-        compositionTemplate: null,
-        figureMode: 'COMPLETA',
-        label: null,
-        sortOrder: 0,
-        numberOfCordons: null,
-        cordonsObertsEnabled: false,
-      } as any;
-      const seg = makeSegment({ instances: [instance] });
-
-      mockEventRepo.findOne.mockResolvedValue(makeEvent());
-      mockSegmentQb.getMany.mockResolvedValue([seg]);
-      mockDataSource.query
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([{ templateId: 'fig-uuid-1' }])
-        .mockResolvedValueOnce([{ instance_id: 'inst-uuid-1', capacity: '30' }])
-        .mockResolvedValueOnce([{ templateId: 'fig-uuid-1', total: '4' }]);
-
-      await service.findAllByEvent(EVENT_ID);
-
-      const capacityCall = mockDataSource.query.mock.calls.find(
-        (call: unknown[]) => typeof call[0] === 'string' && (call[0] as string).includes('as capacity'),
-      );
-      expect(capacityCall).toBeDefined();
-      expect(capacityCall![0]).toContain('cordo-obert');
-      expect(capacityCall![0]).toContain('cordonsObertsEnabled');
     });
   });
 

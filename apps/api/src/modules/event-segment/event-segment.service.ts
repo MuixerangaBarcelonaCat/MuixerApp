@@ -19,7 +19,6 @@ export interface InstanceRef {
   snapshotted: boolean;
   assignedCount: number;
   pinyaAssignedCount: number;
-  pinyaCapacity: number | null;
   totalCordons: number | null;
   numberOfCordons: number | null;
   cordonsObertsEnabled: boolean;
@@ -76,16 +75,15 @@ export class EventSegmentService {
     const allInstances = segments.flatMap((s) => s.instances ?? []);
     const allTemplateIds = allInstances.filter((i) => i.figureTemplate).map((i) => i.figureTemplate!.id);
 
-    const [countMap, pinyaAssignedMap, pinyaTemplateIds, pinyaCapacityMap, totalCordonsMap] = await Promise.all([
+    const [countMap, pinyaAssignedMap, pinyaTemplateIds, totalCordonsMap] = await Promise.all([
       this.loadAssignmentCounts(instanceIds),
       this.loadPinyaAssignmentCounts(instanceIds),
       this.loadPinyaTemplateIds(allTemplateIds),
-      this.loadPinyaCapacities(allInstances),
       this.loadTotalCordons(allTemplateIds),
     ]);
 
     return segments.map((s) =>
-      toSegmentWithInstances(s, countMap, pinyaAssignedMap, pinyaTemplateIds, pinyaCapacityMap, totalCordonsMap),
+      toSegmentWithInstances(s, countMap, pinyaAssignedMap, pinyaTemplateIds, totalCordonsMap),
     );
   }
 
@@ -200,15 +198,14 @@ export class EventSegmentService {
     const instanceIds = instances.map((i) => i.id);
     const templateIds = instances.filter((i) => i.figureTemplate).map((i) => i.figureTemplate!.id);
 
-    const [countMap, pinyaAssignedMap, pinyaTemplateIds, pinyaCapacityMap, totalCordonsMap] = await Promise.all([
+    const [countMap, pinyaAssignedMap, pinyaTemplateIds, totalCordonsMap] = await Promise.all([
       this.loadAssignmentCounts(instanceIds),
       this.loadPinyaAssignmentCounts(instanceIds),
       this.loadPinyaTemplateIds(templateIds),
-      this.loadPinyaCapacities(instances),
       this.loadTotalCordons(templateIds),
     ]);
 
-    return toSegmentWithInstances(segment, countMap, pinyaAssignedMap, pinyaTemplateIds, pinyaCapacityMap, totalCordonsMap);
+    return toSegmentWithInstances(segment, countMap, pinyaAssignedMap, pinyaTemplateIds, totalCordonsMap);
   }
 
   private async loadPinyaTemplateIds(templateIds: string[]): Promise<Set<string>> {
@@ -249,48 +246,6 @@ export class EventSegmentService {
     for (const row of rows) {
       map.set(row.figureInstanceId, parseInt(row.count, 10));
     }
-    return map;
-  }
-
-  private async loadPinyaCapacities(instances: { id: string; snapshotted: boolean; figureTemplate: { id: string } | null; numberOfCordons: number | null }[]): Promise<Map<string, number>> {
-    const map = new Map<string, number>();
-    if (instances.length === 0) return map;
-
-    const notSnapped = instances.filter((i) => !i.snapshotted && i.figureTemplate);
-    const snapped = instances.filter((i) => i.snapshotted);
-
-    if (notSnapped.length > 0) {
-      const rows: { instance_id: string; capacity: string }[] = await this.dataSource.query(
-        `SELECT fi.id as instance_id, COUNT(*) as capacity
-         FROM figure_instances fi
-         JOIN figure_nodes fn ON fn."templateId" = fi."figureTemplateId"
-         LEFT JOIN rengles r ON r.id = fn."renglaId"
-         WHERE fi.id = ANY($1)
-         AND fn.zone IN ('PINYA')
-         AND (fi."numberOfCordons" IS NULL OR r."sortOrder" IS NULL OR r."sortOrder" <= fi."numberOfCordons")
-         AND (fi."cordonsObertsEnabled" = true OR fn."positionType" != 'cordo-obert')
-         GROUP BY fi.id`,
-        [notSnapped.map((i) => i.id)],
-      );
-      for (const row of rows) map.set(row.instance_id, parseInt(row.capacity, 10));
-    }
-
-    if (snapped.length > 0) {
-      const rows: { instance_id: string; capacity: string }[] = await this.dataSource.query(
-        `SELECT in_."figureInstanceId" as instance_id, COUNT(*) as capacity
-         FROM instance_nodes in_
-         JOIN figure_instances fi ON fi.id = in_."figureInstanceId"
-         LEFT JOIN rengles r ON r.id = in_."renglaId"
-         WHERE in_."figureInstanceId" = ANY($1)
-         AND in_.zone IN ('PINYA')
-         AND (fi."numberOfCordons" IS NULL OR r."sortOrder" IS NULL OR r."sortOrder" <= fi."numberOfCordons")
-         AND (fi."cordonsObertsEnabled" = true OR in_."positionType" != 'cordo-obert')
-         GROUP BY in_."figureInstanceId"`,
-        [snapped.map((i) => i.id)],
-      );
-      for (const row of rows) map.set(row.instance_id, parseInt(row.capacity, 10));
-    }
-
     return map;
   }
 
@@ -361,7 +316,6 @@ function toSegmentWithInstances(
   countMap: Map<string, number>,
   pinyaAssignedMap: Map<string, number>,
   pinyaTemplateIds: Set<string>,
-  pinyaCapacityMap: Map<string, number>,
   totalCordonsMap: Map<string, number>,
 ): SegmentWithInstances {
   return {
@@ -382,7 +336,6 @@ function toSegmentWithInstances(
         snapshotted: instance.snapshotted,
         assignedCount: countMap.get(instance.id) ?? 0,
         pinyaAssignedCount: pinyaAssignedMap.get(instance.id) ?? 0,
-        pinyaCapacity: showPinyaData ? (pinyaCapacityMap.get(instance.id) ?? 0) : null,
         totalCordons: showPinyaData && instance.figureTemplate
           ? (totalCordonsMap.get(instance.figureTemplate.id) ?? 0)
           : null,
