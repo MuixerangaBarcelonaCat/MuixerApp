@@ -36,7 +36,7 @@ The best code in the app (the pinya assignment flow, the projection layout math,
 
 | Section | Code | 🔴 | 🟠 | 🟡 | 🔵 | Total |
 | --- | --- | --- | --- | --- | --- | --- |
-| Bugs & correctness | `FE-BUG` | — | 9 (1 ✅) | 16 | 3 | 28 (1 ✅) |
+| Bugs & correctness | `FE-BUG` | — | 9 (2 ✅) | 16 | 3 | 28 (2 ✅) |
 | Architecture & state (incl. dead code) | `FE-ARCH` | — | 3 | 9 | 4 | 16 |
 | Error handling | `FE-ERR` | — | 1 | 3 | — | 4 |
 | UX & interface consistency | `FE-UX` | — | 2 | 5 | 1 | 8 |
@@ -46,7 +46,7 @@ The best code in the app (the pinya assignment flow, the projection layout math,
 | Code smells | `FE-SM` | — | — | 5 | 2 | 7 |
 | UI text | `FE-LANG` | — | — | 2 | — | 2 |
 | Tests | `FE-TEST` | — | 2 | 2 | — | 4 |
-| **Total** | | **—** | **20 (1 ✅)** | **50** | **11** | **81 (1 ✅)** |
+| **Total** | | **—** | **20 (2 ✅)** | **50** | **11** | **81 (2 ✅)** |
 
 *(✅ counts reflect fixes applied so far in this branch; updated as findings are resolved.)*
 
@@ -189,9 +189,11 @@ The assignment-mode render effect (`figure-canvas.component.ts:303-321`) tracks 
 
 `shared/utils/color.util.ts:10`: a named color or `rgb()` value yields `NaN` luminance → always resolves to white text.
 
-### 🟠 FE-BUG-26 — Template editor: pending autosave is discarded on most exits
+### 🟠✅ FE-BUG-26 — Template editor: pending autosave is discarded on most exits — FIXED
 
 `template-editor.component.ts`: edits schedule a **2-second debounced autosave** (`scheduleAutosave`). The flush-before-leave logic exists only in `goBack()` (cancel timer → `save(() => navigate)`). Every other exit path — browser back, sidebar navigation, deep link, logout — goes through `ngOnDestroy`, which just `clearTimeout`s the pending save: **the last ~2 s of edits are silently lost**. There is also no `canDeactivate` guard and no `beforeunload` listener for tab-close while a save is pending or in flight. Flush in `ngOnDestroy` too (or a `CanDeactivate` guard + `beforeunload` when `saveStatus() !== 'idle'`).
+
+**Fix applied:** added a generic `unsavedChangesGuard` (`core/guards/unsaved-changes.guard.ts`) — a functional `CanDeactivateFn` that delegates to a `canDeactivate(): Observable<boolean> | boolean` method on the leaving component, so any future editor can opt in the same way. `TemplateEditorComponent` implements it: if an autosave timer is pending, it's cleared and `save()` runs immediately, resolving the guard's `Observable<boolean>` to `true` once the request completes (success or error — consistent with the pre-existing `goBack()` behavior of not trapping the user on a save failure); with no pending timer it returns `true` synchronously. This covers **every** router-driven exit (browser back, sidebar nav, deep link away, programmatic redirects like logout) uniformly, so `goBack()` no longer needs its own ad-hoc flush and now just navigates. A `window:beforeunload` listener (`onBeforeUnload`) additionally warns the browser (`preventDefault` + `returnValue`) on tab close / hard reload while a save is pending — the one exit path a router guard can't intercept. The guard is wired onto both `templates/new` and `templates/:id/edit` in `pinyes.routes.ts`. Covered by new specs in `template-editor.component.spec.ts` (no-pending-changes passthrough, immediate flush + resolution, no double-flush, `beforeunload` prevented/not-prevented, simplified `goBack`) and `unsaved-changes.guard.spec.ts` (boolean and Observable delegation). Full `nx test dashboard` suite (1227/1227) and `nx lint dashboard` pass.
 
 ### 🟡 FE-BUG-27 — Pagination `@for` uses a duplicated track key
 
@@ -496,7 +498,7 @@ Ranked across all findings by (user damage × likelihood), not by section:
 | # | Finding | Why first | Where |
 | --- | --- | --- | --- |
 | 1 | 🟠 [FE-BUG-1](#-fe-bug-1--interceptor-logs-the-user-out-when-a-retried-request-fails-for-any-reason) Interceptor logs users out on any post-refresh retry failure | Session + unsaved work lost on a transient 500; app-wide | `auth.interceptor.ts` |
-| 2 | 🟠 [FE-BUG-26](#-fe-bug-26--template-editor-pending-autosave-is-discarded-on-most-exits) Template editor drops pending autosave on most exits | Silent data loss in the flagship editor | `template-editor.component.ts` |
+| 2 | 🟠✅ [FE-BUG-26](#-fe-bug-26--template-editor-pending-autosave-is-discarded-on-most-exits--fixed) Template editor drops pending autosave on most exits — **FIXED** | Silent data loss in the flagship editor | `template-editor.component.ts` |
 | 3 | 🟠✅ [FE-BUG-2](#-fe-bug-2--persona-nova-collects-a-full-form-then-silently-discards-everything-except-the-alias--fixed) "Persona nova" discards every field but the alias — **FIXED** | Silent data loss on a primary flow, guaranteed on every use | `person-detail.component.ts` |
 | 4 | 🟠 [FE-BUG-7](#-fe-bug-7--assignment-canvas-undo-history-is-incomplete-for-moves-and-swaps) Undo after a move drops the person; swaps unrecorded | Corrupts the mental model of the most-used tool during assajos | `assignment-canvas.component.ts` |
 | 5 | 🟠 [FE-BUG-6](#-fe-bug-6--both-sync-screens-leak-their-eventsource-on-navigation) SSE `EventSource` leaks on navigation (×2 screens) | Holds the server-side sync lock with nobody watching | `person-sync` / `event-sync` |

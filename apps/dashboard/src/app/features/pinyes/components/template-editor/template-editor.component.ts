@@ -12,6 +12,7 @@ import {
 } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { Observable } from 'rxjs';
 import { LucideAngularModule, Undo2, Redo2, Eye, EyeOff } from 'lucide-angular';
 import { ICON_TRONC, ICON_RENGLA, ICON_PINYA } from '../../../../shared/constants/domain-icons';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -34,6 +35,7 @@ import { StageTransform } from '../../utils/rengla-coordinates.util';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { validateBaseOrdering } from '../../utils/base-ordering.util';
+import { CanComponentDeactivate } from '../../../../core/guards/unsaved-changes.guard';
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -63,7 +65,7 @@ const DEFAULT_NODE_HEIGHT = 40;
   templateUrl: './template-editor.component.html',
   styleUrl: './template-editor.component.scss',
 })
-export class TemplateEditorComponent implements OnInit, OnDestroy {
+export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentDeactivate {
   readonly ICON_TRONC = ICON_TRONC;
   readonly ICON_RENGLA = ICON_RENGLA;
   readonly ICON_PINYA = ICON_PINYA;
@@ -221,12 +223,28 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   }
 
   goBack(): void {
+    this.router.navigate(['/pinyes']);
+  }
+
+  /** Flushes a pending debounced autosave before the route guard lets navigation proceed (FE-BUG-26). */
+  canDeactivate(): Observable<boolean> | boolean {
+    if (!this.autosaveTimer) return true;
+    clearTimeout(this.autosaveTimer);
+    this.autosaveTimer = null;
+    return new Observable<boolean>((subscriber) => {
+      this.save(() => {
+        subscriber.next(true);
+        subscriber.complete();
+      });
+    });
+  }
+
+  /** Warns on tab close / hard reload while an autosave is still pending, since that path bypasses the router guard. */
+  @HostListener('window:beforeunload', ['$event'])
+  onBeforeUnload(event: BeforeUnloadEvent): void {
     if (this.autosaveTimer) {
-      clearTimeout(this.autosaveTimer);
-      this.autosaveTimer = null;
-      this.save(() => this.router.navigate(['/pinyes']));
-    } else {
-      this.router.navigate(['/pinyes']);
+      event.preventDefault();
+      event.returnValue = '';
     }
   }
 

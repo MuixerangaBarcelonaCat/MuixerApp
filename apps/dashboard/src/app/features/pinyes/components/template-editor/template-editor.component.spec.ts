@@ -2,7 +2,7 @@ import { Component, input, output } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { vi } from 'vitest';
-import { of } from 'rxjs';
+import { Observable, of } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { FigureZone, NodeShape, PINYA_NODE_PRESETS } from '@muixer/shared';
@@ -136,6 +136,60 @@ describe('TemplateEditorComponent — Preview Mode', () => {
 
     it('should have troncMode = editor', () => {
       expect(component.troncMode()).toBe('editor');
+    });
+  });
+
+  describe('canDeactivate (pending autosave flush) — FE-BUG-26', () => {
+    beforeEach(() => {
+      mockFigureTemplateService.create.mockClear();
+    });
+
+    it('returns true synchronously when there is no pending autosave', () => {
+      expect(component.canDeactivate()).toBe(true);
+    });
+
+    it('flushes the pending autosave immediately and resolves true once the save completes', () => {
+      component.onNodeMoved({ id: 'n1', x: 5, y: 5 });
+      expect(mockFigureTemplateService.create).not.toHaveBeenCalled();
+
+      const result = component.canDeactivate();
+      expect(result).not.toBe(true);
+
+      const emissions: boolean[] = [];
+      (result as Observable<boolean>).subscribe((v) => emissions.push(v));
+
+      expect(mockFigureTemplateService.create).toHaveBeenCalledTimes(1);
+      expect(emissions).toEqual([true]);
+    });
+
+    it('does not schedule a second flush once canDeactivate has cleared the pending timer', () => {
+      component.onNodeMoved({ id: 'n1', x: 5, y: 5 });
+      (component.canDeactivate() as Observable<boolean>).subscribe();
+      expect(component.canDeactivate()).toBe(true);
+    });
+  });
+
+  describe('beforeunload (tab close with unsaved changes) — FE-BUG-26', () => {
+    const makeEvent = () => ({ preventDefault: vi.fn(), returnValue: '' }) as unknown as BeforeUnloadEvent;
+
+    it('warns the browser when there is a pending autosave', () => {
+      component.onNodeMoved({ id: 'n1', x: 5, y: 5 });
+      const event = makeEvent();
+      component.onBeforeUnload(event);
+      expect(event.preventDefault).toHaveBeenCalled();
+    });
+
+    it('does nothing when there is no pending autosave', () => {
+      const event = makeEvent();
+      component.onBeforeUnload(event);
+      expect(event.preventDefault).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('goBack', () => {
+    it('navigates to /pinyes (flushing is handled by the route canDeactivate guard)', () => {
+      component.goBack();
+      expect(mockRouter.navigate).toHaveBeenCalledWith(['/pinyes']);
     });
   });
 
