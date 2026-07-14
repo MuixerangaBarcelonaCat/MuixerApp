@@ -35,7 +35,6 @@ class StubFigureCanvas {
   readonly gridEnabled = input<boolean>(true);
   readonly isPast = input<boolean>(false);
   readonly segmentNodeSelected = output<SegmentNodeRef | null>();
-  readonly segmentNodeClicked = output<SegmentNodeRef & { x: number; y: number }>();
   readonly segmentNodeDoubleClicked = output<SegmentNodeRef>();
   centerOnContent = vi.fn();
 }
@@ -354,7 +353,7 @@ describe('PinyesTabComponent', () => {
       expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'n1' });
     });
 
-    it('selecting null clears the selection and popover', async () => {
+    it('selecting null clears the selection', async () => {
       await setup();
       component.onSegmentNodeSelected({ slotId: INST_A, nodeId: 'n1' });
 
@@ -362,7 +361,6 @@ describe('PinyesTabComponent', () => {
 
       expect(component.selectedRef()).toBeNull();
       expect(state.selectedNodeId()).toBeNull();
-      expect(component.popoverAssignment()).toBeNull();
     });
 
     it('ignores node selection when the event is locked', async () => {
@@ -651,8 +649,8 @@ describe('PinyesTabComponent', () => {
       const existing = makeAssignment(INST_A, 'n1', 'p-1');
       await setup({ assignmentsByInstance: { [INST_A]: [existing] } });
       component.onSegmentNodeSelected({ slotId: INST_A, nodeId: 'n1' });
-      // Selecting an assigned node keeps it selected and shows the popover
-      expect(component.popoverAssignment()).toBe(existing);
+      // Selecting an assigned node keeps it selected
+      expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'n1' });
 
       component.onKeyDown(new KeyboardEvent('keydown', { key: 'Delete' }));
 
@@ -661,7 +659,7 @@ describe('PinyesTabComponent', () => {
   });
 
   describe('keyboard', () => {
-    it('Escape clears selection and popover', async () => {
+    it('Escape clears selection', async () => {
       await setup();
       component.onSegmentNodeSelected({ slotId: INST_A, nodeId: 'n1' });
 

@@ -13,7 +13,6 @@ import {
 import { LucideAngularModule, Trash2 } from 'lucide-angular';
 import { FigureCanvasComponent } from '../../../figure-canvas/figure-canvas.component';
 import { PersonPanelComponent } from '../../../person-panel/person-panel.component';
-import { NodePopoverComponent } from '../../../node-popover/node-popover.component';
 import { AlreadyAssignedDialogComponent } from '../../../already-assigned-dialog/already-assigned-dialog.component';
 import { SegmentWorkspaceStateService, WorkspaceInstance } from '../../../../services/segment-workspace-state.service';
 import { AssignmentStateService } from '../../../../services/assignment-state.service';
@@ -47,7 +46,6 @@ import { buildPinyaBuckets, pickNextAssignableNode } from '../../../../utils/ass
     LucideAngularModule,
     FigureCanvasComponent,
     PersonPanelComponent,
-    NodePopoverComponent,
     AlreadyAssignedDialogComponent,
     ImportPinyaModalComponent,
   ],
@@ -87,8 +85,6 @@ export class PinyesTabComponent implements OnInit {
   }
 
   readonly selectedRef = signal<SegmentNodeRef | null>(null);
-  readonly popoverAssignment = signal<AssignmentDetail | null>(null);
-  readonly popoverPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
   readonly highlightedNodeIds = signal<Set<string>>(new Set());
 
   readonly reassignDialog = signal<{
@@ -306,21 +302,15 @@ export class PinyesTabComponent implements OnInit {
     }
 
     if (clickedAssignment) {
-      this.popoverAssignment.set(clickedAssignment);
       this.select(ref);
       return;
     }
 
     const pendingPersonId = this.state.selectedPersonId();
-    this.popoverAssignment.set(null);
     this.select(ref);
     if (pendingPersonId) {
       this.triggerAssign(ref, pendingPersonId);
     }
-  }
-
-  onSegmentNodeClicked(event: SegmentNodeRef & { x: number; y: number }): void {
-    this.popoverPosition.set({ x: event.x, y: event.y });
   }
 
   onPersonSelected(person: AvailablePerson): void {
@@ -414,7 +404,6 @@ export class PinyesTabComponent implements OnInit {
 
     const snapshot = [...this.state.assignments()];
     this.state.assignments.update((list) => list.filter((a) => a.id !== assignment.id));
-    this.popoverAssignment.set(null);
     this.clearSelection();
 
     this.assignmentService.unassign(instanceId, assignment.id).subscribe({
@@ -450,10 +439,6 @@ export class PinyesTabComponent implements OnInit {
     });
   }
 
-  getAttendanceStatus(assignment: AssignmentDetail): string | null {
-    return this.attendanceMap().get(assignment.person.id) ?? null;
-  }
-
   // ── Internals ────────────────────────────────────────────────────────────
 
   private select(ref: SegmentNodeRef): void {
@@ -465,7 +450,6 @@ export class PinyesTabComponent implements OnInit {
   private clearSelection(): void {
     this.selectedRef.set(null);
     this.state.setSelectedNodeId(null);
-    this.popoverAssignment.set(null);
   }
 
   private instanceFor(instanceId: string): WorkspaceInstance | null {
@@ -678,7 +662,6 @@ export class PinyesTabComponent implements OnInit {
   private navigateToAssignment(assignment: AssignmentDetail): void {
     const ref: SegmentNodeRef = { slotId: assignment.figureInstanceId, nodeId: assignment.node.id };
     this.select(ref);
-    this.popoverAssignment.set(assignment);
   }
 
   private advanceToNextEmptyNode(instanceId: string, justAssignedNodeId: string): void {

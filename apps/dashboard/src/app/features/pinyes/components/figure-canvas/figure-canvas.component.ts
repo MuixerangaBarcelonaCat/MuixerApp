@@ -269,7 +269,6 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   }>();
   // Segment-assignment mode outputs
   readonly segmentNodeSelected = output<SegmentNodeRef | null>();
-  readonly segmentNodeClicked = output<SegmentNodeRef & { x: number; y: number }>();
   readonly segmentNodeDoubleClicked = output<SegmentNodeRef>();
   readonly segmentAdHocNodeMoved = output<SegmentNodeRef & { x: number; y: number }>();
   readonly segmentAdHocNodeTransformed = output<
@@ -297,6 +296,12 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
   readonly zoomLevel = signal(1);
   readonly hoveredPerson = signal<{ info: PersonHoverInfo; top: number; left: number; positionType: string | null } | null>(null);
+  // Identifies which node/person the popover is currently showing, so a
+  // re-render (e.g. after unassigning via Backspace) can tell whether the
+  // hovered assignment still exists — Konva never fires mouseleave when the
+  // hovered group is destroyed out from under the cursor by destroyChildren().
+  private hoveredNodeKey: string | null = null;
+  private hoveredPersonId: string | null = null;
 
   constructor() {
     effect(() => {
@@ -809,6 +814,20 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.gridLayer.batchDraw();
   }
 
+  /**
+   * Hides the hover popover if the node/person it refers to no longer has
+   * that assignment after a re-render (e.g. unassigned via Backspace).
+   * Leaves it open when re-rendering for unrelated reasons (selection, etc.).
+   */
+  private reconcileHoveredPerson(currentPersonId: string | null | undefined): void {
+    if (this.hoveredNodeKey === null) return;
+    if (currentPersonId !== this.hoveredPersonId) {
+      this.hoveredPerson.set(null);
+      this.hoveredNodeKey = null;
+      this.hoveredPersonId = null;
+    }
+  }
+
   private renderNodes(): void {
     this.clearAllGhostTimers();
 
@@ -1291,6 +1310,9 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     const selectedId = this.selectedNodeId();
 
     const assignmentByNodeId = new Map(assignments.map((a) => [a.node.id, a]));
+    this.reconcileHoveredPerson(
+      this.hoveredNodeKey ? assignmentByNodeId.get(this.hoveredNodeKey)?.person.id ?? null : undefined,
+    );
     const highlighted = this.highlightedNodeIds();
 
     const past = this.isPast();
@@ -1451,6 +1473,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         }
 
         group.on('mouseenter.personHover', (e) => {
+          this.hoveredNodeKey = node.id;
+          this.hoveredPersonId = assignment.person.id;
           this.hoveredPerson.set({
             info: {
               alias,
@@ -1466,7 +1490,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
             positionType: node.positionType,
           });
         });
-        group.on('mouseleave.personHover', () => this.hoveredPerson.set(null));
+        group.on('mouseleave.personHover', () => {
+          this.hoveredNodeKey = null;
+          this.hoveredPersonId = null;
+          this.hoveredPerson.set(null);
+        });
       } else {
         const textFill = isDecoration
           ? (node.color ? this.getContrastColor(node.color) : '#000000')
@@ -1609,6 +1637,12 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       const list = bySlot.get(rn.slotId) ?? [];
       list.push(rn);
       bySlot.set(rn.slotId, list);
+    }
+    if (this.hoveredNodeKey) {
+      const hovered = renderNodes.find(
+        (rn) => `${rn.slotId}:${rn.node.id}` === this.hoveredNodeKey,
+      );
+      this.reconcileHoveredPerson(hovered?.assignment?.person.id ?? null);
     }
 
     const sortedSlots = [...this.compositionSlots()].sort((a, b) => a.sortOrder - b.sortOrder);
@@ -1832,6 +1866,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       }
 
       group.on('mouseenter.personHover', (e) => {
+        this.hoveredNodeKey = `${rn.slotId}:${node.id}`;
+        this.hoveredPersonId = assignment.person.id;
         this.hoveredPerson.set({
           info: {
             alias,
@@ -1847,7 +1883,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           positionType: node.positionType,
         });
       });
-      group.on('mouseleave.personHover', () => this.hoveredPerson.set(null));
+      group.on('mouseleave.personHover', () => {
+        this.hoveredNodeKey = null;
+        this.hoveredPersonId = null;
+        this.hoveredPerson.set(null);
+      });
     } else {
       const textFill = isDecoration
         ? (node.color ? this.getContrastColor(node.color) : '#000000')
@@ -1871,14 +1911,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       );
     }
 
-    group.on('click tap', (e) => {
-      const containerRect = this.stage.container().getBoundingClientRect();
+    group.on('click tap', () => {
       this.segmentNodeSelected.emit(ref);
-      this.segmentNodeClicked.emit({
-        ...ref,
-        x: e.evt.clientX - containerRect.left,
-        y: e.evt.clientY - containerRect.top,
-      });
     });
 
     group.on('dblclick dbltap', () => {
