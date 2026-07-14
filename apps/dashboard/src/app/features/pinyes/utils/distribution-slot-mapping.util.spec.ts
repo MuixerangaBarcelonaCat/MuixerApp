@@ -35,6 +35,7 @@ const itemWithPosition = (
   label: null,
   figureMode: 'COMPLETA',
   numberOfCordons: null,
+  cordonsObertsEnabled: true,
   assignments: [],
   figureTemplate: { id: 'fig-1', name: 'pd4', nodes: [] },
   troncGridCols: 2,
@@ -307,6 +308,27 @@ describe('mapDistributionItemsToSlots', () => {
     const [slot] = mapDistributionItemsToSlots([item]);
 
     expect(slot.figureTemplate.nodes.map((n) => n.id).sort()).toEqual(['b1', 'n1', 'n2']);
+  });
+
+  it('excludes cordo-obert nodes entirely when cordonsObertsEnabled is false, regardless of numberOfCordons', () => {
+    const item = {
+      ...itemWithPosition('a', 0, 0),
+      numberOfCordons: null,
+      cordonsObertsEnabled: false,
+      figureTemplate: {
+        id: 'fig-1',
+        name: 'Pilar',
+        nodes: [
+          makeDistributionNode('b1', 'BASE'),
+          makeDistributionNode('n1', 'PINYA', { renglaId: 'r1', renglaPosition: 1 }),
+          makeDistributionNode('n2', 'PINYA', { renglaId: 'r1', renglaPosition: 2, positionType: 'cordo-obert' }),
+        ],
+      },
+    };
+
+    const [slot] = mapDistributionItemsToSlots([item]);
+
+    expect(slot.figureTemplate.nodes.map((n) => n.id).sort()).toEqual(['b1', 'n1']);
   });
 
   it('repositions a cordo-obert node to the position of the first hidden node in its rengla', () => {

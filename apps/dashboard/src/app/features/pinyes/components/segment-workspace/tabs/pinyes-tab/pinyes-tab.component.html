@@ -21,19 +21,8 @@
       [highlightedNodeIds]="highlightedNodeIds()"
       [isPast]="isPast()"
       (segmentNodeSelected)="onSegmentNodeSelected($event)"
-      (segmentNodeClicked)="onSegmentNodeClicked($event)"
+      (segmentNodeDropped)="onNodeDropped($event.source, $event.target)"
     />
-
-    @if (popoverAssignment(); as assignment) {
-      <app-node-popover
-        [assignment]="assignment"
-        [position]="popoverPosition()"
-        [heightMode]="state.heightMode()"
-        [attendanceStatus]="getAttendanceStatus(assignment)"
-        (unassign)="onUnassign($event)"
-        (close)="popoverAssignment.set(null)"
-      />
-    }
   </div>
 
   <!-- Person panel -->

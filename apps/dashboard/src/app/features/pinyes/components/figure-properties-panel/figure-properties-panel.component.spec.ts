@@ -15,6 +15,8 @@ const makeEntry = (overrides: Partial<FigurePropertiesEntry> = {}): FigureProper
   offsetX: 10,
   offsetY: 20,
   angle: 0,
+  cordonsObertsEnabled: true,
+  hasCordoObertNodes: false,
   ...overrides,
 });
 
@@ -205,6 +207,42 @@ describe('FigurePropertiesPanelComponent', () => {
     fixture.componentInstance.onRemove();
 
     expect(emitted).toBe('entry-1');
+  });
+
+  describe('cordons oberts checkbox', () => {
+    it('is hidden when the figure has no cordo-obert nodes', () => {
+      const fixture = create(makeEntry({ hasCordoObertNodes: false }));
+      expect(fixture.debugElement.query(By.css('[data-cordons-oberts-checkbox]'))).toBeFalsy();
+    });
+
+    it('is shown when the figure has cordo-obert nodes', () => {
+      const fixture = create(makeEntry({ hasCordoObertNodes: true }));
+      expect(fixture.debugElement.query(By.css('[data-cordons-oberts-checkbox]'))).toBeTruthy();
+    });
+
+    it('is checked when cordonsObertsEnabled is true', () => {
+      const fixture = create(makeEntry({ hasCordoObertNodes: true, cordonsObertsEnabled: true }));
+      const checkbox = fixture.debugElement.query(By.css('[data-cordons-oberts-checkbox]'))
+        .nativeElement as HTMLInputElement;
+      expect(checkbox.checked).toBe(true);
+    });
+
+    it('is unchecked when cordonsObertsEnabled is false', () => {
+      const fixture = create(makeEntry({ hasCordoObertNodes: true, cordonsObertsEnabled: false }));
+      const checkbox = fixture.debugElement.query(By.css('[data-cordons-oberts-checkbox]'))
+        .nativeElement as HTMLInputElement;
+      expect(checkbox.checked).toBe(false);
+    });
+
+    it('emits cordonsObertsEnabledChanged with the entry id when toggled', () => {
+      const fixture = create(makeEntry({ hasCordoObertNodes: true, cordonsObertsEnabled: true }));
+      let emitted: { id: string; value: boolean } | undefined;
+      fixture.componentInstance.cordonsObertsEnabledChanged.subscribe((e) => (emitted = e));
+
+      fixture.componentInstance.onCordonsObertsEnabledChange(false);
+
+      expect(emitted).toEqual({ id: 'entry-1', value: false });
+    });
   });
 
   it('shows the remove button by default', () => {

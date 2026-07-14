@@ -4,6 +4,7 @@ import {
   IsUUID,
   IsNumber,
   IsInt,
+  IsBoolean,
   IsEnum,
   ValidateNested,
 } from 'class-validator';
@@ -45,6 +46,10 @@ export class UpdateCompositionEntryDto {
   @IsOptional()
   @IsInt()
   numberOfCordons?: number | null;
+
+  @IsOptional()
+  @IsBoolean()
+  cordonsObertsEnabled?: boolean;
 
   @IsOptional()
   @IsInt()

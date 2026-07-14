@@ -35,7 +35,6 @@ class StubFigureCanvas {
   readonly gridEnabled = input<boolean>(true);
   readonly isPast = input<boolean>(false);
   readonly segmentNodeSelected = output<SegmentNodeRef | null>();
-  readonly segmentNodeClicked = output<SegmentNodeRef & { x: number; y: number }>();
   readonly segmentNodeDoubleClicked = output<SegmentNodeRef>();
   centerOnContent = vi.fn();
 }
@@ -85,6 +84,7 @@ const makeNode = (id: string, zone: string, overrides: Partial<InstanceNodeItem>
   color: null,
   shape: 'RECTANGLE',
   sortOrder: 0,
+  climbIndicator: null,
   ringLevel: null,
   originNodeId: null,
   renglaId: null,
@@ -106,6 +106,7 @@ const makeInstance = (id: string, overrides: Partial<InstanceDetail> = {}): Inst
   pinyaCapacity: null,
   totalCordons: null,
   numberOfCordons: null,
+  cordonsObertsEnabled: true,
   projectionX: null,
   projectionY: null,
   projectionScale: 1,
@@ -136,6 +137,7 @@ const makeAssignment = (instanceId: string, nodeId: string, personId = `p-${++as
     z: 0,
     positionType: null,
     sortOrder: 0,
+    climbIndicator: null,
     ringLevel: null,
     originNodeId: null,
     sourceNodeId: null,
@@ -351,7 +353,7 @@ describe('PinyesTabComponent', () => {
       expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'n1' });
     });
 
-    it('selecting null clears the selection and popover', async () => {
+    it('selecting null clears the selection', async () => {
       await setup();
       component.onSegmentNodeSelected({ slotId: INST_A, nodeId: 'n1' });
 
@@ -359,7 +361,6 @@ describe('PinyesTabComponent', () => {
 
       expect(component.selectedRef()).toBeNull();
       expect(state.selectedNodeId()).toBeNull();
-      expect(component.popoverAssignment()).toBeNull();
     });
 
     it('ignores node selection when the event is locked', async () => {
@@ -452,13 +453,37 @@ describe('PinyesTabComponent', () => {
     });
   });
 
-  describe('move and swap', () => {
-    it('moves the person when an assigned node is selected and an empty node is clicked', async () => {
+  describe('click-click no longer moves or swaps', () => {
+    it('selecting an assigned node then clicking an empty node does not move the person', async () => {
       const existing = makeAssignment(INST_A, 'n1', 'p-1');
       await setup({ assignmentsByInstance: { [INST_A]: [existing] } });
 
       component.onSegmentNodeSelected({ slotId: INST_A, nodeId: 'n1' });
       component.onSegmentNodeSelected({ slotId: INST_A, nodeId: 'n2' });
+
+      expect(assignmentService.unassign).not.toHaveBeenCalled();
+      expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'n2' });
+    });
+
+    it('selecting two assigned nodes in sequence does not swap them', async () => {
+      const a1 = makeAssignment(INST_A, 'n1', 'p-1');
+      const a2 = makeAssignment(INST_A, 'n2', 'p-2');
+      await setup({ assignmentsByInstance: { [INST_A]: [a1, a2] } });
+
+      component.onSegmentNodeSelected({ slotId: INST_A, nodeId: 'n1' });
+      component.onSegmentNodeSelected({ slotId: INST_A, nodeId: 'n2' });
+
+      expect(assignmentService.swap).not.toHaveBeenCalled();
+      expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'n2' });
+    });
+  });
+
+  describe('onNodeDropped (drag-and-drop)', () => {
+    it('moves the person when dropped on an empty node', async () => {
+      const existing = makeAssignment(INST_A, 'n1', 'p-1');
+      await setup({ assignmentsByInstance: { [INST_A]: [existing] } });
+
+      component.onNodeDropped({ slotId: INST_A, nodeId: 'n1' }, { slotId: INST_A, nodeId: 'n2' });
 
       expect(assignmentService.unassign).toHaveBeenCalledWith(INST_A, existing.id);
       expect(assignmentService.assign).toHaveBeenCalledWith(INST_A, { nodeId: 'n2', personId: 'p-1' });
@@ -470,17 +495,14 @@ describe('PinyesTabComponent', () => {
       await setup({ assignmentsByInstance: { [INST_A]: [a1, a2] } });
       assignmentService.swap.mockReturnValue(of({ a: a1, b: a2 }));
 
-      component.onSegmentNodeSelected({ slotId: INST_A, nodeId: 'n1' });
-      component.onSegmentNodeSelected({ slotId: INST_A, nodeId: 'n2' });
+      component.onNodeDropped({ slotId: INST_A, nodeId: 'n1' }, { slotId: INST_A, nodeId: 'n2' });
 
       expect(assignmentService.swap).toHaveBeenCalledWith(INST_A, {
         assignmentIdA: a1.id,
         assignmentIdB: a2.id,
       });
     });
-  });
 
-  describe('cross-figure swap', () => {
     it('swaps two assigned nodes of different figures by unassigning both and reassigning crossed', async () => {
       const a1 = makeAssignment(INST_A, 'n1', 'p-1');
       const a2 = makeAssignment(INST_B, 'm1', 'p-2');
@@ -496,8 +518,7 @@ describe('PinyesTabComponent', () => {
         of(makeAssignment(instanceId, payload.nodeId, payload.personId)),
       );
 
-      component.onSegmentNodeSelected({ slotId: INST_A, nodeId: 'n1' });
-      component.onSegmentNodeSelected({ slotId: INST_B, nodeId: 'm1' });
+      component.onNodeDropped({ slotId: INST_A, nodeId: 'n1' }, { slotId: INST_B, nodeId: 'm1' });
 
       expect(assignmentService.unassign).toHaveBeenCalledWith(INST_A, a1.id);
       expect(assignmentService.unassign).toHaveBeenCalledWith(INST_B, a2.id);
@@ -518,8 +539,7 @@ describe('PinyesTabComponent', () => {
       });
       assignmentService.unassign.mockReturnValue(throwError(() => ({ status: 500 })));
 
-      component.onSegmentNodeSelected({ slotId: INST_A, nodeId: 'n1' });
-      component.onSegmentNodeSelected({ slotId: INST_B, nodeId: 'm1' });
+      component.onNodeDropped({ slotId: INST_A, nodeId: 'n1' }, { slotId: INST_B, nodeId: 'm1' });
 
       const persons = state
         .assignments()
@@ -530,6 +550,34 @@ describe('PinyesTabComponent', () => {
         [INST_B, 'p-2'],
       ]);
       expect(toast.error).toHaveBeenCalled();
+    });
+
+    it('does nothing when dropped on itself', async () => {
+      const existing = makeAssignment(INST_A, 'n1', 'p-1');
+      await setup({ assignmentsByInstance: { [INST_A]: [existing] } });
+
+      component.onNodeDropped({ slotId: INST_A, nodeId: 'n1' }, { slotId: INST_A, nodeId: 'n1' });
+
+      expect(assignmentService.unassign).not.toHaveBeenCalled();
+      expect(assignmentService.swap).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when the source node has no assignment', async () => {
+      await setup();
+
+      component.onNodeDropped({ slotId: INST_A, nodeId: 'n1' }, { slotId: INST_A, nodeId: 'n2' });
+
+      expect(assignmentService.unassign).not.toHaveBeenCalled();
+      expect(assignmentService.assign).not.toHaveBeenCalled();
+    });
+
+    it('ignores drops when locked', async () => {
+      const existing = makeAssignment(INST_A, 'n1', 'p-1');
+      await setup({ locked: true, assignmentsByInstance: { [INST_A]: [existing] } });
+
+      component.onNodeDropped({ slotId: INST_A, nodeId: 'n1' }, { slotId: INST_A, nodeId: 'n2' });
+
+      expect(assignmentService.unassign).not.toHaveBeenCalled();
     });
   });
 
@@ -648,8 +696,8 @@ describe('PinyesTabComponent', () => {
       const existing = makeAssignment(INST_A, 'n1', 'p-1');
       await setup({ assignmentsByInstance: { [INST_A]: [existing] } });
       component.onSegmentNodeSelected({ slotId: INST_A, nodeId: 'n1' });
-      // Selecting an assigned node keeps it selected and shows the popover
-      expect(component.popoverAssignment()).toBe(existing);
+      // Selecting an assigned node keeps it selected
+      expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'n1' });
 
       component.onKeyDown(new KeyboardEvent('keydown', { key: 'Delete' }));
 
@@ -658,7 +706,7 @@ describe('PinyesTabComponent', () => {
   });
 
   describe('keyboard', () => {
-    it('Escape clears selection and popover', async () => {
+    it('Escape clears selection', async () => {
       await setup();
       component.onSegmentNodeSelected({ slotId: INST_A, nodeId: 'n1' });
 

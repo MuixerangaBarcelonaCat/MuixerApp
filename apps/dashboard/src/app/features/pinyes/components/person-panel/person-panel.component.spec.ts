@@ -767,6 +767,7 @@ describe('PersonPanelComponent', () => {
         z: 0,
         positionType: null,
         sortOrder: 0,
+        climbIndicator: null,
         ringLevel: null,
         originNodeId: null,
         sourceNodeId: null,
@@ -840,6 +841,38 @@ describe('PersonPanelComponent', () => {
       const panel = fixture.nativeElement.querySelector('#assignades-panel');
       const dot = panel?.querySelector('[style*="background-color"]');
       expect(dot).toBeFalsy();
+    });
+  });
+
+  // ── assigned badge cordon label ─────────────────────────────────────────────
+
+  describe('assigned badge cordon label', () => {
+    it('shows the cordon number next to the node label when assignedNodeCordon is set', () => {
+      const person = makeAvailablePerson('p1', 'ANIRE', {
+        assignedInSegment: true,
+        assignedInstanceId: 'instance-1',
+        assignedNodeLabel: 'Mans',
+        assignedNodeCordon: 2,
+      });
+      component.persons.set([person]);
+      fixture.detectChanges();
+
+      const panel = fixture.nativeElement.querySelector('#assignades-panel');
+      expect(panel.querySelector('.badge-info').textContent).toContain('Mans C2');
+    });
+
+    it('shows only the node label when assignedNodeCordon is null', () => {
+      const person = makeAvailablePerson('p1', 'ANIRE', {
+        assignedInSegment: true,
+        assignedInstanceId: 'instance-1',
+        assignedNodeLabel: 'Mans',
+        assignedNodeCordon: null,
+      });
+      component.persons.set([person]);
+      fixture.detectChanges();
+
+      const panel = fixture.nativeElement.querySelector('#assignades-panel');
+      expect(panel.querySelector('.badge-info').textContent.trim()).toBe('Mans');
     });
   });
 });

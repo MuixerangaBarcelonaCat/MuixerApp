@@ -27,6 +27,7 @@ export interface WorkspaceInstance {
   figureMode: string;
   snapshotted: boolean;
   numberOfCordons: number | null;
+  cordonsObertsEnabled: boolean;
   nodes: InstanceNodeItem[];
   assignedCount: number;
   totalCount: number;
@@ -51,6 +52,8 @@ export class SegmentWorkspaceStateService {
   readonly loading = signal(true);
   readonly notFound = signal(false);
   readonly segment = signal<SegmentDetail | null>(null);
+  /** All segments of the event, ordered by sortOrder — powers prev/next navigation. */
+  readonly segments = signal<SegmentDetail[]>([]);
   readonly instances = signal<WorkspaceInstance[]>([]);
   readonly distributionByInstance = signal<Map<string, DistributionItem>>(new Map());
   readonly selectedInstanceId = signal<string | null>(null);
@@ -76,6 +79,24 @@ export class SegmentWorkspaceStateService {
 
   readonly segmentName = computed(() => this.segment()?.name ?? null);
   readonly isLocked = computed(() => this.lockStatus()?.locked ?? false);
+
+  private readonly segmentIndex = computed(() =>
+    this.segments().findIndex((s) => s.id === this.segmentId()),
+  );
+  readonly previousSegmentId = computed(() => {
+    const index = this.segmentIndex();
+    return index > 0 ? this.segments()[index - 1].id : null;
+  });
+  readonly nextSegmentId = computed(() => {
+    const index = this.segmentIndex();
+    const segments = this.segments();
+    return index >= 0 && index < segments.length - 1 ? segments[index + 1].id : null;
+  });
+  /** 1-based position of the current segment among its siblings, e.g. { current: 3, total: 7 }. */
+  readonly segmentPosition = computed(() => {
+    const index = this.segmentIndex();
+    return index >= 0 ? { current: index + 1, total: this.segments().length } : null;
+  });
 
   readonly selectedInstance = computed(
     () => this.instances().find((i) => i.instanceId === this.selectedInstanceId()) ?? null,
@@ -203,6 +224,7 @@ export class SegmentWorkspaceStateService {
 
     this.segmentService.getByEvent(eventId).subscribe({
       next: (resp) => {
+        this.segments.set(resp.data);
         const seg = resp.data.find((s) => s.id === segmentId);
         if (!seg) {
           this.notFound.set(true);
@@ -225,6 +247,7 @@ export class SegmentWorkspaceStateService {
               figureMode: instance.figureMode ?? 'COMPLETA',
               snapshotted: instance.snapshotted,
               numberOfCordons: instance.numberOfCordons ?? null,
+              cordonsObertsEnabled: instance.cordonsObertsEnabled,
               nodes: [],
               assignedCount: instance.assignedCount ?? 0,
               totalCount: 0,
@@ -274,6 +297,7 @@ export class SegmentWorkspaceStateService {
 
     this.segmentService.getByEvent(eventId).subscribe({
       next: (resp) => {
+        this.segments.set(resp.data);
         const seg = resp.data.find((s) => s.id === segmentId);
         if (!seg) return;
         this.segment.set(seg);
@@ -289,6 +313,7 @@ export class SegmentWorkspaceStateService {
               ),
               figureMode: fresh.figureMode ?? 'COMPLETA',
               numberOfCordons: fresh.numberOfCordons ?? null,
+              cordonsObertsEnabled: fresh.cordonsObertsEnabled,
               snapshotted: fresh.snapshotted,
               assignedCount: fresh.assignedCount ?? existing.assignedCount,
             };
@@ -354,7 +379,9 @@ export class SegmentWorkspaceStateService {
   /** Nodes of one instance after cordons filtering and cordo-obert repositioning. */
   visibleNodesFor(instance: WorkspaceInstance): InstanceNodeItem[] {
     const cordons = instance.numberOfCordons;
-    const nodes = instance.nodes;
+    const nodes = instance.cordonsObertsEnabled
+      ? instance.nodes
+      : instance.nodes.filter((n) => n.positionType !== 'cordo-obert');
     if (cordons === null) return nodes;
 
     const filtered = nodes.filter(

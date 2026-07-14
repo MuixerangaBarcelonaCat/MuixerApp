@@ -13,7 +13,6 @@ import {
 import { LucideAngularModule, Trash2 } from 'lucide-angular';
 import { FigureCanvasComponent } from '../../../figure-canvas/figure-canvas.component';
 import { PersonPanelComponent } from '../../../person-panel/person-panel.component';
-import { NodePopoverComponent } from '../../../node-popover/node-popover.component';
 import { AlreadyAssignedDialogComponent } from '../../../already-assigned-dialog/already-assigned-dialog.component';
 import { SegmentWorkspaceStateService, WorkspaceInstance } from '../../../../services/segment-workspace-state.service';
 import { AssignmentStateService } from '../../../../services/assignment-state.service';
@@ -47,7 +46,6 @@ import { buildPinyaBuckets, pickNextAssignableNode } from '../../../../utils/ass
     LucideAngularModule,
     FigureCanvasComponent,
     PersonPanelComponent,
-    NodePopoverComponent,
     AlreadyAssignedDialogComponent,
     ImportPinyaModalComponent,
   ],
@@ -87,8 +85,6 @@ export class PinyesTabComponent implements OnInit {
   }
 
   readonly selectedRef = signal<SegmentNodeRef | null>(null);
-  readonly popoverAssignment = signal<AssignmentDetail | null>(null);
-  readonly popoverPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
   readonly highlightedNodeIds = signal<Set<string>>(new Set());
 
   readonly reassignDialog = signal<{
@@ -284,43 +280,40 @@ export class PinyesTabComponent implements OnInit {
     }
 
     const clickedAssignment = this.assignmentFor(ref);
-    const prevRef = this.selectedRef();
-    const prevAssignment = prevRef ? this.assignmentFor(prevRef) : null;
-    const isSameNode = !!prevRef && prevRef.slotId === ref.slotId && prevRef.nodeId === ref.nodeId;
-
-    if (clickedAssignment && prevAssignment && !isSameNode) {
-      // Both assigned → swap persons (cross-figure swaps go through unassign + reassign)
-      if (prevRef?.slotId === ref.slotId) {
-        this.triggerSwap(prevAssignment, clickedAssignment);
-      } else {
-        this.triggerCrossSwap(prevAssignment, clickedAssignment);
-      }
-      this.clearSelection();
-      return;
-    }
-
-    if (!clickedAssignment && prevAssignment && !isSameNode) {
-      // Assigned node selected, empty node clicked → move person (cross-figure allowed)
-      this.triggerUnassignThenAssign(prevAssignment, ref, prevAssignment.person.id);
-      return;
-    }
 
     if (clickedAssignment) {
-      this.popoverAssignment.set(clickedAssignment);
       this.select(ref);
       return;
     }
 
     const pendingPersonId = this.state.selectedPersonId();
-    this.popoverAssignment.set(null);
     this.select(ref);
     if (pendingPersonId) {
       this.triggerAssign(ref, pendingPersonId);
     }
   }
 
-  onSegmentNodeClicked(event: SegmentNodeRef & { x: number; y: number }): void {
-    this.popoverPosition.set({ x: event.x, y: event.y });
+  /** Drag-and-drop: a person was dragged from `source` and dropped on `target`. */
+  onNodeDropped(source: SegmentNodeRef, target: SegmentNodeRef): void {
+    if (this.ws.isLocked()) return;
+    if (source.slotId === target.slotId && source.nodeId === target.nodeId) return;
+
+    const sourceAssignment = this.assignmentFor(source);
+    if (!sourceAssignment) return;
+
+    const targetAssignment = this.assignmentFor(target);
+    if (targetAssignment) {
+      // Both assigned → swap persons (cross-figure swaps go through unassign + reassign)
+      if (source.slotId === target.slotId) {
+        this.triggerSwap(sourceAssignment, targetAssignment);
+      } else {
+        this.triggerCrossSwap(sourceAssignment, targetAssignment);
+      }
+    } else {
+      // Dropped on an empty node → move person (cross-figure allowed)
+      this.triggerUnassignThenAssign(sourceAssignment, target, sourceAssignment.person.id);
+    }
+    this.clearSelection();
   }
 
   onPersonSelected(person: AvailablePerson): void {
@@ -414,7 +407,6 @@ export class PinyesTabComponent implements OnInit {
 
     const snapshot = [...this.state.assignments()];
     this.state.assignments.update((list) => list.filter((a) => a.id !== assignment.id));
-    this.popoverAssignment.set(null);
     this.clearSelection();
 
     this.assignmentService.unassign(instanceId, assignment.id).subscribe({
@@ -450,10 +442,6 @@ export class PinyesTabComponent implements OnInit {
     });
   }
 
-  getAttendanceStatus(assignment: AssignmentDetail): string | null {
-    return this.attendanceMap().get(assignment.person.id) ?? null;
-  }
-
   // ── Internals ────────────────────────────────────────────────────────────
 
   private select(ref: SegmentNodeRef): void {
@@ -465,7 +453,6 @@ export class PinyesTabComponent implements OnInit {
   private clearSelection(): void {
     this.selectedRef.set(null);
     this.state.setSelectedNodeId(null);
-    this.popoverAssignment.set(null);
   }
 
   private instanceFor(instanceId: string): WorkspaceInstance | null {
@@ -502,6 +489,7 @@ export class PinyesTabComponent implements OnInit {
         z: matchedNode?.z ?? 0,
         positionType: matchedNode?.positionType ?? null,
         sortOrder: matchedNode?.sortOrder ?? 0,
+        climbIndicator: matchedNode?.climbIndicator ?? null,
         ringLevel: matchedNode?.ringLevel ?? null,
         originNodeId: matchedNode?.originNodeId ?? null,
         sourceNodeId: matchedNode?.sourceNodeId ?? null,
@@ -677,7 +665,6 @@ export class PinyesTabComponent implements OnInit {
   private navigateToAssignment(assignment: AssignmentDetail): void {
     const ref: SegmentNodeRef = { slotId: assignment.figureInstanceId, nodeId: assignment.node.id };
     this.select(ref);
-    this.popoverAssignment.set(assignment);
   }
 
   private advanceToNextEmptyNode(instanceId: string, justAssignedNodeId: string): void {

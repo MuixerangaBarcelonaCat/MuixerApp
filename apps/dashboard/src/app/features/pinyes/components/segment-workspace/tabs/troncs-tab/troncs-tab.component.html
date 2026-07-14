@@ -17,6 +17,7 @@
               {{ figure.instance.label }}
             </h2>
             <app-tronc-view
+              [instanceId]="figure.instance.instanceId"
               [troncNodes]="figure.troncNodes"
               [baseNodes]="figure.baseNodes"
               [directionNodes]="figure.directionNodes"
@@ -31,6 +32,7 @@
               (nodeSelected)="onTroncNodeSelected(figure.instance.instanceId, $event)"
               (nodeClicked)="onTroncNodeClicked($event)"
               (nodeUnassigned)="onTroncNodeUnassigned(figure.instance.instanceId, $event)"
+              (nodeDropped)="onNodeDropped({ slotId: $event.sourceInstanceId, nodeId: $event.sourceNodeId }, { slotId: $event.targetInstanceId, nodeId: $event.targetNodeId })"
               (directionAdded)="onDirectionAdded(figure.instance.instanceId, $event)"
               (directionRemoved)="onDirectionRemoved(figure.instance.instanceId, $event)"
             />

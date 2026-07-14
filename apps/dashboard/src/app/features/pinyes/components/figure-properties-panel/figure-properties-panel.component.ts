@@ -16,6 +16,10 @@ export interface FigurePropertiesEntry {
   offsetX: number;
   offsetY: number;
   angle: number;
+  /** Whether cordo-obert nodes are shown/assignable for this figure. */
+  cordonsObertsEnabled: boolean;
+  /** Whether the figure template has any cordo-obert nodes at all — false hides the checkbox. */
+  hasCordoObertNodes: boolean;
 }
 
 const MODE_OPTIONS: { value: FigureMode; label: string }[] = [
@@ -46,6 +50,7 @@ export class FigurePropertiesPanelComponent {
   readonly labelChanged = output<{ id: string; value: string | null }>();
   readonly figureModeChanged = output<{ id: string; value: FigureMode }>();
   readonly numberOfCordonsChanged = output<{ id: string; value: number | null }>();
+  readonly cordonsObertsEnabledChanged = output<{ id: string; value: boolean }>();
   readonly offsetXChanged = output<{ id: string; value: number }>();
   readonly offsetYChanged = output<{ id: string; value: number }>();
   readonly angleChanged = output<{ id: string; value: number }>();
@@ -73,6 +78,10 @@ export class FigurePropertiesPanelComponent {
     if (numberOfCordons === 1) return;
     const next = numberOfCordons === null ? maxCordons : numberOfCordons - 1;
     this.numberOfCordonsChanged.emit({ id: this.entry().id, value: next });
+  }
+
+  onCordonsObertsEnabledChange(value: boolean): void {
+    this.cordonsObertsEnabledChanged.emit({ id: this.entry().id, value });
   }
 
   onOffsetXChange(value: string): void {

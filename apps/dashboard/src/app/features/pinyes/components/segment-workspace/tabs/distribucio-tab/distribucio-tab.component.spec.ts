@@ -30,7 +30,6 @@ class StubFigureCanvas {
   readonly gridEnabled = input<boolean>(false);
   readonly gridSpacing = input<number>(20);
   readonly snapToGrid = input<boolean>(false);
-  readonly cordoObertOpacity = input<number>(1);
   readonly slotSelected = output<string | null>();
   readonly slotMoved = output<{ slotId: string; offsetX: number; offsetY: number; angle: number }>();
   readonly troncMoved = output<{ slotId: string; troncPanelX: number | null; troncPanelY: number | null }>();
@@ -45,6 +44,7 @@ class StubPropertiesPanel {
   readonly labelChanged = output<{ id: string; value: string | null }>();
   readonly figureModeChanged = output<{ id: string; value: string }>();
   readonly numberOfCordonsChanged = output<{ id: string; value: number | null }>();
+  readonly cordonsObertsEnabledChanged = output<{ id: string; value: boolean }>();
   readonly offsetXChanged = output<{ id: string; value: number }>();
   readonly offsetYChanged = output<{ id: string; value: number }>();
   readonly angleChanged = output<{ id: string; value: number }>();
@@ -68,6 +68,7 @@ const makeInstance = (id: string, overrides: Partial<InstanceDetail> = {}): Inst
   pinyaCapacity: null,
   totalCordons: null,
   numberOfCordons: null,
+  cordonsObertsEnabled: true,
   projectionX: null,
   projectionY: null,
   projectionScale: 1,
@@ -116,6 +117,7 @@ const makeDistributionItem = (
   label: null,
   figureMode: 'COMPLETA',
   numberOfCordons: null,
+  cordonsObertsEnabled: true,
   assignments: [],
   figureTemplate: {
     id: `tpl-${instanceId}`,
@@ -165,7 +167,7 @@ describe('DistribucioTabComponent', () => {
       getByInstance: vi.fn().mockReturnValue(of({ data: [] })),
       getAvailablePersons: vi.fn().mockReturnValue(of({ data: [] })),
       getLockStatus: vi.fn().mockReturnValue(of({ locked: false, lockDate: null, lockDays: 3 })),
-      updateCordons: vi.fn().mockReturnValue(of({ numberOfCordons: 2 })),
+      updateCordons: vi.fn().mockReturnValue(of({ numberOfCordons: 2, cordonsObertsEnabled: true })),
     };
     toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 
@@ -216,11 +218,6 @@ describe('DistribucioTabComponent', () => {
       const stub = canvasStub();
       expect(stub.mode()).toBe('composition');
       expect(stub.compositionSlots().map((s) => s.slotId)).toEqual([INST_A, INST_B]);
-    });
-
-    it('renders cordo-obert nodes at half opacity', async () => {
-      await setup();
-      expect(canvasStub().cordoObertOpacity()).toBe(0.5);
     });
 
     it('centers the viewport on the content once after load', async () => {
@@ -590,6 +587,140 @@ describe('DistribucioTabComponent', () => {
 
       expect(assignmentService.updateCordons).toHaveBeenCalledWith(INST_A, { numberOfCordons: 1 });
       expect(component.pendingCordonsChange()).toBeNull();
+    });
+  });
+
+  describe('cordons oberts checkbox', () => {
+    it('passes hasCordoObertNodes and cordonsObertsEnabled to the properties entry', async () => {
+      await setup({
+        items: [
+          makeDistributionItem(INST_A, {
+            cordonsObertsEnabled: false,
+            figureTemplate: {
+              id: 'tpl-a',
+              name: 'Figura a',
+              nodes: [makeDistributionNode('co', 'PINYA', { positionType: 'cordo-obert' })],
+            },
+          }),
+        ],
+      });
+      component.onSlotSelected(INST_A);
+      fixture.detectChanges();
+
+      expect(panelStub()?.entry()).toMatchObject({ hasCordoObertNodes: true, cordonsObertsEnabled: false });
+    });
+
+    it('hasCordoObertNodes is false when the figure has no cordo-obert nodes', async () => {
+      await setup({
+        items: [
+          makeDistributionItem(INST_A, {
+            figureTemplate: {
+              id: 'tpl-a',
+              name: 'Figura a',
+              nodes: [makeDistributionNode('n1', 'PINYA')],
+            },
+          }),
+        ],
+      });
+      component.onSlotSelected(INST_A);
+      fixture.detectChanges();
+
+      expect(panelStub()?.entry().hasCordoObertNodes).toBe(false);
+    });
+
+    it('enabling cordonsObertsEnabled calls updateCordons directly and reloads the distribution', async () => {
+      await setup();
+      component.onSlotSelected(INST_A);
+      distributionService.getDistribution.mockClear();
+
+      component.onCordonsObertsEnabledChanged({ id: INST_A, value: true });
+
+      expect(assignmentService.updateCordons).toHaveBeenCalledWith(INST_A, { cordonsObertsEnabled: true });
+      expect(distributionService.getDistribution).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID);
+    });
+
+    it('disabling with no cordo-obert assignments calls updateCordons directly', async () => {
+      const items = [
+        makeDistributionItem(INST_A, {
+          figureTemplate: {
+            id: 'tpl-a',
+            name: 'Figura a',
+            nodes: [makeDistributionNode('co', 'PINYA', { positionType: 'cordo-obert' })],
+          },
+          assignments: [],
+        }),
+      ];
+      await setup({ items });
+      component.onSlotSelected(INST_A);
+
+      component.onCordonsObertsEnabledChanged({ id: INST_A, value: false });
+
+      expect(assignmentService.updateCordons).toHaveBeenCalledWith(INST_A, { cordonsObertsEnabled: false });
+      expect(component.pendingCordonsObertsChange()).toBeNull();
+    });
+
+    it('disabling with existing cordo-obert assignments asks for confirmation first', async () => {
+      const items = [
+        makeDistributionItem(INST_A, {
+          figureTemplate: {
+            id: 'tpl-a',
+            name: 'Figura a',
+            nodes: [makeDistributionNode('co', 'PINYA', { positionType: 'cordo-obert' })],
+          },
+          assignments: [{ figureNodeId: 'co', personAlias: 'JoanP' }],
+        }),
+      ];
+      await setup({ items });
+      component.onSlotSelected(INST_A);
+
+      component.onCordonsObertsEnabledChanged({ id: INST_A, value: false });
+
+      expect(assignmentService.updateCordons).not.toHaveBeenCalled();
+      expect(component.pendingCordonsObertsChange()).toEqual({ id: INST_A, affectedCount: 1 });
+    });
+
+    it('confirming the pending cordons oberts change calls updateCordons and reloads', async () => {
+      const items = [
+        makeDistributionItem(INST_A, {
+          figureTemplate: {
+            id: 'tpl-a',
+            name: 'Figura a',
+            nodes: [makeDistributionNode('co', 'PINYA', { positionType: 'cordo-obert' })],
+          },
+          assignments: [{ figureNodeId: 'co', personAlias: 'JoanP' }],
+        }),
+      ];
+      await setup({ items });
+      component.onSlotSelected(INST_A);
+      component.onCordonsObertsEnabledChanged({ id: INST_A, value: false });
+      distributionService.getDistribution.mockClear();
+
+      component.confirmCordonsObertsChange();
+
+      expect(assignmentService.updateCordons).toHaveBeenCalledWith(INST_A, { cordonsObertsEnabled: false });
+      expect(distributionService.getDistribution).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID);
+      expect(component.pendingCordonsObertsChange()).toBeNull();
+    });
+
+    it('cancelling the pending cordons oberts change does not call updateCordons', async () => {
+      const items = [
+        makeDistributionItem(INST_A, {
+          figureTemplate: {
+            id: 'tpl-a',
+            name: 'Figura a',
+            nodes: [makeDistributionNode('co', 'PINYA', { positionType: 'cordo-obert' })],
+          },
+          assignments: [{ figureNodeId: 'co', personAlias: 'JoanP' }],
+        }),
+      ];
+      await setup({ items });
+      component.onSlotSelected(INST_A);
+      component.onCordonsObertsEnabledChanged({ id: INST_A, value: false });
+
+      component.cancelCordonsObertsChange();
+
+      expect(assignmentService.updateCordons).not.toHaveBeenCalled();
+      expect(component.pendingCordonsObertsChange()).toBeNull();
     });
   });
 

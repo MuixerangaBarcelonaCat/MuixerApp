@@ -4,6 +4,8 @@ import { ApiService } from '../../../core/services/api.service';
 import {
   CreateInstancePayload,
   InstanceDetail,
+  MoveInstancePayload,
+  MoveInstanceResult,
   UpdateInstancePayload,
 } from '../models/segment.model';
 
@@ -51,6 +53,18 @@ export class FigureInstanceService extends ApiService {
     return this.post<InstanceDetail>(
       `/events/${eventId}/segments/${segmentId}/instances/${instanceId}/copy`,
       payload,
+    );
+  }
+
+  move(eventId: string, segmentId: string, instanceId: string, payload: MoveInstancePayload): Observable<MoveInstanceResult> {
+    const params: Record<string, string> = {};
+    if (payload.conflictResolution) {
+      params['conflictResolution'] = payload.conflictResolution;
+    }
+    return this.patch<MoveInstanceResult>(
+      `/events/${eventId}/segments/${segmentId}/instances/${instanceId}/move`,
+      { targetSegmentId: payload.targetSegmentId, targetIndex: payload.targetIndex },
+      { params },
     );
   }
 }

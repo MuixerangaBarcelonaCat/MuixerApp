@@ -91,4 +91,47 @@ describe('PersonListComponent', () => {
     expect(personService.getAll.mock.calls.length).toBe(callsBefore);
     expect(fixture.componentInstance.formatShoulderHeightDisplay(150)).toBe('+10');
   });
+
+  it('labels the tags column "Etiquetes" instead of "Posicions"', () => {
+    const positionsColumn = fixture.componentInstance.allColumns.find(c => c.key === 'positions');
+    expect(positionsColumn?.label).toBe('Etiquetes');
+  });
+
+  it('renders each tag as a color badge in the table', () => {
+    fixture.componentInstance.persons.set([
+      { ...mockPerson, positions: [{ id: 'pos1', name: 'Pinya', slug: 'pinya', zone: null, color: '#ff0000' }] } as never,
+    ]);
+    fixture.detectChanges();
+
+    const badges = fixture.nativeElement.querySelectorAll('.badge');
+    const tagBadge = Array.from(badges as NodeListOf<HTMLElement>).find(b => b.textContent?.trim() === 'Pinya');
+    expect(tagBadge).toBeTruthy();
+    expect(tagBadge?.style.backgroundColor).toBe('rgb(255, 0, 0)');
+  });
+
+  it('does not render a "Tots" option', () => {
+    const buttons = Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLElement[];
+    expect(buttons.some(b => b.textContent?.trim() === 'Tots')).toBe(false);
+  });
+
+  it('defaults to the "Cens" selector and excludes provisional persons', () => {
+    expect(personService.getAll).toHaveBeenCalledWith(
+      expect.objectContaining({ isProvisional: false }),
+    );
+    const buttons = Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLElement[];
+    const censButton = buttons.find(b => b.textContent?.trim() === 'Cens');
+    expect(censButton?.className).toContain('btn-active');
+  });
+
+  it('switching the selector to "Provisionals" filters by provisional persons', () => {
+    fixture.componentInstance.setProvisionalTab('provisionals');
+    fixture.detectChanges();
+
+    expect(personService.getAll).toHaveBeenCalledWith(
+      expect.objectContaining({ isProvisional: true }),
+    );
+    const buttons = Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLElement[];
+    const provisionalsButton = buttons.find(b => b.textContent?.trim() === 'Provisionals');
+    expect(provisionalsButton?.className).toContain('btn-active');
+  });
 });

@@ -59,7 +59,7 @@ export class FigureNode {
   sortOrder: number;
 
   @Column({ type: 'varchar', nullable: true })
-  climbPath: string | null;
+  climbIndicator: string | null;
 
   /** Concentric ring this node belongs to (1 = innermost). NULL for non-pinya zones. */
   @Column({ type: 'int', nullable: true })

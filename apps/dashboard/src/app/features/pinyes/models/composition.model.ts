@@ -11,6 +11,7 @@ export interface CompositionEntryItem {
   troncPanelY: number | null;
   figureMode: FigureMode;
   numberOfCordons: number | null;
+  cordonsObertsEnabled: boolean;
   sortOrder: number;
   troncGridCols: number;
   troncGridRows: number;
@@ -51,6 +52,7 @@ export interface CreateCompositionEntryPayload {
   troncPanelY?: number | null;
   figureMode?: FigureMode;
   numberOfCordons?: number | null;
+  cordonsObertsEnabled?: boolean;
   sortOrder?: number;
 }
 

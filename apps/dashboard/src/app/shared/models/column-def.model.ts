@@ -1,8 +1,13 @@
-export type ColumnType = 'text' | 'badge' | 'pills' | 'date' | 'number' | 'actions' | 'custom';
+export type ColumnType = 'text' | 'badge' | 'pills' | 'colorBadges' | 'date' | 'number' | 'actions' | 'custom';
 
 export interface ColumnPill {
   text: string;
   class: string;
+}
+
+export interface ColumnColorBadge {
+  text: string;
+  color: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -18,6 +23,8 @@ export interface ColumnDef<T = any> {
   badgeClass?: (item: T) => string;
   /** Colored text pills when type === 'pills' */
   pills?: (item: T) => ColumnPill[];
+  /** Colored badges (background + contrasting text) when type === 'colorBadges' */
+  colorBadges?: (item: T) => ColumnColorBadge[];
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

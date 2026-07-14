@@ -33,7 +33,7 @@ export const ALL_COLUMNS: ColumnDef[] = [
   { key: 'phone', label: 'Telèfon', defaultVisible: false, sortField: 'phone' },
   { key: 'birthDate', label: 'Data naixement', defaultVisible: false, sortField: 'birthDate' },
   { key: 'shoulderHeight', label: 'Alçada', defaultVisible: false, sortField: 'shoulderHeight' },
-  { key: 'positions', label: 'Posicions', defaultVisible: true },
+  { key: 'positions', label: 'Etiquetes', defaultVisible: true, type: 'colorBadges' },
   { key: 'availability', label: 'Pot participar', defaultVisible: false, sortField: 'availability' },
   { key: 'onboardingStatus', label: 'Acollida', defaultVisible: false, sortField: 'onboardingStatus' },
   { key: 'isActive', label: 'Actiu', defaultVisible: true, sortField: 'isActive' },
@@ -77,7 +77,7 @@ export class PersonListComponent {
   search = signal('');
   selectedPositions = signal<string[]>([]);
   activeFilters = signal<Partial<PersonFilterParams>>({ isProvisional: false });
-  provisionalTab = signal<'cens' | 'provisionals' | 'tots'>('cens');
+  provisionalTab = signal<'cens' | 'provisionals'>('cens');
   page = signal(1);
   limit = signal(50);
 
@@ -152,7 +152,8 @@ export class PersonListComponent {
     this.searchInput = '';
     this.selectedPositions.set([]);
     this.search.set('');
-    this.activeFilters.set({});
+    this.provisionalTab.set('cens');
+    this.activeFilters.set({ isProvisional: false });
     this.page.set(1);
     this.loadPersons();
   }
@@ -198,14 +199,9 @@ export class PersonListComponent {
     }
   }
 
-  setProvisionalTab(tab: 'cens' | 'provisionals' | 'tots') {
+  setProvisionalTab(tab: 'cens' | 'provisionals') {
     this.provisionalTab.set(tab);
-    const isProvisional: boolean | undefined =
-      tab === 'cens' ? false : tab === 'provisionals' ? true : undefined;
-    this.activeFilters.update((f) => {
-      const { isProvisional: _, ...rest } = f;
-      return isProvisional !== undefined ? { ...rest, isProvisional } : rest;
-    });
+    this.activeFilters.update((f) => ({ ...f, isProvisional: tab === 'provisionals' }));
     this.page.set(1);
     this.loadPersons();
   }
@@ -291,7 +287,7 @@ export class PersonListComponent {
   readonly activeFilterChips = computed<ActiveFilter[]>(() => {
     const chips: ActiveFilter[] = [];
     if (this.search().trim()) chips.push({ key: 'search', label: `Cerca: "${this.search()}"` });
-    if (this.selectedPositions().length > 0) chips.push({ key: 'positions', label: `Posicions (${this.selectedPositions().length})` });
+    if (this.selectedPositions().length > 0) chips.push({ key: 'positions', label: `Etiquetes (${this.selectedPositions().length})` });
     if (this.activeFilters().isActive === true) chips.push({ key: 'isActive', label: 'Actius' });
     return chips;
   });
@@ -353,6 +349,9 @@ export class PersonListComponent {
     ALL_COLUMNS.map(col => ({
       ...col,
       value: (person: Person) => this.getCellValueForPerson(person, col.key),
+      ...(col.key === 'positions' && {
+        colorBadges: (person: Person) => person.positions.map(p => ({ text: p.name, color: p.color })),
+      }),
     }))
   );
   protected readonly EventType = EventType;

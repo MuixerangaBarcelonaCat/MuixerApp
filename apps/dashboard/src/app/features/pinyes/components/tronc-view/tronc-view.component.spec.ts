@@ -15,6 +15,7 @@ function makeNode(overrides: Partial<TroncNodeItem> = {}): TroncNodeItem {
     width: 1,
     sortOrder: 0,
     color: null,
+    climbIndicator: null,
     ...overrides,
   };
 }
@@ -30,6 +31,7 @@ function makeBaseNode(overrides: Partial<TroncNodeItem> = {}): TroncNodeItem {
     width: 80, // pinya canvas pixel dimension, treated as 1 in tronc view
     sortOrder: 0,
     color: null,
+    climbIndicator: null,
     ...overrides,
   };
 }
@@ -45,6 +47,7 @@ function makeAssignment(nodeId: string, alias: string, shoulderHeight: number | 
       z: 1,
       positionType: 'segon',
       sortOrder: 0,
+      climbIndicator: null,
       ringLevel: null,
       originNodeId: null,
       sourceNodeId: null,
@@ -342,7 +345,42 @@ describe('TroncViewComponent', () => {
     expect(component.selectedTroncNode()?.id).toBe('tronc-1');
   });
 
+  it('selectedFloorNode returns the matching TRONC node when selected', () => {
+    const node = makeNode({ id: 'tronc-1' });
+    fixture.componentRef.setInput('troncNodes', [node]);
+    fixture.componentRef.setInput('selectedNodeId', 'tronc-1');
+    fixture.detectChanges();
+    expect(component.selectedFloorNode()?.id).toBe('tronc-1');
+  });
+
+  it('selectedFloorNode returns the matching BASE node when selected', () => {
+    fixture.componentRef.setInput('baseNodes', [makeBaseNode({ id: 'base-1' })]);
+    fixture.componentRef.setInput('selectedNodeId', 'base-1');
+    fixture.detectChanges();
+    expect(component.selectedFloorNode()?.id).toBe('base-1');
+  });
+
+  it('selectedFloorNode returns null when nothing is selected', () => {
+    expect(component.selectedFloorNode()).toBeNull();
+  });
+
   // ── Editor outputs ────────────────────────────────────────────────────────
+
+  it('nodeUpdated emits climbIndicator when onIndicatorChange is called', () => {
+    const emitted: { nodeId: string; climbIndicator?: string | null }[] = [];
+    fixture.componentRef.instance.nodeUpdated.subscribe((e: (typeof emitted)[number]) => emitted.push(e));
+    const node = makeBaseNode({ id: 'base-1', x: 0, width: 1 });
+    component.onIndicatorChange(node, 'X');
+    expect(emitted).toEqual([{ nodeId: 'base-1', x: 0, width: 1, climbIndicator: 'X' }]);
+  });
+
+  it('onIndicatorChange emits null when cleared', () => {
+    const emitted: { nodeId: string; climbIndicator?: string | null }[] = [];
+    fixture.componentRef.instance.nodeUpdated.subscribe((e: (typeof emitted)[number]) => emitted.push(e));
+    const node = makeNode({ id: 'tronc-1', x: 0, width: 1 });
+    component.onIndicatorChange(node, '');
+    expect(emitted).toEqual([{ nodeId: 'tronc-1', x: 0, width: 1, climbIndicator: null }]);
+  });
 
   it('nodeRemoved emits node id when onNodeDelete is called', () => {
     const emitted: string[] = [];
@@ -818,6 +856,73 @@ describe('TroncViewComponent', () => {
     it('does not render progress badges', () => {
       const progressBadges = fixture.nativeElement.querySelectorAll('.progress-badge');
       expect(progressBadges.length).toBe(0);
+    });
+  });
+
+  // ── climbIndicator display ────────────────────────────────────────────────
+
+  describe('climbIndicator display', () => {
+    it('appends the indicator to the alias for an assigned TRONC node', () => {
+      fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'n1', z: 1, climbIndicator: 'X' })]);
+      fixture.componentRef.setInput('assignments', [makeAssignment('n1', 'Marta')]);
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.detectChanges();
+
+      const alias = fixture.nativeElement.querySelector('.person-alias');
+      expect(alias.textContent.trim()).toBe('Marta (X)');
+    });
+
+    it('appends the indicator to the alias for an assigned BASE node', () => {
+      fixture.componentRef.setInput('baseNodes', [makeBaseNode({ id: 'b1', climbIndicator: 'A' })]);
+      fixture.componentRef.setInput('assignments', [makeAssignment('b1', 'Joan')]);
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.detectChanges();
+
+      const alias = fixture.nativeElement.querySelector('.person-alias');
+      expect(alias.textContent.trim()).toBe('Joan (A)');
+    });
+
+    it('shows the alias alone when there is no indicator', () => {
+      fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'n1', z: 1 })]);
+      fixture.componentRef.setInput('assignments', [makeAssignment('n1', 'Marta')]);
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.detectChanges();
+
+      const alias = fixture.nativeElement.querySelector('.person-alias');
+      expect(alias.textContent.trim()).toBe('Marta');
+    });
+
+    it('appends the indicator to the label of an unassigned TRONC node', () => {
+      fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'n1', z: 1, label: 'Segona', climbIndicator: 'X' })]);
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.detectChanges();
+
+      const label = fixture.nativeElement.querySelector('.node-label');
+      expect(label.textContent.trim()).toBe('Segona (X)');
+    });
+
+    it('appends the indicator to the label of an unassigned BASE node', () => {
+      fixture.componentRef.setInput('baseNodes', [makeBaseNode({ id: 'b1', label: 'Base 1', climbIndicator: 'A' })]);
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.detectChanges();
+
+      const label = fixture.nativeElement.querySelector('.node-label');
+      expect(label.textContent.trim()).toBe('Base 1 (A)');
+    });
+
+    it('appends the indicator to the aria-label', () => {
+      fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'n1', z: 1, climbIndicator: 'X' })]);
+      fixture.componentRef.setInput('assignments', [makeAssignment('n1', 'Marta', 170)]);
+      fixture.detectChanges();
+
+      expect(component.getNodeAriaLabel(component.troncNodes()[0])).toContain('Marta (X)');
+    });
+
+    it('appends the indicator to the aria-label when unassigned', () => {
+      fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'n1', z: 1, label: 'Segona', climbIndicator: 'X' })]);
+      fixture.detectChanges();
+
+      expect(component.getNodeAriaLabel(component.troncNodes()[0])).toBe('Node Segona (X), sense assignar');
     });
   });
 

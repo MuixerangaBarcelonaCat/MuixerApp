@@ -1,3 +1,5 @@
+import { SegmentMoveConflictResolution } from '@muixer/shared';
+
 export type FigureMode = 'COMPLETA' | 'PEU' | 'REMAT' | 'NETA';
 
 export interface InstanceDetail {
@@ -10,6 +12,7 @@ export interface InstanceDetail {
   pinyaCapacity: number | null;
   totalCordons: number | null;
   numberOfCordons: number | null;
+  cordonsObertsEnabled: boolean;
   projectionX: number | null;
   projectionY: number | null;
   projectionScale: number;
@@ -63,4 +66,21 @@ export interface UpdateInstancePayload {
   label?: string | null;
   sortOrder?: number;
   figureMode?: FigureMode;
+}
+
+export interface MoveInstancePayload {
+  targetSegmentId: string;
+  targetIndex?: number;
+  conflictResolution?: SegmentMoveConflictResolution;
+}
+
+export interface MoveInstanceResult {
+  sourceSegment: SegmentDetail;
+  targetSegment: SegmentDetail;
+}
+
+export interface SegmentMoveConflict {
+  code: 'SEGMENT_MOVE_CONFLICT';
+  total: number;
+  tronc: number;
 }

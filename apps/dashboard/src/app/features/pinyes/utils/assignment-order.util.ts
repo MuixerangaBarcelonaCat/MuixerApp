@@ -18,7 +18,8 @@ const NAMED_PINYA_TYPES = new Set(['agulla', 'contrafort', 'crossa', 'cordo-ober
  * Includes BASE and PINYA nodes only; excludes TRONC, DIRECTION, DECORATION.
  *
  * Order: BASE → agulla → crossa → contrafort →
- *   [mans/vents/laterals/others per cordon ascending] → cordo-obert → pinya-rest
+ *   [mans/vents/laterals/others per cordon ascending] → cordo-obert →
+ *   mans (no cordon) → vents (no cordon) → laterals (no cordon) → pinya-rest
  */
 export function buildPinyaBuckets(
   nodes: readonly AssignmentOrderNode[],
@@ -74,6 +75,11 @@ export function buildPinyaBuckets(
   }
 
   push((n) => n.zone === FigureZone.PINYA && n.positionType === 'cordo-obert');
+
+  push((n) => n.zone === FigureZone.PINYA && n.positionType === 'mans' && n.renglaPosition === null);
+  push((n) => n.zone === FigureZone.PINYA && n.positionType === 'vents' && n.renglaPosition === null);
+  push((n) => n.zone === FigureZone.PINYA && n.positionType === 'laterals' && n.renglaPosition === null);
+
   push(
     (n) =>
       n.zone === FigureZone.PINYA &&

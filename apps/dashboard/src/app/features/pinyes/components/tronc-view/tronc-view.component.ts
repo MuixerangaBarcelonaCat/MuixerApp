@@ -15,6 +15,8 @@ import { floorVariance, varianceLevel, VarianceLevel } from '../../utils/floor-v
 import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
 import { PersonHoverCardComponent } from '../person-hover-card/person-hover-card.component';
 import { ICON_OBSERVACIONS } from '../../../../shared/constants/domain-icons';
+import { formatAssignedLabel } from '../../utils/assigned-label.util';
+import { FitTextDirective } from '../../directives/fit-text.directive';
 
 /**
  * Minimal node shape accepted by TroncViewComponent.
@@ -34,6 +36,8 @@ export interface TroncNodeItem {
   width: number;
   sortOrder: number;
   color: string | null;
+  /** Short marker shown next to the assigned person's name, e.g. "X". */
+  climbIndicator: string | null;
 }
 
 interface TroncFloor {
@@ -51,7 +55,7 @@ const MAX_TRONC_Z = 5;
   selector: 'app-tronc-view',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule, PersonHoverCardComponent],
+  imports: [FormsModule, LucideAngularModule, PersonHoverCardComponent, FitTextDirective],
   templateUrl: './tronc-view.component.html',
   styleUrl: './tronc-view.component.scss',
 })
@@ -59,6 +63,9 @@ export class TroncViewComponent {
   // ── Inputs ─────────────────────────────────────────────────────────────────
 
   /** TRONC-zone nodes (z≥1). x and width are relative units. */
+  /** Figure instance id, used to scope drag-and-drop node refs across sibling tronc-views. */
+  readonly instanceId = input<string>('');
+
   readonly troncNodes = input<TroncNodeItem[]>([]);
 
   /** BASE-zone nodes (z=0, intersection with pinya). Positioned by sortOrder index in tronc view. */
@@ -84,6 +91,9 @@ export class TroncViewComponent {
   /** Projection mode only: color used for the panel border and tinted background. */
   readonly panelColor = input<string | null>(null);
 
+  /** Projection mode only: color used for the panel border, if different from panelColor. */
+  readonly panelBorderColor = input<string | null>(null);
+
   /** Projection mode only: figure name shown as a header inside the panel. */
   readonly figureName = input<string | null>(null);
 
@@ -96,7 +106,7 @@ export class TroncViewComponent {
   readonly nodeClicked = output<{ nodeId: string; event: MouseEvent }>();
 
   /** Editor only: position/width/positionType changed for a TRONC node. */
-  readonly nodeUpdated = output<{ nodeId: string; x: number; width: number; positionType?: string; label?: string; color?: string | null }>();
+  readonly nodeUpdated = output<{ nodeId: string; x: number; width: number; positionType?: string; label?: string; color?: string | null; climbIndicator?: string | null }>();
 
   /** Editor only: create a new TRONC node on the given floor. */
   readonly nodeAdded = output<{ z: number; positionType: string; label: string; sortOrder: number }>();
@@ -116,6 +126,14 @@ export class TroncViewComponent {
   /** Assignment mode: request unassignment for a node id. */
   readonly nodeUnassigned = output<string>();
 
+  /** Assignment mode: a person was dragged off a node (possibly of a sibling tronc-view) and dropped here. */
+  readonly nodeDropped = output<{
+    sourceInstanceId: string;
+    sourceNodeId: string;
+    targetInstanceId: string;
+    targetNodeId: string;
+  }>();
+
   readonly directionAdded = output<{ zone: string }>();
   readonly directionRemoved = output<string>();
 
@@ -128,6 +146,11 @@ export class TroncViewComponent {
   readonly directionsExpanded = signal(true);
 
   readonly hoveredPerson = signal<{ info: PersonHoverInfo; top: number; left: number; positionType: string | null } | null>(null);
+
+  /** Assignment-mode drag-and-drop: id of the node whose person is currently being dragged. */
+  readonly draggingNodeId = signal<string | null>(null);
+  /** Id of the node currently under the pointer while dragging. */
+  readonly dragOverNodeId = signal<string | null>(null);
 
   // ── Direction computed ─────────────────────────────────────────────────────
 
@@ -241,6 +264,16 @@ export class TroncViewComponent {
     return this.troncNodes().find((n) => n.id === id) ?? null;
   });
 
+  /** The currently selected BASE node (null if TRONC or nothing selected). */
+  readonly selectedBaseNode = computed(() => {
+    const id = this.selectedNodeId();
+    if (!id) return null;
+    return this.baseNodes().find((n) => n.id === id) ?? null;
+  });
+
+  /** The currently selected TRONC or BASE node, whichever matches (null if neither). */
+  readonly selectedFloorNode = computed(() => this.selectedTroncNode() ?? this.selectedBaseNode());
+
   /** All z levels that currently have tronc nodes. */
   readonly existingZLevels = computed(() =>
     new Set(this.troncNodes().map((n) => n.z)),
@@ -269,6 +302,84 @@ export class TroncViewComponent {
     if (this.isAssigned(node.id)) {
       this.nodeClicked.emit({ nodeId: node.id, event });
     }
+  }
+
+  // ── Drag-and-drop (assignment mode) ───────────────────────────────────────
+
+  isDraggableNode(nodeId: string): boolean {
+    return this.mode() === 'assignment' && this.isAssigned(nodeId);
+  }
+
+  isDragging(nodeId: string): boolean {
+    return this.draggingNodeId() === nodeId;
+  }
+
+  isDragOverSwap(nodeId: string): boolean {
+    return this.dragOverNodeId() === nodeId && this.isAssigned(nodeId);
+  }
+
+  isDragOverMove(nodeId: string): boolean {
+    return this.dragOverNodeId() === nodeId && !this.isAssigned(nodeId);
+  }
+
+  onNodeDragStart(node: TroncNodeItem, event: DragEvent): void {
+    if (!this.isDraggableNode(node.id)) {
+      event.preventDefault();
+      return;
+    }
+    this.draggingNodeId.set(node.id);
+    const payload = JSON.stringify({ instanceId: this.instanceId(), nodeId: node.id });
+    event.dataTransfer?.setData('text/plain', payload);
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+
+    const assignment = this.getAssignment(node.id);
+    if (assignment && event.dataTransfer) {
+      const ghost = document.createElement('div');
+      ghost.textContent = assignment.person.alias;
+      ghost.style.cssText =
+        'position:absolute;top:-1000px;left:-1000px;padding:6px 10px;border-radius:6px;' +
+        'background:#1f2937;color:#fff;font:600 13px Inter,sans-serif;transform:scale(1.15);' +
+        'white-space:nowrap;pointer-events:none;';
+      document.body.appendChild(ghost);
+      event.dataTransfer.setDragImage(ghost, -10, -10);
+      setTimeout(() => ghost.remove(), 0);
+    }
+  }
+
+  onNodeDragOver(node: TroncNodeItem, event: DragEvent): void {
+    if (!event.dataTransfer?.types.includes('text/plain')) return;
+    if (this.isDragging(node.id)) return; // hovering back over the node being dragged
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+    this.dragOverNodeId.set(node.id);
+  }
+
+  onNodeDragLeave(node: TroncNodeItem): void {
+    if (this.dragOverNodeId() === node.id) this.dragOverNodeId.set(null);
+  }
+
+  onNodeDrop(node: TroncNodeItem, event: DragEvent): void {
+    event.preventDefault();
+    this.dragOverNodeId.set(null);
+    const raw = event.dataTransfer?.getData('text/plain');
+    if (!raw) return;
+    let source: { instanceId: string; nodeId: string };
+    try {
+      source = JSON.parse(raw);
+    } catch {
+      return;
+    }
+    this.nodeDropped.emit({
+      sourceInstanceId: source.instanceId,
+      sourceNodeId: source.nodeId,
+      targetInstanceId: this.instanceId(),
+      targetNodeId: node.id,
+    });
+  }
+
+  onNodeDragEnd(): void {
+    this.draggingNodeId.set(null);
+    this.dragOverNodeId.set(null);
   }
 
   onStepX(node: TroncNodeItem, delta: number): void {
@@ -301,6 +412,15 @@ export class TroncViewComponent {
       x: node.x,
       width: node.width,
       label: label.trim(),
+    });
+  }
+
+  onIndicatorChange(node: TroncNodeItem, indicator: string): void {
+    this.nodeUpdated.emit({
+      nodeId: node.id,
+      x: node.x,
+      width: node.width,
+      climbIndicator: indicator.trim() || null,
     });
   }
 
@@ -498,9 +618,19 @@ export class TroncViewComponent {
 
   getNodeAriaLabel(node: TroncNodeItem): string {
     const assignment = this.getAssignment(node.id);
-    if (!assignment) return `Node ${node.label}, sense assignar`;
+    if (!assignment) return `Node ${this.displayLabel(node)}, sense assignar`;
     const height = this.getHeightDisplay(assignment.person.shoulderHeight);
-    return `${node.label}: ${assignment.person.alias}, alçada ${height}`;
+    return `${node.label}: ${this.displayAlias(node, assignment)}, alçada ${height}`;
+  }
+
+  /** Person alias with the node's climb indicator appended, e.g. "Marta (X)". */
+  displayAlias(node: TroncNodeItem, assignment: AssignmentDetail): string {
+    return formatAssignedLabel(assignment.person.alias, node.climbIndicator);
+  }
+
+  /** Node label with its climb indicator appended, e.g. "Segona (X)", shown when unassigned. */
+  displayLabel(node: TroncNodeItem): string {
+    return formatAssignedLabel(node.label, node.climbIndicator);
   }
 
   /** CSS grid-column for a TRONC node (doubled grid: 0.5u = 1 column). */

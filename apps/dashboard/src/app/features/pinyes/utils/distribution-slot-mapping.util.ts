@@ -38,7 +38,10 @@ export function mapDistributionItemsToSlots(
         filteredNodes,
         item.numberOfCordons,
       );
-      return [item.instanceId, positionedNodes] as const;
+      const visibleNodes = item.cordonsObertsEnabled
+        ? positionedNodes
+        : positionedNodes.filter((n) => n.positionType !== 'cordo-obert');
+      return [item.instanceId, visibleNodes] as const;
     }),
   );
 

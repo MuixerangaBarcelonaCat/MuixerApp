@@ -228,7 +228,7 @@ describe('TemplateEditorComponent — Preview Mode', () => {
       color: '#0d9488',
       shape: NodeShape.RECTANGLE,
       sortOrder: 0,
-      climbPath: null, ringLevel: null, originNodeId: null,
+      climbIndicator: null, ringLevel: null, originNodeId: null,
       renglaId: null, renglaPosition: null,
       metadata: {},
       ...overrides,
@@ -344,6 +344,54 @@ describe('TemplateEditorComponent — Preview Mode', () => {
     });
   });
 
+  describe('onTroncNodeUpdated — climbIndicator', () => {
+    const makeNode = (overrides: Partial<FigureNodeItem> = {}): FigureNodeItem => ({
+      id: 'node-1',
+      label: 'Segon',
+      zone: FigureZone.TRONC,
+      positionType: 'segon',
+      x: 0, y: 0, z: 1,
+      width: 1, height: 1, rotation: 0,
+      color: null,
+      shape: NodeShape.RECTANGLE,
+      sortOrder: 0,
+      climbIndicator: null, ringLevel: null, originNodeId: null,
+      renglaId: null, renglaPosition: null,
+      metadata: {},
+      ...overrides,
+    });
+
+    it('sets climbIndicator on a TRONC node', () => {
+      component.nodes.set([makeNode({ id: 'tronc-1' })]);
+      component.selectedNodeId.set('tronc-1');
+      fixture.detectChanges();
+
+      component.onTroncNodeUpdated({ nodeId: 'tronc-1', x: 0, width: 1, climbIndicator: 'X' });
+
+      expect(component.nodes()[0].climbIndicator).toBe('X');
+    });
+
+    it('sets climbIndicator on a BASE node', () => {
+      component.nodes.set([makeNode({ id: 'base-1', zone: FigureZone.BASE, z: 0 })]);
+      component.selectedNodeId.set('base-1');
+      fixture.detectChanges();
+
+      component.onTroncNodeUpdated({ nodeId: 'base-1', x: 0, width: 1, climbIndicator: 'A' });
+
+      expect(component.nodes()[0].climbIndicator).toBe('A');
+    });
+
+    it('clears climbIndicator when set to null', () => {
+      component.nodes.set([makeNode({ id: 'tronc-1', climbIndicator: 'X' })]);
+      component.selectedNodeId.set('tronc-1');
+      fixture.detectChanges();
+
+      component.onTroncNodeUpdated({ nodeId: 'tronc-1', x: 0, width: 1, climbIndicator: null });
+
+      expect(component.nodes()[0].climbIndicator).toBeNull();
+    });
+  });
+
   describe('keyboard shortcut', () => {
     function createKeyEvent(key: string, opts: Partial<KeyboardEvent> = {}): KeyboardEvent {
       const event = new KeyboardEvent('keydown', {
@@ -416,7 +464,7 @@ describe('nodeToPayload', () => {
     color: '#0d9488',
     shape: NodeShape.RECTANGLE,
     sortOrder: 0,
-    climbPath: null, ringLevel: null, originNodeId: null,
+    climbIndicator: null, ringLevel: null, originNodeId: null,
     renglaId: null, renglaPosition: null,
     metadata: {},
   };

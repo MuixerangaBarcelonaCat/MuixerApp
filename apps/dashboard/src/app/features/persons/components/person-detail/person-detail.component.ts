@@ -17,6 +17,7 @@ import { NodeAssignmentService } from '../../../pinyes/services/node-assignment.
 import { SeasonService } from '../../../events/services/season.service';
 import { PersonAssignmentEntry } from '../../../pinyes/models/assignment.model';
 import { Season } from '../../../events/models/event.model';
+import { formatNodeCordonLabel } from '../../../pinyes/utils/node-cordon-label.util';
 
 import {
   getAvailabilityLabel,
@@ -110,6 +111,7 @@ export class PersonDetailComponent implements OnInit {
   readonly formatDate = formatDate;
   readonly formatDateTime = formatDateTime;
   readonly formatShoulderHeightRelative = formatShoulderHeightRelative;
+  readonly formatNodeCordonLabel = formatNodeCordonLabel;
   readonly Math = Math;
 
   ngOnInit() {

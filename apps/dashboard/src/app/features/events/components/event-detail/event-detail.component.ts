@@ -15,7 +15,6 @@ import { SegmentManagerComponent } from '../segment-manager/segment-manager.comp
 import { StatCardComponent } from '../../../../shared/components/data/stat-card/stat-card.component';
 import { NodeAssignmentService, LockStatus } from '../../../pinyes/services/node-assignment.service';
 import { getContrastColor } from '../../../../shared/utils/color.util';
-import { EventAssignmentSummary, EventSegmentSummary } from '../../../pinyes/models/assignment.model';
 import { EventDetail, EventType, AttendanceSummary, SyncEvent, Season } from '../../models/event.model';
 import { getAdultsCount } from '../event-list/event-list.component';
 import {
@@ -96,8 +95,6 @@ export class EventDetailComponent implements OnInit, OnDestroy {
 
   lockStatus = signal<LockStatus | null>(null);
   isEventLocked = computed(() => this.lockStatus()?.locked ?? false);
-  assignmentSummary = signal<EventAssignmentSummary | null>(null);
-  summaryLoading = signal(false);
   private syncEventSource: EventSource | null = null;
 
   isPast = computed(() => {
@@ -161,7 +158,6 @@ export class EventDetailComponent implements OnInit, OnDestroy {
         this.nodeAssignmentService.getLockStatus(id).subscribe({
           next: (status) => this.lockStatus.set(status),
         });
-        this.loadAssignmentSummary(id);
       },
       error: () => {
         this.loading.set(false);
@@ -182,16 +178,6 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     this.router.navigate(['/events', ev.id, 'confirmation']);
   }
 
-  private loadAssignmentSummary(eventId: string) {
-    this.summaryLoading.set(true);
-    this.nodeAssignmentService.getEventAssignmentSummary(eventId).subscribe({
-      next: (summary) => {
-        this.assignmentSummary.set(summary);
-        this.summaryLoading.set(false);
-      },
-      error: () => this.summaryLoading.set(false),
-    });
-  }
 
   deleteEvent() {
     const ev = this.event();

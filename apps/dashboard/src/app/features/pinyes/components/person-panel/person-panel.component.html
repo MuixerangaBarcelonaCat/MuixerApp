@@ -60,7 +60,7 @@
                 @if (result.isAssigned) {
                   <div class="px-2.5 pb-1.5 -mt-1">
                     <span class="badge badge-xs badge-info">
-                      {{ result.person.assignedNodeLabel || 'Assignada' }}
+                      {{ assignedBadgeLabel(result.person) }}
                     </span>
                   </div>
                 }
@@ -203,7 +203,7 @@
         class="btn btn-xs btn-outline btn-error shrink-0 gap-1"
         (click)="requestUnassign()"
         aria-label="Desassigna la persona d'este node"
-        title="Desassigna (Supr)"
+        title="Desassigna (⌫ Retrocés)"
       >
         <i-lucide [img]="UserX" class="size-3" />
         Desassigna
@@ -337,7 +337,7 @@
                   (click)="navigateToAssigned(person)"
                   (mouseenter)="onPersonHover($event, person)"
                   (mouseleave)="onPersonLeave()"
-                  [attr.aria-label]="person.alias + ': anar al node ' + (person.assignedNodeLabel ?? '')"
+                  [attr.aria-label]="person.alias + ': anar al node ' + assignedBadgeLabel(person)"
                 >
                   <span class="flex items-center gap-1.5 min-w-0">
                     @if (matchPos) {
@@ -357,7 +357,7 @@
                 }
                     }
                   </span>
-                  <span class="badge badge-xs badge-info shrink-0">{{ person.assignedNodeLabel || 'Assignada' }}</span>
+                  <span class="badge badge-xs badge-info shrink-0">{{ assignedBadgeLabel(person) }}</span>
                 </button>
               }
             </div>

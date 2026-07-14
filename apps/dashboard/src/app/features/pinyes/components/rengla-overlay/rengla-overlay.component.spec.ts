@@ -19,7 +19,7 @@ const makeNode = (overrides: Partial<FigureNodeItem> = {}): FigureNodeItem => ({
   color: '#FFE082',
   shape: NodeShape.RECTANGLE,
   sortOrder: 0,
-  climbPath: null,
+  climbIndicator: null,
   ringLevel: 1,
   originNodeId: null,
   renglaId: null,

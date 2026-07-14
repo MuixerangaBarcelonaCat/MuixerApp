@@ -13,9 +13,11 @@ export interface AssignmentNodeDetail {
   z: number;
   positionType: string | null;
   sortOrder: number;
+  climbIndicator: string | null;
   ringLevel: number | null;
   originNodeId: string | null;
   sourceNodeId: string | null;
+  renglaPosition?: number | null;
 }
 
 export interface AssignmentPersonDetail {
@@ -68,6 +70,7 @@ export interface AvailablePerson {
   assignedInSegment: boolean;
   assignedInstanceId?: string;
   assignedNodeLabel?: string;
+  assignedNodeCordon?: number | null;
   positions: AvailablePersonPosition[];
 }
 
@@ -144,6 +147,7 @@ export interface InstanceNodeItem {
   color: string | null;
   shape: string;
   sortOrder: number;
+  climbIndicator: string | null;
   ringLevel: number | null;
   originNodeId: string | null;
   renglaId: string | null;
@@ -180,10 +184,12 @@ export interface UpdateAdHocNodePayload {
 
 export interface UpdateInstanceCordonsPayload {
   numberOfCordons?: number | null;
+  cordonsObertsEnabled?: boolean;
 }
 
 export interface CordonsResponse {
   numberOfCordons: number | null;
+  cordonsObertsEnabled: boolean;
 }
 
 export interface SwapAssignmentsPayload {
@@ -218,6 +224,7 @@ export interface PersonAssignmentEntry {
   positionType: string | null;
   zone: string;
   z: number;
+  renglaPosition: number | null;
 }
 
 export interface PersonAssignmentHistory {
@@ -234,13 +241,19 @@ export interface EventAssignmentEntry {
   personId: string;
 }
 
+export interface FigureAreaCount {
+  assigned: number;
+  total: number;
+}
+
 export interface EventFigureSummary {
   instanceId: string;
   figureName: string;
   snapshotted: boolean;
-  totalNodes: number;
-  assignedNodes: number;
-  assignments: EventAssignmentEntry[];
+  pinya: FigureAreaCount;
+  tronc: FigureAreaCount;
+  total: FigureAreaCount;
+  troncBaseAssignments: EventAssignmentEntry[];
 }
 
 export interface EventSegmentSummary {

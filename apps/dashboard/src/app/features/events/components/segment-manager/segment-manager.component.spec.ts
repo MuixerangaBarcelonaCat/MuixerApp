@@ -1,20 +1,42 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { vi } from 'vitest';
+import { vi, afterEach } from 'vitest';
 import { of, throwError } from 'rxjs';
 import { Router } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 import { DragDropModule, CdkDragDrop } from '@angular/cdk/drag-drop';
+import { SegmentMoveConflictResolution } from '@muixer/shared';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { SegmentManagerComponent } from './segment-manager.component';
 import { EventSegmentService } from '../../../pinyes/services/event-segment.service';
 import { FigureInstanceService } from '../../../pinyes/services/figure-instance.service';
 import { CompositionService } from '../../../pinyes/services/composition.service';
+import { NodeAssignmentService } from '../../../pinyes/services/node-assignment.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { SegmentDetail, InstanceDetail } from '../../../pinyes/models/segment.model';
+import { EventAssignmentSummary, EventFigureSummary } from '../../../pinyes/models/assignment.model';
 
 const EVENT_ID = 'event-uuid-1';
 
 const makeDrop = <T>(previousIndex: number, currentIndex: number): CdkDragDrop<T[]> =>
   ({ previousIndex, currentIndex } as unknown as CdkDragDrop<T[]>);
+
+const makeSameContainerDrop = (previousIndex: number, currentIndex: number): CdkDragDrop<SegmentDetail> =>
+  ({ previousIndex, currentIndex } as unknown as CdkDragDrop<SegmentDetail>);
+
+const makeCrossSegmentDrop = (
+  source: SegmentDetail,
+  target: SegmentDetail,
+  instance: InstanceDetail,
+  previousIndex: number,
+  currentIndex: number,
+): CdkDragDrop<SegmentDetail> =>
+  ({
+    previousIndex,
+    currentIndex,
+    item: { data: instance },
+    container: { data: target },
+    previousContainer: { data: source },
+  } as unknown as CdkDragDrop<SegmentDetail>);
 
 const makeSegment = (overrides: Partial<SegmentDetail> = {}): SegmentDetail => ({
   id: 'seg-uuid-1',
@@ -38,11 +60,25 @@ const makeInstance = (overrides: Partial<InstanceDetail> = {}): InstanceDetail =
   pinyaCapacity: null,
   totalCordons: null,
   numberOfCordons: null,
+  cordonsObertsEnabled: true,
   projectionX: null,
   projectionY: null,
   projectionScale: 1,
   figureMode: 'COMPLETA' as const,
   figureTemplate: { id: 'fig-1', name: 'pd4', hasPinya: true },
+  ...overrides,
+});
+
+const makeAreaCount = (assigned: number, total: number) => ({ assigned, total });
+
+const makeFigureSummary = (overrides: Partial<EventFigureSummary> = {}): EventFigureSummary => ({
+  instanceId: 'inst-uuid-1',
+  figureName: 'pd4',
+  snapshotted: true,
+  pinya: makeAreaCount(0, 0),
+  tronc: makeAreaCount(0, 0),
+  total: makeAreaCount(0, 0),
+  troncBaseAssignments: [],
   ...overrides,
 });
 
@@ -52,10 +88,12 @@ describe('SegmentManagerComponent', () => {
   let segmentService: Partial<EventSegmentService>;
   let instanceService: Partial<FigureInstanceService>;
   let compositionService: { applyToSegment: ReturnType<typeof vi.fn> };
+  let nodeAssignmentService: { getEventAssignmentSummary: ReturnType<typeof vi.fn> };
   let toastService: { success: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
   let routerMock: { navigate: ReturnType<typeof vi.fn>; url: string };
 
   beforeEach(async () => {
+    localStorage.clear();
     segmentService = {
       getByEvent: vi.fn().mockReturnValue(of({ data: [] })),
       create: vi.fn(),
@@ -71,10 +109,15 @@ describe('SegmentManagerComponent', () => {
       update: vi.fn(),
       reorder: vi.fn().mockReturnValue(of(undefined)),
       copy: vi.fn(),
+      move: vi.fn(),
     };
 
     compositionService = {
       applyToSegment: vi.fn(),
+    };
+
+    nodeAssignmentService = {
+      getEventAssignmentSummary: vi.fn().mockReturnValue(of({ segments: [] } satisfies EventAssignmentSummary)),
     };
 
     toastService = {
@@ -90,6 +133,7 @@ describe('SegmentManagerComponent', () => {
         { provide: EventSegmentService, useValue: segmentService },
         { provide: FigureInstanceService, useValue: instanceService },
         { provide: CompositionService, useValue: compositionService },
+        { provide: NodeAssignmentService, useValue: nodeAssignmentService },
         { provide: ToastService, useValue: toastService },
         { provide: Router, useValue: routerMock },
         allLucideIconsProvider,
@@ -102,12 +146,20 @@ describe('SegmentManagerComponent', () => {
     fixture.detectChanges();
   });
 
+  afterEach(() => {
+    localStorage.clear();
+  });
+
   it('creates successfully', () => {
     expect(component).toBeTruthy();
   });
 
   it('loads segments on init', () => {
     expect(segmentService.getByEvent).toHaveBeenCalledWith(EVENT_ID);
+  });
+
+  it('loads the event assignment summary on init', () => {
+    expect(nodeAssignmentService.getEventAssignmentSummary).toHaveBeenCalledWith(EVENT_ID);
   });
 
   it('shows empty state when no segments', () => {
@@ -233,7 +285,7 @@ describe('SegmentManagerComponent', () => {
       const seg = makeSegment({ id: 'seg-1', instances: [inst0, inst1] });
       component.segments.set([seg]);
 
-      component.onInstanceDropped(seg, makeDrop(0, 1));
+      component.onInstanceDropped(seg, makeSameContainerDrop(0, 1));
 
       const updatedInstances = component.segments()[0].instances;
       expect(updatedInstances[0].id).toBe('inst-1');
@@ -246,9 +298,137 @@ describe('SegmentManagerComponent', () => {
       const seg = makeSegment({ id: 'seg-1', instances: [inst] });
       component.segments.set([seg]);
 
-      component.onInstanceDropped(seg, makeDrop(0, 0));
+      component.onInstanceDropped(seg, makeSameContainerDrop(0, 0));
 
       expect(instanceService.reorder).not.toHaveBeenCalled();
+    });
+
+    it('calls move service when dropped into a different segment', () => {
+      const inst = makeInstance({ id: 'inst-1' });
+      const source = makeSegment({ id: 'seg-1', instances: [inst] });
+      const target = makeSegment({ id: 'seg-2', instances: [] });
+      component.segments.set([source, target]);
+      const moveResult = {
+        sourceSegment: { ...source, instances: [] },
+        targetSegment: { ...target, instances: [inst] },
+      };
+      (instanceService.move as ReturnType<typeof vi.fn>).mockReturnValue(of(moveResult));
+
+      component.onInstanceDropped(target, makeCrossSegmentDrop(source, target, inst, 0, 0));
+
+      expect(instanceService.move).toHaveBeenCalledWith(EVENT_ID, 'seg-1', 'inst-1', {
+        targetSegmentId: 'seg-2',
+        targetIndex: 0,
+      });
+    });
+
+    it('replaces both source and target segments with the server response on success', () => {
+      const inst = makeInstance({ id: 'inst-1' });
+      const source = makeSegment({ id: 'seg-1', instances: [inst] });
+      const target = makeSegment({ id: 'seg-2', instances: [] });
+      component.segments.set([source, target]);
+      const moveResult = {
+        sourceSegment: { ...source, instances: [] },
+        targetSegment: { ...target, instances: [inst] },
+      };
+      (instanceService.move as ReturnType<typeof vi.fn>).mockReturnValue(of(moveResult));
+
+      component.onInstanceDropped(target, makeCrossSegmentDrop(source, target, inst, 0, 0));
+
+      expect(component.segments().find((s) => s.id === 'seg-1')!.instances).toHaveLength(0);
+      expect(component.segments().find((s) => s.id === 'seg-2')!.instances).toHaveLength(1);
+    });
+
+    it('opens the conflict dialog with total/tronc counts on a 409 SEGMENT_MOVE_CONFLICT response', () => {
+      const inst = makeInstance({ id: 'inst-1' });
+      const source = makeSegment({ id: 'seg-1', instances: [inst] });
+      const target = makeSegment({ id: 'seg-2', instances: [] });
+      component.segments.set([source, target]);
+      const error = new HttpErrorResponse({
+        status: 409,
+        error: { code: 'SEGMENT_MOVE_CONFLICT', total: 3, tronc: 1 },
+      });
+      (instanceService.move as ReturnType<typeof vi.fn>).mockReturnValue(throwError(() => error));
+
+      component.onInstanceDropped(target, makeCrossSegmentDrop(source, target, inst, 0, 0));
+
+      expect(component.pendingMoveConflict()).toEqual({
+        sourceSegmentId: 'seg-1',
+        targetSegmentId: 'seg-2',
+        instanceId: 'inst-1',
+        targetIndex: 0,
+        total: 3,
+        tronc: 1,
+      });
+    });
+
+    it('shows a generic error toast and does not open the dialog on a non-conflict error', () => {
+      const inst = makeInstance({ id: 'inst-1' });
+      const source = makeSegment({ id: 'seg-1', instances: [inst] });
+      const target = makeSegment({ id: 'seg-2', instances: [] });
+      component.segments.set([source, target]);
+      (instanceService.move as ReturnType<typeof vi.fn>).mockReturnValue(
+        throwError(() => new HttpErrorResponse({ status: 500 })),
+      );
+
+      component.onInstanceDropped(target, makeCrossSegmentDrop(source, target, inst, 0, 0));
+
+      expect(toastService.error).toHaveBeenCalled();
+      expect(component.pendingMoveConflict()).toBeNull();
+    });
+  });
+
+  describe('move conflict resolution', () => {
+    const inst = makeInstance({ id: 'inst-1' });
+    const source = makeSegment({ id: 'seg-1', instances: [inst] });
+    const target = makeSegment({ id: 'seg-2', instances: [] });
+
+    beforeEach(() => {
+      component.segments.set([source, target]);
+      component.pendingMoveConflict.set({
+        sourceSegmentId: 'seg-1',
+        targetSegmentId: 'seg-2',
+        instanceId: 'inst-1',
+        targetIndex: 0,
+        total: 3,
+        tronc: 1,
+      });
+    });
+
+    it('resolveMoveConflict calls move with the chosen resolution and applies the result', () => {
+      const moveResult = {
+        sourceSegment: { ...source, instances: [] },
+        targetSegment: { ...target, instances: [inst] },
+      };
+      (instanceService.move as ReturnType<typeof vi.fn>).mockReturnValue(of(moveResult));
+
+      component.resolveMoveConflict(SegmentMoveConflictResolution.KEEP_MOVED);
+
+      expect(instanceService.move).toHaveBeenCalledWith(EVENT_ID, 'seg-1', 'inst-1', {
+        targetSegmentId: 'seg-2',
+        targetIndex: 0,
+        conflictResolution: SegmentMoveConflictResolution.KEEP_MOVED,
+      });
+      expect(component.pendingMoveConflict()).toBeNull();
+      expect(component.segments().find((s) => s.id === 'seg-2')!.instances).toHaveLength(1);
+    });
+
+    it('resolveMoveConflict shows an error toast and clears the dialog on failure', () => {
+      (instanceService.move as ReturnType<typeof vi.fn>).mockReturnValue(
+        throwError(() => new HttpErrorResponse({ status: 500 })),
+      );
+
+      component.resolveMoveConflict(SegmentMoveConflictResolution.KEEP_TARGET);
+
+      expect(toastService.error).toHaveBeenCalled();
+      expect(component.pendingMoveConflict()).toBeNull();
+    });
+
+    it('cancelMoveConflict clears the dialog without calling move', () => {
+      component.cancelMoveConflict();
+
+      expect(component.pendingMoveConflict()).toBeNull();
+      expect(instanceService.move).not.toHaveBeenCalled();
     });
   });
 
@@ -589,6 +769,180 @@ describe('SegmentManagerComponent', () => {
       component.setViewMode('troncs');
 
       expect(toastService.error).toHaveBeenCalledWith('Error en carregar les dades del tronc.');
+    });
+
+    it('persists the selected mode so it is remembered across events', () => {
+      (segmentService.getTroncView as ReturnType<typeof vi.fn>).mockReturnValue(of([]));
+
+      component.setViewMode('troncs');
+
+      expect(localStorage.getItem('muixer.pinyes.viewMode')).toBe('troncs');
+    });
+
+    it('restores a remembered troncs mode on init and loads tronc data', async () => {
+      localStorage.setItem('muixer.pinyes.viewMode', 'troncs');
+      TestBed.resetTestingModule();
+      await TestBed.configureTestingModule({
+        imports: [SegmentManagerComponent, DragDropModule],
+        providers: [
+          { provide: EventSegmentService, useValue: segmentService },
+          { provide: FigureInstanceService, useValue: instanceService },
+          { provide: CompositionService, useValue: compositionService },
+          { provide: NodeAssignmentService, useValue: nodeAssignmentService },
+          { provide: ToastService, useValue: toastService },
+          { provide: Router, useValue: routerMock },
+          allLucideIconsProvider,
+        ],
+      }).compileComponents();
+      (segmentService.getTroncView as ReturnType<typeof vi.fn>).mockReturnValue(of([]));
+
+      const otherFixture = TestBed.createComponent(SegmentManagerComponent);
+      otherFixture.componentRef.setInput('eventId', EVENT_ID);
+      otherFixture.detectChanges();
+
+      expect(otherFixture.componentInstance.viewMode()).toBe('troncs');
+      expect(segmentService.getTroncView).toHaveBeenCalledWith(EVENT_ID);
+    });
+  });
+
+  describe('figurePinyaLabel()', () => {
+    const loadSummary = (summary: EventAssignmentSummary) => {
+      (nodeAssignmentService.getEventAssignmentSummary as ReturnType<typeof vi.fn>).mockReturnValue(of(summary));
+      component.ngOnInit();
+    };
+
+    it('formats assigned/total pinya with cordons and grand total', () => {
+      loadSummary({
+        segments: [
+          {
+            segmentId: 'seg-1',
+            segmentName: 'Bloc 1',
+            sortOrder: 0,
+            figures: [
+              makeFigureSummary({
+                instanceId: 'inst-uuid-1',
+                pinya: makeAreaCount(12, 20),
+                total: makeAreaCount(15, 24),
+              }),
+            ],
+          },
+        ],
+      });
+      const inst = makeInstance({ id: 'inst-uuid-1', numberOfCordons: 2, totalCordons: 4 });
+
+      expect(component.figurePinyaLabel(inst)).toBe('12/20 pinya (2 cor.), 15/24 total');
+    });
+
+    it('omits the cordons qualifier when not configured', () => {
+      loadSummary({
+        segments: [
+          {
+            segmentId: 'seg-1',
+            segmentName: 'Bloc 1',
+            sortOrder: 0,
+            figures: [
+              makeFigureSummary({
+                instanceId: 'inst-uuid-1',
+                pinya: makeAreaCount(12, 20),
+                total: makeAreaCount(15, 24),
+              }),
+            ],
+          },
+        ],
+      });
+      const inst = makeInstance({ id: 'inst-uuid-1', numberOfCordons: null, totalCordons: 4 });
+
+      expect(component.figurePinyaLabel(inst)).toBe('12/20 pinya, 15/24 total');
+    });
+
+    it('omits the pinya fragment when there are no available pinya positions', () => {
+      loadSummary({
+        segments: [
+          {
+            segmentId: 'seg-1',
+            segmentName: 'Bloc 1',
+            sortOrder: 0,
+            figures: [
+              makeFigureSummary({
+                instanceId: 'inst-uuid-1',
+                pinya: makeAreaCount(0, 0),
+                total: makeAreaCount(3, 3),
+              }),
+            ],
+          },
+        ],
+      });
+      const inst = makeInstance({ id: 'inst-uuid-1', figureMode: 'REMAT' });
+
+      expect(component.figurePinyaLabel(inst)).toBe('3/3 total');
+    });
+
+    it('returns null when there is no summary data for the instance', () => {
+      const inst = makeInstance({ id: 'unknown-instance' });
+      expect(component.figurePinyaLabel(inst)).toBeNull();
+    });
+  });
+
+  describe('segmentPeopleLabel()', () => {
+    const loadSummary = (summary: EventAssignmentSummary) => {
+      (nodeAssignmentService.getEventAssignmentSummary as ReturnType<typeof vi.fn>).mockReturnValue(of(summary));
+      component.ngOnInit();
+    };
+
+    it('sums pinya and total across figures in pinya mode', () => {
+      loadSummary({
+        segments: [
+          {
+            segmentId: 'seg-1',
+            segmentName: 'Bloc 1',
+            sortOrder: 0,
+            figures: [
+              makeFigureSummary({ pinya: makeAreaCount(12, 20), total: makeAreaCount(15, 24) }),
+              makeFigureSummary({ instanceId: 'inst-2', pinya: makeAreaCount(11, 15), total: makeAreaCount(14, 21) }),
+            ],
+          },
+        ],
+      });
+
+      expect(component.segmentPeopleLabel(makeSegment({ id: 'seg-1' }))).toBe('23/35 pinyes, 29/45 total');
+    });
+
+    it('sums tronc and total across figures in troncs mode', () => {
+      component.setViewMode('troncs');
+      loadSummary({
+        segments: [
+          {
+            segmentId: 'seg-1',
+            segmentName: 'Bloc 1',
+            sortOrder: 0,
+            figures: [
+              makeFigureSummary({ tronc: makeAreaCount(2, 5), total: makeAreaCount(15, 24) }),
+              makeFigureSummary({ instanceId: 'inst-2', tronc: makeAreaCount(2, 5), total: makeAreaCount(14, 21) }),
+            ],
+          },
+        ],
+      });
+
+      expect(component.segmentPeopleLabel(makeSegment({ id: 'seg-1' }))).toBe('4/10 troncs, 29/45 total');
+    });
+
+    it('omits the pinyes fragment when the segment has no available pinya positions', () => {
+      loadSummary({
+        segments: [
+          {
+            segmentId: 'seg-1',
+            segmentName: 'Bloc 1',
+            sortOrder: 0,
+            figures: [makeFigureSummary({ pinya: makeAreaCount(0, 0), total: makeAreaCount(3, 3) })],
+          },
+        ],
+      });
+
+      expect(component.segmentPeopleLabel(makeSegment({ id: 'seg-1' }))).toBe('3/3 total');
+    });
+
+    it('returns null when there is no summary data for the segment', () => {
+      expect(component.segmentPeopleLabel(makeSegment({ id: 'unknown-segment' }))).toBeNull();
     });
   });
 

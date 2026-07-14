@@ -37,7 +37,7 @@ export interface FigureNodeItem {
   color: string | null;
   shape: string;
   sortOrder: number;
-  climbPath: string | null;
+  climbIndicator: string | null;
   ringLevel: number | null;
   originNodeId: string | null;
   renglaId: string | null;
@@ -388,7 +388,7 @@ export class FigureTemplateService {
       color: n.color ?? undefined,
       shape: n.shape,
       sortOrder: n.sortOrder,
-      climbPath: n.climbPath ?? undefined,
+      climbIndicator: n.climbIndicator ?? undefined,
       ringLevel: n.ringLevel ?? undefined,
       renglaId: n.renglaId ?? undefined,
       renglaPosition: n.renglaPosition ?? undefined,
@@ -511,7 +511,7 @@ export class FigureTemplateService {
         color: dto.color ?? null,
         shape: dto.shape,
         sortOrder: dto.sortOrder ?? 0,
-        climbPath: dto.climbPath ?? null,
+        climbIndicator: dto.climbIndicator ?? null,
         ringLevel: dto.ringLevel ?? null,
         originNodeId: dto.originNodeId ?? null,
         renglaId: dto.renglaId ?? null,
@@ -553,7 +553,7 @@ export class FigureTemplateService {
         node.color = dto.color ?? null;
         node.shape = dto.shape;
         node.sortOrder = dto.sortOrder ?? 0;
-        node.climbPath = dto.climbPath ?? null;
+        node.climbIndicator = dto.climbIndicator ?? null;
         node.ringLevel = dto.ringLevel ?? null;
         if (dto.originNodeId !== undefined) node.originNodeId = dto.originNodeId;
         if (dto.renglaId !== undefined) node.renglaId = dto.renglaId;
@@ -646,7 +646,7 @@ function nodeToCreateDto(node: FigureNode): CreateFigureNodeDto {
     color: node.color ?? undefined,
     shape: node.shape,
     sortOrder: node.sortOrder,
-    climbPath: node.climbPath ?? undefined,
+    climbIndicator: node.climbIndicator ?? undefined,
     ringLevel: node.ringLevel ?? undefined,
     originNodeId: node.originNodeId ?? undefined,
     renglaId: node.renglaId ?? undefined,
@@ -670,7 +670,7 @@ function nodeToItem(node: FigureNode): FigureNodeItem {
     color: node.color,
     shape: node.shape,
     sortOrder: node.sortOrder,
-    climbPath: node.climbPath,
+    climbIndicator: node.climbIndicator,
     ringLevel: node.ringLevel,
     originNodeId: node.originNodeId,
     renglaId: node.renglaId,

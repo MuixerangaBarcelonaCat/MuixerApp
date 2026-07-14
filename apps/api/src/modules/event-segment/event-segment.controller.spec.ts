@@ -4,6 +4,7 @@ import { EventSegmentService } from './event-segment.service';
 import { FigureInstanceService } from './figure-instance.service';
 import { ProjectionService, ProjectionData } from './projection.service';
 import { SegmentWithInstances } from './event-segment.service';
+import { SegmentMoveConflictResolution } from '@muixer/shared';
 
 const EVENT_ID = 'event-uuid-1';
 const SEGMENT_ID = 'segment-uuid-1';
@@ -43,11 +44,14 @@ const mockProjectionData: ProjectionData = {
   personAttendance: {},
 };
 
+const mockMoveResult = { sourceSegment: mockSegment, targetSegment: mockSegment };
+
 const mockInstanceService: Partial<FigureInstanceService> = {
   create: jest.fn().mockResolvedValue(mockInstance),
   update: jest.fn().mockResolvedValue(mockInstance),
   remove: jest.fn().mockResolvedValue(undefined),
   reorder: jest.fn().mockResolvedValue(undefined),
+  move: jest.fn().mockResolvedValue(mockMoveResult),
 };
 
 const mockProjectionService: Partial<ProjectionService> = {
@@ -135,6 +139,47 @@ describe('EventSegmentController', () => {
       const result = await controller.updateInstance(EVENT_ID, SEGMENT_ID, INSTANCE_ID, dto);
       expect(result).toEqual(mockInstance);
       expect(mockInstanceService.update).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID, INSTANCE_ID, dto);
+    });
+  });
+
+  describe('moveInstance', () => {
+    const TARGET_SEGMENT_ID = 'segment-uuid-2';
+
+    it('delegates to instance service with the targetSegmentId/targetIndex body and no resolution', async () => {
+      const result = await controller.moveInstance(
+        EVENT_ID,
+        SEGMENT_ID,
+        INSTANCE_ID,
+        { targetSegmentId: TARGET_SEGMENT_ID, targetIndex: 2 },
+        {},
+      );
+      expect(result).toEqual(mockMoveResult);
+      expect(mockInstanceService.move).toHaveBeenCalledWith(
+        EVENT_ID,
+        SEGMENT_ID,
+        INSTANCE_ID,
+        TARGET_SEGMENT_ID,
+        2,
+        undefined,
+      );
+    });
+
+    it('forwards the conflictResolution query param', async () => {
+      await controller.moveInstance(
+        EVENT_ID,
+        SEGMENT_ID,
+        INSTANCE_ID,
+        { targetSegmentId: TARGET_SEGMENT_ID, targetIndex: 0 },
+        { conflictResolution: SegmentMoveConflictResolution.KEEP_MOVED },
+      );
+      expect(mockInstanceService.move).toHaveBeenCalledWith(
+        EVENT_ID,
+        SEGMENT_ID,
+        INSTANCE_ID,
+        TARGET_SEGMENT_ID,
+        0,
+        SegmentMoveConflictResolution.KEEP_MOVED,
+      );
     });
   });
 

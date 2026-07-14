@@ -32,7 +32,7 @@ import {
   PlacedFigurePosition,
 } from '../../utils/figure-placement.util';
 import { computeTroncNaturalSize, TRONC_GAP_PX } from '../../utils/tronc-size.util';
-import { getFigureColor } from '../../utils/figure-palette.util';
+import { getFigureColor, SINGLE_FIGURE_PANEL_COLOR, SINGLE_FIGURE_SHADOW_COLOR } from '../../utils/figure-palette.util';
 
 interface DistributionTroncPanel {
   instance: ProjectionInstance;
@@ -44,6 +44,7 @@ interface DistributionTroncPanel {
   naturalH: number;
   scale: number;
   color: string;
+  borderColor: string;
 }
 
 
@@ -330,6 +331,7 @@ export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy
     );
     const { x: stageX, y: stageY, scaleX: stageScale } = this.stageTransform();
     const totalScale = distScale * stageScale;
+    const singleFigure = instances.length === 1;
 
     return instances.map((inst, instIndex) => {
       const { naturalW, naturalH } = this.getTroncPanelNaturalSize(inst);
@@ -364,7 +366,9 @@ export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy
         screenY = figScreenY - figHalfH * totalScale - naturalH * totalScale - TRONC_GAP_PX * totalScale;
       }
 
-      return { instance: inst, screenX, screenY, naturalW, naturalH, scale: totalScale, color: getFigureColor(instIndex) };
+      const color = singleFigure ? SINGLE_FIGURE_PANEL_COLOR : getFigureColor(instIndex);
+      const borderColor = singleFigure ? SINGLE_FIGURE_SHADOW_COLOR : color;
+      return { instance: inst, screenX, screenY, naturalW, naturalH, scale: totalScale, color, borderColor };
     });
   });
 
@@ -377,8 +381,10 @@ export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy
       this.containerHeight(),
     );
 
+    const singleFigure = instances.length === 1;
+
     return instances.flatMap((inst, instIndex) => {
-      const color = getFigureColor(instIndex);
+      const color = singleFigure ? SINGLE_FIGURE_SHADOW_COLOR : getFigureColor(instIndex);
       const projX = inst.projectionX ?? 0;
       const projY = inst.projectionY ?? 0;
       const angleRad = ((inst.projectionAngle ?? 0) * Math.PI) / 180;

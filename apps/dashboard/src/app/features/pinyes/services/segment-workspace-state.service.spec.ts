@@ -28,6 +28,7 @@ const makeNode = (id: string, zone: string, overrides: Partial<InstanceNodeItem>
   color: null,
   shape: 'RECTANGLE',
   sortOrder: 0,
+  climbIndicator: null,
   ringLevel: null,
   originNodeId: null,
   renglaId: null,
@@ -49,6 +50,7 @@ const makeInstance = (id: string, overrides: Partial<InstanceDetail> = {}): Inst
   pinyaCapacity: null,
   totalCordons: null,
   numberOfCordons: null,
+  cordonsObertsEnabled: true,
   projectionX: null,
   projectionY: null,
   projectionScale: 1,
@@ -76,6 +78,7 @@ const makeDistributionItem = (
   label: null,
   figureMode: 'COMPLETA',
   numberOfCordons: null,
+  cordonsObertsEnabled: true,
   assignments: [],
   figureTemplate: { id: `tpl-${instanceId}`, name: `Figura ${instanceId}`, nodes: [] },
   troncGridCols: 2,
@@ -100,6 +103,7 @@ const makeAssignment = (id: string, instanceId: string, nodeId: string, personId
     z: 0,
     positionType: null,
     sortOrder: 0,
+    climbIndicator: null,
     ringLevel: null,
     originNodeId: null,
     sourceNodeId: null,
@@ -462,6 +466,23 @@ describe('SegmentWorkspaceStateService', () => {
       expect(cordoObert?.y).toBe(20);
     });
 
+    it('excludes cordo-obert nodes entirely when cordonsObertsEnabled is false', () => {
+      configure({
+        segment: makeSegment([makeInstance('inst-a', { numberOfCordons: null, cordonsObertsEnabled: false })]),
+        nodesByInstance: {
+          'inst-a': [
+            makeNode('n1', 'PINYA', { renglaId: 'r1', renglaPosition: 1 }),
+            makeNode('co', 'PINYA', { renglaId: 'r1', renglaPosition: 2, positionType: 'cordo-obert' }),
+          ],
+        },
+      });
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      const ids = service.pinyaSlots()[0].figureTemplate.nodes.map((n) => n.id);
+      expect(ids).toEqual(['n1']);
+    });
+
     it('keeps an auto-placed figure position stable when its nodes change later (e.g. adding an ad-hoc node)', () => {
       configure({
         segment: makeSegment([makeInstance('inst-a'), makeInstance('inst-b')]),
@@ -526,6 +547,7 @@ describe('SegmentWorkspaceStateService', () => {
           label: null,
           figureMode: 'COMPLETA',
           numberOfCordons: 1,
+          cordonsObertsEnabled: true,
           assignments: [],
           figureTemplate: { id: `tpl-${id}`, name: `Figura ${id}`, nodes: figNodes(id) },
           troncGridCols: 2,
@@ -619,6 +641,51 @@ describe('SegmentWorkspaceStateService', () => {
 
       expect(() => service.refresh()).not.toThrow();
       expect(segmentService.getByEvent).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('segment navigation (prev/next/position)', () => {
+    const makeSegmentWithId = (id: string, sortOrder: number): SegmentDetail => ({
+      ...makeSegment([makeInstance(`inst-${id}`)]),
+      id,
+      sortOrder,
+    });
+
+    it('exposes previous/next segment ids and 1-based position among siblings', () => {
+      const segments = [
+        makeSegmentWithId('seg-a', 0),
+        makeSegmentWithId(SEGMENT_ID, 1),
+        makeSegmentWithId('seg-c', 2),
+      ];
+      configure({ segment: segments[1] });
+      segmentService.getByEvent.mockReturnValue(of({ data: segments }));
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      expect(service.previousSegmentId()).toBe('seg-a');
+      expect(service.nextSegmentId()).toBe('seg-c');
+      expect(service.segmentPosition()).toEqual({ current: 2, total: 3 });
+    });
+
+    it('returns null for previousSegmentId on the first segment and nextSegmentId on the last', () => {
+      const segments = [makeSegmentWithId(SEGMENT_ID, 0), makeSegmentWithId('seg-b', 1)];
+      configure({ segment: segments[0] });
+      segmentService.getByEvent.mockReturnValue(of({ data: segments }));
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      expect(service.previousSegmentId()).toBeNull();
+      expect(service.nextSegmentId()).toBe('seg-b');
+    });
+
+    it('returns null for segmentPosition and both neighbours when the segment is a lone segment', () => {
+      configure();
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      expect(service.previousSegmentId()).toBeNull();
+      expect(service.nextSegmentId()).toBeNull();
+      expect(service.segmentPosition()).toEqual({ current: 1, total: 1 });
     });
   });
 });

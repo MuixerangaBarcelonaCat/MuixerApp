@@ -30,6 +30,7 @@ export interface AvailablePersonDto {
   assignedInSegment: boolean;
   assignedInstanceId?: string;
   assignedNodeLabel?: string;
+  assignedNodeCordon?: number | null;
   positions: AvailablePersonPositionDto[];
 }
 
@@ -182,7 +183,10 @@ export class AvailablePersonsService {
     }
 
     // Get assigned person details in this segment (for `assignedInSegment` flag + location)
-    const assignedDetails = new Map<string, { instanceId: string; nodeLabel: string }>();
+    const assignedDetails = new Map<
+      string,
+      { instanceId: string; nodeLabel: string; renglaPosition: number | null }
+    >();
     if (!excludeAssignedBool) {
       const segmentAssignments = await this.assignmentRepository.find({
         where: { figureInstance: { segment: { id: segmentId } } },
@@ -192,6 +196,7 @@ export class AvailablePersonsService {
         assignedDetails.set(assignment.person.id, {
           instanceId: assignment.figureInstance.id,
           nodeLabel: assignment.instanceNode?.label ?? '',
+          renglaPosition: assignment.instanceNode?.renglaPosition ?? null,
         });
       });
     }
@@ -235,6 +240,7 @@ export class AvailablePersonsService {
         assignedInSegment: !excludeAssignedBool && assignedDetails.has(person.id),
         assignedInstanceId: detail?.instanceId,
         assignedNodeLabel: detail?.nodeLabel,
+        assignedNodeCordon: detail?.renglaPosition ?? null,
         positions: (person.positions ?? []).map((p) => ({
           id: p.id,
           name: p.name,

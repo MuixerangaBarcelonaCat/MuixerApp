@@ -46,6 +46,9 @@ export class CompositionEntry {
   @Column({ type: 'int', nullable: true })
   numberOfCordons: number | null;
 
+  @Column({ type: 'boolean', default: true })
+  cordonsObertsEnabled: boolean;
+
   @Column({ type: 'int', default: 0 })
   sortOrder: number;
 }
