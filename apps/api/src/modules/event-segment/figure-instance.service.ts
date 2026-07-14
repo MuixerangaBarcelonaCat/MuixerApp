@@ -96,6 +96,7 @@ export class FigureInstanceService {
     }
 
     const segment = await this.assertSegmentBelongsToEvent(eventId, segmentId);
+    await this.nodeAssignmentService.checkEventLockByEventId(eventId);
 
     const figureTemplate = await this.figureTemplateRepository.findOne({
       where: { id: dto.figureTemplateId },
@@ -168,6 +169,7 @@ export class FigureInstanceService {
     dto: ReorderInstancesDto,
   ): Promise<void> {
     await this.assertSegmentBelongsToEvent(eventId, segmentId);
+    await this.nodeAssignmentService.checkEventLockByEventId(eventId);
 
     const existing = await this.instanceRepository.find({
       where: { segment: { id: segmentId } },
@@ -206,6 +208,7 @@ export class FigureInstanceService {
 
     await this.assertSegmentBelongsToEvent(eventId, segmentId);
     const targetSegment = await this.assertSegmentBelongsToEvent(eventId, targetSegmentId);
+    await this.nodeAssignmentService.checkEventLockByEventId(eventId);
 
     const maxOrder = await this.instanceRepository
       .createQueryBuilder('instance')
@@ -561,6 +564,7 @@ export class FigureInstanceService {
     compositionId: string,
   ): Promise<SegmentWithInstances> {
     const segment = await this.assertSegmentBelongsToEvent(eventId, segmentId);
+    await this.nodeAssignmentService.checkEventLockByEventId(eventId);
 
     const composition = await this.compositionRepository.findOne({
       where: { id: compositionId },

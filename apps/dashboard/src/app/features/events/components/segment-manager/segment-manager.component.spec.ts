@@ -1186,4 +1186,130 @@ describe('SegmentManagerComponent', () => {
       expect(component.pendingModeChange()).toBeNull();
     });
   });
+
+  describe('isLocked gating', () => {
+    function setLockedWithSegment() {
+      const seg = makeSegment({ id: 'seg-1', instances: [makeInstance({ id: 'inst-1' })] });
+      component.segments.set([seg]);
+      fixture.componentRef.setInput('isLocked', true);
+      fixture.detectChanges();
+      return seg;
+    }
+
+    it('hides "Segment nou"', () => {
+      fixture.componentRef.setInput('isLocked', true);
+      fixture.detectChanges();
+
+      const btn = fixture.nativeElement.querySelector('[aria-label="Afegir segment nou"]');
+      expect(btn).toBeNull();
+    });
+
+    it('renders "Segment nou" when unlocked', () => {
+      fixture.componentRef.setInput('isLocked', false);
+      fixture.detectChanges();
+
+      const btn = fixture.nativeElement.querySelector('[aria-label="Afegir segment nou"]');
+      expect(btn).not.toBeNull();
+    });
+
+    it('hides segment delete', () => {
+      setLockedWithSegment();
+
+      const btn = fixture.nativeElement.querySelector('[aria-label="Eliminar segment"]');
+      expect(btn).toBeNull();
+    });
+
+    it('replaces the segment rename trigger with read-only text', () => {
+      setLockedWithSegment();
+
+      const trigger = fixture.nativeElement.querySelector('[data-testid="segment-rename-trigger"]');
+      const readonly = fixture.nativeElement.querySelector('[data-testid="segment-name-readonly"]');
+      expect(trigger).toBeNull();
+      expect(readonly).not.toBeNull();
+      expect(readonly.textContent).toContain('Bloc A');
+    });
+
+    it('hides the segment drag handle', () => {
+      setLockedWithSegment();
+
+      const btn = fixture.nativeElement.querySelector('[aria-label="Arrossega per reordenar el segment"]');
+      expect(btn).toBeNull();
+    });
+
+    it('hides "+ Figura" (blocks add-figure and apply-composition entry point)', () => {
+      setLockedWithSegment();
+
+      const btn = fixture.nativeElement.querySelector('[aria-label="Afegir figura o composició al segment"]');
+      expect(btn).toBeNull();
+    });
+
+    it('hides the instance drag handle', () => {
+      setLockedWithSegment();
+
+      const btn = fixture.nativeElement.querySelector('[aria-label="Arrossega per reordenar"]');
+      expect(btn).toBeNull();
+    });
+
+    it('keeps the figure-mode select visible but disabled', () => {
+      setLockedWithSegment();
+
+      const select: HTMLSelectElement = fixture.nativeElement.querySelector('select');
+      expect(select).not.toBeNull();
+      expect(select.disabled).toBe(true);
+    });
+
+    it('hides delete-instance', () => {
+      const seg = setLockedWithSegment();
+      const label = component.getInstanceLabel(seg.instances[0]);
+
+      const btn = fixture.nativeElement.querySelector(`[aria-label="Treure ${label} del segment"]`);
+      expect(btn).toBeNull();
+    });
+
+    it('leaves the visibility toggle enabled (not locked server-side)', () => {
+      setLockedWithSegment();
+
+      const visibilityBtn: HTMLButtonElement = fixture.nativeElement.querySelector(
+        '.btn-ghost.btn-xs[title*="Visible"], .btn-ghost.btn-xs[title*="Ocult"]',
+      );
+      expect(visibilityBtn.disabled).toBe(false);
+    });
+
+    it('hides copy-to-segment', () => {
+      const seg = setLockedWithSegment();
+      const label = component.getInstanceLabel(seg.instances[0]);
+
+      const copyBtn = fixture.nativeElement.querySelector(
+        `[aria-label="Copia ${label} a un altre segment"]`,
+      );
+      expect(copyBtn).toBeNull();
+    });
+
+    it('renders copy-to-segment when unlocked', () => {
+      const seg = makeSegment({ id: 'seg-1', instances: [makeInstance({ id: 'inst-1' })] });
+      component.segments.set([seg]);
+      fixture.componentRef.setInput('isLocked', false);
+      fixture.detectChanges();
+      const label = component.getInstanceLabel(seg.instances[0]);
+
+      const copyBtn = fixture.nativeElement.querySelector(
+        `[aria-label="Copia ${label} a un altre segment"]`,
+      );
+      expect(copyBtn).not.toBeNull();
+    });
+
+    it('renders mutating controls when unlocked', () => {
+      const seg = makeSegment({ id: 'seg-1', instances: [makeInstance({ id: 'inst-1' })] });
+      component.segments.set([seg]);
+      fixture.componentRef.setInput('isLocked', false);
+      fixture.detectChanges();
+
+      const addFigureBtn = fixture.nativeElement.querySelector(
+        '[aria-label="Afegir figura o composició al segment"]',
+      );
+      const deleteBtn = fixture.nativeElement.querySelector('[aria-label="Eliminar segment"]');
+      expect(addFigureBtn).not.toBeNull();
+      expect(deleteBtn).not.toBeNull();
+    });
+  });
 });

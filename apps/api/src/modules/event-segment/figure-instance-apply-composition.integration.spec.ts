@@ -42,7 +42,10 @@ describe('FigureInstanceService.applyComposition (integration)', () => {
           Composition,
           Event,
         ]),
-        { provide: NodeAssignmentService, useValue: {} },
+        {
+          provide: NodeAssignmentService,
+          useValue: { checkEventLockByEventId: jest.fn().mockResolvedValue(undefined) },
+        },
         { provide: DataSource, useValue: db.dataSource },
       ],
     }).compile();

@@ -1216,6 +1216,28 @@ export class NodeAssignmentService {
     };
   }
 
+  /**
+   * Variant of checkEventLock for mutations that don't hang off a FigureInstance
+   * (segment CRUD/reorder, instance creation/reorder, composition apply).
+   */
+  async checkEventLockByEventId(eventId: string): Promise<void> {
+    const lockDays = parseInt(process.env.ASSIGNMENT_LOCK_DAYS ?? '2', 10);
+    if (lockDays <= 0) return;
+
+    const event = await this.eventRepository.findOne({ where: { id: eventId } });
+    if (!event) return;
+
+    const eventDate = new Date(event.date);
+    const lockDate = new Date(eventDate);
+    lockDate.setDate(lockDate.getDate() + lockDays);
+
+    if (new Date() > lockDate) {
+      throw new ForbiddenException(
+        `Aquest event està bloquejat (event del ${eventDate.toISOString().slice(0, 10)}, bloqueig després de ${lockDays} dies).`,
+      );
+    }
+  }
+
   /** Shared by NodeAssignmentService's own mutations and by FigureInstanceService for the paths that also touch assignment data (mode change, instance removal). */
   async checkEventLock(instanceId: string): Promise<void> {
     const lockDays = parseInt(process.env.ASSIGNMENT_LOCK_DAYS ?? '2', 10);

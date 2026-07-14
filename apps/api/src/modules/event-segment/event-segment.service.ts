@@ -10,6 +10,7 @@ import { Event } from '../event/event.entity';
 import { CreateSegmentDto } from './dto/create-segment.dto';
 import { UpdateSegmentDto } from './dto/update-segment.dto';
 import { ReorderSegmentsDto } from './dto/reorder-segments.dto';
+import { NodeAssignmentService } from '../node-assignment/node-assignment.service';
 import { FigureMode } from '@muixer/shared';
 
 export interface InstanceRef {
@@ -56,6 +57,7 @@ export class EventSegmentService {
     @InjectRepository(Event)
     private readonly eventRepository: Repository<Event>,
     private readonly dataSource: DataSource,
+    private readonly nodeAssignmentService: NodeAssignmentService,
   ) {}
 
   async findAllByEvent(eventId: string): Promise<SegmentWithInstances[]> {
@@ -89,6 +91,7 @@ export class EventSegmentService {
 
   async create(eventId: string, dto: CreateSegmentDto): Promise<SegmentWithInstances> {
     const event = await this.assertEventExists(eventId);
+    await this.nodeAssignmentService.checkEventLockByEventId(eventId);
 
     const maxOrder = await this.segmentRepository
       .createQueryBuilder('segment')
@@ -115,7 +118,10 @@ export class EventSegmentService {
   async update(eventId: string, segmentId: string, dto: UpdateSegmentDto): Promise<SegmentWithInstances> {
     const segment = await this.assertSegmentBelongsToEvent(eventId, segmentId);
 
-    if (dto.name !== undefined) segment.name = dto.name;
+    if (dto.name !== undefined) {
+      await this.nodeAssignmentService.checkEventLockByEventId(eventId);
+      segment.name = dto.name;
+    }
     if (dto.startTime !== undefined) segment.startTime = dto.startTime ?? null;
     if (dto.endTime !== undefined) segment.endTime = dto.endTime ?? null;
     if (dto.notes !== undefined) segment.notes = dto.notes ?? null;
@@ -127,11 +133,13 @@ export class EventSegmentService {
 
   async remove(eventId: string, segmentId: string): Promise<void> {
     const segment = await this.assertSegmentBelongsToEvent(eventId, segmentId);
+    await this.nodeAssignmentService.checkEventLockByEventId(eventId);
     await this.segmentRepository.remove(segment);
   }
 
   async reorder(eventId: string, dto: ReorderSegmentsDto): Promise<void> {
     await this.assertEventExists(eventId);
+    await this.nodeAssignmentService.checkEventLockByEventId(eventId);
 
     const existing = await this.segmentRepository.find({
       where: { event: { id: eventId } },

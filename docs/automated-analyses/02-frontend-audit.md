@@ -40,14 +40,14 @@ The best code in the app (the pinya assignment flow, the projection layout math,
 | Bugs & correctness                     | `FE-BUG`  | —     | 9 (6 ✅)      | 16     | 3      | 28 (6 ✅)     |
 | Architecture & state (incl. dead code) | `FE-ARCH` | —     | 3            | 9      | 4      | 16           |
 | Error handling                         | `FE-ERR`  | —     | 1            | 3      | —      | 4            |
-| UX & interface consistency             | `FE-UX`   | —     | 2            | 5      | 1      | 8            |
+| UX & interface consistency             | `FE-UX`   | —     | 2 (1 ✅)      | 5      | 1      | 8 (1 ✅)      |
 | Accessibility                          | `FE-A11Y` | —     | 1            | 3      | 1      | 5            |
 | Performance                            | `FE-PERF` | —     | 1            | 3      | —      | 4            |
 | API contract drift                     | `FE-API`  | —     | 1            | 2      | —      | 3            |
 | Code smells                            | `FE-SM`   | —     | —            | 5      | 2      | 7            |
 | UI text                                | `FE-LANG` | —     | —            | 2      | —      | 2            |
 | Tests                                  | `FE-TEST` | —     | 2            | 2      | —      | 4            |
-| **Total**                              |           | **—** | **20 (6 ✅)** | **50** | **11** | **81 (6 ✅)** |
+| **Total**                              |           | **—** | **20 (7 ✅)** | **50** | **11** | **81 (7 ✅)** |
 
 
 *(✅ counts reflect fixes applied so far in this branch; updated as findings are resolved.)*
@@ -108,6 +108,7 @@ The `/persons/new` route renders the **entire** edit form — Nom and Primer cog
 3. The "Desactivar" menu item still renders for already-inactive users and silently no-ops (`if (!user.isActive) return;`).
 
 **Fix applied:** all three points fixed together.
+
 - The row-actions menu now shows a single status-change action whose label/icon resolve per row — "Desactivar" (UserX) for active users, "Activar" (UserCheck) for inactive ones — instead of a static "Desactivar" that no-oped once already inactive (point 3). This required extending `data-table.component.ts`'s `RowAction<T>` so `label`/`icon` can be a function of the row (in addition to a plain string, kept backward compatible for every other list page) and adding an optional `hidden` predicate.
 - Clicking the action no longer mutates immediately: it opens an inline confirmation modal in `user-list.component.html` (same hand-rolled `modal modal-open`/`modal-action`/`modal-backdrop` pattern already used by that file's "Assignar rol" modal — no new shared component, per reviewer feedback that a shared `app-confirm-dialog` wasn't justified for a single call site) naming the user and the consequence, with a loading state and error toast that keeps the dialog open on failure so the user can retry (point 1).
 - Confirming now branches: deactivate still calls `userService.deactivate(id)`; activate calls `userService.update(id, { isActive: true })` — the field already existed on `UpdateUserPayload` and the backend (`UpdateUserDto.isActive`, `user.service.ts:338-339`) already supported it, so no API changes were needed (point 2).
@@ -349,9 +350,19 @@ There is no global HTTP error surface for non-401s, and the per-site conventions
 
 `auth.guard.ts` / `role.guard.ts` redirect to `/login` without capturing the attempted URL, and `login.component.ts:41` always navigates to `/`. Every shared deep link (an event, a person, a projection screen — exactly the URLs this app passes around before assajos) lands the user on the dashboard home after login, forcing manual re-navigation. Standard fix: `router.createUrlTree(['/login'], { queryParams: { returnUrl: state.url } })` + honor it after login.
 
-### 🟠 FE-UX-2 — Lock state is cosmetic in the segment manager
+### 🟠✅ FE-UX-2 — Lock state is cosmetic in the segment manager — FIXED
 
 `segment-manager.component.ts` receives `isLocked` but uses it **only** to tint the assignment-link icon (`segment-manager.component.html:219-226`). With the event locked (audit-01 SEC-17 now enforced server-side), the UI still happily offers: create segment, rename, delete segment, drag-reorder, add figures, apply composition, change figure mode, delete instance — every one now fails with a backend 403 toast *after* the user tried it. The assignment canvas gets this right (buttons/handlers gated on `isLocked()`). Gate the mutating controls (or overlay a lock banner) in the segment manager too.
+
+**Investigation finding:** the backend didn't actually match this description. `checkEventLock` (the only lock-enforcement call in the codebase, pre-fix) was wired into just three places — `FigureInstanceService.update()` on a `figureMode` change, `.remove()`, and `.move()` (cross-segment) — plus all `NodeAssignmentService` assignment mutations, which the assignment canvas already gates correctly. Segment create/rename/delete/reorder, instance creation, same-segment instance reorder, and composition apply had **no server-side lock check at all** — matching `ASSIGNMENT_LOCK_DAYS`'s own doc comment ("days after event date to lock assignments"), i.e. the lock looked intentionally scoped to assignments only. Raised with the user, who asked for the broader interpretation (matching this finding's original description) on both sides — so the backend was extended to actually enforce it, not just the frontend gated to match old backend behavior.
+
+**Fix applied — backend:** added `NodeAssignmentService.checkEventLockByEventId(eventId)` (a variant of the existing `checkEventLock(instanceId)` that doesn't require an instance to already exist, for mutations that create one or act at the segment level). Wired into `EventSegmentService.create/update(rename only)/remove/reorder` and `FigureInstanceService.create/reorder/applyComposition` (`EventSegmentModule` already imported `NodeAssignmentModule` via `FigureInstanceService`, so this needed no module wiring). `EventSegment.update()`'s `isVisible`-only path is deliberately **not** gated — visibility toggling isn't part of this finding's scope and isn't described as broken by it.
+
+**Fix applied — frontend:** `segment-manager.component.html` now hides (rather than greys out) every control whose backend call is now lock-enforced: "Segment nou", the segment rename trigger (replaced by plain read-only text so the name is still visible), segment delete, the segment and instance drag handles (`cdkDropListDisabled`/`cdkDragDisabled` are also set as a functional backstop even though the handle that starts a drag is gone), "+ Figura" (the single entry point for both adding a figure and applying a composition, since both flow through the same picker modal), copy-to-segment, and delete-instance. The figure-mode `<select>` is the one exception — kept visible but `[disabled]`, since hiding it would also hide *which* mode the figure is currently in. The "Assigna" button is untouched (still visible, tinted with a lock icon when locked) — it opens the segment workspace, which already renders assignments read-only under lock, so blocking navigation there would remove the only way to review existing assignments on a locked event. Only the visibility toggle is left fully enabled, matching the backend scope.
+
+Copy-to-segment (`FigureInstanceService.copy`) was not in the original finding's list and had no server-side lock check at all — it was extended the same way as the others (added `checkEventLockByEventId` after both segment lookups) so the now-hidden button matches actual backend behavior, rather than leaving a hidden-but-still-callable-via-API gap.
+
+Covered by new tests: `node-assignment.service.spec.ts` (`checkEventLockByEventId`), `event-segment.service.spec.ts` and `figure-instance.service.spec.ts` (lock-rejection + not-called-when-unlocked cases for each gated method, plus the existing `figure-instance-apply-composition.integration.spec.ts` needed its `NodeAssignmentService` stub updated to implement the new method), and `segment-manager.component.spec.ts` (hidden/rendered assertions for every gated control in both states, the figure-mode select's visible-but-disabled exception, and that visibility/copy stay enabled). Full `nx test api` (758 unit + 38 integration), `nx test dashboard` (1288/1290, 2 pre-existing skips), and both `nx lint` targets pass. Not verified against a live login session, per the same dev-DB credential constraint as FE-BUG-5.
 
 ### 🟡 FE-UX-3 — Two empty states render at once on list pages
 
@@ -419,7 +430,7 @@ Every tracked signal change (`selectedNodeId`, `assignments`, `attendanceMap`, `
 
 ### 🟡 FE-PERF-3 — `attendanceLimit` of 100 with client-side page math
 
-`event-detail.component.ts:78` loads attendance 100 at a time into a hand-rolled pager while the shared `PaginationComponent` exists; combined with `getSummaryForDisplay` allocating a new 8-object array per CD cycle (it's called from the template) these are small, but the pattern of computing display arrays in methods rather than `computed()` (`getSummaryForDisplay`, `getStatusBadgeClass`, various `format*` called per row per CD) is endemic to event-detail — the one screen measured at 5.9 % test coverage (FE-TEST-2) is also the one with the most per-CD work in methods.
+`event-detail.component.ts:78` loads attendance 100 at a time into a hand-rolled pager while the shared `PaginationComponent` exists; combined with `getSummaryForDisplay` allocating a new 8-object array per CD cycle (it's called from the template) these are small, but the pattern of computing display arrays in methods rather than `computed()` (`getSummaryForDisplay`, `getStatusBadgeClass`, various `format`* called per row per CD) is endemic to event-detail — the one screen measured at 5.9 % test coverage (FE-TEST-2) is also the one with the most per-CD work in methods.
 
 ### 🟡 FE-PERF-4 — Debounce timers never cancelled on destroy
 
@@ -461,7 +472,7 @@ The project ships its own style guide (`.agents/skills/language-rules/SKILL.md`:
 
 ### 🟡 FE-LANG-1 — Plain errors: typos and non-Valencian forms
 
-- `**person-list.component.ts:31`: column label `'Alies'*`* — missing accent; everywhere else in the app it's `Àlies` (person-detail, person panel). Visible on the census screen, the app's most-used table.
+- `**person-list.component.ts:31`: column label `'Alies'`** — missing accent; everywhere else in the app it's `Àlies` (person-detail, person panel). Visible on the census screen, the app's most-used table.
 - `ad-hoc-nodes-help-modal.component.html:17` *"la **seva** vora discontínua"* and `segment-manager.component.ts:194` *"totes les **seves** figures"* — guide mandates Valencian possessives (`seua`/`seues`).
 - `global-sync.component.ts` *"quan MuixerApp **sigui** l'aplicació principal"* — should be `siga`.
 
@@ -536,7 +547,7 @@ Ranked across all findings by (user damage × likelihood), not by section:
 | 7   | 🟠✅ [FE-BUG-5](#-fe-bug-5--deactivated-users-no-confirmation-no-way-back--fixed) User deactivation: no confirm, no way back — **FIXED**                                               | One misclick in the row menu = account recoverable only via raw API | `user-list` / `user-form-modal`                      |
 | 8   | 🟠 [FE-BUG-4](#-fe-bug-4--event-list-double-fetches-on-init-and-races-itself) Event list double-fetch race                                                                            | Wrong data displayed under normal latency, every page load          | `event-list.component.ts`                            |
 | 9   | 🟠 [FE-BUG-3](#-fe-bug-3--data-table-row-actions-menu-can-act-on-the-wrong-row) Row-actions menu can act on the wrong row                                                             | Destructive actions (deactivate!) mis-targeted                      | `data-table.component.html`                          |
-| 10  | 🟠 [FE-UX-2](#-fe-ux-2--lock-state-is-cosmetic-in-the-segment-manager) Segment manager ignores the event lock                                                                         | Locked-event mutations offered, then fail confusingly               | `segment-manager`                                    |
+| 10  | 🟠✅ [FE-UX-2](#-fe-ux-2--lock-state-is-cosmetic-in-the-segment-manager) Segment manager ignores the event lock                                                                        | Locked-event mutations offered, then fail confusingly               | `segment-manager`                                    |
 | 11  | 🟠 [FE-ARCH-13](#-fe-arch-13--910-lines-of-extracted-services-that-nothing-uses) Delete or finish the ~910 lines of dead services                                                     | Unblocks the honest version of `FE-ARCH-8`; zero risk               | `pinyes/**/services`                                 |
 | 12  | 🟠 [FE-ARCH-1](#-fe-arch-1--the-list-page-controller-is-copy-pasted-five-times) Extract the shared list controller                                                                    | One fix-point for `FE-ARCH-4` races, `FE-PERF-4` timers, dead code  | all list pages                                       |
 | 13  | 🟠 [FE-API-1](#-fe-api-1--two-pagination-envelopes-four-duplicated-paginatedresponse-definitions) Unify the `/users` envelope + one `PaginatedResponse`                               | Contract drift compounding with every new consumer                  | backend `user.controller` + `shared/models`          |

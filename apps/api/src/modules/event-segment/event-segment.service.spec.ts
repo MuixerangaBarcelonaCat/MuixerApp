@@ -1,10 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { EventSegmentService } from './event-segment.service';
 import { EventSegment } from './entities/event-segment.entity';
 import { Event } from '../event/event.entity';
+import { NodeAssignmentService } from '../node-assignment/node-assignment.service';
 
 const EVENT_ID = 'event-uuid-1';
 const SEGMENT_ID = 'segment-uuid-1';
@@ -56,6 +57,10 @@ const mockDataSource = {
   query: jest.fn().mockResolvedValue([]),
 };
 
+const mockNodeAssignmentService = {
+  checkEventLockByEventId: jest.fn(),
+};
+
 describe('EventSegmentService', () => {
   let service: EventSegmentService;
 
@@ -66,11 +71,13 @@ describe('EventSegmentService', () => {
         { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
         { provide: getRepositoryToken(Event), useValue: mockEventRepo },
         { provide: DataSource, useValue: mockDataSource },
+        { provide: NodeAssignmentService, useValue: mockNodeAssignmentService },
       ],
     }).compile();
 
     service = module.get<EventSegmentService>(EventSegmentService);
     jest.clearAllMocks();
+    mockNodeAssignmentService.checkEventLockByEventId.mockResolvedValue(undefined);
     mockSegmentRepo.createQueryBuilder.mockReturnValue(mockSegmentQb);
     mockSegmentQb.leftJoinAndSelect.mockReturnThis();
     mockSegmentQb.where.mockReturnThis();
@@ -132,6 +139,16 @@ describe('EventSegmentService', () => {
 
       await expect(service.create(EVENT_ID, {})).rejects.toThrow(NotFoundException);
     });
+
+    it('throws ForbiddenException and does not create when event is locked', async () => {
+      mockEventRepo.findOne.mockResolvedValue(makeEvent());
+      mockNodeAssignmentService.checkEventLockByEventId.mockRejectedValue(new ForbiddenException('locked'));
+
+      await expect(service.create(EVENT_ID, { name: 'Bloc' })).rejects.toThrow(ForbiddenException);
+
+      expect(mockNodeAssignmentService.checkEventLockByEventId).toHaveBeenCalledWith(EVENT_ID);
+      expect(mockSegmentRepo.save).not.toHaveBeenCalled();
+    });
   });
 
   describe('update', () => {
@@ -150,6 +167,27 @@ describe('EventSegmentService', () => {
 
       await expect(service.update(EVENT_ID, SEGMENT_ID, {})).rejects.toThrow(NotFoundException);
     });
+
+    it('throws ForbiddenException and does not rename when event is locked', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockNodeAssignmentService.checkEventLockByEventId.mockRejectedValue(new ForbiddenException('locked'));
+
+      await expect(
+        service.update(EVENT_ID, SEGMENT_ID, { name: 'Nou nom' }),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(mockNodeAssignmentService.checkEventLockByEventId).toHaveBeenCalledWith(EVENT_ID);
+      expect(mockSegmentRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('does not check the lock when only isVisible is changing', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockSegmentRepo.save.mockResolvedValue(makeSegment());
+
+      await service.update(EVENT_ID, SEGMENT_ID, { isVisible: true });
+
+      expect(mockNodeAssignmentService.checkEventLockByEventId).not.toHaveBeenCalled();
+    });
   });
 
   describe('remove', () => {
@@ -160,6 +198,7 @@ describe('EventSegmentService', () => {
 
       await service.remove(EVENT_ID, SEGMENT_ID);
 
+      expect(mockNodeAssignmentService.checkEventLockByEventId).toHaveBeenCalledWith(EVENT_ID);
       expect(mockSegmentRepo.remove).toHaveBeenCalledWith(segment);
     });
 
@@ -167,6 +206,14 @@ describe('EventSegmentService', () => {
       mockSegmentRepo.findOne.mockResolvedValue(null);
 
       await expect(service.remove(EVENT_ID, SEGMENT_ID)).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws ForbiddenException and does not remove when event is locked', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockNodeAssignmentService.checkEventLockByEventId.mockRejectedValue(new ForbiddenException('locked'));
+
+      await expect(service.remove(EVENT_ID, SEGMENT_ID)).rejects.toThrow(ForbiddenException);
+      expect(mockSegmentRepo.remove).not.toHaveBeenCalled();
     });
   });
 
@@ -296,6 +343,18 @@ describe('EventSegmentService', () => {
       mockEventRepo.findOne.mockResolvedValue(null);
 
       await expect(service.reorder(EVENT_ID, { segmentIds: [] })).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws ForbiddenException and does not reorder when event is locked', async () => {
+      mockEventRepo.findOne.mockResolvedValue(makeEvent());
+      mockSegmentRepo.find.mockResolvedValue([makeSegment()]);
+      mockNodeAssignmentService.checkEventLockByEventId.mockRejectedValue(new ForbiddenException('locked'));
+
+      await expect(
+        service.reorder(EVENT_ID, { segmentIds: [SEGMENT_ID] }),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(mockDataSource.transaction).not.toHaveBeenCalled();
     });
   });
 });
