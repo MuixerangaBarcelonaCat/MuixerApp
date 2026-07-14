@@ -622,7 +622,7 @@ describe('UserService', () => {
       const adminUser = makeUser({ role: UserRole.ADMIN });
       mockUserRepo.findOne.mockResolvedValueOnce(adminUser);
       await expect(
-        service.updateUser('user-uuid', { isActive: false }, UserRole.TECHNICAL),
+        service.updateUser('user-uuid', { isActive: false }, UserRole.TECHNICAL, 'actor-uuid'),
       ).rejects.toThrow(ForbiddenException);
     });
 
