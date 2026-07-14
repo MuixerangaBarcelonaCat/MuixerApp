@@ -237,7 +237,7 @@
           @if (!editing()) {
             <dl class="space-y-3">
               <div class="flex justify-between items-start">
-                <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Posicions</dt>
+                <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Etiquetes</dt>
                 <dd class="flex flex-wrap gap-1 justify-end">
                   @for (pos of person()!.positions; track pos.id) {
                     <span class="badge badge-sm"
@@ -245,7 +245,7 @@
                       [style.color]="getContrastColor(pos.color)">{{ pos.name }}</span>
                   }
                   @if (person()!.positions.length === 0) {
-                    <span class="text-xs text-base-content/40">Cap posició</span>
+                    <span class="text-xs text-base-content/40">Cap etiqueta</span>
                   }
                 </dd>
               </div>
@@ -321,10 +321,10 @@
           } @else {
             <div class="space-y-3">
 
-              <!-- Posicions (chips toggle) -->
+              <!-- Etiquetes (chips toggle) -->
               <div>
-                <span class="text-xs text-base-content/50 font-medium block mb-2">Posicions</span>
-                <div class="flex flex-wrap gap-1.5" role="group" aria-label="Selecció de posicions">
+                <span class="text-xs text-base-content/50 font-medium block mb-2">Etiquetes</span>
+                <div class="flex flex-wrap gap-1.5" role="group" aria-label="Selecció d'etiquetes">
                   @for (pos of allPositions(); track pos.id) {
                     <button
                       type="button"
@@ -341,7 +341,7 @@
                     </button>
                   }
                   @if (allPositions().length === 0) {
-                    <span class="text-xs text-base-content/40">No hi ha posicions disponibles</span>
+                    <span class="text-xs text-base-content/40">No hi ha etiquetes disponibles</span>
                   }
                 </div>
               </div>

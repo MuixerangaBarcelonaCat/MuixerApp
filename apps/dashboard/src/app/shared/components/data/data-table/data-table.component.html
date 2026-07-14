@@ -92,6 +92,16 @@
                         <span class="text-xs font-semibold tabular-nums" [ngClass]="pill.class">{{ pill.text }}</span>
                       }
                     </span>
+                  } @else if (col.type === 'colorBadges' && col.colorBadges) {
+                    <div class="flex flex-wrap gap-1">
+                      @for (badge of col.colorBadges(item); track badge.text) {
+                        <span
+                          class="badge badge-sm"
+                          [style.background-color]="badge.color"
+                          [style.color]="getContrastColor(badge.color)"
+                        >{{ badge.text }}</span>
+                      }
+                    </div>
                   } @else {
                     {{ getCellValue(item, col) ?? '—' }}
                   }

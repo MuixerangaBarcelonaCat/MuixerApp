@@ -91,4 +91,21 @@ describe('PersonListComponent', () => {
     expect(personService.getAll.mock.calls.length).toBe(callsBefore);
     expect(fixture.componentInstance.formatShoulderHeightDisplay(150)).toBe('+10');
   });
+
+  it('labels the tags column "Etiquetes" instead of "Posicions"', () => {
+    const positionsColumn = fixture.componentInstance.allColumns.find(c => c.key === 'positions');
+    expect(positionsColumn?.label).toBe('Etiquetes');
+  });
+
+  it('renders each tag as a color badge in the table', () => {
+    fixture.componentInstance.persons.set([
+      { ...mockPerson, positions: [{ id: 'pos1', name: 'Pinya', slug: 'pinya', zone: null, color: '#ff0000' }] } as never,
+    ]);
+    fixture.detectChanges();
+
+    const badges = fixture.nativeElement.querySelectorAll('.badge');
+    const tagBadge = Array.from(badges as NodeListOf<HTMLElement>).find(b => b.textContent?.trim() === 'Pinya');
+    expect(tagBadge).toBeTruthy();
+    expect(tagBadge?.style.backgroundColor).toBe('rgb(255, 0, 0)');
+  });
 });

@@ -33,7 +33,7 @@ export const ALL_COLUMNS: ColumnDef[] = [
   { key: 'phone', label: 'Telèfon', defaultVisible: false, sortField: 'phone' },
   { key: 'birthDate', label: 'Data naixement', defaultVisible: false, sortField: 'birthDate' },
   { key: 'shoulderHeight', label: 'Alçada', defaultVisible: false, sortField: 'shoulderHeight' },
-  { key: 'positions', label: 'Posicions', defaultVisible: true },
+  { key: 'positions', label: 'Etiquetes', defaultVisible: true, type: 'colorBadges' },
   { key: 'availability', label: 'Pot participar', defaultVisible: false, sortField: 'availability' },
   { key: 'onboardingStatus', label: 'Acollida', defaultVisible: false, sortField: 'onboardingStatus' },
   { key: 'isActive', label: 'Actiu', defaultVisible: true, sortField: 'isActive' },
@@ -291,7 +291,7 @@ export class PersonListComponent {
   readonly activeFilterChips = computed<ActiveFilter[]>(() => {
     const chips: ActiveFilter[] = [];
     if (this.search().trim()) chips.push({ key: 'search', label: `Cerca: "${this.search()}"` });
-    if (this.selectedPositions().length > 0) chips.push({ key: 'positions', label: `Posicions (${this.selectedPositions().length})` });
+    if (this.selectedPositions().length > 0) chips.push({ key: 'positions', label: `Etiquetes (${this.selectedPositions().length})` });
     if (this.activeFilters().isActive === true) chips.push({ key: 'isActive', label: 'Actius' });
     return chips;
   });
@@ -353,6 +353,9 @@ export class PersonListComponent {
     ALL_COLUMNS.map(col => ({
       ...col,
       value: (person: Person) => this.getCellValueForPerson(person, col.key),
+      ...(col.key === 'positions' && {
+        colorBadges: (person: Person) => person.positions.map(p => ({ text: p.name, color: p.color })),
+      }),
     }))
   );
   protected readonly EventType = EventType;
