@@ -139,9 +139,13 @@ export class AttendanceService {
       throw new NotFoundException(`Attendance with ID ${attendanceId} not found`);
     }
 
-    if (dto.status !== undefined) attendance.status = dto.status;
+    // respondedAt marks when the person responded to the attendance request — only a
+    // status change is a "response"; editing notes alone must not touch it (see SM-15).
+    if (dto.status !== undefined && dto.status !== attendance.status) {
+      attendance.status = dto.status;
+      attendance.respondedAt = new Date();
+    }
     if (dto.notes !== undefined) attendance.notes = dto.notes;
-    attendance.respondedAt = new Date();
 
     const saved = await this.attendanceRepository.save(attendance);
     const savedWithRelations = await this.attendanceRepository.findOne({

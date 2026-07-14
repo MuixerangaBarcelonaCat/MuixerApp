@@ -211,6 +211,33 @@ describe('AttendanceService', () => {
       );
     });
 
+    it('does not touch respondedAt on a notes-only edit (SM-15)', async () => {
+      const originalRespondedAt = new Date('2026-01-01T00:00:00Z');
+      const att = { ...makeAttendance(AttendanceStatus.ANIRE), respondedAt: originalRespondedAt };
+      const repos = makeRepos([att as Attendance]);
+      repos.attendanceRepo.findOne = jest.fn().mockResolvedValue(att);
+      service = await buildModule(repos);
+
+      await service.update('ev-1', 'att-1', { notes: 'Només una nota' });
+
+      expect(repos.attendanceRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ respondedAt: originalRespondedAt }),
+      );
+    });
+
+    it('bumps respondedAt when the status changes', async () => {
+      const originalRespondedAt = new Date('2026-01-01T00:00:00Z');
+      const att = { ...makeAttendance(AttendanceStatus.ANIRE), respondedAt: originalRespondedAt };
+      const repos = makeRepos([att as Attendance]);
+      repos.attendanceRepo.findOne = jest.fn().mockResolvedValue(att);
+      service = await buildModule(repos);
+
+      await service.update('ev-1', 'att-1', { status: AttendanceStatus.ASSISTIT });
+
+      const saved = repos.attendanceRepo.save.mock.calls[0][0];
+      expect(saved.respondedAt).not.toEqual(originalRespondedAt);
+    });
+
     it('throws NotFoundException when attendance not found', async () => {
       const repos = makeRepos([]);
       repos.attendanceRepo.findOne = jest.fn().mockResolvedValue(null);

@@ -10,6 +10,7 @@ import {
   Post,
   Req,
   Res,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
@@ -26,6 +27,7 @@ import {
 } from '@nestjs/swagger';
 import { ClientType, JwtPayload, UserProfile } from '@muixer/shared';
 import { AuthService } from './auth.service';
+import { User } from '../user/user.entity';
 import { LoginDto } from './dto/login.dto';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
 import { SetupUserDto } from './dto/setup-user.dto';
@@ -34,6 +36,11 @@ import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { TokenService } from './token.service';
 import { JWT_REFRESH_TTL_DASHBOARD, JWT_REFRESH_TTL_PWA } from './constants/auth.constants';
+
+/** LocalStrategy attaches the validated User entity to `req.user`. */
+interface RequestWithUser extends Request {
+  user: User;
+}
 
 @ApiTags('auth')
 @Controller('auth')
@@ -77,30 +84,27 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Credencials incorrectes.' })
   async login(
     @Body() dto: LoginDto,
-    @Req() req: Request & { user: { id: string; email: string; role: string; isActive: boolean; person: unknown } },
+    @Req() req: RequestWithUser,
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponseDto> {
-    const { response, refreshToken } = await this.authService.login(
-      req.user as Parameters<typeof this.authService.login>[0],
-      dto.clientType,
-    );
+    const { response, refreshToken } = await this.authService.login(req.user, dto.clientType);
     this.setRefreshCookie(res, refreshToken, dto.clientType);
     return response;
   }
 
-  /** Rota el refresh token de la cookie httpOnly i retorna un nou access token. Si el token és invàlid o caducat retorna 403. */
+  /** Rota el refresh token de la cookie httpOnly i retorna un nou access token. Si el token és invàlid o caducat retorna 401. */
   @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Renovar el token d\'accés via cookie de refresh' })
   @ApiResponse({ status: 200, description: 'Nou accessToken generat correctament.' })
-  @ApiResponse({ status: 403, description: 'No hi ha refresh token o és invàlid/caducat.' })
+  @ApiResponse({ status: 401, description: 'No hi ha refresh token o és invàlid/caducat.' })
   async refresh(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponseDto> {
     const rawToken = (req.cookies as Record<string, string>)[this.tokenService.cookieName];
-    if (!rawToken) throw new ForbiddenException('No refresh token');
+    if (!rawToken) throw new UnauthorizedException('No refresh token');
 
     const { response, newRefreshToken, clientType } = await this.authService.refresh(rawToken);
 

@@ -76,18 +76,8 @@ export class AvailablePersonsService {
       );
     }
 
-    const { search, height, positionId } = query;
-
-    // HTTP query params arrive as strings — coerce booleans explicitly
-    const raw = query as unknown as Record<string, string | boolean | undefined>;
-    const coerceBool = (v: string | boolean | undefined, def: boolean): boolean => {
-      if (v === undefined) return def;
-      if (typeof v === 'boolean') return v;
-      return v === 'true';
-    };
-    const isXicallaBool: boolean | undefined =
-      raw['isXicalla'] === undefined ? undefined : coerceBool(raw['isXicalla'], false);
-    const excludeAssignedBool = coerceBool(raw['excludeAssigned'], true);
+    const { search, height, positionId, isXicalla: isXicallaBool } = query;
+    const excludeAssignedBool = query.excludeAssigned ?? true;
 
     // Build base person query
     const qb = this.personRepository

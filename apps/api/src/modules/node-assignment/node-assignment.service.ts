@@ -203,12 +203,12 @@ function toAssignmentDetail(assignment: NodeAssignment): AssignmentDetail {
     },
     person: {
       id: assignment.person.id,
-      alias: (assignment.person as any).alias,
-      name: (assignment.person as any).name,
-      firstSurname: (assignment.person as any).firstSurname,
-      shoulderHeight: (assignment.person as any).shoulderHeight ?? null,
-      notes: (assignment.person as any).notes ?? null,
-      notesEmoji: (assignment.person as any).notesEmoji ?? null,
+      alias: assignment.person.alias,
+      name: assignment.person.name,
+      firstSurname: assignment.person.firstSurname,
+      shoulderHeight: assignment.person.shoulderHeight ?? null,
+      notes: assignment.person.notes ?? null,
+      notesEmoji: assignment.person.notesEmoji ?? null,
     },
   };
 }
@@ -686,7 +686,7 @@ export class NodeAssignmentService {
         eventTitle: event.title,
         eventDate: event.date as unknown as string,
         eventType: event.eventType,
-        segmentName: (instance.segment as any).name ?? null,
+        segmentName: instance.segment.name ?? null,
         instanceId: instance.id,
         snapshotted: instance.snapshotted,
         assignmentCount: instance.assignments?.length ?? 0,
@@ -695,7 +695,7 @@ export class NodeAssignmentService {
           nodeId: a.instanceNode.id,
           nodeLabel: a.instanceNode.label,
           personId: a.person.id,
-          personAlias: (a.person as any).alias,
+          personAlias: a.person.alias,
         })),
       };
     });
@@ -809,7 +809,7 @@ export class NodeAssignmentService {
 
       result.push({
         segmentId: segment.id,
-        segmentName: (segment as any).name ?? '',
+        segmentName: segment.name ?? '',
         sortOrder: segment.sortOrder,
         figures,
       });
@@ -878,7 +878,7 @@ export class NodeAssignmentService {
           positionType: n.positionType ?? null,
           zone: n.zone as FigureZone,
           z: n.z,
-          personAlias: (a.person as any).alias as string,
+          personAlias: a.person.alias as string,
           personId: a.person.id,
         });
       }
@@ -963,7 +963,7 @@ export class NodeAssignmentService {
       const sourceNode = sourceAssignment.instanceNode;
       if (sourceNode.isAdHoc) continue; // ad-hoc assignments handled below
       const personId = sourceAssignment.person.id;
-      const personAlias = (sourceAssignment.person as any).alias;
+      const personAlias = sourceAssignment.person.alias;
       const nodeLabel = sourceNode.label;
 
       let targetNode: InstanceNode | undefined;
