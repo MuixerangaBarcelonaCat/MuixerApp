@@ -4,22 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 // so Nx's static dependency scan won't see it and won't pin it in the generated production
 // package.json unless it's imported directly somewhere in the bundle.
 import 'pg';
-import { Tag } from '../tag/tag.entity';
-import { User } from '../user/user.entity';
-import { Person } from '../person/person.entity';
-import { Season } from '../season/season.entity';
-import { Event } from '../event/event.entity';
-import { Attendance } from '../event/attendance.entity';
-import { RefreshToken } from '../auth/entities/refresh-token.entity';
-import { FigureTemplate } from '../figure/entities/figure-template.entity';
-import { FigureNode } from '../figure/entities/figure-node.entity';
-import { Composition } from '../composition/entities/composition.entity';
-import { CompositionEntry } from '../composition/entities/composition-entry.entity';
-import { EventSegment } from '../event-segment/entities/event-segment.entity';
-import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
-import { InstanceNode } from '../event-segment/entities/instance-node.entity';
-import { NodeAssignment } from '../node-assignment/entities/node-assignment.entity';
-import { Rengla } from '../figure/entities/rengla.entity';
+import { ENTITIES } from './entities';
 import { migrations } from '../../migrations';
 import { resolveDbSslOptions } from './resolve-db-ssl-options.util';
 
@@ -33,24 +18,7 @@ import { resolveDbSslOptions } from './resolve-db-ssl-options.util';
           type: 'postgres',
           url: process.env.DATABASE_URL,
           ssl: resolveDbSslOptions(process.env),
-          entities: [
-            Tag,
-            User,
-            Person,
-            Season,
-            Event,
-            Attendance,
-            RefreshToken,
-            FigureTemplate,
-            FigureNode,
-            Rengla,
-            Composition,
-            CompositionEntry,
-            EventSegment,
-            FigureInstance,
-            InstanceNode,
-            NodeAssignment,
-          ],
+          entities: ENTITIES,
           synchronize: false,
           migrationsRun: isDevelopment,
           migrations,
