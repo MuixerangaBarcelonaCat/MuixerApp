@@ -34,19 +34,21 @@ The best code in the app (the pinya assignment flow, the projection layout math,
 
 **Findings by section:**
 
-| Section | Code | 🔴 | 🟠 | 🟡 | 🔵 | Total |
-| --- | --- | --- | --- | --- | --- | --- |
-| Bugs & correctness | `FE-BUG` | — | 9 (5 ✅) | 16 | 3 | 28 (5 ✅) |
-| Architecture & state (incl. dead code) | `FE-ARCH` | — | 3 | 9 | 4 | 16 |
-| Error handling | `FE-ERR` | — | 1 | 3 | — | 4 |
-| UX & interface consistency | `FE-UX` | — | 2 | 5 | 1 | 8 |
-| Accessibility | `FE-A11Y` | — | 1 | 3 | 1 | 5 |
-| Performance | `FE-PERF` | — | 1 | 3 | — | 4 |
-| API contract drift | `FE-API` | — | 1 | 2 | — | 3 |
-| Code smells | `FE-SM` | — | — | 5 | 2 | 7 |
-| UI text | `FE-LANG` | — | — | 2 | — | 2 |
-| Tests | `FE-TEST` | — | 2 | 2 | — | 4 |
-| **Total** | | **—** | **20 (5 ✅)** | **50** | **11** | **81 (5 ✅)** |
+
+| Section                                | Code      | 🔴    | 🟠           | 🟡     | 🔵     | Total        |
+| -------------------------------------- | --------- | ----- | ------------ | ------ | ------ | ------------ |
+| Bugs & correctness                     | `FE-BUG`  | —     | 9 (6 ✅)      | 16     | 3      | 28 (6 ✅)     |
+| Architecture & state (incl. dead code) | `FE-ARCH` | —     | 3            | 9      | 4      | 16           |
+| Error handling                         | `FE-ERR`  | —     | 1            | 3      | —      | 4            |
+| UX & interface consistency             | `FE-UX`   | —     | 2            | 5      | 1      | 8            |
+| Accessibility                          | `FE-A11Y` | —     | 1            | 3      | 1      | 5            |
+| Performance                            | `FE-PERF` | —     | 1            | 3      | —      | 4            |
+| API contract drift                     | `FE-API`  | —     | 1            | 2      | —      | 3            |
+| Code smells                            | `FE-SM`   | —     | —            | 5      | 2      | 7            |
+| UI text                                | `FE-LANG` | —     | —            | 2      | —      | 2            |
+| Tests                                  | `FE-TEST` | —     | 2            | 2      | —      | 4            |
+| **Total**                              |           | **—** | **20 (6 ✅)** | **50** | **11** | **81 (6 ✅)** |
+
 
 *(✅ counts reflect fixes applied so far in this branch; updated as findings are resolved.)*
 
@@ -97,13 +99,19 @@ The `/persons/new` route renders the **entire** edit form — Nom and Primer cog
 
 `events/components/event-list/event-list.component.ts:124-132` + `260-278`: `ngOnInit` calls `loadSeasons()` **and** `loadEvents()`; `loadSeasons`' callback selects the active season and calls `loadEvents()` **again**. Every page load issues two `/events` requests with different filters (no season vs. active season), and nothing cancels the first: under latency reordering, the unfiltered response can arrive last and win — the list shows *all* seasons' events while the filter chip claims "Temporada: 2025-26". Load events only after seasons resolve (or pre-select the season synchronously), and switch these loads to a cancellable pattern (see FE-ARCH-4).
 
-### 🟠 FE-BUG-5 — Deactivated users: no confirmation, no way back
+### 🟠✅ FE-BUG-5 — Deactivated users: no confirmation, no way back — FIXED
 
 `config/components/user-list.component.ts:355-369` + `user-form-modal.component.ts:115-167`:
 
 1. The row action **Desactivar** deactivates immediately — no confirmation (contrast: deleting a tag or season shows a confirm modal; deleting an event asks via `confirm()`).
 2. There is **no UI path to reactivate**: the edit modal never sends `isActive` (the `UpdateUserPayload.isActive` field exists but no control is bound to it), and no "Activar" row action exists. Once deactivated, recovery requires a raw API call.
 3. The "Desactivar" menu item still renders for already-inactive users and silently no-ops (`if (!user.isActive) return;`).
+
+**Fix applied:** all three points fixed together.
+- The row-actions menu now shows a single status-change action whose label/icon resolve per row — "Desactivar" (UserX) for active users, "Activar" (UserCheck) for inactive ones — instead of a static "Desactivar" that no-oped once already inactive (point 3). This required extending `data-table.component.ts`'s `RowAction<T>` so `label`/`icon` can be a function of the row (in addition to a plain string, kept backward compatible for every other list page) and adding an optional `hidden` predicate.
+- Clicking the action no longer mutates immediately: it opens an inline confirmation modal in `user-list.component.html` (same hand-rolled `modal modal-open`/`modal-action`/`modal-backdrop` pattern already used by that file's "Assignar rol" modal — no new shared component, per reviewer feedback that a shared `app-confirm-dialog` wasn't justified for a single call site) naming the user and the consequence, with a loading state and error toast that keeps the dialog open on failure so the user can retry (point 1).
+- Confirming now branches: deactivate still calls `userService.deactivate(id)`; activate calls `userService.update(id, { isActive: true })` — the field already existed on `UpdateUserPayload` and the backend (`UpdateUserDto.isActive`, `user.service.ts:338-339`) already supported it, so no API changes were needed (point 2).
+- Covered by new tests in `data-table.component.spec.ts` (function-based label/icon resolution, `hidden` filtering per row) and `user-list.component.spec.ts` (dynamic label per state, opening the right confirmation direction, cancel, successful deactivate/activate updating the list and toasting, and the error-keeps-dialog-open path). Full `nx test dashboard` suite (1277/1279, 2 pre-existing skips) and `nx lint dashboard` pass. Not verified against a live login session — the local dev DB holds real legacy-synced member data and no safe throwaway ADMIN credentials were available; verification here is test-only, per the user's own call when asked.
 
 ### 🟠✅ FE-BUG-6 — Both sync screens leak their `EventSource` on navigation — FIXED
 
@@ -126,6 +134,7 @@ Model moves/swaps as single composite `UndoableAction`s (undo = the inverse move
 **Additional discovery while fixing:** `UndoRedoService.undo()`/`.redo()` were never called anywhere in the app — no `Ctrl+Z` handler and no undo/redo button existed in the segment workspace (unlike `template-editor`, which has its own separate, working undo system). The composite-action fix below would have been unreachable without also wiring up a trigger, so that was fixed in the same pass.
 
 **Fix applied:**
+
 - `triggerAssign` in both tabs now accepts an optional `moveFrom: { instanceId, nodeId }`. When set (drag-drop move, or the cross-figure reassign-dialog confirm — `reassignDialog` now carries `oldNodeId`), the pushed action is a single composite `MOVE`: `undo` unassigns from the target and re-assigns to `moveFrom`; `execute` (redo) reverses that. Ids returned by each `assign`/`unassign` call are tracked in closures shared between `execute`/`undo`, the same pattern already used for the pre-existing `ASSIGN`/`UNASSIGN` actions.
 - `triggerSwap` (same-figure) now pushes a `SWAP` action. The backend's swap endpoint preserves both assignment ids and only swaps the person on each (verified in `node-assignment.service.ts`'s `swap()`), so the action is its own inverse: `execute` and `undo` both just re-run the same swap call.
 - `triggerCrossSwap` (cross-figure, no swap endpoint — unassign+reassign both sides) now pushes a composite `SWAP` action that tracks the current occupant id of each node across repeated undo/redo cycles, since unassign+assign mints a new id every time.
@@ -183,7 +192,7 @@ Same form, three behaviors; users can clear a shirt date but not a birth date, a
 - 🟡 **FE-BUG-17 — `event-detail` sync error text:** `syncEventSource.onerror` (`event-detail.component.ts:358-364`) reports *"No tens permisos d'administrador"* whenever `readyState === CLOSED` — but CLOSED also results from plain network failures and server errors. Misdiagnosis presented as fact.
 - 🟡 **FE-BUG-18 — `person-link-user-modal.component.ts:56`:** `this.results.set(res.data ?? res)` — the `?? res` arm would assign the whole envelope object as the results array; dead-wrong fallback, delete it.
 - 🟡 **FE-BUG-19 — Broken link on the global-sync page:** `sync/global-sync.component.ts` links `routerLink="/persons/sync"` — but the persons route is `sync-start` (`persons.routes.ts:12`). `/persons/sync` falls through to the `:id` route, so the button opens `PersonDetailComponent` with `id="sync"`, which errors into the "person not found" state. (The other two cards, `/rehearsals/sync` and `/performances/sync`, are correct.) Nothing ever caught it because the `/sync` page itself is unreachable from any navigation surface — see FE-UX-6.
-- 🔵 **FE-BUG-20 — `isEventPast` date parsing by string concatenation** (`event-list.component.ts:243-247`, duplicated as `isPast` in `event-detail.component.ts:103-108`): `new Date(\`${dateStr}T${timeStr}:00\`)` silently yields `Invalid Date` if the API ever returns a full ISO timestamp for `date`. Works today ('YYYY-MM-DD'), fragile tomorrow — and the logic is duplicated instead of living in `date.util.ts`.
+- 🔵 **FE-BUG-20 — `isEventPast` date parsing by string concatenation** (`event-list.component.ts:243-247`, duplicated as `isPast` in `event-detail.component.ts:103-108`): `new Date(\`${dateStr}T${timeStr}:00)`silently yields`Invalid Date`if the API ever returns a full ISO timestamp for`date`. Works today ('YYYY-MM-DD'), fragile tomorrow — and the logic is duplicated instead of living in` date.util.ts`.
 
 ### 🟡 FE-BUG-21 — Interceptor scopes by substring and attaches the token to *any* URL
 
@@ -195,7 +204,7 @@ Same form, three behaviors; users can clear a shirt date but not a birth date, a
 
 ### 🟡 FE-BUG-23 — `effect()` dependency omission: badges rendered from untracked signals
 
-The assignment-mode render effect (`figure-canvas.component.ts:303-321`) tracks `nodes/assignments/attendanceMap/…` but `renderAssignmentNodes` also reads `this.personDetailsMap()` and `this.isPast()` **inside `untracked()`**. `personDetailsMap` arrives asynchronously (built from the confirmed-persons load): if persons resolve after the assignments render, the observation badges / notes emojis / hover data are missing until some *other* tracked signal happens to change. Add them to the tracked reads (`isPast` is set once from the URL, so it's only `personDetailsMap` that bites).
+The assignment-mode render effect (`figure-canvas.component.ts:303-321`) tracks `nodes/assignments/attendanceMap/…` but `renderAssignmentNodes` also reads `this.personDetailsMap()` and `this.isPast()` **inside `untracked()*`*. `personDetailsMap` arrives asynchronously (built from the confirmed-persons load): if persons resolve after the assignments render, the observation badges / notes emojis / hover data are missing until some *other* tracked signal happens to change. Add them to the tracked reads (`isPast` is set once from the URL, so it's only `personDetailsMap` that bites).
 
 ### 🔵 FE-BUG-24 — Optimistic ids built from `Date.now()` collide on fast double actions
 
@@ -229,7 +238,7 @@ The assignment-mode render effect (`figure-canvas.component.ts:303-321`) tracks 
 
 ### 🟠 FE-ARCH-2 — Modal infrastructure doesn't exist; every modal reinvents it
 
-CLAUDE.md instructs composing pages with `app-confirm-dialog` — **that component does not exist anywhere in the tree** (doc drift, and the missing piece explains the mess): confirmations are inline hand-rolled DaisyUI modals (tags, seasons, grant-role, figure-list-tab, cordons…), native `window.confirm()` (`event-detail.component.ts:199`, `segment-manager.component.ts:194`, `person-detail.component.ts:223`), or **nothing** (user deactivation, FE-BUG-5). Form modals (`user-form-modal`, `tag-form-modal`, `event-form-modal`, `season-form-modal`…) each re-implement open/close/backdrop/Escape with different behavior (most don't handle Escape at all; all close-and-discard on backdrop click — see FE-UX-4; none trap focus — see FE-A11Y-2). One shared `ModalComponent` + `ConfirmDialogComponent` (or the native `<dialog>.showModal()` API) would fix the whole class.
+CLAUDE.md instructs composing pages with `app-confirm-dialog` — **that component does not exist anywhere in the tree** (doc drift, and the missing piece explains the mess): confirmations are inline hand-rolled DaisyUI modals (tags, seasons, grant-role, user deactivation/reactivation since FE-BUG-5 ✅, figure-list-tab, cordons…) or native `window.confirm()` (`event-detail.component.ts:199`, `segment-manager.component.ts:194`, `person-detail.component.ts:223`) — still no single shared component, so each one re-implements open/close/backdrop/Escape slightly differently. Form modals (`user-form-modal`, `tag-form-modal`, `event-form-modal`, `season-form-modal`…) each re-implement open/close/backdrop/Escape with different behavior (most don't handle Escape at all; all close-and-discard on backdrop click — see FE-UX-4; none trap focus — see FE-A11Y-2). One shared `ModalComponent` + `ConfirmDialogComponent` (or the native `<dialog>.showModal()` API) would fix the whole class.
 
 ### 🟡 FE-ARCH-3 — Root singletons for per-route canvas state
 
@@ -241,7 +250,7 @@ Zero `switchMap`-style pipelines exist for user-driven loads: every filter/page/
 
 ### 🟡 FE-ARCH-5 — `getAdultsCount` and past-event logic live in component files
 
-`event-detail.component.ts:20` imports `getAdultsCount` **from `event-list.component`** — a domain helper exported from a component file, coupling two routed components. The past-event cutoff (`date + startTime vs now`) is duplicated in `event-list.isEventPast`, `event-detail.isPast`, and the group separator. `shared/utils/date.util.ts` exists precisely for this.
+`event-detail.component.ts:20` imports `getAdultsCount` **from `event-list.component*`* — a domain helper exported from a component file, coupling two routed components. The past-event cutoff (`date + startTime vs now`) is duplicated in `event-list.isEventPast`, `event-detail.isPast`, and the group separator. `shared/utils/date.util.ts` exists precisely for this.
 
 ### 🟡 FE-ARCH-6 — Sync screens are near-identical twins
 
@@ -277,11 +286,13 @@ The assignment canvas uses the command-based `UndoRedoService` (execute/undo obs
 
 Three fully-written services are referenced by **no component, no spec, nobody**:
 
-| File | Lines | Purpose (per its own code) |
-| --- | --- | --- |
-| `pinyes/components/template-editor/services/template-editor-state.service.ts` | 430 | Template-editor state extraction |
-| `pinyes/components/assignment-canvas/services/assignment-operations.service.ts` | 266 | Assignment operations extraction |
-| `pinyes/components/assignment-canvas/services/assignment-tab.service.ts` | 214 | Tab management extraction |
+
+| File                                                                            | Lines | Purpose (per its own code)       |
+| ------------------------------------------------------------------------------- | ----- | -------------------------------- |
+| `pinyes/components/template-editor/services/template-editor-state.service.ts`   | 430   | Template-editor state extraction |
+| `pinyes/components/assignment-canvas/services/assignment-operations.service.ts` | 266   | Assignment operations extraction |
+| `pinyes/components/assignment-canvas/services/assignment-tab.service.ts`        | 214   | Tab management extraction        |
+
 
 This is the FE-ARCH-8 god-component refactor, started and abandoned mid-flight. Dead code this large is actively harmful: it shows up in searches, suggests an architecture that isn't real, and silently drifts from the live logic it duplicates. Either finish the extraction (wire the components to them) or delete all three.
 
@@ -313,7 +324,7 @@ There is no global HTTP error surface for non-401s, and the per-site conventions
 
 1. **Silent `console.error`:** `person-list.loadPersons` (255-258), `user-list.loadUsers` (469-473), `person-list.loadPositions` — a failed list load stops the skeleton and shows *"No hi ha dades per mostrar"* as if the census were empty. A user cannot distinguish "empty" from "broken".
 2. **Silent nothing:** `assignment-canvas.loadConfirmedPersons` (522-541, capacity numbers stay wrong), `getLockStatus` (361, lock silently not applied → every mutation later fails with backend 403s), `event-detail`'s `getLockStatus`, `event-list.loadSeasons`, `person-panel.loadRegistries` + `tagService.getAll` (249), `person-detail` history (319).
-3. **`errorMessage` signal in-modal** (event/attendance modals) vs. **toast** (tags, users, segments) vs. **both** (`event-detail.deleteEvent`).
+3. `**errorMessage` signal in-modal** (event/attendance modals) vs. **toast** (tags, users, segments) vs. **both** (`event-detail.deleteEvent`).
 4. **forkJoin all-or-nothing:** `segment-manager.onInstancesConfirmed` (293-316) — if 1 of N instance creates fails, the N−1 that **succeeded on the server** never appear in the UI (no reload in the error path) until a manual refresh.
 
 **Recommendation:** one `handleError(context)` helper + a global interceptor toast for unhandled non-401s; make list-load failures render an error state (with retry) distinct from the empty state.
@@ -420,7 +431,7 @@ The `setTimeout`-based search debounces in `user-list`, `person-list`, `event-li
 
 ### 🟠 FE-API-1 — Two pagination envelopes; four duplicated `PaginatedResponse` definitions
 
-The backend returns `{ data, meta: { total, page, limit } }` for `/persons`, `/events`, `/seasons`, templates/compositions — but **`/users` returns `{ data, total }`** (`user.controller.ts:56-59` passes the service result through unwrapped). The dashboard faithfully mirrors the inconsistency with *two shapes* of `PaginatedResponse` defined in *four places* (`persons/models/person.model.ts:41` and `events/models/event.model.ts:79` with `meta`; `config/models/user.model.ts:22` without; plus bespoke `PaginatedFigureTemplates`/`PaginatedCompositions`). CLAUDE.md documents the `meta` envelope as *the* convention — `/users` is the backend outlier to fix, after which the frontend can keep exactly one `PaginatedResponse<T>` in `shared/models`.
+The backend returns `{ data, meta: { total, page, limit } }` for `/persons`, `/events`, `/seasons`, templates/compositions — but `**/users` returns `{ data, total }`** (`user.controller.ts:56-59` passes the service result through unwrapped). The dashboard faithfully mirrors the inconsistency with *two shapes* of `PaginatedResponse` defined in *four places* (`persons/models/person.model.ts:41` and `events/models/event.model.ts:79` with `meta`; `config/models/user.model.ts:22` without; plus bespoke `PaginatedFigureTemplates`/`PaginatedCompositions`). CLAUDE.md documents the `meta` envelope as *the* convention — `/users` is the backend outlier to fix, after which the frontend can keep exactly one `PaginatedResponse<T>` in `shared/models`.
 
 ### 🟡 FE-API-2 — Positions vs. Tags: one rename, half-applied
 
@@ -450,7 +461,7 @@ The project ships its own style guide (`.agents/skills/language-rules/SKILL.md`:
 
 ### 🟡 FE-LANG-1 — Plain errors: typos and non-Valencian forms
 
-- **`person-list.component.ts:31`: column label `'Alies'`** — missing accent; everywhere else in the app it's `Àlies` (person-detail, person panel). Visible on the census screen, the app's most-used table.
+- `**person-list.component.ts:31`: column label `'Alies'*`* — missing accent; everywhere else in the app it's `Àlies` (person-detail, person panel). Visible on the census screen, the app's most-used table.
 - `ad-hoc-nodes-help-modal.component.html:17` *"la **seva** vora discontínua"* and `segment-manager.component.ts:194` *"totes les **seves** figures"* — guide mandates Valencian possessives (`seua`/`seues`).
 - `global-sync.component.ts` *"quan MuixerApp **sigui** l'aplicació principal"* — should be `siga`.
 
@@ -461,8 +472,8 @@ Each of these is a *pattern*, not a one-off — worth fixing with a sweep + a li
 1. **Demonstratives:** 30 occurrences of `aquest/aquesta/aquestes` across UI strings; the guide mandates the Valencian simple system (`este/esta/estes`).
 2. **"Tu" addressed to the user** (guide: app→user is *vós*): *"Segur que **vols** eliminar…"* (`event-detail.component.ts:199`, `segment-manager.component.ts:194`), *"No **tens** permisos…"* (`event-detail.component.ts:327,361`), *"…**necessites** confirmar…"* (`person-detail.component.ts:224`), *"**Recorda** sincronitzar…"* (`global-sync.component.ts`). Guide form: *"Esteu segur que voleu eliminar…?"*, *"No teniu permisos"*.
 3. **Bare gerund for in-progress states** (guide: `S'està…`): `"Carregant..."`/`"Carregant persona..."`/`"Iniciant sessió..."`/`"Connectant..."` in ~10 places (`login.component.html:68`, `person-detail.component.html:91`, `assignment-canvas.component.html:281`, template-list/figure-list/composition-grid spinners, `figure-canvas.component.ts:848`, `event-detail` sync) — while *other* screens do it correctly (*"S'estan carregant les figures..."*, `figure-picker-modal`). Same for `pagination.component.ts:12` *"**Mostrant** X–Y de Z"* (→ *"Es mostren…"*).
-4. **`desar` vs `alçar`:** the guide (and most of the app — *"Alça"*, *"S'està alçant..."*) standardizes on `alçar`, but `save-as-template-dialog` is entirely `desar` (*"**Desar** com a **template**"* — double violation, `template` → `plantilla`), plus `template-editor-help-modal` (*"Confirmar i desar"* — also infinitive where the guide wants imperative for user→app commands: *"Confirma i alça"*) and `person-detail.component.ts:212` (*"Error en desar els canvis"*).
-5. **Error-message formula:** ~40 toasts follow *"Error en \<infinitiu\>…"* (and two use a bare gerund: *"Error **carregant** les figures."*, `figure-list-tab.component.ts:69`; *"Error **carregant** les dades de projecció"*, `projection-view.component.ts:532`). The guide's canonical form for could-not errors is *"No s'ha pogut \<infinitiu\>…"* / *"S'ha produït un error…"*. Pick the guide's form once and apply it everywhere (pairs naturally with the FE-ERR-1 `handleError` helper).
+4. `**desar` vs `alçar`:** the guide (and most of the app — *"Alça"*, *"S'està alçant..."*) standardizes on `alçar`, but `save-as-template-dialog` is entirely `desar` (*"**Desar** com a **template**"* — double violation, `template` → `plantilla`), plus `template-editor-help-modal` (*"Confirmar i desar"* — also infinitive where the guide wants imperative for user→app commands: *"Confirma i alça"*) and `person-detail.component.ts:212` (*"Error en desar els canvis"*).
+5. **Error-message formula:** ~40 toasts follow *"Error en infinitiu…"* (and two use a bare gerund: *"Error **carregant** les figures."*, `figure-list-tab.component.ts:69`; *"Error **carregant** les dades de projecció"*, `projection-view.component.ts:532`). The guide's canonical form for could-not errors is *"No s'ha pogut infinitiu…"* / *"S'ha produït un error…"*. Pick the guide's form once and apply it everywhere (pairs naturally with the FE-ERR-1 `handleError` helper).
 
 ---
 
@@ -480,20 +491,22 @@ Each of these is a *pattern*, not a one-off — worth fixing with a sweep + a li
 
 Dashboard coverage is bimodal: next to the 90 %+ pinyes core sit near-zero areas, mapped here onto the bugs they sit on:
 
-| File | Stmts | Sits on |
-| --- | --- | --- |
-| `auth.interceptor.ts` | **no spec at all** | the 401-refresh-retry flow, including FE-BUG-1's logout bug |
-| `user-form-modal.component.ts` | 4.5 % | role assignment UI, FE-BUG-5/FE-BUG-16 (MEMBER role) |
-| `event-detail.component.ts` | 5.9 % | biggest screen in events, SSE handling, FE-ERR-3 (its spec cleverly tests only pure helpers via `Object.create(prototype)`, never the component behavior) |
-| `attendance-edit-modal.component.ts` | 5.4 % | attendance corrections |
-| `already-assigned-dialog.component.ts` | 5.7 % | assignment-conflict UI |
-| `save-as-template-dialog.component.ts` | 2.5 % | template versioning writes |
-| `person-search-input.component.ts` | 8.6 % | FE-BUG-28 race |
-| `template-editor.component.ts` | 28.9 % | FE-BUG-26 autosave loss, FE-BUG-10 duplicate-create |
-| `projection-view.component.ts` | 40.9 % | FE-BUG-9 stale-filter/back-forward bug |
-| `projection-layout.util.ts` | 27.1 % | 523 lines of pure math — the ideal unit-test target |
-| `ApiService` | no spec | the base class every HTTP call in the app goes through |
-| shared kit: `data-table` 51 % / `pagination` 44 % (page-nav logic untouched) / `toast` 47 % / `user-chip` 23 % | | every list page (FE-BUG-3, FE-BUG-27 live here) |
+
+| File                                                                                                           | Stmts              | Sits on                                                                                                                                                   |
+| -------------------------------------------------------------------------------------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `auth.interceptor.ts`                                                                                          | **no spec at all** | the 401-refresh-retry flow, including FE-BUG-1's logout bug                                                                                               |
+| `user-form-modal.component.ts`                                                                                 | 4.5 %              | role assignment UI, FE-BUG-5/FE-BUG-16 (MEMBER role)                                                                                                      |
+| `event-detail.component.ts`                                                                                    | 5.9 %              | biggest screen in events, SSE handling, FE-ERR-3 (its spec cleverly tests only pure helpers via `Object.create(prototype)`, never the component behavior) |
+| `attendance-edit-modal.component.ts`                                                                           | 5.4 %              | attendance corrections                                                                                                                                    |
+| `already-assigned-dialog.component.ts`                                                                         | 5.7 %              | assignment-conflict UI                                                                                                                                    |
+| `save-as-template-dialog.component.ts`                                                                         | 2.5 %              | template versioning writes                                                                                                                                |
+| `person-search-input.component.ts`                                                                             | 8.6 %              | FE-BUG-28 race                                                                                                                                            |
+| `template-editor.component.ts`                                                                                 | 28.9 %             | FE-BUG-26 autosave loss, FE-BUG-10 duplicate-create                                                                                                       |
+| `projection-view.component.ts`                                                                                 | 40.9 %             | FE-BUG-9 stale-filter/back-forward bug                                                                                                                    |
+| `projection-layout.util.ts`                                                                                    | 27.1 %             | 523 lines of pure math — the ideal unit-test target                                                                                                       |
+| `ApiService`                                                                                                   | no spec            | the base class every HTTP call in the app goes through                                                                                                    |
+| shared kit: `data-table` 51 % / `pagination` 44 % (page-nav logic untouched) / `toast` 47 % / `user-chip` 23 % |                    | every list page (FE-BUG-3, FE-BUG-27 live here)                                                                                                           |
+
 
 `date.util.ts`, `uuid.util.ts`, `slugify.util.ts` and `fit-to-bounds.util.ts` remain at **0 %**. Pure functions with zero test cost — start there.
 
@@ -511,24 +524,26 @@ Playwright's `dashboard-e2e` project exists but is excluded from CI and `ci:loca
 
 Ranked across all findings by (user damage × likelihood), not by section:
 
-| # | Finding | Why first | Where |
-| --- | --- | --- | --- |
-| 1 | 🟠 [FE-BUG-1](#-fe-bug-1--interceptor-logs-the-user-out-when-a-retried-request-fails-for-any-reason) Interceptor logs users out on any post-refresh retry failure | Session + unsaved work lost on a transient 500; app-wide | `auth.interceptor.ts` |
-| 2 | 🟠✅ [FE-BUG-26](#-fe-bug-26--template-editor-pending-autosave-is-discarded-on-most-exits--fixed) Template editor drops pending autosave on most exits — **FIXED** | Silent data loss in the flagship editor | `template-editor.component.ts` |
-| 3 | 🟠✅ [FE-BUG-2](#-fe-bug-2--persona-nova-collects-a-full-form-then-silently-discards-everything-except-the-alias--fixed) "Persona nova" discards every field but the alias — **FIXED** | Silent data loss on a primary flow, guaranteed on every use | `person-detail.component.ts` |
-| 4 | 🟠✅ [FE-BUG-7](#-fe-bug-7--assignment-canvas-undo-history-is-incomplete-for-moves-and-swaps--fixed) Undo after a move drops the person; swaps unrecorded — **FIXED** | Corrupts the mental model of the most-used tool during assajos | `pinyes-tab.component.ts`, `troncs-tab.component.ts` |
-| 5 | 🟠 [FE-BUG-6](#-fe-bug-6--both-sync-screens-leak-their-eventsource-on-navigation) SSE `EventSource` leaks on navigation (×2 screens) | Holds the server-side sync lock with nobody watching | `person-sync` / `event-sync` |
-| 6 | 🟠 [FE-BUG-22](#-fe-bug-22--rotation-handle-breaks-on-touch-devices-and-can-leak-window-listeners) Rotation handle dead on touch + listener leak | Projection/distribution run on tablets | `figure-canvas.component.ts:1148` |
-| 7 | 🟠 [FE-BUG-5](#-fe-bug-5--deactivated-users-no-confirmation-no-way-back) User deactivation: no confirm, no way back | One misclick in the row menu = account recoverable only via raw API | `user-list` / `user-form-modal` |
-| 8 | 🟠 [FE-BUG-4](#-fe-bug-4--event-list-double-fetches-on-init-and-races-itself) Event list double-fetch race | Wrong data displayed under normal latency, every page load | `event-list.component.ts` |
-| 9 | 🟠 [FE-BUG-3](#-fe-bug-3--data-table-row-actions-menu-can-act-on-the-wrong-row) Row-actions menu can act on the wrong row | Destructive actions (deactivate!) mis-targeted | `data-table.component.html` |
-| 10 | 🟠 [FE-UX-2](#-fe-ux-2--lock-state-is-cosmetic-in-the-segment-manager) Segment manager ignores the event lock | Locked-event mutations offered, then fail confusingly | `segment-manager` |
-| 11 | 🟠 [FE-ARCH-13](#-fe-arch-13--910-lines-of-extracted-services-that-nothing-uses) Delete or finish the ~910 lines of dead services | Unblocks the honest version of `FE-ARCH-8`; zero risk | `pinyes/**/services` |
-| 12 | 🟠 [FE-ARCH-1](#-fe-arch-1--the-list-page-controller-is-copy-pasted-five-times) Extract the shared list controller | One fix-point for `FE-ARCH-4` races, `FE-PERF-4` timers, dead code | all list pages |
-| 13 | 🟠 [FE-API-1](#-fe-api-1--two-pagination-envelopes-four-duplicated-paginatedresponse-definitions) Unify the `/users` envelope + one `PaginatedResponse` | Contract drift compounding with every new consumer | backend `user.controller` + `shared/models` |
-| 14 | 🟠 [FE-UX-1](#-fe-ux-1--deep-links-die-at-the-login-screen-no-returnurl) `returnUrl` on login redirect | Every shared deep link degrades to the home page | guards + login |
-| 15 | 🟠 [FE-A11Y-1](#-fe-a11y-1--column-sorting-is-mouse-only) Keyboard-accessible sorting | Whole-app a11y gap in the shared table | `data-table` |
-| 16 | 🟠 [FE-PERF-1](#-fe-perf-1--every-node-selection-refetches-the-person-list) Person list refetch per node selection | 3-4 requests per assignment during live assajos | `person-panel.component.ts` |
-| 17 | 🟠 [FE-TEST-1](#-fe-test-1--coverage-only-counts-files-that-specs-happen-to-import) `coverage.all` + interceptor/modal specs | Makes every other gap visible and gateable | `vitest.config.mts` |
 
-A note on leverage: items 12 (list controller, `FE-ARCH-1`) and item 11's neighbor `FE-ARCH-2` (the modal/confirm component) are the two refactors that retire whole *classes* of findings — between them they subsume `FE-BUG-27`, `FE-BUG-3`, `FE-BUG-5`'s first point, `FE-ARCH-4`, `FE-ERR-1` (partly), `FE-UX-3`, `FE-UX-4`, `FE-UX-5`, `FE-A11Y-2`, `FE-A11Y-3` and `FE-PERF-4`. If only two structural investments happen this quarter, those are the two.
+| #   | Finding                                                                                                                                                                               | Why first                                                           | Where                                                |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------- |
+| 1   | 🟠✅ [FE-BUG-1](#-fe-bug-1--interceptor-logs-the-user-out-when-a-retried-request-fails-for-any-reason--fixed) Interceptor logs users out on any post-refresh retry failure — **FIXED** | Session + unsaved work lost on a transient 500; app-wide            | `auth.interceptor.ts`                                |
+| 2   | 🟠✅ [FE-BUG-26](#-fe-bug-26--template-editor-pending-autosave-is-discarded-on-most-exits--fixed) Template editor drops pending autosave on most exits — **FIXED**                     | Silent data loss in the flagship editor                             | `template-editor.component.ts`                       |
+| 3   | 🟠✅ [FE-BUG-2](#-fe-bug-2--persona-nova-collects-a-full-form-then-silently-discards-everything-except-the-alias--fixed) "Persona nova" discards every field but the alias — **FIXED** | Silent data loss on a primary flow, guaranteed on every use         | `person-detail.component.ts`                         |
+| 4   | 🟠✅ [FE-BUG-7](#-fe-bug-7--assignment-canvas-undo-history-is-incomplete-for-moves-and-swaps--fixed) Undo after a move drops the person; swaps unrecorded — **FIXED**                  | Corrupts the mental model of the most-used tool during assajos      | `pinyes-tab.component.ts`, `troncs-tab.component.ts` |
+| 5   | 🟠✅ [FE-BUG-6](#-fe-bug-6--both-sync-screens-leak-their-eventsource-on-navigation--fixed) SSE `EventSource` leaks on navigation (×2 screens) — **FIXED**                              | Holds the server-side sync lock with nobody watching                | `person-sync` / `event-sync`                         |
+| 6   | 🟠 [FE-BUG-22](#-fe-bug-22--rotation-handle-breaks-on-touch-devices-and-can-leak-window-listeners) Rotation handle dead on touch + listener leak                                      | Projection/distribution run on tablets                              | `figure-canvas.component.ts:1148`                    |
+| 7   | 🟠✅ [FE-BUG-5](#-fe-bug-5--deactivated-users-no-confirmation-no-way-back--fixed) User deactivation: no confirm, no way back — **FIXED**                                               | One misclick in the row menu = account recoverable only via raw API | `user-list` / `user-form-modal`                      |
+| 8   | 🟠 [FE-BUG-4](#-fe-bug-4--event-list-double-fetches-on-init-and-races-itself) Event list double-fetch race                                                                            | Wrong data displayed under normal latency, every page load          | `event-list.component.ts`                            |
+| 9   | 🟠 [FE-BUG-3](#-fe-bug-3--data-table-row-actions-menu-can-act-on-the-wrong-row) Row-actions menu can act on the wrong row                                                             | Destructive actions (deactivate!) mis-targeted                      | `data-table.component.html`                          |
+| 10  | 🟠 [FE-UX-2](#-fe-ux-2--lock-state-is-cosmetic-in-the-segment-manager) Segment manager ignores the event lock                                                                         | Locked-event mutations offered, then fail confusingly               | `segment-manager`                                    |
+| 11  | 🟠 [FE-ARCH-13](#-fe-arch-13--910-lines-of-extracted-services-that-nothing-uses) Delete or finish the ~910 lines of dead services                                                     | Unblocks the honest version of `FE-ARCH-8`; zero risk               | `pinyes/**/services`                                 |
+| 12  | 🟠 [FE-ARCH-1](#-fe-arch-1--the-list-page-controller-is-copy-pasted-five-times) Extract the shared list controller                                                                    | One fix-point for `FE-ARCH-4` races, `FE-PERF-4` timers, dead code  | all list pages                                       |
+| 13  | 🟠 [FE-API-1](#-fe-api-1--two-pagination-envelopes-four-duplicated-paginatedresponse-definitions) Unify the `/users` envelope + one `PaginatedResponse`                               | Contract drift compounding with every new consumer                  | backend `user.controller` + `shared/models`          |
+| 14  | 🟠 [FE-UX-1](#-fe-ux-1--deep-links-die-at-the-login-screen-no-returnurl) `returnUrl` on login redirect                                                                                | Every shared deep link degrades to the home page                    | guards + login                                       |
+| 15  | 🟠 [FE-A11Y-1](#-fe-a11y-1--column-sorting-is-mouse-only) Keyboard-accessible sorting                                                                                                 | Whole-app a11y gap in the shared table                              | `data-table`                                         |
+| 16  | 🟠 [FE-PERF-1](#-fe-perf-1--every-node-selection-refetches-the-person-list) Person list refetch per node selection                                                                    | 3-4 requests per assignment during live assajos                     | `person-panel.component.ts`                          |
+| 17  | 🟠 [FE-TEST-1](#-fe-test-1--coverage-only-counts-files-that-specs-happen-to-import) `coverage.all` + interceptor/modal specs                                                          | Makes every other gap visible and gateable                          | `vitest.config.mts`                                  |
+
+
+A note on leverage: items 12 (list controller, `FE-ARCH-1`) and item 11's neighbor `FE-ARCH-2` (the modal/confirm component) are the two refactors that retire whole *classes* of findings — between them they subsume `FE-BUG-27`, `FE-BUG-3`, `FE-ARCH-4`, `FE-ERR-1` (partly), `FE-UX-3`, `FE-UX-4`, `FE-UX-5`, `FE-A11Y-2`, `FE-A11Y-3` and `FE-PERF-4`. If only two structural investments happen this quarter, those are the two.
