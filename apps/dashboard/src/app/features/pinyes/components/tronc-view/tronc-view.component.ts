@@ -63,6 +63,9 @@ export class TroncViewComponent {
   // ── Inputs ─────────────────────────────────────────────────────────────────
 
   /** TRONC-zone nodes (z≥1). x and width are relative units. */
+  /** Figure instance id, used to scope drag-and-drop node refs across sibling tronc-views. */
+  readonly instanceId = input<string>('');
+
   readonly troncNodes = input<TroncNodeItem[]>([]);
 
   /** BASE-zone nodes (z=0, intersection with pinya). Positioned by sortOrder index in tronc view. */
@@ -123,6 +126,14 @@ export class TroncViewComponent {
   /** Assignment mode: request unassignment for a node id. */
   readonly nodeUnassigned = output<string>();
 
+  /** Assignment mode: a person was dragged off a node (possibly of a sibling tronc-view) and dropped here. */
+  readonly nodeDropped = output<{
+    sourceInstanceId: string;
+    sourceNodeId: string;
+    targetInstanceId: string;
+    targetNodeId: string;
+  }>();
+
   readonly directionAdded = output<{ zone: string }>();
   readonly directionRemoved = output<string>();
 
@@ -135,6 +146,11 @@ export class TroncViewComponent {
   readonly directionsExpanded = signal(true);
 
   readonly hoveredPerson = signal<{ info: PersonHoverInfo; top: number; left: number; positionType: string | null } | null>(null);
+
+  /** Assignment-mode drag-and-drop: id of the node whose person is currently being dragged. */
+  readonly draggingNodeId = signal<string | null>(null);
+  /** Id of the node currently under the pointer while dragging. */
+  readonly dragOverNodeId = signal<string | null>(null);
 
   // ── Direction computed ─────────────────────────────────────────────────────
 
@@ -286,6 +302,84 @@ export class TroncViewComponent {
     if (this.isAssigned(node.id)) {
       this.nodeClicked.emit({ nodeId: node.id, event });
     }
+  }
+
+  // ── Drag-and-drop (assignment mode) ───────────────────────────────────────
+
+  isDraggableNode(nodeId: string): boolean {
+    return this.mode() === 'assignment' && this.isAssigned(nodeId);
+  }
+
+  isDragging(nodeId: string): boolean {
+    return this.draggingNodeId() === nodeId;
+  }
+
+  isDragOverSwap(nodeId: string): boolean {
+    return this.dragOverNodeId() === nodeId && this.isAssigned(nodeId);
+  }
+
+  isDragOverMove(nodeId: string): boolean {
+    return this.dragOverNodeId() === nodeId && !this.isAssigned(nodeId);
+  }
+
+  onNodeDragStart(node: TroncNodeItem, event: DragEvent): void {
+    if (!this.isDraggableNode(node.id)) {
+      event.preventDefault();
+      return;
+    }
+    this.draggingNodeId.set(node.id);
+    const payload = JSON.stringify({ instanceId: this.instanceId(), nodeId: node.id });
+    event.dataTransfer?.setData('text/plain', payload);
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+
+    const assignment = this.getAssignment(node.id);
+    if (assignment && event.dataTransfer) {
+      const ghost = document.createElement('div');
+      ghost.textContent = assignment.person.alias;
+      ghost.style.cssText =
+        'position:absolute;top:-1000px;left:-1000px;padding:6px 10px;border-radius:6px;' +
+        'background:#1f2937;color:#fff;font:600 13px Inter,sans-serif;transform:scale(1.15);' +
+        'white-space:nowrap;pointer-events:none;';
+      document.body.appendChild(ghost);
+      event.dataTransfer.setDragImage(ghost, -10, -10);
+      setTimeout(() => ghost.remove(), 0);
+    }
+  }
+
+  onNodeDragOver(node: TroncNodeItem, event: DragEvent): void {
+    if (!event.dataTransfer?.types.includes('text/plain')) return;
+    if (this.isDragging(node.id)) return; // hovering back over the node being dragged
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+    this.dragOverNodeId.set(node.id);
+  }
+
+  onNodeDragLeave(node: TroncNodeItem): void {
+    if (this.dragOverNodeId() === node.id) this.dragOverNodeId.set(null);
+  }
+
+  onNodeDrop(node: TroncNodeItem, event: DragEvent): void {
+    event.preventDefault();
+    this.dragOverNodeId.set(null);
+    const raw = event.dataTransfer?.getData('text/plain');
+    if (!raw) return;
+    let source: { instanceId: string; nodeId: string };
+    try {
+      source = JSON.parse(raw);
+    } catch {
+      return;
+    }
+    this.nodeDropped.emit({
+      sourceInstanceId: source.instanceId,
+      sourceNodeId: source.nodeId,
+      targetInstanceId: this.instanceId(),
+      targetNodeId: node.id,
+    });
+  }
+
+  onNodeDragEnd(): void {
+    this.draggingNodeId.set(null);
+    this.dragOverNodeId.set(null);
   }
 
   onStepX(node: TroncNodeItem, delta: number): void {

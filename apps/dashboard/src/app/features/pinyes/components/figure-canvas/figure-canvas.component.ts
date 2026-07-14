@@ -274,6 +274,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   readonly segmentAdHocNodeTransformed = output<
     SegmentNodeRef & { x: number; y: number; width: number; height: number; rotation: number }
   >();
+  /** A person was dragged off `source` and released on `target` (drag-and-drop move/swap). */
+  readonly segmentNodeDropped = output<{ source: SegmentNodeRef; target: SegmentNodeRef }>();
 
   private stage!: Konva.Stage;
   private gridLayer!: Konva.Layer;
@@ -290,6 +292,19 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   private ghostLeaveTimer: ReturnType<typeof setTimeout> | null = null;
   private ghostSourceNodeId: string | null = null;
   private adHocTooltip: Konva.Label | null = null;
+
+  // Segment-assignment mode: person drag-and-drop (drag the assigned person's
+  // name off their node, drop it on another to move/swap). The dragged node
+  // itself never moves — only a floating label follows the pointer.
+  private segmentNodeGroupsByKey = new Map<
+    string,
+    { ref: SegmentNodeRef; group: Konva.Group; shape: Konva.Shape; fill: string; hasAssignment: boolean }
+  >();
+  private personDragSourceRef: SegmentNodeRef | null = null;
+  private personDragHoverRef: SegmentNodeRef | null = null;
+  private personDragGhost: Konva.Label | null = null;
+  /** Swallows the synthetic click Konva fires right after a drag ends. */
+  private personDragJustEnded = false;
   // Slot rotation/offset pivot, frozen on first render so adding or moving a node
   // never recenters the figure. Shared with the placement click-to-local math.
   private readonly segmentSlotPivotCache = new Map<string, { x: number; y: number }>();
@@ -405,6 +420,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.clearAllGhostTimers();
+    this.clearPersonDragVisuals();
     this.resizeObserver?.disconnect();
     this.labelMeasureProbe?.destroy();
     this.labelMeasureProbe = null;
@@ -1621,6 +1637,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
    */
   private renderSegmentAssignmentSlots(): void {
     this.clearAllGhostTimers();
+    this.clearPersonDragVisuals();
+    this.segmentNodeGroupsByKey = new Map();
     this.transformer.nodes([]);
     this.transformer.remove();
     this.pinyaLayer.destroyChildren();
@@ -1770,6 +1788,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       shape.shadowEnabled(true);
     }
     group.add(shape);
+    const personVisualStartIndex = group.getChildren().length;
 
     if (assignment) {
       const alias = formatAssignedLabel(assignment.person.alias, node.climbIndicator);
@@ -1912,12 +1931,20 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     }
 
     group.on('click tap', () => {
+      // A drag that ended without a valid drop target fires a synthetic click;
+      // swallow it so it doesn't re-select the node right after a cancelled drag.
+      if (this.personDragJustEnded) {
+        this.personDragJustEnded = false;
+        return;
+      }
       this.segmentNodeSelected.emit(ref);
     });
 
     group.on('dblclick dbltap', () => {
       this.segmentNodeDoubleClicked.emit(ref);
     });
+
+    const isPersonDraggable = !!assignment && !isEditable;
 
     if (isEditable) {
       group.on('dragstart', () => {
@@ -1957,6 +1984,48 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         this.setCursor('default');
         this.hideAdHocTooltip();
       });
+    } else if (isPersonDraggable) {
+      const personVisualNodes = group.getChildren().slice(personVisualStartIndex);
+      const homePos = { x: node.x, y: node.y };
+      const alias = formatAssignedLabel(assignment!.person.alias, node.climbIndicator);
+
+      group.draggable(true);
+      // Pin the node in place — only the floating ghost label moves.
+      group.dragBoundFunc(() => group.getAbsolutePosition());
+
+      group.on('dragstart', () => {
+        this.setCursor('grabbing');
+        this.personDragSourceRef = ref;
+        for (const n of personVisualNodes) n.visible(false);
+        this.showPersonDragGhost(alias);
+        this.pinyaLayer.batchDraw();
+      });
+
+      group.on('dragmove', () => {
+        this.updatePersonDragGhostPosition();
+        this.setPersonDragHoverTarget(this.findPersonDropTargetAt(ref));
+      });
+
+      group.on('dragend', () => {
+        this.setCursor('grab');
+        group.position(homePos);
+        for (const n of personVisualNodes) n.visible(true);
+        const target = this.personDragHoverRef;
+        this.clearPersonDragVisuals();
+        this.personDragSourceRef = null;
+        if (target) {
+          this.personDragJustEnded = true;
+          this.segmentNodeDropped.emit({ source: ref, target });
+        }
+        this.pinyaLayer.batchDraw();
+      });
+
+      group.on('mouseenter', () => {
+        this.setCursor('grab');
+      });
+      group.on('mouseleave', () => {
+        this.setCursor('default');
+      });
     } else {
       group.on('mouseenter', () => {
         this.setCursor('pointer');
@@ -1965,6 +2034,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         this.setCursor('default');
       });
     }
+
+    this.segmentNodeGroupsByKey.set(rn.key, { ref, group, shape, fill, hasAssignment: !!assignment });
 
     return group;
   }
@@ -2532,5 +2603,98 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.adHocTooltip = null;
       this.pinyaLayer.batchDraw();
     }
+  }
+
+  /** Floating pill showing the dragged person's name, following the pointer. */
+  private showPersonDragGhost(alias: string): void {
+    const label = new Konva.Label({ opacity: 0.95, scaleX: 1.15, scaleY: 1.15, listening: false });
+    label.add(
+      new Konva.Tag({
+        fill: '#1f2937',
+        cornerRadius: 6,
+        shadowColor: 'black',
+        shadowBlur: 8,
+        shadowOpacity: 0.35,
+        shadowOffsetY: 2,
+      }),
+    );
+    label.add(
+      new Konva.Text({
+        text: alias,
+        fontSize: 12,
+        fontFamily: 'Inter, sans-serif',
+        fill: '#ffffff',
+        padding: 6,
+      }),
+    );
+    this.personDragGhost = label;
+    this.pinyaLayer.add(label);
+    this.updatePersonDragGhostPosition();
+    label.moveToTop();
+  }
+
+  private updatePersonDragGhostPosition(): void {
+    if (!this.personDragGhost) return;
+    const pointer = this.pinyaLayer.getRelativePointerPosition();
+    if (!pointer) return;
+    this.personDragGhost.position({ x: pointer.x + 14, y: pointer.y + 14 });
+    this.pinyaLayer.batchDraw();
+  }
+
+  /**
+   * Finds the segment-assignment node under the pointer, excluding `exclude`.
+   * Uses geometric bounding-box hit-testing rather than `stage.getIntersection` —
+   * Konva skips hit-graph updates globally while any shape is being dragged
+   * (`Konva.hitOnDragEnabled` is `false` by default), so `getIntersection` never
+   * finds anything mid-drag.
+   */
+  private findPersonDropTargetAt(exclude: SegmentNodeRef): SegmentNodeRef | null {
+    const pointer = this.pinyaLayer.getRelativePointerPosition();
+    if (!pointer) return null;
+    for (const entry of this.segmentNodeGroupsByKey.values()) {
+      if (entry.ref.slotId === exclude.slotId && entry.ref.nodeId === exclude.nodeId) continue;
+      const rect = entry.group.getClientRect({ relativeTo: this.pinyaLayer });
+      if (
+        pointer.x >= rect.x &&
+        pointer.x <= rect.x + rect.width &&
+        pointer.y >= rect.y &&
+        pointer.y <= rect.y + rect.height
+      ) {
+        return entry.ref;
+      }
+    }
+    return null;
+  }
+
+  /** Highlights the hovered drop target: amber fill for a swap, green for a move into an empty node. */
+  private setPersonDragHoverTarget(target: SegmentNodeRef | null): void {
+    const prev = this.personDragHoverRef;
+    const same = !!prev && !!target && prev.slotId === target.slotId && prev.nodeId === target.nodeId;
+    if (same) return;
+
+    if (prev) {
+      const prevEntry = this.segmentNodeGroupsByKey.get(`${prev.slotId}:${prev.nodeId}`);
+      prevEntry?.shape.fill(prevEntry.fill);
+    }
+    this.personDragHoverRef = target;
+
+    if (target) {
+      const entry = this.segmentNodeGroupsByKey.get(`${target.slotId}:${target.nodeId}`);
+      entry?.shape.fill(entry.hasAssignment ? '#f59e0b' : '#22c55e');
+      this.personDragGhost?.moveToTop();
+    }
+    this.pinyaLayer.batchDraw();
+  }
+
+  private clearPersonDragVisuals(): void {
+    this.personDragGhost?.destroy();
+    this.personDragGhost = null;
+    if (this.personDragHoverRef) {
+      const entry = this.segmentNodeGroupsByKey.get(
+        `${this.personDragHoverRef.slotId}:${this.personDragHoverRef.nodeId}`,
+      );
+      entry?.shape.fill(entry.fill);
+    }
+    this.personDragHoverRef = null;
   }
 }

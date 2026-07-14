@@ -173,6 +173,35 @@
     border-left-width: 3px;
     border-left-style: solid;
   }
+
+  // ── Drag-and-drop (assignment mode) ─────────────────────────────────────
+  &[draggable='true'] {
+    cursor: grab;
+  }
+
+  // Source node while its person is being dragged: looks temporarily empty.
+  &.dragging {
+    background: oklch(var(--b2));
+
+    .height-badge,
+    .alias-row,
+    .attendance-dot {
+      visibility: hidden;
+    }
+  }
+
+  // Drop target while hovered during a drag: amber = swap, green = move into empty.
+  &.drag-over-swap {
+    border-color: oklch(var(--wa));
+    box-shadow: 0 0 0 2px oklch(var(--wa) / 0.4);
+    background: oklch(var(--wa) / 0.12);
+  }
+
+  &.drag-over-move {
+    border-color: oklch(var(--su));
+    box-shadow: 0 0 0 2px oklch(var(--su) / 0.4);
+    background: oklch(var(--su) / 0.12);
+  }
 }
 
 // ── Node content ──────────────────────────────────────────────────────────────

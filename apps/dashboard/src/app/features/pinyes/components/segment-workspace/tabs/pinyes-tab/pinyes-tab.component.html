@@ -21,6 +21,7 @@
       [highlightedNodeIds]="highlightedNodeIds()"
       [isPast]="isPast()"
       (segmentNodeSelected)="onSegmentNodeSelected($event)"
+      (segmentNodeDropped)="onNodeDropped($event.source, $event.target)"
     />
   </div>
 

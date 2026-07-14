@@ -453,13 +453,37 @@ describe('PinyesTabComponent', () => {
     });
   });
 
-  describe('move and swap', () => {
-    it('moves the person when an assigned node is selected and an empty node is clicked', async () => {
+  describe('click-click no longer moves or swaps', () => {
+    it('selecting an assigned node then clicking an empty node does not move the person', async () => {
       const existing = makeAssignment(INST_A, 'n1', 'p-1');
       await setup({ assignmentsByInstance: { [INST_A]: [existing] } });
 
       component.onSegmentNodeSelected({ slotId: INST_A, nodeId: 'n1' });
       component.onSegmentNodeSelected({ slotId: INST_A, nodeId: 'n2' });
+
+      expect(assignmentService.unassign).not.toHaveBeenCalled();
+      expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'n2' });
+    });
+
+    it('selecting two assigned nodes in sequence does not swap them', async () => {
+      const a1 = makeAssignment(INST_A, 'n1', 'p-1');
+      const a2 = makeAssignment(INST_A, 'n2', 'p-2');
+      await setup({ assignmentsByInstance: { [INST_A]: [a1, a2] } });
+
+      component.onSegmentNodeSelected({ slotId: INST_A, nodeId: 'n1' });
+      component.onSegmentNodeSelected({ slotId: INST_A, nodeId: 'n2' });
+
+      expect(assignmentService.swap).not.toHaveBeenCalled();
+      expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'n2' });
+    });
+  });
+
+  describe('onNodeDropped (drag-and-drop)', () => {
+    it('moves the person when dropped on an empty node', async () => {
+      const existing = makeAssignment(INST_A, 'n1', 'p-1');
+      await setup({ assignmentsByInstance: { [INST_A]: [existing] } });
+
+      component.onNodeDropped({ slotId: INST_A, nodeId: 'n1' }, { slotId: INST_A, nodeId: 'n2' });
 
       expect(assignmentService.unassign).toHaveBeenCalledWith(INST_A, existing.id);
       expect(assignmentService.assign).toHaveBeenCalledWith(INST_A, { nodeId: 'n2', personId: 'p-1' });
@@ -471,17 +495,14 @@ describe('PinyesTabComponent', () => {
       await setup({ assignmentsByInstance: { [INST_A]: [a1, a2] } });
       assignmentService.swap.mockReturnValue(of({ a: a1, b: a2 }));
 
-      component.onSegmentNodeSelected({ slotId: INST_A, nodeId: 'n1' });
-      component.onSegmentNodeSelected({ slotId: INST_A, nodeId: 'n2' });
+      component.onNodeDropped({ slotId: INST_A, nodeId: 'n1' }, { slotId: INST_A, nodeId: 'n2' });
 
       expect(assignmentService.swap).toHaveBeenCalledWith(INST_A, {
         assignmentIdA: a1.id,
         assignmentIdB: a2.id,
       });
     });
-  });
 
-  describe('cross-figure swap', () => {
     it('swaps two assigned nodes of different figures by unassigning both and reassigning crossed', async () => {
       const a1 = makeAssignment(INST_A, 'n1', 'p-1');
       const a2 = makeAssignment(INST_B, 'm1', 'p-2');
@@ -497,8 +518,7 @@ describe('PinyesTabComponent', () => {
         of(makeAssignment(instanceId, payload.nodeId, payload.personId)),
       );
 
-      component.onSegmentNodeSelected({ slotId: INST_A, nodeId: 'n1' });
-      component.onSegmentNodeSelected({ slotId: INST_B, nodeId: 'm1' });
+      component.onNodeDropped({ slotId: INST_A, nodeId: 'n1' }, { slotId: INST_B, nodeId: 'm1' });
 
       expect(assignmentService.unassign).toHaveBeenCalledWith(INST_A, a1.id);
       expect(assignmentService.unassign).toHaveBeenCalledWith(INST_B, a2.id);
@@ -519,8 +539,7 @@ describe('PinyesTabComponent', () => {
       });
       assignmentService.unassign.mockReturnValue(throwError(() => ({ status: 500 })));
 
-      component.onSegmentNodeSelected({ slotId: INST_A, nodeId: 'n1' });
-      component.onSegmentNodeSelected({ slotId: INST_B, nodeId: 'm1' });
+      component.onNodeDropped({ slotId: INST_A, nodeId: 'n1' }, { slotId: INST_B, nodeId: 'm1' });
 
       const persons = state
         .assignments()
@@ -531,6 +550,34 @@ describe('PinyesTabComponent', () => {
         [INST_B, 'p-2'],
       ]);
       expect(toast.error).toHaveBeenCalled();
+    });
+
+    it('does nothing when dropped on itself', async () => {
+      const existing = makeAssignment(INST_A, 'n1', 'p-1');
+      await setup({ assignmentsByInstance: { [INST_A]: [existing] } });
+
+      component.onNodeDropped({ slotId: INST_A, nodeId: 'n1' }, { slotId: INST_A, nodeId: 'n1' });
+
+      expect(assignmentService.unassign).not.toHaveBeenCalled();
+      expect(assignmentService.swap).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when the source node has no assignment', async () => {
+      await setup();
+
+      component.onNodeDropped({ slotId: INST_A, nodeId: 'n1' }, { slotId: INST_A, nodeId: 'n2' });
+
+      expect(assignmentService.unassign).not.toHaveBeenCalled();
+      expect(assignmentService.assign).not.toHaveBeenCalled();
+    });
+
+    it('ignores drops when locked', async () => {
+      const existing = makeAssignment(INST_A, 'n1', 'p-1');
+      await setup({ locked: true, assignmentsByInstance: { [INST_A]: [existing] } });
+
+      component.onNodeDropped({ slotId: INST_A, nodeId: 'n1' }, { slotId: INST_A, nodeId: 'n2' });
+
+      expect(assignmentService.unassign).not.toHaveBeenCalled();
     });
   });
 

@@ -20,6 +20,7 @@ import { InstanceDetail, SegmentDetail } from '../../../../models/segment.model'
 
 @Component({ selector: 'app-tronc-view', standalone: true, template: '' })
 class StubTroncView {
+  readonly instanceId = input<string>('');
   readonly troncNodes = input<TroncNodeItem[]>([]);
   readonly baseNodes = input<TroncNodeItem[]>([]);
   readonly directionNodes = input<TroncNodeItem[]>([]);
@@ -34,6 +35,12 @@ class StubTroncView {
   readonly nodeSelected = output<string | null>();
   readonly nodeClicked = output<{ nodeId: string; event: MouseEvent }>();
   readonly nodeUnassigned = output<string>();
+  readonly nodeDropped = output<{
+    sourceInstanceId: string;
+    sourceNodeId: string;
+    targetInstanceId: string;
+    targetNodeId: string;
+  }>();
   readonly directionAdded = output<{ zone: string }>();
   readonly directionRemoved = output<string>();
 }
@@ -357,15 +364,39 @@ describe('TroncsTabComponent', () => {
     });
   });
 
-  describe('swap', () => {
+  describe('click-click no longer swaps or moves', () => {
+    it('selecting two assigned nodes in sequence does not swap them', async () => {
+      const a1 = makeAssignment(INST_A, 'n1', 'p-1');
+      const a2 = makeAssignment(INST_A, 'n2', 'p-2');
+      await setup({ assignmentsByInstance: { [INST_A]: [a1, a2] } });
+
+      component.onTroncNodeSelected(INST_A, 'n1');
+      component.onTroncNodeSelected(INST_A, 'n2');
+
+      expect(assignmentService.swap).not.toHaveBeenCalled();
+      expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'n2' });
+    });
+
+    it('selecting an assigned node then an empty node does not move the person', async () => {
+      const existing = makeAssignment(INST_A, 'n1', 'p-1');
+      await setup({ assignmentsByInstance: { [INST_A]: [existing] } });
+
+      component.onTroncNodeSelected(INST_A, 'n1');
+      component.onTroncNodeSelected(INST_A, 'n2');
+
+      expect(assignmentService.unassign).not.toHaveBeenCalled();
+      expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'n2' });
+    });
+  });
+
+  describe('onNodeDropped (drag-and-drop)', () => {
     it('swaps two assigned nodes of the same figure', async () => {
       const a1 = makeAssignment(INST_A, 'n1', 'p-1');
       const a2 = makeAssignment(INST_A, 'n2', 'p-2');
       await setup({ assignmentsByInstance: { [INST_A]: [a1, a2] } });
       assignmentService.swap.mockReturnValue(of({ a: a1, b: a2 }));
 
-      component.onTroncNodeSelected(INST_A, 'n1');
-      component.onTroncNodeSelected(INST_A, 'n2');
+      component.onNodeDropped({ slotId: INST_A, nodeId: 'n1' }, { slotId: INST_A, nodeId: 'n2' });
 
       expect(assignmentService.swap).toHaveBeenCalledWith(INST_A, {
         assignmentIdA: a1.id,
@@ -388,13 +419,50 @@ describe('TroncsTabComponent', () => {
         of(makeAssignment(instanceId, payload.nodeId, payload.personId)),
       );
 
-      component.onTroncNodeSelected(INST_A, 'n1');
-      component.onTroncNodeSelected(INST_B, 'm1');
+      component.onNodeDropped({ slotId: INST_A, nodeId: 'n1' }, { slotId: INST_B, nodeId: 'm1' });
 
       expect(assignmentService.unassign).toHaveBeenCalledWith(INST_A, a1.id);
       expect(assignmentService.unassign).toHaveBeenCalledWith(INST_B, a2.id);
       expect(assignmentService.assign).toHaveBeenCalledWith(INST_A, { nodeId: 'n1', personId: 'p-2' });
       expect(assignmentService.assign).toHaveBeenCalledWith(INST_B, { nodeId: 'm1', personId: 'p-1' });
+    });
+
+    it('moves the person when dropped on an empty node', async () => {
+      const existing = makeAssignment(INST_A, 'n1', 'p-1');
+      await setup({ assignmentsByInstance: { [INST_A]: [existing] } });
+
+      component.onNodeDropped({ slotId: INST_A, nodeId: 'n1' }, { slotId: INST_A, nodeId: 'n2' });
+
+      expect(assignmentService.unassign).toHaveBeenCalledWith(INST_A, existing.id);
+      expect(assignmentService.assign).toHaveBeenCalledWith(INST_A, { nodeId: 'n2', personId: 'p-1' });
+    });
+
+    it('does nothing when dropped on itself', async () => {
+      const existing = makeAssignment(INST_A, 'n1', 'p-1');
+      await setup({ assignmentsByInstance: { [INST_A]: [existing] } });
+
+      component.onNodeDropped({ slotId: INST_A, nodeId: 'n1' }, { slotId: INST_A, nodeId: 'n1' });
+
+      expect(assignmentService.unassign).not.toHaveBeenCalled();
+      expect(assignmentService.swap).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when the source node has no assignment', async () => {
+      await setup();
+
+      component.onNodeDropped({ slotId: INST_A, nodeId: 'n1' }, { slotId: INST_A, nodeId: 'n2' });
+
+      expect(assignmentService.unassign).not.toHaveBeenCalled();
+      expect(assignmentService.assign).not.toHaveBeenCalled();
+    });
+
+    it('ignores drops when locked', async () => {
+      const existing = makeAssignment(INST_A, 'n1', 'p-1');
+      await setup({ locked: true, assignmentsByInstance: { [INST_A]: [existing] } });
+
+      component.onNodeDropped({ slotId: INST_A, nodeId: 'n1' }, { slotId: INST_A, nodeId: 'n2' });
+
+      expect(assignmentService.unassign).not.toHaveBeenCalled();
     });
   });
 

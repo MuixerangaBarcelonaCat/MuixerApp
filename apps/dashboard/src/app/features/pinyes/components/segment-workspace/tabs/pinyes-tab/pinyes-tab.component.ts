@@ -280,26 +280,6 @@ export class PinyesTabComponent implements OnInit {
     }
 
     const clickedAssignment = this.assignmentFor(ref);
-    const prevRef = this.selectedRef();
-    const prevAssignment = prevRef ? this.assignmentFor(prevRef) : null;
-    const isSameNode = !!prevRef && prevRef.slotId === ref.slotId && prevRef.nodeId === ref.nodeId;
-
-    if (clickedAssignment && prevAssignment && !isSameNode) {
-      // Both assigned → swap persons (cross-figure swaps go through unassign + reassign)
-      if (prevRef?.slotId === ref.slotId) {
-        this.triggerSwap(prevAssignment, clickedAssignment);
-      } else {
-        this.triggerCrossSwap(prevAssignment, clickedAssignment);
-      }
-      this.clearSelection();
-      return;
-    }
-
-    if (!clickedAssignment && prevAssignment && !isSameNode) {
-      // Assigned node selected, empty node clicked → move person (cross-figure allowed)
-      this.triggerUnassignThenAssign(prevAssignment, ref, prevAssignment.person.id);
-      return;
-    }
 
     if (clickedAssignment) {
       this.select(ref);
@@ -311,6 +291,29 @@ export class PinyesTabComponent implements OnInit {
     if (pendingPersonId) {
       this.triggerAssign(ref, pendingPersonId);
     }
+  }
+
+  /** Drag-and-drop: a person was dragged from `source` and dropped on `target`. */
+  onNodeDropped(source: SegmentNodeRef, target: SegmentNodeRef): void {
+    if (this.ws.isLocked()) return;
+    if (source.slotId === target.slotId && source.nodeId === target.nodeId) return;
+
+    const sourceAssignment = this.assignmentFor(source);
+    if (!sourceAssignment) return;
+
+    const targetAssignment = this.assignmentFor(target);
+    if (targetAssignment) {
+      // Both assigned → swap persons (cross-figure swaps go through unassign + reassign)
+      if (source.slotId === target.slotId) {
+        this.triggerSwap(sourceAssignment, targetAssignment);
+      } else {
+        this.triggerCrossSwap(sourceAssignment, targetAssignment);
+      }
+    } else {
+      // Dropped on an empty node → move person (cross-figure allowed)
+      this.triggerUnassignThenAssign(sourceAssignment, target, sourceAssignment.person.id);
+    }
+    this.clearSelection();
   }
 
   onPersonSelected(person: AvailablePerson): void {
