@@ -30,13 +30,13 @@ The problems live one layer up, and they cluster into four themes:
 3. **Failure paths are an afterthought.** Auth aside, error handling is per-call-site and wildly inconsistent: silent `console.error`, silent nothing, `errorMessage` signals, toasts — and one real logout-on-transient-error bug in the interceptor's retry path (FE-BUG-1). Long-lived resources (two SSE `EventSource`s) leak on navigation.
 4. **Destructive-action and modal UX is unsystematic.** Three different confirmation patterns coexist (inline modal / native `confirm()` / none at all); the shared `app-confirm-dialog` documented in CLAUDE.md does not exist; user deactivation has no confirmation *and no UI path back*; modals discard typed data on backdrop click, and none trap focus.
 
-The best code in the app (the pinya assignment flow, the projection layout math, the person panel's ranked search) is also where a couple of the subtlest bugs are (incomplete undo history FE-BUG-7, stale projection filter FE-BUG-9).
+The best code in the app (the pinya assignment flow, the projection layout math, the person panel's ranked search) is also where a couple of the subtlest bugs are (incomplete undo history FE-BUG-7 ✅, stale projection filter FE-BUG-9).
 
 **Findings by section:**
 
 | Section | Code | 🔴 | 🟠 | 🟡 | 🔵 | Total |
 | --- | --- | --- | --- | --- | --- | --- |
-| Bugs & correctness | `FE-BUG` | — | 9 (2 ✅) | 16 | 3 | 28 (2 ✅) |
+| Bugs & correctness | `FE-BUG` | — | 9 (3 ✅) | 16 | 3 | 28 (3 ✅) |
 | Architecture & state (incl. dead code) | `FE-ARCH` | — | 3 | 9 | 4 | 16 |
 | Error handling | `FE-ERR` | — | 1 | 3 | — | 4 |
 | UX & interface consistency | `FE-UX` | — | 2 | 5 | 1 | 8 |
@@ -46,7 +46,7 @@ The best code in the app (the pinya assignment flow, the projection layout math,
 | Code smells | `FE-SM` | — | — | 5 | 2 | 7 |
 | UI text | `FE-LANG` | — | — | 2 | — | 2 |
 | Tests | `FE-TEST` | — | 2 | 2 | — | 4 |
-| **Total** | | **—** | **20 (2 ✅)** | **50** | **11** | **81 (2 ✅)** |
+| **Total** | | **—** | **20 (3 ✅)** | **50** | **11** | **81 (3 ✅)** |
 
 *(✅ counts reflect fixes applied so far in this branch; updated as findings are resolved.)*
 
@@ -107,7 +107,7 @@ The `/persons/new` route renders the **entire** edit form — Nom and Primer cog
 
 `persons/components/person-sync/person-sync.component.ts` and `events/components/event-sync/event-sync.component.ts` create an `EventSource` in `startSync()` and close it only on complete/error/cancel. **Neither component implements `OnDestroy`.** Navigating away mid-sync leaves the SSE connection open indefinitely: the browser holds the socket, `onmessage` keeps firing into a destroyed component's signals, and the server-side sync lock (audit-01 SEC-16's `SyncLockService`) stays held by a stream nobody is watching. `event-detail.component.ts` gets this right (`ngOnDestroy` → `closeSyncEventSource()`, line 377) — copy that.
 
-### 🟠 FE-BUG-7 — Assignment-canvas undo history is incomplete for moves and swaps
+### 🟠✅ FE-BUG-7 — Assignment-canvas undo history is incomplete for moves and swaps — FIXED
 
 `pinyes/components/assignment-canvas/assignment-canvas.component.ts`:
 
@@ -116,6 +116,18 @@ The `/persons/new` route renders the **entire** edit form — Nom and Primer cog
 - Same gap for the cross-figure reassign dialog flow (`triggerReassignToNode`, 789-818).
 
 Model moves/swaps as single composite `UndoableAction`s (undo = the inverse move/swap).
+
+**Note:** `assignment-canvas.component.ts` no longer exists — the click-twice-to-move/swap gesture was replaced by drag-and-drop in `pinyes-tab.component.ts` and `troncs-tab.component.ts` (`SegmentWorkspaceComponent`'s Pinyes/Troncs tabs). The same modeling gap carried over into the rewrite (`triggerUnassignThenAssign` still only pushed an `ASSIGN` action; `triggerSwap`/`triggerCrossSwap` still pushed none) — fixed there instead.
+
+**Additional discovery while fixing:** `UndoRedoService.undo()`/`.redo()` were never called anywhere in the app — no `Ctrl+Z` handler and no undo/redo button existed in the segment workspace (unlike `template-editor`, which has its own separate, working undo system). The composite-action fix below would have been unreachable without also wiring up a trigger, so that was fixed in the same pass.
+
+**Fix applied:**
+- `triggerAssign` in both tabs now accepts an optional `moveFrom: { instanceId, nodeId }`. When set (drag-drop move, or the cross-figure reassign-dialog confirm — `reassignDialog` now carries `oldNodeId`), the pushed action is a single composite `MOVE`: `undo` unassigns from the target and re-assigns to `moveFrom`; `execute` (redo) reverses that. Ids returned by each `assign`/`unassign` call are tracked in closures shared between `execute`/`undo`, the same pattern already used for the pre-existing `ASSIGN`/`UNASSIGN` actions.
+- `triggerSwap` (same-figure) now pushes a `SWAP` action. The backend's swap endpoint preserves both assignment ids and only swaps the person on each (verified in `node-assignment.service.ts`'s `swap()`), so the action is its own inverse: `execute` and `undo` both just re-run the same swap call.
+- `triggerCrossSwap` (cross-figure, no swap endpoint — unassign+reassign both sides) now pushes a composite `SWAP` action that tracks the current occupant id of each node across repeated undo/redo cycles, since unassign+assign mints a new id every time.
+- While wiring up the first real callers of `.undo()`/`.redo()`, discovered and fixed a further gap: none of the existing actions (including the pre-existing plain `ASSIGN`/`UNASSIGN`) updated `AssignmentStateService.assignments` from within `execute`/`undo` — only the *initial* optimistic action did. Undoing would have silently mutated the backend without the canvas reflecting it. All action builders (`buildAssignAction`, `buildUnassignAction`, `buildMoveAction`, the swap closures) now update `state.assignments` themselves.
+- Added `performUndo()`/`performRedo()` to both tab components, guarded by `canUndo()`/`canRedo()`/`isBusy()`/`ws.isLocked()`; wired to `Ctrl+Z` / `Ctrl+Shift+Z` (guarded the same way as existing shortcuts — ignored while typing in an input) and to new undo/redo buttons overlaid top-right of each tab's canvas.
+- Covered by new specs in both `pinyes-tab.component.spec.ts` and `troncs-tab.component.spec.ts`: move undo/redo, same-figure swap undo/redo, cross-figure swap undo/redo, reassign-dialog-confirm undo (pinyes-tab only), plain assign/unassign undo/redo (state now stays in sync), keyboard shortcuts, and the locked/empty-history guards — using the real `UndoRedoService` (not mocked) so the tests exercise the actual undo/redo stack. Full `nx test dashboard` suite (1246/1246) and `nx lint dashboard` pass.
 
 ### 🟡 FE-BUG-8 — `UndoRedoService.run()`: eager `isBusy`, cold observable, lost actions
 
@@ -500,7 +512,7 @@ Ranked across all findings by (user damage × likelihood), not by section:
 | 1 | 🟠 [FE-BUG-1](#-fe-bug-1--interceptor-logs-the-user-out-when-a-retried-request-fails-for-any-reason) Interceptor logs users out on any post-refresh retry failure | Session + unsaved work lost on a transient 500; app-wide | `auth.interceptor.ts` |
 | 2 | 🟠✅ [FE-BUG-26](#-fe-bug-26--template-editor-pending-autosave-is-discarded-on-most-exits--fixed) Template editor drops pending autosave on most exits — **FIXED** | Silent data loss in the flagship editor | `template-editor.component.ts` |
 | 3 | 🟠✅ [FE-BUG-2](#-fe-bug-2--persona-nova-collects-a-full-form-then-silently-discards-everything-except-the-alias--fixed) "Persona nova" discards every field but the alias — **FIXED** | Silent data loss on a primary flow, guaranteed on every use | `person-detail.component.ts` |
-| 4 | 🟠 [FE-BUG-7](#-fe-bug-7--assignment-canvas-undo-history-is-incomplete-for-moves-and-swaps) Undo after a move drops the person; swaps unrecorded | Corrupts the mental model of the most-used tool during assajos | `assignment-canvas.component.ts` |
+| 4 | 🟠✅ [FE-BUG-7](#-fe-bug-7--assignment-canvas-undo-history-is-incomplete-for-moves-and-swaps--fixed) Undo after a move drops the person; swaps unrecorded — **FIXED** | Corrupts the mental model of the most-used tool during assajos | `pinyes-tab.component.ts`, `troncs-tab.component.ts` |
 | 5 | 🟠 [FE-BUG-6](#-fe-bug-6--both-sync-screens-leak-their-eventsource-on-navigation) SSE `EventSource` leaks on navigation (×2 screens) | Holds the server-side sync lock with nobody watching | `person-sync` / `event-sync` |
 | 6 | 🟠 [FE-BUG-22](#-fe-bug-22--rotation-handle-breaks-on-touch-devices-and-can-leak-window-listeners) Rotation handle dead on touch + listener leak | Projection/distribution run on tablets | `figure-canvas.component.ts:1148` |
 | 7 | 🟠 [FE-BUG-5](#-fe-bug-5--deactivated-users-no-confirmation-no-way-back) User deactivation: no confirm, no way back | One misclick in the row menu = account recoverable only via raw API | `user-list` / `user-form-modal` |

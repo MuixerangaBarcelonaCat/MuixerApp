@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
-import { LucideAngularModule, Map as MapIcon } from 'lucide-angular';
+import { ChangeDetectionStrategy, Component, HostListener, OnInit, computed, inject, input, signal } from '@angular/core';
+import { LucideAngularModule, Map as MapIcon, Undo2, Redo2 } from 'lucide-angular';
 import { TroncViewComponent, TroncNodeItem } from '../../../tronc-view/tronc-view.component';
 import { PersonPanelComponent } from '../../../person-panel/person-panel.component';
 import { SegmentWorkspaceStateService, WorkspaceInstance } from '../../../../services/segment-workspace-state.service';
@@ -19,7 +19,7 @@ import {
   PendingOp,
 } from '../../../../models/assignment.model';
 import { DIRECTION_NODE_PRESETS, FigureZone } from '@muixer/shared';
-import { forkJoin, Observable, switchMap } from 'rxjs';
+import { forkJoin, map, Observable, switchMap } from 'rxjs';
 
 interface TroncFigure {
   instance: WorkspaceInstance;
@@ -56,6 +56,54 @@ export class TroncsTabComponent implements OnInit {
   }
 
   readonly MapIcon = MapIcon;
+  readonly Undo2 = Undo2;
+  readonly Redo2 = Redo2;
+
+  readonly canUndo = this.undoRedo.canUndo;
+  readonly canRedo = this.undoRedo.canRedo;
+  readonly undoDescription = this.undoRedo.undoDescription;
+  readonly redoDescription = this.undoRedo.redoDescription;
+
+  @HostListener('document:keydown', ['$event'])
+  onKeyDown(event: KeyboardEvent): void {
+    const target = event.target as HTMLElement | null;
+    const isEditing =
+      !!target &&
+      (target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.isContentEditable);
+    if (isEditing) return;
+
+    const isMod = event.ctrlKey || event.metaKey;
+    if (isMod && event.key.toLowerCase() === 'z' && !event.shiftKey) {
+      event.preventDefault();
+      this.performUndo();
+      return;
+    }
+
+    if (isMod && event.key.toLowerCase() === 'z' && event.shiftKey) {
+      event.preventDefault();
+      this.performRedo();
+      return;
+    }
+  }
+
+  /** Ctrl+Z / undo button: reverses the most recent assign/unassign/move/swap. */
+  performUndo(): void {
+    if (this.ws.isLocked() || !this.undoRedo.canUndo() || this.undoRedo.isBusy()) return;
+    this.undoRedo.undo().subscribe({
+      error: () => this.toast.error("Error en desfer l'acció."),
+    });
+  }
+
+  /** Ctrl+Shift+Z / redo button: re-applies the most recently undone action. */
+  performRedo(): void {
+    if (this.ws.isLocked() || !this.undoRedo.canRedo() || this.undoRedo.isBusy()) return;
+    this.undoRedo.redo().subscribe({
+      error: () => this.toast.error("Error en refer l'acció."),
+    });
+  }
 
   readonly selectedRef = signal<SegmentNodeRef | null>(null);
   readonly highlightedNodeIds = signal<Set<string>>(new Set());
@@ -218,27 +266,7 @@ export class TroncsTabComponent implements OnInit {
     this.assignmentService.unassign(instanceId, assignment.id).subscribe({
       next: () => {
         this.state.refreshPersonList();
-
-        let lastAssignmentId = assignment.id;
-        const action: UndoableAction = {
-          type: 'UNASSIGN',
-          description: 'Desassignar persona',
-          execute: () => this.assignmentService.unassign(instanceId, lastAssignmentId),
-          undo: () => {
-            const obs = this.assignmentService.assign(instanceId, { nodeId, personId });
-            return new Observable<void>((sub) => {
-              obs.subscribe({
-                next: (created) => {
-                  lastAssignmentId = created.id;
-                  sub.next();
-                  sub.complete();
-                },
-                error: (err) => sub.error(err),
-              });
-            });
-          },
-        };
-        this.undoRedo.push(action);
+        this.undoRedo.push(this.buildUnassignAction(instanceId, nodeId, personId, assignment.id));
       },
       error: () => {
         this.state.assignments.set(snapshot);
@@ -321,7 +349,16 @@ export class TroncsTabComponent implements OnInit {
     );
   }
 
-  private triggerAssign(ref: SegmentNodeRef, personId: string): void {
+  /**
+   * Assigns `personId` to `ref`. When `moveFrom` is given (drag-drop move), the pushed undo
+   * action is a single composite MOVE — undo restores the person to `moveFrom` instead of just
+   * unassigning them (FE-BUG-7).
+   */
+  private triggerAssign(
+    ref: SegmentNodeRef,
+    personId: string,
+    moveFrom?: { instanceId: string; nodeId: string },
+  ): void {
     const instanceId = ref.slotId;
     const instance = this.instanceFor(instanceId);
     if (!instance) return;
@@ -372,26 +409,11 @@ export class TroncsTabComponent implements OnInit {
         this.state.refreshPersonList();
         this.advanceToNextEmptyNode(instanceId, created.node.id);
 
-        let lastAssignId = created.id;
-        const action: UndoableAction = {
-          type: 'ASSIGN',
-          description: 'Assignar persona',
-          execute: () => {
-            const obs = this.assignmentService.assign(instanceId, { nodeId: ref.nodeId, personId });
-            return new Observable<void>((sub) => {
-              obs.subscribe({
-                next: (re) => {
-                  lastAssignId = re.id;
-                  sub.next();
-                  sub.complete();
-                },
-                error: (err) => sub.error(err),
-              });
-            });
-          },
-          undo: () => this.assignmentService.unassign(instanceId, lastAssignId),
-        };
-        this.undoRedo.push(action);
+        this.undoRedo.push(
+          moveFrom
+            ? this.buildMoveAction(instanceId, ref.nodeId, personId, created, moveFrom)
+            : this.buildAssignAction(instanceId, ref.nodeId, personId, created),
+        );
       },
       error: (err) => {
         this.state.assignments.set(op.previousAssignments);
@@ -400,7 +422,7 @@ export class TroncsTabComponent implements OnInit {
         this.select(ref);
         const msg =
           err?.status === 409
-            ? 'Conflicte en assignar la persona. Ja pot estar assignada.'
+            ? 'La persona ja està assignada.'
             : 'Error en assignar la persona.';
         this.toast.error(msg);
       },
@@ -413,12 +435,13 @@ export class TroncsTabComponent implements OnInit {
     personId: string,
   ): void {
     const snapshot = [...this.state.assignments()];
+    const moveFrom = { instanceId: existing.figureInstanceId, nodeId: existing.node.id };
     this.state.assignments.update((list) => list.filter((a) => a.id !== existing.id));
     this.clearSelection();
 
     this.assignmentService.unassign(existing.figureInstanceId, existing.id).subscribe({
       next: () => {
-        this.triggerAssign(targetRef, personId);
+        this.triggerAssign(targetRef, personId, moveFrom);
       },
       error: () => {
         this.state.assignments.set(snapshot);
@@ -439,28 +462,47 @@ export class TroncsTabComponent implements OnInit {
       }),
     );
 
-    this.assignmentService
-      .swap(instanceId, { assignmentIdA: assignment1.id, assignmentIdB: assignment2.id })
-      .subscribe({
-        next: (result) => {
-          this.state.assignments.update((list) =>
-            list.map((a) => {
-              if (a.id === result.a.id) return result.a;
-              if (a.id === result.b.id) return result.b;
-              return a;
-            }),
-          );
-          this.toast.success("S'han intercanviat les persones.");
-        },
-        error: () => {
-          this.state.assignments.set(snapshot);
-          this.toast.error("Error en l'intercanvi de persones.");
-        },
-      });
+    this.performSwap(instanceId, assignment1.id, assignment2.id).subscribe({
+      next: () => {
+        this.toast.success("S'han intercanviat les persones.");
+        // Swap preserves both assignment ids server-side, so it's its own inverse:
+        // running it again — whether via undo or redo — reverses/re-applies it identically.
+        this.undoRedo.push({
+          type: 'SWAP',
+          description: 'Intercanviar persones',
+          execute: () => this.performSwap(instanceId, assignment1.id, assignment2.id),
+          undo: () => this.performSwap(instanceId, assignment1.id, assignment2.id),
+        });
+      },
+      error: () => {
+        this.state.assignments.set(snapshot);
+        this.toast.error("Error en l'intercanvi de persones.");
+      },
+    });
+  }
+
+  private performSwap(instanceId: string, assignmentIdA: string, assignmentIdB: string): Observable<void> {
+    return this.assignmentService.swap(instanceId, { assignmentIdA, assignmentIdB }).pipe(
+      map((result) => {
+        this.state.assignments.update((list) =>
+          list.map((a) => {
+            if (a.id === result.a.id) return result.a;
+            if (a.id === result.b.id) return result.b;
+            return a;
+          }),
+        );
+      }),
+    );
   }
 
   private triggerCrossSwap(assignment1: AssignmentDetail, assignment2: AssignmentDetail): void {
     const snapshot = [...this.state.assignments()];
+    const instance1 = assignment1.figureInstanceId;
+    const node1 = assignment1.node.id;
+    const person1Id = assignment1.person.id;
+    const instance2 = assignment2.figureInstanceId;
+    const node2 = assignment2.node.id;
+    const person2Id = assignment2.person.id;
 
     this.state.assignments.update((list) =>
       list.map((a) => {
@@ -470,42 +512,216 @@ export class TroncsTabComponent implements OnInit {
       }),
     );
 
-    forkJoin([
-      this.assignmentService.unassign(assignment1.figureInstanceId, assignment1.id),
-      this.assignmentService.unassign(assignment2.figureInstanceId, assignment2.id),
-    ])
-      .pipe(
-        switchMap(() =>
-          forkJoin([
-            this.assignmentService.assign(assignment1.figureInstanceId, {
-              nodeId: assignment1.node.id,
-              personId: assignment2.person.id,
-            }),
-            this.assignmentService.assign(assignment2.figureInstanceId, {
-              nodeId: assignment2.node.id,
-              personId: assignment1.person.id,
-            }),
-          ]),
-        ),
-      )
-      .subscribe({
-        next: ([created1, created2]) => {
+    // Ids returned by unassign+assign change every time this runs, so the current
+    // occupant of each node is tracked in closures shared by execute/undo (FE-BUG-7).
+    let currentId1 = assignment1.id;
+    let currentId2 = assignment2.id;
+
+    const applyCrossSwap = (personFor1: string, personFor2: string) =>
+      this.performCrossSwap(instance1, node1, currentId1, personFor1, instance2, node2, currentId2, personFor2).pipe(
+        map((result) => {
+          currentId1 = result.a.id;
+          currentId2 = result.b.id;
           this.state.assignments.update((list) =>
             list.map((a) => {
-              if (a.id === assignment1.id) return created1;
-              if (a.id === assignment2.id) return created2;
+              if (a.figureInstanceId === instance1 && a.node.id === node1) return result.a;
+              if (a.figureInstanceId === instance2 && a.node.id === node2) return result.b;
               return a;
             }),
           );
-          this.toast.success("S'han intercanviat les persones.");
-        },
-        error: () => {
-          this.state.assignments.set(snapshot);
-          this.ws.refreshInstance(assignment1.figureInstanceId);
-          this.ws.refreshInstance(assignment2.figureInstanceId);
-          this.toast.error("Error en l'intercanvi de persones.");
-        },
-      });
+        }),
+      );
+
+    applyCrossSwap(person2Id, person1Id).subscribe({
+      next: () => {
+        this.toast.success("S'han intercanviat les persones.");
+        this.undoRedo.push({
+          type: 'SWAP',
+          description: 'Intercanviar persones (figures diferents)',
+          execute: () => applyCrossSwap(person2Id, person1Id),
+          undo: () => applyCrossSwap(person1Id, person2Id),
+        });
+      },
+      error: () => {
+        this.state.assignments.set(snapshot);
+        this.ws.refreshInstance(instance1);
+        this.ws.refreshInstance(instance2);
+        this.toast.error("Error en l'intercanvi de persones.");
+      },
+    });
+  }
+
+  private performCrossSwap(
+    instance1: string,
+    node1: string,
+    currentId1: string,
+    personFor1: string,
+    instance2: string,
+    node2: string,
+    currentId2: string,
+    personFor2: string,
+  ): Observable<{ a: AssignmentDetail; b: AssignmentDetail }> {
+    return forkJoin([
+      this.assignmentService.unassign(instance1, currentId1),
+      this.assignmentService.unassign(instance2, currentId2),
+    ]).pipe(
+      switchMap(() =>
+        forkJoin([
+          this.assignmentService.assign(instance1, { nodeId: node1, personId: personFor1 }),
+          this.assignmentService.assign(instance2, { nodeId: node2, personId: personFor2 }),
+        ]),
+      ),
+      map(([a, b]) => ({ a, b })),
+    );
+  }
+
+  /** Plain assign undo: undo unassigns; redo re-assigns to the same node/person. */
+  private buildAssignAction(
+    instanceId: string,
+    nodeId: string,
+    personId: string,
+    created: AssignmentDetail,
+  ): UndoableAction {
+    let lastAssignId = created.id;
+    return {
+      type: 'ASSIGN',
+      description: 'Assignar persona',
+      execute: () =>
+        new Observable<void>((sub) => {
+          this.assignmentService.assign(instanceId, { nodeId, personId }).subscribe({
+            next: (re) => {
+              lastAssignId = re.id;
+              this.state.assignments.update((list) => [...list, re]);
+              this.state.refreshPersonList();
+              sub.next();
+              sub.complete();
+            },
+            error: (err) => sub.error(err),
+          });
+        }),
+      undo: () =>
+        new Observable<void>((sub) => {
+          const removeId = lastAssignId;
+          this.assignmentService.unassign(instanceId, removeId).subscribe({
+            next: () => {
+              this.state.assignments.update((list) => list.filter((a) => a.id !== removeId));
+              this.state.refreshPersonList();
+              sub.next();
+              sub.complete();
+            },
+            error: (err) => sub.error(err),
+          });
+        }),
+    };
+  }
+
+  /** Plain unassign undo: undo re-assigns; redo unassigns again. */
+  private buildUnassignAction(
+    instanceId: string,
+    nodeId: string,
+    personId: string,
+    initialAssignmentId: string,
+  ): UndoableAction {
+    let lastAssignmentId = initialAssignmentId;
+    return {
+      type: 'UNASSIGN',
+      description: 'Desassignar persona',
+      execute: () =>
+        new Observable<void>((sub) => {
+          const removeId = lastAssignmentId;
+          this.assignmentService.unassign(instanceId, removeId).subscribe({
+            next: () => {
+              this.state.assignments.update((list) => list.filter((a) => a.id !== removeId));
+              this.state.refreshPersonList();
+              sub.next();
+              sub.complete();
+            },
+            error: (err) => sub.error(err),
+          });
+        }),
+      undo: () =>
+        new Observable<void>((sub) => {
+          this.assignmentService.assign(instanceId, { nodeId, personId }).subscribe({
+            next: (created) => {
+              lastAssignmentId = created.id;
+              this.state.assignments.update((list) => [...list, created]);
+              this.state.refreshPersonList();
+              sub.next();
+              sub.complete();
+            },
+            error: (err) => sub.error(err),
+          });
+        }),
+    };
+  }
+
+  /** Composite move undo: undo unassigns from the target and re-assigns to `moveFrom`; redo reverses that. */
+  private buildMoveAction(
+    targetInstanceId: string,
+    targetNodeId: string,
+    personId: string,
+    created: AssignmentDetail,
+    moveFrom: { instanceId: string; nodeId: string },
+  ): UndoableAction {
+    let targetAssignmentId = created.id;
+    // Re-populated by undo() once the person is reassigned back to moveFrom.
+    let sourceAssignmentId: string | null = null;
+
+    const assignTo = (instanceId: string, nodeId: string) =>
+      this.assignmentService.assign(instanceId, { nodeId, personId });
+
+    return {
+      type: 'MOVE',
+      description: 'Moure persona',
+      execute: () =>
+        new Observable<void>((sub) => {
+          const reassignToTarget = () => {
+            assignTo(targetInstanceId, targetNodeId).subscribe({
+              next: (re) => {
+                targetAssignmentId = re.id;
+                this.state.assignments.update((list) => [...list, re]);
+                this.state.refreshPersonList();
+                sub.next();
+                sub.complete();
+              },
+              error: (err) => sub.error(err),
+            });
+          };
+          if (sourceAssignmentId) {
+            const removeId = sourceAssignmentId;
+            this.assignmentService.unassign(moveFrom.instanceId, removeId).subscribe({
+              next: () => {
+                sourceAssignmentId = null;
+                this.state.assignments.update((list) => list.filter((a) => a.id !== removeId));
+                reassignToTarget();
+              },
+              error: (err) => sub.error(err),
+            });
+          } else {
+            reassignToTarget();
+          }
+        }),
+      undo: () =>
+        new Observable<void>((sub) => {
+          const removeId = targetAssignmentId;
+          this.assignmentService.unassign(targetInstanceId, removeId).subscribe({
+            next: () => {
+              this.state.assignments.update((list) => list.filter((a) => a.id !== removeId));
+              assignTo(moveFrom.instanceId, moveFrom.nodeId).subscribe({
+                next: (re) => {
+                  sourceAssignmentId = re.id;
+                  this.state.assignments.update((list) => [...list, re]);
+                  this.state.refreshPersonList();
+                  sub.next();
+                  sub.complete();
+                },
+                error: (err) => sub.error(err),
+              });
+            },
+            error: (err) => sub.error(err),
+          });
+        }),
+    };
   }
 
   private advanceToNextEmptyNode(instanceId: string, justAssignedNodeId: string): void {

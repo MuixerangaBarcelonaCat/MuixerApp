@@ -1,6 +1,30 @@
 <div class="flex h-full min-h-0">
   <!-- Troncs, wrapping into new rows -->
   <div class="relative flex-1 min-w-0 overflow-y-auto">
+    <!-- Undo/redo -->
+    <div class="absolute top-2 right-2 z-10 flex items-center gap-1 bg-base-100/90 backdrop-blur rounded-lg shadow border border-base-300 p-1">
+      <button
+        type="button"
+        class="btn btn-ghost btn-xs btn-square"
+        [disabled]="!canUndo() || ws.isLocked()"
+        (click)="performUndo()"
+        [attr.aria-label]="undoDescription() ? 'Desfer: ' + undoDescription() : 'Desfer'"
+        [title]="undoDescription() ? 'Desfer: ' + undoDescription() : 'Desfer (Ctrl+Z)'"
+      >
+        <lucide-icon [img]="Undo2" [size]="14" aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        class="btn btn-ghost btn-xs btn-square"
+        [disabled]="!canRedo() || ws.isLocked()"
+        (click)="performRedo()"
+        [attr.aria-label]="redoDescription() ? 'Refer: ' + redoDescription() : 'Refer'"
+        [title]="redoDescription() ? 'Refer: ' + redoDescription() : 'Refer (Ctrl+Shift+Z)'"
+      >
+        <lucide-icon [img]="Redo2" [size]="14" aria-hidden="true" />
+      </button>
+    </div>
+
     @if (figures().length === 0) {
       <div class="flex items-center justify-center h-full text-base-content/50">
         Este segment no té cap figura amb tronc.
