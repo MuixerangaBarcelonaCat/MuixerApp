@@ -8,6 +8,7 @@ import {
   effect,
   inject,
   input,
+  output,
   signal,
 } from '@angular/core';
 import { LucideAngularModule, Trash2, Undo2, Redo2 } from 'lucide-angular';
@@ -19,7 +20,7 @@ import { AssignmentStateService } from '../../../../services/assignment-state.se
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
 import { ToastService } from '../../../../../../shared/components/feedback/toast/toast.service';
 import { UndoRedoService, UndoableAction } from '../../../../services/undo-redo.service';
-import { SegmentNodeRef } from '../../../../utils/segment-assignment-render.util';
+import { SegmentNodeRef, targetTabForZone } from '../../../../utils/segment-assignment-render.util';
 import {
   AssignmentDetail,
   AttendanceStatus,
@@ -60,6 +61,9 @@ export class PinyesTabComponent implements OnInit {
 
   readonly isPast = input(false);
 
+  /** Emitted when "Anar-hi" targets a node that only exists in the Troncs tab. */
+  readonly crossTabSelect = output<{ tab: 'pinyes' | 'troncs'; ref: SegmentNodeRef }>();
+
   readonly Trash2 = Trash2;
   readonly Undo2 = Undo2;
   readonly Redo2 = Redo2;
@@ -89,6 +93,12 @@ export class PinyesTabComponent implements OnInit {
     // Positions/cordons/mode may have changed in another tab (e.g. Distribució)
     // since the workspace's one-time load(); pull the latest on activation.
     this.ws.refresh();
+
+    const pending = this.ws.pendingSelection();
+    if (pending) {
+      this.ws.pendingSelection.set(null);
+      this.select(pending);
+    }
   }
 
   readonly selectedRef = signal<SegmentNodeRef | null>(null);
@@ -368,7 +378,9 @@ export class PinyesTabComponent implements OnInit {
 
     const targetRef = this.selectedRef();
     if (targetRef) {
-      const targetInstance = this.instanceFor(targetRef.slotId);
+      // figureName is shown as "X ja és <node> a <figureName>" — the figure the
+      // person is CURRENTLY in, not the one they'd move to (that's targetInstanceId).
+      const currentInstance = this.instanceFor(event.instanceId);
       this.reassignDialog.set({
         personId: event.personId,
         personAlias:
@@ -377,7 +389,7 @@ export class PinyesTabComponent implements OnInit {
         oldAssignmentId: assignment.id,
         oldNodeId: assignment.node.id,
         oldNodeLabel: assignment.node.label,
-        figureName: targetInstance?.label ?? '',
+        figureName: currentInstance?.label ?? '',
         targetInstanceId: targetRef.slotId,
         targetNodeId: targetRef.nodeId,
       });
@@ -871,6 +883,11 @@ export class PinyesTabComponent implements OnInit {
 
   private navigateToAssignment(assignment: AssignmentDetail): void {
     const ref: SegmentNodeRef = { slotId: assignment.figureInstanceId, nodeId: assignment.node.id };
+    const targetTab = targetTabForZone(assignment.node.zone);
+    if (targetTab === 'troncs') {
+      this.crossTabSelect.emit({ tab: 'troncs', ref });
+      return;
+    }
     this.select(ref);
   }
 

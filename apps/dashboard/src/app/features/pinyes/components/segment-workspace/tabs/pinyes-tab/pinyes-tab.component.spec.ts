@@ -126,13 +126,18 @@ const makeSegment = (instances: InstanceDetail[]): SegmentDetail => ({
 });
 
 let assignmentSeq = 0;
-const makeAssignment = (instanceId: string, nodeId: string, personId = `p-${++assignmentSeq}`): AssignmentDetail => ({
+const makeAssignment = (
+  instanceId: string,
+  nodeId: string,
+  personId = `p-${++assignmentSeq}`,
+  zone = 'PINYA',
+): AssignmentDetail => ({
   id: `as-${assignmentSeq}`,
   figureInstanceId: instanceId,
   node: {
     id: nodeId,
     label: nodeId,
-    zone: 'PINYA',
+    zone,
     z: 0,
     positionType: null,
     sortOrder: 0,
@@ -944,6 +949,8 @@ describe('PinyesTabComponent', () => {
         personId: 'p-1',
         targetInstanceId: INST_B,
         targetNodeId: 'm1',
+        // figureName is the figure the person is CURRENTLY in (INST_A), not the target (INST_B).
+        figureName: 'Figura inst-a',
       });
     });
 
@@ -964,6 +971,62 @@ describe('PinyesTabComponent', () => {
 
       expect(assignmentService.unassign).toHaveBeenCalledWith(INST_A, existing.id);
       expect(assignmentService.assign).toHaveBeenCalledWith(INST_B, { nodeId: 'm1', personId: 'p-1' });
+    });
+  });
+
+  describe('cross-tab "Anar-hi" navigation', () => {
+    it('emits crossTabSelect instead of selecting locally when the person is on a TRONC node', async () => {
+      const existing = makeAssignment(INST_A, 't1', 'p-1', 'TRONC');
+      await setup({ assignmentsByInstance: { [INST_A]: [existing] } });
+      const emitSpy = vi.fn();
+      component.crossTabSelect.subscribe(emitSpy);
+
+      component.onAssignedPersonSelected({ personId: 'p-1', instanceId: INST_A });
+
+      expect(emitSpy).toHaveBeenCalledWith({ tab: 'troncs', ref: { slotId: INST_A, nodeId: 't1' } });
+      expect(component.selectedRef()).toBeNull();
+    });
+
+    it('selects locally (no tab switch) when the person is on a BASE node', async () => {
+      const existing = makeAssignment(INST_A, 'b1', 'p-1', 'BASE');
+      await setup({ assignmentsByInstance: { [INST_A]: [existing] } });
+      const emitSpy = vi.fn();
+      component.crossTabSelect.subscribe(emitSpy);
+
+      component.onAssignedPersonSelected({ personId: 'p-1', instanceId: INST_A });
+
+      expect(emitSpy).not.toHaveBeenCalled();
+      expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'b1' });
+    });
+
+    it('"Anar-hi" on the reassign dialog also switches tabs for a TRONC assignment', async () => {
+      const existing = makeAssignment(INST_A, 't1', 'p-1', 'TRONC');
+      await setup({
+        instances: [makeInstance(INST_A), makeInstance(INST_B)],
+        nodesByInstance: {
+          [INST_A]: [makeNode('t1', 'TRONC')],
+          [INST_B]: [makeNode('m1', 'PINYA')],
+        },
+        assignmentsByInstance: { [INST_A]: [existing] },
+      });
+      component.onSegmentNodeSelected({ slotId: INST_B, nodeId: 'm1' });
+      component.onAssignedPersonSelected({ personId: 'p-1', instanceId: INST_A });
+      const emitSpy = vi.fn();
+      component.crossTabSelect.subscribe(emitSpy);
+
+      component.onReassignDialogView();
+
+      expect(emitSpy).toHaveBeenCalledWith({ tab: 'troncs', ref: { slotId: INST_A, nodeId: 't1' } });
+    });
+
+    it('consumes a pending cross-tab selection on init and selects the requested node', async () => {
+      await setup({ assignmentsByInstance: { [INST_A]: [] } });
+      ws.pendingSelection.set({ slotId: INST_A, nodeId: 'n1' });
+
+      component.ngOnInit();
+
+      expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'n1' });
+      expect(ws.pendingSelection()).toBeNull();
     });
   });
 });

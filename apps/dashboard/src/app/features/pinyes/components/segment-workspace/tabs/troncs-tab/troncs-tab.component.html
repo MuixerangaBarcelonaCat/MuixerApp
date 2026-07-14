@@ -132,3 +132,15 @@
     (unassignRequested)="onUnassign($event)"
   />
 </div>
+
+@if (reassignDialog(); as dialog) {
+  <app-already-assigned-dialog
+    [open]="true"
+    [personAlias]="dialog.personAlias"
+    [nodeLabel]="dialog.oldNodeLabel"
+    [figureName]="dialog.figureName"
+    (closed)="onReassignDialogClosed()"
+    (viewRequested)="onReassignDialogView()"
+    (reassignRequested)="onReassignDialogConfirm()"
+  />
+}

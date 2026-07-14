@@ -1,13 +1,14 @@
-import { ChangeDetectionStrategy, Component, HostListener, OnInit, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, HostListener, OnInit, computed, inject, input, output, signal } from '@angular/core';
 import { LucideAngularModule, Map as MapIcon, Undo2, Redo2 } from 'lucide-angular';
 import { TroncViewComponent, TroncNodeItem } from '../../../tronc-view/tronc-view.component';
 import { PersonPanelComponent } from '../../../person-panel/person-panel.component';
+import { AlreadyAssignedDialogComponent } from '../../../already-assigned-dialog/already-assigned-dialog.component';
 import { SegmentWorkspaceStateService, WorkspaceInstance } from '../../../../services/segment-workspace-state.service';
 import { AssignmentStateService } from '../../../../services/assignment-state.service';
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
 import { ToastService } from '../../../../../../shared/components/feedback/toast/toast.service';
 import { UndoRedoService, UndoableAction } from '../../../../services/undo-redo.service';
-import { SegmentNodeRef } from '../../../../utils/segment-assignment-render.util';
+import { SegmentNodeRef, targetTabForZone } from '../../../../utils/segment-assignment-render.util';
 import { buildTroncBuckets, pickNextAssignableNode } from '../../../../utils/assignment-order.util';
 import { computeFigureBoundingBoxes, FigureBoundingBox } from '../../../../utils/figure-placement.util';
 import { getFigureColor } from '../../../../utils/figure-palette.util';
@@ -37,7 +38,7 @@ interface TroncFigure {
   selector: 'app-troncs-tab',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule, TroncViewComponent, PersonPanelComponent],
+  imports: [LucideAngularModule, TroncViewComponent, PersonPanelComponent, AlreadyAssignedDialogComponent],
   templateUrl: './troncs-tab.component.html',
 })
 export class TroncsTabComponent implements OnInit {
@@ -49,10 +50,19 @@ export class TroncsTabComponent implements OnInit {
 
   readonly isPast = input(false);
 
+  /** Emitted when "Anar-hi" targets a node that only exists in the Pinyes tab. */
+  readonly crossTabSelect = output<{ tab: 'pinyes' | 'troncs'; ref: SegmentNodeRef }>();
+
   ngOnInit(): void {
     // Positions/cordons/mode may have changed in another tab (e.g. Distribució)
     // since the workspace's one-time load(); pull the latest on activation.
     this.ws.refresh();
+
+    const pending = this.ws.pendingSelection();
+    if (pending) {
+      this.ws.pendingSelection.set(null);
+      this.select(pending);
+    }
   }
 
   readonly MapIcon = MapIcon;
@@ -107,6 +117,18 @@ export class TroncsTabComponent implements OnInit {
 
   readonly selectedRef = signal<SegmentNodeRef | null>(null);
   readonly highlightedNodeIds = signal<Set<string>>(new Set());
+
+  readonly reassignDialog = signal<{
+    personId: string;
+    personAlias: string;
+    oldInstanceId: string;
+    oldAssignmentId: string;
+    oldNodeId: string;
+    oldNodeLabel: string;
+    figureName: string;
+    targetInstanceId: string;
+    targetNodeId: string;
+  } | null>(null);
 
   readonly attendanceMap = computed(
     () => this.state.attendanceRegistry() as Map<string, AttendanceStatus>,
@@ -250,7 +272,73 @@ export class TroncsTabComponent implements OnInit {
       .assignments()
       .find((a) => a.figureInstanceId === event.instanceId && a.person.id === event.personId);
     if (!assignment) return;
-    this.select({ slotId: assignment.figureInstanceId, nodeId: assignment.node.id });
+
+    const targetRef = this.selectedRef();
+    if (targetRef) {
+      // figureName is shown as "X ja és <node> a <figureName>" — the figure the
+      // person is CURRENTLY in, not the one they'd move to (that's targetInstanceId).
+      const currentInstance = this.instanceFor(event.instanceId);
+      this.reassignDialog.set({
+        personId: event.personId,
+        personAlias:
+          assignment.person.alias || `${assignment.person.name} ${assignment.person.firstSurname}`,
+        oldInstanceId: event.instanceId,
+        oldAssignmentId: assignment.id,
+        oldNodeId: assignment.node.id,
+        oldNodeLabel: assignment.node.label,
+        figureName: currentInstance?.label ?? '',
+        targetInstanceId: targetRef.slotId,
+        targetNodeId: targetRef.nodeId,
+      });
+      return;
+    }
+
+    this.navigateToAssignment(assignment);
+  }
+
+  onReassignDialogClosed(): void {
+    this.reassignDialog.set(null);
+  }
+
+  onReassignDialogView(): void {
+    const dialog = this.reassignDialog();
+    if (!dialog) return;
+    this.reassignDialog.set(null);
+    const assignment = this.state.assignments().find((a) => a.id === dialog.oldAssignmentId);
+    if (assignment) this.navigateToAssignment(assignment);
+  }
+
+  onReassignDialogConfirm(): void {
+    const dialog = this.reassignDialog();
+    if (!dialog) return;
+    this.reassignDialog.set(null);
+
+    const snapshot = [...this.state.assignments()];
+    this.state.assignments.update((list) => list.filter((a) => a.id !== dialog.oldAssignmentId));
+
+    this.assignmentService.unassign(dialog.oldInstanceId, dialog.oldAssignmentId).subscribe({
+      next: () => {
+        this.triggerAssign(
+          { slotId: dialog.targetInstanceId, nodeId: dialog.targetNodeId },
+          dialog.personId,
+          { instanceId: dialog.oldInstanceId, nodeId: dialog.oldNodeId },
+        );
+      },
+      error: () => {
+        this.state.assignments.set(snapshot);
+        this.toast.error('Error en reassignar la persona.');
+      },
+    });
+  }
+
+  private navigateToAssignment(assignment: AssignmentDetail): void {
+    const ref: SegmentNodeRef = { slotId: assignment.figureInstanceId, nodeId: assignment.node.id };
+    const targetTab = targetTabForZone(assignment.node.zone);
+    if (targetTab === 'pinyes') {
+      this.crossTabSelect.emit({ tab: 'pinyes', ref });
+      return;
+    }
+    this.select(ref);
   }
 
   onUnassign(assignment: AssignmentDetail): void {

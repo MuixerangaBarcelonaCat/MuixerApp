@@ -44,6 +44,7 @@
               [class.btn-ghost]="viewMode() !== 'pinyes'"
               (click)="setViewMode('pinyes')"
             >
+              <lucide-icon [name]="ICON_PINYA" [size]="13" />
               Pinyes
             </button>
             <button
@@ -53,6 +54,7 @@
               [class.btn-ghost]="viewMode() !== 'troncs'"
               (click)="setViewMode('troncs')"
             >
+              <lucide-icon [name]="ICON_TRONC" [size]="14" />
               Troncs
             </button>
           </div>

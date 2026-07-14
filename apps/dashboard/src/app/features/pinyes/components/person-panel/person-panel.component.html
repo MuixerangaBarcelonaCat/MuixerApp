@@ -232,10 +232,13 @@
           <button
             type="button"
             class="w-full text-left px-2 py-1.5 rounded hover:bg-base-200 active:bg-base-300 transition-colors flex items-center justify-between gap-2 text-xs"
+            [class.bg-primary]="selectedPersonId() === person.id"
+            [class.text-primary-content]="selectedPersonId() === person.id"
             (click)="selectPerson(person)"
             (mouseenter)="onPersonHover($event, person)"
             (mouseleave)="onPersonLeave()"
             [attr.aria-label]="'Seleccionar ' + person.alias"
+            [attr.aria-pressed]="selectedPersonId() === person.id"
           >
             <span class="flex items-center gap-1.5 min-w-0">
               @if (matchPos) {
@@ -283,10 +286,13 @@
               type="button"
               class="w-full text-left px-2 py-1.5 rounded hover:bg-base-200 active:bg-base-300 transition-colors flex items-center justify-between gap-2 text-xs opacity-70"
               [class.opacity-60]="posType && !matchPos"
+              [class.bg-primary]="selectedPersonId() === person.id"
+              [class.text-primary-content]="selectedPersonId() === person.id"
               (click)="selectPerson(person)"
               (mouseenter)="onPersonHover($event, person)"
               (mouseleave)="onPersonLeave()"
               [attr.aria-label]="'Seleccionar ' + person.alias"
+              [attr.aria-pressed]="selectedPersonId() === person.id"
             >
               <span class="flex items-center gap-1.5 min-w-0">
                 @if (matchPos) {
@@ -393,10 +399,13 @@
                 <button
                   type="button"
                   class="w-full text-left px-2 py-1.5 rounded hover:bg-base-200 active:bg-base-300 transition-colors flex items-center justify-between gap-2 text-xs opacity-60"
+                  [class.bg-primary]="selectedPersonId() === person.id"
+                  [class.text-primary-content]="selectedPersonId() === person.id"
                   (click)="selectPerson(person)"
                   (mouseenter)="onPersonHover($event, person)"
                   (mouseleave)="onPersonLeave()"
                   [attr.aria-label]="'Seleccionar ' + person.alias"
+                  [attr.aria-pressed]="selectedPersonId() === person.id"
                 >
                   <span class="flex items-center gap-1.5 min-w-0">
                     <span class="line-through truncate">{{ person.alias }}</span>
@@ -427,10 +436,13 @@
                 <button
                   type="button"
                   class="w-full text-left px-2 py-1.5 rounded hover:bg-base-200 active:bg-base-300 transition-colors flex items-center justify-between gap-2 text-xs opacity-80"
+                  [class.bg-primary]="selectedPersonId() === person.id"
+                  [class.text-primary-content]="selectedPersonId() === person.id"
                   (click)="selectPerson(person)"
                   (mouseenter)="onPersonHover($event, person)"
                   (mouseleave)="onPersonLeave()"
                   [attr.aria-label]="'Seleccionar ' + person.alias + ' (pendent)'"
+                  [attr.aria-pressed]="selectedPersonId() === person.id"
                 >
                   <span class="flex items-center gap-1.5 min-w-0">
                     <span class="truncate">{{ person.alias }}</span>

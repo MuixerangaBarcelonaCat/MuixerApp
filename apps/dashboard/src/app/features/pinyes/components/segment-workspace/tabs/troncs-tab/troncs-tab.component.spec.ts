@@ -123,13 +123,18 @@ const makeSegment = (instances: InstanceDetail[]): SegmentDetail => ({
 });
 
 let assignmentSeq = 0;
-const makeAssignment = (instanceId: string, nodeId: string, personId = `p-${++assignmentSeq}`): AssignmentDetail => ({
+const makeAssignment = (
+  instanceId: string,
+  nodeId: string,
+  personId = `p-${++assignmentSeq}`,
+  zone = 'TRONC',
+): AssignmentDetail => ({
   id: `as-${assignmentSeq}`,
   figureInstanceId: instanceId,
   node: {
     id: nodeId,
     label: nodeId,
-    zone: 'TRONC',
+    zone,
     z: 1,
     positionType: null,
     sortOrder: 0,
@@ -763,6 +768,108 @@ describe('TroncsTabComponent', () => {
 
       expect(state.assignments()).toHaveLength(0);
       expect(toast.error).toHaveBeenCalled();
+    });
+  });
+
+  describe('reassign dialog (parity with the Pinyes tab)', () => {
+    it('opens the dialog when an already-assigned person is picked with a target node selected', async () => {
+      const existing = makeAssignment(INST_A, 'n1', 'p-1');
+      await setup({
+        instances: [makeInstance(INST_A), makeInstance(INST_B)],
+        nodesByInstance: {
+          [INST_A]: [makeNode('n1', 'TRONC')],
+          [INST_B]: [makeNode('m1', 'TRONC')],
+        },
+        assignmentsByInstance: { [INST_A]: [existing] },
+      });
+      component.onTroncNodeSelected(INST_B, 'm1');
+
+      component.onAssignedPersonSelected({ personId: 'p-1', instanceId: INST_A });
+
+      expect(component.reassignDialog()).toMatchObject({
+        personId: 'p-1',
+        targetInstanceId: INST_B,
+        targetNodeId: 'm1',
+        // figureName is the figure the person is CURRENTLY in (INST_A), not the target (INST_B).
+        figureName: 'Figura inst-a',
+      });
+    });
+
+    it('confirming the dialog unassigns the old assignment and assigns to the target', async () => {
+      const existing = makeAssignment(INST_A, 'n1', 'p-1');
+      await setup({
+        instances: [makeInstance(INST_A), makeInstance(INST_B)],
+        nodesByInstance: {
+          [INST_A]: [makeNode('n1', 'TRONC')],
+          [INST_B]: [makeNode('m1', 'TRONC')],
+        },
+        assignmentsByInstance: { [INST_A]: [existing] },
+      });
+      component.onTroncNodeSelected(INST_B, 'm1');
+      component.onAssignedPersonSelected({ personId: 'p-1', instanceId: INST_A });
+
+      component.onReassignDialogConfirm();
+
+      expect(assignmentService.unassign).toHaveBeenCalledWith(INST_A, existing.id);
+      expect(assignmentService.assign).toHaveBeenCalledWith(INST_B, { nodeId: 'm1', personId: 'p-1' });
+    });
+
+    it('navigates directly (no dialog) when no target node is selected', async () => {
+      const existing = makeAssignment(INST_A, 'n1', 'p-1');
+      await setup({ assignmentsByInstance: { [INST_A]: [existing] } });
+
+      component.onAssignedPersonSelected({ personId: 'p-1', instanceId: INST_A });
+
+      expect(component.reassignDialog()).toBeNull();
+      expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'n1' });
+    });
+  });
+
+  describe('cross-tab "Anar-hi" navigation', () => {
+    it('emits crossTabSelect instead of selecting locally when the person is on a PINYA node', async () => {
+      const existing = makeAssignment(INST_A, 'p1', 'p-1', 'PINYA');
+      await setup({ assignmentsByInstance: { [INST_A]: [existing] } });
+      const emitSpy = vi.fn();
+      component.crossTabSelect.subscribe(emitSpy);
+
+      component.onAssignedPersonSelected({ personId: 'p-1', instanceId: INST_A });
+
+      expect(emitSpy).toHaveBeenCalledWith({ tab: 'pinyes', ref: { slotId: INST_A, nodeId: 'p1' } });
+      expect(component.selectedRef()).toBeNull();
+    });
+
+    it('selects locally (no tab switch) when the person is on a BASE node', async () => {
+      const existing = makeAssignment(INST_A, 'b1', 'p-1', 'BASE');
+      await setup({ assignmentsByInstance: { [INST_A]: [existing] } });
+      const emitSpy = vi.fn();
+      component.crossTabSelect.subscribe(emitSpy);
+
+      component.onAssignedPersonSelected({ personId: 'p-1', instanceId: INST_A });
+
+      expect(emitSpy).not.toHaveBeenCalled();
+      expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'b1' });
+    });
+
+    it('treats FIGURE_DIRECTION nodes as staying in the Troncs tab (no switch)', async () => {
+      const existing = makeAssignment(INST_A, 'd1', 'p-1', 'FIGURE_DIRECTION');
+      await setup({ assignmentsByInstance: { [INST_A]: [existing] } });
+      const emitSpy = vi.fn();
+      component.crossTabSelect.subscribe(emitSpy);
+
+      component.onAssignedPersonSelected({ personId: 'p-1', instanceId: INST_A });
+
+      expect(emitSpy).not.toHaveBeenCalled();
+      expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'd1' });
+    });
+
+    it('consumes a pending cross-tab selection on init and selects the requested node', async () => {
+      await setup({ assignmentsByInstance: { [INST_A]: [] } });
+      ws.pendingSelection.set({ slotId: INST_A, nodeId: 'n1' });
+
+      component.ngOnInit();
+
+      expect(component.selectedRef()).toEqual({ slotId: INST_A, nodeId: 'n1' });
+      expect(ws.pendingSelection()).toBeNull();
     });
   });
 });

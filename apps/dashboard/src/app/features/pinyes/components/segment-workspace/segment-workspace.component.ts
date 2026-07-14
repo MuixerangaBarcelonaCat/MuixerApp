@@ -19,6 +19,7 @@ import { FiguresViewModeService, FiguresViewMode } from '../../services/figures-
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { SegmentWorkspaceStateService } from '../../services/segment-workspace-state.service';
 import { UndoRedoService } from '../../services/undo-redo.service';
+import { SegmentNodeRef } from '../../utils/segment-assignment-render.util';
 import { PinyesTabComponent } from './tabs/pinyes-tab/pinyes-tab.component';
 import { TroncsTabComponent } from './tabs/troncs-tab/troncs-tab.component';
 import { DistribucioTabComponent } from './tabs/distribucio-tab/distribucio-tab.component';
@@ -162,6 +163,12 @@ export class SegmentWorkspaceComponent implements OnInit, OnDestroy {
       queryParamsHandling: 'merge',
       replaceUrl: true,
     });
+  }
+
+  /** A tab requested a node that lives in the other tab (e.g. "Anar-hi" on a tronc assignment while in Pinyes). */
+  onCrossTabSelect(event: { tab: 'pinyes' | 'troncs'; ref: SegmentNodeRef }): void {
+    this.ws.pendingSelection.set(event.ref);
+    this.setTab(event.tab);
   }
 
   /** The browser back button leaves the workspace the same way the back arrow does. */
