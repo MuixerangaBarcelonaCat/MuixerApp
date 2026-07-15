@@ -38,7 +38,7 @@ The best code in the app (the pinya assignment flow, the projection layout math,
 | Section                                | Code      | 🔴    | 🟠           | 🟡     | 🔵     | Total        |
 | -------------------------------------- | --------- | ----- | ------------ | ------ | ------ | ------------ |
 | Bugs & correctness                     | `FE-BUG`  | —     | 9 (6 ✅)      | 16     | 3      | 28 (6 ✅)     |
-| Architecture & state (incl. dead code) | `FE-ARCH` | —     | 3            | 9      | 4      | 16           |
+| Architecture & state (incl. dead code) | `FE-ARCH` | —     | 3 (1 ✅)      | 9      | 4      | 16 (1 ✅)     |
 | Error handling                         | `FE-ERR`  | —     | 1            | 3      | —      | 4            |
 | UX & interface consistency             | `FE-UX`   | —     | 2 (1 ✅)      | 5      | 1      | 8 (1 ✅)      |
 | Accessibility                          | `FE-A11Y` | —     | 1            | 3      | 1      | 5            |
@@ -47,7 +47,7 @@ The best code in the app (the pinya assignment flow, the projection layout math,
 | Code smells                            | `FE-SM`   | —     | —            | 5      | 2      | 7            |
 | UI text                                | `FE-LANG` | —     | —            | 2      | —      | 2            |
 | Tests                                  | `FE-TEST` | —     | 2            | 2      | —      | 4            |
-| **Total**                              |           | **—** | **20 (7 ✅)** | **50** | **11** | **81 (7 ✅)** |
+| **Total**                              |           | **—** | **20 (8 ✅)** | **50** | **11** | **81 (8 ✅)** |
 
 
 *(✅ counts reflect fixes applied so far in this branch; updated as findings are resolved.)*
@@ -263,7 +263,7 @@ Zero `switchMap`-style pipelines exist for user-driven loads: every filter/page/
 
 ### 🟡 FE-ARCH-8 — God components in the pinyes feature
 
-`figure-canvas.component.ts` (2 070 lines), `assignment-canvas.component.ts` (1 979 lines + 789-line template), `template-editor.component.ts` (1 073 lines). Some state is already extracted (`AssignmentStateService`, `template-editor-state.service`), but the components still mix Konva scene management, drag logic, API orchestration and UI state — and the extraction services that were evidently written to break this up are dead code, never wired in (FE-ARCH-13). This is where every future bug in the flagship feature will hide.
+`figure-canvas.component.ts` (2 070 lines), `template-editor.component.ts` (1 073 lines), and the segment-workspace tabs that replaced `assignment-canvas.component.ts` (`pinyes-tab.component.ts`, `troncs-tab.component.ts` — see FE-BUG-7's fix note). Some state is already extracted (`AssignmentStateService`), but the components still mix Konva scene management, drag logic, API orchestration and UI state. A prior extraction attempt (`template-editor-state.service.ts` and two `assignment-canvas/services/*` files) was dead code that never got wired in — deleted in FE-ARCH-13 ✅ rather than finished, so this god-component problem is still fully open. This is where every future bug in the flagship feature will hide.
 
 ### 🟡 FE-ARCH-9 — Nested-subscribe pyramids and hand-rolled Observable wrappers
 
@@ -283,7 +283,7 @@ The assignment canvas uses the command-based `UndoRedoService` (execute/undo obs
 
 ### Dead code & abandoned refactors
 
-### 🟠 FE-ARCH-13 — ~910 lines of extracted services that nothing uses
+### 🟠✅ FE-ARCH-13 — ~910 lines of extracted services that nothing uses — FIXED
 
 Three fully-written services are referenced by **no component, no spec, nobody**:
 
@@ -296,6 +296,8 @@ Three fully-written services are referenced by **no component, no spec, nobody**
 
 
 This is the FE-ARCH-8 god-component refactor, started and abandoned mid-flight. Dead code this large is actively harmful: it shows up in searches, suggests an architecture that isn't real, and silently drifts from the live logic it duplicates. Either finish the extraction (wire the components to them) or delete all three.
+
+**Fix applied:** deleted all three. Two of them (`assignment-operations.service.ts`, `assignment-tab.service.ts`) turned out to already be gone — they lived under `assignment-canvas/services/`, and were removed incidentally when `assignment-canvas.component.ts` itself was deleted during the FE-BUG-7 fix (replaced by drag-and-drop in `pinyes-tab.component.ts`/`troncs-tab.component.ts`). Only `template-editor-state.service.ts` (430 lines) remained; confirmed zero references anywhere in the codebase (no component, no spec) before removing it. `nx build dashboard`, `nx test dashboard` (1290/1292, 2 pre-existing skips), and `nx lint dashboard` all pass unchanged.
 
 ### 🟡 FE-ARCH-14 — `CanvasStateService` is half dead
 
@@ -496,7 +498,7 @@ Each of these is a *pattern*, not a one-off — worth fixing with a sweep + a li
 
 ### 🟠 FE-TEST-1 — Coverage only counts files that specs happen to import
 
-`vitest.config.mts` does not enable `coverage.all`, so the report covers **147 files — only those imported by some spec**. Files no test touches are invisible: `home.component.ts`, `global-sync.component.ts` (whose broken link, FE-BUG-19, a rendering smoke test would have caught), `auth.interceptor.ts`, the three dead services (FE-ARCH-13)… none appear in the denominator. The real all-files statement coverage is meaningfully below the reported 53 %, and the 40 % gate is softer than it looks. Enable `coverage.all: true` (with the existing excludes) so untested files count as 0 %.
+`vitest.config.mts` does not enable `coverage.all`, so the report covers **147 files — only those imported by some spec**. Files no test touches are invisible: `home.component.ts`, `global-sync.component.ts` (whose broken link, FE-BUG-19, a rendering smoke test would have caught)… none appear in the denominator. (Two of this note's original examples, `auth.interceptor.ts` and the three FE-ARCH-13 dead services, no longer apply — the interceptor gained a spec as part of the FE-BUG-1 fix, and the dead services were deleted rather than covered.) The real all-files statement coverage is meaningfully below the reported 53 %, and the 40 % gate is softer than it looks. Enable `coverage.all: true` (with the existing excludes) so untested files count as 0 %.
 
 ### 🟠 FE-TEST-2 — The riskiest code is still the least tested
 
@@ -548,7 +550,7 @@ Ranked across all findings by (user damage × likelihood), not by section:
 | 8   | 🟠 [FE-BUG-4](#-fe-bug-4--event-list-double-fetches-on-init-and-races-itself) Event list double-fetch race                                                                            | Wrong data displayed under normal latency, every page load          | `event-list.component.ts`                            |
 | 9   | 🟠 [FE-BUG-3](#-fe-bug-3--data-table-row-actions-menu-can-act-on-the-wrong-row) Row-actions menu can act on the wrong row                                                             | Destructive actions (deactivate!) mis-targeted                      | `data-table.component.html`                          |
 | 10  | 🟠✅ [FE-UX-2](#-fe-ux-2--lock-state-is-cosmetic-in-the-segment-manager) Segment manager ignores the event lock                                                                        | Locked-event mutations offered, then fail confusingly               | `segment-manager`                                    |
-| 11  | 🟠 [FE-ARCH-13](#-fe-arch-13--910-lines-of-extracted-services-that-nothing-uses) Delete or finish the ~910 lines of dead services                                                     | Unblocks the honest version of `FE-ARCH-8`; zero risk               | `pinyes/**/services`                                 |
+| 11  | 🟠✅ [FE-ARCH-13](#-fe-arch-13--910-lines-of-extracted-services-that-nothing-uses--fixed) Delete or finish the ~910 lines of dead services — **FIXED**                                | Unblocks the honest version of `FE-ARCH-8`; zero risk               | `pinyes/**/services`                                 |
 | 12  | 🟠 [FE-ARCH-1](#-fe-arch-1--the-list-page-controller-is-copy-pasted-five-times) Extract the shared list controller                                                                    | One fix-point for `FE-ARCH-4` races, `FE-PERF-4` timers, dead code  | all list pages                                       |
 | 13  | 🟠 [FE-API-1](#-fe-api-1--two-pagination-envelopes-four-duplicated-paginatedresponse-definitions) Unify the `/users` envelope + one `PaginatedResponse`                               | Contract drift compounding with every new consumer                  | backend `user.controller` + `shared/models`          |
 | 14  | 🟠 [FE-UX-1](#-fe-ux-1--deep-links-die-at-the-login-screen-no-returnurl) `returnUrl` on login redirect                                                                                | Every shared deep link degrades to the home page                    | guards + login                                       |
