@@ -4,6 +4,7 @@ import {
   buildSegmentRenderNodes,
   pivotNodesFor,
   stageToSlotLocal,
+  targetTabForZone,
 } from './segment-assignment-render.util';
 import { CompositionSlotWithNodes } from '../components/figure-canvas/figure-canvas.component';
 import { AssignmentDetail } from '../models/assignment.model';
@@ -22,6 +23,7 @@ const makeSlotNode = (id: string, overrides: Partial<Record<string, unknown>> = 
   color: null,
   shape: 'RECTANGLE',
   sortOrder: 0,
+  climbIndicator: null,
   ringLevel: null,
   originNodeId: null,
   renglaId: null,
@@ -59,6 +61,7 @@ const makeAssignment = (id: string, instanceId: string, nodeId: string): Assignm
     z: 0,
     positionType: null,
     sortOrder: 0,
+    climbIndicator: null,
     ringLevel: null,
     originNodeId: null,
     sourceNodeId: null,
@@ -200,5 +203,28 @@ describe('stageToSlotLocal', () => {
     const result = stageToSlotLocal({ x: 0, y: 10 }, slot, { x: 0, y: 0 });
 
     expect(result).toEqual({ x: 10, y: 0 });
+  });
+});
+
+describe('targetTabForZone', () => {
+  it('maps PINYA to the pinyes tab', () => {
+    expect(targetTabForZone('PINYA')).toBe('pinyes');
+  });
+
+  it('maps TRONC to the troncs tab', () => {
+    expect(targetTabForZone('TRONC')).toBe('troncs');
+  });
+
+  it('maps FIGURE_DIRECTION and XICALLA_DIRECTION to the troncs tab', () => {
+    expect(targetTabForZone('FIGURE_DIRECTION')).toBe('troncs');
+    expect(targetTabForZone('XICALLA_DIRECTION')).toBe('troncs');
+  });
+
+  it('returns null for BASE (rendered in both tabs, no switch needed)', () => {
+    expect(targetTabForZone('BASE')).toBeNull();
+  });
+
+  it('returns null for DECORATION (not assignable, defaults to no switch)', () => {
+    expect(targetTabForZone('DECORATION')).toBeNull();
   });
 });

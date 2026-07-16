@@ -22,6 +22,7 @@ import { AssignmentStateService } from '../../services/assignment-state.service'
 import { AvailablePerson, AssignmentDetail, HeightMode, PersonHoverInfo, isConfirmedAttendance } from '../../models/assignment.model';
 import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
 import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
+import { formatNodeCordonLabel } from '../../utils/node-cordon-label.util';
 import { PersonHoverCardComponent } from '../person-hover-card/person-hover-card.component';
 import { TagService } from '../../../config/services/tag.service';
 import { TagWithCount } from '../../../config/models/tag.model';
@@ -100,8 +101,16 @@ export class PersonPanelComponent {
     return this.assignments().find((a) => a.node.id === nodeId) ?? null;
   });
 
+  /** Person picked to be assigned to the next node click — drives the row highlight below. */
+  readonly selectedPersonId = computed(() => this.state.selectedPersonId());
+
   /** True while a height filter or Max/Min sort is active — used to exclude persons with no shoulder height set. */
   readonly heightSelectionActive = computed(() => this.height() !== null || this.heightSortMode() !== null);
+
+  assignedBadgeLabel(person: AvailablePerson): string {
+    if (!person.assignedNodeLabel) return 'Assignada';
+    return formatNodeCordonLabel(person.assignedNodeLabel, person.assignedNodeCordon);
+  }
 
   readonly freePersons = computed(() => {
     const free = this.persons().filter((p) => !p.assignedInSegment);
@@ -180,6 +189,7 @@ export class PersonPanelComponent {
         assignedInSegment: true,
         assignedInstanceId: assignment.figureInstanceId,
         assignedNodeLabel: assignment.node.label,
+        assignedNodeCordon: assignment.node.renglaPosition ?? null,
       });
       seen.add(assignment.person.id);
     }

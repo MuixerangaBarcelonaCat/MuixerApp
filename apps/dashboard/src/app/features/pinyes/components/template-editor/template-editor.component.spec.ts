@@ -2,7 +2,7 @@ import { Component, input, output } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { vi } from 'vitest';
-import { of } from 'rxjs';
+import { Observable, of } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { FigureZone, NodeShape, PINYA_NODE_PRESETS } from '@muixer/shared';
@@ -139,6 +139,60 @@ describe('TemplateEditorComponent — Preview Mode', () => {
     });
   });
 
+  describe('canDeactivate (pending autosave flush) — FE-BUG-26', () => {
+    beforeEach(() => {
+      mockFigureTemplateService.create.mockClear();
+    });
+
+    it('returns true synchronously when there is no pending autosave', () => {
+      expect(component.canDeactivate()).toBe(true);
+    });
+
+    it('flushes the pending autosave immediately and resolves true once the save completes', () => {
+      component.onNodeMoved({ id: 'n1', x: 5, y: 5 });
+      expect(mockFigureTemplateService.create).not.toHaveBeenCalled();
+
+      const result = component.canDeactivate();
+      expect(result).not.toBe(true);
+
+      const emissions: boolean[] = [];
+      (result as Observable<boolean>).subscribe((v) => emissions.push(v));
+
+      expect(mockFigureTemplateService.create).toHaveBeenCalledTimes(1);
+      expect(emissions).toEqual([true]);
+    });
+
+    it('does not schedule a second flush once canDeactivate has cleared the pending timer', () => {
+      component.onNodeMoved({ id: 'n1', x: 5, y: 5 });
+      (component.canDeactivate() as Observable<boolean>).subscribe();
+      expect(component.canDeactivate()).toBe(true);
+    });
+  });
+
+  describe('beforeunload (tab close with unsaved changes) — FE-BUG-26', () => {
+    const makeEvent = () => ({ preventDefault: vi.fn(), returnValue: '' }) as unknown as BeforeUnloadEvent;
+
+    it('warns the browser when there is a pending autosave', () => {
+      component.onNodeMoved({ id: 'n1', x: 5, y: 5 });
+      const event = makeEvent();
+      component.onBeforeUnload(event);
+      expect(event.preventDefault).toHaveBeenCalled();
+    });
+
+    it('does nothing when there is no pending autosave', () => {
+      const event = makeEvent();
+      component.onBeforeUnload(event);
+      expect(event.preventDefault).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('goBack', () => {
+    it('navigates to /pinyes (flushing is handled by the route canDeactivate guard)', () => {
+      component.goBack();
+      expect(mockRouter.navigate).toHaveBeenCalledWith(['/pinyes']);
+    });
+  });
+
   describe('togglePreview', () => {
     it('should set previewMode to true on first toggle', () => {
       component.togglePreview();
@@ -228,7 +282,7 @@ describe('TemplateEditorComponent — Preview Mode', () => {
       color: '#0d9488',
       shape: NodeShape.RECTANGLE,
       sortOrder: 0,
-      climbPath: null, ringLevel: null, originNodeId: null,
+      climbIndicator: null, ringLevel: null, originNodeId: null,
       renglaId: null, renglaPosition: null,
       metadata: {},
       ...overrides,
@@ -344,6 +398,54 @@ describe('TemplateEditorComponent — Preview Mode', () => {
     });
   });
 
+  describe('onTroncNodeUpdated — climbIndicator', () => {
+    const makeNode = (overrides: Partial<FigureNodeItem> = {}): FigureNodeItem => ({
+      id: 'node-1',
+      label: 'Segon',
+      zone: FigureZone.TRONC,
+      positionType: 'segon',
+      x: 0, y: 0, z: 1,
+      width: 1, height: 1, rotation: 0,
+      color: null,
+      shape: NodeShape.RECTANGLE,
+      sortOrder: 0,
+      climbIndicator: null, ringLevel: null, originNodeId: null,
+      renglaId: null, renglaPosition: null,
+      metadata: {},
+      ...overrides,
+    });
+
+    it('sets climbIndicator on a TRONC node', () => {
+      component.nodes.set([makeNode({ id: 'tronc-1' })]);
+      component.selectedNodeId.set('tronc-1');
+      fixture.detectChanges();
+
+      component.onTroncNodeUpdated({ nodeId: 'tronc-1', x: 0, width: 1, climbIndicator: 'X' });
+
+      expect(component.nodes()[0].climbIndicator).toBe('X');
+    });
+
+    it('sets climbIndicator on a BASE node', () => {
+      component.nodes.set([makeNode({ id: 'base-1', zone: FigureZone.BASE, z: 0 })]);
+      component.selectedNodeId.set('base-1');
+      fixture.detectChanges();
+
+      component.onTroncNodeUpdated({ nodeId: 'base-1', x: 0, width: 1, climbIndicator: 'A' });
+
+      expect(component.nodes()[0].climbIndicator).toBe('A');
+    });
+
+    it('clears climbIndicator when set to null', () => {
+      component.nodes.set([makeNode({ id: 'tronc-1', climbIndicator: 'X' })]);
+      component.selectedNodeId.set('tronc-1');
+      fixture.detectChanges();
+
+      component.onTroncNodeUpdated({ nodeId: 'tronc-1', x: 0, width: 1, climbIndicator: null });
+
+      expect(component.nodes()[0].climbIndicator).toBeNull();
+    });
+  });
+
   describe('keyboard shortcut', () => {
     function createKeyEvent(key: string, opts: Partial<KeyboardEvent> = {}): KeyboardEvent {
       const event = new KeyboardEvent('keydown', {
@@ -416,7 +518,7 @@ describe('nodeToPayload', () => {
     color: '#0d9488',
     shape: NodeShape.RECTANGLE,
     sortOrder: 0,
-    climbPath: null, ringLevel: null, originNodeId: null,
+    climbIndicator: null, ringLevel: null, originNodeId: null,
     renglaId: null, renglaPosition: null,
     metadata: {},
   };

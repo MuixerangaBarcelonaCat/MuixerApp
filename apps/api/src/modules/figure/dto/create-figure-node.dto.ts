@@ -76,7 +76,7 @@ export class CreateFigureNodeDto {
   @ApiPropertyOptional({ description: 'Climb path marker, e.g. "(X)" or "(A)"' })
   @IsString()
   @IsOptional()
-  climbPath?: string;
+  climbIndicator?: string;
 
   @ApiPropertyOptional({ description: 'Concentric ring level (1 = innermost). Only for PINYA zone nodes.' })
   @IsInt()

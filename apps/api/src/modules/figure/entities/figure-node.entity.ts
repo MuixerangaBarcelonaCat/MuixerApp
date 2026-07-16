@@ -59,7 +59,7 @@ export class FigureNode {
   sortOrder: number;
 
   @Column({ type: 'varchar', nullable: true })
-  climbPath: string | null;
+  climbIndicator: string | null;
 
   /** Concentric ring this node belongs to (1 = innermost). NULL for non-pinya zones. */
   @Column({ type: 'int', nullable: true })
@@ -84,9 +84,9 @@ export class FigureNode {
   @Column({ type: 'jsonb', default: {} })
   metadata: Record<string, unknown>;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date;
 }

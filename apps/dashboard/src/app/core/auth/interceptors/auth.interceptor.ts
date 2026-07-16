@@ -8,7 +8,8 @@ import { AuthService } from '../services/auth.service';
  * Interceptor HTTP d'autenticació.
  * - Afegeix la capçalera `Authorization: Bearer <token>` a totes les peticions excepte les de `/auth/`.
  * - Si rep un 401, intenta renovar el token via `refresh()` i reintenta la petició original.
- * - Si el refresh també falla, neteja l'estat i redirigeix al login.
+ * - Si el refresh falla, neteja l'estat i redirigeix al login. Els errors del reintent (no del refresh)
+ *   es propaguen tal qual, sense tancar la sessió.
  * Les crides concurrents a `/auth/` comparteixen una sola petició de refresh (dedup via `share()`).
  */
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
@@ -31,6 +32,11 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       if (err.status !== 401) return throwError(() => err);
 
       return authService.refresh().pipe(
+        catchError((refreshErr) => {
+          authService.clearState();
+          router.navigate(['/login']);
+          return throwError(() => refreshErr);
+        }),
         switchMap(() => {
           const newToken = authService.getAccessToken();
           const retryReq = authReq.clone({
@@ -38,11 +44,6 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
             ...(newToken ? { setHeaders: { Authorization: `Bearer ${newToken}` } } : {}),
           });
           return next(retryReq);
-        }),
-        catchError((refreshErr) => {
-          authService.clearState();
-          router.navigate(['/login']);
-          return throwError(() => refreshErr);
         }),
       );
     }),

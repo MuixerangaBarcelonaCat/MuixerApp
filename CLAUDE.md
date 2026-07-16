@@ -20,6 +20,7 @@ nx serve dashboard         # http://localhost:4200  (proxied to API via proxy.co
 nx test api                # Jest — backend unit tests
 nx test dashboard          # Vitest — frontend unit tests
 nx test api --testFile=apps/api/src/modules/person/person.service.spec.ts   # single file
+nx run api:test-integration  # Jest — backend integration tests against real Postgres (testcontainers)
 pnpm run ci:local          # lint + test + build (all, excludes e2e)
 
 # Lint
@@ -31,7 +32,6 @@ nx build api
 nx build dashboard
 
 # Database scripts (run from repo root)
-nx run api:seed-seasons              # Import seasons seed data
 nx run api:reset-figure-data         # Dev reset: wipe instances/nodes/assignments + re-seed
 nx run api:migrate-tronc-units       # P5.6 migration
 
@@ -70,7 +70,7 @@ Modules under `src/modules/`:
 - `composition` — `CompositionTemplate` + `CompositionSlot`
 - `event-segment` — `EventSegment`, `FigureInstance`, `InstanceNode`, `ProjectionService`
 - `node-assignment` — assignment logic, lazy snapshot
-- `reference-element` — `ReferenceElement` for projection canvas (P5.8.1)
+- `tag` — `Tag` CRUD, used to categorize persons
 - `sync` — SSE strategy pattern for legacy data import
 
 **TypeORM conventions:** UUID primary keys, `createdAt`/`updatedAt` always present, soft delete = `isActive: boolean` (not `@DeleteDateColumn`), enums imported from `@muixer/shared`, table names plural snake_case.
@@ -84,10 +84,13 @@ Modules under `src/modules/`:
 All components are standalone + `OnPush` + Signals. No NgRx. No `@Input()`/`@Output()` — use `input()` / `output()`.
 
 Routes (all behind `authGuard` + `rolesGuard(TECHNICAL, ADMIN)`):
+- `/home` → `HomeComponent`
 - `/persons` → `PersonListComponent`
-- `/rehearsals`, `/performances` → events feature
+- `/rehearsals`, `/performances` → events feature (list + sync)
+- `/events/:id` → `EventDetailComponent`, `/events/:id/confirmation` → `AttendanceConfirmationComponent`
 - `/pinyes` → Pinyes module (see below)
 - `/sync` → legacy sync SSE UI
+- `/config` → `ConfigComponent`, with `/config/users`, `/config/tags`, `/config/seasons`
 
 **Shared components** (`shared/components/`): compose list pages with `app-page-header`, `app-data-table`, `app-filter-bar`, `app-active-filters`, `app-column-toggle`, `app-pagination`, `app-empty-state`, `app-confirm-dialog`, `app-toast`. Never build raw table/pagination HTML.
 
@@ -144,7 +147,7 @@ There is no separate distribution route — `SegmentWorkspaceComponent`'s Distri
 
 - Backend: Jest, co-located `.spec.ts` files
 - Frontend: Vitest, co-located `.spec.ts` files
-- Coverage threshold: 70% (enforced in CI via `--configuration=ci`)
+- Coverage threshold (enforced in CI via `--configuration=ci`): API 75/70/78/76 (statements/branches/functions/lines), dashboard 40/35/40/40
 - Test a single backend file: `nx test api --testFile=<path>`
 
 ## Development guidelines

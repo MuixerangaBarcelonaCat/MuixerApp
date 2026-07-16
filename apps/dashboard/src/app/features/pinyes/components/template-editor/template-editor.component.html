@@ -427,6 +427,24 @@
               />
             </div>
 
+            @if (node.zone === FigureZone.PINYA) {
+              <!-- Indicator (short marker shown next to the assigned person, e.g. "X") -->
+              <div class="form-control mb-3">
+                <label class="label pb-1" [for]="'node-indicator-' + node.id">
+                  <span class="label-text text-xs font-medium">Indicador</span>
+                </label>
+                <input
+                  type="text"
+                  [id]="'node-indicator-' + node.id"
+                  class="input input-bordered input-sm w-16"
+                  maxlength="4"
+                  [ngModel]="node.climbIndicator"
+                  (ngModelChange)="updateSelectedNodeProp('climbIndicator', $event || null)"
+                  aria-label="Indicador curt mostrat al costat de la persona assignada"
+                />
+              </div>
+            }
+
             @if (node.zone !== FigureZone.TRONC) {
               <!-- Shape (pinya/direction only) -->
               <div class="form-control mb-3">

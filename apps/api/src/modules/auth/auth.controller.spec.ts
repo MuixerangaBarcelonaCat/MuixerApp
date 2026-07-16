@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { ForbiddenException } from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { ClientType, UserRole } from '@muixer/shared';
 import { AuthController } from './auth.controller';
@@ -75,11 +75,11 @@ describe('AuthController', () => {
   });
 
   describe('refresh', () => {
-    it('throws ForbiddenException when there is no refresh token cookie', async () => {
+    it('throws UnauthorizedException when there is no refresh token cookie', async () => {
       const req = { cookies: {} } as unknown as Request;
       const res = mockResponse();
 
-      await expect(controller.refresh(req, res)).rejects.toThrow(ForbiddenException);
+      await expect(controller.refresh(req, res)).rejects.toThrow(UnauthorizedException);
       expect(authService.refresh).not.toHaveBeenCalled();
     });
 

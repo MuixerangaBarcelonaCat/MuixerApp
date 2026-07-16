@@ -14,3 +14,9 @@ export const FIGURE_PALETTE = [
 export function getFigureColor(index: number): string {
   return FIGURE_PALETTE[index % FIGURE_PALETTE.length];
 }
+
+/** Tronc panel color when a segment has a single figure — white instead of the palette color. */
+export const SINGLE_FIGURE_PANEL_COLOR = '#ffffff';
+
+/** Figure shadow/silhouette color when a segment has a single figure — gray instead of the palette color. */
+export const SINGLE_FIGURE_SHADOW_COLOR = '#4b5563';

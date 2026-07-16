@@ -8,7 +8,7 @@
     <div class="flex-1">
       <div class="flex items-center gap-2 flex-wrap">
         <h1 class="text-xl font-bold text-base-content">
-          {{ person()?.alias || (isNew() ? 'Persona nova' : '—') }}
+          {{ person()?.alias || '—' }}
         </h1>
         @if (person()?.isProvisional) {
           <span class="badge badge-warning badge-sm">Provisional</span>
@@ -17,7 +17,7 @@
           <span class="badge badge-error badge-sm">Inactiu</span>
         }
       </div>
-      @if (!isNew() && person()) {
+      @if (person()) {
         <p class="text-xs text-base-content/50 mt-0.5">
           {{ person()!.name }} {{ person()!.firstSurname }}{{ person()!.secondSurname ? ' ' + person()!.secondSurname : '' }}
         </p>
@@ -64,9 +64,7 @@
       }
 
       @if (editing()) {
-        @if (!isNew()) {
-          <button type="button" class="btn btn-sm btn-ghost" (click)="cancelEditing()">Cancel·la</button>
-        }
+        <button type="button" class="btn btn-sm btn-ghost" (click)="cancelEditing()">Cancel·la</button>
         <button
           type="button"
           class="btn btn-sm btn-primary"
@@ -76,7 +74,7 @@
           @if (saving()) {
             <span class="loading loading-spinner loading-xs"></span>
           } @else {
-            {{ isNew() ? 'Crea' : 'Alça' }}
+            Alça
           }
         </button>
       }
@@ -94,12 +92,12 @@
   }
 
   <!-- Not found -->
-  @if (!loading() && !isNew() && !person()) {
+  @if (!loading() && !person()) {
     <app-empty-state icon="UserX" message="Persona no trobada" actionLabel="Tornar" (actionClick)="goBack()" />
   }
 
   <!-- Contingut principal -->
-  @if (!loading() && (isNew() || person())) {
+  @if (!loading() && person()) {
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
       <!-- Informació personal -->
@@ -237,7 +235,7 @@
           @if (!editing()) {
             <dl class="space-y-3">
               <div class="flex justify-between items-start">
-                <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Posicions</dt>
+                <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Etiquetes</dt>
                 <dd class="flex flex-wrap gap-1 justify-end">
                   @for (pos of person()!.positions; track pos.id) {
                     <span class="badge badge-sm"
@@ -245,7 +243,7 @@
                       [style.color]="getContrastColor(pos.color)">{{ pos.name }}</span>
                   }
                   @if (person()!.positions.length === 0) {
-                    <span class="text-xs text-base-content/40">Cap posició</span>
+                    <span class="text-xs text-base-content/40">Cap etiqueta</span>
                   }
                 </dd>
               </div>
@@ -321,10 +319,10 @@
           } @else {
             <div class="space-y-3">
 
-              <!-- Posicions (chips toggle) -->
+              <!-- Etiquetes (chips toggle) -->
               <div>
-                <span class="text-xs text-base-content/50 font-medium block mb-2">Posicions</span>
-                <div class="flex flex-wrap gap-1.5" role="group" aria-label="Selecció de posicions">
+                <span class="text-xs text-base-content/50 font-medium block mb-2">Etiquetes</span>
+                <div class="flex flex-wrap gap-1.5" role="group" aria-label="Selecció d'etiquetes">
                   @for (pos of allPositions(); track pos.id) {
                     <button
                       type="button"
@@ -341,7 +339,7 @@
                     </button>
                   }
                   @if (allPositions().length === 0) {
-                    <span class="text-xs text-base-content/40">No hi ha posicions disponibles</span>
+                    <span class="text-xs text-base-content/40">No hi ha etiquetes disponibles</span>
                   }
                 </div>
               </div>
@@ -408,7 +406,7 @@
     </div>
 
     <!-- Historial de pinyes -->
-    @if (!isNew() && person()) {
+    @if (person()) {
       <div class="collapse collapse-arrow bg-base-100 shadow-sm rounded-xl border border-base-300">
         <input type="checkbox" [checked]="historyExpanded()" (change)="historyExpanded.set(!historyExpanded())" />
         <div class="collapse-title text-sm font-bold py-3 min-h-0">
@@ -449,7 +447,6 @@
                     <th>Segment</th>
                     <th>Figura</th>
                     <th>Posició</th>
-                    <th>Zona</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -464,10 +461,7 @@
                       </td>
                       <td class="text-sm text-base-content/70">{{ entry.segmentName }}</td>
                       <td class="text-sm">{{ entry.figureName }}</td>
-                      <td class="text-sm font-medium">{{ entry.nodeLabel }}</td>
-                      <td>
-                        <span class="badge badge-ghost badge-sm">{{ entry.zone }}</span>
-                      </td>
+                      <td class="text-sm font-medium">{{ formatNodeCordonLabel(entry.nodeLabel, entry.renglaPosition) }}</td>
                     </tr>
                   }
                 </tbody>
@@ -491,24 +485,22 @@
     }
 
     <!-- Metadades -->
-    @if (!isNew()) {
-      <div class="collapse collapse-arrow bg-base-100 shadow-sm rounded-xl border border-base-300">
-        <input type="checkbox" [checked]="metadataExpanded()" (change)="metadataExpanded.set(!metadataExpanded())" />
-        <div class="collapse-title text-sm font-medium text-base-content/50 py-3 min-h-0">Metadades</div>
-        <div class="collapse-content">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
-            <div class="flex justify-between">
-              <span class="text-xs text-base-content/40">Creat</span>
-              <span class="text-xs text-base-content/60">{{ formatDateTime(person()!.createdAt) }}</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-xs text-base-content/40">Actualitzat</span>
-              <span class="text-xs text-base-content/60">{{ formatDateTime(person()!.updatedAt) }}</span>
-            </div>
+    <div class="collapse collapse-arrow bg-base-100 shadow-sm rounded-xl border border-base-300">
+      <input type="checkbox" [checked]="metadataExpanded()" (change)="metadataExpanded.set(!metadataExpanded())" />
+      <div class="collapse-title text-sm font-medium text-base-content/50 py-3 min-h-0">Metadades</div>
+      <div class="collapse-content">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+          <div class="flex justify-between">
+            <span class="text-xs text-base-content/40">Creat</span>
+            <span class="text-xs text-base-content/60">{{ formatDateTime(person()!.createdAt) }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-xs text-base-content/40">Actualitzat</span>
+            <span class="text-xs text-base-content/60">{{ formatDateTime(person()!.updatedAt) }}</span>
           </div>
         </div>
       </div>
-    }
+    </div>
   }
 
   @if (invitationModalOpen()) {

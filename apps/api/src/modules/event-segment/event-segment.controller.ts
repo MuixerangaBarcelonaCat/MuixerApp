@@ -7,6 +7,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   HttpCode,
   HttpStatus,
   ParseUUIDPipe,
@@ -25,6 +26,8 @@ import { UpdateInstanceDto } from './dto/update-instance.dto';
 import { ReorderInstancesDto } from './dto/reorder-instances.dto';
 import { UpdateSegmentDistributionDto } from './dto/update-segment-distribution.dto';
 import { CopyInstanceDto } from './dto/copy-instance.dto';
+import { MoveInstanceDto } from './dto/move-instance.dto';
+import { MoveInstanceQueryDto } from './dto/move-instance-query.dto';
 import { ApplyCompositionDto } from './dto/apply-composition.dto';
 
 @ApiTags('event-segments')
@@ -125,6 +128,25 @@ export class EventSegmentController {
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<void> {
     return this.instanceService.remove(eventId, segmentId, id);
+  }
+
+  @ApiOperation({ summary: 'Move a figure instance to another segment within the same event, resolving person conflicts if needed' })
+  @Patch(':segmentId/instances/:instanceId/move')
+  moveInstance(
+    @Param('eventId', ParseUUIDPipe) eventId: string,
+    @Param('segmentId', ParseUUIDPipe) segmentId: string,
+    @Param('instanceId', ParseUUIDPipe) instanceId: string,
+    @Body() dto: MoveInstanceDto,
+    @Query() query: MoveInstanceQueryDto,
+  ) {
+    return this.instanceService.move(
+      eventId,
+      segmentId,
+      instanceId,
+      dto.targetSegmentId,
+      dto.targetIndex,
+      query.conflictResolution,
+    );
   }
 
 @ApiOperation({ summary: 'Get distribution data for a segment (instances with template nodes and distribution fields)' })

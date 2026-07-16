@@ -4,6 +4,7 @@ import { of } from 'rxjs';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { PersonPanelComponent } from './person-panel.component';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
+import { AssignmentStateService } from '../../services/assignment-state.service';
 import { AvailablePerson } from '../../models/assignment.model';
 import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
 import { TagService } from '../../../config/services/tag.service';
@@ -532,6 +533,41 @@ describe('PersonPanelComponent', () => {
     });
   });
 
+  // ── selected-person highlight (pending assignment) ─────────────────────────
+
+  describe('selected-person highlight', () => {
+    it('highlights the person picked to be assigned on the next node click', () => {
+      const state = TestBed.inject(AssignmentStateService);
+      const persons = [makeAvailablePerson('p1'), makeAvailablePerson('p2', 'ANIRE', { alias: 'Altre' })];
+      assignmentService.getAvailablePersons.mockReturnValue(of({ data: persons }));
+      component.loadPersons();
+      fixture.detectChanges();
+
+      state.setSelectedPersonId('p1');
+      fixture.detectChanges();
+
+      const buttons = Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLElement[];
+      const selected = buttons.find((b) => b.getAttribute('aria-label') === 'Seleccionar Pepet');
+      const other = buttons.find((b) => b.getAttribute('aria-label') === 'Seleccionar Altre');
+
+      expect(selected?.getAttribute('aria-pressed')).toBe('true');
+      expect(selected?.className).toContain('bg-primary');
+      expect(other?.getAttribute('aria-pressed')).toBe('false');
+      expect(other?.className).not.toContain('bg-primary');
+    });
+
+    it('clears the highlight once a node is selected instead (mutually exclusive with selectedNodeId)', () => {
+      const state = TestBed.inject(AssignmentStateService);
+      state.setSelectedPersonId('p1');
+      expect(component.selectedPersonId()).toBe('p1');
+
+      state.setSelectedNodeId('node-1');
+      fixture.detectChanges();
+
+      expect(component.selectedPersonId()).toBeNull();
+    });
+  });
+
   // ── search dropdown (typeahead ranking) ───────────────────────────────────
 
   describe('searchResults ranking', () => {
@@ -792,6 +828,7 @@ describe('PersonPanelComponent', () => {
         z: 0,
         positionType: null,
         sortOrder: 0,
+        climbIndicator: null,
         ringLevel: null,
         originNodeId: null,
         sourceNodeId: null,
@@ -865,6 +902,38 @@ describe('PersonPanelComponent', () => {
       const panel = fixture.nativeElement.querySelector('#assignades-panel');
       const dot = panel?.querySelector('[style*="background-color"]');
       expect(dot).toBeFalsy();
+    });
+  });
+
+  // ── assigned badge cordon label ─────────────────────────────────────────────
+
+  describe('assigned badge cordon label', () => {
+    it('shows the cordon number next to the node label when assignedNodeCordon is set', () => {
+      const person = makeAvailablePerson('p1', 'ANIRE', {
+        assignedInSegment: true,
+        assignedInstanceId: 'instance-1',
+        assignedNodeLabel: 'Mans',
+        assignedNodeCordon: 2,
+      });
+      component.persons.set([person]);
+      fixture.detectChanges();
+
+      const panel = fixture.nativeElement.querySelector('#assignades-panel');
+      expect(panel.querySelector('.badge-info').textContent).toContain('Mans C2');
+    });
+
+    it('shows only the node label when assignedNodeCordon is null', () => {
+      const person = makeAvailablePerson('p1', 'ANIRE', {
+        assignedInSegment: true,
+        assignedInstanceId: 'instance-1',
+        assignedNodeLabel: 'Mans',
+        assignedNodeCordon: null,
+      });
+      component.persons.set([person]);
+      fixture.detectChanges();
+
+      const panel = fixture.nativeElement.querySelector('#assignades-panel');
+      expect(panel.querySelector('.badge-info').textContent.trim()).toBe('Mans');
     });
   });
 });

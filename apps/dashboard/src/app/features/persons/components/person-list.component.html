@@ -5,7 +5,7 @@
     <button
       type="button"
       class="btn btn-primary btn-sm gap-1.5"
-      (click)="navigateToNewPerson()"
+      (click)="openNewPersonModal()"
     >
       <lucide-icon name="Plus" [size]="14" />
       Persona nova
@@ -16,28 +16,6 @@
     </button>
   </app-page-header>
 
-
-  <!-- Tabs: Cens / Provisionals / Tots -->
-  <div class="tabs tabs-bordered">
-    <button
-      type="button"
-      class="tab"
-      [class.tab-active]="provisionalTab() === 'cens'"
-      (click)="setProvisionalTab('cens')"
-    >Cens</button>
-    <button
-      type="button"
-      class="tab"
-      [class.tab-active]="provisionalTab() === 'provisionals'"
-      (click)="setProvisionalTab('provisionals')"
-    >Provisionals</button>
-    <button
-      type="button"
-      class="tab"
-      [class.tab-active]="provisionalTab() === 'tots'"
-      (click)="setProvisionalTab('tots')"
-    >Tots</button>
-  </div>
 
   <!-- Filtres -->
   <app-filter-bar [hasActiveFilters]="hasFilterChips()" (clearFilters)="clearFilters()">
@@ -57,11 +35,11 @@
       </div>
     </label>
 
-    <!-- Posicions -->
+    <!-- Etiquetes -->
     @if (positions().length > 0) {
       <!-- eslint-disable-next-line @angular-eslint/template/label-has-associated-control -->
       <label class="form-control w-full sm:w-48">
-        <div class="label pb-1"><span class="label-text text-xs">Posicions</span></div>
+        <div class="label pb-1"><span class="label-text text-xs">Etiquetes</span></div>
         <div class="dropdown">
           <button tabindex="0" type="button" class="btn btn-bordered btn-sm w-full justify-between">
             @if (selectedPositions().length === 0) {
@@ -96,15 +74,31 @@
     <!-- Actius -->
     <label class="form-control">
       <div class="label pb-1"><span class="label-text text-xs">Estat</span></div>
-      <label class="flex items-center gap-2 cursor-pointer btn btn-bordered btn-sm">
-        <input
-          type="checkbox"
-          class="checkbox checkbox-xs checkbox-primary"
-          [checked]="activeFilters().isActive === true"
-          (change)="toggleActiusFilter()"
-        />
-        <span class="text-sm">Sols actius</span>
-      </label>
+      <div class="flex items-center gap-2">
+        <label class="flex items-center gap-2 cursor-pointer btn btn-bordered btn-sm">
+          <input
+            type="checkbox"
+            class="checkbox checkbox-xs checkbox-primary"
+            [checked]="activeFilters().isActive === true"
+            (change)="toggleActiusFilter()"
+          />
+          <span class="text-sm">Sols actius</span>
+        </label>
+        <div class="join">
+          <button
+            type="button"
+            class="btn btn-sm join-item"
+            [class.btn-active]="provisionalTab() === 'cens'"
+            (click)="setProvisionalTab('cens')"
+          >Cens</button>
+          <button
+            type="button"
+            class="btn btn-sm join-item"
+            [class.btn-active]="provisionalTab() === 'provisionals'"
+            (click)="setProvisionalTab('provisionals')"
+          >Provisionals</button>
+        </div>
+      </div>
     </label>
 
   </app-filter-bar>
@@ -154,6 +148,13 @@
       [totalItems]="totalPersons()"
       (pageChange)="goToPage($event)"
       (limitChange)="onLimitChange($event)"
+    />
+  }
+
+  @if (newPersonModalOpen()) {
+    <app-person-new-modal
+      (closed)="newPersonModalOpen.set(false)"
+      (created)="onPersonCreated($event)"
     />
   }
 

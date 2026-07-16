@@ -3,6 +3,7 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -208,6 +209,13 @@ export class AuthService {
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
     const personId = dto.personId;
 
+    if (personId) {
+      const person = await this.personRepo.findOne({ where: { id: personId } });
+      if (!person) {
+        throw new NotFoundException(`Person with ID ${personId} not found`);
+      }
+    }
+
     const reloaded = await this.dataSource.transaction(async (manager: EntityManager) => {
       const user = manager.create(User, {
         email: dto.email,
@@ -218,10 +226,7 @@ export class AuthService {
       const saved = await manager.save(User, user);
 
       if (personId) {
-        await manager.query(
-          `UPDATE users SET person_id = $1 WHERE id = $2`,
-          [personId, saved.id],
-        );
+        await manager.update(User, saved.id, { person: { id: personId } });
       }
 
       return manager.findOne(User, {

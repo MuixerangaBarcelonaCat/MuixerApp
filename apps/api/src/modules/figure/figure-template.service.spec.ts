@@ -1,6 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  InternalServerErrorException,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import { DataSource } from 'typeorm';
 import { FigureTemplateService } from './figure-template.service';
 import { FigureTemplate } from './entities/figure-template.entity';
 import { FigureNode } from './entities/figure-node.entity';
@@ -38,7 +45,7 @@ const makeNode = (overrides: Partial<FigureNode> = {}): FigureNode => ({
   color: '#FFE082',
   shape: NodeShape.RECTANGLE,
   sortOrder: 5,
-  climbPath: null,
+  climbIndicator: null,
   ringLevel: 1,
   originNodeId: null,
   renglaId: null,
@@ -115,6 +122,21 @@ describe('FigureTemplateService', () => {
     remove: jest.fn(),
   };
 
+  const mockManager = {
+    getRepository: jest.fn((entity) => {
+      if (entity === FigureTemplate) return mockTemplateRepo;
+      if (entity === FigureNode) return mockNodeRepo;
+      if (entity === Rengla) return mockRenglaRepo;
+      throw new Error(`No mock repository registered for ${entity}`);
+    }),
+  };
+
+  const mockDataSource = {
+    transaction: jest.fn((cb: (manager: typeof mockManager) => Promise<unknown>) =>
+      cb(mockManager),
+    ),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
 
@@ -142,6 +164,7 @@ describe('FigureTemplateService', () => {
         { provide: getRepositoryToken(Rengla), useValue: mockRenglaRepo },
         { provide: getRepositoryToken(FigureInstance), useValue: mockFigureInstanceRepo },
         { provide: getRepositoryToken(InstanceNode), useValue: mockInstanceNodeRepo },
+        { provide: DataSource, useValue: mockDataSource },
       ],
     }).compile();
 
@@ -193,7 +216,7 @@ describe('FigureTemplateService', () => {
     it('creates template with slug and name', async () => {
       const saved = makeTemplate({ id: 'new-uuid' });
       mockTemplateRepo.findOne
-        .mockResolvedValueOnce(null) // generateUniqueName: name not taken
+        .mockResolvedValueOnce(null) // assertNameAvailable: name not taken
         .mockResolvedValueOnce(null) // generateUniqueSlug: slug not taken
         .mockResolvedValueOnce({ ...saved, nodes: [] }); // findOne after create
       mockTemplateRepo.save.mockResolvedValue(saved);
@@ -208,26 +231,28 @@ describe('FigureTemplateService', () => {
       expect(mockTemplateRepo.save).toHaveBeenCalled();
     });
 
-    it('auto-suffixes name and slug when name already exists', async () => {
+    it('throws ConflictException when name already exists, matching update()', async () => {
       const existing = makeTemplate({ id: 'existing-uuid', name: 'Trobada', slug: 'trobada' });
-      const saved = makeTemplate({ id: 'new-uuid', name: 'Trobada 2', slug: 'trobada-2' });
+      mockTemplateRepo.findOne.mockResolvedValueOnce(existing); // assertNameAvailable: "Trobada" taken
+
+      await expect(
+        service.create({ name: 'Trobada', slug: 'trobada', nodes: [] }),
+      ).rejects.toThrow(ConflictException);
+      expect(mockTemplateRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('logs the original error before throwing 500 on an unexpected DB failure', async () => {
       mockTemplateRepo.findOne
-        .mockResolvedValueOnce(existing) // generateUniqueName: "Trobada" taken
-        .mockResolvedValueOnce(null) // generateUniqueName: "Trobada 2" free
-        .mockResolvedValueOnce(null) // generateUniqueSlug: "trobada-2" free
-        .mockResolvedValueOnce({ ...saved, nodes: [] });
-      mockTemplateRepo.save.mockImplementation(async (tmpl) => tmpl as FigureTemplate);
+        .mockResolvedValueOnce(null) // assertNameAvailable: name not taken
+        .mockResolvedValueOnce(null); // generateUniqueSlug: slug not taken
+      const dbError = { code: '55000', message: 'some other db failure' };
+      mockTemplateRepo.save.mockRejectedValueOnce(dbError);
+      const errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
 
-      const result = await service.create({
-        name: 'Trobada',
-        slug: 'trobada',
-        nodes: [],
-      });
-
-      expect(mockTemplateRepo.save).toHaveBeenCalledWith(
-        expect.objectContaining({ name: 'Trobada 2', slug: 'trobada-2' }),
-      );
-      expect(result.id).toBe('new-uuid');
+      await expect(
+        service.create({ name: 'Pilar de 4', slug: 'pd4', nodes: [] }),
+      ).rejects.toThrow(InternalServerErrorException);
+      expect(errorSpy).toHaveBeenCalledWith(dbError);
     });
   });
 
@@ -296,6 +321,39 @@ describe('FigureTemplateService', () => {
     it('throws NotFoundException when not found', async () => {
       mockTemplateRepo.findOne.mockResolvedValue(null);
       await expect(service.update('bad-uuid', { name: 'X' })).rejects.toThrow(NotFoundException);
+    });
+
+    it('runs template save, node sync and rengla sync inside a single transaction (SM-11)', async () => {
+      const tmpl = makeTemplate({ nodes: [] });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(tmpl)
+        .mockResolvedValueOnce({ ...tmpl, rengles: [] });
+      mockTemplateRepo.save.mockResolvedValue(tmpl);
+      mockRenglaRepo.find.mockResolvedValue([]);
+
+      await service.update('tmpl-uuid', {
+        nodes: [NODE_DTO],
+        rengles: [{ name: 'Mans Nord', sortOrder: 0 }],
+      });
+
+      expect(mockDataSource.transaction).toHaveBeenCalledTimes(1);
+    });
+
+    it('rolls back node and rengla writes when the template save fails mid-transaction', async () => {
+      const tmpl = makeTemplate({ nodes: [] });
+      mockTemplateRepo.findOne.mockResolvedValueOnce(tmpl);
+      mockTemplateRepo.save.mockRejectedValueOnce({ code: '55000' });
+
+      await expect(
+        service.update('tmpl-uuid', {
+          nodes: [NODE_DTO],
+          rengles: [{ name: 'Mans Nord', sortOrder: 0 }],
+        }),
+      ).rejects.toThrow(InternalServerErrorException);
+
+      // syncNodes/syncRengles never ran because handleDbError threw first, inside the same transaction
+      expect(mockNodeRepo.save).not.toHaveBeenCalled();
+      expect(mockRenglaRepo.save).not.toHaveBeenCalled();
     });
   });
 
@@ -623,7 +681,7 @@ describe('FigureTemplateService', () => {
       color: '#FFE082',
       shape: NodeShape.RECTANGLE,
       sortOrder: 0,
-      climbPath: null,
+      climbIndicator: null,
       ringLevel: 1,
       renglaId: null,
       renglaPosition: null,

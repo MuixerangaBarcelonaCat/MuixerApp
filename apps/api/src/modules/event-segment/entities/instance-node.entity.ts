@@ -84,7 +84,7 @@ export class InstanceNode {
   sortOrder: number;
 
   @Column({ type: 'varchar', nullable: true })
-  climbPath: string | null;
+  climbIndicator: string | null;
 
   @Column({ type: 'int', nullable: true })
   ringLevel: number | null;
@@ -110,6 +110,6 @@ export class InstanceNode {
   @Column({ type: 'uuid', nullable: true })
   createdById: string | null;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 }

@@ -39,6 +39,35 @@
         </button>
       }
     </nav>
+
+    <!-- Prev/next segment navigation -->
+    <div class="flex items-center gap-1 ml-2">
+      <button
+        type="button"
+        class="btn btn-ghost btn-sm btn-square"
+        [disabled]="!ws.previousSegmentId()"
+        (click)="navigateToSegment(ws.previousSegmentId())"
+        aria-label="Segment anterior"
+      >
+        <lucide-icon [img]="ChevronLeft" [size]="18" aria-hidden="true" />
+      </button>
+
+      @if (ws.segmentPosition(); as position) {
+        <span class="text-sm text-base-content/60 tabular-nums px-1">
+          {{ position.current }}/{{ position.total }}
+        </span>
+      }
+
+      <button
+        type="button"
+        class="btn btn-ghost btn-sm btn-square"
+        [disabled]="!ws.nextSegmentId()"
+        (click)="navigateToSegment(ws.nextSegmentId())"
+        aria-label="Segment següent"
+      >
+        <lucide-icon [img]="ChevronRight" [size]="18" aria-hidden="true" />
+      </button>
+    </div>
   </header>
 
   <!-- Tab content -->
@@ -50,10 +79,10 @@
     } @else {
       @switch (activeTab()) {
         @case ('pinyes') {
-          <app-pinyes-tab class="block h-full min-h-0" [isPast]="isPast()" />
+          <app-pinyes-tab class="block h-full min-h-0" [isPast]="isPast()" (crossTabSelect)="onCrossTabSelect($event)" />
         }
         @case ('troncs') {
-          <app-troncs-tab class="block h-full min-h-0" [isPast]="isPast()" />
+          <app-troncs-tab class="block h-full min-h-0" [isPast]="isPast()" (crossTabSelect)="onCrossTabSelect($event)" />
         }
         @case ('distribucio') {
           <app-distribucio-tab class="block h-full min-h-0" />

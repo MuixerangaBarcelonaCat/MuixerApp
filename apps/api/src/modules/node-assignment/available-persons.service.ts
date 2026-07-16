@@ -30,6 +30,7 @@ export interface AvailablePersonDto {
   assignedInSegment: boolean;
   assignedInstanceId?: string;
   assignedNodeLabel?: string;
+  assignedNodeCordon?: number | null;
   positions: AvailablePersonPositionDto[];
 }
 
@@ -75,18 +76,8 @@ export class AvailablePersonsService {
       );
     }
 
-    const { search, height, positionId } = query;
-
-    // HTTP query params arrive as strings — coerce booleans explicitly
-    const raw = query as unknown as Record<string, string | boolean | undefined>;
-    const coerceBool = (v: string | boolean | undefined, def: boolean): boolean => {
-      if (v === undefined) return def;
-      if (typeof v === 'boolean') return v;
-      return v === 'true';
-    };
-    const isXicallaBool: boolean | undefined =
-      raw['isXicalla'] === undefined ? undefined : coerceBool(raw['isXicalla'], false);
-    const excludeAssignedBool = coerceBool(raw['excludeAssigned'], true);
+    const { search, height, positionId, isXicalla: isXicallaBool } = query;
+    const excludeAssignedBool = query.excludeAssigned ?? true;
 
     // Build base person query
     const qb = this.personRepository
@@ -141,7 +132,8 @@ export class AvailablePersonsService {
     if (search) {
       qb.orderBy(
         `GREATEST(
-          word_similarity(unaccent(lower(:rawSearch)), unaccent(lower(person.alias)))
+          word_similarity(unaccent(lower(:rawSearch)), unaccent(lower(person.alias))),
+          word_similarity(unaccent(lower(:rawSearch)), unaccent(lower(person.name)))
         )`,
         'DESC',
       );
@@ -182,7 +174,10 @@ export class AvailablePersonsService {
     }
 
     // Get assigned person details in this segment (for `assignedInSegment` flag + location)
-    const assignedDetails = new Map<string, { instanceId: string; nodeLabel: string }>();
+    const assignedDetails = new Map<
+      string,
+      { instanceId: string; nodeLabel: string; renglaPosition: number | null }
+    >();
     if (!excludeAssignedBool) {
       const segmentAssignments = await this.assignmentRepository.find({
         where: { figureInstance: { segment: { id: segmentId } } },
@@ -192,6 +187,7 @@ export class AvailablePersonsService {
         assignedDetails.set(assignment.person.id, {
           instanceId: assignment.figureInstance.id,
           nodeLabel: assignment.instanceNode?.label ?? '',
+          renglaPosition: assignment.instanceNode?.renglaPosition ?? null,
         });
       });
     }
@@ -235,6 +231,7 @@ export class AvailablePersonsService {
         assignedInSegment: !excludeAssignedBool && assignedDetails.has(person.id),
         assignedInstanceId: detail?.instanceId,
         assignedNodeLabel: detail?.nodeLabel,
+        assignedNodeCordon: detail?.renglaPosition ?? null,
         positions: (person.positions ?? []).map((p) => ({
           id: p.id,
           name: p.name,

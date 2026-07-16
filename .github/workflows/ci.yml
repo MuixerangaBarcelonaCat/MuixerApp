@@ -88,4 +88,8 @@ jobs:
 
       - name: Build (affected, exclude e2e)
         if: github.event_name == 'pull_request'
-        run: npx nx affected -t build --exclude=dashboard-e2e,pwa-e2e --parallel=3
+        run: npx nx affected -t build --exclude=dashboard-e2e,pwa-e2e,pwa --parallel=3
+
+      - name: Test (integration, postgres)
+        if: github.event_name == 'pull_request'
+        run: npx nx run api:test-integration

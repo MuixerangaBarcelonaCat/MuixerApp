@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { AttendanceStatus, AttendanceSummary } from '@muixer/shared';
 import { Attendance } from './attendance.entity';
 import { Event } from './event.entity';
@@ -18,6 +18,7 @@ export class AttendanceService {
     private readonly eventRepository: Repository<Event>,
     @InjectRepository(Person)
     private readonly personRepository: Repository<Person>,
+    private readonly dataSource: DataSource,
   ) {}
 
   /** Retorna una llista paginada d'assistències per a un event concret amb filtres per estat i cerca de persona. */
@@ -138,9 +139,13 @@ export class AttendanceService {
       throw new NotFoundException(`Attendance with ID ${attendanceId} not found`);
     }
 
-    if (dto.status !== undefined) attendance.status = dto.status;
+    // respondedAt marks when the person responded to the attendance request — only a
+    // status change is a "response"; editing notes alone must not touch it (see SM-15).
+    if (dto.status !== undefined && dto.status !== attendance.status) {
+      attendance.status = dto.status;
+      attendance.respondedAt = new Date();
+    }
     if (dto.notes !== undefined) attendance.notes = dto.notes;
-    attendance.respondedAt = new Date();
 
     const saved = await this.attendanceRepository.save(attendance);
     const savedWithRelations = await this.attendanceRepository.findOne({
@@ -178,31 +183,45 @@ export class AttendanceService {
     return { summary };
   }
 
-  /** Recalcula i desa el `attendanceSummary` de l'event a partir dels registres d'assistència actuals. S'executa a cada operació CRUD d'assistència. */
+  /**
+   * Recalcula i desa el `attendanceSummary` de l'event a partir dels registres d'assistència actuals.
+   * S'executa a cada operació CRUD d'assistència. Bloqueja la fila de l'event (`pessimistic_write`)
+   * abans de llegir les assistències, perquè dues recalculacions concurrents del mateix event se
+   * serialitzin — sense això, la segona podria sobreescriure el resultat de la primera amb un
+   * recompte desactualitzat (llegit abans que la primera confirmés el seu canvi).
+   */
   async recalculateSummary(eventId: string): Promise<void> {
-    const attendances = await this.attendanceRepository.find({
-      where: { event: { id: eventId } },
-      relations: ['person'],
+    await this.dataSource.transaction(async (manager) => {
+      await manager
+        .createQueryBuilder(Event, 'event')
+        .setLock('pessimistic_write')
+        .where('event.id = :eventId', { eventId })
+        .getOne();
+
+      const attendances = await manager.find(Attendance, {
+        where: { event: { id: eventId } },
+        relations: ['person'],
+      });
+
+      const summary = {
+        confirmed: attendances.filter((a) => a.status === AttendanceStatus.ANIRE).length,
+        declined: attendances.filter((a) => a.status === AttendanceStatus.NO_VAIG).length,
+        pending: attendances.filter((a) => a.status === AttendanceStatus.PENDENT).length,
+        attended: attendances.filter((a) => a.status === AttendanceStatus.ASSISTIT).length,
+        lateCancel: 0,
+        children: attendances.filter(
+          (a) =>
+            [AttendanceStatus.ANIRE, AttendanceStatus.ASSISTIT].includes(a.status) &&
+            a.person.isXicalla,
+        ).length,
+        childrenAttended: attendances.filter(
+          (a) => a.status === AttendanceStatus.ASSISTIT && a.person.isXicalla,
+        ).length,
+        total: attendances.length,
+      };
+
+      await manager.update(Event, eventId, { attendanceSummary: summary });
     });
-
-    const summary = {
-      confirmed: attendances.filter((a) => a.status === AttendanceStatus.ANIRE).length,
-      declined: attendances.filter((a) => a.status === AttendanceStatus.NO_VAIG).length,
-      pending: attendances.filter((a) => a.status === AttendanceStatus.PENDENT).length,
-      attended: attendances.filter((a) => a.status === AttendanceStatus.ASSISTIT).length,
-      lateCancel: 0,
-      children: attendances.filter(
-        (a) =>
-          [AttendanceStatus.ANIRE, AttendanceStatus.ASSISTIT].includes(a.status) &&
-          a.person.isXicalla,
-      ).length,
-      childrenAttended: attendances.filter(
-        (a) => a.status === AttendanceStatus.ASSISTIT && a.person.isXicalla,
-      ).length,
-      total: attendances.length,
-    };
-
-    await this.eventRepository.update(eventId, { attendanceSummary: summary });
   }
 
   /** Carrega el `attendanceSummary` actualitzat de la DB per retornar-lo immediatament al client. */

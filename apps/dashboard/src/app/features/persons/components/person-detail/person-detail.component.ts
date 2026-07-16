@@ -4,7 +4,6 @@ import {
   inject,
   signal,
   OnInit,
-  computed,
 } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule, RouterLink } from '@angular/router';
@@ -17,6 +16,7 @@ import { NodeAssignmentService } from '../../../pinyes/services/node-assignment.
 import { SeasonService } from '../../../events/services/season.service';
 import { PersonAssignmentEntry } from '../../../pinyes/models/assignment.model';
 import { Season } from '../../../events/models/event.model';
+import { formatNodeCordonLabel } from '../../../pinyes/utils/node-cordon-label.util';
 
 import {
   getAvailabilityLabel,
@@ -68,8 +68,6 @@ export class PersonDetailComponent implements OnInit {
   metadataExpanded = signal(false);
   editing = signal(false);
 
-  isNew = computed(() => !this.route.snapshot.paramMap.get('id'));
-
   allPositions = signal<TagWithCount[]>([]);
   selectedPositionIds = signal<string[]>([]);
 
@@ -110,6 +108,7 @@ export class PersonDetailComponent implements OnInit {
   readonly formatDate = formatDate;
   readonly formatDateTime = formatDateTime;
   readonly formatShoulderHeightRelative = formatShoulderHeightRelative;
+  readonly formatNodeCordonLabel = formatNodeCordonLabel;
   readonly Math = Math;
 
   ngOnInit() {
@@ -126,8 +125,6 @@ export class PersonDetailComponent implements OnInit {
       if (id) {
         this.loadPerson(id);
         this.loadHistory();
-      } else {
-        this.editing.set(true);
       }
     });
   }
@@ -172,7 +169,7 @@ export class PersonDetailComponent implements OnInit {
     this.saveError.set(null);
     this.saveSuccess.set(false);
 
-    const id = this.route.snapshot.paramMap.get('id');
+    const id = this.route.snapshot.paramMap.get('id')!;
     const raw = this.form.getRawValue();
 
     const payload: Partial<UpdatePersonDto> & { positionIds?: string[] } = {
@@ -195,17 +192,12 @@ export class PersonDetailComponent implements OnInit {
       positionIds: this.selectedPositionIds(),
     };
 
-    const request$ = id
-      ? this.personService.update(id, payload)
-      : this.personService.createProvisional(raw.alias!);
-
-    request$.subscribe({
+    this.personService.update(id, payload).subscribe({
       next: (updated) => {
         this.person.set(updated);
         this.saving.set(false);
         this.saveSuccess.set(true);
         this.editing.set(false);
-        if (!id) this.router.navigate(['/persons', updated.id]);
       },
       error: (err) => {
         this.saving.set(false);

@@ -15,12 +15,20 @@ export class AvailablePersonsQueryDto {
   height?: number;
 
   @IsOptional()
-  @Transform(({ value }: { value: unknown }) => value === 'true' || value === true)
+  @Transform(({ value }: { value: unknown }) =>
+    value === undefined ? undefined : value === 'true' || value === true,
+  )
   @IsBoolean()
   isXicalla?: boolean;
 
   @IsOptional()
-  @Transform(({ value }: { value: unknown }) => value === 'true' || value === true)
+  @Transform(({ value }: { value: unknown }) =>
+    value === undefined ? undefined : value === 'true' || value === true,
+  )
   @IsBoolean()
   excludeAssigned?: boolean;
+
+  @IsOptional()
+  @IsString()
+  positionId?: string;
 }

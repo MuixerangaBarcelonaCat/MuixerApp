@@ -24,7 +24,6 @@ class FigureCanvasStub {
   readonly gridEnabled = input<boolean>(false);
   readonly gridSpacing = input<number>(20);
   readonly snapToGrid = input<boolean>(false);
-  readonly cordoObertOpacity = input<number>(1);
   readonly slotSelected = output<string | null>();
   readonly slotMoved = output<{ slotId: string; offsetX: number; offsetY: number; angle: number }>();
   readonly troncMoved = output<{ slotId: string; troncPanelX: number | null; troncPanelY: number | null }>();
@@ -54,7 +53,7 @@ const makeNode = (
   color: null,
   shape: NodeShape.RECTANGLE,
   sortOrder: 0,
-  climbPath: null,
+  climbIndicator: null,
   ringLevel: null,
   originNodeId: null,
   renglaId,
@@ -73,6 +72,7 @@ const makeEntry = (overrides: Partial<CompositionEntryItem> = {}): CompositionEn
   troncPanelY: null,
   figureMode: 'COMPLETA',
   numberOfCordons: null,
+  cordonsObertsEnabled: true,
   sortOrder: 0,
   troncGridCols: 2,
   troncGridRows: 3,
@@ -241,9 +241,71 @@ describe('CompositionEditorComponent', () => {
     expect(component.entries().find((e) => e.id === 'entry-1')?.numberOfCordons).toBeNull();
   });
 
-  it('renders cordo-obert nodes at half opacity', async () => {
-    const { canvasStub } = await setup(COMPOSITION_ID);
-    expect(canvasStub.cordoObertOpacity()).toBe(0.5);
+
+  describe('cordons oberts checkbox', () => {
+    it('propertiesEntry exposes hasCordoObertNodes and cordonsObertsEnabled', async () => {
+      compositionService.getOne.mockReturnValue(
+        of(
+          makeDetail([
+            makeEntry({
+              cordonsObertsEnabled: false,
+              figureTemplate: {
+                id: 'fig-1',
+                name: 'Pilar',
+                hasPinya: true,
+                direction: 0,
+                nodes: [makeNode('co', FigureZone.PINYA, 'r1', 1, { positionType: 'cordo-obert' })],
+              },
+            }),
+          ]),
+        ),
+      );
+      const { component } = await setup(COMPOSITION_ID);
+      component.onSlotSelected('entry-1');
+
+      expect(component.propertiesEntry()).toMatchObject({ hasCordoObertNodes: true, cordonsObertsEnabled: false });
+    });
+
+    it('excludes cordo-obert nodes from the slot entirely when cordonsObertsEnabled is false', async () => {
+      compositionService.getOne.mockReturnValue(
+        of(
+          makeDetail([
+            makeEntry({
+              cordonsObertsEnabled: false,
+              figureTemplate: {
+                id: 'fig-1',
+                name: 'Pilar',
+                hasPinya: true,
+                direction: 0,
+                nodes: [
+                  makeNode('n1', FigureZone.PINYA),
+                  makeNode('co', FigureZone.PINYA, 'r1', 1, { positionType: 'cordo-obert' }),
+                ],
+              },
+            }),
+          ]),
+        ),
+      );
+      const { component } = await setup(COMPOSITION_ID);
+
+      const slot = component.compositionSlots().find((s) => s.slotId === 'entry-1');
+
+      expect(slot?.figureTemplate.nodes.map((n) => n.id)).toEqual(['n1']);
+    });
+
+    it('updateCordonsObertsEnabled patches the entry and autosaves', async () => {
+      const { component } = await setup(COMPOSITION_ID);
+
+      component.updateCordonsObertsEnabled('entry-1', false);
+
+      expect(component.entries().find((e) => e.id === 'entry-1')?.cordonsObertsEnabled).toBe(false);
+      expect(compositionService.update).toHaveBeenCalledWith(
+        COMPOSITION_ID,
+        expect.objectContaining({
+          entries: expect.arrayContaining([expect.objectContaining({ cordonsObertsEnabled: false })]),
+        }),
+      );
+    });
   });
 
   it('always keeps a cordo-obert PINYA node even when its renglaPosition exceeds numberOfCordons', async () => {

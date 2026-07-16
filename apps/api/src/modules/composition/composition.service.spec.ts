@@ -32,6 +32,7 @@ const makeEntry = (overrides: Partial<CompositionEntry> = {}): CompositionEntry 
   troncPanelY: null,
   figureMode: FigureMode.COMPLETA,
   numberOfCordons: null,
+  cordonsObertsEnabled: true,
   sortOrder: 0,
   composition: null as unknown as Composition,
   figureTemplate: makeTemplate(),
@@ -152,7 +153,7 @@ describe('CompositionService', () => {
         color: null,
         shape: 'rectangle',
         sortOrder: 0,
-        climbPath: null,
+        climbIndicator: null,
         ringLevel: null,
         originNodeId: null,
         renglaId: null,
@@ -182,6 +183,16 @@ describe('CompositionService', () => {
 
       const result = await service.findOne('comp-1');
       expect(result.entries[0].figureTemplate.nodes).toEqual([]);
+    });
+
+    it('includes cordonsObertsEnabled in entry item', async () => {
+      const entry = makeEntry({ cordonsObertsEnabled: false });
+      const comp = makeComposition({ entries: [entry] });
+
+      mockCompositionRepo.findOne.mockResolvedValue(comp);
+
+      const result = await service.findOne('comp-1');
+      expect(result.entries[0].cordonsObertsEnabled).toBe(false);
     });
   });
 
@@ -267,6 +278,46 @@ describe('CompositionService', () => {
 
       expect(mockEntryRepo.delete).toHaveBeenCalledWith({ composition: { id: 'comp-1' } });
       expect(mockEntryRepo.save).toHaveBeenCalled();
+    });
+
+    it('defaults cordonsObertsEnabled to true when creating an entry', async () => {
+      const comp = makeComposition();
+      mockCompositionRepo.findOne
+        .mockResolvedValueOnce(comp)
+        .mockResolvedValueOnce({ ...comp, entries: [] });
+      mockCompositionRepo.save.mockResolvedValue(comp);
+      mockEntryRepo.delete.mockResolvedValue({});
+      mockTemplateRepo.findOne.mockResolvedValue(makeTemplate());
+      mockEntryRepo.create.mockImplementation((dto) => dto);
+      mockEntryRepo.save.mockResolvedValue([]);
+
+      await service.update('comp-1', {
+        entries: [{ figureTemplateId: 'tmpl-1' }],
+      });
+
+      expect(mockEntryRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ cordonsObertsEnabled: true }),
+      );
+    });
+
+    it('persists cordonsObertsEnabled: false when explicitly disabled', async () => {
+      const comp = makeComposition();
+      mockCompositionRepo.findOne
+        .mockResolvedValueOnce(comp)
+        .mockResolvedValueOnce({ ...comp, entries: [] });
+      mockCompositionRepo.save.mockResolvedValue(comp);
+      mockEntryRepo.delete.mockResolvedValue({});
+      mockTemplateRepo.findOne.mockResolvedValue(makeTemplate());
+      mockEntryRepo.create.mockImplementation((dto) => dto);
+      mockEntryRepo.save.mockResolvedValue([]);
+
+      await service.update('comp-1', {
+        entries: [{ figureTemplateId: 'tmpl-1', cordonsObertsEnabled: false }],
+      });
+
+      expect(mockEntryRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ cordonsObertsEnabled: false }),
+      );
     });
   });
 

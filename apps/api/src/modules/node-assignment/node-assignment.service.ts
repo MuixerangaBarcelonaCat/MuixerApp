@@ -6,14 +6,16 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import {
   EventType,
+  FigureMode,
   FigureZone,
   NodeShape,
   PINYA_NODE_PRESETS,
   DECORATION_NODE_PRESETS,
   DIRECTION_NODE_PRESETS,
+  SegmentMoveConflictResolution,
 } from '@muixer/shared';
 import { CreateAdHocNodeDto } from './dto/create-ad-hoc-node.dto';
 import { UpdateAdHocNodeDto } from './dto/update-ad-hoc-node.dto';
@@ -38,9 +40,11 @@ export interface AssignmentDetail {
     z: number;
     positionType: string | null;
     sortOrder: number;
+    climbIndicator: string | null;
     ringLevel: number | null;
     originNodeId: string | null;
     sourceNodeId: string | null;
+    renglaPosition: number | null;
   };
   person: {
     id: string;
@@ -51,6 +55,12 @@ export interface AssignmentDetail {
     notes: string | null;
     notesEmoji: string | null;
   };
+}
+
+export interface SegmentMoveConflict {
+  personId: string;
+  /** true if the person occupies a TRONC/BASE node in either the moving instance or the target segment */
+  isTronc: boolean;
 }
 
 export interface InstanceNodeResponse {
@@ -69,6 +79,7 @@ export interface InstanceNodeResponse {
   color: string | null;
   shape: string;
   sortOrder: number;
+  climbIndicator: string | null;
   ringLevel: number | null;
   renglaId: string | null;
   renglaPosition: number | null;
@@ -119,6 +130,7 @@ export interface PersonAssignmentEntry {
   positionType: string | null;
   zone: FigureZone;
   z: number;
+  renglaPosition: number | null;
 }
 
 export interface PersonAssignmentHistory {
@@ -126,13 +138,23 @@ export interface PersonAssignmentHistory {
   meta: { total: number; page: number; limit: number };
 }
 
+export interface FigureAreaCount {
+  assigned: number;
+  total: number;
+}
+
 export interface EventFigureSummary {
   instanceId: string;
   figureName: string;
   snapshotted: boolean;
-  totalNodes: number;
-  assignedNodes: number;
-  assignments: {
+  /** PINYA nodes only, filtered by numberOfCordons/cordonsObertsEnabled and zeroed for REMAT/NETA. */
+  pinya: FigureAreaCount;
+  /** TRONC + BASE nodes (BASE excluded for REMAT). */
+  tronc: FigureAreaCount;
+  /** pinya + tronc + direction nodes; DECORATION excluded (not assignable). */
+  total: FigureAreaCount;
+  /** TRONC/BASE assignments only, unfiltered by figureMode — still needed for name display. */
+  troncBaseAssignments: {
     nodeLabel: string;
     positionType: string | null;
     zone: FigureZone;
@@ -173,18 +195,20 @@ function toAssignmentDetail(assignment: NodeAssignment): AssignmentDetail {
       z: node.z,
       positionType: node.positionType,
       sortOrder: node.sortOrder,
+      climbIndicator: node.climbIndicator,
       ringLevel: node.ringLevel,
       originNodeId: node.originNodeId,
       sourceNodeId: node.sourceNodeId,
+      renglaPosition: node.renglaPosition,
     },
     person: {
       id: assignment.person.id,
-      alias: (assignment.person as any).alias,
-      name: (assignment.person as any).name,
-      firstSurname: (assignment.person as any).firstSurname,
-      shoulderHeight: (assignment.person as any).shoulderHeight ?? null,
-      notes: (assignment.person as any).notes ?? null,
-      notesEmoji: (assignment.person as any).notesEmoji ?? null,
+      alias: assignment.person.alias,
+      name: assignment.person.name,
+      firstSurname: assignment.person.firstSurname,
+      shoulderHeight: assignment.person.shoulderHeight ?? null,
+      notes: assignment.person.notes ?? null,
+      notesEmoji: assignment.person.notesEmoji ?? null,
     },
   };
 }
@@ -206,6 +230,7 @@ function instanceNodeToResponse(node: InstanceNode): InstanceNodeResponse {
     color: node.color,
     shape: node.shape,
     sortOrder: node.sortOrder,
+    climbIndicator: node.climbIndicator,
     ringLevel: node.ringLevel,
     renglaId: node.renglaId,
     renglaPosition: node.renglaPosition,
@@ -232,6 +257,7 @@ function figureNodeToResponse(node: FigureNode): InstanceNodeResponse {
     color: node.color,
     shape: node.shape,
     sortOrder: node.sortOrder,
+    climbIndicator: node.climbIndicator,
     ringLevel: node.ringLevel,
     renglaId: node.renglaId,
     renglaPosition: node.renglaPosition,
@@ -528,6 +554,59 @@ export class NodeAssignmentService {
     await this.assignmentRepository.remove(assignment);
   }
 
+  // ── Segment move — cross-segment person conflicts ──────────────────────────
+
+  async getSegmentMoveConflicts(
+    instanceId: string,
+    targetSegmentId: string,
+  ): Promise<SegmentMoveConflict[]> {
+    const [movingAssignments, targetAssignments] = await Promise.all([
+      this.assignmentRepository.find({
+        where: { figureInstance: { id: instanceId } },
+        relations: ['instanceNode', 'person'],
+      }),
+      this.assignmentRepository.find({
+        where: { segment: { id: targetSegmentId } },
+        relations: ['instanceNode', 'person'],
+      }),
+    ]);
+
+    const TRONC_ZONES = new Set([FigureZone.TRONC, FigureZone.BASE]);
+    const targetByPersonId = new Map(targetAssignments.map((a) => [a.person.id, a]));
+
+    return movingAssignments
+      .filter((a) => targetByPersonId.has(a.person.id))
+      .map((a) => {
+        const targetAssignment = targetByPersonId.get(a.person.id)!;
+        const isTronc =
+          TRONC_ZONES.has(a.instanceNode.zone as FigureZone) ||
+          TRONC_ZONES.has(targetAssignment.instanceNode.zone as FigureZone);
+        return { personId: a.person.id, isTronc };
+      });
+  }
+
+  async resolveSegmentMoveConflicts(
+    instanceId: string,
+    targetSegmentId: string,
+    personIds: string[],
+    resolution: SegmentMoveConflictResolution,
+    manager: EntityManager,
+  ): Promise<void> {
+    if (personIds.length === 0) return;
+
+    if (resolution === SegmentMoveConflictResolution.KEEP_TARGET) {
+      await manager.delete(NodeAssignment, {
+        figureInstance: { id: instanceId },
+        person: In(personIds),
+      });
+    } else {
+      await manager.delete(NodeAssignment, {
+        segment: { id: targetSegmentId },
+        person: In(personIds),
+      });
+    }
+  }
+
   // ── Reset snapshot — wipe all assignments + instance nodes ────────────────
 
   async resetSnapshot(instanceId: string): Promise<{ removedAssignments: number; deletedAdHocCount: number }> {
@@ -607,7 +686,7 @@ export class NodeAssignmentService {
         eventTitle: event.title,
         eventDate: event.date as unknown as string,
         eventType: event.eventType,
-        segmentName: (instance.segment as any).name ?? null,
+        segmentName: instance.segment.name ?? null,
         instanceId: instance.id,
         snapshotted: instance.snapshotted,
         assignmentCount: instance.assignments?.length ?? 0,
@@ -616,7 +695,7 @@ export class NodeAssignmentService {
           nodeId: a.instanceNode.id,
           nodeLabel: a.instanceNode.label,
           personId: a.person.id,
-          personAlias: (a.person as any).alias,
+          personAlias: a.person.alias,
         })),
       };
     });
@@ -659,6 +738,7 @@ export class NodeAssignmentService {
         'inode.positionType AS "positionType"',
         'inode.zone AS "zone"',
         'inode.z AS "z"',
+        'inode.renglaPosition AS "renglaPosition"',
       ]);
 
     if (query.seasonId) {
@@ -686,6 +766,7 @@ export class NodeAssignmentService {
       positionType: r.positionType ?? null,
       zone: r.zone as FigureZone,
       z: Number(r.z),
+      renglaPosition: r.renglaPosition !== null && r.renglaPosition !== undefined ? Number(r.renglaPosition) : null,
     }));
 
     return { data, meta: { total, page, limit } };
@@ -711,6 +792,7 @@ export class NodeAssignmentService {
         where: { segment: { id: segment.id } },
         relations: [
           'figureTemplate',
+          'figureTemplate.nodes',
           'instanceNodes',
           'assignments',
           'assignments.instanceNode',
@@ -718,36 +800,99 @@ export class NodeAssignmentService {
         ],
       });
 
-      const figures: EventFigureSummary[] = instances.map((fi) => {
-        const totalNodes = fi.instanceNodes?.length ?? 0;
-        const assignments = (fi.assignments ?? []).map((a) => ({
-          nodeLabel: a.instanceNode.label,
-          positionType: a.instanceNode.positionType ?? null,
-          zone: a.instanceNode.zone as FigureZone,
-          z: a.instanceNode.z,
-          personAlias: (a.person as any).alias as string,
-          personId: a.person.id,
-        }));
-
-        return {
-          instanceId: fi.id,
-          figureName: fi.figureTemplate?.name ?? 'Sense plantilla',
-          snapshotted: fi.snapshotted,
-          totalNodes,
-          assignedNodes: assignments.length,
-          assignments,
-        };
-      });
+      const figures: EventFigureSummary[] = instances.map((fi) => ({
+        instanceId: fi.id,
+        figureName: fi.figureTemplate?.name ?? 'Sense plantilla',
+        snapshotted: fi.snapshotted,
+        ...this.computeInstanceAreaSummary(fi),
+      }));
 
       result.push({
         segmentId: segment.id,
-        segmentName: (segment as any).name ?? '',
+        segmentName: segment.name ?? '',
         sortOrder: segment.sortOrder,
         figures,
       });
     }
 
     return { segments: result };
+  }
+
+  /**
+   * Buckets a figure instance's nodes/assignments into pinya/tronc/total area
+   * counts, applying the same visibility rules used elsewhere for capacity:
+   * PINYA nodes respect numberOfCordons + cordonsObertsEnabled and are zeroed
+   * for REMAT/NETA; BASE counts as tronc except for REMAT; direction nodes
+   * (FIGURE_DIRECTION/XICALLA_DIRECTION) count only toward total; DECORATION
+   * is excluded entirely (not assignable).
+   */
+  private computeInstanceAreaSummary(fi: FigureInstance): {
+    pinya: FigureAreaCount;
+    tronc: FigureAreaCount;
+    total: FigureAreaCount;
+    troncBaseAssignments: EventFigureSummary['troncBaseAssignments'];
+  } {
+    const nodes = fi.snapshotted ? (fi.instanceNodes ?? []) : (fi.figureTemplate?.nodes ?? []);
+    const figureMode = fi.figureMode ?? FigureMode.COMPLETA;
+    const numberOfCordons = fi.numberOfCordons ?? null;
+    const cordonsObertsEnabled = fi.cordonsObertsEnabled;
+
+    const isPinya = (n: { zone: string; positionType: string | null; renglaPosition: number | null }): boolean => {
+      if (n.zone !== FigureZone.PINYA) return false;
+      if (figureMode === FigureMode.REMAT || figureMode === FigureMode.NETA) return false;
+      if (n.positionType === 'cordo-obert') return cordonsObertsEnabled;
+      if (numberOfCordons === null) return true;
+      return n.renglaPosition === null || n.renglaPosition <= numberOfCordons;
+    };
+    const isTronc = (n: { zone: string }): boolean =>
+      n.zone === FigureZone.TRONC || (n.zone === FigureZone.BASE && figureMode !== FigureMode.REMAT);
+    const isDirection = (n: { zone: string }): boolean =>
+      n.zone === FigureZone.FIGURE_DIRECTION || n.zone === FigureZone.XICALLA_DIRECTION;
+
+    let pinyaTotal = 0;
+    let troncTotal = 0;
+    let directionTotal = 0;
+    for (const n of nodes) {
+      if (isPinya(n)) pinyaTotal++;
+      else if (isTronc(n)) troncTotal++;
+      else if (isDirection(n)) directionTotal++;
+    }
+
+    let pinyaAssigned = 0;
+    let troncAssigned = 0;
+    let directionAssigned = 0;
+    const troncBaseAssignments: EventFigureSummary['troncBaseAssignments'] = [];
+    for (const a of fi.assignments ?? []) {
+      const n = a.instanceNode;
+      if (!n) continue;
+      if (isPinya(n)) {
+        pinyaAssigned++;
+      } else if (isTronc(n)) {
+        troncAssigned++;
+      } else if (isDirection(n)) {
+        directionAssigned++;
+      }
+      if (n.zone === FigureZone.TRONC || n.zone === FigureZone.BASE) {
+        troncBaseAssignments.push({
+          nodeLabel: n.label,
+          positionType: n.positionType ?? null,
+          zone: n.zone as FigureZone,
+          z: n.z,
+          personAlias: a.person.alias as string,
+          personId: a.person.id,
+        });
+      }
+    }
+
+    return {
+      pinya: { assigned: pinyaAssigned, total: pinyaTotal },
+      tronc: { assigned: troncAssigned, total: troncTotal },
+      total: {
+        assigned: pinyaAssigned + troncAssigned + directionAssigned,
+        total: pinyaTotal + troncTotal + directionTotal,
+      },
+      troncBaseAssignments,
+    };
   }
 
 
@@ -818,7 +963,7 @@ export class NodeAssignmentService {
       const sourceNode = sourceAssignment.instanceNode;
       if (sourceNode.isAdHoc) continue; // ad-hoc assignments handled below
       const personId = sourceAssignment.person.id;
-      const personAlias = (sourceAssignment.person as any).alias;
+      const personAlias = sourceAssignment.person.alias;
       const nodeLabel = sourceNode.label;
 
       let targetNode: InstanceNode | undefined;
@@ -922,7 +1067,7 @@ export class NodeAssignmentService {
           color: sourceAdHoc.color,
           shape: sourceAdHoc.shape,
           sortOrder: nextSortOrder++,
-          climbPath: sourceAdHoc.climbPath,
+          climbIndicator: sourceAdHoc.climbIndicator,
           ringLevel: sourceAdHoc.ringLevel,
           renglaId: null,
           renglaPosition: null,
@@ -973,8 +1118,8 @@ export class NodeAssignmentService {
 
   async updateCordons(
     instanceId: string,
-    dto: { numberOfCordons?: number | null },
-  ): Promise<{ numberOfCordons: number | null }> {
+    dto: { numberOfCordons?: number | null; cordonsObertsEnabled?: boolean },
+  ): Promise<{ numberOfCordons: number | null; cordonsObertsEnabled: boolean }> {
     await this.checkEventLock(instanceId);
 
     const instance = await this.figureInstanceRepository.findOne({
@@ -984,8 +1129,13 @@ export class NodeAssignmentService {
       throw new NotFoundException(`FigureInstance with ID ${instanceId} not found`);
     }
 
+    const disablingCordonsOberts = dto.cordonsObertsEnabled === false && instance.cordonsObertsEnabled !== false;
+
     if (dto.numberOfCordons !== undefined) {
       instance.numberOfCordons = dto.numberOfCordons;
+    }
+    if (dto.cordonsObertsEnabled !== undefined) {
+      instance.cordonsObertsEnabled = dto.cordonsObertsEnabled;
     }
 
     await this.figureInstanceRepository.save(instance);
@@ -993,8 +1143,11 @@ export class NodeAssignmentService {
     if (instance.numberOfCordons !== null) {
       await this.removeAssignmentsBeyondCordons(instanceId, instance.numberOfCordons);
     }
+    if (disablingCordonsOberts) {
+      await this.removeCordoObertAssignments(instanceId);
+    }
 
-    return { numberOfCordons: instance.numberOfCordons };
+    return { numberOfCordons: instance.numberOfCordons, cordonsObertsEnabled: instance.cordonsObertsEnabled };
   }
 
   /**
@@ -1028,6 +1181,26 @@ export class NodeAssignmentService {
     await this.assignmentRepository.remove(assignments);
   }
 
+  /**
+   * Deletes assignments on cordo-obert nodes — called when cordonsObertsEnabled
+   * is turned off, since those nodes become hidden from the assignment UI.
+   */
+  private async removeCordoObertAssignments(instanceId: string): Promise<void> {
+    const nodes = await this.instanceNodeRepository.find({
+      where: { figureInstance: { id: instanceId } },
+    });
+    const cordoObertNodeIds = nodes.filter((n) => n.positionType === 'cordo-obert').map((n) => n.id);
+    if (cordoObertNodeIds.length === 0) return;
+
+    const assignments = await this.assignmentRepository.find({
+      where: { figureInstance: { id: instanceId }, instanceNode: { id: In(cordoObertNodeIds) } },
+      relations: ['instanceNode'],
+    });
+    if (assignments.length === 0) return;
+
+    await this.assignmentRepository.remove(assignments);
+  }
+
   // ── Lock — Assignment lock after event date ────────────────────────────────
 
   async getLockStatus(eventId: string): Promise<{ locked: boolean; lockDate: string | null; lockDays: number }> {
@@ -1050,6 +1223,28 @@ export class NodeAssignmentService {
       lockDate: lockDate.toISOString().slice(0, 10),
       lockDays,
     };
+  }
+
+  /**
+   * Variant of checkEventLock for mutations that don't hang off a FigureInstance
+   * (segment CRUD/reorder, instance creation/reorder, composition apply).
+   */
+  async checkEventLockByEventId(eventId: string): Promise<void> {
+    const lockDays = parseInt(process.env.ASSIGNMENT_LOCK_DAYS ?? '2', 10);
+    if (lockDays <= 0) return;
+
+    const event = await this.eventRepository.findOne({ where: { id: eventId } });
+    if (!event) return;
+
+    const eventDate = new Date(event.date);
+    const lockDate = new Date(eventDate);
+    lockDate.setDate(lockDate.getDate() + lockDays);
+
+    if (new Date() > lockDate) {
+      throw new ForbiddenException(
+        `Aquest event està bloquejat (event del ${eventDate.toISOString().slice(0, 10)}, bloqueig després de ${lockDays} dies).`,
+      );
+    }
   }
 
   /** Shared by NodeAssignmentService's own mutations and by FigureInstanceService for the paths that also touch assignment data (mode change, instance removal). */
@@ -1132,7 +1327,7 @@ export class NodeAssignmentService {
             : (preset?.color ?? '#B0BEC5')),
         shape: dto.shape ?? preset?.shape ?? NodeShape.RECTANGLE,
         sortOrder: nextSortOrder,
-        climbPath: null,
+        climbIndicator: null,
         ringLevel: null,
         renglaId: null,
         renglaPosition: null,
@@ -1274,7 +1469,7 @@ export class NodeAssignmentService {
           color: node.color,
           shape: node.shape,
           sortOrder: node.sortOrder,
-          climbPath: node.climbPath,
+          climbIndicator: node.climbIndicator,
           ringLevel: node.ringLevel,
           renglaId: node.renglaId,
           renglaPosition: node.renglaPosition,

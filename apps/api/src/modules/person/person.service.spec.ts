@@ -213,7 +213,7 @@ describe('PersonService', () => {
     });
   });
 
-  describe('deactivate', () => {
+  describe('softDelete', () => {
     it('should deactivate a person without touching lastSyncedAt (that field belongs to the legacy sync)', async () => {
       const originalLastSyncedAt = new Date('2024-01-01');
       const mockPerson = {
@@ -227,12 +227,10 @@ describe('PersonService', () => {
       mockPersonRepository.findOne.mockResolvedValue(mockPerson);
       mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
 
-      const result = await service.deactivate('123');
+      await service.softDelete('123');
 
-      expect(result.isActive).toBe(false);
       expect(mockPersonRepository.findOne).toHaveBeenCalledWith({
         where: { id: '123' },
-        relations: ['positions', 'mentor'],
       });
       expect(mockPersonRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -246,7 +244,7 @@ describe('PersonService', () => {
     it('should throw NotFoundException when person not found', async () => {
       mockPersonRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.deactivate('999')).rejects.toThrow(
+      await expect(service.softDelete('999')).rejects.toThrow(
         NotFoundException,
       );
     });

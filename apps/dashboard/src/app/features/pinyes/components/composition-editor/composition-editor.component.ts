@@ -78,6 +78,8 @@ export class CompositionEditorComponent implements OnInit, OnDestroy {
       offsetX: entry.offsetX,
       offsetY: entry.offsetY,
       angle: entry.angle,
+      cordonsObertsEnabled: entry.cordonsObertsEnabled,
+      hasCordoObertNodes: entry.figureTemplate.nodes.some((n) => n.positionType === 'cordo-obert'),
     };
   });
 
@@ -145,6 +147,9 @@ export class CompositionEditorComponent implements OnInit, OnDestroy {
       filteredNodes,
       entry.numberOfCordons,
     );
+    const visibleNodes = entry.cordonsObertsEnabled
+      ? positionedNodes
+      : positionedNodes.filter((n) => n.positionType !== 'cordo-obert');
 
     return {
       slotId: entry.id,
@@ -160,8 +165,8 @@ export class CompositionEditorComponent implements OnInit, OnDestroy {
       figureTemplate: {
         id: entry.figureTemplate.id,
         name: entry.figureTemplate.name,
-        hasPinya: positionedNodes.some((n) => n.zone === 'PINYA'),
-        nodes: positionedNodes,
+        hasPinya: visibleNodes.some((n) => n.zone === 'PINYA'),
+        nodes: visibleNodes,
       },
     };
   }
@@ -216,6 +221,10 @@ export class CompositionEditorComponent implements OnInit, OnDestroy {
 
   updateNumberOfCordons(id: string, value: number | null): void {
     this.patchEntry(id, { numberOfCordons: value });
+  }
+
+  updateCordonsObertsEnabled(id: string, value: boolean): void {
+    this.patchEntry(id, { cordonsObertsEnabled: value });
   }
 
   addFigureTemplate(template: FigureTemplateListItem): void {
@@ -276,6 +285,7 @@ export class CompositionEditorComponent implements OnInit, OnDestroy {
       troncPanelY: null,
       figureMode: 'COMPLETA',
       numberOfCordons: null,
+      cordonsObertsEnabled: true,
       sortOrder: this.entries().length,
       troncGridCols: 0,
       troncGridRows: 0,
@@ -305,6 +315,7 @@ export class CompositionEditorComponent implements OnInit, OnDestroy {
       troncPanelY: e.troncPanelY ?? null,
       figureMode: e.figureMode,
       numberOfCordons: e.numberOfCordons ?? null,
+      cordonsObertsEnabled: e.cordonsObertsEnabled,
       sortOrder: index,
     }));
   }

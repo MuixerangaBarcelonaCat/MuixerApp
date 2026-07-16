@@ -118,6 +118,24 @@ describe('buildPinyaBuckets', () => {
     expect(buckets[2].map((x) => x.id)).toEqual(['tap']);
   });
 
+  it('places mans/vents/laterals without a cordon after cordo-obert, grouped mans → vents → laterals, followed by the rest', () => {
+    const buckets = buildPinyaBuckets([
+      n('tap', FigureZone.PINYA, 'tap', null),
+      n('l0', FigureZone.PINYA, 'laterals', null),
+      n('v0', FigureZone.PINYA, 'vents', null),
+      n('m0', FigureZone.PINYA, 'mans', null),
+      n('m1', FigureZone.PINYA, 'mans', 1),
+      n('co', FigureZone.PINYA, 'cordo-obert', null),
+    ]);
+    expect(buckets).toHaveLength(6);
+    expect(buckets[0].map((x) => x.id)).toEqual(['m1']);
+    expect(buckets[1].map((x) => x.id)).toEqual(['co']);
+    expect(buckets[2].map((x) => x.id)).toEqual(['m0']);
+    expect(buckets[3].map((x) => x.id)).toEqual(['v0']);
+    expect(buckets[4].map((x) => x.id)).toEqual(['l0']);
+    expect(buckets[5].map((x) => x.id)).toEqual(['tap']);
+  });
+
   it('places PINYA nodes with no renglaPosition and no named type in the rest bucket', () => {
     const buckets = buildPinyaBuckets([
       n('tap', FigureZone.PINYA, 'tap', null),

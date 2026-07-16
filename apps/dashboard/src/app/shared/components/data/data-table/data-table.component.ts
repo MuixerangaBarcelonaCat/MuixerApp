@@ -13,12 +13,14 @@ import { NgClass } from '@angular/common';
 import { LucideAngularModule } from 'lucide-angular';
 import { ColumnDef, GroupSeparator } from '../../../models/column-def.model';
 import { SortOrder, SortChange } from '../../../models/sort.model';
+import { getContrastColor } from '../../../utils/color.util';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface RowAction<T = any> {
-  label: string;
-  icon?: string;
+  label: string | ((item: T) => string);
+  icon?: string | ((item: T) => string | undefined);
   class?: string;
+  hidden?: (item: T) => boolean;
   action: (item: T) => void;
 }
 
@@ -76,6 +78,8 @@ export class DataTableComponent<T extends object> implements AfterViewInit, OnDe
     }
   }
 
+  readonly getContrastColor = getContrastColor;
+
   getCellValue(item: T, col: ColumnDef<T>): string | number | null | undefined {
     if (col.value) return col.value(item);
     return (item as Record<string, unknown>)[col.key] as string | number | null | undefined;
@@ -130,6 +134,20 @@ export class DataTableComponent<T extends object> implements AfterViewInit, OnDe
     const item = this.openActionsItem();
     if (item) action.action(item);
     this.closeActionsMenu();
+  }
+
+  readonly visibleRowActions = computed<RowAction<T>[]>(() => {
+    const item = this.openActionsItem();
+    if (!item) return this.rowActions();
+    return this.rowActions().filter((a) => !a.hidden?.(item));
+  });
+
+  resolveLabel(action: RowAction<T>, item: T): string {
+    return typeof action.label === 'function' ? action.label(item) : action.label;
+  }
+
+  resolveIcon(action: RowAction<T>, item: T): string | undefined {
+    return typeof action.icon === 'function' ? action.icon(item) : action.icon;
   }
 
   private scrollListener = () => this.closeActionsMenu();

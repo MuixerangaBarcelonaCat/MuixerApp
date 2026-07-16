@@ -16,7 +16,7 @@ const makeNode = (overrides: Partial<InstanceNodeItem> = {}): InstanceNodeItem =
   x: 100, y: 100, z: 0,
   width: 60, height: 40, rotation: 0,
   color: null, shape: NodeShape.ELLIPSE,
-  sortOrder: 0, ringLevel: null,
+  sortOrder: 0, climbIndicator: null, ringLevel: null,
   originNodeId: null, renglaId: null, renglaPosition: null,
   sourceNodeId: null, isSnapshotted: true, isAdHoc: true, createdById: null,
   ...overrides,

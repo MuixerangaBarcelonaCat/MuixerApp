@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   inject,
   input,
   OnInit,
@@ -8,13 +9,17 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { LucideAngularModule } from 'lucide-angular';
-import { ICON_FIGURA, ICON_PERSONA, ICON_FIGURA_NETA } from '../../../../shared/constants/domain-icons';
-import { from, concatMap, toArray } from 'rxjs';
+import { ICON_FIGURA, ICON_PERSONA, ICON_COMPOSITION, ICON_FIGURA_NETA, ICON_PINYA, ICON_TRONC } from '../../../../shared/constants/domain-icons';
+import { from, concatMap, forkJoin, toArray } from 'rxjs';
+import { SegmentMoveConflictResolution } from '@muixer/shared';
+import { FiguresViewModeService, FiguresViewMode } from '../../../pinyes/services/figures-view-mode.service';
 import { EventSegmentService } from '../../../pinyes/services/event-segment.service';
 import { FigureInstanceService } from '../../../pinyes/services/figure-instance.service';
 import { CompositionService } from '../../../pinyes/services/composition.service';
+import { NodeAssignmentService } from '../../../pinyes/services/node-assignment.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import {
   FigurePickerModalComponent,
@@ -26,9 +31,11 @@ import {
   FigureMode,
   InstanceTroncSummary,
   TroncFloorData,
+  MoveInstanceResult,
 } from '../../../pinyes/models/segment.model';
+import { EventFigureSummary, FigureAreaCount } from '../../../pinyes/models/assignment.model';
 
-export type ViewMode = 'pinyes' | 'troncs';
+export type ViewMode = FiguresViewMode;
 
 interface PendingInstanceRemoval {
   segment: SegmentDetail;
@@ -39,6 +46,15 @@ interface PendingModeChange {
   segment: SegmentDetail;
   instance: InstanceDetail;
   mode: FigureMode;
+}
+
+interface PendingMoveConflict {
+  sourceSegmentId: string;
+  targetSegmentId: string;
+  instanceId: string;
+  targetIndex: number;
+  total: number;
+  tronc: number;
 }
 
 @Component({
@@ -55,12 +71,17 @@ export class SegmentManagerComponent implements OnInit {
   readonly ICON_FIGURA = ICON_FIGURA;
   readonly ICON_PERSONA = ICON_PERSONA;
   readonly ICON_FIGURA_NETA = ICON_FIGURA_NETA;
+  readonly ICON_PINYA = ICON_PINYA;
+  readonly ICON_TRONC = ICON_TRONC;
+  readonly SegmentMoveConflictResolution = SegmentMoveConflictResolution;
 
   private readonly segmentService = inject(EventSegmentService);
   private readonly instanceService = inject(FigureInstanceService);
   private readonly compositionService = inject(CompositionService);
+  private readonly nodeAssignmentService = inject(NodeAssignmentService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
+  private readonly viewModeService = inject(FiguresViewModeService);
 
   segments = signal<SegmentDetail[]>([]);
   loading = signal(false);
@@ -78,7 +99,7 @@ export class SegmentManagerComponent implements OnInit {
   pendingModeChange = signal<PendingModeChange | null>(null);
   savingModeChange = signal(false);
 
-  viewMode = signal<ViewMode>('pinyes');
+  viewMode = this.viewModeService.mode;
   troncData = signal<Map<string, TroncFloorData[]>>(new Map());
   troncLoading = signal(false);
   troncDataLoaded = signal(false);
@@ -89,9 +110,20 @@ export class SegmentManagerComponent implements OnInit {
   copyPickerSegmentId = signal<string | null>(null);
   copyingInstance = signal(false);
 
-  segmentTotalAssigned(segment: SegmentDetail): number {
-    return segment.instances.reduce((sum, i) => sum + (i.assignedCount ?? 0), 0);
-  }
+  movingInstanceId = signal<string | null>(null);
+  pendingMoveConflict = signal<PendingMoveConflict | null>(null);
+  resolvingMoveConflict = signal(false);
+
+  instanceDropListIds = computed(() => this.segments().map((s) => 'instances-' + s.id));
+
+  private readonly figuresBySegment = signal<Map<string, EventFigureSummary[]>>(new Map());
+  private readonly figureSummaryByInstance = computed(() => {
+    const map = new Map<string, EventFigureSummary>();
+    for (const figures of this.figuresBySegment().values()) {
+      for (const f of figures) map.set(f.instanceId, f);
+    }
+    return map;
+  });
 
   displayName(segment: SegmentDetail): string {
     if (segment.name) return segment.name;
@@ -103,6 +135,19 @@ export class SegmentManagerComponent implements OnInit {
 
   ngOnInit() {
     this.loadSegments();
+    this.loadAssignmentSummary();
+    if (this.viewMode() === 'troncs') {
+      this.loadTroncView();
+    }
+  }
+
+  private loadAssignmentSummary(): void {
+    this.nodeAssignmentService.getEventAssignmentSummary(this.eventId()).subscribe({
+      next: (summary) => {
+        this.figuresBySegment.set(new Map(summary.segments.map((s) => [s.segmentId, s.figures])));
+      },
+      error: () => undefined,
+    });
   }
 
   private loadSegments() {
@@ -120,7 +165,7 @@ export class SegmentManagerComponent implements OnInit {
   }
 
   setViewMode(mode: ViewMode): void {
-    this.viewMode.set(mode);
+    this.viewModeService.set(mode);
     if (mode === 'troncs' && !this.troncDataLoaded()) {
       this.loadTroncView();
     }
@@ -218,7 +263,17 @@ export class SegmentManagerComponent implements OnInit {
     });
   }
 
-  onInstanceDropped(segment: SegmentDetail, event: CdkDragDrop<InstanceDetail[]>): void {
+  onInstanceDropped(segment: SegmentDetail, event: CdkDragDrop<SegmentDetail>): void {
+    if (event.previousContainer !== event.container) {
+      this.moveInstanceAcrossSegments(
+        event.previousContainer.data,
+        segment,
+        event.item.data as InstanceDetail,
+        event.currentIndex,
+      );
+      return;
+    }
+
     const { previousIndex, currentIndex } = event;
     if (previousIndex === currentIndex) return;
 
@@ -236,6 +291,90 @@ export class SegmentManagerComponent implements OnInit {
         this.loadSegments();
       },
     });
+  }
+
+  private moveInstanceAcrossSegments(
+    sourceSegment: SegmentDetail,
+    targetSegment: SegmentDetail,
+    instance: InstanceDetail,
+    targetIndex: number,
+  ): void {
+    this.movingInstanceId.set(instance.id);
+    this.instanceService
+      .move(this.eventId(), sourceSegment.id, instance.id, {
+        targetSegmentId: targetSegment.id,
+        targetIndex,
+      })
+      .subscribe({
+        next: (result) => {
+          this.movingInstanceId.set(null);
+          this.applyMoveResult(result);
+        },
+        error: (err: HttpErrorResponse) => {
+          this.movingInstanceId.set(null);
+          this.handleMoveError(err, sourceSegment.id, targetSegment.id, instance.id, targetIndex);
+        },
+      });
+  }
+
+  private applyMoveResult(result: MoveInstanceResult): void {
+    this.segments.update((list) =>
+      list.map((s) => {
+        if (s.id === result.sourceSegment.id) return result.sourceSegment;
+        if (s.id === result.targetSegment.id) return result.targetSegment;
+        return s;
+      }),
+    );
+  }
+
+  private handleMoveError(
+    err: HttpErrorResponse,
+    sourceSegmentId: string,
+    targetSegmentId: string,
+    instanceId: string,
+    targetIndex: number,
+  ): void {
+    if (err.status === 409 && err.error?.code === 'SEGMENT_MOVE_CONFLICT') {
+      this.pendingMoveConflict.set({
+        sourceSegmentId,
+        targetSegmentId,
+        instanceId,
+        targetIndex,
+        total: err.error.total,
+        tronc: err.error.tronc,
+      });
+      return;
+    }
+    this.toast.error('Error en moure la figura de segment.');
+  }
+
+  resolveMoveConflict(resolution: SegmentMoveConflictResolution): void {
+    const pending = this.pendingMoveConflict();
+    if (!pending) return;
+
+    this.resolvingMoveConflict.set(true);
+    this.instanceService
+      .move(this.eventId(), pending.sourceSegmentId, pending.instanceId, {
+        targetSegmentId: pending.targetSegmentId,
+        targetIndex: pending.targetIndex,
+        conflictResolution: resolution,
+      })
+      .subscribe({
+        next: (result) => {
+          this.resolvingMoveConflict.set(false);
+          this.pendingMoveConflict.set(null);
+          this.applyMoveResult(result);
+        },
+        error: () => {
+          this.resolvingMoveConflict.set(false);
+          this.pendingMoveConflict.set(null);
+          this.toast.error('Error en moure la figura de segment.');
+        },
+      });
+  }
+
+  cancelMoveConflict(): void {
+    this.pendingMoveConflict.set(null);
   }
 
   openCopyPicker(segmentId: string, instanceId: string): void {
@@ -469,6 +608,50 @@ export class SegmentManagerComponent implements OnInit {
         onDone?.();
       },
     });
+  }
+
+  /** "12/20 pinya (2 cor.), 15/24 total" — pinya fragment omitted when the figure has no pinya positions. */
+  figurePinyaLabel(instance: InstanceDetail): string | null {
+    const summary = this.figureSummaryByInstance().get(instance.id);
+    if (!summary) return null;
+
+    const totalPart = `${this.formatAreaCount(summary.total)} total`;
+    if (summary.pinya.total === 0) return totalPart;
+
+    const cordonsPart = this.showCordonsBadge(instance) ? ` (${instance.numberOfCordons} cor.)` : '';
+    return `${this.formatAreaCount(summary.pinya)} pinya${cordonsPart}, ${totalPart}`;
+  }
+
+  /** "23/35 pinyes, 29/45 total" (pinya mode) or "4/10 troncs, 29/45 total" (troncs mode). */
+  segmentPeopleLabel(segment: SegmentDetail): string | null {
+    const figures = this.figuresBySegment().get(segment.id);
+    if (!figures || figures.length === 0) return null;
+
+    const total = this.sumAreaCounts(figures, (f) => f.total);
+    const totalPart = `${this.formatAreaCount(total)} total`;
+
+    if (this.viewMode() === 'troncs') {
+      const tronc = this.sumAreaCounts(figures, (f) => f.tronc);
+      return `${this.formatAreaCount(tronc)} troncs, ${totalPart}`;
+    }
+
+    const pinya = this.sumAreaCounts(figures, (f) => f.pinya);
+    if (pinya.total === 0) return totalPart;
+    return `${this.formatAreaCount(pinya)} pinyes, ${totalPart}`;
+  }
+
+  private formatAreaCount(count: FigureAreaCount): string {
+    return `${count.assigned}/${count.total}`;
+  }
+
+  private sumAreaCounts(
+    figures: EventFigureSummary[],
+    select: (f: EventFigureSummary) => FigureAreaCount,
+  ): FigureAreaCount {
+    return figures.reduce(
+      (acc, f) => ({ assigned: acc.assigned + select(f).assigned, total: acc.total + select(f).total }),
+      { assigned: 0, total: 0 },
+    );
   }
 
   showCordonsBadge(instance: InstanceDetail): boolean {

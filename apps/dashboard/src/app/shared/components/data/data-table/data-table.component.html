@@ -92,6 +92,16 @@
                         <span class="text-xs font-semibold tabular-nums" [ngClass]="pill.class">{{ pill.text }}</span>
                       }
                     </span>
+                  } @else if (col.type === 'colorBadges' && col.colorBadges) {
+                    <div class="flex flex-wrap gap-1">
+                      @for (badge of col.colorBadges(item); track badge.text) {
+                        <span
+                          class="badge badge-sm"
+                          [style.background-color]="badge.color"
+                          [style.color]="getContrastColor(badge.color)"
+                        >{{ badge.text }}</span>
+                      }
+                    </div>
                   } @else {
                     {{ getCellValue(item, col) ?? '—' }}
                   }
@@ -136,7 +146,7 @@
     (click)="$event.stopPropagation()"
     (keydown)="$event.stopPropagation()"
   >
-    @for (action of rowActions(); track action.label) {
+    @for (action of visibleRowActions(); track $index) {
       <li role="none">
         <button
           type="button"
@@ -145,10 +155,10 @@
           [ngClass]="action.class ?? ''"
           (click)="onRowAction(action)"
         >
-          @if (action.icon) {
-            <lucide-icon [name]="action.icon" [size]="14" />
+          @if (resolveIcon(action, items()[openActionsIndex()!]); as icon) {
+            <lucide-icon [name]="icon" [size]="14" />
           }
-          {{ action.label }}
+          {{ resolveLabel(action, items()[openActionsIndex()!]) }}
         </button>
       </li>
     }

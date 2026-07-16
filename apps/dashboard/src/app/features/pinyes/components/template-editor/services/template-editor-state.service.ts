@@ -148,7 +148,7 @@ export class TemplateEditorStateService {
       rotation: 0, color,
       shape: NodeShape.RECTANGLE,
       sortOrder: this.nodes().length,
-      climbPath: null, ringLevel: null, originNodeId: null,
+      climbIndicator: null, ringLevel: null, originNodeId: null,
       renglaId: null, renglaPosition: null, metadata: {},
     };
     this.nodes.update((n) => [...n, newNode]);
@@ -226,7 +226,7 @@ export class TemplateEditorStateService {
       id, label: event.label, zone: FigureZone.TRONC, positionType: event.positionType,
       x: nextX, y: 0, z: event.z, width: 1, height: 40, rotation: 0, color: null,
       shape: NodeShape.RECTANGLE, sortOrder: event.sortOrder,
-      climbPath: null, ringLevel: null, originNodeId: null,
+      climbIndicator: null, ringLevel: null, originNodeId: null,
       renglaId: null, renglaPosition: null, metadata: {},
     };
     this.nodes.update((n) => [...n, newNode]);
@@ -260,7 +260,7 @@ export class TemplateEditorStateService {
       x: 200 + Math.random() * 40 - 20, y: 200 + Math.random() * 40 - 20,
       z: 0, width: DEFAULT_NODE_WIDTH, height: DEFAULT_NODE_HEIGHT,
       rotation: 0, color: '#EEEEEE', shape: NodeShape.RECTANGLE,
-      sortOrder: event.sortOrder, climbPath: null, ringLevel: null,
+      sortOrder: event.sortOrder, climbIndicator: null, ringLevel: null,
       originNodeId: null, renglaId: null, renglaPosition: null, metadata: {},
     };
     this.nodes.update((n) => [...n, newNode]);
@@ -316,7 +316,7 @@ export class TemplateEditorStateService {
       x: event.targetPosition.x, y: event.targetPosition.y, z: source.z,
       width: source.width, height: source.height, rotation: source.rotation,
       color: source.color, shape: source.shape, sortOrder: this.nodes().length,
-      climbPath: null, ringLevel: null, originNodeId: null, renglaId: null, renglaPosition: null, metadata: {},
+      climbIndicator: null, ringLevel: null, originNodeId: null, renglaId: null, renglaPosition: null, metadata: {},
     };
     this.nodes.update((n) => [...n, clonedNode]);
     this.selectedNodeId.set(newId);
@@ -420,7 +420,7 @@ function nodeToPayload(node: FigureNodeItem): CreateFigureNodePayload {
     width: node.width, height: node.height,
     rotation: node.rotation, color: node.color ?? undefined,
     shape: node.shape, sortOrder: node.sortOrder,
-    climbPath: node.climbPath ?? undefined,
+    climbIndicator: node.climbIndicator ?? undefined,
     ringLevel: node.ringLevel ?? undefined,
     originNodeId: node.originNodeId ?? undefined,
     renglaId: node.renglaId ?? undefined,
