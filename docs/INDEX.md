@@ -67,6 +67,15 @@
 | Document | Descripció |
 |----------|------------|
 | [VALIDATION_CHECKLIST.md](VALIDATION_CHECKLIST.md) | Checklist de validació manual (20 punts) |
+| [audit/README.md](audit/README.md) | Índex de les auditories d'usabilitat/responsive (com reproduir-les) |
+| [audit/AUDIT_UX_RESPONSIVE_2026-07.md](audit/AUDIT_UX_RESPONSIVE_2026-07.md) | Visió general responsive del dashboard (rutes de nivell superior) |
+| [audit/AUDIT_PERSONS_2026-07.md](audit/AUDIT_PERSONS_2026-07.md) | Auditoria del mòdul Persons (prioritari) |
+| [audit/AUDIT_EVENTS_2026-07.md](audit/AUDIT_EVENTS_2026-07.md) | Auditoria del mòdul Events (assajos/actuacions) |
+| [audit/AUDIT_PINYES_2026-07.md](audit/AUDIT_PINYES_2026-07.md) | Auditoria del mòdul Pinyes (canvas/gestos) |
+| [audit/AUDIT_CONFIG_2026-07.md](audit/AUDIT_CONFIG_2026-07.md) | Auditoria del mòdul Configuració |
+| [audit/AUDIT_PWA_2026-07.md](audit/AUDIT_PWA_2026-07.md) | Auditoria de la PWA (app de membres, mobile-first) |
+| [audit/AUDIT_GESTURES_2026-07.md](audit/AUDIT_GESTURES_2026-07.md) | Auditoria de gestos tàctils del canvas de Pinyes |
+| [audit/AUDIT_PWA_BEHAVIOR_2026-07.md](audit/AUDIT_PWA_BEHAVIOR_2026-07.md) | Comportament PWA: manifest, service worker, offline |
 
 ### Migracions i Millores Pendents
 

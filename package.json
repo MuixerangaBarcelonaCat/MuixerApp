@@ -33,6 +33,11 @@
     "pwa:build": "nx build pwa",
     "pwa:build:pre": "nx build pwa --configuration=pre",
     "pwa:test": "nx test pwa",
+    "audit:responsive": "playwright test -c apps/dashboard-e2e/playwright.audit.config.ts",
+    "audit:report": "playwright show-report apps/dashboard-e2e/playwright-report-audit",
+    "audit:pwa": "playwright test -c apps/dashboard-e2e/playwright.pwa-audit.config.ts",
+    "audit:gestures": "playwright test -c apps/dashboard-e2e/playwright.gestures.config.ts",
+    "audit:pwa-behavior": "playwright test -c apps/dashboard-e2e/playwright.pwa-behavior.config.ts",
     "ci:local": "npx nx run-many -t lint,test,build --all --exclude=dashboard-e2e,pwa-e2e --parallel=3 --configuration=ci"
   },
   "repository": {
