@@ -155,10 +155,10 @@
           [ngClass]="action.class ?? ''"
           (click)="onRowAction(action)"
         >
-          @if (resolveIcon(action, items()[openActionsIndex()!]); as icon) {
+          @if (resolveIcon(action, openActionsItem()!); as icon) {
             <lucide-icon [name]="icon" [size]="14" />
           }
-          {{ resolveLabel(action, items()[openActionsIndex()!]) }}
+          {{ resolveLabel(action, openActionsItem()!) }}
         </button>
       </li>
     }
