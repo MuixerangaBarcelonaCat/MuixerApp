@@ -57,6 +57,13 @@ npm-debug.log*
 # ── Test coverage ─────────────────────────────────────────
 coverage/
 
+# ── Playwright / E2E audit ────────────────────────────────
+apps/*-e2e/.auth/
+apps/*-e2e/audit-results/
+apps/*-e2e/playwright-report*/
+apps/*-e2e/test-results/
+playwright/.cache/
+
 # -- PRE ────────────────────────────────────────────────
 scripts/tunnel-pre.sh
 
