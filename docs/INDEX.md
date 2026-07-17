@@ -68,6 +68,7 @@
 |----------|------------|
 | [VALIDATION_CHECKLIST.md](VALIDATION_CHECKLIST.md) | Checklist de validació manual (20 punts) |
 | [audit/README.md](audit/README.md) | Índex de les auditories d'usabilitat/responsive (com reproduir-les) |
+| [audit/AUDIT_TRACKING.md](audit/AUDIT_TRACKING.md) | Seguiment de correccions: work items, decisions i estat de cada fix |
 | [audit/AUDIT_UX_RESPONSIVE_2026-07.md](audit/AUDIT_UX_RESPONSIVE_2026-07.md) | Visió general responsive del dashboard (rutes de nivell superior) |
 | [audit/AUDIT_PERSONS_2026-07.md](audit/AUDIT_PERSONS_2026-07.md) | Auditoria del mòdul Persons (prioritari) |
 | [audit/AUDIT_EVENTS_2026-07.md](audit/AUDIT_EVENTS_2026-07.md) | Auditoria del mòdul Events (assajos/actuacions) |

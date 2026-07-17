@@ -5,6 +5,10 @@ Auditories automatitzades amb **Playwright** sobre 4 perfils de dispositiu
 `mobile` 393×851), mesurant overflow horitzontal, elements més amples que el
 viewport, tap targets < 24px (WCAG), errors de consola i captures full-page.
 
+## Seguiment de correccions
+
+👉 **[AUDIT_TRACKING.md](AUDIT_TRACKING.md)** — centre de control: work items de mida PR, decisió (aprovat/descartat) i estat de cada correcció. Res s'implementa sense aprovació prèvia.
+
 ## Documents
 
 | Àrea | Document | Estat destacat |
