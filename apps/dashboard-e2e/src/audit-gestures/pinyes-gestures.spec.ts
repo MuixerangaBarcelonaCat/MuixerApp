@@ -79,7 +79,7 @@ test('pinyes canvas gestures', async ({ page }, testInfo) => {
 
   const shotDir = path.join(SHOTS_DIR, 'gestures', device);
   fs.mkdirSync(shotDir, { recursive: true });
-  const snap = (name: string) => container.screenshot().catch(() => Buffer.alloc(0));
+  const snap = () => container.screenshot().catch(() => Buffer.alloc(0));
 
   if (canvasFound) {
     const box = await container.boundingBox();
@@ -114,15 +114,15 @@ test('pinyes canvas gestures', async ({ page }, testInfo) => {
         zBeforeWheel !== null && result.zoomAfterWheel !== zBeforeWheel;
 
       // --- Pan (one-finger touch drag) ---
-      const beforePan = await snap('pan');
+      const beforePan = await snap();
       await touch.pan({ x: c.x - box.width / 4, y: c.y }, { x: c.x + box.width / 4, y: c.y });
       await page.waitForTimeout(400);
-      const afterPan = await snap('pan');
+      const afterPan = await snap();
       result.panChangedCanvas = buffersDiffer(beforePan, afterPan);
       await page.screenshot({ path: path.join(shotDir, 'after-pan.png') }).catch(() => {});
 
       // --- Pan via mouse drag (to distinguish "unsupported" from "touch not delivered") ---
-      const beforeMouse = await snap('mouse');
+      const beforeMouse = await snap();
       await page.mouse.move(c.x - box.width / 4, c.y);
       await page.mouse.down();
       for (let i = 1; i <= 8; i++) {
@@ -131,29 +131,29 @@ test('pinyes canvas gestures', async ({ page }, testInfo) => {
       }
       await page.mouse.up();
       await page.waitForTimeout(400);
-      result.mouseDragPanChanged = buffersDiffer(beforeMouse, await snap('mouse'));
+      result.mouseDragPanChanged = buffersDiffer(beforeMouse, await snap());
 
       // --- Tap to select a node ---
-      const beforeTap = await snap('tap');
+      const beforeTap = await snap();
       await touch.tap(c);
       await page.waitForTimeout(400);
-      const afterTap = await snap('tap');
+      const afterTap = await snap();
       result.tapChangedCanvas = buffersDiffer(beforeTap, afterTap);
 
       // --- Assignment flow (best-effort): tap a person, then tap the canvas ---
-      const beforeAssign = await snap('assign');
+      const beforeAssign = await snap();
       // People panel sits to the right of the canvas; tap where a row should be.
       const panelX = Math.min(box.x + box.width + 120, (page.viewportSize()?.width ?? box.x) - 20);
       await touch.tap({ x: panelX, y: box.y + 120 });
       await page.waitForTimeout(300);
       await touch.tap(c);
       await page.waitForTimeout(500);
-      const afterAssign = await snap('assign');
+      const afterAssign = await snap();
       result.assignFlowChangedView = buffersDiffer(beforeAssign, afterAssign);
       await page.screenshot({ path: path.join(shotDir, 'after-assign.png') }).catch(() => {});
 
       // --- Zoom via the dropdown (the only supported zoom mechanism) ---
-      const beforeZoomUi = await snap('zoomui');
+      const beforeZoomUi = await snap();
       await page
         .locator('select.zoom-selector')
         .first()
@@ -161,7 +161,7 @@ test('pinyes canvas gestures', async ({ page }, testInfo) => {
         .catch(() => {});
       await page.waitForTimeout(500);
       const zoomVal = await readZoom();
-      result.zoomDropdownWorks = zoomVal === '2' && buffersDiffer(beforeZoomUi, await snap('zoomui'));
+      result.zoomDropdownWorks = zoomVal === '2' && buffersDiffer(beforeZoomUi, await snap());
     }
   }
 
