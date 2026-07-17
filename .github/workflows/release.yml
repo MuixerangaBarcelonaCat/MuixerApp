@@ -58,5 +58,6 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: ${{ matrix.image == 'dashboard' && vars.SITE_ADDRESS && format('SITE_ADDRESS={0}', vars.SITE_ADDRESS) || '' }}
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}

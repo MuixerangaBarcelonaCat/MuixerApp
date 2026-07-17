@@ -245,7 +245,7 @@ output to the segment-list Projecta target.
 **Phase 8 — Cleanup.** Delete `AssignmentCanvasComponent`,
 `DistributionEditorComponent`, `/distribute` route, Distribueix button, old
 split-screen fallback logic. Update `CLAUDE.md` routes section and any docs
-referencing `/distribute`. `pnpm run ci:local` green; run `graphify update .`.
+referencing `/distribute`. `pnpm run ci:local` green.
 
 ## 6. Testing summary
 
