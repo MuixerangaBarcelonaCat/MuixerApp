@@ -37,7 +37,7 @@ _Actualitzat: 2026-07-17_
 | WI-08 | **Detall Event**: assistència com a llista de fitxes en mòbil | Events | 🟠 | M | EV-M2 | 🆕 | ⬜ | — |
 | WI-09 | **Nav tablet**: etiquetes visibles / tooltip real (no només icones) | Shell | 🟠 | S | UX-M4 | 🆕 | ⬜ | — |
 | WI-10 | **Pinyes**: arreglar pestanya **Distribució** en mòbil (`aside w-70` fluid + canvas mai 0px) | Pinyes | 🔴 | M | P-H1 | 🆕 | ⬜ | — |
-| WI-11 | **Pinyes**: blindar `ProjectionViewComponent.ngAfterViewInit` (`nativeElement`) | Pinyes | 🔴 | S | P-H2 | 🆕 | ⬜ | — |
+| WI-11 | **Pinyes**: blindar `ProjectionViewComponent.ngAfterViewInit` (`nativeElement`) | Pinyes | 🔴 | S | P-H2 | ✅ | 🟣 | `fix/audit-projection-nativeelement` |
 | WI-12 | **Pinyes**: barra de 5 pestanyes scrollable en mòbil | Pinyes | 🟠 | S | P-M1 | 🆕 | ⬜ | — |
 | WI-13 | **Pinyes**: layout mòbil del workspace (canvas full-width + panell drawer) | Pinyes | 🔴 | L | P-M2, GE-H3 | 🆕 | ⬜ | — |
 | WI-14 | **Pinyes gestos**: pinch-to-zoom (+ wheel-zoom desktop) | Pinyes | 🔴 | M | GE-H1 | 🆕 | ⬜ | — |
@@ -57,7 +57,7 @@ _(Buit — s'omple a mesura que es decideix cada work item, amb data i motiu.)_
 
 | Data | Work item | Decisió | Motiu |
 |------|-----------|---------|-------|
-| — | — | — | — |
+| 2026-07-17 | WI-11 | ✅ Aprovat | Quick win: error JS real, risc baix, bon primer PR per rodar el flux. Implementat amb `viewChild()` + `effect` i verificat en mòbil (Previsualitza sense error, projecció renderitza). Branca `fix/audit-projection-nativeelement` → PR a `develop`. |
 
 ---
 
