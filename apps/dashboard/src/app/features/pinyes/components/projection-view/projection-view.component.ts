@@ -1,16 +1,16 @@
 import {
-  AfterViewInit,
   ChangeDetectionStrategy,
   Component,
   ElementRef,
   HostListener,
   OnDestroy,
   OnInit,
-  ViewChild,
   computed,
+  effect,
   inject,
   input,
   signal,
+  viewChild,
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
@@ -61,12 +61,14 @@ interface DistributionTroncPanel {
   templateUrl: './projection-view.component.html',
   styleUrl: './projection-view.component.scss',
 })
-export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy {
+export class ProjectionViewComponent implements OnInit, OnDestroy {
   /** True when rendered inside another shell (e.g. the segment workspace's Previsualitza tab),
    *  which already owns fullscreen layout — the standalone route always leaves this false. */
   readonly embedded = input(false);
 
-  @ViewChild('figuresContainer') private readonly figuresContainerRef!: ElementRef<HTMLDivElement>;
+  /** Signal query: the element only exists while `segmentData()` is set (it lives
+   *  under an `@if` in the template), so it may be absent on first render. */
+  private readonly figuresContainer = viewChild<ElementRef<HTMLDivElement>>('figuresContainer');
 
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -431,6 +433,26 @@ export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy
   private cursorTimer: ReturnType<typeof setTimeout> | null = null;
   private resizeObserver: ResizeObserver | null = null;
 
+  constructor() {
+    this.resizeObserver = new ResizeObserver((entries) => {
+      const rect = entries[0]?.contentRect;
+      if (rect) {
+        this.containerWidth.set(rect.width);
+        this.containerHeight.set(rect.height);
+      }
+    });
+    // The container lives under an `@if (segmentData())`, so it may be absent on
+    // first render (notably when embedded before data has loaded). Attach the
+    // observer whenever the element appears — and detach the previous one —
+    // instead of reading `nativeElement` off a possibly-undefined query at a
+    // single lifecycle moment.
+    effect(() => {
+      const el = this.figuresContainer()?.nativeElement;
+      this.resizeObserver?.disconnect();
+      if (el) this.resizeObserver?.observe(el);
+    });
+  }
+
   // ── Lifecycle ───────────────────────────────────────────────────────────────
 
   ngOnInit(): void {
@@ -442,17 +464,6 @@ export class ProjectionViewComponent implements OnInit, AfterViewInit, OnDestroy
     this.segmentId = params['segmentId'];
     this.instanceId = this.embedded() ? '' : (params['instanceId'] ?? '');
     this.loadSegment();
-  }
-
-  ngAfterViewInit(): void {
-    this.resizeObserver = new ResizeObserver((entries) => {
-      const rect = entries[0]?.contentRect;
-      if (rect) {
-        this.containerWidth.set(rect.width);
-        this.containerHeight.set(rect.height);
-      }
-    });
-    this.resizeObserver.observe(this.figuresContainerRef.nativeElement);
   }
 
   ngOnDestroy(): void {
