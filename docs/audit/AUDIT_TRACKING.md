@@ -33,7 +33,7 @@ _Actualitzat: 2026-07-19_
 | WI-04 | **Localització de dates** (`lang="ca"` a l'input date; treure Title-Case a Home) | Transversal | 🟠 | S | PE-M3(data), UX-L2 | 🆕 | ⬜ | — |
 | WI-05 | **Formulari Persona**: apilar etiqueta/input en mòbil | Persons | 🟠 | S | PE-M3(layout) | 🆕 | ⬜ | — |
 | WI-06 | **Detall Persona**: `flex-wrap` a les barres de botons (no tallar en mòbil) | Persons | 🟠 | S | PE-M2 | 🆕 | ⬜ | — |
-| WI-07 | **Detall Persona**: no duplicar àlies a la capçalera | Persons | 🟡 | XS | PE-L3 | 🆕 | ⬜ | — |
+| WI-07 | **Detall Persona**: no duplicar àlies a la capçalera | Persons | 🟡 | XS | PE-L3 | ✅ | 🟣 | `fix/audit-person-detail-alias` |
 | WI-08 | **Detall Event**: assistència com a llista de fitxes en mòbil | Events | 🟠 | M | EV-M2 | 🆕 | ⬜ | — |
 | WI-09 | **Nav tablet**: etiquetes visibles / tooltip real (no només icones) | Shell | 🟠 | S | UX-M4 | 🆕 | ⬜ | — |
 | WI-10 | **Pinyes**: arreglar pestanya **Distribució** en mòbil (`aside w-70` fluid + canvas mai 0px) | Pinyes | 🔴 | M | P-H1 | 🆕 | ⬜ | — |
@@ -46,6 +46,7 @@ _Actualitzat: 2026-07-19_
 | WI-17 | **PWA**: amplada del toggle "Vinc/No vinc" (no trencar en 2 línies) | PWA | 🟡 | XS | PW-L2 | 🆕 | ⬜ | — |
 | WI-18 | **PWA offline**: verificar en desplegament real + endurir el test | PWA | ⚠️ | S | PB-offline | 🆕 | ⬜ | — |
 | WI-19 | **PWA manifest**: confirmar icones 192px i 512px | PWA | 🟡 | XS | PB-icons | 🆕 | ⬜ | — |
+| WI-20 | **Estabilitzar tests flaky de components de canvas** (`nodes-tab`, `troncs-tab`, `template-editor`, `person-panel`) — bloquegen el flux de PR del dashboard | Dashboard/CI | 🔴 | M | CI-flaky | 🆕 | ⬜ | — |
 
 > **Nota d'ordre de treball:** la infra d'auditoria + informes + aquest seguiment viuen a la branca `feat/audit-suite` (PR a `develop`, pendent d'integrar). Els fixes es branquegen des de `develop` amb `fix/audit-<slug>`.
 
@@ -100,3 +101,4 @@ _(Buit — s'omple a mesura que es decideix cada work item, amb data i motiu.)_
 | PWA-BEHAVIOR | icones 192/512 | WI-19 |
 | UX (general) | UX-M4 (nav tablet només icones) | WI-09 |
 | UX (general) | UX-L2 (dates Title-Case Home) | WI-04 |
+| CI (observació) | CI-flaky (tests de canvas no deterministes) | WI-20 |
