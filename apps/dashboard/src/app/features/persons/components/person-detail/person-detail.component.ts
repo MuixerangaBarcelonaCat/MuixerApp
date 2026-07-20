@@ -1,6 +1,7 @@
 import {
   Component,
   ChangeDetectionStrategy,
+  computed,
   inject,
   signal,
   OnInit,
@@ -58,6 +59,16 @@ export class PersonDetailComponent implements OnInit {
   private readonly toast = inject(ToastService);
 
   person = signal<Person | null>(null);
+
+  /** Full name shown under the alias in the header, or '' when it would just
+   *  repeat the alias (e.g. provisional members whose name equals the alias). */
+  readonly headerSubtitle = computed(() => {
+    const p = this.person();
+    if (!p) return '';
+    const full = [p.name, p.firstSurname, p.secondSurname].filter(Boolean).join(' ').trim();
+    return full && full !== p.alias ? full : '';
+  });
+
   loading = signal(false);
   saving = signal(false);
   saveError = signal<string | null>(null);

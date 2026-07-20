@@ -17,10 +17,8 @@
           <span class="badge badge-error badge-sm">Inactiu</span>
         }
       </div>
-      @if (person()) {
-        <p class="text-xs text-base-content/50 mt-0.5">
-          {{ person()!.name }} {{ person()!.firstSurname }}{{ person()!.secondSurname ? ' ' + person()!.secondSurname : '' }}
-        </p>
+      @if (headerSubtitle()) {
+        <p class="text-xs text-base-content/50 mt-0.5">{{ headerSubtitle() }}</p>
       }
     </div>
 
