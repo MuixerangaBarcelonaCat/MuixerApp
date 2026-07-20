@@ -30,7 +30,7 @@ _Actualitzat: 2026-07-19_
 | WI-01 | Investigar i resoldre el **403 de bootstrap** (crida sense permisos en carregar) | Transversal | 🔴 | S | PE-H1, PW-M1 | 🆕 | ⬜ | — |
 | WI-02 | **Mode targeta responsive** a `app-data-table` (`< lg`) | Transversal | 🔴 | L | PE-M1, EV-H1, EV-M1, CF-L2 | 🆕 | ⬜ | — |
 | WI-03 | **Normalitzar tap targets ≥24px** (chips, checkboxes, enllaços, badges) | Transversal | 🟠 | M | PE-L1, PE-L2, EV-M3, CF-L1, PW-L3, PW-L4 | 🆕 | ⬜ | — |
-| WI-04 | **Localització de dates** (`lang="ca"` a l'input date; treure Title-Case a Home) | Transversal | 🟠 | S | PE-M3(data), UX-L2 | ✅ | 🚧 | `fix/audit-date-localization` |
+| WI-04 | **Localització de dates** (Title-Case a Home; input date ja OK) | Transversal | 🟠 | S | PE-M3(data), UX-L2 | ✅ | 🟣 | `fix/audit-date-localization` |
 | WI-05 | **Formulari Persona**: apilar etiqueta/input en mòbil | Persons | 🟠 | S | PE-M3(layout) | 🆕 | ⬜ | — |
 | WI-06 | **Detall Persona**: `flex-wrap` a les barres de botons (no tallar en mòbil) | Persons | 🟠 | S | PE-M2 | 🆕 | ⬜ | — |
 | WI-07 | **Detall Persona**: no duplicar àlies a la capçalera | Persons | 🟡 | XS | PE-L3 | 🆕 | ⬜ | — |
@@ -58,7 +58,7 @@ _(Buit — s'omple a mesura que es decideix cada work item, amb data i motiu.)_
 | Data | Work item | Decisió | Motiu |
 |------|-----------|---------|-------|
 | 2026-07-17 | WI-11 | ✅ Aprovat → ✔️ Fet | Quick win: error JS real, risc baix, bon primer PR per rodar el flux. Implementat amb `viewChild()` + `effect` i verificat en mòbil (Previsualitza sense error, projecció renderitza). **Fusionada a develop via PR #78 (2026-07-17).** |
-| 2026-07-19 | WI-04 | ✅ Aprovat | Petit i visible, baix risc. Format de data europeu (`dd/mm/yyyy`) i treure el Title-Case de dates a Home. Branca `fix/audit-date-localization` des de `develop`. |
+| 2026-07-19 | WI-04 | ✅ Aprovat → 🟣 En PR | Fix del Title-Case de dates a Home (capitalitzar només la 1a lletra a `formatDate`, treure la classe CSS `capitalize`). **L'input de data no necessita canvi**: `<html lang="ca">` ja hi és i el format del natiu `<input type="date">` el marca el locale del navegador (el `mm/dd/yyyy` era artefacte de l'entorn de test). Branca `fix/audit-date-localization`. |
 
 ---
 
