@@ -6,6 +6,8 @@ import {
   computed,
   signal,
   HostListener,
+  AfterViewInit,
+  OnDestroy,
 } from '@angular/core';
 import { NgClass } from '@angular/common';
 import { LucideAngularModule } from 'lucide-angular';
@@ -30,7 +32,7 @@ export interface RowAction<T = any> {
   host: { class: 'block' },
   templateUrl: './data-table.component.html',
 })
-export class DataTableComponent<T extends object> {
+export class DataTableComponent<T extends object> implements AfterViewInit, OnDestroy {
   items = input.required<T[]>();
   columns = input.required<ColumnDef<T>[]>();
   visibleColumns = input<string[]>([]);
@@ -102,12 +104,12 @@ export class DataTableComponent<T extends object> {
     return index === 0 || !sep.predicate(prevItem);
   }
 
-  readonly openActionsIndex = signal<number | null>(null);
+  readonly openActionsItem = signal<T | null>(null);
   readonly menuPosition = signal<{ top: number; left: number } | null>(null);
 
-  toggleActionsMenu(event: Event, index: number): void {
+  toggleActionsMenu(event: Event, item: T): void {
     event.stopPropagation();
-    if (this.openActionsIndex() === index) {
+    if (this.openActionsItem() === item) {
       this.closeActionsMenu();
       return;
     }
@@ -120,26 +122,22 @@ export class DataTableComponent<T extends object> {
       top: rect.bottom + 4,
       left: Math.max(8, rect.right - menuWidth),
     });
-    this.openActionsIndex.set(index);
+    this.openActionsItem.set(item);
   }
 
   closeActionsMenu(): void {
-    this.openActionsIndex.set(null);
+    this.openActionsItem.set(null);
     this.menuPosition.set(null);
   }
 
-  onRowAction(action: RowAction<T>, item: T): void {
-    action.action(item);
+  onRowAction(action: RowAction<T>): void {
+    const item = this.openActionsItem();
+    if (item) action.action(item);
     this.closeActionsMenu();
   }
 
-  readonly openItem = computed<T | null>(() => {
-    const idx = this.openActionsIndex();
-    return idx !== null ? (this.items()[idx] ?? null) : null;
-  });
-
   readonly visibleRowActions = computed<RowAction<T>[]>(() => {
-    const item = this.openItem();
+    const item = this.openActionsItem();
     if (!item) return this.rowActions();
     return this.rowActions().filter((a) => !a.hidden?.(item));
   });
@@ -152,13 +150,18 @@ export class DataTableComponent<T extends object> {
     return typeof action.icon === 'function' ? action.icon(item) : action.icon;
   }
 
-  @HostListener('document:keydown.escape')
-  onEscape(): void {
-    this.closeActionsMenu();
+  private scrollListener = () => this.closeActionsMenu();
+
+  ngAfterViewInit(): void {
+    document.addEventListener('scroll', this.scrollListener, true);
   }
 
-  @HostListener('window:scroll')
-  onWindowScroll(): void {
+  ngOnDestroy(): void {
+    document.removeEventListener('scroll', this.scrollListener, true);
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
     this.closeActionsMenu();
   }
 }

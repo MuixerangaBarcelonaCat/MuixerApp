@@ -26,6 +26,19 @@ Members' personal data (name, email, phone, birth date, height) requires:
   - Short-lived tokens mitigate query param exposure
   - HTTPS enforced in production
 
+## Magic-Link Tokens
+
+- **TTL**: 72 hours from creation (configurable via `MAGIC_LINK_TTL_HOURS`)
+- **Single-use**: `consumedAt` set on first successful login — token is dead after use
+- **Revocable**: admin can revoke at any time (sets `revokedAt`)
+- **Storage**: bcrypt hash only, never store raw token
+- **Validation order**: revoked → expired → consumed → bcrypt match → user.isActive
+- **Rate limiting**: 10 req/min per IP on magic-link validation endpoint
+- **Error response**: generic message for all failure cases (no info leakage)
+- **Regeneration**: replaces previous token (upsert), fresh TTL
+- **Session independence**: consuming/revoking a token does NOT invalidate existing JWT sessions
+- **Worst-case exposure**: 72h if unused, 0 once consumed
+
 ## API Security
 
 - CORS: only known origins

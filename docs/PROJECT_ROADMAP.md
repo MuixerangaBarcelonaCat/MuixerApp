@@ -37,55 +37,69 @@
 | P5.10 | **Pinyes** — Posicions, Lock i Historials | ✅ Completat | [`spec`](specs/2026-05-26-p5-10-positions-lock-history-design.md) | ✅ | ✅ | PositionModule + lock automàtic + filtre per posició + historials (persona/event/família) |
 | P5.11 | **Pinyes** — Integració de Rengles | ✅ Completat | [`spec`](specs/2026-05-28-rengles-integration-spec.md) | ✅ | ✅ | Rengla entity, editor de rengles, ghost clone, selector de cordons, projecció filtrada. UX simplificada a R3 |
 | P5.12 | **Pinyes** — Nodes Ad-Hoc a Instàncies | ✅ Completat | [`spec`](specs/2026-06-10-ad-hoc-instance-nodes-design.md) | ✅ | ✅ | 5 fases: PINYA ad-hoc, DECORATION, DIRECTION, undo/redo, save-as-template. Substitueix `ReferenceElement` |
+| P5.13 | **Pinyes** — Figures Netes (Tronc Editor de 1a Classe) | ✅ Completat | [`spec`](specs/2026-06-17-figures-netes-tronc-editor-design.md) | ✅ | ✅ | `hasPinya: false` com a flux complert: editor tronc autònom, propietats de node, selecció per tags, integració assignació/projecció |
+| UX1 | **UX** — Millores Assignació i Projecció | ✅ Completat | — | — | ✅ | Fuzzy search, Enter-to-assign, desassignació, cordons oberts agrupats, decoratius no comptabilitzats, projecció inline tronc, accés directe assignacions |
 | R1 | **Refactor** — Eliminació de FigureFamily | ✅ Completat | — | — | ✅ | Migració DB, simplificació model (FamilyNode → FigureNode directe), cleanup frontend |
 | R2 | **Refactor** — Eliminació de ReferenceElement | ✅ Completat | — | — | ✅ | Mòdul eliminat, substituït per nodes DECORATION ad-hoc (P5.12) |
 | R3 | **Refactor** — Simplificació de Rengles i templates | ✅ Completat | — | — | ✅ | Auto-nom/slug, creació de rengles sense formulari, eliminació `startPosition`, desassignació al reduir cordons. Migració `1781300000000`. Detall: [PINYES_REFACTOR_TRACKING.md](PINYES_REFACTOR_TRACKING.md) |
+| R4 | **Refactor** — Troncs + Dead Code + Cordons | ✅ Completat | — | — | ✅ | Refactor troncs (#23/#25), eliminació codi mort (#24), refactor cordons/rengles (#12), diàleg cordons eliminat |
 | I1 | **Infra** — Entorn PRE (Hetzner VPS) | ✅ Completat | — | — | ✅ | Caddy reverse proxy, Docker Compose pre, scripts deploy, cookie secure condicional |
 | I2 | **Infra** — Migració a pnpm | ✅ Completat | — | — | ✅ | pnpm workspace, lockfile, CI adaptat |
-| P6 | PWA Mòbil | ⚪ Pendent | — | — | — | Diferit fins al tall. Estén l'auth de P4.1 als membres |
+| FIX1 | **Fix** — Seguretat rols i UX menors | ✅ Completat | — | — | ✅ | Admin grant guard (#33), ghost clone fix, canvas viewport center, zona selector oculta, presets unificats |
+| P6 | **PWA Mòbil** (P6.0–P6.9) | 🔵 En curs | [`spec`](pwa/PWA_SPEC.md) | ✅ | 🔵 | 10 fases. P6.0 (app shell) en curs. Detall: [PWA_ROADMAP.md](pwa/PWA_ROADMAP.md) |
 | P7 | Informes + Notificacions + Features avançades | ⚪ Pendent | — | — | — | Reports d'assistència, FCM, estadístiques, notícies |
 
 **Llegenda:** ⚪ Pendent | 🟡 Dissenyant | 🔵 En curs | ✅ Completat | ❌ Cancel·lat
 
-> **Prefixos:** `P` = producte, `R` = refactor, `I` = infraestructura
+> **Prefixos:** `P` = producte, `R` = refactor, `I` = infraestructura, `UX` = millores UX, `FIX` = correccions
 >
 > El detall complet de cada fase del **Mòdul Pinyes (P5.x)** viu a [PINYES_MODULE.md](PINYES_MODULE.md)
 > (conceptes de domini, model de dades, cicle de vida, upgrade, API, arquitectura frontend, troncs,
-> convenció de bases, projecció, nodes ad-hoc). Vegeu també les specs enllaçades a la taula.
+> convenció de bases, projecció, nodes ad-hoc, figures netes). Vegeu també les specs enllaçades a la taula.
 
 ---
 
 ## Pròxims Desenvolupaments (proposta)
 
+### Immediat — En curs (juny 2026)
+
+| ID | Proposta | Esforç | Impacte | Justificació |
+|----|----------|--------|---------|--------------|
+| P6.0 | **PWA — App Shell** — Scaffold, bottom tabs, Docker, manifest, routing bàsic | S | Alt | Prerequisit per a totes les fases PWA. Branca: `feat/pwa-app-start` |
+| P6.1 | **PWA — Auth** — Login, guards, interceptor, refresh token flow | S | Alt | Sense auth no hi ha res. Reutilitza backend existent |
+
 ### Curt termini (juliol 2026)
 
 | ID | Proposta | Esforç | Impacte | Justificació |
 |----|----------|--------|---------|--------------|
+| P6.2 | **PWA — Events i Assistència** — `MeModule`, home, llista events, confirmar/declinar assistència | M | Molt alt | MVP funcional per membres. Primer valor real per als ~40 membres |
+| P6.3 | **PWA — Detall d'Event** — Segments visibles, accordion, info figures | S | Alt | Context necessari perquè els membres entenguin què assagen |
 | P5.3.1 | **Revisió UX Segments** — Tab "Pinyes" a event-detail, preview canvas inline, navegació fluida entre segments | M | Alt | UX fragmentada: els tècnics han de navegar massa clics per arribar al canvas d'assignació |
-| P5.13 | **Editor de Templates v2** — Reordenar nodes drag-and-drop, duplicar template, importar nodes d'altra plantilla | S | Mitjà | Feedback tècnics: crear templates similars és repetitiu |
 | Q1 | **Qualitat** — E2E tests (Playwright) per a fluxos crítics: login → crear event → assignar → projectar | M | Alt | Cobertura E2E = 0%. Risc de regressions en fluxos multi-pàgina |
 
 ### Mitjà termini (agost–setembre 2026)
 
 | ID | Proposta | Esforç | Impacte | Justificació |
 |----|----------|--------|---------|--------------|
-| P6.1 | **PWA — Auth + Visualització** — Login membre, veure events propis, confirmar assistència, veure pinyes (readonly) | L | Molt alt | Desbloqueig per a tots els membres de la colla. Prerequisit: res (reutilitza AuthModule P4.1) |
-| P6.2 | **PWA — Notificacions push** — FCM/Web Push per a convocatòries i recordatoris | M | Alt | Complementa P6.1 — sense push la PWA perd adopció |
+| P6.4–P6.7 | **PWA — Features avançades** — Gestió familiar, canvas readonly, perfil, funcionalitats TECHNICAL | M-L | Alt | Cobertura completa per a tots els rols d'usuari |
+| P6.8 | **PWA — Magic-Link Auth** — Token d'invitació sense password per a membres | M | Alt | Elimina fricció d'onboarding. Molts membres no recordaran passwords |
+| P5.14 | **Editor de Templates v2** — Reordenar nodes drag-and-drop, duplicar template, importar nodes d'altra plantilla | S | Mitjà | Feedback tècnics: crear templates similars és repetitiu |
 | P8 | **Dashboard d'Estadístiques** — Assistència per persona/temporada, ranking, participació en figures, gràfics | M | Alt | Dades ja disponibles. Valor per a junta i tècnics |
 
 ### Llarg termini (Q4 2026+)
 
 | ID | Proposta | Esforç | Impacte | Justificació |
 |----|----------|--------|---------|--------------|
+| P6.9 | **PWA — Notificacions Push** — FCM, registre dispositiu, preferències | M | Alt | Engagement dels membres. Requereix P6.0–P6.2 estables |
 | P9 | **Multi-tenant** — `collaId` al JWT, guard de tenant, branding dinàmic (logo, colors), onboarding colla | XL | Estratègic | Permet oferir l'app a altres colles. Prerequisit: P6 estable |
 | P10 | **Exportació i Impressió** — PDF de pinyes (canvas → imatge), llistats d'assistència imprimibles, CSV | S | Mitjà | Tècnics demanen imprimir les pinyes per als assajos |
 | P11 | **Historial i Auditoria** — Log d'accions (qui va canviar què), versionat de templates, rollback d'assignacions | L | Mitjà | Traçabilitat per a decisions tècniques |
 
 **Llegenda esforç:** S = 1-3 dies | M = 1-2 setmanes | L = 3-4 setmanes | XL = 1-2 mesos
 
-> **Recomanació:** Prioritzar **P5.3.1 → Q1 → P6.1** com a camí crític. La PWA és el multiplier de valor
-> més gran (passa de ~5 tècnics a ~40 membres actius). E2E tests abans de P6 redueixen el risc de
-> regressions durant el desenvolupament mòbil.
+> **Recomanació:** Prioritzar **P6.0 → P6.1 → P6.2** com a camí crític immediat. La PWA és el multiplier
+> de valor més gran (passa de ~5 tècnics a ~40 membres actius). L'Alpha 1 (P6.0–P6.2) és el tall
+> mínim testable amb membres reals. P5.3.1 i Q1 es poden fer en paral·lel si hi ha capacitat.
 
 ---
 
@@ -99,20 +113,27 @@ P0 (Scaffold)
                                  └── P4.1 (Auth Layer) ← prerequisit seguretat
                                      ├── I1 (PRE Hetzner) ← deploy continu
                                      └── P4.2 (Dashboard Events + Assistència)
-                                             └── P5 (Pinyes: P5.1→P5.12 + R3) ← ✅ completat
+                                             └── P5 (Pinyes: P5.1→P5.13 + R1-R4 + UX1) ← ✅ completat
                                                  ├── P5.3.1 (UX Segments) ← pendent
-                                                 ├── P5.13 (Editor Templates v2)
-                                                 ├── Q1 (E2E tests) ← recomanat abans P6
-                                                 └── P6 (PWA Mòbil: P6.1 Auth+View → P6.2 Push)
+                                                 ├── P5.14 (Editor Templates v2)
+                                                 ├── Q1 (E2E tests) ← recomanat en paral·lel
+                                                 └── P6 (PWA Mòbil: P6.0→P6.9) ← 🔵 EN CURS
+                                                     ├── P6.0 (App Shell) ← en curs
+                                                     ├── P6.1 (Auth) ← pròxim
+                                                     ├── P6.2 (Events + Attendance) ← Alpha 1 cut
+                                                     ├── P6.3–P6.7 (Features avançades)
+                                                     ├── P6.8 (Magic-Link) ← onboarding sense fricció
+                                                     ├── P6.9 (Push notifications)
                                                      ├── P8 (Dashboard Estadístiques)
                                                      └── P9 (Multi-tenant) ← estratègic
 
 Decisions clau d'ordre:
-  - P5 complet (P5.1→P5.12 + R3): mòdul operatiu de punta a punta amb tècnics
-  - P5.3.1 immediat: UX polish necessari abans d'obrir als membres
-  - Q1 (E2E) abans P6: xarxa de seguretat contra regressions multi-pàgina
-  - P6 diferit: membres seguiran usant el legacy fins al tall oficial
+  - P5 complet (P5.1→P5.13 + R1-R4 + UX1): mòdul operatiu i refinat de punta a punta
+  - P6 ja iniciat: scaffold PWA en branca feat/pwa-app-start
+  - P6.0→P6.1→P6.2 és el camí crític: Alpha 1 testable amb membres reals
+  - P5.3.1 i Q1 (E2E) es poden fer en paral·lel a P6
   - P6 reutilitza l'AuthModule de P4.1 sense reimplementar-lo
+  - P6 detall complet: pwa/PWA_ROADMAP.md i pwa/PWA_SPEC.md
   - P9 (multi-tenant) requereix P6 estable i validació amb 1a colla
 ```
 
@@ -139,6 +160,8 @@ Decisions clau d'ordre:
 | Package manager | `pnpm` (migrat des de npm per velocitat i espai disc) | Juny 2026 |
 | Entorn PRE | Hetzner VPS + Caddy reverse proxy + Docker Compose | Juny 2026 (I1) |
 | Ad-hoc nodes strategy | Single-table extension (`isAdHoc` discriminator a `InstanceNode`), no taules noves | Juny 2026 (P5.12) |
+| Figures netes model | `hasPinya: false` + tronc editor autònom. Sense canvi d'esquema, mateixos `FigureNode`/`InstanceNode` | Juny 2026 (P5.13) |
+| PWA architecture | Angular PWA standalone (port 4300), bottom tab bar, shared backend. Detall: `pwa/PWA_SPEC.md` | Juny 2026 (P6.0) |
 
 ---
 
@@ -149,6 +172,8 @@ El roadmap no duplica el detall tècnic. Cada tema té un doc autoritzat:
 | Tema | Document |
 |------|----------|
 | Mòdul Pinyes (P5.x) — domini, model, cicle de vida, API, frontend | [PINYES_MODULE.md](PINYES_MODULE.md) |
+| Figures Netes (P5.13) — tronc editor de 1a classe, assignació, projecció | [`spec`](specs/2026-06-17-figures-netes-tronc-editor-design.md) |
+| PWA Mòbil (P6.x) — spec, roadmap, arquitectura, context | [pwa/PWA_SPEC.md](pwa/PWA_SPEC.md) · [pwa/PWA_ROADMAP.md](pwa/PWA_ROADMAP.md) · [pwa/PWA_CONTEXT.md](pwa/PWA_CONTEXT.md) |
 | Refactors Pinyes (R1–R3) — auditoria i seguiment | [PINYES_REFACTOR_TRACKING.md](PINYES_REFACTOR_TRACKING.md) |
 | Nodes Ad-Hoc (P5.12) — spec general, 5 fases | [`spec`](specs/2026-06-10-ad-hoc-instance-nodes-design.md) · [`plans/`](specs/plans/) |
 | Dashboard UI — design system, components shared, patterns (P4.3) | [DASHBOARD_UI.md](DASHBOARD_UI.md) |

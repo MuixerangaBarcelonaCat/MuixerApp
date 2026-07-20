@@ -78,7 +78,7 @@ export class SeasonFormModalComponent {
         name: raw.name || undefined,
         startDate: raw.startDate || undefined,
         endDate: raw.endDate || undefined,
-        description: raw.description || undefined,
+        description: raw.description || null,
       };
       this.seasonService.update(this.season()!.id, dto).subscribe({
         next: () => {

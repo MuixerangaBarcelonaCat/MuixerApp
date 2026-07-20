@@ -9,7 +9,7 @@ export interface ProjectionInstance {
   projectionX: number | null;
   projectionY: number | null;
   projectionScale: number;
-  projectionAngle: number;
+  projectionAngle: number | null;
   troncPanelX: number | null;
   troncPanelY: number | null;
   troncPanelWidth: number | null;

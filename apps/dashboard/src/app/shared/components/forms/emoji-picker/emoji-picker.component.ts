@@ -11,7 +11,11 @@ import {
 } from '@angular/core';
 import { LucideAngularModule } from 'lucide-angular';
 import 'emoji-picker-element';
-import type { EmojiClickEventDetail } from 'emoji-picker-element/shared';
+
+interface EmojiClickEventDetail {
+  unicode?: string;
+  name?: string;
+}
 
 /** Pinned at the top of the picker so the most-used flags are always one click away. */
 const COMMON_EMOJIS = ['⚠️', '🚨', '👁️', '❗', '🤕'];

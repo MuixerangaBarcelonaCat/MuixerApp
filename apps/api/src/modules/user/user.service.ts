@@ -320,6 +320,7 @@ export class UserService {
       throw new ForbiddenException('No us podeu canviar el vostre propi rol');
     }
 
+
     if (dto.email && dto.email !== user.email) {
       const existing = await this.userRepository.findOne({
         where: { email: dto.email },

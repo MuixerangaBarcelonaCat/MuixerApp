@@ -1684,7 +1684,9 @@ describe('NodeAssignmentService', () => {
       mockInstanceNodeQb.getRawOne.mockResolvedValue({ max: 5 });
       const cloned = { ...adHocSourceNode, id: 'cloned-adhoc-1' };
       mockInstanceNodeRepo.create.mockReturnValue(cloned);
-      mockInstanceNodeRepo.save.mockResolvedValue(cloned);
+      mockDataSource.transaction.mockImplementation(async (cb: any) =>
+        cb({ save: jest.fn().mockImplementation((_e: any, data: any) => Promise.resolve(data)) }),
+      );
 
       const result = await service.bulkImport(INSTANCE_ID, { sourceInstanceId: 'source-uuid' });
 
@@ -1866,7 +1868,9 @@ describe('NodeAssignmentService', () => {
       mockInstanceNodeQb.getRawOne.mockResolvedValue({ max: 5 });
       const cloned = { ...decorationSource, id: 'cloned-dec-1' };
       mockInstanceNodeRepo.create.mockReturnValue(cloned);
-      mockInstanceNodeRepo.save.mockResolvedValue(cloned);
+      mockDataSource.transaction.mockImplementation(async (cb: any) =>
+        cb({ save: jest.fn().mockImplementation((_e: any, data: any) => Promise.resolve(data)) }),
+      );
 
       const result = await service.bulkImport(INSTANCE_ID, { sourceInstanceId: 'source-uuid' });
 
@@ -2045,7 +2049,9 @@ describe('NodeAssignmentService', () => {
 
       const cloned = { ...directionSource, id: 'cloned-dir-1' };
       mockInstanceNodeRepo.create.mockReturnValue(cloned);
-      mockInstanceNodeRepo.save.mockResolvedValue(cloned);
+      mockDataSource.transaction.mockImplementation(async (cb: any) =>
+        cb({ save: jest.fn().mockImplementation((_e: any, data: any) => Promise.resolve(data)) }),
+      );
 
       const result = await service.bulkImport(INSTANCE_ID, { sourceInstanceId: 'source-uuid' });
 

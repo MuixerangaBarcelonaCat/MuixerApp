@@ -1045,58 +1045,67 @@ export class NodeAssignmentService {
       }
     }
 
-    for (const sourceAdHoc of sourceAdHocNodes) {
-      if (existingOriginIds.has(sourceAdHoc.id)) {
-        continue;
-      }
+    const nodesToClone = sourceAdHocNodes.filter(
+      (n) => !existingOriginIds.has(n.id),
+    );
 
-      const cloned = this.instanceNodeRepository.create({
-        figureInstance: targetInstance,
-        sourceNodeId: null,
-        originNodeId: sourceAdHoc.id,
-        label: sourceAdHoc.label,
-        zone: sourceAdHoc.zone,
-        positionType: sourceAdHoc.positionType,
-        x: sourceAdHoc.x,
-        y: sourceAdHoc.y,
-        z: sourceAdHoc.z,
-        width: sourceAdHoc.width,
-        height: sourceAdHoc.height,
-        rotation: sourceAdHoc.rotation,
-        color: sourceAdHoc.color,
-        shape: sourceAdHoc.shape,
-        sortOrder: nextSortOrder++,
-        climbIndicator: sourceAdHoc.climbIndicator,
-        ringLevel: sourceAdHoc.ringLevel,
-        renglaId: null,
-        renglaPosition: null,
-        metadata: sourceAdHoc.metadata ?? {},
-        isAdHoc: true,
-        createdById: null,
+    if (nodesToClone.length > 0) {
+      const clonedEntities = nodesToClone.map((sourceAdHoc) =>
+        this.instanceNodeRepository.create({
+          figureInstance: targetInstance,
+          sourceNodeId: null,
+          originNodeId: sourceAdHoc.id,
+          label: sourceAdHoc.label,
+          zone: sourceAdHoc.zone,
+          positionType: sourceAdHoc.positionType,
+          x: sourceAdHoc.x,
+          y: sourceAdHoc.y,
+          z: sourceAdHoc.z,
+          width: sourceAdHoc.width,
+          height: sourceAdHoc.height,
+          rotation: sourceAdHoc.rotation,
+          color: sourceAdHoc.color,
+          shape: sourceAdHoc.shape,
+          sortOrder: nextSortOrder++,
+          climbIndicator: sourceAdHoc.climbIndicator,
+          ringLevel: sourceAdHoc.ringLevel,
+          renglaId: null,
+          renglaPosition: null,
+          metadata: sourceAdHoc.metadata ?? {},
+          isAdHoc: true,
+          createdById: null,
+        }),
+      );
+
+      const savedClones = await this.dataSource.transaction(async (manager) => {
+        return manager.save(InstanceNode, clonedEntities);
       });
-      const savedClone = await this.instanceNodeRepository.save(cloned);
-      clonedAdHocNodes++;
+      clonedAdHocNodes = savedClones.length;
 
-      const sourceAssignment = sourceAdHocAssignmentMap.get(sourceAdHoc.id);
-      if (
-        sourceAssignment &&
-        sourceAssignment.person &&
-        sourceAdHoc.zone !== FigureZone.DECORATION
-      ) {
-        const personId = sourceAssignment.person.id;
-        const personAlias = sourceAssignment.person.alias ?? `${sourceAssignment.person.name} ${sourceAssignment.person.firstSurname}`;
-        try {
-          await this.assign(instanceId, {
-            nodeId: savedClone.id,
-            personId,
-          });
-        } catch {
-          conflicts.push({
-            nodeId: savedClone.id,
-            nodeLabel: sourceAdHoc.label,
-            personAlias,
-            reason: 'No s\'ha pogut clonar l\'assignació ad-hoc',
-          });
+      for (let i = 0; i < savedClones.length; i++) {
+        const savedClone = savedClones[i];
+        const sourceAdHoc = nodesToClone[i];
+        const sourceAssignment = sourceAdHocAssignmentMap.get(sourceAdHoc.id);
+        if (
+          sourceAssignment &&
+          sourceAssignment.person &&
+          sourceAdHoc.zone !== FigureZone.DECORATION
+        ) {
+          const personId = sourceAssignment.person.id;
+          const personAlias = sourceAssignment.person.alias ?? `${sourceAssignment.person.name} ${sourceAssignment.person.firstSurname}`;
+          try {
+            await this.assign(instanceId, {
+              nodeId: savedClone.id,
+              personId,
+            });
+          } catch {
+            conflicts.push({
+              nodeId: savedClone.id,
+              nodeLabel: sourceAdHoc.label,
+              personAlias,
+              reason: 'No s\'ha pogut clonar l\'assignació ad-hoc',
+            });
+          }
         }
       }
     }
@@ -1280,8 +1289,6 @@ export class NodeAssignmentService {
       throw new NotFoundException(`FigureInstance with ID ${instanceId} not found`);
     }
 
-    this.assertNotComposition(instance);
-
     if (!instance.snapshotted) {
       await this.snapshotInstance(instance);
       instance.snapshotted = true;
@@ -1404,6 +1411,7 @@ export class NodeAssignmentService {
     }
     return new ConflictException('Node is already occupied in this figure instance');
   }
+
 
   // ── B.1 — Snapshot helper ─────────────────────────────────────────────────
 

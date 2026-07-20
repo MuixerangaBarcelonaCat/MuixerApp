@@ -235,6 +235,58 @@ describe('AuthService', () => {
     });
   });
 
+  describe('refresh', () => {
+    it('returns stored clientType from token rotation', async () => {
+      tokenService.rotateRefreshToken.mockResolvedValue({
+        newRawToken: 'new-refresh',
+        userId: 'user-1',
+        clientType: ClientType.PWA,
+      });
+      userRepo.findOne.mockResolvedValue(makeUser());
+
+      const result = await service.refresh('old-refresh-token');
+
+      expect(result.clientType).toBe(ClientType.PWA);
+      expect(result.response.accessToken).toBe('access-token');
+      expect(result.newRefreshToken).toBe('new-refresh');
+    });
+
+    it('returns DASHBOARD clientType when stored token is DASHBOARD', async () => {
+      tokenService.rotateRefreshToken.mockResolvedValue({
+        newRawToken: 'new-refresh',
+        userId: 'user-1',
+        clientType: ClientType.DASHBOARD,
+      });
+      userRepo.findOne.mockResolvedValue(makeUser());
+
+      const result = await service.refresh('old-refresh-token');
+
+      expect(result.clientType).toBe(ClientType.DASHBOARD);
+    });
+
+    it('throws when user is inactive', async () => {
+      tokenService.rotateRefreshToken.mockResolvedValue({
+        newRawToken: 'new-refresh',
+        userId: 'user-1',
+        clientType: ClientType.PWA,
+      });
+      userRepo.findOne.mockResolvedValue(makeUser({ isActive: false }));
+
+      await expect(service.refresh('old-refresh-token')).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('throws when user not found', async () => {
+      tokenService.rotateRefreshToken.mockResolvedValue({
+        newRawToken: 'new-refresh',
+        userId: 'missing',
+        clientType: ClientType.PWA,
+      });
+      userRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.refresh('old-refresh-token')).rejects.toThrow(UnauthorizedException);
+    });
+  });
+
   describe('getMe', () => {
     it('returns user profile', async () => {
       userRepo.findOne.mockResolvedValue(makeUser());

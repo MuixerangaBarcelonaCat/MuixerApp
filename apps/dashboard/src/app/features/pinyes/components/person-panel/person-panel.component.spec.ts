@@ -52,6 +52,8 @@ describe('PersonPanelComponent', () => {
       ],
     }).compileComponents();
 
+    vi.useFakeTimers();
+
     fixture = TestBed.createComponent(PersonPanelComponent);
     component = fixture.componentInstance;
     fixture.componentRef.setInput('eventId', EVENT_ID);
@@ -61,6 +63,11 @@ describe('PersonPanelComponent', () => {
     component.personSelected.subscribe((p) => personSelectedSpy(p));
 
     fixture.detectChanges();
+    vi.advanceTimersByTime(250);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   // ── initialization ─────────────────────────────────────────────────────────
@@ -86,6 +93,7 @@ describe('PersonPanelComponent', () => {
       ];
       assignmentService.getAvailablePersons.mockReturnValue(of({ data: persons }));
       component.loadPersons();
+      vi.advanceTimersByTime(250);
       fixture.detectChanges();
 
       expect(component.confirmedPersons()).toHaveLength(1);
@@ -107,6 +115,7 @@ describe('PersonPanelComponent', () => {
       assignmentService.getAvailablePersons.mockReturnValue(of({ data: persons }));
       fixture.componentRef.setInput('isPast', true);
       component.loadPersons();
+      vi.advanceTimersByTime(250);
       fixture.detectChanges();
     });
 
@@ -143,6 +152,7 @@ describe('PersonPanelComponent', () => {
       assignmentService.getAvailablePersons.mockReturnValue(of({ data: persons }));
       fixture.componentRef.setInput('isPast', false);
       component.loadPersons();
+      vi.advanceTimersByTime(250);
       fixture.detectChanges();
     });
 
@@ -178,6 +188,7 @@ describe('PersonPanelComponent', () => {
 
     it('filters by height — calls service with absolute height (140 + relative)', () => {
       component.onHeightChange(10);
+      vi.advanceTimersByTime(250);
       expect(assignmentService.getAvailablePersons).toHaveBeenCalledWith(
         EVENT_ID,
         SEGMENT_ID,
@@ -192,6 +203,7 @@ describe('PersonPanelComponent', () => {
         'button[aria-label="Ordena de més alt a més baix"]',
       ) as HTMLButtonElement;
       maxBtn.click();
+      vi.advanceTimersByTime(250);
       expect(assignmentService.getAvailablePersons).toHaveBeenCalledWith(
         EVENT_ID,
         SEGMENT_ID,
@@ -206,6 +218,7 @@ describe('PersonPanelComponent', () => {
         'button[aria-label="Ordena de més baix a més alt"]',
       ) as HTMLButtonElement;
       minBtn.click();
+      vi.advanceTimersByTime(250);
       expect(assignmentService.getAvailablePersons).toHaveBeenCalledWith(
         EVENT_ID,
         SEGMENT_ID,
@@ -255,6 +268,7 @@ describe('PersonPanelComponent', () => {
       ];
       assignmentService.getAvailablePersons.mockReturnValue(of({ data: persons }));
       component.onHeightChange(-10);
+      vi.advanceTimersByTime(250);
       fixture.detectChanges();
 
       const ids = component.confirmedPersons().map((p) => p.id);
@@ -268,6 +282,7 @@ describe('PersonPanelComponent', () => {
       ];
       assignmentService.getAvailablePersons.mockReturnValue(of({ data: persons }));
       component.toggleHeightSort('min');
+      vi.advanceTimersByTime(250);
       fixture.detectChanges();
 
       const ids = component.confirmedPersons().map((p) => p.id);
@@ -287,6 +302,7 @@ describe('PersonPanelComponent', () => {
 
     it('filters by xicalla checkbox — unchecking adds isXicalla=false filter', () => {
       component.onXicallaChange(false);
+      vi.advanceTimersByTime(250);
       expect(assignmentService.getAvailablePersons).toHaveBeenCalledWith(
         EVENT_ID,
         SEGMENT_ID,
@@ -296,6 +312,7 @@ describe('PersonPanelComponent', () => {
 
     it('filters by tag — selecting a tag adds positionId to the query', () => {
       component.onPositionFilterChange('pos-agulla');
+      vi.advanceTimersByTime(250);
       expect(assignmentService.getAvailablePersons).toHaveBeenCalledWith(
         EVENT_ID,
         SEGMENT_ID,
@@ -305,8 +322,10 @@ describe('PersonPanelComponent', () => {
 
     it('clearing the tag filter omits positionId from the query', () => {
       component.onPositionFilterChange('pos-agulla');
+      vi.advanceTimersByTime(250);
       assignmentService.getAvailablePersons.mockClear();
       component.onPositionFilterChange('');
+      vi.advanceTimersByTime(250);
       const lastQuery = assignmentService.getAvailablePersons.mock.calls.at(-1)?.[2];
       expect(lastQuery).not.toHaveProperty('positionId');
     });
@@ -332,6 +351,7 @@ describe('PersonPanelComponent', () => {
 
       const option: HTMLElement = fixture.nativeElement.querySelector('[data-testid="tag-filter-option-t1"]');
       option.click();
+      vi.advanceTimersByTime(250);
 
       expect(assignmentService.getAvailablePersons).toHaveBeenCalledWith(
         EVENT_ID,
@@ -377,10 +397,12 @@ describe('PersonPanelComponent', () => {
         { id: 't1', name: 'Vents', slug: 'vents', shortDescription: null, longDescription: null, color: '#ff0000', positionTypes: [], personCount: 0 },
       ]);
       component.onPositionFilterChange('t1');
+      vi.advanceTimersByTime(250);
       fixture.detectChanges();
 
       const clearBtn: HTMLElement = fixture.nativeElement.querySelector('[data-testid="tag-filter-clear"]');
       clearBtn.click();
+      vi.advanceTimersByTime(250);
 
       expect(component.selectedPositionId()).toBeNull();
       const lastQuery = assignmentService.getAvailablePersons.mock.calls.at(-1)?.[2];
@@ -411,6 +433,7 @@ describe('PersonPanelComponent', () => {
       fixture.componentRef.setInput('selectedNodeZone', 'TRONC');
       fixture.componentRef.setInput('selectedNodeId', 'node-1');
       fixture.detectChanges();
+      vi.advanceTimersByTime(250);
       const lastQuery = assignmentService.getAvailablePersons.mock.calls.at(-1)?.[2];
       expect(lastQuery).not.toHaveProperty('isXicalla');
     });
@@ -421,6 +444,7 @@ describe('PersonPanelComponent', () => {
       fixture.componentRef.setInput('selectedNodeZone', 'PINYA');
       fixture.componentRef.setInput('selectedNodeId', 'node-2');
       fixture.detectChanges();
+      vi.advanceTimersByTime(250);
       const lastQuery = assignmentService.getAvailablePersons.mock.calls.at(-1)?.[2];
       expect(lastQuery).toMatchObject({ isXicalla: false });
     });
@@ -445,14 +469,14 @@ describe('PersonPanelComponent', () => {
       expect(component.showXicalla()).toBe(true);
     });
 
-    it('does not steal focus from the height input when a node gets selected mid-typing', async () => {
+    it('does not steal focus from the height input when a node gets selected mid-typing', () => {
       const heightInput: HTMLInputElement = fixture.nativeElement.querySelector('input[type="number"]');
       heightInput.focus();
       expect(document.activeElement).toBe(heightInput);
 
       fixture.componentRef.setInput('selectedNodeId', 'node-1');
       fixture.detectChanges();
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      vi.advanceTimersByTime(1);
 
       expect(document.activeElement).toBe(heightInput);
     });
@@ -504,6 +528,7 @@ describe('PersonPanelComponent', () => {
     it('"Refrescar" button reloads available persons', () => {
       const callCount = assignmentService.getAvailablePersons.mock.calls.length;
       component.loadPersons();
+      vi.advanceTimersByTime(250);
       expect(assignmentService.getAvailablePersons.mock.calls.length).toBeGreaterThan(callCount);
     });
   });

@@ -618,6 +618,14 @@ describe('UserService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
+    it('throws ForbiddenException when TECHNICAL tries to modify an ADMIN', async () => {
+      const adminUser = makeUser({ role: UserRole.ADMIN });
+      mockUserRepo.findOne.mockResolvedValueOnce(adminUser);
+      await expect(
+        service.updateUser('user-uuid', { isActive: false }, UserRole.TECHNICAL, 'actor-uuid'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
     it('throws ConflictException when new email already taken', async () => {
       const user = makeUser();
       mockUserRepo.findOne

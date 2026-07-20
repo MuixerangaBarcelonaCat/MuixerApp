@@ -121,6 +121,14 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     return getAdultsCount(ev.attendanceSummary, this.isPast());
   });
 
+  xicallaCount = computed(() => {
+    const ev = this.event();
+    if (!ev) return 0;
+    return this.isPast()
+      ? ev.attendanceSummary.childrenAttended
+      : ev.attendanceSummary.children;
+  });
+
   readonly getContrastColor = getContrastColor;
 
   rehearsalMetadata = computed((): RehearsalMetadata | null => {
@@ -438,13 +446,6 @@ export class EventDetailComponent implements OnInit, OnDestroy {
         hidden: false,
       },
       {
-        label: 'Baixes tardanes',
-        value: summary.lateCancel,
-        icon: 'AlertCircle',
-        iconClass: 'text-warning',
-        hidden: !past || summary.lateCancel === 0,
-      },
-      {
         label: past ? 'Sense resposta' : 'Pendents',
         value: summary.pending,
         icon: 'Clock',
@@ -460,7 +461,7 @@ export class EventDetailComponent implements OnInit, OnDestroy {
       },
       {
         label: 'Xicalla',
-        value: summary.children,
+        value: past ? summary.childrenAttended : summary.children,
         icon: ICON_XICALLA,
         iconClass: 'text-info',
         hidden: false,

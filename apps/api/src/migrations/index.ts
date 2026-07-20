@@ -22,6 +22,8 @@ import { CreateCompositions1782400000000 } from './1782400000000-CreateCompositi
 import { AddPersonNotesEmoji1782500000000 } from './1782500000000-AddPersonNotesEmoji';
 import { AddInstanceNodeSourceUniqueIndex1782600000000 } from './1782600000000-AddInstanceNodeSourceUniqueIndex';
 import { AddNodeAssignmentSegment1782700000000 } from './1782700000000-AddNodeAssignmentSegment';
+import { BackfillAttendanceSummary1782600000000 } from './1782600000000-BackfillAttendanceSummary';
+import { AddSeasonDateOverlapConstraint1782700000000 } from './1782700000000-AddSeasonDateOverlapConstraint';
 import { RenameClimbPathToClimbIndicator1782800000000 } from './1782800000000-RenameClimbPathToClimbIndicator';
 import { AddCordonsObertsEnabled1782900000000 } from './1782900000000-AddCordonsObertsEnabled';
 import { ConvertTimestampsToTimestamptz1783000000000 } from './1783000000000-ConvertTimestampsToTimestamptz';
@@ -49,7 +51,9 @@ export const migrations: (new () => MigrationInterface)[] = [
   CreateCompositions1782400000000,
   AddPersonNotesEmoji1782500000000,
   AddInstanceNodeSourceUniqueIndex1782600000000,
+  BackfillAttendanceSummary1782600000000,
   AddNodeAssignmentSegment1782700000000,
+  AddSeasonDateOverlapConstraint1782700000000,
   RenameClimbPathToClimbIndicator1782800000000,
   AddCordonsObertsEnabled1782900000000,
   ConvertTimestampsToTimestamptz1783000000000,

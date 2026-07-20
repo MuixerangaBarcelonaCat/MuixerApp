@@ -164,8 +164,7 @@ export class AuthController {
     @Body() dto: AcceptInviteDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponseDto> {
-    const { response, refreshToken } = await this.authService.acceptInvite(dto);
-    const clientType = response.user.role === 'MEMBER' ? ClientType.PWA : ClientType.DASHBOARD;
+    const { response, refreshToken, clientType } = await this.authService.acceptInvite(dto);
     this.setRefreshCookie(res, refreshToken, clientType);
     return response;
   }

@@ -101,10 +101,10 @@
 
 </div>
 
-<!-- Modal: Crear / Editar posició -->
+<!-- Modal: Crear / Editar etiqueta -->
 @if (modalOpen()) {
   <app-tag-form-modal
-    [position]="selectedTag()"
+    [tag]="selectedTag()"
     (saved)="onModalSaved()"
     (cancelled)="onModalCancelled()"
   />

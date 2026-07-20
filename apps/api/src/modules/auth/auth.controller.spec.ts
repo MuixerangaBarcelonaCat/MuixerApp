@@ -100,9 +100,6 @@ describe('AuthController', () => {
     });
 
     it('sets the cookie TTL from the clientType returned by the service, not the user role (BUG-5)', async () => {
-      // A TECHNICAL user whose *session* is a PWA one — role and clientType
-      // diverge on purpose here to prove the cookie TTL follows the stored
-      // clientType, not a role-based guess.
       authService.refresh.mockResolvedValue({
         response: { accessToken: 'new-access', user: { role: UserRole.TECHNICAL } },
         newRefreshToken: 'new-refresh-token',

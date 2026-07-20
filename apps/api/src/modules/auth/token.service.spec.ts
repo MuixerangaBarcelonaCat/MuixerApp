@@ -99,6 +99,35 @@ describe('TokenService', () => {
       expect(result.clientType).toBe(ClientType.DASHBOARD);
     });
 
+    it('returns the stored clientType (PWA)', async () => {
+      const rawToken = 'pwa-jwt';
+      const stored: Partial<RefreshToken> = {
+        id: 'rt-pwa',
+        userId: 'user-pwa',
+        tokenHash: hash(rawToken),
+        family: 'family-pwa',
+        clientType: ClientType.PWA,
+        expiresAt: new Date(Date.now() + 3600_000),
+        usedAt: null,
+        revokedAt: null,
+        createdAt: new Date(),
+      };
+
+      repo.findOne.mockResolvedValue(stored);
+      repo.update.mockResolvedValue({ affected: 1 });
+      const newToken = 'new-pwa-jwt';
+      jest.spyOn(service, 'createRefreshToken').mockResolvedValue(newToken);
+
+      const result = await service.rotateRefreshToken(rawToken);
+
+      expect(result.clientType).toBe(ClientType.PWA);
+      expect(service.createRefreshToken).toHaveBeenCalledWith(
+        { id: 'user-pwa' },
+        ClientType.PWA,
+        'family-pwa',
+      );
+    });
+
     it('revokes entire family when the atomic usedAt claim affects zero rows (reuse or lost race)', async () => {
       const rawToken = 'reused-jwt';
       repo.findOne.mockResolvedValue({

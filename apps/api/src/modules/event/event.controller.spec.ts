@@ -14,7 +14,7 @@ const mockEventDetail = {
   location: null,
   locationUrl: null,
   countsForStatistics: true,
-  attendanceSummary: { confirmed: 0, declined: 0, pending: 0, attended: 0, noShow: 0, lateCancel: 0, children: 0, total: 0 },
+  attendanceSummary: { confirmed: 0, declined: 0, pending: 0, attended: 0, lateCancel: 0, children: 0, childrenAttended: 0, total: 0 },
   season: null,
   createdAt: new Date(),
   description: null,
@@ -25,7 +25,7 @@ const mockEventDetail = {
 
 const mockAttendanceResponse = {
   attendance: { id: 'att-uuid', status: AttendanceStatus.ANIRE, respondedAt: new Date(), notes: null, person: { id: 'p1', alias: 'Joan', name: 'Joan', firstSurname: 'García', isXicalla: false, positions: [] } },
-  summary: { confirmed: 1, declined: 0, pending: 0, attended: 0, noShow: 0, lateCancel: 0, children: 0, total: 1 },
+  summary: { confirmed: 1, declined: 0, pending: 0, attended: 0, lateCancel: 0, children: 0, childrenAttended: 0, total: 1 },
 };
 
 describe('EventController', () => {

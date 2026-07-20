@@ -10,7 +10,12 @@ export interface CreateSeasonPayload {
   description?: string;
 }
 
-export type UpdateSeasonPayload = Partial<CreateSeasonPayload>;
+export interface UpdateSeasonPayload {
+  name?: string;
+  startDate?: string;
+  endDate?: string;
+  description?: string | null;
+}
 
 @Injectable({
   providedIn: 'root',

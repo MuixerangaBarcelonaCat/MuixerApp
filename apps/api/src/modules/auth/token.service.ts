@@ -93,13 +93,13 @@ export class TokenService {
     );
 
     if (claim.affected === 0) {
-      // Reuse detected (or lost the race) — revoke entire family
       await this.refreshTokenRepo.update(
         { family: stored.family },
         { revokedAt: new Date() },
       );
       throw new UnauthorizedException('Token reutilitzat detectat');
     }
+
 
     const userRef = { id: stored.userId } as User;
     const newRawToken = await this.createRefreshToken(userRef, stored.clientType, stored.family);

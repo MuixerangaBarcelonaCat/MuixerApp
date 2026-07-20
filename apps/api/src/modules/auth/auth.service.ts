@@ -9,7 +9,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { ClientType, UserProfile, UserRole } from '@muixer/shared';
 import { User } from '../user/user.entity';
@@ -156,7 +156,7 @@ export class AuthService {
   }
 
   /** Activa el compte d'un membre a partir del token d'invitació. Valida que el token no hagi caducat i fa auto-login un cop activat. */
-  async acceptInvite(dto: AcceptInviteDto): Promise<{ response: AuthResponseDto; refreshToken: string }> {
+  async acceptInvite(dto: AcceptInviteDto): Promise<{ response: AuthResponseDto; refreshToken: string; clientType: ClientType }> {
     const user = await this.userRepo.findOne({
       where: { inviteToken: hashToken(dto.token) },
       relations: ['person', 'person.managedBy'],
@@ -186,6 +186,7 @@ export class AuthService {
     return {
       response: { accessToken, user: this.toUserProfile(user) },
       refreshToken,
+      clientType,
     };
   }
 
@@ -215,7 +216,7 @@ export class AuthService {
       }
     }
 
-    const reloaded = await this.dataSource.transaction(async (manager) => {
+    const reloaded = await this.dataSource.transaction(async (manager: EntityManager) => {
       const user = manager.create(User, {
         email: dto.email,
         passwordHash,

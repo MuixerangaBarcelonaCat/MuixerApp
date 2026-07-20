@@ -13,7 +13,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { LucideAngularModule } from 'lucide-angular';
 import { ICON_FIGURA, ICON_PERSONA, ICON_COMPOSITION, ICON_FIGURA_NETA, ICON_PINYA, ICON_TRONC } from '../../../../shared/constants/domain-icons';
-import { forkJoin } from 'rxjs';
+import { from, concatMap, forkJoin, toArray } from 'rxjs';
 import { SegmentMoveConflictResolution } from '@muixer/shared';
 import { FiguresViewModeService, FiguresViewMode } from '../../../pinyes/services/figures-view-mode.service';
 import { EventSegmentService } from '../../../pinyes/services/event-segment.service';
@@ -70,7 +70,6 @@ export class SegmentManagerComponent implements OnInit {
   isPast = input<boolean>(false);
   readonly ICON_FIGURA = ICON_FIGURA;
   readonly ICON_PERSONA = ICON_PERSONA;
-  readonly ICON_COMPOSITION = ICON_COMPOSITION;
   readonly ICON_FIGURA_NETA = ICON_FIGURA_NETA;
   readonly ICON_PINYA = ICON_PINYA;
   readonly ICON_TRONC = ICON_TRONC;
@@ -126,13 +125,13 @@ export class SegmentManagerComponent implements OnInit {
     return map;
   });
 
-  displayName = computed(() => (segment: SegmentDetail): string => {
+  displayName(segment: SegmentDetail): string {
     if (segment.name) return segment.name;
     if (!segment.instances.length) return 'Segment sense nom';
     return segment.instances
       .map((i) => this.getInstanceLabel(i))
       .join(' + ');
-  });
+  }
 
   ngOnInit() {
     this.loadSegments();
@@ -234,7 +233,7 @@ export class SegmentManagerComponent implements OnInit {
   }
 
   removeSegment(segment: SegmentDetail) {
-    const displayedName = this.displayName()(segment);
+    const displayedName = this.displayName(segment);
     if (!confirm(`Segur que vols eliminar "${displayedName}" i totes les seves figures? Aquesta acció no es pot desfer.`)) {
       return;
     }
@@ -428,10 +427,11 @@ export class SegmentManagerComponent implements OnInit {
     const segmentId = this.pickerSegmentId();
     if (!segmentId || selections.length === 0) return;
 
-    forkJoin(
-      selections.map((sel) =>
+    from(selections).pipe(
+      concatMap((sel) =>
         this.instanceService.create(this.eventId(), segmentId, sel),
       ),
+      toArray(),
     ).subscribe({
       next: (instances) => {
         this.segments.update((list) =>
@@ -441,15 +441,17 @@ export class SegmentManagerComponent implements OnInit {
               : s,
           ),
         );
-        const count = instances.length;
         this.toast.success(
-          count === 1
+          instances.length === 1
             ? '1 figura afegida.'
-            : `${count} figures afegides.`,
+            : `${instances.length} figures afegides.`,
         );
         this.closePicker();
       },
-      error: () => this.toast.error('Error en afegir les figures.'),
+      error: () => {
+        this.toast.error('Error en afegir les figures.');
+        this.loadSegments();
+      },
     });
   }
 
@@ -514,10 +516,6 @@ export class SegmentManagerComponent implements OnInit {
   netaSuffix(name: string): string {
     const firstWord = name.trim().split(/\s+/)[0] ?? '';
     return firstWord.endsWith('a') ? 'neta' : 'net';
-  }
-
-  isComposition(_instance: InstanceDetail): boolean {
-    return false;
   }
 
   figureModeOptions(instance: InstanceDetail): { value: FigureMode; label: string }[] | null {
@@ -590,6 +588,9 @@ export class SegmentManagerComponent implements OnInit {
     mode: FigureMode,
     onDone?: () => void,
   ): void {
+    const previousMode = instance.figureMode;
+    this.setInstanceMode(segment.id, instance.id, mode);
+
     this.instanceService.update(this.eventId(), segment.id, instance.id, { figureMode: mode }).subscribe({
       next: (updated) => {
         this.segments.update((list) =>
@@ -602,6 +603,7 @@ export class SegmentManagerComponent implements OnInit {
         onDone?.();
       },
       error: () => {
+        this.setInstanceMode(segment.id, instance.id, previousMode);
         this.toast.error('Error en actualitzar el mode de la figura.');
         onDone?.();
       },

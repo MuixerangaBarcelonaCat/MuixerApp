@@ -9,6 +9,7 @@ import { Repository } from 'typeorm';
 import { Season } from './season.entity';
 import { CreateSeasonDto } from './dto/create-season.dto';
 import { UpdateSeasonDto } from './dto/update-season.dto';
+import { getLocalToday, formatDateOnly } from '../../common/utils/date.util';
 
 @Injectable()
 export class SeasonService {
@@ -43,7 +44,7 @@ export class SeasonService {
   }
 
   async findCurrent(): Promise<SeasonListItem> {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = getLocalToday();
 
     let season = await this.seasonRepository
       .createQueryBuilder('season')
@@ -67,7 +68,7 @@ export class SeasonService {
   }
 
   async findCurrentEntity(): Promise<Season | null> {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = getLocalToday();
 
     const season = await this.seasonRepository
       .createQueryBuilder('season')
@@ -108,8 +109,8 @@ export class SeasonService {
       await this.checkNameUnique(dto.name, id);
     }
 
-    const startDate = dto.startDate ?? season.startDate.toString().slice(0, 10);
-    const endDate = dto.endDate ?? season.endDate.toString().slice(0, 10);
+    const startDate = dto.startDate ?? formatDateOnly(season.startDate);
+    const endDate = dto.endDate ?? formatDateOnly(season.endDate);
 
     if (dto.startDate !== undefined || dto.endDate !== undefined) {
       this.validateDateRange(startDate, endDate);

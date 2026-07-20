@@ -15,3 +15,4 @@ export * from './interfaces/event-metadata.interface';
 export * from './interfaces/auth.interfaces';
 export * from './interfaces/pagination.interface';
 export * from './interfaces/pinyes';
+export * from './interfaces/me';

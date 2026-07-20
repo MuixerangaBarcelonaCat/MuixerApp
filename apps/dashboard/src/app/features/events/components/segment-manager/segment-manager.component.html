@@ -173,7 +173,7 @@
                     class="font-semibold text-sm flex-1 flex items-center gap-1.5"
                     data-testid="segment-name-readonly"
                   >
-                    {{ displayName()(segment) }}
+                    {{ displayName(segment) }}
                     @if (!segment.name) {
                       <span class="text-base-content/40 text-xs font-normal">(automàtic)</span>
                     }
@@ -186,7 +186,7 @@
                     title="Edita nom del segment"
                     data-testid="segment-rename-trigger"
                   >
-                    {{ displayName()(segment) }}
+                    {{ displayName(segment) }}
                     <lucide-icon name="Pencil" [size]="11" class="text-base-content/30 shrink-0" aria-hidden="true" />
                     @if (!segment.name) {
                       <span class="text-base-content/40 text-xs font-normal">(automàtic)</span>
@@ -241,7 +241,7 @@
                       [class.text-base-content]="isLocked()"
                       [class.opacity-50]="isLocked()"
                       (click)="navigateToAssignment(segment.id)"
-                      [attr.aria-label]="'Assigna persones al segment ' + displayName()(segment)"
+                      [attr.aria-label]="'Assigna persones al segment ' + displayName(segment)"
                       [title]="isLocked() ? 'Assignacions bloquejades' : ''"
                     >
                       @if (isLocked()) {
@@ -257,7 +257,7 @@
                       type="button"
                       class="btn btn-ghost btn-xs gap-1 text-secondary"
                       (click)="navigateToProjection(segment.id)"
-                      [attr.aria-label]="'Projecta el segment ' + displayName()(segment)"
+                      [attr.aria-label]="'Projecta el segment ' + displayName(segment)"
                     >
                       <lucide-icon name="Monitor" [size]="14" />
                       Projecta
@@ -303,7 +303,7 @@
               @if (!isCollapsed(segment.id)) {
                 <div
                   role="list"
-                  [attr.aria-label]="'Figures del segment ' + displayName()(segment)"
+                  [attr.aria-label]="'Figures del segment ' + displayName(segment)"
                   [id]="'instances-' + segment.id"
                   cdkDropList
                   [cdkDropListData]="segment"
@@ -471,7 +471,7 @@
                 <span class="loading loading-spinner loading-xs"></span>
               }
               <span class="flex items-center justify-center w-5 h-5 rounded text-xs font-bold text-primary-content bg-primary shrink-0">{{ segmentNumber(target.id) }}</span>
-              {{ displayName()(target) }}
+              {{ displayName(target) }}
             </button>
           }
         </div>
@@ -542,7 +542,7 @@
     <button type="button" class="modal-backdrop" (click)="cancelInstanceRemoval()" aria-label="Tancar"></button>
   </dialog>
 }
-
+      
 <!-- REMAT / NETA mode change confirmation modal -->
 @if (pendingModeChange()) {
   <dialog

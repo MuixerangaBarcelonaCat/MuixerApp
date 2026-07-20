@@ -58,19 +58,6 @@ describe('EventDetailComponent — getSummaryForDisplay', () => {
       expect(row!.value).toBe(3); // pastSummary.confirmed = 3
     });
 
-    it('shows lateCancel row when lateCancel > 0', () => {
-      const rows = component.getSummaryForDisplay(pastSummary);
-      const row = rows.find((r) => r.label === 'Baixes tardanes');
-      expect(row).toBeDefined();
-      expect(row!.value).toBe(2);
-    });
-
-    it('hides lateCancel row when lateCancel === 0', () => {
-      const summary = { ...pastSummary, lateCancel: 0 };
-      const rows = component.getSummaryForDisplay(summary);
-      expect(rows.find((r) => r.label === 'Baixes tardanes')).toBeUndefined();
-    });
-
     it('shows Total row', () => {
       const rows = component.getSummaryForDisplay(pastSummary);
       const row = rows.find((r) => r.label === 'Total');
@@ -78,11 +65,18 @@ describe('EventDetailComponent — getSummaryForDisplay', () => {
       expect(row!.value).toBe(81);
     });
 
-    it('includes Adults row with correct value (attended - children)', () => {
+    it('includes Adults row with correct value (attended - childrenAttended)', () => {
       const rows = component.getSummaryForDisplay(pastSummary);
       const row = rows.find((r) => r.label === 'Adults');
       expect(row).toBeDefined();
-      expect(row!.value).toBe(50);
+      expect(row!.value).toBe(52);
+    });
+
+    it('shows Xicalla row with childrenAttended for past events', () => {
+      const rows = component.getSummaryForDisplay(pastSummary);
+      const row = rows.find((r) => r.label === 'Xicalla');
+      expect(row).toBeDefined();
+      expect(row!.value).toBe(3);
     });
   });
 
@@ -101,11 +95,6 @@ describe('EventDetailComponent — getSummaryForDisplay', () => {
     it('does not include No presentat row', () => {
       const rows = component.getSummaryForDisplay(futureSummary);
       expect(rows.find((r) => r.label === 'No presentat')).toBeUndefined();
-    });
-
-    it('does not include Baixes tardanes row', () => {
-      const rows = component.getSummaryForDisplay(futureSummary);
-      expect(rows.find((r) => r.label === 'Baixes tardanes')).toBeUndefined();
     });
 
     it('includes Adults row with correct value (confirmed - children)', () => {

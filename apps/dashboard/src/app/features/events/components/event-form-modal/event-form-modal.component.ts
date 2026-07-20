@@ -97,6 +97,7 @@ export class EventFormModalComponent implements OnInit, OnChanges {
           this.form.patchValue({ seasonId: current.id });
         }
       },
+      error: () => { /* expected 404 when no active season */ },
     });
   }
 
@@ -154,6 +155,11 @@ export class EventFormModalComponent implements OnInit, OnChanges {
     this.errorMessage.set(null);
 
     const ev = this.event();
+    if (ev) {
+      payload.description = raw.description || null;
+      payload.information = raw.information || null;
+    }
+
     const request$ = ev
       ? this.eventService.updateFull(ev.id, payload as UpdateEventPayload)
       : this.eventService.create(payload);
