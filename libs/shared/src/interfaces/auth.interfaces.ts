@@ -1,4 +1,5 @@
 import { UserRole } from '../enums/user-role.enum';
+import { ClientType } from '../enums/client-type.enum';
 
 /** Payload decodificat del JWT d'accés. Disponible com a `request.user` als controllers NestJS. */
 export interface JwtPayload {
@@ -23,4 +24,17 @@ export interface UserProfile {
   role: UserRole;
   isActive: boolean;
   person: PersonSummary | null;
+}
+
+/** Cos de la petició POST /auth/login. */
+export interface LoginRequest {
+  email: string;
+  password: string;
+  clientType: ClientType;
+}
+
+/** Resposta de /auth/login i /auth/refresh. */
+export interface AuthResponse {
+  accessToken: string;
+  user: UserProfile;
 }
