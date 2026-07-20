@@ -4,7 +4,7 @@ Centre de control de tot el que surt dels informes d'auditoria (`docs/audit/*`).
 Cada fila és un **work item** de mida PR. Res s'implementa fins que la seva
 **Decisió** és ✅ Aprovat. Cada PR va contra `develop` i actualitza aquest fitxer.
 
-_Actualitzat: 2026-07-17_
+_Actualitzat: 2026-07-19_
 
 ---
 
@@ -37,7 +37,7 @@ _Actualitzat: 2026-07-17_
 | WI-08 | **Detall Event**: assistència com a llista de fitxes en mòbil | Events | 🟠 | M | EV-M2 | 🆕 | ⬜ | — |
 | WI-09 | **Nav tablet**: etiquetes visibles / tooltip real (no només icones) | Shell | 🟠 | S | UX-M4 | 🆕 | ⬜ | — |
 | WI-10 | **Pinyes**: arreglar pestanya **Distribució** en mòbil (`aside w-70` fluid + canvas mai 0px) | Pinyes | 🔴 | M | P-H1 | 🆕 | ⬜ | — |
-| WI-11 | **Pinyes**: blindar `ProjectionViewComponent.ngAfterViewInit` (`nativeElement`) | Pinyes | 🔴 | S | P-H2 | ✅ | 🟣 | `fix/audit-projection-nativeelement` |
+| WI-11 | **Pinyes**: blindar `ProjectionViewComponent.ngAfterViewInit` (`nativeElement`) | Pinyes | 🔴 | S | P-H2 | ✅ | ✔️ | [#78](https://github.com/MuixerangaBarcelonaCat/MuixerApp/pull/78) (fusionada a develop) |
 | WI-12 | **Pinyes**: barra de 5 pestanyes scrollable en mòbil | Pinyes | 🟠 | S | P-M1 | 🆕 | ⬜ | — |
 | WI-13 | **Pinyes**: layout mòbil del workspace (canvas full-width + panell drawer) | Pinyes | 🔴 | L | P-M2, GE-H3 | 🆕 | ⬜ | — |
 | WI-14 | **Pinyes gestos**: pinch-to-zoom (+ wheel-zoom desktop) | Pinyes | 🔴 | M | GE-H1 | 🆕 | ⬜ | — |
@@ -47,7 +47,7 @@ _Actualitzat: 2026-07-17_
 | WI-18 | **PWA offline**: verificar en desplegament real + endurir el test | PWA | ⚠️ | S | PB-offline | 🆕 | ⬜ | — |
 | WI-19 | **PWA manifest**: confirmar icones 192px i 512px | PWA | 🟡 | XS | PB-icons | 🆕 | ⬜ | — |
 
-> **Nota d'ordre de treball:** els fixes es branquegen des de `develop`, però els informes i aquest seguiment viuen encara a `story/playwrite-test`. Cal decidir com aterra la infra d'auditoria a `develop` (veure §3).
+> **Nota d'ordre de treball:** la infra d'auditoria + informes + aquest seguiment viuen a la branca `feat/audit-suite` (PR a `develop`, pendent d'integrar). Els fixes es branquegen des de `develop` amb `fix/audit-<slug>`.
 
 ---
 
@@ -57,7 +57,7 @@ _(Buit — s'omple a mesura que es decideix cada work item, amb data i motiu.)_
 
 | Data | Work item | Decisió | Motiu |
 |------|-----------|---------|-------|
-| 2026-07-17 | WI-11 | ✅ Aprovat | Quick win: error JS real, risc baix, bon primer PR per rodar el flux. Implementat amb `viewChild()` + `effect` i verificat en mòbil (Previsualitza sense error, projecció renderitza). Branca `fix/audit-projection-nativeelement` → PR a `develop`. |
+| 2026-07-17 | WI-11 | ✅ Aprovat → ✔️ Fet | Quick win: error JS real, risc baix, bon primer PR per rodar el flux. Implementat amb `viewChild()` + `effect` i verificat en mòbil (Previsualitza sense error, projecció renderitza). **Fusionada a develop via PR #78 (2026-07-17).** |
 
 ---
 
