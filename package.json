@@ -29,6 +29,10 @@
     "migration:run": "nx run api:migration-run",
     "migration:revert": "nx run api:migration-revert",
     "migration:show": "nx run api:migration-show",
+    "pwa:serve": "nx serve pwa",
+    "pwa:build": "nx build pwa",
+    "pwa:build:pre": "nx build pwa --configuration=pre",
+    "pwa:test": "nx test pwa",
     "audit:responsive": "playwright test -c apps/dashboard-e2e/playwright.audit.config.ts",
     "audit:report": "playwright show-report apps/dashboard-e2e/playwright-report-audit",
     "audit:pwa": "playwright test -c apps/dashboard-e2e/playwright.pwa-audit.config.ts",
@@ -100,6 +104,7 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
+    "@angular/animations": "~21.2.18",
     "@angular/cdk": "^21.2.14",
     "@angular/common": "~21.2.18",
     "@angular/compiler": "~21.2.18",
@@ -107,6 +112,7 @@
     "@angular/forms": "~21.2.18",
     "@angular/platform-browser": "~21.2.18",
     "@angular/router": "~21.2.18",
+    "@angular/service-worker": "~21.2.18",
     "@nestjs/common": "^11.1.28",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.1.28",
