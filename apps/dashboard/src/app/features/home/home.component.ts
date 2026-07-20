@@ -92,12 +92,16 @@ export class HomeComponent implements OnInit {
   }
 
   formatDate(dateStr: string): string {
-    return new Date(dateStr).toLocaleDateString('ca-ES', {
+    // ca-ES returns an all-lowercase string ("dimecres, 15 de juliol de 2026").
+    // Capitalize only the first letter — a CSS `capitalize` would wrongly
+    // Title-Case every word ("Dimecres, 15 De Juliol De 2026").
+    const formatted = new Date(dateStr).toLocaleDateString('ca-ES', {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
       year: 'numeric',
     });
+    return formatted.charAt(0).toUpperCase() + formatted.slice(1);
   }
 
   formatTime(timeStr: string | null): string {
