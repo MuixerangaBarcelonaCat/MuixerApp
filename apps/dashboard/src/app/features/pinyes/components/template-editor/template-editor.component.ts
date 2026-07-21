@@ -156,6 +156,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
   loading = signal(false);
   saveStatus = signal<SaveStatus>('idle');
   private autosaveTimer: ReturnType<typeof setTimeout> | null = null;
+  private idleStatusTimer: ReturnType<typeof setTimeout> | null = null;
 
   // Expose canvas state signals for template binding
   readonly gridEnabled = this.canvasState.gridEnabled;
@@ -220,6 +221,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
   ngOnDestroy(): void {
     this.layout.exitFullscreen();
     if (this.autosaveTimer) clearTimeout(this.autosaveTimer);
+    if (this.idleStatusTimer) clearTimeout(this.idleStatusTimer);
   }
 
   goBack(): void {
@@ -978,7 +980,11 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
 
   private onSaveSuccess(): void {
     this.saveStatus.set('saved');
-    setTimeout(() => this.saveStatus.set('idle'), 2500);
+    if (this.idleStatusTimer) clearTimeout(this.idleStatusTimer);
+    this.idleStatusTimer = setTimeout(() => {
+      this.idleStatusTimer = null;
+      this.saveStatus.set('idle');
+    }, 2500);
   }
 
   private onSaveError(err: HttpErrorResponse): void {

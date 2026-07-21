@@ -258,14 +258,15 @@ export class PersonPanelComponent {
   constructor() {
     this.tagService.getAll().subscribe((tags) => this.tags.set(tags));
 
-    effect(() => {
+    effect((onCleanup) => {
       const nodeId = this.selectedNodeId();
       if (nodeId !== null) {
         this.hasTypedSinceNodeSelected = false;
-        setTimeout(() => {
+        const focusTimer = setTimeout(() => {
           if (document.activeElement === this.heightInputRef?.nativeElement) return;
           this.focusSearch();
         }, 0);
+        onCleanup(() => clearTimeout(focusTimer));
         // Auto-toggle the Xicalla filter to match the selected node's zone.
         // Left untouched when a node is deselected (nodeId === null).
         // Goes through onXicallaChange (not a direct signal set) so the person
