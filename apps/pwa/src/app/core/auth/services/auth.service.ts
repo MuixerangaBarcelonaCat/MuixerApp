@@ -12,6 +12,14 @@ export class AuthService {
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
 
+  /**
+   * Marks (in localStorage) that this device has had an authenticated session, so the
+   * bootstrap silent-refresh — and its noisy 401/403 console error — is skipped for
+   * visitors who have never logged in (e.g. the login page). The refresh token is an
+   * httpOnly cookie we can't read, hence this hint.
+   */
+  private static readonly SESSION_HINT_KEY = 'muixer_has_session';
+
   private readonly _currentUser = signal<UserProfile | null>(null);
   private readonly _accessToken = signal<string | null>(null);
   private readonly _isReady = signal(false);
@@ -52,6 +60,31 @@ export class AuthService {
   clearState(): void {
     this._currentUser.set(null);
     this._accessToken.set(null);
+    this.clearSessionHint();
+  }
+
+  private hasSessionHint(): boolean {
+    try {
+      return localStorage.getItem(AuthService.SESSION_HINT_KEY) === '1';
+    } catch {
+      return false;
+    }
+  }
+
+  private setSessionHint(): void {
+    try {
+      localStorage.setItem(AuthService.SESSION_HINT_KEY, '1');
+    } catch {
+      // localStorage unavailable (private mode) — refresh still works, just without the optimisation.
+    }
+  }
+
+  private clearSessionHint(): void {
+    try {
+      localStorage.removeItem(AuthService.SESSION_HINT_KEY);
+    } catch {
+      // ignore
+    }
   }
 
   handleSessionExpired(): void {
@@ -71,6 +104,7 @@ export class AuthService {
         tap((res) => {
           this._accessToken.set(res.accessToken);
           this._currentUser.set(res.user);
+          this.setSessionHint();
         }),
         map(() => void 0),
       );
@@ -85,6 +119,7 @@ export class AuthService {
         tap((res) => {
           this._accessToken.set(res.accessToken);
           this._currentUser.set(res.user);
+          this.setSessionHint();
         }),
         map(() => void 0),
         finalize(() => {
@@ -109,6 +144,11 @@ export class AuthService {
   }
 
   private silentRefresh(): void {
+    if (!this.hasSessionHint()) {
+      this.markReady();
+      return;
+    }
+
     this.refresh()
       .pipe(
         catchError(() => {

@@ -31,6 +31,7 @@ describe('AuthService', () => {
   let httpTesting: HttpTestingController;
 
   beforeEach(() => {
+    localStorage.clear();
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(),
@@ -45,7 +46,11 @@ describe('AuthService', () => {
 
   afterEach(() => {
     httpTesting.verify();
+    localStorage.clear();
   });
+
+  // A prior session on this device is what triggers the bootstrap refresh.
+  const seedSessionHint = () => localStorage.setItem('muixer_has_session', '1');
 
   it('login() sends clientType PWA', () => {
     service.login({ email: 'a@b.cat', password: 'pass' }).subscribe();
@@ -94,6 +99,7 @@ describe('AuthService', () => {
   });
 
   it('init() calls silentRefresh and resolves whenReady', async () => {
+    seedSessionHint();
     const initPromise = service.init();
 
     httpTesting.expectOne('/api/auth/refresh').flush(mockAuthResponse);
@@ -104,7 +110,17 @@ describe('AuthService', () => {
     expect(service.isAuthenticated()).toBe(true);
   });
 
+  it('init() skips refresh (no console 403) when there is no prior session', async () => {
+    const initPromise = service.init();
+    await initPromise;
+
+    httpTesting.expectNone('/api/auth/refresh');
+    expect(service.isReady()).toBe(true);
+    expect(service.isAuthenticated()).toBe(false);
+  });
+
   it('silentRefresh failure marks ready', async () => {
+    seedSessionHint();
     const initPromise = service.init();
 
     httpTesting

@@ -25,6 +25,7 @@ describe('AuthService', () => {
   let router: Router;
 
   beforeEach(() => {
+    localStorage.clear();
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule, RouterTestingModule],
       providers: [AuthService],
@@ -34,10 +35,17 @@ describe('AuthService', () => {
     router = TestBed.inject(Router);
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    http.verify();
+    localStorage.clear();
+  });
 
   describe('init (silent refresh)', () => {
+    // A prior session on this device is what triggers the bootstrap refresh.
+    const seedSessionHint = () => localStorage.setItem('muixer_has_session', '1');
+
     it('authenticates silently when valid cookie exists', async () => {
+      seedSessionHint();
       const ready = service.init();
 
       http.expectOne((r) => r.url.includes('/auth/refresh')).flush(mockAuthResponse);
@@ -50,6 +58,7 @@ describe('AuthService', () => {
     });
 
     it('stays unauthenticated and marks ready when refresh fails', async () => {
+      seedSessionHint();
       const ready = service.init();
 
       http
@@ -62,6 +71,7 @@ describe('AuthService', () => {
     });
 
     it('whenReady resolves after init completes', async () => {
+      seedSessionHint();
       service.init();
       const readyPromise = service.whenReady();
 
@@ -69,6 +79,16 @@ describe('AuthService', () => {
       await readyPromise;
 
       expect(service.isAuthenticated()).toBe(true);
+    });
+
+    it('skips the refresh call (no console 403) and marks ready when there is no prior session', async () => {
+      // No session hint → the bootstrap refresh must NOT fire.
+      const ready = service.init();
+      await ready;
+
+      http.expectNone((r) => r.url.includes('/auth/refresh'));
+      expect(service.isReady()).toBe(true);
+      expect(service.isAuthenticated()).toBe(false);
     });
   });
 
