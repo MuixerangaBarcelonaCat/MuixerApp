@@ -42,7 +42,7 @@ _Actualitzat: 2026-07-21_
 | WI-13 | **Pinyes**: layout mòbil del workspace (canvas full-width + panell drawer) | Pinyes | 🔴 | L | P-M2, GE-H3 | 🆕 | ⬜ | — |
 | WI-14 | **Pinyes gestos**: pinch-to-zoom (+ wheel-zoom desktop) | Pinyes | 🔴 | M | GE-H1 | 🆕 | ⬜ | — |
 | WI-15 | **Pinyes gestos**: pan del llenç en mode assignació | Pinyes | 🔴 | M | GE-H2 | 🆕 | ⬜ | — |
-| WI-16 | **PWA**: contenidor `max-w` centrat en tablet/desktop | PWA | 🟡 | XS | PW-L1 | 🆕 | ⬜ | — |
+| WI-16 | **PWA**: contenidor `max-w` centrat en tablet/desktop | PWA | 🟡 | XS | PW-L1 | ✅ | 🟣 | `fix/audit-pwa-max-width` |
 | WI-17 | **PWA**: amplada del toggle "Vinc/No vinc" (no trencar en 2 línies) | PWA | 🟡 | XS | PW-L2 | 🆕 | ⬜ | — |
 | WI-18 | **PWA offline**: verificar en desplegament real + endurir el test | PWA | ⚠️ | S | PB-offline | 🆕 | ⬜ | — |
 | WI-19 | **PWA manifest**: confirmar icones 192px i 512px | PWA | 🟡 | XS | PB-icons | 🆕 | ⬜ | — |
