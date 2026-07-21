@@ -19,7 +19,7 @@ interface Tab {
       style="padding-bottom: env(safe-area-inset-bottom, 0px)"
       aria-label="Navegació principal"
     >
-      <div class="flex justify-around items-center h-14">
+      <div class="mx-auto flex max-w-2xl justify-around items-center h-14">
         @for (tab of tabs; track tab.path) {
           <a
             [routerLink]="tab.path"

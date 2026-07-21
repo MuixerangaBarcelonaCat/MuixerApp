@@ -7,6 +7,7 @@ import { SegmentWorkspaceStateService, WorkspaceInstance } from '../../../../ser
 import { AssignmentStateService } from '../../../../services/assignment-state.service';
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
 import { ToastService } from '../../../../../../shared/components/feedback/toast/toast.service';
+import { generateUUID } from '../../../../../../shared/utils/uuid.util';
 import { UndoRedoService, UndoableAction } from '../../../../services/undo-redo.service';
 import { SegmentNodeRef, targetTabForZone } from '../../../../utils/segment-assignment-render.util';
 import { buildTroncBuckets, pickNextAssignableNode } from '../../../../utils/assignment-order.util';
@@ -454,7 +455,7 @@ export class TroncsTabComponent implements OnInit {
     const snapshot = [...this.state.assignments()];
     const matchedNode = this.nodeFor(ref);
     const tempAssignment: AssignmentDetail = {
-      id: `temp-${Date.now()}`,
+      id: `temp-${generateUUID()}`,
       figureInstanceId: instanceId,
       node: {
         id: ref.nodeId,
@@ -474,7 +475,7 @@ export class TroncsTabComponent implements OnInit {
     this.clearSelection();
 
     const op: PendingOp = {
-      id: `op-${Date.now()}`,
+      id: `op-${generateUUID()}`,
       type: 'assign',
       instanceId,
       nodeId: ref.nodeId,
