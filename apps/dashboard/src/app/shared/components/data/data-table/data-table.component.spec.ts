@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { vi } from 'vitest';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { DataTableComponent, RowAction } from './data-table.component';
 import { ColumnDef } from '../../../models/column-def.model';
@@ -117,5 +118,110 @@ describe('DataTableComponent row actions', () => {
     openMenuForRow(0); // close
     openMenuForRow(1);
     expect(menuLabels()).not.toContain('Sempre visible');
+  });
+});
+
+describe('DataTableComponent card mode (< lg)', () => {
+  let fixture: ComponentFixture<DataTableComponent<CardRow>>;
+  const originalMatchMedia = window.matchMedia;
+
+  interface CardRow {
+    id: string;
+    name: string;
+    status: string;
+    tags: { text: string; color: string }[];
+    active: boolean;
+  }
+
+  const columns: ColumnDef<CardRow>[] = [
+    { key: 'name', label: 'Nom', defaultVisible: true, primary: true },
+    { key: 'status', label: 'Estat', defaultVisible: true },
+    {
+      key: 'tags',
+      label: 'Etiquetes',
+      defaultVisible: true,
+      type: 'colorBadges',
+      colorBadges: (row) => row.tags.map((t) => ({ text: t.text, color: t.color })),
+    },
+  ];
+
+  const items: CardRow[] = [
+    { id: '1', name: 'ADRI', status: 'Actiu', tags: [{ text: 'Pinya', color: '#ff0000' }], active: true },
+    { id: '2', name: 'AINA', status: 'Inactiu', tags: [], active: false },
+  ];
+
+  const rowActions: RowAction<CardRow>[] = [
+    { label: 'Veure detall', icon: 'Eye', action: () => undefined },
+  ];
+
+  beforeEach(async () => {
+    // Force card mode: the component reads matchMedia() in its constructor.
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: true,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })) as unknown as typeof window.matchMedia;
+
+    await TestBed.configureTestingModule({
+      imports: [DataTableComponent],
+      providers: [allLucideIconsProvider],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(DataTableComponent<CardRow>);
+    fixture.componentRef.setInput('items', items);
+    fixture.componentRef.setInput('columns', columns);
+    fixture.componentRef.setInput('rowActions', rowActions);
+    fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    window.matchMedia = originalMatchMedia;
+  });
+
+  it('activates card mode when the viewport is below lg', () => {
+    expect(fixture.componentInstance.cardMode()).toBe(true);
+    // No table is rendered in card mode.
+    expect(fixture.nativeElement.querySelector('table')).toBeNull();
+  });
+
+  it('renders one card per item with the primary column as title', () => {
+    const titles = Array.from(
+      fixture.nativeElement.querySelectorAll('.card .font-semibold'),
+    ).map((el) => (el as HTMLElement).textContent?.trim());
+    expect(titles).toEqual(['ADRI', 'AINA']);
+  });
+
+  it('renders the non-primary columns as label → value rows', () => {
+    const labels = Array.from(fixture.nativeElement.querySelectorAll('dt')).map(
+      (el) => (el as HTMLElement).textContent?.trim(),
+    );
+    // Two body columns (Estat, Etiquetes) per card, two cards.
+    expect(labels).toEqual(['Estat', 'Etiquetes', 'Estat', 'Etiquetes']);
+    expect(fixture.nativeElement.textContent).toContain('Actiu');
+  });
+
+  it('renders colorBadges once (no duplicate DOM from the table layout)', () => {
+    const badges = fixture.nativeElement.querySelectorAll('.badge');
+    expect(badges.length).toBe(1);
+    expect((badges[0] as HTMLElement).textContent?.trim()).toBe('Pinya');
+    expect((badges[0] as HTMLElement).style.backgroundColor).toBe('rgb(255, 0, 0)');
+  });
+
+  it('keeps the row-actions menu reachable from each card', () => {
+    const triggers: HTMLButtonElement[] = Array.from(
+      fixture.nativeElement.querySelectorAll('[aria-label="Accions"]'),
+    );
+    expect(triggers.length).toBe(2);
+    triggers[0].click();
+    fixture.detectChanges();
+    const menuLabels = Array.from(
+      fixture.nativeElement.querySelectorAll('[role="menuitem"]'),
+    ).map((el) => (el as HTMLElement).textContent?.trim());
+    expect(menuLabels).toContain('Veure detall');
   });
 });

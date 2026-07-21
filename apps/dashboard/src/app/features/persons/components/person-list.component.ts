@@ -29,7 +29,7 @@ import { PersonNewModalComponent } from './modals/person-new-modal.component';
 const STORAGE_KEY = 'person-list-visible-columns';
 
 export const ALL_COLUMNS: ColumnDef[] = [
-  { key: 'alias', label: 'Alies', defaultVisible: true, sortField: 'alias' },
+  { key: 'alias', label: 'Alies', defaultVisible: true, sortField: 'alias', primary: true },
   { key: 'fullName', label: 'Nom complet', defaultVisible: true, sortField: 'name' },
   { key: 'phone', label: 'Telèfon', defaultVisible: false, sortField: 'phone' },
   { key: 'birthDate', label: 'Data naixement', defaultVisible: false, sortField: 'birthDate' },
