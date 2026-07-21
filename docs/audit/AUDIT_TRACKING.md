@@ -44,8 +44,8 @@ _Actualitzat: 2026-07-19_
 | WI-15 | **Pinyes gestos**: pan del llenç en mode assignació | Pinyes | 🔴 | M | GE-H2 | 🆕 | ⬜ | — |
 | WI-16 | **PWA**: contenidor `max-w` centrat en tablet/desktop | PWA | 🟡 | XS | PW-L1 | 🆕 | ⬜ | — |
 | WI-17 | **PWA**: amplada del toggle "Vinc/No vinc" (no trencar en 2 línies) | PWA | 🟡 | XS | PW-L2 | ✅ | 🟣 | `fix/audit-pwa-toggle-width` |
-| WI-18 | **PWA offline**: verificar en desplegament real + endurir el test | PWA | ⚠️ | S | PB-offline | 🆕 | ⬜ | — |
-| WI-19 | **PWA manifest**: confirmar icones 192px i 512px | PWA | 🟡 | XS | PB-icons | 🆕 | ⬜ | — |
+| WI-18 | **PWA offline**: verificar en desplegament real + endurir el test | PWA | ⚠️ | S | PB-offline | ⏸️ | ⬜ | — |
+| WI-19 | **PWA manifest**: confirmar icones 192px i 512px | PWA | 🟡 | XS | PB-icons | ✅ | ✔️ | verificat (sense codi) |
 | WI-20 | **Estabilitzar tests flaky de components de canvas** (`nodes-tab`, `troncs-tab`, `template-editor`, `person-panel`) — bloquegen el flux de PR del dashboard | Dashboard/CI | 🔴 | M | CI-flaky | 🆕 | ⬜ | — |
 
 > **Nota d'ordre de treball:** la infra d'auditoria + informes + aquest seguiment viuen a la branca `feat/audit-suite` (PR a `develop`, pendent d'integrar). Els fixes es branquegen des de `develop` amb `fix/audit-<slug>`.
@@ -61,6 +61,8 @@ _(Buit — s'omple a mesura que es decideix cada work item, amb data i motiu.)_
 | 2026-07-17 | WI-11 | ✅ Aprovat → ✔️ Fet | Quick win: error JS real, risc baix, bon primer PR per rodar el flux. Implementat amb `viewChild()` + `effect` i verificat en mòbil (Previsualitza sense error, projecció renderitza). **Fusionada a develop via PR #78 (2026-07-17).** |
 | 2026-07-19 | WI-04 | ✅ Aprovat → 🟣 En PR | Fix del Title-Case de dates a Home (capitalitzar només la 1a lletra a `formatDate`, treure la classe CSS `capitalize`). **L'input de data no necessita canvi**: `<html lang="ca">` ja hi és i el format del natiu `<input type="date">` el marca el locale del navegador (el `mm/dd/yyyy` era artefacte de l'entorn de test). Branca `fix/audit-date-localization`. |
 | 2026-07-21 | WI-17 | ✅ Aprovat → 🟣 En PR | Toggle "Vinc/No vinc" trencava en 2 línies en pares estrets (PW-L2). Afegit `whitespace-nowrap` als dos botons de l'`AttendanceButtonComponent` perquè el label + spinner no reflueixi. Branca `fix/audit-pwa-toggle-width`. |
+| 2026-07-21 | WI-19 | ✅ Aprovat → ✔️ Fet | `apps/pwa/public/manifest.webmanifest` ja declara icones 192x192, 512x512 i 512x512 maskable, i els 3 PNG existeixen a `public/icons/`. Cap canvi de codi; només verificació. |
+| 2026-07-21 | WI-18 | ⏸️ Ajornat | El service worker només s'activa en build de producció i la troballa PB-offline demana validació en desplegament real. S'ajorna fins que hi hagi un entorn de prod desplegat on comprovar l'offline de forma fiable; llavors s'endurirà el test (localitzador `app-shell`, assert dur d'offline, asserts de SW controlant). |
 
 ---
 
