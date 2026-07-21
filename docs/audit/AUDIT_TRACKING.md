@@ -27,8 +27,8 @@ _Actualitzat: 2026-07-21_
 
 | ID | Work item | Àrea | Sev | Esforç | Troballes | Decisió | Estat | PR |
 |----|-----------|------|-----|--------|-----------|---------|-------|----|
-| WI-01 | Investigar i resoldre el **403 de bootstrap** (crida sense permisos en carregar) | Transversal | 🔴 | S | PE-H1, PW-M1 | 🆕 | ⬜ | — |
-| WI-02 | **Mode targeta responsive** a `app-data-table` (`< lg`) | Transversal | 🔴 | L | PE-M1, EV-H1, EV-M1, CF-L2 | ✅ | 🟣 | `fix/audit-datatable-card-mode` |
+| WI-01 | Investigar i resoldre el **403 de bootstrap** (crida sense permisos en carregar) | Transversal | 🔴 | S | PE-H1, PW-M1 | ✅ | 🟣 | `fix/audit-bootstrap-403` |
+| WI-02 | **Mode targeta responsive** a `app-data-table` (`< lg`) | Transversal | 🔴 | L | PE-M1, EV-H1, EV-M1, CF-L2 | ✅ | ✔️ | [#86](https://github.com/MuixerangaBarcelonaCat/MuixerApp/pull/86) (fusionada a develop) |
 | WI-03 | **Normalitzar tap targets ≥24px** (chips, checkboxes, enllaços, badges) | Transversal | 🟠 | M | PE-L1, PE-L2, EV-M3, CF-L1, PW-L3, PW-L4 | 🆕 | ⬜ | — |
 | WI-04 | **Localització de dates** (Title-Case a Home; input date ja OK) | Transversal | 🟠 | S | PE-M3(data), UX-L2 | ✅ | ✔️ | [#80](https://github.com/MuixerangaBarcelonaCat/MuixerApp/pull/80) (fusionada a develop) |
 | WI-05 | **Formulari Persona**: apilar etiqueta/input en mòbil | Persons | 🟠 | S | PE-M3(layout) | 🆕 | ⬜ | — |
@@ -54,8 +54,6 @@ _Actualitzat: 2026-07-21_
 
 ## 2. Decisions preses
 
-_(Buit — s'omple a mesura que es decideix cada work item, amb data i motiu.)_
-
 | Data | Work item | Decisió | Motiu |
 |------|-----------|---------|-------|
 | 2026-07-17 | WI-11 | ✅ Aprovat → ✔️ Fet | Quick win: error JS real, risc baix, bon primer PR per rodar el flux. Implementat amb `viewChild()` + `effect` i verificat en mòbil (Previsualitza sense error, projecció renderitza). **Fusionada a develop via PR #78 (2026-07-17).** |
@@ -67,7 +65,8 @@ _(Buit — s'omple a mesura que es decideix cada work item, amb data i motiu.)_
 | 2026-07-21 | WI-17 | ✅ Aprovat → ✔️ Fet | Toggle "Vinc/No vinc" trencava en 2 línies (PW-L2). `whitespace-nowrap` als dos botons de l'`AttendanceButtonComponent`. **Fusionada a develop via PR #85.** |
 | 2026-07-21 | WI-19 | ✅ Aprovat → ✔️ Fet | `manifest.webmanifest` ja declara icones 192, 512 i 512 maskable (fitxers a `public/icons/`). Cap canvi de codi; només verificació. |
 | 2026-07-21 | WI-18 | ⏸️ Ajornat | El SW només s'activa en build de producció i PB-offline demana validació en desplegament real. S'ajorna fins que hi hagi un entorn de prod desplegat; llavors s'endurirà el test (localitzador `app-shell`, assert dur d'offline). |
-| 2026-07-21 | WI-02 | ✅ Aprovat → 🟣 En PR | Mode targeta responsive a `app-data-table` sota `lg` (PE-M1, EV-H1, EV-M1, CF-L2). **Disseny:** camp additiu `primary?` a `ColumnDef` (marca la columna-títol; fallback 1a); senyal `cardMode` per `matchMedia('(max-width:1023.98px)')` amb fallback a taula quan no hi ha `matchMedia` (jsdom) → els specs existents no canvien; render `@if (cardMode())` targetes `@else` taula (mai doble DOM). Targeta = títol + menú d'accions + files etiqueta→valor (respecta badge/pills/colorBadges), amb `groupSeparator` i `opacity-60` de grup secundari. Marcada `primary` a alias/title/email dels 3 consumidors. Seasons/Tags (taules fetes a mà) queden fora d'abast. Verificat: suite dashboard 1295 tests OK (+5 card-mode), lint 0 errors, i captures Playwright mobile (Persons+Actuacions) mostren targetes sense overflow. Branca `fix/audit-datatable-card-mode`. |
+| 2026-07-21 | WI-01 | ✅ Aprovat → 🟣 En PR | **403/401 de bootstrap** (PE-H1 dashboard + PW-M1 PWA). **Arrel:** `provideAppInitializer → AuthService.silentRefresh()` cridava `/auth/refresh` incondicionalment a cada càrrega; sense sessió el backend retorna 401/403 i el navegador el registra a consola (no suprimible des de JS). **Fix (als dos clients):** hint `muixer_has_session` a localStorage (es posa al login/refresh OK, es treu a `clearState`); `silentRefresh` omet la crida si no hi ha hint → cap soroll a la pantalla de login ni en primera visita. Verificat: unit tests (dashboard 1296 + pwa 108, amb test nou "skips refresh") i E2E al navegador (càrrega neta de `/login` = 0 crides `/api`; login → hint + `/home`). Branca `fix/audit-bootstrap-403`. |
+| 2026-07-21 | WI-02 | ✅ Aprovat → ✔️ Fet | Mode targeta responsive a `app-data-table` sota `lg` (PE-M1, EV-H1, EV-M1, CF-L2). **Disseny:** camp additiu `primary?` a `ColumnDef` (marca la columna-títol; fallback 1a); senyal `cardMode` per `matchMedia('(max-width:1023.98px)')` amb fallback a taula quan no hi ha `matchMedia` (jsdom) → els specs existents no canvien; render `@if (cardMode())` targetes `@else` taula (mai doble DOM). Targeta = títol + menú d'accions + files etiqueta→valor (respecta badge/pills/colorBadges), amb `groupSeparator` i `opacity-60` de grup secundari. Marcada `primary` a alias/title/email dels 3 consumidors. Seasons/Tags (taules fetes a mà) queden fora d'abast. Verificat: suite dashboard 1295 tests OK (+5 card-mode), lint 0 errors, i captures Playwright mobile (Persons+Actuacions) mostren targetes sense overflow. **Nota:** l'aspecte desktop d'EV-H1 (Actuacions 1283px) es manté en taula (< lg és card); follow-up d'amplada de columnes. **Fusionada a develop via PR #86.** |
 
 ---
 

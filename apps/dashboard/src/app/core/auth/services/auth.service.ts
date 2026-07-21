@@ -11,6 +11,14 @@ export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
 
+  /**
+   * Marks (in localStorage) that this device has had an authenticated session.
+   * The refresh token itself is an httpOnly cookie we can't read, so this hint
+   * lets us skip the bootstrap silent-refresh — and its noisy 401/403 console
+   * error — for visitors who have never logged in (e.g. the login page).
+   */
+  private static readonly SESSION_HINT_KEY = 'muixer_has_session';
+
   private readonly _currentUser = signal<UserProfile | null>(null);
   private readonly _accessToken = signal<string | null>(null);
   private readonly _isReady = signal(false);
@@ -51,10 +59,35 @@ export class AuthService {
     return this._readyPromise;
   }
 
-  /** Neteja l'estat d'autenticació en memòria (access token + usuari). No revoca tokens al backend. */
+  /** Neteja l'estat d'autenticació en memòria (access token + usuari) i el hint de sessió. No revoca tokens al backend. */
   clearState(): void {
     this._currentUser.set(null);
     this._accessToken.set(null);
+    this.clearSessionHint();
+  }
+
+  private hasSessionHint(): boolean {
+    try {
+      return localStorage.getItem(AuthService.SESSION_HINT_KEY) === '1';
+    } catch {
+      return false;
+    }
+  }
+
+  private setSessionHint(): void {
+    try {
+      localStorage.setItem(AuthService.SESSION_HINT_KEY, '1');
+    } catch {
+      // localStorage unavailable (private mode / SSR) — refresh still works, just without the optimisation.
+    }
+  }
+
+  private clearSessionHint(): void {
+    try {
+      localStorage.removeItem(AuthService.SESSION_HINT_KEY);
+    } catch {
+      // ignore
+    }
   }
 
   /** Envia les credencials al backend, desa l'access token en memòria i estableix la cookie httpOnly del refresh token. */
@@ -66,6 +99,7 @@ export class AuthService {
         tap((res) => {
           this._accessToken.set(res.accessToken);
           this._currentUser.set(res.user);
+          this.setSessionHint();
         }),
         map(() => void 0),
       );
@@ -85,6 +119,7 @@ export class AuthService {
         tap((res) => {
           this._accessToken.set(res.accessToken);
           this._currentUser.set(res.user);
+          this.setSessionHint();
         }),
         map(() => void 0),
         finalize(() => {
@@ -126,8 +161,17 @@ export class AuthService {
       );
   }
 
-  /** Crida el refresh en segon pla al bootstrap. Si falla (sense sessió activa), neteja l'estat i marca `isReady` igualment. */
+  /**
+   * Crida el refresh en segon pla al bootstrap. Si no hi ha hint de sessió en aquest
+   * dispositiu (mai s'ha iniciat sessió), s'omet la crida per evitar un 401/403 sorollós
+   * a la consola (p. ex. a la pantalla de login). Si falla, neteja l'estat i marca `isReady` igualment.
+   */
   private silentRefresh(): void {
+    if (!this.hasSessionHint()) {
+      this.markReady();
+      return;
+    }
+
     this.refresh()
       .pipe(
         catchError(() => {
