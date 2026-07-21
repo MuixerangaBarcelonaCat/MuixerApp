@@ -79,4 +79,25 @@ describe('PersonDetailComponent', () => {
       expect(cell.textContent.trim()).toBe('Mans');
     });
   });
+
+  describe('responsive button rows (WI-06, PE-M2)', () => {
+    it('lets the header row wrap instead of cutting off the header buttons on narrow viewports', () => {
+      const headerRow = fixture.nativeElement.querySelector('div.space-y-4 > div.flex.items-center.gap-3') as HTMLElement;
+      expect(headerRow.className).toContain('flex-wrap');
+    });
+
+    it('lets the header button group itself wrap when several buttons/messages are shown at once', () => {
+      const editButton = Array.from(fixture.nativeElement.querySelectorAll('button')).find(
+        (btn) => (btn as HTMLElement).textContent?.trim() === 'Edita',
+      ) as HTMLElement;
+      expect(editButton.parentElement?.className).toContain('flex-wrap');
+    });
+
+    it('lets the "Informació de la colla" button row wrap instead of cutting off "Enllaça amb usuari existent"', () => {
+      const linkButton = Array.from(fixture.nativeElement.querySelectorAll('button')).find(
+        (btn) => (btn as HTMLElement).textContent?.trim() === 'Enllaça amb usuari existent',
+      ) as HTMLElement;
+      expect(linkButton.parentElement?.className).toContain('flex-wrap');
+    });
+  });
 });
