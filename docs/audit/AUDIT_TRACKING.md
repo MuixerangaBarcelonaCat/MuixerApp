@@ -28,7 +28,7 @@ _Actualitzat: 2026-07-21_
 | ID | Work item | Àrea | Sev | Esforç | Troballes | Decisió | Estat | PR |
 |----|-----------|------|-----|--------|-----------|---------|-------|----|
 | WI-01 | Investigar i resoldre el **403 de bootstrap** (crida sense permisos en carregar) | Transversal | 🔴 | S | PE-H1, PW-M1 | 🆕 | ⬜ | — |
-| WI-02 | **Mode targeta responsive** a `app-data-table` (`< lg`) | Transversal | 🔴 | L | PE-M1, EV-H1, EV-M1, CF-L2 | 🆕 | ⬜ | — |
+| WI-02 | **Mode targeta responsive** a `app-data-table` (`< lg`) | Transversal | 🔴 | L | PE-M1, EV-H1, EV-M1, CF-L2 | ✅ | 🟣 | `fix/audit-datatable-card-mode` |
 | WI-03 | **Normalitzar tap targets ≥24px** (chips, checkboxes, enllaços, badges) | Transversal | 🟠 | M | PE-L1, PE-L2, EV-M3, CF-L1, PW-L3, PW-L4 | 🆕 | ⬜ | — |
 | WI-04 | **Localització de dates** (Title-Case a Home; input date ja OK) | Transversal | 🟠 | S | PE-M3(data), UX-L2 | ✅ | ✔️ | [#80](https://github.com/MuixerangaBarcelonaCat/MuixerApp/pull/80) (fusionada a develop) |
 | WI-05 | **Formulari Persona**: apilar etiqueta/input en mòbil | Persons | 🟠 | S | PE-M3(layout) | 🆕 | ⬜ | — |
@@ -42,11 +42,11 @@ _Actualitzat: 2026-07-21_
 | WI-13 | **Pinyes**: layout mòbil del workspace (canvas full-width + panell drawer) | Pinyes | 🔴 | L | P-M2, GE-H3 | 🆕 | ⬜ | — |
 | WI-14 | **Pinyes gestos**: pinch-to-zoom (+ wheel-zoom desktop) | Pinyes | 🔴 | M | GE-H1 | 🆕 | ⬜ | — |
 | WI-15 | **Pinyes gestos**: pan del llenç en mode assignació | Pinyes | 🔴 | M | GE-H2 | 🆕 | ⬜ | — |
-| WI-16 | **PWA**: contenidor `max-w` centrat en tablet/desktop | PWA | 🟡 | XS | PW-L1 | ✅ | 🟣 | `fix/audit-pwa-max-width` |
-| WI-17 | **PWA**: amplada del toggle "Vinc/No vinc" (no trencar en 2 línies) | PWA | 🟡 | XS | PW-L2 | 🆕 | ⬜ | — |
-| WI-18 | **PWA offline**: verificar en desplegament real + endurir el test | PWA | ⚠️ | S | PB-offline | 🆕 | ⬜ | — |
-| WI-19 | **PWA manifest**: confirmar icones 192px i 512px | PWA | 🟡 | XS | PB-icons | 🆕 | ⬜ | — |
-| WI-20 | **Estabilitzar tests flaky de components de canvas** (`nodes-tab`, `troncs-tab`, `template-editor`, `person-panel`) — bloquegen el flux de PR del dashboard | Dashboard/CI | 🔴 | M | CI-flaky | ✅ | 🟣 | `fix/audit-flaky-canvas-tests` |
+| WI-16 | **PWA**: contenidor `max-w` centrat en tablet/desktop | PWA | 🟡 | XS | PW-L1 | ✅ | ✔️ | [#84](https://github.com/MuixerangaBarcelonaCat/MuixerApp/pull/84) (fusionada a develop) |
+| WI-17 | **PWA**: amplada del toggle "Vinc/No vinc" (no trencar en 2 línies) | PWA | 🟡 | XS | PW-L2 | ✅ | ✔️ | [#85](https://github.com/MuixerangaBarcelonaCat/MuixerApp/pull/85) (fusionada a develop) |
+| WI-18 | **PWA offline**: verificar en desplegament real + endurir el test | PWA | ⚠️ | S | PB-offline | ⏸️ | ⬜ | — |
+| WI-19 | **PWA manifest**: confirmar icones 192px i 512px | PWA | 🟡 | XS | PB-icons | ✅ | ✔️ | verificat (sense codi) |
+| WI-20 | **Estabilitzar tests flaky de components de canvas** (`nodes-tab`, `troncs-tab`, `template-editor`, `person-panel`) — bloquegen el flux de PR del dashboard | Dashboard/CI | 🔴 | M | CI-flaky | ✅ | ✔️ | [#83](https://github.com/MuixerangaBarcelonaCat/MuixerApp/pull/83) (fusionada a develop) |
 
 > **Nota d'ordre de treball:** la infra d'auditoria + informes + aquest seguiment ja són a `develop` (PR #79). La **PWA** també s'hi ha integrat (PR #82) amb els scripts `pwa:*` i les deps `@angular/animations` + `@angular/service-worker` → els WI de PWA (16-19) ja es poden treballar. Els fixes es branquegen des de `develop` amb `fix/audit-<slug>`.
 
@@ -62,7 +62,12 @@ _(Buit — s'omple a mesura que es decideix cada work item, amb data i motiu.)_
 | 2026-07-19 | WI-04 | ✅ Aprovat → ✔️ Fet | Fix del Title-Case de dates a Home (capitalitzar només la 1a lletra a `formatDate`, treure la classe CSS `capitalize`). **L'input de data no necessita canvi**: `<html lang="ca">` ja hi és i el format del natiu `<input type="date">` el marca el locale del navegador (el `mm/dd/yyyy` era artefacte de l'entorn de test). **Fusionada a develop via PR #80.** |
 | 2026-07-19 | WI-07 | ✅ Aprovat → ✔️ Fet | Detall Persona: no repetir l'àlies com a subtítol de la capçalera (`headerSubtitle` computat que només mostra el nom complet si difereix de l'àlies). **Fusionada a develop via PR #81.** |
 | 2026-07-20 | PWA (integració) | ✅ Integrada | S'ha baixat la PWA (`feat/pwa-app-start` + story) a `develop` de forma additiva (PR #82): `apps/pwa`, `libs/shared` (`me/` + `LoginRequest`/`AuthResponse`), scripts `pwa:*` i deps `@angular/animations` + `@angular/service-worker`. Build/test/serve verds. ⚠️ Els endpoints de membre (`/auth/me`, me-events) encara no són a l'api de develop → algunes crides faran 404 fins que el backend aterri. |
-| 2026-07-21 | WI-20 | ✅ Aprovat → 🟣 En PR | Estabilitzar els 4 specs flaky. **Arrel:** timers reals sense cleanup + IDs basats en `Date.now()` (no Konva; el canvas fill està stubejat a tots). **Fixes:** (producció) netejar el timer idle de 2.5s a `TemplateEditorComponent.ngOnDestroy`; `onCleanup` de l'`effect` de focus a `PersonPanelComponent`; IDs únics amb `generateUUID()` a `troncs-tab` (temp/op). (test) fake timers deterministes a template-editor + person-panel; reset del comptador `assignmentSeq` a nodes-tab. Verificat amb 5 execucions consecutives del suite dashboard sense fallades. Branca `fix/audit-flaky-canvas-tests`. |
+| 2026-07-21 | WI-20 | ✅ Aprovat → ✔️ Fet | Estabilitzar els 4 specs flaky. **Arrel:** timers reals sense cleanup + IDs basats en `Date.now()` (no Konva; el canvas fill està stubejat a tots). **Fixes:** (producció) netejar el timer idle de 2.5s a `TemplateEditorComponent.ngOnDestroy`; `onCleanup` de l'`effect` de focus a `PersonPanelComponent`; IDs únics amb `generateUUID()` a `troncs-tab` (temp/op). (test) fake timers deterministes a template-editor + person-panel; reset del comptador `assignmentSeq` a nodes-tab. Verificat amb 5 execucions consecutives del suite dashboard sense fallades. **Fusionada a develop via PR #83.** |
+| 2026-07-21 | WI-16 | ✅ Aprovat → ✔️ Fet | PWA sense max-width en tablet/desktop (PW-L1). `mx-auto max-w-2xl` al `<main>` del `AppShellComponent` + fila de pestanyes del `bottom-tab-bar` centrada. **Fusionada a develop via PR #84.** |
+| 2026-07-21 | WI-17 | ✅ Aprovat → ✔️ Fet | Toggle "Vinc/No vinc" trencava en 2 línies (PW-L2). `whitespace-nowrap` als dos botons de l'`AttendanceButtonComponent`. **Fusionada a develop via PR #85.** |
+| 2026-07-21 | WI-19 | ✅ Aprovat → ✔️ Fet | `manifest.webmanifest` ja declara icones 192, 512 i 512 maskable (fitxers a `public/icons/`). Cap canvi de codi; només verificació. |
+| 2026-07-21 | WI-18 | ⏸️ Ajornat | El SW només s'activa en build de producció i PB-offline demana validació en desplegament real. S'ajorna fins que hi hagi un entorn de prod desplegat; llavors s'endurirà el test (localitzador `app-shell`, assert dur d'offline). |
+| 2026-07-21 | WI-02 | ✅ Aprovat → 🟣 En PR | Mode targeta responsive a `app-data-table` sota `lg` (PE-M1, EV-H1, EV-M1, CF-L2). **Disseny:** camp additiu `primary?` a `ColumnDef` (marca la columna-títol; fallback 1a); senyal `cardMode` per `matchMedia('(max-width:1023.98px)')` amb fallback a taula quan no hi ha `matchMedia` (jsdom) → els specs existents no canvien; render `@if (cardMode())` targetes `@else` taula (mai doble DOM). Targeta = títol + menú d'accions + files etiqueta→valor (respecta badge/pills/colorBadges), amb `groupSeparator` i `opacity-60` de grup secundari. Marcada `primary` a alias/title/email dels 3 consumidors. Seasons/Tags (taules fetes a mà) queden fora d'abast. Verificat: suite dashboard 1295 tests OK (+5 card-mode), lint 0 errors, i captures Playwright mobile (Persons+Actuacions) mostren targetes sense overflow. Branca `fix/audit-datatable-card-mode`. |
 
 ---
 

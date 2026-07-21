@@ -1,134 +1,237 @@
-<div class="card bg-base-100 shadow-sm">
-  <div class="overflow-x-auto">
-    <table class="table table-sm table-zebra">
-      <thead class="sticky top-0 z-10 bg-base-100 border-b border-base-300">
-        <tr>
-          @for (col of displayColumns(); track col.key; let first = $first) {
-            <th
-              [ngClass]="{
-                'sticky left-0 z-[1] bg-base-100': first,
-                'cursor-pointer select-none hover:bg-base-200': !!col.sortField
-              }"
-              (click)="onSort(col)"
-            >
-              <div class="flex items-center gap-1">
-                {{ col.label }}
-                @if (col.sortField) {
-                  <lucide-icon
-                    [name]="getSortIcon(col)"
-                    [size]="14"
-                    [ngClass]="isSorted(col) ? 'text-primary' : 'text-base-content/30'"
-                  />
-                }
-              </div>
-            </th>
-          }
-          @if (rowActions().length > 0) {
-            <th class="text-right">Accions</th>
-          }
-        </tr>
-      </thead>
-
-      <tbody>
-        @if (loading()) {
-          @for (row of skeletonArray(); track $index) {
-            <tr>
-              @for (col of displayColumns(); track col.key; let first = $first) {
-                <td [ngClass]="{ 'sticky left-0 bg-base-100 z-[1]': first }">
-                  <div class="skeleton h-4 rounded"
-                    [ngClass]="first ? 'w-28' : 'w-20'">
-                  </div>
-                </td>
-              }
-              @if (rowActions().length > 0) {
-                <td><div class="skeleton h-4 w-16 rounded ml-auto"></div></td>
-              }
-            </tr>
-          }
-        } @else if (items().length === 0) {
+@if (!cardMode()) {
+  <!-- ── Table layout (≥ lg) ───────────────────────────────────────────────── -->
+  <div class="card bg-base-100 shadow-sm">
+    <div class="overflow-x-auto">
+      <table class="table table-sm table-zebra">
+        <thead class="sticky top-0 z-10 bg-base-100 border-b border-base-300">
           <tr>
-            <td [attr.colspan]="displayColumns().length + (rowActions().length > 0 ? 1 : 0)"
-                class="text-center py-12 text-base-content/50 text-sm">
-              No hi ha dades per mostrar
-            </td>
+            @for (col of displayColumns(); track col.key; let first = $first) {
+              <th
+                [ngClass]="{
+                  'sticky left-0 z-[1] bg-base-100': first,
+                  'cursor-pointer select-none hover:bg-base-200': !!col.sortField
+                }"
+                (click)="onSort(col)"
+              >
+                <div class="flex items-center gap-1">
+                  {{ col.label }}
+                  @if (col.sortField) {
+                    <lucide-icon
+                      [name]="getSortIcon(col)"
+                      [size]="14"
+                      [ngClass]="isSorted(col) ? 'text-primary' : 'text-base-content/30'"
+                    />
+                  }
+                </div>
+              </th>
+            }
+            @if (rowActions().length > 0) {
+              <th class="text-right">Accions</th>
+            }
           </tr>
-        } @else {
-          @for (item of items(); track $index; let idx = $index) {
-            <!-- Group separator row (before first past item) -->
-            @if (showSeparatorBefore(item, idx)) {
+        </thead>
+
+        <tbody>
+          @if (loading()) {
+            @for (row of skeletonArray(); track $index) {
               <tr>
-                <td
-                  [attr.colspan]="displayColumns().length + (rowActions().length > 0 ? 1 : 0)"
-                  class="py-2 px-4"
-                >
-                  <div class="flex items-center gap-3">
-                    <div class="flex-1 border-t border-base-300"></div>
-                    <span class="text-xs font-medium text-base-content/40 whitespace-nowrap">
-                      {{ groupSeparator()?.label }}
-                    </span>
-                    <div class="flex-1 border-t border-base-300"></div>
-                  </div>
-                </td>
+                @for (col of displayColumns(); track col.key; let first = $first) {
+                  <td [ngClass]="{ 'sticky left-0 bg-base-100 z-[1]': first }">
+                    <div class="skeleton h-4 rounded"
+                      [ngClass]="first ? 'w-28' : 'w-20'">
+                    </div>
+                  </td>
+                }
+                @if (rowActions().length > 0) {
+                  <td><div class="skeleton h-4 w-16 rounded ml-auto"></div></td>
+                }
               </tr>
             }
-
-            <tr
-              class="hover cursor-pointer transition-colors"
-              [class.opacity-60]="isSecondaryGroup(item)"
-              (click)="rowClick.emit($any(item))"
-            >
-              @for (col of displayColumns(); track col.key; let first = $first) {
-                <td
-                  class="whitespace-nowrap"
-                  [ngClass]="{ 'sticky left-0 z-[1] font-medium': first }"
-                >
-                  @if (col.type === 'badge' && col.badgeClass) {
-                    <span class="badge badge-sm" [ngClass]="col.badgeClass(item)">
-                      {{ getCellValue(item, col) }}
-                    </span>
-                  } @else if (col.type === 'pills' && col.pills) {
-                    <span class="inline-flex items-center gap-2">
-                      @for (pill of col.pills(item); track pill.text) {
-                        <span class="text-xs font-semibold tabular-nums" [ngClass]="pill.class">{{ pill.text }}</span>
-                      }
-                    </span>
-                  } @else if (col.type === 'colorBadges' && col.colorBadges) {
-                    <div class="flex flex-wrap gap-1">
-                      @for (badge of col.colorBadges(item); track badge.text) {
-                        <span
-                          class="badge badge-sm"
-                          [style.background-color]="badge.color"
-                          [style.color]="getContrastColor(badge.color)"
-                        >{{ badge.text }}</span>
-                      }
-                    </div>
-                  } @else {
-                    {{ getCellValue(item, col) ?? '—' }}
-                  }
-                </td>
-              }
-
-              @if (rowActions().length > 0) {
-                <td class="text-right" (click)="$event.stopPropagation()">
-                  <button
-                    type="button"
-                    class="btn btn-ghost btn-xs"
-                    aria-label="Accions"
-                    [attr.aria-expanded]="openActionsIndex() === idx"
-                    (click)="toggleActionsMenu($event, idx)"
-                  >
-                    <lucide-icon name="MoreHorizontal" [size]="16" />
-                  </button>
-                </td>
-              }
+          } @else if (items().length === 0) {
+            <tr>
+              <td [attr.colspan]="displayColumns().length + (rowActions().length > 0 ? 1 : 0)"
+                  class="text-center py-12 text-base-content/50 text-sm">
+                No hi ha dades per mostrar
+              </td>
             </tr>
-          }
-        }
-      </tbody>
-    </table>
-  </div>
-</div>
+          } @else {
+            @for (item of items(); track $index; let idx = $index) {
+              <!-- Group separator row (before first past item) -->
+              @if (showSeparatorBefore(item, idx)) {
+                <tr>
+                  <td
+                    [attr.colspan]="displayColumns().length + (rowActions().length > 0 ? 1 : 0)"
+                    class="py-2 px-4"
+                  >
+                    <div class="flex items-center gap-3">
+                      <div class="flex-1 border-t border-base-300"></div>
+                      <span class="text-xs font-medium text-base-content/40 whitespace-nowrap">
+                        {{ groupSeparator()?.label }}
+                      </span>
+                      <div class="flex-1 border-t border-base-300"></div>
+                    </div>
+                  </td>
+                </tr>
+              }
 
+              <tr
+                class="hover cursor-pointer transition-colors"
+                [class.opacity-60]="isSecondaryGroup(item)"
+                (click)="rowClick.emit($any(item))"
+              >
+                @for (col of displayColumns(); track col.key; let first = $first) {
+                  <td
+                    class="whitespace-nowrap"
+                    [ngClass]="{ 'sticky left-0 z-[1] font-medium': first }"
+                  >
+                    @if (col.type === 'badge' && col.badgeClass) {
+                      <span class="badge badge-sm" [ngClass]="col.badgeClass(item)">
+                        {{ getCellValue(item, col) }}
+                      </span>
+                    } @else if (col.type === 'pills' && col.pills) {
+                      <span class="inline-flex items-center gap-2">
+                        @for (pill of col.pills(item); track pill.text) {
+                          <span class="text-xs font-semibold tabular-nums" [ngClass]="pill.class">{{ pill.text }}</span>
+                        }
+                      </span>
+                    } @else if (col.type === 'colorBadges' && col.colorBadges) {
+                      <div class="flex flex-wrap gap-1">
+                        @for (badge of col.colorBadges(item); track badge.text) {
+                          <span
+                            class="badge badge-sm"
+                            [style.background-color]="badge.color"
+                            [style.color]="getContrastColor(badge.color)"
+                          >{{ badge.text }}</span>
+                        }
+                      </div>
+                    } @else {
+                      {{ getCellValue(item, col) ?? '—' }}
+                    }
+                  </td>
+                }
+
+                @if (rowActions().length > 0) {
+                  <td class="text-right" (click)="$event.stopPropagation()">
+                    <button
+                      type="button"
+                      class="btn btn-ghost btn-xs"
+                      aria-label="Accions"
+                      [attr.aria-expanded]="openActionsIndex() === idx"
+                      (click)="toggleActionsMenu($event, idx)"
+                    >
+                      <lucide-icon name="MoreHorizontal" [size]="16" />
+                    </button>
+                  </td>
+                }
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+} @else {
+  <!-- ── Card layout (< lg) — table reflows into stacked cards ─────────────── -->
+  <div class="flex flex-col gap-2">
+    @if (loading()) {
+      @for (row of skeletonArray(); track $index) {
+        <div class="card bg-base-100 shadow-sm p-4">
+          <div class="skeleton h-5 w-32 rounded mb-3"></div>
+          <div class="skeleton h-4 w-full rounded mb-2"></div>
+          <div class="skeleton h-4 w-2/3 rounded"></div>
+        </div>
+      }
+    } @else if (items().length === 0) {
+      <div class="card bg-base-100 shadow-sm">
+        <div class="text-center py-12 text-base-content/50 text-sm">
+          No hi ha dades per mostrar
+        </div>
+      </div>
+    } @else {
+      @for (item of items(); track $index; let idx = $index) {
+        <!-- Group separator (before first past item) -->
+        @if (showSeparatorBefore(item, idx)) {
+          <div class="flex items-center gap-3 pt-2">
+            <div class="flex-1 border-t border-base-300"></div>
+            <span class="text-xs font-medium text-base-content/40 whitespace-nowrap">
+              {{ groupSeparator()?.label }}
+            </span>
+            <div class="flex-1 border-t border-base-300"></div>
+          </div>
+        }
+
+        <div
+          class="card bg-base-100 shadow-sm p-4 cursor-pointer transition-colors hover:bg-base-200"
+          role="button"
+          tabindex="0"
+          [class.opacity-60]="isSecondaryGroup(item)"
+          (click)="rowClick.emit($any(item))"
+          (keydown.enter)="rowClick.emit($any(item))"
+        >
+          <!-- Header: primary column as title + actions -->
+          <div class="flex items-start justify-between gap-2">
+            @if (primaryColumn(); as pcol) {
+              <span class="font-semibold text-base break-words">
+                {{ getCellValue(item, pcol) ?? '—' }}
+              </span>
+            }
+            @if (rowActions().length > 0) {
+              <div class="shrink-0">
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-xs"
+                  aria-label="Accions"
+                  [attr.aria-expanded]="openActionsIndex() === idx"
+                  (click)="toggleActionsMenu($event, idx)"
+                >
+                  <lucide-icon name="MoreHorizontal" [size]="16" />
+                </button>
+              </div>
+            }
+          </div>
+
+          <!-- Body: remaining columns as label → value rows -->
+          @if (secondaryColumns().length > 0) {
+            <dl class="mt-2 flex flex-col gap-1.5">
+              @for (col of secondaryColumns(); track col.key) {
+                <div class="flex items-start justify-between gap-3 text-sm">
+                  <dt class="text-base-content/50 shrink-0">{{ col.label }}</dt>
+                  <dd class="text-right min-w-0">
+                    @if (col.type === 'badge' && col.badgeClass) {
+                      <span class="badge badge-sm" [ngClass]="col.badgeClass(item)">
+                        {{ getCellValue(item, col) }}
+                      </span>
+                    } @else if (col.type === 'pills' && col.pills) {
+                      <span class="inline-flex items-center gap-2 flex-wrap justify-end">
+                        @for (pill of col.pills(item); track pill.text) {
+                          <span class="text-xs font-semibold tabular-nums" [ngClass]="pill.class">{{ pill.text }}</span>
+                        }
+                      </span>
+                    } @else if (col.type === 'colorBadges' && col.colorBadges) {
+                      <div class="flex flex-wrap gap-1 justify-end">
+                        @for (badge of col.colorBadges(item); track badge.text) {
+                          <span
+                            class="badge badge-sm"
+                            [style.background-color]="badge.color"
+                            [style.color]="getContrastColor(badge.color)"
+                          >{{ badge.text }}</span>
+                        }
+                      </div>
+                    } @else {
+                      <span class="break-words">{{ getCellValue(item, col) ?? '—' }}</span>
+                    }
+                  </dd>
+                </div>
+              }
+            </dl>
+          }
+        </div>
+      }
+    }
+  </div>
+}
+
+<!-- ── Shared row-actions menu (fixed-positioned, used by both layouts) ────── -->
 @if (openActionsIndex() !== null && menuPosition(); as position) {
   <button
     type="button"
@@ -137,30 +240,32 @@
     (click)="closeActionsMenu()"
   ></button>
 
-  <ul
-    class="menu bg-base-100 rounded-box z-50 w-40 p-1 shadow-lg border border-base-300 fixed"
-    role="menu"
-    tabindex="-1"
-    [style.top.px]="position.top"
-    [style.left.px]="position.left"
-    (click)="$event.stopPropagation()"
-    (keydown)="$event.stopPropagation()"
-  >
-    @for (action of visibleRowActions(); track $index) {
-      <li role="none">
-        <button
-          type="button"
-          class="text-sm"
-          role="menuitem"
-          [ngClass]="action.class ?? ''"
-          (click)="onRowAction(action, items()[openActionsIndex()!])"
-        >
-          @if (resolveIcon(action, items()[openActionsIndex()!]); as icon) {
-            <lucide-icon [name]="icon" [size]="14" />
-          }
-          {{ resolveLabel(action, items()[openActionsIndex()!]) }}
-        </button>
-      </li>
-    }
-  </ul>
+  @if (openItem(); as current) {
+    <ul
+      class="menu bg-base-100 rounded-box z-50 w-40 p-1 shadow-lg border border-base-300 fixed"
+      role="menu"
+      tabindex="-1"
+      [style.top.px]="position.top"
+      [style.left.px]="position.left"
+      (click)="$event.stopPropagation()"
+      (keydown)="$event.stopPropagation()"
+    >
+      @for (action of visibleRowActions(); track $index) {
+        <li role="none">
+          <button
+            type="button"
+            class="text-sm"
+            role="menuitem"
+            [ngClass]="action.class ?? ''"
+            (click)="onRowAction(action, current)"
+          >
+            @if (resolveIcon(action, current); as icon) {
+              <lucide-icon [name]="icon" [size]="14" />
+            }
+            {{ resolveLabel(action, current) }}
+          </button>
+        </li>
+      }
+    </ul>
+  }
 }

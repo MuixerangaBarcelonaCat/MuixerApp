@@ -39,7 +39,7 @@ export function getAdultsCount(summary: AttendanceSummary, isPast: boolean): num
 
 export const ALL_EVENT_COLUMNS: ColumnDef[] = [
   { key: 'date', label: 'Data', defaultVisible: true, sortField: 'date' },
-  { key: 'title', label: 'Títol', defaultVisible: true, sortField: 'title' },
+  { key: 'title', label: 'Títol', defaultVisible: true, sortField: 'title', primary: true },
   { key: 'location', label: 'Lloc', defaultVisible: true, sortField: 'location' },
   { key: 'startTime', label: 'Hora inici', defaultVisible: true },
   { key: 'attendance', label: 'Assistència', defaultVisible: true },

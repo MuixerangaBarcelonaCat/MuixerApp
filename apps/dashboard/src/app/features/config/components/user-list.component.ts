@@ -32,7 +32,7 @@ import { AuthService } from '../../../core/auth/services/auth.service';
 const STORAGE_KEY = 'user-list-visible-columns';
 
 export const ALL_COLUMNS: ColumnDef[] = [
-  { key: 'email', label: 'Correu', defaultVisible: true, sortField: 'email' },
+  { key: 'email', label: 'Correu', defaultVisible: true, sortField: 'email', primary: true },
   { key: 'person', label: 'Persona', defaultVisible: true },
   { key: 'role', label: 'Rol', defaultVisible: true, sortField: 'role' },
   {

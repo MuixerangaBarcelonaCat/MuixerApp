@@ -5,6 +5,8 @@ import {
   output,
   computed,
   signal,
+  inject,
+  DestroyRef,
   HostListener,
 } from '@angular/core';
 import { NgClass } from '@angular/common';
@@ -44,11 +46,40 @@ export class DataTableComponent<T extends object> {
   rowClick = output<T>();
   sortChange = output<SortChange>();
 
+  /**
+   * True below the `lg` breakpoint (< 1024px): the table reflows into stacked cards
+   * instead of overflowing horizontally. Driven by `matchMedia`; falls back to `false`
+   * (table mode) in non-browser/test environments where `matchMedia` is unavailable.
+   */
+  readonly cardMode = signal(false);
+
+  constructor() {
+    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+      const mql = window.matchMedia('(max-width: 1023.98px)');
+      this.cardMode.set(mql.matches);
+      const listener = (e: MediaQueryListEvent) => this.cardMode.set(e.matches);
+      mql.addEventListener('change', listener);
+      inject(DestroyRef).onDestroy(() => mql.removeEventListener('change', listener));
+    }
+  }
+
   readonly displayColumns = computed(() => {
     const visible = this.visibleColumns();
     const cols = this.columns();
     if (!visible.length) return cols;
     return cols.filter(c => visible.includes(c.key));
+  });
+
+  /** Card-mode title column: the one flagged `primary`, else the first visible column. */
+  readonly primaryColumn = computed<ColumnDef<T> | null>(() => {
+    const cols = this.displayColumns();
+    return cols.find((c) => c.primary) ?? cols[0] ?? null;
+  });
+
+  /** Card-mode body columns: every visible column except the title. */
+  readonly secondaryColumns = computed<ColumnDef<T>[]>(() => {
+    const primary = this.primaryColumn();
+    return this.displayColumns().filter((c) => c !== primary);
   });
 
   readonly skeletonArray = computed(() =>

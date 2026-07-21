@@ -17,6 +17,11 @@ export interface ColumnDef<T = any> {
   defaultVisible: boolean;
   sortField?: string;
   type?: ColumnType;
+  /**
+   * Marks this column as the card title in the responsive card layout (`< lg`).
+   * If no column is flagged, the first visible column is used as the title.
+   */
+  primary?: boolean;
   /** Optional transform: extract display value from item */
   value?: (item: T) => string | number | null | undefined;
   /** Optional badge class when type === 'badge' */
