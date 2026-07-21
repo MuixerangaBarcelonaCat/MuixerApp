@@ -122,31 +122,37 @@ const makeSegment = (instances: InstanceDetail[]): SegmentDetail => ({
 });
 
 let assignmentSeq = 0;
-const makeAssignment = (instanceId: string, nodeId: string, personId = `p-${++assignmentSeq}`): AssignmentDetail => ({
-  id: `as-${assignmentSeq}`,
-  figureInstanceId: instanceId,
-  node: {
-    id: nodeId,
-    label: nodeId,
-    zone: 'PINYA',
-    z: 0,
-    positionType: null,
-    sortOrder: 0,
-    climbIndicator: null,
-    ringLevel: null,
-    originNodeId: null,
-    sourceNodeId: null,
-  },
-  person: {
-    id: personId,
-    alias: `Alias ${personId}`,
-    name: 'Nom',
-    firstSurname: 'Cognom',
-    shoulderHeight: null,
-    notes: null,
-    notesEmoji: null,
-  },
-});
+// Always bumps the counter (even when personId is passed) so every assignment gets a
+// unique `as-N` id — the old default-param form reused the previous id on explicit personId.
+const makeAssignment = (instanceId: string, nodeId: string, personId?: string): AssignmentDetail => {
+  const seq = ++assignmentSeq;
+  const pid = personId ?? `p-${seq}`;
+  return {
+    id: `as-${seq}`,
+    figureInstanceId: instanceId,
+    node: {
+      id: nodeId,
+      label: nodeId,
+      zone: 'PINYA',
+      z: 0,
+      positionType: null,
+      sortOrder: 0,
+      climbIndicator: null,
+      ringLevel: null,
+      originNodeId: null,
+      sourceNodeId: null,
+    },
+    person: {
+      id: pid,
+      alias: `Alias ${pid}`,
+      name: 'Nom',
+      firstSurname: 'Cognom',
+      shoulderHeight: null,
+      notes: null,
+      notesEmoji: null,
+    },
+  };
+};
 
 type MockFn = ReturnType<typeof vi.fn>;
 
@@ -165,6 +171,11 @@ describe('NodesTabComponent', () => {
     deleteAdHocNode: MockFn;
   };
   let toast: { success: MockFn; error: MockFn; info: MockFn };
+
+  // Reset the module-level assignment id counter so tests don't depend on execution order.
+  beforeEach(() => {
+    assignmentSeq = 0;
+  });
 
   const setup = async (opts: {
     instances?: InstanceDetail[];

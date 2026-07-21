@@ -140,8 +140,14 @@ describe('TemplateEditorComponent — Preview Mode', () => {
   });
 
   describe('canDeactivate (pending autosave flush) — FE-BUG-26', () => {
+    // Fake timers keep the 2s autosave / 2.5s idle-status timers from leaking into later tests.
     beforeEach(() => {
+      vi.useFakeTimers();
       mockFigureTemplateService.create.mockClear();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
     });
 
     it('returns true synchronously when there is no pending autosave', () => {
@@ -170,6 +176,15 @@ describe('TemplateEditorComponent — Preview Mode', () => {
   });
 
   describe('beforeunload (tab close with unsaved changes) — FE-BUG-26', () => {
+    // Fake timers keep the 2s autosave timer armed by onNodeMoved from leaking into later tests.
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
     const makeEvent = () => ({ preventDefault: vi.fn(), returnValue: '' }) as unknown as BeforeUnloadEvent;
 
     it('warns the browser when there is a pending autosave', () => {
