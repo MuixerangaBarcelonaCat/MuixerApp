@@ -31,7 +31,7 @@ import { ToastService } from '../../../../shared/services/toast.service';
       <div class="join w-full" role="group" [attr.aria-label]="ariaLabel()">
         <button
           type="button"
-          class="join-item btn btn-sm flex-1"
+          class="join-item btn btn-sm flex-1 whitespace-nowrap"
           [class.btn-success]="displayStatus() === ANIRE"
           [class.btn-outline]="displayStatus() !== ANIRE"
           [disabled]="isEffectivelyDisabled()"
@@ -45,7 +45,7 @@ import { ToastService } from '../../../../shared/services/toast.service';
         </button>
         <button
           type="button"
-          class="join-item btn btn-sm flex-1"
+          class="join-item btn btn-sm flex-1 whitespace-nowrap"
           [class.btn-error]="displayStatus() === NO_VAIG"
           [class.btn-outline]="displayStatus() !== NO_VAIG"
           [disabled]="isEffectivelyDisabled()"
