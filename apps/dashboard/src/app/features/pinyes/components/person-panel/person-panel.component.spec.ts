@@ -445,16 +445,22 @@ describe('PersonPanelComponent', () => {
       expect(component.showXicalla()).toBe(true);
     });
 
-    it('does not steal focus from the height input when a node gets selected mid-typing', async () => {
-      const heightInput: HTMLInputElement = fixture.nativeElement.querySelector('input[type="number"]');
-      heightInput.focus();
-      expect(document.activeElement).toBe(heightInput);
+    it('does not steal focus from the height input when a node gets selected mid-typing', () => {
+      vi.useFakeTimers();
+      try {
+        const heightInput: HTMLInputElement = fixture.nativeElement.querySelector('input[type="number"]');
+        heightInput.focus();
+        expect(document.activeElement).toBe(heightInput);
 
-      fixture.componentRef.setInput('selectedNodeId', 'node-1');
-      fixture.detectChanges();
-      await new Promise((resolve) => setTimeout(resolve, 0));
+        fixture.componentRef.setInput('selectedNodeId', 'node-1');
+        fixture.detectChanges();
+        // Deterministically run the effect's setTimeout(0) that guards focus.
+        vi.advanceTimersByTime(1);
 
-      expect(document.activeElement).toBe(heightInput);
+        expect(document.activeElement).toBe(heightInput);
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 
