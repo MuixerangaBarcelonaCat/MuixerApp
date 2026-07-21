@@ -10,7 +10,7 @@ import { AuthService } from '../../auth/services/auth.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterOutlet, BottomTabBarComponent, NoPersonBannerComponent],
   template: `
-    <main class="min-h-screen pb-20 pt-safe-top px-4">
+    <main class="mx-auto min-h-screen w-full max-w-2xl pb-20 pt-safe-top px-4">
       @if (!auth.hasLinkedPerson()) {
         <app-no-person-banner />
       }

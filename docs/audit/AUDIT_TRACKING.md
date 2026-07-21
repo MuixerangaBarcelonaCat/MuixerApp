@@ -42,7 +42,7 @@ _Actualitzat: 2026-07-19_
 | WI-13 | **Pinyes**: layout mòbil del workspace (canvas full-width + panell drawer) | Pinyes | 🔴 | L | P-M2, GE-H3 | 🆕 | ⬜ | — |
 | WI-14 | **Pinyes gestos**: pinch-to-zoom (+ wheel-zoom desktop) | Pinyes | 🔴 | M | GE-H1 | 🆕 | ⬜ | — |
 | WI-15 | **Pinyes gestos**: pan del llenç en mode assignació | Pinyes | 🔴 | M | GE-H2 | 🆕 | ⬜ | — |
-| WI-16 | **PWA**: contenidor `max-w` centrat en tablet/desktop | PWA | 🟡 | XS | PW-L1 | 🆕 | ⬜ | — |
+| WI-16 | **PWA**: contenidor `max-w` centrat en tablet/desktop | PWA | 🟡 | XS | PW-L1 | ✅ | 🟣 | `fix/audit-pwa-max-width` |
 | WI-17 | **PWA**: amplada del toggle "Vinc/No vinc" (no trencar en 2 línies) | PWA | 🟡 | XS | PW-L2 | 🆕 | ⬜ | — |
 | WI-18 | **PWA offline**: verificar en desplegament real + endurir el test | PWA | ⚠️ | S | PB-offline | 🆕 | ⬜ | — |
 | WI-19 | **PWA manifest**: confirmar icones 192px i 512px | PWA | 🟡 | XS | PB-icons | 🆕 | ⬜ | — |
@@ -60,6 +60,7 @@ _(Buit — s'omple a mesura que es decideix cada work item, amb data i motiu.)_
 |------|-----------|---------|-------|
 | 2026-07-17 | WI-11 | ✅ Aprovat → ✔️ Fet | Quick win: error JS real, risc baix, bon primer PR per rodar el flux. Implementat amb `viewChild()` + `effect` i verificat en mòbil (Previsualitza sense error, projecció renderitza). **Fusionada a develop via PR #78 (2026-07-17).** |
 | 2026-07-19 | WI-04 | ✅ Aprovat → 🟣 En PR | Fix del Title-Case de dates a Home (capitalitzar només la 1a lletra a `formatDate`, treure la classe CSS `capitalize`). **L'input de data no necessita canvi**: `<html lang="ca">` ja hi és i el format del natiu `<input type="date">` el marca el locale del navegador (el `mm/dd/yyyy` era artefacte de l'entorn de test). Branca `fix/audit-date-localization`. |
+| 2026-07-21 | WI-16 | ✅ Aprovat → 🟣 En PR | PWA sense max-width en tablet/desktop (PW-L1). Afegit `mx-auto max-w-2xl` al `<main>` del `AppShellComponent` (cobreix totes les pàgines autenticades) i centrada la fila de pestanyes del `bottom-tab-bar` amb `mx-auto max-w-2xl` perquè s'alineï amb el contingut. Branca `fix/audit-pwa-max-width`. |
 
 ---
 
