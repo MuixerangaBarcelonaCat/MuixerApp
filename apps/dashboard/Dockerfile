@@ -21,9 +21,11 @@ RUN ./node_modules/.bin/nx build shared --configuration=production && \
 # Stage 3: Serve static files with Caddy
 FROM caddy:alpine AS runner
 
-# Default site address; override at build (--build-arg) or runtime (env)
+# Site addresses; override at build (--build-arg) or runtime (env)
 ARG SITE_ADDRESS=:80
 ENV SITE_ADDRESS=$SITE_ADDRESS
+ARG PWA_SITE_ADDRESS=app.beta.muixerangadebarcelona.com
+ENV PWA_SITE_ADDRESS=$PWA_SITE_ADDRESS
 
 # Copy Caddy configuration
 COPY apps/dashboard/Caddyfile /etc/caddy/Caddyfile

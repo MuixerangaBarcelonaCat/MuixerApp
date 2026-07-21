@@ -1,6 +1,10 @@
 # PRE — per defecte HTTP accessible per IP (:80)
-# Per habilitar HTTPS: definir SITE_ADDRESS=pre.muixerapp.cat a .env.pre i redesplegar el servei dashboard.
-# Caddy gestionarà els certificats Let's Encrypt automàticament sense cap altre canvi.
+# HTTPS: definir SITE_ADDRESS (dashboard) i PWA_SITE_ADDRESS (PWA) a .env.pre
+# i redesplegar el servei dashboard. Caddy gestionarà Let's Encrypt automàticament.
+#
+# Exemple:
+#   SITE_ADDRESS=beta.muixerangadebarcelona.com
+#   PWA_SITE_ADDRESS=app.beta.muixerangadebarcelona.com
 {$SITE_ADDRESS::80} {
     encode gzip
 
@@ -14,5 +18,17 @@
         root * /srv
         try_files {path} /index.html
         file_server
+    }
+}
+
+{$PWA_SITE_ADDRESS} {
+    encode gzip
+
+    handle /api/* {
+        reverse_proxy api:3000
+    }
+
+    handle {
+        reverse_proxy pwa:80
     }
 }

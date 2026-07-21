@@ -25,6 +25,8 @@ jobs:
             dockerfile: apps/api/Dockerfile
           - image: dashboard
             dockerfile: apps/dashboard/Dockerfile
+          - image: pwa
+            dockerfile: apps/pwa/Dockerfile
 
     steps:
       - name: Checkout
@@ -58,6 +60,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: ${{ matrix.image == 'dashboard' && vars.SITE_ADDRESS && format('SITE_ADDRESS={0}', vars.SITE_ADDRESS) || '' }}
+          build-args: |
+            ${{ matrix.image == 'dashboard' && vars.SITE_ADDRESS && format('SITE_ADDRESS={0}', vars.SITE_ADDRESS) || '' }}
+            ${{ matrix.image == 'dashboard' && vars.PWA_SITE_ADDRESS && format('PWA_SITE_ADDRESS={0}', vars.PWA_SITE_ADDRESS) || '' }}
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
