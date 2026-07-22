@@ -549,4 +549,39 @@ describe('NodesTabComponent', () => {
       expect(assignmentService.updateAdHocNode).toHaveBeenCalledWith(INST_A, 'adhoc-1', { x: 1, y: 0 });
     });
   });
+
+  describe('mobile guard (WI-13 parity, P-M2/GE-H3)', () => {
+    it('renders the canvas by default (no matchMedia)', async () => {
+      await setup();
+      expect(canvasStub()).toBeTruthy();
+      expect(fixture.nativeElement.textContent).not.toContain('Encara no optimitzat per a mòbil');
+    });
+
+    describe('below sm (< 640px)', () => {
+      const originalMatchMedia = window.matchMedia;
+
+      beforeEach(() => {
+        window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+          matches: true,
+          media: query,
+          onchange: null,
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          dispatchEvent: vi.fn(),
+        })) as unknown as typeof window.matchMedia;
+      });
+
+      afterEach(() => {
+        window.matchMedia = originalMatchMedia;
+      });
+
+      it('shows a "not optimized for mobile" message instead of the unusable canvas', async () => {
+        await setup();
+        expect(fixture.nativeElement.textContent).toContain('Encara no optimitzat per a mòbil');
+        expect(fixture.nativeElement.querySelector('app-figure-canvas')).toBeFalsy();
+      });
+    });
+  });
 });

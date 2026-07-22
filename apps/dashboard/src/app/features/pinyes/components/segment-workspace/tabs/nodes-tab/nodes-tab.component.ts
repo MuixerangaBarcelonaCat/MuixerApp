@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   HostListener,
   OnInit,
   computed,
@@ -78,6 +79,25 @@ export class NodesTabComponent implements OnInit {
   private readonly pendingDeleteNodeId = signal<string | null>(null);
 
   private readonly clipboardAdHocNode = signal<AdHocNodeSnapshot | null>(null);
+
+  /**
+   * Below `sm`, the fixed-width figure selector (w-52) + node palette (w-72)
+   * leave the canvas too narrow to use (same root cause as WI-13's
+   * Pinyes/Troncs guard: P-M2, GE-H3). Shows a guard message instead until
+   * the mobile layout is designed. Driven by `matchMedia`; falls back to
+   * `false` where `matchMedia` is unavailable.
+   */
+  readonly mobileUnsupported = signal(false);
+
+  constructor() {
+    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+      const mql = window.matchMedia('(max-width: 639.98px)');
+      this.mobileUnsupported.set(mql.matches);
+      const listener = (e: MediaQueryListEvent) => this.mobileUnsupported.set(e.matches);
+      mql.addEventListener('change', listener);
+      inject(DestroyRef).onDestroy(() => mql.removeEventListener('change', listener));
+    }
+  }
 
   readonly dimmedSlotIds = computed(() => {
     const selected = this.ws.selectedInstanceId();

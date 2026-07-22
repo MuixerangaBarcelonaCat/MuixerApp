@@ -75,4 +75,13 @@ describe('LoginComponent', () => {
     component.onSubmit();
     expect(authService.login).not.toHaveBeenCalled();
   });
+
+  describe('tap targets >=24px (WI-03, PE-L1/PW-L3 parity)', () => {
+    it('gives the email and password inputs their own >=24px height instead of just the wrapper', () => {
+      const emailInput = fixture.nativeElement.querySelector('input[type="email"]') as HTMLElement;
+      const passwordInput = fixture.nativeElement.querySelector('input[type="password"]') as HTMLElement;
+      expect(emailInput.className).toContain('h-6');
+      expect(passwordInput.className).toContain('h-6');
+    });
+  });
 });

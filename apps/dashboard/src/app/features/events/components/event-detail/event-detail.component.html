@@ -142,7 +142,7 @@
                 <dt class="text-base-content/50 w-28 shrink-0">Lloc:</dt>
                 <dd>
                   @if (ev.locationUrl) {
-                    <a [href]="ev.locationUrl" target="_blank" class="link link-primary">{{ ev.location }}</a>
+                    <a [href]="ev.locationUrl" target="_blank" class="link link-primary inline-flex items-center min-h-6">{{ ev.location }}</a>
                   } @else {
                     {{ ev.location }}
                   }
