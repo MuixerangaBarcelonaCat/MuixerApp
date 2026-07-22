@@ -17,6 +17,7 @@ import { FigureModule } from '../modules/figure/figure.module';
 import { EventSegmentModule } from '../modules/event-segment/event-segment.module';
 import { NodeAssignmentModule } from '../modules/node-assignment/node-assignment.module';
 import { CompositionModule } from '../modules/composition/composition.module';
+import { PersonDelegateModule } from '../modules/person-delegate/person-delegate.module';
 import { JwtAuthGuard } from '../modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../modules/auth/guards/roles.guard';
 
@@ -41,6 +42,7 @@ import { RolesGuard } from '../modules/auth/guards/roles.guard';
     EventSegmentModule,
     NodeAssignmentModule,
     CompositionModule,
+    PersonDelegateModule,
   ],
   controllers: [AppController],
   providers: [

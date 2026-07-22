@@ -2,8 +2,10 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { of } from 'rxjs';
 import { vi } from 'vitest';
+import { DelegateType } from '@muixer/shared';
 import { PersonDetailComponent } from './person-detail.component';
 import { PersonService } from '../../services/person.service';
+import { PersonDelegateService, PersonDelegateItem } from '../../services/person-delegate.service';
 import { TagService } from '../../../config/services/tag.service';
 import { NodeAssignmentService } from '../../../pinyes/services/node-assignment.service';
 import { SeasonService } from '../../../events/services/season.service';
@@ -40,6 +42,7 @@ describe('PersonDetailComponent', () => {
         { provide: TagService, useValue: { getAll: () => of([]) } },
         { provide: NodeAssignmentService, useValue: { getPersonHistory: () => of({ data: [], meta: { total: 0, page: 1, limit: 20 } }) } },
         { provide: SeasonService, useValue: { getAll: () => of({ data: [] }) } },
+        { provide: PersonDelegateService, useValue: { getByPerson: () => of([]), removeDelegate: () => of(void 0) } },
         {
           provide: ActivatedRoute,
           useValue: {
@@ -172,6 +175,79 @@ describe('PersonDetailComponent', () => {
 
       expect(getOne).not.toHaveBeenCalled();
       expect(getPersonHistory).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Delegacions section', () => {
+    const makeDelegateItem = (overrides: Partial<PersonDelegateItem> = {}): PersonDelegateItem => ({
+      id: 'del-1',
+      delegateType: DelegateType.PARENT,
+      isActive: true,
+      createdAt: '2026-07-01T00:00:00Z',
+      user: { id: 'user-1', email: 'parent@test.com' },
+      person: { id: 'p1', alias: 'child' },
+      ...overrides,
+    });
+
+    it('renders the Delegacions collapse section', () => {
+      const titles = Array.from(fixture.nativeElement.querySelectorAll('.collapse-title')).map(
+        (el) => (el as HTMLElement).textContent?.trim(),
+      );
+      expect(titles.some((t: string | undefined) => t?.includes('Delegacions'))).toBe(true);
+    });
+
+    it('shows "Cap delegat assignat" when no delegates', () => {
+      component.delegates.set([]);
+      fixture.detectChanges();
+      const text = fixture.nativeElement.textContent;
+      expect(text).toContain('Cap delegat assignat');
+    });
+
+    it('renders delegate items with email and type badge', () => {
+      component.delegates.set([makeDelegateItem()]);
+      fixture.detectChanges();
+      const text = fixture.nativeElement.textContent;
+      expect(text).toContain('parent@test.com');
+      expect(text).toContain('Pare/Mare');
+    });
+
+    it('shows the delegate count badge', () => {
+      component.delegates.set([makeDelegateItem(), makeDelegateItem({ id: 'del-2', user: { id: 'u2', email: 'other@test.com' } })]);
+      fixture.detectChanges();
+      const badges = Array.from(fixture.nativeElement.querySelectorAll('.collapse-title .badge'));
+      const countBadge = badges.find((b) => (b as HTMLElement).textContent?.trim() === '2');
+      expect(countBadge).toBeTruthy();
+    });
+
+    it('renders the "Afegeix delegat" button', () => {
+      const btn = Array.from(fixture.nativeElement.querySelectorAll('button')).find(
+        (b) => (b as HTMLElement).textContent?.trim() === 'Afegeix delegat',
+      );
+      expect(btn).toBeTruthy();
+    });
+
+    it('getDelegateTypeLabel returns correct labels', () => {
+      expect(component.getDelegateTypeLabel(DelegateType.PARENT)).toBe('Pare/Mare');
+      expect(component.getDelegateTypeLabel(DelegateType.PARTNER)).toBe('Parella');
+      expect(component.getDelegateTypeLabel(DelegateType.GUARDIAN)).toBe('Tutor/a');
+    });
+
+    it('askRemoveDelegate opens confirm dialog', () => {
+      const delegate = makeDelegateItem();
+      component.askRemoveDelegate(delegate);
+      fixture.detectChanges();
+      const dialog = fixture.nativeElement.querySelector('dialog[role="alertdialog"]');
+      expect(dialog).toBeTruthy();
+      expect(fixture.nativeElement.textContent).toContain('parent@test.com');
+    });
+
+    it('cancelRemoveDelegate closes confirm dialog', () => {
+      component.askRemoveDelegate(makeDelegateItem());
+      fixture.detectChanges();
+      component.cancelRemoveDelegate();
+      fixture.detectChanges();
+      const dialog = fixture.nativeElement.querySelector('dialog[role="alertdialog"]');
+      expect(dialog).toBeNull();
     });
   });
 });

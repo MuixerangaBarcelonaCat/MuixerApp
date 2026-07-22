@@ -284,17 +284,34 @@
                 </div>
               }
               @if (!(person()!.managedBy)) {
-                <div class="flex items-start gap-2 flex-wrap">
-                  <button type="button" class="btn btn-sm btn-primary" (click)="startSendingInvitation()">
-                    Envia correu d'invitació
-                  </button>
-                  <button type="button" class="btn btn-sm btn-primary" (click)="startLinkingToUser()">
-                    Enllaça amb usuari existent
-                  </button>
+                <div class="space-y-2">
+                  <div class="flex items-center gap-1.5">
+                    <dt class="text-xs text-base-content/50 font-medium">Compte vinculat</dt>
+                    <div class="tooltip tooltip-right" data-tip="Cada persona pot tindre un compte d'usuari vinculat que li permet gestionar la seua assistència des de la PWA. Si no en té, podeu enviar una invitació o enllaçar-la amb un compte existent.">
+                      <button type="button" class="btn btn-ghost btn-circle btn-xs text-base-content/40" aria-label="Informació sobre vinculació de comptes">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-3.5"><path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0ZM8.94 6.94a.75.75 0 1 1-1.061-1.061 2.75 2.75 0 1 1 3.042 4.513.534.534 0 0 0-.174.1.31.31 0 0 0-.037.085v.178a.75.75 0 0 1-1.5 0v-.2c0-.376.122-.73.339-1.007.216-.276.506-.467.793-.59A1.25 1.25 0 0 0 8.94 6.94ZM10 15a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd" /></svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="flex items-start gap-2 flex-wrap">
+                    <button type="button" class="btn btn-sm btn-primary" (click)="startSendingInvitation()">
+                      Envia correu d'invitació
+                    </button>
+                    <button type="button" class="btn btn-sm btn-primary" (click)="startLinkingToUser()">
+                      Enllaça amb usuari existent
+                    </button>
+                  </div>
                 </div>
               } @else if (person()!.managedBy?.person?.id !== person()!.id) {
                 <div class="flex justify-between items-start">
-                  <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">Responsable</dt>
+                  <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0 flex items-center gap-1.5">
+                    Responsable
+                    <div class="tooltip tooltip-right" data-tip="Esta persona és gestionada per un altre membre. El responsable pot gestionar la seua assistència i dades des del seu compte.">
+                      <span class="text-base-content/30 cursor-help">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-3.5"><path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0ZM8.94 6.94a.75.75 0 1 1-1.061-1.061 2.75 2.75 0 1 1 3.042 4.513.534.534 0 0 0-.174.1.31.31 0 0 0-.037.085v.178a.75.75 0 0 1-1.5 0v-.2c0-.376.122-.73.339-1.007.216-.276.506-.467.793-.59A1.25 1.25 0 0 0 8.94 6.94ZM10 15a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd" /></svg>
+                      </span>
+                    </div>
+                  </dt>
                   <dd class="text-sm text-right">
                     <a class="text-blue-500 underline" [routerLink]="['/persons', person()?.managedBy?.person?.id]">
                       {{ person()?.managedBy?.person?.alias }}
@@ -399,6 +416,67 @@
 
             </div>
           }
+        </div>
+      </div>
+    </div>
+
+    <!-- Delegacions -->
+    <div class="collapse collapse-arrow bg-base-100 shadow-sm rounded-xl border border-base-300">
+      <input type="checkbox" [checked]="delegatesExpanded()" (change)="delegatesExpanded.set(!delegatesExpanded())" />
+      <div class="collapse-title text-sm font-bold py-3 min-h-0 flex items-center gap-2">
+        Delegacions
+        @if (delegates().length > 0) {
+          <span class="badge badge-neutral badge-sm">{{ delegates().length }}</span>
+        }
+        <div class="tooltip tooltip-right" data-tip="Un delegat és un usuari que pot gestionar l'assistència d'esta persona des de la PWA. Útil per a pares de xicalla, parelles o tutors.">
+          <span class="text-base-content/30 cursor-help font-normal">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-3.5"><path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0ZM8.94 6.94a.75.75 0 1 1-1.061-1.061 2.75 2.75 0 1 1 3.042 4.513.534.534 0 0 0-.174.1.31.31 0 0 0-.037.085v.178a.75.75 0 0 1-1.5 0v-.2c0-.376.122-.73.339-1.007.216-.276.506-.467.793-.59A1.25 1.25 0 0 0 8.94 6.94ZM10 15a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd" /></svg>
+          </span>
+        </div>
+      </div>
+      <div class="collapse-content">
+        <p class="text-xs text-base-content/50 mb-3">
+          Usuaris amb permís per gestionar l'assistència d'esta persona (pares, parelles, tutors).
+        </p>
+
+        @if (delegatesLoading()) {
+          <div class="flex justify-center py-4">
+            <span class="loading loading-spinner loading-sm text-primary"></span>
+          </div>
+        } @else if (delegates().length === 0) {
+          <p class="text-sm text-base-content/40 text-center py-4">Cap delegat assignat</p>
+        } @else {
+          <div class="space-y-2">
+            @for (delegate of delegates(); track delegate.id) {
+              <div class="flex items-center justify-between bg-base-200 rounded-lg px-3 py-2">
+                <div class="flex items-center gap-3">
+                  <div>
+                    <span class="text-sm font-medium">{{ delegate.user.email }}</span>
+                    <span class="badge badge-outline badge-xs ml-2">{{ getDelegateTypeLabel(delegate.delegateType) }}</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-xs text-error"
+                  [disabled]="removingDelegateId() === delegate.id"
+                  (click)="askRemoveDelegate(delegate)"
+                  [attr.aria-label]="'Elimina delegació de ' + delegate.user.email"
+                >
+                  @if (removingDelegateId() === delegate.id) {
+                    <span class="loading loading-spinner loading-xs"></span>
+                  } @else {
+                    Elimina
+                  }
+                </button>
+              </div>
+            }
+          </div>
+        }
+
+        <div class="mt-3">
+          <button type="button" class="btn btn-sm btn-primary" (click)="openDelegateModal()">
+            Afegeix delegat
+          </button>
         </div>
       </div>
     </div>
@@ -515,6 +593,32 @@
       (closed)="linkUserModalOpen.set(false)"
       (success)="onLinkUserSuccess()"
     />
+  }
+
+  @if (delegateModalOpen() && person()) {
+    <app-person-delegate-modal
+      [personId]="person()!.id"
+      [existingDelegateUserIds]="existingDelegateUserIds()"
+      (closed)="delegateModalOpen.set(false)"
+      (saved)="onDelegateAdded()"
+    />
+  }
+
+  @if (confirmingDelegateRemoval()) {
+    <dialog class="modal modal-open" role="alertdialog" aria-modal="true" aria-label="Confirmar eliminació de delegat">
+      <div class="modal-box max-w-sm">
+        <h3 class="text-lg font-bold">Eliminar delegat</h3>
+        <p class="text-sm mt-2">
+          Esteu segur que voleu eliminar la delegació de
+          <strong>{{ confirmingDelegateRemoval()!.user.email }}</strong>?
+        </p>
+        <div class="modal-action">
+          <button type="button" class="btn btn-ghost btn-sm" (click)="cancelRemoveDelegate()">Cancel·la</button>
+          <button type="button" class="btn btn-error btn-sm" (click)="confirmRemoveDelegate()">Elimina</button>
+        </div>
+      </div>
+      <div class="modal-backdrop" (click)="cancelRemoveDelegate()" (keydown.enter)="cancelRemoveDelegate()" tabindex="0" role="button" aria-label="Tancar modal"></div>
+    </dialog>
   }
 
 </div>
