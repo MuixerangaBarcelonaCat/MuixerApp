@@ -102,4 +102,43 @@ describe('PersonDetailComponent', () => {
       expect(linkButton.parentElement?.className).toContain('flex-wrap');
     });
   });
+
+  describe('form field layout on mobile (WI-05, PE-M3)', () => {
+    it('stacks every label above its input below `sm` instead of squeezing long labels next to the field', () => {
+      component.editing.set(true);
+      fixture.detectChanges();
+
+      const labels = Array.from(fixture.nativeElement.querySelectorAll('label.label')) as HTMLElement[];
+      expect(labels.length).toBeGreaterThan(0);
+      for (const label of labels) {
+        expect(label.className).toContain('flex-col');
+        expect(label.className).toContain('sm:flex-row');
+      }
+    });
+  });
+
+  describe('tap targets >=24px (WI-03, PE-L2)', () => {
+    it('gives each position tag toggle a >=24px tap target', () => {
+      component.editing.set(true);
+      component.allPositions.set([
+        { id: 'pos-1', name: 'Novatos', slug: 'novatos', shortDescription: null, longDescription: null, color: '#888', positionTypes: [], personCount: 0 },
+      ]);
+      fixture.detectChanges();
+
+      const tagButton = fixture.nativeElement.querySelector('[role="group"] button.badge') as HTMLElement;
+      expect(tagButton).toBeTruthy();
+      expect(tagButton.className).toContain('min-h-6');
+    });
+
+    it('uses the default (24px) toggle size for Actiu/Membre/Xicalla instead of the smaller toggle-sm', () => {
+      component.editing.set(true);
+      fixture.detectChanges();
+
+      const toggles = Array.from(fixture.nativeElement.querySelectorAll('input[type="checkbox"].toggle')) as HTMLElement[];
+      expect(toggles.length).toBe(3);
+      for (const toggle of toggles) {
+        expect(toggle.className).not.toContain('toggle-sm');
+      }
+    });
+  });
 });

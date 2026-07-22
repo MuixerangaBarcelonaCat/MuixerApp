@@ -307,6 +307,24 @@ describe('EventDetailComponent — attendance card mode on mobile (WI-08, EV-M2)
     });
   });
 
+  describe('tap targets >=24px (WI-03, EV-M3)', () => {
+    it('gives the attendance status badge a >=24px tap target', async () => {
+      const fixture = await setup();
+      const badge = fixture.nativeElement.querySelector('table.table .badge.cursor-pointer') as HTMLElement;
+      expect(badge.className).toContain('min-h-6');
+    });
+
+    it('gives the alias/name links a real >=24px tap target instead of the bare glyph height', async () => {
+      const fixture = await setup();
+      const links = Array.from(fixture.nativeElement.querySelectorAll('table.table .link')) as HTMLElement[];
+      expect(links.length).toBeGreaterThan(0);
+      for (const link of links) {
+        expect(link.className).toContain('min-h-6');
+        expect(link.className).toContain('inline-flex');
+      }
+    });
+  });
+
   describe('card mode (< lg)', () => {
     const originalMatchMedia = window.matchMedia;
 

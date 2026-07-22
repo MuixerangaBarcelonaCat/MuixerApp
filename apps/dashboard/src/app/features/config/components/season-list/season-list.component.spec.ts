@@ -114,4 +114,13 @@ describe('SeasonListComponent', () => {
     component.cancelDelete();
     expect(component.confirmDeleteTarget()).toBeNull();
   });
+
+  describe('tap targets >=24px (WI-03, CF-L1)', () => {
+    it('gives the event-count link a real >=24px tap target instead of the bare glyph height', () => {
+      const link = fixture.nativeElement.querySelector('a.link') as HTMLElement;
+      expect(link).toBeTruthy();
+      expect(link.className).toContain('min-h-6');
+      expect(link.className).toContain('inline-flex');
+    });
+  });
 });

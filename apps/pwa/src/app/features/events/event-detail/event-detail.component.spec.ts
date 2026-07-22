@@ -88,4 +88,13 @@ describe('EventDetailComponent', () => {
     fixture = await setup(throwError(() => new Error('fail')));
     expect(fixture.nativeElement.textContent).toContain("No s'ha pogut carregar");
   });
+
+  describe('tap targets >=24px (WI-03, PW-L4)', () => {
+    it('gives the location link a real >=24px tap target instead of the bare glyph height', async () => {
+      fixture = await setup();
+      const link = fixture.nativeElement.querySelector('a.link') as HTMLElement;
+      expect(link.className).toContain('min-h-6');
+      expect(link.className).toContain('inline-flex');
+    });
+  });
 });
