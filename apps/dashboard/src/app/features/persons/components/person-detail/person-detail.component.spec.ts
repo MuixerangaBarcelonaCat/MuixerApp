@@ -7,6 +7,7 @@ import { TagService } from '../../../config/services/tag.service';
 import { NodeAssignmentService } from '../../../pinyes/services/node-assignment.service';
 import { SeasonService } from '../../../events/services/season.service';
 import { PersonAssignmentEntry } from '../../../pinyes/models/assignment.model';
+import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 
 const makeHistoryEntry = (overrides: Partial<PersonAssignmentEntry> = {}): PersonAssignmentEntry => ({
   eventId: 'event-1',
@@ -33,6 +34,7 @@ describe('PersonDetailComponent', () => {
     await TestBed.configureTestingModule({
       imports: [PersonDetailComponent],
       providers: [
+        allLucideIconsProvider,
         { provide: PersonService, useValue: { getOne: () => of({ id: 'p1', positions: [] }) } },
         { provide: TagService, useValue: { getAll: () => of([]) } },
         { provide: NodeAssignmentService, useValue: { getPersonHistory: () => of({ data: [], meta: { total: 0, page: 1, limit: 20 } }) } },
@@ -77,6 +79,20 @@ describe('PersonDetailComponent', () => {
 
       const cell = fixture.nativeElement.querySelector('tbody tr td:nth-child(5)');
       expect(cell.textContent.trim()).toBe('Mans');
+    });
+  });
+
+  describe('form field layout on mobile (WI-05, PE-M3)', () => {
+    it('stacks every label above its input below `sm` instead of squeezing long labels next to the field', () => {
+      component.editing.set(true);
+      fixture.detectChanges();
+
+      const labels = Array.from(fixture.nativeElement.querySelectorAll('label.label')) as HTMLElement[];
+      expect(labels.length).toBeGreaterThan(0);
+      for (const label of labels) {
+        expect(label.className).toContain('flex-col');
+        expect(label.className).toContain('sm:flex-row');
+      }
     });
   });
 });

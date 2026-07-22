@@ -154,7 +154,7 @@
             <div class="space-y-3">
 
               <div class="form-control">
-                <label class="label py-0">
+                <label class="label py-0 flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-0">
                   <span class="label-text text-xs text-base-content/50 font-medium">Nom <span class="text-error">*</span></span>
                   <input type="text" class="input input-sm input-bordered w-full"
                     [class.input-error]="form.get('name')?.invalid && form.get('name')?.touched"
@@ -166,7 +166,7 @@
               </div>
 
               <div class="form-control">
-                <label class="label py-0">
+                <label class="label py-0 flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-0">
                   <span class="label-text text-xs text-base-content/50 font-medium">Primer cognom <span class="text-error">*</span></span>
                   <input type="text" class="input input-sm input-bordered w-full"
                     [class.input-error]="form.get('firstSurname')?.invalid && form.get('firstSurname')?.touched"
@@ -178,7 +178,7 @@
               </div>
 
               <div class="form-control">
-                <label class="label py-0">
+                <label class="label py-0 flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-0">
                   <span class="label-text text-xs text-base-content/50 font-medium">Segon cognom</span>
                   <input type="text" class="input input-sm input-bordered w-full"
                     formControlName="secondSurname" placeholder="Segon cognom (opcional)" />
@@ -186,7 +186,7 @@
               </div>
 
               <div class="form-control">
-                <label class="label py-0">
+                <label class="label py-0 flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-0">
                   <span class="label-text text-xs text-base-content/50 font-medium">Àlies <span class="text-error">*</span></span>
                   <input type="text" class="input input-sm input-bordered w-full"
                          [class.input-error]="form.get('alias')?.invalid && form.get('alias')?.touched"
@@ -198,7 +198,7 @@
               </div>
 
               <div class="form-control">
-                <label class="label py-0">
+                <label class="label py-0 flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-0">
                   <span class="label-text text-xs text-base-content/50 font-medium">Telèfon</span>
                   <input type="tel" class="input input-sm input-bordered w-full"
                          formControlName="phone" placeholder="000 000 000" />
@@ -206,14 +206,14 @@
               </div>
 
               <div class="form-control">
-                <label class="label py-0">
+                <label class="label py-0 flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-0">
                   <span class="label-text text-xs text-base-content/50 font-medium">Data de naixement</span>
                   <input type="date" class="input input-sm input-bordered w-full" formControlName="birthDate" />
                 </label>
               </div>
 
               <div class="form-control">
-                <label class="label py-0">
+                <label class="label py-0 flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-0">
                   <span class="label-text text-xs text-base-content/50 font-medium">Alçada espatlles (cm)</span>
                   <input type="number" class="input input-sm input-bordered w-full"
                          formControlName="shoulderHeight" placeholder="Ex: 145" min="0" max="250" />
@@ -356,7 +356,7 @@
               </div>
 
               <div class="form-control">
-                <label class="label py-0">
+                <label class="label py-0 flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-0">
                   <span class="label-text text-xs text-base-content/50 font-medium">Disponibilitat</span>
                   <select class="select select-sm select-bordered w-full" formControlName="availability">
                     <option value="AVAILABLE">Disponible</option>
@@ -367,7 +367,7 @@
               </div>
 
               <div class="form-control">
-                <label class="label py-0">
+                <label class="label py-0 flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-0">
                   <span class="label-text text-xs text-base-content/50 font-medium">Acollida</span>
                   <select class="select select-sm select-bordered w-full" formControlName="onboardingStatus">
                     <option value="IN_PROGRESS">En seguiment</option>
@@ -379,7 +379,7 @@
               </div>
 
               <div class="form-control">
-                <label class="label py-0">
+                <label class="label py-0 flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-0">
                   <span class="label-text text-xs text-base-content/50 font-medium">Data camisa</span>
                   <input type="date" class="input input-sm input-bordered w-full" formControlName="shirtDate" />
                 </label>
