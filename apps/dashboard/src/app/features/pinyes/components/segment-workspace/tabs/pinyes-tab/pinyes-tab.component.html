@@ -1,4 +1,12 @@
 <div class="flex flex-col h-full min-h-0">
+@if (mobileUnsupported()) {
+  <div class="flex-1 flex items-center justify-center p-6 text-center">
+    <div class="max-w-xs">
+      <p class="font-medium text-base-content/70">Encara no optimitzat per a mòbil</p>
+      <p class="text-sm text-base-content/50 mt-1">Esta pestanya està disponible en tablet i escriptori.</p>
+    </div>
+  </div>
+} @else {
 <div class="flex flex-1 min-h-0">
   <!-- Canvas -->
   <div class="relative flex-1 min-w-0">
@@ -123,6 +131,7 @@
     </div>
   }
 </footer>
+}
 </div>
 
 <!-- Import modal -->

@@ -4,6 +4,7 @@ import { vi } from 'vitest';
 import { of } from 'rxjs';
 import { allLucideIconsProvider } from '../../../../testing/lucide-test-provider';
 import { PersonListComponent } from './person-list.component';
+import { Position } from '../models/person.model';
 import { PersonService } from '../services/person.service';
 import { AvailabilityStatus, OnboardingStatus } from '@muixer/shared';
 import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../shared/utils/person.util';
@@ -133,5 +134,17 @@ describe('PersonListComponent', () => {
     const buttons = Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLElement[];
     const provisionalsButton = buttons.find(b => b.textContent?.trim() === 'Provisionals');
     expect(provisionalsButton?.className).toContain('btn-active');
+  });
+
+  describe('tap targets >=24px (WI-03, PE-L1)', () => {
+    it('gives the position filter checkbox label a >=24px tap target', () => {
+      const position: Position = { id: 'pos-1', name: 'Novatos', slug: 'novatos', zone: null, color: '#888' };
+      fixture.componentInstance.positions.set([position]);
+      fixture.detectChanges();
+
+      const checkbox = fixture.nativeElement.querySelector('input[type="checkbox"].checkbox-xs') as HTMLElement;
+      expect(checkbox).toBeTruthy();
+      expect(checkbox.closest('label')?.className).toContain('min-h-6');
+    });
   });
 });

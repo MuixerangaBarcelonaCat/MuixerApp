@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   HostListener,
   OnInit,
   ViewChild,
@@ -77,7 +78,24 @@ export class PinyesTabComponent implements OnInit {
   @ViewChild('canvas') private canvasRef?: FigureCanvasComponent;
   private initialCenterDone = false;
 
+  /**
+   * Below `sm`, the fixed-width person panel (w-80) leaves the canvas at
+   * ~73px — unusable for drag assignment (P-M2, GE-H3). Shows a guard
+   * message instead until the mobile layout is designed (WI-14/15 gestures
+   * land first). Driven by `matchMedia`; falls back to `false` where
+   * `matchMedia` is unavailable.
+   */
+  readonly mobileUnsupported = signal(false);
+
   constructor() {
+    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+      const mql = window.matchMedia('(max-width: 639.98px)');
+      this.mobileUnsupported.set(mql.matches);
+      const listener = (e: MediaQueryListEvent) => this.mobileUnsupported.set(e.matches);
+      mql.addEventListener('change', listener);
+      inject(DestroyRef).onDestroy(() => mql.removeEventListener('change', listener));
+    }
+
     effect(() => {
       // Wait for every figure's nodes to have loaded — fitting on an early,
       // partial pinyaSlots() emission freezes the viewport on an incomplete

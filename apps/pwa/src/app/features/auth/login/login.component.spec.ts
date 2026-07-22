@@ -129,4 +129,13 @@ describe('LoginComponent', () => {
       "No s'ha pogut connectar amb el servidor. Comproveu la connexió.",
     );
   });
+
+  describe('tap targets >=24px (WI-03, PW-L3)', () => {
+    it('gives the email and password inputs their own >=24px height instead of just the wrapper', () => {
+      const emailInput = fixture.nativeElement.querySelector('input[type="email"]') as HTMLElement;
+      const passwordInput = fixture.nativeElement.querySelector('input[type="password"]') as HTMLElement;
+      expect(emailInput.className).toContain('h-6');
+      expect(passwordInput.className).toContain('h-6');
+    });
+  });
 });

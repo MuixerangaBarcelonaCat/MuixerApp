@@ -273,14 +273,16 @@ describe('EventDetailComponent — attendance card mode on mobile (WI-08, EV-M2)
     },
   };
 
-  const setup = async (): Promise<ComponentFixture<EventDetailComponent>> => {
+  const setup = async (
+    eventOverrides: Partial<EventDetail> = {},
+  ): Promise<ComponentFixture<EventDetailComponent>> => {
     await TestBed.configureTestingModule({
       imports: [EventDetailComponent],
       providers: [
         provideRouter([]),
         allLucideIconsProvider,
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: convertToParamMap({ id: EVENT_ID }) } } },
-        { provide: EventService, useValue: { getOne: () => of(event) } },
+        { provide: EventService, useValue: { getOne: () => of({ ...event, ...eventOverrides }) } },
         { provide: AttendanceService, useValue: { getByEvent: () => of({ data: [attendance], meta: { total: 1, page: 1, limit: 100 } }) } },
         { provide: SeasonService, useValue: { getAll: () => of({ data: [] }) } },
         { provide: AuthService, useValue: { userRole: () => UserRole.ADMIN } },
@@ -304,6 +306,32 @@ describe('EventDetailComponent — attendance card mode on mobile (WI-08, EV-M2)
       const fixture = await setup();
       expect(fixture.nativeElement.querySelector('table.table')).toBeTruthy();
       expect(fixture.nativeElement.querySelector('[data-testid="attendance-card"]')).toBeFalsy();
+    });
+  });
+
+  describe('tap targets >=24px (WI-03, EV-M3)', () => {
+    it('gives the attendance status badge a >=24px tap target', async () => {
+      const fixture = await setup();
+      const badge = fixture.nativeElement.querySelector('table.table .badge.cursor-pointer') as HTMLElement;
+      expect(badge.className).toContain('min-h-6');
+    });
+
+    it('gives the alias/name links a real >=24px tap target instead of the bare glyph height', async () => {
+      const fixture = await setup();
+      const links = Array.from(fixture.nativeElement.querySelectorAll('table.table .link')) as HTMLElement[];
+      expect(links.length).toBeGreaterThan(0);
+      for (const link of links) {
+        expect(link.className).toContain('min-h-6');
+        expect(link.className).toContain('inline-flex');
+      }
+    });
+
+    it('gives the location link a real >=24px tap target instead of the bare glyph height', async () => {
+      const fixture = await setup({ location: 'Casal', locationUrl: 'https://maps.example.com/casal' });
+      const link = fixture.nativeElement.querySelector('a.link-primary') as HTMLElement;
+      expect(link).toBeTruthy();
+      expect(link.className).toContain('min-h-6');
+      expect(link.className).toContain('inline-flex');
     });
   });
 

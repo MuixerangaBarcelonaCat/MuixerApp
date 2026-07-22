@@ -142,7 +142,7 @@
                 <dt class="text-base-content/50 w-28 shrink-0">Lloc:</dt>
                 <dd>
                   @if (ev.locationUrl) {
-                    <a [href]="ev.locationUrl" target="_blank" class="link link-primary">{{ ev.location }}</a>
+                    <a [href]="ev.locationUrl" target="_blank" class="link link-primary inline-flex items-center min-h-6">{{ ev.location }}</a>
                   } @else {
                     {{ ev.location }}
                   }
@@ -294,7 +294,7 @@
                   <tr class="hover">
                     <td class="font-medium text-sm whitespace-nowrap">
                       <span
-                        class="link link-hover cursor-pointer"
+                        class="link link-hover cursor-pointer inline-flex items-center min-h-6"
                         tabindex="0"
                         role="link"
                         (click)="navigateToPerson(att.person.id)"
@@ -314,7 +314,7 @@
                     </td>
                     <td class="text-sm text-base-content/70 whitespace-nowrap">
                       <span
-                        class="link link-hover cursor-pointer"
+                        class="link link-hover cursor-pointer inline-flex items-center min-h-6"
                         tabindex="0"
                         role="link"
                         (click)="navigateToPerson(att.person.id)"
@@ -324,7 +324,7 @@
                     <td>
                       <button
                         type="button"
-                        class="badge badge-sm cursor-pointer hover:opacity-80 transition-opacity"
+                        class="badge badge-sm cursor-pointer hover:opacity-80 transition-opacity min-h-6 inline-flex items-center"
                         [ngClass]="getStatusBadgeClass(att.status)"
                         (click)="openAttendanceEdit(att)"
                         [attr.aria-label]="'Edita assistència de ' + att.person.alias"
@@ -352,7 +352,7 @@
                         @for (pos of att.person.positions; track pos.id) {
                           <button
                             type="button"
-                            class="badge badge-sm cursor-pointer hover:opacity-80 transition-opacity"
+                            class="badge badge-sm cursor-pointer hover:opacity-80 transition-opacity min-h-6 inline-flex items-center"
                             [class.ring-2]="positionFilter()?.id === pos.id"
                             [class.ring-offset-1]="positionFilter()?.id === pos.id"
                             [style.background-color]="pos.color ?? '#888'"
@@ -385,7 +385,7 @@
                   <div class="min-w-0">
                     <div class="flex items-center gap-1 flex-wrap">
                       <span
-                        class="link link-hover cursor-pointer font-medium text-sm"
+                        class="link link-hover cursor-pointer font-medium text-sm inline-flex items-center min-h-6"
                         tabindex="0"
                         role="link"
                         (click)="navigateToPerson(att.person.id)"
@@ -417,7 +417,7 @@
                     </div>
                     <div class="text-xs text-base-content/70 truncate">
                       <span
-                        class="link link-hover cursor-pointer"
+                        class="link link-hover cursor-pointer inline-flex items-center min-h-6"
                         tabindex="0"
                         role="link"
                         (click)="navigateToPerson(att.person.id)"
@@ -427,7 +427,7 @@
                   </div>
                   <button
                     type="button"
-                    class="badge badge-sm cursor-pointer hover:opacity-80 transition-opacity shrink-0"
+                    class="badge badge-sm cursor-pointer hover:opacity-80 transition-opacity shrink-0 min-h-6 inline-flex items-center"
                     [ngClass]="getStatusBadgeClass(att.status)"
                     (click)="openAttendanceEdit(att)"
                     [attr.aria-label]="'Edita assistència de ' + att.person.alias"
@@ -444,7 +444,7 @@
                     @for (pos of att.person.positions; track pos.id) {
                       <button
                         type="button"
-                        class="badge badge-sm cursor-pointer hover:opacity-80 transition-opacity"
+                        class="badge badge-sm cursor-pointer hover:opacity-80 transition-opacity min-h-6 inline-flex items-center"
                         [class.ring-2]="positionFilter()?.id === pos.id"
                         [class.ring-offset-1]="positionFilter()?.id === pos.id"
                         [style.background-color]="pos.color ?? '#888'"

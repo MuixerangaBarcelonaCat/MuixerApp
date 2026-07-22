@@ -19,7 +19,7 @@ export interface ActiveFilter {
             {{ filter.label }}
             <button
               type="button"
-              class="cursor-pointer hover:text-error transition-colors"
+              class="cursor-pointer hover:text-error transition-colors min-h-6 min-w-6 inline-flex items-center justify-center"
               (click)="removeFilter.emit(filter.key)"
               [attr.aria-label]="'Treure filtre ' + filter.label"
             >✕</button>
