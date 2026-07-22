@@ -1,7 +1,7 @@
 <div class="space-y-4 max-w-5xl mx-auto" [formGroup]="form">
 
   <!-- Capçalera -->
-  <div class="flex items-center gap-3">
+  <div class="flex items-center gap-3 flex-wrap">
     <button class="btn btn-ghost btn-sm btn-circle" (click)="goBack()" type="button" aria-label="Tornar">
       ←
     </button>
@@ -23,7 +23,7 @@
     </div>
 
     <!-- Botons de capçalera -->
-    <div class="flex items-center gap-2">
+    <div class="flex items-center gap-2 flex-wrap">
       @if (provisionalToggleError()) {
         <span class="text-xs text-error">{{ provisionalToggleError() }}</span>
       }
@@ -284,7 +284,7 @@
                 </div>
               }
               @if (!(person()!.managedBy)) {
-                <div class="flex items-left gap-2">
+                <div class="flex items-start gap-2 flex-wrap">
                   <button type="button" class="btn btn-sm btn-primary" (click)="startSendingInvitation()">
                     Envia correu d'invitació
                   </button>
