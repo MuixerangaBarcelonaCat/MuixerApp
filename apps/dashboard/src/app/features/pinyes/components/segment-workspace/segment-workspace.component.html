@@ -24,7 +24,7 @@
     }
 
     <!-- Workspace tabs -->
-    <nav role="tablist" class="tabs tabs-boxed ml-4" aria-label="Vistes del segment">
+    <nav role="tablist" class="tabs tabs-boxed ml-4 flex-nowrap overflow-x-auto min-w-0" aria-label="Vistes del segment">
       @for (tab of tabDefs; track tab.id) {
         <button
           type="button"
@@ -41,7 +41,7 @@
     </nav>
 
     <!-- Prev/next segment navigation -->
-    <div class="flex items-center gap-1 ml-2">
+    <div class="flex items-center gap-1 ml-2 shrink-0">
       <button
         type="button"
         class="btn btn-ghost btn-sm btn-square"

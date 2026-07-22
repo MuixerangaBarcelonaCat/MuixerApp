@@ -174,6 +174,21 @@ describe('SegmentWorkspaceComponent', () => {
     expect(icons.length).toBe(5);
   });
 
+  it('lets the tab bar scroll horizontally instead of cutting off tabs on mobile (WI-12, P-M1)', async () => {
+    const fixture = await setup();
+    const nav = fixture.nativeElement.querySelector('nav[role="tablist"]') as HTMLElement;
+    expect(nav.className).toContain('overflow-x-auto');
+    expect(nav.className).toContain('flex-nowrap');
+    expect(nav.className).toContain('min-w-0');
+  });
+
+  it('keeps the prev/next segment controls from shrinking so the tab bar is what scrolls', async () => {
+    const fixture = await setup();
+    const nav = fixture.nativeElement.querySelector('nav[role="tablist"]') as HTMLElement;
+    const prevNextGroup = nav.nextElementSibling as HTMLElement;
+    expect(prevNextGroup.className).toContain('shrink-0');
+  });
+
   it('defaults to the pinyes tab', async () => {
     const fixture = await setup();
     expect(fixture.componentInstance.activeTab()).toBe('pinyes');
