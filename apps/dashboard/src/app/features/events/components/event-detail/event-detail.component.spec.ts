@@ -333,6 +333,13 @@ describe('EventDetailComponent — attendance card mode on mobile (WI-08, EV-M2)
       expect(link.className).toContain('min-h-6');
       expect(link.className).toContain('inline-flex');
     });
+
+    it('gives the attendance search input a >=24px tap target (WI-22)', async () => {
+      const fixture = await setup();
+      const search = fixture.nativeElement.querySelector('input[type="text"]') as HTMLElement;
+      expect(search).toBeTruthy();
+      expect(search.className).toContain('h-6');
+    });
   });
 
   describe('card mode (< lg)', () => {

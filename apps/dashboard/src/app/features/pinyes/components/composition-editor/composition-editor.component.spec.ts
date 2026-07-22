@@ -403,4 +403,13 @@ describe('CompositionEditorComponent', () => {
     expect(navigateSpy).toHaveBeenCalledWith(['/pinyes/compositions', 'new-comp-id', 'edit'], { replaceUrl: true });
     expect(component.compositionId()).toBe('new-comp-id');
   });
+
+  describe('tap targets >=24px (WI-22)', () => {
+    it('gives the figure search input a >=24px tap target', async () => {
+      const { fixture } = await setup('comp-1');
+      const search = fixture.nativeElement.querySelector('input[type="search"]') as HTMLElement;
+      expect(search).toBeTruthy();
+      expect(search.className).toContain('h-6');
+    });
+  });
 });
