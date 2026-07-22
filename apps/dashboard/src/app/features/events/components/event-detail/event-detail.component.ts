@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, computed, inject, signal, OnInit, OnDestroy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, DestroyRef, computed, inject, signal, OnInit, OnDestroy } from '@angular/core';
 import { NgClass } from '@angular/common';
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -134,6 +134,23 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     if (!ev || ev.eventType !== EventType.ACTUACIO) return null;
     return ev.metadata as PerformanceMetadata;
   });
+
+  /**
+   * Below `lg`, the attendance list renders as cards instead of a table
+   * (the table needs ~557px and overflows on mobile). Driven by `matchMedia`;
+   * falls back to `false` (table mode) where `matchMedia` is unavailable.
+   */
+  readonly attendanceCardMode = signal(false);
+
+  constructor() {
+    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+      const mql = window.matchMedia('(max-width: 1023.98px)');
+      this.attendanceCardMode.set(mql.matches);
+      const listener = (e: MediaQueryListEvent) => this.attendanceCardMode.set(e.matches);
+      mql.addEventListener('change', listener);
+      inject(DestroyRef).onDestroy(() => mql.removeEventListener('change', listener));
+    }
+  }
 
   ngOnInit() {
     const id = this.route.snapshot.paramMap.get('id');
