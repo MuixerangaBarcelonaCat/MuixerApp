@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, HostListener, OnInit, computed, inject, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, HostListener, OnInit, computed, inject, input, output, signal } from '@angular/core';
 import { LucideAngularModule, Map as MapIcon, Undo2, Redo2 } from 'lucide-angular';
 import { TroncViewComponent, TroncNodeItem } from '../../../tronc-view/tronc-view.component';
 import { PersonPanelComponent } from '../../../person-panel/person-panel.component';
@@ -53,6 +53,24 @@ export class TroncsTabComponent implements OnInit {
 
   /** Emitted when "Anar-hi" targets a node that only exists in the Pinyes tab. */
   readonly crossTabSelect = output<{ tab: 'pinyes' | 'troncs'; ref: SegmentNodeRef }>();
+
+  /**
+   * Below `sm`, the fixed-width person panel (w-80) leaves the tronc view
+   * unusably narrow (P-M2, GE-H3 — same layout as the Pinyes tab). Shows a
+   * guard message instead until the mobile layout is designed. Driven by
+   * `matchMedia`; falls back to `false` where `matchMedia` is unavailable.
+   */
+  readonly mobileUnsupported = signal(false);
+
+  constructor() {
+    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+      const mql = window.matchMedia('(max-width: 639.98px)');
+      this.mobileUnsupported.set(mql.matches);
+      const listener = (e: MediaQueryListEvent) => this.mobileUnsupported.set(e.matches);
+      mql.addEventListener('change', listener);
+      inject(DestroyRef).onDestroy(() => mql.removeEventListener('change', listener));
+    }
+  }
 
   ngOnInit(): void {
     // Positions/cordons/mode may have changed in another tab (e.g. Distribució)
