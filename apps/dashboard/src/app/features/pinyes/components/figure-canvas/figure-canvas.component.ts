@@ -744,8 +744,15 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
   private resizeStage(): void {
     const container = this.containerRef.nativeElement;
-    this.stage.width(container.clientWidth);
-    this.stage.height(container.clientHeight);
+    const { clientWidth, clientHeight } = container;
+    if (clientWidth === 0 || clientHeight === 0) {
+      // A collapsed container (e.g. transient layout reflow) would otherwise
+      // resize the Konva stage to 0px and crash on the next draw (P-H1).
+      // Keep the last valid size until the observer reports real dimensions.
+      return;
+    }
+    this.stage.width(clientWidth);
+    this.stage.height(clientHeight);
     this.renderGrid();
 
     if (this.mode() === 'readonly') {

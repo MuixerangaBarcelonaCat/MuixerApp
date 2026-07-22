@@ -4,7 +4,7 @@ Centre de control de tot el que surt dels informes d'auditoria (`docs/audit/*`).
 Cada fila és un **work item** de mida PR. Res s'implementa fins que la seva
 **Decisió** és ✅ Aprovat. Cada PR va contra `develop` i actualitza aquest fitxer.
 
-_Actualitzat: 2026-07-21_
+_Actualitzat: 2026-07-21_ (revisió de decisions pendents)
 
 ---
 
@@ -27,21 +27,21 @@ _Actualitzat: 2026-07-21_
 
 | ID | Work item | Àrea | Sev | Esforç | Troballes | Decisió | Estat | PR |
 |----|-----------|------|-----|--------|-----------|---------|-------|----|
-| WI-01 | Investigar i resoldre el **403 de bootstrap** (crida sense permisos en carregar) | Transversal | 🔴 | S | PE-H1, PW-M1 | ✅ | 🟣 | `fix/audit-bootstrap-403` |
+| WI-01 | Investigar i resoldre el **403 de bootstrap** (crida sense permisos en carregar) | Transversal | 🔴 | S | PE-H1, PW-M1 | ✅ | ✔️ | [#87](https://github.com/MuixerangaBarcelonaCat/MuixerApp/pull/87) (fusionada a develop) |
 | WI-02 | **Mode targeta responsive** a `app-data-table` (`< lg`) | Transversal | 🔴 | L | PE-M1, EV-H1, EV-M1, CF-L2 | ✅ | ✔️ | [#86](https://github.com/MuixerangaBarcelonaCat/MuixerApp/pull/86) (fusionada a develop) |
-| WI-03 | **Normalitzar tap targets ≥24px** (chips, checkboxes, enllaços, badges) | Transversal | 🟠 | M | PE-L1, PE-L2, EV-M3, CF-L1, PW-L3, PW-L4 | 🆕 | ⬜ | — |
+| WI-03 | **Normalitzar tap targets ≥24px** (chips, checkboxes, enllaços, badges) | Transversal | 🟠 | M | PE-L1, PE-L2, EV-M3, CF-L1, PW-L3, PW-L4 | ✅ | ⬜ | — |
 | WI-04 | **Localització de dates** (Title-Case a Home; input date ja OK) | Transversal | 🟠 | S | PE-M3(data), UX-L2 | ✅ | ✔️ | [#80](https://github.com/MuixerangaBarcelonaCat/MuixerApp/pull/80) (fusionada a develop) |
-| WI-05 | **Formulari Persona**: apilar etiqueta/input en mòbil | Persons | 🟠 | S | PE-M3(layout) | 🆕 | ⬜ | — |
-| WI-06 | **Detall Persona**: `flex-wrap` a les barres de botons (no tallar en mòbil) | Persons | 🟠 | S | PE-M2 | 🆕 | ⬜ | — |
+| WI-05 | **Formulari Persona**: apilar etiqueta/input en mòbil | Persons | 🟠 | S | PE-M3(layout) | ✅ | ⬜ | — |
+| WI-06 | **Detall Persona**: `flex-wrap` a les barres de botons (no tallar en mòbil) | Persons | 🟠 | S | PE-M2 | ✅ | ⬜ | — |
 | WI-07 | **Detall Persona**: no duplicar àlies a la capçalera | Persons | 🟡 | XS | PE-L3 | ✅ | ✔️ | [#81](https://github.com/MuixerangaBarcelonaCat/MuixerApp/pull/81) (fusionada a develop) |
-| WI-08 | **Detall Event**: assistència com a llista de fitxes en mòbil | Events | 🟠 | M | EV-M2 | 🆕 | ⬜ | — |
-| WI-09 | **Nav tablet**: etiquetes visibles / tooltip real (no només icones) | Shell | 🟠 | S | UX-M4 | 🆕 | ⬜ | — |
-| WI-10 | **Pinyes**: arreglar pestanya **Distribució** en mòbil (`aside w-70` fluid + canvas mai 0px) | Pinyes | 🔴 | M | P-H1 | 🆕 | ⬜ | — |
+| WI-08 | **Detall Event**: assistència com a llista de fitxes en mòbil | Events | 🟠 | M | EV-M2 | ✅ | ⬜ | — |
+| WI-09 | **Nav tablet**: etiquetes visibles / tooltip real (no només icones) | Shell | 🟠 | S | UX-M4 | ✅ | ⬜ | — |
+| WI-10 | **Pinyes**: arreglar pestanya **Distribució** en mòbil (`aside` fluid + canvas mai 0px) | Pinyes | 🔴 | M | P-H1 | ✅ | ✔️ | `fix/audit-pinyes-distribucio-mobile` (pendent de push/PR) |
 | WI-11 | **Pinyes**: blindar `ProjectionViewComponent.ngAfterViewInit` (`nativeElement`) | Pinyes | 🔴 | S | P-H2 | ✅ | ✔️ | [#78](https://github.com/MuixerangaBarcelonaCat/MuixerApp/pull/78) (fusionada a develop) |
-| WI-12 | **Pinyes**: barra de 5 pestanyes scrollable en mòbil | Pinyes | 🟠 | S | P-M1 | 🆕 | ⬜ | — |
-| WI-13 | **Pinyes**: layout mòbil del workspace (canvas full-width + panell drawer) | Pinyes | 🔴 | L | P-M2, GE-H3 | 🆕 | ⬜ | — |
-| WI-14 | **Pinyes gestos**: pinch-to-zoom (+ wheel-zoom desktop) | Pinyes | 🔴 | M | GE-H1 | 🆕 | ⬜ | — |
-| WI-15 | **Pinyes gestos**: pan del llenç en mode assignació | Pinyes | 🔴 | M | GE-H2 | 🆕 | ⬜ | — |
+| WI-12 | **Pinyes**: barra de 5 pestanyes scrollable en mòbil | Pinyes | 🟠 | S | P-M1 | ✅ | ⬜ | — |
+| WI-13 | **Pinyes**: en mòbil, missatge "no disponible" al workspace d'assignació (abast reduït — abans: canvas full-width + drawer) | Pinyes | 🟠 | S | P-M2, GE-H3 | ✅ | ⬜ | — |
+| WI-14 | **Pinyes gestos**: pinch-to-zoom (+ wheel-zoom desktop) | Pinyes | 🔴 | M | GE-H1 | ⏸️ | ⬜ | — |
+| WI-15 | **Pinyes gestos**: pan del llenç en mode assignació | Pinyes | 🔴 | M | GE-H2 | ⏸️ | ⬜ | — |
 | WI-16 | **PWA**: contenidor `max-w` centrat en tablet/desktop | PWA | 🟡 | XS | PW-L1 | ✅ | ✔️ | [#84](https://github.com/MuixerangaBarcelonaCat/MuixerApp/pull/84) (fusionada a develop) |
 | WI-17 | **PWA**: amplada del toggle "Vinc/No vinc" (no trencar en 2 línies) | PWA | 🟡 | XS | PW-L2 | ✅ | ✔️ | [#85](https://github.com/MuixerangaBarcelonaCat/MuixerApp/pull/85) (fusionada a develop) |
 | WI-18 | **PWA offline**: verificar en desplegament real + endurir el test | PWA | ⚠️ | S | PB-offline | ⏸️ | ⬜ | — |
@@ -67,6 +67,17 @@ _Actualitzat: 2026-07-21_
 | 2026-07-21 | WI-18 | ⏸️ Ajornat | El SW només s'activa en build de producció i PB-offline demana validació en desplegament real. S'ajorna fins que hi hagi un entorn de prod desplegat; llavors s'endurirà el test (localitzador `app-shell`, assert dur d'offline). |
 | 2026-07-21 | WI-01 | ✅ Aprovat → 🟣 En PR | **403/401 de bootstrap** (PE-H1 dashboard + PW-M1 PWA). **Arrel:** `provideAppInitializer → AuthService.silentRefresh()` cridava `/auth/refresh` incondicionalment a cada càrrega; sense sessió el backend retorna 401/403 i el navegador el registra a consola (no suprimible des de JS). **Fix (als dos clients):** hint `muixer_has_session` a localStorage (es posa al login/refresh OK, es treu a `clearState`); `silentRefresh` omet la crida si no hi ha hint → cap soroll a la pantalla de login ni en primera visita. Verificat: unit tests (dashboard 1296 + pwa 108, amb test nou "skips refresh") i E2E al navegador (càrrega neta de `/login` = 0 crides `/api`; login → hint + `/home`). Branca `fix/audit-bootstrap-403`. |
 | 2026-07-21 | WI-02 | ✅ Aprovat → ✔️ Fet | Mode targeta responsive a `app-data-table` sota `lg` (PE-M1, EV-H1, EV-M1, CF-L2). **Disseny:** camp additiu `primary?` a `ColumnDef` (marca la columna-títol; fallback 1a); senyal `cardMode` per `matchMedia('(max-width:1023.98px)')` amb fallback a taula quan no hi ha `matchMedia` (jsdom) → els specs existents no canvien; render `@if (cardMode())` targetes `@else` taula (mai doble DOM). Targeta = títol + menú d'accions + files etiqueta→valor (respecta badge/pills/colorBadges), amb `groupSeparator` i `opacity-60` de grup secundari. Marcada `primary` a alias/title/email dels 3 consumidors. Seasons/Tags (taules fetes a mà) queden fora d'abast. Verificat: suite dashboard 1295 tests OK (+5 card-mode), lint 0 errors, i captures Playwright mobile (Persons+Actuacions) mostren targetes sense overflow. **Nota:** l'aspecte desktop d'EV-H1 (Actuacions 1283px) es manté en taula (< lg és card); follow-up d'amplada de columnes. **Fusionada a develop via PR #86.** |
+| 2026-07-21 | WI-01 | 🟣 En PR → ✔️ Fet | **Fusionada a develop via PR #87.** |
+| 2026-07-21 | WI-03 | ✅ Aprovat | Fix transversal d'accessibilitat (WCAG tap targets <24px): xips de filtre, checkboxes, enllaços de taula, badges d'acció, inputs/enllaços PWA. Esforç M perquè toca components compartits entre Persons/Events/Config/PWA. **Es fa l'últim de la tanda actual** (després de WI-05/06/08/09/10/12) per minimitzar risc de conflicte amb la resta de branques obertes que toquen els mateixos components compartits. |
+| 2026-07-21 | WI-05 | ✅ Aprovat | Apilar etiqueta sobre input en mòbil al formulari Persona nova (PE-M3, part de layout — el fix de format de data ja es va tancar amb WI-04). Esforç S, aïllat al mòdul Persons. |
+| 2026-07-21 | WI-06 | ✅ Aprovat | `flex-wrap` a les barres de botons del detall de Persona (PE-M2): capçalera i secció "Informació de la colla" es tallaven a 393px. Esforç S, aïllat al mòdul Persons. |
+| 2026-07-21 | WI-08 | ✅ Aprovat | Llista d'assistència com a targetes en mòbil al detall d'Event (EV-M2): la taula de 557px scrollejava horitzontalment a 393px. Esforç M, aïllat al mòdul Events. |
+| 2026-07-21 | WI-09 | ✅ Aprovat | Etiquetes de navegació visibles en tablet (UX-M4): entre `sm` i `lg` el tooltip és `sr-only` (mai visible en tàctil, no hi ha hover). Esforç S, aïllat al shell/nav. |
+| 2026-07-21 | WI-10 | ✅ Aprovat → ✔️ Fet | Severitat Alta: `aside` d'amplada fixa no cap a 393px i empeny el canvas fora de pantalla → Konva llança `InvalidStateError` (canvas amb amplada/alçada 0). **Fix de layout:** contenidor `flex flex-col sm:flex-row` (abans sempre fila); `aside` `w-full max-h-[45vh]` en mòbil, `sm:w-[280px]` en tablet/desktop. **Fix defensiu:** `FigureCanvasComponent.resizeStage()` ignora resize a 0×0 (mai crida `stage.width(0)`/`height(0)`), com a xarxa de seguretat independent del layout. **Troballa col·lateral:** la classe original `w-70` no existeix a l'escala d'espaiat per defecte de Tailwind (salta de 64 a 72) i mai havia generat CSS — confirmat buidant `dist/apps/dashboard/browser/styles-*.css` després d'un build net; per això calia `w-[280px]` (sintaxi arbitrària) en lloc de `w-70`. El mateix patró trencat existeix a `composition-editor.component.html` (2 asides) — fora d'abast d'aquest WI, delegat com a tasca separada. TDD: 2 tests nous a `distribucio-tab.component.spec.ts` (classes responsive del contenidor i de l'aside), vermell→verd. Verificat: suite dashboard 1298/1298 ✓, lint 0 errors, build ✓, i confirmació visual al navegador (393px apilat sense error de consola; 1024px fila costat a costat amb aside de 280px, sense regressió). Branca `fix/audit-pinyes-distribucio-mobile`. |
+| 2026-07-21 | WI-12 | ✅ Aprovat | Barra de 5 pestanyes desborda en mòbil (P-M1): `nav.tabs` fa 455px > 393px sense scroll ni col·lapse. Esforç S — fer-lo abans o junt amb WI-10 si comparteixen fitxers del workspace (revisar abans d'obrir branca). |
+| 2026-07-21 | WI-13 | ✅ Aprovat (abast reduït) | **Canvi de disseny respecte al pla original:** en lloc del redisseny complet (canvas full-width + drawer, esforç L), es mostrarà un missatge "no disponible en mòbil, encara no optimitzat — disponible en tablet/desktop" quan es detecti viewport mòbil al workspace d'assignació. Tablet/desktop es mantenen sense canvis. Esforç baixat de L a S. **Pendent abans d'implementar:** re-mesurar amb Playwright la discrepància entre P-M2 (~200px de canvas) i GE-H3 (73px) per fixar bé el llindar del guard mòbil. |
+| 2026-07-21 | WI-14 | ⏸️ Ajornat | Pinch/wheel zoom (GE-H1) és una feature nova (no bugfix), esforç M. S'ajorna a més endavant, coherent amb WI-15 (mateix subsistema de gestos del canvas). |
+| 2026-07-21 | WI-15 | ⏸️ Ajornat | Pan del llenç (GE-H2), esforç M. S'ajorna junt amb WI-14: pan i zoom són gestos relacionats del mateix `FigureCanvasComponent` i té sentit abordar-los junts en un futur increment de gestos. |
 
 ---
 

@@ -1,6 +1,6 @@
-<div class="flex h-full min-h-0">
+<div class="flex flex-col sm:flex-row h-full min-h-0">
   <!-- Canvas -->
-  <div class="relative flex-1 min-w-0">
+  <div class="relative flex-1 min-w-0 min-h-0">
     @if (loading()) {
       <div class="absolute inset-0 z-10 flex items-center justify-center bg-base-100/80">
         <span class="loading loading-spinner loading-lg text-primary" aria-label="S'està carregant..."></span>
@@ -33,7 +33,7 @@
 
   <!-- Properties panel -->
   @if (propertiesEntry(); as entry) {
-    <aside class="w-70 shrink-0 bg-base-100 border-l border-base-300 flex flex-col overflow-y-auto p-3 space-y-3" aria-label="Propietats de la figura">
+    <aside class="w-full max-h-[45vh] sm:max-h-none sm:w-[280px] shrink-0 bg-base-100 border-t sm:border-t-0 sm:border-l border-base-300 flex flex-col overflow-y-auto p-3 space-y-3" aria-label="Propietats de la figura">
       <app-figure-properties-panel
         [entry]="entry"
         [showRemove]="false"

@@ -589,6 +589,35 @@ describe('DistribucioTabComponent', () => {
     });
   });
 
+  describe('responsive layout (WI-10, P-H1)', () => {
+    it('stacks the canvas above the properties panel on narrow viewports instead of a fixed-width side-by-side row', async () => {
+      // P-H1: a fixed-width `aside` (w-70 / 280px) in a row layout squeezes the canvas
+      // container to 0px at 393px, crashing Konva. The row must become a column below `sm`.
+      await setup();
+      component.onSlotSelected(INST_A);
+      fixture.detectChanges();
+
+      const root = fixture.nativeElement.querySelector(':scope > div.flex') as HTMLElement;
+      expect(root.className).toContain('flex-col');
+      expect(root.className).toContain('sm:flex-row');
+    });
+
+    it('lets the properties aside take the full width (bounded height) below `sm`, and reverts to a fixed side column at `sm` and up', async () => {
+      await setup();
+      component.onSlotSelected(INST_A);
+      fixture.detectChanges();
+
+      const aside = fixture.nativeElement.querySelector('aside') as HTMLElement;
+      expect(aside.className).toContain('w-full');
+      // Fixed width restored at `sm`+ via an arbitrary value: the bare `w-70` utility
+      // doesn't exist in Tailwind's default spacing scale (64 -> 72, no 70) and silently
+      // produced no CSS at all, so it never actually constrained the aside's width.
+      expect(aside.className).toMatch(/sm:w-\[\d+px\]/);
+      // Bounded on mobile so the canvas above it always keeps real, non-zero space.
+      expect(aside.className).toMatch(/max-h-\[\d+(?:vh|px)\]/);
+    });
+  });
+
   describe('cordons oberts checkbox', () => {
     it('passes hasCordoObertNodes and cordonsObertsEnabled to the properties entry', async () => {
       await setup({
