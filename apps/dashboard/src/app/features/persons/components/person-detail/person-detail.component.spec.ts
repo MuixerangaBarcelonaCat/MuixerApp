@@ -7,6 +7,7 @@ import { TagService } from '../../../config/services/tag.service';
 import { NodeAssignmentService } from '../../../pinyes/services/node-assignment.service';
 import { SeasonService } from '../../../events/services/season.service';
 import { PersonAssignmentEntry } from '../../../pinyes/models/assignment.model';
+import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 
 const makeHistoryEntry = (overrides: Partial<PersonAssignmentEntry> = {}): PersonAssignmentEntry => ({
   eventId: 'event-1',
@@ -33,6 +34,7 @@ describe('PersonDetailComponent', () => {
     await TestBed.configureTestingModule({
       imports: [PersonDetailComponent],
       providers: [
+        allLucideIconsProvider,
         { provide: PersonService, useValue: { getOne: () => of({ id: 'p1', positions: [] }) } },
         { provide: TagService, useValue: { getAll: () => of([]) } },
         { provide: NodeAssignmentService, useValue: { getPersonHistory: () => of({ data: [], meta: { total: 0, page: 1, limit: 20 } }) } },
