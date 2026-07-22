@@ -1,6 +1,7 @@
 import {
   Component,
   ChangeDetectionStrategy,
+  DestroyRef,
   signal,
   inject,
   OnInit,
@@ -41,6 +42,24 @@ export class AttendanceConfirmationComponent implements OnInit, OnDestroy {
   loading = signal(true);
   confirmingId = signal<string | null>(null);
   recentlyConfirmed = signal<string | null>(null);
+
+  /**
+   * The kiosk-style keypad (10 keys sized off 60vw) can't shrink below the
+   * WCAG tap-target minimum on a phone-width screen (WI-21, ~13px/key at
+   * 393px). Shows a guard message instead, same `matchMedia` pattern as
+   * WI-10/WI-13. Falls back to `false` where `matchMedia` is unavailable.
+   */
+  readonly mobileUnsupported = signal(false);
+
+  constructor() {
+    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+      const mql = window.matchMedia('(max-width: 639.98px)');
+      this.mobileUnsupported.set(mql.matches);
+      const listener = (e: MediaQueryListEvent) => this.mobileUnsupported.set(e.matches);
+      mql.addEventListener('change', listener);
+      inject(DestroyRef).onDestroy(() => mql.removeEventListener('change', listener));
+    }
+  }
 
   ngOnInit() {
     this.eventId = this.route.snapshot.paramMap.get('id') ?? '';

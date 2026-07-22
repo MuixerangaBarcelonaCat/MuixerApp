@@ -1,6 +1,22 @@
 <!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
 <div class="fixed inset-0 z-50 flex bg-primary p-8" (keydown.escape)="goBack()">
 
+@if (mobileUnsupported()) {
+  <!--
+    Kiosk-style layout (w-3/5 keypad sized off 60vw + w-2/5 list) assumes a
+    tablet/desktop-width screen. On a phone the keypad row (10 keys) can't
+    fit without shrinking below the WCAG tap-target minimum (WI-21,
+    ~13px/key at 393px) — same guard pattern as WI-10/WI-13.
+  -->
+  <div class="w-full flex flex-col items-center justify-center gap-4 text-center text-primary-content">
+    <p class="font-medium">Encara no optimitzat per a mòbil</p>
+    <p class="text-sm text-primary-content/70 max-w-xs">Esta pantalla està disponible en tablet i escriptori.</p>
+    <button type="button" class="btn btn-ghost text-primary-content/80 hover:text-primary-content hover:bg-primary-content/10" (click)="goBack()">
+      Tanca ✕
+    </button>
+  </div>
+} @else {
+
   <!-- Esquerra: camp + teclat -->
   <div class="w-3/5 flex flex-col p-4 gap-3 justify-center p-r-8">
 
@@ -110,4 +126,5 @@
       </div>
     }
   </div>
+}
 </div>
