@@ -1,7 +1,17 @@
 import { vi } from 'vitest';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
+import { of } from 'rxjs';
 import { EventDetailComponent } from './event-detail.component';
-import { AttendanceStatus } from '@muixer/shared';
-import { AttendanceSummary } from '../../models/event.model';
+import { AttendanceStatus, EventType, UserRole } from '@muixer/shared';
+import { AttendanceSummary, EventDetail } from '../../models/event.model';
+import { AttendanceItem } from '../../models/attendance.model';
+import { EventService } from '../../services/event.service';
+import { AttendanceService } from '../../services/attendance.service';
+import { SeasonService } from '../../services/season.service';
+import { AuthService } from '../../../../core/auth/services/auth.service';
+import { NodeAssignmentService } from '../../../pinyes/services/node-assignment.service';
+import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 
 /**
  * Pure-unit tests for EventDetailComponent helper methods.
@@ -220,5 +230,116 @@ describe('EventDetailComponent — navigateToPerson', () => {
     (comp as unknown as { router: unknown }).router = { navigate: navigateMock };
     comp.navigateToPerson('person-123');
     expect(navigateMock).toHaveBeenCalledWith(['/persons', 'person-123']);
+  });
+});
+
+describe('EventDetailComponent — attendance card mode on mobile (WI-08, EV-M2)', () => {
+  const EVENT_ID = 'event-1';
+
+  const event: EventDetail = {
+    id: EVENT_ID,
+    eventType: EventType.ASSAIG,
+    title: 'Assaig general',
+    date: '2026-07-22',
+    startTime: '18:00',
+    location: null,
+    countsForStatistics: true,
+    attendanceSummary: { confirmed: 0, declined: 0, pending: 0, attended: 0, lateCancel: 0, children: 0, childrenAttended: 0, total: 0 },
+    season: null,
+    segmentsSummary: null,
+    createdAt: '2026-01-01',
+    description: null,
+    locationUrl: null,
+    information: null,
+    metadata: {},
+    isSynced: false,
+  };
+
+  const attendance: AttendanceItem = {
+    id: 'att-1',
+    status: AttendanceStatus.ANIRE,
+    respondedAt: null,
+    notes: null,
+    person: {
+      id: 'person-1',
+      alias: 'PERSIANA',
+      name: 'Joana',
+      firstSurname: 'Vila',
+      isXicalla: false,
+      isProvisional: false,
+      notes: null,
+      notesEmoji: null,
+      positions: [],
+    },
+  };
+
+  const setup = async (): Promise<ComponentFixture<EventDetailComponent>> => {
+    await TestBed.configureTestingModule({
+      imports: [EventDetailComponent],
+      providers: [
+        provideRouter([]),
+        allLucideIconsProvider,
+        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: convertToParamMap({ id: EVENT_ID }) } } },
+        { provide: EventService, useValue: { getOne: () => of(event) } },
+        { provide: AttendanceService, useValue: { getByEvent: () => of({ data: [attendance], meta: { total: 1, page: 1, limit: 100 } }) } },
+        { provide: SeasonService, useValue: { getAll: () => of({ data: [] }) } },
+        { provide: AuthService, useValue: { userRole: () => UserRole.ADMIN } },
+        {
+          provide: NodeAssignmentService,
+          useValue: {
+            getLockStatus: () => of({ locked: false, lockDate: null, lockDays: 3 }),
+            getEventAssignmentSummary: () => of({ segments: [] }),
+          },
+        },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(EventDetailComponent);
+    fixture.detectChanges();
+    return fixture;
+  };
+
+  describe('table mode (default, no matchMedia)', () => {
+    it('renders the attendance table, not cards', async () => {
+      const fixture = await setup();
+      expect(fixture.nativeElement.querySelector('table.table')).toBeTruthy();
+      expect(fixture.nativeElement.querySelector('[data-testid="attendance-card"]')).toBeFalsy();
+    });
+  });
+
+  describe('card mode (< lg)', () => {
+    const originalMatchMedia = window.matchMedia;
+
+    beforeEach(() => {
+      window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+        matches: true,
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })) as unknown as typeof window.matchMedia;
+    });
+
+    afterEach(() => {
+      window.matchMedia = originalMatchMedia;
+    });
+
+    it('renders each attendance entry as a card instead of a table row', async () => {
+      const fixture = await setup();
+      expect(fixture.nativeElement.querySelector('table.table')).toBeFalsy();
+      const cards = fixture.nativeElement.querySelectorAll('[data-testid="attendance-card"]');
+      expect(cards.length).toBe(1);
+      expect(cards[0].textContent).toContain('PERSIANA');
+    });
+
+    it('shows the status badge on the card, still clickable to open the edit modal', async () => {
+      const fixture = await setup();
+      const badge = fixture.nativeElement.querySelector('[data-testid="attendance-card"] .badge.cursor-pointer') as HTMLElement;
+      expect(badge).toBeTruthy();
+      expect(badge.textContent?.trim()).toBe(fixture.componentInstance.getStatusLabel(AttendanceStatus.ANIRE));
+    });
   });
 });
