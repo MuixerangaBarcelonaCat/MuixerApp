@@ -366,4 +366,12 @@ describe('FigurePickerModalComponent', () => {
       });
     });
   });
+
+  describe('tap targets >=24px (WI-22)', () => {
+    it('gives the search input a >=24px tap target', () => {
+      const search = fixture.nativeElement.querySelector('input[type="search"]') as HTMLElement;
+      expect(search).toBeTruthy();
+      expect(search.className).toContain('h-6');
+    });
+  });
 });

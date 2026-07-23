@@ -133,7 +133,11 @@ export class PersonDetailComponent implements OnInit {
 
     this.route.paramMap.subscribe((params) => {
       const id = params.get('id');
-      if (id) {
+      // No dedicated "create" route exists — `/persons/new` falls through to
+      // this `:id` route with the literal id "new", which the API rejects as
+      // an invalid UUID (WI-23). Nothing currently links to that URL; skip
+      // the doomed fetches rather than logging a 400 on every load.
+      if (id && id !== 'new') {
         this.loadPerson(id);
         this.loadHistory();
       }

@@ -184,4 +184,54 @@ describe('AttendanceConfirmationComponent', () => {
     component.goBack();
     expect(routerMock.navigate).toHaveBeenCalledWith(['..'], expect.any(Object));
   });
+
+  // ── mobile guard (WI-21) ────────────────────────────────────────────────────
+
+  describe('mobile guard (WI-21)', () => {
+    it('renders the keypad by default (no matchMedia)', () => {
+      expect(fixture.nativeElement.textContent).not.toContain('Encara no optimitzat per a mòbil');
+      expect(fixture.nativeElement.querySelectorAll('button').length).toBeGreaterThan(1);
+    });
+
+    describe('below sm (< 640px)', () => {
+      const originalMatchMedia = window.matchMedia;
+
+      beforeEach(() => {
+        window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+          matches: true,
+          media: query,
+          onchange: null,
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          dispatchEvent: vi.fn(),
+        })) as unknown as typeof window.matchMedia;
+      });
+
+      afterEach(() => {
+        window.matchMedia = originalMatchMedia;
+      });
+
+      it('shows a "not optimized for mobile" message instead of the unusable keypad', async () => {
+        // The outer beforeEach already instantiated `fixture` with the real
+        // matchMedia before this describe's beforeEach could mock it — reset
+        // and rebuild the module so the component picks up the mock.
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+          imports: [AttendanceConfirmationComponent],
+          providers: [
+            { provide: AttendanceService, useValue: attendanceService },
+            { provide: Router, useValue: routerMock },
+            { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => EVENT_ID } } } },
+          ],
+        }).compileComponents();
+        const guardedFixture = TestBed.createComponent(AttendanceConfirmationComponent);
+        guardedFixture.detectChanges();
+
+        expect(guardedFixture.nativeElement.textContent).toContain('Encara no optimitzat per a mòbil');
+        expect(guardedFixture.nativeElement.querySelectorAll('button[type="button"]').length).toBe(1);
+      });
+    });
+  });
 });

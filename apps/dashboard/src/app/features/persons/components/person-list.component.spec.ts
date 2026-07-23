@@ -146,5 +146,11 @@ describe('PersonListComponent', () => {
       expect(checkbox).toBeTruthy();
       expect(checkbox.closest('label')?.className).toContain('min-h-6');
     });
+
+    it('gives the search input a >=24px tap target (WI-22)', () => {
+      const search = fixture.nativeElement.querySelector('input[type="text"]') as HTMLElement;
+      expect(search).toBeTruthy();
+      expect(search.className).toContain('h-6');
+    });
   });
 });

@@ -423,4 +423,12 @@ describe('EventListComponent', () => {
       expect(router.navigate).toHaveBeenCalledWith(['/performances', 'sync']);
     });
   });
+
+  describe('tap targets >=24px (WI-22)', () => {
+    it('gives the search input a >=24px tap target', () => {
+      const search = fixture.nativeElement.querySelector('input[type="text"]') as HTMLElement;
+      expect(search).toBeTruthy();
+      expect(search.className).toContain('h-6');
+    });
+  });
 });

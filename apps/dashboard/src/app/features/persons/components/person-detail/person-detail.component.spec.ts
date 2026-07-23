@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { of } from 'rxjs';
+import { vi } from 'vitest';
 import { PersonDetailComponent } from './person-detail.component';
 import { PersonService } from '../../services/person.service';
 import { TagService } from '../../../config/services/tag.service';
@@ -139,6 +140,38 @@ describe('PersonDetailComponent', () => {
       for (const toggle of toggles) {
         expect(toggle.className).not.toContain('toggle-sm');
       }
+    });
+  });
+
+  describe('"/persons/new" fall-through (WI-23)', () => {
+    it('does not fetch a person or history for the literal id "new" (no dedicated create route exists)', async () => {
+      const getOne = vi.fn().mockReturnValue(of({ id: 'new', positions: [] }));
+      const getPersonHistory = vi.fn().mockReturnValue(of({ data: [], meta: { total: 0, page: 1, limit: 20 } }));
+
+      TestBed.resetTestingModule();
+      await TestBed.configureTestingModule({
+        imports: [PersonDetailComponent],
+        providers: [
+          allLucideIconsProvider,
+          { provide: PersonService, useValue: { getOne } },
+          { provide: TagService, useValue: { getAll: () => of([]) } },
+          { provide: NodeAssignmentService, useValue: { getPersonHistory } },
+          { provide: SeasonService, useValue: { getAll: () => of({ data: [] }) } },
+          {
+            provide: ActivatedRoute,
+            useValue: {
+              snapshot: { paramMap: convertToParamMap({ id: 'new' }) },
+              paramMap: of(convertToParamMap({ id: 'new' })),
+            },
+          },
+        ],
+      }).compileComponents();
+
+      const newFixture = TestBed.createComponent(PersonDetailComponent);
+      newFixture.detectChanges();
+
+      expect(getOne).not.toHaveBeenCalled();
+      expect(getPersonHistory).not.toHaveBeenCalled();
     });
   });
 });
