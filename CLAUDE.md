@@ -31,9 +31,12 @@ nx lint dashboard
 nx build api
 nx build dashboard
 
-# Database scripts (run from repo root)
-nx run api:reset-figure-data         # Dev reset: wipe instances/nodes/assignments + re-seed
-nx run api:migrate-tronc-units       # P5.6 migration
+# Database — migrations (synchronize: false; auto-run in dev via migrationsRun)
+nx run api:migration-run             # Apply pending migrations
+nx run api:migration-generate        # Generate migration from entity changes
+nx run api:migration-revert          # Revert last migration
+nx run api:reset-figure-data         # Dev reset: wipe instances/nodes/assignments
+nx run api:migrate-tronc-units       # P5.6 one-off script
 
 # Docker
 pnpm run docker:down       # Stop (keeps data)
@@ -50,10 +53,10 @@ pnpm run docker:pre:up     # Pre-production stack
 ### Monorepo layout
 
 ```
-apps/api/          → NestJS REST API (port 3000)
+apps/api/          → NestJS 11 REST API (port 3000)
 apps/dashboard/    → Angular 21 SPA admin (port 4200)
-apps/pwa/          → Angular PWA scaffold (P6, not yet implemented)
-libs/shared/       → Shared enums only — import via @muixer/shared
+apps/pwa/          → Angular 21 PWA for members (implemented: login, agenda, attendance confirmation)
+libs/shared/       → Shared enums, constants, interfaces — import via @muixer/shared
 docs/              → Specs, architecture docs, roadmap
 .cursor/rules/     → Agent coding rules (important patterns)
 ```
@@ -63,15 +66,19 @@ docs/              → Specs, architecture docs, roadmap
 Global guards registered in `app.module.ts`: `JwtAuthGuard` (all routes by default) + `RolesGuard`. Mark public endpoints with `@Public()`.
 
 Modules under `src/modules/`:
-- `auth` — JWT (15min) + httpOnly refresh token (7d), Passport, token rotation
-- `person` — CRUD + soft delete via `isActive` boolean
+- `auth` — JWT (15min) + httpOnly refresh token (7d), Passport, token rotation, invite accept, bootstrap
+- `user` — admin/member accounts (`users`), roles, invite provisioning; OneToOne `Person`
+- `person` — CRUD + soft delete via `isActive` boolean; delegation via `managedBy`/`mentor`
 - `event` + `season` + attendance
 - `figure` — `FigureTemplate`, `FigureNode`, `Rengla`
-- `composition` — `CompositionTemplate` + `CompositionSlot`
-- `event-segment` — `EventSegment`, `FigureInstance`, `InstanceNode`, `ProjectionService`
-- `node-assignment` — assignment logic, lazy snapshot
-- `tag` — `Tag` CRUD, used to categorize persons
+- `composition` — `Composition` + `CompositionEntry`
+- `event-segment` — `EventSegment`, `FigureInstance`, `InstanceNode`, distribution + `ProjectionService`
+- `node-assignment` — assignment logic, lazy snapshot, ad-hoc nodes
+- `tag` — CRUD of position/role labels; entity maps to the `positions` table (M:N with Person)
 - `sync` — SSE strategy pattern for legacy data import
+- `me` — empty stub (not wired); PWA `MeEvent` types live in `libs/shared`
+
+DB uses TypeORM **migrations** (`apps/api/src/migrations/`), `synchronize: false`, auto-run in dev. No seed script — data enters via `sync`.
 
 **TypeORM conventions:** UUID primary keys, `createdAt`/`updatedAt` always present, soft delete = `isActive: boolean` (not `@DeleteDateColumn`), enums imported from `@muixer/shared`, table names plural snake_case.
 
