@@ -32,7 +32,13 @@ import { EmptyStateComponent } from '../../../../shared/components/data/empty-st
 import { PaginationComponent } from '../../../../shared/components/data/pagination/pagination.component';
 import { PersonInvitationModalComponent } from './modals/person-invitation-modal.component';
 import { PersonLinkUserModalComponent } from './modals/person-link-user-modal.component';
+import { PersonDelegateModalComponent } from './modals/person-delegate-modal.component';
 import { EmojiPickerComponent } from '../../../../shared/components/forms/emoji-picker/emoji-picker.component';
+import {
+  PersonDelegateService,
+  PersonDelegateItem,
+} from '../../services/person-delegate.service';
+import { DelegateType } from '@muixer/shared';
 
 @Component({
   standalone: true,
@@ -44,6 +50,7 @@ import { EmojiPickerComponent } from '../../../../shared/components/forms/emoji-
     PaginationComponent,
     PersonInvitationModalComponent,
     PersonLinkUserModalComponent,
+    PersonDelegateModalComponent,
     EmojiPickerComponent,
   ],
   templateUrl: './person-detail.component.html',
@@ -53,6 +60,7 @@ export class PersonDetailComponent implements OnInit {
   private readonly tagService = inject(TagService);
   private readonly nodeAssignmentService = inject(NodeAssignmentService);
   private readonly seasonService = inject(SeasonService);
+  private readonly delegateService = inject(PersonDelegateService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
@@ -84,6 +92,14 @@ export class PersonDetailComponent implements OnInit {
 
   invitationModalOpen = signal(false);
   linkUserModalOpen = signal(false);
+  delegateModalOpen = signal(false);
+
+  // ── Delegates ──
+  delegates = signal<PersonDelegateItem[]>([]);
+  delegatesLoading = signal(false);
+  delegatesExpanded = signal(true);
+  removingDelegateId = signal<string | null>(null);
+  existingDelegateUserIds = computed(() => this.delegates().map((d) => d.user.id));
 
   // ── F3 History ──
   historyEntries = signal<PersonAssignmentEntry[]>([]);
@@ -140,6 +156,7 @@ export class PersonDetailComponent implements OnInit {
       if (id && id !== 'new') {
         this.loadPerson(id);
         this.loadHistory();
+        this.loadDelegates();
       }
     });
   }
@@ -340,6 +357,73 @@ export class PersonDetailComponent implements OnInit {
 
   navigateToEvent(entry: PersonAssignmentEntry) {
     this.router.navigate(['/events', entry.eventId]);
+  }
+
+  // ── Delegates ──
+
+  private static readonly DELEGATE_TYPE_LABELS: Record<DelegateType, string> = {
+    [DelegateType.PARENT]: 'Pare/Mare',
+    [DelegateType.PARTNER]: 'Parella',
+    [DelegateType.GUARDIAN]: 'Tutor/a',
+  };
+
+  getDelegateTypeLabel(type: DelegateType): string {
+    return PersonDetailComponent.DELEGATE_TYPE_LABELS[type] ?? type;
+  }
+
+  loadDelegates(): void {
+    const id = this.route.snapshot.paramMap.get('id');
+    if (!id) return;
+    this.delegatesLoading.set(true);
+    this.delegateService.getByPerson(id).subscribe({
+      next: (delegates) => {
+        this.delegates.set(delegates);
+        this.delegatesLoading.set(false);
+      },
+      error: () => this.delegatesLoading.set(false),
+    });
+  }
+
+  openDelegateModal(): void {
+    this.delegateModalOpen.set(true);
+  }
+
+  onDelegateAdded(): void {
+    this.delegateModalOpen.set(false);
+    this.loadDelegates();
+    this.toast.success('Delegat afegit correctament.');
+  }
+
+  confirmingDelegateRemoval = signal<PersonDelegateItem | null>(null);
+
+  askRemoveDelegate(delegate: PersonDelegateItem): void {
+    this.confirmingDelegateRemoval.set(delegate);
+  }
+
+  cancelRemoveDelegate(): void {
+    this.confirmingDelegateRemoval.set(null);
+  }
+
+  confirmRemoveDelegate(): void {
+    const delegate = this.confirmingDelegateRemoval();
+    if (!delegate || this.removingDelegateId()) return;
+
+    this.confirmingDelegateRemoval.set(null);
+    this.removingDelegateId.set(delegate.id);
+    const personId = this.route.snapshot.paramMap.get('id')!;
+    this.delegateService.removeDelegate(personId, delegate.id).subscribe({
+      next: () => {
+        this.removingDelegateId.set(null);
+        this.loadDelegates();
+        this.toast.success('S\'ha eliminat la delegació.');
+      },
+      error: (err) => {
+        this.removingDelegateId.set(null);
+        this.toast.error(
+          err?.error?.message ?? 'No s\'ha pogut eliminar la delegació.',
+        );
+      },
+    });
   }
 
   protected readonly getFullName = getFullName;

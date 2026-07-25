@@ -25,6 +25,7 @@ import { AddNodeAssignmentSegment1782700000000 } from './1782700000000-AddNodeAs
 import { RenameClimbPathToClimbIndicator1782800000000 } from './1782800000000-RenameClimbPathToClimbIndicator';
 import { AddCordonsObertsEnabled1782900000000 } from './1782900000000-AddCordonsObertsEnabled';
 import { ConvertTimestampsToTimestamptz1783000000000 } from './1783000000000-ConvertTimestampsToTimestamptz';
+import { CreatePersonDelegates1783100000000 } from './1783100000000-CreatePersonDelegates';
 
 export const migrations: (new () => MigrationInterface)[] = [
   InitialSchema1748600000000,
@@ -53,4 +54,5 @@ export const migrations: (new () => MigrationInterface)[] = [
   RenameClimbPathToClimbIndicator1782800000000,
   AddCordonsObertsEnabled1782900000000,
   ConvertTimestampsToTimestamptz1783000000000,
+  CreatePersonDelegates1783100000000,
 ];
