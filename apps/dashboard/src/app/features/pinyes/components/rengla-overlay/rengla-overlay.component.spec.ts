@@ -1,9 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
-import {
-  LUCIDE_ICONS, LucideIconProvider,
-  Plus, Trash2, X, GitBranchPlus,
-} from 'lucide-angular';
+import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { RenglaOverlayComponent, RenglaCreatedEvent, RenglaDeletedEvent } from './rengla-overlay.component';
 import { FigureNodeItem, RenglaModel } from '../../models/figure-template.model';
 import { FigureZone, NodeShape } from '@muixer/shared';
@@ -22,7 +19,7 @@ const makeNode = (overrides: Partial<FigureNodeItem> = {}): FigureNodeItem => ({
   color: '#FFE082',
   shape: NodeShape.RECTANGLE,
   sortOrder: 0,
-  climbPath: null,
+  climbIndicator: null,
   ringLevel: 1,
   originNodeId: null,
   renglaId: null,
@@ -50,10 +47,7 @@ describe('RenglaOverlayComponent', () => {
     await TestBed.configureTestingModule({
       imports: [RenglaOverlayComponent],
       providers: [
-        {
-          provide: LUCIDE_ICONS, multi: true,
-          useFactory: () => new LucideIconProvider({ Plus, Trash2, X, GitBranchPlus }),
-        },
+        allLucideIconsProvider,
       ],
     }).compileComponents();
 

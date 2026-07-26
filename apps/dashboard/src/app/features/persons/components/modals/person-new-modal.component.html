@@ -1,0 +1,48 @@
+<dialog
+  class="modal modal-open"
+  (click)="$event.target === $event.currentTarget && close()"
+  (keydown.enter)="$event.target === $event.currentTarget && close()"
+  (keydown.escape)="close()"
+  tabindex="0"
+>
+  <div class="modal-box max-w-sm w-full" role="dialog" aria-modal="true" (click)="$event.stopPropagation()" (keydown.enter)="create()">
+    <div class="flex items-start justify-between mb-4">
+      <h2 class="text-lg font-bold">Persona nova</h2>
+      <button class="btn btn-sm btn-ghost btn-circle" type="button" (click)="close()" aria-label="Tancar">✕</button>
+    </div>
+
+    @if (error()) {
+      <div class="alert alert-error text-sm mb-4">
+        <span>{{ error() }}</span>
+      </div>
+    }
+
+    <div class="form-control mb-2">
+      <label class="label" for="new-person-alias">
+        <span class="label-text font-medium">Àlies</span>
+      </label>
+      <input
+        id="new-person-alias"
+        type="text"
+        class="input input-bordered w-full"
+        [ngModel]="alias()"
+        (ngModelChange)="alias.set($event)"
+        placeholder="Àlies"
+        [disabled]="creating()"
+        autofocus
+      />
+    </div>
+
+    <div class="flex justify-end gap-2 mt-4">
+      <button type="button" class="btn btn-ghost btn-sm" (click)="close()" [disabled]="creating()">
+        Cancel·la
+      </button>
+      <button type="button" class="btn btn-primary btn-sm" (click)="create()" [disabled]="creating() || !alias().trim()">
+        @if (creating()) {
+          <span class="loading loading-spinner loading-xs"></span>
+        }
+        Crea
+      </button>
+    </div>
+  </div>
+</dialog>

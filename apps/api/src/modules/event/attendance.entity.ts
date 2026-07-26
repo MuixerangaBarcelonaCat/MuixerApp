@@ -21,7 +21,7 @@ export class Attendance {
   @Column({ type: 'enum', enum: AttendanceStatus })
   status: AttendanceStatus;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   respondedAt: Date | null;
 
   @Column({ type: 'text', nullable: true })
@@ -38,12 +38,12 @@ export class Attendance {
   @Column({ type: 'varchar', nullable: true })
   legacyId: string | null;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   lastSyncedAt: Date | null;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date;
 }

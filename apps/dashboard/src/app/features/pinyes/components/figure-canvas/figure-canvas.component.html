@@ -21,11 +21,11 @@
     <option [value]="3">300%</option>
   </select>
 
-  <!-- Fit to screen button -->
+  <!-- Fit to screen / center view button -->
   <button
     type="button"
     class="fit-btn btn btn-ghost btn-xs"
-    (click)="fitToScreen()"
+    (click)="onFitClick()"
     title="Ajusta a la pantalla"
     aria-label="Ajusta a la pantalla"
   >
@@ -33,4 +33,19 @@
       <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
     </svg>
   </button>
+
+  @if (hoveredPerson(); as hovered) {
+    <div
+      class="fixed z-50 pointer-events-none"
+      [style.top.px]="hovered.top"
+      [style.left.px]="hovered.left"
+    >
+      <app-person-hover-card
+        [info]="hovered.info"
+        [isPast]="isPast()"
+        [heightMode]="heightMode()"
+        [activeNodePositionType]="hovered.positionType"
+      />
+    </div>
+  }
 </div>

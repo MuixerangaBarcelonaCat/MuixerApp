@@ -4,7 +4,7 @@ import { Router } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
 import { vi } from 'vitest';
 import { of, throwError } from 'rxjs';
-import { LUCIDE_ICONS, LucideIconProvider, Mail, Lock } from 'lucide-angular';
+import { allLucideIconsProvider } from '../../../../testing/lucide-test-provider';
 import { LoginComponent } from './login.component';
 import { AuthService } from '../../../core/auth/services/auth.service';
 
@@ -23,7 +23,7 @@ describe('LoginComponent', () => {
       imports: [LoginComponent, ReactiveFormsModule, RouterTestingModule],
       providers: [
         { provide: AuthService, useValue: mockAuthService },
-        { provide: LUCIDE_ICONS, multi: true, useFactory: () => new LucideIconProvider({ Mail, Lock }) },
+        allLucideIconsProvider,
       ],
     }).compileComponents();
 
@@ -74,5 +74,14 @@ describe('LoginComponent', () => {
     component.form.reset({ email: '', password: '' });
     component.onSubmit();
     expect(authService.login).not.toHaveBeenCalled();
+  });
+
+  describe('tap targets >=24px (WI-03, PE-L1/PW-L3 parity)', () => {
+    it('gives the email and password inputs their own >=24px height instead of just the wrapper', () => {
+      const emailInput = fixture.nativeElement.querySelector('input[type="email"]') as HTMLElement;
+      const passwordInput = fixture.nativeElement.querySelector('input[type="password"]') as HTMLElement;
+      expect(emailInput.className).toContain('h-6');
+      expect(passwordInput.className).toContain('h-6');
+    });
   });
 });

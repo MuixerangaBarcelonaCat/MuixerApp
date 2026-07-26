@@ -1,4 +1,4 @@
-export type AttendanceStatus = 'PENDENT' | 'ANIRE' | 'NO_VAIG' | 'ASSISTIT' | 'NO_PRESENTAT';
+export type AttendanceStatus = 'PENDENT' | 'ANIRE' | 'NO_VAIG' | 'ASSISTIT';
 export type HeightMode = 'relative' | 'absolute';
 
 /** Adults confirmed for the event (pre- or post-attendance). */
@@ -13,9 +13,11 @@ export interface AssignmentNodeDetail {
   z: number;
   positionType: string | null;
   sortOrder: number;
+  climbIndicator: string | null;
   ringLevel: number | null;
   originNodeId: string | null;
   sourceNodeId: string | null;
+  renglaPosition?: number | null;
 }
 
 export interface AssignmentPersonDetail {
@@ -24,12 +26,13 @@ export interface AssignmentPersonDetail {
   name: string;
   firstSurname: string;
   shoulderHeight: number | null;
+  notes: string | null;
+  notesEmoji: string | null;
 }
 
 export interface AssignmentDetail {
   id: string;
   figureInstanceId: string;
-  compositionSlotId: string | null;
   node: AssignmentNodeDetail;
   person: AssignmentPersonDetail;
 }
@@ -39,6 +42,18 @@ export interface AvailablePersonPosition {
   name: string;
   slug: string;
   color: string | null;
+  positionTypes: string[];
+}
+
+/** Minimal person data needed to render the hover card shown across person-panel, tronc-view and figure-canvas. */
+export interface PersonHoverInfo {
+  alias: string;
+  attendanceStatus: AttendanceStatus | null;
+  isXicalla: boolean;
+  shoulderHeight: number | null;
+  notes: string | null;
+  notesEmoji: string | null;
+  positions: AvailablePersonPosition[];
 }
 
 export interface AvailablePerson {
@@ -48,11 +63,14 @@ export interface AvailablePerson {
   firstSurname: string;
   shoulderHeight: number | null;
   isXicalla: boolean;
+  notes: string | null;
+  notesEmoji: string | null;
   attendanceStatus: AttendanceStatus;
   nextPerformanceStatus: AttendanceStatus | null;
   assignedInSegment: boolean;
   assignedInstanceId?: string;
   assignedNodeLabel?: string;
+  assignedNodeCordon?: number | null;
   positions: AvailablePersonPosition[];
 }
 
@@ -90,12 +108,10 @@ export interface BulkImportResult {
 export interface CreateAssignmentPayload {
   nodeId: string;
   personId: string;
-  compositionSlotId?: string;
 }
 
 export interface BulkImportPayload {
   sourceInstanceId: string;
-  sourceCompositionSlotId?: string;
 }
 
 export interface AvailablePersonsQuery {
@@ -103,6 +119,7 @@ export interface AvailablePersonsQuery {
   height?: number;
   isXicalla?: boolean;
   excludeAssigned?: boolean;
+  positionId?: string;
 }
 
 /** Tracks an optimistic UI operation that has been applied locally but not yet confirmed by the server */
@@ -130,6 +147,7 @@ export interface InstanceNodeItem {
   color: string | null;
   shape: string;
   sortOrder: number;
+  climbIndicator: string | null;
   ringLevel: number | null;
   originNodeId: string | null;
   renglaId: string | null;
@@ -166,10 +184,12 @@ export interface UpdateAdHocNodePayload {
 
 export interface UpdateInstanceCordonsPayload {
   numberOfCordons?: number | null;
+  cordonsObertsEnabled?: boolean;
 }
 
 export interface CordonsResponse {
   numberOfCordons: number | null;
+  cordonsObertsEnabled: boolean;
 }
 
 export interface SwapAssignmentsPayload {
@@ -204,6 +224,7 @@ export interface PersonAssignmentEntry {
   positionType: string | null;
   zone: string;
   z: number;
+  renglaPosition: number | null;
 }
 
 export interface PersonAssignmentHistory {
@@ -220,13 +241,19 @@ export interface EventAssignmentEntry {
   personId: string;
 }
 
+export interface FigureAreaCount {
+  assigned: number;
+  total: number;
+}
+
 export interface EventFigureSummary {
   instanceId: string;
   figureName: string;
   snapshotted: boolean;
-  totalNodes: number;
-  assignedNodes: number;
-  assignments: EventAssignmentEntry[];
+  pinya: FigureAreaCount;
+  tronc: FigureAreaCount;
+  total: FigureAreaCount;
+  troncBaseAssignments: EventAssignmentEntry[];
 }
 
 export interface EventSegmentSummary {

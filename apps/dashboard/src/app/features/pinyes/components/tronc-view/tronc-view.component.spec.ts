@@ -1,9 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { describe, it, expect, beforeEach } from 'vitest';
-import {
-  LUCIDE_ICONS, LucideIconProvider,
-  ArrowDownUp, ArrowUpDown, Plus, Minus, Trash2, X, ChevronDown, ChevronRight,
-} from 'lucide-angular';
+import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { TroncViewComponent, TroncNodeItem } from './tronc-view.component';
 import { AssignmentDetail } from '../../models/assignment.model';
 
@@ -18,6 +15,7 @@ function makeNode(overrides: Partial<TroncNodeItem> = {}): TroncNodeItem {
     width: 1,
     sortOrder: 0,
     color: null,
+    climbIndicator: null,
     ...overrides,
   };
 }
@@ -33,6 +31,7 @@ function makeBaseNode(overrides: Partial<TroncNodeItem> = {}): TroncNodeItem {
     width: 80, // pinya canvas pixel dimension, treated as 1 in tronc view
     sortOrder: 0,
     color: null,
+    climbIndicator: null,
     ...overrides,
   };
 }
@@ -41,7 +40,6 @@ function makeAssignment(nodeId: string, alias: string, shoulderHeight: number | 
   return {
     id: `assign-${nodeId}`,
     figureInstanceId: 'instance-1',
-    compositionSlotId: null,
     node: {
       id: nodeId,
       label: 'Node',
@@ -49,6 +47,7 @@ function makeAssignment(nodeId: string, alias: string, shoulderHeight: number | 
       z: 1,
       positionType: 'segon',
       sortOrder: 0,
+      climbIndicator: null,
       ringLevel: null,
       originNodeId: null,
       sourceNodeId: null,
@@ -59,6 +58,8 @@ function makeAssignment(nodeId: string, alias: string, shoulderHeight: number | 
       name: 'Test',
       firstSurname: 'User',
       shoulderHeight,
+      notes: null,
+      notesEmoji: null,
     },
   };
 }
@@ -71,11 +72,7 @@ describe('TroncViewComponent', () => {
     await TestBed.configureTestingModule({
       imports: [TroncViewComponent],
       providers: [
-        {
-          provide: LUCIDE_ICONS,
-          multi: true,
-          useFactory: () => new LucideIconProvider({ ArrowDownUp, ArrowUpDown, Plus, Minus, Trash2, X, ChevronDown, ChevronRight }),
-        },
+        allLucideIconsProvider,
       ],
     }).compileComponents();
 
@@ -87,8 +84,7 @@ describe('TroncViewComponent', () => {
   // ── Floor grouping ────────────────────────────────────────────────────────
 
   it('shows no floors when no nodes are provided', () => {
-    expect(component.floors().length).toBe(1); // P1 (bases) always rendered
-    expect(component.floors()[0].isBase).toBe(true);
+    expect(component.floors().length).toBe(0);
   });
 
   it('groups TRONC nodes by z into separate floors', () => {
@@ -349,7 +345,42 @@ describe('TroncViewComponent', () => {
     expect(component.selectedTroncNode()?.id).toBe('tronc-1');
   });
 
+  it('selectedFloorNode returns the matching TRONC node when selected', () => {
+    const node = makeNode({ id: 'tronc-1' });
+    fixture.componentRef.setInput('troncNodes', [node]);
+    fixture.componentRef.setInput('selectedNodeId', 'tronc-1');
+    fixture.detectChanges();
+    expect(component.selectedFloorNode()?.id).toBe('tronc-1');
+  });
+
+  it('selectedFloorNode returns the matching BASE node when selected', () => {
+    fixture.componentRef.setInput('baseNodes', [makeBaseNode({ id: 'base-1' })]);
+    fixture.componentRef.setInput('selectedNodeId', 'base-1');
+    fixture.detectChanges();
+    expect(component.selectedFloorNode()?.id).toBe('base-1');
+  });
+
+  it('selectedFloorNode returns null when nothing is selected', () => {
+    expect(component.selectedFloorNode()).toBeNull();
+  });
+
   // ── Editor outputs ────────────────────────────────────────────────────────
+
+  it('nodeUpdated emits climbIndicator when onIndicatorChange is called', () => {
+    const emitted: { nodeId: string; climbIndicator?: string | null }[] = [];
+    fixture.componentRef.instance.nodeUpdated.subscribe((e: (typeof emitted)[number]) => emitted.push(e));
+    const node = makeBaseNode({ id: 'base-1', x: 0, width: 1 });
+    component.onIndicatorChange(node, 'X');
+    expect(emitted).toEqual([{ nodeId: 'base-1', x: 0, width: 1, climbIndicator: 'X' }]);
+  });
+
+  it('onIndicatorChange emits null when cleared', () => {
+    const emitted: { nodeId: string; climbIndicator?: string | null }[] = [];
+    fixture.componentRef.instance.nodeUpdated.subscribe((e: (typeof emitted)[number]) => emitted.push(e));
+    const node = makeNode({ id: 'tronc-1', x: 0, width: 1 });
+    component.onIndicatorChange(node, '');
+    expect(emitted).toEqual([{ nodeId: 'tronc-1', x: 0, width: 1, climbIndicator: null }]);
+  });
 
   it('nodeRemoved emits node id when onNodeDelete is called', () => {
     const emitted: string[] = [];
@@ -470,6 +501,70 @@ describe('TroncViewComponent', () => {
     expect(emitted).toEqual(['base-99']);
   });
 
+  // ── getAttendanceColor ────────────────────────────────────────────────────
+
+  describe('getAttendanceColor', () => {
+    it('ASSISTIT → green regardless of isPast', () => {
+      const a = makeAssignment('node-1', 'Pepet');
+      fixture.componentRef.setInput('assignments', [a]);
+      fixture.componentRef.setInput('attendanceMap', new Map([['person-node-1', 'ASSISTIT']]));
+      fixture.detectChanges();
+      expect(component.getAttendanceColor(a)).toBe('oklch(var(--su))');
+    });
+
+    it('ANIRE → green for future event (isPast=false)', () => {
+      const a = makeAssignment('node-1', 'Pepet');
+      fixture.componentRef.setInput('assignments', [a]);
+      fixture.componentRef.setInput('attendanceMap', new Map([['person-node-1', 'ANIRE']]));
+      fixture.componentRef.setInput('isPast', false);
+      fixture.detectChanges();
+      expect(component.getAttendanceColor(a)).toBe('oklch(var(--su))');
+    });
+
+    it('ANIRE → amber for past event (isPast=true)', () => {
+      const a = makeAssignment('node-1', 'Pepet');
+      fixture.componentRef.setInput('assignments', [a]);
+      fixture.componentRef.setInput('attendanceMap', new Map([['person-node-1', 'ANIRE']]));
+      fixture.componentRef.setInput('isPast', true);
+      fixture.detectChanges();
+      expect(component.getAttendanceColor(a)).toBe('oklch(var(--wa))');
+    });
+
+    it('NO_VAIG → red regardless of isPast', () => {
+      const a = makeAssignment('node-1', 'Pepet');
+      fixture.componentRef.setInput('assignments', [a]);
+      fixture.componentRef.setInput('attendanceMap', new Map([['person-node-1', 'NO_VAIG']]));
+      fixture.detectChanges();
+      expect(component.getAttendanceColor(a)).toBe('oklch(var(--er))');
+    });
+
+    it('PENDENT → muted for future event (isPast=false)', () => {
+      const a = makeAssignment('node-1', 'Pepet');
+      fixture.componentRef.setInput('assignments', [a]);
+      fixture.componentRef.setInput('attendanceMap', new Map([['person-node-1', 'PENDENT']]));
+      fixture.componentRef.setInput('isPast', false);
+      fixture.detectChanges();
+      expect(component.getAttendanceColor(a)).toBe('oklch(var(--bc) / 0.2)');
+    });
+
+    it('PENDENT → red for past event (isPast=true)', () => {
+      const a = makeAssignment('node-1', 'Pepet');
+      fixture.componentRef.setInput('assignments', [a]);
+      fixture.componentRef.setInput('attendanceMap', new Map([['person-node-1', 'PENDENT']]));
+      fixture.componentRef.setInput('isPast', true);
+      fixture.detectChanges();
+      expect(component.getAttendanceColor(a)).toBe('oklch(var(--er))');
+    });
+
+    it('no status → muted fallback', () => {
+      const a = makeAssignment('node-1', 'Pepet');
+      fixture.componentRef.setInput('assignments', [a]);
+      fixture.componentRef.setInput('attendanceMap', new Map());
+      fixture.detectChanges();
+      expect(component.getAttendanceColor(a)).toBe('oklch(var(--bc) / 0.2)');
+    });
+  });
+
   // ── No-tronc state ────────────────────────────────────────────────────────
 
   it('hasTronc is false when no nodes exist', () => {
@@ -547,8 +642,8 @@ describe('TroncViewComponent', () => {
     fixture.detectChanges();
     component.onAddFloor();
     expect(emitted[0].z).toBe(1);
-    expect(emitted[0].positionType).toBe('segones');
-    expect(emitted[0].label).toBe('Segones');
+    expect(emitted[0].positionType).toBe('segona');
+    expect(emitted[0].label).toBe('Segona');
   });
 
   it('onAddFloor uses correct z-level default for z=2', () => {
@@ -559,8 +654,8 @@ describe('TroncViewComponent', () => {
     fixture.detectChanges();
     component.onAddFloor();
     expect(emitted[0].z).toBe(2);
-    expect(emitted[0].positionType).toBe('terceres');
-    expect(emitted[0].label).toBe('Terçes');
+    expect(emitted[0].positionType).toBe('terça');
+    expect(emitted[0].label).toBe('Terça');
   });
 
   it('onRemoveFloor emits floorRemoved for topmost z', () => {
@@ -764,6 +859,73 @@ describe('TroncViewComponent', () => {
     });
   });
 
+  // ── climbIndicator display ────────────────────────────────────────────────
+
+  describe('climbIndicator display', () => {
+    it('appends the indicator to the alias for an assigned TRONC node', () => {
+      fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'n1', z: 1, climbIndicator: 'X' })]);
+      fixture.componentRef.setInput('assignments', [makeAssignment('n1', 'Marta')]);
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.detectChanges();
+
+      const alias = fixture.nativeElement.querySelector('.person-alias');
+      expect(alias.textContent.trim()).toBe('Marta (X)');
+    });
+
+    it('appends the indicator to the alias for an assigned BASE node', () => {
+      fixture.componentRef.setInput('baseNodes', [makeBaseNode({ id: 'b1', climbIndicator: 'A' })]);
+      fixture.componentRef.setInput('assignments', [makeAssignment('b1', 'Joan')]);
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.detectChanges();
+
+      const alias = fixture.nativeElement.querySelector('.person-alias');
+      expect(alias.textContent.trim()).toBe('Joan (A)');
+    });
+
+    it('shows the alias alone when there is no indicator', () => {
+      fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'n1', z: 1 })]);
+      fixture.componentRef.setInput('assignments', [makeAssignment('n1', 'Marta')]);
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.detectChanges();
+
+      const alias = fixture.nativeElement.querySelector('.person-alias');
+      expect(alias.textContent.trim()).toBe('Marta');
+    });
+
+    it('appends the indicator to the label of an unassigned TRONC node', () => {
+      fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'n1', z: 1, label: 'Segona', climbIndicator: 'X' })]);
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.detectChanges();
+
+      const label = fixture.nativeElement.querySelector('.node-label');
+      expect(label.textContent.trim()).toBe('Segona (X)');
+    });
+
+    it('appends the indicator to the label of an unassigned BASE node', () => {
+      fixture.componentRef.setInput('baseNodes', [makeBaseNode({ id: 'b1', label: 'Base 1', climbIndicator: 'A' })]);
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.detectChanges();
+
+      const label = fixture.nativeElement.querySelector('.node-label');
+      expect(label.textContent.trim()).toBe('Base 1 (A)');
+    });
+
+    it('appends the indicator to the aria-label', () => {
+      fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'n1', z: 1, climbIndicator: 'X' })]);
+      fixture.componentRef.setInput('assignments', [makeAssignment('n1', 'Marta', 170)]);
+      fixture.detectChanges();
+
+      expect(component.getNodeAriaLabel(component.troncNodes()[0])).toContain('Marta (X)');
+    });
+
+    it('appends the indicator to the aria-label when unassigned', () => {
+      fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'n1', z: 1, label: 'Segona', climbIndicator: 'X' })]);
+      fixture.detectChanges();
+
+      expect(component.getNodeAriaLabel(component.troncNodes()[0])).toBe('Node Segona (X), sense assignar');
+    });
+  });
+
   // ── positionType tags (F1) ───────────────────────────────────────────────
 
   describe('positionType preset tags', () => {
@@ -775,7 +937,7 @@ describe('TroncViewComponent', () => {
       fixture.detectChanges();
 
       const tags = fixture.nativeElement.querySelectorAll('.preset-tag');
-      expect(tags.length).toBe(7);
+      expect(tags.length).toBe(8);
     });
 
     it('does not render preset tags when no node is selected', () => {
@@ -791,7 +953,7 @@ describe('TroncViewComponent', () => {
 
     it('marks the active tag with .active class', () => {
       fixture.componentRef.setInput('troncNodes', [
-        makeNode({ id: 'n1', z: 1, positionType: 'terceres' }),
+        makeNode({ id: 'n1', z: 1, positionType: 'terça' }),
       ]);
       fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
       fixture.componentRef.setInput('mode', 'editor');
@@ -800,15 +962,15 @@ describe('TroncViewComponent', () => {
 
       const activeTags = fixture.nativeElement.querySelectorAll('.preset-tag.active');
       expect(activeTags.length).toBe(1);
-      expect(activeTags[0].textContent.trim()).toContain('Terçes');
+      expect(activeTags[0].textContent.trim()).toContain('Terça');
     });
 
     it('onPositionTypeChange emits nodeUpdated with positionType and color', () => {
       const emitted: { nodeId: string; positionType?: string; color?: string | null }[] = [];
       fixture.componentRef.instance.nodeUpdated.subscribe((e) => emitted.push(e));
 
-      const node = makeNode({ id: 'n1', label: 'Segones', positionType: 'segones', color: '#1E88E5' });
-      const preset = { positionType: 'puntal', label: 'Puntal', color: '#795548' };
+      const node = makeNode({ id: 'n1', label: 'Segona', positionType: 'segona', color: '#1E88E5' });
+      const preset = { positionType: 'puntal', label: 'Puntal', color: '#795548', abbrev: 'Pun' };
       component.onPositionTypeChange(node, preset);
 
       expect(emitted.length).toBe(1);
@@ -820,8 +982,8 @@ describe('TroncViewComponent', () => {
       const emitted: { nodeId: string; label?: string }[] = [];
       fixture.componentRef.instance.nodeUpdated.subscribe((e) => emitted.push(e));
 
-      const node = makeNode({ id: 'n1', label: 'Segones', positionType: 'segones', color: '#1E88E5' });
-      const preset = { positionType: 'puntal', label: 'Puntal', color: '#795548' };
+      const node = makeNode({ id: 'n1', label: 'Segona', positionType: 'segona', color: '#1E88E5' });
+      const preset = { positionType: 'puntal', label: 'Puntal', color: '#795548', abbrev: 'Pun' };
       component.onPositionTypeChange(node, preset);
 
       expect(emitted[0].label).toBe('Puntal');
@@ -832,7 +994,7 @@ describe('TroncViewComponent', () => {
       fixture.componentRef.instance.nodeUpdated.subscribe((e) => emitted.push(e));
 
       const node = makeNode({ id: 'n1', label: 'Mon node custom', positionType: 'segones', color: '#1E88E5' });
-      const preset = { positionType: 'puntal', label: 'Puntal', color: '#795548' };
+      const preset = { positionType: 'puntal', label: 'Puntal', color: '#795548', abbrev: 'Pun' };
       component.onPositionTypeChange(node, preset);
 
       expect(emitted[0].label).toBeUndefined();
@@ -868,7 +1030,7 @@ describe('TroncViewComponent', () => {
 
     it('renders type-badge inside TRONC node in editor mode', () => {
       fixture.componentRef.setInput('troncNodes', [
-        makeNode({ id: 'n1', z: 1, positionType: 'segones', color: '#1E88E5' }),
+        makeNode({ id: 'n1', z: 1, positionType: 'segona', color: '#1E88E5' }),
       ]);
       fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
       fixture.componentRef.setInput('mode', 'editor');
@@ -895,12 +1057,12 @@ describe('TroncViewComponent', () => {
   // ── getPositionTypeBadge ───────────────────────────────────────────────
 
   describe('getPositionTypeBadge', () => {
-    it('returns "Seg" for segones', () => {
-      expect(component.getPositionTypeBadge(makeNode({ positionType: 'segones' }))).toBe('Seg');
+    it('returns "Seg" for segona', () => {
+      expect(component.getPositionTypeBadge(makeNode({ positionType: 'segona' }))).toBe('Seg');
     });
 
-    it('returns "Ter" for terceres', () => {
-      expect(component.getPositionTypeBadge(makeNode({ positionType: 'terceres' }))).toBe('Ter');
+    it('returns "Ter" for terça', () => {
+      expect(component.getPositionTypeBadge(makeNode({ positionType: 'terça' }))).toBe('Ter');
     });
 
     it('returns "Xiq" for xiqueta', () => {
@@ -913,24 +1075,6 @@ describe('TroncViewComponent', () => {
 
     it('returns empty string when positionType is null', () => {
       expect(component.getPositionTypeBadge(makeNode({ positionType: null }))).toBe('');
-    });
-  });
-
-  // ── Color indicator ────────────────────────────────────────────────────
-
-  describe('color indicator', () => {
-    it('renders color swatch when TRONC node is selected in editor', () => {
-      fixture.componentRef.setInput('troncNodes', [
-        makeNode({ id: 'n1', z: 1, color: '#43A047' }),
-      ]);
-      fixture.componentRef.setInput('baseNodes', [makeBaseNode()]);
-      fixture.componentRef.setInput('mode', 'editor');
-      fixture.componentRef.setInput('selectedNodeId', 'n1');
-      fixture.detectChanges();
-
-      const swatch = fixture.nativeElement.querySelector('.color-swatch');
-      expect(swatch).not.toBeNull();
-      expect(swatch.style.backgroundColor).toBeTruthy();
     });
   });
 
@@ -955,19 +1099,8 @@ describe('TroncViewComponent', () => {
       width: 1,
     });
 
-    it('does not render directions section when isNetaFigure is false', () => {
-      fixture.componentRef.setInput('mode', 'assignment');
-      fixture.componentRef.setInput('isNetaFigure', false);
-      fixture.componentRef.setInput('directionNodes', [figDirNode]);
-      fixture.detectChanges();
-
-      const section = fixture.nativeElement.querySelector('.directions-section');
-      expect(section).toBeNull();
-    });
-
     it('does not render directions section in editor mode', () => {
       fixture.componentRef.setInput('mode', 'editor');
-      fixture.componentRef.setInput('isNetaFigure', true);
       fixture.componentRef.setInput('directionNodes', [figDirNode]);
       fixture.detectChanges();
 
@@ -975,32 +1108,16 @@ describe('TroncViewComponent', () => {
       expect(section).toBeNull();
     });
 
-    it('renders directions section in assignment mode for neta figures', () => {
+    it('renders directions section in assignment mode', () => {
       fixture.componentRef.setInput('mode', 'assignment');
-      fixture.componentRef.setInput('isNetaFigure', true);
       fixture.detectChanges();
 
       const section = fixture.nativeElement.querySelector('.directions-section');
       expect(section).not.toBeNull();
     });
 
-    it('starts collapsed by default', () => {
+    it('starts expanded by default', () => {
       fixture.componentRef.setInput('mode', 'assignment');
-      fixture.componentRef.setInput('isNetaFigure', true);
-      fixture.detectChanges();
-
-      expect(component.directionsExpanded()).toBe(false);
-      const content = fixture.nativeElement.querySelector('.directions-content');
-      expect(content).toBeNull();
-    });
-
-    it('expands on toggle click', () => {
-      fixture.componentRef.setInput('mode', 'assignment');
-      fixture.componentRef.setInput('isNetaFigure', true);
-      fixture.detectChanges();
-
-      const toggle = fixture.nativeElement.querySelector('.directions-toggle') as HTMLButtonElement;
-      toggle.click();
       fixture.detectChanges();
 
       expect(component.directionsExpanded()).toBe(true);
@@ -1008,9 +1125,21 @@ describe('TroncViewComponent', () => {
       expect(content).not.toBeNull();
     });
 
+    it('collapses on toggle click', () => {
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.detectChanges();
+
+      const toggle = fixture.nativeElement.querySelector('.directions-toggle') as HTMLButtonElement;
+      toggle.click();
+      fixture.detectChanges();
+
+      expect(component.directionsExpanded()).toBe(false);
+      const content = fixture.nativeElement.querySelector('.directions-content');
+      expect(content).toBeNull();
+    });
+
     it('shows "Afegir" buttons when no direction nodes exist', () => {
       fixture.componentRef.setInput('mode', 'assignment');
-      fixture.componentRef.setInput('isNetaFigure', true);
       fixture.componentRef.setInput('directionNodes', []);
       component.directionsExpanded.set(true);
       fixture.detectChanges();
@@ -1021,7 +1150,6 @@ describe('TroncViewComponent', () => {
 
     it('shows direction node button when a direction node exists', () => {
       fixture.componentRef.setInput('mode', 'assignment');
-      fixture.componentRef.setInput('isNetaFigure', true);
       fixture.componentRef.setInput('directionNodes', [figDirNode]);
       component.directionsExpanded.set(true);
       fixture.detectChanges();
@@ -1030,18 +1158,18 @@ describe('TroncViewComponent', () => {
       expect(dirNodes.length).toBe(1);
     });
 
-    it('figureDirectionNode computed returns FIGURE_DIRECTION node', () => {
+    it('figureDirectionNodes computed returns FIGURE_DIRECTION nodes', () => {
       fixture.componentRef.setInput('directionNodes', [figDirNode, xicDirNode]);
       fixture.detectChanges();
 
-      expect(component.figureDirectionNode()?.id).toBe('dir-fig-1');
+      expect(component.figureDirectionNodes().map((n) => n.id)).toEqual(['dir-fig-1']);
     });
 
-    it('xicallaDirectionNode computed returns XICALLA_DIRECTION node', () => {
+    it('xicallaDirectionNodes computed returns XICALLA_DIRECTION nodes', () => {
       fixture.componentRef.setInput('directionNodes', [figDirNode, xicDirNode]);
       fixture.detectChanges();
 
-      expect(component.xicallaDirectionNode()?.id).toBe('dir-xic-1');
+      expect(component.xicallaDirectionNodes().map((n) => n.id)).toEqual(['dir-xic-1']);
     });
 
     it('hasAssignedDirections returns false when no assignments', () => {
@@ -1064,11 +1192,11 @@ describe('TroncViewComponent', () => {
 
     it('auto-expands when hasAssignedDirections becomes true', () => {
       fixture.componentRef.setInput('mode', 'assignment');
-      fixture.componentRef.setInput('isNetaFigure', true);
       fixture.componentRef.setInput('directionNodes', [figDirNode]);
       fixture.componentRef.setInput('assignments', []);
       fixture.detectChanges();
 
+      component.directionsExpanded.set(false);
       expect(component.directionsExpanded()).toBe(false);
 
       fixture.componentRef.setInput('assignments', [
@@ -1084,7 +1212,6 @@ describe('TroncViewComponent', () => {
       component.directionAdded.subscribe((e) => emitted.push(e));
 
       fixture.componentRef.setInput('mode', 'assignment');
-      fixture.componentRef.setInput('isNetaFigure', true);
       fixture.componentRef.setInput('directionNodes', []);
       component.directionsExpanded.set(true);
       fixture.detectChanges();
@@ -1102,7 +1229,6 @@ describe('TroncViewComponent', () => {
       component.directionRemoved.subscribe((id) => emitted.push(id));
 
       fixture.componentRef.setInput('mode', 'assignment');
-      fixture.componentRef.setInput('isNetaFigure', true);
       fixture.componentRef.setInput('directionNodes', [figDirNode]);
       fixture.componentRef.setInput('assignments', []);
       component.directionsExpanded.set(true);
@@ -1116,9 +1242,8 @@ describe('TroncViewComponent', () => {
       expect(emitted).toEqual(['dir-fig-1']);
     });
 
-    it('renders direction assignments in projection mode for neta figures', () => {
+    it('renders direction assignments in projection mode', () => {
       fixture.componentRef.setInput('mode', 'projection');
-      fixture.componentRef.setInput('isNetaFigure', true);
       fixture.componentRef.setInput('directionNodes', [figDirNode]);
       fixture.componentRef.setInput('assignments', [
         makeAssignment('dir-fig-1', 'Pepet'),
@@ -1132,7 +1257,6 @@ describe('TroncViewComponent', () => {
 
     it('does not render projection directions when no assignments', () => {
       fixture.componentRef.setInput('mode', 'projection');
-      fixture.componentRef.setInput('isNetaFigure', true);
       fixture.componentRef.setInput('directionNodes', [figDirNode]);
       fixture.componentRef.setInput('assignments', []);
       fixture.detectChanges();

@@ -2,37 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { vi } from 'vitest';
 import { of, throwError } from 'rxjs';
-import {
-  LUCIDE_ICONS,
-  LucideIconProvider,
-  AlertCircle,
-  AlertTriangle,
-  ArrowLeft,
-  Calendar,
-  Check,
-  ChevronDown,
-  ChevronUp,
-  ChevronsUpDown,
-  Clock,
-  Construction,
-  Eye,
-  Home,
-  Layers,
-  Lock,
-  Mail,
-  Menu,
-  MoreHorizontal,
-  Pencil,
-  Plus,
-  RefreshCw,
-  Search,
-  Settings,
-  Shield,
-  Star,
-  UserPlus,
-  UserX,
-  Users,
-} from 'lucide-angular';
+import { allLucideIconsProvider } from '../../../../testing/lucide-test-provider';
 import { UserListComponent } from './user-list.component';
 import { UserService } from '../services/user.service';
 import { ToastService } from '../../../shared/components/feedback/toast/toast.service';
@@ -75,6 +45,10 @@ describe('UserListComponent', () => {
     update: ReturnType<typeof vi.fn>;
     deactivate: ReturnType<typeof vi.fn>;
   };
+  let toastService: {
+    success: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(async () => {
     userService = {
@@ -85,10 +59,11 @@ describe('UserListComponent', () => {
       deactivate: vi.fn(),
     };
 
-    const mockToast = {
+    toastService = {
       success: vi.fn(),
       error: vi.fn(),
     };
+    const mockToast = toastService;
 
     const mockPersonService = {
       getAll: vi.fn().mockReturnValue(of({ data: [], meta: { total: 0, page: 1, limit: 10 } })),
@@ -106,40 +81,7 @@ describe('UserListComponent', () => {
         { provide: ToastService, useValue: mockToast },
         { provide: PersonService, useValue: mockPersonService },
         { provide: AuthService, useValue: mockAuthService },
-        {
-          provide: LUCIDE_ICONS,
-          multi: true,
-          useFactory: () =>
-            new LucideIconProvider({
-              AlertCircle,
-              AlertTriangle,
-              ArrowLeft,
-              Calendar,
-              Check,
-              ChevronDown,
-              ChevronUp,
-              ChevronsUpDown,
-              Clock,
-              Construction,
-              Eye,
-              Home,
-              Layers,
-              Lock,
-              Mail,
-              Menu,
-              MoreHorizontal,
-              Pencil,
-              Plus,
-              RefreshCw,
-              Search,
-              Settings,
-              Shield,
-              Star,
-              UserPlus,
-              UserX,
-              Users,
-            }),
-        },
+        allLucideIconsProvider,
       ],
     }).compileComponents();
 
@@ -467,6 +409,36 @@ describe('UserListComponent', () => {
       expect(component.grantRoleUser()).not.toBeNull();
     });
 
+    it('confirmGrantRole shows the backend error message in a toast', () => {
+      const user = mockUser({ role: UserRole.MEMBER });
+      userService.grantRole.mockReturnValue(
+        throwError(() => ({ error: { message: 'No et pots canviar el teu propi rol' } })),
+      );
+      component.users.set([user]);
+
+      component.openGrantRole(user);
+      component.grantRoleSelected.set(UserRole.ADMIN);
+      component.confirmGrantRole();
+
+      expect(toastService.error).toHaveBeenCalledWith(
+        'No et pots canviar el teu propi rol',
+      );
+    });
+
+    it('confirmGrantRole falls back to a generic message when the backend gives none', () => {
+      const user = mockUser({ role: UserRole.MEMBER });
+      userService.grantRole.mockReturnValue(throwError(() => new Error('fail')));
+      component.users.set([user]);
+
+      component.openGrantRole(user);
+      component.grantRoleSelected.set(UserRole.ADMIN);
+      component.confirmGrantRole();
+
+      expect(toastService.error).toHaveBeenCalledWith(
+        'Error en assignar el rol.',
+      );
+    });
+
     it('hides assign role action for TECHNICAL actors', () => {
       userRoleSignal.set(UserRole.TECHNICAL);
       fixture.detectChanges();
@@ -474,6 +446,86 @@ describe('UserListComponent', () => {
       expect(
         component.tableRowActions().some((action) => action.label === 'Assignar rol'),
       ).toBe(false);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Deactivate / reactivate confirmation
+  // ---------------------------------------------------------------------------
+
+  describe('status change (deactivate/activate)', () => {
+    function statusAction() {
+      const action = component
+        .tableRowActions()
+        .find((a) => typeof a.label === 'function');
+      if (!action) throw new Error('status change row action not found');
+      return action;
+    }
+
+    it('labels the row action "Desactivar" for an active user and "Activar" for an inactive one', () => {
+      const resolveLabel = statusAction().label as (u: UserDto) => string;
+      expect(resolveLabel(mockUser({ isActive: true }))).toBe('Desactivar');
+      expect(resolveLabel(mockUser({ isActive: false }))).toBe('Activar');
+    });
+
+    it('clicking the row action opens a confirmation for the right direction', () => {
+      const action = statusAction();
+      const activeUser = mockUser({ isActive: true });
+      action.action(activeUser);
+      expect(component.statusChangeTarget()).toEqual({ user: activeUser, activate: false });
+
+      component.closeStatusChangeConfirm();
+      const inactiveUser = mockUser({ isActive: false });
+      action.action(inactiveUser);
+      expect(component.statusChangeTarget()).toEqual({ user: inactiveUser, activate: true });
+    });
+
+    it('closeStatusChangeConfirm clears the pending target', () => {
+      component.openDeactivateConfirm(mockUser());
+      component.closeStatusChangeConfirm();
+      expect(component.statusChangeTarget()).toBeNull();
+    });
+
+    it('confirming a deactivation calls deactivate() and updates the list', () => {
+      const user = mockUser({ isActive: true });
+      userService.deactivate.mockReturnValue(of(undefined));
+      component.users.set([user]);
+
+      component.openDeactivateConfirm(user);
+      component.confirmStatusChange();
+
+      expect(userService.deactivate).toHaveBeenCalledWith(user.id);
+      expect(component.users()[0].isActive).toBe(false);
+      expect(component.statusChangeTarget()).toBeNull();
+      expect(toastService.success).toHaveBeenCalled();
+    });
+
+    it('confirming a reactivation calls update({ isActive: true }) and updates the list', () => {
+      const user = mockUser({ isActive: false });
+      const updated = mockUser({ isActive: true });
+      userService.update.mockReturnValue(of(updated));
+      component.users.set([user]);
+
+      component.openActivateConfirm(user);
+      component.confirmStatusChange();
+
+      expect(userService.update).toHaveBeenCalledWith(user.id, { isActive: true });
+      expect(component.users()[0].isActive).toBe(true);
+      expect(component.statusChangeTarget()).toBeNull();
+      expect(toastService.success).toHaveBeenCalled();
+    });
+
+    it('keeps the dialog open and toasts on error', () => {
+      const user = mockUser({ isActive: true });
+      userService.deactivate.mockReturnValue(throwError(() => new Error('fail')));
+      component.users.set([user]);
+
+      component.openDeactivateConfirm(user);
+      component.confirmStatusChange();
+
+      expect(component.statusChangeLoading()).toBe(false);
+      expect(component.statusChangeTarget()).not.toBeNull();
+      expect(toastService.error).toHaveBeenCalled();
     });
   });
 
@@ -532,6 +584,14 @@ describe('UserListComponent', () => {
 
     it('formats null inviteExpiresAt as —', () => {
       expect(component.getCellValue(user, 'inviteExpiresAt')).toBe('—');
+    });
+  });
+
+  describe('tap targets >=24px (WI-22)', () => {
+    it('gives the search input a >=24px tap target', () => {
+      const search = fixture.nativeElement.querySelector('input[type="text"]') as HTMLElement;
+      expect(search).toBeTruthy();
+      expect(search.className).toContain('h-6');
     });
   });
 });

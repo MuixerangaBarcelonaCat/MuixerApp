@@ -1,71 +1,27 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Position } from '../position/position.entity';
-import { User } from '../user/user.entity';
-import { Person } from '../person/person.entity';
-import { Season } from '../season/season.entity';
-import { Event } from '../event/event.entity';
-import { Attendance } from '../event/attendance.entity';
-import { RefreshToken } from '../auth/entities/refresh-token.entity';
-import { FigureTemplate } from '../figure/entities/figure-template.entity';
-import { FigureNode } from '../figure/entities/figure-node.entity';
-import { CompositionTemplate } from '../composition/entities/composition-template.entity';
-import { CompositionSlot } from '../composition/entities/composition-slot.entity';
-import { EventSegment } from '../event-segment/entities/event-segment.entity';
-import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
-import { InstanceNode } from '../event-segment/entities/instance-node.entity';
-import { NodeAssignment } from '../node-assignment/entities/node-assignment.entity';
-import { Rengla } from '../figure/entities/rengla.entity';
-import { InitialSchema1748600000000 } from '../../migrations/1748600000000-InitialSchema';
-import { AddUpdatedAtToRengles1749106300000 } from '../../migrations/1749106300000-AddUpdatedAtToRengles';
-import { AddUpdatedAtToMissingTables1749106400000 } from '../../migrations/1749106400000-AddUpdatedAtToMissingTables';
-import { AddPersonInstanceUniqueConstraint1749106500000 } from '../../migrations/1749106500000-AddPersonInstanceUniqueConstraint';
-import { RemoveFigureFamily1780982679300 } from '../../migrations/1780982679300-RemoveFigureFamily';
-import { RestoreProjectionColumnsAndReferenceElements1781000000000 } from '../../migrations/1781000000000-RestoreProjectionColumnsAndReferenceElements';
-import { DropSourceVariantOrder1781100000000 } from '../../migrations/1781100000000-DropSourceVariantOrder';
-import { AddAdHocInstanceNodes1781200000000 } from '../../migrations/1781200000000-AddAdHocInstanceNodes';
+// typeorm requires `pg` dynamically (driver lookup by the `type: 'postgres'` string above),
+// so Nx's static dependency scan won't see it and won't pin it in the generated production
+// package.json unless it's imported directly somewhere in the bundle.
+import 'pg';
+import { ENTITIES } from './entities';
+import { migrations } from '../../migrations';
+import { resolveDbSslOptions } from './resolve-db-ssl-options.util';
 
 @Module({
   imports: [
     TypeOrmModule.forRootAsync({
       useFactory: () => {
         const isDevelopment = process.env.NODE_ENV !== 'production';
-        const sslEnabled = process.env.DB_SSL === 'true';
 
         return {
           type: 'postgres',
           url: process.env.DATABASE_URL,
-          ssl: sslEnabled ? { rejectUnauthorized: false } : false,
-          entities: [
-            Position,
-            User,
-            Person,
-            Season,
-            Event,
-            Attendance,
-            RefreshToken,
-            FigureTemplate,
-            FigureNode,
-            CompositionTemplate,
-            CompositionSlot,
-            EventSegment,
-            FigureInstance,
-            InstanceNode,
-            NodeAssignment,
-            Rengla,
-          ],
+          ssl: resolveDbSslOptions(process.env),
+          entities: ENTITIES,
           synchronize: false,
           migrationsRun: isDevelopment,
-          migrations: [
-            InitialSchema1748600000000,
-            AddUpdatedAtToRengles1749106300000,
-            AddUpdatedAtToMissingTables1749106400000,
-            AddPersonInstanceUniqueConstraint1749106500000,
-            RemoveFigureFamily1780982679300,
-            RestoreProjectionColumnsAndReferenceElements1781000000000,
-            DropSourceVariantOrder1781100000000,
-            AddAdHocInstanceNodes1781200000000,
-          ],
+          migrations,
           migrationsTableName: 'typeorm_migrations',
           logging: isDevelopment,
         };

@@ -1,5 +1,5 @@
-import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsEnum, IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { AttendanceStatus } from '@muixer/shared';
 
@@ -13,6 +13,13 @@ export class AttendanceFilterDto {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @ApiPropertyOptional({ description: 'Filtrar per UUIDs de posicions (multi-valor)', type: [String] })
+  @IsOptional()
+  @Type(() => String)
+  @Transform(({ value }) => (Array.isArray(value) ? value : value ? [value] : []))
+  @IsUUID('4', { each: true })
+  positionIds?: string[];
 
   @ApiPropertyOptional({ description: 'Número de pàgina (comença a 1)', default: 1 })
   @IsOptional()

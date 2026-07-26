@@ -5,3 +5,4 @@ export const REFRESH_TOKEN_COOKIE = process.env['REFRESH_TOKEN_COOKIE'] ?? 'muix
 
 export const IS_PUBLIC_KEY = 'isPublic';
 export const ROLES_KEY = 'roles';
+export const IS_SSE_KEY = 'isSse';

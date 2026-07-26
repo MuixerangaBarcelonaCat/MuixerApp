@@ -1,8 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import {
-  LUCIDE_ICONS, LucideIconProvider,
-  Users, Baby, UserCheck, UsersRound,
-} from 'lucide-angular';
+import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { StatCardComponent } from './stat-card.component';
 
 describe('StatCardComponent', () => {
@@ -13,10 +10,7 @@ describe('StatCardComponent', () => {
     await TestBed.configureTestingModule({
       imports: [StatCardComponent],
       providers: [
-        {
-          provide: LUCIDE_ICONS, multi: true,
-          useFactory: () => new LucideIconProvider({ Users, Baby, UserCheck, UsersRound }),
-        },
+        allLucideIconsProvider,
       ],
     }).compileComponents();
 

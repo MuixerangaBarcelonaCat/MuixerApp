@@ -6,7 +6,6 @@ function makeAssignment(nodeId: string, shoulderHeight: number | null): Assignme
   return {
     id: `assign-${nodeId}`,
     figureInstanceId: 'instance-1',
-    compositionSlotId: null,
     node: {
       id: nodeId,
       label: 'Node',
@@ -14,6 +13,7 @@ function makeAssignment(nodeId: string, shoulderHeight: number | null): Assignme
       z: 1,
       positionType: 'segon',
       sortOrder: 0,
+      climbIndicator: null,
       ringLevel: null,
       originNodeId: null,
       sourceNodeId: null,
@@ -24,6 +24,8 @@ function makeAssignment(nodeId: string, shoulderHeight: number | null): Assignme
       name: 'Test',
       firstSurname: 'Person',
       shoulderHeight,
+      notes: null,
+      notesEmoji: null,
     },
   };
 }

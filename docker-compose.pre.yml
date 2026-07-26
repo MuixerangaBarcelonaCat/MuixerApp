@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     env_file: .env.pre
     ports:
-      - '5432:5432'
+      - '127.0.0.1:5432:5432'
     volumes:
       - postgres-pre-data:/var/lib/postgresql/data
       - ./docker/postgres/init-prod.sql:/docker-entrypoint-initdb.d/init.sql
@@ -24,7 +24,7 @@ services:
     restart: unless-stopped
     env_file: .env.pre
     ports:
-      - '3000:3000'
+      - '127.0.0.1:3000:3000'
     depends_on:
       postgres:
         condition: service_healthy
@@ -42,6 +42,7 @@ services:
     image: muixer-dashboard-pre:latest
     container_name: muixer-dashboard-pre
     restart: unless-stopped
+    env_file: .env.pre
     ports:
       - '80:80'
       - '443:443'

@@ -1,22 +1,23 @@
 import {
   Component,
   ChangeDetectionStrategy,
+  computed,
   inject,
   signal,
   OnInit,
-  computed,
 } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule, RouterLink } from '@angular/router';
 import { PersonService } from '../../services/person.service';
 import { Person, UpdatePersonDto } from '../../models/person.model';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
-import { PositionService } from '../../../config/services/position.service';
-import { PositionWithCount } from '../../../config/models/position.model';
+import { TagService } from '../../../config/services/tag.service';
+import { TagWithCount } from '../../../config/models/tag.model';
 import { NodeAssignmentService } from '../../../pinyes/services/node-assignment.service';
 import { SeasonService } from '../../../events/services/season.service';
 import { PersonAssignmentEntry } from '../../../pinyes/models/assignment.model';
 import { Season } from '../../../events/models/event.model';
+import { formatNodeCordonLabel } from '../../../pinyes/utils/node-cordon-label.util';
 
 import {
   getAvailabilityLabel,
@@ -31,6 +32,13 @@ import { EmptyStateComponent } from '../../../../shared/components/data/empty-st
 import { PaginationComponent } from '../../../../shared/components/data/pagination/pagination.component';
 import { PersonInvitationModalComponent } from './modals/person-invitation-modal.component';
 import { PersonLinkUserModalComponent } from './modals/person-link-user-modal.component';
+import { PersonDelegateModalComponent } from './modals/person-delegate-modal.component';
+import { EmojiPickerComponent } from '../../../../shared/components/forms/emoji-picker/emoji-picker.component';
+import {
+  PersonDelegateService,
+  PersonDelegateItem,
+} from '../../services/person-delegate.service';
+import { DelegateType } from '@muixer/shared';
 
 @Component({
   standalone: true,
@@ -42,20 +50,33 @@ import { PersonLinkUserModalComponent } from './modals/person-link-user-modal.co
     PaginationComponent,
     PersonInvitationModalComponent,
     PersonLinkUserModalComponent,
+    PersonDelegateModalComponent,
+    EmojiPickerComponent,
   ],
   templateUrl: './person-detail.component.html',
 })
 export class PersonDetailComponent implements OnInit {
   private readonly personService = inject(PersonService);
-  private readonly positionService = inject(PositionService);
+  private readonly tagService = inject(TagService);
   private readonly nodeAssignmentService = inject(NodeAssignmentService);
   private readonly seasonService = inject(SeasonService);
+  private readonly delegateService = inject(PersonDelegateService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
   private readonly toast = inject(ToastService);
 
   person = signal<Person | null>(null);
+
+  /** Full name shown under the alias in the header, or '' when it would just
+   *  repeat the alias (e.g. provisional members whose name equals the alias). */
+  readonly headerSubtitle = computed(() => {
+    const p = this.person();
+    if (!p) return '';
+    const full = [p.name, p.firstSurname, p.secondSurname].filter(Boolean).join(' ').trim();
+    return full && full !== p.alias ? full : '';
+  });
+
   loading = signal(false);
   saving = signal(false);
   saveError = signal<string | null>(null);
@@ -66,13 +87,19 @@ export class PersonDetailComponent implements OnInit {
   metadataExpanded = signal(false);
   editing = signal(false);
 
-  isNew = computed(() => !this.route.snapshot.paramMap.get('id'));
-
-  allPositions = signal<PositionWithCount[]>([]);
+  allPositions = signal<TagWithCount[]>([]);
   selectedPositionIds = signal<string[]>([]);
 
   invitationModalOpen = signal(false);
   linkUserModalOpen = signal(false);
+  delegateModalOpen = signal(false);
+
+  // ── Delegates ──
+  delegates = signal<PersonDelegateItem[]>([]);
+  delegatesLoading = signal(false);
+  delegatesExpanded = signal(true);
+  removingDelegateId = signal<string | null>(null);
+  existingDelegateUserIds = computed(() => this.delegates().map((d) => d.user.id));
 
   // ── F3 History ──
   historyEntries = signal<PersonAssignmentEntry[]>([]);
@@ -93,6 +120,7 @@ export class PersonDetailComponent implements OnInit {
     birthDate: [''],
     shoulderHeight: [null as number | null],
     notes: [''],
+    notesEmoji: [null as string | null],
     isActive: [true],
     isMember: [false],
     isXicalla: [false],
@@ -107,11 +135,12 @@ export class PersonDetailComponent implements OnInit {
   readonly formatDate = formatDate;
   readonly formatDateTime = formatDateTime;
   readonly formatShoulderHeightRelative = formatShoulderHeightRelative;
+  readonly formatNodeCordonLabel = formatNodeCordonLabel;
   readonly Math = Math;
 
   ngOnInit() {
-    this.positionService.getAll().subscribe({
-      next: (positions) => this.allPositions.set(positions),
+    this.tagService.getAll().subscribe({
+      next: (tags) => this.allPositions.set(tags),
     });
 
     this.seasonService.getAll().subscribe({
@@ -120,11 +149,14 @@ export class PersonDetailComponent implements OnInit {
 
     this.route.paramMap.subscribe((params) => {
       const id = params.get('id');
-      if (id) {
+      // No dedicated "create" route exists — `/persons/new` falls through to
+      // this `:id` route with the literal id "new", which the API rejects as
+      // an invalid UUID (WI-23). Nothing currently links to that URL; skip
+      // the doomed fetches rather than logging a 400 on every load.
+      if (id && id !== 'new') {
         this.loadPerson(id);
         this.loadHistory();
-      } else {
-        this.editing.set(true);
+        this.loadDelegates();
       }
     });
   }
@@ -155,6 +187,10 @@ export class PersonDetailComponent implements OnInit {
     );
   }
 
+  onNotesEmojiChange(emoji: string | null): void {
+    this.form.patchValue({ notesEmoji: emoji });
+  }
+
   isPositionSelected(positionId: string): boolean {
     return this.selectedPositionIds().includes(positionId);
   }
@@ -165,7 +201,7 @@ export class PersonDetailComponent implements OnInit {
     this.saveError.set(null);
     this.saveSuccess.set(false);
 
-    const id = this.route.snapshot.paramMap.get('id');
+    const id = this.route.snapshot.paramMap.get('id')!;
     const raw = this.form.getRawValue();
 
     const payload: Partial<UpdatePersonDto> & { positionIds?: string[] } = {
@@ -177,6 +213,7 @@ export class PersonDetailComponent implements OnInit {
       birthDate: raw.birthDate || undefined,
       shoulderHeight: raw.shoulderHeight ?? undefined,
       notes: raw.notes ?? undefined,
+      notesEmoji: raw.notesEmoji ?? null,
       isActive: raw.isActive ?? undefined,
       isMember: raw.isMember ?? undefined,
       isXicalla: raw.isXicalla ?? undefined,
@@ -187,17 +224,12 @@ export class PersonDetailComponent implements OnInit {
       positionIds: this.selectedPositionIds(),
     };
 
-    const request$ = id
-      ? this.personService.update(id, payload)
-      : this.personService.createProvisional(raw.alias!);
-
-    request$.subscribe({
+    this.personService.update(id, payload).subscribe({
       next: (updated) => {
         this.person.set(updated);
         this.saving.set(false);
         this.saveSuccess.set(true);
         this.editing.set(false);
-        if (!id) this.router.navigate(['/persons', updated.id]);
       },
       error: (err) => {
         this.saving.set(false);
@@ -260,6 +292,7 @@ export class PersonDetailComponent implements OnInit {
       birthDate: person.birthDate ?? '',
       shoulderHeight: person.shoulderHeight ?? null,
       notes: person.notes ?? '',
+      notesEmoji: person.notesEmoji ?? null,
       isActive: person.isActive,
       isMember: person.isMember,
       isXicalla: person.isXicalla,
@@ -323,8 +356,74 @@ export class PersonDetailComponent implements OnInit {
   }
 
   navigateToEvent(entry: PersonAssignmentEntry) {
-    const base = entry.eventType === 'ACTUACIO' ? '/performances' : '/rehearsals';
-    this.router.navigate([base, entry.eventId]);
+    this.router.navigate(['/events', entry.eventId]);
+  }
+
+  // ── Delegates ──
+
+  private static readonly DELEGATE_TYPE_LABELS: Record<DelegateType, string> = {
+    [DelegateType.PARENT]: 'Pare/Mare',
+    [DelegateType.PARTNER]: 'Parella',
+    [DelegateType.GUARDIAN]: 'Tutor/a',
+  };
+
+  getDelegateTypeLabel(type: DelegateType): string {
+    return PersonDetailComponent.DELEGATE_TYPE_LABELS[type] ?? type;
+  }
+
+  loadDelegates(): void {
+    const id = this.route.snapshot.paramMap.get('id');
+    if (!id) return;
+    this.delegatesLoading.set(true);
+    this.delegateService.getByPerson(id).subscribe({
+      next: (delegates) => {
+        this.delegates.set(delegates);
+        this.delegatesLoading.set(false);
+      },
+      error: () => this.delegatesLoading.set(false),
+    });
+  }
+
+  openDelegateModal(): void {
+    this.delegateModalOpen.set(true);
+  }
+
+  onDelegateAdded(): void {
+    this.delegateModalOpen.set(false);
+    this.loadDelegates();
+    this.toast.success('Delegat afegit correctament.');
+  }
+
+  confirmingDelegateRemoval = signal<PersonDelegateItem | null>(null);
+
+  askRemoveDelegate(delegate: PersonDelegateItem): void {
+    this.confirmingDelegateRemoval.set(delegate);
+  }
+
+  cancelRemoveDelegate(): void {
+    this.confirmingDelegateRemoval.set(null);
+  }
+
+  confirmRemoveDelegate(): void {
+    const delegate = this.confirmingDelegateRemoval();
+    if (!delegate || this.removingDelegateId()) return;
+
+    this.confirmingDelegateRemoval.set(null);
+    this.removingDelegateId.set(delegate.id);
+    const personId = this.route.snapshot.paramMap.get('id')!;
+    this.delegateService.removeDelegate(personId, delegate.id).subscribe({
+      next: () => {
+        this.removingDelegateId.set(null);
+        this.loadDelegates();
+        this.toast.success('S\'ha eliminat la delegació.');
+      },
+      error: (err) => {
+        this.removingDelegateId.set(null);
+        this.toast.error(
+          err?.error?.message ?? 'No s\'ha pogut eliminar la delegació.',
+        );
+      },
+    });
   }
 
   protected readonly getFullName = getFullName;

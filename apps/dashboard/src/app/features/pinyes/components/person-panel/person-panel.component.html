@@ -15,28 +15,100 @@
     </div>
 
     <!-- Search -->
-    <input
-      #searchInput
-      type="search"
-      class="input input-bordered input-sm w-full mb-1.5"
-      placeholder="Cerca per nom o àlies..."
-      [value]="search()"
-      (input)="onSearchChange($any($event.target).value)"
-      (keydown.enter)="selectFirstPerson()"
-      aria-label="Cerca persones"
-    />
+    <div class="relative mb-1.5">
+      <input
+        #searchInput
+        type="search"
+        class="input input-bordered input-sm w-full"
+        placeholder="Cerca per nom o àlies..."
+        [value]="search()"
+        (input)="onSearchChange($any($event.target).value)"
+        (keydown)="onSearchKeyDown($event)"
+        role="combobox"
+        aria-autocomplete="list"
+        [attr.aria-expanded]="search().trim().length > 0"
+        aria-controls="person-search-results"
+        aria-label="Cerca persones"
+      />
+
+      @if (search().trim().length > 0) {
+        <div
+          id="person-search-results"
+          role="listbox"
+          class="absolute z-40 top-full left-0 right-0 mt-1 bg-base-100 border border-base-300 rounded-box shadow-lg max-h-96 overflow-y-auto divide-y divide-base-200"
+        >
+          @if (searchResults().length === 0) {
+            <p class="text-xs text-base-content/40 px-2 py-2">Cap coincidència</p>
+          } @else {
+            @for (result of searchResults(); track result.person.id; let i = $index) {
+              <button
+                type="button"
+                role="option"
+                class="w-full text-left block transition-colors"
+                [class.bg-base-200]="i === effectiveHighlightedIndex()"
+                [attr.aria-selected]="i === effectiveHighlightedIndex()"
+                (mouseenter)="highlightedIndex.set(i)"
+                (click)="selectSearchResult(result)"
+              >
+                <app-person-hover-card
+                  [info]="toHoverInfo(result.person)"
+                  [isPast]="isPast()"
+                  [heightMode]="heightMode()"
+                  [activeNodePositionType]="activeNodePositionType()"
+                  [bare]="true"
+                />
+                @if (result.isAssigned) {
+                  <div class="px-2.5 pb-1.5 -mt-1">
+                    <span class="badge badge-xs badge-info">
+                      {{ assignedBadgeLabel(result.person) }}
+                    </span>
+                  </div>
+                }
+              </button>
+            }
+          }
+        </div>
+      }
+    </div>
 
     <!-- Height filter -->
-    <input
-      type="number"
-      class="input input-bordered input-sm w-full mb-1.5"
-      [placeholder]="heightMode() === 'relative' ? 'Alçada relativa (ex: +5, -10)' : 'Alçada absoluta (cm)'"
-      [value]="height() ?? ''"
-      (input)="onHeightChange($any($event.target).value ? +$any($event.target).value : null)"
-      [attr.aria-label]="'Filtra per alçada ' + (heightMode() === 'relative' ? 'relativa' : 'absoluta')"
-      [min]="heightMode() === 'relative' ? -50 : 100"
-      [max]="heightMode() === 'relative' ? 50 : 200"
-    />
+    <div class="flex items-center gap-1 mb-1.5">
+      <input
+        #heightInput
+        type="number"
+        class="input input-bordered input-sm w-full"
+        [placeholder]="heightMode() === 'relative' ? 'Alçada relativa (ex: +5, -10)' : 'Alçada absoluta (cm)'"
+        [value]="height() ?? ''"
+        (input)="onHeightChange($any($event.target).value ? +$any($event.target).value : null)"
+        [attr.aria-label]="'Filtra per alçada ' + (heightMode() === 'relative' ? 'relativa' : 'absoluta')"
+        [min]="heightMode() === 'relative' ? -50 : 100"
+        [max]="heightMode() === 'relative' ? 50 : 200"
+      />
+      @if (heightMode() === 'relative') {
+        <button
+          type="button"
+          class="btn btn-sm shrink-0 px-2 bg-base-200 border-base-300 text-base-content hover:bg-base-300"
+          [class.border-2]="heightSortMode() === 'max'"
+          [class.border-base-content]="heightSortMode() === 'max'"
+          (click)="toggleHeightSort('max')"
+          title="Ordena de més alt a més baix"
+          aria-label="Ordena de més alt a més baix"
+        >
+          Max
+        </button>
+        <button
+          type="button"
+          class="btn btn-sm shrink-0 px-2 bg-base-200 border-base-300 text-base-content hover:bg-base-300"
+          [class.border-2]="heightSortMode() === 'min'"
+          [class.border-base-content]="heightSortMode() === 'min'"
+          (click)="toggleHeightSort('min')"
+          title="Ordena de més baix a més alt"
+          aria-label="Ordena de més baix a més alt"
+        >
+          Min
+        </button>
+      }
+    </div>
 
     <!-- Filters -->
     <div class="flex items-center gap-3">
@@ -49,6 +121,74 @@
         />
         Xicalla
       </label>
+
+      <div class="flex items-center gap-1">
+        <div class="dropdown" [class.dropdown-open]="tagFilterOpen()">
+          <button
+            type="button"
+            class="btn btn-xs btn-outline gap-1.5 max-w-[9rem]"
+            (click)="toggleTagFilter()"
+            aria-label="Filtra per etiqueta"
+            [attr.aria-expanded]="tagFilterOpen()"
+          >
+            @if (selectedTag(); as tag) {
+              <span
+                class="w-2 h-2 rounded-full shrink-0"
+                [style.background-color]="tag.color ?? 'currentColor'"
+              ></span>
+            }
+            <span class="truncate">{{ selectedTag()?.name ?? 'Totes les etiquetes' }}</span>
+          </button>
+          @if (tagFilterOpen()) {
+            <div class="dropdown-content z-40 mt-1 shadow-lg bg-base-100 border border-base-300 rounded-box w-max min-w-[10rem] max-h-72 flex flex-col">
+              <div class="p-1 border-b border-base-200">
+                <input
+                  type="text"
+                  class="input input-bordered input-xs w-full"
+                  placeholder="Cerca etiqueta..."
+                  [value]="tagSearch()"
+                  (input)="onTagSearchChange($any($event.target).value)"
+                  aria-label="Cerca etiqueta"
+                />
+              </div>
+              <ul class="menu menu-sm p-1 overflow-y-auto flex-nowrap">
+                <li>
+                  <button type="button" (click)="onPositionFilterChange('')">Totes les etiquetes</button>
+                </li>
+                @for (tag of filteredTags(); track tag.id) {
+                  <li>
+                    <button
+                      type="button"
+                      [attr.data-testid]="'tag-filter-option-' + tag.id"
+                      (click)="onPositionFilterChange(tag.id)"
+                    >
+                      <span
+                        class="w-2 h-2 rounded-full shrink-0"
+                        [attr.data-testid]="'tag-filter-dot-' + tag.id"
+                        [style.background-color]="tag.color ?? 'currentColor'"
+                      ></span>
+                      <span class="truncate">{{ tag.name }}</span>
+                    </button>
+                  </li>
+                }
+                @if (filteredTags().length === 0) {
+                  <li class="px-2 py-1 text-xs text-base-content/40">Cap coincidència</li>
+                }
+              </ul>
+            </div>
+          }
+        </div>
+        @if (selectedPositionId()) {
+          <button
+            type="button"
+            class="btn btn-ghost btn-xs px-1.5"
+            data-testid="tag-filter-clear"
+            (click)="clearTagFilter()"
+            aria-label="Neteja el filtre d'etiqueta"
+            title="Neteja el filtre d'etiqueta"
+          >✕</button>
+        }
+      </div>
     </div>
   </div>
 
@@ -63,7 +203,7 @@
         class="btn btn-xs btn-outline btn-error shrink-0 gap-1"
         (click)="requestUnassign()"
         aria-label="Desassigna la persona d'este node"
-        title="Desassigna (Supr)"
+        title="Desassigna (⌫ Retrocés)"
       >
         <i-lucide [img]="UserX" class="size-3" />
         Desassigna
@@ -81,20 +221,24 @@
   <!-- Person list -->
   @if (!loading()) {
     <div class="flex-1 overflow-y-auto">
-      <!-- Confirmades (ANIRE, free) -->
+      <!-- Confirmades / Assistits -->
       <div class="px-2 pt-2 pb-1">
         <p class="text-xs font-semibold text-success mb-1">
           Confirmades ({{ confirmedPersons().length }})
         </p>
         @for (person of sortedConfirmedPersons(); track person.id) {
           @let posType = activeNodePositionType();
-          @let matchPos = posType ? (person.positions.find(p => p.slug === posType) ?? null) : null;
+          @let matchPos = posType ? (person.positions.find(p => (p.positionTypes ?? []).includes(posType)) ?? null) : null;
           <button
             type="button"
             class="w-full text-left px-2 py-1.5 rounded hover:bg-base-200 active:bg-base-300 transition-colors flex items-center justify-between gap-2 text-xs"
-            [class.opacity-60]="posType && !matchPos"
+            [class.bg-primary]="selectedPersonId() === person.id"
+            [class.text-primary-content]="selectedPersonId() === person.id"
             (click)="selectPerson(person)"
+            (mouseenter)="onPersonHover($event, person)"
+            (mouseleave)="onPersonLeave()"
             [attr.aria-label]="'Seleccionar ' + person.alias"
+            [attr.aria-pressed]="selectedPersonId() === person.id"
           >
             <span class="flex items-center gap-1.5 min-w-0">
               @if (matchPos) {
@@ -106,6 +250,13 @@
                 ></span>
               }
               <span class="font-medium truncate">{{ person.alias }}</span>
+              @if (person.notes) {
+                @if (person.notesEmoji) {
+                  <span class="text-xs leading-none shrink-0" [attr.aria-label]="'Observacions: ' + person.notes" [title]="person.notes">{{ person.notesEmoji }}</span>
+                } @else {
+                  <i-lucide [img]="ICON_OBSERVACIONS" class="size-2.5 text-warning shrink-0" [attr.aria-label]="'Observacions: ' + person.notes" [title]="person.notes" />
+                }
+              }
               @if (person.nextPerformanceStatus === 'ANIRE') {
                 <span class="text-base-content/50 shrink-0" aria-label="Vindrà a la propera actuació" title="Vindrà a la propera actuació">🎭</span>
               }
@@ -116,9 +267,56 @@
           </button>
         }
         @if (confirmedPersons().length === 0) {
-          <p class="text-xs text-base-content/40 px-2 py-1">Cap persona confirmada lliure</p>
+          <p class="text-xs text-base-content/40 px-2 py-1">
+            Cap persona confirmada lliure
+          </p>
         }
       </div>
+
+      <!-- No presentades (only when isPast, ANIRE) -->
+      @if (isPast() && noShowPersons().length > 0) {
+        <div class="px-2 pb-1 border-t border-base-200">
+          <p class="text-xs font-semibold text-warning mt-1.5 mb-1">
+            No presentades ({{ noShowPersons().length }})
+          </p>
+          @for (person of sortedNoShowPersons(); track person.id) {
+            @let posType = activeNodePositionType();
+            @let matchPos = posType ? (person.positions.find(p => (p.positionTypes ?? []).includes(posType)) ?? null) : null;
+            <button
+              type="button"
+              class="w-full text-left px-2 py-1.5 rounded hover:bg-base-200 active:bg-base-300 transition-colors flex items-center justify-between gap-2 text-xs opacity-70"
+              [class.opacity-60]="posType && !matchPos"
+              [class.bg-primary]="selectedPersonId() === person.id"
+              [class.text-primary-content]="selectedPersonId() === person.id"
+              (click)="selectPerson(person)"
+              (mouseenter)="onPersonHover($event, person)"
+              (mouseleave)="onPersonLeave()"
+              [attr.aria-label]="'Seleccionar ' + person.alias"
+              [attr.aria-pressed]="selectedPersonId() === person.id"
+            >
+              <span class="flex items-center gap-1.5 min-w-0">
+                @if (matchPos) {
+                  <span
+                    class="w-2 h-2 rounded-full shrink-0"
+                    [style.background-color]="matchPos.color ?? 'currentColor'"
+                  ></span>
+                }
+                <span class="truncate">{{ person.alias }}</span>
+                @if (person.notes) {
+                  @if (person.notesEmoji) {
+                  <span class="text-xs leading-none shrink-0" [attr.aria-label]="'Observacions: ' + person.notes" [title]="person.notes">{{ person.notesEmoji }}</span>
+                } @else {
+                  <i-lucide [img]="ICON_OBSERVACIONS" class="size-2.5 text-warning shrink-0" [attr.aria-label]="'Observacions: ' + person.notes" [title]="person.notes" />
+                }
+                }
+              </span>
+              @if (formatHeight(person) !== '-') {
+                <span class="text-base-content/50 shrink-0">{{ formatHeight(person) }}</span>
+              }
+            </button>
+          }
+        </div>
+      }
 
       <!-- Assignades (already placed in a node) -->
       @if (assignedPersons().length > 0) {
@@ -137,16 +335,35 @@
           @if (assignadesExpanded()) {
             <div id="assignades-panel" class="px-2 pb-2">
               @for (person of assignedPersons(); track person.id) {
+                @let posType = activeNodePositionType();
+                @let matchPos = posType ? (person.positions.find(p => (p.positionTypes ?? []).includes(posType)) ?? null) : null;
                 <button
                   type="button"
                   class="w-full text-left px-2 py-1.5 rounded hover:bg-base-200 active:bg-base-300 transition-colors flex items-center justify-between gap-2 text-xs"
                   (click)="navigateToAssigned(person)"
-                  [attr.aria-label]="person.alias + ': anar al node ' + (person.assignedNodeLabel ?? '')"
+                  (mouseenter)="onPersonHover($event, person)"
+                  (mouseleave)="onPersonLeave()"
+                  [attr.aria-label]="person.alias + ': anar al node ' + assignedBadgeLabel(person)"
                 >
                   <span class="flex items-center gap-1.5 min-w-0">
+                    @if (matchPos) {
+                      <span
+                        class="w-2 h-2 rounded-full shrink-0"
+                        [style.background-color]="matchPos.color ?? 'currentColor'"
+                        [attr.aria-label]="'Posició: ' + matchPos.name"
+                        [title]="matchPos.name"
+                      ></span>
+                    }
                     <span class="truncate text-base-content/60">{{ person.alias }}</span>
+                    @if (person.notes) {
+                      @if (person.notesEmoji) {
+                  <span class="text-xs leading-none shrink-0" [attr.aria-label]="'Observacions: ' + person.notes" [title]="person.notes">{{ person.notesEmoji }}</span>
+                } @else {
+                  <i-lucide [img]="ICON_OBSERVACIONS" class="size-2.5 text-warning shrink-0" [attr.aria-label]="'Observacions: ' + person.notes" [title]="person.notes" />
+                }
+                    }
                   </span>
-                  <span class="badge badge-xs badge-info shrink-0">{{ person.assignedNodeLabel || 'Assignada' }}</span>
+                  <span class="badge badge-xs badge-info shrink-0">{{ assignedBadgeLabel(person) }}</span>
                 </button>
               }
             </div>
@@ -154,7 +371,7 @@
         </div>
       }
 
-      <!-- Altres (PENDENT + NO_VAIG, free) -->
+      <!-- Altres / No van venir -->
       <div class="border-t border-base-200">
         <button
           type="button"
@@ -163,27 +380,42 @@
           [attr.aria-expanded]="altresExpanded()"
           aria-controls="altres-panel"
         >
-          <span>Altres ({{ pendingPersons().length + declinedPersons().length }})</span>
+          <span>
+            {{ isPast() ? 'No van venir' : 'Altres' }}
+            ({{ pendingPersons().length + declinedPersons().length }})
+          </span>
           <i-lucide [img]="altresExpanded() ? ChevronUp : ChevronDown" class="size-3" />
         </button>
 
         @if (altresExpanded()) {
           <div id="altres-panel" class="px-2 pb-2">
-            
-            <!-- No vindran -->
+
+            <!-- No vindran / No van venir (NO_VAIG; post-event also PENDENT) -->
             @if (declinedPersons().length > 0) {
               <p class="text-xs font-medium text-error mt-1.5 mb-1">
-                No vindran ({{ declinedPersons().length }})
+                {{ isPast() ? 'No van venir' : 'No vindran' }} ({{ declinedPersons().length }})
               </p>
               @for (person of declinedPersons(); track person.id) {
                 <button
                   type="button"
                   class="w-full text-left px-2 py-1.5 rounded hover:bg-base-200 active:bg-base-300 transition-colors flex items-center justify-between gap-2 text-xs opacity-60"
+                  [class.bg-primary]="selectedPersonId() === person.id"
+                  [class.text-primary-content]="selectedPersonId() === person.id"
                   (click)="selectPerson(person)"
-                  [attr.aria-label]="'Seleccionar ' + person.alias + ' (no vindrà)'"
+                  (mouseenter)="onPersonHover($event, person)"
+                  (mouseleave)="onPersonLeave()"
+                  [attr.aria-label]="'Seleccionar ' + person.alias"
+                  [attr.aria-pressed]="selectedPersonId() === person.id"
                 >
                   <span class="flex items-center gap-1.5 min-w-0">
                     <span class="line-through truncate">{{ person.alias }}</span>
+                    @if (person.notes) {
+                      @if (person.notesEmoji) {
+                  <span class="text-xs leading-none shrink-0" [attr.aria-label]="'Observacions: ' + person.notes" [title]="person.notes">{{ person.notesEmoji }}</span>
+                } @else {
+                  <i-lucide [img]="ICON_OBSERVACIONS" class="size-2.5 text-warning shrink-0" [attr.aria-label]="'Observacions: ' + person.notes" [title]="person.notes" />
+                }
+                    }
                     @if (person.nextPerformanceStatus === 'ANIRE') {
                       <span class="text-base-content/50 shrink-0" aria-label="Vindrà a la propera actuació">🎭</span>
                     }
@@ -194,7 +426,8 @@
                 </button>
               }
             }
-            <!-- Pendents -->
+
+            <!-- Pendents (pre-event only) -->
             @if (pendingPersons().length > 0) {
               <p class="text-xs font-medium text-warning mt-1.5 mb-1">
                 Pendents ({{ pendingPersons().length }})
@@ -203,11 +436,23 @@
                 <button
                   type="button"
                   class="w-full text-left px-2 py-1.5 rounded hover:bg-base-200 active:bg-base-300 transition-colors flex items-center justify-between gap-2 text-xs opacity-80"
+                  [class.bg-primary]="selectedPersonId() === person.id"
+                  [class.text-primary-content]="selectedPersonId() === person.id"
                   (click)="selectPerson(person)"
+                  (mouseenter)="onPersonHover($event, person)"
+                  (mouseleave)="onPersonLeave()"
                   [attr.aria-label]="'Seleccionar ' + person.alias + ' (pendent)'"
+                  [attr.aria-pressed]="selectedPersonId() === person.id"
                 >
                   <span class="flex items-center gap-1.5 min-w-0">
                     <span class="truncate">{{ person.alias }}</span>
+                    @if (person.notes) {
+                      @if (person.notesEmoji) {
+                  <span class="text-xs leading-none shrink-0" [attr.aria-label]="'Observacions: ' + person.notes" [title]="person.notes">{{ person.notesEmoji }}</span>
+                } @else {
+                  <i-lucide [img]="ICON_OBSERVACIONS" class="size-2.5 text-warning shrink-0" [attr.aria-label]="'Observacions: ' + person.notes" [title]="person.notes" />
+                }
+                    }
                     @if (person.nextPerformanceStatus === 'ANIRE') {
                       <span class="text-base-content/50 shrink-0" aria-label="Vindrà a la propera actuació">🎭</span>
                     }
@@ -222,6 +467,22 @@
           </div>
         }
       </div>
+    </div>
+  }
+
+  @if (hoveredPerson(); as hovered) {
+    <div
+      class="fixed z-50 pointer-events-none"
+      [style.top.px]="hovered.top"
+      [style.left.px]="hovered.left"
+      style="transform: translateX(calc(-100% - 8px))"
+    >
+      <app-person-hover-card
+        [info]="hovered.info"
+        [isPast]="isPast()"
+        [heightMode]="heightMode()"
+        [activeNodePositionType]="activeNodePositionType()"
+      />
     </div>
   }
 </div>

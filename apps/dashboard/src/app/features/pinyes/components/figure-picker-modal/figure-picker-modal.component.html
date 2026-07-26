@@ -30,7 +30,7 @@
         [attr.aria-selected]="activeTab() === 'figures'"
         (click)="setTab('figures')"
       >
-        <lucide-icon name="Hexagon" [size]="14" class="mr-1" aria-hidden="true" />
+        <lucide-icon [name]="ICON_TEMPLATE" [size]="14" class="mr-1" aria-hidden="true" />
         Figures
       </button>
       <button
@@ -41,11 +41,8 @@
         [attr.aria-selected]="activeTab() === 'composicions'"
         (click)="setTab('composicions')"
       >
-        <lucide-icon name="LayoutGrid" [size]="14" class="mr-1" aria-hidden="true" />
+        <lucide-icon [name]="ICON_COMPOSITION" [size]="14" class="mr-1" aria-hidden="true" />
         Composicions
-        @if (compositions().length > 0) {
-          <span class="badge badge-xs ml-1">{{ compositions().length }}</span>
-        }
       </button>
     </div>
 
@@ -53,11 +50,13 @@
     <label class="input input-sm input-bordered flex items-center gap-2 mb-3">
       <lucide-icon name="Search" [size]="14" class="text-base-content/40" aria-hidden="true" />
       <input
+        #searchInput
         type="search"
-        class="grow bg-transparent outline-none text-sm"
+        class="grow bg-transparent outline-none text-sm h-6"
         [placeholder]="activeTab() === 'figures' ? 'Cerca figura...' : 'Cerca composició...'"
         [ngModel]="search()"
         (ngModelChange)="search.set($event)"
+        (keydown.enter)="addFirstResult()"
         aria-label="Cerca"
       />
     </label>
@@ -81,7 +80,7 @@
           @for (figure of filteredFigures(); track figure.id) {
             <li class="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-base-200 transition-colors">
               <div class="flex items-center gap-2 min-w-0">
-                <lucide-icon name="Hexagon" [size]="14" class="text-primary shrink-0" aria-hidden="true" />
+                <lucide-icon [name]="ICON_TEMPLATE" [size]="14" class="text-primary shrink-0" aria-hidden="true" />
                 <span class="font-medium text-sm truncate">{{ figure.name }}</span>
                 @if (!figure.hasPinya) {
                   <span class="badge badge-xs badge-info shrink-0">Tronc</span>
@@ -109,27 +108,31 @@
         <div class="flex items-center justify-center py-8 gap-2 text-sm text-base-content/50">
           <span class="loading loading-spinner loading-sm"></span> S'estan carregant les composicions...
         </div>
-      } @else if (filteredCompositions().length === 0) {
+      } @else if (!hasAnyComposition()) {
         <p class="text-center text-sm text-base-content/40 py-8">
-          @if (search()) { Cap composició trobada per "{{ search() }}" } @else { Cap composició creada encara }
+          @if (search()) {
+            Cap composició trobada per "{{ search() }}"
+          } @else {
+            Cap composició creada encara
+          }
         </p>
       } @else {
-        <ul class="space-y-0.5 max-h-72 overflow-y-auto" role="list" aria-label="Composicions disponibles">
+        <ul class="space-y-0.5 max-h-80 overflow-y-auto" role="list" aria-label="Composicions disponibles">
           @for (composition of filteredCompositions(); track composition.id) {
-            <li class="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-base-200 transition-colors">
-              <div class="flex items-center gap-2 min-w-0">
-                <lucide-icon name="LayoutGrid" [size]="14" class="text-secondary shrink-0" aria-hidden="true" />
-                <span class="font-medium text-sm truncate">{{ composition.name }}</span>
-                <span class="text-xs text-base-content/40 shrink-0">{{ composition.slotCount }} figures</span>
-              </div>
+            <li>
               <button
                 type="button"
-                class="btn btn-ghost btn-xs gap-1 shrink-0 ml-2"
-                (click)="addComposition(composition)"
-                [attr.aria-label]="'Afegir ' + composition.name"
+                class="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-base-200 transition-colors text-left"
+                [class.bg-primary]="selectedComposition()?.id === composition.id"
+                [class.text-primary-content]="selectedComposition()?.id === composition.id"
+                (click)="selectComposition(composition)"
+                [attr.aria-pressed]="selectedComposition()?.id === composition.id"
+                [attr.aria-label]="'Selecciona ' + composition.name"
               >
-                <lucide-icon name="Plus" [size]="14" aria-hidden="true" />
-                Afegir
+                <span class="font-medium text-sm truncate">{{ composition.name }}</span>
+                <span class="text-xs opacity-60 shrink-0">
+                  {{ composition.entryCount }} {{ composition.entryCount === 1 ? 'figura' : 'figures' }}
+                </span>
               </button>
             </li>
           }
@@ -137,49 +140,67 @@
       }
     }
 
-    <!-- Selected items section -->
-    @if (selectionCount() > 0) {
-      <div class="divider text-xs text-base-content/50 my-2">
-        Seleccionades ({{ selectionCount() }})
-      </div>
-      <ul class="space-y-0.5 max-h-40 overflow-y-auto" role="list" aria-label="Figures seleccionades">
-        @for (item of selections(); track $index) {
-          <li class="flex items-center justify-between px-2 py-1">
-            <div class="flex items-center gap-2 min-w-0">
-              <span class="text-xs text-base-content/50 font-mono shrink-0">{{ $index + 1 }}.</span>
-              <span class="text-sm truncate">{{ item.name }}</span>
-              @if (!item.hasPinya) {
-                <span class="badge badge-xs badge-info shrink-0">Tronc</span>
-              }
-            </div>
-            <button
-              type="button"
-              class="btn btn-ghost btn-xs shrink-0 ml-2"
-              (click)="removeSelection($index)"
-              [attr.aria-label]="'Treure ' + item.name + ' de la selecció'"
-            >
-              <lucide-icon name="Trash2" [size]="14" aria-hidden="true" />
-            </button>
-          </li>
-        }
-      </ul>
-    } @else {
-      <p class="text-xs text-base-content/40 mt-3 text-center">
-        Cap figura seleccionada. Fes clic a «Afegir» per seleccionar figures.
-      </p>
+    <!-- Selected items section (figures tab) -->
+    @if (activeTab() === 'figures') {
+      @if (selectionCount() > 0) {
+        <div class="divider text-xs text-base-content/50 my-2">
+          Seleccionades ({{ selectionCount() }})
+        </div>
+        <ul class="space-y-0.5 max-h-40 overflow-y-auto" role="list" aria-label="Figures seleccionades">
+          @for (item of selections(); track $index) {
+            <li class="flex items-center justify-between px-2 py-1">
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="text-xs text-base-content/50 font-mono shrink-0">{{ $index + 1 }}.</span>
+                <span class="text-sm truncate">{{ item.name }}</span>
+                @if (!item.hasPinya) {
+                  <span class="badge badge-xs badge-info shrink-0">Tronc</span>
+                }
+              </div>
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs shrink-0 ml-2"
+                (click)="removeSelection($index)"
+                [attr.aria-label]="'Treure ' + item.name + ' de la selecció'"
+              >
+                <lucide-icon name="Trash2" [size]="14" aria-hidden="true" />
+              </button>
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="text-xs text-base-content/40 mt-3 text-center">
+          Cap figura seleccionada. Fes clic a «Afegir» per seleccionar figures.
+        </p>
+      }
     }
 
     <!-- Footer actions -->
     <div class="modal-action mt-4">
-      <button type="button" class="btn btn-ghost btn-sm" (click)="close()">Cancel·la</button>
-      <button
-        type="button"
-        class="btn btn-primary btn-sm"
-        [disabled]="!canConfirm()"
-        (click)="confirm()"
-      >
-        Confirma ({{ selectionCount() }})
-      </button>
+      @if (activeTab() === 'figures') {
+        <button type="button" class="btn btn-ghost btn-sm" (click)="close()">Cancel·la</button>
+        <button
+          type="button"
+          class="btn btn-primary btn-sm"
+          [disabled]="!canConfirm()"
+          (click)="confirm()"
+        >
+          Confirma ({{ selectionCount() }})
+        </button>
+      } @else {
+        <button type="button" class="btn btn-ghost btn-sm" (click)="close()">Cancel·la</button>
+        <button
+          type="button"
+          class="btn btn-primary btn-sm"
+          [disabled]="!canApplyComposition()"
+          (click)="applyComposition()"
+        >
+          @if (selectedComposition(); as c) {
+            Aplica «{{ c.name }}»
+          } @else {
+            Aplica
+          }
+        </button>
+      }
     </div>
   </div>
 </dialog>

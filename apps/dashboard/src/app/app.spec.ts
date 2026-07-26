@@ -1,18 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import {
-  LUCIDE_ICONS, LucideIconProvider,
-  AlertCircle, AlertTriangle, ArrowLeft, Calendar, Check, ChevronDown,
-  ChevronsUpDown, Clock, Construction, Eye, Home, Layers, Lock, Mail, Menu,
-  MoreHorizontal, Plus, RefreshCw, Search, Settings, Star, UserX, Users,
-} from 'lucide-angular';
+import { allLucideIconsProvider } from '../testing/lucide-test-provider';
 import { App } from './app';
-
-const allIcons = {
-  AlertCircle, AlertTriangle, ArrowLeft, Calendar, Check, ChevronDown,
-  ChevronsUpDown, Clock, Construction, Eye, Home, Layers, Lock, Mail, Menu,
-  MoreHorizontal, Plus, RefreshCw, Search, Settings, Star, UserX, Users,
-};
 
 describe('App', () => {
   beforeEach(async () => {
@@ -20,7 +9,7 @@ describe('App', () => {
       imports: [App],
       providers: [
         provideRouter([]),
-        { provide: LUCIDE_ICONS, multi: true, useFactory: () => new LucideIconProvider(allIcons) },
+        allLucideIconsProvider,
       ],
     }).compileComponents();
   });

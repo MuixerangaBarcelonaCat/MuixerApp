@@ -1,11 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  InternalServerErrorException,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import { DataSource } from 'typeorm';
 import { FigureTemplateService } from './figure-template.service';
 import { FigureTemplate } from './entities/figure-template.entity';
 import { FigureNode } from './entities/figure-node.entity';
 import { Rengla } from './entities/rengla.entity';
-import { CompositionSlot } from '../composition/entities/composition-slot.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
 import { InstanceNode } from '../event-segment/entities/instance-node.entity';
 import { FigureZone, NodeShape } from '@muixer/shared';
@@ -15,7 +21,6 @@ const makeTemplate = (overrides: Partial<FigureTemplate> = {}): FigureTemplate =
   name: 'Pilar de 4 — 2C',
   slug: 'pd4-2c',
   description: null,
-  hasPinya: true,
   direction: 0,
   metadata: {},
   nodes: [],
@@ -40,7 +45,7 @@ const makeNode = (overrides: Partial<FigureNode> = {}): FigureNode => ({
   color: '#FFE082',
   shape: NodeShape.RECTANGLE,
   sortOrder: 5,
-  climbPath: null,
+  climbIndicator: null,
   ringLevel: 1,
   originNodeId: null,
   renglaId: null,
@@ -92,10 +97,6 @@ describe('FigureTemplateService', () => {
     find: jest.fn().mockResolvedValue([]),
   };
 
-  const mockCompositionSlotRepo = {
-    count: jest.fn().mockResolvedValue(0),
-  };
-
   const mockFigureInstanceRepo = {
     count: jest.fn().mockResolvedValue(0),
     findOne: jest.fn(),
@@ -119,6 +120,21 @@ describe('FigureTemplateService', () => {
     create: jest.fn((dto) => ({ ...makeTemplate(), ...dto })),
     save: jest.fn(),
     remove: jest.fn(),
+  };
+
+  const mockManager = {
+    getRepository: jest.fn((entity) => {
+      if (entity === FigureTemplate) return mockTemplateRepo;
+      if (entity === FigureNode) return mockNodeRepo;
+      if (entity === Rengla) return mockRenglaRepo;
+      throw new Error(`No mock repository registered for ${entity}`);
+    }),
+  };
+
+  const mockDataSource = {
+    transaction: jest.fn((cb: (manager: typeof mockManager) => Promise<unknown>) =>
+      cb(mockManager),
+    ),
   };
 
   beforeEach(async () => {
@@ -146,9 +162,9 @@ describe('FigureTemplateService', () => {
         { provide: getRepositoryToken(FigureTemplate), useValue: mockTemplateRepo },
         { provide: getRepositoryToken(FigureNode), useValue: mockNodeRepo },
         { provide: getRepositoryToken(Rengla), useValue: mockRenglaRepo },
-        { provide: getRepositoryToken(CompositionSlot), useValue: mockCompositionSlotRepo },
         { provide: getRepositoryToken(FigureInstance), useValue: mockFigureInstanceRepo },
         { provide: getRepositoryToken(InstanceNode), useValue: mockInstanceNodeRepo },
+        { provide: DataSource, useValue: mockDataSource },
       ],
     }).compile();
 
@@ -167,14 +183,6 @@ describe('FigureTemplateService', () => {
       expect(templateQb.andWhere).toHaveBeenCalledWith(
         expect.stringContaining('ILIKE'),
         expect.objectContaining({ search: '%pd4%' }),
-      );
-    });
-
-    it('applies hasPinya filter', async () => {
-      await service.findAll({ hasPinya: false });
-      expect(templateQb.andWhere).toHaveBeenCalledWith(
-        'template.hasPinya = :hasPinya',
-        { hasPinya: false },
       );
     });
 
@@ -208,7 +216,7 @@ describe('FigureTemplateService', () => {
     it('creates template with slug and name', async () => {
       const saved = makeTemplate({ id: 'new-uuid' });
       mockTemplateRepo.findOne
-        .mockResolvedValueOnce(null) // generateUniqueName: name not taken
+        .mockResolvedValueOnce(null) // assertNameAvailable: name not taken
         .mockResolvedValueOnce(null) // generateUniqueSlug: slug not taken
         .mockResolvedValueOnce({ ...saved, nodes: [] }); // findOne after create
       mockTemplateRepo.save.mockResolvedValue(saved);
@@ -223,26 +231,28 @@ describe('FigureTemplateService', () => {
       expect(mockTemplateRepo.save).toHaveBeenCalled();
     });
 
-    it('auto-suffixes name and slug when name already exists', async () => {
+    it('throws ConflictException when name already exists, matching update()', async () => {
       const existing = makeTemplate({ id: 'existing-uuid', name: 'Trobada', slug: 'trobada' });
-      const saved = makeTemplate({ id: 'new-uuid', name: 'Trobada 2', slug: 'trobada-2' });
+      mockTemplateRepo.findOne.mockResolvedValueOnce(existing); // assertNameAvailable: "Trobada" taken
+
+      await expect(
+        service.create({ name: 'Trobada', slug: 'trobada', nodes: [] }),
+      ).rejects.toThrow(ConflictException);
+      expect(mockTemplateRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('logs the original error before throwing 500 on an unexpected DB failure', async () => {
       mockTemplateRepo.findOne
-        .mockResolvedValueOnce(existing) // generateUniqueName: "Trobada" taken
-        .mockResolvedValueOnce(null) // generateUniqueName: "Trobada 2" free
-        .mockResolvedValueOnce(null) // generateUniqueSlug: "trobada-2" free
-        .mockResolvedValueOnce({ ...saved, nodes: [] });
-      mockTemplateRepo.save.mockImplementation(async (tmpl) => tmpl as FigureTemplate);
+        .mockResolvedValueOnce(null) // assertNameAvailable: name not taken
+        .mockResolvedValueOnce(null); // generateUniqueSlug: slug not taken
+      const dbError = { code: '55000', message: 'some other db failure' };
+      mockTemplateRepo.save.mockRejectedValueOnce(dbError);
+      const errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
 
-      const result = await service.create({
-        name: 'Trobada',
-        slug: 'trobada',
-        nodes: [],
-      });
-
-      expect(mockTemplateRepo.save).toHaveBeenCalledWith(
-        expect.objectContaining({ name: 'Trobada 2', slug: 'trobada-2' }),
-      );
-      expect(result.id).toBe('new-uuid');
+      await expect(
+        service.create({ name: 'Pilar de 4', slug: 'pd4', nodes: [] }),
+      ).rejects.toThrow(InternalServerErrorException);
+      expect(errorSpy).toHaveBeenCalledWith(dbError);
     });
   });
 
@@ -312,13 +322,45 @@ describe('FigureTemplateService', () => {
       mockTemplateRepo.findOne.mockResolvedValue(null);
       await expect(service.update('bad-uuid', { name: 'X' })).rejects.toThrow(NotFoundException);
     });
+
+    it('runs template save, node sync and rengla sync inside a single transaction (SM-11)', async () => {
+      const tmpl = makeTemplate({ nodes: [] });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(tmpl)
+        .mockResolvedValueOnce({ ...tmpl, rengles: [] });
+      mockTemplateRepo.save.mockResolvedValue(tmpl);
+      mockRenglaRepo.find.mockResolvedValue([]);
+
+      await service.update('tmpl-uuid', {
+        nodes: [NODE_DTO],
+        rengles: [{ name: 'Mans Nord', sortOrder: 0 }],
+      });
+
+      expect(mockDataSource.transaction).toHaveBeenCalledTimes(1);
+    });
+
+    it('rolls back node and rengla writes when the template save fails mid-transaction', async () => {
+      const tmpl = makeTemplate({ nodes: [] });
+      mockTemplateRepo.findOne.mockResolvedValueOnce(tmpl);
+      mockTemplateRepo.save.mockRejectedValueOnce({ code: '55000' });
+
+      await expect(
+        service.update('tmpl-uuid', {
+          nodes: [NODE_DTO],
+          rengles: [{ name: 'Mans Nord', sortOrder: 0 }],
+        }),
+      ).rejects.toThrow(InternalServerErrorException);
+
+      // syncNodes/syncRengles never ran because handleDbError threw first, inside the same transaction
+      expect(mockNodeRepo.save).not.toHaveBeenCalled();
+      expect(mockRenglaRepo.save).not.toHaveBeenCalled();
+    });
   });
 
   describe('remove', () => {
     it('removes template', async () => {
       const tmpl = makeTemplate();
       mockTemplateRepo.findOne.mockResolvedValue(tmpl);
-      mockCompositionSlotRepo.count.mockResolvedValue(0);
       mockFigureInstanceRepo.count.mockResolvedValue(0);
       mockTemplateRepo.remove.mockResolvedValue(tmpl);
 
@@ -331,17 +373,9 @@ describe('FigureTemplateService', () => {
       await expect(service.remove('bad-uuid')).rejects.toThrow(NotFoundException);
     });
 
-    it('throws ConflictException when template is used in a composition slot', async () => {
-      const tmpl = makeTemplate();
-      mockTemplateRepo.findOne.mockResolvedValue(tmpl);
-      mockCompositionSlotRepo.count.mockResolvedValue(2);
-      await expect(service.remove('tmpl-uuid')).rejects.toThrow(ConflictException);
-    });
-
     it('throws ConflictException when template is used in figure instances', async () => {
       const tmpl = makeTemplate();
       mockTemplateRepo.findOne.mockResolvedValue(tmpl);
-      mockCompositionSlotRepo.count.mockResolvedValue(0);
       mockFigureInstanceRepo.count.mockResolvedValue(3);
       await expect(service.remove('tmpl-uuid')).rejects.toThrow(ConflictException);
     });
@@ -350,22 +384,80 @@ describe('FigureTemplateService', () => {
   describe('duplicate', () => {
     it('creates a copy with modified name', async () => {
       const original = makeTemplate({ nodes: [makeNode()] });
-      mockTemplateRepo.findOne.mockResolvedValueOnce(original);
       const copyTemplate = makeTemplate({ id: 'copy-uuid', name: 'Pilar de 4 — 2C (còpia)' });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(original) // find original
+        .mockResolvedValueOnce(null) // "(còpia)" name is free
+        .mockResolvedValueOnce(null) // slug is free
+        .mockResolvedValueOnce({ ...copyTemplate, nodes: [] }); // final findOne
       mockTemplateRepo.save.mockResolvedValue(copyTemplate);
-      mockTemplateRepo.findOne.mockResolvedValueOnce({ ...copyTemplate, nodes: [] });
       mockNodeRepo.save.mockResolvedValue([]);
 
       const result = await service.duplicate('tmpl-uuid');
 
       expect(result.id).toBe('copy-uuid');
       const savedArg = mockTemplateRepo.save.mock.calls[0][0];
-      expect(savedArg.name).toContain('(còpia)');
+      expect(savedArg.name).toBe('Pilar de 4 — 2C (còpia)');
     });
 
     it('throws NotFoundException when original not found', async () => {
       mockTemplateRepo.findOne.mockResolvedValue(null);
       await expect(service.duplicate('bad-uuid')).rejects.toThrow(NotFoundException);
+    });
+
+    it('appends "(còpia 2)" when "(còpia)" name is already taken', async () => {
+      const original = makeTemplate({ nodes: [] });
+      const existingCopy = makeTemplate({ id: 'copy-uuid-1', name: 'Pilar de 4 — 2C (còpia)' });
+      const copyTemplate = makeTemplate({ id: 'copy-uuid-2', name: 'Pilar de 4 — 2C (còpia 2)' });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(original) // find original
+        .mockResolvedValueOnce(existingCopy) // "(còpia)" is taken
+        .mockResolvedValueOnce(null) // "(còpia 2)" is free
+        .mockResolvedValueOnce(null) // slug is free
+        .mockResolvedValueOnce({ ...copyTemplate, nodes: [] }); // final findOne
+      mockTemplateRepo.save.mockResolvedValue(copyTemplate);
+
+      await service.duplicate('tmpl-uuid');
+
+      const savedArg = mockTemplateRepo.save.mock.calls[0][0];
+      expect(savedArg.name).toBe('Pilar de 4 — 2C (còpia 2)');
+    });
+
+    it('increments past "(còpia 2)" to "(còpia 3)" when both already exist', async () => {
+      const original = makeTemplate({ nodes: [] });
+      const copy1 = makeTemplate({ id: 'copy-1', name: 'Pilar de 4 — 2C (còpia)' });
+      const copy2 = makeTemplate({ id: 'copy-2', name: 'Pilar de 4 — 2C (còpia 2)' });
+      const copyTemplate = makeTemplate({ id: 'copy-3', name: 'Pilar de 4 — 2C (còpia 3)' });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(original) // find original
+        .mockResolvedValueOnce(copy1) // "(còpia)" is taken
+        .mockResolvedValueOnce(copy2) // "(còpia 2)" is taken
+        .mockResolvedValueOnce(null) // "(còpia 3)" is free
+        .mockResolvedValueOnce(null) // slug is free
+        .mockResolvedValueOnce({ ...copyTemplate, nodes: [] }); // final findOne
+      mockTemplateRepo.save.mockResolvedValue(copyTemplate);
+
+      await service.duplicate('tmpl-uuid');
+
+      const savedArg = mockTemplateRepo.save.mock.calls[0][0];
+      expect(savedArg.name).toBe('Pilar de 4 — 2C (còpia 3)');
+    });
+
+    it('duplicating a template already named "(còpia)" produces "(còpia 2)", not "(còpia) (còpia)"', async () => {
+      const original = makeTemplate({ name: 'Pilar de 4 — 2C (còpia)', nodes: [] });
+      const copyTemplate = makeTemplate({ id: 'copy-uuid', name: 'Pilar de 4 — 2C (còpia 2)' });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(original) // find original
+        .mockResolvedValueOnce(original) // "(còpia)" candidate collides with the original itself
+        .mockResolvedValueOnce(null) // "(còpia 2)" is free
+        .mockResolvedValueOnce(null) // slug is free
+        .mockResolvedValueOnce({ ...copyTemplate, nodes: [] }); // final findOne
+      mockTemplateRepo.save.mockResolvedValue(copyTemplate);
+
+      await service.duplicate('tmpl-uuid');
+
+      const savedArg = mockTemplateRepo.save.mock.calls[0][0];
+      expect(savedArg.name).toBe('Pilar de 4 — 2C (còpia 2)');
     });
   });
 
@@ -524,6 +616,54 @@ describe('FigureTemplateService', () => {
       expect(saved[0].renglaId).toBe('r1');
       expect(saved[0].renglaPosition).toBe(1);
     });
+
+    it('clears renglaId, renglaPosition and originNodeId when the DTO sends null', async () => {
+      const existingNode = makeNode({
+        id: 'node-1',
+        renglaId: 'r1',
+        renglaPosition: 3,
+        originNodeId: 'origin-1',
+      });
+      const tmpl = makeTemplate({ nodes: [existingNode] });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(tmpl)
+        .mockResolvedValueOnce({ ...tmpl, rengles: [] });
+      mockTemplateRepo.save.mockResolvedValue(tmpl);
+
+      await service.update('tmpl-uuid', {
+        nodes: [
+          { ...NODE_DTO, id: 'node-1', renglaId: null, renglaPosition: null, originNodeId: null },
+        ],
+      });
+
+      const saved = mockNodeRepo.save.mock.calls[0][0];
+      expect(saved[0].renglaId).toBeNull();
+      expect(saved[0].renglaPosition).toBeNull();
+      expect(saved[0].originNodeId).toBeNull();
+    });
+
+    it('leaves renglaId, renglaPosition and originNodeId untouched when the DTO omits them', async () => {
+      const existingNode = makeNode({
+        id: 'node-1',
+        renglaId: 'r1',
+        renglaPosition: 3,
+        originNodeId: 'origin-1',
+      });
+      const tmpl = makeTemplate({ nodes: [existingNode] });
+      mockTemplateRepo.findOne
+        .mockResolvedValueOnce(tmpl)
+        .mockResolvedValueOnce({ ...tmpl, rengles: [] });
+      mockTemplateRepo.save.mockResolvedValue(tmpl);
+
+      await service.update('tmpl-uuid', {
+        nodes: [{ ...NODE_DTO, id: 'node-1' }],
+      });
+
+      const saved = mockNodeRepo.save.mock.calls[0][0];
+      expect(saved[0].renglaId).toBe('r1');
+      expect(saved[0].renglaPosition).toBe(3);
+      expect(saved[0].originNodeId).toBe('origin-1');
+    });
   });
 
   describe('saveFromInstance', () => {
@@ -541,7 +681,7 @@ describe('FigureTemplateService', () => {
       color: '#FFE082',
       shape: NodeShape.RECTANGLE,
       sortOrder: 0,
-      climbPath: null,
+      climbIndicator: null,
       ringLevel: 1,
       renglaId: null,
       renglaPosition: null,

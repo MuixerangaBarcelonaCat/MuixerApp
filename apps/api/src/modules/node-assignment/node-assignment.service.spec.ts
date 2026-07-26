@@ -6,18 +6,17 @@ import {
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import { NodeAssignmentService } from './node-assignment.service';
 import { NodeAssignment } from './entities/node-assignment.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
 import { InstanceNode } from '../event-segment/entities/instance-node.entity';
 import { FigureNode } from '../figure/entities/figure-node.entity';
 import { Person } from '../person/person.entity';
-import { CompositionSlot } from '../composition/entities/composition-slot.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
 import { Event } from '../event/event.entity';
-import { EventType, FigureZone, NodeShape } from '@muixer/shared';
+import { EventType, FigureZone, NodeShape, SegmentMoveConflictResolution } from '@muixer/shared';
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -52,7 +51,7 @@ const makeFigureNode = (overrides: Partial<FigureNode> = {}): Partial<FigureNode
   color: null,
   shape: NodeShape.RECTANGLE,
   sortOrder: 5,
-  climbPath: null,
+  climbIndicator: null,
   ringLevel: 1,
   originNodeId: null,
   renglaId: null,
@@ -75,7 +74,7 @@ const makeInstanceNode = (overrides: Partial<InstanceNode> = {}): Partial<Instan
   color: null,
   shape: NodeShape.RECTANGLE,
   sortOrder: 5,
-  climbPath: null,
+  climbIndicator: null,
   ringLevel: 1,
   sourceNodeId: FIGURE_NODE_ID,
   originNodeId: null,
@@ -102,7 +101,6 @@ const makeTemplate = (overrides: any = {}): any => ({
 const makeInstance = (overrides: Record<string, any> = {}): any => ({
   id: INSTANCE_ID,
   figureTemplate: { id: TEMPLATE_ID },
-  compositionTemplate: null,
   segment: makeSegment(),
   snapshotted: true,
   instanceNodes: [makeInstanceNode()],
@@ -116,7 +114,6 @@ const makeAssignment = (overrides: Partial<NodeAssignment> = {}): Partial<NodeAs
   figureInstance: makeInstance() as any,
   instanceNode: makeInstanceNode() as any,
   person: makePerson() as any,
-  compositionSlot: null,
   createdAt: new Date(),
   updatedAt: new Date(),
   ...overrides,
@@ -136,7 +133,8 @@ const mockQb = {
 const makeTransactionManager = (savedNodes: any[] = []) => ({
   create: jest.fn((_entity: any, data: any) => ({ ...data, id: 'new-inode-uuid' })),
   save: jest.fn().mockResolvedValue(savedNodes),
-  update: jest.fn().mockResolvedValue({}),
+  update: jest.fn().mockResolvedValue({ affected: 1 }),
+  find: jest.fn().mockResolvedValue(savedNodes),
 });
 
 // ─── Mock repositories ────────────────────────────────────────────────────
@@ -181,7 +179,6 @@ const mockFigureNodeRepo = {
 };
 
 const mockPersonRepo = { findOne: jest.fn() };
-const mockSlotRepo = { findOne: jest.fn() };
 const mockTemplateRepo = { findOne: jest.fn() };
 const mockSegmentRepo = { findOne: jest.fn(), find: jest.fn() };
 const mockEventRepo = { findOne: jest.fn() };
@@ -204,6 +201,7 @@ describe('NodeAssignmentService', () => {
     mockQb.andWhere.mockReturnThis();
     mockQb.getOne.mockResolvedValue(null);
     mockDataSource.query.mockResolvedValue([]);
+    mockInstanceNodeRepo.find.mockResolvedValue([]);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -213,7 +211,6 @@ describe('NodeAssignmentService', () => {
         { provide: getRepositoryToken(InstanceNode), useValue: mockInstanceNodeRepo },
         { provide: getRepositoryToken(FigureNode), useValue: mockFigureNodeRepo },
         { provide: getRepositoryToken(Person), useValue: mockPersonRepo },
-        { provide: getRepositoryToken(CompositionSlot), useValue: mockSlotRepo },
         { provide: getRepositoryToken(FigureTemplate), useValue: mockTemplateRepo },
         { provide: getRepositoryToken(EventSegment), useValue: mockSegmentRepo },
         { provide: getRepositoryToken(Event), useValue: mockEventRepo },
@@ -250,6 +247,18 @@ describe('NodeAssignmentService', () => {
       mockAssignmentRepo.find.mockResolvedValue([]);
       const result = await service.getByInstance(INSTANCE_ID);
       expect(result).toEqual([]);
+    });
+
+    it('includes the node climbIndicator', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance());
+      const a = makeAssignment({
+        instanceNode: makeInstanceNode({ climbIndicator: 'X' }) as any,
+      });
+      mockAssignmentRepo.find.mockResolvedValue([a]);
+
+      const result = await service.getByInstance(INSTANCE_ID);
+
+      expect(result[0].node.climbIndicator).toBe('X');
     });
 
     it('throws NotFoundException if instance not found', async () => {
@@ -290,6 +299,28 @@ describe('NodeAssignmentService', () => {
     it('throws NotFoundException if instance not found', async () => {
       mockInstanceRepo.findOne.mockResolvedValue(null);
       await expect(service.getInstanceNodes(INSTANCE_ID)).rejects.toThrow(NotFoundException);
+    });
+
+    it('includes climbIndicator for snapshotted InstanceNodes', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
+      mockInstanceNodeRepo.find.mockResolvedValue([makeInstanceNode({ climbIndicator: 'X' })]);
+
+      const result = await service.getInstanceNodes(INSTANCE_ID);
+
+      expect(result[0].climbIndicator).toBe('X');
+    });
+
+    it('includes climbIndicator for live FigureNodes (unsnapshotted instance)', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(
+        makeInstance({ snapshotted: false, figureTemplate: { id: TEMPLATE_ID } }),
+      );
+      mockTemplateRepo.findOne.mockResolvedValue(
+        makeTemplate({ nodes: [makeFigureNode({ climbIndicator: 'X' })] }),
+      );
+
+      const result = await service.getInstanceNodes(INSTANCE_ID);
+
+      expect(result[0].climbIndicator).toBe('X');
     });
   });
 
@@ -387,6 +418,28 @@ describe('NodeAssignmentService', () => {
       expect(result.node.id).toBe(INSTANCE_NODE_ID);
     });
 
+    it('includes the node cordon (renglaPosition) in the assignment detail', async () => {
+      const inode = makeInstanceNode({ renglaPosition: 2 });
+      const a = makeAssignment({ instanceNode: inode as any });
+
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
+      mockPersonRepo.findOne.mockResolvedValue(makePerson());
+      mockInstanceNodeRepo.findOne.mockResolvedValue(inode);
+      mockAssignmentRepo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue(a);
+      mockAssignmentRepo.create.mockReturnValue(a);
+      mockAssignmentRepo.save.mockResolvedValue(a);
+
+      const result = await service.assign(INSTANCE_ID, {
+        nodeId: INSTANCE_NODE_ID,
+        personId: PERSON_ID,
+      });
+
+      expect(result.node.renglaPosition).toBe(2);
+    });
+
     it('throws ConflictException if node already occupied', async () => {
       const inode = makeInstanceNode();
       mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
@@ -422,6 +475,46 @@ describe('NodeAssignmentService', () => {
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce(null);
       mockQb.getOne.mockResolvedValue(makeAssignment());
+
+      await expect(
+        service.assign(INSTANCE_ID, { nodeId: INSTANCE_NODE_ID, personId: PERSON_ID }),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('passes the instance segment to assignmentRepository.create so it can be constraint-checked at the DB level', async () => {
+      const inode = makeInstanceNode();
+      const instance = makeInstance({ snapshotted: true });
+      mockInstanceRepo.findOne.mockResolvedValue(instance);
+      mockPersonRepo.findOne.mockResolvedValue(makePerson());
+      mockInstanceNodeRepo.findOne.mockResolvedValue(inode);
+      mockAssignmentRepo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue(makeAssignment());
+      mockAssignmentRepo.create.mockReturnValue(makeAssignment());
+      mockAssignmentRepo.save.mockResolvedValue(makeAssignment());
+
+      await service.assign(INSTANCE_ID, { nodeId: INSTANCE_NODE_ID, personId: PERSON_ID });
+
+      expect(mockAssignmentRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ segment: instance.segment }),
+      );
+    });
+
+    it('throws ConflictException (not a raw 500) when a concurrent assign wins the race and the DB unique constraint fires', async () => {
+      const inode = makeInstanceNode();
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
+      mockPersonRepo.findOne.mockResolvedValue(makePerson());
+      mockInstanceNodeRepo.findOne.mockResolvedValue(inode);
+      mockAssignmentRepo.findOne
+        .mockResolvedValueOnce(null) // node not occupied (pre-check — loses the race)
+        .mockResolvedValueOnce(null); // person not in instance (pre-check — loses the race)
+      mockAssignmentRepo.create.mockReturnValue(makeAssignment());
+      const dbError = Object.assign(new Error('duplicate key value violates unique constraint'), {
+        code: '23505',
+        detail: 'Key (segmentId, personId)=(segment-uuid-1, person-uuid-1) already exists.',
+      });
+      mockAssignmentRepo.save.mockRejectedValue(dbError);
 
       await expect(
         service.assign(INSTANCE_ID, { nodeId: INSTANCE_NODE_ID, personId: PERSON_ID }),
@@ -469,6 +562,40 @@ describe('NodeAssignmentService', () => {
       expect(txManager.save).toHaveBeenCalledTimes(1);
       expect(result.a.id).toBe(ASSIGNMENT_ID);
       expect(result.b.id).toBe(ASSIGNMENT_ID_B);
+    });
+
+    it('sets segment on both recreated rows so the DB unique constraint still applies after a swap', async () => {
+      const assignmentA = makeAssignment();
+      const assignmentB = makeAssignmentB();
+
+      mockAssignmentRepo.findOne
+        .mockResolvedValueOnce(assignmentA)
+        .mockResolvedValueOnce(assignmentB)
+        .mockResolvedValueOnce(assignmentA)
+        .mockResolvedValueOnce(assignmentB);
+
+      const txManager = {
+        delete: jest.fn().mockResolvedValue(undefined),
+        create: jest.fn().mockImplementation((_entity: any, data: any) => data),
+        save: jest.fn().mockResolvedValue(undefined),
+      };
+      mockDataSource.transaction.mockImplementation((cb: any) => cb(txManager));
+
+      await service.swap(INSTANCE_ID, {
+        assignmentIdA: ASSIGNMENT_ID,
+        assignmentIdB: ASSIGNMENT_ID_B,
+      });
+
+      expect(txManager.create).toHaveBeenNthCalledWith(
+        1,
+        NodeAssignment,
+        expect.objectContaining({ segment: assignmentA.figureInstance!.segment }),
+      );
+      expect(txManager.create).toHaveBeenNthCalledWith(
+        2,
+        NodeAssignment,
+        expect.objectContaining({ segment: assignmentB.figureInstance!.segment }),
+      );
     });
 
     it('throws NotFoundException if assignment A not found', async () => {
@@ -543,6 +670,152 @@ describe('NodeAssignmentService', () => {
       mockAssignmentRepo.findOne.mockResolvedValue(a);
 
       await expect(service.unassign(INSTANCE_ID, ASSIGNMENT_ID)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ── getSegmentMoveConflicts ─────────────────────────────────────────────
+
+  describe('getSegmentMoveConflicts', () => {
+    const TARGET_SEGMENT_ID = 'segment-uuid-2';
+    const OTHER_PERSON_ID = 'person-uuid-2';
+
+    it('flags isTronc=false when both sides are PINYA', async () => {
+      const movingAssignment = makeAssignment({
+        person: makePerson(PERSON_ID) as any,
+        instanceNode: makeInstanceNode({ zone: FigureZone.PINYA }) as any,
+      });
+      const targetAssignment = makeAssignment({
+        id: ASSIGNMENT_ID_B,
+        person: makePerson(PERSON_ID) as any,
+        instanceNode: makeInstanceNode({ zone: FigureZone.PINYA }) as any,
+      });
+      mockAssignmentRepo.find
+        .mockResolvedValueOnce([movingAssignment]) // moving instance assignments
+        .mockResolvedValueOnce([targetAssignment]); // target segment assignments
+
+      const result = await service.getSegmentMoveConflicts(INSTANCE_ID, TARGET_SEGMENT_ID);
+
+      expect(result).toEqual([{ personId: PERSON_ID, isTronc: false }]);
+    });
+
+    it('flags isTronc=true when the moving-instance assignment is TRONC', async () => {
+      const movingAssignment = makeAssignment({
+        person: makePerson(PERSON_ID) as any,
+        instanceNode: makeInstanceNode({ zone: FigureZone.TRONC }) as any,
+      });
+      const targetAssignment = makeAssignment({
+        id: ASSIGNMENT_ID_B,
+        person: makePerson(PERSON_ID) as any,
+        instanceNode: makeInstanceNode({ zone: FigureZone.PINYA }) as any,
+      });
+      mockAssignmentRepo.find
+        .mockResolvedValueOnce([movingAssignment])
+        .mockResolvedValueOnce([targetAssignment]);
+
+      const result = await service.getSegmentMoveConflicts(INSTANCE_ID, TARGET_SEGMENT_ID);
+
+      expect(result).toEqual([{ personId: PERSON_ID, isTronc: true }]);
+    });
+
+    it('flags isTronc=true when the target-segment assignment is BASE', async () => {
+      const movingAssignment = makeAssignment({
+        person: makePerson(PERSON_ID) as any,
+        instanceNode: makeInstanceNode({ zone: FigureZone.PINYA }) as any,
+      });
+      const targetAssignment = makeAssignment({
+        id: ASSIGNMENT_ID_B,
+        person: makePerson(PERSON_ID) as any,
+        instanceNode: makeInstanceNode({ zone: FigureZone.BASE }) as any,
+      });
+      mockAssignmentRepo.find
+        .mockResolvedValueOnce([movingAssignment])
+        .mockResolvedValueOnce([targetAssignment]);
+
+      const result = await service.getSegmentMoveConflicts(INSTANCE_ID, TARGET_SEGMENT_ID);
+
+      expect(result).toEqual([{ personId: PERSON_ID, isTronc: true }]);
+    });
+
+    it('returns no conflicts when no persons overlap', async () => {
+      const movingAssignment = makeAssignment({ person: makePerson(PERSON_ID) as any });
+      const targetAssignment = makeAssignment({
+        id: ASSIGNMENT_ID_B,
+        person: makePerson(OTHER_PERSON_ID) as any,
+      });
+      mockAssignmentRepo.find
+        .mockResolvedValueOnce([movingAssignment])
+        .mockResolvedValueOnce([targetAssignment]);
+
+      const result = await service.getSegmentMoveConflicts(INSTANCE_ID, TARGET_SEGMENT_ID);
+
+      expect(result).toEqual([]);
+    });
+
+    it('queries assignments scoped to the moving instance and to the target segment', async () => {
+      mockAssignmentRepo.find.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+
+      await service.getSegmentMoveConflicts(INSTANCE_ID, TARGET_SEGMENT_ID);
+
+      expect(mockAssignmentRepo.find).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { figureInstance: { id: INSTANCE_ID } } }),
+      );
+      expect(mockAssignmentRepo.find).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { segment: { id: TARGET_SEGMENT_ID } } }),
+      );
+    });
+  });
+
+  // ── resolveSegmentMoveConflicts ─────────────────────────────────────────
+
+  describe('resolveSegmentMoveConflicts', () => {
+    const TARGET_SEGMENT_ID = 'segment-uuid-2';
+
+    it('KEEP_TARGET deletes the conflicting persons from the moving instance', async () => {
+      const manager = { delete: jest.fn() } as any;
+
+      await service.resolveSegmentMoveConflicts(
+        INSTANCE_ID,
+        TARGET_SEGMENT_ID,
+        [PERSON_ID],
+        SegmentMoveConflictResolution.KEEP_TARGET,
+        manager,
+      );
+
+      expect(manager.delete).toHaveBeenCalledWith(NodeAssignment, {
+        figureInstance: { id: INSTANCE_ID },
+        person: In([PERSON_ID]),
+      });
+    });
+
+    it('KEEP_MOVED deletes the conflicting persons from the target segment', async () => {
+      const manager = { delete: jest.fn() } as any;
+
+      await service.resolveSegmentMoveConflicts(
+        INSTANCE_ID,
+        TARGET_SEGMENT_ID,
+        [PERSON_ID],
+        SegmentMoveConflictResolution.KEEP_MOVED,
+        manager,
+      );
+
+      expect(manager.delete).toHaveBeenCalledWith(NodeAssignment, {
+        segment: { id: TARGET_SEGMENT_ID },
+        person: In([PERSON_ID]),
+      });
+    });
+
+    it('does nothing when there are no conflicting persons', async () => {
+      const manager = { delete: jest.fn() } as any;
+
+      await service.resolveSegmentMoveConflicts(
+        INSTANCE_ID,
+        TARGET_SEGMENT_ID,
+        [],
+        SegmentMoveConflictResolution.KEEP_TARGET,
+        manager,
+      );
+
+      expect(manager.delete).not.toHaveBeenCalled();
     });
   });
 
@@ -639,14 +912,14 @@ describe('NodeAssignmentService', () => {
           eventType: EventType.ACTUACIO, segmentName: 'Bloc 1',
           instanceId: 'fi-1', figureName: 'Muixeranga de 5',
           figureSlug: 'muixeranga-de-5',
-          nodeLabel: 'MANS', positionType: 'mans', zone: FigureZone.PINYA, z: 0,
+          nodeLabel: 'MANS', positionType: 'mans', zone: FigureZone.PINYA, z: 0, renglaPosition: 2,
         },
         {
           eventId: 'e2', eventTitle: 'Assaig', eventDate: '2026-05-05',
           eventType: EventType.ASSAIG, segmentName: 'Bloc 2',
           instanceId: 'fi-2', figureName: 'Pilar de 4',
           figureSlug: 'pilar-de-4',
-          nodeLabel: 'AGULLA', positionType: 'agulla', zone: FigureZone.PINYA, z: 1,
+          nodeLabel: 'AGULLA', positionType: 'agulla', zone: FigureZone.PINYA, z: 1, renglaPosition: null,
         },
       ]);
 
@@ -655,7 +928,21 @@ describe('NodeAssignmentService', () => {
       expect(result.data).toHaveLength(2);
       expect(result.data[0].eventTitle).toBe('Diada');
       expect(result.data[0].eventType).toBe(EventType.ACTUACIO);
+      expect(result.data[0].renglaPosition).toBe(2);
+      expect(result.data[1].renglaPosition).toBeNull();
       expect(result.meta.total).toBe(2);
+    });
+
+    it('selects the instance node cordon (renglaPosition)', async () => {
+      mockPersonRepo.findOne.mockResolvedValue(makePerson());
+      mockPersonHistoryQb.getCount.mockResolvedValue(0);
+      mockPersonHistoryQb.getRawMany.mockResolvedValue([]);
+
+      await service.getPersonHistory(PERSON_ID);
+
+      expect(mockPersonHistoryQb.select).toHaveBeenCalledWith(
+        expect.arrayContaining(['inode.renglaPosition AS "renglaPosition"']),
+      );
     });
 
     it('applies seasonId filter when provided', async () => {
@@ -691,14 +978,17 @@ describe('NodeAssignmentService', () => {
       await expect(service.getEventAssignmentSummary('bad-id')).rejects.toThrow(NotFoundException);
     });
 
-    it('returns segments with figures and assignments', async () => {
+    it('returns segments with figures and area breakdown', async () => {
       const person = makePerson();
       const iNode = makeInstanceNode();
       const assignment = { ...makeAssignment(), instanceNode: iNode, person };
       const figureInstance = {
         id: 'fi-1',
-        figureTemplate: { id: TEMPLATE_ID, name: 'Muixeranga de 5' },
+        figureTemplate: { id: TEMPLATE_ID, name: 'Muixeranga de 5', nodes: [] },
         snapshotted: true,
+        cordonsObertsEnabled: true,
+        numberOfCordons: null,
+        figureMode: 'COMPLETA',
         instanceNodes: [iNode],
         assignments: [assignment],
       };
@@ -714,9 +1004,10 @@ describe('NodeAssignmentService', () => {
       expect(result.segments[0].segmentName).toBe('Bloc 1');
       expect(result.segments[0].figures).toHaveLength(1);
       expect(result.segments[0].figures[0].figureName).toBe('Muixeranga de 5');
-      expect(result.segments[0].figures[0].totalNodes).toBe(1);
-      expect(result.segments[0].figures[0].assignedNodes).toBe(1);
-      expect(result.segments[0].figures[0].assignments[0].personAlias).toBe('Pepet');
+      expect(result.segments[0].figures[0].pinya).toEqual({ assigned: 1, total: 1 });
+      expect(result.segments[0].figures[0].tronc).toEqual({ assigned: 0, total: 0 });
+      expect(result.segments[0].figures[0].total).toEqual({ assigned: 1, total: 1 });
+      expect(result.segments[0].figures[0].troncBaseAssignments).toEqual([]);
     });
 
     it('returns empty segments array when event has no segments', async () => {
@@ -726,6 +1017,206 @@ describe('NodeAssignmentService', () => {
       const result = await service.getEventAssignmentSummary('e1');
 
       expect(result.segments).toEqual([]);
+    });
+
+    it('excludes cordo-obert PINYA nodes from the pinya bucket when cordonsObertsEnabled is false', async () => {
+      const normalNode = makeInstanceNode({ id: 'n1', zone: FigureZone.PINYA });
+      const cordoObertNode = makeInstanceNode({ id: 'n2', zone: FigureZone.PINYA, positionType: 'cordo-obert' });
+      const figureInstance = {
+        id: 'fi-1',
+        figureTemplate: { id: TEMPLATE_ID, name: 'Pilar', nodes: [] },
+        snapshotted: true,
+        cordonsObertsEnabled: false,
+        numberOfCordons: null,
+        figureMode: 'COMPLETA',
+        instanceNodes: [normalNode, cordoObertNode],
+        assignments: [],
+      };
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
+      mockSegmentRepo.find.mockResolvedValue([{ id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 }]);
+      mockInstanceRepo.find.mockResolvedValue([figureInstance]);
+
+      const result = await service.getEventAssignmentSummary('e1');
+
+      expect(result.segments[0].figures[0].pinya.total).toBe(1);
+    });
+
+    it('excludes PINYA nodes beyond numberOfCordons from the pinya bucket', async () => {
+      const kept = makeInstanceNode({ id: 'n1', zone: FigureZone.PINYA, renglaId: 'r1', renglaPosition: 1 });
+      const hidden = makeInstanceNode({ id: 'n2', zone: FigureZone.PINYA, renglaId: 'r1', renglaPosition: 2 });
+      const figureInstance = {
+        id: 'fi-1',
+        figureTemplate: { id: TEMPLATE_ID, name: 'Pilar', nodes: [] },
+        snapshotted: true,
+        cordonsObertsEnabled: true,
+        numberOfCordons: 1,
+        figureMode: 'COMPLETA',
+        instanceNodes: [kept, hidden],
+        assignments: [],
+      };
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
+      mockSegmentRepo.find.mockResolvedValue([{ id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 }]);
+      mockInstanceRepo.find.mockResolvedValue([figureInstance]);
+
+      const result = await service.getEventAssignmentSummary('e1');
+
+      expect(result.segments[0].figures[0].pinya.total).toBe(1);
+    });
+
+    it('zeroes the pinya bucket for REMAT and NETA figures', async () => {
+      const pinyaNode = makeInstanceNode({ zone: FigureZone.PINYA });
+      const figureInstance = {
+        id: 'fi-1',
+        figureTemplate: { id: TEMPLATE_ID, name: 'Pilar', nodes: [] },
+        snapshotted: true,
+        cordonsObertsEnabled: true,
+        numberOfCordons: null,
+        figureMode: 'REMAT',
+        instanceNodes: [pinyaNode],
+        assignments: [],
+      };
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
+      mockSegmentRepo.find.mockResolvedValue([{ id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 }]);
+      mockInstanceRepo.find.mockResolvedValue([figureInstance]);
+
+      const result = await service.getEventAssignmentSummary('e1');
+
+      expect(result.segments[0].figures[0].pinya.total).toBe(0);
+    });
+
+    it('counts BASE nodes as part of the tronc bucket, but excludes them for REMAT figures', async () => {
+      const troncNode = makeInstanceNode({ id: 't1', zone: FigureZone.TRONC });
+      const baseNode = makeInstanceNode({ id: 'b1', zone: FigureZone.BASE });
+      const figureInstance = {
+        id: 'fi-1',
+        figureTemplate: { id: TEMPLATE_ID, name: 'Pilar', nodes: [] },
+        snapshotted: true,
+        cordonsObertsEnabled: true,
+        numberOfCordons: null,
+        figureMode: 'REMAT',
+        instanceNodes: [troncNode, baseNode],
+        assignments: [],
+      };
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
+      mockSegmentRepo.find.mockResolvedValue([{ id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 }]);
+      mockInstanceRepo.find.mockResolvedValue([figureInstance]);
+
+      const result = await service.getEventAssignmentSummary('e1');
+
+      expect(result.segments[0].figures[0].tronc.total).toBe(1);
+    });
+
+    it('counts direction nodes toward total but not toward pinya or tronc', async () => {
+      const directionNode = makeInstanceNode({ zone: FigureZone.FIGURE_DIRECTION });
+      const figureInstance = {
+        id: 'fi-1',
+        figureTemplate: { id: TEMPLATE_ID, name: 'Pilar', nodes: [] },
+        snapshotted: true,
+        cordonsObertsEnabled: true,
+        numberOfCordons: null,
+        figureMode: 'COMPLETA',
+        instanceNodes: [directionNode],
+        assignments: [],
+      };
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
+      mockSegmentRepo.find.mockResolvedValue([{ id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 }]);
+      mockInstanceRepo.find.mockResolvedValue([figureInstance]);
+
+      const result = await service.getEventAssignmentSummary('e1');
+
+      expect(result.segments[0].figures[0].pinya.total).toBe(0);
+      expect(result.segments[0].figures[0].tronc.total).toBe(0);
+      expect(result.segments[0].figures[0].total.total).toBe(1);
+    });
+
+    it('excludes DECORATION nodes entirely', async () => {
+      const decorationNode = makeInstanceNode({ zone: FigureZone.DECORATION });
+      const figureInstance = {
+        id: 'fi-1',
+        figureTemplate: { id: TEMPLATE_ID, name: 'Pilar', nodes: [] },
+        snapshotted: true,
+        cordonsObertsEnabled: true,
+        numberOfCordons: null,
+        figureMode: 'COMPLETA',
+        instanceNodes: [decorationNode],
+        assignments: [],
+      };
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
+      mockSegmentRepo.find.mockResolvedValue([{ id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 }]);
+      mockInstanceRepo.find.mockResolvedValue([figureInstance]);
+
+      const result = await service.getEventAssignmentSummary('e1');
+
+      expect(result.segments[0].figures[0].total.total).toBe(0);
+    });
+
+    it('uses the figure template nodes (not instance nodes) for non-snapshotted instances', async () => {
+      const templateNode = makeFigureNode({ zone: FigureZone.PINYA });
+      const figureInstance = {
+        id: 'fi-1',
+        figureTemplate: { id: TEMPLATE_ID, name: 'Pilar', nodes: [templateNode] },
+        snapshotted: false,
+        cordonsObertsEnabled: true,
+        numberOfCordons: null,
+        figureMode: 'COMPLETA',
+        instanceNodes: [],
+        assignments: [],
+      };
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
+      mockSegmentRepo.find.mockResolvedValue([{ id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 }]);
+      mockInstanceRepo.find.mockResolvedValue([figureInstance]);
+
+      const result = await service.getEventAssignmentSummary('e1');
+
+      expect(result.segments[0].figures[0].pinya.total).toBe(1);
+    });
+
+    it('includes TRONC and BASE assignments in troncBaseAssignments with person alias', async () => {
+      const person = makePerson();
+      const troncNode = makeInstanceNode({ id: 't1', zone: FigureZone.TRONC, label: 'MANS' });
+      const troncAssignment = { ...makeAssignment(), instanceNode: troncNode, person };
+      const figureInstance = {
+        id: 'fi-1',
+        figureTemplate: { id: TEMPLATE_ID, name: 'Pilar', nodes: [] },
+        snapshotted: true,
+        cordonsObertsEnabled: true,
+        numberOfCordons: null,
+        figureMode: 'COMPLETA',
+        instanceNodes: [troncNode],
+        assignments: [troncAssignment],
+      };
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
+      mockSegmentRepo.find.mockResolvedValue([{ id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 }]);
+      mockInstanceRepo.find.mockResolvedValue([figureInstance]);
+
+      const result = await service.getEventAssignmentSummary('e1');
+
+      expect(result.segments[0].figures[0].troncBaseAssignments).toEqual([
+        { nodeLabel: 'MANS', positionType: 'mans', zone: FigureZone.TRONC, z: 0, personAlias: 'Pepet', personId: PERSON_ID },
+      ]);
+    });
+
+    it('does not include PINYA assignments in troncBaseAssignments', async () => {
+      const person = makePerson();
+      const pinyaNode = makeInstanceNode({ id: 'p1', zone: FigureZone.PINYA });
+      const pinyaAssignment = { ...makeAssignment(), instanceNode: pinyaNode, person };
+      const figureInstance = {
+        id: 'fi-1',
+        figureTemplate: { id: TEMPLATE_ID, name: 'Pilar', nodes: [] },
+        snapshotted: true,
+        cordonsObertsEnabled: true,
+        numberOfCordons: null,
+        figureMode: 'COMPLETA',
+        instanceNodes: [pinyaNode],
+        assignments: [pinyaAssignment],
+      };
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
+      mockSegmentRepo.find.mockResolvedValue([{ id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 }]);
+      mockInstanceRepo.find.mockResolvedValue([figureInstance]);
+
+      const result = await service.getEventAssignmentSummary('e1');
+
+      expect(result.segments[0].figures[0].troncBaseAssignments).toEqual([]);
     });
   });
 
@@ -962,6 +1453,41 @@ describe('NodeAssignmentService', () => {
     });
   });
 
+  // ── checkEventLockByEventId ─────────────────────────────────────────
+
+  describe('checkEventLockByEventId', () => {
+    it('throws ForbiddenException for an old event', async () => {
+      const oldDate = new Date();
+      oldDate.setDate(oldDate.getDate() - 10);
+      process.env.ASSIGNMENT_LOCK_DAYS = '2';
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1', date: oldDate });
+
+      await expect(service.checkEventLockByEventId('e1')).rejects.toThrow(ForbiddenException);
+    });
+
+    it('does not throw for a recent event', async () => {
+      const today = new Date();
+      process.env.ASSIGNMENT_LOCK_DAYS = '2';
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1', date: today });
+
+      await expect(service.checkEventLockByEventId('e1')).resolves.toBeUndefined();
+    });
+
+    it('does not throw when ASSIGNMENT_LOCK_DAYS=0 (lock disabled)', async () => {
+      process.env.ASSIGNMENT_LOCK_DAYS = '0';
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1', date: new Date('2020-01-01') });
+
+      await expect(service.checkEventLockByEventId('e1')).resolves.toBeUndefined();
+    });
+
+    it('does not throw when the event is not found', async () => {
+      process.env.ASSIGNMENT_LOCK_DAYS = '2';
+      mockEventRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.checkEventLockByEventId('missing')).resolves.toBeUndefined();
+    });
+  });
+
   // ── Ad-hoc node CRUD ──────────────────────────────────────────────────
 
   describe('createAdHocNode', () => {
@@ -1019,16 +1545,6 @@ describe('NodeAssignmentService', () => {
       await service.createAdHocNode(INSTANCE_ID, adHocDto, 'user-1');
 
       expect(mockDataSource.transaction).toHaveBeenCalled();
-    });
-
-    it('rejects composition instance with 400', async () => {
-      mockInstanceRepo.findOne.mockResolvedValue(
-        makeInstance({ compositionTemplate: { id: 'comp-1' }, figureTemplate: null }),
-      );
-
-      await expect(
-        service.createAdHocNode(INSTANCE_ID, adHocDto, 'user-1'),
-      ).rejects.toThrow(BadRequestException);
     });
 
     it('rejects when event is locked', async () => {
@@ -1545,7 +2061,6 @@ describe('NodeAssignmentService', () => {
         snapshotted: false,
         figureTemplate: { id: TEMPLATE_ID },
         segment: makeSegment(),
-        compositionTemplate: null,
       };
 
       mockInstanceRepo.findOne.mockResolvedValue(savedInstance);
@@ -1596,6 +2111,64 @@ describe('NodeAssignmentService', () => {
     });
   });
 
+  describe('snapshotInstance — concurrent first assignment (BUG-17)', () => {
+    it('atomically claims the snapshot (conditional UPDATE) before copying template nodes', async () => {
+      const unsnapshottedInstance = makeInstance({ snapshotted: false });
+      const snapshotNode = makeInstanceNode({ id: 'new-inode-uuid', sourceNodeId: FIGURE_NODE_ID });
+      const manager = makeTransactionManager([snapshotNode]);
+
+      mockInstanceRepo.findOne.mockResolvedValue(unsnapshottedInstance);
+      mockTemplateRepo.findOne.mockResolvedValue(makeTemplate());
+      mockDataSource.transaction.mockImplementation((cb: any) => cb(manager));
+      mockPersonRepo.findOne.mockResolvedValue(makePerson());
+      mockAssignmentRepo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue(makeAssignment({ instanceNode: snapshotNode as any }));
+      mockAssignmentRepo.create.mockReturnValue(makeAssignment({ instanceNode: snapshotNode as any }));
+      mockAssignmentRepo.save.mockResolvedValue({ id: ASSIGNMENT_ID });
+
+      await service.assign(INSTANCE_ID, { nodeId: FIGURE_NODE_ID, personId: PERSON_ID });
+
+      expect(manager.update).toHaveBeenCalledWith(
+        FigureInstance,
+        { id: INSTANCE_ID, snapshotted: false },
+        { snapshotted: true },
+      );
+      const updateOrder = manager.update.mock.invocationCallOrder[0];
+      const saveOrder = manager.save.mock.invocationCallOrder[0];
+      expect(updateOrder).toBeLessThan(saveOrder);
+    });
+
+    it("reads back the winner's persisted nodes instead of inserting duplicates when the claim loses the race", async () => {
+      const unsnapshottedInstance = makeInstance({ snapshotted: false });
+      const winnerNode = makeInstanceNode({ id: 'winner-inode-uuid', sourceNodeId: FIGURE_NODE_ID });
+      const manager = makeTransactionManager();
+      manager.update.mockResolvedValue({ affected: 0 });
+      manager.find.mockResolvedValue([winnerNode]);
+
+      mockInstanceRepo.findOne.mockResolvedValue(unsnapshottedInstance);
+      mockDataSource.transaction.mockImplementation((cb: any) => cb(manager));
+      mockPersonRepo.findOne.mockResolvedValue(makePerson());
+      mockAssignmentRepo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue(makeAssignment({ instanceNode: winnerNode as any }));
+      mockAssignmentRepo.create.mockReturnValue(makeAssignment({ instanceNode: winnerNode as any }));
+      mockAssignmentRepo.save.mockResolvedValue({ id: ASSIGNMENT_ID });
+
+      const result = await service.assign(INSTANCE_ID, {
+        nodeId: FIGURE_NODE_ID,
+        personId: PERSON_ID,
+      });
+
+      expect(manager.create).not.toHaveBeenCalled();
+      expect(manager.save).not.toHaveBeenCalled();
+      expect(mockTemplateRepo.findOne).not.toHaveBeenCalled();
+      expect(result.node.id).toBe('winner-inode-uuid');
+    });
+  });
+
   describe('updateCordons', () => {
     it('saves numberOfCordons and returns it', async () => {
       mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ numberOfCordons: null }));
@@ -1622,6 +2195,140 @@ describe('NodeAssignmentService', () => {
       const result = await service.updateCordons(INSTANCE_ID, { numberOfCordons: null });
 
       expect(result.numberOfCordons).toBeNull();
+    });
+
+    it('throws ForbiddenException when event is locked', async () => {
+      process.env.ASSIGNMENT_LOCK_DAYS = '2';
+      const lockedDate = new Date();
+      lockedDate.setDate(lockedDate.getDate() - 10);
+
+      mockInstanceRepo.findOne.mockResolvedValue(
+        makeInstance({
+          segment: { id: SEGMENT_ID, event: { id: 'event-uuid-1', date: lockedDate.toISOString().slice(0, 10) } },
+        }),
+      );
+
+      await expect(
+        service.updateCordons(INSTANCE_ID, { numberOfCordons: 2 }),
+      ).rejects.toThrow(ForbiddenException);
+      expect(mockInstanceRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('removes assignments on PINYA nodes whose renglaPosition is beyond the new numberOfCordons', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ numberOfCordons: 3 }));
+      mockInstanceRepo.save.mockResolvedValue({});
+      const hiddenNode = makeInstanceNode({ id: 'inode-hidden', renglaId: 'r1', renglaPosition: 2 });
+      const keptNode = makeInstanceNode({ id: 'inode-kept', renglaId: 'r1', renglaPosition: 1 });
+      mockInstanceNodeRepo.find.mockResolvedValue([hiddenNode, keptNode]);
+      const hiddenAssignment = makeAssignment({ id: 'as-hidden', instanceNode: hiddenNode as any });
+      mockAssignmentRepo.find.mockResolvedValue([hiddenAssignment]);
+      mockAssignmentRepo.remove.mockResolvedValue({});
+
+      await service.updateCordons(INSTANCE_ID, { numberOfCordons: 1 });
+
+      expect(mockAssignmentRepo.remove).toHaveBeenCalledWith([hiddenAssignment]);
+    });
+
+    it('keeps assignments on cordo-obert PINYA nodes even beyond the new numberOfCordons', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ numberOfCordons: 3 }));
+      mockInstanceRepo.save.mockResolvedValue({});
+      const cordoObertNode = makeInstanceNode({
+        id: 'inode-co',
+        renglaId: 'r1',
+        renglaPosition: 2,
+        positionType: 'cordo-obert',
+      });
+      mockInstanceNodeRepo.find.mockResolvedValue([cordoObertNode]);
+
+      await service.updateCordons(INSTANCE_ID, { numberOfCordons: 1 });
+
+      expect(mockAssignmentRepo.find).not.toHaveBeenCalled();
+      expect(mockAssignmentRepo.remove).not.toHaveBeenCalled();
+    });
+
+    it('keeps assignments on BASE nodes regardless of numberOfCordons', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ numberOfCordons: 3 }));
+      mockInstanceRepo.save.mockResolvedValue({});
+      const baseNode = makeInstanceNode({ id: 'inode-base', zone: FigureZone.BASE, renglaId: null, renglaPosition: null });
+      mockInstanceNodeRepo.find.mockResolvedValue([baseNode]);
+
+      await service.updateCordons(INSTANCE_ID, { numberOfCordons: 1 });
+
+      expect(mockAssignmentRepo.remove).not.toHaveBeenCalled();
+    });
+
+    it('does not remove any assignment when numberOfCordons is increased or set to null (unlimited)', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ numberOfCordons: 1 }));
+      mockInstanceRepo.save.mockResolvedValue({});
+      const node = makeInstanceNode({ id: 'inode-1', renglaId: 'r1', renglaPosition: 5 });
+      mockInstanceNodeRepo.find.mockResolvedValue([node]);
+
+      await service.updateCordons(INSTANCE_ID, { numberOfCordons: null });
+
+      expect(mockAssignmentRepo.remove).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when there are no now-hidden nodes', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ numberOfCordons: 3 }));
+      mockInstanceRepo.save.mockResolvedValue({});
+      mockInstanceNodeRepo.find.mockResolvedValue([]);
+
+      await service.updateCordons(INSTANCE_ID, { numberOfCordons: 1 });
+
+      expect(mockAssignmentRepo.find).not.toHaveBeenCalled();
+      expect(mockAssignmentRepo.remove).not.toHaveBeenCalled();
+    });
+
+    it('saves cordonsObertsEnabled and returns it', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ cordonsObertsEnabled: true }));
+      mockInstanceRepo.save.mockResolvedValue({});
+      mockInstanceNodeRepo.find.mockResolvedValue([]);
+
+      const result = await service.updateCordons(INSTANCE_ID, { cordonsObertsEnabled: false });
+
+      expect(mockInstanceRepo.save).toHaveBeenCalled();
+      expect(result.cordonsObertsEnabled).toBe(false);
+    });
+
+    it('removes assignments on cordo-obert nodes when cordonsObertsEnabled is turned off', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ cordonsObertsEnabled: true }));
+      mockInstanceRepo.save.mockResolvedValue({});
+      const cordoObertNode = makeInstanceNode({ id: 'inode-co', positionType: 'cordo-obert' });
+      const otherNode = makeInstanceNode({ id: 'inode-other', positionType: 'mans' });
+      mockInstanceNodeRepo.find.mockResolvedValue([cordoObertNode, otherNode]);
+      const cordoObertAssignment = makeAssignment({ id: 'as-co', instanceNode: cordoObertNode as any });
+      mockAssignmentRepo.find.mockResolvedValue([cordoObertAssignment]);
+      mockAssignmentRepo.remove.mockResolvedValue({});
+
+      await service.updateCordons(INSTANCE_ID, { cordonsObertsEnabled: false });
+
+      expect(mockAssignmentRepo.remove).toHaveBeenCalledWith([cordoObertAssignment]);
+    });
+
+    it('does not remove assignments when cordonsObertsEnabled is turned on', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(
+        makeInstance({ cordonsObertsEnabled: false, numberOfCordons: null }),
+      );
+      mockInstanceRepo.save.mockResolvedValue({});
+
+      await service.updateCordons(INSTANCE_ID, { cordonsObertsEnabled: true });
+
+      expect(mockInstanceNodeRepo.find).not.toHaveBeenCalled();
+      expect(mockAssignmentRepo.remove).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when cordonsObertsEnabled stays true and there are no cordo-obert nodes', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(
+        makeInstance({ cordonsObertsEnabled: true, numberOfCordons: null }),
+      );
+      mockInstanceRepo.save.mockResolvedValue({});
+      const otherNode = makeInstanceNode({ id: 'inode-other', positionType: 'mans' });
+      mockInstanceNodeRepo.find.mockResolvedValue([otherNode]);
+
+      await service.updateCordons(INSTANCE_ID, { cordonsObertsEnabled: false });
+
+      expect(mockAssignmentRepo.find).not.toHaveBeenCalled();
+      expect(mockAssignmentRepo.remove).not.toHaveBeenCalled();
     });
   });
 });

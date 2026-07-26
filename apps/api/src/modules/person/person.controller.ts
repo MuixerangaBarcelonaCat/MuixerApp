@@ -90,15 +90,6 @@ export class PersonController {
     await this.personService.softDelete(id);
   }
 
-  @Patch(':id/deactivate')
-  @ApiOperation({ summary: 'Desactivar un membre manualment' })
-  @ApiParam({ name: 'id', description: 'UUID del membre' })
-  @ApiResponse({ status: 200, description: 'Membre desactivat correctament' })
-  @ApiResponse({ status: 404, description: 'Membre no trobat' })
-  async deactivate(@Param('id', ParseUUIDPipe) id: string) {
-    return this.personService.deactivate(id);
-  }
-
   @Patch(':id/activate')
   @ApiOperation({ summary: 'Activar un membre manualment' })
   @ApiParam({ name: 'id', description: 'UUID del membre' })

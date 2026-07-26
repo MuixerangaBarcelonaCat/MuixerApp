@@ -9,10 +9,14 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
-import { FigureZone, TRONC_NODE_PRESETS, TroncNodePreset } from '@muixer/shared';
-import { AssignmentDetail, AttendanceStatus, HeightMode } from '../../models/assignment.model';
+import { FigureZone, TRONC_NODE_PRESETS, TRONC_Z_DEFAULTS, TroncNodePreset } from '@muixer/shared';
+import { AssignmentDetail, AttendanceStatus, AvailablePersonPosition, HeightMode, PersonHoverInfo } from '../../models/assignment.model';
 import { floorVariance, varianceLevel, VarianceLevel } from '../../utils/floor-variance.util';
 import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
+import { PersonHoverCardComponent } from '../person-hover-card/person-hover-card.component';
+import { ICON_OBSERVACIONS } from '../../../../shared/constants/domain-icons';
+import { formatAssignedLabel } from '../../utils/assigned-label.util';
+import { FitTextDirective } from '../../directives/fit-text.directive';
 
 /**
  * Minimal node shape accepted by TroncViewComponent.
@@ -32,6 +36,8 @@ export interface TroncNodeItem {
   width: number;
   sortOrder: number;
   color: string | null;
+  /** Short marker shown next to the assigned person's name, e.g. "X". */
+  climbIndicator: string | null;
 }
 
 interface TroncFloor {
@@ -44,30 +50,12 @@ interface TroncFloor {
 
 const MAX_TRONC_Z = 5;
 
-/** Conventional floor defaults per z-level (1-based above base). Derived from shared presets. */
-const TRONC_Z_DEFAULTS: Record<number, { label: string; positionType: string; color: string }> = {
-  1: TRONC_NODE_PRESETS.find((p) => p.positionType === 'segones')!,
-  2: TRONC_NODE_PRESETS.find((p) => p.positionType === 'terceres')!,
-  3: TRONC_NODE_PRESETS.find((p) => p.positionType === 'quartes')!,
-  4: TRONC_NODE_PRESETS.find((p) => p.positionType === 'quintes')!,
-  5: { label: 'Sisenes', positionType: 'sisenes', color: '#546E7A' },
-};
-
-/** Palette for tronc z-level color coding. */
-const Z_LEVEL_COLORS: Record<number, string> = {
-  0: '#607D8B',
-  1: '#1E88E5',
-  2: '#43A047',
-  3: '#FB8C00',
-  4: '#8E24AA',
-  5: '#E53935',
-};
 
 @Component({
   selector: 'app-tronc-view',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule],
+  imports: [FormsModule, LucideAngularModule, PersonHoverCardComponent, FitTextDirective],
   templateUrl: './tronc-view.component.html',
   styleUrl: './tronc-view.component.scss',
 })
@@ -75,6 +63,9 @@ export class TroncViewComponent {
   // ── Inputs ─────────────────────────────────────────────────────────────────
 
   /** TRONC-zone nodes (z≥1). x and width are relative units. */
+  /** Figure instance id, used to scope drag-and-drop node refs across sibling tronc-views. */
+  readonly instanceId = input<string>('');
+
   readonly troncNodes = input<TroncNodeItem[]>([]);
 
   /** BASE-zone nodes (z=0, intersection with pinya). Positioned by sortOrder index in tronc view. */
@@ -88,12 +79,23 @@ export class TroncViewComponent {
 
   /** personId → AttendanceStatus for the next actuació */
   readonly attendanceMap = input<Map<string, AttendanceStatus>>(new Map());
+  readonly isPast = input<boolean>(false);
 
-  /** Direction-zone nodes (FIGURE_DIRECTION, XICALLA_DIRECTION) — figures netes only. */
+  /** personId → positions/isXicalla/notes/notesEmoji, used to render the hover card on assigned nodes. */
+  readonly personDetailsMap = input<Map<string, { positions: AvailablePersonPosition[]; isXicalla: boolean; notes: string | null; notesEmoji: string | null }>>(new Map());
+
+  readonly ICON_OBSERVACIONS = ICON_OBSERVACIONS;
+
   readonly directionNodes = input<TroncNodeItem[]>([]);
 
-  /** Whether the current figure is a "figura neta" (hasPinya = false). */
-  readonly isNetaFigure = input<boolean>(false);
+  /** Projection mode only: color used for the panel border and tinted background. */
+  readonly panelColor = input<string | null>(null);
+
+  /** Projection mode only: color used for the panel border, if different from panelColor. */
+  readonly panelBorderColor = input<string | null>(null);
+
+  /** Projection mode only: figure name shown as a header inside the panel. */
+  readonly figureName = input<string | null>(null);
 
   // ── Outputs ────────────────────────────────────────────────────────────────
 
@@ -104,7 +106,7 @@ export class TroncViewComponent {
   readonly nodeClicked = output<{ nodeId: string; event: MouseEvent }>();
 
   /** Editor only: position/width/positionType changed for a TRONC node. */
-  readonly nodeUpdated = output<{ nodeId: string; x: number; width: number; positionType?: string; label?: string; color?: string | null }>();
+  readonly nodeUpdated = output<{ nodeId: string; x: number; width: number; positionType?: string; label?: string; color?: string | null; climbIndicator?: string | null }>();
 
   /** Editor only: create a new TRONC node on the given floor. */
   readonly nodeAdded = output<{ z: number; positionType: string; label: string; sortOrder: number }>();
@@ -124,10 +126,15 @@ export class TroncViewComponent {
   /** Assignment mode: request unassignment for a node id. */
   readonly nodeUnassigned = output<string>();
 
-  /** Assignment mode (figures netes): request creating an ad-hoc direction node. */
-  readonly directionAdded = output<{ zone: string }>();
+  /** Assignment mode: a person was dragged off a node (possibly of a sibling tronc-view) and dropped here. */
+  readonly nodeDropped = output<{
+    sourceInstanceId: string;
+    sourceNodeId: string;
+    targetInstanceId: string;
+    targetNodeId: string;
+  }>();
 
-  /** Assignment mode (figures netes): request deleting an ad-hoc direction node. */
+  readonly directionAdded = output<{ zone: string }>();
   readonly directionRemoved = output<string>();
 
   // ── Local state ────────────────────────────────────────────────────────────
@@ -136,16 +143,23 @@ export class TroncViewComponent {
   readonly inverted = signal(false);
 
   /** Whether the directions section is expanded. */
-  readonly directionsExpanded = signal(false);
+  readonly directionsExpanded = signal(true);
+
+  readonly hoveredPerson = signal<{ info: PersonHoverInfo; top: number; left: number; positionType: string | null } | null>(null);
+
+  /** Assignment-mode drag-and-drop: id of the node whose person is currently being dragged. */
+  readonly draggingNodeId = signal<string | null>(null);
+  /** Id of the node currently under the pointer while dragging. */
+  readonly dragOverNodeId = signal<string | null>(null);
 
   // ── Direction computed ─────────────────────────────────────────────────────
 
-  readonly figureDirectionNode = computed(() =>
-    this.directionNodes().find((n) => n.zone === FigureZone.FIGURE_DIRECTION) ?? null,
+  readonly figureDirectionNodes = computed(() =>
+    this.directionNodes().filter((n) => n.zone === FigureZone.FIGURE_DIRECTION),
   );
 
-  readonly xicallaDirectionNode = computed(() =>
-    this.directionNodes().find((n) => n.zone === FigureZone.XICALLA_DIRECTION) ?? null,
+  readonly xicallaDirectionNodes = computed(() =>
+    this.directionNodes().filter((n) => n.zone === FigureZone.XICALLA_DIRECTION),
   );
 
   readonly hasAssignedDirections = computed(() => {
@@ -207,15 +221,13 @@ export class TroncViewComponent {
       }),
     );
 
-    const baseFloor: TroncFloor = {
-      z: 0,
-      pisLabel: 'P1',
-      positionTypeLabel: 'Bases',
-      nodes: this.sortedBases(),
-      isBase: true,
-    };
+    const sortedBases = this.sortedBases();
+    const baseFloor: TroncFloor | null = sortedBases.length > 0
+      ? { z: 0, pisLabel: 'P1', positionTypeLabel: 'Bases', nodes: sortedBases, isBase: true }
+      : null;
 
-    return [...troncFloors, baseFloor].sort((a, b) => b.z - a.z);
+    const allFloors = baseFloor ? [...troncFloors, baseFloor] : troncFloors;
+    return allFloors.sort((a, b) => b.z - a.z);
   });
 
   readonly varianceByFloor = computed(() => {
@@ -252,6 +264,16 @@ export class TroncViewComponent {
     return this.troncNodes().find((n) => n.id === id) ?? null;
   });
 
+  /** The currently selected BASE node (null if TRONC or nothing selected). */
+  readonly selectedBaseNode = computed(() => {
+    const id = this.selectedNodeId();
+    if (!id) return null;
+    return this.baseNodes().find((n) => n.id === id) ?? null;
+  });
+
+  /** The currently selected TRONC or BASE node, whichever matches (null if neither). */
+  readonly selectedFloorNode = computed(() => this.selectedTroncNode() ?? this.selectedBaseNode());
+
   /** All z levels that currently have tronc nodes. */
   readonly existingZLevels = computed(() =>
     new Set(this.troncNodes().map((n) => n.z)),
@@ -280,6 +302,84 @@ export class TroncViewComponent {
     if (this.isAssigned(node.id)) {
       this.nodeClicked.emit({ nodeId: node.id, event });
     }
+  }
+
+  // ── Drag-and-drop (assignment mode) ───────────────────────────────────────
+
+  isDraggableNode(nodeId: string): boolean {
+    return this.mode() === 'assignment' && this.isAssigned(nodeId);
+  }
+
+  isDragging(nodeId: string): boolean {
+    return this.draggingNodeId() === nodeId;
+  }
+
+  isDragOverSwap(nodeId: string): boolean {
+    return this.dragOverNodeId() === nodeId && this.isAssigned(nodeId);
+  }
+
+  isDragOverMove(nodeId: string): boolean {
+    return this.dragOverNodeId() === nodeId && !this.isAssigned(nodeId);
+  }
+
+  onNodeDragStart(node: TroncNodeItem, event: DragEvent): void {
+    if (!this.isDraggableNode(node.id)) {
+      event.preventDefault();
+      return;
+    }
+    this.draggingNodeId.set(node.id);
+    const payload = JSON.stringify({ instanceId: this.instanceId(), nodeId: node.id });
+    event.dataTransfer?.setData('text/plain', payload);
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+
+    const assignment = this.getAssignment(node.id);
+    if (assignment && event.dataTransfer) {
+      const ghost = document.createElement('div');
+      ghost.textContent = assignment.person.alias;
+      ghost.style.cssText =
+        'position:absolute;top:-1000px;left:-1000px;padding:6px 10px;border-radius:6px;' +
+        'background:#1f2937;color:#fff;font:600 13px Inter,sans-serif;transform:scale(1.15);' +
+        'white-space:nowrap;pointer-events:none;';
+      document.body.appendChild(ghost);
+      event.dataTransfer.setDragImage(ghost, -10, -10);
+      setTimeout(() => ghost.remove(), 0);
+    }
+  }
+
+  onNodeDragOver(node: TroncNodeItem, event: DragEvent): void {
+    if (!event.dataTransfer?.types.includes('text/plain')) return;
+    if (this.isDragging(node.id)) return; // hovering back over the node being dragged
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+    this.dragOverNodeId.set(node.id);
+  }
+
+  onNodeDragLeave(node: TroncNodeItem): void {
+    if (this.dragOverNodeId() === node.id) this.dragOverNodeId.set(null);
+  }
+
+  onNodeDrop(node: TroncNodeItem, event: DragEvent): void {
+    event.preventDefault();
+    this.dragOverNodeId.set(null);
+    const raw = event.dataTransfer?.getData('text/plain');
+    if (!raw) return;
+    let source: { instanceId: string; nodeId: string };
+    try {
+      source = JSON.parse(raw);
+    } catch {
+      return;
+    }
+    this.nodeDropped.emit({
+      sourceInstanceId: source.instanceId,
+      sourceNodeId: source.nodeId,
+      targetInstanceId: this.instanceId(),
+      targetNodeId: node.id,
+    });
+  }
+
+  onNodeDragEnd(): void {
+    this.draggingNodeId.set(null);
+    this.dragOverNodeId.set(null);
   }
 
   onStepX(node: TroncNodeItem, delta: number): void {
@@ -312,6 +412,15 @@ export class TroncViewComponent {
       x: node.x,
       width: node.width,
       label: label.trim(),
+    });
+  }
+
+  onIndicatorChange(node: TroncNodeItem, indicator: string): void {
+    this.nodeUpdated.emit({
+      nodeId: node.id,
+      x: node.x,
+      width: node.width,
+      climbIndicator: indicator.trim() || null,
     });
   }
 
@@ -409,10 +518,50 @@ export class TroncViewComponent {
     return this.attendanceMap().get(personId) ?? null;
   }
 
+  getNotes(assignment: AssignmentDetail): string | null {
+    return this.personDetailsMap().get(assignment.person.id)?.notes ?? null;
+  }
+
+  getNotesEmoji(assignment: AssignmentDetail): string | null {
+    return this.personDetailsMap().get(assignment.person.id)?.notesEmoji ?? null;
+  }
+
+  onNodeHover(event: MouseEvent, nodeId: string): void {
+    const assignment = this.getAssignment(nodeId);
+    if (!assignment) {
+      this.hoveredPerson.set(null);
+      return;
+    }
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const details = this.personDetailsMap().get(assignment.person.id);
+    const node = [...this.troncNodes(), ...this.baseNodes(), ...this.directionNodes()].find((n) => n.id === nodeId);
+    this.hoveredPerson.set({
+      info: {
+        alias: assignment.person.alias,
+        attendanceStatus: this.getAttendanceStatus(assignment),
+        isXicalla: details?.isXicalla ?? false,
+        shoulderHeight: assignment.person.shoulderHeight,
+        notes: details?.notes ?? null,
+        notesEmoji: details?.notesEmoji ?? null,
+        positions: details?.positions ?? [],
+      },
+      top: rect.top,
+      left: rect.right + 8,
+      positionType: node?.positionType ?? null,
+    });
+  }
+
+  onNodeLeave(): void {
+    this.hoveredPerson.set(null);
+  }
+
   getAttendanceColor(assignment: AssignmentDetail): string {
     const status = this.getAttendanceStatus(assignment);
-    if (status === 'ANIRE' || status === 'ASSISTIT') return 'oklch(var(--su))';
-    if (status === 'NO_VAIG' || status === 'NO_PRESENTAT') return 'oklch(var(--er))';
+    const past = this.isPast();
+    if (status === 'ASSISTIT') return 'oklch(var(--su))';
+    if (status === 'ANIRE') return past ? 'oklch(var(--wa))' : 'oklch(var(--su))';
+    if (status === 'NO_VAIG') return 'oklch(var(--er))';
+    if (status === 'PENDENT') return past ? 'oklch(var(--er))' : 'oklch(var(--bc) / 0.2)';
     return 'oklch(var(--bc) / 0.2)';
   }
 
@@ -449,7 +598,7 @@ export class TroncViewComponent {
   }
 
   getZLevelColor(z: number): string {
-    return Z_LEVEL_COLORS[z] ?? '#78909C';
+    return TRONC_Z_DEFAULTS[z]?.color ?? (z === 0 ? '#607D8B' : '#78909C');
   }
 
   onUnassignNode(nodeId: string): void {
@@ -469,9 +618,19 @@ export class TroncViewComponent {
 
   getNodeAriaLabel(node: TroncNodeItem): string {
     const assignment = this.getAssignment(node.id);
-    if (!assignment) return `Node ${node.label}, sense assignar`;
+    if (!assignment) return `Node ${this.displayLabel(node)}, sense assignar`;
     const height = this.getHeightDisplay(assignment.person.shoulderHeight);
-    return `${node.label}: ${assignment.person.alias}, alçada ${height}`;
+    return `${node.label}: ${this.displayAlias(node, assignment)}, alçada ${height}`;
+  }
+
+  /** Person alias with the node's climb indicator appended, e.g. "Marta (X)". */
+  displayAlias(node: TroncNodeItem, assignment: AssignmentDetail): string {
+    return formatAssignedLabel(assignment.person.alias, node.climbIndicator);
+  }
+
+  /** Node label with its climb indicator appended, e.g. "Segona (X)", shown when unassigned. */
+  displayLabel(node: TroncNodeItem): string {
+    return formatAssignedLabel(node.label, node.climbIndicator);
   }
 
   /** CSS grid-column for a TRONC node (doubled grid: 0.5u = 1 column). */
@@ -509,22 +668,13 @@ export class TroncViewComponent {
   }
 
   getDirectionLabel(zone: string): string {
-    return zone === FigureZone.FIGURE_DIRECTION ? 'Direcció figura' : 'Direcció xicalla';
+    return zone === FigureZone.FIGURE_DIRECTION ? 'Dir.' : 'Xic.';
   }
 
   getPositionTypeBadge(node: TroncNodeItem): string {
     if (!node.positionType) return '';
-    const abbrevMap: Record<string, string> = {
-      segones: 'Seg',
-      terceres: 'Ter',
-      quartes: 'Qua',
-      quintes: 'Qui',
-      sisenes: 'Sis',
-      puntal: 'Pun',
-      'alçadora': 'Alç',
-      xiqueta: 'Xiq',
-    };
-    return abbrevMap[node.positionType] ?? node.positionType.slice(0, 3);
+    const preset = TRONC_NODE_PRESETS.find((p) => p.positionType === node.positionType);
+    return preset?.abbrev ?? node.positionType.slice(0, 3);
   }
 
   isPresetActive(node: TroncNodeItem, preset: TroncNodePreset): boolean {
@@ -533,8 +683,7 @@ export class TroncViewComponent {
 
   /** Whether the node's label matches a known preset label (auto-generated). */
   private isDefaultLabel(node: TroncNodeItem): boolean {
-    return TRONC_NODE_PRESETS.some((p) => p.label === node.label) ||
-      Object.values(TRONC_Z_DEFAULTS).some((d) => d.label === node.label);
+    return TRONC_NODE_PRESETS.some((p) => p.label === node.label);
   }
 
   private getDominantPositionType(nodes: TroncNodeItem[]): string {

@@ -52,8 +52,6 @@ export class TemplateEditorStateService {
   readonly templateName = signal('Figura nova');
   readonly templateSlug = signal('');
   readonly templateDescription = signal('');
-  readonly hasPinya = signal(true);
-
   // ── Node state ───────────────────────────────────────────────────────────
   readonly nodes = signal<FigureNodeItem[]>([]);
   readonly selectedNodeId = signal<string | null>(null);
@@ -98,7 +96,6 @@ export class TemplateEditorStateService {
     this.templateName.set('Figura nova');
     this.templateSlug.set('');
     this.templateDescription.set('');
-    this.hasPinya.set(true);
     this.nodes.set([]);
     this.selectedNodeId.set(null);
     this.rengles.set([]);
@@ -114,7 +111,6 @@ export class TemplateEditorStateService {
         this.templateName.set(tmpl.name);
         this.templateSlug.set(tmpl.slug);
         this.templateDescription.set(tmpl.description ?? '');
-        this.hasPinya.set(tmpl.hasPinya);
         this.nodes.set(tmpl.nodes);
         this.rengles.set(tmpl.rengles ?? []);
         this.loading.set(false);
@@ -152,7 +148,7 @@ export class TemplateEditorStateService {
       rotation: 0, color,
       shape: NodeShape.RECTANGLE,
       sortOrder: this.nodes().length,
-      climbPath: null, ringLevel: null, originNodeId: null,
+      climbIndicator: null, ringLevel: null, originNodeId: null,
       renglaId: null, renglaPosition: null, metadata: {},
     };
     this.nodes.update((n) => [...n, newNode]);
@@ -230,7 +226,7 @@ export class TemplateEditorStateService {
       id, label: event.label, zone: FigureZone.TRONC, positionType: event.positionType,
       x: nextX, y: 0, z: event.z, width: 1, height: 40, rotation: 0, color: null,
       shape: NodeShape.RECTANGLE, sortOrder: event.sortOrder,
-      climbPath: null, ringLevel: null, originNodeId: null,
+      climbIndicator: null, ringLevel: null, originNodeId: null,
       renglaId: null, renglaPosition: null, metadata: {},
     };
     this.nodes.update((n) => [...n, newNode]);
@@ -264,7 +260,7 @@ export class TemplateEditorStateService {
       x: 200 + Math.random() * 40 - 20, y: 200 + Math.random() * 40 - 20,
       z: 0, width: DEFAULT_NODE_WIDTH, height: DEFAULT_NODE_HEIGHT,
       rotation: 0, color: '#EEEEEE', shape: NodeShape.RECTANGLE,
-      sortOrder: event.sortOrder, climbPath: null, ringLevel: null,
+      sortOrder: event.sortOrder, climbIndicator: null, ringLevel: null,
       originNodeId: null, renglaId: null, renglaPosition: null, metadata: {},
     };
     this.nodes.update((n) => [...n, newNode]);
@@ -320,7 +316,7 @@ export class TemplateEditorStateService {
       x: event.targetPosition.x, y: event.targetPosition.y, z: source.z,
       width: source.width, height: source.height, rotation: source.rotation,
       color: source.color, shape: source.shape, sortOrder: this.nodes().length,
-      climbPath: null, ringLevel: null, originNodeId: null, renglaId: null, renglaPosition: null, metadata: {},
+      climbIndicator: null, ringLevel: null, originNodeId: null, renglaId: null, renglaPosition: null, metadata: {},
     };
     this.nodes.update((n) => [...n, clonedNode]);
     this.selectedNodeId.set(newId);
@@ -332,11 +328,6 @@ export class TemplateEditorStateService {
   onNameChange(value: string): void {
     this.templateName.set(value);
     this.templateSlug.set(slugify(value));
-    this.scheduleAutosave();
-  }
-
-  onHasPinyaChange(value: boolean): void {
-    this.hasPinya.set(value);
     this.scheduleAutosave();
   }
 
@@ -367,7 +358,7 @@ export class TemplateEditorStateService {
       });
     } else {
       this.figureTemplateService
-        .create({ name, slug, hasPinya: this.hasPinya(), nodes: payload.nodes ?? [] })
+        .create({ name, slug, nodes: payload.nodes ?? [] })
         .pipe(takeUntilDestroyed(this.destroyRef))
         .subscribe({
           next: (created) => {
@@ -407,7 +398,6 @@ export class TemplateEditorStateService {
     return {
       name: this.templateName().trim(),
       description: this.templateDescription().trim() || undefined,
-      hasPinya: this.hasPinya(),
       nodes: this.nodes().map(nodeToPayload),
       rengles: this.rengles(),
     };
@@ -430,7 +420,7 @@ function nodeToPayload(node: FigureNodeItem): CreateFigureNodePayload {
     width: node.width, height: node.height,
     rotation: node.rotation, color: node.color ?? undefined,
     shape: node.shape, sortOrder: node.sortOrder,
-    climbPath: node.climbPath ?? undefined,
+    climbIndicator: node.climbIndicator ?? undefined,
     ringLevel: node.ringLevel ?? undefined,
     originNodeId: node.originNodeId ?? undefined,
     renglaId: node.renglaId ?? undefined,

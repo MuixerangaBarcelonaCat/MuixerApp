@@ -15,7 +15,7 @@
     <div class="card bg-base-100 shadow-sm border-l-4 border-primary">
       <div class="card-body">
         <div class="flex items-center gap-2 mb-2">
-          <lucide-icon name="Calendar" [size]="18" class="text-primary" />
+          <lucide-icon [name]="ICON_ASSAIG" [size]="18" class="text-primary" />
           <h2 class="card-title text-base">Pròxim assaig</h2>
         </div>
 
@@ -26,7 +26,7 @@
             <div class="skeleton h-4 w-2/3 rounded"></div>
           </div>
         } @else if (nextRehearsal()) {
-          <p class="font-semibold text-base-content capitalize">{{ formatDate(nextRehearsal()!.date) }}</p>
+          <p class="font-semibold text-base-content">{{ formatDate(nextRehearsal()!.date) }}</p>
           @if (nextRehearsal()!.startTime) {
             <p class="text-sm text-base-content/60">
               <lucide-icon name="Clock" [size]="14" class="inline" />
@@ -40,13 +40,13 @@
             <span class="text-warning font-medium">? {{ nextRehearsal()!.attendanceSummary.pending }} pendents</span>
           </div>
           <div class="card-actions mt-3">
-            <a [routerLink]="['/rehearsals', nextRehearsal()!.id]" class="btn btn-primary btn-sm btn-outline">
+            <a [routerLink]="['/events', nextRehearsal()!.id]" class="btn btn-primary btn-sm btn-outline">
               Veure detall →
             </a>
           </div>
         } @else {
           <app-empty-state
-            icon="Calendar"
+            [icon]="ICON_ASSAIG"
             message="Cap assaig programat properament"
             actionLabel="Veure assajos"
             (actionClick)="navigateTo('/rehearsals')"
@@ -59,7 +59,7 @@
     <div class="card bg-base-100 shadow-sm border-l-4 border-secondary">
       <div class="card-body">
         <div class="flex items-center gap-2 mb-2">
-          <lucide-icon name="Star" [size]="18" class="text-secondary" />
+          <lucide-icon [name]="ICON_ACTUACIO" [size]="18" class="text-secondary" />
           <h2 class="card-title text-base">Pròxima actuació</h2>
         </div>
 
@@ -70,7 +70,7 @@
             <div class="skeleton h-4 w-2/3 rounded"></div>
           </div>
         } @else if (nextPerformance()) {
-          <p class="font-semibold text-base-content capitalize">{{ formatDate(nextPerformance()!.date) }}</p>
+          <p class="font-semibold text-base-content">{{ formatDate(nextPerformance()!.date) }}</p>
           <p class="text-sm font-medium text-base-content/80">{{ nextPerformance()!.title }}</p>
           @if (nextPerformance()!.startTime) {
             <p class="text-sm text-base-content/60">
@@ -85,13 +85,13 @@
             <span class="text-warning font-medium">? {{ nextPerformance()!.attendanceSummary.pending }} pendents</span>
           </div>
           <div class="card-actions mt-3">
-            <a [routerLink]="['/performances', nextPerformance()!.id]" class="btn btn-secondary btn-sm btn-outline">
+            <a [routerLink]="['/events', nextPerformance()!.id]" class="btn btn-secondary btn-sm btn-outline">
               Veure detall →
             </a>
           </div>
         } @else {
           <app-empty-state
-            icon="Star"
+            [icon]="ICON_ACTUACIO"
             message="Cap actuació programada properament"
             actionLabel="Veure actuacions"
             (actionClick)="navigateTo('/performances')"
@@ -106,7 +106,7 @@
 
     <a routerLink="/persons" class="card bg-base-100 shadow-sm border-l-4 border-primary hover:shadow-md transition-shadow cursor-pointer">
       <div class="card-body p-4">
-        <lucide-icon name="Users" [size]="24" class="text-primary mb-1" />
+        <lucide-icon [name]="ICON_PERSONA" [size]="24" class="text-primary mb-1" />
         <h3 class="font-semibold text-sm text-base-content">Persones</h3>
         @if (totalPersons() !== null) {
           <p class="text-xs text-base-content/50">{{ totalPersons() }} membres actius</p>
@@ -118,7 +118,7 @@
 
     <a routerLink="/rehearsals" class="card bg-base-100 shadow-sm border-l-4 border-info hover:shadow-md transition-shadow cursor-pointer">
       <div class="card-body p-4">
-        <lucide-icon name="Calendar" [size]="24" class="text-info mb-1" />
+        <lucide-icon [name]="ICON_ASSAIG" [size]="24" class="text-info mb-1" />
         <h3 class="font-semibold text-sm text-base-content">Assajos</h3>
         @if (totalRehearsals() !== null) {
           <p class="text-xs text-base-content/50">{{ totalRehearsals() }} pròxims</p>
@@ -130,7 +130,7 @@
 
     <a routerLink="/performances" class="card bg-base-100 shadow-sm border-l-4 border-success hover:shadow-md transition-shadow cursor-pointer">
       <div class="card-body p-4">
-        <lucide-icon name="Star" [size]="24" class="text-success mb-1" />
+        <lucide-icon [name]="ICON_ACTUACIO" [size]="24" class="text-success mb-1" />
         <h3 class="font-semibold text-sm text-base-content">Actuacions</h3>
         @if (totalPerformances() !== null) {
           <p class="text-xs text-base-content/50">{{ totalPerformances() }} pròximes</p>
@@ -142,7 +142,7 @@
 
     <a routerLink="/pinyes" class="card bg-base-100 shadow-sm border-l-4 border-warning hover:shadow-md transition-shadow cursor-pointer">
       <div class="card-body p-4">
-        <lucide-icon name="Layers" [size]="24" class="text-warning mb-1" />
+        <lucide-icon [name]="ICON_TEMPLATE" [size]="24" class="text-warning mb-1" />
         <h3 class="font-semibold text-sm text-base-content">Plantilles</h3>
         <p class="text-xs text-base-content/50">Crea i edita plantilles</p>
       </div>

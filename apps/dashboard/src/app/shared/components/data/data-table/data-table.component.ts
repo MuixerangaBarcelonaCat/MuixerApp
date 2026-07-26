@@ -5,18 +5,22 @@ import {
   output,
   computed,
   signal,
+  inject,
+  DestroyRef,
   HostListener,
 } from '@angular/core';
 import { NgClass } from '@angular/common';
 import { LucideAngularModule } from 'lucide-angular';
 import { ColumnDef, GroupSeparator } from '../../../models/column-def.model';
 import { SortOrder, SortChange } from '../../../models/sort.model';
+import { getContrastColor } from '../../../utils/color.util';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface RowAction<T = any> {
-  label: string;
-  icon?: string;
+  label: string | ((item: T) => string);
+  icon?: string | ((item: T) => string | undefined);
   class?: string;
+  hidden?: (item: T) => boolean;
   action: (item: T) => void;
 }
 
@@ -42,11 +46,40 @@ export class DataTableComponent<T extends object> {
   rowClick = output<T>();
   sortChange = output<SortChange>();
 
+  /**
+   * True below the `lg` breakpoint (< 1024px): the table reflows into stacked cards
+   * instead of overflowing horizontally. Driven by `matchMedia`; falls back to `false`
+   * (table mode) in non-browser/test environments where `matchMedia` is unavailable.
+   */
+  readonly cardMode = signal(false);
+
+  constructor() {
+    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+      const mql = window.matchMedia('(max-width: 1023.98px)');
+      this.cardMode.set(mql.matches);
+      const listener = (e: MediaQueryListEvent) => this.cardMode.set(e.matches);
+      mql.addEventListener('change', listener);
+      inject(DestroyRef).onDestroy(() => mql.removeEventListener('change', listener));
+    }
+  }
+
   readonly displayColumns = computed(() => {
     const visible = this.visibleColumns();
     const cols = this.columns();
     if (!visible.length) return cols;
     return cols.filter(c => visible.includes(c.key));
+  });
+
+  /** Card-mode title column: the one flagged `primary`, else the first visible column. */
+  readonly primaryColumn = computed<ColumnDef<T> | null>(() => {
+    const cols = this.displayColumns();
+    return cols.find((c) => c.primary) ?? cols[0] ?? null;
+  });
+
+  /** Card-mode body columns: every visible column except the title. */
+  readonly secondaryColumns = computed<ColumnDef<T>[]>(() => {
+    const primary = this.primaryColumn();
+    return this.displayColumns().filter((c) => c !== primary);
   });
 
   readonly skeletonArray = computed(() =>
@@ -73,6 +106,8 @@ export class DataTableComponent<T extends object> {
       this.sortChange.emit({ field, order: undefined });
     }
   }
+
+  readonly getContrastColor = getContrastColor;
 
   getCellValue(item: T, col: ColumnDef<T>): string | number | null | undefined {
     if (col.value) return col.value(item);
@@ -127,6 +162,25 @@ export class DataTableComponent<T extends object> {
   onRowAction(action: RowAction<T>, item: T): void {
     action.action(item);
     this.closeActionsMenu();
+  }
+
+  readonly openItem = computed<T | null>(() => {
+    const idx = this.openActionsIndex();
+    return idx !== null ? (this.items()[idx] ?? null) : null;
+  });
+
+  readonly visibleRowActions = computed<RowAction<T>[]>(() => {
+    const item = this.openItem();
+    if (!item) return this.rowActions();
+    return this.rowActions().filter((a) => !a.hidden?.(item));
+  });
+
+  resolveLabel(action: RowAction<T>, item: T): string {
+    return typeof action.label === 'function' ? action.label(item) : action.label;
+  }
+
+  resolveIcon(action: RowAction<T>, item: T): string | undefined {
+    return typeof action.icon === 'function' ? action.icon(item) : action.icon;
   }
 
   @HostListener('document:keydown.escape')

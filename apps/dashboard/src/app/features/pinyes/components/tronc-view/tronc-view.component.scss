@@ -6,7 +6,7 @@
   justify-content: center;
 }
 
-// ── Section wrapper ───────────────────────────────────────────────────────────
+// -- Section wrapper 
 
 .tronc-view {
   display: flex;
@@ -18,7 +18,7 @@
   gap: 0.25rem;
 }
 
-// ── Header ───────────────────────────────────────────────────────────────────
+// -- Header 
 
 .tronc-header {
   display: flex;
@@ -59,7 +59,7 @@
   }
 }
 
-// ── Floors container ─────────────────────────────────────────────────────────
+// -- Floors container 
 
 .floors-container {
   display: flex;
@@ -68,7 +68,7 @@
   flex-shrink: 0;
 }
 
-// ── Floor row ─────────────────────────────────────────────────────────────────
+// -- Floor row 
 
 .floor-row {
   display: grid;
@@ -78,7 +78,7 @@
   min-height: 3rem;
 }
 
-// ── Floor label ───────────────────────────────────────────────────────────────
+// -- Floor label 
 
 .floor-label {
   display: flex;
@@ -109,7 +109,7 @@
   line-height: 1;
 }
 
-// ── Floor grid ────────────────────────────────────────────────────────────────
+// -- Floor grid 
 
 .floor-grid {
   display: grid;
@@ -117,14 +117,14 @@
   align-items: stretch;
 }
 
-// ── Node wrapper (for unassign overlay) ───────────────────────────────────────
+// -- Node wrapper (for unassign overlay) 
 
 .tronc-node-wrapper {
   position: relative;
   display: flex;
 }
 
-// ── Tronc node button ─────────────────────────────────────────────────────────
+// -- Tronc node button 
 
 .tronc-node {
   flex: 1;
@@ -173,9 +173,38 @@
     border-left-width: 3px;
     border-left-style: solid;
   }
+
+  // -- Drag-and-drop (assignment mode) 
+  &[draggable='true'] {
+    cursor: grab;
+  }
+
+  // Source node while its person is being dragged: looks temporarily empty.
+  &.dragging {
+    background: oklch(var(--b2));
+
+    .height-badge,
+    .alias-row,
+    .attendance-dot {
+      visibility: hidden;
+    }
+  }
+
+  // Drop target while hovered during a drag: amber = swap, green = move into empty.
+  &.drag-over-swap {
+    border-color: oklch(var(--wa));
+    box-shadow: 0 0 0 2px oklch(var(--wa) / 0.4);
+    background: oklch(var(--wa) / 0.12);
+  }
+
+  &.drag-over-move {
+    border-color: oklch(var(--su));
+    box-shadow: 0 0 0 2px oklch(var(--su) / 0.4);
+    background: oklch(var(--su) / 0.12);
+  }
 }
 
-// ── Node content ──────────────────────────────────────────────────────────────
+// -- Node content 
 
 .node-label {
   font-size: 0.7rem;
@@ -209,6 +238,18 @@
   white-space: nowrap;
 }
 
+.alias-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.alias-row .person-alias {
+  min-width: 0;
+}
+
 .attendance-dot {
   position: absolute;
   bottom: 3px;
@@ -219,7 +260,7 @@
   flex-shrink: 0;
 }
 
-// ── Unassign button overlay ───────────────────────────────────────────────────
+// -- Unassign button overlay 
 
 .unassign-btn {
   position: absolute;
@@ -251,7 +292,7 @@
   }
 }
 
-// ── Inline add-node button in floor grid ──────────────────────────────────────
+// -- Inline add-node button in floor grid 
 
 .floor-add-node-btn {
   display: flex;
@@ -277,7 +318,7 @@
   }
 }
 
-// ── Variance column ───────────────────────────────────────────────────────────
+// -- Variance column 
 
 .floor-variance {
   font-size: 0.6rem;
@@ -287,7 +328,7 @@
   flex-shrink: 0;
 }
 
-// ── Editor controls ───────────────────────────────────────────────────────────
+// -- Editor controls 
 
 .editor-controls {
   flex-shrink: 0;
@@ -317,7 +358,7 @@
 }
 
 
-// ── Stepper controls ──────────────────────────────────────────────────────────
+// -- Stepper controls 
 
 .stepper-group {
   display: flex;
@@ -377,13 +418,13 @@
   user-select: none;
 }
 
-// ── Floor delete button ───────────────────────────────────────────────────────
+// -- Floor delete button 
 
 .floor-delete-btn {
   justify-self: center;
 }
 
-// ── Type-colored nodes (editor mode) ──────────────────────────────────────────
+// -- Type-colored nodes (editor mode) 
 
 .tronc-node.type-colored {
   border-left-width: 3px;
@@ -400,7 +441,7 @@
   opacity: 0.8;
 }
 
-// ── Preset tags ───────────────────────────────────────────────────────────────
+// -- Preset tags 
 
 .preset-tags {
   display: flex;
@@ -440,7 +481,7 @@
   }
 }
 
-// ── Color indicator row ───────────────────────────────────────────────────────
+// -- Color indicator row 
 
 .color-indicator-row {
   display: flex;
@@ -463,7 +504,7 @@
   font-family: monospace;
 }
 
-// ── Directions section (collapsible, figures netes) ───────────────────────────
+// -- Directions section (collapsible, figures netes) 
 
 .directions-section {
   padding: 0.35rem 0.5rem;
@@ -528,7 +569,7 @@
 
   &.compact {
     font-size: 0.6rem;
-    min-width: 5.5rem;
+    min-width: 1rem;
   }
 }
 
@@ -547,15 +588,13 @@
   padding: 0.15rem 0;
 }
 
-// ── Projection mode (compact) ─────────────────────────────────────────────────
+// -- Projection mode (compact) 
 
 .tronc-view.projection-mode {
-  padding: 1.25rem;
   gap: 0.15rem;
   height: auto;
-  border: 1px solid oklch(var(--b3));
   border-radius: 0.375rem;
-  padding: 0.25rem;
+  padding: 0.25rem 0.75rem 0.5rem 0.25rem;
 
   .floor-row {
     grid-template-columns: 1.75rem 1fr;

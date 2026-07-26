@@ -12,7 +12,9 @@ import {
 } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { Observable } from 'rxjs';
 import { LucideAngularModule, Undo2, Redo2, Eye, EyeOff } from 'lucide-angular';
+import { ICON_TRONC, ICON_RENGLA, ICON_PINYA } from '../../../../shared/constants/domain-icons';
 import { HttpErrorResponse } from '@angular/common/http';
 import { generateUUID } from '../../../../shared/utils/uuid.util';
 import { slugify } from '../../utils/slugify.util';
@@ -33,6 +35,7 @@ import { StageTransform } from '../../utils/rengla-coordinates.util';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { validateBaseOrdering } from '../../utils/base-ordering.util';
+import { CanComponentDeactivate } from '../../../../core/guards/unsaved-changes.guard';
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -62,7 +65,11 @@ const DEFAULT_NODE_HEIGHT = 40;
   templateUrl: './template-editor.component.html',
   styleUrl: './template-editor.component.scss',
 })
-export class TemplateEditorComponent implements OnInit, OnDestroy {
+export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentDeactivate {
+  readonly ICON_TRONC = ICON_TRONC;
+  readonly ICON_RENGLA = ICON_RENGLA;
+  readonly ICON_PINYA = ICON_PINYA;
+
   private readonly figureTemplateService = inject(FigureTemplateService);
   private readonly canvasState = inject(CanvasStateService);
   private readonly router = inject(Router);
@@ -78,7 +85,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   templateName = signal('Figura nova');
   templateSlug = signal('');
   templateDescription = signal('');
-  hasPinya = signal(true);
 
   // Nodes
   nodes = signal<FigureNodeItem[]>([]);
@@ -111,8 +117,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   readonly troncMode = computed<'editor' | 'projection'>(() =>
     this.previewMode() ? 'projection' : 'editor',
   );
-
-  readonly isFiguraNeta = computed(() => this.hasPinya() === false);
 
   // Panel visibility
   propertiesPanelOpen = signal(true);
@@ -152,6 +156,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   loading = signal(false);
   saveStatus = signal<SaveStatus>('idle');
   private autosaveTimer: ReturnType<typeof setTimeout> | null = null;
+  private idleStatusTimer: ReturnType<typeof setTimeout> | null = null;
 
   // Expose canvas state signals for template binding
   readonly gridEnabled = this.canvasState.gridEnabled;
@@ -210,21 +215,39 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
       this.loadTemplate(id);
     } else {
       this.canvasState.reset();
-      const hasPinyaParam = this.route.snapshot.queryParamMap.get('hasPinya');
-      if (hasPinyaParam === 'false') {
-        this.hasPinya.set(false);
-        this.autoOpenTroncCentered();
-      }
     }
   }
 
   ngOnDestroy(): void {
     this.layout.exitFullscreen();
     if (this.autosaveTimer) clearTimeout(this.autosaveTimer);
+    if (this.idleStatusTimer) clearTimeout(this.idleStatusTimer);
   }
 
   goBack(): void {
     this.router.navigate(['/pinyes']);
+  }
+
+  /** Flushes a pending debounced autosave before the route guard lets navigation proceed (FE-BUG-26). */
+  canDeactivate(): Observable<boolean> | boolean {
+    if (!this.autosaveTimer) return true;
+    clearTimeout(this.autosaveTimer);
+    this.autosaveTimer = null;
+    return new Observable<boolean>((subscriber) => {
+      this.save(() => {
+        subscriber.next(true);
+        subscriber.complete();
+      });
+    });
+  }
+
+  /** Warns on tab close / hard reload while an autosave is still pending, since that path bypasses the router guard. */
+  @HostListener('window:beforeunload', ['$event'])
+  onBeforeUnload(event: BeforeUnloadEvent): void {
+    if (this.autosaveTimer) {
+      event.preventDefault();
+      event.returnValue = '';
+    }
   }
 
   // ── Canvas events ──────────────────────────────────────────────────────────
@@ -298,7 +321,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
         color: presetColor,
         shape: NodeShape.RECTANGLE,
         sortOrder: event.sortOrder,
-        climbPath: null,
+        climbIndicator: null,
         ringLevel: null,
         originNodeId: null,
         renglaId: null,
@@ -321,12 +344,13 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     this.scheduleAutosave();
   }
 
-  onTroncNodeUpdated(event: { nodeId: string; x: number; width: number; positionType?: string; label?: string; color?: string | null }): void {
+  onTroncNodeUpdated(event: { nodeId: string; x: number; width: number; positionType?: string; label?: string; color?: string | null; climbIndicator?: string | null }): void {
     this.pushSnapshot('Modificar node de tronc');
     const patch: Partial<FigureNodeItem> = { x: event.x, width: event.width };
     if (event.positionType !== undefined) patch.positionType = event.positionType;
     if (event.label !== undefined) patch.label = event.label;
     if (event.color !== undefined) patch.color = event.color;
+    if (event.climbIndicator !== undefined) patch.climbIndicator = event.climbIndicator;
     this.updateNode(event.nodeId, patch);
     this.scheduleAutosave();
   }
@@ -362,7 +386,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
         color: '#EEEEEE',
         shape: NodeShape.RECTANGLE,
         sortOrder: event.sortOrder,
-        climbPath: null,
+        climbIndicator: null,
         ringLevel: null,
         originNodeId: null,
         renglaId: null,
@@ -404,7 +428,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
   }
 
   addPinyaNode(pos: NodePreset): void {
-    if (this.isFiguraNeta()) return;
     this.addNode(
       FigureZone.PINYA,
       0,
@@ -441,7 +464,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
         color,
         shape: shape,
         sortOrder: this.nodes().length,
-        climbPath: null,
+        climbIndicator: null,
         ringLevel: null,
         originNodeId: null,
         renglaId: null,
@@ -455,18 +478,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
     if (!this.requireName(doAdd)) return;
     doAdd();
-  }
-
-  // ── Tronc panel auto-open (figures netes) ─────────────────────────────────
-
-  private autoOpenTroncCentered(): void {
-    const panelW = Math.min(window.innerWidth * 0.7, window.innerWidth - 32);
-    const panelH = window.innerHeight * 0.7;
-    this.troncPanelPos.set({
-      x: Math.round((window.innerWidth - panelW) / 2),
-      y: Math.round((window.innerHeight - panelH) / 2),
-    });
-    this.troncDrawerOpen.set(true);
   }
 
   // ── Tronc panel drag ─────────────────────────────────────────────────────
@@ -686,11 +697,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     return true;
   }
 
-  onHasPinyaChange(value: boolean): void {
-    this.hasPinya.set(value);
-    this.scheduleAutosave();
-  }
-
   // ── Canvas controls ────────────────────────────────────────────────────────
 
   toggleGrid(): void {
@@ -794,11 +800,21 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   // ── Rengla mode ──────────────────────────────────────────────────────────
 
+  activatePinyaMode(): void {
+    if (this.renglaEditMode()) this.toggleRenglaEditMode();
+    this.troncDrawerOpen.set(false);
+  }
+
+  activateTroncMode(): void {
+    if (this.renglaEditMode()) this.toggleRenglaEditMode();
+    this.troncDrawerOpen.set(true);
+  }
+
   toggleRenglaEditMode(): void {
-    if (this.isFiguraNeta()) return;
     if (this.previewMode()) this.previewMode.set(false);
     this.renglaEditMode.update((v) => !v);
     if (this.renglaEditMode()) {
+      this.troncDrawerOpen.set(false);
       this.selectedNodeId.set(null);
     }
   }
@@ -894,7 +910,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
         color: source.color,
         shape: source.shape,
         sortOrder: this.nodes().length,
-        climbPath: null,
+        climbIndicator: null,
         ringLevel: null,
         originNodeId: null,
         renglaId: null,
@@ -915,13 +931,19 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
   private scheduleAutosave(): void {
     if (this.autosaveTimer) clearTimeout(this.autosaveTimer);
-    this.autosaveTimer = setTimeout(() => this.save(), 2000);
+    this.autosaveTimer = setTimeout(() => {
+      this.autosaveTimer = null;
+      this.save();
+    }, 2000);
   }
 
-  private save(): void {
+  private save(afterSave?: () => void): void {
     const name = this.templateName().trim();
     const slug = this.templateSlug().trim() || slugify(name);
-    if (!name || !slug) return;
+    if (!name || !slug) {
+      afterSave?.();
+      return;
+    }
     this.templateSlug.set(slug);
 
     this.saveStatus.set('saving');
@@ -930,15 +952,14 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
     if (id) {
       this.figureTemplateService.update(id, payload).subscribe({
-        next: () => this.onSaveSuccess(),
-        error: (err: HttpErrorResponse) => this.onSaveError(err),
+        next: () => { this.onSaveSuccess(); afterSave?.(); },
+        error: (err: HttpErrorResponse) => { this.onSaveError(err); afterSave?.(); },
       });
     } else {
       this.figureTemplateService
         .create({
           name,
           slug,
-          hasPinya: this.hasPinya(),
           nodes: payload.nodes ?? [],
         })
         .subscribe({
@@ -950,15 +971,20 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
               replaceUrl: true,
             });
             this.onSaveSuccess();
+            afterSave?.();
           },
-          error: (err: HttpErrorResponse) => this.onSaveError(err),
+          error: (err: HttpErrorResponse) => { this.onSaveError(err); afterSave?.(); },
         });
     }
   }
 
   private onSaveSuccess(): void {
     this.saveStatus.set('saved');
-    setTimeout(() => this.saveStatus.set('idle'), 2500);
+    if (this.idleStatusTimer) clearTimeout(this.idleStatusTimer);
+    this.idleStatusTimer = setTimeout(() => {
+      this.idleStatusTimer = null;
+      this.saveStatus.set('idle');
+    }, 2500);
   }
 
   private onSaveError(err: HttpErrorResponse): void {
@@ -992,7 +1018,6 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
     return {
       name: this.templateName().trim(),
       description: this.templateDescription().trim() || undefined,
-      hasPinya: this.hasPinya(),
       nodes: this.nodes().map(nodeToPayload),
       rengles: this.rengles(),
     };
@@ -1009,14 +1034,10 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
         this.templateName.set(tmpl.name);
         this.templateSlug.set(tmpl.slug);
         this.templateDescription.set(tmpl.description ?? '');
-        this.hasPinya.set(tmpl.hasPinya);
         this.nodes.set(tmpl.nodes);
         this.rengles.set(tmpl.rengles ?? []);
         this.adHocInstanceCount.set(tmpl.adHocInstanceCount ?? 0);
         this.loading.set(false);
-        if (!tmpl.hasPinya) {
-          this.autoOpenTroncCentered();
-        }
       },
       error: () => {
         this.loading.set(false);
@@ -1052,7 +1073,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy {
 
 }
 
-function nodeToPayload(node: FigureNodeItem): CreateFigureNodePayload {
+export function nodeToPayload(node: FigureNodeItem): CreateFigureNodePayload {
   return {
     id: node.id,
     label: node.label,
@@ -1067,11 +1088,11 @@ function nodeToPayload(node: FigureNodeItem): CreateFigureNodePayload {
     color: node.color ?? undefined,
     shape: node.shape,
     sortOrder: node.sortOrder,
-    climbPath: node.climbPath ?? undefined,
+    climbIndicator: node.climbIndicator ?? undefined,
     ringLevel: node.ringLevel ?? undefined,
-    originNodeId: node.originNodeId ?? undefined,
-    renglaId: node.renglaId ?? undefined,
-    renglaPosition: node.renglaPosition ?? undefined,
+    originNodeId: node.originNodeId,
+    renglaId: node.renglaId,
+    renglaPosition: node.renglaPosition,
     metadata: node.metadata,
   };
 }

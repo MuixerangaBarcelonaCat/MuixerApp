@@ -4,6 +4,7 @@ import { EventSegmentService } from './event-segment.service';
 import { FigureInstanceService } from './figure-instance.service';
 import { ProjectionService, ProjectionData } from './projection.service';
 import { SegmentWithInstances } from './event-segment.service';
+import { SegmentMoveConflictResolution } from '@muixer/shared';
 
 const EVENT_ID = 'event-uuid-1';
 const SEGMENT_ID = 'segment-uuid-1';
@@ -39,14 +40,18 @@ const mockSegmentService: Partial<EventSegmentService> = {
 const mockProjectionData: ProjectionData = {
   segment: { id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 0, prevSegmentId: null, nextSegmentId: 'seg-next' },
   instances: [],
+  hasDistribution: false,
+  personAttendance: {},
 };
+
+const mockMoveResult = { sourceSegment: mockSegment, targetSegment: mockSegment };
 
 const mockInstanceService: Partial<FigureInstanceService> = {
   create: jest.fn().mockResolvedValue(mockInstance),
   update: jest.fn().mockResolvedValue(mockInstance),
   remove: jest.fn().mockResolvedValue(undefined),
   reorder: jest.fn().mockResolvedValue(undefined),
-  updateProjectionLayout: jest.fn().mockResolvedValue(undefined),
+  move: jest.fn().mockResolvedValue(mockMoveResult),
 };
 
 const mockProjectionService: Partial<ProjectionService> = {
@@ -137,6 +142,47 @@ describe('EventSegmentController', () => {
     });
   });
 
+  describe('moveInstance', () => {
+    const TARGET_SEGMENT_ID = 'segment-uuid-2';
+
+    it('delegates to instance service with the targetSegmentId/targetIndex body and no resolution', async () => {
+      const result = await controller.moveInstance(
+        EVENT_ID,
+        SEGMENT_ID,
+        INSTANCE_ID,
+        { targetSegmentId: TARGET_SEGMENT_ID, targetIndex: 2 },
+        {},
+      );
+      expect(result).toEqual(mockMoveResult);
+      expect(mockInstanceService.move).toHaveBeenCalledWith(
+        EVENT_ID,
+        SEGMENT_ID,
+        INSTANCE_ID,
+        TARGET_SEGMENT_ID,
+        2,
+        undefined,
+      );
+    });
+
+    it('forwards the conflictResolution query param', async () => {
+      await controller.moveInstance(
+        EVENT_ID,
+        SEGMENT_ID,
+        INSTANCE_ID,
+        { targetSegmentId: TARGET_SEGMENT_ID, targetIndex: 0 },
+        { conflictResolution: SegmentMoveConflictResolution.KEEP_MOVED },
+      );
+      expect(mockInstanceService.move).toHaveBeenCalledWith(
+        EVENT_ID,
+        SEGMENT_ID,
+        INSTANCE_ID,
+        TARGET_SEGMENT_ID,
+        0,
+        SegmentMoveConflictResolution.KEEP_MOVED,
+      );
+    });
+  });
+
   describe('removeInstance', () => {
     it('delegates to instance service and returns void (204)', async () => {
       await expect(controller.removeInstance(EVENT_ID, SEGMENT_ID, INSTANCE_ID)).resolves.toBeUndefined();
@@ -144,15 +190,7 @@ describe('EventSegmentController', () => {
     });
   });
 
-  describe('updateProjectionLayout', () => {
-    it('delegates to instance service and returns void (204)', async () => {
-      const dto = { layouts: [{ instanceId: INSTANCE_ID, x: 100, y: 200, scale: 1.0 }] };
-      await expect(controller.updateProjectionLayout(EVENT_ID, SEGMENT_ID, dto)).resolves.toBeUndefined();
-      expect(mockInstanceService.updateProjectionLayout).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID, dto);
-    });
-  });
-
-  describe('getProjection', () => {
+describe('getProjection', () => {
     it('delegates to projection service and returns aggregated data', async () => {
       const result = await controller.getProjection(EVENT_ID, SEGMENT_ID);
       expect(result).toEqual(mockProjectionData);

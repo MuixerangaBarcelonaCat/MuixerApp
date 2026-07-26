@@ -2,19 +2,12 @@ import { Component, input, output } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { vi } from 'vitest';
-import { of } from 'rxjs';
+import { Observable, of } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
-import {
-  LUCIDE_ICONS, LucideIconProvider,
-  ArrowLeft, Undo2, Redo2, Eye, EyeOff,
-  GitBranchPlus, Layers, Keyboard, HelpCircle, Info, X,
-  AlertTriangle, Trash2, Grid3X3, Magnet, Shapes,
-  MousePointer2, GripVertical, PanelRightClose, PanelRightOpen,
-  ChevronDown, Box,
-} from 'lucide-angular';
+import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { FigureZone, NodeShape, PINYA_NODE_PRESETS } from '@muixer/shared';
 import { FigureNodeItem } from '../../models/figure-template.model';
-import { TemplateEditorComponent } from './template-editor.component';
+import { TemplateEditorComponent, nodeToPayload } from './template-editor.component';
 import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component';
 import { TroncViewComponent } from '../tronc-view/tronc-view.component';
 import { TemplateEditorHelpModalComponent } from '../template-editor-help-modal/template-editor-help-modal.component';
@@ -118,16 +111,7 @@ describe('TemplateEditorComponent — Preview Mode', () => {
         { provide: CanvasStateService, useValue: mockCanvasState },
         { provide: LayoutService, useValue: mockLayout },
         { provide: ToastService, useValue: mockToast },
-        {
-          provide: LUCIDE_ICONS,
-          useValue: new LucideIconProvider({
-            ArrowLeft, Undo2, Redo2, Eye, EyeOff,
-            GitBranchPlus, Layers, Keyboard, HelpCircle, Info, X,
-            AlertTriangle, Trash2, Grid3X3, Magnet, Shapes,
-            MousePointer2, GripVertical, PanelRightClose, PanelRightOpen,
-            ChevronDown, Box,
-          }),
-        },
+        allLucideIconsProvider,
       ],
     })
       .overrideComponent(TemplateEditorComponent, {
@@ -152,6 +136,75 @@ describe('TemplateEditorComponent — Preview Mode', () => {
 
     it('should have troncMode = editor', () => {
       expect(component.troncMode()).toBe('editor');
+    });
+  });
+
+  describe('canDeactivate (pending autosave flush) — FE-BUG-26', () => {
+    // Fake timers keep the 2s autosave / 2.5s idle-status timers from leaking into later tests.
+    beforeEach(() => {
+      vi.useFakeTimers();
+      mockFigureTemplateService.create.mockClear();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('returns true synchronously when there is no pending autosave', () => {
+      expect(component.canDeactivate()).toBe(true);
+    });
+
+    it('flushes the pending autosave immediately and resolves true once the save completes', () => {
+      component.onNodeMoved({ id: 'n1', x: 5, y: 5 });
+      expect(mockFigureTemplateService.create).not.toHaveBeenCalled();
+
+      const result = component.canDeactivate();
+      expect(result).not.toBe(true);
+
+      const emissions: boolean[] = [];
+      (result as Observable<boolean>).subscribe((v) => emissions.push(v));
+
+      expect(mockFigureTemplateService.create).toHaveBeenCalledTimes(1);
+      expect(emissions).toEqual([true]);
+    });
+
+    it('does not schedule a second flush once canDeactivate has cleared the pending timer', () => {
+      component.onNodeMoved({ id: 'n1', x: 5, y: 5 });
+      (component.canDeactivate() as Observable<boolean>).subscribe();
+      expect(component.canDeactivate()).toBe(true);
+    });
+  });
+
+  describe('beforeunload (tab close with unsaved changes) — FE-BUG-26', () => {
+    // Fake timers keep the 2s autosave timer armed by onNodeMoved from leaking into later tests.
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    const makeEvent = () => ({ preventDefault: vi.fn(), returnValue: '' }) as unknown as BeforeUnloadEvent;
+
+    it('warns the browser when there is a pending autosave', () => {
+      component.onNodeMoved({ id: 'n1', x: 5, y: 5 });
+      const event = makeEvent();
+      component.onBeforeUnload(event);
+      expect(event.preventDefault).toHaveBeenCalled();
+    });
+
+    it('does nothing when there is no pending autosave', () => {
+      const event = makeEvent();
+      component.onBeforeUnload(event);
+      expect(event.preventDefault).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('goBack', () => {
+    it('navigates to /pinyes (flushing is handled by the route canDeactivate guard)', () => {
+      component.goBack();
+      expect(mockRouter.navigate).toHaveBeenCalledWith(['/pinyes']);
     });
   });
 
@@ -244,7 +297,7 @@ describe('TemplateEditorComponent — Preview Mode', () => {
       color: '#0d9488',
       shape: NodeShape.RECTANGLE,
       sortOrder: 0,
-      climbPath: null, ringLevel: null, originNodeId: null,
+      climbIndicator: null, ringLevel: null, originNodeId: null,
       renglaId: null, renglaPosition: null,
       metadata: {},
       ...overrides,
@@ -360,6 +413,54 @@ describe('TemplateEditorComponent — Preview Mode', () => {
     });
   });
 
+  describe('onTroncNodeUpdated — climbIndicator', () => {
+    const makeNode = (overrides: Partial<FigureNodeItem> = {}): FigureNodeItem => ({
+      id: 'node-1',
+      label: 'Segon',
+      zone: FigureZone.TRONC,
+      positionType: 'segon',
+      x: 0, y: 0, z: 1,
+      width: 1, height: 1, rotation: 0,
+      color: null,
+      shape: NodeShape.RECTANGLE,
+      sortOrder: 0,
+      climbIndicator: null, ringLevel: null, originNodeId: null,
+      renglaId: null, renglaPosition: null,
+      metadata: {},
+      ...overrides,
+    });
+
+    it('sets climbIndicator on a TRONC node', () => {
+      component.nodes.set([makeNode({ id: 'tronc-1' })]);
+      component.selectedNodeId.set('tronc-1');
+      fixture.detectChanges();
+
+      component.onTroncNodeUpdated({ nodeId: 'tronc-1', x: 0, width: 1, climbIndicator: 'X' });
+
+      expect(component.nodes()[0].climbIndicator).toBe('X');
+    });
+
+    it('sets climbIndicator on a BASE node', () => {
+      component.nodes.set([makeNode({ id: 'base-1', zone: FigureZone.BASE, z: 0 })]);
+      component.selectedNodeId.set('base-1');
+      fixture.detectChanges();
+
+      component.onTroncNodeUpdated({ nodeId: 'base-1', x: 0, width: 1, climbIndicator: 'A' });
+
+      expect(component.nodes()[0].climbIndicator).toBe('A');
+    });
+
+    it('clears climbIndicator when set to null', () => {
+      component.nodes.set([makeNode({ id: 'tronc-1', climbIndicator: 'X' })]);
+      component.selectedNodeId.set('tronc-1');
+      fixture.detectChanges();
+
+      component.onTroncNodeUpdated({ nodeId: 'tronc-1', x: 0, width: 1, climbIndicator: null });
+
+      expect(component.nodes()[0].climbIndicator).toBeNull();
+    });
+  });
+
   describe('keyboard shortcut', () => {
     function createKeyEvent(key: string, opts: Partial<KeyboardEvent> = {}): KeyboardEvent {
       const event = new KeyboardEvent('keydown', {
@@ -419,267 +520,47 @@ describe('TemplateEditorComponent — Preview Mode', () => {
     });
   });
 
-  // ── F2: hasPinya query param ──────────────────────────────────────────
+});
 
-  describe('hasPinya query param on create', () => {
-    it('defaults hasPinya to true when no query param', () => {
-      expect(component.hasPinya()).toBe(true);
+describe('nodeToPayload', () => {
+  const baseNode: FigureNodeItem = {
+    id: 'node-1',
+    label: 'AGULLA',
+    zone: FigureZone.PINYA,
+    positionType: 'agulla',
+    x: 100, y: 100, z: 0,
+    width: 80, height: 40, rotation: 0,
+    color: '#0d9488',
+    shape: NodeShape.RECTANGLE,
+    sortOrder: 0,
+    climbIndicator: null, ringLevel: null, originNodeId: null,
+    renglaId: null, renglaPosition: null,
+    metadata: {},
+  };
+
+  it('sends renglaId, renglaPosition and originNodeId as null when the node has no rengla — not undefined', () => {
+    const payload = nodeToPayload({
+      ...baseNode,
+      renglaId: null,
+      renglaPosition: null,
+      originNodeId: null,
     });
 
-    it('sets hasPinya to false when ?hasPinya=false on new template', async () => {
-      const routeWithParam = {
-        snapshot: {
-          paramMap: { get: vi.fn().mockReturnValue(null) },
-          queryParamMap: { get: vi.fn().mockImplementation((key: string) => key === 'hasPinya' ? 'false' : null) },
-        },
-      };
-
-      await TestBed.resetTestingModule();
-      await TestBed.configureTestingModule({
-        imports: [TemplateEditorComponent],
-        providers: [
-          { provide: Router, useValue: mockRouter },
-          { provide: ActivatedRoute, useValue: routeWithParam },
-          { provide: FigureTemplateService, useValue: mockFigureTemplateService },
-          { provide: CanvasStateService, useValue: mockCanvasState },
-          { provide: LayoutService, useValue: mockLayout },
-          { provide: ToastService, useValue: mockToast },
-          {
-            provide: LUCIDE_ICONS,
-            useValue: new LucideIconProvider({
-              ArrowLeft, Undo2, Redo2, Eye, EyeOff,
-              GitBranchPlus, Layers, Keyboard, HelpCircle, Info, X,
-              AlertTriangle, Trash2, Grid3X3, Magnet, Shapes,
-              MousePointer2, GripVertical, PanelRightClose, PanelRightOpen,
-              ChevronDown, Box,
-            }),
-          },
-        ],
-      })
-        .overrideComponent(TemplateEditorComponent, {
-          remove: { imports: [FigureCanvasComponent, TroncViewComponent, TemplateEditorHelpModalComponent, RenglaOverlayComponent] },
-          add: { imports: [StubFigureCanvas, StubTroncView, StubHelpModal, StubRenglaOverlay] },
-        })
-        .compileComponents();
-
-      const f = TestBed.createComponent(TemplateEditorComponent);
-      f.detectChanges();
-      expect(f.componentInstance.hasPinya()).toBe(false);
-    });
+    expect(payload.renglaId).toBeNull();
+    expect(payload.renglaPosition).toBeNull();
+    expect(payload.originNodeId).toBeNull();
   });
 
-  // ── F3: Figura neta — Template editor adaptations ─────────────────────
-
-  describe('isFiguraNeta computed', () => {
-    it('returns false when hasPinya is true', () => {
-      component.hasPinya.set(true);
-      expect(component.isFiguraNeta()).toBe(false);
+  it('sends renglaId, renglaPosition and originNodeId as-is when the node belongs to a rengla', () => {
+    const payload = nodeToPayload({
+      ...baseNode,
+      renglaId: 'rengla-1',
+      renglaPosition: 2,
+      originNodeId: 'origin-1',
     });
 
-    it('returns true when hasPinya is false', () => {
-      component.hasPinya.set(false);
-      expect(component.isFiguraNeta()).toBe(true);
-    });
-  });
-
-  describe('autoOpenTroncCentered on create with ?hasPinya=false', () => {
-    it('opens tronc panel and centers position when hasPinya=false query param', async () => {
-      const routeWithParam = {
-        snapshot: {
-          paramMap: { get: vi.fn().mockReturnValue(null) },
-          queryParamMap: { get: vi.fn().mockImplementation((key: string) => key === 'hasPinya' ? 'false' : null) },
-        },
-      };
-
-      await TestBed.resetTestingModule();
-      await TestBed.configureTestingModule({
-        imports: [TemplateEditorComponent],
-        providers: [
-          { provide: Router, useValue: mockRouter },
-          { provide: ActivatedRoute, useValue: routeWithParam },
-          { provide: FigureTemplateService, useValue: mockFigureTemplateService },
-          { provide: CanvasStateService, useValue: mockCanvasState },
-          { provide: LayoutService, useValue: mockLayout },
-          { provide: ToastService, useValue: mockToast },
-          {
-            provide: LUCIDE_ICONS,
-            useValue: new LucideIconProvider({
-              ArrowLeft, Undo2, Redo2, Eye, EyeOff,
-              GitBranchPlus, Layers, Keyboard, HelpCircle, Info, X,
-              AlertTriangle, Trash2, Grid3X3, Magnet, Shapes,
-              MousePointer2, GripVertical, PanelRightClose, PanelRightOpen,
-              ChevronDown, Box,
-            }),
-          },
-        ],
-      })
-        .overrideComponent(TemplateEditorComponent, {
-          remove: { imports: [FigureCanvasComponent, TroncViewComponent, TemplateEditorHelpModalComponent, RenglaOverlayComponent] },
-          add: { imports: [StubFigureCanvas, StubTroncView, StubHelpModal, StubRenglaOverlay] },
-        })
-        .compileComponents();
-
-      const f = TestBed.createComponent(TemplateEditorComponent);
-      f.detectChanges();
-
-      expect(f.componentInstance.troncDrawerOpen()).toBe(true);
-      const pos = f.componentInstance.troncPanelPos();
-      expect(pos.x).toBeGreaterThan(0);
-      expect(pos.y).toBeGreaterThan(0);
-    });
-  });
-
-  describe('autoOpenTroncCentered on loadTemplate with hasPinya=false', () => {
-    it('opens tronc panel after loading a template with hasPinya=false', async () => {
-      const mockService = {
-        getOne: vi.fn().mockReturnValue(of({
-          id: 'neta-1', name: 'Piló', slug: 'pilo', hasPinya: false,
-          nodes: [], rengles: [],
-        })),
-        create: vi.fn(),
-        update: vi.fn(),
-      };
-      const routeWithId = {
-        snapshot: {
-          paramMap: { get: vi.fn().mockImplementation((key: string) => key === 'id' ? 'neta-1' : null) },
-          queryParamMap: { get: vi.fn().mockReturnValue(null) },
-        },
-      };
-
-      await TestBed.resetTestingModule();
-      await TestBed.configureTestingModule({
-        imports: [TemplateEditorComponent],
-        providers: [
-          { provide: Router, useValue: mockRouter },
-          { provide: ActivatedRoute, useValue: routeWithId },
-          { provide: FigureTemplateService, useValue: mockService },
-          { provide: CanvasStateService, useValue: mockCanvasState },
-          { provide: LayoutService, useValue: mockLayout },
-          { provide: ToastService, useValue: mockToast },
-          {
-            provide: LUCIDE_ICONS,
-            useValue: new LucideIconProvider({
-              ArrowLeft, Undo2, Redo2, Eye, EyeOff,
-              GitBranchPlus, Layers, Keyboard, HelpCircle, Info, X,
-              AlertTriangle, Trash2, Grid3X3, Magnet, Shapes,
-              MousePointer2, GripVertical, PanelRightClose, PanelRightOpen,
-              ChevronDown, Box,
-            }),
-          },
-        ],
-      })
-        .overrideComponent(TemplateEditorComponent, {
-          remove: { imports: [FigureCanvasComponent, TroncViewComponent, TemplateEditorHelpModalComponent, RenglaOverlayComponent] },
-          add: { imports: [StubFigureCanvas, StubTroncView, StubHelpModal, StubRenglaOverlay] },
-        })
-        .compileComponents();
-
-      const f = TestBed.createComponent(TemplateEditorComponent);
-      f.detectChanges();
-
-      expect(f.componentInstance.troncDrawerOpen()).toBe(true);
-      expect(f.componentInstance.isFiguraNeta()).toBe(true);
-    });
-
-    it('does NOT open tronc panel for a template with hasPinya=true', () => {
-      expect(component.troncDrawerOpen()).toBe(false);
-      expect(component.isFiguraNeta()).toBe(false);
-    });
-  });
-
-  describe('safety guards for figures netes', () => {
-    beforeEach(() => {
-      component.hasPinya.set(false);
-    });
-
-    it('addPinyaNode does nothing when isFiguraNeta', () => {
-      const nodesBefore = component.nodes().length;
-      const preset = PINYA_NODE_PRESETS[0];
-      component.addPinyaNode(preset);
-      expect(component.nodes().length).toBe(nodesBefore);
-    });
-
-    it('toggleRenglaEditMode does nothing when isFiguraNeta', () => {
-      component.toggleRenglaEditMode();
-      expect(component.renglaEditMode()).toBe(false);
-    });
-  });
-
-  describe('toolbar visibility for figures netes', () => {
-    it('hides Pinya section when isFiguraNeta', () => {
-      component.hasPinya.set(false);
-      fixture.detectChanges();
-      const toolbar = fixture.nativeElement.querySelector('.editor-toolbar');
-      if (toolbar) {
-        const labels = Array.from(toolbar.querySelectorAll('.toolbar-label')) as HTMLElement[];
-        const pinyaLabel = labels.find(el => el.textContent?.trim() === 'Pinya');
-        expect(pinyaLabel).toBeFalsy();
-      }
-    });
-
-    it('shows Pinya section when hasPinya is true', () => {
-      component.hasPinya.set(true);
-      fixture.detectChanges();
-      const toolbar = fixture.nativeElement.querySelector('.editor-toolbar');
-      if (toolbar) {
-        const labels = Array.from(toolbar.querySelectorAll('.toolbar-label')) as HTMLElement[];
-        const pinyaLabel = labels.find(el => el.textContent?.trim() === 'Pinya');
-        expect(pinyaLabel).toBeTruthy();
-      }
-    });
-
-    it('hides Rengles button when isFiguraNeta', () => {
-      component.hasPinya.set(false);
-      fixture.detectChanges();
-      const buttons = Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLElement[];
-      const renglesBtn = buttons.find(b => b.textContent?.trim().includes('Rengles'));
-      expect(renglesBtn).toBeFalsy();
-    });
-
-    it('shows Rengles button when hasPinya is true', () => {
-      component.hasPinya.set(true);
-      fixture.detectChanges();
-      const buttons = Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLElement[];
-      const renglesBtn = buttons.find(b => b.textContent?.trim().includes('Rengles'));
-      expect(renglesBtn).toBeTruthy();
-    });
-  });
-
-  describe('tronc button prominence for figures netes', () => {
-    it('has btn-primary class when isFiguraNeta and panel closed', () => {
-      component.hasPinya.set(false);
-      component.troncDrawerOpen.set(false);
-      fixture.detectChanges();
-      const troncBtn = Array.from(fixture.nativeElement.querySelectorAll('button') as NodeListOf<HTMLElement>)
-        .find(b => b.textContent?.trim().includes('Tronc'));
-      expect(troncBtn?.classList.contains('btn-primary')).toBe(true);
-    });
-
-    it('loses btn-primary when panel is open', () => {
-      component.hasPinya.set(false);
-      component.troncDrawerOpen.set(true);
-      fixture.detectChanges();
-      const troncBtn = Array.from(fixture.nativeElement.querySelectorAll('button') as NodeListOf<HTMLElement>)
-        .find(b => b.textContent?.trim().includes('Tronc'));
-      expect(troncBtn?.classList.contains('btn-primary')).toBe(false);
-    });
-  });
-
-  describe('canvas empty state for figures netes', () => {
-    it('shows "Figura neta" message when isFiguraNeta and no nodes', () => {
-      component.hasPinya.set(false);
-      component.nodes.set([]);
-      fixture.detectChanges();
-      const heading = fixture.nativeElement.querySelector('h3');
-      expect(heading?.textContent?.trim()).toBe('Figura neta');
-    });
-
-    it('shows pinya message when hasPinya is true and no nodes', () => {
-      component.hasPinya.set(true);
-      component.nodes.set([]);
-      fixture.detectChanges();
-      const heading = fixture.nativeElement.querySelector('.editor-canvas h3');
-      expect(heading?.textContent?.trim()).toBe('No hi ha cap node de pinya');
-    });
+    expect(payload.renglaId).toBe('rengla-1');
+    expect(payload.renglaPosition).toBe(2);
+    expect(payload.originNodeId).toBe('origin-1');
   });
 });

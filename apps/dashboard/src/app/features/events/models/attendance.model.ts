@@ -13,6 +13,8 @@ export interface AttendancePerson {
   firstSurname: string;
   isXicalla: boolean;
   isProvisional?: boolean;
+  notes: string | null;
+  notesEmoji: string | null;
   positions: AttendancePosition[];
 }
 
@@ -27,6 +29,7 @@ export interface AttendanceItem {
 export interface AttendanceFilterParams {
   status?: AttendanceStatus;
   search?: string;
+  positionIds?: string[];
   page?: number;
   limit?: number;
 }

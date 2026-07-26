@@ -89,6 +89,12 @@ export class CreatePersonDto {
   @IsOptional()
   notes?: string;
 
+  @ApiPropertyOptional({ description: 'Emoji que representa les observacions tècniques', maxLength: 16 })
+  @IsString()
+  @MaxLength(16)
+  @IsOptional()
+  notesEmoji?: string | null;
+
   @ApiPropertyOptional({ description: 'Data de lliurament de camisa', example: '2024-01-15' })
   @IsDateString()
   @IsOptional()

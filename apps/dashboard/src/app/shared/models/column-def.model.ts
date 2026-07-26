@@ -1,8 +1,13 @@
-export type ColumnType = 'text' | 'badge' | 'pills' | 'date' | 'number' | 'actions' | 'custom';
+export type ColumnType = 'text' | 'badge' | 'pills' | 'colorBadges' | 'date' | 'number' | 'actions' | 'custom';
 
 export interface ColumnPill {
   text: string;
   class: string;
+}
+
+export interface ColumnColorBadge {
+  text: string;
+  color: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -12,12 +17,19 @@ export interface ColumnDef<T = any> {
   defaultVisible: boolean;
   sortField?: string;
   type?: ColumnType;
+  /**
+   * Marks this column as the card title in the responsive card layout (`< lg`).
+   * If no column is flagged, the first visible column is used as the title.
+   */
+  primary?: boolean;
   /** Optional transform: extract display value from item */
   value?: (item: T) => string | number | null | undefined;
   /** Optional badge class when type === 'badge' */
   badgeClass?: (item: T) => string;
   /** Colored text pills when type === 'pills' */
   pills?: (item: T) => ColumnPill[];
+  /** Colored badges (background + contrasting text) when type === 'colorBadges' */
+  colorBadges?: (item: T) => ColumnColorBadge[];
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

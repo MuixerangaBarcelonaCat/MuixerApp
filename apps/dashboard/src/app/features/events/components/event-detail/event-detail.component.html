@@ -25,7 +25,7 @@
       <div class="flex gap-2 flex-wrap">
         @if (ev.isSynced) {
           <button
-            class="btn btn-outline btn-sm gap-1.5"
+            class="btn btn-primary btn-outline btn-sm gap-1.5"
             [disabled]="syncState() === 'running' || !isAdmin()"
             (click)="syncAttendance()"
             type="button"
@@ -37,7 +37,12 @@
             }
           </button>
         }
-        <button class="btn btn-outline btn-sm" (click)="showEditModal.set(true)" type="button">Edita</button>
+        @if (ev.eventType === EventType.ASSAIG) {
+          <button class="btn btn-primary btn-outline btn-sm gap-1.5" (click)="goToConfirmation()" type="button">
+            <lucide-icon name="ClipboardCheck" [size]="14" /> Confirmació
+          </button>
+        }
+        <button class="btn btn-primary btn-outline btn-sm" (click)="showEditModal.set(true)" type="button">Edita</button>
         <button class="btn btn-error btn-outline btn-sm" [disabled]="deleting()" (click)="deleteEvent()" type="button">
           @if (deleting()) { <span class="loading loading-spinner loading-xs"></span> } @else { Elimina }
         </button>
@@ -92,13 +97,13 @@
       <app-stat-card
         label="Adults "
         [value]="adultsCount()"
-        icon="Users"
+        [icon]="ICON_PERSONA"
         accentClass="text-primary"
       />
       <app-stat-card
         label="Xicalla"
         [value]="ev.attendanceSummary.children"
-        icon="Baby"
+        [icon]="ICON_XICALLA"
         accentClass="text-info"
       />
       <!-- <app-stat-card
@@ -137,7 +142,7 @@
                 <dt class="text-base-content/50 w-28 shrink-0">Lloc:</dt>
                 <dd>
                   @if (ev.locationUrl) {
-                    <a [href]="ev.locationUrl" target="_blank" class="link link-primary">{{ ev.location }}</a>
+                    <a [href]="ev.locationUrl" target="_blank" class="link link-primary inline-flex items-center min-h-6">{{ ev.location }}</a>
                   } @else {
                     {{ ev.location }}
                   }
@@ -211,55 +216,7 @@
     </div>
 
     <!-- Pinyes i Figures (Segments) -->
-    <app-segment-manager [eventId]="ev.id" [isLocked]="isEventLocked()" />
-
-    <!-- Resum de pinyes (historial read-only) -->
-    <!-- TODO: Amagat el resum de pinyes per ara, valorar si es útil en un futur   -->
-    <!-- @if (assignmentSummary(); as summary) {
-      @if (summary.segments.length > 0) {
-        <div class="card bg-base-100 shadow-sm">
-          <div class="card-body p-4">
-            <div class="flex items-center gap-2 mb-3">
-              <h2 class="card-title text-base">Pinyes</h2>
-              @if (isEventLocked()) {
-                <span class="badge badge-warning badge-sm gap-1">Registre tancat</span>
-              }
-            </div>
-
-            <div class="space-y-4">
-              @for (seg of summary.segments; track seg.segmentId) {
-                <div class="border border-base-300 rounded-lg p-3">
-                  <h3 class="text-sm font-semibold text-base-content/80 mb-2">{{ seg.segmentName }}</h3>
-                  @for (fig of seg.figures; track fig.instanceId) {
-                    <div class="mb-3 last:mb-0">
-                      <div class="flex items-center gap-2 mb-1">
-                        <span class="text-sm font-medium">{{ fig.figureName }}</span>
-                        <span class="badge badge-ghost badge-xs">{{ fig.assignedNodes }}/{{ fig.totalNodes }}</span>
-                      </div>
-                      @if (fig.assignments.length > 0) {
-                        <div class="flex flex-wrap gap-1">
-                          @for (a of fig.assignments; track a.personId) {
-                            <span class="badge badge-sm gap-1"
-                              [class.badge-info]="a.zone === 'PINYA'"
-                              [class.badge-warning]="a.zone === 'TRONC'"
-                              [class.badge-neutral]="a.zone === 'BASE'"
-                            >{{ a.nodeLabel }} → {{ a.personAlias }}</span>
-                          }
-                        </div>
-                      }
-                    </div>
-                  }
-                </div>
-              }
-            </div>
-          </div>
-        </div>
-      }
-    } @else if (summaryLoading()) {
-      <div class="flex justify-center py-4">
-        <span class="loading loading-spinner loading-md text-primary"></span>
-      </div>
-    } -->
+    <app-segment-manager [eventId]="ev.id" [isLocked]="isEventLocked()" [isPast]="isPast()" />
 
     <!-- Llista d'assistència -->
     <div class="card bg-base-100 shadow-sm">
@@ -282,81 +239,36 @@
               <option [value]="AttendanceStatus.ANIRE">Aniré</option>
               <option [value]="AttendanceStatus.ASSISTIT">Assistit</option>
               <option [value]="AttendanceStatus.NO_VAIG">No vaig</option>
-              <option [value]="AttendanceStatus.NO_PRESENTAT">No presentat</option>
               <option [value]="AttendanceStatus.PENDENT">Pendents</option>
             </select>
             <label class="input input-sm input-bordered flex items-center gap-2">
               <lucide-icon name="Search" [size]="14" class="text-base-content/40" />
               <input
                 type="text"
-                class="grow bg-transparent outline-none text-sm w-32"
+                class="grow bg-transparent outline-none text-sm w-32 h-6"
                 placeholder="Cerca..."
                 [(ngModel)]="attendanceSearchInput"
                 (ngModelChange)="onAttendanceSearchChange($event)"
               />
             </label>
-            <button type="button" class="btn btn-primary btn-sm gap-1" (click)="showAddBar.set(!showAddBar()); addError.set(null)">
-              <lucide-icon name="Plus" [size]="14" /> Afegeix membre
-            </button>
           </div>
         </div>
 
-        <!-- Barra d'afegir -->
-        @if (showAddBar()) {
-          <div class="bg-base-200 rounded-box p-3 mb-3 space-y-3">
-            <div class="flex flex-wrap gap-2 items-center">
-              <span class="text-sm font-medium">Estat:</span>
-              @for (status of [AttendanceStatus.ANIRE, AttendanceStatus.ASSISTIT, AttendanceStatus.NO_VAIG, AttendanceStatus.PENDENT]; track status) {
-                <button
-                  type="button"
-                  class="btn btn-xs"
-                  [class.btn-primary]="addStatus() === status"
-                  [class.btn-ghost]="addStatus() !== status"
-                  (click)="addStatus.set(status)"
-                >{{ getStatusLabel(status) }}</button>
-              }
-            </div>
-            <div class="flex flex-col gap-2">
-              <app-person-search-input
-                placeholder="Cerca persona del cens..."
-                [excludeIds]="attendingPersonIds()"
-                (selected)="onPersonSelected($event)"
-              />
-              @if (addingAttendance()) {
-                <div class="flex items-center gap-2 text-sm text-base-content/60">
-                  <span class="loading loading-spinner loading-xs"></span> Afegint...
-                </div>
-              }
-              @if (addError()) { <div class="text-sm text-error">{{ addError() }}</div> }
-            </div>
-            <div class="divider text-xs my-1">O crea una persona provisional</div>
-            <button type="button" class="btn btn-ghost btn-xs" (click)="showAddProvisional.set(!showAddProvisional())">
-              + Persona nova (provisional)
-            </button>
-            @if (showAddProvisional()) {
-              <div class="flex items-center gap-2 flex-wrap">
-                <input
-                  type="text"
-                  class="input input-sm input-bordered flex-1 min-w-[160px]"
-                  placeholder="Àlies (ex: Joan)"
-                  [(ngModel)]="provisionalAlias"
-                  maxlength="19"
-                />
-                <button
-                  type="button"
-                  class="btn btn-sm btn-accent"
-                  [disabled]="!provisionalAlias.trim() || addingProvisional()"
-                  (click)="addProvisionalPerson()"
-                >
-                  @if (addingProvisional()) { <span class="loading loading-spinner loading-xs"></span> }
-                  Crea i afegeix
-                </button>
-              </div>
-              @if (provisionalError()) { <div class="text-sm text-error">{{ provisionalError() }}</div> }
-            }
+        @if (positionFilter(); as pf) {
+          <div class="flex items-center gap-2 mb-3 flex-wrap">
+            <span class="text-xs text-base-content/50">Filtrant per etiqueta:</span>
+            <button
+              type="button"
+              class="badge badge-sm gap-1 cursor-pointer hover:opacity-80"
+              [style.background-color]="pf.color ?? '#888'"
+              [style.color]="getContrastColor(pf.color ?? '#888')"
+              (click)="clearPositionFilter()"
+              title="Elimina el filtre"
+            >{{ pf.name }} ×</button>
           </div>
         }
 
+        @if (!attendanceCardMode()) {
         <div class="overflow-x-auto">
           <table class="table table-sm">
             <thead class="sticky top-0 z-10 bg-base-100">
@@ -365,7 +277,7 @@
                 <th>Nom</th>
                 <th>Estat</th>
                 <th>Resposta</th>
-                <th>Posicions</th>
+                <th>Etiquetes</th>
               </tr>
             </thead>
             <tbody>
@@ -381,14 +293,38 @@
                 @for (att of attendances(); track att.id) {
                   <tr class="hover">
                     <td class="font-medium text-sm whitespace-nowrap">
-                      {{ att.person.alias }}
+                      <span
+                        class="link link-hover cursor-pointer inline-flex items-center min-h-6"
+                        tabindex="0"
+                        role="link"
+                        (click)="navigateToPerson(att.person.id)"
+                        (keydown.enter)="navigateToPerson(att.person.id)"
+                        [attr.title]="'Veure ' + att.person.alias"
+                      >{{ att.person.alias }}</span>
                       @if (att.person.isProvisional) { <span class="badge badge-xs badge-warning ml-1">Prov.</span> }
+                      @if (att.person.notes) {
+                        <span class="tooltip tooltip-right ml-1" [attr.data-tip]="att.person.notes">
+                          @if (att.person.notesEmoji) {
+                            <span class="text-xs align-middle">{{ att.person.notesEmoji }}</span>
+                          } @else {
+                            <lucide-icon [name]="ICON_OBSERVACIONS" [size]="12" class="text-warning align-middle" />
+                          }
+                        </span>
+                      }
                     </td>
-                    <td class="text-sm text-base-content/70 whitespace-nowrap">{{ att.person.name }} {{ att.person.firstSurname }}</td>
+                    <td class="text-sm text-base-content/70 whitespace-nowrap">
+                      <span
+                        class="link link-hover cursor-pointer inline-flex items-center min-h-6"
+                        tabindex="0"
+                        role="link"
+                        (click)="navigateToPerson(att.person.id)"
+                        (keydown.enter)="navigateToPerson(att.person.id)"
+                      >{{ att.person.name }} {{ att.person.firstSurname }}</span>
+                    </td>
                     <td>
                       <button
                         type="button"
-                        class="badge badge-sm cursor-pointer hover:opacity-80 transition-opacity"
+                        class="badge badge-sm cursor-pointer hover:opacity-80 transition-opacity min-h-6 inline-flex items-center"
                         [ngClass]="getStatusBadgeClass(att.status)"
                         (click)="openAttendanceEdit(att)"
                         [attr.aria-label]="'Edita assistència de ' + att.person.alias"
@@ -396,7 +332,7 @@
                       >{{ getStatusLabel(att.status) }}</button>
                       @if (att.person.isXicalla) {
                         <span class="badge badge-info badge-sm ml-0.5 gap-0.5" title="Xicalla">
-                          <lucide-icon name="Baby" [size]="10" />
+                          <lucide-icon [name]="ICON_XICALLA" [size]="10" />
                         </span>
                       }
                       @if (att.notes) {
@@ -414,12 +350,17 @@
                     <td>
                       <div class="flex flex-wrap gap-1">
                         @for (pos of att.person.positions; track pos.id) {
-                          <span
-                            class="badge badge-sm"
+                          <button
+                            type="button"
+                            class="badge badge-sm cursor-pointer hover:opacity-80 transition-opacity min-h-6 inline-flex items-center"
+                            [class.ring-2]="positionFilter()?.id === pos.id"
+                            [class.ring-offset-1]="positionFilter()?.id === pos.id"
                             [style.background-color]="pos.color ?? '#888'"
                             [style.color]="getContrastColor(pos.color ?? '#888')"
                             style="font-size: 0.65rem;"
-                          >{{ pos.name }}</span>
+                            (click)="filterByPosition(pos)"
+                            [attr.title]="'Filtra per ' + pos.name"
+                          >{{ pos.name }}</button>
                         }
                       </div>
                     </td>
@@ -429,6 +370,97 @@
             </tbody>
           </table>
         </div>
+        } @else {
+        <div class="space-y-2">
+          @if (loadingAttendance()) {
+            @for (i of [1,2,3]; track i) {
+              <div class="skeleton h-20 w-full rounded-lg"></div>
+            }
+          } @else if (attendances().length === 0) {
+            <div class="text-center text-base-content/50 py-8 text-sm">Cap registre d'assistència</div>
+          } @else {
+            @for (att of attendances(); track att.id) {
+              <div class="border border-base-300 rounded-lg p-3" data-testid="attendance-card">
+                <div class="flex items-start justify-between gap-2">
+                  <div class="min-w-0">
+                    <div class="flex items-center gap-1 flex-wrap">
+                      <span
+                        class="link link-hover cursor-pointer font-medium text-sm inline-flex items-center min-h-6"
+                        tabindex="0"
+                        role="link"
+                        (click)="navigateToPerson(att.person.id)"
+                        (keydown.enter)="navigateToPerson(att.person.id)"
+                        [attr.title]="'Veure ' + att.person.alias"
+                      >{{ att.person.alias }}</span>
+                      @if (att.person.isProvisional) { <span class="badge badge-xs badge-warning">Prov.</span> }
+                      @if (att.person.isXicalla) {
+                        <span class="badge badge-info badge-sm gap-0.5" title="Xicalla">
+                          <lucide-icon [name]="ICON_XICALLA" [size]="10" />
+                        </span>
+                      }
+                      @if (att.person.notes) {
+                        <span class="tooltip tooltip-right" [attr.data-tip]="att.person.notes">
+                          @if (att.person.notesEmoji) {
+                            <span class="text-xs align-middle">{{ att.person.notesEmoji }}</span>
+                          } @else {
+                            <lucide-icon [name]="ICON_OBSERVACIONS" [size]="12" class="text-warning align-middle" />
+                          }
+                        </span>
+                      }
+                      @if (att.notes) {
+                        <span class="tooltip tooltip-right" [attr.data-tip]="att.notes">
+                          <span class="badge badge-ghost badge-sm gap-0.5 cursor-default">
+                            <lucide-icon name="StickyNote" [size]="10" />
+                          </span>
+                        </span>
+                      }
+                    </div>
+                    <div class="text-xs text-base-content/70 truncate">
+                      <span
+                        class="link link-hover cursor-pointer inline-flex items-center min-h-6"
+                        tabindex="0"
+                        role="link"
+                        (click)="navigateToPerson(att.person.id)"
+                        (keydown.enter)="navigateToPerson(att.person.id)"
+                      >{{ att.person.name }} {{ att.person.firstSurname }}</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    class="badge badge-sm cursor-pointer hover:opacity-80 transition-opacity shrink-0 min-h-6 inline-flex items-center"
+                    [ngClass]="getStatusBadgeClass(att.status)"
+                    (click)="openAttendanceEdit(att)"
+                    [attr.aria-label]="'Edita assistència de ' + att.person.alias"
+                    [title]="'Edita assistència de ' + att.person.alias"
+                  >{{ getStatusLabel(att.status) }}</button>
+                </div>
+
+                <div class="flex items-center justify-between gap-2 mt-2 text-xs text-base-content/50">
+                  <span>{{ formatDateTime(att.respondedAt) }}</span>
+                </div>
+
+                @if (att.person.positions.length > 0) {
+                  <div class="flex flex-wrap gap-1 mt-2">
+                    @for (pos of att.person.positions; track pos.id) {
+                      <button
+                        type="button"
+                        class="badge badge-sm cursor-pointer hover:opacity-80 transition-opacity min-h-6 inline-flex items-center"
+                        [class.ring-2]="positionFilter()?.id === pos.id"
+                        [class.ring-offset-1]="positionFilter()?.id === pos.id"
+                        [style.background-color]="pos.color ?? '#888'"
+                        [style.color]="getContrastColor(pos.color ?? '#888')"
+                        style="font-size: 0.65rem;"
+                        (click)="filterByPosition(pos)"
+                        [attr.title]="'Filtra per ' + pos.name"
+                      >{{ pos.name }}</button>
+                    }
+                  </div>
+                }
+              </div>
+            }
+          }
+        </div>
+        }
 
         @if (totalAttendances() > attendanceLimit()) {
           <div class="flex items-center justify-center gap-2 mt-4">
@@ -459,6 +491,7 @@
         (closed)="editingAttendance.set(null)"
       />
     }
+
   }
 
 </div>

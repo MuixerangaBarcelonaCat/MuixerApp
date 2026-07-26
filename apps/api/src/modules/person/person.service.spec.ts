@@ -1,16 +1,16 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { PersonService } from './person.service';
 import { Person } from './person.entity';
-import { Position } from '../position/position.entity';
+import { Tag } from '../tag/tag.entity';
 import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { User } from '../user/user.entity';
 
 describe('PersonService', () => {
   let service: PersonService;
   let personRepository: Repository<Person>;
-  let positionRepository: Repository<Position>;
+  let positionRepository: Repository<Tag>;
 
   const mockQueryBuilder = {
     leftJoinAndSelect: jest.fn().mockReturnThis(),
@@ -33,11 +33,12 @@ describe('PersonService', () => {
   };
 
   const mockPositionRepository = {
-    findByIds: jest.fn(),
+    findBy: jest.fn(),
   };
 
   const mockUserRepository = {
     sendInvitation: jest.fn(),
+    findOne: jest.fn(),
   }
 
   beforeEach(async () => {
@@ -49,7 +50,7 @@ describe('PersonService', () => {
           useValue: mockPersonRepository,
         },
         {
-          provide: getRepositoryToken(Position),
+          provide: getRepositoryToken(Tag),
           useValue: mockPositionRepository,
         },
         {
@@ -63,8 +64,8 @@ describe('PersonService', () => {
     personRepository = module.get<Repository<Person>>(
       getRepositoryToken(Person),
     );
-    positionRepository = module.get<Repository<Position>>(
-      getRepositoryToken(Position),
+    positionRepository = module.get<Repository<Tag>>(
+      getRepositoryToken(Tag),
     );
   });
 
@@ -129,7 +130,7 @@ describe('PersonService', () => {
       ];
       const mockPerson = { id: '123', ...createDto, positions: mockPositions };
 
-      mockPositionRepository.findByIds.mockResolvedValue(mockPositions);
+      mockPositionRepository.findBy.mockResolvedValue(mockPositions);
       mockPersonRepository.create.mockReturnValue(mockPerson);
       mockPersonRepository.save.mockResolvedValue(mockPerson);
 
@@ -138,10 +139,25 @@ describe('PersonService', () => {
       expect(result.id).toBe('123');
       expect(result.name).toBe('Test');
       expect(result.alias).toBe('testuser');
-      expect(mockPositionRepository.findByIds).toHaveBeenCalledWith([
-        'pos1',
-        'pos2',
+      expect(mockPositionRepository.findBy).toHaveBeenCalledWith({
+        id: In(['pos1', 'pos2']),
+      });
+    });
+
+    it('throws NotFoundException when a position id does not exist', async () => {
+      const createDto = {
+        name: 'Test',
+        firstSurname: 'User',
+        alias: 'testuser',
+        positionIds: ['pos1', 'typo-id'],
+      };
+      mockPositionRepository.findBy.mockResolvedValue([
+        { id: 'pos1', name: 'Position 1' },
       ]);
+      mockPersonRepository.create.mockReturnValue({ id: '123', ...createDto });
+
+      await expect(service.create(createDto)).rejects.toThrow(NotFoundException);
+      expect(mockPersonRepository.save).not.toHaveBeenCalled();
     });
   });
 
@@ -197,36 +213,30 @@ describe('PersonService', () => {
     });
   });
 
-  describe('deactivate', () => {
-    it('should deactivate a person and update lastSyncedAt', async () => {
+  describe('softDelete', () => {
+    it('should deactivate a person without touching lastSyncedAt (that field belongs to the legacy sync)', async () => {
+      const originalLastSyncedAt = new Date('2024-01-01');
       const mockPerson = {
         id: '123',
         name: 'Test',
         alias: 'test',
         isActive: true,
-        lastSyncedAt: null,
-      };
-      const deactivatedPerson = {
-        ...mockPerson,
-        isActive: false,
-        lastSyncedAt: expect.any(Date),
+        lastSyncedAt: originalLastSyncedAt,
       };
 
       mockPersonRepository.findOne.mockResolvedValue(mockPerson);
-      mockPersonRepository.save.mockResolvedValue(deactivatedPerson);
+      mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
 
-      const result = await service.deactivate('123');
+      await service.softDelete('123');
 
-      expect(result.isActive).toBe(false);
       expect(mockPersonRepository.findOne).toHaveBeenCalledWith({
         where: { id: '123' },
-        relations: ['positions', 'mentor'],
       });
       expect(mockPersonRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
           id: '123',
           isActive: false,
-          lastSyncedAt: expect.any(Date),
+          lastSyncedAt: originalLastSyncedAt,
         }),
       );
     });
@@ -234,29 +244,25 @@ describe('PersonService', () => {
     it('should throw NotFoundException when person not found', async () => {
       mockPersonRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.deactivate('999')).rejects.toThrow(
+      await expect(service.softDelete('999')).rejects.toThrow(
         NotFoundException,
       );
     });
   });
 
   describe('activate', () => {
-    it('should activate a person and update lastSyncedAt', async () => {
+    it('should activate a person without touching lastSyncedAt (that field belongs to the legacy sync)', async () => {
+      const originalLastSyncedAt = new Date('2024-01-01');
       const mockPerson = {
         id: '123',
         name: 'Test',
         alias: 'test',
         isActive: false,
-        lastSyncedAt: new Date('2024-01-01'),
-      };
-      const activatedPerson = {
-        ...mockPerson,
-        isActive: true,
-        lastSyncedAt: expect.any(Date),
+        lastSyncedAt: originalLastSyncedAt,
       };
 
       mockPersonRepository.findOne.mockResolvedValue(mockPerson);
-      mockPersonRepository.save.mockResolvedValue(activatedPerson);
+      mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
 
       const result = await service.activate('123');
 
@@ -269,7 +275,7 @@ describe('PersonService', () => {
         expect.objectContaining({
           id: '123',
           isActive: true,
-          lastSyncedAt: expect.any(Date),
+          lastSyncedAt: originalLastSyncedAt,
         }),
       );
     });
@@ -333,6 +339,42 @@ describe('PersonService', () => {
       );
     });
 
+    it('throws ConflictException (not a raw DB error) when demotion prefix collides with an existing alias', async () => {
+      const regularPerson = { id: '1', alias: 'JoanExisting', name: 'Joan', firstSurname: 'García', isProvisional: false, positions: [], mentor: null };
+      const otherPerson = { id: '2', alias: '~JoanExisting' };
+      mockPersonRepository.findOne
+        .mockResolvedValueOnce(regularPerson)
+        .mockResolvedValueOnce(otherPerson);
+
+      await expect(service.update('1', { isProvisional: true })).rejects.toThrow(ConflictException);
+      expect(mockPersonRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('throws ConflictException when a plain alias update collides with another person', async () => {
+      const person = { id: '1', alias: 'OldAlias', name: 'Joan', firstSurname: 'García', isProvisional: false, positions: [], mentor: null };
+      const otherPerson = { id: '2', alias: 'TakenAlias' };
+      mockPersonRepository.findOne
+        .mockResolvedValueOnce(person)
+        .mockResolvedValueOnce(otherPerson);
+
+      await expect(service.update('1', { alias: 'TakenAlias' })).rejects.toThrow(ConflictException);
+      expect(mockPersonRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('allows updating alias when the new alias is free', async () => {
+      const person = { id: '1', alias: 'OldAlias', name: 'Joan', firstSurname: 'García', isProvisional: false, positions: [], mentor: null };
+      mockPersonRepository.findOne
+        .mockResolvedValueOnce(person)
+        .mockResolvedValueOnce(null);
+      mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
+
+      await service.update('1', { alias: 'FreeAlias' });
+
+      expect(mockPersonRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ alias: 'FreeAlias' }),
+      );
+    });
+
     it('throws BadRequestException when promoting without name', async () => {
       const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: '', isProvisional: true, positions: [], mentor: null, managedBy: {'id': 'user_id'} };
       mockPersonRepository.findOne.mockResolvedValue(provisionalPerson);
@@ -358,6 +400,32 @@ describe('PersonService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
+    it('loads the managedBy relation so the promotion check sees it', async () => {
+      const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: 'García', isProvisional: true, positions: [], mentor: null, managedBy: { id: 'user_id' } };
+      mockPersonRepository.findOne.mockResolvedValue(provisionalPerson);
+      mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
+
+      await service.update('1', { isProvisional: false, alias: 'JoanGarcia' });
+
+      expect(mockPersonRepository.findOne).toHaveBeenCalledWith({
+        where: { id: '1' },
+        relations: ['positions', 'mentor', 'managedBy'],
+      });
+    });
+
+    it('promotes when managedById is provided in the same request even if the person has no manager yet', async () => {
+      const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: 'García', isProvisional: true, positions: [], mentor: null, managedBy: null };
+      mockPersonRepository.findOne.mockResolvedValue(provisionalPerson);
+      mockUserRepository.findOne.mockResolvedValue({ id: 'user_id' });
+      mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
+
+      await service.update('1', { isProvisional: false, alias: 'JoanGarcia', managedById: 'user_id' });
+
+      expect(mockPersonRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ isProvisional: false, managedBy: { id: 'user_id' } }),
+      );
+    });
+
     it('throws BadRequestException when promoting with ~ alias', async () => {
       const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: 'García', isProvisional: true, positions: [], mentor: null, managedBy: {'id': 'user_id'} };
       mockPersonRepository.findOne.mockResolvedValue(provisionalPerson);
@@ -376,6 +444,31 @@ describe('PersonService', () => {
       expect(mockPersonRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({ isProvisional: false, alias: 'JoanGarcia', firstSurname: 'García' }),
       );
+    });
+  });
+
+  describe('update positions', () => {
+    it('throws NotFoundException when a position id does not exist', async () => {
+      const person = { id: '1', alias: 'Joan', name: 'Joan', firstSurname: 'García', isProvisional: false, positions: [], mentor: null };
+      mockPersonRepository.findOne.mockResolvedValue(person);
+      mockPositionRepository.findBy.mockResolvedValue([{ id: 'pos1', name: 'Position 1' }]);
+
+      await expect(
+        service.update('1', { positionIds: ['pos1', 'typo-id'] }),
+      ).rejects.toThrow(NotFoundException);
+      expect(mockPersonRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('uses findBy/In to resolve positions', async () => {
+      const person = { id: '1', alias: 'Joan', name: 'Joan', firstSurname: 'García', isProvisional: false, positions: [], mentor: null };
+      const mockPositions = [{ id: 'pos1', name: 'Position 1' }];
+      mockPersonRepository.findOne.mockResolvedValue(person);
+      mockPositionRepository.findBy.mockResolvedValue(mockPositions);
+      mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
+
+      await service.update('1', { positionIds: ['pos1'] });
+
+      expect(mockPositionRepository.findBy).toHaveBeenCalledWith({ id: In(['pos1']) });
     });
   });
 });

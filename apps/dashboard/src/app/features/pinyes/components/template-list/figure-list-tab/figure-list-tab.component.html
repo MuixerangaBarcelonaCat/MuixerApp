@@ -8,7 +8,7 @@
         [(ngModel)]="search"
         [ngModel]="search()"
         (ngModelChange)="search.set($event)"
-        class="grow bg-transparent outline-none text-sm"
+        class="grow bg-transparent outline-none text-sm h-6"
         placeholder="Cerca figures..."
         aria-label="Cerca figures"
       />
@@ -43,7 +43,7 @@
       />
     } @else {
       <app-empty-state
-        icon="Layers"
+        [icon]="ICON_TEMPLATE"
         message="Crea la primera figura per dissenyar i assignar posicions."
         actionLabel="Figura nova"
         (actionClick)="openNewFigure()"
@@ -63,7 +63,6 @@
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 flex-wrap">
                   <h3 class="font-semibold text-base-content truncate">{{ figure.name }}</h3>
-                  <code class="text-xs text-base-content/50 bg-base-200 px-1.5 py-0.5 rounded font-mono">{{ figure.slug }}</code>
                 </div>
 
                 @if (figure.description) {
@@ -77,7 +76,7 @@
                   </span>
                   @if (figure.renglaCount > 0) {
                     <span class="badge badge-ghost badge-sm gap-1">
-                      <lucide-icon name="Rows3" [size]="10" aria-hidden="true" />
+                      <lucide-icon [name]="ICON_RENGLA" [size]="10" aria-hidden="true" />
                       {{ figure.renglaCount }} rengle{{ figure.renglaCount !== 1 ? 's' : '' }}
                     </span>
                   }

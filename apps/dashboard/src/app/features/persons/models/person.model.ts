@@ -20,7 +20,6 @@ export interface Person {
   firstSurname: string;
   secondSurname: string | null;
   alias: string;
-  email: string | null;
   phone: string | null;
   birthDate: string | null;
   shoulderHeight: number | null;
@@ -31,6 +30,7 @@ export interface Person {
   onboardingStatus: OnboardingStatus;
   shirtDate: string | null;
   notes: string | null;
+  notesEmoji: string | null;
   isActive: boolean;
   positions: Position[];
   managedBy: User | null;
@@ -79,7 +79,6 @@ export interface UpdatePersonDto {
   firstSurname: string;
   secondSurname: string | null;
   alias: string;
-  email: string | null;
   phone: string | null;
   birthDate: string | null;
   shoulderHeight: number | null;
@@ -90,6 +89,7 @@ export interface UpdatePersonDto {
   onboardingStatus: OnboardingStatus;
   shirtDate: string | null;
   notes: string | null;
+  notesEmoji: string | null;
   isActive: boolean;
   positions: string[];
   managedById: string | null;

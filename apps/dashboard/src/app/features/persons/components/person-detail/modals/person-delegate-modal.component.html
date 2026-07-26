@@ -1,0 +1,109 @@
+<dialog
+  class="modal modal-open"
+  (click)="$event.target === $event.currentTarget && close()"
+  (keydown.enter)="$event.target === $event.currentTarget && close()"
+  (keydown.escape)="close()"
+  tabindex="0"
+>
+  <div class="modal-box max-w-lg w-full" role="dialog" aria-modal="true" aria-label="Afegeix delegat" (click)="$event.stopPropagation()" (keydown.enter)="$event.stopPropagation()">
+    <div class="flex items-start justify-between mb-4">
+      <h2 class="text-lg font-bold">Afegeix delegat</h2>
+      <button class="btn btn-sm btn-ghost btn-circle" type="button" (click)="close()" aria-label="Tancar">✕</button>
+    </div>
+
+    @if (error()) {
+      <div class="alert alert-error text-sm mb-4" role="alert">
+        <span>{{ error() }}</span>
+      </div>
+    }
+
+    <!-- Type selector -->
+    <div class="form-control mb-4">
+      <label class="label" for="delegate-type">
+        <span class="label-text font-medium">Tipus de delegació</span>
+      </label>
+      <select
+        id="delegate-type"
+        class="select select-bordered w-full"
+        [ngModel]="selectedType()"
+        (ngModelChange)="selectedType.set($event)"
+        [disabled]="saving()"
+      >
+        @for (t of delegateTypes; track t.value) {
+          <option [ngValue]="t.value">{{ t.label }}</option>
+        }
+      </select>
+    </div>
+
+    <!-- User search -->
+    <div class="form-control mb-3">
+      <label class="label" for="delegate-user-search">
+        <span class="label-text font-medium">Cerca usuari</span>
+      </label>
+      <input
+        id="delegate-user-search"
+        type="text"
+        class="input input-bordered w-full"
+        [value]="searchTerm()"
+        (input)="onSearch($any($event.target).value)"
+        placeholder="Correu o nom..."
+        [disabled]="saving()"
+      />
+    </div>
+
+    <!-- User list -->
+    <div class="max-h-48 overflow-y-auto border border-base-300 rounded-lg mb-4">
+      @if (loadingUsers()) {
+        <div class="flex justify-center py-4">
+          <span class="loading loading-spinner loading-sm text-primary"></span>
+        </div>
+      } @else if (users().length === 0) {
+        <p class="text-sm text-base-content/50 text-center py-4">Cap usuari disponible</p>
+      } @else {
+        <ul class="menu menu-sm p-1" role="listbox" aria-label="Llista d'usuaris">
+          @for (user of users(); track user.id) {
+            <li role="option" [attr.aria-selected]="selectedUser()?.id === user.id">
+              <button
+                type="button"
+                class="flex items-center justify-between w-full"
+                [class.active]="selectedUser()?.id === user.id"
+                (click)="selectUser(user)"
+              >
+                <div class="flex flex-col items-start">
+                  <span class="text-sm">{{ user.email }}</span>
+                  @if (user.person) {
+                    <span class="text-xs text-base-content/50">{{ user.person.alias }}</span>
+                  }
+                </div>
+                <span class="badge badge-outline badge-xs">{{ user.role }}</span>
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+
+    @if (selectedUser()) {
+      <div class="alert alert-info text-sm mb-4">
+        <span>Delegat seleccionat: <strong>{{ selectedUser()!.email }}</strong></span>
+      </div>
+    }
+
+    <div class="flex justify-end gap-2">
+      <button type="button" class="btn btn-ghost btn-sm" (click)="close()" [disabled]="saving()">
+        Cancel·la
+      </button>
+      <button
+        type="button"
+        class="btn btn-primary btn-sm"
+        (click)="save()"
+        [disabled]="saving() || !selectedUser()"
+      >
+        @if (saving()) {
+          <span class="loading loading-spinner loading-xs"></span>
+        }
+        Afegeix
+      </button>
+    </div>
+  </div>
+</dialog>

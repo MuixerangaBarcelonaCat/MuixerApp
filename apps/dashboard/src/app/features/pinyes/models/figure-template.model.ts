@@ -14,7 +14,7 @@ export interface FigureNodeItem {
   color: string | null;
   shape: NodeShape;
   sortOrder: number;
-  climbPath: string | null;
+  climbIndicator: string | null;
   ringLevel: number | null;
   originNodeId: string | null;
   renglaId: string | null;
@@ -50,7 +50,6 @@ export interface FigureTemplateDetail extends FigureTemplateListItem {
 
 export interface FigureTemplateFilterParams {
   search?: string;
-  hasPinya?: boolean;
   page?: number;
   limit?: number;
 }
@@ -69,11 +68,11 @@ export interface CreateFigureNodePayload {
   color?: string;
   shape: NodeShape;
   sortOrder?: number;
-  climbPath?: string;
+  climbIndicator?: string;
   ringLevel?: number;
-  originNodeId?: string;
-  renglaId?: string;
-  renglaPosition?: number;
+  originNodeId?: string | null;
+  renglaId?: string | null;
+  renglaPosition?: number | null;
   metadata?: Record<string, unknown>;
 }
 
@@ -81,7 +80,6 @@ export interface CreateFigureTemplatePayload {
   name: string;
   slug: string;
   description?: string;
-  hasPinya?: boolean;
   direction?: number;
   metadata?: Record<string, unknown>;
   nodes: CreateFigureNodePayload[];
@@ -90,7 +88,6 @@ export interface CreateFigureTemplatePayload {
 export interface UpdateFigureTemplatePayload {
   name?: string;
   description?: string;
-  hasPinya?: boolean;
   direction?: number;
   metadata?: Record<string, unknown>;
   nodes?: CreateFigureNodePayload[];

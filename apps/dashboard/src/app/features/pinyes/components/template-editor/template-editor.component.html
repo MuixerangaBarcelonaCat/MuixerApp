@@ -16,22 +16,56 @@
       <span class="text-base-content/30" aria-hidden="true">/</span>
 
       <!-- Template name -->
-      <div class="flex items-center gap-2 min-w-0 flex-1">
+      <div class="flex items-center gap-2 min-w-0">
+        <span class="text-sm font-semibold text-base-content truncate max-w-48">{{ templateName() }}</span>
         @if (previewMode()) {
-          <span class="text-sm font-semibold text-base-content truncate">{{ templateName() }}</span>
           <span class="badge badge-ghost badge-sm">Previsualització</span>
-        } @else {
-          <input
-            type="text"
-            class="input input-ghost input-sm font-semibold text-base-content max-w-xs"
-            placeholder="Nom de la figura"
-            [ngModel]="templateName()"
-            (ngModelChange)="onNameChange($event)"
-            aria-label="Nom de la figura"
-          />
-          @if (templateSlug()) {
-            <span class="text-xs text-base-content/40 font-mono truncate max-w-32">{{ templateSlug() }}</span>
-          }
+        }
+
+        @if (!previewMode()) {
+          <!-- Pinya mode (default) -->
+          <button
+            type="button"
+            class="btn btn-sm gap-1"
+            [class.btn-primary]="!renglaEditMode() && !troncDrawerOpen()"
+            [class.btn-ghost]="renglaEditMode() || troncDrawerOpen()"
+            (click)="activatePinyaMode()"
+            [attr.aria-pressed]="!renglaEditMode() && !troncDrawerOpen()"
+            aria-label="Mode pinya"
+            title="Pinya"
+          >
+            <lucide-icon [name]="ICON_PINYA" [size]="16" aria-hidden="true" />
+            Pinya
+          </button>
+
+          <!-- Rengla edit mode toggle -->
+          <button
+            type="button"
+            class="btn btn-sm gap-1"
+            [class.btn-primary]="renglaEditMode()"
+            [class.btn-ghost]="!renglaEditMode()"
+            (click)="toggleRenglaEditMode()"
+            [attr.aria-pressed]="renglaEditMode()"
+            aria-label="Edita rengles"
+            title="Edita les rengles"
+          >
+            <lucide-icon [name]="ICON_RENGLA" [size]="16" aria-hidden="true" />
+            Rengles
+          </button>
+
+          <!-- Tronc drawer trigger -->
+          <button
+            type="button"
+            class="btn btn-sm gap-1"
+            [class.btn-primary]="troncDrawerOpen()"
+            [class.btn-ghost]="!troncDrawerOpen()"
+            (click)="activateTroncMode()"
+            aria-label="Obrir panell del Tronc"
+            title="Tronc"
+          >
+            <lucide-icon [name]="ICON_TRONC" [size]="16" aria-hidden="true" />
+            Tronc
+          </button>
         }
       </div>
     </div>
@@ -96,40 +130,6 @@
         <!-- {{ previewMode() ? 'Sortir' : 'Previsualitzar' }} -->
       </button>
 
-      <!-- Rengla edit mode toggle (pinya-only) -->
-      @if (!isFiguraNeta()) {
-        <button
-          type="button"
-          class="btn btn-sm gap-1"
-          [class.btn-primary]="renglaEditMode()"
-          [class.btn-ghost]="!renglaEditMode()"
-          [disabled]="previewMode()"
-          (click)="toggleRenglaEditMode()"
-          [attr.aria-pressed]="renglaEditMode()"
-          aria-label="Edita rengles"
-          title="Edita les rengles"
-        >
-          <lucide-icon name="GitBranchPlus" [size]="16" aria-hidden="true" />
-          Rengles
-        </button>
-      }
-
-      @if (!previewMode()) {
-        <!-- Tronc drawer trigger -->
-        <button
-          type="button"
-          class="btn btn-sm gap-1"
-          [class.btn-primary]="isFiguraNeta() && !troncDrawerOpen()"
-          [class.btn-ghost]="!isFiguraNeta() || troncDrawerOpen()"
-          [class.btn-active]="troncDrawerOpen()"
-          (click)="troncDrawerOpen.set(true)"
-          aria-label="Obrir panell del Tronc"
-          title="Tronc"
-        >
-          <lucide-icon name="Layers" [size]="16" aria-hidden="true" />
-          Tronc
-        </button>
-      }
       <!-- Shortcuts help -->
       <button
         type="button"
@@ -149,7 +149,7 @@
         aria-label="Ajuda de l'editor de figures"
         title="Ajuda"
       >
-        <lucide-icon name="HelpCircle" [size]="16" aria-hidden="true" />
+        <lucide-icon name="CircleQuestionMark" [size]="16" aria-hidden="true" />
       </button>
     </div>
   </header>
@@ -205,31 +205,29 @@
         }
       </div>
 
-      @if (!isFiguraNeta()) {
-        <div class="divider my-1"></div>
+      <div class="divider my-1"></div>
 
-        <!-- Pinya positions -->
-        <div class="toolbar-section">
-          <p class="toolbar-label">Pinya</p>
-          @for (pos of pinyaPositions; track pos.positionType) {
-            <button
-              type="button"
-              class="toolbar-btn"
-              (click)="addPinyaNode(pos)"
-              [title]="'Afegir ' + pos.label"
-              [attr.aria-label]="'Afegir node ' + pos.label"
-            >
-              <span
-                class="node-rect"
-                [class.node-ellipse]="pos.shape === NodeShape.ELLIPSE"
-                [style.backgroundColor]="pos.color"
-                aria-hidden="true"
-              ></span>
-              {{ pos.label }}
-            </button>
-          }
-        </div>
-      }
+      <!-- Pinya positions -->
+      <div class="toolbar-section">
+        <p class="toolbar-label">Pinya</p>
+        @for (pos of pinyaPositions; track pos.positionType) {
+          <button
+            type="button"
+            class="toolbar-btn"
+            (click)="addPinyaNode(pos)"
+            [title]="'Afegir ' + pos.label"
+            [attr.aria-label]="'Afegir node ' + pos.label"
+          >
+            <span
+              class="node-rect"
+              [class.node-ellipse]="pos.shape === NodeShape.ELLIPSE"
+              [style.backgroundColor]="pos.color"
+              aria-hidden="true"
+            ></span>
+            {{ pos.label }}
+          </button>
+        }
+      </div>
 
       <div class="divider my-1"></div>
 
@@ -292,19 +290,12 @@
         <div class="relative w-full h-full">
           @if (pinyaNodes().length === 0 && !previewMode()) {
             <div class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 text-center px-6 pointer-events-none">
-              <lucide-icon [name]="isFiguraNeta() ? 'Box' : 'Shapes'" [size]="64" class="text-base-content/20" aria-hidden="true" />
+              <lucide-icon name="Shapes" [size]="64" class="text-base-content/20" aria-hidden="true" />
               <div>
-                @if (isFiguraNeta()) {
-                  <h3 class="text-lg font-semibold text-base-content mb-1">Figura neta</h3>
-                  <p class="text-sm text-base-content/60">
-                    Afegeix baixos des de la barra d'eines i edita el tronc al panell lateral.
-                  </p>
-                } @else {
-                  <h3 class="text-lg font-semibold text-base-content mb-1">No hi ha cap node de pinya</h3>
-                  <p class="text-sm text-base-content/60">
-                    Afegeix nodes des de la barra d'eines de l'esquerra per començar a dissenyar la figura.
-                  </p>
-                }
+                <h3 class="text-lg font-semibold text-base-content mb-1">No hi ha cap node de pinya</h3>
+                <p class="text-sm text-base-content/60">
+                  Afegeix nodes des de la barra d'eines de l'esquerra per començar a dissenyar la figura.
+                </p>
               </div>
             </div>
           }
@@ -436,40 +427,21 @@
               />
             </div>
 
-            <!-- Ring level: only for PINYA nodes -->
             @if (node.zone === FigureZone.PINYA) {
+              <!-- Indicator (short marker shown next to the assigned person, e.g. "X") -->
               <div class="form-control mb-3">
-                <label class="label pb-1" [for]="'node-ring-' + node.id">
-                  <span
-                    class="label-text text-xs font-medium tooltip tooltip-right"
-                    [attr.data-tip]="node.renglaId
-                      ? 'Calculat automàticament des de la rengla assignada.'
-                      : 'El nivell de cordó indica a quin anell concèntric pertany aquesta posició. Serveix per saber quines posicions s\'afegeixen quan la figura creix.'"
-                  >
-                    Nivell de cordó
-                  </span>
+                <label class="label pb-1" [for]="'node-indicator-' + node.id">
+                  <span class="label-text text-xs font-medium">Indicador</span>
                 </label>
                 <input
-                  type="number"
-                  [id]="'node-ring-' + node.id"
-                  class="input input-bordered input-sm"
-                  [class.input-disabled]="!!node.renglaId"
-                  [placeholder]="node.renglaId ? '' : 'Buit = independent'"
-                  [ngModel]="node.ringLevel"
-                  (ngModelChange)="updateSelectedNodeProp('ringLevel', $event ? +$event : null)"
-                  [disabled]="!!node.renglaId"
-                  min="1"
-                  max="10"
+                  type="text"
+                  [id]="'node-indicator-' + node.id"
+                  class="input input-bordered input-sm w-16"
+                  maxlength="4"
+                  [ngModel]="node.climbIndicator"
+                  (ngModelChange)="updateSelectedNodeProp('climbIndicator', $event || null)"
+                  aria-label="Indicador curt mostrat al costat de la persona assignada"
                 />
-                <div class="label pt-1">
-                  <span class="label-text-alt text-base-content/50">
-                    @if (node.renglaId) {
-                      Gestionat per la rengla assignada
-                    } @else {
-                      Buit per a nodes independents (ex: cordó obert)
-                    }
-                  </span>
-                </div>
               </div>
             }
 
@@ -591,11 +563,29 @@
               </div>
             }
           } @else {
-            <div class="flex flex-col items-center justify-center h-full gap-3 text-center px-4">
-              <lucide-icon name="MousePointer2" [size]="32" class="text-base-content/20" aria-hidden="true" />
-              <p class="text-sm text-base-content/50">
-                Feu clic a un node de l'editor per veure i editar les seves propietats
-              </p>
+            <div>
+              <h2 class="panel-title">Figura</h2>
+              <div class="form-control mb-3">
+                <label class="label pb-1" for="template-name-input">
+                  <span class="label-text text-xs font-medium">Nom</span>
+                </label>
+                <input
+                  id="template-name-input"
+                  type="text"
+                  class="input input-bordered input-sm"
+                  placeholder="Nom de la figura"
+                  [ngModel]="templateName()"
+                  (ngModelChange)="onNameChange($event)"
+                  aria-label="Nom de la figura"
+                />
+              </div>
+              <div class="divider my-3"></div>
+              <div class="flex flex-col items-center gap-3 text-center px-2 py-4">
+                <lucide-icon name="MousePointer2" [size]="28" class="text-base-content/20" aria-hidden="true" />
+                <p class="text-sm text-base-content/50">
+                  Feu clic a un node de l'editor per veure i editar les seves propietats
+                </p>
+              </div>
             </div>
           }
         </div>
@@ -606,21 +596,14 @@
 </div>
 
 <!-- ── Tronc Floating Panel ──────────────────────────────────────────────── -->
-@if (troncDrawerOpen() && (!previewMode() || isFiguraNeta())) {
+@if (troncDrawerOpen() && !previewMode()) {
   <aside
     class="tronc-floating-panel"
-    [class.tronc-floating-panel--neta]="isFiguraNeta()"
-    [style.left.px]="troncPanelPos().x"
-    [style.top.px]="troncPanelPos().y"
     aria-label="Tronc de la figura"
     tabindex="-1"
     (keydown.escape)="troncDrawerOpen.set(false)"
   >
-    <div
-      class="tronc-floating-header"
-      (mousedown)="onTroncDragStart($event)"
-    >
-      <lucide-icon name="GripVertical" [size]="14" class="drag-handle" aria-hidden="true" />
+    <div class="tronc-floating-header">
       <h2 class="tronc-floating-title">
         Tronc
       </h2>

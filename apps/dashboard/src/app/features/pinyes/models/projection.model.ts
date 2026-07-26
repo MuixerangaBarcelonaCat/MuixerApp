@@ -1,4 +1,5 @@
-import { AssignmentDetail, InstanceNodeItem } from './assignment.model';
+import { AssignmentDetail, AttendanceStatus, InstanceNodeItem } from './assignment.model';
+import { FigureMode } from './segment.model';
 
 export interface ProjectionInstance {
   id: string;
@@ -8,6 +9,12 @@ export interface ProjectionInstance {
   projectionX: number | null;
   projectionY: number | null;
   projectionScale: number;
+  projectionAngle: number;
+  troncPanelX: number | null;
+  troncPanelY: number | null;
+  troncPanelWidth: number | null;
+  troncPanelHeight: number | null;
+  figureMode: FigureMode;
   figureTemplate: { id: string; name: string; hasPinya: boolean } | null;
   nodes: InstanceNodeItem[];
   assignments: AssignmentDetail[];
@@ -22,11 +29,6 @@ export interface ProjectionSegmentData {
     nextSegmentId: string | null;
   };
   instances: ProjectionInstance[];
-}
-
-export interface InstanceLayoutUpdate {
-  instanceId: string;
-  x: number;
-  y: number;
-  scale: number;
+  personAttendance: Record<string, AttendanceStatus>;
+  hasDistribution: boolean;
 }

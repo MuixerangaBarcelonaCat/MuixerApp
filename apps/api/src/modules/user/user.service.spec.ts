@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import {
   BadRequestException,
   ConflictException,
@@ -11,6 +12,14 @@ import { UserService } from './user.service';
 import { User } from './user.entity';
 import { Person } from '../person/person.entity';
 import { UserRole } from '@muixer/shared';
+import { hashToken } from '../../common/utils/hash-token.util';
+import { TokenService } from '../auth/token.service';
+
+const makeTransactionManager = () => ({
+  create: jest.fn((_entity: unknown, data: unknown) => data),
+  save: jest.fn((_entity: unknown, data: unknown) => Promise.resolve(data)),
+  findOne: jest.fn(),
+});
 
 jest.mock('bcrypt', () => ({
   hash: jest.fn().mockResolvedValue('hashed-password'),
@@ -47,6 +56,8 @@ describe('UserService', () => {
   let userQb: Record<string, jest.Mock>;
   let mockUserRepo: Record<string, jest.Mock>;
   let mockPersonRepo: Record<string, jest.Mock>;
+  let mockDataSource: { transaction: jest.Mock };
+  let mockTokenService: { revokeAllUserTokens: jest.Mock };
 
   beforeEach(async () => {
     userQb = {
@@ -71,11 +82,21 @@ describe('UserService', () => {
       save: jest.fn(),
     };
 
+    mockDataSource = {
+      transaction: jest.fn(),
+    };
+
+    mockTokenService = {
+      revokeAllUserTokens: jest.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UserService,
         { provide: getRepositoryToken(User), useValue: mockUserRepo },
         { provide: getRepositoryToken(Person), useValue: mockPersonRepo },
+        { provide: DataSource, useValue: mockDataSource },
+        { provide: TokenService, useValue: mockTokenService },
       ],
     }).compile();
 
@@ -168,6 +189,11 @@ describe('UserService', () => {
     it('sorts by createdAt', async () => {
       await service.findAll({ sortBy: 'createdAt', sortOrder: 'ASC' });
       expect(userQb.orderBy).toHaveBeenCalledWith('user.createdAt', 'ASC');
+    });
+
+    it('sorts by alias using the person join alias, not a three-segment path', async () => {
+      await service.findAll({ sortBy: 'alias', sortOrder: 'ASC' });
+      expect(userQb.orderBy).toHaveBeenCalledWith('person.alias', 'ASC');
     });
 
     it('applies pagination — skip and take', async () => {
@@ -274,36 +300,55 @@ describe('UserService', () => {
       mockPersonRepo.findOne.mockResolvedValue(person);
 
       const createdUser = makeUser({ isActive: false, person });
-      mockUserRepo.create.mockReturnValue(createdUser);
-      mockUserRepo.save.mockResolvedValue(createdUser);
-      mockPersonRepo.save.mockResolvedValue(person);
+      const manager = makeTransactionManager();
+      manager.save.mockResolvedValueOnce(createdUser); // user save
+      mockDataSource.transaction.mockImplementation((cb: (m: unknown) => unknown) => cb(manager));
 
-      // sendInvite will call findOne internally — mock it for that call
-      mockUserRepo.findOne.mockResolvedValue({ ...createdUser, isActive: false });
+      // no email conflict, then sendInvite's internal findOne
+      mockUserRepo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ ...createdUser, isActive: false });
 
       const result = await service.createWithInvite({ personId: 'person-uuid', email: 'new@user.com' });
 
-      expect(mockUserRepo.create).toHaveBeenCalledWith(
+      expect(manager.create).toHaveBeenCalledWith(
+        User,
         expect.objectContaining({ role: UserRole.MEMBER, isActive: false }),
       );
       expect(result.isActive).toBe(false);
     });
 
-    it('associates person to created user', async () => {
+    it('associates person to created user, atomically with the user creation', async () => {
       const person = makePerson({ managedBy: null });
       mockPersonRepo.findOne.mockResolvedValue(person);
 
       const createdUser = makeUser({ isActive: false, person });
-      mockUserRepo.create.mockReturnValue(createdUser);
-      mockUserRepo.save.mockResolvedValue(createdUser);
-      mockPersonRepo.save.mockResolvedValue(person);
-      mockUserRepo.findOne.mockResolvedValue({ ...createdUser, isActive: false });
+      const manager = makeTransactionManager();
+      manager.save.mockResolvedValueOnce(createdUser); // user save
+      mockDataSource.transaction.mockImplementation((cb: (m: unknown) => unknown) => cb(manager));
+      mockUserRepo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ ...createdUser, isActive: false });
 
       await service.createWithInvite({ personId: 'person-uuid', email: 'new@user.com' });
 
-      expect(mockPersonRepo.save).toHaveBeenCalledWith(
+      expect(mockDataSource.transaction).toHaveBeenCalledTimes(1);
+      expect(manager.save).toHaveBeenCalledWith(
+        Person,
         expect.objectContaining({ managedBy: createdUser }),
       );
+    });
+
+    it('throws ConflictException when email already exists', async () => {
+      const person = makePerson({ managedBy: null });
+      mockPersonRepo.findOne.mockResolvedValue(person);
+      mockUserRepo.findOne.mockResolvedValueOnce(makeUser({ email: 'taken@user.com' }));
+
+      await expect(
+        service.createWithInvite({ personId: 'person-uuid', email: 'taken@user.com' }),
+      ).rejects.toThrow(ConflictException);
+
+      expect(mockUserRepo.create).not.toHaveBeenCalled();
     });
   });
 
@@ -353,6 +398,36 @@ describe('UserService', () => {
       expect(expiry).toBeGreaterThanOrEqual(before + expectedMs - 1000);
       expect(expiry).toBeLessThanOrEqual(after + expectedMs + 1000);
     });
+
+    it('rejects with BadRequestException when sendInvitationEmail fails, instead of resolving', async () => {
+      const user = makeUser({ isActive: false });
+      mockUserRepo.findOne.mockResolvedValue(user);
+      mockUserRepo.save.mockResolvedValue(user);
+      jest
+        .spyOn(service, 'sendInvitationEmail')
+        .mockRejectedValue(new Error('SMTP down'));
+
+      await expect(service.sendInvite('user-uuid')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('stores a hash of the invite token, not the raw token, while still emailing the raw token', async () => {
+      const user = makeUser({ isActive: false });
+      mockUserRepo.findOne.mockResolvedValue(user);
+      mockUserRepo.save.mockImplementation(async (u: User) => u);
+      const sendEmailSpy = jest
+        .spyOn(service, 'sendInvitationEmail')
+        .mockResolvedValue(undefined);
+
+      await service.sendInvite('user-uuid');
+
+      const savedUser = mockUserRepo.save.mock.calls[0][0] as User;
+      const rawTokenSentByEmail = sendEmailSpy.mock.calls[0][1];
+
+      expect(savedUser.inviteToken).not.toBe(rawTokenSentByEmail);
+      expect(savedUser.inviteToken).toBe(hashToken(rawTokenSentByEmail));
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -362,7 +437,9 @@ describe('UserService', () => {
   describe('grantRole', () => {
     it('throws NotFoundException when user not found', async () => {
       mockUserRepo.findOne.mockResolvedValue(null);
-      await expect(service.grantRole('missing-id', UserRole.ADMIN)).rejects.toThrow(NotFoundException);
+      await expect(
+        service.grantRole('missing-id', UserRole.ADMIN, 'actor-uuid'),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('updates the role and returns UserResponseDto', async () => {
@@ -370,7 +447,7 @@ describe('UserService', () => {
       mockUserRepo.findOne.mockResolvedValue(user);
       mockUserRepo.save.mockResolvedValue({ ...user, role: UserRole.ADMIN });
 
-      const result = await service.grantRole('user-uuid', UserRole.ADMIN);
+      const result = await service.grantRole('user-uuid', UserRole.ADMIN, 'actor-uuid');
 
       expect(mockUserRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({ role: UserRole.ADMIN }),
@@ -383,8 +460,31 @@ describe('UserService', () => {
       mockUserRepo.findOne.mockResolvedValue(user);
       mockUserRepo.save.mockResolvedValue(user);
 
-      const result = await service.grantRole('user-uuid', UserRole.ADMIN);
+      const result = await service.grantRole('user-uuid', UserRole.ADMIN, 'actor-uuid');
       expect((result as unknown as Record<string, unknown>)['passwordHash']).toBeUndefined();
+    });
+
+    it('throws ForbiddenException when an ADMIN actor grants themselves a different role', async () => {
+      const user = makeUser({ role: UserRole.ADMIN });
+      mockUserRepo.findOne.mockResolvedValue(user);
+
+      await expect(
+        service.grantRole('user-uuid', UserRole.TECHNICAL, 'user-uuid'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('loads the person relation up front and does not re-fetch after saving', async () => {
+      const user = makeUser({ role: UserRole.MEMBER });
+      mockUserRepo.findOne.mockResolvedValue(user);
+      mockUserRepo.save.mockResolvedValue({ ...user, role: UserRole.ADMIN });
+
+      await service.grantRole('user-uuid', UserRole.ADMIN, 'actor-uuid');
+
+      expect(mockUserRepo.findOne).toHaveBeenCalledTimes(1);
+      expect(mockUserRepo.findOne).toHaveBeenCalledWith({
+        where: { id: 'user-uuid' },
+        relations: ['person'],
+      });
     });
   });
 
@@ -414,14 +514,22 @@ describe('UserService', () => {
 
     it('upgrades a credential-less stub account (from sync/invite) instead of rejecting', async () => {
       const stubUser = makeUser({ passwordHash: null as unknown as string, isActive: false, role: UserRole.MEMBER });
-      mockUserRepo.findOne
-        .mockResolvedValueOnce(stubUser) // email check finds stub
-        .mockResolvedValueOnce({ ...stubUser, role: UserRole.TECHNICAL, isActive: true, passwordHash: 'hashed-password' }); // reload
-      mockUserRepo.save.mockResolvedValue({ ...stubUser, role: UserRole.TECHNICAL, isActive: true });
+      mockUserRepo.findOne.mockResolvedValueOnce(stubUser); // email check finds stub
+
+      const manager = makeTransactionManager();
+      manager.save.mockResolvedValueOnce({ ...stubUser, role: UserRole.TECHNICAL, isActive: true }); // user save
+      manager.findOne.mockResolvedValueOnce({
+        ...stubUser,
+        role: UserRole.TECHNICAL,
+        isActive: true,
+        passwordHash: 'hashed-password',
+      }); // reload
+      mockDataSource.transaction.mockImplementation((cb: (m: unknown) => unknown) => cb(manager));
 
       const result = await service.createUser(createDto, UserRole.ADMIN);
 
-      expect(mockUserRepo.save).toHaveBeenCalledWith(
+      expect(manager.save).toHaveBeenCalledWith(
+        User,
         expect.objectContaining({ role: UserRole.TECHNICAL, isActive: true }),
       );
       expect(result.role).toBe(UserRole.TECHNICAL);
@@ -447,19 +555,17 @@ describe('UserService', () => {
     });
 
     it('creates user with hashed password, role and isActive=true', async () => {
-      mockUserRepo.findOne
-        .mockResolvedValueOnce(null) // email check
-        .mockResolvedValueOnce(makeUser({ role: UserRole.TECHNICAL, isActive: true })); // reload
-      mockUserRepo.create.mockReturnValue(
-        makeUser({ role: UserRole.TECHNICAL, isActive: true }),
-      );
-      mockUserRepo.save.mockResolvedValue(
-        makeUser({ role: UserRole.TECHNICAL, isActive: true }),
-      );
+      mockUserRepo.findOne.mockResolvedValueOnce(null); // email check
+
+      const manager = makeTransactionManager();
+      manager.save.mockResolvedValueOnce(makeUser({ role: UserRole.TECHNICAL, isActive: true })); // user save
+      manager.findOne.mockResolvedValueOnce(makeUser({ role: UserRole.TECHNICAL, isActive: true })); // reload
+      mockDataSource.transaction.mockImplementation((cb: (m: unknown) => unknown) => cb(manager));
 
       const result = await service.createUser(createDto, UserRole.ADMIN);
 
-      expect(mockUserRepo.create).toHaveBeenCalledWith(
+      expect(manager.create).toHaveBeenCalledWith(
+        User,
         expect.objectContaining({
           email: 'tech@example.com',
           passwordHash: 'hashed-password',
@@ -480,19 +586,21 @@ describe('UserService', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('links person when personId is provided', async () => {
+    it('links person when personId is provided, atomically with the user save', async () => {
       const person = makePerson({ managedBy: null });
-      mockUserRepo.findOne
-        .mockResolvedValueOnce(null) // email check
-        .mockResolvedValueOnce(makeUser({ person })); // reload
+      mockUserRepo.findOne.mockResolvedValueOnce(null); // email check
       mockPersonRepo.findOne.mockResolvedValue(person);
-      mockUserRepo.create.mockReturnValue(makeUser({ person }));
-      mockUserRepo.save.mockResolvedValue(makeUser({ person }));
-      mockPersonRepo.save.mockResolvedValue(person);
+
+      const manager = makeTransactionManager();
+      manager.save.mockResolvedValueOnce(makeUser({ person })); // user save
+      manager.findOne.mockResolvedValueOnce(makeUser({ person })); // reload
+      mockDataSource.transaction.mockImplementation((cb: (m: unknown) => unknown) => cb(manager));
 
       await service.createUser({ ...createDto, personId: 'person-uuid' }, UserRole.ADMIN);
 
-      expect(mockPersonRepo.save).toHaveBeenCalledWith(
+      expect(mockDataSource.transaction).toHaveBeenCalledTimes(1);
+      expect(manager.save).toHaveBeenCalledWith(
+        Person,
         expect.objectContaining({ managedBy: expect.any(Object) }),
       );
     });
@@ -506,7 +614,7 @@ describe('UserService', () => {
     it('throws NotFoundException when user not found', async () => {
       mockUserRepo.findOne.mockResolvedValue(null);
       await expect(
-        service.updateUser('missing-id', { email: 'new@mail.com' }, UserRole.ADMIN),
+        service.updateUser('missing-id', { email: 'new@mail.com' }, UserRole.ADMIN, 'actor-uuid'),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -516,7 +624,7 @@ describe('UserService', () => {
         .mockResolvedValueOnce(user) // load user
         .mockResolvedValueOnce(makeUser({ id: 'other-user' })); // email check
       await expect(
-        service.updateUser('user-uuid', { email: 'taken@mail.com' }, UserRole.ADMIN),
+        service.updateUser('user-uuid', { email: 'taken@mail.com' }, UserRole.ADMIN, 'actor-uuid'),
       ).rejects.toThrow(ConflictException);
     });
 
@@ -530,7 +638,7 @@ describe('UserService', () => {
 
       const result = await service.updateUser('user-uuid', {
         email: 'new@mail.com',
-      }, UserRole.ADMIN);
+      }, UserRole.ADMIN, 'actor-uuid');
       expect(result.email).toBe('new@mail.com');
     });
 
@@ -543,7 +651,7 @@ describe('UserService', () => {
 
       const result = await service.updateUser('user-uuid', {
         role: UserRole.ADMIN,
-      }, UserRole.ADMIN);
+      }, UserRole.ADMIN, 'actor-uuid');
       expect(result.role).toBe(UserRole.ADMIN);
     });
 
@@ -556,6 +664,7 @@ describe('UserService', () => {
           'user-uuid',
           { role: UserRole.ADMIN },
           UserRole.TECHNICAL,
+          'actor-uuid',
         ),
       ).rejects.toThrow(ForbiddenException);
     });
@@ -571,6 +680,7 @@ describe('UserService', () => {
         'user-uuid',
         { role: UserRole.TECHNICAL },
         UserRole.ADMIN,
+        'actor-uuid',
       );
       expect(result.role).toBe(UserRole.TECHNICAL);
     });
@@ -582,8 +692,33 @@ describe('UserService', () => {
         .mockResolvedValueOnce({ ...user, isActive: false });
       mockUserRepo.save.mockResolvedValue({ ...user, isActive: false });
 
-      const result = await service.updateUser('user-uuid', { isActive: false }, UserRole.ADMIN);
+      const result = await service.updateUser('user-uuid', { isActive: false }, UserRole.ADMIN, 'actor-uuid');
       expect(result.isActive).toBe(false);
+    });
+
+    it('revokes all refresh tokens when isActive is set to false (SEC-12)', async () => {
+      const user = makeUser({ isActive: true });
+      mockUserRepo.findOne
+        .mockResolvedValueOnce(user)
+        .mockResolvedValueOnce({ ...user, isActive: false });
+      mockUserRepo.save.mockResolvedValue({ ...user, isActive: false });
+
+      await service.updateUser('user-uuid', { isActive: false }, UserRole.ADMIN, 'actor-uuid');
+
+      expect(mockTokenService.revokeAllUserTokens).toHaveBeenCalledWith('user-uuid');
+    });
+
+    it('does not revoke tokens when isActive is not touched', async () => {
+      const user = makeUser({ isActive: true });
+      mockUserRepo.findOne
+        .mockResolvedValueOnce(user)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ ...user, email: 'new@mail.com' });
+      mockUserRepo.save.mockResolvedValue({ ...user, email: 'new@mail.com' });
+
+      await service.updateUser('user-uuid', { email: 'new@mail.com' }, UserRole.ADMIN, 'actor-uuid');
+
+      expect(mockTokenService.revokeAllUserTokens).not.toHaveBeenCalled();
     });
 
     it('unlinks person when personId is null', async () => {
@@ -598,7 +733,7 @@ describe('UserService', () => {
 
       const result = await service.updateUser('user-uuid', {
         personId: null,
-      }, UserRole.ADMIN);
+      }, UserRole.ADMIN, 'actor-uuid');
       expect(result.person).toBeNull();
     });
 
@@ -609,8 +744,109 @@ describe('UserService', () => {
         makePerson({ managedBy: makeUser({ id: 'other-user' }) }),
       );
       await expect(
-        service.updateUser('user-uuid', { personId: 'person-uuid' }, UserRole.ADMIN),
+        service.updateUser('user-uuid', { personId: 'person-uuid' }, UserRole.ADMIN, 'actor-uuid'),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('throws ForbiddenException when TECHNICAL actor edits an ADMIN account email', async () => {
+      const user = makeUser({ role: UserRole.ADMIN });
+      mockUserRepo.findOne.mockResolvedValueOnce(user);
+
+      await expect(
+        service.updateUser(
+          'user-uuid',
+          { email: 'new@mail.com' },
+          UserRole.TECHNICAL,
+          'actor-uuid',
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('throws ForbiddenException when TECHNICAL actor deactivates an ADMIN account via updateUser', async () => {
+      const user = makeUser({ role: UserRole.ADMIN });
+      mockUserRepo.findOne.mockResolvedValueOnce(user);
+
+      await expect(
+        service.updateUser('user-uuid', { isActive: false }, UserRole.TECHNICAL, 'actor-uuid'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('allows ADMIN actor to edit another ADMIN account', async () => {
+      const user = makeUser({ role: UserRole.ADMIN });
+      mockUserRepo.findOne
+        .mockResolvedValueOnce(user)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ ...user, email: 'new@mail.com' });
+      mockUserRepo.save.mockResolvedValue({ ...user, email: 'new@mail.com' });
+
+      const result = await service.updateUser(
+        'user-uuid',
+        { email: 'new@mail.com' },
+        UserRole.ADMIN,
+        'actor-uuid',
+      );
+      expect(result.email).toBe('new@mail.com');
+    });
+
+    it('throws ForbiddenException when an ADMIN actor tries to deactivate their own account', async () => {
+      const user = makeUser({ role: UserRole.ADMIN, isActive: true });
+      mockUserRepo.findOne.mockResolvedValueOnce(user);
+
+      await expect(
+        service.updateUser(
+          'user-uuid',
+          { isActive: false },
+          UserRole.ADMIN,
+          'user-uuid',
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('throws ForbiddenException when an ADMIN actor tries to change their own role', async () => {
+      const user = makeUser({ role: UserRole.ADMIN });
+      mockUserRepo.findOne.mockResolvedValueOnce(user);
+
+      await expect(
+        service.updateUser(
+          'user-uuid',
+          { role: UserRole.TECHNICAL },
+          UserRole.ADMIN,
+          'user-uuid',
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('allows an actor to update their own account when isActive is not touched', async () => {
+      const user = makeUser({ role: UserRole.ADMIN });
+      mockUserRepo.findOne
+        .mockResolvedValueOnce(user)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ ...user, email: 'new@mail.com' });
+      mockUserRepo.save.mockResolvedValue({ ...user, email: 'new@mail.com' });
+
+      const result = await service.updateUser(
+        'user-uuid',
+        { email: 'new@mail.com' },
+        UserRole.ADMIN,
+        'user-uuid',
+      );
+      expect(result.email).toBe('new@mail.com');
+    });
+
+    it('does not re-fetch the user after saving when email is unchanged', async () => {
+      const user = makeUser({ isActive: true });
+      mockUserRepo.findOne.mockResolvedValueOnce(user);
+      mockUserRepo.save.mockResolvedValue({ ...user, isActive: false });
+
+      const result = await service.updateUser(
+        'user-uuid',
+        { isActive: false },
+        UserRole.ADMIN,
+        'actor-uuid',
+      );
+
+      expect(mockUserRepo.findOne).toHaveBeenCalledTimes(1);
+      expect(result.isActive).toBe(false);
     });
   });
 
@@ -621,9 +857,9 @@ describe('UserService', () => {
   describe('deactivateUser', () => {
     it('throws NotFoundException when user not found', async () => {
       mockUserRepo.findOne.mockResolvedValue(null);
-      await expect(service.deactivateUser('missing-id')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.deactivateUser('missing-id', UserRole.ADMIN, 'actor-uuid'),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('sets isActive to false and saves', async () => {
@@ -631,11 +867,51 @@ describe('UserService', () => {
       mockUserRepo.findOne.mockResolvedValue(user);
       mockUserRepo.save.mockResolvedValue({ ...user, isActive: false });
 
-      await service.deactivateUser('user-uuid');
+      await service.deactivateUser('user-uuid', UserRole.ADMIN, 'actor-uuid');
 
       expect(mockUserRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({ isActive: false }),
       );
+    });
+
+    it('throws ForbiddenException when TECHNICAL actor deactivates an ADMIN account', async () => {
+      const user = makeUser({ role: UserRole.ADMIN, isActive: true });
+      mockUserRepo.findOne.mockResolvedValue(user);
+
+      await expect(
+        service.deactivateUser('user-uuid', UserRole.TECHNICAL, 'actor-uuid'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('allows ADMIN actor to deactivate an ADMIN account', async () => {
+      const user = makeUser({ role: UserRole.ADMIN, isActive: true });
+      mockUserRepo.findOne.mockResolvedValue(user);
+      mockUserRepo.save.mockResolvedValue({ ...user, isActive: false });
+
+      await service.deactivateUser('user-uuid', UserRole.ADMIN, 'actor-uuid');
+
+      expect(mockUserRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ isActive: false }),
+      );
+    });
+
+    it('revokes all refresh tokens for the deactivated user (SEC-12)', async () => {
+      const user = makeUser({ isActive: true });
+      mockUserRepo.findOne.mockResolvedValue(user);
+      mockUserRepo.save.mockResolvedValue({ ...user, isActive: false });
+
+      await service.deactivateUser('user-uuid', UserRole.ADMIN, 'actor-uuid');
+
+      expect(mockTokenService.revokeAllUserTokens).toHaveBeenCalledWith('user-uuid');
+    });
+
+    it('throws ForbiddenException when a user tries to deactivate their own account', async () => {
+      const user = makeUser({ role: UserRole.ADMIN, isActive: true });
+      mockUserRepo.findOne.mockResolvedValue(user);
+
+      await expect(
+        service.deactivateUser('user-uuid', UserRole.ADMIN, 'user-uuid'),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 });

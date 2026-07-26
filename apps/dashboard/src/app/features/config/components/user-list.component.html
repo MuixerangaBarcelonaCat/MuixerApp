@@ -18,7 +18,7 @@
         <lucide-icon name="Search" [size]="14" class="text-base-content/40" />
         <input
           type="text"
-          class="grow bg-transparent outline-none text-sm"
+          class="grow bg-transparent outline-none text-sm h-6"
           placeholder="Correu, nom..."
           [(ngModel)]="searchInput"
           (ngModelChange)="onSearchChange($event)"
@@ -104,7 +104,7 @@
   <!-- Estat buit -->
   @if (!loading() && users().length === 0) {
     <app-empty-state
-      icon="Users"
+      [icon]="ICON_PERSONA"
       message="No s'han trobat usuaris amb els filtres actuals"
       actionLabel="Netejar filtres"
       (actionClick)="clearFilters()"
@@ -179,5 +179,54 @@
       </div>
     </div>
     <div class="modal-backdrop" (click)="closeGrantRole()" (keydown.enter)="closeGrantRole()" tabindex="0"></div>
+  </div>
+}
+
+<!-- Modal: Confirmar desactivació/activació -->
+@if (statusChangeTarget(); as target) {
+  <div class="modal modal-open">
+    <div class="modal-box max-w-sm">
+      <h3 class="font-bold text-lg mb-1">
+        {{ target.activate ? "Activar usuari" : "Desactivar usuari" }}
+      </h3>
+      <p class="text-sm text-base-content/60 mb-4">
+        @if (target.activate) {
+          L'usuari <strong>{{ target.user.email }}</strong> tornarà a tenir accés al sistema.
+        } @else {
+          L'usuari <strong>{{ target.user.email }}</strong> perdrà l'accés al sistema. Podràs
+          reactivar-lo més endavant.
+        }
+      </p>
+
+      <div class="modal-action">
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm"
+          [disabled]="statusChangeLoading()"
+          (click)="closeStatusChangeConfirm()"
+        >
+          Cancel·la
+        </button>
+        <button
+          type="button"
+          class="btn btn-sm"
+          [class.btn-error]="!target.activate"
+          [class.btn-primary]="target.activate"
+          [disabled]="statusChangeLoading()"
+          (click)="confirmStatusChange()"
+        >
+          @if (statusChangeLoading()) {
+            <span class="loading loading-spinner loading-xs"></span>
+          }
+          {{ target.activate ? "Activa" : "Desactiva" }}
+        </button>
+      </div>
+    </div>
+    <div
+      class="modal-backdrop"
+      (click)="closeStatusChangeConfirm()"
+      (keydown.enter)="closeStatusChangeConfirm()"
+      tabindex="0"
+    ></div>
   </div>
 }

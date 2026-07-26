@@ -18,9 +18,9 @@ const DEFAULT_ATTENDANCE_SUMMARY: AttendanceSummary = {
   declined: 0,
   pending: 0,
   attended: 0,
-  noShow: 0,
   lateCancel: 0,
   children: 0,
+  childrenAttended: 0,
   total: 0,
 };
 
@@ -78,12 +78,12 @@ export class Event {
   @Column({ type: 'varchar', nullable: true })
   legacyType: string | null;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   lastSyncedAt: Date | null;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date;
 }

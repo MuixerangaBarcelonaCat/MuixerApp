@@ -1,0 +1,141 @@
+<div class="flex items-center justify-between">
+  <h3 class="text-sm font-semibold">Propietats</h3>
+</div>
+
+<div class="form-control">
+  <label class="label pb-1" [for]="'fp-label-' + entry().id">
+    <span class="label-text text-xs font-medium">Nom</span>
+  </label>
+  <input
+    type="text"
+    [id]="'fp-label-' + entry().id"
+    class="input input-bordered input-sm"
+    [placeholder]="entry().figureTemplateName"
+    [ngModel]="entry().label"
+    (ngModelChange)="onLabelChange($event)"
+  />
+</div>
+
+@if (entry().hasPinya) {
+  <div class="form-control">
+    <span class="label-text text-xs font-medium pb-1 pt-1 block">Mode</span>
+    <div class="join w-full" role="group" aria-label="Mode de la figura">
+      @for (option of modeOptions; track option.value) {
+        <button
+          type="button"
+          class="btn btn-xs join-item flex-1"
+          [class.btn-primary]="entry().figureMode === option.value"
+          [class.btn-ghost]="entry().figureMode !== option.value"
+          [attr.data-mode-option]="option.value"
+          [attr.aria-pressed]="entry().figureMode === option.value"
+          (click)="onFigureModeChange(option.value)"
+        >
+          {{ option.label }}
+        </button>
+      }
+    </div>
+  </div>
+}
+
+@if (entry().figureMode === 'COMPLETA' || entry().figureMode === 'PEU') {
+  <div class="form-control pb-2 pt-2">
+    <span class="label-text text-xs font-medium pb-1 block">Cordons</span>
+    @if (entry().maxCordons === 0) {
+      <span class="text-xs text-base-content/40 italic">Sense rengles</span>
+    } @else {
+      <div class="flex items-center gap-1 p-1">
+        <button
+          type="button"
+          class="btn btn-xs btn-outline btn-square"
+          (click)="onCordonsDecrement()"
+          [disabled]="entry().numberOfCordons === 1"
+          aria-label="Redueix els cordons"
+        >
+          <lucide-icon name="Minus" [size]="12" aria-hidden="true" />
+        </button>
+        <span class="text-xs font-medium min-w-[4rem] text-center select-none" aria-live="polite">
+          {{ entry().numberOfCordons === null ? 'Tots' : entry().numberOfCordons + '/' + entry().maxCordons }}
+        </span>
+        <button
+          type="button"
+          class="btn btn-xs btn-outline btn-square"
+          (click)="onCordonsIncrement()"
+          [disabled]="entry().numberOfCordons === null"
+          aria-label="Augmenta els cordons"
+        >
+          <lucide-icon name="Plus" [size]="12" aria-hidden="true" />
+        </button>
+      </div>
+    }
+  </div>
+
+  @if (entry().hasCordoObertNodes) {
+    <div class="form-control pb-3">
+      <label class="label cursor-pointer justify-start gap-2 py-0">
+        <input
+          type="checkbox"
+          data-cordons-oberts-checkbox
+          class="checkbox checkbox-sm"
+          [checked]="entry().cordonsObertsEnabled"
+          (change)="onCordonsObertsEnabledChange($any($event.target).checked)"
+        />
+        <span class="label-text text-xs font-medium">Cordons oberts</span>
+      </label>
+    </div>
+  }
+}
+
+<div>
+  <p class="label-text text-xs font-medium mb-1">Posició</p>
+  <div class="grid grid-cols-2 gap-2">
+    <div class="form-control">
+      <label class="label pb-0.5" [for]="'fp-x-' + entry().id">
+        <span class="label-text text-xs">X</span>
+      </label>
+      <input
+        type="number"
+        [id]="'fp-x-' + entry().id"
+        class="input input-bordered input-sm font-mono"
+        [ngModel]="entry().offsetX"
+        (ngModelChange)="onOffsetXChange('' + $event)"
+      />
+    </div>
+    <div class="form-control">
+      <label class="label pb-0.5" [for]="'fp-y-' + entry().id">
+        <span class="label-text text-xs">Y</span>
+      </label>
+      <input
+        type="number"
+        [id]="'fp-y-' + entry().id"
+        class="input input-bordered input-sm font-mono"
+        [ngModel]="entry().offsetY"
+        (ngModelChange)="onOffsetYChange('' + $event)"
+      />
+    </div>
+  </div>
+</div>
+
+<div class="form-control">
+  <label class="label pb-1" [for]="'fp-angle-' + entry().id">
+    <span class="label-text text-xs font-medium">Angle</span>
+  </label>
+  <input
+    type="number"
+    [id]="'fp-angle-' + entry().id"
+    class="input input-bordered input-sm font-mono"
+    [ngModel]="entry().angle"
+    (ngModelChange)="onAngleChange('' + $event)"
+  />
+</div>
+
+@if (showRemove()) {
+  <button
+    type="button"
+    class="btn btn-error btn-outline btn-sm gap-1.5 mt-2"
+    (click)="onRemove()"
+    [attr.aria-label]="'Elimina ' + (entry().label ?? entry().figureTemplateName)"
+  >
+    <lucide-icon name="Trash2" [size]="14" aria-hidden="true" />
+    Elimina
+  </button>
+}

@@ -10,6 +10,8 @@ import { Event } from '../event/event.entity';
 import { CreateSegmentDto } from './dto/create-segment.dto';
 import { UpdateSegmentDto } from './dto/update-segment.dto';
 import { ReorderSegmentsDto } from './dto/reorder-segments.dto';
+import { NodeAssignmentService } from '../node-assignment/node-assignment.service';
+import { FigureMode } from '@muixer/shared';
 
 export interface InstanceRef {
   id: string;
@@ -17,9 +19,23 @@ export interface InstanceRef {
   sortOrder: number;
   snapshotted: boolean;
   assignedCount: number;
+  pinyaAssignedCount: number;
+  totalCordons: number | null;
   numberOfCordons: number | null;
+  cordonsObertsEnabled: boolean;
+  figureMode: FigureMode;
   figureTemplate: { id: string; name: string; hasPinya: boolean } | null;
-  compositionTemplate: { id: string; name: string } | null;
+}
+
+export interface TroncFloorData {
+  z: number;
+  isBase: boolean;
+  slots: (string | null)[];
+}
+
+export interface InstanceTroncSummary {
+  instanceId: string;
+  floors: TroncFloorData[];
 }
 
 export interface SegmentWithInstances {
@@ -41,6 +57,7 @@ export class EventSegmentService {
     @InjectRepository(Event)
     private readonly eventRepository: Repository<Event>,
     private readonly dataSource: DataSource,
+    private readonly nodeAssignmentService: NodeAssignmentService,
   ) {}
 
   async findAllByEvent(eventId: string): Promise<SegmentWithInstances[]> {
@@ -50,21 +67,31 @@ export class EventSegmentService {
       .createQueryBuilder('segment')
       .leftJoinAndSelect('segment.instances', 'instance')
       .leftJoinAndSelect('instance.figureTemplate', 'figureTemplate')
-      .leftJoinAndSelect('instance.compositionTemplate', 'compositionTemplate')
       .where('segment.event = :eventId', { eventId })
       .orderBy('segment.sortOrder', 'ASC')
       .addOrderBy('instance.sortOrder', 'ASC')
       .getMany();
 
-    const countMap = await this.loadAssignmentCounts(
-      segments.flatMap((s) => (s.instances ?? []).map((i) => i.id)),
-    );
+    const instanceIds = segments.flatMap((s) => (s.instances ?? []).map((i) => i.id));
 
-    return segments.map((s) => toSegmentWithInstances(s, countMap));
+    const allInstances = segments.flatMap((s) => s.instances ?? []);
+    const allTemplateIds = allInstances.filter((i) => i.figureTemplate).map((i) => i.figureTemplate!.id);
+
+    const [countMap, pinyaAssignedMap, pinyaTemplateIds, totalCordonsMap] = await Promise.all([
+      this.loadAssignmentCounts(instanceIds),
+      this.loadPinyaAssignmentCounts(instanceIds),
+      this.loadPinyaTemplateIds(allTemplateIds),
+      this.loadTotalCordons(allTemplateIds),
+    ]);
+
+    return segments.map((s) =>
+      toSegmentWithInstances(s, countMap, pinyaAssignedMap, pinyaTemplateIds, totalCordonsMap),
+    );
   }
 
   async create(eventId: string, dto: CreateSegmentDto): Promise<SegmentWithInstances> {
     const event = await this.assertEventExists(eventId);
+    await this.nodeAssignmentService.checkEventLockByEventId(eventId);
 
     const maxOrder = await this.segmentRepository
       .createQueryBuilder('segment')
@@ -91,7 +118,10 @@ export class EventSegmentService {
   async update(eventId: string, segmentId: string, dto: UpdateSegmentDto): Promise<SegmentWithInstances> {
     const segment = await this.assertSegmentBelongsToEvent(eventId, segmentId);
 
-    if (dto.name !== undefined) segment.name = dto.name;
+    if (dto.name !== undefined) {
+      await this.nodeAssignmentService.checkEventLockByEventId(eventId);
+      segment.name = dto.name;
+    }
     if (dto.startTime !== undefined) segment.startTime = dto.startTime ?? null;
     if (dto.endTime !== undefined) segment.endTime = dto.endTime ?? null;
     if (dto.notes !== undefined) segment.notes = dto.notes ?? null;
@@ -103,11 +133,13 @@ export class EventSegmentService {
 
   async remove(eventId: string, segmentId: string): Promise<void> {
     const segment = await this.assertSegmentBelongsToEvent(eventId, segmentId);
+    await this.nodeAssignmentService.checkEventLockByEventId(eventId);
     await this.segmentRepository.remove(segment);
   }
 
   async reorder(eventId: string, dto: ReorderSegmentsDto): Promise<void> {
     await this.assertEventExists(eventId);
+    await this.nodeAssignmentService.checkEventLockByEventId(eventId);
 
     const existing = await this.segmentRepository.find({
       where: { event: { id: eventId } },
@@ -153,12 +185,15 @@ export class EventSegmentService {
     return segment;
   }
 
+  async getOne(id: string): Promise<SegmentWithInstances> {
+    return this.findOneById(id);
+  }
+
   private async findOneById(id: string): Promise<SegmentWithInstances> {
     const segment = await this.segmentRepository
       .createQueryBuilder('segment')
       .leftJoinAndSelect('segment.instances', 'instance')
       .leftJoinAndSelect('instance.figureTemplate', 'figureTemplate')
-      .leftJoinAndSelect('instance.compositionTemplate', 'compositionTemplate')
       .where('segment.id = :id', { id })
       .orderBy('instance.sortOrder', 'ASC')
       .getOne();
@@ -167,11 +202,29 @@ export class EventSegmentService {
       throw new NotFoundException(`Segment with ID ${id} not found`);
     }
 
-    const countMap = await this.loadAssignmentCounts(
-      (segment.instances ?? []).map((i) => i.id),
-    );
+    const instances = segment.instances ?? [];
+    const instanceIds = instances.map((i) => i.id);
+    const templateIds = instances.filter((i) => i.figureTemplate).map((i) => i.figureTemplate!.id);
 
-    return toSegmentWithInstances(segment, countMap);
+    const [countMap, pinyaAssignedMap, pinyaTemplateIds, totalCordonsMap] = await Promise.all([
+      this.loadAssignmentCounts(instanceIds),
+      this.loadPinyaAssignmentCounts(instanceIds),
+      this.loadPinyaTemplateIds(templateIds),
+      this.loadTotalCordons(templateIds),
+    ]);
+
+    return toSegmentWithInstances(segment, countMap, pinyaAssignedMap, pinyaTemplateIds, totalCordonsMap);
+  }
+
+  private async loadPinyaTemplateIds(templateIds: string[]): Promise<Set<string>> {
+    const set = new Set<string>();
+    if (templateIds.length === 0) return set;
+    const rows: { templateId: string }[] = await this.dataSource.query(
+      `SELECT DISTINCT "templateId" FROM figure_nodes WHERE zone = 'PINYA' AND "templateId" = ANY($1)`,
+      [templateIds],
+    );
+    for (const row of rows) set.add(row.templateId);
+    return set;
   }
 
   private async loadAssignmentCounts(instanceIds: string[]): Promise<Map<string, number>> {
@@ -186,9 +239,93 @@ export class EventSegmentService {
     }
     return map;
   }
+
+  private async loadPinyaAssignmentCounts(instanceIds: string[]): Promise<Map<string, number>> {
+    const map = new Map<string, number>();
+    if (instanceIds.length === 0) return map;
+    const rows: { figureInstanceId: string; count: string }[] = await this.dataSource.query(
+      `SELECT na."figureInstanceId", COUNT(*) as count
+       FROM node_assignments na
+       JOIN instance_nodes inode ON na."instanceNodeId" = inode.id
+       WHERE na."figureInstanceId" = ANY($1) AND inode.zone IN ('PINYA', 'BASE')
+       GROUP BY na."figureInstanceId"`,
+      [instanceIds],
+    );
+    for (const row of rows) {
+      map.set(row.figureInstanceId, parseInt(row.count, 10));
+    }
+    return map;
+  }
+
+  private async loadTotalCordons(templateIds: string[]): Promise<Map<string, number>> {
+    const map = new Map<string, number>();
+    if (templateIds.length === 0) return map;
+    const rows: { templateId: string; total: string }[] = await this.dataSource.query(
+      `SELECT "templateId", COUNT(*) as total FROM rengles WHERE "templateId" = ANY($1) GROUP BY "templateId"`,
+      [templateIds],
+    );
+    for (const row of rows) map.set(row.templateId, parseInt(row.total, 10));
+    return map;
+  }
+
+  async getTroncView(eventId: string): Promise<InstanceTroncSummary[]> {
+    await this.assertEventExists(eventId);
+
+    const rows: { instance_id: string; zone: string; z: number; sort_order: number; alias: string | null }[] =
+      await this.dataSource.query(
+        `SELECT
+           in_."figureInstanceId" as instance_id,
+           in_.zone,
+           in_.z,
+           in_."sortOrder" as sort_order,
+           p.alias
+         FROM instance_nodes in_
+         JOIN figure_instances fi ON fi.id = in_."figureInstanceId"
+         JOIN event_segments es ON es.id = fi."segmentId"
+         LEFT JOIN node_assignments na ON na."instanceNodeId" = in_.id AND na."figureInstanceId" = in_."figureInstanceId"
+         LEFT JOIN persons p ON p.id = na."personId"
+         WHERE es."eventId" = $1
+         AND in_.zone IN ('TRONC', 'BASE')
+         ORDER BY in_."figureInstanceId", in_.z, in_."sortOrder"`,
+        [eventId],
+      );
+
+    const byInstance = new Map<string, typeof rows>();
+    for (const row of rows) {
+      if (!byInstance.has(row.instance_id)) byInstance.set(row.instance_id, []);
+      byInstance.get(row.instance_id)!.push(row);
+    }
+
+    const result: InstanceTroncSummary[] = [];
+
+    for (const [instanceId, nodeRows] of byInstance) {
+      const byFloor = new Map<number, { isBase: boolean; slots: (string | null)[] }>();
+
+      for (const row of nodeRows) {
+        const isBase = row.zone === 'BASE';
+        const key = isBase ? -1 : row.z;
+        if (!byFloor.has(key)) byFloor.set(key, { isBase, slots: [] });
+        byFloor.get(key)!.slots.push(row.alias ?? null);
+      }
+
+      const floors: TroncFloorData[] = Array.from(byFloor.entries())
+        .map(([key, { isBase, slots }]) => ({ z: isBase ? 0 : key, isBase, slots }))
+        .sort((a, b) => (a.isBase ? -1 : b.isBase ? 1 : a.z - b.z));
+
+      result.push({ instanceId, floors });
+    }
+
+    return result;
+  }
 }
 
-function toSegmentWithInstances(segment: EventSegment, countMap: Map<string, number>): SegmentWithInstances {
+function toSegmentWithInstances(
+  segment: EventSegment,
+  countMap: Map<string, number>,
+  pinyaAssignedMap: Map<string, number>,
+  pinyaTemplateIds: Set<string>,
+  totalCordonsMap: Map<string, number>,
+): SegmentWithInstances {
   return {
     id: segment.id,
     name: segment.name,
@@ -197,23 +334,30 @@ function toSegmentWithInstances(segment: EventSegment, countMap: Map<string, num
     endTime: segment.endTime,
     notes: segment.notes,
     isVisible: segment.isVisible,
-    instances: (segment.instances ?? []).map((instance) => ({
-      id: instance.id,
-      label: instance.label,
-      sortOrder: instance.sortOrder,
-      snapshotted: instance.snapshotted,
-      assignedCount: countMap.get(instance.id) ?? 0,
-      numberOfCordons: instance.numberOfCordons ?? null,
-      figureTemplate: instance.figureTemplate
-        ? {
-            id: instance.figureTemplate.id,
-            name: instance.figureTemplate.name,
-            hasPinya: instance.figureTemplate.hasPinya,
-          }
-        : null,
-      compositionTemplate: instance.compositionTemplate
-        ? { id: instance.compositionTemplate.id, name: instance.compositionTemplate.name }
-        : null,
-    })),
+    instances: (segment.instances ?? []).map((instance) => {
+      const hasPinya = instance.figureTemplate ? pinyaTemplateIds.has(instance.figureTemplate.id) : false;
+      const showPinyaData = hasPinya && instance.figureMode !== FigureMode.REMAT && instance.figureMode !== FigureMode.NETA;
+      return {
+        id: instance.id,
+        label: instance.label,
+        sortOrder: instance.sortOrder,
+        snapshotted: instance.snapshotted,
+        assignedCount: countMap.get(instance.id) ?? 0,
+        pinyaAssignedCount: pinyaAssignedMap.get(instance.id) ?? 0,
+        totalCordons: showPinyaData && instance.figureTemplate
+          ? (totalCordonsMap.get(instance.figureTemplate.id) ?? 0)
+          : null,
+        numberOfCordons: instance.numberOfCordons ?? null,
+        cordonsObertsEnabled: instance.cordonsObertsEnabled,
+        figureMode: instance.figureMode,
+        figureTemplate: instance.figureTemplate
+          ? {
+              id: instance.figureTemplate.id,
+              name: instance.figureTemplate.name,
+              hasPinya,
+            }
+          : null,
+      };
+    }),
   };
 }

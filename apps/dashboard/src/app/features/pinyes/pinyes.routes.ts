@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { TemplateListComponent } from './components/template-list/template-list.component';
+import { unsavedChangesGuard } from '../../core/guards/unsaved-changes.guard';
 
 export const pinyesRoutes: Routes = [
   { path: '', component: TemplateListComponent },
@@ -9,6 +10,7 @@ export const pinyesRoutes: Routes = [
       import('./components/template-editor/template-editor.component').then(
         (m) => m.TemplateEditorComponent,
       ),
+    canDeactivate: [unsavedChangesGuard],
   },
   {
     path: 'templates/:id/edit',
@@ -16,6 +18,7 @@ export const pinyesRoutes: Routes = [
       import('./components/template-editor/template-editor.component').then(
         (m) => m.TemplateEditorComponent,
       ),
+    canDeactivate: [unsavedChangesGuard],
   },
   {
     path: 'compositions/new',
@@ -34,15 +37,15 @@ export const pinyesRoutes: Routes = [
   {
     path: 'events/:eventId/segments/:segmentId/assign',
     loadComponent: () =>
-      import('./components/assignment-canvas/assignment-canvas.component').then(
-        (m) => m.AssignmentCanvasComponent,
+      import('./components/segment-workspace/segment-workspace.component').then(
+        (m) => m.SegmentWorkspaceComponent,
       ),
   },
   {
     path: 'events/:eventId/segments/:segmentId/assign/:instanceId',
     loadComponent: () =>
-      import('./components/assignment-canvas/assignment-canvas.component').then(
-        (m) => m.AssignmentCanvasComponent,
+      import('./components/segment-workspace/segment-workspace.component').then(
+        (m) => m.SegmentWorkspaceComponent,
       ),
   },
   {
@@ -55,8 +58,8 @@ export const pinyesRoutes: Routes = [
   {
     path: 'events/:eventId/segments/:segmentId/project/:instanceId',
     loadComponent: () =>
-      import('./components/figure-projection/figure-projection.component').then(
-        (m) => m.FigureProjectionComponent,
+      import('./components/projection-view/projection-view.component').then(
+        (m) => m.ProjectionViewComponent,
       ),
   },
 ];

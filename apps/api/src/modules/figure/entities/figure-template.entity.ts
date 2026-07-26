@@ -24,9 +24,6 @@ export class FigureTemplate {
   @Column({ type: 'text', nullable: true })
   description: string | null;
 
-  @Column({ type: 'boolean', default: true })
-  hasPinya: boolean;
-
   @Column({ type: 'float', default: 0 })
   direction: number;
 
@@ -42,9 +39,9 @@ export class FigureTemplate {
   @OneToMany(() => FigureInstance, (instance) => instance.figureTemplate)
   instances: FigureInstance[];
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date;
 }

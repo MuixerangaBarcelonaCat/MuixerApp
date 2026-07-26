@@ -263,7 +263,7 @@ export class AttendanceSyncStrategy {
     if (eventType === EventType.ASSAIG) {
       if (isPastEvent) {
         if (normalized === 'Vinc') return AttendanceStatus.ASSISTIT;
-        if (normalized === 'Potser') return AttendanceStatus.NO_PRESENTAT;
+        if (normalized === 'Potser') return AttendanceStatus.ANIRE;
         if (normalized === 'No vinc') return AttendanceStatus.NO_VAIG;
         return AttendanceStatus.PENDENT;
       } else {
@@ -278,7 +278,7 @@ export class AttendanceSyncStrategy {
       if (isPastEvent) {
         if (normalized === 'Vinc') return AttendanceStatus.ASSISTIT;
         if (normalized === 'No vinc') return AttendanceStatus.NO_VAIG;
-        if (normalized === 'Potser') return AttendanceStatus.NO_PRESENTAT;
+        if (normalized === 'Potser') return AttendanceStatus.ANIRE;
         return AttendanceStatus.PENDENT;
       } else {
         if (normalized === 'Vinc') return AttendanceStatus.ANIRE;
@@ -350,12 +350,14 @@ export class AttendanceSyncStrategy {
       declined: attendances.filter((a) => a.status === AttendanceStatus.NO_VAIG).length,
       pending: attendances.filter((a) => a.status === AttendanceStatus.PENDENT).length,
       attended: attendances.filter((a) => a.status === AttendanceStatus.ASSISTIT).length,
-      noShow: attendances.filter((a) => a.status === AttendanceStatus.NO_PRESENTAT).length,
       lateCancel,
       children: attendances.filter(
         (a) =>
           [AttendanceStatus.ANIRE, AttendanceStatus.ASSISTIT].includes(a.status) &&
           a.person.isXicalla,
+      ).length,
+      childrenAttended: attendances.filter(
+        (a) => a.status === AttendanceStatus.ASSISTIT && a.person.isXicalla,
       ).length,
       total: attendances.length,
     };

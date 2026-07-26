@@ -1,22 +1,20 @@
-import { Component, ChangeDetectionStrategy, computed, inject, signal, OnInit, OnDestroy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, DestroyRef, computed, inject, signal, OnInit, OnDestroy } from '@angular/core';
 import { NgClass } from '@angular/common';
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
+import { ICON_XICALLA, ICON_PERSONA, ICON_OBSERVACIONS } from '../../../../shared/constants/domain-icons';
 import { EventService } from '../../services/event.service';
 import { AttendanceService } from '../../services/attendance.service';
 import { SeasonService } from '../../services/season.service';
-import { PersonService } from '../../../persons/services/person.service';
 import { AuthService } from '../../../../core/auth/services/auth.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { EventFormModalComponent } from '../event-form-modal/event-form-modal.component';
 import { AttendanceEditModalComponent } from '../attendance-edit-modal/attendance-edit-modal.component';
 import { SegmentManagerComponent } from '../segment-manager/segment-manager.component';
-import { PersonSearchInputComponent } from '../../../../shared/components/forms/person-search-input/person-search-input.component';
 import { StatCardComponent } from '../../../../shared/components/data/stat-card/stat-card.component';
 import { NodeAssignmentService, LockStatus } from '../../../pinyes/services/node-assignment.service';
 import { getContrastColor } from '../../../../shared/utils/color.util';
-import { EventAssignmentSummary, EventSegmentSummary } from '../../../pinyes/models/assignment.model';
 import { EventDetail, EventType, AttendanceSummary, SyncEvent, Season } from '../../models/event.model';
 import { getAdultsCount } from '../event-list/event-list.component';
 import {
@@ -24,9 +22,9 @@ import {
   AttendanceFilterParams,
   AttendanceCrudResponse,
   AttendanceDeleteResponse,
+  AttendancePosition,
 } from '../../models/attendance.model';
 import { AttendanceStatus, PerformanceMetadata, RehearsalMetadata, UserRole } from '@muixer/shared';
-import { Person } from '../../../persons/models/person.model';
 import { environment } from '../../../../../environments/environment';
 
 type SyncState = 'idle' | 'running' | 'complete' | 'error';
@@ -42,26 +40,26 @@ type SyncState = 'idle' | 'running' | 'complete' | 'error';
     LucideAngularModule,
     EventFormModalComponent,
     AttendanceEditModalComponent,
-    PersonSearchInputComponent,
     StatCardComponent,
     SegmentManagerComponent,
   ],
   templateUrl: './event-detail.component.html',
 })
 export class EventDetailComponent implements OnInit, OnDestroy {
+  readonly ICON_XICALLA = ICON_XICALLA;
+  readonly ICON_PERSONA = ICON_PERSONA;
+  readonly ICON_OBSERVACIONS = ICON_OBSERVACIONS;
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
   private readonly toast = inject(ToastService);
 
   private get listBase(): string {
-    const url = this.router.url;
-    return url.startsWith('/performances') ? '/performances' : '/rehearsals';
+    return this.event()?.eventType === EventType.ACTUACIO ? '/performances' : '/rehearsals';
   }
   private readonly eventService = inject(EventService);
   private readonly attendanceService = inject(AttendanceService);
   private readonly seasonService = inject(SeasonService);
-  private readonly personService = inject(PersonService);
   private readonly nodeAssignmentService = inject(NodeAssignmentService);
 
   readonly EventType = EventType;
@@ -88,25 +86,15 @@ export class EventDetailComponent implements OnInit, OnDestroy {
   deleting = signal(false);
   deleteError = signal<string | null>(null);
 
-  // Attendance management
   editingAttendance = signal<AttendanceItem | null>(null);
-  showAddBar = signal(false);
-  showAddProvisional = signal(false);
-  addStatus = signal<AttendanceStatus>(AttendanceStatus.ANIRE);
-  addingAttendance = signal(false);
-  addError = signal<string | null>(null);
-  provisionalAlias = '';
-  addingProvisional = signal(false);
-  provisionalError = signal<string | null>(null);
   confirmedFilterActive = signal(true);
+  positionFilter = signal<AttendancePosition | null>(null);
 
   syncState = signal<SyncState>('idle');
   syncMessage = signal('');
 
   lockStatus = signal<LockStatus | null>(null);
   isEventLocked = computed(() => this.lockStatus()?.locked ?? false);
-  assignmentSummary = signal<EventAssignmentSummary | null>(null);
-  summaryLoading = signal(false);
   private syncEventSource: EventSource | null = null;
 
   isPast = computed(() => {
@@ -115,14 +103,6 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     const timeStr = ev.startTime ?? '23:59';
     return new Date(`${ev.date}T${timeStr}:00`) < new Date();
   });
-
-  // Default add-status based on whether event is past
-  defaultAddStatus = computed(() =>
-    this.isPast() ? AttendanceStatus.ASSISTIT : AttendanceStatus.ANIRE,
-  );
-
-  // IDs already in the attendance list to exclude from search
-  attendingPersonIds = computed(() => this.attendances().map((a) => a.person.id));
 
   totalAttendancePages = computed(() =>
     Math.ceil(this.totalAttendances() / this.attendanceLimit()),
@@ -155,6 +135,23 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     return ev.metadata as PerformanceMetadata;
   });
 
+  /**
+   * Below `lg`, the attendance list renders as cards instead of a table
+   * (the table needs ~557px and overflows on mobile). Driven by `matchMedia`;
+   * falls back to `false` (table mode) where `matchMedia` is unavailable.
+   */
+  readonly attendanceCardMode = signal(false);
+
+  constructor() {
+    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+      const mql = window.matchMedia('(max-width: 1023.98px)');
+      this.attendanceCardMode.set(mql.matches);
+      const listener = (e: MediaQueryListEvent) => this.attendanceCardMode.set(e.matches);
+      mql.addEventListener('change', listener);
+      inject(DestroyRef).onDestroy(() => mql.removeEventListener('change', listener));
+    }
+  }
+
   ngOnInit() {
     const id = this.route.snapshot.paramMap.get('id');
     if (!id) return;
@@ -170,7 +167,6 @@ export class EventDetailComponent implements OnInit, OnDestroy {
       next: (ev) => {
         this.event.set(ev);
         this.loading.set(false);
-        this.addStatus.set(this.defaultAddStatus());
         if (this.confirmedFilterActive()) {
           const status = this.isPast() ? AttendanceStatus.ASSISTIT : AttendanceStatus.ANIRE;
           this.attendanceStatusFilter.set(status);
@@ -179,7 +175,6 @@ export class EventDetailComponent implements OnInit, OnDestroy {
         this.nodeAssignmentService.getLockStatus(id).subscribe({
           next: (status) => this.lockStatus.set(status),
         });
-        this.loadAssignmentSummary(id);
       },
       error: () => {
         this.loading.set(false);
@@ -194,16 +189,12 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     this.toast.success('Esdeveniment actualitzat correctament.');
   }
 
-  private loadAssignmentSummary(eventId: string) {
-    this.summaryLoading.set(true);
-    this.nodeAssignmentService.getEventAssignmentSummary(eventId).subscribe({
-      next: (summary) => {
-        this.assignmentSummary.set(summary);
-        this.summaryLoading.set(false);
-      },
-      error: () => this.summaryLoading.set(false),
-    });
+  goToConfirmation() {
+    const ev = this.event();
+    if (!ev) return;
+    this.router.navigate(['/events', ev.id, 'confirmation']);
   }
+
 
   deleteEvent() {
     const ev = this.event();
@@ -238,9 +229,11 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     if (!ev) return;
 
     this.loadingAttendance.set(true);
+    const pf = this.positionFilter();
     const filters: AttendanceFilterParams = {
       status: this.attendanceStatusFilter(),
       search: this.attendanceSearch() || undefined,
+      positionIds: pf ? [pf.id] : undefined,
       page: this.attendancePage(),
       limit: this.attendanceLimit(),
     };
@@ -311,70 +304,21 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     this.toast.success('Registre d\'assistència eliminat.');
   }
 
-  onPersonSelected(person: Person) {
-    const ev = this.event();
-    if (!ev) return;
-    this.addingAttendance.set(true);
-    this.addError.set(null);
-
-    this.attendanceService
-      .create(ev.id, { personId: person.id, status: this.addStatus() })
-      .subscribe({
-        next: (result) => {
-          this.addingAttendance.set(false);
-          // Optimistic insert at start of list
-          this.attendances.update((list) => [result.attendance, ...list]);
-          this.totalAttendances.update((n) => n + 1);
-          this.event.update((e) => e ? { ...e, attendanceSummary: result.summary } : e);
-          this.showAddBar.set(false);
-          this.toast.success('Assistència afegida correctament.');
-        },
-        error: (err) => {
-          this.addingAttendance.set(false);
-          const msg = err?.status === 409
-            ? 'Aquesta persona ja té un registre d\'assistència per aquest event.'
-            : (err?.error?.message ?? 'Error en afegir l\'assistència');
-          this.addError.set(msg);
-          this.toast.error(msg);
-        },
-      });
+  filterByPosition(pos: AttendancePosition): void {
+    const current = this.positionFilter();
+    this.positionFilter.set(current?.id === pos.id ? null : pos);
+    this.attendancePage.set(1);
+    this.loadAttendance();
   }
 
-  addProvisionalPerson() {
-    const ev = this.event();
-    if (!ev || !this.provisionalAlias.trim()) return;
-    this.addingProvisional.set(true);
-    this.provisionalError.set(null);
+  clearPositionFilter(): void {
+    this.positionFilter.set(null);
+    this.attendancePage.set(1);
+    this.loadAttendance();
+  }
 
-    this.personService.createProvisional(this.provisionalAlias.trim()).subscribe({
-      next: (person) => {
-        this.attendanceService
-          .create(ev.id, { personId: person.id, status: this.addStatus() })
-          .subscribe({
-            next: (result) => {
-              this.addingProvisional.set(false);
-              this.attendances.update((list) => [result.attendance, ...list]);
-              this.totalAttendances.update((n) => n + 1);
-              this.event.update((e) => e ? { ...e, attendanceSummary: result.summary } : e);
-              this.provisionalAlias = '';
-              this.showAddProvisional.set(false);
-              this.toast.success('Persona provisional afegida correctament.');
-            },
-            error: (err) => {
-              this.addingProvisional.set(false);
-              const msg = err?.error?.message ?? 'Error en afegir l\'assistència';
-              this.provisionalError.set(msg);
-              this.toast.error(msg);
-            },
-          });
-      },
-      error: (err) => {
-        this.addingProvisional.set(false);
-        const msg = err?.error?.message ?? 'Error en crear la persona provisional';
-        this.provisionalError.set(msg);
-        this.toast.error(msg);
-      },
-    });
+  navigateToPerson(personId: string): void {
+    this.router.navigate(['/persons', personId]);
   }
 
   syncAttendance() {
@@ -466,22 +410,21 @@ export class EventDetailComponent implements OnInit, OnDestroy {
   getStatusLabel(status: AttendanceStatus): string {
     const past = this.isPast();
     const labels: Record<AttendanceStatus, string> = {
-      [AttendanceStatus.PENDENT]: 'Sense resposta',
-      [AttendanceStatus.ANIRE]: 'Aniré',
+      [AttendanceStatus.PENDENT]: past ? 'Sense resposta' : 'Pendent',
+      [AttendanceStatus.ANIRE]: past ? 'No presentat' : 'Aniré',
       [AttendanceStatus.NO_VAIG]: past ? 'No va anar' : 'No vaig',
       [AttendanceStatus.ASSISTIT]: 'Assistit',
-      [AttendanceStatus.NO_PRESENTAT]: 'No presentat',
     };
     return labels[status] ?? status;
   }
 
   getStatusBadgeClass(status: AttendanceStatus): string {
+    const past = this.isPast();
     const classes: Record<AttendanceStatus, string> = {
       [AttendanceStatus.PENDENT]: 'badge-ghost',
-      [AttendanceStatus.ANIRE]: 'badge-success',
+      [AttendanceStatus.ANIRE]: past ? 'badge-warning' : 'badge-success',
       [AttendanceStatus.NO_VAIG]: 'badge-error',
       [AttendanceStatus.ASSISTIT]: 'badge-success',
-      [AttendanceStatus.NO_PRESENTAT]: 'badge-warning',
     };
     return classes[status] ?? 'badge-ghost';
   }
@@ -499,8 +442,8 @@ export class EventDetailComponent implements OnInit, OnDestroy {
       },
       {
         label: 'No presentat',
-        value: summary.noShow,
-        icon: 'AlertTriangle',
+        value: summary.confirmed,
+        icon: 'UserMinus',
         iconClass: 'text-warning',
         hidden: !past,
       },
@@ -528,14 +471,14 @@ export class EventDetailComponent implements OnInit, OnDestroy {
       {
         label: 'Adults',
         value: adults,
-        icon: 'Users',
+        icon: ICON_PERSONA,
         iconClass: 'text-primary',
         hidden: false,
       },
       {
         label: 'Xicalla',
         value: summary.children,
-        icon: 'Baby',
+        icon: ICON_XICALLA,
         iconClass: 'text-info',
         hidden: false,
       },

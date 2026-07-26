@@ -59,14 +59,18 @@ export class UserController {
     return this.userService.findAll(filters);
   }
 
-  @Patch('grant-role')
+  @Patch(':id/grant-role')
   @ApiOperation({ summary: 'Assigna un rol a un usuari' })
   @Roles(UserRole.ADMIN)
   @ApiResponse({ status: 200, description: 'Usuari actualitzat' })
   @ApiResponse({ status: 400, description: 'Error en assignar el rol' })
   @ApiResponse({ status: 404, description: 'Usuari no trobat' })
-  grantRole(@Param('id', ParseUUIDPipe) id: string, @Body() dto: GrantUserRoleDto): Promise<UserResponseDto> {
-    return this.userService.grantRole(id, dto.role);
+  grantRole(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GrantUserRoleDto,
+    @CurrentUser() actor: JwtPayload,
+  ): Promise<UserResponseDto> {
+    return this.userService.grantRole(id, dto.role, actor.sub);
   }
 
   @Patch(':id/deactivate')
@@ -76,8 +80,9 @@ export class UserController {
   @ApiResponse({ status: 404, description: 'Usuari no trobat' })
   async deactivateUser(
     @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() actor: JwtPayload,
   ): Promise<void> {
-    return this.userService.deactivateUser(id);
+    return this.userService.deactivateUser(id, actor.role, actor.sub);
   }
 
   @Patch(':id')
@@ -90,7 +95,7 @@ export class UserController {
     @Body() dto: UpdateUserDto,
     @CurrentUser() actor: JwtPayload,
   ): Promise<UserResponseDto> {
-    return this.userService.updateUser(id, dto, actor.role);
+    return this.userService.updateUser(id, dto, actor.role, actor.sub);
   }
 
 }

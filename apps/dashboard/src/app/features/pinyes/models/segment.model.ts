@@ -1,15 +1,33 @@
+import { SegmentMoveConflictResolution } from '@muixer/shared';
+
+export type FigureMode = 'COMPLETA' | 'PEU' | 'REMAT' | 'NETA';
+
 export interface InstanceDetail {
   id: string;
   label: string | null;
   sortOrder: number;
   snapshotted: boolean;
   assignedCount: number;
+  pinyaAssignedCount: number;
+  totalCordons: number | null;
   numberOfCordons: number | null;
+  cordonsObertsEnabled: boolean;
   projectionX: number | null;
   projectionY: number | null;
   projectionScale: number;
+  figureMode: FigureMode;
   figureTemplate: { id: string; name: string; hasPinya: boolean } | null;
-  compositionTemplate: { id: string; name: string } | null;
+}
+
+export interface TroncFloorData {
+  z: number;
+  isBase: boolean;
+  slots: (string | null)[];
+}
+
+export interface InstanceTroncSummary {
+  instanceId: string;
+  floors: TroncFloorData[];
 }
 
 export interface SegmentDetail {
@@ -40,11 +58,28 @@ export interface UpdateSegmentPayload {
 
 export interface CreateInstancePayload {
   figureTemplateId?: string;
-  compositionTemplateId?: string;
   label?: string;
 }
 
 export interface UpdateInstancePayload {
   label?: string | null;
   sortOrder?: number;
+  figureMode?: FigureMode;
+}
+
+export interface MoveInstancePayload {
+  targetSegmentId: string;
+  targetIndex?: number;
+  conflictResolution?: SegmentMoveConflictResolution;
+}
+
+export interface MoveInstanceResult {
+  sourceSegment: SegmentDetail;
+  targetSegment: SegmentDetail;
+}
+
+export interface SegmentMoveConflict {
+  code: 'SEGMENT_MOVE_CONFLICT';
+  total: number;
+  tronc: number;
 }

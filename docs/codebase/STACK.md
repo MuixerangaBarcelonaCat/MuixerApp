@@ -126,7 +126,6 @@ nx run-many -t test
 | `LEGACY_API_PASSWORD` | `XXXXXX` | Credencial del legacy API |
 | `JWT_SECRET` | `secret-64-chars` | Secret per signar access tokens |
 | `JWT_ACCESS_TTL` | `900` | Vida del access token en segons (15 min) |
-| `JWT_REFRESH_SECRET` | `secret-diferent` | Secret per signar refresh tokens |
 | `JWT_REFRESH_TTL_DASHBOARD` | `28800` | Vida del refresh token Dashboard (8h) |
 | `JWT_REFRESH_TTL_PWA` | `604800` | Vida del refresh token PWA (7 dies) |
 | `REFRESH_TOKEN_COOKIE` | `muixer_rt` | Nom de la cookie httpOnly |

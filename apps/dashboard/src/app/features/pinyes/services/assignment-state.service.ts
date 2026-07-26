@@ -39,7 +39,7 @@ export class AssignmentStateService {
   readonly placementPreset = signal<NodePreset | null>(null);
   readonly placementCustomLabel = signal<string | null>(null);
 
-  /** Current active tab's nodes — set by AssignmentCanvasComponent */
+  /** Current active tab's nodes */
   readonly activeTabNodes = signal<InstanceNodeItem[]>([]);
 
   /** Derived: only ad-hoc nodes from the active tab */
@@ -55,6 +55,7 @@ export class AssignmentStateService {
     const localAssignedIds = new Set(localAssigned.map((a) => a.person.id));
     return confirmed.filter(
       (p) =>
+        !p.isXicalla &&
         isConfirmedAttendance(p.attendanceStatus) &&
         !p.assignedInSegment &&
         !localAssignedIds.has(p.id),
@@ -63,7 +64,7 @@ export class AssignmentStateService {
 
   /** Total confirmed adults (ANIRE + ASSISTIT) */
   readonly totalConfirmedCount = computed(
-    () => this.confirmedPersons().filter((p) => isConfirmedAttendance(p.attendanceStatus)).length,
+    () => this.confirmedPersons().filter((p) => !p.isXicalla && isConfirmedAttendance(p.attendanceStatus)).length,
   );
 
   setSelectedNodeId(nodeId: string | null): void {

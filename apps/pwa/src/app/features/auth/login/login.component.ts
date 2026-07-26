@@ -1,0 +1,60 @@
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
+import { LucideAngularModule, Mail, Lock, AlertCircle } from 'lucide-angular';
+import { AuthService } from '../../../core/auth/services/auth.service';
+
+@Component({
+  selector: 'app-login',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [ReactiveFormsModule, LucideAngularModule],
+  templateUrl: './login.component.html',
+})
+export class LoginComponent {
+  private readonly authService = inject(AuthService);
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+  private readonly fb = inject(FormBuilder);
+
+  protected readonly Mail = Mail;
+  protected readonly Lock = Lock;
+  protected readonly AlertCircle = AlertCircle;
+
+  readonly form = this.fb.nonNullable.group({
+    email: ['', [Validators.required, Validators.email]],
+    password: ['', [Validators.required, Validators.minLength(6)]],
+  });
+
+  readonly isLoading = signal(false);
+  readonly errorMessage = signal<string | null>(null);
+  protected readonly logoError = signal(false);
+
+  onSubmit(): void {
+    if (this.form.invalid || this.isLoading()) return;
+
+    this.isLoading.set(true);
+    this.errorMessage.set(null);
+
+    const { email, password } = this.form.getRawValue();
+    this.authService.login({ email, password }).subscribe({
+      next: () => {
+        const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
+        this.router.navigateByUrl(returnUrl || '/home');
+      },
+      error: (err: HttpErrorResponse) => {
+        if (err.status === 401) {
+          this.errorMessage.set('Correu electrònic o contrasenya incorrectes.');
+        } else if (err.status === 429) {
+          this.errorMessage.set('Massa intents. Espereu un moment i torneu-ho a provar.');
+        } else if (err.status === 0 || err.status >= 500) {
+          this.errorMessage.set("No s'ha pogut connectar amb el servidor. Comproveu la connexió.");
+        } else {
+          this.errorMessage.set('Error inesperat. Torneu-ho a provar.');
+        }
+        this.isLoading.set(false);
+      },
+    });
+  }
+}

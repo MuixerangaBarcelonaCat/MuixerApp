@@ -1,4 +1,10 @@
-<section class="tronc-view" [class.projection-mode]="mode() === 'projection'" aria-label="Vista del tronc">
+<section
+  class="tronc-view"
+  [class.projection-mode]="mode() === 'projection'"
+  [style.border]="mode() === 'projection' && panelColor() ? '2px solid ' + (panelBorderColor() ?? panelColor()) : null"
+  [style.background-color]="mode() === 'projection' && panelColor() ? panelColor() + '33' : null"
+  aria-label="Vista del tronc"
+>
 
   <!-- ── Header (hidden in projection mode) ──────────────────────────────── -->
   @if (mode() !== 'projection') {
@@ -29,8 +35,8 @@
     </header>
   }
 
-  <!-- ── Directions section (figures netes, assignment mode) ──────────── -->
-  @if (mode() === 'assignment' && isNetaFigure()) {
+  <!-- ── Directions section (assignment mode) ─────────────────────────── -->
+  @if (mode() === 'assignment') {
     <div class="directions-section" role="region" aria-label="Direccions">
       <button
         type="button"
@@ -54,20 +60,40 @@
             <span
               class="direction-label"
               [style.border-left-color]="getDirectionColor('FIGURE_DIRECTION')"
-            >Direcció figura</span>
-            @if (figureDirectionNode(); as dirNode) {
+            >Dir.</span>
+            @for (dirNode of figureDirectionNodes(); track dirNode.id) {
               <button
                 type="button"
                 class="tronc-node direction-node"
                 [class.selected]="isSelected(dirNode.id)"
                 [class.assigned]="isAssigned(dirNode.id)"
+                [class.dragging]="isDragging(dirNode.id)"
+                [class.drag-over-swap]="isDragOverSwap(dirNode.id)"
+                [class.drag-over-move]="isDragOverMove(dirNode.id)"
                 [style.border-left-color]="getDirectionColor(dirNode.zone)"
+                [draggable]="isDraggableNode(dirNode.id)"
                 (click)="onDirectionNodeClick(dirNode, $event)"
+                (mouseenter)="onNodeHover($event, dirNode.id)"
+                (mouseleave)="onNodeLeave()"
+                (dragstart)="onNodeDragStart(dirNode, $event)"
+                (dragover)="onNodeDragOver(dirNode, $event)"
+                (dragleave)="onNodeDragLeave(dirNode)"
+                (drop)="onNodeDrop(dirNode, $event)"
+                (dragend)="onNodeDragEnd()"
                 [attr.aria-label]="getNodeAriaLabel(dirNode)"
                 [attr.aria-pressed]="isSelected(dirNode.id)"
               >
                 @if (getAssignment(dirNode.id); as assignment) {
-                  <span class="person-alias">{{ assignment.person.alias }}</span>
+                  <span class="alias-row">
+                    <span class="person-alias">{{ assignment.person.alias }}</span>
+                    @if (getNotes(assignment); as notes) {
+                      @if (getNotesEmoji(assignment); as emoji) {
+                        <span class="text-xs leading-none shrink-0" [attr.aria-label]="'Observacions: ' + notes" [title]="notes">{{ emoji }}</span>
+                      } @else {
+                        <lucide-icon [name]="ICON_OBSERVACIONS" [size]="10" class="text-warning shrink-0" [attr.aria-label]="'Observacions: ' + notes" [title]="notes" />
+                      }
+                    }
+                  </span>
                   <span
                     class="attendance-dot"
                     [style.background-color]="getAttendanceColor(assignment)"
@@ -77,17 +103,6 @@
                   <span class="node-label text-base-content/40">Sense assignar</span>
                 }
               </button>
-              @if (isAssigned(dirNode.id) && isSelected(dirNode.id)) {
-                <button
-                  type="button"
-                  class="unassign-btn"
-                  (click)="onUnassignNode(dirNode.id); $event.stopPropagation()"
-                  aria-label="Desassignar direcció figura"
-                  title="Desassignar"
-                >
-                  <lucide-icon name="X" [size]="10" aria-hidden="true" />
-                </button>
-              }
               @if (!isAssigned(dirNode.id)) {
                 <button
                   type="button"
@@ -99,16 +114,15 @@
                   <lucide-icon name="Trash2" [size]="12" aria-hidden="true" />
                 </button>
               }
-            } @else {
-              <button
-                type="button"
-                class="btn btn-ghost btn-xs gap-1"
-                (click)="directionAdded.emit({ zone: 'FIGURE_DIRECTION' })"
-              >
-                <lucide-icon name="Plus" [size]="12" aria-hidden="true" />
-                Afegir
-              </button>
             }
+            <button
+              type="button"
+              class="btn btn-ghost btn-xs gap-1"
+              (click)="directionAdded.emit({ zone: 'FIGURE_DIRECTION' })"
+            >
+              <lucide-icon name="Plus" [size]="12" aria-hidden="true" />
+              Afegir
+            </button>
           </div>
 
           <!-- XICALLA_DIRECTION slot -->
@@ -116,20 +130,40 @@
             <span
               class="direction-label"
               [style.border-left-color]="getDirectionColor('XICALLA_DIRECTION')"
-            >Direcció xicalla</span>
-            @if (xicallaDirectionNode(); as dirNode) {
+            >Xic.</span>
+            @for (dirNode of xicallaDirectionNodes(); track dirNode.id) {
               <button
                 type="button"
                 class="tronc-node direction-node"
                 [class.selected]="isSelected(dirNode.id)"
                 [class.assigned]="isAssigned(dirNode.id)"
+                [class.dragging]="isDragging(dirNode.id)"
+                [class.drag-over-swap]="isDragOverSwap(dirNode.id)"
+                [class.drag-over-move]="isDragOverMove(dirNode.id)"
                 [style.border-left-color]="getDirectionColor(dirNode.zone)"
+                [draggable]="isDraggableNode(dirNode.id)"
                 (click)="onDirectionNodeClick(dirNode, $event)"
+                (mouseenter)="onNodeHover($event, dirNode.id)"
+                (mouseleave)="onNodeLeave()"
+                (dragstart)="onNodeDragStart(dirNode, $event)"
+                (dragover)="onNodeDragOver(dirNode, $event)"
+                (dragleave)="onNodeDragLeave(dirNode)"
+                (drop)="onNodeDrop(dirNode, $event)"
+                (dragend)="onNodeDragEnd()"
                 [attr.aria-label]="getNodeAriaLabel(dirNode)"
                 [attr.aria-pressed]="isSelected(dirNode.id)"
               >
                 @if (getAssignment(dirNode.id); as assignment) {
-                  <span class="person-alias">{{ assignment.person.alias }}</span>
+                  <span class="alias-row">
+                    <span class="person-alias">{{ assignment.person.alias }}</span>
+                    @if (getNotes(assignment); as notes) {
+                      @if (getNotesEmoji(assignment); as emoji) {
+                        <span class="text-xs leading-none shrink-0" [attr.aria-label]="'Observacions: ' + notes" [title]="notes">{{ emoji }}</span>
+                      } @else {
+                        <lucide-icon [name]="ICON_OBSERVACIONS" [size]="10" class="text-warning shrink-0" [attr.aria-label]="'Observacions: ' + notes" [title]="notes" />
+                      }
+                    }
+                  </span>
                   <span
                     class="attendance-dot"
                     [style.background-color]="getAttendanceColor(assignment)"
@@ -139,17 +173,6 @@
                   <span class="node-label text-base-content/40">Sense assignar</span>
                 }
               </button>
-              @if (isAssigned(dirNode.id) && isSelected(dirNode.id)) {
-                <button
-                  type="button"
-                  class="unassign-btn"
-                  (click)="onUnassignNode(dirNode.id); $event.stopPropagation()"
-                  aria-label="Desassignar direcció xicalla"
-                  title="Desassignar"
-                >
-                  <lucide-icon name="X" [size]="10" aria-hidden="true" />
-                </button>
-              }
               @if (!isAssigned(dirNode.id)) {
                 <button
                   type="button"
@@ -161,16 +184,15 @@
                   <lucide-icon name="Trash2" [size]="12" aria-hidden="true" />
                 </button>
               }
-            } @else {
-              <button
-                type="button"
-                class="btn btn-ghost btn-xs gap-1"
-                (click)="directionAdded.emit({ zone: 'XICALLA_DIRECTION' })"
-              >
-                <lucide-icon name="Plus" [size]="12" aria-hidden="true" />
-                Afegir
-              </button>
             }
+            <button
+              type="button"
+              class="btn btn-ghost btn-xs gap-1"
+              (click)="directionAdded.emit({ zone: 'XICALLA_DIRECTION' })"
+            >
+              <lucide-icon name="Plus" [size]="12" aria-hidden="true" />
+              Afegir
+            </button>
           </div>
 
         </div>
@@ -178,8 +200,15 @@
     </div>
   }
 
-  <!-- ── Directions section (figures netes, projection mode) ─────────── -->
-  @if (mode() === 'projection' && isNetaFigure() && hasAssignedDirections()) {
+  <!-- ── Figure name header (projection mode) ─────────────────────────── -->
+  @if (mode() === 'projection' && figureName()) {
+    <div class="px-2 pt-1 pb-0.5">
+      <span class="text-sm font-semibold text-gray-900 truncate block">{{ figureName() }}</span>
+    </div>
+  }
+
+  <!-- ── Directions section (projection mode) ─────────────────────────── -->
+  @if (mode() === 'projection' && hasAssignedDirections()) {
     <div class="directions-section projection" role="region" aria-label="Direccions">
       @for (dir of directionNodes(); track dir.id) {
         @if (getAssignment(dir.id); as assignment) {
@@ -242,8 +271,19 @@
                   [class.assigned]="isAssigned(node.id)"
                   [class.highlighted]="isHighlighted(node.id)"
                   [class.z-colored]="mode() === 'assignment' || mode() === 'projection'"
-                  [style.border-left-color]="mode() === 'assignment' || mode() === 'projection' ? getZLevelColor(node.z) : null"
+                  [class.dragging]="isDragging(node.id)"
+                  [class.drag-over-swap]="isDragOverSwap(node.id)"
+                  [class.drag-over-move]="isDragOverMove(node.id)"
+                  [style.border-left-color]="mode() !== 'editor' ? (getNodeColor(node) ?? getZLevelColor(node.z)) : null"
+                  [draggable]="isDraggableNode(node.id)"
                   (click)="onNodeClick(node, $event)"
+                  (mouseenter)="onNodeHover($event, node.id)"
+                  (mouseleave)="onNodeLeave()"
+                  (dragstart)="onNodeDragStart(node, $event)"
+                  (dragover)="onNodeDragOver(node, $event)"
+                  (dragleave)="onNodeDragLeave(node)"
+                  (drop)="onNodeDrop(node, $event)"
+                  (dragend)="onNodeDragEnd()"
                   [attr.aria-label]="getNodeAriaLabel(node)"
                   [attr.aria-pressed]="isSelected(node.id)"
                 >
@@ -253,7 +293,22 @@
                         {{ getHeightDisplay(assignment.person.shoulderHeight) }}
                       </span>
                     }
-                    <span class="person-alias" [class.text-base]="mode() === 'projection'">{{ assignment.person.alias }}</span>
+                    <span class="alias-row">
+                      <span
+                        class="person-alias"
+                        [class.text-base]="mode() === 'projection'"
+                        appFitText
+                        [fitTextEnabled]="mode() === 'projection'"
+                        [fitTextValue]="displayAlias(node, assignment)"
+                      >{{ displayAlias(node, assignment) }}</span>
+                      @if (mode() !== 'projection' && getNotes(assignment); as notes) {
+                        @if (getNotesEmoji(assignment); as emoji) {
+                          <span class="text-xs leading-none shrink-0" [attr.aria-label]="'Observacions: ' + notes" [title]="notes">{{ emoji }}</span>
+                        } @else {
+                          <lucide-icon [name]="ICON_OBSERVACIONS" [size]="10" class="text-warning shrink-0" [attr.aria-label]="'Observacions: ' + notes" [title]="notes" />
+                        }
+                      }
+                    </span>
                     @if (mode() !== 'projection') {
                       <span
                         class="attendance-dot"
@@ -262,20 +317,9 @@
                       ></span>
                     }
                   } @else {
-                    <span class="node-label">{{ node.label }}</span>
+                    <span class="node-label">{{ displayLabel(node) }}</span>
                   }
                 </button>
-                @if (mode() === 'assignment' && isAssigned(node.id) && isSelected(node.id)) {
-                  <button
-                    type="button"
-                    class="unassign-btn"
-                    (click)="onUnassignNode(node.id); $event.stopPropagation()"
-                    aria-label="Desassignar"
-                    title="Desassignar"
-                  >
-                    <lucide-icon name="X" [size]="10" aria-hidden="true" />
-                  </button>
-                }
               </div>
             }
           } @else {
@@ -289,8 +333,19 @@
                   [class.highlighted]="isHighlighted(node.id)"
                   [class.z-colored]="mode() === 'assignment' || mode() === 'projection'"
                   [class.type-colored]="mode() === 'editor' && !!getNodeColor(node)"
-                  [style.border-left-color]="mode() === 'assignment' || mode() === 'projection' ? getZLevelColor(node.z) : mode() === 'editor' ? getNodeColor(node) : null"
+                  [class.dragging]="isDragging(node.id)"
+                  [class.drag-over-swap]="isDragOverSwap(node.id)"
+                  [class.drag-over-move]="isDragOverMove(node.id)"
+                  [style.border-left-color]="getNodeColor(node) ?? (mode() !== 'editor' ? getZLevelColor(node.z) : null)"
+                  [draggable]="isDraggableNode(node.id)"
                   (click)="onNodeClick(node, $event)"
+                  (mouseenter)="onNodeHover($event, node.id)"
+                  (mouseleave)="onNodeLeave()"
+                  (dragstart)="onNodeDragStart(node, $event)"
+                  (dragover)="onNodeDragOver(node, $event)"
+                  (dragleave)="onNodeDragLeave(node)"
+                  (drop)="onNodeDrop(node, $event)"
+                  (dragend)="onNodeDragEnd()"
                   [attr.aria-label]="getNodeAriaLabel(node)"
                   [attr.aria-pressed]="isSelected(node.id)"
                 >
@@ -305,7 +360,22 @@
                         {{ getHeightDisplay(assignment.person.shoulderHeight) }}
                       </span>
                     }
-                    <span class="person-alias" [class.text-base]="mode() === 'projection'">{{ assignment.person.alias }}</span>
+                    <span class="alias-row">
+                      <span
+                        class="person-alias"
+                        [class.text-base]="mode() === 'projection'"
+                        appFitText
+                        [fitTextEnabled]="mode() === 'projection'"
+                        [fitTextValue]="displayAlias(node, assignment)"
+                      >{{ displayAlias(node, assignment) }}</span>
+                      @if (mode() !== 'projection' && getNotes(assignment); as notes) {
+                        @if (getNotesEmoji(assignment); as emoji) {
+                          <span class="text-xs leading-none shrink-0" [attr.aria-label]="'Observacions: ' + notes" [title]="notes">{{ emoji }}</span>
+                        } @else {
+                          <lucide-icon [name]="ICON_OBSERVACIONS" [size]="10" class="text-warning shrink-0" [attr.aria-label]="'Observacions: ' + notes" [title]="notes" />
+                        }
+                      }
+                    </span>
                     @if (mode() !== 'projection') {
                       <span
                         class="attendance-dot"
@@ -314,20 +384,9 @@
                       ></span>
                     }
                   } @else {
-                    <span class="node-label">{{ node.label }}</span>
+                    <span class="node-label">{{ displayLabel(node) }}</span>
                   }
                 </button>
-                @if (mode() === 'assignment' && isAssigned(node.id) && isSelected(node.id)) {
-                  <button
-                    type="button"
-                    class="unassign-btn"
-                    (click)="onUnassignNode(node.id); $event.stopPropagation()"
-                    aria-label="Desassignar"
-                    title="Desassignar"
-                  >
-                    <lucide-icon name="X" [size]="10" aria-hidden="true" />
-                  </button>
-                }
               </div>
             }
           }
@@ -382,8 +441,8 @@
 
       <div class="divider my-1"></div>
 
-      <!-- Selected TRONC node controls -->
-      @if (selectedTroncNode(); as node) {
+      <!-- Selected TRONC or BASE node controls -->
+      @if (selectedFloorNode(); as node) {
         <div class="selected-node-controls">
           <p class="controls-label">Node: <strong>{{ node.label }}</strong></p>
 
@@ -403,6 +462,23 @@
             />
           </div>
 
+          <!-- Indicator (short marker shown next to the assigned person, e.g. "X") -->
+          <div class="form-control">
+            <label class="label py-0" [for]="'tronc-indicator-' + node.id">
+              <span class="label-text text-xs">Indicador</span>
+            </label>
+            <input
+              type="text"
+              [id]="'tronc-indicator-' + node.id"
+              class="input input-bordered input-xs w-16"
+              [ngModel]="node.climbIndicator"
+              (ngModelChange)="onIndicatorChange(node, $event)"
+              aria-label="Indicador curt mostrat al costat de la persona assignada"
+              maxlength="4"
+            />
+          </div>
+
+          @if (node.zone === 'TRONC') {
           <!-- positionType tags -->
           <div class="form-control">
             <span class="label-text text-xs py-0">Tipus</span>
@@ -422,18 +498,6 @@
               }
             </div>
           </div>
-
-          <!-- Color indicator -->
-          <div class="color-indicator-row">
-            <span class="label-text text-xs">Color</span>
-            <span
-              class="color-swatch"
-              [style.background-color]="getNodeColor(node) ?? '#78909C'"
-              aria-hidden="true"
-            ></span>
-            <span class="color-value text-xs">{{ getNodeColor(node) ?? '—' }}</span>
-          </div>
-
           <!-- Stepper controls for x / width -->
           <div class="node-props-row">
             <div
@@ -510,12 +574,28 @@
               <lucide-icon name="Trash2" [size]="12" aria-hidden="true" />
             </button>
           </div>
+          }
         </div>
 
         <div class="divider my-1"></div>
       }
 
 
+    </div>
+  }
+
+  @if (hoveredPerson(); as hovered) {
+    <div
+      class="fixed z-50 pointer-events-none"
+      [style.top.px]="hovered.top"
+      [style.left.px]="hovered.left"
+    >
+      <app-person-hover-card
+        [info]="hovered.info"
+        [isPast]="isPast()"
+        [heightMode]="heightMode()"
+        [activeNodePositionType]="hovered.positionType"
+      />
     </div>
   }
 

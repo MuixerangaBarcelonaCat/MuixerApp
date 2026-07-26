@@ -1,11 +1,23 @@
 @if (loading()) {
-  <div class="flex h-screen w-screen items-center justify-center bg-base-200" role="status" aria-live="polite">
+  <div
+    class="flex items-center justify-center bg-base-200"
+    [class.h-screen]="!embedded()"
+    [class.w-screen]="!embedded()"
+    [class.h-full]="embedded()"
+    [class.w-full]="embedded()"
+    role="status"
+    aria-live="polite"
+  >
     <span class="loading loading-spinner loading-lg text-primary"></span>
     <span class="sr-only">S'està carregant la projecció...</span>
   </div>
 } @else if (segmentData()) {
   <div
-    class="flex flex-col h-screen w-screen overflow-hidden bg-white"
+    class="flex flex-col overflow-hidden bg-white"
+    [class.h-screen]="!embedded()"
+    [class.w-screen]="!embedded()"
+    [class.h-full]="embedded()"
+    [class.w-full]="embedded()"
     [class.cursor-none]="!cursorVisible()"
     (mousemove)="onMouseMove()"
     role="main"
@@ -13,143 +25,105 @@
   >
 
     <!-- ── Grid de figures ────────────────────────────────────────────────────── -->
-    <div class="flex flex-1 overflow-hidden">
-      <div
-        class="flex flex-wrap w-full h-full p-1 overflow-hidden"
-        style="justify-content: center; align-content: center; gap: 3px;"
-        aria-label="Figures en projecció"
-      >
-        @for (instance of segmentData()!.instances; track instance.id) {
-          <div
-            class="relative overflow-hidden group flex flex-col border border-gray-200"
-            [style.width]="itemWidthStyle()"
-            [style.height]="itemHeightStyle()"
-          >
+    <!-- Canvas unificat: pinya nodes + outlines per figura (renderitzats al Konva).
+         Les figures sense posició desada s'ubiquen amb l'algorisme de col·locació
+         (figure-placement.util) perquè sempre es mostren amb aquest mateix canvas. -->
+    <div #figuresContainer class="relative flex-1 overflow-hidden" aria-label="Figures en projecció">
+      <app-figure-canvas
+        class="block w-full h-full"
+        mode="readonly"
+        [gridEnabled]="false"
+        [nodes]="distributionNodes()"
+        [assignments]="distributionAssignments()"
+        [attendanceMap]="attendanceMap()"
+        [isPast]="true"
+        [fitExtraBounds]="distributionFitBounds()"
+        [outlineBoxes]="distributionNodeOutlines()"
+        (stageTransformChanged)="onStageTransformChanged($event)"
+      />
 
-            @if (isNetaFigure(instance)) {
-              <!-- ── Figura neta: TroncView com a contingut principal ──────── -->
-              <div class="px-2 pt-1 pb-0.5 flex items-baseline gap-1 flex-shrink-0 border-b border-gray-200">
-                <span class="text-base font-semibold text-gray-900 truncate">{{ getInstanceName(instance) }}</span>
-                <span class="badge badge-xs badge-info flex-shrink-0">Figura neta</span>
-              </div>
-              <div class="flex-1 min-h-0 flex items-center justify-center overflow-y-auto p-2 relative">
-                <app-tronc-view
-                  class="w-full max-w-md"
-                  mode="projection"
-                  [troncNodes]="getInstanceTroncNodes(instance)"
-                  [baseNodes]="getInstanceBaseNodes(instance)"
-                  [directionNodes]="getInstanceDirectionNodes(instance)"
-                  [isNetaFigure]="true"
-                  [assignments]="instance.assignments"
-                />
-                <a
-                  [routerLink]="['/pinyes/events', eventId, 'segments', segmentId, 'project', instance.id]"
-                  class="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity rounded-md p-1 focus-visible:opacity-100 bg-black/50 text-white"
-                  [attr.aria-label]="'Obre ' + getInstanceName(instance) + ' en pantalla completa'"
-                  title="Obre en pantalla completa"
-                >
-                  <lucide-icon name="Maximize2" [size]="14" aria-hidden="true" />
-                </a>
-              </div>
-            } @else {
-              <!-- ── Figura completa: tronc header + pinya canvas ──────────── -->
-              <div
-                class="flex-shrink-0 bg-white border-b border-gray-200 overflow-hidden"
-                style="max-height: 30%"
-              >
-                <div class="px-2 pt-1 pb-0.5 flex items-baseline gap-1">
-                  <span class="text-base font-semibold text-gray-900 truncate">{{ getInstanceName(instance) }}</span>
-                </div>
-                <div class="overflow-y-auto">
-                  <app-tronc-view
-                    mode="projection"
-                    [troncNodes]="getInstanceTroncNodes(instance)"
-                    [baseNodes]="getInstanceBaseNodes(instance)"
-                    [directionNodes]="getInstanceDirectionNodes(instance)"
-                    [isNetaFigure]="false"
-                    [assignments]="instance.assignments"
-                  />
-                </div>
-              </div>
-
-              <div class="flex-1 min-h-0 relative">
-                <app-figure-canvas
-                  class="block w-full h-full"
-                  mode="readonly"
-                  [gridEnabled]="false"
-                  [nodes]="getInstanceProjectionNodes(instance)"
-                  [assignments]="instance.assignments"
-                />
-                <a
-                  [routerLink]="['/pinyes/events', eventId, 'segments', segmentId, 'project', instance.id]"
-                  class="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity rounded-md p-1 focus-visible:opacity-100 bg-black/50 text-white"
-                  [attr.aria-label]="'Obre ' + getInstanceName(instance) + ' en pantalla completa'"
-                  title="Obre en pantalla completa"
-                >
-                  <lucide-icon name="Maximize2" [size]="14" aria-hidden="true" />
-                </a>
-              </div>
-            }
-
-          </div>
-        }
-      </div>
+      @for (panel of distributionTroncPanels(); track panel.instance.id) {
+        <div
+          class="absolute pointer-events-none overflow-hidden origin-top-left"
+          [style.left.px]="panel.screenX"
+          [style.top.px]="panel.screenY"
+          [style.width.px]="panel.naturalW"
+          [style.height.px]="panel.naturalH"
+          [style.transform]="'scale(' + panel.scale + ')'"
+        >
+          <app-tronc-view
+            class="block w-full h-full"
+            mode="projection"
+            [troncNodes]="getInstanceTroncNodes(panel.instance)"
+            [baseNodes]="getInstanceBaseNodes(panel.instance)"
+            [directionNodes]="getInstanceDirectionNodes(panel.instance)"
+            [assignments]="panel.instance.assignments"
+            [attendanceMap]="attendanceMap()"
+            [isPast]="true"
+            [panelColor]="panel.color"
+            [panelBorderColor]="panel.borderColor"
+            [figureName]="getInstanceName(panel.instance)"
+          />
+        </div>
+      }
     </div>
 
     <!-- ── HUD flotant ────────────────────────────────────────────────────────── -->
-    <nav
-      class="fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-full bg-black/60 text-white/80 text-sm backdrop-blur-sm z-50"
-      aria-label="Navegació de la projecció"
-    >
-      <button
-        type="button"
-        class="flex items-center justify-center rounded-full hover:bg-white/15 p-1 transition-colors"
-        (click)="goBack()"
-        aria-label="Torna a l'esdeveniment"
-        title="Torna a l'esdeveniment (Escape)"
+    @if (!embedded()) {
+      <nav
+        class="fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-full bg-black/60 text-white/80 text-sm backdrop-blur-sm z-50"
+        aria-label="Navegació de la projecció"
       >
-        <lucide-icon name="ArrowLeft" [size]="16" aria-hidden="true" />
-      </button>
-
-      <span class="w-px h-4 bg-white/20" aria-hidden="true"></span>
-
-      <span class="truncate max-w-[200px]">{{ segmentData()!.segment.name ?? 'Segment' }}</span>
-
-      @if (segmentData()!.segment.prevSegmentId) {
         <button
           type="button"
-          class="flex items-center justify-center"
-          (click)="navigateSegment('prev')"
-          aria-label="Segment anterior"
-          title="Segment anterior (←)"
+          class="flex items-center justify-center rounded-full hover:bg-white/15 p-1 transition-colors"
+          (click)="goBack()"
+          aria-label="Torna a l'esdeveniment"
+          title="Torna a l'esdeveniment (Escape)"
         >
-          <kbd class="kbd kbd-sm bg-white/10 border-white/20 text-white/70 cursor-pointer hover:bg-white/20">←</kbd>
+          <lucide-icon name="ArrowLeft" [size]="16" aria-hidden="true" />
         </button>
-      }
-      @if (segmentData()!.segment.nextSegmentId) {
+
+        <span class="w-px h-4 bg-white/20" aria-hidden="true"></span>
+
+        <span class="truncate max-w-[200px]">{{ segmentData()!.segment.name ?? 'Segment' }}</span>
+
+        @if (segmentData()!.segment.prevSegmentId) {
+          <button
+            type="button"
+            class="flex items-center justify-center"
+            (click)="navigateSegment('prev')"
+            aria-label="Segment anterior"
+            title="Segment anterior (←)"
+          >
+            <kbd class="kbd kbd-sm bg-white/10 border-white/20 text-white/70 cursor-pointer hover:bg-white/20">←</kbd>
+          </button>
+        }
+        @if (segmentData()!.segment.nextSegmentId) {
+          <button
+            type="button"
+            class="flex items-center justify-center"
+            (click)="navigateSegment('next')"
+            aria-label="Segment següent"
+            title="Segment següent (→)"
+          >
+            <kbd class="kbd kbd-sm bg-white/10 border-white/20 text-white/70 cursor-pointer hover:bg-white/20">→</kbd>
+          </button>
+        }
+
+        <span class="w-px h-4 bg-white/20" aria-hidden="true"></span>
+
         <button
           type="button"
-          class="flex items-center justify-center"
-          (click)="navigateSegment('next')"
-          aria-label="Segment següent"
-          title="Segment següent (→)"
+          class="flex items-center justify-center rounded-full hover:bg-white/15 p-1 transition-colors"
+          (click)="helpModalOpen.set(true)"
+          aria-label="Ajuda de dreceres de teclat"
+          title="Ajuda (?)"
         >
-          <kbd class="kbd kbd-sm bg-white/10 border-white/20 text-white/70 cursor-pointer hover:bg-white/20">→</kbd>
+          <lucide-icon name="CircleQuestionMark" [size]="14" aria-hidden="true" />
         </button>
-      }
-
-      <span class="w-px h-4 bg-white/20" aria-hidden="true"></span>
-
-      <button
-        type="button"
-        class="flex items-center justify-center rounded-full hover:bg-white/15 p-1 transition-colors"
-        (click)="helpModalOpen.set(true)"
-        aria-label="Ajuda de dreceres de teclat"
-        title="Ajuda (?)"
-      >
-        <lucide-icon name="HelpCircle" [size]="14" aria-hidden="true" />
-      </button>
-    </nav>
+      </nav>
+    }
 
   </div>
 
@@ -166,9 +140,6 @@
             <tr><td><kbd class="kbd kbd-sm">?</kbd></td><td class="text-sm">Mostra / amaga l'ajuda</td></tr>
           </tbody>
         </table>
-        <p class="text-xs text-base-content/50 mt-3">
-          Fes clic a <lucide-icon name="Maximize2" [size]="12" aria-hidden="true" class="inline" /> per veure una figura en pantalla completa.
-        </p>
         <div class="modal-action">
           <button type="button" class="btn btn-sm" (click)="helpModalOpen.set(false)">Tanca</button>
         </div>

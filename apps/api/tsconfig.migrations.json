@@ -18,6 +18,7 @@
   },
   "include": [
     "src/data-source.ts",
-    "src/migrations/**/*.ts"
+    "src/migrations/**/*.ts",
+    "src/modules/database/resolve-db-ssl-options.util.ts"
   ]
 }

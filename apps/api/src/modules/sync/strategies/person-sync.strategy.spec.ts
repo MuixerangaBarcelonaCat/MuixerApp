@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { PersonSyncStrategy } from './person-sync.strategy';
 import { LegacyApiClient, LegacyPerson } from '../legacy-api.client';
 import { Person } from '../../person/person.entity';
-import { Position } from '../../position/position.entity';
+import { Tag } from '../../tag/tag.entity';
 import { AvailabilityStatus, OnboardingStatus } from '@muixer/shared';
 import { User } from '../../user/user.entity';
 
@@ -29,7 +29,7 @@ describe('PersonSyncStrategy', () => {
   let strategy: PersonSyncStrategy;
   let legacyApiClient: jest.Mocked<LegacyApiClient>;
   let personRepository: jest.Mocked<Repository<Person>>;
-  let positionRepository: jest.Mocked<Repository<Position>>;
+  let positionRepository: jest.Mocked<Repository<Tag>>;
 
   const mockLegacyPerson: LegacyPerson = {
     id: '123',
@@ -104,7 +104,7 @@ describe('PersonSyncStrategy', () => {
         PersonSyncStrategy,
         { provide: LegacyApiClient, useValue: mockLegacyClient },
         { provide: getRepositoryToken(Person), useValue: mockPersonRepo },
-        { provide: getRepositoryToken(Position), useValue: mockPositionRepo },
+        { provide: getRepositoryToken(Tag), useValue: mockPositionRepo },
         { provide: getRepositoryToken(User), useValue: mockUserRepo },
       ],
     }).compile();
@@ -113,7 +113,7 @@ describe('PersonSyncStrategy', () => {
       strategy: module.get<PersonSyncStrategy>(PersonSyncStrategy),
       legacyApiClient: module.get(LegacyApiClient) as jest.Mocked<LegacyApiClient>,
       personRepository: module.get(getRepositoryToken(Person)) as jest.Mocked<Repository<Person>>,
-      positionRepository: module.get(getRepositoryToken(Position)) as jest.Mocked<Repository<Position>>,
+      positionRepository: module.get(getRepositoryToken(Tag)) as jest.Mocked<Repository<Tag>>,
     };
   }
 
@@ -137,8 +137,8 @@ describe('PersonSyncStrategy', () => {
       legacyApiClient.login.mockResolvedValue();
       legacyApiClient.getCastellers.mockResolvedValue([mockLegacyPerson]);
       positionRepository.findOne.mockResolvedValue(null);
-      positionRepository.create.mockReturnValue({} as Position);
-      positionRepository.save.mockResolvedValue({} as Position);
+      positionRepository.create.mockReturnValue({} as Tag);
+      positionRepository.save.mockResolvedValue({} as Tag);
       personRepository.findOne.mockResolvedValue(null);
       personRepository.create.mockReturnValue({} as Person);
       personRepository.save.mockResolvedValue({} as Person);
@@ -195,8 +195,8 @@ describe('PersonSyncStrategy', () => {
       legacyApiClient.login.mockResolvedValue();
       legacyApiClient.getCastellers.mockResolvedValue([mockLegacyPerson]);
       positionRepository.findOne.mockResolvedValue(null);
-      positionRepository.create.mockReturnValue({} as Position);
-      positionRepository.save.mockResolvedValue({} as Position);
+      positionRepository.create.mockReturnValue({} as Tag);
+      positionRepository.save.mockResolvedValue({} as Tag);
       personRepository.findOne.mockResolvedValue(null);
       personRepository.create.mockImplementation((d) => d as Person);
       personRepository.save.mockResolvedValue({} as Person);
@@ -230,6 +230,7 @@ describe('PersonSyncStrategy', () => {
         id: 'uuid-1',
         legacyId: '123',
         name: 'OldName',
+        isActive: true,
         positions: [{ id: 'pos-1', name: 'Primeres', slug: 'primeres' }],
         notes: 'Old notes',
       } as Person;
@@ -247,6 +248,90 @@ describe('PersonSyncStrategy', () => {
           // MuixerApp-owned fields NEVER overwritten
           expect(existingPerson.positions).toEqual([{ id: 'pos-1', name: 'Primeres', slug: 'primeres' }]);
           expect(existingPerson.notes).toBe('Old notes');
+          done();
+        },
+      });
+    });
+
+    it('creates a new person instead of reactivating one that was manually deactivated in MuixerApp', (done) => {
+      const deactivatedPerson = {
+        id: 'uuid-1',
+        legacyId: '123',
+        name: 'OldName',
+        isActive: false,
+        positions: [],
+        notes: null,
+      } as unknown as Person;
+
+      legacyApiClient.login.mockResolvedValue();
+      legacyApiClient.getCastellers.mockResolvedValue([mockLegacyPerson]);
+      personRepository.findOne.mockResolvedValue(deactivatedPerson);
+      personRepository.create.mockImplementation((d) => d as Person);
+      personRepository.save.mockResolvedValue({} as Person);
+
+      strategy.execute().subscribe({
+        complete: () => {
+          expect(personRepository.create).toHaveBeenCalledWith(
+            expect.objectContaining({ legacyId: '123', name: 'Joan', isActive: true }),
+          );
+          // the manually-deactivated record itself must never be touched
+          expect(personRepository.save).not.toHaveBeenCalledWith(deactivatedPerson);
+          done();
+        },
+      });
+    });
+
+    it('does not remove a manually-created managedBy link when the legacy record has no email (BUG-21)', (done) => {
+      const manuallyLinkedUser = { id: 'manual-user-uuid', email: 'manual@muixerapp.cat' };
+      const existingPerson = {
+        id: 'uuid-1',
+        legacyId: '123',
+        name: 'OldName',
+        isActive: true,
+        positions: [],
+        notes: null,
+        managedBy: manuallyLinkedUser,
+      } as unknown as Person;
+
+      legacyApiClient.login.mockResolvedValue();
+      legacyApiClient.getCastellers.mockResolvedValue([{ ...mockLegacyPerson, email: '' }]);
+      personRepository.findOne.mockResolvedValue(existingPerson);
+      personRepository.save.mockResolvedValue(existingPerson);
+
+      strategy.execute().subscribe({
+        complete: () => {
+          expect(personRepository.save).toHaveBeenCalledWith(
+            expect.objectContaining({ managedBy: manuallyLinkedUser }),
+          );
+          done();
+        },
+      });
+    });
+
+    it('re-links managedBy to the new user when the legacy record has a different email (BUG-21)', (done) => {
+      const oldManager = { id: 'old-user-uuid', email: 'old@example.com' };
+      const existingPerson = {
+        id: 'uuid-1',
+        legacyId: '123',
+        name: 'OldName',
+        isActive: true,
+        positions: [],
+        notes: null,
+        managedBy: oldManager,
+      } as unknown as Person;
+
+      legacyApiClient.login.mockResolvedValue();
+      legacyApiClient.getCastellers.mockResolvedValue([mockLegacyPerson]); // email: joan@example.com
+      personRepository.findOne.mockResolvedValue(existingPerson);
+      personRepository.save.mockResolvedValue(existingPerson);
+
+      strategy.execute().subscribe({
+        complete: () => {
+          expect(personRepository.save).toHaveBeenCalledWith(
+            expect.objectContaining({
+              managedBy: expect.objectContaining({ id: 'user-uuid' }),
+            }),
+          );
           done();
         },
       });
@@ -373,6 +458,7 @@ describe('PersonSyncStrategy', () => {
         id: 'uuid-existing',
         legacyId: '42',
         name: 'Old',
+        isActive: true,
         positions: [],
         notes: null,
       } as unknown as Person;

@@ -1,0 +1,188 @@
+@if (mobileUnsupported()) {
+  <div class="h-full min-h-0 flex items-center justify-center p-6 text-center">
+    <div class="max-w-xs">
+      <p class="font-medium text-base-content/70">Encara no optimitzat per a mòbil</p>
+      <p class="text-sm text-base-content/50 mt-1">Esta pestanya està disponible en tablet i escriptori.</p>
+    </div>
+  </div>
+} @else {
+<div class="flex h-full min-h-0">
+  <!-- Figure selector -->
+  <aside class="w-52 shrink-0 border-r border-base-300 overflow-y-auto p-2 space-y-1" aria-label="Selector de figures">
+    @for (instance of ws.instances(); track instance.instanceId) {
+      <button
+        type="button"
+        class="btn btn-sm btn-block justify-start"
+        [class.btn-primary]="ws.selectedInstanceId() === instance.instanceId"
+        [class.btn-ghost]="ws.selectedInstanceId() !== instance.instanceId"
+        (click)="selectFigure(instance.instanceId)"
+      >
+        <span class="truncate">{{ instance.label }}</span>
+      </button>
+    }
+  </aside>
+
+  <!-- Canvas -->
+  <div class="relative flex-1 min-w-0">
+    @if (ws.pinyaSlots().length === 0) {
+      <div class="absolute inset-0 z-10 flex items-center justify-center text-base-content/50">
+        Este segment no té cap figura amb pinya.
+      </div>
+    }
+
+    <app-figure-canvas
+      class="w-full h-full block"
+      [class.cursor-crosshair]="state.isPlacementMode()"
+      mode="segment-assignment"
+      [compositionSlots]="ws.pinyaSlots()"
+      [assignments]="state.assignments()"
+      [selectedSegmentNode]="selectedRef()"
+      [dimmedSlotIds]="dimmedSlotIds()"
+      [isPlacementMode]="state.isPlacementMode()"
+      [placementSlotId]="ws.selectedInstanceId()"
+      [adHocNodesEditable]="true"
+      [isPast]="isPast()"
+      (segmentNodeSelected)="onSegmentNodeSelected($event)"
+      (canvasClicked)="onCanvasClicked($event)"
+      (segmentAdHocNodeMoved)="onSegmentAdHocNodeMoved($event)"
+      (segmentAdHocNodeTransformed)="onSegmentAdHocNodeTransformed($event)"
+    />
+
+    @if (state.isPlacementMode()) {
+      <div class="absolute top-2 left-1/2 -translate-x-1/2 z-30 alert alert-info py-2 px-4 shadow-lg max-w-sm" role="status">
+        <span class="text-sm">
+          <strong>Mode col·locació:</strong> fes clic a l'àrea de treball per situar el node.
+          <button type="button" class="btn btn-xs btn-ghost ml-1" (click)="state.exitPlacementMode()">
+            Cancel·la
+          </button>
+        </span>
+      </div>
+    }
+  </div>
+
+  <!-- Node palette + ad-hoc properties -->
+  <aside class="w-72 shrink-0 bg-base-100 border-l border-base-300 flex flex-col overflow-y-auto" aria-label="Nodes i propietats">
+    <div class="p-3 space-y-3 border-b border-base-200">
+      <div>
+        <p class="text-xs font-semibold text-base-content/60 mb-1.5">Pinya</p>
+        <div class="grid grid-cols-2 gap-1.5">
+          @for (preset of adHocPresets; track preset.positionType) {
+            <button
+              type="button"
+              class="btn btn-xs justify-start gap-1.5"
+              [disabled]="ws.isLocked() || !ws.selectedInstanceId()"
+              (click)="onPresetSelected(preset)"
+            >
+              <span class="inline-block w-2.5 h-2.5 rounded-sm shrink-0" [style.backgroundColor]="preset.color"></span>
+              <span class="truncate">{{ preset.requiresCustomLabel ? '...' : preset.label }}</span>
+            </button>
+          }
+        </div>
+      </div>
+
+      <div>
+        <p class="text-xs font-semibold text-base-content/60 mb-1.5">Decoració</p>
+        <div class="grid grid-cols-2 gap-1.5">
+          @for (preset of decorationPresets; track preset.positionType) {
+            <button
+              type="button"
+              class="btn btn-xs justify-start"
+              [disabled]="ws.isLocked() || !ws.selectedInstanceId()"
+              (click)="onPresetSelected(preset)"
+            >
+              {{ getDecorationLabel(preset) }}
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+
+    @if (selectedAdHocNode(); as node) {
+      <div class="p-3">
+        <app-ad-hoc-node-properties
+          [node]="node"
+          [instanceId]="selectedRef()!.slotId"
+          [assignment]="selectedAssignment()"
+          [heightMode]="state.heightMode()"
+          [isPast]="isPast()"
+          (closed)="onSegmentNodeSelected(null)"
+          (propertyChanged)="onAdHocPropertyChanged($event)"
+          (nodeUpdated)="onAdHocNodeUpdated()"
+          (deleteRequested)="onDeleteRequested($event)"
+          (duplicateRequested)="duplicateSelected()"
+          (unassign)="onUnassign()"
+        />
+      </div>
+    } @else {
+      <div class="flex-1 flex items-center justify-center p-4 text-center text-xs text-base-content/40">
+        Selecciona un node manual per editar-ne les propietats.
+      </div>
+    }
+  </aside>
+</div>
+}
+
+<!-- Comodí / decoration label dialog -->
+@if (comodinInputOpen()) {
+  <dialog class="modal modal-open" role="dialog" aria-labelledby="nodes-comodin-title" aria-modal="true">
+    <div class="modal-box max-w-xs">
+      <h3 id="nodes-comodin-title" class="text-lg font-bold mb-3">{{ labelDialogTitle() }}</h3>
+      <label for="nodes-comodin-input" class="label">
+        <span class="label-text">Escriu el nom del node:</span>
+      </label>
+      <textarea
+        id="nodes-comodin-input"
+        class="textarea textarea-bordered w-full resize-none"
+        rows="3"
+        [value]="comodinLabel()"
+        (input)="comodinLabel.set($any($event.target).value)"
+        (keydown.shift.enter)="confirmComodinLabel(); $event.preventDefault()"
+        maxlength="500"
+        autofocus
+      ></textarea>
+      <div class="modal-action">
+        <button type="button" class="btn btn-ghost btn-sm" (click)="cancelComodinInput()">
+          Cancel·la
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary btn-sm"
+          (click)="confirmComodinLabel()"
+          [disabled]="!comodinLabel().trim()"
+        >
+          Col·loca
+        </button>
+      </div>
+    </div>
+    <button type="button" class="modal-backdrop" (click)="cancelComodinInput()" aria-label="Tancar"></button>
+  </dialog>
+}
+
+<!-- Delete confirmation -->
+@if (deleteModalOpen()) {
+  <dialog
+    class="modal modal-open"
+    role="alertdialog"
+    aria-labelledby="nodes-delete-adhoc-title"
+    aria-describedby="nodes-delete-adhoc-desc"
+    aria-modal="true"
+  >
+    <div class="modal-box max-w-sm">
+      <h3 id="nodes-delete-adhoc-title" class="text-lg font-bold mb-3 text-error">Eliminar node manual</h3>
+      <p id="nodes-delete-adhoc-desc" class="text-sm text-base-content/70">
+        El node «<strong>{{ pendingDeleteNodeLabel() }}</strong>» té la persona
+        <strong>{{ pendingDeletePersonName() }}</strong> assignada.
+        Si l'elimines, l'assignació es perdrà.
+      </p>
+      <div class="modal-action">
+        <button type="button" class="btn btn-ghost btn-sm" (click)="cancelDelete()">
+          Cancel·la
+        </button>
+        <button type="button" class="btn btn-error btn-sm" (click)="confirmDelete()">
+          Elimina
+        </button>
+      </div>
+    </div>
+    <button type="button" class="modal-backdrop" (click)="cancelDelete()" aria-label="Tancar"></button>
+  </dialog>
+}

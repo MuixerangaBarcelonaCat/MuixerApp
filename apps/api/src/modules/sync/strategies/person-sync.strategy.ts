@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Observable, Subscriber } from 'rxjs';
 import { Person } from '../../person/person.entity';
-import { Position } from '../../position/position.entity';
+import { Tag } from '../../tag/tag.entity';
 import { User } from '../../user/user.entity';
 import { UserRole } from '@muixer/shared';
 import { LegacyApiClient, LegacyPerson } from '../legacy-api.client';
@@ -12,31 +12,33 @@ import { SyncStrategy } from '../interfaces/sync-strategy.interface';
 import {
   AvailabilityStatus,
   OnboardingStatus,
-  FigureZone,
 } from '@muixer/shared';
 
 const POSITION_MAPPING: Record<
   string,
-  { name: string; slug: string; zone: FigureZone | null; color: string }
+  { name: string; slug: string; positionTypes: string[]; color: string }
 > = {
-  PRIMERES: { name: 'Primeres', slug: 'primeres', zone: FigureZone.TRONC, color: '#E53935' },
-  VENTS: { name: 'Vents', slug: 'vents', zone: FigureZone.PINYA, color: '#1E88E5' },
-  LATERALS: { name: 'Laterals', slug: 'laterals', zone: FigureZone.PINYA, color: '#43A047' },
-  CONTRAFORTS: { name: 'Contraforts', slug: 'contraforts', zone: FigureZone.PINYA, color: '#FB8C00' },
-  '2NS LATERALS': { name: 'Segons Laterals', slug: 'segons-laterals', zone: FigureZone.PINYA, color: '#8E24AA' },
-  CROSSES: { name: 'Crosses', slug: 'crosses', zone: FigureZone.PINYA, color: '#00897B' },
-  CANALLA: { name: 'Xicalla', slug: 'xicalla', zone: null, color: '#FFB300' },
-  'NENS COLLA': { name: 'Nens Colla', slug: 'nens-colla', zone: null, color: '#FFB300' },
-  ACOMPANYANTS: { name: 'Acompanyants', slug: 'acompanyants', zone: null, color: '#78909C' },
-  ALTRES: { name: 'Altres', slug: 'altres', zone: null, color: '#9E9E9E' },
-  NOVATOS: { name: 'Novatos', slug: 'novatos', zone: null, color: '#5C6BC0' },
-  'IMATGE I PARADETA': { name: 'Imatge i Paradeta', slug: 'imatge-paradeta', zone: null, color: '#EC407A' },
+  PRIMERES: { name: 'Mans', slug: 'mans', positionTypes: ['mans'], color: '#FFE082' },
+  VENTS: { name: 'Vent', slug: 'vent', positionTypes: ['vents'], color: '#A5D6A7' },
+  LATERALS: { name: 'Lateral', slug: 'lateral', positionTypes: ['laterals'], color: '#80DEEA' },
+  CONTRAFORTS: { name: 'Contrafort', slug: 'contrafort', positionTypes: ['contrafort'], color: '#EF9A9A' },
+  '2NS LATERALS': { name: 'Segon Lateral', slug: 'segon-lateral', positionTypes: ['laterals'], color: '#8E24AA' },
+  CROSSES: { name: 'Crossa', slug: 'crossa', positionTypes: ['crossa'], color: '#9FA8DA' },
+  CANALLA: { name: 'Xicalla', slug: 'xicalla', positionTypes: [], color: '#FFB300' },
+  'NENS COLLA': { name: 'Nens Colla', slug: 'nens-colla', positionTypes: [], color: '#FFB300' },
+  ACOMPANYANTS: { name: 'Acompanyants', slug: 'acompanyants', positionTypes: [], color: '#78909C' },
+  ALTRES: { name: 'Altres', slug: 'altres', positionTypes: [], color: '#9E9E9E0DEEA' },
+  NOVATOS: { name: 'Novatos', slug: 'novatos', positionTypes: [], color: '#5C6BC0' },
+  'IMATGE I PARADETA': { name: 'Imatge i Paradeta', slug: 'imatge-paradeta', positionTypes: [], color: '#EC407A' },
 };
 
 /**
  * Estratègia de sincronització de persones des del legacy APPsistència.
- * Carrega totes les persones de `/api/castellers`, aplica la merge strategy
- * (CREATE per a noves, UPDATE parcial per a existents) i desactiva les que desapareixen.
+ * Carrega totes les persones de `/api/castellers` i aplica la merge strategy
+ * (CREATE per a noves o per a legacyIds que coincideixen amb una persona
+ * desactivada manualment, UPDATE parcial per a existents actives).
+ * El sync MAI desactiva ni reactiva persones: la desactivació és sempre una
+ * acció manual (`PersonService.deactivate`/`softDelete`), i el sync la respecta.
  */
 @Injectable()
 export class PersonSyncStrategy implements SyncStrategy {
@@ -47,8 +49,8 @@ export class PersonSyncStrategy implements SyncStrategy {
     private readonly legacyApiClient: LegacyApiClient,
     @InjectRepository(Person)
     private readonly personRepository: Repository<Person>,
-    @InjectRepository(Position)
-    private readonly positionRepository: Repository<Position>,
+    @InjectRepository(Tag)
+    private readonly positionRepository: Repository<Tag>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
   ) {}
@@ -184,14 +186,6 @@ export class PersonSyncStrategy implements SyncStrategy {
         }
       }
 
-      subscriber.next({
-        type: 'progress',
-        entity: 'sync',
-        message: 'Marcant persones inactives...',
-      });
-
-      const deactivatedCount = await this.deactivateMissingPersons(legacyPersons);
-
       // ── Step 3: Assign each user's main person ──
 
       subscriber.next({
@@ -206,8 +200,8 @@ export class PersonSyncStrategy implements SyncStrategy {
       subscriber.next({
         type: 'complete',
         entity: 'sync',
-        message: `${legacyPersons.length} processades: ${newCount} noves, ${updateCount} actualitzades, ${deactivatedCount} desactivades, ${errorCount} errors${warnSuffix}`,
-        detail: { new: newCount, updated: updateCount, deactivated: deactivatedCount, errors: errorCount, aliasWarnings: warnCount },
+        message: `${legacyPersons.length} processades: ${newCount} noves, ${updateCount} actualitzades, ${errorCount} errors${warnSuffix}`,
+        detail: { new: newCount, updated: updateCount, errors: errorCount, aliasWarnings: warnCount },
       });
 
       subscriber.complete();
@@ -367,16 +361,15 @@ export class PersonSyncStrategy implements SyncStrategy {
       const position = this.positionRepository.create({
         name: mapping.name,
         slug: mapping.slug,
-        zone: mapping.zone,
+        positionTypes: mapping.positionTypes,
         color: mapping.color,
       });
       await this.positionRepository.save(position);
-
-      subscriber.next({
-        type: 'progress',
-        entity: 'position',
-        message: `Posició: ${mapping.name}`,
-      });
+      subscriber.next({ type: 'progress', entity: 'position', message: `Posició creada: ${mapping.name}` });
+    } else {
+      existing.positionTypes = mapping.positionTypes;
+      existing.color = mapping.color;
+      await this.positionRepository.save(existing);
     }
   }
 
@@ -395,7 +388,10 @@ export class PersonSyncStrategy implements SyncStrategy {
       relations: ['positions'],
     });
 
-    if (!existing) {
+    // A manually-deactivated person (BUG-9) must never be silently reactivated by
+    // sync. Treat this legacyId as if it were new: create a fresh, active person
+    // and leave the deactivated record untouched.
+    if (!existing || !existing.isActive) {
       return this.createPerson(legacyPerson, managedByUser, subscriber, onWarn);
     } else {
       return this.updatePerson(existing, legacyPerson, managedByUser, subscriber, onWarn);
@@ -461,11 +457,16 @@ export class PersonSyncStrategy implements SyncStrategy {
     existing.onboardingStatus = this.mapOnboarding(legacyPerson.estat_acollida);
     existing.shirtDate = this.parseDate(legacyPerson.instant_camisa);
 
-    // Always re-link to the user derived from the legacy email
-    existing.managedBy = managedByUser ?? null;
+    // Re-link only when the legacy record carries an email (BUG-21): a different
+    // legacy email always wins and re-points the link (including to a brand-new
+    // user), but an empty legacy email must never sever a managedBy link created
+    // manually in MuixerApp — it just means the legacy side has nothing to say.
+    if (legacyPerson.email) {
+      existing.managedBy = managedByUser;
+    }
 
-    // Mark as active (present in legacy API)
-    existing.isActive = true;
+    // existing.isActive is already true here — upsertPerson() routes inactive
+    // (manually-deactivated) persons to createPerson() instead.
     existing.lastSyncedAt = new Date();
 
     // NEVER update: positions, isXicalla, notes (MuixerApp owns these)
@@ -533,7 +534,7 @@ export class PersonSyncStrategy implements SyncStrategy {
     return fallback;
   }
 
-  private async resolvePositions(posicio: string): Promise<Position[]> {
+  private async resolvePositions(posicio: string): Promise<Tag[]> {
     if (!posicio) return [];
 
     const parts = posicio
@@ -587,24 +588,4 @@ export class PersonSyncStrategy implements SyncStrategy {
     return map[estatAcollida] || OnboardingStatus.NOT_APPLICABLE;
   }
 
-  private async deactivateMissingPersons(
-    legacyPersons: LegacyPerson[],
-  ): Promise<number> {
-    const legacyIds = legacyPersons.map((p) => p.id);
-
-    if (legacyIds.length === 0) {
-      return 0;
-    }
-
-    const result = await this.personRepository
-      .createQueryBuilder()
-      .update(Person)
-      .set({ isActive: false, lastSyncedAt: new Date() })
-      .where('legacyId NOT IN (:...legacyIds)', { legacyIds })
-      .andWhere('legacyId IS NOT NULL')
-      .andWhere('isActive = :isActive', { isActive: true })
-      .execute();
-
-    return result.affected || 0;
-  }
 }

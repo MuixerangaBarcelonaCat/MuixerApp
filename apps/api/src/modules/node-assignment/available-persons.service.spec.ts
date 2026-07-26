@@ -161,6 +161,20 @@ describe('AvailablePersonsService', () => {
       );
     });
 
+    it('orders by name similarity too, not just alias (a name-only match should rank by its own score)', async () => {
+      mockEventRepo.findOne.mockResolvedValueOnce(makeEvent()).mockResolvedValue(null);
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockPersonQb.getMany.mockResolvedValue([]);
+
+      await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, { search: 'pere' });
+
+      const orderByCall = mockPersonQb.orderBy.mock.calls.find(
+        (call: unknown[]) => typeof call[0] === 'string' && (call[0] as string).includes('word_similarity'),
+      );
+      expect(orderByCall).toBeDefined();
+      expect(orderByCall![0]).toContain('person.name');
+    });
+
     it('filters by isXicalla', async () => {
       mockEventRepo.findOne.mockResolvedValueOnce(makeEvent()).mockResolvedValue(null);
       mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
@@ -174,6 +188,17 @@ describe('AvailablePersonsService', () => {
       );
     });
 
+    it('filters by positionId', async () => {
+      mockEventRepo.findOne.mockResolvedValueOnce(makeEvent()).mockResolvedValue(null);
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockPersonQb.getMany.mockResolvedValue([]);
+
+      await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, { positionId: 'pos-agulla' });
+
+      expect(mockPersonQb.andWhere).toHaveBeenCalledWith(expect.any(Function));
+      expect(mockPersonQb.setParameter).toHaveBeenCalledWith('positionId', 'pos-agulla');
+    });
+
     it('sorts by height proximity when height param present', async () => {
       mockEventRepo.findOne.mockResolvedValueOnce(makeEvent()).mockResolvedValue(null);
       mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
@@ -182,10 +207,27 @@ describe('AvailablePersonsService', () => {
       await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, { height: 140 });
 
       expect(mockPersonQb.orderBy).toHaveBeenCalledWith(
+        expect.stringContaining('CASE'),
+        'ASC',
+      );
+      expect(mockPersonQb.addOrderBy).toHaveBeenCalledWith(
         expect.stringContaining('ABS'),
         'ASC',
       );
       expect(mockPersonQb.setParameter).toHaveBeenCalledWith('height', 140);
+    });
+
+    it('sorts persons without a set shoulderHeight to the end regardless of sort direction', async () => {
+      mockEventRepo.findOne.mockResolvedValueOnce(makeEvent()).mockResolvedValue(null);
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockPersonQb.getMany.mockResolvedValue([]);
+
+      await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, { height: -835 });
+
+      expect(mockPersonQb.orderBy).toHaveBeenCalledWith(
+        expect.stringContaining('IS NULL OR person.shoulderHeight = 0'),
+        'ASC',
+      );
     });
 
     it('excludes assigned persons when excludeAssigned=true (default)', async () => {
@@ -210,7 +252,7 @@ describe('AvailablePersonsService', () => {
         {
           person: { id: PERSON_ID_1 },
           figureInstance: { id: 'instance-uuid-1' },
-          instanceNode: { label: 'Node A' },
+          instanceNode: { label: 'Node A', renglaPosition: 2 },
         },
       ]);
       mockAttendanceRepo.find.mockResolvedValue([]);
@@ -221,6 +263,26 @@ describe('AvailablePersonsService', () => {
       expect(result[0].assignedInSegment).toBe(true);
       expect(result[0].assignedInstanceId).toBe('instance-uuid-1');
       expect(result[0].assignedNodeLabel).toBe('Node A');
+      expect(result[0].assignedNodeCordon).toBe(2);
+    });
+
+    it('returns null assignedNodeCordon when the assigned node has no cordon', async () => {
+      mockEventRepo.findOne.mockResolvedValueOnce(makeEvent()).mockResolvedValue(null);
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      const person = makePerson();
+      mockPersonQb.getMany.mockResolvedValue([person]);
+      mockAssignmentRepo.find.mockResolvedValue([
+        {
+          person: { id: PERSON_ID_1 },
+          figureInstance: { id: 'instance-uuid-1' },
+          instanceNode: { label: 'Node A', renglaPosition: null },
+        },
+      ]);
+      mockAttendanceRepo.find.mockResolvedValue([]);
+
+      const result = await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, { excludeAssigned: false });
+
+      expect(result[0].assignedNodeCordon).toBeNull();
     });
 
     it('returns nextPerformanceStatus when event is ASSAIG', async () => {
@@ -292,8 +354,8 @@ describe('AvailablePersonsService', () => {
       const result = await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, {});
 
       expect(result[0].positions).toHaveLength(2);
-      expect(result[0].positions[0]).toEqual({ id: pos1.id, name: pos1.name, slug: 'agulla', color: '#0d9488' });
-      expect(result[0].positions[1]).toEqual({ id: pos2.id, name: pos2.name, slug: 'vents', color: '#A5D6A7' });
+      expect(result[0].positions[0]).toEqual({ id: pos1.id, name: pos1.name, slug: 'agulla', color: '#0d9488', positionTypes: [] });
+      expect(result[0].positions[1]).toEqual({ id: pos2.id, name: pos2.name, slug: 'vents', color: '#A5D6A7', positionTypes: [] });
     });
 
     it('returns empty positions[] when person has no positions', async () => {

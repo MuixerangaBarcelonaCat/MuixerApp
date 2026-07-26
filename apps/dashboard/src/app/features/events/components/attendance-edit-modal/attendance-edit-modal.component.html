@@ -38,7 +38,7 @@
     <div class="mb-4">
       <p class="text-sm font-medium mb-2">Estat d'assistència</p>
       <div class="flex flex-wrap gap-2">
-        @for (status of [AttendanceStatus.ANIRE, AttendanceStatus.ASSISTIT, AttendanceStatus.NO_VAIG, AttendanceStatus.NO_PRESENTAT, AttendanceStatus.PENDENT]; track status) {
+        @for (status of [AttendanceStatus.ANIRE, AttendanceStatus.ASSISTIT, AttendanceStatus.NO_VAIG, AttendanceStatus.PENDENT]; track status) {
           <button
             type="button"
             [class]="statusButtonClass(status)"

@@ -9,12 +9,13 @@ import {
 } from 'typeorm';
 import { FigureInstance } from '../../event-segment/entities/figure-instance.entity';
 import { InstanceNode } from '../../event-segment/entities/instance-node.entity';
+import { EventSegment } from '../../event-segment/entities/event-segment.entity';
 import { Person } from '../../person/person.entity';
-import { CompositionSlot } from '../../composition/entities/composition-slot.entity';
 
 @Entity('node_assignments')
-@Unique(['figureInstance', 'instanceNode', 'compositionSlot'])
-@Unique(['figureInstance', 'person', 'compositionSlot'])
+@Unique(['figureInstance', 'instanceNode'])
+@Unique(['figureInstance', 'person'])
+@Unique(['segment', 'person'])
 export class NodeAssignment {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -35,16 +36,18 @@ export class NodeAssignment {
   person: Person;
 
   /**
-   * Required when figureInstance references a CompositionTemplate.
-   * Null for standalone (non-composition) figure instances.
+   * Denormalized from figureInstance.segment — a person may only be assigned once
+   * per segment (across all its figure instances), and Postgres unique constraints
+   * can't span a join, so this column exists to let the DB enforce that invariant
+   * instead of relying solely on the application-level check in assign() (BUG-18).
    */
-  @ManyToOne(() => CompositionSlot, { nullable: true, onDelete: 'RESTRICT' })
+  @ManyToOne(() => EventSegment, { nullable: false, onDelete: 'CASCADE' })
   @JoinColumn()
-  compositionSlot: CompositionSlot | null;
+  segment: EventSegment;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date;
 }

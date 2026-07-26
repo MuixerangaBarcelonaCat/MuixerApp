@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import { NotFoundException, ConflictException } from '@nestjs/common';
 import { AttendanceService } from './attendance.service';
 import { Attendance } from './attendance.entity';
@@ -12,7 +13,7 @@ const makePerson = (overrides: Partial<Person> = {}): Person =>
 
 const makeEvent = (): Partial<Event> => ({
   id: 'ev-1',
-  attendanceSummary: { confirmed: 0, declined: 0, pending: 0, attended: 0, noShow: 0, lateCancel: 0, children: 0, total: 0 },
+  attendanceSummary: { confirmed: 0, declined: 0, pending: 0, attended: 0, lateCancel: 0, children: 0, childrenAttended: 0, total: 0 },
 });
 
 const makeAttendance = (status: AttendanceStatus): Attendance =>
@@ -41,6 +42,7 @@ describe('AttendanceService', () => {
       leftJoinAndSelect: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
+      setParameter: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
       skip: jest.fn().mockReturnThis(),
       take: jest.fn().mockReturnThis(),
@@ -49,6 +51,24 @@ describe('AttendanceService', () => {
     };
 
     const savedAtt = attendances[0] ?? makeAttendance(AttendanceStatus.ANIRE);
+
+    const lockQb = {
+      setLock: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      getOne: jest.fn().mockResolvedValue(event),
+    };
+
+    const manager = {
+      createQueryBuilder: jest.fn(() => lockQb),
+      find: jest.fn().mockResolvedValue(attendances),
+      update: jest.fn().mockResolvedValue(undefined),
+      lockQb,
+    };
+
+    const dataSource = {
+      transaction: jest.fn((cb: (m: typeof manager) => unknown) => cb(manager)),
+      manager,
+    };
 
     return {
       attendanceRepo: {
@@ -67,6 +87,7 @@ describe('AttendanceService', () => {
       personRepo: {
         findOne: jest.fn().mockResolvedValue(person),
       },
+      dataSource,
     };
   };
 
@@ -77,6 +98,7 @@ describe('AttendanceService', () => {
         { provide: getRepositoryToken(Attendance), useValue: repos.attendanceRepo },
         { provide: getRepositoryToken(Event), useValue: repos.eventRepo },
         { provide: getRepositoryToken(Person), useValue: repos.personRepo },
+        { provide: DataSource, useValue: repos.dataSource },
       ],
     }).compile();
     return module.get<AttendanceService>(AttendanceService);
@@ -107,6 +129,20 @@ describe('AttendanceService', () => {
         { status: AttendanceStatus.ASSISTIT },
       );
     });
+
+    it('filters by positionIds when provided', async () => {
+      const repos = makeRepos([makeAttendance(AttendanceStatus.ANIRE)]);
+      service = await buildModule(repos);
+      await service.findByEvent('ev-1', { positionIds: ['pos-1'] });
+      expect(repos.attendanceRepo.attQb.setParameter).toHaveBeenCalledWith('positionIds', ['pos-1']);
+    });
+
+    it('does not add positionIds filter when array is empty', async () => {
+      const repos = makeRepos([makeAttendance(AttendanceStatus.ANIRE)]);
+      service = await buildModule(repos);
+      await service.findByEvent('ev-1', { positionIds: [] });
+      expect(repos.attendanceRepo.attQb.setParameter).not.toHaveBeenCalled();
+    });
   });
 
   // --- create ---
@@ -122,7 +158,7 @@ describe('AttendanceService', () => {
       expect(result).toHaveProperty('attendance');
       expect(result).toHaveProperty('summary');
       expect(repos.attendanceRepo.save).toHaveBeenCalled();
-      expect(repos.eventRepo.update).toHaveBeenCalled();
+      expect(repos.dataSource.manager.update).toHaveBeenCalled();
     });
 
     it('throws NotFoundException when event does not exist', async () => {
@@ -157,7 +193,7 @@ describe('AttendanceService', () => {
       repos.attendanceRepo.findOne = jest.fn().mockResolvedValue(att);
       service = await buildModule(repos);
 
-      const result = await service.update('ev-1', 'att-1', { status: AttendanceStatus.NO_PRESENTAT, notes: 'No va aparèixer' });
+      const result = await service.update('ev-1', 'att-1', { status: AttendanceStatus.ASSISTIT, notes: 'Va aparèixer' });
       expect(result).toHaveProperty('attendance');
       expect(result).toHaveProperty('summary');
       expect(repos.attendanceRepo.save).toHaveBeenCalled();
@@ -175,6 +211,33 @@ describe('AttendanceService', () => {
       );
     });
 
+    it('does not touch respondedAt on a notes-only edit (SM-15)', async () => {
+      const originalRespondedAt = new Date('2026-01-01T00:00:00Z');
+      const att = { ...makeAttendance(AttendanceStatus.ANIRE), respondedAt: originalRespondedAt };
+      const repos = makeRepos([att as Attendance]);
+      repos.attendanceRepo.findOne = jest.fn().mockResolvedValue(att);
+      service = await buildModule(repos);
+
+      await service.update('ev-1', 'att-1', { notes: 'Només una nota' });
+
+      expect(repos.attendanceRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ respondedAt: originalRespondedAt }),
+      );
+    });
+
+    it('bumps respondedAt when the status changes', async () => {
+      const originalRespondedAt = new Date('2026-01-01T00:00:00Z');
+      const att = { ...makeAttendance(AttendanceStatus.ANIRE), respondedAt: originalRespondedAt };
+      const repos = makeRepos([att as Attendance]);
+      repos.attendanceRepo.findOne = jest.fn().mockResolvedValue(att);
+      service = await buildModule(repos);
+
+      await service.update('ev-1', 'att-1', { status: AttendanceStatus.ASSISTIT });
+
+      const saved = repos.attendanceRepo.save.mock.calls[0][0];
+      expect(saved.respondedAt).not.toEqual(originalRespondedAt);
+    });
+
     it('throws NotFoundException when attendance not found', async () => {
       const repos = makeRepos([]);
       repos.attendanceRepo.findOne = jest.fn().mockResolvedValue(null);
@@ -189,7 +252,7 @@ describe('AttendanceService', () => {
       service = await buildModule(repos);
 
       await service.update('ev-1', 'att-1', { status: AttendanceStatus.ASSISTIT });
-      expect(repos.eventRepo.update).toHaveBeenCalled();
+      expect(repos.dataSource.manager.update).toHaveBeenCalled();
     });
   });
 
@@ -226,7 +289,7 @@ describe('AttendanceService', () => {
       service = await buildModule(repos);
 
       await service.remove('ev-1', 'att-1');
-      expect(repos.eventRepo.update).toHaveBeenCalled();
+      expect(repos.dataSource.manager.update).toHaveBeenCalled();
     });
   });
 
@@ -238,7 +301,7 @@ describe('AttendanceService', () => {
         { ...makeAttendance(AttendanceStatus.ASSISTIT), person: makePerson({ isXicalla: true }) },
         makeAttendance(AttendanceStatus.NO_VAIG),
         makeAttendance(AttendanceStatus.PENDENT),
-        makeAttendance(AttendanceStatus.NO_PRESENTAT),
+        makeAttendance(AttendanceStatus.ANIRE),
         makeAttendance(AttendanceStatus.ANIRE),
       ];
       const repos = makeRepos(attendances);
@@ -246,15 +309,44 @@ describe('AttendanceService', () => {
 
       await service.recalculateSummary('ev-1');
 
-      const [, partialUpdate] = repos.eventRepo.update.mock.calls[0];
+      const [, , partialUpdate] = repos.dataSource.manager.update.mock.calls[0];
       const summary = partialUpdate.attendanceSummary;
       expect(summary.attended).toBe(2);
       expect(summary.declined).toBe(1);
       expect(summary.pending).toBe(1);
-      expect(summary.noShow).toBe(1);
-      expect(summary.confirmed).toBe(1);
+      expect(summary.confirmed).toBe(2);
       expect(summary.children).toBe(1);
       expect(summary.total).toBe(6);
+    });
+
+    it('runs inside a transaction', async () => {
+      const repos = makeRepos([]);
+      service = await buildModule(repos);
+
+      await service.recalculateSummary('ev-1');
+
+      expect(repos.dataSource.transaction).toHaveBeenCalledTimes(1);
+    });
+
+    it('takes a pessimistic write lock on the event row before reading attendances (serializes concurrent recalculations)', async () => {
+      const repos = makeRepos([]);
+      service = await buildModule(repos);
+
+      const callOrder: string[] = [];
+      repos.dataSource.manager.lockQb.getOne.mockImplementation(async () => {
+        callOrder.push('lock');
+        return makeEvent();
+      });
+      repos.dataSource.manager.find.mockImplementation(async () => {
+        callOrder.push('find');
+        return [];
+      });
+
+      await service.recalculateSummary('ev-1');
+
+      expect(repos.dataSource.manager.createQueryBuilder).toHaveBeenCalledWith(Event, 'event');
+      expect(repos.dataSource.manager.lockQb.setLock).toHaveBeenCalledWith('pessimistic_write');
+      expect(callOrder).toEqual(['lock', 'find']);
     });
   });
 });

@@ -20,6 +20,7 @@ nx serve dashboard         # http://localhost:4200  (proxied to API via proxy.co
 nx test api                # Jest — backend unit tests
 nx test dashboard          # Vitest — frontend unit tests
 nx test api --testFile=apps/api/src/modules/person/person.service.spec.ts   # single file
+nx run api:test-integration  # Jest — backend integration tests against real Postgres (testcontainers)
 pnpm run ci:local          # lint + test + build (all, excludes e2e)
 
 # Lint
@@ -30,10 +31,12 @@ nx lint dashboard
 nx build api
 nx build dashboard
 
-# Database scripts (run from repo root)
-nx run api:seed-seasons              # Import seasons seed data
-nx run api:reset-figure-data         # Dev reset: wipe instances/nodes/assignments + re-seed
-nx run api:migrate-tronc-units       # P5.6 migration
+# Database — migrations (synchronize: false; auto-run in dev via migrationsRun)
+nx run api:migration-run             # Apply pending migrations
+nx run api:migration-generate        # Generate migration from entity changes
+nx run api:migration-revert          # Revert last migration
+nx run api:reset-figure-data         # Dev reset: wipe instances/nodes/assignments
+nx run api:migrate-tronc-units       # P5.6 one-off script
 
 # Docker
 pnpm run docker:down       # Stop (keeps data)
@@ -50,10 +53,10 @@ pnpm run docker:pre:up     # Pre-production stack
 ### Monorepo layout
 
 ```
-apps/api/          → NestJS REST API (port 3000)
+apps/api/          → NestJS 11 REST API (port 3000)
 apps/dashboard/    → Angular 21 SPA admin (port 4200)
-apps/pwa/          → Angular PWA scaffold (P6, not yet implemented)
-libs/shared/       → Shared enums only — import via @muixer/shared
+apps/pwa/          → Angular 21 PWA for members (implemented: login, agenda, attendance confirmation)
+libs/shared/       → Shared enums, constants, interfaces — import via @muixer/shared
 docs/              → Specs, architecture docs, roadmap
 .cursor/rules/     → Agent coding rules (important patterns)
 ```
@@ -63,15 +66,19 @@ docs/              → Specs, architecture docs, roadmap
 Global guards registered in `app.module.ts`: `JwtAuthGuard` (all routes by default) + `RolesGuard`. Mark public endpoints with `@Public()`.
 
 Modules under `src/modules/`:
-- `auth` — JWT (15min) + httpOnly refresh token (7d), Passport, token rotation
-- `person` — CRUD + soft delete via `isActive` boolean
+- `auth` — JWT (15min) + httpOnly refresh token (7d), Passport, token rotation, invite accept, bootstrap
+- `user` — admin/member accounts (`users`), roles, invite provisioning; OneToOne `Person`
+- `person` — CRUD + soft delete via `isActive` boolean; delegation via `managedBy`/`mentor`
 - `event` + `season` + attendance
 - `figure` — `FigureTemplate`, `FigureNode`, `Rengla`
-- `composition` — `CompositionTemplate` + `CompositionSlot`
-- `event-segment` — `EventSegment`, `FigureInstance`, `InstanceNode`, `ProjectionService`
-- `node-assignment` — assignment logic, lazy snapshot
-- `reference-element` — `ReferenceElement` for projection canvas (P5.8.1)
+- `composition` — `Composition` + `CompositionEntry`
+- `event-segment` — `EventSegment`, `FigureInstance`, `InstanceNode`, distribution + `ProjectionService`
+- `node-assignment` — assignment logic, lazy snapshot, ad-hoc nodes
+- `tag` — CRUD of position/role labels; entity maps to the `positions` table (M:N with Person)
 - `sync` — SSE strategy pattern for legacy data import
+- `me` — empty stub (not wired); PWA `MeEvent` types live in `libs/shared`
+
+DB uses TypeORM **migrations** (`apps/api/src/migrations/`), `synchronize: false`, auto-run in dev. No seed script — data enters via `sync`.
 
 **TypeORM conventions:** UUID primary keys, `createdAt`/`updatedAt` always present, soft delete = `isActive: boolean` (not `@DeleteDateColumn`), enums imported from `@muixer/shared`, table names plural snake_case.
 
@@ -84,10 +91,13 @@ Modules under `src/modules/`:
 All components are standalone + `OnPush` + Signals. No NgRx. No `@Input()`/`@Output()` — use `input()` / `output()`.
 
 Routes (all behind `authGuard` + `rolesGuard(TECHNICAL, ADMIN)`):
+- `/home` → `HomeComponent`
 - `/persons` → `PersonListComponent`
-- `/rehearsals`, `/performances` → events feature
+- `/rehearsals`, `/performances` → events feature (list + sync)
+- `/events/:id` → `EventDetailComponent`, `/events/:id/confirmation` → `AttendanceConfirmationComponent`
 - `/pinyes` → Pinyes module (see below)
 - `/sync` → legacy sync SSE UI
+- `/config` → `ConfigComponent`, with `/config/users`, `/config/tags`, `/config/seasons`
 
 **Shared components** (`shared/components/`): compose list pages with `app-page-header`, `app-data-table`, `app-filter-bar`, `app-active-filters`, `app-column-toggle`, `app-pagination`, `app-empty-state`, `app-confirm-dialog`, `app-toast`. Never build raw table/pagination HTML.
 
@@ -109,19 +119,26 @@ All nodes (PINYA, TRONC, BASE, directions) live in `figure_nodes` per template.
 
 **Pinyes routes:**
 ```
-/pinyes                                                   → TemplateListComponent
-/pinyes/templates/:id/edit                                → TemplateEditorComponent
-/pinyes/compositions/:id/edit                             → CompositionEditorComponent
-/pinyes/events/:eventId/segments/:segmentId/assign        → AssignmentCanvasComponent
-/pinyes/events/:eventId/segments/:segmentId/project       → ProjectionViewComponent (P5.8.1)
-/pinyes/events/:eventId/segments/:segmentId/project/:id   → FigureProjectionComponent
+/pinyes                                                    → TemplateListComponent
+/pinyes/templates/:id/edit                                 → TemplateEditorComponent
+/pinyes/compositions/:id/edit                              → CompositionEditorComponent
+/pinyes/events/:eventId/segments/:segmentId/assign         → SegmentWorkspaceComponent
+/pinyes/events/:eventId/segments/:segmentId/assign/:id     → SegmentWorkspaceComponent (:id preselects a figure)
+/pinyes/events/:eventId/segments/:segmentId/project        → ProjectionViewComponent
+/pinyes/events/:eventId/segments/:segmentId/project/:id    → ProjectionViewComponent (filtered to one figure)
 ```
+
+There is no separate distribution route — `SegmentWorkspaceComponent`'s Distribució tab covers it.
+
+**`SegmentWorkspaceComponent`** (`components/segment-workspace/`) is the unified per-segment workspace: 5 tabs (Pinyes, Troncs, Distribució, Nodes extra, Previsualitza) backed by `SegmentWorkspaceStateService` (provided per workspace instance), composing the root `AssignmentStateService` for selection/assignment state. `?tab=` and `?figure=` query params drive deep-linking; `UndoRedoService` is provided at the workspace level so undo history spans tabs. The Previsualitza tab embeds `ProjectionViewComponent` directly (`[embedded]="true"`) rather than duplicating projection rendering.
 
 **`TroncViewComponent`** uses CSS Grid with doubled internal grid (`x*2`, `width*2`) to support 0.5u steps. Modes: `editor` | `assignment` | `projection`.
 
-**`FigureCanvasComponent`** Konva modes: `editor` | `assignment` | `readonly` | `composition`.
+**`FigureCanvasComponent`** Konva modes: `editor` | `assignment` | `segment-assignment` | `readonly` | `composition`. `segment-assignment` renders multiple figures (slots) on one canvas with assignment interactions, used by the segment workspace tabs.
 
 **`AssignmentStateService`** holds global canvas state via signals: `selectedNodeId`, `selectedPersonId`, `activeInstanceId`, `assignments`, `confirmedPersons`, `pendingOperations`.
+
+**Figure placement** (`utils/figure-placement.util.ts`) — `placeFigures` is a deterministic space-optimizing layout: figures are packed into rows (segment order = reading order), choosing the row partition that maximizes the fit-to-screen zoom for a reference screen; tronc panels are then placed near their own figure by candidate scoring.
 
 ---
 
@@ -137,26 +154,10 @@ All nodes (PINYA, TRONC, BASE, directions) live in `figure_nodes` per template.
 
 - Backend: Jest, co-located `.spec.ts` files
 - Frontend: Vitest, co-located `.spec.ts` files
-- Coverage threshold: 70% (enforced in CI via `--configuration=ci`)
+- Coverage threshold (enforced in CI via `--configuration=ci`): API 75/70/78/76 (statements/branches/functions/lines), dashboard 40/35/40/40
 - Test a single backend file: `nx test api --testFile=<path>`
 
----
+## Development guidelines
 
-## P5.8.1 — Projection view (in progress)
+Always read the TDD skill and apply it when writing code. Read and apply any other relevant skills before you start.
 
-Current branch `story/deploy-server-pre` contains work on the fullscreen projection feature. Key additions:
-- `FigureInstance` has `projectionX`, `projectionY`, `projectionScale` fields
-- `ReferenceElement` entity (RECTANGLE | ARROW) scoped to an event, with `hiddenInSegments` JSONB
-- Endpoint `PUT /segments/:id/instances/projection-layout` for batch position updates
-- Endpoint `GET /segments/:id/projection` for optimized projection data
-- New components: `ProjectionViewComponent`, `SegmentCanvasComponent`, `FigureProjectionComponent`
-
-## graphify
-
-This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
-
-Rules:
-- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
-- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
-- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
-- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).

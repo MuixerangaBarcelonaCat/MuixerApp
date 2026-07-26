@@ -18,6 +18,10 @@ import type { User } from '../../user/user.entity';
  */
 @Entity('instance_nodes')
 @Index('idx_instance_nodes_instance_adhoc', ['figureInstance', 'isAdHoc'])
+@Index('UQ_instance_nodes_instance_source', ['figureInstance', 'sourceNodeId'], {
+  unique: true,
+  where: '"sourceNodeId" IS NOT NULL',
+})
 export class InstanceNode {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -80,7 +84,7 @@ export class InstanceNode {
   sortOrder: number;
 
   @Column({ type: 'varchar', nullable: true })
-  climbPath: string | null;
+  climbIndicator: string | null;
 
   @Column({ type: 'int', nullable: true })
   ringLevel: number | null;
@@ -106,6 +110,6 @@ export class InstanceNode {
   @Column({ type: 'uuid', nullable: true })
   createdById: string | null;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 }

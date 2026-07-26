@@ -26,8 +26,7 @@ FROM node:22-alpine AS prod-deps
 WORKDIR /app
 RUN corepack enable
 COPY --from=build /app/dist/apps/api/package.json ./
-RUN pnpm install --prod --no-lockfile && \
-    pnpm add pg tslib bcrypt typeorm dotenv --no-lockfile
+RUN pnpm install --prod
 
 # Stage 4: Final lightweight runner image
 FROM node:22-alpine AS runner
@@ -38,9 +37,10 @@ ENV NODE_ENV=production
 # Copy the built application
 COPY --from=build /app/dist/apps/api ./
 
-# Copy compiled migrations and data-source
+# Copy compiled migrations, data-source and its dependencies
 COPY --from=build /app/dist/apps/api/migrations-compiled/data-source.js ./data-source.js
 COPY --from=build /app/dist/apps/api/migrations-compiled/migrations ./migrations
+COPY --from=build /app/dist/apps/api/migrations-compiled/modules ./modules
 
 # Copy production node_modules (includes native bindings like bcrypt, pg, typeorm CLI)
 COPY --from=prod-deps /app/node_modules ./node_modules

@@ -105,10 +105,6 @@ export class UserFormModalComponent {
       );
       return;
     }
-
-    if (person.email && !this.form.get('email')!.value) {
-      this.form.get('email')!.setValue(person.email);
-    }
   }
 
   clearLinkedPerson(): void {

@@ -17,6 +17,7 @@
 | P1 | Usuaris + Persones (entitats + CRUD) | ✅ Completat | ✅ | ✅ | ✅ | Entitats i API REST. Model User refactorizat a P4.1 |
 | P2 | Data Migration (API legacy → NeonDB) | ✅ Completat | ✅ | ✅ | ✅ | Sync SSE complet, merge strategy implementada |
 | P2.1 | Dashboard Persons — UX i funcionalitats avançades | ✅ Completat | ✅ | ✅ | ✅ | Ordenació, alçada relativa, filtres, tests |
+| P1.1 | **Delegació de Persones** — Gestió d'assistència en nom d'altri | ✅ Completat | — | ✅ | ✅ | PersonDelegate entity, CRUD API, modal dashboard, tooltips, confirm dialog. Tipus: PARENT/PARTNER/GUARDIAN |
 | P3 | Temporades + Esdeveniments + Assistència | ✅ Completat | ✅ | — | ✅ | Season + Event + Attendance entities, API, sync + dashboard shell |
 | P3.1 | **Temporades — CRUD complet** | ✅ Completat | [`spec`](specs/2026-06-10-seasons-crud-design.md) | ✅ | ✅ | CRUD `/config/seasons`, validació solapament, auto-assign temporada actual a events, pre-selecció als formularis |
 | P4.1 | **Auth Layer** — JWT+Passport + refactor User/Person + Dashboard login | ✅ Completat | [`spec`](specs/2026-04-07-p4-1-auth-layer-design.md) | ✅ | ✅ | Login, refresh rotation, guards globals, dashboard login. Detall: [AUTH_FLOW.md](AUTH_FLOW.md) |
@@ -93,7 +94,8 @@
 
 ```
 P0 (Scaffold)
- ├── P1 (Usuaris + Persones) ──┬── P3 (Events + Assistència + Seasons CRUD)
+ ├── P1 (Usuaris + Persones) ──┬── P1.1 (Delegació de Persones) ← ✅ completat
+ │                              ├── P3 (Events + Assistència + Seasons CRUD)
  │                              │
  └── P2 (Data Migration) ───────┤
                                  └── P4.1 (Auth Layer) ← prerequisit seguretat
@@ -139,6 +141,7 @@ Decisions clau d'ordre:
 | Package manager | `pnpm` (migrat des de npm per velocitat i espai disc) | Juny 2026 |
 | Entorn PRE | Hetzner VPS + Caddy reverse proxy + Docker Compose | Juny 2026 (I1) |
 | Ad-hoc nodes strategy | Single-table extension (`isAdHoc` discriminator a `InstanceNode`), no taules noves | Juny 2026 (P5.12) |
+| Person delegation | `PersonDelegate` entity amb tipus enum (PARENT/PARTNER/GUARDIAN), response DTO amb `@Expose()` per evitar exposició de dades sensibles | Jul 2026 (P1.1) |
 
 ---
 
@@ -190,6 +193,7 @@ ADMIN     ≡ TECHNICAL (fins que s'implementi multi-tenant)
 | **PWA** — veure llista de confirmats per event | ❌ | ✅ | ✅ |
 | **PWA** — accedir al mòdul pinyes (visualització) | ❌ | ✅ | ✅ |
 | **Dashboard** — gestió de persones | ❌ | ✅ | ✅ |
+| **Dashboard** — delegació de persones (afegir/eliminar delegats) | ❌ | ✅ | ✅ |
 | **Dashboard** — gestió d'events i assistència | ❌ | ✅ | ✅ |
 | **Dashboard** — mòdul pinyes i figures | ❌ | ✅ | ✅ |
 | **Dashboard** — gestió d'usuaris (comptes) | ❌ | ✅ | ✅ |

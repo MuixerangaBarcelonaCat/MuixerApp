@@ -30,7 +30,7 @@
         <lucide-icon name="Search" [size]="14" class="text-base-content/40" />
         <input
           type="text"
-          class="grow bg-transparent outline-none text-sm"
+          class="grow bg-transparent outline-none text-sm h-6"
           placeholder="Títol, lloc..."
           [(ngModel)]="searchInput"
           (ngModelChange)="onSearchChange($event)"
@@ -101,7 +101,7 @@
   <!-- Estat buit -->
   @if (!loading() && events().length === 0) {
     <app-empty-state
-      [icon]="eventType() === EventType.ASSAIG ? 'Calendar' : 'Star'"
+      [icon]="eventType() === EventType.ASSAIG ? ICON_ASSAIG : ICON_ACTUACIO"
       [message]="'No s\'han trobat ' + (eventType() === EventType.ASSAIG ? 'assajos' : 'actuacions') + ' amb els filtres actuals'"
       actionLabel="Netejar filtres"
       (actionClick)="clearFilters()"
@@ -125,6 +125,7 @@
 <!-- Modal creació event -->
 @if (showCreateModal()) {
   <app-event-form-modal
+    [presetEventType]="eventType()"
     (saved)="onEventCreated($event)"
     (closed)="showCreateModal.set(false)"
   />

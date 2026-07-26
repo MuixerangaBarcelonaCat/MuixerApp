@@ -33,7 +33,9 @@
             [class.input-error]="fieldError('title')"
             formControlName="title"
             maxlength="200"
-            placeholder="Assaig general..."
+            [placeholder]="presetEventType() === EventType.ASSAIG 
+              ? 'Assaig general...' 
+              : 'Trobada de Muixerangues...'"
           />
           @if (fieldError('title')) {
             <div class="label"><span class="label-text-alt text-error">{{ fieldError('title') }}</span></div>
@@ -45,10 +47,16 @@
           <label class="label" for="eventType">
             <span class="label-text font-medium">Tipus <span class="text-error">*</span></span>
           </label>
-          <select id="eventType" class="select select-bordered" formControlName="eventType">
-            <option [value]="EventType.ASSAIG">Assaig</option>
-            <option [value]="EventType.ACTUACIO">Actuació</option>
-          </select>
+          @if (presetEventType()) {
+            <div class="input input-bordered flex items-center text-base-content/60 bg-base-200 cursor-not-allowed select-none">
+              {{ presetEventType() === EventType.ASSAIG ? 'Assaig' : 'Actuació' }}
+            </div>
+          } @else {
+            <select id="eventType" class="select select-bordered" formControlName="eventType">
+              <option [value]="EventType.ASSAIG">Assaig</option>
+              <option [value]="EventType.ACTUACIO">Actuació</option>
+            </select>
+          }
         </div>
 
         <!-- Data -->
