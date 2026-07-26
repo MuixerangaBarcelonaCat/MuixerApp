@@ -1,4 +1,3 @@
-import { vi } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
@@ -18,10 +17,7 @@ import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provi
  * No Angular TestBed needed — the methods under test are stateless logic.
  */
 describe('EventDetailComponent — getSummaryForDisplay', () => {
-  let component: Pick<
-    EventDetailComponent,
-    'getSummaryForDisplay' | 'isPast' | 'getStatusLabel' | 'getStatusBadgeClass' | 'formatDate' | 'formatDateTime'
-  >;
+  let component: Pick<EventDetailComponent, 'getSummaryForDisplay' | 'isPast' | 'formatDate'>;
 
   const pastSummary: AttendanceSummary = {
     confirmed: 3,     // ANIRE count (no-shows)
@@ -149,91 +145,7 @@ describe('EventDetailComponent — getSummaryForDisplay', () => {
   });
 });
 
-describe('EventDetailComponent — getStatusLabel', () => {
-  let component: Pick<EventDetailComponent, 'getStatusLabel' | 'isPast'>;
-
-  beforeEach(() => {
-    component = Object.create(EventDetailComponent.prototype) as EventDetailComponent;
-  });
-
-  describe('past event labels', () => {
-    beforeEach(() => {
-      (component as unknown as { isPast: () => boolean }).isPast = () => true;
-    });
-
-    it.each([
-      [AttendanceStatus.PENDENT, 'Sense resposta'],
-      [AttendanceStatus.ANIRE, 'No presentat'],
-      [AttendanceStatus.NO_VAIG, 'No va anar'],
-      [AttendanceStatus.ASSISTIT, 'Assistit'],
-    ] as const)('%s → "%s"', (status, expected) => {
-      expect(component.getStatusLabel(status)).toBe(expected);
-    });
-  });
-
-  describe('future event labels', () => {
-    beforeEach(() => {
-      (component as unknown as { isPast: () => boolean }).isPast = () => false;
-    });
-
-    it('NO_VAIG → "No vaig" for future event', () => {
-      expect(component.getStatusLabel(AttendanceStatus.NO_VAIG)).toBe('No vaig');
-    });
-  });
-});
-
-describe('EventDetailComponent — getStatusBadgeClass', () => {
-  let component: Pick<EventDetailComponent, 'getStatusBadgeClass' | 'isPast'>;
-
-  beforeEach(() => {
-    component = Object.create(EventDetailComponent.prototype) as EventDetailComponent;
-  });
-
-  describe('future event (isPast=false)', () => {
-    beforeEach(() => {
-      (component as unknown as { isPast: () => boolean }).isPast = () => false;
-    });
-
-    it.each([
-      [AttendanceStatus.PENDENT, 'badge-ghost'],
-      [AttendanceStatus.ANIRE, 'badge-success'],
-      [AttendanceStatus.NO_VAIG, 'badge-error'],
-      [AttendanceStatus.ASSISTIT, 'badge-success'],
-    ] as const)('%s → "%s"', (status, expected) => {
-      expect(component.getStatusBadgeClass(status)).toBe(expected);
-    });
-  });
-
-  describe('past event (isPast=true)', () => {
-    beforeEach(() => {
-      (component as unknown as { isPast: () => boolean }).isPast = () => true;
-    });
-
-    it('ANIRE → badge-warning for past event', () => {
-      expect(component.getStatusBadgeClass(AttendanceStatus.ANIRE)).toBe('badge-warning');
-    });
-
-    it('ASSISTIT → badge-success for past event', () => {
-      expect(component.getStatusBadgeClass(AttendanceStatus.ASSISTIT)).toBe('badge-success');
-    });
-
-    it('NO_VAIG → badge-error for past event', () => {
-      expect(component.getStatusBadgeClass(AttendanceStatus.NO_VAIG)).toBe('badge-error');
-    });
-  });
-});
-
-describe('EventDetailComponent — navigateToPerson', () => {
-  it('navigates to /persons/:id', () => {
-    const comp = Object.create(EventDetailComponent.prototype) as EventDetailComponent;
-    const navigateMock = vi.fn();
-    (comp as unknown as { router: unknown }).router = { navigate: navigateMock };
-    comp.navigateToPerson('person-123');
-    expect(navigateMock).toHaveBeenCalledWith(['/persons', 'person-123']);
-  });
-});
-
-describe('EventDetailComponent — attendance card mode on mobile (WI-08, EV-M2)', () => {
+describe('EventDetailComponent — tabbed sections', () => {
   const EVENT_ID = 'event-1';
 
   const event: EventDetail = {
@@ -275,13 +187,17 @@ describe('EventDetailComponent — attendance card mode on mobile (WI-08, EV-M2)
 
   const setup = async (
     eventOverrides: Partial<EventDetail> = {},
+    queryParams: Record<string, string> = {},
   ): Promise<ComponentFixture<EventDetailComponent>> => {
     await TestBed.configureTestingModule({
       imports: [EventDetailComponent],
       providers: [
         provideRouter([]),
         allLucideIconsProvider,
-        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: convertToParamMap({ id: EVENT_ID }) } } },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { paramMap: convertToParamMap({ id: EVENT_ID }), queryParams } },
+        },
         { provide: EventService, useValue: { getOne: () => of({ ...event, ...eventOverrides }) } },
         { provide: AttendanceService, useValue: { getByEvent: () => of({ data: [attendance], meta: { total: 1, page: 1, limit: 100 } }) } },
         { provide: SeasonService, useValue: { getAll: () => of({ data: [] }) } },
@@ -301,29 +217,29 @@ describe('EventDetailComponent — attendance card mode on mobile (WI-08, EV-M2)
     return fixture;
   };
 
-  describe('table mode (default, no matchMedia)', () => {
-    it('renders the attendance table, not cards', async () => {
-      const fixture = await setup();
-      expect(fixture.nativeElement.querySelector('table.table')).toBeTruthy();
-      expect(fixture.nativeElement.querySelector('[data-testid="attendance-card"]')).toBeFalsy();
-    });
-  });
+  const clickTab = (fixture: ComponentFixture<EventDetailComponent>, tab: string) => {
+    const button = fixture.nativeElement.querySelector(`[data-testid="event-tab-${tab}"]`) as HTMLElement;
+    expect(button).toBeTruthy();
+    button.click();
+    fixture.detectChanges();
+  };
 
-  describe('tap targets >=24px (WI-03, EV-M3)', () => {
-    it('gives the attendance status badge a >=24px tap target', async () => {
+  const panel = (fixture: ComponentFixture<EventDetailComponent>, tab: string): HTMLElement | null =>
+    fixture.nativeElement.querySelector(`#event-tabpanel-${tab}`);
+
+  describe('default tab', () => {
+    it('opens on Resum with the event information visible', async () => {
       const fixture = await setup();
-      const badge = fixture.nativeElement.querySelector('table.table .badge.cursor-pointer') as HTMLElement;
-      expect(badge.className).toContain('min-h-6');
+      expect(fixture.componentInstance.activeTab()).toBe('resum');
+      expect(panel(fixture, 'resum')!.className).not.toContain('hidden');
+      expect(fixture.nativeElement.textContent).toContain('Informació');
     });
 
-    it('gives the alias/name links a real >=24px tap target instead of the bare glyph height', async () => {
+    it('does not mount the Pinyes or Assistència sections until they are opened', async () => {
       const fixture = await setup();
-      const links = Array.from(fixture.nativeElement.querySelectorAll('table.table .link')) as HTMLElement[];
-      expect(links.length).toBeGreaterThan(0);
-      for (const link of links) {
-        expect(link.className).toContain('min-h-6');
-        expect(link.className).toContain('inline-flex');
-      }
+      expect(panel(fixture, 'pinyes')).toBeNull();
+      expect(panel(fixture, 'assistencia')).toBeNull();
+      expect(fixture.nativeElement.querySelector('app-attendance-list')).toBeFalsy();
     });
 
     it('gives the location link a real >=24px tap target instead of the bare glyph height', async () => {
@@ -333,48 +249,66 @@ describe('EventDetailComponent — attendance card mode on mobile (WI-08, EV-M2)
       expect(link.className).toContain('min-h-6');
       expect(link.className).toContain('inline-flex');
     });
+  });
 
-    it('gives the attendance search input a >=24px tap target (WI-22)', async () => {
+  describe('switching tabs', () => {
+    it('mounts the attendance list and hides the Resum panel', async () => {
       const fixture = await setup();
-      const search = fixture.nativeElement.querySelector('input[type="text"]') as HTMLElement;
-      expect(search).toBeTruthy();
-      expect(search.className).toContain('h-6');
+      clickTab(fixture, 'assistencia');
+
+      expect(fixture.componentInstance.activeTab()).toBe('assistencia');
+      expect(fixture.nativeElement.querySelector('app-attendance-list')).toBeTruthy();
+      expect(panel(fixture, 'assistencia')!.className).not.toContain('hidden');
+      expect(panel(fixture, 'resum')!.className).toContain('hidden');
+    });
+
+    it('keeps a visited tab mounted (hidden) so its filters survive a round trip', async () => {
+      const fixture = await setup();
+      clickTab(fixture, 'assistencia');
+      clickTab(fixture, 'resum');
+
+      expect(panel(fixture, 'assistencia')).toBeTruthy();
+      expect(panel(fixture, 'assistencia')!.className).toContain('hidden');
+      expect(panel(fixture, 'resum')!.className).not.toContain('hidden');
+    });
+
+    it('marks only the active tab as selected', async () => {
+      const fixture = await setup();
+      clickTab(fixture, 'assistencia');
+
+      const selected = Array.from(
+        fixture.nativeElement.querySelectorAll('[role="tab"][aria-selected="true"]'),
+      ) as HTMLElement[];
+      expect(selected.length).toBe(1);
+      expect(selected[0].getAttribute('data-testid')).toBe('event-tab-assistencia');
     });
   });
 
-  describe('card mode (< lg)', () => {
-    const originalMatchMedia = window.matchMedia;
-
-    beforeEach(() => {
-      window.matchMedia = vi.fn().mockImplementation((query: string) => ({
-        matches: true,
-        media: query,
-        onchange: null,
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-        addListener: vi.fn(),
-        removeListener: vi.fn(),
-        dispatchEvent: vi.fn(),
-      })) as unknown as typeof window.matchMedia;
+  describe('deep link via ?tab=', () => {
+    it('opens the requested tab on load', async () => {
+      const fixture = await setup({}, { tab: 'assistencia' });
+      expect(fixture.componentInstance.activeTab()).toBe('assistencia');
+      expect(panel(fixture, 'assistencia')!.className).not.toContain('hidden');
+      expect(panel(fixture, 'resum')!.className).toContain('hidden');
     });
 
-    afterEach(() => {
-      window.matchMedia = originalMatchMedia;
+    it('falls back to Resum on an unknown tab value', async () => {
+      const fixture = await setup({}, { tab: 'nonsense' });
+      expect(fixture.componentInstance.activeTab()).toBe('resum');
     });
+  });
 
-    it('renders each attendance entry as a card instead of a table row', async () => {
+  describe('onSummaryChanged', () => {
+    it('replaces the event attendance summary so the stat cards stay in sync', async () => {
       const fixture = await setup();
-      expect(fixture.nativeElement.querySelector('table.table')).toBeFalsy();
-      const cards = fixture.nativeElement.querySelectorAll('[data-testid="attendance-card"]');
-      expect(cards.length).toBe(1);
-      expect(cards[0].textContent).toContain('PERSIANA');
-    });
+      // Same adults count (12 - 2) whether the event reads as past or future.
+      fixture.componentInstance.onSummaryChanged({
+        confirmed: 12, declined: 3, pending: 1, attended: 12,
+        lateCancel: 0, children: 2, childrenAttended: 2, total: 16,
+      });
 
-    it('shows the status badge on the card, still clickable to open the edit modal', async () => {
-      const fixture = await setup();
-      const badge = fixture.nativeElement.querySelector('[data-testid="attendance-card"] .badge.cursor-pointer') as HTMLElement;
-      expect(badge).toBeTruthy();
-      expect(badge.textContent?.trim()).toBe(fixture.componentInstance.getStatusLabel(AttendanceStatus.ANIRE));
+      expect(fixture.componentInstance.event()!.attendanceSummary.confirmed).toBe(12);
+      expect(fixture.componentInstance.adultsCount()).toBe(10);
     });
   });
 });

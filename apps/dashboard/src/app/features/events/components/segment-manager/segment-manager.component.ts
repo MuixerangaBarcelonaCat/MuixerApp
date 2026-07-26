@@ -745,7 +745,14 @@ export class SegmentManagerComponent implements OnInit {
     );
   }
 
+  /**
+   * Where the assignment workspace and the projection should come back to.
+   * Drops the current query string except `tab`, so returning to the event page
+   * lands back on the section this manager was opened from (Pinyes i Figures).
+   */
   private currentReturnUrl(): string {
-    return this.router.url.split('?')[0];
+    const [path, query] = this.router.url.split('?');
+    const tab = new URLSearchParams(query ?? '').get('tab');
+    return tab ? `${path}?tab=${tab}` : path;
   }
 }

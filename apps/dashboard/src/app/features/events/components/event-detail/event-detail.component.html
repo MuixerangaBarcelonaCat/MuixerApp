@@ -106,371 +106,162 @@
         [icon]="ICON_XICALLA"
         accentClass="text-info"
       />
-      <!-- <app-stat-card
-        label="Total"
-        [value]="ev.attendanceSummary.total"
-        icon="UsersRound"
-        accentClass="text-base-content"
-      /> -->
     </div>
 
-    <!-- Info + Resum d'assistència -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      <!-- Informació -->
-      <div class="card bg-base-100 shadow-sm">
-        <div class="card-body p-4">
-          <h2 class="card-title text-base mb-3 pb-2 border-b border-base-300">Informació</h2>
-          <dl class="space-y-2 text-sm">
-            <div class="flex gap-2">
-              <dt class="text-base-content/50 w-28 shrink-0">Data:</dt>
-              <dd class="capitalize font-medium">{{ formatDate(ev.date) }}</dd>
-            </div>
-            @if (ev.startTime) {
-              <div class="flex gap-2">
-                <dt class="text-base-content/50 w-28 shrink-0">Hora inici:</dt>
-                <dd>{{ ev.startTime }}</dd>
-              </div>
-            }
-            @if (rehearsalMetadata()?.endTime) {
-              <div class="flex gap-2">
-                <dt class="text-base-content/50 w-28 shrink-0">Hora final:</dt>
-                <dd>{{ rehearsalMetadata()?.endTime }}</dd>
-              </div>
-            }
-            @if (ev.location) {
-              <div class="flex gap-2">
-                <dt class="text-base-content/50 w-28 shrink-0">Lloc:</dt>
-                <dd>
-                  @if (ev.locationUrl) {
-                    <a [href]="ev.locationUrl" target="_blank" class="link link-primary inline-flex items-center min-h-6">{{ ev.location }}</a>
-                  } @else {
-                    {{ ev.location }}
-                  }
-                </dd>
-              </div>
-            }
-            @if (ev.season) {
-              <div class="flex gap-2">
-                <dt class="text-base-content/50 w-28 shrink-0">Temporada:</dt>
-                <dd>{{ ev.season.name }}</dd>
-              </div>
-            }
-            <div class="flex gap-2">
-              <dt class="text-base-content/50 w-28 shrink-0">Estadística:</dt>
-              <dd>{{ ev.countsForStatistics ? 'Sí' : 'No' }}</dd>
-            </div>
-            @if (performanceMetadata(); as meta) {
-              @if (meta.isHome !== undefined) {
-                <div class="flex gap-2">
-                  <dt class="text-base-content/50 w-28 shrink-0">A casa:</dt>
-                  <dd>{{ meta.isHome ? 'Sí' : 'No (desplaçament)' }}</dd>
-                </div>
-              }
-              @if (meta.hasBus !== undefined) {
-                <div class="flex gap-2">
-                  <dt class="text-base-content/50 w-28 shrink-0">Autocar:</dt>
-                  <dd>{{ meta.hasBus ? 'Sí' : 'No' }}</dd>
-                </div>
-              }
-              @if (meta.colles && meta.colles.length > 0) {
-                <div class="flex gap-2">
-                  <dt class="text-base-content/50 w-28 shrink-0">Colles:</dt>
-                  <dd>{{ meta.colles.join(', ') }}</dd>
-                </div>
-              }
-            }
-          </dl>
-          @if (ev.information) {
-            <div class="divider my-2"></div>
-            <p class="text-sm text-base-content/70 whitespace-pre-line">{{ ev.information }}</p>
-          }
-        </div>
-      </div>
+    <!-- Pestanyes -->
+    <nav role="tablist" class="tabs tabs-boxed flex-nowrap overflow-x-auto min-w-0" aria-label="Seccions de l'esdeveniment">
+      @for (tab of tabDefs; track tab.id) {
+        <button
+          type="button"
+          role="tab"
+          class="tab gap-1.5 whitespace-nowrap"
+          [class.tab-active]="activeTab() === tab.id"
+          [attr.aria-selected]="activeTab() === tab.id"
+          [attr.aria-controls]="'event-tabpanel-' + tab.id"
+          [attr.data-testid]="'event-tab-' + tab.id"
+          (click)="setTab(tab.id)"
+        >
+          <lucide-icon [name]="tab.icon" [size]="14" aria-hidden="true" />
+          {{ tab.label }}
+        </button>
+      }
+    </nav>
 
-      <!-- Resum d'assistència -->
-      <div class="card bg-base-100 shadow-sm">
-        <div class="card-body p-4">
-          <h2 class="card-title text-base mb-3 pb-2 border-b border-base-300">Resum assistència</h2>
-          <dl class="space-y-2 text-sm">
-            @for (row of getSummaryForDisplay(ev.attendanceSummary); track row.label) {
-              <div class="flex justify-between items-center">
-                <dt class="flex gap-2 items-center text-base-content/70">
-                  <lucide-icon [name]="row.icon" [size]="16" [class]="row.iconClass" />
-                  {{ row.label }}:
-                </dt>
-                <dd class="font-mono font-bold text-base">{{ row.value }}</dd>
+    <!-- Resum: informació + resum d'assistència -->
+    <div
+      id="event-tabpanel-resum"
+      role="tabpanel"
+      aria-label="Resum"
+      [class.hidden]="activeTab() !== 'resum'"
+    >
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <!-- Informació -->
+        <div class="card bg-base-100 shadow-sm">
+          <div class="card-body p-4">
+            <h2 class="card-title text-base mb-3 pb-2 border-b border-base-300">Informació</h2>
+            <dl class="space-y-2 text-sm">
+              <div class="flex gap-2">
+                <dt class="text-base-content/50 w-28 shrink-0">Data:</dt>
+                <dd class="capitalize font-medium">{{ formatDate(ev.date) }}</dd>
+              </div>
+              @if (ev.startTime) {
+                <div class="flex gap-2">
+                  <dt class="text-base-content/50 w-28 shrink-0">Hora inici:</dt>
+                  <dd>{{ ev.startTime }}</dd>
+                </div>
+              }
+              @if (rehearsalMetadata()?.endTime) {
+                <div class="flex gap-2">
+                  <dt class="text-base-content/50 w-28 shrink-0">Hora final:</dt>
+                  <dd>{{ rehearsalMetadata()?.endTime }}</dd>
+                </div>
+              }
+              @if (ev.location) {
+                <div class="flex gap-2">
+                  <dt class="text-base-content/50 w-28 shrink-0">Lloc:</dt>
+                  <dd>
+                    @if (ev.locationUrl) {
+                      <a [href]="ev.locationUrl" target="_blank" class="link link-primary inline-flex items-center min-h-6">{{ ev.location }}</a>
+                    } @else {
+                      {{ ev.location }}
+                    }
+                  </dd>
+                </div>
+              }
+              @if (ev.season) {
+                <div class="flex gap-2">
+                  <dt class="text-base-content/50 w-28 shrink-0">Temporada:</dt>
+                  <dd>{{ ev.season.name }}</dd>
+                </div>
+              }
+              <div class="flex gap-2">
+                <dt class="text-base-content/50 w-28 shrink-0">Estadística:</dt>
+                <dd>{{ ev.countsForStatistics ? 'Sí' : 'No' }}</dd>
+              </div>
+              @if (performanceMetadata(); as meta) {
+                @if (meta.isHome !== undefined) {
+                  <div class="flex gap-2">
+                    <dt class="text-base-content/50 w-28 shrink-0">A casa:</dt>
+                    <dd>{{ meta.isHome ? 'Sí' : 'No (desplaçament)' }}</dd>
+                  </div>
+                }
+                @if (meta.hasBus !== undefined) {
+                  <div class="flex gap-2">
+                    <dt class="text-base-content/50 w-28 shrink-0">Autocar:</dt>
+                    <dd>{{ meta.hasBus ? 'Sí' : 'No' }}</dd>
+                  </div>
+                }
+                @if (meta.colles && meta.colles.length > 0) {
+                  <div class="flex gap-2">
+                    <dt class="text-base-content/50 w-28 shrink-0">Colles:</dt>
+                    <dd>{{ meta.colles.join(', ') }}</dd>
+                  </div>
+                }
+              }
+            </dl>
+            @if (ev.information) {
+              <div class="divider my-2"></div>
+              <p class="text-sm text-base-content/70 whitespace-pre-line">{{ ev.information }}</p>
+            }
+          </div>
+        </div>
+
+        <!-- Resum d'assistència -->
+        <div class="card bg-base-100 shadow-sm">
+          <div class="card-body p-4">
+            <h2 class="card-title text-base mb-3 pb-2 border-b border-base-300">Resum assistència</h2>
+            <dl class="space-y-2 text-sm">
+              @for (row of getSummaryForDisplay(ev.attendanceSummary); track row.label) {
+                <div class="flex justify-between items-center">
+                  <dt class="flex gap-2 items-center text-base-content/70">
+                    <lucide-icon [name]="row.icon" [size]="16" [class]="row.iconClass" />
+                    {{ row.label }}:
+                  </dt>
+                  <dd class="font-mono font-bold text-base">{{ row.value }}</dd>
+                </div>
+              }
+            </dl>
+            @if (ev.attendanceSummary.total > 0) {
+              <div class="mt-4">
+                <div class="flex justify-between text-xs text-base-content/50 mb-1">
+                  <span>{{ isPast() ? 'Assistència' : 'Confirmació' }}</span>
+                  <span>{{ attendanceRatio() }}%</span>
+                </div>
+                <progress class="progress progress-success w-full" [value]="attendanceRatio()" max="100"></progress>
               </div>
             }
-          </dl>
-          @if (ev.attendanceSummary.total > 0) {
-            <div class="mt-4">
-              <div class="flex justify-between text-xs text-base-content/50 mb-1">
-                <span>{{ isPast() ? 'Assistència' : 'Confirmació' }}</span>
-                <span>{{ attendanceRatio() }}%</span>
-              </div>
-              <progress class="progress progress-success w-full" [value]="attendanceRatio()" max="100"></progress>
-            </div>
-          }
+          </div>
         </div>
       </div>
     </div>
 
     <!-- Pinyes i Figures (Segments) -->
-    <app-segment-manager [eventId]="ev.id" [isLocked]="isEventLocked()" [isPast]="isPast()" />
+    @if (hasVisited('pinyes')) {
+      <div
+        id="event-tabpanel-pinyes"
+        role="tabpanel"
+        aria-label="Pinyes i Figures"
+        [class.hidden]="activeTab() !== 'pinyes'"
+      >
+        <app-segment-manager [eventId]="ev.id" [isLocked]="isEventLocked()" [isPast]="isPast()" />
+      </div>
+    }
 
     <!-- Llista d'assistència -->
-    <div class="card bg-base-100 shadow-sm">
-      <div class="card-body p-4">
-        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
-          <h2 class="card-title text-base">Llista d'assistència</h2>
-          <div class="flex flex-wrap gap-2">
-            <button
-              type="button"
-              class="btn btn-sm gap-1"
-              [class.btn-primary]="confirmedFilterActive()"
-              [class.btn-ghost]="!confirmedFilterActive()"
-              (click)="toggleConfirmedFilter()"
-            >
-              <lucide-icon name="UserCheck" [size]="14" />
-              {{ isPast() ? 'Assistits' : 'Confirmats' }}
-            </button>
-            <select class="select select-sm select-bordered" (change)="onAttendanceStatusFilter($any($event.target).value)">
-              <option value="">Tots</option>
-              <option [value]="AttendanceStatus.ANIRE">Aniré</option>
-              <option [value]="AttendanceStatus.ASSISTIT">Assistit</option>
-              <option [value]="AttendanceStatus.NO_VAIG">No vaig</option>
-              <option [value]="AttendanceStatus.PENDENT">Pendents</option>
-            </select>
-            <label class="input input-sm input-bordered flex items-center gap-2">
-              <lucide-icon name="Search" [size]="14" class="text-base-content/40" />
-              <input
-                type="text"
-                class="grow bg-transparent outline-none text-sm w-32 h-6"
-                placeholder="Cerca..."
-                [(ngModel)]="attendanceSearchInput"
-                (ngModelChange)="onAttendanceSearchChange($event)"
-              />
-            </label>
-          </div>
-        </div>
-
-        @if (positionFilter(); as pf) {
-          <div class="flex items-center gap-2 mb-3 flex-wrap">
-            <span class="text-xs text-base-content/50">Filtrant per etiqueta:</span>
-            <button
-              type="button"
-              class="badge badge-sm gap-1 cursor-pointer hover:opacity-80"
-              [style.background-color]="pf.color ?? '#888'"
-              [style.color]="getContrastColor(pf.color ?? '#888')"
-              (click)="clearPositionFilter()"
-              title="Elimina el filtre"
-            >{{ pf.name }} ×</button>
-          </div>
-        }
-
-        @if (!attendanceCardMode()) {
-        <div class="overflow-x-auto">
-          <table class="table table-sm">
-            <thead class="sticky top-0 z-10 bg-base-100">
-              <tr>
-                <th>Àlies</th>
-                <th>Nom</th>
-                <th>Estat</th>
-                <th>Resposta</th>
-                <th>Etiquetes</th>
-              </tr>
-            </thead>
-            <tbody>
-              @if (loadingAttendance()) {
-                @for (i of [1,2,3]; track i) {
-                  <tr><td colspan="5"><div class="skeleton h-5 w-full"></div></td></tr>
-                }
-              } @else if (attendances().length === 0) {
-                <tr>
-                  <td colspan="5" class="text-center text-base-content/50 py-8 text-sm">Cap registre d'assistència</td>
-                </tr>
-              } @else {
-                @for (att of attendances(); track att.id) {
-                  <tr class="hover">
-                    <td class="font-medium text-sm whitespace-nowrap">
-                      <span
-                        class="link link-hover cursor-pointer inline-flex items-center min-h-6"
-                        tabindex="0"
-                        role="link"
-                        (click)="navigateToPerson(att.person.id)"
-                        (keydown.enter)="navigateToPerson(att.person.id)"
-                        [attr.title]="'Veure ' + att.person.alias"
-                      >{{ att.person.alias }}</span>
-                      @if (att.person.isProvisional) { <span class="badge badge-xs badge-warning ml-1">Prov.</span> }
-                      @if (att.person.notes) {
-                        <span class="tooltip tooltip-right ml-1" [attr.data-tip]="att.person.notes">
-                          @if (att.person.notesEmoji) {
-                            <span class="text-xs align-middle">{{ att.person.notesEmoji }}</span>
-                          } @else {
-                            <lucide-icon [name]="ICON_OBSERVACIONS" [size]="12" class="text-warning align-middle" />
-                          }
-                        </span>
-                      }
-                    </td>
-                    <td class="text-sm text-base-content/70 whitespace-nowrap">
-                      <span
-                        class="link link-hover cursor-pointer inline-flex items-center min-h-6"
-                        tabindex="0"
-                        role="link"
-                        (click)="navigateToPerson(att.person.id)"
-                        (keydown.enter)="navigateToPerson(att.person.id)"
-                      >{{ att.person.name }} {{ att.person.firstSurname }}</span>
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        class="badge badge-sm cursor-pointer hover:opacity-80 transition-opacity min-h-6 inline-flex items-center"
-                        [ngClass]="getStatusBadgeClass(att.status)"
-                        (click)="openAttendanceEdit(att)"
-                        [attr.aria-label]="'Edita assistència de ' + att.person.alias"
-                        [title]="'Edita assistència de ' + att.person.alias"
-                      >{{ getStatusLabel(att.status) }}</button>
-                      @if (att.person.isXicalla) {
-                        <span class="badge badge-info badge-sm ml-0.5 gap-0.5" title="Xicalla">
-                          <lucide-icon [name]="ICON_XICALLA" [size]="10" />
-                        </span>
-                      }
-                      @if (att.notes) {
-                        <span
-                          class="tooltip tooltip-right ml-1"
-                          [attr.data-tip]="att.notes"
-                         >
-                          <span class="badge badge-ghost badge-sm gap-0.5 cursor-default">
-                            <lucide-icon name="StickyNote" [size]="10" />
-                          </span>
-                        </span>
-                      }
-                    </td>
-                    <td class="text-xs text-base-content/50 whitespace-nowrap">{{ formatDateTime(att.respondedAt) }}</td>
-                    <td>
-                      <div class="flex flex-wrap gap-1">
-                        @for (pos of att.person.positions; track pos.id) {
-                          <button
-                            type="button"
-                            class="badge badge-sm cursor-pointer hover:opacity-80 transition-opacity min-h-6 inline-flex items-center"
-                            [class.ring-2]="positionFilter()?.id === pos.id"
-                            [class.ring-offset-1]="positionFilter()?.id === pos.id"
-                            [style.background-color]="pos.color ?? '#888'"
-                            [style.color]="getContrastColor(pos.color ?? '#888')"
-                            style="font-size: 0.65rem;"
-                            (click)="filterByPosition(pos)"
-                            [attr.title]="'Filtra per ' + pos.name"
-                          >{{ pos.name }}</button>
-                        }
-                      </div>
-                    </td>
-                  </tr>
-                }
-              }
-            </tbody>
-          </table>
-        </div>
-        } @else {
-        <div class="space-y-2">
-          @if (loadingAttendance()) {
-            @for (i of [1,2,3]; track i) {
-              <div class="skeleton h-20 w-full rounded-lg"></div>
-            }
-          } @else if (attendances().length === 0) {
-            <div class="text-center text-base-content/50 py-8 text-sm">Cap registre d'assistència</div>
-          } @else {
-            @for (att of attendances(); track att.id) {
-              <div class="border border-base-300 rounded-lg p-3" data-testid="attendance-card">
-                <div class="flex items-start justify-between gap-2">
-                  <div class="min-w-0">
-                    <div class="flex items-center gap-1 flex-wrap">
-                      <span
-                        class="link link-hover cursor-pointer font-medium text-sm inline-flex items-center min-h-6"
-                        tabindex="0"
-                        role="link"
-                        (click)="navigateToPerson(att.person.id)"
-                        (keydown.enter)="navigateToPerson(att.person.id)"
-                        [attr.title]="'Veure ' + att.person.alias"
-                      >{{ att.person.alias }}</span>
-                      @if (att.person.isProvisional) { <span class="badge badge-xs badge-warning">Prov.</span> }
-                      @if (att.person.isXicalla) {
-                        <span class="badge badge-info badge-sm gap-0.5" title="Xicalla">
-                          <lucide-icon [name]="ICON_XICALLA" [size]="10" />
-                        </span>
-                      }
-                      @if (att.person.notes) {
-                        <span class="tooltip tooltip-right" [attr.data-tip]="att.person.notes">
-                          @if (att.person.notesEmoji) {
-                            <span class="text-xs align-middle">{{ att.person.notesEmoji }}</span>
-                          } @else {
-                            <lucide-icon [name]="ICON_OBSERVACIONS" [size]="12" class="text-warning align-middle" />
-                          }
-                        </span>
-                      }
-                      @if (att.notes) {
-                        <span class="tooltip tooltip-right" [attr.data-tip]="att.notes">
-                          <span class="badge badge-ghost badge-sm gap-0.5 cursor-default">
-                            <lucide-icon name="StickyNote" [size]="10" />
-                          </span>
-                        </span>
-                      }
-                    </div>
-                    <div class="text-xs text-base-content/70 truncate">
-                      <span
-                        class="link link-hover cursor-pointer inline-flex items-center min-h-6"
-                        tabindex="0"
-                        role="link"
-                        (click)="navigateToPerson(att.person.id)"
-                        (keydown.enter)="navigateToPerson(att.person.id)"
-                      >{{ att.person.name }} {{ att.person.firstSurname }}</span>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    class="badge badge-sm cursor-pointer hover:opacity-80 transition-opacity shrink-0 min-h-6 inline-flex items-center"
-                    [ngClass]="getStatusBadgeClass(att.status)"
-                    (click)="openAttendanceEdit(att)"
-                    [attr.aria-label]="'Edita assistència de ' + att.person.alias"
-                    [title]="'Edita assistència de ' + att.person.alias"
-                  >{{ getStatusLabel(att.status) }}</button>
-                </div>
-
-                <div class="flex items-center justify-between gap-2 mt-2 text-xs text-base-content/50">
-                  <span>{{ formatDateTime(att.respondedAt) }}</span>
-                </div>
-
-                @if (att.person.positions.length > 0) {
-                  <div class="flex flex-wrap gap-1 mt-2">
-                    @for (pos of att.person.positions; track pos.id) {
-                      <button
-                        type="button"
-                        class="badge badge-sm cursor-pointer hover:opacity-80 transition-opacity min-h-6 inline-flex items-center"
-                        [class.ring-2]="positionFilter()?.id === pos.id"
-                        [class.ring-offset-1]="positionFilter()?.id === pos.id"
-                        [style.background-color]="pos.color ?? '#888'"
-                        [style.color]="getContrastColor(pos.color ?? '#888')"
-                        style="font-size: 0.65rem;"
-                        (click)="filterByPosition(pos)"
-                        [attr.title]="'Filtra per ' + pos.name"
-                      >{{ pos.name }}</button>
-                    }
-                  </div>
-                }
-              </div>
-            }
-          }
-        </div>
-        }
-
-        @if (totalAttendances() > attendanceLimit()) {
-          <div class="flex items-center justify-center gap-2 mt-4">
-            <button class="btn btn-xs" [disabled]="attendancePage() <= 1" (click)="goToAttendancePage(attendancePage() - 1)" type="button">←</button>
-            <span class="text-sm text-base-content/60">Pàgina {{ attendancePage() }} de {{ totalAttendancePages() }}</span>
-            <button class="btn btn-xs" [disabled]="attendancePage() >= totalAttendancePages()" (click)="goToAttendancePage(attendancePage() + 1)" type="button">→</button>
-          </div>
-        }
+    @if (hasVisited('assistencia')) {
+      <div
+        id="event-tabpanel-assistencia"
+        role="tabpanel"
+        aria-label="Assistència"
+        [class.hidden]="activeTab() !== 'assistencia'"
+      >
+        <app-attendance-list
+          [eventId]="ev.id"
+          [isPast]="isPast()"
+          (summaryChanged)="onSummaryChanged($event)"
+        />
       </div>
-    </div>
+    }
 
     @if (showEditModal()) {
       <app-event-form-modal
@@ -478,17 +269,6 @@
         [seasons]="seasons()"
         (saved)="onEventUpdated($event)"
         (closed)="showEditModal.set(false)"
-      />
-    }
-
-    @if (editingAttendance()) {
-      <app-attendance-edit-modal
-        [attendance]="editingAttendance()!"
-        [eventId]="ev.id"
-        [isPast]="isPast()"
-        (saved)="onAttendanceSaved($event)"
-        (deleted)="onAttendanceDeleted($event)"
-        (closed)="editingAttendance.set(null)"
       />
     }
 
