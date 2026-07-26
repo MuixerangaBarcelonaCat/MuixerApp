@@ -39,10 +39,12 @@ Legacy app at `muixerangadebarcelona.appsistencia.cat` has a PHP API. Data migra
 
 ## Current Status
 
-- **Implementation:** P0→P4.4 complete (scaffold + entities + auth + events/attendance + dashboard + Docker)
-- **Current state:** `docs/CURRENT_STATUS.md`
-- **Roadmap:** `docs/PROJECT_ROADMAP.md`
-- **Docker docs:** `docs/DOCKER_ARCHITECTURE.md`, `docs/DOCKER_SETUP.md`
+Do not track phase status here — it goes stale. Source of truth:
+
+- **Architecture, conventions, commands:** `CLAUDE.md` (single source of truth for agents)
+- **Phases and next increment:** `docs/ROADMAP.md`
+- **Open technical debt:** `docs/DEBT.md`
+- **Documentation index:** `docs/MAP.md`
 
 ## Terminology
 
@@ -50,28 +52,10 @@ Legacy app at `muixerangadebarcelona.appsistencia.cat` has a PHP API. Data migra
 - **Xicalla**: children (< 16). Never "canalla".
 - Code entity: `Person` (not `Casteller`, not `Membre`)
 
-## Sub-projects (Priority Order)
-
-| ID | Sub-project | Status |
-|----|-------------|--------|
-| P0 | Scaffold (Nx + NestJS + Angular) | ✅ Implemented |
-| P1 | Auth + Users + Persons | ✅ Implemented |
-| P2 | Data Migration (extract from legacy API) | ✅ Implemented |
-| P3 | Seasons + Events + Attendance | ✅ Implemented |
-| P4.1 | Auth Layer (JWT + Passport + dashboard login) | ✅ Implemented |
-| P4.2 | Dashboard Events + Attendance CRUD | ✅ Implemented |
-| P4.3 | Dashboard Design Refactor | ✅ Implemented |
-| P4.4 | Docker Multi-env Architecture | ✅ Implemented |
-| P5 | Figures/Canvas Module | Pending |
-| P6 | PWA Mobile | Pending |
-| P7 | Notifications + Advanced Features | Pending |
-
 ## Key Documentation
 
-- **Roadmap**: `docs/PROJECT_ROADMAP.md`
-- **Current state**: `docs/CURRENT_STATUS.md`
-- **Specs**: `docs/specs/`
-- **Legacy API**: `docs/API_APPSISTENCIA.md`
-- **Docker setup**: `docs/DOCKER_SETUP.md`
-- **Docker architecture**: `docs/DOCKER_ARCHITECTURE.md`
-- **Setup**: `README.md`
+- `CLAUDE.md` — architecture, conventions, commands
+- `docs/MAP.md` — documentation + code map (regenerate with `pnpm run docs:map`)
+- `docs/ROADMAP.md` · `docs/DEBT.md` — status and open debt
+- `README.md` — human setup guide
+- Swagger `/api/docs` — the only endpoint reference

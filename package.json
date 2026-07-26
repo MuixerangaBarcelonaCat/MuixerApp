@@ -38,7 +38,10 @@
     "audit:pwa": "playwright test -c apps/dashboard-e2e/playwright.pwa-audit.config.ts",
     "audit:gestures": "playwright test -c apps/dashboard-e2e/playwright.gestures.config.ts",
     "audit:pwa-behavior": "playwright test -c apps/dashboard-e2e/playwright.pwa-behavior.config.ts",
-    "ci:local": "npx nx run-many -t lint,test,build --all --exclude=dashboard-e2e,pwa-e2e --parallel=3 --configuration=ci"
+    "ci:local": "npx nx run-many -t lint,test,build --all --exclude=dashboard-e2e,pwa-e2e --parallel=3 --configuration=ci",
+    "lint:dead": "knip --no-exit-code",
+    "docs:map": "node scripts/generate-doc-map.mjs",
+    "docs:model": "node scripts/generate-data-model.mjs"
   },
   "repository": {
     "type": "git",
@@ -92,6 +95,7 @@
     "jest-util": "^30.4.1",
     "jsdom": "^27.4.0",
     "jsonc-eslint-parser": "^2.4.2",
+    "knip": "^6.29.0",
     "nx": "^22.7.7",
     "postcss": "^8.5.19",
     "prettier": "~3.6.2",
@@ -136,7 +140,6 @@
     "joi": "^18.2.3",
     "konva": "^10.3.0",
     "lucide-angular": "^1.0.0",
-    "nest-commander": "^3.20.1",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",

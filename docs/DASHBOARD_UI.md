@@ -1,3 +1,7 @@
+---
+tags: [qa]
+---
+
 # Dashboard UI/UX Guide
 
 Guia d'estils i patrons del dashboard Angular. Tot el desenvolupament futur ha de seguir aquesta línia.
@@ -6,7 +10,7 @@ Guia d'estils i patrons del dashboard Angular. Tot el desenvolupament futur ha d
 
 | Capa | Tecnologia |
 |------|-----------|
-| Framework | Angular 20 (standalone, signals, OnPush) |
+| Framework | Angular 21 (standalone, signals, OnPush) |
 | Components | DaisyUI v4 (semantic classes) |
 | Utilitats | Tailwind CSS v3.4 |
 | Icones | lucide-angular (tree-shakeable) |
@@ -83,16 +87,16 @@ Tots a `shared/components/`:
 
 | Component | Descripció |
 |-----------|-----------|
-| `app-confirm-dialog` | Modal natiu `<dialog>` amb confirmació/cancel |
 | `app-toast` + `ToastService` | Alertes auto-dismiss (success/error/warning/info) |
-| `app-skeleton-rows` | Files skeleton per taules |
-| `app-skeleton-cards` | Grid skeleton per cards |
+
+Els skeletons són inline (classes `skeleton` de DaisyUI dins `app-data-table`), no components propis.
 
 ### Forms
 
 | Component | Descripció |
 |-----------|-----------|
-| `app-form-field` | Wrapper: label + error + helper |
+| `app-emoji-picker` | Selector d'emoji per a persones |
+| `app-person-search-input` | Cerca amb autocompletat de persones |
 
 ## Patrons de Pàgina
 
@@ -154,3 +158,7 @@ daisyui: {
 ```
 
 Canvi en runtime: `document.documentElement.setAttribute('data-theme', 'colla-nova')`.
+
+---
+
+*Veïns: [[AUDIT_SUITE]] · [[PINYES_MODULE]] · [[DEBT]] · [[MAP]]*

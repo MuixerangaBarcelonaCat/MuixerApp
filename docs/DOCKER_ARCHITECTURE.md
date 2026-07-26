@@ -1,3 +1,7 @@
+---
+tags: [infra]
+---
+
 # Arquitectura Docker — MuixerApp
 
 > Documentació de l'arquitectura de contenidors per a tots els entorns.
@@ -495,3 +499,7 @@ MuixerApp/
 ---
 
 **Última actualització:** 15 de maig de 2026
+
+---
+
+*Veïns: [[DOCKER_SETUP]] · [[DEPLOY_PRE]] · [[MAP]]*
