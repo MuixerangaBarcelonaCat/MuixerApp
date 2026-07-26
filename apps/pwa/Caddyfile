@@ -1,17 +1,25 @@
 :80 {
-    encode gzip
+	encode gzip
 
-    root * /srv
+	root * /srv
 
-    @hashed path_regexp hashed \.[0-9a-f]{8,}\.(js|css|woff2?|svg|png|jpg|webp|avif|ico)$
-    header @hashed Cache-Control "public, max-age=31536000, immutable"
+	@hashed path_regexp hashed \.[0-9a-f]{8,}\.(js|css|woff2?|svg|png|jpg|webp|avif|ico)$
+	header @hashed Cache-Control "public, max-age=31536000, immutable"
 
-    @sw path /ngsw-worker.js /ngsw.json
-    header @sw Cache-Control "no-cache, no-store, must-revalidate"
+	@sw path /ngsw-worker.js /ngsw.json
+	header @sw Cache-Control "no-cache, no-store, must-revalidate"
 
-    @html path /index.html /
-    header @html Cache-Control "no-cache"
+	@html path /index.html /
+	header @html Cache-Control "no-cache"
 
-    try_files {path} /index.html
-    file_server
+	# Static assets: 404 if missing (never SPA-fallback to index.html)
+	@static path *.webmanifest *.js *.css *.png *.jpg *.jpeg *.webp *.svg *.ico *.woff *.woff2 *.json
+	handle @static {
+		file_server
+	}
+
+	handle {
+		try_files {path} /index.html
+		file_server
+	}
 }
