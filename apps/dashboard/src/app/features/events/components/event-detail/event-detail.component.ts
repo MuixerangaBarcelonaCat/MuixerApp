@@ -8,6 +8,7 @@ import { AuthService } from '../../../../core/auth/services/auth.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { EventFormModalComponent } from '../event-form-modal/event-form-modal.component';
 import { AttendanceListComponent } from '../attendance-list/attendance-list.component';
+import { EventParticipationComponent } from '../event-participation/event-participation.component';
 import { SegmentManagerComponent } from '../segment-manager/segment-manager.component';
 import { StatCardComponent } from '../../../../shared/components/data/stat-card/stat-card.component';
 import { NodeAssignmentService, LockStatus } from '../../../pinyes/services/node-assignment.service';
@@ -19,9 +20,14 @@ import { environment } from '../../../../../environments/environment';
 type SyncState = 'idle' | 'running' | 'complete' | 'error';
 
 /** Sections of the event page, each on its own tab and deep-linkable via `?tab=`. */
-export type EventDetailTab = 'resum' | 'pinyes' | 'assistencia';
+export type EventDetailTab = 'resum' | 'pinyes' | 'assistencia' | 'participacio';
 
-export const EVENT_DETAIL_TABS: readonly EventDetailTab[] = ['resum', 'pinyes', 'assistencia'];
+export const EVENT_DETAIL_TABS: readonly EventDetailTab[] = [
+  'resum',
+  'pinyes',
+  'assistencia',
+  'participacio',
+];
 
 @Component({
   selector: 'app-event-detail',
@@ -33,6 +39,7 @@ export const EVENT_DETAIL_TABS: readonly EventDetailTab[] = ['resum', 'pinyes', 
     StatCardComponent,
     SegmentManagerComponent,
     AttendanceListComponent,
+    EventParticipationComponent,
   ],
   templateUrl: './event-detail.component.html',
 })
@@ -77,6 +84,7 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     { id: 'resum', label: 'Resum', icon: 'Info' },
     { id: 'pinyes', label: 'Pinyes i Figures', icon: ICON_FIGURA },
     { id: 'assistencia', label: 'Assistència', icon: 'UserCheck' },
+    { id: 'participacio', label: 'Participació', icon: 'Grid3X3' },
   ];
 
   /**

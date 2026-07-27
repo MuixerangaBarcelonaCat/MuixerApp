@@ -50,6 +50,93 @@ describe('DataTableComponent', () => {
   });
 });
 
+interface PillRow {
+  id: string;
+  pills: { text: string; class: string }[];
+}
+
+/**
+ * Pills are a positional list, so two of them may legitimately carry the same label —
+ * e.g. a participation cell showing one person placed on two same-named nodes of two
+ * instances of the same figure. These tests pin that behaviour down; the `track $index`
+ * expression in the template is what keeps repeated labels each rendering as their own
+ * node instead of being treated as one identity.
+ */
+describe('DataTableComponent pills', () => {
+  const setup = async (pills: { text: string; class: string }[]) => {
+    await TestBed.configureTestingModule({
+      imports: [DataTableComponent],
+      providers: [allLucideIconsProvider],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(DataTableComponent<PillRow>);
+    fixture.componentRef.setInput('items', [{ id: '1', pills }]);
+    fixture.componentRef.setInput('columns', [
+      {
+        key: 'pills',
+        label: 'Posicions',
+        defaultVisible: true,
+        type: 'pills',
+        pills: (row: PillRow) => row.pills,
+      } as ColumnDef<PillRow>,
+    ]);
+    fixture.detectChanges();
+    return fixture;
+  };
+
+  it('renders one span per pill with its own class', async () => {
+    const fixture = await setup([
+      { text: 'Mans C2', class: 'text-base-content' },
+      { text: '4d7', class: 'text-base-content/50' },
+    ]);
+
+    const spans = fixture.nativeElement.querySelectorAll('td span span');
+    expect(spans.length).toBe(2);
+    expect(spans[0].textContent.trim()).toBe('Mans C2');
+    expect(spans[0].className).toContain('text-base-content');
+  });
+
+  it('renders repeated pill labels', async () => {
+    const fixture = await setup([
+      { text: '⚠', class: 'text-warning' },
+      { text: 'Mans C2 · 4d7', class: 'text-warning' },
+      { text: 'Mans C2 · 4d7', class: 'text-warning' },
+    ]);
+
+    const spans = Array.from(
+      fixture.nativeElement.querySelectorAll('td span span'),
+    ) as HTMLElement[];
+    expect(spans.length).toBe(3);
+    expect(spans.filter((s) => s.textContent?.trim() === 'Mans C2 · 4d7').length).toBe(2);
+  });
+
+  /**
+   * Reconciliation case: the list grows and gains a repeated label, which is what
+   * happens when the participation matrix reloads or switches segment scope.
+   */
+  it('re-renders correctly when a repeated label appears on update', async () => {
+    const fixture = await setup([{ text: 'Mans C2 · 4d7', class: 'text-warning' }]);
+
+    expect(() => {
+      fixture.componentRef.setInput('items', [
+        {
+          id: '1',
+          pills: [
+            { text: 'Mans C2 · 4d7', class: 'text-warning' },
+            { text: 'Mans C2 · 4d7', class: 'text-warning' },
+          ],
+        },
+      ]);
+      fixture.detectChanges();
+    }).not.toThrow();
+
+    const spans = Array.from(
+      fixture.nativeElement.querySelectorAll('td span span'),
+    ) as HTMLElement[];
+    expect(spans.length).toBe(2);
+  });
+});
+
 describe('DataTableComponent row actions', () => {
   let fixture: ComponentFixture<DataTableComponent<Row>>;
 

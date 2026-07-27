@@ -263,6 +263,18 @@
       </div>
     }
 
+    <!-- Participació (matriu persona × segment) -->
+    @if (hasVisited('participacio')) {
+      <div
+        id="event-tabpanel-participacio"
+        role="tabpanel"
+        aria-label="Participació"
+        [class.hidden]="activeTab() !== 'participacio'"
+      >
+        <app-event-participation [eventId]="ev.id" [isPast]="isPast()" />
+      </div>
+    }
+
     @if (showEditModal()) {
       <app-event-form-modal
         [event]="ev"

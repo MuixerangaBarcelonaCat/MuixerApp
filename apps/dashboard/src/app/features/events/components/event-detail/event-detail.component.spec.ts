@@ -7,6 +7,7 @@ import { AttendanceSummary, EventDetail } from '../../models/event.model';
 import { AttendanceItem } from '../../models/attendance.model';
 import { EventService } from '../../services/event.service';
 import { AttendanceService } from '../../services/attendance.service';
+import { ParticipationService } from '../../services/participation.service';
 import { SeasonService } from '../../services/season.service';
 import { AuthService } from '../../../../core/auth/services/auth.service';
 import { NodeAssignmentService } from '../../../pinyes/services/node-assignment.service';
@@ -200,6 +201,23 @@ describe('EventDetailComponent — tabbed sections', () => {
         },
         { provide: EventService, useValue: { getOne: () => of({ ...event, ...eventOverrides }) } },
         { provide: AttendanceService, useValue: { getByEvent: () => of({ data: [attendance], meta: { total: 1, page: 1, limit: 100 } }) } },
+        {
+          provide: ParticipationService,
+          useValue: {
+            getByEvent: () =>
+              of({
+                event: { id: EVENT_ID, title: 'Assaig general', date: '2026-07-22' },
+                segments: [],
+                persons: [],
+                meta: {
+                  distinctPersons: 0,
+                  personsWithPlacement: 0,
+                  totalPlacements: 0,
+                  conflictedPersons: 0,
+                },
+              }),
+          },
+        },
         { provide: SeasonService, useValue: { getAll: () => of({ data: [] }) } },
         { provide: AuthService, useValue: { userRole: () => UserRole.ADMIN } },
         {
@@ -235,11 +253,13 @@ describe('EventDetailComponent — tabbed sections', () => {
       expect(fixture.nativeElement.textContent).toContain('Informació');
     });
 
-    it('does not mount the Pinyes or Assistència sections until they are opened', async () => {
+    it('does not mount the Pinyes, Assistència or Participació sections until they are opened', async () => {
       const fixture = await setup();
       expect(panel(fixture, 'pinyes')).toBeNull();
       expect(panel(fixture, 'assistencia')).toBeNull();
+      expect(panel(fixture, 'participacio')).toBeNull();
       expect(fixture.nativeElement.querySelector('app-attendance-list')).toBeFalsy();
+      expect(fixture.nativeElement.querySelector('app-event-participation')).toBeFalsy();
     });
 
     it('gives the location link a real >=24px tap target instead of the bare glyph height', async () => {
@@ -281,6 +301,34 @@ describe('EventDetailComponent — tabbed sections', () => {
       ) as HTMLElement[];
       expect(selected.length).toBe(1);
       expect(selected[0].getAttribute('data-testid')).toBe('event-tab-assistencia');
+    });
+  });
+
+  describe('Participació tab', () => {
+    it('mounts the participation matrix when opened', async () => {
+      const fixture = await setup();
+      clickTab(fixture, 'participacio');
+
+      expect(fixture.componentInstance.activeTab()).toBe('participacio');
+      expect(fixture.nativeElement.querySelector('app-event-participation')).toBeTruthy();
+      expect(panel(fixture, 'participacio')!.className).not.toContain('hidden');
+      expect(panel(fixture, 'resum')!.className).toContain('hidden');
+    });
+
+    it('stays mounted after a round trip so its filters survive', async () => {
+      const fixture = await setup();
+      clickTab(fixture, 'participacio');
+      clickTab(fixture, 'resum');
+
+      expect(panel(fixture, 'participacio')).toBeTruthy();
+      expect(panel(fixture, 'participacio')!.className).toContain('hidden');
+    });
+
+    it('opens directly from ?tab=participacio', async () => {
+      const fixture = await setup({}, { tab: 'participacio' });
+
+      expect(fixture.componentInstance.activeTab()).toBe('participacio');
+      expect(panel(fixture, 'participacio')!.className).not.toContain('hidden');
     });
   });
 

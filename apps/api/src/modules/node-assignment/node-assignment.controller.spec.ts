@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NodeAssignmentController } from './node-assignment.controller';
 import { NodeAssignmentService } from './node-assignment.service';
 import { AvailablePersonsService } from './available-persons.service';
+import { EventParticipationService } from './event-participation.service';
 
 const INSTANCE_ID = 'instance-uuid-1';
 const ASSIGNMENT_ID = 'assignment-uuid-1';
@@ -53,6 +54,22 @@ const mockAvailablePersonsService: Partial<AvailablePersonsService> = {
   getNextPerformance: jest.fn().mockResolvedValue(null),
 };
 
+const mockParticipationOverview = {
+  event: { id: EVENT_ID, title: 'Assaig', date: '2026-05-01' },
+  segments: [],
+  persons: [],
+  meta: {
+    distinctPersons: 0,
+    personsWithPlacement: 0,
+    totalPlacements: 0,
+    conflictedPersons: 0,
+  },
+};
+
+const mockParticipationService: Partial<EventParticipationService> = {
+  getEventParticipation: jest.fn().mockResolvedValue(mockParticipationOverview),
+};
+
 describe('NodeAssignmentController', () => {
   let controller: NodeAssignmentController;
 
@@ -62,6 +79,7 @@ describe('NodeAssignmentController', () => {
       providers: [
         { provide: NodeAssignmentService, useValue: mockAssignmentService },
         { provide: AvailablePersonsService, useValue: mockAvailablePersonsService },
+        { provide: EventParticipationService, useValue: mockParticipationService },
       ],
     }).compile();
 
@@ -151,6 +169,20 @@ describe('NodeAssignmentController', () => {
 
       expect(result).toBeNull();
       expect(mockAvailablePersonsService.getNextPerformance).toHaveBeenCalledWith(EVENT_ID);
+    });
+  });
+
+  describe('getEventParticipation', () => {
+    it('delegates to EventParticipationService and returns the overview unwrapped', async () => {
+      (mockParticipationService.getEventParticipation as jest.Mock).mockResolvedValue(
+        mockParticipationOverview,
+      );
+
+      const result = await controller.getEventParticipation(EVENT_ID);
+
+      // Single composite resource: no { data } envelope, no pagination meta.
+      expect(result).toEqual(mockParticipationOverview);
+      expect(mockParticipationService.getEventParticipation).toHaveBeenCalledWith(EVENT_ID);
     });
   });
 });
