@@ -42,7 +42,6 @@
         "pre": {
           "serviceWorker": "apps/pwa/ngsw-config.json",
           "optimization": true,
-          "baseHref": "/app/",
           "fileReplacements": [
             {
               "replace": "apps/pwa/src/environments/environment.ts",
