@@ -72,17 +72,9 @@ export const PINYA_NODE_PRESETS: NodePreset[] = [
 export const PINYA_POSITION_TYPES = PINYA_NODE_PRESETS.map((p) => p.positionType as string);
 export type PinyaPositionType = string;
 
-export const AD_HOC_ALLOWED_ZONES_PHASE1 = [FigureZone.PINYA] as const;
-
-export const AD_HOC_ALLOWED_ZONES_PHASE2 = [
-  ...AD_HOC_ALLOWED_ZONES_PHASE1,
+export const AD_HOC_ALLOWED_ZONES = [
+  FigureZone.PINYA,
   FigureZone.DECORATION,
-] as const;
-
-export const AD_HOC_ALLOWED_ZONES_PHASE3 = [
-  ...AD_HOC_ALLOWED_ZONES_PHASE2,
   FigureZone.FIGURE_DIRECTION,
   FigureZone.XICALLA_DIRECTION,
 ] as const;
-
-export const AD_HOC_ALLOWED_ZONES = AD_HOC_ALLOWED_ZONES_PHASE3;

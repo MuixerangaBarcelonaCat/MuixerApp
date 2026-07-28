@@ -16,33 +16,34 @@ APPsistència 2.0 — Sistema de gestió d'assistència i figures per a Muixeran
 ```
 apps/
   api/          → Backend NestJS
-  dashboard/    → Dashboard web Angular
-  pwa/          → PWA mòbil (scaffold)
+  dashboard/    → Dashboard web Angular (admin i tècnics)
+  pwa/          → PWA per a membres
+  *-e2e/        → Playwright (e2e + auditoria responsive)
 libs/
-  shared/       → Codi compartit (enums, interfaces)
-docs/
-  specs/        → Especificacions tècniques
-  archive/      → Documentació històrica
+  shared/       → Codi compartit (enums, interfaces, constants)
+docs/           → Documentació (índex: docs/MAP.md)
 scripts/
   appsistencia_extractor.py  → Extractor de dades legacy (opcional)
+  generate-doc-map.mjs       → Regenera el mapa de codi de docs/MAP.md
 ```
 
 ## Documentació
 
 
-| Document                                                         | Descripció                               |
-| ---------------------------------------------------------------- | ---------------------------------------- |
-| `[docs/INDEX.md](docs/INDEX.md)`                                 | **Índex complet de la documentació** ⭐   |
-| `[docs/PROJECT_ROADMAP.md](docs/PROJECT_ROADMAP.md)`             | Visió general i estat dels sub-projectes |
-| `[docs/CURRENT_STATUS.md](docs/CURRENT_STATUS.md)`               | Estat actual i pròxims passos            |
-| `[docs/DOCKER_SETUP.md](docs/DOCKER_SETUP.md)`                   | Setup ràpid amb Docker                   |
-| `[docs/DOCKER_ARCHITECTURE.md](docs/DOCKER_ARCHITECTURE.md)`     | Arquitectura Docker (dev + producció)    |
-| `[docs/codebase/STACK.md](docs/codebase/STACK.md)`               | Stack tecnològic complet                 |
-| `[docs/codebase/ARCHITECTURE.md](docs/codebase/ARCHITECTURE.md)` | Arquitectura i patrons de disseny        |
-| `[docs/AUTH_FLOW.md](docs/AUTH_FLOW.md)`                         | Flux d'autenticació JWT + Passport       |
-| `[docs/DATA_MODEL.md](docs/DATA_MODEL.md)`                       | Model de dades i diagrama ER             |
-| `[docs/specs/](docs/specs/)`                                     | Especificacions tècniques aprovades      |
-| `[docs/API_APPSISTENCIA.md](docs/API_APPSISTENCIA.md)`           | API legacy per migració de dades         |
+| Document                                                     | Descripció                                            |
+| ------------------------------------------------------------ | ----------------------------------------------------- |
+| [docs/MAP.md](docs/MAP.md)                                   | **Mapa del projecte: docs + codi** ⭐                  |
+| [CLAUDE.md](CLAUDE.md)                                       | Arquitectura, convencions i comandes (font per agents) |
+| [docs/ROADMAP.md](docs/ROADMAP.md)                           | Estat de les fases i següent increment                |
+| [docs/DEBT.md](docs/DEBT.md)                                 | Deute tècnic i troballes obertes                      |
+| [docs/DOCKER_SETUP.md](docs/DOCKER_SETUP.md)                 | Setup ràpid amb Docker                                |
+| [docs/DOCKER_ARCHITECTURE.md](docs/DOCKER_ARCHITECTURE.md)   | Arquitectura Docker (dev + pre + producció)           |
+| [docs/AUTH_FLOW.md](docs/AUTH_FLOW.md)                       | Flux d'autenticació JWT + Passport                    |
+| [docs/DATA_MODEL.md](docs/DATA_MODEL.md)                     | Model de dades i diagrama ER                          |
+| [docs/PINYES_MODULE.md](docs/PINYES_MODULE.md)               | Mòdul de figures: domini i arquitectura               |
+| [docs/API_APPSISTENCIA.md](docs/API_APPSISTENCIA.md)         | API legacy per a la migració de dades                 |
+
+L'API es documenta a **Swagger** (`/api/docs`), no en fitxers Markdown.
 
 
 ## Arrencada ràpida (primera vegada)

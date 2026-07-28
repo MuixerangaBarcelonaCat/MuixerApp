@@ -1,3 +1,7 @@
+---
+tags: [domini]
+---
+
 # Arquitectura de Sincronització amb el Legacy API
 
 Documentació del mòdul `apps/api/src/modules/sync/` — com carrega dades, d'on les obté, i
@@ -238,3 +242,7 @@ per organitzar les pinyes i figures abans de l'event.
 
 > ⚠️ Pendent d'implementar: requeriria el sistema d'autenticació (P1 auth) i les APIs
 > de modificació d'assistència (`PATCH /api/events/:id/attendances/:personId`).
+
+---
+
+*Veïns: [[API_APPSISTENCIA]] · [[SSE_AUTH]] · [[DATA_MODEL]] · [[DEBT]] · [[MAP]]*

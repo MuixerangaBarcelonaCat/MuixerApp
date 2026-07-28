@@ -1,11 +1,13 @@
+---
+tags: [domini]
+---
+
 # Mòdul de Pinyes — Documentació Tècnica
 
-> Última actualització: 28 de maig de 2026  
-> Fases implementades: P5.1 → P5.11 (rengles: F1–F5)  
-> Specs de referència:
-> - `docs/specs/2026-05-19-p5-family-snapshot-redesign.md` (P5.5)
-> - `docs/specs/2026-05-20-p5-tronc-visualization-design.md` (P5.6)
-> - `docs/specs/2026-05-22-p5-8-1-projection-view-design.md` (P5.8.1)
+> Documentació viva del mòdul. Veïns: [[DATA_MODEL]] · [[DASHBOARD_UI]] · [[DEBT]] · [[MAP]]
+>
+> Les specs per fase (P5.x) s'han esborrat un cop implementades: viuen al git history.
+> Aquest document descriu el mòdul **tal com és ara**, no com es va dissenyar.
 
 ---
 
@@ -300,9 +302,11 @@ Editor de pàgina complet accessible via `/pinyes/templates/:id/edit`.
 - **Auto-save** amb debounce 2s + indicador d'estat
 - **Upsert de nodes**: envia el payload complet al `PUT`; el backend fa upsert per ID
 
-### AssignmentCanvasComponent
+### SegmentWorkspaceComponent
 
-Pàgina d'assignació accessible via `/pinyes/events/:eventId/segments/:segmentId/assign`.
+Workspace d'assignació accessible via `/pinyes/events/:eventId/segments/:segmentId/assign`, amb 5 pestanyes
+(Pinyes, Troncs, Distribució, Nodes extra, Previsualitza). Substitueix l'antic `AssignmentCanvasComponent`.
+L'estat viu a `SegmentWorkspaceStateService` (per workspace), que composa l'`AssignmentStateService` arrel.
 
 **Flux de dades**:
 1. Carrega les instàncies del segment
@@ -353,7 +357,7 @@ Es mostra a la primera visita del mòdul i es pot reobrir des d'una icona `?`.
 Cap de Pinyes navega a /pinyes/events/:eventId/segments/:segmentId/assign
         │
         ▼
-AssignmentCanvasComponent inicialitza:
+SegmentWorkspaceComponent inicialitza:
   1. GET /events/:eventId/segments/:segmentId → instàncies del segment
   2. Per cada instància: GET /node-assignments/instances/:id/nodes
   3. Per cada instància: GET /node-assignments/instances/:id → assignacions
@@ -479,7 +483,7 @@ Component Angular standalone reutilitzable que renderitza el tronc amb **CSS Gri
 
 **Integració**:
 - `TemplateEditorComponent`: Botó "Tronc" a topbar → floating panel en mode editor
-- `AssignmentCanvasComponent`: Botó floating "Tronc" sobre canvas → floating panel en mode assignment
+- `SegmentWorkspaceComponent` (pestanya Troncs): botó floating "Tronc" sobre canvas → floating panel en mode assignment
 
 **Lògica de variance**:
 ```typescript
@@ -576,7 +580,7 @@ Mode **fullscreen** per projectar les assignacions d'un segment durant assajos o
 
 | Fase | Què es va implementar | Estat actual |
 |------|----------------------|--------------|
-| **P5.8.1** | Vista de projecció inicial: `ProjectionViewComponent`, `SegmentCanvasComponent` Konva, posicionament lliure (`projectionX/Y/Scale`), elements de referència, mode edició/projecció | Spec: `docs/specs/2026-05-22-p5-8-1-projection-view-design.md`. El posicionament Konva i el mode edició **ja no s'utilitzen** |
+| **P5.8.1** | Vista de projecció inicial: `ProjectionViewComponent`, `SegmentCanvasComponent` Konva, posicionament lliure (`projectionX/Y/Scale`), elements de referència, mode edició/projecció | El posicionament Konva i el mode edició **ja no s'utilitzen** (`SegmentCanvasComponent` eliminat el 25/07/2026) |
 | **P5.9.1** | Grid CSS responsive, bases visibles, tronc per doble clic, ruta figura individual, ellipsis, fons configurable, gestió d'elements de referència | Grid, bases, ruta individual i fons **actius**; elements de referència **eliminats de la UI** de projecció |
 | **P5.9.2** | Eliminació mode edició, vista Troncs (`?view=troncs`), panells flotants multi-figura, HUD de navegació, correccions toast/enrere | **Estat actual** del component |
 
@@ -1040,7 +1044,7 @@ function isNodeVisible(
 ### Components
 
 - **`CordonsDialogComponent`**: modal inline amb selector numèric + toggles per rengla
-- **Integració**: botó "Cordons" a la topbar de `AssignmentCanvasComponent`
+- **Integració**: botó "Cordons" a la topbar del `SegmentWorkspaceComponent`
 - **Persistència**: `PATCH /figure-instances/:id/cordons` desa la configuració
 - **Projecció**: `getInstanceNodes()` aplica `isNodeVisible()` abans de retornar nodes
 
@@ -1052,9 +1056,4 @@ function isNodeVisible(
 
 ---
 
-*Documentació actualitzada el 28 de maig de 2026. Referències principals:*
-- *P5.5: `docs/specs/2026-05-19-p5-family-snapshot-redesign.md`*
-- *P5.6: `docs/specs/2026-05-20-p5-tronc-visualization-design.md`*
-- *P5.8.1: `docs/specs/2026-05-22-p5-8-1-projection-view-design.md`*
-- *P5.9: vista de projecció — `ProjectionViewComponent`, `FigureProjectionComponent`*
-- *P5.11: `docs/specs/2026-05-28-rengles-integration-spec.md`*
+*Veïns: [[DATA_MODEL]] · [[DASHBOARD_UI]] · [[AUDIT_SUITE]] · [[DEBT]] · [[MAP]]*

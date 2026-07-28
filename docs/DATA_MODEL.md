@@ -1,653 +1,489 @@
-# Model de Dades — MuixerApp
-
-> Última actualització: 19 de maig de 2026  
-> Estat: P0–P4.4 completat. P5.1–P5.11 Mòdul de Pinyes implementat (Templates, Composicions, Segments, Assignacions, Snapshot, Rengles).
-
+---
+tags: [domini]
 ---
 
-## Entitats Actuals
+# Model de dades
 
-### `persons`
+> La secció **Entitats** es genera des de les entitats TypeORM amb `pnpm run docs:model`.
+> Si un camp no quadra amb el codi, no l'arregles ací: arregla l'entitat i torna a generar.
+> Les parts escrites a mà (relacions, invariants, notes) queden fora dels marcadors AUTO.
 
-Membre de la colla (qualsevol persona registrada al sistema, independentment del rol muixeranguer).
-
-| Camp | Tipus DB | TypeScript | Nullable | Notes |
-|------|----------|------------|----------|-------|
-| `id` | `uuid` | `string` | No | PK, auto-generat |
-| `name` | `varchar` | `string` | No | Nom de pila |
-| `firstSurname` | `varchar` | `string` | No | Primer cognom |
-| `secondSurname` | `varchar` | `string \| null` | Sí | |
-| `alias` | `varchar(20)` | `string` | No | Únic a la taula |
-| `email` | `varchar` | `string \| null` | Sí | |
-| `phone` | `varchar` | `string \| null` | Sí | |
-| `birthDate` | `date` | `Date \| null` | Sí | |
-| `shoulderHeight` | `int` | `number \| null` | Sí | Alçada espatlla en cm |
-| `gender` | `enum` | `Gender \| null` | Sí | `MALE \| FEMALE \| OTHER` |
-| `isXicalla` | `boolean` | `boolean` | No | Default `false`. Xicalla = < 16 anys |
-| `isActive` | `boolean` | `boolean` | No | Default `true`. Soft delete |
-| `isMember` | `boolean` | `boolean` | No | Default `false`. Soci de la colla |
-| `isProvisional` | `boolean` | `boolean` | No | Default `false`. Persona provisional (àlies amb prefix `~`) |
-| `availability` | `enum` | `AvailabilityStatus` | No | Default `AVAILABLE` |
-| `onboardingStatus` | `enum` | `OnboardingStatus` | No | Default `NOT_APPLICABLE` |
-| `notes` | `text` | `string \| null` | Sí | Notes internes (no sincronitza) |
-| `shirtDate` | `date` | `Date \| null` | Sí | Data d'entrega de samarreta |
-| `joinDate` | `date` | `Date \| null` | Sí | Data d'incorporació |
-| `legacyId` | `varchar` | `string \| null` | Sí | ID a l'API legacy (migració) |
-| `lastSyncedAt` | `timestamp` | `Date \| null` | Sí | Última sincronització |
-| `managedBy` | FK → `users` | `User \| null` | Sí | ManyToOne |
-| `user` | OneToOne → `users` | `User \| null` | Sí | Back-ref: compte vinculat (afegit a P4.1) |
-| `mentor` | FK → `persons` | `Person \| null` | Sí | Self-referencing ManyToOne |
-| `positions` | JT `person_positions` | `Position[]` | — | ManyToMany |
-| `createdAt` | `timestamp` | `Date` | No | Auto |
-| `updatedAt` | `timestamp` | `Date` | No | Auto |
-
-> **Canvi P4.1**: Camp `isMainAccount` eliminat. La relació User↔Person ara és un `OneToOne` explícit via `user.person_id`.
-> **Canvi P4.2**: Afegit `isProvisional`. Les persones provisionals tenen àlies prefixat amb `~` (ex: `~Joan`). Promoció a regular valida que `name`, `firstSurname` no estiguin buits i l'àlies no comenci amb `~`.
+Font de veritat del codi: `apps/api/src/modules/**/*.entity.ts`, registrades a
+`apps/api/src/modules/database/entities.ts`. Migracions a `apps/api/src/migrations/`
+(`synchronize: false`).
 
 ---
-
-### `positions`
-
-Posicions muixerangueres (pinya, tronc, caps de colla...). Gestionades internament, no sincronitzen amb legacy.
-
-| Camp | Tipus DB | TypeScript | Nullable | Notes |
-|------|----------|------------|----------|-------|
-| `id` | `uuid` | `string` | No | PK |
-| `name` | `varchar` | `string` | No | Únic. Ex: `"Base"` |
-| `slug` | `varchar` | `string` | No | Únic. Ex: `"base"` |
-| `shortDescription` | `varchar` | `string \| null` | Sí | |
-| `longDescription` | `text` | `string \| null` | Sí | |
-| `color` | `varchar` | `string \| null` | Sí | Hex, ex: `"#FF5733"` |
-| `zone` | `enum` | `FigureZone \| null` | Sí | `PINYA \| TRONC \| FIGURE_DIRECTION \| XICALLA_DIRECTION` |
-| `createdAt` | `timestamp` | `Date` | No | Auto |
-| `updatedAt` | `timestamp` | `Date` | No | Auto |
-
----
-
-### `users`
-
-Compte d'accés a l'aplicació. Desacoblat de `Person` (una persona pot no tenir compte, un compte pot gestionar múltiples persones).
-
-| Camp | Tipus DB | TypeScript | Nullable | Notes |
-|------|----------|------------|----------|-------|
-| `id` | `uuid` | `string` | No | PK |
-| `email` | `varchar` | `string` | No | Únic. Credencial de login (afegit a P4.1) |
-| `passwordHash` | `varchar` | `string` | No | bcrypt cost 12+ |
-| `role` | `enum` | `UserRole` | No | Default `MEMBER`. `ADMIN \| TECHNICAL \| MEMBER` |
-| `isActive` | `boolean` | `boolean` | No | Default `false` |
-| `inviteToken` | `varchar` | `string \| null` | Sí | Token d'invitació per email |
-| `inviteExpiresAt` | `timestamp` | `Date \| null` | Sí | |
-| `resetToken` | `varchar` | `string \| null` | Sí | Token de reset de password |
-| `resetExpiresAt` | `timestamp` | `Date \| null` | Sí | |
-| `person` | OneToOne → `persons` | `Person \| null` | Sí | FK `person_id`. Person vinculat (afegit a P4.1) |
-| `createdAt` | `timestamp` | `Date` | No | Auto |
-| `updatedAt` | `timestamp` | `Date` | No | Auto |
-
-> **Canvi P4.1**: Afegits `email` (unique, NOT NULL) i `person` (OneToOne nullable amb FK `person_id`). Eliminat import `OneToMany` no usat.
-
----
-
-### `refresh_tokens`
-
-Tokens de refresc per a la rotació segura de sessions JWT. Afegit a P4.1.
-
-| Camp | Tipus DB | TypeScript | Nullable | Notes |
-|------|----------|------------|----------|-------|
-| `id` | `uuid` | `string` | No | PK, auto-generat |
-| `userId` | `uuid` | `string` | No | FK → `users.id`, indexat. `ON DELETE CASCADE` |
-| `tokenHash` | `varchar` | `string` | No | SHA-256 del raw token. Únic |
-| `family` | `uuid` | `string` | No | Família de rotació. Indexat |
-| `clientType` | `enum` | `ClientType` | No | `DASHBOARD \| PWA` |
-| `expiresAt` | `timestamp` | `Date` | No | Data d'expiració |
-| `usedAt` | `timestamp` | `Date \| null` | Sí | Quan s'ha usat per rotar |
-| `revokedAt` | `timestamp` | `Date \| null` | Sí | Quan s'ha revocat |
-| `createdAt` | `timestamp` | `Date` | No | Auto |
-
-> **Detecció de reutilització**: si un token amb `usedAt != null` es presenta, tota la família (`family`) es revoca immediatament.
-
----
-
-### `figure_templates`
-
-Plantilla reutilitzable d'una figura individual. Afegit a P5.1.
-
-| Camp | Tipus DB | TypeScript | Nullable | Notes |
-|------|----------|------------|----------|-------|
-| `id` | `uuid` | `string` | No | PK, auto-generat |
-| `name` | `varchar` | `string` | No | Únic. Ex: "Pinet Doble de 4" |
-| `slug` | `varchar` | `string` | No | Únic. Ex: "pd4" |
-| `description` | `text` | `string \| null` | Sí | Notes del tècnic |
-| `hasPinya` | `boolean` | `boolean` | No | Default `true`. `false` per figures netes/remats |
-| `direction` | `float` | `number` | No | Default `0`. Angle en graus (0-360) |
-| `metadata` | `jsonb` | `Record<string, unknown>` | No | Default `{}`. Extensible |
-| `createdAt` | `timestamp` | `Date` | No | Auto |
-| `updatedAt` | `timestamp` | `Date` | No | Auto |
-
----
-
-### `figure_nodes`
-
-Cada posició dins d'un template de figura (totes les zones: PINYA, TRONC, BASE, directions). Afegit a P5.1. Ampliat a P5.5 amb camps de cordó i llinatge.
-
-| Camp | Tipus DB | TypeScript | Nullable | Notes |
-|------|----------|------------|----------|-------|
-| `id` | `uuid` | `string` | No | PK, auto-generat. **Estable** entre saves (upsert, no delete+recreate) |
-| `template` | FK → `figure_templates` | `FigureTemplate` | No | ManyToOne, CASCADE delete |
-| `label` | `varchar` | `string` | No | Ex: "Baix 1", "Cross esquerra" |
-| `zone` | `enum` | `FigureZone` | No | `BASE`, `PINYA`, `TRONC`, `FIGURE_DIRECTION`, `XICALLA_DIRECTION` |
-| `positionType` | `varchar` | `string \| null` | Sí | Lliure: "base", "segon", "cross", "agulla", "primeres_mans"... |
-| `x` | `float` | `number` | No | Coordenada X al canvas |
-| `y` | `float` | `number` | No | Coordenada Y al canvas |
-| `z` | `int` | `number` | No | Default `0`. Pis (0=terra/pinya, 1=segons, 2=terços...) |
-| `width` | `float` | `number` | No | Amplada del node (rectangle) o rx (el·lipse) |
-| `height` | `float` | `number` | No | Alçada del node (rectangle) o ry (el·lipse) |
-| `rotation` | `float` | `number` | No | Default `0`. Rotació en graus |
-| `color` | `varchar` | `string \| null` | Sí | Hex. Per diferenciar tipus de posicions |
-| `shape` | `enum` | `NodeShape` | No | `ELLIPSE`, `RECTANGLE` |
-| `sortOrder` | `int` | `number` | No | Ordre dins del pis/zona |
-| `climbPath` | `varchar` | `string \| null` | Sí | Markers "(X)", "(A)" per indicar per on puja |
-| `ringLevel` | `int` | `number \| null` | Sí | Anell concèntric al qual pertany (1 = primer cordó). `null` per zones no-pinya i `cordo-obert` |
-| `originNodeId` | `uuid` | `string \| null` | Sí | ID opcional per traçar llinatge quan es dupliquen o deriven nodes. Informat; no FK |
-| `metadata` | `jsonb` | `Record<string, unknown>` | No | Default `{}` |
-| `createdAt` | `timestamp` | `Date` | No | Auto |
-| `updatedAt` | `timestamp` | `Date` | No | Auto |
-
-> **Zona BASE**: Els nodes amb `zone = BASE` representen les bases de la figura. Apareixen tant a la vista de pinya (z=0) com al tronc-widget (secció "Bases · P1").
-> **Canvi P5.5**: Afegits `ringLevel` (int nullable) i `originNodeId` (uuid nullable, no FK). El `PUT` de nodes ara fa **upsert** per ID en lloc de delete-all + recreate, garantint estabilitat dels IDs entre saves.
-
----
-
-### `composition_templates`
-
-Plantilla que agrupa múltiples figures amb posicions relatives. Afegit a P5.2.
-
-| Camp | Tipus DB | TypeScript | Nullable | Notes |
-|------|----------|------------|----------|-------|
-| `id` | `uuid` | `string` | No | PK, auto-generat |
-| `name` | `varchar` | `string` | No | Únic. Ex: "Altar", "5 de Oros" |
-| `slug` | `varchar` | `string` | No | Únic |
-| `description` | `text` | `string \| null` | Sí | |
-| `createdAt` | `timestamp` | `Date` | No | Auto |
-| `updatedAt` | `timestamp` | `Date` | No | Auto |
-
----
-
-### `composition_slots`
-
-Slot dins d'una composició que referencia una figura. Afegit a P5.2.
-
-| Camp | Tipus DB | TypeScript | Nullable | Notes |
-|------|----------|------------|----------|-------|
-| `id` | `uuid` | `string` | No | PK, auto-generat |
-| `composition` | FK → `composition_templates` | `CompositionTemplate` | No | ManyToOne, CASCADE |
-| `figureTemplate` | FK → `figure_templates` | `FigureTemplate` | No | ManyToOne |
-| `label` | `varchar` | `string \| null` | Sí | Ex: "pd4 central", "pd3 esquerra" |
-| `offsetX` | `float` | `number` | No | Posició relativa X |
-| `offsetY` | `float` | `number` | No | Posició relativa Y |
-| `sortOrder` | `int` | `number` | No | Ordre visual i z-order |
-
-> **Protecció referencial**: No es pot eliminar una `FigureTemplate` si té `CompositionSlot`s que la referencien (409 Conflict).
-
----
-
-### `event_segments`
-
-Segment temporal seqüencial dins d'un esdeveniment. Afegit a P5.3.
-
-| Camp | Tipus DB | TypeScript | Nullable | Notes |
-|------|----------|------------|----------|-------|
-| `id` | `uuid` | `string` | No | PK, auto-generat |
-| `event` | FK → `events` | `Event` | No | ManyToOne, CASCADE |
-| `name` | `varchar` | `string` | No | Ex: "Escalfament", "Bloc 1" |
-| `sortOrder` | `int` | `number` | No | Ordre seqüencial, reordenable |
-| `startTime` | `varchar` | `string \| null` | Sí | Opcional, informatiu. Ex: "19:30" |
-| `endTime` | `varchar` | `string \| null` | Sí | Opcional, informatiu |
-| `notes` | `text` | `string \| null` | Sí | |
-| `isVisible` | `boolean` | `boolean` | No | Default `true`. Visibilitat cap als membres (PWA) |
-| `createdAt` | `timestamp` | `Date` | No | Auto |
-| `updatedAt` | `timestamp` | `Date` | No | Auto |
-
----
-
-### `figure_instances`
-
-Materialització d'un template o composició en un segment concret. Afegit a P5.3. Ampliat a P5.5 amb el cicle de vida de snapshot.
-
-| Camp | Tipus DB | TypeScript | Nullable | Notes |
-|------|----------|------------|----------|-------|
-| `id` | `uuid` | `string` | No | PK, auto-generat |
-| `segment` | FK → `event_segments` | `EventSegment` | No | ManyToOne, CASCADE |
-| `figureTemplate` | FK → `figure_templates` | `FigureTemplate \| null` | Sí | ManyToOne, RESTRICT. XOR amb `compositionTemplate` |
-| `compositionTemplate` | FK → `composition_templates` | `CompositionTemplate \| null` | Sí | Si ve d'una composició |
-| `label` | `varchar` | `string \| null` | Sí | Ex: "Morera central (5 de Oros)" |
-| `sortOrder` | `int` | `number` | No | Ordre dins del segment |
-| `snapshotted` | `boolean` | `boolean` | No | Default `false`. `true` quan s'han copiat els nodes a `InstanceNode` (primera assignació) |
-| `createdAt` | `timestamp` | `Date` | No | Auto |
-| `updatedAt` | `timestamp` | `Date` | No | Auto |
-
-> **Canvi P5.5**: Eliminats `offsetX`, `offsetY`, `direction` (no s'usaven). Afegit `snapshotted`. La instància és lleugera fins a la primera assignació; en aquell moment es dispara el **lazy snapshot**. **P5.13**: Eliminat `sourceVariantOrder` (obsolet amb la retirada del sistema de variants).
-
----
-
-### `instance_nodes`
-
-Còpia snapshot d'un `FigureNode` propietat d'una `FigureInstance`. Afegit a P5.5.
-
-| Camp | Tipus DB | TypeScript | Nullable | Notes |
-|------|----------|------------|----------|-------|
-| `id` | `uuid` | `string` | No | PK, auto-generat |
-| `figureInstance` | FK → `figure_instances` | `FigureInstance` | No | ManyToOne, CASCADE delete |
-| `sourceNodeId` | `uuid` | `string \| null` | Sí | ID del `FigureNode` original en el moment del snapshot. No FK (sobreviu a esborrats de template) |
-| `originNodeId` | `uuid` | `string \| null` | Sí | Copiat de `FigureNode.originNodeId` |
-| `label` | `varchar` | `string` | No | |
-| `zone` | `enum` | `FigureZone` | No | |
-| `positionType` | `varchar` | `string \| null` | Sí | |
-| `x` | `float` | `number` | No | |
-| `y` | `float` | `number` | No | |
-| `z` | `int` | `number` | No | Default `0` |
-| `width` | `float` | `number` | No | |
-| `height` | `float` | `number` | No | |
-| `rotation` | `float` | `number` | No | Default `0` |
-| `color` | `varchar` | `string \| null` | Sí | |
-| `shape` | `enum` | `NodeShape` | No | |
-| `sortOrder` | `int` | `number` | No | Default `0` |
-| `climbPath` | `varchar` | `string \| null` | Sí | |
-| `ringLevel` | `int` | `number \| null` | Sí | Copiat de `FigureNode.ringLevel` |
-| `metadata` | `jsonb` | `Record<string, unknown>` | No | Default `{}` |
-| `createdAt` | `timestamp` | `Date` | No | Auto |
-
-> **Immutabilitat del snapshot**: Un cop `snapshotted = true`, els `InstanceNode` d'una instància **NO s'eliminen ni modifiquen** per canvis al template font.
-
----
-
-### `node_assignments`
-
-Assignació d'una persona a un node dins d'una instància de figura. Afegit a P5.4. Refactoritzat a P5.5: ara apunta a `InstanceNode` en lloc de `FigureNode`.
-
-| Camp | Tipus DB | TypeScript | Nullable | Notes |
-|------|----------|------------|----------|-------|
-| `id` | `uuid` | `string` | No | PK, auto-generat |
-| `figureInstance` | FK → `figure_instances` | `FigureInstance` | No | ManyToOne, CASCADE |
-| `instanceNode` | FK → `instance_nodes` | `InstanceNode` | No | ManyToOne, RESTRICT. **Substitueix `figureNode` (eliminat a P5.5)** |
-| `person` | FK → `persons` | `Person` | No | ManyToOne, RESTRICT |
-| `compositionSlot` | FK → `composition_slots` | `CompositionSlot \| null` | Sí | Si la figura ve d'una composició, identifica quin slot |
-| `createdAt` | `timestamp` | `Date` | No | Auto |
-| `updatedAt` | `timestamp` | `Date` | No | Auto |
-
-**Constraints únics**:
-- `UNIQUE(figureInstance, instanceNode, compositionSlot)` — un node per instància només pot tenir una persona
-- `UNIQUE(figureInstance, person, compositionSlot)` — una persona no pot aparèixer dues vegades al mateix segment
-
-**Validació a nivell de servei**: Una persona no pot aparèixer en dues `NodeAssignment` de `FigureInstance`s del **mateix** `EventSegment`.
-
-> **Canvi P5.5**: FK `figureNode` → `figureNodes` **eliminada**. Substituïda per FK `instanceNode` → `instance_nodes` (RESTRICT). Les assignacions apunten sempre a `InstanceNode`, mai directament a `FigureNode`. Això desacobla completament templates d'instàncies.
-
----
-
-### `person_positions` (Join Table)
-
-Taula de creuament M:N entre `persons` i `positions`. Gestionada per TypeORM via `@JoinTable`.
-
-| Camp | Notes |
-|------|-------|
-| `persons_id` | FK → `persons.id` |
-| `positions_id` | FK → `positions.id` |
-
----
-
-## Enums (`libs/shared`)
-
-### `Gender`
-```typescript
-MALE | FEMALE | OTHER
-```
-
-### `AvailabilityStatus`
-```typescript
-AVAILABLE | TEMPORARILY_UNAVAILABLE | LONG_TERM_UNAVAILABLE
-```
-
-### `OnboardingStatus`
-```typescript
-COMPLETED | IN_PROGRESS | LOST | NOT_APPLICABLE
-```
-
-### `UserRole`
-```typescript
-ADMIN | TECHNICAL | MEMBER
-```
-
-### `FigureZone`
-```typescript
-PINYA | TRONC | BASE | FIGURE_DIRECTION | XICALLA_DIRECTION
-```
-
-### `NodeShape` (afegit a P5.1)
-```typescript
-ELLIPSE | RECTANGLE
-```
-
-### `ClientType` (afegit a P4.1)
-```typescript
-DASHBOARD | PWA
-```
-
----
-
-## Interfaces compartides (`libs/shared`)
-
-### `JwtPayload`
-```typescript
-{ sub: string; email: string; role: UserRole }
-```
-
-### `PersonSummary`
-```typescript
-{ id: string; name: string; firstSurname: string; alias: string; email: string | null }
-```
-
-### `UserProfile`
-```typescript
-{ id: string; email: string; role: UserRole; isActive: boolean; person: PersonSummary | null }
-```
-
----
-
-## Diagrama ER
-
-```mermaid
-erDiagram
-    users {
-        uuid id PK
-        varchar email UK "NOT NULL"
-        varchar passwordHash "bcrypt 12+"
-        enum role "ADMIN | TECHNICAL | MEMBER"
-        boolean isActive "default false"
-        varchar inviteToken "nullable"
-        timestamp inviteExpiresAt "nullable"
-        varchar resetToken "nullable"
-        timestamp resetExpiresAt "nullable"
-        uuid person_id FK "nullable, unique"
-        timestamp createdAt
-        timestamp updatedAt
-    }
-
-    persons {
-        uuid id PK
-        varchar name "NOT NULL"
-        varchar firstSurname "NOT NULL"
-        varchar secondSurname "nullable"
-        varchar alias UK "max 20"
-        varchar email "nullable"
-        varchar phone "nullable"
-        date birthDate "nullable"
-        int shoulderHeight "nullable, cm"
-        enum gender "M | F | OTHER, nullable"
-        boolean isXicalla "default false"
-        boolean isActive "default true"
-        boolean isMember "default false"
-        boolean isProvisional "default false"
-        enum availability "default AVAILABLE"
-        enum onboardingStatus "default NOT_APPLICABLE"
-        text notes "nullable"
-        date shirtDate "nullable"
-        date joinDate "nullable"
-        varchar legacyId "nullable"
-        timestamp lastSyncedAt "nullable"
-        uuid managedBy FK "nullable"
-        uuid mentor FK "nullable, self-ref"
-        timestamp createdAt
-        timestamp updatedAt
-    }
-
-    positions {
-        uuid id PK
-        varchar name UK
-        varchar slug UK
-        varchar shortDescription "nullable"
-        text longDescription "nullable"
-        varchar color "nullable, hex"
-        enum zone "nullable"
-        timestamp createdAt
-        timestamp updatedAt
-    }
-
-    person_positions {
-        uuid persons_id FK
-        uuid positions_id FK
-    }
-
-    refresh_tokens {
-        uuid id PK
-        uuid user_id FK "indexed, CASCADE"
-        varchar tokenHash UK "SHA-256"
-        uuid family "indexed"
-        enum clientType "DASHBOARD | PWA"
-        timestamp expiresAt
-        timestamp usedAt "nullable"
-        timestamp revokedAt "nullable"
-        timestamp createdAt
-    }
-
-    figure_templates {
-        uuid id PK
-        varchar name UK
-        varchar slug UK
-        text description "nullable"
-        boolean hasPinya "default true"
-        float direction "default 0"
-        jsonb metadata "default {}"
-        timestamp createdAt
-        timestamp updatedAt
-    }
-
-    figure_nodes {
-        uuid id PK
-        uuid template_id FK "CASCADE"
-        varchar label
-        enum zone "BASE | PINYA | TRONC | FIGURE_DIRECTION | XICALLA_DIRECTION"
-        varchar positionType "nullable"
-        float x
-        float y
-        int z "default 0"
-        float width
-        float height
-        float rotation "default 0"
-        varchar color "nullable, hex"
-        enum shape "ELLIPSE | RECTANGLE"
-        int sortOrder
-        varchar climbPath "nullable"
-        int ringLevel "nullable"
-        uuid originNodeId "nullable, no FK"
-        jsonb metadata "default {}"
-        timestamp createdAt
-        timestamp updatedAt
-    }
-
-    composition_templates {
-        uuid id PK
-        varchar name UK
-        varchar slug UK
-        text description "nullable"
-        timestamp createdAt
-        timestamp updatedAt
-    }
-
-    composition_slots {
-        uuid id PK
-        uuid composition_id FK "CASCADE"
-        uuid figure_template_id FK
-        varchar label "nullable"
-        float offsetX
-        float offsetY
-        int sortOrder
-    }
-
-    events {
-        uuid id PK
-        varchar name
-        enum type
-        date date
-        varchar location "nullable"
-        timestamp createdAt
-        timestamp updatedAt
-    }
-
-    event_segments {
-        uuid id PK
-        uuid event_id FK "CASCADE"
-        varchar name
-        int sortOrder
-        varchar startTime "nullable"
-        varchar endTime "nullable"
-        text notes "nullable"
-        boolean isVisible "default true"
-        timestamp createdAt
-        timestamp updatedAt
-    }
-
-    figure_instances {
-        uuid id PK
-        uuid segment_id FK "CASCADE"
-        uuid figure_template_id FK "nullable, RESTRICT"
-        uuid composition_template_id FK "nullable, RESTRICT"
-        varchar label "nullable"
-        int sortOrder
-        boolean snapshotted "default false"
-        timestamp createdAt
-        timestamp updatedAt
-    }
-
-    instance_nodes {
-        uuid id PK
-        uuid figure_instance_id FK "CASCADE"
-        uuid sourceNodeId "nullable, no FK"
-        uuid originNodeId "nullable, no FK"
-        varchar label
-        enum zone
-        varchar positionType "nullable"
-        float x
-        float y
-        int z "default 0"
-        float width
-        float height
-        float rotation "default 0"
-        varchar color "nullable"
-        enum shape
-        int sortOrder "default 0"
-        varchar climbPath "nullable"
-        int ringLevel "nullable"
-        jsonb metadata "default {}"
-        timestamp createdAt
-    }
-
-    node_assignments {
-        uuid id PK
-        uuid figure_instance_id FK "CASCADE"
-        uuid instance_node_id FK "RESTRICT"
-        uuid person_id FK "RESTRICT"
-        uuid composition_slot_id FK "nullable, RESTRICT"
-        timestamp createdAt
-        timestamp updatedAt
-    }
-
-    users ||--o| persons : "person (1:1 optional)"
-    users ||--o{ persons : "managedBy (1:N)"
-    persons ||--o| persons : "mentor (self-ref)"
-    persons }o--o{ positions : "person_positions (M:N)"
-    users ||--o{ refresh_tokens : "userId (1:N)"
-    
-    figure_templates ||--o{ figure_nodes : "nodes (1:N CASCADE)"
-    composition_templates ||--o{ composition_slots : "slots (1:N CASCADE)"
-    composition_slots }o--|| figure_templates : "figureTemplate (M:1)"
-    
-    events ||--o{ event_segments : "segments (1:N CASCADE)"
-    event_segments ||--o{ figure_instances : "instances (1:N CASCADE)"
-    figure_instances }o--o| figure_templates : "figureTemplate (M:1 optional)"
-    figure_instances }o--o| composition_templates : "compositionTemplate (M:1 optional)"
-    
-    figure_instances ||--o{ instance_nodes : "instanceNodes (1:N CASCADE)"
-    figure_instances ||--o{ node_assignments : "assignments (1:N CASCADE)"
-    node_assignments }o--|| instance_nodes : "instanceNode (M:1 RESTRICT)"
-    node_assignments }o--|| persons : "person (M:1)"
-    node_assignments }o--o| composition_slots : "compositionSlot (M:1 optional)"
-```
 
 ## Relacions
 
-**Usuaris i Persones:**
+**Usuaris i persones**
+
 ```
-User ──1:1──? Person (user.person_id) : un User pot tenir 0 o 1 Person linked
-Person ──1:1──? User (back-ref)       : un Person pot tenir 0 o 1 User linked
-User ──< Person (managedBy)           : un User pot gestionar N persones
-Person ──< Person (mentor)            : auto-referència (mentor/aprenent)
-Person >──< Position                  : via person_positions (M:N)
-User ──< RefreshToken (userId)        : un User pot tenir N refresh tokens actius
+User ──1:1──? Person                  : un User pot tenir 0 o 1 Person vinculada
+Person ──< Person (mentor)            : autoreferència (mentor / aprenent)
+Person >──< Tag                       : via person_positions (M:N)
+User ──< RefreshToken                 : N tokens actius per usuari
+User >──< Person (person_delegates)   : delegació d'assistència (unique user + person)
 ```
 
-**Mòdul de Pinyes (P5.1–P5.11):**
+**Events i assistència**
+
 ```
-FigureTemplate ──< FigureNode                      : CASCADE (1:N)
-CompositionTemplate ──< CompositionSlot            : CASCADE (1:N)
-CompositionSlot >── FigureTemplate                 : M:1 (protecció 409)
+Season ──< Event                      : temporada → events
+Event ──< Attendance                  : unique (person, event)
+Event ──< EventSegment                : CASCADE
+```
 
-Event ──< EventSegment                             : CASCADE (1:N)
-EventSegment ──< FigureInstance                    : CASCADE (1:N)
-FigureInstance >──? FigureTemplate                 : M:1 opcional (XOR)
-FigureInstance >──? CompositionTemplate            : M:1 opcional (XOR)
+**Figures**
 
-FigureInstance ──< InstanceNode                    : CASCADE (1:N) — P5.5
-FigureInstance ──< NodeAssignment                  : CASCADE (1:N)
-NodeAssignment >── InstanceNode                    : M:1 RESTRICT — P5.5 (substitueix FigureNode)
-NodeAssignment >── Person                          : M:1 RESTRICT
-NodeAssignment >──? CompositionSlot                : M:1 opcional
+```
+FigureTemplate ──< FigureNode          : CASCADE (totes les zones al mateix lloc)
+FigureTemplate ──< Rengla              : cordons de pinya
+Composition ──< CompositionEntry       : CASCADE
+CompositionEntry >── FigureTemplate    : M:1 (esborrar el template dona 409 si està en ús)
+
+EventSegment ──< FigureInstance        : CASCADE
+FigureInstance >──? FigureTemplate     : M:1 opcional ─┐ XOR
+FigureInstance >──? Composition        : M:1 opcional ─┘
+FigureInstance ──< InstanceNode         : CASCADE (snapshot lazy)
+FigureInstance ──< NodeAssignment       : CASCADE
+NodeAssignment >── InstanceNode         : M:1 RESTRICT (mai a FigureNode)
+NodeAssignment >── Person               : M:1 RESTRICT
+NodeAssignment >── EventSegment         : FK denormalitzada per validar unicitat per segment
 ```
 
 ---
 
-## Entitats Implementades per Fase
+## Invariants
 
-| Entitat | Fase | Descripció |
-|---------|------|------------|
-| `Season` | P3 ✅ | Temporada (ex: 2025-2026) |
-| `Event` | P3 ✅ | Assaig, actuació, assemblea... |
-| `Attendance` | P3 ✅ | Assistència d'una `Person` a un `Event` |
-| `FigureTemplate` | P5.1 ✅ | Plantilla de figura muixeranguera |
-| `FigureNode` | P5.1 ✅ | Posicions dins d'una figura |
-| `CompositionTemplate` | P5.2 ✅ | Composició de múltiples figures |
-| `CompositionSlot` | P5.2 ✅ | Slot dins d'una composició |
-| `EventSegment` | P5.3 ✅ | Segment temporal dins d'un event |
-| `FigureInstance` | P5.3 ✅ | Instància concreta d'una figura en un `EventSegment` |
-| `NodeAssignment` | P5.4 ✅ | Assignació `Person` → posició en una figura |
-| `InstanceNode` | P5.5 ✅ | Snapshot de `FigureNode` propietat d'una `FigureInstance` |
-
-> **Canvis de model a P5.5**: `FigureNode` + `ringLevel`/`originNodeId`, `FigureInstance` + `snapshotted`, `NodeAssignment.figureNode` → `NodeAssignment.instanceNode`. **P5.13**: eliminats `FigureFamily`, `FigureFamilyNode`, `familyId`, `variantOrder` i `sourceVariantOrder`; tots els nodes viuen a `figure_nodes`.
-
-## Entitats Pendents (P6+)
-
-| Entitat | Fase | Descripció |
-|---------|------|------------|
-| `Notification` | P7 | Notificacions push/email |
-| `Colla` | Multi-tenant | Entitat arrel per multi-tenant (futur) |
+1. **Soft delete** = `isActive: boolean` (a `Person`, `Tag`, `PersonDelegate`…). No s'usa
+   `@DeleteDateColumn`.
+2. **Snapshot lazy**: una `FigureInstance` és lleugera fins a la primera assignació; llavors es copien els
+   `FigureNode` a `InstanceNode` i `snapshotted = true`. Els canvis posteriors al template no l'afecten.
+3. **`NodeAssignment` apunta sempre a `InstanceNode`**, mai a `FigureNode`.
+4. **`FigureInstance` té `figureTemplate` o `composition`**, mai les dues (XOR).
+5. **Unicitat d'assignacions:** un node només pot tenir una persona (`figureInstance + instanceNode`), una
+   persona no pot repetir-se dins d'una instància (`figureInstance + person`) ni dins d'un segment
+   (`segment + person`).
+6. **IDs de node estables**: el `PUT` de templates fa upsert per ID (crea, actualitza, esborra els absents);
+   `FigureNode.id` no canvia entre saves. `originNodeId` traça el llinatge en duplicar.
+7. **Zona BASE**: els nodes amb `zone = BASE` (z=0) surten tant a la vista de pinya com al tronc.
+8. **Protecció referencial**: no es pot esborrar un `FigureTemplate` amb `CompositionEntry`s o
+   `FigureInstance`s (409).
+9. **Traçabilitat del legacy**: `legacyId` + `lastSyncedAt` a `Person` (vegeu [[SYNC_ARCHITECTURE]]).
+10. **Alçada relativa**: al tronc, si la persona té `shoulderHeight`, es mostra la diferència respecte al
+    baseline de 140 cm ("+3" / "-5").
 
 ---
 
-## Notes de Disseny
+## Entitats
 
-- **Soft delete**: `isActive: boolean` a `Person`. No s'usa `@DeleteDateColumn` de TypeORM.
-- **Sync**: `legacyId` + `lastSyncedAt` a `Person` per traçabilitat amb l'API legacy. Vegeu `SYNC_ARCHITECTURE.md`.
-- **Auth (P4.1)**: `User` amb `email` (login credential), OneToOne a `Person`. Refresh tokens amb rotació + detecció de reutilització. Vegeu `AUTH_FLOW.md`.
-- **Multi-tenant**: Arquitectura preparada per afegir `Colla` com a arrel de tot el model (P futur).
-- **GDPR**: Camps sensibles (`email`, `phone`, `birthDate`) requeriran encriptació en repòs (pendent).
-- **Mòdul Pinyes (P5.1-P5.11)**:
-  - **Templates reutilitzables**: `FigureTemplate` amb `FigureNode`s (totes les zones). Sync inline via `PUT` (upsert per ID: crea nous, actualitza existents, elimina els absents). IDs de nodes estables entre saves.
-  - **Composicions**: `CompositionTemplate` agrupa múltiples `FigureTemplate`s amb offsets. No recursives.
-  - **Segments seqüencials**: `EventSegment` amb `sortOrder`, horari opcional.
-  - **Instàncies amb lazy snapshot (P5.5)**: `FigureInstance` és lleugera fins a la primera assignació. En aquell moment, els nodes del template es copien a `InstanceNode`s propis de la instància (`snapshotted = true`). A partir d'aquí, els canvis al template no afecten la instància.
-  - **Selector de cordons (P5.11)**: `numberOfCordons` i `openCordons` a `FigureInstance` controlen quins nodes de pinya es mostren a l'assignació/projecció (reversible, sense canvi de template).
-  - **Assignacions amb validació**: `NodeAssignment` apunta a `InstanceNode` (no a `FigureNode`). Constraints únics: un node una persona, una persona no duplicada al segment.
-  - **Zona BASE**: Els nodes amb `zone = BASE` (z=0) representen les bases. Apareixen tant a la vista de pinya com al tronc.
-  - **Protecció referencial**: No es pot eliminar `FigureTemplate` si té `CompositionSlot`s (409) o `FigureInstance`s (409).
-  - **Canvas Konva**: API imperativa directa (no `ng2-konva`). Pinya (65-70% ample) + tronc (30-35% lateral). Zoom, pan, drag, snap-to-grid.
-  - **Auto-save**: Debounce 2s amb indicador d'estat (Guardat/Guardant/Error).
-  - **Alçada relativa**: Al tronc, si la persona té `shoulderHeight`, es mostra "+3" o "-5" (cm vs baseline 140 cm).
+<!-- BEGIN:AUTO — generat per scripts/generate-data-model.mjs, no editar a mà -->
+
+> Generat el 2026-07-25 des de les entitats TypeORM amb `pnpm run docs:model`.
+> **17 entitats.** No editar a mà: canvia l'entitat i torna a executar l'script.
+
+### Resum
+
+| Taula | Entitat | Camps |
+|-------|---------|------:|
+| `attendances` | `Attendance` | 10 |
+| `composition_entries` | `CompositionEntry` | 13 |
+| `compositions` | `Composition` | 6 |
+| `event_segments` | `EventSegment` | 11 |
+| `events` | `Event` | 20 |
+| `figure_instances` | `FigureInstance` | 21 |
+| `figure_nodes` | `FigureNode` | 22 |
+| `figure_templates` | `FigureTemplate` | 11 |
+| `instance_nodes` | `InstanceNode` | 25 |
+| `node_assignments` | `NodeAssignment` | 7 |
+| `person_delegates` | `PersonDelegate` | 7 |
+| `persons` | `Person` | 26 |
+| `positions` | `Tag` | 9 |
+| `refresh_tokens` | `RefreshToken` | 10 |
+| `rengles` | `Rengla` | 5 |
+| `seasons` | `Season` | 9 |
+| `users` | `User` | 12 |
+
+### Enums (`libs/shared/src/enums`)
+
+| Enum | Valors |
+|------|--------|
+| `AttendanceStatus` | `PENDENT` · `ANIRE` · `NO_VAIG` · `ASSISTIT` |
+| `AvailabilityStatus` | `AVAILABLE` · `TEMPORARILY_UNAVAILABLE` · `LONG_TERM_UNAVAILABLE` |
+| `ClientType` | `dashboard` · `pwa` |
+| `DelegateType` | `PARENT` · `PARTNER` · `GUARDIAN` |
+| `EventType` | `ASSAIG` · `ACTUACIO` |
+| `FigureMode` | `COMPLETA` · `PEU` · `REMAT` · `NETA` |
+| `FigureZone` | `BASE` · `PINYA` · `TRONC` · `FIGURE_DIRECTION` · `XICALLA_DIRECTION` · `DECORATION` |
+| `Gender` | `MALE` · `FEMALE` · `OTHER` |
+| `NodeShape` | `ELLIPSE` · `RECTANGLE` · `ARROW` · `CIRCLE` |
+| `OnboardingStatus` | `COMPLETED` · `IN_PROGRESS` · `LOST` · `NOT_APPLICABLE` |
+| `SegmentMoveConflictResolution` | `KEEP_TARGET` · `KEEP_MOVED` |
+| `UserRole` | `ADMIN` · `TECHNICAL` · `MEMBER` |
+
+### `attendances` — `Attendance`
+
+Definició: [`apps/api/src/modules/event/attendance.entity.ts`](../apps/api/src/modules/event/attendance.entity.ts)
+
+**Unique:** `person + event`
+
+| Camp | Tipus DB | Tipus TS | Nullable | Notes |
+|------|----------|----------|----------|-------|
+| `id` | `—` | `string` | no | PK |
+| `status` | `enum` | `AttendanceStatus` | no | enum `AttendanceStatus` |
+| `respondedAt` | `timestamptz` | `Date` | sí | — |
+| `notes` | `text` | `string` | sí | — |
+| `person` | `relation` | `Person` | no | ManyToOne → `Person` |
+| `event` | `relation` | `Event` | no | ManyToOne → `Event` |
+| `legacyId` | `varchar` | `string` | sí | — |
+| `lastSyncedAt` | `timestamptz` | `Date` | sí | — |
+| `createdAt` | `timestamptz` | `Date` | no | creació |
+| `updatedAt` | `timestamptz` | `Date` | no | actualització |
+
+### `composition_entries` — `CompositionEntry`
+
+Definició: [`apps/api/src/modules/composition/entities/composition-entry.entity.ts`](../apps/api/src/modules/composition/entities/composition-entry.entity.ts)
+
+| Camp | Tipus DB | Tipus TS | Nullable | Notes |
+|------|----------|----------|----------|-------|
+| `id` | `—` | `string` | no | PK |
+| `composition` | `relation` | `Composition` | no | ManyToOne → `Composition`, onDelete CASCADE |
+| `figureTemplate` | `relation` | `FigureTemplate` | no | ManyToOne → `FigureTemplate`, onDelete RESTRICT |
+| `label` | `varchar` | `string` | sí | — |
+| `offsetX` | `float` | `number` | no | default `0` |
+| `offsetY` | `float` | `number` | no | default `0` |
+| `angle` | `float` | `number` | no | default `0` |
+| `troncPanelX` | `float` | `number` | sí | — |
+| `troncPanelY` | `float` | `number` | sí | — |
+| `figureMode` | `enum` | `FigureMode` | no | enum `FigureMode`, default `FigureMode.COMPLETA` |
+| `numberOfCordons` | `int` | `number` | sí | — |
+| `cordonsObertsEnabled` | `boolean` | `boolean` | no | default `true` |
+| `sortOrder` | `int` | `number` | no | default `0` |
+
+### `compositions` — `Composition`
+
+Definició: [`apps/api/src/modules/composition/entities/composition.entity.ts`](../apps/api/src/modules/composition/entities/composition.entity.ts)
+
+| Camp | Tipus DB | Tipus TS | Nullable | Notes |
+|------|----------|----------|----------|-------|
+| `id` | `—` | `string` | no | PK |
+| `name` | `varchar` | `string` | no | — |
+| `description` | `text` | `string` | sí | — |
+| `entries` | `relation` | `CompositionEntry[]` | no | OneToMany → `CompositionEntry` |
+| `createdAt` | `timestamptz` | `Date` | no | creació |
+| `updatedAt` | `timestamptz` | `Date` | no | actualització |
+
+### `event_segments` — `EventSegment`
+
+Definició: [`apps/api/src/modules/event-segment/entities/event-segment.entity.ts`](../apps/api/src/modules/event-segment/entities/event-segment.entity.ts)
+
+| Camp | Tipus DB | Tipus TS | Nullable | Notes |
+|------|----------|----------|----------|-------|
+| `id` | `—` | `string` | no | PK |
+| `event` | `relation` | `Event` | no | ManyToOne → `Event`, onDelete CASCADE |
+| `name` | `varchar` | `string` | sí | — |
+| `sortOrder` | `int` | `number` | no | — |
+| `startTime` | `varchar` | `string` | sí | — |
+| `endTime` | `varchar` | `string` | sí | — |
+| `notes` | `text` | `string` | sí | — |
+| `isVisible` | `boolean` | `boolean` | no | default `false` |
+| `instances` | `relation` | `FigureInstance[]` | no | OneToMany → `FigureInstance` |
+| `createdAt` | `timestamptz` | `Date` | no | creació |
+| `updatedAt` | `timestamptz` | `Date` | no | actualització |
+
+### `events` — `Event`
+
+Definició: [`apps/api/src/modules/event/event.entity.ts`](../apps/api/src/modules/event/event.entity.ts)
+
+| Camp | Tipus DB | Tipus TS | Nullable | Notes |
+|------|----------|----------|----------|-------|
+| `id` | `—` | `string` | no | PK |
+| `eventType` | `enum` | `EventType` | no | enum `EventType` |
+| `title` | `varchar` | `string` | no | — |
+| `description` | `text` | `string` | sí | — |
+| `date` | `date` | `Date` | no | — |
+| `startTime` | `varchar` | `string` | sí | — |
+| `location` | `varchar` | `string` | sí | — |
+| `locationUrl` | `varchar` | `string` | sí | — |
+| `information` | `text` | `string` | sí | — |
+| `countsForStatistics` | `—` | `boolean` | no | default `true` |
+| `metadata` | `jsonb` | `RehearsalMetadata \| PerformanceMetadata` | no | — |
+| `attendanceSummary` | `jsonb` | `AttendanceSummary` | no | default `DEFAULT_ATTENDANCE_SUMMARY` |
+| `season` | `relation` | `Season` | sí | ManyToOne → `Season` |
+| `attendances` | `relation` | `Attendance[]` | no | OneToMany → `Attendance` |
+| `segments` | `relation` | `EventSegment[]` | no | OneToMany → `EventSegment` |
+| `legacyId` | `varchar` | `string` | sí | unique |
+| `legacyType` | `varchar` | `string` | sí | — |
+| `lastSyncedAt` | `timestamptz` | `Date` | sí | — |
+| `createdAt` | `timestamptz` | `Date` | no | creació |
+| `updatedAt` | `timestamptz` | `Date` | no | actualització |
+
+### `figure_instances` — `FigureInstance`
+
+Definició: [`apps/api/src/modules/event-segment/entities/figure-instance.entity.ts`](../apps/api/src/modules/event-segment/entities/figure-instance.entity.ts)
+
+| Camp | Tipus DB | Tipus TS | Nullable | Notes |
+|------|----------|----------|----------|-------|
+| `id` | `—` | `string` | no | PK |
+| `segment` | `relation` | `EventSegment` | no | ManyToOne → `EventSegment`, onDelete CASCADE |
+| `figureTemplate` | `relation` | `FigureTemplate` | sí | ManyToOne → `FigureTemplate`, onDelete RESTRICT |
+| `label` | `varchar` | `string` | sí | — |
+| `sortOrder` | `int` | `number` | no | — |
+| `figureMode` | `enum` | `FigureMode` | no | enum `FigureMode`, default `FigureMode.COMPLETA` |
+| `snapshotted` | `boolean` | `boolean` | no | default `false` |
+| `numberOfCordons` | `int` | `number` | sí | — |
+| `cordonsObertsEnabled` | `boolean` | `boolean` | no | default `true` |
+| `projectionX` | `float` | `number` | sí | — |
+| `projectionY` | `float` | `number` | sí | — |
+| `projectionScale` | `float` | `number` | no | default `1.0` |
+| `projectionAngle` | `float` | `number` | sí | — |
+| `troncPanelX` | `float` | `number` | sí | — |
+| `troncPanelY` | `float` | `number` | sí | — |
+| `troncPanelWidth` | `float` | `number` | sí | — |
+| `troncPanelHeight` | `float` | `number` | sí | — |
+| `instanceNodes` | `relation` | `InstanceNode[]` | no | OneToMany → `node` |
+| `assignments` | `relation` | `NodeAssignment[]` | no | OneToMany → `a` |
+| `createdAt` | `timestamptz` | `Date` | no | creació |
+| `updatedAt` | `timestamptz` | `Date` | no | actualització |
+
+### `figure_nodes` — `FigureNode`
+
+Definició: [`apps/api/src/modules/figure/entities/figure-node.entity.ts`](../apps/api/src/modules/figure/entities/figure-node.entity.ts)
+
+| Camp | Tipus DB | Tipus TS | Nullable | Notes |
+|------|----------|----------|----------|-------|
+| `id` | `—` | `string` | no | PK |
+| `template` | `relation` | `FigureTemplate` | no | ManyToOne → `FigureTemplate` |
+| `label` | `varchar` | `string` | no | — |
+| `zone` | `enum` | `FigureZone` | no | enum `FigureZone` |
+| `positionType` | `varchar` | `string` | sí | — |
+| `x` | `float` | `number` | no | — |
+| `y` | `float` | `number` | no | — |
+| `z` | `int` | `number` | no | default `0` |
+| `width` | `float` | `number` | no | — |
+| `height` | `float` | `number` | no | — |
+| `rotation` | `float` | `number` | no | default `0` |
+| `color` | `varchar` | `string` | sí | — |
+| `shape` | `enum` | `NodeShape` | no | enum `NodeShape` |
+| `sortOrder` | `int` | `number` | no | default `0` |
+| `climbIndicator` | `varchar` | `string` | sí | — |
+| `ringLevel` | `int` | `number` | sí | — |
+| `originNodeId` | `uuid` | `string` | sí | — |
+| `renglaId` | `uuid` | `string` | sí | — |
+| `renglaPosition` | `int` | `number` | sí | — |
+| `metadata` | `jsonb` | `Record<string, unknown>` | no | — |
+| `createdAt` | `timestamptz` | `Date` | no | creació |
+| `updatedAt` | `timestamptz` | `Date` | no | actualització |
+
+### `figure_templates` — `FigureTemplate`
+
+Definició: [`apps/api/src/modules/figure/entities/figure-template.entity.ts`](../apps/api/src/modules/figure/entities/figure-template.entity.ts)
+
+| Camp | Tipus DB | Tipus TS | Nullable | Notes |
+|------|----------|----------|----------|-------|
+| `id` | `—` | `string` | no | PK |
+| `name` | `varchar` | `string` | no | unique |
+| `slug` | `varchar` | `string` | no | unique |
+| `description` | `text` | `string` | sí | — |
+| `direction` | `float` | `number` | no | default `0` |
+| `metadata` | `jsonb` | `Record<string, unknown>` | no | — |
+| `nodes` | `relation` | `FigureNode[]` | no | OneToMany → `FigureNode` |
+| `rengles` | `relation` | `Rengla[]` | no | OneToMany → `Rengla` |
+| `instances` | `relation` | `FigureInstance[]` | no | OneToMany → `FigureInstance` |
+| `createdAt` | `timestamptz` | `Date` | no | creació |
+| `updatedAt` | `timestamptz` | `Date` | no | actualització |
+
+### `instance_nodes` — `InstanceNode`
+
+Definició: [`apps/api/src/modules/event-segment/entities/instance-node.entity.ts`](../apps/api/src/modules/event-segment/entities/instance-node.entity.ts)
+
+| Camp | Tipus DB | Tipus TS | Nullable | Notes |
+|------|----------|----------|----------|-------|
+| `id` | `—` | `string` | no | PK |
+| `figureInstance` | `relation` | `FigureInstance` | no | ManyToOne → `instance` |
+| `sourceNodeId` | `uuid` | `string` | sí | — |
+| `originNodeId` | `uuid` | `string` | sí | — |
+| `label` | `varchar` | `string` | no | — |
+| `zone` | `enum` | `FigureZone` | no | enum `FigureZone` |
+| `positionType` | `varchar` | `string` | sí | — |
+| `x` | `float` | `number` | no | — |
+| `y` | `float` | `number` | no | — |
+| `z` | `int` | `number` | no | default `0` |
+| `width` | `float` | `number` | no | — |
+| `height` | `float` | `number` | no | — |
+| `rotation` | `float` | `number` | no | default `0` |
+| `color` | `varchar` | `string` | sí | — |
+| `shape` | `enum` | `NodeShape` | no | enum `NodeShape` |
+| `sortOrder` | `int` | `number` | no | default `0` |
+| `climbIndicator` | `varchar` | `string` | sí | — |
+| `ringLevel` | `int` | `number` | sí | — |
+| `renglaId` | `uuid` | `string` | sí | — |
+| `renglaPosition` | `int` | `number` | sí | — |
+| `metadata` | `jsonb` | `Record<string, unknown>` | no | — |
+| `isAdHoc` | `boolean` | `boolean` | no | default `false` |
+| `createdBy` | `relation` | `User` | sí | ManyToOne → `undefined`, onDelete SET NULL |
+| `createdById` | `uuid` | `string` | sí | — |
+| `createdAt` | `timestamptz` | `Date` | no | creació |
+
+### `node_assignments` — `NodeAssignment`
+
+Definició: [`apps/api/src/modules/node-assignment/entities/node-assignment.entity.ts`](../apps/api/src/modules/node-assignment/entities/node-assignment.entity.ts)
+
+**Unique:** `figureInstance + instanceNode` · `figureInstance + person` · `segment + person`
+
+| Camp | Tipus DB | Tipus TS | Nullable | Notes |
+|------|----------|----------|----------|-------|
+| `id` | `—` | `string` | no | PK |
+| `figureInstance` | `relation` | `FigureInstance` | no | ManyToOne → `FigureInstance` |
+| `instanceNode` | `relation` | `InstanceNode` | no | ManyToOne → `InstanceNode`, onDelete RESTRICT |
+| `person` | `relation` | `Person` | no | ManyToOne → `Person`, onDelete RESTRICT |
+| `segment` | `relation` | `EventSegment` | no | ManyToOne → `EventSegment`, onDelete CASCADE |
+| `createdAt` | `timestamptz` | `Date` | no | creació |
+| `updatedAt` | `timestamptz` | `Date` | no | actualització |
+
+### `person_delegates` — `PersonDelegate`
+
+Definició: [`apps/api/src/modules/person-delegate/person-delegate.entity.ts`](../apps/api/src/modules/person-delegate/person-delegate.entity.ts)
+
+**Unique:** `user + person`
+
+| Camp | Tipus DB | Tipus TS | Nullable | Notes |
+|------|----------|----------|----------|-------|
+| `id` | `—` | `string` | no | PK |
+| `user` | `relation` | `User` | no | ManyToOne → `User` |
+| `person` | `relation` | `Person` | no | ManyToOne → `Person` |
+| `delegateType` | `enum` | `DelegateType` | no | enum `DelegateType` |
+| `isActive` | `boolean` | `boolean` | no | default `true` |
+| `createdAt` | `timestamptz` | `Date` | no | creació |
+| `updatedAt` | `timestamptz` | `Date` | no | actualització |
+
+### `persons` — `Person`
+
+Definició: [`apps/api/src/modules/person/person.entity.ts`](../apps/api/src/modules/person/person.entity.ts)
+
+| Camp | Tipus DB | Tipus TS | Nullable | Notes |
+|------|----------|----------|----------|-------|
+| `id` | `—` | `string` | no | PK |
+| `name` | `varchar` | `string` | no | — |
+| `firstSurname` | `varchar` | `string` | no | — |
+| `secondSurname` | `varchar` | `string` | sí | — |
+| `alias` | `varchar` | `string` | no | unique |
+| `phone` | `varchar` | `string` | sí | — |
+| `birthDate` | `date` | `Date` | sí | — |
+| `shoulderHeight` | `int` | `number` | sí | — |
+| `gender` | `enum` | `Gender` | sí | enum `Gender` |
+| `isXicalla` | `boolean` | `boolean` | no | default `false` |
+| `isActive` | `boolean` | `boolean` | no | default `true` |
+| `isMember` | `boolean` | `boolean` | no | default `false` |
+| `isProvisional` | `boolean` | `boolean` | no | default `false` |
+| `availability` | `enum` | `AvailabilityStatus` | no | enum `AvailabilityStatus`, default `AvailabilityStatus.AVAILABLE` |
+| `onboardingStatus` | `enum` | `OnboardingStatus` | no | enum `OnboardingStatus`, default `OnboardingStatus.NOT_APPLICABLE` |
+| `notes` | `text` | `string` | sí | — |
+| `notesEmoji` | `varchar` | `string` | sí | — |
+| `shirtDate` | `date` | `Date` | sí | — |
+| `joinDate` | `date` | `Date` | sí | — |
+| `legacyId` | `varchar` | `string` | sí | — |
+| `lastSyncedAt` | `timestamptz` | `Date` | sí | — |
+| `positions` | `relation` | `Tag[]` | no | ManyToMany → `Tag` |
+| `managedBy` | `relation` | `User` | sí | ManyToOne → `User` |
+| `mentor` | `relation` | `Person` | sí | ManyToOne → `Person` |
+| `createdAt` | `timestamptz` | `Date` | no | creació |
+| `updatedAt` | `timestamptz` | `Date` | no | actualització |
+
+### `positions` — `Tag`
+
+Definició: [`apps/api/src/modules/tag/tag.entity.ts`](../apps/api/src/modules/tag/tag.entity.ts)
+
+| Camp | Tipus DB | Tipus TS | Nullable | Notes |
+|------|----------|----------|----------|-------|
+| `id` | `—` | `string` | no | PK |
+| `name` | `varchar` | `string` | no | unique |
+| `slug` | `varchar` | `string` | no | unique |
+| `shortDescription` | `varchar` | `string` | sí | — |
+| `longDescription` | `text` | `string` | sí | — |
+| `color` | `varchar` | `string` | sí | — |
+| `positionTypes` | `text` | `string[]` | no | — |
+| `createdAt` | `timestamptz` | `Date` | no | creació |
+| `updatedAt` | `timestamptz` | `Date` | no | actualització |
+
+### `refresh_tokens` — `RefreshToken`
+
+Definició: [`apps/api/src/modules/auth/entities/refresh-token.entity.ts`](../apps/api/src/modules/auth/entities/refresh-token.entity.ts)
+
+| Camp | Tipus DB | Tipus TS | Nullable | Notes |
+|------|----------|----------|----------|-------|
+| `id` | `—` | `string` | no | PK |
+| `user` | `relation` | `User` | no | ManyToOne → `User`, onDelete CASCADE |
+| `userId` | `uuid` | `string` | no | — |
+| `tokenHash` | `varchar` | `string` | no | unique |
+| `family` | `uuid` | `string` | no | — |
+| `clientType` | `enum` | `ClientType` | no | enum `ClientType` |
+| `expiresAt` | `timestamptz` | `Date` | no | — |
+| `usedAt` | `timestamptz` | `Date` | sí | — |
+| `revokedAt` | `timestamptz` | `Date` | sí | — |
+| `createdAt` | `timestamptz` | `Date` | no | creació |
+
+### `rengles` — `Rengla`
+
+Definició: [`apps/api/src/modules/figure/entities/rengla.entity.ts`](../apps/api/src/modules/figure/entities/rengla.entity.ts)
+
+| Camp | Tipus DB | Tipus TS | Nullable | Notes |
+|------|----------|----------|----------|-------|
+| `id` | `—` | `string` | no | PK |
+| `template` | `relation` | `FigureTemplate` | no | ManyToOne → `FigureTemplate` |
+| `name` | `varchar` | `string` | sí | — |
+| `sortOrder` | `int` | `number` | no | default `0` |
+| `createdAt` | `timestamptz` | `Date` | no | creació |
+
+### `seasons` — `Season`
+
+Definició: [`apps/api/src/modules/season/season.entity.ts`](../apps/api/src/modules/season/season.entity.ts)
+
+| Camp | Tipus DB | Tipus TS | Nullable | Notes |
+|------|----------|----------|----------|-------|
+| `id` | `—` | `string` | no | PK |
+| `name` | `—` | `string` | no | unique |
+| `startDate` | `date` | `Date` | no | — |
+| `endDate` | `date` | `Date` | no | — |
+| `description` | `text` | `string` | sí | — |
+| `legacyId` | `varchar` | `string` | sí | unique |
+| `events` | `relation` | `Event[]` | no | OneToMany → `Event` |
+| `createdAt` | `timestamptz` | `Date` | no | creació |
+| `updatedAt` | `timestamptz` | `Date` | no | actualització |
+
+### `users` — `User`
+
+Definició: [`apps/api/src/modules/user/user.entity.ts`](../apps/api/src/modules/user/user.entity.ts)
+
+| Camp | Tipus DB | Tipus TS | Nullable | Notes |
+|------|----------|----------|----------|-------|
+| `id` | `—` | `string` | no | PK |
+| `email` | `varchar` | `string` | no | unique |
+| `passwordHash` | `varchar` | `string` | sí | — |
+| `role` | `enum` | `UserRole` | no | enum `UserRole`, default `UserRole.MEMBER` |
+| `isActive` | `boolean` | `boolean` | no | default `false` |
+| `inviteToken` | `varchar` | `string` | sí | — |
+| `inviteExpiresAt` | `timestamptz` | `Date` | sí | — |
+| `resetToken` | `varchar` | `string` | sí | — |
+| `resetExpiresAt` | `timestamptz` | `Date` | sí | — |
+| `createdAt` | `timestamptz` | `Date` | no | creació |
+| `updatedAt` | `timestamptz` | `Date` | no | actualització |
+| `person` | `relation` | `Relation<Person>` | sí | OneToOne → `undefined` |
+
+<!-- END:AUTO -->
+
+---
+
+## Pendent de modelar
+
+| Entitat | Quan | Descripció |
+|---------|------|------------|
+| `Notification` | amb el push de la PWA | Notificacions push/email |
+| `Colla` | multi-tenant | Arrel del model; caldrà `collaId` al JWT i als guards (vegeu [[DEBT]] SEC4) |
+
+Els camps sensibles (`email`, `phone`, `birthDate`) encara no s'encripten en repòs: [[DEBT]] SEC3.
+
+---
+
+*Veïns: [[PINYES_MODULE]] · [[SYNC_ARCHITECTURE]] · [[AUTH_FLOW]] · [[DEBT]] · [[MAP]]*

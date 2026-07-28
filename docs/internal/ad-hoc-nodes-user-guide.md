@@ -1,3 +1,7 @@
+---
+tags: [qa]
+---
+
 # Nodes Ad-Hoc — Guia d'Usuari
 
 > Aquesta guia serveix com a base per al modal d'ajuda dins l'aplicació.
@@ -153,3 +157,7 @@ Si algú modifica el template base després de crear la instància, **cap node c
 | **F** | Pantalla completa del navegador |
 | **Escape** | Tancar panell / tornar enrere |
 | **? / H** | Obrir / tancar ajuda |
+
+---
+
+*Veïns: [[PINYES_MODULE]] · [[DASHBOARD_UI]] · [[MAP]]*

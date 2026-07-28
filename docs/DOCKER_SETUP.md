@@ -1,3 +1,7 @@
+---
+tags: [infra]
+---
+
 # Docker Setup — PostgreSQL Local
 
 > Guia pràctica per posar en marxa el projecte en local amb Docker.
@@ -189,3 +193,7 @@ Per a la documentació completa sobre l'arquitectura Docker (desplegament a VPS,
 ---
 
 **Última actualització:** 7 de maig de 2026
+
+---
+
+*Veïns: [[DOCKER_ARCHITECTURE]] · [[DEPLOY_PRE]] · [[MAP]]*
