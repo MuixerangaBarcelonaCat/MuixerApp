@@ -26,7 +26,9 @@ tags: [qa]
 | PWA | App de membres: login, agenda, confirmació d'assistència | ✅ |
 | Delegació | Assistència en nom d'altres (`person-delegate`) | ✅ |
 | Auditoria a11y/responsive | Card mode, tap targets ≥24px, guards de mòbil, localització de dates | ✅ |
-| P5.3.1 | Revisió UX de segments (pestanya a event-detail) | ⚪ Pendent |
+| P5.3.1 | Revisió UX de segments. Fet: `event-detail` en pestanyes (Resum / Pinyes / Assistència / Participació) amb `?tab=`. Queda el preview de canvas inline | ⚪ Parcial |
+| Participació | Matriu persona × segment per event (`?tab=participacio`), cercable per persona i pel que fa | ✅ |
+| Flexibilitat de segments | Permetre una persona dues vegades al mateix segment, amb avís en lloc de bloqueig. Dissenyat i verificat, **no implementat** → [[SEGMENTS_FLEXIBILITY]] | ⚪ Pendent |
 | P6.2 | Push notifications a la PWA (FCM) | ⚪ Pendent |
 | P7 | Informes d'assistència i estadístiques | ⚪ Pendent |
 | P8+ | Export PDF de pinyes, multi-tenant, auditoria/versionat | ⚪ Pendent |
