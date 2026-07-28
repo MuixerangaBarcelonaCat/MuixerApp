@@ -17,27 +17,37 @@
 
 <!-- Mobile: hamburger dropdown -->
 <div class="sm:hidden bg-base-100 border-b border-base-300 px-4 py-2">
-  <div class="dropdown w-full">
+  <div class="relative w-full">
     <button
-      tabindex="0"
       class="btn btn-ghost btn-sm w-full justify-start gap-2"
       (click)="mobileMenuToggle.emit()"
       type="button"
+      [attr.aria-expanded]="mobileMenuOpen()"
+      aria-haspopup="true"
     >
       <lucide-icon name="Menu" [size]="18" />
       <span class="text-sm font-medium">Navegar</span>
-      <lucide-icon name="ChevronDown" [size]="14" class="ml-auto" />
+      <lucide-icon [name]="mobileMenuOpen() ? 'ChevronUp' : 'ChevronDown'" [size]="14" class="ml-auto" />
     </button>
 
     @if (mobileMenuOpen()) {
-      <ul class="dropdown-content menu bg-base-100 rounded-box z-50 w-full shadow-lg border border-base-300 mt-1">
+      <div
+        class="fixed inset-0 z-40"
+        (click)="mobileMenuToggle.emit()"
+        aria-hidden="true"
+      ></div>
+      <ul
+        class="absolute left-0 right-0 z-50 mt-1 menu bg-base-100 rounded-box shadow-lg border border-base-300"
+        role="menu"
+      >
         @for (tab of tabs; track tab.path) {
-          <li>
+          <li role="none">
             <a
               [routerLink]="tab.path"
               routerLinkActive="active"
               class="flex items-center gap-3 py-3"
               (click)="mobileMenuToggle.emit()"
+              role="menuitem"
             >
               <lucide-icon [name]="tab.icon" [size]="18" />
               {{ tab.label }}
