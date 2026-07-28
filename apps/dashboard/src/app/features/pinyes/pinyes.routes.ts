@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { TemplateListComponent } from './components/template-list/template-list.component';
 import { unsavedChangesGuard } from '../../core/guards/unsaved-changes.guard';
+import { desktopOnlyGuard } from '../../core/guards/desktop-only.guard';
 
 export const pinyesRoutes: Routes = [
   { path: '', component: TemplateListComponent },
@@ -10,6 +11,7 @@ export const pinyesRoutes: Routes = [
       import('./components/template-editor/template-editor.component').then(
         (m) => m.TemplateEditorComponent,
       ),
+    canActivate: [desktopOnlyGuard],
     canDeactivate: [unsavedChangesGuard],
   },
   {
@@ -18,6 +20,7 @@ export const pinyesRoutes: Routes = [
       import('./components/template-editor/template-editor.component').then(
         (m) => m.TemplateEditorComponent,
       ),
+    canActivate: [desktopOnlyGuard],
     canDeactivate: [unsavedChangesGuard],
   },
   {
@@ -26,6 +29,7 @@ export const pinyesRoutes: Routes = [
       import('./components/composition-editor/composition-editor.component').then(
         (m) => m.CompositionEditorComponent,
       ),
+    canActivate: [desktopOnlyGuard],
   },
   {
     path: 'compositions/:id/edit',
@@ -33,6 +37,7 @@ export const pinyesRoutes: Routes = [
       import('./components/composition-editor/composition-editor.component').then(
         (m) => m.CompositionEditorComponent,
       ),
+    canActivate: [desktopOnlyGuard],
   },
   {
     path: 'events/:eventId/segments/:segmentId/assign',
@@ -40,6 +45,7 @@ export const pinyesRoutes: Routes = [
       import('./components/segment-workspace/segment-workspace.component').then(
         (m) => m.SegmentWorkspaceComponent,
       ),
+    canActivate: [desktopOnlyGuard],
   },
   {
     path: 'events/:eventId/segments/:segmentId/assign/:instanceId',
@@ -47,6 +53,7 @@ export const pinyesRoutes: Routes = [
       import('./components/segment-workspace/segment-workspace.component').then(
         (m) => m.SegmentWorkspaceComponent,
       ),
+    canActivate: [desktopOnlyGuard],
   },
   {
     path: 'events/:eventId/segments/:segmentId/project',

@@ -1,0 +1,55 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": [
+        "apps/api/src/main.ts",
+        "apps/api/src/data-source.ts",
+        "apps/api/src/migrations/*.ts",
+        "apps/api/src/environments/*.ts",
+        "apps/api/src/modules/database/scripts/*.script.ts",
+        "apps/api/src/**/*.spec.ts",
+        "apps/dashboard/src/main.ts",
+        "apps/dashboard/src/environments/*.ts",
+        "apps/dashboard/src/test-setup.ts",
+        "apps/dashboard/src/**/*.spec.ts",
+        "apps/pwa/src/main.ts",
+        "apps/pwa/src/environments/*.ts",
+        "apps/pwa/src/**/*.spec.ts",
+        "apps/*-e2e/src/**/*.spec.ts",
+        "apps/*-e2e/playwright*.config.ts",
+        "apps/*/vitest.config.ts",
+        "apps/*/webpack.config.js",
+        "apps/*/postcss.config.js",
+        "apps/*/eslint.config.mjs",
+        "scripts/*.mjs",
+        "jest.preset.js"
+      ],
+      "project": ["apps/**/*.{ts,js,mjs}", "scripts/*.mjs", "*.{ts,js,mjs}"]
+    },
+    "libs/shared": {
+      "project": ["src/**/*.ts"]
+    }
+  },
+  "ignoreDependencies": [
+    "knip",
+    "prettier",
+    "autoprefixer",
+    "webpack-cli",
+    "jest-environment-node",
+    "@angular/cli",
+    "@angular/language-service",
+    "@nestjs/schematics",
+    "@nx/nest",
+    "@nx/node",
+    "@nx/workspace",
+    "@oxc-project/runtime",
+    "@eslint/js",
+    "@typescript-eslint/utils",
+    "typescript-eslint",
+    "angular-eslint",
+    "testcontainers",
+    "@muixer/shared",
+    "express"
+  ]
+}

@@ -1,3 +1,7 @@
+---
+tags: [infra]
+---
+
 # Desplegament a PRE — Hetzner VPS
 
 > Guia operativa per gestionar i actualitzar l'entorn de pre-producció.
@@ -553,9 +557,10 @@ sudo lsof -i :80
 
 | Document | Relació |
 |----------|---------|
-| [`DOCKER_ARCHITECTURE.md`](DOCKER_ARCHITECTURE.md) | Arquitectura de contenidors, diagrames multi-entorn, backup automatitzat |
-| [`DOCKER_SETUP.md`](DOCKER_SETUP.md) | Configuració de Docker per a l'entorn de dev local |
-| [`MIGRATION_NPM_TO_PNPM.md`](MIGRATION_NPM_TO_PNPM.md) | Migració del gestor de paquets — ja aplicada als Dockerfiles |
+| [[DOCKER_ARCHITECTURE]] | Arquitectura de contenidors, diagrames multi-entorn, backup automatitzat |
+| [[DOCKER_SETUP]] | Configuració de Docker per a l'entorn de dev local |
+| [[DEBT]] | Verificacions obligatòries de desplegament: `SETUP_TOKEN` (SEC1) i `CORS_ORIGINS` (SEC2) |
+| [[MAP]] | Índex general de documentació |
 
 ---
 

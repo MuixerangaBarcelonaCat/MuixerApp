@@ -22,7 +22,7 @@ import {
   DecorationPositionType,
   DIRECTION_ZONES,
   DIRECTION_POSITION_TYPES,
-  AD_HOC_ALLOWED_ZONES_PHASE3,
+  AD_HOC_ALLOWED_ZONES,
 } from '@muixer/shared';
 
 @ValidatorConstraint({ name: 'isValidPositionType', async: false })
@@ -60,7 +60,7 @@ export class IsValidPositionTypeConstraint
 }
 
 export class CreateAdHocNodeDto {
-  @IsIn([...AD_HOC_ALLOWED_ZONES_PHASE3])
+  @IsIn([...AD_HOC_ALLOWED_ZONES])
   zone: FigureZone;
 
   @IsOptional()

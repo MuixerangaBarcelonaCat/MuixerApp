@@ -1,3 +1,7 @@
+---
+tags: [domini]
+---
+
 # SSE Authentication
 
 ## Problem
@@ -107,3 +111,7 @@ All sync endpoints require ADMIN role and support query param auth:
 - `GET /api/sync/events?token=<jwt>`
 - `GET /api/sync/events/:eventId/attendance?token=<jwt>`
 - `GET /api/sync/all?token=<jwt>`
+
+---
+
+*Veïns: [[AUTH_FLOW]] · [[SYNC_ARCHITECTURE]] · [[MAP]]*

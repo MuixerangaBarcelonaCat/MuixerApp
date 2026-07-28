@@ -1,3 +1,7 @@
+---
+tags: [domini]
+---
+
 # Auth Flow — MuixerApp
 
 > P4.1 Auth Layer. JWT + Passport. Implementat abril 2026.
@@ -186,3 +190,7 @@ POST /auth/invite/accept                →     AuthController.acceptInvite()
 - **Access token en memòria**: mai `localStorage`, es perd al tancar pestanya (per disseny)
 - **Silent refresh**: al bootstrap, `AuthService` crida `/auth/refresh` automàticament. Un signal `isReady` i `whenReady()` Promise coordinen els guards perquè no redirigixin a `/login` abans que el refresh acabi.
 - **Refresh dedup**: crides concurrents a `refresh()` comparteixen un únic HTTP request via `share()`, evitant detecció de reutilització al backend.
+
+---
+
+*Veïns: [[SSE_AUTH]] · [[DATA_MODEL]] · [[DEBT]] · [[MAP]]*

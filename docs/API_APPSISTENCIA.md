@@ -1,3 +1,7 @@
+---
+tags: [domini]
+---
+
 # API APPsistencia - Muixeranga de Barcelona
 
 Documentacio dels endpoints descoberts a `https://muixerangadebarcelona.appsistencia.cat`.
@@ -485,3 +489,7 @@ Output a `data/extracted/`:
 - `excel/assistencia_{id}.xlsx` — 89 excels d'assistencia
 - `dispositius.json` — 177 dispositius
 - `noticies.json` — 9 noticies
+
+---
+
+*Veïns: [[SYNC_ARCHITECTURE]] · [[DATA_MODEL]] · [[MAP]]*
