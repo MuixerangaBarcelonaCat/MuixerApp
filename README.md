@@ -229,24 +229,6 @@ pnpm run ci:local
 Documentació completa amb Swagger a `http://localhost:3000/api/docs`
 
 
-| Method   | Route               | Descripció                                |
-| -------- | ------------------- | ----------------------------------------- |
-| `POST`   | `/api/auth/login`   | Iniciar sessió                            |
-| `POST`   | `/api/auth/refresh` | Renovar token d'accés                     |
-| `GET`    | `/api/auth/me`      | Perfil de l'usuari autenticat             |
-| `GET`    | `/api/persons`      | Llista amb filtres i paginació            |
-| `GET`    | `/api/persons/:id`  | Detall d'una persona                      |
-| `POST`   | `/api/persons`      | Crear persona                             |
-| `PATCH`  | `/api/persons/:id`  | Actualitzar persona                       |
-| `DELETE` | `/api/persons/:id`  | Soft delete (isActive = false)            |
-| `GET`    | `/api/positions`    | Llista de posicions                       |
-| `GET`    | `/api/events`       | Llista d'events amb filtres               |
-| `GET`    | `/api/events/:id`   | Detall d'un event                         |
-| `GET`    | `/api/seasons`      | Llista de temporades                      |
-| `GET`    | `/api/sync/persons` | SSE: sincronitzar persones des del legacy |
-| `GET`    | `/api/sync/events`  | SSE: sincronitzar events des del legacy   |
-
-
 ## Funcionalitats implementades
 
 - ✅ **API REST** amb NestJS + TypeORM
