@@ -1,12 +1,26 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: muixer-postgres
+    restart: unless-stopped
+    env_file: .env.prod
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - postgres-prod-data:/var/lib/postgresql/data
+      - ./docker/postgres/init-prod.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   api:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
-    image: muixer-api:latest
+    image: ghcr.io/<registry_path>/api:${IMAGE_TAG:-latest}
+    pull_policy: always
     container_name: muixer-api
     restart: unless-stopped
-    env_file: .env.production
+    env_file: .env.prod
     ports:
       - '127.0.0.1:3000:3000'
     depends_on:
@@ -18,20 +32,32 @@ services:
       timeout: 10s
       start_period: 30s
       retries: 3
-
-  postgres:
-    image: postgres:16-alpine
-    container_name: muixer-postgres
+  pwa:
+    image: ghcr.io/<registry_path>/pwa:${IMAGE_TAG:-latest}
+    pull_policy: always
+    container_name: muixer-pwa
     restart: unless-stopped
-    env_file: .env.production
+    depends_on:
+      api:
+        condition: service_healthy
+
+  dashboard:
+    image: ghcr.io/<registry_path>/dashboard:${IMAGE_TAG:-latest}
+    pull_policy: always
+    container_name: muixer-dashboard
+    restart: unless-stopped
+    env_file: .env.prod
+    ports:
+      - '80:80'
+      - '443:443'
     volumes:
-      - postgres-data:/var/lib/postgresql/data
-      - ./docker/postgres/init-prod.sql:/docker-entrypoint-initdb.d/init.sql
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - caddy-data:/data
+    depends_on:
+      api:
+        condition: service_healthy
+      pwa:
+        condition: service_started
 
 volumes:
-  postgres-data:
+  postgres-prod-data:
+  caddy-data:
