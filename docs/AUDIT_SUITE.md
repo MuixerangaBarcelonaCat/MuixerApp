@@ -28,7 +28,8 @@ E2E_EMAIL=<admin> E2E_PASSWORD=<pass> \
 # PWA (arrenca el servidor de la PWA al :4300)
 E2E_EMAIL=<admin> E2E_PASSWORD=<pass> pnpm audit:pwa
 
-# Gestos tàctils del canvas de Pinyes (perfils tàctils)
+# Gestos tàctils del canvas de Pinyes: workspace d'assignació (només tablet-landscape,
+# per sota es verifica la redirecció del desktopOnlyGuard) i projecció (sense guard, els 3 perfils)
 E2E_EMAIL=<admin> E2E_PASSWORD=<pass> pnpm audit:gestures
 
 # Comportament PWA: manifest / service worker / offline (build de prod al :4310)
@@ -45,8 +46,11 @@ Les credencials es passen sempre per variable d'entorn, mai hardcodejades. Els r
   **client-side** (sense recàrregues). Vegeu `apps/dashboard-e2e/src/audit/login-helper.ts`.
 - **IDs de detall:** `src/audit/audit-targets.ts` conté IDs d'exemple de la BD de dev (sobreescriptibles per
   variable d'entorn); si es reseteja la BD cal refrescar-los.
-- La ruta standalone `/pinyes/.../project` no és assolible de forma fiable per navegació SPA: la seua
-  renderització es cobreix via la pestanya *Previsualitza*.
+- La ruta standalone `/pinyes/.../project` no és assolible de forma fiable per navegació SPA (`spaGoto`):
+  la majoria d'auditories la cobreixen via la pestanya *Previsualitza*. `canvas-projection-gestures.spec.ts`
+  sí que necessita la ruta standalone (és l'única sense `desktopOnlyGuard`, doncs cal provar-la a mòbil), i
+  hi arriba amb un `page.goto()` real en lloc de `spaGoto`: la recàrrega perd el JWT en memòria, però el
+  hint `muixer_has_session` + la cookie de refresh rotativa disparen un silent-refresh al bootstrap.
 - **Mesurar tap targets:** usa sempre `getBoundingClientRect`, no `getComputedStyle`. El `line-height` **no**
   infla la caixa mesurable d'un element `inline` — d'aquí ve el patró `inline-flex items-center min-h-6`
   repartit pel codi.
@@ -58,7 +62,7 @@ Les credencials es passen sempre per variable d'entorn, mai hardcodejades. Els r
 | `playwright.config.ts` | e2e general (`example.spec.ts`) |
 | `playwright.audit.config.ts` | `src/audit/*.spec.ts` (responsive, persons, events, pinyes, config) |
 | `playwright.pwa-audit.config.ts` | `src/audit-pwa/pwa-audit.spec.ts` |
-| `playwright.gestures.config.ts` | `src/audit-gestures/pinyes-gestures.spec.ts` |
+| `playwright.gestures.config.ts` | `src/audit-gestures/pinyes-gestures.spec.ts`, `canvas-projection-gestures.spec.ts` |
 | `playwright.pwa-behavior.config.ts` | `src/audit-pwa-behavior/pwa-behavior.spec.ts` |
 
 Lògica compartida: `src/audit/audit-core.ts` (recollida de mètriques) i `src/audit/login-helper.ts`.

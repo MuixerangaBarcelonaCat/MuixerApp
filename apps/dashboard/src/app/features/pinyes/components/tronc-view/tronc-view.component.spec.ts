@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { TroncViewComponent, TroncNodeItem } from './tronc-view.component';
 import { AssignmentDetail } from '../../models/assignment.model';
@@ -1263,6 +1263,264 @@ describe('TroncViewComponent', () => {
 
       const projRow = fixture.nativeElement.querySelector('.direction-projection-row');
       expect(projRow).toBeNull();
+    });
+  });
+
+  // ── Pointer-based drag-and-drop (replaces HTML5 DnD, which never fires on touch) ──
+
+  describe('pointer drag-and-drop', () => {
+    function makePointerEvent(overrides: Partial<PointerEvent> = {}): PointerEvent {
+      return {
+        pointerId: 1,
+        clientX: 0,
+        clientY: 0,
+        button: 0,
+        pointerType: 'touch',
+        preventDefault: () => { /* no-op */ },
+        currentTarget: { setPointerCapture: () => { /* no-op */ } } as unknown as EventTarget,
+        ...overrides,
+      } as unknown as PointerEvent;
+    }
+
+    /** A real detached DOM node so Element.closest()/dataset work like in the browser. */
+    function makeDropTargetElement(nodeId: string, instanceId: string): HTMLElement {
+      const el = document.createElement('button');
+      el.dataset['troncNodeId'] = nodeId;
+      el.dataset['instanceId'] = instanceId;
+      return el;
+    }
+
+    beforeEach(() => {
+      // jsdom doesn't implement elementFromPoint at all (not even as a no-op) —
+      // define it once so vi.spyOn has an existing property to replace per test.
+      if (!('elementFromPoint' in document)) {
+        Object.defineProperty(document, 'elementFromPoint', { value: () => null, writable: true, configurable: true });
+      }
+      fixture.componentRef.setInput('instanceId', 'instance-a');
+      fixture.componentRef.setInput('mode', 'assignment');
+      fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'node-1' })]);
+      fixture.componentRef.setInput('assignments', [makeAssignment('node-1', 'Pepet')]);
+      fixture.detectChanges();
+    });
+
+    it('isDraggableNode is false for an unassigned node', () => {
+      fixture.componentRef.setInput('assignments', []);
+      fixture.detectChanges();
+      expect(component.isDraggableNode('node-1')).toBe(false);
+    });
+
+    it('does not start dragging on pointerdown alone (movement threshold not yet reached)', () => {
+      component.onNodePointerDown(component.troncNodes()[0], makePointerEvent({ clientX: 0, clientY: 0 }));
+      expect(component.isDragging('node-1')).toBe(false);
+    });
+
+    it('pointerdown on a non-draggable node does not capture the pointer', () => {
+      fixture.componentRef.setInput('assignments', []);
+      fixture.detectChanges();
+      let captured = false;
+      const event = makePointerEvent({
+        currentTarget: { setPointerCapture: () => { captured = true; } } as unknown as EventTarget,
+      });
+      component.onNodePointerDown(component.troncNodes()[0], event);
+      expect(captured).toBe(false);
+    });
+
+    it('starts dragging once pointermove exceeds the movement threshold', () => {
+      vi.spyOn(document, 'elementFromPoint').mockReturnValue(null);
+      component.onNodePointerDown(component.troncNodes()[0], makePointerEvent({ clientX: 0, clientY: 0 }));
+      component.onNodePointerMove(makePointerEvent({ clientX: 20, clientY: 0 }));
+      expect(component.isDragging('node-1')).toBe(true);
+    });
+
+    it('does not start dragging when movement stays under the threshold', () => {
+      vi.spyOn(document, 'elementFromPoint').mockReturnValue(null);
+      component.onNodePointerDown(component.troncNodes()[0], makePointerEvent({ clientX: 0, clientY: 0 }));
+      component.onNodePointerMove(makePointerEvent({ clientX: 2, clientY: 0 }));
+      expect(component.isDragging('node-1')).toBe(false);
+    });
+
+    it('sets dragOverNodeId to the node resolved under the pointer while dragging', () => {
+      const target = makeDropTargetElement('node-2', 'instance-a');
+      vi.spyOn(document, 'elementFromPoint').mockReturnValue(target);
+      component.onNodePointerDown(component.troncNodes()[0], makePointerEvent({ clientX: 0, clientY: 0 }));
+      component.onNodePointerMove(makePointerEvent({ clientX: 50, clientY: 0 }));
+      expect(component.dragOverNodeId()).toBe('node-2');
+    });
+
+    it('does not set dragOverNodeId when hovering back over the origin node', () => {
+      const target = makeDropTargetElement('node-1', 'instance-a');
+      vi.spyOn(document, 'elementFromPoint').mockReturnValue(target);
+      component.onNodePointerDown(component.troncNodes()[0], makePointerEvent({ clientX: 0, clientY: 0 }));
+      component.onNodePointerMove(makePointerEvent({ clientX: 50, clientY: 0 }));
+      expect(component.dragOverNodeId()).toBeNull();
+    });
+
+    it('ignores move events from an unrelated pointerId', () => {
+      vi.spyOn(document, 'elementFromPoint').mockReturnValue(makeDropTargetElement('node-2', 'instance-a'));
+      component.onNodePointerDown(component.troncNodes()[0], makePointerEvent({ pointerId: 1, clientX: 0, clientY: 0 }));
+      component.onNodePointerMove(makePointerEvent({ pointerId: 2, clientX: 50, clientY: 0 }));
+      expect(component.isDragging('node-1')).toBe(false);
+      expect(component.dragOverNodeId()).toBeNull();
+    });
+
+    it('emits nodeDropped when released over a different node in the same instance', () => {
+      let emitted: unknown = null;
+      component.nodeDropped.subscribe((e) => (emitted = e));
+      const target = makeDropTargetElement('node-2', 'instance-a');
+      vi.spyOn(document, 'elementFromPoint').mockReturnValue(target);
+
+      component.onNodePointerDown(component.troncNodes()[0], makePointerEvent({ clientX: 0, clientY: 0 }));
+      component.onNodePointerMove(makePointerEvent({ clientX: 50, clientY: 0 }));
+      component.onNodePointerUp(makePointerEvent({ clientX: 50, clientY: 0 }));
+
+      expect(emitted).toEqual({
+        sourceInstanceId: 'instance-a',
+        sourceNodeId: 'node-1',
+        targetInstanceId: 'instance-a',
+        targetNodeId: 'node-2',
+      });
+    });
+
+    it('emits nodeDropped with the target instance id when dropped on a sibling tronc-view', () => {
+      let emitted: unknown = null;
+      component.nodeDropped.subscribe((e) => (emitted = e));
+      const target = makeDropTargetElement('node-9', 'instance-b');
+      vi.spyOn(document, 'elementFromPoint').mockReturnValue(target);
+
+      component.onNodePointerDown(component.troncNodes()[0], makePointerEvent({ clientX: 0, clientY: 0 }));
+      component.onNodePointerMove(makePointerEvent({ clientX: 50, clientY: 0 }));
+      component.onNodePointerUp(makePointerEvent({ clientX: 50, clientY: 0 }));
+
+      expect(emitted).toEqual({
+        sourceInstanceId: 'instance-a',
+        sourceNodeId: 'node-1',
+        targetInstanceId: 'instance-b',
+        targetNodeId: 'node-9',
+      });
+    });
+
+    it('does not emit nodeDropped for a plain tap that never exceeds the movement threshold', () => {
+      let emitted: unknown = null;
+      component.nodeDropped.subscribe((e) => (emitted = e));
+      vi.spyOn(document, 'elementFromPoint').mockReturnValue(makeDropTargetElement('node-1', 'instance-a'));
+
+      component.onNodePointerDown(component.troncNodes()[0], makePointerEvent({ clientX: 0, clientY: 0 }));
+      component.onNodePointerUp(makePointerEvent({ clientX: 0, clientY: 0 }));
+
+      expect(emitted).toBeNull();
+    });
+
+    it('does not emit nodeDropped when released with no resolvable target', () => {
+      let emitted: unknown = null;
+      component.nodeDropped.subscribe((e) => (emitted = e));
+      vi.spyOn(document, 'elementFromPoint').mockReturnValue(null);
+
+      component.onNodePointerDown(component.troncNodes()[0], makePointerEvent({ clientX: 0, clientY: 0 }));
+      component.onNodePointerMove(makePointerEvent({ clientX: 50, clientY: 0 }));
+      component.onNodePointerUp(makePointerEvent({ clientX: 50, clientY: 0 }));
+
+      expect(emitted).toBeNull();
+    });
+
+    it('resets dragging and dragOver state after pointerup', () => {
+      vi.spyOn(document, 'elementFromPoint').mockReturnValue(makeDropTargetElement('node-2', 'instance-a'));
+      component.onNodePointerDown(component.troncNodes()[0], makePointerEvent({ clientX: 0, clientY: 0 }));
+      component.onNodePointerMove(makePointerEvent({ clientX: 50, clientY: 0 }));
+      component.onNodePointerUp(makePointerEvent({ clientX: 50, clientY: 0 }));
+
+      expect(component.isDragging('node-1')).toBe(false);
+      expect(component.dragOverNodeId()).toBeNull();
+    });
+
+    it('resets dragging state on pointercancel without emitting a drop', () => {
+      let emitted: unknown = null;
+      component.nodeDropped.subscribe((e) => (emitted = e));
+      vi.spyOn(document, 'elementFromPoint').mockReturnValue(makeDropTargetElement('node-2', 'instance-a'));
+
+      component.onNodePointerDown(component.troncNodes()[0], makePointerEvent({ clientX: 0, clientY: 0 }));
+      component.onNodePointerMove(makePointerEvent({ clientX: 50, clientY: 0 }));
+      component.onNodePointerCancel(makePointerEvent({ clientX: 50, clientY: 0 }));
+
+      expect(component.isDragging('node-1')).toBe(false);
+      expect(emitted).toBeNull();
+    });
+  });
+
+  // ── Tap fallback for the person hover card (touch has no mouseenter/mouseleave) ──
+
+  describe('tap fallback for the person hover card', () => {
+    function makeClickEvent(currentTarget: EventTarget): MouseEvent {
+      return {
+        currentTarget,
+        target: currentTarget,
+      } as unknown as MouseEvent;
+    }
+
+    function makeButtonTarget(): HTMLElement {
+      const el = document.createElement('button');
+      el.getBoundingClientRect = () => ({ top: 10, right: 20, bottom: 0, left: 0, width: 20, height: 10, x: 0, y: 10, toJSON: () => '' });
+      return el;
+    }
+
+    it('onNodeClick reveals the hover card for an assigned node (tap has no hover)', () => {
+      fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'node-1' })]);
+      fixture.componentRef.setInput('assignments', [makeAssignment('node-1', 'Pepet')]);
+      fixture.detectChanges();
+
+      component.onNodeClick(component.troncNodes()[0], makeClickEvent(makeButtonTarget()));
+
+      expect(component.hoveredPerson()?.info.alias).toBe('Pepet');
+    });
+
+    it('onNodeClick does not reveal a card for an unassigned node', () => {
+      fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'node-1' })]);
+      fixture.componentRef.setInput('assignments', []);
+      fixture.detectChanges();
+
+      component.onNodeClick(component.troncNodes()[0], makeClickEvent(makeButtonTarget()));
+
+      expect(component.hoveredPerson()).toBeNull();
+    });
+
+    it('onDirectionNodeClick reveals the hover card for an assigned direction node', () => {
+      const dirNode = makeNode({ id: 'dir-1', zone: 'FIGURE_DIRECTION' });
+      fixture.componentRef.setInput('directionNodes', [dirNode]);
+      fixture.componentRef.setInput('assignments', [makeAssignment('dir-1', 'Marta')]);
+      fixture.detectChanges();
+
+      component.onDirectionNodeClick(dirNode, makeClickEvent(makeButtonTarget()));
+
+      expect(component.hoveredPerson()?.info.alias).toBe('Marta');
+    });
+
+    it('onBackgroundClick dismisses the hover card when tapping the section itself', () => {
+      const section = document.createElement('section');
+      component.hoveredPerson.set({
+        info: { alias: 'Pepet', attendanceStatus: null, isXicalla: false, shoulderHeight: null, notes: null, notesEmoji: null, positions: [] },
+        top: 0,
+        left: 0,
+        positionType: null,
+      });
+
+      component.onBackgroundClick(makeClickEvent(section));
+
+      expect(component.hoveredPerson()).toBeNull();
+    });
+
+    it('onBackgroundClick does not dismiss the hover card when the click bubbled from a child node', () => {
+      const section = document.createElement('section');
+      const child = document.createElement('button');
+      section.appendChild(child);
+      component.hoveredPerson.set({
+        info: { alias: 'Pepet', attendanceStatus: null, isXicalla: false, shoulderHeight: null, notes: null, notesEmoji: null, positions: [] },
+        top: 0,
+        left: 0,
+        positionType: null,
+      });
+
+      component.onBackgroundClick({ currentTarget: section, target: child } as unknown as MouseEvent);
+
+      expect(component.hoveredPerson()).not.toBeNull();
     });
   });
 });

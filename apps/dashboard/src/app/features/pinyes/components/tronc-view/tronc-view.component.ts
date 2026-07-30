@@ -50,6 +50,9 @@ interface TroncFloor {
 
 const MAX_TRONC_Z = 5;
 
+/** Minimum pointer movement (px) before a pointerdown is treated as a drag rather than a tap/click. */
+const DRAG_THRESHOLD_PX = 6;
+
 
 @Component({
   selector: 'app-tronc-view',
@@ -151,6 +154,14 @@ export class TroncViewComponent {
   readonly draggingNodeId = signal<string | null>(null);
   /** Id of the node currently under the pointer while dragging. */
   readonly dragOverNodeId = signal<string | null>(null);
+
+  /**
+   * Pointer captured on pointerdown, before we know whether it's a tap/click
+   * (never moves) or a real drag (moves past DRAG_THRESHOLD_PX). Keeping this
+   * separate from `draggingNodeId` avoids flashing the "dragging" look on a
+   * plain tap — HTML5 DnD had this movement gate built in; pointer events don't.
+   */
+  private pointerDragOrigin: { nodeId: string; pointerId: number; x: number; y: number } | null = null;
 
   // ── Direction computed ─────────────────────────────────────────────────────
 
@@ -301,6 +312,15 @@ export class TroncViewComponent {
     this.nodeSelected.emit(node.id);
     if (this.isAssigned(node.id)) {
       this.nodeClicked.emit({ nodeId: node.id, event });
+      // Touch has no hover: a tap reveals the same person card mouseenter shows.
+      this.onNodeHover(event, node.id);
+    }
+  }
+
+  /** Tapping empty space in the tronc (not a node) dismisses the tap-revealed hover card. */
+  onBackgroundClick(event: MouseEvent): void {
+    if (event.target === event.currentTarget) {
+      this.onNodeLeave();
     }
   }
 
@@ -322,64 +342,65 @@ export class TroncViewComponent {
     return this.dragOverNodeId() === nodeId && !this.isAssigned(nodeId);
   }
 
-  onNodeDragStart(node: TroncNodeItem, event: DragEvent): void {
-    if (!this.isDraggableNode(node.id)) {
-      event.preventDefault();
-      return;
-    }
-    this.draggingNodeId.set(node.id);
-    const payload = JSON.stringify({ instanceId: this.instanceId(), nodeId: node.id });
-    event.dataTransfer?.setData('text/plain', payload);
-    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
-
-    const assignment = this.getAssignment(node.id);
-    if (assignment && event.dataTransfer) {
-      const ghost = document.createElement('div');
-      ghost.textContent = assignment.person.alias;
-      ghost.style.cssText =
-        'position:absolute;top:-1000px;left:-1000px;padding:6px 10px;border-radius:6px;' +
-        'background:#1f2937;color:#fff;font:600 13px Inter,sans-serif;transform:scale(1.15);' +
-        'white-space:nowrap;pointer-events:none;';
-      document.body.appendChild(ghost);
-      event.dataTransfer.setDragImage(ghost, -10, -10);
-      setTimeout(() => ghost.remove(), 0);
-    }
+  onNodePointerDown(node: TroncNodeItem, event: PointerEvent): void {
+    if (!this.isDraggableNode(node.id)) return;
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    this.pointerDragOrigin = { nodeId: node.id, pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
   }
 
-  onNodeDragOver(node: TroncNodeItem, event: DragEvent): void {
-    if (!event.dataTransfer?.types.includes('text/plain')) return;
-    if (this.isDragging(node.id)) return; // hovering back over the node being dragged
+  onNodePointerMove(event: PointerEvent): void {
+    const origin = this.pointerDragOrigin;
+    if (!origin || origin.pointerId !== event.pointerId) return;
+
+    if (this.draggingNodeId() === null) {
+      const distance = Math.hypot(event.clientX - origin.x, event.clientY - origin.y);
+      if (distance < DRAG_THRESHOLD_PX) return; // still just a tap/click
+      this.draggingNodeId.set(origin.nodeId);
+    }
+
     event.preventDefault();
-    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
-    this.dragOverNodeId.set(node.id);
+    const target = this.resolveDropTarget(event.clientX, event.clientY);
+    const isOrigin = target?.nodeId === origin.nodeId && target.instanceId === this.instanceId();
+    this.dragOverNodeId.set(target && !isOrigin ? target.nodeId : null);
   }
 
-  onNodeDragLeave(node: TroncNodeItem): void {
-    if (this.dragOverNodeId() === node.id) this.dragOverNodeId.set(null);
-  }
+  onNodePointerUp(event: PointerEvent): void {
+    const origin = this.pointerDragOrigin;
+    if (!origin || origin.pointerId !== event.pointerId) return;
 
-  onNodeDrop(node: TroncNodeItem, event: DragEvent): void {
-    event.preventDefault();
-    this.dragOverNodeId.set(null);
-    const raw = event.dataTransfer?.getData('text/plain');
-    if (!raw) return;
-    let source: { instanceId: string; nodeId: string };
-    try {
-      source = JSON.parse(raw);
-    } catch {
-      return;
+    if (this.draggingNodeId() !== null) {
+      const target = this.resolveDropTarget(event.clientX, event.clientY);
+      const isOrigin = target?.nodeId === origin.nodeId && target.instanceId === this.instanceId();
+      if (target && !isOrigin) {
+        this.nodeDropped.emit({
+          sourceInstanceId: this.instanceId(),
+          sourceNodeId: origin.nodeId,
+          targetInstanceId: target.instanceId,
+          targetNodeId: target.nodeId,
+        });
+      }
     }
-    this.nodeDropped.emit({
-      sourceInstanceId: source.instanceId,
-      sourceNodeId: source.nodeId,
-      targetInstanceId: this.instanceId(),
-      targetNodeId: node.id,
-    });
+    this.endPointerDrag();
   }
 
-  onNodeDragEnd(): void {
+  onNodePointerCancel(event: PointerEvent): void {
+    if (this.pointerDragOrigin?.pointerId !== event.pointerId) return;
+    this.endPointerDrag();
+  }
+
+  private endPointerDrag(): void {
+    this.pointerDragOrigin = null;
     this.draggingNodeId.set(null);
     this.dragOverNodeId.set(null);
+  }
+
+  /** Resolves which node (and which tronc-view instance, possibly a sibling) sits under a client point. */
+  private resolveDropTarget(clientX: number, clientY: number): { nodeId: string; instanceId: string } | null {
+    const el = document.elementFromPoint(clientX, clientY)?.closest<HTMLElement>('[data-tronc-node-id]');
+    const nodeId = el?.dataset['troncNodeId'];
+    const instanceId = el?.dataset['instanceId'];
+    return nodeId && instanceId !== undefined ? { nodeId, instanceId } : null;
   }
 
   onStepX(node: TroncNodeItem, delta: number): void {
@@ -609,6 +630,7 @@ export class TroncViewComponent {
     this.nodeSelected.emit(node.id);
     if (this.isAssigned(node.id)) {
       this.nodeClicked.emit({ nodeId: node.id, event });
+      this.onNodeHover(event, node.id);
     }
   }
 
