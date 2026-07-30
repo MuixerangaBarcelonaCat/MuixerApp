@@ -5,7 +5,6 @@
       <lucide-icon name="Search" [size]="14" aria-hidden="true" class="text-base-content/50" />
       <input
         type="search"
-        [(ngModel)]="search"
         [ngModel]="search()"
         (ngModelChange)="search.set($event)"
         class="grow bg-transparent outline-none text-sm h-6"
