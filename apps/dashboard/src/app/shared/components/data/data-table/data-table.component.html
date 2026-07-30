@@ -90,7 +90,9 @@
                       </span>
                     } @else if (col.type === 'pills' && col.pills) {
                       <span class="inline-flex items-center gap-2">
-                        @for (pill of col.pills(item); track pill.text) {
+                        <!-- Tracked by index: pills are a positional list with no identity
+                             of their own, and two may legitimately carry the same label. -->
+                        @for (pill of col.pills(item); track $index) {
                           <span class="text-xs font-semibold tabular-nums" [ngClass]="pill.class">{{ pill.text }}</span>
                         }
                       </span>
@@ -203,7 +205,8 @@
                       </span>
                     } @else if (col.type === 'pills' && col.pills) {
                       <span class="inline-flex items-center gap-2 flex-wrap justify-end">
-                        @for (pill of col.pills(item); track pill.text) {
+                        <!-- Tracked by index, not by text — see the table-mode branch. -->
+                        @for (pill of col.pills(item); track $index) {
                           <span class="text-xs font-semibold tabular-nums" [ngClass]="pill.class">{{ pill.text }}</span>
                         }
                       </span>

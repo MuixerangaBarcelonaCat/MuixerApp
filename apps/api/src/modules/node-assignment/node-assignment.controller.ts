@@ -18,6 +18,7 @@ import { JwtPayload } from '@muixer/shared';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { NodeAssignmentService } from './node-assignment.service';
 import { AvailablePersonsService } from './available-persons.service';
+import { EventParticipationService } from './event-participation.service';
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
 import { CreateAdHocNodeDto } from './dto/create-ad-hoc-node.dto';
 import { UpdateAdHocNodeDto } from './dto/update-ad-hoc-node.dto';
@@ -35,6 +36,7 @@ export class NodeAssignmentController {
   constructor(
     private readonly assignmentService: NodeAssignmentService,
     private readonly availablePersonsService: AvailablePersonsService,
+    private readonly participationService: EventParticipationService,
   ) {}
 
   @ApiOperation({ summary: 'Get nodes for a figure instance (live template or snapshot)' })
@@ -181,6 +183,18 @@ export class NodeAssignmentController {
   @Get('events/:eventId/assignment-summary')
   getEventAssignmentSummary(@Param('eventId', ParseUUIDPipe) eventId: string) {
     return this.assignmentService.getEventAssignmentSummary(eventId);
+  }
+
+  @ApiOperation({
+    summary: 'Person-centric participation overview of an event (rehearsal prep matrix)',
+    description:
+      'Returns every confirmed attendee plus anyone holding an assignment, with what they ' +
+      'do in each segment. Deliberately unpaginated and unfiltered: the caller renders a ' +
+      'person x segment matrix and needs the whole population at once.',
+  })
+  @Get('events/:eventId/participation')
+  getEventParticipation(@Param('eventId', ParseUUIDPipe) eventId: string) {
+    return this.participationService.getEventParticipation(eventId);
   }
 
 }

@@ -34,6 +34,7 @@ import {
   MoveInstanceResult,
 } from '../../../pinyes/models/segment.model';
 import { EventFigureSummary, FigureAreaCount } from '../../../pinyes/models/assignment.model';
+import { eventReturnUrl } from '../../utils/event-return-url.util';
 
 export type ViewMode = FiguresViewMode;
 
@@ -745,7 +746,11 @@ export class SegmentManagerComponent implements OnInit {
     );
   }
 
+  /**
+   * Where the assignment workspace and the projection should come back to: the event
+   * page, on the section this manager was opened from (Pinyes i Figures).
+   */
   private currentReturnUrl(): string {
-    return this.router.url.split('?')[0];
+    return eventReturnUrl(this.router);
   }
 }

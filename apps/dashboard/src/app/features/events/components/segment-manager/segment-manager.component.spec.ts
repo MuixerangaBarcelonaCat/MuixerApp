@@ -674,6 +674,24 @@ describe('SegmentManagerComponent', () => {
         { queryParams: { returnUrl: '/rehearsals/event-123' } },
       );
     });
+
+    it('keeps the event page tab in returnUrl so coming back lands on Pinyes i Figures', () => {
+      routerMock.url = '/events/event-123?tab=pinyes';
+      component.navigateToAssignment('seg-uuid-1');
+      expect(routerMock.navigate).toHaveBeenCalledWith(
+        ['/pinyes/events', EVENT_ID, 'segments', 'seg-uuid-1', 'assign'],
+        { queryParams: { returnUrl: '/events/event-123?tab=pinyes' } },
+      );
+    });
+
+    it('drops every other query param from returnUrl', () => {
+      routerMock.url = '/events/event-123?tab=pinyes&returnUrl=%2Fold&foo=bar';
+      component.navigateToAssignment('seg-uuid-1');
+      expect(routerMock.navigate).toHaveBeenCalledWith(
+        ['/pinyes/events', EVENT_ID, 'segments', 'seg-uuid-1', 'assign'],
+        { queryParams: { returnUrl: '/events/event-123?tab=pinyes' } },
+      );
+    });
   });
 
   describe('layout', () => {

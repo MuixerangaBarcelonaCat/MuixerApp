@@ -80,7 +80,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 
 <!-- BEGIN:AUTO — generat per scripts/generate-data-model.mjs, no editar a mà -->
 
-> Generat el 2026-07-25 des de les entitats TypeORM amb `pnpm run docs:model`.
+> Generat el 2026-07-28 des de les entitats TypeORM amb `pnpm run docs:model`.
 > **17 entitats.** No editar a mà: canvia l'entitat i torna a executar l'script.
 
 ### Resum
