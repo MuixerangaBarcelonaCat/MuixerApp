@@ -49,6 +49,24 @@ export async function makeTouch(page: Page) {
       await page.waitForTimeout(30);
       await send('touchEnd', []);
     },
+
+    /** Two rapid taps at the same point (within Konva's dbltap threshold). */
+    async doubleTap(p: Pt) {
+      await send('touchStart', [p]);
+      await page.waitForTimeout(20);
+      await send('touchEnd', []);
+      await page.waitForTimeout(80);
+      await send('touchStart', [p]);
+      await page.waitForTimeout(20);
+      await send('touchEnd', []);
+    },
+
+    /** Touch down and hold for `ms` without moving, then release. */
+    async longPress(p: Pt, ms = 500) {
+      await send('touchStart', [p]);
+      await page.waitForTimeout(ms);
+      await send('touchEnd', []);
+    },
   };
 }
 

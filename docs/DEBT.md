@@ -48,9 +48,7 @@ tags: [qa]
 | # | Ítem | On | Notes |
 |---|------|-----|-------|
 | F1 | El workspace de Pinyes no és usable per sota de `sm` (639px): hi ha un guard que mostra "encara no optimitzat per a mòbil" a Pinyes, Troncs i Nodes extra | `pinyes-tab`, `troncs-tab`, `nodes-tab` | Decisió conscient: a 393px el canvas quedava en 73px reals |
-| F2 | Falta pinch/wheel zoom al canvas | `figure-canvas.component.ts` | Requisit previ de F1; ajornat com a feature |
-| F3 | Falta pan del llenç en mode assignació | `figure-canvas.component.ts` | Mateix subsistema de gestos que F2; abordar-los junts |
-| F4 | `figure-canvas.component.ts` fa **2.707 línies** | idem | Una extracció (`KonvaStageService` + renderers per mode) es va fer i **es va revertir el 12/06/2026 perquè no es va connectar mai**. No repetir-la sense connectar-la de debò |
+| F4 | `figure-canvas.component.ts` fa **2.707 línies** | `figure-canvas.component.ts` | Una extracció (`KonvaStageService` + renderers per mode) es va fer i **es va revertir el 12/06/2026 perquè no es va connectar mai**. No repetir-la sense connectar-la de debò |
 | F5 | Les interfícies `Create*Payload` / `Update*Payload` del dashboard no viuen a `libs/shared` | `features/*/models/` | Els models del frontend van derivant respecte dels DTOs de l'API |
 | F6 | `composition-editor.component.html` té 2 `aside` amb `class="w-70"` (línies 50 i 112). `w-70` **no existeix** a l'escala d'espaiat de Tailwind: no genera CSS i l'aside no té amplada reservada — el mateix bug que va trencar la pestanya Distribució en mòbil | `composition-editor.component.html:50,112` | Solució ja aplicada a `distribucio-tab`: `w-[280px]` + `flex-col sm:flex-row` |
 

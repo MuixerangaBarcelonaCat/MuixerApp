@@ -67,6 +67,16 @@
       >
         <lucide-icon [img]="ChevronRight" [size]="18" aria-hidden="true" />
       </button>
+
+      <button
+        type="button"
+        class="btn btn-ghost btn-sm btn-square"
+        (click)="helpModal().open()"
+        aria-label="Ajuda de l'assignació"
+        title="Ajuda"
+      >
+        <lucide-icon [img]="CircleQuestionMark" [size]="18" aria-hidden="true" />
+      </button>
     </div>
   </header>
 
@@ -97,3 +107,5 @@
     }
   </div>
 </div>
+
+<app-template-editor-help-modal [autoShow]="false" />

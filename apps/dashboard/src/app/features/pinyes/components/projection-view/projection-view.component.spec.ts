@@ -597,6 +597,19 @@ describe('ProjectionViewComponent', () => {
     });
   });
 
+  // ── help dialog (touch gestures) ─────────────────────────────────────────────
+
+  describe('help dialog', () => {
+    it('mentions pinch-to-zoom and one-finger pan (projection has no touch guard)', () => {
+      component.helpModalOpen.set(true);
+      fixture.detectChanges();
+
+      const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+      expect(text).toContain('Pinça');
+      expect(text.toLowerCase()).toContain('desplaç');
+    });
+  });
+
   // ── browser back button ─────────────────────────────────────────────────────
 
   describe('browser back button', () => {

@@ -220,23 +220,19 @@ describe('DistribucioTabComponent', () => {
     });
 
     it('centers the viewport on the content once after load', async () => {
-      vi.useFakeTimers();
       await setup();
-
-      vi.runAllTimers();
+      fixture.detectChanges();
+      await new Promise(resolve => setTimeout(resolve, 50));
 
       expect(canvasStub().centerOnContent).toHaveBeenCalledTimes(1);
-      vi.useRealTimers();
     });
 
     it('sets the zoom to 75% before centering', async () => {
-      vi.useFakeTimers();
       await setup();
-
-      vi.runAllTimers();
+      fixture.detectChanges();
+      await new Promise(resolve => setTimeout(resolve, 50));
 
       expect(canvasStub().setZoom).toHaveBeenCalledWith(0.75);
-      vi.useRealTimers();
     });
   });
 

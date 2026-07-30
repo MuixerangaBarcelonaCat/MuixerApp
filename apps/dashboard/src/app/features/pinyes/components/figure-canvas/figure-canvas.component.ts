@@ -37,6 +37,15 @@ import {
   SegmentRenderNode,
   stageToSlotLocal,
 } from '../../utils/segment-assignment-render.util';
+import {
+  clampScale,
+  computeRotationAngleDeg,
+  getEventClientPoint,
+  Point,
+  touchDistance,
+  touchMidpoint,
+  zoomAroundPoint,
+} from '../../utils/gesture-math.util';
 
 /** Minimal node shape accepted by the canvas for rendering — both FigureNodeItem and InstanceNodeItem satisfy this */
 export interface CanvasNode {
@@ -175,6 +184,9 @@ function createNodeShape(
 }
 const SELECTED_STROKE = '#f59e0b';
 const NORMAL_STROKE = '#1e1b4b';
+/** Matches the min/max of the zoom-selector dropdown (25%–300%). */
+const ZOOM_MIN = 0.25;
+const ZOOM_MAX = 3;
 
 @Component({
   selector: 'app-figure-canvas',
@@ -286,6 +298,13 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   private resizeObserver: ResizeObserver | null = null;
   /** Reused for measuring label text; not attached to the stage. */
   private labelMeasureProbe: Konva.Text | null = null;
+  /**
+   * Once the user pans or pinch-zooms in readonly/projection mode, stop
+   * re-applying the auto-fit-to-screen transform on data or size changes —
+   * otherwise their view would keep snapping back.
+   */
+  private userAdjustedView = false;
+  private wheelHandler: ((e: WheelEvent) => void) | null = null;
 
   private activeGhostGroup: Konva.Group | null = null;
   private ghostHoverTimer: ReturnType<typeof setTimeout> | null = null;
@@ -422,6 +441,10 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.clearAllGhostTimers();
     this.clearPersonDragVisuals();
     this.resizeObserver?.disconnect();
+    if (this.wheelHandler) {
+      this.stage?.container()?.removeEventListener('wheel', this.wheelHandler);
+      this.wheelHandler = null;
+    }
     this.labelMeasureProbe?.destroy();
     this.labelMeasureProbe = null;
     this.stage?.destroy();
@@ -595,15 +618,9 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       const isMiddleButton = e.evt.button === 1;
       const isLeftButton = e.evt.button === 0;
       const clickedOnStage = e.target === this.stage;
-      const noSelection =
-        this.mode() === 'composition'
-          ? !this.selectedSlotId()
-          : this.mode() === 'segment-assignment'
-            ? !this.selectedSegmentNode()
-            : !this.selectedNodeId();
 
       // Allow panning with middle button or left button on empty canvas
-      if (isMiddleButton || (isLeftButton && clickedOnStage && noSelection)) {
+      if (isMiddleButton || (isLeftButton && clickedOnStage && this.canPanOrZoom())) {
         isPanning = true;
         const pos = this.stage.getPointerPosition()!;
         panStart = { x: pos.x, y: pos.y };
@@ -635,16 +652,10 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.stage.on('mousemove', (e) => {
       if (isPanning) return;
       const clickedOnStage = e.target === this.stage;
-      const noSelection =
-        this.mode() === 'composition'
-          ? !this.selectedSlotId()
-          : this.mode() === 'segment-assignment'
-            ? !this.selectedSegmentNode()
-            : !this.selectedNodeId();
 
       if (
         clickedOnStage &&
-        noSelection &&
+        this.canPanOrZoom() &&
         (this.mode() === 'editor' || this.mode() === 'composition')
       ) {
         this.setCursor('grab');
@@ -657,9 +668,20 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       }
     });
 
+    this.setupTouchGestures();
+    this.setupWheelZoom();
+
     // Deselect on stage click or place ad-hoc node
-    this.stage.on('click', (e) => {
+    this.stage.on('click tap', (e) => {
       if (e.target === this.stage) {
+        // Touch has no hover: a tap/long-press reveals the person card or the
+        // ad-hoc tooltip (see personHover/tap bindings below), so tapping
+        // empty canvas is what dismisses it again.
+        this.hoveredNodeKey = null;
+        this.hoveredPersonId = null;
+        this.hoveredPerson.set(null);
+        this.hideAdHocTooltip();
+
         if (this.isPlacementMode()) {
           const pos = this.stage.getPointerPosition();
           if (pos) {
@@ -692,6 +714,106 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         }
       }
     });
+  }
+
+  /** True when nothing is selected for the current mode, mirroring the mouse-pan gate above. */
+  private canPanOrZoom(): boolean {
+    return this.mode() === 'composition'
+      ? !this.selectedSlotId()
+      : this.mode() === 'segment-assignment'
+        ? !this.selectedSegmentNode()
+        : !this.selectedNodeId();
+  }
+
+  /**
+   * One-finger pan and two-finger pinch-zoom on touch devices, mirroring the
+   * mouse pan (mousedown/mousemove/mouseup) and adding what mouse input has no
+   * equivalent for (pinch). Applies in every mode, including readonly/projection.
+   */
+  private setupTouchGestures(): void {
+    let panStart: Point | null = null;
+    let panStageStart: Point = { x: 0, y: 0 };
+    let pinchStartDist = 0;
+    let pinchStartScale = 1;
+
+    const getTouchPoint = (touch: Touch): Point => ({ x: touch.clientX, y: touch.clientY });
+
+    this.stage.on('touchstart', (e) => {
+      const touches = e.evt.touches;
+      if (touches.length === 1 && e.target === this.stage && this.canPanOrZoom()) {
+        panStart = getTouchPoint(touches[0]);
+        panStageStart = { x: this.stage.x(), y: this.stage.y() };
+      } else if (touches.length === 2) {
+        panStart = null;
+        pinchStartDist = touchDistance(getTouchPoint(touches[0]), getTouchPoint(touches[1]));
+        pinchStartScale = this.stage.scaleX();
+        this.userAdjustedView = true;
+        e.evt.preventDefault();
+      }
+    });
+
+    this.stage.on('touchmove', (e) => {
+      const touches = e.evt.touches;
+      if (touches.length === 2 && pinchStartDist > 0) {
+        e.evt.preventDefault();
+        const p1 = getTouchPoint(touches[0]);
+        const p2 = getTouchPoint(touches[1]);
+        const dist = touchDistance(p1, p2);
+        const newScale = clampScale(pinchStartScale * (dist / pinchStartDist), ZOOM_MIN, ZOOM_MAX);
+        const rect = this.stage.container().getBoundingClientRect();
+        const midpoint = touchMidpoint(p1, p2);
+        const focal = { x: midpoint.x - rect.left, y: midpoint.y - rect.top };
+        const newPos = zoomAroundPoint(this.stage.position(), this.stage.scaleX(), newScale, focal);
+        this.stage.scale({ x: newScale, y: newScale });
+        this.stage.position(newPos);
+        this.zoomLevel.set(newScale);
+        this.stage.batchDraw();
+        this.emitStageTransform();
+      } else if (touches.length === 1 && panStart) {
+        e.evt.preventDefault();
+        this.userAdjustedView = true;
+        const pos = getTouchPoint(touches[0]);
+        this.stage.position({
+          x: panStageStart.x + (pos.x - panStart.x),
+          y: panStageStart.y + (pos.y - panStart.y),
+        });
+        this.stage.batchDraw();
+        this.emitStageTransform();
+      }
+    });
+
+    this.stage.on('touchend touchcancel', (e) => {
+      const remaining = e.evt.touches;
+      pinchStartDist = 0;
+      if (remaining.length === 1) {
+        // One finger lifted mid-pinch: resume single-finger pan from here.
+        panStart = getTouchPoint(remaining[0]);
+        panStageStart = { x: this.stage.x(), y: this.stage.y() };
+      } else {
+        panStart = null;
+      }
+      this.emitStageTransform();
+    });
+  }
+
+  /** Ctrl/plain wheel zoom toward the pointer, for desktop trackpads/mice (DEBT F2). */
+  private setupWheelZoom(): void {
+    this.wheelHandler = (e: WheelEvent) => {
+      e.preventDefault();
+      const pointer = this.stage.getPointerPosition();
+      if (!pointer) return;
+      const direction = e.deltaY > 0 ? -1 : 1;
+      const oldScale = this.stage.scaleX();
+      const newScale = clampScale(oldScale * (1 + direction * 0.1), ZOOM_MIN, ZOOM_MAX);
+      const newPos = zoomAroundPoint(this.stage.position(), oldScale, newScale, pointer);
+      this.stage.scale({ x: newScale, y: newScale });
+      this.stage.position(newPos);
+      this.zoomLevel.set(newScale);
+      this.userAdjustedView = true;
+      this.stage.batchDraw();
+      this.emitStageTransform();
+    };
+    this.stage.container().addEventListener('wheel', this.wheelHandler, { passive: false });
   }
 
   private updateTransformer(): void {
@@ -755,7 +877,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.stage.height(clientHeight);
     this.renderGrid();
 
-    if (this.mode() === 'readonly') {
+    if (this.mode() === 'readonly' && !this.userAdjustedView) {
       this.applyReadonlyFit();
     }
 
@@ -1253,33 +1375,36 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
     handle.on('mousedown touchstart', (e) => {
       e.cancelBubble = true;
+      e.evt.preventDefault();
       slotGroup.draggable(false); // prevent parent drag while rotating
 
       const stageEl = this.stage.container();
       const groupX = slotGroup.x();
       const groupY = slotGroup.y();
 
-      const toLayer = (clientX: number, clientY: number) => {
+      const toLayer = (client: Point) => {
         const rect = stageEl.getBoundingClientRect();
         return {
-          x: (clientX - rect.left - this.stage.x()) / this.stage.scaleX(),
-          y: (clientY - rect.top - this.stage.y()) / this.stage.scaleY(),
+          x: (client.x - rect.left - this.stage.x()) / this.stage.scaleX(),
+          y: (client.y - rect.top - this.stage.y()) / this.stage.scaleY(),
         };
       };
 
-      const onMove = (ev: MouseEvent) => {
-        const lp = toLayer(ev.clientX, ev.clientY);
-        let angleDeg = (Math.atan2(lp.y - groupY, lp.x - groupX) * 180) / Math.PI + 90;
-        if (this.snapToGrid()) {
-          angleDeg = Math.round(angleDeg / 15) * 15;
-        }
+      const onMove = (ev: MouseEvent | TouchEvent) => {
+        const client = getEventClientPoint(ev);
+        if (!client) return;
+        ev.preventDefault();
+        const lp = toLayer(client);
+        const angleDeg = computeRotationAngleDeg(lp, { x: groupX, y: groupY }, this.snapToGrid());
         slotGroup.rotation(angleDeg);
         this.pinyaLayer.batchDraw();
       };
 
       const onUp = () => {
         window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('touchmove', onMove);
         window.removeEventListener('mouseup', onUp);
+        window.removeEventListener('touchend', onUp);
         slotGroup.draggable(true);
         this.slotMoved.emit({
           slotId,
@@ -1290,7 +1415,9 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       };
 
       window.addEventListener('mousemove', onMove);
+      window.addEventListener('touchmove', onMove, { passive: false });
       window.addEventListener('mouseup', onUp);
+      window.addEventListener('touchend', onUp);
     });
 
     return handle;
@@ -1495,7 +1622,9 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           );
         }
 
-        group.on('mouseenter.personHover', (e) => {
+        group.on('mouseenter.personHover tap.personHover', (e) => {
+          const point = getEventClientPoint(e.evt);
+          if (!point) return;
           this.hoveredNodeKey = node.id;
           this.hoveredPersonId = assignment.person.id;
           this.hoveredPerson.set({
@@ -1508,8 +1637,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
               notesEmoji: personDetails?.notesEmoji ?? null,
               positions: personDetails?.positions ?? [],
             },
-            top: e.evt.clientY + 12,
-            left: e.evt.clientX + 12,
+            top: point.y + 12,
+            left: point.x + 12,
             positionType: node.positionType,
           });
         });
@@ -1545,10 +1674,15 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         group.on('click tap', (e) => {
           this.nodeSelected.emit(node.id);
           if (!isDecoration) {
-            const containerRect = this.stage.container().getBoundingClientRect();
-            const clickX = e.evt.clientX - containerRect.left;
-            const clickY = e.evt.clientY - containerRect.top;
-            this.nodeClicked.emit({ nodeId: node.id, x: clickX, y: clickY });
+            const point = getEventClientPoint(e.evt);
+            if (point) {
+              const containerRect = this.stage.container().getBoundingClientRect();
+              this.nodeClicked.emit({
+                nodeId: node.id,
+                x: point.x - containerRect.left,
+                y: point.y - containerRect.top,
+              });
+            }
           }
         });
 
@@ -1589,7 +1723,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           });
         });
 
-        group.on('mouseenter', () => {
+        group.on('mouseenter tap', () => {
           this.setCursor('grab');
           if (!isDecoration) this.showAdHocTooltip(group);
         });
@@ -1599,11 +1733,16 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         });
       } else {
         group.on('click tap', (e) => {
-          const containerRect = this.stage.container().getBoundingClientRect();
-          const clickX = e.evt.clientX - containerRect.left;
-          const clickY = e.evt.clientY - containerRect.top;
           this.nodeSelected.emit(node.id);
-          this.nodeClicked.emit({ nodeId: node.id, x: clickX, y: clickY });
+          const point = getEventClientPoint(e.evt);
+          if (point) {
+            const containerRect = this.stage.container().getBoundingClientRect();
+            this.nodeClicked.emit({
+              nodeId: node.id,
+              x: point.x - containerRect.left,
+              y: point.y - containerRect.top,
+            });
+          }
         });
 
         group.on('dblclick dbltap', () => {
@@ -1891,7 +2030,9 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         );
       }
 
-      group.on('mouseenter.personHover', (e) => {
+      group.on('mouseenter.personHover tap.personHover', (e) => {
+        const point = getEventClientPoint(e.evt);
+        if (!point) return;
         this.hoveredNodeKey = `${rn.slotId}:${node.id}`;
         this.hoveredPersonId = assignment.person.id;
         this.hoveredPerson.set({
@@ -1904,8 +2045,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
             notesEmoji: personDetails?.notesEmoji ?? null,
             positions: personDetails?.positions ?? [],
           },
-          top: e.evt.clientY + 12,
-          left: e.evt.clientX + 12,
+          top: point.y + 12,
+          left: point.x + 12,
           positionType: node.positionType,
         });
       });
@@ -1983,7 +2124,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         });
       });
 
-      group.on('mouseenter', () => {
+      group.on('mouseenter tap', () => {
         this.setCursor('grab');
         if (!isDecoration) this.showAdHocTooltip(group);
       });
@@ -2154,7 +2295,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.pinyaLayer.add(this.transformer);
     this.pinyaLayer.batchDraw();
 
-    if (this.nodes().length > 0) {
+    if (this.nodes().length > 0 && !this.userAdjustedView) {
       setTimeout(() => {
         this.applyReadonlyFit();
         this.stage.batchDraw();

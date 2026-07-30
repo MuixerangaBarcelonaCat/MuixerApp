@@ -15,6 +15,12 @@ import { makeTouch, buffersDiffer, Pt } from './gestures';
  *
  * Observation is necessarily coarse (Konva state lives in JS, not the DOM), so
  * this reports "gesture produced a visible change / did not crash" per device.
+ *
+ * The workspace route is behind `desktopOnlyGuard` (< 1024px → redirected to
+ * `/pinyes`), so `mobile` and `tablet-portrait` never reach the canvas at all —
+ * this test asserts the redirect for those profiles instead of running the
+ * gesture battery. Only `tablet-landscape` (and any future ≥1024px profile)
+ * exercises the real gestures.
  */
 
 const WS_ASSIGN = `/pinyes/events/${TARGETS.workspaceEventId}/segments/${TARGETS.workspaceSegmentId}/assign`;
@@ -22,6 +28,8 @@ const WS_ASSIGN = `/pinyes/events/${TARGETS.workspaceEventId}/segments/${TARGETS
 interface GestureResult {
   device: string;
   viewport: { width: number; height: number } | null;
+  blockedByDesktopGuard: boolean;
+  redirectedToPinyes: boolean;
   canvasFound: boolean;
   canvasBox: { w: number; h: number } | null;
   zoomBefore: string | null;
@@ -32,6 +40,7 @@ interface GestureResult {
   panChangedCanvas: boolean;
   mouseDragPanChanged: boolean;
   tapChangedCanvas: boolean;
+  longPressRevealsPersonCard: boolean;
   assignFlowChangedView: boolean;
   zoomDropdownWorks: boolean;
   consoleErrors: string[];
@@ -50,6 +59,43 @@ test('pinyes canvas gestures', async ({ page }, testInfo) => {
     await spaGoto(page, `${WS_ASSIGN}?tab=pinyes`);
   }
 
+  const viewportWidth = page.viewportSize()?.width ?? 0;
+  const blockedByDesktopGuard = viewportWidth < 1024;
+
+  if (blockedByDesktopGuard) {
+    // desktopOnlyGuard redirects to /pinyes with an error toast — no canvas here.
+    await page.waitForURL((url) => url.pathname === '/pinyes', { timeout: 5000 }).catch(() => {});
+    const redirectedToPinyes = new URL(page.url()).pathname === '/pinyes';
+
+    const result: GestureResult = {
+      device,
+      viewport: page.viewportSize(),
+      blockedByDesktopGuard: true,
+      redirectedToPinyes,
+      canvasFound: false,
+      canvasBox: null,
+      zoomBefore: null,
+      zoomAfterPinch: null,
+      zoomAfterWheel: null,
+      pinchChangedZoom: false,
+      wheelChangedZoom: false,
+      panChangedCanvas: false,
+      mouseDragPanChanged: false,
+      tapChangedCanvas: false,
+      longPressRevealsPersonCard: false,
+      assignFlowChangedView: false,
+      zoomDropdownWorks: false,
+      consoleErrors: consoleErrors.filter((e) => !/403|Forbidden/.test(e)).slice(0, 30),
+    };
+
+    const dir = path.join(RESULTS_DIR, 'gestures');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, `${device}.json`), JSON.stringify(result, null, 2));
+
+    expect.soft(redirectedToPinyes, `${device}: below 1024px must be redirected to /pinyes by desktopOnlyGuard`).toBeTruthy();
+    return;
+  }
+
   const container = page.locator('.canvas-container').first();
   const canvasFound = await container
     .locator('canvas')
@@ -62,6 +108,8 @@ test('pinyes canvas gestures', async ({ page }, testInfo) => {
   const result: GestureResult = {
     device,
     viewport: page.viewportSize(),
+    blockedByDesktopGuard: false,
+    redirectedToPinyes: false,
     canvasFound,
     canvasBox: null,
     zoomBefore: null,
@@ -72,6 +120,7 @@ test('pinyes canvas gestures', async ({ page }, testInfo) => {
     panChangedCanvas: false,
     mouseDragPanChanged: false,
     tapChangedCanvas: false,
+    longPressRevealsPersonCard: false,
     assignFlowChangedView: false,
     zoomDropdownWorks: false,
     consoleErrors: [],
@@ -140,6 +189,18 @@ test('pinyes canvas gestures', async ({ page }, testInfo) => {
       const afterTap = await snap();
       result.tapChangedCanvas = buffersDiffer(beforeTap, afterTap);
 
+      // --- Long-press to reveal a person card (best-effort: depends on the
+      // centre point landing on an assigned node in the dev fixture data;
+      // touch has no hover, so this is the only way to see person info) ---
+      await touch.longPress(c, 500);
+      await page.waitForTimeout(200);
+      result.longPressRevealsPersonCard = await page
+        .locator('app-person-hover-card')
+        .first()
+        .isVisible()
+        .catch(() => false);
+      await touch.tap({ x: box.x + 5, y: box.y + 5 }); // tap empty corner to dismiss
+
       // --- Assignment flow (best-effort): tap a person, then tap the canvas ---
       const beforeAssign = await snap();
       // People panel sits to the right of the canvas; tap where a row should be.
@@ -152,7 +213,7 @@ test('pinyes canvas gestures', async ({ page }, testInfo) => {
       result.assignFlowChangedView = buffersDiffer(beforeAssign, afterAssign);
       await page.screenshot({ path: path.join(shotDir, 'after-assign.png') }).catch(() => {});
 
-      // --- Zoom via the dropdown (the only supported zoom mechanism) ---
+      // --- Zoom via the dropdown (still supported alongside pinch/wheel) ---
       const beforeZoomUi = await snap();
       await page
         .locator('select.zoom-selector')

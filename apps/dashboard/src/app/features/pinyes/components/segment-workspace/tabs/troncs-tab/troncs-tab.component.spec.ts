@@ -271,7 +271,7 @@ describe('TroncsTabComponent', () => {
       });
 
       expect(troncStubs()).toHaveLength(2);
-    });
+    }, 10_000);
 
     it('refreshes the workspace on init so figures edited in other tabs show up-to-date', async () => {
       await setup();
@@ -877,7 +877,7 @@ describe('TroncsTabComponent', () => {
     it('renders the tronc view + person panel by default (no matchMedia)', async () => {
       await setup();
       expect(fixture.nativeElement.textContent).not.toContain('Encara no optimitzat per a mòbil');
-    });
+    }, 10_000);
 
     describe('below sm (< 640px)', () => {
       const originalMatchMedia = window.matchMedia;

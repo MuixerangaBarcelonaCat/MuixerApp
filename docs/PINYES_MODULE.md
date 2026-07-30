@@ -32,6 +32,7 @@ tags: [domini]
 17. [Rengles — Integració (P5.11)](#17-rengles--integració-p511)
 18. [Ghost Clone — Creació radial de nodes (P5.11 F3)](#18-ghost-clone--creació-radial-de-nodes-p511-f3)
 19. [Selector de cordons a l'assignació (P5.11 F4)](#19-selector-de-cordons-a-lassignació-p511-f4)
+20. [Gestos tàctils i suport de tablet (P5.12)](#20-gestos-tàctils-i-suport-de-tablet-p512)
 
 ---
 
@@ -1053,6 +1054,62 @@ function isNodeVisible(
 - Reversible: amagar cordons no elimina assignacions
 - Per instància: cada instància pot tenir configuració diferent
 - Persistent: sobreviu a recàrregues de pàgina
+
+---
+
+## 20. Gestos tàctils i suport de tablet (P5.12)
+
+Abast real de "tablet" al mòdul de Pinyes: les rutes d'editor de templates, editor de
+composicions i workspace d'assignació porten `desktopOnlyGuard` (`core/guards/desktop-only.guard.ts`),
+que bloqueja **per sota de 1024px** i redirigeix a `/pinyes` amb un toast. Això vol dir que
+només **tablet en horitzontal** (≥1024px) hi arriba — mòbil i tablet en vertical queden fora.
+La **Projecció no té aquest guard**: és l'únic canvas del mòdul que un mòbil o una tablet en
+vertical pot obrir.
+
+### Matriu de capacitats
+
+| Gest | Editor | Assignació | Composició | Projecció |
+|---|---|---|---|---|
+| Seleccionar node (tap) | ✅ | ✅ | ✅ | — |
+| Arrossegar node/persona | ✅ | ✅ | ✅ | — |
+| Doble-tap (etiqueta/detall) | ✅ | ✅ | — | — |
+| Deseleccionar / col·locar (tap al fons) | ✅ | ✅ | ✅ | — |
+| Pan del llenç (1 dit) | ✅ | ✅ | ✅ | ✅ |
+| Pinch-zoom (2 dits) | ✅ | ✅ | ✅ | ✅ |
+| Wheel-zoom (ratolí/trackpad) | ✅ | ✅ | ✅ | ✅ |
+| Rotació de slot (composició) | — | — | ✅ | — |
+| Reassignació al tronc (arrossegar) | — | ✅ | — | — |
+| Targeta de persona / tooltip ad-hoc | tap/hover | tap/hover | tap/hover | — |
+
+Implementació:
+
+- **`figure-canvas.component.ts`** (Konva): `setupTouchGestures()` afegeix pan d'un dit i
+  pinch-zoom de dos dits sobre `touchstart/touchmove/touchend`; `setupWheelZoom()` afegeix zoom
+  amb la roda. Tots dos reutilitzen la matemàtica pura de
+  `utils/gesture-math.util.ts` (`touchDistance`, `touchMidpoint`, `clampScale`,
+  `zoomAroundPoint`) — Konva no es pot instanciar en jsdom, així que aquesta és la part
+  testejada amb Vitest; el cablejat real d'esdeveniments es verifica amb l'auditoria Playwright
+  (`pnpm audit:gestures`). El handler de rotació (`makeRotationHandle`) unifica ratolí i tàctil
+  via `getEventClientPoint`/`computeRotationAngleDeg`. El clic del stage és `'click tap'`.
+  Les targetes de persona i els tooltips ad-hoc afegeixen `tap` al costat de `mouseenter` perquè
+  el tàctil no té hover; tapar el fons buit els tanca.
+- **`tronc-view.component.ts`**: la reassignació de persones ha passat de HTML5 Drag-and-Drop
+  (trencat en tàctil) a **Pointer Events** (`onNodePointerDown/Move/Up/Cancel`), amb un llindar
+  de moviment (`DRAG_THRESHOLD_PX`) perquè un simple tap no s'interpreti com a arrossegament.
+  El node destí es resol amb `document.elementFromPoint(...)`, que funciona també entre
+  tronc-views germanes (figures diferents al mateix segment).
+- **Guia d'usuari**: `template-editor-help-modal.component.ts` té una secció "Tàctil / tablet"
+  (cercable) amb els gestos i la limitació dels 1024px. El modal és accessible des de l'editor de
+  templates i del workspace d'assignació (botó "?" a la topbar); la Projecció manté el seu propi
+  diàleg d'ajuda lleuger (`? / H`), ara també amb les files de pan/pinch.
+
+### Limitacions conegudes
+
+- La reassignació al tronc entre **instàncies germanes** funciona (el drop es resol correctament
+  amb `elementFromPoint`), però l'ressaltat visual "drag-over" només s'actualitza a la instància
+  d'origen — `dragOverNodeId` és un signal per component, i el `pointermove` d'un arrossegament en
+  curs només arriba a l'element que va capturar el punter (`setPointerCapture`). No hi ha
+  sincronització entre instàncies per a aquest indicador purament cosmètic.
 
 ---
 

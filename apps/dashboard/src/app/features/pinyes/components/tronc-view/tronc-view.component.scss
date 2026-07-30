@@ -174,9 +174,11 @@
     border-left-style: solid;
   }
 
-  // -- Drag-and-drop (assignment mode) 
-  &[draggable='true'] {
+  // -- Drag-and-drop (assignment mode), pointer-based so it also works on touch.
+  &[data-draggable] {
     cursor: grab;
+    // Let a touch-drag reassign the person without the browser also scrolling/panning.
+    touch-action: none;
   }
 
   // Source node while its person is being dragged: looks temporarily empty.

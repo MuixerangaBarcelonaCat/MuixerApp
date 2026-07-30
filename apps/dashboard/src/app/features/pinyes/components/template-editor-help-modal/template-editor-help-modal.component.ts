@@ -14,6 +14,7 @@ import {
   Search,
   X,
   ChevronDown,
+  Tablet,
 } from 'lucide-angular';
 import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 
@@ -93,6 +94,17 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: 'F', action: 'Pantalla completa del navegador' },
       { keys: 'Escape', action: 'Tancar panell / tornar enrere' },
       { keys: '? / H', action: 'Obrir / tancar ajuda' },
+    ],
+  },
+  {
+    title: 'Gestos tàctils (tablet)',
+    shortcuts: [
+      { keys: '1 dit sobre el fons', action: 'Desplaçar el llenç (pan)' },
+      { keys: 'Pinça (2 dits)', action: 'Zoom' },
+      { keys: 'Toc', action: 'Seleccionar node / persona' },
+      { keys: 'Doble toc', action: 'Editar etiqueta / obrir detall' },
+      { keys: 'Toc mantingut sobre una persona', action: 'Mostrar la seva fitxa' },
+      { keys: 'Arrossegar', action: 'Moure un node o una persona' },
     ],
   },
 ];
@@ -242,6 +254,29 @@ const HELP_SECTIONS: HelpSection[] = [
       {
         question: 'Dreceres de la projecció',
         answer: '← / →: segment anterior/següent. E: alternar vista Pinyes/Troncs. F: pantalla completa del navegador. Escape: tancar panell / tornar enrere. ? o H: obrir/tancar ajuda.',
+      },
+    ],
+  },
+  {
+    id: 'tactil',
+    title: 'Tàctil / tablet',
+    icon: Tablet,
+    items: [
+      {
+        question: 'Quins gestos tàctils funcionen al Canvas?',
+        answer: 'Un dit sobre el fons: desplaça el llenç (pan). Dos dits (pinça): zoom. Toc: seleccionar un node. Doble toc: editar l\'etiqueta o obrir el detall. Arrossegar un node o una persona: moure’l. Toc mantingut sobre una persona assignada: mostra la seva fitxa (equivalent al hover del ratolí).',
+      },
+      {
+        question: 'Puc utilitzar l\'editor de figures o l\'assignació des d\'una tablet?',
+        answer: 'Sí, però només en orientació horitzontal (amplada mínima 1024px). Per sota d\'aquest llindar (mòbil o tablet en vertical) aquestes pantalles requereixen massa espai de llenç i es bloquegen amb un avís — gireu el dispositiu o continueu des d\'un ordinador.',
+      },
+      {
+        question: 'I la Previsualització / Projecció?',
+        answer: 'La Projecció no té aquesta restricció: es pot obrir des de qualsevol mòbil o tablet, en qualsevol orientació, amb pan i pinch-zoom tàctils.',
+      },
+      {
+        question: 'Per què no veig la targeta d\'una persona en tocar-la?',
+        answer: 'Als dispositius tàctils no hi ha "hover": manteniu el dit sobre el node assignat (o feu-hi un toc) perquè aparegui la targeta; toqueu una zona buida del llenç per tancar-la.',
       },
     ],
   },

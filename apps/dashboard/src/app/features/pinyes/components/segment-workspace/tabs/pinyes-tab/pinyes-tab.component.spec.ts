@@ -272,13 +272,11 @@ describe('PinyesTabComponent', () => {
     });
 
     it('centers the viewport on the content once after the slots load', async () => {
-      vi.useFakeTimers();
       await setup();
-
-      vi.runAllTimers();
+      fixture.detectChanges();
+      await new Promise(resolve => setTimeout(resolve, 50));
 
       expect(canvasStub().centerOnContent).toHaveBeenCalledTimes(1);
-      vi.useRealTimers();
     });
 
     it('refreshes the workspace on init so figures edited in other tabs show up-to-date', async () => {
@@ -288,7 +286,6 @@ describe('PinyesTabComponent', () => {
     });
 
     it('does not center the viewport until every figure has finished loading its nodes (avoids freezing on a partial layout)', async () => {
-      vi.useFakeTimers();
       const segment = makeSegment([makeInstance(INST_A), makeInstance('inst-b')]);
       const subjectA = new Subject<{ data: InstanceNodeItem[] }>();
       const subjectB = new Subject<{ data: InstanceNodeItem[] }>();
@@ -325,6 +322,8 @@ describe('PinyesTabComponent', () => {
           add: { imports: [StubFigureCanvas, StubPersonPanel, StubImportModal] },
         })
         .compileComponents();
+
+      vi.useFakeTimers();
 
       ws = TestBed.inject(SegmentWorkspaceStateService);
       ws.load(EVENT_ID, SEGMENT_ID);

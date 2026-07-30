@@ -8,11 +8,12 @@ import {
   effect,
   inject,
   signal,
+  viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Location } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
-import { LucideAngularModule, ArrowLeft, ChevronLeft, ChevronRight, Shapes, Monitor, Lock } from 'lucide-angular';
+import { LucideAngularModule, ArrowLeft, ChevronLeft, ChevronRight, Shapes, Monitor, Lock, CircleQuestionMark } from 'lucide-angular';
 import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { FiguresViewModeService, FiguresViewMode } from '../../services/figures-view-mode.service';
@@ -25,6 +26,7 @@ import { TroncsTabComponent } from './tabs/troncs-tab/troncs-tab.component';
 import { DistribucioTabComponent } from './tabs/distribucio-tab/distribucio-tab.component';
 import { NodesTabComponent } from './tabs/nodes-tab/nodes-tab.component';
 import { PrevisualitzaTabComponent } from './tabs/previsualitza-tab/previsualitza-tab.component';
+import { TemplateEditorHelpModalComponent } from '../template-editor-help-modal/template-editor-help-modal.component';
 
 export type WorkspaceTab = 'pinyes' | 'troncs' | 'distribucio' | 'nodes' | 'previsualitza';
 
@@ -44,6 +46,7 @@ const isFiguresViewMode = (value: unknown): value is FiguresViewMode =>
     DistribucioTabComponent,
     NodesTabComponent,
     PrevisualitzaTabComponent,
+    TemplateEditorHelpModalComponent,
   ],
   templateUrl: './segment-workspace.component.html',
   providers: [SegmentWorkspaceStateService, UndoRedoService],
@@ -62,6 +65,9 @@ export class SegmentWorkspaceComponent implements OnInit, OnDestroy {
   readonly ChevronLeft = ChevronLeft;
   readonly ChevronRight = ChevronRight;
   readonly Lock = Lock;
+  readonly CircleQuestionMark = CircleQuestionMark;
+
+  readonly helpModal = viewChild.required(TemplateEditorHelpModalComponent);
 
   readonly activeTab = signal<WorkspaceTab>('pinyes');
   readonly isPast = signal(false);
