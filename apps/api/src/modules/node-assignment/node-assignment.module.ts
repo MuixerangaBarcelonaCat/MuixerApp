@@ -12,6 +12,7 @@ import { FigureTemplate } from '../figure/entities/figure-template.entity';
 import { NodeAssignmentController } from './node-assignment.controller';
 import { NodeAssignmentService } from './node-assignment.service';
 import { AvailablePersonsService } from './available-persons.service';
+import { EventParticipationService } from './event-participation.service';
 
 @Module({
   imports: [
@@ -28,7 +29,7 @@ import { AvailablePersonsService } from './available-persons.service';
     ]),
   ],
   controllers: [NodeAssignmentController],
-  providers: [NodeAssignmentService, AvailablePersonsService],
+  providers: [NodeAssignmentService, AvailablePersonsService, EventParticipationService],
   exports: [NodeAssignmentService],
 })
 export class NodeAssignmentModule {}
