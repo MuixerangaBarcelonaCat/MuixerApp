@@ -5,9 +5,10 @@ import {
   ConflictException,
   BadRequestException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { DataSource, In } from 'typeorm';
-import { NodeAssignmentService } from './node-assignment.service';
+import { NodeAssignmentService, AssignConflictException } from './node-assignment.service';
 import { NodeAssignment } from './entities/node-assignment.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
 import { InstanceNode } from '../event-segment/entities/instance-node.entity';
@@ -1293,6 +1294,90 @@ describe('NodeAssignmentService', () => {
       expect(result.conflicts).toHaveLength(1);
       expect(result.conflicts[0].reason).toContain('No matching node');
     });
+
+    // ── B2/B4 — delegate conflict detection to assign(), classify its errors ──
+
+    const makeMatchedImportFixtures = () => {
+      const targetINode = makeInstanceNode({ id: 'target-inode', sourceNodeId: FIGURE_NODE_ID });
+      const target = makeInstance({ snapshotted: true, instanceNodes: [targetINode] });
+      const source = makeInstance({ id: 'source-uuid', snapshotted: true });
+      const sourceAssignment = makeAssignment({
+        figureInstance: source as any,
+        instanceNode: makeInstanceNode({ sourceNodeId: FIGURE_NODE_ID }) as any,
+      });
+      return { targetINode, target, source, sourceAssignment };
+    };
+
+    it('does not run redundant conflict pre-checks before delegating to assignWithoutLockCheck()', async () => {
+      const { targetINode, target, source, sourceAssignment } = makeMatchedImportFixtures();
+      mockInstanceRepo.findOne.mockResolvedValueOnce(target).mockResolvedValueOnce(source);
+      mockAssignmentRepo.find.mockResolvedValue([sourceAssignment]);
+      const assignSpy = jest
+        .spyOn(service as any, 'assignWithoutLockCheck')
+        .mockResolvedValue({ id: 'new-assignment' } as any);
+
+      const result = await service.bulkImport(INSTANCE_ID, { sourceInstanceId: 'source-uuid' });
+
+      expect(assignSpy).toHaveBeenCalledWith(INSTANCE_ID, {
+        nodeId: targetINode.id,
+        personId: PERSON_ID,
+      });
+      // B4: bulkImport no longer duplicates assign()'s own conflict checks.
+      expect(mockAssignmentRepo.findOne).not.toHaveBeenCalled();
+      expect(mockAssignmentRepo.createQueryBuilder).not.toHaveBeenCalled();
+      expect(result.created).toHaveLength(1);
+    });
+
+    it('calls checkEventLock only once, not once per node (perf)', async () => {
+      const { target, source, sourceAssignment } = makeMatchedImportFixtures();
+      mockInstanceRepo.findOne.mockResolvedValueOnce(target).mockResolvedValueOnce(source);
+      mockAssignmentRepo.find.mockResolvedValue([sourceAssignment]);
+      const lockSpy = jest.spyOn(service, 'checkEventLock');
+      jest.spyOn(service as any, 'assignWithoutLockCheck').mockResolvedValue({ id: 'new-assignment' } as any);
+
+      await service.bulkImport(INSTANCE_ID, { sourceInstanceId: 'source-uuid' });
+
+      expect(lockSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('records a specific reason when assignWithoutLockCheck() rejects with a conflict, without throwing', async () => {
+      const { target, source, sourceAssignment } = makeMatchedImportFixtures();
+      mockInstanceRepo.findOne.mockResolvedValueOnce(target).mockResolvedValueOnce(source);
+      mockAssignmentRepo.find.mockResolvedValue([sourceAssignment]);
+      jest
+        .spyOn(service as any, 'assignWithoutLockCheck')
+        .mockRejectedValue(
+          new AssignConflictException(
+            'Node target-inode is already occupied in this figure instance',
+            'NODE_OCCUPIED',
+          ),
+        );
+
+      const result = await service.bulkImport(INSTANCE_ID, { sourceInstanceId: 'source-uuid' });
+
+      expect(result.created).toHaveLength(0);
+      expect(result.conflicts).toHaveLength(1);
+      expect(result.conflicts[0].reason).toBe('Node already occupied in target instance');
+    });
+
+    it('rethrows unexpected (non-domain) errors from assignWithoutLockCheck() instead of masking them as a conflict', async () => {
+      const { target, source, sourceAssignment } = makeMatchedImportFixtures();
+      mockInstanceRepo.findOne.mockResolvedValueOnce(target).mockResolvedValueOnce(source);
+      mockAssignmentRepo.find.mockResolvedValue([sourceAssignment]);
+      jest
+        .spyOn(service as any, 'assignWithoutLockCheck')
+        .mockRejectedValue(new Error('connection terminated unexpectedly'));
+      const errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+
+      try {
+        await expect(
+          service.bulkImport(INSTANCE_ID, { sourceInstanceId: 'source-uuid' }),
+        ).rejects.toThrow('connection terminated unexpectedly');
+        expect(errorSpy).toHaveBeenCalled();
+      } finally {
+        errorSpy.mockRestore();
+      }
+    });
   });
 
   // ── Assignment lock ──────────────────────────────────────────────────
@@ -1403,6 +1488,40 @@ describe('NodeAssignmentService', () => {
       });
 
       expect(result.id).toBe(ASSIGNMENT_ID);
+    });
+
+    // ── B1 — checkEventLock must not silently skip the lock check ───────────
+
+    it('throws NotFoundException when the instance does not exist (instead of silently skipping the lock)', async () => {
+      mockInstanceRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.checkEventLock(INSTANCE_ID)).rejects.toThrow(NotFoundException);
+    });
+
+    it('warns and does not throw when the instance has no segment (data-integrity gap)', async () => {
+      const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+      try {
+        mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ segment: null }));
+
+        await expect(service.checkEventLock(INSTANCE_ID)).resolves.toBeUndefined();
+        expect(warnSpy).toHaveBeenCalled();
+      } finally {
+        warnSpy.mockRestore();
+      }
+    });
+
+    it('warns and does not throw when the segment has no event (data-integrity gap)', async () => {
+      const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+      try {
+        mockInstanceRepo.findOne.mockResolvedValue(
+          makeInstance({ segment: { id: SEGMENT_ID, event: null } }),
+        );
+
+        await expect(service.checkEventLock(INSTANCE_ID)).resolves.toBeUndefined();
+        expect(warnSpy).toHaveBeenCalled();
+      } finally {
+        warnSpy.mockRestore();
+      }
     });
   });
 
@@ -1692,6 +1811,50 @@ describe('NodeAssignmentService', () => {
       expect(mockInstanceNodeRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({ isAdHoc: true, label: 'Extra cordó' }),
       );
+    });
+
+    it('propagates the classified conflict reason when cloning an ad-hoc assignment fails (regression)', async () => {
+      const adHocSourceNode = makeInstanceNode({
+        id: 'src-adhoc-1',
+        isAdHoc: true,
+        sourceNodeId: null,
+        label: 'Extra cordó',
+        zone: FigureZone.PINYA,
+      });
+      const target = makeInstance({ snapshotted: true, instanceNodes: [makeInstanceNode()] });
+      const source = makeInstance({
+        id: 'source-uuid',
+        snapshotted: true,
+        instanceNodes: [makeInstanceNode(), adHocSourceNode],
+      });
+      const adHocAssignment = makeAssignment({
+        figureInstance: source as any,
+        instanceNode: adHocSourceNode as any,
+        person: makePerson() as any,
+      });
+
+      mockInstanceRepo.findOne
+        .mockResolvedValueOnce(target)
+        .mockResolvedValueOnce(source);
+      mockAssignmentRepo.find.mockResolvedValue([adHocAssignment]);
+      mockInstanceNodeQb.getRawOne.mockResolvedValue({ max: 5 });
+      const cloned = { ...adHocSourceNode, id: 'cloned-adhoc-1' };
+      mockInstanceNodeRepo.create.mockReturnValue(cloned);
+      mockInstanceNodeRepo.save.mockResolvedValue(cloned);
+      jest.spyOn(service as any, 'assignWithoutLockCheck').mockRejectedValue(
+        new AssignConflictException(
+          'Node cloned-adhoc-1 is already occupied in this figure instance',
+          'NODE_OCCUPIED',
+        ),
+      );
+
+      const result = await service.bulkImport(INSTANCE_ID, { sourceInstanceId: 'source-uuid' });
+
+      expect(result.clonedAdHocNodes).toBe(1);
+      expect(result.conflicts).toHaveLength(1);
+      // Bug fix: must be the reason classified from the caught error, not the
+      // hardcoded generic Catalan string that used to be pushed regardless.
+      expect(result.conflicts[0].reason).toBe('Node already occupied in target instance');
     });
   });
 

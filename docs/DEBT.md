@@ -11,7 +11,7 @@ tags: [qa]
 > Regla: si un ítem es resol, s'esborra d'aquí. Res de columnes "✅ Resolt" —
 > per a això ja hi ha el git log.
 
-**Verificat contra el codi:** 25 de juliol de 2026
+**Verificat contra el codi:** 31 de juliol de 2026
 
 ---
 
@@ -19,10 +19,7 @@ tags: [qa]
 
 | # | Ítem | On | Impacte |
 |---|------|-----|---------|
-| B1 | `checkEventLock` retorna silenciosament si la instància o el seu segment no existeixen: el lock d'event no es comprova i la petició continua fins que un altre `findOne` llença 404 | `node-assignment.service.ts:1242` (`if (!instance?.segment) return`) | Es pot saltar el bloqueig d'assignacions d'events passats amb instàncies òrfenes |
-| B2 | `catch {}` nu a `bulkImport`: qualsevol error (timeout, `QueryFailedError`) es reporta com a "conflicte" genèric amb HTTP 200 | `node-assignment.service.ts:1015` | Errors d'infraestructura silenciats; el client creu que són conflictes legítims |
-| B3 | `getHistory` i `getEventAssignmentSummary` hidraten tots els `InstanceNode` (geometria inclosa) només per comptar-los | `node-assignment.service.ts:666` i `:777` | N×60 files per petició; substituïble per `loadRelationCountAndMap` |
-| B4 | `bulkImport` repeteix els checks de conflicte que `assign()` ja fa internament | `node-assignment.service.ts` (bucle de bulkImport) | 3 queries redundants per assignació |
+| B3 | `getHistory` hidrata tots els `InstanceNode` (geometria inclosa) només per comptar-los. (`getEventAssignmentSummary` es va descartar com a candidat: sí necessita els nodes per `computeInstanceAreaSummary`) | `node-assignment.service.ts:666` | N×60 files per petició; substituïble per `loadRelationCountAndMap` |
 | B5 | Els emails d'invitació no s'envien: el servei només logueja el token | `user.service.ts:182` | L'alta d'usuaris requereix passar el token a mà |
 
 ## Sync del legacy
