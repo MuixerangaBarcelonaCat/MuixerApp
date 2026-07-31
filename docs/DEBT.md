@@ -11,7 +11,7 @@ tags: [qa]
 > Regla: si un ítem es resol, s'esborra d'aquí. Res de columnes "✅ Resolt" —
 > per a això ja hi ha el git log.
 
-**Verificat contra el codi:** 25 de juliol de 2026
+**Verificat contra el codi:** 1 d'agost de 2026
 
 ---
 
@@ -21,7 +21,6 @@ tags: [qa]
 |---|------|-----|---------|
 | B1 | `checkEventLock` retorna silenciosament si la instància o el seu segment no existeixen: el lock d'event no es comprova i la petició continua fins que un altre `findOne` llença 404 | `node-assignment.service.ts:1242` (`if (!instance?.segment) return`) | Es pot saltar el bloqueig d'assignacions d'events passats amb instàncies òrfenes |
 | B2 | `catch {}` nu a `bulkImport`: qualsevol error (timeout, `QueryFailedError`) es reporta com a "conflicte" genèric amb HTTP 200 | `node-assignment.service.ts:1015` | Errors d'infraestructura silenciats; el client creu que són conflictes legítims |
-| B3 | `getHistory` i `getEventAssignmentSummary` hidraten tots els `InstanceNode` (geometria inclosa) només per comptar-los | `node-assignment.service.ts:666` i `:777` | N×60 files per petició; substituïble per `loadRelationCountAndMap` |
 | B4 | `bulkImport` repeteix els checks de conflicte que `assign()` ja fa internament | `node-assignment.service.ts` (bucle de bulkImport) | 3 queries redundants per assignació |
 | B5 | Els emails d'invitació no s'envien: el servei només logueja el token | `user.service.ts:182` | L'alta d'usuaris requereix passar el token a mà |
 
@@ -50,7 +49,6 @@ tags: [qa]
 | F1 | El workspace de Pinyes no és usable per sota de `sm` (639px): hi ha un guard que mostra "encara no optimitzat per a mòbil" a Pinyes, Troncs i Nodes extra | `pinyes-tab`, `troncs-tab`, `nodes-tab` | Decisió conscient: a 393px el canvas quedava en 73px reals |
 | F4 | `figure-canvas.component.ts` fa **2.707 línies** | `figure-canvas.component.ts` | Una extracció (`KonvaStageService` + renderers per mode) es va fer i **es va revertir el 12/06/2026 perquè no es va connectar mai**. No repetir-la sense connectar-la de debò |
 | F5 | Les interfícies `Create*Payload` / `Update*Payload` del dashboard no viuen a `libs/shared` | `features/*/models/` | Els models del frontend van derivant respecte dels DTOs de l'API |
-| F6 | `composition-editor.component.html` té 2 `aside` amb `class="w-70"` (línies 50 i 112). `w-70` **no existeix** a l'escala d'espaiat de Tailwind: no genera CSS i l'aside no té amplada reservada — el mateix bug que va trencar la pestanya Distribució en mòbil | `composition-editor.component.html:50,112` | Solució ja aplicada a `distribucio-tab`: `w-[280px]` + `flex-col sm:flex-row` |
 
 ## Tests
 

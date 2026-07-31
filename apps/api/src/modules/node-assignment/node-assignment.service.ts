@@ -663,7 +663,8 @@ export class NodeAssignmentService {
       .leftJoinAndSelect('fi.assignments', 'a')
       .leftJoinAndSelect('a.instanceNode', 'ain')
       .leftJoinAndSelect('a.person', 'ap')
-      .leftJoinAndSelect('fi.instanceNodes', 'inode')
+      // B3: count instead of hydrating full InstanceNode rows (geometry unused, only .length was read).
+      .loadRelationCountAndMap('fi.instanceNodeCount', 'fi.instanceNodes')
       .leftJoinAndSelect('fi.segment', 'seg')
       .leftJoinAndSelect('seg.event', 'ev')
       .where('fi.figureTemplateId = :templateId', { templateId });
@@ -690,7 +691,7 @@ export class NodeAssignmentService {
         instanceId: instance.id,
         snapshotted: instance.snapshotted,
         assignmentCount: instance.assignments?.length ?? 0,
-        totalNodes: instance.instanceNodes?.length ?? 0,
+        totalNodes: (instance as FigureInstance & { instanceNodeCount?: number }).instanceNodeCount ?? 0,
         assignments: (instance.assignments ?? []).map((a) => ({
           nodeId: a.instanceNode.id,
           nodeLabel: a.instanceNode.label,

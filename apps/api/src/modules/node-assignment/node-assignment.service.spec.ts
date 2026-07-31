@@ -824,6 +824,7 @@ describe('NodeAssignmentService', () => {
   describe('getHistory', () => {
     const mockHistoryQb = {
       leftJoinAndSelect: jest.fn().mockReturnThis(),
+      loadRelationCountAndMap: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
@@ -874,6 +875,31 @@ describe('NodeAssignmentService', () => {
         'ev.seasonId = :seasonId',
         { seasonId: 'season-1' },
       );
+    });
+
+    // B3: count nodes via loadRelationCountAndMap instead of hydrating full InstanceNode rows.
+    it('reads totalNodes from the mapped relation count instead of hydrating instanceNodes', async () => {
+      const tmpl = { id: TEMPLATE_ID };
+      const instance = makeInstance({ snapshotted: true, instanceNodes: undefined }) as any;
+      instance.instanceNodeCount = 7;
+      instance.assignments = [];
+      instance.segment = { ...makeSegment(), event: { id: 'e1', title: 'Assaig', date: '2026-05-01', eventType: EventType.ASSAIG } };
+
+      mockTemplateRepo.findOne.mockResolvedValue(tmpl);
+      mockHistoryQb.getCount.mockResolvedValue(1);
+      mockHistoryQb.getMany.mockResolvedValue([instance]);
+
+      const result = await service.getHistory(TEMPLATE_ID);
+
+      expect(mockHistoryQb.loadRelationCountAndMap).toHaveBeenCalledWith(
+        'fi.instanceNodeCount',
+        'fi.instanceNodes',
+      );
+      expect(mockHistoryQb.leftJoinAndSelect).not.toHaveBeenCalledWith(
+        'fi.instanceNodes',
+        expect.anything(),
+      );
+      expect(result.data[0].totalNodes).toBe(7);
     });
   });
 
