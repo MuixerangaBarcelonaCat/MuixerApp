@@ -19,9 +19,6 @@ tags: [qa]
 
 | # | Ítem | On | Impacte |
 |---|------|-----|---------|
-| B1 | `checkEventLock` retorna silenciosament si la instància o el seu segment no existeixen: el lock d'event no es comprova i la petició continua fins que un altre `findOne` llença 404 | `node-assignment.service.ts:1242` (`if (!instance?.segment) return`) | Es pot saltar el bloqueig d'assignacions d'events passats amb instàncies òrfenes |
-| B2 | `catch {}` nu a `bulkImport`: qualsevol error (timeout, `QueryFailedError`) es reporta com a "conflicte" genèric amb HTTP 200 | `node-assignment.service.ts:1015` | Errors d'infraestructura silenciats; el client creu que són conflictes legítims |
-| B4 | `bulkImport` repeteix els checks de conflicte que `assign()` ja fa internament | `node-assignment.service.ts` (bucle de bulkImport) | 3 queries redundants per assignació |
 | B5 | Els emails d'invitació no s'envien: el servei només logueja el token | `user.service.ts:182` | L'alta d'usuaris requereix passar el token a mà |
 
 ## Sync del legacy
