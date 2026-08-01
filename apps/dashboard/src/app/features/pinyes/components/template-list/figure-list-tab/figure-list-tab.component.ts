@@ -8,7 +8,6 @@ import {
   output,
 } from '@angular/core';
 import { Router } from '@angular/router';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
 import { ICON_TEMPLATE, ICON_RENGLA } from '../../../../../shared/constants/domain-icons';
@@ -51,8 +50,6 @@ export class FigureListTabComponent implements OnInit {
         (f.description ?? '').toLowerCase().includes(q),
     );
   });
-
-  private readonly destroy$ = takeUntilDestroyed();
 
   ngOnInit(): void {
     this.load();
