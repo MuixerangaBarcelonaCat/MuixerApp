@@ -29,8 +29,18 @@ describe('desktopOnlyGuard', () => {
     expect(mockToast.error).not.toHaveBeenCalled();
   });
 
-  it('blocks navigation and shows toast on mobile (< 1024px)', () => {
+  it('allows navigation on tablet portrait (>= 768px)', () => {
     vi.stubGlobal('window', { innerWidth: 768 });
+
+    const result = TestBed.runInInjectionContext(() => desktopOnlyGuard(null as any, null as any));
+
+    expect(result).toBe(true);
+    expect(mockRouter.navigate).not.toHaveBeenCalled();
+    expect(mockToast.error).not.toHaveBeenCalled();
+  });
+
+  it('blocks navigation and shows toast on phone (< 768px)', () => {
+    vi.stubGlobal('window', { innerWidth: 390 });
 
     const result = TestBed.runInInjectionContext(() => desktopOnlyGuard(null as any, null as any));
 
@@ -38,16 +48,6 @@ describe('desktopOnlyGuard', () => {
     expect(mockToast.error).toHaveBeenCalledWith(
       'Aquesta funcionalitat només està disponible en dispositius d\'escriptori o tauleta.',
     );
-    expect(mockRouter.navigate).toHaveBeenCalledWith(['/pinyes']);
-  });
-
-  it('blocks navigation on phone (< 640px)', () => {
-    vi.stubGlobal('window', { innerWidth: 390 });
-
-    const result = TestBed.runInInjectionContext(() => desktopOnlyGuard(null as any, null as any));
-
-    expect(result).toBe(false);
-    expect(mockToast.error).toHaveBeenCalled();
     expect(mockRouter.navigate).toHaveBeenCalledWith(['/pinyes']);
   });
 });
