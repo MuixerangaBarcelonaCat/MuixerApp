@@ -81,6 +81,7 @@ const NODE_DTO = {
 describe('FigureTemplateService', () => {
   let service: FigureTemplateService;
   let templateQb: Record<string, jest.Mock>;
+  let nodeQb: Record<string, jest.Mock>;
 
   const mockNodeRepo = {
     create: jest.fn((dto) => dto),
@@ -156,6 +157,17 @@ describe('FigureTemplateService', () => {
 
     mockTemplateRepo.createQueryBuilder.mockReturnValue(templateQb);
 
+    nodeQb = {
+      select: jest.fn().mockReturnThis(),
+      addSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      groupBy: jest.fn().mockReturnThis(),
+      addGroupBy: jest.fn().mockReturnThis(),
+      getRawMany: jest.fn().mockResolvedValue([]),
+    };
+    mockNodeRepo.createQueryBuilder.mockReturnValue(nodeQb);
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         FigureTemplateService,
@@ -193,6 +205,39 @@ describe('FigureTemplateService', () => {
       expect(templateQb.skip).toHaveBeenCalledWith(10);
       expect(templateQb.take).toHaveBeenCalledWith(10);
     });
+
+    it('folds the tronc/base aggregate into a bottom-to-top troncProfile per template', async () => {
+      templateQb.getMany.mockResolvedValue([makeTemplate({ id: 'tmpl-a' })]);
+      nodeQb.getRawMany.mockResolvedValue([
+        { templateId: 'tmpl-a', z: 0, count: '4' },
+        { templateId: 'tmpl-a', z: 1, count: '4' },
+        { templateId: 'tmpl-a', z: 2, count: '2' },
+      ]);
+      const result = await service.findAll({});
+      expect(result.data[0].troncProfile).toEqual([4, 4, 2]);
+      expect(nodeQb.where).toHaveBeenCalledWith(
+        'node.templateId IN (:...ids)',
+        { ids: ['tmpl-a'] },
+      );
+      expect(nodeQb.andWhere).toHaveBeenCalledWith(
+        'node.zone IN (:...zones)',
+        { zones: [FigureZone.TRONC, FigureZone.BASE] },
+      );
+    });
+
+    it('fills gap floors with 0 and defaults to an empty profile when there are no tronc/base nodes', async () => {
+      templateQb.getMany.mockResolvedValue([
+        makeTemplate({ id: 'tmpl-gap' }),
+        makeTemplate({ id: 'tmpl-empty' }),
+      ]);
+      nodeQb.getRawMany.mockResolvedValue([
+        { templateId: 'tmpl-gap', z: 0, count: '3' },
+        { templateId: 'tmpl-gap', z: 2, count: '1' },
+      ]);
+      const result = await service.findAll({});
+      expect(result.data.find((t) => t.id === 'tmpl-gap')?.troncProfile).toEqual([3, 0, 1]);
+      expect(result.data.find((t) => t.id === 'tmpl-empty')?.troncProfile).toEqual([]);
+    });
   });
 
   describe('findOne', () => {
@@ -209,6 +254,21 @@ describe('FigureTemplateService', () => {
     it('throws NotFoundException when not found', async () => {
       mockTemplateRepo.findOne.mockResolvedValue(null);
       await expect(service.findOne('bad-uuid')).rejects.toThrow(NotFoundException);
+    });
+
+    it('computes troncProfile from the loaded nodes, bases counted as 1 regardless of width', async () => {
+      const tmpl = makeTemplate({
+        nodes: [
+          makeNode({ zone: FigureZone.BASE, z: 0, width: 80 }),
+          makeNode({ zone: FigureZone.BASE, z: 0, width: 80 }),
+          makeNode({ zone: FigureZone.TRONC, z: 1, width: 2 }),
+          makeNode({ zone: FigureZone.TRONC, z: 1, width: 2 }),
+          makeNode({ zone: FigureZone.PINYA, z: 2, width: 999 }),
+        ],
+      });
+      mockTemplateRepo.findOne.mockResolvedValue(tmpl);
+      const result = await service.findOne('tmpl-uuid');
+      expect(result.troncProfile).toEqual([2, 4]);
     });
   });
 

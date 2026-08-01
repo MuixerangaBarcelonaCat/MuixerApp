@@ -9,15 +9,16 @@ import {
 } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { LucideAngularModule, UserCheck } from 'lucide-angular';
-import { ICON_TEMPLATE, ICON_COMPOSITION, ICON_FIGURA_NETA, DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
+import { LucideAngularModule, Search, UserCheck } from 'lucide-angular';
+import { ICON_FIGURA_NETA, DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FigureTemplateService } from '../../services/figure-template.service';
-import { EmptyStateComponent } from '../../../../shared/components/data/empty-state/empty-state.component';
-import { ToastService } from '@muixer/ui';
+import { ButtonComponent, BadgeComponent, CardComponent, InputComponent, ModalComponent, TabsComponent, TabDef, EmptyStateComponent, ToastService } from '@muixer/ui';
 import { TutorialModalComponent } from '../../../../shared/components/tutorial-modal/tutorial-modal.component';
 import { TutorialStep } from '../../../../shared/components/tutorial-modal/tutorial-step.model';
+import { PageHeaderComponent } from '../../../../shared/components/data/page-header/page-header.component';
 import { CompositionGridTabComponent } from './composition-grid-tab/composition-grid-tab.component';
+import { TemplatePreviewDrawingComponent } from '../template-preview-drawing/template-preview-drawing.component';
 
 const PINYES_ONBOARDING_STORAGE_KEY = 'muixer_pinyes_onboarding_dismissed';
 
@@ -48,6 +49,11 @@ const PINYES_ONBOARDING_STEPS: TutorialStep[] = [
 
 type ActiveTab = 'figures' | 'compositions';
 
+const TAB_DEFS: TabDef[] = [
+  { id: 'figures', label: 'Figures', icon: DOMAIN_ICONS.TEMPLATE },
+  { id: 'compositions', label: 'Composicions', icon: DOMAIN_ICONS.COMPOSITION },
+];
+
 @Component({
   selector: 'app-template-list',
   standalone: true,
@@ -55,17 +61,26 @@ type ActiveTab = 'figures' | 'compositions';
   imports: [
     FormsModule,
     LucideAngularModule,
+    ButtonComponent,
+    BadgeComponent,
+    CardComponent,
+    InputComponent,
+    ModalComponent,
+    TabsComponent,
     EmptyStateComponent,
+    PageHeaderComponent,
     TutorialModalComponent,
     CompositionGridTabComponent,
+    TemplatePreviewDrawingComponent,
   ],
   templateUrl: './template-list.component.html',
   styleUrl: './template-list.component.scss',
 })
 export class TemplateListComponent implements OnInit {
-  readonly ICON_TEMPLATE = ICON_TEMPLATE;
-  readonly ICON_COMPOSITION = ICON_COMPOSITION;
+  readonly DOMAIN_ICONS = DOMAIN_ICONS;
   readonly ICON_FIGURA_NETA = ICON_FIGURA_NETA;
+  readonly SearchIcon = Search;
+  readonly tabDefs = TAB_DEFS;
   readonly pinyesOnboardingSteps = PINYES_ONBOARDING_STEPS;
   readonly pinyesOnboardingStorageKey = PINYES_ONBOARDING_STORAGE_KEY;
 
@@ -85,8 +100,12 @@ export class TemplateListComponent implements OnInit {
   search = signal('');
   searchInput = '';
   deletingId = signal<string | null>(null);
+  duplicatingId = signal<string | null>(null);
   confirmDeleteId = signal<string | null>(null);
   readonly totalPages = computed(() => Math.ceil(this.total() / this.limit()));
+  readonly confirmDeleteTemplate = computed(
+    () => this.templates().find((t) => t.id === this.confirmDeleteId()) ?? null,
+  );
 
   ngOnInit() {
     const tab = this.route.snapshot.queryParamMap.get('tab') as ActiveTab | null;
@@ -97,7 +116,8 @@ export class TemplateListComponent implements OnInit {
     }
   }
 
-  setTab(tab: ActiveTab) {
+  setTab(tab: string) {
+    if (tab !== 'figures' && tab !== 'compositions') return;
     this.activeTab.set(tab);
     if (tab === 'figures' && this.templates().length === 0) {
       this.loadTemplates();
@@ -136,15 +156,16 @@ export class TemplateListComponent implements OnInit {
   }
 
   confirmDelete(id: string) {
-    this.confirmDeleteId.set(null);
     this.deletingId.set(id);
     this.figureTemplateService.remove(id).subscribe({
       next: () => {
         this.deletingId.set(null);
+        this.confirmDeleteId.set(null);
         this.loadTemplates();
       },
       error: (err: HttpErrorResponse) => {
         this.deletingId.set(null);
+        this.confirmDeleteId.set(null);
         const msg = err.error?.message as string | undefined;
         if (err.status === 409) {
           this.toast.error(msg ?? 'No es pot esborrar: hi ha instàncies que fan servir aquesta figura.');
@@ -156,13 +177,13 @@ export class TemplateListComponent implements OnInit {
   }
 
   duplicate(id: string) {
-    this.loading.set(true);
+    this.duplicatingId.set(id);
     this.figureTemplateService.duplicate(id).subscribe({
       next: (copy) => {
-        this.loading.set(false);
+        this.duplicatingId.set(null);
         this.router.navigate(['/pinyes/templates', copy.id, 'edit']);
       },
-      error: () => this.loading.set(false),
+      error: () => this.duplicatingId.set(null),
     });
   }
 

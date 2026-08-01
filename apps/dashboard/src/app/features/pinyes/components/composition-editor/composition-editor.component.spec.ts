@@ -103,6 +103,7 @@ const template: FigureTemplateListItem = {
   direction: 0,
   nodeCount: 2,
   renglaCount: 1,
+  troncProfile: [],
   createdAt: '2026-07-01T00:00:00.000Z',
   updatedAt: '2026-07-01T00:00:00.000Z',
 };

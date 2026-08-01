@@ -1,33 +1,25 @@
-<div class="flex flex-col gap-4 mt-4">
+<div class="flex flex-col gap-4">
 
   <!-- Search + create -->
   <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-    <div class="flex gap-3 items-center">
-      <label class="input input-bordered flex items-center gap-2 flex-1 max-w-sm">
-        <lucide-icon name="Search" [size]="16" class="text-base-content/40" aria-hidden="true" />
-        <input
-          type="search"
-          placeholder="Cerca per nom..."
-          [(ngModel)]="searchInput"
-          (ngModelChange)="onSearchChange($event)"
-          class="grow"
-          aria-label="Cerca composicions"
-        />
-      </label>
+    <div class="flex gap-3 items-center flex-1 max-w-lg">
+      <lib-input
+        type="search"
+        placeholder="Cerca per nom..."
+        [icon]="SearchIcon"
+        ariaLabel="Cerca composicions"
+        [(ngModel)]="searchInput"
+        (ngModelChange)="onSearchChange($event)"
+      />
       @if (loading() && compositions().length > 0) {
         <span class="loading loading-spinner loading-sm text-primary" aria-label="Carregant..."></span>
       }
     </div>
 
-    <button
-      type="button"
-      class="btn btn-primary gap-2"
-      (click)="navigateToCreate()"
-      aria-label="Crea composició nova"
-    >
+    <lib-button variant="primary" (clicked)="navigateToCreate()" ariaLabel="Crea composició nova">
       <lucide-icon name="Plus" [size]="18" aria-hidden="true" />
       Composició nova
-    </button>
+    </lib-button>
   </div>
 
   @if (loading() && compositions().length === 0) {
@@ -37,101 +29,106 @@
   }
 
   @else if (!loading() && compositions().length === 0) {
-    <app-empty-state
-      [icon]="ICON_COMPOSITION"
+    <lib-empty-state
+      [icon]="DOMAIN_ICONS.COMPOSITION"
       message="No hi ha composicions. Creeu la primera composició per començar."
       actionLabel="Composició nova"
-      (actionClick)="navigateToCreate()"
+      (clicked)="navigateToCreate()"
     />
   }
 
   @else if (compositions().length > 0) {
     <ul
-      class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+      class="grid grid-cols-[repeat(auto-fill,minmax(13rem,1fr))] gap-4"
       aria-label="Llista de composicions"
     >
       @for (composition of compositions(); track composition.id) {
-        <li class="card bg-base-100 border border-base-200 shadow-sm hover:shadow-md transition-shadow">
-          <div class="card-body p-4 gap-3">
-            <div>
-              <h2 class="card-title text-sm font-semibold leading-snug">
-                <button
-                  type="button"
-                  class="text-left hover:text-primary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary rounded-sm"
-                  (click)="navigateToEdit(composition.id)"
-                  [attr.aria-label]="'Edita ' + composition.name"
-                >{{ composition.name }}</button>
-              </h2>
-              <p class="text-xs text-base-content/50 mt-0.5">
+        <li>
+          <lib-card sash="title" [title]="composition.name">
+            <div class="flex flex-col gap-3">
+              <button
+                type="button"
+                class="w-full h-24 rounded-xl relative cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary"
+                (click)="navigateToEdit(composition.id)"
+                [attr.aria-label]="'Edita ' + composition.name"
+              >
+                <app-template-preview-drawing
+                  class="absolute inset-0"
+                  [profiles]="composition.figureProfiles"
+                  [seedKey]="composition.name"
+                />
+              </button>
+
+              <lib-badge variant="primary" size="sm">
                 {{ composition.entryCount }} {{ composition.entryCount === 1 ? 'figura' : 'figures' }}
-              </p>
-            </div>
+              </lib-badge>
 
-            <p class="text-xs text-base-content/40">Actualitzat {{ formatDate(composition.updatedAt) }}</p>
+              <p class="text-xs text-base-content/40">Actualitzat {{ formatDate(composition.updatedAt) }}</p>
 
-            <div class="card-actions justify-end gap-1 mt-1">
-              @if (confirmDeleteId() === composition.id) {
-                <div class="flex items-center gap-2 w-full">
-                  <span class="text-xs text-error flex-1">Voleu eliminar «{{ composition.name }}»?</span>
-                  <button type="button" class="btn btn-ghost btn-xs" (click)="cancelDelete()">Cancel·la</button>
-                  <button type="button" class="btn btn-error btn-xs" (click)="confirmDelete(composition.id)">Elimina</button>
-                </div>
-              } @else {
-                <button
-                  type="button"
-                  class="btn btn-ghost btn-xs gap-1"
-                  [disabled]="duplicatingId() === composition.id"
-                  (click)="duplicate(composition.id)"
-                  [attr.aria-label]="'Duplica ' + composition.name"
+              <div class="flex justify-end gap-1">
+                <lib-button
+                  variant="ghost"
+                  shape="square"
+                  size="sm"
+                  [loading]="duplicatingId() === composition.id"
+                  (clicked)="duplicate(composition.id)"
+                  [ariaLabel]="'Duplica ' + composition.name"
                 >
-                  @if (duplicatingId() === composition.id) {
-                    <span class="loading loading-spinner loading-xs"></span>
-                  } @else {
-                    <lucide-icon name="Copy" [size]="13" aria-hidden="true" />
-                  }
-                  Duplica
-                </button>
-                <button
-                  type="button"
-                  class="btn btn-ghost btn-xs gap-1 text-error hover:bg-error/10"
-                  [disabled]="deletingId() === composition.id"
-                  (click)="requestDelete(composition.id)"
-                  [attr.aria-label]="'Elimina ' + composition.name"
+                  <lucide-icon name="Copy" [size]="13" aria-hidden="true" />
+                </lib-button>
+                <lib-button
+                  variant="error"
+                  outline
+                  shape="square"
+                  size="sm"
+                  (clicked)="requestDelete(composition.id)"
+                  [ariaLabel]="'Elimina ' + composition.name"
                 >
-                  @if (deletingId() === composition.id) {
-                    <span class="loading loading-spinner loading-xs"></span>
-                  } @else {
-                    <lucide-icon name="Trash2" [size]="13" aria-hidden="true" />
-                  }
-                  Elimina
-                </button>
-                <button
-                  type="button"
-                  class="btn btn-primary btn-xs gap-1"
-                  (click)="navigateToEdit(composition.id)"
-                  [attr.aria-label]="'Edita ' + composition.name"
+                  <lucide-icon name="Trash2" [size]="13" aria-hidden="true" />
+                </lib-button>
+                <lib-button
+                  variant="primary"
+                  size="sm"
+                  (clicked)="navigateToEdit(composition.id)"
+                  [ariaLabel]="'Edita ' + composition.name"
                 >
                   <lucide-icon name="Pencil" [size]="13" aria-hidden="true" />
                   Edita
-                </button>
-              }
+                </lib-button>
+              </div>
             </div>
-          </div>
+          </lib-card>
         </li>
       }
     </ul>
 
     @if (totalPages() > 1) {
       <div class="flex items-center justify-center gap-2 mt-2" aria-label="Paginació">
-        <button type="button" class="btn btn-ghost btn-sm" [disabled]="page() <= 1" (click)="goToPage(page() - 1)" aria-label="Pàgina anterior">
+        <lib-button variant="ghost" size="sm" [disabled]="page() <= 1" (clicked)="goToPage(page() - 1)" ariaLabel="Pàgina anterior">
           <lucide-icon name="ChevronLeft" [size]="16" aria-hidden="true" />
-        </button>
+        </lib-button>
         <span class="text-sm text-base-content/70">Pàgina {{ page() }} de {{ totalPages() }}</span>
-        <button type="button" class="btn btn-ghost btn-sm" [disabled]="page() >= totalPages()" (click)="goToPage(page() + 1)" aria-label="Pàgina següent">
+        <lib-button variant="ghost" size="sm" [disabled]="page() >= totalPages()" (clicked)="goToPage(page() + 1)" ariaLabel="Pàgina següent">
           <lucide-icon name="ChevronRight" [size]="16" aria-hidden="true" />
-        </button>
+        </lib-button>
       </div>
     }
   }
 
 </div>
+
+<lib-modal
+  [open]="!!confirmDeleteComposition()"
+  (closed)="cancelDelete()"
+  title="Elimina la composició"
+>
+  <p>Voleu eliminar «{{ confirmDeleteComposition()?.name }}»? Aquesta acció no es pot desfer.</p>
+  <div modalFooter>
+    <lib-button variant="ghost" (clicked)="cancelDelete()">Cancel·la</lib-button>
+    <lib-button
+      variant="error"
+      [loading]="!!deletingId()"
+      (clicked)="confirmDelete(confirmDeleteComposition()!.id)"
+    >Elimina</lib-button>
+  </div>
+</lib-modal>
