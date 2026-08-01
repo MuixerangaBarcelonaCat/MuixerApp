@@ -4,6 +4,7 @@ import {
   DestroyRef,
   HostListener,
   OnInit,
+  ViewChild,
   computed,
   inject,
   input,
@@ -62,6 +63,9 @@ export class NodesTabComponent implements OnInit {
   private readonly toast = inject(ToastService);
 
   readonly isPast = input(false);
+
+  // Queried by template ref (not by type) so tests can substitute a stub component.
+  @ViewChild('canvas') private canvasRef?: FigureCanvasComponent;
 
   readonly adHocPresets = PINYA_NODE_PRESETS;
   readonly decorationPresets = DECORATION_NODE_PRESETS;
@@ -183,6 +187,19 @@ export class NodesTabComponent implements OnInit {
         return;
       }
       this.clearSelection();
+      return;
+    }
+
+    const isMod = event.ctrlKey || event.metaKey;
+    if (isMod && (event.key === '+' || event.key === '=')) {
+      event.preventDefault();
+      this.canvasRef?.zoomIn();
+      return;
+    }
+
+    if (isMod && event.key === '-') {
+      event.preventDefault();
+      this.canvasRef?.zoomOut();
       return;
     }
 

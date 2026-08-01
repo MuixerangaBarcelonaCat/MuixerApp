@@ -36,6 +36,8 @@ class StubFigureCanvas {
   getViewportCenter(): { x: number; y: number } {
     return { x: 386, y: 150 };
   }
+  zoomIn = vi.fn();
+  zoomOut = vi.fn();
 }
 
 @Component({ selector: 'app-tronc-view', standalone: true, template: '' })
@@ -502,6 +504,20 @@ describe('TemplateEditorComponent — Preview Mode', () => {
       const event = createKeyEvent('p', { ctrlKey: true, shiftKey: true });
       component.onKeyDown(event);
       expect(component.previewMode()).toBe(false);
+    });
+
+    it('should zoom in on Ctrl+=', () => {
+      const stub = component.figureCanvas() as unknown as StubFigureCanvas;
+      const event = createKeyEvent('=', { ctrlKey: true });
+      component.onKeyDown(event);
+      expect(stub.zoomIn).toHaveBeenCalled();
+    });
+
+    it('should zoom out on Ctrl+-', () => {
+      const stub = component.figureCanvas() as unknown as StubFigureCanvas;
+      const event = createKeyEvent('-', { ctrlKey: true });
+      component.onKeyDown(event);
+      expect(stub.zoomOut).toHaveBeenCalled();
     });
 
     it('should not toggle preview when editing an input', () => {

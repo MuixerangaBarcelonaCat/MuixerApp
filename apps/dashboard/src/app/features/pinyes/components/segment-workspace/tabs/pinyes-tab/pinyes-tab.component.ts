@@ -314,6 +314,18 @@ export class PinyesTabComponent implements OnInit {
       return;
     }
 
+    if (isMod && (event.key === '+' || event.key === '=')) {
+      event.preventDefault();
+      this.canvasRef?.zoomIn();
+      return;
+    }
+
+    if (isMod && event.key === '-') {
+      event.preventDefault();
+      this.canvasRef?.zoomOut();
+      return;
+    }
+
     if (event.key === 'Tab') {
       event.preventDefault();
       this.advanceFromCurrent();
