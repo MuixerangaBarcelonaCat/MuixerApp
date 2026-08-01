@@ -1007,22 +1007,23 @@ describe('NodeAssignmentService', () => {
     it('returns segments with figures and area breakdown', async () => {
       const person = makePerson();
       const iNode = makeInstanceNode();
-      const assignment = { ...makeAssignment(), instanceNode: iNode, person };
+      const assignment = { ...makeAssignment(), instanceNode: iNode, person, figureInstance: { id: 'fi-1' } };
       const figureInstance = {
         id: 'fi-1',
         figureTemplate: { id: TEMPLATE_ID, name: 'Muixeranga de 5', nodes: [] },
+        segment: { id: SEGMENT_ID },
         snapshotted: true,
         cordonsObertsEnabled: true,
         numberOfCordons: null,
         figureMode: 'COMPLETA',
-        instanceNodes: [iNode],
-        assignments: [assignment],
       };
       const segment = { id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 };
 
       mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
       mockSegmentRepo.find.mockResolvedValue([segment]);
       mockInstanceRepo.find.mockResolvedValue([figureInstance]);
+      mockInstanceNodeRepo.find.mockResolvedValue([{ ...iNode, figureInstance: { id: 'fi-1' } }]);
+      mockAssignmentRepo.find.mockResolvedValue([assignment]);
 
       const result = await service.getEventAssignmentSummary('e1');
 
@@ -1051,16 +1052,19 @@ describe('NodeAssignmentService', () => {
       const figureInstance = {
         id: 'fi-1',
         figureTemplate: { id: TEMPLATE_ID, name: 'Pilar', nodes: [] },
+        segment: { id: SEGMENT_ID },
         snapshotted: true,
         cordonsObertsEnabled: false,
         numberOfCordons: null,
         figureMode: 'COMPLETA',
-        instanceNodes: [normalNode, cordoObertNode],
-        assignments: [],
       };
       mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
       mockSegmentRepo.find.mockResolvedValue([{ id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 }]);
       mockInstanceRepo.find.mockResolvedValue([figureInstance]);
+      mockInstanceNodeRepo.find.mockResolvedValue(
+        [normalNode, cordoObertNode].map((n) => ({ ...n, figureInstance: { id: 'fi-1' } })),
+      );
+      mockAssignmentRepo.find.mockResolvedValue([]);
 
       const result = await service.getEventAssignmentSummary('e1');
 
@@ -1073,16 +1077,19 @@ describe('NodeAssignmentService', () => {
       const figureInstance = {
         id: 'fi-1',
         figureTemplate: { id: TEMPLATE_ID, name: 'Pilar', nodes: [] },
+        segment: { id: SEGMENT_ID },
         snapshotted: true,
         cordonsObertsEnabled: true,
         numberOfCordons: 1,
         figureMode: 'COMPLETA',
-        instanceNodes: [kept, hidden],
-        assignments: [],
       };
       mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
       mockSegmentRepo.find.mockResolvedValue([{ id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 }]);
       mockInstanceRepo.find.mockResolvedValue([figureInstance]);
+      mockInstanceNodeRepo.find.mockResolvedValue(
+        [kept, hidden].map((n) => ({ ...n, figureInstance: { id: 'fi-1' } })),
+      );
+      mockAssignmentRepo.find.mockResolvedValue([]);
 
       const result = await service.getEventAssignmentSummary('e1');
 
@@ -1094,16 +1101,17 @@ describe('NodeAssignmentService', () => {
       const figureInstance = {
         id: 'fi-1',
         figureTemplate: { id: TEMPLATE_ID, name: 'Pilar', nodes: [] },
+        segment: { id: SEGMENT_ID },
         snapshotted: true,
         cordonsObertsEnabled: true,
         numberOfCordons: null,
         figureMode: 'REMAT',
-        instanceNodes: [pinyaNode],
-        assignments: [],
       };
       mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
       mockSegmentRepo.find.mockResolvedValue([{ id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 }]);
       mockInstanceRepo.find.mockResolvedValue([figureInstance]);
+      mockInstanceNodeRepo.find.mockResolvedValue([{ ...pinyaNode, figureInstance: { id: 'fi-1' } }]);
+      mockAssignmentRepo.find.mockResolvedValue([]);
 
       const result = await service.getEventAssignmentSummary('e1');
 
@@ -1116,16 +1124,19 @@ describe('NodeAssignmentService', () => {
       const figureInstance = {
         id: 'fi-1',
         figureTemplate: { id: TEMPLATE_ID, name: 'Pilar', nodes: [] },
+        segment: { id: SEGMENT_ID },
         snapshotted: true,
         cordonsObertsEnabled: true,
         numberOfCordons: null,
         figureMode: 'REMAT',
-        instanceNodes: [troncNode, baseNode],
-        assignments: [],
       };
       mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
       mockSegmentRepo.find.mockResolvedValue([{ id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 }]);
       mockInstanceRepo.find.mockResolvedValue([figureInstance]);
+      mockInstanceNodeRepo.find.mockResolvedValue(
+        [troncNode, baseNode].map((n) => ({ ...n, figureInstance: { id: 'fi-1' } })),
+      );
+      mockAssignmentRepo.find.mockResolvedValue([]);
 
       const result = await service.getEventAssignmentSummary('e1');
 
@@ -1137,16 +1148,17 @@ describe('NodeAssignmentService', () => {
       const figureInstance = {
         id: 'fi-1',
         figureTemplate: { id: TEMPLATE_ID, name: 'Pilar', nodes: [] },
+        segment: { id: SEGMENT_ID },
         snapshotted: true,
         cordonsObertsEnabled: true,
         numberOfCordons: null,
         figureMode: 'COMPLETA',
-        instanceNodes: [directionNode],
-        assignments: [],
       };
       mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
       mockSegmentRepo.find.mockResolvedValue([{ id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 }]);
       mockInstanceRepo.find.mockResolvedValue([figureInstance]);
+      mockInstanceNodeRepo.find.mockResolvedValue([{ ...directionNode, figureInstance: { id: 'fi-1' } }]);
+      mockAssignmentRepo.find.mockResolvedValue([]);
 
       const result = await service.getEventAssignmentSummary('e1');
 
@@ -1160,16 +1172,17 @@ describe('NodeAssignmentService', () => {
       const figureInstance = {
         id: 'fi-1',
         figureTemplate: { id: TEMPLATE_ID, name: 'Pilar', nodes: [] },
+        segment: { id: SEGMENT_ID },
         snapshotted: true,
         cordonsObertsEnabled: true,
         numberOfCordons: null,
         figureMode: 'COMPLETA',
-        instanceNodes: [decorationNode],
-        assignments: [],
       };
       mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
       mockSegmentRepo.find.mockResolvedValue([{ id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 }]);
       mockInstanceRepo.find.mockResolvedValue([figureInstance]);
+      mockInstanceNodeRepo.find.mockResolvedValue([{ ...decorationNode, figureInstance: { id: 'fi-1' } }]);
+      mockAssignmentRepo.find.mockResolvedValue([]);
 
       const result = await service.getEventAssignmentSummary('e1');
 
@@ -1181,16 +1194,17 @@ describe('NodeAssignmentService', () => {
       const figureInstance = {
         id: 'fi-1',
         figureTemplate: { id: TEMPLATE_ID, name: 'Pilar', nodes: [templateNode] },
+        segment: { id: SEGMENT_ID },
         snapshotted: false,
         cordonsObertsEnabled: true,
         numberOfCordons: null,
         figureMode: 'COMPLETA',
-        instanceNodes: [],
-        assignments: [],
       };
       mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
       mockSegmentRepo.find.mockResolvedValue([{ id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 }]);
       mockInstanceRepo.find.mockResolvedValue([figureInstance]);
+      mockFigureNodeRepo.find.mockResolvedValue([{ ...templateNode, template: { id: TEMPLATE_ID } }]);
+      mockAssignmentRepo.find.mockResolvedValue([]);
 
       const result = await service.getEventAssignmentSummary('e1');
 
@@ -1200,20 +1214,26 @@ describe('NodeAssignmentService', () => {
     it('includes TRONC and BASE assignments in troncBaseAssignments with person alias', async () => {
       const person = makePerson();
       const troncNode = makeInstanceNode({ id: 't1', zone: FigureZone.TRONC, label: 'MANS' });
-      const troncAssignment = { ...makeAssignment(), instanceNode: troncNode, person };
+      const troncAssignment = {
+        ...makeAssignment(),
+        instanceNode: troncNode,
+        person,
+        figureInstance: { id: 'fi-1' },
+      };
       const figureInstance = {
         id: 'fi-1',
         figureTemplate: { id: TEMPLATE_ID, name: 'Pilar', nodes: [] },
+        segment: { id: SEGMENT_ID },
         snapshotted: true,
         cordonsObertsEnabled: true,
         numberOfCordons: null,
         figureMode: 'COMPLETA',
-        instanceNodes: [troncNode],
-        assignments: [troncAssignment],
       };
       mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
       mockSegmentRepo.find.mockResolvedValue([{ id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 }]);
       mockInstanceRepo.find.mockResolvedValue([figureInstance]);
+      mockInstanceNodeRepo.find.mockResolvedValue([{ ...troncNode, figureInstance: { id: 'fi-1' } }]);
+      mockAssignmentRepo.find.mockResolvedValue([troncAssignment]);
 
       const result = await service.getEventAssignmentSummary('e1');
 
@@ -1225,20 +1245,26 @@ describe('NodeAssignmentService', () => {
     it('does not include PINYA assignments in troncBaseAssignments', async () => {
       const person = makePerson();
       const pinyaNode = makeInstanceNode({ id: 'p1', zone: FigureZone.PINYA });
-      const pinyaAssignment = { ...makeAssignment(), instanceNode: pinyaNode, person };
+      const pinyaAssignment = {
+        ...makeAssignment(),
+        instanceNode: pinyaNode,
+        person,
+        figureInstance: { id: 'fi-1' },
+      };
       const figureInstance = {
         id: 'fi-1',
         figureTemplate: { id: TEMPLATE_ID, name: 'Pilar', nodes: [] },
+        segment: { id: SEGMENT_ID },
         snapshotted: true,
         cordonsObertsEnabled: true,
         numberOfCordons: null,
         figureMode: 'COMPLETA',
-        instanceNodes: [pinyaNode],
-        assignments: [pinyaAssignment],
       };
       mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
       mockSegmentRepo.find.mockResolvedValue([{ id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 }]);
       mockInstanceRepo.find.mockResolvedValue([figureInstance]);
+      mockInstanceNodeRepo.find.mockResolvedValue([{ ...pinyaNode, figureInstance: { id: 'fi-1' } }]);
+      mockAssignmentRepo.find.mockResolvedValue([pinyaAssignment]);
 
       const result = await service.getEventAssignmentSummary('e1');
 

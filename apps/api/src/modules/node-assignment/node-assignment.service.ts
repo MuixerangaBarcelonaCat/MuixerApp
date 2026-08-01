@@ -786,35 +786,101 @@ export class NodeAssignmentService {
       order: { sortOrder: 'ASC' },
     });
 
-    const result: EventSegmentSummary[] = [];
+    if (segments.length === 0) {
+      return { segments: [] };
+    }
 
-    for (const segment of segments) {
-      const instances = await this.figureInstanceRepository.find({
-        where: { segment: { id: segment.id } },
-        relations: [
-          'figureTemplate',
-          'figureTemplate.nodes',
-          'instanceNodes',
-          'assignments',
-          'assignments.instanceNode',
-          'assignments.person',
-        ],
+    const segmentIds = segments.map((s) => s.id);
+
+    // B3: one batched query for the whole event instead of one per segment
+    // (was N+1), and figureTemplate.nodes/instanceNodes/assignments are fetched
+    // as separate flat queries instead of leftJoinAndSelect-ed together, which
+    // previously caused a cartesian row explosion (nodes × instanceNodes × assignments).
+    const instances = await this.figureInstanceRepository.find({
+      where: { segment: { id: In(segmentIds) } },
+      relations: ['figureTemplate', 'segment'],
+    });
+
+    const snapshottedIds = instances.filter((fi) => fi.snapshotted).map((fi) => fi.id);
+    const templateIds = [
+      ...new Set(
+        instances
+          .filter((fi) => !fi.snapshotted && fi.figureTemplate)
+          .map((fi) => (fi.figureTemplate as FigureTemplate).id),
+      ),
+    ];
+
+    const [instanceNodes, templateNodes, assignments] = await Promise.all([
+      snapshottedIds.length
+        ? this.instanceNodeRepository.find({
+            where: { figureInstance: { id: In(snapshottedIds) } },
+            relations: ['figureInstance'],
+          })
+        : Promise.resolve([] as InstanceNode[]),
+      templateIds.length
+        ? this.figureNodeRepository.find({
+            where: { template: { id: In(templateIds) } },
+            relations: ['template'],
+          })
+        : Promise.resolve([] as FigureNode[]),
+      instances.length
+        ? this.assignmentRepository.find({
+            where: { segment: { id: In(segmentIds) } },
+            relations: ['instanceNode', 'person', 'figureInstance'],
+          })
+        : Promise.resolve([] as NodeAssignment[]),
+    ]);
+
+    const instanceNodesByInstance = new Map<string, InstanceNode[]>();
+    for (const n of instanceNodes) {
+      const arr = instanceNodesByInstance.get(n.figureInstance.id);
+      if (arr) arr.push(n);
+      else instanceNodesByInstance.set(n.figureInstance.id, [n]);
+    }
+
+    const templateNodesByTemplate = new Map<string, FigureNode[]>();
+    for (const n of templateNodes) {
+      const arr = templateNodesByTemplate.get(n.template.id);
+      if (arr) arr.push(n);
+      else templateNodesByTemplate.set(n.template.id, [n]);
+    }
+
+    const assignmentsByInstance = new Map<string, NodeAssignment[]>();
+    for (const a of assignments) {
+      const arr = assignmentsByInstance.get(a.figureInstance.id);
+      if (arr) arr.push(a);
+      else assignmentsByInstance.set(a.figureInstance.id, [a]);
+    }
+
+    const instancesBySegment = new Map<string, FigureInstance[]>();
+    for (const fi of instances) {
+      const arr = instancesBySegment.get(fi.segment.id);
+      if (arr) arr.push(fi);
+      else instancesBySegment.set(fi.segment.id, [fi]);
+    }
+
+    const result: EventSegmentSummary[] = segments.map((segment) => {
+      const segmentInstances = instancesBySegment.get(segment.id) ?? [];
+      const figures: EventFigureSummary[] = segmentInstances.map((fi) => {
+        const nodes = fi.snapshotted
+          ? (instanceNodesByInstance.get(fi.id) ?? [])
+          : (templateNodesByTemplate.get(fi.figureTemplate?.id ?? '') ?? []);
+        const figureAssignments = assignmentsByInstance.get(fi.id) ?? [];
+        return {
+          instanceId: fi.id,
+          figureName: fi.figureTemplate?.name ?? 'Sense plantilla',
+          snapshotted: fi.snapshotted,
+          ...this.computeInstanceAreaSummary(fi, nodes, figureAssignments),
+        };
       });
 
-      const figures: EventFigureSummary[] = instances.map((fi) => ({
-        instanceId: fi.id,
-        figureName: fi.figureTemplate?.name ?? 'Sense plantilla',
-        snapshotted: fi.snapshotted,
-        ...this.computeInstanceAreaSummary(fi),
-      }));
-
-      result.push({
+      return {
         segmentId: segment.id,
         segmentName: segment.name ?? '',
         sortOrder: segment.sortOrder,
         figures,
-      });
-    }
+      };
+    });
 
     return { segments: result };
   }
@@ -827,13 +893,16 @@ export class NodeAssignmentService {
    * (FIGURE_DIRECTION/XICALLA_DIRECTION) count only toward total; DECORATION
    * is excluded entirely (not assignable).
    */
-  private computeInstanceAreaSummary(fi: FigureInstance): {
+  private computeInstanceAreaSummary(
+    fi: FigureInstance,
+    nodes: Array<Pick<InstanceNode | FigureNode, 'zone' | 'positionType' | 'renglaPosition'>>,
+    instanceAssignments: NodeAssignment[],
+  ): {
     pinya: FigureAreaCount;
     tronc: FigureAreaCount;
     total: FigureAreaCount;
     troncBaseAssignments: EventFigureSummary['troncBaseAssignments'];
   } {
-    const nodes = fi.snapshotted ? (fi.instanceNodes ?? []) : (fi.figureTemplate?.nodes ?? []);
     const figureMode = fi.figureMode ?? FigureMode.COMPLETA;
     const numberOfCordons = fi.numberOfCordons ?? null;
     const cordonsObertsEnabled = fi.cordonsObertsEnabled;
@@ -863,7 +932,7 @@ export class NodeAssignmentService {
     let troncAssigned = 0;
     let directionAssigned = 0;
     const troncBaseAssignments: EventFigureSummary['troncBaseAssignments'] = [];
-    for (const a of fi.assignments ?? []) {
+    for (const a of instanceAssignments) {
       const n = a.instanceNode;
       if (!n) continue;
       if (isPinya(n)) {
