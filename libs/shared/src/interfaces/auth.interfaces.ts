@@ -23,6 +23,10 @@ export interface UserProfile {
   email: string;
   role: UserRole;
   isActive: boolean;
+  /** ISO timestamp de quan el compte va acceptar la política de privacitat (null = mai). */
+  privacyPolicyAcceptedAt: string | null;
+  /** True si cal (re)acceptar la política: la versió activa supera la que l'usuari va acceptar. */
+  requiresPrivacyConsent: boolean;
   person: PersonSummary | null;
 }
 

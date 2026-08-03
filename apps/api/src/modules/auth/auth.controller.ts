@@ -153,6 +153,20 @@ export class AuthController {
     return this.authService.getMe(user.sub);
   }
 
+  /** Registra l'acceptació de la política de privacitat per l'usuari autenticat (click-wrap). */
+  @Post('accept-privacy-policy')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Acceptar la política de privacitat vigent' })
+  @ApiResponse({ status: 200, description: 'Consentiment registrat. Retorna el perfil actualitzat.' })
+  @ApiResponse({ status: 401, description: 'Token d\'accés invàlid o expirat.' })
+  async acceptPrivacyPolicy(
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ): Promise<UserProfile> {
+    return this.authService.acceptPrivacyPolicy(user.sub, req.ip ?? null);
+  }
+
   /** Activa el compte d'un nou membre via token d'invitació i fa auto-login. */
   @Public()
   @Post('invite/accept')
