@@ -481,6 +481,12 @@ Definició: [`apps/api/src/modules/user/user.entity.ts`](../apps/api/src/modules
 |---------|------|------------|
 | `Notification` | amb el push de la PWA | Notificacions push/email |
 | `Colla` | multi-tenant | Arrel del model; caldrà `collaId` al JWT i als guards (vegeu [[DEBT]] SEC4) |
+| `LegalDocument` | compliment LOPDGDD/RGPD | Textos legals versionats (Política de Privacitat, clàusula de transparència), editables des de `/config`. Pla → [[GDPR_COMPLIANCE]] §2.3 |
+| `AuditLog` | compliment LOPDGDD/RGPD | Registre d'activitat de seguretat append-only (consentiment, accés a PII). Pla → [[GDPR_COMPLIANCE]] §6 |
+
+El compliment LOPDGDD/RGPD també afegirà `privacyPolicyAcceptedAt` i `privacyPolicyVersion` a
+`User` (consentiment click-wrap) i, ajornat, `anonymizedAt` a `Person` (dret a l'oblit): vegeu
+[[GDPR_COMPLIANCE]] i [[DEBT]] SEC5.
 
 Els camps sensibles (`email`, `phone`, `birthDate`) encara no s'encripten en repòs: [[DEBT]] SEC3.
 

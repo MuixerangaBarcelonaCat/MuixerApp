@@ -43,6 +43,9 @@ graph TD
   DOCKER_ARCHITECTURE --> DEPLOY_PRE
   DASHBOARD_UI --> AUDIT_SUITE
   ROADMAP --> DEBT
+  MAP --> GDPR_COMPLIANCE
+  GDPR_COMPLIANCE --> DATA_MODEL
+  GDPR_COMPLIANCE --> DEBT
 ```
 
 ### Estat i planificació
@@ -80,6 +83,7 @@ graph TD
 |----------|-----------------|
 | [[DASHBOARD_UI]] | Patrons d'UI, DaisyUI, composició de pàgines de llista |
 | [[AUDIT_SUITE]] | Com executar les auditories responsive/a11y i els e2e de Playwright |
+| [[GDPR_COMPLIANCE]] | Informe tècnic i pla d'implementació del compliment LOPDGDD/RGPD |
 
 ### Infraestructura
 

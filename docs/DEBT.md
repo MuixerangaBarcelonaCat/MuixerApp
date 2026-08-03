@@ -38,6 +38,7 @@ tags: [qa]
 | SEC2 | `CORS_ORIGINS` no ha de contenir `localhost` en producció | Verificar a cada desplegament |
 | SEC3 | Camps sensibles de `persons` (`email`, `phone`, `birthDate`) sense encriptar en repòs | RGPD. Decisió pendent: columnes encriptades vs. encriptació de disc |
 | SEC4 | Multi-tenant no implementat | Quan s'implemente caldrà `collaId` al JWT i als guards de tots els mòduls |
+| SEC5 | Dret a l'oblit no implementat: falta l'anonimització de `persons` (nom, cognoms, email, telèfon) conservant l'històric de pinyes i assistència de forma anònima, i el filtre de re-importació al `SyncModule` perquè el legacy no ressuscite la persona | RGPD/LOPDGDD. Ajornat conscientment del sprint de compliment. Cal marca `anonymizedAt` a `Person` (no reutilitzar `isActive`, per BUG-9 a `person-sync.strategy.ts:380`). Pla a [[GDPR_COMPLIANCE]] §11 |
 
 ## Frontend
 
