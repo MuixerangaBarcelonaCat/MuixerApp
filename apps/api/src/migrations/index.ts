@@ -26,6 +26,10 @@ import { RenameClimbPathToClimbIndicator1782800000000 } from './1782800000000-Re
 import { AddCordonsObertsEnabled1782900000000 } from './1782900000000-AddCordonsObertsEnabled';
 import { ConvertTimestampsToTimestamptz1783000000000 } from './1783000000000-ConvertTimestampsToTimestamptz';
 import { CreatePersonDelegates1783100000000 } from './1783100000000-CreatePersonDelegates';
+import { CreateLegalDocuments1783200000000 } from './1783200000000-CreateLegalDocuments';
+import { CreateAuditLogs1783300000000 } from './1783300000000-CreateAuditLogs';
+import { AddUserPrivacyConsent1783400000000 } from './1783400000000-AddUserPrivacyConsent';
+import { SeedLegalDocuments1783500000000 } from './1783500000000-SeedLegalDocuments';
 
 export const migrations: (new () => MigrationInterface)[] = [
   InitialSchema1748600000000,
@@ -55,4 +59,8 @@ export const migrations: (new () => MigrationInterface)[] = [
   AddCordonsObertsEnabled1782900000000,
   ConvertTimestampsToTimestamptz1783000000000,
   CreatePersonDelegates1783100000000,
+  CreateLegalDocuments1783200000000,
+  CreateAuditLogs1783300000000,
+  AddUserPrivacyConsent1783400000000,
+  SeedLegalDocuments1783500000000,
 ];

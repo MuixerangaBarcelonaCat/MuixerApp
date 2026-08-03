@@ -9,6 +9,8 @@ export * from './enums/event-type.enum';
 export * from './enums/attendance-status.enum';
 export * from './enums/client-type.enum';
 export * from './enums/delegate-type.enum';
+export * from './enums/legal-document-type.enum';
+export * from './enums/audit-action.enum';
 export * from './enums/segment-move-conflict-resolution.enum';
 export * from './constants/node-preset.constants';
 export * from './interfaces/attendance-summary.interface';
