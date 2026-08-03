@@ -77,7 +77,8 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
   private readonly layout = inject(LayoutService);
   private readonly toast = inject(ToastService);
   readonly helpModal = viewChild.required(TemplateEditorHelpModalComponent);
-  readonly figureCanvas = viewChild(FigureCanvasComponent);
+  // Queried by template ref (not by type) so tests can substitute a stub component.
+  readonly figureCanvas = viewChild<FigureCanvasComponent>('figureCanvasRef');
   readonly presetDropdownRef = viewChild<ElementRef>('presetDropdownRef');
 
   // Template metadata
@@ -554,6 +555,18 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
     if (isMod && event.key === 'd') {
       event.preventDefault();
       this.duplicateSelectedNode();
+      return;
+    }
+
+    if (isMod && (event.key === '+' || event.key === '=')) {
+      event.preventDefault();
+      this.figureCanvas()?.zoomIn();
+      return;
+    }
+
+    if (isMod && event.key === '-') {
+      event.preventDefault();
+      this.figureCanvas()?.zoomOut();
       return;
     }
 

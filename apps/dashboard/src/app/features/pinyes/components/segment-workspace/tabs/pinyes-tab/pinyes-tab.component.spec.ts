@@ -37,6 +37,8 @@ class StubFigureCanvas {
   readonly segmentNodeSelected = output<SegmentNodeRef | null>();
   readonly segmentNodeDoubleClicked = output<SegmentNodeRef>();
   centerOnContent = vi.fn();
+  zoomIn = vi.fn();
+  zoomOut = vi.fn();
 }
 
 @Component({ selector: 'app-person-panel', standalone: true, template: '' })
@@ -790,6 +792,24 @@ describe('PinyesTabComponent', () => {
       component.performUndo();
 
       expect(undoSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('zoom keyboard shortcuts', () => {
+    it('Ctrl+= zooms in', async () => {
+      await setup();
+
+      component.onKeyDown(new KeyboardEvent('keydown', { key: '=', ctrlKey: true }));
+
+      expect(canvasStub().zoomIn).toHaveBeenCalled();
+    });
+
+    it('Ctrl+- zooms out', async () => {
+      await setup();
+
+      component.onKeyDown(new KeyboardEvent('keydown', { key: '-', ctrlKey: true }));
+
+      expect(canvasStub().zoomOut).toHaveBeenCalled();
     });
   });
 

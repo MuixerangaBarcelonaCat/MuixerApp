@@ -41,6 +41,8 @@ class StubFigureCanvas {
   readonly segmentAdHocNodeTransformed = output<
     SegmentNodeRef & { x: number; y: number; width: number; height: number; rotation: number }
   >();
+  zoomIn = vi.fn();
+  zoomOut = vi.fn();
 }
 
 @Component({ selector: 'app-ad-hoc-node-properties', standalone: true, template: '' })
@@ -547,6 +549,22 @@ describe('NodesTabComponent', () => {
       component.onKeyDown(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
 
       expect(assignmentService.updateAdHocNode).toHaveBeenCalledWith(INST_A, 'adhoc-1', { x: 1, y: 0 });
+    });
+
+    it('Ctrl+= zooms in', async () => {
+      await setup();
+
+      component.onKeyDown(new KeyboardEvent('keydown', { key: '=', ctrlKey: true }));
+
+      expect(canvasStub().zoomIn).toHaveBeenCalled();
+    });
+
+    it('Ctrl+- zooms out', async () => {
+      await setup();
+
+      component.onKeyDown(new KeyboardEvent('keydown', { key: '-', ctrlKey: true }));
+
+      expect(canvasStub().zoomOut).toHaveBeenCalled();
     });
   });
 

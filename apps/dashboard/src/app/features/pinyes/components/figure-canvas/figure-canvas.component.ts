@@ -545,6 +545,16 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     };
   }
 
+  /** Zooms in by a 10% step, matching the mouse-wheel increment (Ctrl/Cmd + shortcut). */
+  zoomIn(): void {
+    this.setZoom(clampScale(this.zoomLevel() * 1.1, ZOOM_MIN, ZOOM_MAX));
+  }
+
+  /** Zooms out by a 10% step, matching the mouse-wheel increment (Ctrl/Cmd - shortcut). */
+  zoomOut(): void {
+    this.setZoom(clampScale(this.zoomLevel() * 0.9, ZOOM_MIN, ZOOM_MAX));
+  }
+
   setZoom(level: number): void {
     const center = {
       x: this.stage.width() / 2,

@@ -4,6 +4,7 @@ import {
   ConflictException,
   BadRequestException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, Repository } from 'typeorm';
@@ -29,6 +30,20 @@ import { EventSegment } from '../event-segment/entities/event-segment.entity';
 import { Event } from '../event/event.entity';
 
 // ─── Response interfaces ────────────────────────────────────────────────────
+
+/**
+ * Conflict raised by assign()'s own checks (or the DB race backstop in
+ * toAssignConflictError). Carries a machine-readable `reasonCode` so bulkImport
+ * can classify it without parsing `message` — substring matching breaks silently
+ * if the message wording ever changes.
+ */
+export type AssignConflictReasonCode = 'NODE_OCCUPIED' | 'PERSON_IN_INSTANCE' | 'PERSON_IN_SEGMENT';
+
+export class AssignConflictException extends ConflictException {
+  constructor(message: string, public readonly reasonCode: AssignConflictReasonCode) {
+    super(message);
+  }
+}
 
 export interface AssignmentDetail {
   id: string;
@@ -272,6 +287,8 @@ function figureNodeToResponse(node: FigureNode): InstanceNodeResponse {
 
 @Injectable()
 export class NodeAssignmentService {
+  private readonly logger = new Logger(NodeAssignmentService.name);
+
   constructor(
     @InjectRepository(NodeAssignment)
     private readonly assignmentRepository: Repository<NodeAssignment>,
@@ -352,7 +369,18 @@ export class NodeAssignmentService {
     dto: { nodeId: string; personId: string },
   ): Promise<AssignmentDetail> {
     await this.checkEventLock(instanceId);
+    return this.assignWithoutLockCheck(instanceId, dto);
+  }
 
+  /**
+   * Same as assign(), but skips checkEventLock(). bulkImport() already checks
+   * the lock once before its loop (B4): calling assign() per node would re-run
+   * that same findOne+2-relations query on every iteration for no benefit.
+   */
+  private async assignWithoutLockCheck(
+    instanceId: string,
+    dto: { nodeId: string; personId: string },
+  ): Promise<AssignmentDetail> {
     const instance = await this.figureInstanceRepository.findOne({
       where: { id: instanceId },
       relations: ['figureTemplate', 'segment'],
@@ -409,8 +437,9 @@ export class NodeAssignmentService {
       },
     });
     if (nodeConflict) {
-      throw new ConflictException(
+      throw new AssignConflictException(
         `Node ${instanceNode.id} is already occupied in this figure instance`,
+        'NODE_OCCUPIED',
       );
     }
 
@@ -421,8 +450,9 @@ export class NodeAssignmentService {
       },
     });
     if (personConflict) {
-      throw new ConflictException(
+      throw new AssignConflictException(
         `Person ${dto.personId} is already assigned in this figure instance`,
+        'PERSON_IN_INSTANCE',
       );
     }
 
@@ -434,8 +464,9 @@ export class NodeAssignmentService {
       .getOne();
 
     if (segmentConflict) {
-      throw new ConflictException(
+      throw new AssignConflictException(
         `Person ${dto.personId} is already assigned in another figure instance of this segment`,
+        'PERSON_IN_SEGMENT',
       );
     }
 
@@ -663,7 +694,8 @@ export class NodeAssignmentService {
       .leftJoinAndSelect('fi.assignments', 'a')
       .leftJoinAndSelect('a.instanceNode', 'ain')
       .leftJoinAndSelect('a.person', 'ap')
-      .leftJoinAndSelect('fi.instanceNodes', 'inode')
+      // B3: count instead of hydrating full InstanceNode rows (geometry unused, only .length was read).
+      .loadRelationCountAndMap('fi.instanceNodeCount', 'fi.instanceNodes')
       .leftJoinAndSelect('fi.segment', 'seg')
       .leftJoinAndSelect('seg.event', 'ev')
       .where('fi.figureTemplateId = :templateId', { templateId });
@@ -690,7 +722,7 @@ export class NodeAssignmentService {
         instanceId: instance.id,
         snapshotted: instance.snapshotted,
         assignmentCount: instance.assignments?.length ?? 0,
-        totalNodes: instance.instanceNodes?.length ?? 0,
+        totalNodes: (instance as FigureInstance & { instanceNodeCount?: number }).instanceNodeCount ?? 0,
         assignments: (instance.assignments ?? []).map((a) => ({
           nodeId: a.instanceNode.id,
           nodeLabel: a.instanceNode.label,
@@ -785,35 +817,101 @@ export class NodeAssignmentService {
       order: { sortOrder: 'ASC' },
     });
 
-    const result: EventSegmentSummary[] = [];
+    if (segments.length === 0) {
+      return { segments: [] };
+    }
 
-    for (const segment of segments) {
-      const instances = await this.figureInstanceRepository.find({
-        where: { segment: { id: segment.id } },
-        relations: [
-          'figureTemplate',
-          'figureTemplate.nodes',
-          'instanceNodes',
-          'assignments',
-          'assignments.instanceNode',
-          'assignments.person',
-        ],
+    const segmentIds = segments.map((s) => s.id);
+
+    // B3: one batched query for the whole event instead of one per segment
+    // (was N+1), and figureTemplate.nodes/instanceNodes/assignments are fetched
+    // as separate flat queries instead of leftJoinAndSelect-ed together, which
+    // previously caused a cartesian row explosion (nodes × instanceNodes × assignments).
+    const instances = await this.figureInstanceRepository.find({
+      where: { segment: { id: In(segmentIds) } },
+      relations: ['figureTemplate', 'segment'],
+    });
+
+    const snapshottedIds = instances.filter((fi) => fi.snapshotted).map((fi) => fi.id);
+    const templateIds = [
+      ...new Set(
+        instances
+          .filter((fi) => !fi.snapshotted && fi.figureTemplate)
+          .map((fi) => (fi.figureTemplate as FigureTemplate).id),
+      ),
+    ];
+
+    const [instanceNodes, templateNodes, assignments] = await Promise.all([
+      snapshottedIds.length
+        ? this.instanceNodeRepository.find({
+            where: { figureInstance: { id: In(snapshottedIds) } },
+            relations: ['figureInstance'],
+          })
+        : Promise.resolve([] as InstanceNode[]),
+      templateIds.length
+        ? this.figureNodeRepository.find({
+            where: { template: { id: In(templateIds) } },
+            relations: ['template'],
+          })
+        : Promise.resolve([] as FigureNode[]),
+      instances.length
+        ? this.assignmentRepository.find({
+            where: { segment: { id: In(segmentIds) } },
+            relations: ['instanceNode', 'person', 'figureInstance'],
+          })
+        : Promise.resolve([] as NodeAssignment[]),
+    ]);
+
+    const instanceNodesByInstance = new Map<string, InstanceNode[]>();
+    for (const n of instanceNodes) {
+      const arr = instanceNodesByInstance.get(n.figureInstance.id);
+      if (arr) arr.push(n);
+      else instanceNodesByInstance.set(n.figureInstance.id, [n]);
+    }
+
+    const templateNodesByTemplate = new Map<string, FigureNode[]>();
+    for (const n of templateNodes) {
+      const arr = templateNodesByTemplate.get(n.template.id);
+      if (arr) arr.push(n);
+      else templateNodesByTemplate.set(n.template.id, [n]);
+    }
+
+    const assignmentsByInstance = new Map<string, NodeAssignment[]>();
+    for (const a of assignments) {
+      const arr = assignmentsByInstance.get(a.figureInstance.id);
+      if (arr) arr.push(a);
+      else assignmentsByInstance.set(a.figureInstance.id, [a]);
+    }
+
+    const instancesBySegment = new Map<string, FigureInstance[]>();
+    for (const fi of instances) {
+      const arr = instancesBySegment.get(fi.segment.id);
+      if (arr) arr.push(fi);
+      else instancesBySegment.set(fi.segment.id, [fi]);
+    }
+
+    const result: EventSegmentSummary[] = segments.map((segment) => {
+      const segmentInstances = instancesBySegment.get(segment.id) ?? [];
+      const figures: EventFigureSummary[] = segmentInstances.map((fi) => {
+        const nodes = fi.snapshotted
+          ? (instanceNodesByInstance.get(fi.id) ?? [])
+          : (templateNodesByTemplate.get(fi.figureTemplate?.id ?? '') ?? []);
+        const figureAssignments = assignmentsByInstance.get(fi.id) ?? [];
+        return {
+          instanceId: fi.id,
+          figureName: fi.figureTemplate?.name ?? 'Sense plantilla',
+          snapshotted: fi.snapshotted,
+          ...this.computeInstanceAreaSummary(fi, nodes, figureAssignments),
+        };
       });
 
-      const figures: EventFigureSummary[] = instances.map((fi) => ({
-        instanceId: fi.id,
-        figureName: fi.figureTemplate?.name ?? 'Sense plantilla',
-        snapshotted: fi.snapshotted,
-        ...this.computeInstanceAreaSummary(fi),
-      }));
-
-      result.push({
+      return {
         segmentId: segment.id,
         segmentName: segment.name ?? '',
         sortOrder: segment.sortOrder,
         figures,
-      });
-    }
+      };
+    });
 
     return { segments: result };
   }
@@ -826,13 +924,16 @@ export class NodeAssignmentService {
    * (FIGURE_DIRECTION/XICALLA_DIRECTION) count only toward total; DECORATION
    * is excluded entirely (not assignable).
    */
-  private computeInstanceAreaSummary(fi: FigureInstance): {
+  private computeInstanceAreaSummary(
+    fi: FigureInstance,
+    nodes: Array<Pick<InstanceNode | FigureNode, 'zone' | 'positionType' | 'renglaPosition'>>,
+    instanceAssignments: NodeAssignment[],
+  ): {
     pinya: FigureAreaCount;
     tronc: FigureAreaCount;
     total: FigureAreaCount;
     troncBaseAssignments: EventFigureSummary['troncBaseAssignments'];
   } {
-    const nodes = fi.snapshotted ? (fi.instanceNodes ?? []) : (fi.figureTemplate?.nodes ?? []);
     const figureMode = fi.figureMode ?? FigureMode.COMPLETA;
     const numberOfCordons = fi.numberOfCordons ?? null;
     const cordonsObertsEnabled = fi.cordonsObertsEnabled;
@@ -862,7 +963,7 @@ export class NodeAssignmentService {
     let troncAssigned = 0;
     let directionAssigned = 0;
     const troncBaseAssignments: EventFigureSummary['troncBaseAssignments'] = [];
-    for (const a of fi.assignments ?? []) {
+    for (const a of instanceAssignments) {
       const n = a.instanceNode;
       if (!n) continue;
       if (isPinya(n)) {
@@ -979,41 +1080,26 @@ export class NodeAssignmentService {
         continue;
       }
 
-      const nodeOccupied = await this.assignmentRepository.findOne({
-        where: { figureInstance: { id: instanceId }, instanceNode: { id: targetNode.id } },
-      });
-      if (nodeOccupied) {
-        conflicts.push({ nodeId: targetNode.id, nodeLabel, personAlias, reason: 'Node already occupied in target instance' });
-        continue;
-      }
-
-      const personInInstance = await this.assignmentRepository.findOne({
-        where: { figureInstance: { id: instanceId }, person: { id: personId } },
-      });
-      if (personInInstance) {
-        conflicts.push({ nodeId: targetNode.id, nodeLabel, personAlias, reason: 'Person already assigned in target instance' });
-        continue;
-      }
-
-      const personInSegment = await this.assignmentRepository
-        .createQueryBuilder('a')
-        .innerJoin('a.figureInstance', 'fi')
-        .where('fi.segmentId = :segmentId', { segmentId: targetInstance.segment.id })
-        .andWhere('a.personId = :personId', { personId })
-        .getOne();
-      if (personInSegment) {
-        conflicts.push({ nodeId: targetNode.id, nodeLabel, personAlias, reason: 'Person already assigned in this segment' });
-        continue;
-      }
-
+      // B4: node/person/segment conflict checks are NOT duplicated here — assign()
+      // already performs them (and has the DB-level backstop via toAssignConflictError).
+      // Uses assignWithoutLockCheck: the lock was already checked once above.
       try {
-        const detail = await this.assign(instanceId, {
+        const detail = await this.assignWithoutLockCheck(instanceId, {
           nodeId: targetNode.id,
           personId,
         });
         created.push(detail);
-      } catch {
-        conflicts.push({ nodeId: targetNode.id, nodeLabel, personAlias, reason: 'Could not create assignment' });
+      } catch (err) {
+        const reason = this.describeBulkImportError(err);
+        if (reason === null) {
+          // B2: an unexpected (non-domain) error must not be masked as a conflict.
+          this.logger.error(
+            `bulkImport: unexpected error assigning node ${targetNode.id} to person ${personId}`,
+            err instanceof Error ? err.stack : err,
+          );
+          throw err;
+        }
+        conflicts.push({ nodeId: targetNode.id, nodeLabel, personAlias, reason });
       }
     }
 
@@ -1086,16 +1172,25 @@ export class NodeAssignmentService {
         const personId = sourceAssignment.person.id;
         const personAlias = sourceAssignment.person.alias ?? `${sourceAssignment.person.name} ${sourceAssignment.person.firstSurname}`;
         try {
-          await this.assign(instanceId, {
+          await this.assignWithoutLockCheck(instanceId, {
             nodeId: savedClone.id,
             personId,
           });
-        } catch {
+        } catch (err) {
+          const reason = this.describeBulkImportError(err);
+          if (reason === null) {
+            this.logger.error(
+              `bulkImport: unexpected error cloning ad-hoc assignment for node ${savedClone.id}`,
+              err instanceof Error ? err.stack : err,
+            );
+            throw err;
+          }
+          // B2 fix: propagate the classified reason instead of a hardcoded generic message.
           conflicts.push({
             nodeId: savedClone.id,
             nodeLabel: sourceAdHoc.label,
             personAlias,
-            reason: 'No s\'ha pogut clonar l\'assignació ad-hoc',
+            reason,
           });
         }
       }
@@ -1247,10 +1342,25 @@ export class NodeAssignmentService {
       where: { id: instanceId },
       relations: ['segment', 'segment.event'],
     });
-    if (!instance?.segment) return;
+    if (!instance) {
+      throw new NotFoundException(`FigureInstance with ID ${instanceId} not found`);
+    }
+    if (!instance.segment) {
+      // Data-integrity gap (orphaned instance): the lock can't be evaluated without
+      // a segment/event, but this must not be a silent no-op — B1.
+      this.logger.warn(
+        `checkEventLock: instance ${instanceId} has no segment; skipping lock check`,
+      );
+      return;
+    }
 
     const event = instance.segment.event as Event;
-    if (!event) return;
+    if (!event) {
+      this.logger.warn(
+        `checkEventLock: segment ${instance.segment.id} has no event; skipping lock check`,
+      );
+      return;
+    }
 
     const eventDate = new Date(event.date);
     const lockDate = new Date(eventDate);
@@ -1397,12 +1507,39 @@ export class NodeAssignmentService {
     const pgErr = err as { code?: string; detail?: string };
     if (pgErr?.code !== '23505') return err as Error;
     if (pgErr.detail?.includes('segmentId')) {
-      return new ConflictException('Person is already assigned in another figure instance of this segment');
+      return new AssignConflictException(
+        'Person is already assigned in another figure instance of this segment',
+        'PERSON_IN_SEGMENT',
+      );
     }
     if (pgErr.detail?.includes('personId')) {
-      return new ConflictException('Person is already assigned in this figure instance');
+      return new AssignConflictException('Person is already assigned in this figure instance', 'PERSON_IN_INSTANCE');
     }
-    return new ConflictException('Node is already occupied in this figure instance');
+    return new AssignConflictException('Node is already occupied in this figure instance', 'NODE_OCCUPIED');
+  }
+
+  /**
+   * Classifies an error caught from an assign() call inside bulkImport (B2/B4).
+   * Domain errors (conflict/not-found/bad-request) become a specific, user-facing
+   * `conflicts[]` reason so bulkImport can keep going. Anything else (infra
+   * failures, timeouts, unexpected exceptions) returns null so the caller
+   * rethrows instead of silently disguising it as a conflict.
+   */
+  private describeBulkImportError(err: unknown): string | null {
+    if (err instanceof AssignConflictException) {
+      switch (err.reasonCode) {
+        case 'NODE_OCCUPIED':
+          return 'Node already occupied in target instance';
+        case 'PERSON_IN_INSTANCE':
+          return 'Person already assigned in target instance';
+        case 'PERSON_IN_SEGMENT':
+          return 'Person already assigned in this segment';
+      }
+    }
+    if (err instanceof BadRequestException || err instanceof NotFoundException) {
+      return err.message;
+    }
+    return null;
   }
 
   // ── B.1 — Snapshot helper ─────────────────────────────────────────────────

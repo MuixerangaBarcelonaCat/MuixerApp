@@ -3,10 +3,11 @@ import { Router, CanActivateFn } from '@angular/router';
 import { ToastService } from '../../shared/components/feedback/toast/toast.service';
 
 /**
- * Blocks navigation to desktop-only routes (template editor, composition editor, segment assignment)
- * when accessed from mobile viewports (< 1024px width).
+ * Blocks navigation to desktop/tablet-only routes (template editor, composition editor, segment
+ * assignment) when accessed from phone viewports (< 768px width, the Tailwind `md` breakpoint).
  *
- * Mobile users are redirected to /pinyes with an error toast.
+ * Tablets (>= 768px, e.g. iPad portrait at 768px) are allowed through — only phones are redirected
+ * to /pinyes with an error toast.
  *
  * Usage:
  * ```typescript
@@ -17,7 +18,7 @@ export const desktopOnlyGuard: CanActivateFn = () => {
   const router = inject(Router);
   const toast = inject(ToastService);
 
-  const isMobile = window.innerWidth < 1024;
+  const isMobile = window.innerWidth < 768;
 
   if (isMobile) {
     toast.error('Aquesta funcionalitat només està disponible en dispositius d\'escriptori o tauleta.');
