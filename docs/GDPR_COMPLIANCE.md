@@ -181,6 +181,35 @@ de redirecció i és més fàcil de provar).
 En acceptar → cridar `POST /consent/privacy-policy` → refrescar el signal `currentUser` →
 el modal desapareix.
 
+### 4.1 Flux d'aprovació: el consentiment és del compte, no del client
+
+**El consentiment és a nivell de `User` (compte), no de `ClientType` (Dashboard/PWA) ni de
+dispositiu.** No hi ha cap columna que distingisca "acceptat des del Dashboard" d'"acceptat des
+de la PWA" — `privacyPolicyAcceptedAt` i `privacyPolicyVersion` són dos camps únics per fila de
+`User` (§2.1), i tots dos frontends criden **el mateix** `POST /consent/privacy-policy`, autenticat
+amb **el mateix `userId`** (el `sub` del JWT), siga quin siga el client des d'on s'ha fet login.
+
+**Conseqüència pràctica — acceptar en un client val per a l'altre:**
+
+1. Un compte (p. ex. un TECHNICAL que també és MEMBER, o simplement el mateix compte usat als dos
+   apps) accepta la política des del **Dashboard** → `AuthService.acceptPrivacyPolicy()` actualitza
+   la fila de `User` a BBDD.
+2. La propera vegada que eixe mateix compte faça `login`/`refresh`/`getMe` **des de la PWA** (o des
+   d'una altra sessió del Dashboard), `AuthService.toUserProfile()` (choke point únic, §2.1) llig
+   `user.privacyPolicyVersion` **ja actualitzat** i calcula `requiresPrivacyConsent = false` — el
+   modal no torna a aparèixer. I a l'inrevés (accepta a la PWA → no es torna a demanar al Dashboard).
+3. **No cal cap sincronització explícita entre clients**: com que tots dos llegeixen/escriuen la
+   mateixa fila de `User`, "un compte, un consentiment" ja és el comportament natural del disseny
+   (§2.1) — no un cas especial que calga implementar a banda.
+
+**Límit conegut — sessions ja obertes en paral·lel:** si el compte té una sessió **ja carregada**
+en l'altre client (p. ex. la PWA oberta en un altre dispositiu just en el moment d'acceptar al
+Dashboard), eixa sessió oberta **no es refresca en calent**: el seu signal `currentUser` en memòria
+no canvia fins que eixe client torne a cridar `login`/`refresh`/`acceptPrivacyConsent` (per exemple,
+en recarregar la pàgina o en la següent rotació silenciosa del token). No és un error — és la
+mateixa limitació que qualsevol altre canvi de perfil fet des d'una altra sessió (p. ex. un canvi
+de rol) i no calia resoldre-la per a aquest sprint.
+
 ---
 
 ## 5. C2 — Transparència en el registre
