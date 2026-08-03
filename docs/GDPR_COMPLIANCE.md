@@ -4,18 +4,22 @@ tags: [qa]
 
 # Compliment LOPDGDD i RGPD — Informe tècnic i pla d'implementació
 
-> **Estat:** proposta per revisar. Res d'això està implementat encara.
-> Branca: `feature/gdpr-lopdgdd-compliance`.
+> **Estat:** implementat (Fases A–D: model de dades, backend, Dashboard, PWA). Verificat amb
+> tests i end-to-end al navegador. Branca: `feature/gdpr-lopdgdd-compliance`.
 >
-> Aquest document és l'**informe tècnic** de tot el que cal implementar per complir la
+> Aquest document és l'**informe tècnic** de tot el que calia implementar per complir la
 > LOPDGDD (Llei Orgànica 3/2018) i el RGPD (Reglament UE 2016/679). Descriu les decisions
-> d'arquitectura, els canvis al model de dades, un pla d'implementació per fases i les
+> d'arquitectura, els canvis al model de dades, el pla d'implementació per fases i les
 > obligacions organitzatives de la colla.
 >
 > ⚠️ **No és assessorament jurídic.** Els textos legals (Política de Privacitat, RAT) són
-> plantilles de partida que ha de revisar una persona amb criteri legal abans de publicar-los.
+> plantilles de partida amb placeholders (`[COLLA]`, `[NIF]`, `[CONTACTE]`) que ha de revisar
+> una persona amb criteri legal i completar des de `/config/legal` abans de producció.
+>
+> **Pendent (fora d'aquest sprint):** L1/L2 (RAT i redacció legal definitiva, §9) i el dret a
+> l'oblit ajornat a [[DEBT]] SEC5 (§7, §11).
 
-**Data:** 3 d'agost de 2026
+**Data:** 3 d'agost de 2026 · **Implementat:** 3 d'agost de 2026
 
 ---
 
@@ -23,14 +27,14 @@ tags: [qa]
 
 ### En aquest sprint
 
-| # | Acció | Tipus |
-|---|-------|-------|
-| C1 | **Consentiment explícit (click-wrap)** — modal obligatori al primer inici de sessió (Dashboard i PWA) que exigeix acceptar la Política de Privacitat per continuar | Tècnica |
-| C2 | **Transparència en el registre** — clàusula informativa breu al formulari d'alta de membres (responsable de les dades = la colla, finalitat) | Tècnica |
-| C3 | **Registre d'activitat de seguretat** — `log` intern d'accessos a dades sensibles i canvis de consentiment, per a auditories | Tècnica |
-| C4 | **Textos legals editables a BBDD** — Política de Privacitat i clàusula de transparència guardades a BBDD i versionades, editables des de `/config` sense desplegar | Tècnica |
-| L1 | **Registre d'Activitats de Tractament (RAT)** — document intern (§9.1) | Organitzativa |
-| L2 | **Text de Política de Privacitat** — redacció adaptada a associació sense ànim de lucre (§9.2) | Organitzativa |
+| # | Acció | Tipus | Estat |
+|---|-------|-------|-------|
+| C1 | **Consentiment explícit (click-wrap)** — modal obligatori al primer inici de sessió (Dashboard i PWA) que exigeix acceptar la Política de Privacitat per continuar | Tècnica | ✅ Fet |
+| C2 | **Transparència en el registre** — clàusula informativa breu al formulari d'alta de membres (responsable de les dades = la colla, finalitat) | Tècnica | ✅ Fet |
+| C3 | **Registre d'activitat de seguretat** — `log` intern d'accessos a dades sensibles i canvis de consentiment, per a auditories | Tècnica | ✅ Fet |
+| C4 | **Textos legals editables a BBDD** — Política de Privacitat i clàusula de transparència guardades a BBDD i versionades, editables des de `/config` sense desplegar | Tècnica | ✅ Fet |
+| L1 | **Registre d'Activitats de Tractament (RAT)** — document intern (§9.1) | Organitzativa | ⚪ Pendent — plantilla al §9.1, cal revisió humana |
+| L2 | **Text de Política de Privacitat** — redacció adaptada a associació sense ànim de lucre (§9.2) | Organitzativa | ⚪ Pendent — plantilla sembrada a BBDD (v1), cal completar placeholders i revisió legal |
 
 ### Ajornat → deute tècnic ([[DEBT]] SEC5)
 
@@ -108,7 +112,7 @@ del document (per re-disparar el modal quan canvie la política), la millor opci
 | `createdAt` / `updatedAt` | `timestamptz` | convenció del projecte |
 
 Això cobreix el requisit ("guardar certs camps a BBDD per canviar-los fàcilment"):
-la Política de Privacitat i la clàusula de transparència s'editen des de `/config/privacy`
+la Política de Privacitat i la clàusula de transparència s'editen des de `/config/legal`
 sense desplegar, i el versionat fa que publicar una versió nova torne a demanar consentiment.
 
 ---
@@ -152,7 +156,8 @@ Totes les taules segueixen les convencions del projecte: PK uuid, `createdAt`/`u
   perquè l'interceptor del dashboard treu el Bearer a les rutes `/auth/`): posa
   `privacyPolicyAcceptedAt = now()` i `privacyPolicyVersion = versió activa`, i escriu un
   `AuditLog` `CONSENT_ACCEPTED`. Idempotent.
-- **Endpoint `GET /legal/privacy-policy/active`** (autenticat): retorna el contingut de la
+- **Endpoint `GET /legal/:type/active`** (autenticat, p. ex. `GET /legal/PRIVACY_POLICY/active` —
+  el paràmetre és el valor de l'enum `LegalDocumentType`, no un slug): retorna el contingut de la
   versió activa per mostrar-lo al modal.
 
 ### Frontend (Dashboard i PWA)
@@ -173,19 +178,20 @@ de redirecció i és més fàcil de provar).
   Afegir, en paral·lel, un modal bloquejant gated per `auth.requiresPrivacyConsent()`. És el
   mateix mecanisme que el `no-person-banner`, però bloquejant en comptes de descartable.
 
-En acceptar → cridar `POST /auth/accept-privacy-policy` → refrescar el signal `currentUser` →
+En acceptar → cridar `POST /consent/privacy-policy` → refrescar el signal `currentUser` →
 el modal desapareix.
 
 ---
 
 ## 5. C2 — Transparència en el registre
 
-- **Formulari d'alta de membres** al Dashboard (`features/persons`, `user-form-modal` /
-  formulari de persona) i **acceptació d'invitació** a la PWA: mostrar una clàusula informativa
-  breu (responsable = la colla, finalitat = gestió de pinyes i assistència, drets de la persona,
-  contacte).
+- **Formulari d'alta i edició de membres** al Dashboard (`features/persons/components/person-detail`,
+  bloc d'edició de "Informació personal"): mostrar una clàusula informativa breu (responsable = la
+  colla, finalitat = gestió de pinyes i assistència, drets de la persona, contacte). És l'única
+  superfície on es captura/edita PII de `persons` — la PWA no en té (el seu `profile` és un
+  placeholder sense formulari), per això la clàusula només calia al Dashboard.
 - El text **prové de `LegalDocument` type `TRANSPARENCY_CLAUSE`** (editable, §2.3) via
-  `GET /legal/transparency-clause/active`. Així no és text hardcodejat.
+  `GET /legal/TRANSPARENCY_CLAUSE/active`. Així no és text hardcodejat.
 - És **informatiu** (no un segon click-wrap): es mostra en el moment de recollir les dades,
   complint el principi de transparència (art. 13 RGPD).
 
@@ -208,14 +214,15 @@ el modal desapareix.
 
 **Com registrar:**
 
-- **Canvis de consentiment** — sempre, des dels endpoints de C1 (`CONSENT_ACCEPTED` /
-  `CONSENT_REVOKED`).
-- **Accés a dades sensibles** — `AuditService.record()` cridat explícitament als punts on es
-  llegeixen/exporten PII de `persons` (detall de persona, exports). Alternativa: un
-  `NestInterceptor` limitat a rutes concretes de `person`. Recomanació: començar amb crides
-  explícites als endpoints sensibles (més precís, menys soroll) i valorar l'interceptor si creix.
-- **Retenció** — definir un període (p. ex. 1–2 anys) i un cron de neteja, com el que ja neteja
-  `refresh_tokens`.
+- **Canvis de consentiment** — sempre, des de `POST /consent/privacy-policy` (`CONSENT_ACCEPTED`).
+  `CONSENT_REVOKED` i `PERSON_ANONYMIZED` queden **reservats** a l'enum `AuditAction` per quan
+  existisquen fluxos de revocació/anonimització (D1, ajornat).
+- **Accés a dades sensibles** — `AuditService.record()` cridat explícitament a `GET /persons/:id`
+  (`SENSITIVE_DATA_ACCESS`). No hi ha encara cap endpoint d'exportació de PII, així que
+  `SENSITIVE_DATA_EXPORT` queda definit a l'enum però sense cap punt de crida — s'afegirà quan
+  s'implemente un export.
+- **Retenció** — **pendent**: definir un període (p. ex. 1–2 anys) i un cron de neteja, com el
+  que ja neteja `refresh_tokens`. No implementat en aquest sprint.
 
 El log **no** ha de contenir les dades sensibles en si (només *que* s'hi va accedir, qui i quan).
 
@@ -238,40 +245,57 @@ ressuscitaria les dades anonimitzades.
 
 ---
 
-## 8. Pla d'implementació (ordre suggerit)
+## 8. Pla d'implementació — executat
 
-Amb TDD (`.agents/skills/test-driven-development/`) i `nestjs-best-practices`.
+Implementat amb TDD (`.agents/skills/test-driven-development/`) seguint els patrons de
+`nestjs-best-practices`. Desviacions respecte al pla original marcades amb ⚠️.
 
-**Fase A — Model i textos legals (base de tot)**
+**Fase A — Model de dades i migracions** ✅
 1. Enums a `@muixer/shared`: `LegalDocumentType`, `AuditAction`.
-2. Entitat `LegalDocument` + migració + registre a `entities.ts`.
-3. Mòdul `legal` (NestJS): CRUD ADMIN/TECHNICAL + `GET /legal/:type/active`.
-4. UI `/config/privacy`: nova ruta a `config.routes.ts` + nova targeta a `config.component.ts`
-   (editor de text + versionat).
-5. Migració de seed amb la v1 de `PRIVACY_POLICY` i `TRANSPARENCY_CLAUSE` (§9.2).
+2. Entitats `LegalDocument` i `AuditLog` + migracions + registre a `entities.ts`.
+3. Columnes `privacyPolicyAcceptedAt` / `privacyPolicyVersion` a `User` + migració.
+4. Migració de seed amb la v1 de `PRIVACY_POLICY` i `TRANSPARENCY_CLAUSE` (textos placeholder,
+   §9.2) — verificada aplicant-la contra Postgres real.
 
-**Fase B — Consentiment (C1)**
-6. Camps `privacyPolicyAcceptedAt` / `privacyPolicyVersion` a `User` + migració.
-7. Estendre `UserProfile` amb `requiresPrivacyConsent`.
-8. `POST /auth/accept-privacy-policy`.
-9. Modal bloquejant al Dashboard i a la PWA.
+**Fase B — Backend: mòduls `legal`, `audit` i consentiment** ✅
+5. Mòdul `legal`: `GET /legal/documents` (llista), `GET /legal/:type/active` (autenticat, sense
+   `@Roles`), `POST /legal/documents` (publica versió nova, ADMIN/TECHNICAL).
+6. Mòdul `audit`: `AuditService.record()` — append-only, mai llança (atrapa i logueja errors
+   perquè un fallo d'auditoria no trenque l'operació principal).
+7. `AuthService.toUserProfile()` estès amb `privacyPolicyAcceptedAt` + `requiresPrivacyConsent`;
+   nou `AuthService.acceptPrivacyPolicy()`.
+8. ⚠️ **Endpoint final: `POST /consent/privacy-policy`**, NO `/auth/accept-privacy-policy` com
+   deia el pla inicial. Motiu descobert en verificar-ho al navegador: l'interceptor HTTP del
+   Dashboard treu deliberadament el Bearer de totes les rutes `/auth/*` (per evitar bucles de
+   refresh), així que un endpoint de consentiment sota `/auth/` arribava sempre com a 401. Nou
+   `ConsentController` fora del prefix `/auth/`.
+9. `GET /persons/:id` registra `SENSITIVE_DATA_ACCESS`.
 
-**Fase C — Transparència (C2)**
-10. Mostrar `TRANSPARENCY_CLAUSE` als formularis d'alta (Dashboard) i invitació (PWA).
+**Fase C — Dashboard** ✅
+10. `PrivacyConsentModalComponent` (bloquejant: sense backdrop-close, sense Cancel·la) muntat a
+    `app.html` al costat de `<app-toast />`.
+11. `LegalDocumentService` (`core/services/`) + pantalla **`/config/legal`**
+    (`LegalDocumentsComponent`) — ⚠️ ruta `legal`, no `/config/privacy` com deia el pla inicial.
+12. Clàusula de transparència al formulari d'edició de persona (`person-detail`).
 
-**Fase D — Audit log (C3)**
-11. Entitat `AuditLog` + migració + `AuditService`.
-12. Registrar events de consentiment (des de C1).
-13. Registrar accessos a PII als endpoints sensibles + cron de retenció.
+**Fase D — PWA** ✅
+13. `ConsentModalComponent` — el primer modal de la PWA — muntat a `AppShellComponent` al costat
+    del `no-person-banner`. Mateix endpoint `/consent/privacy-policy`.
+14. ⚠️ No calia clàusula de transparència a la PWA: no hi ha cap formulari on es capturen dades
+    de `persons` (el `profile` és un placeholder sense camps). El requisit de C2 ja queda cobert
+    del tot pel Dashboard (§5).
 
-**Fase E — Documentació**
-14. `pnpm run docs:model` (per l'AUTO de [[DATA_MODEL]]) i `pnpm run docs:map` un cop existisquen
-    els mòduls/entitats. Actualitzar aquest document (treure «proposta») i marcar la fase a
-    [[ROADMAP]].
+**Fase E — Documentació** ✅
+15. `node scripts/generate-data-model.mjs` i `generate-doc-map.mjs` (equivalents a `pnpm run
+    docs:model`/`docs:map`, executats directament perquè aquest entorn té Node 24 i el
+    `package.json` fixa `engines.node ^22`). Afegides entrades `legal`/`audit` → `[[GDPR_COMPLIANCE]]`
+    a `DOC_HINTS` de `scripts/generate-doc-map.mjs`. [[DATA_MODEL]] i [[MAP]] actualitzats;
+    aquest document i [[ROADMAP]] marcats com a fets.
 
-**Transversal**
-- **Textos legals L1 (RAT) i L2 (Política)** — es poden redactar en paral·lel a la Fase A; la
-  Política és el seed del pas 5.
+**Pendent real (no bloquejant, per a un sprint futor):**
+- Cron de retenció de `audit_logs` (§6).
+- `SENSITIVE_DATA_EXPORT` sense cap punt de crida (no hi ha encara cap endpoint d'exportació de PII).
+- L1 (RAT) i completar els placeholders de L2 amb dades reals + revisió legal (§9).
 
 ---
 

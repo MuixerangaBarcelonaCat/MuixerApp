@@ -8,7 +8,7 @@ tags: [qa]
 > L'historial detallat de cada fase viu al **git log** (`git log --oneline`) i a les PR de GitHub.
 > Deute tècnic i troballes obertes → [[DEBT]].
 
-**Última actualització:** 25 de juliol de 2026
+**Última actualització:** 3 d'agost de 2026
 
 ---
 
@@ -29,7 +29,7 @@ tags: [qa]
 | P5.3.1 | Revisió UX de segments. Fet: `event-detail` en pestanyes (Resum / Pinyes / Assistència / Participació) amb `?tab=`. Queda el preview de canvas inline | ⚪ Parcial |
 | Participació | Matriu persona × segment per event (`?tab=participacio`), cercable per persona i pel que fa | ✅ |
 | Flexibilitat de segments | Permetre una persona dues vegades al mateix segment, amb avís en lloc de bloqueig. Dissenyat i verificat, **no implementat** → [[SEGMENTS_FLEXIBILITY]] | ⚪ Pendent |
-| Compliment LOPDGDD/RGPD | Consentiment click-wrap, clàusula de transparència, textos legals editables a BBDD, audit log. Dret a l'oblit ajornat ([[DEBT]] SEC5). Informe i pla → [[GDPR_COMPLIANCE]] | ⚪ Pendent |
+| Compliment LOPDGDD/RGPD | Consentiment click-wrap (Dashboard+PWA), clàusula de transparència, textos legals editables a BBDD, audit log. Verificat E2E. Dret a l'oblit ajornat ([[DEBT]] SEC5); pendent RAT (L1) i revisió legal dels textos (L2) → [[GDPR_COMPLIANCE]] | ✅ |
 | P6.2 | Push notifications a la PWA (FCM) | ⚪ Pendent |
 | P7 | Informes d'assistència i estadístiques | ⚪ Pendent |
 | P8+ | Export PDF de pinyes, multi-tenant, auditoria/versionat | ⚪ Pendent |
