@@ -11,6 +11,8 @@ const mockProfile: UserProfile = {
   email: 'user@test.cat',
   role: UserRole.TECHNICAL,
   isActive: true,
+  privacyPolicyAcceptedAt: '2026-08-01T00:00:00.000Z',
+  requiresPrivacyConsent: false,
   person: null,
 };
 
@@ -173,6 +175,36 @@ describe('AuthService', () => {
         memberProfile,
       );
       expect(service.isAtLeastTechnical()).toBe(false);
+    });
+
+    it('requiresPrivacyConsent reflects the current user profile', () => {
+      const setUser = (service as unknown as { _currentUser: { set: (v: unknown) => void } })
+        ._currentUser;
+
+      expect(service.requiresPrivacyConsent()).toBe(false);
+
+      setUser.set({ ...mockProfile, requiresPrivacyConsent: true });
+      expect(service.requiresPrivacyConsent()).toBe(true);
+
+      setUser.set({ ...mockProfile, requiresPrivacyConsent: false });
+      expect(service.requiresPrivacyConsent()).toBe(false);
+    });
+  });
+
+  describe('acceptPrivacyConsent', () => {
+    it('POSTs to the endpoint and refreshes the current user from the response', () => {
+      (service as unknown as { _currentUser: { set: (v: unknown) => void } })._currentUser.set({
+        ...mockProfile,
+        requiresPrivacyConsent: true,
+      });
+
+      service.acceptPrivacyConsent().subscribe();
+
+      const req = http.expectOne((r) => r.url.includes('/consent/privacy-policy'));
+      expect(req.request.method).toBe('POST');
+      req.flush({ ...mockProfile, requiresPrivacyConsent: false });
+
+      expect(service.requiresPrivacyConsent()).toBe(false);
     });
   });
 });

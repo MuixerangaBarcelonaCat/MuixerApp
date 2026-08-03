@@ -19,6 +19,8 @@ export interface UserProfile {
   email: string;
   role: UserRole;
   isActive: boolean;
+  privacyPolicyAcceptedAt: string | null;
+  requiresPrivacyConsent: boolean;
   person: PersonSummary | null;
 }
 

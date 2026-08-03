@@ -37,6 +37,10 @@ export class AuthService {
   readonly isAtLeastTechnical = computed(() =>
     [UserRole.TECHNICAL, UserRole.ADMIN].includes(this.userRole()!),
   );
+  /** True when the authenticated user must (re)accept the privacy policy before using the app. */
+  readonly requiresPrivacyConsent = computed(
+    () => this._currentUser()?.requiresPrivacyConsent ?? false,
+  );
 
   /** Retorna l'access token actual en memòria. Usat per l'interceptor d'auth per afegir la capçalera Bearer. */
   getAccessToken(): string | null {
@@ -129,6 +133,23 @@ export class AuthService {
       );
 
     return this._refreshInProgress$;
+  }
+
+  /**
+   * Registra l'acceptació de la política de privacitat i actualitza l'usuari en memòria amb el
+   * perfil retornat (fa que `requiresPrivacyConsent` passi a false i el modal es tanqui).
+   */
+  acceptPrivacyConsent(): Observable<void> {
+    return this.http
+      .post<UserProfile>(
+        `${environment.apiUrl}/consent/privacy-policy`,
+        {},
+        { withCredentials: true },
+      )
+      .pipe(
+        tap((user) => this._currentUser.set(user)),
+        map(() => void 0),
+      );
   }
 
   /** Revoca el refresh token de la sessió actual i neteja l'estat local. Si la petició falla, neteja l'estat igualment (fail-safe). */

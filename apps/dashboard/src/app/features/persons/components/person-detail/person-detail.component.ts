@@ -38,7 +38,8 @@ import {
   PersonDelegateService,
   PersonDelegateItem,
 } from '../../services/person-delegate.service';
-import { DelegateType } from '@muixer/shared';
+import { LegalDocumentService } from '../../../../core/services/legal-document.service';
+import { DelegateType, LegalDocumentType } from '@muixer/shared';
 
 @Component({
   standalone: true,
@@ -61,12 +62,16 @@ export class PersonDetailComponent implements OnInit {
   private readonly nodeAssignmentService = inject(NodeAssignmentService);
   private readonly seasonService = inject(SeasonService);
   private readonly delegateService = inject(PersonDelegateService);
+  private readonly legalService = inject(LegalDocumentService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
   private readonly toast = inject(ToastService);
 
   person = signal<Person | null>(null);
+
+  /** Informative transparency clause (art. 13 RGPD) shown while editing personal data. */
+  readonly transparencyClause = signal<string | null>(null);
 
   /** Full name shown under the alias in the header, or '' when it would just
    *  repeat the alias (e.g. provisional members whose name equals the alias). */
@@ -145,6 +150,11 @@ export class PersonDetailComponent implements OnInit {
 
     this.seasonService.getAll().subscribe({
       next: (res) => this.seasons.set(res.data),
+    });
+
+    this.legalService.getActive(LegalDocumentType.TRANSPARENCY_CLAUSE).subscribe({
+      next: (doc) => this.transparencyClause.set(doc.content),
+      error: () => this.transparencyClause.set(null),
     });
 
     this.route.paramMap.subscribe((params) => {

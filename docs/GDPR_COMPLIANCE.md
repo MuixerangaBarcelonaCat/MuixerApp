@@ -148,7 +148,8 @@ Totes les taules segueixen les convencions del projecte: PK uuid, `createdAt`/`u
   `privacyPolicyAcceptedAt: string | null` i un booleà computat
   `requiresPrivacyConsent: boolean` (true si `privacyPolicyVersion` < versió activa de
   `PRIVACY_POLICY`, o null). `AuthService.toUserProfile()` (`auth.service.ts:75`) el calcula.
-- **Endpoint `POST /auth/accept-privacy-policy`** (autenticat, qualsevol rol): posa
+- **Endpoint `POST /consent/privacy-policy`** (autenticat, qualsevol rol; **fora de `/auth/`**
+  perquè l'interceptor del dashboard treu el Bearer a les rutes `/auth/`): posa
   `privacyPolicyAcceptedAt = now()` i `privacyPolicyVersion = versió activa`, i escriu un
   `AuditLog` `CONSENT_ACCEPTED`. Idempotent.
 - **Endpoint `GET /legal/privacy-policy/active`** (autenticat): retorna el contingut de la

@@ -20,3 +20,4 @@ export * from './interfaces/pagination.interface';
 export * from './interfaces/pinyes';
 export * from './interfaces/me';
 export * from './interfaces/person-delegate.interface';
+export * from './interfaces/legal-document.interface';

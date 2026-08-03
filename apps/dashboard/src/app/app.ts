@@ -6,7 +6,9 @@ import { HeaderComponent } from './shared/components/layout/header/header.compon
 import { UserChipComponent } from './shared/components/layout/user-chip/user-chip.component';
 import { TabNavComponent } from './shared/components/layout/tab-nav/tab-nav.component';
 import { LayoutService } from './core/services/layout.service';
+import { AuthService } from './core/auth/services/auth.service';
 import { ToastComponent } from './shared/components/feedback/toast/toast.component';
+import { PrivacyConsentModalComponent } from './shared/components/privacy-consent-modal/privacy-consent-modal.component';
 
 @Component({
   standalone: true,
@@ -17,6 +19,7 @@ import { ToastComponent } from './shared/components/feedback/toast/toast.compone
     UserChipComponent,
     TabNavComponent,
     ToastComponent,
+    PrivacyConsentModalComponent,
   ],
   selector: 'app-root',
   templateUrl: './app.html',
@@ -24,6 +27,7 @@ import { ToastComponent } from './shared/components/feedback/toast/toast.compone
 export class App {
   private readonly router = inject(Router);
   protected readonly layout = inject(LayoutService);
+  protected readonly auth = inject(AuthService);
 
   mobileMenuOpen = signal(false);
 
