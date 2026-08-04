@@ -8,6 +8,12 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
+  // `svh` (small viewport height) excludes the browser's collapsible toolbar, unlike `vh`.
+  // Without this, tablet browsers (e.g. iPad Chrome) size the layout taller than the visible
+  // screen, pushing the floating rengla action bar (`position: absolute; bottom` inside this
+  // container) below the fold — and this container has `overflow: hidden`, so it can't be
+  // scrolled into view.
+  height: 100svh;
   overflow: hidden;
 }
 
