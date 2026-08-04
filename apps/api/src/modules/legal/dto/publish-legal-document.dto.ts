@@ -1,5 +1,5 @@
-import { IsEnum, IsString, IsNotEmpty } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsEnum, IsString, IsNotEmpty, IsBoolean, IsOptional } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { LegalDocumentType } from '@muixer/shared';
 
 export class PublishLegalDocumentDto {
@@ -11,4 +11,15 @@ export class PublishLegalDocumentDto {
   @IsString()
   @IsNotEmpty()
   content: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Si aquesta versió obliga a tornar a acceptar la política (moviment del "watermark" de ' +
+      'consentiment). false = correcció (el text s\'actualitza, ningú torna a signar). Ignorat ' +
+      '(sempre false) per a TRANSPARENCY_CLAUSE. Per defecte false.',
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  requiresConsent?: boolean;
 }

@@ -37,6 +37,7 @@ export class AuthService {
   readonly isAtLeastTechnical = computed(() =>
     [UserRole.TECHNICAL, UserRole.ADMIN].includes(this.userRole()!),
   );
+  readonly isAdmin = computed(() => this.userRole() === UserRole.ADMIN);
   /** True when the authenticated user must (re)accept the privacy policy before using the app. */
   readonly requiresPrivacyConsent = computed(
     () => this._currentUser()?.requiresPrivacyConsent ?? false,

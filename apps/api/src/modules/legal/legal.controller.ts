@@ -19,7 +19,7 @@ export class LegalController {
   constructor(private readonly legalService: LegalDocumentService) {}
 
   @Get('documents')
-  @Roles(UserRole.TECHNICAL, UserRole.ADMIN)
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Llistar tots els documents legals i les seves versions' })
   @ApiResponse({ status: 200, description: 'Llista de documents legals.' })
   findAll() {
@@ -37,7 +37,7 @@ export class LegalController {
   }
 
   @Post('documents')
-  @Roles(UserRole.TECHNICAL, UserRole.ADMIN)
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Publicar una versió nova d\'un document legal' })
   @ApiResponse({ status: 201, description: 'Nova versió publicada i activada.' })
   @ApiResponse({ status: 400, description: 'Dades invàlides.' })

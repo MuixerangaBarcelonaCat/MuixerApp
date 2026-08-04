@@ -80,7 +80,7 @@ const mockDataSource = () => ({
 });
 
 const mockLegalService = () => ({
-  getActiveVersion: jest.fn().mockResolvedValue(null),
+  getConsentVersion: jest.fn().mockResolvedValue(null),
 });
 
 const mockAuditService = () => ({
@@ -293,43 +293,63 @@ describe('AuthService', () => {
     });
   });
 
-  describe('privacy consent (requiresPrivacyConsent)', () => {
-    it('is false when no policy is active', async () => {
-      legalService.getActiveVersion.mockResolvedValue(null);
+  describe('privacy consent (requiresPrivacyConsent, driven by the consent watermark)', () => {
+    it('is false when no version has ever required consent', async () => {
+      legalService.getConsentVersion.mockResolvedValue(null);
       userRepo.findOne.mockResolvedValue(makeUser({ privacyPolicyVersion: null }));
 
       const profile = await service.getMe('user-1');
       expect(profile.requiresPrivacyConsent).toBe(false);
     });
 
-    it('is true when the user has never accepted and a policy is active', async () => {
-      legalService.getActiveVersion.mockResolvedValue(1);
+    it('is true when the user has never accepted and a watermark exists', async () => {
+      legalService.getConsentVersion.mockResolvedValue(1);
       userRepo.findOne.mockResolvedValue(makeUser({ privacyPolicyVersion: null }));
 
       const profile = await service.getMe('user-1');
       expect(profile.requiresPrivacyConsent).toBe(true);
     });
 
-    it('is true when the accepted version is older than the active one', async () => {
-      legalService.getActiveVersion.mockResolvedValue(3);
+    it('is true when the accepted version is older than the watermark', async () => {
+      legalService.getConsentVersion.mockResolvedValue(3);
       userRepo.findOne.mockResolvedValue(makeUser({ privacyPolicyVersion: 2 }));
 
       const profile = await service.getMe('user-1');
       expect(profile.requiresPrivacyConsent).toBe(true);
     });
 
-    it('is false when the accepted version matches the active one', async () => {
-      legalService.getActiveVersion.mockResolvedValue(3);
+    it('is false when the accepted version matches the watermark', async () => {
+      legalService.getConsentVersion.mockResolvedValue(3);
       userRepo.findOne.mockResolvedValue(makeUser({ privacyPolicyVersion: 3 }));
 
       const profile = await service.getMe('user-1');
       expect(profile.requiresPrivacyConsent).toBe(false);
     });
+
+    it('stays false after a correction is published (the active text moves but the watermark does not)', async () => {
+      // Simulates: user accepted v1 (the watermark); an admin then publishes v2 as a correction
+      // (requiresConsent: false), so the watermark is still 1 — getConsentVersion reflects that.
+      legalService.getConsentVersion.mockResolvedValue(1);
+      userRepo.findOne.mockResolvedValue(makeUser({ privacyPolicyVersion: 1 }));
+
+      const profile = await service.getMe('user-1');
+      expect(profile.requiresPrivacyConsent).toBe(false);
+    });
+
+    it('becomes true once a substantive change moves the watermark past what the user accepted', async () => {
+      // Same user as above, but now an admin publishes v3 as a substantive change
+      // (requiresConsent: true), moving the watermark to 3.
+      legalService.getConsentVersion.mockResolvedValue(3);
+      userRepo.findOne.mockResolvedValue(makeUser({ privacyPolicyVersion: 1 }));
+
+      const profile = await service.getMe('user-1');
+      expect(profile.requiresPrivacyConsent).toBe(true);
+    });
   });
 
   describe('acceptPrivacyPolicy', () => {
-    it('stores the acceptance timestamp and active version, and records an audit entry', async () => {
-      legalService.getActiveVersion.mockResolvedValue(2);
+    it('stores the acceptance timestamp and the consent watermark version, and records an audit entry', async () => {
+      legalService.getConsentVersion.mockResolvedValue(2);
       userRepo.findOne.mockResolvedValue(makeUser({ privacyPolicyVersion: null }));
       userRepo.update.mockResolvedValue({});
 

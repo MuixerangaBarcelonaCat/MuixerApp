@@ -108,12 +108,14 @@ del document (per re-disparar el modal quan canvie la política), la millor opci
 | `version` | `int` | s'incrementa per `type` en cada publicació |
 | `content` | `text` | text en català (markdown) |
 | `isActive` | `boolean` | la versió publicada actualment de cada `type` (només una activa per type) |
+| `requiresConsent` | `boolean` | si **aquesta versió concreta** obliga a reacceptar (§4.2 — independent d'`isActive`) |
 | `publishedAt` | `timestamptz` | |
 | `createdAt` / `updatedAt` | `timestamptz` | convenció del projecte |
 
 Això cobreix el requisit ("guardar certs camps a BBDD per canviar-los fàcilment"):
 la Política de Privacitat i la clàusula de transparència s'editen des de `/config/legal`
-sense desplegar, i el versionat fa que publicar una versió nova torne a demanar consentiment.
+sense desplegar, i el versionat fa que publicar una versió que ho requerisca torne a demanar
+consentiment (§4.2).
 
 ---
 
@@ -209,6 +211,65 @@ no canvia fins que eixe client torne a cridar `login`/`refresh`/`acceptPrivacyCo
 en recarregar la pàgina o en la següent rotació silenciosa del token). No és un error — és la
 mateixa limitació que qualsevol altre canvi de perfil fet des d'una altra sessió (p. ex. un canvi
 de rol) i no calia resoldre-la per a aquest sprint.
+
+### 4.2 Gestió de versions: correcció vs. versió nova (el "watermark" de consentiment)
+
+> Refactor posterior al sprint inicial: la primera versió d'aquesta funcionalitat feia que
+> **qualsevol** publicació (fins i tot corregir una errata) incrementés la versió activa i
+> obligués tothom a reacceptar. Es va detectar en ús real i es va corregir.
+
+**Problema:** amb el disseny original, `requiresPrivacyConsent` es calculava comparant
+`user.privacyPolicyVersion` amb **la versió activa** (`isActive = true`). Com que publicar
+qualsevol correcció (una errata, un canvi de redacció menor) creava una versió activa nova, això
+disparava el modal de consentiment a tots els usuaris encara que el canvi no fos substancial.
+
+**Solució: separar "quin text es mostra" de "qui ha de tornar a signar".** Cada fila de
+`legal_documents` porta ara un booleà `requiresConsent`, independent d'`isActive`:
+
+- **`isActive`** — quina versió es mostra com a text vigent (al modal, als formularis).
+- **`requiresConsent`** — si *aquesta publicació concreta* obliga a reacceptar.
+- **"Watermark" de consentiment** (`LegalDocumentService.getConsentVersion(type)`) — la versió
+  **més alta** amb `requiresConsent = true`. És contra això que es compara
+  `user.privacyPolicyVersion`, **no** contra la versió activa.
+
+Efecte pràctic:
+- **Correcció** (`requiresConsent: false`): el text actiu canvia; el watermark no es mou; ningú
+  torna a signar.
+- **Versió nova** (`requiresConsent: true`): el text actiu canvia **i** el watermark avança; tots
+  els usuaris amb `privacyPolicyVersion` per sota del nou watermark tornen a veure el modal.
+- La `TRANSPARENCY_CLAUSE` és sempre `requiresConsent: false` (forçat al servidor,
+  `LegalDocumentService.publish()`): és informativa i mai ha de gatejar res.
+
+**Verificat en ús real:** publicar una correcció de la Política de Privacitat (v4→v5,
+`requiresConsent: false`) no torna a demanar el consentiment a un usuari que ja havia acceptat v4;
+publicar-ne després una versió substancial (v5→v6, `requiresConsent: true`) sí que l'hi torna a
+demanar. Provat de punta a punta (Dashboard + PWA) amb usuaris de prova.
+
+**Edició restringida a ADMIN.** Editar aquests textos té conseqüències legals i pot forçar
+reacceptació massiva — es va restringir de TECHNICAL+ADMIN a **només ADMIN**:
+- Backend: `GET /legal/documents` i `POST /legal/documents` porten `@Roles(UserRole.ADMIN)`
+  (`legal.controller.ts`). `GET /legal/:type/active` es manté sense `@Roles` (qualsevol
+  autenticat: el modal i els formularis el necessiten).
+- Dashboard: ruta `/config/legal` amb `canActivate: [rolesGuard(UserRole.ADMIN)]`
+  (`config.routes.ts`); la targeta "Privacitat i legal" només es mostra si `auth.isAdmin()`
+  (`config.component.ts`). Un TECHNICAL que hi navegue directament és redirigit (verificat: la
+  sessió es refresca correctament però el guard el fa fora, no és una pèrdua de sessió).
+
+**Confirmació abans de publicar.** `LegalDocumentsComponent` ja no publica en un clic: hi ha dos
+botons per a `PRIVACY_POLICY` — "Desa correcció" i "Publica versió nova (cal reacceptar)" — i
+qualsevol dels dos obre un diàleg de confirmació amb text adaptat (avís fort en groc si
+`requiresConsent`, explicació neutra si no). La `TRANSPARENCY_CLAUSE` té un únic botó "Publica"
+(sempre correcció) que passa pel mateix diàleg.
+
+**Historial de versions.** Cada targeta de document té un desplegable "Veure historial de
+versions" amb totes les versions (número, data, si era `Activa` i si `Requeria acceptació` o era
+`Correcció`) i un botó "Veure" que obre el contingut d'aquella versió en un modal de lectura. Així
+un ADMIN pot decidir informat si el canvi que està a punt de publicar és prou substancial per
+justificar tornar a demanar el consentiment.
+
+**Deliberadament fora d'abast** (petició explícita: "alguna cosa senzilla"): comparació
+costat a costat esborrany/actiu, diff ressaltat línia a línia, i renderitzat de markdown. El
+contingut es mostra sempre en text pla (`whitespace-pre-wrap`).
 
 ---
 
@@ -320,6 +381,19 @@ Implementat amb TDD (`.agents/skills/test-driven-development/`) seguint els patr
     `package.json` fixa `engines.node ^22`). Afegides entrades `legal`/`audit` → `[[GDPR_COMPLIANCE]]`
     a `DOC_HINTS` de `scripts/generate-doc-map.mjs`. [[DATA_MODEL]] i [[MAP]] actualitzats;
     aquest document i [[ROADMAP]] marcats com a fets.
+
+**Fase F — Refactor de gestió de versions (post-sprint, en ús real)** ✅
+16. Columna `requiresConsent` a `legal_documents` + migració de backfill (§4.2).
+17. `LegalDocumentService.getConsentVersion()` (substitueix `getActiveVersion()` com a font del
+    gate); `publish()` accepta `requiresConsent` i el força a `false` per `TRANSPARENCY_CLAUSE`.
+18. `GET/POST /legal/documents` restringits a `@Roles(UserRole.ADMIN)` (abans TECHNICAL+ADMIN).
+19. Dashboard: `rolesGuard(UserRole.ADMIN)` a `/config/legal`, targeta condicionada a
+    `auth.isAdmin()`, dos botons de publicació + diàleg de confirmació + historial de versions amb
+    modal de lectura (`LegalDocumentsComponent`).
+20. Modals de consentiment (Dashboard i PWA): copy adaptativa segons
+    `auth.currentUser()?.privacyPolicyAcceptedAt` (primera acceptació vs. "s'ha actualitzat").
+21. Fix de pas: icona `ShieldCheck` no estava registrada a `app.config.ts` (Fase C original) —
+    afegida.
 
 **Pendent real (no bloquejant, per a un sprint futor):**
 - Cron de retenció de `audit_logs` (§6).

@@ -80,7 +80,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 
 <!-- BEGIN:AUTO — generat per scripts/generate-data-model.mjs, no editar a mà -->
 
-> Generat el 2026-08-03 des de les entitats TypeORM amb `pnpm run docs:model`.
+> Generat el 2026-08-04 des de les entitats TypeORM amb `pnpm run docs:model`.
 > **19 entitats.** No editar a mà: canvia l'entitat i torna a executar l'script.
 
 ### Resum
@@ -97,7 +97,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 | `figure_nodes` | `FigureNode` | 22 |
 | `figure_templates` | `FigureTemplate` | 11 |
 | `instance_nodes` | `InstanceNode` | 25 |
-| `legal_documents` | `LegalDocument` | 8 |
+| `legal_documents` | `LegalDocument` | 9 |
 | `node_assignments` | `NodeAssignment` | 7 |
 | `person_delegates` | `PersonDelegate` | 7 |
 | `persons` | `Person` | 26 |
@@ -356,6 +356,7 @@ Definició: [`apps/api/src/modules/legal/legal-document.entity.ts`](../apps/api/
 | `version` | `int` | `number` | no | — |
 | `content` | `text` | `string` | no | — |
 | `isActive` | `boolean` | `boolean` | no | default `false` |
+| `requiresConsent` | `boolean` | `boolean` | no | default `false` |
 | `publishedAt` | `timestamptz` | `Date` | sí | — |
 | `createdAt` | `timestamptz` | `Date` | no | creació |
 | `updatedAt` | `timestamptz` | `Date` | no | actualització |

@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, computed, inject, signal } from '@angular/core';
 import { LegalDocumentType } from '@muixer/shared';
 import { AuthService } from '../../../core/auth/services/auth.service';
 import { LegalDocumentService } from '../../../core/services/legal-document.service';
@@ -16,9 +16,13 @@ import { ToastService } from '../../services/toast.service';
   template: `
     <dialog class="modal modal-open" aria-modal="true" role="dialog" aria-labelledby="consent-modal-title">
       <div class="modal-box max-w-lg">
-        <h3 id="consent-modal-title" class="font-bold text-lg mb-2">Política de Privacitat</h3>
+        <h3 id="consent-modal-title" class="font-bold text-lg mb-2">
+          {{ hadAcceptedBefore() ? "La Política de Privacitat s'ha actualitzat" : 'Política de Privacitat' }}
+        </h3>
         <p class="text-sm text-base-content/60 mb-4">
-          Per continuar utilitzant l'aplicació cal que llegeixis i acceptis la política de privacitat.
+          {{ hadAcceptedBefore()
+            ? "Cal que la tornis a llegir i acceptar per continuar utilitzant l'aplicació."
+            : "Per continuar utilitzant l'aplicació cal que llegeixis i acceptis la política de privacitat." }}
         </p>
 
         @if (loading()) {
@@ -52,6 +56,10 @@ export class ConsentModalComponent {
   protected readonly content = signal<string | null>(null);
   protected readonly loading = signal(true);
   protected readonly submitting = signal(false);
+  /** True if this account had already accepted a (now superseded) version — i.e. this is a re-consent, not a first acceptance. */
+  protected readonly hadAcceptedBefore = computed(
+    () => this.auth.currentUser()?.privacyPolicyAcceptedAt != null,
+  );
 
   constructor() {
     this.legalService.getActive(LegalDocumentType.PRIVACY_POLICY).subscribe({

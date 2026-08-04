@@ -30,6 +30,7 @@ import { CreateLegalDocuments1783200000000 } from './1783200000000-CreateLegalDo
 import { CreateAuditLogs1783300000000 } from './1783300000000-CreateAuditLogs';
 import { AddUserPrivacyConsent1783400000000 } from './1783400000000-AddUserPrivacyConsent';
 import { SeedLegalDocuments1783500000000 } from './1783500000000-SeedLegalDocuments';
+import { AddLegalDocumentRequiresConsent1783600000000 } from './1783600000000-AddLegalDocumentRequiresConsent';
 
 export const migrations: (new () => MigrationInterface)[] = [
   InitialSchema1748600000000,
@@ -63,4 +64,5 @@ export const migrations: (new () => MigrationInterface)[] = [
   CreateAuditLogs1783300000000,
   AddUserPrivacyConsent1783400000000,
   SeedLegalDocuments1783500000000,
+  AddLegalDocumentRequiresConsent1783600000000,
 ];

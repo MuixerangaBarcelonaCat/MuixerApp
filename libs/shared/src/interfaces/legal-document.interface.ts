@@ -7,6 +7,8 @@ export interface LegalDocument {
   version: number;
   content: string;
   isActive: boolean;
+  /** Whether this version obliges users to re-accept (the "consent watermark" candidate). */
+  requiresConsent: boolean;
   publishedAt: string | null;
   createdAt: string;
   updatedAt: string;

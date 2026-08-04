@@ -32,16 +32,34 @@ describe('LegalDocumentService', () => {
     req.flush([]);
   });
 
-  it('publish POSTs the type and content', () => {
+  it('publish POSTs the type, content and requiresConsent', () => {
     service
-      .publish({ type: LegalDocumentType.TRANSPARENCY_CLAUSE, content: 'text' })
+      .publish({
+        type: LegalDocumentType.TRANSPARENCY_CLAUSE,
+        content: 'text',
+        requiresConsent: false,
+      })
       .subscribe();
     const req = http.expectOne((r) => r.url.endsWith('/legal/documents'));
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toEqual({
       type: LegalDocumentType.TRANSPARENCY_CLAUSE,
       content: 'text',
+      requiresConsent: false,
     });
+    req.flush({});
+  });
+
+  it('publish sends requiresConsent: true when publishing a substantive change', () => {
+    service
+      .publish({
+        type: LegalDocumentType.PRIVACY_POLICY,
+        content: 'canvi substancial',
+        requiresConsent: true,
+      })
+      .subscribe();
+    const req = http.expectOne((r) => r.url.endsWith('/legal/documents'));
+    expect(req.request.body.requiresConsent).toBe(true);
     req.flush({});
   });
 });

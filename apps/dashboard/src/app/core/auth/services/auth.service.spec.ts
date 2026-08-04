@@ -177,6 +177,17 @@ describe('AuthService', () => {
       expect(service.isAtLeastTechnical()).toBe(false);
     });
 
+    it('isAdmin returns true only for ADMIN, not for TECHNICAL', () => {
+      const setUser = (service as unknown as { _currentUser: { set: (v: unknown) => void } })
+        ._currentUser;
+
+      setUser.set({ ...mockProfile, role: UserRole.ADMIN });
+      expect(service.isAdmin()).toBe(true);
+
+      setUser.set({ ...mockProfile, role: UserRole.TECHNICAL });
+      expect(service.isAdmin()).toBe(false);
+    });
+
     it('requiresPrivacyConsent reflects the current user profile', () => {
       const setUser = (service as unknown as { _currentUser: { set: (v: unknown) => void } })
         ._currentUser;

@@ -78,16 +78,17 @@ export class AuthService {
   /**
    * Transforma l'entitat User a la interfície pública UserProfile (sense passwordHash ni tokens
    * sensibles). Calcula `requiresPrivacyConsent` comparant la versió acceptada per l'usuari amb
-   * la versió activa de la política de privacitat.
+   * el "watermark" de consentiment (la versió més alta que exigeix reacceptació) — no amb la
+   * versió activa: una correcció (publicada amb `requiresConsent: false`) no mou el watermark.
    */
   private async toUserProfile(user: User): Promise<UserProfile> {
     const person = user.person as Person | null;
-    const activeVersion = await this.legalService.getActiveVersion(
+    const consentVersion = await this.legalService.getConsentVersion(
       LegalDocumentType.PRIVACY_POLICY,
     );
     const requiresPrivacyConsent =
-      activeVersion != null &&
-      (user.privacyPolicyVersion == null || user.privacyPolicyVersion < activeVersion);
+      consentVersion != null &&
+      (user.privacyPolicyVersion == null || user.privacyPolicyVersion < consentVersion);
 
     return {
       id: user.id,
@@ -175,8 +176,9 @@ export class AuthService {
   }
 
   /**
-   * Registra que l'usuari accepta la política de privacitat: desa el timestamp i la versió activa,
-   * i escriu una entrada d'auditoria CONSENT_ACCEPTED. Retorna el perfil actualitzat.
+   * Registra que l'usuari accepta la política de privacitat: desa el timestamp i el watermark de
+   * consentiment vigent (no la versió activa — vegeu `toUserProfile`), i escriu una entrada
+   * d'auditoria CONSENT_ACCEPTED. Retorna el perfil actualitzat.
    */
   async acceptPrivacyPolicy(userId: string, ipAddress?: string | null): Promise<UserProfile> {
     const user = await this.userRepo.findOne({
@@ -185,24 +187,24 @@ export class AuthService {
     });
     if (!user) throw new UnauthorizedException();
 
-    const activeVersion = await this.legalService.getActiveVersion(
+    const consentVersion = await this.legalService.getConsentVersion(
       LegalDocumentType.PRIVACY_POLICY,
     );
     const acceptedAt = new Date();
 
     await this.userRepo.update(user.id, {
       privacyPolicyAcceptedAt: acceptedAt,
-      privacyPolicyVersion: activeVersion,
+      privacyPolicyVersion: consentVersion,
     });
     user.privacyPolicyAcceptedAt = acceptedAt;
-    user.privacyPolicyVersion = activeVersion;
+    user.privacyPolicyVersion = consentVersion;
 
     await this.auditService.record({
       actorUserId: user.id,
       action: AuditAction.CONSENT_ACCEPTED,
       targetType: 'User',
       targetId: user.id,
-      metadata: { privacyPolicyVersion: activeVersion },
+      metadata: { privacyPolicyVersion: consentVersion },
       ipAddress,
     });
 

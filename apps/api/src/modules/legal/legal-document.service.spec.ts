@@ -65,15 +65,21 @@ describe('LegalDocumentService', () => {
     });
   });
 
-  describe('getActiveVersion', () => {
-    it('returns the active version number', async () => {
-      repo.findOne.mockResolvedValue({ version: 5, isActive: true });
-      await expect(service.getActiveVersion(LegalDocumentType.PRIVACY_POLICY)).resolves.toBe(5);
+  describe('getConsentVersion', () => {
+    it('returns the highest version that requires consent', async () => {
+      repo.findOne.mockResolvedValue({ version: 5, requiresConsent: true });
+      await expect(service.getConsentVersion(LegalDocumentType.PRIVACY_POLICY)).resolves.toBe(5);
+      expect(repo.findOne).toHaveBeenCalledWith({
+        where: { type: LegalDocumentType.PRIVACY_POLICY, requiresConsent: true },
+        order: { version: 'DESC' },
+      });
     });
 
-    it('returns null when there is no active document', async () => {
+    it('returns null when no version has ever required consent', async () => {
       repo.findOne.mockResolvedValue(null);
-      await expect(service.getActiveVersion(LegalDocumentType.PRIVACY_POLICY)).resolves.toBeNull();
+      await expect(
+        service.getConsentVersion(LegalDocumentType.PRIVACY_POLICY),
+      ).resolves.toBeNull();
     });
   });
 
@@ -84,6 +90,7 @@ describe('LegalDocumentService', () => {
       const result = await service.publish({
         type: LegalDocumentType.PRIVACY_POLICY,
         content: 'text',
+        requiresConsent: false,
       });
 
       expect(result.version).toBe(1);
@@ -97,6 +104,7 @@ describe('LegalDocumentService', () => {
       const result = await service.publish({
         type: LegalDocumentType.PRIVACY_POLICY,
         content: 'nova versió',
+        requiresConsent: true,
       });
 
       expect(result.version).toBe(5);
@@ -105,6 +113,53 @@ describe('LegalDocumentService', () => {
         { type: LegalDocumentType.PRIVACY_POLICY, isActive: true },
         { isActive: false },
       );
+    });
+
+    it('stores requiresConsent: false for a correction (typo fix)', async () => {
+      txRepo.findOne.mockResolvedValue({ version: 1 });
+
+      const result = await service.publish({
+        type: LegalDocumentType.PRIVACY_POLICY,
+        content: 'correcció ortogràfica',
+        requiresConsent: false,
+      });
+
+      expect(result.requiresConsent).toBe(false);
+    });
+
+    it('stores requiresConsent: true for a substantive change', async () => {
+      txRepo.findOne.mockResolvedValue({ version: 1 });
+
+      const result = await service.publish({
+        type: LegalDocumentType.PRIVACY_POLICY,
+        content: 'canvi substancial',
+        requiresConsent: true,
+      });
+
+      expect(result.requiresConsent).toBe(true);
+    });
+
+    it('defaults requiresConsent to false when omitted', async () => {
+      txRepo.findOne.mockResolvedValue(null);
+
+      const result = await service.publish({
+        type: LegalDocumentType.PRIVACY_POLICY,
+        content: 'text',
+      });
+
+      expect(result.requiresConsent).toBe(false);
+    });
+
+    it('forces requiresConsent to false for TRANSPARENCY_CLAUSE even if the caller passes true', async () => {
+      txRepo.findOne.mockResolvedValue(null);
+
+      const result = await service.publish({
+        type: LegalDocumentType.TRANSPARENCY_CLAUSE,
+        content: 'text',
+        requiresConsent: true,
+      });
+
+      expect(result.requiresConsent).toBe(false);
     });
   });
 });

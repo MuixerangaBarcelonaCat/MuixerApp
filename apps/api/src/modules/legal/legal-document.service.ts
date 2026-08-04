@@ -27,19 +27,37 @@ export class LegalDocumentService {
     return doc;
   }
 
-  /** Active version number of a type, or null when none is published. Drives the consent gate. */
-  async getActiveVersion(type: LegalDocumentType): Promise<number | null> {
-    const doc = await this.repo.findOne({ where: { type, isActive: true } });
+  /**
+   * The "consent watermark": the highest version of a type with `requiresConsent = true`, or null
+   * when none has ever required it. This — NOT the active version — is what the click-wrap gate
+   * compares against, so a correction (published with `requiresConsent: false`) can update the
+   * active text without moving the watermark and forcing everyone to re-accept.
+   */
+  async getConsentVersion(type: LegalDocumentType): Promise<number | null> {
+    const doc = await this.repo.findOne({
+      where: { type, requiresConsent: true },
+      order: { version: 'DESC' },
+    });
     return doc?.version ?? null;
   }
 
   /**
    * Publish a new version of a document type: computes `version = max + 1`, deactivates the
    * current active document of that type and inserts the new one as active — all in one
-   * transaction so the "one active per type" invariant never breaks. Publishing a new
-   * PRIVACY_POLICY is what re-triggers the click-wrap consent gate for everyone.
+   * transaction so the "one active per type" invariant never breaks.
+   *
+   * `dto.requiresConsent` decides whether THIS publish also moves the consent watermark:
+   * - `false` (a correction, e.g. a typo fix): the active text updates, nobody is asked to
+   *   re-accept.
+   * - `true` (a substantive change): everyone who accepted an earlier version must re-accept on
+   *   their next login/refresh.
+   * `TRANSPARENCY_CLAUSE` is purely informative and never gates anything — `requiresConsent` is
+   * forced to `false` for it regardless of what the caller passes.
    */
   async publish(dto: PublishLegalDocumentDto): Promise<LegalDocument> {
+    const requiresConsent =
+      dto.type === LegalDocumentType.TRANSPARENCY_CLAUSE ? false : !!dto.requiresConsent;
+
     return this.dataSource.transaction(async (manager) => {
       const repo = manager.getRepository(LegalDocument);
       const latest = await repo.findOne({
@@ -55,6 +73,7 @@ export class LegalDocumentService {
         version: nextVersion,
         content: dto.content,
         isActive: true,
+        requiresConsent,
         publishedAt: new Date(),
       });
       return repo.save(doc);

@@ -6,6 +6,8 @@ import { ApiService } from './api.service';
 export interface PublishLegalDocumentDto {
   type: LegalDocumentType;
   content: string;
+  /** false = correcció (ningú torna a signar). true = versió nova (cal reacceptar). */
+  requiresConsent: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
