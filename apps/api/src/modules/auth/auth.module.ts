@@ -5,7 +5,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from '../user/user.entity';
 import { Person } from '../person/person.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
+import { LegalModule } from '../legal/legal.module';
+import { AuditModule } from '../audit/audit.module';
 import { AuthController } from './auth.controller';
+import { ConsentController } from './consent.controller';
 import { AuthService } from './auth.service';
 import { TokenService } from './token.service';
 import { LocalStrategy } from './strategies/local.strategy';
@@ -23,8 +26,10 @@ import { requireJwtSecret } from './constants/jwt-secret.util';
       signOptions: { expiresIn: parseInt(process.env['JWT_ACCESS_TTL'] ?? '900', 10) },
     }),
     TypeOrmModule.forFeature([User, Person, RefreshToken]),
+    LegalModule,
+    AuditModule,
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, ConsentController],
   providers: [
     AuthService,
     TokenService,

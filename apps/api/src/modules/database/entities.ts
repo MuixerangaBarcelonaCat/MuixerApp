@@ -14,6 +14,8 @@ import { FigureInstance } from '../event-segment/entities/figure-instance.entity
 import { InstanceNode } from '../event-segment/entities/instance-node.entity';
 import { NodeAssignment } from '../node-assignment/entities/node-assignment.entity';
 import { Rengla } from '../figure/entities/rengla.entity';
+import { LegalDocument } from '../legal/legal-document.entity';
+import { AuditLog } from '../audit/audit-log.entity';
 
 /** Single source of truth for the entity list, shared by the Nest TypeOrmModule and the integration-test DataSource. */
 export const ENTITIES = [
@@ -33,4 +35,6 @@ export const ENTITIES = [
   FigureInstance,
   InstanceNode,
   NodeAssignment,
+  LegalDocument,
+  AuditLog,
 ];

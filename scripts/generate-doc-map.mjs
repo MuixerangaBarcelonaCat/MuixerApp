@@ -67,6 +67,8 @@ const DOC_HINTS = {
   user: ['DATA_MODEL'],
   tag: ['DATA_MODEL'],
   database: ['DATA_MODEL'],
+  legal: ['GDPR_COMPLIANCE'],
+  audit: ['GDPR_COMPLIANCE'],
   pinyes: ['PINYES_MODULE', 'DASHBOARD_UI'],
   persons: ['DASHBOARD_UI'],
   events: ['DASHBOARD_UI'],

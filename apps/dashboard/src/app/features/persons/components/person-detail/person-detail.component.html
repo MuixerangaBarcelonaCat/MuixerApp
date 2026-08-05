@@ -153,6 +153,12 @@
           } @else {
             <div class="space-y-3">
 
+              @if (transparencyClause()) {
+                <div class="alert alert-info text-xs" role="note">
+                  <span class="whitespace-pre-wrap">{{ transparencyClause() }}</span>
+                </div>
+              }
+
               <div class="form-control">
                 <label class="label py-0 flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-0">
                   <span class="label-text text-xs text-base-content/50 font-medium">Nom <span class="text-error">*</span></span>

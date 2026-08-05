@@ -7,13 +7,17 @@ import {
   Param,
   Body,
   Query,
+  Req,
   ParseUUIDPipe,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
-import { UserRole } from '@muixer/shared';
+import { AuditAction, JwtPayload, UserRole } from '@muixer/shared';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { AuditService } from '../audit/audit.service';
 import { PersonService } from './person.service';
 import { CreatePersonDto } from './dto/create-person.dto';
 import { CreateProvisionalPersonDto } from './dto/create-provisional-person.dto';
@@ -25,7 +29,10 @@ import { PersonFilterDto } from './dto/person-filter.dto';
 @Controller('persons')
 @Roles(UserRole.TECHNICAL, UserRole.ADMIN)
 export class PersonController {
-  constructor(private readonly personService: PersonService) {}
+  constructor(
+    private readonly personService: PersonService,
+    private readonly auditService: AuditService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Llistar membres amb filtres i paginació' })
@@ -47,7 +54,19 @@ export class PersonController {
   @ApiParam({ name: 'id', description: 'UUID del membre' })
   @ApiResponse({ status: 200, description: 'Membre trobat' })
   @ApiResponse({ status: 404, description: 'Membre no trobat' })
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
+  async findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    // GDPR: reading a person's detail exposes PII — log the access for auditing.
+    await this.auditService.record({
+      actorUserId: user.sub,
+      action: AuditAction.SENSITIVE_DATA_ACCESS,
+      targetType: 'Person',
+      targetId: id,
+      ipAddress: req.ip ?? null,
+    });
     return this.personService.findOne(id);
   }
 

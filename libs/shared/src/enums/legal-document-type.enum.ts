@@ -1,0 +1,4 @@
+export enum LegalDocumentType {
+  PRIVACY_POLICY = 'PRIVACY_POLICY',
+  TRANSPARENCY_CLAUSE = 'TRANSPARENCY_CLAUSE',
+}

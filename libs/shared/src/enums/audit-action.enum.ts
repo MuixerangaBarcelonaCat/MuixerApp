@@ -1,0 +1,7 @@
+export enum AuditAction {
+  CONSENT_ACCEPTED = 'CONSENT_ACCEPTED',
+  SENSITIVE_DATA_ACCESS = 'SENSITIVE_DATA_ACCESS',
+  SENSITIVE_DATA_EXPORT = 'SENSITIVE_DATA_EXPORT',
+  // Reserved for the deferred right-to-be-forgotten work (see docs/DEBT.md SEC5):
+  // CONSENT_REVOKED, PERSON_ANONYMIZED
+}

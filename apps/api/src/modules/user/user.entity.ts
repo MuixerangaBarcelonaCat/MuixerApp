@@ -40,6 +40,14 @@ export class User {
   @Column({ type: 'timestamptz', nullable: true })
   resetExpiresAt: Date | null;
 
+  /** When the account accepted the privacy policy (null = never). GDPR click-wrap consent. */
+  @Column({ type: 'timestamptz', nullable: true })
+  privacyPolicyAcceptedAt: Date | null;
+
+  /** Which PRIVACY_POLICY version was accepted. A newer active version re-triggers the consent gate. */
+  @Column({ type: 'int', nullable: true })
+  privacyPolicyVersion: number | null;
+
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 

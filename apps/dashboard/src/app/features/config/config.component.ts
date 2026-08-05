@@ -1,6 +1,7 @@
-import { Component, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
+import { AuthService } from '../../core/auth/services/auth.service';
 
 @Component({
   selector: 'app-config',
@@ -40,8 +41,20 @@ import { LucideAngularModule } from 'lucide-angular';
           </div>
         </a>
 
+        @if (auth.isAdmin()) {
+          <a routerLink="legal" class="card bg-base-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer border-l-4 border-warning">
+            <div class="card-body p-4">
+              <lucide-icon name="ShieldCheck" [size]="24" class="text-warning mb-1" />
+              <h3 class="font-semibold">Privacitat i legal</h3>
+              <p class="text-xs text-base-content/50">Política de privacitat i clàusules</p>
+            </div>
+          </a>
+        }
+
       </div>
     </div>
   `,
 })
-export class ConfigComponent {}
+export class ConfigComponent {
+  protected readonly auth = inject(AuthService);
+}

@@ -11,7 +11,7 @@ tags: [qa]
 > Regla: si un ítem es resol, s'esborra d'aquí. Res de columnes "✅ Resolt" —
 > per a això ja hi ha el git log.
 
-**Verificat contra el codi:** 1 d'agost de 2026
+**Verificat contra el codi:** 3 d'agost de 2026
 
 ---
 
@@ -38,6 +38,9 @@ tags: [qa]
 | SEC2 | `CORS_ORIGINS` no ha de contenir `localhost` en producció | Verificar a cada desplegament |
 | SEC3 | Camps sensibles de `persons` (`email`, `phone`, `birthDate`) sense encriptar en repòs | RGPD. Decisió pendent: columnes encriptades vs. encriptació de disc |
 | SEC4 | Multi-tenant no implementat | Quan s'implemente caldrà `collaId` al JWT i als guards de tots els mòduls |
+| SEC5 | Dret a l'oblit no implementat: falta l'anonimització de `persons` (nom, cognoms, email, telèfon) conservant l'històric de pinyes i assistència de forma anònima, i el filtre de re-importació al `SyncModule` perquè el legacy no ressuscite la persona | RGPD/LOPDGDD. Ajornat conscientment del sprint de compliment. Cal marca `anonymizedAt` a `Person` (no reutilitzar `isActive`, per BUG-9 a `person-sync.strategy.ts:380`). Pla a [[GDPR_COMPLIANCE]] §11 |
+| SEC6 | `audit_logs` no té cron de retenció/neteja (creix indefinidament) | Definir període (p. ex. 1-2 anys) i afegir un cron com el que ja neteja `refresh_tokens` |
+| SEC7 | `AuditAction.SENSITIVE_DATA_EXPORT` definit a l'enum però sense cap punt de crida | No hi ha encara cap endpoint d'exportació de PII de `persons`; registrar-lo quan n'hi haja un |
 
 ## Frontend
 

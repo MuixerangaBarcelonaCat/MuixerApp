@@ -13,6 +13,8 @@ const mockUser: UserProfile = {
   email: 'test@test.cat',
   role: UserRole.MEMBER,
   isActive: true,
+  privacyPolicyAcceptedAt: '2026-08-01T00:00:00.000Z',
+  requiresPrivacyConsent: false,
   person: { id: 'p1', name: 'Test', firstSurname: 'User', alias: 'TU', email: null },
 };
 
@@ -155,5 +157,30 @@ describe('AuthService', () => {
       .flush({ accessToken: 'tok', user: mockUserNoPerson });
 
     expect(service.hasLinkedPerson()).toBe(false);
+  });
+
+  it('requiresPrivacyConsent() reflects the current user profile', () => {
+    service.login({ email: 'a@b.cat', password: 'pass' }).subscribe();
+    httpTesting
+      .expectOne('/api/auth/login')
+      .flush({ accessToken: 'tok', user: { ...mockUser, requiresPrivacyConsent: true } });
+
+    expect(service.requiresPrivacyConsent()).toBe(true);
+  });
+
+  it('acceptPrivacyConsent() POSTs to /consent/privacy-policy and refreshes the current user', () => {
+    service.login({ email: 'a@b.cat', password: 'pass' }).subscribe();
+    httpTesting
+      .expectOne('/api/auth/login')
+      .flush({ accessToken: 'tok', user: { ...mockUser, requiresPrivacyConsent: true } });
+
+    expect(service.requiresPrivacyConsent()).toBe(true);
+
+    service.acceptPrivacyConsent().subscribe();
+    const req = httpTesting.expectOne('/api/consent/privacy-policy');
+    expect(req.request.method).toBe('POST');
+    req.flush({ ...mockUser, requiresPrivacyConsent: false });
+
+    expect(service.requiresPrivacyConsent()).toBe(false);
   });
 });

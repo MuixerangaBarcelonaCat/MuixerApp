@@ -4,11 +4,13 @@ import { DataSource } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { ForbiddenException, NotFoundException, UnauthorizedException } from '@nestjs/common';
-import { ClientType, UserRole } from '@muixer/shared';
+import { AuditAction, ClientType, UserRole } from '@muixer/shared';
 import { AuthService } from './auth.service';
 import { TokenService } from './token.service';
 import { User } from '../user/user.entity';
 import { Person } from '../person/person.entity';
+import { LegalDocumentService } from '../legal/legal-document.service';
+import { AuditService } from '../audit/audit.service';
 import { hashToken } from '../../common/utils/hash-token.util';
 
 const makeTransactionManager = () => ({
@@ -38,6 +40,8 @@ const makeUser = (overrides: Partial<User> = {}): User =>
     inviteExpiresAt: null,
     resetToken: null,
     resetExpiresAt: null,
+    privacyPolicyAcceptedAt: null,
+    privacyPolicyVersion: null,
     person: null,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -75,12 +79,22 @@ const mockDataSource = () => ({
   transaction: jest.fn(),
 });
 
+const mockLegalService = () => ({
+  getConsentVersion: jest.fn().mockResolvedValue(null),
+});
+
+const mockAuditService = () => ({
+  record: jest.fn().mockResolvedValue(undefined),
+});
+
 describe('AuthService', () => {
   let service: AuthService;
   let userRepo: ReturnType<typeof mockUserRepo>;
   let personRepo: ReturnType<typeof mockPersonRepo>;
   let tokenService: ReturnType<typeof mockTokenService>;
   let dataSource: ReturnType<typeof mockDataSource>;
+  let legalService: ReturnType<typeof mockLegalService>;
+  let auditService: ReturnType<typeof mockAuditService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -92,6 +106,8 @@ describe('AuthService', () => {
         { provide: TokenService, useFactory: mockTokenService },
         { provide: ConfigService, useFactory: mockConfigService },
         { provide: DataSource, useFactory: mockDataSource },
+        { provide: LegalDocumentService, useFactory: mockLegalService },
+        { provide: AuditService, useFactory: mockAuditService },
       ],
     }).compile();
 
@@ -100,6 +116,8 @@ describe('AuthService', () => {
     personRepo = module.get(getRepositoryToken(Person));
     tokenService = module.get(TokenService);
     dataSource = module.get(DataSource);
+    legalService = module.get(LegalDocumentService);
+    auditService = module.get(AuditService);
   });
 
   describe('validateUser', () => {
@@ -272,6 +290,90 @@ describe('AuthService', () => {
       const profile = await service.getMe('user-1');
 
       expect(profile.person?.email).toBe('parent@test.cat');
+    });
+  });
+
+  describe('privacy consent (requiresPrivacyConsent, driven by the consent watermark)', () => {
+    it('is false when no version has ever required consent', async () => {
+      legalService.getConsentVersion.mockResolvedValue(null);
+      userRepo.findOne.mockResolvedValue(makeUser({ privacyPolicyVersion: null }));
+
+      const profile = await service.getMe('user-1');
+      expect(profile.requiresPrivacyConsent).toBe(false);
+    });
+
+    it('is true when the user has never accepted and a watermark exists', async () => {
+      legalService.getConsentVersion.mockResolvedValue(1);
+      userRepo.findOne.mockResolvedValue(makeUser({ privacyPolicyVersion: null }));
+
+      const profile = await service.getMe('user-1');
+      expect(profile.requiresPrivacyConsent).toBe(true);
+    });
+
+    it('is true when the accepted version is older than the watermark', async () => {
+      legalService.getConsentVersion.mockResolvedValue(3);
+      userRepo.findOne.mockResolvedValue(makeUser({ privacyPolicyVersion: 2 }));
+
+      const profile = await service.getMe('user-1');
+      expect(profile.requiresPrivacyConsent).toBe(true);
+    });
+
+    it('is false when the accepted version matches the watermark', async () => {
+      legalService.getConsentVersion.mockResolvedValue(3);
+      userRepo.findOne.mockResolvedValue(makeUser({ privacyPolicyVersion: 3 }));
+
+      const profile = await service.getMe('user-1');
+      expect(profile.requiresPrivacyConsent).toBe(false);
+    });
+
+    it('stays false after a correction is published (the active text moves but the watermark does not)', async () => {
+      // Simulates: user accepted v1 (the watermark); an admin then publishes v2 as a correction
+      // (requiresConsent: false), so the watermark is still 1 — getConsentVersion reflects that.
+      legalService.getConsentVersion.mockResolvedValue(1);
+      userRepo.findOne.mockResolvedValue(makeUser({ privacyPolicyVersion: 1 }));
+
+      const profile = await service.getMe('user-1');
+      expect(profile.requiresPrivacyConsent).toBe(false);
+    });
+
+    it('becomes true once a substantive change moves the watermark past what the user accepted', async () => {
+      // Same user as above, but now an admin publishes v3 as a substantive change
+      // (requiresConsent: true), moving the watermark to 3.
+      legalService.getConsentVersion.mockResolvedValue(3);
+      userRepo.findOne.mockResolvedValue(makeUser({ privacyPolicyVersion: 1 }));
+
+      const profile = await service.getMe('user-1');
+      expect(profile.requiresPrivacyConsent).toBe(true);
+    });
+  });
+
+  describe('acceptPrivacyPolicy', () => {
+    it('stores the acceptance timestamp and the consent watermark version, and records an audit entry', async () => {
+      legalService.getConsentVersion.mockResolvedValue(2);
+      userRepo.findOne.mockResolvedValue(makeUser({ privacyPolicyVersion: null }));
+      userRepo.update.mockResolvedValue({});
+
+      const profile = await service.acceptPrivacyPolicy('user-1', '1.2.3.4');
+
+      expect(userRepo.update).toHaveBeenCalledWith(
+        'user-1',
+        expect.objectContaining({ privacyPolicyVersion: 2, privacyPolicyAcceptedAt: expect.any(Date) }),
+      );
+      expect(auditService.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: AuditAction.CONSENT_ACCEPTED,
+          actorUserId: 'user-1',
+          ipAddress: '1.2.3.4',
+        }),
+      );
+      // After accepting, the profile no longer requires consent.
+      expect(profile.requiresPrivacyConsent).toBe(false);
+      expect(profile.privacyPolicyAcceptedAt).not.toBeNull();
+    });
+
+    it('throws when the user does not exist', async () => {
+      userRepo.findOne.mockResolvedValue(null);
+      await expect(service.acceptPrivacyPolicy('missing')).rejects.toThrow(UnauthorizedException);
     });
   });
 

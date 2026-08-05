@@ -18,6 +18,8 @@ import { EventSegmentModule } from '../modules/event-segment/event-segment.modul
 import { NodeAssignmentModule } from '../modules/node-assignment/node-assignment.module';
 import { CompositionModule } from '../modules/composition/composition.module';
 import { PersonDelegateModule } from '../modules/person-delegate/person-delegate.module';
+import { LegalModule } from '../modules/legal/legal.module';
+import { AuditModule } from '../modules/audit/audit.module';
 import { JwtAuthGuard } from '../modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../modules/auth/guards/roles.guard';
 
@@ -43,6 +45,8 @@ import { RolesGuard } from '../modules/auth/guards/roles.guard';
     NodeAssignmentModule,
     CompositionModule,
     PersonDelegateModule,
+    LegalModule,
+    AuditModule,
   ],
   controllers: [AppController],
   providers: [

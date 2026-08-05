@@ -37,6 +37,10 @@ export class AuthService {
   readonly isReady = this._isReady.asReadonly();
   readonly userRole = computed(() => this._currentUser()?.role ?? null);
   readonly hasLinkedPerson = computed(() => !!this._currentUser()?.person);
+  /** True when the authenticated user must (re)accept the privacy policy before using the app. */
+  readonly requiresPrivacyConsent = computed(
+    () => this._currentUser()?.requiresPrivacyConsent ?? false,
+  );
 
   getAccessToken(): string | null {
     return this._accessToken();
@@ -129,6 +133,24 @@ export class AuthService {
       );
 
     return this._refreshInProgress$;
+  }
+
+  /**
+   * Registra l'acceptació de la política de privacitat i actualitza l'usuari en memòria amb el
+   * perfil retornat (fa que `requiresPrivacyConsent` passi a false i el modal es tanqui).
+   * Nota: crida `/consent/...`, NO `/auth/...` — l'interceptor treu el Bearer a les rutes `/auth/`.
+   */
+  acceptPrivacyConsent(): Observable<void> {
+    return this.http
+      .post<UserProfile>(
+        `${environment.apiUrl}/consent/privacy-policy`,
+        {},
+        { withCredentials: true },
+      )
+      .pipe(
+        tap((user) => this._currentUser.set(user)),
+        map(() => void 0),
+      );
   }
 
   logout(): Observable<void> {

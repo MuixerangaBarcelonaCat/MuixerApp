@@ -80,14 +80,15 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 
 <!-- BEGIN:AUTO — generat per scripts/generate-data-model.mjs, no editar a mà -->
 
-> Generat el 2026-07-28 des de les entitats TypeORM amb `pnpm run docs:model`.
-> **17 entitats.** No editar a mà: canvia l'entitat i torna a executar l'script.
+> Generat el 2026-08-04 des de les entitats TypeORM amb `pnpm run docs:model`.
+> **19 entitats.** No editar a mà: canvia l'entitat i torna a executar l'script.
 
 ### Resum
 
 | Taula | Entitat | Camps |
 |-------|---------|------:|
 | `attendances` | `Attendance` | 10 |
+| `audit_logs` | `AuditLog` | 8 |
 | `composition_entries` | `CompositionEntry` | 13 |
 | `compositions` | `Composition` | 6 |
 | `event_segments` | `EventSegment` | 11 |
@@ -96,6 +97,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 | `figure_nodes` | `FigureNode` | 22 |
 | `figure_templates` | `FigureTemplate` | 11 |
 | `instance_nodes` | `InstanceNode` | 25 |
+| `legal_documents` | `LegalDocument` | 9 |
 | `node_assignments` | `NodeAssignment` | 7 |
 | `person_delegates` | `PersonDelegate` | 7 |
 | `persons` | `Person` | 26 |
@@ -103,13 +105,14 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 | `refresh_tokens` | `RefreshToken` | 10 |
 | `rengles` | `Rengla` | 5 |
 | `seasons` | `Season` | 9 |
-| `users` | `User` | 12 |
+| `users` | `User` | 14 |
 
 ### Enums (`libs/shared/src/enums`)
 
 | Enum | Valors |
 |------|--------|
 | `AttendanceStatus` | `PENDENT` · `ANIRE` · `NO_VAIG` · `ASSISTIT` |
+| `AuditAction` | `CONSENT_ACCEPTED` · `SENSITIVE_DATA_ACCESS` · `SENSITIVE_DATA_EXPORT` |
 | `AvailabilityStatus` | `AVAILABLE` · `TEMPORARILY_UNAVAILABLE` · `LONG_TERM_UNAVAILABLE` |
 | `ClientType` | `dashboard` · `pwa` |
 | `DelegateType` | `PARENT` · `PARTNER` · `GUARDIAN` |
@@ -117,6 +120,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 | `FigureMode` | `COMPLETA` · `PEU` · `REMAT` · `NETA` |
 | `FigureZone` | `BASE` · `PINYA` · `TRONC` · `FIGURE_DIRECTION` · `XICALLA_DIRECTION` · `DECORATION` |
 | `Gender` | `MALE` · `FEMALE` · `OTHER` |
+| `LegalDocumentType` | `PRIVACY_POLICY` · `TRANSPARENCY_CLAUSE` |
 | `NodeShape` | `ELLIPSE` · `RECTANGLE` · `ARROW` · `CIRCLE` |
 | `OnboardingStatus` | `COMPLETED` · `IN_PROGRESS` · `LOST` · `NOT_APPLICABLE` |
 | `SegmentMoveConflictResolution` | `KEEP_TARGET` · `KEEP_MOVED` |
@@ -140,6 +144,21 @@ Definició: [`apps/api/src/modules/event/attendance.entity.ts`](../apps/api/src/
 | `lastSyncedAt` | `timestamptz` | `Date` | sí | — |
 | `createdAt` | `timestamptz` | `Date` | no | creació |
 | `updatedAt` | `timestamptz` | `Date` | no | actualització |
+
+### `audit_logs` — `AuditLog`
+
+Definició: [`apps/api/src/modules/audit/audit-log.entity.ts`](../apps/api/src/modules/audit/audit-log.entity.ts)
+
+| Camp | Tipus DB | Tipus TS | Nullable | Notes |
+|------|----------|----------|----------|-------|
+| `id` | `—` | `string` | no | PK |
+| `actorUserId` | `uuid` | `string` | sí | — |
+| `action` | `enum` | `AuditAction` | no | enum `AuditAction` |
+| `targetType` | `varchar` | `string` | sí | — |
+| `targetId` | `uuid` | `string` | sí | — |
+| `metadata` | `jsonb` | `Record<string, unknown>` | sí | — |
+| `ipAddress` | `varchar` | `string` | sí | — |
+| `createdAt` | `timestamptz` | `Date` | no | creació |
 
 ### `composition_entries` — `CompositionEntry`
 
@@ -326,6 +345,22 @@ Definició: [`apps/api/src/modules/event-segment/entities/instance-node.entity.t
 | `createdById` | `uuid` | `string` | sí | — |
 | `createdAt` | `timestamptz` | `Date` | no | creació |
 
+### `legal_documents` — `LegalDocument`
+
+Definició: [`apps/api/src/modules/legal/legal-document.entity.ts`](../apps/api/src/modules/legal/legal-document.entity.ts)
+
+| Camp | Tipus DB | Tipus TS | Nullable | Notes |
+|------|----------|----------|----------|-------|
+| `id` | `—` | `string` | no | PK |
+| `type` | `enum` | `LegalDocumentType` | no | enum `LegalDocumentType` |
+| `version` | `int` | `number` | no | — |
+| `content` | `text` | `string` | no | — |
+| `isActive` | `boolean` | `boolean` | no | default `false` |
+| `requiresConsent` | `boolean` | `boolean` | no | default `false` |
+| `publishedAt` | `timestamptz` | `Date` | sí | — |
+| `createdAt` | `timestamptz` | `Date` | no | creació |
+| `updatedAt` | `timestamptz` | `Date` | no | actualització |
+
 ### `node_assignments` — `NodeAssignment`
 
 Definició: [`apps/api/src/modules/node-assignment/entities/node-assignment.entity.ts`](../apps/api/src/modules/node-assignment/entities/node-assignment.entity.ts)
@@ -467,6 +502,8 @@ Definició: [`apps/api/src/modules/user/user.entity.ts`](../apps/api/src/modules
 | `inviteExpiresAt` | `timestamptz` | `Date` | sí | — |
 | `resetToken` | `varchar` | `string` | sí | — |
 | `resetExpiresAt` | `timestamptz` | `Date` | sí | — |
+| `privacyPolicyAcceptedAt` | `timestamptz` | `Date` | sí | — |
+| `privacyPolicyVersion` | `int` | `number` | sí | — |
 | `createdAt` | `timestamptz` | `Date` | no | creació |
 | `updatedAt` | `timestamptz` | `Date` | no | actualització |
 | `person` | `relation` | `Relation<Person>` | sí | OneToOne → `undefined` |
@@ -481,6 +518,10 @@ Definició: [`apps/api/src/modules/user/user.entity.ts`](../apps/api/src/modules
 |---------|------|------------|
 | `Notification` | amb el push de la PWA | Notificacions push/email |
 | `Colla` | multi-tenant | Arrel del model; caldrà `collaId` al JWT i als guards (vegeu [[DEBT]] SEC4) |
+
+`LegalDocument` i `AuditLog` (compliment LOPDGDD/RGPD) ja estan modelats — vegeu la secció
+**Entitats** més amunt i [[GDPR_COMPLIANCE]]. Pendent (ajornat): `anonymizedAt` a `Person` per al
+dret a l'oblit, vegeu [[DEBT]] SEC5.
 
 Els camps sensibles (`email`, `phone`, `birthDate`) encara no s'encripten en repòs: [[DEBT]] SEC3.
 

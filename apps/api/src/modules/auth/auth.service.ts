@@ -11,9 +11,11 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { ClientType, UserProfile, UserRole } from '@muixer/shared';
+import { AuditAction, ClientType, LegalDocumentType, UserProfile, UserRole } from '@muixer/shared';
 import { User } from '../user/user.entity';
 import { Person } from '../person/person.entity';
+import { LegalDocumentService } from '../legal/legal-document.service';
+import { AuditService } from '../audit/audit.service';
 import { TokenService } from './token.service';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
@@ -44,6 +46,8 @@ export class AuthService {
     private readonly tokenService: TokenService,
     private readonly configService: ConfigService,
     private readonly dataSource: DataSource,
+    private readonly legalService: LegalDocumentService,
+    private readonly auditService: AuditService,
   ) {}
 
   /** Comprova email i contrasenya via bcrypt. Retorna null si l'usuari no existeix, no està actiu o la contrasenya és incorrecta. */
@@ -71,14 +75,30 @@ export class AuthService {
     );
   }
 
-  /** Transforma l'entitat User a la interfície pública UserProfile (sense passwordHash ni tokens sensibles). */
-  private toUserProfile(user: User): UserProfile {
+  /**
+   * Transforma l'entitat User a la interfície pública UserProfile (sense passwordHash ni tokens
+   * sensibles). Calcula `requiresPrivacyConsent` comparant la versió acceptada per l'usuari amb
+   * el "watermark" de consentiment (la versió més alta que exigeix reacceptació) — no amb la
+   * versió activa: una correcció (publicada amb `requiresConsent: false`) no mou el watermark.
+   */
+  private async toUserProfile(user: User): Promise<UserProfile> {
     const person = user.person as Person | null;
+    const consentVersion = await this.legalService.getConsentVersion(
+      LegalDocumentType.PRIVACY_POLICY,
+    );
+    const requiresPrivacyConsent =
+      consentVersion != null &&
+      (user.privacyPolicyVersion == null || user.privacyPolicyVersion < consentVersion);
+
     return {
       id: user.id,
       email: user.email,
       role: user.role,
       isActive: user.isActive,
+      privacyPolicyAcceptedAt: user.privacyPolicyAcceptedAt
+        ? user.privacyPolicyAcceptedAt.toISOString()
+        : null,
+      requiresPrivacyConsent,
       person: person
         ? {
             id: person.id,
@@ -104,7 +124,7 @@ export class AuthService {
     const accessToken = this.signAccessToken(user);
     const refreshToken = await this.tokenService.createRefreshToken(user, clientType);
     return {
-      response: { accessToken, user: this.toUserProfile(user) },
+      response: { accessToken, user: await this.toUserProfile(user) },
       refreshToken,
     };
   }
@@ -129,7 +149,7 @@ export class AuthService {
 
     const accessToken = this.signAccessToken(user);
     return {
-      response: { accessToken, user: this.toUserProfile(user) },
+      response: { accessToken, user: await this.toUserProfile(user) },
       newRefreshToken: newRawToken,
       clientType,
     };
@@ -152,6 +172,42 @@ export class AuthService {
       relations: ['person', 'person.managedBy'],
     });
     if (!user) throw new UnauthorizedException();
+    return this.toUserProfile(user);
+  }
+
+  /**
+   * Registra que l'usuari accepta la política de privacitat: desa el timestamp i el watermark de
+   * consentiment vigent (no la versió activa — vegeu `toUserProfile`), i escriu una entrada
+   * d'auditoria CONSENT_ACCEPTED. Retorna el perfil actualitzat.
+   */
+  async acceptPrivacyPolicy(userId: string, ipAddress?: string | null): Promise<UserProfile> {
+    const user = await this.userRepo.findOne({
+      where: { id: userId },
+      relations: ['person', 'person.managedBy'],
+    });
+    if (!user) throw new UnauthorizedException();
+
+    const consentVersion = await this.legalService.getConsentVersion(
+      LegalDocumentType.PRIVACY_POLICY,
+    );
+    const acceptedAt = new Date();
+
+    await this.userRepo.update(user.id, {
+      privacyPolicyAcceptedAt: acceptedAt,
+      privacyPolicyVersion: consentVersion,
+    });
+    user.privacyPolicyAcceptedAt = acceptedAt;
+    user.privacyPolicyVersion = consentVersion;
+
+    await this.auditService.record({
+      actorUserId: user.id,
+      action: AuditAction.CONSENT_ACCEPTED,
+      targetType: 'User',
+      targetId: user.id,
+      metadata: { privacyPolicyVersion: consentVersion },
+      ipAddress,
+    });
+
     return this.toUserProfile(user);
   }
 
@@ -184,7 +240,7 @@ export class AuthService {
     const refreshToken = await this.tokenService.createRefreshToken(user, clientType);
 
     return {
-      response: { accessToken, user: this.toUserProfile(user) },
+      response: { accessToken, user: await this.toUserProfile(user) },
       refreshToken,
     };
   }
