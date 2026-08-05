@@ -105,20 +105,21 @@ graph TD
 
 <!-- BEGIN:AUTO — generat per scripts/generate-doc-map.mjs, no editar a mà -->
 
-> Generat el 2026-08-03 amb `pnpm run docs:map`.
+> Generat el 2026-08-05 amb `pnpm run docs:map`.
 
 ### Mòduls de l'API (`apps/api/src/modules`)
 
 | Element | Fitxers | Línies | Docs |
 |---------|--------:|-------:|------|
 | [`audit`](../apps/api/src/modules/audit) | 3 | 99 | [[GDPR_COMPLIANCE]] |
-| [`auth`](../apps/api/src/modules/auth) | 22 | 1050 | [[AUTH_FLOW]] · [[SSE_AUTH]] |
+| [`auth`](../apps/api/src/modules/auth) | 22 | 1052 | [[AUTH_FLOW]] · [[SSE_AUTH]] |
 | [`composition`](../apps/api/src/modules/composition) | 8 | 630 | [[PINYES_MODULE]] |
 | [`database`](../apps/api/src/modules/database) | 5 | 211 | [[DATA_MODEL]] |
 | [`event`](../apps/api/src/modules/event) | 13 | 1190 | [[DATA_MODEL]] |
 | [`event-segment`](../apps/api/src/modules/event-segment) | 19 | 1850 | [[PINYES_MODULE]] |
 | [`figure`](../apps/api/src/modules/figure) | 12 | 1308 | [[PINYES_MODULE]] · [[DATA_MODEL]] |
-| [`legal`](../apps/api/src/modules/legal) | 5 | 182 | [[GDPR_COMPLIANCE]] |
+| [`legal`](../apps/api/src/modules/legal) | 5 | 222 | [[GDPR_COMPLIANCE]] |
+| [`me`](../apps/api/src/modules/me) | 5 | 357 | — |
 | [`node-assignment`](../apps/api/src/modules/node-assignment) | 14 | 2752 | [[PINYES_MODULE]] |
 | [`person`](../apps/api/src/modules/person) | 10 | 992 | [[DATA_MODEL]] |
 | [`person-delegate`](../apps/api/src/modules/person-delegate) | 7 | 337 | [[DATA_MODEL]] |
@@ -127,14 +128,14 @@ graph TD
 | [`tag`](../apps/api/src/modules/tag) | 6 | 225 | [[DATA_MODEL]] |
 | [`user`](../apps/api/src/modules/user) | 11 | 857 | [[DATA_MODEL]] |
 
-Migracions TypeORM: **33** a [`apps/api/src/migrations`](../apps/api/src/migrations).
+Migracions TypeORM: **34** a [`apps/api/src/migrations`](../apps/api/src/migrations).
 
 ### Features del dashboard (`apps/dashboard/src/app/features`)
 
 | Element | Fitxers | Línies | Docs |
 |---------|--------:|-------:|------|
 | [`auth`](../apps/dashboard/src/app/features/auth) | 1 | 49 | [[AUTH_FLOW]] · [[SSE_AUTH]] |
-| [`config`](../apps/dashboard/src/app/features/config) | 13 | 1652 | [[DASHBOARD_UI]] |
+| [`config`](../apps/dashboard/src/app/features/config) | 13 | 1864 | [[DASHBOARD_UI]] |
 | [`events`](../apps/dashboard/src/app/features/events) | 18 | 3506 | [[DASHBOARD_UI]] |
 | [`home`](../apps/dashboard/src/app/features/home) | 2 | 119 | [[DASHBOARD_UI]] |
 | [`persons`](../apps/dashboard/src/app/features/persons) | 11 | 1539 | [[DASHBOARD_UI]] |
@@ -156,7 +157,7 @@ Migracions TypeORM: **33** a [`apps/api/src/migrations`](../apps/api/src/migrati
 |---------|--------:|-------:|------|
 | [`constants`](../libs/shared/src/constants) | 1 | 81 | — |
 | [`enums`](../libs/shared/src/enums) | 14 | 108 | — |
-| [`interfaces`](../libs/shared/src/interfaces) | 14 | 571 | — |
+| [`interfaces`](../libs/shared/src/interfaces) | 14 | 573 | — |
 
 ### Fitxers més grans (candidats a dividir)
 
