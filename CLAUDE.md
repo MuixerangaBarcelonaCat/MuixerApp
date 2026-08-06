@@ -158,8 +158,12 @@ Angular 21 + Service Worker (offline cache; **no push yet**), signals + `rxResou
 confirmation** (`AttendanceButton`: Vinc/No vinc → ANIRE/NO_VAIG; ASSISTIT locked). `no-person-banner` for
 accounts with no linked Person.
 
-There are no dedicated `/me` endpoints: it consumes `/events`, `/auth/me`, `/events/:id/attendance`. The
-`MeEvent`/`MeEventDetail` types live in `libs/shared/interfaces/me/`.
+Member-scoped data comes from the `me` API module (`@Roles(MEMBER, TECHNICAL, ADMIN)`): `GET /me/events`
+(filters `type`/`timeFilter`/`limit`, returns `MeEvent` with the caller's own `myAttendance`), `GET
+/me/events/:id` (`MeEventDetail`), and `PUT /me/events/:id/attendance` (upsert own attendance, person derived
+from the JWT — no `personId` in the body). Auth still uses `/auth/me`. The `MeEvent`/`MeEventDetail` types
+live in `libs/shared/interfaces/me/`. The `me` module reuses `SeasonService` and `AttendanceService`; it
+never exposes the admin `/events` CRUD to members.
 
 ---
 
