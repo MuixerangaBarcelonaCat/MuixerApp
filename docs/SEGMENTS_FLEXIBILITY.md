@@ -61,7 +61,7 @@ avisos i quins números veu el tècnic:
 | Fet de camp | Conseqüència per al producte |
 |---|---|
 | Primer es munten els troncs de tots els segments; després les pinyes, amb la gent que no és al tronc | El "lliure" del panell de persones vol dir coses diferents segons la pestanya on treballes (§5.4) |
-| Moure gent de pinya és barat; moure gent de tronc és car i té conseqüències en cadena | Un conflicte que involucra un tronc **no val el mateix** que un entre dues pinyes: cal severitat i suggeriment diferents (§4.1) |
+| Moure gent de pinya és barat; moure gent de tronc és car i té conseqüències en cadena | Un conflicte que involucra un tronc **no val el mateix** que un entre dues pinyes: ha d'aparèixer abans a la llista i amb un suggeriment diferent (§4.1) |
 | Les pinyes són molt més gent i pateixen molts més canvis | Els avisos de pinya han de ser barats i discrets; els de tronc, escassos i sonors — si tots criden igual, es deixen de mirar |
 | Un sol canvi al tronc pot obligar a reajustar tot l'event | Cal veure **l'impacte derivat** d'un canvi de tronc (qui queda duplicat, quins nodes queden buits) i la càrrega per persona a nivell d'event |
 | Es busca una participació equilibrada | Cal una mètrica per persona (quantes col·locacions, quantes de tronc) i poder ordenar per ella |
@@ -116,7 +116,7 @@ com a conflicte immediatament (D5) i en reporta el recompte.
 
 ---
 
-## 4. Decisions noves (D9–D12)
+## 4. Decisions noves (D9–D13)
 
 | # | Qüestió | Decisió |
 |---|---------|---------|
@@ -124,24 +124,31 @@ com a conflicte immediatament (D5) i en reporta el recompte.
 | D10 | Àrea d'una assignació | Es deriva de `instanceNode.zone` amb un únic helper compartit: **BASE compta com a TRONC** a efectes de conflictes i dotació. Els comptadors de completesa existents que fan `PINYA + BASE` **no es toquen** (§5.3) |
 | D11 | Impacte d'un canvi de tronc | **Derivat, no persistit**: després d'escriure a un node de tronc, es calculen els conflictes nous i els nodes de pinya que han quedat buits. Cap taula nova, cap estat de muntatge, cap flag "troncs tancats" |
 | D12 | Conflictes entre segments | Segueixen sent **legals i sense avís** (D1). El que es fa és mesurar **càrrega per persona** event-wide (§7, Fase 4). Si dos segments amb `startTime`/`endTime` solapats comparteixen persona, es pot marcar com a avís informatiu — opcional, mai bloquejant |
+| D13 | Una sola font de conflictes | `getSegmentConflicts(segmentId)` (node-assignment) és **l'única** implementació de "què és un conflicte en aquest segment". `event-participation.service.ts` no reimplementa el càlcul: hi crida (o, si per rendiment cal mantenir la seva pròpia agregació batch, un test d'equivalència assegura que mai divergeixen). Sense això, la matriu de Participació i el taller podrien discrepar sobre el mateix segment — inacceptable en una eina que existeix per donar confiança sobre l'estat físic real |
 
 ### 4.1 Taxonomia de conflictes (nucli del disseny nou)
 
 Un conflicte segueix sent **>1 col·locació d'una persona dins el MATEIX segment**. El que és nou és
-que ara **es classifica**, perquè no tots tenen les mateixes conseqüències físiques:
+que ara **es classifica**, però només per decidir **l'ordre** i el **suggeriment** — no l'aparença.
+**Un conflicte és un conflicte**: mateix color, mateix estil d'avís, mateix banner, sigui quin sigui
+el tipus. El que canvia és quin puja primer a la llista i què proposa resoldre:
 
-| Tipus | Situació | Severitat | Suggeriment d'un toc |
+| Tipus | Situació | Ordre a la llista | Suggeriment d'un toc |
 |---|---|---|---|
-| `TRONC_TRONC` | ≥2 col·locacions a nodes TRONC/BASE | **CRITICAL** | Cap automàtic — les dues opcions són cares, decideix la persona |
-| `TRONC_PINYA` | 1 a tronc + ≥1 a pinya | **HIGH** | Treure **totes** les col·locacions de pinya (D9), amb l'alternativa "treu la del tronc" al costat |
-| `PINYA_PINYA` | ≥2 col·locacions a pinya | **LOW** | Deixar-ne una (la de cordó més interior) i treure les sobreres |
+| `TRONC_TRONC` | ≥2 col·locacions a nodes TRONC/BASE | 1r | Cap automàtic — les dues opcions són cares, decideix la persona |
+| `TRONC_PINYA` | 1 a tronc + ≥1 a pinya | 2n | Treure **totes** les col·locacions de pinya (D9), amb l'alternativa "treu la del tronc" al costat |
+| `PINYA_PINYA` | ≥2 col·locacions a pinya | 3r | Deixar-ne una (la de cordó més interior) i treure les sobreres |
 
-Això és el que evita que el feedback es dilueixi: amb 169 assignacions i 86 persones (dades reals de
-dev), els `PINYA_PINYA` són soroll esperable de mitja sessió i es mostren en to informatiu; un
-`TRONC_TRONC` és vermell, surt al banner del taller i puja a la capçalera de l'event.
+Amb 169 assignacions i 86 persones (dades reals de dev), hi haurà molts més `PINYA_PINYA` que
+`TRONC_TRONC` — l'ordenació ja fa que els que costen més de resoldre físicament (tocar un tronc) es
+vegin abans, sense necessitat de distingir-los visualment ni d'introduir nivells de severitat.
 
-> Si es prefereix, això es pot aplanar a una sola severitat sense tocar cap altra part del pla: la
-> classificació viu en un únic mapper de backend i en un mapa de classes al frontend.
+**Precedència en el cas mixt.** Una persona pot tenir alhora ≥2 col·locacions de tronc **i** una o
+més de pinya (3+ placements al mateix segment). `kind` és un sol valor per persona, així que cal una
+regla: **si hi ha ≥2 col·locacions TRONC/BASE, el conflicte és `TRONC_TRONC`** sencer, independentment
+que també hi hagi pinya de per mig — és el cas més car i no s'ha d'amagar rere un `TRONC_PINYA`.
+`suggestedRemovalAssignmentIds` hi pot incloure igualment les col·locacions de pinya (són les barates
+de treure), encara que el `kind` reportat sigui `TRONC_TRONC`.
 
 ---
 
@@ -169,8 +176,8 @@ abans d'escriure codi.
 | Segment | `assignmentCount` | assignacions | píndola `segment-manager` | existent (`EventSegmentSummary`) |
 | Segment | `distinctPersonCount` | persones distintes | tooltip de la píndola | nou |
 | Segment | `tronc.distinctPersonCount` / `pinya.distinctPersonCount` | dotació per àrea | tooltip de la píndola | nou |
-| Segment | `conflictPersonCount` + `conflictsByKind` | conflictes per tipus | píndola + banner | nou |
-| Segment | `pinyaEligibleCount` | confirmats − persones al tronc del segment | capçalera del taller, tab Pinyes | nou, **calculat al client** (necessita assistència) |
+| Segment | `conflictPersonCount` + `conflictsByKind` | conflictes per tipus (per a l'ordre, no per a l'estil) | píndola + banner | nou |
+| Segment | `pinyaEligibleCount` | confirmats − persones al tronc del segment | capçalera del taller, tab Pinyes | nou, **calculat al client a la Fase 2** sobre `assignedInTronc` (Fase 1) — sense endpoint propi |
 | Event | `meta.conflictedPersons` | persones amb algun conflicte | capçalera Participació | **ja existeix** |
 | Event | `placementCount` / `troncPlacementCount` per persona | càrrega i equilibri | columnes ordenables a Participació | nou |
 
@@ -208,8 +215,9 @@ significat correcte per pestanya.
 export enum AssignmentArea { TRONC = 'TRONC', PINYA = 'PINYA', DIRECTION = 'DIRECTION' }
 
 // enums/segment-conflict.enum.ts
+// Ordre d'aparició a llistes/banner: TRONC_TRONC, TRONC_PINYA, PINYA_PINYA.
+// No hi ha severitat: els tres es pinten i s'anuncien igual.
 export enum SegmentConflictKind { TRONC_TRONC, TRONC_PINYA, PINYA_PINYA }
-export enum SegmentConflictSeverity { CRITICAL, HIGH, LOW }
 
 // enums/segment-move-conflict-resolution.enum.ts  → + KEEP_BOTH
 
@@ -226,7 +234,7 @@ export interface ConflictPlacement {
 export interface SegmentConflict {
   personId: string; personAlias: string;
   placements: ConflictPlacement[];               // sempre ≥2, ordenades tronc-primer
-  kind: SegmentConflictKind; severity: SegmentConflictSeverity;
+  kind: SegmentConflictKind;                     // determina ordre i suggeriment, no l'estil
   suggestedRemovalAssignmentIds: string[];       // buit si kind === TRONC_TRONC
 }
 export interface SegmentPeopleCounters { /* §5.2, nivell segment */ }
@@ -258,7 +266,7 @@ encara hi són.
 
 Objectiu: deixar el codi capaç de manejar *n* files per persona abans que n'hi pugui haver més d'una.
 
-1. `libs/shared`: `AssignmentArea`, `areaForZone()`, `SegmentConflictKind/Severity`, `KEEP_BOTH` a
+1. `libs/shared`: `AssignmentArea`, `areaForZone()`, `SegmentConflictKind`, `KEEP_BOTH` a
    l'enum de resolució. Índex a `libs/shared/src/index.ts`.
 2. Arreglar els tres col·lapses de §2: `getSegmentMoveConflicts()` (`node-assignment.service.ts:590-617`)
    passa a retornar `SegmentMoveConflict { personId; placements[]; kind }`;
@@ -276,10 +284,11 @@ Objectiu: deixar el codi capaç de manejar *n* files per persona abans que n'hi 
 
 ### Fase 1 — Backend additiu: conflictes classificats i comptadors
 
-1. `getSegmentConflicts(segmentId)` — una query
+1. `getSegmentConflicts(segmentId)` — **font canònica única** (D13): una query
    (`node_assignments JOIN instance_nodes` amb `GROUP BY personId HAVING COUNT(*) > 1`, després
-   hidratació de col·locacions), classificació per `areaForZone`, càlcul de `severity` i
-   `suggestedRemovalAssignmentIds`.
+   hidratació de col·locacions), classificació per `areaForZone` (`kind` + `suggestedRemovalAssignmentIds`,
+   amb la regla de precedència del cas mixt §4.1; sense severitat — l'ordre de la resposta ja ve
+   `kind`-ordenat, TRONC_TRONC primer).
 2. Endpoint `GET events/:eventId/segments/:segmentId/conflicts` → `SegmentConflictsResponse`
    (`node-assignment.controller.ts`).
 3. Camps de conflicte i dotació a:
@@ -291,14 +300,21 @@ Objectiu: deixar el codi capaç de manejar *n* files per persona abans que n'hi 
 4. `available-persons.service.ts`: `assignedPlacements[]`, `assignedInTronc/InPinya`,
    `conflictInSegment` (sempre `false` de moment). `excludeAssigned` manté el defecte `true`; la
    distinció per àrea la fa el client sobre les anotacions (cap paràmetre nou).
-5. **Impacte del canvi de tronc (D11):** `assign`/`unassign`/`swap` sobre un node TRONC/BASE
-   retornen `impact: TroncChangeImpact`. És reaprofitar `getSegmentConflicts` + un recompte de nodes
-   buits; no afegeix estat ni bloqueja res.
-6. Participació: afegir `area` a `EventParticipationPlacement`, i a `meta` els agregats
-   `conflictsByKind` i `troncPlacements`. Per persona: `troncPlacementCount`.
-7. Tests: unitaris de classificació (els 3 tipus + cas negatiu entre segments) i **integration test**
-   que droppi `UQ_node_assignments_segment_person` dins el test per veure conflictes reals — el patró
-   ja existeix a `event-participation.integration.spec.ts:303`.
+5. **Impacte del canvi de tronc (D11):** `assign`/`unassign`/`swap` sobre un node TRONC/BASE, **i
+   `move()` d'una figura que contingui nodes TRONC/BASE**, retornen `impact: TroncChangeImpact`. És
+   reaprofitar `getSegmentConflicts` + un recompte de nodes buits; no afegeix estat ni bloqueja res.
+   `move()` és probablement la via més gran de canvi de tronc a la pràctica (mou tota una figura,
+   troncs inclosos) i no es pot deixar fora.
+6. **`event-participation.service.ts` deixa de calcular conflictes pel seu compte (D13):** substitueix
+   el `placements[segmentId].length > 1` intern per una crida a `getSegmentConflicts()` (o, si el cost
+   de N crides per segment és massa alt per a la matriu completa, es manté la seva agregació batch
+   però amb un test d'equivalència que compari totes dues implementacions sobre el mateix dataset).
+   Afegir `area` a `EventParticipationPlacement`, i a `meta` els agregats `conflictsByKind` i
+   `troncPlacements`. Per persona: `troncPlacementCount`.
+7. Tests: unitaris de classificació (els 3 tipus + el cas mixt de precedència + cas negatiu entre
+   segments), **test d'equivalència** entre `getSegmentConflicts` i el càlcul de Participació, i
+   **integration test** que droppi `UQ_node_assignments_segment_person` dins el test per veure
+   conflictes reals — el patró ja existeix a `event-participation.integration.spec.ts:303`.
 
 **Fet quan:** els nous camps existeixen a Swagger, en producció valen `0`/`[]`, i cap resposta
 existent canvia de forma.
@@ -313,25 +329,28 @@ fase cobreix el que falta: **dins el taller**, on el tècnic treballa segment a 
 
 1. Models del dashboard: `assignment.model.ts`, `segment.model.ts`, `participation.model.ts` amb
    placements plurals, àrea i conflictes.
-2. **Banner + panell de conflictes** al `segment-workspace` quan `conflictPersonCount > 0`, ordenat
-   per severitat: persona → totes les col·locacions (amb icona d'àrea) → "Treu esta" (un `unassign`
-   desfable). Per a `TRONC_PINYA`, un botó **"Allibera la pinya"** que aplica
+2. **Banner + panell de conflictes** al `segment-workspace` quan `conflictPersonCount > 0`, amb **un
+   sol estil d'avís** per a tots: persona → totes les col·locacions (amb icona d'àrea) → "Treu esta"
+   (un `unassign` desfable). Ordenats per `kind` (TRONC_TRONC i TRONC_PINYA primer), no per color.
+   Per a `TRONC_PINYA`, un botó **"Allibera la pinya"** que aplica
    `suggestedRemovalAssignmentIds` en **una sola** entrada d'undo, amb l'alternativa "treu la del
    tronc" al costat i igual d'accessible (D9).
 3. **Llista de revisió** al mateix panell, alimentada per `TroncChangeImpact` i pels conflictes:
    persones duplicades + nodes de pinya buits + persones lliures (§5.4). Toast persistent "N pinyes a
    revisar" després d'un canvi de tronc, que obre aquesta llista.
-4. **Estil de conflicte** a `figure-canvas` (tots els modes, inclòs `projection`) i `tronc-view`, amb
-   intensitat per severitat.
+4. **Estil de conflicte** a `figure-canvas` (tots els modes, inclòs `projection`) i `tronc-view` — un
+   únic estil visual d'avís (mateix color/icona), independent del `kind`.
 5. Píndoles del `segment-manager` (`:612-639`): fragment `⚠ N conflictes` i dotació per àrea al
    tooltip.
 6. `AlreadyAssignedDialog` → multi-col·locació: llista totes les col·locacions existents amb la seua
    àrea i avisa quan una d'elles és de tronc. "Assignar igualment" **encara no es mostra**.
-7. Panell de persones: bucket nou **"Al tronc d'este segment"** separat de "Assignades", i el
-   significat de "lliures" per pestanya (§5.4).
+7. Panell de persones, **simètric a les dues pestanyes** (una asimetria unidireccional ací deixaria
+   sense avís just el moment en què es crea un conflicte, no només després): a Pinyes, bucket nou
+   **"Al tronc d'este segment"** separat de "Assignades"; a Troncs, bucket equivalent **"Ja a la
+   pinya d'este segment"**. Significat de "lliures" per pestanya segons §5.4.
 8. Modal de moure redissenyat (tres opcions, `KEEP_BOTH` primera i per defecte, i el compte de
    conflictes que involucren troncs destacat), **darrere del flux forçat actual** fins a la Fase 3.
-9. Tests Vitest dels comptadors deduplicats, de l'ordenació per severitat i del bucket de tronc.
+9. Tests Vitest dels comptadors deduplicats, de l'ordenació per `kind` i del bucket de tronc.
 
 **Fet quan:** amb dades de producció (zero conflictes) la UI és idèntica a l'actual excepte els
 comptadors nous de dotació; amb dades sembrades a mà els tres tipus es veuen i es resolen.
@@ -345,17 +364,26 @@ comptadors nous de dotació; amb dades sembrades a mà els tres tipus es veuen i
    de tornar a posar-les**, documentat dins la migració.
 2. `assignWithoutLockCheck()` (`:446-471`): treure els dos pre-checks de persona, retornar els
    `conflicts` resultants; retallar `toAssignConflictError` (`:1506-1519`) a la branca del node.
-3. `move()` (`:232-302`): `KEEP_BOTH` per defecte, sense 409. La resposta inclou els conflictes creats.
-4. `bulkImport()` (`:1002-1200`): importar i marcar (D5), reportant el recompte per tipus.
-5. Frontend: activar "Assignar igualment" amb la fricció de D8, treure els toasts de 409 de persona,
+3. **`swap()` (`:497-565`), oblidat en el disseny original.** Avui no passa per
+   `assignWithoutLockCheck()` ni pels seus pre-checks, i **no envolta el `save()` en cap try/catch**:
+   si la unique constraint fallés, l'excepció crua de Postgres pujaria com a 500 (bug ja existent,
+   independent d'aquest pla). Un cop caiguin les constraints, `swap()` no calcularà mai `conflicts` —
+   cal que retorni `conflicts`/`impact` igual que `assign()`, perquè un intercanvi (inclòs
+   `triggerCrossSwap` entre figures diferents) és una via habitual de crear un `TRONC_TRONC` sense
+   avís si es deixa com està.
+4. `move()` (`:232-302`): `KEEP_BOTH` per defecte, sense 409. La resposta inclou els conflictes creats
+   (i `impact` si la figura moguda té nodes de tronc, D11 — vegeu Fase 1, punt 5).
+5. `bulkImport()` (`:1002-1200`): importar i marcar (D5), reportant el recompte per tipus.
+6. Frontend: activar "Assignar igualment" amb la fricció de D8, treure els toasts de 409 de persona,
    commutar el modal de moure al nou, canviar el text del toast d'import.
-6. Tests: reescriure els que asserten el 409 com a comportament correcte
+7. Tests: reescriure els que asserten el 409 com a comportament correcte
    (`node-assignment.service.spec.ts:444-505`, `figure-instance.service.spec.ts:515-545`,
-   `event-segment.controller.spec.ts:148-167`) i afegir e2e: *assignar duplicat → banner → resoldre
-   des del panell → desfer*.
+   `event-segment.controller.spec.ts:148-167`), afegir tests de `swap()`/`triggerCrossSwap` retornant
+   `conflicts` sense excepció, i e2e: *assignar duplicat → banner → resoldre des del panell → desfer*.
 
 **Checklist de greps abans de desplegar:** `assignedInstanceId`, `find(a => a.person`,
-`status === 409`, `SEGMENT_MOVE_CONFLICT`, `PERSON_IN_SEGMENT`, `PERSON_IN_INSTANCE`.
+`status === 409`, `SEGMENT_MOVE_CONFLICT`, `PERSON_IN_SEGMENT`, `PERSON_IN_INSTANCE`, i totes les
+crides a `swap(` (backend i dashboard) per confirmar que gestionen `conflicts` a la resposta.
 
 ### Fase 4 — Equilibri de participació event-wide
 
@@ -390,18 +418,23 @@ criteri. Gairebé tot és frontend sobre el payload de Participació ja ampliat 
 1. **Bugs silenciosos de "primera coincidència".** Qualsevol `.find(personId)` no migrat agafarà una
    fila arbitrària. Mitigació: la Fase 0 els arregla *abans* que hi puga haver duplicats, i el
    checklist de greps de la Fase 3 es torna a passar abans de desplegar.
-2. **Fatiga d'avisos.** Si `PINYA_PINYA` crida tant com `TRONC_TRONC`, el tècnic deixa de mirar els
-   avisos i el feedback es perd — exactament el problema que aquest pla ha d'evitar. Mitigació: la
-   severitat de §4.1 governa color, posició i si surt al banner; només `CRITICAL` puja a la capçalera
-   de l'event.
+2. **Fatiga d'avisos.** Amb molts més `PINYA_PINYA` que `TRONC_TRONC`, si tots pesen igual a la
+   llista el tècnic pot perdre de vista els que costen més de resoldre. Mitigació: l'**ordre** de
+   §4.1 (TRONC_TRONC i TRONC_PINYA primer) i prou — es descarta deliberadament un segon nivell
+   visual (severitat/color) perquè no aportava més que l'ordenació i complicava la implementació.
 3. **Confusió de recomptes.** "Per node" i "persones distintes" divergiran visiblement, i BASE compta
    a dues bandes (§5.3). Mitigació: convenció de §5 + tooltips + el recompte de conflictes sempre al
    costat del de completesa + test que fixa la doble lectura de BASE.
 4. **Que el suggeriment es llegisca com una regla.** El defecte "treu la pinya" (D9) no ha de fer
    sentir que canviar un tronc estiga prohibit. Mitigació: l'acció alternativa sempre visible i amb el
    mateix nombre de clics; cap missatge que parle de qui pot fer què.
-5. **Pèrdua de dades a la down-migration.** Tornar a posar les constraints exigeix esborrar
-   duplicats. Acceptable només en dev/pre; documentar-ho dins la migració.
+5. **Pèrdua de dades a la down-migration, i sense via de reversió barata un cop en producció.** Tornar
+   a posar les constraints exigeix esborrar duplicats. Acceptable en dev/pre; **en producció, un cop
+   la Fase 3 estigui activa i els tècnics ja hagin creat duplicats legítims** (que és el propòsit de
+   la funcionalitat), qualsevol rollback destrueix aquesta feina real. Amb D4 (sense feature flag) no
+   hi ha marxa enrere sense migració destructiva. Mitigació: **dump/backup explícit de
+   `node_assignments` com a pas obligatori del desplegament de la Fase 3**, no només documentar-ho
+   dins la migració.
 6. **Desfer amb duplicats.** Les entrades ASSIGN/UNASSIGN/MOVE/SWAP d'`UndoRedoService`
    (`undo-redo.service.ts` + els `build*Action` dels dos tabs) s'han de reverificar quan la persona té
    altres col·locacions; "Allibera la pinya" ha de ser **una** entrada d'undo, no *n*.
@@ -412,6 +445,12 @@ criteri. Gairebé tot és frontend sobre el payload de Participació ja ampliat 
 8. **Clients antics durant el desplegament.** Fases 0–2 són retrocompatibles (camps additius). Només
    la Fase 3 canvia semàntica, i va en una release coordinada — la colla és un desplegament
    single-tenant.
+9. **Dues fonts de conflictes que divergeixen (D13).** Si `event-participation.service.ts` manté un
+   càlcul propi en lloc de reutilitzar `getSegmentConflicts()`, la matriu de Participació i el taller
+   poden discrepar sobre el mateix segment. Mitigació: font única, o test d'equivalència obligatori
+   entre totes dues implementacions (Fase 1, punt 7).
+10. **`swap()` sense cobertura.** No passa pels pre-checks d'`assign()` ni retorna `conflicts`; avui
+    un error de constraint hi pujaria com a 500 cru en lloc de 409. Mitigació: Fase 3, punt 3.
 
 ---
 
@@ -425,7 +464,7 @@ tal com està, el tornarà a crear. Cal descartar-la o extreure'n només el que 
 fusionar.
 
 En implementar: actualitzar [[PINYES_MODULE]] (§14 invariants — l'invariant #4 "una persona per
-segment" desapareix a la Fase 3, i n'apareix un de nou sobre severitat de conflictes), [[DATA_MODEL]]
+segment" desapareix a la Fase 3, i n'apareix un de nou sobre la classificació de conflictes), [[DATA_MODEL]]
 (uniques de `node_assignments`) i [[ROADMAP]]. Després de tocar entitats, `pnpm run docs:map` i
 `pnpm run docs:model`.
 
