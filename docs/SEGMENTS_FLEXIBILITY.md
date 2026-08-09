@@ -123,7 +123,7 @@ com a conflicte immediatament (D5) i en reporta el recompte.
 | D9 | Tronc vs pinya en un conflicte | Es distingeix **només com a heurística física**, no organitzativa: com que reubicar gent de pinya és barat i tocar el tronc és car, el suggeriment d'un toc en un conflicte tronc↔pinya és *treure la col·locació de pinya*. És un **defecte suggerit**, mai una restricció: qualsevol tècnic pot resoldre'l al revés amb el mateix nombre de clics |
 | D10 | Àrea d'una assignació | Es deriva de `instanceNode.zone` amb un únic helper compartit: **BASE compta com a TRONC** a efectes de conflictes i dotació. Els comptadors de completesa existents que fan `PINYA + BASE` **no es toquen** (§5.3) |
 | D11 | Impacte d'un canvi de tronc | **Derivat, no persistit**: després d'escriure a un node de tronc, es calculen els conflictes nous i els nodes de pinya que han quedat buits. Cap taula nova, cap estat de muntatge, cap flag "troncs tancats" |
-| D12 | Conflictes entre segments | Segueixen sent **legals i sense avís** (D1). El que es fa és mesurar **càrrega per persona** event-wide (§7, Fase 4). Si dos segments amb `startTime`/`endTime` solapats comparteixen persona, es pot marcar com a avís informatiu — opcional, mai bloquejant |
+| D12 | Conflictes entre segments | Segueixen sent **legals i sense avís** (D1). El que es fa és mesurar **càrrega per persona** event-wide (§7, Fase 6). Si dos segments amb `startTime`/`endTime` solapats comparteixen persona, es pot marcar com a avís informatiu — opcional, mai bloquejant |
 | D13 | Una sola font de conflictes | `getSegmentConflicts(segmentId)` (node-assignment) és **l'única** implementació de "què és un conflicte en aquest segment". `event-participation.service.ts` no reimplementa el càlcul: hi crida (o, si per rendiment cal mantenir la seva pròpia agregació batch, un test d'equivalència assegura que mai divergeixen). Sense això, la matriu de Participació i el taller podrien discrepar sobre el mateix segment — inacceptable en una eina que existeix per donar confiança sobre l'estat físic real |
 
 ### 4.1 Taxonomia de conflictes (nucli del disseny nou)
@@ -177,7 +177,7 @@ abans d'escriure codi.
 | Segment | `distinctPersonCount` | persones distintes | tooltip de la píndola | nou |
 | Segment | `tronc.distinctPersonCount` / `pinya.distinctPersonCount` | dotació per àrea | tooltip de la píndola | nou |
 | Segment | `conflictPersonCount` + `conflictsByKind` | conflictes per tipus (per a l'ordre, no per a l'estil) | píndola + banner | nou |
-| Segment | `pinyaEligibleCount` | confirmats − persones al tronc del segment | capçalera del taller, tab Pinyes | nou, **calculat al client a la Fase 2** sobre `assignedInTronc` (Fase 1) — sense endpoint propi |
+| Segment | `pinyaEligibleCount` | confirmats − persones al tronc del segment | capçalera del taller, tab Pinyes | nou, **calculat al client a la Fase 3** sobre `assignedInTronc` (Fase 1) — sense endpoint propi |
 | Event | `meta.conflictedPersons` | persones amb algun conflicte | capçalera Participació | **ja existeix** |
 | Event | `placementCount` / `troncPlacementCount` per persona | càrrega i equilibri | columnes ordenables a Participació | nou |
 
@@ -245,7 +245,7 @@ export interface TroncChangeImpact {             // D11, derivat
 }
 ```
 
-`AvailablePerson` guanya (mantenint els camps singulars fins a la Fase 5):
+`AvailablePerson` guanya (mantenint els camps singulars fins a la Fase 7):
 
 ```ts
 assignedPlacements: ConflictPlacement[];   // totes, ordenades tronc-primer
@@ -259,8 +259,11 @@ conflictInSegment: boolean;
 ## 7. Pla per fases
 
 Cada fase és desplegable i testable per separat. **El comportament de duplicats només canvia a la
-Fase 3.** Les fases 0–2 renderitzen dades que en producció arriben buides perquè les constraints
-encara hi són.
+Fase 5.** Les fases 0–4 renderitzen dades que en producció arriben buides perquè les constraints
+encara hi són. Vuit fases en lloc de sis del disseny inicial: es divideixen les dues fases més grosses
+per aïllar treball de risc diferent — un refactor d'una feature ja en producció (Fase 2) del backend
+additiu pur, i el codi purament visual (Fase 3) del que introdueix camins de mutació i undo nous
+(Fase 4).
 
 ### Fase 0 — Fonaments i bugs de col·lapse (sense canvi de comportament)
 
@@ -282,7 +285,7 @@ Objectiu: deixar el codi capaç de manejar *n* files per persona abans que n'hi 
 
 **Fet quan:** `nx test api` i `nx test dashboard` verds sense cap canvi observable a la UI.
 
-### Fase 1 — Backend additiu: conflictes classificats i comptadors
+### Fase 1 — Motor de conflictes (backend additiu, només lectura)
 
 1. `getSegmentConflicts(segmentId)` — **font canònica única** (D13): una query
    (`node_assignments JOIN instance_nodes` amb `GROUP BY personId HAVING COUNT(*) > 1`, després
@@ -300,62 +303,89 @@ Objectiu: deixar el codi capaç de manejar *n* files per persona abans que n'hi 
 4. `available-persons.service.ts`: `assignedPlacements[]`, `assignedInTronc/InPinya`,
    `conflictInSegment` (sempre `false` de moment). `excludeAssigned` manté el defecte `true`; la
    distinció per àrea la fa el client sobre les anotacions (cap paràmetre nou).
-5. **Impacte del canvi de tronc (D11):** `assign`/`unassign`/`swap` sobre un node TRONC/BASE, **i
-   `move()` d'una figura que contingui nodes TRONC/BASE**, retornen `impact: TroncChangeImpact`. És
-   reaprofitar `getSegmentConflicts` + un recompte de nodes buits; no afegeix estat ni bloqueja res.
-   `move()` és probablement la via més gran de canvi de tronc a la pràctica (mou tota una figura,
-   troncs inclosos) i no es pot deixar fora.
-6. **`event-participation.service.ts` deixa de calcular conflictes pel seu compte (D13):** substitueix
-   el `placements[segmentId].length > 1` intern per una crida a `getSegmentConflicts()` (o, si el cost
-   de N crides per segment és massa alt per a la matriu completa, es manté la seva agregació batch
-   però amb un test d'equivalència que compari totes dues implementacions sobre el mateix dataset).
-   Afegir `area` a `EventParticipationPlacement`, i a `meta` els agregats `conflictsByKind` i
-   `troncPlacements`. Per persona: `troncPlacementCount`.
-7. Tests: unitaris de classificació (els 3 tipus + el cas mixt de precedència + cas negatiu entre
-   segments), **test d'equivalència** entre `getSegmentConflicts` i el càlcul de Participació, i
-   **integration test** que droppi `UQ_node_assignments_segment_person` dins el test per veure
-   conflictes reals — el patró ja existeix a `event-participation.integration.spec.ts:303`.
+5. Tests: unitaris de classificació (els 3 tipus + el cas mixt de precedència + cas negatiu entre
+   segments) i **integration test** que droppi `UQ_node_assignments_segment_person` dins el test per
+   veure conflictes reals — el patró ja existeix a `event-participation.integration.spec.ts:303`.
+
+No inclou encara `TroncChangeImpact` (Fase 3, on es consumeix per primer cop) ni el refactor de
+Participació (Fase 2, aïllat perquè toca una feature ja en producció).
 
 **Fet quan:** els nous camps existeixen a Swagger, en producció valen `0`/`[]`, i cap resposta
 existent canvia de forma.
 
-### Fase 2 — El taller mostra els conflictes (renderitza dades buides)
+### Fase 2 — Participació sobre la font canònica
 
-La visibilitat event-wide ja la dona la pestanya **Participació**
-(`GET /events/:eventId/participation`, commit `8a1c267`), construïda amb contracte plural a propòsit:
-`placements: Record<segmentId, Placement[]>`, `conflictSegmentIds`, filtre "Només conflictes", glif a
-la columna fixa i píndoles d'avís a la cel·la — **i amb test del cas negatiu entre segments**. Aquesta
-fase cobreix el que falta: **dins el taller**, on el tècnic treballa segment a segment.
+Fase petita i aïllada a propòsit: **no afegeix res nou**, substitueix l'algorisme intern d'una
+feature ja en producció i testada (la pestanya Participació, commit `8a1c267`) perquè deixi de
+divergir de `getSegmentConflicts` (D13). Si alguna cosa regressiona aquí, ha de poder-se aïllar sense
+implicar el motor de conflictes nou ni el taller.
+
+1. `event-participation.service.ts` substitueix el `placements[segmentId].length > 1` intern per una
+   crida a `getSegmentConflicts()` — o, si el cost de N crides per segment és massa alt per a la
+   matriu completa, es manté la seva agregació batch pròpia però amb un **test d'equivalència
+   obligatori** que compari totes dues implementacions sobre el mateix dataset.
+2. Afegir `area` a `EventParticipationPlacement`, i a `meta` els agregats `conflictsByKind` i
+   `troncPlacements`. Per persona: `troncPlacementCount`.
+3. Tests: el test d'equivalència del punt 1, i el test negatiu existent entre segments
+   (`event-participation.service.spec.ts:318`) verd sense canvis.
+
+**Fet quan:** la pestanya Participació es comporta exactament igual que abans en dades reals, i el
+test d'equivalència passa.
+
+### Fase 3 — El taller en mode lectura (renderitza dades buides)
+
+Cobreix la visibilitat **dins el taller**, on el tècnic treballa segment a segment (l'event-wide ja
+la dona Participació). Tot el que segueix és **visual**: no introdueix cap camí de mutació nou, així
+que no pot trencar res encara que hi hagi conflictes reals.
 
 1. Models del dashboard: `assignment.model.ts`, `segment.model.ts`, `participation.model.ts` amb
    placements plurals, àrea i conflictes.
-2. **Banner + panell de conflictes** al `segment-workspace` quan `conflictPersonCount > 0`, amb **un
+2. **Estil de conflicte** a `figure-canvas` (tots els modes, inclòs `projection`) i `tronc-view` — un
+   únic estil visual d'avís (mateix color/icona), independent del `kind`.
+3. Píndoles del `segment-manager` (`:612-639`): fragment `⚠ N conflictes` i dotació per àrea al
+   tooltip.
+4. `AlreadyAssignedDialog` → multi-col·locació: llista totes les col·locacions existents amb la seua
+   àrea i avisa quan una d'elles és de tronc. Encara només informatiu — "Assignar igualment" **no es
+   mostra** i el diàleg no ofereix cap acció nova.
+5. **Impacte del canvi de tronc, al backend (D11):** `assign`/`unassign`/`swap` sobre un node
+   TRONC/BASE, **i `move()` d'una figura que contingui nodes TRONC/BASE**, retornen
+   `impact: TroncChangeImpact`. Reaprofita `getSegmentConflicts` (Fase 1) + un recompte de nodes
+   buits; no afegeix estat ni bloqueja res. `move()` és probablement la via més gran de canvi de
+   tronc a la pràctica i no es pot deixar fora. Es consumeix a la Fase 4 — aquí només s'envia.
+6. Tests: unitaris de l'estil per `kind`, de les píndoles i de `TroncChangeImpact`.
+
+**Fet quan:** amb dades de producció (zero conflictes) la UI és idèntica a l'actual excepte els
+comptadors nous de dotació; amb dades sembrades a mà l'estil de conflicte es veu a tot arreu (canvas,
+tronc-view, projecció) però encara no hi ha manera d'actuar-hi des del taller.
+
+### Fase 4 — Resolució interactiva al taller
+
+Aquí és on el taller **actua** sobre els conflictes — introdueix camins de mutació i entrades d'undo
+nous, així que es manté separada de la Fase 3 perquè pugui rebre la revisió i les proves que aquesta
+mena de codi necessita (risc 6, §8) sense arrossegar els canvis purament visuals.
+
+1. **Banner + panell de conflictes** al `segment-workspace` quan `conflictPersonCount > 0`, amb **un
    sol estil d'avís** per a tots: persona → totes les col·locacions (amb icona d'àrea) → "Treu esta"
    (un `unassign` desfable). Ordenats per `kind` (TRONC_TRONC i TRONC_PINYA primer), no per color.
    Per a `TRONC_PINYA`, un botó **"Allibera la pinya"** que aplica
    `suggestedRemovalAssignmentIds` en **una sola** entrada d'undo, amb l'alternativa "treu la del
    tronc" al costat i igual d'accessible (D9).
-3. **Llista de revisió** al mateix panell, alimentada per `TroncChangeImpact` i pels conflictes:
-   persones duplicades + nodes de pinya buits + persones lliures (§5.4). Toast persistent "N pinyes a
-   revisar" després d'un canvi de tronc, que obre aquesta llista.
-4. **Estil de conflicte** a `figure-canvas` (tots els modes, inclòs `projection`) i `tronc-view` — un
-   únic estil visual d'avís (mateix color/icona), independent del `kind`.
-5. Píndoles del `segment-manager` (`:612-639`): fragment `⚠ N conflictes` i dotació per àrea al
-   tooltip.
-6. `AlreadyAssignedDialog` → multi-col·locació: llista totes les col·locacions existents amb la seua
-   àrea i avisa quan una d'elles és de tronc. "Assignar igualment" **encara no es mostra**.
-7. Panell de persones, **simètric a les dues pestanyes** (una asimetria unidireccional ací deixaria
+2. **Llista de revisió** al mateix panell, alimentada pel `TroncChangeImpact` de la Fase 3 i pels
+   conflictes: persones duplicades + nodes de pinya buits + persones lliures (§5.4). Toast persistent
+   "N pinyes a revisar" després d'un canvi de tronc, que obre aquesta llista.
+3. Panell de persones, **simètric a les dues pestanyes** (una asimetria unidireccional ací deixaria
    sense avís just el moment en què es crea un conflicte, no només després): a Pinyes, bucket nou
    **"Al tronc d'este segment"** separat de "Assignades"; a Troncs, bucket equivalent **"Ja a la
    pinya d'este segment"**. Significat de "lliures" per pestanya segons §5.4.
-8. Modal de moure redissenyat (tres opcions, `KEEP_BOTH` primera i per defecte, i el compte de
-   conflictes que involucren troncs destacat), **darrere del flux forçat actual** fins a la Fase 3.
-9. Tests Vitest dels comptadors deduplicats, de l'ordenació per `kind` i del bucket de tronc.
+4. Modal de moure redissenyat (tres opcions, `KEEP_BOTH` primera i per defecte, i el compte de
+   conflictes que involucren troncs destacat), **darrere del flux forçat actual** fins a la Fase 5.
+5. Tests Vitest dels comptadors deduplicats, de l'ordenació per `kind`, del bucket de tronc, i de les
+   noves entrades d'undo ("Allibera la pinya" com una sola entrada, no *n*).
 
-**Fet quan:** amb dades de producció (zero conflictes) la UI és idèntica a l'actual excepte els
-comptadors nous de dotació; amb dades sembrades a mà els tres tipus es veuen i es resolen.
+**Fet quan:** amb dades sembrades a mà els tres tipus de conflicte es veuen i es resolen d'un toc, amb
+undo, i cap acció massiva crea duplicats silenciosos.
 
-### Fase 3 — El canvi de règim (una sola release coordinada)
+### Fase 5 — El canvi de règim (una sola release coordinada)
 
 1. **Migració**: eliminar `UQ_node_assignments_instance_person` i `UQ_node_assignments_segment_person`;
    treure els `@Unique` de l'entitat i corregir el comentari de `segment` (avui diu que la columna hi
@@ -372,7 +402,7 @@ comptadors nous de dotació; amb dades sembrades a mà els tres tipus es veuen i
    `triggerCrossSwap` entre figures diferents) és una via habitual de crear un `TRONC_TRONC` sense
    avís si es deixa com està.
 4. `move()` (`:232-302`): `KEEP_BOTH` per defecte, sense 409. La resposta inclou els conflictes creats
-   (i `impact` si la figura moguda té nodes de tronc, D11 — vegeu Fase 1, punt 5).
+   (i `impact` si la figura moguda té nodes de tronc, D11 — vegeu Fase 3, punt 5).
 5. `bulkImport()` (`:1002-1200`): importar i marcar (D5), reportant el recompte per tipus.
 6. Frontend: activar "Assignar igualment" amb la fricció de D8, treure els toasts de 409 de persona,
    commutar el modal de moure al nou, canviar el text del toast d'import.
@@ -385,10 +415,11 @@ comptadors nous de dotació; amb dades sembrades a mà els tres tipus es veuen i
 `status === 409`, `SEGMENT_MOVE_CONFLICT`, `PERSON_IN_SEGMENT`, `PERSON_IN_INSTANCE`, i totes les
 crides a `swap(` (backend i dashboard) per confirmar que gestionen `conflicts` a la resposta.
 
-### Fase 4 — Equilibri de participació event-wide
+### Fase 6 — Equilibri de participació event-wide
 
 Un canvi de tronc pot obligar a reajustar tot l'event; aquesta fase dona les dades per fer-ho amb
-criteri. Gairebé tot és frontend sobre el payload de Participació ja ampliat a la Fase 1.
+criteri. Gairebé tot és frontend sobre el payload de Participació ja ampliat a la Fase 2. No bloqueja
+ni depèn de la Fase 5: es podria avançar en paral·lel si convé.
 
 1. Filtre d'**àrea** a la pestanya Participació (Tot / Només troncs / Només pinyes) i **matriu de
    troncs** event-wide: persona × segment amb només col·locacions de tronc — la vista per decidir
@@ -402,7 +433,7 @@ criteri. Gairebé tot és frontend sobre el payload de Participació ja ampliat 
    persona. Mai bloquejant, desactivat si els segments no tenen hores.
 5. Tests: unitaris de les mètriques de càrrega i del filtre d'àrea.
 
-### Fase 5 — Seguiments (specs separats)
+### Fase 7 — Seguiments (specs separats)
 
 - Retirar els camps singulars `assignedInSegment`/`assignedInstanceId`/`assignedNodeLabel`/
   `assignedNodeCordon` un cop cap consumidor els use.
@@ -417,7 +448,7 @@ criteri. Gairebé tot és frontend sobre el payload de Participació ja ampliat 
 
 1. **Bugs silenciosos de "primera coincidència".** Qualsevol `.find(personId)` no migrat agafarà una
    fila arbitrària. Mitigació: la Fase 0 els arregla *abans* que hi puga haver duplicats, i el
-   checklist de greps de la Fase 3 es torna a passar abans de desplegar.
+   checklist de greps de la Fase 5 es torna a passar abans de desplegar.
 2. **Fatiga d'avisos.** Amb molts més `PINYA_PINYA` que `TRONC_TRONC`, si tots pesen igual a la
    llista el tècnic pot perdre de vista els que costen més de resoldre. Mitigació: l'**ordre** de
    §4.1 (TRONC_TRONC i TRONC_PINYA primer) i prou — es descarta deliberadament un segon nivell
@@ -430,10 +461,10 @@ criteri. Gairebé tot és frontend sobre el payload de Participació ja ampliat 
    mateix nombre de clics; cap missatge que parle de qui pot fer què.
 5. **Pèrdua de dades a la down-migration, i sense via de reversió barata un cop en producció.** Tornar
    a posar les constraints exigeix esborrar duplicats. Acceptable en dev/pre; **en producció, un cop
-   la Fase 3 estigui activa i els tècnics ja hagin creat duplicats legítims** (que és el propòsit de
+   la Fase 5 estigui activa i els tècnics ja hagin creat duplicats legítims** (que és el propòsit de
    la funcionalitat), qualsevol rollback destrueix aquesta feina real. Amb D4 (sense feature flag) no
    hi ha marxa enrere sense migració destructiva. Mitigació: **dump/backup explícit de
-   `node_assignments` com a pas obligatori del desplegament de la Fase 3**, no només documentar-ho
+   `node_assignments` com a pas obligatori del desplegament de la Fase 5**, no només documentar-ho
    dins la migració.
 6. **Desfer amb duplicats.** Les entrades ASSIGN/UNASSIGN/MOVE/SWAP d'`UndoRedoService`
    (`undo-redo.service.ts` + els `build*Action` dels dos tabs) s'han de reverificar quan la persona té
@@ -441,16 +472,16 @@ criteri. Gairebé tot és frontend sobre el payload de Participació ja ampliat 
 7. **Cost de les queries de conflicte.** Tota pregunta tronc/pinya és un JOIN a `instance_nodes` sense
    índex per zona. Mitigació: índexs de la Fase 0, agregació en un sol loader dins
    `findAllByEvent()`/`getEventAssignmentSummary()` (que ja són batched), i mesura amb l'event real de
-   §1.1 abans de la Fase 2.
-8. **Clients antics durant el desplegament.** Fases 0–2 són retrocompatibles (camps additius). Només
-   la Fase 3 canvia semàntica, i va en una release coordinada — la colla és un desplegament
+   §1.1 abans de la Fase 3.
+8. **Clients antics durant el desplegament.** Fases 0–4 són retrocompatibles (camps additius). Només
+   la Fase 5 canvia semàntica, i va en una release coordinada — la colla és un desplegament
    single-tenant.
 9. **Dues fonts de conflictes que divergeixen (D13).** Si `event-participation.service.ts` manté un
    càlcul propi en lloc de reutilitzar `getSegmentConflicts()`, la matriu de Participació i el taller
    poden discrepar sobre el mateix segment. Mitigació: font única, o test d'equivalència obligatori
-   entre totes dues implementacions (Fase 1, punt 7).
+   entre totes dues implementacions (Fase 2, punt 1).
 10. **`swap()` sense cobertura.** No passa pels pre-checks d'`assign()` ni retorna `conflicts`; avui
-    un error de constraint hi pujaria com a 500 cru en lloc de 409. Mitigació: Fase 3, punt 3.
+    un error de constraint hi pujaria com a 500 cru en lloc de 409. Mitigació: Fase 5, punt 3.
 
 ---
 
@@ -464,7 +495,7 @@ tal com està, el tornarà a crear. Cal descartar-la o extreure'n només el que 
 fusionar.
 
 En implementar: actualitzar [[PINYES_MODULE]] (§14 invariants — l'invariant #4 "una persona per
-segment" desapareix a la Fase 3, i n'apareix un de nou sobre la classificació de conflictes), [[DATA_MODEL]]
+segment" desapareix a la Fase 5, i n'apareix un de nou sobre la classificació de conflictes), [[DATA_MODEL]]
 (uniques de `node_assignments`) i [[ROADMAP]]. Després de tocar entitats, `pnpm run docs:map` i
 `pnpm run docs:model`.
 
