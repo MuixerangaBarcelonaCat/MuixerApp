@@ -63,7 +63,7 @@ export interface SegmentDistributionData {
   segment: { id: string; name: string | null };
   items: DistributionItem[];
 }
-import { FigureMode, FigureZone, SegmentMoveConflictResolution } from '@muixer/shared';
+import { FigureMode, FigureZone, SegmentMoveConflictResolution, SegmentConflictKind } from '@muixer/shared';
 
 export interface MoveInstanceResult {
   sourceSegment: SegmentWithInstances;
@@ -249,10 +249,13 @@ export class FigureInstanceService {
     const conflicts = await this.nodeAssignmentService.getSegmentMoveConflicts(instanceId, targetSegmentId);
 
     if (conflicts.length > 0 && !resolution) {
+      // `tronc` = persons with any tronc-area (TRONC/BASE) placement, i.e. every kind
+      // except PINYA_PINYA. Equivalent to the old `isTronc` flag; keeps the HTTP body
+      // ({ code, total, tronc }) the dashboard consumes unchanged (Fase 0).
       throw new ConflictException({
         code: 'SEGMENT_MOVE_CONFLICT',
         total: conflicts.length,
-        tronc: conflicts.filter((c) => c.isTronc).length,
+        tronc: conflicts.filter((c) => c.kind !== SegmentConflictKind.PINYA_PINYA).length,
       });
     }
 

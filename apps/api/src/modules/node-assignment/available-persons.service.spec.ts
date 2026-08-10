@@ -266,6 +266,36 @@ describe('AvailablePersonsService', () => {
       expect(result[0].assignedNodeCordon).toBe(2);
     });
 
+    it('does not collapse multiple placements to an arbitrary last one (§2): keeps them deterministically', async () => {
+      mockEventRepo.findOne.mockResolvedValueOnce(makeEvent()).mockResolvedValue(null);
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      const person = makePerson();
+      mockPersonQb.getMany.mockResolvedValue([person]);
+      // Same person assigned twice in the segment (e.g. tronc + pinya). The old `.set()`
+      // in a loop kept the LAST row; the fixed accumulation is deterministic (first).
+      mockAssignmentRepo.find.mockResolvedValue([
+        {
+          person: { id: PERSON_ID_1 },
+          figureInstance: { id: 'instance-uuid-1' },
+          instanceNode: { label: 'Node A', renglaPosition: 1 },
+        },
+        {
+          person: { id: PERSON_ID_1 },
+          figureInstance: { id: 'instance-uuid-2' },
+          instanceNode: { label: 'Node B', renglaPosition: 5 },
+        },
+      ]);
+      mockAttendanceRepo.find.mockResolvedValue([]);
+
+      const result = await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, { excludeAssigned: false });
+
+      expect(result).toHaveLength(1);
+      expect(result[0].assignedInSegment).toBe(true);
+      expect(result[0].assignedInstanceId).toBe('instance-uuid-1');
+      expect(result[0].assignedNodeLabel).toBe('Node A');
+      expect(result[0].assignedNodeCordon).toBe(1);
+    });
+
     it('returns null assignedNodeCordon when the assigned node has no cordon', async () => {
       mockEventRepo.findOne.mockResolvedValueOnce(makeEvent()).mockResolvedValue(null);
       mockSegmentRepo.findOne.mockResolvedValue(makeSegment());

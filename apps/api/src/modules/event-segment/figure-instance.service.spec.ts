@@ -10,7 +10,7 @@ import { Composition } from '../composition/entities/composition.entity';
 import { EventSegmentService } from './event-segment.service';
 import { NodeAssignmentService } from '../node-assignment/node-assignment.service';
 import { NodeAssignment } from '../node-assignment/entities/node-assignment.entity';
-import { FigureMode, SegmentMoveConflictResolution } from '@muixer/shared';
+import { FigureMode, SegmentMoveConflictResolution, SegmentConflictKind } from '@muixer/shared';
 
 const EVENT_ID = 'event-uuid-1';
 const SEGMENT_ID = 'segment-uuid-1';
@@ -514,9 +514,9 @@ describe('FigureInstanceService', () => {
 
     it('throws ConflictException with total/tronc counts when there are unresolved conflicts', async () => {
       mockNodeAssignmentService.getSegmentMoveConflicts.mockResolvedValue([
-        { personId: 'p1', isTronc: true },
-        { personId: 'p2', isTronc: false },
-        { personId: 'p3', isTronc: true },
+        { personId: 'p1', kind: SegmentConflictKind.TRONC_PINYA, placements: [] },
+        { personId: 'p2', kind: SegmentConflictKind.PINYA_PINYA, placements: [] },
+        { personId: 'p3', kind: SegmentConflictKind.TRONC_TRONC, placements: [] },
       ]);
 
       let caught: unknown;
@@ -543,8 +543,8 @@ describe('FigureInstanceService', () => {
 
     it('resolves conflicts with the given resolution before moving when a resolution is provided', async () => {
       mockNodeAssignmentService.getSegmentMoveConflicts.mockResolvedValue([
-        { personId: 'p1', isTronc: true },
-        { personId: 'p2', isTronc: false },
+        { personId: 'p1', kind: SegmentConflictKind.TRONC_PINYA, placements: [] },
+        { personId: 'p2', kind: SegmentConflictKind.PINYA_PINYA, placements: [] },
       ]);
       const txManager = { update: jest.fn(), save: jest.fn(), query: jest.fn().mockResolvedValue([]) };
       mockDataSource.transaction.mockImplementationOnce((cb: (m: typeof txManager) => Promise<unknown>) => cb(txManager));

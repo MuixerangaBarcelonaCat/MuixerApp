@@ -401,9 +401,13 @@ export class PinyesTabComponent implements OnInit {
   }
 
   onAssignedPersonSelected(event: { personId: string; instanceId: string }): void {
-    const assignment = this.state
+    // Collect every placement of this person in this instance instead of a single
+    // arbitrary `.find()` (§2). Today the per-instance unique constraint means at most
+    // one, so `[0]` matches the old behaviour; from Fase 4 on the full list is consumed.
+    const matches = this.state
       .assignments()
-      .find((a) => a.figureInstanceId === event.instanceId && a.person.id === event.personId);
+      .filter((a) => a.figureInstanceId === event.instanceId && a.person.id === event.personId);
+    const assignment = matches[0];
     if (!assignment) return;
 
     const targetRef = this.selectedRef();

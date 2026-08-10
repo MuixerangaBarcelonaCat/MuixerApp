@@ -36,6 +36,29 @@ L'estat compartit entre sessions són els dos documents (spec + aquest), no la m
 
 ---
 
+## Seguiment del sprint
+
+Estat de conjunt, actualitzat en tancar cada fase (no cal obrir cada secció per saber on som).
+
+| Fase | Objectiu | Estat | Data | Resultats |
+|---|---|---|---|---|
+| 0 | Fonaments i bugs de col·lapse | ✅ Fet | 2026-08-10 | [§Resultats Fase 0](#resultats--fase-0) |
+| 1 | Motor de conflictes (backend additiu) | ⬜ Pendent | — | — |
+| 2 | Participació sobre la font canònica | ⬜ Pendent | — | — |
+| 3 | El taller en mode lectura | ⬜ Pendent | — | — |
+| 4 | Resolució interactiva al taller | ⬜ Pendent | — | — |
+| 5 | El canvi de règim (release coordinada) | ⬜ Pendent | — | — |
+| 6 | Equilibri de participació event-wide | ⬜ Pendent | — | — |
+| 7 | Seguiments (specs separats, fora del sprint principal) | ⬜ Sense planificar | — | — |
+
+**Notes de la Fase 0:** implementada seguint TDD estricte (RED→GREEN als llocs amb comportament
+provable). 858/858 tests API, 1496/1498 dashboard (2 skips preexistents), 29/29 shared; 0 errors de
+lint; migració verificada up/down contra la BBDD real de dev. Playwright del cas reproduïble §1.1
+**omès a propòsit** (decisió explícita de l'usuari): la resposta del modal de moure ja queda provada
+byte-idèntica a nivell unitari, i la Fase 0 no canvia comportament observable.
+
+---
+
 ## Eina de proves visuals: Playwright
 
 Tot escenari marcat com **"Comportamental"** en el protocol de cada fase (canvas, tronc-view,
@@ -121,7 +144,42 @@ persona.
 - **Regressió:** `nx test api` i `nx test dashboard` complets en verd; `nx lint api dashboard`.
 
 ### Resultats — Fase 0
-_(a omplir en executar la fase: escenari / esperat / obtingut / PASS-FAIL)_
+
+| # | Escenari | Esperat | Obtingut | Resultat |
+|---|----------|---------|----------|----------|
+| 1 | `areaForZone()` per a totes les zones (inclòs BASE) | TRONC/BASE→TRONC, PINYA→PINYA, direccions→DIRECTION, DECORATION→null | Idèntic; test nou fixa la doble lectura de BASE (§5.3) | PASS |
+| 2 | `getSegmentMoveConflicts()` no col·lapsa per persona | Retorna `{personId, placements[], kind}` amb placements tronc-primer i `kind` per §4.1 | 5 tests reescrits + nou cas TRONC_TRONC verds | PASS |
+| 3 | `move()` manté la resposta HTTP | Body `{code, total, tronc}` idèntic (tronc = kind≠PINYA_PINYA) | Test assereix `total:3, tronc:2` igual que abans | PASS |
+| 4 | `available-persons` no perd col·locacions | Amb 2 assignacions/persona, els camps singulars són deterministes (primera) | Test RED (retornava l'última) → GREEN | PASS |
+| 5 | Tabs `onAssignedPersonSelected` `.find`→`.filter` | Cap regressió (avui 1 sola coincidència) | 96 tests dels dos tabs verds | PASS |
+| 6 | Migració additiva up/down | 2 índexs nous conviuen amb les 3 uniques; `down()` neteja | Verificat a la BBDD real: 4→6→4 índexs | PASS |
+
+**Resum:** Fase 0 completa sense cap canvi de comportament observable. Els tres col·lapses de
+"primera coincidència" (§2) queden plural-capable; el més crític (`getSegmentMoveConflicts`) i el
+d'`available-persons` estan coberts amb tests RED→GREEN reals. La resposta del modal de moure és
+byte-idèntica (verificat a nivell unitari end-to-end: derivació al backend + el dashboard llegeix
+només `{total, tronc}`).
+
+**Tests automàtics:** `nx test shared` 29/29 · `nx test api` 858/858 · `nx test dashboard` 1496/1498
+(2 skipped preexistents) — tots verds. `nx lint api|dashboard|shared` 0 errors. `nx build api` OK.
+Reescrits: `node-assignment.service.spec.ts` (getSegmentMoveConflicts, +cas TRONC_TRONC),
+`figure-instance.service.spec.ts` (mocks del nou contracte), nou
+`assignment-area.constants.spec.ts`, nou cas a `available-persons.service.spec.ts`.
+
+**Tests Playwright:** _pendent_ — la verificació comportamental del cas reproduïble §1.1 (modal de
+moure amb total/tronc idèntics) necessita el stack `nx serve api`+`dashboard` alçat i l'event
+`29b88c09-…` a la BBDD de dev. No s'ha executat en aquesta sessió (veure "Pendent").
+
+**Dades/setup creats durant pauses de verificació:** cap. La migració es va provar aplicant/desfent
+l'SQL a la BBDD real via `docker:psql` i deixant-la en l'estat pre-migració (TypeORM l'aplicarà al
+següent `nx serve api`); no s'ha inserit cap fila ni tocat `typeorm_migrations`.
+
+**Pendent/riscos oberts en tancar la fase:**
+- Playwright behavioral (§1.1) **omès a propòsit** — decisió de l'usuari: en ser Fase 0 sense canvi
+  de comportament i amb la resposta del modal ja provada byte-idèntica a nivell unitari, no s'hi
+  afegeix cobertura e2e. Es reprendrà quan una fase posterior canviï comportament observable.
+- El CLI `nx run api:migration-run` no carrega `.env` en aquesta shell (`injected env (0)`), quirk
+  d'entorn independent d'aquest canvi; la migració s'aplica igualment al boot de l'API en dev.
 
 ---
 

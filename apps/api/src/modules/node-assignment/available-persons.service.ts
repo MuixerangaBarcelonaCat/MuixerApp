@@ -173,10 +173,13 @@ export class AvailablePersonsService {
       });
     }
 
-    // Get assigned person details in this segment (for `assignedInSegment` flag + location)
+    // Get assigned person details in this segment (for `assignedInSegment` flag + location).
+    // Accumulate ALL placements per person rather than `.set()` in a loop, which kept an
+    // arbitrary (last) row (§2). Fase 0 still exposes only singular fields (derived from the
+    // first placement); the plural `assignedPlacements[]` field arrives in Fase 1.
     const assignedDetails = new Map<
       string,
-      { instanceId: string; nodeLabel: string; renglaPosition: number | null }
+      { instanceId: string; nodeLabel: string; renglaPosition: number | null }[]
     >();
     if (!excludeAssignedBool) {
       const segmentAssignments = await this.assignmentRepository.find({
@@ -184,11 +187,14 @@ export class AvailablePersonsService {
         relations: ['figureInstance', 'instanceNode', 'person'],
       });
       segmentAssignments.forEach((assignment) => {
-        assignedDetails.set(assignment.person.id, {
+        const detail = {
           instanceId: assignment.figureInstance.id,
           nodeLabel: assignment.instanceNode?.label ?? '',
           renglaPosition: assignment.instanceNode?.renglaPosition ?? null,
-        });
+        };
+        const existing = assignedDetails.get(assignment.person.id);
+        if (existing) existing.push(detail);
+        else assignedDetails.set(assignment.person.id, [detail]);
       });
     }
 
@@ -215,7 +221,7 @@ export class AvailablePersonsService {
       const nextPerformanceStatus = nextPerformance
         ? (nextAttendanceMap.get(person.id) ?? null)
         : null;
-      const detail = assignedDetails.get(person.id);
+      const detail = assignedDetails.get(person.id)?.[0];
 
       return {
         id: person.id,

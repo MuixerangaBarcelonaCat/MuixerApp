@@ -17,7 +17,14 @@ import { Person } from '../person/person.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
 import { Event } from '../event/event.entity';
-import { EventType, FigureZone, NodeShape, SegmentMoveConflictResolution } from '@muixer/shared';
+import {
+  EventType,
+  FigureZone,
+  NodeShape,
+  SegmentMoveConflictResolution,
+  AssignmentArea,
+  SegmentConflictKind,
+} from '@muixer/shared';
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -680,7 +687,7 @@ describe('NodeAssignmentService', () => {
     const TARGET_SEGMENT_ID = 'segment-uuid-2';
     const OTHER_PERSON_ID = 'person-uuid-2';
 
-    it('flags isTronc=false when both sides are PINYA', async () => {
+    it('classifies PINYA_PINYA and returns both placements when both sides are PINYA', async () => {
       const movingAssignment = makeAssignment({
         person: makePerson(PERSON_ID) as any,
         instanceNode: makeInstanceNode({ zone: FigureZone.PINYA }) as any,
@@ -696,10 +703,19 @@ describe('NodeAssignmentService', () => {
 
       const result = await service.getSegmentMoveConflicts(INSTANCE_ID, TARGET_SEGMENT_ID);
 
-      expect(result).toEqual([{ personId: PERSON_ID, isTronc: false }]);
+      expect(result).toEqual([
+        {
+          personId: PERSON_ID,
+          kind: SegmentConflictKind.PINYA_PINYA,
+          placements: [
+            { assignmentId: ASSIGNMENT_ID, zone: FigureZone.PINYA, area: AssignmentArea.PINYA },
+            { assignmentId: ASSIGNMENT_ID_B, zone: FigureZone.PINYA, area: AssignmentArea.PINYA },
+          ],
+        },
+      ]);
     });
 
-    it('flags isTronc=true when the moving-instance assignment is TRONC', async () => {
+    it('classifies TRONC_PINYA when the moving-instance assignment is TRONC (tronc-first order)', async () => {
       const movingAssignment = makeAssignment({
         person: makePerson(PERSON_ID) as any,
         instanceNode: makeInstanceNode({ zone: FigureZone.TRONC }) as any,
@@ -715,10 +731,19 @@ describe('NodeAssignmentService', () => {
 
       const result = await service.getSegmentMoveConflicts(INSTANCE_ID, TARGET_SEGMENT_ID);
 
-      expect(result).toEqual([{ personId: PERSON_ID, isTronc: true }]);
+      expect(result).toEqual([
+        {
+          personId: PERSON_ID,
+          kind: SegmentConflictKind.TRONC_PINYA,
+          placements: [
+            { assignmentId: ASSIGNMENT_ID, zone: FigureZone.TRONC, area: AssignmentArea.TRONC },
+            { assignmentId: ASSIGNMENT_ID_B, zone: FigureZone.PINYA, area: AssignmentArea.PINYA },
+          ],
+        },
+      ]);
     });
 
-    it('flags isTronc=true when the target-segment assignment is BASE', async () => {
+    it('classifies TRONC_PINYA and treats the target-segment BASE as tronc (D10)', async () => {
       const movingAssignment = makeAssignment({
         person: makePerson(PERSON_ID) as any,
         instanceNode: makeInstanceNode({ zone: FigureZone.PINYA }) as any,
@@ -734,7 +759,44 @@ describe('NodeAssignmentService', () => {
 
       const result = await service.getSegmentMoveConflicts(INSTANCE_ID, TARGET_SEGMENT_ID);
 
-      expect(result).toEqual([{ personId: PERSON_ID, isTronc: true }]);
+      expect(result).toEqual([
+        {
+          personId: PERSON_ID,
+          kind: SegmentConflictKind.TRONC_PINYA,
+          placements: [
+            { assignmentId: ASSIGNMENT_ID_B, zone: FigureZone.BASE, area: AssignmentArea.TRONC },
+            { assignmentId: ASSIGNMENT_ID, zone: FigureZone.PINYA, area: AssignmentArea.PINYA },
+          ],
+        },
+      ]);
+    });
+
+    it('classifies TRONC_TRONC when both sides are tronc-area', async () => {
+      const movingAssignment = makeAssignment({
+        person: makePerson(PERSON_ID) as any,
+        instanceNode: makeInstanceNode({ zone: FigureZone.TRONC }) as any,
+      });
+      const targetAssignment = makeAssignment({
+        id: ASSIGNMENT_ID_B,
+        person: makePerson(PERSON_ID) as any,
+        instanceNode: makeInstanceNode({ zone: FigureZone.BASE }) as any,
+      });
+      mockAssignmentRepo.find
+        .mockResolvedValueOnce([movingAssignment])
+        .mockResolvedValueOnce([targetAssignment]);
+
+      const result = await service.getSegmentMoveConflicts(INSTANCE_ID, TARGET_SEGMENT_ID);
+
+      expect(result).toEqual([
+        {
+          personId: PERSON_ID,
+          kind: SegmentConflictKind.TRONC_TRONC,
+          placements: [
+            { assignmentId: ASSIGNMENT_ID, zone: FigureZone.TRONC, area: AssignmentArea.TRONC },
+            { assignmentId: ASSIGNMENT_ID_B, zone: FigureZone.BASE, area: AssignmentArea.TRONC },
+          ],
+        },
+      ]);
     });
 
     it('returns no conflicts when no persons overlap', async () => {

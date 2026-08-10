@@ -17,6 +17,9 @@ import {
   DECORATION_NODE_PRESETS,
   DIRECTION_NODE_PRESETS,
   SegmentMoveConflictResolution,
+  AssignmentArea,
+  SegmentConflictKind,
+  areaForZone,
 } from '@muixer/shared';
 import { CreateAdHocNodeDto } from './dto/create-ad-hoc-node.dto';
 import { UpdateAdHocNodeDto } from './dto/update-ad-hoc-node.dto';
@@ -72,10 +75,19 @@ export interface AssignmentDetail {
   };
 }
 
+/** One placement of a person involved in a cross-segment move conflict. */
+interface MoveConflictPlacement {
+  assignmentId: string;
+  zone: FigureZone;
+  area: AssignmentArea;
+}
+
 export interface SegmentMoveConflict {
   personId: string;
-  /** true if the person occupies a TRONC/BASE node in either the moving instance or the target segment */
-  isTronc: boolean;
+  /** Every placement of this person across the moving instance and the target segment, tronc-area first. */
+  placements: MoveConflictPlacement[];
+  /** Drives ordering and the one-tap suggestion (§4.1), not the visual style. */
+  kind: SegmentConflictKind;
 }
 
 export interface InstanceNodeResponse {
@@ -602,18 +614,47 @@ export class NodeAssignmentService {
       }),
     ]);
 
-    const TRONC_ZONES = new Set([FigureZone.TRONC, FigureZone.BASE]);
-    const targetByPersonId = new Map(targetAssignments.map((a) => [a.person.id, a]));
+    // Group every placement (moving instance + target segment) by person, so a person
+    // with more than one row on either side is no longer collapsed to an arbitrary one.
+    const targetPersonIds = new Set(targetAssignments.map((a) => a.person.id));
+    const placementsByPersonId = new Map<string, MoveConflictPlacement[]>();
+    for (const a of [...movingAssignments, ...targetAssignments]) {
+      // A conflict needs the person on both sides of the move.
+      if (!targetPersonIds.has(a.person.id)) continue;
+      const zone = a.instanceNode.zone as FigureZone;
+      const placement: MoveConflictPlacement = {
+        assignmentId: a.id,
+        zone,
+        area: areaForZone(zone) as AssignmentArea,
+      };
+      const existing = placementsByPersonId.get(a.person.id);
+      if (existing) existing.push(placement);
+      else placementsByPersonId.set(a.person.id, [placement]);
+    }
 
-    return movingAssignments
-      .filter((a) => targetByPersonId.has(a.person.id))
-      .map((a) => {
-        const targetAssignment = targetByPersonId.get(a.person.id)!;
-        const isTronc =
-          TRONC_ZONES.has(a.instanceNode.zone as FigureZone) ||
-          TRONC_ZONES.has(targetAssignment.instanceNode.zone as FigureZone);
-        return { personId: a.person.id, isTronc };
-      });
+    const areaRank: Record<string, number> = {
+      [AssignmentArea.TRONC]: 0,
+      [AssignmentArea.PINYA]: 1,
+      [AssignmentArea.DIRECTION]: 2,
+    };
+
+    const conflicts: SegmentMoveConflict[] = [];
+    for (const [personId, placements] of placementsByPersonId) {
+      // Only rows where the person is on both sides make a real overlap. The moving
+      // instance always contributes ≥1 (it produced the personId via targetPersonIds),
+      // but a target-only person never enters this map, so ≥2 placements here is implied.
+      if (placements.length < 2) continue;
+      placements.sort((x, y) => (areaRank[x.area] ?? 99) - (areaRank[y.area] ?? 99));
+      const troncCount = placements.filter((p) => p.area === AssignmentArea.TRONC).length;
+      const kind =
+        troncCount >= 2
+          ? SegmentConflictKind.TRONC_TRONC
+          : troncCount === 1
+            ? SegmentConflictKind.TRONC_PINYA
+            : SegmentConflictKind.PINYA_PINYA;
+      conflicts.push({ personId, placements, kind });
+    }
+    return conflicts;
   }
 
   async resolveSegmentMoveConflicts(
