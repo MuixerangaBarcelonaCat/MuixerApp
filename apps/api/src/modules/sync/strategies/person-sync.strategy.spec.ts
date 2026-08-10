@@ -7,6 +7,7 @@ import { Person } from '../../person/person.entity';
 import { Tag } from '../../tag/tag.entity';
 import { AvailabilityStatus, OnboardingStatus } from '@muixer/shared';
 import { User } from '../../user/user.entity';
+import { PersonDelegate } from '../../person-delegate/person-delegate.entity';
 
 // Helper to build a fluent QueryBuilder mock where getOne returns a configurable value
 function makeQb(getOneResult: Person | null = null) {
@@ -30,6 +31,8 @@ describe('PersonSyncStrategy', () => {
   let legacyApiClient: jest.Mocked<LegacyApiClient>;
   let personRepository: jest.Mocked<Repository<Person>>;
   let positionRepository: jest.Mocked<Repository<Tag>>;
+  let userRepository: jest.Mocked<Repository<User>>;
+  let personDelegateRepository: jest.Mocked<Repository<PersonDelegate>>;
 
   const mockLegacyPerson: LegacyPerson = {
     id: '123',
@@ -88,16 +91,23 @@ describe('PersonSyncStrategy', () => {
         }),
     };
 
+    const mockPersonDelegateRepo = {
+      findOne: jest.fn().mockResolvedValue(null),
+      create: jest.fn((data: Record<string, unknown>) => data),
+      save: jest.fn((data: Record<string, unknown>) => Promise.resolve(data)),
+    };
+
     const mockLegacyClient = {
       login: jest.fn(),
       getCastellers: jest.fn(),
     };
 
-    return { mockPersonRepo, mockPositionRepo, mockUserRepo, mockLegacyClient };
+    return { mockPersonRepo, mockPositionRepo, mockUserRepo, mockPersonDelegateRepo, mockLegacyClient };
   }
 
   async function createModule(qbFactory: () => ReturnType<typeof makeQb>) {
-    const { mockPersonRepo, mockPositionRepo, mockUserRepo, mockLegacyClient } = buildModule(qbFactory);
+    const { mockPersonRepo, mockPositionRepo, mockUserRepo, mockPersonDelegateRepo, mockLegacyClient } =
+      buildModule(qbFactory);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -106,6 +116,7 @@ describe('PersonSyncStrategy', () => {
         { provide: getRepositoryToken(Person), useValue: mockPersonRepo },
         { provide: getRepositoryToken(Tag), useValue: mockPositionRepo },
         { provide: getRepositoryToken(User), useValue: mockUserRepo },
+        { provide: getRepositoryToken(PersonDelegate), useValue: mockPersonDelegateRepo },
       ],
     }).compile();
 
@@ -114,6 +125,8 @@ describe('PersonSyncStrategy', () => {
       legacyApiClient: module.get(LegacyApiClient) as jest.Mocked<LegacyApiClient>,
       personRepository: module.get(getRepositoryToken(Person)) as jest.Mocked<Repository<Person>>,
       positionRepository: module.get(getRepositoryToken(Tag)) as jest.Mocked<Repository<Tag>>,
+      userRepository: module.get(getRepositoryToken(User)) as jest.Mocked<Repository<User>>,
+      personDelegateRepository: module.get(getRepositoryToken(PersonDelegate)) as jest.Mocked<Repository<PersonDelegate>>,
     };
   }
 
@@ -124,6 +137,8 @@ describe('PersonSyncStrategy', () => {
     legacyApiClient = result.legacyApiClient;
     personRepository = result.personRepository;
     positionRepository = result.positionRepository;
+    userRepository = result.userRepository;
+    personDelegateRepository = result.personDelegateRepository;
   });
 
   afterEach(() => {
@@ -281,8 +296,7 @@ describe('PersonSyncStrategy', () => {
       });
     });
 
-    it('does not remove a manually-created managedBy link when the legacy record has no email (BUG-21)', (done) => {
-      const manuallyLinkedUser = { id: 'manual-user-uuid', email: 'manual@muixerapp.cat' };
+    it('does not touch guardian/self-link assignment when the legacy record has no email (BUG-21)', (done) => {
       const existingPerson = {
         id: 'uuid-1',
         legacyId: '123',
@@ -290,7 +304,6 @@ describe('PersonSyncStrategy', () => {
         isActive: true,
         positions: [],
         notes: null,
-        managedBy: manuallyLinkedUser,
       } as unknown as Person;
 
       legacyApiClient.login.mockResolvedValue();
@@ -300,16 +313,16 @@ describe('PersonSyncStrategy', () => {
 
       strategy.execute().subscribe({
         complete: () => {
-          expect(personRepository.save).toHaveBeenCalledWith(
-            expect.objectContaining({ managedBy: manuallyLinkedUser }),
-          );
+          // No email in this run means the person never enters any user's
+          // group, so any manually-created link (self or guardian) is left as-is.
+          expect(userRepository.save).not.toHaveBeenCalled();
+          expect(personDelegateRepository.save).not.toHaveBeenCalled();
           done();
         },
       });
     });
 
-    it('re-links managedBy to the new user when the legacy record has a different email (BUG-21)', (done) => {
-      const oldManager = { id: 'old-user-uuid', email: 'old@example.com' };
+    it('assigns the person as the matched user\'s own profile when the legacy record has a (new) email (BUG-21)', (done) => {
       const existingPerson = {
         id: 'uuid-1',
         legacyId: '123',
@@ -317,7 +330,7 @@ describe('PersonSyncStrategy', () => {
         isActive: true,
         positions: [],
         notes: null,
-        managedBy: oldManager,
+        isXicalla: false,
       } as unknown as Person;
 
       legacyApiClient.login.mockResolvedValue();
@@ -327,9 +340,9 @@ describe('PersonSyncStrategy', () => {
 
       strategy.execute().subscribe({
         complete: () => {
-          expect(personRepository.save).toHaveBeenCalledWith(
+          expect(userRepository.save).toHaveBeenCalledWith(
             expect.objectContaining({
-              managedBy: expect.objectContaining({ id: 'user-uuid' }),
+              person: expect.objectContaining({ id: 'uuid-1' }),
             }),
           );
           done();
@@ -490,6 +503,45 @@ describe('PersonSyncStrategy', () => {
             resolve();
           },
         });
+      });
+    });
+  });
+
+  // ─── assignMainPersons() — self-link + guardian delegate assignment ──────────
+
+  describe('assignMainPersons() guardian delegate assignment', () => {
+    it('assigns the non-Xicalla person as the user\'s own profile and creates a primary GUARDIAN delegate for the Xicalla person sharing the same email', (done) => {
+      const parent: LegacyPerson = { ...mockLegacyPerson, id: 'parent-1', mote: 'Parent' };
+      const child: LegacyPerson = {
+        ...mockLegacyPerson,
+        id: 'child-1',
+        mote: 'Child',
+        posicio: 'CANALLA',
+      };
+
+      legacyApiClient.login.mockResolvedValue();
+      legacyApiClient.getCastellers.mockResolvedValue([parent, child]);
+      personRepository.findOne.mockResolvedValue(null);
+      let createCount = 0;
+      personRepository.create.mockImplementation((d) => ({
+        ...(d as Record<string, unknown>),
+        id: `saved-${++createCount}`,
+      }) as unknown as Person);
+      personRepository.save.mockImplementation((p) => Promise.resolve(p as Person));
+
+      strategy.execute().subscribe({
+        complete: () => {
+          expect(userRepository.save).toHaveBeenCalledWith(
+            expect.objectContaining({ person: expect.objectContaining({ isXicalla: false }) }),
+          );
+          expect(personDelegateRepository.save).toHaveBeenCalledWith(
+            expect.objectContaining({
+              person: expect.objectContaining({ isXicalla: true }),
+              isPrimary: true,
+            }),
+          );
+          done();
+        },
       });
     });
   });

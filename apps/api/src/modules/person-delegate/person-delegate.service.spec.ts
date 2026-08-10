@@ -31,6 +31,7 @@ describe('PersonDelegateService', () => {
     create: jest.fn(),
     save: jest.fn(),
     remove: jest.fn(),
+    update: jest.fn().mockResolvedValue({ affected: 1 }),
   };
 
   const mockPersonRepository = {
@@ -247,6 +248,21 @@ describe('PersonDelegateService', () => {
 
       expect(dataSource.transaction).not.toHaveBeenCalled();
     });
+
+    it('should throw BadRequestException when isPrimary is requested for a person who already manages their own account', async () => {
+      const person = { id: personId, user: { id: 'self-user' } };
+      const user = { id: 'user-1', email: 'parent@test.com', person: null };
+      const primaryDto = { ...dto, isPrimary: true };
+
+      mockPersonRepository.findOne.mockResolvedValue(person);
+      mockUserRepository.findOne.mockResolvedValue(user);
+      mockDelegateRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.create(personId, primaryDto)).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(dataSource.transaction).not.toHaveBeenCalled();
+    });
   });
 
   describe('update', () => {
@@ -305,6 +321,7 @@ describe('PersonDelegateService', () => {
         delegateType: DelegateType.PARENT,
         isActive: true,
         isPrimary: false,
+        person: { id: 'person-1', user: null },
       };
       mockDelegateRepository.findOne.mockResolvedValue(existing);
       (txRepo.save as jest.Mock).mockImplementation(
@@ -336,6 +353,45 @@ describe('PersonDelegateService', () => {
       await service.update('person-1', 'del-1', { isActive: false });
 
       expect(dataSource.transaction).not.toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException when promoting to primary a delegate of a person who already manages their own account', async () => {
+      const existing = {
+        id: 'del-1',
+        delegateType: DelegateType.PARENT,
+        isActive: true,
+        isPrimary: false,
+        person: { id: 'person-1', user: { id: 'self-user' } },
+      };
+      mockDelegateRepository.findOne.mockResolvedValue(existing);
+
+      await expect(
+        service.update('person-1', 'del-1', { isPrimary: true }),
+      ).rejects.toThrow(BadRequestException);
+      expect(dataSource.transaction).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('demotePrimaryIfAny', () => {
+    it('should unset isPrimary for the existing primary delegate of a person', async () => {
+      await service.demotePrimaryIfAny('person-1');
+
+      expect(mockDelegateRepository.update).toHaveBeenCalledWith(
+        { person: { id: 'person-1' }, isPrimary: true },
+        { isPrimary: false },
+      );
+    });
+
+    it('should use the provided entity manager when given one, instead of the default repository', async () => {
+      const manager = { getRepository: () => txRepo };
+
+      await service.demotePrimaryIfAny('person-1', manager as never);
+
+      expect(txRepo.update).toHaveBeenCalledWith(
+        { person: { id: 'person-1' }, isPrimary: true },
+        { isPrimary: false },
+      );
+      expect(mockDelegateRepository.update).not.toHaveBeenCalled();
     });
   });
 

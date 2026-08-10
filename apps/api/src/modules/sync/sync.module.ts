@@ -6,6 +6,7 @@ import { Event } from '../event/event.entity';
 import { Attendance } from '../event/attendance.entity';
 import { User } from '../user/user.entity';
 import { Season } from '../season/season.entity';
+import { PersonDelegate } from '../person-delegate/person-delegate.entity';
 import { SyncController } from './sync.controller';
 import { LegacyApiClient } from './legacy-api.client';
 import { PersonSyncStrategy } from './strategies/person-sync.strategy';
@@ -14,7 +15,7 @@ import { AttendanceSyncStrategy } from './strategies/attendance-sync.strategy';
 import { SyncLockService } from './sync-lock.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Person, Tag, Event, Attendance, Season, User])],
+  imports: [TypeOrmModule.forFeature([Person, Tag, Event, Attendance, Season, User, PersonDelegate])],
   controllers: [SyncController],
   providers: [
     LegacyApiClient,

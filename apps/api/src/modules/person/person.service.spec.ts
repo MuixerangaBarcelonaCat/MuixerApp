@@ -5,7 +5,7 @@ import { PersonService } from './person.service';
 import { Person } from './person.entity';
 import { Tag } from '../tag/tag.entity';
 import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
-import { User } from '../user/user.entity';
+import { PersonDelegateService } from '../person-delegate/person-delegate.service';
 
 describe('PersonService', () => {
   let service: PersonService;
@@ -36,10 +36,9 @@ describe('PersonService', () => {
     findBy: jest.fn(),
   };
 
-  const mockUserRepository = {
-    sendInvitation: jest.fn(),
-    findOne: jest.fn(),
-  }
+  const mockPersonDelegateService = {
+    getPrimary: jest.fn().mockResolvedValue(null),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -54,8 +53,8 @@ describe('PersonService', () => {
           useValue: mockPositionRepository,
         },
         {
-          provide: getRepositoryToken(User),
-          useValue: mockUserRepository,
+          provide: PersonDelegateService,
+          useValue: mockPersonDelegateService,
         },
       ],
     }).compile();
@@ -79,7 +78,7 @@ describe('PersonService', () => {
 
   describe('findOne', () => {
     it('should return a person when found', async () => {
-      const mockPerson = { id: '123', name: 'Test', alias: 'test', managedBy: null };
+      const mockPerson = { id: '123', name: 'Test', alias: 'test', user: null };
       mockPersonRepository.findOne.mockResolvedValue(mockPerson);
 
       const result = await service.findOne('123');
@@ -87,7 +86,7 @@ describe('PersonService', () => {
       expect(result).toEqual(mockPerson);
       expect(mockPersonRepository.findOne).toHaveBeenCalledWith({
         where: { id: '123' },
-        relations: ['positions', 'mentor', 'managedBy', 'managedBy.person'],
+        relations: ['positions', 'mentor', 'user'],
       });
     });
 
@@ -376,32 +375,34 @@ describe('PersonService', () => {
     });
 
     it('throws BadRequestException when promoting without name', async () => {
-      const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: '', isProvisional: true, positions: [], mentor: null, managedBy: {'id': 'user_id'} };
+      const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: '', isProvisional: true, positions: [], mentor: null, user: { id: 'user_id' } };
       mockPersonRepository.findOne.mockResolvedValue(provisionalPerson);
 
       await expect(service.update('1', { isProvisional: false, alias: 'JoanNou' }))
         .rejects.toThrow(BadRequestException);
     });
 
-    it('throws BadRequestException when promoting without user', async () => {
+    it('throws BadRequestException when promoting without a manager (no self link, no primary delegate)', async () => {
       const provisionalPerson = {
         id: '1',
         alias: '~Joan',
         name: 'Joan',
-        firstSurname: '',
+        firstSurname: 'García',
         isProvisional: true,
         positions: [],
         mentor: null,
+        user: null,
       };
       mockPersonRepository.findOne.mockResolvedValue(provisionalPerson);
+      mockPersonDelegateService.getPrimary.mockResolvedValueOnce(null);
 
       await expect(
         service.update('1', { isProvisional: false, alias: 'JoanNou' }),
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('loads the managedBy relation so the promotion check sees it', async () => {
-      const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: 'García', isProvisional: true, positions: [], mentor: null, managedBy: { id: 'user_id' } };
+    it('loads the user relation so the promotion check sees it', async () => {
+      const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: 'García', isProvisional: true, positions: [], mentor: null, user: { id: 'user_id' } };
       mockPersonRepository.findOne.mockResolvedValue(provisionalPerson);
       mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
 
@@ -409,25 +410,25 @@ describe('PersonService', () => {
 
       expect(mockPersonRepository.findOne).toHaveBeenCalledWith({
         where: { id: '1' },
-        relations: ['positions', 'mentor', 'managedBy'],
+        relations: ['positions', 'mentor', 'user'],
       });
     });
 
-    it('promotes when managedById is provided in the same request even if the person has no manager yet', async () => {
-      const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: 'García', isProvisional: true, positions: [], mentor: null, managedBy: null };
+    it('promotes when the person has a primary delegate even without a self link', async () => {
+      const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: 'García', isProvisional: true, positions: [], mentor: null, user: null };
       mockPersonRepository.findOne.mockResolvedValue(provisionalPerson);
-      mockUserRepository.findOne.mockResolvedValue({ id: 'user_id' });
       mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
+      mockPersonDelegateService.getPrimary.mockResolvedValueOnce({ id: 'del-1', isPrimary: true });
 
-      await service.update('1', { isProvisional: false, alias: 'JoanGarcia', managedById: 'user_id' });
+      await service.update('1', { isProvisional: false, alias: 'JoanGarcia' });
 
       expect(mockPersonRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({ isProvisional: false, managedBy: { id: 'user_id' } }),
+        expect.objectContaining({ isProvisional: false }),
       );
     });
 
     it('throws BadRequestException when promoting with ~ alias', async () => {
-      const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: 'García', isProvisional: true, positions: [], mentor: null, managedBy: {'id': 'user_id'} };
+      const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: 'García', isProvisional: true, positions: [], mentor: null, user: { id: 'user_id' } };
       mockPersonRepository.findOne.mockResolvedValue(provisionalPerson);
 
       await expect(service.update('1', { isProvisional: false, name: 'Joan', firstSurname: 'García' }))
@@ -435,7 +436,7 @@ describe('PersonService', () => {
     });
 
     it('promotes provisional person when all fields provided', async () => {
-      const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: '', isProvisional: true, positions: [], mentor: null, managedBy: {'id': 'user_id'} };
+      const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: '', isProvisional: true, positions: [], mentor: null, user: { id: 'user_id' } };
       mockPersonRepository.findOne.mockResolvedValue(provisionalPerson);
       mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
 

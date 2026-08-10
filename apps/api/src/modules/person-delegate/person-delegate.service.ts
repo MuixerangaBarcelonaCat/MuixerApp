@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { PersonDelegate } from './person-delegate.entity';
 import { Person } from '../person/person.entity';
 import { User } from '../user/user.entity';
@@ -46,6 +46,7 @@ export class PersonDelegateService {
   ): Promise<PersonDelegate> {
     const person = await this.personRepo.findOne({
       where: { id: personId },
+      relations: ['user'],
     });
     if (!person) {
       throw new NotFoundException(`Person #${personId} not found`);
@@ -62,6 +63,12 @@ export class PersonDelegateService {
     if (user.person && user.person.id === personId) {
       throw new BadRequestException(
         'A user cannot delegate for their own linked person',
+      );
+    }
+
+    if (dto.isPrimary && person.user) {
+      throw new BadRequestException(
+        'Esta persona ja gestiona el seu propi compte',
       );
     }
 
@@ -104,10 +111,16 @@ export class PersonDelegateService {
   ): Promise<PersonDelegate> {
     const delegate = await this.delegateRepo.findOne({
       where: { id, person: { id: personId } },
-      relations: ['user', 'person'],
+      relations: ['user', 'person', 'person.user'],
     });
     if (!delegate) {
       throw new NotFoundException(`Delegate #${id} not found`);
+    }
+
+    if (dto.isPrimary && delegate.person.user) {
+      throw new BadRequestException(
+        'Esta persona ja gestiona el seu propi compte',
+      );
     }
 
     if (dto.delegateType !== undefined) {
@@ -137,6 +150,16 @@ export class PersonDelegateService {
       where: { person: { id: personId }, isPrimary: true },
       relations: ['user', 'person'],
     });
+  }
+
+  /**
+   * Unsets `isPrimary` on a person's existing primary delegate, if any, without
+   * deleting the row (§2.5: self-linking demotes rather than destroys a prior
+   * guardian relationship). Pass `manager` to participate in a caller's transaction.
+   */
+  async demotePrimaryIfAny(personId: string, manager?: EntityManager): Promise<void> {
+    const repo = manager ? manager.getRepository(PersonDelegate) : this.delegateRepo;
+    await repo.update({ person: { id: personId }, isPrimary: true }, { isPrimary: false });
   }
 
   async remove(personId: string, id: string): Promise<void> {

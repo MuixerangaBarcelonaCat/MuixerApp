@@ -8,7 +8,7 @@ import { UpdatePersonDto } from './dto/update-person.dto';
 import { PersonFilterDto } from './dto/person-filter.dto';
 import { PersonResponseDto } from './dto/person-response.dto';
 import { Tag } from '../tag/tag.entity';
-import { User } from '../user/user.entity';
+import { PersonDelegateService } from '../person-delegate/person-delegate.service';
 import {
   PERSON_SORT_COLUMN_MAP,
   type PersonSortByField,
@@ -25,8 +25,7 @@ export class PersonService {
     private readonly personRepository: Repository<Person>,
     @InjectRepository(Tag)
     private readonly positionRepository: Repository<Tag>,
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
+    private readonly personDelegateService: PersonDelegateService,
   ) {}
 
   /** Retorna una llista paginada i ordenada de persones aplicant tots els filtres disponibles. Usa `unaccent` per cerques insensibles a accents. */
@@ -55,7 +54,7 @@ export class PersonService {
       .createQueryBuilder('person')
       .leftJoinAndSelect('person.positions', 'position')
       .leftJoinAndSelect('person.mentor', 'mentor')
-      .leftJoinAndSelect('person.managedBy', 'managedBy');
+      .leftJoinAndSelect('person.user', 'user');
 
     if (search) {
       queryBuilder.andWhere(
@@ -144,7 +143,7 @@ export class PersonService {
   async findOne(id: string): Promise<PersonResponseDto> {
     const person = await this.personRepository.findOne({
       where: { id },
-      relations: ['positions', 'mentor', 'managedBy', 'managedBy.person'],
+      relations: ['positions', 'mentor', 'user'],
     });
 
     if (!person) {
@@ -227,29 +226,15 @@ export class PersonService {
   ): Promise<PersonResponseDto> {
     const person = await this.personRepository.findOne({
       where: { id },
-      relations: ['positions', 'mentor', 'managedBy'],
+      relations: ['positions', 'mentor', 'user'],
     });
 
     if (!person) {
       throw new NotFoundException(`Person with ID ${id} not found`);
     }
 
-    const { positionIds, mentorId, isProvisional, managedById, ...personData } =
+    const { positionIds, mentorId, isProvisional, ...personData } =
       updatePersonDto;
-
-    if (managedById !== undefined) {
-      if (managedById) {
-        const user = await this.userRepository.findOne({
-          where: { id: managedById },
-        });
-        if (!user) {
-          throw new NotFoundException(`User with ID ${managedById} not found`);
-        }
-        person.managedBy = user;
-      } else {
-        person.managedBy = null;
-      }
-    }
 
     // Handle isProvisional transitions
     if (isProvisional !== undefined) {
@@ -274,10 +259,13 @@ export class PersonService {
             'Cal proporcionar un àlies definitiu (sense el prefix ~) per promoure una persona provisional',
           );
         }
-        if (!person.managedBy) {
-          throw new BadRequestException(
-            'Cal proporcionar un usuari per promoure una persona provisional',
-          );
+        if (!person.user) {
+          const primaryDelegate = await this.personDelegateService.getPrimary(person.id);
+          if (!primaryDelegate) {
+            throw new BadRequestException(
+              'Cal proporcionar un usuari per promoure una persona provisional',
+            );
+          }
         }
       }
 

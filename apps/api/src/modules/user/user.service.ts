@@ -22,6 +22,7 @@ import { USER_SORT_COLUMN_MAP } from './constants/user-sort.constants';
 import { UserFilterDto } from './dto/user-filter.dto';
 import { hashToken } from '../../common/utils/hash-token.util';
 import { TokenService } from '../auth/token.service';
+import { PersonDelegateService } from '../person-delegate/person-delegate.service';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -34,6 +35,7 @@ export class UserService {
     private readonly personRepository: Repository<Person>,
     private readonly dataSource: DataSource,
     private readonly tokenService: TokenService,
+    private readonly personDelegateService: PersonDelegateService,
   ) {}
 
   async create(
@@ -135,9 +137,10 @@ export class UserService {
 
     const person = await this.personRepository.findOne({
       where: { id: dto.personId },
+      relations: ['user'],
     });
     if (!person) throw new BadRequestException('Person not found');
-    if (person.managedBy)
+    if (person.user)
       throw new BadRequestException('Person is already managed by an user');
 
     const createdUser = await this.dataSource.transaction(async (manager) => {
@@ -148,8 +151,7 @@ export class UserService {
         isActive: false,
       });
       const savedUser = await manager.save(User, user);
-      person.managedBy = savedUser;
-      await manager.save(Person, person);
+      await this.personDelegateService.demotePrimaryIfAny(person.id, manager);
       return savedUser;
     });
 
@@ -236,12 +238,12 @@ export class UserService {
     if (dto.personId) {
       person = await this.personRepository.findOne({
         where: { id: dto.personId },
-        relations: ['managedBy'],
+        relations: ['user'],
       });
       if (!person) throw new BadRequestException('Person not found');
       if (
-        person.managedBy &&
-        (!existingUser || person.managedBy.id !== existingUser.id)
+        person.user &&
+        (!existingUser || person.user.id !== existingUser.id)
       ) {
         throw new BadRequestException(
           'Person is already linked to another user',
@@ -273,8 +275,7 @@ export class UserService {
       }
 
       if (person) {
-        person.managedBy = targetUser;
-        await manager.save(Person, person);
+        await this.personDelegateService.demotePrimaryIfAny(person.id, manager);
       }
 
       return manager.findOne(User, {
@@ -341,30 +342,20 @@ export class UserService {
 
     if (dto.personId !== undefined) {
       if (dto.personId === null) {
-        if (user.person) {
-          const oldPerson = await this.personRepository.findOne({
-            where: { id: user.person.id },
-          });
-          if (oldPerson) {
-            oldPerson.managedBy = null;
-            await this.personRepository.save(oldPerson);
-          }
-        }
         user.person = null;
       } else {
         const person = await this.personRepository.findOne({
           where: { id: dto.personId },
-          relations: ['managedBy'],
+          relations: ['user'],
         });
         if (!person) throw new BadRequestException('Person not found');
-        if (person.managedBy && person.managedBy.id !== userId) {
+        if (person.user && person.user.id !== userId) {
           throw new BadRequestException(
             'Person is already linked to another user',
           );
         }
         user.person = person;
-        person.managedBy = user;
-        await this.personRepository.save(person);
+        await this.personDelegateService.demotePrimaryIfAny(person.id);
       }
     }
 
