@@ -13,6 +13,30 @@ import { SeasonService } from '../../../events/services/season.service';
 import { PersonAssignmentEntry } from '../../../pinyes/models/assignment.model';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 
+const makePerson = (overrides: Partial<Person> = {}): Person => ({
+  id: 'p1',
+  name: 'N',
+  firstSurname: 'S',
+  secondSurname: null,
+  alias: 'A',
+  phone: null,
+  birthDate: null,
+  shoulderHeight: null,
+  isXicalla: false,
+  isMember: false,
+  availability: 'AVAILABLE' as Person['availability'],
+  onboardingStatus: 'IN_PROGRESS' as Person['onboardingStatus'],
+  shirtDate: null,
+  notes: null,
+  notesEmoji: null,
+  isActive: true,
+  positions: [],
+  user: null,
+  createdAt: '2026-01-01T00:00:00Z',
+  updatedAt: '2026-01-01T00:00:00Z',
+  ...overrides,
+});
+
 const makeHistoryEntry = (overrides: Partial<PersonAssignmentEntry> = {}): PersonAssignmentEntry => ({
   eventId: 'event-1',
   eventTitle: 'Diada',
@@ -231,6 +255,46 @@ describe('PersonDetailComponent', () => {
       expect(text).toContain('Delegacions');
     });
 
+    it('disables "Envia correu d\'invitació" for a xicalla, with an explanatory tooltip', () => {
+      component.person.set(makePerson({ isXicalla: true }));
+      component.delegates.set([]);
+      fixture.detectChanges();
+
+      const btn = Array.from(fixture.nativeElement.querySelectorAll('button')).find(
+        (b) => (b as HTMLElement).textContent?.trim() === "Envia correu d'invitació",
+      ) as HTMLButtonElement;
+      expect(btn.disabled).toBe(true);
+
+      const tooltip = btn.closest('.tooltip') as HTMLElement | null;
+      expect(tooltip?.getAttribute('data-tip')).toContain('responsable legal');
+    });
+
+    it('keeps "Envia correu d\'invitació" enabled for a non-xicalla person', () => {
+      component.person.set(makePerson({ isXicalla: false }));
+      component.delegates.set([]);
+      fixture.detectChanges();
+
+      const btn = Array.from(fixture.nativeElement.querySelectorAll('button')).find(
+        (b) => (b as HTMLElement).textContent?.trim() === "Envia correu d'invitació",
+      ) as HTMLButtonElement;
+      expect(btn.disabled).toBe(false);
+    });
+
+    it('does not show the "Delegacions" title when there are none and not in edit mode', () => {
+      component.delegates.set([makeDelegateItem()]);
+      fixture.detectChanges();
+      expect(fixture.nativeElement.textContent).not.toContain('Delegacions');
+    });
+
+    it('shows the "Delegacions" title in edit mode even with no delegations yet', () => {
+      component.delegates.set([makeDelegateItem()]);
+      component.editing.set(true);
+      fixture.detectChanges();
+      const text = fixture.nativeElement.textContent;
+      expect(text).toContain('Delegacions');
+      expect(text).toContain('Cap delegació');
+    });
+
     it('shows the relació text with a visible gap from the name (not glued together)', () => {
       component.delegates.set([makeDelegateItem()]);
       fixture.detectChanges();
@@ -380,29 +444,6 @@ describe('PersonDetailComponent', () => {
   });
 
   describe('Alçada espatlles (0 is a legacy "not set" sentinel, not a real height)', () => {
-    const makePerson = (overrides: Partial<Person> = {}): Person => ({
-      id: 'p1',
-      name: 'N',
-      firstSurname: 'S',
-      secondSurname: null,
-      alias: 'A',
-      phone: null,
-      birthDate: null,
-      shoulderHeight: null,
-      isXicalla: false,
-      isMember: false,
-      availability: 'AVAILABLE' as Person['availability'],
-      onboardingStatus: 'IN_PROGRESS' as Person['onboardingStatus'],
-      shirtDate: null,
-      notes: null,
-      notesEmoji: null,
-      isActive: true,
-      positions: [],
-      user: null,
-      createdAt: '2026-01-01T00:00:00Z',
-      updatedAt: '2026-01-01T00:00:00Z',
-      ...overrides,
-    });
     const patchForm = (person: Person) =>
       (component as unknown as { patchForm(p: Person): void }).patchForm(person);
 

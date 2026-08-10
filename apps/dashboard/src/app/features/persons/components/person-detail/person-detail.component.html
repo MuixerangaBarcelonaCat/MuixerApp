@@ -441,9 +441,17 @@
                     </div>
                   </div>
                   <div class="flex items-start gap-2 flex-wrap">
-                    <button type="button" class="btn btn-sm btn-primary" (click)="startSendingInvitation()">
-                      Envia correu d'invitació
-                    </button>
+                    @if (person()!.isXicalla) {
+                      <div class="tooltip tooltip-right" data-tip="Per la xicalla cal crear el perfil del seu responsable legal i enviar-li a la persona responsable el correu d'invitació. Després es pot enllaçar aquesta persona amb el seu usuari responsable.">
+                        <button type="button" class="btn btn-sm btn-disabled" disabled>
+                          Envia correu d'invitació
+                        </button>
+                      </div>
+                    } @else {
+                      <button type="button" class="btn btn-sm btn-primary" (click)="startSendingInvitation()">
+                        Envia correu d'invitació
+                      </button>
+                    }
                     <button type="button" class="btn btn-sm btn-primary" (click)="openDelegateModal(true)">
                       Enllaça amb usuari existent
                     </button>
@@ -451,7 +459,7 @@
                 </div>
               }
 
-              @if (secondaryDelegates().length > 0) {
+              @if (secondaryDelegates().length > 0 || editing()) {
                 <div class="flex justify-between items-start">
                   <dt class="text-xs text-base-content/50 font-medium w-32 shrink-0">
                     Delegacions
@@ -462,6 +470,9 @@
                     </div>
                   </dt>
                   <dd class="text-sm text-right">
+                    @if (secondaryDelegates().length === 0) {
+                      <span class="text-xs text-base-content/40">Cap delegació</span>
+                    }
                     @for (delegate of secondaryDelegates(); track delegate.id; let last = $last) {
                       @if (delegate.user.person; as delegatePerson) {
                         <a class="text-blue-500 underline" [routerLink]="['/persons', delegatePerson.id]">{{ delegatePerson.alias }}</a>
