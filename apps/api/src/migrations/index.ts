@@ -31,6 +31,7 @@ import { CreateAuditLogs1783300000000 } from './1783300000000-CreateAuditLogs';
 import { AddUserPrivacyConsent1783400000000 } from './1783400000000-AddUserPrivacyConsent';
 import { SeedLegalDocuments1783500000000 } from './1783500000000-SeedLegalDocuments';
 import { AddLegalDocumentRequiresConsent1783600000000 } from './1783600000000-AddLegalDocumentRequiresConsent';
+import { FixLegalDocumentsTextAndStyle1783900000000 } from './1783900000000-FixLegalDocumentsTextAndStyle';
 
 export const migrations: (new () => MigrationInterface)[] = [
   InitialSchema1748600000000,
@@ -65,4 +66,10 @@ export const migrations: (new () => MigrationInterface)[] = [
   AddUserPrivacyConsent1783400000000,
   SeedLegalDocuments1783500000000,
   AddLegalDocumentRequiresConsent1783600000000,
+<<<<<<< HEAD
+=======
+  AddPersonDelegatePrimaryAndOtherType1783700000000,
+  DropPersonManagedBy1783800000000,
+  FixLegalDocumentsTextAndStyle1783900000000,
+>>>>>>> 0df3de6 (fix: estil documents legals)
 ];

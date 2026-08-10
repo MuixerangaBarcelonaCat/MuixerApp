@@ -21,8 +21,8 @@ import { ToastService } from '../../services/toast.service';
         </h3>
         <p class="text-sm text-base-content/60 mb-4">
           {{ hadAcceptedBefore()
-            ? "Cal que la tornis a llegir i acceptar per continuar utilitzant l'aplicació."
-            : "Per continuar utilitzant l'aplicació cal que llegeixis i acceptis la política de privacitat." }}
+            ? "Cal que la torneu a llegir i acceptar per continuar utilitzant l'aplicació."
+            : "Per continuar utilitzant l'aplicació cal que llegiu i accepteu la política de privacitat." }}
         </p>
 
         @if (loading()) {
@@ -41,7 +41,7 @@ import { ToastService } from '../../services/toast.service';
             (click)="accept()"
           >
             @if (submitting()) { <span class="loading loading-spinner loading-xs"></span> }
-            Accepto
+            Accepte
           </button>
         </div>
       </div>
@@ -80,7 +80,7 @@ export class ConsentModalComponent {
       next: () => this.submitting.set(false),
       error: () => {
         this.submitting.set(false);
-        this.toast.error("No s'ha pogut registrar l'acceptació. Torna-ho a provar.");
+        this.toast.error("No s'ha pogut registrar l'acceptació. Torneu-ho a provar.");
       },
     });
   }
