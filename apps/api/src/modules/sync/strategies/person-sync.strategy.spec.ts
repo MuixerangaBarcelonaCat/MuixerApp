@@ -5,7 +5,7 @@ import { PersonSyncStrategy } from './person-sync.strategy';
 import { LegacyApiClient, LegacyPerson } from '../legacy-api.client';
 import { Person } from '../../person/person.entity';
 import { Tag } from '../../tag/tag.entity';
-import { AvailabilityStatus, OnboardingStatus } from '@muixer/shared';
+import { AvailabilityStatus, OnboardingStatus, DelegateType } from '@muixer/shared';
 import { User } from '../../user/user.entity';
 import { PersonDelegate } from '../../person-delegate/person-delegate.entity';
 
@@ -510,7 +510,7 @@ describe('PersonSyncStrategy', () => {
   // ─── assignMainPersons() — self-link + guardian delegate assignment ──────────
 
   describe('assignMainPersons() guardian delegate assignment', () => {
-    it('assigns the non-Xicalla person as the user\'s own profile and creates a primary GUARDIAN delegate for the Xicalla person sharing the same email', (done) => {
+    it('assigns the non-Xicalla person as the user\'s own profile and creates a primary PARENT delegate for the Xicalla person sharing the same email', (done) => {
       const parent: LegacyPerson = { ...mockLegacyPerson, id: 'parent-1', mote: 'Parent' };
       const child: LegacyPerson = {
         ...mockLegacyPerson,
@@ -537,6 +537,7 @@ describe('PersonSyncStrategy', () => {
           expect(personDelegateRepository.save).toHaveBeenCalledWith(
             expect.objectContaining({
               person: expect.objectContaining({ isXicalla: true }),
+              delegateType: DelegateType.PARENT,
               isPrimary: true,
             }),
           );

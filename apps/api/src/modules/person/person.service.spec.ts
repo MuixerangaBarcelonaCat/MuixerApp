@@ -38,6 +38,7 @@ describe('PersonService', () => {
 
   const mockPersonDelegateService = {
     getPrimary: jest.fn().mockResolvedValue(null),
+    assertPrimaryQualifiesForXicalla: jest.fn().mockResolvedValue(undefined),
   };
 
   beforeEach(async () => {
@@ -470,6 +471,51 @@ describe('PersonService', () => {
       await service.update('1', { positionIds: ['pos1'] });
 
       expect(mockPositionRepository.findBy).toHaveBeenCalledWith({ id: In(['pos1']) });
+    });
+  });
+
+  describe('update isXicalla toggle', () => {
+    it('re-validates the existing primary delegate when isXicalla flips to true', async () => {
+      const person = { id: '1', alias: 'Joan', name: 'Joan', firstSurname: 'García', isProvisional: false, isXicalla: false, positions: [], mentor: null };
+      mockPersonRepository.findOne.mockResolvedValue(person);
+      mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
+
+      await service.update('1', { isXicalla: true });
+
+      expect(mockPersonDelegateService.assertPrimaryQualifiesForXicalla).toHaveBeenCalledWith('1');
+    });
+
+    it('rejects the update when the current primary delegate no longer qualifies', async () => {
+      const person = { id: '1', alias: 'Joan', name: 'Joan', firstSurname: 'García', isProvisional: false, isXicalla: false, positions: [], mentor: null };
+      mockPersonRepository.findOne.mockResolvedValue(person);
+      mockPersonDelegateService.assertPrimaryQualifiesForXicalla.mockRejectedValueOnce(
+        new BadRequestException('does not qualify'),
+      );
+
+      await expect(service.update('1', { isXicalla: true })).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(mockPersonRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('does not re-validate when isXicalla is already true', async () => {
+      const person = { id: '1', alias: 'Joan', name: 'Joan', firstSurname: 'García', isProvisional: false, isXicalla: true, positions: [], mentor: null };
+      mockPersonRepository.findOne.mockResolvedValue(person);
+      mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
+
+      await service.update('1', { isXicalla: true });
+
+      expect(mockPersonDelegateService.assertPrimaryQualifiesForXicalla).not.toHaveBeenCalled();
+    });
+
+    it('does not re-validate when isXicalla is being turned off', async () => {
+      const person = { id: '1', alias: 'Joan', name: 'Joan', firstSurname: 'García', isProvisional: false, isXicalla: true, positions: [], mentor: null };
+      mockPersonRepository.findOne.mockResolvedValue(person);
+      mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
+
+      await service.update('1', { isXicalla: false });
+
+      expect(mockPersonDelegateService.assertPrimaryQualifiesForXicalla).not.toHaveBeenCalled();
     });
   });
 });

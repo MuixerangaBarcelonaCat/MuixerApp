@@ -265,6 +265,158 @@ describe('PersonDelegateService', () => {
     });
   });
 
+  describe('Xicalla integrity rule', () => {
+    const personId = 'child-1';
+    const userId = 'user-1';
+    const xicallaPerson = { id: personId, isXicalla: true, user: null };
+
+    // Disambiguates the two different findOne() calls create() makes against
+    // the delegate repo: the (user, person) duplicate check and the "does
+    // this user manage another non-Xicalla person" qualification check.
+    const createFindOneImpl = (otherNonXicallaDelegate: unknown) =>
+      (options: { where: { person?: { id?: string; isXicalla?: boolean } } }) => {
+        if (options.where.person?.isXicalla === false) {
+          return Promise.resolve(otherNonXicallaDelegate);
+        }
+        return Promise.resolve(null); // no (user, person) duplicate
+      };
+
+    // update() additionally has a findOne() to load the delegate itself
+    // (keyed by `id`), distinguished the same way.
+    const updateFindOneImpl = (delegate: unknown, otherNonXicallaDelegate: unknown) =>
+      (options: { where: { id?: string; person?: { isXicalla?: boolean } } }) => {
+        if (options.where.id) return Promise.resolve(delegate);
+        if (options.where.person?.isXicalla === false) {
+          return Promise.resolve(otherNonXicallaDelegate);
+        }
+        return Promise.resolve(null);
+      };
+
+    describe('create', () => {
+      const baseDto = { userId, delegateType: DelegateType.PARENT, isPrimary: true };
+
+      it('rejects a PARTNER primary delegate for a Xicalla person', async () => {
+        mockPersonRepository.findOne.mockResolvedValue(xicallaPerson);
+        mockUserRepository.findOne.mockResolvedValue({ id: userId, person: null });
+        mockDelegateRepository.findOne.mockImplementation(createFindOneImpl(null));
+
+        await expect(
+          service.create(personId, { ...baseDto, delegateType: DelegateType.PARTNER }),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('rejects an OTHER primary delegate for a Xicalla person', async () => {
+        mockPersonRepository.findOne.mockResolvedValue(xicallaPerson);
+        mockUserRepository.findOne.mockResolvedValue({ id: userId, person: null });
+        mockDelegateRepository.findOne.mockImplementation(createFindOneImpl(null));
+
+        await expect(
+          service.create(personId, { ...baseDto, delegateType: DelegateType.OTHER }),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('rejects a PARENT/GUARDIAN primary delegate when the manager has no qualifying non-Xicalla person', async () => {
+        mockPersonRepository.findOne.mockResolvedValue(xicallaPerson);
+        mockUserRepository.findOne.mockResolvedValue({ id: userId, person: null });
+        mockDelegateRepository.findOne.mockImplementation(createFindOneImpl(null));
+
+        await expect(service.create(personId, baseDto)).rejects.toThrow(
+          BadRequestException,
+        );
+      });
+
+      it('allows a PARENT primary delegate when the manager is self-managed', async () => {
+        mockPersonRepository.findOne.mockResolvedValue(xicallaPerson);
+        mockUserRepository.findOne.mockResolvedValue({ id: userId, person: { id: 'parent-person' } });
+        mockDelegateRepository.findOne.mockImplementation(createFindOneImpl(null));
+        dataSource.transaction.mockImplementation((cb: (m: unknown) => unknown) =>
+          cb({ getRepository: () => txRepo }),
+        );
+
+        await expect(service.create(personId, baseDto)).resolves.toBeDefined();
+      });
+
+      it('allows a GUARDIAN primary delegate when the manager already manages another non-Xicalla person', async () => {
+        mockPersonRepository.findOne.mockResolvedValue(xicallaPerson);
+        mockUserRepository.findOne.mockResolvedValue({ id: userId, person: null });
+        mockDelegateRepository.findOne.mockImplementation(createFindOneImpl({ id: 'existing-del' }));
+        dataSource.transaction.mockImplementation((cb: (m: unknown) => unknown) =>
+          cb({ getRepository: () => txRepo }),
+        );
+
+        await expect(
+          service.create(personId, { ...baseDto, delegateType: DelegateType.GUARDIAN }),
+        ).resolves.toBeDefined();
+      });
+
+      it('does not apply the rule to a non-primary delegate for a Xicalla person', async () => {
+        const created = { id: 'del-1', person: xicallaPerson, delegateType: DelegateType.PARTNER, isPrimary: false };
+        mockPersonRepository.findOne.mockResolvedValue(xicallaPerson);
+        mockUserRepository.findOne.mockResolvedValue({ id: userId, person: null });
+        mockDelegateRepository.findOne.mockImplementation(createFindOneImpl(null));
+        mockDelegateRepository.create.mockReturnValue(created);
+        mockDelegateRepository.save.mockResolvedValue(created);
+
+        await expect(
+          service.create(personId, { ...baseDto, delegateType: DelegateType.PARTNER, isPrimary: false }),
+        ).resolves.toBeDefined();
+      });
+    });
+
+    describe('update', () => {
+      it('rejects promoting a delegate to primary for a Xicalla person when the type does not qualify', async () => {
+        const delegate = {
+          id: 'del-1',
+          delegateType: DelegateType.PARTNER,
+          isActive: true,
+          isPrimary: false,
+          person: xicallaPerson,
+          user: { id: userId, person: null },
+        };
+        mockDelegateRepository.findOne.mockImplementation(updateFindOneImpl(delegate, null));
+
+        await expect(
+          service.update(personId, 'del-1', { isPrimary: true }),
+        ).rejects.toThrow(BadRequestException);
+        expect(dataSource.transaction).not.toHaveBeenCalled();
+      });
+
+      it('rejects promoting a delegate to primary for a Xicalla person when the manager has no qualifying non-Xicalla person', async () => {
+        const delegate = {
+          id: 'del-1',
+          delegateType: DelegateType.PARENT,
+          isActive: true,
+          isPrimary: false,
+          person: xicallaPerson,
+          user: { id: userId, person: null },
+        };
+        mockDelegateRepository.findOne.mockImplementation(updateFindOneImpl(delegate, null));
+
+        await expect(
+          service.update(personId, 'del-1', { isPrimary: true }),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('allows promoting a delegate to primary for a Xicalla person when the manager is self-managed', async () => {
+        const delegate = {
+          id: 'del-1',
+          delegateType: DelegateType.PARENT,
+          isActive: true,
+          isPrimary: false,
+          person: xicallaPerson,
+          user: { id: userId, person: { id: 'parent-person' } },
+        };
+        mockDelegateRepository.findOne.mockImplementation(updateFindOneImpl(delegate, null));
+        dataSource.transaction.mockImplementation((cb: (m: unknown) => unknown) =>
+          cb({ getRepository: () => txRepo }),
+        );
+
+        const result = await service.update(personId, 'del-1', { isPrimary: true });
+        expect(result.isPrimary).toBe(true);
+      });
+    });
+  });
+
   describe('update', () => {
     it('should update delegate type', async () => {
       const existing = {
@@ -420,6 +572,60 @@ describe('PersonDelegateService', () => {
       const result = await service.getPrimary('person-1');
 
       expect(result).toBeNull();
+    });
+  });
+
+  describe('assertPrimaryQualifiesForXicalla', () => {
+    it('does not throw when the person has no primary delegate', async () => {
+      mockDelegateRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.assertPrimaryQualifiesForXicalla('person-1'),
+      ).resolves.toBeUndefined();
+    });
+
+    it('throws when the primary delegate type does not qualify', async () => {
+      mockDelegateRepository.findOne.mockResolvedValue({
+        id: 'del-1',
+        isPrimary: true,
+        delegateType: DelegateType.PARTNER,
+        user: { id: 'user-1', person: null },
+      });
+
+      await expect(
+        service.assertPrimaryQualifiesForXicalla('person-1'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('throws when the primary delegate\'s manager has no qualifying non-Xicalla person', async () => {
+      mockDelegateRepository.findOne.mockImplementation(
+        (options: { where: { person?: { id?: string; isXicalla?: boolean } } }) => {
+          if (options.where.person?.isXicalla === false) return Promise.resolve(null);
+          return Promise.resolve({
+            id: 'del-1',
+            isPrimary: true,
+            delegateType: DelegateType.PARENT,
+            user: { id: 'user-1', person: null },
+          });
+        },
+      );
+
+      await expect(
+        service.assertPrimaryQualifiesForXicalla('person-1'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('does not throw when the primary delegate\'s manager is self-managed', async () => {
+      mockDelegateRepository.findOne.mockResolvedValue({
+        id: 'del-1',
+        isPrimary: true,
+        delegateType: DelegateType.GUARDIAN,
+        user: { id: 'user-1', person: { id: 'parent-person' } },
+      });
+
+      await expect(
+        service.assertPrimaryQualifiesForXicalla('person-1'),
+      ).resolves.toBeUndefined();
     });
   });
 

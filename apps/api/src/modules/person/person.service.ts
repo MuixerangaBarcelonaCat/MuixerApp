@@ -284,6 +284,10 @@ export class PersonService {
       person.isProvisional = isProvisional;
     }
 
+    if (personData.isXicalla === true && person.isXicalla === false) {
+      await this.personDelegateService.assertPrimaryQualifiesForXicalla(person.id);
+    }
+
     if (personData.alias !== undefined && personData.alias !== person.alias) {
       const conflict = await this.personRepository.findOne({
         where: { alias: personData.alias },

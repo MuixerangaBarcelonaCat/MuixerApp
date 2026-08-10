@@ -282,7 +282,7 @@ export class PersonSyncStrategy implements SyncStrategy {
    *   isXicalla = false — that one becomes the user's own profile (`user.person`).
    * - If zero non-Xicalla persons are found, there is nothing to link (skip).
    * - If more than one is found, the oldest by birth date wins (data error, warned).
-   * - Every Xicalla person in the group gets a primary GUARDIAN `PersonDelegate`
+   * - Every Xicalla person in the group gets a primary PARENT `PersonDelegate`
    *   row for that user (upserted directly, bypassing the admin-facing self-delegation
    *   guard — none of these are self-delegations since the main person is excluded).
    */
@@ -345,14 +345,14 @@ export class PersonSyncStrategy implements SyncStrategy {
     }
   }
 
-  /** Upserts a primary GUARDIAN delegate for a Xicalla person, directly via the repository. */
+  /** Upserts a primary PARENT delegate for a Xicalla person, directly via the repository. */
   private async upsertGuardianDelegate(user: User, child: Person): Promise<void> {
     const existing = await this.personDelegateRepository.findOne({
       where: { user: { id: user.id }, person: { id: child.id } },
     });
 
     if (existing) {
-      existing.delegateType = DelegateType.GUARDIAN;
+      existing.delegateType = DelegateType.PARENT;
       existing.isPrimary = true;
       await this.personDelegateRepository.save(existing);
       return;
@@ -361,7 +361,7 @@ export class PersonSyncStrategy implements SyncStrategy {
     const delegate = this.personDelegateRepository.create({
       user,
       person: child,
-      delegateType: DelegateType.GUARDIAN,
+      delegateType: DelegateType.PARENT,
       isPrimary: true,
     });
     await this.personDelegateRepository.save(delegate);

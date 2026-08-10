@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
+import { DelegateType } from '@muixer/shared';
 import { PersonDelegate } from './person-delegate.entity';
 import { Person } from '../person/person.entity';
 import { User } from '../user/user.entity';
@@ -81,6 +82,10 @@ export class PersonDelegateService {
       );
     }
 
+    if (dto.isPrimary && person.isXicalla) {
+      await this.assertQualifiesAsXicallaPrimaryManager(user, dto.delegateType);
+    }
+
     if (!dto.isPrimary) {
       const delegate = this.delegateRepo.create({
         person,
@@ -123,6 +128,11 @@ export class PersonDelegateService {
       );
     }
 
+    if (dto.isPrimary && delegate.person.isXicalla) {
+      const effectiveType = dto.delegateType ?? delegate.delegateType;
+      await this.assertQualifiesAsXicallaPrimaryManager(delegate.user, effectiveType);
+    }
+
     if (dto.delegateType !== undefined) {
       delegate.delegateType = dto.delegateType;
     }
@@ -145,11 +155,55 @@ export class PersonDelegateService {
     });
   }
 
+  /**
+   * A Xicalla's primary manager must be a PARENT/GUARDIAN, and that user must
+   * independently qualify as an adult member — either self-managed or already
+   * managing another non-Xicalla person — proving the account isn't a
+   * throwaway created only to manage a child.
+   */
+  private async assertQualifiesAsXicallaPrimaryManager(
+    user: User,
+    delegateType: DelegateType,
+  ): Promise<void> {
+    if (delegateType !== DelegateType.PARENT && delegateType !== DelegateType.GUARDIAN) {
+      throw new BadRequestException(
+        'El gestor principal d\'un membre de la xicalla ha de ser pare/mare o tutor/a',
+      );
+    }
+
+    if (user.person) return;
+
+    const otherNonXicallaDelegate = await this.delegateRepo.findOne({
+      where: { user: { id: user.id }, person: { isXicalla: false } },
+    });
+    if (!otherNonXicallaDelegate) {
+      throw new BadRequestException(
+        'El gestor principal ha de ser una persona adulta: amb compte propi o que gestioni una altra persona que no siga xicalla',
+      );
+    }
+  }
+
   async getPrimary(personId: string): Promise<PersonDelegate | null> {
     return this.delegateRepo.findOne({
       where: { person: { id: personId }, isPrimary: true },
       relations: ['user', 'person'],
     });
+  }
+
+  /**
+   * Re-validates a person's existing primary delegate against the Xicalla
+   * rule — used when `isXicalla` flips to `true` on a person who already has
+   * a primary manager, so the invariant can't be bypassed by toggling the
+   * flag after the fact instead of going through create()/update().
+   */
+  async assertPrimaryQualifiesForXicalla(personId: string): Promise<void> {
+    const primary = await this.delegateRepo.findOne({
+      where: { person: { id: personId }, isPrimary: true },
+      relations: ['user', 'user.person'],
+    });
+    if (!primary) return;
+
+    await this.assertQualifiesAsXicallaPrimaryManager(primary.user, primary.delegateType);
   }
 
   /**
