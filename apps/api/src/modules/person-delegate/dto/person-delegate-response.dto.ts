@@ -1,20 +1,25 @@
 import { Expose, Type } from 'class-transformer';
 import { DelegateType } from '@muixer/shared';
 
-class DelegateUserDto {
-  @Expose()
-  id: string;
-
-  @Expose()
-  email: string;
-}
-
 class DelegatePersonDto {
   @Expose()
   id: string;
 
   @Expose()
   alias: string;
+}
+
+class DelegateUserDto {
+  @Expose()
+  id: string;
+
+  @Expose()
+  email: string;
+
+  /** The delegate's own linked person, if self-managed — lets the UI link to their profile. */
+  @Expose()
+  @Type(() => DelegatePersonDto)
+  person: DelegatePersonDto | null;
 }
 
 export class PersonDelegateResponseDto {

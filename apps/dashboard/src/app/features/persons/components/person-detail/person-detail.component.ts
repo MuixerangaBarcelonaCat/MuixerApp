@@ -7,7 +7,7 @@ import {
   OnInit,
 } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, Router, RouterModule, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { PersonService } from '../../services/person.service';
 import { Person, UpdatePersonDto } from '../../models/person.model';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
@@ -31,7 +31,6 @@ import {
 import { EmptyStateComponent } from '../../../../shared/components/data/empty-state/empty-state.component';
 import { PaginationComponent } from '../../../../shared/components/data/pagination/pagination.component';
 import { PersonInvitationModalComponent } from './modals/person-invitation-modal.component';
-import { PersonLinkUserModalComponent } from './modals/person-link-user-modal.component';
 import { PersonDelegateModalComponent } from './modals/person-delegate-modal.component';
 import { EmojiPickerComponent } from '../../../../shared/components/forms/emoji-picker/emoji-picker.component';
 import {
@@ -50,7 +49,6 @@ import { DelegateType, LegalDocumentType } from '@muixer/shared';
     EmptyStateComponent,
     PaginationComponent,
     PersonInvitationModalComponent,
-    PersonLinkUserModalComponent,
     PersonDelegateModalComponent,
     EmojiPickerComponent,
   ],
@@ -96,15 +94,16 @@ export class PersonDetailComponent implements OnInit {
   selectedPositionIds = signal<string[]>([]);
 
   invitationModalOpen = signal(false);
-  linkUserModalOpen = signal(false);
   delegateModalOpen = signal(false);
+  delegateModalIsPrimary = signal(false);
 
   // ── Delegates ──
   delegates = signal<PersonDelegateItem[]>([]);
   delegatesLoading = signal(false);
-  delegatesExpanded = signal(true);
   removingDelegateId = signal<string | null>(null);
   existingDelegateUserIds = computed(() => this.delegates().map((d) => d.user.id));
+  primaryDelegate = computed(() => this.delegates().find((d) => d.isPrimary) ?? null);
+  secondaryDelegates = computed(() => this.delegates().filter((d) => !d.isPrimary));
 
   // ── F3 History ──
   historyEntries = signal<PersonAssignmentEntry[]>([]);
@@ -221,7 +220,7 @@ export class PersonDetailComponent implements OnInit {
       alias: raw.alias ?? undefined,
       phone: raw.phone ?? undefined,
       birthDate: raw.birthDate || undefined,
-      shoulderHeight: raw.shoulderHeight ?? undefined,
+      shoulderHeight: raw.shoulderHeight || null,
       notes: raw.notes ?? undefined,
       notesEmoji: raw.notesEmoji ?? null,
       isActive: raw.isActive ?? undefined,
@@ -300,7 +299,7 @@ export class PersonDetailComponent implements OnInit {
       alias: person.alias ?? '',
       phone: person.phone ?? '',
       birthDate: person.birthDate ?? '',
-      shoulderHeight: person.shoulderHeight ?? null,
+      shoulderHeight: person.shoulderHeight || null,
       notes: person.notes ?? '',
       notesEmoji: person.notesEmoji ?? null,
       isActive: person.isActive,
@@ -316,20 +315,10 @@ export class PersonDetailComponent implements OnInit {
     this.invitationModalOpen.set(true);
   }
 
-  startLinkingToUser() {
-    this.linkUserModalOpen.set(true);
-  }
-
   onInvitationSuccess() {
     const id = this.route.snapshot.paramMap.get('id')!;
     this.loadPerson(id);
     this.invitationModalOpen.set(false);
-  }
-
-  onLinkUserSuccess() {
-    const id = this.route.snapshot.paramMap.get('id')!;
-    this.loadPerson(id);
-    this.linkUserModalOpen.set(false);
   }
 
   // ── F3 History ──
@@ -375,6 +364,7 @@ export class PersonDetailComponent implements OnInit {
     [DelegateType.PARENT]: 'Pare/Mare',
     [DelegateType.PARTNER]: 'Parella',
     [DelegateType.GUARDIAN]: 'Tutor/a',
+    [DelegateType.OTHER]: 'Altres',
   };
 
   getDelegateTypeLabel(type: DelegateType): string {
@@ -394,7 +384,8 @@ export class PersonDetailComponent implements OnInit {
     });
   }
 
-  openDelegateModal(): void {
+  openDelegateModal(isPrimary = false): void {
+    this.delegateModalIsPrimary.set(isPrimary);
     this.delegateModalOpen.set(true);
   }
 

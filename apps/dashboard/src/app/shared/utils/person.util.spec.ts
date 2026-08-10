@@ -29,7 +29,7 @@ describe('person.util', () => {
     notesEmoji: null,
     isActive: true,
     positions: [],
-    managedBy: null,
+    user: null,
     createdAt: '',
     updatedAt: '',
   };

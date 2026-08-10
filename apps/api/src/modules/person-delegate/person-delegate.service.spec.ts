@@ -99,7 +99,7 @@ describe('PersonDelegateService', () => {
       expect(result).toEqual(delegates);
       expect(mockDelegateRepository.find).toHaveBeenCalledWith({
         where: { person: { id: personId } },
-        relations: ['user', 'person'],
+        relations: ['user', 'user.person', 'person'],
         order: { createdAt: 'ASC' },
       });
     });

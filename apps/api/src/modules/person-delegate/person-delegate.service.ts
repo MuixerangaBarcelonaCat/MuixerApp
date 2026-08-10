@@ -28,7 +28,7 @@ export class PersonDelegateService {
   async findByPerson(personId: string): Promise<PersonDelegate[]> {
     return this.delegateRepo.find({
       where: { person: { id: personId } },
-      relations: ['user', 'person'],
+      relations: ['user', 'user.person', 'person'],
       order: { createdAt: 'ASC' },
     });
   }
