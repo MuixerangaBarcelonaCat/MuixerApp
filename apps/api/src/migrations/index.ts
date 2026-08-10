@@ -33,6 +33,7 @@ import { SeedLegalDocuments1783500000000 } from './1783500000000-SeedLegalDocume
 import { AddLegalDocumentRequiresConsent1783600000000 } from './1783600000000-AddLegalDocumentRequiresConsent';
 import { AddPersonDelegatePrimaryAndOtherType1783700000000 } from './1783700000000-AddPersonDelegatePrimaryAndOtherType';
 import { DropPersonManagedBy1783800000000 } from './1783800000000-DropPersonManagedBy';
+import { FixLegalDocumentsTextAndStyle1783900000000 } from './1783900000000-FixLegalDocumentsTextAndStyle';
 
 export const migrations: (new () => MigrationInterface)[] = [
   InitialSchema1748600000000,
@@ -69,4 +70,5 @@ export const migrations: (new () => MigrationInterface)[] = [
   AddLegalDocumentRequiresConsent1783600000000,
   AddPersonDelegatePrimaryAndOtherType1783700000000,
   DropPersonManagedBy1783800000000,
+  FixLegalDocumentsTextAndStyle1783900000000,
 ];
