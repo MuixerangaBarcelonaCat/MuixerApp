@@ -28,6 +28,9 @@ export class PersonDelegateResponseDto {
   isActive: boolean;
 
   @Expose()
+  isPrimary: boolean;
+
+  @Expose()
   createdAt: Date;
 
   @Expose()

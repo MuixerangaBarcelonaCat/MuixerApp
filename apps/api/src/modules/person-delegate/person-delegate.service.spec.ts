@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import {
   NotFoundException,
   ConflictException,
@@ -11,8 +12,18 @@ import { PersonDelegate } from './person-delegate.entity';
 import { Person } from '../person/person.entity';
 import { User } from '../user/user.entity';
 
+// The transaction manager exposes a scoped repository used by create()/update()
+// when swapping the primary delegate.
+const makeTxRepo = () => ({
+  update: jest.fn().mockResolvedValue({ affected: 1 }),
+  create: jest.fn((data: Record<string, unknown>) => data),
+  save: jest.fn((data: Record<string, unknown>) => Promise.resolve({ id: 'del-new', ...data })),
+});
+
 describe('PersonDelegateService', () => {
   let service: PersonDelegateService;
+  let txRepo: ReturnType<typeof makeTxRepo>;
+  let dataSource: { transaction: jest.Mock };
 
   const mockDelegateRepository = {
     find: jest.fn(),
@@ -31,6 +42,13 @@ describe('PersonDelegateService', () => {
   };
 
   beforeEach(async () => {
+    txRepo = makeTxRepo();
+    dataSource = {
+      transaction: jest.fn((cb: (m: unknown) => unknown) =>
+        cb({ getRepository: () => txRepo }),
+      ),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PersonDelegateService,
@@ -46,6 +64,7 @@ describe('PersonDelegateService', () => {
           provide: getRepositoryToken(User),
           useValue: mockUserRepository,
         },
+        { provide: DataSource, useValue: dataSource },
       ],
     }).compile();
 
@@ -146,6 +165,7 @@ describe('PersonDelegateService', () => {
         person,
         user,
         delegateType: DelegateType.PARENT,
+        isPrimary: false,
       });
     });
 
@@ -188,6 +208,44 @@ describe('PersonDelegateService', () => {
       await expect(service.create(personId, selfDto)).rejects.toThrow(
         BadRequestException,
       );
+    });
+
+    it('should demote the existing primary and create the new one as primary, in a transaction', async () => {
+      const person = { id: personId };
+      const user = { id: 'user-1', email: 'parent@test.com', person: null };
+      const primaryDto = { ...dto, isPrimary: true };
+
+      mockPersonRepository.findOne.mockResolvedValue(person);
+      mockUserRepository.findOne.mockResolvedValue(user);
+      mockDelegateRepository.findOne.mockResolvedValue(null);
+
+      const result = await service.create(personId, primaryDto);
+
+      expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+      expect(txRepo.update).toHaveBeenCalledWith(
+        { person: { id: personId } },
+        { isPrimary: false },
+      );
+      expect(txRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ person, user, isPrimary: true }),
+      );
+      expect(result).toEqual(expect.objectContaining({ isPrimary: true }));
+    });
+
+    it('should not demote any primary or use a transaction when isPrimary is not set', async () => {
+      const person = { id: personId };
+      const user = { id: 'user-1', email: 'parent@test.com', person: null };
+      const created = { id: 'del-1', person, user, delegateType: DelegateType.PARENT, isPrimary: false };
+
+      mockPersonRepository.findOne.mockResolvedValue(person);
+      mockUserRepository.findOne.mockResolvedValue(user);
+      mockDelegateRepository.findOne.mockResolvedValue(null);
+      mockDelegateRepository.create.mockReturnValue(created);
+      mockDelegateRepository.save.mockResolvedValue(created);
+
+      await service.create(personId, dto);
+
+      expect(dataSource.transaction).not.toHaveBeenCalled();
     });
   });
 
@@ -239,6 +297,73 @@ describe('PersonDelegateService', () => {
           delegateType: DelegateType.GUARDIAN,
         }),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should demote the existing primary and promote this delegate, in a transaction', async () => {
+      const existing = {
+        id: 'del-1',
+        delegateType: DelegateType.PARENT,
+        isActive: true,
+        isPrimary: false,
+      };
+      mockDelegateRepository.findOne.mockResolvedValue(existing);
+      (txRepo.save as jest.Mock).mockImplementation(
+        (data: Record<string, unknown>) => Promise.resolve(data),
+      );
+
+      const result = await service.update('person-1', 'del-1', {
+        isPrimary: true,
+      });
+
+      expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+      expect(txRepo.update).toHaveBeenCalledWith(
+        { person: { id: 'person-1' } },
+        { isPrimary: false },
+      );
+      expect(result.isPrimary).toBe(true);
+    });
+
+    it('should not use a transaction when isPrimary is not part of the update', async () => {
+      const existing = {
+        id: 'del-1',
+        delegateType: DelegateType.PARENT,
+        isActive: true,
+        isPrimary: false,
+      };
+      mockDelegateRepository.findOne.mockResolvedValue(existing);
+      mockDelegateRepository.save.mockResolvedValue(existing);
+
+      await service.update('person-1', 'del-1', { isActive: false });
+
+      expect(dataSource.transaction).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getPrimary', () => {
+    it('should return the primary delegate for a person', async () => {
+      const primary = {
+        id: 'del-1',
+        isPrimary: true,
+        user: { id: 'user-1', email: 'parent@test.com' },
+        person: { id: 'person-1', alias: 'child' },
+      };
+      mockDelegateRepository.findOne.mockResolvedValue(primary);
+
+      const result = await service.getPrimary('person-1');
+
+      expect(result).toEqual(primary);
+      expect(mockDelegateRepository.findOne).toHaveBeenCalledWith({
+        where: { person: { id: 'person-1' }, isPrimary: true },
+        relations: ['user', 'person'],
+      });
+    });
+
+    it('should return null when the person has no primary delegate', async () => {
+      mockDelegateRepository.findOne.mockResolvedValue(null);
+
+      const result = await service.getPrimary('person-1');
+
+      expect(result).toBeNull();
     });
   });
 

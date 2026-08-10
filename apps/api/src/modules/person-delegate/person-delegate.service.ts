@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { PersonDelegate } from './person-delegate.entity';
 import { Person } from '../person/person.entity';
 import { User } from '../user/user.entity';
@@ -21,6 +21,7 @@ export class PersonDelegateService {
     private readonly personRepo: Repository<Person>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async findByPerson(personId: string): Promise<PersonDelegate[]> {
@@ -73,13 +74,27 @@ export class PersonDelegateService {
       );
     }
 
-    const delegate = this.delegateRepo.create({
-      person,
-      user,
-      delegateType: dto.delegateType,
-    });
+    if (!dto.isPrimary) {
+      const delegate = this.delegateRepo.create({
+        person,
+        user,
+        delegateType: dto.delegateType,
+        isPrimary: false,
+      });
+      return this.delegateRepo.save(delegate);
+    }
 
-    return this.delegateRepo.save(delegate);
+    return this.dataSource.transaction(async (manager) => {
+      const repo = manager.getRepository(PersonDelegate);
+      await repo.update({ person: { id: personId } }, { isPrimary: false });
+      const delegate = repo.create({
+        person,
+        user,
+        delegateType: dto.delegateType,
+        isPrimary: true,
+      });
+      return repo.save(delegate);
+    });
   }
 
   async update(
@@ -102,7 +117,26 @@ export class PersonDelegateService {
       delegate.isActive = dto.isActive;
     }
 
-    return this.delegateRepo.save(delegate);
+    if (dto.isPrimary !== true) {
+      if (dto.isPrimary === false) {
+        delegate.isPrimary = false;
+      }
+      return this.delegateRepo.save(delegate);
+    }
+
+    return this.dataSource.transaction(async (manager) => {
+      const repo = manager.getRepository(PersonDelegate);
+      await repo.update({ person: { id: personId } }, { isPrimary: false });
+      delegate.isPrimary = true;
+      return repo.save(delegate);
+    });
+  }
+
+  async getPrimary(personId: string): Promise<PersonDelegate | null> {
+    return this.delegateRepo.findOne({
+      where: { person: { id: personId }, isPrimary: true },
+      relations: ['user', 'person'],
+    });
   }
 
   async remove(personId: string, id: string): Promise<void> {
