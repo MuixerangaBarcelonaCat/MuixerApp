@@ -36,6 +36,7 @@ graph TD
   MAP --> DOCKER_SETUP
   DATA_MODEL --> PINYES_MODULE
   PINYES_MODULE --> SEGMENTS_FLEXIBILITY
+  SEGMENTS_FLEXIBILITY --> SEGMENTS_FLEXIBILITY_PLAN
   AUTH_FLOW --> SSE_AUTH
   SYNC_ARCHITECTURE --> API_APPSISTENCIA
   SYNC_ARCHITECTURE --> SSE_AUTH
@@ -62,6 +63,7 @@ graph TD
 | [[DATA_MODEL]] | Entitats, camps, relacions i enums |
 | [[PINYES_MODULE]] | Figures, rengles, instàncies, snapshot lazy, assignacions |
 | [[SEGMENTS_FLEXIBILITY]] | Pla pendent: permetre una persona dues vegades al mateix segment |
+| [[SEGMENTS_FLEXIBILITY_PLAN]] | Pla d'execució fase a fase + protocol de verificació de cada fase |
 
 ### Autenticació
 
