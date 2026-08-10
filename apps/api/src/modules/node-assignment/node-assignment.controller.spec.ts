@@ -41,12 +41,25 @@ const mockHistoryEntry = {
   assignments: [],
 };
 
+const mockConflictsResponse = {
+  data: [],
+  meta: {
+    assignmentCount: 0,
+    distinctPersonCount: 0,
+    tronc: { distinctPersonCount: 0 },
+    pinya: { distinctPersonCount: 0 },
+    conflictPersonCount: 0,
+    conflictsByKind: { TRONC_TRONC: 0, TRONC_PINYA: 0, PINYA_PINYA: 0 },
+  },
+};
+
 const mockAssignmentService: Partial<NodeAssignmentService> = {
   getByInstance: jest.fn().mockResolvedValue([mockAssignment]),
   assign: jest.fn().mockResolvedValue(mockAssignment),
   unassign: jest.fn().mockResolvedValue(undefined),
   bulkImport: jest.fn().mockResolvedValue({ created: [mockAssignment], conflicts: [] }),
   getHistory: jest.fn().mockResolvedValue([mockHistoryEntry]),
+  getSegmentConflicts: jest.fn().mockResolvedValue(mockConflictsResponse),
 };
 
 const mockAvailablePersonsService: Partial<AvailablePersonsService> = {
@@ -169,6 +182,18 @@ describe('NodeAssignmentController', () => {
 
       expect(result).toBeNull();
       expect(mockAvailablePersonsService.getNextPerformance).toHaveBeenCalledWith(EVENT_ID);
+    });
+  });
+
+  describe('getConflicts', () => {
+    it('delegates to service and returns the SegmentConflictsResponse unwrapped', async () => {
+      (mockAssignmentService.getSegmentConflicts as jest.Mock).mockResolvedValue(mockConflictsResponse);
+
+      const result = await controller.getConflicts(EVENT_ID, SEGMENT_ID);
+
+      // Already has data+meta shape — no extra { data } wrapping.
+      expect(result).toEqual(mockConflictsResponse);
+      expect(mockAssignmentService.getSegmentConflicts).toHaveBeenCalledWith(SEGMENT_ID);
     });
   });
 

@@ -43,7 +43,7 @@ Estat de conjunt, actualitzat en tancar cada fase (no cal obrir cada secció per
 | Fase | Objectiu | Estat | Data | Resultats |
 |---|---|---|---|---|
 | 0 | Fonaments i bugs de col·lapse | ✅ Fet | 2026-08-10 | [§Resultats Fase 0](#resultats--fase-0) |
-| 1 | Motor de conflictes (backend additiu) | ⬜ Pendent | — | — |
+| 1 | Motor de conflictes (backend additiu) | ✅ Fet | 2026-08-10 | [§Resultats Fase 1](#resultats--fase-1) |
 | 2 | Participació sobre la font canònica | ⬜ Pendent | — | — |
 | 3 | El taller en mode lectura | ⬜ Pendent | — | — |
 | 4 | Resolució interactiva al taller | ⬜ Pendent | — | — |
@@ -216,7 +216,72 @@ valen `0`/`[]`; cap resposta existent canvia de forma.
   3. Obrir `/api/docs` i confirmar que els nous camps apareixen documentats a l'schema.
 
 ### Resultats — Fase 1
-_(a omplir)_
+
+| # | Escenari | Esperat | Obtingut | Resultat |
+|---|----------|---------|----------|----------|
+| 1 | `getSegmentConflicts()` classifica TRONC_PINYA/TRONC_TRONC/PINYA_PINYA | `kind` per §4.1, `suggestedRemovalAssignmentIds` mai amb tronc, PINYA_PINYA manté la interior | Unitaris + integració (constraints dropades) verds | PASS |
+| 2 | Cas mixt de precedència (2 tronc + 1 pinya) | `TRONC_TRONC` amb la pinya dins `suggestedRemovalAssignmentIds` | Unitari + integració amb duplicat real | PASS |
+| 3 | Cas negatiu entre segments | Mateixa persona a 2 segments ≠ conflicte (query sempre scoped per `segmentId`) | Unitari + integració (2 segments reals) | PASS |
+| 4 | Endpoint `GET events/:eventId/segments/:segmentId/conflicts` | Retorna `SegmentConflictsResponse` sense embolicar en `{ data }` (ja té `data`+`meta`) | Test de controller verd; reutilitza `@Roles`/`@ApiBearerAuth` de classe | PASS |
+| 5 | Camps additius a `findAllByEvent`/`getEventAssignmentSummary`/`ProjectionData`/`available-persons` | En producció (sense duplicats) sempre `0`/`[]`; cap camp existent canvia de forma | Tests unitaris amb fixtures sense conflicte assereixen els defaults; regressió completa verda | PASS |
+| 6 | D13 — font única, sense N+1 nou | `getEventAssignmentSummary`/`findAllByEvent` reusen les assignacions ja batched (`classifySegmentConflicts` extret) enlloc de cridar `getSegmentConflicts` per segment | Test explícit `assignmentRepo.find` cridat 1 sola vegada per tot l'event | PASS |
+| 7 | Contracte a producció, dades reals (event `29b88c09-a57c-4de6-9ce8-894b91610a99`, segment "Pinets", sense duplicats) | `GET .../conflicts` → `{ data: [], meta: {..., conflictPersonCount: 0, ...} }`; `meta` idèntic al `conflicts` de `findAllByEvent()` pel mateix segment; `/assignment-summary` amb `conflictAssignmentCount: 0` a totes les figures; `ProjectionData.conflicts: []`; endpoint documentat a `/api/docs` | Els 4 punts verificats en viu amb `nx serve`-equivalent + login ADMIN real — `meta` byte-idèntic entre `/conflicts` i `findAllByEvent()` (assignmentCount 55, distinctPersonCount 55, tronc 8, pinya 43); `/assignment-summary` sense cap valor alterat, només camps nous; `/api/docs-json` conté `GET /api/events/{eventId}/segments/{segmentId}/conflicts` amb `security: [{bearer:[]}]` | PASS |
+
+**Resum:** Fase 1 completa i additiva: `getSegmentConflicts()` és ara l'única implementació de
+classificació de conflictes (D13), reutilitzada per l'endpoint nou i pels 4 llocs de lectura
+existents sense re-implementar la lògica ni afegir cap query nova a `getEventAssignmentSummary`
+(risc de N+1 evitat explícitament, amb test que ho fixa). En producció (constraints intactes) tots
+els camps nous surten a `0`/`[]` i cap resposta existent canvia de forma — verificat afegint asserts
+de forma a fixtures existents (`event-segment.controller.spec.ts`).
+
+**Tests automàtics:** `nx test shared` 29/29 · `nx test api` 876/876 (inclou 6 tests nous
+d'integració amb Postgres real a `segment-conflicts.integration.spec.ts`) · `nx test dashboard`
+1496/1498 (2 skipped preexistents) — tots verds. `nx lint api|shared` 0 errors. `nx build api` i
+`nx build dashboard` OK.
+
+**Pendent/riscos oberts en tancar la fase:**
+- **Quirk d'entorn (no introduït per aquest canvi):** `localhost:5433` en aquesta màquina de dev està
+  ocupat per un procés SSH (`ssh` amb bind explícit a `127.0.0.1:5433`/`[::1]:5433`), que guanya per
+  especificitat al bind `*:5433` de Docker Desktop. Per això `DATABASE_URL=...@localhost:5433/...`
+  connecta al túnel SSH en lloc del Postgres de dev real, i `nx serve api` fallava amb "password
+  authentication failed" tot i que les credencials de `.env` són correctes (verificat: el mateix
+  password funciona connectant per `docker exec` i per la IP de LAN de la màquina). La verificació
+  manual d'aquesta secció s'ha fet alçant l'API compilada (`node dist/apps/api/main.js`) amb
+  `DATABASE_URL` apuntant a la IP de LAN en lloc de `localhost`, sense tocar `.env` ni el túnel SSH.
+  Si aquest túnel no és intencionat, revisar-lo; si ho és, `nx serve api` normal seguirà fallant
+  fins que `.env` apunti a una adreça que no col·lideixi amb `127.0.0.1`.
+- Sense Playwright (fase backend-only, sense canvi observable) — mateix criteri que la Fase 0.
+- **`assignedNodeCordon` (`available-persons.service.ts`) inconsistència de tipus preexistent, NO
+  resolta en aquesta fase:** el servei ja retornava `assignedNodeCordon: detail?.renglaPosition ?? null`
+  abans de la Fase 1, però aquest camp mai s'ha declarat a la interfície compartida `AvailablePerson`
+  (`libs/shared/.../assignment.interfaces.ts`). En afegir els camps plurals d'aquesta fase
+  (`assignedPlacements[]` etc.) **no s'ha duplicat** l'error — `cordon` sí és un camp declarat a
+  `ConflictPlacement` — però el forat original al singular segueix obert. Abordar-ho quan es
+  retirin els camps singulars (Fase 7): declarar `assignedNodeCordon` a `AvailablePerson` o eliminar-lo
+  directament si `assignedPlacements[0]?.cordon` ja el substitueix.
+- **Duplicació d'interfícies `EventFigureSummary`/`EventSegmentSummary`/`EventAssignmentSummary`,
+  descoberta en implementar aquesta fase:** existeixen declarades **dues vegades** amb el mateix nom —
+  a `libs/shared/src/interfaces/pinyes/assignment.interfaces.ts` (l'oficial, compartida amb el
+  frontend) i, sencera i independent, dins `node-assignment.service.ts` (~línia 177). El servei fa
+  servir la seua còpia local, no la de `shared`; he hagut d'afegir `distinctPersonCount`,
+  `conflictAssignmentCount` i `conflicts` **a totes dues** perquè queden sincronitzades, però no hi ha
+  cap mecanisme que ho garanteixi si algú només toca una còpia en el futur. Val la pena unificar-les
+  (que el servei importi el tipus de `shared` en lloc de redeclarar-lo) en una fase de neteja, no
+  urgent per a la Fase 2.
+- **Fidelitat parcial de `figureName` dins `classifySegmentConflicts()` quan es crida des de
+  `getEventAssignmentSummary()`:** aquest mètode reutilitza `classifySegmentConflicts()` sobre
+  assignacions carregades sense la relació `figureInstance.figureTemplate` (per no afegir una query
+  nova, risc de N+1 evitat a propòsit), així que qualsevol `ConflictPlacement.figureName` derivat
+  d'aquest camí cau al fallback `'Sense plantilla'` encara que la figura en tingui. Avui és inofensiu
+  perquè `getEventAssignmentSummary()` només exposa comptadors (`distinctPersonCount`,
+  `conflictAssignmentCount`), mai els `placements` en brut — però si una fase futura exposa
+  `SegmentConflict[]`/`placements` des d'aquest camí caldrà o bé afegir la relació o bé no confiar en
+  `figureName` ací.
+- **Cordó (`cordon = renglaPosition`) pendent de confirmar contra `ringLevel`:** decisió presa a
+  `ConflictPlacement`/`available-persons` seguint la convenció ja existent al codi, però sense
+  confirmar formalment si `ringLevel` és el cordó "real" en algun cas. Si en una fase posterior es
+  detecta que calia `ringLevel`, cal corregir-ho i fixar-ho amb un test (ja anotat com a risc obert
+  quan es va dissenyar la superfície compartida d'aquesta fase).
 
 ---
 

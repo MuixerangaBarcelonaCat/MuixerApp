@@ -149,6 +149,16 @@ export class NodeAssignmentController {
     return { data };
   }
 
+  @ApiOperation({ summary: 'Get the canonical conflict report for a segment (D13)' })
+  @Get('events/:eventId/segments/:segmentId/conflicts')
+  getConflicts(
+    @Param('eventId', ParseUUIDPipe) _eventId: string,
+    @Param('segmentId', ParseUUIDPipe) segmentId: string,
+  ) {
+    // Already has a data+meta shape — no extra { data } wrapping.
+    return this.assignmentService.getSegmentConflicts(segmentId);
+  }
+
   @ApiOperation({ summary: 'Get figure instance assignment history for a template' })
   @Get('figure-templates/:templateId/history')
   async getHistory(

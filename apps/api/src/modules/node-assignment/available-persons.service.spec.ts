@@ -7,7 +7,7 @@ import { Attendance } from '../event/attendance.entity';
 import { Event } from '../event/event.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
 import { NodeAssignment } from './entities/node-assignment.entity';
-import { AttendanceStatus, EventType } from '@muixer/shared';
+import { AttendanceStatus, EventType, FigureZone } from '@muixer/shared';
 
 const EVENT_ID = 'event-uuid-1';
 const SEGMENT_ID = 'segment-uuid-1';
@@ -313,6 +313,79 @@ describe('AvailablePersonsService', () => {
       const result = await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, { excludeAssigned: false });
 
       expect(result[0].assignedNodeCordon).toBeNull();
+    });
+
+    it('derives assignedPlacements/assignedInTronc/assignedInPinya from the segment assignments, with conflictInSegment always false (Fase 1)', async () => {
+      mockEventRepo.findOne.mockResolvedValueOnce(makeEvent()).mockResolvedValue(null);
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      const person = makePerson();
+      mockPersonQb.getMany.mockResolvedValue([person]);
+      mockAssignmentRepo.find.mockResolvedValue([
+        {
+          id: 'assignment-uuid-1',
+          person: { id: PERSON_ID_1 },
+          figureInstance: { id: 'instance-uuid-1' },
+          instanceNode: { id: 'node-uuid-1', label: 'Node A', zone: FigureZone.TRONC, renglaPosition: null },
+        },
+      ]);
+      mockAttendanceRepo.find.mockResolvedValue([]);
+
+      const result = await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, { excludeAssigned: false });
+
+      expect(result[0].assignedPlacements).toHaveLength(1);
+      expect(result[0].assignedPlacements[0]).toMatchObject({
+        assignmentId: 'assignment-uuid-1',
+        figureInstanceId: 'instance-uuid-1',
+        nodeId: 'node-uuid-1',
+        nodeLabel: 'Node A',
+        zone: FigureZone.TRONC,
+      });
+      expect(result[0].assignedInTronc).toBe(true);
+      expect(result[0].assignedInPinya).toBe(false);
+      expect(result[0].conflictInSegment).toBe(false);
+    });
+
+    it('keeps every placement in assignedPlacements, not just the first (multiple areas)', async () => {
+      mockEventRepo.findOne.mockResolvedValueOnce(makeEvent()).mockResolvedValue(null);
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      const person = makePerson();
+      mockPersonQb.getMany.mockResolvedValue([person]);
+      mockAssignmentRepo.find.mockResolvedValue([
+        {
+          id: 'assignment-uuid-1',
+          person: { id: PERSON_ID_1 },
+          figureInstance: { id: 'instance-uuid-1' },
+          instanceNode: { id: 'node-uuid-1', label: 'Node A', zone: FigureZone.TRONC, renglaPosition: null },
+        },
+        {
+          id: 'assignment-uuid-2',
+          person: { id: PERSON_ID_1 },
+          figureInstance: { id: 'instance-uuid-2' },
+          instanceNode: { id: 'node-uuid-2', label: 'Node B', zone: FigureZone.PINYA, renglaPosition: 1 },
+        },
+      ]);
+      mockAttendanceRepo.find.mockResolvedValue([]);
+
+      const result = await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, { excludeAssigned: false });
+
+      expect(result[0].assignedPlacements).toHaveLength(2);
+      expect(result[0].assignedInTronc).toBe(true);
+      expect(result[0].assignedInPinya).toBe(true);
+    });
+
+    it('leaves assignedPlacements empty and assignedIn{Tronc,Pinya} false when excludeAssigned=true (default)', async () => {
+      mockEventRepo.findOne.mockResolvedValueOnce(makeEvent()).mockResolvedValue(null);
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      const person = makePerson();
+      mockPersonQb.getMany.mockResolvedValue([person]);
+      mockAttendanceRepo.find.mockResolvedValue([]);
+
+      const result = await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, { excludeAssigned: true });
+
+      expect(result[0].assignedPlacements).toEqual([]);
+      expect(result[0].assignedInTronc).toBe(false);
+      expect(result[0].assignedInPinya).toBe(false);
+      expect(result[0].conflictInSegment).toBe(false);
     });
 
     it('returns nextPerformanceStatus when event is ASSAIG', async () => {

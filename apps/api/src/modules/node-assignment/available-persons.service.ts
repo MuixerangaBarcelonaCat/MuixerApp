@@ -6,7 +6,14 @@ import { Attendance } from '../event/attendance.entity';
 import { Event } from '../event/event.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
 import { NodeAssignment } from './entities/node-assignment.entity';
-import { AttendanceStatus, EventType } from '@muixer/shared';
+import {
+  AttendanceStatus,
+  EventType,
+  FigureZone,
+  AssignmentArea,
+  areaForZone,
+  ConflictPlacement,
+} from '@muixer/shared';
 
 interface AvailablePersonPositionDto {
   id: string;
@@ -31,6 +38,10 @@ export interface AvailablePersonDto {
   assignedInstanceId?: string;
   assignedNodeLabel?: string;
   assignedNodeCordon?: number | null;
+  assignedPlacements: ConflictPlacement[];
+  assignedInTronc: boolean;
+  assignedInPinya: boolean;
+  conflictInSegment: boolean;
   positions: AvailablePersonPositionDto[];
 }
 
@@ -175,26 +186,32 @@ export class AvailablePersonsService {
 
     // Get assigned person details in this segment (for `assignedInSegment` flag + location).
     // Accumulate ALL placements per person rather than `.set()` in a loop, which kept an
-    // arbitrary (last) row (§2). Fase 0 still exposes only singular fields (derived from the
-    // first placement); the plural `assignedPlacements[]` field arrives in Fase 1.
-    const assignedDetails = new Map<
-      string,
-      { instanceId: string; nodeLabel: string; renglaPosition: number | null }[]
-    >();
+    // arbitrary (last) row (§2). Fase 0 exposed only singular fields (derived from the first
+    // placement); the plural `assignedPlacements[]` field arrives in Fase 1 alongside them —
+    // both are kept until Fase 7.
+    const assignedDetails = new Map<string, ConflictPlacement[]>();
     if (!excludeAssignedBool) {
       const segmentAssignments = await this.assignmentRepository.find({
         where: { figureInstance: { segment: { id: segmentId } } },
-        relations: ['figureInstance', 'instanceNode', 'person'],
+        relations: ['figureInstance', 'figureInstance.figureTemplate', 'instanceNode', 'person'],
       });
       segmentAssignments.forEach((assignment) => {
-        const detail = {
-          instanceId: assignment.figureInstance.id,
+        const zone = assignment.instanceNode?.zone as FigureZone;
+        const placement: ConflictPlacement = {
+          assignmentId: assignment.id,
+          figureInstanceId: assignment.figureInstance.id,
+          figureName: assignment.figureInstance.figureTemplate?.name ?? 'Sense plantilla',
+          nodeId: assignment.instanceNode?.id ?? '',
           nodeLabel: assignment.instanceNode?.label ?? '',
+          zone,
+          area: areaForZone(zone) as AssignmentArea,
+          z: assignment.instanceNode?.z ?? null,
           renglaPosition: assignment.instanceNode?.renglaPosition ?? null,
+          cordon: assignment.instanceNode?.renglaPosition ?? null,
         };
         const existing = assignedDetails.get(assignment.person.id);
-        if (existing) existing.push(detail);
-        else assignedDetails.set(assignment.person.id, [detail]);
+        if (existing) existing.push(placement);
+        else assignedDetails.set(assignment.person.id, [placement]);
       });
     }
 
@@ -221,7 +238,8 @@ export class AvailablePersonsService {
       const nextPerformanceStatus = nextPerformance
         ? (nextAttendanceMap.get(person.id) ?? null)
         : null;
-      const detail = assignedDetails.get(person.id)?.[0];
+      const placements = assignedDetails.get(person.id) ?? [];
+      const detail = placements[0];
 
       return {
         id: person.id,
@@ -235,9 +253,13 @@ export class AvailablePersonsService {
         attendanceStatus,
         nextPerformanceStatus,
         assignedInSegment: !excludeAssignedBool && assignedDetails.has(person.id),
-        assignedInstanceId: detail?.instanceId,
-        assignedNodeLabel: detail?.nodeLabel,
+        assignedInstanceId: detail?.figureInstanceId,
+        assignedNodeLabel: detail?.nodeLabel ?? undefined,
         assignedNodeCordon: detail?.renglaPosition ?? null,
+        assignedPlacements: placements,
+        assignedInTronc: placements.some((p) => p.area === AssignmentArea.TRONC),
+        assignedInPinya: placements.some((p) => p.area === AssignmentArea.PINYA),
+        conflictInSegment: false,
         positions: (person.positions ?? []).map((p) => ({
           id: p.id,
           name: p.name,

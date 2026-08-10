@@ -3,6 +3,7 @@ import { EventType } from '../../enums/event-type.enum';
 import { FigureZone } from '../../enums/figure-zone.enum';
 import { NodeShape } from '../../enums/node-shape.enum';
 import { PaginatedMeta } from '../pagination.interface';
+import { ConflictPlacement, SegmentPeopleCounters } from './segment-conflict.interfaces';
 
 // ── Core assignment types ───────────────────────────────────────────────────
 
@@ -79,6 +80,11 @@ export interface AvailablePerson {
   assignedInSegment: boolean;
   assignedInstanceId?: string;
   assignedNodeLabel?: string;
+  assignedNodeCordon?: number | null;
+  assignedPlacements: ConflictPlacement[];
+  assignedInTronc: boolean;
+  assignedInPinya: boolean;
+  conflictInSegment: boolean;
   positions: AvailablePersonPosition[];
 }
 
@@ -148,6 +154,8 @@ export interface EventFigureSummary {
   tronc: FigureAreaCount;
   total: FigureAreaCount;
   troncBaseAssignments: EventAssignmentEntry[];
+  distinctPersonCount: number;
+  conflictAssignmentCount: number;
 }
 
 export interface EventSegmentSummary {
@@ -155,6 +163,7 @@ export interface EventSegmentSummary {
   segmentName: string;
   sortOrder: number;
   figures: EventFigureSummary[];
+  conflicts: SegmentPeopleCounters;
 }
 
 export interface EventAssignmentSummary {

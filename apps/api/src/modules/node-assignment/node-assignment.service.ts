@@ -20,6 +20,10 @@ import {
   AssignmentArea,
   SegmentConflictKind,
   areaForZone,
+  ConflictPlacement,
+  SegmentConflict,
+  SegmentConflictsResponse,
+  SegmentPeopleCounters,
 } from '@muixer/shared';
 import { CreateAdHocNodeDto } from './dto/create-ad-hoc-node.dto';
 import { UpdateAdHocNodeDto } from './dto/update-ad-hoc-node.dto';
@@ -189,6 +193,8 @@ export interface EventFigureSummary {
     personAlias: string;
     personId: string;
   }[];
+  distinctPersonCount: number;
+  conflictAssignmentCount: number;
 }
 
 export interface EventSegmentSummary {
@@ -196,6 +202,7 @@ export interface EventSegmentSummary {
   segmentName: string;
   sortOrder: number;
   figures: EventFigureSummary[];
+  conflicts: SegmentPeopleCounters;
 }
 
 export interface EventAssignmentSummary {
@@ -657,6 +664,134 @@ export class NodeAssignmentService {
     return conflicts;
   }
 
+  // ── Segment conflicts — canonical source (D13) ─────────────────────────────
+
+  /**
+   * Canonical "what conflicts does this segment have" query (D13): every OTHER caller
+   * (summary, projection, findAllByEvent, available-persons) reads through this, never
+   * reimplementing the classification.
+   */
+  async getSegmentConflicts(segmentId: string): Promise<SegmentConflictsResponse> {
+    const assignments = await this.assignmentRepository.find({
+      where: { segment: { id: segmentId } },
+      relations: ['instanceNode', 'person', 'figureInstance', 'figureInstance.figureTemplate'],
+    });
+
+    const conflicts = this.classifySegmentConflicts(assignments);
+    return { data: conflicts, meta: this.computeSegmentPeopleCounters(assignments, conflicts) };
+  }
+
+  /**
+   * Groups an already-loaded set of assignments (one segment's worth) by person and
+   * classifies each >1-placement group. Callers that already have their assignments
+   * batched (getEventAssignmentSummary, projection) reuse this instead of re-querying
+   * through getSegmentConflicts — same classification, no extra round trip (D13).
+   */
+  private classifySegmentConflicts(assignments: NodeAssignment[]): SegmentConflict[] {
+    const areaRank: Record<string, number> = {
+      [AssignmentArea.TRONC]: 0,
+      [AssignmentArea.PINYA]: 1,
+      [AssignmentArea.DIRECTION]: 2,
+    };
+
+    const toPlacement = (a: NodeAssignment): ConflictPlacement => {
+      const zone = a.instanceNode.zone as FigureZone;
+      return {
+        assignmentId: a.id,
+        figureInstanceId: a.figureInstance.id,
+        figureName: a.figureInstance.figureTemplate?.name ?? 'Sense plantilla',
+        nodeId: a.instanceNode.id,
+        nodeLabel: a.instanceNode.label ?? null,
+        zone,
+        area: areaForZone(zone) as AssignmentArea,
+        z: a.instanceNode.z ?? null,
+        renglaPosition: a.instanceNode.renglaPosition ?? null,
+        cordon: a.instanceNode.renglaPosition ?? null,
+      };
+    };
+
+    const groupsByPersonId = new Map<string, { alias: string; placements: ConflictPlacement[] }>();
+    for (const a of assignments) {
+      const existing = groupsByPersonId.get(a.person.id);
+      const placement = toPlacement(a);
+      if (existing) existing.placements.push(placement);
+      else groupsByPersonId.set(a.person.id, { alias: a.person.alias, placements: [placement] });
+    }
+
+    const conflicts: SegmentConflict[] = [];
+    for (const [personId, { alias, placements }] of groupsByPersonId) {
+      if (placements.length < 2) continue;
+
+      placements.sort((x, y) => {
+        const rankDiff = (areaRank[x.area] ?? 99) - (areaRank[y.area] ?? 99);
+        if (rankDiff !== 0) return rankDiff;
+        return (x.renglaPosition ?? Infinity) - (y.renglaPosition ?? Infinity);
+      });
+
+      const troncCount = placements.filter((p) => p.area === AssignmentArea.TRONC).length;
+      const pinyaPlacements = placements.filter((p) => p.area === AssignmentArea.PINYA);
+      const kind =
+        troncCount >= 2
+          ? SegmentConflictKind.TRONC_TRONC
+          : troncCount === 1
+            ? SegmentConflictKind.TRONC_PINYA
+            : SegmentConflictKind.PINYA_PINYA;
+
+      // suggestedRemovalAssignmentIds (§Notes de disseny): never a tronc placement.
+      // PINYA_PINYA keeps the interior one (lowest renglaPosition, fallback z).
+      let suggestedRemovalAssignmentIds: string[];
+      if (kind === SegmentConflictKind.PINYA_PINYA) {
+        const byInterior = [...pinyaPlacements].sort(
+          (x, y) => (x.renglaPosition ?? x.z ?? Infinity) - (y.renglaPosition ?? y.z ?? Infinity),
+        );
+        suggestedRemovalAssignmentIds = byInterior.slice(1).map((p) => p.assignmentId);
+      } else {
+        suggestedRemovalAssignmentIds = pinyaPlacements.map((p) => p.assignmentId);
+      }
+
+      conflicts.push({ personId, personAlias: alias, placements, kind, suggestedRemovalAssignmentIds });
+    }
+
+    const kindOrder = [
+      SegmentConflictKind.TRONC_TRONC,
+      SegmentConflictKind.TRONC_PINYA,
+      SegmentConflictKind.PINYA_PINYA,
+    ];
+    conflicts.sort((a, b) => kindOrder.indexOf(a.kind) - kindOrder.indexOf(b.kind));
+
+    return conflicts;
+  }
+
+  private computeSegmentPeopleCounters(
+    assignments: NodeAssignment[],
+    conflicts: SegmentConflict[],
+  ): SegmentPeopleCounters {
+    const distinctPersonIds = new Set(assignments.map((a) => a.person.id));
+    const troncPersonIds = new Set<string>();
+    const pinyaPersonIds = new Set<string>();
+    for (const a of assignments) {
+      const area = areaForZone(a.instanceNode.zone as FigureZone);
+      if (area === AssignmentArea.TRONC) troncPersonIds.add(a.person.id);
+      if (area === AssignmentArea.PINYA) pinyaPersonIds.add(a.person.id);
+    }
+
+    const conflictsByKind: Record<SegmentConflictKind, number> = {
+      [SegmentConflictKind.TRONC_TRONC]: 0,
+      [SegmentConflictKind.TRONC_PINYA]: 0,
+      [SegmentConflictKind.PINYA_PINYA]: 0,
+    };
+    for (const c of conflicts) conflictsByKind[c.kind]++;
+
+    return {
+      assignmentCount: assignments.length,
+      distinctPersonCount: distinctPersonIds.size,
+      tronc: { distinctPersonCount: troncPersonIds.size },
+      pinya: { distinctPersonCount: pinyaPersonIds.size },
+      conflictPersonCount: conflicts.length,
+      conflictsByKind,
+    };
+  }
+
   async resolveSegmentMoveConflicts(
     instanceId: string,
     targetSegmentId: string,
@@ -925,24 +1060,50 @@ export class NodeAssignmentService {
     }
 
     const instancesBySegment = new Map<string, FigureInstance[]>();
+    const segmentIdByInstanceId = new Map<string, string>();
     for (const fi of instances) {
       const arr = instancesBySegment.get(fi.segment.id);
       if (arr) arr.push(fi);
       else instancesBySegment.set(fi.segment.id, [fi]);
+      segmentIdByInstanceId.set(fi.id, fi.segment.id);
+    }
+
+    // D13: classify conflicts per segment from the assignments already batched above
+    // (no extra query) instead of calling getSegmentConflicts per segment (would
+    // reintroduce the N+1 this method was optimized away from).
+    const assignmentsBySegment = new Map<string, NodeAssignment[]>();
+    for (const a of assignments) {
+      const segmentId = segmentIdByInstanceId.get(a.figureInstance.id);
+      if (!segmentId) continue;
+      const arr = assignmentsBySegment.get(segmentId);
+      if (arr) arr.push(a);
+      else assignmentsBySegment.set(segmentId, [a]);
     }
 
     const result: EventSegmentSummary[] = segments.map((segment) => {
+      const segmentAssignments = assignmentsBySegment.get(segment.id) ?? [];
+      const segmentConflicts = this.classifySegmentConflicts(segmentAssignments);
+      const conflictAssignmentIdsByInstance = new Map<string, Set<string>>();
+      for (const conflict of segmentConflicts) {
+        for (const placement of conflict.placements) {
+          const set = conflictAssignmentIdsByInstance.get(placement.figureInstanceId) ?? new Set<string>();
+          set.add(placement.assignmentId);
+          conflictAssignmentIdsByInstance.set(placement.figureInstanceId, set);
+        }
+      }
+
       const segmentInstances = instancesBySegment.get(segment.id) ?? [];
       const figures: EventFigureSummary[] = segmentInstances.map((fi) => {
         const nodes = fi.snapshotted
           ? (instanceNodesByInstance.get(fi.id) ?? [])
           : (templateNodesByTemplate.get(fi.figureTemplate?.id ?? '') ?? []);
         const figureAssignments = assignmentsByInstance.get(fi.id) ?? [];
+        const conflictAssignmentIds = conflictAssignmentIdsByInstance.get(fi.id);
         return {
           instanceId: fi.id,
           figureName: fi.figureTemplate?.name ?? 'Sense plantilla',
           snapshotted: fi.snapshotted,
-          ...this.computeInstanceAreaSummary(fi, nodes, figureAssignments),
+          ...this.computeInstanceAreaSummary(fi, nodes, figureAssignments, conflictAssignmentIds),
         };
       });
 
@@ -951,6 +1112,7 @@ export class NodeAssignmentService {
         segmentName: segment.name ?? '',
         sortOrder: segment.sortOrder,
         figures,
+        conflicts: this.computeSegmentPeopleCounters(segmentAssignments, segmentConflicts),
       };
     });
 
@@ -969,11 +1131,14 @@ export class NodeAssignmentService {
     fi: FigureInstance,
     nodes: Array<Pick<InstanceNode | FigureNode, 'zone' | 'positionType' | 'renglaPosition'>>,
     instanceAssignments: NodeAssignment[],
+    conflictAssignmentIds?: Set<string>,
   ): {
     pinya: FigureAreaCount;
     tronc: FigureAreaCount;
     total: FigureAreaCount;
     troncBaseAssignments: EventFigureSummary['troncBaseAssignments'];
+    distinctPersonCount: number;
+    conflictAssignmentCount: number;
   } {
     const figureMode = fi.figureMode ?? FigureMode.COMPLETA;
     const numberOfCordons = fi.numberOfCordons ?? null;
@@ -1026,6 +1191,11 @@ export class NodeAssignmentService {
       }
     }
 
+    const distinctPersonCount = new Set(instanceAssignments.map((a) => a.person.id)).size;
+    const conflictAssignmentCount = conflictAssignmentIds
+      ? instanceAssignments.filter((a) => conflictAssignmentIds.has(a.id)).length
+      : 0;
+
     return {
       pinya: { assigned: pinyaAssigned, total: pinyaTotal },
       tronc: { assigned: troncAssigned, total: troncTotal },
@@ -1034,6 +1204,8 @@ export class NodeAssignmentService {
         total: pinyaTotal + troncTotal + directionTotal,
       },
       troncBaseAssignments,
+      distinctPersonCount,
+      conflictAssignmentCount,
     };
   }
 

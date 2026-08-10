@@ -828,6 +828,165 @@ describe('NodeAssignmentService', () => {
     });
   });
 
+  // ── getSegmentConflicts ─────────────────────────────────────────────────
+
+  describe('getSegmentConflicts', () => {
+    const ASSIGNMENT_ID_C = 'assignment-uuid-3';
+    const OTHER_PERSON_ID = 'person-uuid-3';
+
+    const makeConflictAssignment = (overrides: Partial<NodeAssignment> = {}): Partial<NodeAssignment> => ({
+      id: ASSIGNMENT_ID,
+      figureInstance: makeInstance() as any,
+      instanceNode: makeInstanceNode() as any,
+      person: makePerson() as any,
+      segment: makeSegment() as any,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      ...overrides,
+    });
+
+    it('classifies TRONC_PINYA and suggests removing the pinya placement', async () => {
+      const troncAssignment = makeConflictAssignment({
+        instanceNode: makeInstanceNode({ zone: FigureZone.TRONC }) as any,
+      });
+      const pinyaAssignment = makeConflictAssignment({
+        id: ASSIGNMENT_ID_B,
+        instanceNode: makeInstanceNode({ id: 'inode-uuid-2', zone: FigureZone.PINYA }) as any,
+      });
+      mockAssignmentRepo.find.mockResolvedValueOnce([troncAssignment, pinyaAssignment]);
+
+      const result = await service.getSegmentConflicts(SEGMENT_ID);
+
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0]).toMatchObject({
+        personId: PERSON_ID,
+        personAlias: 'Pepet',
+        kind: SegmentConflictKind.TRONC_PINYA,
+        suggestedRemovalAssignmentIds: [ASSIGNMENT_ID_B],
+      });
+      expect(result.data[0].placements.map((p) => p.assignmentId)).toEqual([ASSIGNMENT_ID, ASSIGNMENT_ID_B]);
+    });
+
+    it('classifies PINYA_PINYA and suggests removing every placement except the interior one', async () => {
+      const interior = makeConflictAssignment({
+        instanceNode: makeInstanceNode({ zone: FigureZone.PINYA, renglaPosition: 1 }) as any,
+      });
+      const outer = makeConflictAssignment({
+        id: ASSIGNMENT_ID_B,
+        instanceNode: makeInstanceNode({ id: 'inode-uuid-2', zone: FigureZone.PINYA, renglaPosition: 3 }) as any,
+      });
+      mockAssignmentRepo.find.mockResolvedValueOnce([outer, interior]);
+
+      const result = await service.getSegmentConflicts(SEGMENT_ID);
+
+      expect(result.data[0].kind).toBe(SegmentConflictKind.PINYA_PINYA);
+      expect(result.data[0].suggestedRemovalAssignmentIds).toEqual([ASSIGNMENT_ID_B]);
+    });
+
+    it('classifies TRONC_TRONC and never suggests removing a tronc placement', async () => {
+      const troncA = makeConflictAssignment({
+        instanceNode: makeInstanceNode({ zone: FigureZone.TRONC }) as any,
+      });
+      const troncB = makeConflictAssignment({
+        id: ASSIGNMENT_ID_B,
+        instanceNode: makeInstanceNode({ id: 'inode-uuid-2', zone: FigureZone.BASE }) as any,
+      });
+      mockAssignmentRepo.find.mockResolvedValueOnce([troncA, troncB]);
+
+      const result = await service.getSegmentConflicts(SEGMENT_ID);
+
+      expect(result.data[0].kind).toBe(SegmentConflictKind.TRONC_TRONC);
+      expect(result.data[0].suggestedRemovalAssignmentIds).toEqual([]);
+    });
+
+    it('precedence: 2 tronc + 1 pinya is reported as TRONC_TRONC with the pinya suggested for removal', async () => {
+      const troncA = makeConflictAssignment({
+        instanceNode: makeInstanceNode({ zone: FigureZone.TRONC }) as any,
+      });
+      const troncB = makeConflictAssignment({
+        id: ASSIGNMENT_ID_B,
+        instanceNode: makeInstanceNode({ id: 'inode-uuid-2', zone: FigureZone.TRONC }) as any,
+      });
+      const pinya = makeConflictAssignment({
+        id: ASSIGNMENT_ID_C,
+        instanceNode: makeInstanceNode({ id: 'inode-uuid-3', zone: FigureZone.PINYA }) as any,
+      });
+      mockAssignmentRepo.find.mockResolvedValueOnce([troncA, troncB, pinya]);
+
+      const result = await service.getSegmentConflicts(SEGMENT_ID);
+
+      expect(result.data[0].kind).toBe(SegmentConflictKind.TRONC_TRONC);
+      expect(result.data[0].suggestedRemovalAssignmentIds).toEqual([ASSIGNMENT_ID_C]);
+      expect(result.data[0].placements.map((p) => p.assignmentId)).toEqual([
+        ASSIGNMENT_ID,
+        ASSIGNMENT_ID_B,
+        ASSIGNMENT_ID_C,
+      ]);
+    });
+
+    it('does not report a conflict for a person with a single placement in the segment', async () => {
+      mockAssignmentRepo.find.mockResolvedValueOnce([makeConflictAssignment()]);
+
+      const result = await service.getSegmentConflicts(SEGMENT_ID);
+
+      expect(result.data).toEqual([]);
+    });
+
+    it('scopes the query to the given segment, so a person duplicated across segments is not a conflict', async () => {
+      mockAssignmentRepo.find.mockResolvedValueOnce([]);
+
+      await service.getSegmentConflicts(SEGMENT_ID);
+
+      expect(mockAssignmentRepo.find).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { segment: { id: SEGMENT_ID } } }),
+      );
+    });
+
+    it('computes people counters over every assignment in the segment, with BASE counted as tronc', async () => {
+      const troncPerson = makeConflictAssignment({
+        person: makePerson(PERSON_ID) as any,
+        instanceNode: makeInstanceNode({ zone: FigureZone.BASE }) as any,
+      });
+      const pinyaPerson = makeConflictAssignment({
+        id: ASSIGNMENT_ID_B,
+        person: makePerson(OTHER_PERSON_ID) as any,
+        instanceNode: makeInstanceNode({ id: 'inode-uuid-2', zone: FigureZone.PINYA }) as any,
+      });
+      mockAssignmentRepo.find.mockResolvedValueOnce([troncPerson, pinyaPerson]);
+
+      const result = await service.getSegmentConflicts(SEGMENT_ID);
+
+      expect(result.meta).toEqual({
+        assignmentCount: 2,
+        distinctPersonCount: 2,
+        tronc: { distinctPersonCount: 1 },
+        pinya: { distinctPersonCount: 1 },
+        conflictPersonCount: 0,
+        conflictsByKind: {
+          TRONC_TRONC: 0,
+          TRONC_PINYA: 0,
+          PINYA_PINYA: 0,
+        },
+      });
+    });
+
+    it('derives cordon from renglaPosition', async () => {
+      const troncAssignment = makeConflictAssignment({
+        instanceNode: makeInstanceNode({ zone: FigureZone.TRONC }) as any,
+      });
+      const pinyaAssignment = makeConflictAssignment({
+        id: ASSIGNMENT_ID_B,
+        instanceNode: makeInstanceNode({ id: 'inode-uuid-2', zone: FigureZone.PINYA, renglaPosition: 4 }) as any,
+      });
+      mockAssignmentRepo.find.mockResolvedValueOnce([troncAssignment, pinyaAssignment]);
+
+      const result = await service.getSegmentConflicts(SEGMENT_ID);
+
+      const pinyaPlacement = result.data[0].placements.find((p) => p.assignmentId === ASSIGNMENT_ID_B);
+      expect(pinyaPlacement?.cordon).toBe(4);
+    });
+  });
+
   // ── resolveSegmentMoveConflicts ─────────────────────────────────────────
 
   describe('resolveSegmentMoveConflicts', () => {
@@ -1098,6 +1257,90 @@ describe('NodeAssignmentService', () => {
       expect(result.segments[0].figures[0].tronc).toEqual({ assigned: 0, total: 0 });
       expect(result.segments[0].figures[0].total).toEqual({ assigned: 1, total: 1 });
       expect(result.segments[0].figures[0].troncBaseAssignments).toEqual([]);
+    });
+
+    it('sets distinctPersonCount and conflictAssignmentCount = 0 per figure when there is no conflict', async () => {
+      const person = makePerson();
+      const iNode = makeInstanceNode();
+      const assignment = { ...makeAssignment(), instanceNode: iNode, person, figureInstance: { id: 'fi-1' } };
+      const figureInstance = {
+        id: 'fi-1',
+        figureTemplate: { id: TEMPLATE_ID, name: 'Muixeranga de 5', nodes: [] },
+        segment: { id: SEGMENT_ID },
+        snapshotted: true,
+        cordonsObertsEnabled: true,
+        numberOfCordons: null,
+        figureMode: 'COMPLETA',
+      };
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
+      mockSegmentRepo.find.mockResolvedValue([{ id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 }]);
+      mockInstanceRepo.find.mockResolvedValue([figureInstance]);
+      mockInstanceNodeRepo.find.mockResolvedValue([{ ...iNode, figureInstance: { id: 'fi-1' } }]);
+      mockAssignmentRepo.find.mockResolvedValue([assignment]);
+
+      const result = await service.getEventAssignmentSummary('e1');
+
+      expect(result.segments[0].figures[0].distinctPersonCount).toBe(1);
+      expect(result.segments[0].figures[0].conflictAssignmentCount).toBe(0);
+      expect(result.segments[0].conflicts).toEqual({
+        assignmentCount: 1,
+        distinctPersonCount: 1,
+        tronc: { distinctPersonCount: 0 },
+        pinya: { distinctPersonCount: 1 },
+        conflictPersonCount: 0,
+        conflictsByKind: { TRONC_TRONC: 0, TRONC_PINYA: 0, PINYA_PINYA: 0 },
+      });
+    });
+
+    it('computes segment conflicts and per-figure conflictAssignmentCount from the already-batched assignments (D13, no extra query)', async () => {
+      const person = makePerson();
+      const troncNode = makeInstanceNode({ id: 'n1', zone: FigureZone.TRONC });
+      const pinyaNode = makeInstanceNode({ id: 'n2', zone: FigureZone.PINYA });
+      const figureInstanceA = {
+        id: 'fi-1',
+        figureTemplate: { id: TEMPLATE_ID, name: 'Tronc', nodes: [] },
+        segment: { id: SEGMENT_ID },
+        snapshotted: true,
+        cordonsObertsEnabled: true,
+        numberOfCordons: null,
+        figureMode: 'COMPLETA',
+      };
+      const figureInstanceB = {
+        id: 'fi-2',
+        figureTemplate: { id: TEMPLATE_ID, name: 'Pinya', nodes: [] },
+        segment: { id: SEGMENT_ID },
+        snapshotted: true,
+        cordonsObertsEnabled: true,
+        numberOfCordons: null,
+        figureMode: 'COMPLETA',
+      };
+      const troncAssignment = { id: 'assignment-a1', instanceNode: troncNode, person, figureInstance: { id: 'fi-1' } };
+      const pinyaAssignment = { id: 'assignment-a2', instanceNode: pinyaNode, person, figureInstance: { id: 'fi-2' } };
+
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
+      mockSegmentRepo.find.mockResolvedValue([{ id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 }]);
+      mockInstanceRepo.find.mockResolvedValue([figureInstanceA, figureInstanceB]);
+      mockInstanceNodeRepo.find.mockResolvedValue([
+        { ...troncNode, figureInstance: { id: 'fi-1' } },
+        { ...pinyaNode, figureInstance: { id: 'fi-2' } },
+      ]);
+      mockAssignmentRepo.find.mockResolvedValue([troncAssignment, pinyaAssignment]);
+
+      const result = await service.getEventAssignmentSummary('e1');
+
+      expect(result.segments[0].conflicts).toMatchObject({
+        assignmentCount: 2,
+        distinctPersonCount: 1,
+        conflictPersonCount: 1,
+        conflictsByKind: { TRONC_TRONC: 0, TRONC_PINYA: 1, PINYA_PINYA: 0 },
+      });
+      const figureA = result.segments[0].figures.find((f: { instanceId: string }) => f.instanceId === 'fi-1');
+      const figureB = result.segments[0].figures.find((f: { instanceId: string }) => f.instanceId === 'fi-2');
+      expect(figureA?.distinctPersonCount).toBe(1);
+      expect(figureA?.conflictAssignmentCount).toBe(1);
+      expect(figureB?.conflictAssignmentCount).toBe(1);
+      // Only one assignmentRepo.find call for the whole event — no per-segment query.
+      expect(mockAssignmentRepo.find).toHaveBeenCalledTimes(1);
     });
 
     it('returns empty segments array when event has no segments', async () => {
