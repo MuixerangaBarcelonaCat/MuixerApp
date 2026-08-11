@@ -105,29 +105,29 @@ describe('MeService', () => {
     it('should return only self when user has a linked person and no delegates', async () => {
       userRepo.findOne.mockResolvedValue({
         id: 'user-1',
-        person: { id: 'p-1', name: 'Marta', firstSurname: 'Puig' },
+        person: { id: 'p-1', name: 'Marta', firstSurname: 'Puig', alias: 'MartaP' },
       } as User);
       personDelegateService.findByUser.mockResolvedValue([]);
 
       const result = await service.resolveManagedPersons('user-1');
 
       expect(result).toEqual([
-        { personId: 'p-1', displayName: 'Marta Puig', isSelf: true, delegateType: null },
+        { personId: 'p-1', displayName: 'MartaP', isSelf: true, delegateType: null },
       ]);
     });
 
     it('should list self followed by active delegates in order', async () => {
       userRepo.findOne.mockResolvedValue({
         id: 'user-1',
-        person: { id: 'p-1', name: 'Marta', firstSurname: 'Puig' },
+        person: { id: 'p-1', name: 'Marta', firstSurname: 'Puig', alias: 'MartaP' },
       } as User);
       personDelegateService.findByUser.mockResolvedValue([
         {
-          person: { id: 'p-2', name: 'Joan', firstSurname: 'Puig' },
+          person: { id: 'p-2', name: 'Joan', firstSurname: 'Puig', alias: 'JoanP' },
           delegateType: DelegateType.PARENT,
         },
         {
-          person: { id: 'p-3', name: 'Anna', firstSurname: 'Puig' },
+          person: { id: 'p-3', name: 'Anna', firstSurname: 'Puig', alias: 'AnnaP' },
           delegateType: DelegateType.GUARDIAN,
         },
       ] as never);
@@ -135,9 +135,9 @@ describe('MeService', () => {
       const result = await service.resolveManagedPersons('user-1');
 
       expect(result).toEqual([
-        { personId: 'p-1', displayName: 'Marta Puig', isSelf: true, delegateType: null },
-        { personId: 'p-2', displayName: 'Joan Puig', isSelf: false, delegateType: DelegateType.PARENT },
-        { personId: 'p-3', displayName: 'Anna Puig', isSelf: false, delegateType: DelegateType.GUARDIAN },
+        { personId: 'p-1', displayName: 'MartaP', isSelf: true, delegateType: null },
+        { personId: 'p-2', displayName: 'JoanP', isSelf: false, delegateType: DelegateType.PARENT },
+        { personId: 'p-3', displayName: 'AnnaP', isSelf: false, delegateType: DelegateType.GUARDIAN },
       ]);
     });
 
@@ -145,7 +145,7 @@ describe('MeService', () => {
       userRepo.findOne.mockResolvedValue({ id: 'user-1', person: null } as User);
       personDelegateService.findByUser.mockResolvedValue([
         {
-          person: { id: 'p-2', name: 'Joan', firstSurname: 'Puig' },
+          person: { id: 'p-2', name: 'Joan', firstSurname: 'Puig', alias: 'JoanP' },
           delegateType: DelegateType.PARENT,
         },
       ] as never);
@@ -153,7 +153,7 @@ describe('MeService', () => {
       const result = await service.resolveManagedPersons('user-1');
 
       expect(result).toEqual([
-        { personId: 'p-2', displayName: 'Joan Puig', isSelf: false, delegateType: DelegateType.PARENT },
+        { personId: 'p-2', displayName: 'JoanP', isSelf: false, delegateType: DelegateType.PARENT },
       ]);
     });
 
@@ -167,6 +167,21 @@ describe('MeService', () => {
     });
   });
 
+  function mockListQb(events: Partial<Event>[], total: number) {
+    const mockQb = {
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      addOrderBy: jest.fn().mockReturnThis(),
+      offset: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      getCount: jest.fn().mockResolvedValue(total),
+      getMany: jest.fn().mockResolvedValue(events),
+    };
+    eventRepo.createQueryBuilder.mockReturnValue(mockQb as never);
+    return mockQb;
+  }
+
   describe('findEvents', () => {
     it('should return empty page when user has no person and no delegates', async () => {
       userRepo.findOne.mockResolvedValue({ id: 'user-1', person: null } as User);
@@ -178,35 +193,22 @@ describe('MeService', () => {
     it('should return events for a delegate-only user with no linked person', async () => {
       userRepo.findOne.mockResolvedValue({ id: 'user-1', person: null } as User);
       personDelegateService.findByUser.mockResolvedValue([
-        { person: { id: 'p-2', name: 'Joan', firstSurname: 'Puig' }, delegateType: DelegateType.PARENT },
+        { person: { id: 'p-2', name: 'Joan', firstSurname: 'Puig', alias: 'JoanP' }, delegateType: DelegateType.PARENT },
       ] as never);
       seasonService.findCurrentEntity.mockResolvedValue(mockSeason as never);
-
-      const mockQb = {
-        leftJoin: jest.fn().mockReturnThis(),
-        addSelect: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        addOrderBy: jest.fn().mockReturnThis(),
-        offset: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockReturnThis(),
-        getCount: jest.fn().mockResolvedValue(1),
-        getRawAndEntities: jest.fn().mockResolvedValue({
-          entities: [mockEvent],
-          raw: [{ att_id: null, att_status: null, att_respondedAt: null }],
-        }),
-      };
-      eventRepo.createQueryBuilder.mockReturnValue(mockQb as never);
+      mockListQb([mockEvent as Event], 1);
 
       const result = await service.findEvents(mockUser, {});
 
       expect(result.data).toHaveLength(1);
       expect(result.meta.total).toBe(1);
+      expect(result.data[0].managedAttendances).toEqual([
+        { personId: 'p-2', displayName: 'JoanP', isSelf: false, delegateType: DelegateType.PARENT, attendance: null },
+      ]);
     });
 
     it('should return empty page when no current season', async () => {
-      userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1' } } as User);
+      userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1', alias: 'MartaP' } } as User);
       seasonService.findCurrentEntity.mockResolvedValue(null);
 
       const result = await service.findEvents(mockUser, {});
@@ -214,29 +216,18 @@ describe('MeService', () => {
     });
 
     it('should return paginated events with attendance info', async () => {
-      userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1' } } as User);
+      userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1', alias: 'MartaP' } } as User);
       seasonService.findCurrentEntity.mockResolvedValue(mockSeason as never);
-
-      const mockQb = {
-        leftJoin: jest.fn().mockReturnThis(),
-        addSelect: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        addOrderBy: jest.fn().mockReturnThis(),
-        offset: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockReturnThis(),
-        getCount: jest.fn().mockResolvedValue(1),
-        getRawAndEntities: jest.fn().mockResolvedValue({
-          entities: [mockEvent],
-          raw: [{
-            att_id: 'att-1',
-            att_status: AttendanceStatus.ANIRE,
-            att_respondedAt: new Date('2026-06-15T10:00:00Z'),
-          }],
-        }),
-      };
-      eventRepo.createQueryBuilder.mockReturnValue(mockQb as never);
+      mockListQb([mockEvent as Event], 1);
+      attendanceRepo.find.mockResolvedValue([
+        {
+          id: 'att-1',
+          status: AttendanceStatus.ANIRE,
+          respondedAt: new Date('2026-06-15T10:00:00Z'),
+          event: { id: 'event-1' },
+          person: { id: 'p-1' },
+        },
+      ] as never);
 
       const result = await service.findEvents(mockUser, { timeFilter: 'upcoming' });
 
@@ -250,22 +241,9 @@ describe('MeService', () => {
     });
 
     it('should filter by event type', async () => {
-      userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1' } } as User);
+      userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1', alias: 'MartaP' } } as User);
       seasonService.findCurrentEntity.mockResolvedValue(mockSeason as never);
-
-      const mockQb = {
-        leftJoin: jest.fn().mockReturnThis(),
-        addSelect: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        addOrderBy: jest.fn().mockReturnThis(),
-        offset: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockReturnThis(),
-        getCount: jest.fn().mockResolvedValue(0),
-        getRawAndEntities: jest.fn().mockResolvedValue({ entities: [], raw: [] }),
-      };
-      eventRepo.createQueryBuilder.mockReturnValue(mockQb as never);
+      const mockQb = mockListQb([], 0);
 
       await service.findEvents(mockUser, { type: EventType.ACTUACIO });
 
@@ -276,22 +254,9 @@ describe('MeService', () => {
     });
 
     it('should handle past timeFilter with DESC ordering', async () => {
-      userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1' } } as User);
+      userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1', alias: 'MartaP' } } as User);
       seasonService.findCurrentEntity.mockResolvedValue(mockSeason as never);
-
-      const mockQb = {
-        leftJoin: jest.fn().mockReturnThis(),
-        addSelect: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        addOrderBy: jest.fn().mockReturnThis(),
-        offset: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockReturnThis(),
-        getCount: jest.fn().mockResolvedValue(0),
-        getRawAndEntities: jest.fn().mockResolvedValue({ entities: [], raw: [] }),
-      };
-      eventRepo.createQueryBuilder.mockReturnValue(mockQb as never);
+      const mockQb = mockListQb([], 0);
 
       await service.findEvents(mockUser, { timeFilter: 'past' });
 
@@ -299,47 +264,19 @@ describe('MeService', () => {
     });
 
     it('should return events with null attendance when no record exists', async () => {
-      userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1' } } as User);
+      userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1', alias: 'MartaP' } } as User);
       seasonService.findCurrentEntity.mockResolvedValue(mockSeason as never);
-
-      const mockQb = {
-        leftJoin: jest.fn().mockReturnThis(),
-        addSelect: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        addOrderBy: jest.fn().mockReturnThis(),
-        offset: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockReturnThis(),
-        getCount: jest.fn().mockResolvedValue(1),
-        getRawAndEntities: jest.fn().mockResolvedValue({
-          entities: [mockEvent],
-          raw: [{ att_id: null, att_status: null, att_respondedAt: null }],
-        }),
-      };
-      eventRepo.createQueryBuilder.mockReturnValue(mockQb as never);
+      mockListQb([mockEvent as Event], 1);
 
       const result = await service.findEvents(mockUser, {});
       expect(result.data[0].myAttendance).toBeNull();
+      expect(result.data[0].managedAttendances[0].attendance).toBeNull();
     });
 
     it('should respect pagination params', async () => {
-      userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1' } } as User);
+      userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1', alias: 'MartaP' } } as User);
       seasonService.findCurrentEntity.mockResolvedValue(mockSeason as never);
-
-      const mockQb = {
-        leftJoin: jest.fn().mockReturnThis(),
-        addSelect: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        addOrderBy: jest.fn().mockReturnThis(),
-        offset: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockReturnThis(),
-        getCount: jest.fn().mockResolvedValue(50),
-        getRawAndEntities: jest.fn().mockResolvedValue({ entities: [], raw: [] }),
-      };
-      eventRepo.createQueryBuilder.mockReturnValue(mockQb as never);
+      const mockQb = mockListQb([], 50);
 
       await service.findEvents(mockUser, { page: 3, limit: 10 });
 
@@ -350,22 +287,20 @@ describe('MeService', () => {
 
   describe('findEventDetail', () => {
     it('should return event detail with attendance for linked person', async () => {
-      userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1' } } as User);
-
-      const mockQb = {
-        where: jest.fn().mockReturnThis(),
-        leftJoin: jest.fn().mockReturnThis(),
-        addSelect: jest.fn().mockReturnThis(),
-        getRawAndEntities: jest.fn().mockResolvedValue({
-          entities: [mockEvent],
-          raw: [{
-            att_id: 'att-1',
-            att_status: AttendanceStatus.ANIRE,
-            att_respondedAt: new Date('2026-06-15'),
-          }],
-        }),
-      };
-      eventRepo.createQueryBuilder.mockReturnValue(mockQb as never);
+      userRepo.findOne.mockResolvedValue({
+        id: 'user-1',
+        person: { id: 'p-1', alias: 'MartaP' },
+      } as User);
+      eventRepo.findOne.mockResolvedValue(mockEvent as Event);
+      attendanceRepo.find.mockResolvedValue([
+        {
+          id: 'att-1',
+          status: AttendanceStatus.ANIRE,
+          respondedAt: new Date('2026-06-15'),
+          event: { id: 'event-1' },
+          person: { id: 'p-1' },
+        },
+      ] as never);
 
       const result = await service.findEventDetail(mockUser, 'event-1');
 
@@ -377,15 +312,7 @@ describe('MeService', () => {
 
     it('should return event without attendance when no person linked', async () => {
       userRepo.findOne.mockResolvedValue({ id: 'user-1', person: null } as User);
-
-      const mockQb = {
-        where: jest.fn().mockReturnThis(),
-        getRawAndEntities: jest.fn().mockResolvedValue({
-          entities: [mockEvent],
-          raw: [{}],
-        }),
-      };
-      eventRepo.createQueryBuilder.mockReturnValue(mockQb as never);
+      eventRepo.findOne.mockResolvedValue(mockEvent as Event);
 
       const result = await service.findEventDetail(mockUser, 'event-1');
       expect(result.myAttendance).toBeNull();
@@ -393,12 +320,7 @@ describe('MeService', () => {
 
     it('should throw NotFoundException for non-existent event', async () => {
       userRepo.findOne.mockResolvedValue({ id: 'user-1', person: null } as User);
-
-      const mockQb = {
-        where: jest.fn().mockReturnThis(),
-        getRawAndEntities: jest.fn().mockResolvedValue({ entities: [], raw: [] }),
-      };
-      eventRepo.createQueryBuilder.mockReturnValue(mockQb as never);
+      eventRepo.findOne.mockResolvedValue(null);
 
       await expect(
         service.findEventDetail(mockUser, 'nonexistent'),
@@ -408,21 +330,17 @@ describe('MeService', () => {
     it('should include managedAttendances with self attendance when linked', async () => {
       userRepo.findOne.mockResolvedValue({
         id: 'user-1',
-        person: { id: 'p-1', name: 'Marta', firstSurname: 'Puig' },
+        person: { id: 'p-1', name: 'Marta', firstSurname: 'Puig', alias: 'MartaP' },
       } as User);
-
-      const mockQb = {
-        where: jest.fn().mockReturnThis(),
-        leftJoin: jest.fn().mockReturnThis(),
-        addSelect: jest.fn().mockReturnThis(),
-        getRawAndEntities: jest.fn().mockResolvedValue({
-          entities: [mockEvent],
-          raw: [{ att_id: 'att-1', att_status: AttendanceStatus.ANIRE, att_respondedAt: new Date('2026-06-15') }],
-        }),
-      };
-      eventRepo.createQueryBuilder.mockReturnValue(mockQb as never);
+      eventRepo.findOne.mockResolvedValue(mockEvent as Event);
       attendanceRepo.find.mockResolvedValue([
-        { person: { id: 'p-1' }, id: 'att-1', status: AttendanceStatus.ANIRE, respondedAt: new Date('2026-06-15') },
+        {
+          id: 'att-1',
+          status: AttendanceStatus.ANIRE,
+          respondedAt: new Date('2026-06-15'),
+          event: { id: 'event-1' },
+          person: { id: 'p-1' },
+        },
       ] as never);
 
       const result = await service.findEventDetail(mockUser, 'event-1');
@@ -430,7 +348,7 @@ describe('MeService', () => {
       expect(result.managedAttendances).toEqual([
         {
           personId: 'p-1',
-          displayName: 'Marta Puig',
+          displayName: 'MartaP',
           isSelf: true,
           delegateType: null,
           attendance: {
@@ -445,22 +363,16 @@ describe('MeService', () => {
     it('should include a delegate row with null attendance when no record exists', async () => {
       userRepo.findOne.mockResolvedValue({ id: 'user-1', person: null } as User);
       personDelegateService.findByUser.mockResolvedValue([
-        { person: { id: 'p-2', name: 'Joan', firstSurname: 'Puig' }, delegateType: DelegateType.PARENT },
+        { person: { id: 'p-2', name: 'Joan', firstSurname: 'Puig', alias: 'JoanP' }, delegateType: DelegateType.PARENT },
       ] as never);
-
-      const mockQb = {
-        where: jest.fn().mockReturnThis(),
-        getRawAndEntities: jest.fn().mockResolvedValue({ entities: [mockEvent], raw: [{}] }),
-      };
-      eventRepo.createQueryBuilder.mockReturnValue(mockQb as never);
-      attendanceRepo.find.mockResolvedValue([]);
+      eventRepo.findOne.mockResolvedValue(mockEvent as Event);
 
       const result = await service.findEventDetail(mockUser, 'event-1');
 
       expect(result.managedAttendances).toEqual([
         {
           personId: 'p-2',
-          displayName: 'Joan Puig',
+          displayName: 'JoanP',
           isSelf: false,
           delegateType: DelegateType.PARENT,
           attendance: null,
@@ -471,20 +383,12 @@ describe('MeService', () => {
     it('should list self followed by delegates in managedAttendances', async () => {
       userRepo.findOne.mockResolvedValue({
         id: 'user-1',
-        person: { id: 'p-1', name: 'Marta', firstSurname: 'Puig' },
+        person: { id: 'p-1', name: 'Marta', firstSurname: 'Puig', alias: 'MartaP' },
       } as User);
       personDelegateService.findByUser.mockResolvedValue([
-        { person: { id: 'p-2', name: 'Joan', firstSurname: 'Puig' }, delegateType: DelegateType.PARENT },
+        { person: { id: 'p-2', name: 'Joan', firstSurname: 'Puig', alias: 'JoanP' }, delegateType: DelegateType.PARENT },
       ] as never);
-
-      const mockQb = {
-        where: jest.fn().mockReturnThis(),
-        leftJoin: jest.fn().mockReturnThis(),
-        addSelect: jest.fn().mockReturnThis(),
-        getRawAndEntities: jest.fn().mockResolvedValue({ entities: [mockEvent], raw: [{}] }),
-      };
-      eventRepo.createQueryBuilder.mockReturnValue(mockQb as never);
-      attendanceRepo.find.mockResolvedValue([]);
+      eventRepo.findOne.mockResolvedValue(mockEvent as Event);
 
       const result = await service.findEventDetail(mockUser, 'event-1');
 

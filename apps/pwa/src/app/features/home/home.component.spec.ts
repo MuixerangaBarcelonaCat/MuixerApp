@@ -23,6 +23,7 @@ const MOCK_REHEARSAL: MeEvent = {
   location: 'Local',
   attendanceSummary: EMPTY_SUMMARY,
   myAttendance: null,
+  managedAttendances: [],
 };
 
 const MOCK_PERFORMANCE: MeEvent = {
@@ -34,6 +35,7 @@ const MOCK_PERFORMANCE: MeEvent = {
   location: 'Plaça',
   attendanceSummary: EMPTY_SUMMARY,
   myAttendance: null,
+  managedAttendances: [],
 };
 
 function createTestBed(homeData: HomeData | Subject<HomeData>, person: Record<string, unknown> | null = { id: 'p-1', name: 'Joan', firstSurname: 'Garcia', alias: 'Joanet', email: null }) {

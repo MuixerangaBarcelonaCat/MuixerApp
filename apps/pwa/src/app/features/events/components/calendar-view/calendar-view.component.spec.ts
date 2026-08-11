@@ -24,6 +24,7 @@ function makeEvent(overrides: Partial<MeEvent> = {}): MeEvent {
     location: 'Local',
     attendanceSummary: EMPTY_SUMMARY,
     myAttendance: null,
+    managedAttendances: [],
     ...overrides,
   };
 }

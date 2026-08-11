@@ -71,13 +71,23 @@
       </div>
     }
 
-    <div class="flex justify-center mt-2">
-      <app-attendance-button
-        [eventId]="ev.id"
-        [status]="ev.myAttendance?.status ?? null"
-        [disabled]="isPast()"
-        [ariaContext]="ev.title"
-      />
+    <div class="flex flex-col items-center gap-3 mt-2">
+      @for (row of ev.managedAttendances; track row.personId) {
+        <div class="flex flex-col items-center gap-1 w-full max-w-xs">
+          @if (ev.managedAttendances.length > 1) {
+            <span class="managed-person-name text-sm font-medium text-base-content/70">
+              {{ row.displayName }}
+            </span>
+          }
+          <app-attendance-button
+            [eventId]="ev.id"
+            [personId]="row.personId"
+            [status]="row.attendance?.status ?? null"
+            [disabled]="isPast()"
+            [ariaContext]="ev.title + ' — ' + row.displayName"
+          />
+        </div>
+      }
     </div>
   </section>
 }

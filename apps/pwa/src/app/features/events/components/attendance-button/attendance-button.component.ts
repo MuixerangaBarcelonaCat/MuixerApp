@@ -64,6 +64,7 @@ import { ToastService } from '../../../../shared/services/toast.service';
 export class AttendanceButtonComponent {
   readonly status = input<AttendanceStatus | null>(null);
   readonly eventId = input.required<string>();
+  readonly personId = input<string | undefined>(undefined);
   readonly disabled = input(false);
   readonly ariaContext = input('');
   readonly statusChanged = output<AttendanceStatus>();
@@ -109,11 +110,10 @@ export class AttendanceButtonComponent {
     this.localStatus.set(next);
     this.isPending.set(true);
 
-    this.eventService.updateAttendance(this.eventId(), next).pipe(
+    this.eventService.updateAttendance(this.eventId(), next, this.personId()).pipe(
       takeUntilDestroyed(this.destroyRef),
     ).subscribe({
       next: () => {
-        this.toast.success("S'ha actualitzat l'assistència.");
         this.statusChanged.emit(next);
         this.isPending.set(false);
       },

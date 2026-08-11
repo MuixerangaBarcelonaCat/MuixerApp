@@ -18,13 +18,13 @@ export interface MeEvent {
   location: string | null;
   attendanceSummary: AttendanceSummary;
   myAttendance: MyAttendanceInfo | null;
+  managedAttendances: ManagedPersonAttendance[];
 }
 
 export interface MeEventDetail extends MeEvent {
   description: string | null;
   locationUrl: string | null;
   information: string | null;
-  managedAttendances: ManagedPersonAttendance[];
 }
 
 export interface AttendanceResponse {

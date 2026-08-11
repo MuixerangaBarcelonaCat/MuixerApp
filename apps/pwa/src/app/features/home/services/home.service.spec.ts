@@ -24,6 +24,7 @@ const MOCK_REHEARSAL: MeEvent = {
   location: 'Local',
   attendanceSummary: EMPTY_SUMMARY,
   myAttendance: null,
+  managedAttendances: [],
 };
 
 const MOCK_PERFORMANCE: MeEvent = {
@@ -35,6 +36,7 @@ const MOCK_PERFORMANCE: MeEvent = {
   location: 'Plaça',
   attendanceSummary: EMPTY_SUMMARY,
   myAttendance: null,
+  managedAttendances: [],
 };
 
 describe('HomeService', () => {

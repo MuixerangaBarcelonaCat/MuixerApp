@@ -64,4 +64,14 @@ describe('EventService', () => {
     expect(req.request.body).toEqual({ status: AttendanceStatus.ANIRE });
     req.flush({ id: 'att-1', status: AttendanceStatus.ANIRE, respondedAt: new Date().toISOString() });
   });
+
+  it('should include personId in the attendance body when given', () => {
+    service
+      .updateAttendance('ev-1', AttendanceStatus.ANIRE, 'person-2')
+      .subscribe();
+
+    const req = httpMock.expectOne('/api/me/events/ev-1/attendance');
+    expect(req.request.body).toEqual({ status: AttendanceStatus.ANIRE, personId: 'person-2' });
+    req.flush({ id: 'att-1', status: AttendanceStatus.ANIRE, respondedAt: new Date().toISOString() });
+  });
 });
