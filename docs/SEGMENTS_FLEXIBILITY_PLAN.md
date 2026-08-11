@@ -411,6 +411,7 @@ tronc-view, projecció) però no hi ha manera d'actuar-hi encara.
 | 7 | `AlreadyAssignedDialog` multi-col·locació | Llista totes les col·locacions amb àrea + avís de tronc; **sense** "Assignar igualment" | Spec nou (4 tests) verd; alimentat per `AvailablePerson.assignedPlacements` des dels dos tabs | PASS |
 | 8 | Projecció rep conflictes | `ProjectionViewComponent` deriva `conflictPersonIds` de `ProjectionData.conflicts` i el passa a canvas+tronc-view | Computed nou + bindings a la template | PASS |
 | 9 | Regressió completa | Tots els suites verds, lint net, builds OK | shared 32/32 · api 883/883 · dashboard 1509/1511 (2 skip preexistents) · lint 0 errors · build api+dashboard OK | PASS |
+| 10 | Playwright de regressió zero-conflicte en viu | Taller sense `.tronc-node.conflict`, sense `⚠ N conflictes`, tooltip de dotació present | Executat contra `nx serve api --configuration=no-watch` + `nx serve dashboard` reals, amb `E2E_EMAIL`/`E2E_PASSWORD`: 2/2 PASS a `chromium` | PASS |
 
 **Resum:** Fase 3 completa, additiva i purament visual + backend additiu — cap camí de mutació/resolució
 nou (això és la Fase 4). Amb dades de producció (0 conflictes, constraints intactes) la UI és idèntica
@@ -429,19 +430,26 @@ nous a `assign`, 2 a `swap`) · `nx test dashboard` 1509/1511 (2 skip preexisten
 `already-assigned-dialog`). `nx lint api|dashboard|shared` 0 errors. `nx build api` i `nx build dashboard`
 OK.
 
-**Tests Playwright:** `apps/dashboard-e2e/src/segments-flexibility/fase-3.spec.ts` creat (regressió de
-zero-conflicte: el taller no mostra cap estil de conflicte i la píndola porta el tooltip de dotació).
-Typecheck OK; **no executat en viu aquesta sessió** — el `nx serve api` va entrar en bucle de reinici
-ràpid (168 reinicis, mai va lligar el port 3000, sense error explícit al log; flakiness de l'stack de dev
-ja vista a fases anteriors). La prova visual amb conflictes **reals sembrats** queda deferida a després de
-la Fase 5 (decisió de l'usuari a l'inici de la sessió).
+**Tests Playwright:** `apps/dashboard-e2e/src/segments-flexibility/fase-3.spec.ts` creat i **executat en
+viu** (regressió de zero-conflicte: el taller no mostra cap estil de conflicte i la píndola porta el
+tooltip de dotació). Causa arrel del bucle de reinici de `nx serve api` identificada: el watch mode
+(`@nx/js:node` + webpack, configuració `development` per defecte) no s'estabilitzava — 66+ reinicis sense
+cap error explícit al log. **Solució:** `nx serve api --configuration=no-watch` (configuració ja existent
+al `project.json`), que arrenca net i lliga el port 3000 a la primera. Amb API + `nx serve dashboard`
+reals i `E2E_EMAIL`/`E2E_PASSWORD`, els 2 tests de l'spec passen a `chromium` (2/2 PASS). `firefox`/`webkit`
+fallen només per manca dels binaris locals (`npx playwright install`) — quirk d'entorn no relacionat amb
+aquest canvi, no s'han instal·lat binaris nous aquesta sessió. La prova visual amb conflictes **reals
+sembrats** continua deferida a després de la Fase 5 (decisió de l'usuari a l'inici de la sessió).
 
 **Dades/setup creats durant pauses de verificació:** cap. No s'ha tocat la BBDD de dev ni cap constraint;
 tots els conflictes de test se simulen amb mocks (Vitest) o al nivell de servei (Jest).
 
 **Pendent/riscos oberts en tancar la fase:**
-- Playwright de regressió zero-conflicte **escrit però no executat** (bucle de reinici de `nx serve api`).
-  Reprendre quan l'stack arrenqui net i amb credencials `E2E_EMAIL`/`E2E_PASSWORD`.
+- **Quirk d'entorn (no introduït per aquest canvi):** `nx serve api` amb la configuració `development`
+  per defecte entra en bucle de reinici del watch mode en aquesta màquina; usar
+  `nx serve api --configuration=no-watch` per a verificació manual/e2e mentre no es diagnostiqui el watcher.
+- `firefox`/`webkit` no tenen els binaris de Playwright instal·lats localment (`npx playwright install`);
+  la suite de la Fase 3 només s'ha verificat en viu a `chromium`.
 - `TroncChangeImpact` a `unassign`/`move` → Fase 5 (desviació acordada).
 - Estil de conflicte visible amb dades reals → verificació deferida a després de la Fase 5.
 - Els `impact` d'`assign`/`swap` **no es consumeixen encara** al frontend (dashboard) — es cablejaran a la
