@@ -16,6 +16,7 @@ import {
   HistoryQuery,
   InstanceNodeItem,
   PersonAssignmentHistory,
+  SegmentConflictsResponse,
   SwapAssignmentsPayload,
   UpdateAdHocNodePayload,
   UpdateInstanceCordonsPayload,
@@ -109,6 +110,13 @@ export class NodeAssignmentService extends ApiService {
 
   getEventAssignmentSummary(eventId: string): Observable<EventAssignmentSummary> {
     return this.get<EventAssignmentSummary>(`/events/${eventId}/assignment-summary`);
+  }
+
+  /** Canonical segment conflicts (D13). Empty in production until Phase 5 drops the constraints. */
+  getSegmentConflicts(eventId: string, segmentId: string): Observable<SegmentConflictsResponse> {
+    return this.get<SegmentConflictsResponse>(
+      `/events/${eventId}/segments/${segmentId}/conflicts`,
+    );
   }
 
 

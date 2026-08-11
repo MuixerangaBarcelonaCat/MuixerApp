@@ -198,9 +198,25 @@
                 <div class="flex items-center gap-1 shrink-0 ml-auto">
                   <!-- Assigned/total people pill -->
                   @if (segmentPeopleLabel(segment); as label) {
-                    <span class="badge badge-ghost badge-sm gap-1 font-normal" [attr.aria-label]="label">
+                    <span
+                      class="badge badge-ghost badge-sm gap-1 font-normal"
+                      [attr.aria-label]="label"
+                      [title]="segmentDotacioTooltip(segment)"
+                    >
                       <lucide-icon [name]="ICON_PERSONA" [size]="11" />
                       {{ label }}
+                    </span>
+                  }
+
+                  <!-- Conflict count pill (Phase 3) — hidden in production (0 conflicts) -->
+                  @if (segmentConflictCount(segment); as conflictCount) {
+                    <span
+                      class="badge badge-warning badge-sm gap-1 font-normal"
+                      [attr.aria-label]="conflictCount + ' persones en conflicte'"
+                      [title]="segmentDotacioTooltip(segment)"
+                    >
+                      <lucide-icon [name]="ICON_CONFLICT" [size]="11" />
+                      {{ conflictCount }} {{ conflictCount === 1 ? 'conflicte' : 'conflictes' }}
                     </span>
                   }
 

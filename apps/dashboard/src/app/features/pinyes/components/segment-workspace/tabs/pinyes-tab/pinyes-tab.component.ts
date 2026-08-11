@@ -28,6 +28,7 @@ import {
   AvailablePerson,
   AvailablePersonPosition,
   BulkImportResult,
+  ConflictPlacement,
   PendingOp,
 } from '../../../../models/assignment.model';
 import { ImportPinyaModalComponent } from '../../../import-pinya-modal/import-pinya-modal.component';
@@ -132,6 +133,8 @@ export class PinyesTabComponent implements OnInit {
     figureName: string;
     targetInstanceId: string;
     targetNodeId: string;
+    /** All of this person's placements in the segment, for the multi-placement dialog (Phase 3). */
+    placements: ConflictPlacement[];
   } | null>(null);
 
   // ── Import pinya / reset snapshot ────────────────────────────────────────
@@ -426,11 +429,17 @@ export class PinyesTabComponent implements OnInit {
         figureName: currentInstance?.label ?? '',
         targetInstanceId: targetRef.slotId,
         targetNodeId: targetRef.nodeId,
+        placements: this.placementsForPerson(event.personId),
       });
       return;
     }
 
     this.navigateToAssignment(assignment);
+  }
+
+  /** All of a person's placements in the segment, from the API-provided `assignedPlacements` (Phase 3). */
+  private placementsForPerson(personId: string): ConflictPlacement[] {
+    return this.state.confirmedPersons().find((p) => p.id === personId)?.assignedPlacements ?? [];
   }
 
   onReassignDialogClosed(): void {

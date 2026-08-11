@@ -25,6 +25,10 @@ const makeAvailablePerson = (
   attendanceStatus: status,
   nextPerformanceStatus: null,
   assignedInSegment: false,
+  assignedPlacements: [],
+  assignedInTronc: false,
+  assignedInPinya: false,
+  conflictInSegment: false,
   positions: [],
   ...overrides,
 });

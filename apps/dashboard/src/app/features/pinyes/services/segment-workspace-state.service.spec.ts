@@ -9,7 +9,12 @@ import { NodeAssignmentService } from './node-assignment.service';
 import { ToastService } from '../../../shared/components/feedback/toast/toast.service';
 import { SegmentDetail, InstanceDetail } from '../models/segment.model';
 import { SegmentDistributionData } from '../models/distribution.model';
-import { AssignmentDetail, AvailablePerson, InstanceNodeItem } from '../models/assignment.model';
+import {
+  AssignmentDetail,
+  AvailablePerson,
+  InstanceNodeItem,
+  SegmentConflict,
+} from '../models/assignment.model';
 
 const EVENT_ID = 'event-1';
 const SEGMENT_ID = 'seg-1';
@@ -130,6 +135,10 @@ const makePerson = (id: string, overrides: Partial<AvailablePerson> = {}): Avail
   attendanceStatus: 'ANIRE',
   nextPerformanceStatus: null,
   assignedInSegment: false,
+  assignedPlacements: [],
+  assignedInTronc: false,
+  assignedInPinya: false,
+  conflictInSegment: false,
   positions: [],
   ...overrides,
 });
@@ -144,6 +153,7 @@ describe('SegmentWorkspaceStateService', () => {
     getByInstance: ReturnType<typeof vi.fn>;
     getAvailablePersons: ReturnType<typeof vi.fn>;
     getLockStatus: ReturnType<typeof vi.fn>;
+    getSegmentConflicts: ReturnType<typeof vi.fn>;
   };
   let toast: { success: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn>; info: ReturnType<typeof vi.fn> };
 
@@ -153,6 +163,7 @@ describe('SegmentWorkspaceStateService', () => {
     nodesByInstance?: Record<string, InstanceNodeItem[]>;
     assignmentsByInstance?: Record<string, AssignmentDetail[]>;
     persons?: AvailablePerson[];
+    conflicts?: SegmentConflict[];
   } = {}) => {
     const segment = opts.segment ?? makeSegment([makeInstance('inst-a')]);
     const distribution = opts.distribution ?? {
@@ -171,6 +182,19 @@ describe('SegmentWorkspaceStateService', () => {
       ),
       getAvailablePersons: vi.fn().mockReturnValue(of({ data: opts.persons ?? [] })),
       getLockStatus: vi.fn().mockReturnValue(of({ locked: false, lockDate: null, lockDays: 3 })),
+      getSegmentConflicts: vi.fn().mockReturnValue(
+        of({
+          data: opts.conflicts ?? [],
+          meta: {
+            assignmentCount: 0,
+            distinctPersonCount: 0,
+            tronc: { distinctPersonCount: 0 },
+            pinya: { distinctPersonCount: 0 },
+            conflictPersonCount: opts.conflicts?.length ?? 0,
+            conflictsByKind: { TRONC_TRONC: 0, TRONC_PINYA: 0, PINYA_PINYA: 0 },
+          },
+        }),
+      ),
     };
     toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 
@@ -334,6 +358,59 @@ describe('SegmentWorkspaceStateService', () => {
       subjectA.error(new Error('boom'));
 
       expect(service.instancesHydrated()).toBe(true);
+    });
+  });
+
+  describe('conflicts / conflictPersonIds', () => {
+    const makeConflict = (personId: string): SegmentConflict => ({
+      personId,
+      personAlias: personId,
+      placements: [
+        {
+          assignmentId: `a-${personId}-1`,
+          figureInstanceId: 'inst-a',
+          figureName: 'pd4',
+          nodeId: 'n1',
+          nodeLabel: 'MANS',
+          zone: 'TRONC',
+          area: 'TRONC',
+          z: 0,
+          renglaPosition: null,
+          cordon: null,
+        },
+        {
+          assignmentId: `a-${personId}-2`,
+          figureInstanceId: 'inst-a',
+          figureName: 'pd4',
+          nodeId: 'n2',
+          nodeLabel: ' escala',
+          zone: 'PINYA',
+          area: 'PINYA',
+          z: 0,
+          renglaPosition: 1,
+          cordon: 1,
+        },
+      ],
+      kind: 'TRONC_PINYA',
+      suggestedRemovalAssignmentIds: [`a-${personId}-2`],
+    });
+
+    it('conflictPersonIds is empty when the segment has no conflicts (production)', () => {
+      configure({ conflicts: [] });
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      expect(service.conflicts()).toEqual([]);
+      expect(service.conflictPersonIds().size).toBe(0);
+    });
+
+    it('conflictPersonIds derives one entry per conflicted person', () => {
+      configure({ conflicts: [makeConflict('p1'), makeConflict('p2')] });
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      expect(service.conflicts()).toHaveLength(2);
+      expect(service.conflictPersonIds()).toEqual(new Set(['p1', 'p2']));
     });
   });
 

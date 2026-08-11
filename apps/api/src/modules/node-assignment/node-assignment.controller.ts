@@ -53,7 +53,11 @@ export class NodeAssignmentController {
     return { data };
   }
 
-  @ApiOperation({ summary: 'Assign a person to a node in a figure instance (auto-snapshots on first assignment)' })
+  @ApiOperation({
+    summary:
+      'Assign a person to a node in a figure instance (auto-snapshots on first assignment). ' +
+      'Returns a `impact` (TroncChangeImpact) when the node is TRONC/BASE.',
+  })
   @Post('figure-instances/:instanceId/assignments')
   assign(
     @Param('instanceId', ParseUUIDPipe) instanceId: string,
@@ -62,7 +66,11 @@ export class NodeAssignmentController {
     return this.assignmentService.assign(instanceId, dto);
   }
 
-  @ApiOperation({ summary: 'Swap two assignments within the same figure instance' })
+  @ApiOperation({
+    summary:
+      'Swap two assignments within the same figure instance. ' +
+      'Returns a `impact` (TroncChangeImpact) when either node is TRONC/BASE.',
+  })
   @Post('figure-instances/:instanceId/assignments/swap')
   swap(
     @Param('instanceId', ParseUUIDPipe) instanceId: string,

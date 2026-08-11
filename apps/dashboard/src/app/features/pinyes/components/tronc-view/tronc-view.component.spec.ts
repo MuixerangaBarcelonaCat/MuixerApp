@@ -221,6 +221,28 @@ describe('TroncViewComponent', () => {
     expect(component.getAssignment('node-2')).toBeUndefined();
   });
 
+  // ── Conflict style (Phase 3) ──────────────────────────────────────────────
+
+  it('isConflict is false when the node has no assignment', () => {
+    fixture.componentRef.setInput('conflictPersonIds', new Set(['person-node-1']));
+    fixture.detectChanges();
+    expect(component.isConflict('node-1')).toBe(false);
+  });
+
+  it('isConflict is false when the assigned person is not in conflict (production default)', () => {
+    fixture.componentRef.setInput('assignments', [makeAssignment('node-1', 'Pepet')]);
+    fixture.componentRef.setInput('conflictPersonIds', new Set<string>());
+    fixture.detectChanges();
+    expect(component.isConflict('node-1')).toBe(false);
+  });
+
+  it('isConflict is true when the assigned person is in conflict', () => {
+    fixture.componentRef.setInput('assignments', [makeAssignment('node-1', 'Pepet')]);
+    fixture.componentRef.setInput('conflictPersonIds', new Set(['person-node-1']));
+    fixture.detectChanges();
+    expect(component.isConflict('node-1')).toBe(true);
+  });
+
   // ── Height display ────────────────────────────────────────────────────────
 
   it('getHeightDisplay returns empty string for null height', () => {

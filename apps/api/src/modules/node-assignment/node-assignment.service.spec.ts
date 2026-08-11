@@ -509,6 +509,59 @@ describe('NodeAssignmentService', () => {
       );
     });
 
+    it('attaches a TroncChangeImpact when the assigned node is a TRONC node', async () => {
+      const troncNode = makeInstanceNode({ id: INSTANCE_NODE_ID, zone: FigureZone.TRONC });
+      const a = makeAssignment({ instanceNode: troncNode as any });
+
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
+      mockPersonRepo.findOne.mockResolvedValue(makePerson());
+      mockInstanceNodeRepo.findOne.mockResolvedValue(troncNode);
+      mockAssignmentRepo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue(a);
+      mockAssignmentRepo.create.mockReturnValue(a);
+      mockAssignmentRepo.save.mockResolvedValue(a);
+      // Impact path: getSegmentConflicts + freed-pinya both read via .find
+      mockAssignmentRepo.find.mockResolvedValue([]);
+      mockInstanceNodeRepo.find.mockResolvedValue([
+        makeInstanceNode({ id: 'pinya-empty', zone: FigureZone.PINYA }),
+        troncNode,
+      ]);
+
+      const result = await service.assign(INSTANCE_ID, {
+        nodeId: INSTANCE_NODE_ID,
+        personId: PERSON_ID,
+      });
+
+      expect(result.impact).toBeDefined();
+      expect(result.impact!.newConflicts).toEqual([]);
+      expect(result.impact!.freedPinyaNodeIds).toEqual(['pinya-empty']);
+    });
+
+    it('does NOT attach an impact when the assigned node is a PINYA node', async () => {
+      const inode = makeInstanceNode(); // PINYA by default
+      const a = makeAssignment();
+
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
+      mockPersonRepo.findOne.mockResolvedValue(makePerson());
+      mockInstanceNodeRepo.findOne.mockResolvedValue(inode);
+      mockAssignmentRepo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue(a);
+      mockAssignmentRepo.create.mockReturnValue(a);
+      mockAssignmentRepo.save.mockResolvedValue(a);
+
+      const result = await service.assign(INSTANCE_ID, {
+        nodeId: INSTANCE_NODE_ID,
+        personId: PERSON_ID,
+      });
+
+      expect(result.impact).toBeUndefined();
+      expect(mockAssignmentRepo.find).not.toHaveBeenCalled();
+    });
+
     it('throws ConflictException (not a raw 500) when a concurrent assign wins the race and the DB unique constraint fires', async () => {
       const inode = makeInstanceNode();
       mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
@@ -604,6 +657,63 @@ describe('NodeAssignmentService', () => {
         NodeAssignment,
         expect.objectContaining({ segment: assignmentB.figureInstance!.segment }),
       );
+    });
+
+    it('attaches a TroncChangeImpact when a swapped node is a TRONC node', async () => {
+      const troncNode = makeInstanceNode({ id: INSTANCE_NODE_ID, zone: FigureZone.TRONC });
+      const assignmentA = makeAssignment({ instanceNode: troncNode as any });
+      const assignmentB = makeAssignmentB();
+
+      mockAssignmentRepo.findOne
+        .mockResolvedValueOnce(assignmentA)
+        .mockResolvedValueOnce(assignmentB)
+        .mockResolvedValueOnce(assignmentA)
+        .mockResolvedValueOnce(assignmentB);
+
+      const txManager = {
+        delete: jest.fn().mockResolvedValue(undefined),
+        create: jest.fn().mockImplementation((_entity: any, data: any) => data),
+        save: jest.fn().mockResolvedValue(undefined),
+      };
+      mockDataSource.transaction.mockImplementation((cb: any) => cb(txManager));
+      mockAssignmentRepo.find.mockResolvedValue([]);
+      mockInstanceNodeRepo.find.mockResolvedValue([
+        makeInstanceNode({ id: 'pinya-empty', zone: FigureZone.PINYA }),
+      ]);
+
+      const result = await service.swap(INSTANCE_ID, {
+        assignmentIdA: ASSIGNMENT_ID,
+        assignmentIdB: ASSIGNMENT_ID_B,
+      });
+
+      expect(result.impact).toBeDefined();
+      expect(result.impact!.freedPinyaNodeIds).toEqual(['pinya-empty']);
+    });
+
+    it('does NOT attach an impact when both swapped nodes are PINYA nodes', async () => {
+      const assignmentA = makeAssignment();
+      const assignmentB = makeAssignmentB();
+
+      mockAssignmentRepo.findOne
+        .mockResolvedValueOnce(assignmentA)
+        .mockResolvedValueOnce(assignmentB)
+        .mockResolvedValueOnce(assignmentA)
+        .mockResolvedValueOnce(assignmentB);
+
+      const txManager = {
+        delete: jest.fn().mockResolvedValue(undefined),
+        create: jest.fn().mockImplementation((_entity: any, data: any) => data),
+        save: jest.fn().mockResolvedValue(undefined),
+      };
+      mockDataSource.transaction.mockImplementation((cb: any) => cb(txManager));
+
+      const result = await service.swap(INSTANCE_ID, {
+        assignmentIdA: ASSIGNMENT_ID,
+        assignmentIdB: ASSIGNMENT_ID_B,
+      });
+
+      expect(result.impact).toBeUndefined();
+      expect(mockAssignmentRepo.find).not.toHaveBeenCalled();
     });
 
     it('throws NotFoundException if assignment A not found', async () => {

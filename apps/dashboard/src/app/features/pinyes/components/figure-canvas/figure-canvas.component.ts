@@ -184,6 +184,8 @@ function createNodeShape(
 }
 const SELECTED_STROKE = '#f59e0b';
 const NORMAL_STROKE = '#1e1b4b';
+/** Amber conflict outline (Phase 3), matching the observation badge / tronc-view warning hue. */
+const CONFLICT_STROKE = '#f59e0b';
 /** Matches the min/max of the zoom-selector dropdown (25%–300%). */
 const ZOOM_MIN = 0.25;
 const ZOOM_MAX = 3;
@@ -214,6 +216,12 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   readonly attendanceMap = input<Map<string, string>>(new Map());
   readonly nextPerformanceMap = input<Map<string, string | null>>(new Map());
   readonly highlightedNodeIds = input<Set<string>>(new Set());
+  /**
+   * Person IDs in conflict in this segment (Phase 3). A node whose assigned person is one of
+   * these gets the single amber warning style — same for every conflict kind, no `kind` reaches
+   * the canvas by design ("un conflicte és un conflicte"). Empty in production until Phase 5.
+   */
+  readonly conflictPersonIds = input<Set<string>>(new Set());
   readonly isPlacementMode = input<boolean>(false);
   readonly decorationOpacity = input<number>(1);
   readonly isPast = input<boolean>(false);
@@ -376,6 +384,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.selectedSegmentNode();
       this.dimmedSlotIds();
       this.highlightedNodeIds();
+      this.conflictPersonIds();
       this.decorationOpacity();
       if (!this.stage) return;
       if (this.mode() !== 'segment-assignment') return;
@@ -390,6 +399,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       this.nextPerformanceMap();
       this.selectedNodeId();
       this.highlightedNodeIds();
+      this.conflictPersonIds();
       this.decorationOpacity();
       if (!this.stage) return;
       if (this.mode() === 'assignment') {
@@ -1458,6 +1468,21 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     return group;
   }
 
+  /** True when this node's assigned person holds >1 placement in the segment (Phase 3). */
+  private isConflictAssignment(assignment: AssignmentDetail | null | undefined): boolean {
+    return !!assignment && this.conflictPersonIds().has(assignment.person.id);
+  }
+
+  /** Single amber warning outline for a conflicted node — identical across all conflict kinds. */
+  private applyConflictOutline(shape: Konva.Shape): void {
+    shape.stroke(CONFLICT_STROKE);
+    shape.strokeWidth(3);
+    shape.shadowColor(CONFLICT_STROKE);
+    shape.shadowBlur(10);
+    shape.shadowOpacity(0.75);
+    shape.shadowEnabled(true);
+  }
+
   private renderAssignmentNodes(): void {
     this.transformer.nodes([]);
     this.transformer.remove();
@@ -1534,6 +1559,9 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         shape.shadowBlur(12);
         shape.shadowOpacity(0.7);
         shape.shadowEnabled(true);
+      }
+      if (this.isConflictAssignment(assignment)) {
+        this.applyConflictOutline(shape);
       }
       group.add(shape);
 
@@ -1943,6 +1971,9 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       shape.shadowOpacity(0.7);
       shape.shadowEnabled(true);
     }
+    if (this.isConflictAssignment(assignment)) {
+      this.applyConflictOutline(shape);
+    }
     group.add(shape);
     const personVisualStartIndex = group.getChildren().length;
 
@@ -2240,6 +2271,9 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           strokeWidth: isDecoration ? 2 : 1.5,
         },
       );
+      if (this.isConflictAssignment(assignment)) {
+        this.applyConflictOutline(shape);
+      }
       group.add(shape);
 
       const textFill = isDecoration

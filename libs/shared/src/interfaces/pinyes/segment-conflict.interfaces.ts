@@ -49,3 +49,13 @@ export interface SegmentConflictsResponse {
   data: SegmentConflict[];
   meta: SegmentPeopleCounters;
 }
+
+/**
+ * Derived (never persisted) impact of writing to a TRONC/BASE node (D11): the conflicts the
+ * segment holds after the write, and the pinya nodes of the touched instance that ended up
+ * empty. Returned by assign/swap when the affected node is TRONC/BASE; consumed from Phase 4.
+ */
+export interface TroncChangeImpact {
+  newConflicts: SegmentConflict[];
+  freedPinyaNodeIds: string[];
+}

@@ -143,7 +143,7 @@ describe('DistribucioTabComponent', () => {
   let ws: SegmentWorkspaceStateService;
   let distributionService: { getDistribution: MockFn; saveDistribution: MockFn; clearDistribution: MockFn };
   let instanceService: { update: MockFn };
-  let assignmentService: { getInstanceNodes: MockFn; getByInstance: MockFn; getAvailablePersons: MockFn; getLockStatus: MockFn; updateCordons: MockFn };
+  let assignmentService: { getInstanceNodes: MockFn; getByInstance: MockFn; getAvailablePersons: MockFn; getLockStatus: MockFn; getSegmentConflicts: MockFn; updateCordons: MockFn };
   let toast: { success: MockFn; error: MockFn; info: MockFn };
 
   const setup = async (opts: {
@@ -165,6 +165,7 @@ describe('DistribucioTabComponent', () => {
       getInstanceNodes: vi.fn().mockReturnValue(of({ data: [] })),
       getByInstance: vi.fn().mockReturnValue(of({ data: [] })),
       getAvailablePersons: vi.fn().mockReturnValue(of({ data: [] })),
+      getSegmentConflicts: vi.fn().mockReturnValue(of({ data: [] })),
       getLockStatus: vi.fn().mockReturnValue(of({ locked: false, lockDate: null, lockDays: 3 })),
       updateCordons: vi.fn().mockReturnValue(of({ numberOfCordons: 2, cordonsObertsEnabled: true })),
     };
@@ -261,6 +262,7 @@ describe('DistribucioTabComponent', () => {
         getInstanceNodes: vi.fn().mockReturnValue(of({ data: [] })),
         getByInstance: vi.fn().mockReturnValue(of({ data: [] })),
         getAvailablePersons: vi.fn().mockReturnValue(of({ data: [] })),
+        getSegmentConflicts: vi.fn().mockReturnValue(of({ data: [] })),
         getLockStatus: vi.fn().mockReturnValue(of({ locked: false, lockDate: null, lockDays: 3 })),
         updateCordons: vi.fn(),
       };

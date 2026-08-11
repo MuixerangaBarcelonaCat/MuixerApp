@@ -29,6 +29,7 @@ class StubFigureCanvas {
   readonly mode = input<string>('editor');
   readonly compositionSlots = input<CompositionSlotWithNodes[]>([]);
   readonly assignments = input<AssignmentDetail[]>([]);
+  readonly conflictPersonIds = input<Set<string>>(new Set());
   readonly selectedSegmentNode = input<SegmentNodeRef | null>(null);
   readonly dimmedSlotIds = input<Set<string>>(new Set());
   readonly isPlacementMode = input<boolean>(false);
@@ -168,6 +169,7 @@ describe('NodesTabComponent', () => {
     getByInstance: MockFn;
     getAvailablePersons: MockFn;
     getLockStatus: MockFn;
+    getSegmentConflicts: MockFn;
     createAdHocNode: MockFn;
     updateAdHocNode: MockFn;
     deleteAdHocNode: MockFn;
@@ -195,6 +197,7 @@ describe('NodesTabComponent', () => {
         of({ data: opts.assignmentsByInstance?.[instanceId] ?? [] }),
       ),
       getAvailablePersons: vi.fn().mockReturnValue(of({ data: [] })),
+      getSegmentConflicts: vi.fn().mockReturnValue(of({ data: [] })),
       getLockStatus: vi.fn().mockReturnValue(of({ locked: false, lockDate: null, lockDays: 3 })),
       createAdHocNode: vi.fn().mockReturnValue(of(makeNode('new-1', 'PINYA', { isAdHoc: true }))),
       updateAdHocNode: vi.fn().mockReturnValue(of(makeNode('adhoc-1', 'PINYA', { isAdHoc: true }))),

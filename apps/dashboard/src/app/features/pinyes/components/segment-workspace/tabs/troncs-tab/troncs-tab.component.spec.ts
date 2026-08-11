@@ -25,6 +25,7 @@ class StubTroncView {
   readonly baseNodes = input<TroncNodeItem[]>([]);
   readonly directionNodes = input<TroncNodeItem[]>([]);
   readonly assignments = input<AssignmentDetail[]>([]);
+  readonly conflictPersonIds = input<Set<string>>(new Set());
   readonly selectedNodeId = input<string | null>(null);
   readonly mode = input<string>('assignment');
   readonly heightMode = input<string>('relative');
@@ -51,6 +52,7 @@ class StubPersonPanel {
   readonly segmentId = input.required<string>();
   readonly selectedNodeId = input<string | null>(null);
   readonly assignments = input<AssignmentDetail[]>([]);
+  readonly conflictPersonIds = input<Set<string>>(new Set());
   readonly heightMode = input<string>('relative');
   readonly activeNodePositionType = input<string | null>(null);
   readonly selectedNodeZone = input<string | null>(null);
@@ -166,6 +168,10 @@ const makePerson = (id: string): AvailablePerson => ({
   attendanceStatus: 'ANIRE',
   nextPerformanceStatus: null,
   assignedInSegment: false,
+  assignedPlacements: [],
+  assignedInTronc: false,
+  assignedInPinya: false,
+  conflictInSegment: false,
   positions: [],
 });
 
@@ -182,6 +188,7 @@ describe('TroncsTabComponent', () => {
     getByInstance: MockFn;
     getAvailablePersons: MockFn;
     getLockStatus: MockFn;
+    getSegmentConflicts: MockFn;
     assign: MockFn;
     unassign: MockFn;
     swap: MockFn;
@@ -208,6 +215,7 @@ describe('TroncsTabComponent', () => {
         of({ data: opts.assignmentsByInstance?.[instanceId] ?? [] }),
       ),
       getAvailablePersons: vi.fn().mockReturnValue(of({ data: [] })),
+      getSegmentConflicts: vi.fn().mockReturnValue(of({ data: [] })),
       getLockStatus: vi
         .fn()
         .mockReturnValue(of({ locked: opts.locked ?? false, lockDate: null, lockDays: 3 })),

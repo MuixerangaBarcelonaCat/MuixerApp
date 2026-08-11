@@ -45,7 +45,7 @@ Estat de conjunt, actualitzat en tancar cada fase (no cal obrir cada secció per
 | 0 | Fonaments i bugs de col·lapse | ✅ Fet | 2026-08-10 | [§Resultats Fase 0](#resultats--fase-0) |
 | 1 | Motor de conflictes (backend additiu) | ✅ Fet | 2026-08-10 | [§Resultats Fase 1](#resultats--fase-1) |
 | 2 | Participació sobre la font canònica | ✅ Fet | 2026-08-10 | [§Resultats Fase 2](#resultats--fase-2) |
-| 3 | El taller en mode lectura | ⬜ Pendent | — | — |
+| 3 | El taller en mode lectura | ✅ Fet | 2026-08-11 | [§Resultats Fase 3](#resultats--fase-3) |
 | 4 | Resolució interactiva al taller | ⬜ Pendent | — | — |
 | 5 | El canvi de règim (release coordinada) | ⬜ Pendent | — | — |
 | 6 | Equilibri de participació event-wide | ⬜ Pendent | — | — |
@@ -399,7 +399,53 @@ tronc-view, projecció) però no hi ha manera d'actuar-hi encara.
      `impact.freedPinyaNodeIds` coherent amb els nodes que han quedat buits.
 
 ### Resultats — Fase 3
-_(a omplir)_
+
+| # | Escenari | Esperat | Obtingut | Resultat |
+|---|----------|---------|----------|----------|
+| 1 | `TroncChangeImpact` a `assign`/`swap` sobre node TRONC/BASE | Retorna `impact { newConflicts, freedPinyaNodeIds }`; PINYA no retorna `impact` | Unitaris RED→GREEN a `node-assignment.service.spec.ts` (4 casos); reutilitza `getSegmentConflicts` (D13) + helper `computeFreedPinyaNodeIds` | PASS |
+| 2 | Contracte additiu backend | `impact` opcional; cap resposta existent muta de forma | 883/883 tests API verds; `assign`/`swap` mantenen `.id`/`.node`/`{a,b}` (tipus intersecció) | PASS |
+| 3 | Neteja stale Fase 2 (models dashboard) | `EventFigureSummary`/`EventSegmentSummary`/`AvailablePerson`/`ProjectionSegmentData` sincronitzats amb els camps de conflicte | Camps afegits localment (convenció `participation.model.ts`); dashboard compila | PASS |
+| 4 | Estil de conflicte únic (canvas 3 modes + tronc-view) | Mateix estil ambre per als 3 `kind` — cap `kind` arriba al render (només `Set<personId>`) | `figure-canvas` (assignment/segment-assignment/readonly) + `tronc-view` `[class.conflict]`; helper `isConflict`/`isConflictAssignment` amb tests | PASS |
+| 5 | Font de conflicte al taller | `SegmentWorkspaceStateService.conflictPersonIds` derivat de l'endpoint `/conflicts` (Fase 1); buit en producció | 2 tests nous (buit sense conflictes; 1 entrada per persona); recarregat a `load`/`refresh`/`refreshInstance` | PASS |
+| 6 | Píndoles `segment-manager` | `⚠ N conflictes` només si `conflictPersonCount>0` (ocult en producció) + tooltip dotació per àrea | 4 tests nous (`segmentConflictCount`, `segmentDotacioTooltip`); `@if(count)` oculta a 0 | PASS |
+| 7 | `AlreadyAssignedDialog` multi-col·locació | Llista totes les col·locacions amb àrea + avís de tronc; **sense** "Assignar igualment" | Spec nou (4 tests) verd; alimentat per `AvailablePerson.assignedPlacements` des dels dos tabs | PASS |
+| 8 | Projecció rep conflictes | `ProjectionViewComponent` deriva `conflictPersonIds` de `ProjectionData.conflicts` i el passa a canvas+tronc-view | Computed nou + bindings a la template | PASS |
+| 9 | Regressió completa | Tots els suites verds, lint net, builds OK | shared 32/32 · api 883/883 · dashboard 1509/1511 (2 skip preexistents) · lint 0 errors · build api+dashboard OK | PASS |
+
+**Resum:** Fase 3 completa, additiva i purament visual + backend additiu — cap camí de mutació/resolució
+nou (això és la Fase 4). Amb dades de producció (0 conflictes, constraints intactes) la UI és idèntica
+excepte els comptadors nous de dotació al tooltip. Punt clau de disseny: al render només arriba un
+`Set<personId>` (mai el `kind`), així que **per construcció** tots els tipus de conflicte pinten igual
+("un conflicte és un conflicte"). La neteja stale heretada de la Fase 2 (3a còpia dels tipus de resum al
+dashboard) queda resolta.
+
+**Desviació de l'spec (acordada amb l'usuari):** `TroncChangeImpact` s'afegeix només a `assign`/`swap`
+(no a `unassign`/`move`), per no ampliar ara els contractes de `unassign` (204) i `move`; es completarà a
+la Fase 5 on aquestes operacions ja canvien.
+
+**Tests automàtics:** `nx test shared` 32/32 (inclou els casos existents) · `nx test api` 883/883 (2 tests
+nous a `assign`, 2 a `swap`) · `nx test dashboard` 1509/1511 (2 skip preexistents; nous: 2
+`segment-workspace-state`, 3 `tronc-view` `isConflict`, 4 `segment-manager` píndoles, 4
+`already-assigned-dialog`). `nx lint api|dashboard|shared` 0 errors. `nx build api` i `nx build dashboard`
+OK.
+
+**Tests Playwright:** `apps/dashboard-e2e/src/segments-flexibility/fase-3.spec.ts` creat (regressió de
+zero-conflicte: el taller no mostra cap estil de conflicte i la píndola porta el tooltip de dotació).
+Typecheck OK; **no executat en viu aquesta sessió** — el `nx serve api` va entrar en bucle de reinici
+ràpid (168 reinicis, mai va lligar el port 3000, sense error explícit al log; flakiness de l'stack de dev
+ja vista a fases anteriors). La prova visual amb conflictes **reals sembrats** queda deferida a després de
+la Fase 5 (decisió de l'usuari a l'inici de la sessió).
+
+**Dades/setup creats durant pauses de verificació:** cap. No s'ha tocat la BBDD de dev ni cap constraint;
+tots els conflictes de test se simulen amb mocks (Vitest) o al nivell de servei (Jest).
+
+**Pendent/riscos oberts en tancar la fase:**
+- Playwright de regressió zero-conflicte **escrit però no executat** (bucle de reinici de `nx serve api`).
+  Reprendre quan l'stack arrenqui net i amb credencials `E2E_EMAIL`/`E2E_PASSWORD`.
+- `TroncChangeImpact` a `unassign`/`move` → Fase 5 (desviació acordada).
+- Estil de conflicte visible amb dades reals → verificació deferida a després de la Fase 5.
+- Els `impact` d'`assign`/`swap` **no es consumeixen encara** al frontend (dashboard) — es cablejaran a la
+  Fase 4 (llista de revisió). La resposta els emet i queden documentats a Swagger via `@ApiOperation`.
 
 ---
 

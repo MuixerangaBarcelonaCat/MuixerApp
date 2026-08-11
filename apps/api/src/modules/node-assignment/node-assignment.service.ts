@@ -25,6 +25,7 @@ import {
   SegmentConflict,
   SegmentConflictsResponse,
   SegmentPeopleCounters,
+  TroncChangeImpact,
   EventAssignmentSummary,
   EventSegmentSummary,
   EventFigureSummary,
@@ -356,9 +357,9 @@ export class NodeAssignmentService {
   async assign(
     instanceId: string,
     dto: { nodeId: string; personId: string },
-  ): Promise<AssignmentDetail> {
+  ): Promise<AssignmentDetail & { impact?: TroncChangeImpact }> {
     await this.checkEventLock(instanceId);
-    return this.assignWithoutLockCheck(instanceId, dto);
+    return this.assignWithoutLockCheck(instanceId, dto, true);
   }
 
   /**
@@ -369,7 +370,8 @@ export class NodeAssignmentService {
   private async assignWithoutLockCheck(
     instanceId: string,
     dto: { nodeId: string; personId: string },
-  ): Promise<AssignmentDetail> {
+    computeImpact = false,
+  ): Promise<AssignmentDetail & { impact?: TroncChangeImpact }> {
     const instance = await this.figureInstanceRepository.findOne({
       where: { id: instanceId },
       relations: ['figureTemplate', 'segment'],
@@ -478,7 +480,42 @@ export class NodeAssignmentService {
       relations: ['instanceNode', 'person', 'figureInstance'],
     });
 
-    return toAssignmentDetail(populated!);
+    const detail = toAssignmentDetail(populated!);
+    if (computeImpact && areaForZone(instanceNode.zone as FigureZone) === AssignmentArea.TRONC) {
+      return { ...detail, impact: await this.computeTroncChangeImpact(instance.segment.id, instanceId) };
+    }
+    return detail;
+  }
+
+  /**
+   * Derived impact of writing to a TRONC/BASE node (D11): the segment's conflicts after the
+   * write, plus the touched instance's pinya nodes that are now empty. Not persisted; consumed
+   * from Phase 4. Reuses the canonical getSegmentConflicts (D13) — no bespoke conflict logic.
+   */
+  private async computeTroncChangeImpact(
+    segmentId: string,
+    instanceId: string,
+  ): Promise<TroncChangeImpact> {
+    const [{ data: newConflicts }, freedPinyaNodeIds] = await Promise.all([
+      this.getSegmentConflicts(segmentId),
+      this.computeFreedPinyaNodeIds(instanceId),
+    ]);
+    return { newConflicts, freedPinyaNodeIds };
+  }
+
+  /** Pinya-area InstanceNodes of an instance that currently hold no assignment (areaForZone: BASE→TRONC). */
+  private async computeFreedPinyaNodeIds(instanceId: string): Promise<string[]> {
+    const [nodes, assignments] = await Promise.all([
+      this.instanceNodeRepository.find({ where: { figureInstance: { id: instanceId } } }),
+      this.assignmentRepository.find({
+        where: { figureInstance: { id: instanceId } },
+        relations: ['instanceNode'],
+      }),
+    ]);
+    const occupied = new Set(assignments.map((a) => a.instanceNode?.id).filter(Boolean));
+    return nodes
+      .filter((n) => areaForZone(n.zone as FigureZone) === AssignmentArea.PINYA && !occupied.has(n.id))
+      .map((n) => n.id);
   }
 
   // ── B.7 — Swap two assignments ────────────────────────────────────────────
@@ -486,7 +523,7 @@ export class NodeAssignmentService {
   async swap(
     instanceId: string,
     dto: { assignmentIdA: string; assignmentIdB: string },
-  ): Promise<{ a: AssignmentDetail; b: AssignmentDetail }> {
+  ): Promise<{ a: AssignmentDetail; b: AssignmentDetail; impact?: TroncChangeImpact }> {
     await this.checkEventLock(instanceId);
 
     const [assignmentA, assignmentB] = await Promise.all([
@@ -550,7 +587,17 @@ export class NodeAssignmentService {
       throw new NotFoundException('Failed to reload assignments after swap');
     }
 
-    return { a: toAssignmentDetail(updatedA), b: toAssignmentDetail(updatedB) };
+    const result = { a: toAssignmentDetail(updatedA), b: toAssignmentDetail(updatedB) };
+    const touchesTronc = [assignmentA, assignmentB].some(
+      (x) => areaForZone(x.instanceNode.zone as FigureZone) === AssignmentArea.TRONC,
+    );
+    if (touchesTronc) {
+      return {
+        ...result,
+        impact: await this.computeTroncChangeImpact(assignmentA.figureInstance.segment.id, instanceId),
+      };
+    }
+    return result;
   }
 
   // ── Existing — unassign ───────────────────────────────────────────────────

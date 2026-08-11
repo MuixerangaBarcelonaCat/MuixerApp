@@ -23,6 +23,10 @@ const makeAvailablePerson = (id = 'person-1', status: AvailablePerson['attendanc
   attendanceStatus: status,
   nextPerformanceStatus: null,
   assignedInSegment: false,
+  assignedPlacements: [],
+  assignedInTronc: false,
+  assignedInPinya: false,
+  conflictInSegment: false,
   positions: [],
 });
 

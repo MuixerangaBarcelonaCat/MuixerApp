@@ -164,6 +164,14 @@
     background: oklch(var(--b1));
   }
 
+  // Phase 3 — single warning style for a person assigned >1 time in the segment.
+  // Same amber cue everywhere (canvas, tronc-view): "un conflicte és un conflicte", no per-kind styling.
+  &.conflict {
+    border-color: oklch(var(--wa));
+    box-shadow: 0 0 0 2px oklch(var(--wa) / 0.55);
+    background: oklch(var(--wa) / 0.14);
+  }
+
   &.highlighted {
     border-color: oklch(var(--a));
     background: oklch(var(--a) / 0.08);

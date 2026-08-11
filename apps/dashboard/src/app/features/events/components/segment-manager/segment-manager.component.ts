@@ -12,7 +12,7 @@ import { Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { LucideAngularModule } from 'lucide-angular';
-import { ICON_FIGURA, ICON_PERSONA, ICON_COMPOSITION, ICON_FIGURA_NETA, ICON_PINYA, ICON_TRONC } from '../../../../shared/constants/domain-icons';
+import { ICON_FIGURA, ICON_PERSONA, ICON_COMPOSITION, ICON_FIGURA_NETA, ICON_PINYA, ICON_TRONC, ICON_OBSERVACIONS } from '../../../../shared/constants/domain-icons';
 import { forkJoin } from 'rxjs';
 import { SegmentMoveConflictResolution } from '@muixer/shared';
 import { FiguresViewModeService, FiguresViewMode } from '../../../pinyes/services/figures-view-mode.service';
@@ -33,7 +33,11 @@ import {
   TroncFloorData,
   MoveInstanceResult,
 } from '../../../pinyes/models/segment.model';
-import { EventFigureSummary, FigureAreaCount } from '../../../pinyes/models/assignment.model';
+import {
+  EventFigureSummary,
+  FigureAreaCount,
+  SegmentPeopleCounters,
+} from '../../../pinyes/models/assignment.model';
 import { eventReturnUrl } from '../../utils/event-return-url.util';
 
 export type ViewMode = FiguresViewMode;
@@ -75,6 +79,7 @@ export class SegmentManagerComponent implements OnInit {
   readonly ICON_FIGURA_NETA = ICON_FIGURA_NETA;
   readonly ICON_PINYA = ICON_PINYA;
   readonly ICON_TRONC = ICON_TRONC;
+  readonly ICON_CONFLICT = ICON_OBSERVACIONS;
   readonly SegmentMoveConflictResolution = SegmentMoveConflictResolution;
 
   private readonly segmentService = inject(EventSegmentService);
@@ -119,6 +124,8 @@ export class SegmentManagerComponent implements OnInit {
   instanceDropListIds = computed(() => this.segments().map((s) => 'instances-' + s.id));
 
   private readonly figuresBySegment = signal<Map<string, EventFigureSummary[]>>(new Map());
+  /** Segment-level dotació/conflict counters (Phase 3). Empty in production until Phase 5. */
+  private readonly conflictsBySegment = signal<Map<string, SegmentPeopleCounters>>(new Map());
   private readonly figureSummaryByInstance = computed(() => {
     const map = new Map<string, EventFigureSummary>();
     for (const figures of this.figuresBySegment().values()) {
@@ -147,6 +154,7 @@ export class SegmentManagerComponent implements OnInit {
     this.nodeAssignmentService.getEventAssignmentSummary(this.eventId()).subscribe({
       next: (summary) => {
         this.figuresBySegment.set(new Map(summary.segments.map((s) => [s.segmentId, s.figures])));
+        this.conflictsBySegment.set(new Map(summary.segments.map((s) => [s.segmentId, s.conflicts])));
       },
       error: () => undefined,
     });
@@ -637,6 +645,22 @@ export class SegmentManagerComponent implements OnInit {
     const pinya = this.sumAreaCounts(figures, (f) => f.pinya);
     if (pinya.total === 0) return totalPart;
     return `${this.formatAreaCount(pinya)} pinyes, ${totalPart}`;
+  }
+
+  /** People holding >1 placement in the segment (Phase 3). 0 in production until Phase 5. */
+  segmentConflictCount(segment: SegmentDetail): number {
+    return this.conflictsBySegment().get(segment.id)?.conflictPersonCount ?? 0;
+  }
+
+  /** Tooltip with dotació per àrea (distinct people at tronc / pinya). Null when no summary. */
+  segmentDotacioTooltip(segment: SegmentDetail): string | null {
+    const c = this.conflictsBySegment().get(segment.id);
+    if (!c) return null;
+    const parts = [`${c.tronc.distinctPersonCount} al tronc`, `${c.pinya.distinctPersonCount} a la pinya`];
+    if (c.conflictPersonCount > 0) {
+      parts.push(`${c.conflictPersonCount} en conflicte`);
+    }
+    return parts.join(' · ');
   }
 
   private formatAreaCount(count: FigureAreaCount): string {
