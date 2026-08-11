@@ -33,7 +33,7 @@ tags: [domini]
 | 3 | El taller en mode lectura | ✅ Fet | 2026-08-11 | `9355c26`, `2b96c30` |
 | 4 | Resolució interactiva al taller | ✅ Fet (Playwright confirmat en viu) | 2026-08-11 | a968629b |
 | 5 | El canvi de règim (release coordinada) | ✅ Fet (Playwright confirmat en viu) | 2026-08-11 | 06e36cf |
-| 6 | Equilibri de participació event-wide | ✅ Fet | 2026-08-11 | *(pendent de commit)* |
+| 6 | Equilibri de participació event-wide | ✅ Fet | 2026-08-11 | `bda81f4` |
 | 7 | Seguiments (specs separats) | ⬜ Sense planificar | — | — |
 
 ---
