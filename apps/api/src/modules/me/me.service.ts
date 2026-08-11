@@ -6,7 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import {
   JwtPayload,
   AttendanceStatus,
@@ -14,6 +14,8 @@ import {
   MeEvent,
   MeEventDetail,
   AttendanceResponse,
+  ManagedPerson,
+  ManagedPersonAttendance,
 } from '@muixer/shared';
 import { Event } from '../event/event.entity';
 import { Attendance } from '../event/attendance.entity';
@@ -21,6 +23,7 @@ import { User } from '../user/user.entity';
 import { getLocalToday } from '../../common/utils/date.util';
 import { SeasonService } from '../season/season.service';
 import { AttendanceService } from '../event/attendance.service';
+import { PersonDelegateService } from '../person-delegate/person-delegate.service';
 import { MeEventFilterDto } from './dto/me-event-filter.dto';
 import { UpdateMyAttendanceDto } from './dto/update-my-attendance.dto';
 
@@ -37,14 +40,45 @@ export class MeService {
     private readonly attendanceRepository: Repository<Attendance>,
     private readonly seasonService: SeasonService,
     private readonly attendanceService: AttendanceService,
+    private readonly personDelegateService: PersonDelegateService,
   ) {}
+
+  async resolveManagedPersons(userId: string): Promise<ManagedPerson[]> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['person'],
+    });
+
+    const managed: ManagedPerson[] = [];
+    if (user?.person) {
+      managed.push({
+        personId: user.person.id,
+        displayName: `${user.person.name} ${user.person.firstSurname}`,
+        isSelf: true,
+        delegateType: null,
+      });
+    }
+
+    const delegates = await this.personDelegateService.findByUser(userId);
+    for (const delegate of delegates) {
+      managed.push({
+        personId: delegate.person.id,
+        displayName: `${delegate.person.name} ${delegate.person.firstSurname}`,
+        isSelf: false,
+        delegateType: delegate.delegateType,
+      });
+    }
+
+    return managed;
+  }
 
   async findEvents(
     jwtUser: JwtPayload,
     filters: MeEventFilterDto,
   ): Promise<PaginatedResponse<MeEvent>> {
     const personId = await this.resolvePersonId(jwtUser.sub);
-    if (!personId) return this.emptyPage(filters);
+    const managedPersons = await this.resolveManagedPersons(jwtUser.sub);
+    if (managedPersons.length === 0) return this.emptyPage(filters);
 
     const season = await this.seasonService.findCurrentEntity();
     if (!season) return this.emptyPage(filters);
@@ -123,7 +157,35 @@ export class MeService {
     }
 
     const raw = result.raw[0];
-    return this.toMeEventDetail(event, raw);
+    const managedPersons = await this.resolveManagedPersons(jwtUser.sub);
+    const managedAttendances = await this.buildManagedAttendances(eventId, managedPersons);
+    return { ...this.toMeEventDetail(event, raw), managedAttendances };
+  }
+
+  private async buildManagedAttendances(
+    eventId: string,
+    managedPersons: ManagedPerson[],
+  ): Promise<ManagedPersonAttendance[]> {
+    if (managedPersons.length === 0) return [];
+
+    const attendances = await this.attendanceRepository.find({
+      where: { event: { id: eventId }, person: { id: In(managedPersons.map((p) => p.personId)) } },
+      relations: ['person'],
+    });
+
+    return managedPersons.map((managedPerson) => {
+      const attendance = attendances.find((a) => a.person.id === managedPerson.personId);
+      return {
+        ...managedPerson,
+        attendance: attendance
+          ? {
+              id: attendance.id,
+              status: attendance.status,
+              respondedAt: attendance.respondedAt ? attendance.respondedAt.toISOString() : null,
+            }
+          : null,
+      };
+    });
   }
 
   async upsertAttendance(
@@ -131,9 +193,13 @@ export class MeService {
     eventId: string,
     dto: UpdateMyAttendanceDto,
   ): Promise<AttendanceResponse> {
-    const personId = await this.resolvePersonId(jwtUser.sub);
+    const managedPersons = await this.resolveManagedPersons(jwtUser.sub);
+    const personId = dto.personId ?? managedPersons.find((p) => p.isSelf)?.personId ?? null;
     if (!personId) {
       throw new ForbiddenException('No tens un perfil de persona associat al teu compte');
+    }
+    if (dto.personId && !managedPersons.some((p) => p.personId === dto.personId)) {
+      throw new ForbiddenException("No pots gestionar l'assistència d'esta persona");
     }
 
     const event = await this.eventRepository.findOne({ where: { id: eventId } });
@@ -220,7 +286,7 @@ export class MeService {
   private toMeEventDetail(
     event: Event,
     raw: Record<string, unknown>,
-  ): MeEventDetail {
+  ): Omit<MeEventDetail, 'managedAttendances'> {
     return {
       ...this.toMeEvent(event, raw),
       description: event.description,
