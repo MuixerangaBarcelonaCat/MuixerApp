@@ -49,6 +49,9 @@ describe('CalendarViewComponent', () => {
   let host: TestHostComponent;
 
   beforeEach(async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-16T10:00:00'));
+
     await TestBed.configureTestingModule({
       imports: [TestHostComponent],
     }).compileComponents();
@@ -56,6 +59,10 @@ describe('CalendarViewComponent', () => {
     fixture = TestBed.createComponent(TestHostComponent);
     host = fixture.componentInstance;
     fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('should render 7 day-of-week headers in Catalan', () => {
