@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MAIL_PROVIDER } from './mail-provider.interface';
 import { MailService } from './mail.service';
 import { ConsoleMailProvider } from './providers/console-mail.provider';
+import { SmtpMailProvider } from './providers/smtp-mail.provider';
 
 /**
  * Picks the concrete MailProvider from MAIL_PROVIDER (default 'console', a
@@ -22,6 +23,8 @@ import { ConsoleMailProvider } from './providers/console-mail.provider';
         switch (provider) {
           case 'console':
             return new ConsoleMailProvider();
+          case 'smtp':
+            return new SmtpMailProvider(config);
           default:
             throw new Error(`Unsupported MAIL_PROVIDER: ${provider}`);
         }
