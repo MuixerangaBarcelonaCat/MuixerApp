@@ -421,17 +421,23 @@ Un canvi de tronc pot obligar a reajustar tot l'event; aquesta fase dona les dad
 criteri. Gairebé tot és frontend sobre el payload de Participació ja ampliat a la Fase 2. No bloqueja
 ni depèn de la Fase 5: es podria avançar en paral·lel si convé.
 
-1. Filtre d'**àrea** a la pestanya Participació (Tot / Només troncs / Només pinyes) i **matriu de
-   troncs** event-wide: persona × segment amb només col·locacions de tronc — la vista per decidir
-   canvis de tronc veient-ne l'abast.
-2. Columnes ordenables de **càrrega**: `placementCount`, `troncPlacementCount` i el % de segments en
+1. Filtre d'**àrea** a la pestanya Participació (Tot / Només troncs / Només pinyes): filtra les
+   col·locacions pintades a cada cel·la de la matriu — "Només troncs" fa de matriu de troncs sense cap
+   component nou. Els conflictes es calculen sempre sobre el conjunt sencer de col·locacions (§4.1): el
+   filtre mai n'amaga un.
+2. **Columna «Tronc» consolidada**, en scope per-event i oculta per defecte: totes les col·locacions
+   TRONC/BASE (D10) d'una persona a l'event, en una sola cel·la prefixada pel segment. Independent del
+   filtre d'àrea.
+3. Columnes ordenables de **càrrega**: `placementCount`, `troncPlacementCount` i el % de segments en
    què participa. Estadística de capçalera: mín/mitjana/màx i comptador de "persones sense cap
    col·locació" (candidates naturals per equilibrar).
-3. Al panell de persones del taller, ordre opcional **"menys carregades primer"** dins de cada bucket
-   (usa el recompte event-wide, no només el segment) — l'eina pràctica per repartir participació.
-4. Avís informatiu opcional (D12) quan dos segments amb `startTime`/`endTime` solapats comparteixen
-   persona. Mai bloquejant, desactivat si els segments no tenen hores.
-5. Tests: unitaris de les mètriques de càrrega i del filtre d'àrea.
+4. Tests: unitaris del filtre d'àrea (incloent-hi que la marca de conflicte hi sobreviu), de la columna
+   Tronc i de les mètriques de càrrega.
+
+**Descartat d'esta fase, mogut a la Fase 7:** l'ordre "menys carregades primer" al panell de persones
+del taller (calia un recompte event-wide nou a `/available-persons` sense cap altre consumidor) i
+l'avís de segments solapats D12 (cap event té encara `startTime`/`endTime`, així que no es dispararia
+mai). Amb això, la Fase 6 no toca el backend en absolut.
 
 ### Fase 7 — Seguiments (specs separats)
 
@@ -441,6 +447,14 @@ ni depèn de la Fase 5: es podria avançar en paral·lel si convé.
 - Log auditable de canvis de tronc reaprofitant `AuditAction` (D11 el deixa derivat).
 - Mode POM (D6); estil de conflicte a la PWA quan hi arribin vistes de membre; F1 de [[DEBT]] (taller
   inusable per sota de 639px) afecta directament els panells nous.
+- **Ordre "menys carregades primer" al panell de persones del taller** (descartat de la Fase 6):
+  requereix ampliar `/available-persons` amb `eventPlacementCount`/`eventTroncPlacementCount`
+  (BASE→TRONC, D10) i generalitzar `sortByPosition()` a `person-panel.component.ts` perquè la càrrega
+  event-wide siga desempat dins de cada bucket.
+- **Avís informatiu de segments solapats (D12)**, descartat de la Fase 6 perquè cap event té encara
+  `startTime`/`endTime`: quan s'implementi, afegir eixos camps a `EventParticipationSegment` i a la
+  query `loadSegments()`, i un helper d'overlap nou (no n'existeix cap al codi, ni de backend ni de
+  frontend, per a horaris `"HH:mm"`).
 
 ---
 

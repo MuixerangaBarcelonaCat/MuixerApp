@@ -34,7 +34,7 @@ import { eventReturnUrl } from '../../utils/event-return-url.util';
 /** A row of the matrix. Same shape as the API person — placements are already keyed by segment. */
 export type ParticipationRow = ParticipationPerson;
 
-type SortField = 'alias' | 'status' | 'placements';
+type SortField = 'alias' | 'status' | 'placements' | 'troncPlacements' | 'segmentPercent';
 
 /** Static class maps — never build Tailwind classes from template literals. */
 const PILL_POSITION = 'text-base-content';
@@ -59,7 +59,11 @@ const EMPTY_META: ParticipationMeta = {
   personsWithPlacement: 0,
   totalPlacements: 0,
   conflictedPersons: 0,
+  conflictsByKind: { TRONC_TRONC: 0, TRONC_PINYA: 0, PINYA_PINYA: 0 },
+  troncPlacements: 0,
 };
+
+type AreaFilter = 'TRONC' | 'PINYA' | null;
 
 /**
  * Person x segment participation matrix for one event: what each member does, across
@@ -114,6 +118,8 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
   statusFilter = signal<AttendanceStatus | null>(null);
   positionFilter = signal<AvailablePersonPosition | null>(null);
   onlyConflicts = signal(false);
+  /** Filters which placements are PAINTED in each cell; conflicts keep reading the whole set (§4.1). */
+  areaFilter = signal<AreaFilter>(null);
 
   sortBy = signal<SortField>('alias');
   sortOrder = signal<SortOrder | undefined>('ASC');
@@ -167,6 +173,14 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
         return (a.placementCount - b.placementCount) * direction
           || a.alias.localeCompare(b.alias, 'ca');
       }
+      if (field === 'troncPlacements') {
+        return (a.troncPlacementCount - b.troncPlacementCount) * direction
+          || a.alias.localeCompare(b.alias, 'ca');
+      }
+      if (field === 'segmentPercent') {
+        return (this.segmentPercent(a) - this.segmentPercent(b)) * direction
+          || a.alias.localeCompare(b.alias, 'ca');
+      }
       return a.alias.localeCompare(b.alias, 'ca') * direction;
     });
   });
@@ -196,6 +210,10 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
     if (position) filters.push({ key: 'position', label: `Etiqueta: ${position.name}` });
 
     if (this.onlyConflicts()) filters.push({ key: 'conflicts', label: 'Només conflictes' });
+
+    const area = this.areaFilter();
+    if (area) filters.push({ key: 'area', label: `Àrea: ${area === 'TRONC' ? 'Troncs' : 'Pinyes'}` });
+
     return filters;
   });
 
@@ -213,6 +231,25 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
     return count === 1
       ? '1 persona en dos llocs alhora'
       : `${count} persones en dos llocs alhora`;
+  });
+
+  /**
+   * Load stats over the whole population (not `meta`, which only covers placement
+   * totals) — mín/mitjana/màx of `placementCount` plus who has nothing at all, so a
+   * change to a tronc can be weighed against how the rest of the event is loaded.
+   */
+  readonly loadLine = computed(() => {
+    const persons = this.persons();
+    if (persons.length === 0) return null;
+
+    const counts = persons.map((p) => p.placementCount);
+    const min = Math.min(...counts);
+    const max = Math.max(...counts);
+    const mean = counts.reduce((total, c) => total + c, 0) / counts.length;
+    const unplaced = persons.length - this.meta().personsWithPlacement;
+
+    return `Càrrega: mín ${min} · mitjana ${mean.toFixed(1)} · màx ${max}`
+      + (unplaced > 0 ? ` · ${unplaced} sense cap col·locació` : '');
   });
 
   readonly columns = computed<ColumnDef<ParticipationRow>[]>(() => {
@@ -247,7 +284,45 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
         type: 'colorBadges',
         colorBadges: (r) => r.positions.map((p) => ({ text: p.name, color: p.color ?? '#888' })),
       },
+      {
+        key: 'placementCount',
+        label: 'Col·locacions',
+        defaultVisible: false,
+        type: 'number',
+        sortField: 'placements',
+        value: (r) => r.placementCount,
+      },
+      {
+        key: 'troncPlacementCount',
+        label: 'Troncs',
+        defaultVisible: false,
+        type: 'number',
+        sortField: 'troncPlacements',
+        value: (r) => r.troncPlacementCount,
+      },
+      {
+        key: 'segmentPercent',
+        label: '% segments',
+        defaultVisible: false,
+        type: 'number',
+        sortField: 'segmentPercent',
+        value: (r) => `${this.segmentPercent(r)}%`,
+      },
     ];
+
+    // Consolidates every TRONC/BASE placement across the whole event in one cell, so
+    // "en quin tronc està esta persona" never requires switching the area filter or
+    // scrolling the matrix (Fase 6). Only in per-event scope: per-segment scope already
+    // answers this for the chosen segment via segFigure/segPosition/segZone below.
+    if (!this.selectedSegmentId()) {
+      cols.push({
+        key: 'troncDetail',
+        label: 'Tronc',
+        defaultVisible: false,
+        type: 'pills',
+        pills: (r) => this.troncPills(r),
+      });
+    }
 
     const segmentId = this.selectedSegmentId();
 
@@ -341,13 +416,49 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
 
   // ── Cells ────────────────────────────────────────────────────────────────────
 
-  /** All placements a person holds in one segment. Plural: never assume a single one. */
-  placementsFor(row: ParticipationRow, segmentId: string): ParticipationPlacement[] {
+  /** All placements a person holds in one segment, unfiltered. Plural: never assume a
+   *  single one. Conflict status is always computed against this set (§4.1): filtering
+   *  the AREA never hides a conflict, only which of its placements gets painted. */
+  allPlacementsFor(row: ParticipationRow, segmentId: string): ParticipationPlacement[] {
     return row.placements[segmentId] ?? [];
   }
 
+  /** What actually gets rendered in a cell — narrowed by the area filter (Fase 6). */
+  placementsFor(row: ParticipationRow, segmentId: string): ParticipationPlacement[] {
+    const area = this.areaFilter();
+    const all = this.allPlacementsFor(row, segmentId);
+    return area ? all.filter((p) => p.area === area) : all;
+  }
+
   isConflicted(row: ParticipationRow, segmentId: string): boolean {
-    return this.placementsFor(row, segmentId).length > 1;
+    return this.allPlacementsFor(row, segmentId).length > 1;
+  }
+
+  /** % of segments the person shows up in, rounded — `0` for an event with no segments. */
+  segmentPercent(row: ParticipationRow): number {
+    const total = this.segments().length;
+    if (total === 0) return 0;
+    return Math.round((row.assignedSegmentCount / total) * 100);
+  }
+
+  /** Consolidated "en quin tronc està" cell: every TRONC/BASE placement across the whole
+   *  event, prefixed by segment. Deliberately independent of the area filter — it is a
+   *  question about troncs, not a view of whichever area is currently selected. */
+  private troncPills(row: ParticipationRow): ColumnPill[] {
+    const pills: ColumnPill[] = [];
+    for (const segment of this.segments()) {
+      const all = this.allPlacementsFor(row, segment.id);
+      const tronc = all.filter((p) => p.area === 'TRONC');
+      if (tronc.length === 0) continue;
+      const conflicted = all.length > 1;
+      for (const placement of tronc) {
+        pills.push({
+          text: `${this.segmentLabel(segment)}: ${formatNodeCordonLabel(placement.nodeLabel, placement.renglaPosition)} · ${placement.figureName}`,
+          class: conflicted ? PILL_CONFLICT : PILL_POSITION,
+        });
+      }
+    }
+    return pills.length > 0 ? pills : [{ text: '—', class: PILL_EMPTY }];
   }
 
   /** Matrix cell: position + figure, or every placement in warning style when duplicated. */
@@ -355,7 +466,10 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
     const placements = this.placementsFor(row, segmentId);
     if (placements.length === 0) return [{ text: '—', class: PILL_EMPTY }];
 
-    if (placements.length === 1) {
+    // The conflict — and its glyph-first warning styling — is a property of ALL of the
+    // person's placements in this segment, even when the area filter is only painting
+    // some of them (§4.1: a filter narrows what's shown, never what's a conflict).
+    if (!this.isConflicted(row, segmentId)) {
       const [placement] = placements;
       return [
         {
@@ -386,7 +500,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
     const placements = this.placementsFor(row, segmentId);
     if (placements.length === 0) return [{ text: '—', class: PILL_EMPTY }];
 
-    const conflicted = placements.length > 1;
+    const conflicted = this.isConflicted(row, segmentId);
     return placements.map((placement) => ({
       text: text(placement),
       class: conflicted ? PILL_CONFLICT : PILL_POSITION,
@@ -474,6 +588,11 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
     this.resetPage();
   }
 
+  onAreaChange(value: string): void {
+    this.areaFilter.set(value === 'TRONC' || value === 'PINYA' ? value : null);
+    this.resetPage();
+  }
+
   removeFilter(key: string): void {
     switch (key) {
       case 'search':
@@ -493,6 +612,9 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
       case 'conflicts':
         this.onlyConflicts.set(false);
         break;
+      case 'area':
+        this.areaFilter.set(null);
+        break;
     }
     this.resetPage();
   }
@@ -504,6 +626,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
     this.statusFilter.set(null);
     this.positionFilter.set(null);
     this.onlyConflicts.set(false);
+    this.areaFilter.set(null);
     this.seedVisibleColumns();
     this.resetPage();
   }

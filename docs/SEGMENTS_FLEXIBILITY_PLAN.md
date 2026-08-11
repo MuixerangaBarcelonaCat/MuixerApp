@@ -32,8 +32,8 @@ tags: [domini]
 | 2 | Participació sobre la font canònica | ✅ Fet | 2026-08-10 | `3def7ba` |
 | 3 | El taller en mode lectura | ✅ Fet | 2026-08-11 | `9355c26`, `2b96c30` |
 | 4 | Resolució interactiva al taller | ✅ Fet (Playwright confirmat en viu) | 2026-08-11 | a968629b |
-| 5 | El canvi de règim (release coordinada) | ✅ Fet (Playwright confirmat en viu) | 2026-08-11 | — |
-| 6 | Equilibri de participació event-wide | ⬜ Pendent | — | — |
+| 5 | El canvi de règim (release coordinada) | ✅ Fet (Playwright confirmat en viu) | 2026-08-11 | 06e36cf |
+| 6 | Equilibri de participació event-wide | ✅ Fet | 2026-08-11 | *(pendent de commit)* |
 | 7 | Seguiments (specs separats) | ⬜ Sense planificar | — | — |
 
 ---
@@ -66,6 +66,20 @@ tags: [domini]
 
 ## Notes operatives obertes (no cobertes pel disseny)
 
+- **Fase 6: dos punts del disseny original (§7) descartats en acordar l'abast amb l'usuari, moguts a la
+  Fase 7 de [[SEGMENTS_FLEXIBILITY]]** — no és un incompliment del pla, és una decisió d'abast presa
+  abans d'implementar:
+  - l'ordre "menys carregades primer" al panell de persones del taller, perquè calia ampliar
+    `/available-persons` amb un recompte event-wide sense cap altre consumidor;
+  - l'avís de segments solapats (D12), perquè cap event de dev ni de producció té encara
+    `startTime`/`endTime` — l'avís no es dispararia mai.
+  Amb això, la Fase 6 acaba sent frontend pur: cap canvi de backend, cap migració, cap DTO nou.
+- **Playwright de la Fase 6: no s'ha escrit.** És l'única fase des de la 3 sense un `fase-N.spec.ts`
+  nou. Justificació: el canvi és tot sobre `event-participation.component.ts` (filtre client-side +
+  columnes), ja cobert per 27 tests Vitest nous (`describe('area filter (Fase 6)')`,
+  `describe('tronc column (Fase 6)')`, `describe('load metrics (Fase 6)')`) que exerciten exactament
+  els mateixos camins (payload real de l'API a través de `ParticipationService`, sense mocks del
+  càlcul). Si una fase futura hi afegeix interacció real de backend (Fase 7), reconsiderar.
 - **Playwright de la Fase 5 escrit i confirmat en viu (`fase-5.spec.ts`).** Migració
   `1783800000000-DropNodeAssignmentDuplicateUniques` executada contra la BBDD de dev (via
   `migrationsRun` automàtic de `nx serve api`). L'escenari real: alliberar un node de tronc
