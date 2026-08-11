@@ -34,6 +34,7 @@ import { AddLegalDocumentRequiresConsent1783600000000 } from './1783600000000-Ad
 import { FixLegalDocumentsTextAndStyle1783900000000 } from './1783900000000-FixLegalDocumentsTextAndStyle';
 import { AddPersonDelegatePrimaryAndOtherType1783700000000 } from './1783700000000-AddPersonDelegatePrimaryAndOtherType';
 import { DropPersonManagedBy1783800000000 } from './1783800000000-DropPersonManagedBy';
+import { MakeUsersEmailNullable1784000000000 } from './1784000000000-MakeUsersEmailNullable';
 
 export const migrations: (new () => MigrationInterface)[] = [
   InitialSchema1748600000000,
@@ -71,4 +72,5 @@ export const migrations: (new () => MigrationInterface)[] = [
   AddPersonDelegatePrimaryAndOtherType1783700000000,
   DropPersonManagedBy1783800000000,
   FixLegalDocumentsTextAndStyle1783900000000,
+  MakeUsersEmailNullable1784000000000,
 ];

@@ -97,7 +97,9 @@ export class AuthService {
 
     return {
       id: user.id,
-      email: user.email,
+      // Only active users ever reach toUserProfile (login/getMe/refresh all require isActive),
+      // and email is only null pre-activation — safe to assert.
+      email: user.email!,
       role: user.role,
       isActive: user.isActive,
       privacyPolicyAcceptedAt: user.privacyPolicyAcceptedAt
@@ -326,7 +328,8 @@ export class AuthService {
     const resetUrl = `${protocol}://${siteAddress}/reset-password?token=${rawToken}`;
 
     try {
-      await this.mailService.send({ to: user.email, ...buildPasswordResetEmail(resetUrl) });
+      // user.isActive was checked above — only active users have a real (non-null) email.
+      await this.mailService.send({ to: user.email!, ...buildPasswordResetEmail(resetUrl) });
     } catch (err) {
       this.logger.warn(`No s'ha pogut enviar el correu de recuperació de contrasenya (userId=${user.id})`, err instanceof Error ? err.stack : err);
     }

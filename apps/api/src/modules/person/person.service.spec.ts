@@ -96,6 +96,35 @@ describe('PersonService', () => {
 
       await expect(service.findOne('999')).rejects.toThrow(NotFoundException);
     });
+
+    it('should include gender in the response', async () => {
+      const mockPerson = {
+        id: '123',
+        name: 'Test',
+        alias: 'test',
+        gender: 'MALE',
+        user: null,
+      };
+      mockPersonRepository.findOne.mockResolvedValue(mockPerson);
+
+      const result = await service.findOne('123');
+
+      expect(result.gender).toBe('MALE');
+    });
+
+    it("should include isActive on the linked user's summary", async () => {
+      const mockPerson = {
+        id: '123',
+        name: 'Test',
+        alias: 'test',
+        user: { id: 'u1', email: 'a@b.com', isActive: true },
+      };
+      mockPersonRepository.findOne.mockResolvedValue(mockPerson);
+
+      const result = await service.findOne('123');
+
+      expect(result.user?.isActive).toBe(true);
+    });
   });
 
   describe('create', () => {

@@ -1,5 +1,5 @@
 import { Exclude, Expose, Type } from 'class-transformer';
-import { AvailabilityStatus, OnboardingStatus } from '@muixer/shared';
+import { AvailabilityStatus, Gender, OnboardingStatus } from '@muixer/shared';
 
 class PositionResponseDto {
   @Expose()
@@ -23,7 +23,10 @@ class PersonSelfUserDto {
   id: string;
 
   @Expose()
-  email: string;
+  email: string | null;
+
+  @Expose()
+  isActive: boolean;
 }
 
 export class PersonResponseDto {
@@ -53,6 +56,9 @@ export class PersonResponseDto {
 
   @Expose()
   shoulderHeight: number | null;
+
+  @Expose()
+  gender: Gender | null;
 
   @Expose()
   isXicalla: boolean;

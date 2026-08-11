@@ -175,7 +175,9 @@ export class UserService {
     user.inviteExpiresAt = expirationDate;
     await this.userRepository.save(user);
 
-    await this.sendInvitationEmail(user.email, inviteToken).catch((err) => {
+    // createWithInvite always supplies a real email; this whole method is removed in Phase 1
+    // (replaced by the link-based invite flow, which never needs to send an email).
+    await this.sendInvitationEmail(user.email!, inviteToken).catch((err) => {
       throw new BadRequestException('Failed to send invite email');
     });
   }

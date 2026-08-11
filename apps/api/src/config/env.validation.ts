@@ -39,8 +39,12 @@ export const envValidationSchema = Joi.object({
   MAIL_FROM_ADDRESS: Joi.string().when('MAIL_PROVIDER', { is: 'smtp', then: Joi.required(), otherwise: Joi.optional() }),
   MAIL_FROM_NAME: Joi.string().default('MuixerApp'),
 
-  // Dashboard origin (no scheme) — used to build links in emails (invites, password reset).
+  // Dashboard origin (no scheme) — used to build links in emails (password reset).
   // The scheme is derived from NODE_ENV (https in production, http otherwise).
   SITE_ADDRESS: Joi.string().default('localhost:4200'),
   PASSWORD_RESET_TTL: Joi.number().default(3600),
+
+  // PWA origin (no scheme) — used to build member-activation invite links.
+  PWA_SITE_ADDRESS: Joi.string().default('localhost:4300'),
+  INVITE_TOKEN_TTL_HOURS: Joi.number().default(72),
 });
