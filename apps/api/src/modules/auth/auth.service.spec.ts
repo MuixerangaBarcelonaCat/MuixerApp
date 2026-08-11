@@ -3,8 +3,14 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { ForbiddenException, NotFoundException, UnauthorizedException } from '@nestjs/common';
-import { AuditAction, ClientType, UserRole } from '@muixer/shared';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { AuditAction, ClientType, Gender, LegalDocumentType, UserRole } from '@muixer/shared';
 import { AuthService } from './auth.service';
 import { TokenService } from './token.service';
 import { User } from '../user/user.entity';
@@ -12,6 +18,7 @@ import { Person } from '../person/person.entity';
 import { LegalDocumentService } from '../legal/legal-document.service';
 import { AuditService } from '../audit/audit.service';
 import { MailService } from '../mail/mail.service';
+import { PersonService } from '../person/person.service';
 import { hashToken } from '../../common/utils/hash-token.util';
 
 const makeTransactionManager = () => ({
@@ -82,6 +89,7 @@ const mockDataSource = () => ({
 
 const mockLegalService = () => ({
   getConsentVersion: jest.fn().mockResolvedValue(null),
+  findActive: jest.fn(),
 });
 
 const mockAuditService = () => ({
@@ -90,6 +98,10 @@ const mockAuditService = () => ({
 
 const mockMailService = () => ({
   send: jest.fn().mockResolvedValue(undefined),
+});
+
+const mockPersonService = () => ({
+  update: jest.fn(),
 });
 
 describe('AuthService', () => {
@@ -101,6 +113,7 @@ describe('AuthService', () => {
   let legalService: ReturnType<typeof mockLegalService>;
   let auditService: ReturnType<typeof mockAuditService>;
   let mailService: ReturnType<typeof mockMailService>;
+  let personService: ReturnType<typeof mockPersonService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -115,6 +128,7 @@ describe('AuthService', () => {
         { provide: LegalDocumentService, useFactory: mockLegalService },
         { provide: AuditService, useFactory: mockAuditService },
         { provide: MailService, useFactory: mockMailService },
+        { provide: PersonService, useFactory: mockPersonService },
       ],
     }).compile();
 
@@ -126,6 +140,7 @@ describe('AuthService', () => {
     legalService = module.get(LegalDocumentService);
     auditService = module.get(AuditService);
     mailService = module.get(MailService);
+    personService = module.get(PersonService);
   });
 
   describe('validateUser', () => {
@@ -385,58 +400,169 @@ describe('AuthService', () => {
     });
   });
 
-  describe('acceptInvite', () => {
-    it('activates user and auto-logs in', async () => {
-      const user = makeUser({
-        inviteToken: 'valid-token',
+  describe('registerViaInvite', () => {
+    const registrationPayload = {
+      token: 'valid-token',
+      email: 'new@test.cat',
+      password: 'newpass123',
+      name: 'Joan',
+      firstSurname: 'Garcia',
+      gender: Gender.MALE,
+      phone: '+34612345678',
+      birthDate: '2000-01-01',
+      legalAccepted: true,
+    };
+
+    const makeInviteUser = (overrides: Partial<User> = {}) =>
+      makeUser({
+        inviteToken: hashToken('valid-token'),
         inviteExpiresAt: new Date(Date.now() + 3600_000),
         isActive: false,
-        passwordHash: '',
+        email: null,
+        person: { id: 'person-1', alias: '~joan' } as Person,
+        ...overrides,
       });
-      userRepo.findOne.mockResolvedValue(user);
-      userRepo.update.mockResolvedValue({});
-      bcrypt.hash.mockResolvedValue('new-hash');
 
-      const result = await service.acceptInvite({ token: 'valid-token', password: 'newpass123' });
+    it('activates the account, promotes the person, records consent, and auto-logs in', async () => {
+      const user = makeInviteUser();
+      userRepo.findOne
+        .mockResolvedValueOnce(user) // invite-token lookup
+        .mockResolvedValueOnce(null); // email-taken check
+      bcrypt.hash.mockResolvedValue('new-hash');
+      legalService.getConsentVersion.mockResolvedValue(3);
+      const manager = makeTransactionManager();
+      dataSource.transaction.mockImplementation((cb: (m: unknown) => unknown) => cb(manager));
+      personService.update.mockResolvedValue({ id: 'person-1' });
+
+      const result = await service.registerViaInvite(registrationPayload);
+
       expect(result.response.accessToken).toBe('access-token');
-      expect(userRepo.update).toHaveBeenCalledWith(
+      expect(manager.update).toHaveBeenCalledWith(
+        User,
         user.id,
-        expect.objectContaining({ isActive: true, inviteToken: null }),
+        expect.objectContaining({
+          email: 'new@test.cat',
+          passwordHash: 'new-hash',
+          isActive: true,
+          inviteToken: null,
+          inviteExpiresAt: null,
+          privacyPolicyVersion: 3,
+        }),
+      );
+      expect(auditService.record).toHaveBeenCalledWith(
+        expect.objectContaining({ action: AuditAction.CONSENT_ACCEPTED, actorUserId: user.id }),
+      );
+    });
+
+    it("promotes the person via PersonService.update, inside the transaction, stripping the provisional '~' prefix", async () => {
+      const user = makeInviteUser();
+      userRepo.findOne.mockResolvedValueOnce(user).mockResolvedValueOnce(null);
+      bcrypt.hash.mockResolvedValue('new-hash');
+      const manager = makeTransactionManager();
+      dataSource.transaction.mockImplementation((cb: (m: unknown) => unknown) => cb(manager));
+      personService.update.mockResolvedValue({ id: 'person-1' });
+
+      await service.registerViaInvite(registrationPayload);
+
+      expect(personService.update).toHaveBeenCalledWith(
+        'person-1',
+        expect.objectContaining({
+          name: 'Joan',
+          firstSurname: 'Garcia',
+          gender: Gender.MALE,
+          phone: '+34612345678',
+          birthDate: '2000-01-01',
+          isProvisional: false,
+          alias: 'joan',
+        }),
+        manager,
       );
     });
 
     it('throws for expired invite token', async () => {
       userRepo.findOne.mockResolvedValue(
-        makeUser({ inviteToken: 'tok', inviteExpiresAt: new Date(Date.now() - 1000) }),
+        makeInviteUser({ inviteExpiresAt: new Date(Date.now() - 1000) }),
       );
-      await expect(service.acceptInvite({ token: 'tok', password: 'pass123!' })).rejects.toThrow(
+      await expect(service.registerViaInvite(registrationPayload)).rejects.toThrow(
         UnauthorizedException,
       );
     });
 
     it('throws when token not found', async () => {
       userRepo.findOne.mockResolvedValue(null);
-      await expect(service.acceptInvite({ token: 'bad', password: 'pass123!' })).rejects.toThrow(
+      await expect(service.registerViaInvite(registrationPayload)).rejects.toThrow(
         UnauthorizedException,
       );
     });
 
+    it('rejects when the email is already taken by another account', async () => {
+      const user = makeInviteUser();
+      userRepo.findOne
+        .mockResolvedValueOnce(user)
+        .mockResolvedValueOnce(makeUser({ id: 'other-user', email: 'new@test.cat' }));
+
+      await expect(service.registerViaInvite(registrationPayload)).rejects.toThrow(
+        ConflictException,
+      );
+      expect(dataSource.transaction).not.toHaveBeenCalled();
+    });
+
     it('looks up the invite by the hash of the raw token, never the raw token itself', async () => {
+      const user = makeInviteUser();
+      userRepo.findOne.mockResolvedValueOnce(user).mockResolvedValueOnce(null);
+      bcrypt.hash.mockResolvedValue('new-hash');
+      const manager = makeTransactionManager();
+      dataSource.transaction.mockImplementation((cb: (m: unknown) => unknown) => cb(manager));
+      personService.update.mockResolvedValue({ id: 'person-1' });
+
+      await service.registerViaInvite(registrationPayload);
+
+      expect(userRepo.findOne).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ where: { inviteToken: hashToken('valid-token') } }),
+      );
+    });
+  });
+
+  describe('getInviteContext', () => {
+    it('returns prefill data and the active legal document for a valid token', async () => {
       const user = makeUser({
         inviteToken: hashToken('valid-token'),
         inviteExpiresAt: new Date(Date.now() + 3600_000),
         isActive: false,
-        passwordHash: '',
+        person: {
+          id: 'person-1',
+          alias: '~joan',
+          name: 'Joan',
+          firstSurname: 'Garcia',
+          secondSurname: null,
+          gender: Gender.MALE,
+          phone: '+34612345678',
+          birthDate: new Date('2000-01-15'),
+        } as Person,
       });
       userRepo.findOne.mockResolvedValue(user);
-      userRepo.update.mockResolvedValue({});
-      bcrypt.hash.mockResolvedValue('new-hash');
+      legalService.findActive.mockResolvedValue({ content: 'Text legal', version: 3 });
 
-      await service.acceptInvite({ token: 'valid-token', password: 'newpass123' });
+      const result = await service.getInviteContext('valid-token');
 
-      expect(userRepo.findOne).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { inviteToken: hashToken('valid-token') } }),
+      expect(result.person).toEqual(
+        expect.objectContaining({ name: 'Joan', firstSurname: 'Garcia', gender: Gender.MALE }),
       );
+      expect(result.legalDocument).toEqual({ content: 'Text legal', version: 3 });
+      expect(legalService.findActive).toHaveBeenCalledWith(LegalDocumentType.PRIVACY_POLICY);
+    });
+
+    it('throws UnauthorizedException for an invalid token', async () => {
+      userRepo.findOne.mockResolvedValue(null);
+      await expect(service.getInviteContext('bad-token')).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('throws UnauthorizedException for an expired token', async () => {
+      userRepo.findOne.mockResolvedValue(
+        makeUser({ inviteToken: hashToken('tok'), inviteExpiresAt: new Date(Date.now() - 1000) }),
+      );
+      await expect(service.getInviteContext('tok')).rejects.toThrow(UnauthorizedException);
     });
   });
 

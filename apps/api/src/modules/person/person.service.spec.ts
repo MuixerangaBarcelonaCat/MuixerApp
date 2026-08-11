@@ -478,6 +478,46 @@ describe('PersonService', () => {
     });
   });
 
+  describe('update with an external transaction manager', () => {
+    it('reads and writes through the manager repository instead of the injected one', async () => {
+      const person = { id: '1', alias: 'Joan', name: 'Joan', firstSurname: 'García', isProvisional: false, positions: [], mentor: null };
+      const managerPersonRepo = {
+        findOne: jest.fn().mockResolvedValue(person),
+        save: jest.fn().mockImplementation((p: Person) => Promise.resolve(p)),
+      };
+      const manager = { getRepository: jest.fn().mockReturnValue(managerPersonRepo) };
+
+      await service.update('1', { name: 'Joan Updated' }, manager as never);
+
+      expect(manager.getRepository).toHaveBeenCalledWith(Person);
+      expect(managerPersonRepo.findOne).toHaveBeenCalledWith({
+        where: { id: '1' },
+        relations: ['positions', 'mentor', 'user'],
+      });
+      expect(managerPersonRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'Joan Updated' }),
+      );
+      expect(mockPersonRepository.findOne).not.toHaveBeenCalled();
+      expect(mockPersonRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('still runs the alias-conflict check against the manager repository', async () => {
+      const person = { id: '1', alias: 'OldAlias', name: 'Joan', firstSurname: 'García', isProvisional: false, positions: [], mentor: null };
+      const otherPerson = { id: '2', alias: 'TakenAlias' };
+      const managerPersonRepo = {
+        findOne: jest.fn().mockResolvedValueOnce(person).mockResolvedValueOnce(otherPerson),
+        save: jest.fn(),
+      };
+      const manager = { getRepository: jest.fn().mockReturnValue(managerPersonRepo) };
+
+      await expect(
+        service.update('1', { alias: 'TakenAlias' }, manager as never),
+      ).rejects.toThrow(ConflictException);
+      expect(managerPersonRepo.save).not.toHaveBeenCalled();
+      expect(mockPersonRepository.findOne).not.toHaveBeenCalled();
+    });
+  });
+
   describe('update positions', () => {
     it('throws NotFoundException when a position id does not exist', async () => {
       const person = { id: '1', alias: 'Joan', name: 'Joan', firstSurname: 'García', isProvisional: false, positions: [], mentor: null };

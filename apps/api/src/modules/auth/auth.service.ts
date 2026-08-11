@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
@@ -18,16 +19,20 @@ import { Person } from '../person/person.entity';
 import { LegalDocumentService } from '../legal/legal-document.service';
 import { AuditService } from '../audit/audit.service';
 import { MailService } from '../mail/mail.service';
+import { PersonService } from '../person/person.service';
 import { buildPasswordResetEmail } from '../mail/templates/password-reset.template';
 import { TokenService } from './token.service';
 import { AuthResponseDto } from './dto/auth-response.dto';
-import { AcceptInviteDto } from './dto/accept-invite.dto';
+import { RegisterViaInviteDto } from './dto/register-via-invite.dto';
+import { InviteRegistrationContextDto } from './dto/invite-registration-context.dto';
 import { SetupUserDto } from './dto/setup-user.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { JWT_ACCESS_TTL, PASSWORD_RESET_TTL } from './constants/auth.constants';
 import { hashToken } from '../../common/utils/hash-token.util';
 
 const BCRYPT_ROUNDS = 12;
+/** Prefix `PersonService.createProvisional` applies to provisional aliases; stripped on promotion. */
+const PROVISIONAL_ALIAS_PREFIX = '~';
 
 @Injectable()
 export class AuthService {
@@ -53,6 +58,7 @@ export class AuthService {
     private readonly legalService: LegalDocumentService,
     private readonly auditService: AuditService,
     private readonly mailService: MailService,
+    private readonly personService: PersonService,
   ) {}
 
   /** Comprova email i contrasenya via bcrypt. Retorna null si l'usuari no existeix, no està actiu o la contrasenya és incorrecta. */
@@ -218,8 +224,16 @@ export class AuthService {
     return this.toUserProfile(user);
   }
 
-  /** Activa el compte d'un membre a partir del token d'invitació. Valida que el token no hagi caducat i fa auto-login un cop activat. */
-  async acceptInvite(dto: AcceptInviteDto): Promise<{ response: AuthResponseDto; refreshToken: string }> {
+  /**
+   * Activa el compte d'un membre a partir del enllaç d'invitació: estableix email i contrasenya,
+   * promociona la seva pròpia `Person` (surt de provisional, elimina el prefix `~` de l'àlies) i
+   * registra l'acceptació de la política de privacitat — tot en una única transacció — i fa
+   * auto-login un cop activat. Els dependents (xicalla) es completen a part, ja autenticat
+   * (`MeService`), no aquí.
+   */
+  async registerViaInvite(
+    dto: RegisterViaInviteDto,
+  ): Promise<{ response: AuthResponseDto; refreshToken: string }> {
     const user = await this.userRepo.findOne({
       where: { inviteToken: hashToken(dto.token) },
       relations: ['person'],
@@ -229,26 +243,103 @@ export class AuthService {
       throw new UnauthorizedException('Invitació invàlida o caducada');
     }
 
+    const existingWithEmail = await this.userRepo.findOne({ where: { email: dto.email } });
+    if (existingWithEmail) {
+      throw new ConflictException('Ja existeix un compte amb aquest email');
+    }
+
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
-    await this.userRepo.update(user.id, {
-      passwordHash,
-      isActive: true,
-      inviteToken: null,
-      inviteExpiresAt: null,
+    const consentVersion = await this.legalService.getConsentVersion(
+      LegalDocumentType.PRIVACY_POLICY,
+    );
+    const acceptedAt = new Date();
+
+    const person = user.person as Person;
+    const alias = person.alias.startsWith(PROVISIONAL_ALIAS_PREFIX)
+      ? person.alias.slice(PROVISIONAL_ALIAS_PREFIX.length)
+      : person.alias;
+
+    await this.dataSource.transaction(async (manager) => {
+      await manager.update(User, user.id, {
+        email: dto.email,
+        passwordHash,
+        isActive: true,
+        inviteToken: null,
+        inviteExpiresAt: null,
+        privacyPolicyAcceptedAt: acceptedAt,
+        privacyPolicyVersion: consentVersion,
+      });
+
+      await this.personService.update(
+        person.id,
+        {
+          name: dto.name,
+          firstSurname: dto.firstSurname,
+          secondSurname: dto.secondSurname,
+          gender: dto.gender,
+          phone: dto.phone,
+          birthDate: dto.birthDate,
+          isProvisional: false,
+          alias,
+        },
+        manager,
+      );
     });
 
+    await this.auditService.record({
+      actorUserId: user.id,
+      action: AuditAction.CONSENT_ACCEPTED,
+      targetType: 'User',
+      targetId: user.id,
+      metadata: { privacyPolicyVersion: consentVersion },
+    });
+
+    user.email = dto.email;
     user.passwordHash = passwordHash;
     user.isActive = true;
     user.inviteToken = null;
     user.inviteExpiresAt = null;
+    user.privacyPolicyAcceptedAt = acceptedAt;
+    user.privacyPolicyVersion = consentVersion;
 
-    const clientType = user.role === UserRole.MEMBER ? ClientType.PWA : ClientType.DASHBOARD;
     const accessToken = this.signAccessToken(user);
-    const refreshToken = await this.tokenService.createRefreshToken(user, clientType);
+    const refreshToken = await this.tokenService.createRefreshToken(user, ClientType.PWA);
 
     return {
       response: { accessToken, user: await this.toUserProfile(user) },
       refreshToken,
+    };
+  }
+
+  /**
+   * Retorna les dades per prellenar el formulari de registre (nom, cognoms, gènere, telèfon,
+   * data de naixement ja introduïts per l'admin) i el text vigent de la política de privacitat,
+   * a partir d'un token d'invitació vàlid. Només lectura — no consumeix el token.
+   */
+  async getInviteContext(token: string): Promise<InviteRegistrationContextDto> {
+    const user = await this.userRepo.findOne({
+      where: { inviteToken: hashToken(token) },
+      relations: ['person'],
+    });
+
+    if (!user || !user.inviteExpiresAt || user.inviteExpiresAt < new Date()) {
+      throw new UnauthorizedException('Invitació invàlida o caducada');
+    }
+
+    const person = user.person as Person;
+    const legalDocument = await this.legalService.findActive(LegalDocumentType.PRIVACY_POLICY);
+
+    return {
+      person: {
+        name: person.name,
+        firstSurname: person.firstSurname,
+        secondSurname: person.secondSurname,
+        gender: person.gender,
+        phone: person.phone,
+        birthDate: person.birthDate ? person.birthDate.toISOString().slice(0, 10) : null,
+      },
+      expiresAt: user.inviteExpiresAt.toISOString(),
+      legalDocument: { content: legalDocument.content, version: legalDocument.version },
     };
   }
 

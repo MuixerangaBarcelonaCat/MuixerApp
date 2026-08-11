@@ -8,6 +8,7 @@ import { RefreshToken } from './entities/refresh-token.entity';
 import { LegalModule } from '../legal/legal.module';
 import { AuditModule } from '../audit/audit.module';
 import { MailModule } from '../mail/mail.module';
+import { PersonModule } from '../person/person.module';
 import { AuthController } from './auth.controller';
 import { ConsentController } from './consent.controller';
 import { AuthService } from './auth.service';
@@ -30,6 +31,7 @@ import { requireJwtSecret } from './constants/jwt-secret.util';
     LegalModule,
     AuditModule,
     MailModule,
+    PersonModule,
   ],
   controllers: [AuthController, ConsentController],
   providers: [

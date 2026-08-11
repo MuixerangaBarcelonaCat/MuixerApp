@@ -7,6 +7,7 @@ import {
   HttpCode,
   HttpStatus,
   Logger,
+  Param,
   Post,
   Req,
   Res,
@@ -29,7 +30,8 @@ import { ClientType, JwtPayload, UserProfile } from '@muixer/shared';
 import { AuthService } from './auth.service';
 import { User } from '../user/user.entity';
 import { LoginDto } from './dto/login.dto';
-import { AcceptInviteDto } from './dto/accept-invite.dto';
+import { RegisterViaInviteDto } from './dto/register-via-invite.dto';
+import { InviteRegistrationContextDto } from './dto/invite-registration-context.dto';
 import { SetupUserDto } from './dto/setup-user.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
@@ -155,20 +157,32 @@ export class AuthController {
     return this.authService.getMe(user.sub);
   }
 
-  /** Activa el compte d'un nou membre via token d'invitació i fa auto-login. */
+  /** Retorna les dades per prellenar el formulari de registre i el text legal vigent, a partir d'un token d'invitació vàlid. */
   @Public()
-  @Post('invite/accept')
+  @Get('invite/:token')
+  @ApiOperation({ summary: "Obtenir les dades de prellenat d'una invitació" })
+  @ApiResponse({ status: 200, description: 'Context de registre retornat correctament.' })
+  @ApiResponse({ status: 401, description: "Token d'invitació invàlid o caducat." })
+  async getInviteContext(
+    @Param('token') token: string,
+  ): Promise<InviteRegistrationContextDto> {
+    return this.authService.getInviteContext(token);
+  }
+
+  /** Activa el compte d'un nou membre via enllaç d'invitació i fa auto-login. */
+  @Public()
+  @Post('invite/register')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Acceptar una invitació i activar el compte' })
+  @ApiOperation({ summary: 'Completar el registre i activar el compte' })
   @ApiResponse({ status: 200, description: 'Compte activat i sessió iniciada correctament.' })
-  @ApiResponse({ status: 401, description: 'Token d\'invitació invàlid o caducat.' })
-  async acceptInvite(
-    @Body() dto: AcceptInviteDto,
+  @ApiResponse({ status: 401, description: "Token d'invitació invàlid o caducat." })
+  @ApiResponse({ status: 409, description: 'Ja existeix un compte amb aquest email.' })
+  async registerViaInvite(
+    @Body() dto: RegisterViaInviteDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponseDto> {
-    const { response, refreshToken } = await this.authService.acceptInvite(dto);
-    const clientType = response.user.role === 'MEMBER' ? ClientType.PWA : ClientType.DASHBOARD;
-    this.setRefreshCookie(res, refreshToken, clientType);
+    const { response, refreshToken } = await this.authService.registerViaInvite(dto);
+    this.setRefreshCookie(res, refreshToken, ClientType.PWA);
     return response;
   }
 
