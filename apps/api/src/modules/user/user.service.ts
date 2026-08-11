@@ -1,12 +1,12 @@
 import {
   Injectable,
-  UnauthorizedException,
   BadRequestException,
   ConflictException,
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { ConfigService } from '@nestjs/config';
 import { DataSource, Repository } from 'typeorm';
 import crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
@@ -14,7 +14,7 @@ import { Person } from '../person/person.entity';
 import { User } from './user.entity';
 import { UserRole } from '@muixer/shared';
 import { UserResponseDto } from './dto/user-response.dto';
-import { CreateWithInviteDto } from './dto/create-with-invite.dto';
+import { InviteLinkResponseDto } from './dto/invite-link-response.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { plainToInstance } from 'class-transformer';
@@ -23,6 +23,7 @@ import { UserFilterDto } from './dto/user-filter.dto';
 import { hashToken } from '../../common/utils/hash-token.util';
 import { TokenService } from '../auth/token.service';
 import { PersonDelegateService } from '../person-delegate/person-delegate.service';
+import { INVITE_TOKEN_TTL_HOURS } from '../auth/constants/auth.constants';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -36,6 +37,7 @@ export class UserService {
     private readonly dataSource: DataSource,
     private readonly tokenService: TokenService,
     private readonly personDelegateService: PersonDelegateService,
+    private readonly configService: ConfigService,
   ) {}
 
   async create(
@@ -127,68 +129,51 @@ export class UserService {
     };
   }
 
-  async createWithInvite(dto: CreateWithInviteDto): Promise<UserResponseDto> {
-    const existingUser = await this.userRepository.findOne({
-      where: { email: dto.email },
-    });
-    if (existingUser) {
-      throw new ConflictException('A user with this email already exists');
-    }
-
+  /**
+   * Creates (or reuses) the invite-holding User for a person and returns a fresh
+   * activation link — no email is sent, the admin copies/forwards the link
+   * themselves. Idempotent while the account is inactive: re-invoking regenerates
+   * the token, which is what lets the dashboard button stay enabled instead of
+   * graying out after first use.
+   */
+  async createOrRefreshInviteLink(personId: string): Promise<InviteLinkResponseDto> {
     const person = await this.personRepository.findOne({
-      where: { id: dto.personId },
+      where: { id: personId },
       relations: ['user'],
     });
     if (!person) throw new BadRequestException('Person not found');
-    if (person.user)
-      throw new BadRequestException('Person is already managed by an user');
 
-    const createdUser = await this.dataSource.transaction(async (manager) => {
-      const user = manager.create(User, {
-        email: dto.email,
-        role: UserRole.MEMBER,
-        person,
-        isActive: false,
+    let user: User;
+    if (!person.user) {
+      user = await this.dataSource.transaction(async (manager) => {
+        const newUser = manager.create(User, {
+          email: null,
+          role: UserRole.MEMBER,
+          person,
+          isActive: false,
+        });
+        const savedUser = await manager.save(User, newUser);
+        await this.personDelegateService.demotePrimaryIfAny(person.id, manager);
+        return savedUser;
       });
-      const savedUser = await manager.save(User, user);
-      await this.personDelegateService.demotePrimaryIfAny(person.id, manager);
-      return savedUser;
-    });
+    } else if (person.user.isActive) {
+      throw new BadRequestException('Aquesta persona ja té un compte actiu');
+    } else {
+      user = person.user;
+    }
 
-    await this.sendInvite(createdUser.id);
-    return plainToInstance(UserResponseDto, createdUser, {
-      excludeExtraneousValues: true,
-    });
-  }
-
-  async sendInvite(userId: string, tokenDurationHours = 72): Promise<void> {
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-      relations: ['person'],
-    });
-    if (!user) throw new UnauthorizedException();
-    if (user.isActive) throw new BadRequestException('User is already active');
-    const inviteToken = crypto.randomBytes(16).toString('hex');
-    const expirationDate = new Date();
-    expirationDate.setHours(expirationDate.getHours() + tokenDurationHours);
-    user.inviteToken = hashToken(inviteToken);
-    user.inviteExpiresAt = expirationDate;
+    const rawToken = crypto.randomBytes(16).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + INVITE_TOKEN_TTL_HOURS);
+    user.inviteToken = hashToken(rawToken);
+    user.inviteExpiresAt = expiresAt;
     await this.userRepository.save(user);
 
-    // createWithInvite always supplies a real email; this whole method is removed in Phase 1
-    // (replaced by the link-based invite flow, which never needs to send an email).
-    await this.sendInvitationEmail(user.email!, inviteToken).catch((err) => {
-      throw new BadRequestException('Failed to send invite email');
-    });
-  }
+    const protocol = this.configService.get<string>('NODE_ENV') === 'production' ? 'https' : 'http';
+    const pwaSiteAddress = this.configService.get<string>('PWA_SITE_ADDRESS');
+    const inviteUrl = `${protocol}://${pwaSiteAddress}/activate?token=${rawToken}`;
 
-  async sendInvitationEmail(email: string, inviteToken: string): Promise<void> {
-    // TODO implement real email sending, then remove this log — it prints the
-    // raw invite token so it's usable in dev without a mailer, but it must not
-    // ship to production once emails actually go out (SEC-6).
-    const message =
-      'Here we would send an email to ' + email + ' with token ' + inviteToken;
-    console.log(message);
+    return { inviteUrl, expiresAt: expiresAt.toISOString() };
   }
 
   async grantRole(userId: string, role: UserRole, actorId: string) {

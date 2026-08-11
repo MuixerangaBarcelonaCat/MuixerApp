@@ -6,8 +6,8 @@ import {
   ConflictException,
   ForbiddenException,
   NotFoundException,
-  UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { UserService } from './user.service';
 import { User } from './user.entity';
 import { Person } from '../person/person.entity';
@@ -60,6 +60,7 @@ describe('UserService', () => {
   let mockDataSource: { transaction: jest.Mock };
   let mockTokenService: { revokeAllUserTokens: jest.Mock };
   let mockPersonDelegateService: { demotePrimaryIfAny: jest.Mock };
+  let mockConfigService: { get: jest.Mock };
 
   beforeEach(async () => {
     userQb = {
@@ -96,6 +97,10 @@ describe('UserService', () => {
       demotePrimaryIfAny: jest.fn().mockResolvedValue(undefined),
     };
 
+    mockConfigService = {
+      get: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UserService,
@@ -104,13 +109,11 @@ describe('UserService', () => {
         { provide: DataSource, useValue: mockDataSource },
         { provide: TokenService, useValue: mockTokenService },
         { provide: PersonDelegateService, useValue: mockPersonDelegateService },
+        { provide: ConfigService, useValue: mockConfigService },
       ],
     }).compile();
 
     service = module.get<UserService>(UserService);
-
-    // Prevent actual email sending in all tests
-    jest.spyOn(service, 'sendInvitationEmail').mockResolvedValue(undefined);
   });
 
   // ---------------------------------------------------------------------------
@@ -283,110 +286,75 @@ describe('UserService', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // createWithInvite
+  // createOrRefreshInviteLink
   // ---------------------------------------------------------------------------
 
-  describe('createWithInvite', () => {
+  describe('createOrRefreshInviteLink', () => {
     it('throws BadRequestException when person not found', async () => {
       mockPersonRepo.findOne.mockResolvedValue(null);
-      await expect(
-        service.createWithInvite({ personId: 'bad-id', email: 'x@x.com' }),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.createOrRefreshInviteLink('bad-id')).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
-    it('throws BadRequestException when person already manages their own account', async () => {
-      const person = makePerson({ user: makeUser() });
+    it('throws BadRequestException when the linked user is already active', async () => {
+      const person = makePerson({ user: makeUser({ isActive: true }) });
       mockPersonRepo.findOne.mockResolvedValue(person);
-      await expect(
-        service.createWithInvite({ personId: 'person-uuid', email: 'x@x.com' }),
-      ).rejects.toThrow(BadRequestException);
+
+      await expect(service.createOrRefreshInviteLink('person-uuid')).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
-    it('creates user with MEMBER role and isActive=false', async () => {
+    it('creates a new inactive user with a null email when the person has none', async () => {
       const person = makePerson({ user: null });
       mockPersonRepo.findOne.mockResolvedValue(person);
 
-      const createdUser = makeUser({ isActive: false, person });
+      const createdUser = makeUser({ isActive: false, email: null, person });
       const manager = makeTransactionManager();
-      manager.save.mockResolvedValueOnce(createdUser); // user save
+      manager.save.mockResolvedValueOnce(createdUser);
       mockDataSource.transaction.mockImplementation((cb: (m: unknown) => unknown) => cb(manager));
+      mockUserRepo.save.mockImplementation(async (u: User) => u);
 
-      // no email conflict, then sendInvite's internal findOne
-      mockUserRepo.findOne
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce({ ...createdUser, isActive: false });
-
-      const result = await service.createWithInvite({ personId: 'person-uuid', email: 'new@user.com' });
+      await service.createOrRefreshInviteLink('person-uuid');
 
       expect(manager.create).toHaveBeenCalledWith(
         User,
-        expect.objectContaining({ role: UserRole.MEMBER, isActive: false }),
+        expect.objectContaining({ email: null, role: UserRole.MEMBER, isActive: false, person }),
       );
-      expect(result.isActive).toBe(false);
     });
 
-    it('associates person to created user via user.person, and demotes any prior primary delegate atomically', async () => {
+    it('demotes any prior primary delegate atomically when creating the user', async () => {
       const person = makePerson({ user: null });
       mockPersonRepo.findOne.mockResolvedValue(person);
 
-      const createdUser = makeUser({ isActive: false, person });
+      const createdUser = makeUser({ isActive: false, email: null, person });
       const manager = makeTransactionManager();
-      manager.save.mockResolvedValueOnce(createdUser); // user save
+      manager.save.mockResolvedValueOnce(createdUser);
       mockDataSource.transaction.mockImplementation((cb: (m: unknown) => unknown) => cb(manager));
-      mockUserRepo.findOne
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce({ ...createdUser, isActive: false });
+      mockUserRepo.save.mockImplementation(async (u: User) => u);
 
-      await service.createWithInvite({ personId: 'person-uuid', email: 'new@user.com' });
+      await service.createOrRefreshInviteLink('person-uuid');
 
       expect(mockDataSource.transaction).toHaveBeenCalledTimes(1);
-      expect(manager.create).toHaveBeenCalledWith(
-        User,
-        expect.objectContaining({ person }),
-      );
       expect(mockPersonDelegateService.demotePrimaryIfAny).toHaveBeenCalledWith(
         person.id,
         manager,
       );
     });
 
-    it('throws ConflictException when email already exists', async () => {
-      const person = makePerson({ user: null });
+    it('reuses the existing user without opening a transaction when inactive', async () => {
+      const existingUser = makeUser({ id: 'user-uuid', isActive: false });
+      const person = makePerson({ user: existingUser });
       mockPersonRepo.findOne.mockResolvedValue(person);
-      mockUserRepo.findOne.mockResolvedValueOnce(makeUser({ email: 'taken@user.com' }));
+      mockUserRepo.save.mockImplementation(async (u: User) => u);
 
-      await expect(
-        service.createWithInvite({ personId: 'person-uuid', email: 'taken@user.com' }),
-      ).rejects.toThrow(ConflictException);
+      await service.createOrRefreshInviteLink('person-uuid');
 
-      expect(mockUserRepo.create).not.toHaveBeenCalled();
-    });
-  });
-
-  // ---------------------------------------------------------------------------
-  // sendInvite
-  // ---------------------------------------------------------------------------
-
-  describe('sendInvite', () => {
-    it('throws UnauthorizedException when user not found', async () => {
-      mockUserRepo.findOne.mockResolvedValue(null);
-      await expect(service.sendInvite('missing-id')).rejects.toThrow(UnauthorizedException);
-    });
-
-    it('throws BadRequestException when user is already active', async () => {
-      mockUserRepo.findOne.mockResolvedValue(makeUser({ isActive: true }));
-      await expect(service.sendInvite('user-uuid')).rejects.toThrow(BadRequestException);
-    });
-
-    it('sets inviteToken and inviteExpiresAt on the user', async () => {
-      const user = makeUser({ isActive: false, inviteToken: null, inviteExpiresAt: null });
-      mockUserRepo.findOne.mockResolvedValue(user);
-      mockUserRepo.save.mockResolvedValue(user);
-
-      await service.sendInvite('user-uuid');
-
+      expect(mockDataSource.transaction).not.toHaveBeenCalled();
       expect(mockUserRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({
+          id: 'user-uuid',
           inviteToken: expect.any(String),
           inviteExpiresAt: expect.any(Date),
         }),
@@ -394,50 +362,48 @@ describe('UserService', () => {
     });
 
     it('sets expiration ~72h in the future by default', async () => {
-      const user = makeUser({ isActive: false });
-      mockUserRepo.findOne.mockResolvedValue(user);
+      const existingUser = makeUser({ id: 'user-uuid', isActive: false });
+      const person = makePerson({ user: existingUser });
+      mockPersonRepo.findOne.mockResolvedValue(person);
       mockUserRepo.save.mockImplementation(async (u: User) => u);
 
       const before = Date.now();
-      await service.sendInvite('user-uuid');
+      const result = await service.createOrRefreshInviteLink('person-uuid');
       const after = Date.now();
 
-      const savedUser = mockUserRepo.save.mock.calls[0][0] as User;
-      const expiry = savedUser.inviteExpiresAt!.getTime();
+      const expiry = new Date(result.expiresAt).getTime();
       const expectedMs = 72 * 60 * 60 * 1000;
 
       expect(expiry).toBeGreaterThanOrEqual(before + expectedMs - 1000);
       expect(expiry).toBeLessThanOrEqual(after + expectedMs + 1000);
     });
 
-    it('rejects with BadRequestException when sendInvitationEmail fails, instead of resolving', async () => {
-      const user = makeUser({ isActive: false });
-      mockUserRepo.findOne.mockResolvedValue(user);
-      mockUserRepo.save.mockResolvedValue(user);
-      jest
-        .spyOn(service, 'sendInvitationEmail')
-        .mockRejectedValue(new Error('SMTP down'));
-
-      await expect(service.sendInvite('user-uuid')).rejects.toThrow(
-        BadRequestException,
-      );
-    });
-
-    it('stores a hash of the invite token, not the raw token, while still emailing the raw token', async () => {
-      const user = makeUser({ isActive: false });
-      mockUserRepo.findOne.mockResolvedValue(user);
+    it('stores a hash of the invite token, not the raw token', async () => {
+      const existingUser = makeUser({ id: 'user-uuid', isActive: false });
+      const person = makePerson({ user: existingUser });
+      mockPersonRepo.findOne.mockResolvedValue(person);
       mockUserRepo.save.mockImplementation(async (u: User) => u);
-      const sendEmailSpy = jest
-        .spyOn(service, 'sendInvitationEmail')
-        .mockResolvedValue(undefined);
 
-      await service.sendInvite('user-uuid');
+      const result = await service.createOrRefreshInviteLink('person-uuid');
+      const rawToken = new URL(result.inviteUrl).searchParams.get('token')!;
 
       const savedUser = mockUserRepo.save.mock.calls[0][0] as User;
-      const rawTokenSentByEmail = sendEmailSpy.mock.calls[0][1];
+      expect(savedUser.inviteToken).not.toBe(rawToken);
+      expect(savedUser.inviteToken).toBe(hashToken(rawToken));
+    });
 
-      expect(savedUser.inviteToken).not.toBe(rawTokenSentByEmail);
-      expect(savedUser.inviteToken).toBe(hashToken(rawTokenSentByEmail));
+    it('builds the invite URL from PWA_SITE_ADDRESS with an /activate?token= path', async () => {
+      const existingUser = makeUser({ id: 'user-uuid', isActive: false });
+      const person = makePerson({ user: existingUser });
+      mockPersonRepo.findOne.mockResolvedValue(person);
+      mockUserRepo.save.mockImplementation(async (u: User) => u);
+      mockConfigService.get.mockImplementation((key: string) =>
+        key === 'PWA_SITE_ADDRESS' ? 'app.example.com' : undefined,
+      );
+
+      const result = await service.createOrRefreshInviteLink('person-uuid');
+
+      expect(result.inviteUrl).toMatch(/^https?:\/\/app\.example\.com\/activate\?token=.+$/);
     });
   });
 
