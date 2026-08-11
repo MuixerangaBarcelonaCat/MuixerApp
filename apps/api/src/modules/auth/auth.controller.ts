@@ -31,6 +31,8 @@ import { User } from '../user/user.entity';
 import { LoginDto } from './dto/login.dto';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
 import { SetupUserDto } from './dto/setup-user.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -193,5 +195,27 @@ export class AuthController {
     }
     this.logger.log(`Setup endpoint invocat (email=${dto.email})`);
     return this.authService.setupUser(dto);
+  }
+
+  /** Envia un correu de recuperació de contrasenya si l'email correspon a un compte actiu. Sempre retorna el mateix missatge genèric, existeixi o no l'email (evita enumeració de comptes). */
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Sol·licitar la recuperació de contrasenya per correu electrònic' })
+  @ApiResponse({ status: 200, description: 'Missatge genèric — no indica si l\'email existeix.' })
+  async forgotPassword(@Body() dto: ForgotPasswordDto): Promise<{ message: string }> {
+    await this.authService.requestPasswordReset(dto.email);
+    return { message: 'Si l\'adreça existeix, rebreu un correu amb instruccions per a recuperar la contrasenya.' };
+  }
+
+  /** Estableix una nova contrasenya a partir d'un token de recuperació vàlid. Revoca totes les sessions actives de l'usuari. */
+  @Public()
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Establir una nova contrasenya a partir d\'un token de recuperació' })
+  @ApiResponse({ status: 200, description: 'Contrasenya actualitzada correctament.' })
+  @ApiResponse({ status: 401, description: 'Token de recuperació invàlid o caducat.' })
+  async resetPassword(@Body() dto: ResetPasswordDto): Promise<void> {
+    await this.authService.resetPassword(dto);
   }
 }

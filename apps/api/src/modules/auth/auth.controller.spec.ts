@@ -16,6 +16,8 @@ const mockAuthService = () => ({
   getMe: jest.fn(),
   acceptInvite: jest.fn(),
   setupUser: jest.fn(),
+  requestPasswordReset: jest.fn(),
+  resetPassword: jest.fn(),
 });
 
 const mockTokenService = () => ({
@@ -232,6 +234,44 @@ describe('AuthController', () => {
 
       expect(authService.setupUser).toHaveBeenCalledWith({ email: 'a@b.cat', password: 'pw' });
       expect(result).toEqual({ id: 'new-user' });
+    });
+  });
+
+  describe('forgotPassword', () => {
+    it('delegates to the service and returns a generic message', async () => {
+      authService.requestPasswordReset.mockResolvedValue(undefined);
+
+      const result = await controller.forgotPassword({ email: 'a@b.cat' });
+
+      expect(authService.requestPasswordReset).toHaveBeenCalledWith('a@b.cat');
+      expect(result.message).toEqual(expect.any(String));
+    });
+
+    it('returns the same generic message even if the service silently no-ops for an unknown email', async () => {
+      authService.requestPasswordReset.mockResolvedValue(undefined);
+
+      const known = await controller.forgotPassword({ email: 'known@b.cat' });
+      const unknown = await controller.forgotPassword({ email: 'unknown@b.cat' });
+
+      expect(known.message).toBe(unknown.message);
+    });
+  });
+
+  describe('resetPassword', () => {
+    it('delegates to the service', async () => {
+      authService.resetPassword.mockResolvedValue(undefined);
+
+      await controller.resetPassword({ token: 'tok', password: 'newpass123' });
+
+      expect(authService.resetPassword).toHaveBeenCalledWith({ token: 'tok', password: 'newpass123' });
+    });
+
+    it('propagates UnauthorizedException from an invalid/expired token', async () => {
+      authService.resetPassword.mockRejectedValue(new UnauthorizedException());
+
+      await expect(
+        controller.resetPassword({ token: 'bad', password: 'newpass123' }),
+      ).rejects.toThrow(UnauthorizedException);
     });
   });
 });
