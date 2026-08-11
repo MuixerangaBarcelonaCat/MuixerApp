@@ -183,4 +183,16 @@ describe('AuthService', () => {
 
     expect(service.requiresPrivacyConsent()).toBe(false);
   });
+
+  it('requestPasswordReset() POSTs the email to /auth/forgot-password', () => {
+    let completed = false;
+    service.requestPasswordReset('a@b.cat').subscribe(() => (completed = true));
+
+    const req = httpTesting.expectOne('/api/auth/forgot-password');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ email: 'a@b.cat' });
+    req.flush({ message: 'ok' });
+
+    expect(completed).toBe(true);
+  });
 });

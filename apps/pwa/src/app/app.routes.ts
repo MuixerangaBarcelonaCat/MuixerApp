@@ -14,6 +14,14 @@ export const appRoutes: Routes = [
     canActivate: [alreadyAuthGuard],
   },
   {
+    path: 'forgot-password',
+    loadComponent: () =>
+      import('./features/auth/forgot-password/forgot-password.component').then(
+        (m) => m.ForgotPasswordComponent,
+      ),
+    canActivate: [alreadyAuthGuard],
+  },
+  {
     path: '',
     loadComponent: () =>
       import('./core/layout/app-shell/app-shell.component').then(

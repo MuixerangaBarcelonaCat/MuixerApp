@@ -153,6 +153,13 @@ export class AuthService {
       );
   }
 
+  /** Sol·licita un correu de recuperació de contrasenya. No indica si l'email existeix (evita enumeració de comptes). */
+  requestPasswordReset(email: string): Observable<void> {
+    return this.http
+      .post<{ message: string }>(`${environment.apiUrl}/auth/forgot-password`, { email })
+      .pipe(map(() => void 0));
+  }
+
   logout(): Observable<void> {
     return this.http
       .post<void>(`${environment.apiUrl}/auth/logout`, {}, { withCredentials: true })

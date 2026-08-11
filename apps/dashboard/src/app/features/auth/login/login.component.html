@@ -37,7 +37,10 @@
         </label>
 
         <label class="form-control w-full">
-          <div class="label pb-1"><span class="label-text font-medium">Contrasenya</span></div>
+          <div class="label pb-1 justify-between">
+            <span class="label-text font-medium">Contrasenya</span>
+            <a routerLink="/forgot-password" class="label-text-alt link link-hover">Heu oblidat la contrasenya?</a>
+          </div>
           <div class="input input-bordered flex items-center gap-2" [class.input-error]="form.get('password')?.invalid && form.get('password')?.touched">
             <lucide-icon name="Lock" [size]="16" class="text-base-content/40 shrink-0" />
             <input

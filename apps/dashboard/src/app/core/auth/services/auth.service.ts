@@ -153,6 +153,20 @@ export class AuthService {
       );
   }
 
+  /** Sol·licita un correu de recuperació de contrasenya. No indica si l'email existeix (evita enumeració de comptes). */
+  requestPasswordReset(email: string): Observable<void> {
+    return this.http
+      .post<{ message: string }>(`${environment.apiUrl}/auth/forgot-password`, { email })
+      .pipe(map(() => void 0));
+  }
+
+  /** Estableix una nova contrasenya a partir del token de recuperació rebut per correu. */
+  resetPassword(token: string, password: string): Observable<void> {
+    return this.http
+      .post<void>(`${environment.apiUrl}/auth/reset-password`, { token, password })
+      .pipe(map(() => void 0));
+  }
+
   /** Revoca el refresh token de la sessió actual i neteja l'estat local. Si la petició falla, neteja l'estat igualment (fail-safe). */
   logout(): Observable<void> {
     return this.http

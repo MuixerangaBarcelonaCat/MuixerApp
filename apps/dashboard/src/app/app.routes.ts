@@ -3,9 +3,13 @@ import { UserRole } from '@muixer/shared';
 import { authGuard } from './core/auth/guards/auth.guard';
 import { rolesGuard } from './core/auth/guards/role.guard';
 import { LoginComponent } from './features/auth/login/login.component';
+import { ForgotPasswordComponent } from './features/auth/forgot-password/forgot-password.component';
+import { ResetPasswordComponent } from './features/auth/reset-password/reset-password.component';
 
 export const appRoutes: Route[] = [
   { path: 'login', component: LoginComponent },
+  { path: 'forgot-password', component: ForgotPasswordComponent },
+  { path: 'reset-password', component: ResetPasswordComponent },
   {
     path: '',
     canActivate: [authGuard, rolesGuard(UserRole.TECHNICAL, UserRole.ADMIN)],

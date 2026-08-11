@@ -31,11 +31,18 @@ export class App {
 
   mobileMenuOpen = signal(false);
 
+  /** Public, unauthenticated pages — none of them get the header/tab-nav chrome. */
+  private static readonly AUTH_ROUTE_PREFIXES = ['/login', '/forgot-password', '/reset-password'];
+
+  private static isAuthUrl(url: string): boolean {
+    return App.AUTH_ROUTE_PREFIXES.some((prefix) => url.startsWith(prefix));
+  }
+
   readonly isAuthRoute = toSignal(
     this.router.events.pipe(
       filter((e) => e instanceof NavigationEnd),
-      map((e) => (e as NavigationEnd).urlAfterRedirects.startsWith('/login')),
-      startWith(this.router.url.startsWith('/login')),
+      map((e) => App.isAuthUrl((e as NavigationEnd).urlAfterRedirects)),
+      startWith(App.isAuthUrl(this.router.url)),
     ),
     { initialValue: false },
   );

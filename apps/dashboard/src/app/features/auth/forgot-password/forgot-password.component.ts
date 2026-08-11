@@ -5,29 +5,27 @@ import {
   signal,
 } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
 import { AuthService } from '../../../core/auth/services/auth.service';
-import { environment } from '../../../../environments/environment';
 
 @Component({
-  selector: 'app-login',
+  selector: 'app-forgot-password',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ReactiveFormsModule, RouterLink, LucideAngularModule],
-  templateUrl: './login.component.html',
+  templateUrl: './forgot-password.component.html',
 })
-export class LoginComponent {
+export class ForgotPasswordComponent {
   private readonly authService = inject(AuthService);
-  private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
 
   readonly form = this.fb.nonNullable.group({
-    email: [environment.production ? '' : '', [Validators.required, Validators.email]],
-    password: [environment.production ? '' : '', [Validators.required, Validators.minLength(6)]],
+    email: ['', [Validators.required, Validators.email]],
   });
 
   readonly isLoading = signal(false);
+  readonly submitted = signal(false);
   readonly errorMessage = signal<string | null>(null);
 
   onSubmit(): void {
@@ -36,12 +34,15 @@ export class LoginComponent {
     this.isLoading.set(true);
     this.errorMessage.set(null);
 
-    const { email, password } = this.form.getRawValue();
-    this.authService.login({ email, password }).subscribe({
-      next: () => this.router.navigate(['/']),
-      error: () => {
-        this.errorMessage.set('Correu electrònic o contrasenya incorrectes.');
+    const { email } = this.form.getRawValue();
+    this.authService.requestPasswordReset(email).subscribe({
+      next: () => {
         this.isLoading.set(false);
+        this.submitted.set(true);
+      },
+      error: () => {
+        this.isLoading.set(false);
+        this.errorMessage.set('No s\'ha pogut enviar la sol·licitud. Torneu-ho a provar.');
       },
     });
   }
