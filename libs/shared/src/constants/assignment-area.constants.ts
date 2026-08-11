@@ -1,5 +1,6 @@
 import { FigureZone } from '../enums/figure-zone.enum';
 import { AssignmentArea } from '../enums/assignment-area.enum';
+import { SegmentConflictKind } from '../enums/segment-conflict.enum';
 
 /**
  * Single source of truth for "which physical area does this zone belong to" for
@@ -26,4 +27,23 @@ export function areaForZone(zone: FigureZone): AssignmentArea | null {
     case FigureZone.DECORATION:
       return null;
   }
+}
+
+/**
+ * Single source of truth for the conflict-kind precedence rule (§4.1), given the
+ * areas of a person's >1 placements within ONE segment.
+ *
+ * Precedence for the mixed case: if there are >=2 TRONC/BASE placements the whole
+ * conflict is TRONC_TRONC, even when a pinya is also involved — it is the most
+ * expensive case and must not hide behind a TRONC_PINYA. Exactly one tronc →
+ * TRONC_PINYA; none → PINYA_PINYA.
+ *
+ * Both callers — `classifySegmentConflicts` (the canonical engine, D13) and the
+ * participation overview — go through here so the `kind` can never diverge.
+ */
+export function classifyPlacementKind(areas: AssignmentArea[]): SegmentConflictKind {
+  const troncCount = areas.filter((a) => a === AssignmentArea.TRONC).length;
+  if (troncCount >= 2) return SegmentConflictKind.TRONC_TRONC;
+  if (troncCount === 1) return SegmentConflictKind.TRONC_PINYA;
+  return SegmentConflictKind.PINYA_PINYA;
 }

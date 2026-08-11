@@ -20,10 +20,15 @@ import {
   AssignmentArea,
   SegmentConflictKind,
   areaForZone,
+  classifyPlacementKind,
   ConflictPlacement,
   SegmentConflict,
   SegmentConflictsResponse,
   SegmentPeopleCounters,
+  EventAssignmentSummary,
+  EventSegmentSummary,
+  EventFigureSummary,
+  FigureAreaCount,
 } from '@muixer/shared';
 import { CreateAdHocNodeDto } from './dto/create-ad-hoc-node.dto';
 import { UpdateAdHocNodeDto } from './dto/update-ad-hoc-node.dto';
@@ -169,45 +174,10 @@ export interface PersonAssignmentHistory {
   meta: { total: number; page: number; limit: number };
 }
 
-export interface FigureAreaCount {
-  assigned: number;
-  total: number;
-}
-
-export interface EventFigureSummary {
-  instanceId: string;
-  figureName: string;
-  snapshotted: boolean;
-  /** PINYA nodes only, filtered by numberOfCordons/cordonsObertsEnabled and zeroed for REMAT/NETA. */
-  pinya: FigureAreaCount;
-  /** TRONC + BASE nodes (BASE excluded for REMAT). */
-  tronc: FigureAreaCount;
-  /** pinya + tronc + direction nodes; DECORATION excluded (not assignable). */
-  total: FigureAreaCount;
-  /** TRONC/BASE assignments only, unfiltered by figureMode — still needed for name display. */
-  troncBaseAssignments: {
-    nodeLabel: string;
-    positionType: string | null;
-    zone: FigureZone;
-    z: number;
-    personAlias: string;
-    personId: string;
-  }[];
-  distinctPersonCount: number;
-  conflictAssignmentCount: number;
-}
-
-export interface EventSegmentSummary {
-  segmentId: string;
-  segmentName: string;
-  sortOrder: number;
-  figures: EventFigureSummary[];
-  conflicts: SegmentPeopleCounters;
-}
-
-export interface EventAssignmentSummary {
-  segments: EventSegmentSummary[];
-}
+// FigureAreaCount, EventFigureSummary, EventSegmentSummary and EventAssignmentSummary
+// live in @muixer/shared (imported above). They used to be redeclared here — a
+// duplication that forced every Fase-1 field to be added twice; now there is a single
+// source (#2). The dashboard still holds its own stale copy, to be unified in Fase 3.
 
 export interface HistoryQueryParams {
   page?: number;
@@ -728,14 +698,9 @@ export class NodeAssignmentService {
         return (x.renglaPosition ?? Infinity) - (y.renglaPosition ?? Infinity);
       });
 
-      const troncCount = placements.filter((p) => p.area === AssignmentArea.TRONC).length;
       const pinyaPlacements = placements.filter((p) => p.area === AssignmentArea.PINYA);
-      const kind =
-        troncCount >= 2
-          ? SegmentConflictKind.TRONC_TRONC
-          : troncCount === 1
-            ? SegmentConflictKind.TRONC_PINYA
-            : SegmentConflictKind.PINYA_PINYA;
+      // §4.1 precedence rule lives in @muixer/shared so participation classifies identically (D13).
+      const kind = classifyPlacementKind(placements.map((p) => p.area));
 
       // suggestedRemovalAssignmentIds (§Notes de disseny): never a tronc placement.
       // PINYA_PINYA keeps the interior one (lowest renglaPosition, fallback z).

@@ -44,7 +44,7 @@ Estat de conjunt, actualitzat en tancar cada fase (no cal obrir cada secció per
 |---|---|---|---|---|
 | 0 | Fonaments i bugs de col·lapse | ✅ Fet | 2026-08-10 | [§Resultats Fase 0](#resultats--fase-0) |
 | 1 | Motor de conflictes (backend additiu) | ✅ Fet | 2026-08-10 | [§Resultats Fase 1](#resultats--fase-1) |
-| 2 | Participació sobre la font canònica | ⬜ Pendent | — | — |
+| 2 | Participació sobre la font canònica | ✅ Fet | 2026-08-10 | [§Resultats Fase 2](#resultats--fase-2) |
 | 3 | El taller en mode lectura | ⬜ Pendent | — | — |
 | 4 | Resolució interactiva al taller | ⬜ Pendent | — | — |
 | 5 | El canvi de règim (release coordinada) | ⬜ Pendent | — | — |
@@ -310,7 +310,56 @@ test d'equivalència obligatori).
      desada abans de tocar el servei (excloent els camps nous).
 
 ### Resultats — Fase 2
-_(a omplir)_
+
+| # | Escenari | Esperat | Obtingut | Resultat |
+|---|----------|---------|----------|----------|
+| 1 | Àrea derivada per placement | Cada `EventParticipationPlacement` porta `area` (BASE→TRONC, D10) | Unitari amb PINYA/TRONC/BASE barrejats verd | PASS |
+| 2 | `troncPlacementCount` per persona + `troncPlacements` a `meta` | Compta TRONC+BASE a través de tots els segments | Unitari verd (2 de 3 placements) | PASS |
+| 3 | `conflictsByKind` classifica com `getSegmentConflicts` (D13) | Mateixa regla §4.1 via helper compartit `classifyPlacementKind` | Unitari verd (TRONC_PINYA + PINYA_PINYA) | PASS |
+| 4 | **Test d'equivalència** (D13 / risc 9) | 0 divergències Participació ↔ `getSegmentConflicts` per segment (persones i `kind`), i a l'agregat `conflictsByKind` | Integració Postgres real amb duplicats dels 3 tipus + cas cross-segment → 2 tests verds | PASS |
+| 5 | Cas negatiu entre segments intacte | `event-participation.service.spec.ts:318` verd sense canvis | Regressió verda | PASS |
+| 6 | Camps additius, cap forma existent muta | Els tests de `meta` amb `toEqual` exacte només guanyen els camps nous | 2 asserts de `meta` actualitzats amb els camps additius | PASS |
+| 7 | Neteja #2: API importa de `shared` | `EventFigureSummary`/`EventSegmentSummary`/`EventAssignmentSummary`/`FigureAreaCount` esborrats del servei i importats de `@muixer/shared` | `nx build api` OK (equivalència estructural); JSDoc útil portat a `shared` | PASS |
+
+**Resum:** Fase 2 completa i additiva. La pestanya Participació manté el seu batch de 3 queries i ara
+classifica els conflictes amb **exactament** la mateixa regla que el motor canònic — la precedència
+§4.1 viu a `@muixer/shared` (`classifyPlacementKind`), cridada tant per `classifySegmentConflicts()`
+com per Participació, així que el `kind` no pot divergir per construcció. Per damunt, un **test
+d'equivalència d'integració** contra Postgres real prova que les dues canonades de dades independents
+(matriu SQL crua vs query d'entitats) coincideixen segment a segment sobre persones en conflicte i el
+seu tipus (risc 9 tancat). La duplicació d'interfícies #2 queda resolta al backend: el servei importa
+els tres tipus de resum de `shared`; la tercera còpia (dashboard) es resol a la Fase 3.
+
+**Tests automàtics:** `nx test shared` verd (inclou els casos nous de `classifyPlacementKind`) ·
+`nx test api` verd · `nx run api:test-integration` 66/66 (11 suites, inclou el nou
+`participation-conflicts-equivalence.integration.spec.ts` amb 2 tests) · `nx test dashboard` 1496/1498
+(2 skip preexistents). `nx lint api|shared` 0 errors. `nx build api` i `nx build dashboard` OK.
+Reescrits: 2 asserts de `meta` a `event-participation.service.spec.ts`; refactor no-op de
+`classifySegmentConflicts()` per usar l'helper compartit.
+
+**Tests Playwright:** cap. Fase backend + tipus sense canvi observable a la UI (els camps nous valen
+`0`/buit en producció mentre les constraints segueixen) — mateix criteri explícit de les Fases 0/1.
+
+**Dades/setup creats durant pauses de verificació:** cap. Els duplicats de l'equivalència es sembren
+dins del propi test d'integració (testcontainers) amb les constraints dropades a la transacció; no es
+toca cap BBDD de dev.
+
+**Verificació comportamental en viu (curl abans/després):** no executada, mateix motiu que la Fase 1
+(quirk del túnel SSH a `localhost:5433` que impedeix `nx serve api` contra la BBDD de dev sense
+reconfigurar). La garantia "es comporta exactament igual" queda coberta pel test d'equivalència contra
+Postgres real + el fet que cap resposta existent canvia de forma (només camps additius, asserts de
+forma verds). Si es vol la confirmació en viu, cal alçar l'API compilada apuntant `DATABASE_URL` a una
+adreça que no col·lideixi amb el túnel.
+
+**Pendent/riscos oberts en tancar la fase:**
+- **Tercera còpia (dashboard), per a la Fase 3:** `apps/dashboard/src/app/features/pinyes/models/assignment.model.ts`
+  manté encara `EventFigureSummary`/`EventSegmentSummary`/`EventAssignmentSummary` **stale** (sense
+  `distinctPersonCount`, `conflictAssignmentCount`, `conflicts`). La Fase 3 (punt 1) ja preveu
+  reescriure aquest model amb placements plurals, àrea i conflictes: allà s'ha de sincronitzar o
+  importar de `@muixer/shared` (veure nota afegida a §Fase 3).
+- La resta del bloc d'interfícies locals del servei (`AssignmentDetail`, `InstanceNodeResponse`,
+  `PersonAssignmentEntry`) **divergeix de debò** de `shared` (`climbIndicator`, `notes`/`notesEmoji`,
+  `renglaPosition`) i s'ha deixat intacta a propòsit — unificar-la és un refactor separat, fora d'abast.
 
 ---
 
@@ -321,7 +370,11 @@ comptadors nous de dotació; amb dades sembrades a mà, l'estil de conflicte es 
 tronc-view, projecció) però no hi ha manera d'actuar-hi encara.
 
 ### Passos
-1. Models del dashboard amb placements plurals, àrea, conflictes.
+1. Models del dashboard amb placements plurals, àrea, conflictes. **Inclou la neteja pendent de la
+   Fase 2 (#2):** `assignment.model.ts` encara té una còpia stale de
+   `EventFigureSummary`/`EventSegmentSummary`/`EventAssignmentSummary` (sense `distinctPersonCount`,
+   `conflictAssignmentCount`, `conflicts`); en reescriure el model, sincronitzar-la o importar-la de
+   `@muixer/shared` perquè el dashboard deixi de divergir del backend.
 2. Estil visual únic de conflicte a `figure-canvas` (tots els modes) i `tronc-view`.
 3. Píndoles del `segment-manager`: `⚠ N conflictes` + dotació per àrea al tooltip.
 4. `AlreadyAssignedDialog` multi-col·locació (informatiu, sense "Assignar igualment" encara).

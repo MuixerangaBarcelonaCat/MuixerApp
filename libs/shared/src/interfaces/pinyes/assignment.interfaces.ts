@@ -150,9 +150,13 @@ export interface EventFigureSummary {
   instanceId: string;
   figureName: string;
   snapshotted: boolean;
+  /** PINYA nodes only, filtered by numberOfCordons/cordonsObertsEnabled and zeroed for REMAT/NETA. */
   pinya: FigureAreaCount;
+  /** TRONC + BASE nodes (BASE excluded for REMAT). */
   tronc: FigureAreaCount;
+  /** pinya + tronc + direction nodes; DECORATION excluded (not assignable). */
   total: FigureAreaCount;
+  /** TRONC/BASE assignments only, unfiltered by figureMode — still needed for name display. */
   troncBaseAssignments: EventAssignmentEntry[];
   distinctPersonCount: number;
   conflictAssignmentCount: number;

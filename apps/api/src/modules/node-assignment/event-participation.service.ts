@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { Event } from '../event/event.entity';
 import {
+  AssignmentArea,
   AttendanceStatus,
   EventParticipationMeta,
   EventParticipationOverview,
@@ -11,6 +12,9 @@ import {
   EventParticipationPlacement,
   EventParticipationSegment,
   FigureZone,
+  SegmentConflictKind,
+  areaForZone,
+  classifyPlacementKind,
 } from '@muixer/shared';
 
 /** Attendance statuses that mean "this person is coming / came". */
@@ -257,6 +261,7 @@ export class EventParticipationService {
           placements: {},
           assignedSegmentCount: 0,
           placementCount: 0,
+          troncPlacementCount: 0,
           conflictSegmentIds: [],
         };
         byId.set(row.personId, person);
@@ -277,6 +282,12 @@ export class EventParticipationService {
         (total, id) => total + person.placements[id].length,
         0,
       );
+      // BASE→TRONC (D10): tronc load counts every TRONC/BASE placement, event-wide.
+      person.troncPlacementCount = segmentIds.reduce(
+        (total, id) =>
+          total + person.placements[id].filter((p) => p.area === AssignmentArea.TRONC).length,
+        0,
+      );
       // A conflict is >1 placement in the SAME segment. Placements spread across
       // different segments are legal and must not be reported.
       person.conflictSegmentIds = segmentIds.filter((id) => person.placements[id].length > 1);
@@ -293,6 +304,10 @@ export class EventParticipationService {
       nodeId: row.nodeId as string,
       nodeLabel: row.nodeLabel ?? '',
       zone: row.zone as FigureZone,
+      // DECORATION is the only zone that maps to null, and decoration nodes are never
+      // assignable — so a placement always has a real area. Cast mirrors the canonical
+      // engine (`classifySegmentConflicts`) so both stay consistent.
+      area: areaForZone(row.zone as FigureZone) as AssignmentArea,
       positionType: row.positionType ?? null,
       z: Number(row.z ?? 0),
       renglaPosition:
@@ -312,11 +327,27 @@ export class EventParticipationService {
   }
 
   private buildMeta(persons: EventParticipationPerson[]): EventParticipationMeta {
+    const conflictsByKind: Record<SegmentConflictKind, number> = {
+      [SegmentConflictKind.TRONC_TRONC]: 0,
+      [SegmentConflictKind.TRONC_PINYA]: 0,
+      [SegmentConflictKind.PINYA_PINYA]: 0,
+    };
+    // Classify every (person, segment) conflict through the shared rule so the kind
+    // can never diverge from the canonical `getSegmentConflicts` (D13).
+    for (const person of persons) {
+      for (const segmentId of person.conflictSegmentIds) {
+        const kind = classifyPlacementKind(person.placements[segmentId].map((p) => p.area));
+        conflictsByKind[kind] += 1;
+      }
+    }
+
     return {
       distinctPersons: persons.length,
       personsWithPlacement: persons.filter((p) => p.placementCount > 0).length,
       totalPlacements: persons.reduce((total, p) => total + p.placementCount, 0),
       conflictedPersons: persons.filter((p) => p.conflictSegmentIds.length > 0).length,
+      conflictsByKind,
+      troncPlacements: persons.reduce((total, p) => total + p.troncPlacementCount, 0),
     };
   }
 }
