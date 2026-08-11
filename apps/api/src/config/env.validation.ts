@@ -28,4 +28,6 @@ export const envValidationSchema = Joi.object({
   LEGACY_API_URL: Joi.string().allow('').optional(),
   LEGACY_API_USERNAME: Joi.string().allow('').optional(),
   LEGACY_API_PASSWORD: Joi.string().allow('').optional(),
+
+  MAIL_PROVIDER: Joi.string().valid('console').default('console'),
 });
