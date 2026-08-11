@@ -50,7 +50,7 @@ import { Event } from '../event/event.entity';
  * can classify it without parsing `message` — substring matching breaks silently
  * if the message wording ever changes.
  */
-export type AssignConflictReasonCode = 'NODE_OCCUPIED' | 'PERSON_IN_INSTANCE' | 'PERSON_IN_SEGMENT';
+export type AssignConflictReasonCode = 'NODE_OCCUPIED';
 
 export class AssignConflictException extends ConflictException {
   constructor(message: string, public readonly reasonCode: AssignConflictReasonCode) {
@@ -152,6 +152,13 @@ export interface BulkImportResult {
     reason: string;
   }[];
   clonedAdHocNodes: number;
+  /**
+   * D5 (docs/SEGMENTS_FLEXIBILITY.md, Fase 5): duplicates are now imported, not skipped —
+   * only node-occupied/no-matching-node rows still land in `conflicts` above. This reports
+   * how many of the resulting segment conflicts fall in each kind, over the target segment
+   * as a whole (not just the rows this import touched).
+   */
+  conflictsByKind: Record<SegmentConflictKind, number>;
 }
 
 export interface PersonAssignmentEntry {
@@ -434,33 +441,6 @@ export class NodeAssignmentService {
       );
     }
 
-    const personConflict = await this.assignmentRepository.findOne({
-      where: {
-        figureInstance: { id: instanceId },
-        person: { id: dto.personId },
-      },
-    });
-    if (personConflict) {
-      throw new AssignConflictException(
-        `Person ${dto.personId} is already assigned in this figure instance`,
-        'PERSON_IN_INSTANCE',
-      );
-    }
-
-    const segmentConflict = await this.assignmentRepository
-      .createQueryBuilder('a')
-      .innerJoin('a.figureInstance', 'fi')
-      .where('fi.segmentId = :segmentId', { segmentId: instance.segment.id })
-      .andWhere('a.personId = :personId', { personId: dto.personId })
-      .getOne();
-
-    if (segmentConflict) {
-      throw new AssignConflictException(
-        `Person ${dto.personId} is already assigned in another figure instance of this segment`,
-        'PERSON_IN_SEGMENT',
-      );
-    }
-
     const assignment = this.assignmentRepository.create({
       figureInstance: instance,
       instanceNode,
@@ -490,9 +470,11 @@ export class NodeAssignmentService {
   /**
    * Derived impact of writing to a TRONC/BASE node (D11): the segment's conflicts after the
    * write, plus the touched instance's pinya nodes that are now empty. Not persisted; consumed
-   * from Phase 4. Reuses the canonical getSegmentConflicts (D13) — no bespoke conflict logic.
+   * from Phase 4 and by FigureInstanceService.move() (Fase 5). Reuses the canonical
+   * getSegmentConflicts (D13) — no bespoke conflict logic. Public: move() lives in a
+   * different service and needs the same computation.
    */
-  private async computeTroncChangeImpact(
+  async computeTroncChangeImpact(
     segmentId: string,
     instanceId: string,
   ): Promise<TroncChangeImpact> {
@@ -550,27 +532,33 @@ export class NodeAssignmentService {
       throw new BadRequestException('Cannot swap an assignment with itself');
     }
 
-    await this.dataSource.transaction(async (manager) => {
-      await manager.delete(NodeAssignment, { id: dto.assignmentIdA });
-      await manager.delete(NodeAssignment, { id: dto.assignmentIdB });
+    try {
+      await this.dataSource.transaction(async (manager) => {
+        await manager.delete(NodeAssignment, { id: dto.assignmentIdA });
+        await manager.delete(NodeAssignment, { id: dto.assignmentIdB });
 
-      const newA = manager.create(NodeAssignment, {
-        id: dto.assignmentIdA,
-        figureInstance: assignmentA.figureInstance,
-        instanceNode: assignmentA.instanceNode,
-        person: assignmentB.person,
-        segment: assignmentA.figureInstance.segment,
-      });
-      const newB = manager.create(NodeAssignment, {
-        id: dto.assignmentIdB,
-        figureInstance: assignmentB.figureInstance,
-        instanceNode: assignmentB.instanceNode,
-        person: assignmentA.person,
-        segment: assignmentB.figureInstance.segment,
-      });
+        const newA = manager.create(NodeAssignment, {
+          id: dto.assignmentIdA,
+          figureInstance: assignmentA.figureInstance,
+          instanceNode: assignmentA.instanceNode,
+          person: assignmentB.person,
+          segment: assignmentA.figureInstance.segment,
+        });
+        const newB = manager.create(NodeAssignment, {
+          id: dto.assignmentIdB,
+          figureInstance: assignmentB.figureInstance,
+          instanceNode: assignmentB.instanceNode,
+          person: assignmentA.person,
+          segment: assignmentB.figureInstance.segment,
+        });
 
-      await manager.save(NodeAssignment, [newA, newB]);
-    });
+        await manager.save(NodeAssignment, [newA, newB]);
+      });
+    } catch (err) {
+      // Fase 5 (risc 10, §7 Fase 5.3): swap() never used to catch the unique-violation
+      // race on the one constraint that still applies (UQ_node_assignments_instance_node).
+      throw this.toAssignConflictError(err);
+    }
 
     const [updatedA, updatedB] = await Promise.all([
       this.assignmentRepository.findOne({
@@ -812,6 +800,11 @@ export class NodeAssignmentService {
     manager: EntityManager,
   ): Promise<void> {
     if (personIds.length === 0) return;
+
+    // KEEP_BOTH (Fase 5 default, D3): duplicates are legal now — leave both sides untouched.
+    // Explicit branch on purpose: falling through to the old `else` would silently delete the
+    // target segment's placements, the opposite of what KEEP_BOTH means.
+    if (resolution === SegmentMoveConflictResolution.KEEP_BOTH) return;
 
     if (resolution === SegmentMoveConflictResolution.KEEP_TARGET) {
       await manager.delete(NodeAssignment, {
@@ -1421,7 +1414,8 @@ export class NodeAssignmentService {
       }
     }
 
-    return { created, conflicts, clonedAdHocNodes };
+    const { meta } = await this.getSegmentConflicts(targetInstance.segment.id);
+    return { created, conflicts, clonedAdHocNodes, conflictsByKind: meta.conflictsByKind };
   }
 
 
@@ -1725,21 +1719,14 @@ export class NodeAssignmentService {
 
   /**
    * Translates a Postgres unique-violation (23505) racing another concurrent
-   * assign() into the same ConflictException the pre-checks throw, instead of
-   * letting it surface as a raw 500 (BUG-18). Any other error is rethrown as-is.
+   * assign()/swap() into the same ConflictException the NODE_OCCUPIED pre-check
+   * throws, instead of letting it surface as a raw 500 (BUG-18). Since Fase 5
+   * dropped the person-scoped uniques, UQ_node_assignments_instance_node is the
+   * only constraint that can still fire here. Any other error is rethrown as-is.
    */
   private toAssignConflictError(err: unknown): Error {
-    const pgErr = err as { code?: string; detail?: string };
+    const pgErr = err as { code?: string };
     if (pgErr?.code !== '23505') return err as Error;
-    if (pgErr.detail?.includes('segmentId')) {
-      return new AssignConflictException(
-        'Person is already assigned in another figure instance of this segment',
-        'PERSON_IN_SEGMENT',
-      );
-    }
-    if (pgErr.detail?.includes('personId')) {
-      return new AssignConflictException('Person is already assigned in this figure instance', 'PERSON_IN_INSTANCE');
-    }
     return new AssignConflictException('Node is already occupied in this figure instance', 'NODE_OCCUPIED');
   }
 
@@ -1752,14 +1739,7 @@ export class NodeAssignmentService {
    */
   private describeBulkImportError(err: unknown): string | null {
     if (err instanceof AssignConflictException) {
-      switch (err.reasonCode) {
-        case 'NODE_OCCUPIED':
-          return 'Node already occupied in target instance';
-        case 'PERSON_IN_INSTANCE':
-          return 'Person already assigned in target instance';
-        case 'PERSON_IN_SEGMENT':
-          return 'Person already assigned in this segment';
-      }
+      return 'Node already occupied in target instance';
     }
     if (err instanceof BadRequestException || err instanceof NotFoundException) {
       return err.message;

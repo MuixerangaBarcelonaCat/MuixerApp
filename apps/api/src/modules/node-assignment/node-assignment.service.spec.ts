@@ -346,7 +346,6 @@ describe('NodeAssignmentService', () => {
       mockPersonRepo.findOne.mockResolvedValue(makePerson());
       mockAssignmentRepo.findOne
         .mockResolvedValueOnce(null)   // node not occupied
-        .mockResolvedValueOnce(null)   // person not in instance
         .mockResolvedValue(makeAssignment({ instanceNode: snapshotNode as any }));
       mockAssignmentRepo.create.mockReturnValue(makeAssignment({ instanceNode: snapshotNode as any }));
       mockAssignmentRepo.save.mockResolvedValue({ id: ASSIGNMENT_ID });
@@ -367,10 +366,7 @@ describe('NodeAssignmentService', () => {
       mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
       mockInstanceNodeRepo.findOne.mockResolvedValue(inode);
       mockPersonRepo.findOne.mockResolvedValue(makePerson());
-      mockAssignmentRepo.findOne
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(null)
-        .mockResolvedValue(a);
+      mockAssignmentRepo.findOne.mockResolvedValueOnce(null).mockResolvedValue(a);
       mockAssignmentRepo.create.mockReturnValue(a);
       mockAssignmentRepo.save.mockResolvedValue(a);
 
@@ -410,10 +406,7 @@ describe('NodeAssignmentService', () => {
       mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
       mockPersonRepo.findOne.mockResolvedValue(makePerson());
       mockInstanceNodeRepo.findOne.mockResolvedValue(inode);
-      mockAssignmentRepo.findOne
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(null)
-        .mockResolvedValue(a);
+      mockAssignmentRepo.findOne.mockResolvedValueOnce(null).mockResolvedValue(a);
       mockAssignmentRepo.create.mockReturnValue(a);
       mockAssignmentRepo.save.mockResolvedValue(a);
 
@@ -433,10 +426,7 @@ describe('NodeAssignmentService', () => {
       mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
       mockPersonRepo.findOne.mockResolvedValue(makePerson());
       mockInstanceNodeRepo.findOne.mockResolvedValue(inode);
-      mockAssignmentRepo.findOne
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(null)
-        .mockResolvedValue(a);
+      mockAssignmentRepo.findOne.mockResolvedValueOnce(null).mockResolvedValue(a);
       mockAssignmentRepo.create.mockReturnValue(a);
       mockAssignmentRepo.save.mockResolvedValue(a);
 
@@ -460,45 +450,44 @@ describe('NodeAssignmentService', () => {
       ).rejects.toThrow(ConflictException);
     });
 
-    it('throws ConflictException if person already in instance', async () => {
+    it('allows assigning a person already in this figure instance (Fase 5: duplicates are legal)', async () => {
       const inode = makeInstanceNode();
+      const a = makeAssignment();
       mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
       mockPersonRepo.findOne.mockResolvedValue(makePerson());
       mockInstanceNodeRepo.findOne.mockResolvedValue(inode);
-      mockAssignmentRepo.findOne
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(makeAssignment());
+      mockAssignmentRepo.findOne.mockResolvedValueOnce(null).mockResolvedValue(a);
+      mockAssignmentRepo.create.mockReturnValue(a);
+      mockAssignmentRepo.save.mockResolvedValue(a);
 
-      await expect(
-        service.assign(INSTANCE_ID, { nodeId: INSTANCE_NODE_ID, personId: PERSON_ID }),
-      ).rejects.toThrow(ConflictException);
+      const result = await service.assign(INSTANCE_ID, { nodeId: INSTANCE_NODE_ID, personId: PERSON_ID });
+
+      expect(result.id).toBe(ASSIGNMENT_ID);
     });
 
-    it('throws ConflictException if person already in another instance of same segment', async () => {
+    it('allows assigning a person already in another figure instance of the same segment (Fase 5: duplicates are legal)', async () => {
       const inode = makeInstanceNode();
+      const a = makeAssignment();
       mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
       mockPersonRepo.findOne.mockResolvedValue(makePerson());
       mockInstanceNodeRepo.findOne.mockResolvedValue(inode);
-      mockAssignmentRepo.findOne
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(null);
-      mockQb.getOne.mockResolvedValue(makeAssignment());
+      mockAssignmentRepo.findOne.mockResolvedValueOnce(null).mockResolvedValue(a);
+      mockAssignmentRepo.create.mockReturnValue(a);
+      mockAssignmentRepo.save.mockResolvedValue(a);
 
-      await expect(
-        service.assign(INSTANCE_ID, { nodeId: INSTANCE_NODE_ID, personId: PERSON_ID }),
-      ).rejects.toThrow(ConflictException);
+      const result = await service.assign(INSTANCE_ID, { nodeId: INSTANCE_NODE_ID, personId: PERSON_ID });
+
+      expect(result.id).toBe(ASSIGNMENT_ID);
+      expect(mockQb.getOne).not.toHaveBeenCalled();
     });
 
-    it('passes the instance segment to assignmentRepository.create so it can be constraint-checked at the DB level', async () => {
+    it('passes the instance segment to assignmentRepository.create (used by conflict/move-repointing queries, not by a unique constraint since Fase 5)', async () => {
       const inode = makeInstanceNode();
       const instance = makeInstance({ snapshotted: true });
       mockInstanceRepo.findOne.mockResolvedValue(instance);
       mockPersonRepo.findOne.mockResolvedValue(makePerson());
       mockInstanceNodeRepo.findOne.mockResolvedValue(inode);
-      mockAssignmentRepo.findOne
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(null)
-        .mockResolvedValue(makeAssignment());
+      mockAssignmentRepo.findOne.mockResolvedValueOnce(null).mockResolvedValue(makeAssignment());
       mockAssignmentRepo.create.mockReturnValue(makeAssignment());
       mockAssignmentRepo.save.mockResolvedValue(makeAssignment());
 
@@ -516,10 +505,7 @@ describe('NodeAssignmentService', () => {
       mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
       mockPersonRepo.findOne.mockResolvedValue(makePerson());
       mockInstanceNodeRepo.findOne.mockResolvedValue(troncNode);
-      mockAssignmentRepo.findOne
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(null)
-        .mockResolvedValue(a);
+      mockAssignmentRepo.findOne.mockResolvedValueOnce(null).mockResolvedValue(a);
       mockAssignmentRepo.create.mockReturnValue(a);
       mockAssignmentRepo.save.mockResolvedValue(a);
       // Impact path: getSegmentConflicts + freed-pinya both read via .find
@@ -546,10 +532,7 @@ describe('NodeAssignmentService', () => {
       mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
       mockPersonRepo.findOne.mockResolvedValue(makePerson());
       mockInstanceNodeRepo.findOne.mockResolvedValue(inode);
-      mockAssignmentRepo.findOne
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(null)
-        .mockResolvedValue(a);
+      mockAssignmentRepo.findOne.mockResolvedValueOnce(null).mockResolvedValue(a);
       mockAssignmentRepo.create.mockReturnValue(a);
       mockAssignmentRepo.save.mockResolvedValue(a);
 
@@ -567,13 +550,11 @@ describe('NodeAssignmentService', () => {
       mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
       mockPersonRepo.findOne.mockResolvedValue(makePerson());
       mockInstanceNodeRepo.findOne.mockResolvedValue(inode);
-      mockAssignmentRepo.findOne
-        .mockResolvedValueOnce(null) // node not occupied (pre-check — loses the race)
-        .mockResolvedValueOnce(null); // person not in instance (pre-check — loses the race)
+      mockAssignmentRepo.findOne.mockResolvedValueOnce(null); // node not occupied (pre-check — loses the race)
       mockAssignmentRepo.create.mockReturnValue(makeAssignment());
       const dbError = Object.assign(new Error('duplicate key value violates unique constraint'), {
         code: '23505',
-        detail: 'Key (segmentId, personId)=(segment-uuid-1, person-uuid-1) already exists.',
+        detail: 'Key (figureInstanceId, instanceNodeId)=(instance-uuid-1, inode-uuid-1) already exists.',
       });
       mockAssignmentRepo.save.mockRejectedValue(dbError);
 
@@ -714,6 +695,24 @@ describe('NodeAssignmentService', () => {
 
       expect(result.impact).toBeUndefined();
       expect(mockAssignmentRepo.find).not.toHaveBeenCalled();
+    });
+
+    it('throws ConflictException (not a raw 500) when the transaction hits the remaining unique constraint (Fase 5, risc 10)', async () => {
+      const assignmentA = makeAssignment();
+      const assignmentB = makeAssignmentB();
+
+      mockAssignmentRepo.findOne
+        .mockResolvedValueOnce(assignmentA)
+        .mockResolvedValueOnce(assignmentB);
+
+      const dbError = Object.assign(new Error('duplicate key value violates unique constraint'), {
+        code: '23505',
+      });
+      mockDataSource.transaction.mockRejectedValue(dbError);
+
+      await expect(
+        service.swap(INSTANCE_ID, { assignmentIdA: ASSIGNMENT_ID, assignmentIdB: ASSIGNMENT_ID_B }),
+      ).rejects.toThrow(ConflictException);
     });
 
     it('throws NotFoundException if assignment A not found', async () => {
@@ -1144,6 +1143,20 @@ describe('NodeAssignmentService', () => {
         TARGET_SEGMENT_ID,
         [],
         SegmentMoveConflictResolution.KEEP_TARGET,
+        manager,
+      );
+
+      expect(manager.delete).not.toHaveBeenCalled();
+    });
+
+    it('KEEP_BOTH (Fase 5 default) deletes nothing on either side', async () => {
+      const manager = { delete: jest.fn() } as any;
+
+      await service.resolveSegmentMoveConflicts(
+        INSTANCE_ID,
+        TARGET_SEGMENT_ID,
+        [PERSON_ID],
+        SegmentMoveConflictResolution.KEEP_BOTH,
         manager,
       );
 
@@ -1827,6 +1840,30 @@ describe('NodeAssignmentService', () => {
       expect(result.conflicts[0].reason).toBe('Node already occupied in target instance');
     });
 
+    it('reports conflictsByKind from the target segment after importing (D5, Fase 5)', async () => {
+      const { target, source, sourceAssignment } = makeMatchedImportFixtures();
+      mockInstanceRepo.findOne.mockResolvedValueOnce(target).mockResolvedValueOnce(source);
+      const troncA = makeAssignment({
+        id: 'a-1',
+        person: makePerson('dup-person') as any,
+        instanceNode: makeInstanceNode({ id: 'n-1', zone: FigureZone.TRONC }) as any,
+      });
+      const troncB = makeAssignment({
+        id: 'a-2',
+        person: makePerson('dup-person') as any,
+        instanceNode: makeInstanceNode({ id: 'n-2', zone: FigureZone.TRONC }) as any,
+      });
+      mockAssignmentRepo.find
+        .mockResolvedValueOnce([sourceAssignment]) // source assignments to import
+        .mockResolvedValueOnce([troncA, troncB]); // getSegmentConflicts on the target segment afterwards
+      jest.spyOn(service as any, 'assignWithoutLockCheck').mockResolvedValue({ id: 'new-assignment' } as any);
+
+      const result = await service.bulkImport(INSTANCE_ID, { sourceInstanceId: 'source-uuid' });
+
+      expect(result.conflictsByKind[SegmentConflictKind.TRONC_TRONC]).toBe(1);
+      expect(result.conflictsByKind[SegmentConflictKind.PINYA_PINYA]).toBe(0);
+    });
+
     it('rethrows unexpected (non-domain) errors from assignWithoutLockCheck() instead of masking them as a conflict', async () => {
       const { target, source, sourceAssignment } = makeMatchedImportFixtures();
       mockInstanceRepo.findOne.mockResolvedValueOnce(target).mockResolvedValueOnce(source);
@@ -1918,10 +1955,7 @@ describe('NodeAssignmentService', () => {
       mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
       mockInstanceNodeRepo.findOne.mockResolvedValue(inode);
       mockPersonRepo.findOne.mockResolvedValue(makePerson());
-      mockAssignmentRepo.findOne
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(null)
-        .mockResolvedValue(a);
+      mockAssignmentRepo.findOne.mockResolvedValueOnce(null).mockResolvedValue(a);
       mockAssignmentRepo.create.mockReturnValue(a);
       mockAssignmentRepo.save.mockResolvedValue(a);
 
@@ -1942,10 +1976,7 @@ describe('NodeAssignmentService', () => {
       const a = makeAssignment();
       mockInstanceNodeRepo.findOne.mockResolvedValue(inode);
       mockPersonRepo.findOne.mockResolvedValue(makePerson());
-      mockAssignmentRepo.findOne
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(null)
-        .mockResolvedValue(a);
+      mockAssignmentRepo.findOne.mockResolvedValueOnce(null).mockResolvedValue(a);
       mockAssignmentRepo.create.mockReturnValue(a);
       mockAssignmentRepo.save.mockResolvedValue(a);
 
@@ -2712,14 +2743,7 @@ describe('NodeAssignmentService', () => {
 
       mockAssignmentRepo.findOne
         .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(null);
-      mockAssignmentRepo.createQueryBuilder.mockReturnValue({
-        innerJoin: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        getOne: jest.fn().mockResolvedValue(null),
-      });
-
+        .mockResolvedValue(makeAssignment({ instanceNode: createdInstanceNode as any }));
       mockPersonRepo.findOne.mockResolvedValue(makePerson());
       mockInstanceNodeRepo.findOne
         .mockResolvedValueOnce(null)
@@ -2753,7 +2777,6 @@ describe('NodeAssignmentService', () => {
       mockPersonRepo.findOne.mockResolvedValue(makePerson());
       mockAssignmentRepo.findOne
         .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(null)
         .mockResolvedValue(makeAssignment({ instanceNode: snapshotNode as any }));
       mockAssignmentRepo.create.mockReturnValue(makeAssignment({ instanceNode: snapshotNode as any }));
       mockAssignmentRepo.save.mockResolvedValue({ id: ASSIGNMENT_ID });
@@ -2781,7 +2804,6 @@ describe('NodeAssignmentService', () => {
       mockDataSource.transaction.mockImplementation((cb: any) => cb(manager));
       mockPersonRepo.findOne.mockResolvedValue(makePerson());
       mockAssignmentRepo.findOne
-        .mockResolvedValueOnce(null)
         .mockResolvedValueOnce(null)
         .mockResolvedValue(makeAssignment({ instanceNode: winnerNode as any }));
       mockAssignmentRepo.create.mockReturnValue(makeAssignment({ instanceNode: winnerNode as any }));

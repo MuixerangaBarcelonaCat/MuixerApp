@@ -9,12 +9,10 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { HttpErrorResponse } from '@angular/common/http';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { LucideAngularModule } from 'lucide-angular';
 import { ICON_FIGURA, ICON_PERSONA, ICON_COMPOSITION, ICON_FIGURA_NETA, ICON_PINYA, ICON_TRONC, ICON_OBSERVACIONS } from '../../../../shared/constants/domain-icons';
 import { forkJoin } from 'rxjs';
-import { SegmentMoveConflictResolution } from '@muixer/shared';
 import { FiguresViewModeService, FiguresViewMode } from '../../../pinyes/services/figures-view-mode.service';
 import { EventSegmentService } from '../../../pinyes/services/event-segment.service';
 import { FigureInstanceService } from '../../../pinyes/services/figure-instance.service';
@@ -53,15 +51,6 @@ interface PendingModeChange {
   mode: FigureMode;
 }
 
-interface PendingMoveConflict {
-  sourceSegmentId: string;
-  targetSegmentId: string;
-  instanceId: string;
-  targetIndex: number;
-  total: number;
-  tronc: number;
-}
-
 @Component({
   selector: 'app-segment-manager',
   standalone: true,
@@ -80,7 +69,6 @@ export class SegmentManagerComponent implements OnInit {
   readonly ICON_PINYA = ICON_PINYA;
   readonly ICON_TRONC = ICON_TRONC;
   readonly ICON_CONFLICT = ICON_OBSERVACIONS;
-  readonly SegmentMoveConflictResolution = SegmentMoveConflictResolution;
 
   private readonly segmentService = inject(EventSegmentService);
   private readonly instanceService = inject(FigureInstanceService);
@@ -118,14 +106,6 @@ export class SegmentManagerComponent implements OnInit {
   copyingInstance = signal(false);
 
   movingInstanceId = signal<string | null>(null);
-  pendingMoveConflict = signal<PendingMoveConflict | null>(null);
-  resolvingMoveConflict = signal(false);
-  /**
-   * Preselected on KEEP_BOTH (D3's eventual default), but the submit button stays disabled
-   * for it — the migration dropping `UQ_node_assignments_segment_person` hasn't landed yet
-   * (Fase 5), so sending it would 500 instead of resolving cleanly.
-   */
-  selectedMoveResolution = signal<SegmentMoveConflictResolution>(SegmentMoveConflictResolution.KEEP_BOTH);
 
   instanceDropListIds = computed(() => this.segments().map((s) => 'instances-' + s.id));
 
@@ -326,9 +306,9 @@ export class SegmentManagerComponent implements OnInit {
           this.movingInstanceId.set(null);
           this.applyMoveResult(result);
         },
-        error: (err: HttpErrorResponse) => {
+        error: () => {
           this.movingInstanceId.set(null);
-          this.handleMoveError(err, sourceSegment.id, targetSegment.id, instance.id, targetIndex);
+          this.toast.error('Error en moure la figura de segment.');
         },
       });
   }
@@ -341,61 +321,20 @@ export class SegmentManagerComponent implements OnInit {
         return s;
       }),
     );
-  }
 
-  private handleMoveError(
-    err: HttpErrorResponse,
-    sourceSegmentId: string,
-    targetSegmentId: string,
-    instanceId: string,
-    targetIndex: number,
-  ): void {
-    if (err.status === 409 && err.error?.code === 'SEGMENT_MOVE_CONFLICT') {
-      this.selectedMoveResolution.set(SegmentMoveConflictResolution.KEEP_BOTH);
-      this.pendingMoveConflict.set({
-        sourceSegmentId,
-        targetSegmentId,
-        instanceId,
-        targetIndex,
-        total: err.error.total,
-        tronc: err.error.tronc,
-      });
-      return;
+    // D2/D3 (Fase 5): moving never blocks — a duplicate created by the move is a legal,
+    // non-blocking conflict. Point the tècnic at the workshop's conflict panel to resolve
+    // it there instead of duplicating that resolution UI here.
+    if (result.conflicts?.length) {
+      const n = result.conflicts.length;
+      this.toast.warning(
+        `${n} ${n === 1 ? 'persona ha quedat' : 'persones han quedat'} en conflicte en este segment. Resol-ho des del taller.`,
+      );
     }
-    this.toast.error('Error en moure la figura de segment.');
-  }
 
-  resolveMoveConflict(resolution: SegmentMoveConflictResolution): void {
-    // KEEP_BOTH can't be sent yet (Fase 5 drops the unique constraint first) — the confirm
-    // button is disabled for it, but this guard keeps the path closed regardless of caller.
-    if (resolution === SegmentMoveConflictResolution.KEEP_BOTH) return;
-
-    const pending = this.pendingMoveConflict();
-    if (!pending) return;
-
-    this.resolvingMoveConflict.set(true);
-    this.instanceService
-      .move(this.eventId(), pending.sourceSegmentId, pending.instanceId, {
-        targetSegmentId: pending.targetSegmentId,
-        targetIndex: pending.targetIndex,
-        conflictResolution: resolution,
-      })
-      .subscribe({
-        next: (result) => {
-          this.resolvingMoveConflict.set(false);
-          this.pendingMoveConflict.set(null);
-          this.applyMoveResult(result);
-        },
-        error: () => {
-          this.resolvingMoveConflict.set(false);
-          this.pendingMoveConflict.set(null);
-          this.toast.error('Error en moure la figura de segment.');
-        },
-      });
-  }
-
-  cancelMoveConflict(): void {
-    this.pendingMoveConflict.set(null);
+    // conflictsBySegment only reflects the summary loaded at init — a move can create or
+    // resolve a conflict in either segment, so the per-segment badge needs a fresh read.
+    this.loadAssignmentSummary();
   }
 
   openCopyPicker(segmentId: string, instanceId: string): void {

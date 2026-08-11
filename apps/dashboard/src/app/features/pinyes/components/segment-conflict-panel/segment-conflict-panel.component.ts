@@ -8,8 +8,8 @@ import { SegmentNodeRef, targetTabForZone } from '../../utils/segment-assignment
 
 /**
  * Banner + expandable panel for the canonical segment conflicts (D13, Fase 4). Mounted once at
- * the workspace level (visible on every tab), invisible in production while the uniqueness
- * constraints still forbid duplicates — `ws.conflicts()`/`conflictCounters()` resolve empty.
+ * the workspace level (visible on every tab). Since Fase 5 dropped the uniqueness constraints
+ * that made duplicates impossible, `ws.conflicts()`/`conflictCounters()` can be non-empty.
  *
  * A single warning style covers every conflict `kind` — "un conflicte és un conflicte" (§4.1) —
  * and rows stay in the server's TRONC_TRONC → TRONC_PINYA → PINYA_PINYA order (never re-sorted).

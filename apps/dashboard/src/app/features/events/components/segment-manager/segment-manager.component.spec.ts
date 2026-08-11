@@ -4,7 +4,6 @@ import { of, throwError } from 'rxjs';
 import { Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { DragDropModule, CdkDragDrop } from '@angular/cdk/drag-drop';
-import { SegmentMoveConflictResolution } from '@muixer/shared';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { SegmentManagerComponent } from './segment-manager.component';
 import { EventSegmentService } from '../../../pinyes/services/event-segment.service';
@@ -103,7 +102,11 @@ describe('SegmentManagerComponent', () => {
   let instanceService: Partial<FigureInstanceService>;
   let compositionService: { applyToSegment: ReturnType<typeof vi.fn> };
   let nodeAssignmentService: { getEventAssignmentSummary: ReturnType<typeof vi.fn> };
-  let toastService: { success: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
+  let toastService: {
+    success: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+    warning: ReturnType<typeof vi.fn>;
+  };
   let routerMock: { navigate: ReturnType<typeof vi.fn>; url: string };
 
   beforeEach(async () => {
@@ -137,6 +140,7 @@ describe('SegmentManagerComponent', () => {
     toastService = {
       success: vi.fn(),
       error: vi.fn(),
+      warning: vi.fn(),
     };
 
     routerMock = { navigate: vi.fn(), url: '/rehearsals/event-123' };
@@ -353,129 +357,52 @@ describe('SegmentManagerComponent', () => {
       expect(component.segments().find((s) => s.id === 'seg-2')!.instances).toHaveLength(1);
     });
 
-    it('opens the conflict dialog with total/tronc counts on a 409 SEGMENT_MOVE_CONFLICT response', () => {
+    it('shows a warning toast (not blocking) when the move creates segment conflicts (Fase 5, D2/D3)', () => {
       const inst = makeInstance({ id: 'inst-1' });
       const source = makeSegment({ id: 'seg-1', instances: [inst] });
       const target = makeSegment({ id: 'seg-2', instances: [] });
       component.segments.set([source, target]);
-      const error = new HttpErrorResponse({
-        status: 409,
-        error: { code: 'SEGMENT_MOVE_CONFLICT', total: 3, tronc: 1 },
-      });
-      (instanceService.move as ReturnType<typeof vi.fn>).mockReturnValue(throwError(() => error));
+      const moveResult = {
+        sourceSegment: { ...source, instances: [] },
+        targetSegment: { ...target, instances: [inst] },
+        conflicts: [{ personId: 'p1' }, { personId: 'p2' }],
+      };
+      (instanceService.move as ReturnType<typeof vi.fn>).mockReturnValue(of(moveResult));
 
       component.onInstanceDropped(target, makeCrossSegmentDrop(source, target, inst, 0, 0));
 
-      expect(component.pendingMoveConflict()).toEqual({
-        sourceSegmentId: 'seg-1',
-        targetSegmentId: 'seg-2',
-        instanceId: 'inst-1',
-        targetIndex: 0,
-        total: 3,
-        tronc: 1,
-      });
+      expect(toastService.warning).toHaveBeenCalled();
+      expect(component.segments().find((s) => s.id === 'seg-2')!.instances).toHaveLength(1);
     });
 
-    it('shows a generic error toast and does not open the dialog on a non-conflict error', () => {
+    it('does not show a warning toast when the move creates no conflicts', () => {
       const inst = makeInstance({ id: 'inst-1' });
       const source = makeSegment({ id: 'seg-1', instances: [inst] });
       const target = makeSegment({ id: 'seg-2', instances: [] });
       component.segments.set([source, target]);
-      (instanceService.move as ReturnType<typeof vi.fn>).mockReturnValue(
-        throwError(() => new HttpErrorResponse({ status: 500 })),
-      );
-
-      component.onInstanceDropped(target, makeCrossSegmentDrop(source, target, inst, 0, 0));
-
-      expect(toastService.error).toHaveBeenCalled();
-      expect(component.pendingMoveConflict()).toBeNull();
-    });
-  });
-
-  describe('move conflict resolution', () => {
-    const inst = makeInstance({ id: 'inst-1' });
-    const source = makeSegment({ id: 'seg-1', instances: [inst] });
-    const target = makeSegment({ id: 'seg-2', instances: [] });
-
-    beforeEach(() => {
-      component.segments.set([source, target]);
-      component.pendingMoveConflict.set({
-        sourceSegmentId: 'seg-1',
-        targetSegmentId: 'seg-2',
-        instanceId: 'inst-1',
-        targetIndex: 0,
-        total: 3,
-        tronc: 1,
-      });
-    });
-
-    it('resolveMoveConflict calls move with the chosen resolution and applies the result', () => {
       const moveResult = {
         sourceSegment: { ...source, instances: [] },
         targetSegment: { ...target, instances: [inst] },
       };
       (instanceService.move as ReturnType<typeof vi.fn>).mockReturnValue(of(moveResult));
 
-      component.resolveMoveConflict(SegmentMoveConflictResolution.KEEP_MOVED);
+      component.onInstanceDropped(target, makeCrossSegmentDrop(source, target, inst, 0, 0));
 
-      expect(instanceService.move).toHaveBeenCalledWith(EVENT_ID, 'seg-1', 'inst-1', {
-        targetSegmentId: 'seg-2',
-        targetIndex: 0,
-        conflictResolution: SegmentMoveConflictResolution.KEEP_MOVED,
-      });
-      expect(component.pendingMoveConflict()).toBeNull();
-      expect(component.segments().find((s) => s.id === 'seg-2')!.instances).toHaveLength(1);
+      expect(toastService.warning).not.toHaveBeenCalled();
     });
 
-    it('resolveMoveConflict shows an error toast and clears the dialog on failure', () => {
+    it('shows a generic error toast on a move failure', () => {
+      const inst = makeInstance({ id: 'inst-1' });
+      const source = makeSegment({ id: 'seg-1', instances: [inst] });
+      const target = makeSegment({ id: 'seg-2', instances: [] });
+      component.segments.set([source, target]);
       (instanceService.move as ReturnType<typeof vi.fn>).mockReturnValue(
         throwError(() => new HttpErrorResponse({ status: 500 })),
       );
 
-      component.resolveMoveConflict(SegmentMoveConflictResolution.KEEP_TARGET);
+      component.onInstanceDropped(target, makeCrossSegmentDrop(source, target, inst, 0, 0));
 
       expect(toastService.error).toHaveBeenCalled();
-      expect(component.pendingMoveConflict()).toBeNull();
-    });
-
-    it('cancelMoveConflict clears the dialog without calling move', () => {
-      component.cancelMoveConflict();
-
-      expect(component.pendingMoveConflict()).toBeNull();
-      expect(instanceService.move).not.toHaveBeenCalled();
-    });
-
-    // ── Fase 4 (D3): KEEP_BOTH is preselected but can never reach the backend ──
-
-    it('KEEP_BOTH is preselected by default when the conflict dialog opens', () => {
-      expect(component.selectedMoveResolution()).toBe(SegmentMoveConflictResolution.KEEP_BOTH);
-    });
-
-    it('resolveMoveConflict(KEEP_BOTH) never calls move — the submit path stays closed', () => {
-      component.resolveMoveConflict(SegmentMoveConflictResolution.KEEP_BOTH);
-
-      expect(instanceService.move).not.toHaveBeenCalled();
-      // The dialog isn't dismissed either — the guard bails before any state change.
-      expect(component.pendingMoveConflict()).not.toBeNull();
-    });
-
-    it('renders the KEEP_BOTH option first, checked, and disabled; the confirm button is disabled until a real option is picked', () => {
-      fixture.detectChanges();
-      const radios: HTMLInputElement[] = Array.from(
-        fixture.nativeElement.querySelectorAll('input[name="move-conflict-resolution"]'),
-      );
-      expect(radios).toHaveLength(3);
-      expect(radios[0].disabled).toBe(true);
-      expect(radios[0].checked).toBe(true);
-
-      const confirmButton: HTMLButtonElement = fixture.nativeElement.querySelector(
-        '[data-testid="move-conflict-confirm"]',
-      );
-      expect(confirmButton.disabled).toBe(true);
-
-      component.selectedMoveResolution.set(SegmentMoveConflictResolution.KEEP_TARGET);
-      fixture.detectChanges();
-      expect(confirmButton.disabled).toBe(false);
     });
   });
 

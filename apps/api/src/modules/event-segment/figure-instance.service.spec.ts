@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { FigureInstanceService } from './figure-instance.service';
 import { FigureInstance } from './entities/figure-instance.entity';
@@ -10,7 +10,7 @@ import { Composition } from '../composition/entities/composition.entity';
 import { EventSegmentService } from './event-segment.service';
 import { NodeAssignmentService } from '../node-assignment/node-assignment.service';
 import { NodeAssignment } from '../node-assignment/entities/node-assignment.entity';
-import { FigureMode, SegmentMoveConflictResolution, SegmentConflictKind } from '@muixer/shared';
+import { FigureMode, FigureZone, SegmentMoveConflictResolution, SegmentConflictKind } from '@muixer/shared';
 
 const EVENT_ID = 'event-uuid-1';
 const SEGMENT_ID = 'segment-uuid-1';
@@ -78,6 +78,9 @@ const mockNodeAssignmentService = {
   checkEventLockByEventId: jest.fn(),
   getSegmentMoveConflicts: jest.fn(),
   resolveSegmentMoveConflicts: jest.fn(),
+  getByInstance: jest.fn(),
+  getSegmentConflicts: jest.fn(),
+  computeTroncChangeImpact: jest.fn(),
 };
 
 describe('FigureInstanceService', () => {
@@ -103,6 +106,12 @@ describe('FigureInstanceService', () => {
     mockNodeAssignmentService.checkEventLockByEventId.mockResolvedValue(undefined);
     mockNodeAssignmentService.getSegmentMoveConflicts.mockResolvedValue([]);
     mockNodeAssignmentService.resolveSegmentMoveConflicts.mockResolvedValue(undefined);
+    mockNodeAssignmentService.getByInstance.mockResolvedValue([]);
+    mockNodeAssignmentService.getSegmentConflicts.mockResolvedValue({ data: [], meta: {} });
+    mockNodeAssignmentService.computeTroncChangeImpact.mockResolvedValue({
+      newConflicts: [],
+      freedPinyaNodeIds: [],
+    });
     mockInstanceRepo.createQueryBuilder.mockReturnValue(mockInstanceQb);
     mockInstanceQb.select.mockReturnThis();
     mockInstanceQb.where.mockReturnThis();
@@ -512,27 +521,31 @@ describe('FigureInstanceService', () => {
       expect(mockDataSource.transaction).not.toHaveBeenCalled();
     });
 
-    it('throws ConflictException with total/tronc counts when there are unresolved conflicts', async () => {
+    it('does not throw when there are unresolved conflicts — KEEP_BOTH is the Fase 5 default', async () => {
       mockNodeAssignmentService.getSegmentMoveConflicts.mockResolvedValue([
         { personId: 'p1', kind: SegmentConflictKind.TRONC_PINYA, placements: [] },
         { personId: 'p2', kind: SegmentConflictKind.PINYA_PINYA, placements: [] },
-        { personId: 'p3', kind: SegmentConflictKind.TRONC_TRONC, placements: [] },
       ]);
-
-      let caught: unknown;
-      try {
-        await service.move(EVENT_ID, SEGMENT_ID, INSTANCE_ID, TARGET_SEGMENT_ID);
-      } catch (err) {
-        caught = err;
-      }
-
-      expect(caught).toBeInstanceOf(ConflictException);
-      expect((caught as ConflictException).getResponse()).toEqual({
-        code: 'SEGMENT_MOVE_CONFLICT',
-        total: 3,
-        tronc: 2,
+      mockNodeAssignmentService.getSegmentConflicts.mockResolvedValue({
+        data: [
+          { personId: 'p1', kind: SegmentConflictKind.TRONC_PINYA, placements: [] },
+          { personId: 'p2', kind: SegmentConflictKind.PINYA_PINYA, placements: [] },
+          { personId: 'unrelated', kind: SegmentConflictKind.PINYA_PINYA, placements: [] },
+        ],
+        meta: {},
       });
-      expect(mockDataSource.transaction).not.toHaveBeenCalled();
+
+      const result = await service.move(EVENT_ID, SEGMENT_ID, INSTANCE_ID, TARGET_SEGMENT_ID);
+
+      expect(mockDataSource.transaction).toHaveBeenCalledTimes(1);
+      expect(mockNodeAssignmentService.resolveSegmentMoveConflicts).toHaveBeenCalledWith(
+        INSTANCE_ID,
+        TARGET_SEGMENT_ID,
+        ['p1', 'p2'],
+        SegmentMoveConflictResolution.KEEP_BOTH,
+        expect.anything(),
+      );
+      expect(result.conflicts?.map((c) => c.personId)).toEqual(['p1', 'p2']);
     });
 
     it('does not call resolveSegmentMoveConflicts when there are no conflicts', async () => {
@@ -565,6 +578,35 @@ describe('FigureInstanceService', () => {
         SegmentMoveConflictResolution.KEEP_MOVED,
         txManager,
       );
+    });
+
+    it('reports a TroncChangeImpact when the moved instance has a TRONC/BASE node', async () => {
+      mockNodeAssignmentService.getByInstance.mockResolvedValue([
+        { node: { zone: FigureZone.TRONC } },
+      ]);
+      mockNodeAssignmentService.computeTroncChangeImpact.mockResolvedValue({
+        newConflicts: [],
+        freedPinyaNodeIds: ['freed-1'],
+      });
+
+      const result = await service.move(EVENT_ID, SEGMENT_ID, INSTANCE_ID, TARGET_SEGMENT_ID);
+
+      expect(mockNodeAssignmentService.computeTroncChangeImpact).toHaveBeenCalledWith(
+        TARGET_SEGMENT_ID,
+        INSTANCE_ID,
+      );
+      expect(result.impact?.freedPinyaNodeIds).toEqual(['freed-1']);
+    });
+
+    it('does NOT report an impact when the moved instance has no TRONC/BASE node', async () => {
+      mockNodeAssignmentService.getByInstance.mockResolvedValue([
+        { node: { zone: FigureZone.PINYA } },
+      ]);
+
+      const result = await service.move(EVENT_ID, SEGMENT_ID, INSTANCE_ID, TARGET_SEGMENT_ID);
+
+      expect(mockNodeAssignmentService.computeTroncChangeImpact).not.toHaveBeenCalled();
+      expect(result.impact).toBeUndefined();
     });
   });
 

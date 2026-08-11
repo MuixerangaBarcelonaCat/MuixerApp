@@ -32,6 +32,7 @@ import { AddUserPrivacyConsent1783400000000 } from './1783400000000-AddUserPriva
 import { SeedLegalDocuments1783500000000 } from './1783500000000-SeedLegalDocuments';
 import { AddLegalDocumentRequiresConsent1783600000000 } from './1783600000000-AddLegalDocumentRequiresConsent';
 import { AddNodeAssignmentConflictIndexes1783700000000 } from './1783700000000-AddNodeAssignmentConflictIndexes';
+import { DropNodeAssignmentDuplicateUniques1783800000000 } from './1783800000000-DropNodeAssignmentDuplicateUniques';
 
 export const migrations: (new () => MigrationInterface)[] = [
   InitialSchema1748600000000,
@@ -67,4 +68,5 @@ export const migrations: (new () => MigrationInterface)[] = [
   SeedLegalDocuments1783500000000,
   AddLegalDocumentRequiresConsent1783600000000,
   AddNodeAssignmentConflictIndexes1783700000000,
+  DropNodeAssignmentDuplicateUniques1783800000000,
 ];

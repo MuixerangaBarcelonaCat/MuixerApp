@@ -60,7 +60,7 @@ import { ICON_OBSERVACIONS } from '../../../../shared/constants/domain-icons';
             }
           }
 
-          <div class="modal-action">
+          <div class="modal-action flex-wrap">
             <button type="button" class="btn btn-ghost btn-sm" (click)="closed.emit()">
               Cancel·lar
             </button>
@@ -74,9 +74,23 @@ import { ICON_OBSERVACIONS } from '../../../../shared/constants/domain-icons';
               autofocus
               (click)="reassignRequested.emit()"
             >
-              Reassignar ací
+              Moure ací
+            </button>
+            <!--
+              D8 (docs/SEGMENTS_FLEXIBILITY.md): duplicating must never be one accidental click
+              away — always this dialog, always styled as a warning, always the least prominent
+              action. Fase 5 is what makes clicking it actually create the duplicate instead of
+              being rejected by the backend.
+            -->
+            <button type="button" class="btn btn-warning btn-outline btn-sm" (click)="assignAnywayRequested.emit()">
+              Assignar igualment
             </button>
           </div>
+          @if (placements().length > 0) {
+            <p class="text-xs text-warning/80 mt-2">
+              Quedarà assignada a {{ placements().length + 1 }} llocs d'este segment.
+            </p>
+          }
         </div>
         <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
         <div class="modal-backdrop" (click)="closed.emit()"></div>
@@ -98,6 +112,7 @@ export class AlreadyAssignedDialogComponent {
   readonly closed = output<void>();
   readonly viewRequested = output<void>();
   readonly reassignRequested = output<void>();
+  readonly assignAnywayRequested = output<void>();
 
   readonly ICON_CONFLICT = ICON_OBSERVACIONS;
   readonly hasTronc = computed(() => this.placements().some((p) => p.area === 'TRONC'));

@@ -171,6 +171,7 @@ export interface BulkImportResult {
   created: AssignmentDetail[];
   conflicts: BulkImportConflict[];
   clonedAdHocNodes: number;
+  conflictsByKind: Record<SegmentConflictKind, number>;
 }
 
 export interface CreateAssignmentPayload {

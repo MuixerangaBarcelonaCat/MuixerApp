@@ -187,6 +187,12 @@ export class PinyesTabComponent implements OnInit {
     if (result.clonedAdHocNodes > 0) {
       msg += ` S'han clonat ${result.clonedAdHocNodes} nodes manuals.`;
     }
+    // D5 (Fase 5): duplicates are imported and marked, not skipped — surface how many landed
+    // in conflict so the tècnic knows to check the conflict panel, not just the omitted count above.
+    const duplicatedPersons = Object.values(result.conflictsByKind).reduce((a, b) => a + b, 0);
+    if (duplicatedPersons > 0) {
+      msg += ` ${duplicatedPersons} ${duplicatedPersons === 1 ? 'persona ha quedat' : 'persones han quedat'} en conflicte.`;
+    }
     this.toast.success(msg);
     const target = this.importTarget();
     this.importTarget.set(null);
@@ -478,6 +484,14 @@ export class PinyesTabComponent implements OnInit {
     });
   }
 
+  /** D8 (Fase 5): keep both placements — the deliberate-friction path out of the dialog. */
+  onReassignDialogAssignAnyway(): void {
+    const dialog = this.reassignDialog();
+    if (!dialog) return;
+    this.reassignDialog.set(null);
+    this.triggerAssign({ slotId: dialog.targetInstanceId, nodeId: dialog.targetNodeId }, dialog.personId);
+  }
+
   onUnassign(assignment: AssignmentDetail): void {
     if (this.ws.isLocked()) return;
     const instanceId = assignment.figureInstanceId;
@@ -493,6 +507,9 @@ export class PinyesTabComponent implements OnInit {
       next: () => {
         this.state.refreshPersonList();
         if (touchesTronc) this.ws.noteFreedPinyaNodesFromUnassign(instanceId);
+        // Fase 5: removing one of several duplicate placements can resolve a conflict —
+        // keep the banner live.
+        this.ws.reloadConflicts();
         this.undoRedo.push(this.buildUnassignAction(instanceId, nodeId, personId, assignment.id));
       },
       error: () => {
@@ -507,6 +524,7 @@ export class PinyesTabComponent implements OnInit {
   performUndo(): void {
     if (this.ws.isLocked() || !this.undoRedo.canUndo() || this.undoRedo.isBusy()) return;
     this.undoRedo.undo().subscribe({
+      next: () => this.ws.reloadConflicts(),
       error: () => this.toast.error("Error en desfer l'acció."),
     });
   }
@@ -515,6 +533,7 @@ export class PinyesTabComponent implements OnInit {
   performRedo(): void {
     if (this.ws.isLocked() || !this.undoRedo.canRedo() || this.undoRedo.isBusy()) return;
     this.undoRedo.redo().subscribe({
+      next: () => this.ws.reloadConflicts(),
       error: () => this.toast.error("Error en refer l'acció."),
     });
   }
@@ -605,6 +624,10 @@ export class PinyesTabComponent implements OnInit {
 
         if (!instance.snapshotted) {
           this.ws.refreshInstance(instanceId);
+        } else {
+          // Fase 5: a duplicate assign is legal and needs the conflict banner to reflect
+          // it immediately. refreshInstance() (above) already reloads conflicts on its own.
+          this.ws.reloadConflicts();
         }
 
         this.state.refreshPersonList();
@@ -622,10 +645,10 @@ export class PinyesTabComponent implements OnInit {
         this.state.pendingOperations.update((ops) => ops.filter((o) => o.id !== op.id));
         this.state.refreshPersonList();
         this.select(ref);
-        const msg =
-          err?.status === 409
-            ? 'La persona ja està assignada.'
-            : 'Error en assignar la persona.';
+        // Fase 5: the only 409 assign() can still throw is NODE_OCCUPIED (someone else
+        // took this node first) — the old PERSON_IN_INSTANCE/PERSON_IN_SEGMENT message no
+        // longer applies, since duplicates are legal now.
+        const msg = err?.status === 409 ? 'Este lloc ja està ocupat.' : 'Error en assignar la persona.';
         this.toast.error(msg);
       },
     });
@@ -669,6 +692,8 @@ export class PinyesTabComponent implements OnInit {
       next: (impact) => {
         this.toast.success("S'han intercanviat les persones.");
         if (impact) this.ws.noteTroncImpact(impact);
+        // Fase 5: a swap can create/resolve a duplicate — keep the banner live.
+        this.ws.reloadConflicts();
         // Swap preserves both assignment ids server-side, so it's its own inverse:
         // running it again — whether via undo or redo — reverses/re-applies it identically.
         this.undoRedo.push({
@@ -748,6 +773,8 @@ export class PinyesTabComponent implements OnInit {
         this.toast.success("S'han intercanviat les persones.");
         if (result.a.impact) this.ws.noteTroncImpact(result.a.impact);
         if (result.b.impact) this.ws.noteTroncImpact(result.b.impact);
+        // Fase 5: a cross-figure swap can create/resolve a duplicate — keep the banner live.
+        this.ws.reloadConflicts();
         this.undoRedo.push({
           type: 'SWAP',
           description: 'Intercanviar persones (figures diferents)',

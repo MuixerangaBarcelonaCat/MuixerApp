@@ -861,7 +861,7 @@ describe('PinyesTabComponent', () => {
       component.openImport();
       assignmentService.getInstanceNodes.mockClear();
 
-      component.onImportCompleted({ created: [], conflicts: [], clonedAdHocNodes: 0 });
+      component.onImportCompleted({ created: [], conflicts: [], clonedAdHocNodes: 0, conflictsByKind: {} as any });
 
       expect(assignmentService.getInstanceNodes).toHaveBeenCalledWith(INST_A);
       expect(toast.success).toHaveBeenCalled();

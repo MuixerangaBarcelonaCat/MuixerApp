@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
@@ -63,11 +58,19 @@ export interface SegmentDistributionData {
   segment: { id: string; name: string | null };
   items: DistributionItem[];
 }
-import { FigureMode, FigureZone, SegmentMoveConflictResolution, SegmentConflictKind } from '@muixer/shared';
+import {
+  FigureMode,
+  FigureZone,
+  SegmentConflict,
+  SegmentMoveConflictResolution,
+  TroncChangeImpact,
+} from '@muixer/shared';
 
 export interface MoveInstanceResult {
   sourceSegment: SegmentWithInstances;
   targetSegment: SegmentWithInstances;
+  conflicts?: SegmentConflict[];
+  impact?: TroncChangeImpact;
 }
 
 @Injectable()
@@ -247,17 +250,10 @@ export class FigureInstanceService {
     await this.nodeAssignmentService.checkEventLock(instanceId);
 
     const conflicts = await this.nodeAssignmentService.getSegmentMoveConflicts(instanceId, targetSegmentId);
-
-    if (conflicts.length > 0 && !resolution) {
-      // `tronc` = persons with any tronc-area (TRONC/BASE) placement, i.e. every kind
-      // except PINYA_PINYA. Equivalent to the old `isTronc` flag; keeps the HTTP body
-      // ({ code, total, tronc }) the dashboard consumes unchanged (Fase 0).
-      throw new ConflictException({
-        code: 'SEGMENT_MOVE_CONFLICT',
-        total: conflicts.length,
-        tronc: conflicts.filter((c) => c.kind !== SegmentConflictKind.PINYA_PINYA).length,
-      });
-    }
+    // Fase 5 (D3): KEEP_BOTH is the default — a move no longer 409s on conflict, it just
+    // leaves both placements in place unless the caller explicitly asks for a destructive
+    // resolution (KEEP_TARGET/KEEP_MOVED are now opt-in clean-up shortcuts).
+    const effectiveResolution = resolution ?? SegmentMoveConflictResolution.KEEP_BOTH;
 
     const targetInstances = await this.instanceRepository.find({
       where: { segment: { id: targetSegmentId } },
@@ -269,13 +265,13 @@ export class FigureInstanceService {
     orderedIds.splice(insertAt, 0, instanceId);
 
     await this.dataSource.transaction(async (manager) => {
-      if (conflicts.length > 0 && resolution) {
+      if (conflicts.length > 0) {
         const personIds = conflicts.map((c) => c.personId);
         await this.nodeAssignmentService.resolveSegmentMoveConflicts(
           instanceId,
           targetSegmentId,
           personIds,
-          resolution,
+          effectiveResolution,
           manager,
         );
       }
@@ -298,10 +294,28 @@ export class FigureInstanceService {
       );
     });
 
-    return {
+    const result: MoveInstanceResult = {
       sourceSegment: await this.segmentService.getOne(segmentId),
       targetSegment: await this.segmentService.getOne(targetSegmentId),
     };
+
+    if (conflicts.length > 0 && effectiveResolution === SegmentMoveConflictResolution.KEEP_BOTH) {
+      const conflictedPersonIds = new Set(conflicts.map((c) => c.personId));
+      const { data: targetConflicts } = await this.nodeAssignmentService.getSegmentConflicts(targetSegmentId);
+      result.conflicts = targetConflicts.filter((c) => conflictedPersonIds.has(c.personId));
+    }
+
+    // D11: move() is the largest real-world path for touching a tronc placement (§7 Fase 5),
+    // so it reports the same TroncChangeImpact assign()/swap() already return.
+    const movedAssignments = await this.nodeAssignmentService.getByInstance(instanceId);
+    const touchesTronc = movedAssignments.some(
+      (a) => a.node.zone === FigureZone.TRONC || a.node.zone === FigureZone.BASE,
+    );
+    if (touchesTronc) {
+      result.impact = await this.nodeAssignmentService.computeTroncChangeImpact(targetSegmentId, instanceId);
+    }
+
+    return result;
   }
 
   async saveDistribution(
