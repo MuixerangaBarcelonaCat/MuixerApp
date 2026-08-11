@@ -1,0 +1,105 @@
+@if (conflictPersonCount() > 0) {
+  <div class="flex items-center gap-2 px-4 py-1.5 bg-warning/10 border-b border-warning/30 text-sm shrink-0">
+    <lucide-icon [img]="ICON_CONFLICT" [size]="14" class="text-warning shrink-0" aria-hidden="true" />
+    <span>
+      <strong>{{ conflictPersonCount() }}</strong>
+      {{ conflictPersonCount() === 1 ? 'persona en conflicte' : 'persones en conflicte' }}
+    </span>
+    @if (freedPinyaNodeIds().length > 0) {
+      <span class="text-base-content/60">
+        · {{ freedPinyaNodeIds().length }}
+        {{ freedPinyaNodeIds().length === 1 ? 'pinya a revisar' : 'pinyes a revisar' }}
+      </span>
+    }
+    <button
+      type="button"
+      class="btn btn-xs btn-warning btn-outline ml-auto"
+      (click)="togglePanel()"
+      [attr.aria-expanded]="panelOpen()"
+      aria-controls="segment-conflict-panel-body"
+    >
+      {{ panelOpen() ? 'Amaga' : 'Mostra' }}
+    </button>
+  </div>
+
+  @if (panelOpen()) {
+    <div
+      id="segment-conflict-panel-body"
+      class="flex flex-col gap-3 px-4 py-3 bg-base-100 border-b border-base-300 shrink-0 max-h-64 overflow-y-auto"
+    >
+      @if (freedPinyaNodeLabels().length > 0) {
+        <div class="flex flex-col gap-1 text-sm">
+          <div class="flex items-center gap-2">
+            <span class="font-medium">Pinyes buides a revisar</span>
+            <button type="button" class="btn btn-xs btn-ghost ml-auto" (click)="dismissReview()">
+              Marca com revisat
+            </button>
+          </div>
+          <ul class="flex flex-col gap-0.5 text-base-content/70">
+            @for (label of freedPinyaNodeLabels(); track label) {
+              <li>{{ label }}</li>
+            }
+          </ul>
+        </div>
+      }
+
+      @for (conflict of conflicts(); track conflict.personId) {
+        <div class="flex flex-col gap-1.5 rounded-lg border border-warning/30 bg-warning/5 p-2 text-sm">
+          <div class="font-medium">{{ conflict.personAlias }}</div>
+          <ul class="flex flex-col gap-1">
+            @for (placement of conflict.placements; track placement.assignmentId) {
+              <li class="flex items-center gap-2" data-conflict-placement>
+                <span
+                  class="badge badge-sm shrink-0"
+                  [class.badge-warning]="placement.area === 'TRONC'"
+                  [class.badge-ghost]="placement.area !== 'TRONC'"
+                >
+                  {{ areaLabel(placement.area) }}
+                </span>
+                <button
+                  type="button"
+                  class="truncate text-left underline-offset-2 hover:underline flex-1"
+                  [disabled]="ws.isLocked()"
+                  (click)="selectPlacement(placement)"
+                >
+                  <strong>{{ placement.figureName }}</strong>
+                  @if (placement.nodeLabel) {
+                    <span> — {{ placement.nodeLabel }}</span>
+                  }
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-xs btn-outline btn-error"
+                  [disabled]="ws.isLocked()"
+                  (click)="removePlacement(conflict.personId, placement)"
+                >
+                  Treu esta
+                </button>
+              </li>
+            }
+          </ul>
+          @if (hasTroncSuggestion(conflict)) {
+            <div class="flex gap-2 mt-1">
+              <button
+                type="button"
+                class="btn btn-xs btn-outline"
+                [disabled]="ws.isLocked()"
+                (click)="releaseSuggested(conflict)"
+              >
+                Allibera la pinya
+              </button>
+              <button
+                type="button"
+                class="btn btn-xs btn-outline"
+                [disabled]="ws.isLocked()"
+                (click)="removeTroncSide(conflict)"
+              >
+                Treu la del tronc
+              </button>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+}

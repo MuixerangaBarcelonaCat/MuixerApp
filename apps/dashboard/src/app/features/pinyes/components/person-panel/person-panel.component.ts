@@ -16,7 +16,7 @@ import { LucideAngularModule, RefreshCw, ChevronDown, ChevronUp, UserX } from 'l
 import { FigureZone } from '@muixer/shared';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
-import { AvailablePerson, AssignmentDetail, HeightMode, PersonHoverInfo, isConfirmedAttendance } from '../../models/assignment.model';
+import { AssignmentArea, AvailablePerson, AssignmentDetail, HeightMode, PersonHoverInfo, isConfirmedAttendance } from '../../models/assignment.model';
 import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
 import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { formatNodeCordonLabel } from '../../utils/node-cordon-label.util';
@@ -49,6 +49,8 @@ export class PersonPanelComponent {
   readonly activeNodePositionType = input<string | null>(null);
   readonly selectedNodeZone = input<string | null>(null);
   readonly isPast = input<boolean>(false);
+  /** Which area this panel instance serves (§5.4) — Pinyes tab passes PINYA, Troncs passes TRONC. */
+  readonly area = input<AssignmentArea>('PINYA');
 
   readonly personSelected = output<AvailablePerson>();
   readonly assignedPersonSelected = output<{ personId: string; instanceId: string }>();
@@ -90,6 +92,11 @@ export class PersonPanelComponent {
   readonly highlightedIndex = signal(0);
   private hasTypedSinceNodeSelected = false;
 
+  /** "N lliures" header count (§5.4), meaning tied to the active tab's area. */
+  readonly freeCount = computed(() => this.state.freeCountForArea(this.area()));
+  /** Confirmed adults eligible for a NEW pinya placement (§5.2) — rendered only in the Pinyes tab. */
+  readonly pinyaEligibleCount = computed(() => this.state.pinyaEligibleCount());
+
   readonly selectedAssignment = computed(() => {
     const nodeId = this.selectedNodeId();
     if (!nodeId) return null;
@@ -107,8 +114,28 @@ export class PersonPanelComponent {
     return formatNodeCordonLabel(person.assignedNodeLabel, person.assignedNodeCordon);
   }
 
+  /**
+   * Persons holding a placement in the OTHER area only (§5.4): shown in their own bucket
+   * (`crossAreaLabel`) instead of ordinary "Lliures"/"Assignades", so they're never listed twice.
+   */
+  readonly crossAreaPersons = computed(() => {
+    const isTronc = this.area() === 'TRONC';
+    return this.persons().filter((p) =>
+      isTronc ? p.assignedInPinya && !p.assignedInTronc : p.assignedInTronc && !p.assignedInPinya,
+    );
+  });
+
+  readonly crossAreaLabel = computed(() =>
+    this.area() === 'TRONC' ? 'Ja a la pinya d\'este segment' : 'Al tronc d\'este segment',
+  );
+
   readonly freePersons = computed(() => {
-    const free = this.persons().filter((p) => !p.assignedInSegment);
+    const isTronc = this.area() === 'TRONC';
+    const crossIds = new Set(this.crossAreaPersons().map((p) => p.id));
+    const free = this.persons().filter((p) => {
+      if (crossIds.has(p.id)) return false;
+      return isTronc ? !p.assignedInTronc : !p.assignedInSegment;
+    });
     if (!this.heightSelectionActive()) return free;
     // A shoulderHeight of null/0 means "not set" — coalesced to 0 server-side, which would
     // otherwise sort these persons as the shortest possible match when ordering by min height.
@@ -158,7 +185,8 @@ export class PersonPanelComponent {
   );
 
   readonly assignedPersons = computed(() => {
-    const apiAssigned = this.persons().filter((p) => p.assignedInSegment);
+    const crossIds = new Set(this.crossAreaPersons().map((p) => p.id));
+    const apiAssigned = this.persons().filter((p) => p.assignedInSegment && !crossIds.has(p.id));
     const seen = new Set(apiAssigned.map((p) => p.id));
     const extras: AvailablePerson[] = [];
 

@@ -7,7 +7,12 @@ import { NodeAssignmentService, LockStatus } from './node-assignment.service';
 import { ToastService } from '../../../shared/components/feedback/toast/toast.service';
 import { SegmentDetail } from '../models/segment.model';
 import { DistributionItem } from '../models/distribution.model';
-import { InstanceNodeItem, SegmentConflict } from '../models/assignment.model';
+import {
+  InstanceNodeItem,
+  SegmentConflict,
+  SegmentPeopleCounters,
+  TroncChangeImpact,
+} from '../models/assignment.model';
 import { CompositionSlotWithNodes } from '../components/figure-canvas/figure-canvas.component';
 import { computeCordoObertOverrides } from '../utils/cordo-obert.util';
 import {
@@ -61,6 +66,15 @@ export class SegmentWorkspaceStateService {
   readonly personsLoaded = signal(false);
   /** Canonical segment conflicts (D13). Empty in production until Phase 5 drops the constraints. */
   readonly conflicts = signal<SegmentConflict[]>([]);
+  /** Dotació/conflict counters carried alongside `conflicts` — feeds the conflict banner (Fase 4). */
+  readonly conflictCounters = signal<SegmentPeopleCounters | null>(null);
+  /**
+   * Pinya nodes left empty by a TRONC/BASE change, pending review in the banner (D11/Fase 4).
+   * Populated from `impact` on assign/swap (`noteTroncImpact`); for `unassign`/`move` — which
+   * don't return `impact` yet (Fase 3 deviation, closes in Fase 5) — derived client-side from
+   * already-loaded `instances()`/`assignments()` by `refreshInstance`.
+   */
+  readonly reviewItems = signal<{ freedPinyaNodeIds: string[] }>({ freedPinyaNodeIds: [] });
   /** Handoff for cross-tab navigation: set before switching tabs, consumed by the tab's ngOnInit. */
   readonly pendingSelection = signal<SegmentNodeRef | null>(null);
 
@@ -304,8 +318,40 @@ export class SegmentWorkspaceStateService {
     const segmentId = this.segmentId();
     if (!eventId || !segmentId) return;
     this.assignmentService.getSegmentConflicts(eventId, segmentId).subscribe({
-      next: (resp) => this.conflicts.set(resp.data),
+      next: (resp) => {
+        this.conflicts.set(resp.data);
+        this.conflictCounters.set(resp.meta);
+      },
     });
+  }
+
+  /** Records the `impact` a TRONC/BASE assign/swap returned (D11) — feeds the review-list banner. */
+  noteTroncImpact(impact: TroncChangeImpact): void {
+    this.reviewItems.set({ freedPinyaNodeIds: impact.freedPinyaNodeIds });
+  }
+
+  /**
+   * Client-side equivalent of the server's `computeFreedPinyaNodeIds` (D11), used because
+   * `unassign`/`move` don't return `impact` yet (Fase 3 deviation, closes in Fase 5). Second
+   * implementation of the same rule — to retire once the backend covers those two paths.
+   */
+  computeFreedPinyaNodeIds(instanceId: string): string[] {
+    const instance = this.instances().find((i) => i.instanceId === instanceId);
+    if (!instance) return [];
+    const assignedNodeIds = new Set(
+      this.state
+        .assignments()
+        .filter((a) => a.figureInstanceId === instanceId)
+        .map((a) => a.node.id),
+    );
+    return instance.nodes
+      .filter((n) => n.zone === FigureZone.PINYA && !assignedNodeIds.has(n.id))
+      .map((n) => n.id);
+  }
+
+  /** Derives and records freed pinya nodes for `instanceId` after a TRONC/BASE unassign/move. */
+  noteFreedPinyaNodesFromUnassign(instanceId: string): void {
+    this.reviewItems.set({ freedPinyaNodeIds: this.computeFreedPinyaNodeIds(instanceId) });
   }
 
   /**

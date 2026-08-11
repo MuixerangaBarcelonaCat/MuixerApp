@@ -103,13 +103,13 @@ describe('AssignmentStateService', () => {
     });
   });
 
-  // ── freePersonsCount ───────────────────────────────────────────────────────
+  // ── freeCountForArea ───────────────────────────────────────────────────────
 
-  describe('freePersonsCount (computed)', () => {
+  describe('freeCountForArea', () => {
     it('returns 0 when no confirmed persons data', () => {
       service.confirmedPersons.set([]);
       service.assignments.set([]);
-      expect(service.freePersonsCount()).toBe(0);
+      expect(service.freeCountForArea('PINYA')).toBe(0);
     });
 
     it('returns correct count (total ANIRE minus assigned in segment)', () => {
@@ -120,7 +120,7 @@ describe('AssignmentStateService', () => {
       ]);
       service.assignments.set([makeAssignment('node-1', 'person-1')]);
       // 2 ANIRE total, 1 assigned → 1 free
-      expect(service.freePersonsCount()).toBe(1);
+      expect(service.freeCountForArea('PINYA')).toBe(1);
     });
 
     it('updates reactively when assignments change', () => {
@@ -129,16 +129,16 @@ describe('AssignmentStateService', () => {
         makeAvailablePerson('person-2', 'ANIRE'),
       ]);
       service.assignments.set([]);
-      expect(service.freePersonsCount()).toBe(2);
+      expect(service.freeCountForArea('PINYA')).toBe(2);
 
       service.assignments.set([makeAssignment('node-1', 'person-1')]);
-      expect(service.freePersonsCount()).toBe(1);
+      expect(service.freeCountForArea('PINYA')).toBe(1);
 
       service.assignments.set([
         makeAssignment('node-1', 'person-1'),
         makeAssignment('node-2', 'person-2'),
       ]);
-      expect(service.freePersonsCount()).toBe(0);
+      expect(service.freeCountForArea('PINYA')).toBe(0);
     });
 
     it('counts ASSISTIT persons as confirmed and free', () => {
@@ -150,7 +150,7 @@ describe('AssignmentStateService', () => {
       service.assignments.set([]);
 
       expect(service.totalConfirmedCount()).toBe(2);
-      expect(service.freePersonsCount()).toBe(2);
+      expect(service.freeCountForArea('PINYA')).toBe(2);
     });
   });
 

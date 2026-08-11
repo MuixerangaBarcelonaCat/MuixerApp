@@ -30,6 +30,7 @@ import {
   BulkImportResult,
   ConflictPlacement,
   PendingOp,
+  TroncChangeImpact,
 } from '../../../../models/assignment.model';
 import { ImportPinyaModalComponent } from '../../../import-pinya-modal/import-pinya-modal.component';
 import { FigureZone } from '@muixer/shared';
@@ -482,6 +483,7 @@ export class PinyesTabComponent implements OnInit {
     const instanceId = assignment.figureInstanceId;
     const nodeId = assignment.node.id;
     const personId = assignment.person.id;
+    const touchesTronc = assignment.node.zone === FigureZone.TRONC || assignment.node.zone === FigureZone.BASE;
 
     const snapshot = [...this.state.assignments()];
     this.state.assignments.update((list) => list.filter((a) => a.id !== assignment.id));
@@ -490,6 +492,7 @@ export class PinyesTabComponent implements OnInit {
     this.assignmentService.unassign(instanceId, assignment.id).subscribe({
       next: () => {
         this.state.refreshPersonList();
+        if (touchesTronc) this.ws.noteFreedPinyaNodesFromUnassign(instanceId);
         this.undoRedo.push(this.buildUnassignAction(instanceId, nodeId, personId, assignment.id));
       },
       error: () => {
@@ -605,6 +608,7 @@ export class PinyesTabComponent implements OnInit {
         }
 
         this.state.refreshPersonList();
+        if (created.impact) this.ws.noteTroncImpact(created.impact);
         this.advanceToNextEmptyNode(instanceId, created.node.id);
 
         this.undoRedo.push(
@@ -662,8 +666,9 @@ export class PinyesTabComponent implements OnInit {
     );
 
     this.performSwap(instanceId, assignment1.id, assignment2.id).subscribe({
-      next: () => {
+      next: (impact) => {
         this.toast.success("S'han intercanviat les persones.");
+        if (impact) this.ws.noteTroncImpact(impact);
         // Swap preserves both assignment ids server-side, so it's its own inverse:
         // running it again — whether via undo or redo — reverses/re-applies it identically.
         this.undoRedo.push({
@@ -680,7 +685,11 @@ export class PinyesTabComponent implements OnInit {
     });
   }
 
-  private performSwap(instanceId: string, assignmentIdA: string, assignmentIdB: string): Observable<void> {
+  private performSwap(
+    instanceId: string,
+    assignmentIdA: string,
+    assignmentIdB: string,
+  ): Observable<TroncChangeImpact | undefined> {
     return this.assignmentService.swap(instanceId, { assignmentIdA, assignmentIdB }).pipe(
       map((result) => {
         this.state.assignments.update((list) =>
@@ -690,6 +699,7 @@ export class PinyesTabComponent implements OnInit {
             return a;
           }),
         );
+        return result.impact;
       }),
     );
   }
@@ -729,12 +739,15 @@ export class PinyesTabComponent implements OnInit {
               return a;
             }),
           );
+          return result;
         }),
       );
 
     applyCrossSwap(person2Id, person1Id).subscribe({
-      next: () => {
+      next: (result) => {
         this.toast.success("S'han intercanviat les persones.");
+        if (result.a.impact) this.ws.noteTroncImpact(result.a.impact);
+        if (result.b.impact) this.ws.noteTroncImpact(result.b.impact);
         this.undoRedo.push({
           type: 'SWAP',
           description: 'Intercanviar persones (figures diferents)',
@@ -760,7 +773,7 @@ export class PinyesTabComponent implements OnInit {
     node2: string,
     currentId2: string,
     personFor2: string,
-  ): Observable<{ a: AssignmentDetail; b: AssignmentDetail }> {
+  ): Observable<{ a: AssignmentDetail & { impact?: TroncChangeImpact }; b: AssignmentDetail & { impact?: TroncChangeImpact } }> {
     return forkJoin([
       this.assignmentService.unassign(instance1, currentId1),
       this.assignmentService.unassign(instance2, currentId2),

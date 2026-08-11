@@ -412,6 +412,57 @@ describe('SegmentWorkspaceStateService', () => {
       expect(service.conflicts()).toHaveLength(2);
       expect(service.conflictPersonIds()).toEqual(new Set(['p1', 'p2']));
     });
+
+    it('conflictCounters is saved from the response meta on every reload (Fase 4)', () => {
+      configure({ conflicts: [makeConflict('p1')] });
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      expect(service.conflictCounters()?.conflictPersonCount).toBe(1);
+    });
+  });
+
+  describe('noteTroncImpact / freed pinya nodes (Fase 4, D11)', () => {
+    it('noteTroncImpact stores the freed pinya node ids from an assign/swap impact', () => {
+      configure();
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      service.noteTroncImpact({ newConflicts: [], freedPinyaNodeIds: ['n1', 'n2'] });
+
+      expect(service.reviewItems()).toEqual({ freedPinyaNodeIds: ['n1', 'n2'] });
+    });
+
+    it('computeFreedPinyaNodeIds derives PINYA nodes with no assignment client-side (unassign/move deviation)', () => {
+      configure({
+        segment: makeSegment([makeInstance('inst-a')]),
+        nodesByInstance: {
+          'inst-a': [
+            makeNode('n1', 'PINYA'),
+            makeNode('n2', 'PINYA'),
+            makeNode('t1', 'TRONC'),
+          ],
+        },
+        assignmentsByInstance: {
+          'inst-a': [makeAssignment('as-1', 'inst-a', 'n1')],
+        },
+      });
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      expect(service.computeFreedPinyaNodeIds('inst-a')).toEqual(['n2']);
+    });
+
+    it('noteFreedPinyaNodesFromUnassign records the derived ids into reviewItems', () => {
+      configure({
+        segment: makeSegment([makeInstance('inst-a')]),
+        nodesByInstance: { 'inst-a': [makeNode('n1', 'PINYA')] },
+      });
+
+      service.load(EVENT_ID, SEGMENT_ID);
+      service.noteFreedPinyaNodesFromUnassign('inst-a');
+
+      expect(service.reviewItems()).toEqual({ freedPinyaNodeIds: ['n1'] });
+    });
   });
 
   describe('pinyaSlots', () => {

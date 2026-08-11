@@ -1,3 +1,10 @@
+export type {
+  EventAssignmentSummary,
+  EventFigureSummary,
+  EventSegmentSummary,
+  FigureAreaCount,
+} from '@muixer/shared';
+
 export type AttendanceStatus = 'PENDENT' | 'ANIRE' | 'NO_VAIG' | 'ASSISTIT';
 export type HeightMode = 'relative' | 'absolute';
 
@@ -293,40 +300,3 @@ export interface PersonAssignmentHistory {
   meta: HistoryMeta;
 }
 
-export interface EventAssignmentEntry {
-  nodeLabel: string;
-  positionType: string | null;
-  zone: string;
-  z: number;
-  personAlias: string;
-  personId: string;
-}
-
-export interface FigureAreaCount {
-  assigned: number;
-  total: number;
-}
-
-export interface EventFigureSummary {
-  instanceId: string;
-  figureName: string;
-  snapshotted: boolean;
-  pinya: FigureAreaCount;
-  tronc: FigureAreaCount;
-  total: FigureAreaCount;
-  troncBaseAssignments: EventAssignmentEntry[];
-  distinctPersonCount: number;
-  conflictAssignmentCount: number;
-}
-
-export interface EventSegmentSummary {
-  segmentId: string;
-  segmentName: string;
-  sortOrder: number;
-  figures: EventFigureSummary[];
-  conflicts: SegmentPeopleCounters;
-}
-
-export interface EventAssignmentSummary {
-  segments: EventSegmentSummary[];
-}

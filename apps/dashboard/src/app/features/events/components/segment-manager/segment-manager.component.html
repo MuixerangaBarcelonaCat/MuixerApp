@@ -627,40 +627,82 @@
         }
       </p>
       <p class="text-sm text-base-content/70 mt-2">Trieu com voleu resoldre el conflicte:</p>
-      <div class="flex flex-col gap-2 mt-6">
-        <button
-          type="button"
-          class="btn btn-outline w-full h-auto whitespace-normal py-2"
-          [disabled]="resolvingMoveConflict()"
-          (click)="resolveMoveConflict(SegmentMoveConflictResolution.KEEP_TARGET)"
+      <div class="flex flex-col gap-2 mt-6" role="radiogroup" aria-label="Resolució del conflicte">
+        <label
+          class="flex items-start gap-2 rounded-lg border border-base-300 p-2 opacity-60 cursor-not-allowed"
+          data-testid="move-conflict-keep-both"
         >
+          <input
+            type="radio"
+            name="move-conflict-resolution"
+            class="radio radio-sm mt-0.5"
+            [checked]="selectedMoveResolution() === SegmentMoveConflictResolution.KEEP_BOTH"
+            disabled
+          />
+          <span class="flex flex-col items-start gap-0.5 text-left w-full">
+            <span class="text-sm">Conserva totes dues assignacions</span>
+            <span class="text-xs font-normal opacity-70">
+              Encara no disponible — cal triar una de les altres opcions (arribarà a la Fase 5)
+            </span>
+          </span>
+        </label>
+        <label
+          class="flex items-start gap-2 rounded-lg border border-base-300 p-2 cursor-pointer"
+          [class.border-primary]="selectedMoveResolution() === SegmentMoveConflictResolution.KEEP_TARGET"
+        >
+          <input
+            type="radio"
+            name="move-conflict-resolution"
+            class="radio radio-sm mt-0.5"
+            [checked]="selectedMoveResolution() === SegmentMoveConflictResolution.KEEP_TARGET"
+            [disabled]="resolvingMoveConflict()"
+            (change)="selectedMoveResolution.set(SegmentMoveConflictResolution.KEEP_TARGET)"
+          />
           <span class="flex flex-col items-start gap-0.5 text-left w-full">
             <span class="text-sm">Conserva les assignacions existents</span>
             <span class="text-xs font-normal opacity-60">Es llevaran estes persones de la figura moguda</span>
           </span>
-        </button>
-        <button
-          type="button"
-          class="btn btn-outline w-full h-auto whitespace-normal py-2"
-          [disabled]="resolvingMoveConflict()"
-          (click)="resolveMoveConflict(SegmentMoveConflictResolution.KEEP_MOVED)"
+        </label>
+        <label
+          class="flex items-start gap-2 rounded-lg border border-base-300 p-2 cursor-pointer"
+          [class.border-primary]="selectedMoveResolution() === SegmentMoveConflictResolution.KEEP_MOVED"
         >
+          <input
+            type="radio"
+            name="move-conflict-resolution"
+            class="radio radio-sm mt-0.5"
+            [checked]="selectedMoveResolution() === SegmentMoveConflictResolution.KEEP_MOVED"
+            [disabled]="resolvingMoveConflict()"
+            (change)="selectedMoveResolution.set(SegmentMoveConflictResolution.KEEP_MOVED)"
+          />
           <span class="flex flex-col items-start gap-0.5 text-left w-full">
             <span class="text-sm">Conserva la figura moguda</span>
             <span class="text-xs font-normal opacity-60">Es llevaran estes persones de les altres figures del segment</span>
           </span>
-        </button>
-        <button
-          type="button"
-          class="btn btn-ghost btn-sm w-full"
-          [disabled]="resolvingMoveConflict()"
-          (click)="cancelMoveConflict()"
-        >
-          @if (resolvingMoveConflict()) {
-            <span class="loading loading-spinner loading-xs"></span>
-          }
-          Cancel·la
-        </button>
+        </label>
+
+        <div class="flex gap-2 mt-2">
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm flex-1"
+            [disabled]="resolvingMoveConflict()"
+            (click)="cancelMoveConflict()"
+          >
+            Cancel·la
+          </button>
+          <button
+            type="button"
+            class="btn btn-warning btn-sm flex-1"
+            data-testid="move-conflict-confirm"
+            [disabled]="resolvingMoveConflict() || selectedMoveResolution() === SegmentMoveConflictResolution.KEEP_BOTH"
+            (click)="resolveMoveConflict(selectedMoveResolution())"
+          >
+            @if (resolvingMoveConflict()) {
+              <span class="loading loading-spinner loading-xs"></span>
+            }
+            Confirma
+          </button>
+        </div>
       </div>
     </div>
     <button type="button" class="modal-backdrop" (click)="cancelMoveConflict()" aria-label="Tancar"></button>

@@ -444,6 +444,39 @@ describe('SegmentManagerComponent', () => {
       expect(component.pendingMoveConflict()).toBeNull();
       expect(instanceService.move).not.toHaveBeenCalled();
     });
+
+    // ── Fase 4 (D3): KEEP_BOTH is preselected but can never reach the backend ──
+
+    it('KEEP_BOTH is preselected by default when the conflict dialog opens', () => {
+      expect(component.selectedMoveResolution()).toBe(SegmentMoveConflictResolution.KEEP_BOTH);
+    });
+
+    it('resolveMoveConflict(KEEP_BOTH) never calls move — the submit path stays closed', () => {
+      component.resolveMoveConflict(SegmentMoveConflictResolution.KEEP_BOTH);
+
+      expect(instanceService.move).not.toHaveBeenCalled();
+      // The dialog isn't dismissed either — the guard bails before any state change.
+      expect(component.pendingMoveConflict()).not.toBeNull();
+    });
+
+    it('renders the KEEP_BOTH option first, checked, and disabled; the confirm button is disabled until a real option is picked', () => {
+      fixture.detectChanges();
+      const radios: HTMLInputElement[] = Array.from(
+        fixture.nativeElement.querySelectorAll('input[name="move-conflict-resolution"]'),
+      );
+      expect(radios).toHaveLength(3);
+      expect(radios[0].disabled).toBe(true);
+      expect(radios[0].checked).toBe(true);
+
+      const confirmButton: HTMLButtonElement = fixture.nativeElement.querySelector(
+        '[data-testid="move-conflict-confirm"]',
+      );
+      expect(confirmButton.disabled).toBe(true);
+
+      component.selectedMoveResolution.set(SegmentMoveConflictResolution.KEEP_TARGET);
+      fixture.detectChanges();
+      expect(confirmButton.disabled).toBe(false);
+    });
   });
 
   describe('inline editing', () => {

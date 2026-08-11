@@ -921,4 +921,92 @@ describe('PersonPanelComponent', () => {
       expect(panel.querySelector('.badge-info').textContent.trim()).toBe('Mans');
     });
   });
+
+  // ── area-aware free/cross-area buckets (Fase 4, §5.4) ──────────────────────
+
+  describe('area-aware freePersons and crossAreaPersons', () => {
+    it('defaults to PINYA: free means not assigned anywhere in the segment', () => {
+      const person = makeAvailablePerson('p1', 'ANIRE', { assignedInTronc: true, assignedInSegment: true });
+      component.persons.set([person]);
+      fixture.detectChanges();
+
+      expect(component.freePersons()).toHaveLength(0);
+    });
+
+    it('PINYA: a tronc-only person is excluded from freePersons/assignedPersons and shown as cross-area', () => {
+      const person = makeAvailablePerson('p1', 'ANIRE', {
+        assignedInTronc: true,
+        assignedInPinya: false,
+        assignedInSegment: true,
+        assignedInstanceId: 'instance-1',
+        assignedNodeLabel: 'Tronc',
+      });
+      component.persons.set([person]);
+      fixture.detectChanges();
+
+      expect(component.freePersons().map((p) => p.id)).not.toContain('p1');
+      expect(component.assignedPersons().map((p) => p.id)).not.toContain('p1');
+      expect(component.crossAreaPersons().map((p) => p.id)).toEqual(['p1']);
+      expect(component.crossAreaLabel()).toBe("Al tronc d'este segment");
+    });
+
+    it('TRONC: free means not assigned at the tronc, even if assigned at the pinya elsewhere', () => {
+      fixture.componentRef.setInput('area', 'TRONC');
+      const troncFree = makeAvailablePerson('p1', 'ANIRE');
+      const pinyaOnly = makeAvailablePerson('p2', 'ANIRE', {
+        assignedInPinya: true,
+        assignedInTronc: false,
+        assignedInSegment: true,
+        assignedInstanceId: 'instance-1',
+        assignedNodeLabel: 'Mans',
+      });
+      component.persons.set([troncFree, pinyaOnly]);
+      fixture.detectChanges();
+
+      expect(component.freePersons().map((p) => p.id)).toEqual(['p1']);
+      expect(component.crossAreaPersons().map((p) => p.id)).toEqual(['p2']);
+      expect(component.crossAreaLabel()).toBe("Ja a la pinya d'este segment");
+      expect(component.assignedPersons().map((p) => p.id)).not.toContain('p2');
+    });
+
+    it('TRONC: a person assigned at both tronc and pinya is not treated as cross-area', () => {
+      fixture.componentRef.setInput('area', 'TRONC');
+      const both = makeAvailablePerson('p1', 'ANIRE', {
+        assignedInPinya: true,
+        assignedInTronc: true,
+        assignedInSegment: true,
+      });
+      component.persons.set([both]);
+      fixture.detectChanges();
+
+      expect(component.crossAreaPersons()).toHaveLength(0);
+      expect(component.freePersons().map((p) => p.id)).not.toContain('p1');
+    });
+  });
+
+  // ── header counters (freeCount / pinyaEligibleCount) ───────────────────────
+
+  describe('header counters', () => {
+    it('freeCount reflects AssignmentStateService.freeCountForArea for the panel area', () => {
+      const state = TestBed.inject(AssignmentStateService);
+      state.confirmedPersons.set([
+        makeAvailablePerson('p1', 'ANIRE'),
+        makeAvailablePerson('p2', 'ANIRE', { assignedInSegment: true }),
+      ]);
+      fixture.detectChanges();
+
+      expect(component.freeCount()).toBe(1);
+    });
+
+    it('pinyaEligibleCount excludes persons already at the tronc', () => {
+      const state = TestBed.inject(AssignmentStateService);
+      state.confirmedPersons.set([
+        makeAvailablePerson('p1', 'ANIRE'),
+        makeAvailablePerson('p2', 'ANIRE', { assignedInTronc: true }),
+      ]);
+      fixture.detectChanges();
+
+      expect(component.pinyaEligibleCount()).toBe(1);
+    });
+  });
 });

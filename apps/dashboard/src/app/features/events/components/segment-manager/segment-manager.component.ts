@@ -120,6 +120,12 @@ export class SegmentManagerComponent implements OnInit {
   movingInstanceId = signal<string | null>(null);
   pendingMoveConflict = signal<PendingMoveConflict | null>(null);
   resolvingMoveConflict = signal(false);
+  /**
+   * Preselected on KEEP_BOTH (D3's eventual default), but the submit button stays disabled
+   * for it — the migration dropping `UQ_node_assignments_segment_person` hasn't landed yet
+   * (Fase 5), so sending it would 500 instead of resolving cleanly.
+   */
+  selectedMoveResolution = signal<SegmentMoveConflictResolution>(SegmentMoveConflictResolution.KEEP_BOTH);
 
   instanceDropListIds = computed(() => this.segments().map((s) => 'instances-' + s.id));
 
@@ -345,6 +351,7 @@ export class SegmentManagerComponent implements OnInit {
     targetIndex: number,
   ): void {
     if (err.status === 409 && err.error?.code === 'SEGMENT_MOVE_CONFLICT') {
+      this.selectedMoveResolution.set(SegmentMoveConflictResolution.KEEP_BOTH);
       this.pendingMoveConflict.set({
         sourceSegmentId,
         targetSegmentId,
@@ -359,6 +366,10 @@ export class SegmentManagerComponent implements OnInit {
   }
 
   resolveMoveConflict(resolution: SegmentMoveConflictResolution): void {
+    // KEEP_BOTH can't be sent yet (Fase 5 drops the unique constraint first) — the confirm
+    // button is disabled for it, but this guard keeps the path closed regardless of caller.
+    if (resolution === SegmentMoveConflictResolution.KEEP_BOTH) return;
+
     const pending = this.pendingMoveConflict();
     if (!pending) return;
 

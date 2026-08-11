@@ -18,6 +18,7 @@ import {
   PersonAssignmentHistory,
   SegmentConflictsResponse,
   SwapAssignmentsPayload,
+  TroncChangeImpact,
   UpdateAdHocNodePayload,
   UpdateInstanceCordonsPayload,
 } from '../models/assignment.model';
@@ -34,8 +35,14 @@ export class NodeAssignmentService extends ApiService {
     return this.get<{ data: AssignmentDetail[] }>(`/figure-instances/${instanceId}/assignments`);
   }
 
-  assign(instanceId: string, payload: CreateAssignmentPayload): Observable<AssignmentDetail> {
-    return this.post<AssignmentDetail>(`/figure-instances/${instanceId}/assignments`, payload);
+  assign(
+    instanceId: string,
+    payload: CreateAssignmentPayload,
+  ): Observable<AssignmentDetail & { impact?: TroncChangeImpact }> {
+    return this.post<AssignmentDetail & { impact?: TroncChangeImpact }>(
+      `/figure-instances/${instanceId}/assignments`,
+      payload,
+    );
   }
 
   unassign(instanceId: string, assignmentId: string): Observable<void> {
@@ -45,8 +52,8 @@ export class NodeAssignmentService extends ApiService {
   swap(
     instanceId: string,
     payload: SwapAssignmentsPayload,
-  ): Observable<{ a: AssignmentDetail; b: AssignmentDetail }> {
-    return this.post<{ a: AssignmentDetail; b: AssignmentDetail }>(
+  ): Observable<{ a: AssignmentDetail; b: AssignmentDetail; impact?: TroncChangeImpact }> {
+    return this.post<{ a: AssignmentDetail; b: AssignmentDetail; impact?: TroncChangeImpact }>(
       `/figure-instances/${instanceId}/assignments/swap`,
       payload,
     );
