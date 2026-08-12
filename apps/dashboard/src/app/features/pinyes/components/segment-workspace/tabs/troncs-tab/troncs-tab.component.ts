@@ -356,10 +356,20 @@ export class TroncsTabComponent implements OnInit {
     if (!dialog) return;
     this.reassignDialog.set(null);
 
-    const snapshot = [...this.state.assignments()];
-    this.state.assignments.update((list) => list.filter((a) => a.id !== dialog.oldAssignmentId));
+    // "Moure ací" must free every one of the person's existing placements in the
+    // segment, not just the one under the currently-selected node (§ Fase 7 finding).
+    const toRemove = new Map<string, string>([[dialog.oldAssignmentId, dialog.oldInstanceId]]);
+    for (const p of dialog.placements) {
+      toRemove.set(p.assignmentId, p.figureInstanceId);
+    }
 
-    this.assignmentService.unassign(dialog.oldInstanceId, dialog.oldAssignmentId).subscribe({
+    const snapshot = [...this.state.assignments()];
+    const removeIds = new Set(toRemove.keys());
+    this.state.assignments.update((list) => list.filter((a) => !removeIds.has(a.id)));
+
+    forkJoin(
+      Array.from(toRemove, ([assignmentId, instanceId]) => this.assignmentService.unassign(instanceId, assignmentId)),
+    ).subscribe({
       next: () => {
         this.triggerAssign(
           { slotId: dialog.targetInstanceId, nodeId: dialog.targetNodeId },

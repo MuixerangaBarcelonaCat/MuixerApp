@@ -61,38 +61,37 @@ import { ICON_OBSERVACIONS } from '../../../../shared/constants/domain-icons';
           }
 
           <div class="flex flex-col gap-2 mt-6">
-            <!-- Row 1: main actions -->
-            <div class="flex gap-2 justify-between">
-              <div class="flex gap-2">
-                <button type="button" class="btn btn-ghost btn-sm" (click)="closed.emit()">
-                  Cancel·lar
-                </button>
-                <button type="button" class="btn btn-outline btn-sm" (click)="viewRequested.emit()">
-                  Veure col·locació
-                </button>
-              </div>
-              <button
-                #reassignButton
-                type="button"
-                class="btn btn-primary btn-sm"
-                autofocus
-                (click)="reassignRequested.emit()"
-              >
-                Moure ací
+            <!-- Row 1: secondary actions -->
+            <div class="flex gap-2">
+              <button type="button" class="btn btn-ghost btn-sm" (click)="closed.emit()">
+                Cancel·lar
               </button>
-            </div>
-            <!--
+              <button type="button" class="btn btn-outline btn-sm" (click)="viewRequested.emit()">
+                Veure col·locació
+              </button>
+              <!--
               D8 (docs/SEGMENTS_FLEXIBILITY.md): duplicating must never be one accidental click
               away — always this dialog, always styled as a warning, always the least prominent
-              action. Row 2 isolated to maximise deliberateness. Fase 5 is what makes clicking it
-              actually create the duplicate instead of being rejected by the backend.
-            -->
+              action. Smaller than "Moure ací" to maximise deliberateness. Fase 5 is what makes
+              clicking it actually create the duplicate instead of being rejected by the backend.
+              -->
+              <button
+                type="button"
+                class="btn btn-conflict btn-outline btn-sm"
+                (click)="assignAnywayRequested.emit()"
+              >
+                Assignar igualment
+              </button>
+            </div>
+            <!-- Row 2: "Moure ací" is the habitual action — full width, most prominent. -->
             <button
+              #reassignButton
               type="button"
-              class="btn btn-conflict btn-outline btn-sm w-full"
-              (click)="assignAnywayRequested.emit()"
+              class="btn btn-primary btn-sm w-full"
+              autofocus
+              (click)="reassignRequested.emit()"
             >
-              Assignar igualment
+              Moure ací
             </button>
           </div>
           @if (placements().length > 0) {
