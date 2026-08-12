@@ -14,6 +14,7 @@ import { Person } from '../person/person.entity';
 import { UserRole } from '@muixer/shared';
 import { hashToken } from '../../common/utils/hash-token.util';
 import { TokenService } from '../auth/token.service';
+import { PersonDelegateService } from '../person-delegate/person-delegate.service';
 
 const makeTransactionManager = () => ({
   create: jest.fn((_entity: unknown, data: unknown) => data),
@@ -32,7 +33,7 @@ const makePerson = (overrides: Partial<Person> = {}): Person =>
     name: 'John',
     firstSurname: 'Doe',
     secondSurname: null,
-    managedBy: null,
+    user: null,
     ...overrides,
   }) as Person;
 
@@ -58,6 +59,7 @@ describe('UserService', () => {
   let mockPersonRepo: Record<string, jest.Mock>;
   let mockDataSource: { transaction: jest.Mock };
   let mockTokenService: { revokeAllUserTokens: jest.Mock };
+  let mockPersonDelegateService: { demotePrimaryIfAny: jest.Mock };
 
   beforeEach(async () => {
     userQb = {
@@ -90,6 +92,10 @@ describe('UserService', () => {
       revokeAllUserTokens: jest.fn().mockResolvedValue(undefined),
     };
 
+    mockPersonDelegateService = {
+      demotePrimaryIfAny: jest.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UserService,
@@ -97,6 +103,7 @@ describe('UserService', () => {
         { provide: getRepositoryToken(Person), useValue: mockPersonRepo },
         { provide: DataSource, useValue: mockDataSource },
         { provide: TokenService, useValue: mockTokenService },
+        { provide: PersonDelegateService, useValue: mockPersonDelegateService },
       ],
     }).compile();
 
@@ -287,8 +294,8 @@ describe('UserService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('throws BadRequestException when person already has a managedBy user', async () => {
-      const person = makePerson({ managedBy: makeUser() });
+    it('throws BadRequestException when person already manages their own account', async () => {
+      const person = makePerson({ user: makeUser() });
       mockPersonRepo.findOne.mockResolvedValue(person);
       await expect(
         service.createWithInvite({ personId: 'person-uuid', email: 'x@x.com' }),
@@ -296,7 +303,7 @@ describe('UserService', () => {
     });
 
     it('creates user with MEMBER role and isActive=false', async () => {
-      const person = makePerson({ managedBy: null });
+      const person = makePerson({ user: null });
       mockPersonRepo.findOne.mockResolvedValue(person);
 
       const createdUser = makeUser({ isActive: false, person });
@@ -318,8 +325,8 @@ describe('UserService', () => {
       expect(result.isActive).toBe(false);
     });
 
-    it('associates person to created user, atomically with the user creation', async () => {
-      const person = makePerson({ managedBy: null });
+    it('associates person to created user via user.person, and demotes any prior primary delegate atomically', async () => {
+      const person = makePerson({ user: null });
       mockPersonRepo.findOne.mockResolvedValue(person);
 
       const createdUser = makeUser({ isActive: false, person });
@@ -333,14 +340,18 @@ describe('UserService', () => {
       await service.createWithInvite({ personId: 'person-uuid', email: 'new@user.com' });
 
       expect(mockDataSource.transaction).toHaveBeenCalledTimes(1);
-      expect(manager.save).toHaveBeenCalledWith(
-        Person,
-        expect.objectContaining({ managedBy: createdUser }),
+      expect(manager.create).toHaveBeenCalledWith(
+        User,
+        expect.objectContaining({ person }),
+      );
+      expect(mockPersonDelegateService.demotePrimaryIfAny).toHaveBeenCalledWith(
+        person.id,
+        manager,
       );
     });
 
     it('throws ConflictException when email already exists', async () => {
-      const person = makePerson({ managedBy: null });
+      const person = makePerson({ user: null });
       mockPersonRepo.findOne.mockResolvedValue(person);
       mockUserRepo.findOne.mockResolvedValueOnce(makeUser({ email: 'taken@user.com' }));
 
@@ -547,7 +558,7 @@ describe('UserService', () => {
     it('throws BadRequestException when person is already linked', async () => {
       mockUserRepo.findOne.mockResolvedValueOnce(null); // email check
       mockPersonRepo.findOne.mockResolvedValue(
-        makePerson({ managedBy: makeUser({ id: 'other-user' }) }),
+        makePerson({ user: makeUser({ id: 'other-user' }) }),
       );
       await expect(
         service.createUser({ ...createDto, personId: 'person-uuid' }, UserRole.ADMIN),
@@ -586,8 +597,8 @@ describe('UserService', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('links person when personId is provided, atomically with the user save', async () => {
-      const person = makePerson({ managedBy: null });
+    it('links person when personId is provided, via user.person, and demotes any prior primary delegate atomically', async () => {
+      const person = makePerson({ user: null });
       mockUserRepo.findOne.mockResolvedValueOnce(null); // email check
       mockPersonRepo.findOne.mockResolvedValue(person);
 
@@ -599,9 +610,13 @@ describe('UserService', () => {
       await service.createUser({ ...createDto, personId: 'person-uuid' }, UserRole.ADMIN);
 
       expect(mockDataSource.transaction).toHaveBeenCalledTimes(1);
-      expect(manager.save).toHaveBeenCalledWith(
-        Person,
-        expect.objectContaining({ managedBy: expect.any(Object) }),
+      expect(manager.create).toHaveBeenCalledWith(
+        User,
+        expect.objectContaining({ person }),
+      );
+      expect(mockPersonDelegateService.demotePrimaryIfAny).toHaveBeenCalledWith(
+        person.id,
+        manager,
       );
     });
   });
@@ -721,31 +736,46 @@ describe('UserService', () => {
       expect(mockTokenService.revokeAllUserTokens).not.toHaveBeenCalled();
     });
 
-    it('unlinks person when personId is null', async () => {
+    it('unlinks person when personId is null, without touching the person repository', async () => {
       const person = makePerson();
       const user = makeUser({ person: person as unknown as Person });
-      mockUserRepo.findOne
-        .mockResolvedValueOnce(user)
-        .mockResolvedValueOnce({ ...user, person: null });
-      mockPersonRepo.findOne.mockResolvedValue(person);
-      mockPersonRepo.save.mockResolvedValue(person);
+      mockUserRepo.findOne.mockResolvedValueOnce(user);
       mockUserRepo.save.mockResolvedValue({ ...user, person: null });
 
       const result = await service.updateUser('user-uuid', {
         personId: null,
       }, UserRole.ADMIN, 'actor-uuid');
+
       expect(result.person).toBeNull();
+      expect(mockPersonRepo.findOne).not.toHaveBeenCalled();
+      expect(mockPersonRepo.save).not.toHaveBeenCalled();
     });
 
     it('throws BadRequestException when linking person already managed by another', async () => {
       const user = makeUser({ person: null });
       mockUserRepo.findOne.mockResolvedValueOnce(user);
       mockPersonRepo.findOne.mockResolvedValue(
-        makePerson({ managedBy: makeUser({ id: 'other-user' }) }),
+        makePerson({ user: makeUser({ id: 'other-user' }) }),
       );
       await expect(
         service.updateUser('user-uuid', { personId: 'person-uuid' }, UserRole.ADMIN, 'actor-uuid'),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('links person via user.person and demotes any prior primary delegate when personId is provided', async () => {
+      const person = makePerson({ user: null });
+      const user = makeUser({ person: null });
+      mockUserRepo.findOne.mockResolvedValueOnce(user);
+      mockPersonRepo.findOne.mockResolvedValue(person);
+      mockUserRepo.save.mockResolvedValue({ ...user, person });
+
+      const result = await service.updateUser('user-uuid', {
+        personId: 'person-uuid',
+      }, UserRole.ADMIN, 'actor-uuid');
+
+      expect(result.person?.id).toBe(person.id);
+      expect(mockPersonDelegateService.demotePrimaryIfAny).toHaveBeenCalledWith(person.id);
+      expect(mockPersonRepo.save).not.toHaveBeenCalled();
     });
 
     it('throws ForbiddenException when TECHNICAL actor edits an ADMIN account email', async () => {

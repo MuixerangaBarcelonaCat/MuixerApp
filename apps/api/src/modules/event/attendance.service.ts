@@ -97,7 +97,7 @@ export class AttendanceService {
       where: { event: { id: eventId }, person: { id: dto.personId } },
     });
     if (existing) {
-      throw new ConflictException('Aquesta persona ja té registre d\'assistència per aquest event');
+      throw new ConflictException('Esta persona ja té registre d\'assistència per aquest event');
     }
 
     const attendance = this.attendanceRepository.create({

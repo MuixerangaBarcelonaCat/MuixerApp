@@ -1,4 +1,4 @@
-import { IsUUID, IsEnum } from 'class-validator';
+import { IsUUID, IsEnum, IsBoolean, IsOptional } from 'class-validator';
 import { DelegateType } from '@muixer/shared';
 
 export class CreatePersonDelegateDto {
@@ -7,4 +7,8 @@ export class CreatePersonDelegateDto {
 
   @IsEnum(DelegateType)
   delegateType: DelegateType;
+
+  @IsOptional()
+  @IsBoolean()
+  isPrimary?: boolean;
 }

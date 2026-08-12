@@ -5,9 +5,9 @@
   (keydown.escape)="close()"
   tabindex="0"
 >
-  <div class="modal-box max-w-lg w-full" role="dialog" aria-modal="true" aria-label="Afegeix delegat" (click)="$event.stopPropagation()" (keydown.enter)="$event.stopPropagation()">
+  <div class="modal-box max-w-lg w-full" role="dialog" aria-modal="true" [attr.aria-label]="isPrimary() ? 'Vincula un delegat' : 'Afegeix un altre delegat'" (click)="$event.stopPropagation()" (keydown.enter)="$event.stopPropagation()">
     <div class="flex items-start justify-between mb-4">
-      <h2 class="text-lg font-bold">Afegeix delegat</h2>
+      <h2 class="text-lg font-bold">{{ isPrimary() ? 'Vincula un delegat' : 'Afegeix un altre delegat' }}</h2>
       <button class="btn btn-sm btn-ghost btn-circle" type="button" (click)="close()" aria-label="Tancar">✕</button>
     </div>
 
@@ -20,7 +20,7 @@
     <!-- Type selector -->
     <div class="form-control mb-4">
       <label class="label" for="delegate-type">
-        <span class="label-text font-medium">Tipus de delegació</span>
+        <span class="label-text font-medium">Relació</span>
       </label>
       <select
         id="delegate-type"
@@ -29,7 +29,7 @@
         (ngModelChange)="selectedType.set($event)"
         [disabled]="saving()"
       >
-        @for (t of delegateTypes; track t.value) {
+        @for (t of delegateTypes(); track t.value) {
           <option [ngValue]="t.value">{{ t.label }}</option>
         }
       </select>
@@ -67,12 +67,15 @@
                 type="button"
                 class="flex items-center justify-between w-full"
                 [class.active]="selectedUser()?.id === user.id"
+                [class.text-primary-content]="selectedUser()?.id === user.id"
                 (click)="selectUser(user)"
               >
                 <div class="flex flex-col items-start">
-                  <span class="text-sm">{{ user.email }}</span>
                   @if (user.person) {
-                    <span class="text-xs text-base-content/50">{{ user.person.alias }}</span>
+                    <span class="text-sm font-medium">{{ user.person.alias }}</span>
+                    <span class="text-xs opacity-70">{{ user.email }}</span>
+                  } @else {
+                    <span class="text-sm">{{ user.email }}</span>
                   }
                 </div>
                 <span class="badge badge-outline badge-xs">{{ user.role }}</span>
@@ -82,12 +85,6 @@
         </ul>
       }
     </div>
-
-    @if (selectedUser()) {
-      <div class="alert alert-info text-sm mb-4">
-        <span>Delegat seleccionat: <strong>{{ selectedUser()!.email }}</strong></span>
-      </div>
-    }
 
     <div class="flex justify-end gap-2">
       <button type="button" class="btn btn-ghost btn-sm" (click)="close()" [disabled]="saving()">

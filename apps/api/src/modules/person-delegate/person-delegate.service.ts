@@ -5,7 +5,8 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
+import { DelegateType } from '@muixer/shared';
 import { PersonDelegate } from './person-delegate.entity';
 import { Person } from '../person/person.entity';
 import { User } from '../user/user.entity';
@@ -21,12 +22,13 @@ export class PersonDelegateService {
     private readonly personRepo: Repository<Person>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async findByPerson(personId: string): Promise<PersonDelegate[]> {
     return this.delegateRepo.find({
       where: { person: { id: personId } },
-      relations: ['user', 'person'],
+      relations: ['user', 'user.person', 'person'],
       order: { createdAt: 'ASC' },
     });
   }
@@ -45,6 +47,7 @@ export class PersonDelegateService {
   ): Promise<PersonDelegate> {
     const person = await this.personRepo.findOne({
       where: { id: personId },
+      relations: ['user'],
     });
     if (!person) {
       throw new NotFoundException(`Person #${personId} not found`);
@@ -64,6 +67,12 @@ export class PersonDelegateService {
       );
     }
 
+    if (dto.isPrimary && person.user) {
+      throw new BadRequestException(
+        'Esta persona ja gestiona el seu propi compte',
+      );
+    }
+
     const existing = await this.delegateRepo.findOne({
       where: { user: { id: dto.userId }, person: { id: personId } },
     });
@@ -73,13 +82,31 @@ export class PersonDelegateService {
       );
     }
 
-    const delegate = this.delegateRepo.create({
-      person,
-      user,
-      delegateType: dto.delegateType,
-    });
+    if (dto.isPrimary && person.isXicalla) {
+      await this.assertQualifiesAsXicallaPrimaryManager(user, dto.delegateType);
+    }
 
-    return this.delegateRepo.save(delegate);
+    if (!dto.isPrimary) {
+      const delegate = this.delegateRepo.create({
+        person,
+        user,
+        delegateType: dto.delegateType,
+        isPrimary: false,
+      });
+      return this.delegateRepo.save(delegate);
+    }
+
+    return this.dataSource.transaction(async (manager) => {
+      const repo = manager.getRepository(PersonDelegate);
+      await repo.update({ person: { id: personId } }, { isPrimary: false });
+      const delegate = repo.create({
+        person,
+        user,
+        delegateType: dto.delegateType,
+        isPrimary: true,
+      });
+      return repo.save(delegate);
+    });
   }
 
   async update(
@@ -89,10 +116,21 @@ export class PersonDelegateService {
   ): Promise<PersonDelegate> {
     const delegate = await this.delegateRepo.findOne({
       where: { id, person: { id: personId } },
-      relations: ['user', 'person'],
+      relations: ['user', 'person', 'person.user'],
     });
     if (!delegate) {
       throw new NotFoundException(`Delegate #${id} not found`);
+    }
+
+    if (dto.isPrimary && delegate.person.user) {
+      throw new BadRequestException(
+        'Esta persona ja gestiona el seu propi compte',
+      );
+    }
+
+    if (dto.isPrimary && delegate.person.isXicalla) {
+      const effectiveType = dto.delegateType ?? delegate.delegateType;
+      await this.assertQualifiesAsXicallaPrimaryManager(delegate.user, effectiveType);
     }
 
     if (dto.delegateType !== undefined) {
@@ -102,7 +140,80 @@ export class PersonDelegateService {
       delegate.isActive = dto.isActive;
     }
 
-    return this.delegateRepo.save(delegate);
+    if (dto.isPrimary !== true) {
+      if (dto.isPrimary === false) {
+        delegate.isPrimary = false;
+      }
+      return this.delegateRepo.save(delegate);
+    }
+
+    return this.dataSource.transaction(async (manager) => {
+      const repo = manager.getRepository(PersonDelegate);
+      await repo.update({ person: { id: personId } }, { isPrimary: false });
+      delegate.isPrimary = true;
+      return repo.save(delegate);
+    });
+  }
+
+  /**
+   * A Xicalla's primary manager must be a PARENT/GUARDIAN, and that user must
+   * independently qualify as an adult member — either self-managed or already
+   * managing another non-Xicalla person — proving the account isn't a
+   * throwaway created only to manage a child.
+   */
+  private async assertQualifiesAsXicallaPrimaryManager(
+    user: User,
+    delegateType: DelegateType,
+  ): Promise<void> {
+    if (delegateType !== DelegateType.PARENT && delegateType !== DelegateType.GUARDIAN) {
+      throw new BadRequestException(
+        'El gestor principal d\'un membre de la xicalla ha de ser pare/mare o tutor/a',
+      );
+    }
+
+    if (user.person) return;
+
+    const otherNonXicallaDelegate = await this.delegateRepo.findOne({
+      where: { user: { id: user.id }, person: { isXicalla: false } },
+    });
+    if (!otherNonXicallaDelegate) {
+      throw new BadRequestException(
+        'El gestor principal ha de ser una persona adulta: amb compte propi o que gestioni una altra persona que no siga xicalla',
+      );
+    }
+  }
+
+  async getPrimary(personId: string): Promise<PersonDelegate | null> {
+    return this.delegateRepo.findOne({
+      where: { person: { id: personId }, isPrimary: true },
+      relations: ['user', 'person'],
+    });
+  }
+
+  /**
+   * Re-validates a person's existing primary delegate against the Xicalla
+   * rule — used when `isXicalla` flips to `true` on a person who already has
+   * a primary manager, so the invariant can't be bypassed by toggling the
+   * flag after the fact instead of going through create()/update().
+   */
+  async assertPrimaryQualifiesForXicalla(personId: string): Promise<void> {
+    const primary = await this.delegateRepo.findOne({
+      where: { person: { id: personId }, isPrimary: true },
+      relations: ['user', 'user.person'],
+    });
+    if (!primary) return;
+
+    await this.assertQualifiesAsXicallaPrimaryManager(primary.user, primary.delegateType);
+  }
+
+  /**
+   * Unsets `isPrimary` on a person's existing primary delegate, if any, without
+   * deleting the row (§2.5: self-linking demotes rather than destroys a prior
+   * guardian relationship). Pass `manager` to participate in a caller's transaction.
+   */
+  async demotePrimaryIfAny(personId: string, manager?: EntityManager): Promise<void> {
+    const repo = manager ? manager.getRepository(PersonDelegate) : this.delegateRepo;
+    await repo.update({ person: { id: personId }, isPrimary: true }, { isPrimary: false });
   }
 
   async remove(personId: string, id: string): Promise<void> {

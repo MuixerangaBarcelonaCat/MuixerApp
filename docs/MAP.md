@@ -105,7 +105,7 @@ graph TD
 
 <!-- BEGIN:AUTO — generat per scripts/generate-doc-map.mjs, no editar a mà -->
 
-> Generat el 2026-08-05 amb `pnpm run docs:map`.
+> Generat el 2026-08-10 amb `pnpm run docs:map`.
 
 ### Mòduls de l'API (`apps/api/src/modules`)
 
@@ -121,14 +121,14 @@ graph TD
 | [`legal`](../apps/api/src/modules/legal) | 5 | 222 | [[GDPR_COMPLIANCE]] |
 | [`me`](../apps/api/src/modules/me) | 5 | 357 | — |
 | [`node-assignment`](../apps/api/src/modules/node-assignment) | 14 | 2752 | [[PINYES_MODULE]] |
-| [`person`](../apps/api/src/modules/person) | 10 | 992 | [[DATA_MODEL]] |
-| [`person-delegate`](../apps/api/src/modules/person-delegate) | 7 | 337 | [[DATA_MODEL]] |
+| [`person`](../apps/api/src/modules/person) | 10 | 956 | [[DATA_MODEL]] |
+| [`person-delegate`](../apps/api/src/modules/person-delegate) | 7 | 408 | [[DATA_MODEL]] |
 | [`season`](../apps/api/src/modules/season) | 6 | 388 | [[DATA_MODEL]] |
-| [`sync`](../apps/api/src/modules/sync) | 10 | 1850 | [[SYNC_ARCHITECTURE]] · [[API_APPSISTENCIA]] |
+| [`sync`](../apps/api/src/modules/sync) | 10 | 1874 | [[SYNC_ARCHITECTURE]] · [[API_APPSISTENCIA]] |
 | [`tag`](../apps/api/src/modules/tag) | 6 | 225 | [[DATA_MODEL]] |
-| [`user`](../apps/api/src/modules/user) | 11 | 857 | [[DATA_MODEL]] |
+| [`user`](../apps/api/src/modules/user) | 11 | 849 | [[DATA_MODEL]] |
 
-Migracions TypeORM: **34** a [`apps/api/src/migrations`](../apps/api/src/migrations).
+Migracions TypeORM: **36** a [`apps/api/src/migrations`](../apps/api/src/migrations).
 
 ### Features del dashboard (`apps/dashboard/src/app/features`)
 
@@ -156,7 +156,7 @@ Migracions TypeORM: **34** a [`apps/api/src/migrations`](../apps/api/src/migrati
 | Element | Fitxers | Línies | Docs |
 |---------|--------:|-------:|------|
 | [`constants`](../libs/shared/src/constants) | 1 | 81 | — |
-| [`enums`](../libs/shared/src/enums) | 14 | 108 | — |
+| [`enums`](../libs/shared/src/enums) | 14 | 109 | — |
 | [`interfaces`](../libs/shared/src/interfaces) | 14 | 573 | — |
 
 ### Fitxers més grans (candidats a dividir)

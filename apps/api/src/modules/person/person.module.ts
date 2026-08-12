@@ -4,11 +4,11 @@ import { Person } from './person.entity';
 import { Tag } from '../tag/tag.entity';
 import { PersonService } from './person.service';
 import { PersonController } from './person.controller';
-import { User } from '../user/user.entity';
 import { AuditModule } from '../audit/audit.module';
+import { PersonDelegateModule } from '../person-delegate/person-delegate.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Person, Tag, User]), AuditModule],
+  imports: [TypeOrmModule.forFeature([Person, Tag]), AuditModule, PersonDelegateModule],
   controllers: [PersonController],
   providers: [PersonService],
   exports: [PersonService],

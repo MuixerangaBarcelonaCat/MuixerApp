@@ -100,8 +100,8 @@ export class UserListComponent {
   );
   readonly assignableRoles = computed<UserRole[]>(() =>
     this.isAdmin()
-      ? [UserRole.TECHNICAL, UserRole.ADMIN]
-      : [UserRole.TECHNICAL],
+      ? [UserRole.MEMBER, UserRole.TECHNICAL, UserRole.ADMIN]
+      : [UserRole.MEMBER, UserRole.TECHNICAL],
   );
 
   searchInput = '';

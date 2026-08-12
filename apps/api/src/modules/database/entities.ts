@@ -1,6 +1,7 @@
 import { Tag } from '../tag/tag.entity';
 import { User } from '../user/user.entity';
 import { Person } from '../person/person.entity';
+import { PersonDelegate } from '../person-delegate/person-delegate.entity';
 import { Season } from '../season/season.entity';
 import { Event } from '../event/event.entity';
 import { Attendance } from '../event/attendance.entity';
@@ -22,6 +23,7 @@ export const ENTITIES = [
   Tag,
   User,
   Person,
+  PersonDelegate,
   Season,
   Event,
   Attendance,

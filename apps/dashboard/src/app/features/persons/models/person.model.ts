@@ -8,12 +8,6 @@ export interface Position {
   color: string;
 }
 
-export interface User {
-  id: string;
-  email: string;
-  person: Person;
-}
-
 export interface Person {
   id: string;
   name: string;
@@ -33,7 +27,7 @@ export interface Person {
   notesEmoji: string | null;
   isActive: boolean;
   positions: Position[];
-  managedBy: User | null;
+  user: { id: string; email: string } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -92,7 +86,6 @@ export interface UpdatePersonDto {
   notesEmoji: string | null;
   isActive: boolean;
   positions: string[];
-  managedById: string | null;
   createdAt: string;
   updatedAt: string;
 }
