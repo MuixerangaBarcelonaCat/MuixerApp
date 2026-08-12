@@ -4,8 +4,8 @@ import { Gender } from '@muixer/shared';
 import { PersonDataFormGroup, getCountryOptions } from '../../utils/person-data-form.util';
 
 const GENDER_LABELS: Record<Gender, string> = {
-  [Gender.MALE]: 'Home',
   [Gender.FEMALE]: 'Dona',
+  [Gender.MALE]: 'Home',
   [Gender.OTHER]: 'Altre',
 };
 

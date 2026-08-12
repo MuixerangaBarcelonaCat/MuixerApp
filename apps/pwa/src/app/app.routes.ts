@@ -73,6 +73,14 @@ export const appRoutes: Routes = [
             (m) => m.ProfileComponent,
           ),
       },
+      {
+        path: 'pending-dependents',
+        title: 'Xicalla pendent',
+        loadComponent: () =>
+          import('./features/dependents/pending-dependents/pending-dependents.component').then(
+            (m) => m.PendingDependentsComponent,
+          ),
+      },
     ],
   },
   { path: '**', redirectTo: '' },

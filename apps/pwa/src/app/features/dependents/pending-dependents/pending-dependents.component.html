@@ -1,0 +1,37 @@
+<div class="p-4 space-y-4">
+  <div>
+    <h1 class="text-xl font-bold">Completa les dades de la xicalla</h1>
+    @if (current()) {
+      <p class="text-sm text-base-content/60 mt-1">
+        Completant dades: {{ position() }} de {{ initialTotal() }}
+      </p>
+    }
+  </div>
+
+  @if (loading()) {
+    <div class="flex justify-center py-8"><span class="loading loading-spinner"></span></div>
+  } @else if (current(); as dependent) {
+    <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
+      <app-person-data-fields [formGroup]="form" [heading]="dependent.alias" />
+
+      @if (errorMessage()) {
+        <div class="alert alert-error text-sm py-2" role="alert">
+          <span>{{ errorMessage() }}</span>
+        </div>
+      }
+
+      <button
+        type="submit"
+        class="btn btn-primary w-full h-12 text-base"
+        [disabled]="form.invalid || isSubmitting()"
+      >
+        @if (isSubmitting()) {
+          <span class="loading loading-spinner loading-sm"></span>
+          S'està desant...
+        } @else {
+          Desa i continua
+        }
+      </button>
+    </form>
+  }
+</div>
