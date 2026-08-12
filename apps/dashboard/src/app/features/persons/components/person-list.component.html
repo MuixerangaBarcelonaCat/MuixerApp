@@ -158,4 +158,11 @@
     />
   }
 
+  <app-tutorial-modal
+    #activationTutorial
+    heading="Doneu accés a la persona"
+    [steps]="activationTutorialSteps"
+    (closed)="onActivationTutorialClosed()"
+  />
+
 </div>

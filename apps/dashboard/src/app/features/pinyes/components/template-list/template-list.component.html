@@ -217,4 +217,9 @@
 
 </div>
 
-<app-pinyes-onboarding-modal #onboardingModal />
+<app-tutorial-modal
+  #onboardingModal
+  heading="Com funciona el mòdul de Pinyes"
+  [steps]="pinyesOnboardingSteps"
+  [storageKey]="pinyesOnboardingStorageKey"
+/>
