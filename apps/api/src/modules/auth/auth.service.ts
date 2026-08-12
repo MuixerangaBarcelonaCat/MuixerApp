@@ -59,7 +59,7 @@ export class AuthService {
   async validateUser(email: string, password: string): Promise<User | null> {
     const user = await this.userRepo.findOne({
       where: { email },
-      relations: ['person', 'person.managedBy'],
+      relations: ['person'],
     });
 
     // Always run bcrypt.compare, even when the user doesn't exist, comparing
@@ -110,7 +110,7 @@ export class AuthService {
             name: person.name,
             firstSurname: person.firstSurname,
             alias: person.alias,
-            email: person.managedBy?.email ?? null,
+            email: user.email,
           }
         : null,
     };
@@ -148,7 +148,7 @@ export class AuthService {
 
     const user = await this.userRepo.findOne({
       where: { id: userId },
-      relations: ['person', 'person.managedBy'],
+      relations: ['person'],
     });
     if (!user || !user.isActive) throw new UnauthorizedException();
 
@@ -174,7 +174,7 @@ export class AuthService {
   async getMe(userId: string): Promise<UserProfile> {
     const user = await this.userRepo.findOne({
       where: { id: userId },
-      relations: ['person', 'person.managedBy'],
+      relations: ['person'],
     });
     if (!user) throw new UnauthorizedException();
     return this.toUserProfile(user);
@@ -188,7 +188,7 @@ export class AuthService {
   async acceptPrivacyPolicy(userId: string, ipAddress?: string | null): Promise<UserProfile> {
     const user = await this.userRepo.findOne({
       where: { id: userId },
-      relations: ['person', 'person.managedBy'],
+      relations: ['person'],
     });
     if (!user) throw new UnauthorizedException();
 
@@ -220,7 +220,7 @@ export class AuthService {
   async acceptInvite(dto: AcceptInviteDto): Promise<{ response: AuthResponseDto; refreshToken: string }> {
     const user = await this.userRepo.findOne({
       where: { inviteToken: hashToken(dto.token) },
-      relations: ['person', 'person.managedBy'],
+      relations: ['person'],
     });
 
     if (!user || !user.inviteExpiresAt || user.inviteExpiresAt < new Date()) {
@@ -291,7 +291,7 @@ export class AuthService {
 
       return manager.findOne(User, {
         where: { id: saved.id },
-        relations: ['person', 'person.managedBy'],
+        relations: ['person'],
       });
     });
 

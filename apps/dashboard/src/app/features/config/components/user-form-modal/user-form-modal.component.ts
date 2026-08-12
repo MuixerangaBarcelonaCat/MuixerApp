@@ -43,14 +43,7 @@ export class UserFormModalComponent {
       ? [UserRole.TECHNICAL, UserRole.ADMIN]
       : [UserRole.TECHNICAL],
   );
-  readonly showRoleField = computed(() => {
-    const editUser = this.user();
-    if (!editUser) return true;
-    return !(
-      editUser.role === UserRole.ADMIN &&
-      this.authService.userRole() !== UserRole.ADMIN
-    );
-  });
+  readonly showRoleField = computed(() => !this.isEditMode());
   readonly roleLabels: Record<string, string> = {
     [UserRole.TECHNICAL]: 'Tècnica',
     [UserRole.ADMIN]: 'Administrador',
@@ -99,9 +92,9 @@ export class UserFormModalComponent {
     this.linkedPerson.set(person);
     this.personWarning.set(null);
 
-    if (person.managedBy) {
+    if (person.user) {
       this.personWarning.set(
-        'Aquesta persona ja està vinculada a un altre usuari.',
+        'Esta persona ja està vinculada a un altre usuari.',
       );
       return;
     }
@@ -124,10 +117,6 @@ export class UserFormModalComponent {
       this.userService
         .update(editUser.id, {
           email: raw.email !== editUser.email ? raw.email! : undefined,
-          role:
-            this.showRoleField() && raw.role !== editUser.role
-              ? raw.role!
-              : undefined,
           personId: person ? person.id : (editUser.person ? null : undefined),
         })
         .subscribe({

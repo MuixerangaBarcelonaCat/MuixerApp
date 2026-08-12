@@ -7,10 +7,12 @@ export interface PersonDelegateItem {
   id: string;
   delegateType: DelegateType;
   isActive: boolean;
+  isPrimary: boolean;
   createdAt: string;
   user: {
     id: string;
     email: string;
+    person: { id: string; alias: string } | null;
   };
   person: {
     id: string;
@@ -21,11 +23,13 @@ export interface PersonDelegateItem {
 export interface CreateDelegatePayload {
   userId: string;
   delegateType: DelegateType;
+  isPrimary?: boolean;
 }
 
 export interface UpdateDelegatePayload {
   delegateType?: DelegateType;
   isActive?: boolean;
+  isPrimary?: boolean;
 }
 
 @Injectable({

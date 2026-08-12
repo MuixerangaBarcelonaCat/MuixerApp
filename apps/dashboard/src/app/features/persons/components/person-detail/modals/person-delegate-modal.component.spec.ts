@@ -45,9 +45,16 @@ describe('PersonDelegateModalComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('renders the modal title', () => {
+  it('renders the secondary-manager title by default', () => {
     const title = fixture.nativeElement.querySelector('h2');
-    expect(title.textContent).toContain('Afegeix delegat');
+    expect(title.textContent).toContain('Afegeix un altre delegat');
+  });
+
+  it('renders the primary-manager title when isPrimary is set', () => {
+    componentRef.setInput('isPrimary', true);
+    fixture.detectChanges();
+    const title = fixture.nativeElement.querySelector('h2');
+    expect(title.textContent).toContain('Vincula un delegat');
   });
 
   it('loads users on init and renders them', () => {
@@ -96,8 +103,24 @@ describe('PersonDelegateModalComponent', () => {
     expect(mockDelegateService.createDelegate).toHaveBeenCalledWith('person-1', {
       userId: 'u1',
       delegateType: DelegateType.PARENT,
+      isPrimary: false,
     });
     expect(emitted).toBe(true);
+  });
+
+  it('passes isPrimary: true to createDelegate when the isPrimary input is set', () => {
+    componentRef.setInput('isPrimary', true);
+    const created = { id: 'del-1', delegateType: DelegateType.PARENT, user: mockUsers.data[0] };
+    mockDelegateService.createDelegate.mockReturnValue(of(created));
+
+    component.selectUser(mockUsers.data[0] as any);
+    component.save();
+
+    expect(mockDelegateService.createDelegate).toHaveBeenCalledWith('person-1', {
+      userId: 'u1',
+      delegateType: DelegateType.PARENT,
+      isPrimary: true,
+    });
   });
 
   it('shows error message on save failure', () => {
@@ -123,9 +146,28 @@ describe('PersonDelegateModalComponent', () => {
     expect(component.selectedType()).toBe(DelegateType.PARENT);
   });
 
-  it('renders all three delegate type options', () => {
+  it('renders all four delegate type options by default', () => {
     const options = fixture.nativeElement.querySelectorAll('#delegate-type option');
     const labels = Array.from(options).map((o) => (o as HTMLOptionElement).textContent?.trim());
-    expect(labels).toEqual(['Pare/Mare', 'Parella', 'Tutor/a']);
+    expect(labels).toEqual(['Pare/Mare', 'Parella', 'Tutor/a', 'Altres']);
+  });
+
+  it('restricts type options to PARENT/GUARDIAN when isXicalla and isPrimary are both set', () => {
+    componentRef.setInput('isPrimary', true);
+    componentRef.setInput('isXicalla', true);
+    fixture.detectChanges();
+
+    const options = fixture.nativeElement.querySelectorAll('#delegate-type option');
+    const labels = Array.from(options).map((o) => (o as HTMLOptionElement).textContent?.trim());
+    expect(labels).toEqual(['Pare/Mare', 'Tutor/a']);
+  });
+
+  it('does not restrict type options for a Xicalla secondary manager (isPrimary false)', () => {
+    componentRef.setInput('isPrimary', false);
+    componentRef.setInput('isXicalla', true);
+    fixture.detectChanges();
+
+    const options = fixture.nativeElement.querySelectorAll('#delegate-type option');
+    expect(options.length).toBe(4);
   });
 });

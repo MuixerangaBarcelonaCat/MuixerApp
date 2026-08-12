@@ -1,4 +1,4 @@
-import { IsEnum, IsIn } from 'class-validator';
+import { IsEnum, IsIn, IsOptional, IsUUID } from 'class-validator';
 import { AttendanceStatus } from '@muixer/shared';
 
 const MEMBER_STATUSES = [
@@ -11,4 +11,8 @@ export class UpdateMyAttendanceDto {
   @IsEnum(AttendanceStatus)
   @IsIn(MEMBER_STATUSES)
   status: AttendanceStatus;
+
+  @IsOptional()
+  @IsUUID()
+  personId?: string;
 }

@@ -55,6 +55,7 @@ describe('MeController', () => {
       description: null,
       locationUrl: null,
       information: null,
+      managedAttendances: [],
     };
     meService.findEventDetail.mockResolvedValue(expected);
 

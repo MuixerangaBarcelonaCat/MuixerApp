@@ -274,30 +274,30 @@ describe('AuthService', () => {
       await expect(service.getMe('missing')).rejects.toThrow(UnauthorizedException);
     });
 
-    it('loads person.managedBy so the profile can include the managing user\'s email (BUG-7)', async () => {
+    it('loads the person relation, without any managedBy join (BUG-7 no longer needs one)', async () => {
       userRepo.findOne.mockResolvedValue(makeUser());
       await service.getMe('user-1');
 
       expect(userRepo.findOne).toHaveBeenCalledWith(
-        expect.objectContaining({ relations: expect.arrayContaining(['person', 'person.managedBy']) }),
+        expect.objectContaining({ relations: expect.arrayContaining(['person']) }),
       );
     });
 
-    it('returns person.email from the managing user, not null (BUG-7)', async () => {
+    it('returns the caller\'s own email as person.email, since person is always the caller\'s own profile (BUG-7)', async () => {
       const user = makeUser({
+        email: 'joan@test.cat',
         person: {
           id: 'person-1',
           name: 'Joan',
           firstSurname: 'Prat',
           alias: 'JoanP',
-          managedBy: { email: 'parent@test.cat' },
         } as unknown as Person,
       });
       userRepo.findOne.mockResolvedValue(user);
 
       const profile = await service.getMe('user-1');
 
-      expect(profile.person?.email).toBe('parent@test.cat');
+      expect(profile.person?.email).toBe('joan@test.cat');
     });
   });
 

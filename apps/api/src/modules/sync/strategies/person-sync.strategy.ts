@@ -5,7 +5,8 @@ import { Observable, Subscriber } from 'rxjs';
 import { Person } from '../../person/person.entity';
 import { Tag } from '../../tag/tag.entity';
 import { User } from '../../user/user.entity';
-import { UserRole } from '@muixer/shared';
+import { PersonDelegate } from '../../person-delegate/person-delegate.entity';
+import { UserRole, DelegateType } from '@muixer/shared';
 import { LegacyApiClient, LegacyPerson } from '../legacy-api.client';
 import { SyncEvent } from '../interfaces/sync-event.interface';
 import { SyncStrategy } from '../interfaces/sync-strategy.interface';
@@ -53,6 +54,8 @@ export class PersonSyncStrategy implements SyncStrategy {
     private readonly positionRepository: Repository<Tag>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(PersonDelegate)
+    private readonly personDelegateRepository: Repository<PersonDelegate>,
   ) {}
 
   /** Inicia la sincronització de persones i retorna un Observable SSE que emet events de progrés. Impedeix execucions simultànies. */
@@ -143,15 +146,21 @@ export class PersonSyncStrategy implements SyncStrategy {
       let updateCount = 0;
       let errorCount = 0;
       let warnCount = 0;
+      const personsByUserId = new Map<string, Person[]>();
 
       for (let i = 0; i < legacyPersons.length; i++) {
         const legacyPerson = legacyPersons[i];
         try {
-          const managedByUser = legacyPerson.email
+          const matchedUser = legacyPerson.email
             ? (emailToUser.get(legacyPerson.email.toLowerCase()) ?? null)
             : null;
 
-          const wasNew = await this.upsertPerson(legacyPerson, managedByUser, subscriber, () => warnCount++);
+          const { person, wasNew } = await this.upsertPerson(legacyPerson, subscriber, () => warnCount++);
+          if (matchedUser) {
+            const group = personsByUserId.get(matchedUser.id) ?? [];
+            group.push(person);
+            personsByUserId.set(matchedUser.id, group);
+          }
           if (wasNew) {
             newCount++;
             subscriber.next({
@@ -194,7 +203,7 @@ export class PersonSyncStrategy implements SyncStrategy {
         message: 'Assignant persona principal als usuaris...',
       });
 
-      await this.assignMainPersons(emailToUser, subscriber);
+      await this.assignMainPersons(emailToUser, personsByUserId, subscriber);
 
       const warnSuffix = warnCount > 0 ? `, ${warnCount} alias reassignats` : '';
       subscriber.next({
@@ -267,23 +276,27 @@ export class PersonSyncStrategy implements SyncStrategy {
   }
 
   /**
-   * After all persons have been upserted, resolves each user's main person:
-   * - Among all persons managed by a user, exactly one must have isXicalla = false.
+   * After all persons have been upserted, resolves each user's own profile and
+   * guardian relationships from this run's email groups:
+   * - Among the persons matched to a user by email, exactly one must have
+   *   isXicalla = false — that one becomes the user's own profile (`user.person`).
    * - If zero non-Xicalla persons are found, there is nothing to link (skip).
-   * - If more than one non-Xicalla person is found, that is a data error → throw.
-   *
-   * Sets user.person_id to the resolved main person.
+   * - If more than one is found, the oldest by birth date wins (data error, warned).
+   * - Every Xicalla person in the group gets a primary PARENT `PersonDelegate`
+   *   row for that user (upserted directly, bypassing the admin-facing self-delegation
+   *   guard — none of these are self-delegations since the main person is excluded).
    */
   private async assignMainPersons(
     emailToUser: Map<string, User>,
+    personsByUserId: Map<string, Person[]>,
     subscriber: any,
   ): Promise<void> {
     for (const [email, user] of emailToUser) {
-      const managedPersons = await this.personRepository.find({
-        where: { managedBy: { id: user.id } },
-      });
-
+      const managedPersons = personsByUserId.get(user.id) ?? [];
       const nonXicallaPersons = managedPersons.filter((p) => !p.isXicalla);
+      const xicallaPersons = managedPersons.filter((p) => p.isXicalla);
+
+      let mainPerson: Person | null = null;
 
       if (nonXicallaPersons.length === 0) {
         // All managed persons are Xicalla — no main person can be assigned
@@ -293,15 +306,12 @@ export class PersonSyncStrategy implements SyncStrategy {
           message: `Usuari ${email}: totes les persones gestionades tenen isXicalla=true; no s'ha pogut assignar persona principal`,
           detail: { email },
         });
-        continue;
-      }
-
-      if (nonXicallaPersons.length > 1) {
+      } else if (nonXicallaPersons.length > 1) {
         const sorted = nonXicallaPersons
           .filter((p) => p.birthDate != null)
           .sort((a, b) => new Date(a.birthDate!).getTime() - new Date(b.birthDate!).getTime());
 
-        const mainPerson = sorted[0] ?? nonXicallaPersons[0]; // fallback if no birth dates
+        mainPerson = sorted[0] ?? nonXicallaPersons[0]; // fallback if no birth dates
 
         const names = nonXicallaPersons
           .map((p) => `${p.name} ${p.firstSurname} (legacyId=${p.legacyId})`)
@@ -314,22 +324,47 @@ export class PersonSyncStrategy implements SyncStrategy {
           message: msg,
           detail: { email },
         });
-
-        user.person = mainPerson;
-        await this.userRepository.save(user);
-        continue;
+      } else {
+        mainPerson = nonXicallaPersons[0];
       }
 
-      const mainPerson = nonXicallaPersons[0];
-      user.person = mainPerson;
-      await this.userRepository.save(user);
+      if (mainPerson) {
+        user.person = mainPerson;
+        await this.userRepository.save(user);
 
-      subscriber.next({
-        type: 'progress',
-        entity: 'user',
-        message: `Usuari ${email}: persona principal → ${mainPerson.name} ${mainPerson.firstSurname}`,
-      });
+        subscriber.next({
+          type: 'progress',
+          entity: 'user',
+          message: `Usuari ${email}: persona principal → ${mainPerson.name} ${mainPerson.firstSurname}`,
+        });
+      }
+
+      for (const child of xicallaPersons) {
+        await this.upsertGuardianDelegate(user, child);
+      }
     }
+  }
+
+  /** Upserts a primary PARENT delegate for a Xicalla person, directly via the repository. */
+  private async upsertGuardianDelegate(user: User, child: Person): Promise<void> {
+    const existing = await this.personDelegateRepository.findOne({
+      where: { user: { id: user.id }, person: { id: child.id } },
+    });
+
+    if (existing) {
+      existing.delegateType = DelegateType.PARENT;
+      existing.isPrimary = true;
+      await this.personDelegateRepository.save(existing);
+      return;
+    }
+
+    const delegate = this.personDelegateRepository.create({
+      user,
+      person: child,
+      delegateType: DelegateType.PARENT,
+      isPrimary: true,
+    });
+    await this.personDelegateRepository.save(delegate);
   }
 
   // ---------------------------------------------------------------------------
@@ -379,10 +414,9 @@ export class PersonSyncStrategy implements SyncStrategy {
 
   private async upsertPerson(
     legacyPerson: LegacyPerson,
-    managedByUser: User | null,
     subscriber: Subscriber<SyncEvent>,
     onWarn: () => void,
-  ): Promise<boolean> {
+  ): Promise<{ person: Person; wasNew: boolean }> {
     const existing = await this.personRepository.findOne({
       where: { legacyId: legacyPerson.id },
       relations: ['positions'],
@@ -392,18 +426,17 @@ export class PersonSyncStrategy implements SyncStrategy {
     // sync. Treat this legacyId as if it were new: create a fresh, active person
     // and leave the deactivated record untouched.
     if (!existing || !existing.isActive) {
-      return this.createPerson(legacyPerson, managedByUser, subscriber, onWarn);
+      return this.createPerson(legacyPerson, subscriber, onWarn);
     } else {
-      return this.updatePerson(existing, legacyPerson, managedByUser, subscriber, onWarn);
+      return this.updatePerson(existing, legacyPerson, subscriber, onWarn);
     }
   }
 
   private async createPerson(
     legacyPerson: LegacyPerson,
-    managedByUser: User | null,
     subscriber: Subscriber<SyncEvent>,
     onWarn: () => void,
-  ): Promise<boolean> {
+  ): Promise<{ person: Person; wasNew: boolean }> {
     const alias = await this.deriveUniqueAlias(legacyPerson, undefined, subscriber, onWarn);
     const positions = await this.resolvePositions(legacyPerson.posicio);
     const isXicalla = this.deriveIsXicalla(legacyPerson.posicio);
@@ -425,22 +458,20 @@ export class PersonSyncStrategy implements SyncStrategy {
       shirtDate: this.parseDate(legacyPerson.instant_camisa),
       notes: legacyPerson.observacions || null,
       positions,
-      managedBy: managedByUser ?? undefined,
       isActive: true,
       lastSyncedAt: new Date(),
     });
 
-    await this.personRepository.save(person);
-    return true;
+    const saved = await this.personRepository.save(person);
+    return { person: saved, wasNew: true };
   }
 
   private async updatePerson(
     existing: Person,
     legacyPerson: LegacyPerson,
-    managedByUser: User | null,
     subscriber: Subscriber<SyncEvent>,
     onWarn: () => void,
-  ): Promise<boolean> {
+  ): Promise<{ person: Person; wasNew: boolean }> {
     // Update identity fields (always sync from legacy)
     existing.name = legacyPerson.nom;
     existing.firstSurname = legacyPerson.cognom1;
@@ -457,22 +488,14 @@ export class PersonSyncStrategy implements SyncStrategy {
     existing.onboardingStatus = this.mapOnboarding(legacyPerson.estat_acollida);
     existing.shirtDate = this.parseDate(legacyPerson.instant_camisa);
 
-    // Re-link only when the legacy record carries an email (BUG-21): a different
-    // legacy email always wins and re-points the link (including to a brand-new
-    // user), but an empty legacy email must never sever a managedBy link created
-    // manually in MuixerApp — it just means the legacy side has nothing to say.
-    if (legacyPerson.email) {
-      existing.managedBy = managedByUser;
-    }
-
     // existing.isActive is already true here — upsertPerson() routes inactive
     // (manually-deactivated) persons to createPerson() instead.
     existing.lastSyncedAt = new Date();
 
     // NEVER update: positions, isXicalla, notes (MuixerApp owns these)
 
-    await this.personRepository.save(existing);
-    return false;
+    const saved = await this.personRepository.save(existing);
+    return { person: saved, wasNew: false };
   }
 
   // ---------------------------------------------------------------------------
