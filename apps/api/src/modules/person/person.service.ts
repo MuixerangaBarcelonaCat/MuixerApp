@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { EntityManager, In, Repository } from 'typeorm';
 import { plainToInstance } from 'class-transformer';
 import { Person } from './person.entity';
 import { CreatePersonDto } from './dto/create-person.dto';
@@ -219,12 +219,21 @@ export class PersonService {
    * Actualitza una persona. Gestiona les transicions d'estat provisional:
    * - Promoció (provisional→regular): valida que `name`, `firstSurname` no estiguin buits i l'àlies no tingui prefix `~`.
    * - Democió (regular→provisional): afegeix el prefix `~` a l'àlies automàticament.
+   *
+   * Accepta un `manager` opcional perquè un caller (p. ex. `AuthService.registerViaInvite`) pugui
+   * incloure aquesta escriptura dins la seva pròpia transacció — quan s'omet, usa el repositori
+   * injectat com sempre.
    */
   async update(
     id: string,
     updatePersonDto: UpdatePersonDto,
+    manager?: EntityManager,
   ): Promise<PersonResponseDto> {
-    const person = await this.personRepository.findOne({
+    const personRepository = manager
+      ? manager.getRepository(Person)
+      : this.personRepository;
+
+    const person = await personRepository.findOne({
       where: { id },
       relations: ['positions', 'mentor', 'user'],
     });
@@ -289,12 +298,12 @@ export class PersonService {
     }
 
     if (personData.alias !== undefined && personData.alias !== person.alias) {
-      const conflict = await this.personRepository.findOne({
+      const conflict = await personRepository.findOne({
         where: { alias: personData.alias },
       });
       if (conflict && conflict.id !== person.id) {
         throw new ConflictException(
-          `Ja existeix una persona amb l'àlies "${personData.alias}".`,
+          `Ja existeix una persona amb l'àlies "${personData.alias}". Contacteu amb l'administrador per canviar-lo.`,
         );
       }
     }
@@ -311,7 +320,7 @@ export class PersonService {
 
     if (mentorId !== undefined) {
       if (mentorId) {
-        const mentor = await this.personRepository.findOne({
+        const mentor = await personRepository.findOne({
           where: { id: mentorId },
         });
         if (!mentor) {
@@ -323,7 +332,7 @@ export class PersonService {
       }
     }
 
-    const saved = await this.personRepository.save(person);
+    const saved = await personRepository.save(person);
     return plainToInstance(PersonResponseDto, saved, {
       excludeExtraneousValues: true,
     });

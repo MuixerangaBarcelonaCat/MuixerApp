@@ -1,8 +1,8 @@
-import { Component, ChangeDetectionStrategy, computed, inject, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, computed, inject, signal, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { LucideAngularModule } from 'lucide-angular';
-import { ICON_PERSONA } from '../../../shared/constants/domain-icons';
+import { LucideAngularModule, UserPlus, Link } from 'lucide-angular';
+import { ICON_PERSONA, DOMAIN_ICONS } from '../../../shared/constants/domain-icons';
 import { PersonService } from '../services/person.service';
 import { Person, Position, PersonFilterParams, PersonSortOrder } from '../models/person.model';
 import {
@@ -25,8 +25,34 @@ import { ActiveFilter } from '../../../shared/components/data/active-filters/act
 import { ColumnDef } from '../../../shared/models/column-def.model';
 import { EventType } from '@muixer/shared';
 import { PersonNewModalComponent } from './modals/person-new-modal.component';
+import { TutorialModalComponent } from '../../../shared/components/tutorial-modal/tutorial-modal.component';
+import { TutorialStep } from '../../../shared/components/tutorial-modal/tutorial-step.model';
 
 const STORAGE_KEY = 'person-list-visible-columns';
+
+const ACTIVATION_TUTORIAL_STEPS: TutorialStep[] = [
+  {
+    title: 'Persona creada',
+    description: "Acabeu de crear una persona provisional. El pas següent és donar-li accés a l'aplicació.",
+    icon: UserPlus,
+  },
+  {
+    title: "Genereu l'enllaç d'invitació",
+    description:
+      'Aneu a la llista de persones, obriu la pestanya "Provisionals" i entreu al perfil de la persona. ' +
+      'Feu clic a "Crea enllaç d\'invitació": l\'enllaç es copiarà automàticament al portapapers ' +
+      'perquè el pugueu enviar per WhatsApp.',
+    icon: Link,
+  },
+  {
+    title: 'Per a la xicalla',
+    description:
+      'Per a la xicalla, cal crear dues persones: una per a l\'adult responsable i una altra per a la xicalla. ' +
+      'Creeu l\'enllaç d\'invitació per a la persona adulta. Després, des del perfil de la xicalla, ' +
+      'feu clic a "Enllaça amb usuari existent" per vincular-la com a responsable.',
+    icon: DOMAIN_ICONS.XICALLA,
+  },
+];
 
 export const ALL_COLUMNS: ColumnDef[] = [
   { key: 'alias', label: 'Alies', defaultVisible: true, sortField: 'alias', primary: true },
@@ -60,14 +86,18 @@ export const ALL_COLUMNS: ColumnDef[] = [
     EmptyStateComponent,
     DataTableComponent,
     PersonNewModalComponent,
+    TutorialModalComponent,
   ],
   templateUrl: './person-list.component.html',
 })
 export class PersonListComponent {
   readonly ICON_PERSONA = ICON_PERSONA;
+  readonly activationTutorialSteps = ACTIVATION_TUTORIAL_STEPS;
 
   private readonly personService = inject(PersonService);
   private readonly router = inject(Router);
+  private readonly activationTutorial = viewChild<TutorialModalComponent>('activationTutorial');
+  private pendingActivationPerson = signal<Person | null>(null);
 
   Math = Math;
 
@@ -223,7 +253,16 @@ export class PersonListComponent {
 
   onPersonCreated(person: Person) {
     this.newPersonModalOpen.set(false);
-    this.router.navigate(['/persons', person.id]);
+    this.pendingActivationPerson.set(person);
+    this.activationTutorial()?.open();
+  }
+
+  onActivationTutorialClosed() {
+    const person = this.pendingActivationPerson();
+    this.pendingActivationPerson.set(null);
+    if (person) {
+      this.router.navigate(['/persons', person.id]);
+    }
   }
 
   formatShoulderHeightDisplay(value: number | null): string {

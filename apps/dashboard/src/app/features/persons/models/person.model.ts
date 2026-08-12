@@ -27,7 +27,7 @@ export interface Person {
   notesEmoji: string | null;
   isActive: boolean;
   positions: Position[];
-  user: { id: string; email: string } | null;
+  user: { id: string; email: string | null; isActive: boolean } | null;
   createdAt: string;
   updatedAt: string;
 }

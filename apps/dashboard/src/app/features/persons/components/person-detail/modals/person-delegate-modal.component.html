@@ -78,7 +78,14 @@
                     <span class="text-sm">{{ user.email }}</span>
                   }
                 </div>
-                <span class="badge badge-outline badge-xs">{{ user.role }}</span>
+                <div class="flex items-center gap-1">
+                  @if (!user.isActive) {
+                    <span class="badge badge-warning badge-xs">Pendent d'activar</span>
+                  }
+                  @if (roleLabel(user.role); as label) {
+                    <span class="badge badge-outline badge-xs">{{ label }}</span>
+                  }
+                </div>
               </button>
             </li>
           }

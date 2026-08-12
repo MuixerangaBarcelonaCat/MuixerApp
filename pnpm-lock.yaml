@@ -104,6 +104,9 @@ importers:
       konva:
         specifier: ^10.3.0
         version: 10.3.0
+      libphonenumber-js:
+        specifier: ^1.13.8
+        version: 1.13.8
       lucide-angular:
         specifier: ^1.0.0
         version: 1.0.0(@angular/common@21.2.18(@angular/core@21.2.18(@angular/compiler@21.2.18)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.18(@angular/compiler@21.2.18)(rxjs@7.8.2))

@@ -14,7 +14,8 @@ const mockAuthService = () => ({
   logout: jest.fn(),
   logoutAll: jest.fn(),
   getMe: jest.fn(),
-  acceptInvite: jest.fn(),
+  registerViaInvite: jest.fn(),
+  getInviteContext: jest.fn(),
   setupUser: jest.fn(),
   requestPasswordReset: jest.fn(),
   resetPassword: jest.fn(),
@@ -165,18 +166,32 @@ describe('AuthController', () => {
     });
   });
 
-  describe('acceptInvite', () => {
+  describe('registerViaInvite', () => {
     it('activates the account and sets the refresh cookie', async () => {
-      authService.acceptInvite.mockResolvedValue({
+      authService.registerViaInvite.mockResolvedValue({
         response: { accessToken: 'access', user: { role: UserRole.MEMBER } },
         refreshToken: 'refresh-token',
       });
       const res = mockResponse();
+      const dto = { token: 'invite-token', password: 'pw' };
 
-      const result = await controller.acceptInvite({ token: 'invite-token', password: 'pw' }, res);
+      const result = await controller.registerViaInvite(dto as never, res);
 
+      expect(authService.registerViaInvite).toHaveBeenCalledWith(dto);
       expect(result.accessToken).toBe('access');
       expect(res.cookie).toHaveBeenCalledWith('muixer_rt', 'refresh-token', expect.anything());
+    });
+  });
+
+  describe('getInviteContext', () => {
+    it('delegates to AuthService with the token', async () => {
+      const context = { person: { name: 'Joan' }, expiresAt: '2026-01-01', legalDocument: {} };
+      authService.getInviteContext.mockResolvedValue(context);
+
+      const result = await controller.getInviteContext('invite-token');
+
+      expect(authService.getInviteContext).toHaveBeenCalledWith('invite-token');
+      expect(result).toEqual(context);
     });
   });
 

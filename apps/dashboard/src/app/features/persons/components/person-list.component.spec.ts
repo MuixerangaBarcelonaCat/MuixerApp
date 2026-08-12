@@ -153,4 +153,27 @@ describe('PersonListComponent', () => {
       expect(search.className).toContain('h-6');
     });
   });
+
+  describe('onPersonCreated (activation tutorial)', () => {
+    it('closes the new-person modal and opens the activation tutorial instead of navigating immediately', () => {
+      fixture.componentInstance.newPersonModalOpen.set(true);
+
+      fixture.componentInstance.onPersonCreated(mockPerson as never);
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.newPersonModalOpen()).toBe(false);
+      expect(router.navigate).not.toHaveBeenCalled();
+      const dialog = fixture.nativeElement.querySelector('dialog.modal-open');
+      expect(dialog).toBeTruthy();
+    });
+
+    it('navigates to the created person\'s detail page once the activation tutorial is closed', () => {
+      fixture.componentInstance.onPersonCreated(mockPerson as never);
+      fixture.detectChanges();
+
+      fixture.componentInstance.onActivationTutorialClosed();
+
+      expect(router.navigate).toHaveBeenCalledWith(['/persons', mockPerson.id]);
+    });
+  });
 });

@@ -2,12 +2,12 @@
   <dialog
     class="modal modal-open"
     role="dialog"
-    aria-labelledby="onboarding-title"
+    aria-labelledby="tutorial-modal-title"
     aria-modal="true"
   >
     <div class="modal-box max-w-md">
       <div class="flex items-center justify-between mb-4">
-        <h2 id="onboarding-title" class="text-lg font-bold">Com funciona el mòdul de Pinyes</h2>
+        <h2 id="tutorial-modal-title" class="text-lg font-bold">{{ heading() }}</h2>
         <button type="button" class="btn btn-ghost btn-sm" (click)="close()" aria-label="Tancar">
           <i-lucide [img]="X" class="size-4" />
         </button>
@@ -15,7 +15,7 @@
 
       <!-- Step indicator -->
       <div class="flex justify-center gap-2 mb-6">
-        @for (step of steps; track $index) {
+        @for (step of steps(); track $index) {
           <span
             class="w-2 h-2 rounded-full transition-colors"
             [class]="$index === currentStep() ? 'bg-primary' : 'bg-base-300'"
@@ -26,24 +26,26 @@
 
       <!-- Step content -->
       <div class="text-center py-4">
-        <div class="flex justify-center mb-4">
-          <div class="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
-            <i-lucide [img]="steps[currentStep()].icon" class="size-7 text-primary" />
+        @if (steps()[currentStep()].icon; as icon) {
+          <div class="flex justify-center mb-4">
+            <div class="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
+              <i-lucide [img]="icon" class="size-7 text-primary" />
+            </div>
           </div>
-        </div>
-        <h3 class="text-base font-semibold mb-2">{{ steps[currentStep()].title }}</h3>
+        }
+        <h3 class="text-base font-semibold mb-2">{{ steps()[currentStep()].title }}</h3>
         <p class="text-sm text-base-content/70 leading-relaxed">
-          {{ steps[currentStep()].description }}
+          {{ steps()[currentStep()].description }}
         </p>
       </div>
 
       <!-- Step counter -->
       <p class="text-center text-xs text-base-content/40 mt-2">
-        {{ currentStep() + 1 }} / {{ steps.length }}
+        {{ currentStep() + 1 }} / {{ steps().length }}
       </p>
 
       <!-- Don't show again -->
-      @if (currentStep() === steps.length - 1) {
+      @if (storageKey() && currentStep() === steps().length - 1) {
         <label class="flex items-center gap-2 mt-4 cursor-pointer justify-center">
           <input
             type="checkbox"
@@ -65,7 +67,7 @@
           Anterior
         </button>
 
-        @if (currentStep() < steps.length - 1) {
+        @if (currentStep() < steps().length - 1) {
           <button
             type="button"
             class="btn btn-primary btn-sm"

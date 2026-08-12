@@ -598,6 +598,16 @@ describe('UserListComponent', () => {
       expect(component.getCellValue(user, 'role')).toBe('Membre');
     });
 
+    it('shows the real email for an active user', () => {
+      expect(component.getCellValue(mockUser({ isActive: true, email: 'a@b.cat' }), 'email')).toBe('a@b.cat');
+    });
+
+    it('shows "Pendent d\'activar" instead of a null email for an inactive user', () => {
+      expect(
+        component.getCellValue(mockUser({ isActive: false, email: null }), 'email'),
+      ).toBe("Pendent d'activar");
+    });
+
     it('formats null inviteExpiresAt as —', () => {
       expect(component.getCellValue(user, 'inviteExpiresAt')).toBe('—');
     });

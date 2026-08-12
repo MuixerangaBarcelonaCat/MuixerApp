@@ -170,6 +170,26 @@ describe('PersonDelegateService', () => {
       });
     });
 
+    it('creates a delegate even when the linked user account is still inactive (pending activation)', async () => {
+      const person = { id: personId, alias: 'child' };
+      const inactiveUser = { id: 'user-1', email: null, isActive: false, person: null };
+      const created = {
+        id: 'del-1',
+        person,
+        user: inactiveUser,
+        delegateType: DelegateType.PARENT,
+        isActive: true,
+      };
+
+      mockPersonRepository.findOne.mockResolvedValue(person);
+      mockUserRepository.findOne.mockResolvedValue(inactiveUser);
+      mockDelegateRepository.findOne.mockResolvedValue(null);
+      mockDelegateRepository.create.mockReturnValue(created);
+      mockDelegateRepository.save.mockResolvedValue(created);
+
+      await expect(service.create(personId, dto)).resolves.toEqual(created);
+    });
+
     it('should throw NotFoundException when person does not exist', async () => {
       mockPersonRepository.findOne.mockResolvedValue(null);
 
@@ -544,6 +564,32 @@ describe('PersonDelegateService', () => {
         { isPrimary: false },
       );
       expect(mockDelegateRepository.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('findProvisionalPrimaryDependents', () => {
+    it('returns provisional persons where the user is the primary delegate', async () => {
+      const userId = 'user-1';
+      const dependents = [
+        { id: 'del-1', isPrimary: true, person: { id: 'child-1', alias: '~child', isProvisional: true } },
+      ];
+      mockDelegateRepository.find.mockResolvedValue(dependents);
+
+      const result = await service.findProvisionalPrimaryDependents(userId);
+
+      expect(result).toEqual(dependents.map((d) => d.person));
+      expect(mockDelegateRepository.find).toHaveBeenCalledWith({
+        where: { user: { id: userId }, isPrimary: true, person: { isProvisional: true } },
+        relations: ['person'],
+      });
+    });
+
+    it('returns an empty array when there are no matching dependents', async () => {
+      mockDelegateRepository.find.mockResolvedValue([]);
+
+      const result = await service.findProvisionalPrimaryDependents('user-1');
+
+      expect(result).toEqual([]);
     });
   });
 

@@ -63,6 +63,59 @@ describe('PersonDelegateModalComponent', () => {
     expect(items.length).toBe(2);
   });
 
+  it('loads users regardless of activation status, so inactive accounts can still be linked', () => {
+    const call = mockUserService.getAll.mock.calls[0][0];
+    expect(call.isActive).toBeUndefined();
+  });
+
+  it('does not show a role badge for MEMBER users', () => {
+    mockUserService.getAll.mockReturnValue(
+      of({
+        data: [{ id: 'u4', email: 'member@test.com', role: 'MEMBER', isActive: true, person: null }],
+        total: 1,
+      }),
+    );
+    component.ngOnInit();
+    fixture.detectChanges();
+
+    const badges = fixture.nativeElement.querySelectorAll('ul li .badge-outline');
+    expect(badges.length).toBe(0);
+  });
+
+  it('shows the role in Catalan for TECHNICAL and ADMIN users', () => {
+    mockUserService.getAll.mockReturnValue(
+      of({
+        data: [
+          { id: 'u5', email: 'tech@test.com', role: 'TECHNICAL', isActive: true, person: null },
+          { id: 'u6', email: 'admin@test.com', role: 'ADMIN', isActive: true, person: null },
+        ],
+        total: 2,
+      }),
+    );
+    component.ngOnInit();
+    fixture.detectChanges();
+
+    const badges = Array.from(
+      fixture.nativeElement.querySelectorAll('ul li .badge-outline'),
+    ).map((b) => (b as HTMLElement).textContent?.trim());
+    expect(badges).toEqual(['Tècnica', 'Administrador']);
+  });
+
+  it('shows a "Pendent d\'activar" badge for an inactive user', () => {
+    mockUserService.getAll.mockReturnValue(
+      of({
+        data: [
+          { id: 'u3', email: 'inactive@test.com', role: 'MEMBER', isActive: false, person: null },
+        ],
+        total: 1,
+      }),
+    );
+    component.ngOnInit();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Pendent d\'activar');
+  });
+
   it('filters out existing delegate user IDs', () => {
     componentRef.setInput('existingDelegateUserIds', ['u1']);
     component.ngOnInit();

@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { PersonService } from '../person/person.service';
 import { Person } from '../person/person.entity';
@@ -76,6 +77,7 @@ describe('sortBy whitelists execute valid SQL (integration)', () => {
           PersonDelegateService,
           ...realRepositoryProviders(db.dataSource, [User, Person, RefreshToken, PersonDelegate]),
           { provide: DataSource, useValue: db.dataSource },
+          { provide: ConfigService, useValue: { get: jest.fn() } },
         ],
       }).compile();
       service = module.get(UserService);

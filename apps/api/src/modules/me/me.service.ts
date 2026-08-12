@@ -15,16 +15,22 @@ import {
   AttendanceResponse,
   ManagedPerson,
   ManagedPersonAttendance,
+  PendingDependent,
 } from '@muixer/shared';
 import { Event } from '../event/event.entity';
 import { Attendance } from '../event/attendance.entity';
 import { User } from '../user/user.entity';
+import { Person } from '../person/person.entity';
 import { getLocalToday } from '../../common/utils/date.util';
 import { SeasonService } from '../season/season.service';
 import { AttendanceService } from '../event/attendance.service';
 import { PersonDelegateService } from '../person-delegate/person-delegate.service';
+import { PersonService } from '../person/person.service';
 import { MeEventFilterDto } from './dto/me-event-filter.dto';
 import { UpdateMyAttendanceDto } from './dto/update-my-attendance.dto';
+import { DependentRegistrationDto } from './dto/dependent-registration.dto';
+
+const PROVISIONAL_ALIAS_PREFIX = '~';
 
 @Injectable()
 export class MeService {
@@ -40,6 +46,7 @@ export class MeService {
     private readonly seasonService: SeasonService,
     private readonly attendanceService: AttendanceService,
     private readonly personDelegateService: PersonDelegateService,
+    private readonly personService: PersonService,
   ) {}
 
   async resolveManagedPersons(userId: string): Promise<ManagedPerson[]> {
@@ -233,6 +240,50 @@ export class MeService {
   }
 
 
+
+  async getPendingDependents(userId: string): Promise<PendingDependent[]> {
+    const dependents = await this.personDelegateService.findProvisionalPrimaryDependents(userId);
+    return dependents.map((person) => this.toPendingDependent(person));
+  }
+
+  async completePendingDependent(
+    userId: string,
+    dto: DependentRegistrationDto,
+  ): Promise<void> {
+    const eligible = await this.personDelegateService.findProvisionalPrimaryDependents(userId);
+    const person = eligible.find((p) => p.id === dto.personId);
+    if (!person) {
+      throw new BadRequestException(
+        'Esta persona no és un dependent pendent de completar per a este compte',
+      );
+    }
+
+    const { personId, ...registrationData } = dto;
+    const alias = person.alias.startsWith(PROVISIONAL_ALIAS_PREFIX)
+      ? person.alias.slice(PROVISIONAL_ALIAS_PREFIX.length)
+      : person.alias;
+
+    await this.personService.update(personId, {
+      ...registrationData,
+      isProvisional: false,
+      alias,
+    });
+  }
+
+  private toPendingDependent(person: Person): PendingDependent {
+    return {
+      personId: person.id,
+      alias: person.alias,
+      name: person.name,
+      firstSurname: person.firstSurname,
+      secondSurname: person.secondSurname,
+      gender: person.gender,
+      phone: person.phone,
+      birthDate: person.birthDate instanceof Date
+        ? person.birthDate.toISOString().slice(0, 10)
+        : (person.birthDate ?? null),
+    };
+  }
 
   private emptyPage(filters: MeEventFilterDto): PaginatedResponse<MeEvent> {
     return {

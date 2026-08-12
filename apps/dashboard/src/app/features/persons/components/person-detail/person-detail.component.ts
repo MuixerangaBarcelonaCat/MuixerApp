@@ -30,7 +30,6 @@ import {
 } from '../../../../shared/utils';
 import { EmptyStateComponent } from '../../../../shared/components/data/empty-state/empty-state.component';
 import { PaginationComponent } from '../../../../shared/components/data/pagination/pagination.component';
-import { PersonInvitationModalComponent } from './modals/person-invitation-modal.component';
 import { PersonDelegateModalComponent } from './modals/person-delegate-modal.component';
 import { EmojiPickerComponent } from '../../../../shared/components/forms/emoji-picker/emoji-picker.component';
 import {
@@ -48,7 +47,6 @@ import { DelegateType, LegalDocumentType } from '@muixer/shared';
     RouterModule,
     EmptyStateComponent,
     PaginationComponent,
-    PersonInvitationModalComponent,
     PersonDelegateModalComponent,
     EmojiPickerComponent,
   ],
@@ -93,7 +91,7 @@ export class PersonDetailComponent implements OnInit {
   allPositions = signal<TagWithCount[]>([]);
   selectedPositionIds = signal<string[]>([]);
 
-  invitationModalOpen = signal(false);
+  creatingInviteLink = signal(false);
   delegateModalOpen = signal(false);
   delegateModalIsPrimary = signal(false);
 
@@ -311,14 +309,38 @@ export class PersonDetailComponent implements OnInit {
     });
   }
 
-  startSendingInvitation() {
-    this.invitationModalOpen.set(true);
+  createInviteLink() {
+    const p = this.person();
+    if (!p || this.creatingInviteLink()) return;
+
+    this.creatingInviteLink.set(true);
+    this.personService.createInviteLink(p.id).subscribe({
+      next: async ({ inviteUrl }) => {
+        this.creatingInviteLink.set(false);
+        const copied = await this.copyToClipboard(inviteUrl);
+        this.toast.success(
+          copied
+            ? 'Enllaç d\'invitació copiat al portapapers.'
+            : `Enllaç d'invitació: ${inviteUrl}`,
+        );
+        const id = this.route.snapshot.paramMap.get('id');
+        if (id) this.loadPerson(id);
+      },
+      error: (err) => {
+        this.creatingInviteLink.set(false);
+        this.toast.error(err?.error?.message ?? 'Error en crear l\'enllaç d\'invitació');
+      },
+    });
   }
 
-  onInvitationSuccess() {
-    const id = this.route.snapshot.paramMap.get('id')!;
-    this.loadPerson(id);
-    this.invitationModalOpen.set(false);
+  private async copyToClipboard(text: string): Promise<boolean> {
+    if (!navigator.clipboard) return false;
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   // ── F3 History ──

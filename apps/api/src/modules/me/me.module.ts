@@ -6,6 +6,7 @@ import { User } from '../user/user.entity';
 import { SeasonModule } from '../season/season.module';
 import { EventModule } from '../event/event.module';
 import { PersonDelegateModule } from '../person-delegate/person-delegate.module';
+import { PersonModule } from '../person/person.module';
 import { MeController } from './me.controller';
 import { MeService } from './me.service';
 
@@ -15,6 +16,7 @@ import { MeService } from './me.service';
     SeasonModule,
     EventModule,
     PersonDelegateModule,
+    PersonModule,
   ],
   controllers: [MeController],
   providers: [MeService],

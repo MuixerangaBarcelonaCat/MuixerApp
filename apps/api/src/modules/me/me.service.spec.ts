@@ -6,7 +6,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { AttendanceStatus, DelegateType, EventType, JwtPayload, UserRole } from '@muixer/shared';
+import { AttendanceStatus, DelegateType, EventType, Gender, JwtPayload, UserRole } from '@muixer/shared';
 import { MeService } from './me.service';
 import { Event } from '../event/event.entity';
 import { Attendance } from '../event/attendance.entity';
@@ -14,6 +14,7 @@ import { User } from '../user/user.entity';
 import { SeasonService } from '../season/season.service';
 import { AttendanceService } from '../event/attendance.service';
 import { PersonDelegateService } from '../person-delegate/person-delegate.service';
+import { PersonService } from '../person/person.service';
 
 const mockUser: JwtPayload = {
   sub: 'user-1',
@@ -47,6 +48,7 @@ describe('MeService', () => {
   let seasonService: jest.Mocked<SeasonService>;
   let attendanceService: jest.Mocked<AttendanceService>;
   let personDelegateService: jest.Mocked<PersonDelegateService>;
+  let personService: jest.Mocked<PersonService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -84,7 +86,14 @@ describe('MeService', () => {
         },
         {
           provide: PersonDelegateService,
-          useValue: { findByUser: jest.fn().mockResolvedValue([]) },
+          useValue: {
+            findByUser: jest.fn().mockResolvedValue([]),
+            findProvisionalPrimaryDependents: jest.fn().mockResolvedValue([]),
+          },
+        },
+        {
+          provide: PersonService,
+          useValue: { update: jest.fn() },
         },
       ],
     }).compile();
@@ -96,6 +105,7 @@ describe('MeService', () => {
     seasonService = module.get(SeasonService);
     attendanceService = module.get(AttendanceService);
     personDelegateService = module.get(PersonDelegateService);
+    personService = module.get(PersonService);
     attendanceRepo.find.mockResolvedValue([]);
   });
 
@@ -538,6 +548,131 @@ describe('MeService', () => {
           personId: 'p-unrelated',
         }),
       ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('getPendingDependents', () => {
+    it('maps provisional primary dependents to the prefill shape', async () => {
+      personDelegateService.findProvisionalPrimaryDependents.mockResolvedValue([
+        {
+          id: 'child-1',
+          alias: '~xicalla1',
+          name: 'Provisional',
+          firstSurname: '',
+          secondSurname: null,
+          gender: null,
+          phone: null,
+          birthDate: null,
+        } as never,
+      ]);
+
+      const result = await service.getPendingDependents('user-1');
+
+      expect(personDelegateService.findProvisionalPrimaryDependents).toHaveBeenCalledWith('user-1');
+      expect(result).toEqual([
+        {
+          personId: 'child-1',
+          alias: '~xicalla1',
+          name: 'Provisional',
+          firstSurname: '',
+          secondSurname: null,
+          gender: null,
+          phone: null,
+          birthDate: null,
+        },
+      ]);
+    });
+
+    it('returns an empty array when there are no pending dependents', async () => {
+      personDelegateService.findProvisionalPrimaryDependents.mockResolvedValue([]);
+
+      const result = await service.getPendingDependents('user-1');
+
+      expect(result).toEqual([]);
+    });
+
+    it('handles a birthDate returned as a plain string instead of a Date (re-provisioned person)', async () => {
+      // A `date` column can come back as a string rather than a Date depending on the query
+      // path — this reproduces a real 500 seen when a previously-activated person (with a
+      // string-typed birthDate already in the DB row) was flipped back to provisional.
+      personDelegateService.findProvisionalPrimaryDependents.mockResolvedValue([
+        {
+          id: 'child-1',
+          alias: 'xicalla1',
+          name: 'Joan',
+          firstSurname: 'Garcia',
+          secondSurname: null,
+          gender: Gender.MALE,
+          phone: '+34612345678',
+          birthDate: '2015-01-15',
+        } as never,
+      ]);
+
+      const result = await service.getPendingDependents('user-1');
+
+      expect(result[0].birthDate).toBe('2015-01-15');
+    });
+  });
+
+  describe('completePendingDependent', () => {
+    const dto = {
+      personId: 'child-1',
+      name: 'Joan',
+      firstSurname: 'Garcia',
+      gender: Gender.MALE,
+      phone: '+34612345678',
+      birthDate: '2015-01-15',
+    };
+
+    it('promotes the dependent when it is in the eligible set', async () => {
+      personDelegateService.findProvisionalPrimaryDependents.mockResolvedValue([
+        { id: 'child-1', alias: '~xicalla1' } as never,
+      ]);
+
+      await service.completePendingDependent('user-1', dto as never);
+
+      expect(personService.update).toHaveBeenCalledWith('child-1', {
+        name: 'Joan',
+        firstSurname: 'Garcia',
+        secondSurname: undefined,
+        gender: Gender.MALE,
+        phone: '+34612345678',
+        birthDate: '2015-01-15',
+        isProvisional: false,
+        alias: 'xicalla1',
+      });
+    });
+
+    it('rejects a personId outside the caller\'s eligible dependents', async () => {
+      personDelegateService.findProvisionalPrimaryDependents.mockResolvedValue([
+        { id: 'other-child', alias: '~other' } as never,
+      ]);
+
+      await expect(
+        service.completePendingDependent('user-1', dto as never),
+      ).rejects.toThrow(BadRequestException);
+      expect(personService.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects when the eligible set is empty', async () => {
+      personDelegateService.findProvisionalPrimaryDependents.mockResolvedValue([]);
+
+      await expect(
+        service.completePendingDependent('user-1', dto as never),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('does not strip the alias prefix when the dependent alias has none', async () => {
+      personDelegateService.findProvisionalPrimaryDependents.mockResolvedValue([
+        { id: 'child-1', alias: 'xicalla1' } as never,
+      ]);
+
+      await service.completePendingDependent('user-1', dto as never);
+
+      expect(personService.update).toHaveBeenCalledWith(
+        'child-1',
+        expect.objectContaining({ alias: 'xicalla1' }),
+      );
     });
   });
 });
