@@ -26,6 +26,9 @@ const MOCK_EVENT: MeEvent = {
   location: 'Local',
   attendanceSummary: EMPTY_SUMMARY,
   myAttendance: null,
+  managedAttendances: [
+    { personId: 'p-1', displayName: 'MartaP', isSelf: true, delegateType: null, attendance: null },
+  ],
 };
 
 const MOCK_EVENTS_SEASON: MeEvent[] = [
@@ -230,7 +233,7 @@ describe('EventListComponent', () => {
     component.toggleView();
     await stable();
 
-    component.onAttendanceChanged({ eventId: 'ev-1', status: AttendanceStatus.ANIRE });
+    component.onAttendanceChanged({ eventId: 'ev-1', personId: 'p-1', status: AttendanceStatus.ANIRE });
     fixture.detectChanges();
 
     component.onSelectedDateChange('2026-07-07');
@@ -238,5 +241,15 @@ describe('EventListComponent', () => {
 
     const cards = fixture.nativeElement.querySelectorAll('app-event-card');
     expect(cards.length).toBe(2);
+  });
+
+  it('should patch the matching managed person and myAttendance on attendance change', async () => {
+    await stable();
+
+    component.onAttendanceChanged({ eventId: 'ev-1', personId: 'p-1', status: AttendanceStatus.ANIRE });
+    fixture.detectChanges();
+
+    const button = fixture.nativeElement.querySelector('app-attendance-button button');
+    expect(button.classList.contains('btn-success')).toBe(true);
   });
 });
