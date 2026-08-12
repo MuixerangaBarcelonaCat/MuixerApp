@@ -14,7 +14,7 @@
       @if (hasConflicts()) {
         <button
           type="button"
-          class="text-warning font-semibold inline-flex items-center gap-1 min-h-6 link link-hover"
+          class="text-conflict font-semibold inline-flex items-center gap-1 min-h-6 link link-hover"
           (click)="toggleOnlyConflicts()"
           [attr.aria-pressed]="onlyConflicts()"
           data-testid="participation-conflict-counter"

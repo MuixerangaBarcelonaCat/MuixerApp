@@ -211,7 +211,7 @@
                   <!-- Conflict count pill (Phase 3) — hidden in production (0 conflicts) -->
                   @if (segmentConflictCount(segment); as conflictCount) {
                     <span
-                      class="badge badge-warning badge-sm gap-1 font-normal"
+                      class="badge badge-conflict badge-sm gap-1 font-normal"
                       [attr.aria-label]="conflictCount + ' persones en conflicte'"
                       [title]="segmentDotacioTooltip(segment)"
                     >

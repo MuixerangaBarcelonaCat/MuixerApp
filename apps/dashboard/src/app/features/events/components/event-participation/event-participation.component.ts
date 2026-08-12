@@ -40,7 +40,7 @@ type SortField = 'alias' | 'status' | 'placements' | 'troncPlacements' | 'segmen
 const PILL_POSITION = 'text-base-content';
 const PILL_FIGURE = 'text-base-content/50 font-normal';
 const PILL_EMPTY = 'text-base-content/20';
-const PILL_CONFLICT = 'text-warning font-bold';
+const PILL_CONFLICT = 'text-conflict font-bold';
 
 /** Marks a person placed twice in one segment. Distinct from the observations glyph. */
 const CONFLICT_GLYPH = '‼';

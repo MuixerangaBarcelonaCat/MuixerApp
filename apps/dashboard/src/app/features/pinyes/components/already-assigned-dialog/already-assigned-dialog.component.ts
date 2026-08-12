@@ -37,7 +37,7 @@ import { ICON_OBSERVACIONS } from '../../../../shared/constants/domain-icons';
                 >
                   <span
                     class="badge badge-sm shrink-0"
-                    [class.badge-warning]="placement.area === 'TRONC'"
+                    [class.badge-conflict]="placement.area === 'TRONC'"
                     [class.badge-ghost]="placement.area !== 'TRONC'"
                   >
                     {{ areaLabel(placement.area) }}
@@ -53,7 +53,7 @@ import { ICON_OBSERVACIONS } from '../../../../shared/constants/domain-icons';
             </ul>
 
             @if (hasTronc()) {
-              <p class="text-sm text-warning flex items-start gap-1 mb-4">
+              <p class="text-sm text-conflict flex items-start gap-1 mb-4">
                 <lucide-icon [name]="ICON_CONFLICT" [size]="14" class="mt-0.5 shrink-0" />
                 <span>Una d'estes col·locacions és al <strong>tronc</strong>: reubicar-la té conseqüències.</span>
               </p>
@@ -89,14 +89,14 @@ import { ICON_OBSERVACIONS } from '../../../../shared/constants/domain-icons';
             -->
             <button
               type="button"
-              class="btn btn-warning btn-outline btn-sm w-full"
+              class="btn btn-conflict btn-outline btn-sm w-full"
               (click)="assignAnywayRequested.emit()"
             >
               Assignar igualment
             </button>
           </div>
           @if (placements().length > 0) {
-            <p class="text-xs text-warning/80 mt-2">
+            <p class="text-xs text-conflict/80 mt-2">
               Quedarà assignada a {{ placements().length + 1 }} llocs d'este segment.
             </p>
           }

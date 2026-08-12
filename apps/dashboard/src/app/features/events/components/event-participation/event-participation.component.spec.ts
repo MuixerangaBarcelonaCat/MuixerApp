@@ -512,11 +512,11 @@ describe('EventParticipationComponent', () => {
   // ── The two opposing signalling rules ──────────────────────────────────────
 
   describe('no warning for legitimate participation', () => {
-    it('renders no warning styling for a person with nothing to do', async () => {
+    it('renders no conflict styling for a person with nothing to do', async () => {
       const fixture = await setup();
       const pills = pillsOf(fixture, `segment-${SEG_A}`, 'XURRO');
 
-      expect(pills.every((p) => !p.class.includes('warning'))).toBe(true);
+      expect(pills.every((p) => !p.class.includes('conflict'))).toBe(true);
       expect(fixture.componentInstance.personLabel(
         fixture.componentInstance.persons().find((p) => p.alias === 'XURRO')!,
       )).toBe('XURRO');
@@ -538,11 +538,11 @@ describe('EventParticipationComponent', () => {
       });
       const fixture = await setup(response);
 
-      expect(pillsOf(fixture, `segment-${SEG_A}`, 'XURRO').every((p) => !p.class.includes('warning'))).toBe(true);
+      expect(pillsOf(fixture, `segment-${SEG_A}`, 'XURRO').every((p) => !p.class.includes('conflict'))).toBe(true);
     });
   });
 
-  describe('warning for conflicts (one person, two places at once)', () => {
+  describe('conflict styling for conflicts (one person, two places at once)', () => {
     const conflictResponse = () =>
       buildResponse({
         persons: [
@@ -557,19 +557,19 @@ describe('EventParticipationComponent', () => {
         meta: makeMeta({ distinctPersons: 2, personsWithPlacement: 2, totalPlacements: 3, conflictedPersons: 1 }),
       });
 
-    it('styles every pill of the duplicated cell as a warning, glyph first', async () => {
+    it('styles every pill of the duplicated cell as conflict, glyph first', async () => {
       const fixture = await setup(conflictResponse());
       const pills = pillsOf(fixture, `segment-${SEG_A}`, 'PERSIANA');
 
       expect(pills[0].text).toBe('‼');
-      expect(pills.every((p) => p.class.includes('warning'))).toBe(true);
+      expect(pills.every((p) => p.class.includes('conflict'))).toBe(true);
       expect(pills.map((p) => p.text).slice(1)).toEqual(['Mans C2 · 4d7', 'Vent C1 · 4d7']);
     });
 
     it('leaves the non-conflicted person in the same segment unstyled', async () => {
       const fixture = await setup(conflictResponse());
 
-      expect(pillsOf(fixture, `segment-${SEG_A}`, 'GRILLAT').every((p) => !p.class.includes('warning'))).toBe(true);
+      expect(pillsOf(fixture, `segment-${SEG_A}`, 'GRILLAT').every((p) => !p.class.includes('conflict'))).toBe(true);
     });
 
     it('shows the header counter, which does not depend on horizontal scrolling', async () => {
@@ -606,7 +606,7 @@ describe('EventParticipationComponent', () => {
 
       const positions = pillsOf(fixture, 'segPosition', 'PERSIANA');
       expect(positions.map((p) => p.text)).toEqual(['Mans C2', 'Vent C1']);
-      expect(positions.every((p) => p.class.includes('warning'))).toBe(true);
+      expect(positions.every((p) => p.class.includes('conflict'))).toBe(true);
     });
 
     /** Placements in DIFFERENT segments are legal: the person is in two places at
@@ -620,7 +620,7 @@ describe('EventParticipationComponent', () => {
       expect(persiana.conflictSegmentIds).toEqual([]);
       expect(fixture.componentInstance.hasConflicts()).toBe(false);
       expect(fixture.componentInstance.personLabel(persiana)).not.toContain('‼');
-      expect(pillsOf(fixture, `segment-${SEG_A}`, 'PERSIANA').every((p) => !p.class.includes('warning'))).toBe(true);
+      expect(pillsOf(fixture, `segment-${SEG_A}`, 'PERSIANA').every((p) => !p.class.includes('conflict'))).toBe(true);
     });
   });
 
@@ -738,7 +738,7 @@ describe('EventParticipationComponent', () => {
       fixture.detectChanges();
 
       const pills = pillsOf(fixture, `segment-${SEG_A}`, 'PERSIANA');
-      expect(pills.every((p) => p.class.includes('warning'))).toBe(true);
+      expect(pills.every((p) => p.class.includes('conflict'))).toBe(true);
     });
 
     it('does not touch the row-level conflict glyph, which is event-wide', async () => {
@@ -784,7 +784,7 @@ describe('EventParticipationComponent', () => {
 
       const zonePills = pillsOf(fixture, 'segZone', 'PERSIANA');
       expect(zonePills.map((p) => p.text)).toEqual(['Tronc']);
-      expect(zonePills.every((p) => p.class.includes('warning'))).toBe(true);
+      expect(zonePills.every((p) => p.class.includes('conflict'))).toBe(true);
     });
 
     it('lists the filter as a chip and clears it from there', async () => {
@@ -907,8 +907,8 @@ describe('EventParticipationComponent', () => {
       });
       const fixture = await setup(response);
 
-      expect(pillsOf(fixture, 'troncDetail', 'CONFLICTIVA').every((p) => p.class.includes('warning'))).toBe(true);
-      expect(pillsOf(fixture, 'troncDetail', 'NORMAL').every((p) => !p.class.includes('warning'))).toBe(true);
+      expect(pillsOf(fixture, 'troncDetail', 'CONFLICTIVA').every((p) => p.class.includes('conflict'))).toBe(true);
+      expect(pillsOf(fixture, 'troncDetail', 'NORMAL').every((p) => !p.class.includes('conflict'))).toBe(true);
     });
   });
 

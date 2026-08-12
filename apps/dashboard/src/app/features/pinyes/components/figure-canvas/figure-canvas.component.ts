@@ -185,7 +185,7 @@ function createNodeShape(
 const SELECTED_STROKE = '#f59e0b';
 const NORMAL_STROKE = '#1e1b4b';
 /** Amber conflict outline (Phase 3), matching the observation badge / tronc-view warning hue. */
-const CONFLICT_STROKE = '#f59e0b';
+const CONFLICT_STROKE = '#e11d48';
 /** Matches the min/max of the zoom-selector dropdown (25%–300%). */
 const ZOOM_MIN = 0.25;
 const ZOOM_MAX = 3;

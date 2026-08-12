@@ -1,6 +1,6 @@
 @if (conflictPersonCount() > 0) {
-  <div class="flex items-center gap-2 px-4 py-1.5 bg-warning/10 border-b border-warning/30 text-sm shrink-0">
-    <lucide-icon [img]="ICON_CONFLICT" [size]="14" class="text-warning shrink-0" aria-hidden="true" />
+  <div class="flex items-center gap-2 px-4 py-1.5 bg-conflict/10 border-b border-conflict/30 text-sm shrink-0">
+    <lucide-icon [img]="ICON_CONFLICT" [size]="14" class="text-conflict shrink-0" aria-hidden="true" />
     <span>
       <strong>{{ conflictPersonCount() }}</strong>
       {{ conflictPersonCount() === 1 ? 'persona en conflicte' : 'persones en conflicte' }}
@@ -13,7 +13,7 @@
     }
     <button
       type="button"
-      class="btn btn-xs btn-warning btn-outline ml-auto"
+      class="btn btn-xs btn-conflict btn-outline ml-auto"
       (click)="togglePanel()"
       [attr.aria-expanded]="panelOpen()"
       aria-controls="segment-conflict-panel-body"
@@ -57,7 +57,7 @@
           @for (conflict of conflicts(); track conflict.personId) {
             <div
               role="listitem"
-              class="w-72 shrink-0 snap-start rounded-lg border border-warning/30 bg-warning/5 p-3 flex flex-col gap-2"
+              class="w-72 shrink-0 snap-start rounded-lg border border-conflict/30 bg-conflict/5 p-3 flex flex-col gap-2"
             >
               <div class="font-medium text-sm truncate">{{ conflict.personAlias }}</div>
               <ul class="flex flex-col gap-1">
@@ -65,7 +65,7 @@
                   <li class="flex items-center gap-2" data-conflict-placement>
                     <span
                       class="badge badge-sm shrink-0"
-                      [class.badge-warning]="placement.area === 'TRONC'"
+                      [class.badge-conflict]="placement.area === 'TRONC'"
                       [class.badge-ghost]="placement.area !== 'TRONC'"
                     >
                       {{ areaLabel(placement.area) }}
