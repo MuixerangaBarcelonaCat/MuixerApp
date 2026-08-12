@@ -21,6 +21,7 @@ import {
   SegmentConflictKind,
   areaForZone,
   classifyPlacementKind,
+  isNodeVisibleByCordons,
   ConflictPlacement,
   SegmentConflict,
   SegmentConflictsResponse,
@@ -485,18 +486,33 @@ export class NodeAssignmentService {
     return { newConflicts, freedPinyaNodeIds };
   }
 
-  /** Pinya-area InstanceNodes of an instance that currently hold no assignment (areaForZone: BASE→TRONC). */
+  /**
+   * Pinya-area InstanceNodes of an instance that currently hold no assignment (areaForZone:
+   * BASE→TRONC), excluding nodes hidden by the instance's cordons/mode setup (R9) — a node
+   * hidden beyond `numberOfCordons` or zeroed by REMAT/NETA is not something to "review".
+   */
   private async computeFreedPinyaNodeIds(instanceId: string): Promise<string[]> {
-    const [nodes, assignments] = await Promise.all([
+    const [instance, nodes, assignments] = await Promise.all([
+      this.figureInstanceRepository.findOne({ where: { id: instanceId } }),
       this.instanceNodeRepository.find({ where: { figureInstance: { id: instanceId } } }),
       this.assignmentRepository.find({
         where: { figureInstance: { id: instanceId } },
         relations: ['instanceNode'],
       }),
     ]);
+    const cordonsOpts = {
+      figureMode: instance?.figureMode ?? FigureMode.COMPLETA,
+      numberOfCordons: instance?.numberOfCordons ?? null,
+      cordonsObertsEnabled: instance?.cordonsObertsEnabled ?? true,
+    };
     const occupied = new Set(assignments.map((a) => a.instanceNode?.id).filter(Boolean));
     return nodes
-      .filter((n) => areaForZone(n.zone as FigureZone) === AssignmentArea.PINYA && !occupied.has(n.id))
+      .filter(
+        (n) =>
+          areaForZone(n.zone as FigureZone) === AssignmentArea.PINYA &&
+          !occupied.has(n.id) &&
+          isNodeVisibleByCordons(n, cordonsOpts),
+      )
       .map((n) => n.id);
   }
 
@@ -590,12 +606,13 @@ export class NodeAssignmentService {
 
   // ── Existing — unassign ───────────────────────────────────────────────────
 
-  async unassign(instanceId: string, assignmentId: string): Promise<void> {
+  /** Removes an assignment, attaching a TroncChangeImpact (D11) when it freed a TRONC/BASE node. */
+  async unassign(instanceId: string, assignmentId: string): Promise<{ impact?: TroncChangeImpact }> {
     await this.checkEventLock(instanceId);
 
     const assignment = await this.assignmentRepository.findOne({
       where: { id: assignmentId },
-      relations: ['figureInstance'],
+      relations: ['figureInstance', 'figureInstance.segment', 'instanceNode'],
     });
 
     if (!assignment) {
@@ -606,7 +623,13 @@ export class NodeAssignmentService {
       throw new NotFoundException(`Assignment ${assignmentId} does not belong to instance ${instanceId}`);
     }
 
+    const touchesTronc = areaForZone(assignment.instanceNode.zone as FigureZone) === AssignmentArea.TRONC;
     await this.assignmentRepository.remove(assignment);
+
+    if (touchesTronc) {
+      return { impact: await this.computeTroncChangeImpact(assignment.figureInstance.segment.id, instanceId) };
+    }
+    return {};
   }
 
   // ── Segment move — cross-segment person conflicts ──────────────────────────
@@ -1148,14 +1171,10 @@ export class NodeAssignmentService {
     const figureMode = fi.figureMode ?? FigureMode.COMPLETA;
     const numberOfCordons = fi.numberOfCordons ?? null;
     const cordonsObertsEnabled = fi.cordonsObertsEnabled;
+    const cordonsOpts = { figureMode, numberOfCordons, cordonsObertsEnabled };
 
-    const isPinya = (n: { zone: string; positionType: string | null; renglaPosition: number | null }): boolean => {
-      if (n.zone !== FigureZone.PINYA) return false;
-      if (figureMode === FigureMode.REMAT || figureMode === FigureMode.NETA) return false;
-      if (n.positionType === 'cordo-obert') return cordonsObertsEnabled;
-      if (numberOfCordons === null) return true;
-      return n.renglaPosition === null || n.renglaPosition <= numberOfCordons;
-    };
+    const isPinya = (n: { zone: string; positionType: string | null; renglaPosition: number | null }): boolean =>
+      n.zone === FigureZone.PINYA && isNodeVisibleByCordons(n, cordonsOpts);
     const isTronc = (n: { zone: string }): boolean =>
       n.zone === FigureZone.TRONC || (n.zone === FigureZone.BASE && figureMode !== FigureMode.REMAT);
     const isDirection = (n: { zone: string }): boolean =>

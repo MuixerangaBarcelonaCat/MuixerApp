@@ -162,11 +162,14 @@ describe('Participation ↔ getSegmentConflicts equivalence (integration)', () =
   }
 
   /**
-   * One event, four segments exercising every kind plus the legal cross-segment case:
+   * One event, six segments exercising every kind plus the legal cross-segment case:
    * - segTT: one person on two tronc nodes            → TRONC_TRONC
    * - segTP: one person on a tronc + a pinya node      → TRONC_PINYA
    * - segPP: one person on two pinya nodes             → PINYA_PINYA
    * - segClean: a cross-segment duplicate that is NOT a conflict, plus a single placement
+   * - segNoVaig: a NO_VAIG person with a tronc-tronc duplicate (R4 — the `participants` CTE's
+   *   node_assignments branch must surface this with no attendance filter)
+   * - segNoResponse: a person with NO attendance row at all, pinya-pinya duplicate (R4)
    */
   async function seedEveryKind() {
     await dropDuplicateConstraints();
@@ -176,11 +179,15 @@ describe('Participation ↔ getSegmentConflicts equivalence (integration)', () =
     const segTP = await makeSegment(event, 1);
     const segPP = await makeSegment(event, 2);
     const segClean = await makeSegment(event, 3);
+    const segNoVaig = await makeSegment(event, 4);
+    const segNoResponse = await makeSegment(event, 5);
 
     const figTT = await makeInstanceWithNodes(segTT, [FigureZone.TRONC, FigureZone.BASE, FigureZone.PINYA]);
     const figTP = await makeInstanceWithNodes(segTP, [FigureZone.TRONC, FigureZone.PINYA, FigureZone.PINYA]);
     const figPP = await makeInstanceWithNodes(segPP, [FigureZone.PINYA, FigureZone.PINYA, FigureZone.TRONC]);
     const figClean = await makeInstanceWithNodes(segClean, [FigureZone.PINYA, FigureZone.TRONC]);
+    const figNoVaig = await makeInstanceWithNodes(segNoVaig, [FigureZone.TRONC, FigureZone.TRONC]);
+    const figNoResponse = await makeInstanceWithNodes(segNoResponse, [FigureZone.PINYA, FigureZone.PINYA]);
 
     // TRONC_TRONC (BASE counts as tronc, D10).
     const pTT = await makePerson('TRONCUT');
@@ -211,7 +218,30 @@ describe('Participation ↔ getSegmentConflicts equivalence (integration)', () =
     await setAttendance(event, pSolo, AttendanceStatus.ANIRE);
     await assign(figClean.instance, figClean.nodes[1], pSolo, segClean);
 
-    return { event, segTT, segTP, segPP, segClean };
+    // R4 — NO_VAIG person with a duplicate: must still surface as a conflict, because the
+    // `participants` CTE's second UNION branch (node_assignments) carries no attendance filter.
+    const pNoVaig = await makePerson('NOVAIG');
+    await setAttendance(event, pNoVaig, AttendanceStatus.NO_VAIG);
+    await assign(figNoVaig.instance, figNoVaig.nodes[0], pNoVaig, segNoVaig);
+    await assign(figNoVaig.instance, figNoVaig.nodes[1], pNoVaig, segNoVaig);
+
+    // R4 — person with NO attendance row at all, assigned twice. Enters the matrix only via the
+    // node_assignments UNION branch; assemblePersons() defaults their attendanceStatus to PENDENT.
+    const pNoResponse = await makePerson('SENSERESPOSTA');
+    await assign(figNoResponse.instance, figNoResponse.nodes[0], pNoResponse, segNoResponse);
+    await assign(figNoResponse.instance, figNoResponse.nodes[1], pNoResponse, segNoResponse);
+
+    return {
+      event,
+      segTT,
+      segTP,
+      segPP,
+      segClean,
+      segNoVaig,
+      segNoResponse,
+      pNoVaig,
+      pNoResponse,
+    };
   }
 
   /** Per-segment map personId → kind, derived from the participation overview. */
@@ -229,11 +259,12 @@ describe('Participation ↔ getSegmentConflicts equivalence (integration)', () =
   }
 
   it('agrees segment-by-segment on which persons conflict and on the kind', async () => {
-    const { event, segTT, segTP, segPP, segClean } = await seedEveryKind();
+    const { event, segTT, segTP, segPP, segClean, segNoVaig, segNoResponse, pNoVaig, pNoResponse } =
+      await seedEveryKind();
 
     const overview = await participation.getEventParticipation(event.id);
 
-    for (const segment of [segTT, segTP, segPP, segClean]) {
+    for (const segment of [segTT, segTP, segPP, segClean, segNoVaig, segNoResponse]) {
       const fromParticipation = participationKindsBySegment(overview.persons, segment.id);
 
       const canonical = await assignments.getSegmentConflicts(segment.id);
@@ -242,10 +273,19 @@ describe('Participation ↔ getSegmentConflicts equivalence (integration)', () =
       // Same set of conflicted persons, and the same kind for each — no divergence.
       expect(fromParticipation).toEqual(fromEngine);
     }
+
+    // R4 — a NO_VAIG person and a person with no attendance row at all still show up as a
+    // conflict in Participació. The `participants` CTE's node_assignments branch carries no
+    // attendance filter, so this must hold with no code change; this pins that behaviour down.
+    const byId = new Map(overview.persons.map((p) => [p.id, p]));
+    expect(byId.get(pNoVaig.id)?.conflictSegmentIds).toContain(segNoVaig.id);
+    expect(byId.get(pNoVaig.id)?.attendanceStatus).toBe(AttendanceStatus.NO_VAIG);
+    expect(byId.get(pNoResponse.id)?.conflictSegmentIds).toContain(segNoResponse.id);
+    expect(byId.get(pNoResponse.id)?.attendanceStatus).toBe(AttendanceStatus.PENDENT);
   });
 
   it('agrees on the event-wide conflictsByKind aggregate', async () => {
-    const { event, segTT, segTP, segPP, segClean } = await seedEveryKind();
+    const { event, segTT, segTP, segPP, segClean, segNoVaig, segNoResponse } = await seedEveryKind();
 
     const overview = await participation.getEventParticipation(event.id);
 
@@ -255,16 +295,16 @@ describe('Participation ↔ getSegmentConflicts equivalence (integration)', () =
       [SegmentConflictKind.TRONC_PINYA]: 0,
       [SegmentConflictKind.PINYA_PINYA]: 0,
     };
-    for (const segment of [segTT, segTP, segPP, segClean]) {
+    for (const segment of [segTT, segTP, segPP, segClean, segNoVaig, segNoResponse]) {
       const canonical = await assignments.getSegmentConflicts(segment.id);
       for (const conflict of canonical.data) engineAggregate[conflict.kind] += 1;
     }
 
     expect(overview.meta.conflictsByKind).toEqual(engineAggregate);
     expect(engineAggregate).toEqual({
-      [SegmentConflictKind.TRONC_TRONC]: 1,
+      [SegmentConflictKind.TRONC_TRONC]: 2,
       [SegmentConflictKind.TRONC_PINYA]: 1,
-      [SegmentConflictKind.PINYA_PINYA]: 1,
+      [SegmentConflictKind.PINYA_PINYA]: 2,
     });
   });
 });

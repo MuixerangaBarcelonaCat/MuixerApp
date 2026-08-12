@@ -525,6 +525,41 @@ describe('NodeAssignmentService', () => {
       expect(result.impact!.freedPinyaNodeIds).toEqual(['pinya-empty']);
     });
 
+    it('surfaces a non-empty newConflicts (Fase 5 soft conflict) when the person already holds a placement in the segment', async () => {
+      const troncNode = makeInstanceNode({ id: INSTANCE_NODE_ID, zone: FigureZone.TRONC });
+      const pinyaNode = makeInstanceNode({ id: 'pinya-preexisting', zone: FigureZone.PINYA });
+      const newAssignment = makeAssignment({ instanceNode: troncNode as any });
+      const preExisting = makeAssignment({
+        id: ASSIGNMENT_ID_B,
+        instanceNode: pinyaNode as any,
+      });
+
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
+      mockPersonRepo.findOne.mockResolvedValue(makePerson());
+      mockInstanceNodeRepo.findOne.mockResolvedValue(troncNode);
+      mockAssignmentRepo.findOne.mockResolvedValueOnce(null).mockResolvedValue(newAssignment);
+      mockAssignmentRepo.create.mockReturnValue(newAssignment);
+      mockAssignmentRepo.save.mockResolvedValue(newAssignment);
+      // The same person (PERSON_ID) now holds two placements in the segment: the just-created
+      // TRONC one and a pre-existing PINYA one — a legal Fase 5 duplicate.
+      mockAssignmentRepo.find.mockResolvedValue([newAssignment, preExisting]);
+      mockInstanceNodeRepo.find.mockResolvedValue([pinyaNode, troncNode]);
+
+      const result = await service.assign(INSTANCE_ID, {
+        nodeId: INSTANCE_NODE_ID,
+        personId: PERSON_ID,
+      });
+
+      expect(result.impact!.newConflicts).toHaveLength(1);
+      const conflict = result.impact!.newConflicts[0];
+      expect(conflict.personId).toBe(PERSON_ID);
+      expect(conflict.kind).toBe(SegmentConflictKind.TRONC_PINYA);
+      expect(conflict.placements.map((p) => p.area)).toEqual([
+        AssignmentArea.TRONC,
+        AssignmentArea.PINYA,
+      ]);
+    });
+
     it('does NOT attach an impact when the assigned node is a PINYA node', async () => {
       const inode = makeInstanceNode(); // PINYA by default
       const a = makeAssignment();
@@ -671,6 +706,47 @@ describe('NodeAssignmentService', () => {
       expect(result.impact!.freedPinyaNodeIds).toEqual(['pinya-empty']);
     });
 
+    it('surfaces a non-empty newConflicts (Fase 5 soft conflict) after a swap that leaves a person with two placements', async () => {
+      const troncNode = makeInstanceNode({ id: INSTANCE_NODE_ID, zone: FigureZone.TRONC });
+      const pinyaNode = makeInstanceNode({ id: 'pinya-preexisting', zone: FigureZone.PINYA });
+      const assignmentA = makeAssignment({ instanceNode: troncNode as any });
+      const assignmentB = makeAssignmentB();
+
+      mockAssignmentRepo.findOne
+        .mockResolvedValueOnce(assignmentA)
+        .mockResolvedValueOnce(assignmentB)
+        .mockResolvedValueOnce(assignmentA)
+        .mockResolvedValueOnce(assignmentB);
+
+      const txManager = {
+        delete: jest.fn().mockResolvedValue(undefined),
+        create: jest.fn().mockImplementation((_entity: any, data: any) => data),
+        save: jest.fn().mockResolvedValue(undefined),
+      };
+      mockDataSource.transaction.mockImplementation((cb: any) => cb(txManager));
+      // After the swap, PERSON_ID_B holds the TRONC node plus a pre-existing PINYA placement.
+      const preExisting = makeAssignment({
+        id: 'assignment-uuid-3',
+        instanceNode: pinyaNode as any,
+        person: assignmentB.person,
+      });
+      mockAssignmentRepo.find.mockResolvedValue([
+        { ...assignmentA, person: assignmentB.person },
+        preExisting,
+      ]);
+      mockInstanceNodeRepo.find.mockResolvedValue([pinyaNode, troncNode]);
+
+      const result = await service.swap(INSTANCE_ID, {
+        assignmentIdA: ASSIGNMENT_ID,
+        assignmentIdB: ASSIGNMENT_ID_B,
+      });
+
+      expect(result.impact!.newConflicts).toHaveLength(1);
+      const conflict = result.impact!.newConflicts[0];
+      expect(conflict.personId).toBe(assignmentB.person!.id);
+      expect(conflict.kind).toBe(SegmentConflictKind.TRONC_PINYA);
+    });
+
     it('does NOT attach an impact when both swapped nodes are PINYA nodes', async () => {
       const assignmentA = makeAssignment();
       const assignmentB = makeAssignmentB();
@@ -787,6 +863,35 @@ describe('NodeAssignmentService', () => {
       mockAssignmentRepo.findOne.mockResolvedValue(a);
 
       await expect(service.unassign(INSTANCE_ID, ASSIGNMENT_ID)).rejects.toThrow(NotFoundException);
+    });
+
+    it('does NOT attach an impact when the removed node is a PINYA node', async () => {
+      const a = makeAssignment(); // PINYA by default
+      mockAssignmentRepo.findOne.mockResolvedValue(a);
+      mockAssignmentRepo.remove.mockResolvedValue(a);
+
+      const result = await service.unassign(INSTANCE_ID, ASSIGNMENT_ID);
+
+      expect(result.impact).toBeUndefined();
+      expect(mockAssignmentRepo.find).not.toHaveBeenCalled();
+    });
+
+    it('attaches a TroncChangeImpact when the removed node is a TRONC node', async () => {
+      const troncNode = makeInstanceNode({ id: INSTANCE_NODE_ID, zone: FigureZone.TRONC });
+      const a = makeAssignment({ instanceNode: troncNode as any });
+      mockAssignmentRepo.findOne.mockResolvedValue(a);
+      mockAssignmentRepo.remove.mockResolvedValue(a);
+      mockAssignmentRepo.find.mockResolvedValue([]);
+      mockInstanceNodeRepo.find.mockResolvedValue([
+        makeInstanceNode({ id: 'pinya-empty', zone: FigureZone.PINYA }),
+        troncNode,
+      ]);
+
+      const result = await service.unassign(INSTANCE_ID, ASSIGNMENT_ID);
+
+      expect(result.impact).toBeDefined();
+      expect(result.impact!.newConflicts).toEqual([]);
+      expect(result.impact!.freedPinyaNodeIds).toEqual(['pinya-empty']);
     });
   });
 

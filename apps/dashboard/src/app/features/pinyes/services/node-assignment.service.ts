@@ -45,8 +45,10 @@ export class NodeAssignmentService extends ApiService {
     );
   }
 
-  unassign(instanceId: string, assignmentId: string): Observable<void> {
-    return this.delete<void>(`/figure-instances/${instanceId}/assignments/${assignmentId}`);
+  unassign(instanceId: string, assignmentId: string): Observable<{ impact?: TroncChangeImpact }> {
+    return this.delete<{ impact?: TroncChangeImpact }>(
+      `/figure-instances/${instanceId}/assignments/${assignmentId}`,
+    );
   }
 
   swap(

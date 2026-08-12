@@ -79,13 +79,16 @@ export class NodeAssignmentController {
     return this.assignmentService.swap(instanceId, dto);
   }
 
-  @ApiOperation({ summary: 'Remove an assignment from a figure instance' })
+  @ApiOperation({
+    summary:
+      'Remove an assignment from a figure instance. ' +
+      'Returns a `impact` (TroncChangeImpact) when the removed node was TRONC/BASE.',
+  })
   @Delete('figure-instances/:instanceId/assignments/:id')
-  @HttpCode(HttpStatus.NO_CONTENT)
   unassign(
     @Param('instanceId', ParseUUIDPipe) instanceId: string,
     @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<void> {
+  ) {
     return this.assignmentService.unassign(instanceId, id);
   }
 

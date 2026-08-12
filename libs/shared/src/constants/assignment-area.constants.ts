@@ -1,6 +1,7 @@
 import { FigureZone } from '../enums/figure-zone.enum';
 import { AssignmentArea } from '../enums/assignment-area.enum';
 import { SegmentConflictKind } from '../enums/segment-conflict.enum';
+import { FigureMode } from '../enums/figure-mode.enum';
 
 /**
  * Single source of truth for "which physical area does this zone belong to" for
@@ -46,4 +47,36 @@ export function classifyPlacementKind(areas: AssignmentArea[]): SegmentConflictK
   if (troncCount >= 2) return SegmentConflictKind.TRONC_TRONC;
   if (troncCount === 1) return SegmentConflictKind.TRONC_PINYA;
   return SegmentConflictKind.PINYA_PINYA;
+}
+
+/**
+ * Single source of truth for "is this node visible given the instance's cordons/mode setup"
+ * (R9). Only PINYA nodes are ever hidden this way — TRONC/BASE/direction nodes are always
+ * visible regardless of cordons. A PINYA node is hidden entirely in REMAT/NETA mode; a
+ * `cordo-obert` node's visibility follows `cordonsObertsEnabled` instead of `renglaPosition`;
+ * everything else with no rengla or within `numberOfCordons` is visible.
+ *
+ * Backend (`computeInstanceAreaSummary`, `computeFreedPinyaNodeIds`) and dashboard
+ * (`SegmentWorkspaceStateService.refreshInstance`) both go through here so a node's visibility
+ * can never diverge between the completeness counters and the "review" banners.
+ */
+export function isNodeVisibleByCordons(
+  node: {
+    zone: FigureZone | string;
+    positionType?: string | null;
+    renglaPosition?: number | null;
+  },
+  opts: {
+    figureMode: FigureMode | string;
+    numberOfCordons: number | null;
+    cordonsObertsEnabled: boolean;
+  },
+): boolean {
+  if (node.zone !== FigureZone.PINYA) return true;
+  if (opts.figureMode === FigureMode.REMAT || opts.figureMode === FigureMode.NETA) return false;
+  if (node.positionType === 'cordo-obert') return opts.cordonsObertsEnabled;
+  if (opts.numberOfCordons === null) return true;
+  return node.renglaPosition === null || node.renglaPosition === undefined
+    ? true
+    : node.renglaPosition <= opts.numberOfCordons;
 }

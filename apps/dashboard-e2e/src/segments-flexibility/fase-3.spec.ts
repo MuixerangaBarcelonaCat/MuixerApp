@@ -38,13 +38,12 @@ test.describe('Segments flexibility · Phase 3 (zero-conflict regression)', () =
     // No conflict style in the canvas or the tronc-view with production data.
     await expect(page.locator('.tronc-node.conflict')).toHaveCount(0);
 
-    // Switch to the Troncs tab (tronc-view) and re-check, if the tab exists.
-    const troncsTab = page.getByRole('tab', { name: /troncs/i });
-    if (await troncsTab.count()) {
-      await troncsTab.first().click();
-      await page.waitForLoadState('networkidle').catch(() => {});
-      await expect(page.locator('.tronc-node.conflict')).toHaveCount(0);
-    }
+    // Switch to the Troncs tab (tronc-view) and re-check.
+    const troncsTab = page.getByRole('tab', { name: /troncs/i }).first();
+    await expect(troncsTab).toBeVisible();
+    await troncsTab.click();
+    await page.waitForLoadState('networkidle').catch(() => {});
+    await expect(page.locator('.tronc-node.conflict')).toHaveCount(0);
 
     await page.screenshot({
       path: testInfo.outputPath('phase3-workshop-zero-conflict.png'),
@@ -61,9 +60,8 @@ test.describe('Segments flexibility · Phase 3 (zero-conflict regression)', () =
 
     // The people pill carries the new dotació-per-àrea tooltip (…al tronc · …a la pinya).
     const peoplePill = page.locator('span.badge:has(lucide-icon)').filter({ hasText: /total/ }).first();
-    if (await peoplePill.count()) {
-      await expect(peoplePill).toHaveAttribute('title', /al tronc|a la pinya/);
-    }
+    await expect(peoplePill).toBeVisible();
+    await expect(peoplePill).toHaveAttribute('title', /al tronc|a la pinya/);
 
     // No conflict warning pill in production (zero conflicts).
     await expect(page.getByText(/\d+ conflictes?/)).toHaveCount(0);

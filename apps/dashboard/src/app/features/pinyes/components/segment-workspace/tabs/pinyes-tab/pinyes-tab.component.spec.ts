@@ -223,7 +223,7 @@ describe('PinyesTabComponent', () => {
         .fn()
         .mockReturnValue(of({ locked: opts.locked ?? false, lockDate: null, lockDays: 3 })),
       assign: vi.fn().mockReturnValue(of(makeAssignment(INST_A, 'n1'))),
-      unassign: vi.fn().mockReturnValue(of(null)),
+      unassign: vi.fn().mockReturnValue(of({})),
       swap: vi.fn(),
       resetSnapshot: vi.fn(),
     };

@@ -80,7 +80,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 
 <!-- BEGIN:AUTO — generat per scripts/generate-data-model.mjs, no editar a mà -->
 
-> Generat el 2026-08-04 des de les entitats TypeORM amb `pnpm run docs:model`.
+> Generat el 2026-08-12 des de les entitats TypeORM amb `pnpm run docs:model`.
 > **19 entitats.** No editar a mà: canvia l'entitat i torna a executar l'script.
 
 ### Resum
@@ -111,6 +111,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 
 | Enum | Valors |
 |------|--------|
+| `AssignmentArea` | `TRONC` · `PINYA` · `DIRECTION` |
 | `AttendanceStatus` | `PENDENT` · `ANIRE` · `NO_VAIG` · `ASSISTIT` |
 | `AuditAction` | `CONSENT_ACCEPTED` · `SENSITIVE_DATA_ACCESS` · `SENSITIVE_DATA_EXPORT` |
 | `AvailabilityStatus` | `AVAILABLE` · `TEMPORARILY_UNAVAILABLE` · `LONG_TERM_UNAVAILABLE` |
@@ -123,7 +124,8 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 | `LegalDocumentType` | `PRIVACY_POLICY` · `TRANSPARENCY_CLAUSE` |
 | `NodeShape` | `ELLIPSE` · `RECTANGLE` · `ARROW` · `CIRCLE` |
 | `OnboardingStatus` | `COMPLETED` · `IN_PROGRESS` · `LOST` · `NOT_APPLICABLE` |
-| `SegmentMoveConflictResolution` | `KEEP_TARGET` · `KEEP_MOVED` |
+| `SegmentConflictKind` | `TRONC_TRONC` · `TRONC_PINYA` · `PINYA_PINYA` |
+| `SegmentMoveConflictResolution` | `KEEP_TARGET` · `KEEP_MOVED` · `KEEP_BOTH` |
 | `UserRole` | `ADMIN` · `TECHNICAL` · `MEMBER` |
 
 ### `attendances` — `Attendance`
@@ -365,7 +367,7 @@ Definició: [`apps/api/src/modules/legal/legal-document.entity.ts`](../apps/api/
 
 Definició: [`apps/api/src/modules/node-assignment/entities/node-assignment.entity.ts`](../apps/api/src/modules/node-assignment/entities/node-assignment.entity.ts)
 
-**Unique:** `figureInstance + instanceNode` · `figureInstance + person` · `segment + person`
+**Unique:** `figureInstance + instanceNode`
 
 | Camp | Tipus DB | Tipus TS | Nullable | Notes |
 |------|----------|----------|----------|-------|

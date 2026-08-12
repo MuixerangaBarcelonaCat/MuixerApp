@@ -1,5 +1,5 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { FigureZone } from '@muixer/shared';
+import { FigureZone, isNodeVisibleByCordons } from '@muixer/shared';
 import { AssignmentStateService } from './assignment-state.service';
 import { EventSegmentService } from './event-segment.service';
 import { SegmentDistributionService } from './segment-distribution.service';
@@ -331,30 +331,6 @@ export class SegmentWorkspaceStateService {
   }
 
   /**
-   * Client-side equivalent of the server's `computeFreedPinyaNodeIds` (D11), used because
-   * `unassign`/`move` don't return `impact` yet (Fase 3 deviation, closes in Fase 5). Second
-   * implementation of the same rule — to retire once the backend covers those two paths.
-   */
-  computeFreedPinyaNodeIds(instanceId: string): string[] {
-    const instance = this.instances().find((i) => i.instanceId === instanceId);
-    if (!instance) return [];
-    const assignedNodeIds = new Set(
-      this.state
-        .assignments()
-        .filter((a) => a.figureInstanceId === instanceId)
-        .map((a) => a.node.id),
-    );
-    return instance.nodes
-      .filter((n) => n.zone === FigureZone.PINYA && !assignedNodeIds.has(n.id))
-      .map((n) => n.id);
-  }
-
-  /** Derives and records freed pinya nodes for `instanceId` after a TRONC/BASE unassign/move. */
-  noteFreedPinyaNodesFromUnassign(instanceId: string): void {
-    this.reviewItems.set({ freedPinyaNodeIds: this.computeFreedPinyaNodeIds(instanceId) });
-  }
-
-  /**
    * Re-fetches segment instance fields (label, figureMode, numberOfCordons,
    * snapshotted, assignedCount) and distribution positions, merging them into
    * the already-loaded instances. Call on tab activation so a figure edited in
@@ -413,7 +389,11 @@ export class SegmentWorkspaceStateService {
             const totalCount = resp.data.filter(
               (n) =>
                 n.zone !== FigureZone.DECORATION &&
-                this.isNodeVisibleByCordons(n, i.numberOfCordons),
+                isNodeVisibleByCordons(n, {
+                  figureMode: i.figureMode,
+                  numberOfCordons: i.numberOfCordons,
+                  cordonsObertsEnabled: i.cordonsObertsEnabled,
+                }),
             ).length;
             const snapshotted = i.snapshotted || resp.data.some((n) => n.isSnapshotted);
             return { ...i, nodes: resp.data, totalCount, snapshotted };
@@ -488,17 +468,6 @@ export class SegmentWorkspaceStateService {
         (!hideBase && n.zone === FigureZone.BASE) ||
         n.zone === FigureZone.DECORATION,
     );
-  }
-
-  private isNodeVisibleByCordons(
-    node: { renglaId?: string | null; renglaPosition?: number | null; positionType?: string | null },
-    numberOfCordons: number | null,
-  ): boolean {
-    if (numberOfCordons === null) return true;
-    if (node.positionType === 'cordo-obert') return true;
-    if (!node.renglaId) return true;
-    if (node.renglaPosition === null || node.renglaPosition === undefined) return true;
-    return node.renglaPosition <= numberOfCordons;
   }
 
   private computeInstanceLabel(base: string, figureMode: string): string {

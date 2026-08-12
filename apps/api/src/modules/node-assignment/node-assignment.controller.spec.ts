@@ -124,11 +124,18 @@ describe('NodeAssignmentController', () => {
   });
 
   describe('unassign', () => {
-    it('delegates to service and returns void (204)', async () => {
-      (mockAssignmentService.unassign as jest.Mock).mockResolvedValue(undefined);
+    it('delegates to service and returns the result (impact when the node was TRONC/BASE)', async () => {
+      const expected = { impact: { newConflicts: [], freedPinyaNodeIds: ['pinya-empty'] } };
+      (mockAssignmentService.unassign as jest.Mock).mockResolvedValue(expected);
 
-      await expect(controller.unassign(INSTANCE_ID, ASSIGNMENT_ID)).resolves.toBeUndefined();
+      await expect(controller.unassign(INSTANCE_ID, ASSIGNMENT_ID)).resolves.toEqual(expected);
       expect(mockAssignmentService.unassign).toHaveBeenCalledWith(INSTANCE_ID, ASSIGNMENT_ID);
+    });
+
+    it('delegates to service and returns an empty object when the node was PINYA', async () => {
+      (mockAssignmentService.unassign as jest.Mock).mockResolvedValue({});
+
+      await expect(controller.unassign(INSTANCE_ID, ASSIGNMENT_ID)).resolves.toEqual({});
     });
   });
 

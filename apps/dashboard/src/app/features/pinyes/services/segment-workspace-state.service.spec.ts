@@ -430,38 +430,6 @@ describe('SegmentWorkspaceStateService', () => {
 
       expect(service.reviewItems()).toEqual({ freedPinyaNodeIds: ['n1', 'n2'] });
     });
-
-    it('computeFreedPinyaNodeIds derives PINYA nodes with no assignment client-side (unassign/move deviation)', () => {
-      configure({
-        segment: makeSegment([makeInstance('inst-a')]),
-        nodesByInstance: {
-          'inst-a': [
-            makeNode('n1', 'PINYA'),
-            makeNode('n2', 'PINYA'),
-            makeNode('t1', 'TRONC'),
-          ],
-        },
-        assignmentsByInstance: {
-          'inst-a': [makeAssignment('as-1', 'inst-a', 'n1')],
-        },
-      });
-
-      service.load(EVENT_ID, SEGMENT_ID);
-
-      expect(service.computeFreedPinyaNodeIds('inst-a')).toEqual(['n2']);
-    });
-
-    it('noteFreedPinyaNodesFromUnassign records the derived ids into reviewItems', () => {
-      configure({
-        segment: makeSegment([makeInstance('inst-a')]),
-        nodesByInstance: { 'inst-a': [makeNode('n1', 'PINYA')] },
-      });
-
-      service.load(EVENT_ID, SEGMENT_ID);
-      service.noteFreedPinyaNodesFromUnassign('inst-a');
-
-      expect(service.reviewItems()).toEqual({ freedPinyaNodeIds: ['n1'] });
-    });
   });
 
   describe('pinyaSlots', () => {

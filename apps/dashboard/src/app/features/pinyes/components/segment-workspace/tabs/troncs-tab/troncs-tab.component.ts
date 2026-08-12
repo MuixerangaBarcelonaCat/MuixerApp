@@ -389,16 +389,15 @@ export class TroncsTabComponent implements OnInit {
     const instanceId = assignment.figureInstanceId;
     const nodeId = assignment.node.id;
     const personId = assignment.person.id;
-    const touchesTronc = assignment.node.zone === FigureZone.TRONC || assignment.node.zone === FigureZone.BASE;
 
     const snapshot = [...this.state.assignments()];
     this.state.assignments.update((list) => list.filter((a) => a.id !== assignment.id));
     this.clearSelection();
 
     this.assignmentService.unassign(instanceId, assignment.id).subscribe({
-      next: () => {
+      next: (res) => {
         this.state.refreshPersonList();
-        if (touchesTronc) this.ws.noteFreedPinyaNodesFromUnassign(instanceId);
+        if (res.impact) this.ws.noteTroncImpact(res.impact);
         // Fase 5: removing one of several duplicate placements can resolve a conflict —
         // keep the banner live.
         this.ws.reloadConflicts();
