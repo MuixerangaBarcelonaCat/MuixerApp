@@ -7,6 +7,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
+import { RouterLink } from '@angular/router';
 import { AttendanceStatus, MeEvent } from '@muixer/shared';
 import { LucideAngularModule, User } from 'lucide-angular';
 import { MobileHeaderComponent } from '../../shared/components/mobile-header/mobile-header.component';
@@ -15,6 +16,7 @@ import { EmptyStateComponent } from '../../shared/components/empty-state/empty-s
 import { EventCardComponent } from '../events/components/event-card/event-card.component';
 import { PullToRefreshComponent } from '../../shared/components/pull-to-refresh/pull-to-refresh.component';
 import { AuthService } from '../../core/auth/services/auth.service';
+import { DependentsService } from '../../core/services/dependents.service';
 import { HomeService } from './services/home.service';
 
 @Component({
@@ -22,6 +24,7 @@ import { HomeService } from './services/home.service';
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    RouterLink,
     LucideAngularModule,
     MobileHeaderComponent,
     SkeletonCardComponent,
@@ -34,6 +37,7 @@ import { HomeService } from './services/home.service';
 export class HomeComponent {
   private readonly auth = inject(AuthService);
   private readonly homeService = inject(HomeService);
+  private readonly dependentsService = inject(DependentsService);
 
   protected readonly pullToRefresh = viewChild<PullToRefreshComponent>('pullRef');
   protected readonly UserIcon = User;
@@ -66,6 +70,12 @@ export class HomeComponent {
   protected readonly hasEvents = computed(
     () => this.nextRehearsal() !== null || this.nextPerformance() !== null,
   );
+
+  protected readonly pendingDependentsResource = rxResource({
+    stream: () => this.dependentsService.getPending(),
+  });
+
+  protected readonly pendingDependents = computed(() => this.pendingDependentsResource.value() ?? []);
 
   constructor() {
     effect(() => {

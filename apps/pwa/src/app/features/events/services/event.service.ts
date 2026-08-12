@@ -40,10 +40,11 @@ export class EventService {
   updateAttendance(
     eventId: string,
     status: AttendanceStatus,
+    personId?: string,
   ): Observable<AttendanceResponse> {
     return this.http.put<AttendanceResponse>(
       `${this.baseUrl}/${eventId}/attendance`,
-      { status },
+      personId ? { status, personId } : { status },
     );
   }
 }

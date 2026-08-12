@@ -447,6 +447,22 @@ describe('UserListComponent', () => {
         component.tableRowActions().some((action) => action.label === 'Assignar rol'),
       ).toBe(false);
     });
+
+    it('includes MEMBER among the assignable roles, so admin/técnica status can be revoked', () => {
+      expect(component.assignableRoles()).toContain(UserRole.MEMBER);
+    });
+
+    it('allows demoting a TECHNICAL user back to MEMBER', () => {
+      const user = mockUser({ role: UserRole.TECHNICAL });
+      userService.grantRole.mockReturnValue(of(mockUser({ role: UserRole.MEMBER })));
+      component.users.set([user]);
+
+      component.openGrantRole(user);
+      component.grantRoleSelected.set(UserRole.MEMBER);
+      component.confirmGrantRole();
+
+      expect(userService.grantRole).toHaveBeenCalledWith('u1', UserRole.MEMBER);
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -580,6 +596,16 @@ describe('UserListComponent', () => {
 
     it('formats role with label', () => {
       expect(component.getCellValue(user, 'role')).toBe('Membre');
+    });
+
+    it('shows the real email for an active user', () => {
+      expect(component.getCellValue(mockUser({ isActive: true, email: 'a@b.cat' }), 'email')).toBe('a@b.cat');
+    });
+
+    it('shows "Pendent d\'activar" instead of a null email for an inactive user', () => {
+      expect(
+        component.getCellValue(mockUser({ isActive: false, email: null }), 'email'),
+      ).toBe("Pendent d'activar");
     });
 
     it('formats null inviteExpiresAt as —', () => {

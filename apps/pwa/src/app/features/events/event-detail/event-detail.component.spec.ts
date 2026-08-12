@@ -1,8 +1,10 @@
 import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { ApplicationRef } from '@angular/core';
+import { By } from '@angular/platform-browser';
 import { of, throwError } from 'rxjs';
-import { EventType, MeEventDetail } from '@muixer/shared';
+import { AttendanceStatus, DelegateType, EventType, MeEventDetail } from '@muixer/shared';
 import { EventDetailComponent } from './event-detail.component';
+import { AttendanceButtonComponent } from '../components/attendance-button/attendance-button.component';
 import { EventService } from '../services/event.service';
 import { ToastService } from '../../../shared/services/toast.service';
 import { provideRouter } from '@angular/router';
@@ -20,6 +22,9 @@ const MOCK_DETAIL: MeEventDetail = {
   information: 'Portar mocador',
   attendanceSummary: { confirmed: 5, declined: 2, pending: 3, attended: 0, lateCancel: 0, children: 1, childrenAttended: 0, total: 10 },
   myAttendance: null,
+  managedAttendances: [
+    { personId: 'p-1', displayName: 'Marta Puig', isSelf: true, delegateType: null, attendance: null },
+  ],
 };
 
 @Component({
@@ -95,6 +100,41 @@ describe('EventDetailComponent', () => {
       const link = fixture.nativeElement.querySelector('a.link') as HTMLElement;
       expect(link.className).toContain('min-h-6');
       expect(link.className).toContain('inline-flex');
+    });
+  });
+
+  describe('managed attendances', () => {
+    it('should render a single attendance button without a name label for one managed person', async () => {
+      fixture = await setup();
+      const buttons = fixture.debugElement.queryAll(By.directive(AttendanceButtonComponent));
+      expect(buttons.length).toBe(1);
+      expect(fixture.nativeElement.querySelector('.managed-person-name')).toBeNull();
+    });
+
+    it('should render one button per managed person, self first then delegates', async () => {
+      const detail: MeEventDetail = {
+        ...MOCK_DETAIL,
+        managedAttendances: [
+          { personId: 'p-1', displayName: 'Marta Puig', isSelf: true, delegateType: null, attendance: null },
+          {
+            personId: 'p-2',
+            displayName: 'Joan Puig',
+            isSelf: false,
+            delegateType: DelegateType.PARENT,
+            attendance: { id: 'att-2', status: AttendanceStatus.ANIRE, respondedAt: '2026-07-01T10:00:00Z' },
+          },
+        ],
+      };
+      fixture = await setup(of(detail));
+
+      const buttons = fixture.debugElement.queryAll(By.directive(AttendanceButtonComponent));
+      expect(buttons.length).toBe(2);
+      expect(buttons.map((b) => b.componentInstance.personId())).toEqual(['p-1', 'p-2']);
+      expect(buttons[1].componentInstance.status()).toBe(AttendanceStatus.ANIRE);
+
+      const names = fixture.nativeElement.textContent;
+      expect(names).toContain('Marta Puig');
+      expect(names).toContain('Joan Puig');
     });
   });
 });

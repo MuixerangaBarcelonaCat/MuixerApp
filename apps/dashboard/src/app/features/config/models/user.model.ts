@@ -10,7 +10,7 @@ export interface UserPerson {
 
 export interface UserDto {
   id: string;
-  email: string;
+  email: string | null;
   role: UserRole;
   isActive: boolean;
   inviteExpiresAt: string | null;

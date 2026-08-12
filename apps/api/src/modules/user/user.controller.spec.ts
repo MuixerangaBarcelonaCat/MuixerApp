@@ -6,7 +6,7 @@ import { UserService } from './user.service';
 
 const mockUserService = () => ({
   createUser: jest.fn(),
-  createWithInvite: jest.fn(),
+  createOrRefreshInviteLink: jest.fn(),
   findAll: jest.fn(),
   grantRole: jest.fn(),
   deactivateUser: jest.fn(),
@@ -37,14 +37,15 @@ describe('UserController', () => {
     expect(result).toEqual({ id: 'user-1' });
   });
 
-  it('createWithInvite delegates to UserService', async () => {
-    service.createWithInvite.mockResolvedValue({ id: 'user-2' });
-    const dto = { personId: 'person-1', email: 'a@b.cat' };
+  it('createInviteLink delegates to UserService with the personId', async () => {
+    const inviteResponse = { inviteUrl: 'https://app.example.com/activate?token=abc', expiresAt: '2026-01-01T00:00:00.000Z' };
+    service.createOrRefreshInviteLink.mockResolvedValue(inviteResponse);
+    const dto = { personId: 'person-1' };
 
-    const result = await controller.createWithInvite(dto as never);
+    const result = await controller.createInviteLink(dto as never);
 
-    expect(service.createWithInvite).toHaveBeenCalledWith(dto);
-    expect(result).toEqual({ id: 'user-2' });
+    expect(service.createOrRefreshInviteLink).toHaveBeenCalledWith('person-1');
+    expect(result).toEqual(inviteResponse);
   });
 
   it('findAll delegates to UserService with the filters', async () => {

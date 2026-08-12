@@ -22,7 +22,7 @@ import { formatEventDate } from '../../../../shared/pipes/format-event-date.pipe
 })
 export class EventCardComponent {
   readonly event = input.required<MeEvent>();
-  readonly attendanceChanged = output<{ eventId: string; status: AttendanceStatus }>();
+  readonly attendanceChanged = output<{ eventId: string; personId: string; status: AttendanceStatus }>();
 
   protected readonly MapPin = MapPin;
   protected readonly Clock = Clock;
@@ -60,7 +60,7 @@ export class EventCardComponent {
     this.router.navigate(['/events', this.event().id]);
   }
 
-  onAttendanceChanged(status: AttendanceStatus): void {
-    this.attendanceChanged.emit({ eventId: this.event().id, status });
+  onAttendanceChanged(personId: string, status: AttendanceStatus): void {
+    this.attendanceChanged.emit({ eventId: this.event().id, personId, status });
   }
 }

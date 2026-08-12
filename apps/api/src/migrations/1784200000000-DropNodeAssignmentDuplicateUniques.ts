@@ -6,15 +6,15 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * prepared. Drops UQ_node_assignments_instance_person and
  * UQ_node_assignments_segment_person; keeps UQ_node_assignments_instance_node
  * (a node can still only be occupied once). The plain indexes added by
- * AddNodeAssignmentConflictIndexes1783700000000 remain as the only support for
+ * AddNodeAssignmentConflictIndexes1784100000000 remain as the only support for
  * the conflict/dotació queries.
  *
  * down() must delete duplicate rows (keeping the oldest by createdAt) before
  * the unique constraints can be recreated — any duplicates created while this
  * migration was up would otherwise make the down-migration fail outright.
  */
-export class DropNodeAssignmentDuplicateUniques1783800000000 implements MigrationInterface {
-  name = 'DropNodeAssignmentDuplicateUniques1783800000000';
+export class DropNodeAssignmentDuplicateUniques1784200000000 implements MigrationInterface {
+  name = 'DropNodeAssignmentDuplicateUniques1784200000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(

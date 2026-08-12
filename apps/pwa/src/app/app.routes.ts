@@ -14,6 +14,22 @@ export const appRoutes: Routes = [
     canActivate: [alreadyAuthGuard],
   },
   {
+    path: 'forgot-password',
+    loadComponent: () =>
+      import('./features/auth/forgot-password/forgot-password.component').then(
+        (m) => m.ForgotPasswordComponent,
+      ),
+    canActivate: [alreadyAuthGuard],
+  },
+  {
+    path: 'activate',
+    loadComponent: () =>
+      import('./features/auth/activate/activate.component').then(
+        (m) => m.ActivateComponent,
+      ),
+    canActivate: [alreadyAuthGuard],
+  },
+  {
     path: '',
     loadComponent: () =>
       import('./core/layout/app-shell/app-shell.component').then(
@@ -55,6 +71,14 @@ export const appRoutes: Routes = [
         loadComponent: () =>
           import('./features/profile/profile.component').then(
             (m) => m.ProfileComponent,
+          ),
+      },
+      {
+        path: 'pending-dependents',
+        title: 'Xicalla pendent',
+        loadComponent: () =>
+          import('./features/dependents/pending-dependents/pending-dependents.component').then(
+            (m) => m.PendingDependentsComponent,
           ),
       },
     ],

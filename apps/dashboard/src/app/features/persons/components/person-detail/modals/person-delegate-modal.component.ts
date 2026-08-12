@@ -1,6 +1,7 @@
 import {
   Component,
   ChangeDetectionStrategy,
+  computed,
   inject,
   signal,
   input,
@@ -11,7 +12,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, takeUntil } from 'rxjs/operators';
-import { DelegateType } from '@muixer/shared';
+import { DelegateType, UserRole } from '@muixer/shared';
 import { UserService } from '../../../../config/services/user.service';
 import { UserDto } from '../../../../config/models/user.model';
 import {
@@ -34,6 +35,10 @@ export class PersonDelegateModalComponent implements OnInit, OnDestroy {
 
   personId = input.required<string>();
   existingDelegateUserIds = input<string[]>([]);
+  /** Whether this delegate is being created as the person's primary manager. */
+  isPrimary = input<boolean>(false);
+  /** Restricts the type selector to PARENT/GUARDIAN when set together with isPrimary (Phase 3's rule). */
+  isXicalla = input<boolean>(false);
 
   closed = output<void>();
   saved = output<PersonDelegateItem>();
@@ -46,11 +51,29 @@ export class PersonDelegateModalComponent implements OnInit, OnDestroy {
   saving = signal(false);
   error = signal<string | null>(null);
 
-  readonly delegateTypes: { value: DelegateType; label: string }[] = [
+  private readonly roleLabels: Partial<Record<UserRole, string>> = {
+    [UserRole.ADMIN]: 'Administrador',
+    [UserRole.TECHNICAL]: 'Tècnica',
+  };
+
+  roleLabel(role: UserRole): string | null {
+    return this.roleLabels[role] ?? null;
+  }
+
+  private readonly allDelegateTypes: { value: DelegateType; label: string }[] = [
     { value: DelegateType.PARENT, label: 'Pare/Mare' },
     { value: DelegateType.PARTNER, label: 'Parella' },
     { value: DelegateType.GUARDIAN, label: 'Tutor/a' },
+    { value: DelegateType.OTHER, label: 'Altres' },
   ];
+
+  readonly delegateTypes = computed(() =>
+    this.isPrimary() && this.isXicalla()
+      ? this.allDelegateTypes.filter(
+          (t) => t.value === DelegateType.PARENT || t.value === DelegateType.GUARDIAN,
+        )
+      : this.allDelegateTypes,
+  );
 
   ngOnInit(): void {
     this.search$
@@ -91,6 +114,7 @@ export class PersonDelegateModalComponent implements OnInit, OnDestroy {
       .createDelegate(this.personId(), {
         userId: user.id,
         delegateType: this.selectedType(),
+        isPrimary: this.isPrimary(),
       })
       .subscribe({
         next: (delegate) => {
@@ -111,7 +135,6 @@ export class PersonDelegateModalComponent implements OnInit, OnDestroy {
     this.userService
       .getAll({
         search: this.searchTerm() || undefined,
-        isActive: true,
         limit: 50,
       })
       .subscribe({

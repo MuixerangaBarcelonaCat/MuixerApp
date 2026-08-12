@@ -12,8 +12,8 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * indexes remain as the only support for the conflict/dotació queries. Adding them here
  * (harmless, additive) keeps the risky Fase 5 release minimal.
  */
-export class AddNodeAssignmentConflictIndexes1783700000000 implements MigrationInterface {
-  name = 'AddNodeAssignmentConflictIndexes1783700000000';
+export class AddNodeAssignmentConflictIndexes1784100000000 implements MigrationInterface {
+  name = 'AddNodeAssignmentConflictIndexes1784100000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(

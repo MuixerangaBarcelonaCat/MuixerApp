@@ -1,11 +1,14 @@
 import {
   Controller,
   Get,
+  Post,
   Put,
   Param,
   Query,
   Body,
   ParseUUIDPipe,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import {
@@ -14,6 +17,7 @@ import {
   MeEvent,
   MeEventDetail,
   AttendanceResponse,
+  PendingDependent,
   UserRole,
 } from '@muixer/shared';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -21,6 +25,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { MeService } from './me.service';
 import { MeEventFilterDto } from './dto/me-event-filter.dto';
 import { UpdateMyAttendanceDto } from './dto/update-my-attendance.dto';
+import { DependentRegistrationDto } from './dto/dependent-registration.dto';
 
 @ApiTags('me')
 @ApiBearerAuth()
@@ -55,5 +60,21 @@ export class MeController {
     @Body() dto: UpdateMyAttendanceDto,
   ): Promise<AttendanceResponse> {
     return this.meService.upsertAttendance(user, id, dto);
+  }
+
+  @Get('pending-dependents')
+  @ApiOperation({ summary: 'List provisional Xicalla the caller is the primary delegate for' })
+  getPendingDependents(@CurrentUser() user: JwtPayload): Promise<PendingDependent[]> {
+    return this.meService.getPendingDependents(user.sub);
+  }
+
+  @Post('pending-dependents')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Complete registration data for one pending dependent' })
+  completePendingDependent(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: DependentRegistrationDto,
+  ): Promise<void> {
+    return this.meService.completePendingDependent(user.sub, dto);
   }
 }

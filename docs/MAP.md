@@ -107,40 +107,41 @@ graph TD
 
 <!-- BEGIN:AUTO — generat per scripts/generate-doc-map.mjs, no editar a mà -->
 
-> Generat el 2026-08-05 amb `pnpm run docs:map`.
+> Generat el 2026-08-12 amb `pnpm run docs:map`.
 
 ### Mòduls de l'API (`apps/api/src/modules`)
 
 | Element | Fitxers | Línies | Docs |
 |---------|--------:|-------:|------|
 | [`audit`](../apps/api/src/modules/audit) | 3 | 99 | [[GDPR_COMPLIANCE]] |
-| [`auth`](../apps/api/src/modules/auth) | 22 | 1052 | [[AUTH_FLOW]] · [[SSE_AUTH]] |
+| [`auth`](../apps/api/src/modules/auth) | 25 | 1289 | [[AUTH_FLOW]] · [[SSE_AUTH]] |
 | [`composition`](../apps/api/src/modules/composition) | 8 | 630 | [[PINYES_MODULE]] |
-| [`database`](../apps/api/src/modules/database) | 5 | 211 | [[DATA_MODEL]] |
+| [`database`](../apps/api/src/modules/database) | 5 | 213 | [[DATA_MODEL]] |
 | [`event`](../apps/api/src/modules/event) | 13 | 1190 | [[DATA_MODEL]] |
 | [`event-segment`](../apps/api/src/modules/event-segment) | 19 | 1850 | [[PINYES_MODULE]] |
 | [`figure`](../apps/api/src/modules/figure) | 12 | 1308 | [[PINYES_MODULE]] · [[DATA_MODEL]] |
 | [`legal`](../apps/api/src/modules/legal) | 5 | 222 | [[GDPR_COMPLIANCE]] |
-| [`me`](../apps/api/src/modules/me) | 5 | 357 | — |
+| [`mail`](../apps/api/src/modules/mail) | 6 | 146 | — |
+| [`me`](../apps/api/src/modules/me) | 6 | 474 | — |
 | [`node-assignment`](../apps/api/src/modules/node-assignment) | 14 | 2752 | [[PINYES_MODULE]] |
-| [`person`](../apps/api/src/modules/person) | 10 | 992 | [[DATA_MODEL]] |
-| [`person-delegate`](../apps/api/src/modules/person-delegate) | 7 | 337 | [[DATA_MODEL]] |
+| [`person`](../apps/api/src/modules/person) | 11 | 1015 | [[DATA_MODEL]] |
+| [`person-delegate`](../apps/api/src/modules/person-delegate) | 7 | 480 | [[DATA_MODEL]] |
 | [`season`](../apps/api/src/modules/season) | 6 | 388 | [[DATA_MODEL]] |
-| [`sync`](../apps/api/src/modules/sync) | 10 | 1850 | [[SYNC_ARCHITECTURE]] · [[API_APPSISTENCIA]] |
+| [`sync`](../apps/api/src/modules/sync) | 10 | 1874 | [[SYNC_ARCHITECTURE]] · [[API_APPSISTENCIA]] |
 | [`tag`](../apps/api/src/modules/tag) | 6 | 225 | [[DATA_MODEL]] |
-| [`user`](../apps/api/src/modules/user) | 11 | 857 | [[DATA_MODEL]] |
+| [`user`](../apps/api/src/modules/user) | 12 | 843 | [[DATA_MODEL]] |
 
-Migracions TypeORM: **34** a [`apps/api/src/migrations`](../apps/api/src/migrations).
+Migracions TypeORM: **38** a [`apps/api/src/migrations`](../apps/api/src/migrations).
 
 ### Features del dashboard (`apps/dashboard/src/app/features`)
 
 | Element | Fitxers | Línies | Docs |
 |---------|--------:|-------:|------|
-| [`auth`](../apps/dashboard/src/app/features/auth) | 1 | 49 | [[AUTH_FLOW]] · [[SSE_AUTH]] |
-| [`config`](../apps/dashboard/src/app/features/config) | 13 | 1864 | [[DASHBOARD_UI]] |
+| [`auth`](../apps/dashboard/src/app/features/auth) | 3 | 173 | [[AUTH_FLOW]] · [[SSE_AUTH]] |
+| [`config`](../apps/dashboard/src/app/features/config) | 13 | 1853 | [[DASHBOARD_UI]] |
 | [`events`](../apps/dashboard/src/app/features/events) | 18 | 3506 | [[DASHBOARD_UI]] |
 | [`home`](../apps/dashboard/src/app/features/home) | 2 | 119 | [[DASHBOARD_UI]] |
-| [`persons`](../apps/dashboard/src/app/features/persons) | 11 | 1539 | [[DASHBOARD_UI]] |
+| [`persons`](../apps/dashboard/src/app/features/persons) | 9 | 1421 | [[DASHBOARD_UI]] |
 | [`pinyes`](../apps/dashboard/src/app/features/pinyes) | 64 | 14664 | [[PINYES_MODULE]] · [[DASHBOARD_UI]] |
 | [`sync`](../apps/dashboard/src/app/features/sync) | 2 | 102 | [[SYNC_ARCHITECTURE]] · [[API_APPSISTENCIA]] |
 
@@ -148,9 +149,10 @@ Migracions TypeORM: **34** a [`apps/api/src/migrations`](../apps/api/src/migrati
 
 | Element | Fitxers | Línies | Docs |
 |---------|--------:|-------:|------|
-| [`auth`](../apps/pwa/src/app/features/auth) | 1 | 61 | [[AUTH_FLOW]] · [[SSE_AUTH]] |
-| [`events`](../apps/pwa/src/app/features/events) | 6 | 834 | [[DASHBOARD_UI]] |
-| [`home`](../apps/pwa/src/app/features/home) | 2 | 129 | [[DASHBOARD_UI]] |
+| [`auth`](../apps/pwa/src/app/features/auth) | 3 | 224 | [[AUTH_FLOW]] · [[SSE_AUTH]] |
+| [`dependents`](../apps/pwa/src/app/features/dependents) | 1 | 105 | — |
+| [`events`](../apps/pwa/src/app/features/events) | 6 | 843 | [[DASHBOARD_UI]] |
+| [`home`](../apps/pwa/src/app/features/home) | 2 | 139 | [[DASHBOARD_UI]] |
 | [`profile`](../apps/pwa/src/app/features/profile) | 1 | 21 | — |
 
 ### Codi compartit (`libs/shared/src`)
@@ -158,8 +160,8 @@ Migracions TypeORM: **34** a [`apps/api/src/migrations`](../apps/api/src/migrati
 | Element | Fitxers | Línies | Docs |
 |---------|--------:|-------:|------|
 | [`constants`](../libs/shared/src/constants) | 1 | 81 | — |
-| [`enums`](../libs/shared/src/enums) | 14 | 108 | — |
-| [`interfaces`](../libs/shared/src/interfaces) | 14 | 573 | — |
+| [`enums`](../libs/shared/src/enums) | 14 | 109 | — |
+| [`interfaces`](../libs/shared/src/interfaces) | 17 | 654 | — |
 
 ### Fitxers més grans (candidats a dividir)
 
@@ -174,7 +176,7 @@ Migracions TypeORM: **34** a [`apps/api/src/migrations`](../apps/api/src/migrati
 | [`apps/dashboard/src/app/features/events/components/segment-manager/segment-manager.component.ts`](../apps/dashboard/src/app/features/events/components/segment-manager/segment-manager.component.ts) | 757 |
 | [`apps/api/src/modules/figure/figure-template.service.ts`](../apps/api/src/modules/figure/figure-template.service.ts) | 745 |
 | [`apps/dashboard/src/app/features/pinyes/components/tronc-view/tronc-view.component.ts`](../apps/dashboard/src/app/features/pinyes/components/tronc-view/tronc-view.component.ts) | 728 |
-| [`apps/dashboard/src/app/features/events/components/segment-manager/segment-manager.component.html`](../apps/dashboard/src/app/features/events/components/segment-manager/segment-manager.component.html) | 653 |
+| [`apps/dashboard/src/app/features/persons/components/person-detail/person-detail.component.html`](../apps/dashboard/src/app/features/persons/components/person-detail/person-detail.component.html) | 679 |
 
 <!-- END:AUTO -->
 

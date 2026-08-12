@@ -1,8 +1,8 @@
 import { IsString, MinLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
-export class AcceptInviteDto {
-  @ApiProperty({ description: 'Token d\'invitació rebut per correu electrònic' })
+export class ResetPasswordDto {
+  @ApiProperty({ description: 'Token de recuperació rebut per correu electrònic' })
   @IsString()
   token: string;
 

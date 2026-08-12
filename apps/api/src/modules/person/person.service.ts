@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { EntityManager, In, Repository } from 'typeorm';
 import { plainToInstance } from 'class-transformer';
 import { Person } from './person.entity';
 import { CreatePersonDto } from './dto/create-person.dto';
@@ -8,7 +8,7 @@ import { UpdatePersonDto } from './dto/update-person.dto';
 import { PersonFilterDto } from './dto/person-filter.dto';
 import { PersonResponseDto } from './dto/person-response.dto';
 import { Tag } from '../tag/tag.entity';
-import { User } from '../user/user.entity';
+import { PersonDelegateService } from '../person-delegate/person-delegate.service';
 import {
   PERSON_SORT_COLUMN_MAP,
   type PersonSortByField,
@@ -25,8 +25,7 @@ export class PersonService {
     private readonly personRepository: Repository<Person>,
     @InjectRepository(Tag)
     private readonly positionRepository: Repository<Tag>,
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
+    private readonly personDelegateService: PersonDelegateService,
   ) {}
 
   /** Retorna una llista paginada i ordenada de persones aplicant tots els filtres disponibles. Usa `unaccent` per cerques insensibles a accents. */
@@ -55,7 +54,7 @@ export class PersonService {
       .createQueryBuilder('person')
       .leftJoinAndSelect('person.positions', 'position')
       .leftJoinAndSelect('person.mentor', 'mentor')
-      .leftJoinAndSelect('person.managedBy', 'managedBy');
+      .leftJoinAndSelect('person.user', 'user');
 
     if (search) {
       queryBuilder.andWhere(
@@ -144,7 +143,7 @@ export class PersonService {
   async findOne(id: string): Promise<PersonResponseDto> {
     const person = await this.personRepository.findOne({
       where: { id },
-      relations: ['positions', 'mentor', 'managedBy', 'managedBy.person'],
+      relations: ['positions', 'mentor', 'user'],
     });
 
     if (!person) {
@@ -220,36 +219,31 @@ export class PersonService {
    * Actualitza una persona. Gestiona les transicions d'estat provisional:
    * - Promoció (provisional→regular): valida que `name`, `firstSurname` no estiguin buits i l'àlies no tingui prefix `~`.
    * - Democió (regular→provisional): afegeix el prefix `~` a l'àlies automàticament.
+   *
+   * Accepta un `manager` opcional perquè un caller (p. ex. `AuthService.registerViaInvite`) pugui
+   * incloure aquesta escriptura dins la seva pròpia transacció — quan s'omet, usa el repositori
+   * injectat com sempre.
    */
   async update(
     id: string,
     updatePersonDto: UpdatePersonDto,
+    manager?: EntityManager,
   ): Promise<PersonResponseDto> {
-    const person = await this.personRepository.findOne({
+    const personRepository = manager
+      ? manager.getRepository(Person)
+      : this.personRepository;
+
+    const person = await personRepository.findOne({
       where: { id },
-      relations: ['positions', 'mentor', 'managedBy'],
+      relations: ['positions', 'mentor', 'user'],
     });
 
     if (!person) {
       throw new NotFoundException(`Person with ID ${id} not found`);
     }
 
-    const { positionIds, mentorId, isProvisional, managedById, ...personData } =
+    const { positionIds, mentorId, isProvisional, ...personData } =
       updatePersonDto;
-
-    if (managedById !== undefined) {
-      if (managedById) {
-        const user = await this.userRepository.findOne({
-          where: { id: managedById },
-        });
-        if (!user) {
-          throw new NotFoundException(`User with ID ${managedById} not found`);
-        }
-        person.managedBy = user;
-      } else {
-        person.managedBy = null;
-      }
-    }
 
     // Handle isProvisional transitions
     if (isProvisional !== undefined) {
@@ -274,10 +268,13 @@ export class PersonService {
             'Cal proporcionar un àlies definitiu (sense el prefix ~) per promoure una persona provisional',
           );
         }
-        if (!person.managedBy) {
-          throw new BadRequestException(
-            'Cal proporcionar un usuari per promoure una persona provisional',
-          );
+        if (!person.user) {
+          const primaryDelegate = await this.personDelegateService.getPrimary(person.id);
+          if (!primaryDelegate) {
+            throw new BadRequestException(
+              'Cal proporcionar un usuari per promoure una persona provisional',
+            );
+          }
         }
       }
 
@@ -296,13 +293,17 @@ export class PersonService {
       person.isProvisional = isProvisional;
     }
 
+    if (personData.isXicalla === true && person.isXicalla === false) {
+      await this.personDelegateService.assertPrimaryQualifiesForXicalla(person.id);
+    }
+
     if (personData.alias !== undefined && personData.alias !== person.alias) {
-      const conflict = await this.personRepository.findOne({
+      const conflict = await personRepository.findOne({
         where: { alias: personData.alias },
       });
       if (conflict && conflict.id !== person.id) {
         throw new ConflictException(
-          `Ja existeix una persona amb l'àlies "${personData.alias}".`,
+          `Ja existeix una persona amb l'àlies "${personData.alias}". Contacteu amb l'administrador per canviar-lo.`,
         );
       }
     }
@@ -319,7 +320,7 @@ export class PersonService {
 
     if (mentorId !== undefined) {
       if (mentorId) {
-        const mentor = await this.personRepository.findOne({
+        const mentor = await personRepository.findOne({
           where: { id: mentorId },
         });
         if (!mentor) {
@@ -331,7 +332,7 @@ export class PersonService {
       }
     }
 
-    const saved = await this.personRepository.save(person);
+    const saved = await personRepository.save(person);
     return plainToInstance(PersonResponseDto, saved, {
       excludeExtraneousValues: true,
     });

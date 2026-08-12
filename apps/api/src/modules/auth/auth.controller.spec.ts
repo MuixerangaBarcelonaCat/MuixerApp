@@ -14,8 +14,11 @@ const mockAuthService = () => ({
   logout: jest.fn(),
   logoutAll: jest.fn(),
   getMe: jest.fn(),
-  acceptInvite: jest.fn(),
+  registerViaInvite: jest.fn(),
+  getInviteContext: jest.fn(),
   setupUser: jest.fn(),
+  requestPasswordReset: jest.fn(),
+  resetPassword: jest.fn(),
 });
 
 const mockTokenService = () => ({
@@ -163,18 +166,32 @@ describe('AuthController', () => {
     });
   });
 
-  describe('acceptInvite', () => {
+  describe('registerViaInvite', () => {
     it('activates the account and sets the refresh cookie', async () => {
-      authService.acceptInvite.mockResolvedValue({
+      authService.registerViaInvite.mockResolvedValue({
         response: { accessToken: 'access', user: { role: UserRole.MEMBER } },
         refreshToken: 'refresh-token',
       });
       const res = mockResponse();
+      const dto = { token: 'invite-token', password: 'pw' };
 
-      const result = await controller.acceptInvite({ token: 'invite-token', password: 'pw' }, res);
+      const result = await controller.registerViaInvite(dto as never, res);
 
+      expect(authService.registerViaInvite).toHaveBeenCalledWith(dto);
       expect(result.accessToken).toBe('access');
       expect(res.cookie).toHaveBeenCalledWith('muixer_rt', 'refresh-token', expect.anything());
+    });
+  });
+
+  describe('getInviteContext', () => {
+    it('delegates to AuthService with the token', async () => {
+      const context = { person: { name: 'Joan' }, expiresAt: '2026-01-01', legalDocument: {} };
+      authService.getInviteContext.mockResolvedValue(context);
+
+      const result = await controller.getInviteContext('invite-token');
+
+      expect(authService.getInviteContext).toHaveBeenCalledWith('invite-token');
+      expect(result).toEqual(context);
     });
   });
 
@@ -232,6 +249,44 @@ describe('AuthController', () => {
 
       expect(authService.setupUser).toHaveBeenCalledWith({ email: 'a@b.cat', password: 'pw' });
       expect(result).toEqual({ id: 'new-user' });
+    });
+  });
+
+  describe('forgotPassword', () => {
+    it('delegates to the service and returns a generic message', async () => {
+      authService.requestPasswordReset.mockResolvedValue(undefined);
+
+      const result = await controller.forgotPassword({ email: 'a@b.cat' });
+
+      expect(authService.requestPasswordReset).toHaveBeenCalledWith('a@b.cat');
+      expect(result.message).toEqual(expect.any(String));
+    });
+
+    it('returns the same generic message even if the service silently no-ops for an unknown email', async () => {
+      authService.requestPasswordReset.mockResolvedValue(undefined);
+
+      const known = await controller.forgotPassword({ email: 'known@b.cat' });
+      const unknown = await controller.forgotPassword({ email: 'unknown@b.cat' });
+
+      expect(known.message).toBe(unknown.message);
+    });
+  });
+
+  describe('resetPassword', () => {
+    it('delegates to the service', async () => {
+      authService.resetPassword.mockResolvedValue(undefined);
+
+      await controller.resetPassword({ token: 'tok', password: 'newpass123' });
+
+      expect(authService.resetPassword).toHaveBeenCalledWith({ token: 'tok', password: 'newpass123' });
+    });
+
+    it('propagates UnauthorizedException from an invalid/expired token', async () => {
+      authService.resetPassword.mockRejectedValue(new UnauthorizedException());
+
+      await expect(
+        controller.resetPassword({ token: 'bad', password: 'newpass123' }),
+      ).rejects.toThrow(UnauthorizedException);
     });
   });
 });

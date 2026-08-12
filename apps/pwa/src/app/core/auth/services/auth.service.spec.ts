@@ -5,7 +5,7 @@ import {
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
-import { AuthResponse, ClientType, UserProfile, UserRole } from '@muixer/shared';
+import { AuthResponse, ClientType, Gender, InviteRegistrationContext, UserProfile, UserRole } from '@muixer/shared';
 import { AuthService } from './auth.service';
 
 const mockUser: UserProfile = {
@@ -182,5 +182,58 @@ describe('AuthService', () => {
     req.flush({ ...mockUser, requiresPrivacyConsent: false });
 
     expect(service.requiresPrivacyConsent()).toBe(false);
+  });
+
+  it('requestPasswordReset() POSTs the email to /auth/forgot-password', () => {
+    let completed = false;
+    service.requestPasswordReset('a@b.cat').subscribe(() => (completed = true));
+
+    const req = httpTesting.expectOne('/api/auth/forgot-password');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ email: 'a@b.cat' });
+    req.flush({ message: 'ok' });
+
+    expect(completed).toBe(true);
+  });
+
+  it('getInviteContext() GETs /auth/invite/:token and does not touch auth state', () => {
+    const context: InviteRegistrationContext = {
+      person: { name: 'Joan', firstSurname: 'Garcia', secondSurname: null, gender: null, phone: null, birthDate: null },
+      expiresAt: '2026-01-01T00:00:00Z',
+      legalDocument: { content: 'Text legal', version: 1 },
+    };
+    let result: InviteRegistrationContext | undefined;
+    service.getInviteContext('raw-token').subscribe((res) => (result = res));
+
+    const req = httpTesting.expectOne('/api/auth/invite/raw-token');
+    expect(req.request.method).toBe('GET');
+    req.flush(context);
+
+    expect(result).toEqual(context);
+    expect(service.isAuthenticated()).toBe(false);
+  });
+
+  it('registerViaInvite() POSTs to /auth/invite/register and logs the user in', () => {
+    service
+      .registerViaInvite({
+        token: 'raw-token',
+        email: 'new@test.cat',
+        password: 'newpass123',
+        name: 'Joan',
+        firstSurname: 'Garcia',
+        gender: Gender.MALE,
+        phone: '+34612345678',
+        birthDate: '2000-01-15',
+        legalAccepted: true,
+      })
+      .subscribe();
+
+    const req = httpTesting.expectOne('/api/auth/invite/register');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body.token).toBe('raw-token');
+    req.flush(mockAuthResponse);
+
+    expect(service.isAuthenticated()).toBe(true);
+    expect(service.getAccessToken()).toBe('jwt-token');
   });
 });

@@ -1,6 +1,7 @@
 import { AttendanceStatus } from '../../enums/attendance-status.enum';
 import { EventType } from '../../enums/event-type.enum';
 import { AttendanceSummary } from '../attendance-summary.interface';
+import { ManagedPersonAttendance } from './managed-person.interface';
 
 export interface MyAttendanceInfo {
   id: string;
@@ -17,6 +18,7 @@ export interface MeEvent {
   location: string | null;
   attendanceSummary: AttendanceSummary;
   myAttendance: MyAttendanceInfo | null;
+  managedAttendances: ManagedPersonAttendance[];
 }
 
 export interface MeEventDetail extends MeEvent {

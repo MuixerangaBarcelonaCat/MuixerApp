@@ -1,16 +1,42 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { DelegateType } from '@muixer/shared';
 import { PersonDetailComponent } from './person-detail.component';
 import { PersonService } from '../../services/person.service';
+import { Person } from '../../models/person.model';
 import { PersonDelegateService, PersonDelegateItem } from '../../services/person-delegate.service';
 import { TagService } from '../../../config/services/tag.service';
 import { NodeAssignmentService } from '../../../pinyes/services/node-assignment.service';
 import { SeasonService } from '../../../events/services/season.service';
 import { PersonAssignmentEntry } from '../../../pinyes/models/assignment.model';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
+import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
+
+const makePerson = (overrides: Partial<Person> = {}): Person => ({
+  id: 'p1',
+  name: 'N',
+  firstSurname: 'S',
+  secondSurname: null,
+  alias: 'A',
+  phone: null,
+  birthDate: null,
+  shoulderHeight: null,
+  isXicalla: false,
+  isMember: false,
+  availability: 'AVAILABLE' as Person['availability'],
+  onboardingStatus: 'IN_PROGRESS' as Person['onboardingStatus'],
+  shirtDate: null,
+  notes: null,
+  notesEmoji: null,
+  isActive: true,
+  positions: [],
+  user: null,
+  createdAt: '2026-01-01T00:00:00Z',
+  updatedAt: '2026-01-01T00:00:00Z',
+  ...overrides,
+});
 
 const makeHistoryEntry = (overrides: Partial<PersonAssignmentEntry> = {}): PersonAssignmentEntry => ({
   eventId: 'event-1',
@@ -32,17 +58,40 @@ const makeHistoryEntry = (overrides: Partial<PersonAssignmentEntry> = {}): Perso
 describe('PersonDetailComponent', () => {
   let fixture: ComponentFixture<PersonDetailComponent>;
   let component: PersonDetailComponent;
+  let mockDelegateService: {
+    getByPerson: ReturnType<typeof vi.fn>;
+    removeDelegate: ReturnType<typeof vi.fn>;
+    updateDelegate: ReturnType<typeof vi.fn>;
+  };
+  let mockPersonService: {
+    getOne: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>;
+    createInviteLink: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(async () => {
+    mockDelegateService = {
+      getByPerson: vi.fn().mockReturnValue(of([])),
+      removeDelegate: vi.fn().mockReturnValue(of(void 0)),
+      updateDelegate: vi.fn().mockReturnValue(of(null)),
+    };
+    mockPersonService = {
+      getOne: vi.fn().mockReturnValue(of({ id: 'p1', positions: [], shoulderHeight: null })),
+      update: vi.fn().mockReturnValue(of({ id: 'p1', positions: [], shoulderHeight: null })),
+      createInviteLink: vi.fn().mockReturnValue(
+        of({ inviteUrl: 'http://localhost:4300/activate?token=abc', expiresAt: '2026-01-01T00:00:00Z' }),
+      ),
+    };
+
     await TestBed.configureTestingModule({
       imports: [PersonDetailComponent],
       providers: [
         allLucideIconsProvider,
-        { provide: PersonService, useValue: { getOne: () => of({ id: 'p1', positions: [] }) } },
+        { provide: PersonService, useValue: mockPersonService },
         { provide: TagService, useValue: { getAll: () => of([]) } },
         { provide: NodeAssignmentService, useValue: { getPersonHistory: () => of({ data: [], meta: { total: 0, page: 1, limit: 20 } }) } },
         { provide: SeasonService, useValue: { getAll: () => of({ data: [] }) } },
-        { provide: PersonDelegateService, useValue: { getByPerson: () => of([]), removeDelegate: () => of(void 0) } },
+        { provide: PersonDelegateService, useValue: mockDelegateService },
         {
           provide: ActivatedRoute,
           useValue: {
@@ -100,6 +149,8 @@ describe('PersonDetailComponent', () => {
     });
 
     it('lets the "Informació de la colla" button row wrap instead of cutting off "Enllaça amb usuari existent"', () => {
+      component.editing.set(true);
+      fixture.detectChanges();
       const linkButton = Array.from(fixture.nativeElement.querySelectorAll('button')).find(
         (btn) => (btn as HTMLElement).textContent?.trim() === 'Enllaça amb usuari existent',
       ) as HTMLElement;
@@ -178,58 +229,278 @@ describe('PersonDetailComponent', () => {
     });
   });
 
-  describe('Delegacions section', () => {
+  describe('Manager section', () => {
     const makeDelegateItem = (overrides: Partial<PersonDelegateItem> = {}): PersonDelegateItem => ({
       id: 'del-1',
       delegateType: DelegateType.PARENT,
       isActive: true,
+      isPrimary: true,
       createdAt: '2026-07-01T00:00:00Z',
-      user: { id: 'user-1', email: 'parent@test.com' },
+      user: { id: 'user-1', email: 'parent@test.com', person: null },
       person: { id: 'p1', alias: 'child' },
       ...overrides,
     });
 
-    it('renders the Delegacions collapse section', () => {
-      const titles = Array.from(fixture.nativeElement.querySelectorAll('.collapse-title')).map(
-        (el) => (el as HTMLElement).textContent?.trim(),
-      );
-      expect(titles.some((t: string | undefined) => t?.includes('Delegacions'))).toBe(true);
-    });
-
-    it('shows "Cap delegat assignat" when no delegates', () => {
+    it('shows invite/link buttons when the person has no manager', () => {
       component.delegates.set([]);
       fixture.detectChanges();
       const text = fixture.nativeElement.textContent;
-      expect(text).toContain('Cap delegat assignat');
+      expect(text).toContain("Crea enllaç d'invitació");
+      expect(text).toContain('Enllaça amb usuari existent');
     });
 
-    it('renders delegate items with email and type badge', () => {
+    it('still shows invite/link buttons when there are secondary delegates but no responsable', () => {
+      component.delegates.set([
+        makeDelegateItem({ id: 'del-2', isPrimary: false, delegateType: DelegateType.OTHER, user: { id: 'u2', email: 'aunt@test.com', person: null } }),
+      ]);
+      fixture.detectChanges();
+      const text = fixture.nativeElement.textContent;
+      expect(text).toContain("Crea enllaç d'invitació");
+      expect(text).toContain('Enllaça amb usuari existent');
+      expect(text).toContain('Delegacions');
+    });
+
+    it('disables "Crea enllaç d\'invitació" for a xicalla, with an explanatory tooltip', () => {
+      component.person.set(makePerson({ isXicalla: true }));
+      component.delegates.set([]);
+      fixture.detectChanges();
+
+      const btn = Array.from(fixture.nativeElement.querySelectorAll('button')).find(
+        (b) => (b as HTMLElement).textContent?.trim() === "Crea enllaç d'invitació",
+      ) as HTMLButtonElement;
+      expect(btn.disabled).toBe(true);
+
+      const tooltip = btn.closest('.tooltip') as HTMLElement | null;
+      expect(tooltip?.getAttribute('data-tip')).toContain('responsable legal');
+    });
+
+    it('keeps "Crea enllaç d\'invitació" enabled for a non-xicalla person', () => {
+      component.person.set(makePerson({ isXicalla: false }));
+      component.delegates.set([]);
+      fixture.detectChanges();
+
+      const btn = Array.from(fixture.nativeElement.querySelectorAll('button')).find(
+        (b) => (b as HTMLElement).textContent?.trim() === "Crea enllaç d'invitació",
+      ) as HTMLButtonElement;
+      expect(btn.disabled).toBe(false);
+    });
+
+    it('does not show the "Delegacions" title when there are none and not in edit mode', () => {
+      component.delegates.set([makeDelegateItem()]);
+      fixture.detectChanges();
+      expect(fixture.nativeElement.textContent).not.toContain('Delegacions');
+    });
+
+    it('shows the "Delegacions" title in edit mode even with no delegations yet', () => {
+      component.delegates.set([makeDelegateItem()]);
+      component.editing.set(true);
+      fixture.detectChanges();
+      const text = fixture.nativeElement.textContent;
+      expect(text).toContain('Delegacions');
+      expect(text).toContain('Cap delegació');
+    });
+
+    it('shows the relació text with a visible gap from the name (not glued together)', () => {
+      component.delegates.set([makeDelegateItem()]);
+      fixture.detectChanges();
+      const relationSpan = fixture.nativeElement.querySelector('.ml-1');
+      expect(relationSpan).toBeTruthy();
+      expect(relationSpan.textContent.trim()).toBe('(Pare/Mare)');
+    });
+
+    it('opens the delegate modal with isPrimary true from "Enllaça amb usuari existent"', () => {
+      component.delegates.set([]);
+      component.editing.set(true);
+      fixture.detectChanges();
+      const btn = Array.from(fixture.nativeElement.querySelectorAll('button')).find(
+        (b) => (b as HTMLElement).textContent?.trim() === 'Enllaça amb usuari existent',
+      ) as HTMLElement;
+      btn.click();
+      fixture.detectChanges();
+
+      expect(component.delegateModalOpen()).toBe(true);
+      expect(component.delegateModalIsPrimary()).toBe(true);
+    });
+
+    it('shows "Responsable" with the primary manager\'s email and type badge', () => {
       component.delegates.set([makeDelegateItem()]);
       fixture.detectChanges();
       const text = fixture.nativeElement.textContent;
+      expect(text).toContain('Responsable');
       expect(text).toContain('parent@test.com');
       expect(text).toContain('Pare/Mare');
     });
 
-    it('shows the delegate count badge', () => {
-      component.delegates.set([makeDelegateItem(), makeDelegateItem({ id: 'del-2', user: { id: 'u2', email: 'other@test.com' } })]);
+    it('shows the primary manager\'s alias (not email) and links to their person page when self-managed', () => {
+      component.delegates.set([
+        makeDelegateItem({ user: { id: 'user-1', email: 'parent@test.com', person: { id: 'parent-person', alias: 'ParentAlias' } } }),
+      ]);
       fixture.detectChanges();
-      const badges = Array.from(fixture.nativeElement.querySelectorAll('.collapse-title .badge'));
-      const countBadge = badges.find((b) => (b as HTMLElement).textContent?.trim() === '2');
-      expect(countBadge).toBeTruthy();
+      const link = fixture.nativeElement.querySelector('a[href*="/persons/parent-person"]') as HTMLAnchorElement | null;
+      expect(link).toBeTruthy();
+      expect(link!.textContent).toContain('ParentAlias');
+      expect(fixture.nativeElement.textContent).not.toContain('parent@test.com');
     });
 
-    it('renders the "Afegeix delegat" button', () => {
+    it('shows a titled, comma-separated "Delegacions" list for secondary managers, with a remove action each when in edit mode', () => {
+      component.delegates.set([
+        makeDelegateItem(),
+        makeDelegateItem({ id: 'del-2', isPrimary: false, delegateType: DelegateType.PARTNER, user: { id: 'u2', email: 'partner@test.com', person: null } }),
+        makeDelegateItem({ id: 'del-3', isPrimary: false, delegateType: DelegateType.OTHER, user: { id: 'u3', email: 'aunt@test.com', person: { id: 'aunt-person', alias: 'AuntAlias' } } }),
+      ]);
+      component.editing.set(true);
+      fixture.detectChanges();
+      const text = fixture.nativeElement.textContent;
+      expect(text).toContain('Delegacions');
+      expect(text).toContain('partner@test.com');
+      expect(text).toContain('Parella');
+      expect(text).toContain('AuntAlias');
+      expect(text).not.toContain('aunt@test.com');
+
+      const link = fixture.nativeElement.querySelector('a[href*="/persons/aunt-person"]') as HTMLAnchorElement | null;
+      expect(link).toBeTruthy();
+
+      const removeButtons = fixture.nativeElement.querySelectorAll('[aria-label^="Elimina delegat "]');
+      expect(removeButtons.length).toBe(2);
+    });
+
+    it('does not show remove actions for delegates when not in edit mode', () => {
+      component.delegates.set([
+        makeDelegateItem(),
+        makeDelegateItem({ id: 'del-2', isPrimary: false, delegateType: DelegateType.PARTNER, user: { id: 'u2', email: 'partner@test.com', person: null } }),
+      ]);
+      fixture.detectChanges();
+      const removeButtons = fixture.nativeElement.querySelectorAll('[aria-label^="Elimina delegat "]');
+      expect(removeButtons.length).toBe(0);
+    });
+
+    it('shows the "Afegeix" action once a primary manager exists and in edit mode', () => {
+      component.delegates.set([makeDelegateItem()]);
+      component.editing.set(true);
+      fixture.detectChanges();
       const btn = Array.from(fixture.nativeElement.querySelectorAll('button')).find(
-        (b) => (b as HTMLElement).textContent?.trim() === 'Afegeix delegat',
+        (b) => (b as HTMLElement).textContent?.trim() === '+ Afegeix',
       );
       expect(btn).toBeTruthy();
     });
 
-    it('getDelegateTypeLabel returns correct labels', () => {
+    it('shows "Afegeix" in edit mode even when there is no manager yet (delegates are independent of the responsable)', () => {
+      component.delegates.set([]);
+      component.editing.set(true);
+      fixture.detectChanges();
+      const btn = Array.from(fixture.nativeElement.querySelectorAll('button')).find(
+        (b) => (b as HTMLElement).textContent?.trim() === '+ Afegeix',
+      );
+      expect(btn).toBeTruthy();
+    });
+
+    it('does not show "Afegeix" when not in edit mode, even with a manager', () => {
+      component.delegates.set([makeDelegateItem()]);
+      fixture.detectChanges();
+      const btn = Array.from(fixture.nativeElement.querySelectorAll('button')).find(
+        (b) => (b as HTMLElement).textContent?.trim() === '+ Afegeix',
+      );
+      expect(btn).toBeFalsy();
+    });
+
+    it('shows a remove action for the responsable when in edit mode', () => {
+      component.delegates.set([makeDelegateItem()]);
+      component.editing.set(true);
+      fixture.detectChanges();
+      const removeBtn = fixture.nativeElement.querySelector(
+        '[aria-label="Elimina responsable parent@test.com"]',
+      );
+      expect(removeBtn).toBeTruthy();
+    });
+
+    it('does not show a remove action for the responsable when not in edit mode', () => {
+      component.delegates.set([makeDelegateItem()]);
+      fixture.detectChanges();
+      const removeBtn = fixture.nativeElement.querySelector(
+        '[aria-label="Elimina responsable parent@test.com"]',
+      );
+      expect(removeBtn).toBeFalsy();
+    });
+
+    it('creates an invite link, copies it to the clipboard and shows a success toast', async () => {
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+      const createInviteLink = vi.fn().mockReturnValue(
+        of({ inviteUrl: 'http://localhost:4300/activate?token=abc', expiresAt: '2026-01-01T00:00:00Z' }),
+      );
+      (mockPersonService as unknown as { createInviteLink: typeof createInviteLink }).createInviteLink =
+        createInviteLink;
+      component.person.set(makePerson());
+
+      component.createInviteLink();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(createInviteLink).toHaveBeenCalledWith('p1');
+      expect(writeText).toHaveBeenCalledWith('http://localhost:4300/activate?token=abc');
+      const toastService = TestBed.inject(ToastService);
+      expect(toastService.toasts().at(-1)?.message).toContain('portapapers');
+    });
+
+    it('falls back to showing the link in the toast when the clipboard API is unavailable', async () => {
+      Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
+      const createInviteLink = vi.fn().mockReturnValue(
+        of({ inviteUrl: 'http://localhost:4300/activate?token=abc', expiresAt: '2026-01-01T00:00:00Z' }),
+      );
+      (mockPersonService as unknown as { createInviteLink: typeof createInviteLink }).createInviteLink =
+        createInviteLink;
+      component.person.set(makePerson());
+
+      component.createInviteLink();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const toastService = TestBed.inject(ToastService);
+      expect(toastService.toasts().at(-1)?.message).toContain('http://localhost:4300/activate?token=abc');
+    });
+
+    it('shows an error toast when creating the invite link fails', async () => {
+      const createInviteLink = vi.fn().mockReturnValue(
+        throwError(() => ({ error: { message: 'Aquesta persona ja té un compte actiu' } })),
+      );
+      (mockPersonService as unknown as { createInviteLink: typeof createInviteLink }).createInviteLink =
+        createInviteLink;
+      component.person.set(makePerson());
+
+      component.createInviteLink();
+      fixture.detectChanges();
+
+      const toastService = TestBed.inject(ToastService);
+      expect(toastService.toasts().at(-1)?.message).toBe('Aquesta persona ja té un compte actiu');
+    });
+
+    it('shows a "Compte actiu" indicator instead of the invite button once the account is active', () => {
+      component.person.set(makePerson({ user: { id: 'u1', email: 'active@test.com', isActive: true } }));
+      fixture.detectChanges();
+
+      const text = fixture.nativeElement.textContent;
+      expect(text).toContain('Compte actiu');
+      expect(text).not.toContain("Crea enllaç d'invitació");
+    });
+
+    it('shows a regenerate button and a "Pendent d\'activar" badge when the linked account is inactive', () => {
+      component.person.set(makePerson({ user: { id: 'u1', email: null, isActive: false } }));
+      fixture.detectChanges();
+
+      const text = fixture.nativeElement.textContent;
+      expect(text).toContain("Pendent d'activar");
+      const btn = Array.from(fixture.nativeElement.querySelectorAll('button')).find(
+        (b) => (b as HTMLElement).textContent?.trim() === "Crea enllaç d'invitació",
+      ) as HTMLButtonElement | undefined;
+      expect(btn).toBeTruthy();
+      expect(btn?.disabled).toBe(false);
+    });
+
+    it('getDelegateTypeLabel returns correct labels, including OTHER', () => {
       expect(component.getDelegateTypeLabel(DelegateType.PARENT)).toBe('Pare/Mare');
       expect(component.getDelegateTypeLabel(DelegateType.PARTNER)).toBe('Parella');
       expect(component.getDelegateTypeLabel(DelegateType.GUARDIAN)).toBe('Tutor/a');
+      expect(component.getDelegateTypeLabel(DelegateType.OTHER)).toBe('Altres');
     });
 
     it('askRemoveDelegate opens confirm dialog', () => {
@@ -248,6 +519,44 @@ describe('PersonDetailComponent', () => {
       fixture.detectChanges();
       const dialog = fixture.nativeElement.querySelector('dialog[role="alertdialog"]');
       expect(dialog).toBeNull();
+    });
+  });
+
+  describe('Alçada espatlles (0 is a legacy "not set" sentinel, not a real height)', () => {
+    const patchForm = (person: Person) =>
+      (component as unknown as { patchForm(p: Person): void }).patchForm(person);
+
+    it('shows a blank field when the person has a legacy shoulderHeight of 0', () => {
+      const person = makePerson({ shoulderHeight: 0 });
+      component.person.set(person);
+      patchForm(person);
+      expect(component.form.value.shoulderHeight).toBeNull();
+    });
+
+    it('sends null (not 0) when saving with an empty shoulderHeight field', () => {
+      const person = makePerson({ shoulderHeight: 0 });
+      component.person.set(person);
+      patchForm(person);
+      component.editing.set(true);
+      component.save();
+
+      expect(mockPersonService.update).toHaveBeenCalledWith(
+        'p1',
+        expect.objectContaining({ shoulderHeight: null }),
+      );
+    });
+
+    it('keeps a real shoulderHeight value when saving', () => {
+      const person = makePerson({ shoulderHeight: 145 });
+      component.person.set(person);
+      patchForm(person);
+      component.editing.set(true);
+      component.save();
+
+      expect(mockPersonService.update).toHaveBeenCalledWith(
+        'p1',
+        expect.objectContaining({ shoulderHeight: 145 }),
+      );
     });
   });
 });

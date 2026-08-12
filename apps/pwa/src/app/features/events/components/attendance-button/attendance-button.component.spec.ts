@@ -29,10 +29,12 @@ describe('AttendanceButtonComponent', () => {
 
   function createButton(
     status: AttendanceStatus | null = null,
+    personId?: string,
   ): ComponentFixture<AttendanceButtonComponent> {
     const fixture = TestBed.createComponent(AttendanceButtonComponent);
     fixture.componentRef.setInput('eventId', 'ev-1');
     fixture.componentRef.setInput('status', status);
+    if (personId !== undefined) fixture.componentRef.setInput('personId', personId);
     fixture.detectChanges();
     return fixture;
   }
@@ -55,13 +57,20 @@ describe('AttendanceButtonComponent', () => {
     const fixture = createButton(null);
     const vincBtn = fixture.nativeElement.querySelector('button');
     vincBtn.click();
-    expect(eventService.updateAttendance).toHaveBeenCalledWith('ev-1', AttendanceStatus.ANIRE);
+    expect(eventService.updateAttendance).toHaveBeenCalledWith('ev-1', AttendanceStatus.ANIRE, undefined);
   });
 
-  it('should show success toast on successful update', () => {
+  it('should call updateAttendance with the given personId', () => {
+    const fixture = createButton(null, 'person-2');
+    const vincBtn = fixture.nativeElement.querySelector('button');
+    vincBtn.click();
+    expect(eventService.updateAttendance).toHaveBeenCalledWith('ev-1', AttendanceStatus.ANIRE, 'person-2');
+  });
+
+  it('should not show a toast on successful update', () => {
     const fixture = createButton(null);
     fixture.nativeElement.querySelector('button').click();
-    expect(toastService.success).toHaveBeenCalledWith("S'ha actualitzat l'assistència.");
+    expect(toastService.success).not.toHaveBeenCalled();
   });
 
   it('should revert status on error and show fallback message', () => {

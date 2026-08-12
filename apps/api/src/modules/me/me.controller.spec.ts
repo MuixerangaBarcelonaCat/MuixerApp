@@ -23,6 +23,8 @@ describe('MeController', () => {
             findEvents: jest.fn(),
             findEventDetail: jest.fn(),
             upsertAttendance: jest.fn(),
+            getPendingDependents: jest.fn(),
+            completePendingDependent: jest.fn(),
           },
         },
       ],
@@ -55,6 +57,7 @@ describe('MeController', () => {
       description: null,
       locationUrl: null,
       information: null,
+      managedAttendances: [],
     };
     meService.findEventDetail.mockResolvedValue(expected);
 
@@ -93,5 +96,46 @@ describe('MeController', () => {
     await controller.findEvents(mockUser, { page: 2, limit: 10 });
 
     expect(meService.findEvents).toHaveBeenCalledWith(mockUser, { page: 2, limit: 10 });
+  });
+
+  describe('getPendingDependents', () => {
+    it('delegates to MeService with the current user id', async () => {
+      const expected = [
+        {
+          personId: 'child-1',
+          alias: 'xicalla1',
+          name: 'Joan',
+          firstSurname: 'Garcia',
+          secondSurname: null,
+          gender: null,
+          phone: null,
+          birthDate: null,
+        },
+      ];
+      meService.getPendingDependents.mockResolvedValue(expected);
+
+      const result = await controller.getPendingDependents(mockUser);
+
+      expect(meService.getPendingDependents).toHaveBeenCalledWith('user-1');
+      expect(result).toEqual(expected);
+    });
+  });
+
+  describe('completePendingDependent', () => {
+    it('delegates to MeService with the current user id and dto', async () => {
+      meService.completePendingDependent.mockResolvedValue(undefined);
+      const dto = {
+        personId: 'child-1',
+        name: 'Joan',
+        firstSurname: 'Garcia',
+        gender: 'MALE',
+        phone: '+34612345678',
+        birthDate: '2015-01-15',
+      };
+
+      await controller.completePendingDependent(mockUser, dto as never);
+
+      expect(meService.completePendingDependent).toHaveBeenCalledWith('user-1', dto);
+    });
   });
 });

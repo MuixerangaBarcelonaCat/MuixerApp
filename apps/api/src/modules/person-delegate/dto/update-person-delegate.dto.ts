@@ -9,4 +9,8 @@ export class UpdatePersonDelegateDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isPrimary?: boolean;
 }

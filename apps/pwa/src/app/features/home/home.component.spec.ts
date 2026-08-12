@@ -1,12 +1,13 @@
 import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { ApplicationRef } from '@angular/core';
 import { of, Subject } from 'rxjs';
-import { EventType, MeEvent, UserRole } from '@muixer/shared';
+import { EventType, Gender, MeEvent, PendingDependent, UserRole } from '@muixer/shared';
 import { HomeComponent } from './home.component';
 import { HomeService, HomeData } from './services/home.service';
 import { AuthService } from '../../core/auth/services/auth.service';
 import { EventService } from '../events/services/event.service';
 import { ToastService } from '../../shared/services/toast.service';
+import { DependentsService } from '../../core/services/dependents.service';
 import { provideRouter } from '@angular/router';
 
 const EMPTY_SUMMARY = {
@@ -23,6 +24,7 @@ const MOCK_REHEARSAL: MeEvent = {
   location: 'Local',
   attendanceSummary: EMPTY_SUMMARY,
   myAttendance: null,
+  managedAttendances: [],
 };
 
 const MOCK_PERFORMANCE: MeEvent = {
@@ -34,14 +36,22 @@ const MOCK_PERFORMANCE: MeEvent = {
   location: 'Plaça',
   attendanceSummary: EMPTY_SUMMARY,
   myAttendance: null,
+  managedAttendances: [],
 };
 
-function createTestBed(homeData: HomeData | Subject<HomeData>, person: Record<string, unknown> | null = { id: 'p-1', name: 'Joan', firstSurname: 'Garcia', alias: 'Joanet', email: null }) {
+function createTestBed(
+  homeData: HomeData | Subject<HomeData>,
+  person: Record<string, unknown> | null = { id: 'p-1', name: 'Joan', firstSurname: 'Garcia', alias: 'Joanet', email: null },
+  pendingDependents: PendingDependent[] = [],
+) {
   const isSubject = homeData instanceof Subject;
   const homeService = {
     loadHomeData: vi.fn().mockReturnValue(
       isSubject ? homeData.asObservable() : of(homeData),
     ),
+  };
+  const dependentsService = {
+    getPending: vi.fn().mockReturnValue(of(pendingDependents)),
   };
 
   TestBed.configureTestingModule({
@@ -63,10 +73,11 @@ function createTestBed(homeData: HomeData | Subject<HomeData>, person: Record<st
       },
       { provide: EventService, useValue: { updateAttendance: vi.fn() } },
       { provide: ToastService, useValue: { success: vi.fn(), error: vi.fn() } },
+      { provide: DependentsService, useValue: dependentsService },
     ],
   });
 
-  return { homeService };
+  return { homeService, dependentsService };
 }
 
 async function stableFixture(fixture: ComponentFixture<HomeComponent>): Promise<void> {
@@ -186,6 +197,63 @@ describe('HomeComponent', () => {
       (fixture.componentInstance as unknown as { reload(): void }).reload();
       await stableFixture(fixture);
       expect(homeService.loadHomeData).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('pending dependents banner', () => {
+    const child: PendingDependent = {
+      personId: 'child-1',
+      alias: 'xicalla1',
+      name: 'Provisional',
+      firstSurname: '',
+      secondSurname: null,
+      gender: Gender.MALE,
+      phone: null,
+      birthDate: null,
+    };
+
+    it('is hidden when there are no pending dependents', async () => {
+      createTestBed({ nextRehearsal: null, nextPerformance: null }, undefined, []);
+      await TestBed.compileComponents();
+      fixture = TestBed.createComponent(HomeComponent);
+      await stableFixture(fixture);
+
+      const banner = fixture.nativeElement.querySelector('[data-testid="pending-dependents-banner"]');
+      expect(banner).toBeFalsy();
+    });
+
+    it('shows the dependent alias when there is exactly one pending', async () => {
+      createTestBed({ nextRehearsal: null, nextPerformance: null }, undefined, [child]);
+      await TestBed.compileComponents();
+      fixture = TestBed.createComponent(HomeComponent);
+      await stableFixture(fixture);
+
+      const banner = fixture.nativeElement.querySelector('[data-testid="pending-dependents-banner"]');
+      expect(banner).toBeTruthy();
+      expect(banner.textContent).toContain('xicalla1');
+    });
+
+    it('shows a count when there is more than one pending dependent', async () => {
+      createTestBed({ nextRehearsal: null, nextPerformance: null }, undefined, [
+        child,
+        { ...child, personId: 'child-2', alias: 'xicalla2' },
+      ]);
+      await TestBed.compileComponents();
+      fixture = TestBed.createComponent(HomeComponent);
+      await stableFixture(fixture);
+
+      const banner = fixture.nativeElement.querySelector('[data-testid="pending-dependents-banner"]');
+      expect(banner.textContent).toContain('2');
+    });
+
+    it('links to the pending-dependents route', async () => {
+      createTestBed({ nextRehearsal: null, nextPerformance: null }, undefined, [child]);
+      await TestBed.compileComponents();
+      fixture = TestBed.createComponent(HomeComponent);
+      await stableFixture(fixture);
+
+      const link = fixture.nativeElement.querySelector('[data-testid="pending-dependents-banner"] a');
+      expect(link.getAttribute('href')).toBe('/pending-dependents');
     });
   });
 

@@ -1,9 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { PersonService } from '../person/person.service';
 import { Person } from '../person/person.entity';
 import { Tag } from '../tag/tag.entity';
 import { User } from '../user/user.entity';
+import { PersonDelegate } from '../person-delegate/person-delegate.entity';
+import { PersonDelegateService } from '../person-delegate/person-delegate.service';
 import { PERSON_SORT_BY_FIELDS } from '../person/constants/person-sort.constants';
 import { UserService } from '../user/user.service';
 import { TokenService } from '../auth/token.service';
@@ -48,7 +51,12 @@ describe('sortBy whitelists execute valid SQL (integration)', () => {
 
     beforeAll(async () => {
       const module: TestingModule = await Test.createTestingModule({
-        providers: [PersonService, ...realRepositoryProviders(db.dataSource, [Person, Tag, User])],
+        providers: [
+          PersonService,
+          PersonDelegateService,
+          ...realRepositoryProviders(db.dataSource, [Person, Tag, User, PersonDelegate]),
+          { provide: DataSource, useValue: db.dataSource },
+        ],
       }).compile();
       service = module.get(PersonService);
     });
@@ -66,8 +74,10 @@ describe('sortBy whitelists execute valid SQL (integration)', () => {
         providers: [
           UserService,
           TokenService,
-          ...realRepositoryProviders(db.dataSource, [User, Person, RefreshToken]),
+          PersonDelegateService,
+          ...realRepositoryProviders(db.dataSource, [User, Person, RefreshToken, PersonDelegate]),
           { provide: DataSource, useValue: db.dataSource },
+          { provide: ConfigService, useValue: { get: jest.fn() } },
         ],
       }).compile();
       service = module.get(UserService);
@@ -102,7 +112,12 @@ describe('sortBy whitelists execute valid SQL (integration)', () => {
     await personRepo.save({ name: 'Marc', firstSurname: 'Puig', alias: 'sortcheck' });
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [PersonService, ...realRepositoryProviders(db.dataSource, [Person, Tag, User])],
+      providers: [
+        PersonService,
+        PersonDelegateService,
+        ...realRepositoryProviders(db.dataSource, [Person, Tag, User, PersonDelegate]),
+        { provide: DataSource, useValue: db.dataSource },
+      ],
     }).compile();
     const service = module.get<PersonService>(PersonService);
 

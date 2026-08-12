@@ -23,7 +23,7 @@ export class UserResponseDto {
   id: string;
 
   @Expose()
-  email: string;
+  email: string | null;
 
   @Expose()
   role: UserRole;

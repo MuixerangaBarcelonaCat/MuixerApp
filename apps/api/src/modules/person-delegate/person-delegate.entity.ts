@@ -32,6 +32,9 @@ export class PersonDelegate {
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
+  @Column({ type: 'boolean', default: false })
+  isPrimary: boolean;
+
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 

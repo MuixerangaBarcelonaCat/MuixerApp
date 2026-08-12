@@ -6,23 +6,31 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import {
   JwtPayload,
-  AttendanceStatus,
   PaginatedResponse,
   MeEvent,
   MeEventDetail,
   AttendanceResponse,
+  ManagedPerson,
+  ManagedPersonAttendance,
+  PendingDependent,
 } from '@muixer/shared';
 import { Event } from '../event/event.entity';
 import { Attendance } from '../event/attendance.entity';
 import { User } from '../user/user.entity';
+import { Person } from '../person/person.entity';
 import { getLocalToday } from '../../common/utils/date.util';
 import { SeasonService } from '../season/season.service';
 import { AttendanceService } from '../event/attendance.service';
+import { PersonDelegateService } from '../person-delegate/person-delegate.service';
+import { PersonService } from '../person/person.service';
 import { MeEventFilterDto } from './dto/me-event-filter.dto';
 import { UpdateMyAttendanceDto } from './dto/update-my-attendance.dto';
+import { DependentRegistrationDto } from './dto/dependent-registration.dto';
+
+const PROVISIONAL_ALIAS_PREFIX = '~';
 
 @Injectable()
 export class MeService {
@@ -37,14 +45,45 @@ export class MeService {
     private readonly attendanceRepository: Repository<Attendance>,
     private readonly seasonService: SeasonService,
     private readonly attendanceService: AttendanceService,
+    private readonly personDelegateService: PersonDelegateService,
+    private readonly personService: PersonService,
   ) {}
+
+  async resolveManagedPersons(userId: string): Promise<ManagedPerson[]> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['person'],
+    });
+
+    const managed: ManagedPerson[] = [];
+    if (user?.person) {
+      managed.push({
+        personId: user.person.id,
+        displayName: user.person.alias,
+        isSelf: true,
+        delegateType: null,
+      });
+    }
+
+    const delegates = await this.personDelegateService.findByUser(userId);
+    for (const delegate of delegates) {
+      managed.push({
+        personId: delegate.person.id,
+        displayName: delegate.person.alias,
+        isSelf: false,
+        delegateType: delegate.delegateType,
+      });
+    }
+
+    return managed;
+  }
 
   async findEvents(
     jwtUser: JwtPayload,
     filters: MeEventFilterDto,
   ): Promise<PaginatedResponse<MeEvent>> {
-    const personId = await this.resolvePersonId(jwtUser.sub);
-    if (!personId) return this.emptyPage(filters);
+    const managedPersons = await this.resolveManagedPersons(jwtUser.sub);
+    if (managedPersons.length === 0) return this.emptyPage(filters);
 
     const season = await this.seasonService.findCurrentEntity();
     if (!season) return this.emptyPage(filters);
@@ -53,15 +92,6 @@ export class MeService {
 
     const qb = this.eventRepository
       .createQueryBuilder('event')
-      .leftJoin(
-        Attendance,
-        'att',
-        'att."eventId" = event.id AND att."personId" = :personId',
-        { personId },
-      )
-      .addSelect('att.id', 'att_id')
-      .addSelect('att.status', 'att_status')
-      .addSelect('att.respondedAt', 'att_respondedAt')
       .where('event."seasonId" = :seasonId', { seasonId: season.id });
 
     if (type) {
@@ -81,15 +111,16 @@ export class MeService {
 
     const total = await qb.getCount();
 
-    const rawResults = await qb
-      .offset((page - 1) * limit)
-      .limit(limit)
-      .getRawAndEntities();
+    const events = await qb.offset((page - 1) * limit).limit(limit).getMany();
 
-    const data: MeEvent[] = rawResults.entities.map((event, i) => {
-      const raw = rawResults.raw[i];
-      return this.toMeEvent(event, raw);
-    });
+    const attendancesByEvent = await this.fetchAttendancesByEvent(
+      events.map((event) => event.id),
+      managedPersons,
+    );
+
+    const data: MeEvent[] = events.map((event) =>
+      this.toMeEvent(event, attendancesByEvent.get(event.id) ?? []),
+    );
 
     return { data, meta: { total, page, limit } };
   }
@@ -98,32 +129,59 @@ export class MeService {
     jwtUser: JwtPayload,
     eventId: string,
   ): Promise<MeEventDetail> {
-    const personId = await this.resolvePersonId(jwtUser.sub);
-
-    const qb = this.eventRepository
-      .createQueryBuilder('event')
-      .where('event.id = :eventId', { eventId });
-
-    if (personId) {
-      qb.leftJoin(
-        Attendance,
-        'att',
-        'att."eventId" = event.id AND att."personId" = :personId',
-        { personId },
-      )
-        .addSelect('att.id', 'att_id')
-        .addSelect('att.status', 'att_status')
-        .addSelect('att.respondedAt', 'att_respondedAt');
-    }
-
-    const result = await qb.getRawAndEntities();
-    const event = result.entities[0];
+    const event = await this.eventRepository.findOne({ where: { id: eventId } });
     if (!event) {
       throw new NotFoundException(`Event with ID ${eventId} not found`);
     }
 
-    const raw = result.raw[0];
-    return this.toMeEventDetail(event, raw);
+    const managedPersons = await this.resolveManagedPersons(jwtUser.sub);
+    const attendancesByEvent = await this.fetchAttendancesByEvent([eventId], managedPersons);
+
+    return {
+      ...this.toMeEvent(event, attendancesByEvent.get(eventId) ?? []),
+      description: event.description,
+      locationUrl: event.locationUrl,
+      information: event.information,
+    };
+  }
+
+  private async fetchAttendancesByEvent(
+    eventIds: string[],
+    managedPersons: ManagedPerson[],
+  ): Promise<Map<string, ManagedPersonAttendance[]>> {
+    const attendancesByEvent = new Map<string, ManagedPersonAttendance[]>();
+    if (eventIds.length === 0 || managedPersons.length === 0) return attendancesByEvent;
+
+    const attendances = await this.attendanceRepository.find({
+      where: {
+        event: { id: In(eventIds) },
+        person: { id: In(managedPersons.map((p) => p.personId)) },
+      },
+      relations: ['person', 'event'],
+    });
+
+    for (const eventId of eventIds) {
+      attendancesByEvent.set(
+        eventId,
+        managedPersons.map((managedPerson) => {
+          const attendance = attendances.find(
+            (a) => a.event.id === eventId && a.person.id === managedPerson.personId,
+          );
+          return {
+            ...managedPerson,
+            attendance: attendance
+              ? {
+                  id: attendance.id,
+                  status: attendance.status,
+                  respondedAt: attendance.respondedAt ? attendance.respondedAt.toISOString() : null,
+                }
+              : null,
+          };
+        }),
+      );
+    }
+
+    return attendancesByEvent;
   }
 
   async upsertAttendance(
@@ -131,9 +189,13 @@ export class MeService {
     eventId: string,
     dto: UpdateMyAttendanceDto,
   ): Promise<AttendanceResponse> {
-    const personId = await this.resolvePersonId(jwtUser.sub);
+    const managedPersons = await this.resolveManagedPersons(jwtUser.sub);
+    const personId = dto.personId ?? managedPersons.find((p) => p.isSelf)?.personId ?? null;
     if (!personId) {
       throw new ForbiddenException('No tens un perfil de persona associat al teu compte');
+    }
+    if (dto.personId && !managedPersons.some((p) => p.personId === dto.personId)) {
+      throw new ForbiddenException("No pots gestionar l'assistència d'esta persona");
     }
 
     const event = await this.eventRepository.findOne({ where: { id: eventId } });
@@ -179,12 +241,48 @@ export class MeService {
 
 
 
-  private async resolvePersonId(userId: string): Promise<string | null> {
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-      relations: ['person'],
+  async getPendingDependents(userId: string): Promise<PendingDependent[]> {
+    const dependents = await this.personDelegateService.findProvisionalPrimaryDependents(userId);
+    return dependents.map((person) => this.toPendingDependent(person));
+  }
+
+  async completePendingDependent(
+    userId: string,
+    dto: DependentRegistrationDto,
+  ): Promise<void> {
+    const eligible = await this.personDelegateService.findProvisionalPrimaryDependents(userId);
+    const person = eligible.find((p) => p.id === dto.personId);
+    if (!person) {
+      throw new BadRequestException(
+        'Esta persona no és un dependent pendent de completar per a este compte',
+      );
+    }
+
+    const { personId, ...registrationData } = dto;
+    const alias = person.alias.startsWith(PROVISIONAL_ALIAS_PREFIX)
+      ? person.alias.slice(PROVISIONAL_ALIAS_PREFIX.length)
+      : person.alias;
+
+    await this.personService.update(personId, {
+      ...registrationData,
+      isProvisional: false,
+      alias,
     });
-    return user?.person?.id ?? null;
+  }
+
+  private toPendingDependent(person: Person): PendingDependent {
+    return {
+      personId: person.id,
+      alias: person.alias,
+      name: person.name,
+      firstSurname: person.firstSurname,
+      secondSurname: person.secondSurname,
+      gender: person.gender,
+      phone: person.phone,
+      birthDate: person.birthDate instanceof Date
+        ? person.birthDate.toISOString().slice(0, 10)
+        : (person.birthDate ?? null),
+    };
   }
 
   private emptyPage(filters: MeEventFilterDto): PaginatedResponse<MeEvent> {
@@ -194,7 +292,7 @@ export class MeService {
     };
   }
 
-  private toMeEvent(event: Event, raw: Record<string, unknown>): MeEvent {
+  private toMeEvent(event: Event, managedAttendances: ManagedPersonAttendance[]): MeEvent {
     return {
       id: event.id,
       eventType: event.eventType,
@@ -205,27 +303,8 @@ export class MeService {
       startTime: event.startTime,
       location: event.location,
       attendanceSummary: event.attendanceSummary,
-      myAttendance: raw['att_id']
-        ? {
-            id: raw['att_id'] as string,
-            status: raw['att_status'] as AttendanceStatus,
-            respondedAt: raw['att_respondedAt']
-              ? (raw['att_respondedAt'] as Date).toISOString()
-              : null,
-          }
-        : null,
-    };
-  }
-
-  private toMeEventDetail(
-    event: Event,
-    raw: Record<string, unknown>,
-  ): MeEventDetail {
-    return {
-      ...this.toMeEvent(event, raw),
-      description: event.description,
-      locationUrl: event.locationUrl,
-      information: event.information,
+      myAttendance: managedAttendances.find((m) => m.isSelf)?.attendance ?? null,
+      managedAttendances,
     };
   }
 }
