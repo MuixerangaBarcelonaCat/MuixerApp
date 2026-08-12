@@ -447,6 +447,22 @@ describe('UserListComponent', () => {
         component.tableRowActions().some((action) => action.label === 'Assignar rol'),
       ).toBe(false);
     });
+
+    it('includes MEMBER among the assignable roles, so admin/técnica status can be revoked', () => {
+      expect(component.assignableRoles()).toContain(UserRole.MEMBER);
+    });
+
+    it('allows demoting a TECHNICAL user back to MEMBER', () => {
+      const user = mockUser({ role: UserRole.TECHNICAL });
+      userService.grantRole.mockReturnValue(of(mockUser({ role: UserRole.MEMBER })));
+      component.users.set([user]);
+
+      component.openGrantRole(user);
+      component.grantRoleSelected.set(UserRole.MEMBER);
+      component.confirmGrantRole();
+
+      expect(userService.grantRole).toHaveBeenCalledWith('u1', UserRole.MEMBER);
+    });
   });
 
   // ---------------------------------------------------------------------------

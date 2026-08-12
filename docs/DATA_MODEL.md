@@ -80,7 +80,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 
 <!-- BEGIN:AUTO — generat per scripts/generate-data-model.mjs, no editar a mà -->
 
-> Generat el 2026-08-04 des de les entitats TypeORM amb `pnpm run docs:model`.
+> Generat el 2026-08-10 des de les entitats TypeORM amb `pnpm run docs:model`.
 > **19 entitats.** No editar a mà: canvia l'entitat i torna a executar l'script.
 
 ### Resum
@@ -99,7 +99,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 | `instance_nodes` | `InstanceNode` | 25 |
 | `legal_documents` | `LegalDocument` | 9 |
 | `node_assignments` | `NodeAssignment` | 7 |
-| `person_delegates` | `PersonDelegate` | 7 |
+| `person_delegates` | `PersonDelegate` | 8 |
 | `persons` | `Person` | 26 |
 | `positions` | `Tag` | 9 |
 | `refresh_tokens` | `RefreshToken` | 10 |
@@ -115,7 +115,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 | `AuditAction` | `CONSENT_ACCEPTED` · `SENSITIVE_DATA_ACCESS` · `SENSITIVE_DATA_EXPORT` |
 | `AvailabilityStatus` | `AVAILABLE` · `TEMPORARILY_UNAVAILABLE` · `LONG_TERM_UNAVAILABLE` |
 | `ClientType` | `dashboard` · `pwa` |
-| `DelegateType` | `PARENT` · `PARTNER` · `GUARDIAN` |
+| `DelegateType` | `PARENT` · `PARTNER` · `GUARDIAN` · `OTHER` |
 | `EventType` | `ASSAIG` · `ACTUACIO` |
 | `FigureMode` | `COMPLETA` · `PEU` · `REMAT` · `NETA` |
 | `FigureZone` | `BASE` · `PINYA` · `TRONC` · `FIGURE_DIRECTION` · `XICALLA_DIRECTION` · `DECORATION` |
@@ -390,6 +390,7 @@ Definició: [`apps/api/src/modules/person-delegate/person-delegate.entity.ts`](.
 | `person` | `relation` | `Person` | no | ManyToOne → `Person` |
 | `delegateType` | `enum` | `DelegateType` | no | enum `DelegateType` |
 | `isActive` | `boolean` | `boolean` | no | default `true` |
+| `isPrimary` | `boolean` | `boolean` | no | default `false` |
 | `createdAt` | `timestamptz` | `Date` | no | creació |
 | `updatedAt` | `timestamptz` | `Date` | no | actualització |
 
@@ -421,7 +422,7 @@ Definició: [`apps/api/src/modules/person/person.entity.ts`](../apps/api/src/mod
 | `legacyId` | `varchar` | `string` | sí | — |
 | `lastSyncedAt` | `timestamptz` | `Date` | sí | — |
 | `positions` | `relation` | `Tag[]` | no | ManyToMany → `Tag` |
-| `managedBy` | `relation` | `User` | sí | ManyToOne → `User` |
+| `user` | `relation` | `Relation<User>` | sí | OneToOne → `User` |
 | `mentor` | `relation` | `Person` | sí | ManyToOne → `Person` |
 | `createdAt` | `timestamptz` | `Date` | no | creació |
 | `updatedAt` | `timestamptz` | `Date` | no | actualització |

@@ -4,9 +4,11 @@ import {
   Column,
   ManyToMany,
   ManyToOne,
+  OneToOne,
   JoinTable,
   CreateDateColumn,
   UpdateDateColumn,
+  Relation,
 } from 'typeorm';
 import { Gender, AvailabilityStatus, OnboardingStatus } from '@muixer/shared';
 import { Tag } from '../tag/tag.entity';
@@ -81,8 +83,9 @@ export class Person {
   @JoinTable({ name: 'person_positions' })
   positions: Tag[];
 
-  @ManyToOne(() => User, { nullable: true })
-  managedBy: User | null;
+  /** Pure inverse of `User.person` — no column here, resolved via a join on `users.person_id`. */
+  @OneToOne(() => User, (user) => user.person)
+  user: Relation<User> | null;
 
   @ManyToOne(() => Person, { nullable: true })
   mentor: Person | null;

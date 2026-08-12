@@ -114,7 +114,7 @@ export class EventController {
   @ApiParam({ name: 'id', description: 'UUID de l\'esdeveniment' })
   @ApiResponse({ status: 201, description: 'Assistència creada' })
   @ApiResponse({ status: 404, description: 'Esdeveniment o persona no trobats' })
-  @ApiResponse({ status: 409, description: 'Ja existeix un registre per aquesta persona' })
+  @ApiResponse({ status: 409, description: 'Ja existeix un registre per esta persona' })
   createAttendance(
     @Param('id', ParseUUIDPipe) eventId: string,
     @Body() dto: CreateAttendanceDto,
