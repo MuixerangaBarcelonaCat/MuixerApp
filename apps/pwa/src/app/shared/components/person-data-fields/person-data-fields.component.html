@@ -1,0 +1,84 @@
+<div [formGroup]="formGroup()" class="space-y-4">
+  @if (heading()) {
+    <h3 class="font-semibold text-base-content">{{ heading() }}</h3>
+  }
+
+  <label class="form-control w-full" for="pdf-name">
+    <div class="label pb-1"><span class="label-text font-medium">Nom</span></div>
+    <input
+      id="pdf-name"
+      type="text"
+      class="input input-bordered text-sm h-11"
+      formControlName="name"
+      autocomplete="given-name"
+    />
+  </label>
+
+  <label class="form-control w-full" for="pdf-first-surname">
+    <div class="label pb-1"><span class="label-text font-medium">Primer cognom</span></div>
+    <input
+      id="pdf-first-surname"
+      type="text"
+      class="input input-bordered text-sm h-11"
+      formControlName="firstSurname"
+      autocomplete="family-name"
+    />
+  </label>
+
+  <label class="form-control w-full" for="pdf-second-surname">
+    <div class="label pb-1">
+      <span class="label-text font-medium">Segon cognom</span>
+      <span class="label-text-alt text-base-content/40">Opcional</span>
+    </div>
+    <input
+      id="pdf-second-surname"
+      type="text"
+      class="input input-bordered text-sm h-11"
+      formControlName="secondSurname"
+      autocomplete="additional-name"
+    />
+  </label>
+
+  <label class="form-control w-full" for="pdf-gender">
+    <div class="label pb-1"><span class="label-text font-medium">Gènere</span></div>
+    <select id="pdf-gender" class="select select-bordered text-sm h-11" formControlName="gender">
+      <option value="" disabled>Selecciona una opció</option>
+      @for (gender of genders; track gender) {
+        <option [value]="gender">{{ genderLabels[gender] }}</option>
+      }
+    </select>
+  </label>
+
+  <div class="flex gap-2">
+    <label class="form-control w-32 shrink-0" for="pdf-country">
+      <div class="label pb-1"><span class="label-text font-medium">País</span></div>
+      <select id="pdf-country" class="select select-bordered text-sm h-11" formControlName="country">
+        @for (country of countries; track country.code) {
+          <option [value]="country.code">{{ country.flag }} {{ country.callingCode }}</option>
+        }
+      </select>
+    </label>
+
+    <label class="form-control w-full" for="pdf-phone">
+      <div class="label pb-1"><span class="label-text font-medium">Telèfon</span></div>
+      <input
+        id="pdf-phone"
+        type="tel"
+        class="input input-bordered text-sm h-11"
+        formControlName="phoneNumber"
+        autocomplete="tel-national"
+        inputmode="tel"
+      />
+    </label>
+  </div>
+
+  <label class="form-control w-full" for="pdf-birth-date">
+    <div class="label pb-1"><span class="label-text font-medium">Data de naixement</span></div>
+    <input
+      id="pdf-birth-date"
+      type="date"
+      class="input input-bordered text-sm h-11"
+      formControlName="birthDate"
+    />
+  </label>
+</div>

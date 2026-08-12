@@ -140,6 +140,7 @@
     "helmet": "^8.3.0",
     "joi": "^18.2.3",
     "konva": "^10.3.0",
+    "libphonenumber-js": "^1.13.8",
     "lucide-angular": "^1.0.0",
     "nodemailer": "^9.0.5",
     "passport": "^0.7.0",
