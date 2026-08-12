@@ -260,10 +260,12 @@ describe('AvailablePersonsService', () => {
       const result = await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, { excludeAssigned: false });
 
       expect(result).toHaveLength(1);
-      expect(result[0].assignedInSegment).toBe(true);
-      expect(result[0].assignedInstanceId).toBe('instance-uuid-1');
-      expect(result[0].assignedNodeLabel).toBe('Node A');
-      expect(result[0].assignedNodeCordon).toBe(2);
+      expect(result[0].assignedPlacements).toHaveLength(1);
+      expect(result[0].assignedPlacements[0]).toMatchObject({
+        figureInstanceId: 'instance-uuid-1',
+        nodeLabel: 'Node A',
+        renglaPosition: 2,
+      });
     });
 
     it('does not collapse multiple placements to an arbitrary last one (§2): keeps them deterministically', async () => {
@@ -290,13 +292,20 @@ describe('AvailablePersonsService', () => {
       const result = await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, { excludeAssigned: false });
 
       expect(result).toHaveLength(1);
-      expect(result[0].assignedInSegment).toBe(true);
-      expect(result[0].assignedInstanceId).toBe('instance-uuid-1');
-      expect(result[0].assignedNodeLabel).toBe('Node A');
-      expect(result[0].assignedNodeCordon).toBe(1);
+      expect(result[0].assignedPlacements).toHaveLength(2);
+      expect(result[0].assignedPlacements[0]).toMatchObject({
+        figureInstanceId: 'instance-uuid-1',
+        nodeLabel: 'Node A',
+        renglaPosition: 1,
+      });
+      expect(result[0].assignedPlacements[1]).toMatchObject({
+        figureInstanceId: 'instance-uuid-2',
+        nodeLabel: 'Node B',
+        renglaPosition: 5,
+      });
     });
 
-    it('returns null assignedNodeCordon when the assigned node has no cordon', async () => {
+    it('returns null renglaPosition in assignedPlacements when the assigned node has no cordon', async () => {
       mockEventRepo.findOne.mockResolvedValueOnce(makeEvent()).mockResolvedValue(null);
       mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
       const person = makePerson();
@@ -312,7 +321,7 @@ describe('AvailablePersonsService', () => {
 
       const result = await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, { excludeAssigned: false });
 
-      expect(result[0].assignedNodeCordon).toBeNull();
+      expect(result[0].assignedPlacements[0].renglaPosition).toBeNull();
     });
 
     it('derives assignedPlacements/assignedInTronc/assignedInPinya from the segment assignments, with conflictInSegment always false (Fase 1)', async () => {

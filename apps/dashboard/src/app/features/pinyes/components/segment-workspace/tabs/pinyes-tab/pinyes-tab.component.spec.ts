@@ -172,7 +172,6 @@ const makePerson = (id: string): AvailablePerson => ({
   notesEmoji: null,
   attendanceStatus: 'ANIRE',
   nextPerformanceStatus: null,
-  assignedInSegment: false,
   assignedPlacements: [],
   assignedInTronc: false,
   assignedInPinya: false,

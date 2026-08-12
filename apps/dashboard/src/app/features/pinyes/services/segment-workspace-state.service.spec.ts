@@ -134,7 +134,6 @@ const makePerson = (id: string, overrides: Partial<AvailablePerson> = {}): Avail
   notesEmoji: null,
   attendanceStatus: 'ANIRE',
   nextPerformanceStatus: null,
-  assignedInSegment: false,
   assignedPlacements: [],
   assignedInTronc: false,
   assignedInPinya: false,

@@ -441,8 +441,6 @@ mai). Amb això, la Fase 6 no toca el backend en absolut.
 
 ### Fase 7 — Seguiments (specs separats)
 
-- Retirar els camps singulars `assignedInSegment`/`assignedInstanceId`/`assignedNodeLabel`/
-  `assignedNodeCordon` un cop cap consumidor els use.
 - Resolució massiva i per teclat al panell de conflictes; bulk "allibera totes les pinyes d'un cop".
 - Log auditable de canvis de tronc reaprofitant `AuditAction` (D11 el deixa derivat).
 - Mode POM (D6); estil de conflicte a la PWA quan hi arribin vistes de membre; F1 de [[DEBT]] (taller

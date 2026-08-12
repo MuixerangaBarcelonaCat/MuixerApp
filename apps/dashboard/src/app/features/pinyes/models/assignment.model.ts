@@ -130,10 +130,6 @@ export interface AvailablePerson {
   notesEmoji: string | null;
   attendanceStatus: AttendanceStatus;
   nextPerformanceStatus: AttendanceStatus | null;
-  assignedInSegment: boolean;
-  assignedInstanceId?: string;
-  assignedNodeLabel?: string;
-  assignedNodeCordon?: number | null;
   /** All of this person's placements in the segment, ordered tronc-first (Phase 1). */
   assignedPlacements: ConflictPlacement[];
   assignedInTronc: boolean;

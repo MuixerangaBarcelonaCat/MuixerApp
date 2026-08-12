@@ -66,13 +66,14 @@ export class AssignmentStateService {
 
   /**
    * Number of confirmed adults not yet assigned in `area` of the current segment (§5.4):
-   * TRONC → `!assignedInTronc`; PINYA/DIRECTION → `!assignedInSegment` (unchanged behaviour).
+   * TRONC → `!assignedInTronc`; PINYA/DIRECTION → no placement anywhere in the segment
+   * (unchanged behaviour).
    */
   freeCountForArea(area: AssignmentArea): number {
     const localAssignedIds = new Set(this.assignments().map((a) => a.person.id));
     return this.distinctConfirmedPersons().filter((p) => {
       if (localAssignedIds.has(p.id)) return false;
-      return area === 'TRONC' ? !p.assignedInTronc : !p.assignedInSegment;
+      return area === 'TRONC' ? !p.assignedInTronc : p.assignedPlacements.length === 0;
     }).length;
   }
 

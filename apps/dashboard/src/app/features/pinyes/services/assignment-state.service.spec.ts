@@ -22,7 +22,6 @@ const makeAvailablePerson = (id = 'person-1', status: AvailablePerson['attendanc
   notesEmoji: null,
   attendanceStatus: status,
   nextPerformanceStatus: null,
-  assignedInSegment: false,
   assignedPlacements: [],
   assignedInTronc: false,
   assignedInPinya: false,

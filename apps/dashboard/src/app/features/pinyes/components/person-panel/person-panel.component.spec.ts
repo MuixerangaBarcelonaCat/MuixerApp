@@ -5,7 +5,7 @@ import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provi
 import { PersonPanelComponent } from './person-panel.component';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
-import { AvailablePerson } from '../../models/assignment.model';
+import { AvailablePerson, ConflictPlacement } from '../../models/assignment.model';
 import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
 import { TagService } from '../../../config/services/tag.service';
 
@@ -24,12 +24,25 @@ const makeAvailablePerson = (
   notesEmoji: null,
   attendanceStatus: status,
   nextPerformanceStatus: null,
-  assignedInSegment: false,
   assignedPlacements: [],
   assignedInTronc: false,
   assignedInPinya: false,
   conflictInSegment: false,
   positions: [],
+  ...overrides,
+});
+
+const makePlacement = (overrides: Partial<ConflictPlacement> = {}): ConflictPlacement => ({
+  assignmentId: 'assignment-1',
+  figureInstanceId: 'instance-1',
+  figureName: 'Figura',
+  nodeId: 'node-1',
+  nodeLabel: 'Base 2',
+  zone: 'PINYA',
+  area: 'PINYA',
+  z: null,
+  renglaPosition: null,
+  cordon: null,
   ...overrides,
 });
 
@@ -620,9 +633,7 @@ describe('PersonPanelComponent', () => {
       component.persons.set([
         makeAvailablePerson('p1', 'ANIRE', {
           alias: 'Marcel·lí',
-          assignedInSegment: true,
-          assignedInstanceId: 'instance-1',
-          assignedNodeLabel: 'Base 2',
+          assignedPlacements: [makePlacement()],
         }),
       ]);
       component.search.set('marc');
@@ -639,8 +650,7 @@ describe('PersonPanelComponent', () => {
 
       const person = makeAvailablePerson('p1', 'ANIRE', {
         alias: 'Marcel·lí',
-        assignedInSegment: true,
-        assignedInstanceId: 'instance-1',
+        assignedPlacements: [makePlacement({ figureInstanceId: 'instance-1' })],
       });
       component.selectSearchResult({ person, isAssigned: true });
 
@@ -860,9 +870,7 @@ describe('PersonPanelComponent', () => {
     it('renders a colored dot for an assigned person whose position matches the active node type', () => {
       const person = makeAvailablePerson('p1', 'ANIRE', {
         positions: [posVents],
-        assignedInSegment: true,
-        assignedInstanceId: 'instance-1',
-        assignedNodeLabel: 'Base 2',
+        assignedPlacements: [makePlacement()],
       });
       component.persons.set([person]);
       fixture.componentRef.setInput('activeNodePositionType', 'vents');
@@ -876,9 +884,7 @@ describe('PersonPanelComponent', () => {
     it('does not render a dot for an assigned person whose position does not match', () => {
       const person = makeAvailablePerson('p1', 'ANIRE', {
         positions: [],
-        assignedInSegment: true,
-        assignedInstanceId: 'instance-1',
-        assignedNodeLabel: 'Base 2',
+        assignedPlacements: [makePlacement()],
       });
       component.persons.set([person]);
       fixture.componentRef.setInput('activeNodePositionType', 'vents');
@@ -893,12 +899,9 @@ describe('PersonPanelComponent', () => {
   // ── assigned badge cordon label ─────────────────────────────────────────────
 
   describe('assigned badge cordon label', () => {
-    it('shows the cordon number next to the node label when assignedNodeCordon is set', () => {
+    it('shows the cordon number next to the node label when renglaPosition is set', () => {
       const person = makeAvailablePerson('p1', 'ANIRE', {
-        assignedInSegment: true,
-        assignedInstanceId: 'instance-1',
-        assignedNodeLabel: 'Mans',
-        assignedNodeCordon: 2,
+        assignedPlacements: [makePlacement({ nodeLabel: 'Mans', renglaPosition: 2 })],
       });
       component.persons.set([person]);
       fixture.detectChanges();
@@ -907,12 +910,9 @@ describe('PersonPanelComponent', () => {
       expect(panel.querySelector('.badge-info').textContent).toContain('Mans C2');
     });
 
-    it('shows only the node label when assignedNodeCordon is null', () => {
+    it('shows only the node label when renglaPosition is null', () => {
       const person = makeAvailablePerson('p1', 'ANIRE', {
-        assignedInSegment: true,
-        assignedInstanceId: 'instance-1',
-        assignedNodeLabel: 'Mans',
-        assignedNodeCordon: null,
+        assignedPlacements: [makePlacement({ nodeLabel: 'Mans', renglaPosition: null })],
       });
       component.persons.set([person]);
       fixture.detectChanges();
@@ -926,7 +926,10 @@ describe('PersonPanelComponent', () => {
 
   describe('area-aware freePersons and crossAreaPersons', () => {
     it('defaults to PINYA: free means not assigned anywhere in the segment', () => {
-      const person = makeAvailablePerson('p1', 'ANIRE', { assignedInTronc: true, assignedInSegment: true });
+      const person = makeAvailablePerson('p1', 'ANIRE', {
+        assignedInTronc: true,
+        assignedPlacements: [makePlacement()],
+      });
       component.persons.set([person]);
       fixture.detectChanges();
 
@@ -937,9 +940,7 @@ describe('PersonPanelComponent', () => {
       const person = makeAvailablePerson('p1', 'ANIRE', {
         assignedInTronc: true,
         assignedInPinya: false,
-        assignedInSegment: true,
-        assignedInstanceId: 'instance-1',
-        assignedNodeLabel: 'Tronc',
+        assignedPlacements: [makePlacement({ nodeLabel: 'Tronc' })],
       });
       component.persons.set([person]);
       fixture.detectChanges();
@@ -956,9 +957,7 @@ describe('PersonPanelComponent', () => {
       const pinyaOnly = makeAvailablePerson('p2', 'ANIRE', {
         assignedInPinya: true,
         assignedInTronc: false,
-        assignedInSegment: true,
-        assignedInstanceId: 'instance-1',
-        assignedNodeLabel: 'Mans',
+        assignedPlacements: [makePlacement({ nodeLabel: 'Mans' })],
       });
       component.persons.set([troncFree, pinyaOnly]);
       fixture.detectChanges();
@@ -974,7 +973,7 @@ describe('PersonPanelComponent', () => {
       const both = makeAvailablePerson('p1', 'ANIRE', {
         assignedInPinya: true,
         assignedInTronc: true,
-        assignedInSegment: true,
+        assignedPlacements: [makePlacement()],
       });
       component.persons.set([both]);
       fixture.detectChanges();
@@ -991,7 +990,7 @@ describe('PersonPanelComponent', () => {
       const state = TestBed.inject(AssignmentStateService);
       state.confirmedPersons.set([
         makeAvailablePerson('p1', 'ANIRE'),
-        makeAvailablePerson('p2', 'ANIRE', { assignedInSegment: true }),
+        makeAvailablePerson('p2', 'ANIRE', { assignedPlacements: [makePlacement()] }),
       ]);
       fixture.detectChanges();
 

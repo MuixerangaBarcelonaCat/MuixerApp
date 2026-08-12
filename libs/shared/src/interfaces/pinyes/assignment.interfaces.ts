@@ -77,10 +77,6 @@ export interface AvailablePerson {
   isXicalla: boolean;
   attendanceStatus: AttendanceStatus;
   nextPerformanceStatus: AttendanceStatus | null;
-  assignedInSegment: boolean;
-  assignedInstanceId?: string;
-  assignedNodeLabel?: string;
-  assignedNodeCordon?: number | null;
   assignedPlacements: ConflictPlacement[];
   assignedInTronc: boolean;
   assignedInPinya: boolean;

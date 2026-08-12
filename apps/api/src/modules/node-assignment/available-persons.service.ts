@@ -34,10 +34,6 @@ export interface AvailablePersonDto {
   notesEmoji: string | null;
   attendanceStatus: AttendanceStatus;
   nextPerformanceStatus: AttendanceStatus | null;
-  assignedInSegment: boolean;
-  assignedInstanceId?: string;
-  assignedNodeLabel?: string;
-  assignedNodeCordon?: number | null;
   assignedPlacements: ConflictPlacement[];
   assignedInTronc: boolean;
   assignedInPinya: boolean;
@@ -184,11 +180,9 @@ export class AvailablePersonsService {
       });
     }
 
-    // Get assigned person details in this segment (for `assignedInSegment` flag + location).
-    // Accumulate ALL placements per person rather than `.set()` in a loop, which kept an
-    // arbitrary (last) row (§2). Fase 0 exposed only singular fields (derived from the first
-    // placement); the plural `assignedPlacements[]` field arrives in Fase 1 alongside them —
-    // both are kept until Fase 7.
+    // Get assigned person details in this segment (for `assignedPlacements`/`assignedInTronc`/
+    // `assignedInPinya`). Accumulate ALL placements per person rather than `.set()` in a loop,
+    // which kept an arbitrary (last) row (§2).
     const assignedDetails = new Map<string, ConflictPlacement[]>();
     if (!excludeAssignedBool) {
       const segmentAssignments = await this.assignmentRepository.find({
@@ -239,7 +233,6 @@ export class AvailablePersonsService {
         ? (nextAttendanceMap.get(person.id) ?? null)
         : null;
       const placements = assignedDetails.get(person.id) ?? [];
-      const detail = placements[0];
 
       return {
         id: person.id,
@@ -252,10 +245,6 @@ export class AvailablePersonsService {
         notesEmoji: person.notesEmoji,
         attendanceStatus,
         nextPerformanceStatus,
-        assignedInSegment: !excludeAssignedBool && assignedDetails.has(person.id),
-        assignedInstanceId: detail?.figureInstanceId,
-        assignedNodeLabel: detail?.nodeLabel ?? undefined,
-        assignedNodeCordon: detail?.renglaPosition ?? null,
         assignedPlacements: placements,
         assignedInTronc: placements.some((p) => p.area === AssignmentArea.TRONC),
         assignedInPinya: placements.some((p) => p.area === AssignmentArea.PINYA),

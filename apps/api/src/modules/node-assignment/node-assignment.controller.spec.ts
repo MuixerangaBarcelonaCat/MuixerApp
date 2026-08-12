@@ -27,7 +27,7 @@ const mockAvailablePerson = {
   isXicalla: false,
   attendanceStatus: 'CONFIRMED',
   nextPerformanceStatus: null,
-  assignedInSegment: false,
+  assignedPlacements: [],
 };
 
 const mockHistoryEntry = {
