@@ -80,7 +80,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 
 <!-- BEGIN:AUTO — generat per scripts/generate-data-model.mjs, no editar a mà -->
 
-> Generat el 2026-08-10 des de les entitats TypeORM amb `pnpm run docs:model`.
+> Generat el 2026-08-12 des de les entitats TypeORM amb `pnpm run docs:model`.
 > **19 entitats.** No editar a mà: canvia l'entitat i torna a executar l'script.
 
 ### Resum
@@ -495,7 +495,7 @@ Definició: [`apps/api/src/modules/user/user.entity.ts`](../apps/api/src/modules
 | Camp | Tipus DB | Tipus TS | Nullable | Notes |
 |------|----------|----------|----------|-------|
 | `id` | `—` | `string` | no | PK |
-| `email` | `varchar` | `string` | no | unique |
+| `email` | `varchar` | `string` | sí | unique |
 | `passwordHash` | `varchar` | `string` | sí | — |
 | `role` | `enum` | `UserRole` | no | enum `UserRole`, default `UserRole.MEMBER` |
 | `isActive` | `boolean` | `boolean` | no | default `false` |

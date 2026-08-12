@@ -15,12 +15,6 @@ tags: [qa]
 
 ---
 
-## Backend — correcció i fiabilitat
-
-| # | Ítem | On | Impacte |
-|---|------|-----|---------|
-| B5 | Els emails d'invitació no s'envien: el servei només logueja el token | `user.service.ts:182` | L'alta d'usuaris requereix passar el token a mà |
-
 ## Sync del legacy
 
 | # | Ítem | Impacte |
