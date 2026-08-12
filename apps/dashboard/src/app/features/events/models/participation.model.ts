@@ -1,4 +1,4 @@
-import { AttendanceStatus, AvailablePersonPosition } from '../../pinyes/models/assignment.model';
+import { AssignmentArea, AttendanceStatus, AvailablePersonPosition } from '../../pinyes/models/assignment.model';
 
 /**
  * Mirrors the `GET /events/:eventId/participation` contract.
@@ -36,11 +36,16 @@ export interface ParticipationPlacement {
   nodeId: string;
   nodeLabel: string;
   zone: string;
+  /** Physical area derived from `zone` server-side (BASE→TRONC, D10). */
+  area: AssignmentArea;
   positionType: string | null;
   z: number;
   /** Cordon number. */
   renglaPosition: number | null;
 }
+
+/** Mirrors `SegmentConflictKind` (`@muixer/shared`) — declared locally per this file's convention. */
+export type ParticipationConflictKind = 'TRONC_TRONC' | 'TRONC_PINYA' | 'PINYA_PINYA';
 
 /** One row of the matrix. */
 export interface ParticipationPerson {
@@ -61,6 +66,8 @@ export interface ParticipationPerson {
   placements: Record<string, ParticipationPlacement[]>;
   assignedSegmentCount: number;
   placementCount: number;
+  /** Placements on TRONC/BASE nodes across the event (BASE→TRONC, D10). */
+  troncPlacementCount: number;
   /**
    * Segments where the person holds more than one placement — they would have to be in
    * two places at once. This IS surfaced as a warning, unlike having nothing to do.
@@ -73,6 +80,9 @@ export interface ParticipationMeta {
   personsWithPlacement: number;
   totalPlacements: number;
   conflictedPersons: number;
+  conflictsByKind: Record<ParticipationConflictKind, number>;
+  /** Total placements on TRONC/BASE nodes across the event (BASE→TRONC, D10). */
+  troncPlacements: number;
 }
 
 export interface EventParticipation {

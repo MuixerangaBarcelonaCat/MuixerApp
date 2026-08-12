@@ -1,5 +1,7 @@
 import { AttendanceStatus } from '../../enums/attendance-status.enum';
+import { AssignmentArea } from '../../enums/assignment-area.enum';
 import { FigureZone } from '../../enums/figure-zone.enum';
+import { SegmentConflictKind } from '../../enums/segment-conflict.enum';
 
 /**
  * Person-centric participation overview of a whole event: for each person, what they
@@ -45,6 +47,8 @@ export interface EventParticipationPlacement {
   nodeId: string;
   nodeLabel: string;
   zone: FigureZone;
+  /** Physical area derived from `zone` via `areaForZone` (BASE→TRONC, D10). */
+  area: AssignmentArea;
   positionType: string | null;
   z: number;
   /** Cordon number. */
@@ -85,6 +89,12 @@ export interface EventParticipationPerson {
   /** Total placements across the event. */
   placementCount: number;
   /**
+   * Placements on TRONC/BASE nodes across the event (BASE→TRONC, D10). Feeds the
+   * event-wide tronc-load metrics (Fase 6). In production (no duplicates yet) it is
+   * simply the person's tronc occupancy — never a warning.
+   */
+  troncPlacementCount: number;
+  /**
    * Segments where this person holds MORE than one placement — a *conflict*: the
    * person would have to be in two places at once. Computed server-side so the
    * semantics are defined once, and surfaced as an explicit warning in the UI.
@@ -102,6 +112,14 @@ export interface EventParticipationMeta {
   totalPlacements: number;
   /** Persons with at least one conflict. Feeds the header warning counter. */
   conflictedPersons: number;
+  /**
+   * Event-wide count of (person, segment) conflicts by kind, classified exactly like
+   * the canonical `getSegmentConflicts` (D13). In production every value is `0` while
+   * the uniqueness constraints still forbid duplicates — additive, never a warning.
+   */
+  conflictsByKind: Record<SegmentConflictKind, number>;
+  /** Total placements on TRONC/BASE nodes across the event (BASE→TRONC, D10). */
+  troncPlacements: number;
 }
 
 /**

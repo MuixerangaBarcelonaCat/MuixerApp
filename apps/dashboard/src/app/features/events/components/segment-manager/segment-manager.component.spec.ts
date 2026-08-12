@@ -4,7 +4,6 @@ import { of, throwError } from 'rxjs';
 import { Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { DragDropModule, CdkDragDrop } from '@angular/cdk/drag-drop';
-import { SegmentMoveConflictResolution } from '@muixer/shared';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { SegmentManagerComponent } from './segment-manager.component';
 import { EventSegmentService } from '../../../pinyes/services/event-segment.service';
@@ -13,7 +12,11 @@ import { CompositionService } from '../../../pinyes/services/composition.service
 import { NodeAssignmentService } from '../../../pinyes/services/node-assignment.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { SegmentDetail, InstanceDetail } from '../../../pinyes/models/segment.model';
-import { EventAssignmentSummary, EventFigureSummary } from '../../../pinyes/models/assignment.model';
+import {
+  EventAssignmentSummary,
+  EventFigureSummary,
+  SegmentPeopleCounters,
+} from '../../../pinyes/models/assignment.model';
 
 const EVENT_ID = 'event-uuid-1';
 
@@ -78,7 +81,18 @@ const makeFigureSummary = (overrides: Partial<EventFigureSummary> = {}): EventFi
   tronc: makeAreaCount(0, 0),
   total: makeAreaCount(0, 0),
   troncBaseAssignments: [],
+  distinctPersonCount: 0,
+  conflictAssignmentCount: 0,
   ...overrides,
+});
+
+const makeEmptyCounters = (): SegmentPeopleCounters => ({
+  assignmentCount: 0,
+  distinctPersonCount: 0,
+  tronc: { distinctPersonCount: 0 },
+  pinya: { distinctPersonCount: 0 },
+  conflictPersonCount: 0,
+  conflictsByKind: { TRONC_TRONC: 0, TRONC_PINYA: 0, PINYA_PINYA: 0 },
 });
 
 describe('SegmentManagerComponent', () => {
@@ -88,7 +102,11 @@ describe('SegmentManagerComponent', () => {
   let instanceService: Partial<FigureInstanceService>;
   let compositionService: { applyToSegment: ReturnType<typeof vi.fn> };
   let nodeAssignmentService: { getEventAssignmentSummary: ReturnType<typeof vi.fn> };
-  let toastService: { success: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
+  let toastService: {
+    success: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+    warning: ReturnType<typeof vi.fn>;
+  };
   let routerMock: { navigate: ReturnType<typeof vi.fn>; url: string };
 
   beforeEach(async () => {
@@ -122,6 +140,7 @@ describe('SegmentManagerComponent', () => {
     toastService = {
       success: vi.fn(),
       error: vi.fn(),
+      warning: vi.fn(),
     };
 
     routerMock = { navigate: vi.fn(), url: '/rehearsals/event-123' };
@@ -338,96 +357,52 @@ describe('SegmentManagerComponent', () => {
       expect(component.segments().find((s) => s.id === 'seg-2')!.instances).toHaveLength(1);
     });
 
-    it('opens the conflict dialog with total/tronc counts on a 409 SEGMENT_MOVE_CONFLICT response', () => {
+    it('shows a warning toast (not blocking) when the move creates segment conflicts (Fase 5, D2/D3)', () => {
       const inst = makeInstance({ id: 'inst-1' });
       const source = makeSegment({ id: 'seg-1', instances: [inst] });
       const target = makeSegment({ id: 'seg-2', instances: [] });
       component.segments.set([source, target]);
-      const error = new HttpErrorResponse({
-        status: 409,
-        error: { code: 'SEGMENT_MOVE_CONFLICT', total: 3, tronc: 1 },
-      });
-      (instanceService.move as ReturnType<typeof vi.fn>).mockReturnValue(throwError(() => error));
+      const moveResult = {
+        sourceSegment: { ...source, instances: [] },
+        targetSegment: { ...target, instances: [inst] },
+        conflicts: [{ personId: 'p1' }, { personId: 'p2' }],
+      };
+      (instanceService.move as ReturnType<typeof vi.fn>).mockReturnValue(of(moveResult));
 
       component.onInstanceDropped(target, makeCrossSegmentDrop(source, target, inst, 0, 0));
 
-      expect(component.pendingMoveConflict()).toEqual({
-        sourceSegmentId: 'seg-1',
-        targetSegmentId: 'seg-2',
-        instanceId: 'inst-1',
-        targetIndex: 0,
-        total: 3,
-        tronc: 1,
-      });
+      expect(toastService.warning).toHaveBeenCalled();
+      expect(component.segments().find((s) => s.id === 'seg-2')!.instances).toHaveLength(1);
     });
 
-    it('shows a generic error toast and does not open the dialog on a non-conflict error', () => {
+    it('does not show a warning toast when the move creates no conflicts', () => {
       const inst = makeInstance({ id: 'inst-1' });
       const source = makeSegment({ id: 'seg-1', instances: [inst] });
       const target = makeSegment({ id: 'seg-2', instances: [] });
       component.segments.set([source, target]);
-      (instanceService.move as ReturnType<typeof vi.fn>).mockReturnValue(
-        throwError(() => new HttpErrorResponse({ status: 500 })),
-      );
-
-      component.onInstanceDropped(target, makeCrossSegmentDrop(source, target, inst, 0, 0));
-
-      expect(toastService.error).toHaveBeenCalled();
-      expect(component.pendingMoveConflict()).toBeNull();
-    });
-  });
-
-  describe('move conflict resolution', () => {
-    const inst = makeInstance({ id: 'inst-1' });
-    const source = makeSegment({ id: 'seg-1', instances: [inst] });
-    const target = makeSegment({ id: 'seg-2', instances: [] });
-
-    beforeEach(() => {
-      component.segments.set([source, target]);
-      component.pendingMoveConflict.set({
-        sourceSegmentId: 'seg-1',
-        targetSegmentId: 'seg-2',
-        instanceId: 'inst-1',
-        targetIndex: 0,
-        total: 3,
-        tronc: 1,
-      });
-    });
-
-    it('resolveMoveConflict calls move with the chosen resolution and applies the result', () => {
       const moveResult = {
         sourceSegment: { ...source, instances: [] },
         targetSegment: { ...target, instances: [inst] },
       };
       (instanceService.move as ReturnType<typeof vi.fn>).mockReturnValue(of(moveResult));
 
-      component.resolveMoveConflict(SegmentMoveConflictResolution.KEEP_MOVED);
+      component.onInstanceDropped(target, makeCrossSegmentDrop(source, target, inst, 0, 0));
 
-      expect(instanceService.move).toHaveBeenCalledWith(EVENT_ID, 'seg-1', 'inst-1', {
-        targetSegmentId: 'seg-2',
-        targetIndex: 0,
-        conflictResolution: SegmentMoveConflictResolution.KEEP_MOVED,
-      });
-      expect(component.pendingMoveConflict()).toBeNull();
-      expect(component.segments().find((s) => s.id === 'seg-2')!.instances).toHaveLength(1);
+      expect(toastService.warning).not.toHaveBeenCalled();
     });
 
-    it('resolveMoveConflict shows an error toast and clears the dialog on failure', () => {
+    it('shows a generic error toast on a move failure', () => {
+      const inst = makeInstance({ id: 'inst-1' });
+      const source = makeSegment({ id: 'seg-1', instances: [inst] });
+      const target = makeSegment({ id: 'seg-2', instances: [] });
+      component.segments.set([source, target]);
       (instanceService.move as ReturnType<typeof vi.fn>).mockReturnValue(
         throwError(() => new HttpErrorResponse({ status: 500 })),
       );
 
-      component.resolveMoveConflict(SegmentMoveConflictResolution.KEEP_TARGET);
+      component.onInstanceDropped(target, makeCrossSegmentDrop(source, target, inst, 0, 0));
 
       expect(toastService.error).toHaveBeenCalled();
-      expect(component.pendingMoveConflict()).toBeNull();
-    });
-
-    it('cancelMoveConflict clears the dialog without calling move', () => {
-      component.cancelMoveConflict();
-
-      expect(component.pendingMoveConflict()).toBeNull();
-      expect(instanceService.move).not.toHaveBeenCalled();
     });
   });
 
@@ -834,6 +809,7 @@ describe('SegmentManagerComponent', () => {
           {
             segmentId: 'seg-1',
             segmentName: 'Bloc 1',
+            conflicts: makeEmptyCounters(),
             sortOrder: 0,
             figures: [
               makeFigureSummary({
@@ -856,6 +832,7 @@ describe('SegmentManagerComponent', () => {
           {
             segmentId: 'seg-1',
             segmentName: 'Bloc 1',
+            conflicts: makeEmptyCounters(),
             sortOrder: 0,
             figures: [
               makeFigureSummary({
@@ -878,6 +855,7 @@ describe('SegmentManagerComponent', () => {
           {
             segmentId: 'seg-1',
             segmentName: 'Bloc 1',
+            conflicts: makeEmptyCounters(),
             sortOrder: 0,
             figures: [
               makeFigureSummary({
@@ -912,6 +890,7 @@ describe('SegmentManagerComponent', () => {
           {
             segmentId: 'seg-1',
             segmentName: 'Bloc 1',
+            conflicts: makeEmptyCounters(),
             sortOrder: 0,
             figures: [
               makeFigureSummary({ pinya: makeAreaCount(12, 20), total: makeAreaCount(15, 24) }),
@@ -931,6 +910,7 @@ describe('SegmentManagerComponent', () => {
           {
             segmentId: 'seg-1',
             segmentName: 'Bloc 1',
+            conflicts: makeEmptyCounters(),
             sortOrder: 0,
             figures: [
               makeFigureSummary({ tronc: makeAreaCount(2, 5), total: makeAreaCount(15, 24) }),
@@ -949,6 +929,7 @@ describe('SegmentManagerComponent', () => {
           {
             segmentId: 'seg-1',
             segmentName: 'Bloc 1',
+            conflicts: makeEmptyCounters(),
             sortOrder: 0,
             figures: [makeFigureSummary({ pinya: makeAreaCount(0, 0), total: makeAreaCount(3, 3) })],
           },
@@ -960,6 +941,67 @@ describe('SegmentManagerComponent', () => {
 
     it('returns null when there is no summary data for the segment', () => {
       expect(component.segmentPeopleLabel(makeSegment({ id: 'unknown-segment' }))).toBeNull();
+    });
+  });
+
+  describe('segment conflict pill (Phase 3)', () => {
+    const loadSummary = (summary: EventAssignmentSummary) => {
+      (nodeAssignmentService.getEventAssignmentSummary as ReturnType<typeof vi.fn>).mockReturnValue(of(summary));
+      component.ngOnInit();
+    };
+
+    const counters = (over: Partial<SegmentPeopleCounters> = {}): SegmentPeopleCounters => ({
+      ...makeEmptyCounters(),
+      ...over,
+    });
+
+    it('segmentConflictCount is 0 in production (no conflicts) so the pill fragment is hidden', () => {
+      loadSummary({
+        segments: [
+          { segmentId: 'seg-1', segmentName: 'Bloc 1', conflicts: counters(), sortOrder: 0, figures: [makeFigureSummary()] },
+        ],
+      });
+      expect(component.segmentConflictCount(makeSegment({ id: 'seg-1' }))).toBe(0);
+    });
+
+    it('segmentConflictCount reflects the segment conflictPersonCount', () => {
+      loadSummary({
+        segments: [
+          {
+            segmentId: 'seg-1',
+            segmentName: 'Bloc 1',
+            conflicts: counters({ conflictPersonCount: 3 }),
+            sortOrder: 0,
+            figures: [makeFigureSummary()],
+          },
+        ],
+      });
+      expect(component.segmentConflictCount(makeSegment({ id: 'seg-1' }))).toBe(3);
+    });
+
+    it('segmentDotacioTooltip reports distinct people per area', () => {
+      loadSummary({
+        segments: [
+          {
+            segmentId: 'seg-1',
+            segmentName: 'Bloc 1',
+            conflicts: counters({
+              distinctPersonCount: 45,
+              tronc: { distinctPersonCount: 8 },
+              pinya: { distinctPersonCount: 43 },
+            }),
+            sortOrder: 0,
+            figures: [makeFigureSummary()],
+          },
+        ],
+      });
+      const tooltip = component.segmentDotacioTooltip(makeSegment({ id: 'seg-1' }));
+      expect(tooltip).toContain('8');
+      expect(tooltip).toContain('43');
+    });
+
+    it('segmentConflictCount is 0 for a segment with no summary', () => {
+      expect(component.segmentConflictCount(makeSegment({ id: 'unknown' }))).toBe(0);
     });
   });
 

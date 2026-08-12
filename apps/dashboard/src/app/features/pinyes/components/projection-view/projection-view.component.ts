@@ -97,6 +97,14 @@ export class ProjectionViewComponent implements OnInit, OnDestroy {
     return this.instanceId ? instances.filter((i) => i.id === this.instanceId) : instances;
   });
 
+  /**
+   * Person IDs in conflict for this segment (D13) — the last line of defence during l'assaig.
+   * Single amber style regardless of kind. Empty in production until Phase 5.
+   */
+  readonly conflictPersonIds = computed(
+    () => new Set((this.segmentData()?.conflicts ?? []).map((c) => c.personId)),
+  );
+
   /** personId → attendanceStatus, derived from the projection response. */
   readonly attendanceMap = computed(() => {
     const map = new Map<string, AttendanceStatus>();

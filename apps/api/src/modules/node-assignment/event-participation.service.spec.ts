@@ -4,7 +4,7 @@ import { NotFoundException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { EventParticipationService } from './event-participation.service';
 import { Event } from '../event/event.entity';
-import { AttendanceStatus, EventType, FigureZone } from '@muixer/shared';
+import { AssignmentArea, AttendanceStatus, EventType, FigureZone, SegmentConflictKind } from '@muixer/shared';
 
 const EVENT_ID = 'event-uuid-1';
 const SEG_A = 'segment-uuid-a';
@@ -207,6 +207,12 @@ describe('EventParticipationService', () => {
         personsWithPlacement: 0,
         totalPlacements: 0,
         conflictedPersons: 0,
+        conflictsByKind: {
+          [SegmentConflictKind.TRONC_TRONC]: 0,
+          [SegmentConflictKind.TRONC_PINYA]: 0,
+          [SegmentConflictKind.PINYA_PINYA]: 0,
+        },
+        troncPlacements: 0,
       });
       // Segments + matrix only: the tag query must not run.
       expect(query).toHaveBeenCalledTimes(2);
@@ -392,6 +398,72 @@ describe('EventParticipationService', () => {
         personsWithPlacement: 1,
         totalPlacements: 2,
         conflictedPersons: 0,
+        conflictsByKind: {
+          [SegmentConflictKind.TRONC_TRONC]: 0,
+          [SegmentConflictKind.TRONC_PINYA]: 0,
+          [SegmentConflictKind.PINYA_PINYA]: 0,
+        },
+        troncPlacements: 0,
+      });
+    });
+  });
+
+  describe('area and tronc load (Fase 2)', () => {
+    it('derives the area of each placement from its zone (BASE counts as TRONC, D10)', async () => {
+      primeQueries(
+        [makeSegmentRow(SEG_A)],
+        [
+          makeMatrixRow(PERSON_1, SEG_A, { assignmentId: 'a-1', nodeId: 'n-1', zone: FigureZone.PINYA }),
+          makeMatrixRow(PERSON_1, SEG_A, { assignmentId: 'a-2', nodeId: 'n-2', zone: FigureZone.TRONC }),
+          makeMatrixRow(PERSON_1, SEG_A, { assignmentId: 'a-3', nodeId: 'n-3', zone: FigureZone.BASE }),
+        ],
+      );
+
+      const { persons } = await service.getEventParticipation(EVENT_ID);
+
+      expect(persons[0].placements[SEG_A].map((p) => p.area)).toEqual([
+        AssignmentArea.PINYA,
+        AssignmentArea.TRONC,
+        AssignmentArea.TRONC,
+      ]);
+    });
+
+    it('counts TRONC and BASE placements as troncPlacementCount, across all segments', async () => {
+      primeQueries(
+        [makeSegmentRow(SEG_A), makeSegmentRow(SEG_B)],
+        [
+          makeMatrixRow(PERSON_1, SEG_A, { assignmentId: 'a-1', nodeId: 'n-1', zone: FigureZone.TRONC }),
+          makeMatrixRow(PERSON_1, SEG_A, { assignmentId: 'a-2', nodeId: 'n-2', zone: FigureZone.PINYA }),
+          makeMatrixRow(PERSON_1, SEG_B, { assignmentId: 'a-3', nodeId: 'n-3', zone: FigureZone.BASE }),
+        ],
+      );
+
+      const { persons, meta } = await service.getEventParticipation(EVENT_ID);
+
+      expect(persons[0].troncPlacementCount).toBe(2);
+      expect(meta.troncPlacements).toBe(2);
+    });
+
+    it('classifies each in-segment duplicate by kind, exactly like getSegmentConflicts (D13)', async () => {
+      primeQueries(
+        [makeSegmentRow(SEG_A), makeSegmentRow(SEG_B)],
+        [
+          // SEG_A: 1 tronc + 1 pinya → TRONC_PINYA
+          makeMatrixRow(PERSON_1, SEG_A, { assignmentId: 'a-1', nodeId: 'n-1', zone: FigureZone.TRONC }),
+          makeMatrixRow(PERSON_1, SEG_A, { assignmentId: 'a-2', nodeId: 'n-2', zone: FigureZone.PINYA }),
+          // SEG_B: 2 pinya → PINYA_PINYA
+          makeMatrixRow(PERSON_2, SEG_B, { assignmentId: 'a-3', nodeId: 'n-3', zone: FigureZone.PINYA }),
+          makeMatrixRow(PERSON_2, SEG_B, { assignmentId: 'a-4', nodeId: 'n-4', zone: FigureZone.PINYA }),
+        ],
+      );
+
+      const { meta } = await service.getEventParticipation(EVENT_ID);
+
+      expect(meta.conflictedPersons).toBe(2);
+      expect(meta.conflictsByKind).toEqual({
+        [SegmentConflictKind.TRONC_TRONC]: 0,
+        [SegmentConflictKind.TRONC_PINYA]: 1,
+        [SegmentConflictKind.PINYA_PINYA]: 1,
       });
     });
   });

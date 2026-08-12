@@ -31,10 +31,12 @@ import { CreateAuditLogs1783300000000 } from './1783300000000-CreateAuditLogs';
 import { AddUserPrivacyConsent1783400000000 } from './1783400000000-AddUserPrivacyConsent';
 import { SeedLegalDocuments1783500000000 } from './1783500000000-SeedLegalDocuments';
 import { AddLegalDocumentRequiresConsent1783600000000 } from './1783600000000-AddLegalDocumentRequiresConsent';
-import { FixLegalDocumentsTextAndStyle1783900000000 } from './1783900000000-FixLegalDocumentsTextAndStyle';
 import { AddPersonDelegatePrimaryAndOtherType1783700000000 } from './1783700000000-AddPersonDelegatePrimaryAndOtherType';
 import { DropPersonManagedBy1783800000000 } from './1783800000000-DropPersonManagedBy';
+import { FixLegalDocumentsTextAndStyle1783900000000 } from './1783900000000-FixLegalDocumentsTextAndStyle';
 import { MakeUsersEmailNullable1784000000000 } from './1784000000000-MakeUsersEmailNullable';
+import { AddNodeAssignmentConflictIndexes1784100000000 } from './1784100000000-AddNodeAssignmentConflictIndexes';
+import { DropNodeAssignmentDuplicateUniques1784200000000 } from './1784200000000-DropNodeAssignmentDuplicateUniques';
 
 export const migrations: (new () => MigrationInterface)[] = [
   InitialSchema1748600000000,
@@ -73,4 +75,6 @@ export const migrations: (new () => MigrationInterface)[] = [
   DropPersonManagedBy1783800000000,
   FixLegalDocumentsTextAndStyle1783900000000,
   MakeUsersEmailNullable1784000000000,
+  AddNodeAssignmentConflictIndexes1784100000000,
+  DropNodeAssignmentDuplicateUniques1784200000000,
 ];

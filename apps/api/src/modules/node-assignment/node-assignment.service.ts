@@ -17,6 +17,20 @@ import {
   DECORATION_NODE_PRESETS,
   DIRECTION_NODE_PRESETS,
   SegmentMoveConflictResolution,
+  AssignmentArea,
+  SegmentConflictKind,
+  areaForZone,
+  classifyPlacementKind,
+  isNodeVisibleByCordons,
+  ConflictPlacement,
+  SegmentConflict,
+  SegmentConflictsResponse,
+  SegmentPeopleCounters,
+  TroncChangeImpact,
+  EventAssignmentSummary,
+  EventSegmentSummary,
+  EventFigureSummary,
+  FigureAreaCount,
 } from '@muixer/shared';
 import { CreateAdHocNodeDto } from './dto/create-ad-hoc-node.dto';
 import { UpdateAdHocNodeDto } from './dto/update-ad-hoc-node.dto';
@@ -37,7 +51,7 @@ import { Event } from '../event/event.entity';
  * can classify it without parsing `message` — substring matching breaks silently
  * if the message wording ever changes.
  */
-export type AssignConflictReasonCode = 'NODE_OCCUPIED' | 'PERSON_IN_INSTANCE' | 'PERSON_IN_SEGMENT';
+export type AssignConflictReasonCode = 'NODE_OCCUPIED';
 
 export class AssignConflictException extends ConflictException {
   constructor(message: string, public readonly reasonCode: AssignConflictReasonCode) {
@@ -72,10 +86,19 @@ export interface AssignmentDetail {
   };
 }
 
+/** One placement of a person involved in a cross-segment move conflict. */
+interface MoveConflictPlacement {
+  assignmentId: string;
+  zone: FigureZone;
+  area: AssignmentArea;
+}
+
 export interface SegmentMoveConflict {
   personId: string;
-  /** true if the person occupies a TRONC/BASE node in either the moving instance or the target segment */
-  isTronc: boolean;
+  /** Every placement of this person across the moving instance and the target segment, tronc-area first. */
+  placements: MoveConflictPlacement[];
+  /** Drives ordering and the one-tap suggestion (§4.1), not the visual style. */
+  kind: SegmentConflictKind;
 }
 
 export interface InstanceNodeResponse {
@@ -130,6 +153,13 @@ export interface BulkImportResult {
     reason: string;
   }[];
   clonedAdHocNodes: number;
+  /**
+   * D5 (docs/SEGMENTS_FLEXIBILITY.md, Fase 5): duplicates are now imported, not skipped —
+   * only node-occupied/no-matching-node rows still land in `conflicts` above. This reports
+   * how many of the resulting segment conflicts fall in each kind, over the target segment
+   * as a whole (not just the rows this import touched).
+   */
+  conflictsByKind: Record<SegmentConflictKind, number>;
 }
 
 export interface PersonAssignmentEntry {
@@ -153,42 +183,10 @@ export interface PersonAssignmentHistory {
   meta: { total: number; page: number; limit: number };
 }
 
-export interface FigureAreaCount {
-  assigned: number;
-  total: number;
-}
-
-export interface EventFigureSummary {
-  instanceId: string;
-  figureName: string;
-  snapshotted: boolean;
-  /** PINYA nodes only, filtered by numberOfCordons/cordonsObertsEnabled and zeroed for REMAT/NETA. */
-  pinya: FigureAreaCount;
-  /** TRONC + BASE nodes (BASE excluded for REMAT). */
-  tronc: FigureAreaCount;
-  /** pinya + tronc + direction nodes; DECORATION excluded (not assignable). */
-  total: FigureAreaCount;
-  /** TRONC/BASE assignments only, unfiltered by figureMode — still needed for name display. */
-  troncBaseAssignments: {
-    nodeLabel: string;
-    positionType: string | null;
-    zone: FigureZone;
-    z: number;
-    personAlias: string;
-    personId: string;
-  }[];
-}
-
-export interface EventSegmentSummary {
-  segmentId: string;
-  segmentName: string;
-  sortOrder: number;
-  figures: EventFigureSummary[];
-}
-
-export interface EventAssignmentSummary {
-  segments: EventSegmentSummary[];
-}
+// FigureAreaCount, EventFigureSummary, EventSegmentSummary and EventAssignmentSummary
+// live in @muixer/shared (imported above). They used to be redeclared here — a
+// duplication that forced every Fase-1 field to be added twice; now there is a single
+// source (#2). The dashboard still holds its own stale copy, to be unified in Fase 3.
 
 export interface HistoryQueryParams {
   page?: number;
@@ -367,9 +365,9 @@ export class NodeAssignmentService {
   async assign(
     instanceId: string,
     dto: { nodeId: string; personId: string },
-  ): Promise<AssignmentDetail> {
+  ): Promise<AssignmentDetail & { impact?: TroncChangeImpact }> {
     await this.checkEventLock(instanceId);
-    return this.assignWithoutLockCheck(instanceId, dto);
+    return this.assignWithoutLockCheck(instanceId, dto, true);
   }
 
   /**
@@ -380,7 +378,8 @@ export class NodeAssignmentService {
   private async assignWithoutLockCheck(
     instanceId: string,
     dto: { nodeId: string; personId: string },
-  ): Promise<AssignmentDetail> {
+    computeImpact = false,
+  ): Promise<AssignmentDetail & { impact?: TroncChangeImpact }> {
     const instance = await this.figureInstanceRepository.findOne({
       where: { id: instanceId },
       relations: ['figureTemplate', 'segment'],
@@ -443,33 +442,6 @@ export class NodeAssignmentService {
       );
     }
 
-    const personConflict = await this.assignmentRepository.findOne({
-      where: {
-        figureInstance: { id: instanceId },
-        person: { id: dto.personId },
-      },
-    });
-    if (personConflict) {
-      throw new AssignConflictException(
-        `Person ${dto.personId} is already assigned in this figure instance`,
-        'PERSON_IN_INSTANCE',
-      );
-    }
-
-    const segmentConflict = await this.assignmentRepository
-      .createQueryBuilder('a')
-      .innerJoin('a.figureInstance', 'fi')
-      .where('fi.segmentId = :segmentId', { segmentId: instance.segment.id })
-      .andWhere('a.personId = :personId', { personId: dto.personId })
-      .getOne();
-
-    if (segmentConflict) {
-      throw new AssignConflictException(
-        `Person ${dto.personId} is already assigned in another figure instance of this segment`,
-        'PERSON_IN_SEGMENT',
-      );
-    }
-
     const assignment = this.assignmentRepository.create({
       figureInstance: instance,
       instanceNode,
@@ -489,7 +461,59 @@ export class NodeAssignmentService {
       relations: ['instanceNode', 'person', 'figureInstance'],
     });
 
-    return toAssignmentDetail(populated!);
+    const detail = toAssignmentDetail(populated!);
+    if (computeImpact && areaForZone(instanceNode.zone as FigureZone) === AssignmentArea.TRONC) {
+      return { ...detail, impact: await this.computeTroncChangeImpact(instance.segment.id, instanceId) };
+    }
+    return detail;
+  }
+
+  /**
+   * Derived impact of writing to a TRONC/BASE node (D11): the segment's conflicts after the
+   * write, plus the touched instance's pinya nodes that are now empty. Not persisted; consumed
+   * from Phase 4 and by FigureInstanceService.move() (Fase 5). Reuses the canonical
+   * getSegmentConflicts (D13) — no bespoke conflict logic. Public: move() lives in a
+   * different service and needs the same computation.
+   */
+  async computeTroncChangeImpact(
+    segmentId: string,
+    instanceId: string,
+  ): Promise<TroncChangeImpact> {
+    const [{ data: newConflicts }, freedPinyaNodeIds] = await Promise.all([
+      this.getSegmentConflicts(segmentId),
+      this.computeFreedPinyaNodeIds(instanceId),
+    ]);
+    return { newConflicts, freedPinyaNodeIds };
+  }
+
+  /**
+   * Pinya-area InstanceNodes of an instance that currently hold no assignment (areaForZone:
+   * BASE→TRONC), excluding nodes hidden by the instance's cordons/mode setup (R9) — a node
+   * hidden beyond `numberOfCordons` or zeroed by REMAT/NETA is not something to "review".
+   */
+  private async computeFreedPinyaNodeIds(instanceId: string): Promise<string[]> {
+    const [instance, nodes, assignments] = await Promise.all([
+      this.figureInstanceRepository.findOne({ where: { id: instanceId } }),
+      this.instanceNodeRepository.find({ where: { figureInstance: { id: instanceId } } }),
+      this.assignmentRepository.find({
+        where: { figureInstance: { id: instanceId } },
+        relations: ['instanceNode'],
+      }),
+    ]);
+    const cordonsOpts = {
+      figureMode: instance?.figureMode ?? FigureMode.COMPLETA,
+      numberOfCordons: instance?.numberOfCordons ?? null,
+      cordonsObertsEnabled: instance?.cordonsObertsEnabled ?? true,
+    };
+    const occupied = new Set(assignments.map((a) => a.instanceNode?.id).filter(Boolean));
+    return nodes
+      .filter(
+        (n) =>
+          areaForZone(n.zone as FigureZone) === AssignmentArea.PINYA &&
+          !occupied.has(n.id) &&
+          isNodeVisibleByCordons(n, cordonsOpts),
+      )
+      .map((n) => n.id);
   }
 
   // ── B.7 — Swap two assignments ────────────────────────────────────────────
@@ -497,7 +521,7 @@ export class NodeAssignmentService {
   async swap(
     instanceId: string,
     dto: { assignmentIdA: string; assignmentIdB: string },
-  ): Promise<{ a: AssignmentDetail; b: AssignmentDetail }> {
+  ): Promise<{ a: AssignmentDetail; b: AssignmentDetail; impact?: TroncChangeImpact }> {
     await this.checkEventLock(instanceId);
 
     const [assignmentA, assignmentB] = await Promise.all([
@@ -524,27 +548,33 @@ export class NodeAssignmentService {
       throw new BadRequestException('Cannot swap an assignment with itself');
     }
 
-    await this.dataSource.transaction(async (manager) => {
-      await manager.delete(NodeAssignment, { id: dto.assignmentIdA });
-      await manager.delete(NodeAssignment, { id: dto.assignmentIdB });
+    try {
+      await this.dataSource.transaction(async (manager) => {
+        await manager.delete(NodeAssignment, { id: dto.assignmentIdA });
+        await manager.delete(NodeAssignment, { id: dto.assignmentIdB });
 
-      const newA = manager.create(NodeAssignment, {
-        id: dto.assignmentIdA,
-        figureInstance: assignmentA.figureInstance,
-        instanceNode: assignmentA.instanceNode,
-        person: assignmentB.person,
-        segment: assignmentA.figureInstance.segment,
-      });
-      const newB = manager.create(NodeAssignment, {
-        id: dto.assignmentIdB,
-        figureInstance: assignmentB.figureInstance,
-        instanceNode: assignmentB.instanceNode,
-        person: assignmentA.person,
-        segment: assignmentB.figureInstance.segment,
-      });
+        const newA = manager.create(NodeAssignment, {
+          id: dto.assignmentIdA,
+          figureInstance: assignmentA.figureInstance,
+          instanceNode: assignmentA.instanceNode,
+          person: assignmentB.person,
+          segment: assignmentA.figureInstance.segment,
+        });
+        const newB = manager.create(NodeAssignment, {
+          id: dto.assignmentIdB,
+          figureInstance: assignmentB.figureInstance,
+          instanceNode: assignmentB.instanceNode,
+          person: assignmentA.person,
+          segment: assignmentB.figureInstance.segment,
+        });
 
-      await manager.save(NodeAssignment, [newA, newB]);
-    });
+        await manager.save(NodeAssignment, [newA, newB]);
+      });
+    } catch (err) {
+      // Fase 5 (risc 10, §7 Fase 5.3): swap() never used to catch the unique-violation
+      // race on the one constraint that still applies (UQ_node_assignments_instance_node).
+      throw this.toAssignConflictError(err);
+    }
 
     const [updatedA, updatedB] = await Promise.all([
       this.assignmentRepository.findOne({
@@ -561,17 +591,28 @@ export class NodeAssignmentService {
       throw new NotFoundException('Failed to reload assignments after swap');
     }
 
-    return { a: toAssignmentDetail(updatedA), b: toAssignmentDetail(updatedB) };
+    const result = { a: toAssignmentDetail(updatedA), b: toAssignmentDetail(updatedB) };
+    const touchesTronc = [assignmentA, assignmentB].some(
+      (x) => areaForZone(x.instanceNode.zone as FigureZone) === AssignmentArea.TRONC,
+    );
+    if (touchesTronc) {
+      return {
+        ...result,
+        impact: await this.computeTroncChangeImpact(assignmentA.figureInstance.segment.id, instanceId),
+      };
+    }
+    return result;
   }
 
   // ── Existing — unassign ───────────────────────────────────────────────────
 
-  async unassign(instanceId: string, assignmentId: string): Promise<void> {
+  /** Removes an assignment, attaching a TroncChangeImpact (D11) when it freed a TRONC/BASE node. */
+  async unassign(instanceId: string, assignmentId: string): Promise<{ impact?: TroncChangeImpact }> {
     await this.checkEventLock(instanceId);
 
     const assignment = await this.assignmentRepository.findOne({
       where: { id: assignmentId },
-      relations: ['figureInstance'],
+      relations: ['figureInstance', 'figureInstance.segment', 'instanceNode'],
     });
 
     if (!assignment) {
@@ -582,7 +623,13 @@ export class NodeAssignmentService {
       throw new NotFoundException(`Assignment ${assignmentId} does not belong to instance ${instanceId}`);
     }
 
+    const touchesTronc = areaForZone(assignment.instanceNode.zone as FigureZone) === AssignmentArea.TRONC;
     await this.assignmentRepository.remove(assignment);
+
+    if (touchesTronc) {
+      return { impact: await this.computeTroncChangeImpact(assignment.figureInstance.segment.id, instanceId) };
+    }
+    return {};
   }
 
   // ── Segment move — cross-segment person conflicts ──────────────────────────
@@ -602,18 +649,170 @@ export class NodeAssignmentService {
       }),
     ]);
 
-    const TRONC_ZONES = new Set([FigureZone.TRONC, FigureZone.BASE]);
-    const targetByPersonId = new Map(targetAssignments.map((a) => [a.person.id, a]));
+    // Group every placement (moving instance + target segment) by person, so a person
+    // with more than one row on either side is no longer collapsed to an arbitrary one.
+    const targetPersonIds = new Set(targetAssignments.map((a) => a.person.id));
+    const placementsByPersonId = new Map<string, MoveConflictPlacement[]>();
+    for (const a of [...movingAssignments, ...targetAssignments]) {
+      // A conflict needs the person on both sides of the move.
+      if (!targetPersonIds.has(a.person.id)) continue;
+      const zone = a.instanceNode.zone as FigureZone;
+      const placement: MoveConflictPlacement = {
+        assignmentId: a.id,
+        zone,
+        area: areaForZone(zone) as AssignmentArea,
+      };
+      const existing = placementsByPersonId.get(a.person.id);
+      if (existing) existing.push(placement);
+      else placementsByPersonId.set(a.person.id, [placement]);
+    }
 
-    return movingAssignments
-      .filter((a) => targetByPersonId.has(a.person.id))
-      .map((a) => {
-        const targetAssignment = targetByPersonId.get(a.person.id)!;
-        const isTronc =
-          TRONC_ZONES.has(a.instanceNode.zone as FigureZone) ||
-          TRONC_ZONES.has(targetAssignment.instanceNode.zone as FigureZone);
-        return { personId: a.person.id, isTronc };
+    const areaRank: Record<string, number> = {
+      [AssignmentArea.TRONC]: 0,
+      [AssignmentArea.PINYA]: 1,
+      [AssignmentArea.DIRECTION]: 2,
+    };
+
+    const conflicts: SegmentMoveConflict[] = [];
+    for (const [personId, placements] of placementsByPersonId) {
+      // Only rows where the person is on both sides make a real overlap. The moving
+      // instance always contributes ≥1 (it produced the personId via targetPersonIds),
+      // but a target-only person never enters this map, so ≥2 placements here is implied.
+      if (placements.length < 2) continue;
+      placements.sort((x, y) => (areaRank[x.area] ?? 99) - (areaRank[y.area] ?? 99));
+      const troncCount = placements.filter((p) => p.area === AssignmentArea.TRONC).length;
+      const kind =
+        troncCount >= 2
+          ? SegmentConflictKind.TRONC_TRONC
+          : troncCount === 1
+            ? SegmentConflictKind.TRONC_PINYA
+            : SegmentConflictKind.PINYA_PINYA;
+      conflicts.push({ personId, placements, kind });
+    }
+    return conflicts;
+  }
+
+  // ── Segment conflicts — canonical source (D13) ─────────────────────────────
+
+  /**
+   * Canonical "what conflicts does this segment have" query (D13): every OTHER caller
+   * (summary, projection, findAllByEvent, available-persons) reads through this, never
+   * reimplementing the classification.
+   */
+  async getSegmentConflicts(segmentId: string): Promise<SegmentConflictsResponse> {
+    const assignments = await this.assignmentRepository.find({
+      where: { segment: { id: segmentId } },
+      relations: ['instanceNode', 'person', 'figureInstance', 'figureInstance.figureTemplate'],
+    });
+
+    const conflicts = this.classifySegmentConflicts(assignments);
+    return { data: conflicts, meta: this.computeSegmentPeopleCounters(assignments, conflicts) };
+  }
+
+  /**
+   * Groups an already-loaded set of assignments (one segment's worth) by person and
+   * classifies each >1-placement group. Callers that already have their assignments
+   * batched (getEventAssignmentSummary, projection) reuse this instead of re-querying
+   * through getSegmentConflicts — same classification, no extra round trip (D13).
+   */
+  private classifySegmentConflicts(assignments: NodeAssignment[]): SegmentConflict[] {
+    const areaRank: Record<string, number> = {
+      [AssignmentArea.TRONC]: 0,
+      [AssignmentArea.PINYA]: 1,
+      [AssignmentArea.DIRECTION]: 2,
+    };
+
+    const toPlacement = (a: NodeAssignment): ConflictPlacement => {
+      const zone = a.instanceNode.zone as FigureZone;
+      return {
+        assignmentId: a.id,
+        figureInstanceId: a.figureInstance.id,
+        figureName: a.figureInstance.figureTemplate?.name ?? 'Sense plantilla',
+        nodeId: a.instanceNode.id,
+        nodeLabel: a.instanceNode.label ?? null,
+        zone,
+        area: areaForZone(zone) as AssignmentArea,
+        z: a.instanceNode.z ?? null,
+        renglaPosition: a.instanceNode.renglaPosition ?? null,
+        cordon: a.instanceNode.renglaPosition ?? null,
+      };
+    };
+
+    const groupsByPersonId = new Map<string, { alias: string; placements: ConflictPlacement[] }>();
+    for (const a of assignments) {
+      const existing = groupsByPersonId.get(a.person.id);
+      const placement = toPlacement(a);
+      if (existing) existing.placements.push(placement);
+      else groupsByPersonId.set(a.person.id, { alias: a.person.alias, placements: [placement] });
+    }
+
+    const conflicts: SegmentConflict[] = [];
+    for (const [personId, { alias, placements }] of groupsByPersonId) {
+      if (placements.length < 2) continue;
+
+      placements.sort((x, y) => {
+        const rankDiff = (areaRank[x.area] ?? 99) - (areaRank[y.area] ?? 99);
+        if (rankDiff !== 0) return rankDiff;
+        return (x.renglaPosition ?? Infinity) - (y.renglaPosition ?? Infinity);
       });
+
+      const pinyaPlacements = placements.filter((p) => p.area === AssignmentArea.PINYA);
+      // §4.1 precedence rule lives in @muixer/shared so participation classifies identically (D13).
+      const kind = classifyPlacementKind(placements.map((p) => p.area));
+
+      // suggestedRemovalAssignmentIds (§Notes de disseny): never a tronc placement.
+      // PINYA_PINYA keeps the interior one (lowest renglaPosition, fallback z).
+      let suggestedRemovalAssignmentIds: string[];
+      if (kind === SegmentConflictKind.PINYA_PINYA) {
+        const byInterior = [...pinyaPlacements].sort(
+          (x, y) => (x.renglaPosition ?? x.z ?? Infinity) - (y.renglaPosition ?? y.z ?? Infinity),
+        );
+        suggestedRemovalAssignmentIds = byInterior.slice(1).map((p) => p.assignmentId);
+      } else {
+        suggestedRemovalAssignmentIds = pinyaPlacements.map((p) => p.assignmentId);
+      }
+
+      conflicts.push({ personId, personAlias: alias, placements, kind, suggestedRemovalAssignmentIds });
+    }
+
+    const kindOrder = [
+      SegmentConflictKind.TRONC_TRONC,
+      SegmentConflictKind.TRONC_PINYA,
+      SegmentConflictKind.PINYA_PINYA,
+    ];
+    conflicts.sort((a, b) => kindOrder.indexOf(a.kind) - kindOrder.indexOf(b.kind));
+
+    return conflicts;
+  }
+
+  private computeSegmentPeopleCounters(
+    assignments: NodeAssignment[],
+    conflicts: SegmentConflict[],
+  ): SegmentPeopleCounters {
+    const distinctPersonIds = new Set(assignments.map((a) => a.person.id));
+    const troncPersonIds = new Set<string>();
+    const pinyaPersonIds = new Set<string>();
+    for (const a of assignments) {
+      const area = areaForZone(a.instanceNode.zone as FigureZone);
+      if (area === AssignmentArea.TRONC) troncPersonIds.add(a.person.id);
+      if (area === AssignmentArea.PINYA) pinyaPersonIds.add(a.person.id);
+    }
+
+    const conflictsByKind: Record<SegmentConflictKind, number> = {
+      [SegmentConflictKind.TRONC_TRONC]: 0,
+      [SegmentConflictKind.TRONC_PINYA]: 0,
+      [SegmentConflictKind.PINYA_PINYA]: 0,
+    };
+    for (const c of conflicts) conflictsByKind[c.kind]++;
+
+    return {
+      assignmentCount: assignments.length,
+      distinctPersonCount: distinctPersonIds.size,
+      tronc: { distinctPersonCount: troncPersonIds.size },
+      pinya: { distinctPersonCount: pinyaPersonIds.size },
+      conflictPersonCount: conflicts.length,
+      conflictsByKind,
+    };
   }
 
   async resolveSegmentMoveConflicts(
@@ -624,6 +823,11 @@ export class NodeAssignmentService {
     manager: EntityManager,
   ): Promise<void> {
     if (personIds.length === 0) return;
+
+    // KEEP_BOTH (Fase 5 default, D3): duplicates are legal now — leave both sides untouched.
+    // Explicit branch on purpose: falling through to the old `else` would silently delete the
+    // target segment's placements, the opposite of what KEEP_BOTH means.
+    if (resolution === SegmentMoveConflictResolution.KEEP_BOTH) return;
 
     if (resolution === SegmentMoveConflictResolution.KEEP_TARGET) {
       await manager.delete(NodeAssignment, {
@@ -884,24 +1088,50 @@ export class NodeAssignmentService {
     }
 
     const instancesBySegment = new Map<string, FigureInstance[]>();
+    const segmentIdByInstanceId = new Map<string, string>();
     for (const fi of instances) {
       const arr = instancesBySegment.get(fi.segment.id);
       if (arr) arr.push(fi);
       else instancesBySegment.set(fi.segment.id, [fi]);
+      segmentIdByInstanceId.set(fi.id, fi.segment.id);
+    }
+
+    // D13: classify conflicts per segment from the assignments already batched above
+    // (no extra query) instead of calling getSegmentConflicts per segment (would
+    // reintroduce the N+1 this method was optimized away from).
+    const assignmentsBySegment = new Map<string, NodeAssignment[]>();
+    for (const a of assignments) {
+      const segmentId = segmentIdByInstanceId.get(a.figureInstance.id);
+      if (!segmentId) continue;
+      const arr = assignmentsBySegment.get(segmentId);
+      if (arr) arr.push(a);
+      else assignmentsBySegment.set(segmentId, [a]);
     }
 
     const result: EventSegmentSummary[] = segments.map((segment) => {
+      const segmentAssignments = assignmentsBySegment.get(segment.id) ?? [];
+      const segmentConflicts = this.classifySegmentConflicts(segmentAssignments);
+      const conflictAssignmentIdsByInstance = new Map<string, Set<string>>();
+      for (const conflict of segmentConflicts) {
+        for (const placement of conflict.placements) {
+          const set = conflictAssignmentIdsByInstance.get(placement.figureInstanceId) ?? new Set<string>();
+          set.add(placement.assignmentId);
+          conflictAssignmentIdsByInstance.set(placement.figureInstanceId, set);
+        }
+      }
+
       const segmentInstances = instancesBySegment.get(segment.id) ?? [];
       const figures: EventFigureSummary[] = segmentInstances.map((fi) => {
         const nodes = fi.snapshotted
           ? (instanceNodesByInstance.get(fi.id) ?? [])
           : (templateNodesByTemplate.get(fi.figureTemplate?.id ?? '') ?? []);
         const figureAssignments = assignmentsByInstance.get(fi.id) ?? [];
+        const conflictAssignmentIds = conflictAssignmentIdsByInstance.get(fi.id);
         return {
           instanceId: fi.id,
           figureName: fi.figureTemplate?.name ?? 'Sense plantilla',
           snapshotted: fi.snapshotted,
-          ...this.computeInstanceAreaSummary(fi, nodes, figureAssignments),
+          ...this.computeInstanceAreaSummary(fi, nodes, figureAssignments, conflictAssignmentIds),
         };
       });
 
@@ -910,6 +1140,7 @@ export class NodeAssignmentService {
         segmentName: segment.name ?? '',
         sortOrder: segment.sortOrder,
         figures,
+        conflicts: this.computeSegmentPeopleCounters(segmentAssignments, segmentConflicts),
       };
     });
 
@@ -928,23 +1159,22 @@ export class NodeAssignmentService {
     fi: FigureInstance,
     nodes: Array<Pick<InstanceNode | FigureNode, 'zone' | 'positionType' | 'renglaPosition'>>,
     instanceAssignments: NodeAssignment[],
+    conflictAssignmentIds?: Set<string>,
   ): {
     pinya: FigureAreaCount;
     tronc: FigureAreaCount;
     total: FigureAreaCount;
     troncBaseAssignments: EventFigureSummary['troncBaseAssignments'];
+    distinctPersonCount: number;
+    conflictAssignmentCount: number;
   } {
     const figureMode = fi.figureMode ?? FigureMode.COMPLETA;
     const numberOfCordons = fi.numberOfCordons ?? null;
     const cordonsObertsEnabled = fi.cordonsObertsEnabled;
+    const cordonsOpts = { figureMode, numberOfCordons, cordonsObertsEnabled };
 
-    const isPinya = (n: { zone: string; positionType: string | null; renglaPosition: number | null }): boolean => {
-      if (n.zone !== FigureZone.PINYA) return false;
-      if (figureMode === FigureMode.REMAT || figureMode === FigureMode.NETA) return false;
-      if (n.positionType === 'cordo-obert') return cordonsObertsEnabled;
-      if (numberOfCordons === null) return true;
-      return n.renglaPosition === null || n.renglaPosition <= numberOfCordons;
-    };
+    const isPinya = (n: { zone: string; positionType: string | null; renglaPosition: number | null }): boolean =>
+      n.zone === FigureZone.PINYA && isNodeVisibleByCordons(n, cordonsOpts);
     const isTronc = (n: { zone: string }): boolean =>
       n.zone === FigureZone.TRONC || (n.zone === FigureZone.BASE && figureMode !== FigureMode.REMAT);
     const isDirection = (n: { zone: string }): boolean =>
@@ -985,6 +1215,11 @@ export class NodeAssignmentService {
       }
     }
 
+    const distinctPersonCount = new Set(instanceAssignments.map((a) => a.person.id)).size;
+    const conflictAssignmentCount = conflictAssignmentIds
+      ? instanceAssignments.filter((a) => conflictAssignmentIds.has(a.id)).length
+      : 0;
+
     return {
       pinya: { assigned: pinyaAssigned, total: pinyaTotal },
       tronc: { assigned: troncAssigned, total: troncTotal },
@@ -993,6 +1228,8 @@ export class NodeAssignmentService {
         total: pinyaTotal + troncTotal + directionTotal,
       },
       troncBaseAssignments,
+      distinctPersonCount,
+      conflictAssignmentCount,
     };
   }
 
@@ -1196,7 +1433,8 @@ export class NodeAssignmentService {
       }
     }
 
-    return { created, conflicts, clonedAdHocNodes };
+    const { meta } = await this.getSegmentConflicts(targetInstance.segment.id);
+    return { created, conflicts, clonedAdHocNodes, conflictsByKind: meta.conflictsByKind };
   }
 
 
@@ -1500,21 +1738,14 @@ export class NodeAssignmentService {
 
   /**
    * Translates a Postgres unique-violation (23505) racing another concurrent
-   * assign() into the same ConflictException the pre-checks throw, instead of
-   * letting it surface as a raw 500 (BUG-18). Any other error is rethrown as-is.
+   * assign()/swap() into the same ConflictException the NODE_OCCUPIED pre-check
+   * throws, instead of letting it surface as a raw 500 (BUG-18). Since Fase 5
+   * dropped the person-scoped uniques, UQ_node_assignments_instance_node is the
+   * only constraint that can still fire here. Any other error is rethrown as-is.
    */
   private toAssignConflictError(err: unknown): Error {
-    const pgErr = err as { code?: string; detail?: string };
+    const pgErr = err as { code?: string };
     if (pgErr?.code !== '23505') return err as Error;
-    if (pgErr.detail?.includes('segmentId')) {
-      return new AssignConflictException(
-        'Person is already assigned in another figure instance of this segment',
-        'PERSON_IN_SEGMENT',
-      );
-    }
-    if (pgErr.detail?.includes('personId')) {
-      return new AssignConflictException('Person is already assigned in this figure instance', 'PERSON_IN_INSTANCE');
-    }
     return new AssignConflictException('Node is already occupied in this figure instance', 'NODE_OCCUPIED');
   }
 
@@ -1527,14 +1758,7 @@ export class NodeAssignmentService {
    */
   private describeBulkImportError(err: unknown): string | null {
     if (err instanceof AssignConflictException) {
-      switch (err.reasonCode) {
-        case 'NODE_OCCUPIED':
-          return 'Node already occupied in target instance';
-        case 'PERSON_IN_INSTANCE':
-          return 'Person already assigned in target instance';
-        case 'PERSON_IN_SEGMENT':
-          return 'Person already assigned in this segment';
-      }
+      return 'Node already occupied in target instance';
     }
     if (err instanceof BadRequestException || err instanceof NotFoundException) {
       return err.message;

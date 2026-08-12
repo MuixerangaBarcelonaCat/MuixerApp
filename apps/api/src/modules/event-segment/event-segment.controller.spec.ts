@@ -19,6 +19,14 @@ const mockSegment: SegmentWithInstances = {
   notes: null,
   isVisible: false,
   instances: [],
+  conflicts: {
+    assignmentCount: 0,
+    distinctPersonCount: 0,
+    tronc: { distinctPersonCount: 0 },
+    pinya: { distinctPersonCount: 0 },
+    conflictPersonCount: 0,
+    conflictsByKind: { TRONC_TRONC: 0, TRONC_PINYA: 0, PINYA_PINYA: 0 },
+  },
 };
 
 const mockInstance = {
@@ -42,6 +50,7 @@ const mockProjectionData: ProjectionData = {
   instances: [],
   hasDistribution: false,
   personAttendance: {},
+  conflicts: [],
 };
 
 const mockMoveResult = { sourceSegment: mockSegment, targetSegment: mockSegment };

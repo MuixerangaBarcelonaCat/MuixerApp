@@ -19,6 +19,7 @@ class FigureCanvasStub {
   readonly nodes = input<CanvasNode[]>([]);
   readonly mode = input<CanvasMode>('readonly');
   readonly assignments = input<AssignmentDetail[]>([]);
+  readonly conflictPersonIds = input<Set<string>>(new Set());
   readonly gridEnabled = input<boolean>(true);
   readonly attendanceMap = input<Map<string, string>>(new Map());
   readonly isPast = input<boolean>(false);
@@ -32,6 +33,7 @@ class TroncViewStub {
   readonly baseNodes = input<TroncNodeItem[]>([]);
   readonly directionNodes = input<TroncNodeItem[]>([]);
   readonly assignments = input<AssignmentDetail[]>([]);
+  readonly conflictPersonIds = input<Set<string>>(new Set());
   readonly mode = input<string>('projection');
   readonly isNetaFigure = input<boolean>(false);
   readonly attendanceMap = input<Map<string, string>>(new Map());
@@ -126,6 +128,7 @@ describe('ProjectionViewComponent', () => {
         instances: [],
         personAttendance: { 'person-1': 'ASSISTIT', 'person-2': 'NO_VAIG' },
         hasDistribution: false,
+        conflicts: [],
       } as Parameters<typeof component.segmentData.set>[0]);
 
       const map = component.attendanceMap();
@@ -139,6 +142,7 @@ describe('ProjectionViewComponent', () => {
         instances: [],
         personAttendance: {},
         hasDistribution: false,
+        conflicts: [],
       } as Parameters<typeof component.segmentData.set>[0]);
 
       expect(component.attendanceMap().size).toBe(0);
@@ -286,6 +290,7 @@ describe('ProjectionViewComponent', () => {
         instances: [inst],
         personAttendance: {},
         hasDistribution: true,
+        conflicts: [],
       });
       expect(component.effectivePositions().get('inst-A')).toEqual({ x: 100, y: 200, angle: 30 });
     });
@@ -298,6 +303,7 @@ describe('ProjectionViewComponent', () => {
         instances: [inst1, inst2],
         personAttendance: {},
         hasDistribution: false,
+        conflicts: [],
       });
       const positions = component.effectivePositions();
       const p1 = positions.get('i1');
@@ -320,6 +326,7 @@ describe('ProjectionViewComponent', () => {
         instances,
         personAttendance: {},
         hasDistribution: false,
+        conflicts: [],
       });
 
       const positions = component.effectivePositions();
@@ -339,6 +346,7 @@ describe('ProjectionViewComponent', () => {
         instances: [stored, mock],
         personAttendance: {},
         hasDistribution: true,
+        conflicts: [],
       });
       const positions = component.effectivePositions();
       expect(positions.get('mock')!.x).toBeGreaterThan(positions.get('stored')!.x);
@@ -353,6 +361,7 @@ describe('ProjectionViewComponent', () => {
         instances: [inst],
         personAttendance: {},
         hasDistribution: false,
+        conflicts: [],
       });
       const [effective] = component.effectiveInstances();
       expect(effective.projectionX).not.toBeNull();
@@ -370,6 +379,7 @@ describe('ProjectionViewComponent', () => {
         instances: [makeInstance(nodes, [], { id: 'i1', projectionX: null })],
         personAttendance: {},
         hasDistribution: false,
+        conflicts: [],
       });
 
       const [effective] = component.effectiveInstances();
@@ -404,6 +414,7 @@ describe('ProjectionViewComponent', () => {
         instances: [a, b],
         personAttendance: {},
         hasDistribution: false,
+        conflicts: [],
       });
 
       const positions = component.effectivePositions();
@@ -429,6 +440,7 @@ describe('ProjectionViewComponent', () => {
         instances: [a, b],
         personAttendance: {},
         hasDistribution: false,
+        conflicts: [],
       });
 
       const positions = component.effectivePositions();
@@ -450,6 +462,7 @@ describe('ProjectionViewComponent', () => {
         instances: [a],
         personAttendance: {},
         hasDistribution: false,
+        conflicts: [],
       });
 
       const [effective] = component.effectiveInstances();
@@ -490,6 +503,7 @@ describe('ProjectionViewComponent', () => {
         ),
         personAttendance: {},
         hasDistribution: false,
+        conflicts: [],
       });
 
       // Backend-shaped distribution items for the same figures: troncGridCols =
@@ -535,6 +549,7 @@ describe('ProjectionViewComponent', () => {
         instances: [makeInstance([makeNode({ id: 'n1', zone: FigureZone.PINYA })], ['n1'])],
         personAttendance: {},
         hasDistribution: false,
+        conflicts: [],
       });
       expect(component.distributionNodes().length).toBe(1);
     });
@@ -549,6 +564,7 @@ describe('ProjectionViewComponent', () => {
         instances: [inst1, inst2],
         personAttendance: {},
         hasDistribution: true,
+        conflicts: [],
       });
       expect(component.distributionNodes().length).toBe(2);
     });
@@ -563,6 +579,7 @@ describe('ProjectionViewComponent', () => {
         instances: [inst1, inst2],
         personAttendance: {},
         hasDistribution: true,
+        conflicts: [],
       });
       const nodes = component.distributionNodes();
       const xValues = nodes.map((n) => n.x);
@@ -580,6 +597,7 @@ describe('ProjectionViewComponent', () => {
         instances: [inst],
         personAttendance: {},
         hasDistribution: false,
+        conflicts: [],
       });
       expect(component.distributionAssignments().length).toBe(1);
     });
@@ -592,6 +610,7 @@ describe('ProjectionViewComponent', () => {
         instances: [inst1, inst2],
         personAttendance: {},
         hasDistribution: true,
+        conflicts: [],
       });
       expect(component.distributionAssignments().length).toBe(2);
     });

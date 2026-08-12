@@ -201,8 +201,10 @@ duplicated or derived from another template.
 1. `NodeAssignment` always points to an `InstanceNode`, never to a `FigureNode`.
 2. Once `snapshotted`, `InstanceNode`s are unaffected by template changes.
 3. `FigureInstance` has either `figureTemplate` **or** `composition` (XOR).
-4. A person cannot hold two assignments in the same segment (unique `[segment, person]`) nor twice in the
-   same instance (unique `[figureInstance, person]`).
+4. `NodeAssignment` uniqueness is per node only (`[figureInstance, instanceNode]`) — a person can legally
+   hold ≥2 assignments in the same segment or instance since Fase 5; these duplicates are surfaced as soft
+   conflicts (`TRONC_TRONC` / `TRONC_PINYA` / `PINYA_PINYA`, `classifyPlacementKind` in `@muixer/shared`),
+   never rejected.
 5. TRONC/BASE: `x`/`width` in relative units; PINYA: pixels.
 
 ### Key components

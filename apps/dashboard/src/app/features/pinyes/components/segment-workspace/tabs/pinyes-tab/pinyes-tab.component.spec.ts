@@ -25,6 +25,7 @@ class StubFigureCanvas {
   readonly mode = input<string>('editor');
   readonly compositionSlots = input<CompositionSlotWithNodes[]>([]);
   readonly assignments = input<AssignmentDetail[]>([]);
+  readonly conflictPersonIds = input<Set<string>>(new Set());
   readonly selectedSegmentNode = input<SegmentNodeRef | null>(null);
   readonly dimmedSlotIds = input<Set<string>>(new Set());
   readonly heightMode = input<string>('relative');
@@ -47,6 +48,7 @@ class StubPersonPanel {
   readonly segmentId = input.required<string>();
   readonly selectedNodeId = input<string | null>(null);
   readonly assignments = input<AssignmentDetail[]>([]);
+  readonly conflictPersonIds = input<Set<string>>(new Set());
   readonly heightMode = input<string>('relative');
   readonly activeNodePositionType = input<string | null>(null);
   readonly selectedNodeZone = input<string | null>(null);
@@ -170,7 +172,10 @@ const makePerson = (id: string): AvailablePerson => ({
   notesEmoji: null,
   attendanceStatus: 'ANIRE',
   nextPerformanceStatus: null,
-  assignedInSegment: false,
+  assignedPlacements: [],
+  assignedInTronc: false,
+  assignedInPinya: false,
+  conflictInSegment: false,
   positions: [],
 });
 
@@ -187,6 +192,7 @@ describe('PinyesTabComponent', () => {
     getByInstance: MockFn;
     getAvailablePersons: MockFn;
     getLockStatus: MockFn;
+    getSegmentConflicts: MockFn;
     assign: MockFn;
     unassign: MockFn;
     swap: MockFn;
@@ -212,11 +218,12 @@ describe('PinyesTabComponent', () => {
         of({ data: opts.assignmentsByInstance?.[instanceId] ?? [] }),
       ),
       getAvailablePersons: vi.fn().mockReturnValue(of({ data: [] })),
+      getSegmentConflicts: vi.fn().mockReturnValue(of({ data: [] })),
       getLockStatus: vi
         .fn()
         .mockReturnValue(of({ locked: opts.locked ?? false, lockDate: null, lockDays: 3 })),
       assign: vi.fn().mockReturnValue(of(makeAssignment(INST_A, 'n1'))),
-      unassign: vi.fn().mockReturnValue(of(null)),
+      unassign: vi.fn().mockReturnValue(of({})),
       swap: vi.fn(),
       resetSnapshot: vi.fn(),
     };
@@ -295,6 +302,7 @@ describe('PinyesTabComponent', () => {
         getInstanceNodes: vi.fn((instanceId: string) => (instanceId === INST_A ? subjectA : subjectB)),
         getByInstance: vi.fn(() => of({ data: [] })),
         getAvailablePersons: vi.fn().mockReturnValue(of({ data: [] })),
+        getSegmentConflicts: vi.fn().mockReturnValue(of({ data: [] })),
         getLockStatus: vi.fn().mockReturnValue(of({ locked: false, lockDate: null, lockDays: 3 })),
         assign: vi.fn(),
         unassign: vi.fn(),
@@ -852,7 +860,7 @@ describe('PinyesTabComponent', () => {
       component.openImport();
       assignmentService.getInstanceNodes.mockClear();
 
-      component.onImportCompleted({ created: [], conflicts: [], clonedAdHocNodes: 0 });
+      component.onImportCompleted({ created: [], conflicts: [], clonedAdHocNodes: 0, conflictsByKind: {} as any });
 
       expect(assignmentService.getInstanceNodes).toHaveBeenCalledWith(INST_A);
       expect(toast.success).toHaveBeenCalled();

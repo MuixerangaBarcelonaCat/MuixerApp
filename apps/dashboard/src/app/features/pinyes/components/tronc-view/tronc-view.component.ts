@@ -76,6 +76,8 @@ export class TroncViewComponent {
 
   readonly assignments = input<AssignmentDetail[]>([]);
   readonly selectedNodeId = input<string | null>(null);
+  /** Person IDs in conflict in this segment; a node is flagged when its assigned person is one. */
+  readonly conflictPersonIds = input<Set<string>>(new Set());
   readonly mode = input<'editor' | 'assignment' | 'projection'>('assignment');
   readonly heightMode = input<HeightMode>('relative');
   readonly highlightedNodeIds = input<Set<string>>(new Set());
@@ -525,6 +527,12 @@ export class TroncViewComponent {
 
   getAssignment(nodeId: string): AssignmentDetail | undefined {
     return this.assignments().find((a) => a.node.id === nodeId);
+  }
+
+  /** True when the node's assigned person holds >1 placement in the segment (Phase 3). */
+  isConflict(nodeId: string): boolean {
+    const assignment = this.getAssignment(nodeId);
+    return !!assignment && this.conflictPersonIds().has(assignment.person.id);
   }
 
   getHeightDisplay(shoulderHeight: number | null): string {

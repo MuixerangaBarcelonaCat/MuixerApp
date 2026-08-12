@@ -44,7 +44,20 @@ describe('FigureInstanceService.applyComposition (integration)', () => {
         ]),
         {
           provide: NodeAssignmentService,
-          useValue: { checkEventLockByEventId: jest.fn().mockResolvedValue(undefined) },
+          useValue: {
+            checkEventLockByEventId: jest.fn().mockResolvedValue(undefined),
+            getSegmentConflicts: jest.fn().mockResolvedValue({
+              data: [],
+              meta: {
+                assignmentCount: 0,
+                distinctPersonCount: 0,
+                tronc: { distinctPersonCount: 0 },
+                pinya: { distinctPersonCount: 0 },
+                conflictPersonCount: 0,
+                conflictsByKind: { TRONC_TRONC: 0, TRONC_PINYA: 0, PINYA_PINYA: 0 },
+              },
+            }),
+          },
         },
         { provide: DataSource, useValue: db.dataSource },
       ],

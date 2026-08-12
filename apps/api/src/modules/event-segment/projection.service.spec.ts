@@ -50,9 +50,19 @@ const mockAttendanceRepo = {
   find: jest.fn(),
 };
 
+const DEFAULT_CONFLICTS_META = {
+  assignmentCount: 0,
+  distinctPersonCount: 0,
+  tronc: { distinctPersonCount: 0 },
+  pinya: { distinctPersonCount: 0 },
+  conflictPersonCount: 0,
+  conflictsByKind: { TRONC_TRONC: 0, TRONC_PINYA: 0, PINYA_PINYA: 0 },
+};
+
 const mockNodeAssignmentService = {
   getInstanceNodes: jest.fn().mockResolvedValue([]),
   getByInstance: jest.fn().mockResolvedValue([]),
+  getSegmentConflicts: jest.fn().mockResolvedValue({ data: [], meta: DEFAULT_CONFLICTS_META }),
 };
 
 async function buildService(): Promise<ProjectionService> {
@@ -145,6 +155,32 @@ describe('ProjectionService', () => {
     ]);
     const result = await service.getProjection(EVENT_ID, SEGMENT_ID);
     expect(result.personAttendance['person-1']).toBe(AttendanceStatus.ASSISTIT);
+  });
+
+  // ── conflicts (D13 — last line of defense during assaig) ────────────────
+
+  it('defaults conflicts to an empty array in production (no duplicates yet)', async () => {
+    const result = await service.getProjection(EVENT_ID, SEGMENT_ID);
+    expect(result.conflicts).toEqual([]);
+  });
+
+  it('sources conflicts from getSegmentConflicts scoped to the projected segment', async () => {
+    const conflict = {
+      personId: 'person-1',
+      personAlias: 'Pepet',
+      placements: [],
+      kind: 'TRONC_PINYA',
+      suggestedRemovalAssignmentIds: [],
+    };
+    mockNodeAssignmentService.getSegmentConflicts.mockResolvedValue({
+      data: [conflict],
+      meta: DEFAULT_CONFLICTS_META,
+    });
+
+    const result = await service.getProjection(EVENT_ID, SEGMENT_ID);
+
+    expect(result.conflicts).toEqual([conflict]);
+    expect(mockNodeAssignmentService.getSegmentConflicts).toHaveBeenCalledWith(SEGMENT_ID);
   });
 
   // ── instances array ───────────────────────────────────────────────────────

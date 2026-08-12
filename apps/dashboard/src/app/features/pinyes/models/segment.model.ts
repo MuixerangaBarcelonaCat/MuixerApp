@@ -1,4 +1,5 @@
 import { SegmentMoveConflictResolution } from '@muixer/shared';
+import { SegmentConflict, TroncChangeImpact } from './assignment.model';
 
 export type FigureMode = 'COMPLETA' | 'PEU' | 'REMAT' | 'NETA';
 
@@ -76,10 +77,7 @@ export interface MoveInstancePayload {
 export interface MoveInstanceResult {
   sourceSegment: SegmentDetail;
   targetSegment: SegmentDetail;
-}
-
-export interface SegmentMoveConflict {
-  code: 'SEGMENT_MOVE_CONFLICT';
-  total: number;
-  tronc: number;
+  /** Conflicts the move created in the target segment (Fase 5: KEEP_BOTH is the default, never blocks). */
+  conflicts?: SegmentConflict[];
+  impact?: TroncChangeImpact;
 }

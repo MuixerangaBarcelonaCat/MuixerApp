@@ -6,7 +6,14 @@ import { Attendance } from '../event/attendance.entity';
 import { Event } from '../event/event.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
 import { NodeAssignment } from './entities/node-assignment.entity';
-import { AttendanceStatus, EventType } from '@muixer/shared';
+import {
+  AttendanceStatus,
+  EventType,
+  FigureZone,
+  AssignmentArea,
+  areaForZone,
+  ConflictPlacement,
+} from '@muixer/shared';
 
 interface AvailablePersonPositionDto {
   id: string;
@@ -27,10 +34,10 @@ export interface AvailablePersonDto {
   notesEmoji: string | null;
   attendanceStatus: AttendanceStatus;
   nextPerformanceStatus: AttendanceStatus | null;
-  assignedInSegment: boolean;
-  assignedInstanceId?: string;
-  assignedNodeLabel?: string;
-  assignedNodeCordon?: number | null;
+  assignedPlacements: ConflictPlacement[];
+  assignedInTronc: boolean;
+  assignedInPinya: boolean;
+  conflictInSegment: boolean;
   positions: AvailablePersonPositionDto[];
 }
 
@@ -173,22 +180,32 @@ export class AvailablePersonsService {
       });
     }
 
-    // Get assigned person details in this segment (for `assignedInSegment` flag + location)
-    const assignedDetails = new Map<
-      string,
-      { instanceId: string; nodeLabel: string; renglaPosition: number | null }
-    >();
+    // Get assigned person details in this segment (for `assignedPlacements`/`assignedInTronc`/
+    // `assignedInPinya`). Accumulate ALL placements per person rather than `.set()` in a loop,
+    // which kept an arbitrary (last) row (§2).
+    const assignedDetails = new Map<string, ConflictPlacement[]>();
     if (!excludeAssignedBool) {
       const segmentAssignments = await this.assignmentRepository.find({
         where: { figureInstance: { segment: { id: segmentId } } },
-        relations: ['figureInstance', 'instanceNode', 'person'],
+        relations: ['figureInstance', 'figureInstance.figureTemplate', 'instanceNode', 'person'],
       });
       segmentAssignments.forEach((assignment) => {
-        assignedDetails.set(assignment.person.id, {
-          instanceId: assignment.figureInstance.id,
+        const zone = assignment.instanceNode?.zone as FigureZone;
+        const placement: ConflictPlacement = {
+          assignmentId: assignment.id,
+          figureInstanceId: assignment.figureInstance.id,
+          figureName: assignment.figureInstance.figureTemplate?.name ?? 'Sense plantilla',
+          nodeId: assignment.instanceNode?.id ?? '',
           nodeLabel: assignment.instanceNode?.label ?? '',
+          zone,
+          area: areaForZone(zone) as AssignmentArea,
+          z: assignment.instanceNode?.z ?? null,
           renglaPosition: assignment.instanceNode?.renglaPosition ?? null,
-        });
+          cordon: assignment.instanceNode?.renglaPosition ?? null,
+        };
+        const existing = assignedDetails.get(assignment.person.id);
+        if (existing) existing.push(placement);
+        else assignedDetails.set(assignment.person.id, [placement]);
       });
     }
 
@@ -215,7 +232,7 @@ export class AvailablePersonsService {
       const nextPerformanceStatus = nextPerformance
         ? (nextAttendanceMap.get(person.id) ?? null)
         : null;
-      const detail = assignedDetails.get(person.id);
+      const placements = assignedDetails.get(person.id) ?? [];
 
       return {
         id: person.id,
@@ -228,10 +245,10 @@ export class AvailablePersonsService {
         notesEmoji: person.notesEmoji,
         attendanceStatus,
         nextPerformanceStatus,
-        assignedInSegment: !excludeAssignedBool && assignedDetails.has(person.id),
-        assignedInstanceId: detail?.instanceId,
-        assignedNodeLabel: detail?.nodeLabel,
-        assignedNodeCordon: detail?.renglaPosition ?? null,
+        assignedPlacements: placements,
+        assignedInTronc: placements.some((p) => p.area === AssignmentArea.TRONC),
+        assignedInPinya: placements.some((p) => p.area === AssignmentArea.PINYA),
+        conflictInSegment: false,
         positions: (person.positions ?? []).map((p) => ({
           id: p.id,
           name: p.name,

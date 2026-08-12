@@ -118,7 +118,14 @@ module.exports = {
     './libs/**/*.{html,ts}',
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        conflict: {
+          DEFAULT: '#e11d48',
+          content: '#ffffff',
+        },
+      },
+    },
   },
   plugins: [
     require('daisyui'),

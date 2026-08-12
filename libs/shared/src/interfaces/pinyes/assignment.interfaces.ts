@@ -3,6 +3,7 @@ import { EventType } from '../../enums/event-type.enum';
 import { FigureZone } from '../../enums/figure-zone.enum';
 import { NodeShape } from '../../enums/node-shape.enum';
 import { PaginatedMeta } from '../pagination.interface';
+import { ConflictPlacement, SegmentPeopleCounters } from './segment-conflict.interfaces';
 
 // ── Core assignment types ───────────────────────────────────────────────────
 
@@ -76,9 +77,10 @@ export interface AvailablePerson {
   isXicalla: boolean;
   attendanceStatus: AttendanceStatus;
   nextPerformanceStatus: AttendanceStatus | null;
-  assignedInSegment: boolean;
-  assignedInstanceId?: string;
-  assignedNodeLabel?: string;
+  assignedPlacements: ConflictPlacement[];
+  assignedInTronc: boolean;
+  assignedInPinya: boolean;
+  conflictInSegment: boolean;
   positions: AvailablePersonPosition[];
 }
 
@@ -144,10 +146,16 @@ export interface EventFigureSummary {
   instanceId: string;
   figureName: string;
   snapshotted: boolean;
+  /** PINYA nodes only, filtered by numberOfCordons/cordonsObertsEnabled and zeroed for REMAT/NETA. */
   pinya: FigureAreaCount;
+  /** TRONC + BASE nodes (BASE excluded for REMAT). */
   tronc: FigureAreaCount;
+  /** pinya + tronc + direction nodes; DECORATION excluded (not assignable). */
   total: FigureAreaCount;
+  /** TRONC/BASE assignments only, unfiltered by figureMode — still needed for name display. */
   troncBaseAssignments: EventAssignmentEntry[];
+  distinctPersonCount: number;
+  conflictAssignmentCount: number;
 }
 
 export interface EventSegmentSummary {
@@ -155,6 +163,7 @@ export interface EventSegmentSummary {
   segmentName: string;
   sortOrder: number;
   figures: EventFigureSummary[];
+  conflicts: SegmentPeopleCounters;
 }
 
 export interface EventAssignmentSummary {

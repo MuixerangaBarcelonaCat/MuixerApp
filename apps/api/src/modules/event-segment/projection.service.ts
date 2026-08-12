@@ -5,7 +5,7 @@ import { EventSegment } from './entities/event-segment.entity';
 import { FigureInstance } from './entities/figure-instance.entity';
 import { Attendance } from '../event/attendance.entity';
 import { NodeAssignmentService, AssignmentDetail, InstanceNodeResponse } from '../node-assignment/node-assignment.service';
-import { AttendanceStatus, FigureMode } from '@muixer/shared';
+import { AttendanceStatus, FigureMode, SegmentConflict } from '@muixer/shared';
 
 interface ProjectionInstanceData {
   id: string;
@@ -39,6 +39,8 @@ export interface ProjectionData {
   hasDistribution: boolean;
   /** personId → AttendanceStatus for all attendances in this event */
   personAttendance: Record<string, AttendanceStatus>;
+  /** Canonical conflicts (D13) for the projected segment — last line of defense during assaig. */
+  conflicts: SegmentConflict[];
 }
 
 @Injectable()
@@ -134,6 +136,8 @@ export class ProjectionService {
 
     const hasDistribution = projectionInstances.some((i) => i.projectionX !== null);
 
+    const { data: conflicts } = await this.nodeAssignmentService.getSegmentConflicts(segmentId);
+
     return {
       segment: {
         id: segment.id,
@@ -145,6 +149,7 @@ export class ProjectionService {
       instances: projectionInstances,
       hasDistribution,
       personAttendance,
+      conflicts,
     };
   }
 }

@@ -16,7 +16,9 @@ import {
   HistoryQuery,
   InstanceNodeItem,
   PersonAssignmentHistory,
+  SegmentConflictsResponse,
   SwapAssignmentsPayload,
+  TroncChangeImpact,
   UpdateAdHocNodePayload,
   UpdateInstanceCordonsPayload,
 } from '../models/assignment.model';
@@ -33,19 +35,27 @@ export class NodeAssignmentService extends ApiService {
     return this.get<{ data: AssignmentDetail[] }>(`/figure-instances/${instanceId}/assignments`);
   }
 
-  assign(instanceId: string, payload: CreateAssignmentPayload): Observable<AssignmentDetail> {
-    return this.post<AssignmentDetail>(`/figure-instances/${instanceId}/assignments`, payload);
+  assign(
+    instanceId: string,
+    payload: CreateAssignmentPayload,
+  ): Observable<AssignmentDetail & { impact?: TroncChangeImpact }> {
+    return this.post<AssignmentDetail & { impact?: TroncChangeImpact }>(
+      `/figure-instances/${instanceId}/assignments`,
+      payload,
+    );
   }
 
-  unassign(instanceId: string, assignmentId: string): Observable<void> {
-    return this.delete<void>(`/figure-instances/${instanceId}/assignments/${assignmentId}`);
+  unassign(instanceId: string, assignmentId: string): Observable<{ impact?: TroncChangeImpact }> {
+    return this.delete<{ impact?: TroncChangeImpact }>(
+      `/figure-instances/${instanceId}/assignments/${assignmentId}`,
+    );
   }
 
   swap(
     instanceId: string,
     payload: SwapAssignmentsPayload,
-  ): Observable<{ a: AssignmentDetail; b: AssignmentDetail }> {
-    return this.post<{ a: AssignmentDetail; b: AssignmentDetail }>(
+  ): Observable<{ a: AssignmentDetail; b: AssignmentDetail; impact?: TroncChangeImpact }> {
+    return this.post<{ a: AssignmentDetail; b: AssignmentDetail; impact?: TroncChangeImpact }>(
       `/figure-instances/${instanceId}/assignments/swap`,
       payload,
     );
@@ -109,6 +119,13 @@ export class NodeAssignmentService extends ApiService {
 
   getEventAssignmentSummary(eventId: string): Observable<EventAssignmentSummary> {
     return this.get<EventAssignmentSummary>(`/events/${eventId}/assignment-summary`);
+  }
+
+  /** Canonical segment conflicts (D13). Empty in production until Phase 5 drops the constraints. */
+  getSegmentConflicts(eventId: string, segmentId: string): Observable<SegmentConflictsResponse> {
+    return this.get<SegmentConflictsResponse>(
+      `/events/${eventId}/segments/${segmentId}/conflicts`,
+    );
   }
 
 

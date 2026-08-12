@@ -1,5 +1,5 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { FigureZone } from '@muixer/shared';
+import { FigureZone, isNodeVisibleByCordons } from '@muixer/shared';
 import { AssignmentStateService } from './assignment-state.service';
 import { EventSegmentService } from './event-segment.service';
 import { SegmentDistributionService } from './segment-distribution.service';
@@ -7,7 +7,12 @@ import { NodeAssignmentService, LockStatus } from './node-assignment.service';
 import { ToastService } from '../../../shared/components/feedback/toast/toast.service';
 import { SegmentDetail } from '../models/segment.model';
 import { DistributionItem } from '../models/distribution.model';
-import { InstanceNodeItem } from '../models/assignment.model';
+import {
+  InstanceNodeItem,
+  SegmentConflict,
+  SegmentPeopleCounters,
+  TroncChangeImpact,
+} from '../models/assignment.model';
 import { CompositionSlotWithNodes } from '../components/figure-canvas/figure-canvas.component';
 import { computeCordoObertOverrides } from '../utils/cordo-obert.util';
 import {
@@ -59,6 +64,17 @@ export class SegmentWorkspaceStateService {
   readonly selectedInstanceId = signal<string | null>(null);
   readonly lockStatus = signal<LockStatus | null>(null);
   readonly personsLoaded = signal(false);
+  /** Canonical segment conflicts (D13). Empty in production until Phase 5 drops the constraints. */
+  readonly conflicts = signal<SegmentConflict[]>([]);
+  /** Dotació/conflict counters carried alongside `conflicts` — feeds the conflict banner (Fase 4). */
+  readonly conflictCounters = signal<SegmentPeopleCounters | null>(null);
+  /**
+   * Pinya nodes left empty by a TRONC/BASE change, pending review in the banner (D11/Fase 4).
+   * Populated from `impact` on assign/swap (`noteTroncImpact`); for `unassign`/`move` — which
+   * don't return `impact` yet (Fase 3 deviation, closes in Fase 5) — derived client-side from
+   * already-loaded `instances()`/`assignments()` by `refreshInstance`.
+   */
+  readonly reviewItems = signal<{ freedPinyaNodeIds: string[] }>({ freedPinyaNodeIds: [] });
   /** Handoff for cross-tab navigation: set before switching tabs, consumed by the tab's ngOnInit. */
   readonly pendingSelection = signal<SegmentNodeRef | null>(null);
 
@@ -80,6 +96,13 @@ export class SegmentWorkspaceStateService {
   >();
 
   readonly segmentName = computed(() => this.segment()?.name ?? null);
+
+  /**
+   * Person IDs holding >1 placement in this segment. Passed to canvas/tronc-view as the sole
+   * conflict signal: no `kind` reaches the render layer, so every conflict paints identically
+   * ("un conflicte és un conflicte"). Empty in production until Phase 5.
+   */
+  readonly conflictPersonIds = computed(() => new Set(this.conflicts().map((c) => c.personId)));
   readonly isLocked = computed(() => this.lockStatus()?.locked ?? false);
 
   private readonly segmentIndex = computed(() =>
@@ -279,10 +302,32 @@ export class SegmentWorkspaceStateService {
     });
 
     this.loadConfirmedPersons(eventId, segmentId);
+    this.reloadConflicts();
 
     this.assignmentService.getLockStatus(eventId).subscribe({
       next: (status) => this.lockStatus.set(status),
     });
+  }
+
+  /**
+   * Refreshes the canonical segment conflicts (D13). Call after any assignment mutation and on
+   * tab activation so the conflict style stays live. In production it always resolves to `[]`.
+   */
+  reloadConflicts(): void {
+    const eventId = this.eventId();
+    const segmentId = this.segmentId();
+    if (!eventId || !segmentId) return;
+    this.assignmentService.getSegmentConflicts(eventId, segmentId).subscribe({
+      next: (resp) => {
+        this.conflicts.set(resp.data);
+        this.conflictCounters.set(resp.meta);
+      },
+    });
+  }
+
+  /** Records the `impact` a TRONC/BASE assign/swap returned (D11) — feeds the review-list banner. */
+  noteTroncImpact(impact: TroncChangeImpact): void {
+    this.reviewItems.set({ freedPinyaNodeIds: impact.freedPinyaNodeIds });
   }
 
   /**
@@ -330,6 +375,8 @@ export class SegmentWorkspaceStateService {
         this.distributionByInstance.set(new Map(data.items.map((i) => [i.instanceId, i])));
       },
     });
+
+    this.reloadConflicts();
   }
 
   /** Reloads nodes + assignments for one instance and merges them into workspace state. */
@@ -342,7 +389,11 @@ export class SegmentWorkspaceStateService {
             const totalCount = resp.data.filter(
               (n) =>
                 n.zone !== FigureZone.DECORATION &&
-                this.isNodeVisibleByCordons(n, i.numberOfCordons),
+                isNodeVisibleByCordons(n, {
+                  figureMode: i.figureMode,
+                  numberOfCordons: i.numberOfCordons,
+                  cordonsObertsEnabled: i.cordonsObertsEnabled,
+                }),
             ).length;
             const snapshotted = i.snapshotted || resp.data.some((n) => n.isSnapshotted);
             return { ...i, nodes: resp.data, totalCount, snapshotted };
@@ -364,6 +415,8 @@ export class SegmentWorkspaceStateService {
             i.instanceId === instanceId ? { ...i, assignedCount: resp.data.length } : i,
           ),
         );
+        // Assignments just changed for this instance — keep the conflict style live.
+        this.reloadConflicts();
       },
     });
   }
@@ -415,17 +468,6 @@ export class SegmentWorkspaceStateService {
         (!hideBase && n.zone === FigureZone.BASE) ||
         n.zone === FigureZone.DECORATION,
     );
-  }
-
-  private isNodeVisibleByCordons(
-    node: { renglaId?: string | null; renglaPosition?: number | null; positionType?: string | null },
-    numberOfCordons: number | null,
-  ): boolean {
-    if (numberOfCordons === null) return true;
-    if (node.positionType === 'cordo-obert') return true;
-    if (!node.renglaId) return true;
-    if (node.renglaPosition === null || node.renglaPosition === undefined) return true;
-    return node.renglaPosition <= numberOfCordons;
   }
 
   private computeInstanceLabel(base: string, figureMode: string): string {

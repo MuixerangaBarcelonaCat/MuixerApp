@@ -1,3 +1,10 @@
+export type {
+  EventAssignmentSummary,
+  EventFigureSummary,
+  EventSegmentSummary,
+  FigureAreaCount,
+} from '@muixer/shared';
+
 export type AttendanceStatus = 'PENDENT' | 'ANIRE' | 'NO_VAIG' | 'ASSISTIT';
 export type HeightMode = 'relative' | 'absolute';
 
@@ -56,6 +63,62 @@ export interface PersonHoverInfo {
   positions: AvailablePersonPosition[];
 }
 
+/**
+ * Conflict/area types, declared locally (mirroring `@muixer/shared`) following the same
+ * convention as the rest of this file — the dashboard keeps its own string-union models so it
+ * stays cast-free when interoperating with `PersonHoverInfo`/`AttendanceStatus`.
+ * BASE maps to TRONC for conflict/dotació purposes (D10).
+ */
+export type AssignmentArea = 'TRONC' | 'PINYA' | 'DIRECTION';
+
+/** Ordered TRONC_TRONC → TRONC_PINYA → PINYA_PINYA. No severity: all three render identically. */
+export type SegmentConflictKind = 'TRONC_TRONC' | 'TRONC_PINYA' | 'PINYA_PINYA';
+
+/** One of a person's >1 placements within a conflicted segment. */
+export interface ConflictPlacement {
+  assignmentId: string;
+  figureInstanceId: string;
+  figureName: string;
+  nodeId: string;
+  nodeLabel: string | null;
+  zone: string;
+  area: AssignmentArea;
+  z: number | null;
+  renglaPosition: number | null;
+  cordon: number | null;
+}
+
+/** A single person holding >1 placement within one segment. `placements` is ordered tronc-first. */
+export interface SegmentConflict {
+  personId: string;
+  personAlias: string;
+  placements: ConflictPlacement[];
+  kind: SegmentConflictKind;
+  suggestedRemovalAssignmentIds: string[];
+}
+
+/** Dotació/conflict counters for a whole segment (over every assignment, not just conflicted ones). */
+export interface SegmentPeopleCounters {
+  assignmentCount: number;
+  distinctPersonCount: number;
+  tronc: { distinctPersonCount: number };
+  pinya: { distinctPersonCount: number };
+  conflictPersonCount: number;
+  conflictsByKind: Record<SegmentConflictKind, number>;
+}
+
+/** Derived impact of writing to a TRONC/BASE node (D11). Returned by assign/swap; consumed from Phase 4. */
+export interface TroncChangeImpact {
+  newConflicts: SegmentConflict[];
+  freedPinyaNodeIds: string[];
+}
+
+/** Response of `GET events/:eventId/segments/:segmentId/conflicts` (Phase 1). */
+export interface SegmentConflictsResponse {
+  data: SegmentConflict[];
+  meta: SegmentPeopleCounters;
+}
+
 export interface AvailablePerson {
   id: string;
   alias: string;
@@ -67,10 +130,11 @@ export interface AvailablePerson {
   notesEmoji: string | null;
   attendanceStatus: AttendanceStatus;
   nextPerformanceStatus: AttendanceStatus | null;
-  assignedInSegment: boolean;
-  assignedInstanceId?: string;
-  assignedNodeLabel?: string;
-  assignedNodeCordon?: number | null;
+  /** All of this person's placements in the segment, ordered tronc-first (Phase 1). */
+  assignedPlacements: ConflictPlacement[];
+  assignedInTronc: boolean;
+  assignedInPinya: boolean;
+  conflictInSegment: boolean;
   positions: AvailablePersonPosition[];
 }
 
@@ -103,6 +167,7 @@ export interface BulkImportResult {
   created: AssignmentDetail[];
   conflicts: BulkImportConflict[];
   clonedAdHocNodes: number;
+  conflictsByKind: Record<SegmentConflictKind, number>;
 }
 
 export interface CreateAssignmentPayload {
@@ -232,37 +297,3 @@ export interface PersonAssignmentHistory {
   meta: HistoryMeta;
 }
 
-export interface EventAssignmentEntry {
-  nodeLabel: string;
-  positionType: string | null;
-  zone: string;
-  z: number;
-  personAlias: string;
-  personId: string;
-}
-
-export interface FigureAreaCount {
-  assigned: number;
-  total: number;
-}
-
-export interface EventFigureSummary {
-  instanceId: string;
-  figureName: string;
-  snapshotted: boolean;
-  pinya: FigureAreaCount;
-  tronc: FigureAreaCount;
-  total: FigureAreaCount;
-  troncBaseAssignments: EventAssignmentEntry[];
-}
-
-export interface EventSegmentSummary {
-  segmentId: string;
-  segmentName: string;
-  sortOrder: number;
-  figures: EventFigureSummary[];
-}
-
-export interface EventAssignmentSummary {
-  segments: EventSegmentSummary[];
-}

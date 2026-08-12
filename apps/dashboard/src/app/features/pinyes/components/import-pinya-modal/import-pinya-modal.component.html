@@ -80,7 +80,7 @@
         }
 
         @if (lastResult()) {
-          <div class="alert" [class]="lastResult()!.conflicts.length > 0 ? 'alert-warning' : 'alert-success'">
+          <div class="alert" [class]="lastResult()!.conflicts.length > 0 ? 'alert-conflict' : 'alert-success'">
             <p class="text-sm font-medium">
               {{ lastResult()!.created.length }} assignacions importades
               @if (lastResult()!.conflicts.length > 0) {

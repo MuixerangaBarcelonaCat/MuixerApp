@@ -1,0 +1,121 @@
+@if (conflictPersonCount() > 0) {
+  <div class="flex items-center gap-2 px-4 py-1.5 bg-conflict/10 border-b border-conflict/30 text-sm shrink-0">
+    <lucide-icon [img]="ICON_CONFLICT" [size]="14" class="text-conflict shrink-0" aria-hidden="true" />
+    <span>
+      <strong>{{ conflictPersonCount() }}</strong>
+      {{ conflictPersonCount() === 1 ? 'persona en conflicte' : 'persones en conflicte' }}
+    </span>
+    @if (freedPinyaNodeIds().length > 0) {
+      <span class="text-base-content/60">
+        · {{ freedPinyaNodeIds().length }}
+        {{ freedPinyaNodeIds().length === 1 ? 'pinya a revisar' : 'pinyes a revisar' }}
+      </span>
+    }
+    <button
+      type="button"
+      class="btn btn-xs btn-conflict btn-outline ml-auto"
+      (click)="togglePanel()"
+      [attr.aria-expanded]="panelOpen()"
+      aria-controls="segment-conflict-panel-body"
+    >
+      {{ panelOpen() ? 'Amaga' : 'Mostra' }}
+    </button>
+  </div>
+
+  @if (panelOpen()) {
+    <div
+      id="segment-conflict-panel-body"
+      class="flex flex-col bg-base-100 border-b border-base-300 shrink-0"
+    >
+      @if (freedPinyaNodeLabels().length > 0) {
+        <div class="flex items-center gap-2 px-4 py-1.5 border-b border-base-200 text-sm">
+          <span class="font-medium text-base-content/70">Pinyes buides a revisar:</span>
+          <span class="text-base-content/60 truncate">{{ freedPinyaNodeLabels().join(', ') }}</span>
+          <button type="button" class="btn btn-xs btn-ghost ml-auto shrink-0" (click)="dismissReview()">
+            Marca com revisat
+          </button>
+        </div>
+      }
+
+      <div class="flex items-center gap-1 px-2 py-2">
+        <button
+          type="button"
+          class="hidden lg:flex btn btn-sm btn-ghost btn-circle shrink-0"
+          [disabled]="!canScrollLeft()"
+          aria-label="Conflicte anterior"
+          (click)="scrollPrev()"
+        >
+          <lucide-icon [img]="ChevronLeft" [size]="16" aria-hidden="true" />
+        </button>
+
+        <div
+          #scrollContainer
+          role="list"
+          class="flex gap-3 overflow-x-auto scroll-smooth snap-x snap-mandatory py-1 flex-1 scrollbar-hide"
+          (scroll)="onScroll()"
+        >
+          @for (conflict of conflicts(); track conflict.personId) {
+            <div
+              role="listitem"
+              class="w-72 shrink-0 snap-start rounded-lg border border-conflict/30 bg-conflict/5 p-3 flex flex-col gap-2"
+            >
+              <div class="font-medium text-sm truncate">{{ conflict.personAlias }}</div>
+              <ul class="flex flex-col gap-1">
+                @for (placement of conflict.placements; track placement.assignmentId) {
+                  <li class="flex items-center gap-2" data-conflict-placement>
+                    <span
+                      class="badge badge-sm shrink-0"
+                      [class.badge-conflict]="placement.area === 'TRONC'"
+                      [class.badge-ghost]="placement.area !== 'TRONC'"
+                    >
+                      {{ areaLabel(placement.area) }}
+                    </span>
+                    <button
+                      type="button"
+                      class="truncate text-left underline-offset-2 hover:underline flex-1 text-sm"
+                      [disabled]="ws.isLocked()"
+                      (click)="selectPlacement(placement)"
+                    >
+                      <strong>{{ placement.figureName }}</strong>
+                      @if (placement.nodeLabel) {
+                        <span> — {{ placement.nodeLabel }}</span>
+                      }
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-xs btn-ghost btn-square"
+                      [disabled]="ws.isLocked()"
+                      aria-label="Veure on està assignada"
+                      (click)="selectPlacement(placement)"
+                    >
+                      <lucide-icon [img]="Eye" [size]="14" aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-xs btn-ghost btn-square text-error"
+                      [disabled]="ws.isLocked()"
+                      aria-label="Treure aquesta assignació"
+                      (click)="removePlacement(conflict.personId, placement)"
+                    >
+                      <lucide-icon [img]="Trash2" [size]="14" aria-hidden="true" />
+                    </button>
+                  </li>
+                }
+              </ul>
+            </div>
+          }
+        </div>
+
+        <button
+          type="button"
+          class="hidden lg:flex btn btn-sm btn-ghost btn-circle shrink-0"
+          [disabled]="!canScrollRight()"
+          aria-label="Conflicte següent"
+          (click)="scrollNext()"
+        >
+          <lucide-icon [img]="ChevronRight" [size]="16" aria-hidden="true" />
+        </button>
+      </div>
+    </div>
+  }
+}
