@@ -11,10 +11,9 @@ import {
   ValidationErrors,
   Validators,
 } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
 import { AuthService } from '../../../core/auth/services/auth.service';
-import { ToastService } from '../../../shared/components/feedback/toast/toast.service';
 
 function passwordsMatchValidator(group: AbstractControl): ValidationErrors | null {
   const password = group.get('password')?.value;
@@ -31,9 +30,7 @@ function passwordsMatchValidator(group: AbstractControl): ValidationErrors | nul
 })
 export class ResetPasswordComponent {
   private readonly authService = inject(AuthService);
-  private readonly toast = inject(ToastService);
   private readonly route = inject(ActivatedRoute);
-  private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
 
   private readonly token = this.route.snapshot.queryParamMap.get('token');
@@ -50,6 +47,12 @@ export class ResetPasswordComponent {
 
   readonly isLoading = signal(false);
   readonly errorMessage = signal<string | null>(null);
+  /**
+   * Stays on this page instead of redirecting to /login: this page is served from the
+   * Dashboard, but the same reset-password link is sent to PWA members too — auto-navigating
+   * to the Dashboard login would silently strand them on the wrong app.
+   */
+  readonly resetSuccess = signal(false);
 
   onSubmit(): void {
     if (this.form.invalid || this.isLoading() || !this.token) return;
@@ -61,8 +64,7 @@ export class ResetPasswordComponent {
     this.authService.resetPassword(this.token, password).subscribe({
       next: () => {
         this.isLoading.set(false);
-        this.toast.success('S\'ha actualitzat la contrasenya.');
-        this.router.navigate(['/login']);
+        this.resetSuccess.set(true);
       },
       error: () => {
         this.isLoading.set(false);

@@ -71,7 +71,7 @@ describe('ResetPasswordComponent', () => {
     expect(mockAuthService.resetPassword).not.toHaveBeenCalled();
   });
 
-  it('submits the token and new password, navigates to /login and shows a toast on success', async () => {
+  it('submits the token and new password and shows an inline success state, without navigating away', async () => {
     const { component, fixture } = await setup();
     const router = TestBed.inject(Router);
     const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
@@ -82,8 +82,31 @@ describe('ResetPasswordComponent', () => {
     fixture.detectChanges();
 
     expect(mockAuthService.resetPassword).toHaveBeenCalledWith('raw-token', 'newpass123');
-    expect(navigateSpy).toHaveBeenCalledWith(['/login']);
-    expect(mockToastService.success).toHaveBeenCalled();
+    expect(component.resetSuccess()).toBe(true);
+    expect(navigateSpy).not.toHaveBeenCalled();
+  });
+
+  it('renders the success message and hides the form once the password has been reset', async () => {
+    const { component, fixture } = await setup();
+    mockAuthService.resetPassword.mockReturnValue(of(void 0));
+
+    component.form.setValue({ password: 'newpass123', confirmPassword: 'newpass123' });
+    component.onSubmit();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('S\'ha canviat la contrasenya');
+    expect(fixture.nativeElement.querySelector('form')).toBeFalsy();
+  });
+
+  it('never shows a "Torna a l\'inici de sessió" link on this page', async () => {
+    const { fixture } = await setup();
+
+    const findLoginLink = () =>
+      Array.from(fixture.nativeElement.querySelectorAll('a')).find(
+        (a) => (a as HTMLElement).textContent?.trim() === 'Torna a l\'inici de sessió',
+      );
+
+    expect(findLoginLink()).toBeFalsy();
   });
 
   it('shows an inline error and stops loading when the token is invalid or expired', async () => {
