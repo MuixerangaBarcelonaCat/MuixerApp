@@ -183,6 +183,19 @@ export class PersonDelegateService {
     }
   }
 
+  /**
+   * Dependents (Xicalla) this user is the primary delegate for and who
+   * haven't finished registration yet — the set surfaced by the `me`
+   * module's pending-dependents flow.
+   */
+  async findProvisionalPrimaryDependents(userId: string): Promise<Person[]> {
+    const delegates = await this.delegateRepo.find({
+      where: { user: { id: userId }, isPrimary: true, person: { isProvisional: true } },
+      relations: ['person'],
+    });
+    return delegates.map((d) => d.person);
+  }
+
   async getPrimary(personId: string): Promise<PersonDelegate | null> {
     return this.delegateRepo.findOne({
       where: { person: { id: personId }, isPrimary: true },
