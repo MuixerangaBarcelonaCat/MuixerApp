@@ -42,7 +42,6 @@ test.describe('Segments flexibility · Phase 3 (zero-conflict regression)', () =
     const troncsTab = page.getByRole('tab', { name: /troncs/i }).first();
     await expect(troncsTab).toBeVisible();
     await troncsTab.click();
-    await page.waitForLoadState('networkidle').catch(() => {});
     await expect(page.locator('.tronc-node.conflict')).toHaveCount(0);
 
     await page.screenshot({
@@ -56,7 +55,6 @@ test.describe('Segments flexibility · Phase 3 (zero-conflict regression)', () =
   test('the segment manager shows the dotació tooltip and no conflict pill', async ({ page }) => {
     await loginViaUi(page);
     await spaGoto(page, `/events/${EVENT_ID}`);
-    await page.waitForLoadState('networkidle').catch(() => {});
 
     // The people pill carries the new dotació-per-àrea tooltip (…al tronc · …a la pinya).
     const peoplePill = page.locator('span.badge:has(lucide-icon)').filter({ hasText: /total/ }).first();

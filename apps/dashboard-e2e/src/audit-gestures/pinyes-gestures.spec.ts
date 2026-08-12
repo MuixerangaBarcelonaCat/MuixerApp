@@ -92,6 +92,7 @@ test('pinyes canvas gestures', async ({ page }, testInfo) => {
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, `${device}.json`), JSON.stringify(result, null, 2));
 
+    // eslint-disable-next-line playwright/no-conditional-expect
     expect.soft(redirectedToPinyes, `${device}: below 1024px must be redirected to /pinyes by desktopOnlyGuard`).toBeTruthy();
     return;
   }

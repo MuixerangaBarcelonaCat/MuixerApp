@@ -40,7 +40,6 @@ test.describe('Segments flexibility · Phase 4 (zero-conflict regression)', () =
     await expect(page.getByText(/persones? en conflicte/)).toHaveCount(0);
 
     await page.getByRole('tab', { name: /troncs/i }).click();
-    await page.waitForLoadState('networkidle').catch(() => {});
     await expect(page.getByText(/persones? en conflicte/)).toHaveCount(0);
 
     await page.screenshot({
@@ -62,7 +61,6 @@ test.describe('Segments flexibility · Phase 4 (zero-conflict regression)', () =
     await expect(counters.locator('[data-testid="pinya-eligible-count"]')).toHaveCount(1);
 
     await page.getByRole('tab', { name: /troncs/i }).click();
-    await page.waitForLoadState('networkidle').catch(() => {});
 
     const troncCounters = page.locator('[data-testid="person-panel-counters"]');
     await expect(troncCounters).toHaveCount(1);

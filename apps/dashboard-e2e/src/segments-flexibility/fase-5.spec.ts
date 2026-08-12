@@ -40,7 +40,6 @@ test.describe('Segments flexibility · Phase 5 (duplicate placement lifecycle)',
     await loginViaUi(page);
     await spaGoto(page, `/pinyes/events/${EVENT_ID}/segments/${SEGMENT_ID}/assign`);
     await page.getByRole('tab', { name: /troncs/i }).click();
-    await page.waitForLoadState('networkidle').catch(() => {});
 
     const targetNode = page.locator(`[data-tronc-node-id="${TARGET_NODE_ID}"]`);
     await expect(targetNode).toBeVisible({ timeout: 15000 });
