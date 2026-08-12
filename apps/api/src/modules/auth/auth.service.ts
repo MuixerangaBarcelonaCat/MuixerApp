@@ -336,7 +336,9 @@ export class AuthService {
         secondSurname: person.secondSurname,
         gender: person.gender,
         phone: person.phone,
-        birthDate: person.birthDate ? person.birthDate.toISOString().slice(0, 10) : null,
+        birthDate: person.birthDate instanceof Date
+          ? person.birthDate.toISOString().slice(0, 10)
+          : (person.birthDate ?? null),
       },
       expiresAt: user.inviteExpiresAt.toISOString(),
       legalDocument: { content: legalDocument.content, version: legalDocument.version },

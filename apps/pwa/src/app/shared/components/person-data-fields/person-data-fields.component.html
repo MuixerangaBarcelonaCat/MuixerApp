@@ -50,21 +50,21 @@
   </label>
 
   <div class="flex gap-2">
-    <label class="form-control w-32 shrink-0" for="pdf-country">
+    <label class="form-control w-20 shrink-0" for="pdf-country">
       <div class="label pb-1"><span class="label-text font-medium">País</span></div>
-      <select id="pdf-country" class="select select-bordered text-sm h-11" formControlName="country">
+      <select id="pdf-country" class="select select-bordered text-sm h-11 px-2" formControlName="country">
         @for (country of countries; track country.code) {
           <option [value]="country.code">{{ country.flag }} {{ country.callingCode }}</option>
         }
       </select>
     </label>
 
-    <label class="form-control w-full" for="pdf-phone">
+    <label class="form-control flex-1 min-w-0" for="pdf-phone">
       <div class="label pb-1"><span class="label-text font-medium">Telèfon</span></div>
       <input
         id="pdf-phone"
         type="tel"
-        class="input input-bordered text-sm h-11"
+        class="input input-bordered text-sm h-11 w-full"
         formControlName="phoneNumber"
         autocomplete="tel-national"
         inputmode="tel"

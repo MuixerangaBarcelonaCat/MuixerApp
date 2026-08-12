@@ -553,6 +553,30 @@ describe('AuthService', () => {
       expect(legalService.findActive).toHaveBeenCalledWith(LegalDocumentType.PRIVACY_POLICY);
     });
 
+    it('handles a birthDate returned as a plain string instead of a Date', async () => {
+      const user = makeUser({
+        inviteToken: hashToken('valid-token'),
+        inviteExpiresAt: new Date(Date.now() + 3600_000),
+        isActive: false,
+        person: {
+          id: 'person-1',
+          alias: '~joan',
+          name: 'Joan',
+          firstSurname: 'Garcia',
+          secondSurname: null,
+          gender: Gender.MALE,
+          phone: '+34612345678',
+          birthDate: '2000-01-15' as unknown as Date,
+        } as Person,
+      });
+      userRepo.findOne.mockResolvedValue(user);
+      legalService.findActive.mockResolvedValue({ content: 'Text legal', version: 3 });
+
+      const result = await service.getInviteContext('valid-token');
+
+      expect(result.person.birthDate).toBe('2000-01-15');
+    });
+
     it('throws UnauthorizedException for an invalid token', async () => {
       userRepo.findOne.mockResolvedValue(null);
       await expect(service.getInviteContext('bad-token')).rejects.toThrow(UnauthorizedException);

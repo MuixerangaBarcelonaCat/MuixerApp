@@ -590,6 +590,28 @@ describe('MeService', () => {
 
       expect(result).toEqual([]);
     });
+
+    it('handles a birthDate returned as a plain string instead of a Date (re-provisioned person)', async () => {
+      // A `date` column can come back as a string rather than a Date depending on the query
+      // path — this reproduces a real 500 seen when a previously-activated person (with a
+      // string-typed birthDate already in the DB row) was flipped back to provisional.
+      personDelegateService.findProvisionalPrimaryDependents.mockResolvedValue([
+        {
+          id: 'child-1',
+          alias: 'xicalla1',
+          name: 'Joan',
+          firstSurname: 'Garcia',
+          secondSurname: null,
+          gender: Gender.MALE,
+          phone: '+34612345678',
+          birthDate: '2015-01-15',
+        } as never,
+      ]);
+
+      const result = await service.getPendingDependents('user-1');
+
+      expect(result[0].birthDate).toBe('2015-01-15');
+    });
   });
 
   describe('completePendingDependent', () => {

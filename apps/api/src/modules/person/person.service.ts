@@ -303,7 +303,7 @@ export class PersonService {
       });
       if (conflict && conflict.id !== person.id) {
         throw new ConflictException(
-          `Ja existeix una persona amb l'àlies "${personData.alias}".`,
+          `Ja existeix una persona amb l'àlies "${personData.alias}". Contacteu amb l'administrador per canviar-lo.`,
         );
       }
     }

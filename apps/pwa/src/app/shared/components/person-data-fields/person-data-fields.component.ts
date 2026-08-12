@@ -6,7 +6,7 @@ import { PersonDataFormGroup, getCountryOptions } from '../../utils/person-data-
 const GENDER_LABELS: Record<Gender, string> = {
   [Gender.FEMALE]: 'Dona',
   [Gender.MALE]: 'Home',
-  [Gender.OTHER]: 'Altre',
+  [Gender.OTHER]: 'Altre / Preferisc no dir-ho',
 };
 
 @Component({
@@ -20,7 +20,7 @@ export class PersonDataFieldsComponent {
   readonly formGroup = input.required<PersonDataFormGroup>();
   readonly heading = input<string>();
 
-  protected readonly genders = Object.values(Gender);
+  protected readonly genders = [Gender.FEMALE, Gender.MALE, Gender.OTHER];
   protected readonly genderLabels = GENDER_LABELS;
   protected readonly countries = getCountryOptions();
 }
