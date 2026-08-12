@@ -60,29 +60,38 @@ import { ICON_OBSERVACIONS } from '../../../../shared/constants/domain-icons';
             }
           }
 
-          <div class="modal-action flex-wrap">
-            <button type="button" class="btn btn-ghost btn-sm" (click)="closed.emit()">
-              Cancel·lar
-            </button>
-            <button type="button" class="btn btn-outline btn-sm" (click)="viewRequested.emit()">
-              Anar-hi
-            </button>
-            <button
-              #reassignButton
-              type="button"
-              class="btn btn-primary btn-sm"
-              autofocus
-              (click)="reassignRequested.emit()"
-            >
-              Moure ací
-            </button>
+          <div class="flex flex-col gap-2 mt-6">
+            <!-- Row 1: main actions -->
+            <div class="flex gap-2 justify-between">
+              <div class="flex gap-2">
+                <button type="button" class="btn btn-ghost btn-sm" (click)="closed.emit()">
+                  Cancel·lar
+                </button>
+                <button type="button" class="btn btn-outline btn-sm" (click)="viewRequested.emit()">
+                  Veure col·locació
+                </button>
+              </div>
+              <button
+                #reassignButton
+                type="button"
+                class="btn btn-primary btn-sm"
+                autofocus
+                (click)="reassignRequested.emit()"
+              >
+                Moure ací
+              </button>
+            </div>
             <!--
               D8 (docs/SEGMENTS_FLEXIBILITY.md): duplicating must never be one accidental click
               away — always this dialog, always styled as a warning, always the least prominent
-              action. Fase 5 is what makes clicking it actually create the duplicate instead of
-              being rejected by the backend.
+              action. Row 2 isolated to maximise deliberateness. Fase 5 is what makes clicking it
+              actually create the duplicate instead of being rejected by the backend.
             -->
-            <button type="button" class="btn btn-warning btn-outline btn-sm" (click)="assignAnywayRequested.emit()">
+            <button
+              type="button"
+              class="btn btn-warning btn-outline btn-sm w-full"
+              (click)="assignAnywayRequested.emit()"
+            >
               Assignar igualment
             </button>
           </div>

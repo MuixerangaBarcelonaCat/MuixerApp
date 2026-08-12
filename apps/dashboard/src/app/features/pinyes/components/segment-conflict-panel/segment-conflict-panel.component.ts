@@ -1,10 +1,22 @@
-import { ChangeDetectionStrategy, Component, computed, inject, output, signal } from '@angular/core';
-import { LucideAngularModule } from 'lucide-angular';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  computed,
+  inject,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
+import { ChevronLeft, ChevronRight, Eye, LucideAngularModule, Trash2 } from 'lucide-angular';
 import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { SegmentWorkspaceStateService } from '../../services/segment-workspace-state.service';
 import { ConflictResolutionService } from '../../services/conflict-resolution.service';
 import { ConflictPlacement, SegmentConflict } from '../../models/assignment.model';
 import { SegmentNodeRef, targetTabForZone } from '../../utils/segment-assignment-render.util';
+
+/** Card width (w-72 = 288px) + gap-3 (12px) = 300px per scroll step. */
+const CARD_SCROLL_STEP = 300;
 
 /**
  * Banner + expandable panel for the canonical segment conflicts (D13, Fase 4). Mounted once at
@@ -28,8 +40,16 @@ export class SegmentConflictPanelComponent {
   readonly placementSelected = output<{ tab: 'pinyes' | 'troncs'; ref: SegmentNodeRef }>();
 
   readonly ICON_CONFLICT = DOMAIN_ICONS.OBSERVACIONS;
+  readonly Eye = Eye;
+  readonly Trash2 = Trash2;
+  readonly ChevronLeft = ChevronLeft;
+  readonly ChevronRight = ChevronRight;
+
+  private readonly scrollContainer = viewChild<ElementRef<HTMLElement>>('scrollContainer');
 
   readonly panelOpen = signal(false);
+  readonly canScrollLeft = signal(false);
+  readonly canScrollRight = signal(false);
 
   readonly conflicts = computed(() => this.ws.conflicts());
   readonly conflictPersonCount = computed(() => this.ws.conflictCounters()?.conflictPersonCount ?? 0);
@@ -50,6 +70,12 @@ export class SegmentConflictPanelComponent {
 
   togglePanel(): void {
     this.panelOpen.update((v) => !v);
+    if (this.panelOpen()) {
+      setTimeout(() => this.updateScrollState(), 0);
+    } else {
+      this.canScrollLeft.set(false);
+      this.canScrollRight.set(false);
+    }
   }
 
   dismissReview(): void {
@@ -79,5 +105,24 @@ export class SegmentConflictPanelComponent {
 
   removeTroncSide(conflict: SegmentConflict): void {
     this.resolution.removeTroncSide(conflict);
+  }
+
+  onScroll(): void {
+    this.updateScrollState();
+  }
+
+  scrollPrev(): void {
+    this.scrollContainer()?.nativeElement.scrollBy({ left: -CARD_SCROLL_STEP, behavior: 'smooth' });
+  }
+
+  scrollNext(): void {
+    this.scrollContainer()?.nativeElement.scrollBy({ left: CARD_SCROLL_STEP, behavior: 'smooth' });
+  }
+
+  private updateScrollState(): void {
+    const el = this.scrollContainer()?.nativeElement;
+    if (!el) return;
+    this.canScrollLeft.set(el.scrollLeft > 0);
+    this.canScrollRight.set(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
   }
 }
