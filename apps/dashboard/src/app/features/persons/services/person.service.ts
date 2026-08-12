@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
+import { InviteLinkResponse } from '@muixer/shared';
 import { ApiService } from '../../../core/services/api.service';
 import { buildHttpParams } from '../../../core/utils/http-params.util';
 import {
@@ -43,8 +44,8 @@ export class PersonService extends ApiService {
     return this.patch<Person>(`/persons/${id}`, payload);
   }
 
-  /** Crea un usuari per una persona i li envia un email d'invitació. */
-  sendInvitation(personId: string, email: string): Observable<Person> {
-    return this.post<Person>(`/users/create-with-invite`, { personId, email });
+  /** Crea (o regenera) l'enllaç d'invitació d'una persona sense compte actiu. */
+  createInviteLink(personId: string): Observable<InviteLinkResponse> {
+    return this.post<InviteLinkResponse>('/users/invite-link', { personId });
   }
 }

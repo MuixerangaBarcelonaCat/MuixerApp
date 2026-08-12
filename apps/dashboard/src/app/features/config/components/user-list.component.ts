@@ -402,7 +402,7 @@ export class UserListComponent {
   getCellValue(user: UserDto, key: string): string {
     switch (key) {
       case 'email':
-        return user.email;
+        return user.isActive ? (user.email ?? '') : "Pendent d'activar";
       case 'person':
         return user.person
           ? `${user.person.alias} · ${user.person.name} ${user.person.firstSurname}`

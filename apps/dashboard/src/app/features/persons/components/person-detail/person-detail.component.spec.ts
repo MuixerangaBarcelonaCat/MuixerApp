@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { DelegateType } from '@muixer/shared';
 import { PersonDetailComponent } from './person-detail.component';
@@ -12,6 +12,7 @@ import { NodeAssignmentService } from '../../../pinyes/services/node-assignment.
 import { SeasonService } from '../../../events/services/season.service';
 import { PersonAssignmentEntry } from '../../../pinyes/models/assignment.model';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
+import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 
 const makePerson = (overrides: Partial<Person> = {}): Person => ({
   id: 'p1',
@@ -65,6 +66,7 @@ describe('PersonDetailComponent', () => {
   let mockPersonService: {
     getOne: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
+    createInviteLink: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(async () => {
@@ -76,6 +78,9 @@ describe('PersonDetailComponent', () => {
     mockPersonService = {
       getOne: vi.fn().mockReturnValue(of({ id: 'p1', positions: [], shoulderHeight: null })),
       update: vi.fn().mockReturnValue(of({ id: 'p1', positions: [], shoulderHeight: null })),
+      createInviteLink: vi.fn().mockReturnValue(
+        of({ inviteUrl: 'http://localhost:4300/activate?token=abc', expiresAt: '2026-01-01T00:00:00Z' }),
+      ),
     };
 
     await TestBed.configureTestingModule({
@@ -240,7 +245,7 @@ describe('PersonDetailComponent', () => {
       component.delegates.set([]);
       fixture.detectChanges();
       const text = fixture.nativeElement.textContent;
-      expect(text).toContain("Envia correu d'invitació");
+      expect(text).toContain("Crea enllaç d'invitació");
       expect(text).toContain('Enllaça amb usuari existent');
     });
 
@@ -250,18 +255,18 @@ describe('PersonDetailComponent', () => {
       ]);
       fixture.detectChanges();
       const text = fixture.nativeElement.textContent;
-      expect(text).toContain("Envia correu d'invitació");
+      expect(text).toContain("Crea enllaç d'invitació");
       expect(text).toContain('Enllaça amb usuari existent');
       expect(text).toContain('Delegacions');
     });
 
-    it('disables "Envia correu d\'invitació" for a xicalla, with an explanatory tooltip', () => {
+    it('disables "Crea enllaç d\'invitació" for a xicalla, with an explanatory tooltip', () => {
       component.person.set(makePerson({ isXicalla: true }));
       component.delegates.set([]);
       fixture.detectChanges();
 
       const btn = Array.from(fixture.nativeElement.querySelectorAll('button')).find(
-        (b) => (b as HTMLElement).textContent?.trim() === "Envia correu d'invitació",
+        (b) => (b as HTMLElement).textContent?.trim() === "Crea enllaç d'invitació",
       ) as HTMLButtonElement;
       expect(btn.disabled).toBe(true);
 
@@ -269,13 +274,13 @@ describe('PersonDetailComponent', () => {
       expect(tooltip?.getAttribute('data-tip')).toContain('responsable legal');
     });
 
-    it('keeps "Envia correu d\'invitació" enabled for a non-xicalla person', () => {
+    it('keeps "Crea enllaç d\'invitació" enabled for a non-xicalla person', () => {
       component.person.set(makePerson({ isXicalla: false }));
       component.delegates.set([]);
       fixture.detectChanges();
 
       const btn = Array.from(fixture.nativeElement.querySelectorAll('button')).find(
-        (b) => (b as HTMLElement).textContent?.trim() === "Envia correu d'invitació",
+        (b) => (b as HTMLElement).textContent?.trim() === "Crea enllaç d'invitació",
       ) as HTMLButtonElement;
       expect(btn.disabled).toBe(false);
     });
@@ -415,6 +420,80 @@ describe('PersonDetailComponent', () => {
         '[aria-label="Elimina responsable parent@test.com"]',
       );
       expect(removeBtn).toBeFalsy();
+    });
+
+    it('creates an invite link, copies it to the clipboard and shows a success toast', async () => {
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+      const createInviteLink = vi.fn().mockReturnValue(
+        of({ inviteUrl: 'http://localhost:4300/activate?token=abc', expiresAt: '2026-01-01T00:00:00Z' }),
+      );
+      (mockPersonService as unknown as { createInviteLink: typeof createInviteLink }).createInviteLink =
+        createInviteLink;
+      component.person.set(makePerson());
+
+      component.createInviteLink();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(createInviteLink).toHaveBeenCalledWith('p1');
+      expect(writeText).toHaveBeenCalledWith('http://localhost:4300/activate?token=abc');
+      const toastService = TestBed.inject(ToastService);
+      expect(toastService.toasts().at(-1)?.message).toContain('portapapers');
+    });
+
+    it('falls back to showing the link in the toast when the clipboard API is unavailable', async () => {
+      Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
+      const createInviteLink = vi.fn().mockReturnValue(
+        of({ inviteUrl: 'http://localhost:4300/activate?token=abc', expiresAt: '2026-01-01T00:00:00Z' }),
+      );
+      (mockPersonService as unknown as { createInviteLink: typeof createInviteLink }).createInviteLink =
+        createInviteLink;
+      component.person.set(makePerson());
+
+      component.createInviteLink();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const toastService = TestBed.inject(ToastService);
+      expect(toastService.toasts().at(-1)?.message).toContain('http://localhost:4300/activate?token=abc');
+    });
+
+    it('shows an error toast when creating the invite link fails', async () => {
+      const createInviteLink = vi.fn().mockReturnValue(
+        throwError(() => ({ error: { message: 'Aquesta persona ja té un compte actiu' } })),
+      );
+      (mockPersonService as unknown as { createInviteLink: typeof createInviteLink }).createInviteLink =
+        createInviteLink;
+      component.person.set(makePerson());
+
+      component.createInviteLink();
+      fixture.detectChanges();
+
+      const toastService = TestBed.inject(ToastService);
+      expect(toastService.toasts().at(-1)?.message).toBe('Aquesta persona ja té un compte actiu');
+    });
+
+    it('shows a "Compte actiu" indicator instead of the invite button once the account is active', () => {
+      component.person.set(makePerson({ user: { id: 'u1', email: 'active@test.com', isActive: true } }));
+      fixture.detectChanges();
+
+      const text = fixture.nativeElement.textContent;
+      expect(text).toContain('Compte actiu');
+      expect(text).not.toContain("Crea enllaç d'invitació");
+    });
+
+    it('shows a regenerate button and a "Pendent d\'activar" badge when the linked account is inactive', () => {
+      component.person.set(makePerson({ user: { id: 'u1', email: null, isActive: false } }));
+      fixture.detectChanges();
+
+      const text = fixture.nativeElement.textContent;
+      expect(text).toContain("Pendent d'activar");
+      const btn = Array.from(fixture.nativeElement.querySelectorAll('button')).find(
+        (b) => (b as HTMLElement).textContent?.trim() === "Crea enllaç d'invitació",
+      ) as HTMLButtonElement | undefined;
+      expect(btn).toBeTruthy();
+      expect(btn?.disabled).toBe(false);
     });
 
     it('getDelegateTypeLabel returns correct labels, including OTHER', () => {

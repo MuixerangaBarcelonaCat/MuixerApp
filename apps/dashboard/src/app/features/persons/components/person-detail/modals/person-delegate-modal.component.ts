@@ -12,7 +12,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, takeUntil } from 'rxjs/operators';
-import { DelegateType } from '@muixer/shared';
+import { DelegateType, UserRole } from '@muixer/shared';
 import { UserService } from '../../../../config/services/user.service';
 import { UserDto } from '../../../../config/models/user.model';
 import {
@@ -50,6 +50,15 @@ export class PersonDelegateModalComponent implements OnInit, OnDestroy {
   selectedType = signal<DelegateType>(DelegateType.PARENT);
   saving = signal(false);
   error = signal<string | null>(null);
+
+  private readonly roleLabels: Partial<Record<UserRole, string>> = {
+    [UserRole.ADMIN]: 'Administrador',
+    [UserRole.TECHNICAL]: 'Tècnica',
+  };
+
+  roleLabel(role: UserRole): string | null {
+    return this.roleLabels[role] ?? null;
+  }
 
   private readonly allDelegateTypes: { value: DelegateType; label: string }[] = [
     { value: DelegateType.PARENT, label: 'Pare/Mare' },
@@ -126,7 +135,6 @@ export class PersonDelegateModalComponent implements OnInit, OnDestroy {
     this.userService
       .getAll({
         search: this.searchTerm() || undefined,
-        isActive: true,
         limit: 50,
       })
       .subscribe({
