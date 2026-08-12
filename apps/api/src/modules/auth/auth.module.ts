@@ -7,6 +7,7 @@ import { Person } from '../person/person.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { LegalModule } from '../legal/legal.module';
 import { AuditModule } from '../audit/audit.module';
+import { MailModule } from '../mail/mail.module';
 import { AuthController } from './auth.controller';
 import { ConsentController } from './consent.controller';
 import { AuthService } from './auth.service';
@@ -28,6 +29,7 @@ import { requireJwtSecret } from './constants/jwt-secret.util';
     TypeOrmModule.forFeature([User, Person, RefreshToken]),
     LegalModule,
     AuditModule,
+    MailModule,
   ],
   controllers: [AuthController, ConsentController],
   providers: [

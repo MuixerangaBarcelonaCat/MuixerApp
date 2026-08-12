@@ -218,4 +218,32 @@ describe('AuthService', () => {
       expect(service.requiresPrivacyConsent()).toBe(false);
     });
   });
+
+  describe('requestPasswordReset', () => {
+    it('POSTs the email to /auth/forgot-password', () => {
+      let completed = false;
+      service.requestPasswordReset('user@test.cat').subscribe(() => (completed = true));
+
+      const req = http.expectOne((r) => r.url.includes('/auth/forgot-password'));
+      expect(req.request.method).toBe('POST');
+      expect(req.request.body).toEqual({ email: 'user@test.cat' });
+      req.flush({ message: 'ok' });
+
+      expect(completed).toBe(true);
+    });
+  });
+
+  describe('resetPassword', () => {
+    it('POSTs the token and new password to /auth/reset-password', () => {
+      let completed = false;
+      service.resetPassword('raw-token', 'newpass123').subscribe(() => (completed = true));
+
+      const req = http.expectOne((r) => r.url.includes('/auth/reset-password'));
+      expect(req.request.method).toBe('POST');
+      expect(req.request.body).toEqual({ token: 'raw-token', password: 'newpass123' });
+      req.flush({});
+
+      expect(completed).toBe(true);
+    });
+  });
 });

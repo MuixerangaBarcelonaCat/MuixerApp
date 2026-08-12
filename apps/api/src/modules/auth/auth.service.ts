@@ -11,16 +11,20 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { AuditAction, ClientType, LegalDocumentType, UserProfile, UserRole } from '@muixer/shared';
 import { User } from '../user/user.entity';
 import { Person } from '../person/person.entity';
 import { LegalDocumentService } from '../legal/legal-document.service';
 import { AuditService } from '../audit/audit.service';
+import { MailService } from '../mail/mail.service';
+import { buildPasswordResetEmail } from '../mail/templates/password-reset.template';
 import { TokenService } from './token.service';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
 import { SetupUserDto } from './dto/setup-user.dto';
-import { JWT_ACCESS_TTL } from './constants/auth.constants';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { JWT_ACCESS_TTL, PASSWORD_RESET_TTL } from './constants/auth.constants';
 import { hashToken } from '../../common/utils/hash-token.util';
 
 const BCRYPT_ROUNDS = 12;
@@ -48,6 +52,7 @@ export class AuthService {
     private readonly dataSource: DataSource,
     private readonly legalService: LegalDocumentService,
     private readonly auditService: AuditService,
+    private readonly mailService: MailService,
   ) {}
 
   /** Comprova email i contrasenya via bcrypt. Retorna null si l'usuari no existeix, no està actiu o la contrasenya és incorrecta. */
@@ -296,5 +301,56 @@ export class AuthService {
     } else {
       throw new InternalServerErrorException('No s\'ha pogut crear l\'usuari');
     }
+  }
+
+  /**
+   * Genera un token de recuperació de contrasenya i l'envia per correu, si l'email
+   * correspon a un usuari actiu. No informa mai si l'email existeix o no (evita
+   * enumeració de comptes) — sempre completa sense llançar, perquè el controller
+   * pugui respondre igual independentment del resultat.
+   */
+  async requestPasswordReset(email: string): Promise<void> {
+    const user = await this.userRepo.findOne({ where: { email } });
+    if (!user || !user.isActive) return;
+
+    const rawToken = crypto.randomBytes(16).toString('hex');
+    const resetExpiresAt = new Date(Date.now() + PASSWORD_RESET_TTL * 1000);
+
+    await this.userRepo.update(user.id, {
+      resetToken: hashToken(rawToken),
+      resetExpiresAt,
+    });
+
+    const protocol = this.configService.get<string>('NODE_ENV') === 'production' ? 'https' : 'http';
+    const siteAddress = this.configService.get<string>('SITE_ADDRESS');
+    const resetUrl = `${protocol}://${siteAddress}/reset-password?token=${rawToken}`;
+
+    try {
+      await this.mailService.send({ to: user.email, ...buildPasswordResetEmail(resetUrl) });
+    } catch (err) {
+      this.logger.warn(`No s'ha pogut enviar el correu de recuperació de contrasenya (userId=${user.id})`, err instanceof Error ? err.stack : err);
+    }
+  }
+
+  /**
+   * Estableix una nova contrasenya a partir d'un token de recuperació vàlid i
+   * revoca totes les sessions actives de l'usuari (un canvi de contrasenya ha
+   * de tancar qualsevol sessió existent, com `logoutAll`).
+   */
+  async resetPassword(dto: ResetPasswordDto): Promise<void> {
+    const user = await this.userRepo.findOne({ where: { resetToken: hashToken(dto.token) } });
+
+    if (!user || !user.resetExpiresAt || user.resetExpiresAt < new Date()) {
+      throw new UnauthorizedException('Token de recuperació invàlid o caducat');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
+    await this.userRepo.update(user.id, {
+      passwordHash,
+      resetToken: null,
+      resetExpiresAt: null,
+    });
+
+    await this.tokenService.revokeAllUserTokens(user.id);
   }
 }

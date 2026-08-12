@@ -11,6 +11,7 @@ import { User } from '../user/user.entity';
 import { Person } from '../person/person.entity';
 import { LegalDocumentService } from '../legal/legal-document.service';
 import { AuditService } from '../audit/audit.service';
+import { MailService } from '../mail/mail.service';
 import { hashToken } from '../../common/utils/hash-token.util';
 
 const makeTransactionManager = () => ({
@@ -87,6 +88,10 @@ const mockAuditService = () => ({
   record: jest.fn().mockResolvedValue(undefined),
 });
 
+const mockMailService = () => ({
+  send: jest.fn().mockResolvedValue(undefined),
+});
+
 describe('AuthService', () => {
   let service: AuthService;
   let userRepo: ReturnType<typeof mockUserRepo>;
@@ -95,6 +100,7 @@ describe('AuthService', () => {
   let dataSource: ReturnType<typeof mockDataSource>;
   let legalService: ReturnType<typeof mockLegalService>;
   let auditService: ReturnType<typeof mockAuditService>;
+  let mailService: ReturnType<typeof mockMailService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -108,6 +114,7 @@ describe('AuthService', () => {
         { provide: DataSource, useFactory: mockDataSource },
         { provide: LegalDocumentService, useFactory: mockLegalService },
         { provide: AuditService, useFactory: mockAuditService },
+        { provide: MailService, useFactory: mockMailService },
       ],
     }).compile();
 
@@ -118,6 +125,7 @@ describe('AuthService', () => {
     dataSource = module.get(DataSource);
     legalService = module.get(LegalDocumentService);
     auditService = module.get(AuditService);
+    mailService = module.get(MailService);
   });
 
   describe('validateUser', () => {
@@ -515,6 +523,133 @@ describe('AuthService', () => {
         }),
       ).rejects.toThrow(NotFoundException);
       expect(dataSource.transaction).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('requestPasswordReset', () => {
+    it('stores a reset token hash and an expiry roughly PASSWORD_RESET_TTL in the future', async () => {
+      const user = makeUser();
+      userRepo.findOne.mockResolvedValue(user);
+      userRepo.update.mockResolvedValue({});
+
+      const before = Date.now();
+      await service.requestPasswordReset('test@test.cat');
+      const after = Date.now();
+
+      expect(userRepo.update).toHaveBeenCalledWith(
+        user.id,
+        expect.objectContaining({ resetToken: expect.any(String), resetExpiresAt: expect.any(Date) }),
+      );
+      const updateArgs = userRepo.update.mock.calls[0][1] as { resetExpiresAt: Date };
+      const expectedMs = 3600 * 1000;
+      expect(updateArgs.resetExpiresAt.getTime()).toBeGreaterThanOrEqual(before + expectedMs - 1000);
+      expect(updateArgs.resetExpiresAt.getTime()).toBeLessThanOrEqual(after + expectedMs + 1000);
+    });
+
+    it('emails a link containing the raw token, matching the hash stored in the DB', async () => {
+      const user = makeUser();
+      userRepo.findOne.mockResolvedValue(user);
+      userRepo.update.mockResolvedValue({});
+
+      await service.requestPasswordReset('test@test.cat');
+
+      const message = mailService.send.mock.calls[0][0] as { to: string; html: string; text: string };
+      expect(message.to).toBe(user.email);
+      const [, resetUrl] = message.text.match(/(https?:\/\/\S+)/) ?? [];
+      expect(resetUrl).toBeDefined();
+      const rawToken = new URL(resetUrl).searchParams.get('token');
+      expect(rawToken).not.toBeNull();
+      const updateArgs = userRepo.update.mock.calls[0][1] as { resetToken: string };
+      expect(updateArgs.resetToken).toBe(hashToken(rawToken as string));
+    });
+
+    it('does nothing (no DB write, no email) when the email does not match a user', async () => {
+      userRepo.findOne.mockResolvedValue(null);
+
+      await service.requestPasswordReset('missing@test.cat');
+
+      expect(userRepo.update).not.toHaveBeenCalled();
+      expect(mailService.send).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when the user is inactive', async () => {
+      userRepo.findOne.mockResolvedValue(makeUser({ isActive: false }));
+
+      await service.requestPasswordReset('test@test.cat');
+
+      expect(userRepo.update).not.toHaveBeenCalled();
+      expect(mailService.send).not.toHaveBeenCalled();
+    });
+
+    it('never rejects when the mail provider fails — the public endpoint must respond the same either way', async () => {
+      const user = makeUser();
+      userRepo.findOne.mockResolvedValue(user);
+      userRepo.update.mockResolvedValue({});
+      mailService.send.mockRejectedValue(new Error('Failed to send email'));
+
+      await expect(service.requestPasswordReset('test@test.cat')).resolves.toBeUndefined();
+    });
+  });
+
+  describe('resetPassword', () => {
+    it('rejects with UnauthorizedException when the token does not match any user', async () => {
+      userRepo.findOne.mockResolvedValue(null);
+      await expect(
+        service.resetPassword({ token: 'bad', password: 'newpass123' }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('rejects with UnauthorizedException when the token has expired', async () => {
+      userRepo.findOne.mockResolvedValue(
+        makeUser({ resetToken: hashToken('tok'), resetExpiresAt: new Date(Date.now() - 1000) }),
+      );
+      await expect(
+        service.resetPassword({ token: 'tok', password: 'newpass123' }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('looks up the user by the hash of the raw token, never the raw token itself', async () => {
+      userRepo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.resetPassword({ token: 'valid-token', password: 'newpass123' }),
+      ).rejects.toThrow(UnauthorizedException);
+
+      expect(userRepo.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { resetToken: hashToken('valid-token') } }),
+      );
+    });
+
+    it('updates the password hash and clears the reset token fields', async () => {
+      const user = makeUser({
+        resetToken: hashToken('valid-token'),
+        resetExpiresAt: new Date(Date.now() + 3600_000),
+      });
+      userRepo.findOne.mockResolvedValue(user);
+      userRepo.update.mockResolvedValue({});
+      bcrypt.hash.mockResolvedValue('new-hash');
+
+      await service.resetPassword({ token: 'valid-token', password: 'newpass123' });
+
+      expect(bcrypt.hash).toHaveBeenCalledWith('newpass123', 12);
+      expect(userRepo.update).toHaveBeenCalledWith(
+        user.id,
+        expect.objectContaining({ passwordHash: 'new-hash', resetToken: null, resetExpiresAt: null }),
+      );
+    });
+
+    it('revokes all of the user\'s refresh tokens, killing every existing session', async () => {
+      const user = makeUser({
+        resetToken: hashToken('valid-token'),
+        resetExpiresAt: new Date(Date.now() + 3600_000),
+      });
+      userRepo.findOne.mockResolvedValue(user);
+      userRepo.update.mockResolvedValue({});
+      bcrypt.hash.mockResolvedValue('new-hash');
+
+      await service.resetPassword({ token: 'valid-token', password: 'newpass123' });
+
+      expect(tokenService.revokeAllUserTokens).toHaveBeenCalledWith(user.id);
     });
   });
 });

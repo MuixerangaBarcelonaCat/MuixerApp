@@ -130,6 +130,11 @@ describe('LoginComponent', () => {
     );
   });
 
+  it('links "Heu oblidat la contrasenya?" to the local /forgot-password page', () => {
+    const link = fixture.nativeElement.querySelector('a[routerLink="/forgot-password"]') as HTMLAnchorElement;
+    expect(link).toBeTruthy();
+  });
+
   describe('tap targets >=24px (WI-03, PW-L3)', () => {
     it('gives the email and password inputs their own >=24px height instead of just the wrapper', () => {
       const emailInput = fixture.nativeElement.querySelector('input[type="email"]') as HTMLElement;

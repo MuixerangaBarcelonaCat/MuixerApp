@@ -68,7 +68,7 @@ export const migrations: (new () => MigrationInterface)[] = [
   AddUserPrivacyConsent1783400000000,
   SeedLegalDocuments1783500000000,
   AddLegalDocumentRequiresConsent1783600000000,
-  FixLegalDocumentsTextAndStyle1783900000000,
   AddPersonDelegatePrimaryAndOtherType1783700000000,
   DropPersonManagedBy1783800000000,
+  FixLegalDocumentsTextAndStyle1783900000000,
 ];

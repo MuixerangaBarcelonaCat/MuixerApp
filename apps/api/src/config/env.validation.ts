@@ -28,4 +28,19 @@ export const envValidationSchema = Joi.object({
   LEGACY_API_URL: Joi.string().allow('').optional(),
   LEGACY_API_USERNAME: Joi.string().allow('').optional(),
   LEGACY_API_PASSWORD: Joi.string().allow('').optional(),
+
+  MAIL_PROVIDER: Joi.string().valid('console', 'smtp').default('console'),
+  // Required only when MAIL_PROVIDER=smtp — e.g. Google Workspace SMTP with an app password.
+  SMTP_HOST: Joi.string().default('smtp.gmail.com'),
+  SMTP_PORT: Joi.number().default(587),
+  SMTP_SECURE: Joi.boolean().default(false),
+  SMTP_USER: Joi.string().when('MAIL_PROVIDER', { is: 'smtp', then: Joi.required(), otherwise: Joi.optional() }),
+  SMTP_PASS: Joi.string().when('MAIL_PROVIDER', { is: 'smtp', then: Joi.required(), otherwise: Joi.optional() }),
+  MAIL_FROM_ADDRESS: Joi.string().when('MAIL_PROVIDER', { is: 'smtp', then: Joi.required(), otherwise: Joi.optional() }),
+  MAIL_FROM_NAME: Joi.string().default('MuixerApp'),
+
+  // Dashboard origin (no scheme) — used to build links in emails (invites, password reset).
+  // The scheme is derived from NODE_ENV (https in production, http otherwise).
+  SITE_ADDRESS: Joi.string().default('localhost:4200'),
+  PASSWORD_RESET_TTL: Joi.number().default(3600),
 });
