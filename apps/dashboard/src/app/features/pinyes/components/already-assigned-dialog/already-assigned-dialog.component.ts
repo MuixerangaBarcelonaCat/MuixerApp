@@ -55,7 +55,7 @@ import { ICON_OBSERVACIONS } from '../../../../shared/constants/domain-icons';
             @if (hasTronc()) {
               <p class="text-sm text-conflict flex items-start gap-1 mb-4">
                 <lucide-icon [name]="ICON_CONFLICT" [size]="14" class="mt-0.5 shrink-0" />
-                <span>Una d'estes col·locacions és al <strong>tronc</strong>: reubicar-la té conseqüències.</span>
+                <span>Una d'estes col·locacions és al <strong>tronc</strong>
               </p>
             }
           }
@@ -94,11 +94,6 @@ import { ICON_OBSERVACIONS } from '../../../../shared/constants/domain-icons';
               Moure ací
             </button>
           </div>
-          @if (placements().length > 0) {
-            <p class="text-xs text-conflict/80 mt-2">
-              Quedarà assignada a {{ placements().length + 1 }} llocs d'este segment.
-            </p>
-          }
         </div>
         <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
         <div class="modal-backdrop" (click)="closed.emit()"></div>
