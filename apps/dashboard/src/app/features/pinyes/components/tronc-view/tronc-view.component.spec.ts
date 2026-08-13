@@ -243,6 +243,26 @@ describe('TroncViewComponent', () => {
     expect(component.isConflict('node-1')).toBe(true);
   });
 
+  it('renders no .tronc-node.conflict in the DOM with zero conflicts (production default)', () => {
+    fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'node-1' })]);
+    fixture.componentRef.setInput('assignments', [makeAssignment('node-1', 'Pepet')]);
+    fixture.componentRef.setInput('conflictPersonIds', new Set<string>());
+    fixture.componentRef.setInput('mode', 'assignment');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelectorAll('.tronc-node.conflict').length).toBe(0);
+  });
+
+  it('renders the .conflict class on the DOM node whose assigned person is in conflict', () => {
+    fixture.componentRef.setInput('troncNodes', [makeNode({ id: 'node-1' })]);
+    fixture.componentRef.setInput('assignments', [makeAssignment('node-1', 'Pepet')]);
+    fixture.componentRef.setInput('conflictPersonIds', new Set(['person-node-1']));
+    fixture.componentRef.setInput('mode', 'assignment');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelectorAll('.tronc-node.conflict').length).toBe(1);
+  });
+
   // ── Height display ────────────────────────────────────────────────────────
 
   it('getHeightDisplay returns empty string for null height', () => {

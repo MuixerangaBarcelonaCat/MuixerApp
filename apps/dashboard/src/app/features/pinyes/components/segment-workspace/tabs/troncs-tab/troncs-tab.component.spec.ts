@@ -821,6 +821,26 @@ describe('TroncsTabComponent', () => {
       expect(assignmentService.assign).toHaveBeenCalledWith(INST_B, { nodeId: 'm1', personId: 'p-1' });
     });
 
+    it('"assign anyway" keeps the old assignment and assigns to the target as a duplicate', async () => {
+      const existing = makeAssignment(INST_A, 'n1', 'p-1');
+      await setup({
+        instances: [makeInstance(INST_A), makeInstance(INST_B)],
+        nodesByInstance: {
+          [INST_A]: [makeNode('n1', 'TRONC')],
+          [INST_B]: [makeNode('m1', 'TRONC')],
+        },
+        assignmentsByInstance: { [INST_A]: [existing] },
+      });
+      component.onTroncNodeSelected(INST_B, 'm1');
+      component.onAssignedPersonSelected({ personId: 'p-1', instanceId: INST_A });
+
+      component.onReassignDialogAssignAnyway();
+
+      expect(assignmentService.unassign).not.toHaveBeenCalled();
+      expect(assignmentService.assign).toHaveBeenCalledWith(INST_B, { nodeId: 'm1', personId: 'p-1' });
+      expect(component.reassignDialog()).toBeNull();
+    });
+
     it('navigates directly (no dialog) when no target node is selected', async () => {
       const existing = makeAssignment(INST_A, 'n1', 'p-1');
       await setup({ assignmentsByInstance: { [INST_A]: [existing] } });
