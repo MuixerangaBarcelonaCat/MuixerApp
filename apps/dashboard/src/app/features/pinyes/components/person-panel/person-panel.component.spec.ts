@@ -808,9 +808,9 @@ describe('PersonPanelComponent', () => {
     });
   });
 
-  // ── assignedPersons tag filtering ───────────────────────────────────────────
+  // ── pinya/tronc assigned-buckets tag filtering ─────────────────────────────
 
-  describe('assignedPersons tag filtering', () => {
+  describe('pinyaAssignedPersons/troncAssignedPersons tag filtering', () => {
     const posVents = { id: 'tag-vents', name: 'Vents', slug: 'vents', color: '#A5D6A7', positionTypes: ['vents'] };
 
     const makeAssignment = (personId: string) => ({
@@ -840,7 +840,7 @@ describe('PersonPanelComponent', () => {
       fixture.componentRef.setInput('assignments', [makeAssignment('p1')]);
       fixture.detectChanges();
 
-      expect(component.assignedPersons()).toHaveLength(0);
+      expect(component.troncAssignedPersons()).toHaveLength(0);
     });
 
     it('includes an assigned person found in persons() whose tag matches the filter', () => {
@@ -849,7 +849,7 @@ describe('PersonPanelComponent', () => {
       fixture.componentRef.setInput('assignments', [makeAssignment('p1')]);
       fixture.detectChanges();
 
-      expect(component.assignedPersons().map((p) => p.id)).toEqual(['p1']);
+      expect(component.troncAssignedPersons().map((p) => p.id)).toEqual(['p1']);
     });
 
     it('includes all assigned persons when no tag filter is active', () => {
@@ -858,13 +858,13 @@ describe('PersonPanelComponent', () => {
       fixture.componentRef.setInput('assignments', [makeAssignment('p1')]);
       fixture.detectChanges();
 
-      expect(component.assignedPersons().map((p) => p.id)).toEqual(['p1']);
+      expect(component.troncAssignedPersons().map((p) => p.id)).toEqual(['p1']);
     });
   });
 
-  // ── assignedPersons position-match dot ──────────────────────────────────────
+  // ── pinya/tronc assigned-buckets position-match dot ────────────────────────
 
-  describe('assignedPersons position-match dot', () => {
+  describe('pinyaAssignedPersons/troncAssignedPersons position-match dot', () => {
     const posVents = { id: 'pos-vents', name: 'Vents', slug: 'vents', color: '#A5D6A7', positionTypes: ['vents'] };
 
     it('renders a colored dot for an assigned person whose position matches the active node type', () => {
@@ -876,7 +876,7 @@ describe('PersonPanelComponent', () => {
       fixture.componentRef.setInput('activeNodePositionType', 'vents');
       fixture.detectChanges();
 
-      const panel = fixture.nativeElement.querySelector('#assignades-panel');
+      const panel = fixture.nativeElement.querySelector('#pinya-assigned-panel');
       const dot = panel?.querySelector('[style*="background-color"]');
       expect(dot).toBeTruthy();
     });
@@ -890,7 +890,7 @@ describe('PersonPanelComponent', () => {
       fixture.componentRef.setInput('activeNodePositionType', 'vents');
       fixture.detectChanges();
 
-      const panel = fixture.nativeElement.querySelector('#assignades-panel');
+      const panel = fixture.nativeElement.querySelector('#pinya-assigned-panel');
       const dot = panel?.querySelector('[style*="background-color"]');
       expect(dot).toBeFalsy();
     });
@@ -906,7 +906,7 @@ describe('PersonPanelComponent', () => {
       component.persons.set([person]);
       fixture.detectChanges();
 
-      const panel = fixture.nativeElement.querySelector('#assignades-panel');
+      const panel = fixture.nativeElement.querySelector('#pinya-assigned-panel');
       expect(panel.querySelector('.badge-info').textContent).toContain('Mans C2');
     });
 
@@ -917,69 +917,115 @@ describe('PersonPanelComponent', () => {
       component.persons.set([person]);
       fixture.detectChanges();
 
-      const panel = fixture.nativeElement.querySelector('#assignades-panel');
+      const panel = fixture.nativeElement.querySelector('#pinya-assigned-panel');
       expect(panel.querySelector('.badge-info').textContent.trim()).toBe('Mans');
     });
   });
 
-  // ── area-aware free/cross-area buckets (Fase 4, §5.4) ──────────────────────
+  // ── unified A la pinya / Al tronc buckets ───────────────────────────────────
 
-  describe('area-aware freePersons and crossAreaPersons', () => {
-    it('defaults to PINYA: free means not assigned anywhere in the segment', () => {
+  describe('pinyaAssignedPersons and troncAssignedPersons', () => {
+    it('a pinya-only person is free of the tronc bucket, absent from free, and present in "A la pinya"', () => {
       const person = makeAvailablePerson('p1', 'ANIRE', {
-        assignedInTronc: true,
-        assignedPlacements: [makePlacement()],
-      });
-      component.persons.set([person]);
-      fixture.detectChanges();
-
-      expect(component.freePersons()).toHaveLength(0);
-    });
-
-    it('PINYA: a tronc-only person is excluded from freePersons/assignedPersons and shown as cross-area', () => {
-      const person = makeAvailablePerson('p1', 'ANIRE', {
-        assignedInTronc: true,
-        assignedInPinya: false,
-        assignedPlacements: [makePlacement({ nodeLabel: 'Tronc' })],
+        assignedInTronc: false,
+        assignedInPinya: true,
+        assignedPlacements: [makePlacement({ nodeLabel: 'Pinya', area: 'PINYA' })],
       });
       component.persons.set([person]);
       fixture.detectChanges();
 
       expect(component.freePersons().map((p) => p.id)).not.toContain('p1');
-      expect(component.assignedPersons().map((p) => p.id)).not.toContain('p1');
-      expect(component.crossAreaPersons().map((p) => p.id)).toEqual(['p1']);
-      expect(component.crossAreaLabel()).toBe("Al tronc d'este segment");
+      expect(component.pinyaAssignedPersons().map((p) => p.id)).toEqual(['p1']);
+      expect(component.troncAssignedPersons().map((p) => p.id)).not.toContain('p1');
     });
 
-    it('TRONC: free means not assigned at the tronc, even if assigned at the pinya elsewhere', () => {
-      fixture.componentRef.setInput('area', 'TRONC');
-      const troncFree = makeAvailablePerson('p1', 'ANIRE');
-      const pinyaOnly = makeAvailablePerson('p2', 'ANIRE', {
-        assignedInPinya: true,
-        assignedInTronc: false,
-        assignedPlacements: [makePlacement({ nodeLabel: 'Mans' })],
+    it('a tronc-only person is excluded from freePersons and shown only in "Al tronc"', () => {
+      const person = makeAvailablePerson('p1', 'ANIRE', {
+        assignedInTronc: true,
+        assignedInPinya: false,
+        assignedPlacements: [makePlacement({ nodeLabel: 'Tronc', area: 'TRONC' })],
       });
-      component.persons.set([troncFree, pinyaOnly]);
+      component.persons.set([person]);
       fixture.detectChanges();
 
-      expect(component.freePersons().map((p) => p.id)).toEqual(['p1']);
-      expect(component.crossAreaPersons().map((p) => p.id)).toEqual(['p2']);
-      expect(component.crossAreaLabel()).toBe("Ja a la pinya d'este segment");
-      expect(component.assignedPersons().map((p) => p.id)).not.toContain('p2');
+      expect(component.freePersons().map((p) => p.id)).not.toContain('p1');
+      expect(component.troncAssignedPersons().map((p) => p.id)).toEqual(['p1']);
+      expect(component.pinyaAssignedPersons().map((p) => p.id)).not.toContain('p1');
     });
 
-    it('TRONC: a person assigned at both tronc and pinya is not treated as cross-area', () => {
-      fixture.componentRef.setInput('area', 'TRONC');
+    it('a direction-only person is grouped under "Al tronc"', () => {
+      const person = makeAvailablePerson('p1', 'ANIRE', {
+        assignedPlacements: [makePlacement({ nodeLabel: 'Direcció', zone: 'DIRECTION', area: 'DIRECTION' })],
+      });
+      component.persons.set([person]);
+      fixture.detectChanges();
+
+      expect(component.troncAssignedPersons().map((p) => p.id)).toEqual(['p1']);
+      expect(component.pinyaAssignedPersons().map((p) => p.id)).not.toContain('p1');
+      expect(component.freePersons().map((p) => p.id)).not.toContain('p1');
+    });
+
+    it('an optimistic FIGURE_DIRECTION assignment (before API refresh) is grouped under "Al tronc", not "A la pinya"', () => {
+      // Regression: the zone→area mapping used to check `zone === 'DIRECTION'`, but the real
+      // FigureZone values are 'FIGURE_DIRECTION'/'XICALLA_DIRECTION' — so this always fell
+      // through to the 'PINYA' default before the API refresh landed.
+      component.persons.set([]);
+      fixture.componentRef.setInput('assignments', [
+        {
+          id: 'assignment-p1',
+          figureInstanceId: 'instance-1',
+          node: {
+            id: 'node-1',
+            label: 'Direcció',
+            zone: 'FIGURE_DIRECTION',
+            z: 0,
+            positionType: null,
+            sortOrder: 0,
+            climbIndicator: null,
+            ringLevel: null,
+            originNodeId: null,
+            sourceNodeId: null,
+          },
+          person: { id: 'p1', alias: 'Pepet', name: 'Pere', firstSurname: 'Garcia', shoulderHeight: null },
+        },
+      ]);
+      fixture.detectChanges();
+
+      expect(component.troncAssignedPersons().map((p) => p.id)).toEqual(['p1']);
+      expect(component.pinyaAssignedPersons().map((p) => p.id)).not.toContain('p1');
+    });
+
+    it('a person placed in both areas appears in both buckets exactly once, never in free', () => {
       const both = makeAvailablePerson('p1', 'ANIRE', {
         assignedInPinya: true,
         assignedInTronc: true,
-        assignedPlacements: [makePlacement()],
+        assignedPlacements: [
+          makePlacement({ nodeLabel: 'Tronc', area: 'TRONC' }),
+          makePlacement({ nodeLabel: 'Pinya', area: 'PINYA' }),
+        ],
       });
       component.persons.set([both]);
       fixture.detectChanges();
 
-      expect(component.crossAreaPersons()).toHaveLength(0);
+      expect(component.pinyaAssignedPersons().map((p) => p.id)).toEqual(['p1']);
+      expect(component.troncAssignedPersons().map((p) => p.id)).toEqual(['p1']);
       expect(component.freePersons().map((p) => p.id)).not.toContain('p1');
+    });
+
+    it('shows the pinya-specific badge label in "A la pinya" and the tronc-specific one in "Al tronc"', () => {
+      const both = makeAvailablePerson('p1', 'ANIRE', {
+        assignedInPinya: true,
+        assignedInTronc: true,
+        assignedPlacements: [
+          makePlacement({ nodeLabel: 'Tronc', area: 'TRONC' }),
+          makePlacement({ nodeLabel: 'Pinya', area: 'PINYA' }),
+        ],
+      });
+      component.persons.set([both]);
+      fixture.detectChanges();
+
+      expect(component.assignedBadgeLabel(both, 'PINYA')).toBe('Pinya');
+      expect(component.assignedBadgeLabel(both, 'TRONC')).toBe('Tronc');
     });
   });
 
