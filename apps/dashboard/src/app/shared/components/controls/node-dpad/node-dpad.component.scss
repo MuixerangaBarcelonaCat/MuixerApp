@@ -1,0 +1,80 @@
+.dpad-container {
+  &.dpad-disabled {
+    opacity: 0.4;
+    pointer-events: none;
+  }
+}
+
+.dpad-cross {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr 1fr;
+  gap: 2px;
+  width: fit-content;
+  margin: 0 auto;
+}
+
+.dpad-rotation {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  // Matches .dpad-cross's total height (3 rows × 40px + 2 × 2px gap) so the CW/CCW
+  // buttons land vertically centered at the same row as the left/right arrows.
+  min-height: 124px;
+}
+
+.dpad-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  border-radius: 0.375rem;
+  border: 1px solid oklch(var(--b3));
+  background: oklch(var(--b2));
+  color: oklch(var(--bc) / 0.8);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, transform 0.08s;
+  touch-action: none;
+  user-select: none;
+
+  &:hover:not(:disabled) {
+    background: oklch(var(--p) / 0.12);
+    color: oklch(var(--p));
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.9);
+    background: oklch(var(--p) / 0.2);
+  }
+
+  &:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+}
+
+.dpad-up    { grid-column: 2; grid-row: 1; }
+.dpad-left  { grid-column: 1; grid-row: 2; }
+.dpad-center {
+  grid-column: 2;
+  grid-row: 2;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &::before {
+    content: '';
+    display: block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: oklch(var(--bc) / 0.2);
+  }
+}
+.dpad-right { grid-column: 3; grid-row: 2; }
+.dpad-down  { grid-column: 2; grid-row: 3; }

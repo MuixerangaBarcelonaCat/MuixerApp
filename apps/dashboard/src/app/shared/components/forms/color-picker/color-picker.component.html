@@ -1,0 +1,88 @@
+<div class="relative inline-block">
+  <!-- Swatch trigger -->
+  <button
+    #swatchRef
+    type="button"
+    class="color-picker-swatch group relative flex items-center justify-center rounded border border-base-300 transition hover:ring-2 hover:ring-primary/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+    style="width: 28px; height: 28px;"
+    [style.backgroundColor]="color() ?? '#cccccc'"
+    [attr.aria-expanded]="dropdownOpen()"
+    aria-haspopup="dialog"
+    aria-label="Selector de color"
+    title="Canvia el color del node"
+    (click)="toggleDropdown()"
+    data-testid="color-picker-swatch"
+  >
+    <!-- Pencil overlay on hover -->
+    <span class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+      <lucide-icon
+        name="Pencil"
+        [size]="11"
+        class="text-white drop-shadow"
+        aria-hidden="true"
+      />
+    </span>
+    <span class="sr-only">Color actual: {{ color() ?? 'cap' }}</span>
+  </button>
+
+  <!-- Popover dropdown -->
+  @if (dropdownOpen()) {
+    <div
+      #dropdownRef
+      role="dialog"
+      aria-label="Tria un color"
+      class="color-picker-popover fixed z-50 bg-base-100 border border-base-300 rounded-lg shadow-xl p-3 min-w-[180px]"
+      [style.top.px]="popoverPosition()?.top"
+      [style.left.px]="popoverPosition()?.left"
+      data-testid="color-picker-popover"
+    >
+      <!-- Preset swatches -->
+      @if (presetColors().length > 0) {
+        <p class="text-[10px] font-medium text-base-content/50 uppercase tracking-wide mb-2">Colors predefinits</p>
+        <div class="grid grid-cols-5 gap-1.5 mb-3" role="listbox" aria-label="Colors predefinits">
+          @for (hex of presetColors(); track hex) {
+            <button
+              type="button"
+              role="option"
+              class="w-7 h-7 rounded-full border-2 transition hover:scale-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+              [style.backgroundColor]="hex"
+              [class.border-primary]="color() === hex"
+              [class.border-transparent]="color() !== hex"
+              [attr.aria-selected]="color() === hex"
+              [attr.aria-label]="hex"
+              [title]="hex"
+              (click)="selectColor(hex)"
+              data-testid="color-picker-preset"
+            ></button>
+          }
+        </div>
+      }
+
+      <!-- Hex input -->
+      <p class="text-[10px] font-medium text-base-content/50 uppercase tracking-wide mb-1.5">Color personalitzat</p>
+      <div class="flex items-center gap-1.5">
+        <span
+          class="w-6 h-6 rounded border border-base-300 flex-shrink-0 transition-colors"
+          [style.backgroundColor]="isValidHex() ? normalizedHex() : (color() ?? '#ccc')"
+          aria-hidden="true"
+        ></span>
+        <input
+          type="text"
+          class="input input-bordered input-xs flex-1 font-mono uppercase"
+          [class.input-error]="hexInput().trim().length >= 6 && !isValidHex()"
+          placeholder="#RRGGBB"
+          maxlength="7"
+          [value]="hexInput()"
+          aria-label="Color en format hexadecimal"
+          (input)="onHexInput($any($event.target).value)"
+          (blur)="onHexBlur()"
+          (keydown.enter)="onHexBlur()"
+          data-testid="color-picker-hex-input"
+        />
+      </div>
+      @if (hexInput().trim().length >= 6 && !isValidHex()) {
+        <p class="text-[10px] text-error mt-1">Format incorrecte. Exemple: #FF5733</p>
+      }
+    </div>
+  }
+</div>
