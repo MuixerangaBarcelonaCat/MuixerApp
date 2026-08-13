@@ -1,6 +1,7 @@
 import {
   Component,
   ChangeDetectionStrategy,
+  DestroyRef,
   ElementRef,
   HostListener,
   inject,
@@ -34,7 +35,7 @@ import { ColorPickerComponent } from '../../../../shared/components/forms/color-
 import { NodeDpadComponent } from '../../../../shared/components/controls/node-dpad/node-dpad.component';
 import { NodeActionsComponent } from '../../../../shared/components/controls/node-actions/node-actions.component';
 import { isGhostEligible, calculateGhostPosition } from '../../utils/ghost-clone.util';
-import { getPresetColorsForZone } from '../../utils/node-color-presets.util';
+import { getPresetColorsForZone, isNodeColorEditable } from '../../utils/node-color-presets.util';
 import { RenglaOverlayComponent, RenglaCreatedEvent, RenglaDeletedEvent, RenglaStartChangedEvent } from '../rengla-overlay/rengla-overlay.component';
 import { StageTransform } from '../../utils/rengla-coordinates.util';
 import { LayoutService } from '../../../../core/services/layout.service';
@@ -89,6 +90,25 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
   readonly figureCanvas = viewChild<FigureCanvasComponent>('figureCanvasRef');
   readonly presetDropdownRef = viewChild<ElementRef>('presetDropdownRef');
 
+  /**
+   * True below the `lg` breakpoint (< 1024px, tablet/phone) — same breakpoint the
+   * quick-actions-section sticky behavior already uses. Drives which properties-panel
+   * sections make sense for the input method: Posició (numeric fields) on desktop,
+   * Moure (D-pad) on touch. Falls back to `false` (desktop) where `matchMedia` is
+   * unavailable (non-browser/test environments).
+   */
+  readonly isCompactViewport = signal(false);
+
+  constructor() {
+    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+      const mql = window.matchMedia('(max-width: 1023.98px)');
+      this.isCompactViewport.set(mql.matches);
+      const listener = (e: MediaQueryListEvent) => this.isCompactViewport.set(e.matches);
+      mql.addEventListener('change', listener);
+      inject(DestroyRef).onDestroy(() => mql.removeEventListener('change', listener));
+    }
+  }
+
   // Template metadata
   templateId = signal<string | null>(null);
   templateName = signal('Figura nova');
@@ -130,7 +150,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
   // Panel visibility
   propertiesPanelOpen = signal(true);
   shortcutsModalOpen = signal(false);
-  troncDrawerOpen = signal(false);
+  troncEditMode = signal(false);
 
   // Quick actions panel (tablet-sticky / desktop-collapsable).
   // Defaults to expanded; persisted per-browser via localStorage.
@@ -217,6 +237,7 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
   });
 
   readonly getPresetColorsForZone = getPresetColorsForZone;
+  readonly isNodeColorEditable = isNodeColorEditable;
 
   readonly saveStatusLabel = computed(() => {
     const s = this.saveStatus();
@@ -577,6 +598,12 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
       return;
     }
 
+    if (isMod && event.shiftKey && event.key.toLowerCase() === 'd') {
+      event.preventDefault();
+      this.ghostSelectedNode();
+      return;
+    }
+
     if (isMod && event.key === 'd') {
       event.preventDefault();
       this.duplicateSelectedNode();
@@ -657,6 +684,16 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
     this.scheduleAutosave();
   }
 
+  onDpadRotate(delta: { dRotation: number }): void {
+    const id = this.selectedNodeId();
+    if (!id) return;
+    const node = this.nodes().find((n) => n.id === id);
+    if (!node) return;
+    const rotation = ((node.rotation + delta.dRotation) % 360 + 360) % 360;
+    this.updateNode(id, { rotation });
+    this.scheduleAutosave();
+  }
+
   ghostSelectedNode(): void {
     const node = this.selectedNode();
     if (!node || !this.canGhostSelectedNode()) return;
@@ -698,6 +735,9 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
         x: source.x + PASTE_OFFSET,
         y: source.y + PASTE_OFFSET,
         sortOrder: this.nodes().length,
+        renglaId: null,
+        renglaPosition: null,
+        ringLevel: null,
       };
       this.nodes.update((n) => [...n, newNode]);
       this.selectedNodeId.set(newNode.id);
@@ -898,19 +938,19 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
 
   activatePinyaMode(): void {
     if (this.renglaEditMode()) this.toggleRenglaEditMode();
-    this.troncDrawerOpen.set(false);
+    this.troncEditMode.set(false);
   }
 
   activateTroncMode(): void {
     if (this.renglaEditMode()) this.toggleRenglaEditMode();
-    this.troncDrawerOpen.set(true);
+    this.troncEditMode.set(true);
   }
 
   toggleRenglaEditMode(): void {
     if (this.previewMode()) this.previewMode.set(false);
     this.renglaEditMode.update((v) => !v);
     if (this.renglaEditMode()) {
-      this.troncDrawerOpen.set(false);
+      this.troncEditMode.set(false);
       this.selectedNodeId.set(null);
     }
   }
@@ -992,6 +1032,12 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
       this.pushSnapshot('Clonar node');
       const newId = generateUUID();
 
+      // A node is only ghost-eligible when it's the last in its rengla (see isGhostEligible),
+      // so the ghost extends that rengla one position past the source.
+      const newRenglaPosition = source.renglaId
+        ? this.renglaMaxForNode(source) + 1
+        : null;
+
       const clonedNode: FigureNodeItem = {
         id: newId,
         label: source.label,
@@ -1007,10 +1053,10 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
         shape: source.shape,
         sortOrder: this.nodes().length,
         climbIndicator: null,
-        ringLevel: null,
+        ringLevel: newRenglaPosition,
         originNodeId: null,
-        renglaId: null,
-        renglaPosition: null,
+        renglaId: source.renglaId,
+        renglaPosition: newRenglaPosition,
         metadata: {},
       };
 

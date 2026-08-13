@@ -70,7 +70,7 @@ import {
   Users,
   X, EyeOff, FolderOpen, Info, GitBranch, CircleQuestionMark, PlusCircle, UserCheck, Edit, Import, ArrowUpDown, ArrowDownUp,
   GripVertical, PanelLeft, PanelLeftClose, Monitor, PlusSquare, Square, MoveRight, Moon, Sun,
-  BookOpen, RotateCcw, History, UserPlus, Baby, UsersRound, StickyNote, UserMinus,
+  BookOpen, RotateCcw, RotateCw, History, UserPlus, Baby, UsersRound, StickyNote, UserMinus,
   ClipboardCheck, Undo2, Redo2, Ghost
 } from 'lucide-angular';
 
@@ -87,7 +87,7 @@ const icons = {
   Sparkles, Star, Tag, Trash2, UserCog, UserX, Users, X, EyeOff, FolderOpen, Info, GitBranch,
   CircleQuestionMark, PlusCircle, UserCheck, Edit, Import, ArrowUpDown, ArrowDownUp,
   GripVertical, PanelLeft, PanelLeftClose, Monitor, PlusSquare, Square, MoveRight, Moon, Sun,
-  BookOpen, RotateCcw, History, UserPlus, Baby, UsersRound, StickyNote, UserMinus,
+  BookOpen, RotateCcw, RotateCw, History, UserPlus, Baby, UsersRound, StickyNote, UserMinus,
   ClipboardCheck, Undo2, Redo2, Ghost
 };
 

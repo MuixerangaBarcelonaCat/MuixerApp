@@ -31,7 +31,9 @@
       #dropdownRef
       role="dialog"
       aria-label="Tria un color"
-      class="color-picker-popover absolute z-50 top-full mt-1 right-0 bg-base-100 border border-base-300 rounded-lg shadow-xl p-3 min-w-[180px]"
+      class="color-picker-popover fixed z-50 bg-base-100 border border-base-300 rounded-lg shadow-xl p-3 min-w-[180px]"
+      [style.top.px]="popoverPosition()?.top"
+      [style.left.px]="popoverPosition()?.left"
       data-testid="color-picker-popover"
     >
       <!-- Preset swatches -->

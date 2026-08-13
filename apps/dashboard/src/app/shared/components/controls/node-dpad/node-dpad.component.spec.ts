@@ -44,6 +44,12 @@ describe('NodeDpadComponent', () => {
       fixture.detectChanges();
       expect(component.mode()).toBe('position');
     });
+
+    it('switches to rotation mode on click', () => {
+      el.querySelector<HTMLElement>('[data-testid="dpad-mode-rotation"]')!.click();
+      fixture.detectChanges();
+      expect(component.mode()).toBe('rotation');
+    });
   });
 
   describe('step toggle', () => {
@@ -144,6 +150,60 @@ describe('NodeDpadComponent', () => {
 
       component.onArrowPointerDown('down', new PointerEvent('pointerdown'));
       expect(emitted).toEqual([{ dw: 0, dh: 1 }]);
+    });
+  });
+
+  describe('rotation mode', () => {
+    beforeEach(() => {
+      component.setMode('rotation');
+      fixture.detectChanges();
+    });
+
+    it('starts at rotation step 1°', () => {
+      expect(component.rotationStep()).toBe(1);
+      expect(component.stepLabel()).toBe('1°');
+    });
+
+    it('toggles rotation step to 15° independently of the px step', () => {
+      el.querySelector<HTMLElement>('[data-testid="dpad-step-toggle"]')!.click();
+      fixture.detectChanges();
+      expect(component.rotationStep()).toBe(15);
+      expect(component.step()).toBe(1);
+    });
+
+    it('emits nodeRotated with positive dRotation on clockwise click', () => {
+      const emitted: { dRotation: number }[] = [];
+      component.nodeRotated.subscribe((v) => emitted.push(v));
+
+      component.onRotatePointerDown('cw', new PointerEvent('pointerdown'));
+      expect(emitted).toEqual([{ dRotation: 1 }]);
+    });
+
+    it('emits nodeRotated with negative dRotation on counterclockwise click', () => {
+      const emitted: { dRotation: number }[] = [];
+      component.nodeRotated.subscribe((v) => emitted.push(v));
+
+      component.onRotatePointerDown('ccw', new PointerEvent('pointerdown'));
+      expect(emitted).toEqual([{ dRotation: -1 }]);
+    });
+
+    it('emits nodeRotated with the 15° step when toggled', () => {
+      const emitted: { dRotation: number }[] = [];
+      component.nodeRotated.subscribe((v) => emitted.push(v));
+
+      component.toggleStep();
+      component.onRotatePointerDown('cw', new PointerEvent('pointerdown'));
+      expect(emitted).toEqual([{ dRotation: 15 }]);
+    });
+
+    it('does not emit nodeRotated when disabled', () => {
+      fixture.componentRef.setInput('disabled', true);
+      fixture.detectChanges();
+      const emitted: unknown[] = [];
+      component.nodeRotated.subscribe((v) => emitted.push(v));
+
+      component.onRotatePointerDown('cw', new PointerEvent('pointerdown'));
+      expect(emitted.length).toBe(0);
     });
   });
 

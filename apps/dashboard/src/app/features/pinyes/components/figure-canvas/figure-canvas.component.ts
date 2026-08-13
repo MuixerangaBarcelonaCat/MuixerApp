@@ -2394,7 +2394,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     // Label
     const textFill = this.getContrastColor(fill);
     const text = new Konva.Text({
-      text: node.label,
+      text: formatAssignedLabel(node.label, node.climbIndicator),
       fontSize: 10,
       fontFamily: 'Inter, sans-serif',
       fill: textFill,

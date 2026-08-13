@@ -20,7 +20,7 @@ import { LucideAngularModule } from 'lucide-angular';
       <button
         type="button"
         class="btn btn-sm btn-ghost flex-1"
-        style="min-height: 44px;"
+        style="min-height: 55px;"
         [disabled]="!canDuplicate()"
         (click)="duplicate.emit()"
         aria-label="Duplica el node seleccionat"
@@ -34,21 +34,21 @@ import { LucideAngularModule } from 'lucide-angular';
       <button
         type="button"
         class="btn btn-sm btn-ghost flex-1"
-        style="min-height: 44px;"
+        style="min-height: 55px;"
         [disabled]="!canGhost()"
         (click)="ghost.emit()"
         aria-label="Crea un fantasma del node seleccionat"
-        [title]="canGhost() ? 'Crea un fantasma del node' : 'Només disponible per a nodes PINYA exteriors de rengla'"
+        [title]="canGhost() ? 'Dupica el node darrere del seleccionat' : 'Només disponible per a nodes PINYA exteriors de rengla'"
         data-testid="node-action-ghost"
       >
         <lucide-icon name="Ghost" [size]="14" aria-hidden="true" />
-        Fantasma
+        Estén rengla
       </button>
 
       <button
         type="button"
         class="btn btn-sm btn-outline btn-error flex-1"
-        style="min-height: 44px;"
+        style="min-height: 55px;"
         [disabled]="!canDelete()"
         (click)="nodeDeleted.emit()"
         aria-label="Elimina el node seleccionat"

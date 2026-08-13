@@ -191,6 +191,15 @@
   padding: 0.75rem 1rem;
 }
 
+.panel-section-title {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: oklch(var(--bc) / 0.5);
+  margin-bottom: 0.5rem;
+}
+
 // ── Quick actions ──────────────────────────────────────────────────────────
 
 .quick-actions-section {

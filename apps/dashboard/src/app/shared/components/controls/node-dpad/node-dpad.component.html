@@ -30,6 +30,17 @@
         title="Mode mida"
         data-testid="dpad-mode-size"
       >Mida</button>
+      <button
+        type="button"
+        role="radio"
+        class="join-item btn btn-xs"
+        [class.btn-primary]="mode() === 'rotation'"
+        [class.btn-ghost]="mode() !== 'rotation'"
+        [attr.aria-checked]="mode() === 'rotation'"
+        (click)="setMode('rotation')"
+        title="Mode rotació"
+        data-testid="dpad-mode-rotation"
+      >Rot.</button>
     </div>
 
     <!-- Step toggle -->
@@ -43,6 +54,39 @@
     >{{ stepLabel() }}</button>
   </div>
 
+  @if (mode() === 'rotation') {
+    <!-- Rotation controls -->
+    <div class="dpad-rotation" role="group" aria-label="Control de rotació">
+      <button
+        type="button"
+        class="dpad-btn"
+        [disabled]="disabled()"
+        [attr.aria-label]="rotateLabel('ccw')"
+        [title]="rotateLabel('ccw')"
+        (pointerdown)="onRotatePointerDown('ccw', $event)"
+        (pointerup)="onRotatePointerUp()"
+        (pointercancel)="onRotatePointerUp()"
+        (pointerleave)="onRotatePointerUp()"
+        data-testid="dpad-rotate-ccw"
+      >
+        <lucide-icon name="RotateCcw" [size]="18" aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        class="dpad-btn"
+        [disabled]="disabled()"
+        [attr.aria-label]="rotateLabel('cw')"
+        [title]="rotateLabel('cw')"
+        (pointerdown)="onRotatePointerDown('cw', $event)"
+        (pointerup)="onRotatePointerUp()"
+        (pointercancel)="onRotatePointerUp()"
+        (pointerleave)="onRotatePointerUp()"
+        data-testid="dpad-rotate-cw"
+      >
+        <lucide-icon name="RotateCw" [size]="18" aria-hidden="true" />
+      </button>
+    </div>
+  } @else {
   <!-- D-pad cross -->
   <div class="dpad-cross">
     <!-- Up -->
@@ -112,4 +156,5 @@
       <lucide-icon name="ChevronDown" [size]="16" aria-hidden="true" />
     </button>
   </div>
+  }
 </div>
