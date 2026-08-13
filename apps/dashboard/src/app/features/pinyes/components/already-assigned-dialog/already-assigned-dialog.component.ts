@@ -55,7 +55,7 @@ import { ICON_OBSERVACIONS } from '../../../../shared/constants/domain-icons';
             @if (hasTronc()) {
               <p class="text-sm text-conflict flex items-start gap-1 mb-4">
                 <lucide-icon [name]="ICON_CONFLICT" [size]="14" class="mt-0.5 shrink-0" />
-                <span>Una d'estes col·locacions és al <strong>tronc</strong>
+                <span>Una d'estes col·locacions és al <strong>tronc</strong></span>
               </p>
             }
           }
