@@ -30,6 +30,11 @@ import {
   RenglaModel,
 } from '../../models/figure-template.model';
 import { FigureZone, NodeShape, PINYA_NODE_PRESETS, NodePreset, TRONC_NODE_PRESETS } from '@muixer/shared';
+import { ColorPickerComponent } from '../../../../shared/components/forms/color-picker/color-picker.component';
+import { NodeDpadComponent } from '../../../../shared/components/controls/node-dpad/node-dpad.component';
+import { NodeActionsComponent } from '../../../../shared/components/controls/node-actions/node-actions.component';
+import { isGhostEligible, calculateGhostPosition } from '../../utils/ghost-clone.util';
+import { getPresetColorsForZone } from '../../utils/node-color-presets.util';
 import { RenglaOverlayComponent, RenglaCreatedEvent, RenglaDeletedEvent, RenglaStartChangedEvent } from '../rengla-overlay/rengla-overlay.component';
 import { StageTransform } from '../../utils/rengla-coordinates.util';
 import { LayoutService } from '../../../../core/services/layout.service';
@@ -61,6 +66,9 @@ const DEFAULT_NODE_HEIGHT = 40;
     TroncViewComponent,
     TemplateEditorHelpModalComponent,
     RenglaOverlayComponent,
+    ColorPickerComponent,
+    NodeDpadComponent,
+    NodeActionsComponent,
   ],
   templateUrl: './template-editor.component.html',
   styleUrl: './template-editor.component.scss',
@@ -123,6 +131,14 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
   propertiesPanelOpen = signal(true);
   shortcutsModalOpen = signal(false);
   troncDrawerOpen = signal(false);
+
+  // Quick actions panel (tablet-sticky / desktop-collapsable).
+  // Defaults to expanded; persisted per-browser via localStorage.
+  quickActionsExpanded = signal(
+    typeof localStorage !== 'undefined'
+      ? localStorage.getItem('muixer_quick_actions_expanded') !== 'false'
+      : true,
+  );
 
   // Ad-hoc instance awareness
   readonly adHocInstanceCount = signal(0);
@@ -192,6 +208,15 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
     const id = this.selectedNodeId();
     return id ? (this.nodes().find((n) => n.id === id) ?? null) : null;
   });
+
+  readonly canGhostSelectedNode = computed(() => {
+    const node = this.selectedNode();
+    if (!node) return false;
+    const renglaMax = this.renglaMaxForNode(node);
+    return isGhostEligible(node, renglaMax);
+  });
+
+  readonly getPresetColorsForZone = getPresetColorsForZone;
 
   readonly saveStatusLabel = computed(() => {
     const s = this.saveStatus();
@@ -594,6 +619,64 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
     this.nodes.update((n) => n.filter((node) => node.id !== id));
     this.selectedNodeId.set(null);
     this.scheduleAutosave();
+  }
+
+  // ── Quick actions ───────────────────────────────────────────────────────────
+
+  toggleQuickActions(): void {
+    this.quickActionsExpanded.update((v) => {
+      const next = !v;
+      localStorage.setItem('muixer_quick_actions_expanded', String(next));
+      return next;
+    });
+  }
+
+  onDpadHoldStarted(): void {
+    this.pushSnapshot('Ajust via D-pad');
+  }
+
+  onDpadMove(delta: { dx: number; dy: number }): void {
+    const id = this.selectedNodeId();
+    if (!id) return;
+    const node = this.nodes().find((n) => n.id === id);
+    if (!node) return;
+    this.updateNode(id, { x: node.x + delta.dx, y: node.y + delta.dy });
+    this.scheduleAutosave();
+  }
+
+  onDpadResize(delta: { dw: number; dh: number }): void {
+    const id = this.selectedNodeId();
+    if (!id) return;
+    const node = this.nodes().find((n) => n.id === id);
+    if (!node) return;
+    const MIN_SIZE = 10;
+    const MAX_SIZE = 500;
+    const newW = Math.min(MAX_SIZE, Math.max(MIN_SIZE, node.width + delta.dw));
+    const newH = Math.min(MAX_SIZE, Math.max(MIN_SIZE, node.height + delta.dh));
+    this.updateNode(id, { width: newW, height: newH });
+    this.scheduleAutosave();
+  }
+
+  ghostSelectedNode(): void {
+    const node = this.selectedNode();
+    if (!node || !this.canGhostSelectedNode()) return;
+    const targetPosition = calculateGhostPosition(node);
+    this.onGhostCloneRequested({
+      sourceNode: { id: node.id } as CanvasNode,
+      targetPosition,
+    });
+  }
+
+  private renglaMaxForNode(node: {
+    renglaId: string | null;
+    renglaPosition: number | null;
+  }): number {
+    if (!node.renglaId) return Infinity;
+    const siblings = this.nodes().filter(
+      (n) => n.renglaId === node.renglaId && n.renglaPosition != null,
+    );
+    if (siblings.length === 0) return Infinity;
+    return Math.max(...siblings.map((n) => n.renglaPosition!));
   }
 
   copySelectedNode(): void {

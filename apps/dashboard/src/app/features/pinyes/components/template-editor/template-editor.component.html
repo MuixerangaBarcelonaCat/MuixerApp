@@ -354,6 +354,7 @@
 
       @if (propertiesPanelOpen()) {
         <div id="properties-panel" class="panel-content">
+          <div class="panel-scroll-area">
           @if (selectedNode(); as node) {
             <h2 class="panel-title">Propietats del node</h2>
 
@@ -425,6 +426,16 @@
                 class="input input-bordered input-sm"
                 [ngModel]="node.label"
                 (ngModelChange)="updateSelectedNodeProp('label', $event)"
+              />
+            </div>
+
+            <!-- Color -->
+            <div class="form-control mb-3">
+              <span class="label-text text-xs font-medium mb-1 block">Color</span>
+              <app-color-picker
+                [color]="node.color"
+                [presetColors]="getPresetColorsForZone(node.zone)"
+                (colorChange)="updateSelectedNodeProp('color', $event)"
               />
             </div>
 
@@ -589,6 +600,46 @@
               </div>
             </div>
           }
+          </div><!-- /panel-scroll-area -->
+
+          <!-- Quick actions: sticky on tablet, collapsable on desktop -->
+          <div class="quick-actions-section" [class.is-expanded]="quickActionsExpanded()" data-testid="quick-actions-section">
+            <!-- Desktop toggle header -->
+            <button
+              type="button"
+              class="quick-actions-toggle"
+              (click)="toggleQuickActions()"
+              [attr.aria-expanded]="quickActionsExpanded()"
+              aria-controls="quick-actions-body"
+              data-testid="quick-actions-toggle"
+            >
+              <span class="text-xs font-medium text-base-content/60 uppercase tracking-wide">Accions ràpides</span>
+              <lucide-icon
+                [name]="quickActionsExpanded() ? 'ChevronDown' : 'ChevronUp'"
+                [size]="12"
+                class="text-base-content/40"
+                aria-hidden="true"
+              />
+            </button>
+
+            <div id="quick-actions-body" class="quick-actions-body">
+              <app-node-dpad
+                [disabled]="!selectedNodeId()"
+                (holdStarted)="onDpadHoldStarted()"
+                (nodeMoved)="onDpadMove($event)"
+                (nodeResized)="onDpadResize($event)"
+              />
+              <div class="divider my-2"></div>
+              <app-node-actions
+                [canDuplicate]="!!selectedNodeId()"
+                [canDelete]="!!selectedNodeId()"
+                [canGhost]="canGhostSelectedNode()"
+                (duplicate)="duplicateSelectedNode()"
+                (ghost)="ghostSelectedNode()"
+                (nodeDeleted)="deleteSelectedNode()"
+              />
+            </div>
+          </div>
         </div>
       }
     </aside>

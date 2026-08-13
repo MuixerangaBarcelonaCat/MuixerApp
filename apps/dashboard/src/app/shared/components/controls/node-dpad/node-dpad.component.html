@@ -1,0 +1,115 @@
+<div
+  role="group"
+  aria-label="Control de moviment del node"
+  class="dpad-container"
+  [class.dpad-disabled]="disabled()"
+>
+  <!-- Mode + step toggles row -->
+  <div class="flex items-center justify-between mb-2 gap-2">
+    <!-- Mode toggle -->
+    <div class="join" role="radiogroup" aria-label="Mode del control">
+      <button
+        type="button"
+        role="radio"
+        class="join-item btn btn-xs"
+        [class.btn-primary]="mode() === 'position'"
+        [class.btn-ghost]="mode() !== 'position'"
+        [attr.aria-checked]="mode() === 'position'"
+        (click)="setMode('position')"
+        title="Mode posició"
+        data-testid="dpad-mode-position"
+      >Pos.</button>
+      <button
+        type="button"
+        role="radio"
+        class="join-item btn btn-xs"
+        [class.btn-primary]="mode() === 'size'"
+        [class.btn-ghost]="mode() !== 'size'"
+        [attr.aria-checked]="mode() === 'size'"
+        (click)="setMode('size')"
+        title="Mode mida"
+        data-testid="dpad-mode-size"
+      >Mida</button>
+    </div>
+
+    <!-- Step toggle -->
+    <button
+      type="button"
+      class="btn btn-xs btn-outline"
+      (click)="toggleStep()"
+      [attr.aria-label]="'Pas de moviment: ' + stepLabel()"
+      [title]="'Canvia el pas (ara: ' + stepLabel() + ')'"
+      data-testid="dpad-step-toggle"
+    >{{ stepLabel() }}</button>
+  </div>
+
+  <!-- D-pad cross -->
+  <div class="dpad-cross">
+    <!-- Up -->
+    <button
+      type="button"
+      class="dpad-btn dpad-up"
+      [disabled]="disabled()"
+      [attr.aria-label]="arrowLabel('up')"
+      [title]="arrowLabel('up')"
+      (pointerdown)="onArrowPointerDown('up', $event)"
+      (pointerup)="onArrowPointerUp()"
+      (pointercancel)="onArrowPointerUp()"
+      (pointerleave)="onArrowPointerUp()"
+      data-testid="dpad-arrow-up"
+    >
+      <lucide-icon name="ChevronUp" [size]="16" aria-hidden="true" />
+    </button>
+
+    <!-- Left -->
+    <button
+      type="button"
+      class="dpad-btn dpad-left"
+      [disabled]="disabled()"
+      [attr.aria-label]="arrowLabel('left')"
+      [title]="arrowLabel('left')"
+      (pointerdown)="onArrowPointerDown('left', $event)"
+      (pointerup)="onArrowPointerUp()"
+      (pointercancel)="onArrowPointerUp()"
+      (pointerleave)="onArrowPointerUp()"
+      data-testid="dpad-arrow-left"
+    >
+      <lucide-icon name="ChevronLeft" [size]="16" aria-hidden="true" />
+    </button>
+
+    <!-- Center dot (decorative) -->
+    <div class="dpad-center" aria-hidden="true"></div>
+
+    <!-- Right -->
+    <button
+      type="button"
+      class="dpad-btn dpad-right"
+      [disabled]="disabled()"
+      [attr.aria-label]="arrowLabel('right')"
+      [title]="arrowLabel('right')"
+      (pointerdown)="onArrowPointerDown('right', $event)"
+      (pointerup)="onArrowPointerUp()"
+      (pointercancel)="onArrowPointerUp()"
+      (pointerleave)="onArrowPointerUp()"
+      data-testid="dpad-arrow-right"
+    >
+      <lucide-icon name="ChevronRight" [size]="16" aria-hidden="true" />
+    </button>
+
+    <!-- Down -->
+    <button
+      type="button"
+      class="dpad-btn dpad-down"
+      [disabled]="disabled()"
+      [attr.aria-label]="arrowLabel('down')"
+      [title]="arrowLabel('down')"
+      (pointerdown)="onArrowPointerDown('down', $event)"
+      (pointerup)="onArrowPointerUp()"
+      (pointercancel)="onArrowPointerUp()"
+      (pointerleave)="onArrowPointerUp()"
+      data-testid="dpad-arrow-down"
+    >
+      <lucide-icon name="ChevronDown" [size]="16" aria-hidden="true" />
+    </button>
+  </div>
+</div>
