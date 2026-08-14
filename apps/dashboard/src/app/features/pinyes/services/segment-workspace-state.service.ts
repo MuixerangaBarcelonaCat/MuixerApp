@@ -1,6 +1,6 @@
 import { SegmentDetail, InstanceNodeItem, SegmentConflict, SegmentPeopleCounters, TroncChangeImpact, CompositionSlotWithNodes, computeCordoObertOverrides, figureExtentFromNodes, placeFigures, placeNewFigure, PlacedFigurePosition, pivotNodesFor, SegmentNodeRef } from '@muixer/pinyes-render';
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { FigureZone, isNodeVisibleByCordons } from '@muixer/shared';
+import { FigureZone, isNodeVisibleByCordons, computeSegmentDisplayName } from '@muixer/shared';
 import { AssignmentStateService } from './assignment-state.service';
 import { EventSegmentService } from './event-segment.service';
 import { SegmentDistributionService } from './segment-distribution.service';
@@ -80,7 +80,11 @@ export class SegmentWorkspaceStateService {
     { pivotNodes: InstanceNodeItem[]; occupiedNodes: InstanceNodeItem[] }
   >();
 
-  readonly segmentName = computed(() => this.segment()?.name ?? null);
+  readonly segmentName = computed(() => {
+    const segment = this.segment();
+    if (!segment) return null;
+    return computeSegmentDisplayName(segment.name, segment.instances);
+  });
 
   /**
    * Person IDs holding >1 placement in this segment. Passed to canvas/tronc-view as the sole

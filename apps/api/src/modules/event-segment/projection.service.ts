@@ -55,9 +55,17 @@ export class ProjectionService {
     private readonly nodeAssignmentService: NodeAssignmentService,
   ) {}
 
-  async getProjection(eventId: string, segmentId: string): Promise<ProjectionData> {
+  async getProjection(
+    eventId: string,
+    segmentId: string,
+    options: { onlyPublished?: boolean } = {},
+  ): Promise<ProjectionData> {
+    const { onlyPublished = false } = options;
+
     const segment = await this.segmentRepository.findOne({
-      where: { id: segmentId, event: { id: eventId } },
+      where: onlyPublished
+        ? { id: segmentId, event: { id: eventId }, isPublished: true }
+        : { id: segmentId, event: { id: eventId } },
     });
     if (!segment) {
       throw new NotFoundException(
@@ -66,7 +74,7 @@ export class ProjectionService {
     }
 
     const allSegments = await this.segmentRepository.find({
-      where: { event: { id: eventId } },
+      where: onlyPublished ? { event: { id: eventId }, isPublished: true } : { event: { id: eventId } },
       order: { sortOrder: 'ASC' },
       select: ['id', 'sortOrder'],
     });

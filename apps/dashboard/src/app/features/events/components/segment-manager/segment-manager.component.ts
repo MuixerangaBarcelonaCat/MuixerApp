@@ -13,7 +13,7 @@ import { Router } from '@angular/router';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { LucideAngularModule } from 'lucide-angular';
 import { ICON_FIGURA, ICON_PERSONA, ICON_COMPOSITION, ICON_FIGURA_NETA, ICON_PINYA, ICON_TRONC } from '../../../../shared/constants/domain-icons';
-import { ICON_OBSERVACIONS } from '@muixer/shared';
+import { ICON_OBSERVACIONS, computeSegmentDisplayName, getSegmentInstanceLabel } from '@muixer/shared';
 import { forkJoin } from 'rxjs';
 import { FiguresViewModeService, FiguresViewMode } from '../../../pinyes/services/figures-view-mode.service';
 import { EventSegmentService } from '../../../pinyes/services/event-segment.service';
@@ -109,13 +109,9 @@ export class SegmentManagerComponent implements OnInit {
     return map;
   });
 
-  displayName = computed(() => (segment: SegmentDetail): string => {
-    if (segment.name) return segment.name;
-    if (!segment.instances.length) return 'Segment sense nom';
-    return segment.instances
-      .map((i) => this.getInstanceLabel(i))
-      .join(' + ');
-  });
+  displayName = computed(() => (segment: SegmentDetail): string =>
+    computeSegmentDisplayName(segment.name, segment.instances),
+  );
 
   ngOnInit() {
     this.loadSegments();
@@ -450,18 +446,7 @@ export class SegmentManagerComponent implements OnInit {
   }
 
   getInstanceLabel(instance: InstanceDetail): string {
-    const base = instance.label ?? instance.figureTemplate?.name ?? '?';
-    if (instance.figureTemplate?.hasPinya) {
-      if (instance.figureMode === 'PEU') return `Peu de ${base}`;
-      if (instance.figureMode === 'REMAT') return `Remat de ${base}`;
-      if (instance.figureMode === 'NETA') return `${base} ${this.netaSuffix(base)}`;
-    }
-    return base;
-  }
-
-  netaSuffix(name: string): string {
-    const firstWord = name.trim().split(/\s+/)[0] ?? '';
-    return firstWord.endsWith('a') ? 'neta' : 'net';
+    return getSegmentInstanceLabel(instance);
   }
 
   isComposition(_instance: InstanceDetail): boolean {

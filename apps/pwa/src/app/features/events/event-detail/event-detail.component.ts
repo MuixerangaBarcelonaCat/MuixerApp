@@ -9,7 +9,8 @@ import {
 import { rxResource } from '@angular/core/rxjs-interop';
 import { Title } from '@angular/platform-browser';
 import { SlicePipe } from '@angular/common';
-import { MeEventDetail, EventType } from '@muixer/shared';
+import { RouterLink } from '@angular/router';
+import { MeEventDetail, MeSegment, EventType, computeSegmentDisplayName } from '@muixer/shared';
 import { LucideAngularModule, MapPin, Clock, Info } from 'lucide-angular';
 import { MobileHeaderComponent } from '../../../shared/components/mobile-header/mobile-header.component';
 import { SkeletonCardComponent } from '../../../shared/components/skeleton-card/skeleton-card.component';
@@ -24,6 +25,7 @@ import { EventService } from '../services/event.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     LucideAngularModule,
+    RouterLink,
     MobileHeaderComponent,
     SkeletonCardComponent,
     EmptyStateComponent,
@@ -70,6 +72,17 @@ export class EventDetailComponent {
     if (!date) return false;
     return date < new Date().toISOString().slice(0, 10);
   });
+
+  protected readonly segmentsResource = rxResource<MeSegment[], string>({
+    params: () => this.id(),
+    stream: ({ params: id }) => this.eventService.findSegments(id),
+  });
+
+  protected readonly segments = computed(() => this.segmentsResource.value() ?? []);
+
+  protected segmentLabel(segment: MeSegment): string {
+    return computeSegmentDisplayName(segment.name, segment.instances);
+  }
 
   constructor() {
     effect(() => {

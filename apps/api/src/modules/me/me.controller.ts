@@ -16,12 +16,14 @@ import {
   PaginatedResponse,
   MeEvent,
   MeEventDetail,
+  MeSegment,
   AttendanceResponse,
   PendingDependent,
   UserRole,
 } from '@muixer/shared';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { ProjectionData } from '../event-segment/projection.service';
 import { MeService } from './me.service';
 import { MeEventFilterDto } from './dto/me-event-filter.dto';
 import { UpdateMyAttendanceDto } from './dto/update-my-attendance.dto';
@@ -60,6 +62,23 @@ export class MeController {
     @Body() dto: UpdateMyAttendanceDto,
   ): Promise<AttendanceResponse> {
     return this.meService.upsertAttendance(user, id, dto);
+  }
+
+  @Get('events/:eventId/segments')
+  @ApiOperation({ summary: 'List published segments for an event (titles only)' })
+  findEventSegments(
+    @Param('eventId', ParseUUIDPipe) eventId: string,
+  ): Promise<MeSegment[]> {
+    return this.meService.findEventSegments(eventId);
+  }
+
+  @Get('events/:eventId/segments/:segmentId/projection')
+  @ApiOperation({ summary: 'Get projection data for a published segment' })
+  findSegmentProjection(
+    @Param('eventId', ParseUUIDPipe) eventId: string,
+    @Param('segmentId', ParseUUIDPipe) segmentId: string,
+  ): Promise<ProjectionData> {
+    return this.meService.findSegmentProjection(eventId, segmentId);
   }
 
   @Get('pending-dependents')

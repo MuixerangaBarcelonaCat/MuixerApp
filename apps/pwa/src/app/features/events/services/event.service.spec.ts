@@ -74,4 +74,14 @@ describe('EventService', () => {
     expect(req.request.body).toEqual({ status: AttendanceStatus.ANIRE, personId: 'person-2' });
     req.flush({ id: 'att-1', status: AttendanceStatus.ANIRE, respondedAt: new Date().toISOString() });
   });
+
+  it('should fetch published segments for an event', () => {
+    service.findSegments('ev-1').subscribe((res) => {
+      expect(res).toEqual([{ id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [] }]);
+    });
+
+    const req = httpMock.expectOne('/api/me/events/ev-1/segments');
+    expect(req.request.method).toBe('GET');
+    req.flush([{ id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [] }]);
+  });
 });

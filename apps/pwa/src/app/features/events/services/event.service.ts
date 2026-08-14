@@ -5,6 +5,7 @@ import {
   PaginatedResponse,
   MeEvent,
   MeEventDetail,
+  MeSegment,
   AttendanceResponse,
   AttendanceStatus,
   EventType,
@@ -35,6 +36,10 @@ export class EventService {
 
   findOne(id: string): Observable<MeEventDetail> {
     return this.http.get<MeEventDetail>(`${this.baseUrl}/${id}`);
+  }
+
+  findSegments(eventId: string): Observable<MeSegment[]> {
+    return this.http.get<MeSegment[]>(`${this.baseUrl}/${eventId}/segments`);
   }
 
   updateAttendance(

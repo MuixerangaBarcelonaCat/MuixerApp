@@ -251,4 +251,47 @@ describe('ProjectionService', () => {
     expect(inst.projectionAngle).toBeNull();
     expect(inst.troncPanelX).toBeNull();
   });
+
+  // ── onlyPublished (PWA path — members only ever see published segments) ──
+
+  describe('onlyPublished', () => {
+    it('does not scope the segment lookup to isPublished by default (Dashboard path)', async () => {
+      await service.getProjection(EVENT_ID, SEGMENT_ID);
+      expect(mockSegmentRepo.findOne).toHaveBeenCalledWith({
+        where: { id: SEGMENT_ID, event: { id: EVENT_ID } },
+      });
+    });
+
+    it('does not scope the sibling lookup to isPublished by default (Dashboard path)', async () => {
+      await service.getProjection(EVENT_ID, SEGMENT_ID);
+      expect(mockSegmentRepo.find).toHaveBeenCalledWith({
+        where: { event: { id: EVENT_ID } },
+        order: { sortOrder: 'ASC' },
+        select: ['id', 'sortOrder'],
+      });
+    });
+
+    it('scopes the segment lookup to published segments when onlyPublished is true', async () => {
+      await service.getProjection(EVENT_ID, SEGMENT_ID, { onlyPublished: true });
+      expect(mockSegmentRepo.findOne).toHaveBeenCalledWith({
+        where: { id: SEGMENT_ID, event: { id: EVENT_ID }, isPublished: true },
+      });
+    });
+
+    it('scopes the sibling lookup to published segments when onlyPublished is true', async () => {
+      await service.getProjection(EVENT_ID, SEGMENT_ID, { onlyPublished: true });
+      expect(mockSegmentRepo.find).toHaveBeenCalledWith({
+        where: { event: { id: EVENT_ID }, isPublished: true },
+        order: { sortOrder: 'ASC' },
+        select: ['id', 'sortOrder'],
+      });
+    });
+
+    it('throws NotFoundException when the segment lookup finds nothing under the isPublished scope', async () => {
+      mockSegmentRepo.findOne.mockResolvedValue(null);
+      await expect(
+        service.getProjection(EVENT_ID, SEGMENT_ID, { onlyPublished: true }),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
 });

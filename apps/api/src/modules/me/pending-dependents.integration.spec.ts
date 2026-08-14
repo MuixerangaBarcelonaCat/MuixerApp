@@ -14,6 +14,8 @@ import { PersonDelegate } from '../person-delegate/person-delegate.entity';
 import { Event } from '../event/event.entity';
 import { Attendance } from '../event/attendance.entity';
 import { Season } from '../season/season.entity';
+import { ProjectionService } from '../event-segment/projection.service';
+import { EventSegmentService } from '../event-segment/event-segment.service';
 import {
   IntegrationDb,
   setupIntegrationDb,
@@ -45,6 +47,8 @@ describe('MeService pending dependents (integration)', () => {
         AttendanceService,
         PersonDelegateService,
         PersonService,
+        { provide: ProjectionService, useValue: { getProjection: jest.fn() } },
+        { provide: EventSegmentService, useValue: { findAllByEvent: jest.fn() } },
         ...realRepositoryProviders(db.dataSource, [
           User,
           Person,

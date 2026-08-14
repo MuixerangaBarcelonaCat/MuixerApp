@@ -71,7 +71,30 @@
       </div>
     }
 
-    <div class="flex flex-col items-center gap-3 mt-2">
+    @if (segments().length > 0) {
+      <div class="card bg-base-100 shadow-sm segments-section" [style.order]="isPast() ? 1 : 2">
+        <div class="card-body p-4">
+          <ul class="flex flex-col gap-2">
+            @for (segment of segments(); track segment.id; let i = $index) {
+              <li>
+                <a
+                  class="segment-row flex items-center gap-3 min-h-11 px-2 -mx-2 rounded-lg hover:bg-base-200 active:bg-base-200"
+                  [routerLink]="['/events', ev.id, 'segments', segment.id]"
+                >
+                  <span
+                    class="flex items-center justify-center w-6 h-6 rounded text-xs font-bold text-primary-content bg-primary shrink-0"
+                    [attr.aria-label]="'Segment ' + (i + 1)"
+                  >{{ i + 1 }}</span>
+                  <span>{{ segmentLabel(segment) }}</span>
+                </a>
+              </li>
+            }
+          </ul>
+        </div>
+      </div>
+    }
+
+    <div class="flex flex-col items-center gap-3 mt-2 attendance-section" [style.order]="isPast() ? 2 : 1">
       @for (row of ev.managedAttendances; track row.personId) {
         <div class="flex flex-col items-center gap-1 w-full max-w-xs">
           @if (ev.managedAttendances.length > 1) {

@@ -221,6 +221,27 @@ describe('SegmentWorkspaceStateService', () => {
       expect(service.loading()).toBe(false);
     });
 
+    it('auto-generates the segment name from its figures when it has no custom name', () => {
+      configure({
+        segment: {
+          ...makeSegment([
+            makeInstance('inst-a', { figureTemplate: { id: 'tpl-a', name: 'Piló', hasPinya: true } }),
+          ]),
+          name: null,
+        },
+      });
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      expect(service.segmentName()).toBe('Piló');
+    });
+
+    it('returns null before a segment has loaded', () => {
+      configure();
+
+      expect(service.segmentName()).toBeNull();
+    });
+
     it('flags notFound when the segment does not exist', () => {
       configure();
       segmentService.getByEvent.mockReturnValue(of({ data: [] }));

@@ -2,7 +2,7 @@ import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { ApplicationRef } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { of, throwError } from 'rxjs';
-import { AttendanceStatus, DelegateType, EventType, MeEventDetail } from '@muixer/shared';
+import { AttendanceStatus, DelegateType, EventType, MeEventDetail, MeSegment } from '@muixer/shared';
 import { EventDetailComponent } from './event-detail.component';
 import { AttendanceButtonComponent } from '../components/attendance-button/attendance-button.component';
 import { EventService } from '../services/event.service';
@@ -36,12 +36,17 @@ class TestHostComponent {}
 
 describe('EventDetailComponent', () => {
   let fixture: ComponentFixture<TestHostComponent>;
-  let eventService: { findOne: ReturnType<typeof vi.fn>; updateAttendance: ReturnType<typeof vi.fn> };
+  let eventService: {
+    findOne: ReturnType<typeof vi.fn>;
+    updateAttendance: ReturnType<typeof vi.fn>;
+    findSegments: ReturnType<typeof vi.fn>;
+  };
 
-  async function setup(findOneReturn = of(MOCK_DETAIL)) {
+  async function setup(findOneReturn = of(MOCK_DETAIL), findSegmentsReturn = of<MeSegment[]>([])) {
     eventService = {
       findOne: vi.fn().mockReturnValue(findOneReturn),
       updateAttendance: vi.fn(),
+      findSegments: vi.fn().mockReturnValue(findSegmentsReturn),
     };
 
     await TestBed.configureTestingModule({
@@ -135,6 +140,102 @@ describe('EventDetailComponent', () => {
       const names = fixture.nativeElement.textContent;
       expect(names).toContain('Marta Puig');
       expect(names).toContain('Joan Puig');
+    });
+  });
+
+  describe('segments', () => {
+    it('renders one row per published segment', async () => {
+      fixture = await setup(of(MOCK_DETAIL), of([
+        { id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [] },
+        { id: 'seg-2', name: 'Bloc 2', sortOrder: 1, instances: [] },
+      ]));
+
+      const rows = fixture.nativeElement.querySelectorAll('a.segment-row');
+      expect(rows.length).toBe(2);
+    });
+
+    it('does not render the segments section when the list is empty', async () => {
+      fixture = await setup(of(MOCK_DETAIL), of([]));
+
+      expect(fixture.nativeElement.querySelector('.segments-section')).toBeNull();
+    });
+
+    it('falls back to "Segment sense nom" when the name is null and there are no instances', async () => {
+      fixture = await setup(of(MOCK_DETAIL), of([
+        { id: 'seg-1', name: null, sortOrder: 2, instances: [] },
+      ]));
+
+      expect(fixture.nativeElement.textContent).toContain('Segment sense nom');
+    });
+
+    it('derives the title from figures when the name is null, matching the Dashboard', async () => {
+      fixture = await setup(of(MOCK_DETAIL), of([
+        {
+          id: 'seg-1',
+          name: null,
+          sortOrder: 0,
+          instances: [
+            { label: null, figureMode: 'COMPLETA', figureTemplate: { name: 'pd4', hasPinya: true } },
+            { label: null, figureMode: 'COMPLETA', figureTemplate: { name: 'Morera', hasPinya: true } },
+          ],
+        },
+      ]));
+
+      expect(fixture.nativeElement.textContent).toContain('pd4 + Morera');
+    });
+
+    it('links each row to the segment projection route', async () => {
+      fixture = await setup(of(MOCK_DETAIL), of([
+        { id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [] },
+      ]));
+
+      const row = fixture.nativeElement.querySelector('a.segment-row') as HTMLAnchorElement;
+      expect(row.getAttribute('href')).toBe('/events/ev-1/segments/seg-1');
+    });
+
+    it('does not render a "Segments" section heading', async () => {
+      fixture = await setup(of(MOCK_DETAIL), of([
+        { id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [] },
+      ]));
+
+      const section = fixture.nativeElement.querySelector('.segments-section') as HTMLElement;
+      expect(section.querySelector('h3')).toBeNull();
+      expect(section.textContent).not.toContain('Segments');
+    });
+
+    it('shows the segment order (1-based) in a square badge', async () => {
+      fixture = await setup(of(MOCK_DETAIL), of([
+        { id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [] },
+        { id: 'seg-2', name: 'Bloc 2', sortOrder: 1, instances: [] },
+      ]));
+
+      const badges = fixture.nativeElement.querySelectorAll('.segment-row span:first-child');
+      expect(badges[0].textContent?.trim()).toBe('1');
+      expect(badges[1].textContent?.trim()).toBe('2');
+      expect(badges[0].className).toContain('bg-primary');
+      expect(badges[0].className).toContain('rounded');
+    });
+
+    it('places the segments section above attendance when the event has already started (isPast)', async () => {
+      fixture = await setup(of({ ...MOCK_DETAIL, date: '2020-01-01' }), of([
+        { id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [] },
+      ]));
+
+      const segmentsEl = fixture.nativeElement.querySelector('.segments-section') as HTMLElement;
+      const attendanceEl = fixture.nativeElement.querySelector('.attendance-section') as HTMLElement;
+      expect(segmentsEl.style.order).toBe('1');
+      expect(attendanceEl.style.order).toBe('2');
+    });
+
+    it('places attendance above the segments section when the event has not started yet', async () => {
+      fixture = await setup(of({ ...MOCK_DETAIL, date: '2099-01-01' }), of([
+        { id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [] },
+      ]));
+
+      const segmentsEl = fixture.nativeElement.querySelector('.segments-section') as HTMLElement;
+      const attendanceEl = fixture.nativeElement.querySelector('.attendance-section') as HTMLElement;
+      expect(attendanceEl.style.order).toBe('1');
+      expect(segmentsEl.style.order).toBe('2');
     });
   });
 });

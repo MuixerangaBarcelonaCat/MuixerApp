@@ -12,6 +12,7 @@ import {
   PaginatedResponse,
   MeEvent,
   MeEventDetail,
+  MeSegment,
   AttendanceResponse,
   ManagedPerson,
   ManagedPersonAttendance,
@@ -21,6 +22,8 @@ import { Event } from '../event/event.entity';
 import { Attendance } from '../event/attendance.entity';
 import { User } from '../user/user.entity';
 import { Person } from '../person/person.entity';
+import { ProjectionService, ProjectionData } from '../event-segment/projection.service';
+import { EventSegmentService } from '../event-segment/event-segment.service';
 import { getLocalToday } from '../../common/utils/date.util';
 import { SeasonService } from '../season/season.service';
 import { AttendanceService } from '../event/attendance.service';
@@ -47,6 +50,8 @@ export class MeService {
     private readonly attendanceService: AttendanceService,
     private readonly personDelegateService: PersonDelegateService,
     private readonly personService: PersonService,
+    private readonly projectionService: ProjectionService,
+    private readonly eventSegmentService: EventSegmentService,
   ) {}
 
   async resolveManagedPersons(userId: string): Promise<ManagedPerson[]> {
@@ -143,6 +148,29 @@ export class MeService {
       locationUrl: event.locationUrl,
       information: event.information,
     };
+  }
+
+  async findEventSegments(eventId: string): Promise<MeSegment[]> {
+    const segments = await this.eventSegmentService.findAllByEvent(eventId);
+
+    return segments
+      .filter((segment) => segment.isPublished)
+      .map((segment) => ({
+        id: segment.id,
+        name: segment.name,
+        sortOrder: segment.sortOrder,
+        instances: segment.instances.map((instance) => ({
+          label: instance.label,
+          figureMode: instance.figureMode,
+          figureTemplate: instance.figureTemplate
+            ? { name: instance.figureTemplate.name, hasPinya: instance.figureTemplate.hasPinya }
+            : null,
+        })),
+      }));
+  }
+
+  findSegmentProjection(eventId: string, segmentId: string): Promise<ProjectionData> {
+    return this.projectionService.getProjection(eventId, segmentId, { onlyPublished: true });
   }
 
   private async fetchAttendancesByEvent(

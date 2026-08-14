@@ -25,6 +25,8 @@ describe('MeController', () => {
             upsertAttendance: jest.fn(),
             getPendingDependents: jest.fn(),
             completePendingDependent: jest.fn(),
+            findEventSegments: jest.fn(),
+            findSegmentProjection: jest.fn(),
           },
         },
       ],
@@ -96,6 +98,30 @@ describe('MeController', () => {
     await controller.findEvents(mockUser, { page: 2, limit: 10 });
 
     expect(meService.findEvents).toHaveBeenCalledWith(mockUser, { page: 2, limit: 10 });
+  });
+
+  describe('findEventSegments', () => {
+    it('delegates to MeService with the event id', async () => {
+      const expected = [{ id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [] }];
+      meService.findEventSegments.mockResolvedValue(expected);
+
+      const result = await controller.findEventSegments('event-1');
+
+      expect(meService.findEventSegments).toHaveBeenCalledWith('event-1');
+      expect(result).toEqual(expected);
+    });
+  });
+
+  describe('findSegmentProjection', () => {
+    it('delegates to MeService with the event id and segment id', async () => {
+      const expected = { segment: { id: 'seg-1' } } as never;
+      meService.findSegmentProjection.mockResolvedValue(expected);
+
+      const result = await controller.findSegmentProjection('event-1', 'seg-1');
+
+      expect(meService.findSegmentProjection).toHaveBeenCalledWith('event-1', 'seg-1');
+      expect(result).toEqual(expected);
+    });
   });
 
   describe('getPendingDependents', () => {

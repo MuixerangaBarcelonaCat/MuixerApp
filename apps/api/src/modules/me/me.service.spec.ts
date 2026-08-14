@@ -6,7 +6,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { AttendanceStatus, DelegateType, EventType, Gender, JwtPayload, UserRole } from '@muixer/shared';
+import { AttendanceStatus, DelegateType, EventType, FigureMode, Gender, JwtPayload, UserRole } from '@muixer/shared';
 import { MeService } from './me.service';
 import { Event } from '../event/event.entity';
 import { Attendance } from '../event/attendance.entity';
@@ -15,6 +15,8 @@ import { SeasonService } from '../season/season.service';
 import { AttendanceService } from '../event/attendance.service';
 import { PersonDelegateService } from '../person-delegate/person-delegate.service';
 import { PersonService } from '../person/person.service';
+import { ProjectionService } from '../event-segment/projection.service';
+import { EventSegmentService } from '../event-segment/event-segment.service';
 
 const mockUser: JwtPayload = {
   sub: 'user-1',
@@ -49,6 +51,8 @@ describe('MeService', () => {
   let attendanceService: jest.Mocked<AttendanceService>;
   let personDelegateService: jest.Mocked<PersonDelegateService>;
   let personService: jest.Mocked<PersonService>;
+  let projectionService: jest.Mocked<ProjectionService>;
+  let eventSegmentService: jest.Mocked<EventSegmentService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -95,6 +99,14 @@ describe('MeService', () => {
           provide: PersonService,
           useValue: { update: jest.fn() },
         },
+        {
+          provide: ProjectionService,
+          useValue: { getProjection: jest.fn() },
+        },
+        {
+          provide: EventSegmentService,
+          useValue: { findAllByEvent: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -106,6 +118,8 @@ describe('MeService', () => {
     attendanceService = module.get(AttendanceService);
     personDelegateService = module.get(PersonDelegateService);
     personService = module.get(PersonService);
+    projectionService = module.get(ProjectionService);
+    eventSegmentService = module.get(EventSegmentService);
     attendanceRepo.find.mockResolvedValue([]);
   });
 
@@ -403,6 +417,86 @@ describe('MeService', () => {
       const result = await service.findEventDetail(mockUser, 'event-1');
 
       expect(result.managedAttendances.map((m) => m.personId)).toEqual(['p-1', 'p-2']);
+    });
+  });
+
+  describe('findEventSegments', () => {
+    const makeSegment = (overrides: Record<string, unknown> = {}) => ({
+      id: 'seg-1',
+      name: null,
+      sortOrder: 0,
+      isPublished: true,
+      instances: [],
+      ...overrides,
+    });
+
+    it('projects published segments to id/name/sortOrder plus the instance data titles need', async () => {
+      eventSegmentService.findAllByEvent.mockResolvedValue([
+        makeSegment({
+          id: 'seg-1',
+          name: 'Bloc 1',
+          instances: [
+            {
+              id: 'i1',
+              label: null,
+              figureMode: FigureMode.COMPLETA,
+              figureTemplate: { id: 'f1', name: 'pd4', hasPinya: true },
+            },
+          ],
+        }),
+      ] as never);
+
+      const result = await service.findEventSegments('event-1');
+
+      expect(result).toEqual([
+        {
+          id: 'seg-1',
+          name: 'Bloc 1',
+          sortOrder: 0,
+          instances: [
+            { label: null, figureMode: FigureMode.COMPLETA, figureTemplate: { name: 'pd4', hasPinya: true } },
+          ],
+        },
+      ]);
+    });
+
+    it('filters out unpublished segments', async () => {
+      eventSegmentService.findAllByEvent.mockResolvedValue([
+        makeSegment({ id: 'seg-1', isPublished: true }),
+        makeSegment({ id: 'seg-2', isPublished: false }),
+      ] as never);
+
+      const result = await service.findEventSegments('event-1');
+
+      expect(result.map((s) => s.id)).toEqual(['seg-1']);
+    });
+
+    it('delegates to EventSegmentService.findAllByEvent with the event id', async () => {
+      eventSegmentService.findAllByEvent.mockResolvedValue([]);
+
+      await service.findEventSegments('event-1');
+
+      expect(eventSegmentService.findAllByEvent).toHaveBeenCalledWith('event-1');
+    });
+
+    it('propagates NotFoundException for a non-existent event', async () => {
+      eventSegmentService.findAllByEvent.mockRejectedValue(new NotFoundException());
+
+      await expect(service.findEventSegments('nonexistent')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('findSegmentProjection', () => {
+    it('delegates to ProjectionService.getProjection scoped to onlyPublished', async () => {
+      const expected = { segment: {} } as never;
+      projectionService.getProjection.mockResolvedValue(expected);
+
+      const result = await service.findSegmentProjection('event-1', 'seg-1');
+
+      expect(projectionService.getProjection).toHaveBeenCalledWith('event-1', 'seg-1', {
+        onlyPublished: true,
+      });
+      expect(result).toBe(expected);
     });
   });
 

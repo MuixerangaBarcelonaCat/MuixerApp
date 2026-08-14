@@ -5,6 +5,7 @@ import { Attendance } from '../event/attendance.entity';
 import { User } from '../user/user.entity';
 import { SeasonModule } from '../season/season.module';
 import { EventModule } from '../event/event.module';
+import { EventSegmentModule } from '../event-segment/event-segment.module';
 import { PersonDelegateModule } from '../person-delegate/person-delegate.module';
 import { PersonModule } from '../person/person.module';
 import { MeController } from './me.controller';
@@ -15,6 +16,7 @@ import { MeService } from './me.service';
     TypeOrmModule.forFeature([Event, Attendance, User]),
     SeasonModule,
     EventModule,
+    EventSegmentModule,
     PersonDelegateModule,
     PersonModule,
   ],
