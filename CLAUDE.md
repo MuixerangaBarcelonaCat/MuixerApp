@@ -57,6 +57,8 @@ apps/dashboard/    → Angular 21 SPA admin (port 4200)
 apps/pwa/          → Angular 21 PWA for members
 apps/*-e2e/        → Playwright (e2e + responsive audit suite)
 libs/shared/       → Shared enums, constants, interfaces — import via @muixer/shared
+libs/pinyes-render/→ Shared figure rendering (Konva canvas, tronc panels, projection) — import via
+                     @muixer/pinyes-render; consumed by both apps/dashboard and apps/pwa
 docs/              → Topic documentation (see docs/MAP.md)
 .cursor/rules/     → Agent coding rules (important patterns)
 .agents/skills/    → Stack-specific agent skills
@@ -82,7 +84,7 @@ Modules under `src/modules/`:
 | `event-segment` | `EventSegment`, `FigureInstance`, `InstanceNode`, distribution, `ProjectionService` |
 | `node-assignment` | assignment logic, lazy snapshot, ad-hoc nodes |
 | `tag` | CRUD of position/role labels; entity maps to the `positions` table (M:N with Person) |
-| `me` | member-scoped API consumed by the PWA (own events/attendance) |
+| `me` | member-scoped API consumed by the PWA (own events/attendance, published segments + projection) |
 | `legal` | legal documents (terms/privacy) + versioning, consent read/accept |
 | `audit` | `AuditLog` entity + service; records sensitive mutations |
 | `mail` | `MailService` + provider abstraction; used by `auth` for password reset (invites still don't email — see Authentication) |
@@ -119,11 +121,11 @@ Routes (all behind `authGuard` + `rolesGuard(TECHNICAL, ADMIN)`):
 
 Angular 21 + Service Worker (offline cache; **no push yet**), signals + `rxResource`.
 
-**Routes:** `login` (alreadyAuthGuard) · `AppShell` behind `authGuard` + `rolesGuard(MEMBER, TECHNICAL, ADMIN)`: `home`, `events`, `events/:id`, `profile` (placeholder).
+**Routes:** `login` (alreadyAuthGuard) · `AppShell` behind `authGuard` + `rolesGuard(MEMBER, TECHNICAL, ADMIN)`: `home`, `events`, `events/:id`, `events/:eventId/segments/:segmentId` (segment projection, lazy), `profile` (placeholder).
 
-**Features:** login, home (next rehearsal/performance), event agenda, event detail, and **attendance confirmation** (`AttendanceButton`: Vinc/No vinc → ANIRE/NO_VAIG; ASSISTIT locked). `no-person-banner` for accounts with no linked Person.
+**Features:** login, home (next rehearsal/performance), event agenda, event detail (with a **Segments** list for published segments — titles auto-derived the same way as the Dashboard, via `computeSegmentDisplayName` in `@muixer/shared`), **segment projection** (`SegmentProjectionComponent`: fetches via `/me/events/:eventId/segments/:segmentId/projection`, renders `<lib-pinya-projection>` full-bleed with a back/prev/next HUD; `LayoutService.isFullscreen` hides the bottom tab bar and shell chrome while it's open), and **attendance confirmation** (`AttendanceButton`: Vinc/No vinc → ANIRE/NO_VAIG; ASSISTIT locked). `no-person-banner` for accounts with no linked Person.
 
-Member-scoped data comes from the `me` API module (`@Roles(MEMBER, TECHNICAL, ADMIN)`): `GET /me/events` (filters `type`/`timeFilter`/`limit`, returns `MeEvent` with caller's own `myAttendance`), `GET /me/events/:id` (`MeEventDetail`), `PUT /me/events/:id/attendance` (upsert own attendance, person derived from JWT — no `personId` in the body). Auth still uses `/auth/me`. Types live in `libs/shared/interfaces/me/`. The `me` module reuses `SeasonService`/`AttendanceService`; never exposes the admin `/events` CRUD to members.
+Member-scoped data comes from the `me` API module (`@Roles(MEMBER, TECHNICAL, ADMIN)`): `GET /me/events` (filters `type`/`timeFilter`/`limit`, returns `MeEvent` with caller's own `myAttendance`), `GET /me/events/:id` (`MeEventDetail`), `PUT /me/events/:id/attendance` (upsert own attendance, person derived from JWT — no `personId` in the body), `GET /me/events/:eventId/segments` (published segments only, `MeSegment[]` incl. `instances` for title derivation), `GET /me/events/:eventId/segments/:segmentId/projection` (`ProjectionData`, 404s for an unpublished segment). Auth still uses `/auth/me`. Types live in `libs/shared/interfaces/me/`. The `me` module reuses `SeasonService`/`AttendanceService`/`EventSegmentService`/`ProjectionService` (the latter's `onlyPublished` option scopes both the segment lookup and prev/next navigation); never exposes the admin `/events` CRUD to members.
 
 ## Pinyes module — key domain concepts
 
