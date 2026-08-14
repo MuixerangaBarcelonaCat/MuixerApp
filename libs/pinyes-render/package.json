@@ -1,0 +1,8 @@
+{
+  "name": "@muixer/pinyes-render",
+  "version": "0.0.1",
+  "peerDependencies": {
+    "vitest": "^4.1.10"
+  },
+  "sideEffects": false
+}

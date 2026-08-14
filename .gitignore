@@ -74,3 +74,4 @@ scripts/tunnel-pre.sh
 
 # -- Gemini ──────────────────────────────────────────────
 .gem/
+.angular

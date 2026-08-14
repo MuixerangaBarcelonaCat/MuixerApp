@@ -97,6 +97,7 @@
     "jsdom": "^27.4.0",
     "jsonc-eslint-parser": "^2.4.2",
     "knip": "^6.29.0",
+    "ng-packagr": "~21.2.0",
     "nx": "^22.7.7",
     "postcss": "^8.5.19",
     "prettier": "~3.6.2",
