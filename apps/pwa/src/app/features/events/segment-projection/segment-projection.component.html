@@ -1,0 +1,61 @@
+@if (isLoading()) {
+  <div
+    class="flex items-center justify-center h-screen w-screen bg-base-200"
+    role="status"
+    aria-live="polite"
+  >
+    <span class="loading loading-spinner loading-lg text-primary"></span>
+    <span class="sr-only">S'està carregant la projecció...</span>
+  </div>
+} @else if (hasError() || !data()) {
+  <div class="flex items-center justify-center h-screen w-screen bg-base-200 p-4">
+    <app-empty-state
+      message="No s'ha pogut carregar la projecció."
+      actionLabel="Torna-ho a provar"
+      (action)="projectionResource.reload()"
+    />
+  </div>
+} @else {
+  <div class="relative flex flex-col h-screen w-screen overflow-hidden bg-white">
+    <lib-pinya-projection [data]="data()!" [instanceId]="null" [showZoomControls]="false" />
+
+    <nav
+      class="fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-full bg-black/60 text-white/80 text-sm backdrop-blur-sm z-50"
+      aria-label="Navegació de la projecció"
+    >
+      <button
+        type="button"
+        class="flex items-center justify-center rounded-full hover:bg-white/15 p-1 transition-colors"
+        (click)="goBack()"
+        aria-label="Torna a l'esdeveniment"
+      >
+        <lucide-icon [img]="ArrowLeft" [size]="16" aria-hidden="true" />
+      </button>
+
+      <span class="w-px h-4 bg-white/20" aria-hidden="true"></span>
+
+      <span class="truncate max-w-[160px]">{{ segmentLabel() }}</span>
+
+      @if (data()!.segment.prevSegmentId) {
+        <button
+          type="button"
+          class="flex items-center justify-center"
+          (click)="navigateSegment('prev')"
+          aria-label="Segment anterior"
+        >
+          <lucide-icon [img]="ChevronLeft" [size]="18" aria-hidden="true" />
+        </button>
+      }
+      @if (data()!.segment.nextSegmentId) {
+        <button
+          type="button"
+          class="flex items-center justify-center"
+          (click)="navigateSegment('next')"
+          aria-label="Segment següent"
+        >
+          <lucide-icon [img]="ChevronRight" [size]="18" aria-hidden="true" />
+        </button>
+      }
+    </nav>
+  </div>
+}

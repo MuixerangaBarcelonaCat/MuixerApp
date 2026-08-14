@@ -3,23 +3,29 @@
   <div #canvasContainer class="canvas-container" aria-label="Àrea de treball de la figura"></div>
 
   <!-- Zoom selector -->
-  <select
-    class="zoom-selector"
-    [ngModel]="zoomLevel()"
-    (ngModelChange)="setZoom(+$event)"
-    aria-label="Selecciona el nivell de zoom"
-  >
-    <option [value]="0.25">25%</option>
-    <option [value]="0.5">50%</option>
-    <option [value]="0.75">75%</option>
-    <option [value]="1">100%</option>
-    <option [value]="1.25">125%</option>
-    <option [value]="1.5">150%</option>
-    <option [value]="1.75">175%</option>
-    <option [value]="2">200%</option>
-    <option [value]="2.5">250%</option>
-    <option [value]="3">300%</option>
-  </select>
+  @if (showZoomControls()) {
+    <select
+      class="zoom-selector"
+      [ngModel]="zoomLevel()"
+      (ngModelChange)="setZoom(+$event)"
+      aria-label="Selecciona el nivell de zoom"
+    >
+      <option [value]="0.25">25%</option>
+      <option [value]="0.5">50%</option>
+      <option [value]="0.75">75%</option>
+      <option [value]="1">100%</option>
+      <option [value]="1.25">125%</option>
+      <option [value]="1.5">150%</option>
+      <option [value]="1.75">175%</option>
+      <option [value]="2">200%</option>
+      <option [value]="2.5">250%</option>
+      <option [value]="3">300%</option>
+      <option [value]="3.5">350%</option>
+      <option [value]="4">400%</option>
+      <option [value]="4.5">450%</option>
+      <option [value]="5">500%</option>
+    </select>
+  }
 
   <!-- Fit to screen / center view button -->
   <button

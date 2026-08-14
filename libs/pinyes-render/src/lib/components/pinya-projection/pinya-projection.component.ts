@@ -54,6 +54,9 @@ export class PinyaProjectionComponent {
   /** Restricts rendering to a single figure. `null` renders the whole segment. */
   readonly instanceId = input<string | null>(null);
 
+  /** Forwarded to FigureCanvasComponent — see its own doc comment. */
+  readonly showZoomControls = input<boolean>(true);
+
   /** Signal query: the element only exists while the host renders (always, once
    *  `data` is set), but kept as a query for parity with the ResizeObserver
    *  attach/detach pattern used elsewhere in this canvas family. */

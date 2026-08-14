@@ -66,6 +66,14 @@ export const appRoutes: Routes = [
           ),
       },
       {
+        path: 'events/:eventId/segments/:segmentId',
+        title: 'Projecció',
+        loadComponent: () =>
+          import('./features/events/segment-projection/segment-projection.component').then(
+            (m) => m.SegmentProjectionComponent,
+          ),
+      },
+      {
         path: 'profile',
         title: 'Perfil',
         loadComponent: () =>

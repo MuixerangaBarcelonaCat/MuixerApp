@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, input } from '@angular/core';
+import { By } from '@angular/platform-browser';
 import { FigureZone, NodeShape } from '@muixer/shared';
 import { PinyaProjectionComponent } from './pinya-projection.component';
 import {
@@ -25,6 +26,7 @@ class FigureCanvasStub {
   readonly isPast = input<boolean>(false);
   readonly fitExtraBounds = input<{ x: number; y: number; width: number; height: number }[]>([]);
   readonly outlineBoxes = input<unknown[]>([]);
+  readonly showZoomControls = input<boolean>(true);
 }
 
 @Component({ selector: 'app-tronc-view', standalone: true, template: '' })
@@ -165,6 +167,23 @@ describe('PinyaProjectionComponent', () => {
       const d = makeInstance([], [], { id: 'd' });
       setData(makeSegmentData([c, d]));
       expect(component.filteredInstances().map((i) => i.id)).toEqual(['a']);
+    });
+  });
+
+  // ── showZoomControls (forwarded to FigureCanvasComponent) ───────────────────
+
+  describe('showZoomControls', () => {
+    it('defaults to true, forwarded to the figure canvas', () => {
+      const canvas = fixture.debugElement.query(By.directive(FigureCanvasStub));
+      expect(canvas.componentInstance.showZoomControls()).toBe(true);
+    });
+
+    it('forwards false to the figure canvas when set', () => {
+      fixture.componentRef.setInput('showZoomControls', false);
+      fixture.detectChanges();
+
+      const canvas = fixture.debugElement.query(By.directive(FigureCanvasStub));
+      expect(canvas.componentInstance.showZoomControls()).toBe(false);
     });
   });
 

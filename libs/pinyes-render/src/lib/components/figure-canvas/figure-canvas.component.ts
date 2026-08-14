@@ -185,9 +185,9 @@ const SELECTED_STROKE = '#f59e0b';
 const NORMAL_STROKE = '#1e1b4b';
 /** Amber conflict outline (Phase 3), matching the observation badge / tronc-view warning hue. */
 const CONFLICT_STROKE = '#e11d48';
-/** Matches the min/max of the zoom-selector dropdown (25%–300%). */
+/** Matches the min/max of the zoom-selector dropdown (25%–500%). */
 const ZOOM_MIN = 0.25;
-const ZOOM_MAX = 3;
+const ZOOM_MAX = 5;
 
 @Component({
   selector: 'app-figure-canvas',
@@ -202,6 +202,10 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
 
   readonly nodes = input<CanvasNode[]>([]);
   readonly mode = input<CanvasMode>('editor');
+  /** Hides the bottom-left zoom-percentage dropdown — pinch/wheel zoom still work regardless.
+   *  Off by default on mobile (PWA), where the numeric selector is a precision control the
+   *  touch UI doesn't need and just clutters a small viewport. */
+  readonly showZoomControls = input<boolean>(true);
   readonly gridEnabled = input<boolean>(true);
   readonly gridSpacing = input<number>(20);
   readonly selectedNodeId = input<string | null>(null);
@@ -1627,11 +1631,14 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         const attendanceStatus = attendanceMap.get(assignment.person.id);
         const badgeColor = attendanceStatus ? ATTENDANCE_COLORS[attendanceStatus] : undefined;
         if (badgeColor && attendanceStatus !== 'ASSISTIT') {
+          // Scaled to the node's own height so a fixed-pixel badge doesn't dwarf
+          // small nodes (e.g. densely packed mobile projections) and cover the name.
+          const badgeRadius = Math.max(2, node.height * 0.125);
           group.add(
             new Konva.Circle({
-              x: node.width / 2 - 5,
-              y: -node.height / 2 + 5,
-              radius: 5,
+              x: node.width / 2 - badgeRadius,
+              y: -node.height / 2 + badgeRadius,
+              radius: badgeRadius,
               fill: badgeColor,
               stroke: '#ffffff',
               strokeWidth: 1,
@@ -2038,11 +2045,14 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       const attendanceStatus = attendanceMap.get(assignment.person.id);
       const badgeColor = attendanceStatus ? ATTENDANCE_COLORS[attendanceStatus] : undefined;
       if (badgeColor && attendanceStatus !== 'ASSISTIT') {
+        // Scaled to the node's own height so a fixed-pixel badge doesn't dwarf
+        // small nodes (e.g. densely packed mobile projections) and cover the name.
+        const badgeRadius = Math.max(2, node.height * 0.125);
         group.add(
           new Konva.Circle({
-            x: node.width / 2 - 5,
-            y: -node.height / 2 + 5,
-            radius: 5,
+            x: node.width / 2 - badgeRadius,
+            y: -node.height / 2 + badgeRadius,
+            radius: badgeRadius,
             fill: badgeColor,
             stroke: '#ffffff',
             strokeWidth: 1,
@@ -2260,6 +2270,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         opacity: 1,
       });
 
+      // Scaled to the node's own height so a fixed-pixel border doesn't look
+      // disproportionately thick on small nodes (e.g. densely packed mobile projections).
+      const readonlyStrokeWidth = isDecoration
+        ? Math.min(2, Math.max(0.5, node.height * 0.05))
+        : Math.min(1.5, Math.max(0.5, node.height * 0.0375));
       const shape = createNodeShape(
         (node as { shape?: string }).shape ?? NodeShape.RECTANGLE,
         node.width,
@@ -2267,7 +2282,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         {
           fill,
           stroke: isDecoration ? DECORATION_STROKE : NORMAL_STROKE,
-          strokeWidth: isDecoration ? 2 : 1.5,
+          strokeWidth: readonlyStrokeWidth,
         },
       );
       if (this.isConflictAssignment(assignment)) {
@@ -2318,11 +2333,14 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         const attendanceStatus = attendanceMap.get(assignment.person.id);
         const badgeColor = attendanceStatus ? ATTENDANCE_COLORS[attendanceStatus] : undefined;
         if (badgeColor && attendanceStatus !== 'ASSISTIT') {
+          // Scaled to the node's own height so a fixed-pixel badge doesn't dwarf
+          // small nodes (e.g. densely packed mobile projections) and cover the name.
+          const badgeRadius = Math.max(2, node.height * 0.125);
           group.add(
             new Konva.Circle({
-              x: node.width / 2 - 5,
-              y: -node.height / 2 + 5,
-              radius: 5,
+              x: node.width / 2 - badgeRadius,
+              y: -node.height / 2 + badgeRadius,
+              radius: badgeRadius,
               fill: badgeColor,
               stroke: '#ffffff',
               strokeWidth: 1,

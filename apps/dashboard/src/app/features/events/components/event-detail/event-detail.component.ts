@@ -78,7 +78,7 @@ export class EventDetailComponent implements OnInit, OnDestroy {
   isEventLocked = computed(() => this.lockStatus()?.locked ?? false);
   private syncEventSource: EventSource | null = null;
 
-  readonly activeTab = signal<EventDetailTab>('resum');
+  readonly activeTab = signal<EventDetailTab>('pinyes');
 
   readonly tabDefs: { id: EventDetailTab; label: string; icon: string }[] = [
     { id: 'resum', label: 'Resum', icon: 'Info' },
@@ -91,7 +91,7 @@ export class EventDetailComponent implements OnInit, OnDestroy {
    * Tabs are mounted lazily on first visit and then kept alive (hidden) so that
    * switching back does not refetch or lose the filters the user had set.
    */
-  private readonly visitedTabs = signal<ReadonlySet<EventDetailTab>>(new Set(['resum']));
+  private readonly visitedTabs = signal<ReadonlySet<EventDetailTab>>(new Set(['pinyes']));
 
   hasVisited(tab: EventDetailTab): boolean {
     return this.visitedTabs().has(tab);

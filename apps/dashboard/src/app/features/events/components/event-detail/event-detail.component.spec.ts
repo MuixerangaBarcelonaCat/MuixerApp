@@ -246,16 +246,15 @@ describe('EventDetailComponent — tabbed sections', () => {
     fixture.nativeElement.querySelector(`#event-tabpanel-${tab}`);
 
   describe('default tab', () => {
-    it('opens on Resum with the event information visible', async () => {
+    it('opens on Pinyes i Figures', async () => {
       const fixture = await setup();
-      expect(fixture.componentInstance.activeTab()).toBe('resum');
-      expect(panel(fixture, 'resum')!.className).not.toContain('hidden');
-      expect(fixture.nativeElement.textContent).toContain('Informació');
+      expect(fixture.componentInstance.activeTab()).toBe('pinyes');
+      expect(panel(fixture, 'pinyes')!.className).not.toContain('hidden');
+      expect(fixture.nativeElement.querySelector('app-segment-manager')).toBeTruthy();
     });
 
-    it('does not mount the Pinyes, Assistència or Participació sections until they are opened', async () => {
+    it('does not mount the Assistència or Participació sections until they are opened', async () => {
       const fixture = await setup();
-      expect(panel(fixture, 'pinyes')).toBeNull();
       expect(panel(fixture, 'assistencia')).toBeNull();
       expect(panel(fixture, 'participacio')).toBeNull();
       expect(fixture.nativeElement.querySelector('app-attendance-list')).toBeFalsy();
@@ -340,9 +339,9 @@ describe('EventDetailComponent — tabbed sections', () => {
       expect(panel(fixture, 'resum')!.className).toContain('hidden');
     });
 
-    it('falls back to Resum on an unknown tab value', async () => {
+    it('falls back to Pinyes i Figures on an unknown tab value', async () => {
       const fixture = await setup({}, { tab: 'nonsense' });
-      expect(fixture.componentInstance.activeTab()).toBe('resum');
+      expect(fixture.componentInstance.activeTab()).toBe('pinyes');
     });
   });
 
