@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { LucideAngularModule } from 'lucide-angular';
 import { ConflictPlacement } from '../../models/assignment.model';
-import { ICON_OBSERVACIONS } from '../../../../shared/constants/domain-icons';
+import { ICON_OBSERVACIONS } from '@muixer/shared';
 
 @Component({
   selector: 'app-already-assigned-dialog',

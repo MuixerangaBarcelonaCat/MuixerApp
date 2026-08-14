@@ -2,7 +2,7 @@
  * Person-related utility functions
  */
 
-import { AvailabilityStatus, OnboardingStatus } from '@muixer/shared';
+import { AvailabilityStatus, OnboardingStatus, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 import type { Person } from '../../features/persons/models/person.model';
 
 /**
@@ -44,9 +44,6 @@ export function getOnboardingLabel(status: OnboardingStatus): string {
   };
   return labels[status] || status;
 }
-
-/** Baseline (cm) for relative shoulder height display (+/- from this value). */
-export const SHOULDER_HEIGHT_BASELINE_CM = 140;
 
 /**
  * Absolute shoulder height for display (cm).

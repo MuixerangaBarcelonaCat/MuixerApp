@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideHttpClient } from '@angular/common/http';
 import { environment } from '../../../../environments/environment';
 import { NodeAssignmentService } from './node-assignment.service';
-import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../shared/utils/person.util';
+import { SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 
 const BASE = environment.apiUrl;
 const INSTANCE_ID = 'instance-uuid-1';

@@ -1,9 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { LucideAngularModule } from 'lucide-angular';
 import { AttendanceStatus, AvailablePersonPosition, HeightMode, PersonHoverInfo } from '../../models/assignment.model';
-import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
-import { getContrastColor } from '../../../../shared/utils/color.util';
-import { ICON_OBSERVACIONS } from '../../../../shared/constants/domain-icons';
+import { getContrastColor, ICON_OBSERVACIONS, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 
 @Component({
   selector: 'app-person-hover-card',

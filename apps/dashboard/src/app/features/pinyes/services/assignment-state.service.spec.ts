@@ -1,8 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { AssignmentStateService } from './assignment-state.service';
 import { AssignmentDetail, AvailablePerson, InstanceNodeItem } from '../models/assignment.model';
-import { PINYA_NODE_PRESETS } from '@muixer/shared';
-import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../shared/utils/person.util';
+import { PINYA_NODE_PRESETS, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 
 const makeAssignment = (nodeId = 'node-1', personId = 'person-1'): AssignmentDetail => ({
   id: 'assignment-1',

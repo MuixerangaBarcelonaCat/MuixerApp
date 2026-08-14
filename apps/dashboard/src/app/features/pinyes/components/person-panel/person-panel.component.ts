@@ -13,11 +13,10 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, RefreshCw, ChevronDown, ChevronUp, UserX } from 'lucide-angular';
-import { DIRECTION_ZONES, FigureZone } from '@muixer/shared';
+import { DIRECTION_ZONES, FigureZone, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
 import { AssignmentArea, AvailablePerson, AssignmentDetail, ConflictPlacement, HeightMode, PersonHoverInfo, isConfirmedAttendance } from '../../models/assignment.model';
-import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
 import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { formatNodeCordonLabel } from '../../utils/node-cordon-label.util';
 import { PersonHoverCardComponent } from '../person-hover-card/person-hover-card.component';

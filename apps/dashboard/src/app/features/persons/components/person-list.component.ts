@@ -12,8 +12,8 @@ import {
   formatDate,
   formatShoulderHeightCm,
   formatShoulderHeightRelative,
-  SHOULDER_HEIGHT_BASELINE_CM,
 } from '../../../shared/utils';
+import { SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 import { PageHeaderComponent } from '../../../shared/components/data/page-header/page-header.component';
 import { FilterBarComponent } from '../../../shared/components/data/filter-bar/filter-bar.component';
 import { ActiveFiltersComponent } from '../../../shared/components/data/active-filters/active-filters.component';

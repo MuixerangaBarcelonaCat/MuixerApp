@@ -14,11 +14,11 @@ import {
   DIRECTION_NODE_PRESETS,
   TroncNodePreset,
   NodePreset,
+  getContrastColor,
 } from '@muixer/shared';
 import { TagService } from '../../services/tag.service';
 import { TagWithCount, CreateTagDto, UpdateTagDto } from '../../models/tag.model';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
-import { getContrastColor } from '../../../../shared/utils/color.util';
 
 export interface PresetOption {
   positionType: string;

@@ -9,12 +9,17 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
-import { FigureZone, TRONC_NODE_PRESETS, TRONC_Z_DEFAULTS, TroncNodePreset } from '@muixer/shared';
+import {
+  FigureZone,
+  ICON_OBSERVACIONS,
+  SHOULDER_HEIGHT_BASELINE_CM,
+  TRONC_NODE_PRESETS,
+  TRONC_Z_DEFAULTS,
+  TroncNodePreset,
+} from '@muixer/shared';
 import { AssignmentDetail, AttendanceStatus, AvailablePersonPosition, HeightMode, PersonHoverInfo } from '../../models/assignment.model';
 import { floorVariance, varianceLevel, VarianceLevel } from '../../utils/floor-variance.util';
-import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
 import { PersonHoverCardComponent } from '../person-hover-card/person-hover-card.component';
-import { ICON_OBSERVACIONS } from '../../../../shared/constants/domain-icons';
 import { formatAssignedLabel } from '../../utils/assigned-label.util';
 import { FitTextDirective } from '../../directives/fit-text.directive';
 

@@ -13,8 +13,7 @@ import { AssignmentDetail, HeightMode, InstanceNodeItem, UpdateAdHocNodePayload 
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { ColorPickerComponent } from '../../../../shared/components/forms/color-picker/color-picker.component';
-import { FigureZone, NodeShape, DIRECTION_ZONES } from '@muixer/shared';
-import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
+import { FigureZone, NodeShape, DIRECTION_ZONES, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 import { getPresetColorsForZone, isNodeColorEditable } from '../../utils/node-color-presets.util';
 
 @Component({

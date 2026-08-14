@@ -29,8 +29,6 @@ export const ICON_ACTUACIO = 'Star' as const;
 // People
 export const ICON_PERSONA = 'Users' as const;
 export const ICON_XICALLA = 'Baby' as const;
-/** Marks a person with technical observations (`Person.notes`) across attendance list, assignment canvas and tronc view. */
-export const ICON_OBSERVACIONS = 'CircleAlert' as const;
 
 export const DOMAIN_ICONS = {
   FIGURA: CirclePile,

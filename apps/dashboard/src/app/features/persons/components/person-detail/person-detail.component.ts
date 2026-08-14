@@ -22,7 +22,6 @@ import { formatNodeCordonLabel } from '../../../pinyes/utils/node-cordon-label.u
 import {
   getAvailabilityLabel,
   getOnboardingLabel,
-  getContrastColor,
   formatDate,
   formatDateTime,
   formatShoulderHeightRelative,
@@ -37,7 +36,7 @@ import {
   PersonDelegateItem,
 } from '../../services/person-delegate.service';
 import { LegalDocumentService } from '../../../../core/services/legal-document.service';
-import { DelegateType, LegalDocumentType } from '@muixer/shared';
+import { DelegateType, LegalDocumentType, getContrastColor } from '@muixer/shared';
 
 @Component({
   standalone: true,

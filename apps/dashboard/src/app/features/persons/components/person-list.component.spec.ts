@@ -6,8 +6,7 @@ import { allLucideIconsProvider } from '../../../../testing/lucide-test-provider
 import { PersonListComponent } from './person-list.component';
 import { Position } from '../models/person.model';
 import { PersonService } from '../services/person.service';
-import { AvailabilityStatus, OnboardingStatus } from '@muixer/shared';
-import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../shared/utils/person.util';
+import { AvailabilityStatus, OnboardingStatus, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 
 describe('PersonListComponent', () => {
   let fixture: ComponentFixture<PersonListComponent>;

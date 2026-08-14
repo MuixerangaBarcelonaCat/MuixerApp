@@ -14,11 +14,10 @@ import { NgClass } from '@angular/common';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
-import { ICON_XICALLA, ICON_OBSERVACIONS } from '../../../../shared/constants/domain-icons';
+import { ICON_XICALLA } from '../../../../shared/constants/domain-icons';
 import { AttendanceService } from '../../services/attendance.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { AttendanceEditModalComponent } from '../attendance-edit-modal/attendance-edit-modal.component';
-import { getContrastColor } from '../../../../shared/utils/color.util';
 import {
   AttendanceItem,
   AttendanceFilterParams,
@@ -26,7 +25,7 @@ import {
   AttendanceDeleteResponse,
   AttendancePosition,
 } from '../../models/attendance.model';
-import { AttendanceStatus, AttendanceSummary } from '@muixer/shared';
+import { AttendanceStatus, AttendanceSummary, getContrastColor, ICON_OBSERVACIONS } from '@muixer/shared';
 
 /**
  * Attendance list of a single event: filters, table (desktop) / cards (mobile),

@@ -1,4 +1,4 @@
-import { AvailabilityStatus, OnboardingStatus } from '@muixer/shared';
+import { AvailabilityStatus, OnboardingStatus, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 import type { Person } from '../../features/persons/models/person.model';
 import {
   formatShoulderHeightCm,
@@ -7,7 +7,6 @@ import {
   getFullName,
   getOnboardingLabel,
   shoulderHeightRelativeTone,
-  SHOULDER_HEIGHT_BASELINE_CM,
 } from './person.util';
 
 describe('person.util', () => {
