@@ -19,7 +19,7 @@ export type OwnPositionBannerState = OwnPlacementDescription | { kind: 'MULTIPLE
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
-    class: 'block rounded-2xl bg-black/70 backdrop-blur-sm shadow-lg px-4 py-2.5 text-sm text-white',
+    class: 'block rounded-2xl bg-black/60 backdrop-blur-sm shadow-lg px-4 py-2.5 text-sm text-white',
     '[class.text-error]': "state().kind === 'MULTIPLE'",
     'aria-live': 'polite',
   },

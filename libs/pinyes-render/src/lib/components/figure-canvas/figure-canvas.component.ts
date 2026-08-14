@@ -126,7 +126,7 @@ function createNodeShape(
   shape: string,
   w: number,
   h: number,
-  opts: { fill: string; stroke: string; strokeWidth: number; dash?: number[]; opacity?: number },
+  opts: { fill: string; stroke: string; strokeWidth: number; dash?: number[]; opacity?: number; cornerRadius?: number },
 ): Konva.Shape {
   if (shape === NodeShape.ARROW) {
     return new Konva.Line({
@@ -173,7 +173,7 @@ function createNodeShape(
     y: -h / 2,
     width: w,
     height: h,
-    cornerRadius: 4,
+    cornerRadius: opts.cornerRadius ?? 4,
     fill: opts.fill,
     stroke: opts.stroke,
     strokeWidth: opts.strokeWidth,
@@ -2275,6 +2275,11 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
       const readonlyStrokeWidth = isDecoration
         ? Math.min(2, Math.max(0.5, node.height * 0.05))
         : Math.min(1.5, Math.max(0.5, node.height * 0.0375));
+      // Scaled to the node's own (smaller) side — a fixed 4px corner radius looks barely rounded
+      // on the standard ~80×40 node it was tuned for, but noticeably over-rounded on the smaller
+      // nodes a large, densely-packed figure tends to use. 0.1 reproduces the previous fixed
+      // look at that standard size (min(80,40)×0.1 = 4) and scales from there.
+      const readonlyCornerRadius = Math.max(1, Math.min(node.width, node.height) * 0.1);
       const shape = createNodeShape(
         (node as { shape?: string }).shape ?? NodeShape.RECTANGLE,
         node.width,
@@ -2283,6 +2288,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
           fill,
           stroke: isDecoration ? DECORATION_STROKE : NORMAL_STROKE,
           strokeWidth: readonlyStrokeWidth,
+          cornerRadius: readonlyCornerRadius,
         },
       );
       if (this.isConflictAssignment(assignment)) {
@@ -2297,13 +2303,20 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         assignment ? assignment.person.alias : node.label,
         node.climbIndicator,
       );
+      // Proportional to the node's own height, like readonlyStrokeWidth/badgeRadius above — a
+      // fixed world-unit cap/floor made text overflow tiny nodes (dense mobile projections, "too
+      // large to read") while capping it far below what a large node (spacious decoration, a
+      // generous desktop zoom) could actually hold ("too small"). The ratios are chosen so a
+      // typical ~40-tall PINYA node keeps its previous 18/9 look; only the outliers change.
+      const maxFontSize = Math.max(6, node.height * (assignment || isDecoration ? 0.45 : 0.225));
+      const minFontSize = Math.min(maxFontSize, Math.max(3, node.height * 0.1));
       const { fontSize, wrap } = this.fitFontSizeForNode(
         displayText,
         node.width,
         node.height,
         {
-          maxFontSize: assignment || isDecoration ? 18 : 9,
-          minFontSize: 5,
+          maxFontSize,
+          minFontSize,
           fontStyle: assignment ? 'bold' : 'normal',
           wrap: assignment ? 'none' : 'word',
         },
