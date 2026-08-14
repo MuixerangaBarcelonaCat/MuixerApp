@@ -540,7 +540,35 @@ describe('SegmentWorkspaceStateService', () => {
       expect(ids).toEqual(['b1', 'd1', 'p1']);
     });
 
-    it('hides BASE nodes for REMAT instances', () => {
+    it('hides PINYA and BASE nodes for REMAT instances', () => {
+      configure({
+        segment: makeSegment([makeInstance('inst-a', { figureMode: 'REMAT' })]),
+        nodesByInstance: {
+          'inst-a': [makeNode('p1', 'PINYA'), makeNode('b1', 'BASE'), makeNode('d1', 'DECORATION')],
+        },
+      });
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      const ids = service.pinyaSlots()[0].figureTemplate.nodes.map((n) => n.id);
+      expect(ids).toEqual(['d1']);
+    });
+
+    it('hides PINYA nodes but keeps BASE nodes for NETA instances', () => {
+      configure({
+        segment: makeSegment([makeInstance('inst-a', { figureMode: 'NETA' })]),
+        nodesByInstance: {
+          'inst-a': [makeNode('p1', 'PINYA'), makeNode('b1', 'BASE')],
+        },
+      });
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      const ids = service.pinyaSlots()[0].figureTemplate.nodes.map((n) => n.id);
+      expect(ids).toEqual(['b1']);
+    });
+
+    it('produces no pinya slot for a REMAT instance with only PINYA/BASE nodes', () => {
       configure({
         segment: makeSegment([makeInstance('inst-a', { figureMode: 'REMAT' })]),
         nodesByInstance: {
@@ -550,8 +578,7 @@ describe('SegmentWorkspaceStateService', () => {
 
       service.load(EVENT_ID, SEGMENT_ID);
 
-      const ids = service.pinyaSlots()[0].figureTemplate.nodes.map((n) => n.id);
-      expect(ids).toEqual(['p1']);
+      expect(service.pinyaSlots()).toEqual([]);
     });
 
     it('hides PINYA nodes beyond the instance numberOfCordons and repositions cordo-obert nodes', () => {

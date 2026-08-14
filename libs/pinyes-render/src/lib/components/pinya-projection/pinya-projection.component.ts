@@ -9,7 +9,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FigureZone } from '@muixer/shared';
+import { FigureZone, getSegmentInstanceLabel } from '@muixer/shared';
 import { AttendanceStatus, AssignmentDetail, InstanceNodeItem } from '../../models/assignment.model';
 import { ProjectionSegmentData, ProjectionInstance } from '../../models/projection.model';
 import { FigureCanvasComponent, OutlineBox } from '../figure-canvas/figure-canvas.component';
@@ -19,6 +19,8 @@ import { computeDistributionTransform, computeInstanceNaturalExtent } from '../.
 import { figureExtentFromNodes, placeFigures, placeNewFigure, PlacedFigurePosition } from '../../utils/figure-placement.util';
 import { computeTroncNaturalSize, TRONC_GAP_PX } from '../../utils/tronc-size.util';
 import { getFigureColor, SINGLE_FIGURE_PANEL_COLOR, SINGLE_FIGURE_SHADOW_COLOR } from '../../utils/figure-palette.util';
+import { describeOwnPlacement, findOwnPlacements } from '../../utils/own-position.util';
+import { OwnPositionBannerComponent, OwnPositionBannerState } from '../own-position-banner/own-position-banner.component';
 
 interface DistributionTroncPanel {
   instance: ProjectionInstance;
@@ -45,7 +47,7 @@ interface DistributionTroncPanel {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'contents' },
-  imports: [CommonModule, FigureCanvasComponent, TroncViewComponent],
+  imports: [CommonModule, FigureCanvasComponent, TroncViewComponent, OwnPositionBannerComponent],
   templateUrl: './pinya-projection.component.html',
 })
 export class PinyaProjectionComponent {
@@ -56,6 +58,12 @@ export class PinyaProjectionComponent {
 
   /** Forwarded to FigureCanvasComponent — see its own doc comment. */
   readonly showZoomControls = input<boolean>(true);
+
+  /**
+   * The viewer's own `Person.id` — enables the "you are here" banner. `null` (the default, and
+   * what the Dashboard always passes) leaves the whole layer inert; only the PWA sets this.
+   */
+  readonly highlightPersonId = input<string | null>(null);
 
   /** Signal query: the element only exists while the host renders (always, once
    *  `data` is set), but kept as a query for parity with the ResizeObserver
@@ -77,6 +85,26 @@ export class PinyaProjectionComponent {
     const instances = this.data().instances;
     const id = this.instanceId();
     return id ? instances.filter((i) => i.id === id) : instances;
+  });
+
+  /**
+   * The "you are here" banner state, derived from `highlightPersonId` against the raw,
+   * unfiltered `data()` — deliberately not `filteredInstances()`, which exists for the
+   * Dashboard's single-figure preview route (`instanceId`) and would silently misreport
+   * `figureName`/`instanceIndex` if a placement happened to live outside the filter. The two
+   * inputs are never set together in practice (the Dashboard never passes `highlightPersonId`,
+   * the PWA never sets `instanceId`), so this only matters for correctness, not behaviour today.
+   */
+  readonly ownPositionState = computed((): OwnPositionBannerState | null => {
+    const personId = this.highlightPersonId();
+    if (!personId) return null;
+
+    const data = this.data();
+    const placements = findOwnPlacements(data, personId);
+    if (placements.length === 0) return { kind: 'NONE' };
+    if (placements.length > 1) return { kind: 'MULTIPLE' };
+
+    return describeOwnPlacement(placements[0], data.instances.length);
   });
 
   /**
@@ -490,16 +518,7 @@ export class PinyaProjectionComponent {
   }
 
   getInstanceName(instance: ProjectionInstance): string {
-    const base = instance.label ?? instance.figureTemplate?.name ?? 'Figura';
-    if (instance.figureMode === 'PEU') return `Peu de ${base}`;
-    if (instance.figureMode === 'REMAT') return `Remat de ${base}`;
-    if (instance.figureMode === 'NETA') return `${base} ${this.netaSuffix(base)}`;
-    return base;
-  }
-
-  private netaSuffix(name: string): string {
-    const firstWord = name.trim().split(/\s+/)[0] ?? '';
-    return firstWord.endsWith('a') ? 'neta' : 'net';
+    return getSegmentInstanceLabel(instance);
   }
 
   private getTroncPanelNaturalSize(inst: ProjectionInstance): { naturalW: number; naturalH: number } {

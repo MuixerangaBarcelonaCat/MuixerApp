@@ -89,8 +89,13 @@ describe('getSegmentInstanceLabel', () => {
     expect(getSegmentInstanceLabel(instance)).toBe('pd4 net');
   });
 
-  it('ignores figureMode when the template has no pinya', () => {
+  it('applies the mode suffix even when figureTemplate.hasPinya is false', () => {
+    // `hasPinya` is overloaded across the two endpoints that populate this shape: the segment-list
+    // endpoint reports it structurally (does the template have pinya nodes at all), but the
+    // projection endpoint reports it mode-collapsed (`hasPinyaNodes && mode !== REMAT && mode !==
+    // NETA` — projection.service.ts) — false for precisely the modes this function must describe.
+    // Gating the suffix on it made PEU/REMAT/NETA unreachable for any caller fed projection data.
     const instance = makeInstance({ figureMode: FigureMode.PEU, figureTemplate: { name: 'Tronc', hasPinya: false } });
-    expect(getSegmentInstanceLabel(instance)).toBe('Tronc');
+    expect(getSegmentInstanceLabel(instance)).toBe('Peu de Tronc');
   });
 });

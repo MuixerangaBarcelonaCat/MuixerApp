@@ -17,7 +17,12 @@
   </div>
 } @else {
   <div class="relative flex flex-col h-screen w-screen overflow-hidden bg-white">
-    <lib-pinya-projection [data]="data()!" [instanceId]="null" [showZoomControls]="false" />
+    <lib-pinya-projection
+      [data]="data()!"
+      [instanceId]="null"
+      [showZoomControls]="false"
+      [highlightPersonId]="highlightPersonId()"
+    />
 
     <nav
       class="fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-full bg-black/60 text-white/80 text-sm backdrop-blur-sm z-50"

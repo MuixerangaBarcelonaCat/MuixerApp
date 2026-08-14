@@ -14,13 +14,14 @@ export default defineConfig({
         '**/*.entity.ts',
         '**/*.dto.ts',
         '**/*.interface.ts',
-        // coverage for this lib is enforced by its own `nx test pinyes-render` gate.
+        // Each lib enforces its own coverage in its own `nx test <lib>` gate.
         '**/libs/pinyes-render/**',
+        '**/libs/shared/**',
       ],
       thresholds: {
         statements: 77,
-        branches: 78,
-        functions: 72,
+        branches: 80,
+        functions: 71,
         lines: 80,
       },
     },

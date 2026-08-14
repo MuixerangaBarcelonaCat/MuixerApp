@@ -182,6 +182,7 @@ Detail: [docs/AUTH_FLOW.md](docs/AUTH_FLOW.md) · SSE: [docs/SSE_AUTH.md](docs/S
 - **Code** (variables, functions, classes, endpoints, DB columns, commits): **English**
 - **UI text** (buttons, labels, messages, placeholders): **Catalan**
 - **Domain terms:** `Person` (not Casteller), `Membre` (gender-neutral), `Xicalla` (children, not canalla)
+- **Style guide**: Read the skill language-rules (`.agents/skills/language-rules/`) before writing any text that may be visible to the user
 
 ## Testing conventions
 

@@ -7,13 +7,20 @@ import { PinyaProjectionComponent, ProjectionSegmentData } from '@muixer/pinyes-
 import { SegmentProjectionComponent } from './segment-projection.component';
 import { ProjectionService } from '../services/projection.service';
 import { LayoutService } from '../../../core/services/layout.service';
+import { AuthService } from '../../../core/auth/services/auth.service';
 
 @Component({ selector: 'lib-pinya-projection', standalone: true, template: '' })
 class PinyaProjectionStub {
   readonly data = input.required<unknown>();
   readonly instanceId = input<string | null>(null);
   readonly showZoomControls = input<boolean>(true);
+  readonly highlightPersonId = input<string | null>(null);
 }
+
+/** Minimal AuthService stub — only `currentUser().person.id` is read by this component. */
+const makeAuthService = (personId: string | null) => ({
+  currentUser: () => ({ person: personId ? { id: personId } : null }),
+});
 
 @Component({
   standalone: true,
@@ -37,7 +44,7 @@ describe('SegmentProjectionComponent', () => {
   let router: { navigate: ReturnType<typeof vi.fn> };
   let layoutService: { requestFullscreen: ReturnType<typeof vi.fn>; exitFullscreen: ReturnType<typeof vi.fn> };
 
-  async function setup(getProjectionReturn = of(makeData())) {
+  async function setup(getProjectionReturn = of(makeData()), personId: string | null = 'p1') {
     projectionService = { getProjection: vi.fn().mockReturnValue(getProjectionReturn) };
     router = { navigate: vi.fn() };
     layoutService = { requestFullscreen: vi.fn(), exitFullscreen: vi.fn() };
@@ -48,6 +55,7 @@ describe('SegmentProjectionComponent', () => {
         { provide: ProjectionService, useValue: projectionService },
         { provide: Router, useValue: router },
         { provide: LayoutService, useValue: layoutService },
+        { provide: AuthService, useValue: makeAuthService(personId) },
       ],
     })
       .overrideComponent(SegmentProjectionComponent, {
@@ -81,6 +89,18 @@ describe('SegmentProjectionComponent', () => {
     expect(stub.componentInstance.showZoomControls()).toBe(false);
   });
 
+  it("forwards the caller's own linked person id as highlightPersonId", async () => {
+    fixture = await setup(of(makeData()), 'p1');
+    const stub = fixture.debugElement.query(By.directive(PinyaProjectionStub));
+    expect(stub.componentInstance.highlightPersonId()).toBe('p1');
+  });
+
+  it('forwards null as highlightPersonId when the account has no linked person', async () => {
+    fixture = await setup(of(makeData()), null);
+    const stub = fixture.debugElement.query(By.directive(PinyaProjectionStub));
+    expect(stub.componentInstance.highlightPersonId()).toBeNull();
+  });
+
   it('shows a loading state before the projection resolves', async () => {
     projectionService = { getProjection: vi.fn().mockReturnValue(NEVER) };
     router = { navigate: vi.fn() };
@@ -92,6 +112,7 @@ describe('SegmentProjectionComponent', () => {
         { provide: ProjectionService, useValue: projectionService },
         { provide: Router, useValue: router },
         { provide: LayoutService, useValue: layoutService },
+        { provide: AuthService, useValue: makeAuthService('p1') },
       ],
     })
       .overrideComponent(SegmentProjectionComponent, {

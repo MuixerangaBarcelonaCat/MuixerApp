@@ -7,6 +7,7 @@ import { ProjectionSegmentData, PinyaProjectionComponent } from '@muixer/pinyes-
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { ProjectionService } from '../services/projection.service';
 import { LayoutService } from '../../../core/services/layout.service';
+import { AuthService } from '../../../core/auth/services/auth.service';
 
 @Component({
   selector: 'app-segment-projection',
@@ -26,6 +27,10 @@ export class SegmentProjectionComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly projectionService = inject(ProjectionService);
   private readonly layoutService = inject(LayoutService);
+  private readonly authService = inject(AuthService);
+
+  /** The viewer's own linked Person, if any — enables the "you are here" banner. */
+  protected readonly highlightPersonId = computed(() => this.authService.currentUser()?.person?.id ?? null);
 
   ngOnInit(): void {
     this.layoutService.requestFullscreen();

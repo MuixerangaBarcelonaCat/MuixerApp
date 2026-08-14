@@ -13,6 +13,7 @@ import {
   FigureCanvasComponent,
   TroncNodeItem,
   TroncViewComponent,
+  OwnPositionBannerComponent,
 } from '../../../index';
 
 @Component({ selector: 'app-figure-canvas', standalone: true, template: '' })
@@ -515,6 +516,45 @@ describe('PinyaProjectionComponent', () => {
       const inst2 = makeInstance([], ['n2'], { id: 'i2' });
       setData(makeSegmentData([inst1, inst2], { hasDistribution: true }));
       expect(component.distributionAssignments().length).toBe(2);
+    });
+  });
+
+  // ── highlightPersonId / own-position banner ──────────────────────────────────
+
+  describe('highlightPersonId', () => {
+    it('renders no banner when highlightPersonId is null (the default)', () => {
+      const inst = makeInstance([makeNode({ id: 'n1' })], ['n1'], { id: 'i1' });
+      setData(makeSegmentData([inst]));
+
+      expect(fixture.debugElement.query(By.directive(OwnPositionBannerComponent))).toBeNull();
+    });
+
+    it('renders the banner, fed the derived description, when highlightPersonId matches an assignment', () => {
+      const node = makeNode({ id: 'n1', label: 'Lateral' });
+      const inst = makeInstance([node], ['n1'], { id: 'i1' });
+      setData(makeSegmentData([inst]));
+      fixture.componentRef.setInput('highlightPersonId', 'p1');
+      fixture.detectChanges();
+
+      const banner = fixture.debugElement.query(By.directive(OwnPositionBannerComponent));
+      expect(banner.componentInstance.state()).toEqual({
+        kind: 'PINYA',
+        instanceIndex: 0,
+        nodeLabel: 'Lateral',
+        cordon: null,
+        figureName: null,
+        behind: null,
+      });
+    });
+
+    it('feeds the banner a NONE state when highlightPersonId matches nobody in this segment', () => {
+      const inst = makeInstance([makeNode({ id: 'n1' })], [], { id: 'i1' });
+      setData(makeSegmentData([inst]));
+      fixture.componentRef.setInput('highlightPersonId', 'someone-else');
+      fixture.detectChanges();
+
+      const banner = fixture.debugElement.query(By.directive(OwnPositionBannerComponent));
+      expect(banner.componentInstance.state()).toEqual({ kind: 'NONE' });
     });
   });
 });

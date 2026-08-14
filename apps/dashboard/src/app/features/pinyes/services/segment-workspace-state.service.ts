@@ -448,12 +448,13 @@ export class SegmentWorkspaceStateService {
     });
   }
 
-  /** PINYA + BASE (unless REMAT) + DECORATION nodes for the pinya canvas. */
+  /** PINYA (unless REMAT/NETA) + BASE (unless REMAT) + DECORATION nodes for the pinya canvas. */
   private pinyaCanvasNodesFor(instance: WorkspaceInstance): InstanceNodeItem[] {
+    const hidePinya = instance.figureMode === 'REMAT' || instance.figureMode === 'NETA';
     const hideBase = instance.figureMode === 'REMAT';
     return this.visibleNodesFor(instance).filter(
       (n) =>
-        n.zone === FigureZone.PINYA ||
+        (!hidePinya && n.zone === FigureZone.PINYA) ||
         (!hideBase && n.zone === FigureZone.BASE) ||
         n.zone === FigureZone.DECORATION,
     );

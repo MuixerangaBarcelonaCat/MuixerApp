@@ -2373,8 +2373,13 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
         stroke: 'transparent',
         strokeWidth: 0,
       });
+      // Proportional to the node's own size, not a fixed pixel value: box and blur share the same
+      // world-space coordinate system, so they scale identically with the stage's zoom — a fixed
+      // blur instead grew visually huge relative to a compact figure (more so on a small mobile
+      // viewport, which needs a bigger fit-to-screen scale to fill the same amount of screen).
+      const blur = Math.max(6, Math.min(box.width, box.height) * 0.5);
       shape.shadowColor(box.color);
-      shape.shadowBlur(30);
+      shape.shadowBlur(blur);
       shape.shadowOpacity(0.95);
       shape.shadowOffset({ x: 0, y: 0 });
       group.add(shape);

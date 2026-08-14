@@ -2,6 +2,7 @@ export * from './lib/components/figure-canvas/figure-canvas.component';
 export * from './lib/components/tronc-view/tronc-view.component';
 export * from './lib/components/person-hover-card/person-hover-card.component';
 export * from './lib/components/pinya-projection/pinya-projection.component';
+export * from './lib/components/own-position-banner/own-position-banner.component';
 
 export * from './lib/directives/fit-text.directive';
 
@@ -23,3 +24,4 @@ export * from './lib/utils/cordo-obert.util';
 export * from './lib/utils/projection-layout.util';
 export * from './lib/utils/figure-placement.util';
 export * from './lib/utils/floor-variance.util';
+export * from './lib/utils/own-position.util';

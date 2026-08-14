@@ -30,13 +30,19 @@ export function computeSegmentDisplayName(
   return Array.from(counts, ([label, count]) => (count > 1 ? `${count} ${label}` : label)).join(' + ');
 }
 
+/**
+ * Not gated on `figureTemplate.hasPinya` — that field is overloaded across the two endpoints
+ * that populate this shape. The segment-list endpoint reports it structurally (does the template
+ * have pinya nodes at all); the projection endpoint reports it mode-collapsed
+ * (`hasPinyaNodes && mode !== REMAT && mode !== NETA` — see `projection.service.ts`), which is
+ * false for exactly the modes below. Gating on it here would make PEU/REMAT/NETA unreachable for
+ * any caller fed projection data.
+ */
 export function getSegmentInstanceLabel(instance: SegmentTitleInstance): string {
   const base = instance.label ?? instance.figureTemplate?.name ?? '?';
-  if (instance.figureTemplate?.hasPinya) {
-    if (instance.figureMode === 'PEU') return `Peu de ${base}`;
-    if (instance.figureMode === 'REMAT') return `Remat de ${base}`;
-    if (instance.figureMode === 'NETA') return `${base} ${netaSuffix(base)}`;
-  }
+  if (instance.figureMode === 'PEU') return `Peu de ${base}`;
+  if (instance.figureMode === 'REMAT') return `Remat de ${base}`;
+  if (instance.figureMode === 'NETA') return `${base} ${netaSuffix(base)}`;
   return base;
 }
 
