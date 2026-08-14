@@ -87,7 +87,7 @@
       "configurations": {
         "ci": {
           "coverage": true,
-          "runnerConfig": true
+          "runnerConfig": "apps/dashboard/vitest.config.ts"
         }
       }
     },

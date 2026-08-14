@@ -90,7 +90,8 @@
       "options": {},
       "configurations": {
         "ci": {
-          "coverage": true
+          "coverage": true,
+          "runnerConfig": "apps/pwa/vitest.config.ts"
         }
       }
     },
