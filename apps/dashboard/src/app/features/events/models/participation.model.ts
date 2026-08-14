@@ -1,4 +1,4 @@
-import { AssignmentArea, AttendanceStatus, AvailablePersonPosition } from '../../pinyes/models/assignment.model';
+import { AssignmentArea, AttendanceStatus, AvailablePersonPosition } from '@muixer/pinyes-render';
 
 /**
  * Mirrors the `GET /events/:eventId/participation` contract.

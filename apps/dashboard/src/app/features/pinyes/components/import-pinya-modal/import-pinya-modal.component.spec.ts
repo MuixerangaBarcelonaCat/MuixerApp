@@ -1,10 +1,10 @@
+import { FigureHistoryEntry, BulkImportResult } from '@muixer/pinyes-render';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi, type Mock } from 'vitest';
 import { of, throwError } from 'rxjs';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { ImportPinyaModalComponent } from './import-pinya-modal.component';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
-import { FigureHistoryEntry, BulkImportResult } from '../../models/assignment.model';
 
 const TEMPLATE_ID = 'template-uuid-1';
 const INSTANCE_ID = 'instance-uuid-1';

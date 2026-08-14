@@ -1,3 +1,4 @@
+import { FigureCanvasComponent, SegmentNodeRef, targetTabForZone, AssignmentDetail, AttendanceStatus, AvailablePerson, AvailablePersonPosition, BulkImportResult, ConflictPlacement, PendingOp, TroncChangeImpact } from '@muixer/pinyes-render';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -13,7 +14,6 @@ import {
   signal,
 } from '@angular/core';
 import { LucideAngularModule, Trash2, Undo2, Redo2 } from 'lucide-angular';
-import { FigureCanvasComponent } from '../../../figure-canvas/figure-canvas.component';
 import { PersonPanelComponent } from '../../../person-panel/person-panel.component';
 import { AlreadyAssignedDialogComponent } from '../../../already-assigned-dialog/already-assigned-dialog.component';
 import { SegmentWorkspaceStateService, WorkspaceInstance } from '../../../../services/segment-workspace-state.service';
@@ -21,17 +21,6 @@ import { AssignmentStateService } from '../../../../services/assignment-state.se
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
 import { ToastService } from '../../../../../../shared/components/feedback/toast/toast.service';
 import { UndoRedoService, UndoableAction } from '../../../../services/undo-redo.service';
-import { SegmentNodeRef, targetTabForZone } from '../../../../utils/segment-assignment-render.util';
-import {
-  AssignmentDetail,
-  AttendanceStatus,
-  AvailablePerson,
-  AvailablePersonPosition,
-  BulkImportResult,
-  ConflictPlacement,
-  PendingOp,
-  TroncChangeImpact,
-} from '../../../../models/assignment.model';
 import { ImportPinyaModalComponent } from '../../../import-pinya-modal/import-pinya-modal.component';
 import { FigureZone } from '@muixer/shared';
 import { forkJoin, map, Observable, switchMap } from 'rxjs';

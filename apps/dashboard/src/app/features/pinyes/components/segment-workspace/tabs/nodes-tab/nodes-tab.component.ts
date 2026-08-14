@@ -1,3 +1,4 @@
+import { FigureCanvasComponent, SegmentNodeRef, AssignmentDetail, CreateAdHocNodePayload, InstanceNodeItem, UpdateAdHocNodePayload } from '@muixer/pinyes-render';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -16,19 +17,11 @@ import {
   NodePreset,
   PINYA_NODE_PRESETS,
 } from '@muixer/shared';
-import { FigureCanvasComponent } from '../../../figure-canvas/figure-canvas.component';
 import { AdHocNodePropertiesComponent } from '../../../ad-hoc-node-properties/ad-hoc-node-properties.component';
 import { SegmentWorkspaceStateService } from '../../../../services/segment-workspace-state.service';
 import { AssignmentStateService } from '../../../../services/assignment-state.service';
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
 import { ToastService } from '../../../../../../shared/components/feedback/toast/toast.service';
-import { SegmentNodeRef } from '../../../../utils/segment-assignment-render.util';
-import {
-  AssignmentDetail,
-  CreateAdHocNodePayload,
-  InstanceNodeItem,
-  UpdateAdHocNodePayload,
-} from '../../../../models/assignment.model';
 
 interface AdHocNodeSnapshot {
   zone: string;

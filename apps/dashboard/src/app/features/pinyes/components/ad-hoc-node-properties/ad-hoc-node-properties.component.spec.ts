@@ -1,3 +1,4 @@
+import { InstanceNodeItem } from '@muixer/pinyes-render';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import { of } from 'rxjs';
@@ -5,7 +6,6 @@ import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provi
 import { AdHocNodePropertiesComponent } from './ad-hoc-node-properties.component';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
-import { InstanceNodeItem } from '../../models/assignment.model';
 import { FigureZone, NodeShape } from '@muixer/shared';
 
 const makeNode = (overrides: Partial<InstanceNodeItem> = {}): InstanceNodeItem => ({

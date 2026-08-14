@@ -1,3 +1,4 @@
+import { ConflictPlacement } from '@muixer/pinyes-render';
 import {
   Component,
   ChangeDetectionStrategy,
@@ -9,7 +10,6 @@ import {
   viewChild,
 } from '@angular/core';
 import { LucideAngularModule } from 'lucide-angular';
-import { ConflictPlacement } from '../../models/assignment.model';
 import { ICON_OBSERVACIONS } from '@muixer/shared';
 
 @Component({

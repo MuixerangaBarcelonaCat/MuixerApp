@@ -1,10 +1,10 @@
+import { FigureTemplateListItem } from '@muixer/pinyes-render';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import { of } from 'rxjs';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { FigurePickerModalComponent, InstanceSelection } from './figure-picker-modal.component';
 import { FigureTemplateService } from '../../services/figure-template.service';
-import { FigureTemplateListItem } from '../../models/figure-template.model';
 import { CompositionService } from '../../services/composition.service';
 import { CompositionListItem } from '../../models/composition.model';
 

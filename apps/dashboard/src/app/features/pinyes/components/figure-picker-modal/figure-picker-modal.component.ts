@@ -1,3 +1,4 @@
+import { FigureTemplateListItem } from '@muixer/pinyes-render';
 import {
   AfterViewInit,
   ChangeDetectionStrategy,
@@ -15,7 +16,6 @@ import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
 import { ICON_TEMPLATE, ICON_COMPOSITION } from '../../../../shared/constants/domain-icons';
 import { FigureTemplateService } from '../../services/figure-template.service';
-import { FigureTemplateListItem } from '../../models/figure-template.model';
 import { CompositionService } from '../../services/composition.service';
 import { CompositionListItem } from '../../models/composition.model';
 

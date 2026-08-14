@@ -1,6 +1,6 @@
+import { TroncViewComponent, TroncNodeItem, SegmentNodeRef, targetTabForZone, computeFigureBoundingBoxes, FigureBoundingBox, getFigureColor, AssignmentDetail, AttendanceStatus, AvailablePerson, AvailablePersonPosition, ConflictPlacement, PendingOp, TroncChangeImpact } from '@muixer/pinyes-render';
 import { ChangeDetectionStrategy, Component, DestroyRef, HostListener, OnInit, computed, inject, input, output, signal } from '@angular/core';
 import { LucideAngularModule, Map as MapIcon, Undo2, Redo2 } from 'lucide-angular';
-import { TroncViewComponent, TroncNodeItem } from '../../../tronc-view/tronc-view.component';
 import { PersonPanelComponent } from '../../../person-panel/person-panel.component';
 import { AlreadyAssignedDialogComponent } from '../../../already-assigned-dialog/already-assigned-dialog.component';
 import { SegmentWorkspaceStateService, WorkspaceInstance } from '../../../../services/segment-workspace-state.service';
@@ -9,19 +9,7 @@ import { NodeAssignmentService } from '../../../../services/node-assignment.serv
 import { ToastService } from '../../../../../../shared/components/feedback/toast/toast.service';
 import { generateUUID } from '../../../../../../shared/utils/uuid.util';
 import { UndoRedoService, UndoableAction } from '../../../../services/undo-redo.service';
-import { SegmentNodeRef, targetTabForZone } from '../../../../utils/segment-assignment-render.util';
 import { buildTroncBuckets, pickNextAssignableNode } from '../../../../utils/assignment-order.util';
-import { computeFigureBoundingBoxes, FigureBoundingBox } from '../../../../utils/figure-placement.util';
-import { getFigureColor } from '../../../../utils/figure-palette.util';
-import {
-  AssignmentDetail,
-  AttendanceStatus,
-  AvailablePerson,
-  AvailablePersonPosition,
-  ConflictPlacement,
-  PendingOp,
-  TroncChangeImpact,
-} from '../../../../models/assignment.model';
 import { DIRECTION_NODE_PRESETS, FigureZone } from '@muixer/shared';
 import { forkJoin, map, Observable, switchMap } from 'rxjs';
 

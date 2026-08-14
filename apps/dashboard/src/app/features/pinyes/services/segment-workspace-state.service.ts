@@ -1,3 +1,4 @@
+import { SegmentDetail, InstanceNodeItem, SegmentConflict, SegmentPeopleCounters, TroncChangeImpact, CompositionSlotWithNodes, computeCordoObertOverrides, figureExtentFromNodes, placeFigures, placeNewFigure, PlacedFigurePosition, pivotNodesFor, SegmentNodeRef } from '@muixer/pinyes-render';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { FigureZone, isNodeVisibleByCordons } from '@muixer/shared';
 import { AssignmentStateService } from './assignment-state.service';
@@ -5,23 +6,7 @@ import { EventSegmentService } from './event-segment.service';
 import { SegmentDistributionService } from './segment-distribution.service';
 import { NodeAssignmentService, LockStatus } from './node-assignment.service';
 import { ToastService } from '../../../shared/components/feedback/toast/toast.service';
-import { SegmentDetail } from '../models/segment.model';
 import { DistributionItem } from '../models/distribution.model';
-import {
-  InstanceNodeItem,
-  SegmentConflict,
-  SegmentPeopleCounters,
-  TroncChangeImpact,
-} from '../models/assignment.model';
-import { CompositionSlotWithNodes } from '../components/figure-canvas/figure-canvas.component';
-import { computeCordoObertOverrides } from '../utils/cordo-obert.util';
-import {
-  figureExtentFromNodes,
-  placeFigures,
-  placeNewFigure,
-  PlacedFigurePosition,
-} from '../utils/figure-placement.util';
-import { pivotNodesFor, SegmentNodeRef } from '../utils/segment-assignment-render.util';
 
 export interface WorkspaceInstance {
   instanceId: string;

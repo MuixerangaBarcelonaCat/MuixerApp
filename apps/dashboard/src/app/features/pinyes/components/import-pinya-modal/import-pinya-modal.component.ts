@@ -1,3 +1,4 @@
+import { BulkImportResult, FigureHistoryEntry } from '@muixer/pinyes-render';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -11,7 +12,6 @@ import {
 import { SlicePipe } from '@angular/common';
 import { LucideAngularModule, Import, X } from 'lucide-angular';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
-import { BulkImportResult, FigureHistoryEntry } from '../../models/assignment.model';
 
 @Component({
   selector: 'app-import-pinya-modal',

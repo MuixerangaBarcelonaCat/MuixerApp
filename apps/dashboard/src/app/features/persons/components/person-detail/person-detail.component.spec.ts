@@ -1,3 +1,4 @@
+import { PersonAssignmentEntry } from '@muixer/pinyes-render';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { of, throwError } from 'rxjs';
@@ -10,7 +11,6 @@ import { PersonDelegateService, PersonDelegateItem } from '../../services/person
 import { TagService } from '../../../config/services/tag.service';
 import { NodeAssignmentService } from '../../../pinyes/services/node-assignment.service';
 import { SeasonService } from '../../../events/services/season.service';
-import { PersonAssignmentEntry } from '../../../pinyes/models/assignment.model';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 

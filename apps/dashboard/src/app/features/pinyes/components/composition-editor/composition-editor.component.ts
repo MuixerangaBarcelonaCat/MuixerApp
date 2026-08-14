@@ -1,3 +1,4 @@
+import { FigureCanvasComponent, CompositionSlotWithNodes, repositionCordoObertNodes, FigureMode, FigureTemplateListItem } from '@muixer/pinyes-render';
 import {
   Component,
   ChangeDetectionStrategy,
@@ -15,17 +16,13 @@ import { CompositionService } from '../../services/composition.service';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { CanvasStateService } from '../../services/canvas-state.service';
 import { LayoutService } from '../../../../core/services/layout.service';
-import { FigureCanvasComponent, CompositionSlotWithNodes } from '../figure-canvas/figure-canvas.component';
 import { FigurePropertiesPanelComponent, FigurePropertiesEntry } from '../figure-properties-panel/figure-properties-panel.component';
 import { computeMaxCordons, filterNodesByFigureMode } from '../../utils/figure-mode-filter.util';
-import { repositionCordoObertNodes } from '../../utils/cordo-obert.util';
 import {
   CompositionDetail,
   CompositionEntryItem,
   CreateCompositionEntryPayload,
 } from '../../models/composition.model';
-import { FigureMode } from '../../models/segment.model';
-import { FigureTemplateListItem } from '../../models/figure-template.model';
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 

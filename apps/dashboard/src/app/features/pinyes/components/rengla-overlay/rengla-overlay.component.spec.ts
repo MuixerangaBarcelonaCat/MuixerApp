@@ -1,8 +1,8 @@
+import { FigureNodeItem, RenglaModel } from '@muixer/pinyes-render';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { RenglaOverlayComponent, RenglaCreatedEvent, RenglaDeletedEvent } from './rengla-overlay.component';
-import { FigureNodeItem, RenglaModel } from '../../models/figure-template.model';
 import { FigureZone, NodeShape } from '@muixer/shared';
 
 const makeNode = (overrides: Partial<FigureNodeItem> = {}): FigureNodeItem => ({

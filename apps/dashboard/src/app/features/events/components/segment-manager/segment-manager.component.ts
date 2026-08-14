@@ -1,3 +1,4 @@
+import { SegmentDetail, InstanceDetail, FigureMode, InstanceTroncSummary, TroncFloorData, MoveInstanceResult, EventFigureSummary, FigureAreaCount, SegmentPeopleCounters } from '@muixer/pinyes-render';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -24,19 +25,6 @@ import {
   FigurePickerModalComponent,
   InstanceSelection,
 } from '../../../pinyes/components/figure-picker-modal/figure-picker-modal.component';
-import {
-  SegmentDetail,
-  InstanceDetail,
-  FigureMode,
-  InstanceTroncSummary,
-  TroncFloorData,
-  MoveInstanceResult,
-} from '../../../pinyes/models/segment.model';
-import {
-  EventFigureSummary,
-  FigureAreaCount,
-  SegmentPeopleCounters,
-} from '../../../pinyes/models/assignment.model';
 import { eventReturnUrl } from '../../utils/event-return-url.util';
 
 export type ViewMode = FiguresViewMode;

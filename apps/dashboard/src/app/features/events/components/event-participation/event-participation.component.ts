@@ -1,3 +1,4 @@
+import { AttendanceStatus, AvailablePersonPosition } from '@muixer/pinyes-render';
 import {
   Component,
   ChangeDetectionStrategy,
@@ -21,7 +22,6 @@ import { ColumnDef, ColumnPill } from '../../../../shared/models/column-def.mode
 import { SortChange, SortOrder } from '../../../../shared/models/sort.model';
 import { ICON_FIGURA, ICON_XICALLA } from '../../../../shared/constants/domain-icons';
 import { formatNodeCordonLabel } from '../../../pinyes/utils/node-cordon-label.util';
-import { AttendanceStatus, AvailablePersonPosition } from '../../../pinyes/models/assignment.model';
 import { ParticipationService } from '../../services/participation.service';
 import {
   ParticipationMeta,

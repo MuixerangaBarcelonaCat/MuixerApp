@@ -1,3 +1,4 @@
+import { SegmentNodeRef } from '@muixer/pinyes-render';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -21,7 +22,6 @@ import { ToastService } from '../../../../shared/components/feedback/toast/toast
 import { SegmentWorkspaceStateService } from '../../services/segment-workspace-state.service';
 import { ConflictResolutionService } from '../../services/conflict-resolution.service';
 import { UndoRedoService } from '../../services/undo-redo.service';
-import { SegmentNodeRef } from '../../utils/segment-assignment-render.util';
 import { PinyesTabComponent } from './tabs/pinyes-tab/pinyes-tab.component';
 import { TroncsTabComponent } from './tabs/troncs-tab/troncs-tab.component';
 import { DistribucioTabComponent } from './tabs/distribucio-tab/distribucio-tab.component';

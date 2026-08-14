@@ -1,4 +1,3 @@
-import { describe, it, expect } from 'vitest';
 import { floorVariance, varianceLevel } from './floor-variance.util';
 import { AssignmentDetail } from '../models/assignment.model';
 

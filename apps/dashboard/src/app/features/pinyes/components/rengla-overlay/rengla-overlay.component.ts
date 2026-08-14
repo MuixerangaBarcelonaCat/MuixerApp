@@ -1,3 +1,4 @@
+import { FigureNodeItem, RenglaModel, StageTransform, stageToScreen, isCentralNode, getFigureColor } from '@muixer/pinyes-render';
 import {
   Component,
   ChangeDetectionStrategy,
@@ -8,10 +9,7 @@ import {
   HostListener,
 } from '@angular/core';
 import { LucideAngularModule } from 'lucide-angular';
-import { FigureNodeItem, RenglaModel } from '../../models/figure-template.model';
 import { FigureZone } from '@muixer/shared';
-import { StageTransform, stageToScreen, isCentralNode } from '../../utils/rengla-coordinates.util';
-import { getFigureColor } from '../../utils/figure-palette.util';
 
 export interface RenglaCreatedEvent {
   rengla: Omit<RenglaModel, 'id'>;

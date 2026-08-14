@@ -1,3 +1,4 @@
+import { AssignmentDetail, HeightMode, InstanceNodeItem, UpdateAdHocNodePayload } from '@muixer/pinyes-render';
 import {
   Component,
   ChangeDetectionStrategy,
@@ -9,7 +10,6 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, X, Trash2, UserMinus, Copy } from 'lucide-angular';
-import { AssignmentDetail, HeightMode, InstanceNodeItem, UpdateAdHocNodePayload } from '../../models/assignment.model';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { ColorPickerComponent } from '../../../../shared/components/forms/color-picker/color-picker.component';

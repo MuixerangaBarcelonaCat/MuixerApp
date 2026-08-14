@@ -1,7 +1,7 @@
+import { ConflictPlacement } from '@muixer/pinyes-render';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import { AlreadyAssignedDialogComponent } from './already-assigned-dialog.component';
-import { ConflictPlacement } from '../../models/assignment.model';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 
 const makePlacement = (over: Partial<ConflictPlacement> = {}): ConflictPlacement => ({

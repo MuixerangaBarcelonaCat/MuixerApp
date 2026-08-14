@@ -1,3 +1,4 @@
+import { SegmentDetail, InstanceDetail, AssignmentDetail, AvailablePerson, InstanceNodeItem, SegmentConflict } from '@muixer/pinyes-render';
 import { TestBed } from '@angular/core/testing';
 import { of, Subject } from 'rxjs';
 import { describe, it, expect, vi } from 'vitest';
@@ -7,14 +8,7 @@ import { EventSegmentService } from './event-segment.service';
 import { SegmentDistributionService } from './segment-distribution.service';
 import { NodeAssignmentService } from './node-assignment.service';
 import { ToastService } from '../../../shared/components/feedback/toast/toast.service';
-import { SegmentDetail, InstanceDetail } from '../models/segment.model';
 import { SegmentDistributionData } from '../models/distribution.model';
-import {
-  AssignmentDetail,
-  AvailablePerson,
-  InstanceNodeItem,
-  SegmentConflict,
-} from '../models/assignment.model';
 
 const EVENT_ID = 'event-1';
 const SEGMENT_ID = 'seg-1';

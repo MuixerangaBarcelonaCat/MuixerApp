@@ -1,14 +1,6 @@
+import { AssignmentArea, AssignmentDetail, AvailablePerson, HeightMode, InstanceNodeItem, PendingOp, isConfirmedAttendance } from '@muixer/pinyes-render';
 import { Injectable, computed, signal } from '@angular/core';
 import { NodePreset } from '@muixer/shared';
-import {
-  AssignmentArea,
-  AssignmentDetail,
-  AvailablePerson,
-  HeightMode,
-  InstanceNodeItem,
-  PendingOp,
-  isConfirmedAttendance,
-} from '../models/assignment.model';
 
 @Injectable({
   providedIn: 'root',

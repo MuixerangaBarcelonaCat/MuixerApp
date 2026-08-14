@@ -1,27 +1,7 @@
+import { AssignmentDetail, AvailablePerson, AvailablePersonsQuery, BulkImportPayload, BulkImportResult, CordonsResponse, CreateAdHocNodePayload, CreateAssignmentPayload, EventAssignmentSummary, FigureHistoryEntry, HistoryMeta, HistoryQuery, InstanceNodeItem, PersonAssignmentHistory, SegmentConflictsResponse, SwapAssignmentsPayload, TroncChangeImpact, UpdateAdHocNodePayload, UpdateInstanceCordonsPayload } from '@muixer/pinyes-render';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
-import {
-  AssignmentDetail,
-  AvailablePerson,
-  AvailablePersonsQuery,
-  BulkImportPayload,
-  BulkImportResult,
-  CordonsResponse,
-  CreateAdHocNodePayload,
-  CreateAssignmentPayload,
-  EventAssignmentSummary,
-  FigureHistoryEntry,
-  HistoryMeta,
-  HistoryQuery,
-  InstanceNodeItem,
-  PersonAssignmentHistory,
-  SegmentConflictsResponse,
-  SwapAssignmentsPayload,
-  TroncChangeImpact,
-  UpdateAdHocNodePayload,
-  UpdateInstanceCordonsPayload,
-} from '../models/assignment.model';
 
 @Injectable({
   providedIn: 'root',

@@ -1,7 +1,7 @@
+import { ProjectionSegmentData } from '@muixer/pinyes-render';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
-import { ProjectionSegmentData } from '../models/projection.model';
 
 @Injectable({
   providedIn: 'root',

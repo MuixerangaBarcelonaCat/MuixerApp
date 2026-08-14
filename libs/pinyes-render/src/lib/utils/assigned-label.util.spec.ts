@@ -1,4 +1,3 @@
-import { describe, it, expect } from 'vitest';
 import { formatAssignedLabel } from './assigned-label.util';
 
 describe('formatAssignedLabel', () => {

@@ -1,4 +1,3 @@
-import { describe, it, expect } from 'vitest';
 import {
   DEFAULT_PLACEMENT_GAP,
   PLACEMENT_SCREEN_WIDTH,

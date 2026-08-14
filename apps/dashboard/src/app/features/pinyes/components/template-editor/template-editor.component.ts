@@ -1,3 +1,4 @@
+import { FigureCanvasComponent, CanvasNode, TroncViewComponent, FigureTemplateDetail, FigureNodeItem, CreateFigureNodePayload, RenglaModel, isGhostEligible, calculateGhostPosition, StageTransform } from '@muixer/pinyes-render';
 import {
   Component,
   ChangeDetectionStrategy,
@@ -21,23 +22,13 @@ import { generateUUID } from '../../../../shared/utils/uuid.util';
 import { slugify } from '../../utils/slugify.util';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { CanvasStateService } from '../../services/canvas-state.service';
-import { FigureCanvasComponent, CanvasNode } from '../figure-canvas/figure-canvas.component';
-import { TroncViewComponent } from '../tronc-view/tronc-view.component';
 import { TemplateEditorHelpModalComponent } from '../template-editor-help-modal/template-editor-help-modal.component';
-import {
-  FigureTemplateDetail,
-  FigureNodeItem,
-  CreateFigureNodePayload,
-  RenglaModel,
-} from '../../models/figure-template.model';
 import { FigureZone, NodeShape, PINYA_NODE_PRESETS, NodePreset, TRONC_NODE_PRESETS } from '@muixer/shared';
 import { ColorPickerComponent } from '../../../../shared/components/forms/color-picker/color-picker.component';
 import { NodeDpadComponent } from '../../../../shared/components/controls/node-dpad/node-dpad.component';
 import { NodeActionsComponent } from '../../../../shared/components/controls/node-actions/node-actions.component';
-import { isGhostEligible, calculateGhostPosition } from '../../utils/ghost-clone.util';
 import { getPresetColorsForZone, isNodeColorEditable } from '../../utils/node-color-presets.util';
 import { RenglaOverlayComponent, RenglaCreatedEvent, RenglaDeletedEvent, RenglaStartChangedEvent } from '../rengla-overlay/rengla-overlay.component';
-import { StageTransform } from '../../utils/rengla-coordinates.util';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { validateBaseOrdering } from '../../utils/base-ordering.util';

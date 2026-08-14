@@ -1,3 +1,4 @@
+import { AssignmentArea, AvailablePerson, AssignmentDetail, ConflictPlacement, HeightMode, PersonHoverInfo, isConfirmedAttendance, PersonHoverCardComponent } from '@muixer/pinyes-render';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -16,10 +17,8 @@ import { LucideAngularModule, RefreshCw, ChevronDown, ChevronUp, UserX } from 'l
 import { DIRECTION_ZONES, FigureZone, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
-import { AssignmentArea, AvailablePerson, AssignmentDetail, ConflictPlacement, HeightMode, PersonHoverInfo, isConfirmedAttendance } from '../../models/assignment.model';
 import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { formatNodeCordonLabel } from '../../utils/node-cordon-label.util';
-import { PersonHoverCardComponent } from '../person-hover-card/person-hover-card.component';
 import { TagService } from '../../../config/services/tag.service';
 import { TagWithCount } from '../../../config/models/tag.model';
 

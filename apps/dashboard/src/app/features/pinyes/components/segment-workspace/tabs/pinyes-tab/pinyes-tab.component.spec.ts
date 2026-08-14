@@ -1,10 +1,10 @@
+import { FigureCanvasComponent, CompositionSlotWithNodes, SegmentNodeRef, AssignmentDetail, AvailablePerson, BulkImportResult, InstanceNodeItem, InstanceDetail, SegmentDetail } from '@muixer/pinyes-render';
 import { Component, input, output } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of, Subject, throwError } from 'rxjs';
 import { describe, it, expect, vi } from 'vitest';
 import { allLucideIconsProvider } from '../../../../../../../testing/lucide-test-provider';
 import { PinyesTabComponent } from './pinyes-tab.component';
-import { FigureCanvasComponent, CompositionSlotWithNodes } from '../../../figure-canvas/figure-canvas.component';
 import { PersonPanelComponent } from '../../../person-panel/person-panel.component';
 import { SegmentWorkspaceStateService } from '../../../../services/segment-workspace-state.service';
 import { AssignmentStateService } from '../../../../services/assignment-state.service';
@@ -13,10 +13,7 @@ import { EventSegmentService } from '../../../../services/event-segment.service'
 import { SegmentDistributionService } from '../../../../services/segment-distribution.service';
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
 import { ToastService } from '../../../../../../shared/components/feedback/toast/toast.service';
-import { SegmentNodeRef } from '../../../../utils/segment-assignment-render.util';
-import { AssignmentDetail, AvailablePerson, BulkImportResult, InstanceNodeItem } from '../../../../models/assignment.model';
 import { ImportPinyaModalComponent } from '../../../import-pinya-modal/import-pinya-modal.component';
-import { InstanceDetail, SegmentDetail } from '../../../../models/segment.model';
 
 // ── Stub children ────────────────────────────────────────────────────────────
 

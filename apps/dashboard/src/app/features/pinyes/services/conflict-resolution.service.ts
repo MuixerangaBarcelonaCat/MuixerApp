@@ -1,3 +1,4 @@
+import { AssignmentDetail, ConflictPlacement, SegmentConflict } from '@muixer/pinyes-render';
 import { Injectable, inject } from '@angular/core';
 import { forkJoin, map, Observable } from 'rxjs';
 import { NodeAssignmentService } from './node-assignment.service';
@@ -5,7 +6,6 @@ import { SegmentWorkspaceStateService } from './segment-workspace-state.service'
 import { AssignmentStateService } from './assignment-state.service';
 import { UndoRedoService } from './undo-redo.service';
 import { ToastService } from '../../../shared/components/feedback/toast/toast.service';
-import { AssignmentDetail, ConflictPlacement, SegmentConflict } from '../models/assignment.model';
 
 interface TrackedPlacement {
   instanceId: string;

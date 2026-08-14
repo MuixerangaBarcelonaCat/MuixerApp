@@ -1,3 +1,4 @@
+import { SegmentDetail, InstanceDetail, EventAssignmentSummary, EventFigureSummary, SegmentPeopleCounters } from '@muixer/pinyes-render';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi, afterEach } from 'vitest';
 import { of, throwError } from 'rxjs';
@@ -11,12 +12,6 @@ import { FigureInstanceService } from '../../../pinyes/services/figure-instance.
 import { CompositionService } from '../../../pinyes/services/composition.service';
 import { NodeAssignmentService } from '../../../pinyes/services/node-assignment.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
-import { SegmentDetail, InstanceDetail } from '../../../pinyes/models/segment.model';
-import {
-  EventAssignmentSummary,
-  EventFigureSummary,
-  SegmentPeopleCounters,
-} from '../../../pinyes/models/assignment.model';
 
 const EVENT_ID = 'event-uuid-1';
 

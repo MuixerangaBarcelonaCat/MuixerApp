@@ -1,3 +1,4 @@
+import { FigureCanvasComponent, CompositionSlotWithNodes, FigureMode } from '@muixer/pinyes-render';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -9,7 +10,6 @@ import {
   signal,
 } from '@angular/core';
 import { LucideAngularModule } from 'lucide-angular';
-import { FigureCanvasComponent, CompositionSlotWithNodes } from '../../../figure-canvas/figure-canvas.component';
 import {
   FigurePropertiesPanelComponent,
   FigurePropertiesEntry,
@@ -23,7 +23,6 @@ import { ToastService } from '../../../../../../shared/components/feedback/toast
 import { mapDistributionItemsToSlots } from '../../../../utils/distribution-slot-mapping.util';
 import { computeMaxCordons } from '../../../../utils/figure-mode-filter.util';
 import { DistributionItem, InstanceDistributionPayload } from '../../../../models/distribution.model';
-import { FigureMode } from '../../../../models/segment.model';
 
 const INITIAL_ZOOM = 0.75;
 

@@ -1,7 +1,7 @@
+import { FigureMode } from '@muixer/pinyes-render';
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
-import { FigureMode } from '../../models/segment.model';
 
 export interface FigurePropertiesEntry {
   id: string;

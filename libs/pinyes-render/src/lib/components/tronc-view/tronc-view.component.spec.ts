@@ -1,6 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
+import { allLucideIconsProvider } from '../../../testing/lucide-test-provider';
 import { TroncViewComponent, TroncNodeItem } from './tronc-view.component';
 import { AssignmentDetail } from '../../models/assignment.model';
 
@@ -1334,7 +1333,7 @@ describe('TroncViewComponent', () => {
 
     beforeEach(() => {
       // jsdom doesn't implement elementFromPoint at all (not even as a no-op) —
-      // define it once so vi.spyOn has an existing property to replace per test.
+      // define it once so jest.spyOn has an existing property to replace per test.
       if (!('elementFromPoint' in document)) {
         Object.defineProperty(document, 'elementFromPoint', { value: () => null, writable: true, configurable: true });
       }
@@ -1368,14 +1367,14 @@ describe('TroncViewComponent', () => {
     });
 
     it('starts dragging once pointermove exceeds the movement threshold', () => {
-      vi.spyOn(document, 'elementFromPoint').mockReturnValue(null);
+      jest.spyOn(document, 'elementFromPoint').mockReturnValue(null);
       component.onNodePointerDown(component.troncNodes()[0], makePointerEvent({ clientX: 0, clientY: 0 }));
       component.onNodePointerMove(makePointerEvent({ clientX: 20, clientY: 0 }));
       expect(component.isDragging('node-1')).toBe(true);
     });
 
     it('does not start dragging when movement stays under the threshold', () => {
-      vi.spyOn(document, 'elementFromPoint').mockReturnValue(null);
+      jest.spyOn(document, 'elementFromPoint').mockReturnValue(null);
       component.onNodePointerDown(component.troncNodes()[0], makePointerEvent({ clientX: 0, clientY: 0 }));
       component.onNodePointerMove(makePointerEvent({ clientX: 2, clientY: 0 }));
       expect(component.isDragging('node-1')).toBe(false);
@@ -1383,7 +1382,7 @@ describe('TroncViewComponent', () => {
 
     it('sets dragOverNodeId to the node resolved under the pointer while dragging', () => {
       const target = makeDropTargetElement('node-2', 'instance-a');
-      vi.spyOn(document, 'elementFromPoint').mockReturnValue(target);
+      jest.spyOn(document, 'elementFromPoint').mockReturnValue(target);
       component.onNodePointerDown(component.troncNodes()[0], makePointerEvent({ clientX: 0, clientY: 0 }));
       component.onNodePointerMove(makePointerEvent({ clientX: 50, clientY: 0 }));
       expect(component.dragOverNodeId()).toBe('node-2');
@@ -1391,14 +1390,14 @@ describe('TroncViewComponent', () => {
 
     it('does not set dragOverNodeId when hovering back over the origin node', () => {
       const target = makeDropTargetElement('node-1', 'instance-a');
-      vi.spyOn(document, 'elementFromPoint').mockReturnValue(target);
+      jest.spyOn(document, 'elementFromPoint').mockReturnValue(target);
       component.onNodePointerDown(component.troncNodes()[0], makePointerEvent({ clientX: 0, clientY: 0 }));
       component.onNodePointerMove(makePointerEvent({ clientX: 50, clientY: 0 }));
       expect(component.dragOverNodeId()).toBeNull();
     });
 
     it('ignores move events from an unrelated pointerId', () => {
-      vi.spyOn(document, 'elementFromPoint').mockReturnValue(makeDropTargetElement('node-2', 'instance-a'));
+      jest.spyOn(document, 'elementFromPoint').mockReturnValue(makeDropTargetElement('node-2', 'instance-a'));
       component.onNodePointerDown(component.troncNodes()[0], makePointerEvent({ pointerId: 1, clientX: 0, clientY: 0 }));
       component.onNodePointerMove(makePointerEvent({ pointerId: 2, clientX: 50, clientY: 0 }));
       expect(component.isDragging('node-1')).toBe(false);
@@ -1409,7 +1408,7 @@ describe('TroncViewComponent', () => {
       let emitted: unknown = null;
       component.nodeDropped.subscribe((e) => (emitted = e));
       const target = makeDropTargetElement('node-2', 'instance-a');
-      vi.spyOn(document, 'elementFromPoint').mockReturnValue(target);
+      jest.spyOn(document, 'elementFromPoint').mockReturnValue(target);
 
       component.onNodePointerDown(component.troncNodes()[0], makePointerEvent({ clientX: 0, clientY: 0 }));
       component.onNodePointerMove(makePointerEvent({ clientX: 50, clientY: 0 }));
@@ -1427,7 +1426,7 @@ describe('TroncViewComponent', () => {
       let emitted: unknown = null;
       component.nodeDropped.subscribe((e) => (emitted = e));
       const target = makeDropTargetElement('node-9', 'instance-b');
-      vi.spyOn(document, 'elementFromPoint').mockReturnValue(target);
+      jest.spyOn(document, 'elementFromPoint').mockReturnValue(target);
 
       component.onNodePointerDown(component.troncNodes()[0], makePointerEvent({ clientX: 0, clientY: 0 }));
       component.onNodePointerMove(makePointerEvent({ clientX: 50, clientY: 0 }));
@@ -1444,7 +1443,7 @@ describe('TroncViewComponent', () => {
     it('does not emit nodeDropped for a plain tap that never exceeds the movement threshold', () => {
       let emitted: unknown = null;
       component.nodeDropped.subscribe((e) => (emitted = e));
-      vi.spyOn(document, 'elementFromPoint').mockReturnValue(makeDropTargetElement('node-1', 'instance-a'));
+      jest.spyOn(document, 'elementFromPoint').mockReturnValue(makeDropTargetElement('node-1', 'instance-a'));
 
       component.onNodePointerDown(component.troncNodes()[0], makePointerEvent({ clientX: 0, clientY: 0 }));
       component.onNodePointerUp(makePointerEvent({ clientX: 0, clientY: 0 }));
@@ -1455,7 +1454,7 @@ describe('TroncViewComponent', () => {
     it('does not emit nodeDropped when released with no resolvable target', () => {
       let emitted: unknown = null;
       component.nodeDropped.subscribe((e) => (emitted = e));
-      vi.spyOn(document, 'elementFromPoint').mockReturnValue(null);
+      jest.spyOn(document, 'elementFromPoint').mockReturnValue(null);
 
       component.onNodePointerDown(component.troncNodes()[0], makePointerEvent({ clientX: 0, clientY: 0 }));
       component.onNodePointerMove(makePointerEvent({ clientX: 50, clientY: 0 }));
@@ -1465,7 +1464,7 @@ describe('TroncViewComponent', () => {
     });
 
     it('resets dragging and dragOver state after pointerup', () => {
-      vi.spyOn(document, 'elementFromPoint').mockReturnValue(makeDropTargetElement('node-2', 'instance-a'));
+      jest.spyOn(document, 'elementFromPoint').mockReturnValue(makeDropTargetElement('node-2', 'instance-a'));
       component.onNodePointerDown(component.troncNodes()[0], makePointerEvent({ clientX: 0, clientY: 0 }));
       component.onNodePointerMove(makePointerEvent({ clientX: 50, clientY: 0 }));
       component.onNodePointerUp(makePointerEvent({ clientX: 50, clientY: 0 }));
@@ -1477,7 +1476,7 @@ describe('TroncViewComponent', () => {
     it('resets dragging state on pointercancel without emitting a drop', () => {
       let emitted: unknown = null;
       component.nodeDropped.subscribe((e) => (emitted = e));
-      vi.spyOn(document, 'elementFromPoint').mockReturnValue(makeDropTargetElement('node-2', 'instance-a'));
+      jest.spyOn(document, 'elementFromPoint').mockReturnValue(makeDropTargetElement('node-2', 'instance-a'));
 
       component.onNodePointerDown(component.troncNodes()[0], makePointerEvent({ clientX: 0, clientY: 0 }));
       component.onNodePointerMove(makePointerEvent({ clientX: 50, clientY: 0 }));

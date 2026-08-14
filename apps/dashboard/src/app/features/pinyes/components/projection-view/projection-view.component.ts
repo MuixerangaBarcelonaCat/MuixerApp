@@ -1,3 +1,4 @@
+import { ProjectionSegmentData, ProjectionInstance, AttendanceStatus, AssignmentDetail, InstanceNodeItem, FigureCanvasComponent, OutlineBox, TroncViewComponent, TroncNodeItem, computeCordoObertOverrides, computeDistributionTransform, computeInstanceNaturalExtent, figureExtentFromNodes, placeFigures, placeNewFigure, PlacedFigurePosition, computeTroncNaturalSize, TRONC_GAP_PX, getFigureColor, SINGLE_FIGURE_PANEL_COLOR, SINGLE_FIGURE_SHADOW_COLOR } from '@muixer/pinyes-render';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -18,21 +19,7 @@ import { LucideAngularModule } from 'lucide-angular';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { ProjectionService } from '../../services/projection.service';
-import { ProjectionSegmentData, ProjectionInstance } from '../../models/projection.model';
-import { AttendanceStatus, AssignmentDetail, InstanceNodeItem } from '../../models/assignment.model';
-import { FigureCanvasComponent, OutlineBox } from '../figure-canvas/figure-canvas.component';
-import { TroncViewComponent, TroncNodeItem } from '../tronc-view/tronc-view.component';
 import { FigureZone } from '@muixer/shared';
-import { computeCordoObertOverrides } from '../../utils/cordo-obert.util';
-import { computeDistributionTransform, computeInstanceNaturalExtent } from '../../utils/projection-layout.util';
-import {
-  figureExtentFromNodes,
-  placeFigures,
-  placeNewFigure,
-  PlacedFigurePosition,
-} from '../../utils/figure-placement.util';
-import { computeTroncNaturalSize, TRONC_GAP_PX } from '../../utils/tronc-size.util';
-import { getFigureColor, SINGLE_FIGURE_PANEL_COLOR, SINGLE_FIGURE_SHADOW_COLOR } from '../../utils/figure-palette.util';
 
 interface DistributionTroncPanel {
   instance: ProjectionInstance;

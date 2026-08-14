@@ -1,3 +1,4 @@
+import { ConflictPlacement, SegmentConflict, SegmentNodeRef, targetTabForZone } from '@muixer/pinyes-render';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -12,8 +13,6 @@ import { ChevronLeft, ChevronRight, Eye, LucideAngularModule, Trash2 } from 'luc
 import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { SegmentWorkspaceStateService } from '../../services/segment-workspace-state.service';
 import { ConflictResolutionService } from '../../services/conflict-resolution.service';
-import { ConflictPlacement, SegmentConflict } from '../../models/assignment.model';
-import { SegmentNodeRef, targetTabForZone } from '../../utils/segment-assignment-render.util';
 
 /** Card width (w-72 = 288px) + gap-3 (12px) = 300px per scroll step. */
 const CARD_SCROLL_STEP = 300;

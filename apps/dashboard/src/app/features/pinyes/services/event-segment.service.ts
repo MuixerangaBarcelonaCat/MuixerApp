@@ -1,12 +1,7 @@
+import { CreateSegmentPayload, InstanceTroncSummary, SegmentDetail, UpdateSegmentPayload } from '@muixer/pinyes-render';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
-import {
-  CreateSegmentPayload,
-  InstanceTroncSummary,
-  SegmentDetail,
-  UpdateSegmentPayload,
-} from '../models/segment.model';
 
 @Injectable({
   providedIn: 'root',

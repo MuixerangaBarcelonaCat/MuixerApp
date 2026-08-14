@@ -1,3 +1,4 @@
+import { AvailablePerson, ConflictPlacement } from '@muixer/pinyes-render';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi, type Mock } from 'vitest';
 import { of } from 'rxjs';
@@ -5,7 +6,6 @@ import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provi
 import { PersonPanelComponent } from './person-panel.component';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
-import { AvailablePerson, ConflictPlacement } from '../../models/assignment.model';
 import { SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 import { TagService } from '../../../config/services/tag.service';
 

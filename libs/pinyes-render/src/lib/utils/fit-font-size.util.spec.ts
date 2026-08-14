@@ -1,4 +1,3 @@
-import { describe, it, expect } from 'vitest';
 import { fitFontSize } from './fit-font-size.util';
 
 describe('fitFontSize', () => {

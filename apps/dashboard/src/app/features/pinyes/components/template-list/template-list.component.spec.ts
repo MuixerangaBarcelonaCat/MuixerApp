@@ -1,3 +1,4 @@
+import { FigureTemplateListItem } from '@muixer/pinyes-render';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, ActivatedRoute } from '@angular/router';
 import { vi } from 'vitest';
@@ -6,7 +7,6 @@ import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provi
 import { TemplateListComponent } from './template-list.component';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
-import { FigureTemplateListItem } from '../../models/figure-template.model';
 
 const makeTemplate = (overrides: Partial<FigureTemplateListItem> = {}): FigureTemplateListItem => ({
   id: 'tmpl-1',

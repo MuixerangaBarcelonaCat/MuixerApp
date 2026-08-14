@@ -1,3 +1,4 @@
+import { ProjectionInstance, InstanceNodeItem, AssignmentDetail, CanvasNode, CanvasMode, FigureCanvasComponent, TroncNodeItem, TroncViewComponent } from '@muixer/pinyes-render';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Component, input } from '@angular/core';
@@ -5,14 +6,10 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { of } from 'rxjs';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { ProjectionViewComponent } from './projection-view.component';
-import { ProjectionInstance } from '../../models/projection.model';
-import { InstanceNodeItem, AssignmentDetail } from '../../models/assignment.model';
 import { ProjectionService } from '../../services/projection.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { FigureZone, NodeShape } from '@muixer/shared';
-import { CanvasNode, CanvasMode, FigureCanvasComponent } from '../figure-canvas/figure-canvas.component';
-import { TroncNodeItem, TroncViewComponent } from '../tronc-view/tronc-view.component';
 
 @Component({ selector: 'app-figure-canvas', standalone: true, template: '' })
 class FigureCanvasStub {

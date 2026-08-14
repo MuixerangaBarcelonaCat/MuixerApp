@@ -1,3 +1,4 @@
+import { FigureTemplateListItem, FigureTemplateFilterParams } from '@muixer/pinyes-render';
 import {
   Component,
   ChangeDetectionStrategy,
@@ -12,10 +13,6 @@ import { LucideAngularModule, UserCheck } from 'lucide-angular';
 import { ICON_TEMPLATE, ICON_COMPOSITION, ICON_FIGURA_NETA, DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FigureTemplateService } from '../../services/figure-template.service';
-import {
-  FigureTemplateListItem,
-  FigureTemplateFilterParams,
-} from '../../models/figure-template.model';
 import { EmptyStateComponent } from '../../../../shared/components/data/empty-state/empty-state.component';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { TutorialModalComponent } from '../../../../shared/components/tutorial-modal/tutorial-modal.component';

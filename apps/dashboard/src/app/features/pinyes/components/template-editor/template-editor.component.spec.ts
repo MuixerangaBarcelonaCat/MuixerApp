@@ -1,3 +1,4 @@
+import { FigureNodeItem, FigureCanvasComponent, CanvasNode, TroncViewComponent, StageTransform } from '@muixer/pinyes-render';
 import { Component, input, output } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
@@ -6,17 +7,13 @@ import { Observable, of } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { FigureZone, NodeShape, PINYA_NODE_PRESETS } from '@muixer/shared';
-import { FigureNodeItem } from '../../models/figure-template.model';
 import { TemplateEditorComponent, nodeToPayload } from './template-editor.component';
-import { FigureCanvasComponent, CanvasNode } from '../figure-canvas/figure-canvas.component';
-import { TroncViewComponent } from '../tronc-view/tronc-view.component';
 import { TemplateEditorHelpModalComponent } from '../template-editor-help-modal/template-editor-help-modal.component';
 import { RenglaOverlayComponent } from '../rengla-overlay/rengla-overlay.component';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { CanvasStateService } from '../../services/canvas-state.service';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
-import { StageTransform } from '../../utils/rengla-coordinates.util';
 
 @Component({ selector: 'app-figure-canvas', standalone: true, template: '' })
 class StubFigureCanvas {

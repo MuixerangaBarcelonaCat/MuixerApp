@@ -1,3 +1,4 @@
+import { PersonAssignmentEntry } from '@muixer/pinyes-render';
 import {
   Component,
   ChangeDetectionStrategy,
@@ -15,7 +16,6 @@ import { TagService } from '../../../config/services/tag.service';
 import { TagWithCount } from '../../../config/models/tag.model';
 import { NodeAssignmentService } from '../../../pinyes/services/node-assignment.service';
 import { SeasonService } from '../../../events/services/season.service';
-import { PersonAssignmentEntry } from '../../../pinyes/models/assignment.model';
 import { Season } from '../../../events/models/event.model';
 import { formatNodeCordonLabel } from '../../../pinyes/utils/node-cordon-label.util';
 

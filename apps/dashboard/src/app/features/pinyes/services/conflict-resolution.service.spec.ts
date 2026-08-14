@@ -1,3 +1,4 @@
+import { AssignmentDetail, ConflictPlacement, SegmentConflict } from '@muixer/pinyes-render';
 import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { describe, it, expect, vi } from 'vitest';
@@ -7,7 +8,6 @@ import { AssignmentStateService } from './assignment-state.service';
 import { UndoRedoService } from './undo-redo.service';
 import { NodeAssignmentService } from './node-assignment.service';
 import { ToastService } from '../../../shared/components/feedback/toast/toast.service';
-import { AssignmentDetail, ConflictPlacement, SegmentConflict } from '../models/assignment.model';
 
 const makePlacement = (overrides: Partial<ConflictPlacement> = {}): ConflictPlacement => ({
   assignmentId: 'as-1',

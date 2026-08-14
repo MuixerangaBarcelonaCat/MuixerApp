@@ -1,10 +1,10 @@
+import { SegmentConflict, SegmentPeopleCounters } from '@muixer/pinyes-render';
 import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { describe, it, expect, vi } from 'vitest';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { SegmentConflictPanelComponent } from './segment-conflict-panel.component';
 import { SegmentWorkspaceStateService } from '../../services/segment-workspace-state.service';
 import { ConflictResolutionService } from '../../services/conflict-resolution.service';
-import { SegmentConflict, SegmentPeopleCounters } from '../../models/assignment.model';
 
 const makeCounters = (conflictPersonCount: number): SegmentPeopleCounters => ({
   assignmentCount: 0,

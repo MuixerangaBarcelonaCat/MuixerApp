@@ -4,7 +4,7 @@ import {
   TRONC_NODE_PRESETS,
   DIRECTION_NODE_PRESETS,
 } from '@muixer/shared';
-import { FIGURE_PALETTE, SINGLE_FIGURE_SHADOW_COLOR } from './figure-palette.util';
+import { FIGURE_PALETTE, SINGLE_FIGURE_SHADOW_COLOR } from '@muixer/pinyes-render';
 
 const DECORATION_PALETTE = [...FIGURE_PALETTE, '#000000', SINGLE_FIGURE_SHADOW_COLOR, '#eeeeee'];
 

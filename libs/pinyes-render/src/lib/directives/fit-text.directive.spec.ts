@@ -1,6 +1,5 @@
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { FitTextDirective, TEXT_WIDTH_MEASURER, TextWidthMeasurer } from './fit-text.directive';
 
 /** Fake measurer: every character is exactly `fontSizePx * 0.6` wide. */
@@ -51,19 +50,19 @@ function refitWithWidth(target: HTMLElement, width: number): void {
 describe('FitTextDirective', () => {
   beforeEach(() => {
     capturedRoCallback = null;
-    (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = vi.fn().mockImplementation(
+    (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = jest.fn().mockImplementation(
       function (this: unknown, cb: () => void) {
         capturedRoCallback = cb;
-        return { observe: vi.fn(), unobserve: vi.fn(), disconnect: vi.fn() };
+        return { observe: jest.fn(), unobserve: jest.fn(), disconnect: jest.fn() };
       },
     );
   });
 
   afterEach(() => {
-    (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = vi.fn().mockImplementation(() => ({
-      observe: vi.fn(),
-      unobserve: vi.fn(),
-      disconnect: vi.fn(),
+    (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = jest.fn().mockImplementation(() => ({
+      observe: jest.fn(),
+      unobserve: jest.fn(),
+      disconnect: jest.fn(),
     }));
     activeFixture?.destroy();
     activeFixture = null;
