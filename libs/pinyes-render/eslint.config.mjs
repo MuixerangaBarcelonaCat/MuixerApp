@@ -25,8 +25,11 @@ export default [
       '@angular-eslint/directive-selector': [
         'error',
         {
+          // 'app' covers the components moved verbatim from the Dashboard (their
+          // selectors were never renamed, since that would break every consuming
+          // template); 'lib' is for components authored fresh inside this library.
           type: 'attribute',
-          prefix: 'app',
+          prefix: ['app', 'lib'],
           style: 'camelCase',
         },
       ],
@@ -34,7 +37,7 @@ export default [
         'error',
         {
           type: 'element',
-          prefix: 'app',
+          prefix: ['app', 'lib'],
           style: 'kebab-case',
         },
       ],

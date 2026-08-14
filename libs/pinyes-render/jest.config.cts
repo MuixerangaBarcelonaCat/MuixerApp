@@ -3,6 +3,11 @@ const { createCjsPreset } = require('jest-preset-angular/presets');
 module.exports = {
   displayName: 'pinyes-render',
   ...createCjsPreset(),
+  // konva ships ESM-only ("type": "module", no CJS build) — specs never exercise
+  // FigureCanvasComponent's real Konva wiring (it's always swapped for a stub, see
+  // the named exception in the plan), but importing its *type* to pass to
+  // TestBed.overrideComponent still requires Jest to be able to parse the module.
+  transformIgnorePatterns: ['node_modules/(?!(.*\\.mjs$|@angular/common/locales/.*\\.js$|.*konva.*))'],
   resolver: '@nx/jest/plugins/resolver',
   setupFilesAfterEnv: ['<rootDir>/src/test-setup.ts'],
   coverageDirectory: '../../coverage/libs/pinyes-render',
@@ -18,10 +23,10 @@ module.exports = {
   ],
   coverageThreshold: {
     global: {
-      statements: 80,
-      branches: 69,
-      functions: 83,
-      lines: 82,
+      statements: 92,
+      branches: 78,
+      functions: 93,
+      lines: 94,
     },
   },
 };

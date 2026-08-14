@@ -1,6 +1,7 @@
 export * from './lib/components/figure-canvas/figure-canvas.component';
 export * from './lib/components/tronc-view/tronc-view.component';
 export * from './lib/components/person-hover-card/person-hover-card.component';
+export * from './lib/components/pinya-projection/pinya-projection.component';
 
 export * from './lib/directives/fit-text.directive';
 
