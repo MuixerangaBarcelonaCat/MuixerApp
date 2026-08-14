@@ -37,6 +37,7 @@ import { FixLegalDocumentsTextAndStyle1783900000000 } from './1783900000000-FixL
 import { MakeUsersEmailNullable1784000000000 } from './1784000000000-MakeUsersEmailNullable';
 import { AddNodeAssignmentConflictIndexes1784100000000 } from './1784100000000-AddNodeAssignmentConflictIndexes';
 import { DropNodeAssignmentDuplicateUniques1784200000000 } from './1784200000000-DropNodeAssignmentDuplicateUniques';
+import { RenameSegmentIsVisibleToIsPublished1784300000000 } from './1784300000000-RenameSegmentIsVisibleToIsPublished';
 
 export const migrations: (new () => MigrationInterface)[] = [
   InitialSchema1748600000000,
@@ -77,4 +78,5 @@ export const migrations: (new () => MigrationInterface)[] = [
   MakeUsersEmailNullable1784000000000,
   AddNodeAssignmentConflictIndexes1784100000000,
   DropNodeAssignmentDuplicateUniques1784200000000,
+  RenameSegmentIsVisibleToIsPublished1784300000000,
 ];

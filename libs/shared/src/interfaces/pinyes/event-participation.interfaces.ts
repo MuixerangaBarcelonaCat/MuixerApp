@@ -23,7 +23,7 @@ export interface EventParticipationSegment {
    * Publish-to-app flag, returned as plain data: hidden segments ARE included,
    * because the technical team plans the rehearsal before publishing it.
    */
-  isVisible: boolean;
+  isPublished: boolean;
   figureCount: number;
   /**
    * Assignments only exist on snapshotted instances, so `figureCount >

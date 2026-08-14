@@ -22,8 +22,8 @@ export class UpdateSegmentDto {
   @IsOptional()
   notes?: string | null;
 
-  @ApiPropertyOptional({ description: 'Visibility toggle for members (PWA)' })
+  @ApiPropertyOptional({ description: 'Publication toggle for members (PWA)' })
   @IsBoolean()
   @IsOptional()
-  isVisible?: boolean;
+  isPublished?: boolean;
 }

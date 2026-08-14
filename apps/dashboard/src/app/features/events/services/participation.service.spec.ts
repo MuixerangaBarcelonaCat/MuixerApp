@@ -42,7 +42,7 @@ describe('ParticipationService', () => {
           name: 'Primera',
           sortOrder: 0,
           figureNames: ['4d7'],
-          isVisible: true,
+          isPublished: true,
           figureCount: 1,
           snapshottedFigureCount: 1,
         },

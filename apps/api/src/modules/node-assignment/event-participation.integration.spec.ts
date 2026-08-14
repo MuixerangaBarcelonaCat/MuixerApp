@@ -146,7 +146,7 @@ describe('EventParticipationService (integration)', () => {
       event,
       sortOrder: 2,
       name: 'Amagat',
-      isVisible: false,
+      isPublished: false,
     } as unknown as EventSegment);
 
     // Extra free nodes exist so every person gets its own: node-level uniqueness
@@ -254,7 +254,7 @@ describe('EventParticipationService (integration)', () => {
     expect(segments.map((s) => s.sortOrder)).toEqual([0, 1, 2]);
 
     const hidden = segments.find((s) => s.id === segHidden.id)!;
-    expect(hidden.isVisible).toBe(false);
+    expect(hidden.isPublished).toBe(false);
 
     // Segment A has 2 instances but only 1 snapshotted.
     const a = segments.find((s) => s.id === segA.id)!;

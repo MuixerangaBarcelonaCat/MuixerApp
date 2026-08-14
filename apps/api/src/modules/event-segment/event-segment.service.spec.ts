@@ -21,7 +21,7 @@ const makeSegment = (overrides: Partial<EventSegment> = {}): EventSegment =>
     startTime: null,
     endTime: null,
     notes: null,
-    isVisible: false,
+    isPublished: false,
     instances: [],
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -167,7 +167,7 @@ describe('EventSegmentService', () => {
       mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
       mockSegmentRepo.save.mockResolvedValue(makeSegment());
 
-      const result = await service.update(EVENT_ID, SEGMENT_ID, { isVisible: true, name: 'Bloc 1' });
+      const result = await service.update(EVENT_ID, SEGMENT_ID, { isPublished: true, name: 'Bloc 1' });
 
       expect(mockSegmentRepo.save).toHaveBeenCalled();
       expect(result.id).toBe(SEGMENT_ID);
@@ -191,11 +191,11 @@ describe('EventSegmentService', () => {
       expect(mockSegmentRepo.save).not.toHaveBeenCalled();
     });
 
-    it('does not check the lock when only isVisible is changing', async () => {
+    it('does not check the lock when only isPublished is changing', async () => {
       mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
       mockSegmentRepo.save.mockResolvedValue(makeSegment());
 
-      await service.update(EVENT_ID, SEGMENT_ID, { isVisible: true });
+      await service.update(EVENT_ID, SEGMENT_ID, { isPublished: true });
 
       expect(mockNodeAssignmentService.checkEventLockByEventId).not.toHaveBeenCalled();
     });

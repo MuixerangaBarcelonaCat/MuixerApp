@@ -38,7 +38,7 @@ export interface SegmentDetail {
   startTime: string | null;
   endTime: string | null;
   notes: string | null;
-  isVisible: boolean;
+  isPublished: boolean;
   instances: InstanceDetail[];
 }
 
@@ -54,7 +54,7 @@ export interface UpdateSegmentPayload {
   startTime?: string | null;
   endTime?: string | null;
   notes?: string | null;
-  isVisible?: boolean;
+  isPublished?: boolean;
 }
 
 export interface CreateInstancePayload {

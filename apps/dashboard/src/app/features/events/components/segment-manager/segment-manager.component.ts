@@ -209,7 +209,7 @@ export class SegmentManagerComponent implements OnInit {
   }
 
   toggleVisibility(segment: SegmentDetail) {
-    this.segmentService.update(this.eventId(), segment.id, { isVisible: !segment.isVisible }).subscribe({
+    this.segmentService.update(this.eventId(), segment.id, { isPublished: !segment.isPublished }).subscribe({
       next: (updated) => {
         this.segments.update((list) => list.map((s) => (s.id === updated.id ? updated : s)));
       },

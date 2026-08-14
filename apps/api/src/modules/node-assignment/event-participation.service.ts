@@ -29,7 +29,7 @@ interface SegmentRow {
   id: string;
   name: string | null;
   sortOrder: number;
-  isVisible: boolean;
+  isPublished: boolean;
   figureNames: (string | null)[];
   figureCount: string;
   snapshottedFigureCount: string;
@@ -118,7 +118,7 @@ export class EventParticipationService {
       `SELECT es.id,
               es.name,
               es."sortOrder",
-              es."isVisible",
+              es."isPublished",
               COUNT(fi.id)                               AS "figureCount",
               COUNT(fi.id) FILTER (WHERE fi.snapshotted) AS "snapshottedFigureCount",
               COALESCE(
@@ -139,7 +139,7 @@ export class EventParticipationService {
       name: r.name,
       sortOrder: Number(r.sortOrder),
       figureNames: (r.figureNames ?? []).map((n) => n ?? NO_TEMPLATE_LABEL),
-      isVisible: r.isVisible,
+      isPublished: r.isPublished,
       figureCount: parseInt(r.figureCount, 10),
       snapshottedFigureCount: parseInt(r.snapshottedFigureCount, 10),
     }));

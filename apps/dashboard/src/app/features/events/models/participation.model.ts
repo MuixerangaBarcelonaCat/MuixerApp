@@ -17,7 +17,7 @@ export interface ParticipationSegment {
   /** Feeds the column-header tooltip. */
   figureNames: string[];
   /** Hidden segments are included; the flag is data, not a filter. */
-  isVisible: boolean;
+  isPublished: boolean;
   figureCount: number;
   /** `figureCount > snapshottedFigureCount` explains empty cells without being a warning. */
   snapshottedFigureCount: number;

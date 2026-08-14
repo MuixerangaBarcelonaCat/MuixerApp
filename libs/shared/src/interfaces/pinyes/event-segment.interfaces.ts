@@ -18,7 +18,7 @@ export interface SegmentDetail {
   startTime: string | null;
   endTime: string | null;
   notes: string | null;
-  isVisible: boolean;
+  isPublished: boolean;
   instances: InstanceRef[];
 }
 

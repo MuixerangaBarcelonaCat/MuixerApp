@@ -45,7 +45,7 @@ export interface SegmentWithInstances {
   startTime: string | null;
   endTime: string | null;
   notes: string | null;
-  isVisible: boolean;
+  isPublished: boolean;
   instances: InstanceRef[];
   conflicts: SegmentPeopleCounters;
 }
@@ -110,7 +110,7 @@ export class EventSegmentService {
       startTime: dto.startTime ?? null,
       endTime: dto.endTime ?? null,
       notes: dto.notes ?? null,
-      isVisible: false,
+      isPublished: false,
     });
 
     const saved = await this.segmentRepository.save(segment);
@@ -127,7 +127,7 @@ export class EventSegmentService {
     if (dto.startTime !== undefined) segment.startTime = dto.startTime ?? null;
     if (dto.endTime !== undefined) segment.endTime = dto.endTime ?? null;
     if (dto.notes !== undefined) segment.notes = dto.notes ?? null;
-    if (dto.isVisible !== undefined) segment.isVisible = dto.isVisible;
+    if (dto.isPublished !== undefined) segment.isPublished = dto.isPublished;
 
     await this.segmentRepository.save(segment);
     return this.findOneById(segment.id);
@@ -357,7 +357,7 @@ function toSegmentWithInstances(
     startTime: segment.startTime,
     endTime: segment.endTime,
     notes: segment.notes,
-    isVisible: segment.isVisible,
+    isPublished: segment.isPublished,
     conflicts: conflictsMap.get(segment.id) ?? DEFAULT_SEGMENT_CONFLICTS,
     instances: (segment.instances ?? []).map((instance) => {
       const hasPinya = instance.figureTemplate ? pinyaTemplateIds.has(instance.figureTemplate.id) : false;

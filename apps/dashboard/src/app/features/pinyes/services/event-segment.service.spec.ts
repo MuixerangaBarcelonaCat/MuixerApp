@@ -39,7 +39,7 @@ describe('EventSegmentService', () => {
   });
 
   it('update sends PUT to /events/:eventId/segments/:segmentId with payload', () => {
-    const payload = { isVisible: true };
+    const payload = { isPublished: true };
     service.update(EVENT_ID, SEGMENT_ID, payload).subscribe();
     const req = httpMock.expectOne(`${BASE}/events/${EVENT_ID}/segments/${SEGMENT_ID}`);
     expect(req.request.method).toBe('PUT');

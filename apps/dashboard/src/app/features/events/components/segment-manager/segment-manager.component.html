@@ -225,10 +225,10 @@
                     type="button"
                     class="btn btn-ghost btn-xs"
                     (click)="toggleVisibility(segment)"
-                    [title]="segment.isVisible ? 'Visible als membres — cliqueu per ocultar' : 'Ocult als membres — cliqueu per publicar'"
-                    [attr.aria-pressed]="segment.isVisible"
+                    [title]="segment.isPublished ? 'Visible als membres — cliqueu per ocultar' : 'Ocult als membres — cliqueu per publicar'"
+                    [attr.aria-pressed]="segment.isPublished"
                   >
-                    @if (segment.isVisible) {
+                    @if (segment.isPublished) {
                       <lucide-icon name="Eye" [size]="14" class="text-success" />
                     } @else {
                       <lucide-icon name="EyeOff" [size]="14" class="text-base-content/40" />

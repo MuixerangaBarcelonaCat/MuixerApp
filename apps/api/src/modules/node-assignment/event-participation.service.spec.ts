@@ -25,7 +25,7 @@ const makeSegmentRow = (id: string, overrides: Record<string, unknown> = {}) => 
   id,
   name: `Segment ${id}`,
   sortOrder: 0,
-  isVisible: true,
+  isPublished: true,
   figureNames: ['4d7'],
   figureCount: '1',
   snapshottedFigureCount: '1',

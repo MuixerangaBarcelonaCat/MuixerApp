@@ -43,7 +43,7 @@ const makeSegment = (overrides: Partial<SegmentDetail> = {}): SegmentDetail => (
   startTime: null,
   endTime: null,
   notes: null,
-  isVisible: false,
+  isPublished: false,
   instances: [],
   ...overrides,
 });
@@ -229,16 +229,16 @@ describe('SegmentManagerComponent', () => {
   });
 
   describe('toggleVisibility()', () => {
-    it('calls update with inverted isVisible and updates the list', () => {
-      const seg = makeSegment({ isVisible: false });
-      const updated = { ...seg, isVisible: true };
+    it('calls update with inverted isPublished and updates the list', () => {
+      const seg = makeSegment({ isPublished: false });
+      const updated = { ...seg, isPublished: true };
       component.segments.set([seg]);
       (segmentService.update as ReturnType<typeof vi.fn>).mockReturnValue(of(updated));
 
       component.toggleVisibility(seg);
 
-      expect(segmentService.update).toHaveBeenCalledWith(EVENT_ID, seg.id, { isVisible: true });
-      expect(component.segments()[0].isVisible).toBe(true);
+      expect(segmentService.update).toHaveBeenCalledWith(EVENT_ID, seg.id, { isPublished: true });
+      expect(component.segments()[0].isPublished).toBe(true);
     });
   });
 

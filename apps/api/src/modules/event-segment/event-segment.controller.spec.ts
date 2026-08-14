@@ -17,7 +17,7 @@ const mockSegment: SegmentWithInstances = {
   startTime: null,
   endTime: null,
   notes: null,
-  isVisible: false,
+  isPublished: false,
   instances: [],
   conflicts: {
     assignmentCount: 0,
@@ -111,7 +111,7 @@ describe('EventSegmentController', () => {
 
   describe('updateSegment', () => {
     it('delegates to segment service with eventId and segmentId', async () => {
-      const dto = { isVisible: true };
+      const dto = { isPublished: true };
       const result = await controller.updateSegment(EVENT_ID, SEGMENT_ID, dto);
       expect(result).toEqual(mockSegment);
       expect(mockSegmentService.update).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID, dto);

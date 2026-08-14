@@ -108,7 +108,7 @@
       @for (segment of segments(); track segment.id; let last = $last) {
         <span [title]="segmentTooltip(segment)">
           <span class="font-medium">{{ segmentLabel(segment) }}</span>:
-          {{ segmentTooltip(segment) }}@if (!segment.isVisible) { <span class="italic">(no publicat)</span> }
+          {{ segmentTooltip(segment) }}@if (!segment.isPublished) { <span class="italic">(no publicat)</span> }
         </span>@if (!last) { <span> · </span> }
       }
     </p>

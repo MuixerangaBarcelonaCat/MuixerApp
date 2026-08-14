@@ -122,7 +122,7 @@ const makeSegment = (instances: InstanceDetail[]): SegmentDetail => ({
   startTime: null,
   endTime: null,
   notes: null,
-  isVisible: true,
+  isPublished: true,
   instances,
 });
 
