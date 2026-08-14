@@ -16,11 +16,11 @@ import { makeTouch, buffersDiffer, Pt } from './gestures';
  * Observation is necessarily coarse (Konva state lives in JS, not the DOM), so
  * this reports "gesture produced a visible change / did not crash" per device.
  *
- * The workspace route is behind `desktopOnlyGuard` (< 1024px → redirected to
- * `/pinyes`), so `mobile` and `tablet-portrait` never reach the canvas at all —
- * this test asserts the redirect for those profiles instead of running the
- * gesture battery. Only `tablet-landscape` (and any future ≥1024px profile)
- * exercises the real gestures.
+ * The workspace route is behind `desktopOnlyGuard` (< 768px, the Tailwind `md`
+ * breakpoint → redirected to `/pinyes`), so `mobile` never reaches the canvas
+ * at all — this test asserts the redirect for that profile instead of running
+ * the gesture battery. `tablet-portrait` and `tablet-landscape` (both ≥768px)
+ * exercise the real gestures.
  */
 
 const WS_ASSIGN = `/pinyes/events/${TARGETS.workspaceEventId}/segments/${TARGETS.workspaceSegmentId}/assign`;
@@ -60,7 +60,7 @@ test('pinyes canvas gestures', async ({ page }, testInfo) => {
   }
 
   const viewportWidth = page.viewportSize()?.width ?? 0;
-  const blockedByDesktopGuard = viewportWidth < 1024;
+  const blockedByDesktopGuard = viewportWidth < 768;
 
   if (blockedByDesktopGuard) {
     // desktopOnlyGuard redirects to /pinyes with an error toast — no canvas here.
@@ -93,7 +93,7 @@ test('pinyes canvas gestures', async ({ page }, testInfo) => {
     fs.writeFileSync(path.join(dir, `${device}.json`), JSON.stringify(result, null, 2));
 
     // eslint-disable-next-line playwright/no-conditional-expect
-    expect.soft(redirectedToPinyes, `${device}: below 1024px must be redirected to /pinyes by desktopOnlyGuard`).toBeTruthy();
+    expect.soft(redirectedToPinyes, `${device}: below 768px must be redirected to /pinyes by desktopOnlyGuard`).toBeTruthy();
     return;
   }
 
