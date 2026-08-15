@@ -4,6 +4,7 @@
      (figure-placement.util) perquè sempre es mostren amb aquest mateix canvas. -->
 <div #figuresContainer class="relative flex-1 overflow-hidden" aria-label="Figures en projecció">
   <app-figure-canvas
+    #figureCanvas
     class="block w-full h-full"
     mode="readonly"
     [gridEnabled]="false"
@@ -16,6 +17,7 @@
     [fitExtraBounds]="distributionFitBounds()"
     [outlineBoxes]="distributionNodeOutlines()"
     (stageTransformChanged)="onStageTransformChanged($event)"
+    (flightLanded)="onFlightLanded()"
   />
 
   @for (panel of distributionTroncPanels(); track panel.instance.id) {
@@ -48,6 +50,7 @@
     <lib-own-position-banner
       class="absolute left-1/2 top-3 z-40 max-w-[92%] -translate-x-1/2"
       [state]="state"
+      (troba)="onTroba()"
     />
   }
 
@@ -59,6 +62,8 @@
       [target]="target"
       [stageTransform]="stageTransform()"
       [viewport]="{ width: containerWidth(), height: containerHeight() }"
+      [arrivedTick]="arrivedTick()"
+      (troba)="onTroba()"
     />
   }
 </div>

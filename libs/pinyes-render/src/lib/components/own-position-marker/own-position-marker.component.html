@@ -2,7 +2,8 @@
   @if (!isOffscreen()) {
     <div
       data-testid="own-position-pin"
-      class="absolute z-30 pointer-events-none"
+      class="absolute z-30 pointer-events-none motion-reduce:animate-none"
+      [class.animate-arrival-bounce]="bouncing()"
       [style.left.px]="pos.x"
       [style.top.px]="pos.y"
       [style.transform]="'translate(-50%, -50%)'"
@@ -23,7 +24,7 @@
     <button
       type="button"
       data-testid="own-position-chevron"
-      class="absolute z-30 flex items-center justify-center w-9 h-9 rounded-full bg-black/60 backdrop-blur-sm text-white shadow-lg"
+      class="absolute z-30 flex items-center justify-center w-9 h-9 rounded-full bg-black/60 backdrop-blur-sm text-white shadow-lg animate-restless motion-reduce:animate-none"
       [style.left.px]="chevronPos.x"
       [style.top.px]="chevronPos.y"
       [style.transform]="'translate(-50%, -50%) rotate(' + chevronAngleDeg() + 'deg)'"

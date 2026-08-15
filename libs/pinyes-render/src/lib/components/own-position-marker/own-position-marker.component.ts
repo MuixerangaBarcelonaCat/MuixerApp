@@ -1,6 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, input, output, signal } from '@angular/core';
 import { ChevronRight, LucideAngularModule } from 'lucide-angular';
 import { StageTransform, stageToScreen } from '../../utils/rengla-coordinates.util';
+
+/** How long the one-shot arrival bounce plays before its class is cleared again. */
+const ARRIVAL_BOUNCE_MS = 400;
 
 /**
  * `world`: a point in Konva stage-local ("canvas-world") coordinates — a pinya/base node centre,
@@ -39,8 +42,43 @@ export class OwnPositionMarkerComponent {
   readonly stageTransform = input<StageTransform>({ x: 0, y: 0, scaleX: 1, scaleY: 1 });
   readonly viewport = input.required<MarkerViewport>();
 
+  /**
+   * Bumped by the parent on every landed flight — see `pinya-projection.component.ts`'s
+   * `onFlightLanded`. Drives the one-shot arrival bounce below. Deliberately not the trigger for
+   * `troba` itself: this is arrival feedback, not a request.
+   */
+  readonly arrivedTick = input<number>(0);
+
   /** Emitted by the chevron. The pin has no handler — once it's visible, there's nothing to tap. */
   readonly troba = output<void>();
+
+  /**
+   * True for `ARRIVAL_BOUNCE_MS` after every `arrivedTick` change away from its `0` default,
+   * except the very first one — that first change is page-load entry (which the plan explicitly
+   * says shouldn't bounce, nothing to communicate). `0` is the sentinel rather than "have I run
+   * before": a flight landing is async (~450ms Konva tween), so this marker's first effect run
+   * often still observes the untouched default, and the entry bump arrives as a *later* run —
+   * "previousTick was still 0" catches that transition wherever it falls, instead of only when
+   * it happens to be collapsed into the component's first run (e.g. in a unit test that sets the
+   * input directly, or a marker that (re)appears mid-session already past tick 0).
+   */
+  protected readonly bouncing = signal(false);
+
+  constructor() {
+    let previousTick = 0;
+    let clearTimer: ReturnType<typeof setTimeout> | undefined;
+    effect(() => {
+      const tick = this.arrivedTick();
+      if (tick !== previousTick) {
+        if (previousTick !== 0) {
+          clearTimeout(clearTimer);
+          this.bouncing.set(true);
+          clearTimer = setTimeout(() => this.bouncing.set(false), ARRIVAL_BOUNCE_MS);
+        }
+        previousTick = tick;
+      }
+    });
+  }
 
   protected readonly screenPosition = computed((): { x: number; y: number } | null => {
     const t = this.target();

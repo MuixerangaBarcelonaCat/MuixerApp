@@ -1,8 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Component, input } from '@angular/core';
+import { Component, input, output } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { FigureZone, NodeShape } from '@muixer/shared';
-import { PinyaProjectionComponent } from './pinya-projection.component';
+import { PinyaProjectionComponent, PINYA_FLIGHT_MAX_SCALE } from './pinya-projection.component';
 import { allLucideIconsProvider } from '../../../testing/lucide-test-provider';
 import {
   ProjectionInstance,
@@ -17,6 +17,7 @@ import {
   OwnPositionBannerComponent,
   OwnPositionMarkerComponent,
   findOwnTroncCellRect,
+  computeDistributionTransform,
 } from '../../../index';
 
 @Component({ selector: 'app-figure-canvas', standalone: true, template: '' })
@@ -31,6 +32,9 @@ class FigureCanvasStub {
   readonly fitExtraBounds = input<{ x: number; y: number; width: number; height: number }[]>([]);
   readonly outlineBoxes = input<unknown[]>([]);
   readonly showZoomControls = input<boolean>(true);
+  readonly flightLanded = output<void>();
+  readonly flyToBounds = jest.fn();
+  readonly cancelFlight = jest.fn();
 }
 
 @Component({ selector: 'app-tronc-view', standalone: true, template: '' })
@@ -634,6 +638,172 @@ describe('PinyaProjectionComponent', () => {
 
       const marker = fixture.debugElement.query(By.directive(OwnPositionMarkerComponent));
       expect(marker.componentInstance.stageTransform()).toEqual({ x: 10, y: 20, scaleX: 2, scaleY: 2 });
+    });
+  });
+
+  // ── flight (Troba'm motion) ──────────────────────────────────────────────────
+
+  describe('flight', () => {
+    const arrive = () => {
+      component.onStageTransformChanged({ x: 0, y: 0, scaleX: 1, scaleY: 1 });
+      fixture.detectChanges();
+    };
+
+    it('flies to the node, tight, for a PINYA placement on arrival', () => {
+      const node = makeNode({ id: 'n1', zone: FigureZone.PINYA, x: 100, y: 50 });
+      const inst = makeInstance([node], ['n1'], { id: 'i1' });
+      setData(makeSegmentData([inst]));
+      fixture.componentRef.setInput('highlightPersonId', 'p1');
+      fixture.detectChanges();
+      arrive();
+
+      const distNode = component.distributionNodes().find((n) => n.id === 'n1')!;
+      const { scale: distScale } = computeDistributionTransform(
+        component.effectiveInstances(),
+        component.containerWidth(),
+        component.containerHeight(),
+      );
+      const canvas = fixture.debugElement.query(By.directive(FigureCanvasStub));
+      expect(canvas.componentInstance.flyToBounds).toHaveBeenCalledTimes(1);
+      expect(canvas.componentInstance.flyToBounds).toHaveBeenCalledWith(
+        [{ x: distNode.x, y: distNode.y, width: distNode.width, height: distNode.height }],
+        expect.objectContaining({ maxScale: PINYA_FLIGHT_MAX_SCALE / distScale }),
+      );
+    });
+
+    it('caps the PINYA flight at the same absolute on-screen size regardless of segment size', () => {
+      // A segment with one tiny figure gets a large, uncapped `distScale` (computeDistributionTransform
+      // inflates small content to fill the viewport) — without normalising against it, the same literal
+      // `maxScale` would land on a very different absolute zoom for a small segment vs. a large one.
+      const canvas = fixture.debugElement.query(By.directive(FigureCanvasStub));
+      const smallNode = makeNode({ id: 'n1', zone: FigureZone.PINYA, x: 0, y: 0, width: 60, height: 40 });
+      const smallInst = makeInstance([smallNode], ['n1'], { id: 'i1' });
+      setData(makeSegmentData([smallInst]));
+      fixture.componentRef.setInput('highlightPersonId', 'p1');
+      fixture.detectChanges();
+      arrive();
+      const smallMaxScale = (canvas.componentInstance.flyToBounds as jest.Mock).mock.calls[0][1].maxScale;
+      const { scale: smallDistScale } = computeDistributionTransform(
+        component.effectiveInstances(),
+        component.containerWidth(),
+        component.containerHeight(),
+      );
+      (canvas.componentInstance.flyToBounds as jest.Mock).mockClear();
+
+      // A big, spread-out segment (a second instance far away) gets a much smaller `distScale`.
+      const bigNode = makeNode({ id: 'n2', zone: FigureZone.PINYA, x: 0, y: 0, width: 60, height: 40 });
+      const bigInst = makeInstance([bigNode], ['n2'], { id: 'i2', projectionX: 3000, projectionY: 3000 });
+      const farInst = makeInstance([makeNode({ id: 'n3' })], [], { id: 'i3', projectionX: -3000, projectionY: -3000 });
+      setData(makeSegmentData([bigInst, farInst]));
+      fixture.componentRef.setInput('highlightPersonId', 'p1');
+      fixture.detectChanges();
+      arrive();
+      const bigMaxScale = (canvas.componentInstance.flyToBounds as jest.Mock).mock.calls[0][1].maxScale;
+      const { scale: bigDistScale } = computeDistributionTransform(
+        component.effectiveInstances(),
+        component.containerWidth(),
+        component.containerHeight(),
+      );
+
+      expect(smallDistScale).toBeGreaterThan(bigDistScale);
+      expect(smallMaxScale * smallDistScale).toBeCloseTo(bigMaxScale * bigDistScale, 5);
+    });
+
+    it('flies to the whole panel — not the cell — for a TRONC placement on arrival', () => {
+      const node = makeNode({ id: 'n1', zone: FigureZone.TRONC, z: 1, x: 0, width: 1 });
+      const inst = makeInstance([node], ['n1'], { id: 'i1' });
+      setData(makeSegmentData([inst]));
+      fixture.componentRef.setInput('highlightPersonId', 'p1');
+      fixture.detectChanges();
+      arrive();
+
+      const idx = component.effectiveInstances().findIndex((i) => i.id === 'i1');
+      const panelBounds = component.distributionFitBounds()[idx];
+      const canvas = fixture.debugElement.query(By.directive(FigureCanvasStub));
+      expect(canvas.componentInstance.flyToBounds).toHaveBeenCalledWith([panelBounds], expect.any(Object));
+    });
+
+    it('does not fly for a multi-placement description', () => {
+      const n1 = makeNode({ id: 'n1' });
+      const n2 = makeNode({ id: 'n2' });
+      const inst1 = makeInstance([n1], ['n1'], { id: 'i1' });
+      const inst2 = makeInstance([n2], ['n2'], { id: 'i2' });
+      setData(makeSegmentData([inst1, inst2]));
+      fixture.componentRef.setInput('highlightPersonId', 'p1');
+      fixture.detectChanges();
+      arrive();
+
+      const canvas = fixture.debugElement.query(By.directive(FigureCanvasStub));
+      expect(canvas.componentInstance.flyToBounds).not.toHaveBeenCalled();
+    });
+
+    it('flies only once on arrival, not again on every later stage-transform tick', () => {
+      const node = makeNode({ id: 'n1', zone: FigureZone.PINYA });
+      const inst = makeInstance([node], ['n1'], { id: 'i1' });
+      setData(makeSegmentData([inst]));
+      fixture.componentRef.setInput('highlightPersonId', 'p1');
+      fixture.detectChanges();
+      arrive();
+      arrive();
+      component.onStageTransformChanged({ x: 5, y: 5, scaleX: 1.2, scaleY: 1.2 });
+      fixture.detectChanges();
+
+      const canvas = fixture.debugElement.query(By.directive(FigureCanvasStub));
+      expect(canvas.componentInstance.flyToBounds).toHaveBeenCalledTimes(1);
+    });
+
+    it("flies again when the banner's Troba'm button is clicked", () => {
+      const node = makeNode({ id: 'n1', zone: FigureZone.PINYA });
+      const inst = makeInstance([node], ['n1'], { id: 'i1' });
+      setData(makeSegmentData([inst]));
+      fixture.componentRef.setInput('highlightPersonId', 'p1');
+      fixture.detectChanges();
+      arrive();
+
+      const canvas = fixture.debugElement.query(By.directive(FigureCanvasStub));
+      canvas.componentInstance.flyToBounds.mockClear();
+
+      const banner = fixture.debugElement.query(By.directive(OwnPositionBannerComponent));
+      banner.componentInstance.troba.emit();
+      fixture.detectChanges();
+
+      expect(canvas.componentInstance.flyToBounds).toHaveBeenCalledTimes(1);
+    });
+
+    it('flies again when the chevron is tapped', () => {
+      const node = makeNode({ id: 'n1', zone: FigureZone.PINYA });
+      const inst = makeInstance([node], ['n1'], { id: 'i1' });
+      setData(makeSegmentData([inst]));
+      fixture.componentRef.setInput('highlightPersonId', 'p1');
+      fixture.detectChanges();
+      arrive();
+
+      const canvas = fixture.debugElement.query(By.directive(FigureCanvasStub));
+      canvas.componentInstance.flyToBounds.mockClear();
+
+      const marker = fixture.debugElement.query(By.directive(OwnPositionMarkerComponent));
+      marker.componentInstance.troba.emit();
+      fixture.detectChanges();
+
+      expect(canvas.componentInstance.flyToBounds).toHaveBeenCalledTimes(1);
+    });
+
+    it('bumps arrivedTick on the marker whenever the canvas reports a landed flight', () => {
+      const node = makeNode({ id: 'n1', zone: FigureZone.PINYA });
+      const inst = makeInstance([node], ['n1'], { id: 'i1' });
+      setData(makeSegmentData([inst]));
+      fixture.componentRef.setInput('highlightPersonId', 'p1');
+      fixture.detectChanges();
+      arrive();
+
+      const canvas = fixture.debugElement.query(By.directive(FigureCanvasStub));
+      const before = fixture.debugElement.query(By.directive(OwnPositionMarkerComponent)).componentInstance.arrivedTick();
+
+      canvas.componentInstance.flightLanded.emit();
+      fixture.detectChanges();
+
+      const after = fixture.debugElement.query(By.directive(OwnPositionMarkerComponent)).componentInstance.arrivedTick();
+      expect(after).toBe(before + 1);
     });
   });
 });

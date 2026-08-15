@@ -14,10 +14,12 @@ describe('OwnPositionMarkerComponent', () => {
     target?: MarkerTarget | null;
     stageTransform?: StageTransform;
     viewport?: { width: number; height: number };
+    arrivedTick?: number;
   }) => {
     if ('target' in overrides) fixture.componentRef.setInput('target', overrides.target);
     if (overrides.stageTransform) fixture.componentRef.setInput('stageTransform', overrides.stageTransform);
     fixture.componentRef.setInput('viewport', overrides.viewport ?? VIEWPORT);
+    if (overrides.arrivedTick !== undefined) fixture.componentRef.setInput('arrivedTick', overrides.arrivedTick);
     fixture.detectChanges();
   };
 
@@ -150,6 +152,51 @@ describe('OwnPositionMarkerComponent', () => {
     it('the pin has no click handler', () => {
       setInputs({ target: { kind: 'screen', x: 200, y: 150 } });
       expect(pinEl().nativeElement.tagName).not.toBe('BUTTON');
+    });
+  });
+
+  describe('arrival bounce', () => {
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => jest.useRealTimers());
+
+    it('does not bounce on the very first tick it receives (page-load entry)', () => {
+      setInputs({ target: { kind: 'screen', x: 200, y: 150 }, arrivedTick: 1 });
+      expect(pinEl().nativeElement.className).not.toContain('animate-arrival-bounce');
+    });
+
+    it('bounces on every tick after the first', () => {
+      setInputs({ target: { kind: 'screen', x: 200, y: 150 }, arrivedTick: 1 });
+      setInputs({ arrivedTick: 2 });
+      expect(pinEl().nativeElement.className).toContain('animate-arrival-bounce');
+    });
+
+    it('clears the bounce class again after the animation finishes', () => {
+      setInputs({ target: { kind: 'screen', x: 200, y: 150 }, arrivedTick: 1 });
+      setInputs({ arrivedTick: 2 });
+      expect(pinEl().nativeElement.className).toContain('animate-arrival-bounce');
+
+      jest.runAllTimers();
+      fixture.detectChanges();
+
+      expect(pinEl().nativeElement.className).not.toContain('animate-arrival-bounce');
+    });
+
+    it('does not bounce again for the same tick re-applied', () => {
+      setInputs({ target: { kind: 'screen', x: 200, y: 150 }, arrivedTick: 1 });
+      setInputs({ arrivedTick: 2 });
+      jest.runAllTimers();
+      fixture.detectChanges();
+
+      setInputs({ arrivedTick: 2 });
+
+      expect(pinEl().nativeElement.className).not.toContain('animate-arrival-bounce');
+    });
+  });
+
+  describe('restless chevron', () => {
+    it('carries the restless class whenever it is rendered — it only exists while off-viewport', () => {
+      setInputs({ target: { kind: 'screen', x: 1000, y: 150 } });
+      expect(chevronEl().nativeElement.className).toContain('animate-restless');
     });
   });
 });

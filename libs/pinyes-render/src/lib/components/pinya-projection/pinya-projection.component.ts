@@ -20,8 +20,15 @@ import { figureExtentFromNodes, placeFigures, placeNewFigure, PlacedFigurePositi
 import { computeTroncNaturalSize, TRONC_GAP_PX } from '../../utils/tronc-size.util';
 import { getFigureColor, SINGLE_FIGURE_PANEL_COLOR, SINGLE_FIGURE_SHADOW_COLOR } from '../../utils/figure-palette.util';
 import { describeOwnPlacement, findOwnPlacements, findOwnTroncCellRect } from '../../utils/own-position.util';
+import { BoundsNode } from '../../utils/fit-to-bounds.util';
 import { OwnPositionBannerComponent, OwnPositionBannerState } from '../own-position-banner/own-position-banner.component';
 import { MarkerTarget, OwnPositionMarkerComponent } from '../own-position-marker/own-position-marker.component';
+
+/** Absolute (distScale-normalised — see `flyTo`) Troba'm flight caps: a pinya/base node lands
+ *  tight, a tronc panel lands looser so the davall/damunt names stay in frame. Exported so tests
+ *  assert against the real value instead of duplicating it as a literal that can drift out of sync. */
+export const PINYA_FLIGHT_MAX_SCALE = 1.5;
+export const TRONC_FLIGHT_MAX_SCALE = 2;
 
 interface DistributionTroncPanel {
   instance: ProjectionInstance;
@@ -71,6 +78,9 @@ export class PinyaProjectionComponent {
    *  attach/detach pattern used elsewhere in this canvas family. */
   private readonly figuresContainer = viewChild<ElementRef<HTMLDivElement>>('figuresContainer');
 
+  /** For imperatively calling flyToBounds()/cancelFlight() — see `maybeFlyOnArrival`/`onTroba`. */
+  private readonly figureCanvas = viewChild<FigureCanvasComponent>('figureCanvas');
+
   // ── State signals ───────────────────────────────────────────────────────────
 
   /** Actual pixel size of the figures container (updated by ResizeObserver). */
@@ -79,6 +89,14 @@ export class PinyaProjectionComponent {
 
   /** Real Konva stage transform — updated via (stageTransformChanged) from FigureCanvasComponent. */
   protected readonly stageTransform = signal({ x: 0, y: 0, scaleX: 1, scaleY: 1 });
+
+  /** Bumped on every `(flightLanded)` from the canvas — drives the marker's one-shot arrival bounce. */
+  protected readonly arrivedTick = signal(0);
+
+  /** The placement key `maybeFlyOnArrival` last flew to, so arrival-flight fires once per placement
+   *  (new segment, new own-position) rather than on every subsequent stage-transform tick — see
+   *  its own doc comment for why this can't be a plain `effect()` on `ownFlightBounds()`. */
+  private hasFlownForKey: string | null = null;
 
   // ── Computed ────────────────────────────────────────────────────────────────
 
@@ -140,6 +158,45 @@ export class PinyaProjectionComponent {
 
     const distNode = this.distributionNodes().find((n) => n.id === placement.node.id);
     return distNode ? { kind: 'world', x: distNode.x, y: distNode.y } : null;
+  });
+
+  /**
+   * Identifies *which* placement is currently resolved (`instanceId:nodeId`), so
+   * `maybeFlyOnArrival` can tell "a genuinely new placement to fly to" apart from "the same
+   * placement, stage transform just ticked" — the latter happens on every pan/zoom frame,
+   * including the ones the flight itself produces. `null` whenever there's nothing to fly to.
+   */
+  private readonly ownPlacementKey = computed((): string | null => {
+    const placements = this.ownPlacements();
+    if (placements.length !== 1) return null;
+    const [{ instance, node }] = placements;
+    return `${instance.id}:${node.id}`;
+  });
+
+  /**
+   * The flight's destination, in canvas-world units (unlike `ownPositionTarget`, which is
+   * screen-space for the ring): the caller's node, tight, for PINYA/BASE — or the caller's
+   * **whole tronc panel** for TRONC/direction, deliberately not the cell `ownPositionTarget`
+   * uses, so davall/damunt names stay legible on arrival (derivation 3 in the plan). Reuses
+   * `distributionFitBounds()`, which is already expressed in canvas-world units independent of
+   * the live stage transform — the same reason `ownPlacementKey` exists: nothing here may depend
+   * on `stageTransform()`, or a flight would retrigger itself every frame it's flying.
+   */
+  readonly ownFlightBounds = computed((): BoundsNode[] | null => {
+    const placements = this.ownPlacements();
+    const state = this.ownPositionState();
+    if (placements.length !== 1 || !state || (state.kind !== 'PINYA' && state.kind !== 'TRONC')) return null;
+
+    const [placement] = placements;
+    if (state.kind === 'TRONC') {
+      const instances = this.effectiveInstances();
+      const idx = instances.findIndex((i) => i.id === placement.instance.id);
+      const bounds = idx >= 0 ? this.distributionFitBounds()[idx] : null;
+      return bounds ? [bounds] : null;
+    }
+
+    const distNode = this.distributionNodes().find((n) => n.id === placement.node.id);
+    return distNode ? [{ x: distNode.x, y: distNode.y, width: distNode.width, height: distNode.height }] : null;
   });
 
   /**
@@ -495,6 +552,63 @@ export class PinyaProjectionComponent {
 
   onStageTransformChanged(t: { x: number; y: number; scaleX: number; scaleY: number }): void {
     this.stageTransform.set(t);
+    this.maybeFlyOnArrival();
+  }
+
+  /**
+   * Flies to `ownFlightBounds()` once per placement — on the *first* stage-transform tick after
+   * it resolves, not the moment it resolves. `FigureCanvasComponent` applies its own instant
+   * whole-segment fit on data load (`applyReadonlyFit`, scheduled via `setTimeout` from
+   * `renderNodes()`), which would otherwise race an arrival flight started eagerly from an
+   * `effect()` and stomp it mid-tween. Piggybacking on the first `(stageTransformChanged)` after
+   * a new `ownPlacementKey` sidesteps the race entirely: that event **is** the whole-segment fit
+   * completing, so the flight is guaranteed to start after it, not during it.
+   */
+  private maybeFlyOnArrival(): void {
+    const key = this.ownPlacementKey();
+    if (!key || key === this.hasFlownForKey) return;
+    const bounds = this.ownFlightBounds();
+    if (!bounds) return;
+
+    this.hasFlownForKey = key;
+    this.flyTo(bounds);
+  }
+
+  /** Troba'm (banner button) and the chevron tap both re-fly to the current placement on demand. */
+  onTroba(): void {
+    const bounds = this.ownFlightBounds();
+    if (bounds) this.flyTo(bounds);
+  }
+
+  /** Bumps the tick the marker watches to fire its one-shot arrival bounce. */
+  onFlightLanded(): void {
+    this.arrivedTick.update((n) => n + 1);
+  }
+
+  /**
+   * `bounds` (canvas-world units) already carry `distScale` — `computeDistributionTransform`'s
+   * own uncapped fit-the-whole-segment scale, baked into every node's x/y/width/height by
+   * `distributionNodes()`/`distributionFitBounds()`. It varies a lot: a segment with one small
+   * figure gets a *large* `distScale` (blown up to fill the viewport on its own), a segment with
+   * several spread-out figures gets a *small* one. `flyToBounds`'s `maxScale` caps the Konva
+   * stage scale it lands on — a *literal* cap there would therefore cap a different absolute
+   * on-screen size per segment: capped-and-small for a low-`distScale` segment, effectively
+   * uncapped (fills to the framing target normally) for a high-`distScale` one, which is exactly
+   * the "some figures end up far bigger than others after Troba'm" bug. Dividing the intended
+   * absolute cap by `distScale` here keeps the *combined* `distScale × flightScale` — the actual
+   * physical size on screen — the same regardless of what else is in the segment.
+   */
+  private flyTo(bounds: BoundsNode[]): void {
+    const { scale: distScale } = computeDistributionTransform(
+      this.effectiveInstances(),
+      this.containerWidth(),
+      this.containerHeight(),
+    );
+    const options =
+      this.ownPositionState()?.kind === 'PINYA'
+        ? { maxScale: PINYA_FLIGHT_MAX_SCALE / distScale }
+        : { padding: 32, maxScale: TRONC_FLIGHT_MAX_SCALE / distScale };
+    this.figureCanvas()?.flyToBounds(bounds, options);
   }
 
   // ── Node data accessors ───────────────────────────────────────────────────

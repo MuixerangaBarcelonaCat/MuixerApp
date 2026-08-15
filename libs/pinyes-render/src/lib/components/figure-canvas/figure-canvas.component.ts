@@ -23,7 +23,7 @@ import {
   isGhostPositionOccupied,
 } from '../../utils/ghost-clone.util';
 import { screenToStage } from '../../utils/rengla-coordinates.util';
-import { computeFitTransform } from '../../utils/fit-to-bounds.util';
+import { BoundsNode, computeFitTransform } from '../../utils/fit-to-bounds.util';
 import { fitFontSize } from '../../utils/fit-font-size.util';
 import { formatAssignedLabel } from '../../utils/assigned-label.util';
 import { computeTroncNaturalSize, TRONC_GAP_PX } from '../../utils/tronc-size.util';
@@ -299,6 +299,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   >();
   /** A person was dragged off `source` and released on `target` (drag-and-drop move/swap). */
   readonly segmentNodeDropped = output<{ source: SegmentNodeRef; target: SegmentNodeRef }>();
+  /** A `flyToBounds()` tween finished landing (or, under reduced motion, the instant jump ran). */
+  readonly flightLanded = output<void>();
 
   private stage!: Konva.Stage;
   private gridLayer!: Konva.Layer;
@@ -316,6 +318,8 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
    */
   private userAdjustedView = false;
   private wheelHandler: ((e: WheelEvent) => void) | null = null;
+  /** In-flight `flyToBounds()` tween, if any — cancelled by any user gesture (see `cancelFlight`). */
+  private flightTween: Konva.Tween | null = null;
 
   private activeGhostGroup: Konva.Group | null = null;
   private ghostHoverTimer: ReturnType<typeof setTimeout> | null = null;
@@ -451,6 +455,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.cancelFlight();
     this.clearAllGhostTimers();
     this.clearPersonDragVisuals();
     this.resizeObserver?.disconnect();
@@ -461,6 +466,58 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     this.labelMeasureProbe?.destroy();
     this.labelMeasureProbe = null;
     this.stage?.destroy();
+  }
+
+  /**
+   * Animates the stage so `bounds` (canvas-world units) fills the viewport — "Troba'm". Cancels
+   * any flight already in progress first (landing on a new target mid-flight should redirect, not
+   * queue). Under `prefers-reduced-motion`, jumps straight to the destination instead of tweening;
+   * `flightLanded` still fires so the arrival bounce isn't silently skipped, only the motion is.
+   */
+  flyToBounds(bounds: BoundsNode[], options?: { padding?: number; maxScale?: number; durationMs?: number }): void {
+    if (!this.stage || bounds.length === 0) return;
+    const fit = computeFitTransform(bounds, this.stage.width(), this.stage.height(), {
+      padding: options?.padding,
+      maxScale: options?.maxScale,
+    });
+    if (!fit) return;
+
+    this.cancelFlight();
+    this.userAdjustedView = true;
+
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      this.stage.scale({ x: fit.scale, y: fit.scale });
+      this.stage.position({ x: fit.x, y: fit.y });
+      this.zoomLevel.set(fit.scale);
+      this.stage.batchDraw();
+      this.emitStageTransform();
+      this.flightLanded.emit();
+      return;
+    }
+
+    this.flightTween = new Konva.Tween({
+      node: this.stage,
+      duration: (options?.durationMs ?? 1000) / 1000,
+      easing: Konva.Easings.EaseInOut,
+      x: fit.x,
+      y: fit.y,
+      scaleX: fit.scale,
+      scaleY: fit.scale,
+      onUpdate: () => this.emitStageTransform(),
+      onFinish: () => {
+        this.zoomLevel.set(fit.scale);
+        this.flightTween = null;
+        this.flightLanded.emit();
+      },
+    });
+    this.flightTween.play();
+  }
+
+  /** Stops an in-flight `flyToBounds()` tween exactly where it is. Called at the head of every
+   *  gesture handler — fighting the user's finger is worse than not animating at all. */
+  cancelFlight(): void {
+    this.flightTween?.destroy();
+    this.flightTween = null;
   }
 
   fitToScreen(): void {
@@ -638,6 +695,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     let stageStart = { x: 0, y: 0 };
 
     this.stage.on('mousedown', (e) => {
+      this.cancelFlight();
       const isMiddleButton = e.evt.button === 1;
       const isLeftButton = e.evt.button === 0;
       const clickedOnStage = e.target === this.stage;
@@ -762,6 +820,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
     const getTouchPoint = (touch: Touch): Point => ({ x: touch.clientX, y: touch.clientY });
 
     this.stage.on('touchstart', (e) => {
+      this.cancelFlight();
       const touches = e.evt.touches;
       if (touches.length === 1 && e.target === this.stage && this.canPanOrZoom()) {
         panStart = getTouchPoint(touches[0]);
@@ -823,6 +882,7 @@ export class FigureCanvasComponent implements AfterViewInit, OnDestroy {
   private setupWheelZoom(): void {
     this.wheelHandler = (e: WheelEvent) => {
       e.preventDefault();
+      this.cancelFlight();
       const pointer = this.stage.getPointerPosition();
       if (!pointer) return;
       const direction = e.deltaY > 0 ? -1 : 1;
