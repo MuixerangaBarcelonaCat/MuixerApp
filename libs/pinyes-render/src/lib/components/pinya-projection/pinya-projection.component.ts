@@ -19,8 +19,9 @@ import { computeDistributionTransform, computeInstanceNaturalExtent } from '../.
 import { figureExtentFromNodes, placeFigures, placeNewFigure, PlacedFigurePosition } from '../../utils/figure-placement.util';
 import { computeTroncNaturalSize, TRONC_GAP_PX } from '../../utils/tronc-size.util';
 import { getFigureColor, SINGLE_FIGURE_PANEL_COLOR, SINGLE_FIGURE_SHADOW_COLOR } from '../../utils/figure-palette.util';
-import { describeOwnPlacement, findOwnPlacements } from '../../utils/own-position.util';
+import { describeOwnPlacement, findOwnPlacements, findOwnTroncCellRect } from '../../utils/own-position.util';
 import { OwnPositionBannerComponent, OwnPositionBannerState } from '../own-position-banner/own-position-banner.component';
+import { MarkerTarget, OwnPositionMarkerComponent } from '../own-position-marker/own-position-marker.component';
 
 interface DistributionTroncPanel {
   instance: ProjectionInstance;
@@ -47,7 +48,7 @@ interface DistributionTroncPanel {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'contents' },
-  imports: [CommonModule, FigureCanvasComponent, TroncViewComponent, OwnPositionBannerComponent],
+  imports: [CommonModule, FigureCanvasComponent, TroncViewComponent, OwnPositionBannerComponent, OwnPositionMarkerComponent],
   templateUrl: './pinya-projection.component.html',
 })
 export class PinyaProjectionComponent {
@@ -73,11 +74,11 @@ export class PinyaProjectionComponent {
   // ── State signals ───────────────────────────────────────────────────────────
 
   /** Actual pixel size of the figures container (updated by ResizeObserver). */
-  private readonly containerWidth = signal(window.innerWidth);
-  private readonly containerHeight = signal(window.innerHeight);
+  protected readonly containerWidth = signal(window.innerWidth);
+  protected readonly containerHeight = signal(window.innerHeight);
 
   /** Real Konva stage transform — updated via (stageTransformChanged) from FigureCanvasComponent. */
-  private readonly stageTransform = signal({ x: 0, y: 0, scaleX: 1, scaleY: 1 });
+  protected readonly stageTransform = signal({ x: 0, y: 0, scaleX: 1, scaleY: 1 });
 
   // ── Computed ────────────────────────────────────────────────────────────────
 
@@ -88,23 +89,57 @@ export class PinyaProjectionComponent {
   });
 
   /**
-   * The "you are here" banner state, derived from `highlightPersonId` against the raw,
-   * unfiltered `data()` — deliberately not `filteredInstances()`, which exists for the
-   * Dashboard's single-figure preview route (`instanceId`) and would silently misreport
+   * Every assignment `highlightPersonId` holds in this segment, against the raw, unfiltered
+   * `data()` — deliberately not `filteredInstances()`, which exists for the Dashboard's
+   * single-figure preview route (`instanceId`) and would silently misreport
    * `figureName`/`instanceIndex` if a placement happened to live outside the filter. The two
    * inputs are never set together in practice (the Dashboard never passes `highlightPersonId`,
    * the PWA never sets `instanceId`), so this only matters for correctness, not behaviour today.
    */
-  readonly ownPositionState = computed((): OwnPositionBannerState | null => {
+  private readonly ownPlacements = computed(() => {
     const personId = this.highlightPersonId();
-    if (!personId) return null;
+    return personId ? findOwnPlacements(this.data(), personId) : [];
+  });
 
-    const data = this.data();
-    const placements = findOwnPlacements(data, personId);
+  /** The "you are here" banner state — see `ownPlacements` for why it reads raw `data()`. */
+  readonly ownPositionState = computed((): OwnPositionBannerState | null => {
+    if (!this.highlightPersonId()) return null;
+
+    const placements = this.ownPlacements();
     if (placements.length === 0) return { kind: 'NONE' };
     if (placements.length > 1) return { kind: 'MULTIPLE' };
 
-    return describeOwnPlacement(placements[0], data.instances.length);
+    return describeOwnPlacement(placements[0], this.data().instances.length);
+  });
+
+  /**
+   * Where the marker points: the caller's node in `distributionNodes()` (batch-placement-adjusted
+   * canvas-world coords) for a PINYA/BASE placement, or the centre of the caller's own cell inside
+   * the matching tronc panel (`findOwnTroncCellRect`, converted from natural to screen space with
+   * the panel's own `screenX/screenY/scale`) for a TRONC/direction one — deliberately not the
+   * panel as a whole, which stays reserved for the phase 5 flight destination. `null` whenever the
+   * banner isn't showing a single resolved placement (no placement, more than one, or no
+   * `highlightPersonId`).
+   */
+  readonly ownPositionTarget = computed((): MarkerTarget | null => {
+    const placements = this.ownPlacements();
+    const state = this.ownPositionState();
+    if (placements.length !== 1 || !state || (state.kind !== 'PINYA' && state.kind !== 'TRONC')) return null;
+
+    const [placement] = placements;
+    if (state.kind === 'TRONC') {
+      const panel = this.distributionTroncPanels().find((p) => p.instance.id === placement.instance.id);
+      if (!panel) return null;
+      const cell = findOwnTroncCellRect(placement.node, placement.instance);
+      return {
+        kind: 'screen',
+        x: panel.screenX + (cell.x + cell.width / 2) * panel.scale,
+        y: panel.screenY + (cell.y + cell.height / 2) * panel.scale,
+      };
+    }
+
+    const distNode = this.distributionNodes().find((n) => n.id === placement.node.id);
+    return distNode ? { kind: 'world', x: distNode.x, y: distNode.y } : null;
   });
 
   /**

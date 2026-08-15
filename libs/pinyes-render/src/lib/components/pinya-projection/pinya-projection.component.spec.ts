@@ -3,6 +3,7 @@ import { Component, input } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { FigureZone, NodeShape } from '@muixer/shared';
 import { PinyaProjectionComponent } from './pinya-projection.component';
+import { allLucideIconsProvider } from '../../../testing/lucide-test-provider';
 import {
   ProjectionInstance,
   ProjectionSegmentData,
@@ -14,6 +15,8 @@ import {
   TroncNodeItem,
   TroncViewComponent,
   OwnPositionBannerComponent,
+  OwnPositionMarkerComponent,
+  findOwnTroncCellRect,
 } from '../../../index';
 
 @Component({ selector: 'app-figure-canvas', standalone: true, template: '' })
@@ -117,6 +120,7 @@ describe('PinyaProjectionComponent', () => {
 
     await TestBed.configureTestingModule({
       imports: [PinyaProjectionComponent],
+      providers: [allLucideIconsProvider],
     })
       .overrideComponent(PinyaProjectionComponent, {
         remove: { imports: [FigureCanvasComponent, TroncViewComponent] },
@@ -555,6 +559,81 @@ describe('PinyaProjectionComponent', () => {
 
       const banner = fixture.debugElement.query(By.directive(OwnPositionBannerComponent));
       expect(banner.componentInstance.state()).toEqual({ kind: 'NONE' });
+    });
+  });
+
+  // ── ownPositionTarget / the marker ───────────────────────────────────────────
+
+  describe('ownPositionTarget', () => {
+    it('renders no marker when there is no own-position state', () => {
+      const inst = makeInstance([makeNode({ id: 'n1' })], [], { id: 'i1' });
+      setData(makeSegmentData([inst]));
+
+      expect(fixture.debugElement.query(By.directive(OwnPositionMarkerComponent))).toBeNull();
+    });
+
+    it('targets the distribution-adjusted node for a PINYA placement', () => {
+      const node = makeNode({ id: 'n1', zone: FigureZone.PINYA, x: 100, y: 50 });
+      const inst = makeInstance([node], ['n1'], { id: 'i1' });
+      setData(makeSegmentData([inst]));
+      fixture.componentRef.setInput('highlightPersonId', 'p1');
+      fixture.detectChanges();
+
+      const distNode = component.distributionNodes().find((n) => n.id === 'n1')!;
+      const marker = fixture.debugElement.query(By.directive(OwnPositionMarkerComponent));
+      expect(marker.componentInstance.target()).toEqual({ kind: 'world', x: distNode.x, y: distNode.y });
+    });
+
+    it("targets the caller's own cell centre for a TRONC placement, not the panel as a whole", () => {
+      const node = makeNode({ id: 'n1', zone: FigureZone.TRONC, z: 1, x: 0, width: 1 });
+      const inst = makeInstance([node], ['n1'], { id: 'i1' });
+      setData(makeSegmentData([inst]));
+      fixture.componentRef.setInput('highlightPersonId', 'p1');
+      fixture.detectChanges();
+
+      const panel = component.distributionTroncPanels().find((p) => p.instance.id === 'i1')!;
+      const cell = findOwnTroncCellRect(node, inst);
+      const marker = fixture.debugElement.query(By.directive(OwnPositionMarkerComponent));
+      expect(marker.componentInstance.target()).toEqual({
+        kind: 'screen',
+        x: panel.screenX + (cell.x + cell.width / 2) * panel.scale,
+        y: panel.screenY + (cell.y + cell.height / 2) * panel.scale,
+      });
+    });
+
+    it('renders no marker for the MULTIPLE state — pointing at one of several would mislead', () => {
+      const n1 = makeNode({ id: 'n1' });
+      const n2 = makeNode({ id: 'n2' });
+      const inst1 = makeInstance([n1], ['n1'], { id: 'i1' });
+      const inst2 = makeInstance([n2], ['n2'], { id: 'i2' });
+      setData(makeSegmentData([inst1, inst2]));
+      fixture.componentRef.setInput('highlightPersonId', 'p1');
+      fixture.detectChanges();
+
+      expect(fixture.debugElement.query(By.directive(OwnPositionMarkerComponent))).toBeNull();
+    });
+
+    it('renders no marker for the NONE state', () => {
+      const inst = makeInstance([makeNode({ id: 'n1' })], [], { id: 'i1' });
+      setData(makeSegmentData([inst]));
+      fixture.componentRef.setInput('highlightPersonId', 'someone-else');
+      fixture.detectChanges();
+
+      expect(fixture.debugElement.query(By.directive(OwnPositionMarkerComponent))).toBeNull();
+    });
+
+    it('passes the live stage transform through to the marker', () => {
+      const node = makeNode({ id: 'n1' });
+      const inst = makeInstance([node], ['n1'], { id: 'i1' });
+      setData(makeSegmentData([inst]));
+      fixture.componentRef.setInput('highlightPersonId', 'p1');
+      fixture.detectChanges();
+
+      component.onStageTransformChanged({ x: 10, y: 20, scaleX: 2, scaleY: 2 });
+      fixture.detectChanges();
+
+      const marker = fixture.debugElement.query(By.directive(OwnPositionMarkerComponent));
+      expect(marker.componentInstance.stageTransform()).toEqual({ x: 10, y: 20, scaleX: 2, scaleY: 2 });
     });
   });
 });

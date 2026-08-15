@@ -1,6 +1,7 @@
 import { FigureZone, getSegmentInstanceLabel } from '@muixer/shared';
 import { AssignmentDetail, InstanceNodeItem } from '../models/assignment.model';
 import { ProjectionInstance, ProjectionSegmentData } from '../models/projection.model';
+import { TRONC_FLOOR_ROW_PX, TRONC_HALF_UNIT_PX, TRONC_HEADER_PX, TRONC_LABEL_COL_PX } from './tronc-size.util';
 
 const TRONC_ZONES = new Set<string>([
   FigureZone.TRONC,
@@ -122,7 +123,79 @@ export function describeOwnPlacement(placement: OwnPlacement, instanceCount: num
   };
 }
 
+export interface TroncCellRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * The caller's own cell inside the tronc panel's natural-space grid — reuses the same column
+ * maths as `TroncViewComponent`'s `getTroncNodeGridColumn`/`getBaseNodeGridColumn` (half-unit
+ * tracks) and the same row order as its `floors()` (z descending, BASE last). Direction nodes
+ * (`FIGURE_DIRECTION`/`XICALLA_DIRECTION`) render as flat rows above the floor grid instead of
+ * inside it — one row per *assigned* direction zone, in `DIRECTION_ROW_ORDER` — so they get a
+ * full-width row instead of an x/width-derived column.
+ */
+export function findOwnTroncCellRect(node: InstanceNodeItem, instance: ProjectionInstance): TroncCellRect {
+  const directionRows = presentDirectionZones(instance);
+
+  if (node.zone === FigureZone.FIGURE_DIRECTION || node.zone === FigureZone.XICALLA_DIRECTION) {
+    return {
+      x: 0,
+      y: TRONC_HEADER_PX + directionRows.indexOf(node.zone) * TRONC_FLOOR_ROW_PX,
+      width: TRONC_LABEL_COL_PX + troncGridCols(instance) * 2 * TRONC_HALF_UNIT_PX,
+      height: TRONC_FLOOR_ROW_PX,
+    };
+  }
+
+  const floorZs = distinctTroncZDescending(instance);
+  const isBase = node.zone === FigureZone.BASE;
+  const rowIndex = directionRows.length + (isBase ? floorZs.length : floorZs.indexOf(node.z));
+  const col = isBase ? sortedBaseIndex(node, instance) : node.x;
+  const span = isBase ? 1 : node.width;
+
+  return {
+    x: TRONC_LABEL_COL_PX + col * 2 * TRONC_HALF_UNIT_PX,
+    y: TRONC_HEADER_PX + rowIndex * TRONC_FLOOR_ROW_PX,
+    width: span * 2 * TRONC_HALF_UNIT_PX,
+    height: TRONC_FLOOR_ROW_PX,
+  };
+}
+
 // ── Internals ────────────────────────────────────────────────────────────────
+
+const DIRECTION_ROW_ORDER = [FigureZone.FIGURE_DIRECTION, FigureZone.XICALLA_DIRECTION];
+
+/** Assigned direction zones present in `instance`, in the fixed order they stack as rows. */
+function presentDirectionZones(instance: ProjectionInstance): FigureZone[] {
+  return DIRECTION_ROW_ORDER.filter((zone) =>
+    instance.nodes.some((n) => n.zone === zone && instance.assignments.some((a) => a.node.id === n.id)),
+  );
+}
+
+/** Distinct TRONC floor `z` values, highest (topmost row) first. */
+function distinctTroncZDescending(instance: ProjectionInstance): number[] {
+  return [...new Set(instance.nodes.filter((n) => n.zone === FigureZone.TRONC).map((n) => n.z))].sort(
+    (a, b) => b - a,
+  );
+}
+
+/** Rightmost occupied column among TRONC nodes — the panel's grid width, in relative units. */
+function troncGridCols(instance: ProjectionInstance): number {
+  return instance.nodes
+    .filter((n) => n.zone === FigureZone.TRONC)
+    .reduce((max, n) => Math.max(max, n.x + n.width), 0);
+}
+
+/** A BASE node's position among BASE nodes sorted by `sortOrder` — matches `getBaseNodeGridColumn`. */
+function sortedBaseIndex(node: InstanceNodeItem, instance: ProjectionInstance): number {
+  const bases = [...instance.nodes.filter((n) => n.zone === FigureZone.BASE)].sort(
+    (a, b) => a.sortOrder - b.sortOrder,
+  );
+  return bases.findIndex((n) => n.id === node.id);
+}
 
 interface Span {
   start: number;

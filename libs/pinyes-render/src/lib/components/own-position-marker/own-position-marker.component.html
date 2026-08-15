@@ -1,0 +1,36 @@
+@if (screenPosition(); as pos) {
+  @if (!isOffscreen()) {
+    <div
+      data-testid="own-position-pin"
+      class="absolute z-30 pointer-events-none"
+      [style.left.px]="pos.x"
+      [style.top.px]="pos.y"
+      [style.transform]="'translate(-50%, -50%)'"
+      aria-hidden="true"
+    >
+      <span class="relative flex h-16 w-16 items-center justify-center">
+        <span
+          class="absolute inline-flex h-full w-full animate-ping rounded-full shadow-md motion-reduce:animate-none"
+          style="
+            background: radial-gradient(circle farthest-side, #ffffff 0%, #ffffff 80%, #000000 100%);
+            -webkit-mask-image: radial-gradient(circle farthest-side, transparent 82%, #ffffff 88%, #ffffff 100%);
+            mask-image: radial-gradient(circle farthest-side, transparent 82%, #ffffff 88%, #ffffff 100%);
+          "
+        ></span>
+      </span>
+    </div>
+  } @else if (chevronPosition(); as chevronPos) {
+    <button
+      type="button"
+      data-testid="own-position-chevron"
+      class="absolute z-30 flex items-center justify-center w-9 h-9 rounded-full bg-black/60 backdrop-blur-sm text-white shadow-lg"
+      [style.left.px]="chevronPos.x"
+      [style.top.px]="chevronPos.y"
+      [style.transform]="'translate(-50%, -50%) rotate(' + chevronAngleDeg() + 'deg)'"
+      (click)="troba.emit()"
+      aria-label="Ves a la teua posició"
+    >
+      <lucide-icon [img]="ChevronRight" [size]="20" aria-hidden="true" />
+    </button>
+  }
+}

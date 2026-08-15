@@ -1,9 +1,11 @@
 import { FigureZone } from '@muixer/shared';
 import { AssignmentDetail } from '../models/assignment.model';
 import { ProjectionInstance, ProjectionSegmentData } from '../models/projection.model';
+import { TRONC_FLOOR_ROW_PX, TRONC_HALF_UNIT_PX, TRONC_HEADER_PX, TRONC_LABEL_COL_PX } from './tronc-size.util';
 import {
   describeOwnPlacement,
   findOwnPlacements,
+  findOwnTroncCellRect,
   findRenglaPredecessor,
   findTroncNeighbours,
   OwnPlacement,
@@ -373,5 +375,93 @@ describe('describeOwnPlacement', () => {
     const description = describeOwnPlacement(toPlacement(instance, node), 1);
 
     expect(description).toMatchObject({ kind: 'TRONC', below: ['Joan'], above: [] });
+  });
+});
+
+describe('findOwnTroncCellRect', () => {
+  it("derives a TRONC node's column and width from its x/width, in half-unit tracks", () => {
+    const node = makeNode({ zone: FigureZone.TRONC, z: 1, x: 2, width: 3, sortOrder: 0 });
+    const instance = makeInstance({ nodes: [node] });
+
+    const rect = findOwnTroncCellRect(node, instance);
+
+    expect(rect.x).toBe(TRONC_LABEL_COL_PX + 2 * 2 * TRONC_HALF_UNIT_PX);
+    expect(rect.width).toBe(3 * 2 * TRONC_HALF_UNIT_PX);
+  });
+
+  it("derives a BASE node's column and width from its sorted index, always width 1", () => {
+    const base0 = makeNode({ zone: FigureZone.BASE, sortOrder: 0 });
+    const base1 = makeNode({ zone: FigureZone.BASE, sortOrder: 1 });
+    const instance = makeInstance({ nodes: [base0, base1] });
+
+    const rect = findOwnTroncCellRect(base1, instance);
+
+    expect(rect.x).toBe(TRONC_LABEL_COL_PX + 1 * 2 * TRONC_HALF_UNIT_PX);
+    expect(rect.width).toBe(1 * 2 * TRONC_HALF_UNIT_PX);
+  });
+
+  it('places the topmost floor at row 0', () => {
+    const top = makeNode({ zone: FigureZone.TRONC, z: 3, x: 0, width: 1, sortOrder: 0 });
+    const mid = makeNode({ zone: FigureZone.TRONC, z: 2, x: 0, width: 1, sortOrder: 0 });
+    const bottom = makeNode({ zone: FigureZone.TRONC, z: 1, x: 0, width: 1, sortOrder: 0 });
+    const instance = makeInstance({ nodes: [top, mid, bottom] });
+
+    expect(findOwnTroncCellRect(top, instance).y).toBe(TRONC_HEADER_PX + 0 * TRONC_FLOOR_ROW_PX);
+  });
+
+  it('places a middle floor at the row between the ones above and below it', () => {
+    const top = makeNode({ zone: FigureZone.TRONC, z: 3, x: 0, width: 1, sortOrder: 0 });
+    const mid = makeNode({ zone: FigureZone.TRONC, z: 2, x: 0, width: 1, sortOrder: 0 });
+    const bottom = makeNode({ zone: FigureZone.TRONC, z: 1, x: 0, width: 1, sortOrder: 0 });
+    const instance = makeInstance({ nodes: [top, mid, bottom] });
+
+    expect(findOwnTroncCellRect(mid, instance).y).toBe(TRONC_HEADER_PX + 1 * TRONC_FLOOR_ROW_PX);
+  });
+
+  it('places the BASE floor after every TRONC floor, at the bottom', () => {
+    const top = makeNode({ zone: FigureZone.TRONC, z: 2, x: 0, width: 1, sortOrder: 0 });
+    const mid = makeNode({ zone: FigureZone.TRONC, z: 1, x: 0, width: 1, sortOrder: 0 });
+    const base = makeNode({ zone: FigureZone.BASE, sortOrder: 0 });
+    const instance = makeInstance({ nodes: [top, mid, base] });
+
+    expect(findOwnTroncCellRect(base, instance).y).toBe(TRONC_HEADER_PX + 2 * TRONC_FLOOR_ROW_PX);
+  });
+
+  it.each([FigureZone.FIGURE_DIRECTION, FigureZone.XICALLA_DIRECTION])(
+    'gives a %s node a full-width row, with no x/width of its own',
+    (zone) => {
+      const node = makeNode({ zone, x: 0, width: 0, sortOrder: 0 });
+      const troncNode = makeNode({ zone: FigureZone.TRONC, z: 1, x: 0, width: 4, sortOrder: 0 });
+      const instance = makeInstance({
+        nodes: [node, troncNode],
+        assignments: [makeAssignment(node, 'me', 'Marta')],
+      });
+
+      const rect = findOwnTroncCellRect(node, instance);
+
+      expect(rect.x).toBe(0);
+      expect(rect.width).toBe(TRONC_LABEL_COL_PX + 4 * 2 * TRONC_HALF_UNIT_PX);
+    },
+  );
+
+  it('stacks a second assigned direction row below the first, before the floors', () => {
+    const figDir = makeNode({ zone: FigureZone.FIGURE_DIRECTION, x: 0, width: 0, sortOrder: 0 });
+    const xicDir = makeNode({ zone: FigureZone.XICALLA_DIRECTION, x: 0, width: 0, sortOrder: 0 });
+    const floor = makeNode({ zone: FigureZone.TRONC, z: 1, x: 0, width: 1, sortOrder: 0 });
+    const instance = makeInstance({
+      nodes: [figDir, xicDir, floor],
+      assignments: [makeAssignment(figDir, 'p1', 'Joan'), makeAssignment(xicDir, 'me', 'Marta')],
+    });
+
+    expect(findOwnTroncCellRect(xicDir, instance).y).toBe(TRONC_HEADER_PX + 1 * TRONC_FLOOR_ROW_PX);
+    expect(findOwnTroncCellRect(floor, instance).y).toBe(TRONC_HEADER_PX + 2 * TRONC_FLOOR_ROW_PX);
+  });
+
+  it('does not reserve a direction row when no direction node is assigned', () => {
+    const unassignedDir = makeNode({ zone: FigureZone.FIGURE_DIRECTION, x: 0, width: 0, sortOrder: 0 });
+    const floor = makeNode({ zone: FigureZone.TRONC, z: 1, x: 0, width: 1, sortOrder: 0 });
+    const instance = makeInstance({ nodes: [unassignedDir, floor], assignments: [] });
+
+    expect(findOwnTroncCellRect(floor, instance).y).toBe(TRONC_HEADER_PX + 0 * TRONC_FLOOR_ROW_PX);
   });
 });

@@ -50,4 +50,15 @@
       [state]="state"
     />
   }
+
+  @if (ownPositionTarget(); as target) {
+    <!-- The component's own host is `display:contents` — no box, so positioning classes here
+         would be inert (and pointer-events would wrongly cascade onto the chevron button).
+         Each of the pin/chevron elements positions and stacks itself; see the component's HTML. -->
+    <lib-own-position-marker
+      [target]="target"
+      [stageTransform]="stageTransform()"
+      [viewport]="{ width: containerWidth(), height: containerHeight() }"
+    />
+  }
 </div>
