@@ -1,0 +1,132 @@
+<dialog
+  class="modal modal-open"
+  (click)="onBackdropClick($event)"
+  (keydown.escape)="close()"
+  tabindex="0"
+>
+  <div class="modal-box max-w-md w-full" role="dialog" aria-modal="true" aria-label="Delegacions">
+    <div class="flex items-start justify-between mb-4">
+      <h2 class="text-lg font-bold">Delegacions</h2>
+      <button
+        type="button"
+        class="btn btn-sm btn-ghost btn-circle"
+        aria-label="Tancar"
+        (click)="close()"
+      >
+        <lucide-icon [img]="X" [size]="18" />
+      </button>
+    </div>
+
+    @if (isLoading()) {
+      <div class="flex justify-center py-8">
+        <span class="loading loading-spinner"></span>
+      </div>
+    } @else if (delegates().length === 0) {
+      <app-empty-state [icon]="Users" message="Encara no hi ha cap delegació. Les persones que afegiu podran confirmar la vostra assistència." />
+    } @else {
+      <ul class="flex flex-col gap-2 mb-4">
+        @for (delegate of delegates(); track delegate.id) {
+          <li class="flex items-center justify-between gap-2 p-3 rounded-box bg-base-200">
+            <div class="flex flex-col min-w-0">
+              <span class="text-sm font-medium truncate">
+                {{ delegate.user.person?.alias ?? delegate.user.email }}
+              </span>
+              <span class="text-xs text-base-content/60">
+                {{ delegateTypeLabel(delegate.delegateType) }}
+                @if (delegate.isPrimary) {
+                  <span class="badge badge-primary badge-xs ml-1" data-testid="primary-badge">
+                    Primari
+                  </span>
+                }
+              </span>
+            </div>
+
+            @if (!delegate.isPrimary) {
+              @if (confirmingRemoveId() === delegate.id) {
+                <div class="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-xs"
+                    data-testid="cancel-remove"
+                    [disabled]="removing()"
+                    (click)="cancelRemove()"
+                  >
+                    Cancel·la
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-error btn-xs"
+                    data-testid="confirm-remove"
+                    [disabled]="removing()"
+                    (click)="confirmRemove(delegate.id)"
+                  >
+                    Elimina
+                  </button>
+                </div>
+              } @else {
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-xs text-error shrink-0"
+                  data-testid="remove-delegate"
+                  (click)="requestRemove(delegate.id)"
+                >
+                  Elimina
+                </button>
+              }
+            }
+          </li>
+        }
+      </ul>
+    }
+
+    <form
+      id="add-delegate-form"
+      [formGroup]="addForm"
+      (ngSubmit)="submitAdd()"
+      class="space-y-3 border-t border-base-200 pt-4"
+    >
+      <div class="space-y-1">
+        <label class="form-control w-full" for="delegate-alias">
+          <div class="label pb-1">
+            <span class="label-text-alt">Àlies de la persona</span>
+          </div>
+          <input
+            id="delegate-alias"
+            type="text"
+            class="input input-bordered input-sm w-full"
+            formControlName="alias"
+          />
+        </label>
+
+        <label class="form-control w-full" for="delegate-type">
+          <div class="label pb-1">
+            <span class="label-text-alt">Tipus de relació</span>
+          </div>
+          <select id="delegate-type" class="select select-bordered select-sm w-full" formControlName="delegateType">
+            <option value="" disabled>Seleccioneu un tipus</option>
+            @for (type of delegateTypes; track type) {
+              <option [value]="type">{{ delegateTypeLabel(type) }}</option>
+            }
+          </select>
+        </label>
+      </div>
+
+      @if (addError()) {
+        <div class="alert alert-error text-sm py-2" role="alert">
+          <span>{{ addError() }}</span>
+        </div>
+      }
+
+      <button
+        type="submit"
+        class="btn btn-primary btn-sm w-full"
+        [disabled]="addForm.invalid || adding()"
+      >
+        @if (adding()) {
+          <span class="loading loading-spinner loading-xs"></span>
+        }
+        Afegeix una delegació
+      </button>
+    </form>
+  </div>
+</dialog>

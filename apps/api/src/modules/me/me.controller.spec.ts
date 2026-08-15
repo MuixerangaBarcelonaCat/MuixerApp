@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AttendanceStatus, EventType, JwtPayload, UserRole } from '@muixer/shared';
+import { AttendanceStatus, DelegateType, EventType, JwtPayload, UserRole } from '@muixer/shared';
 import { MeController } from './me.controller';
 import { MeService } from './me.service';
 
@@ -25,6 +25,11 @@ describe('MeController', () => {
             upsertAttendance: jest.fn(),
             getPendingDependents: jest.fn(),
             completePendingDependent: jest.fn(),
+            resolveManagedPersons: jest.fn(),
+            getPersonSummary: jest.fn(),
+            listPersonDelegates: jest.fn(),
+            createPersonDelegate: jest.fn(),
+            removePersonDelegate: jest.fn(),
           },
         },
       ],
@@ -118,6 +123,99 @@ describe('MeController', () => {
 
       expect(meService.getPendingDependents).toHaveBeenCalledWith('user-1');
       expect(result).toEqual(expected);
+    });
+  });
+
+  describe('listManagedPersons', () => {
+    it('passes primaryOnly through to MeService.resolveManagedPersons', async () => {
+      const expected = [
+        { personId: 'p-1', displayName: 'MartaP', isSelf: true, delegateType: null },
+      ];
+      meService.resolveManagedPersons.mockResolvedValue(expected);
+
+      const result = await controller.listManagedPersons(mockUser, { primaryOnly: true });
+
+      expect(meService.resolveManagedPersons).toHaveBeenCalledWith('user-1', { primaryOnly: true });
+      expect(result).toEqual(expected);
+    });
+
+    it('passes undefined primaryOnly through when no filter is given', async () => {
+      meService.resolveManagedPersons.mockResolvedValue([]);
+
+      await controller.listManagedPersons(mockUser, {});
+
+      expect(meService.resolveManagedPersons).toHaveBeenCalledWith('user-1', { primaryOnly: undefined });
+    });
+  });
+
+  describe('getPersonSummary', () => {
+    it('delegates to MeService with the current user id and personId', async () => {
+      const expected = {
+        personId: 'p-1',
+        alias: 'MartaP',
+        name: 'Marta',
+        firstSurname: 'Puig',
+        delegationCount: 1,
+      };
+      meService.getPersonSummary.mockResolvedValue(expected);
+
+      const result = await controller.getPersonSummary(mockUser, 'p-1');
+
+      expect(meService.getPersonSummary).toHaveBeenCalledWith('user-1', 'p-1');
+      expect(result).toEqual(expected);
+    });
+  });
+
+  describe('listPersonDelegates', () => {
+    it('delegates to MeService and shapes the response via PersonDelegateResponseDto', async () => {
+      meService.listPersonDelegates.mockResolvedValue([
+        {
+          id: 'del-1',
+          delegateType: DelegateType.PARENT,
+          isActive: true,
+          isPrimary: false,
+          createdAt: new Date('2026-01-01'),
+          user: { id: 'user-2', email: 'joan@test.cat', person: null },
+          person: { id: 'p-1', alias: 'MartaP' },
+        } as never,
+      ]);
+
+      const result = await controller.listPersonDelegates(mockUser, 'p-1');
+
+      expect(meService.listPersonDelegates).toHaveBeenCalledWith('user-1', 'p-1');
+      expect(result).toEqual([
+        expect.objectContaining({ id: 'del-1', delegateType: DelegateType.PARENT, isPrimary: false }),
+      ]);
+    });
+  });
+
+  describe('createPersonDelegate', () => {
+    it('delegates to MeService and shapes the response via PersonDelegateResponseDto', async () => {
+      const dto = { alias: 'JoanP', delegateType: DelegateType.PARTNER };
+      meService.createPersonDelegate.mockResolvedValue({
+        id: 'del-new',
+        delegateType: DelegateType.PARTNER,
+        isActive: true,
+        isPrimary: false,
+        createdAt: new Date('2026-01-01'),
+        user: { id: 'user-2', email: 'joan@test.cat', person: null },
+        person: { id: 'p-1', alias: 'MartaP' },
+      } as never);
+
+      const result = await controller.createPersonDelegate(mockUser, 'p-1', dto as never);
+
+      expect(meService.createPersonDelegate).toHaveBeenCalledWith('user-1', 'p-1', dto);
+      expect(result).toEqual(expect.objectContaining({ id: 'del-new', delegateType: DelegateType.PARTNER }));
+    });
+  });
+
+  describe('removePersonDelegate', () => {
+    it('delegates to MeService with user id, personId and delegateId', async () => {
+      meService.removePersonDelegate.mockResolvedValue(undefined);
+
+      await controller.removePersonDelegate(mockUser, 'p-1', 'del-1');
+
+      expect(meService.removePersonDelegate).toHaveBeenCalledWith('user-1', 'p-1', 'del-1');
     });
   });
 

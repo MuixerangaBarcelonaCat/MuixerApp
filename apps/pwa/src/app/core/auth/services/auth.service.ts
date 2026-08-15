@@ -68,6 +68,11 @@ export class AuthService {
     return this._readyPromise;
   }
 
+  /** Patches the cached user profile without an HTTP round-trip (e.g. after a settings change). */
+  setCurrentUser(user: UserProfile): void {
+    this._currentUser.set(user);
+  }
+
   clearState(): void {
     this._currentUser.set(null);
     this._accessToken.set(null);

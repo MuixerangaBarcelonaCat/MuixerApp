@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
@@ -33,9 +34,24 @@ export class PersonDelegateService {
     });
   }
 
-  async findByUser(userId: string): Promise<PersonDelegate[]> {
+  /**
+   * Active delegates for a user. `primaryOnly` restricts to delegates that are also
+   * `isPrimary` on a non-provisional person — the set of persons this user can switch
+   * into and manage as full profiles (as opposed to the broader "anyone I can mark
+   * attendance for" set used by the default, unfiltered call).
+   */
+  async findByUser(
+    userId: string,
+    options?: { primaryOnly?: boolean },
+  ): Promise<PersonDelegate[]> {
     return this.delegateRepo.find({
-      where: { user: { id: userId }, isActive: true },
+      where: {
+        user: { id: userId },
+        isActive: true,
+        ...(options?.primaryOnly
+          ? { isPrimary: true, person: { isProvisional: false } }
+          : {}),
+      },
       relations: ['user', 'person'],
       order: { createdAt: 'ASC' },
     });
@@ -229,12 +245,38 @@ export class PersonDelegateService {
     await repo.update({ person: { id: personId }, isPrimary: true }, { isPrimary: false });
   }
 
-  async remove(personId: string, id: string): Promise<void> {
+  /**
+   * "Own person or isPrimary-managed person" rule shared by every member-facing
+   * profile endpoint. Throws ForbiddenException otherwise.
+   */
+  async assertCanManagePerson(userId: string, personId: string): Promise<void> {
+    const user = await this.userRepo.findOne({
+      where: { id: userId },
+      relations: ['person'],
+    });
+    if (user?.person?.id === personId) return;
+
+    const primary = await this.delegateRepo.findOne({
+      where: { user: { id: userId }, person: { id: personId }, isPrimary: true, isActive: true },
+    });
+    if (!primary) {
+      throw new ForbiddenException('No teniu permís per a gestionar aquesta persona');
+    }
+  }
+
+  async remove(
+    personId: string,
+    id: string,
+    options?: { allowPrimaryRemoval?: boolean },
+  ): Promise<void> {
     const delegate = await this.delegateRepo.findOne({
       where: { id, person: { id: personId } },
     });
     if (!delegate) {
       throw new NotFoundException(`Delegate #${id} not found`);
+    }
+    if (delegate.isPrimary && options?.allowPrimaryRemoval === false) {
+      throw new ForbiddenException('No es pot eliminar el delegat principal');
     }
 
     await this.delegateRepo.remove(delegate);

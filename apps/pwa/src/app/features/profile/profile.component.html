@@ -1,0 +1,61 @@
+<app-mobile-header title="Perfil">
+  <a
+    trailing
+    routerLink="/profile/settings"
+    class="btn btn-ghost btn-circle btn-sm"
+    aria-label="Configuració"
+  >
+    <lucide-icon [img]="SettingsIcon" [size]="20" />
+  </a>
+</app-mobile-header>
+
+<section class="py-2 flex flex-col gap-6">
+  @if (showSwitcher()) {
+    <app-person-switcher
+      [items]="switchablePersons()"
+      [selectedId]="selectedPersonId()"
+      (selectionChange)="selectPerson($event)"
+    />
+  }
+
+  @if (isLoadingSummary()) {
+    <app-skeleton-card [count]="1" />
+  } @else if (summary(); as personSummary) {
+    <div class="flex flex-col items-center text-center gap-2">
+      <div
+        class="flex items-center justify-center w-20 h-20 rounded-full bg-base-300 text-base-content/50"
+        aria-hidden="true"
+      >
+        <lucide-icon [img]="UserIcon" [size]="32" />
+      </div>
+      <h2 class="text-2xl font-bold">{{ personSummary.alias }}</h2>
+      <p class="text-base-content/60">{{ personSummary.name }} {{ personSummary.firstSurname }}</p>
+    </div>
+
+    <div class="grid grid-cols-3 gap-2">
+      <!-- Placeholder tiles — real stats are deferred (see implementation plan §5). -->
+      @for (label of statPlaceholders; track label) {
+        <div class="card bg-base-100 shadow-sm" data-testid="profile-stat-placeholder">
+          <div class="card-body items-center p-3">
+            <span class="text-lg font-semibold text-base-content/40">—</span>
+            <span class="text-xs text-base-content/60">{{ label }}</span>
+          </div>
+        </div>
+      }
+    </div>
+
+    <div class="flex justify-center">
+      <app-pill-badge
+        [label]="delegationLabel(personSummary.delegationCount)"
+        [icon]="UsersIcon"
+        (clicked)="openDelegationsModal()"
+      />
+    </div>
+  } @else {
+    <app-empty-state message="No s'ha pogut carregar el perfil." />
+  }
+
+  @if (delegationsModalOpen() && selectedPersonId(); as delegationsPersonId) {
+    <app-delegations-modal [personId]="delegationsPersonId" (closed)="closeDelegationsModal()" />
+  }
+</section>

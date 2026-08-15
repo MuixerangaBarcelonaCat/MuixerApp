@@ -74,6 +74,14 @@ export const appRoutes: Routes = [
           ),
       },
       {
+        path: 'profile/settings',
+        title: 'Configuració',
+        loadComponent: () =>
+          import('./features/profile/settings/settings.component').then(
+            (m) => m.SettingsComponent,
+          ),
+      },
+      {
         path: 'pending-dependents',
         title: 'Xicalla pendent',
         loadComponent: () =>

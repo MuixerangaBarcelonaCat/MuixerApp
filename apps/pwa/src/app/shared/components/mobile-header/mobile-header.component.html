@@ -1,0 +1,13 @@
+<header class="flex items-center gap-3 py-3 mb-2">
+  @if (showBack()) {
+    <button
+      (click)="goBack()"
+      class="btn btn-ghost btn-circle btn-sm"
+      aria-label="Torna enrere"
+    >
+      <lucide-icon [img]="ArrowLeft" [size]="20" />
+    </button>
+  }
+  <h1 class="text-lg font-semibold truncate flex-1">{{ title() }}</h1>
+  <ng-content select="[trailing]" />
+</header>
