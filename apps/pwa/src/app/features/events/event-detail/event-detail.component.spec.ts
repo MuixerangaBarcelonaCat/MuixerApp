@@ -256,6 +256,23 @@ describe('EventDetailComponent', () => {
       expect(row.textContent).toContain('Vent (C1) a Roscana');
     });
 
+    it('uppercases only the position name via CSS, never the rest of the summary', async () => {
+      fixture = await setup(of(MOCK_DETAIL), of([
+        {
+          id: 'seg-1',
+          name: 'Bloc 1',
+          sortOrder: 0,
+          instances: [],
+          myPlacements: [{ nodeLabel: 'Vent', cordon: 1, figureName: 'Roscana', figureMode: 'COMPLETA' }],
+        },
+      ]));
+
+      const summary = fixture.nativeElement.querySelector('.own-position-summary') as HTMLElement;
+      const uppercased = summary.querySelector('.uppercase') as HTMLElement;
+      expect(uppercased.textContent).toBe('Vent');
+      expect(summary.textContent).toBe('Vent (C1) a Roscana');
+    });
+
     it('renders nothing extra when the caller holds no placement in the segment', async () => {
       fixture = await setup(of(MOCK_DETAIL), of([
         { id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [], myPlacements: [] },

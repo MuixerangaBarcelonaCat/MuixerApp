@@ -87,17 +87,26 @@ export interface OwnPositionSummaryInput {
   figureName: string | null;
 }
 
+export interface OwnPositionSummary {
+  /** Uppercased by the template, same convention as `formatOwnPosition`'s `label` segment. */
+  nodeLabel: string;
+  /** The `(C{n})`/`a {figure}` clauses, in normal case, concatenated after `nodeLabel`. */
+  suffix: string;
+}
+
 /**
  * The reduced, single-line form used in list rows (the event summary) rather than the full
  * sentence `formatOwnPosition` renders on the projection screen: `«Vent (C1) a Roscana»`. No
  * «darrere de», no davall/damunt, no colour — those need either a rengla join or the palette
- * index, and neither earns its complexity in a list row.
+ * index, and neither earns its complexity in a list row. Split into `nodeLabel`/`suffix` rather
+ * than a single string so the template can style the label alone (uppercase) without touching
+ * the data — the same convention `formatOwnPosition`'s tagged segments follow.
  */
-export function formatOwnPositionSummary(input: OwnPositionSummaryInput): string {
-  let summary = input.nodeLabel;
-  if (input.cordon != null) summary += ` (C${input.cordon})`;
-  if (input.figureName) summary += ` a ${input.figureName}`;
-  return summary;
+export function formatOwnPositionSummary(input: OwnPositionSummaryInput): OwnPositionSummary {
+  let suffix = '';
+  if (input.cordon != null) suffix += ` (C${input.cordon})`;
+  if (input.figureName) suffix += ` a ${input.figureName}`;
+  return { nodeLabel: input.nodeLabel, suffix };
 }
 
 export function ownPositionToPlainText(segments: OwnPositionSegment[]): string {

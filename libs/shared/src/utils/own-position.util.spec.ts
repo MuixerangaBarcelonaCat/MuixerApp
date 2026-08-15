@@ -150,23 +150,35 @@ describe('formatOwnPosition', () => {
 
 describe('formatOwnPositionSummary', () => {
   it('states the position, cordon and figure when all three are known', () => {
-    expect(formatOwnPositionSummary({ nodeLabel: 'Vent', cordon: 1, figureName: 'Roscana' })).toBe(
-      'Vent (C1) a Roscana',
-    );
+    expect(formatOwnPositionSummary({ nodeLabel: 'Vent', cordon: 1, figureName: 'Roscana' })).toEqual({
+      nodeLabel: 'Vent',
+      suffix: ' (C1) a Roscana',
+    });
   });
 
   it('omits the cordon clause when the node has no rengla position', () => {
-    expect(formatOwnPositionSummary({ nodeLabel: 'Vent', cordon: null, figureName: 'Roscana' })).toBe(
-      'Vent a Roscana',
-    );
+    expect(formatOwnPositionSummary({ nodeLabel: 'Vent', cordon: null, figureName: 'Roscana' })).toEqual({
+      nodeLabel: 'Vent',
+      suffix: ' a Roscana',
+    });
   });
 
   it('omits the figure clause when there is only one figure in the segment', () => {
-    expect(formatOwnPositionSummary({ nodeLabel: 'Vent', cordon: 1, figureName: null })).toBe('Vent (C1)');
+    expect(formatOwnPositionSummary({ nodeLabel: 'Vent', cordon: 1, figureName: null })).toEqual({
+      nodeLabel: 'Vent',
+      suffix: ' (C1)',
+    });
   });
 
   it('states the position alone when neither cordon nor figure name is known', () => {
-    expect(formatOwnPositionSummary({ nodeLabel: 'Vent', cordon: null, figureName: null })).toBe('Vent');
+    expect(formatOwnPositionSummary({ nodeLabel: 'Vent', cordon: null, figureName: null })).toEqual({
+      nodeLabel: 'Vent',
+      suffix: '',
+    });
+  });
+
+  it('never uppercases the node label — casing is the template\'s job', () => {
+    expect(formatOwnPositionSummary({ nodeLabel: 'vent', cordon: null, figureName: null }).nodeLabel).toBe('vent');
   });
 });
 

@@ -31,7 +31,6 @@ interface FilterTab {
 const TABS: FilterTab[] = [
   { key: 'upcoming', label: 'Propers' },
   { key: 'past', label: 'Passats' },
-  { key: 'all', label: 'Tots' },
 ];
 
 @Component({

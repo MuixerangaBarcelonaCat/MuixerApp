@@ -130,7 +130,15 @@ describe('EventListComponent', () => {
 
   it('should render filter tabs in list mode', () => {
     const tabs = fixture.nativeElement.querySelectorAll('[role="tab"]');
-    expect(tabs.length).toBe(3);
+    expect(tabs.length).toBe(2);
+  });
+
+  it('should only offer Propers and Passats, not Tots', () => {
+    const tabs = fixture.nativeElement.querySelectorAll('[role="tab"]');
+    expect(Array.from(tabs).map((t) => (t as HTMLElement).textContent?.trim())).toEqual([
+      'Propers',
+      'Passats',
+    ]);
   });
 
   // --- Calendar view tests ---
@@ -139,7 +147,7 @@ describe('EventListComponent', () => {
     const calendarView = fixture.nativeElement.querySelector('app-calendar-view');
     expect(calendarView).toBeFalsy();
     const tabs = fixture.nativeElement.querySelectorAll('[role="tab"]');
-    expect(tabs.length).toBe(3);
+    expect(tabs.length).toBe(2);
   });
 
   it('should toggle to calendar view', async () => {

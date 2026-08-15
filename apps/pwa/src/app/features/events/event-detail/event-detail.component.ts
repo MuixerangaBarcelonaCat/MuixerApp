@@ -16,6 +16,7 @@ import {
   EventType,
   computeSegmentDisplayName,
   formatOwnPositionSummary,
+  OwnPositionSummary,
   OWN_POSITION_MULTIPLE_PLACEMENTS,
 } from '@muixer/shared';
 import { LucideAngularModule, MapPin, Clock, Info } from 'lucide-angular';
@@ -91,10 +92,15 @@ export class EventDetailComponent {
     return computeSegmentDisplayName(segment.name, segment.instances);
   }
 
-  protected ownPositionSummary(segment: MeSegment): string | null {
-    if (segment.myPlacements.length > 1) return OWN_POSITION_MULTIPLE_PLACEMENTS;
-    const placement = segment.myPlacements[0];
-    return placement ? formatOwnPositionSummary(placement) : null;
+  protected readonly OWN_POSITION_MULTIPLE_PLACEMENTS = OWN_POSITION_MULTIPLE_PLACEMENTS;
+
+  protected hasMultiplePlacements(segment: MeSegment): boolean {
+    return segment.myPlacements.length > 1;
+  }
+
+  protected ownPositionSummary(segment: MeSegment): OwnPositionSummary | null {
+    if (segment.myPlacements.length !== 1) return null;
+    return formatOwnPositionSummary(segment.myPlacements[0]);
   }
 
   constructor() {

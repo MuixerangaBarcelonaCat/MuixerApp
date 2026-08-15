@@ -87,11 +87,12 @@
                   >{{ i + 1 }}</span>
                   <span class="flex flex-col">
                     {{ segmentLabel(segment) }}
-                    @if (ownPositionSummary(segment); as summary) {
-                      <span
-                        class="own-position-summary text-xs text-base-content/60"
-                        [class.text-error]="segment.myPlacements.length > 1"
-                      >{{ summary }}</span>
+                    @if (hasMultiplePlacements(segment)) {
+                      <span class="own-position-summary text-xs text-error">{{ OWN_POSITION_MULTIPLE_PLACEMENTS }}</span>
+                    } @else if (ownPositionSummary(segment); as summary) {
+                      <span class="own-position-summary text-xs text-base-content/60"
+                        ><span class="uppercase">{{ summary.nodeLabel }}</span>{{ summary.suffix }}</span
+                      >
                     }
                   </span>
                 </a>
