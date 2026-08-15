@@ -107,7 +107,7 @@ graph TD
 
 <!-- BEGIN:AUTO — generat per scripts/generate-doc-map.mjs, no editar a mà -->
 
-> Generat el 2026-08-14 amb `pnpm run docs:map`.
+> Generat el 2026-08-15 amb `pnpm run docs:map`.
 
 ### Mòduls de l'API (`apps/api/src/modules`)
 
@@ -122,7 +122,7 @@ graph TD
 | [`figure`](../apps/api/src/modules/figure) | 12 | 1308 | [[PINYES_MODULE]] · [[DATA_MODEL]] |
 | [`legal`](../apps/api/src/modules/legal) | 5 | 222 | [[GDPR_COMPLIANCE]] |
 | [`mail`](../apps/api/src/modules/mail) | 6 | 146 | — |
-| [`me`](../apps/api/src/modules/me) | 6 | 525 | — |
+| [`me`](../apps/api/src/modules/me) | 6 | 579 | — |
 | [`node-assignment`](../apps/api/src/modules/node-assignment) | 14 | 3044 | [[PINYES_MODULE]] |
 | [`person`](../apps/api/src/modules/person) | 11 | 1015 | [[DATA_MODEL]] |
 | [`person-delegate`](../apps/api/src/modules/person-delegate) | 7 | 480 | [[DATA_MODEL]] |
@@ -142,7 +142,7 @@ Migracions TypeORM: **41** a [`apps/api/src/migrations`](../apps/api/src/migrati
 | [`events`](../apps/dashboard/src/app/features/events) | 18 | 3586 | [[DASHBOARD_UI]] |
 | [`home`](../apps/dashboard/src/app/features/home) | 2 | 119 | [[DASHBOARD_UI]] |
 | [`persons`](../apps/dashboard/src/app/features/persons) | 9 | 1459 | [[DASHBOARD_UI]] |
-| [`pinyes`](../apps/dashboard/src/app/features/pinyes) | 45 | 9226 | [[PINYES_MODULE]] · [[DASHBOARD_UI]] |
+| [`pinyes`](../apps/dashboard/src/app/features/pinyes) | 45 | 9227 | [[PINYES_MODULE]] · [[DASHBOARD_UI]] |
 | [`sync`](../apps/dashboard/src/app/features/sync) | 2 | 102 | [[SYNC_ARCHITECTURE]] · [[API_APPSISTENCIA]] |
 
 ### Features de la PWA (`apps/pwa/src/app/features`)
@@ -151,7 +151,7 @@ Migracions TypeORM: **41** a [`apps/api/src/migrations`](../apps/api/src/migrati
 |---------|--------:|-------:|------|
 | [`auth`](../apps/pwa/src/app/features/auth) | 3 | 224 | [[AUTH_FLOW]] · [[SSE_AUTH]] |
 | [`dependents`](../apps/pwa/src/app/features/dependents) | 1 | 105 | — |
-| [`events`](../apps/pwa/src/app/features/events) | 8 | 949 | [[DASHBOARD_UI]] |
+| [`events`](../apps/pwa/src/app/features/events) | 8 | 967 | [[DASHBOARD_UI]] |
 | [`home`](../apps/pwa/src/app/features/home) | 2 | 139 | [[DASHBOARD_UI]] |
 | [`profile`](../apps/pwa/src/app/features/profile) | 1 | 21 | — |
 
@@ -161,8 +161,8 @@ Migracions TypeORM: **41** a [`apps/api/src/migrations`](../apps/api/src/migrati
 |---------|--------:|-------:|------|
 | [`constants`](../libs/shared/src/constants) | 4 | 170 | — |
 | [`enums`](../libs/shared/src/enums) | 16 | 143 | — |
-| [`interfaces`](../libs/shared/src/interfaces) | 19 | 731 | — |
-| [`utils`](../libs/shared/src/utils) | 2 | 64 | — |
+| [`interfaces`](../libs/shared/src/interfaces) | 19 | 741 | — |
+| [`utils`](../libs/shared/src/utils) | 3 | 202 | — |
 
 ### Fitxers més grans (candidats a dividir)
 
