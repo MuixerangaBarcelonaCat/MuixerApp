@@ -1,6 +1,7 @@
 import {
   elideDe,
   formatOwnPosition,
+  formatOwnPositionSummary,
   OWN_POSITION_MULTIPLE_PLACEMENTS,
   OWN_POSITION_NO_PLACEMENT,
   OwnPositionInput,
@@ -144,6 +145,28 @@ describe('formatOwnPosition', () => {
         { kind: 'text', value: '.' },
       ]);
     });
+  });
+});
+
+describe('formatOwnPositionSummary', () => {
+  it('states the position, cordon and figure when all three are known', () => {
+    expect(formatOwnPositionSummary({ nodeLabel: 'Vent', cordon: 1, figureName: 'Roscana' })).toBe(
+      'Vent (C1) a Roscana',
+    );
+  });
+
+  it('omits the cordon clause when the node has no rengla position', () => {
+    expect(formatOwnPositionSummary({ nodeLabel: 'Vent', cordon: null, figureName: 'Roscana' })).toBe(
+      'Vent a Roscana',
+    );
+  });
+
+  it('omits the figure clause when there is only one figure in the segment', () => {
+    expect(formatOwnPositionSummary({ nodeLabel: 'Vent', cordon: 1, figureName: null })).toBe('Vent (C1)');
+  });
+
+  it('states the position alone when neither cordon nor figure name is known', () => {
+    expect(formatOwnPositionSummary({ nodeLabel: 'Vent', cordon: null, figureName: null })).toBe('Vent');
   });
 });
 

@@ -16,6 +16,7 @@ import { Attendance } from '../event/attendance.entity';
 import { Season } from '../season/season.entity';
 import { ProjectionService } from '../event-segment/projection.service';
 import { EventSegmentService } from '../event-segment/event-segment.service';
+import { NodeAssignment } from '../node-assignment/entities/node-assignment.entity';
 import {
   IntegrationDb,
   setupIntegrationDb,
@@ -57,6 +58,7 @@ describe('MeService pending dependents (integration)', () => {
           Event,
           Attendance,
           Season,
+          NodeAssignment,
         ]),
         { provide: DataSource, useValue: db.dataSource },
       ],

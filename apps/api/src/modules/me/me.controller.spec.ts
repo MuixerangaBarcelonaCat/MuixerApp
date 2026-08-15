@@ -101,13 +101,13 @@ describe('MeController', () => {
   });
 
   describe('findEventSegments', () => {
-    it('delegates to MeService with the event id', async () => {
-      const expected = [{ id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [] }];
+    it('delegates to MeService with the user and the event id', async () => {
+      const expected = [{ id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [], myPlacements: [] }];
       meService.findEventSegments.mockResolvedValue(expected);
 
-      const result = await controller.findEventSegments('event-1');
+      const result = await controller.findEventSegments(mockUser, 'event-1');
 
-      expect(meService.findEventSegments).toHaveBeenCalledWith('event-1');
+      expect(meService.findEventSegments).toHaveBeenCalledWith(mockUser, 'event-1');
       expect(result).toEqual(expected);
     });
   });

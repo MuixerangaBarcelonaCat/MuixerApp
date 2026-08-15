@@ -13,6 +13,7 @@ import {
   MeEvent,
   MeEventDetail,
   MeSegment,
+  MeSegmentPlacement,
   AttendanceResponse,
   ManagedPerson,
   ManagedPersonAttendance,
@@ -23,7 +24,8 @@ import { Attendance } from '../event/attendance.entity';
 import { User } from '../user/user.entity';
 import { Person } from '../person/person.entity';
 import { ProjectionService, ProjectionData } from '../event-segment/projection.service';
-import { EventSegmentService } from '../event-segment/event-segment.service';
+import { EventSegmentService, SegmentWithInstances } from '../event-segment/event-segment.service';
+import { NodeAssignment } from '../node-assignment/entities/node-assignment.entity';
 import { getLocalToday } from '../../common/utils/date.util';
 import { SeasonService } from '../season/season.service';
 import { AttendanceService } from '../event/attendance.service';
@@ -46,6 +48,8 @@ export class MeService {
     private readonly eventRepository: Repository<Event>,
     @InjectRepository(Attendance)
     private readonly attendanceRepository: Repository<Attendance>,
+    @InjectRepository(NodeAssignment)
+    private readonly nodeAssignmentRepository: Repository<NodeAssignment>,
     private readonly seasonService: SeasonService,
     private readonly attendanceService: AttendanceService,
     private readonly personDelegateService: PersonDelegateService,
@@ -150,23 +154,71 @@ export class MeService {
     };
   }
 
-  async findEventSegments(eventId: string): Promise<MeSegment[]> {
+  async findEventSegments(jwtUser: JwtPayload, eventId: string): Promise<MeSegment[]> {
     const segments = await this.eventSegmentService.findAllByEvent(eventId);
+    const published = segments.filter((segment) => segment.isPublished);
 
-    return segments
-      .filter((segment) => segment.isPublished)
-      .map((segment) => ({
-        id: segment.id,
-        name: segment.name,
-        sortOrder: segment.sortOrder,
-        instances: segment.instances.map((instance) => ({
-          label: instance.label,
-          figureMode: instance.figureMode,
-          figureTemplate: instance.figureTemplate
-            ? { name: instance.figureTemplate.name, hasPinya: instance.figureTemplate.hasPinya }
-            : null,
-        })),
-      }));
+    const managedPersons = await this.resolveManagedPersons(jwtUser.sub);
+    const personId = managedPersons.find((p) => p.isSelf)?.personId ?? null;
+    const placementsBySegment = await this.fetchOwnPlacementsBySegment(personId, published);
+
+    return published.map((segment) => ({
+      id: segment.id,
+      name: segment.name,
+      sortOrder: segment.sortOrder,
+      instances: segment.instances.map((instance) => ({
+        label: instance.label,
+        figureMode: instance.figureMode,
+        figureTemplate: instance.figureTemplate
+          ? { name: instance.figureTemplate.name, hasPinya: instance.figureTemplate.hasPinya }
+          : null,
+      })),
+      myPlacements: placementsBySegment.get(segment.id) ?? [],
+    }));
+  }
+
+  /**
+   * The caller's own assignments across `segments` — person derived from the JWT, never from a
+   * query param. Reads `NodeAssignment` directly (rather than `ProjectionService.getProjection`,
+   * which snapshots nodes+assignments per segment for the canvas) since a list of raw label/cordon
+   * pairs across every published segment of the event doesn't need that per-node canvas shape.
+   */
+  private async fetchOwnPlacementsBySegment(
+    personId: string | null,
+    segments: SegmentWithInstances[],
+  ): Promise<Map<string, MeSegmentPlacement[]>> {
+    const bySegment = new Map<string, MeSegmentPlacement[]>();
+    if (!personId || segments.length === 0) return bySegment;
+
+    const assignments = await this.nodeAssignmentRepository.find({
+      where: { segment: { id: In(segments.map((s) => s.id)) }, person: { id: personId } },
+      relations: ['instanceNode', 'figureInstance', 'figureInstance.figureTemplate', 'segment'],
+    });
+
+    const instanceCountBySegment = new Map(segments.map((s) => [s.id, s.instances.length]));
+
+    for (const assignment of assignments) {
+      const segmentId = assignment.segment.id;
+      const instance = assignment.figureInstance;
+      const node = assignment.instanceNode;
+      const figureName =
+        (instanceCountBySegment.get(segmentId) ?? 0) > 1
+          ? instance.label ?? instance.figureTemplate?.name ?? null
+          : null;
+
+      const placement: MeSegmentPlacement = {
+        nodeLabel: node.label,
+        cordon: node.renglaPosition,
+        figureName,
+        figureMode: instance.figureMode,
+      };
+
+      const list = bySegment.get(segmentId) ?? [];
+      list.push(placement);
+      bySegment.set(segmentId, list);
+    }
+
+    return bySegment;
   }
 
   findSegmentProjection(eventId: string, segmentId: string): Promise<ProjectionData> {

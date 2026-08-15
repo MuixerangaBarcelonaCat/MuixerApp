@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Event } from '../event/event.entity';
 import { Attendance } from '../event/attendance.entity';
 import { User } from '../user/user.entity';
+import { NodeAssignment } from '../node-assignment/entities/node-assignment.entity';
 import { SeasonModule } from '../season/season.module';
 import { EventModule } from '../event/event.module';
 import { EventSegmentModule } from '../event-segment/event-segment.module';
@@ -13,7 +14,7 @@ import { MeService } from './me.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Event, Attendance, User]),
+    TypeOrmModule.forFeature([Event, Attendance, User, NodeAssignment]),
     SeasonModule,
     EventModule,
     EventSegmentModule,

@@ -67,9 +67,10 @@ export class MeController {
   @Get('events/:eventId/segments')
   @ApiOperation({ summary: 'List published segments for an event (titles only)' })
   findEventSegments(
+    @CurrentUser() user: JwtPayload,
     @Param('eventId', ParseUUIDPipe) eventId: string,
   ): Promise<MeSegment[]> {
-    return this.meService.findEventSegments(eventId);
+    return this.meService.findEventSegments(user, eventId);
   }
 
   @Get('events/:eventId/segments/:segmentId/projection')

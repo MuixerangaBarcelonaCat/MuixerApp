@@ -10,7 +10,14 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { Title } from '@angular/platform-browser';
 import { SlicePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { MeEventDetail, MeSegment, EventType, computeSegmentDisplayName } from '@muixer/shared';
+import {
+  MeEventDetail,
+  MeSegment,
+  EventType,
+  computeSegmentDisplayName,
+  formatOwnPositionSummary,
+  OWN_POSITION_MULTIPLE_PLACEMENTS,
+} from '@muixer/shared';
 import { LucideAngularModule, MapPin, Clock, Info } from 'lucide-angular';
 import { MobileHeaderComponent } from '../../../shared/components/mobile-header/mobile-header.component';
 import { SkeletonCardComponent } from '../../../shared/components/skeleton-card/skeleton-card.component';
@@ -82,6 +89,12 @@ export class EventDetailComponent {
 
   protected segmentLabel(segment: MeSegment): string {
     return computeSegmentDisplayName(segment.name, segment.instances);
+  }
+
+  protected ownPositionSummary(segment: MeSegment): string | null {
+    if (segment.myPlacements.length > 1) return OWN_POSITION_MULTIPLE_PLACEMENTS;
+    const placement = segment.myPlacements[0];
+    return placement ? formatOwnPositionSummary(placement) : null;
   }
 
   constructor() {

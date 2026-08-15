@@ -146,8 +146,8 @@ describe('EventDetailComponent', () => {
   describe('segments', () => {
     it('renders one row per published segment', async () => {
       fixture = await setup(of(MOCK_DETAIL), of([
-        { id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [] },
-        { id: 'seg-2', name: 'Bloc 2', sortOrder: 1, instances: [] },
+        { id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [], myPlacements: [] },
+        { id: 'seg-2', name: 'Bloc 2', sortOrder: 1, instances: [], myPlacements: [] },
       ]));
 
       const rows = fixture.nativeElement.querySelectorAll('a.segment-row');
@@ -162,7 +162,7 @@ describe('EventDetailComponent', () => {
 
     it('falls back to "Segment sense nom" when the name is null and there are no instances', async () => {
       fixture = await setup(of(MOCK_DETAIL), of([
-        { id: 'seg-1', name: null, sortOrder: 2, instances: [] },
+        { id: 'seg-1', name: null, sortOrder: 2, instances: [], myPlacements: [] },
       ]));
 
       expect(fixture.nativeElement.textContent).toContain('Segment sense nom');
@@ -178,6 +178,7 @@ describe('EventDetailComponent', () => {
             { label: null, figureMode: 'COMPLETA', figureTemplate: { name: 'pd4', hasPinya: true } },
             { label: null, figureMode: 'COMPLETA', figureTemplate: { name: 'Morera', hasPinya: true } },
           ],
+          myPlacements: [],
         },
       ]));
 
@@ -186,7 +187,7 @@ describe('EventDetailComponent', () => {
 
     it('links each row to the segment projection route', async () => {
       fixture = await setup(of(MOCK_DETAIL), of([
-        { id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [] },
+        { id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [], myPlacements: [] },
       ]));
 
       const row = fixture.nativeElement.querySelector('a.segment-row') as HTMLAnchorElement;
@@ -195,7 +196,7 @@ describe('EventDetailComponent', () => {
 
     it('does not render a "Segments" section heading', async () => {
       fixture = await setup(of(MOCK_DETAIL), of([
-        { id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [] },
+        { id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [], myPlacements: [] },
       ]));
 
       const section = fixture.nativeElement.querySelector('.segments-section') as HTMLElement;
@@ -205,8 +206,8 @@ describe('EventDetailComponent', () => {
 
     it('shows the segment order (1-based) in a square badge', async () => {
       fixture = await setup(of(MOCK_DETAIL), of([
-        { id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [] },
-        { id: 'seg-2', name: 'Bloc 2', sortOrder: 1, instances: [] },
+        { id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [], myPlacements: [] },
+        { id: 'seg-2', name: 'Bloc 2', sortOrder: 1, instances: [], myPlacements: [] },
       ]));
 
       const badges = fixture.nativeElement.querySelectorAll('.segment-row span:first-child');
@@ -218,7 +219,7 @@ describe('EventDetailComponent', () => {
 
     it('places the segments section above attendance when the event has already started (isPast)', async () => {
       fixture = await setup(of({ ...MOCK_DETAIL, date: '2020-01-01' }), of([
-        { id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [] },
+        { id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [], myPlacements: [] },
       ]));
 
       const segmentsEl = fixture.nativeElement.querySelector('.segments-section') as HTMLElement;
@@ -229,13 +230,57 @@ describe('EventDetailComponent', () => {
 
     it('places attendance above the segments section when the event has not started yet', async () => {
       fixture = await setup(of({ ...MOCK_DETAIL, date: '2099-01-01' }), of([
-        { id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [] },
+        { id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [], myPlacements: [] },
       ]));
 
       const segmentsEl = fixture.nativeElement.querySelector('.segments-section') as HTMLElement;
       const attendanceEl = fixture.nativeElement.querySelector('.attendance-section') as HTMLElement;
       expect(attendanceEl.style.order).toBe('1');
       expect(segmentsEl.style.order).toBe('2');
+    });
+  });
+
+  describe('own position summary', () => {
+    it('renders the reduced summary for a single placement', async () => {
+      fixture = await setup(of(MOCK_DETAIL), of([
+        {
+          id: 'seg-1',
+          name: 'Bloc 1',
+          sortOrder: 0,
+          instances: [],
+          myPlacements: [{ nodeLabel: 'Vent', cordon: 1, figureName: 'Roscana', figureMode: 'COMPLETA' }],
+        },
+      ]));
+
+      const row = fixture.nativeElement.querySelector('a.segment-row') as HTMLElement;
+      expect(row.textContent).toContain('Vent (C1) a Roscana');
+    });
+
+    it('renders nothing extra when the caller holds no placement in the segment', async () => {
+      fixture = await setup(of(MOCK_DETAIL), of([
+        { id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [], myPlacements: [] },
+      ]));
+
+      const row = fixture.nativeElement.querySelector('a.segment-row') as HTMLElement;
+      expect(row.querySelector('.own-position-summary')).toBeNull();
+    });
+
+    it('renders the multiple-placements warning when the caller holds more than one', async () => {
+      fixture = await setup(of(MOCK_DETAIL), of([
+        {
+          id: 'seg-1',
+          name: 'Bloc 1',
+          sortOrder: 0,
+          instances: [],
+          myPlacements: [
+            { nodeLabel: 'Vent', cordon: 1, figureName: 'Roscana', figureMode: 'COMPLETA' },
+            { nodeLabel: 'Mans', cordon: 2, figureName: 'Roscana', figureMode: 'COMPLETA' },
+          ],
+        },
+      ]));
+
+      const row = fixture.nativeElement.querySelector('a.segment-row') as HTMLElement;
+      expect(row.textContent).toContain("Sou en més d'un lloc alhora");
     });
   });
 });

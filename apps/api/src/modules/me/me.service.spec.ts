@@ -17,6 +17,7 @@ import { PersonDelegateService } from '../person-delegate/person-delegate.servic
 import { PersonService } from '../person/person.service';
 import { ProjectionService } from '../event-segment/projection.service';
 import { EventSegmentService } from '../event-segment/event-segment.service';
+import { NodeAssignment } from '../node-assignment/entities/node-assignment.entity';
 
 const mockUser: JwtPayload = {
   sub: 'user-1',
@@ -53,6 +54,7 @@ describe('MeService', () => {
   let personService: jest.Mocked<PersonService>;
   let projectionService: jest.Mocked<ProjectionService>;
   let eventSegmentService: jest.Mocked<EventSegmentService>;
+  let nodeAssignmentRepo: jest.Mocked<Repository<NodeAssignment>>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -107,6 +109,10 @@ describe('MeService', () => {
           provide: EventSegmentService,
           useValue: { findAllByEvent: jest.fn() },
         },
+        {
+          provide: getRepositoryToken(NodeAssignment),
+          useValue: { find: jest.fn().mockResolvedValue([]) },
+        },
       ],
     }).compile();
 
@@ -120,6 +126,7 @@ describe('MeService', () => {
     personService = module.get(PersonService);
     projectionService = module.get(ProjectionService);
     eventSegmentService = module.get(EventSegmentService);
+    nodeAssignmentRepo = module.get(getRepositoryToken(NodeAssignment));
     attendanceRepo.find.mockResolvedValue([]);
   });
 
@@ -430,6 +437,13 @@ describe('MeService', () => {
       ...overrides,
     });
 
+    const makeAssignment = (overrides: Record<string, unknown> = {}) => ({
+      segment: { id: 'seg-1' },
+      figureInstance: { label: null, figureMode: FigureMode.COMPLETA, figureTemplate: { name: 'pd4' } },
+      instanceNode: { label: 'Vent', renglaPosition: null },
+      ...overrides,
+    });
+
     it('projects published segments to id/name/sortOrder plus the instance data titles need', async () => {
       eventSegmentService.findAllByEvent.mockResolvedValue([
         makeSegment({
@@ -446,7 +460,7 @@ describe('MeService', () => {
         }),
       ] as never);
 
-      const result = await service.findEventSegments('event-1');
+      const result = await service.findEventSegments(mockUser, 'event-1');
 
       expect(result).toEqual([
         {
@@ -456,6 +470,7 @@ describe('MeService', () => {
           instances: [
             { label: null, figureMode: FigureMode.COMPLETA, figureTemplate: { name: 'pd4', hasPinya: true } },
           ],
+          myPlacements: [],
         },
       ]);
     });
@@ -466,7 +481,7 @@ describe('MeService', () => {
         makeSegment({ id: 'seg-2', isPublished: false }),
       ] as never);
 
-      const result = await service.findEventSegments('event-1');
+      const result = await service.findEventSegments(mockUser, 'event-1');
 
       expect(result.map((s) => s.id)).toEqual(['seg-1']);
     });
@@ -474,7 +489,7 @@ describe('MeService', () => {
     it('delegates to EventSegmentService.findAllByEvent with the event id', async () => {
       eventSegmentService.findAllByEvent.mockResolvedValue([]);
 
-      await service.findEventSegments('event-1');
+      await service.findEventSegments(mockUser, 'event-1');
 
       expect(eventSegmentService.findAllByEvent).toHaveBeenCalledWith('event-1');
     });
@@ -482,7 +497,101 @@ describe('MeService', () => {
     it('propagates NotFoundException for a non-existent event', async () => {
       eventSegmentService.findAllByEvent.mockRejectedValue(new NotFoundException());
 
-      await expect(service.findEventSegments('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(service.findEventSegments(mockUser, 'nonexistent')).rejects.toThrow(NotFoundException);
+    });
+
+    it('returns myPlacements: [] when the caller holds no assignment in a segment', async () => {
+      userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1', alias: 'Marta' } } as User);
+      eventSegmentService.findAllByEvent.mockResolvedValue([makeSegment()] as never);
+      nodeAssignmentRepo.find.mockResolvedValue([]);
+
+      const result = await service.findEventSegments(mockUser, 'event-1');
+
+      expect(result[0].myPlacements).toEqual([]);
+    });
+
+    it('projects one placement to nodeLabel/cordon/figureName/figureMode', async () => {
+      userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1', alias: 'Marta' } } as User);
+      eventSegmentService.findAllByEvent.mockResolvedValue([
+        makeSegment({
+          instances: [
+            { id: 'i1', label: null, figureMode: FigureMode.COMPLETA, figureTemplate: { id: 'f1', name: 'pd4', hasPinya: true } },
+            { id: 'i2', label: null, figureMode: FigureMode.COMPLETA, figureTemplate: { id: 'f2', name: 'Roscana', hasPinya: true } },
+          ],
+        }),
+      ] as never);
+      nodeAssignmentRepo.find.mockResolvedValue([
+        makeAssignment({
+          figureInstance: { label: null, figureMode: FigureMode.COMPLETA, figureTemplate: { name: 'Roscana' } },
+          instanceNode: { label: 'Vent', renglaPosition: 1 },
+        }),
+      ] as never);
+
+      const result = await service.findEventSegments(mockUser, 'event-1');
+
+      expect(result[0].myPlacements).toEqual([
+        { nodeLabel: 'Vent', cordon: 1, figureName: 'Roscana', figureMode: FigureMode.COMPLETA },
+      ]);
+    });
+
+    it('omits the figure name when the segment holds a single figure', async () => {
+      userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1', alias: 'Marta' } } as User);
+      eventSegmentService.findAllByEvent.mockResolvedValue([
+        makeSegment({
+          instances: [
+            { id: 'i1', label: null, figureMode: FigureMode.COMPLETA, figureTemplate: { id: 'f1', name: 'pd4', hasPinya: true } },
+          ],
+        }),
+      ] as never);
+      nodeAssignmentRepo.find.mockResolvedValue([makeAssignment()] as never);
+
+      const result = await service.findEventSegments(mockUser, 'event-1');
+
+      expect(result[0].myPlacements[0].figureName).toBeNull();
+    });
+
+    it('returns two placements both, not collapsed', async () => {
+      userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1', alias: 'Marta' } } as User);
+      eventSegmentService.findAllByEvent.mockResolvedValue([
+        makeSegment({
+          instances: [
+            { id: 'i1', label: null, figureMode: FigureMode.COMPLETA, figureTemplate: { id: 'f1', name: 'pd4', hasPinya: true } },
+            { id: 'i2', label: null, figureMode: FigureMode.COMPLETA, figureTemplate: { id: 'f2', name: 'Roscana', hasPinya: true } },
+          ],
+        }),
+      ] as never);
+      nodeAssignmentRepo.find.mockResolvedValue([
+        makeAssignment({ instanceNode: { label: 'Vent', renglaPosition: 1 } }),
+        makeAssignment({ instanceNode: { label: 'Mans', renglaPosition: 2 } }),
+      ] as never);
+
+      const result = await service.findEventSegments(mockUser, 'event-1');
+
+      expect(result[0].myPlacements.map((p) => p.nodeLabel)).toEqual(['Vent', 'Mans']);
+    });
+
+    it('only queries assignments for the caller\'s own person, never a query param', async () => {
+      userRepo.findOne.mockResolvedValue({ id: 'user-1', person: { id: 'p-1', alias: 'Marta' } } as User);
+      eventSegmentService.findAllByEvent.mockResolvedValue([makeSegment()] as never);
+      nodeAssignmentRepo.find.mockResolvedValue([]);
+
+      await service.findEventSegments(mockUser, 'event-1');
+
+      expect(nodeAssignmentRepo.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ person: { id: 'p-1' } }),
+        }),
+      );
+    });
+
+    it('does not query assignments when the caller has no linked person', async () => {
+      userRepo.findOne.mockResolvedValue({ id: 'user-1', person: null } as User);
+      eventSegmentService.findAllByEvent.mockResolvedValue([makeSegment()] as never);
+
+      const result = await service.findEventSegments(mockUser, 'event-1');
+
+      expect(nodeAssignmentRepo.find).not.toHaveBeenCalled();
+      expect(result[0].myPlacements).toEqual([]);
     });
   });
 

@@ -85,7 +85,15 @@
                     class="flex items-center justify-center w-6 h-6 rounded text-xs font-bold text-primary-content bg-primary shrink-0"
                     [attr.aria-label]="'Segment ' + (i + 1)"
                   >{{ i + 1 }}</span>
-                  <span>{{ segmentLabel(segment) }}</span>
+                  <span class="flex flex-col">
+                    {{ segmentLabel(segment) }}
+                    @if (ownPositionSummary(segment); as summary) {
+                      <span
+                        class="own-position-summary text-xs text-base-content/60"
+                        [class.text-error]="segment.myPlacements.length > 1"
+                      >{{ summary }}</span>
+                    }
+                  </span>
                 </a>
               </li>
             }

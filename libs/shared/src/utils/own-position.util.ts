@@ -78,6 +78,28 @@ export function formatOwnPosition(input: OwnPositionInput): OwnPositionSegment[]
   return mergeText(segments);
 }
 
+export interface OwnPositionSummaryInput {
+  /** The node's own label — what the tècniques named the position, e.g. «Vent». */
+  nodeLabel: string;
+  /** The node's `renglaPosition`; null when the node is not part of a rengla. */
+  cordon: number | null;
+  /** Omitted when the segment holds a single figure — there is nothing to disambiguate. */
+  figureName: string | null;
+}
+
+/**
+ * The reduced, single-line form used in list rows (the event summary) rather than the full
+ * sentence `formatOwnPosition` renders on the projection screen: `«Vent (C1) a Roscana»`. No
+ * «darrere de», no davall/damunt, no colour — those need either a rengla join or the palette
+ * index, and neither earns its complexity in a list row.
+ */
+export function formatOwnPositionSummary(input: OwnPositionSummaryInput): string {
+  let summary = input.nodeLabel;
+  if (input.cordon != null) summary += ` (C${input.cordon})`;
+  if (input.figureName) summary += ` a ${input.figureName}`;
+  return summary;
+}
+
 export function ownPositionToPlainText(segments: OwnPositionSegment[]): string {
   return segments.map((segment) => segment.value).join('');
 }

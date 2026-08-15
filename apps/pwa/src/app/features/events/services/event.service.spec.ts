@@ -77,11 +77,21 @@ describe('EventService', () => {
 
   it('should fetch published segments for an event', () => {
     service.findSegments('ev-1').subscribe((res) => {
-      expect(res).toEqual([{ id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [] }]);
+      expect(res).toEqual([{ id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [], myPlacements: [] }]);
     });
 
     const req = httpMock.expectOne('/api/me/events/ev-1/segments');
     expect(req.request.method).toBe('GET');
-    req.flush([{ id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [] }]);
+    req.flush([{ id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [], myPlacements: [] }]);
+  });
+
+  it('should carry the caller\'s own placements through unchanged', () => {
+    const placement = { nodeLabel: 'Vent', cordon: 1, figureName: 'Roscana', figureMode: 'COMPLETA' };
+    service.findSegments('ev-1').subscribe((res) => {
+      expect(res[0].myPlacements).toEqual([placement]);
+    });
+
+    const req = httpMock.expectOne('/api/me/events/ev-1/segments');
+    req.flush([{ id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [], myPlacements: [placement] }]);
   });
 });
