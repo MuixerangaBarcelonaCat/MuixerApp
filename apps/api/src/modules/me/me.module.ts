@@ -7,6 +7,7 @@ import { SeasonModule } from '../season/season.module';
 import { EventModule } from '../event/event.module';
 import { PersonDelegateModule } from '../person-delegate/person-delegate.module';
 import { PersonModule } from '../person/person.module';
+import { NewsModule } from '../news/news.module';
 import { MeController } from './me.controller';
 import { MeService } from './me.service';
 
@@ -17,6 +18,7 @@ import { MeService } from './me.service';
     EventModule,
     PersonDelegateModule,
     PersonModule,
+    NewsModule,
   ],
   controllers: [MeController],
   providers: [MeService],

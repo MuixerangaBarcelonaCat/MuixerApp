@@ -26,6 +26,10 @@ export const ICON_TEMPLATE = 'DraftingCompass' as const;
 export const ICON_ASSAIG = 'Calendar' as const;
 export const ICON_ACTUACIO = 'Star' as const;
 
+// Comunicació domain
+export const ICON_COMUNICACIO = 'Megaphone' as const;
+export const ICON_NOTICIA = 'Newspaper' as const;
+
 // People
 export const ICON_PERSONA = 'Users' as const;
 export const ICON_XICALLA = 'Baby' as const;

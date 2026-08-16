@@ -15,6 +15,8 @@ import { SeasonService } from '../season/season.service';
 import { AttendanceService } from '../event/attendance.service';
 import { PersonDelegateService } from '../person-delegate/person-delegate.service';
 import { PersonService } from '../person/person.service';
+import { NewsService } from '../news/news.service';
+import { News } from '../news/news.entity';
 
 const mockUser: JwtPayload = {
   sub: 'user-1',
@@ -49,6 +51,7 @@ describe('MeService', () => {
   let attendanceService: jest.Mocked<AttendanceService>;
   let personDelegateService: jest.Mocked<PersonDelegateService>;
   let personService: jest.Mocked<PersonService>;
+  let newsService: jest.Mocked<NewsService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -95,6 +98,10 @@ describe('MeService', () => {
           provide: PersonService,
           useValue: { update: jest.fn() },
         },
+        {
+          provide: NewsService,
+          useValue: { findPublished: jest.fn(), findPublishedOne: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -106,6 +113,7 @@ describe('MeService', () => {
     attendanceService = module.get(AttendanceService);
     personDelegateService = module.get(PersonDelegateService);
     personService = module.get(PersonService);
+    newsService = module.get(NewsService);
     attendanceRepo.find.mockResolvedValue([]);
   });
 
@@ -673,6 +681,54 @@ describe('MeService', () => {
         'child-1',
         expect.objectContaining({ alias: 'xicalla1' }),
       );
+    });
+  });
+
+  describe('findNews', () => {
+    it('maps published news items to MeNewsItem shape', async () => {
+      const publishedAt = new Date('2026-01-01T10:00:00.000Z');
+      newsService.findPublished.mockResolvedValue([
+        { id: 'news-1', title: 'Nova temporada', body: 'Cos', publishedAt } as News,
+      ]);
+
+      const result = await service.findNews();
+
+      expect(result).toEqual([
+        { id: 'news-1', title: 'Nova temporada', publishedAt: publishedAt.toISOString(), body: 'Cos' },
+      ]);
+    });
+
+    it('returns an empty list when there are no published news items', async () => {
+      newsService.findPublished.mockResolvedValue([]);
+      const result = await service.findNews();
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('findNewsDetail', () => {
+    it('maps a published news item to MeNewsItem shape, including the body', async () => {
+      const publishedAt = new Date('2026-01-01T10:00:00.000Z');
+      newsService.findPublishedOne.mockResolvedValue({
+        id: 'news-1',
+        title: 'Nova temporada',
+        body: 'Cos en **markdown**',
+        publishedAt,
+      } as News);
+
+      const result = await service.findNewsDetail('news-1');
+
+      expect(result).toEqual({
+        id: 'news-1',
+        title: 'Nova temporada',
+        publishedAt: publishedAt.toISOString(),
+        body: 'Cos en **markdown**',
+      });
+      expect(newsService.findPublishedOne).toHaveBeenCalledWith('news-1');
+    });
+
+    it('propagates NotFoundException for a draft/scheduled/missing news', async () => {
+      newsService.findPublishedOne.mockRejectedValue(new NotFoundException());
+      await expect(service.findNewsDetail('bad-id')).rejects.toThrow(NotFoundException);
     });
   });
 });

@@ -19,6 +19,7 @@ import {
   AttendanceResponse,
   PendingDependent,
   UserRole,
+  MeNewsItem,
 } from '@muixer/shared';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -60,6 +61,18 @@ export class MeController {
     @Body() dto: UpdateMyAttendanceDto,
   ): Promise<AttendanceResponse> {
     return this.meService.upsertAttendance(user, id, dto);
+  }
+
+  @Get('news')
+  @ApiOperation({ summary: 'List published news items' })
+  findNews(): Promise<MeNewsItem[]> {
+    return this.meService.findNews();
+  }
+
+  @Get('news/:id')
+  @ApiOperation({ summary: 'Get published news item detail' })
+  findNewsDetail(@Param('id', ParseUUIDPipe) id: string): Promise<MeNewsItem> {
+    return this.meService.findNewsDetail(id);
   }
 
   @Get('pending-dependents')

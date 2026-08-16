@@ -25,6 +25,8 @@ describe('MeController', () => {
             upsertAttendance: jest.fn(),
             getPendingDependents: jest.fn(),
             completePendingDependent: jest.fn(),
+            findNews: jest.fn(),
+            findNewsDetail: jest.fn(),
           },
         },
       ],
@@ -136,6 +138,35 @@ describe('MeController', () => {
       await controller.completePendingDependent(mockUser, dto as never);
 
       expect(meService.completePendingDependent).toHaveBeenCalledWith('user-1', dto);
+    });
+  });
+
+  describe('findNews', () => {
+    it('delegates to MeService.findNews', async () => {
+      const expected = [{ id: 'news-1', title: 'Nova temporada', publishedAt: '2026-01-01T00:00:00.000Z', body: 'Cos' }];
+      meService.findNews.mockResolvedValue(expected);
+
+      const result = await controller.findNews();
+
+      expect(result).toEqual(expected);
+      expect(meService.findNews).toHaveBeenCalled();
+    });
+  });
+
+  describe('findNewsDetail', () => {
+    it('delegates to MeService.findNewsDetail with the news id', async () => {
+      const expected = {
+        id: 'news-1',
+        title: 'Nova temporada',
+        publishedAt: '2026-01-01T00:00:00.000Z',
+        body: 'Cos',
+      };
+      meService.findNewsDetail.mockResolvedValue(expected);
+
+      const result = await controller.findNewsDetail('news-1');
+
+      expect(result).toEqual(expected);
+      expect(meService.findNewsDetail).toHaveBeenCalledWith('news-1');
     });
   });
 });
