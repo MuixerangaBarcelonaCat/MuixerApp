@@ -35,6 +35,8 @@ import { InviteRegistrationContextDto } from './dto/invite-registration-context.
 import { SetupUserDto } from './dto/setup-user.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { ChangeEmailDto } from './dto/change-email.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -231,5 +233,34 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Token de recuperació invàlid o caducat.' })
   async resetPassword(@Body() dto: ResetPasswordDto): Promise<void> {
     await this.authService.resetPassword(dto);
+  }
+
+  /** Canvia la contrasenya de l'usuari autenticat. Revoca totes les sessions. */
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Canviar la contrasenya (sessió iniciada)' })
+  @ApiResponse({ status: 200, description: 'Contrasenya actualitzada. Totes les sessions es tanquen.' })
+  @ApiResponse({ status: 401, description: 'Contrasenya actual incorrecta.' })
+  async changePassword(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: ChangePasswordDto,
+  ): Promise<void> {
+    await this.authService.changePassword(user.sub, dto);
+  }
+
+  /** Canvia el correu electrònic de l'usuari autenticat, de forma immediata. */
+  @Post('change-email')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Canviar el correu electrònic (sessió iniciada)' })
+  @ApiResponse({ status: 200, description: 'Correu actualitzat correctament.' })
+  @ApiResponse({ status: 401, description: 'Contrasenya actual incorrecta.' })
+  @ApiResponse({ status: 409, description: 'Ja existeix un compte amb aquest correu.' })
+  async changeEmail(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: ChangeEmailDto,
+  ): Promise<UserProfile> {
+    return this.authService.changeEmail(user.sub, dto);
   }
 }

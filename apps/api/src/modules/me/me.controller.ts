@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Delete,
   Param,
   Query,
   Body,
@@ -11,6 +12,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { plainToInstance } from 'class-transformer';
 import {
   JwtPayload,
   PaginatedResponse,
@@ -19,15 +21,20 @@ import {
   MeSegment,
   AttendanceResponse,
   PendingDependent,
+  ManagedPerson,
+  PersonProfileSummary,
   UserRole,
 } from '@muixer/shared';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { ProjectionData } from '../event-segment/projection.service';
+import { PersonDelegateResponseDto } from '../person-delegate/dto/person-delegate-response.dto';
 import { MeService } from './me.service';
 import { MeEventFilterDto } from './dto/me-event-filter.dto';
 import { UpdateMyAttendanceDto } from './dto/update-my-attendance.dto';
 import { DependentRegistrationDto } from './dto/dependent-registration.dto';
+import { ListManagedPersonsDto } from './dto/list-managed-persons.dto';
+import { CreateMemberDelegateDto } from './dto/create-member-delegate.dto';
 
 @ApiTags('me')
 @ApiBearerAuth()
@@ -80,6 +87,56 @@ export class MeController {
     @Param('segmentId', ParseUUIDPipe) segmentId: string,
   ): Promise<ProjectionData> {
     return this.meService.findSegmentProjection(eventId, segmentId);
+  }
+
+  @Get('persons')
+  @ApiOperation({ summary: 'Jo + persones que gestiono (opcionalment restringit a delegat principal)' })
+  listManagedPersons(
+    @CurrentUser() user: JwtPayload,
+    @Query() filters: ListManagedPersonsDto,
+  ): Promise<ManagedPerson[]> {
+    return this.meService.resolveManagedPersons(user.sub, { primaryOnly: filters.primaryOnly });
+  }
+
+  @Get('persons/:personId')
+  @ApiOperation({ summary: "Resum d'una persona gestionada (àlies, nom, nombre de delegacions)" })
+  getPersonSummary(
+    @CurrentUser() user: JwtPayload,
+    @Param('personId', ParseUUIDPipe) personId: string,
+  ): Promise<PersonProfileSummary> {
+    return this.meService.getPersonSummary(user.sub, personId);
+  }
+
+  @Get('persons/:personId/delegates')
+  @ApiOperation({ summary: "Llistar els delegats d'una persona gestionada" })
+  async listPersonDelegates(
+    @CurrentUser() user: JwtPayload,
+    @Param('personId', ParseUUIDPipe) personId: string,
+  ): Promise<PersonDelegateResponseDto[]> {
+    const delegates = await this.meService.listPersonDelegates(user.sub, personId);
+    return plainToInstance(PersonDelegateResponseDto, delegates, { excludeExtraneousValues: true });
+  }
+
+  @Post('persons/:personId/delegates')
+  @ApiOperation({ summary: "Afegir un delegat (per àlies) a una persona gestionada" })
+  async createPersonDelegate(
+    @CurrentUser() user: JwtPayload,
+    @Param('personId', ParseUUIDPipe) personId: string,
+    @Body() dto: CreateMemberDelegateDto,
+  ): Promise<PersonDelegateResponseDto> {
+    const delegate = await this.meService.createPersonDelegate(user.sub, personId, dto);
+    return plainToInstance(PersonDelegateResponseDto, delegate, { excludeExtraneousValues: true });
+  }
+
+  @Delete('persons/:personId/delegates/:delegateId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: "Eliminar un delegat d'una persona gestionada" })
+  removePersonDelegate(
+    @CurrentUser() user: JwtPayload,
+    @Param('personId', ParseUUIDPipe) personId: string,
+    @Param('delegateId', ParseUUIDPipe) delegateId: string,
+  ): Promise<void> {
+    return this.meService.removePersonDelegate(user.sub, personId, delegateId);
   }
 
   @Get('pending-dependents')

@@ -184,6 +184,15 @@ describe('AuthService', () => {
     expect(service.requiresPrivacyConsent()).toBe(false);
   });
 
+  it('setCurrentUser() updates the cached current user without an HTTP call', () => {
+    service.login({ email: 'a@b.cat', password: 'pass' }).subscribe();
+    httpTesting.expectOne('/api/auth/login').flush(mockAuthResponse);
+
+    service.setCurrentUser({ ...mockUser, email: 'updated@test.cat' });
+
+    expect(service.currentUser()?.email).toBe('updated@test.cat');
+  });
+
   it('requestPasswordReset() POSTs the email to /auth/forgot-password', () => {
     let completed = false;
     service.requestPasswordReset('a@b.cat').subscribe(() => (completed = true));

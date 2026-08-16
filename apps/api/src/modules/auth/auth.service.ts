@@ -27,6 +27,8 @@ import { RegisterViaInviteDto } from './dto/register-via-invite.dto';
 import { InviteRegistrationContextDto } from './dto/invite-registration-context.dto';
 import { SetupUserDto } from './dto/setup-user.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { ChangeEmailDto } from './dto/change-email.dto';
 import { JWT_ACCESS_TTL, PASSWORD_RESET_TTL } from './constants/auth.constants';
 import { hashToken } from '../../common/utils/hash-token.util';
 
@@ -448,5 +450,44 @@ export class AuthService {
     });
 
     await this.tokenService.revokeAllUserTokens(user.id);
+  }
+
+  /**
+   * Canvia la contrasenya de l'usuari autenticat, verificant la contrasenya actual, i revoca
+   * totes les sessions (mateix comportament que `resetPassword` — un canvi de contrasenya ha
+   * de tancar qualsevol sessió existent).
+   */
+  async changePassword(userId: string, dto: ChangePasswordDto): Promise<void> {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException();
+
+    const valid = await bcrypt.compare(dto.currentPassword, user.passwordHash);
+    if (!valid) throw new UnauthorizedException('Contrasenya actual incorrecta');
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, BCRYPT_ROUNDS);
+    await this.userRepo.update(user.id, { passwordHash });
+    await this.tokenService.revokeAllUserTokens(user.id);
+  }
+
+  /**
+   * Canvia el correu electrònic de l'usuari autenticat de forma immediata, verificant la
+   * contrasenya actual per confirmar la identitat (sense doble opt-in per correu).
+   */
+  async changeEmail(userId: string, dto: ChangeEmailDto): Promise<UserProfile> {
+    const user = await this.userRepo.findOne({ where: { id: userId }, relations: ['person'] });
+    if (!user) throw new UnauthorizedException();
+
+    const valid = await bcrypt.compare(dto.currentPassword, user.passwordHash);
+    if (!valid) throw new UnauthorizedException('Contrasenya actual incorrecta');
+
+    if (dto.newEmail !== user.email) {
+      const existing = await this.userRepo.findOne({ where: { email: dto.newEmail } });
+      if (existing) throw new ConflictException('Ja existeix un compte amb aquest correu electrònic');
+    }
+
+    await this.userRepo.update(user.id, { email: dto.newEmail });
+    user.email = dto.newEmail;
+
+    return this.toUserProfile(user);
   }
 }

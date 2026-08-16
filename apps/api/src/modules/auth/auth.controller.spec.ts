@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { ClientType, UserRole } from '@muixer/shared';
 import { AuthController } from './auth.controller';
@@ -19,6 +19,8 @@ const mockAuthService = () => ({
   setupUser: jest.fn(),
   requestPasswordReset: jest.fn(),
   resetPassword: jest.fn(),
+  changePassword: jest.fn(),
+  changeEmail: jest.fn(),
 });
 
 const mockTokenService = () => ({
@@ -287,6 +289,52 @@ describe('AuthController', () => {
       await expect(
         controller.resetPassword({ token: 'bad', password: 'newpass123' }),
       ).rejects.toThrow(UnauthorizedException);
+    });
+  });
+
+  describe('changePassword', () => {
+    it('delegates to the service with the current user id and dto', async () => {
+      authService.changePassword.mockResolvedValue(undefined);
+      const dto = { currentPassword: 'old', newPassword: 'newpass123' };
+
+      await controller.changePassword({ sub: 'user-1' } as never, dto);
+
+      expect(authService.changePassword).toHaveBeenCalledWith('user-1', dto);
+    });
+
+    it('propagates UnauthorizedException from a wrong current password', async () => {
+      authService.changePassword.mockRejectedValue(new UnauthorizedException());
+
+      await expect(
+        controller.changePassword({ sub: 'user-1' } as never, {
+          currentPassword: 'wrong',
+          newPassword: 'newpass123',
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+  });
+
+  describe('changeEmail', () => {
+    it('delegates to the service with the current user id and dto', async () => {
+      const expected = { id: 'user-1', email: 'new@test.cat' };
+      authService.changeEmail.mockResolvedValue(expected);
+      const dto = { newEmail: 'new@test.cat', currentPassword: 'old' };
+
+      const result = await controller.changeEmail({ sub: 'user-1' } as never, dto);
+
+      expect(authService.changeEmail).toHaveBeenCalledWith('user-1', dto);
+      expect(result).toEqual(expected);
+    });
+
+    it('propagates ConflictException when the email is already taken', async () => {
+      authService.changeEmail.mockRejectedValue(new ConflictException());
+
+      await expect(
+        controller.changeEmail({ sub: 'user-1' } as never, {
+          newEmail: 'taken@test.cat',
+          currentPassword: 'old',
+        }),
+      ).rejects.toThrow(ConflictException);
     });
   });
 });

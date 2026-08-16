@@ -18,6 +18,7 @@ import {
   ManagedPerson,
   ManagedPersonAttendance,
   PendingDependent,
+  PersonProfileSummary,
 } from '@muixer/shared';
 import { Event } from '../event/event.entity';
 import { Attendance } from '../event/attendance.entity';
@@ -26,6 +27,7 @@ import { Person } from '../person/person.entity';
 import { ProjectionService, ProjectionData } from '../event-segment/projection.service';
 import { EventSegmentService, SegmentWithInstances } from '../event-segment/event-segment.service';
 import { NodeAssignment } from '../node-assignment/entities/node-assignment.entity';
+import { PersonDelegate } from '../person-delegate/person-delegate.entity';
 import { getLocalToday } from '../../common/utils/date.util';
 import { SeasonService } from '../season/season.service';
 import { AttendanceService } from '../event/attendance.service';
@@ -34,6 +36,7 @@ import { PersonService } from '../person/person.service';
 import { MeEventFilterDto } from './dto/me-event-filter.dto';
 import { UpdateMyAttendanceDto } from './dto/update-my-attendance.dto';
 import { DependentRegistrationDto } from './dto/dependent-registration.dto';
+import { CreateMemberDelegateDto } from './dto/create-member-delegate.dto';
 
 const PROVISIONAL_ALIAS_PREFIX = '~';
 
@@ -44,6 +47,8 @@ export class MeService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(Person)
+    private readonly personRepository: Repository<Person>,
     @InjectRepository(Event)
     private readonly eventRepository: Repository<Event>,
     @InjectRepository(Attendance)
@@ -58,7 +63,10 @@ export class MeService {
     private readonly eventSegmentService: EventSegmentService,
   ) {}
 
-  async resolveManagedPersons(userId: string): Promise<ManagedPerson[]> {
+  async resolveManagedPersons(
+    userId: string,
+    options?: { primaryOnly?: boolean },
+  ): Promise<ManagedPerson[]> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: ['person'],
@@ -74,7 +82,7 @@ export class MeService {
       });
     }
 
-    const delegates = await this.personDelegateService.findByUser(userId);
+    const delegates = await this.personDelegateService.findByUser(userId, options);
     for (const delegate of delegates) {
       managed.push({
         personId: delegate.person.id,
@@ -320,6 +328,59 @@ export class MeService {
   }
 
 
+
+  /** Resum d'una persona gestionada (àlies, nom, nombre de delegacions actives) per a la capçalera del perfil. */
+  async getPersonSummary(userId: string, personId: string): Promise<PersonProfileSummary> {
+    await this.personDelegateService.assertCanManagePerson(userId, personId);
+
+    const person = await this.personRepository.findOne({ where: { id: personId } });
+    if (!person) {
+      throw new NotFoundException(`Person #${personId} not found`);
+    }
+
+    const delegates = await this.personDelegateService.findByPerson(personId);
+
+    return {
+      personId: person.id,
+      alias: person.alias,
+      name: person.name,
+      firstSurname: person.firstSurname,
+      delegationCount: delegates.filter((d) => d.isActive).length,
+    };
+  }
+
+  async listPersonDelegates(userId: string, personId: string): Promise<PersonDelegate[]> {
+    await this.personDelegateService.assertCanManagePerson(userId, personId);
+    return this.personDelegateService.findByPerson(personId);
+  }
+
+  async createPersonDelegate(
+    userId: string,
+    personId: string,
+    dto: CreateMemberDelegateDto,
+  ): Promise<PersonDelegate> {
+    await this.personDelegateService.assertCanManagePerson(userId, personId);
+
+    const targetPerson = await this.personRepository
+      .createQueryBuilder('person')
+      .leftJoinAndSelect('person.user', 'user')
+      .where('LOWER(person.alias) = LOWER(:alias)', { alias: dto.alias })
+      .getOne();
+    if (!targetPerson?.user) {
+      throw new NotFoundException('No existeix cap compte associat a aquest àlies');
+    }
+
+    return this.personDelegateService.create(personId, {
+      userId: targetPerson.user.id,
+      delegateType: dto.delegateType,
+      isPrimary: false,
+    });
+  }
+
+  async removePersonDelegate(userId: string, personId: string, delegateId: string): Promise<void> {
+    await this.personDelegateService.assertCanManagePerson(userId, personId);
+    await this.personDelegateService.remove(personId, delegateId, { allowPrimaryRemoval: false });
+  }
 
   async getPendingDependents(userId: string): Promise<PendingDependent[]> {
     const dependents = await this.personDelegateService.findProvisionalPrimaryDependents(userId);
