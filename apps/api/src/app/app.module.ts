@@ -22,6 +22,7 @@ import { LegalModule } from '../modules/legal/legal.module';
 import { AuditModule } from '../modules/audit/audit.module';
 import { MeModule } from '../modules/me/me.module';
 import { MailModule } from '../modules/mail/mail.module';
+import { NewsModule } from '../modules/news/news.module';
 import { JwtAuthGuard } from '../modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../modules/auth/guards/roles.guard';
 
@@ -51,6 +52,7 @@ import { RolesGuard } from '../modules/auth/guards/roles.guard';
     AuditModule,
     MeModule,
     MailModule,
+    NewsModule,
   ],
   controllers: [AppController],
   providers: [

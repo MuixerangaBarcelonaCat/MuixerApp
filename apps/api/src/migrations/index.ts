@@ -38,6 +38,7 @@ import { MakeUsersEmailNullable1784000000000 } from './1784000000000-MakeUsersEm
 import { AddNodeAssignmentConflictIndexes1784100000000 } from './1784100000000-AddNodeAssignmentConflictIndexes';
 import { DropNodeAssignmentDuplicateUniques1784200000000 } from './1784200000000-DropNodeAssignmentDuplicateUniques';
 import { RenameSegmentIsVisibleToIsPublished1784300000000 } from './1784300000000-RenameSegmentIsVisibleToIsPublished';
+import { CreateNews1784400000000 } from './1784400000000-CreateNews';
 
 export const migrations: (new () => MigrationInterface)[] = [
   InitialSchema1748600000000,
@@ -79,4 +80,5 @@ export const migrations: (new () => MigrationInterface)[] = [
   AddNodeAssignmentConflictIndexes1784100000000,
   DropNodeAssignmentDuplicateUniques1784200000000,
   RenameSegmentIsVisibleToIsPublished1784300000000,
+  CreateNews1784400000000,
 ];

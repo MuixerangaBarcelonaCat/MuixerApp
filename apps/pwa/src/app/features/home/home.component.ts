@@ -18,6 +18,10 @@ import { PullToRefreshComponent } from '../../shared/components/pull-to-refresh/
 import { AuthService } from '../../core/auth/services/auth.service';
 import { DependentsService } from '../../core/services/dependents.service';
 import { HomeService } from './services/home.service';
+import { markdownExcerpt } from '../../shared/utils/markdown-excerpt.util';
+
+/** How many characters of a news item's body to show in its home-page preview card. */
+const NEWS_EXCERPT_LENGTH = 300;
 
 @Component({
   selector: 'app-home',
@@ -71,6 +75,14 @@ export class HomeComponent {
     () => this.nextRehearsal() !== null || this.nextPerformance() !== null,
   );
 
+  protected readonly news = computed(() => {
+    const news = this.homeResource.error() ? [] : (this.homeResource.value()?.news ?? []);
+    return news.map((item) => ({
+      ...item,
+      excerpt: markdownExcerpt(item.body, NEWS_EXCERPT_LENGTH),
+    }));
+  });
+
   protected readonly pendingDependentsResource = rxResource({
     stream: () => this.dependentsService.getPending(),
   });
@@ -104,6 +116,7 @@ export class HomeComponent {
         };
       };
       return {
+        ...current,
         nextRehearsal: patch(current.nextRehearsal),
         nextPerformance: patch(current.nextPerformance),
       };

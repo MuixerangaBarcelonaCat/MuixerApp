@@ -1,8 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { firstValueFrom, of, throwError } from 'rxjs';
-import { EventType, MeEvent, AttendanceSummary } from '@muixer/shared';
+import { EventType, MeEvent, MeNewsItem, AttendanceSummary } from '@muixer/shared';
 import { HomeService } from './home.service';
 import { EventService } from '../../events/services/event.service';
+import { NewsService } from '../../news/services/news.service';
 
 const EMPTY_SUMMARY: AttendanceSummary = {
   confirmed: 0,
@@ -39,17 +40,24 @@ const MOCK_PERFORMANCE: MeEvent = {
   managedAttendances: [],
 };
 
+const MOCK_NEWS: MeNewsItem[] = [
+  { id: 'n-1', title: 'Nova temporada', publishedAt: '2026-01-01T00:00:00.000Z', body: 'Cos' },
+];
+
 describe('HomeService', () => {
   let service: HomeService;
   let eventService: { findAll: ReturnType<typeof vi.fn> };
+  let newsService: { findAll: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     eventService = { findAll: vi.fn() };
+    newsService = { findAll: vi.fn().mockReturnValue(of(MOCK_NEWS)) };
 
     TestBed.configureTestingModule({
       providers: [
         HomeService,
         { provide: EventService, useValue: eventService },
+        { provide: NewsService, useValue: newsService },
       ],
     });
 
@@ -93,6 +101,16 @@ describe('HomeService', () => {
 
     expect(data.nextRehearsal).toBeNull();
     expect(data.nextPerformance).toBeNull();
+  });
+
+  it('should return published news', async () => {
+    eventService.findAll.mockReturnValue(
+      of({ data: [], meta: { total: 0, page: 1, limit: 1 } }),
+    );
+
+    const data = await firstValueFrom(service.loadHomeData());
+
+    expect(data.news).toEqual(MOCK_NEWS);
   });
 
   it('should propagate API error from forkJoin', async () => {

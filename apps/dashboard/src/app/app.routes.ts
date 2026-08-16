@@ -55,6 +55,11 @@ export const appRoutes: Route[] = [
         loadChildren: () =>
           import('./features/config/config.routes').then((m) => m.configRoutes),
       },
+      {
+        path: 'communication',
+        loadChildren: () =>
+          import('./features/communication/communication.routes').then((m) => m.communicationRoutes),
+      },
     ],
   },
   { path: '**', redirectTo: '' },

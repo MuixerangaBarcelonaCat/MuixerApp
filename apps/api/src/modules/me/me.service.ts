@@ -19,6 +19,7 @@ import {
   ManagedPersonAttendance,
   PendingDependent,
   PersonProfileSummary,
+  MeNewsItem,
 } from '@muixer/shared';
 import { Event } from '../event/event.entity';
 import { Attendance } from '../event/attendance.entity';
@@ -28,11 +29,13 @@ import { ProjectionService, ProjectionData } from '../event-segment/projection.s
 import { EventSegmentService, SegmentWithInstances } from '../event-segment/event-segment.service';
 import { NodeAssignment } from '../node-assignment/entities/node-assignment.entity';
 import { PersonDelegate } from '../person-delegate/person-delegate.entity';
+import { News } from '../news/news.entity';
 import { getLocalToday } from '../../common/utils/date.util';
 import { SeasonService } from '../season/season.service';
 import { AttendanceService } from '../event/attendance.service';
 import { PersonDelegateService } from '../person-delegate/person-delegate.service';
 import { PersonService } from '../person/person.service';
+import { NewsService } from '../news/news.service';
 import { MeEventFilterDto } from './dto/me-event-filter.dto';
 import { UpdateMyAttendanceDto } from './dto/update-my-attendance.dto';
 import { DependentRegistrationDto } from './dto/dependent-registration.dto';
@@ -61,6 +64,7 @@ export class MeService {
     private readonly personService: PersonService,
     private readonly projectionService: ProjectionService,
     private readonly eventSegmentService: EventSegmentService,
+    private readonly newsService: NewsService,
   ) {}
 
   async resolveManagedPersons(
@@ -423,6 +427,25 @@ export class MeService {
       birthDate: person.birthDate instanceof Date
         ? person.birthDate.toISOString().slice(0, 10)
         : (person.birthDate ?? null),
+    };
+  }
+
+  async findNews(): Promise<MeNewsItem[]> {
+    const newsItems = await this.newsService.findPublished();
+    return newsItems.map((news) => this.toMeNewsItem(news));
+  }
+
+  async findNewsDetail(id: string): Promise<MeNewsItem> {
+    const news = await this.newsService.findPublishedOne(id);
+    return this.toMeNewsItem(news);
+  }
+
+  private toMeNewsItem(news: News): MeNewsItem {
+    return {
+      id: news.id,
+      title: news.title,
+      publishedAt: news.publishedAt!.toISOString(),
+      body: news.body,
     };
   }
 

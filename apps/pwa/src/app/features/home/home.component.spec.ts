@@ -1,7 +1,7 @@
 import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { ApplicationRef } from '@angular/core';
 import { of, Subject } from 'rxjs';
-import { EventType, Gender, MeEvent, PendingDependent, UserRole } from '@muixer/shared';
+import { EventType, Gender, MeEvent, MeNewsItem, PendingDependent, UserRole } from '@muixer/shared';
 import { HomeComponent } from './home.component';
 import { HomeService, HomeData } from './services/home.service';
 import { AuthService } from '../../core/auth/services/auth.service';
@@ -40,14 +40,14 @@ const MOCK_PERFORMANCE: MeEvent = {
 };
 
 function createTestBed(
-  homeData: HomeData | Subject<HomeData>,
+  homeData: Partial<HomeData> | Subject<HomeData>,
   person: Record<string, unknown> | null = { id: 'p-1', name: 'Joan', firstSurname: 'Garcia', alias: 'Joanet', email: null },
   pendingDependents: PendingDependent[] = [],
 ) {
   const isSubject = homeData instanceof Subject;
   const homeService = {
     loadHomeData: vi.fn().mockReturnValue(
-      isSubject ? homeData.asObservable() : of(homeData),
+      isSubject ? homeData.asObservable() : of({ news: [], ...homeData } as HomeData),
     ),
   };
   const dependentsService = {
@@ -254,6 +254,74 @@ describe('HomeComponent', () => {
 
       const link = fixture.nativeElement.querySelector('[data-testid="pending-dependents-banner"] a');
       expect(link.getAttribute('href')).toBe('/pending-dependents');
+    });
+  });
+
+  describe('news section', () => {
+    const MOCK_NEWS: MeNewsItem[] = [
+      {
+        id: 'n-1',
+        title: 'Nova temporada',
+        publishedAt: '2026-01-01T00:00:00.000Z',
+        body: 'Cos de la notícia',
+      },
+      {
+        id: 'n-2',
+        title: 'Canvi de local',
+        publishedAt: '2026-02-01T00:00:00.000Z',
+        body: 'Altre cos',
+      },
+    ];
+
+    it('shows a Notícies section with a link per published news', async () => {
+      createTestBed({ nextRehearsal: null, nextPerformance: null, news: MOCK_NEWS });
+      await TestBed.compileComponents();
+      fixture = TestBed.createComponent(HomeComponent);
+      await stableFixture(fixture);
+
+      expect(fixture.nativeElement.textContent).toContain('Notícies');
+      const links = fixture.nativeElement.querySelectorAll('[data-testid="news-item"]');
+      expect(links.length).toBe(2);
+      expect(links[0].textContent).toContain('Nova temporada');
+      expect(links[0].getAttribute('href')).toBe('/news/n-1');
+    });
+
+    it('hides the Notícies section when there is no published news', async () => {
+      createTestBed({ nextRehearsal: null, nextPerformance: null, news: [] });
+      await TestBed.compileComponents();
+      fixture = TestBed.createComponent(HomeComponent);
+      await stableFixture(fixture);
+
+      expect(fixture.nativeElement.querySelector('[data-testid="news-item"]')).toBeFalsy();
+    });
+
+    it('shows a plain-text excerpt of the body below the title', async () => {
+      createTestBed({
+        nextRehearsal: null,
+        nextPerformance: null,
+        news: [{ ...MOCK_NEWS[0], body: 'Cos amb **negreta** i [enllaç](https://x.cat)' }],
+      });
+      await TestBed.compileComponents();
+      fixture = TestBed.createComponent(HomeComponent);
+      await stableFixture(fixture);
+
+      const excerpt = fixture.nativeElement.querySelector('[data-testid="news-item-excerpt"]');
+      expect(excerpt.textContent.trim()).toBe('Cos amb negreta i enllaç');
+    });
+
+    it('truncates the excerpt to the configured character count', async () => {
+      const longBody = 'a'.repeat(400);
+      createTestBed({
+        nextRehearsal: null,
+        nextPerformance: null,
+        news: [{ ...MOCK_NEWS[0], body: longBody }],
+      });
+      await TestBed.compileComponents();
+      fixture = TestBed.createComponent(HomeComponent);
+      await stableFixture(fixture);
+
+      const excerpt = fixture.nativeElement.querySelector('[data-testid="news-item-excerpt"]');
+      expect(excerpt.textContent.trim()).toBe(`${'a'.repeat(300)}…`);
     });
   });
 

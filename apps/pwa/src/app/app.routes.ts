@@ -74,6 +74,14 @@ export const appRoutes: Routes = [
           ),
       },
       {
+        path: 'news/:id',
+        title: 'Notícia',
+        loadComponent: () =>
+          import('./features/news/news-detail/news-detail.component').then(
+            (m) => m.NewsDetailComponent,
+          ),
+      },
+      {
         path: 'profile',
         title: 'Perfil',
         loadComponent: () =>

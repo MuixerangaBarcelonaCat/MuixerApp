@@ -1,0 +1,29 @@
+<div class="space-y-4 max-w-3xl mx-auto">
+  <div>
+    <h1 class="text-xl font-bold text-base-content">Comunicació</h1>
+    <p class="text-xs text-base-content/50 mt-0.5">Notícies i notificacions</p>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+    <a routerLink="news" class="card bg-base-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer border-l-4 border-primary">
+      <div class="card-body p-4">
+        <lucide-icon name="Newspaper" [size]="24" class="text-primary mb-1" />
+        <h3 class="font-semibold">Notícies</h3>
+        <p class="text-xs text-base-content/50">Notícies per a la pàgina d'inici de l'aplicació</p>
+      </div>
+    </a>
+
+    <div class="card bg-base-100 shadow-sm border-l-4 border-base-300 opacity-60 cursor-not-allowed">
+      <div class="card-body p-4">
+        <div class="flex items-center justify-between">
+          <lucide-icon name="Bell" [size]="24" class="text-base-content/40 mb-1" />
+          <span class="badge badge-ghost badge-sm">Properament</span>
+        </div>
+        <h3 class="font-semibold">Notificacions</h3>
+        <p class="text-xs text-base-content/50">Notificacions push per als membres</p>
+      </div>
+    </div>
+
+  </div>
+</div>
