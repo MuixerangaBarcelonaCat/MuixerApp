@@ -7,6 +7,9 @@ import { SeasonService } from '../season/season.service';
 import { AttendanceService } from '../event/attendance.service';
 import { PersonDelegateService } from '../person-delegate/person-delegate.service';
 import { PersonService } from '../person/person.service';
+import { ProjectionService } from '../event-segment/projection.service';
+import { EventSegmentService } from '../event-segment/event-segment.service';
+import { NewsService } from '../news/news.service';
 import { User } from '../user/user.entity';
 import { Person } from '../person/person.entity';
 import { Tag } from '../tag/tag.entity';
@@ -14,6 +17,7 @@ import { PersonDelegate } from '../person-delegate/person-delegate.entity';
 import { Event } from '../event/event.entity';
 import { Attendance } from '../event/attendance.entity';
 import { Season } from '../season/season.entity';
+import { NodeAssignment } from '../node-assignment/entities/node-assignment.entity';
 import {
   IntegrationDb,
   setupIntegrationDb,
@@ -45,6 +49,9 @@ describe('MeService profile endpoints (integration)', () => {
         AttendanceService,
         PersonDelegateService,
         PersonService,
+        { provide: ProjectionService, useValue: { getProjection: jest.fn() } },
+        { provide: EventSegmentService, useValue: { findAllByEvent: jest.fn() } },
+        { provide: NewsService, useValue: { findPublished: jest.fn().mockResolvedValue([]) } },
         ...realRepositoryProviders(db.dataSource, [
           User,
           Person,
@@ -53,6 +60,7 @@ describe('MeService profile endpoints (integration)', () => {
           Event,
           Attendance,
           Season,
+          NodeAssignment,
         ]),
         { provide: DataSource, useValue: db.dataSource },
       ],
