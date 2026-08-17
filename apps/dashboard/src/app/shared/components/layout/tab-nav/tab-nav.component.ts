@@ -1,7 +1,7 @@
 import { Component, ChangeDetectionStrategy, input, output } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
-import { ICON_TEMPLATE, ICON_ASSAIG, ICON_ACTUACIO, ICON_PERSONA } from '../../../constants/domain-icons';
+import { ICON_TEMPLATE, ICON_ASSAIG, ICON_ACTUACIO, ICON_PERSONA, ICON_COMUNICACIO } from '../../../constants/domain-icons';
 
 @Component({
   selector: 'app-tab-nav',
@@ -21,6 +21,7 @@ export class TabNavComponent {
     { path: '/rehearsals', label: 'Assajos', icon: ICON_ASSAIG },
     { path: '/performances', label: 'Actuacions', icon: ICON_ACTUACIO },
     { path: '/pinyes', label: 'Plantilles', icon: ICON_TEMPLATE },
+    { path: '/communication', label: 'Comunicació', icon: ICON_COMUNICACIO },
     { path: '/config', label: 'Configuració', icon: 'Settings' },
   ];
 }

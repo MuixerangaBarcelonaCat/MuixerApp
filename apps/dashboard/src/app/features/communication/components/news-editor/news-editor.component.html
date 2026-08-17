@@ -1,0 +1,109 @@
+<div class="max-w-4xl mx-auto space-y-4">
+
+  <div>
+    <h1 class="text-xl font-bold text-base-content">
+      {{ isEditMode() ? 'Edita la notícia' : 'Notícia nova' }}
+    </h1>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+    <div class="space-y-4">
+      <div class="form-control">
+        <label class="label" for="news-title">
+          <span class="label-text">Títol</span>
+        </label>
+        <input
+          id="news-title"
+          type="text"
+          class="input input-bordered w-full"
+          [ngModel]="title()"
+          (ngModelChange)="title.set($event)"
+        />
+      </div>
+
+      <div class="form-control">
+        <label class="label" for="news-body">
+          <span class="label-text inline-flex items-center gap-1">
+            Cos
+            <span class="group relative inline-flex">
+              <lucide-icon
+                name="CircleQuestionMark"
+                [size]="16"
+                class="cursor-help"
+                aria-label="Ajuda de sintaxi Markdown"
+                tabindex="0"
+              />
+              <span
+                data-testid="markdown-help"
+                class="hidden group-hover:block group-focus-within:block absolute left-0 top-full mt-1 z-10 w-56 rounded-box border border-base-300 bg-base-100 shadow-lg px-3 py-2 text-xs font-normal normal-case"
+              >
+                <p>Podeu afegir-hi codis de Markdown, per exemple:</p>
+                <p class="flex justify-between gap-2"><code>**negreta**</code> <span><strong>negreta</strong></span></p>
+                <p class="flex justify-between gap-2"><code>*cursiva*</code> <span><em>cursiva</em></span></p>
+                <p class="flex justify-between gap-2"><code>[text](url)</code> <span class="link link-primary">enllaç</span></p>
+              </span>
+            </span>
+          </span>
+        </label>
+        <textarea
+          id="news-body"
+          class="textarea textarea-bordered w-full h-64 font-mono text-sm"
+          [ngModel]="body()"
+          (ngModelChange)="body.set($event)"
+        ></textarea>
+      </div>
+
+      <div class="form-control">
+        <label class="label" for="news-published-at">
+          <span class="label-text">Publicació</span>
+          <span class="label-text-alt badge badge-sm">{{ statusLabel() }}</span>
+        </label>
+        <div class="join w-full">
+          <input
+            id="news-published-at"
+            type="datetime-local"
+            class="input input-bordered join-item w-full"
+            [ngModel]="publishedAtLocal()"
+            (ngModelChange)="publishedAtLocal.set($event)"
+          />
+          <button
+            type="button"
+            class="btn btn-ghost join-item"
+            data-testid="publish-now-button"
+            (click)="setPublishNow()"
+          >
+            Ara
+          </button>
+        </div>
+        <span class="label">
+          <span class="label-text-alt text-base-content/50">
+            Deixeu-ho en blanc per desar-la com a esborrany.
+          </span>
+        </span>
+      </div>
+
+      <div class="flex gap-2">
+        <button type="button" class="btn btn-primary btn-sm" [disabled]="!canSave()" (click)="save()">
+          @if (saving()) {
+            <span class="loading loading-spinner loading-xs"></span>
+          }
+          Desa
+        </button>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="cancel()">Cancel·la</button>
+      </div>
+    </div>
+
+    <div class="space-y-2">
+      <span class="label-text">Previsualització</span>
+      <div class="card bg-base-100 shadow-sm">
+        <div class="card-body prose prose-sm max-w-none" data-testid="news-preview">
+          <h2 class="font-bold" data-testid="news-preview-title">{{ title() || 'Sense títol' }}</h2>
+          <div [innerHTML]="previewHtml()"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
