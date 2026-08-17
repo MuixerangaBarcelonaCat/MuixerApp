@@ -100,8 +100,8 @@ export class UserListComponent {
   );
   readonly assignableRoles = computed<UserRole[]>(() =>
     this.isAdmin()
-      ? [UserRole.TECHNICAL, UserRole.ADMIN]
-      : [UserRole.TECHNICAL],
+      ? [UserRole.MEMBER, UserRole.TECHNICAL, UserRole.ADMIN]
+      : [UserRole.MEMBER, UserRole.TECHNICAL],
   );
 
   searchInput = '';
@@ -402,7 +402,7 @@ export class UserListComponent {
   getCellValue(user: UserDto, key: string): string {
     switch (key) {
       case 'email':
-        return user.email;
+        return user.isActive ? (user.email ?? '') : "Pendent d'activar";
       case 'person':
         return user.person
           ? `${user.person.alias} · ${user.person.name} ${user.person.firstSurname}`

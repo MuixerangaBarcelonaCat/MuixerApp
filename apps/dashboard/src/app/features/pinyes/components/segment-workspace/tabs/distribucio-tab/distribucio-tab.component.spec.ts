@@ -1,10 +1,10 @@
+import { FigureCanvasComponent, CompositionSlotWithNodes, CanvasMode, InstanceDetail, SegmentDetail } from '@muixer/pinyes-render';
 import { Component, input, output } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { describe, it, expect, vi } from 'vitest';
 import { allLucideIconsProvider } from '../../../../../../../testing/lucide-test-provider';
 import { DistribucioTabComponent } from './distribucio-tab.component';
-import { FigureCanvasComponent, CompositionSlotWithNodes, CanvasMode } from '../../../figure-canvas/figure-canvas.component';
 import {
   FigurePropertiesPanelComponent,
   FigurePropertiesEntry,
@@ -17,7 +17,6 @@ import { SegmentDistributionService } from '../../../../services/segment-distrib
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
 import { FigureInstanceService } from '../../../../services/figure-instance.service';
 import { ToastService } from '../../../../../../shared/components/feedback/toast/toast.service';
-import { InstanceDetail, SegmentDetail } from '../../../../models/segment.model';
 import { SegmentDistributionData } from '../../../../models/distribution.model';
 
 // ── Stub children ────────────────────────────────────────────────────────────
@@ -83,7 +82,7 @@ const makeSegment = (instances: InstanceDetail[]): SegmentDetail => ({
   startTime: null,
   endTime: null,
   notes: null,
-  isVisible: true,
+  isPublished: true,
   instances,
 });
 
@@ -143,7 +142,7 @@ describe('DistribucioTabComponent', () => {
   let ws: SegmentWorkspaceStateService;
   let distributionService: { getDistribution: MockFn; saveDistribution: MockFn; clearDistribution: MockFn };
   let instanceService: { update: MockFn };
-  let assignmentService: { getInstanceNodes: MockFn; getByInstance: MockFn; getAvailablePersons: MockFn; getLockStatus: MockFn; updateCordons: MockFn };
+  let assignmentService: { getInstanceNodes: MockFn; getByInstance: MockFn; getAvailablePersons: MockFn; getLockStatus: MockFn; getSegmentConflicts: MockFn; updateCordons: MockFn };
   let toast: { success: MockFn; error: MockFn; info: MockFn };
 
   const setup = async (opts: {
@@ -165,6 +164,7 @@ describe('DistribucioTabComponent', () => {
       getInstanceNodes: vi.fn().mockReturnValue(of({ data: [] })),
       getByInstance: vi.fn().mockReturnValue(of({ data: [] })),
       getAvailablePersons: vi.fn().mockReturnValue(of({ data: [] })),
+      getSegmentConflicts: vi.fn().mockReturnValue(of({ data: [] })),
       getLockStatus: vi.fn().mockReturnValue(of({ locked: false, lockDate: null, lockDays: 3 })),
       updateCordons: vi.fn().mockReturnValue(of({ numberOfCordons: 2, cordonsObertsEnabled: true })),
     };
@@ -261,6 +261,7 @@ describe('DistribucioTabComponent', () => {
         getInstanceNodes: vi.fn().mockReturnValue(of({ data: [] })),
         getByInstance: vi.fn().mockReturnValue(of({ data: [] })),
         getAvailablePersons: vi.fn().mockReturnValue(of({ data: [] })),
+        getSegmentConflicts: vi.fn().mockReturnValue(of({ data: [] })),
         getLockStatus: vi.fn().mockReturnValue(of({ locked: false, lockDate: null, lockDays: 3 })),
         updateCordons: vi.fn(),
       };

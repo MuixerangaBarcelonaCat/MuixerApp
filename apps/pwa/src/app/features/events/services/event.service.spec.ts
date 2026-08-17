@@ -64,4 +64,34 @@ describe('EventService', () => {
     expect(req.request.body).toEqual({ status: AttendanceStatus.ANIRE });
     req.flush({ id: 'att-1', status: AttendanceStatus.ANIRE, respondedAt: new Date().toISOString() });
   });
+
+  it('should include personId in the attendance body when given', () => {
+    service
+      .updateAttendance('ev-1', AttendanceStatus.ANIRE, 'person-2')
+      .subscribe();
+
+    const req = httpMock.expectOne('/api/me/events/ev-1/attendance');
+    expect(req.request.body).toEqual({ status: AttendanceStatus.ANIRE, personId: 'person-2' });
+    req.flush({ id: 'att-1', status: AttendanceStatus.ANIRE, respondedAt: new Date().toISOString() });
+  });
+
+  it('should fetch published segments for an event', () => {
+    service.findSegments('ev-1').subscribe((res) => {
+      expect(res).toEqual([{ id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [], myPlacements: [] }]);
+    });
+
+    const req = httpMock.expectOne('/api/me/events/ev-1/segments');
+    expect(req.request.method).toBe('GET');
+    req.flush([{ id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [], myPlacements: [] }]);
+  });
+
+  it('should carry the caller\'s own placements through unchanged', () => {
+    const placement = { nodeLabel: 'Vent', cordon: 1, figureName: 'Roscana', figureMode: 'COMPLETA' };
+    service.findSegments('ev-1').subscribe((res) => {
+      expect(res[0].myPlacements).toEqual([placement]);
+    });
+
+    const req = httpMock.expectOne('/api/me/events/ev-1/segments');
+    req.flush([{ id: 'seg-1', name: 'Bloc 1', sortOrder: 0, instances: [], myPlacements: [placement] }]);
+  });
 });

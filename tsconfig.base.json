@@ -17,7 +17,8 @@
     "baseUrl": ".",
     "paths": {
       "@muixer/shared": ["libs/shared/src/index.ts"],
-      "@app/*": ["apps/dashboard/src/app/*"]
+      "@app/*": ["apps/dashboard/src/app/*"],
+      "@muixer/pinyes-render": ["libs/pinyes-render/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

@@ -94,7 +94,7 @@ Enllaça un `InstanceNode` + una `Person`. La FK és a `InstanceNode`, **mai** a
 
 ### EventSegment (Segment)
 
-Bloc temporal dins d'un event (ex: "Escalfament", "Bloc 1"). Cada segment conté múltiples `FigureInstance`s. Restricció: una persona no pot aparèixer en dues instàncies del **mateix** segment.
+Bloc temporal dins d'un event (ex: "Escalfament", "Bloc 1"). Cada segment conté múltiples `FigureInstance`s. Des de la Fase 5 una persona **pot** aparèixer en dues col·locacions del mateix segment (unicitat només per node); es classifica com a conflicte tou, no es bloqueja.
 
 ---
 
@@ -833,7 +833,7 @@ Aquests invariants han de mantenir-se en qualsevol futura implementació:
 
 3. **XOR template/composition**: Una `FigureInstance` té exactament un de `figureTemplate` o `compositionTemplate`. Mai tots dos, mai cap.
 
-4. **One person per segment**: Una persona no pot aparèixer en dues `NodeAssignment` de `FigureInstance`s del mateix `EventSegment`.
+4. **Unicitat per node**: `NodeAssignment` és única per `[figureInstance, instanceNode]`. Des de la Fase 5 una persona pot tenir ≥2 `NodeAssignment` al mateix `EventSegment` (o a la mateixa `FigureInstance`) — es classifica com a conflicte tou (`classifyPlacementKind`), no es rebutja.
 
 5. **ringLevel consistency**: Tots els nodes d'un template amb `ringLevel = N` impliquen l'existència d'almenys un node amb `ringLevel = 1..N-1`. No poden haver-hi forats.
 

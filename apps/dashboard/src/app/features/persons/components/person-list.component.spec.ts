@@ -6,8 +6,7 @@ import { allLucideIconsProvider } from '../../../../testing/lucide-test-provider
 import { PersonListComponent } from './person-list.component';
 import { Position } from '../models/person.model';
 import { PersonService } from '../services/person.service';
-import { AvailabilityStatus, OnboardingStatus } from '@muixer/shared';
-import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../shared/utils/person.util';
+import { AvailabilityStatus, OnboardingStatus, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 
 describe('PersonListComponent', () => {
   let fixture: ComponentFixture<PersonListComponent>;
@@ -151,6 +150,29 @@ describe('PersonListComponent', () => {
       const search = fixture.nativeElement.querySelector('input[type="text"]') as HTMLElement;
       expect(search).toBeTruthy();
       expect(search.className).toContain('h-6');
+    });
+  });
+
+  describe('onPersonCreated (activation tutorial)', () => {
+    it('closes the new-person modal and opens the activation tutorial instead of navigating immediately', () => {
+      fixture.componentInstance.newPersonModalOpen.set(true);
+
+      fixture.componentInstance.onPersonCreated(mockPerson as never);
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.newPersonModalOpen()).toBe(false);
+      expect(router.navigate).not.toHaveBeenCalled();
+      const dialog = fixture.nativeElement.querySelector('dialog.modal-open');
+      expect(dialog).toBeTruthy();
+    });
+
+    it('navigates to the created person\'s detail page once the activation tutorial is closed', () => {
+      fixture.componentInstance.onPersonCreated(mockPerson as never);
+      fixture.detectChanges();
+
+      fixture.componentInstance.onActivationTutorialClosed();
+
+      expect(router.navigate).toHaveBeenCalledWith(['/persons', mockPerson.id]);
     });
   });
 });

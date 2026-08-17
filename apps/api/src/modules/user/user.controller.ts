@@ -15,7 +15,8 @@ import { UserRole, JwtPayload } from '@muixer/shared';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserService } from './user.service';
-import { CreateWithInviteDto } from './dto/create-with-invite.dto';
+import { CreateInviteLinkDto } from './dto/create-invite-link.dto';
+import { InviteLinkResponseDto } from './dto/invite-link-response.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserFilterDto } from './dto/user-filter.dto';
@@ -40,14 +41,14 @@ export class UserController {
     return this.userService.createUser(dto, actor.role);
   }
 
-  @Post('create-with-invite')
+  @Post('invite-link')
   @ApiOperation({
-    summary: "Crea un usuari per una persona i envia email d'invitació",
+    summary: "Crea (o regenera) un enllaç d'invitació per activar el compte d'una persona",
   })
-  @ApiResponse({ status: 201, description: 'Usuari creat i convidat' })
-  @ApiResponse({ status: 400, description: "Error en crear l'usuari" })
-  createWithInvite(@Body() dto: CreateWithInviteDto) {
-    return this.userService.createWithInvite(dto);
+  @ApiResponse({ status: 201, description: "Enllaç d'invitació generat" })
+  @ApiResponse({ status: 400, description: "La persona no existeix o ja té un compte actiu" })
+  createInviteLink(@Body() dto: CreateInviteLinkDto): Promise<InviteLinkResponseDto> {
+    return this.userService.createOrRefreshInviteLink(dto.personId);
   }
 
   @Get()

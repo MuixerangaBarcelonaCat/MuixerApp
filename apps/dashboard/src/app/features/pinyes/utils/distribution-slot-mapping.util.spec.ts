@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { computeSlotLabel, mapDistributionItemsToSlots } from './distribution-slot-mapping.util';
 import { DistributionItem } from '../models/distribution.model';
-import { DEFAULT_PLACEMENT_GAP } from './figure-placement.util';
+import { DEFAULT_PLACEMENT_GAP } from '@muixer/pinyes-render';
 
 const makeDistributionNode = (
   id: string,

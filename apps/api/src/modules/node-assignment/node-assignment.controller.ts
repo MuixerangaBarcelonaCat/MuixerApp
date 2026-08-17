@@ -53,7 +53,11 @@ export class NodeAssignmentController {
     return { data };
   }
 
-  @ApiOperation({ summary: 'Assign a person to a node in a figure instance (auto-snapshots on first assignment)' })
+  @ApiOperation({
+    summary:
+      'Assign a person to a node in a figure instance (auto-snapshots on first assignment). ' +
+      'Returns a `impact` (TroncChangeImpact) when the node is TRONC/BASE.',
+  })
   @Post('figure-instances/:instanceId/assignments')
   assign(
     @Param('instanceId', ParseUUIDPipe) instanceId: string,
@@ -62,7 +66,11 @@ export class NodeAssignmentController {
     return this.assignmentService.assign(instanceId, dto);
   }
 
-  @ApiOperation({ summary: 'Swap two assignments within the same figure instance' })
+  @ApiOperation({
+    summary:
+      'Swap two assignments within the same figure instance. ' +
+      'Returns a `impact` (TroncChangeImpact) when either node is TRONC/BASE.',
+  })
   @Post('figure-instances/:instanceId/assignments/swap')
   swap(
     @Param('instanceId', ParseUUIDPipe) instanceId: string,
@@ -71,13 +79,16 @@ export class NodeAssignmentController {
     return this.assignmentService.swap(instanceId, dto);
   }
 
-  @ApiOperation({ summary: 'Remove an assignment from a figure instance' })
+  @ApiOperation({
+    summary:
+      'Remove an assignment from a figure instance. ' +
+      'Returns a `impact` (TroncChangeImpact) when the removed node was TRONC/BASE.',
+  })
   @Delete('figure-instances/:instanceId/assignments/:id')
-  @HttpCode(HttpStatus.NO_CONTENT)
   unassign(
     @Param('instanceId', ParseUUIDPipe) instanceId: string,
     @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<void> {
+  ) {
     return this.assignmentService.unassign(instanceId, id);
   }
 
@@ -147,6 +158,16 @@ export class NodeAssignmentController {
   ) {
     const data = await this.availablePersonsService.getAvailablePersons(eventId, segmentId, query);
     return { data };
+  }
+
+  @ApiOperation({ summary: 'Get the canonical conflict report for a segment (D13)' })
+  @Get('events/:eventId/segments/:segmentId/conflicts')
+  getConflicts(
+    @Param('eventId', ParseUUIDPipe) _eventId: string,
+    @Param('segmentId', ParseUUIDPipe) segmentId: string,
+  ) {
+    // Already has a data+meta shape — no extra { data } wrapping.
+    return this.assignmentService.getSegmentConflicts(segmentId);
   }
 
   @ApiOperation({ summary: 'Get figure instance assignment history for a template' })

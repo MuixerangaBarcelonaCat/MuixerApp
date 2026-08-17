@@ -22,7 +22,7 @@ describe('TabNavComponent', () => {
       const labels = Array.from(
         fixture.nativeElement.querySelectorAll('div.hidden.sm\\:flex a span:not(.sr-only)'),
       ) as HTMLElement[];
-      expect(labels.length).toBe(6);
+      expect(labels.length).toBe(7);
       for (const label of labels) {
         expect(label.className).toContain('hidden');
         expect(label.className).toContain('md:inline');
@@ -34,7 +34,7 @@ describe('TabNavComponent', () => {
       const srOnlyLabels = Array.from(
         fixture.nativeElement.querySelectorAll('div.hidden.sm\\:flex a span.sr-only'),
       ) as HTMLElement[];
-      expect(srOnlyLabels.length).toBe(6);
+      expect(srOnlyLabels.length).toBe(7);
       for (const label of srOnlyLabels) {
         expect(label.className).toContain('md:hidden');
       }

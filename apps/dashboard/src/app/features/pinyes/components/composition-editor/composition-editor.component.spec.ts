@@ -1,3 +1,4 @@
+import { FigureTemplateListItem, FigureCanvasComponent, CompositionSlotWithNodes, CanvasMode } from '@muixer/pinyes-render';
 import { Component, input, output } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
@@ -13,8 +14,6 @@ import { FigureTemplateService } from '../../services/figure-template.service';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { CanvasStateService } from '../../services/canvas-state.service';
 import { CompositionDetail, CompositionEntryItem } from '../../models/composition.model';
-import { FigureTemplateListItem } from '../../models/figure-template.model';
-import { FigureCanvasComponent, CompositionSlotWithNodes, CanvasMode } from '../figure-canvas/figure-canvas.component';
 
 @Component({ selector: 'app-figure-canvas', standalone: true, template: '' })
 class FigureCanvasStub {

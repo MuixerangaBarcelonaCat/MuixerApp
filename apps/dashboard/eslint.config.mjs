@@ -31,4 +31,14 @@ export default [
     // Override or add rules here
     rules: {},
   },
+  {
+    // Test doubles must declare the exact selector of whatever they stand in
+    // for — including library components using @muixer/pinyes-render's own
+    // 'lib' prefix — so the naming convention doesn't apply to specs.
+    files: ['**/*.spec.ts'],
+    rules: {
+      '@angular-eslint/directive-selector': 'off',
+      '@angular-eslint/component-selector': 'off',
+    },
+  },
 ];

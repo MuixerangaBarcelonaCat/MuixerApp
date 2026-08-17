@@ -31,7 +31,6 @@ interface FilterTab {
 const TABS: FilterTab[] = [
   { key: 'upcoming', label: 'Propers' },
   { key: 'past', label: 'Passats' },
-  { key: 'all', label: 'Tots' },
 ];
 
 @Component({
@@ -170,23 +169,31 @@ export class EventListComponent {
     this.selectedDate.set(date);
   }
 
-  onAttendanceChanged(change: { eventId: string; status: AttendanceStatus }): void {
+  onAttendanceChanged(change: { eventId: string; personId: string; status: AttendanceStatus }): void {
     const patchList = (res: PaginatedResponse<MeEvent> | undefined) => {
       if (!res) return res;
       return {
         ...res,
-        data: res.data.map((e) =>
-          e.id === change.eventId
-            ? {
-                ...e,
-                myAttendance: {
-                  id: e.myAttendance?.id ?? '',
-                  status: change.status,
-                  respondedAt: new Date().toISOString(),
-                },
-              }
-            : e,
-        ),
+        data: res.data.map((e) => {
+          if (e.id !== change.eventId) return e;
+          const managedAttendances = e.managedAttendances.map((m) =>
+            m.personId === change.personId
+              ? {
+                  ...m,
+                  attendance: {
+                    id: m.attendance?.id ?? '',
+                    status: change.status,
+                    respondedAt: new Date().toISOString(),
+                  },
+                }
+              : m,
+          );
+          return {
+            ...e,
+            managedAttendances,
+            myAttendance: managedAttendances.find((m) => m.isSelf)?.attendance ?? e.myAttendance,
+          };
+        }),
       };
     };
 

@@ -1,10 +1,10 @@
+import { TroncViewComponent, TroncNodeItem, AssignmentDetail, AvailablePerson, InstanceNodeItem, InstanceDetail, SegmentDetail } from '@muixer/pinyes-render';
 import { Component, input, output } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of, Subject, throwError } from 'rxjs';
 import { describe, it, expect, vi } from 'vitest';
 import { allLucideIconsProvider } from '../../../../../../../testing/lucide-test-provider';
 import { TroncsTabComponent } from './troncs-tab.component';
-import { TroncViewComponent, TroncNodeItem } from '../../../tronc-view/tronc-view.component';
 import { PersonPanelComponent } from '../../../person-panel/person-panel.component';
 import { SegmentWorkspaceStateService } from '../../../../services/segment-workspace-state.service';
 import { AssignmentStateService } from '../../../../services/assignment-state.service';
@@ -13,8 +13,6 @@ import { EventSegmentService } from '../../../../services/event-segment.service'
 import { SegmentDistributionService } from '../../../../services/segment-distribution.service';
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
 import { ToastService } from '../../../../../../shared/components/feedback/toast/toast.service';
-import { AssignmentDetail, AvailablePerson, InstanceNodeItem } from '../../../../models/assignment.model';
-import { InstanceDetail, SegmentDetail } from '../../../../models/segment.model';
 
 // ── Stub children ────────────────────────────────────────────────────────────
 
@@ -25,6 +23,7 @@ class StubTroncView {
   readonly baseNodes = input<TroncNodeItem[]>([]);
   readonly directionNodes = input<TroncNodeItem[]>([]);
   readonly assignments = input<AssignmentDetail[]>([]);
+  readonly conflictPersonIds = input<Set<string>>(new Set());
   readonly selectedNodeId = input<string | null>(null);
   readonly mode = input<string>('assignment');
   readonly heightMode = input<string>('relative');
@@ -51,6 +50,7 @@ class StubPersonPanel {
   readonly segmentId = input.required<string>();
   readonly selectedNodeId = input<string | null>(null);
   readonly assignments = input<AssignmentDetail[]>([]);
+  readonly conflictPersonIds = input<Set<string>>(new Set());
   readonly heightMode = input<string>('relative');
   readonly activeNodePositionType = input<string | null>(null);
   readonly selectedNodeZone = input<string | null>(null);
@@ -118,7 +118,7 @@ const makeSegment = (instances: InstanceDetail[]): SegmentDetail => ({
   startTime: null,
   endTime: null,
   notes: null,
-  isVisible: true,
+  isPublished: true,
   instances,
 });
 
@@ -165,7 +165,10 @@ const makePerson = (id: string): AvailablePerson => ({
   notesEmoji: null,
   attendanceStatus: 'ANIRE',
   nextPerformanceStatus: null,
-  assignedInSegment: false,
+  assignedPlacements: [],
+  assignedInTronc: false,
+  assignedInPinya: false,
+  conflictInSegment: false,
   positions: [],
 });
 
@@ -182,6 +185,7 @@ describe('TroncsTabComponent', () => {
     getByInstance: MockFn;
     getAvailablePersons: MockFn;
     getLockStatus: MockFn;
+    getSegmentConflicts: MockFn;
     assign: MockFn;
     unassign: MockFn;
     swap: MockFn;
@@ -208,11 +212,12 @@ describe('TroncsTabComponent', () => {
         of({ data: opts.assignmentsByInstance?.[instanceId] ?? [] }),
       ),
       getAvailablePersons: vi.fn().mockReturnValue(of({ data: [] })),
+      getSegmentConflicts: vi.fn().mockReturnValue(of({ data: [] })),
       getLockStatus: vi
         .fn()
         .mockReturnValue(of({ locked: opts.locked ?? false, lockDate: null, lockDays: 3 })),
       assign: vi.fn().mockReturnValue(of(makeAssignment(INST_A, 'n1'))),
-      unassign: vi.fn().mockReturnValue(of(null)),
+      unassign: vi.fn().mockReturnValue(of({})),
       swap: vi.fn(),
       createAdHocNode: vi.fn(),
       deleteAdHocNode: vi.fn(),
@@ -812,6 +817,26 @@ describe('TroncsTabComponent', () => {
 
       expect(assignmentService.unassign).toHaveBeenCalledWith(INST_A, existing.id);
       expect(assignmentService.assign).toHaveBeenCalledWith(INST_B, { nodeId: 'm1', personId: 'p-1' });
+    });
+
+    it('"assign anyway" keeps the old assignment and assigns to the target as a duplicate', async () => {
+      const existing = makeAssignment(INST_A, 'n1', 'p-1');
+      await setup({
+        instances: [makeInstance(INST_A), makeInstance(INST_B)],
+        nodesByInstance: {
+          [INST_A]: [makeNode('n1', 'TRONC')],
+          [INST_B]: [makeNode('m1', 'TRONC')],
+        },
+        assignmentsByInstance: { [INST_A]: [existing] },
+      });
+      component.onTroncNodeSelected(INST_B, 'm1');
+      component.onAssignedPersonSelected({ personId: 'p-1', instanceId: INST_A });
+
+      component.onReassignDialogAssignAnyway();
+
+      expect(assignmentService.unassign).not.toHaveBeenCalled();
+      expect(assignmentService.assign).toHaveBeenCalledWith(INST_B, { nodeId: 'm1', personId: 'p-1' });
+      expect(component.reassignDialog()).toBeNull();
     });
 
     it('navigates directly (no dialog) when no target node is selected', async () => {

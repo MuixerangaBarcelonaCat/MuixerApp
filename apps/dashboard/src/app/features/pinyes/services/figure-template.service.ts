@@ -1,14 +1,8 @@
+import { CreateFigureTemplatePayload, FigureTemplateDetail, FigureTemplateFilterParams, PaginatedFigureTemplates, UpdateFigureTemplatePayload } from '@muixer/pinyes-render';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
 import { buildHttpParams } from '../../../core/utils/http-params.util';
-import {
-  CreateFigureTemplatePayload,
-  FigureTemplateDetail,
-  FigureTemplateFilterParams,
-  PaginatedFigureTemplates,
-  UpdateFigureTemplatePayload,
-} from '../models/figure-template.model';
 
 @Injectable({
   providedIn: 'root',

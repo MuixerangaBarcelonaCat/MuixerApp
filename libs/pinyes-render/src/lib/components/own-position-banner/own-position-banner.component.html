@@ -1,0 +1,22 @@
+@switch (state().kind) {
+  @case ('MULTIPLE') {
+    <p class="text-error">{{ OWN_POSITION_MULTIPLE_PLACEMENTS }}</p>
+  }
+  @case ('NONE') {
+    <p class="text-white/70">{{ OWN_POSITION_NO_PLACEMENT }}</p>
+  }
+  @default {
+    <p class="flex items-center gap-x-2 gap-y-1 flex-wrap">
+      <span>
+        @for (segment of segments(); track $index) {
+          <span
+            [class.font-bold]="segment.kind === 'label' || segment.kind === 'alias' || segment.kind === 'figure'"
+            [class.uppercase]="segment.kind === 'label' || segment.kind === 'alias'"
+            [style.color]="segment.kind === 'figure' ? figureColor() : null"
+          >{{ segment.value }}</span>
+        }
+      </span>
+      <button type="button" class="btn btn-xs btn-primary shrink-0" (click)="troba.emit()">Troba'm</button>
+    </p>
+  }
+}

@@ -45,6 +45,7 @@
       mode="segment-assignment"
       [compositionSlots]="ws.pinyaSlots()"
       [assignments]="state.assignments()"
+      [conflictPersonIds]="ws.conflictPersonIds()"
       [selectedSegmentNode]="selectedRef()"
       [heightMode]="state.heightMode()"
       [attendanceMap]="attendanceMap()"
@@ -60,6 +61,7 @@
   <!-- Person panel -->
   <app-person-panel
     class="w-80 shrink-0 border-l border-base-300 h-full min-h-0"
+    area="PINYA"
     [eventId]="ws.eventId()"
     [segmentId]="ws.segmentId()"
     [selectedNodeId]="state.selectedNodeId()"
@@ -197,8 +199,10 @@
     [personAlias]="dialog.personAlias"
     [nodeLabel]="dialog.oldNodeLabel"
     [figureName]="dialog.figureName"
+    [placements]="dialog.placements"
     (closed)="onReassignDialogClosed()"
     (viewRequested)="onReassignDialogView()"
     (reassignRequested)="onReassignDialogConfirm()"
+    (assignAnywayRequested)="onReassignDialogAssignAnyway()"
   />
 }

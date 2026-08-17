@@ -13,7 +13,7 @@ import { NgClass } from '@angular/common';
 import { LucideAngularModule } from 'lucide-angular';
 import { ColumnDef, GroupSeparator } from '../../../models/column-def.model';
 import { SortOrder, SortChange } from '../../../models/sort.model';
-import { getContrastColor } from '../../../utils/color.util';
+import { getContrastColor } from '@muixer/shared';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface RowAction<T = any> {

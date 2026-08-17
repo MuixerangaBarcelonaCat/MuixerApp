@@ -1,3 +1,4 @@
+import { FigureNodeItem, FigureCanvasComponent, CanvasNode, TroncViewComponent, StageTransform } from '@muixer/pinyes-render';
 import { Component, input, output } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
@@ -6,17 +7,13 @@ import { Observable, of } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { FigureZone, NodeShape, PINYA_NODE_PRESETS } from '@muixer/shared';
-import { FigureNodeItem } from '../../models/figure-template.model';
 import { TemplateEditorComponent, nodeToPayload } from './template-editor.component';
-import { FigureCanvasComponent } from '../figure-canvas/figure-canvas.component';
-import { TroncViewComponent } from '../tronc-view/tronc-view.component';
 import { TemplateEditorHelpModalComponent } from '../template-editor-help-modal/template-editor-help-modal.component';
 import { RenglaOverlayComponent } from '../rengla-overlay/rengla-overlay.component';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { CanvasStateService } from '../../services/canvas-state.service';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
-import { StageTransform } from '../../utils/rengla-coordinates.util';
 
 @Component({ selector: 'app-figure-canvas', standalone: true, template: '' })
 class StubFigureCanvas {
@@ -520,6 +517,22 @@ describe('TemplateEditorComponent — Preview Mode', () => {
       expect(stub.zoomOut).toHaveBeenCalled();
     });
 
+    it('should call ghostSelectedNode on Ctrl+Shift+D', () => {
+      const ghostSpy = vi.spyOn(component, 'ghostSelectedNode');
+      const event = createKeyEvent('D', { ctrlKey: true, shiftKey: true });
+      component.onKeyDown(event);
+      expect(ghostSpy).toHaveBeenCalled();
+    });
+
+    it('should call duplicateSelectedNode (not ghost) on plain Ctrl+D', () => {
+      const ghostSpy = vi.spyOn(component, 'ghostSelectedNode');
+      const duplicateSpy = vi.spyOn(component, 'duplicateSelectedNode');
+      const event = createKeyEvent('d', { ctrlKey: true });
+      component.onKeyDown(event);
+      expect(duplicateSpy).toHaveBeenCalled();
+      expect(ghostSpy).not.toHaveBeenCalled();
+    });
+
     it('should not toggle preview when editing an input', () => {
       const input = document.createElement('input');
       document.body.appendChild(input);
@@ -533,6 +546,123 @@ describe('TemplateEditorComponent — Preview Mode', () => {
       component.onKeyDown(event);
       expect(component.previewMode()).toBe(false);
       document.body.removeChild(input);
+    });
+  });
+
+  describe('duplicateSelectedNode / copy-paste — rengla and cordon reset', () => {
+    const makePinyaNode = (overrides: Partial<FigureNodeItem> = {}): FigureNodeItem => ({
+      id: 'node-1',
+      label: 'AGULLA',
+      zone: FigureZone.PINYA,
+      positionType: 'agulla',
+      x: 100, y: 100, z: 0,
+      width: 80, height: 40, rotation: 0,
+      color: '#0d9488',
+      shape: NodeShape.RECTANGLE,
+      sortOrder: 0,
+      climbIndicator: null, ringLevel: 2, originNodeId: null,
+      renglaId: 'rengla-1', renglaPosition: 2,
+      metadata: {},
+      ...overrides,
+    });
+
+    beforeEach(() => {
+      component.templateId.set('template-1'); // bypass name prompt
+      component.nodes.set([makePinyaNode()]);
+      component.selectedNodeId.set('node-1');
+      fixture.detectChanges();
+    });
+
+    it('duplicateSelectedNode resets renglaId, renglaPosition and ringLevel to null on the new node', () => {
+      component.duplicateSelectedNode();
+
+      expect(component.nodes().length).toBe(2);
+      const duplicated = component.nodes()[1];
+      expect(duplicated.renglaId).toBeNull();
+      expect(duplicated.renglaPosition).toBeNull();
+      expect(duplicated.ringLevel).toBeNull();
+    });
+
+    it('copy then paste resets renglaId, renglaPosition and ringLevel to null on the new node', () => {
+      component.copySelectedNode();
+      component.pasteNode();
+
+      const pasted = component.nodes()[1];
+      expect(pasted.renglaId).toBeNull();
+      expect(pasted.renglaPosition).toBeNull();
+      expect(pasted.ringLevel).toBeNull();
+    });
+
+    it('keeps other properties from the source (label, color, offset position)', () => {
+      component.duplicateSelectedNode();
+
+      const duplicated = component.nodes()[1];
+      expect(duplicated.label).toBe('AGULLA');
+      expect(duplicated.color).toBe('#0d9488');
+      expect(duplicated.x).toBe(124);
+      expect(duplicated.y).toBe(124);
+    });
+
+    it('does not affect the original node', () => {
+      component.duplicateSelectedNode();
+
+      const original = component.nodes()[0];
+      expect(original.renglaId).toBe('rengla-1');
+      expect(original.renglaPosition).toBe(2);
+      expect(original.ringLevel).toBe(2);
+    });
+  });
+
+  describe('onGhostCloneRequested — rengla membership', () => {
+    const makePinyaNode = (overrides: Partial<FigureNodeItem> = {}): FigureNodeItem => ({
+      id: 'node-1',
+      label: 'MANS',
+      zone: FigureZone.PINYA,
+      positionType: 'mans',
+      x: 100, y: 100, z: 0,
+      width: 80, height: 40, rotation: 0,
+      color: '#FFE082',
+      shape: NodeShape.RECTANGLE,
+      sortOrder: 0,
+      climbIndicator: null, ringLevel: null, originNodeId: null,
+      renglaId: null, renglaPosition: null,
+      metadata: {},
+      ...overrides,
+    });
+
+    beforeEach(() => {
+      component.templateId.set('template-1'); // bypass name prompt
+    });
+
+    it('adds the ghost node to the source rengla, after the last position', () => {
+      component.nodes.set([makePinyaNode({ renglaId: 'rengla-1', renglaPosition: 3, ringLevel: 3 })]);
+      fixture.detectChanges();
+
+      component.onGhostCloneRequested({
+        sourceNode: { id: 'node-1' } as CanvasNode,
+        targetPosition: { x: 200, y: 200 },
+      });
+
+      expect(component.nodes().length).toBe(2);
+      const ghost = component.nodes()[1];
+      expect(ghost.renglaId).toBe('rengla-1');
+      expect(ghost.renglaPosition).toBe(4);
+      expect(ghost.ringLevel).toBe(4);
+    });
+
+    it('leaves the ghost node without a rengla when the source does not belong to one', () => {
+      component.nodes.set([makePinyaNode()]);
+      fixture.detectChanges();
+
+      component.onGhostCloneRequested({
+        sourceNode: { id: 'node-1' } as CanvasNode,
+        targetPosition: { x: 200, y: 200 },
+      });
+
+      const ghost = component.nodes()[1];
+      expect(ghost.renglaId).toBeNull();
+      expect(ghost.renglaPosition).toBeNull();
+      expect(ghost.ringLevel).toBeNull();
     });
   });
 

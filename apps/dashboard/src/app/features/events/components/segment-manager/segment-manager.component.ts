@@ -1,3 +1,4 @@
+import { SegmentDetail, InstanceDetail, FigureMode, InstanceTroncSummary, TroncFloorData, MoveInstanceResult, EventFigureSummary, FigureAreaCount, SegmentPeopleCounters } from '@muixer/pinyes-render';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -9,12 +10,11 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { HttpErrorResponse } from '@angular/common/http';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { LucideAngularModule } from 'lucide-angular';
 import { ICON_FIGURA, ICON_PERSONA, ICON_COMPOSITION, ICON_FIGURA_NETA, ICON_PINYA, ICON_TRONC } from '../../../../shared/constants/domain-icons';
+import { ICON_OBSERVACIONS, computeSegmentDisplayName, getSegmentInstanceLabel } from '@muixer/shared';
 import { forkJoin } from 'rxjs';
-import { SegmentMoveConflictResolution } from '@muixer/shared';
 import { FiguresViewModeService, FiguresViewMode } from '../../../pinyes/services/figures-view-mode.service';
 import { EventSegmentService } from '../../../pinyes/services/event-segment.service';
 import { FigureInstanceService } from '../../../pinyes/services/figure-instance.service';
@@ -25,15 +25,6 @@ import {
   FigurePickerModalComponent,
   InstanceSelection,
 } from '../../../pinyes/components/figure-picker-modal/figure-picker-modal.component';
-import {
-  SegmentDetail,
-  InstanceDetail,
-  FigureMode,
-  InstanceTroncSummary,
-  TroncFloorData,
-  MoveInstanceResult,
-} from '../../../pinyes/models/segment.model';
-import { EventFigureSummary, FigureAreaCount } from '../../../pinyes/models/assignment.model';
 import { eventReturnUrl } from '../../utils/event-return-url.util';
 
 export type ViewMode = FiguresViewMode;
@@ -47,15 +38,6 @@ interface PendingModeChange {
   segment: SegmentDetail;
   instance: InstanceDetail;
   mode: FigureMode;
-}
-
-interface PendingMoveConflict {
-  sourceSegmentId: string;
-  targetSegmentId: string;
-  instanceId: string;
-  targetIndex: number;
-  total: number;
-  tronc: number;
 }
 
 @Component({
@@ -75,7 +57,7 @@ export class SegmentManagerComponent implements OnInit {
   readonly ICON_FIGURA_NETA = ICON_FIGURA_NETA;
   readonly ICON_PINYA = ICON_PINYA;
   readonly ICON_TRONC = ICON_TRONC;
-  readonly SegmentMoveConflictResolution = SegmentMoveConflictResolution;
+  readonly ICON_CONFLICT = ICON_OBSERVACIONS;
 
   private readonly segmentService = inject(EventSegmentService);
   private readonly instanceService = inject(FigureInstanceService);
@@ -113,12 +95,12 @@ export class SegmentManagerComponent implements OnInit {
   copyingInstance = signal(false);
 
   movingInstanceId = signal<string | null>(null);
-  pendingMoveConflict = signal<PendingMoveConflict | null>(null);
-  resolvingMoveConflict = signal(false);
 
   instanceDropListIds = computed(() => this.segments().map((s) => 'instances-' + s.id));
 
   private readonly figuresBySegment = signal<Map<string, EventFigureSummary[]>>(new Map());
+  /** Segment-level dotació/conflict counters (Phase 3). Empty in production until Phase 5. */
+  private readonly conflictsBySegment = signal<Map<string, SegmentPeopleCounters>>(new Map());
   private readonly figureSummaryByInstance = computed(() => {
     const map = new Map<string, EventFigureSummary>();
     for (const figures of this.figuresBySegment().values()) {
@@ -127,13 +109,9 @@ export class SegmentManagerComponent implements OnInit {
     return map;
   });
 
-  displayName = computed(() => (segment: SegmentDetail): string => {
-    if (segment.name) return segment.name;
-    if (!segment.instances.length) return 'Segment sense nom';
-    return segment.instances
-      .map((i) => this.getInstanceLabel(i))
-      .join(' + ');
-  });
+  displayName = computed(() => (segment: SegmentDetail): string =>
+    computeSegmentDisplayName(segment.name, segment.instances),
+  );
 
   ngOnInit() {
     this.loadSegments();
@@ -147,6 +125,7 @@ export class SegmentManagerComponent implements OnInit {
     this.nodeAssignmentService.getEventAssignmentSummary(this.eventId()).subscribe({
       next: (summary) => {
         this.figuresBySegment.set(new Map(summary.segments.map((s) => [s.segmentId, s.figures])));
+        this.conflictsBySegment.set(new Map(summary.segments.map((s) => [s.segmentId, s.conflicts])));
       },
       error: () => undefined,
     });
@@ -226,7 +205,7 @@ export class SegmentManagerComponent implements OnInit {
   }
 
   toggleVisibility(segment: SegmentDetail) {
-    this.segmentService.update(this.eventId(), segment.id, { isVisible: !segment.isVisible }).subscribe({
+    this.segmentService.update(this.eventId(), segment.id, { isPublished: !segment.isPublished }).subscribe({
       next: (updated) => {
         this.segments.update((list) => list.map((s) => (s.id === updated.id ? updated : s)));
       },
@@ -312,9 +291,9 @@ export class SegmentManagerComponent implements OnInit {
           this.movingInstanceId.set(null);
           this.applyMoveResult(result);
         },
-        error: (err: HttpErrorResponse) => {
+        error: () => {
           this.movingInstanceId.set(null);
-          this.handleMoveError(err, sourceSegment.id, targetSegment.id, instance.id, targetIndex);
+          this.toast.error('Error en moure la figura de segment.');
         },
       });
   }
@@ -327,56 +306,20 @@ export class SegmentManagerComponent implements OnInit {
         return s;
       }),
     );
-  }
 
-  private handleMoveError(
-    err: HttpErrorResponse,
-    sourceSegmentId: string,
-    targetSegmentId: string,
-    instanceId: string,
-    targetIndex: number,
-  ): void {
-    if (err.status === 409 && err.error?.code === 'SEGMENT_MOVE_CONFLICT') {
-      this.pendingMoveConflict.set({
-        sourceSegmentId,
-        targetSegmentId,
-        instanceId,
-        targetIndex,
-        total: err.error.total,
-        tronc: err.error.tronc,
-      });
-      return;
+    // D2/D3 (Fase 5): moving never blocks — a duplicate created by the move is a legal,
+    // non-blocking conflict. Point the tècnic at the workshop's conflict panel to resolve
+    // it there instead of duplicating that resolution UI here.
+    if (result.conflicts?.length) {
+      const n = result.conflicts.length;
+      this.toast.warning(
+        `${n} ${n === 1 ? 'persona ha quedat' : 'persones han quedat'} en conflicte en este segment. Resol-ho des del taller.`,
+      );
     }
-    this.toast.error('Error en moure la figura de segment.');
-  }
 
-  resolveMoveConflict(resolution: SegmentMoveConflictResolution): void {
-    const pending = this.pendingMoveConflict();
-    if (!pending) return;
-
-    this.resolvingMoveConflict.set(true);
-    this.instanceService
-      .move(this.eventId(), pending.sourceSegmentId, pending.instanceId, {
-        targetSegmentId: pending.targetSegmentId,
-        targetIndex: pending.targetIndex,
-        conflictResolution: resolution,
-      })
-      .subscribe({
-        next: (result) => {
-          this.resolvingMoveConflict.set(false);
-          this.pendingMoveConflict.set(null);
-          this.applyMoveResult(result);
-        },
-        error: () => {
-          this.resolvingMoveConflict.set(false);
-          this.pendingMoveConflict.set(null);
-          this.toast.error('Error en moure la figura de segment.');
-        },
-      });
-  }
-
-  cancelMoveConflict(): void {
-    this.pendingMoveConflict.set(null);
+    // conflictsBySegment only reflects the summary loaded at init — a move can create or
+    // resolve a conflict in either segment, so the per-segment badge needs a fresh read.
+    this.loadAssignmentSummary();
   }
 
   openCopyPicker(segmentId: string, instanceId: string): void {
@@ -503,18 +446,7 @@ export class SegmentManagerComponent implements OnInit {
   }
 
   getInstanceLabel(instance: InstanceDetail): string {
-    const base = instance.label ?? instance.figureTemplate?.name ?? '?';
-    if (instance.figureTemplate?.hasPinya) {
-      if (instance.figureMode === 'PEU') return `Peu de ${base}`;
-      if (instance.figureMode === 'REMAT') return `Remat de ${base}`;
-      if (instance.figureMode === 'NETA') return `${base} ${this.netaSuffix(base)}`;
-    }
-    return base;
-  }
-
-  netaSuffix(name: string): string {
-    const firstWord = name.trim().split(/\s+/)[0] ?? '';
-    return firstWord.endsWith('a') ? 'neta' : 'net';
+    return getSegmentInstanceLabel(instance);
   }
 
   isComposition(_instance: InstanceDetail): boolean {
@@ -637,6 +569,22 @@ export class SegmentManagerComponent implements OnInit {
     const pinya = this.sumAreaCounts(figures, (f) => f.pinya);
     if (pinya.total === 0) return totalPart;
     return `${this.formatAreaCount(pinya)} pinyes, ${totalPart}`;
+  }
+
+  /** People holding >1 placement in the segment (Phase 3). 0 in production until Phase 5. */
+  segmentConflictCount(segment: SegmentDetail): number {
+    return this.conflictsBySegment().get(segment.id)?.conflictPersonCount ?? 0;
+  }
+
+  /** Tooltip with dotació per àrea (distinct people at tronc / pinya). Null when no summary. */
+  segmentDotacioTooltip(segment: SegmentDetail): string | null {
+    const c = this.conflictsBySegment().get(segment.id);
+    if (!c) return null;
+    const parts = [`${c.tronc.distinctPersonCount} al tronc`, `${c.pinya.distinctPersonCount} a la pinya`];
+    if (c.conflictPersonCount > 0) {
+      parts.push(`${c.conflictPersonCount} en conflicte`);
+    }
+    return parts.join(' · ');
   }
 
   private formatAreaCount(count: FigureAreaCount): string {

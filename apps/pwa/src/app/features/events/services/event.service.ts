@@ -5,6 +5,7 @@ import {
   PaginatedResponse,
   MeEvent,
   MeEventDetail,
+  MeSegment,
   AttendanceResponse,
   AttendanceStatus,
   EventType,
@@ -37,13 +38,18 @@ export class EventService {
     return this.http.get<MeEventDetail>(`${this.baseUrl}/${id}`);
   }
 
+  findSegments(eventId: string): Observable<MeSegment[]> {
+    return this.http.get<MeSegment[]>(`${this.baseUrl}/${eventId}/segments`);
+  }
+
   updateAttendance(
     eventId: string,
     status: AttendanceStatus,
+    personId?: string,
   ): Observable<AttendanceResponse> {
     return this.http.put<AttendanceResponse>(
       `${this.baseUrl}/${eventId}/attendance`,
-      { status },
+      personId ? { status, personId } : { status },
     );
   }
 }

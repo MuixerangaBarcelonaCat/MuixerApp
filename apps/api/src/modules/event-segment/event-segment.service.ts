@@ -11,7 +11,7 @@ import { CreateSegmentDto } from './dto/create-segment.dto';
 import { UpdateSegmentDto } from './dto/update-segment.dto';
 import { ReorderSegmentsDto } from './dto/reorder-segments.dto';
 import { NodeAssignmentService } from '../node-assignment/node-assignment.service';
-import { FigureMode } from '@muixer/shared';
+import { FigureMode, SegmentPeopleCounters } from '@muixer/shared';
 
 export interface InstanceRef {
   id: string;
@@ -45,8 +45,9 @@ export interface SegmentWithInstances {
   startTime: string | null;
   endTime: string | null;
   notes: string | null;
-  isVisible: boolean;
+  isPublished: boolean;
   instances: InstanceRef[];
+  conflicts: SegmentPeopleCounters;
 }
 
 @Injectable()
@@ -77,15 +78,16 @@ export class EventSegmentService {
     const allInstances = segments.flatMap((s) => s.instances ?? []);
     const allTemplateIds = allInstances.filter((i) => i.figureTemplate).map((i) => i.figureTemplate!.id);
 
-    const [countMap, pinyaAssignedMap, pinyaTemplateIds, totalCordonsMap] = await Promise.all([
+    const [countMap, pinyaAssignedMap, pinyaTemplateIds, totalCordonsMap, conflictsMap] = await Promise.all([
       this.loadAssignmentCounts(instanceIds),
       this.loadPinyaAssignmentCounts(instanceIds),
       this.loadPinyaTemplateIds(allTemplateIds),
       this.loadTotalCordons(allTemplateIds),
+      this.loadSegmentConflictCounters(segments.map((s) => s.id)),
     ]);
 
     return segments.map((s) =>
-      toSegmentWithInstances(s, countMap, pinyaAssignedMap, pinyaTemplateIds, totalCordonsMap),
+      toSegmentWithInstances(s, countMap, pinyaAssignedMap, pinyaTemplateIds, totalCordonsMap, conflictsMap),
     );
   }
 
@@ -108,7 +110,7 @@ export class EventSegmentService {
       startTime: dto.startTime ?? null,
       endTime: dto.endTime ?? null,
       notes: dto.notes ?? null,
-      isVisible: false,
+      isPublished: false,
     });
 
     const saved = await this.segmentRepository.save(segment);
@@ -125,7 +127,7 @@ export class EventSegmentService {
     if (dto.startTime !== undefined) segment.startTime = dto.startTime ?? null;
     if (dto.endTime !== undefined) segment.endTime = dto.endTime ?? null;
     if (dto.notes !== undefined) segment.notes = dto.notes ?? null;
-    if (dto.isVisible !== undefined) segment.isVisible = dto.isVisible;
+    if (dto.isPublished !== undefined) segment.isPublished = dto.isPublished;
 
     await this.segmentRepository.save(segment);
     return this.findOneById(segment.id);
@@ -206,14 +208,26 @@ export class EventSegmentService {
     const instanceIds = instances.map((i) => i.id);
     const templateIds = instances.filter((i) => i.figureTemplate).map((i) => i.figureTemplate!.id);
 
-    const [countMap, pinyaAssignedMap, pinyaTemplateIds, totalCordonsMap] = await Promise.all([
+    const [countMap, pinyaAssignedMap, pinyaTemplateIds, totalCordonsMap, conflictsMap] = await Promise.all([
       this.loadAssignmentCounts(instanceIds),
       this.loadPinyaAssignmentCounts(instanceIds),
       this.loadPinyaTemplateIds(templateIds),
       this.loadTotalCordons(templateIds),
+      this.loadSegmentConflictCounters([segment.id]),
     ]);
 
-    return toSegmentWithInstances(segment, countMap, pinyaAssignedMap, pinyaTemplateIds, totalCordonsMap);
+    return toSegmentWithInstances(segment, countMap, pinyaAssignedMap, pinyaTemplateIds, totalCordonsMap, conflictsMap);
+  }
+
+  private async loadSegmentConflictCounters(segmentIds: string[]): Promise<Map<string, SegmentPeopleCounters>> {
+    const map = new Map<string, SegmentPeopleCounters>();
+    await Promise.all(
+      segmentIds.map(async (segmentId) => {
+        const { meta } = await this.nodeAssignmentService.getSegmentConflicts(segmentId);
+        map.set(segmentId, meta);
+      }),
+    );
+    return map;
   }
 
   private async loadPinyaTemplateIds(templateIds: string[]): Promise<Set<string>> {
@@ -319,12 +333,22 @@ export class EventSegmentService {
   }
 }
 
+const DEFAULT_SEGMENT_CONFLICTS: SegmentPeopleCounters = {
+  assignmentCount: 0,
+  distinctPersonCount: 0,
+  tronc: { distinctPersonCount: 0 },
+  pinya: { distinctPersonCount: 0 },
+  conflictPersonCount: 0,
+  conflictsByKind: { TRONC_TRONC: 0, TRONC_PINYA: 0, PINYA_PINYA: 0 },
+};
+
 function toSegmentWithInstances(
   segment: EventSegment,
   countMap: Map<string, number>,
   pinyaAssignedMap: Map<string, number>,
   pinyaTemplateIds: Set<string>,
   totalCordonsMap: Map<string, number>,
+  conflictsMap: Map<string, SegmentPeopleCounters>,
 ): SegmentWithInstances {
   return {
     id: segment.id,
@@ -333,7 +357,8 @@ function toSegmentWithInstances(
     startTime: segment.startTime,
     endTime: segment.endTime,
     notes: segment.notes,
-    isVisible: segment.isVisible,
+    isPublished: segment.isPublished,
+    conflicts: conflictsMap.get(segment.id) ?? DEFAULT_SEGMENT_CONFLICTS,
     instances: (segment.instances ?? []).map((instance) => {
       const hasPinya = instance.figureTemplate ? pinyaTemplateIds.has(instance.figureTemplate.id) : false;
       const showPinyaData = hasPinya && instance.figureMode !== FigureMode.REMAT && instance.figureMode !== FigureMode.NETA;

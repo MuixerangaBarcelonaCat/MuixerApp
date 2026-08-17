@@ -1,13 +1,6 @@
+import { AssignmentArea, AssignmentDetail, AvailablePerson, HeightMode, InstanceNodeItem, PendingOp, isConfirmedAttendance } from '@muixer/pinyes-render';
 import { Injectable, computed, signal } from '@angular/core';
 import { NodePreset } from '@muixer/shared';
-import {
-  AssignmentDetail,
-  AvailablePerson,
-  HeightMode,
-  InstanceNodeItem,
-  PendingOp,
-  isConfirmedAttendance,
-} from '../models/assignment.model';
 
 @Injectable({
   providedIn: 'root',
@@ -48,23 +41,44 @@ export class AssignmentStateService {
   );
   readonly hasAdHocNodes = computed(() => this.adHocNodes().length > 0);
 
-  /** Number of confirmed adults not yet assigned in the current segment */
-  readonly freePersonsCount = computed(() => {
-    const confirmed = this.confirmedPersons();
-    const localAssigned = this.assignments();
-    const localAssignedIds = new Set(localAssigned.map((a) => a.person.id));
-    return confirmed.filter(
-      (p) =>
-        !p.isXicalla &&
-        isConfirmedAttendance(p.attendanceStatus) &&
-        !p.assignedInSegment &&
-        !localAssignedIds.has(p.id),
-    ).length;
-  });
+  /**
+   * Distinct confirmed adults (ANIRE/ASSISTIT), deduped by personId — defensive against Fase 5
+   * duplicates, harmless today since the API still returns each person once.
+   */
+  private distinctConfirmedPersons(): AvailablePerson[] {
+    const seen = new Set<string>();
+    const result: AvailablePerson[] = [];
+    for (const p of this.confirmedPersons()) {
+      if (seen.has(p.id)) continue;
+      seen.add(p.id);
+      if (!p.isXicalla && isConfirmedAttendance(p.attendanceStatus)) result.push(p);
+    }
+    return result;
+  }
 
-  /** Total confirmed adults (ANIRE + ASSISTIT) */
-  readonly totalConfirmedCount = computed(
-    () => this.confirmedPersons().filter((p) => !p.isXicalla && isConfirmedAttendance(p.attendanceStatus)).length,
+  /**
+   * Number of confirmed adults not yet assigned in `area` of the current segment (§5.4):
+   * TRONC → `!assignedInTronc`; PINYA/DIRECTION → no placement anywhere in the segment
+   * (unchanged behaviour).
+   */
+  freeCountForArea(area: AssignmentArea): number {
+    const localAssignedIds = new Set(this.assignments().map((a) => a.person.id));
+    return this.distinctConfirmedPersons().filter((p) => {
+      if (localAssignedIds.has(p.id)) return false;
+      return area === 'TRONC' ? !p.assignedInTronc : p.assignedPlacements.length === 0;
+    }).length;
+  }
+
+  /** Total distinct confirmed adults (ANIRE + ASSISTIT). */
+  readonly totalConfirmedCount = computed(() => this.distinctConfirmedPersons().length);
+
+  /**
+   * Confirmed adults eligible for a NEW pinya placement (§5.2): confirmed minus those already
+   * holding a tronc placement (BASE→TRONC, D10) — a person can't be at the tronc and the pinya
+   * of the same figure at once. Computed client-side; no dedicated endpoint.
+   */
+  readonly pinyaEligibleCount = computed(
+    () => this.distinctConfirmedPersons().filter((p) => !p.assignedInTronc).length,
   );
 
   setSelectedNodeId(nodeId: string | null): void {

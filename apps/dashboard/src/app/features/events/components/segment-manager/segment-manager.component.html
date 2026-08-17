@@ -198,9 +198,25 @@
                 <div class="flex items-center gap-1 shrink-0 ml-auto">
                   <!-- Assigned/total people pill -->
                   @if (segmentPeopleLabel(segment); as label) {
-                    <span class="badge badge-ghost badge-sm gap-1 font-normal" [attr.aria-label]="label">
+                    <span
+                      class="badge badge-ghost badge-sm gap-1 font-normal"
+                      [attr.aria-label]="label"
+                      [title]="segmentDotacioTooltip(segment)"
+                    >
                       <lucide-icon [name]="ICON_PERSONA" [size]="11" />
                       {{ label }}
+                    </span>
+                  }
+
+                  <!-- Conflict count pill (Phase 3) — hidden in production (0 conflicts) -->
+                  @if (segmentConflictCount(segment); as conflictCount) {
+                    <span
+                      class="badge badge-conflict badge-sm gap-1 font-normal"
+                      [attr.aria-label]="conflictCount + ' persones en conflicte'"
+                      [title]="segmentDotacioTooltip(segment)"
+                    >
+                      <lucide-icon [name]="ICON_CONFLICT" [size]="11" />
+                      {{ conflictCount }} {{ conflictCount === 1 ? 'conflicte' : 'conflictes' }}
                     </span>
                   }
 
@@ -209,10 +225,10 @@
                     type="button"
                     class="btn btn-ghost btn-xs"
                     (click)="toggleVisibility(segment)"
-                    [title]="segment.isVisible ? 'Visible als membres — cliqueu per ocultar' : 'Ocult als membres — cliqueu per publicar'"
-                    [attr.aria-pressed]="segment.isVisible"
+                    [title]="segment.isPublished ? 'Visible als membres — cliqueu per ocultar' : 'Ocult als membres — cliqueu per publicar'"
+                    [attr.aria-pressed]="segment.isPublished"
                   >
-                    @if (segment.isVisible) {
+                    @if (segment.isPublished) {
                       <lucide-icon name="Eye" [size]="14" class="text-success" />
                     } @else {
                       <lucide-icon name="EyeOff" [size]="14" class="text-base-content/40" />
@@ -591,62 +607,3 @@
   </dialog>
 }
 
-<!-- Segment move conflict resolution modal -->
-@if (pendingMoveConflict(); as conflict) {
-  <dialog
-    class="modal modal-open"
-    role="alertdialog"
-    aria-labelledby="move-conflict-title"
-    aria-describedby="move-conflict-desc"
-    aria-modal="true"
-  >
-    <div class="modal-box max-w-sm">
-      <h3 id="move-conflict-title" class="text-lg font-bold mb-3 text-warning">Conflicte de persones al segment</h3>
-      <p id="move-conflict-desc" class="text-sm text-base-content/70">
-        <strong>{{ conflict.total }}</strong>
-        {{ conflict.total === 1 ? 'persona ja està assignada' : 'persones ja estan assignades' }}
-        a una altra figura d'este segment
-        @if (conflict.tronc > 0) {
-          ({{ conflict.tronc }} al tronc)
-        }
-      </p>
-      <p class="text-sm text-base-content/70 mt-2">Trieu com voleu resoldre el conflicte:</p>
-      <div class="flex flex-col gap-2 mt-6">
-        <button
-          type="button"
-          class="btn btn-outline w-full h-auto whitespace-normal py-2"
-          [disabled]="resolvingMoveConflict()"
-          (click)="resolveMoveConflict(SegmentMoveConflictResolution.KEEP_TARGET)"
-        >
-          <span class="flex flex-col items-start gap-0.5 text-left w-full">
-            <span class="text-sm">Conserva les assignacions existents</span>
-            <span class="text-xs font-normal opacity-60">Es llevaran estes persones de la figura moguda</span>
-          </span>
-        </button>
-        <button
-          type="button"
-          class="btn btn-outline w-full h-auto whitespace-normal py-2"
-          [disabled]="resolvingMoveConflict()"
-          (click)="resolveMoveConflict(SegmentMoveConflictResolution.KEEP_MOVED)"
-        >
-          <span class="flex flex-col items-start gap-0.5 text-left w-full">
-            <span class="text-sm">Conserva la figura moguda</span>
-            <span class="text-xs font-normal opacity-60">Es llevaran estes persones de les altres figures del segment</span>
-          </span>
-        </button>
-        <button
-          type="button"
-          class="btn btn-ghost btn-sm w-full"
-          [disabled]="resolvingMoveConflict()"
-          (click)="cancelMoveConflict()"
-        >
-          @if (resolvingMoveConflict()) {
-            <span class="loading loading-spinner loading-xs"></span>
-          }
-          Cancel·la
-        </button>
-      </div>
-    </div>
-    <button type="button" class="modal-backdrop" (click)="cancelMoveConflict()" aria-label="Tancar"></button>
-  </dialog>
-}

@@ -21,7 +21,7 @@ const makeSegment = (overrides: Partial<EventSegment> = {}): EventSegment =>
     startTime: null,
     endTime: null,
     notes: null,
-    isVisible: false,
+    isPublished: false,
     instances: [],
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -57,8 +57,18 @@ const mockDataSource = {
   query: jest.fn().mockResolvedValue([]),
 };
 
+const DEFAULT_CONFLICTS_META = {
+  assignmentCount: 0,
+  distinctPersonCount: 0,
+  tronc: { distinctPersonCount: 0 },
+  pinya: { distinctPersonCount: 0 },
+  conflictPersonCount: 0,
+  conflictsByKind: { TRONC_TRONC: 0, TRONC_PINYA: 0, PINYA_PINYA: 0 },
+};
+
 const mockNodeAssignmentService = {
   checkEventLockByEventId: jest.fn(),
+  getSegmentConflicts: jest.fn(),
 };
 
 describe('EventSegmentService', () => {
@@ -78,6 +88,7 @@ describe('EventSegmentService', () => {
     service = module.get<EventSegmentService>(EventSegmentService);
     jest.clearAllMocks();
     mockNodeAssignmentService.checkEventLockByEventId.mockResolvedValue(undefined);
+    mockNodeAssignmentService.getSegmentConflicts.mockResolvedValue({ data: [], meta: DEFAULT_CONFLICTS_META });
     mockSegmentRepo.createQueryBuilder.mockReturnValue(mockSegmentQb);
     mockSegmentQb.leftJoinAndSelect.mockReturnThis();
     mockSegmentQb.where.mockReturnThis();
@@ -156,7 +167,7 @@ describe('EventSegmentService', () => {
       mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
       mockSegmentRepo.save.mockResolvedValue(makeSegment());
 
-      const result = await service.update(EVENT_ID, SEGMENT_ID, { isVisible: true, name: 'Bloc 1' });
+      const result = await service.update(EVENT_ID, SEGMENT_ID, { isPublished: true, name: 'Bloc 1' });
 
       expect(mockSegmentRepo.save).toHaveBeenCalled();
       expect(result.id).toBe(SEGMENT_ID);
@@ -180,11 +191,11 @@ describe('EventSegmentService', () => {
       expect(mockSegmentRepo.save).not.toHaveBeenCalled();
     });
 
-    it('does not check the lock when only isVisible is changing', async () => {
+    it('does not check the lock when only isPublished is changing', async () => {
       mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
       mockSegmentRepo.save.mockResolvedValue(makeSegment());
 
-      await service.update(EVENT_ID, SEGMENT_ID, { isVisible: true });
+      await service.update(EVENT_ID, SEGMENT_ID, { isPublished: true });
 
       expect(mockNodeAssignmentService.checkEventLockByEventId).not.toHaveBeenCalled();
     });
@@ -280,6 +291,36 @@ describe('EventSegmentService', () => {
       const result = await service.findAllByEvent(EVENT_ID);
 
       expect(result[0].instances[0].totalCordons).toBeNull();
+    });
+  });
+
+  describe('findAllByEvent — conflicts', () => {
+    it('includes the segment conflict counters sourced from getSegmentConflicts (D13)', async () => {
+      const meta = {
+        assignmentCount: 3,
+        distinctPersonCount: 3,
+        tronc: { distinctPersonCount: 1 },
+        pinya: { distinctPersonCount: 2 },
+        conflictPersonCount: 0,
+        conflictsByKind: { TRONC_TRONC: 0, TRONC_PINYA: 0, PINYA_PINYA: 0 },
+      };
+      mockEventRepo.findOne.mockResolvedValue(makeEvent());
+      mockSegmentQb.getMany.mockResolvedValue([makeSegment()]);
+      mockNodeAssignmentService.getSegmentConflicts.mockResolvedValue({ data: [], meta });
+
+      const result = await service.findAllByEvent(EVENT_ID);
+
+      expect(result[0].conflicts).toEqual(meta);
+      expect(mockNodeAssignmentService.getSegmentConflicts).toHaveBeenCalledWith(SEGMENT_ID);
+    });
+
+    it('defaults conflict counters to zero/empty in production (no duplicates yet)', async () => {
+      mockEventRepo.findOne.mockResolvedValue(makeEvent());
+      mockSegmentQb.getMany.mockResolvedValue([makeSegment()]);
+
+      const result = await service.findAllByEvent(EVENT_ID);
+
+      expect(result[0].conflicts).toEqual(DEFAULT_CONFLICTS_META);
     });
   });
 

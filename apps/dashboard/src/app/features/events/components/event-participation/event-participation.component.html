@@ -8,10 +8,13 @@
     </h2>
     <div class="flex items-center gap-3 flex-wrap text-xs">
       <span class="text-base-content/50">{{ summaryLine() }}</span>
+      @if (loadLine()) {
+        <span class="text-base-content/50">{{ loadLine() }}</span>
+      }
       @if (hasConflicts()) {
         <button
           type="button"
-          class="text-warning font-semibold inline-flex items-center gap-1 min-h-6 link link-hover"
+          class="text-conflict font-semibold inline-flex items-center gap-1 min-h-6 link link-hover"
           (click)="toggleOnlyConflicts()"
           [attr.aria-pressed]="onlyConflicts()"
           data-testid="participation-conflict-counter"
@@ -64,6 +67,18 @@
       <option value="PENDENT">{{ statusLabel('PENDENT') }}</option>
     </select>
 
+    <select
+      class="select select-sm select-bordered"
+      [value]="areaFilter() ?? ''"
+      (change)="onAreaChange($any($event.target).value)"
+      aria-label="Filtra per àrea física"
+      data-testid="participation-area-filter"
+    >
+      <option value="">Tota l'àrea</option>
+      <option value="TRONC">Només troncs</option>
+      <option value="PINYA">Només pinyes</option>
+    </select>
+
     @if (availablePositions().length > 0) {
       <select
         class="select select-sm select-bordered"
@@ -93,7 +108,7 @@
       @for (segment of segments(); track segment.id; let last = $last) {
         <span [title]="segmentTooltip(segment)">
           <span class="font-medium">{{ segmentLabel(segment) }}</span>:
-          {{ segmentTooltip(segment) }}@if (!segment.isVisible) { <span class="italic">(no publicat)</span> }
+          {{ segmentTooltip(segment) }}@if (!segment.isPublished) { <span class="italic">(no publicat)</span> }
         </span>@if (!last) { <span> · </span> }
       }
     </p>

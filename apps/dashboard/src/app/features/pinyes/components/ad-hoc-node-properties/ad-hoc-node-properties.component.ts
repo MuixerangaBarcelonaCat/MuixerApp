@@ -1,3 +1,4 @@
+import { AssignmentDetail, HeightMode, InstanceNodeItem, UpdateAdHocNodePayload } from '@muixer/pinyes-render';
 import {
   Component,
   ChangeDetectionStrategy,
@@ -9,17 +10,17 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, X, Trash2, UserMinus, Copy } from 'lucide-angular';
-import { AssignmentDetail, HeightMode, InstanceNodeItem, UpdateAdHocNodePayload } from '../../models/assignment.model';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
-import { FigureZone, NodeShape, DIRECTION_ZONES } from '@muixer/shared';
-import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
+import { ColorPickerComponent } from '../../../../shared/components/forms/color-picker/color-picker.component';
+import { FigureZone, NodeShape, DIRECTION_ZONES, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
+import { getPresetColorsForZone, isNodeColorEditable } from '../../utils/node-color-presets.util';
 
 @Component({
   selector: 'app-ad-hoc-node-properties',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule],
+  imports: [FormsModule, LucideAngularModule, ColorPickerComponent],
   templateUrl: './ad-hoc-node-properties.component.html',
 })
 export class AdHocNodePropertiesComponent {
@@ -49,6 +50,13 @@ export class AdHocNodePropertiesComponent {
   readonly isDecoration = computed(
     () => this.node().zone === FigureZone.DECORATION,
   );
+
+  /** Color is user-editable for every node type except BASE. */
+  readonly isColorEditable = computed(() =>
+    isNodeColorEditable({ zone: this.node().zone as FigureZone, positionType: this.node().positionType }),
+  );
+
+  readonly colorPresetColors = computed(() => getPresetColorsForZone(this.node().zone as FigureZone));
 
   readonly isDirection = computed(
     () => (DIRECTION_ZONES as readonly string[]).includes(this.node().zone),
@@ -94,10 +102,7 @@ export class AdHocNodePropertiesComponent {
     () => this.labelPreview() ?? this.node().label,
   );
 
-  private readonly colorPreview = signal<string | null | undefined>(undefined);
-  readonly colorDisplay = computed(
-    () => (this.colorPreview() === undefined ? this.node().color : this.colorPreview()),
-  );
+  readonly colorDisplay = computed(() => this.node().color);
 
   close(): void {
     this.closed.emit();
@@ -123,12 +128,7 @@ export class AdHocNodePropertiesComponent {
     this.commitProperty('label', value);
   }
 
-  onColorPreview(value: string): void {
-    this.colorPreview.set(value);
-  }
-
   onColorCommit(value: string): void {
-    this.colorPreview.set(undefined);
     this.commitProperty('color', value);
   }
 

@@ -9,9 +9,9 @@ import { makeTouch, buffersDiffer, Pt } from './gestures';
 /**
  * Touch-gesture audit of the Projection view — unlike the template editor,
  * composition editor and segment-assignment workspace (all behind
- * `desktopOnlyGuard`, ≥1024px), Projection has NO device guard: it's the only
- * Pinyes canvas a phone or a portrait tablet can actually open. Real gesture
- * support here therefore matters at every viewport, not just landscape tablet.
+ * `desktopOnlyGuard`, ≥768px), Projection has NO device guard: it's the only
+ * Pinyes canvas a phone can actually open. Real gesture support here
+ * therefore matters at every viewport, not just tablet.
  *
  * Reached via a real `page.goto()` rather than `spaGoto` (docs/AUDIT_SUITE.md
  * notes the standalone `/project` route isn't reliably reachable via in-SPA

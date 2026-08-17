@@ -1,0 +1,69 @@
+<!-- ── Grid de figures ────────────────────────────────────────────────────── -->
+<!-- Canvas unificat: pinya nodes + outlines per figura (renderitzats al Konva).
+     Les figures sense posició desada s'ubiquen amb l'algorisme de col·locació
+     (figure-placement.util) perquè sempre es mostren amb aquest mateix canvas. -->
+<div #figuresContainer class="relative flex-1 overflow-hidden" aria-label="Figures en projecció">
+  <app-figure-canvas
+    #figureCanvas
+    class="block w-full h-full"
+    mode="readonly"
+    [gridEnabled]="false"
+    [showZoomControls]="showZoomControls()"
+    [nodes]="distributionNodes()"
+    [assignments]="distributionAssignments()"
+    [conflictPersonIds]="conflictPersonIds()"
+    [attendanceMap]="attendanceMap()"
+    [isPast]="true"
+    [fitExtraBounds]="distributionFitBounds()"
+    [outlineBoxes]="distributionNodeOutlines()"
+    (stageTransformChanged)="onStageTransformChanged($event)"
+    (flightLanded)="onFlightLanded()"
+  />
+
+  @for (panel of distributionTroncPanels(); track panel.instance.id) {
+    <div
+      class="absolute pointer-events-none overflow-hidden origin-top-left"
+      [style.left.px]="panel.screenX"
+      [style.top.px]="panel.screenY"
+      [style.width.px]="panel.naturalW"
+      [style.height.px]="panel.naturalH"
+      [style.transform]="'scale(' + panel.scale + ')'"
+    >
+      <app-tronc-view
+        class="block w-full h-full"
+        mode="projection"
+        [troncNodes]="getInstanceTroncNodes(panel.instance)"
+        [baseNodes]="getInstanceBaseNodes(panel.instance)"
+        [directionNodes]="getInstanceDirectionNodes(panel.instance)"
+        [assignments]="panel.instance.assignments"
+        [conflictPersonIds]="conflictPersonIds()"
+        [attendanceMap]="attendanceMap()"
+        [isPast]="true"
+        [panelColor]="panel.color"
+        [panelBorderColor]="panel.borderColor"
+        [figureName]="getInstanceName(panel.instance)"
+      />
+    </div>
+  }
+
+  @if (ownPositionState(); as state) {
+    <lib-own-position-banner
+      class="absolute left-1/2 top-3 z-40 max-w-[92%] -translate-x-1/2"
+      [state]="state"
+      (troba)="onTroba()"
+    />
+  }
+
+  @if (ownPositionTarget(); as target) {
+    <!-- The component's own host is `display:contents` — no box, so positioning classes here
+         would be inert (and pointer-events would wrongly cascade onto the chevron button).
+         Each of the pin/chevron elements positions and stacks itself; see the component's HTML. -->
+    <lib-own-position-marker
+      [target]="target"
+      [stageTransform]="stageTransform()"
+      [viewport]="{ width: containerWidth(), height: containerHeight() }"
+      [arrivedTick]="arrivedTick()"
+      (troba)="onTroba()"
+    />
+  }
+</div>

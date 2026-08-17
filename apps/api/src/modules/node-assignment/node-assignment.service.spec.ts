@@ -17,7 +17,14 @@ import { Person } from '../person/person.entity';
 import { FigureTemplate } from '../figure/entities/figure-template.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
 import { Event } from '../event/event.entity';
-import { EventType, FigureZone, NodeShape, SegmentMoveConflictResolution } from '@muixer/shared';
+import {
+  EventType,
+  FigureZone,
+  NodeShape,
+  SegmentMoveConflictResolution,
+  AssignmentArea,
+  SegmentConflictKind,
+} from '@muixer/shared';
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -339,7 +346,6 @@ describe('NodeAssignmentService', () => {
       mockPersonRepo.findOne.mockResolvedValue(makePerson());
       mockAssignmentRepo.findOne
         .mockResolvedValueOnce(null)   // node not occupied
-        .mockResolvedValueOnce(null)   // person not in instance
         .mockResolvedValue(makeAssignment({ instanceNode: snapshotNode as any }));
       mockAssignmentRepo.create.mockReturnValue(makeAssignment({ instanceNode: snapshotNode as any }));
       mockAssignmentRepo.save.mockResolvedValue({ id: ASSIGNMENT_ID });
@@ -360,10 +366,7 @@ describe('NodeAssignmentService', () => {
       mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
       mockInstanceNodeRepo.findOne.mockResolvedValue(inode);
       mockPersonRepo.findOne.mockResolvedValue(makePerson());
-      mockAssignmentRepo.findOne
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(null)
-        .mockResolvedValue(a);
+      mockAssignmentRepo.findOne.mockResolvedValueOnce(null).mockResolvedValue(a);
       mockAssignmentRepo.create.mockReturnValue(a);
       mockAssignmentRepo.save.mockResolvedValue(a);
 
@@ -403,10 +406,7 @@ describe('NodeAssignmentService', () => {
       mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
       mockPersonRepo.findOne.mockResolvedValue(makePerson());
       mockInstanceNodeRepo.findOne.mockResolvedValue(inode);
-      mockAssignmentRepo.findOne
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(null)
-        .mockResolvedValue(a);
+      mockAssignmentRepo.findOne.mockResolvedValueOnce(null).mockResolvedValue(a);
       mockAssignmentRepo.create.mockReturnValue(a);
       mockAssignmentRepo.save.mockResolvedValue(a);
 
@@ -426,10 +426,7 @@ describe('NodeAssignmentService', () => {
       mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
       mockPersonRepo.findOne.mockResolvedValue(makePerson());
       mockInstanceNodeRepo.findOne.mockResolvedValue(inode);
-      mockAssignmentRepo.findOne
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(null)
-        .mockResolvedValue(a);
+      mockAssignmentRepo.findOne.mockResolvedValueOnce(null).mockResolvedValue(a);
       mockAssignmentRepo.create.mockReturnValue(a);
       mockAssignmentRepo.save.mockResolvedValue(a);
 
@@ -453,45 +450,44 @@ describe('NodeAssignmentService', () => {
       ).rejects.toThrow(ConflictException);
     });
 
-    it('throws ConflictException if person already in instance', async () => {
+    it('allows assigning a person already in this figure instance (Fase 5: duplicates are legal)', async () => {
       const inode = makeInstanceNode();
+      const a = makeAssignment();
       mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
       mockPersonRepo.findOne.mockResolvedValue(makePerson());
       mockInstanceNodeRepo.findOne.mockResolvedValue(inode);
-      mockAssignmentRepo.findOne
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(makeAssignment());
+      mockAssignmentRepo.findOne.mockResolvedValueOnce(null).mockResolvedValue(a);
+      mockAssignmentRepo.create.mockReturnValue(a);
+      mockAssignmentRepo.save.mockResolvedValue(a);
 
-      await expect(
-        service.assign(INSTANCE_ID, { nodeId: INSTANCE_NODE_ID, personId: PERSON_ID }),
-      ).rejects.toThrow(ConflictException);
+      const result = await service.assign(INSTANCE_ID, { nodeId: INSTANCE_NODE_ID, personId: PERSON_ID });
+
+      expect(result.id).toBe(ASSIGNMENT_ID);
     });
 
-    it('throws ConflictException if person already in another instance of same segment', async () => {
+    it('allows assigning a person already in another figure instance of the same segment (Fase 5: duplicates are legal)', async () => {
       const inode = makeInstanceNode();
+      const a = makeAssignment();
       mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
       mockPersonRepo.findOne.mockResolvedValue(makePerson());
       mockInstanceNodeRepo.findOne.mockResolvedValue(inode);
-      mockAssignmentRepo.findOne
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(null);
-      mockQb.getOne.mockResolvedValue(makeAssignment());
+      mockAssignmentRepo.findOne.mockResolvedValueOnce(null).mockResolvedValue(a);
+      mockAssignmentRepo.create.mockReturnValue(a);
+      mockAssignmentRepo.save.mockResolvedValue(a);
 
-      await expect(
-        service.assign(INSTANCE_ID, { nodeId: INSTANCE_NODE_ID, personId: PERSON_ID }),
-      ).rejects.toThrow(ConflictException);
+      const result = await service.assign(INSTANCE_ID, { nodeId: INSTANCE_NODE_ID, personId: PERSON_ID });
+
+      expect(result.id).toBe(ASSIGNMENT_ID);
+      expect(mockQb.getOne).not.toHaveBeenCalled();
     });
 
-    it('passes the instance segment to assignmentRepository.create so it can be constraint-checked at the DB level', async () => {
+    it('passes the instance segment to assignmentRepository.create (used by conflict/move-repointing queries, not by a unique constraint since Fase 5)', async () => {
       const inode = makeInstanceNode();
       const instance = makeInstance({ snapshotted: true });
       mockInstanceRepo.findOne.mockResolvedValue(instance);
       mockPersonRepo.findOne.mockResolvedValue(makePerson());
       mockInstanceNodeRepo.findOne.mockResolvedValue(inode);
-      mockAssignmentRepo.findOne
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(null)
-        .mockResolvedValue(makeAssignment());
+      mockAssignmentRepo.findOne.mockResolvedValueOnce(null).mockResolvedValue(makeAssignment());
       mockAssignmentRepo.create.mockReturnValue(makeAssignment());
       mockAssignmentRepo.save.mockResolvedValue(makeAssignment());
 
@@ -502,18 +498,98 @@ describe('NodeAssignmentService', () => {
       );
     });
 
+    it('attaches a TroncChangeImpact when the assigned node is a TRONC node', async () => {
+      const troncNode = makeInstanceNode({ id: INSTANCE_NODE_ID, zone: FigureZone.TRONC });
+      const a = makeAssignment({ instanceNode: troncNode as any });
+
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
+      mockPersonRepo.findOne.mockResolvedValue(makePerson());
+      mockInstanceNodeRepo.findOne.mockResolvedValue(troncNode);
+      mockAssignmentRepo.findOne.mockResolvedValueOnce(null).mockResolvedValue(a);
+      mockAssignmentRepo.create.mockReturnValue(a);
+      mockAssignmentRepo.save.mockResolvedValue(a);
+      // Impact path: getSegmentConflicts + freed-pinya both read via .find
+      mockAssignmentRepo.find.mockResolvedValue([]);
+      mockInstanceNodeRepo.find.mockResolvedValue([
+        makeInstanceNode({ id: 'pinya-empty', zone: FigureZone.PINYA }),
+        troncNode,
+      ]);
+
+      const result = await service.assign(INSTANCE_ID, {
+        nodeId: INSTANCE_NODE_ID,
+        personId: PERSON_ID,
+      });
+
+      expect(result.impact).toBeDefined();
+      expect(result.impact!.newConflicts).toEqual([]);
+      expect(result.impact!.freedPinyaNodeIds).toEqual(['pinya-empty']);
+    });
+
+    it('surfaces a non-empty newConflicts (Fase 5 soft conflict) when the person already holds a placement in the segment', async () => {
+      const troncNode = makeInstanceNode({ id: INSTANCE_NODE_ID, zone: FigureZone.TRONC });
+      const pinyaNode = makeInstanceNode({ id: 'pinya-preexisting', zone: FigureZone.PINYA });
+      const newAssignment = makeAssignment({ instanceNode: troncNode as any });
+      const preExisting = makeAssignment({
+        id: ASSIGNMENT_ID_B,
+        instanceNode: pinyaNode as any,
+      });
+
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
+      mockPersonRepo.findOne.mockResolvedValue(makePerson());
+      mockInstanceNodeRepo.findOne.mockResolvedValue(troncNode);
+      mockAssignmentRepo.findOne.mockResolvedValueOnce(null).mockResolvedValue(newAssignment);
+      mockAssignmentRepo.create.mockReturnValue(newAssignment);
+      mockAssignmentRepo.save.mockResolvedValue(newAssignment);
+      // The same person (PERSON_ID) now holds two placements in the segment: the just-created
+      // TRONC one and a pre-existing PINYA one — a legal Fase 5 duplicate.
+      mockAssignmentRepo.find.mockResolvedValue([newAssignment, preExisting]);
+      mockInstanceNodeRepo.find.mockResolvedValue([pinyaNode, troncNode]);
+
+      const result = await service.assign(INSTANCE_ID, {
+        nodeId: INSTANCE_NODE_ID,
+        personId: PERSON_ID,
+      });
+
+      expect(result.impact!.newConflicts).toHaveLength(1);
+      const conflict = result.impact!.newConflicts[0];
+      expect(conflict.personId).toBe(PERSON_ID);
+      expect(conflict.kind).toBe(SegmentConflictKind.TRONC_PINYA);
+      expect(conflict.placements.map((p) => p.area)).toEqual([
+        AssignmentArea.TRONC,
+        AssignmentArea.PINYA,
+      ]);
+    });
+
+    it('does NOT attach an impact when the assigned node is a PINYA node', async () => {
+      const inode = makeInstanceNode(); // PINYA by default
+      const a = makeAssignment();
+
+      mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
+      mockPersonRepo.findOne.mockResolvedValue(makePerson());
+      mockInstanceNodeRepo.findOne.mockResolvedValue(inode);
+      mockAssignmentRepo.findOne.mockResolvedValueOnce(null).mockResolvedValue(a);
+      mockAssignmentRepo.create.mockReturnValue(a);
+      mockAssignmentRepo.save.mockResolvedValue(a);
+
+      const result = await service.assign(INSTANCE_ID, {
+        nodeId: INSTANCE_NODE_ID,
+        personId: PERSON_ID,
+      });
+
+      expect(result.impact).toBeUndefined();
+      expect(mockAssignmentRepo.find).not.toHaveBeenCalled();
+    });
+
     it('throws ConflictException (not a raw 500) when a concurrent assign wins the race and the DB unique constraint fires', async () => {
       const inode = makeInstanceNode();
       mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
       mockPersonRepo.findOne.mockResolvedValue(makePerson());
       mockInstanceNodeRepo.findOne.mockResolvedValue(inode);
-      mockAssignmentRepo.findOne
-        .mockResolvedValueOnce(null) // node not occupied (pre-check — loses the race)
-        .mockResolvedValueOnce(null); // person not in instance (pre-check — loses the race)
+      mockAssignmentRepo.findOne.mockResolvedValueOnce(null); // node not occupied (pre-check — loses the race)
       mockAssignmentRepo.create.mockReturnValue(makeAssignment());
       const dbError = Object.assign(new Error('duplicate key value violates unique constraint'), {
         code: '23505',
-        detail: 'Key (segmentId, personId)=(segment-uuid-1, person-uuid-1) already exists.',
+        detail: 'Key (figureInstanceId, instanceNodeId)=(instance-uuid-1, inode-uuid-1) already exists.',
       });
       mockAssignmentRepo.save.mockRejectedValue(dbError);
 
@@ -599,6 +675,122 @@ describe('NodeAssignmentService', () => {
       );
     });
 
+    it('attaches a TroncChangeImpact when a swapped node is a TRONC node', async () => {
+      const troncNode = makeInstanceNode({ id: INSTANCE_NODE_ID, zone: FigureZone.TRONC });
+      const assignmentA = makeAssignment({ instanceNode: troncNode as any });
+      const assignmentB = makeAssignmentB();
+
+      mockAssignmentRepo.findOne
+        .mockResolvedValueOnce(assignmentA)
+        .mockResolvedValueOnce(assignmentB)
+        .mockResolvedValueOnce(assignmentA)
+        .mockResolvedValueOnce(assignmentB);
+
+      const txManager = {
+        delete: jest.fn().mockResolvedValue(undefined),
+        create: jest.fn().mockImplementation((_entity: any, data: any) => data),
+        save: jest.fn().mockResolvedValue(undefined),
+      };
+      mockDataSource.transaction.mockImplementation((cb: any) => cb(txManager));
+      mockAssignmentRepo.find.mockResolvedValue([]);
+      mockInstanceNodeRepo.find.mockResolvedValue([
+        makeInstanceNode({ id: 'pinya-empty', zone: FigureZone.PINYA }),
+      ]);
+
+      const result = await service.swap(INSTANCE_ID, {
+        assignmentIdA: ASSIGNMENT_ID,
+        assignmentIdB: ASSIGNMENT_ID_B,
+      });
+
+      expect(result.impact).toBeDefined();
+      expect(result.impact!.freedPinyaNodeIds).toEqual(['pinya-empty']);
+    });
+
+    it('surfaces a non-empty newConflicts (Fase 5 soft conflict) after a swap that leaves a person with two placements', async () => {
+      const troncNode = makeInstanceNode({ id: INSTANCE_NODE_ID, zone: FigureZone.TRONC });
+      const pinyaNode = makeInstanceNode({ id: 'pinya-preexisting', zone: FigureZone.PINYA });
+      const assignmentA = makeAssignment({ instanceNode: troncNode as any });
+      const assignmentB = makeAssignmentB();
+
+      mockAssignmentRepo.findOne
+        .mockResolvedValueOnce(assignmentA)
+        .mockResolvedValueOnce(assignmentB)
+        .mockResolvedValueOnce(assignmentA)
+        .mockResolvedValueOnce(assignmentB);
+
+      const txManager = {
+        delete: jest.fn().mockResolvedValue(undefined),
+        create: jest.fn().mockImplementation((_entity: any, data: any) => data),
+        save: jest.fn().mockResolvedValue(undefined),
+      };
+      mockDataSource.transaction.mockImplementation((cb: any) => cb(txManager));
+      // After the swap, PERSON_ID_B holds the TRONC node plus a pre-existing PINYA placement.
+      const preExisting = makeAssignment({
+        id: 'assignment-uuid-3',
+        instanceNode: pinyaNode as any,
+        person: assignmentB.person,
+      });
+      mockAssignmentRepo.find.mockResolvedValue([
+        { ...assignmentA, person: assignmentB.person },
+        preExisting,
+      ]);
+      mockInstanceNodeRepo.find.mockResolvedValue([pinyaNode, troncNode]);
+
+      const result = await service.swap(INSTANCE_ID, {
+        assignmentIdA: ASSIGNMENT_ID,
+        assignmentIdB: ASSIGNMENT_ID_B,
+      });
+
+      expect(result.impact!.newConflicts).toHaveLength(1);
+      const conflict = result.impact!.newConflicts[0];
+      expect(conflict.personId).toBe(assignmentB.person!.id);
+      expect(conflict.kind).toBe(SegmentConflictKind.TRONC_PINYA);
+    });
+
+    it('does NOT attach an impact when both swapped nodes are PINYA nodes', async () => {
+      const assignmentA = makeAssignment();
+      const assignmentB = makeAssignmentB();
+
+      mockAssignmentRepo.findOne
+        .mockResolvedValueOnce(assignmentA)
+        .mockResolvedValueOnce(assignmentB)
+        .mockResolvedValueOnce(assignmentA)
+        .mockResolvedValueOnce(assignmentB);
+
+      const txManager = {
+        delete: jest.fn().mockResolvedValue(undefined),
+        create: jest.fn().mockImplementation((_entity: any, data: any) => data),
+        save: jest.fn().mockResolvedValue(undefined),
+      };
+      mockDataSource.transaction.mockImplementation((cb: any) => cb(txManager));
+
+      const result = await service.swap(INSTANCE_ID, {
+        assignmentIdA: ASSIGNMENT_ID,
+        assignmentIdB: ASSIGNMENT_ID_B,
+      });
+
+      expect(result.impact).toBeUndefined();
+      expect(mockAssignmentRepo.find).not.toHaveBeenCalled();
+    });
+
+    it('throws ConflictException (not a raw 500) when the transaction hits the remaining unique constraint (Fase 5, risc 10)', async () => {
+      const assignmentA = makeAssignment();
+      const assignmentB = makeAssignmentB();
+
+      mockAssignmentRepo.findOne
+        .mockResolvedValueOnce(assignmentA)
+        .mockResolvedValueOnce(assignmentB);
+
+      const dbError = Object.assign(new Error('duplicate key value violates unique constraint'), {
+        code: '23505',
+      });
+      mockDataSource.transaction.mockRejectedValue(dbError);
+
+      await expect(
+        service.swap(INSTANCE_ID, { assignmentIdA: ASSIGNMENT_ID, assignmentIdB: ASSIGNMENT_ID_B }),
+      ).rejects.toThrow(ConflictException);
+    });
+
     it('throws NotFoundException if assignment A not found', async () => {
       mockAssignmentRepo.findOne
         .mockResolvedValueOnce(null)
@@ -672,6 +864,35 @@ describe('NodeAssignmentService', () => {
 
       await expect(service.unassign(INSTANCE_ID, ASSIGNMENT_ID)).rejects.toThrow(NotFoundException);
     });
+
+    it('does NOT attach an impact when the removed node is a PINYA node', async () => {
+      const a = makeAssignment(); // PINYA by default
+      mockAssignmentRepo.findOne.mockResolvedValue(a);
+      mockAssignmentRepo.remove.mockResolvedValue(a);
+
+      const result = await service.unassign(INSTANCE_ID, ASSIGNMENT_ID);
+
+      expect(result.impact).toBeUndefined();
+      expect(mockAssignmentRepo.find).not.toHaveBeenCalled();
+    });
+
+    it('attaches a TroncChangeImpact when the removed node is a TRONC node', async () => {
+      const troncNode = makeInstanceNode({ id: INSTANCE_NODE_ID, zone: FigureZone.TRONC });
+      const a = makeAssignment({ instanceNode: troncNode as any });
+      mockAssignmentRepo.findOne.mockResolvedValue(a);
+      mockAssignmentRepo.remove.mockResolvedValue(a);
+      mockAssignmentRepo.find.mockResolvedValue([]);
+      mockInstanceNodeRepo.find.mockResolvedValue([
+        makeInstanceNode({ id: 'pinya-empty', zone: FigureZone.PINYA }),
+        troncNode,
+      ]);
+
+      const result = await service.unassign(INSTANCE_ID, ASSIGNMENT_ID);
+
+      expect(result.impact).toBeDefined();
+      expect(result.impact!.newConflicts).toEqual([]);
+      expect(result.impact!.freedPinyaNodeIds).toEqual(['pinya-empty']);
+    });
   });
 
   // ── getSegmentMoveConflicts ─────────────────────────────────────────────
@@ -680,7 +901,7 @@ describe('NodeAssignmentService', () => {
     const TARGET_SEGMENT_ID = 'segment-uuid-2';
     const OTHER_PERSON_ID = 'person-uuid-2';
 
-    it('flags isTronc=false when both sides are PINYA', async () => {
+    it('classifies PINYA_PINYA and returns both placements when both sides are PINYA', async () => {
       const movingAssignment = makeAssignment({
         person: makePerson(PERSON_ID) as any,
         instanceNode: makeInstanceNode({ zone: FigureZone.PINYA }) as any,
@@ -696,10 +917,19 @@ describe('NodeAssignmentService', () => {
 
       const result = await service.getSegmentMoveConflicts(INSTANCE_ID, TARGET_SEGMENT_ID);
 
-      expect(result).toEqual([{ personId: PERSON_ID, isTronc: false }]);
+      expect(result).toEqual([
+        {
+          personId: PERSON_ID,
+          kind: SegmentConflictKind.PINYA_PINYA,
+          placements: [
+            { assignmentId: ASSIGNMENT_ID, zone: FigureZone.PINYA, area: AssignmentArea.PINYA },
+            { assignmentId: ASSIGNMENT_ID_B, zone: FigureZone.PINYA, area: AssignmentArea.PINYA },
+          ],
+        },
+      ]);
     });
 
-    it('flags isTronc=true when the moving-instance assignment is TRONC', async () => {
+    it('classifies TRONC_PINYA when the moving-instance assignment is TRONC (tronc-first order)', async () => {
       const movingAssignment = makeAssignment({
         person: makePerson(PERSON_ID) as any,
         instanceNode: makeInstanceNode({ zone: FigureZone.TRONC }) as any,
@@ -715,10 +945,19 @@ describe('NodeAssignmentService', () => {
 
       const result = await service.getSegmentMoveConflicts(INSTANCE_ID, TARGET_SEGMENT_ID);
 
-      expect(result).toEqual([{ personId: PERSON_ID, isTronc: true }]);
+      expect(result).toEqual([
+        {
+          personId: PERSON_ID,
+          kind: SegmentConflictKind.TRONC_PINYA,
+          placements: [
+            { assignmentId: ASSIGNMENT_ID, zone: FigureZone.TRONC, area: AssignmentArea.TRONC },
+            { assignmentId: ASSIGNMENT_ID_B, zone: FigureZone.PINYA, area: AssignmentArea.PINYA },
+          ],
+        },
+      ]);
     });
 
-    it('flags isTronc=true when the target-segment assignment is BASE', async () => {
+    it('classifies TRONC_PINYA and treats the target-segment BASE as tronc (D10)', async () => {
       const movingAssignment = makeAssignment({
         person: makePerson(PERSON_ID) as any,
         instanceNode: makeInstanceNode({ zone: FigureZone.PINYA }) as any,
@@ -734,7 +973,44 @@ describe('NodeAssignmentService', () => {
 
       const result = await service.getSegmentMoveConflicts(INSTANCE_ID, TARGET_SEGMENT_ID);
 
-      expect(result).toEqual([{ personId: PERSON_ID, isTronc: true }]);
+      expect(result).toEqual([
+        {
+          personId: PERSON_ID,
+          kind: SegmentConflictKind.TRONC_PINYA,
+          placements: [
+            { assignmentId: ASSIGNMENT_ID_B, zone: FigureZone.BASE, area: AssignmentArea.TRONC },
+            { assignmentId: ASSIGNMENT_ID, zone: FigureZone.PINYA, area: AssignmentArea.PINYA },
+          ],
+        },
+      ]);
+    });
+
+    it('classifies TRONC_TRONC when both sides are tronc-area', async () => {
+      const movingAssignment = makeAssignment({
+        person: makePerson(PERSON_ID) as any,
+        instanceNode: makeInstanceNode({ zone: FigureZone.TRONC }) as any,
+      });
+      const targetAssignment = makeAssignment({
+        id: ASSIGNMENT_ID_B,
+        person: makePerson(PERSON_ID) as any,
+        instanceNode: makeInstanceNode({ zone: FigureZone.BASE }) as any,
+      });
+      mockAssignmentRepo.find
+        .mockResolvedValueOnce([movingAssignment])
+        .mockResolvedValueOnce([targetAssignment]);
+
+      const result = await service.getSegmentMoveConflicts(INSTANCE_ID, TARGET_SEGMENT_ID);
+
+      expect(result).toEqual([
+        {
+          personId: PERSON_ID,
+          kind: SegmentConflictKind.TRONC_TRONC,
+          placements: [
+            { assignmentId: ASSIGNMENT_ID, zone: FigureZone.TRONC, area: AssignmentArea.TRONC },
+            { assignmentId: ASSIGNMENT_ID_B, zone: FigureZone.BASE, area: AssignmentArea.TRONC },
+          ],
+        },
+      ]);
     });
 
     it('returns no conflicts when no persons overlap', async () => {
@@ -763,6 +1039,165 @@ describe('NodeAssignmentService', () => {
       expect(mockAssignmentRepo.find).toHaveBeenCalledWith(
         expect.objectContaining({ where: { segment: { id: TARGET_SEGMENT_ID } } }),
       );
+    });
+  });
+
+  // ── getSegmentConflicts ─────────────────────────────────────────────────
+
+  describe('getSegmentConflicts', () => {
+    const ASSIGNMENT_ID_C = 'assignment-uuid-3';
+    const OTHER_PERSON_ID = 'person-uuid-3';
+
+    const makeConflictAssignment = (overrides: Partial<NodeAssignment> = {}): Partial<NodeAssignment> => ({
+      id: ASSIGNMENT_ID,
+      figureInstance: makeInstance() as any,
+      instanceNode: makeInstanceNode() as any,
+      person: makePerson() as any,
+      segment: makeSegment() as any,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      ...overrides,
+    });
+
+    it('classifies TRONC_PINYA and suggests removing the pinya placement', async () => {
+      const troncAssignment = makeConflictAssignment({
+        instanceNode: makeInstanceNode({ zone: FigureZone.TRONC }) as any,
+      });
+      const pinyaAssignment = makeConflictAssignment({
+        id: ASSIGNMENT_ID_B,
+        instanceNode: makeInstanceNode({ id: 'inode-uuid-2', zone: FigureZone.PINYA }) as any,
+      });
+      mockAssignmentRepo.find.mockResolvedValueOnce([troncAssignment, pinyaAssignment]);
+
+      const result = await service.getSegmentConflicts(SEGMENT_ID);
+
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0]).toMatchObject({
+        personId: PERSON_ID,
+        personAlias: 'Pepet',
+        kind: SegmentConflictKind.TRONC_PINYA,
+        suggestedRemovalAssignmentIds: [ASSIGNMENT_ID_B],
+      });
+      expect(result.data[0].placements.map((p) => p.assignmentId)).toEqual([ASSIGNMENT_ID, ASSIGNMENT_ID_B]);
+    });
+
+    it('classifies PINYA_PINYA and suggests removing every placement except the interior one', async () => {
+      const interior = makeConflictAssignment({
+        instanceNode: makeInstanceNode({ zone: FigureZone.PINYA, renglaPosition: 1 }) as any,
+      });
+      const outer = makeConflictAssignment({
+        id: ASSIGNMENT_ID_B,
+        instanceNode: makeInstanceNode({ id: 'inode-uuid-2', zone: FigureZone.PINYA, renglaPosition: 3 }) as any,
+      });
+      mockAssignmentRepo.find.mockResolvedValueOnce([outer, interior]);
+
+      const result = await service.getSegmentConflicts(SEGMENT_ID);
+
+      expect(result.data[0].kind).toBe(SegmentConflictKind.PINYA_PINYA);
+      expect(result.data[0].suggestedRemovalAssignmentIds).toEqual([ASSIGNMENT_ID_B]);
+    });
+
+    it('classifies TRONC_TRONC and never suggests removing a tronc placement', async () => {
+      const troncA = makeConflictAssignment({
+        instanceNode: makeInstanceNode({ zone: FigureZone.TRONC }) as any,
+      });
+      const troncB = makeConflictAssignment({
+        id: ASSIGNMENT_ID_B,
+        instanceNode: makeInstanceNode({ id: 'inode-uuid-2', zone: FigureZone.BASE }) as any,
+      });
+      mockAssignmentRepo.find.mockResolvedValueOnce([troncA, troncB]);
+
+      const result = await service.getSegmentConflicts(SEGMENT_ID);
+
+      expect(result.data[0].kind).toBe(SegmentConflictKind.TRONC_TRONC);
+      expect(result.data[0].suggestedRemovalAssignmentIds).toEqual([]);
+    });
+
+    it('precedence: 2 tronc + 1 pinya is reported as TRONC_TRONC with the pinya suggested for removal', async () => {
+      const troncA = makeConflictAssignment({
+        instanceNode: makeInstanceNode({ zone: FigureZone.TRONC }) as any,
+      });
+      const troncB = makeConflictAssignment({
+        id: ASSIGNMENT_ID_B,
+        instanceNode: makeInstanceNode({ id: 'inode-uuid-2', zone: FigureZone.TRONC }) as any,
+      });
+      const pinya = makeConflictAssignment({
+        id: ASSIGNMENT_ID_C,
+        instanceNode: makeInstanceNode({ id: 'inode-uuid-3', zone: FigureZone.PINYA }) as any,
+      });
+      mockAssignmentRepo.find.mockResolvedValueOnce([troncA, troncB, pinya]);
+
+      const result = await service.getSegmentConflicts(SEGMENT_ID);
+
+      expect(result.data[0].kind).toBe(SegmentConflictKind.TRONC_TRONC);
+      expect(result.data[0].suggestedRemovalAssignmentIds).toEqual([ASSIGNMENT_ID_C]);
+      expect(result.data[0].placements.map((p) => p.assignmentId)).toEqual([
+        ASSIGNMENT_ID,
+        ASSIGNMENT_ID_B,
+        ASSIGNMENT_ID_C,
+      ]);
+    });
+
+    it('does not report a conflict for a person with a single placement in the segment', async () => {
+      mockAssignmentRepo.find.mockResolvedValueOnce([makeConflictAssignment()]);
+
+      const result = await service.getSegmentConflicts(SEGMENT_ID);
+
+      expect(result.data).toEqual([]);
+    });
+
+    it('scopes the query to the given segment, so a person duplicated across segments is not a conflict', async () => {
+      mockAssignmentRepo.find.mockResolvedValueOnce([]);
+
+      await service.getSegmentConflicts(SEGMENT_ID);
+
+      expect(mockAssignmentRepo.find).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { segment: { id: SEGMENT_ID } } }),
+      );
+    });
+
+    it('computes people counters over every assignment in the segment, with BASE counted as tronc', async () => {
+      const troncPerson = makeConflictAssignment({
+        person: makePerson(PERSON_ID) as any,
+        instanceNode: makeInstanceNode({ zone: FigureZone.BASE }) as any,
+      });
+      const pinyaPerson = makeConflictAssignment({
+        id: ASSIGNMENT_ID_B,
+        person: makePerson(OTHER_PERSON_ID) as any,
+        instanceNode: makeInstanceNode({ id: 'inode-uuid-2', zone: FigureZone.PINYA }) as any,
+      });
+      mockAssignmentRepo.find.mockResolvedValueOnce([troncPerson, pinyaPerson]);
+
+      const result = await service.getSegmentConflicts(SEGMENT_ID);
+
+      expect(result.meta).toEqual({
+        assignmentCount: 2,
+        distinctPersonCount: 2,
+        tronc: { distinctPersonCount: 1 },
+        pinya: { distinctPersonCount: 1 },
+        conflictPersonCount: 0,
+        conflictsByKind: {
+          TRONC_TRONC: 0,
+          TRONC_PINYA: 0,
+          PINYA_PINYA: 0,
+        },
+      });
+    });
+
+    it('derives cordon from renglaPosition', async () => {
+      const troncAssignment = makeConflictAssignment({
+        instanceNode: makeInstanceNode({ zone: FigureZone.TRONC }) as any,
+      });
+      const pinyaAssignment = makeConflictAssignment({
+        id: ASSIGNMENT_ID_B,
+        instanceNode: makeInstanceNode({ id: 'inode-uuid-2', zone: FigureZone.PINYA, renglaPosition: 4 }) as any,
+      });
+      mockAssignmentRepo.find.mockResolvedValueOnce([troncAssignment, pinyaAssignment]);
+
+      const result = await service.getSegmentConflicts(SEGMENT_ID);
+
+      const pinyaPlacement = result.data[0].placements.find((p) => p.assignmentId === ASSIGNMENT_ID_B);
+      expect(pinyaPlacement?.cordon).toBe(4);
     });
   });
 
@@ -813,6 +1248,20 @@ describe('NodeAssignmentService', () => {
         TARGET_SEGMENT_ID,
         [],
         SegmentMoveConflictResolution.KEEP_TARGET,
+        manager,
+      );
+
+      expect(manager.delete).not.toHaveBeenCalled();
+    });
+
+    it('KEEP_BOTH (Fase 5 default) deletes nothing on either side', async () => {
+      const manager = { delete: jest.fn() } as any;
+
+      await service.resolveSegmentMoveConflicts(
+        INSTANCE_ID,
+        TARGET_SEGMENT_ID,
+        [PERSON_ID],
+        SegmentMoveConflictResolution.KEEP_BOTH,
         manager,
       );
 
@@ -1036,6 +1485,90 @@ describe('NodeAssignmentService', () => {
       expect(result.segments[0].figures[0].tronc).toEqual({ assigned: 0, total: 0 });
       expect(result.segments[0].figures[0].total).toEqual({ assigned: 1, total: 1 });
       expect(result.segments[0].figures[0].troncBaseAssignments).toEqual([]);
+    });
+
+    it('sets distinctPersonCount and conflictAssignmentCount = 0 per figure when there is no conflict', async () => {
+      const person = makePerson();
+      const iNode = makeInstanceNode();
+      const assignment = { ...makeAssignment(), instanceNode: iNode, person, figureInstance: { id: 'fi-1' } };
+      const figureInstance = {
+        id: 'fi-1',
+        figureTemplate: { id: TEMPLATE_ID, name: 'Muixeranga de 5', nodes: [] },
+        segment: { id: SEGMENT_ID },
+        snapshotted: true,
+        cordonsObertsEnabled: true,
+        numberOfCordons: null,
+        figureMode: 'COMPLETA',
+      };
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
+      mockSegmentRepo.find.mockResolvedValue([{ id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 }]);
+      mockInstanceRepo.find.mockResolvedValue([figureInstance]);
+      mockInstanceNodeRepo.find.mockResolvedValue([{ ...iNode, figureInstance: { id: 'fi-1' } }]);
+      mockAssignmentRepo.find.mockResolvedValue([assignment]);
+
+      const result = await service.getEventAssignmentSummary('e1');
+
+      expect(result.segments[0].figures[0].distinctPersonCount).toBe(1);
+      expect(result.segments[0].figures[0].conflictAssignmentCount).toBe(0);
+      expect(result.segments[0].conflicts).toEqual({
+        assignmentCount: 1,
+        distinctPersonCount: 1,
+        tronc: { distinctPersonCount: 0 },
+        pinya: { distinctPersonCount: 1 },
+        conflictPersonCount: 0,
+        conflictsByKind: { TRONC_TRONC: 0, TRONC_PINYA: 0, PINYA_PINYA: 0 },
+      });
+    });
+
+    it('computes segment conflicts and per-figure conflictAssignmentCount from the already-batched assignments (D13, no extra query)', async () => {
+      const person = makePerson();
+      const troncNode = makeInstanceNode({ id: 'n1', zone: FigureZone.TRONC });
+      const pinyaNode = makeInstanceNode({ id: 'n2', zone: FigureZone.PINYA });
+      const figureInstanceA = {
+        id: 'fi-1',
+        figureTemplate: { id: TEMPLATE_ID, name: 'Tronc', nodes: [] },
+        segment: { id: SEGMENT_ID },
+        snapshotted: true,
+        cordonsObertsEnabled: true,
+        numberOfCordons: null,
+        figureMode: 'COMPLETA',
+      };
+      const figureInstanceB = {
+        id: 'fi-2',
+        figureTemplate: { id: TEMPLATE_ID, name: 'Pinya', nodes: [] },
+        segment: { id: SEGMENT_ID },
+        snapshotted: true,
+        cordonsObertsEnabled: true,
+        numberOfCordons: null,
+        figureMode: 'COMPLETA',
+      };
+      const troncAssignment = { id: 'assignment-a1', instanceNode: troncNode, person, figureInstance: { id: 'fi-1' } };
+      const pinyaAssignment = { id: 'assignment-a2', instanceNode: pinyaNode, person, figureInstance: { id: 'fi-2' } };
+
+      mockEventRepo.findOne.mockResolvedValue({ id: 'e1' });
+      mockSegmentRepo.find.mockResolvedValue([{ id: SEGMENT_ID, name: 'Bloc 1', sortOrder: 1 }]);
+      mockInstanceRepo.find.mockResolvedValue([figureInstanceA, figureInstanceB]);
+      mockInstanceNodeRepo.find.mockResolvedValue([
+        { ...troncNode, figureInstance: { id: 'fi-1' } },
+        { ...pinyaNode, figureInstance: { id: 'fi-2' } },
+      ]);
+      mockAssignmentRepo.find.mockResolvedValue([troncAssignment, pinyaAssignment]);
+
+      const result = await service.getEventAssignmentSummary('e1');
+
+      expect(result.segments[0].conflicts).toMatchObject({
+        assignmentCount: 2,
+        distinctPersonCount: 1,
+        conflictPersonCount: 1,
+        conflictsByKind: { TRONC_TRONC: 0, TRONC_PINYA: 1, PINYA_PINYA: 0 },
+      });
+      const figureA = result.segments[0].figures.find((f: { instanceId: string }) => f.instanceId === 'fi-1');
+      const figureB = result.segments[0].figures.find((f: { instanceId: string }) => f.instanceId === 'fi-2');
+      expect(figureA?.distinctPersonCount).toBe(1);
+      expect(figureA?.conflictAssignmentCount).toBe(1);
+      expect(figureB?.conflictAssignmentCount).toBe(1);
+      // Only one assignmentRepo.find call for the whole event — no per-segment query.
+      expect(mockAssignmentRepo.find).toHaveBeenCalledTimes(1);
     });
 
     it('returns empty segments array when event has no segments', async () => {
@@ -1412,6 +1945,30 @@ describe('NodeAssignmentService', () => {
       expect(result.conflicts[0].reason).toBe('Node already occupied in target instance');
     });
 
+    it('reports conflictsByKind from the target segment after importing (D5, Fase 5)', async () => {
+      const { target, source, sourceAssignment } = makeMatchedImportFixtures();
+      mockInstanceRepo.findOne.mockResolvedValueOnce(target).mockResolvedValueOnce(source);
+      const troncA = makeAssignment({
+        id: 'a-1',
+        person: makePerson('dup-person') as any,
+        instanceNode: makeInstanceNode({ id: 'n-1', zone: FigureZone.TRONC }) as any,
+      });
+      const troncB = makeAssignment({
+        id: 'a-2',
+        person: makePerson('dup-person') as any,
+        instanceNode: makeInstanceNode({ id: 'n-2', zone: FigureZone.TRONC }) as any,
+      });
+      mockAssignmentRepo.find
+        .mockResolvedValueOnce([sourceAssignment]) // source assignments to import
+        .mockResolvedValueOnce([troncA, troncB]); // getSegmentConflicts on the target segment afterwards
+      jest.spyOn(service as any, 'assignWithoutLockCheck').mockResolvedValue({ id: 'new-assignment' } as any);
+
+      const result = await service.bulkImport(INSTANCE_ID, { sourceInstanceId: 'source-uuid' });
+
+      expect(result.conflictsByKind[SegmentConflictKind.TRONC_TRONC]).toBe(1);
+      expect(result.conflictsByKind[SegmentConflictKind.PINYA_PINYA]).toBe(0);
+    });
+
     it('rethrows unexpected (non-domain) errors from assignWithoutLockCheck() instead of masking them as a conflict', async () => {
       const { target, source, sourceAssignment } = makeMatchedImportFixtures();
       mockInstanceRepo.findOne.mockResolvedValueOnce(target).mockResolvedValueOnce(source);
@@ -1503,10 +2060,7 @@ describe('NodeAssignmentService', () => {
       mockInstanceRepo.findOne.mockResolvedValue(makeInstance({ snapshotted: true }));
       mockInstanceNodeRepo.findOne.mockResolvedValue(inode);
       mockPersonRepo.findOne.mockResolvedValue(makePerson());
-      mockAssignmentRepo.findOne
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(null)
-        .mockResolvedValue(a);
+      mockAssignmentRepo.findOne.mockResolvedValueOnce(null).mockResolvedValue(a);
       mockAssignmentRepo.create.mockReturnValue(a);
       mockAssignmentRepo.save.mockResolvedValue(a);
 
@@ -1527,10 +2081,7 @@ describe('NodeAssignmentService', () => {
       const a = makeAssignment();
       mockInstanceNodeRepo.findOne.mockResolvedValue(inode);
       mockPersonRepo.findOne.mockResolvedValue(makePerson());
-      mockAssignmentRepo.findOne
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(null)
-        .mockResolvedValue(a);
+      mockAssignmentRepo.findOne.mockResolvedValueOnce(null).mockResolvedValue(a);
       mockAssignmentRepo.create.mockReturnValue(a);
       mockAssignmentRepo.save.mockResolvedValue(a);
 
@@ -2297,14 +2848,7 @@ describe('NodeAssignmentService', () => {
 
       mockAssignmentRepo.findOne
         .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(null);
-      mockAssignmentRepo.createQueryBuilder.mockReturnValue({
-        innerJoin: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        getOne: jest.fn().mockResolvedValue(null),
-      });
-
+        .mockResolvedValue(makeAssignment({ instanceNode: createdInstanceNode as any }));
       mockPersonRepo.findOne.mockResolvedValue(makePerson());
       mockInstanceNodeRepo.findOne
         .mockResolvedValueOnce(null)
@@ -2338,7 +2882,6 @@ describe('NodeAssignmentService', () => {
       mockPersonRepo.findOne.mockResolvedValue(makePerson());
       mockAssignmentRepo.findOne
         .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(null)
         .mockResolvedValue(makeAssignment({ instanceNode: snapshotNode as any }));
       mockAssignmentRepo.create.mockReturnValue(makeAssignment({ instanceNode: snapshotNode as any }));
       mockAssignmentRepo.save.mockResolvedValue({ id: ASSIGNMENT_ID });
@@ -2366,7 +2909,6 @@ describe('NodeAssignmentService', () => {
       mockDataSource.transaction.mockImplementation((cb: any) => cb(manager));
       mockPersonRepo.findOne.mockResolvedValue(makePerson());
       mockAssignmentRepo.findOne
-        .mockResolvedValueOnce(null)
         .mockResolvedValueOnce(null)
         .mockResolvedValue(makeAssignment({ instanceNode: winnerNode as any }));
       mockAssignmentRepo.create.mockReturnValue(makeAssignment({ instanceNode: winnerNode as any }));

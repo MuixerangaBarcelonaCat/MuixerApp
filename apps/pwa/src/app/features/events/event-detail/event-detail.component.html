@@ -71,13 +71,55 @@
       </div>
     }
 
-    <div class="flex justify-center mt-2">
-      <app-attendance-button
-        [eventId]="ev.id"
-        [status]="ev.myAttendance?.status ?? null"
-        [disabled]="isPast()"
-        [ariaContext]="ev.title"
-      />
+    @if (segments().length > 0) {
+      <div class="card bg-base-100 shadow-sm segments-section" [style.order]="isPast() ? 1 : 2">
+        <div class="card-body p-4">
+          <ul class="flex flex-col gap-2">
+            @for (segment of segments(); track segment.id; let i = $index) {
+              <li>
+                <a
+                  class="segment-row flex items-center gap-3 min-h-11 px-2 -mx-2 rounded-lg hover:bg-base-200 active:bg-base-200"
+                  [routerLink]="['/events', ev.id, 'segments', segment.id]"
+                >
+                  <span
+                    class="flex items-center justify-center w-6 h-6 rounded text-xs font-bold text-primary-content bg-primary shrink-0"
+                    [attr.aria-label]="'Segment ' + (i + 1)"
+                  >{{ i + 1 }}</span>
+                  <span class="flex flex-col">
+                    {{ segmentLabel(segment) }}
+                    @if (hasMultiplePlacements(segment)) {
+                      <span class="own-position-summary text-xs text-error">{{ OWN_POSITION_MULTIPLE_PLACEMENTS }}</span>
+                    } @else if (ownPositionSummary(segment); as summary) {
+                      <span class="own-position-summary text-xs text-base-content/60"
+                        ><span class="uppercase">{{ summary.nodeLabel }}</span>{{ summary.suffix }}</span
+                      >
+                    }
+                  </span>
+                </a>
+              </li>
+            }
+          </ul>
+        </div>
+      </div>
+    }
+
+    <div class="flex flex-col items-center gap-3 mt-2 attendance-section" [style.order]="isPast() ? 2 : 1">
+      @for (row of ev.managedAttendances; track row.personId) {
+        <div class="flex flex-col items-center gap-1 w-full max-w-xs">
+          @if (ev.managedAttendances.length > 1) {
+            <span class="managed-person-name text-sm font-medium text-base-content/70">
+              {{ row.displayName }}
+            </span>
+          }
+          <app-attendance-button
+            [eventId]="ev.id"
+            [personId]="row.personId"
+            [status]="row.attendance?.status ?? null"
+            [disabled]="isPast()"
+            [ariaContext]="ev.title + ' — ' + row.displayName"
+          />
+        </div>
+      }
     </div>
   </section>
 }

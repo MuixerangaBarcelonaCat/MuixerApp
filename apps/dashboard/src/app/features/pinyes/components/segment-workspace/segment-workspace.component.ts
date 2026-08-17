@@ -1,3 +1,4 @@
+import { SegmentNodeRef } from '@muixer/pinyes-render';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -19,14 +20,15 @@ import { LayoutService } from '../../../../core/services/layout.service';
 import { FiguresViewModeService, FiguresViewMode } from '../../services/figures-view-mode.service';
 import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
 import { SegmentWorkspaceStateService } from '../../services/segment-workspace-state.service';
+import { ConflictResolutionService } from '../../services/conflict-resolution.service';
 import { UndoRedoService } from '../../services/undo-redo.service';
-import { SegmentNodeRef } from '../../utils/segment-assignment-render.util';
 import { PinyesTabComponent } from './tabs/pinyes-tab/pinyes-tab.component';
 import { TroncsTabComponent } from './tabs/troncs-tab/troncs-tab.component';
 import { DistribucioTabComponent } from './tabs/distribucio-tab/distribucio-tab.component';
 import { NodesTabComponent } from './tabs/nodes-tab/nodes-tab.component';
 import { PrevisualitzaTabComponent } from './tabs/previsualitza-tab/previsualitza-tab.component';
 import { TemplateEditorHelpModalComponent } from '../template-editor-help-modal/template-editor-help-modal.component';
+import { SegmentConflictPanelComponent } from '../segment-conflict-panel/segment-conflict-panel.component';
 
 export type WorkspaceTab = 'pinyes' | 'troncs' | 'distribucio' | 'nodes' | 'previsualitza';
 
@@ -47,9 +49,10 @@ const isFiguresViewMode = (value: unknown): value is FiguresViewMode =>
     NodesTabComponent,
     PrevisualitzaTabComponent,
     TemplateEditorHelpModalComponent,
+    SegmentConflictPanelComponent,
   ],
   templateUrl: './segment-workspace.component.html',
-  providers: [SegmentWorkspaceStateService, UndoRedoService],
+  providers: [SegmentWorkspaceStateService, UndoRedoService, ConflictResolutionService],
 })
 export class SegmentWorkspaceComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);

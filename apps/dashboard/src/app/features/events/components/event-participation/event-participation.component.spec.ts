@@ -9,6 +9,7 @@ import {
 import { ParticipationService } from '../../services/participation.service';
 import {
   EventParticipation,
+  ParticipationMeta,
   ParticipationPerson,
   ParticipationPlacement,
   ParticipationSegment,
@@ -25,7 +26,7 @@ const makeSegment = (id: string, overrides: Partial<ParticipationSegment> = {}):
   name: `Segment ${id}`,
   sortOrder: 0,
   figureNames: ['4d7'],
-  isVisible: true,
+  isPublished: true,
   figureCount: 1,
   snapshottedFigureCount: 1,
   ...overrides,
@@ -38,9 +39,31 @@ const makePlacement = (overrides: Partial<ParticipationPlacement> = {}): Partici
   nodeId: 'n-1',
   nodeLabel: 'Mans',
   zone: 'PINYA',
+  area: 'PINYA',
   positionType: null,
   z: 0,
   renglaPosition: 2,
+  ...overrides,
+});
+
+const makeTroncPlacement = (overrides: Partial<ParticipationPlacement> = {}): ParticipationPlacement =>
+  makePlacement({
+    assignmentId: 'a-tronc-1',
+    nodeId: 'n-tronc-1',
+    nodeLabel: 'Segona',
+    zone: 'TRONC',
+    area: 'TRONC',
+    renglaPosition: null,
+    ...overrides,
+  });
+
+const makeMeta = (overrides: Partial<ParticipationMeta> = {}): ParticipationMeta => ({
+  distinctPersons: 0,
+  personsWithPlacement: 0,
+  totalPlacements: 0,
+  conflictedPersons: 0,
+  conflictsByKind: { TRONC_TRONC: 0, TRONC_PINYA: 0, PINYA_PINYA: 0 },
+  troncPlacements: 0,
   ...overrides,
 });
 
@@ -66,6 +89,10 @@ const makePerson = (
     placements,
     assignedSegmentCount: segmentIds.length,
     placementCount: segmentIds.reduce((t, k) => t + placements[k].length, 0),
+    troncPlacementCount: segmentIds.reduce(
+      (t, k) => t + placements[k].filter((p) => p.area === 'TRONC').length,
+      0,
+    ),
     conflictSegmentIds: segmentIds.filter((k) => placements[k].length > 1),
     ...overrides,
   };
@@ -208,7 +235,7 @@ describe('EventParticipationComponent', () => {
       makePerson('p2', 'GRILLAT', { [SEG_A]: [makePlacement({ assignmentId: 'a-3', nodeLabel: 'Baix' })] }),
       makePerson('p3', 'XURRO', {}),
     ],
-    meta: { distinctPersons: 3, personsWithPlacement: 2, totalPlacements: 3, conflictedPersons: 0 },
+    meta: makeMeta({ distinctPersons: 3, personsWithPlacement: 2, totalPlacements: 3 }),
     ...overrides,
   });
 
@@ -485,11 +512,11 @@ describe('EventParticipationComponent', () => {
   // ── The two opposing signalling rules ──────────────────────────────────────
 
   describe('no warning for legitimate participation', () => {
-    it('renders no warning styling for a person with nothing to do', async () => {
+    it('renders no conflict styling for a person with nothing to do', async () => {
       const fixture = await setup();
       const pills = pillsOf(fixture, `segment-${SEG_A}`, 'XURRO');
 
-      expect(pills.every((p) => !p.class.includes('warning'))).toBe(true);
+      expect(pills.every((p) => !p.class.includes('conflict'))).toBe(true);
       expect(fixture.componentInstance.personLabel(
         fixture.componentInstance.persons().find((p) => p.alias === 'XURRO')!,
       )).toBe('XURRO');
@@ -511,11 +538,11 @@ describe('EventParticipationComponent', () => {
       });
       const fixture = await setup(response);
 
-      expect(pillsOf(fixture, `segment-${SEG_A}`, 'XURRO').every((p) => !p.class.includes('warning'))).toBe(true);
+      expect(pillsOf(fixture, `segment-${SEG_A}`, 'XURRO').every((p) => !p.class.includes('conflict'))).toBe(true);
     });
   });
 
-  describe('warning for conflicts (one person, two places at once)', () => {
+  describe('conflict styling for conflicts (one person, two places at once)', () => {
     const conflictResponse = () =>
       buildResponse({
         persons: [
@@ -527,22 +554,22 @@ describe('EventParticipationComponent', () => {
           }),
           makePerson('p2', 'GRILLAT', { [SEG_A]: [makePlacement({ assignmentId: 'a-3', nodeId: 'n-3' })] }),
         ],
-        meta: { distinctPersons: 2, personsWithPlacement: 2, totalPlacements: 3, conflictedPersons: 1 },
+        meta: makeMeta({ distinctPersons: 2, personsWithPlacement: 2, totalPlacements: 3, conflictedPersons: 1 }),
       });
 
-    it('styles every pill of the duplicated cell as a warning, glyph first', async () => {
+    it('styles every pill of the duplicated cell as conflict, glyph first', async () => {
       const fixture = await setup(conflictResponse());
       const pills = pillsOf(fixture, `segment-${SEG_A}`, 'PERSIANA');
 
       expect(pills[0].text).toBe('‼');
-      expect(pills.every((p) => p.class.includes('warning'))).toBe(true);
+      expect(pills.every((p) => p.class.includes('conflict'))).toBe(true);
       expect(pills.map((p) => p.text).slice(1)).toEqual(['Mans C2 · 4d7', 'Vent C1 · 4d7']);
     });
 
     it('leaves the non-conflicted person in the same segment unstyled', async () => {
       const fixture = await setup(conflictResponse());
 
-      expect(pillsOf(fixture, `segment-${SEG_A}`, 'GRILLAT').every((p) => !p.class.includes('warning'))).toBe(true);
+      expect(pillsOf(fixture, `segment-${SEG_A}`, 'GRILLAT').every((p) => !p.class.includes('conflict'))).toBe(true);
     });
 
     it('shows the header counter, which does not depend on horizontal scrolling', async () => {
@@ -579,7 +606,7 @@ describe('EventParticipationComponent', () => {
 
       const positions = pillsOf(fixture, 'segPosition', 'PERSIANA');
       expect(positions.map((p) => p.text)).toEqual(['Mans C2', 'Vent C1']);
-      expect(positions.every((p) => p.class.includes('warning'))).toBe(true);
+      expect(positions.every((p) => p.class.includes('conflict'))).toBe(true);
     });
 
     /** Placements in DIFFERENT segments are legal: the person is in two places at
@@ -593,7 +620,7 @@ describe('EventParticipationComponent', () => {
       expect(persiana.conflictSegmentIds).toEqual([]);
       expect(fixture.componentInstance.hasConflicts()).toBe(false);
       expect(fixture.componentInstance.personLabel(persiana)).not.toContain('‼');
-      expect(pillsOf(fixture, `segment-${SEG_A}`, 'PERSIANA').every((p) => !p.class.includes('warning'))).toBe(true);
+      expect(pillsOf(fixture, `segment-${SEG_A}`, 'PERSIANA').every((p) => !p.class.includes('conflict'))).toBe(true);
     });
   });
 
@@ -660,12 +687,321 @@ describe('EventParticipationComponent', () => {
     });
   });
 
+  describe('area filter (Fase 6)', () => {
+    /** PERSIANA: tronc + pinya in SEG_A (TRONC_PINYA), plain pinya in SEG_B. */
+    const areaResponse = () =>
+      buildResponse({
+        persons: [
+          makePerson('p1', 'PERSIANA', {
+            [SEG_A]: [
+              makeTroncPlacement({ assignmentId: 'a-t1', nodeId: 'n-t1' }),
+              makePlacement({ assignmentId: 'a-p1', nodeId: 'n-p1' }),
+            ],
+            [SEG_B]: [makePlacement({ assignmentId: 'a-p2', nodeId: 'n-p2' })],
+          }),
+          makePerson('p2', 'GRILLAT', { [SEG_A]: [makePlacement({ assignmentId: 'a-3', nodeId: 'n-3' })] }),
+        ],
+        meta: makeMeta({ distinctPersons: 2, personsWithPlacement: 2, totalPlacements: 4, conflictedPersons: 1 }),
+      });
+
+    it('shows only tronc placements with "Només troncs"', async () => {
+      const fixture = await setup(areaResponse());
+      fixture.componentInstance.onAreaChange('TRONC');
+      fixture.detectChanges();
+
+      const pills = pillsOf(fixture, `segment-${SEG_A}`, 'PERSIANA');
+      expect(pills.map((p) => p.text)).toEqual(['‼', 'Segona · 4d7']);
+      expect(pillsOf(fixture, `segment-${SEG_B}`, 'PERSIANA')).toEqual([{ text: '—', class: expect.any(String) }]);
+    });
+
+    it('shows only pinya placements with "Només pinyes"', async () => {
+      const fixture = await setup(areaResponse());
+      fixture.componentInstance.onAreaChange('PINYA');
+      fixture.detectChanges();
+
+      const pills = pillsOf(fixture, `segment-${SEG_A}`, 'PERSIANA');
+      expect(pills.map((p) => p.text)).toEqual(['‼', 'Mans C2 · 4d7']);
+    });
+
+    it('restores the whole matrix with "Tota l\'àrea"', async () => {
+      const fixture = await setup(areaResponse());
+      fixture.componentInstance.onAreaChange('TRONC');
+      fixture.componentInstance.onAreaChange('');
+      fixture.detectChanges();
+
+      expect(pillsOf(fixture, `segment-${SEG_A}`, 'PERSIANA')).toHaveLength(3);
+    });
+
+    it('keeps the conflict marked even when the filter only paints one of its two placements', async () => {
+      const fixture = await setup(areaResponse());
+      fixture.componentInstance.onAreaChange('TRONC');
+      fixture.detectChanges();
+
+      const pills = pillsOf(fixture, `segment-${SEG_A}`, 'PERSIANA');
+      expect(pills.every((p) => p.class.includes('conflict'))).toBe(true);
+    });
+
+    it('does not touch the row-level conflict glyph, which is event-wide', async () => {
+      const fixture = await setup(areaResponse());
+      fixture.componentInstance.onAreaChange('PINYA');
+
+      const persiana = fixture.componentInstance.persons().find((p) => p.alias === 'PERSIANA')!;
+      expect(fixture.componentInstance.personLabel(persiana)).toContain('‼');
+    });
+
+    it('excludes DIRECTION placements from both "Només troncs" and "Només pinyes"', async () => {
+      const response = buildResponse({
+        persons: [
+          makePerson('p1', 'DIRECTORA', {
+            [SEG_A]: [makePlacement({ zone: 'FIGURE_DIRECTION', area: 'DIRECTION', nodeLabel: 'Direcció' })],
+          }),
+        ],
+      });
+      const fixture = await setup(response);
+
+      fixture.componentInstance.onAreaChange('TRONC');
+      fixture.detectChanges();
+      expect(pillsOf(fixture, `segment-${SEG_A}`, 'DIRECTORA')).toEqual([{ text: '—', class: expect.any(String) }]);
+
+      fixture.componentInstance.onAreaChange('PINYA');
+      fixture.detectChanges();
+      expect(pillsOf(fixture, `segment-${SEG_A}`, 'DIRECTORA')).toEqual([{ text: '—', class: expect.any(String) }]);
+    });
+
+    it('renders an em dash for a cell left empty by the filter', async () => {
+      const fixture = await setup(areaResponse());
+      fixture.componentInstance.onAreaChange('TRONC');
+      fixture.detectChanges();
+
+      expect(pillsOf(fixture, `segment-${SEG_B}`, 'GRILLAT')).toEqual([{ text: '—', class: expect.any(String) }]);
+    });
+
+    it('applies the filter to per-segment scope columns too', async () => {
+      const fixture = await setup(areaResponse());
+      fixture.componentInstance.onSegmentChange(SEG_A);
+      fixture.componentInstance.onAreaChange('TRONC');
+      fixture.detectChanges();
+
+      const zonePills = pillsOf(fixture, 'segZone', 'PERSIANA');
+      expect(zonePills.map((p) => p.text)).toEqual(['Tronc']);
+      expect(zonePills.every((p) => p.class.includes('conflict'))).toBe(true);
+    });
+
+    it('lists the filter as a chip and clears it from there', async () => {
+      const fixture = await setup(areaResponse());
+      fixture.componentInstance.onAreaChange('TRONC');
+
+      expect(fixture.componentInstance.activeFilters().map((f) => f.key)).toContain('area');
+
+      fixture.componentInstance.removeFilter('area');
+      expect(fixture.componentInstance.areaFilter()).toBeNull();
+    });
+
+    it('clears the area filter with clearAllFilters', async () => {
+      const fixture = await setup(areaResponse());
+      fixture.componentInstance.onAreaChange('PINYA');
+
+      fixture.componentInstance.clearAllFilters();
+
+      expect(fixture.componentInstance.areaFilter()).toBeNull();
+    });
+
+    it('resets to the first page when the area filter changes', async () => {
+      const fixture = await setup(areaResponse());
+      fixture.componentInstance.page.set(3);
+
+      fixture.componentInstance.onAreaChange('TRONC');
+
+      expect(fixture.componentInstance.page()).toBe(1);
+    });
+
+    it('hides the row action for a segment with nothing left after filtering', async () => {
+      const fixture = await setup(areaResponse());
+      fixture.componentInstance.onAreaChange('TRONC');
+
+      const grillat = fixture.componentInstance.persons().find((p) => p.alias === 'GRILLAT')!;
+      // GRILLAT only has a pinya placement in SEG_A — filtering to TRONC leaves nothing.
+      expect(fixture.componentInstance.rowActions()[0].hidden!(grillat)).toBe(true);
+    });
+  });
+
+  describe('tronc column (Fase 6)', () => {
+    it('is not visible by default and only exists in per-event scope', async () => {
+      const fixture = await setup();
+
+      expect(columnByKey(fixture, 'troncDetail')).toBeDefined();
+      expect(fixture.componentInstance.visibleKeys()).not.toContain('troncDetail');
+
+      fixture.componentInstance.onSegmentChange(SEG_A);
+      fixture.detectChanges();
+      expect(columnByKey(fixture, 'troncDetail')).toBeUndefined();
+    });
+
+    it('consolidates tronc placements across several segments, prefixed by segment and in order', async () => {
+      const response = buildResponse({
+        persons: [
+          makePerson('p1', 'PERSIANA', {
+            [SEG_A]: [makeTroncPlacement({ assignmentId: 'a-t1', nodeLabel: 'Base 1' })],
+            [SEG_B]: [makeTroncPlacement({ assignmentId: 'a-t2', nodeLabel: 'Xiqueta' })],
+          }),
+        ],
+      });
+      const fixture = await setup(response);
+
+      const pills = pillsOf(fixture, 'troncDetail', 'PERSIANA');
+      expect(pills.map((p) => p.text)).toEqual(['Primera: Base 1 · 4d7', 'Segona: Xiqueta · 4d7']);
+    });
+
+    it('includes BASE (D10) and excludes PINYA', async () => {
+      const response = buildResponse({
+        persons: [
+          makePerson('p1', 'PERSIANA', {
+            [SEG_A]: [
+              makeTroncPlacement({ assignmentId: 'a-base', zone: 'BASE', area: 'TRONC', nodeLabel: 'Base 1' }),
+              makePlacement({ assignmentId: 'a-pinya', nodeLabel: 'Mans' }),
+            ],
+          }),
+        ],
+      });
+      const fixture = await setup(response);
+
+      const pills = pillsOf(fixture, 'troncDetail', 'PERSIANA');
+      expect(pills.map((p) => p.text)).toEqual(['Primera: Base 1 · 4d7']);
+    });
+
+    it('renders an em dash for someone with no tronc anywhere in the event', async () => {
+      const fixture = await setup();
+      expect(pillsOf(fixture, 'troncDetail', 'XURRO')).toEqual([{ text: '—', class: expect.any(String) }]);
+    });
+
+    it('does not react to the area filter', async () => {
+      const response = buildResponse({
+        persons: [
+          makePerson('p1', 'PERSIANA', { [SEG_A]: [makeTroncPlacement({ assignmentId: 'a-t1' })] }),
+        ],
+      });
+      const fixture = await setup(response);
+
+      const withoutFilter = pillsOf(fixture, 'troncDetail', 'PERSIANA');
+      fixture.componentInstance.onAreaChange('PINYA');
+      fixture.detectChanges();
+      const withFilter = pillsOf(fixture, 'troncDetail', 'PERSIANA');
+
+      expect(withFilter).toEqual(withoutFilter);
+    });
+
+    it('styles two troncs in the SAME segment as a conflict but two in different segments as normal', async () => {
+      const response = buildResponse({
+        persons: [
+          makePerson('p1', 'CONFLICTIVA', {
+            [SEG_A]: [
+              makeTroncPlacement({ assignmentId: 'a-t1', nodeLabel: 'Base 1' }),
+              makeTroncPlacement({ assignmentId: 'a-t2', nodeId: 'n-t2', nodeLabel: 'Base 2' }),
+            ],
+          }),
+          makePerson('p2', 'NORMAL', {
+            [SEG_A]: [makeTroncPlacement({ assignmentId: 'a-t3', nodeLabel: 'Base 1' })],
+            [SEG_B]: [makeTroncPlacement({ assignmentId: 'a-t4', nodeLabel: 'Base 2' })],
+          }),
+        ],
+      });
+      const fixture = await setup(response);
+
+      expect(pillsOf(fixture, 'troncDetail', 'CONFLICTIVA').every((p) => p.class.includes('conflict'))).toBe(true);
+      expect(pillsOf(fixture, 'troncDetail', 'NORMAL').every((p) => !p.class.includes('conflict'))).toBe(true);
+    });
+  });
+
+  describe('load metrics (Fase 6)', () => {
+    const loadResponse = () =>
+      buildResponse({
+        segments: [makeSegment(SEG_A, { name: 'Primera', sortOrder: 0 }), makeSegment(SEG_B, { name: 'Segona', sortOrder: 1 })],
+        persons: [
+          makePerson('p1', 'AAA', { [SEG_A]: [makePlacement()], [SEG_B]: [makePlacement({ assignmentId: 'a-2' })] }),
+          makePerson('p2', 'BBB', { [SEG_A]: [makeTroncPlacement({ assignmentId: 'a-3' })] }),
+          makePerson('p3', 'CCC', {}),
+        ],
+        meta: makeMeta({ distinctPersons: 3, personsWithPlacement: 2, totalPlacements: 3 }),
+      });
+
+    it('exposes placementCount, troncPlacementCount and % segments as columns', async () => {
+      const fixture = await setup(loadResponse());
+      const aaa = fixture.componentInstance.persons().find((p) => p.alias === 'AAA')!;
+
+      expect(columnByKey(fixture, 'placementCount')?.value!(aaa)).toBe(2);
+      expect(columnByKey(fixture, 'troncPlacementCount')?.value!(aaa)).toBe(0);
+      expect(columnByKey(fixture, 'segmentPercent')?.value!(aaa)).toBe('100%');
+    });
+
+    it('sorts by placementCount in both directions', async () => {
+      const fixture = await setup(loadResponse());
+
+      fixture.componentInstance.onSortChange({ field: 'placements', order: 'DESC' });
+      expect(fixture.componentInstance.sortedRows().map((r) => r.alias)).toEqual(['AAA', 'BBB', 'CCC']);
+
+      fixture.componentInstance.onSortChange({ field: 'placements', order: 'ASC' });
+      expect(fixture.componentInstance.sortedRows().map((r) => r.alias)).toEqual(['CCC', 'BBB', 'AAA']);
+    });
+
+    it('sorts by troncPlacementCount', async () => {
+      const fixture = await setup(loadResponse());
+
+      fixture.componentInstance.onSortChange({ field: 'troncPlacements', order: 'DESC' });
+      expect(fixture.componentInstance.sortedRows()[0].alias).toBe('BBB');
+    });
+
+    it('sorts by segmentPercent', async () => {
+      const fixture = await setup(loadResponse());
+
+      fixture.componentInstance.onSortChange({ field: 'segmentPercent', order: 'DESC' });
+      expect(fixture.componentInstance.sortedRows()[0].alias).toBe('AAA');
+    });
+
+    it('a search term still wins over a column sort', async () => {
+      const fixture = await setup(loadResponse());
+      fixture.componentInstance.onSortChange({ field: 'placements', order: 'DESC' });
+
+      fixture.componentInstance.search.set('ccc');
+
+      expect(fixture.componentInstance.sortedRows().map((r) => r.alias)).toEqual(['CCC']);
+    });
+
+    it('computes min/mean/max placement load and the count of unplaced persons', async () => {
+      const fixture = await setup(loadResponse());
+
+      expect(fixture.componentInstance.loadLine()).toBe('Càrrega: mín 0 · mitjana 1.0 · màx 2 · 1 sense cap col·locació');
+    });
+
+    it('omits the unplaced clause once everyone has at least one placement', async () => {
+      const response = loadResponse();
+      response.persons = response.persons.filter((p) => p.alias !== 'CCC');
+      response.meta = makeMeta({ distinctPersons: 2, personsWithPlacement: 2, totalPlacements: 3 });
+      const fixture = await setup(response);
+
+      expect(fixture.componentInstance.loadLine()).not.toContain('sense cap col·locació');
+    });
+
+    it('returns 0%, not NaN, when the event has no segments', async () => {
+      const fixture = await setup(loadResponse());
+      const aaa = fixture.componentInstance.persons().find((p) => p.alias === 'AAA')!;
+
+      expect(fixture.componentInstance.segmentPercent({ ...aaa, assignedSegmentCount: 0 })).toBe(0);
+      fixture.componentInstance.segments.set([]);
+      expect(fixture.componentInstance.segmentPercent(aaa)).toBe(0);
+    });
+
+    it('renders no load line for an empty population', async () => {
+      const fixture = await setup(buildResponse({ persons: [], meta: makeMeta() }));
+      expect(fixture.componentInstance.loadLine()).toBeNull();
+    });
+  });
+
   describe('empty and error states', () => {
     it('renders the empty state and no table when nobody participates', async () => {
       const fixture = await setup(
         buildResponse({
           persons: [],
-          meta: { distinctPersons: 0, personsWithPlacement: 0, totalPlacements: 0, conflictedPersons: 0 },
+          meta: makeMeta(),
         }),
       );
 

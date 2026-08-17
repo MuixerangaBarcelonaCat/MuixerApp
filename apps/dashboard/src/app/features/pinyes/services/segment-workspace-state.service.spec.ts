@@ -1,3 +1,4 @@
+import { SegmentDetail, InstanceDetail, AssignmentDetail, AvailablePerson, InstanceNodeItem, SegmentConflict } from '@muixer/pinyes-render';
 import { TestBed } from '@angular/core/testing';
 import { of, Subject } from 'rxjs';
 import { describe, it, expect, vi } from 'vitest';
@@ -7,9 +8,7 @@ import { EventSegmentService } from './event-segment.service';
 import { SegmentDistributionService } from './segment-distribution.service';
 import { NodeAssignmentService } from './node-assignment.service';
 import { ToastService } from '../../../shared/components/feedback/toast/toast.service';
-import { SegmentDetail, InstanceDetail } from '../models/segment.model';
 import { SegmentDistributionData } from '../models/distribution.model';
-import { AssignmentDetail, AvailablePerson, InstanceNodeItem } from '../models/assignment.model';
 
 const EVENT_ID = 'event-1';
 const SEGMENT_ID = 'seg-1';
@@ -65,7 +64,7 @@ const makeSegment = (instances: InstanceDetail[]): SegmentDetail => ({
   startTime: null,
   endTime: null,
   notes: null,
-  isVisible: true,
+  isPublished: true,
   instances,
 });
 
@@ -129,7 +128,10 @@ const makePerson = (id: string, overrides: Partial<AvailablePerson> = {}): Avail
   notesEmoji: null,
   attendanceStatus: 'ANIRE',
   nextPerformanceStatus: null,
-  assignedInSegment: false,
+  assignedPlacements: [],
+  assignedInTronc: false,
+  assignedInPinya: false,
+  conflictInSegment: false,
   positions: [],
   ...overrides,
 });
@@ -144,6 +146,7 @@ describe('SegmentWorkspaceStateService', () => {
     getByInstance: ReturnType<typeof vi.fn>;
     getAvailablePersons: ReturnType<typeof vi.fn>;
     getLockStatus: ReturnType<typeof vi.fn>;
+    getSegmentConflicts: ReturnType<typeof vi.fn>;
   };
   let toast: { success: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn>; info: ReturnType<typeof vi.fn> };
 
@@ -153,6 +156,7 @@ describe('SegmentWorkspaceStateService', () => {
     nodesByInstance?: Record<string, InstanceNodeItem[]>;
     assignmentsByInstance?: Record<string, AssignmentDetail[]>;
     persons?: AvailablePerson[];
+    conflicts?: SegmentConflict[];
   } = {}) => {
     const segment = opts.segment ?? makeSegment([makeInstance('inst-a')]);
     const distribution = opts.distribution ?? {
@@ -171,6 +175,19 @@ describe('SegmentWorkspaceStateService', () => {
       ),
       getAvailablePersons: vi.fn().mockReturnValue(of({ data: opts.persons ?? [] })),
       getLockStatus: vi.fn().mockReturnValue(of({ locked: false, lockDate: null, lockDays: 3 })),
+      getSegmentConflicts: vi.fn().mockReturnValue(
+        of({
+          data: opts.conflicts ?? [],
+          meta: {
+            assignmentCount: 0,
+            distinctPersonCount: 0,
+            tronc: { distinctPersonCount: 0 },
+            pinya: { distinctPersonCount: 0 },
+            conflictPersonCount: opts.conflicts?.length ?? 0,
+            conflictsByKind: { TRONC_TRONC: 0, TRONC_PINYA: 0, PINYA_PINYA: 0 },
+          },
+        }),
+      ),
     };
     toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 
@@ -202,6 +219,27 @@ describe('SegmentWorkspaceStateService', () => {
       expect(service.segmentName()).toBe('Bloc 1');
       expect(service.instances().map((i) => i.instanceId)).toEqual(['inst-a']);
       expect(service.loading()).toBe(false);
+    });
+
+    it('auto-generates the segment name from its figures when it has no custom name', () => {
+      configure({
+        segment: {
+          ...makeSegment([
+            makeInstance('inst-a', { figureTemplate: { id: 'tpl-a', name: 'Piló', hasPinya: true } }),
+          ]),
+          name: null,
+        },
+      });
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      expect(service.segmentName()).toBe('Piló');
+    });
+
+    it('returns null before a segment has loaded', () => {
+      configure();
+
+      expect(service.segmentName()).toBeNull();
     });
 
     it('flags notFound when the segment does not exist', () => {
@@ -337,6 +375,78 @@ describe('SegmentWorkspaceStateService', () => {
     });
   });
 
+  describe('conflicts / conflictPersonIds', () => {
+    const makeConflict = (personId: string): SegmentConflict => ({
+      personId,
+      personAlias: personId,
+      placements: [
+        {
+          assignmentId: `a-${personId}-1`,
+          figureInstanceId: 'inst-a',
+          figureName: 'pd4',
+          nodeId: 'n1',
+          nodeLabel: 'MANS',
+          zone: 'TRONC',
+          area: 'TRONC',
+          z: 0,
+          renglaPosition: null,
+          cordon: null,
+        },
+        {
+          assignmentId: `a-${personId}-2`,
+          figureInstanceId: 'inst-a',
+          figureName: 'pd4',
+          nodeId: 'n2',
+          nodeLabel: ' escala',
+          zone: 'PINYA',
+          area: 'PINYA',
+          z: 0,
+          renglaPosition: 1,
+          cordon: 1,
+        },
+      ],
+      kind: 'TRONC_PINYA',
+      suggestedRemovalAssignmentIds: [`a-${personId}-2`],
+    });
+
+    it('conflictPersonIds is empty when the segment has no conflicts (production)', () => {
+      configure({ conflicts: [] });
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      expect(service.conflicts()).toEqual([]);
+      expect(service.conflictPersonIds().size).toBe(0);
+    });
+
+    it('conflictPersonIds derives one entry per conflicted person', () => {
+      configure({ conflicts: [makeConflict('p1'), makeConflict('p2')] });
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      expect(service.conflicts()).toHaveLength(2);
+      expect(service.conflictPersonIds()).toEqual(new Set(['p1', 'p2']));
+    });
+
+    it('conflictCounters is saved from the response meta on every reload (Fase 4)', () => {
+      configure({ conflicts: [makeConflict('p1')] });
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      expect(service.conflictCounters()?.conflictPersonCount).toBe(1);
+    });
+  });
+
+  describe('noteTroncImpact / freed pinya nodes (Fase 4, D11)', () => {
+    it('noteTroncImpact stores the freed pinya node ids from an assign/swap impact', () => {
+      configure();
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      service.noteTroncImpact({ newConflicts: [], freedPinyaNodeIds: ['n1', 'n2'] });
+
+      expect(service.reviewItems()).toEqual({ freedPinyaNodeIds: ['n1', 'n2'] });
+    });
+  });
+
   describe('pinyaSlots', () => {
     it('uses stored distribution positions when present', () => {
       const seg = makeSegment([makeInstance('inst-a')]);
@@ -430,7 +540,35 @@ describe('SegmentWorkspaceStateService', () => {
       expect(ids).toEqual(['b1', 'd1', 'p1']);
     });
 
-    it('hides BASE nodes for REMAT instances', () => {
+    it('hides PINYA and BASE nodes for REMAT instances', () => {
+      configure({
+        segment: makeSegment([makeInstance('inst-a', { figureMode: 'REMAT' })]),
+        nodesByInstance: {
+          'inst-a': [makeNode('p1', 'PINYA'), makeNode('b1', 'BASE'), makeNode('d1', 'DECORATION')],
+        },
+      });
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      const ids = service.pinyaSlots()[0].figureTemplate.nodes.map((n) => n.id);
+      expect(ids).toEqual(['d1']);
+    });
+
+    it('hides PINYA nodes but keeps BASE nodes for NETA instances', () => {
+      configure({
+        segment: makeSegment([makeInstance('inst-a', { figureMode: 'NETA' })]),
+        nodesByInstance: {
+          'inst-a': [makeNode('p1', 'PINYA'), makeNode('b1', 'BASE')],
+        },
+      });
+
+      service.load(EVENT_ID, SEGMENT_ID);
+
+      const ids = service.pinyaSlots()[0].figureTemplate.nodes.map((n) => n.id);
+      expect(ids).toEqual(['b1']);
+    });
+
+    it('produces no pinya slot for a REMAT instance with only PINYA/BASE nodes', () => {
       configure({
         segment: makeSegment([makeInstance('inst-a', { figureMode: 'REMAT' })]),
         nodesByInstance: {
@@ -440,8 +578,7 @@ describe('SegmentWorkspaceStateService', () => {
 
       service.load(EVENT_ID, SEGMENT_ID);
 
-      const ids = service.pinyaSlots()[0].figureTemplate.nodes.map((n) => n.id);
-      expect(ids).toEqual(['p1']);
+      expect(service.pinyaSlots()).toEqual([]);
     });
 
     it('hides PINYA nodes beyond the instance numberOfCordons and repositions cordo-obert nodes', () => {

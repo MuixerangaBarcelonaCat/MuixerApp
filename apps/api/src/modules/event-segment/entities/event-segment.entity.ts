@@ -36,7 +36,7 @@ export class EventSegment {
   notes: string | null;
 
   @Column({ type: 'boolean', default: false })
-  isVisible: boolean;
+  isPublished: boolean;
 
   @OneToMany(() => FigureInstance, (instance) => instance.segment, { cascade: true })
   instances: FigureInstance[];

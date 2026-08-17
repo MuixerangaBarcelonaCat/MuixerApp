@@ -14,8 +14,6 @@ import { Person } from '../../person/person.entity';
 
 @Entity('node_assignments')
 @Unique(['figureInstance', 'instanceNode'])
-@Unique(['figureInstance', 'person'])
-@Unique(['segment', 'person'])
 export class NodeAssignment {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -36,10 +34,11 @@ export class NodeAssignment {
   person: Person;
 
   /**
-   * Denormalized from figureInstance.segment — a person may only be assigned once
-   * per segment (across all its figure instances), and Postgres unique constraints
-   * can't span a join, so this column exists to let the DB enforce that invariant
-   * instead of relying solely on the application-level check in assign() (BUG-18).
+   * Denormalized from figureInstance.segment. Since Fase 5 (docs/SEGMENTS_FLEXIBILITY.md)
+   * a person may hold more than one placement in the same segment, so this column no
+   * longer backs a unique constraint — it exists to keep the segment-conflict queries
+   * (getSegmentConflicts, getSegmentMoveConflicts) cheap and to let move() re-point
+   * assignments without a join through figureInstance.
    */
   @ManyToOne(() => EventSegment, { nullable: false, onDelete: 'CASCADE' })
   @JoinColumn()

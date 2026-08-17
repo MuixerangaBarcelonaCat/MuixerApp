@@ -1,3 +1,4 @@
+import { FigureCanvasComponent, SegmentNodeRef, targetTabForZone, AssignmentDetail, AttendanceStatus, AvailablePerson, AvailablePersonPosition, BulkImportResult, ConflictPlacement, PendingOp, TroncChangeImpact } from '@muixer/pinyes-render';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -13,7 +14,6 @@ import {
   signal,
 } from '@angular/core';
 import { LucideAngularModule, Trash2, Undo2, Redo2 } from 'lucide-angular';
-import { FigureCanvasComponent } from '../../../figure-canvas/figure-canvas.component';
 import { PersonPanelComponent } from '../../../person-panel/person-panel.component';
 import { AlreadyAssignedDialogComponent } from '../../../already-assigned-dialog/already-assigned-dialog.component';
 import { SegmentWorkspaceStateService, WorkspaceInstance } from '../../../../services/segment-workspace-state.service';
@@ -21,15 +21,6 @@ import { AssignmentStateService } from '../../../../services/assignment-state.se
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
 import { ToastService } from '../../../../../../shared/components/feedback/toast/toast.service';
 import { UndoRedoService, UndoableAction } from '../../../../services/undo-redo.service';
-import { SegmentNodeRef, targetTabForZone } from '../../../../utils/segment-assignment-render.util';
-import {
-  AssignmentDetail,
-  AttendanceStatus,
-  AvailablePerson,
-  AvailablePersonPosition,
-  BulkImportResult,
-  PendingOp,
-} from '../../../../models/assignment.model';
 import { ImportPinyaModalComponent } from '../../../import-pinya-modal/import-pinya-modal.component';
 import { FigureZone } from '@muixer/shared';
 import { forkJoin, map, Observable, switchMap } from 'rxjs';
@@ -132,6 +123,8 @@ export class PinyesTabComponent implements OnInit {
     figureName: string;
     targetInstanceId: string;
     targetNodeId: string;
+    /** All of this person's placements in the segment, for the multi-placement dialog (Phase 3). */
+    placements: ConflictPlacement[];
   } | null>(null);
 
   // ── Import pinya / reset snapshot ────────────────────────────────────────
@@ -182,6 +175,12 @@ export class PinyesTabComponent implements OnInit {
         : `S'han importat ${result.created.length} assignacions.`;
     if (result.clonedAdHocNodes > 0) {
       msg += ` S'han clonat ${result.clonedAdHocNodes} nodes manuals.`;
+    }
+    // D5 (Fase 5): duplicates are imported and marked, not skipped — surface how many landed
+    // in conflict so the tècnic knows to check the conflict panel, not just the omitted count above.
+    const duplicatedPersons = Object.values(result.conflictsByKind).reduce((a, b) => a + b, 0);
+    if (duplicatedPersons > 0) {
+      msg += ` ${duplicatedPersons} ${duplicatedPersons === 1 ? 'persona ha quedat' : 'persones han quedat'} en conflicte.`;
     }
     this.toast.success(msg);
     const target = this.importTarget();
@@ -401,9 +400,13 @@ export class PinyesTabComponent implements OnInit {
   }
 
   onAssignedPersonSelected(event: { personId: string; instanceId: string }): void {
-    const assignment = this.state
+    // Collect every placement of this person in this instance instead of a single
+    // arbitrary `.find()` (§2). Today the per-instance unique constraint means at most
+    // one, so `[0]` matches the old behaviour; from Fase 4 on the full list is consumed.
+    const matches = this.state
       .assignments()
-      .find((a) => a.figureInstanceId === event.instanceId && a.person.id === event.personId);
+      .filter((a) => a.figureInstanceId === event.instanceId && a.person.id === event.personId);
+    const assignment = matches[0];
     if (!assignment) return;
 
     const targetRef = this.selectedRef();
@@ -422,11 +425,17 @@ export class PinyesTabComponent implements OnInit {
         figureName: currentInstance?.label ?? '',
         targetInstanceId: targetRef.slotId,
         targetNodeId: targetRef.nodeId,
+        placements: this.placementsForPerson(event.personId),
       });
       return;
     }
 
     this.navigateToAssignment(assignment);
+  }
+
+  /** All of a person's placements in the segment, from the API-provided `assignedPlacements` (Phase 3). */
+  private placementsForPerson(personId: string): ConflictPlacement[] {
+    return this.state.confirmedPersons().find((p) => p.id === personId)?.assignedPlacements ?? [];
   }
 
   onReassignDialogClosed(): void {
@@ -446,10 +455,20 @@ export class PinyesTabComponent implements OnInit {
     if (!dialog) return;
     this.reassignDialog.set(null);
 
-    const snapshot = [...this.state.assignments()];
-    this.state.assignments.update((list) => list.filter((a) => a.id !== dialog.oldAssignmentId));
+    // "Moure ací" must free every one of the person's existing placements in the
+    // segment, not just the one under the currently-selected node (§ Fase 7 finding).
+    const toRemove = new Map<string, string>([[dialog.oldAssignmentId, dialog.oldInstanceId]]);
+    for (const p of dialog.placements) {
+      toRemove.set(p.assignmentId, p.figureInstanceId);
+    }
 
-    this.assignmentService.unassign(dialog.oldInstanceId, dialog.oldAssignmentId).subscribe({
+    const snapshot = [...this.state.assignments()];
+    const removeIds = new Set(toRemove.keys());
+    this.state.assignments.update((list) => list.filter((a) => !removeIds.has(a.id)));
+
+    forkJoin(
+      Array.from(toRemove, ([assignmentId, instanceId]) => this.assignmentService.unassign(instanceId, assignmentId)),
+    ).subscribe({
       next: () => {
         this.triggerAssign(
           { slotId: dialog.targetInstanceId, nodeId: dialog.targetNodeId },
@@ -464,6 +483,14 @@ export class PinyesTabComponent implements OnInit {
     });
   }
 
+  /** D8 (Fase 5): keep both placements — the deliberate-friction path out of the dialog. */
+  onReassignDialogAssignAnyway(): void {
+    const dialog = this.reassignDialog();
+    if (!dialog) return;
+    this.reassignDialog.set(null);
+    this.triggerAssign({ slotId: dialog.targetInstanceId, nodeId: dialog.targetNodeId }, dialog.personId);
+  }
+
   onUnassign(assignment: AssignmentDetail): void {
     if (this.ws.isLocked()) return;
     const instanceId = assignment.figureInstanceId;
@@ -475,8 +502,12 @@ export class PinyesTabComponent implements OnInit {
     this.clearSelection();
 
     this.assignmentService.unassign(instanceId, assignment.id).subscribe({
-      next: () => {
+      next: (res) => {
         this.state.refreshPersonList();
+        if (res.impact) this.ws.noteTroncImpact(res.impact);
+        // Fase 5: removing one of several duplicate placements can resolve a conflict —
+        // keep the banner live.
+        this.ws.reloadConflicts();
         this.undoRedo.push(this.buildUnassignAction(instanceId, nodeId, personId, assignment.id));
       },
       error: () => {
@@ -491,6 +522,7 @@ export class PinyesTabComponent implements OnInit {
   performUndo(): void {
     if (this.ws.isLocked() || !this.undoRedo.canUndo() || this.undoRedo.isBusy()) return;
     this.undoRedo.undo().subscribe({
+      next: () => this.ws.reloadConflicts(),
       error: () => this.toast.error("Error en desfer l'acció."),
     });
   }
@@ -499,6 +531,7 @@ export class PinyesTabComponent implements OnInit {
   performRedo(): void {
     if (this.ws.isLocked() || !this.undoRedo.canRedo() || this.undoRedo.isBusy()) return;
     this.undoRedo.redo().subscribe({
+      next: () => this.ws.reloadConflicts(),
       error: () => this.toast.error("Error en refer l'acció."),
     });
   }
@@ -589,9 +622,14 @@ export class PinyesTabComponent implements OnInit {
 
         if (!instance.snapshotted) {
           this.ws.refreshInstance(instanceId);
+        } else {
+          // Fase 5: a duplicate assign is legal and needs the conflict banner to reflect
+          // it immediately. refreshInstance() (above) already reloads conflicts on its own.
+          this.ws.reloadConflicts();
         }
 
         this.state.refreshPersonList();
+        if (created.impact) this.ws.noteTroncImpact(created.impact);
         this.advanceToNextEmptyNode(instanceId, created.node.id);
 
         this.undoRedo.push(
@@ -605,10 +643,10 @@ export class PinyesTabComponent implements OnInit {
         this.state.pendingOperations.update((ops) => ops.filter((o) => o.id !== op.id));
         this.state.refreshPersonList();
         this.select(ref);
-        const msg =
-          err?.status === 409
-            ? 'La persona ja està assignada.'
-            : 'Error en assignar la persona.';
+        // Fase 5: the only 409 assign() can still throw is NODE_OCCUPIED (someone else
+        // took this node first) — the old PERSON_IN_INSTANCE/PERSON_IN_SEGMENT message no
+        // longer applies, since duplicates are legal now.
+        const msg = err?.status === 409 ? 'Este lloc ja està ocupat.' : 'Error en assignar la persona.';
         this.toast.error(msg);
       },
     });
@@ -649,8 +687,11 @@ export class PinyesTabComponent implements OnInit {
     );
 
     this.performSwap(instanceId, assignment1.id, assignment2.id).subscribe({
-      next: () => {
+      next: (impact) => {
         this.toast.success("S'han intercanviat les persones.");
+        if (impact) this.ws.noteTroncImpact(impact);
+        // Fase 5: a swap can create/resolve a duplicate — keep the banner live.
+        this.ws.reloadConflicts();
         // Swap preserves both assignment ids server-side, so it's its own inverse:
         // running it again — whether via undo or redo — reverses/re-applies it identically.
         this.undoRedo.push({
@@ -667,7 +708,11 @@ export class PinyesTabComponent implements OnInit {
     });
   }
 
-  private performSwap(instanceId: string, assignmentIdA: string, assignmentIdB: string): Observable<void> {
+  private performSwap(
+    instanceId: string,
+    assignmentIdA: string,
+    assignmentIdB: string,
+  ): Observable<TroncChangeImpact | undefined> {
     return this.assignmentService.swap(instanceId, { assignmentIdA, assignmentIdB }).pipe(
       map((result) => {
         this.state.assignments.update((list) =>
@@ -677,6 +722,7 @@ export class PinyesTabComponent implements OnInit {
             return a;
           }),
         );
+        return result.impact;
       }),
     );
   }
@@ -716,12 +762,17 @@ export class PinyesTabComponent implements OnInit {
               return a;
             }),
           );
+          return result;
         }),
       );
 
     applyCrossSwap(person2Id, person1Id).subscribe({
-      next: () => {
+      next: (result) => {
         this.toast.success("S'han intercanviat les persones.");
+        if (result.a.impact) this.ws.noteTroncImpact(result.a.impact);
+        if (result.b.impact) this.ws.noteTroncImpact(result.b.impact);
+        // Fase 5: a cross-figure swap can create/resolve a duplicate — keep the banner live.
+        this.ws.reloadConflicts();
         this.undoRedo.push({
           type: 'SWAP',
           description: 'Intercanviar persones (figures diferents)',
@@ -747,7 +798,7 @@ export class PinyesTabComponent implements OnInit {
     node2: string,
     currentId2: string,
     personFor2: string,
-  ): Observable<{ a: AssignmentDetail; b: AssignmentDetail }> {
+  ): Observable<{ a: AssignmentDetail & { impact?: TroncChangeImpact }; b: AssignmentDetail & { impact?: TroncChangeImpact } }> {
     return forkJoin([
       this.assignmentService.unassign(instance1, currentId1),
       this.assignmentService.unassign(instance2, currentId2),

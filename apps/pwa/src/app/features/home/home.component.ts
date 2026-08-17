@@ -7,6 +7,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
+import { RouterLink } from '@angular/router';
 import { AttendanceStatus, MeEvent } from '@muixer/shared';
 import { LucideAngularModule, User } from 'lucide-angular';
 import { MobileHeaderComponent } from '../../shared/components/mobile-header/mobile-header.component';
@@ -15,13 +16,19 @@ import { EmptyStateComponent } from '../../shared/components/empty-state/empty-s
 import { EventCardComponent } from '../events/components/event-card/event-card.component';
 import { PullToRefreshComponent } from '../../shared/components/pull-to-refresh/pull-to-refresh.component';
 import { AuthService } from '../../core/auth/services/auth.service';
+import { DependentsService } from '../../core/services/dependents.service';
 import { HomeService } from './services/home.service';
+import { markdownExcerpt } from '../../shared/utils/markdown-excerpt.util';
+
+/** How many characters of a news item's body to show in its home-page preview card. */
+const NEWS_EXCERPT_LENGTH = 300;
 
 @Component({
   selector: 'app-home',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    RouterLink,
     LucideAngularModule,
     MobileHeaderComponent,
     SkeletonCardComponent,
@@ -34,6 +41,7 @@ import { HomeService } from './services/home.service';
 export class HomeComponent {
   private readonly auth = inject(AuthService);
   private readonly homeService = inject(HomeService);
+  private readonly dependentsService = inject(DependentsService);
 
   protected readonly pullToRefresh = viewChild<PullToRefreshComponent>('pullRef');
   protected readonly UserIcon = User;
@@ -67,6 +75,20 @@ export class HomeComponent {
     () => this.nextRehearsal() !== null || this.nextPerformance() !== null,
   );
 
+  protected readonly news = computed(() => {
+    const news = this.homeResource.error() ? [] : (this.homeResource.value()?.news ?? []);
+    return news.map((item) => ({
+      ...item,
+      excerpt: markdownExcerpt(item.body, NEWS_EXCERPT_LENGTH),
+    }));
+  });
+
+  protected readonly pendingDependentsResource = rxResource({
+    stream: () => this.dependentsService.getPending(),
+  });
+
+  protected readonly pendingDependents = computed(() => this.pendingDependentsResource.value() ?? []);
+
   constructor() {
     effect(() => {
       if (!this.isLoading()) {
@@ -94,6 +116,7 @@ export class HomeComponent {
         };
       };
       return {
+        ...current,
         nextRehearsal: patch(current.nextRehearsal),
         nextPerformance: patch(current.nextPerformance),
       };

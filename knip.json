@@ -22,10 +22,18 @@
         "apps/*/webpack.config.js",
         "apps/*/postcss.config.js",
         "apps/*/eslint.config.mjs",
+        "libs/pinyes-render/src/index.ts",
+        "libs/pinyes-render/src/test-setup.ts",
+        "libs/pinyes-render/eslint.config.mjs",
         "scripts/*.mjs",
         "jest.preset.js"
       ],
-      "project": ["apps/**/*.{ts,js,mjs}", "scripts/*.mjs", "*.{ts,js,mjs}"]
+      "project": [
+        "apps/**/*.{ts,js,mjs}",
+        "libs/pinyes-render/**/*.{ts,js,mjs}",
+        "scripts/*.mjs",
+        "*.{ts,js,mjs}"
+      ]
     },
     "libs/shared": {
       "project": ["src/**/*.ts"]
@@ -37,6 +45,7 @@
     "autoprefixer",
     "webpack-cli",
     "jest-environment-node",
+    "jest-environment-jsdom",
     "@angular/cli",
     "@angular/language-service",
     "@nestjs/schematics",

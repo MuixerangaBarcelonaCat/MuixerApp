@@ -17,8 +17,16 @@ const mockSegment: SegmentWithInstances = {
   startTime: null,
   endTime: null,
   notes: null,
-  isVisible: false,
+  isPublished: false,
   instances: [],
+  conflicts: {
+    assignmentCount: 0,
+    distinctPersonCount: 0,
+    tronc: { distinctPersonCount: 0 },
+    pinya: { distinctPersonCount: 0 },
+    conflictPersonCount: 0,
+    conflictsByKind: { TRONC_TRONC: 0, TRONC_PINYA: 0, PINYA_PINYA: 0 },
+  },
 };
 
 const mockInstance = {
@@ -42,6 +50,7 @@ const mockProjectionData: ProjectionData = {
   instances: [],
   hasDistribution: false,
   personAttendance: {},
+  conflicts: [],
 };
 
 const mockMoveResult = { sourceSegment: mockSegment, targetSegment: mockSegment };
@@ -102,7 +111,7 @@ describe('EventSegmentController', () => {
 
   describe('updateSegment', () => {
     it('delegates to segment service with eventId and segmentId', async () => {
-      const dto = { isVisible: true };
+      const dto = { isPublished: true };
       const result = await controller.updateSegment(EVENT_ID, SEGMENT_ID, dto);
       expect(result).toEqual(mockSegment);
       expect(mockSegmentService.update).toHaveBeenCalledWith(EVENT_ID, SEGMENT_ID, dto);

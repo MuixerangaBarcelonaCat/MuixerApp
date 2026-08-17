@@ -5,7 +5,7 @@ import { PersonService } from './person.service';
 import { Person } from './person.entity';
 import { Tag } from '../tag/tag.entity';
 import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
-import { User } from '../user/user.entity';
+import { PersonDelegateService } from '../person-delegate/person-delegate.service';
 
 describe('PersonService', () => {
   let service: PersonService;
@@ -36,10 +36,10 @@ describe('PersonService', () => {
     findBy: jest.fn(),
   };
 
-  const mockUserRepository = {
-    sendInvitation: jest.fn(),
-    findOne: jest.fn(),
-  }
+  const mockPersonDelegateService = {
+    getPrimary: jest.fn().mockResolvedValue(null),
+    assertPrimaryQualifiesForXicalla: jest.fn().mockResolvedValue(undefined),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -54,8 +54,8 @@ describe('PersonService', () => {
           useValue: mockPositionRepository,
         },
         {
-          provide: getRepositoryToken(User),
-          useValue: mockUserRepository,
+          provide: PersonDelegateService,
+          useValue: mockPersonDelegateService,
         },
       ],
     }).compile();
@@ -79,7 +79,7 @@ describe('PersonService', () => {
 
   describe('findOne', () => {
     it('should return a person when found', async () => {
-      const mockPerson = { id: '123', name: 'Test', alias: 'test', managedBy: null };
+      const mockPerson = { id: '123', name: 'Test', alias: 'test', user: null };
       mockPersonRepository.findOne.mockResolvedValue(mockPerson);
 
       const result = await service.findOne('123');
@@ -87,7 +87,7 @@ describe('PersonService', () => {
       expect(result).toEqual(mockPerson);
       expect(mockPersonRepository.findOne).toHaveBeenCalledWith({
         where: { id: '123' },
-        relations: ['positions', 'mentor', 'managedBy', 'managedBy.person'],
+        relations: ['positions', 'mentor', 'user'],
       });
     });
 
@@ -95,6 +95,35 @@ describe('PersonService', () => {
       mockPersonRepository.findOne.mockResolvedValue(null);
 
       await expect(service.findOne('999')).rejects.toThrow(NotFoundException);
+    });
+
+    it('should include gender in the response', async () => {
+      const mockPerson = {
+        id: '123',
+        name: 'Test',
+        alias: 'test',
+        gender: 'MALE',
+        user: null,
+      };
+      mockPersonRepository.findOne.mockResolvedValue(mockPerson);
+
+      const result = await service.findOne('123');
+
+      expect(result.gender).toBe('MALE');
+    });
+
+    it("should include isActive on the linked user's summary", async () => {
+      const mockPerson = {
+        id: '123',
+        name: 'Test',
+        alias: 'test',
+        user: { id: 'u1', email: 'a@b.com', isActive: true },
+      };
+      mockPersonRepository.findOne.mockResolvedValue(mockPerson);
+
+      const result = await service.findOne('123');
+
+      expect(result.user?.isActive).toBe(true);
     });
   });
 
@@ -376,32 +405,34 @@ describe('PersonService', () => {
     });
 
     it('throws BadRequestException when promoting without name', async () => {
-      const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: '', isProvisional: true, positions: [], mentor: null, managedBy: {'id': 'user_id'} };
+      const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: '', isProvisional: true, positions: [], mentor: null, user: { id: 'user_id' } };
       mockPersonRepository.findOne.mockResolvedValue(provisionalPerson);
 
       await expect(service.update('1', { isProvisional: false, alias: 'JoanNou' }))
         .rejects.toThrow(BadRequestException);
     });
 
-    it('throws BadRequestException when promoting without user', async () => {
+    it('throws BadRequestException when promoting without a manager (no self link, no primary delegate)', async () => {
       const provisionalPerson = {
         id: '1',
         alias: '~Joan',
         name: 'Joan',
-        firstSurname: '',
+        firstSurname: 'García',
         isProvisional: true,
         positions: [],
         mentor: null,
+        user: null,
       };
       mockPersonRepository.findOne.mockResolvedValue(provisionalPerson);
+      mockPersonDelegateService.getPrimary.mockResolvedValueOnce(null);
 
       await expect(
         service.update('1', { isProvisional: false, alias: 'JoanNou' }),
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('loads the managedBy relation so the promotion check sees it', async () => {
-      const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: 'García', isProvisional: true, positions: [], mentor: null, managedBy: { id: 'user_id' } };
+    it('loads the user relation so the promotion check sees it', async () => {
+      const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: 'García', isProvisional: true, positions: [], mentor: null, user: { id: 'user_id' } };
       mockPersonRepository.findOne.mockResolvedValue(provisionalPerson);
       mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
 
@@ -409,25 +440,25 @@ describe('PersonService', () => {
 
       expect(mockPersonRepository.findOne).toHaveBeenCalledWith({
         where: { id: '1' },
-        relations: ['positions', 'mentor', 'managedBy'],
+        relations: ['positions', 'mentor', 'user'],
       });
     });
 
-    it('promotes when managedById is provided in the same request even if the person has no manager yet', async () => {
-      const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: 'García', isProvisional: true, positions: [], mentor: null, managedBy: null };
+    it('promotes when the person has a primary delegate even without a self link', async () => {
+      const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: 'García', isProvisional: true, positions: [], mentor: null, user: null };
       mockPersonRepository.findOne.mockResolvedValue(provisionalPerson);
-      mockUserRepository.findOne.mockResolvedValue({ id: 'user_id' });
       mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
+      mockPersonDelegateService.getPrimary.mockResolvedValueOnce({ id: 'del-1', isPrimary: true });
 
-      await service.update('1', { isProvisional: false, alias: 'JoanGarcia', managedById: 'user_id' });
+      await service.update('1', { isProvisional: false, alias: 'JoanGarcia' });
 
       expect(mockPersonRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({ isProvisional: false, managedBy: { id: 'user_id' } }),
+        expect.objectContaining({ isProvisional: false }),
       );
     });
 
     it('throws BadRequestException when promoting with ~ alias', async () => {
-      const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: 'García', isProvisional: true, positions: [], mentor: null, managedBy: {'id': 'user_id'} };
+      const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: 'García', isProvisional: true, positions: [], mentor: null, user: { id: 'user_id' } };
       mockPersonRepository.findOne.mockResolvedValue(provisionalPerson);
 
       await expect(service.update('1', { isProvisional: false, name: 'Joan', firstSurname: 'García' }))
@@ -435,7 +466,7 @@ describe('PersonService', () => {
     });
 
     it('promotes provisional person when all fields provided', async () => {
-      const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: '', isProvisional: true, positions: [], mentor: null, managedBy: {'id': 'user_id'} };
+      const provisionalPerson = { id: '1', alias: '~Joan', name: 'Joan', firstSurname: '', isProvisional: true, positions: [], mentor: null, user: { id: 'user_id' } };
       mockPersonRepository.findOne.mockResolvedValue(provisionalPerson);
       mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
 
@@ -444,6 +475,46 @@ describe('PersonService', () => {
       expect(mockPersonRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({ isProvisional: false, alias: 'JoanGarcia', firstSurname: 'García' }),
       );
+    });
+  });
+
+  describe('update with an external transaction manager', () => {
+    it('reads and writes through the manager repository instead of the injected one', async () => {
+      const person = { id: '1', alias: 'Joan', name: 'Joan', firstSurname: 'García', isProvisional: false, positions: [], mentor: null };
+      const managerPersonRepo = {
+        findOne: jest.fn().mockResolvedValue(person),
+        save: jest.fn().mockImplementation((p: Person) => Promise.resolve(p)),
+      };
+      const manager = { getRepository: jest.fn().mockReturnValue(managerPersonRepo) };
+
+      await service.update('1', { name: 'Joan Updated' }, manager as never);
+
+      expect(manager.getRepository).toHaveBeenCalledWith(Person);
+      expect(managerPersonRepo.findOne).toHaveBeenCalledWith({
+        where: { id: '1' },
+        relations: ['positions', 'mentor', 'user'],
+      });
+      expect(managerPersonRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'Joan Updated' }),
+      );
+      expect(mockPersonRepository.findOne).not.toHaveBeenCalled();
+      expect(mockPersonRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('still runs the alias-conflict check against the manager repository', async () => {
+      const person = { id: '1', alias: 'OldAlias', name: 'Joan', firstSurname: 'García', isProvisional: false, positions: [], mentor: null };
+      const otherPerson = { id: '2', alias: 'TakenAlias' };
+      const managerPersonRepo = {
+        findOne: jest.fn().mockResolvedValueOnce(person).mockResolvedValueOnce(otherPerson),
+        save: jest.fn(),
+      };
+      const manager = { getRepository: jest.fn().mockReturnValue(managerPersonRepo) };
+
+      await expect(
+        service.update('1', { alias: 'TakenAlias' }, manager as never),
+      ).rejects.toThrow(ConflictException);
+      expect(managerPersonRepo.save).not.toHaveBeenCalled();
+      expect(mockPersonRepository.findOne).not.toHaveBeenCalled();
     });
   });
 
@@ -469,6 +540,51 @@ describe('PersonService', () => {
       await service.update('1', { positionIds: ['pos1'] });
 
       expect(mockPositionRepository.findBy).toHaveBeenCalledWith({ id: In(['pos1']) });
+    });
+  });
+
+  describe('update isXicalla toggle', () => {
+    it('re-validates the existing primary delegate when isXicalla flips to true', async () => {
+      const person = { id: '1', alias: 'Joan', name: 'Joan', firstSurname: 'García', isProvisional: false, isXicalla: false, positions: [], mentor: null };
+      mockPersonRepository.findOne.mockResolvedValue(person);
+      mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
+
+      await service.update('1', { isXicalla: true });
+
+      expect(mockPersonDelegateService.assertPrimaryQualifiesForXicalla).toHaveBeenCalledWith('1');
+    });
+
+    it('rejects the update when the current primary delegate no longer qualifies', async () => {
+      const person = { id: '1', alias: 'Joan', name: 'Joan', firstSurname: 'García', isProvisional: false, isXicalla: false, positions: [], mentor: null };
+      mockPersonRepository.findOne.mockResolvedValue(person);
+      mockPersonDelegateService.assertPrimaryQualifiesForXicalla.mockRejectedValueOnce(
+        new BadRequestException('does not qualify'),
+      );
+
+      await expect(service.update('1', { isXicalla: true })).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(mockPersonRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('does not re-validate when isXicalla is already true', async () => {
+      const person = { id: '1', alias: 'Joan', name: 'Joan', firstSurname: 'García', isProvisional: false, isXicalla: true, positions: [], mentor: null };
+      mockPersonRepository.findOne.mockResolvedValue(person);
+      mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
+
+      await service.update('1', { isXicalla: true });
+
+      expect(mockPersonDelegateService.assertPrimaryQualifiesForXicalla).not.toHaveBeenCalled();
+    });
+
+    it('does not re-validate when isXicalla is being turned off', async () => {
+      const person = { id: '1', alias: 'Joan', name: 'Joan', firstSurname: 'García', isProvisional: false, isXicalla: true, positions: [], mentor: null };
+      mockPersonRepository.findOne.mockResolvedValue(person);
+      mockPersonRepository.save.mockImplementation((p: Person) => Promise.resolve(p));
+
+      await service.update('1', { isXicalla: false });
+
+      expect(mockPersonDelegateService.assertPrimaryQualifiesForXicalla).not.toHaveBeenCalled();
     });
   });
 });

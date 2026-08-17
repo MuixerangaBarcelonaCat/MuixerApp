@@ -54,6 +54,7 @@
               [baseNodes]="figure.baseNodes"
               [directionNodes]="figure.directionNodes"
               [assignments]="state.assignments()"
+              [conflictPersonIds]="ws.conflictPersonIds()"
               [selectedNodeId]="ws.selectedInstanceId() === figure.instance.instanceId ? state.selectedNodeId() : null"
               mode="assignment"
               [heightMode]="state.heightMode()"
@@ -127,6 +128,7 @@
   <!-- Person panel -->
   <app-person-panel
     class="w-80 shrink-0 border-l border-base-300 h-full min-h-0"
+    area="TRONC"
     [eventId]="ws.eventId()"
     [segmentId]="ws.segmentId()"
     [selectedNodeId]="state.selectedNodeId()"
@@ -148,8 +150,10 @@
     [personAlias]="dialog.personAlias"
     [nodeLabel]="dialog.oldNodeLabel"
     [figureName]="dialog.figureName"
+    [placements]="dialog.placements"
     (closed)="onReassignDialogClosed()"
     (viewRequested)="onReassignDialogView()"
     (reassignRequested)="onReassignDialogConfirm()"
+    (assignAnywayRequested)="onReassignDialogAssignAnyway()"
   />
 }

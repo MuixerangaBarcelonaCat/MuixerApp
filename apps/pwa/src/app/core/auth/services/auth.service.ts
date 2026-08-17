@@ -2,8 +2,16 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { catchError, finalize, map, Observable, of, share, tap } from 'rxjs';
-import { AuthResponse, ClientType, LoginRequest, UserProfile } from '@muixer/shared';
+import {
+  AuthResponse,
+  ClientType,
+  InviteRegistrationContext,
+  LoginRequest,
+  RegisterViaInviteRequest,
+  UserProfile,
+} from '@muixer/shared';
 import { ToastService } from '../../../shared/services/toast.service';
+import { InstallPromptService } from '../../../shared/services/install-prompt.service';
 import { environment } from '../../../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
@@ -11,6 +19,7 @@ export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
+  private readonly installPrompt = inject(InstallPromptService);
 
   /**
    * Marks (in localStorage) that this device has had an authenticated session, so the
@@ -61,6 +70,11 @@ export class AuthService {
     return this._readyPromise;
   }
 
+  /** Patches the cached user profile without an HTTP round-trip (e.g. after a settings change). */
+  setCurrentUser(user: UserProfile): void {
+    this._currentUser.set(user);
+  }
+
   clearState(): void {
     this._currentUser.set(null);
     this._accessToken.set(null);
@@ -109,6 +123,7 @@ export class AuthService {
           this._accessToken.set(res.accessToken);
           this._currentUser.set(res.user);
           this.setSessionHint();
+          this.installPrompt.registerLogin();
         }),
         map(() => void 0),
       );
@@ -149,6 +164,32 @@ export class AuthService {
       )
       .pipe(
         tap((user) => this._currentUser.set(user)),
+        map(() => void 0),
+      );
+  }
+
+  /** Sol·licita un correu de recuperació de contrasenya. No indica si l'email existeix (evita enumeració de comptes). */
+  requestPasswordReset(email: string): Observable<void> {
+    return this.http
+      .post<{ message: string }>(`${environment.apiUrl}/auth/forgot-password`, { email })
+      .pipe(map(() => void 0));
+  }
+
+  /** Prellenat + text legal vigent per a un token d'invitació. No toca l'estat de sessió. */
+  getInviteContext(token: string): Observable<InviteRegistrationContext> {
+    return this.http.get<InviteRegistrationContext>(`${environment.apiUrl}/auth/invite/${token}`);
+  }
+
+  /** Completa el registre via enllaç d'invitació i inicia sessió automàticament. */
+  registerViaInvite(payload: RegisterViaInviteRequest): Observable<void> {
+    return this.http
+      .post<AuthResponse>(`${environment.apiUrl}/auth/invite/register`, payload, { withCredentials: true })
+      .pipe(
+        tap((res) => {
+          this._accessToken.set(res.accessToken);
+          this._currentUser.set(res.user);
+          this.setSessionHint();
+        }),
         map(() => void 0),
       );
   }

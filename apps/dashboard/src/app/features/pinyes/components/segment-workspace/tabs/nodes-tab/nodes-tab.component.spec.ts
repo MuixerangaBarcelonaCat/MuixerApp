@@ -1,10 +1,10 @@
+import { FigureCanvasComponent, CompositionSlotWithNodes, SegmentNodeRef, AssignmentDetail, HeightMode, InstanceNodeItem, UpdateAdHocNodePayload, InstanceDetail, SegmentDetail } from '@muixer/pinyes-render';
 import { Component, input, output } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { describe, it, expect, vi } from 'vitest';
 import { allLucideIconsProvider } from '../../../../../../../testing/lucide-test-provider';
 import { NodesTabComponent } from './nodes-tab.component';
-import { FigureCanvasComponent, CompositionSlotWithNodes } from '../../../figure-canvas/figure-canvas.component';
 import { AdHocNodePropertiesComponent } from '../../../ad-hoc-node-properties/ad-hoc-node-properties.component';
 import { SegmentWorkspaceStateService } from '../../../../services/segment-workspace-state.service';
 import { AssignmentStateService } from '../../../../services/assignment-state.service';
@@ -13,14 +13,6 @@ import { EventSegmentService } from '../../../../services/event-segment.service'
 import { SegmentDistributionService } from '../../../../services/segment-distribution.service';
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
 import { ToastService } from '../../../../../../shared/components/feedback/toast/toast.service';
-import { SegmentNodeRef } from '../../../../utils/segment-assignment-render.util';
-import {
-  AssignmentDetail,
-  HeightMode,
-  InstanceNodeItem,
-  UpdateAdHocNodePayload,
-} from '../../../../models/assignment.model';
-import { InstanceDetail, SegmentDetail } from '../../../../models/segment.model';
 
 // ── Stub children ────────────────────────────────────────────────────────────
 
@@ -29,6 +21,7 @@ class StubFigureCanvas {
   readonly mode = input<string>('editor');
   readonly compositionSlots = input<CompositionSlotWithNodes[]>([]);
   readonly assignments = input<AssignmentDetail[]>([]);
+  readonly conflictPersonIds = input<Set<string>>(new Set());
   readonly selectedSegmentNode = input<SegmentNodeRef | null>(null);
   readonly dimmedSlotIds = input<Set<string>>(new Set());
   readonly isPlacementMode = input<boolean>(false);
@@ -119,7 +112,7 @@ const makeSegment = (instances: InstanceDetail[]): SegmentDetail => ({
   startTime: null,
   endTime: null,
   notes: null,
-  isVisible: true,
+  isPublished: true,
   instances,
 });
 
@@ -168,6 +161,7 @@ describe('NodesTabComponent', () => {
     getByInstance: MockFn;
     getAvailablePersons: MockFn;
     getLockStatus: MockFn;
+    getSegmentConflicts: MockFn;
     createAdHocNode: MockFn;
     updateAdHocNode: MockFn;
     deleteAdHocNode: MockFn;
@@ -195,6 +189,7 @@ describe('NodesTabComponent', () => {
         of({ data: opts.assignmentsByInstance?.[instanceId] ?? [] }),
       ),
       getAvailablePersons: vi.fn().mockReturnValue(of({ data: [] })),
+      getSegmentConflicts: vi.fn().mockReturnValue(of({ data: [] })),
       getLockStatus: vi.fn().mockReturnValue(of({ locked: false, lockDate: null, lockDays: 3 })),
       createAdHocNode: vi.fn().mockReturnValue(of(makeNode('new-1', 'PINYA', { isAdHoc: true }))),
       updateAdHocNode: vi.fn().mockReturnValue(of(makeNode('adhoc-1', 'PINYA', { isAdHoc: true }))),

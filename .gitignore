@@ -30,6 +30,7 @@ docker/postgres/data/
 
 # ── Scripts locals (credencials, no pujar a git) ──────────
 scripts/tunnel-pre.sh
+scripts/run-gesture-audit.sh
 
 # ── OS ────────────────────────────────────────────────────
 .DS_Store
@@ -73,3 +74,4 @@ scripts/tunnel-pre.sh
 
 # -- Gemini ──────────────────────────────────────────────
 .gem/
+.angular

@@ -1,3 +1,4 @@
+import { AssignmentArea, AvailablePerson, AssignmentDetail, ConflictPlacement, HeightMode, PersonHoverInfo, isConfirmedAttendance, PersonHoverCardComponent } from '@muixer/pinyes-render';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -13,14 +14,11 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, RefreshCw, ChevronDown, ChevronUp, UserX } from 'lucide-angular';
-import { FigureZone } from '@muixer/shared';
+import { DIRECTION_ZONES, FigureZone, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
-import { AvailablePerson, AssignmentDetail, HeightMode, PersonHoverInfo, isConfirmedAttendance } from '../../models/assignment.model';
-import { SHOULDER_HEIGHT_BASELINE_CM } from '../../../../shared/utils/person.util';
 import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { formatNodeCordonLabel } from '../../utils/node-cordon-label.util';
-import { PersonHoverCardComponent } from '../person-hover-card/person-hover-card.component';
 import { TagService } from '../../../config/services/tag.service';
 import { TagWithCount } from '../../../config/models/tag.model';
 
@@ -49,6 +47,8 @@ export class PersonPanelComponent {
   readonly activeNodePositionType = input<string | null>(null);
   readonly selectedNodeZone = input<string | null>(null);
   readonly isPast = input<boolean>(false);
+  /** Which area this panel instance serves (§5.4) — Pinyes tab passes PINYA, Troncs passes TRONC. */
+  readonly area = input<AssignmentArea>('PINYA');
 
   readonly personSelected = output<AvailablePerson>();
   readonly assignedPersonSelected = output<{ personId: string; instanceId: string }>();
@@ -85,10 +85,16 @@ export class PersonPanelComponent {
     return this.tags().filter((t) => this.normalizeForMatch(t.name).includes(term));
   });
   readonly altresExpanded = signal(false);
-  readonly assignadesExpanded = signal(true);
+  readonly pinyaAssignedExpanded = signal(true);
+  readonly troncAssignedExpanded = signal(true);
   readonly hoveredPerson = signal<{ info: PersonHoverInfo; top: number; left: number } | null>(null);
   readonly highlightedIndex = signal(0);
   private hasTypedSinceNodeSelected = false;
+
+  /** "N lliures" header count (§5.4), meaning tied to the active tab's area. */
+  readonly freeCount = computed(() => this.state.freeCountForArea(this.area()));
+  /** Confirmed adults eligible for a NEW pinya placement (§5.2) — rendered only in the Pinyes tab. */
+  readonly pinyaEligibleCount = computed(() => this.state.pinyaEligibleCount());
 
   readonly selectedAssignment = computed(() => {
     const nodeId = this.selectedNodeId();
@@ -102,13 +108,102 @@ export class PersonPanelComponent {
   /** True while a height filter or Max/Min sort is active — used to exclude persons with no shoulder height set. */
   readonly heightSelectionActive = computed(() => this.height() !== null || this.heightSortMode() !== null);
 
-  assignedBadgeLabel(person: AvailablePerson): string {
-    if (!person.assignedNodeLabel) return 'Assignada';
-    return formatNodeCordonLabel(person.assignedNodeLabel, person.assignedNodeCordon);
+  private placementForArea(
+    person: AvailablePerson,
+    preferArea?: 'PINYA' | 'TRONC',
+  ): ConflictPlacement | undefined {
+    if (!preferArea) return person.assignedPlacements[0];
+    return (
+      person.assignedPlacements.find((pl) =>
+        preferArea === 'PINYA' ? pl.area === 'PINYA' : pl.area === 'TRONC' || pl.area === 'DIRECTION',
+      ) ?? person.assignedPlacements[0]
+    );
   }
 
+  assignedBadgeLabel(person: AvailablePerson, preferArea?: 'PINYA' | 'TRONC'): string {
+    const placement = this.placementForArea(person, preferArea);
+    if (!placement?.nodeLabel) return 'Assignada';
+    return formatNodeCordonLabel(placement.nodeLabel, placement.renglaPosition);
+  }
+
+  /** Persons with any placement in the segment, split by where they're placed — never double-counted. */
+  private assignedPersonsForArea(matchesArea: (area: AssignmentArea) => boolean): AvailablePerson[] {
+    const apiAssigned = this.persons().filter((p) =>
+      p.assignedPlacements.some((pl) => matchesArea(pl.area)),
+    );
+    const seen = new Set(apiAssigned.map((p) => p.id));
+    const extras: AvailablePerson[] = [];
+
+    // Supplement with current-instance assignments (optimistic / before API refresh)
+    for (const assignment of this.assignments()) {
+      if (seen.has(assignment.person.id)) continue;
+      const zone = assignment.node.zone;
+      // BASE → TRONC (D10); FIGURE_DIRECTION/XICALLA_DIRECTION → DIRECTION.
+      const area: AssignmentArea =
+        zone === 'TRONC' || zone === 'BASE'
+          ? 'TRONC'
+          : (DIRECTION_ZONES as readonly string[]).includes(zone)
+            ? 'DIRECTION'
+            : 'PINYA';
+      if (!matchesArea(area)) continue;
+      const fromList = this.persons().find((p) => p.id === assignment.person.id);
+      const optimisticPlacement: ConflictPlacement = {
+        assignmentId: assignment.id,
+        figureInstanceId: assignment.figureInstanceId,
+        figureName: '',
+        nodeId: assignment.node.id,
+        nodeLabel: assignment.node.label,
+        zone,
+        area,
+        z: assignment.node.z ?? null,
+        renglaPosition: assignment.node.renglaPosition ?? null,
+        cordon: assignment.node.renglaPosition ?? null,
+      };
+      extras.push({
+        ...(fromList ?? {
+          id: assignment.person.id,
+          alias: assignment.person.alias,
+          name: assignment.person.name,
+          firstSurname: assignment.person.firstSurname,
+          shoulderHeight: assignment.person.shoulderHeight,
+          notes: assignment.person.notes,
+          notesEmoji: assignment.person.notesEmoji,
+          isXicalla: false,
+          attendanceStatus: 'ANIRE',
+          nextPerformanceStatus: null,
+          assignedPlacements: [],
+          assignedInTronc: false,
+          assignedInPinya: false,
+          conflictInSegment: false,
+          positions: [],
+        }),
+        assignedPlacements: [optimisticPlacement],
+      });
+      seen.add(assignment.person.id);
+    }
+
+    const positionId = this.selectedPositionId();
+    const combined = [...apiAssigned, ...extras];
+    if (!positionId) return combined;
+    return combined.filter((p) => p.positions.some((pos) => pos.id === positionId));
+  }
+
+  /** "A la pinya" section: persons holding a PINYA placement anywhere in the segment. */
+  readonly pinyaAssignedPersons = computed(() =>
+    this.assignedPersonsForArea((area) => area === 'PINYA'),
+  );
+
+  /** "Al tronc" section: persons holding a TRONC/BASE/DIRECTION placement anywhere in the segment. */
+  readonly troncAssignedPersons = computed(() =>
+    this.assignedPersonsForArea((area) => area === 'TRONC' || area === 'DIRECTION'),
+  );
+
   readonly freePersons = computed(() => {
-    const free = this.persons().filter((p) => !p.assignedInSegment);
+    const assignedIds = new Set([
+      ...this.pinyaAssignedPersons().map((p) => p.id),
+      ...this.troncAssignedPersons().map((p) => p.id),
+    ]);
+    const free = this.persons().filter((p) => !assignedIds.has(p.id));
     if (!this.heightSelectionActive()) return free;
     // A shoulderHeight of null/0 means "not set" — coalesced to 0 server-side, which would
     // otherwise sort these persons as the shortest possible match when ordering by min height.
@@ -157,44 +252,6 @@ export class PersonPanelComponent {
       : this.freePersons().filter((p) => p.attendanceStatus === 'NO_VAIG'),
   );
 
-  readonly assignedPersons = computed(() => {
-    const apiAssigned = this.persons().filter((p) => p.assignedInSegment);
-    const seen = new Set(apiAssigned.map((p) => p.id));
-    const extras: AvailablePerson[] = [];
-
-    // Supplement with current-instance assignments (optimistic / before API refresh)
-    for (const assignment of this.assignments()) {
-      if (seen.has(assignment.person.id)) continue;
-      const fromList = this.persons().find((p) => p.id === assignment.person.id);
-      extras.push({
-        ...(fromList ?? {
-          id: assignment.person.id,
-          alias: assignment.person.alias,
-          name: assignment.person.name,
-          firstSurname: assignment.person.firstSurname,
-          shoulderHeight: assignment.person.shoulderHeight,
-          notes: assignment.person.notes,
-          notesEmoji: assignment.person.notesEmoji,
-          isXicalla: false,
-          attendanceStatus: 'ANIRE',
-          nextPerformanceStatus: null,
-          assignedInSegment: true,
-          positions: [],
-        }),
-        assignedInSegment: true,
-        assignedInstanceId: assignment.figureInstanceId,
-        assignedNodeLabel: assignment.node.label,
-        assignedNodeCordon: assignment.node.renglaPosition ?? null,
-      });
-      seen.add(assignment.person.id);
-    }
-
-    const positionId = this.selectedPositionId();
-    const combined = [...apiAssigned, ...extras];
-    if (!positionId) return combined;
-    return combined.filter((p) => p.positions.some((pos) => pos.id === positionId));
-  });
-
   /**
    * Up to 5 ranked matches for the typed search term. Group 1 (exact alias match) wins
    * regardless of status; groups 2-5 apply the same match-type ordering (alias prefix >
@@ -209,7 +266,7 @@ export class PersonPanelComponent {
 
     const exact = this.persons().find((p) => this.normalizeForMatch(p.alias) === term);
     if (exact) {
-      results.push({ person: exact, isAssigned: exact.assignedInSegment });
+      results.push({ person: exact, isAssigned: exact.assignedPlacements.length > 0 });
       seen.add(exact.id);
     }
 
@@ -222,7 +279,7 @@ export class PersonPanelComponent {
     };
 
     pushGroup([...this.confirmedPersons(), ...this.noShowPersons()], false);
-    pushGroup(this.assignedPersons(), true);
+    pushGroup([...this.pinyaAssignedPersons(), ...this.troncAssignedPersons()], true);
     pushGroup(this.pendingPersons(), false);
     pushGroup(this.declinedPersons(), false);
 
@@ -455,10 +512,11 @@ export class PersonPanelComponent {
   }
 
   selectSearchResult(result: PersonSearchResult): void {
-    if (result.isAssigned && result.person.assignedInstanceId) {
+    const instanceId = result.person.assignedPlacements[0]?.figureInstanceId;
+    if (result.isAssigned && instanceId) {
       this.assignedPersonSelected.emit({
         personId: result.person.id,
-        instanceId: result.person.assignedInstanceId,
+        instanceId,
       });
       this.clearSearch();
       return;
@@ -496,12 +554,10 @@ export class PersonPanelComponent {
     this.hoveredPerson.set(null);
   }
 
-  navigateToAssigned(person: AvailablePerson): void {
-    if (person.assignedInstanceId) {
-      this.assignedPersonSelected.emit({
-        personId: person.id,
-        instanceId: person.assignedInstanceId,
-      });
+  navigateToAssigned(person: AvailablePerson, preferArea?: 'PINYA' | 'TRONC'): void {
+    const instanceId = this.placementForArea(person, preferArea)?.figureInstanceId;
+    if (instanceId) {
+      this.assignedPersonSelected.emit({ personId: person.id, instanceId });
     }
   }
 

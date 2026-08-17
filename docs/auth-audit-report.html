@@ -1,0 +1,406 @@
+<title>Auditoria del mòdul Auth</title>
+<style>
+:root{
+  --bg:#f6f5f1;
+  --surface:#ffffff;
+  --ink:#1c2029;
+  --ink-soft:#54596b;
+  --line:#e1ddd2;
+  --accent:#2f3f8f;
+  --accent-soft:#e8eaf6;
+  --ok:#2f6b4f;
+  --ok-soft:#e4f0e9;
+  --warn:#8a5a12;
+  --warn-soft:#f6ecd9;
+  --bad:#9a3324;
+  --bad-soft:#f7e5e1;
+  --mono-bg:#efece3;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#161821;
+    --surface:#1f2230;
+    --ink:#e8e7e2;
+    --ink-soft:#a3a6b8;
+    --line:#333650;
+    --accent:#8b9cf0;
+    --accent-soft:#262b4a;
+    --ok:#7fd1a6;
+    --ok-soft:#1e3229;
+    --warn:#e2b366;
+    --warn-soft:#3a2f18;
+    --bad:#e28c7c;
+    --bad-soft:#3a221e;
+    --mono-bg:#20232f;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#161821;
+  --surface:#1f2230;
+  --ink:#e8e7e2;
+  --ink-soft:#a3a6b8;
+  --line:#333650;
+  --accent:#8b9cf0;
+  --accent-soft:#262b4a;
+  --ok:#7fd1a6;
+  --ok-soft:#1e3229;
+  --warn:#e2b366;
+  --warn-soft:#3a2f18;
+  --bad:#e28c7c;
+  --bad-soft:#3a221e;
+  --mono-bg:#20232f;
+}
+
+*{box-sizing:border-box;}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;
+  line-height:1.55;
+  margin:0;
+  padding:0 1.5rem 5rem;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:840px;margin:0 auto;}
+
+header.report{
+  padding:3.2rem 0 1.8rem;
+  border-bottom:1px solid var(--line);
+  margin-bottom:2.4rem;
+}
+.eyebrow{
+  font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  font-size:.72rem;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:var(--accent);
+  display:flex;
+  gap:.6rem;
+  align-items:center;
+}
+.eyebrow::before{content:"";width:.5rem;height:.5rem;background:var(--accent);border-radius:1px;display:inline-block;}
+h1{
+  font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif;
+  font-weight:600;
+  font-size:2.3rem;
+  letter-spacing:-.01em;
+  margin:.5rem 0 .6rem;
+  text-wrap:balance;
+}
+.dek{color:var(--ink-soft);font-size:1.02rem;max-width:60ch;}
+.meta-row{
+  display:flex;flex-wrap:wrap;gap:1.6rem;
+  margin-top:1.4rem;
+  font-size:.82rem;
+  color:var(--ink-soft);
+}
+.meta-row b{color:var(--ink);font-weight:600;}
+
+section{margin-bottom:2.8rem;}
+h2{
+  font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif;
+  font-size:1.4rem;
+  font-weight:600;
+  margin:0 0 .3rem;
+  display:flex;align-items:baseline;gap:.6rem;
+}
+h2 .num{
+  font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  font-size:.85rem;
+  color:var(--accent);
+  font-weight:500;
+}
+h3{font-size:1.02rem;font-weight:700;margin:1.4rem 0 .5rem;}
+p{margin:.5rem 0;}
+.section-note{color:var(--ink-soft);font-size:.92rem;margin-bottom:1.1rem;}
+
+code,.mono{
+  font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  font-size:.85em;
+  background:var(--mono-bg);
+  padding:.1em .35em;
+  border-radius:3px;
+}
+
+.card{
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:1.1rem 1.3rem;
+  margin-bottom:.9rem;
+}
+
+table{width:100%;border-collapse:collapse;font-size:.88rem;}
+th{
+  text-align:left;
+  font-size:.72rem;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  color:var(--ink-soft);
+  font-weight:600;
+  padding:.5rem .7rem;
+  border-bottom:1px solid var(--line);
+}
+td{padding:.6rem .7rem;border-bottom:1px solid var(--line);vertical-align:top;}
+tr:last-child td{border-bottom:none;}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface);}
+.tablewrap table{margin:0;}
+
+.pill{
+  display:inline-flex;align-items:center;gap:.35rem;
+  font-size:.72rem;font-weight:700;letter-spacing:.02em;
+  padding:.2rem .55rem;border-radius:99px;
+  white-space:nowrap;
+}
+.pill.public{background:var(--ok-soft);color:var(--ok);}
+.pill.auth{background:var(--accent-soft);color:var(--accent);}
+.pill.fixed{background:var(--ok-soft);color:var(--ok);}
+.pill.gap{background:var(--warn-soft);color:var(--warn);}
+.pill.stale{background:var(--bad-soft);color:var(--bad);}
+
+.endpoint{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:.85rem;}
+.endpoint b{color:var(--accent);}
+
+.finding{
+  border:1px solid var(--line);
+  border-left:4px solid var(--warn);
+  background:var(--surface);
+  border-radius:0 8px 8px 0;
+  padding:1rem 1.2rem;
+  margin-bottom:.85rem;
+}
+.finding.stale{border-left-color:var(--bad);}
+.finding.fixed{border-left-color:var(--ok);}
+.finding-head{display:flex;justify-content:space-between;gap:1rem;align-items:baseline;margin-bottom:.35rem;flex-wrap:wrap;}
+.finding-head strong{font-size:.96rem;}
+.finding-loc{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:.76rem;color:var(--ink-soft);}
+.finding p{margin:.3rem 0;font-size:.9rem;color:var(--ink-soft);}
+
+.flow{
+  font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  font-size:.78rem;
+  background:var(--mono-bg);
+  border-radius:8px;
+  padding:1rem 1.1rem;
+  overflow-x:auto;
+  line-height:1.6;
+  white-space:pre;
+}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+@media (max-width:640px){.grid2{grid-template-columns:1fr;}}
+
+.steps{list-style:none;margin:0;padding:0;counter-reset:step;}
+.steps li{
+  counter-increment:step;
+  position:relative;
+  padding:.15rem 0 .9rem 2.2rem;
+  font-size:.92rem;
+}
+.steps li::before{
+  content:counter(step);
+  position:absolute;left:0;top:.05rem;
+  width:1.5rem;height:1.5rem;border-radius:50%;
+  background:var(--accent-soft);color:var(--accent);
+  font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  font-size:.75rem;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+}
+.steps li:not(:last-child)::after{
+  content:"";position:absolute;left:.75rem;top:1.6rem;bottom:0;
+  width:1px;background:var(--line);
+}
+
+.callout{
+  background:var(--warn-soft);
+  border:1px solid var(--warn);
+  border-radius:8px;
+  padding:.9rem 1.1rem;
+  font-size:.9rem;
+  margin:.9rem 0;
+}
+.callout b{color:var(--warn);}
+.callout.bad{background:var(--bad-soft);border-color:var(--bad);}
+.callout.bad b{color:var(--bad);}
+
+.role-tag{
+  display:inline-block;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  font-size:.72rem;font-weight:700;letter-spacing:.02em;
+  background:var(--accent-soft);color:var(--accent);
+  padding:.15rem .5rem;border-radius:4px;margin-right:.4rem;
+}
+
+.stat{
+  background:var(--surface);border:1px solid var(--line);border-radius:8px;
+  padding:.9rem 1rem;
+}
+.stat .n{
+  font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  font-variant-numeric:tabular-nums;
+  font-size:1.5rem;font-weight:700;color:var(--accent);
+}
+.stat .l{font-size:.78rem;color:var(--ink-soft);margin-top:.15rem;}
+
+footer.report{
+  border-top:1px solid var(--line);
+  margin-top:2rem;
+  padding-top:1.2rem;
+  font-size:.8rem;
+  color:var(--ink-soft);
+}
+
+@media (prefers-reduced-motion: no-preference){
+  section{animation:rise .4s ease both;}
+  @keyframes rise{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+}
+</style>
+
+<div class="wrap">
+
+<header class="report">
+  <div class="eyebrow">Auditoria interna · Codi</div>
+  <h1>Estat del mòdul Auth</h1>
+  <p class="dek">Contrast entre el codi de <code>apps/api/src/modules/auth</code> i la documentació existent (<code>AUTH_FLOW.md</code>, <code>SSE_AUTH.md</code>). Docs ja actualitzats amb aquesta auditoria.</p>
+  <div class="meta-row">
+    <span><b>Abast</b> mòdul auth + consent</span>
+    <span><b>Branca</b> feat/docu-login</span>
+    <span><b>Data</b> 2026-08-16</span>
+  </div>
+</header>
+
+<section>
+  <div class="grid2" style="margin-bottom:.4rem;">
+    <div class="stat"><div class="n">10</div><div class="l">endpoints a <code>/auth</code></div></div>
+    <div class="stat"><div class="n">1</div><div class="l">endpoint a <code>/consent</code>, fora d'<code>/auth</code></div></div>
+    <div class="stat"><div class="n">2</div><div class="l">strategies JWT (<code>jwt</code>, <code>jwt-sse</code>)</div></div>
+    <div class="stat"><div class="n">2</div><div class="l">docs desactualitzats trobats i corregits</div></div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">00</span> Guia per a l'equip de suport</h2>
+  <p class="section-note">En llenguatge planer, per a qui ajudarà usuaris finals (membres, xicalla, famílies) durant les proves de PWA i Dashboard — sense coneixements tècnics.</p>
+
+  <div class="card">
+    <p style="margin-top:0"><span class="role-tag">DASHBOARD</span> ADMIN/TECHNICAL — gent de junta/tècnica, gestiona tota l'app.</p>
+    <p style="margin-bottom:0"><span class="role-tag">PWA</span> MEMBER — membres normals, només veuen les seues coses (assajos, actuacions, la seua fitxa).</p>
+  </div>
+
+  <h3>Com fa "login" un membre per primera vegada</h3>
+  <p class="section-note" style="margin-bottom:.6rem;">No hi ha registre lliure — sempre comença amb un enllaç que dona algú del Dashboard.</p>
+  <ol class="steps">
+    <li>Algú del Dashboard (ADMIN/TECHNICAL) entra a la fitxa de la persona i prem <b>«Crea enllaç d'invitació»</b>.</li>
+    <li>Este enllaç <b>no s'envia sol per correu</b> — l'admin l'ha de copiar i enviar-lo a mà (normalment per WhatsApp) a la persona.</li>
+    <li>La persona l'obre al mòbil → s'obre la PWA amb <b>«Activa el teu compte»</b>, amb el seu nom ja prellenat → tria email i contrasenya, accepta la política de privacitat → <b>ja queda dins</b>, sense fer login a part.</li>
+    <li>L'enllaç caduca als <b>3 dies</b>. Si caduca sense activar-se, l'admin torna a prémer el mateix botó: sempre val l'últim enllaç generat, els anteriors deixen de funcionar.</li>
+    <li>Un cop el compte és actiu, el botó desapareix de la fitxa — a partir d'ací, sempre email + contrasenya.</li>
+  </ol>
+
+  <h3>Login del dia a dia (compte ja actiu)</h3>
+  <p>Email + contrasenya, igual al Dashboard i a la PWA. La sessió es manté sola una bona temporada (<b>8 hores</b> al Dashboard, <b>7 dies</b> a la PWA) — només cal tornar a fer login si ha passat molt de temps o s'ha premut "Tanca la sessió".</p>
+
+  <h3>Si un membre oblida la contrasenya (compte ja actiu)</h3>
+  <ol class="steps">
+    <li>A la pantalla de login, prem <b>«Heu oblidat la contrasenya?»</b> (existeix a Dashboard i a PWA) i escriu el seu email.</li>
+    <li>Si eixe email té un compte actiu, li arriba un correu amb un enllaç per triar contrasenya nova, <b>vàlid només 1 hora</b>.</li>
+    <li>Este enllaç <b>sempre obre la pantalla al Dashboard</b>, encara que s'haja demanat des de la PWA — és normal, el membre només ha de fer clic i triar la contrasenya des del mòbil.</li>
+    <li>En triar-la, <b>es tanquen totes les sessions obertes</b> (mòbil, tauleta...) — cal tornar a fer login a tot arreu.</li>
+    <li>Si no arriba el correu: revisar que l'email escrit és exactament el guardat al compte — per seguretat, el sistema <b>mai diu si un email existeix o no</b>.</li>
+  </ol>
+
+  <div class="callout"><b>Compte encara mai activat:</b> "Heu oblidat la contrasenya?" no serveix (encara no en té cap). Cal l'enllaç d'invitació del pas anterior, generat des de la fitxa.</div>
+
+  <div class="callout bad"><b>Compte ja actiu i accés perdut del tot</b> (mòbil perdut, no recorda l'email...): el botó d'enllaç d'invitació ja no funciona en comptes actius (dona error "ja té un compte actiu"). De moment cal passar-ho a l'equip tècnic — no hi ha autoservei des del Dashboard per a este cas.</div>
+
+  <p class="section-note" style="margin-bottom:0;"><b>Qui pot veure/reenviar l'enllaç d'invitació:</b> només ADMIN/TECHNICAL des de la fitxa de la persona al Dashboard. Mai s'envia automàticament — sempre passa per una persona real.</p>
+</section>
+
+<section>
+  <h2><span class="num">01</span> Endpoints reals</h2>
+  <p class="section-note">Extrets de <code>auth.controller.ts</code> i <code>consent.controller.ts</code>. Throttle <code>10 req/60s</code> aplicat a tot <code>AuthController</code> — inclou forgot/reset-password, no només login.</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Mètode i ruta</th><th>Accés</th><th>Funció</th></tr></thead>
+      <tbody>
+        <tr><td class="endpoint"><b>POST</b> /auth/login</td><td><span class="pill public">Public</span></td><td>Local strategy → JWT + refresh cookie</td></tr>
+        <tr><td class="endpoint"><b>POST</b> /auth/refresh</td><td><span class="pill public">Public</span></td><td>Rotació de refresh token</td></tr>
+        <tr><td class="endpoint"><b>POST</b> /auth/logout</td><td><span class="pill auth">Autenticat</span></td><td>Revoca el token actual</td></tr>
+        <tr><td class="endpoint"><b>POST</b> /auth/logout-all</td><td><span class="pill auth">Autenticat</span></td><td>Revoca totes les sessions</td></tr>
+        <tr><td class="endpoint"><b>GET</b> /auth/me</td><td><span class="pill auth">Autenticat</span></td><td>Perfil de l'usuari actual</td></tr>
+        <tr><td class="endpoint"><b>GET</b> /auth/invite/:token</td><td><span class="pill public">Public</span></td><td>Context d'invitació (prellenat PWA)</td></tr>
+        <tr><td class="endpoint"><b>POST</b> /auth/invite/register</td><td><span class="pill public">Public</span></td><td>Alta transaccional User+Person, auto-login</td></tr>
+        <tr><td class="endpoint"><b>POST</b> /auth/setup/user</td><td><span class="pill public">Public</span> + <code>X-Setup-Token</code></td><td>Bootstrap del primer usuari TECHNICAL</td></tr>
+        <tr><td class="endpoint"><b>POST</b> /auth/forgot-password</td><td><span class="pill public">Public</span></td><td>Genera token de reset, envia per mail</td></tr>
+        <tr><td class="endpoint"><b>POST</b> /auth/reset-password</td><td><span class="pill public">Public</span></td><td>Canvia password, revoca totes les sessions</td></tr>
+        <tr><td class="endpoint"><b>POST</b> /consent/privacy-policy</td><td><span class="pill auth">Autenticat</span></td><td>Registra acceptació de la política vigent</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">02</span> Reuse detection al refresh</h2>
+  <p class="section-note"><code>token.service.ts:80-108</code> — l'operació és un <code>UPDATE</code> atòmic condicionat a <code>usedAt IS NULL</code>; si afecta 0 files, el token ja s'havia usat i es revoca tota la família (UUID compartit). Evita la race condition de dues peticions concurrents amb el mateix refresh token.</p>
+  <div class="flow">POST /auth/refresh
+Cookie: muixer_rt=&lt;oldToken&gt;
+  │
+  ├─ SHA-256(oldToken) → busca a DB
+  ├─ UPDATE ... SET usedAt=now() WHERE hash=? AND usedAt IS NULL
+  │     ├─ affected=0 → ja usat abans → REVOCA TOTA LA FAMÍLIA → 401
+  │     └─ affected=1 → OK, crea nou token (mateixa família)
+  └─ signAccessToken(user)
+        → Set-Cookie: muixer_rt=&lt;newToken&gt;</div>
+</section>
+
+<section>
+  <h2><span class="num">03</span> Troballes de la doc</h2>
+
+  <div class="finding stale">
+    <div class="finding-head"><strong>SSE_AUTH.md descrivia un disseny que ja no existeix</strong><span class="finding-loc">SSE_AUTH.md → reescrit</span></div>
+    <p>El doc deia que <code>JwtStrategy</code> acceptava header + <code>?token=</code> directament. Real: <code>JwtStrategy</code> (<code>jwt</code>) només accepta Bearer; <code>?token=</code> només el gestiona <code>SseJwtStrategy</code> (<code>jwt-sse</code>), activada per <code>@SseAuth()</code> via branching a <code>JwtAuthGuard.canActivate</code>. Doc reescrit sencer.</p>
+  </div>
+
+  <div class="finding stale">
+    <div class="finding-head"><strong>Contradicció <code>sameSite</code> entre els dos docs</strong><span class="finding-loc">SSE_AUTH.md deia 'strict'</span></div>
+    <p><code>auth.controller.ts:67</code> usa <code>sameSite: 'lax'</code> (correcte a AUTH_FLOW.md, per permetre WhatsApp → PWA). SSE_AUTH.md deia <code>'strict'</code> — corregit.</p>
+  </div>
+
+  <div class="finding">
+    <div class="finding-head"><strong>Secció "Alternative: Cookie-Based Auth" era soroll</strong><span class="finding-loc">SSE_AUTH.md → eliminada</span></div>
+    <p>Proposava com a pendent una solució que ja existeix implementada (strategy separada). Eliminada.</p>
+  </div>
+
+  <div class="finding">
+    <div class="finding-head"><strong>Forgot/reset-password sense secció pròpia</strong><span class="finding-loc">AUTH_FLOW.md → §8 afegida</span></div>
+    <p><code>auth.service.ts:407-451</code>: token <code>randomBytes(16)</code> + SHA-256, TTL 1h, mai revela si l'email existeix, revoca totes les sessions en fer reset (igual que <code>logout-all</code>).</p>
+  </div>
+
+  <div class="finding">
+    <div class="finding-head"><strong><code>ConsentController</code> no documentat</strong><span class="finding-loc">AUTH_FLOW.md → §9 afegida</span></div>
+    <p>Existia sense aparèixer a la taula de components ni al flux. Viu fora d'<code>/auth/</code> a propòsit: l'interceptor Angular només afegeix el Bearer fora d'aquest prefix.</p>
+  </div>
+
+  <div class="finding">
+    <div class="finding-head"><strong><code>SITE_ADDRESS</code> vs <code>PWA_SITE_ADDRESS</code></strong><span class="finding-loc">AUTH_FLOW.md → taula d'entorn</span></div>
+    <p>Dues variables diferents amb noms similars: <code>PWA_SITE_ADDRESS</code> construeix l'enllaç d'invitació (§6); <code>SITE_ADDRESS</code> (no documentada abans) construeix l'enllaç de reset-password. Afegida a la taula amb l'avís de no confondre-les.</p>
+  </div>
+
+  <div class="finding">
+    <div class="finding-head"><strong><code>COOKIE_SECURE</code> sense documentar</strong><span class="finding-loc">AUTH_FLOW.md → taula d'entorn</span></div>
+    <p><code>auth.controller.ts:71</code>. Afegida.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">04</span> Altres detalls tècnics verificats</h2>
+  <div class="card"><b>Secret JWT</b> — <code>requireJwtSecret()</code> (<code>jwt-secret.util.ts</code>) llança error fatal a l'arrencada si falta <code>JWT_SECRET</code>; mai fallback silenciós.</div>
+  <div class="card"><b>Login timing-safe</b> — <code>auth.service.ts:41-79</code> compara sempre contra un hash bcrypt fictici de cost igual quan l'usuari no existeix, per evitar enumeració per timing.</div>
+  <div class="card"><b>Bootstrap protegit</b> — <code>setupUser</code> es refusa tan bon punt <code>userRepo.count() &gt; 0</code>, abans de consultar per email, per evitar un oracle d'existència de comptes.</div>
+  <div class="card"><b>Neteja de tokens</b> — cron diari a les 3h esborra refresh tokens caducats/revocats amb més de 30 dies.</div>
+</section>
+
+<footer class="report">
+  Docs actualitzats en aquesta sessió: <code>docs/AUTH_FLOW.md</code> (§8, §9, taula de components i d'entorn) i <code>docs/SSE_AUTH.md</code> (reescrit sencer). Cap canvi de codi.
+</footer>
+
+</div>

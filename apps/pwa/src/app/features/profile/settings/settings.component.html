@@ -1,0 +1,245 @@
+<app-mobile-header title="Configuració" [showBack]="true" fallbackRoute="/profile" />
+
+<section class="py-2 flex flex-col gap-6">
+  <div class="card bg-base-100 shadow-sm">
+    <div class="card-body p-0 divide-y divide-base-200">
+      <div class="p-4">
+        <button
+          type="button"
+          class="flex items-center gap-3 w-full text-left"
+          data-testid="password-row-toggle"
+          [attr.aria-expanded]="openSection() === 'password'"
+          (click)="toggleSection('password')"
+        >
+          <lucide-icon [img]="Lock" [size]="18" class="text-base-content/50 shrink-0" />
+          <span class="font-medium flex-1">Contrasenya</span>
+          <lucide-icon
+            [img]="ChevronDown"
+            [size]="16"
+            class="text-base-content/40 transition-transform"
+            [class.rotate-180]="openSection() === 'password'"
+          />
+        </button>
+
+        @if (openSection() === 'password') {
+          <form
+            id="password-form"
+            [formGroup]="passwordForm"
+            (ngSubmit)="submitPasswordChange()"
+            class="space-y-3 mt-3"
+          >
+            <label class="form-control w-full" for="password-current-password">
+              <div class="label pb-1">
+                <span class="label-text-alt">Contrasenya actual</span>
+              </div>
+              <input
+                id="password-current-password"
+                type="password"
+                class="input input-bordered input-sm w-full"
+                formControlName="currentPassword"
+                autocomplete="current-password"
+              />
+            </label>
+
+            <label class="form-control w-full" for="password-new-password">
+              <div class="label pb-1">
+                <span class="label-text-alt">Contrasenya nova (mínim 8 caràcters)</span>
+              </div>
+              <input
+                id="password-new-password"
+                type="password"
+                class="input input-bordered input-sm w-full"
+                formControlName="newPassword"
+                autocomplete="new-password"
+              />
+            </label>
+
+            <label class="form-control w-full" for="password-confirm-password">
+              <div class="label pb-1">
+                <span class="label-text-alt">Confirmeu la contrasenya nova</span>
+              </div>
+              <input
+                id="password-confirm-password"
+                type="password"
+                class="input input-bordered input-sm w-full"
+                formControlName="confirmPassword"
+                autocomplete="new-password"
+              />
+              @if (passwordForm.hasError('passwordMismatch') && passwordForm.get('confirmPassword')?.touched) {
+                <div class="label pt-1">
+                  <span class="label-text-alt text-error" role="alert">Les contrasenyes no coincideixen</span>
+                </div>
+              }
+            </label>
+
+            @if (passwordError()) {
+              <div class="alert alert-error text-sm py-2" role="alert">
+                <span>{{ passwordError() }}</span>
+              </div>
+            }
+
+            <button
+              type="submit"
+              class="btn btn-primary btn-sm"
+              [disabled]="passwordForm.invalid || passwordSubmitting()"
+            >
+              @if (passwordSubmitting()) {
+                <span class="loading loading-spinner loading-xs"></span>
+              }
+              Actualitza la contrasenya
+            </button>
+          </form>
+        }
+      </div>
+
+      <div class="p-4">
+        <button
+          type="button"
+          class="flex items-center gap-3 w-full text-left"
+          data-testid="email-row-toggle"
+          [attr.aria-expanded]="openSection() === 'email'"
+          (click)="toggleSection('email')"
+        >
+          <lucide-icon [img]="Mail" [size]="18" class="text-base-content/50 shrink-0" />
+          <span class="font-medium flex-1">Correu electrònic</span>
+          <lucide-icon
+            [img]="ChevronDown"
+            [size]="16"
+            class="text-base-content/40 transition-transform"
+            [class.rotate-180]="openSection() === 'email'"
+          />
+        </button>
+
+        @if (openSection() === 'email') {
+          <form
+            id="email-form"
+            [formGroup]="emailForm"
+            (ngSubmit)="submitEmailChange()"
+            class="space-y-3 mt-3"
+          >
+            <label class="form-control w-full" for="email-new-email">
+              <div class="label pb-1">
+                <span class="label-text-alt">Correu electrònic nou</span>
+              </div>
+              <input
+                id="email-new-email"
+                type="email"
+                class="input input-bordered input-sm w-full"
+                formControlName="newEmail"
+                autocomplete="email"
+                inputmode="email"
+              />
+            </label>
+
+            <label class="form-control w-full" for="email-confirm-email">
+              <div class="label pb-1">
+                <span class="label-text-alt">Confirmeu el correu electrònic nou</span>
+              </div>
+              <input
+                id="email-confirm-email"
+                type="email"
+                class="input input-bordered input-sm w-full"
+                formControlName="confirmEmail"
+                autocomplete="email"
+                inputmode="email"
+              />
+              @if (emailForm.hasError('emailMismatch') && emailForm.get('confirmEmail')?.touched) {
+                <div class="label pt-1">
+                  <span class="label-text-alt text-error" role="alert">Els correus electrònics no coincideixen</span>
+                </div>
+              }
+            </label>
+
+            <label class="form-control w-full" for="email-current-password">
+              <div class="label pb-1">
+                <span class="label-text-alt">Contrasenya actual</span>
+              </div>
+              <input
+                id="email-current-password"
+                type="password"
+                class="input input-bordered input-sm w-full"
+                formControlName="currentPassword"
+                autocomplete="current-password"
+              />
+            </label>
+
+            @if (emailError()) {
+              <div class="alert alert-error text-sm py-2" role="alert">
+                <span>{{ emailError() }}</span>
+              </div>
+            }
+
+            <button
+              type="submit"
+              class="btn btn-primary btn-sm"
+              [disabled]="emailForm.invalid || emailSubmitting()"
+            >
+              @if (emailSubmitting()) {
+                <span class="loading loading-spinner loading-xs"></span>
+              }
+              Actualitza el correu electrònic
+            </button>
+          </form>
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="card bg-base-100 shadow-sm">
+    <div class="card-body p-0 divide-y divide-base-200">
+      <div
+        class="flex items-center gap-3 p-4 opacity-60"
+        data-testid="notifications-row"
+        aria-disabled="true"
+      >
+        <lucide-icon [img]="Bell" [size]="18" class="text-base-content/50 shrink-0" />
+        <span class="font-medium flex-1">Notificacions</span>
+        <span class="badge badge-ghost badge-sm">Properament</span>
+      </div>
+      <div class="p-4">
+        <button
+          type="button"
+          class="flex items-center gap-3 w-full text-left"
+          data-testid="about-row-toggle"
+          [attr.aria-expanded]="openSection() === 'about'"
+          (click)="toggleSection('about')"
+        >
+          <lucide-icon [img]="FileText" [size]="18" class="text-base-content/50 shrink-0" />
+          <span class="font-medium flex-1">Sobre l'app</span>
+          <lucide-icon
+            [img]="ChevronDown"
+            [size]="16"
+            class="text-base-content/40 transition-transform"
+            [class.rotate-180]="openSection() === 'about'"
+          />
+        </button>
+
+        @if (openSection() === 'about') {
+          <div class="mt-3" data-testid="privacy-policy-viewer">
+            <h4 class="text-sm font-semibold mb-1">Política de privacitat</h4>
+            @if (privacyPolicyLoading()) {
+              <div class="flex justify-center py-4">
+                <span class="loading loading-spinner loading-sm"></span>
+              </div>
+            } @else if (privacyPolicyContent(); as content) {
+              <div
+                class="max-h-[40vh] overflow-y-auto rounded-box bg-base-200 p-3 text-sm whitespace-pre-wrap"
+              >{{ content }}</div>
+            } @else {
+              <p class="text-sm text-error">No s'ha pogut carregar la política de privacitat.</p>
+            }
+          </div>
+        }
+      </div>
+      <button
+        type="button"
+        class="flex items-center gap-3 p-4 w-full text-left text-error"
+        data-testid="logout-button"
+        (click)="logout()"
+      >
+        <lucide-icon [img]="LogOut" [size]="18" class="shrink-0" />
+        <span class="font-medium">Tancar sessió</span>
+      </button>
+    </div>
+  </div>
+</section>

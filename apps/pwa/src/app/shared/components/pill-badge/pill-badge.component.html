@@ -1,0 +1,11 @@
+<button
+  type="button"
+  class="badge badge-ghost gap-1 rounded-full py-3 px-3 w-fit"
+  (click)="clicked.emit()"
+>
+  @if (icon(); as icon) {
+    <lucide-icon [img]="icon" [size]="14" />
+  }
+  <span>{{ label() }}</span>
+  <lucide-icon [img]="ChevronRight" [size]="14" />
+</button>

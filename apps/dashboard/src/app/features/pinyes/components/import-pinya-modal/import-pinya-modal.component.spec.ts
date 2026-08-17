@@ -1,10 +1,10 @@
+import { FigureHistoryEntry, BulkImportResult } from '@muixer/pinyes-render';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi, type Mock } from 'vitest';
 import { of, throwError } from 'rxjs';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { ImportPinyaModalComponent } from './import-pinya-modal.component';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
-import { FigureHistoryEntry, BulkImportResult } from '../../models/assignment.model';
 
 const TEMPLATE_ID = 'template-uuid-1';
 const INSTANCE_ID = 'instance-uuid-1';
@@ -38,7 +38,7 @@ describe('ImportPinyaModalComponent', () => {
   beforeEach(async () => {
     assignmentService = {
       getHistory: vi.fn().mockReturnValue(of({ data: [makeHistoryEntry()] })),
-      bulkImport: vi.fn().mockReturnValue(of({ created: [], conflicts: [], clonedAdHocNodes: 0 } as BulkImportResult)),
+      bulkImport: vi.fn().mockReturnValue(of({ created: [], conflicts: [], clonedAdHocNodes: 0, conflictsByKind: {} } as unknown as BulkImportResult)),
     };
 
     await TestBed.configureTestingModule({
@@ -103,7 +103,7 @@ describe('ImportPinyaModalComponent', () => {
     });
 
     it('"Importar" button calls bulkImport with correct sourceInstanceId', () => {
-      const result: BulkImportResult = { created: [{}] as any, conflicts: [], clonedAdHocNodes: 0 };
+      const result: BulkImportResult = { created: [{}] as any, conflicts: [], clonedAdHocNodes: 0, conflictsByKind: {} as any };
       assignmentService.bulkImport.mockReturnValue(of(result));
       const entry = makeHistoryEntry();
       component.selectEntry(entry);
@@ -124,7 +124,7 @@ describe('ImportPinyaModalComponent', () => {
     });
 
     it('shows success result after import', () => {
-      const result: BulkImportResult = { created: [{}] as any, conflicts: [], clonedAdHocNodes: 0 };
+      const result: BulkImportResult = { created: [{}] as any, conflicts: [], clonedAdHocNodes: 0, conflictsByKind: {} as any };
       assignmentService.bulkImport.mockReturnValue(of(result));
       component.selectEntry(makeHistoryEntry());
       component.doImport();
@@ -137,6 +137,7 @@ describe('ImportPinyaModalComponent', () => {
         created: [],
         conflicts: [{ nodeId: 'n1', nodeLabel: 'base1', personAlias: 'Pepet', reason: 'Occupied' }],
         clonedAdHocNodes: 0,
+        conflictsByKind: {} as any,
       };
       assignmentService.bulkImport.mockReturnValue(of(result));
       component.selectEntry(makeHistoryEntry());
@@ -146,7 +147,7 @@ describe('ImportPinyaModalComponent', () => {
     });
 
     it('emits importCompleted after successful import', () => {
-      const result: BulkImportResult = { created: [], conflicts: [], clonedAdHocNodes: 0 };
+      const result: BulkImportResult = { created: [], conflicts: [], clonedAdHocNodes: 0, conflictsByKind: {} as any };
       assignmentService.bulkImport.mockReturnValue(of(result));
       component.selectEntry(makeHistoryEntry());
       component.doImport();

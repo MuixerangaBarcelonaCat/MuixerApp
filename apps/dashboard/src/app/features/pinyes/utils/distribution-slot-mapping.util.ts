@@ -1,14 +1,6 @@
+import { CompositionSlotWithNodes, figureExtentFromNodes, placeFigures, placeNewFigure, PlacedFigurePosition, repositionCordoObertNodes, computeTroncNaturalSize } from '@muixer/pinyes-render';
 import { DistributionItem } from '../models/distribution.model';
-import { CompositionSlotWithNodes } from '../components/figure-canvas/figure-canvas.component';
 import { filterNodesByFigureMode } from './figure-mode-filter.util';
-import {
-  figureExtentFromNodes,
-  placeFigures,
-  placeNewFigure,
-  PlacedFigurePosition,
-} from './figure-placement.util';
-import { repositionCordoObertNodes } from './cordo-obert.util';
-import { computeTroncNaturalSize } from './tronc-size.util';
 
 /**
  * Maps segment distribution items into canvas slots, shared by the standalone

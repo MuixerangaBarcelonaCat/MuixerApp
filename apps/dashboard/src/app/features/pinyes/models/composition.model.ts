@@ -1,5 +1,4 @@
-import { FigureNodeItem } from './figure-template.model';
-import { FigureMode } from './segment.model';
+import { FigureNodeItem, FigureMode } from '@muixer/pinyes-render';
 
 export interface CompositionEntryItem {
   id: string;

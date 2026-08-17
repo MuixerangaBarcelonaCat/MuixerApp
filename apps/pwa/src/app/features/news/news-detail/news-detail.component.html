@@ -1,0 +1,26 @@
+<app-mobile-header
+  [title]="news()?.title ?? 'Notícia'"
+  [showBack]="true"
+  fallbackRoute="/home"
+/>
+
+@if (isLoading()) {
+  <app-skeleton-card [count]="1" />
+} @else if (hasError() || !news()) {
+  <app-empty-state
+    message="No s'ha pogut carregar la notícia. Torneu-ho a provar."
+    actionLabel="Torna-ho a provar"
+    (action)="newsResource.reload()"
+  />
+} @else {
+  @let item = news()!;
+  <section class="flex flex-col gap-4 pb-4">
+    <div class="card bg-base-100 shadow-sm">
+      <div class="card-body p-4 prose prose-sm max-w-none">
+        <h2 class="card-title text-lg">{{ item.title }}</h2>
+        <p class="text-sm text-base-content/60">{{ publishedDate() }}</p>
+        <div data-testid="news-detail-body" [innerHTML]="bodyHtml()"></div>
+      </div>
+    </div>
+  </section>
+}

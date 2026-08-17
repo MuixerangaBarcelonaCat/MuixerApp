@@ -14,6 +14,13 @@
       </button>
     </div>
 
+    <div class="flex items-center gap-2 mb-1.5 text-xs text-base-content/60" data-testid="person-panel-counters">
+      <span data-testid="free-count">{{ freeCount() }} lliures</span>
+      @if (area() !== 'TRONC') {
+        <span data-testid="pinya-eligible-count">· {{ pinyaEligibleCount() }} elegibles per a pinya</span>
+      }
+    </div>
+
     <!-- Search -->
     <div class="relative mb-1.5">
       <input
@@ -318,32 +325,32 @@
         </div>
       }
 
-      <!-- Assignades (already placed in a node) -->
-      @if (assignedPersons().length > 0) {
-        <div class="border-t border-base-200">
+      <!-- A la pinya (any placement in the PINYA area of this segment) -->
+      @if (pinyaAssignedPersons().length > 0) {
+        <div class="border-t border-base-200" data-testid="pinya-assigned-bucket">
           <button
             type="button"
             class="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-info hover:bg-base-200 transition-colors"
-            (click)="assignadesExpanded.update(v => !v)"
-            [attr.aria-expanded]="assignadesExpanded()"
-            aria-controls="assignades-panel"
+            (click)="pinyaAssignedExpanded.update(v => !v)"
+            [attr.aria-expanded]="pinyaAssignedExpanded()"
+            aria-controls="pinya-assigned-panel"
           >
-            <span>Assignades ({{ assignedPersons().length }})</span>
-            <i-lucide [img]="assignadesExpanded() ? ChevronUp : ChevronDown" class="size-3" />
+            <span>A la pinya ({{ pinyaAssignedPersons().length }})</span>
+            <i-lucide [img]="pinyaAssignedExpanded() ? ChevronUp : ChevronDown" class="size-3" />
           </button>
 
-          @if (assignadesExpanded()) {
-            <div id="assignades-panel" class="px-2 pb-2">
-              @for (person of assignedPersons(); track person.id) {
+          @if (pinyaAssignedExpanded()) {
+            <div id="pinya-assigned-panel" class="px-2 pb-2">
+              @for (person of pinyaAssignedPersons(); track person.id) {
                 @let posType = activeNodePositionType();
                 @let matchPos = posType ? (person.positions.find(p => (p.positionTypes ?? []).includes(posType)) ?? null) : null;
                 <button
                   type="button"
                   class="w-full text-left px-2 py-1.5 rounded hover:bg-base-200 active:bg-base-300 transition-colors flex items-center justify-between gap-2 text-xs"
-                  (click)="navigateToAssigned(person)"
+                  (click)="navigateToAssigned(person, 'PINYA')"
                   (mouseenter)="onPersonHover($event, person)"
                   (mouseleave)="onPersonLeave()"
-                  [attr.aria-label]="person.alias + ': anar al node ' + assignedBadgeLabel(person)"
+                  [attr.aria-label]="person.alias + ': anar al node ' + assignedBadgeLabel(person, 'PINYA')"
                 >
                   <span class="flex items-center gap-1.5 min-w-0">
                     @if (matchPos) {
@@ -363,7 +370,60 @@
                 }
                     }
                   </span>
-                  <span class="badge badge-xs badge-info shrink-0">{{ assignedBadgeLabel(person) }}</span>
+                  <span class="badge badge-xs badge-info shrink-0">{{ assignedBadgeLabel(person, 'PINYA') }}</span>
+                </button>
+              }
+            </div>
+          }
+        </div>
+      }
+
+      <!-- Al tronc (any placement in the TRONC/BASE/DIRECTION area of this segment) -->
+      @if (troncAssignedPersons().length > 0) {
+        <div class="border-t border-base-200" data-testid="tronc-assigned-bucket">
+          <button
+            type="button"
+            class="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-info hover:bg-base-200 transition-colors"
+            (click)="troncAssignedExpanded.update(v => !v)"
+            [attr.aria-expanded]="troncAssignedExpanded()"
+            aria-controls="tronc-assigned-panel"
+          >
+            <span>Al tronc ({{ troncAssignedPersons().length }})</span>
+            <i-lucide [img]="troncAssignedExpanded() ? ChevronUp : ChevronDown" class="size-3" />
+          </button>
+
+          @if (troncAssignedExpanded()) {
+            <div id="tronc-assigned-panel" class="px-2 pb-2">
+              @for (person of troncAssignedPersons(); track person.id) {
+                @let posType = activeNodePositionType();
+                @let matchPos = posType ? (person.positions.find(p => (p.positionTypes ?? []).includes(posType)) ?? null) : null;
+                <button
+                  type="button"
+                  class="w-full text-left px-2 py-1.5 rounded hover:bg-base-200 active:bg-base-300 transition-colors flex items-center justify-between gap-2 text-xs"
+                  (click)="navigateToAssigned(person, 'TRONC')"
+                  (mouseenter)="onPersonHover($event, person)"
+                  (mouseleave)="onPersonLeave()"
+                  [attr.aria-label]="person.alias + ': anar al node ' + assignedBadgeLabel(person, 'TRONC')"
+                >
+                  <span class="flex items-center gap-1.5 min-w-0">
+                    @if (matchPos) {
+                      <span
+                        class="w-2 h-2 rounded-full shrink-0"
+                        [style.background-color]="matchPos.color ?? 'currentColor'"
+                        [attr.aria-label]="'Posició: ' + matchPos.name"
+                        [title]="matchPos.name"
+                      ></span>
+                    }
+                    <span class="truncate text-base-content/60">{{ person.alias }}</span>
+                    @if (person.notes) {
+                      @if (person.notesEmoji) {
+                  <span class="text-xs leading-none shrink-0" [attr.aria-label]="'Observacions: ' + person.notes" [title]="person.notes">{{ person.notesEmoji }}</span>
+                } @else {
+                  <i-lucide [img]="ICON_OBSERVACIONS" class="size-2.5 text-warning shrink-0" [attr.aria-label]="'Observacions: ' + person.notes" [title]="person.notes" />
+                }
+                    }
+                  </span>
+                  <span class="badge badge-xs badge-info shrink-0">{{ assignedBadgeLabel(person, 'TRONC') }}</span>
                 </button>
               }
             </div>

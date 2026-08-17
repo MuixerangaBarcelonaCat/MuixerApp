@@ -118,7 +118,33 @@ module.exports = {
     './libs/**/*.{html,ts}',
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        conflict: {
+          DEFAULT: '#e11d48',
+          content: '#ffffff',
+        },
+      },
+      keyframes: {
+        'arrival-bounce': {
+          '0%': { scale: '1' },
+          '40%': { scale: '1.35' },
+          '100%': { scale: '1' },
+        },
+        // A standalone `translate`, not `transform` — composes with the chevron's own inline
+        // `transform: translate(...) rotate(angle)` instead of being clobbered by it, and moves
+        // in the element's local space *before* that rotation, so it reads as oscillating along
+        // the pointing direction rather than always sliding sideways on screen.
+        restless: {
+          '0%, 100%': { translate: '0 0' },
+          '50%': { translate: '4px 0' },
+        },
+      },
+      animation: {
+        'arrival-bounce': 'arrival-bounce 400ms ease-out',
+        restless: 'restless 900ms ease-in-out infinite',
+      },
+    },
   },
   plugins: [
     require('daisyui'),

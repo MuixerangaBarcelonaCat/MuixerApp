@@ -1,13 +1,7 @@
+import { CreateInstancePayload, InstanceDetail, MoveInstancePayload, MoveInstanceResult, UpdateInstancePayload } from '@muixer/pinyes-render';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
-import {
-  CreateInstancePayload,
-  InstanceDetail,
-  MoveInstancePayload,
-  MoveInstanceResult,
-  UpdateInstancePayload,
-} from '../models/segment.model';
 
 export interface CopyInstancePayload {
   targetSegmentId: string;

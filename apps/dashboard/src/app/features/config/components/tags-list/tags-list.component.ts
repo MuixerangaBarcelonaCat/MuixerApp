@@ -10,11 +10,11 @@ import { ToastService } from '../../../../shared/components/feedback/toast/toast
 import { PageHeaderComponent } from '../../../../shared/components/data/page-header/page-header.component';
 import { EmptyStateComponent } from '../../../../shared/components/data/empty-state/empty-state.component';
 import { TagFormModalComponent } from '../tag-form-modal/tag-form-modal.component';
-import { getContrastColor } from '../../../../shared/utils';
 import {
   TRONC_NODE_PRESETS,
   PINYA_NODE_PRESETS,
   DIRECTION_NODE_PRESETS,
+  getContrastColor,
 } from '@muixer/shared';
 
 @Component({

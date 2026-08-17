@@ -80,6 +80,8 @@
     </div>
   </header>
 
+  <app-segment-conflict-panel (placementSelected)="onCrossTabSelect($event)" />
+
   <!-- Tab content -->
   <div class="flex-1 min-h-0">
     @if (ws.loading()) {

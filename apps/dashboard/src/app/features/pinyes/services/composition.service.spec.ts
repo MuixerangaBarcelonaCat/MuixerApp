@@ -1,3 +1,4 @@
+import { SegmentDetail } from '@muixer/pinyes-render';
 import { TestBed } from '@angular/core/testing';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient } from '@angular/common/http';
@@ -5,7 +6,6 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { environment } from '../../../../environments/environment';
 import { CompositionService } from './composition.service';
 import { CompositionDetail, CompositionListItem, PaginatedCompositions } from '../models/composition.model';
-import { SegmentDetail } from '../models/segment.model';
 
 const BASE = environment.apiUrl;
 const EVENT_ID = 'event-uuid-1';
@@ -42,7 +42,7 @@ const mockSegment: SegmentDetail = {
   startTime: null,
   endTime: null,
   notes: null,
-  isVisible: true,
+  isPublished: true,
   instances: [],
 };
 

@@ -14,6 +14,22 @@ export const appRoutes: Routes = [
     canActivate: [alreadyAuthGuard],
   },
   {
+    path: 'forgot-password',
+    loadComponent: () =>
+      import('./features/auth/forgot-password/forgot-password.component').then(
+        (m) => m.ForgotPasswordComponent,
+      ),
+    canActivate: [alreadyAuthGuard],
+  },
+  {
+    path: 'activate',
+    loadComponent: () =>
+      import('./features/auth/activate/activate.component').then(
+        (m) => m.ActivateComponent,
+      ),
+    canActivate: [alreadyAuthGuard],
+  },
+  {
     path: '',
     loadComponent: () =>
       import('./core/layout/app-shell/app-shell.component').then(
@@ -50,11 +66,43 @@ export const appRoutes: Routes = [
           ),
       },
       {
+        path: 'events/:eventId/segments/:segmentId',
+        title: 'Projecció',
+        loadComponent: () =>
+          import('./features/events/segment-projection/segment-projection.component').then(
+            (m) => m.SegmentProjectionComponent,
+          ),
+      },
+      {
+        path: 'news/:id',
+        title: 'Notícia',
+        loadComponent: () =>
+          import('./features/news/news-detail/news-detail.component').then(
+            (m) => m.NewsDetailComponent,
+          ),
+      },
+      {
         path: 'profile',
         title: 'Perfil',
         loadComponent: () =>
           import('./features/profile/profile.component').then(
             (m) => m.ProfileComponent,
+          ),
+      },
+      {
+        path: 'profile/settings',
+        title: 'Configuració',
+        loadComponent: () =>
+          import('./features/profile/settings/settings.component').then(
+            (m) => m.SettingsComponent,
+          ),
+      },
+      {
+        path: 'pending-dependents',
+        title: 'Xicalla pendent',
+        loadComponent: () =>
+          import('./features/dependents/pending-dependents/pending-dependents.component').then(
+            (m) => m.PendingDependentsComponent,
           ),
       },
     ],
