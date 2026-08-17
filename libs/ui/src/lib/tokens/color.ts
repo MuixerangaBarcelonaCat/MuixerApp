@@ -48,13 +48,20 @@ interface ToneShift {
   dl: number;
   cFactor: number;
   recedes: boolean;
+  // Only for recede variants where staying visible matters (e.g. disabled is rendered as an
+  // outline/text against the surface, not just a background wash): the minimum distance the
+  // result must keep from the mode's extreme (1 in light, 0 in dark), overriding a flat +dl when
+  // the base already sits close enough to the surface that the plain shift would nearly vanish
+  // into it (e.g. secondary's L=0.75 base + dl=0.2 lands at 0.95, a hair from paper-white's
+  // 0.985).
+  recedeExtremeGap?: number;
 }
 
 const TONE_SHIFTS: Record<ToneVariant, ToneShift> = {
   hover: { dl: 0.08, cFactor: 1, recedes: false },
   active: { dl: 0.14, cFactor: 1, recedes: false },
   focus: { dl: 0.05, cFactor: 1, recedes: false },
-  disabled: { dl: 0.2, cFactor: 0.35, recedes: true },
+  disabled: { dl: 0.2, cFactor: 0.35, recedes: true, recedeExtremeGap: 0.12 },
   // dl/cFactor grounded empirically: the fixed palette's own base→light accent pairs average
   // deltaL ≈ 0.22 with chroma roughly halved (see fixed-colors.ts's SEMANTIC/SEMANTIC_LIGHT pairs).
   muted: { dl: 0.22, cFactor: 0.5, recedes: true },
@@ -77,8 +84,13 @@ export function tone(base: OklchColor, variant: ToneVariant, mode: ThemeMode): O
     direction = shift.recedes ? -emphasisDirection : emphasisDirection;
   }
 
+  let l = clamp(base.l + direction * shift.dl, 0, 1);
+  if (shift.recedeExtremeGap !== undefined) {
+    l = mode === 'light' ? Math.min(l, 1 - shift.recedeExtremeGap) : Math.max(l, shift.recedeExtremeGap);
+  }
+
   return {
-    l: clamp(base.l + direction * shift.dl, 0, 1),
+    l,
     c: Math.max(0, base.c * shift.cFactor),
     h: base.h,
   };

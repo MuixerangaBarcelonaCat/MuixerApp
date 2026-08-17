@@ -1,0 +1,112 @@
+@use 'sass:map';
+
+:host {
+  display: contents;
+}
+
+// Personality pass (design doc: Identity principles + Phase 3 Button spec). DaisyUI's own
+// .btn:hover/.btn-outline:hover/.btn-ghost:hover all shift toward a flat black/neutral mix on
+// hover, ignoring the button's role entirely — it never reaches tone(). Hover, decided visually,
+// deliberately carries no color change at all (color-shift hover read worse than a plain lift
+// across solid/outline/ghost alike) — it's a lift + shadow only, using the --ds-btn-lift-shadow
+// token (SHADOW.overlay, reused rather than inventing a button-specific shadow). The rules below
+// each specifically outrank (by CSS specificity, not source order — Angular's emulated
+// encapsulation attribute adds one selector "slot" to every rule here, and the role-scoped hover
+// overrides add another class on top of that) the DaisyUI rule they're neutralizing, then
+// reassert that same rule's own resting-state color formula so the fill/border/text genuinely
+// doesn't change — not just "looks unchanged by coincidence." Press state (:active) still uses
+// the --ds-{role}-active/-disabled tokens theme.ts precomputes per role, since DaisyUI's own
+// :active never reaches tone() either. Radius comes from --rounded-btn (RADIUS.btn) same as any
+// other DaisyUI button.
+.btn {
+  // border-box + a matching transparent border on every non-outline variant means the disabled
+  // dashed outline further down doesn't change the button's box size relative to its solid
+  // siblings. Scoped to :not(.btn-outline) so DaisyUI's own .btn-outline { border-color:
+  // currentColor } (an outline button's whole reason to exist) isn't clobbered — it used to be,
+  // unconditionally, which is why outline buttons rendered borderless (indistinguishable from
+  // ghost).
+  box-sizing: border-box;
+  border-width: 2px;
+  border-style: solid;
+
+  &:not(.btn-outline) {
+    border-color: transparent;
+  }
+
+  transition:
+    background-color var(--animation-btn, 120ms) ease-out,
+    border-color var(--animation-btn, 120ms) ease-out,
+    box-shadow var(--animation-btn, 120ms) ease-out,
+    transform var(--ds-motion-base, 220ms) var(--ds-ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1));
+
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--ds-btn-lift-shadow);
+    // Outranks DaisyUI's own `.btn:hover` color-mix darken (lower specificity, no encapsulation
+    // attribute) by reasserting the exact resting-state formula its base (non-hover) `.btn` rule
+    // uses. Matches every solid role automatically via --btn-color, no per-role duplication
+    // needed. Border stays untouched here — the :not(.btn-outline) rule above already outranks
+    // DaisyUI's hover border-mix on its own, hover or not.
+    background-color: oklch(var(--btn-color, var(--b2)) / var(--tw-bg-opacity, 1));
+  }
+
+  // Press flattens back down and wins over the hover lift — same specificity as :hover, declared
+  // after it, so the cascade favors :active for a real click (where both apply at once).
+  &:active {
+    transform: scale(0.93);
+    box-shadow: none;
+  }
+}
+
+// Ghost's resting fill is transparent (DaisyUI's own .btn-ghost), but its hover tints toward
+// base-content/20% — the base .btn:hover fix above doesn't help here since it reasserts
+// --btn-color (ghost never sets it, so it'd fall back to base-200, still a color change).
+// Declared after the base .btn block so it wins the tie against it (identical specificity, later
+// source order wins) on top of already outranking DaisyUI's own .btn-ghost:hover.
+.btn-ghost:hover {
+  background-color: transparent;
+}
+
+$roles: primary, secondary, accent, neutral, info, success, warning, error;
+// DaisyUI v4's own semantic color custom properties (its documented theming API) — reused here,
+// not duplicated, so outline hover reasserts literally the same resting-state values DaisyUI's
+// own `.btn-outline.btn-{role}` rule computes, for every role at once.
+$daisy-var: (
+  primary: p,
+  secondary: s,
+  accent: a,
+  neutral: n,
+  info: in,
+  success: su,
+  warning: wa,
+  error: er,
+);
+
+@each $role in $roles {
+  .btn-#{$role} {
+    &:active {
+      background-color: var(--ds-#{$role}-active);
+      border-color: var(--ds-#{$role}-active);
+    }
+
+    // "Sketched, not inked yet" — disabled buttons drop their fill and become a dashed outline
+    // in the same muted disabled tone, rather than just dimming the solid fill.
+    &:disabled {
+      background-color: transparent !important;
+      border-style: dashed;
+      color: var(--ds-#{$role}-disabled);
+      border-color: var(--ds-#{$role}-disabled);
+    }
+  }
+
+  // Outranks DaisyUI's own `.btn-outline.btn-{role}:hover` (which inverts to a filled, darker
+  // button on hover) by matching the same two-class shape plus the encapsulation attribute —
+  // one specificity "slot" ahead, regardless of source order. Reasserts transparent
+  // fill/currentColor-equivalent border/resting text color, i.e. genuinely no color change.
+  $dv: map.get($daisy-var, $role);
+  .btn-outline.btn-#{$role}:hover {
+    background-color: transparent;
+    border-color: oklch(var(--#{$dv}));
+    color: oklch(var(--#{$dv}));
+  }
+}

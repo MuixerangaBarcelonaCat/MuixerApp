@@ -1,0 +1,18 @@
+<div class="space-y-8 max-w-5xl mx-auto">
+  <app-page-header title="Design System">
+    <lib-button variant="ghost" size="sm" (clicked)="toggleMode()" [ariaLabel]="mode() === 'light' ? 'Canvia a fosc' : 'Canvia a clar'">
+      <lucide-icon [img]="mode() === 'light' ? MoonIcon : SunIcon" [size]="16" />
+      {{ mode() === 'light' ? 'Fosc' : 'Clar' }}
+    </lib-button>
+  </app-page-header>
+
+  <p class="text-xs text-base-content/50 -mt-6">
+    Live reference for every token and <code>libs/ui</code> component — see <code>docs/DESIGN_SYSTEM.md</code> for the full
+    write-up. Nothing here is a screenshot; every swatch/control below reflects the real theme currently applied.
+  </p>
+
+  <app-color-section [mode]="mode()" />
+  <app-typography-section />
+  <app-tokens-section />
+  <app-components-section />
+</div>

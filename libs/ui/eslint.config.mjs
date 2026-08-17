@@ -11,8 +11,10 @@ export default [
       '@angular-eslint/directive-selector': [
         'error',
         {
+          // 'lib' — every component here is authored fresh (no verbatim ports from an
+          // app), matching pinyes-render's convention for its own freshly-authored components.
           type: 'attribute',
-          prefix: 'app',
+          prefix: 'lib',
           style: 'camelCase',
         },
       ],
@@ -20,7 +22,7 @@ export default [
         'error',
         {
           type: 'element',
-          prefix: 'app',
+          prefix: 'lib',
           style: 'kebab-case',
         },
       ],

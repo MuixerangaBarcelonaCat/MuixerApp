@@ -40,6 +40,7 @@
     "audit:pwa-behavior": "playwright test -c apps/dashboard-e2e/playwright.pwa-behavior.config.ts",
     "ci:local": "npx nx run-many -t lint,test,build --all --exclude=dashboard-e2e,pwa-e2e --parallel=3 --configuration=ci",
     "lint:dead": "knip --no-exit-code",
+    "lint:tokens": "node scripts/check-design-tokens.mjs",
     "docs:map": "node scripts/generate-doc-map.mjs",
     "docs:model": "node scripts/generate-data-model.mjs"
   },

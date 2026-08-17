@@ -1,0 +1,8 @@
+<span
+  [class]="badgeClass()"
+  [style.background-color]="color() && !outline() ? color() : null"
+  [style.border-color]="color() && outline() ? color() : null"
+  [style.color]="color() ? (outline() ? color() : customContentColor()) : null"
+>
+  <ng-content />
+</span>

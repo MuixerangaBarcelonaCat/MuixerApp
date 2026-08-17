@@ -1,0 +1,86 @@
+<section class="space-y-6">
+  <div>
+    <h2 class="text-lg font-bold text-base-content">Color</h2>
+    <p class="text-xs text-base-content/50 mt-0.5">
+      OKLCH tokens, generated per colla via <code>generateCollaTheme()</code>. Swatches below use the live theme currently applied
+      to this page — toggle light/dark above to see them respond.
+    </p>
+  </div>
+
+  <div>
+    <h3 class="text-sm font-semibold text-base-content/70 mb-2">Semantic roles</h3>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      @for (swatch of semanticRoles; track swatch.role) {
+        <div class="rounded-box overflow-hidden border border-base-300">
+          <div class="h-16 flex items-center justify-center font-semibold text-sm" [ngClass]="[swatch.bgClass, swatch.contentClass]">
+            Aa
+          </div>
+          <div class="px-2 py-1 text-xs font-mono bg-base-100">{{ swatch.role }}</div>
+        </div>
+      }
+    </div>
+  </div>
+
+  <div>
+    <h3 class="text-sm font-semibold text-base-content/70 mb-2">Surfaces</h3>
+    <div class="grid grid-cols-3 gap-3">
+      @for (swatch of surfaceRoles; track swatch.role) {
+        <div class="rounded-box overflow-hidden border border-base-300">
+          <div class="h-12" [ngClass]="swatch.bgClass"></div>
+          <div class="px-2 py-1 text-xs font-mono bg-base-100">{{ swatch.role }}</div>
+        </div>
+      }
+    </div>
+  </div>
+
+  <div>
+    <h3 class="text-sm font-semibold text-base-content/70 mb-2">Interactive states (<code>--ds-{{ '{role}' }}-*</code>)</h3>
+    <div class="overflow-x-auto">
+      <table class="table table-sm">
+        <thead>
+          <tr>
+            <th>Role</th>
+            <th>hover</th>
+            <th>active</th>
+            <th>disabled</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (role of interactiveRoles; track role) {
+            <tr>
+              <td class="font-mono text-xs">{{ role }}</td>
+              <td><span class="inline-block w-8 h-8 rounded-btn border border-base-300" [style.background-color]="stateVar(role, 'hover')"></span></td>
+              <td><span class="inline-block w-8 h-8 rounded-btn border border-base-300" [style.background-color]="stateVar(role, 'active')"></span></td>
+              <td><span class="inline-block w-8 h-8 rounded-btn border border-base-300" [style.background-color]="stateVar(role, 'disabled')"></span></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div>
+    <h3 class="text-sm font-semibold text-base-content/70 mb-2">Categorical palette (10 hues)</h3>
+    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      @for (swatch of categoricalSwatches(); track swatch.label) {
+        <div class="rounded-box overflow-hidden border border-base-300">
+          <div class="h-10" [style.background-color]="swatch.normal"></div>
+          <div class="h-6" [style.background-color]="swatch.light"></div>
+          <div class="px-2 py-1 text-xs font-mono bg-base-100">{{ swatch.label }}</div>
+        </div>
+      }
+    </div>
+  </div>
+
+  <div>
+    <h3 class="text-sm font-semibold text-base-content/70 mb-2">Fixed scale (paper / ink / crease / semantic)</h3>
+    <div class="grid grid-cols-3 sm:grid-cols-6 gap-3">
+      @for (swatch of fixedScale; track swatch.label) {
+        <div class="rounded-box overflow-hidden border border-base-300">
+          <div class="h-10" [style.background-color]="swatch.hex"></div>
+          <div class="px-1.5 py-1 text-[10px] font-mono bg-base-100 truncate">{{ swatch.label }}</div>
+        </div>
+      }
+    </div>
+  </div>
+</section>

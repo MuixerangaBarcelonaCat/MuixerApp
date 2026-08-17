@@ -51,6 +51,16 @@ import { AuthService } from '../../core/auth/services/auth.service';
           </a>
         }
 
+        @if (auth.isAdmin()) {
+          <a routerLink="/design-system" class="card bg-base-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer border-l-4 border-accent">
+            <div class="card-body p-4">
+              <lucide-icon name="Sparkles" [size]="24" class="text-accent mb-1" />
+              <h3 class="font-semibold">Design System</h3>
+              <p class="text-xs text-base-content/50">Tokens i llibreria de components libs/ui</p>
+            </div>
+          </a>
+        }
+
       </div>
     </div>
   `,

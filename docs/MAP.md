@@ -33,6 +33,8 @@ graph TD
   MAP --> AUTH_FLOW
   MAP --> SYNC_ARCHITECTURE
   MAP --> DASHBOARD_UI
+  MAP --> DESIGN_SYSTEM
+  DESIGN_SYSTEM --> DASHBOARD_UI
   MAP --> DOCKER_SETUP
   DATA_MODEL --> PINYES_MODULE
   PINYES_MODULE --> SEGMENTS_FLEXIBILITY
@@ -83,6 +85,7 @@ graph TD
 
 | Document | Què hi trobaràs |
 |----------|-----------------|
+| [[DESIGN_SYSTEM]] | Tokens (color, tipografia, radius, shadow, motion, z-index) i llibreria `libs/ui` compartida |
 | [[DASHBOARD_UI]] | Patrons d'UI, DaisyUI, composició de pàgines de llista |
 | [[AUDIT_SUITE]] | Com executar les auditories responsive/a11y i els e2e de Playwright |
 | [[GDPR_COMPLIANCE]] | Informe tècnic i pla d'implementació del compliment LOPDGDD/RGPD |
@@ -107,7 +110,7 @@ graph TD
 
 <!-- BEGIN:AUTO — generat per scripts/generate-doc-map.mjs, no editar a mà -->
 
-> Generat el 2026-08-16 amb `pnpm run docs:map`.
+> Generat el 2026-08-17 amb `pnpm run docs:map`.
 
 ### Mòduls de l'API (`apps/api/src/modules`)
 

@@ -107,13 +107,16 @@ Routes (all behind `authGuard` + `rolesGuard(TECHNICAL, ADMIN)`):
 - `/home` · `/persons` · `/rehearsals`, `/performances` (events feature: list + sync)
 - `/events/:id` → `EventDetailComponent`, `/events/:id/confirmation` → `AttendanceConfirmationComponent`
 - `/pinyes` → Pinyes module (see below) · `/sync` → legacy sync SSE UI
-- `/config` → `ConfigComponent`, with `/config/users`, `/config/tags`, `/config/seasons`
+- `/config` → `ConfigComponent`, with `/config/users`, `/config/tags`, `/config/seasons`, `/config/legal` (ADMIN only)
+- `/design-system` → live token/component reference (ADMIN only, see below)
 
-**Shared components** (`shared/components/`): `data/` (page-header, data-table, filter-bar, active-filters, column-toggle, pagination, empty-state, stat-card) · `feedback/` (toast) · `forms/` (emoji-picker, person-search-input) · `layout/` (header, tab-nav, user-chip). Compose list pages with these — never build raw table/pagination HTML.
+**Shared components** (`shared/components/`): `data/` (page-header, data-table, filter-bar, active-filters, column-toggle, pagination, empty-state, stat-card) · `feedback/` (toast) · `forms/` (emoji-picker, person-search-input) · `layout/` (header, tab-nav, user-chip). Compose list pages with these — never build raw table/pagination HTML. **Being migrated to `@muixer/ui`** (`lib-button`/`lib-badge`/`lib-card`/`lib-input`/`lib-modal`/`lib-toast-container`/`lib-empty-state`) page by page — see **Design system** below before adding a new one of these by hand.
 
 `app-data-table` has a **responsive card mode** below `lg` (`matchMedia`); flag the title column with `primary: true` in its `ColumnDef`.
 
-**Styling:** DaisyUI v4 + Tailwind CSS v3. No `@angular/material`, no `.scss` unless animations are needed, no `@apply`. Dynamic Tailwind classes must use static maps (not template literals). Theme generated via `generateCollaTheme(primaryHex)` in `tailwind.config.js`.
+**Styling:** DaisyUI v4 + Tailwind CSS v3. No `@angular/material`, no `.scss` unless animations are needed, no `@apply`. Dynamic Tailwind classes must use static maps (not template literals). Theme generated via `generateCollaTheme(shirtHex, sashSpec)` in `libs/ui/src/lib/tokens/theme.ts`.
+
+**Design system:** tokens (color/typography/radius/shadow/motion/z-index) and the shared `libs/ui` component library — consumed by both this app and the PWA — are documented in [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md), with a live, real-content reference at `/design-system` (ADMIN only). Reach for `libs/ui` before hand-rolling a button/badge/card/input/modal/toast/empty-state.
 
 **Canvas:** Konva 10.x used imperatively — not `ng2-konva` (incompatible with Angular 20+).
 
@@ -124,6 +127,8 @@ Angular 21 + Service Worker (offline cache; **no push yet**), signals + `rxResou
 **Routes:** `login` (alreadyAuthGuard) · `AppShell` behind `authGuard` + `rolesGuard(MEMBER, TECHNICAL, ADMIN)`: `home`, `events`, `events/:id`, `events/:eventId/segments/:segmentId` (segment projection, lazy), `profile` (placeholder).
 
 **Features:** login, home (next rehearsal/performance), event agenda, event detail (with a **Segments** list for published segments — titles auto-derived the same way as the Dashboard, via `computeSegmentDisplayName` in `@muixer/shared`, plus a muted "on sou" one-line summary per segment via `formatOwnPositionSummary`, e.g. «Vent (C1) a Roscana»), **segment projection** (`SegmentProjectionComponent`: fetches via `/me/events/:eventId/segments/:segmentId/projection`, renders `<lib-pinya-projection>` full-bleed with a back/prev/next HUD, passing `highlightPersonId` (the caller's own `Person.id`) so `PinyaProjectionComponent` can show the "you are here" ring/chevron overlay (`OwnPositionMarkerComponent`) and sentence banner (`OwnPositionBannerComponent`, both in `@muixer/pinyes-render`) and fly the camera to the caller's placement on arrival or on tap — inert (`null`) for the Dashboard's own use of the same component; `LayoutService.isFullscreen` hides the bottom tab bar and shell chrome while it's open), and **attendance confirmation** (`AttendanceButton`: Vinc/No vinc → ANIRE/NO_VAIG; ASSISTIT locked). `no-person-banner` for accounts with no linked Person.
+
+**Design system:** shares the same token/component library (`@muixer/ui`) as the dashboard — see [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md). Not yet rolled out to any PWA screen (Phase 7.3 of the plan); the dashboard's `/design-system` route is the canonical live reference for both apps.
 
 Member-scoped data comes from the `me` API module (`@Roles(MEMBER, TECHNICAL, ADMIN)`): `GET /me/events` (filters `type`/`timeFilter`/`limit`, returns `MeEvent` with caller's own `myAttendance`), `GET /me/events/:id` (`MeEventDetail`), `PUT /me/events/:id/attendance` (upsert own attendance, person derived from JWT — no `personId` in the body), `GET /me/events/:eventId/segments` (published segments only, `MeSegment[]` incl. `instances` for title derivation and `myPlacements` — the caller's own `nodeLabel`/`cordon`/`figureName`/`figureMode` per placement, person derived from the JWT, never a query param), `GET /me/events/:eventId/segments/:segmentId/projection` (`ProjectionData`, 404s for an unpublished segment). Auth still uses `/auth/me`. Types live in `libs/shared/interfaces/me/`. The `me` module reuses `SeasonService`/`AttendanceService`/`EventSegmentService`/`ProjectionService` (the latter's `onlyPublished` option scopes both the segment lookup and prev/next navigation); never exposes the admin `/events` CRUD to members.
 

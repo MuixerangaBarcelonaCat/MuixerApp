@@ -6,9 +6,9 @@
  * DaisyUI app," which is the whole problem this project exists to fix.
  */
 export const RADIUS = {
-  box: '0.875rem', // cards, modals, larger panels
-  btn: '0.625rem', // buttons, inputs, selects
+  box: '0.6rem', // cards, modals, larger panels
+  btn: '0.4rem', // buttons, inputs, selects
   badge: '1.9rem', // badges — kept at DaisyUI's own value: past a certain radius a pill is a
   //                  pill regardless of the exact number, so there's nothing to differentiate
-  tab: '0.625rem', // tabs — matches btn, both are small interactive controls
+  tab: '0.4rem', // tabs — matches btn, both are small interactive controls
 } as const;

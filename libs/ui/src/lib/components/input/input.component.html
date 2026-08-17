@@ -1,0 +1,44 @@
+<label class="form-control w-full" [attr.for]="inputId()">
+  @if (label()) {
+    <div class="label pb-1">
+      <span class="label-text font-medium"
+        >{{ label() }}@if (required()) {
+          <span aria-hidden="true"> *</span>
+        }</span
+      >
+    </div>
+  }
+
+  <div [class]="boxClasses()">
+    @if (icon()) {
+      <lucide-icon [img]="icon()" [size]="16" class="text-base-content/40 shrink-0" data-testid="lib-input-icon" />
+    }
+    <input
+      [id]="inputId()"
+      class="grow bg-transparent outline-none"
+      [type]="type()"
+      [placeholder]="placeholder() ?? ''"
+      [value]="value()"
+      [disabled]="isDisabled()"
+      [required]="required()"
+      [attr.autocomplete]="autocomplete() ?? null"
+      [attr.aria-invalid]="hasError() ? 'true' : null"
+      [attr.aria-describedby]="hasDescription() ? descriptionId() : null"
+      (input)="onInput($event)"
+      (blur)="onBlur()"
+      data-testid="lib-input-native"
+    />
+  </div>
+
+  @if (hasError()) {
+    <div class="label pt-1">
+      <span class="label-text-alt text-error" [id]="descriptionId()" role="alert" data-testid="lib-input-error">{{
+        errorText()
+      }}</span>
+    </div>
+  } @else if (hasHint()) {
+    <div class="label pt-1">
+      <span class="label-text-alt" [id]="descriptionId()" data-testid="lib-input-hint">{{ hint() }}</span>
+    </div>
+  }
+</label>

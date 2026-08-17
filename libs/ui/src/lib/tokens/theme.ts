@@ -6,16 +6,43 @@ import {
   generateSecondary,
   sashFromHue,
   sashFromFill,
+  tone,
   ThemeMode,
   OklchColor,
 } from './color';
 import { PAPER, INK, SEMANTIC, ACCENT } from './fixed-colors';
 import { RADIUS } from './radius';
-import { DURATION } from './motion';
+import { DURATION, EASE_SPRING } from './motion';
+import { SHADOW } from './shadow';
 
 export type SashSpec = { kind: 'hue'; hex: string } | { kind: 'white' } | { kind: 'black' };
 
-export interface DaisyUiThemeValues {
+/**
+ * The color roles components can build hover/active/disabled feedback on. DaisyUI's own
+ * `.btn:hover`/`.btn:disabled` always mix toward a flat black/neutral gray regardless of role
+ * (see `node_modules/daisyui/dist/full.css`) — it never reaches `tone()`, so components that want
+ * the mode-aware, per-role interactive states `tone()` actually computes need them precomputed
+ * here as real theme values, not left to DaisyUI's default.
+ */
+export type InteractiveRole =
+  | 'primary'
+  | 'secondary'
+  | 'accent'
+  | 'neutral'
+  | 'info'
+  | 'success'
+  | 'warning'
+  | 'error';
+
+export type InteractiveStateTokens = {
+  [R in InteractiveRole as `--ds-${R}-hover`]: string;
+} & {
+  [R in InteractiveRole as `--ds-${R}-active`]: string;
+} & {
+  [R in InteractiveRole as `--ds-${R}-disabled`]: string;
+};
+
+export type DaisyUiThemeValues = InteractiveStateTokens & {
   primary: string;
   'primary-content': string;
   secondary: string;
@@ -42,6 +69,14 @@ export interface DaisyUiThemeValues {
   '--tab-radius': string;
   '--animation-btn': string;
   '--animation-input': string;
+  // Button's hover-lift shadow — reuses SHADOW.overlay verbatim (an "element temporarily raised
+  // above the page" shadow already exists; no need for a button-specific one).
+  '--ds-btn-lift-shadow': string;
+  // Shared press/release motion — every pressable component (Button, Card, …) reads the same
+  // spring curve and base duration from here, so a global "springier" or "faster" pass is one
+  // edit in motion.ts, not a hunt through each component's own SCSS.
+  '--ds-ease-spring': string;
+  '--ds-motion-base': string;
   // The sash motif — deliberately its own namespaced tokens, not mapped into any DaisyUI color
   // slot. DaisyUI auto-generates btn-*/badge-*/text-*/border-* utility classes from whatever
   // sits in primary/secondary/accent, and every DaisyUI app treats those three as "generic brand
@@ -52,7 +87,7 @@ export interface DaisyUiThemeValues {
   '--ds-sash-content': string;
   '--ds-sash-edge': string;
   '--ds-sash-weave': string;
-}
+};
 
 const INK_BLACK = hexToOklch(INK.black);
 const INK_DARK = hexToOklch(INK.dark);
@@ -101,7 +136,25 @@ function buildTheme(shirtHex: string, sash: SashSpec, mode: ThemeMode): DaisyUiT
   const info = hexToOklch(SEMANTIC.info);
   // SEMANTIC_LIGHT isn't part of the DaisyUI theme object — it's consumed via categorical.ts.
 
+  const interactiveBases: Record<InteractiveRole, OklchColor> = {
+    primary,
+    secondary,
+    accent: ACCENT_OKLCH,
+    neutral,
+    info,
+    success,
+    warning,
+    error,
+  };
+  const interactiveStates = {} as Record<string, string>;
+  for (const [role, base] of Object.entries(interactiveBases) as [InteractiveRole, OklchColor][]) {
+    interactiveStates[`--ds-${role}-hover`] = formatOklch(tone(base, 'hover', mode));
+    interactiveStates[`--ds-${role}-active`] = formatOklch(tone(base, 'active', mode));
+    interactiveStates[`--ds-${role}-disabled`] = formatOklch(tone(base, 'disabled', mode));
+  }
+
   return {
+    ...(interactiveStates as unknown as InteractiveStateTokens),
     primary: formatOklch(primary),
     'primary-content': formatOklch(content(primary)),
     secondary: formatOklch(secondary),
@@ -128,6 +181,9 @@ function buildTheme(shirtHex: string, sash: SashSpec, mode: ThemeMode): DaisyUiT
     '--tab-radius': RADIUS.tab,
     '--animation-btn': DURATION.fast,
     '--animation-input': DURATION.fast,
+    '--ds-btn-lift-shadow': SHADOW.overlay,
+    '--ds-ease-spring': EASE_SPRING,
+    '--ds-motion-base': DURATION.base,
     '--ds-sash-fill': formatOklch(sashTokens.fill),
     '--ds-sash-content': formatOklch(sashTokens.content),
     '--ds-sash-edge': formatOklch(sashTokens.edge),

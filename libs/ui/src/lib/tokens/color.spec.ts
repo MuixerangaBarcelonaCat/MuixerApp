@@ -145,6 +145,27 @@ describe('tone', () => {
     expect(tone(lowChroma, 'disabled', 'light').c).toBeGreaterThanOrEqual(0);
     expect(tone(lowChroma, 'muted', 'dark').c).toBeGreaterThanOrEqual(0);
   });
+
+  describe('disabled stays visible even when the base is already close to the surface', () => {
+    // Regression: secondary's base is L=0.75 (deliberately light, to separate it from primary).
+    // A flat +dl shift pushed it to L=0.95, a hair from paper-white's L=0.985 — nearly invisible
+    // against the surface it's rendered on. Disabled must keep a minimum gap from the extreme
+    // regardless of how light/dark the base already was, not just apply the same flat delta.
+    it('never exceeds a visible ceiling in light mode, even for an already-light base', () => {
+      const alreadyLight = { l: 0.75, c: 0.08, h: 224 };
+      expect(tone(alreadyLight, 'disabled', 'light').l).toBeLessThanOrEqual(0.88);
+    });
+
+    it('never drops below a visible floor in dark mode, even for an already-dark base', () => {
+      const alreadyDark = { l: 0.3, c: 0.01, h: 90 };
+      expect(tone(alreadyDark, 'disabled', 'dark').l).toBeGreaterThanOrEqual(0.12);
+    });
+
+    it('leaves an ordinary mid-lightness base unaffected by the clamp', () => {
+      const base = { l: 0.55, c: 0.18, h: 250 };
+      expect(tone(base, 'disabled', 'light').l).toBeCloseTo(0.75, 5);
+    });
+  });
 });
 
 describe('contrastContent', () => {

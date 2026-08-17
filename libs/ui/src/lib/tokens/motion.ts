@@ -12,3 +12,9 @@ export const DURATION = {
 } as const;
 
 export const EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
+
+// The press/release spring — snappy down, overshoots slightly on the way back up. First used by
+// Button's press interaction; named here (not left as a component-local literal) specifically so
+// every component that presses/lifts shares one curve, and a future "springier" or "faster"
+// pass is a single edit here rather than a hunt through each component's SCSS.
+export const EASE_SPRING = 'cubic-bezier(0.34, 1.56, 0.64, 1)';

@@ -1,0 +1,12 @@
+<button
+  [class]="buttonClass()"
+  [type]="type()"
+  [disabled]="isDisabled()"
+  [attr.aria-label]="ariaLabel() ?? null"
+  (click)="clicked.emit()"
+>
+  @if (loading()) {
+    <span [class]="loadingClass()" data-testid="lib-button-spinner" aria-hidden="true"></span>
+  }
+  <ng-content />
+</button>

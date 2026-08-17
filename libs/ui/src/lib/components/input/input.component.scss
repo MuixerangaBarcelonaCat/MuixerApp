@@ -1,0 +1,7 @@
+// No custom styling here by design — the input box rides entirely on DaisyUI's own `input`/
+// `form-control`/`label` classes and theme tokens (radius, colors, focus ring), same as every
+// hand-written input in the app today. This component's job is consolidating the markup/CVA
+// wiring, not introducing new visual identity.
+:host {
+  display: contents;
+}

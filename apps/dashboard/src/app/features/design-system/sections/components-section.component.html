@@ -1,0 +1,112 @@
+<section class="space-y-8">
+  <div>
+    <h2 class="text-lg font-bold text-base-content">Components</h2>
+    <p class="text-xs text-base-content/50 mt-0.5">
+      Hover/focus states are live on every control below — tab through or hover them directly, they aren't screenshots.
+    </p>
+  </div>
+
+  <lib-toast-container />
+
+  <div>
+    <h3 class="text-sm font-semibold text-base-content/70 mb-2">lib-button</h3>
+    <div class="flex flex-wrap gap-2 mb-2">
+      @for (v of variants; track v) {
+        <lib-button [variant]="v">{{ v }}</lib-button>
+      }
+    </div>
+    <div class="flex flex-wrap gap-2 mb-2">
+      @for (v of variants; track v) {
+        <lib-button [variant]="v" outline>{{ v }} outline</lib-button>
+      }
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <lib-button variant="primary" size="xs">xs</lib-button>
+      <lib-button variant="primary" size="sm">sm</lib-button>
+      <lib-button variant="primary" size="md">md</lib-button>
+      <lib-button variant="primary" size="lg">lg</lib-button>
+      <lib-button variant="primary" disabled>disabled</lib-button>
+      <lib-button variant="primary" [loading]="true">loading</lib-button>
+    </div>
+  </div>
+
+  <div>
+    <h3 class="text-sm font-semibold text-base-content/70 mb-2">lib-badge</h3>
+    <div class="flex flex-wrap gap-2 mb-2">
+      @for (v of badgeVariants; track v) {
+        <lib-badge [variant]="v">{{ v }}</lib-badge>
+      }
+    </div>
+    <div class="flex flex-wrap gap-2">
+      @for (v of badgeVariants; track v) {
+        <lib-badge [variant]="v" outline>{{ v }}</lib-badge>
+      }
+      <lib-badge color="#14808C">color override</lib-badge>
+    </div>
+  </div>
+
+  <div>
+    <h3 class="text-sm font-semibold text-base-content/70 mb-2">lib-card</h3>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <lib-card>
+        <p class="p-4 text-sm">sash="none"</p>
+      </lib-card>
+      <lib-card sash="thin">
+        <p class="p-4 text-sm">sash="thin"</p>
+      </lib-card>
+      <lib-card sash="title" title="Usuaris" [icon]="UsersIcon" clickable />
+    </div>
+  </div>
+
+  <div>
+    <h3 class="text-sm font-semibold text-base-content/70 mb-2">lib-input</h3>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
+      <lib-input label="Cerca" [icon]="SearchIcon" placeholder="Cerca..." />
+      <lib-input label="Desactivat" placeholder="—" disabled />
+      <lib-input label="Amb error" errorText="Aquest camp és obligatori" />
+      <lib-input label="Amb ajuda" hint="Text d'ajuda opcional" />
+    </div>
+  </div>
+
+  <div>
+    <h3 class="text-sm font-semibold text-base-content/70 mb-2">lib-modal</h3>
+    <div class="flex flex-wrap gap-2">
+      <lib-button variant="secondary" (clicked)="dismissibleModalOpen.set(true)">Obre dismissible</lib-button>
+      <lib-button variant="secondary" (clicked)="nonDismissibleModalOpen.set(true)">Obre no dismissible</lib-button>
+    </div>
+    <lib-modal [open]="dismissibleModalOpen()" title="Modal dismissible" (closed)="dismissibleModalOpen.set(false)">
+      <p class="text-sm">Backdrop click, Escape i el botó de tancar funcionen tots.</p>
+      <div modalFooter>
+        <lib-button variant="ghost" (clicked)="dismissibleModalOpen.set(false)">Tanca</lib-button>
+      </div>
+    </lib-modal>
+    <lib-modal [open]="nonDismissibleModalOpen()" title="Modal no dismissible" [dismissible]="false">
+      <p class="text-sm">Sense botó de tancar ni backdrop/Escape — només es tanca des d'una acció explícita.</p>
+      <div modalFooter>
+        <lib-button variant="primary" (clicked)="nonDismissibleModalOpen.set(false)">Confirma i tanca</lib-button>
+      </div>
+    </lib-modal>
+  </div>
+
+  <div>
+    <h3 class="text-sm font-semibold text-base-content/70 mb-2">lib-toast-container + ToastService</h3>
+    <div class="flex flex-wrap gap-2">
+      <lib-button variant="success" (clicked)="fireToast('success')">success()</lib-button>
+      <lib-button variant="error" (clicked)="fireToast('error')">error()</lib-button>
+      <lib-button variant="warning" (clicked)="fireToast('warning')">warning()</lib-button>
+      <lib-button variant="info" (clicked)="fireToast('info')">info()</lib-button>
+    </div>
+  </div>
+
+  <div>
+    <h3 class="text-sm font-semibold text-base-content/70 mb-2">lib-empty-state</h3>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div class="border border-base-300 rounded-box p-4">
+        <lib-empty-state [icon]="StarIcon" message="No s'han trobat resultats" actionLabel="Neteja filtres" />
+      </div>
+      <div class="border border-base-300 rounded-box p-4">
+        <lib-empty-state message="Sense icona ni acció" />
+      </div>
+    </div>
+  </div>
+</section>

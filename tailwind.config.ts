@@ -3,6 +3,7 @@ import { generateCollaTheme } from './libs/ui/src/lib/tokens/theme';
 import { SHADOW } from './libs/ui/src/lib/tokens/shadow';
 import { DURATION, EASE } from './libs/ui/src/lib/tokens/motion';
 import { Z_INDEX } from './libs/ui/src/lib/tokens/z-index';
+import { FONT_FAMILY } from './libs/ui/src/lib/tokens/typography';
 
 // Placeholder colla identity — shirt color + sash spec are genuinely per-colla configuration
 // that doesn't exist as real data yet (no admin-configurable colla settings built). Standing in
@@ -26,9 +27,9 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Quicksand', 'system-ui', 'sans-serif'],
-        serif: ['Fraunces', 'Georgia', 'serif'],
-        legible: ['"Atkinson Hyperlegible Next"', 'system-ui', 'sans-serif'],
+        sans: [...FONT_FAMILY.sans],
+        serif: [...FONT_FAMILY.serif],
+        legible: [...FONT_FAMILY.legible],
       },
       boxShadow: {
         raised: SHADOW.raised,

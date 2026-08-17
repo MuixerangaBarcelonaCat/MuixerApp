@@ -1,6 +1,8 @@
 import { generateCollaTheme } from './theme';
-import { hexToOklch, formatOklch, generatePrimary, generateSecondary } from './color';
-import { INK, PAPER, ACCENT } from './fixed-colors';
+import { hexToOklch, formatOklch, generatePrimary, generateSecondary, tone } from './color';
+import { INK, PAPER, ACCENT, SEMANTIC } from './fixed-colors';
+import { SHADOW } from './shadow';
+import { DURATION, EASE_SPRING } from './motion';
 
 const INK_BLACK_OKLCH = formatOklch(hexToOklch(INK.black));
 const PAPER_WHITE_OKLCH = formatOklch(hexToOklch(PAPER.white));
@@ -126,9 +128,54 @@ describe('generateCollaTheme', () => {
 
   it('includes the fixed radius and DaisyUI animation slots', () => {
     const theme = generateCollaTheme('#1E3A8A', { kind: 'white' });
-    expect(theme.light['--rounded-box']).toBe('0.875rem');
-    expect(theme.light['--rounded-btn']).toBe('0.625rem');
+    expect(theme.light['--rounded-box']).toBe('0.6rem');
+    expect(theme.light['--rounded-btn']).toBe('0.4rem');
     expect(theme.light['--rounded-badge']).toBe('1.9rem');
-    expect(theme.light['--tab-radius']).toBe('0.625rem');
+    expect(theme.light['--tab-radius']).toBe('0.4rem');
+  });
+
+  it("exposes the button lift shadow, reusing SHADOW.overlay rather than inventing a new value", () => {
+    const theme = generateCollaTheme('#1E3A8A', { kind: 'white' });
+    expect(theme.light['--ds-btn-lift-shadow']).toBe(SHADOW.overlay);
+  });
+
+  it('exposes the shared press/release spring easing and a base motion duration, so every pressable component reads from one place', () => {
+    const theme = generateCollaTheme('#1E3A8A', { kind: 'white' });
+    expect(theme.light['--ds-ease-spring']).toBe(EASE_SPRING);
+    expect(theme.light['--ds-motion-base']).toBe(DURATION.base);
+  });
+
+  describe('interactive state tokens — hover/active/disabled per role, derived via tone()', () => {
+    const ROLES = ['primary', 'secondary', 'accent', 'neutral', 'info', 'success', 'warning', 'error'] as const;
+
+    it.each(ROLES)('exposes --ds-%s-hover/-active/-disabled', (role) => {
+      const theme = generateCollaTheme('#1E3A8A', { kind: 'hue', hex: '#C23B3B' });
+      expect(theme.light[`--ds-${role}-hover`]).toBeDefined();
+      expect(theme.light[`--ds-${role}-active`]).toBeDefined();
+      expect(theme.light[`--ds-${role}-disabled`]).toBeDefined();
+    });
+
+    it("derives primary's hover/active/disabled from tone(primary, variant, mode) exactly, in both modes", () => {
+      const theme = generateCollaTheme('#1E3A8A', { kind: 'white' });
+      const primary = generatePrimary('#1E3A8A');
+      expect(theme.light['--ds-primary-hover']).toBe(formatOklch(tone(primary, 'hover', 'light')));
+      expect(theme.light['--ds-primary-active']).toBe(formatOklch(tone(primary, 'active', 'light')));
+      expect(theme.light['--ds-primary-disabled']).toBe(formatOklch(tone(primary, 'disabled', 'light')));
+      expect(theme.dark['--ds-primary-hover']).toBe(formatOklch(tone(primary, 'hover', 'dark')));
+    });
+
+    it("derives error's hover/active/disabled from tone(error, variant, mode) exactly — a fixed semantic role, not colla-dependent", () => {
+      const theme = generateCollaTheme('#1E3A8A', { kind: 'white' });
+      const error = hexToOklch(SEMANTIC.error);
+      expect(theme.light['--ds-error-hover']).toBe(formatOklch(tone(error, 'hover', 'light')));
+      expect(theme.light['--ds-error-active']).toBe(formatOklch(tone(error, 'active', 'light')));
+      expect(theme.light['--ds-error-disabled']).toBe(formatOklch(tone(error, 'disabled', 'light')));
+    });
+
+    it("derives secondary's states from the muted secondary color, not primary", () => {
+      const theme = generateCollaTheme('#1E3A8A', { kind: 'white' });
+      const secondary = generateSecondary(generatePrimary('#1E3A8A'));
+      expect(theme.light['--ds-secondary-hover']).toBe(formatOklch(tone(secondary, 'hover', 'light')));
+    });
   });
 });
