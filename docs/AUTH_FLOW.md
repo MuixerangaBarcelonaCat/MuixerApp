@@ -17,6 +17,38 @@ Autenticació basada en **JWT access token** (memòria) + **refresh token** (htt
 
 ---
 
+## Guia per a l'equip de suport (llenguatge planer)
+
+Pensada per a qui ajudarà usuaris finals (xicalla, membres, familiars) sense coneixements tècnics durant les proves de PWA i Dashboard. Sense jerga.
+
+**Dos tipus de compte:**
+- **Dashboard** (ADMIN/TECHNICAL): gent de la junta/tècnica, gestiona tota l'app.
+- **PWA** (MEMBER): membres normals, només veuen les seues coses (assajos, actuacions, la seua fitxa).
+
+**Com fa "login" un membre per primera vegada — no hi ha registre lliure:**
+1. Algú del Dashboard (ADMIN/TECHNICAL) entra a la fitxa de la persona i prem **"Crea enllaç d'invitació"**.
+2. Este enllaç **no s'envia sol per correu** — l'admin l'ha de copiar i enviar-lo a mà (WhatsApp, normalment) a la persona.
+3. La persona obre l'enllaç al mòbil → s'obre la PWA a la pantalla **"Activa el teu compte"**, ja amb el seu nom prellenat → tria un email i una contrasenya, accepta la política de privacitat → **ja queda dins**, sense haver de tornar a fer login.
+4. **L'enllaç caduca als 3 dies.** Si caduca abans que la persona l'active, l'admin torna a prémer el mateix botó i genera un enllaç nou — sempre l'últim que s'ha enviat és el vàlid, els anteriors deixen de funcionar.
+5. **Un cop el compte ja està actiu, el botó d'enllaç desapareix** de la fitxa (ja no es pot tornar a generar) — a partir d'ací la persona entra sempre amb el seu email i contrasenya.
+
+**Login del dia a dia (compte ja actiu):** email + contrasenya, tant al Dashboard com a la PWA. La sessió es manté sola una bona temporada (8 hores al Dashboard, 7 dies a la PWA) sense haver de tornar a introduir res — només cal tornar a fer login si ha passat molt de temps o s'ha fet "Tanca la sessió".
+
+**Si un membre oblida la contrasenya (compte ja actiu):**
+1. A la pantalla de login, prem **"Heu oblidat la contrasenya?"** (existeix tant al Dashboard com a la PWA) i escriu el seu email.
+2. Si eixe email correspon a un compte actiu, li arriba un correu amb un enllaç per triar una contrasenya nova, **vàlid només 1 hora**.
+3. **Este enllaç sempre obre la pantalla al Dashboard** (encara que la persona l'haja demanat des de la PWA) — és normal, no cal que el membre "entri" al Dashboard, només fer clic i triar la contrasenya des del mòbil.
+4. En triar la contrasenya nova, **es tanquen totes les sessions obertes** (mòbil, tauleta, etc.) — cal tornar a fer login a tot arreu amb la contrasenya nova.
+5. Si no li arriba el correu: comprovar que l'email escrit és exactament el que té guardat al seu compte — per seguretat, el sistema **mai diu si un email existeix o no** (sempre respon "revisa el correu", encara que l'email fóra incorrecte).
+
+**Important — què fer si un membre encara no ha activat mai el compte i ha "oblidat" la contrasenya:** no aplica "Heu oblidat la contrasenya?" (el seu compte encara no en té cap). Cal tornar al pas de dalt: l'admin li genera un **enllaç d'invitació** nou des de la fitxa.
+
+**Important — què fer si un membre JA actiu ha perdut l'accés del tot (mòbil perdut, no recorda l'email, etc.):** el botó d'enllaç d'invitació ja no funciona per a comptes actius (dona error "ja té un compte actiu"). De moment cal passar-ho a l'equip tècnic — no hi ha una via d'autoservei des del Dashboard per a este cas (marcat a [[DEBT]] si cal ampliar-ho).
+
+**Qui pot veure/reenviar l'enllaç d'invitació d'una persona:** només ADMIN/TECHNICAL des del Dashboard (fitxa de la persona). El sistema no l'envia mai automàticament — sempre passa per una persona real que el reenvia a mà, per això no cal tindre un email configurat per a cada membre per activar el compte.
+
+---
+
 ## 1. Login
 
 ```
@@ -191,6 +223,42 @@ duplicació de camps ni validadors.
 
 ---
 
+## 8. Forgot / reset password
+
+Només per usuaris amb `email` (Dashboard). Mai revela si l'email existeix.
+
+```
+POST /auth/forgot-password          →     AuthController.forgotPassword()
+{ email }                                 AuthService.forgotPassword()
+                                          ├─ findByEmail — si no existeix, retorna igual (silenciós)
+                                          ├─ randomBytes(16) → token opac + SHA-256 hash → DB
+                                          ├─ expiresAt = now + PASSWORD_RESET_TTL (1h)
+                                          ├─ MailService.send(buildPasswordResetEmail) amb SITE_ADDRESS
+                                    ←     200 (sempre, independentment de si l'email existia)
+
+POST /auth/reset-password           →     AuthController.resetPassword()
+{ token, password }                       AuthService.resetPassword()
+                                          ├─ SHA-256(token) → buscar + validar expiresAt
+                                          ├─ actualitza password (bcrypt)
+                                          ├─ revokeAllUserTokens(userId) — tanca totes les sessions
+                                    ←     200
+```
+
+`SITE_ADDRESS` (Dashboard) és una variable diferent de `PWA_SITE_ADDRESS` (§6, enllaç d'invitació) — no confondre-les.
+
+---
+
+## 9. Consentiment legal (`ConsentController`)
+
+Fora del prefix `/auth/` a propòsit: l'interceptor Angular afegeix `Authorization: Bearer` a totes les crides fora de `/auth/`, i acceptar el consentiment requereix un usuari ja autenticat.
+
+```
+POST /consent/privacy-policy        →     ConsentController.acceptPrivacyPolicy()
+                                          (autenticat) — registra acceptació de la versió vigent
+```
+
+---
+
 ## Components del sistema
 
 ### Backend (`apps/api/src/modules/auth/`)
@@ -199,11 +267,14 @@ duplicació de camps ni validadors.
 |--------|----------------|
 | `auth.module.ts` | Registra Passport, JWT, ThrottlerModule, entitats |
 | `auth.controller.ts` | login, refresh, logout, logout-all, me, `GET invite/:token`, `POST invite/register`, setup/user, forgot/reset-password |
-| `auth.service.ts` | Lògica de negoci: validate, login, refresh, logout, `getInviteContext`, `registerViaInvite` (transaccional User+Person), setupUser |
+| `consent.controller.ts` | `POST /consent/privacy-policy` (fora de `/auth/`, veure §9) |
+| `auth.service.ts` | Lògica de negoci: validate, login, refresh, logout, `getInviteContext`, `registerViaInvite` (transaccional User+Person), setupUser, forgotPassword/resetPassword |
 | `token.service.ts` | CRUD de refresh tokens: create, rotate (reuse detection), revoke |
 | `strategies/local.strategy.ts` | Passport Local: email + password via bcrypt |
-| `strategies/jwt.strategy.ts` | Passport JWT: extract Bearer token, validate payload |
-| `guards/jwt-auth.guard.ts` | Guard global (APP_GUARD). Respecta `@Public()` |
+| `strategies/jwt.strategy.ts` | Passport JWT (`jwt`): extract Bearer token only, validate payload |
+| `strategies/jwt-sse.strategy.ts` | Passport JWT (`jwt-sse`): Bearer o `?token=` query param — només per rutes `@SseAuth()` (veure [[SSE_AUTH]]) |
+| `decorators/sse-auth.decorator.ts` | `@SseAuth()` — marca una ruta perquè el guard usi `jwt-sse` enlloc de `jwt` |
+| `guards/jwt-auth.guard.ts` | Guard global (APP_GUARD). Respecta `@Public()`, delega a `jwt-sse` si `@SseAuth()` |
 | `guards/roles.guard.ts` | Guard global (APP_GUARD). Respecta `@Roles()` — llista plana, sense jerarquia |
 | `decorators/public.decorator.ts` | `@Public()` — exclou endpoint del JwtAuthGuard |
 | `decorators/roles.decorator.ts` | `@Roles(UserRole.TECHNICAL)` — restringeix per rol |
@@ -266,7 +337,9 @@ duplicació de camps ni validadors.
 | `SETUP_TOKEN` | `uuid-aleatori` | Token per al bootstrap endpoint. Eliminar en prod |
 | `CORS_ORIGINS` | `http://localhost:4200,http://localhost:4300` | Orígens permesos (comma-separated) |
 | `PWA_SITE_ADDRESS` | `localhost:4300` | Host usat per construir `inviteUrl` (`/activate?token=`) |
+| `SITE_ADDRESS` | `localhost:4200` | Host usat per construir l'enllaç de `reset-password` (Dashboard) — **diferent** de `PWA_SITE_ADDRESS` |
 | `INVITE_TOKEN_TTL_HOURS` | `72` | Vida del token d'invitació en hores |
+| `COOKIE_SECURE` | `true` | Si no és `'false'` i `NODE_ENV=production`, marca la cookie `muixer_rt` com `secure` |
 
 ---
 

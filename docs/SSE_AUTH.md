@@ -10,26 +10,39 @@ Server-Sent Events (SSE) via `EventSource` API **cannot send custom headers** li
 
 ## Solution
 
-The JWT strategy accepts tokens from **two sources**:
+A **separate Passport strategy**, `jwt-sse` (`SseJwtStrategy`), accepts the token from two sources; the default `jwt` strategy (`JwtStrategy`) used by every other route only ever accepts the Authorization header:
 
-1. **Authorization header** (standard for REST API calls)
-2. **Query parameter `?token=<jwt>`** (for SSE/EventSource)
+1. **Authorization header** (standard for REST API calls) — both strategies
+2. **Query parameter `?token=<jwt>`** (for SSE/EventSource) — `jwt-sse` only
+
+`JwtAuthGuard` (the global guard) picks which strategy runs per route: `@Public()` skips auth entirely, `@SseAuth()` routes to `jwt-sse`, everything else goes through `jwt`.
 
 ## Implementation
 
-### Backend: JWT Strategy
+### Backend: routing to the SSE strategy
 
 ```typescript
-// apps/api/src/modules/auth/strategies/jwt.strategy.ts
+// apps/api/src/modules/auth/guards/jwt-auth.guard.ts
+canActivate(context: ExecutionContext) {
+  const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [...]);
+  if (isPublic) return true;
+
+  const isSse = this.reflector.getAllAndOverride<boolean>(IS_SSE_KEY, [...]);
+  if (isSse) return this.sseGuard.canActivate(context); // AuthGuard('jwt-sse')
+
+  return super.canActivate(context); // AuthGuard('jwt')
+}
+```
+
+```typescript
+// apps/api/src/modules/auth/strategies/jwt-sse.strategy.ts
 jwtFromRequest: ExtractJwt.fromExtractors([
   ExtractJwt.fromAuthHeaderAsBearerToken(),
-  (req: Request) => {
-    // Support SSE via query parameter
-    const token = req.query?.['token'] as string | undefined;
-    return token ?? null;
-  },
+  extractSseQueryToken, // reads req.query.token
 ]),
 ```
+
+A route opts in with `@SseAuth()` (`decorators/sse-auth.decorator.ts`), never by touching `JwtStrategy` itself — that strategy stays header-only for every non-SSE route.
 
 ### Frontend: EventSource with Token
 
@@ -73,39 +86,14 @@ Passing tokens via query parameters has security implications:
 
 ### Mitigations
 
-1. **Short-lived tokens** — access tokens expire in 15 minutes (JWT_ACCESS_TTL=900)
+1. **Short-lived tokens** — access tokens expire in 15 minutes (`JWT_ACCESS_TTL=900`)
 2. **HTTPS only in production** — prevents token interception
-3. **SameSite cookies** — refresh tokens use `sameSite: 'strict'`
+3. **Scoped to SSE routes only** — `?token=` is accepted **only** on routes marked `@SseAuth()`; every other endpoint (including refresh-token cookies, `sameSite: 'lax'`, see [[AUTH_FLOW]]) rejects it
 4. **CORS restrictions** — only allowed origins can call SSE endpoints
-
-### Alternative: Cookie-Based Auth
-
-For higher security, consider implementing cookie-based access tokens:
-
-```typescript
-// Set access token as HttpOnly cookie
-res.cookie('access_token', accessToken, {
-  httpOnly: true,
-  sameSite: 'strict',
-  secure: process.env.NODE_ENV === 'production',
-  maxAge: 15 * 60 * 1000, // 15 minutes
-});
-
-// JWT Strategy extracts from cookie
-jwtFromRequest: ExtractJwt.fromExtractors([
-  ExtractJwt.fromAuthHeaderAsBearerToken(),
-  (req: Request) => req.cookies?.['access_token'] ?? null,
-]),
-```
-
-This eliminates query parameter risks but requires:
-- Frontend to handle cookie-based auth
-- CORS `credentials: true` configuration
-- More complex token refresh logic
 
 ## Affected Endpoints
 
-All sync endpoints require ADMIN role and support query param auth:
+Only `sync.controller.ts` uses `@SseAuth()` today (ADMIN role, verified against source):
 
 - `GET /api/sync/persons?token=<jwt>`
 - `GET /api/sync/events?token=<jwt>`
