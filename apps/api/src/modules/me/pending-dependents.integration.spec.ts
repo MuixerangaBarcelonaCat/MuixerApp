@@ -16,6 +16,7 @@ import { Attendance } from '../event/attendance.entity';
 import { Season } from '../season/season.entity';
 import { ProjectionService } from '../event-segment/projection.service';
 import { EventSegmentService } from '../event-segment/event-segment.service';
+import { NewsService } from '../news/news.service';
 import { NodeAssignment } from '../node-assignment/entities/node-assignment.entity';
 import {
   IntegrationDb,
@@ -50,6 +51,7 @@ describe('MeService pending dependents (integration)', () => {
         PersonService,
         { provide: ProjectionService, useValue: { getProjection: jest.fn() } },
         { provide: EventSegmentService, useValue: { findAllByEvent: jest.fn() } },
+        { provide: NewsService, useValue: { findPublished: jest.fn().mockResolvedValue([]) } },
         ...realRepositoryProviders(db.dataSource, [
           User,
           Person,

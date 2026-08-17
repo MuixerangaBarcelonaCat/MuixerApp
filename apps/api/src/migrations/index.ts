@@ -80,5 +80,5 @@ export const migrations: (new () => MigrationInterface)[] = [
   AddNodeAssignmentConflictIndexes1784100000000,
   DropNodeAssignmentDuplicateUniques1784200000000,
   RenameSegmentIsVisibleToIsPublished1784300000000,
-  CreateNews1784400000000,
+  CreateNews1784300000000,
 ];
