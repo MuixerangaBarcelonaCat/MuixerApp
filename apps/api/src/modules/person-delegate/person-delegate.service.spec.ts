@@ -5,6 +5,7 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { DelegateType } from '@muixer/shared';
 import { PersonDelegateService } from './person-delegate.service';
@@ -132,6 +133,24 @@ describe('PersonDelegateService', () => {
       expect(result).toEqual(delegates);
       expect(mockDelegateRepository.find).toHaveBeenCalledWith({
         where: { user: { id: userId }, isActive: true },
+        relations: ['user', 'person'],
+        order: { createdAt: 'ASC' },
+      });
+    });
+
+    it('restricts to active primary delegates on non-provisional persons when primaryOnly is true', async () => {
+      const userId = 'user-1';
+      mockDelegateRepository.find.mockResolvedValue([]);
+
+      await service.findByUser(userId, { primaryOnly: true });
+
+      expect(mockDelegateRepository.find).toHaveBeenCalledWith({
+        where: {
+          user: { id: userId },
+          isActive: true,
+          isPrimary: true,
+          person: { isProvisional: false },
+        },
         relations: ['user', 'person'],
         order: { createdAt: 'ASC' },
       });
@@ -675,6 +694,46 @@ describe('PersonDelegateService', () => {
     });
   });
 
+  describe('assertCanManagePerson', () => {
+    it("does not throw when the person is the caller's own linked person", async () => {
+      mockUserRepository.findOne.mockResolvedValue({
+        id: 'user-1',
+        person: { id: 'person-1' },
+      });
+
+      await expect(
+        service.assertCanManagePerson('user-1', 'person-1'),
+      ).resolves.toBeUndefined();
+      expect(mockDelegateRepository.findOne).not.toHaveBeenCalled();
+    });
+
+    it('does not throw when the caller is an active primary delegate for the person', async () => {
+      mockUserRepository.findOne.mockResolvedValue({ id: 'user-1', person: null });
+      mockDelegateRepository.findOne.mockResolvedValue({ id: 'del-1' });
+
+      await expect(
+        service.assertCanManagePerson('user-1', 'person-2'),
+      ).resolves.toBeUndefined();
+      expect(mockDelegateRepository.findOne).toHaveBeenCalledWith({
+        where: {
+          user: { id: 'user-1' },
+          person: { id: 'person-2' },
+          isPrimary: true,
+          isActive: true,
+        },
+      });
+    });
+
+    it('throws ForbiddenException when the caller has no primary-delegate relation to the person', async () => {
+      mockUserRepository.findOne.mockResolvedValue({ id: 'user-1', person: null });
+      mockDelegateRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.assertCanManagePerson('user-1', 'person-2'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
   describe('remove', () => {
     it('should remove a delegate', async () => {
       const existing = { id: 'del-1' };
@@ -697,6 +756,36 @@ describe('PersonDelegateService', () => {
       await expect(service.remove('other-person', 'del-1')).rejects.toThrow(
         NotFoundException,
       );
+    });
+
+    it('should remove a primary delegate by default (admin behavior)', async () => {
+      const existing = { id: 'del-1', isPrimary: true };
+      mockDelegateRepository.findOne.mockResolvedValue(existing);
+      mockDelegateRepository.remove.mockResolvedValue(existing);
+
+      await service.remove('person-1', 'del-1');
+
+      expect(mockDelegateRepository.remove).toHaveBeenCalledWith(existing);
+    });
+
+    it('should throw ForbiddenException when removing a primary delegate with allowPrimaryRemoval: false', async () => {
+      const existing = { id: 'del-1', isPrimary: true };
+      mockDelegateRepository.findOne.mockResolvedValue(existing);
+
+      await expect(
+        service.remove('person-1', 'del-1', { allowPrimaryRemoval: false }),
+      ).rejects.toThrow(ForbiddenException);
+      expect(mockDelegateRepository.remove).not.toHaveBeenCalled();
+    });
+
+    it('should remove a non-primary delegate with allowPrimaryRemoval: false', async () => {
+      const existing = { id: 'del-1', isPrimary: false };
+      mockDelegateRepository.findOne.mockResolvedValue(existing);
+      mockDelegateRepository.remove.mockResolvedValue(existing);
+
+      await service.remove('person-1', 'del-1', { allowPrimaryRemoval: false });
+
+      expect(mockDelegateRepository.remove).toHaveBeenCalledWith(existing);
     });
   });
 });

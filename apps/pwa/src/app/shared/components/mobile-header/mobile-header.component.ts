@@ -13,20 +13,8 @@ import { LucideAngularModule, ArrowLeft } from 'lucide-angular';
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [LucideAngularModule],
-  template: `
-    <header class="flex items-center gap-3 py-3 mb-2">
-      @if (showBack()) {
-        <button
-          (click)="goBack()"
-          class="btn btn-ghost btn-circle btn-sm"
-          aria-label="Torna enrere"
-        >
-          <lucide-icon [img]="ArrowLeft" [size]="20" />
-        </button>
-      }
-      <h1 class="text-lg font-semibold truncate">{{ title() }}</h1>
-    </header>
-  `,
+  templateUrl: './mobile-header.component.html',
+  styleUrls: ['./mobile-header.component.scss'],
 })
 export class MobileHeaderComponent {
   title = input.required<string>();

@@ -802,4 +802,97 @@ describe('AuthService', () => {
       expect(tokenService.revokeAllUserTokens).toHaveBeenCalledWith(user.id);
     });
   });
+
+  describe('changePassword', () => {
+    it('rejects with UnauthorizedException when the user does not exist', async () => {
+      userRepo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.changePassword('user-1', { currentPassword: 'old', newPassword: 'newpass123' }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('rejects with UnauthorizedException when the current password is wrong', async () => {
+      userRepo.findOne.mockResolvedValue(makeUser());
+      bcrypt.compare.mockResolvedValue(false);
+
+      await expect(
+        service.changePassword('user-1', { currentPassword: 'wrong', newPassword: 'newpass123' }),
+      ).rejects.toThrow(UnauthorizedException);
+      expect(userRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('updates the password hash and revokes all sessions on success', async () => {
+      const user = makeUser();
+      userRepo.findOne.mockResolvedValue(user);
+      bcrypt.compare.mockResolvedValue(true);
+      bcrypt.hash.mockResolvedValue('new-hash');
+      userRepo.update.mockResolvedValue({});
+
+      await service.changePassword('user-1', { currentPassword: 'old', newPassword: 'newpass123' });
+
+      expect(bcrypt.compare).toHaveBeenCalledWith('old', user.passwordHash);
+      expect(bcrypt.hash).toHaveBeenCalledWith('newpass123', 12);
+      expect(userRepo.update).toHaveBeenCalledWith(user.id, { passwordHash: 'new-hash' });
+      expect(tokenService.revokeAllUserTokens).toHaveBeenCalledWith(user.id);
+    });
+  });
+
+  describe('changeEmail', () => {
+    it('rejects with UnauthorizedException when the user does not exist', async () => {
+      userRepo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.changeEmail('user-1', { newEmail: 'new@test.cat', currentPassword: 'pass' }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('rejects with UnauthorizedException when the current password is wrong', async () => {
+      userRepo.findOne.mockResolvedValue(makeUser());
+      bcrypt.compare.mockResolvedValue(false);
+
+      await expect(
+        service.changeEmail('user-1', { newEmail: 'new@test.cat', currentPassword: 'wrong' }),
+      ).rejects.toThrow(UnauthorizedException);
+      expect(userRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects with ConflictException when another account already uses the new email', async () => {
+      userRepo.findOne
+        .mockResolvedValueOnce(makeUser({ email: 'old@test.cat' }))
+        .mockResolvedValueOnce(makeUser({ id: 'other-user', email: 'new@test.cat' }));
+      bcrypt.compare.mockResolvedValue(true);
+
+      await expect(
+        service.changeEmail('user-1', { newEmail: 'new@test.cat', currentPassword: 'old' }),
+      ).rejects.toThrow(ConflictException);
+      expect(userRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('updates the email and returns the updated profile on success', async () => {
+      userRepo.findOne
+        .mockResolvedValueOnce(makeUser({ email: 'old@test.cat' }))
+        .mockResolvedValueOnce(null);
+      bcrypt.compare.mockResolvedValue(true);
+      userRepo.update.mockResolvedValue({});
+
+      const result = await service.changeEmail('user-1', {
+        newEmail: 'new@test.cat',
+        currentPassword: 'old',
+      });
+
+      expect(userRepo.update).toHaveBeenCalledWith('user-1', { email: 'new@test.cat' });
+      expect(result.email).toBe('new@test.cat');
+    });
+
+    it('skips the email-uniqueness check when the new email is the same as the current one', async () => {
+      userRepo.findOne.mockResolvedValueOnce(makeUser({ email: 'same@test.cat' }));
+      bcrypt.compare.mockResolvedValue(true);
+      userRepo.update.mockResolvedValue({});
+
+      await service.changeEmail('user-1', { newEmail: 'same@test.cat', currentPassword: 'old' });
+
+      expect(userRepo.findOne).toHaveBeenCalledTimes(1);
+    });
+  });
 });

@@ -11,6 +11,7 @@ import { MeService } from './me.service';
 import { Event } from '../event/event.entity';
 import { Attendance } from '../event/attendance.entity';
 import { User } from '../user/user.entity';
+import { Person } from '../person/person.entity';
 import { SeasonService } from '../season/season.service';
 import { AttendanceService } from '../event/attendance.service';
 import { PersonDelegateService } from '../person-delegate/person-delegate.service';
@@ -55,6 +56,7 @@ describe('MeService', () => {
   let projectionService: jest.Mocked<ProjectionService>;
   let eventSegmentService: jest.Mocked<EventSegmentService>;
   let nodeAssignmentRepo: jest.Mocked<Repository<NodeAssignment>>;
+  let personRepo: jest.Mocked<Repository<Person>>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -63,6 +65,13 @@ describe('MeService', () => {
         {
           provide: getRepositoryToken(User),
           useValue: { findOne: jest.fn() },
+        },
+        {
+          provide: getRepositoryToken(Person),
+          useValue: {
+            findOne: jest.fn(),
+            createQueryBuilder: jest.fn(),
+          },
         },
         {
           provide: getRepositoryToken(Event),
@@ -95,6 +104,10 @@ describe('MeService', () => {
           useValue: {
             findByUser: jest.fn().mockResolvedValue([]),
             findProvisionalPrimaryDependents: jest.fn().mockResolvedValue([]),
+            assertCanManagePerson: jest.fn().mockResolvedValue(undefined),
+            findByPerson: jest.fn().mockResolvedValue([]),
+            create: jest.fn(),
+            remove: jest.fn(),
           },
         },
         {
@@ -118,6 +131,7 @@ describe('MeService', () => {
 
     service = module.get(MeService);
     userRepo = module.get(getRepositoryToken(User));
+    personRepo = module.get(getRepositoryToken(Person));
     eventRepo = module.get(getRepositoryToken(Event));
     attendanceRepo = module.get(getRepositoryToken(Attendance));
     seasonService = module.get(SeasonService);
@@ -195,6 +209,159 @@ describe('MeService', () => {
       const result = await service.resolveManagedPersons('user-1');
 
       expect(result).toEqual([]);
+    });
+
+    it('forwards options (e.g. primaryOnly) through to findByUser', async () => {
+      userRepo.findOne.mockResolvedValue({ id: 'user-1', person: null } as User);
+      personDelegateService.findByUser.mockResolvedValue([]);
+
+      await service.resolveManagedPersons('user-1', { primaryOnly: true });
+
+      expect(personDelegateService.findByUser).toHaveBeenCalledWith('user-1', { primaryOnly: true });
+    });
+  });
+
+  describe('getPersonSummary', () => {
+    it('returns the person summary with the count of active delegates', async () => {
+      personRepo.findOne.mockResolvedValue({
+        id: 'p-1',
+        alias: 'MartaP',
+        name: 'Marta',
+        firstSurname: 'Puig',
+      } as Person);
+      personDelegateService.findByPerson.mockResolvedValue([
+        { id: 'del-1', isActive: true },
+        { id: 'del-2', isActive: true },
+        { id: 'del-3', isActive: false },
+      ] as never);
+
+      const result = await service.getPersonSummary('user-1', 'p-1');
+
+      expect(personDelegateService.assertCanManagePerson).toHaveBeenCalledWith('user-1', 'p-1');
+      expect(result).toEqual({
+        personId: 'p-1',
+        alias: 'MartaP',
+        name: 'Marta',
+        firstSurname: 'Puig',
+        delegationCount: 2,
+      });
+    });
+
+    it('propagates ForbiddenException from the authorization guard without querying the person', async () => {
+      personDelegateService.assertCanManagePerson.mockRejectedValue(new ForbiddenException());
+
+      await expect(service.getPersonSummary('user-1', 'p-1')).rejects.toThrow(ForbiddenException);
+      expect(personRepo.findOne).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException when the person does not exist', async () => {
+      personRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.getPersonSummary('user-1', 'p-1')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('listPersonDelegates', () => {
+    it('returns the delegates for a person the caller can manage', async () => {
+      const delegates = [{ id: 'del-1', delegateType: DelegateType.PARENT, isActive: true }];
+      personDelegateService.findByPerson.mockResolvedValue(delegates as never);
+
+      const result = await service.listPersonDelegates('user-1', 'p-1');
+
+      expect(personDelegateService.assertCanManagePerson).toHaveBeenCalledWith('user-1', 'p-1');
+      expect(personDelegateService.findByPerson).toHaveBeenCalledWith('p-1');
+      expect(result).toEqual(delegates);
+    });
+
+    it('propagates ForbiddenException from the authorization guard', async () => {
+      personDelegateService.assertCanManagePerson.mockRejectedValue(new ForbiddenException());
+
+      await expect(service.listPersonDelegates('user-1', 'p-1')).rejects.toThrow(ForbiddenException);
+      expect(personDelegateService.findByPerson).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('createPersonDelegate', () => {
+    const dto = { alias: 'JoanP', delegateType: DelegateType.PARTNER };
+
+    function mockPersonQb(targetPerson: unknown) {
+      const qb = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(targetPerson),
+      };
+      personRepo.createQueryBuilder.mockReturnValue(qb as never);
+      return qb;
+    }
+
+    it('creates a delegate for the account linked to the matching alias, always as non-primary', async () => {
+      const qb = mockPersonQb({ id: 'p-target', alias: 'JoanP', user: { id: 'user-target' } });
+      const created = { id: 'del-new', delegateType: DelegateType.PARTNER, isPrimary: false };
+      personDelegateService.create.mockResolvedValue(created as never);
+
+      const result = await service.createPersonDelegate('user-1', 'p-1', dto);
+
+      expect(personDelegateService.assertCanManagePerson).toHaveBeenCalledWith('user-1', 'p-1');
+      expect(qb.where).toHaveBeenCalledWith('LOWER(person.alias) = LOWER(:alias)', { alias: 'JoanP' });
+      expect(personDelegateService.create).toHaveBeenCalledWith('p-1', {
+        userId: 'user-target',
+        delegateType: DelegateType.PARTNER,
+        isPrimary: false,
+      });
+      expect(result).toEqual(created);
+    });
+
+    it('matches the alias case-insensitively', async () => {
+      mockPersonQb({ id: 'p-target', alias: 'JoanP', user: { id: 'user-target' } });
+      personDelegateService.create.mockResolvedValue({} as never);
+
+      await service.createPersonDelegate('user-1', 'p-1', { ...dto, alias: 'joanp' });
+
+      expect(personDelegateService.create).toHaveBeenCalledWith(
+        'p-1',
+        expect.objectContaining({ userId: 'user-target' }),
+      );
+    });
+
+    it('throws NotFoundException when no person matches the alias', async () => {
+      mockPersonQb(null);
+
+      await expect(service.createPersonDelegate('user-1', 'p-1', dto)).rejects.toThrow(NotFoundException);
+      expect(personDelegateService.create).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException when the matching person has no linked account', async () => {
+      mockPersonQb({ id: 'p-target', alias: 'JoanP', user: null });
+
+      await expect(service.createPersonDelegate('user-1', 'p-1', dto)).rejects.toThrow(NotFoundException);
+      expect(personDelegateService.create).not.toHaveBeenCalled();
+    });
+
+    it('propagates ForbiddenException from the authorization guard without querying the alias', async () => {
+      personDelegateService.assertCanManagePerson.mockRejectedValue(new ForbiddenException());
+
+      await expect(service.createPersonDelegate('user-1', 'p-1', dto)).rejects.toThrow(ForbiddenException);
+      expect(personRepo.createQueryBuilder).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('removePersonDelegate', () => {
+    it('removes the delegate after the authorization guard passes', async () => {
+      personDelegateService.remove.mockResolvedValue(undefined);
+
+      await service.removePersonDelegate('user-1', 'p-1', 'del-1');
+
+      expect(personDelegateService.assertCanManagePerson).toHaveBeenCalledWith('user-1', 'p-1');
+      expect(personDelegateService.remove).toHaveBeenCalledWith('p-1', 'del-1', {
+        allowPrimaryRemoval: false,
+      });
+    });
+
+    it('propagates ForbiddenException from the authorization guard', async () => {
+      personDelegateService.assertCanManagePerson.mockRejectedValue(new ForbiddenException());
+
+      await expect(service.removePersonDelegate('user-1', 'p-1', 'del-1')).rejects.toThrow(ForbiddenException);
+      expect(personDelegateService.remove).not.toHaveBeenCalled();
     });
   });
 

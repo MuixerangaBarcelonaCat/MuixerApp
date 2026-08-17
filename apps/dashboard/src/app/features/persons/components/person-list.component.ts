@@ -49,7 +49,7 @@ const ACTIVATION_TUTORIAL_STEPS: TutorialStep[] = [
     description:
       'Per a la xicalla, cal crear dues persones: una per a l\'adult responsable i una altra per a la xicalla. ' +
       'Creeu l\'enllaç d\'invitació per a la persona adulta. Després, des del perfil de la xicalla, ' +
-      'feu clic a "Enllaça amb usuari existent" per vincular-la com a responsable.',
+      'feu clic a "Defineix adult responsable" per vincular-la amb aquest adult.',
     icon: DOMAIN_ICONS.XICALLA,
   },
 ];
