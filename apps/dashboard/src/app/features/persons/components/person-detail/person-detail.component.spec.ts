@@ -151,11 +151,11 @@ describe('PersonDetailComponent', () => {
       expect(editButton.closest('.flex-wrap')?.className).toContain('flex-wrap');
     });
 
-    it('lets the "Informació de la colla" button row wrap instead of cutting off "Enllaça amb usuari existent"', () => {
+    it('lets the "Informació de la colla" button row wrap instead of cutting off "Defineix adult responsable"', () => {
       component.editing.set(true);
       fixture.detectChanges();
       const linkButton = Array.from(fixture.nativeElement.querySelectorAll('button')).find(
-        (btn) => (btn as HTMLElement).textContent?.trim() === 'Enllaça amb usuari existent',
+        (btn) => (btn as HTMLElement).textContent?.trim() === 'Defineix adult responsable',
       ) as HTMLElement;
       expect(linkButton.parentElement?.className).toContain('flex-wrap');
     });
@@ -246,7 +246,7 @@ describe('PersonDetailComponent', () => {
       fixture.detectChanges();
       const text = fixture.nativeElement.textContent;
       expect(text).toContain("Crea enllaç d'invitació");
-      expect(text).toContain('Enllaça amb usuari existent');
+      expect(text).toContain('Defineix adult responsable');
     });
 
     it('still shows invite/link buttons when there are secondary delegates but no responsable', () => {
@@ -256,7 +256,7 @@ describe('PersonDetailComponent', () => {
       fixture.detectChanges();
       const text = fixture.nativeElement.textContent;
       expect(text).toContain("Crea enllaç d'invitació");
-      expect(text).toContain('Enllaça amb usuari existent');
+      expect(text).toContain('Defineix adult responsable');
       expect(text).toContain('Delegacions');
     });
 
@@ -308,12 +308,12 @@ describe('PersonDetailComponent', () => {
       expect(relationSpan.textContent.trim()).toBe('(Pare/Mare)');
     });
 
-    it('opens the delegate modal with isPrimary true from "Enllaça amb usuari existent"', () => {
+    it('opens the delegate modal with isPrimary true from "Defineix adult responsable"', () => {
       component.delegates.set([]);
       component.editing.set(true);
       fixture.detectChanges();
       const btn = Array.from(fixture.nativeElement.querySelectorAll('button')).find(
-        (b) => (b as HTMLElement).textContent?.trim() === 'Enllaça amb usuari existent',
+        (b) => (b as HTMLElement).textContent?.trim() === 'Defineix adult responsable',
       ) as HTMLElement;
       btn.click();
       fixture.detectChanges();
