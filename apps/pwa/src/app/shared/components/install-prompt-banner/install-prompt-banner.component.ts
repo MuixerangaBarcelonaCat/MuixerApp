@@ -8,10 +8,10 @@ import { InstallPromptService } from '../../services/install-prompt.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [LucideAngularModule],
   template: `
-    <div class="alert alert-info shadow-sm mb-4 items-start" role="alert">
+    <div class="alert alert-info shadow-sm mb-4 relative pr-10" role="alert">
       @if (installPrompt.isIos) {
-        <lucide-icon [img]="Share" [size]="20" />
-        <div>
+        <lucide-icon [img]="Share" [size]="20" class="shrink-0 self-start mt-0.5" />
+        <div class="flex-1 min-w-0">
           <p class="font-medium">Instal·la l'app</p>
           <p class="text-sm">
             Toca <strong>Compartir</strong> i després
@@ -19,22 +19,22 @@ import { InstallPromptService } from '../../services/install-prompt.service';
           </p>
         </div>
       } @else {
-        <lucide-icon [img]="Download" [size]="20" />
-        <div class="flex-1">
+        <lucide-icon [img]="Download" [size]="20" class="shrink-0 self-start mt-0.5" />
+        <div class="flex-1 min-w-0">
           <p class="font-medium">Instal·la l'app</p>
           <p class="text-sm">Afegeix Muixer a la pantalla d'inici del mòbil.</p>
         </div>
-        <button type="button" class="btn btn-sm btn-primary" (click)="installPrompt.promptInstall()">
+        <button type="button" class="btn btn-sm btn-primary shrink-0" (click)="installPrompt.promptInstall()">
           Instal·la
         </button>
       }
       <button
         type="button"
-        class="btn btn-sm btn-ghost btn-square"
+        class="btn btn-ghost btn-xs btn-square absolute top-2 right-2"
         aria-label="Tanca"
         (click)="installPrompt.dismiss()"
       >
-        <lucide-icon [img]="X" [size]="16" />
+        <lucide-icon [img]="X" [size]="14" />
       </button>
     </div>
   `,

@@ -19,7 +19,7 @@
       <div class="card-body p-4 prose prose-sm max-w-none">
         <h2 class="card-title text-lg">{{ item.title }}</h2>
         <p class="text-sm text-base-content/60">{{ publishedDate() }}</p>
-        <div data-testid="news-detail-body" [innerHTML]="bodyHtml()"></div>
+        <div data-testid="news-detail-body" [innerHTML]="bodyHtml()" (click)="onBodyClick($event)"></div>
       </div>
     </div>
   </section>
