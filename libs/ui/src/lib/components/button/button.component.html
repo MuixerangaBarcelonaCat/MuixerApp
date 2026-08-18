@@ -1,12 +1,26 @@
-<button
-  [class]="buttonClass()"
-  [type]="type()"
-  [disabled]="isDisabled()"
-  [attr.aria-label]="ariaLabel() ?? null"
-  (click)="clicked.emit()"
->
+<ng-template #inner>
   @if (loading()) {
     <span [class]="loadingClass()" data-testid="lib-button-spinner" aria-hidden="true"></span>
   }
   <ng-content />
-</button>
+</ng-template>
+
+@if (routerLink()) {
+  <a [class]="buttonClass()" [routerLink]="routerLink()" [attr.aria-label]="ariaLabel() ?? null" (click)="clicked.emit()">
+    <ng-container [ngTemplateOutlet]="inner" />
+  </a>
+} @else if (href()) {
+  <a [class]="buttonClass()" [href]="href()" [attr.aria-label]="ariaLabel() ?? null" (click)="clicked.emit()">
+    <ng-container [ngTemplateOutlet]="inner" />
+  </a>
+} @else {
+  <button
+    [class]="buttonClass()"
+    [type]="type()"
+    [disabled]="isDisabled()"
+    [attr.aria-label]="ariaLabel() ?? null"
+    (click)="clicked.emit()"
+  >
+    <ng-container [ngTemplateOutlet]="inner" />
+  </button>
+}

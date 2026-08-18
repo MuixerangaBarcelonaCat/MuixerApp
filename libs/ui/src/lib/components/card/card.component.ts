@@ -9,6 +9,24 @@ import { generateFringeThreads } from './sash-fringe.util';
 
 export type CardSash = 'none' | 'thin' | 'title';
 
+export type CardTone = 'default' | 'primary' | 'secondary' | 'accent' | 'neutral' | 'info' | 'success' | 'warning' | 'error';
+
+// Muted role-tinted surface for alert/notice-style cards (e.g. a sync CTA banner) — reuses
+// DaisyUI's own semantic role colors at low opacity (already theme-tokenized, same colors
+// Button/Badge's variant draws from) rather than introducing new CSS custom properties. `default`
+// keeps the plain bg-base-100 surface every other card uses.
+const TONE_CLASSES: Record<CardTone, string> = {
+  default: 'bg-base-100',
+  primary: 'bg-primary/10 border border-primary/30',
+  secondary: 'bg-secondary/10 border border-secondary/30',
+  accent: 'bg-accent/10 border border-accent/30',
+  neutral: 'bg-neutral/10 border border-neutral/30',
+  info: 'bg-info/10 border border-info/30',
+  success: 'bg-success/10 border border-success/30',
+  warning: 'bg-warning/10 border border-warning/30',
+  error: 'bg-error/10 border border-error/30',
+};
+
 const INK_BLACK = hexToOklch(INK.black);
 const PAPER_WHITE = hexToOklch(PAPER.white);
 
@@ -38,6 +56,7 @@ const FRINGE_MAX_LENGTH = 34;
 })
 export class CardComponent {
   sash = input<CardSash>('none');
+  tone = input<CardTone>('default');
   title = input<string>();
   icon = input<LucideIconData>();
   // Both default to the shared sash token (--ds-sash-fill/-content) and the CSS default icon
@@ -53,6 +72,9 @@ export class CardComponent {
   clicked = output<void>();
 
   protected readonly bandTop = BAND_TOP;
+
+  protected readonly baseClass = computed(() => `card ${TONE_CLASSES[this.tone()]} shadow-raised`);
+  protected readonly interactiveClass = computed(() => `${this.baseClass()} interactive`);
 
   protected readonly hasBand = computed(() => this.sash() !== 'none');
   protected readonly titleOnBand = computed(() => this.sash() === 'title');

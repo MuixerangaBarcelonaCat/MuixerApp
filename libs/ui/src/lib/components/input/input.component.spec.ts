@@ -41,6 +41,10 @@ describe('InputComponent', () => {
     expect(nativeInput().placeholder).toBe('nom@exemple.com');
   });
 
+  it('gives the native input its own >=24px tap target height (WI-03 parity, not just the wrapper box)', () => {
+    expect(nativeInput().className).toContain('min-h-6');
+  });
+
   describe('label and id linkage', () => {
     it('renders no label element when label is not set', () => {
       expect(labelEl().nativeElement.textContent.trim()).toBe('');

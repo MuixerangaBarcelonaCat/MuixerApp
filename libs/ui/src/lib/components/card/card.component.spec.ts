@@ -220,4 +220,37 @@ describe('CardComponent', () => {
       expect(titleEl().nativeElement.textContent).toContain('Usuaris');
     });
   });
+
+  describe('tone — role-tinted background/border, mirroring Button/Badge\'s variant enum', () => {
+    it('defaults to the plain bg-base-100 surface', () => {
+      const className = rootEl().nativeElement.className;
+      expect(className).toContain('bg-base-100');
+      expect(className).not.toContain('/10');
+    });
+
+    it.each([
+      ['primary', 'bg-primary/10', 'border-primary/30'],
+      ['secondary', 'bg-secondary/10', 'border-secondary/30'],
+      ['accent', 'bg-accent/10', 'border-accent/30'],
+      ['neutral', 'bg-neutral/10', 'border-neutral/30'],
+      ['info', 'bg-info/10', 'border-info/30'],
+      ['success', 'bg-success/10', 'border-success/30'],
+      ['warning', 'bg-warning/10', 'border-warning/30'],
+      ['error', 'bg-error/10', 'border-error/30'],
+    ] as const)('applies a muted %s background and border, not bg-base-100', (tone, bgClass, borderClass) => {
+      fixture.componentRef.setInput('tone', tone);
+      fixture.detectChanges();
+      const className = rootEl().nativeElement.className;
+      expect(className).toContain(bgClass);
+      expect(className).toContain(borderClass);
+      expect(className).not.toContain('bg-base-100');
+    });
+
+    it('applies the tone class in interactive (routerLink) mode too', () => {
+      fixture.componentRef.setInput('tone', 'warning');
+      fixture.componentRef.setInput('routerLink', '/sync');
+      fixture.detectChanges();
+      expect(rootEl().nativeElement.className).toContain('bg-warning/10');
+    });
+  });
 });

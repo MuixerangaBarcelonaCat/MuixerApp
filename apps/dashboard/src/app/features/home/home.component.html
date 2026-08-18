@@ -1,24 +1,18 @@
-<div class="space-y-6 max-w-7xl mx-auto">
+<div class="flex flex-col gap-6 max-w-7xl mx-auto">
 
   <!-- Salutació -->
   <div>
-    <h1 class="text-2xl font-bold text-base-content">
+    <h1 class="text-2xl font-bold font-serif text-base-content">
       Benvingut/da@if (displayName()) {, {{ displayName() }}}!
     </h1>
-    <p class="text-base-content/60 text-sm mt-1">Resum de l'activitat de la colla</p>
   </div>
 
   <!-- Cards destacades: Pròxim assaig + pròxima actuació -->
   <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
     <!-- Pròxim assaig -->
-    <div class="card bg-base-100 shadow-sm border-l-4 border-primary">
-      <div class="card-body">
-        <div class="flex items-center gap-2 mb-2">
-          <lucide-icon [name]="ICON_ASSAIG" [size]="18" class="text-primary" />
-          <h2 class="card-title text-base">Pròxim assaig</h2>
-        </div>
-
+    <lib-card sash="title" title="Pròxim assaig" [icon]="ICON_ASSAIG" [routerLink]="rehearsalLink()">
+      <div class="min-h-48 flex flex-col justify-center">
         @if (loading()) {
           <div class="space-y-2">
             <div class="skeleton h-5 w-3/4 rounded"></div>
@@ -34,35 +28,25 @@
               @if (nextRehearsal()!.location) { · {{ nextRehearsal()!.location }} }
             </p>
           }
-          <div class="flex gap-3 mt-2 text-sm">
+          <div class="flex flex-col gap-1 mt-2 text-sm">
             <span class="text-success font-medium">✓ {{ nextRehearsal()!.attendanceSummary.confirmed }} apuntats</span>
             <span class="text-error font-medium">✗ {{ nextRehearsal()!.attendanceSummary.declined }} no venen</span>
             <span class="text-warning font-medium">? {{ nextRehearsal()!.attendanceSummary.pending }} pendents</span>
           </div>
-          <div class="card-actions mt-3">
-            <a [routerLink]="['/events', nextRehearsal()!.id]" class="btn btn-primary btn-sm btn-outline">
-              Veure detall →
-            </a>
-          </div>
         } @else {
-          <app-empty-state
+          <lib-empty-state
             [icon]="ICON_ASSAIG"
             message="Cap assaig programat properament"
             actionLabel="Veure assajos"
-            (actionClick)="navigateTo('/rehearsals')"
+            (clicked)="navigateTo('/rehearsals')"
           />
         }
       </div>
-    </div>
+    </lib-card>
 
     <!-- Pròxima actuació -->
-    <div class="card bg-base-100 shadow-sm border-l-4 border-secondary">
-      <div class="card-body">
-        <div class="flex items-center gap-2 mb-2">
-          <lucide-icon [name]="ICON_ACTUACIO" [size]="18" class="text-secondary" />
-          <h2 class="card-title text-base">Pròxima actuació</h2>
-        </div>
-
+    <lib-card sash="title" title="Pròxima actuació" [icon]="ICON_ACTUACIO" [routerLink]="performanceLink()">
+      <div class="min-h-48 flex flex-col justify-center">
         @if (loading()) {
           <div class="space-y-2">
             <div class="skeleton h-5 w-3/4 rounded"></div>
@@ -79,107 +63,38 @@
               @if (nextPerformance()!.location) { · {{ nextPerformance()!.location }} }
             </p>
           }
-          <div class="flex gap-3 mt-2 text-sm">
+          <div class="flex flex-col gap-1 mt-2 text-sm">
             <span class="text-success font-medium">✓ {{ nextPerformance()!.attendanceSummary.confirmed }} apuntats</span>
             <span class="text-error font-medium">✗ {{ nextPerformance()!.attendanceSummary.declined }} no venen</span>
             <span class="text-warning font-medium">? {{ nextPerformance()!.attendanceSummary.pending }} pendents</span>
           </div>
-          <div class="card-actions mt-3">
-            <a [routerLink]="['/events', nextPerformance()!.id]" class="btn btn-secondary btn-sm btn-outline">
-              Veure detall →
-            </a>
-          </div>
         } @else {
-          <app-empty-state
+          <lib-empty-state
             [icon]="ICON_ACTUACIO"
             message="Cap actuació programada properament"
             actionLabel="Veure actuacions"
-            (actionClick)="navigateTo('/performances')"
+            (clicked)="navigateTo('/performances')"
           />
         }
       </div>
-    </div>
-  </div>
-
-  <!-- Cards de navegació -->
-  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-
-    <a routerLink="/persons" class="card bg-base-100 shadow-sm border-l-4 border-primary hover:shadow-md transition-shadow cursor-pointer">
-      <div class="card-body p-4">
-        <lucide-icon [name]="ICON_PERSONA" [size]="24" class="text-primary mb-1" />
-        <h3 class="font-semibold text-sm text-base-content">Persones</h3>
-        @if (totalPersons() !== null) {
-          <p class="text-xs text-base-content/50">{{ totalPersons() }} membres actius</p>
-        } @else {
-          <div class="skeleton h-3 w-16 rounded"></div>
-        }
-      </div>
-    </a>
-
-    <a routerLink="/rehearsals" class="card bg-base-100 shadow-sm border-l-4 border-info hover:shadow-md transition-shadow cursor-pointer">
-      <div class="card-body p-4">
-        <lucide-icon [name]="ICON_ASSAIG" [size]="24" class="text-info mb-1" />
-        <h3 class="font-semibold text-sm text-base-content">Assajos</h3>
-        @if (totalRehearsals() !== null) {
-          <p class="text-xs text-base-content/50">{{ totalRehearsals() }} pròxims</p>
-        } @else {
-          <div class="skeleton h-3 w-16 rounded"></div>
-        }
-      </div>
-    </a>
-
-    <a routerLink="/performances" class="card bg-base-100 shadow-sm border-l-4 border-success hover:shadow-md transition-shadow cursor-pointer">
-      <div class="card-body p-4">
-        <lucide-icon [name]="ICON_ACTUACIO" [size]="24" class="text-success mb-1" />
-        <h3 class="font-semibold text-sm text-base-content">Actuacions</h3>
-        @if (totalPerformances() !== null) {
-          <p class="text-xs text-base-content/50">{{ totalPerformances() }} pròximes</p>
-        } @else {
-          <div class="skeleton h-3 w-16 rounded"></div>
-        }
-      </div>
-    </a>
-
-    <a routerLink="/pinyes" class="card bg-base-100 shadow-sm border-l-4 border-warning hover:shadow-md transition-shadow cursor-pointer">
-      <div class="card-body p-4">
-        <lucide-icon [name]="ICON_TEMPLATE" [size]="24" class="text-warning mb-1" />
-        <h3 class="font-semibold text-sm text-base-content">Plantilles</h3>
-        <p class="text-xs text-base-content/50">Crea i edita plantilles</p>
-      </div>
-    </a>
+    </lib-card>
   </div>
 
   <!-- Sincronització legacy -->
-  <div class="card bg-warning/10 shadow-sm border border-warning/30">
-    <div class="card-body p-4">
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <div class="flex items-center gap-2 mb-1">
-            <lucide-icon name="RefreshCw" [size]="18" class="text-warning" />
-            <h3 class="font-semibold text-sm text-base-content">Sincronització de dades antigues</h3>
-          </div>
-          <p class="text-xs text-base-content/60">Importa persones, assajos i actuacions des de l'aplicació anterior</p>
+  <lib-card tone="warning">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <div class="flex items-center gap-2 mb-1">
+          <lucide-icon name="RefreshCw" [size]="18" class="text-warning" />
+          <h3 class="font-semibold text-sm text-base-content">Sincronització de dades antigues</h3>
         </div>
-        <a routerLink="/sync" class="btn btn-warning btn-sm btn-outline">
-          Sincronitza tot
-        </a>
+        <p class="text-xs text-base-content/60">Importa persones, assajos i actuacions des de l'aplicació anterior</p>
       </div>
+      <lib-button variant="warning" size="sm" outline routerLink="/sync">
+        Sincronitza tot
+      </lib-button>
     </div>
-  </div>
+  </lib-card>
 
-  <!-- Configuració -->
-  <div class="card bg-base-200 shadow-none border border-base-300">
-    <div class="card-body p-4">
-      <div class="flex flex-wrap items-center gap-2">
-        <lucide-icon name="Settings" [size]="16" class="text-base-content/50" />
-        <span class="text-sm font-medium text-base-content/60">Configuració:</span>
-        <a routerLink="/config/users" class="link link-hover text-sm text-base-content/60">Usuaris</a>
-        <span class="text-base-content/30">·</span>
-        <a routerLink="/config/tags" class="link link-hover text-sm text-base-content/60">Etiquetes</a>
-        <span class="text-base-content/30">·</span>
-        <a routerLink="/config/seasons" class="link link-hover text-sm text-base-content/60">Temporades</a>
-      </div>
-    </div>
-  </div>
 
 </div>

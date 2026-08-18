@@ -1,15 +1,22 @@
+import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { RouterModule, provideRouter } from '@angular/router';
 import { ButtonComponent } from './button.component';
+
+@Component({ template: '' })
+class StubRouteComponent {}
 
 describe('ButtonComponent', () => {
   let fixture: ComponentFixture<ButtonComponent>;
 
+  const rootEl = () => fixture.debugElement.children[0];
   const buttonEl = () => fixture.debugElement.query(By.css('button'));
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [ButtonComponent],
+      imports: [ButtonComponent, RouterModule],
+      providers: [provideRouter([{ path: '**', component: StubRouteComponent }])],
     }).compileComponents();
     fixture = TestBed.createComponent(ButtonComponent);
     fixture.detectChanges();
@@ -198,6 +205,70 @@ describe('ButtonComponent', () => {
     it('does not warn for the default (text) shape, even without ariaLabel', () => {
       fixture.detectChanges();
       expect(warnSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('link mode — routerLink/href, mirroring lib-card', () => {
+    it('renders a native button with neither routerLink nor href set', () => {
+      expect(rootEl().nativeElement.tagName).toBe('BUTTON');
+    });
+
+    it('renders an anchor with [routerLink] when routerLink is set', () => {
+      fixture.componentRef.setInput('routerLink', '/sync');
+      fixture.detectChanges();
+      expect(rootEl().nativeElement.tagName).toBe('A');
+    });
+
+    it('renders an anchor with [href] when href is set', () => {
+      fixture.componentRef.setInput('href', 'https://example.com');
+      fixture.detectChanges();
+      const el = rootEl().nativeElement;
+      expect(el.tagName).toBe('A');
+      expect(el.getAttribute('href')).toBe('https://example.com');
+    });
+
+    it('routerLink takes priority when both routerLink and href are set', () => {
+      fixture.componentRef.setInput('routerLink', '/sync');
+      fixture.componentRef.setInput('href', 'https://example.com');
+      fixture.detectChanges();
+      const el = rootEl().nativeElement;
+      expect(el.tagName).toBe('A');
+      expect(el.getAttribute('href')).toBe('/sync');
+    });
+
+    it('applies the same variant/size/outline classes as button mode', () => {
+      fixture.componentRef.setInput('routerLink', '/sync');
+      fixture.componentRef.setInput('variant', 'warning');
+      fixture.componentRef.setInput('size', 'sm');
+      fixture.componentRef.setInput('outline', true);
+      fixture.detectChanges();
+      const className = rootEl().nativeElement.className;
+      expect(className).toContain('btn-warning');
+      expect(className).toContain('btn-sm');
+      expect(className).toContain('btn-outline');
+    });
+
+    it('emits clicked when the link is clicked', () => {
+      fixture.componentRef.setInput('routerLink', '/sync');
+      fixture.detectChanges();
+      const spy = jest.fn();
+      fixture.componentInstance.clicked.subscribe(spy);
+
+      rootEl().nativeElement.click();
+
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    it('throws when disabled is combined with routerLink — a disabled link is not a supported shape', () => {
+      fixture.componentRef.setInput('routerLink', '/sync');
+      fixture.componentRef.setInput('disabled', true);
+      expect(() => fixture.detectChanges()).toThrow(/disabled/);
+    });
+
+    it('throws when loading is combined with href — a loading link is not a supported shape', () => {
+      fixture.componentRef.setInput('href', 'https://example.com');
+      fixture.componentRef.setInput('loading', true);
+      expect(() => fixture.detectChanges()).toThrow(/loading/);
     });
   });
 });

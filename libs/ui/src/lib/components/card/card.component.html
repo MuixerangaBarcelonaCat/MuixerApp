@@ -42,19 +42,19 @@
 </ng-template>
 
 @if (routerLink()) {
-  <a class="card bg-base-100 shadow-raised interactive" [routerLink]="routerLink()">
+  <a [class]="interactiveClass()" [routerLink]="routerLink()">
     <ng-container [ngTemplateOutlet]="inner" />
   </a>
 } @else if (href()) {
-  <a class="card bg-base-100 shadow-raised interactive" [href]="href()">
+  <a [class]="interactiveClass()" [href]="href()">
     <ng-container [ngTemplateOutlet]="inner" />
   </a>
 } @else if (clickable()) {
-  <button type="button" class="card bg-base-100 shadow-raised interactive" (click)="clicked.emit()">
+  <button type="button" [class]="interactiveClass()" (click)="clicked.emit()">
     <ng-container [ngTemplateOutlet]="inner" />
   </button>
 } @else {
-  <div class="card bg-base-100 shadow-raised">
+  <div [class]="baseClass()">
     <ng-container [ngTemplateOutlet]="inner" />
   </div>
 }

@@ -8,6 +8,8 @@ import {
   isDevMode,
   output,
 } from '@angular/core';
+import { RouterLink } from '@angular/router';
+import { NgTemplateOutlet } from '@angular/common';
 
 export type ButtonVariant =
   | 'primary'
@@ -59,6 +61,7 @@ const LOADING_SIZE_CLASSES: Record<ButtonSize, string> = {
 @Component({
   selector: 'lib-button',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [RouterLink, NgTemplateOutlet],
   templateUrl: './button.component.html',
   styleUrls: ['./button.component.scss'],
 })
@@ -71,6 +74,10 @@ export class ButtonComponent {
   disabled = input(false, { transform: booleanAttribute });
   loading = input(false, { transform: booleanAttribute });
   outline = input(false, { transform: booleanAttribute });
+  // Link mode, mirroring lib-card's exact same priority: routerLink wins over href. Neither
+  // combines with disabled/loading — see the constructor invariant below.
+  routerLink = input<string | unknown[]>();
+  href = input<string>();
 
   clicked = output<void>();
 
@@ -100,5 +107,15 @@ export class ButtonComponent {
         }
       });
     }
+
+    effect(() => {
+      const isLink = !!(this.routerLink() || this.href());
+      if (isLink && this.disabled()) {
+        throw new Error('lib-button: disabled cannot be combined with routerLink/href — a disabled link is not a supported shape.');
+      }
+      if (isLink && this.loading()) {
+        throw new Error('lib-button: loading cannot be combined with routerLink/href — a loading link is not a supported shape.');
+      }
+    });
   }
 }

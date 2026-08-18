@@ -62,7 +62,7 @@ FONT_FAMILY.serif   // Fraunces — display headings (principle #1's "hand-made"
 FONT_FAMILY.legible // Atkinson Hyperlegible Next — canvas figure/node name labels specifically
 ```
 
-All three are self-hosted via `@fontsource/*` imports in both apps' `styles.scss` and exposed as Tailwind utilities (`font-sans`/`font-serif`/`font-legible`). **`serif` and `legible` are not yet applied to any real UI** — `legible`'s intended use (canvas labels) waits on the Tier 5 canvas token bridge; `serif`'s (display headings) is a Phase 7 rollout decision, not decided per-page yet.
+All three are self-hosted via `@fontsource/*` imports in both apps' `styles.scss` and exposed as Tailwind utilities (`font-sans`/`font-serif`/`font-legible`). **`serif` first applied in Phase 7** — the dashboard `/home` greeting (`<h1>`) is the first real usage, setting the precedent for other page-level `<h1>` headings as their turn comes in the rollout, not yet applied retroactively to already-shipped pages. **`legible` is not yet applied anywhere** — its intended use (canvas labels) waits on the Tier 5 canvas token bridge.
 
 ### Radius
 
@@ -133,12 +133,14 @@ Seven components shipped so far, all in `libs/ui/src/lib/components/`, none roll
 | `shape` | `default\|square\|circle` | `default` | Dev-mode warning if non-default with no `ariaLabel` |
 | `outline` | `boolean` | `false` | Combines with `variant`, matching DaisyUI's own `btn-warning btn-outline` pattern |
 | `disabled`, `loading`, `type`, `ariaLabel` | — | — | `loading` auto-disables and shows a sized spinner |
+| `routerLink`, `href` | `string \| unknown[]`, `string` | — | Link mode, mirroring `lib-card`: `routerLink` wins over `href`, renders an `<a>` instead of `<button>`. **Throws** if combined with `disabled`/`loading` — a disabled or loading link isn't a supported shape |
 
 Output: `clicked`. Content-projected. Hover lifts (`translateY` + `--ds-btn-lift-shadow`, no color change); press flattens with `EASE_SPRING` and shifts to `--ds-{role}-active`; disabled renders as a dashed, unfilled outline in `--ds-{role}-disabled`.
 
 ```html
 <lib-button variant="primary" (clicked)="save()">Desa</lib-button>
 <lib-button variant="error" outline [loading]="saving()">Elimina</lib-button>
+<lib-button variant="warning" outline routerLink="/sync">Sincronitza tot</lib-button>
 ```
 
 ### `lib-badge`
@@ -162,8 +164,9 @@ Static, non-interactive `<span>`, content-projected. No `conflict` variant — u
 | Input | Type | Default | Notes |
 |-------|------|---------|-------|
 | `sash` | `'none'\|'thin'\|'title'` | `'none'` | `thin` = 16px divider band; `title` = 38px band carrying title+icon |
+| `tone` | `'default'\|primary\|secondary\|accent\|neutral\|info\|success\|warning\|error` | `'default'` | Muted role-tinted background/border (`bg-{role}/10 border-{role}/30`) for alert/notice-style cards — reuses DaisyUI's already-tokenized semantic colors, not a new raw color. Independent of `sash`; `default` keeps the plain `bg-base-100` surface every other card uses |
 | `title`, `icon` | `string`, `LucideIconData` | — | Renders on the sash (`title` mode) or in the body (other modes) |
-| `sashColor`, `iconColor` | `string` (hex) | — | Overrides only — default always reads `--ds-sash-fill`/`-content`, never hardcode a per-instance color |
+| `sashColor`, `iconColor` | `string` (hex) | — | Overrides only — default always reads `--ds-sash-fill`/`-content`, never hardcode a per-instance color. For *domain-assigned* colors (a tag/figure's own color) — `tone`'s small fixed role enum is the right tool for a generic alert/notice card instead |
 | `routerLink`, `href`, `clickable` | — | — | Picks the host element (`<a>`/`<a>`/`<button>`/plain `<div>`); at most one is meaningful |
 
 Output: `clicked` (only with `clickable`). The sash is a woven two-tone diagonal texture with a procedurally-generated fringe (`sash-fringe.util.ts`) emerging from a clean right-hand cut; the left edge overhangs the card's own border to read as continuing behind it.
@@ -171,6 +174,7 @@ Output: `clicked` (only with `clickable`). The sash is a woven two-tone diagonal
 ```html
 <lib-card sash="title" title="Usuaris" [icon]="Users" routerLink="/config/users" />
 <lib-card sash="thin"><p>Plain content, thin divider only.</p></lib-card>
+<lib-card tone="warning"><p>Alert/notice-style content, no sash.</p></lib-card>
 ```
 
 ### `lib-input`
@@ -251,6 +255,10 @@ Cross-cutting rules for anyone adding a new `libs/ui` component:
 - **"Outline is a boolean modifier, not a variant"** — established for both Button and Badge: real DaisyUI usage always combines `btn-outline`/`badge-outline` with a color class, so `outline` is a separate boolean input, not folded into the color enum.
 - **No component-local hex, no component-local one-off spacing** — everything styled through tokens or DaisyUI classes.
 - **TDD for all logic** (RED → GREEN → REFACTOR) — pure-data token files (`radius.ts`, `shadow.ts`, `motion.ts`, `typography.ts`, `z-index.ts`) are the explicit config-file exception; everything with actual behavior gets a test written first.
+
+**Consuming-page gotcha — every `lib-*` component's host is `display: contents`** (no box of its own; only its rendered root element — `<a>`/`<button>`/`<div>` — actually lays out). Two consequences to expect on every page in the Phase 7 rollout, not just the first one that hits them:
+- **`space-y-*` on a parent silently stops working** once a `lib-*` component becomes one of its direct children — the sibling-margin trick only applies to child *boxes*, and a `display: contents` child has none. Use `flex flex-col gap-*` (or grid `gap-*`) on the parent instead; `gap` correctly promotes a `display: contents` child's own rendered element into the layout instead of the inert wrapper.
+- **Sizing classes on the `<lib-*>` tag itself do nothing** (`class="min-h-48"` on `<lib-card>` has no box to apply to) — put sizing on a wrapper `<div>` inside the projected content instead.
 
 ## Usage rules
 

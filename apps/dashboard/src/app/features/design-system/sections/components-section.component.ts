@@ -11,10 +11,12 @@ import {
   EmptyStateComponent,
   type ButtonVariant,
   type BadgeVariant,
+  type CardTone,
 } from '@muixer/ui';
 
 const VARIANTS: ButtonVariant[] = ['primary', 'secondary', 'accent', 'neutral', 'ghost', 'info', 'success', 'warning', 'error'];
 const BADGE_VARIANTS: BadgeVariant[] = ['primary', 'secondary', 'accent', 'neutral', 'ghost', 'info', 'success', 'warning', 'error'];
+const CARD_TONES: CardTone[] = ['primary', 'secondary', 'accent', 'neutral', 'info', 'success', 'warning', 'error'];
 
 @Component({
   selector: 'app-components-section',
@@ -30,6 +32,7 @@ export class ComponentsSectionComponent {
 
   protected readonly variants = VARIANTS;
   protected readonly badgeVariants = BADGE_VARIANTS;
+  protected readonly cardTones = CARD_TONES;
 
   protected readonly dismissibleModalOpen = signal(false);
   protected readonly nonDismissibleModalOpen = signal(false);
