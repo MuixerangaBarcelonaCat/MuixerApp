@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { desktopOnlyGuard } from './desktop-only.guard';
-import { ToastService } from '../../shared/components/feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 
 describe('desktopOnlyGuard', () => {
   let mockRouter: { navigate: ReturnType<typeof vi.fn> };

@@ -12,7 +12,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { UserRole } from '@muixer/shared';
 import { UserService } from '../../services/user.service';
 import { UserDto } from '../../models/user.model';
-import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 import { PersonSearchInputComponent } from '../../../../shared/components/forms/person-search-input/person-search-input.component';
 import { Person } from '../../../../features/persons/models/person.model';
 import { AuthService } from '../../../../core/auth/services/auth.service';

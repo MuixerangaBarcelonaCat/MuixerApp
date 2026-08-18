@@ -2,7 +2,7 @@ import { Component, ChangeDetectionStrategy, inject, signal, computed } from '@a
 import { RouterLink } from '@angular/router';
 import { News } from '@muixer/shared';
 import { NewsService } from '../../services/news.service';
-import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 import { PageHeaderComponent } from '../../../../shared/components/data/page-header/page-header.component';
 import { EmptyStateComponent } from '../../../../shared/components/data/empty-state/empty-state.component';
 import { ICON_NOTICIA } from '../../../../shared/constants/domain-icons';

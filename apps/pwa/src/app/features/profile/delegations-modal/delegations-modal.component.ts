@@ -14,7 +14,7 @@ import { DelegateType } from '@muixer/shared';
 import { LucideAngularModule, X, Users } from 'lucide-angular';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { ProfileDelegate, ProfileService } from '../services/profile.service';
-import { ToastService } from '../../../shared/services/toast.service';
+import { ToastService } from '@muixer/ui';
 
 const DELEGATE_TYPE_LABELS: Record<DelegateType, string> = {
   [DelegateType.PARENT]: 'Pare/Mare',

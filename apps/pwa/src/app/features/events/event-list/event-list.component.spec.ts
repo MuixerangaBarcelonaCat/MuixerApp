@@ -4,7 +4,7 @@ import { of, throwError } from 'rxjs';
 import { AttendanceStatus, EventType, MeEvent } from '@muixer/shared';
 import { EventListComponent } from './event-list.component';
 import { EventService } from '../services/event.service';
-import { ToastService } from '../../../shared/services/toast.service';
+import { ToastService } from '@muixer/ui';
 
 const EMPTY_SUMMARY = {
   confirmed: 0,

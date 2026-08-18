@@ -26,7 +26,7 @@ import {
 } from '../../../shared/components/data/data-table/data-table.component';
 import { ColumnDef } from '../../../shared/models/column-def.model';
 import { UserFormModalComponent } from './user-form-modal/user-form-modal.component';
-import { ToastService } from '../../../shared/components/feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 import { AuthService } from '../../../core/auth/services/auth.service';
 
 const STORAGE_KEY = 'user-list-visible-columns';

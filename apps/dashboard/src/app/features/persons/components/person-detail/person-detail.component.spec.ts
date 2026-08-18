@@ -12,7 +12,7 @@ import { TagService } from '../../../config/services/tag.service';
 import { NodeAssignmentService } from '../../../pinyes/services/node-assignment.service';
 import { SeasonService } from '../../../events/services/season.service';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
-import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 
 const makePerson = (overrides: Partial<Person> = {}): Person => ({
   id: 'p1',

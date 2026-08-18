@@ -10,7 +10,7 @@ import {
   RegisterViaInviteRequest,
   UserProfile,
 } from '@muixer/shared';
-import { ToastService } from '../../../shared/services/toast.service';
+import { ToastService } from '@muixer/ui';
 import { environment } from '../../../../environments/environment';
 
 @Injectable({ providedIn: 'root' })

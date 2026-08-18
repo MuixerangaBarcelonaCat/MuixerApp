@@ -11,7 +11,7 @@ import { SegmentWorkspaceStateService, WorkspaceInstance } from '../../services/
 import { AssignmentStateService } from '../../services/assignment-state.service';
 import { UndoRedoService } from '../../services/undo-redo.service';
 import { LayoutService } from '../../../../core/services/layout.service';
-import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 import { TemplateEditorHelpModalComponent } from '../template-editor-help-modal/template-editor-help-modal.component';
 
 @Component({ selector: 'app-pinyes-tab', standalone: true, template: '' })

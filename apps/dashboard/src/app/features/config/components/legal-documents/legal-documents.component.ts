@@ -4,7 +4,7 @@ import {
   LegalDocumentService,
   PublishLegalDocumentDto,
 } from '../../../../core/services/legal-document.service';
-import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 
 interface EditableType {
   type: LegalDocumentType;

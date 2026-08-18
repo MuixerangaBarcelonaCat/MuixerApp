@@ -6,7 +6,7 @@ import { LucideAngularModule } from 'lucide-angular';
 import { marked } from 'marked';
 import { NewsStatus } from '@muixer/shared';
 import { NewsService } from '../../services/news.service';
-import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 import { getNewsStatus, getNewsStatusLabel, toDatetimeLocalValue, fromDatetimeLocalValue } from '../../../../shared/utils';
 
 marked.setOptions({ async: false });

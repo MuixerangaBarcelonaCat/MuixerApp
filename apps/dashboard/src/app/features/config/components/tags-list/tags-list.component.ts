@@ -6,7 +6,7 @@ import {
 } from '@angular/core';
 import { TagService } from '../../services/tag.service';
 import { TagWithCount } from '../../models/tag.model';
-import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 import { PageHeaderComponent } from '../../../../shared/components/data/page-header/page-header.component';
 import { EmptyStateComponent } from '../../../../shared/components/data/empty-state/empty-state.component';
 import { TagFormModalComponent } from '../tag-form-modal/tag-form-modal.component';

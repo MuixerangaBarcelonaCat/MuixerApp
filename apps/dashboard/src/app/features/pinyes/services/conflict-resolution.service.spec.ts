@@ -7,7 +7,7 @@ import { SegmentWorkspaceStateService } from './segment-workspace-state.service'
 import { AssignmentStateService } from './assignment-state.service';
 import { UndoRedoService } from './undo-redo.service';
 import { NodeAssignmentService } from './node-assignment.service';
-import { ToastService } from '../../../shared/components/feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 
 const makePlacement = (overrides: Partial<ConflictPlacement> = {}): ConflictPlacement => ({
   assignmentId: 'as-1',

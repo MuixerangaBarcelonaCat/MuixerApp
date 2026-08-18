@@ -13,7 +13,7 @@ import { LucideAngularModule, Lock, Mail, Bell, FileText, LogOut, ChevronDown } 
 import { MobileHeaderComponent } from '../../../shared/components/mobile-header/mobile-header.component';
 import { AuthService } from '../../../core/auth/services/auth.service';
 import { ProfileService } from '../services/profile.service';
-import { ToastService } from '../../../shared/services/toast.service';
+import { ToastService } from '@muixer/ui';
 import { LegalDocumentService } from '../../../core/services/legal-document.service';
 
 type SettingsSection = 'password' | 'email' | 'about';

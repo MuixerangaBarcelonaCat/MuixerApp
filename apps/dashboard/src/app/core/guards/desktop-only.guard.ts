@@ -1,6 +1,6 @@
 import { inject } from '@angular/core';
 import { Router, CanActivateFn } from '@angular/router';
-import { ToastService } from '../../shared/components/feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 
 /**
  * Blocks navigation to desktop/tablet-only routes (template editor, composition editor, segment

@@ -7,7 +7,7 @@ import { UserChipComponent } from './shared/components/layout/user-chip/user-chi
 import { TabNavComponent } from './shared/components/layout/tab-nav/tab-nav.component';
 import { LayoutService } from './core/services/layout.service';
 import { AuthService } from './core/auth/services/auth.service';
-import { ToastComponent } from './shared/components/feedback/toast/toast.component';
+import { ToastContainerComponent } from '@muixer/ui';
 import { PrivacyConsentModalComponent } from './shared/components/privacy-consent-modal/privacy-consent-modal.component';
 
 @Component({
@@ -18,7 +18,7 @@ import { PrivacyConsentModalComponent } from './shared/components/privacy-consen
     HeaderComponent,
     UserChipComponent,
     TabNavComponent,
-    ToastComponent,
+    ToastContainerComponent,
     PrivacyConsentModalComponent,
   ],
   selector: 'app-root',

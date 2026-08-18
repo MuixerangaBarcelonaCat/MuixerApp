@@ -5,7 +5,7 @@ import { of } from 'rxjs';
 import { UserRole } from '@muixer/shared';
 import { UserFormModalComponent } from './user-form-modal.component';
 import { UserService } from '../../services/user.service';
-import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 import { AuthService } from '../../../../core/auth/services/auth.service';
 import { UserDto } from '../../models/user.model';
 

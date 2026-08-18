@@ -30,7 +30,7 @@ import { NodeActionsComponent } from '../../../../shared/components/controls/nod
 import { getPresetColorsForZone, isNodeColorEditable } from '../../utils/node-color-presets.util';
 import { RenglaOverlayComponent, RenglaCreatedEvent, RenglaDeletedEvent, RenglaStartChangedEvent } from '../rengla-overlay/rengla-overlay.component';
 import { LayoutService } from '../../../../core/services/layout.service';
-import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 import { validateBaseOrdering } from '../../utils/base-ordering.util';
 import { CanComponentDeactivate } from '../../../../core/guards/unsaved-changes.guard';
 

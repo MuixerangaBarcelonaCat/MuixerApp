@@ -6,7 +6,7 @@ import { News } from '@muixer/shared';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { NewsEditorComponent } from './news-editor.component';
 import { NewsService } from '../../services/news.service';
-import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 import { toDatetimeLocalValue } from '../../../../shared/utils';
 
 const mockNews = (overrides: Partial<News> = {}): News => ({

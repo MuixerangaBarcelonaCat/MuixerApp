@@ -10,7 +10,7 @@ import {
 import { FormBuilder, ReactiveFormsModule, Validators, AbstractControl } from '@angular/forms';
 import { SeasonService, CreateSeasonPayload, UpdateSeasonPayload } from '../../../events/services/season.service';
 import { Season } from '../../../events/models/event.model';
-import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 
 @Component({
   selector: 'app-season-form-modal',

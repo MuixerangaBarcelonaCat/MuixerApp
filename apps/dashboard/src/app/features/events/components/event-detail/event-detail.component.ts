@@ -5,7 +5,7 @@ import { ICON_XICALLA, ICON_PERSONA, ICON_FIGURA } from '../../../../shared/cons
 import { EventService } from '../../services/event.service';
 import { SeasonService } from '../../services/season.service';
 import { AuthService } from '../../../../core/auth/services/auth.service';
-import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 import { EventFormModalComponent } from '../event-form-modal/event-form-modal.component';
 import { AttendanceListComponent } from '../attendance-list/attendance-list.component';
 import { EventParticipationComponent } from '../event-participation/event-participation.component';

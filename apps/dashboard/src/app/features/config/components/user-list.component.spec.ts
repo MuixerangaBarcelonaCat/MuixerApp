@@ -5,7 +5,7 @@ import { of, throwError } from 'rxjs';
 import { allLucideIconsProvider } from '../../../../testing/lucide-test-provider';
 import { UserListComponent } from './user-list.component';
 import { UserService } from '../services/user.service';
-import { ToastService } from '../../../shared/components/feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 import { AuthService } from '../../../core/auth/services/auth.service';
 import { PersonService } from '../../../features/persons/services/person.service';
 import { UserRole } from '@muixer/shared';

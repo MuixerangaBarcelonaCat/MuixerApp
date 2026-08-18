@@ -20,7 +20,7 @@ import { EventSegmentService } from '../../../pinyes/services/event-segment.serv
 import { FigureInstanceService } from '../../../pinyes/services/figure-instance.service';
 import { CompositionService } from '../../../pinyes/services/composition.service';
 import { NodeAssignmentService } from '../../../pinyes/services/node-assignment.service';
-import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 import {
   FigurePickerModalComponent,
   InstanceSelection,

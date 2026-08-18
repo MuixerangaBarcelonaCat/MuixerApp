@@ -7,7 +7,7 @@ import { SettingsComponent } from './settings.component';
 import { ProfileService } from '../services/profile.service';
 import { AuthService } from '../../../core/auth/services/auth.service';
 import { LegalDocumentService } from '../../../core/services/legal-document.service';
-import { ToastService } from '../../../shared/services/toast.service';
+import { ToastService } from '@muixer/ui';
 
 const PRIVACY_POLICY: LegalDocument = {
   id: 'd-1',
