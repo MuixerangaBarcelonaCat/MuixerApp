@@ -6,7 +6,8 @@ import {
 } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { LucideAngularModule } from 'lucide-angular';
+import { LucideAngularModule, Mail, Lock } from 'lucide-angular';
+import { ButtonComponent, InputComponent } from '@muixer/ui';
 import { AuthService } from '../../../core/auth/services/auth.service';
 import { environment } from '../../../../environments/environment';
 
@@ -14,13 +15,16 @@ import { environment } from '../../../../environments/environment';
   selector: 'app-login',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, LucideAngularModule],
+  imports: [ReactiveFormsModule, RouterLink, LucideAngularModule, ButtonComponent, InputComponent],
   templateUrl: './login.component.html',
 })
 export class LoginComponent {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
+
+  protected readonly MailIcon = Mail;
+  protected readonly LockIcon = Lock;
 
   readonly form = this.fb.nonNullable.group({
     email: [environment.production ? '' : '', [Validators.required, Validators.email]],

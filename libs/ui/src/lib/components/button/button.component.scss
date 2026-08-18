@@ -81,8 +81,23 @@ $daisy-var: (
   warning: wa,
   error: er,
 );
+// The paired "-content" (contrast text) variable per role — DaisyUI's own naming, used by each
+// `.btn-{role}` rule's resting `color`, needed below to reassert it verbatim for loading.
+$daisy-content-var: (
+  primary: pc,
+  secondary: sc,
+  accent: ac,
+  neutral: nc,
+  info: inc,
+  success: suc,
+  warning: wac,
+  error: erc,
+);
 
 @each $role in $roles {
+  $dv: map.get($daisy-var, $role);
+  $dcv: map.get($daisy-content-var, $role);
+
   .btn-#{$role} {
     &:active {
       background-color: var(--ds-#{$role}-active);
@@ -97,16 +112,50 @@ $daisy-var: (
       color: var(--ds-#{$role}-disabled);
       border-color: var(--ds-#{$role}-disabled);
     }
+
+    // Loading isn't "disabled" — the spinner alone communicates busy. Native `disabled` still
+    // gets set (blocks a second click, and Enter-triggered implicit form resubmission, while the
+    // request is in flight — see the constructor's isDisabled), but neither DaisyUI's own greyed-
+    // out `[disabled]` look nor the "sketched" one just above should show for it: reassert the
+    // exact resting-state formula (solid fill; outline's transparent-fill/colored-border/text if
+    // combined with `outline`), same technique as the outline-hover reassertion below. No :hover
+    // override needed — DaisyUI's own `.btn:disabled { pointer-events: none }` already blocks
+    // hover/active from ever matching while disabled.
+    &.lib-btn-loading:disabled {
+      // DaisyUI's own generic [disabled] rule sets --tw-bg-opacity/--tw-text-opacity to 0.2 as
+      // part of its own grey-out — reset both before reading them back below, or the "resting"
+      // formula would resolve washed-out at 20% instead of solid.
+      --tw-bg-opacity: 1;
+      --tw-text-opacity: 1;
+      border-style: solid;
+      background-color: oklch(var(--#{$dv}, var(--b2)) / var(--tw-bg-opacity, 1)) !important;
+      border-color: transparent;
+      color: oklch(var(--#{$dcv}) / var(--tw-text-opacity, 1));
+
+      &.btn-outline {
+        background-color: transparent !important;
+        border-color: oklch(var(--#{$dv}));
+        color: oklch(var(--#{$dv}));
+      }
+    }
   }
 
   // Outranks DaisyUI's own `.btn-outline.btn-{role}:hover` (which inverts to a filled, darker
   // button on hover) by matching the same two-class shape plus the encapsulation attribute —
   // one specificity "slot" ahead, regardless of source order. Reasserts transparent
   // fill/currentColor-equivalent border/resting text color, i.e. genuinely no color change.
-  $dv: map.get($daisy-var, $role);
   .btn-outline.btn-#{$role}:hover {
     background-color: transparent;
     border-color: oklch(var(--#{$dv}));
     color: oklch(var(--#{$dv}));
   }
+}
+
+// Ghost has no per-role :disabled override above (never in $roles — its resting fill is already
+// transparent with currentColor text, nothing role-tinted to preserve), so only DaisyUI's own
+// generic [disabled] greying needs neutralizing here.
+.btn-ghost.lib-btn-loading:disabled {
+  background-color: transparent;
+  border-color: transparent;
+  color: currentColor;
 }

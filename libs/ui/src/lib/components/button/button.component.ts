@@ -74,6 +74,7 @@ export class ButtonComponent {
   disabled = input(false, { transform: booleanAttribute });
   loading = input(false, { transform: booleanAttribute });
   outline = input(false, { transform: booleanAttribute });
+  fullWidth = input(false, { transform: booleanAttribute });
   // Link mode, mirroring lib-card's exact same priority: routerLink wins over href. Neither
   // combines with disabled/loading — see the constructor invariant below.
   routerLink = input<string | unknown[]>();
@@ -90,6 +91,8 @@ export class ButtonComponent {
       SIZE_CLASSES[this.size()],
       SHAPE_CLASSES[this.shape()],
       this.outline() ? 'btn-outline' : '',
+      this.fullWidth() ? 'w-full' : '',
+      this.loading() ? 'lib-btn-loading' : '',
     ]
       .filter(Boolean)
       .join(' '),

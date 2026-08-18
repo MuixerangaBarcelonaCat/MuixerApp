@@ -6,19 +6,22 @@ import {
 } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { LucideAngularModule } from 'lucide-angular';
+import { LucideAngularModule, Mail } from 'lucide-angular';
+import { ButtonComponent, InputComponent } from '@muixer/ui';
 import { AuthService } from '../../../core/auth/services/auth.service';
 
 @Component({
   selector: 'app-forgot-password',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, LucideAngularModule],
+  imports: [ReactiveFormsModule, RouterLink, LucideAngularModule, ButtonComponent, InputComponent],
   templateUrl: './forgot-password.component.html',
 })
 export class ForgotPasswordComponent {
   private readonly authService = inject(AuthService);
   private readonly fb = inject(FormBuilder);
+
+  protected readonly MailIcon = Mail;
 
   readonly form = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],

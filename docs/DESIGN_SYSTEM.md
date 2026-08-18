@@ -132,7 +132,8 @@ Seven components shipped so far, all in `libs/ui/src/lib/components/`, none roll
 | `size` | `xs\|sm\|md\|lg` | `md` | |
 | `shape` | `default\|square\|circle` | `default` | Dev-mode warning if non-default with no `ariaLabel` |
 | `outline` | `boolean` | `false` | Combines with `variant`, matching DaisyUI's own `btn-warning btn-outline` pattern |
-| `disabled`, `loading`, `type`, `ariaLabel` | — | — | `loading` auto-disables and shows a sized spinner |
+| `fullWidth` | `boolean` | `false` | Applies `w-full` to the rendered `<button>`/`<a>` itself — a class on the `<lib-button>` tag is inert (host is `display: contents`, see Component conventions). Real pattern: every existing raw-`<button>` form-submit footer in the app (~11 files) sizes itself this way |
+| `disabled`, `loading`, `type`, `ariaLabel` | — | — | `loading` auto-disables (native `disabled`, so a second click/Enter-triggered resubmit can't slip through) and shows a sized spinner — but reads as *busy*, not *disabled*: fill/border/text stay at their resting-state formula (solid or outline alike), no dashed "sketched" look and no grey-out. A real `disabled` (not loading) still gets that treatment |
 | `routerLink`, `href` | `string \| unknown[]`, `string` | — | Link mode, mirroring `lib-card`: `routerLink` wins over `href`, renders an `<a>` instead of `<button>`. **Throws** if combined with `disabled`/`loading` — a disabled or loading link isn't a supported shape |
 
 Output: `clicked`. Content-projected. Hover lifts (`translateY` + `--ds-btn-lift-shadow`, no color change); press flattens with `EASE_SPRING` and shifts to `--ds-{role}-active`; disabled renders as a dashed, unfilled outline in `--ds-{role}-disabled`.
@@ -141,6 +142,7 @@ Output: `clicked`. Content-projected. Hover lifts (`translateY` + `--ds-btn-lift
 <lib-button variant="primary" (clicked)="save()">Desa</lib-button>
 <lib-button variant="error" outline [loading]="saving()">Elimina</lib-button>
 <lib-button variant="warning" outline routerLink="/sync">Sincronitza tot</lib-button>
+<lib-button type="submit" variant="primary" fullWidth [disabled]="form.invalid">Inicia sessió</lib-button>
 ```
 
 ### `lib-badge`
@@ -185,8 +187,10 @@ Output: `clicked` (only with `clickable`). The sash is a woven two-tone diagonal
 |-------|------|---------|-------|
 | `label`, `hint`, `errorText` | `string` | — | `errorText` replaces `hint` in the same slot when both are set; drives `input-error` + `aria-invalid` |
 | `icon` | `LucideIconData` | — | Optional prefix icon inside the box |
-| `size` | `xs\|sm\|md\|lg` | **`sm`** | Deviates from DaisyUI's own `md` default — real usage is 53× `sm`/4× `xs`/0× `md`/`lg` |
+| `size` | `xs\|sm\|md\|lg` | **`sm`** | Deviates from DaisyUI's own `md` default — real usage is 53× `sm`/4× `xs`/0× `md`/`lg`. Watch for this specifically when migrating a page whose raw markup used unmodified `.input input-bordered` (no size class, i.e. DaisyUI's implicit `md`, 48px) — swapping in `lib-input` with no `size` set silently shrinks it to `sm` (32px). Pass `size="md"` explicitly to preserve the original height (hit on the auth pages) |
 | `type`, `placeholder`, `disabled`, `required`, `autocomplete`, `id` | — | — | `id` auto-generates a stable per-instance value if omitted, wiring `label[for]` + `aria-describedby` automatically |
+
+The native `<input>` itself always carries `min-h-6` — a >=24px tap target independent of the wrapper box's own height (WI-03 parity; ported in from the one-off fix on the dashboard/PWA auth pages, now baked into every consumer).
 
 ```html
 <lib-input formControlName="email" label="Correu electrònic" [icon]="Mail" type="email" required />
@@ -258,7 +262,7 @@ Cross-cutting rules for anyone adding a new `libs/ui` component:
 
 **Consuming-page gotcha — every `lib-*` component's host is `display: contents`** (no box of its own; only its rendered root element — `<a>`/`<button>`/`<div>` — actually lays out). Two consequences to expect on every page in the Phase 7 rollout, not just the first one that hits them:
 - **`space-y-*` on a parent silently stops working** once a `lib-*` component becomes one of its direct children — the sibling-margin trick only applies to child *boxes*, and a `display: contents` child has none. Use `flex flex-col gap-*` (or grid `gap-*`) on the parent instead; `gap` correctly promotes a `display: contents` child's own rendered element into the layout instead of the inert wrapper.
-- **Sizing classes on the `<lib-*>` tag itself do nothing** (`class="min-h-48"` on `<lib-card>` has no box to apply to) — put sizing on a wrapper `<div>` inside the projected content instead.
+- **Sizing classes on the `<lib-*>` tag itself do nothing** (`class="min-h-48"` on `<lib-card>` has no box to apply to) — put sizing on a wrapper `<div>` inside the projected content instead. `class="w-full"` on `<lib-button>` is the same trap, made confusing by a coincidence: inside a `flex flex-col` parent (the fix for the bullet above), the button's rendered element becomes a direct flex item and *stretches to full width by default regardless of the inert class* — looks like it's working, isn't. Real fix: an explicit input the component applies internally (`fullWidth` on `lib-button`, mirroring `tone` on `lib-card`), not a class on the tag.
 
 ## Usage rules
 

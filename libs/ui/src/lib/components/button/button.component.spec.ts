@@ -63,6 +63,18 @@ describe('ButtonComponent', () => {
     });
   });
 
+  describe('fullWidth', () => {
+    it('adds no w-full class by default', () => {
+      expect(buttonEl().nativeElement.className).not.toContain('w-full');
+    });
+
+    it('adds w-full to the rendered element when set — a class on the host tag itself is inert (display: contents)', () => {
+      fixture.componentRef.setInput('fullWidth', true);
+      fixture.detectChanges();
+      expect(buttonEl().nativeElement.className).toContain('w-full');
+    });
+  });
+
   it('applies no size class for the default md size', () => {
     const className = buttonEl().nativeElement.className;
     expect(className).not.toContain('btn-xs');
@@ -158,6 +170,18 @@ describe('ButtonComponent', () => {
       buttonEl().nativeElement.click();
 
       expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('marks the button with a loading class so the disabled-look CSS can be suppressed for it (loading reads as "busy", not "disabled")', () => {
+      fixture.componentRef.setInput('loading', true);
+      fixture.detectChanges();
+      expect(buttonEl().nativeElement.className).toContain('lib-btn-loading');
+    });
+
+    it('adds no loading class when not loading, even if disabled', () => {
+      fixture.componentRef.setInput('disabled', true);
+      fixture.detectChanges();
+      expect(buttonEl().nativeElement.className).not.toContain('lib-btn-loading');
     });
   });
 
