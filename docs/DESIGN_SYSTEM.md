@@ -51,7 +51,9 @@ OKLCH throughout, not hex/RGB — perceptually uniform lightness makes tone-shif
 
 Every `InteractiveRole` (`primary`/`secondary`/`accent`/`neutral`/`info`/`success`/`warning`/`error`) gets its hover/active/disabled precomputed into theme-level `--ds-{role}-hover`/`-active`/`-disabled` custom properties — DaisyUI's own `:hover`/`:disabled` states always mix toward flat black/gray regardless of role, so components that want `tone()`'s mode-aware, per-role feedback need these precomputed rather than relying on DaisyUI's default.
 
-**`contrastContent(background, darkContent, lightContent)`** picks readable content color via real APCA contrast (not naive relative luminance) — used everywhere a solid fill needs readable text/icon color on top of an arbitrary custom color (Badge's `color` override, Card's `sashColor` override).
+**`contrastContent(background, darkContent, lightContent)`** picks readable content color via real APCA contrast (not naive relative luminance) — used everywhere a solid fill needs readable text/icon color on top of an arbitrary custom color (Badge's `color` override, Card's `sashColor` override), and by the sash motif itself (below) for its own fill.
+
+`contrastContent` gamut-maps every candidate (`culori`'s `clampChroma`) before computing APCA luminance. Needed because fixed L/C targets — the sash's `SASH_L=0.52`/`SASH_C=0.2` in particular — can land outside the sRGB gamut for some hues (confirmed: `#B32400`, h≈33°); left unclamped, culori's raw RGB conversion returns an out-of-range channel (e.g. blue < 0), which collapses both candidates' APCA contrast to ~0 — a tie the `>=` tie-break silently resolves to dark content regardless of how dark the color actually reads. Gamut-mapping first matches what a browser actually paints for an out-of-gamut `oklch()` value, so the text-color decision agrees with the rendered fill.
 
 ### Typography
 
