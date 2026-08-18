@@ -8,7 +8,7 @@ import { Component, ChangeDetectionStrategy, input } from '@angular/core';
   template: `
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center gap-2">
-        <h1 class="text-xl font-bold text-base-content">{{ title() }}</h1>
+        <h1 class="text-xl font-bold font-serif text-base-content">{{ title() }}</h1>
         @if (count() !== null && count() !== undefined) {
           <span class="badge badge-neutral badge-lg font-semibold">{{ count() }}</span>
         }

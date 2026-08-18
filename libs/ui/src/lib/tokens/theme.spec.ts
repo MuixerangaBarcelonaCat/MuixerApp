@@ -57,6 +57,16 @@ describe('generateCollaTheme', () => {
       expect(theme.light['--ds-sash-fill']).not.toBe('#C23B3B');
     });
 
+    it("derives --ds-sash-fill from the shirt color's own hue when sash kind is 'primary'", () => {
+      const theme = generateCollaTheme('#1E3A8A', { kind: 'primary' });
+      const sashHue = hexToOklch(theme.light['--ds-sash-fill'] as unknown as string);
+      const shirtHue = hexToOklch('#1E3A8A').h;
+      expect(sashHue.h).toBeCloseTo(shirtHue, 1);
+      // Same hue primary was generated from, so it matches a 'hue' sash pointed at the shirt color.
+      const equivalent = generateCollaTheme('#1E3A8A', { kind: 'hue', hex: '#1E3A8A' });
+      expect(theme.light['--ds-sash-fill']).toBe(equivalent.light['--ds-sash-fill']);
+    });
+
     it('uses the fixed paper-white preset for a white sash, contrasted with dark content', () => {
       const theme = generateCollaTheme('#1E3A8A', { kind: 'white' });
       expect(theme.light['--ds-sash-fill']).toBe(formatOklch(hexToOklch(PAPER.white)));

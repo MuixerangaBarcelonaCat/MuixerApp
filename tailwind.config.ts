@@ -10,7 +10,7 @@ import { FONT_FAMILY } from './libs/ui/src/lib/tokens/typography';
 // with a representative real-hue sash until that exists — purple, deliberately distinct from
 // the fixed error color (red) so the two are visually distinguishable in an actual render,
 // even though sash and accent are independent regardless of which hues they happen to share.
-const barcelona = generateCollaTheme('#00CCFF', { kind: 'hue', hex: '#B32400' });
+const barcelona = generateCollaTheme('#00D2FF', { kind: 'primary'});
 
 export default {
   content: [

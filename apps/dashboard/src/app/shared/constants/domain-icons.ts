@@ -1,5 +1,6 @@
 import {
   Baby,
+  Bell,
   Calendar,
   ChessRook,
   CircleAlert,
@@ -8,6 +9,7 @@ import {
   Flower,
   GitCommitHorizontal,
   LayoutGrid,
+  Newspaper,
   Sparkles,
   Star,
   Users,
@@ -47,4 +49,6 @@ export const DOMAIN_ICONS = {
   PERSONA: Users,
   XICALLA: Baby,
   OBSERVACIONS: CircleAlert,
+  NOTICIA: Newspaper,
+  BELL: Bell,
 } as const;

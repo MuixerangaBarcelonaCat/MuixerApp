@@ -1,26 +1,21 @@
 <div class="max-w-4xl mx-auto space-y-4">
 
   <div>
-    <h1 class="text-xl font-bold text-base-content">
+    <h1 class="text-xl font-bold font-serif text-base-content">
       {{ isEditMode() ? 'Edita la notícia' : 'Notícia nova' }}
     </h1>
   </div>
 
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-    <div class="space-y-4">
-      <div class="form-control">
-        <label class="label" for="news-title">
-          <span class="label-text">Títol</span>
-        </label>
-        <input
-          id="news-title"
-          type="text"
-          class="input input-bordered w-full"
-          [ngModel]="title()"
-          (ngModelChange)="title.set($event)"
-        />
-      </div>
+    <div class="flex flex-col gap-4">
+      <lib-input
+        id="news-title"
+        label="Títol"
+        size="md"
+        [ngModel]="title()"
+        (ngModelChange)="title.set($event)"
+      />
 
       <div class="form-control">
         <label class="label" for="news-body">
@@ -36,7 +31,7 @@
               />
               <span
                 data-testid="markdown-help"
-                class="hidden group-hover:block group-focus-within:block absolute left-0 top-full mt-1 z-10 w-56 rounded-box border border-base-300 bg-base-100 shadow-lg px-3 py-2 text-xs font-normal normal-case"
+                class="hidden group-hover:block group-focus-within:block absolute left-0 top-full mt-1 z-10 w-56 rounded-box border border-base-300 bg-base-100 shadow-overlay px-3 py-2 text-xs font-normal normal-case"
               >
                 <p>Podeu afegir-hi codis de Markdown, per exemple:</p>
                 <p class="flex justify-between gap-2"><code>**negreta**</code> <span><strong>negreta</strong></span></p>
@@ -57,7 +52,7 @@
       <div class="form-control">
         <label class="label" for="news-published-at">
           <span class="label-text">Publicació</span>
-          <span class="label-text-alt badge badge-sm">{{ statusLabel() }}</span>
+          <lib-badge variant="ghost" size="sm">{{ statusLabel() }}</lib-badge>
         </label>
         <div class="join w-full">
           <input
@@ -84,24 +79,21 @@
       </div>
 
       <div class="flex gap-2">
-        <button type="button" class="btn btn-primary btn-sm" [disabled]="!canSave()" (click)="save()">
-          @if (saving()) {
-            <span class="loading loading-spinner loading-xs"></span>
-          }
+        <lib-button variant="primary" size="sm" [disabled]="!canSave()" [loading]="saving()" (clicked)="save()">
           Desa
-        </button>
-        <button type="button" class="btn btn-ghost btn-sm" (click)="cancel()">Cancel·la</button>
+        </lib-button>
+        <lib-button variant="ghost" size="sm" (clicked)="cancel()">Cancel·la</lib-button>
       </div>
     </div>
 
-    <div class="space-y-2">
+    <div class="flex flex-col gap-2">
       <span class="label-text">Previsualització</span>
-      <div class="card bg-base-100 shadow-sm">
-        <div class="card-body prose prose-sm max-w-none" data-testid="news-preview">
+      <lib-card>
+        <div class="prose prose-sm max-w-none" data-testid="news-preview">
           <h2 class="font-bold" data-testid="news-preview-title">{{ title() || 'Sense títol' }}</h2>
           <div [innerHTML]="previewHtml()"></div>
         </div>
-      </div>
+      </lib-card>
     </div>
 
   </div>

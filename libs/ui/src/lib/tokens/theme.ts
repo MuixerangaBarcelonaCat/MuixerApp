@@ -15,7 +15,11 @@ import { RADIUS } from './radius';
 import { DURATION, EASE_SPRING } from './motion';
 import { SHADOW } from './shadow';
 
-export type SashSpec = { kind: 'hue'; hex: string } | { kind: 'white' } | { kind: 'black' };
+export type SashSpec =
+  | { kind: 'hue'; hex: string }
+  | { kind: 'primary' }
+  | { kind: 'white' }
+  | { kind: 'black' };
 
 /**
  * The color roles components can build hover/active/disabled feedback on. DaisyUI's own
@@ -102,10 +106,14 @@ function content(background: OklchColor): OklchColor {
   return contrastContent(background, INK_BLACK, PAPER_WHITE);
 }
 
-function resolveSash(sash: SashSpec, mode: ThemeMode) {
+function resolveSash(sash: SashSpec, shirtHex: string, mode: ThemeMode) {
   switch (sash.kind) {
     case 'hue':
       return sashFromHue(sash.hex, mode, INK_BLACK, PAPER_WHITE);
+    // generatePrimary keeps the shirt hex's hue verbatim, so deriving the sash straight from
+    // shirtHex lands on the same hue as primary without needing the already-built primary color.
+    case 'primary':
+      return sashFromHue(shirtHex, mode, INK_BLACK, PAPER_WHITE);
     case 'white':
       return sashFromFill(PAPER_WHITE, mode, INK_BLACK, PAPER_WHITE);
     case 'black':
@@ -126,7 +134,7 @@ function surfaces(mode: ThemeMode): { base100: OklchColor; base200: OklchColor; 
 function buildTheme(shirtHex: string, sash: SashSpec, mode: ThemeMode): DaisyUiThemeValues {
   const primary = generatePrimary(shirtHex);
   const secondary = generateSecondary(primary);
-  const sashTokens = resolveSash(sash, mode);
+  const sashTokens = resolveSash(sash, shirtHex, mode);
   const neutral = INK_DARK;
   const { base100, base200, base300 } = surfaces(mode);
 

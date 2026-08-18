@@ -1,28 +1,67 @@
-<div class="space-y-4 max-w-3xl mx-auto">
-  <div>
-    <h1 class="text-xl font-bold text-base-content">Comunicació</h1>
-    <p class="text-xs text-base-content/50 mt-0.5">Notícies i notificacions</p>
+<div class="space-y-6 max-w-5xl mx-auto">
+  <div class="flex items-center justify-between gap-3">
+    <h1 class="text-xl font-bold font-serif text-base-content">Comunicació</h1>
+    <lib-button variant="primary" size="sm" routerLink="news/new">Notícia nova</lib-button>
   </div>
 
-  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+  <ng-template #newsHeadlines let-items>
+    <ul class="flex flex-col gap-2">
+      @for (item of items; track item.id) {
+        <li class="flex items-baseline justify-between gap-2 text-sm">
+          <a [routerLink]="['news', item.id, 'edit']" class="text-base-content truncate hover:text-primary hover:underline">{{ item.title }}</a>
+          <span class="text-xs text-base-content/50 shrink-0">{{ formatDate(item.publishedAt) }}</span>
+        </li>
+      }
+    </ul>
+  </ng-template>
 
-    <a routerLink="news" class="card bg-base-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer border-l-4 border-primary">
-      <div class="card-body p-4">
-        <lucide-icon name="Newspaper" [size]="24" class="text-primary mb-1" />
-        <h3 class="font-semibold">Notícies</h3>
-        <p class="text-xs text-base-content/50">Notícies per a la pàgina d'inici de l'aplicació</p>
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+
+    <lib-card sash="title" title="Notícies" [icon]="ICON_NOTICIA">
+      <div class="flex flex-col gap-5">
+        @if (newsLoading()) {
+          <div class="flex flex-col gap-2">
+            <div class="skeleton h-4 w-32"></div>
+            <div class="skeleton h-3 w-full"></div>
+            <div class="skeleton h-3 w-5/6"></div>
+          </div>
+        } @else {
+          @if (recentPublished().length === 0 && upcomingScheduled().length === 0) {
+            <p class="text-sm text-base-content/50">Cap notícia publicada ni programada encara.</p>
+          }
+
+          @if (recentPublished().length > 0) {
+            <div class="flex flex-col gap-2">
+              <p class="text-sm font-semibold uppercase tracking-wide text-base-content/40">Recents</p>
+              <ng-container [ngTemplateOutlet]="newsHeadlines" [ngTemplateOutletContext]="{ $implicit: recentPublished() }" />
+            </div>
+          }
+
+          @if (upcomingScheduled().length > 0) {
+            <div class="flex flex-col gap-2">
+              <p class="text-sm font-semibold uppercase tracking-wide text-base-content/40">Programades</p>
+              <ng-container [ngTemplateOutlet]="newsHeadlines" [ngTemplateOutletContext]="{ $implicit: upcomingScheduled() }" />
+            </div>
+          }
+
+          <div class="flex flex-col gap-2">
+            <a routerLink="news" class="link link-primary text-sm font-medium self-start">Veure totes les notícies</a>
+            <p class="text-xs text-base-content/50">
+              {{ newsCounts().published }} publicades · {{ newsCounts().scheduled }} programades · {{ newsCounts().draft }} esborranys
+            </p>
+          </div>
+
+        }
       </div>
-    </a>
+    </lib-card>
 
-    <div class="card bg-base-100 shadow-sm border-l-4 border-base-300 opacity-60 cursor-not-allowed">
-      <div class="card-body p-4">
-        <div class="flex items-center justify-between">
-          <lucide-icon name="Bell" [size]="24" class="text-base-content/40 mb-1" />
-          <span class="badge badge-ghost badge-sm">Properament</span>
+    <div class="opacity-60 cursor-not-allowed">
+      <lib-card sash="title" title="Notificacions" [icon]="ICON_BELL">
+        <div class="flex items-center justify-between gap-2">
+          <p class="text-sm text-base-content/50">Notificacions push per als membres</p>
+          <lib-badge variant="ghost" size="sm">Properament</lib-badge>
         </div>
-        <h3 class="font-semibold">Notificacions</h3>
-        <p class="text-xs text-base-content/50">Notificacions push per als membres</p>
-      </div>
+      </lib-card>
     </div>
 
   </div>

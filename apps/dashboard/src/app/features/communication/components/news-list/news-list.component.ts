@@ -1,22 +1,20 @@
 import { Component, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
-import { RouterLink } from '@angular/router';
 import { News } from '@muixer/shared';
 import { NewsService } from '../../services/news.service';
-import { ToastService } from '@muixer/ui';
+import { ToastService, BadgeComponent, ButtonComponent, EmptyStateComponent, ModalComponent } from '@muixer/ui';
 import { PageHeaderComponent } from '../../../../shared/components/data/page-header/page-header.component';
-import { EmptyStateComponent } from '../../../../shared/components/data/empty-state/empty-state.component';
-import { ICON_NOTICIA } from '../../../../shared/constants/domain-icons';
+import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { getNewsStatus, getNewsStatusLabel, formatDateTime } from '../../../../shared/utils';
 
 @Component({
   selector: 'app-news-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, PageHeaderComponent, EmptyStateComponent],
+  imports: [PageHeaderComponent, BadgeComponent, ButtonComponent, EmptyStateComponent, ModalComponent],
   templateUrl: './news-list.component.html',
 })
 export class NewsListComponent {
-  readonly ICON_NOTICIA = ICON_NOTICIA;
+  readonly ICON_NOTICIA = DOMAIN_ICONS.NOTICIA;
 
   private readonly newsService = inject(NewsService);
   private readonly toast = inject(ToastService);
