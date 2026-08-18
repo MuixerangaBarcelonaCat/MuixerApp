@@ -205,6 +205,19 @@ describe('contrastContent', () => {
     expect(contrastContent(vividBlue, INK_BLACK, PAPER_WHITE)).toEqual(PAPER_WHITE);
   });
 
+  it('picks light content for a background whose OKLCH values fall outside the sRGB gamut', () => {
+    // Regression: the sash's fixed L=0.52/C=0.2 target combined with certain hues (e.g. a
+    // red-orange shirt color around h=33, reported against #B32400) produces an OKLCH triple
+    // that's out of sRGB gamut — culori's rgb converter returns a negative blue channel for it
+    // uncorrected. Feeding that straight into the APCA luminance calculation collapsed both
+    // candidates' contrast to 0 (a tie, wrongly resolved to dark/ink by the >= tie-break) even
+    // though the color is clearly dark enough to need light content — confirmed by computing
+    // contrast against the same L/C/H after gamut-mapping (culori's clampChroma), which scores
+    // light content at ~80 vs. dark's ~24.
+    const outOfGamutRedOrange = { l: 0.52, c: 0.2, h: 33.24 };
+    expect(contrastContent(outOfGamutRedOrange, INK_BLACK, PAPER_WHITE)).toEqual(PAPER_WHITE);
+  });
+
   it('never falls back to a hardcoded pure black or white — only the two colors passed in', () => {
     const customDark = hexToOklch('#123456');
     const customLight = hexToOklch('#f0e6d2');
@@ -280,6 +293,11 @@ describe('sashFromHue', () => {
     const sameL = Math.abs(redSash.fill.l - errorOklch.l) < 0.01;
     const sameC = Math.abs(redSash.fill.c - errorOklch.c) < 0.01;
     expect(sameL && sameC).toBe(false);
+  });
+
+  it('picks light (paper) content for #B32400 — a real colla sash color whose fixed L/C target falls outside the sRGB gamut', () => {
+    const sash = sashFromHue('#B32400', 'light', INK_BLACK, PAPER_WHITE);
+    expect(sash.content).toEqual(PAPER_WHITE);
   });
 
   it('derives content and edge from the same ink/paper pair contrastContent would pick, and weaveFill from the generated fill', () => {

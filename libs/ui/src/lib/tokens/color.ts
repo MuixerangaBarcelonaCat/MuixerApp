@@ -1,4 +1,4 @@
-import { converter } from 'culori';
+import { clampChroma, converter } from 'culori';
 import { APCAcontrast, sRGBtoY } from 'apca-w3';
 
 const toOklch = converter('oklch');
@@ -116,8 +116,16 @@ export function contrastContent(
   darkContent: OklchColor,
   lightContent: OklchColor,
 ): OklchColor {
+  // Fixed L/C targets (e.g. the sash's SASH_L=0.52/SASH_C=0.2) can land outside the sRGB gamut
+  // for some hues — culori's rgb converter then returns raw, uncorrected negative/>1 channel
+  // values for them. Left uncorrected, that silently collapses both candidates' APCA contrast to
+  // ~0 (a tie, wrongly resolved to darkContent by the >= tie-break below) regardless of how dark
+  // the color actually reads. Gamut-map to the nearest in-range color first — the same chroma-
+  // reduction approach browsers use when painting an out-of-gamut oklch() value — so the contrast
+  // decision matches what's actually rendered.
   const toSrgb255 = (color: OklchColor): [number, number, number] => {
-    const rgb = toRgb({ mode: 'oklch', l: color.l, c: color.c, h: color.h });
+    const clamped = clampChroma({ mode: 'oklch', l: color.l, c: color.c, h: color.h }, 'oklch');
+    const rgb = toRgb(clamped);
     return [rgb.r * 255, rgb.g * 255, rgb.b * 255];
   };
   const backgroundY = sRGBtoY(toSrgb255(background));
