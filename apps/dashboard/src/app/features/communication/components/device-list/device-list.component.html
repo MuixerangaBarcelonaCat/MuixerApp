@@ -1,0 +1,98 @@
+<app-page-header title="Dispositius subscrits">
+  <a routerLink="../" class="btn btn-ghost btn-sm">
+    <lucide-icon name="ArrowLeft" [size]="16" />
+    Enrere
+  </a>
+</app-page-header>
+<p class="text-sm text-base-content/50 mb-4">
+  Total: {{ totalDevices() }} dispositiu{{ totalDevices() !== 1 ? 's' : '' }} actiu{{ totalDevices() !== 1 ? 's' : '' }}
+</p>
+
+<!-- Toolbar -->
+<div class="flex flex-wrap gap-3 items-center mb-4">
+  <div class="relative flex-1 min-w-48">
+    <lucide-icon name="Search" [size]="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/40 pointer-events-none" />
+    <input
+      type="text"
+      class="input input-bordered pl-9 w-full"
+      placeholder="Cerca per nom..."
+      [ngModel]="search()"
+      (ngModelChange)="search.set($event)"
+    />
+  </div>
+  <div class="flex gap-2">
+    <button
+      class="btn btn-sm"
+      [class.btn-primary]="sortBy() === 'devices'"
+      [class.btn-outline]="sortBy() !== 'devices'"
+      (click)="sortBy.set('devices')"
+    >
+      Dispositius
+    </button>
+    <button
+      class="btn btn-sm"
+      [class.btn-primary]="sortBy() === 'lastUse'"
+      [class.btn-outline]="sortBy() !== 'lastUse'"
+      (click)="sortBy.set('lastUse')"
+    >
+      Darrer ús
+    </button>
+  </div>
+</div>
+
+<!-- Content -->
+@if (loading()) {
+  <div class="flex justify-center py-16">
+    <span class="loading loading-spinner loading-lg"></span>
+  </div>
+} @else if (error()) {
+  <div role="alert" class="alert alert-error">
+    <lucide-icon name="AlertCircle" [size]="18" />
+    <span>Error en carregar els dispositius. Torna-ho a intentar.</span>
+  </div>
+} @else if (filtered().length === 0 && summary().length === 0) {
+  <app-empty-state
+    icon="Smartphone"
+    message="Cap dispositiu subscrit. Quan els membres activin les notificacions apareixeran aquí."
+  />
+} @else if (filtered().length === 0) {
+  <app-empty-state
+    icon="Search"
+    message="Cap membre coincideix amb la cerca."
+  />
+} @else {
+  <div class="overflow-x-auto rounded-box border border-base-200">
+    <table class="table table-zebra w-full">
+      <thead>
+        <tr>
+          <th>Membre</th>
+          <th class="text-center">Dispositius actius</th>
+          <th>Darrera notificació</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of filtered(); track row.person.id) {
+          <tr>
+            <td class="font-medium">{{ row.person.firstName }} {{ row.person.lastName }}</td>
+            <td class="text-center">
+              <span
+                class="badge"
+                [class.badge-primary]="row.activeDevices > 0"
+                [class.badge-ghost]="row.activeDevices === 0"
+              >
+                {{ row.activeDevices }}
+              </span>
+            </td>
+            <td class="text-base-content/60 text-sm">
+              @if (row.lastPushAt) {
+                {{ row.lastPushAt | date:'dd/MM/yyyy HH:mm' }}
+              } @else {
+                <span class="italic">Mai</span>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

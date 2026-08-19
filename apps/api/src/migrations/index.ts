@@ -39,6 +39,8 @@ import { AddNodeAssignmentConflictIndexes1784100000000 } from './1784100000000-A
 import { DropNodeAssignmentDuplicateUniques1784200000000 } from './1784200000000-DropNodeAssignmentDuplicateUniques';
 import { RenameSegmentIsVisibleToIsPublished1784300000000 } from './1784300000000-RenameSegmentIsVisibleToIsPublished';
 import { CreateNews1784300000000 } from './1784300000000-CreateNews';
+import { CreatePushSubscriptions1784400000000 } from './1784400000000-CreatePushSubscriptions';
+import { AddPushFieldsToNews1784500000000 } from './1784500000000-AddPushFieldsToNews';
 
 export const migrations: (new () => MigrationInterface)[] = [
   InitialSchema1748600000000,
@@ -81,4 +83,6 @@ export const migrations: (new () => MigrationInterface)[] = [
   DropNodeAssignmentDuplicateUniques1784200000000,
   RenameSegmentIsVisibleToIsPublished1784300000000,
   CreateNews1784300000000,
+  CreatePushSubscriptions1784400000000,
+  AddPushFieldsToNews1784500000000,
 ];

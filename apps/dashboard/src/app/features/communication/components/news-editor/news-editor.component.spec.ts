@@ -17,6 +17,8 @@ const mockNews = (overrides: Partial<News> = {}): News => ({
   createdBy: null,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
+  sendPush: false,
+  pushSentAt: null,
   ...overrides,
 });
 
@@ -80,7 +82,7 @@ describe('NewsEditorComponent', () => {
       component.body.set('Cos');
       component.save();
 
-      expect(newsService.create).toHaveBeenCalledWith({ title: 'Nova', body: 'Cos', publishedAt: null });
+      expect(newsService.create).toHaveBeenCalledWith({ title: 'Nova', body: 'Cos', publishedAt: null, sendPush: false });
       expect(toast.success).toHaveBeenCalled();
       expect(router.navigate).toHaveBeenCalledWith(['/communication/news']);
     });
@@ -95,6 +97,7 @@ describe('NewsEditorComponent', () => {
         title: 'Nova',
         body: 'Cos',
         publishedAt: new Date('2026-01-01T10:30').toISOString(),
+        sendPush: false,
       });
     });
 
@@ -126,6 +129,7 @@ describe('NewsEditorComponent', () => {
         title: 'Actualitzat',
         body: 'Cos en **markdown**',
         publishedAt: null,
+        sendPush: false,
       });
       expect(router.navigate).toHaveBeenCalledWith(['/communication/news']);
     });

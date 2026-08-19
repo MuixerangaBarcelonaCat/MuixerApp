@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { envValidationSchema } from '../config/env.validation';
@@ -23,6 +24,7 @@ import { AuditModule } from '../modules/audit/audit.module';
 import { MeModule } from '../modules/me/me.module';
 import { MailModule } from '../modules/mail/mail.module';
 import { NewsModule } from '../modules/news/news.module';
+import { PushNotificationModule } from '../modules/push-notification/push-notification.module';
 import { JwtAuthGuard } from '../modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../modules/auth/guards/roles.guard';
 
@@ -34,6 +36,7 @@ import { RolesGuard } from '../modules/auth/guards/roles.guard';
       validationOptions: { allowUnknown: true, abortEarly: false },
     }),
     ScheduleModule.forRoot(),
+    EventEmitterModule.forRoot(),
     ThrottlerModule.forRoot({ throttlers: [{ ttl: 60000, limit: 100 }] }),
     DatabaseModule,
     TagModule,
@@ -53,6 +56,7 @@ import { RolesGuard } from '../modules/auth/guards/roles.guard';
     MeModule,
     MailModule,
     NewsModule,
+    PushNotificationModule,
   ],
   controllers: [AppController],
   providers: [

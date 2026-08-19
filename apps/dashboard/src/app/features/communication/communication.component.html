@@ -14,16 +14,21 @@
       </div>
     </a>
 
-    <div class="card bg-base-100 shadow-sm border-l-4 border-base-300 opacity-60 cursor-not-allowed">
+    <a routerLink="notifications" class="card bg-base-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer border-l-4 border-secondary">
       <div class="card-body p-4">
-        <div class="flex items-center justify-between">
-          <lucide-icon name="Bell" [size]="24" class="text-base-content/40 mb-1" />
-          <span class="badge badge-ghost badge-sm">Properament</span>
-        </div>
-        <h3 class="font-semibold">Notificacions</h3>
-        <p class="text-xs text-base-content/50">Notificacions push per als membres</p>
+        <lucide-icon name="Bell" [size]="24" class="text-secondary mb-1" />
+        <h3 class="font-semibold">Notificacions push</h3>
+        <p class="text-xs text-base-content/50">Envia notificacions push als membres</p>
       </div>
-    </div>
+    </a>
+
+    <a routerLink="notifications/devices" class="card bg-base-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer border-l-4 border-accent">
+      <div class="card-body p-4">
+        <lucide-icon name="Smartphone" [size]="24" class="text-accent mb-1" />
+        <h3 class="font-semibold">Dispositius</h3>
+        <p class="text-xs text-base-content/50">Membres subscrits a notificacions push</p>
+      </div>
+    </a>
 
   </div>
 </div>

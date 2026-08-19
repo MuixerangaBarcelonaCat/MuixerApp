@@ -1,0 +1,34 @@
+@if (shouldShow()) {
+  <div
+    class="fixed bottom-20 left-4 right-4 z-40 alert shadow-lg bg-base-100 border border-base-300"
+    role="alert"
+    aria-live="polite"
+  >
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      class="h-5 w-5 shrink-0 text-primary"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+    <div class="flex-1">
+      <p class="text-sm font-medium">Activa les notificacions</p>
+      <p class="text-xs text-base-content/60">Per saber quan hi ha assaig o actuació</p>
+    </div>
+    <div class="flex gap-2">
+      <button class="btn btn-ghost btn-sm" type="button" (click)="dismiss()" aria-label="No activar ara">
+        Ara no
+      </button>
+      <button class="btn btn-primary btn-sm" type="button" (click)="activate()">
+        Activar
+      </button>
+    </div>
+  </div>
+}
