@@ -10,6 +10,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { LucideAngularModule } from 'lucide-angular';
+import { BadgeComponent, ButtonComponent } from '@muixer/ui';
 import 'emoji-picker-element';
 import type { EmojiClickEventDetail } from 'emoji-picker-element/shared';
 
@@ -20,7 +21,7 @@ const COMMON_EMOJIS = ['⚠️', '🚨', '👁️', '❗', '🤕'];
   selector: 'app-emoji-picker',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule],
+  imports: [LucideAngularModule, ButtonComponent, BadgeComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './emoji-picker.component.html',
 })

@@ -100,7 +100,7 @@ Named by role, not size adjective. Tinted with ink-black (not neutral gray) for 
 | `EASE` | `cubic-bezier(0.22, 1, 0.36, 1)` | General-purpose easing |
 | `EASE_SPRING` | `cubic-bezier(0.34, 1.56, 0.64, 1)` | Press/release — snappy down, slight overshoot back up |
 
-**Convention: shared *timing* is a token, per-component *press-scale magnitude* is a component-local constant.** Every component that presses/lifts uses `--ds-ease-spring`/`--ds-motion-base` so a future "springier" or "faster" pass is one edit — but how *far* a given surface scales down is its own call proportionate to its size (Button presses to `0.93`, Card — a much larger surface — to `0.98`).
+**The hover-lift/press-bounce motion itself is one shared, global class — not a per-component rule.** `libs/ui/src/lib/components/*/*.component.scss` files are Angular-encapsulated (each component's `<style>` only ever applies to its own template), so a rule written inside `lib-card`'s stylesheet can never reach `lib-button`'s or a plain hand-rolled clickable element elsewhere in an app. `.ds-lift`/`.ds-lift-surface`/`.ds-lift-no-shadow` (`libs/ui/src/styles/_interactive.scss`) live outside any component instead, imported once into each app's global stylesheet via `stylePreprocessorOptions.includePaths` (see `project.json`), so retuning the transition curve, the lift distance, or swapping the motion for something else entirely is one edit that reaches every consumer — `lib-button`, `lib-badge`'s `clickable` mode, `lib-card`'s `clickable`/`interactiveClass`, and hand-rolled clickable rows like `app-data-table`'s card-mode. Consumers only vary by CSS custom property, never by copying the rule: `--ds-lift-shadow` (`.ds-lift-no-shadow` zeroes it — a tightly-packed row of chips needs a tighter blur than `--ds-btn-lift-shadow` gives, or hover-lift bleeds into neighbors) and `--ds-lift-press-scale`/`--ds-lift-press-shadow` (`.ds-lift-surface` presets these for large surfaces like Card — `0.98` press vs. Button/Badge's default `0.93`, plus a resting shadow that survives the press).
 
 ### Z-index
 
@@ -137,6 +137,9 @@ Seven components shipped so far, all in `libs/ui/src/lib/components/`, none roll
 | `fullWidth` | `boolean` | `false` | Applies `w-full` to the rendered `<button>`/`<a>` itself — a class on the `<lib-button>` tag is inert (host is `display: contents`, see Component conventions). Real pattern: every existing raw-`<button>` form-submit footer in the app (~11 files) sizes itself this way |
 | `disabled`, `loading`, `type`, `ariaLabel` | — | — | `loading` auto-disables (native `disabled`, so a second click/Enter-triggered resubmit can't slip through) and shows a sized spinner — but reads as *busy*, not *disabled*: fill/border/text stay at their resting-state formula (solid or outline alike), no dashed "sketched" look and no grey-out. A real `disabled` (not loading) still gets that treatment |
 | `routerLink`, `href` | `string \| unknown[]`, `string` | — | Link mode, mirroring `lib-card`: `routerLink` wins over `href`, renders an `<a>` instead of `<button>`. **Throws** if combined with `disabled`/`loading` — a disabled or loading link isn't a supported shape |
+| `joinItem` | `boolean` | `false` | Adds DaisyUI's `.join-item` to the button's own rendered element — for use inside `lib-button-group`, which can't add the class itself (see below) |
+| `active` | `boolean` | `false` | Marks this joinItem segment as the currently-selected one. No effect without `joinItem`. Deliberately NOT DaisyUI's own `.btn-active` (a darkened fill) — nothing else in the app marks "selected" that way. Meaning depends on `outlineMode` below |
+| `outlineMode` | `boolean` | `false` | Only meaningful with `joinItem`. Swaps the segment's selected/unselected mapping: default (**fill mode**) is selected=filled, unselected=outline; `outlineMode` (**outline mode**) is selected=outline, unselected=ghost — a lighter-weight look for busier toolbars. Either mode works with any `variant` **except** `'ghost'` itself, which **throws** when combined with `joinItem` — ghost has no fill and no border, so it could never show which segment is selected |
 
 Output: `clicked`. Content-projected. Hover lifts (`translateY` + `--ds-btn-lift-shadow`, no color change); press flattens with `EASE_SPRING` and shifts to `--ds-{role}-active`; disabled renders as a dashed, unfilled outline in `--ds-{role}-disabled`.
 
@@ -147,6 +150,34 @@ Output: `clicked`. Content-projected. Hover lifts (`translateY` + `--ds-btn-lift
 <lib-button type="submit" variant="primary" fullWidth [disabled]="form.invalid">Inicia sessió</lib-button>
 ```
 
+### `lib-button-group`
+
+Thin `.join` layout wrapper (`role="group"`) around a row of `lib-button [joinItem]`s — a segmented control or paginator. `lib-button-group` itself can't add `.join-item` to its children: each `<lib-button>`'s host is `display: contents` (see Component conventions), so there's no element of the wrapper's own for `.join`'s CSS to select — the marker has to live on each button's own rendered tag instead, hence the `joinItem` input rather than the group inferring it. Same "duplicate the marker on each child" trade-off as `lib-form-field`'s `id`.
+
+Pure layout, no shared selection state: the caller drives each button's own `active`/`(clicked)` — there's no group-level `value`/`(change)`. Deliberately dumb, matching every other `lib-*` component here.
+
+| Input | Type | Default |
+|-------|------|---------|
+| `vertical` | `boolean` | `false` — `join-vertical` instead of the default horizontal row |
+
+```html
+<!-- fill mode (default): selected = filled, unselected = outline -->
+<lib-button-group>
+  <lib-button joinItem variant="primary" [active]="tab() === 'cens'" (clicked)="tab.set('cens')">Cens</lib-button>
+  <lib-button joinItem variant="primary" [active]="tab() === 'provisionals'" (clicked)="tab.set('provisionals')">Provisionals</lib-button>
+</lib-button-group>
+
+<!-- outline mode: selected = outline, unselected = ghost -->
+<lib-button-group>
+  <lib-button joinItem outlineMode variant="neutral" [active]="tab() === 'cens'" (clicked)="tab.set('cens')">Cens</lib-button>
+  <lib-button joinItem outlineMode variant="neutral" [active]="tab() === 'provisionals'" (clicked)="tab.set('provisionals')">Provisionals</lib-button>
+</lib-button-group>
+```
+
+**Component-authoring gotcha this raised:** the doubled border where two `joinItem` segments touch (`.btn`'s own 2px border, drawn by both neighbors at the shared edge) can't be fixed from `lib-button-group`'s own stylesheet — each segment is a *separate* `<lib-button>` component instance, and Angular's emulated encapsulation can't reach into a sibling component's projected content. Fixed instead on `lib-button`'s own `:host(:not(:first-child))` (plus a `:host-context(.join-vertical)` variant) — `:host()`'s structural pseudo-classes still see the button's real DOM position among the siblings `lib-button-group`'s `.join` wrapper actually parents, even though `display: contents` removes it from the box tree. Not unit-testable in this repo's Jest+jsdom harness (`getComputedStyle` doesn't resolve `:host()`-scoped rules there) — verified manually instead.
+
+Live (both modes) right after the `lib-button` section on `/design-system` — not yet rolled out to `person-list`'s Cens/Provisionals toggle or `app-pagination`, pending feedback on the shape.
+
 ### `lib-badge`
 
 | Input | Type | Default |
@@ -155,12 +186,18 @@ Output: `clicked`. Content-projected. Hover lifts (`translateY` + `--ds-btn-lift
 | `size` | `xs\|sm\|md\|lg` | `md` |
 | `outline` | `boolean` | `false` |
 | `color` | `string` (hex) | — overrides `variant`; content color via `contrastContent` |
+| `clickable` | `boolean` | `false` | Renders a real `<button type="button">` instead of a `<span>` — a genuine interactive control, not a styled label with a click handler bolted on |
+| `selected` | `boolean` | `false` | Toggle-chip state — filled when selected, outline-only (`badge-outline`, same as the static `outline` input) when not — and `aria-pressed`. Only meaningful with `clickable` — a static label has no toggle state |
+| `readableOutlineText` | `boolean` | `false` | When outlined **and** `color` is set, falls back to the ambient theme text color instead of the tag's own hex — the border still stays in the tag color. Off by default (matches `outline`'s plain color-as-text behavior); turn on for chip pickers where pale tag colors read poorly as text (e.g. Etiquetes) |
 
-Static, non-interactive `<span>`, content-projected. No `conflict` variant — use `variant="error"`.
+Content-projected. No `conflict` variant — use `variant="error"`. Default (non-`clickable`) mode is a static, non-interactive `<span>`; `clickable` is for multi-select chip pickers (e.g. a person's tag selector), not a substitute for `lib-button`.
+
+Output: `clicked` (only with `clickable`).
 
 ```html
 <lib-badge variant="success">Confirmat</lib-badge>
 <lib-badge [color]="tag.color">{{ tag.name }}</lib-badge>
+<lib-badge clickable readableOutlineText [selected]="isSelected(tag.id)" [color]="tag.color" (clicked)="toggle(tag.id)">{{ tag.name }}</lib-badge>
 ```
 
 ### `lib-card`
@@ -181,24 +218,81 @@ Output: `clicked` (only with `clickable`). The sash is a woven two-tone diagonal
 <lib-card tone="warning"><p>Alert/notice-style content, no sash.</p></lib-card>
 ```
 
+### `lib-form-field`
+
+The label/required-marker/hint/error chrome shared by `lib-input` and `lib-select` (both compose it internally) — and also the right choice for wrapping something neither of those cover: a raw `<textarea>`, or a fully custom control like a chip-toggle tag picker (`person-detail`'s "Etiquetes" selector uses it this way). Pure content projection, no control interface: the wrapper never sees the projected control's value or validity, so `hint`/`errorText` are plain inputs the caller drives itself (typically from `form.get('x')?.invalid`), same as `lib-input` already did before this existed.
+
+| Input | Type | Default | Notes |
+|-------|------|---------|-------|
+| `label`, `hint`, `errorText`, `required` | — | — | Same contract as `lib-input`'s own (previously baked-in) versions |
+| `size` | `xs\|sm\|md\|lg` | `sm` | Only drives the label text size (`xs` shrinks it) — sizing the projected control itself is the caller's job |
+| `id` | `string` | — | Wires `label[for]` and the hint/error's id (`${id}-description`) — **the caller must also put this same id on their own projected control**. No `MatFormFieldControl`-style registration contract here on purpose (this library stays "dumb" the way Card/Button do); the trade-off is this one bit of caller-side repetition instead of hidden coupling |
+
+```html
+<lib-form-field label="Etiquetes" size="xs">
+  <div class="flex flex-wrap gap-1.5" role="group" aria-label="Selecció d'etiquetes">
+    @for (tag of tags(); track tag.id) {
+      <lib-badge clickable [selected]="isSelected(tag.id)" [color]="tag.color" (clicked)="toggle(tag.id)">{{ tag.name }}</lib-badge>
+    }
+  </div>
+</lib-form-field>
+```
+
+**Shared field chrome, same reasoning as Motion above.** `libs/ui/src/styles/_fields.scss` (imported once into each app's global stylesheet, same `stylePreprocessorOptions.includePaths` mechanism as `_interactive.scss`) gives every DaisyUI `.input`/`.select`/`.textarea` — inside `lib-input`/`lib-select` or hand-rolled raw (e.g. person-detail's "Observacions tècniques" `<textarea>`) — a 2px border (DaisyUI's own default is 1px; matches `lib-button`'s own border weight) and a focus treatment that swaps the border color to the theme's primary accent in place, instead of DaisyUI's own default of stacking a same-colored 2px outline *outside* the existing border. One edit reaches every field in the app, migrated to `lib-input`/`lib-select` or not.
+
 ### `lib-input`
 
-`ControlValueAccessor` — the first use of this pattern in the codebase (every existing form previously bound `formControlName`/`ngModel` straight to a raw native control). Works with both reactive and template-driven forms.
+`ControlValueAccessor` — the first use of this pattern in the codebase (every existing form previously bound `formControlName`/`ngModel` straight to a raw native control). Works with both reactive and template-driven forms. Composes `lib-form-field` for its label/hint/error chrome.
 
 | Input | Type | Default | Notes |
 |-------|------|---------|-------|
 | `label`, `hint`, `errorText` | `string` | — | `errorText` replaces `hint` in the same slot when both are set; drives `input-error` + `aria-invalid` |
 | `icon` | `LucideIconData` | — | Optional prefix icon inside the box |
 | `size` | `xs\|sm\|md\|lg` | **`sm`** | Deviates from DaisyUI's own `md` default — real usage is 53× `sm`/4× `xs`/0× `md`/`lg`. Watch for this specifically when migrating a page whose raw markup used unmodified `.input input-bordered` (no size class, i.e. DaisyUI's implicit `md`, 48px) — swapping in `lib-input` with no `size` set silently shrinks it to `sm` (32px). Pass `size="md"` explicitly to preserve the original height (hit on the auth pages) |
-| `type`, `placeholder`, `disabled`, `required`, `autocomplete`, `id` | — | — | `id` auto-generates a stable per-instance value if omitted, wiring `label[for]` + `aria-describedby` automatically |
+| `type`, `placeholder`, `disabled`, `required`, `autocomplete`, `id` | — | — | `id` auto-generates a stable per-instance value if omitted, wiring `label[for]` + `aria-describedby` automatically. `type` includes `'date'` (added for detail-view edit forms — birth date, shirt date, ...) alongside the text-like types |
+| `min`, `max` | `string \| number` | — | Passed straight through to the native `min`/`max` attributes — meaningful for `type="number"`/`"date"`, browsers already validate/constrain against them |
 
 The native `<input>` itself always carries `min-h-6` — a >=24px tap target independent of the wrapper box's own height (WI-03 parity; ported in from the one-off fix on the dashboard/PWA auth pages, now baked into every consumer).
 
+Border weight and the focus-swap-in-place treatment come from the shared `_fields.scss` partial — see above.
+
 ```html
 <lib-input formControlName="email" label="Correu electrònic" [icon]="Mail" type="email" required />
+<lib-input formControlName="shoulderHeight" label="Alçada espatlles (cm)" type="number" [min]="0" [max]="250" />
 ```
 
-Only text-like inputs so far — `textarea`/`select` are deliberately deferred (different shape, not yet audited).
+`textarea` is still deferred (different shape, not yet audited) — stays raw markup, optionally wrapped in `lib-form-field` for a matching label.
+
+### `lib-select`
+
+The select-flavored analogue of `lib-input` — same `ControlValueAccessor`/size/hint/error contract via `lib-form-field`, wrapping a native `<select>` instead of `<input>`. Options are content-projected (`<option>`/`<optgroup>`), not modeled as a data input — a caller's own list usually needs `@for`/conditional rendering a plain array input can't express as cleanly. Setting `.value` from a template binding races the projected `<option>`s (the `<select>`'s own bindings apply before its children are inserted, so the browser silently ignores a value with no matching option yet) — fixed internally with an `effect()` that applies it after the view settles, not a template `[value]` binding.
+
+```html
+<lib-select formControlName="availability" label="Disponibilitat">
+  <option value="AVAILABLE">Disponible</option>
+  <option value="TEMPORARILY_UNAVAILABLE">No disponible</option>
+</lib-select>
+```
+
+The closed control has always been stylable with plain CSS — the *dropdown panel* never was, since it's browser/OS-drawn chrome. `lib-select`'s native `<select>` carries `appearance: base-select` (Chrome/Edge's "customizable select" — [Chrome Developers article](https://developer.chrome.com/blog/a-customizable-select)), styled via `::picker(select)`/`option` rules gated in `@supports (appearance: base-select)`, so the popup picks up the app's theme too. Unsupported browsers (Firefox/Safari as of writing) silently render the ordinary native picker instead — that unstyled fallback *is* the fallback, no separate code path needed. The same relaxed `<option>` content model this API brings also allows child markup (an icon, a color swatch) inside an `<option>`, not just text — used by the "tipus de posició" rich-content example on `/design-system` (not yet wired into the real template-editor picker, which still has its own hand-rolled listbox with an extra "Altre" state worth its own migration pass). The same `@supports` block also drops DaisyUI's own hand-drawn arrow (`background-image`, the pre-base-select convention for when `appearance: none` hid the native one) — base-select mode draws its own indicator, so left in place the two stacked into a double arrow; unsupported browsers still get DaisyUI's arrow same as always, since the whole block is gated.
+
+`multiple` swaps the native `<select>` for a checkbox-list dropdown instead (`value` becomes `string[]`) — native `<select multiple>`'s ctrl/cmd-click scrolling listbox is bad UX on its own merits, unrelated to base-select support, so it's never used. The native `<select>` stays in the DOM (visually hidden) purely as the canonical projected-`<option>` source: a `MutationObserver` re-scans it whenever the caller's own template changes what it projects, and each checkbox row clones that option's child nodes (`cloneNode`, never `innerHTML` — the nodes are already-rendered DOM, so relocating them carries no injection risk) into itself, so rich content renders identically in both modes from the exact same `<option>` markup:
+
+```html
+<lib-select [multiple]="true" label="Etiquetes" [ngModel]="selectedIds()" (ngModelChange)="selectedIds.set($event)">
+  @for (tag of tags(); track tag.id) {
+    <option [value]="tag.id">{{ tag.name }}</option>
+  }
+</lib-select>
+```
+
+Live examples of all three (plain single, rich-content single, `multiple`) right after the `lib-select` heading on `/design-system`.
+
+The `multiple` trigger is a plain `<button>` styled with the exact same field classes as the native `<select>` above (same `boxClasses`, not `lib-button`'s variant/outline system) — deliberately **not** the shared `ds-lift` hover-lift/press-bounce motion (`libs/ui/src/styles/_interactive.scss`, see "Motion" above): that language is for discrete action controls (buttons, cards, clickable badges), and a field's own open-dropdown trigger reads as *part of the field*, not a separate action — mixing the two made it visually inconsistent with the plain `<select>` right next to it. If a future spot needs a *real* clickable button styled like a field, reach for `lib-button` with a custom variant rather than reintroducing this pattern.
+
+Both `lib-input`/`lib-select`'s label-above-field layout is unconditional — no side-by-side (label left of field on wide screens, stacked below `sm`) mode exists yet. A dense two-column edit form that wants that stays on raw markup.
+
+Both fields' box background is a flat `bg-base-100` always — an earlier ambient-contrast version (base-200, flipping to base-100 under a base-200 ancestor) was tried and reverted in favor of one consistent color everywhere.
 
 ### `lib-modal`
 
@@ -265,6 +359,8 @@ Cross-cutting rules for anyone adding a new `libs/ui` component:
 **Consuming-page gotcha — every `lib-*` component's host is `display: contents`** (no box of its own; only its rendered root element — `<a>`/`<button>`/`<div>` — actually lays out). Two consequences to expect on every page in the Phase 7 rollout, not just the first one that hits them:
 - **`space-y-*` on a parent silently stops working** once a `lib-*` component becomes one of its direct children — the sibling-margin trick only applies to child *boxes*, and a `display: contents` child has none. Use `flex flex-col gap-*` (or grid `gap-*`) on the parent instead; `gap` correctly promotes a `display: contents` child's own rendered element into the layout instead of the inert wrapper.
 - **Sizing classes on the `<lib-*>` tag itself do nothing** (`class="min-h-48"` on `<lib-card>` has no box to apply to) — put sizing on a wrapper `<div>` inside the projected content instead. `class="w-full"` on `<lib-button>` is the same trap, made confusing by a coincidence: inside a `flex flex-col` parent (the fix for the bullet above), the button's rendered element becomes a direct flex item and *stretches to full width by default regardless of the inert class* — looks like it's working, isn't. Real fix: an explicit input the component applies internally (`fullWidth` on `lib-button`, mirroring `tone` on `lib-card`), not a class on the tag.
+
+**Component-authoring gotcha — `<ng-content>` can't just be repeated across an `@if`/`@else`'s branches.** Hit while adding Badge's `clickable` mode (a `<button>` branch alongside the existing `<span>`): Angular resolves each `<ng-content>` selector to exactly one projection point at compile time, not "whichever branch is currently rendering" — the projected content silently ends up empty in one of the two branches (which one is an implementation detail, not something to rely on). Button and Card already had the fix in place before Badge needed it: one `<ng-template #inner><ng-content /></ng-template>`, then `<ng-container [ngTemplateOutlet]="inner" />` repeated in each branch instead of a second `<ng-content>`. The existing bare-fixture Badge spec (no real content passed through) didn't catch this — a projected-content assertion through a real host component is required to catch it, which is now Badge's own regression test too.
 
 ## Usage rules
 

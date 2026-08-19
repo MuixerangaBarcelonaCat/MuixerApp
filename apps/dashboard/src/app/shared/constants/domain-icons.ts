@@ -13,6 +13,7 @@ import {
   Sparkles,
   Star,
   Users,
+  UserX,
 } from 'lucide-angular';
 
 // Pinyes domain
@@ -51,4 +52,5 @@ export const DOMAIN_ICONS = {
   OBSERVACIONS: CircleAlert,
   NOTICIA: Newspaper,
   BELL: Bell,
+  USER_X: UserX,
 } as const;

@@ -31,17 +31,76 @@
   </div>
 
   <div>
+    <h3 class="text-sm font-semibold text-base-content/70 mb-2">lib-button-group</h3>
+    <p class="text-xs text-base-content/50 mb-2">
+      <code>joinItem</code>/<code>active</code> on each <code>lib-button</code> — fill mode (selected filled, unselected outline)
+      and outline mode (selected outline, unselected ghost).
+    </p>
+    <div class="flex flex-wrap items-center gap-3">
+      <lib-button-group>
+        <lib-button joinItem variant="primary" [active]="groupTab() === 'a'" (clicked)="groupTab.set('a')">Cens</lib-button>
+        <lib-button joinItem variant="primary" [active]="groupTab() === 'b'" (clicked)="groupTab.set('b')">Provisionals</lib-button>
+      </lib-button-group>
+      <lib-button-group>
+        <lib-button joinItem outlineMode variant="neutral" [active]="groupTab() === 'a'" (clicked)="groupTab.set('a')">
+          Cens
+        </lib-button>
+        <lib-button joinItem outlineMode variant="neutral" [active]="groupTab() === 'b'" (clicked)="groupTab.set('b')">
+          Provisionals
+        </lib-button>
+      </lib-button-group>
+    </div>
+    <div class="flex flex-wrap items-start gap-6 mt-3">
+      <lib-button-group>
+        <lib-button joinItem variant="error" [active]="yesNo() === 'no'" (clicked)="yesNo.set('no')">No</lib-button>
+        <lib-button joinItem variant="success" [active]="yesNo() === 'yes'" (clicked)="yesNo.set('yes')">Sí</lib-button>
+      </lib-button-group>
+
+      <lib-button-group>
+        <lib-button joinItem variant="primary" [active]="threeWay() === 'a'" (clicked)="threeWay.set('a')">A</lib-button>
+        <lib-button joinItem variant="primary" [active]="threeWay() === 'b'" (clicked)="threeWay.set('b')">B</lib-button>
+        <lib-button joinItem variant="primary" [active]="threeWay() === 'c'" (clicked)="threeWay.set('c')">C</lib-button>
+      </lib-button-group>
+
+      <lib-button-group vertical>
+        <lib-button joinItem outlineMode variant="neutral" [active]="groupTab() === 'a'" (clicked)="groupTab.set('a')">
+          Cens
+        </lib-button>
+        <lib-button joinItem outlineMode variant="neutral" [active]="groupTab() === 'b'" (clicked)="groupTab.set('b')">
+          Provisionals
+        </lib-button>
+      </lib-button-group>
+    </div>
+  </div>
+
+  <div>
     <h3 class="text-sm font-semibold text-base-content/70 mb-2">lib-badge</h3>
     <div class="flex flex-wrap gap-2 mb-2">
       @for (v of badgeVariants; track v) {
         <lib-badge [variant]="v">{{ v }}</lib-badge>
       }
     </div>
-    <div class="flex flex-wrap gap-2">
+    <div class="flex flex-wrap gap-2 mb-2">
       @for (v of badgeVariants; track v) {
         <lib-badge [variant]="v" outline>{{ v }}</lib-badge>
       }
       <lib-badge color="#14808C">color override</lib-badge>
+    </div>
+
+    <h4 class="text-xs font-semibold text-base-content/50 mt-4 mb-2">clickable + selectable — Etiquetes toggle-chip picker</h4>
+    <div class="flex flex-wrap gap-1.5" role="group" aria-label="Selecció d'etiquetes (exemple)">
+      @for (tag of demoTags; track tag.id) {
+        <lib-badge
+          size="sm"
+          clickable
+          readableOutlineText
+          [selected]="isDemoTagSelected(tag.id)"
+          [color]="tag.color"
+          (clicked)="toggleDemoTag(tag.id)"
+        >
+          {{ tag.name }}
+        </lib-badge>
+      }
     </div>
   </div>
 
@@ -77,6 +136,72 @@
       <lib-input label="Desactivat" placeholder="—" disabled />
       <lib-input label="Amb error" errorText="Aquest camp és obligatori" />
       <lib-input label="Amb ajuda" hint="Text d'ajuda opcional" />
+    </div>
+  </div>
+
+  <div>
+    <h3 class="text-sm font-semibold text-base-content/70 mb-2">lib-select</h3>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
+      <lib-select label="Disponibilitat">
+        <option value="AVAILABLE">Disponible</option>
+        <option value="TEMPORARILY_UNAVAILABLE">No disponible</option>
+        <option value="LONG_TERM_UNAVAILABLE">Baixa llarga</option>
+      </lib-select>
+      <lib-select label="Desactivat" disabled>
+        <option value="">—</option>
+      </lib-select>
+      <lib-select label="Amb error" errorText="Selecciona una opció">
+        <option value="">—</option>
+      </lib-select>
+      <lib-select label="Amb ajuda" hint="Text d'ajuda opcional">
+        <option value="">—</option>
+      </lib-select>
+    </div>
+    <p class="text-xs text-base-content/50 mt-3 mb-2 max-w-2xl">
+      Styled via <code>appearance: base-select</code> (Chrome/Edge) so the dropdown panel — not just the closed control —
+      picks up the theme, not just a browser default; unsupported browsers fall back to the ordinary native picker
+      automatically, no extra markup needed.
+    </p>
+    <p class="text-xs text-base-content/50 mb-2 max-w-2xl">
+      <code>multiple</code> swaps in a checkbox-list dropdown instead (native multi-select's ctrl/cmd-click listbox is bad
+      UX regardless of browser support) — same projected <code>&lt;option&gt;</code>s, and rich content inside an option
+      (an icon, a color swatch) renders identically in both modes.
+    </p>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
+      <lib-select
+        [multiple]="true"
+        label="Etiquetes (multiple)"
+        [ngModel]="selectedTagIdsMulti()"
+        (ngModelChange)="selectedTagIdsMulti.set($event)"
+      >
+        @for (tag of demoTags; track tag.id) {
+          <option [value]="tag.id">{{ tag.name }}</option>
+        }
+      </lib-select>
+      <lib-select label="Tipus de posició (contingut ric)">
+        @for (tag of demoTags; track tag.id) {
+          <option [value]="tag.id">
+            <span class="inline-block w-2.5 h-2.5 rounded-full mr-1 align-middle" [style.backgroundColor]="tag.color"></span>
+            {{ tag.name }}
+          </option>
+        }
+      </lib-select>
+    </div>
+  </div>
+
+  <div>
+    <h3 class="text-sm font-semibold text-base-content/70 mb-2">lib-form-field</h3>
+    <p class="text-xs text-base-content/50 mb-2">
+      Label/hint/error chrome via pure content projection — wraps <code>lib-input</code>/<code>lib-select</code> internally, and any
+      other custom control (chip picker, toggle, textarea) that needs the same title treatment.
+    </p>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
+      <lib-form-field label="Observacions" hint="Text lliure, camp opcional">
+        <textarea class="textarea textarea-bordered textarea-sm w-full" rows="3" placeholder="Observacions..."></textarea>
+      </lib-form-field>
+      <lib-form-field label="Actiu" size="xs">
+        <input type="checkbox" class="toggle toggle-success" checked />
+      </lib-form-field>
     </div>
   </div>
 

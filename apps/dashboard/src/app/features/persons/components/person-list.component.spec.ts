@@ -120,7 +120,9 @@ describe('PersonListComponent', () => {
     );
     const buttons = Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLElement[];
     const censButton = buttons.find(b => b.textContent?.trim() === 'Cens');
-    expect(censButton?.className).toContain('btn-active');
+    // lib-button-group's outline mode: the selected segment is outlined, the unselected one is
+    // plain ghost — not DaisyUI's own btn-active (a darkened fill).
+    expect(censButton?.className).toContain('btn-outline');
   });
 
   it('switching the selector to "Provisionals" filters by provisional persons', () => {
@@ -132,7 +134,7 @@ describe('PersonListComponent', () => {
     );
     const buttons = Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLElement[];
     const provisionalsButton = buttons.find(b => b.textContent?.trim() === 'Provisionals');
-    expect(provisionalsButton?.className).toContain('btn-active');
+    expect(provisionalsButton?.className).toContain('btn-outline');
   });
 
   describe('tap targets >=24px (WI-03, PE-L1)', () => {
@@ -162,7 +164,9 @@ describe('PersonListComponent', () => {
 
       expect(fixture.componentInstance.newPersonModalOpen()).toBe(false);
       expect(router.navigate).not.toHaveBeenCalled();
-      const dialog = fixture.nativeElement.querySelector('dialog.modal-open');
+      // lib-modal drives the native <dialog> via showModal()/the `open` attribute, not a
+      // CSS-only `.modal-open` class.
+      const dialog = fixture.nativeElement.querySelector('dialog[open]');
       expect(dialog).toBeTruthy();
     });
 

@@ -8,6 +8,8 @@ export interface ColumnPill {
 export interface ColumnColorBadge {
   text: string;
   color: string;
+  /** Identifies the badge to `onColorBadgeClick` — required to make it clickable. */
+  id?: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -30,6 +32,8 @@ export interface ColumnDef<T = any> {
   pills?: (item: T) => ColumnPill[];
   /** Colored badges (background + contrasting text) when type === 'colorBadges' */
   colorBadges?: (item: T) => ColumnColorBadge[];
+  /** Makes colorBadges clickable (e.g. click a tag to filter by it) — needs `badge.id` set. */
+  onColorBadgeClick?: (id: string, item: T) => void;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

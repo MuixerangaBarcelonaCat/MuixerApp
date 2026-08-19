@@ -1,8 +1,9 @@
 import { Component, ChangeDetectionStrategy, computed, inject, signal, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { LucideAngularModule, UserPlus, Link } from 'lucide-angular';
-import { ICON_PERSONA, DOMAIN_ICONS } from '../../../shared/constants/domain-icons';
+import { LucideAngularModule, UserPlus, Link, Search } from 'lucide-angular';
+import { ButtonComponent, ButtonGroupComponent, EmptyStateComponent, FormFieldComponent, InputComponent, SelectComponent } from '@muixer/ui';
+import { DOMAIN_ICONS } from '../../../shared/constants/domain-icons';
 import { PersonService } from '../services/person.service';
 import { Person, Position, PersonFilterParams, PersonSortOrder } from '../models/person.model';
 import {
@@ -19,7 +20,6 @@ import { FilterBarComponent } from '../../../shared/components/data/filter-bar/f
 import { ActiveFiltersComponent } from '../../../shared/components/data/active-filters/active-filters.component';
 import { ColumnToggleComponent } from '../../../shared/components/data/column-toggle/column-toggle.component';
 import { PaginationComponent } from '../../../shared/components/data/pagination/pagination.component';
-import { EmptyStateComponent } from '../../../shared/components/data/empty-state/empty-state.component';
 import { DataTableComponent, RowAction } from '../../../shared/components/data/data-table/data-table.component';
 import { ActiveFilter } from '../../../shared/components/data/active-filters/active-filters.component';
 import { ColumnDef } from '../../../shared/models/column-def.model';
@@ -78,6 +78,11 @@ export const ALL_COLUMNS: ColumnDef[] = [
   imports: [
     FormsModule,
     LucideAngularModule,
+    ButtonComponent,
+    ButtonGroupComponent,
+    FormFieldComponent,
+    InputComponent,
+    SelectComponent,
     PageHeaderComponent,
     FilterBarComponent,
     ActiveFiltersComponent,
@@ -91,8 +96,9 @@ export const ALL_COLUMNS: ColumnDef[] = [
   templateUrl: './person-list.component.html',
 })
 export class PersonListComponent {
-  readonly ICON_PERSONA = ICON_PERSONA;
+  readonly ICON_PERSONA = DOMAIN_ICONS.PERSONA;
   readonly activationTutorialSteps = ACTIVATION_TUTORIAL_STEPS;
+  protected readonly SearchIcon = Search;
 
   private readonly personService = inject(PersonService);
   private readonly router = inject(Router);
@@ -154,11 +160,14 @@ export class PersonListComponent {
   togglePosition(id: string) {
     const current = this.selectedPositions();
     const updated = current.includes(id) ? current.filter((pId) => pId !== id) : [...current, id];
+    this.onPositionsChange(updated);
+  }
 
-    this.selectedPositions.set(updated);
+  onPositionsChange(ids: string[]) {
+    this.selectedPositions.set(ids);
     this.activeFilters.update((filters) => ({
       ...filters,
-      positionIds: updated.length > 0 ? updated : undefined,
+      positionIds: ids.length > 0 ? ids : undefined,
     }));
     this.page.set(1);
     this.loadPersons();
@@ -397,7 +406,8 @@ export class PersonListComponent {
       ...col,
       value: (person: Person) => this.getCellValueForPerson(person, col.key),
       ...(col.key === 'positions' && {
-        colorBadges: (person: Person) => person.positions.map(p => ({ text: p.name, color: p.color })),
+        colorBadges: (person: Person) => person.positions.map(p => ({ text: p.name, color: p.color, id: p.id })),
+        onColorBadgeClick: (id: string) => this.togglePosition(id),
       }),
     }))
   );

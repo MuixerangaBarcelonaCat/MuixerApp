@@ -1,0 +1,53 @@
+:host {
+  display: contents;
+}
+
+// Border weight and focus-swap-in-place (instead of DaisyUI's own doubled outline ring) are global,
+// not here — see libs/ui/src/styles/_fields.scss — since they need to reach any raw `.input`/
+// `.select`/`.textarea` too, not just this component's own template. Covers the `multiple`-mode
+// trigger <button> as well: it shares this same `.select` class (see `triggerClasses` in
+// select.component.ts).
+
+// Chrome/Edge's "customizable select" (appearance: base-select) lets CSS finally reach the
+// dropdown *panel*, not just the closed control — previously that was browser/OS-drawn chrome
+// no stylesheet could touch, which is why a plain <select>'s popup never matched the rest of the
+// theme. Gated in @supports so unsupported browsers (Firefox/Safari as of writing) fall through
+// to the ordinary native <select> unaffected — no separate fallback markup needed, that IS the
+// fallback. https://developer.chrome.com/blog/a-customizable-select
+@supports (appearance: base-select) {
+  .lib-select-native {
+    appearance: base-select;
+    // The browser draws its own dropdown indicator in base-select mode — DaisyUI's `.select` class
+    // also hand-draws one via a background-image gradient (the pre-base-select convention, needed
+    // when `appearance: none` hid the native one entirely). Left in place the two stack, showing
+    // two arrows. Only the `@supports`-gated block removes it, so unsupported browsers still get
+    // DaisyUI's own arrow same as before.
+    background-image: none;
+
+    &::picker(select) {
+      appearance: base-select;
+      margin-top: 0.25rem;
+      padding: 0.375rem;
+      border: 1px solid oklch(var(--bc) / 0.15);
+      border-radius: var(--rounded-box, 1rem);
+      background-color: oklch(var(--b1));
+      box-shadow: var(--ds-btn-lift-shadow);
+    }
+
+    option {
+      padding: 0.375rem 0.625rem;
+      border-radius: calc(var(--rounded-btn, 0.5rem) - 0.125rem);
+
+      &:hover,
+      &:focus {
+        background-color: oklch(var(--bc) / 0.08);
+      }
+
+      &:checked {
+        background-color: oklch(var(--p) / 0.12);
+        color: oklch(var(--p));
+        font-weight: 600;
+      }
+    }
+  }
+}

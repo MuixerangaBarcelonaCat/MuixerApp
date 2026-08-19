@@ -2,9 +2,10 @@ import { ChangeDetectionStrategy, Component, booleanAttribute, computed, forward
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import type { LucideIconData } from 'lucide-angular';
 import { LucideAngularModule } from 'lucide-angular';
+import { FormFieldComponent } from '../form-field/form-field.component';
 
 export type InputSize = 'xs' | 'sm' | 'md' | 'lg';
-export type InputType = 'text' | 'email' | 'password' | 'number' | 'tel' | 'url' | 'search';
+export type InputType = 'text' | 'email' | 'password' | 'number' | 'tel' | 'url' | 'search' | 'date';
 
 const SIZE_CLASSES: Record<InputSize, string> = {
   xs: 'input-xs',
@@ -18,7 +19,7 @@ let nextId = 0;
 @Component({
   selector: 'lib-input',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule],
+  imports: [LucideAngularModule, FormFieldComponent],
   templateUrl: './input.component.html',
   styleUrls: ['./input.component.scss'],
   providers: [
@@ -41,6 +42,10 @@ export class InputComponent implements ControlValueAccessor {
   required = input(false, { transform: booleanAttribute });
   autocomplete = input<string>();
   id = input<string>();
+  // Native range constraints — meaningful only for type="number"/"date", passed straight through
+  // rather than modeled (browsers already validate/constrain against them).
+  min = input<string | number>();
+  max = input<string | number>();
 
   protected readonly value = signal('');
   private readonly formDisabled = signal(false);
@@ -54,7 +59,16 @@ export class InputComponent implements ControlValueAccessor {
   protected readonly isDisabled = computed(() => this.disabled() || this.formDisabled());
 
   protected readonly boxClasses = computed(() =>
-    ['input', 'input-bordered', 'flex', 'items-center', 'gap-2', SIZE_CLASSES[this.size()], this.hasError() ? 'input-error' : '']
+    [
+      'input',
+      'input-bordered',
+      'flex',
+      'items-center',
+      'gap-2',
+      'bg-base-100',
+      SIZE_CLASSES[this.size()],
+      this.hasError() ? 'input-error' : '',
+    ]
       .filter(Boolean)
       .join(' '),
   );

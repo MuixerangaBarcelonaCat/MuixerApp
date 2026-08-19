@@ -11,7 +11,17 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { PersonService } from '../../services/person.service';
 import { Person, UpdatePersonDto } from '../../models/person.model';
-import { ToastService } from '@muixer/ui';
+import {
+  ToastService,
+  BadgeComponent,
+  ButtonComponent,
+  CardComponent,
+  EmptyStateComponent,
+  FormFieldComponent,
+  InputComponent,
+  ModalComponent,
+  SelectComponent,
+} from '@muixer/ui';
 import { TagService } from '../../../config/services/tag.service';
 import { TagWithCount } from '../../../config/models/tag.model';
 import { NodeAssignmentService } from '../../../pinyes/services/node-assignment.service';
@@ -27,7 +37,7 @@ import {
   formatShoulderHeightRelative,
   getFullName,
 } from '../../../../shared/utils';
-import { EmptyStateComponent } from '../../../../shared/components/data/empty-state/empty-state.component';
+import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { PaginationComponent } from '../../../../shared/components/data/pagination/pagination.component';
 import { PersonDelegateModalComponent } from './modals/person-delegate-modal.component';
 import { EmojiPickerComponent } from '../../../../shared/components/forms/emoji-picker/emoji-picker.component';
@@ -36,7 +46,7 @@ import {
   PersonDelegateItem,
 } from '../../services/person-delegate.service';
 import { LegalDocumentService } from '../../../../core/services/legal-document.service';
-import { DelegateType, LegalDocumentType, getContrastColor } from '@muixer/shared';
+import { DelegateType, LegalDocumentType } from '@muixer/shared';
 
 @Component({
   standalone: true,
@@ -44,7 +54,14 @@ import { DelegateType, LegalDocumentType, getContrastColor } from '@muixer/share
   imports: [
     ReactiveFormsModule,
     RouterModule,
+    BadgeComponent,
+    ButtonComponent,
+    CardComponent,
     EmptyStateComponent,
+    FormFieldComponent,
+    InputComponent,
+    ModalComponent,
+    SelectComponent,
     PaginationComponent,
     PersonDelegateModalComponent,
     EmojiPickerComponent,
@@ -62,6 +79,8 @@ export class PersonDetailComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
   private readonly toast = inject(ToastService);
+
+  readonly ICON_USER_X = DOMAIN_ICONS.USER_X;
 
   person = signal<Person | null>(null);
 
@@ -132,7 +151,6 @@ export class PersonDetailComponent implements OnInit {
 
   readonly getAvailabilityLabel = getAvailabilityLabel;
   readonly getOnboardingLabel = getOnboardingLabel;
-  readonly getContrastColor = getContrastColor;
   readonly formatDate = formatDate;
   readonly formatDateTime = formatDateTime;
   readonly formatShoulderHeightRelative = formatShoulderHeightRelative;

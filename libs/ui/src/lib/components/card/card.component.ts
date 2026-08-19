@@ -74,7 +74,10 @@ export class CardComponent {
   protected readonly bandTop = BAND_TOP;
 
   protected readonly baseClass = computed(() => `card ${TONE_CLASSES[this.tone()]} shadow-raised`);
-  protected readonly interactiveClass = computed(() => `${this.baseClass()} interactive`);
+  // `ds-lift`/`ds-lift-surface` (libs/ui/src/styles/_interactive.scss) — the shared lift/press
+  // motion, tuned here via CSS custom properties to a large-surface press ratio and a resting
+  // shadow that survives the press, rather than a locally reimplemented rule.
+  protected readonly interactiveClass = computed(() => `${this.baseClass()} cursor-pointer ds-lift ds-lift-surface`);
 
   protected readonly hasBand = computed(() => this.sash() !== 'none');
   protected readonly titleOnBand = computed(() => this.sash() === 'title');

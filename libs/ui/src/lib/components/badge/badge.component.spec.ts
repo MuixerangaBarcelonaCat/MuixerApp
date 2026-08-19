@@ -1,3 +1,4 @@
+import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { BadgeComponent } from './badge.component';
@@ -86,6 +87,17 @@ describe('BadgeComponent', () => {
       const el = badgeEl().nativeElement;
       expect(el.style.backgroundColor).toBe('');
       expect(el.style.borderColor).toBe('rgb(99, 102, 241)');
+      expect(el.style.color).toBe('rgb(99, 102, 241)');
+    });
+
+    it('leaves text color unset (ambient theme color) instead of the tag hex when readableOutlineText is set — border stays in the tag color', () => {
+      fixture.componentRef.setInput('color', '#6366f1');
+      fixture.componentRef.setInput('outline', true);
+      fixture.componentRef.setInput('readableOutlineText', true);
+      fixture.detectChanges();
+      const el = badgeEl().nativeElement;
+      expect(el.style.borderColor).toBe('rgb(99, 102, 241)');
+      expect(el.style.color).toBe('');
     });
   });
 
@@ -101,6 +113,111 @@ describe('BadgeComponent', () => {
       const className = badgeEl().nativeElement.className;
       expect(className).toContain('badge-warning');
       expect(className).toContain('badge-outline');
+    });
+  });
+
+  describe('content projection — via a real host, not the bare fixture used above', () => {
+    @Component({
+      imports: [BadgeComponent],
+      template: `<lib-badge [clickable]="clickable">{{ label }}</lib-badge>`,
+    })
+    class HostComponent {
+      clickable = false;
+      label = 'Etiqueta';
+    }
+
+    // clickable is fixed at creation time (never toggled post-render) — zoneless change detection
+    // throws a spurious NG0100 if a host's plain field is mutated between two detectChanges()
+    // calls (unrelated to what's under test here; the same gotcha Modal's own spec hit).
+    async function setupHost(clickable: boolean) {
+      TestBed.resetTestingModule();
+      await TestBed.configureTestingModule({ imports: [HostComponent] }).compileComponents();
+      const hostFixture = TestBed.createComponent(HostComponent);
+      hostFixture.componentInstance.clickable = clickable;
+      hostFixture.detectChanges();
+      return hostFixture;
+    }
+
+    it('projects content into the static span', async () => {
+      const hostFixture = await setupHost(false);
+      const span = hostFixture.debugElement.query(By.css('span'));
+      expect(span.nativeElement.textContent.trim()).toBe('Etiqueta');
+    });
+
+    it('projects content into the clickable button — the same <ng-content> cannot just be duplicated across an @if/@else, per this lib\'s own Button/Card precedent', async () => {
+      const hostFixture = await setupHost(true);
+      const button = hostFixture.debugElement.query(By.css('button'));
+      expect(button.nativeElement.textContent.trim()).toBe('Etiqueta');
+    });
+  });
+
+  describe('clickable — an interactive toggle-chip mode, not the default static label', () => {
+    it('renders a span, not a button, when not clickable', () => {
+      expect(fixture.debugElement.query(By.css('button'))).toBeNull();
+      expect(badgeEl()).toBeTruthy();
+    });
+
+    it('renders a native button instead of a span when clickable', () => {
+      fixture.componentRef.setInput('clickable', true);
+      fixture.detectChanges();
+      const button = fixture.debugElement.query(By.css('button'));
+      expect(button).toBeTruthy();
+      expect(button.nativeElement.getAttribute('type')).toBe('button');
+      expect(fixture.debugElement.query(By.css('span.badge'))).toBeNull();
+    });
+
+    it('emits clicked when the button is clicked', () => {
+      fixture.componentRef.setInput('clickable', true);
+      fixture.detectChanges();
+      const spy = jest.fn();
+      fixture.componentInstance.clicked.subscribe(spy);
+
+      (fixture.debugElement.query(By.css('button')).nativeElement as HTMLButtonElement).click();
+
+      expect(spy).toHaveBeenCalled();
+    });
+
+    it('renders an unselected clickable chip outline-only and marks aria-pressed false', () => {
+      fixture.componentRef.setInput('clickable', true);
+      fixture.detectChanges();
+      const button = fixture.debugElement.query(By.css('button')).nativeElement as HTMLButtonElement;
+      expect(button.className).toContain('badge-outline');
+      expect(button.getAttribute('aria-pressed')).toBe('false');
+    });
+
+    it('renders a selected clickable chip filled (not outline) and marks aria-pressed true', () => {
+      fixture.componentRef.setInput('clickable', true);
+      fixture.componentRef.setInput('selected', true);
+      fixture.detectChanges();
+      const button = fixture.debugElement.query(By.css('button')).nativeElement as HTMLButtonElement;
+      expect(button.className).not.toContain('badge-outline');
+      expect(button.getAttribute('aria-pressed')).toBe('true');
+    });
+
+    it('sets aria-label on the button when ariaLabel is provided (e.g. an emoji chip with no readable text)', () => {
+      fixture.componentRef.setInput('clickable', true);
+      fixture.componentRef.setInput('ariaLabel', 'Emoji ⚠️');
+      fixture.detectChanges();
+      const button = fixture.debugElement.query(By.css('button')).nativeElement as HTMLButtonElement;
+      expect(button.getAttribute('aria-label')).toBe('Emoji ⚠️');
+    });
+
+    it('ignores selected when not clickable — a static label has no toggle state', () => {
+      fixture.componentRef.setInput('selected', true);
+      fixture.detectChanges();
+      const span = badgeEl().nativeElement as HTMLElement;
+      expect(span.className).not.toContain('badge-outline');
+      expect(span.getAttribute('aria-pressed')).toBeNull();
+    });
+
+    it('never forces a min-h-6 tap target — a clickable badge matches a static one at the same size', () => {
+      for (const size of ['xs', 'sm', 'md', 'lg'] as const) {
+        fixture.componentRef.setInput('clickable', true);
+        fixture.componentRef.setInput('size', size);
+        fixture.detectChanges();
+        const button = fixture.debugElement.query(By.css('button')).nativeElement as HTMLButtonElement;
+        expect(button.className).not.toContain('min-h-6');
+      }
     });
   });
 });

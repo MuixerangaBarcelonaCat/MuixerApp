@@ -20,7 +20,10 @@
             "input": "apps/pwa/public"
           }
         ],
-        "styles": ["apps/pwa/src/styles.scss"]
+        "styles": ["apps/pwa/src/styles.scss"],
+        "stylePreprocessorOptions": {
+          "includePaths": ["libs/ui/src/styles"]
+        }
       },
       "configurations": {
         "production": {

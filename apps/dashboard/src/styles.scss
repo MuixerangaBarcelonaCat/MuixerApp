@@ -13,6 +13,12 @@
 @tailwind components;
 @tailwind utilities;
 
+// Shared "hover lift, press bounce" interactive motion — one definition, resolved via
+// stylePreprocessorOptions.includePaths (project.json) since Angular's per-component style
+// encapsulation can't reach a shared class defined inside a component's own stylesheet.
+@import 'interactive';
+@import 'fields';
+
 @layer base {
   html {
     font-family: 'Quicksand', system-ui, sans-serif;

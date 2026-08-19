@@ -7,6 +7,17 @@ import { ButtonComponent } from './button.component';
 @Component({ template: '' })
 class StubRouteComponent {}
 
+@Component({
+  imports: [ButtonComponent],
+  template: `
+    <div class="join">
+      <lib-button joinItem>A</lib-button>
+      <lib-button joinItem>B</lib-button>
+    </div>
+  `,
+})
+class JoinItemHostComponent {}
+
 describe('ButtonComponent', () => {
   let fixture: ComponentFixture<ButtonComponent>;
 
@@ -60,6 +71,106 @@ describe('ButtonComponent', () => {
       const className = buttonEl().nativeElement.className;
       expect(className).toContain('btn-warning');
       expect(className).toContain('btn-outline');
+    });
+  });
+
+  describe('joinItem/active — lib-button-group\'s own markers on the real rendered element', () => {
+    it('adds no join-item class by default', () => {
+      expect(buttonEl().nativeElement.className).not.toContain('join-item');
+    });
+
+    it('adds join-item when set', () => {
+      fixture.componentRef.setInput('joinItem', true);
+      fixture.detectChanges();
+      expect(buttonEl().nativeElement.className).toContain('join-item');
+    });
+
+    it('never adds DaisyUI\'s own btn-active (darkened fill) — selected state is outline-vs-filled instead', () => {
+      fixture.componentRef.setInput('joinItem', true);
+      fixture.componentRef.setInput('active', true);
+      fixture.detectChanges();
+      expect(buttonEl().nativeElement.className).not.toContain('btn-active');
+    });
+
+    it('outlines an unselected joinItem segment (no active) — matches lib-badge\'s clickable/selected treatment', () => {
+      fixture.componentRef.setInput('joinItem', true);
+      fixture.detectChanges();
+      expect(buttonEl().nativeElement.className).toContain('btn-outline');
+    });
+
+    it('fills a selected (active) joinItem segment — no btn-outline', () => {
+      fixture.componentRef.setInput('joinItem', true);
+      fixture.componentRef.setInput('active', true);
+      fixture.detectChanges();
+      expect(buttonEl().nativeElement.className).not.toContain('btn-outline');
+    });
+
+    it('active alone (no joinItem) has no outline effect — only meaningful inside a segmented group', () => {
+      fixture.componentRef.setInput('active', true);
+      fixture.detectChanges();
+      expect(buttonEl().nativeElement.className).not.toContain('btn-outline');
+    });
+
+    it('throws when joinItem is combined with variant="ghost" — ghost has no fill/border to show selection either way', () => {
+      fixture.componentRef.setInput('joinItem', true);
+      fixture.componentRef.setInput('variant', 'ghost');
+      expect(() => fixture.detectChanges()).toThrow(/ghost/);
+    });
+
+    it('does not throw for variant="ghost" alone (no joinItem) — a plain ghost button is fine', () => {
+      fixture.componentRef.setInput('variant', 'ghost');
+      expect(() => fixture.detectChanges()).not.toThrow();
+    });
+
+    describe('outlineMode — selected=outline, unselected=ghost, instead of the default selected=filled, unselected=outline', () => {
+      it('outlines a selected (active) segment instead of filling it', () => {
+        fixture.componentRef.setInput('variant', 'secondary');
+        fixture.componentRef.setInput('joinItem', true);
+        fixture.componentRef.setInput('outlineMode', true);
+        fixture.componentRef.setInput('active', true);
+        fixture.detectChanges();
+        const className = buttonEl().nativeElement.className;
+        expect(className).toContain('btn-secondary');
+        expect(className).toContain('btn-outline');
+      });
+
+      it('renders an unselected segment as plain ghost — not the button\'s own variant color at all', () => {
+        fixture.componentRef.setInput('variant', 'secondary');
+        fixture.componentRef.setInput('joinItem', true);
+        fixture.componentRef.setInput('outlineMode', true);
+        fixture.detectChanges();
+        const className = buttonEl().nativeElement.className;
+        expect(className).toContain('btn-ghost');
+        expect(className).not.toContain('btn-secondary');
+        expect(className).not.toContain('btn-outline');
+      });
+
+      it('outlineMode has no effect without joinItem', () => {
+        fixture.componentRef.setInput('variant', 'secondary');
+        fixture.componentRef.setInput('outlineMode', true);
+        fixture.detectChanges();
+        const className = buttonEl().nativeElement.className;
+        expect(className).toContain('btn-secondary');
+        expect(className).not.toContain('btn-ghost');
+        expect(className).not.toContain('btn-outline');
+      });
+    });
+
+    // The doubled-border fix (button.component.scss, :host(:not(:first-child)) .join-item) can't
+    // be asserted here: it relies on Angular's compiled :host()/:host-context() selectors, which
+    // jsdom's CSS engine doesn't resolve through getComputedStyle (confirmed empirically — the
+    // same host/margin setup below reads back '' instead of '-2px', with no other passing test in
+    // this codebase asserting getComputedStyle on a :host()-scoped rule either). Real, verified
+    // manually in a browser instead of by a unit test — this component still renders correctly,
+    // this is a harness gap, not a behavior gap.
+    it('renders two joinItem buttons as siblings inside the .join wrapper (structural precondition for the border-collapse CSS)', async () => {
+      TestBed.resetTestingModule();
+      await TestBed.configureTestingModule({ imports: [JoinItemHostComponent] }).compileComponents();
+      const hostFixture = TestBed.createComponent(JoinItemHostComponent);
+      hostFixture.detectChanges();
+
+      const buttons = hostFixture.debugElement.queryAll(By.css('.join > lib-button > button.join-item'));
+      expect(buttons.length).toBe(2);
     });
   });
 

@@ -145,7 +145,10 @@ describe('PersonDetailComponent', () => {
       const editButton = Array.from(fixture.nativeElement.querySelectorAll('button')).find(
         (btn) => (btn as HTMLElement).textContent?.trim() === 'Edita',
       ) as HTMLElement;
-      expect(editButton.parentElement?.className).toContain('flex-wrap');
+      // lib-button's host is `display: contents`, so the real <button> nests one level deeper
+      // in the DOM than it visually renders — .closest() walks past that wrapper to find the
+      // actual flex-wrap container, matching the real (CSS) layout rather than the DOM shape.
+      expect(editButton.closest('.flex-wrap')?.className).toContain('flex-wrap');
     });
 
     it('lets the "Informació de la colla" button row wrap instead of cutting off "Enllaça amb usuari existent"', () => {
@@ -158,22 +161,18 @@ describe('PersonDetailComponent', () => {
     });
   });
 
-  describe('form field layout on mobile (WI-05, PE-M3)', () => {
-    it('stacks every label above its input below `sm` instead of squeezing long labels next to the field', () => {
-      component.editing.set(true);
-      fixture.detectChanges();
-
-      const labels = Array.from(fixture.nativeElement.querySelectorAll('label.label')) as HTMLElement[];
-      expect(labels.length).toBeGreaterThan(0);
-      for (const label of labels) {
-        expect(label.className).toContain('flex-col');
-        expect(label.className).toContain('sm:flex-row');
-      }
-    });
-  });
+  // WI-05/PE-M3's original concern (squeezing a long label next to its field on mobile) can no
+  // longer happen at all: the edit form's fields moved to lib-input/lib-select, which always
+  // stack the label above the field, on every viewport — no responsive breakpoint to verify here
+  // anymore, and the always-stacked contract itself is covered by lib-input/lib-select's own specs.
 
   describe('tap targets >=24px (WI-03, PE-L2)', () => {
-    it('gives each position tag toggle a >=24px tap target', () => {
+    // Position tag toggles are size="sm", matching the read-only Etiquetes badge exactly (user
+    // request — the two must look identical, not just both be "small"). lib-badge's clickable
+    // mode no longer forces a >=24px floor on top of that (own spec covers this), since doing so
+    // used to make the clickable one visibly taller than the static one at the same size — the
+    // chips' own gap-1.5 spacing is relied on instead to keep mis-taps unlikely.
+    it('renders each position tag as size="sm", matching the read-only Etiquetes badge', () => {
       component.editing.set(true);
       component.allPositions.set([
         { id: 'pos-1', name: 'Novatos', slug: 'novatos', shortDescription: null, longDescription: null, color: '#888', positionTypes: [], personCount: 0 },
@@ -182,7 +181,8 @@ describe('PersonDetailComponent', () => {
 
       const tagButton = fixture.nativeElement.querySelector('[role="group"] button.badge') as HTMLElement;
       expect(tagButton).toBeTruthy();
-      expect(tagButton.className).toContain('min-h-6');
+      expect(tagButton.className).toContain('badge-sm');
+      expect(tagButton.className).not.toContain('min-h-6');
     });
 
     it('uses the default (24px) toggle size for Actiu/Membre/Xicalla instead of the smaller toggle-sm', () => {
@@ -507,7 +507,9 @@ describe('PersonDetailComponent', () => {
       const delegate = makeDelegateItem();
       component.askRemoveDelegate(delegate);
       fixture.detectChanges();
-      const dialog = fixture.nativeElement.querySelector('dialog[role="alertdialog"]');
+      // lib-modal is always rendered (not conditionally mounted) and drives the native `open`
+      // attribute via showModal()/close() — no `role="alertdialog"` to select on.
+      const dialog = fixture.nativeElement.querySelector('dialog[open]');
       expect(dialog).toBeTruthy();
       expect(fixture.nativeElement.textContent).toContain('parent@test.com');
     });
@@ -517,7 +519,7 @@ describe('PersonDetailComponent', () => {
       fixture.detectChanges();
       component.cancelRemoveDelegate();
       fixture.detectChanges();
-      const dialog = fixture.nativeElement.querySelector('dialog[role="alertdialog"]');
+      const dialog = fixture.nativeElement.querySelector('dialog[open]');
       expect(dialog).toBeNull();
     });
   });

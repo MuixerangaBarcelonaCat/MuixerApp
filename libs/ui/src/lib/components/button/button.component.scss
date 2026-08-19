@@ -4,20 +4,40 @@
   display: contents;
 }
 
+// Collapses the doubled border where two joinItem segments touch — every .btn draws its own 2px
+// border on all four sides (see below), so two adjacent segments each contribute a border at the
+// shared edge, rendering twice as thick as the group's own outer edge. Each joinItem button is a
+// SEPARATE <lib-button> component instance, so this can't be fixed from lib-button-group's own
+// stylesheet — Angular's emulated encapsulation can't reach into a sibling component's projected
+// content. It's fixed here instead, on :host itself: :host()'s structural pseudo-classes still see
+// the real DOM position of the <lib-button> custom element among ITS OWN siblings (the ones
+// lib-button-group's .join wrapper actually parents) even though display:contents removes it from
+// the box tree — pulling every segment after the first back by exactly one border-width makes its
+// own leading border land exactly on top of the previous segment's trailing border.
+:host(:not(:first-child)) .join-item {
+  margin-left: -2px;
+}
+
+:host-context(.join-vertical):host(:not(:first-child)) .join-item {
+  margin-left: 0;
+  margin-top: -2px;
+}
+
 // Personality pass (design doc: Identity principles + Phase 3 Button spec). DaisyUI's own
 // .btn:hover/.btn-outline:hover/.btn-ghost:hover all shift toward a flat black/neutral mix on
 // hover, ignoring the button's role entirely — it never reaches tone(). Hover, decided visually,
 // deliberately carries no color change at all (color-shift hover read worse than a plain lift
-// across solid/outline/ghost alike) — it's a lift + shadow only, using the --ds-btn-lift-shadow
-// token (SHADOW.overlay, reused rather than inventing a button-specific shadow). The rules below
-// each specifically outrank (by CSS specificity, not source order — Angular's emulated
-// encapsulation attribute adds one selector "slot" to every rule here, and the role-scoped hover
-// overrides add another class on top of that) the DaisyUI rule they're neutralizing, then
-// reassert that same rule's own resting-state color formula so the fill/border/text genuinely
-// doesn't change — not just "looks unchanged by coincidence." Press state (:active) still uses
-// the --ds-{role}-active/-disabled tokens theme.ts precomputes per role, since DaisyUI's own
-// :active never reaches tone() either. Radius comes from --rounded-btn (RADIUS.btn) same as any
-// other DaisyUI button.
+// across solid/outline/ghost alike) — it's a lift + shadow only, via the shared `.ds-lift` class
+// (libs/ui/src/styles/_interactive.scss — the transition/transform/press-scale rule itself lives
+// there now, not here, so every clickable control in the app tunes as one). The rule below
+// specifically outranks (by CSS specificity, not source order — Angular's emulated encapsulation
+// attribute adds one selector "slot" to every rule here, and the role-scoped hover override adds
+// another class on top of that) the DaisyUI rule it's neutralizing, then reasserts that same
+// rule's own resting-state color formula so the fill/border/text genuinely doesn't change — not
+// just "looks unchanged by coincidence." Press state (:active) still uses the
+// --ds-{role}-active/-disabled tokens theme.ts precomputes per role, since DaisyUI's own :active
+// never reaches tone() either. Radius comes from --rounded-btn (RADIUS.btn) same as any other
+// DaisyUI button.
 .btn {
   // border-box + a matching transparent border on every non-outline variant means the disabled
   // dashed outline further down doesn't change the button's box size relative to its solid
@@ -33,28 +53,15 @@
     border-color: transparent;
   }
 
-  transition:
-    background-color var(--animation-btn, 120ms) ease-out,
-    border-color var(--animation-btn, 120ms) ease-out,
-    box-shadow var(--animation-btn, 120ms) ease-out,
-    transform var(--ds-motion-base, 220ms) var(--ds-ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1));
+  transition: background-color var(--animation-btn, 120ms) ease-out, border-color var(--animation-btn, 120ms) ease-out;
 
   &:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--ds-btn-lift-shadow);
     // Outranks DaisyUI's own `.btn:hover` color-mix darken (lower specificity, no encapsulation
     // attribute) by reasserting the exact resting-state formula its base (non-hover) `.btn` rule
     // uses. Matches every solid role automatically via --btn-color, no per-role duplication
     // needed. Border stays untouched here — the :not(.btn-outline) rule above already outranks
     // DaisyUI's hover border-mix on its own, hover or not.
     background-color: oklch(var(--btn-color, var(--b2)) / var(--tw-bg-opacity, 1));
-  }
-
-  // Press flattens back down and wins over the hover lift — same specificity as :hover, declared
-  // after it, so the cascade favors :active for a real click (where both apply at once).
-  &:active {
-    transform: scale(0.93);
-    box-shadow: none;
   }
 }
 
@@ -151,9 +158,17 @@ $daisy-content-var: (
   }
 }
 
-// Ghost has no per-role :disabled override above (never in $roles — its resting fill is already
-// transparent with currentColor text, nothing role-tinted to preserve), so only DaisyUI's own
-// generic [disabled] greying needs neutralizing here.
+// Ghost has no per-role :disabled override in the loop above (never in $roles — its resting fill
+// is already transparent with currentColor text, nothing role-tinted to preserve there), but
+// DaisyUI's own generic [disabled] rule still grays the *background* to a solid dark fill — the
+// one thing every other disabled treatment in this file explicitly avoids (transparent fill,
+// muted text only). Neutralize that for plain disabled (not just the loading case below), reusing
+// neutral's precomputed disabled tone since ghost has no role of its own to draw one from.
+.btn-ghost:disabled {
+  background-color: transparent !important;
+  color: var(--ds-neutral-disabled);
+}
+
 .btn-ghost.lib-btn-loading:disabled {
   background-color: transparent;
   border-color: transparent;

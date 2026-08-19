@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { NgClass } from '@angular/common';
 import { LucideAngularModule } from 'lucide-angular';
+import { CardComponent } from '@muixer/ui';
 import { ColumnDef, GroupSeparator } from '../../../models/column-def.model';
 import { SortOrder, SortChange } from '../../../models/sort.model';
 import { getContrastColor } from '@muixer/shared';
@@ -28,7 +29,7 @@ export interface RowAction<T = any> {
   selector: 'app-data-table',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgClass, LucideAngularModule],
+  imports: [NgClass, LucideAngularModule, CardComponent],
   host: { class: 'block' },
   templateUrl: './data-table.component.html',
 })

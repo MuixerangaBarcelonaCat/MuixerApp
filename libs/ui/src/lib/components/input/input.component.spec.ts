@@ -12,8 +12,10 @@ describe('InputComponent', () => {
   const labelEl = () => fixture.debugElement.query(By.css('label'));
   const nativeInput = () => fixture.debugElement.query(By.css('[data-testid="lib-input-native"]')).nativeElement;
   const iconEl = () => fixture.debugElement.query(By.css('[data-testid="lib-input-icon"]'));
-  const errorEl = () => fixture.debugElement.query(By.css('[data-testid="lib-input-error"]'));
-  const hintEl = () => fixture.debugElement.query(By.css('[data-testid="lib-input-hint"]'));
+  // Rendered by lib-form-field now, which lib-input's own template delegates its label/hint/
+  // error chrome to — not lib-input's own markup, hence the different testid prefix.
+  const errorEl = () => fixture.debugElement.query(By.css('[data-testid="lib-form-field-error"]'));
+  const hintEl = () => fixture.debugElement.query(By.css('[data-testid="lib-form-field-hint"]'));
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
@@ -35,6 +37,28 @@ describe('InputComponent', () => {
     expect(nativeInput().type).toBe('email');
   });
 
+  it('supports the date type, for detail-view edit forms (birth date, shirt date, ...)', () => {
+    fixture.componentRef.setInput('type', 'date');
+    fixture.detectChanges();
+    expect(nativeInput().type).toBe('date');
+  });
+
+  describe('min/max — numeric and date range constraints', () => {
+    it('sets no min/max attribute by default', () => {
+      expect(nativeInput().hasAttribute('min')).toBe(false);
+      expect(nativeInput().hasAttribute('max')).toBe(false);
+    });
+
+    it('forwards min/max to the native input', () => {
+      fixture.componentRef.setInput('type', 'number');
+      fixture.componentRef.setInput('min', 0);
+      fixture.componentRef.setInput('max', 250);
+      fixture.detectChanges();
+      expect(nativeInput().min).toBe('0');
+      expect(nativeInput().max).toBe('250');
+    });
+  });
+
   it('forwards the placeholder input to the native input', () => {
     fixture.componentRef.setInput('placeholder', 'nom@exemple.com');
     fixture.detectChanges();
@@ -47,7 +71,7 @@ describe('InputComponent', () => {
 
   describe('label and id linkage', () => {
     it('renders no label element when label is not set', () => {
-      expect(labelEl().nativeElement.textContent.trim()).toBe('');
+      expect(labelEl()).toBeNull();
     });
 
     it('renders the label text when label is set', () => {
@@ -158,6 +182,21 @@ describe('InputComponent', () => {
       fixture.detectChanges();
       const box = fixture.debugElement.query(By.css('.input'));
       expect(box.nativeElement.classList).toContain('input-lg');
+    });
+
+    it('shrinks the label text to match an xs input, so the label does not dwarf a compact field', () => {
+      fixture.componentRef.setInput('label', 'Àlies');
+      fixture.componentRef.setInput('size', 'xs');
+      fixture.detectChanges();
+      const labelText = fixture.debugElement.query(By.css('.label-text'));
+      expect(labelText.nativeElement.className).toContain('text-xs');
+    });
+
+    it('leaves the label text at its default size for sm/md/lg', () => {
+      fixture.componentRef.setInput('label', 'Àlies');
+      fixture.detectChanges();
+      const labelText = fixture.debugElement.query(By.css('.label-text'));
+      expect(labelText.nativeElement.className).not.toContain('text-xs');
     });
   });
 

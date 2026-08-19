@@ -47,7 +47,9 @@
           <div class="flex flex-col gap-2">
             <a routerLink="news" class="link link-primary text-sm font-medium self-start">Veure totes les notícies</a>
             <p class="text-xs text-base-content/50">
-              {{ newsCounts().published }} publicades · {{ newsCounts().scheduled }} programades · {{ newsCounts().draft }} esborranys
+              {{ newsCounts().published }} {{ newsCounts().published === 1 ? 'publicada' : 'publicades' }} ·
+              {{ newsCounts().scheduled }} {{ newsCounts().scheduled === 1 ? 'programada' : 'programades' }} ·
+              {{ newsCounts().draft }} {{ newsCounts().draft === 1 ? 'esborrany' : 'esborranys' }}
             </p>
           </div>
 

@@ -84,21 +84,8 @@
   pointer-events: none;
 }
 
-// Interactive press/lift — reuses Button's exact shared tokens, at Card's own subtler press scale
-// (0.98, approved over Button's 0.93 as more proportionate to a large surface).
-.interactive {
-  cursor: pointer;
-  transition:
-    box-shadow var(--animation-btn, 120ms) ease-out,
-    transform var(--ds-motion-base, 220ms) var(--ds-ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1));
-
-  &:hover {
-    box-shadow: var(--ds-btn-lift-shadow), 0 1px 2px oklch(22.2% 0.0059 91.62 / 0.06);
-    transform: translateY(-3px);
-  }
-
-  &:active {
-    transform: scale(0.98);
-    box-shadow: 0 1px 2px oklch(22.2% 0.0059 91.62 / 0.06);
-  }
-}
+// Interactive press/lift itself is the shared `.ds-lift`/`.ds-lift-surface` classes
+// (libs/ui/src/styles/_interactive.scss, applied via `interactiveClass` in card.component.ts) —
+// Card's own subtler press scale (0.98, approved over Button's 0.93 as more proportionate to a
+// large surface) and resting shadow are `.ds-lift-surface`'s custom-property preset, not a rule
+// reimplemented here.
