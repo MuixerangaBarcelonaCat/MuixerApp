@@ -105,18 +105,18 @@ export class PushSubscriptionService {
       .innerJoin('sub.user', 'user')
       .innerJoin('user.person', 'person')
       .select('person.id', 'personId')
-      .addSelect('person.firstName', 'firstName')
-      .addSelect('person.lastName', 'lastName')
+      .addSelect('person.name', 'name')
+      .addSelect('person.firstSurname', 'firstSurname')
       .addSelect('COUNT(sub.id)', 'activeDevices')
       .addSelect('MAX(sub.lastUsedAt)', 'lastPushAt')
       .where('sub.isActive = true')
-      .groupBy('person.id, person.firstName, person.lastName')
-      .orderBy('person.lastName', 'ASC')
-      .addOrderBy('person.firstName', 'ASC')
-      .getRawMany<{ personId: string; firstName: string; lastName: string; activeDevices: string; lastPushAt: string | null }>();
+      .groupBy('person.id, person.name, person.firstSurname')
+      .orderBy('person.firstSurname', 'ASC')
+      .addOrderBy('person.name', 'ASC')
+      .getRawMany<{ personId: string; name: string; firstSurname: string; activeDevices: string; lastPushAt: string | null }>();
 
     return rows.map((r) => ({
-      person: { id: r.personId, firstName: r.firstName, lastName: r.lastName },
+      person: { id: r.personId, firstName: r.name, lastName: r.firstSurname },
       activeDevices: parseInt(r.activeDevices, 10),
       lastPushAt: r.lastPushAt,
     }));
