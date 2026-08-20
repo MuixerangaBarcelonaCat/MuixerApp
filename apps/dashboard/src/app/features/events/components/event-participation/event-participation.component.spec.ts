@@ -680,7 +680,7 @@ describe('EventParticipationComponent', () => {
 
       expect(navigate).toHaveBeenCalledWith(
         ['/pinyes/events', EVENT_ID, 'segments', SEG_A, 'assign', 'inst-1'],
-        { queryParams: { returnUrl: '/events/event-1?tab=participacio' } },
+        { queryParams: { returnUrl: '/events/event-1?tab=participacio', tab: 'pinyes' } },
       );
     });
 
@@ -695,7 +695,7 @@ describe('EventParticipationComponent', () => {
 
       expect(navigate).toHaveBeenCalledWith(
         expect.anything(),
-        { queryParams: { returnUrl: '/events/event-1?tab=participacio', past: '1' } },
+        { queryParams: { returnUrl: '/events/event-1?tab=participacio', tab: 'pinyes', past: '1' } },
       );
     });
 

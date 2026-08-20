@@ -1,6 +1,6 @@
 import { hexToOklch, tone } from './color';
 import { buildCategoricalPalette } from './categorical';
-import { SEMANTIC, SEMANTIC_LIGHT } from './fixed-colors';
+import { SEMANTIC } from './fixed-colors';
 
 describe('buildCategoricalPalette', () => {
   it('returns 10 normal hues in the documented order: red, green, blue, gold, purple, orange, teal, pink, brown, olive', () => {
@@ -11,9 +11,9 @@ describe('buildCategoricalPalette', () => {
       hexToOklch(SEMANTIC.error).h, // red
       hexToOklch(SEMANTIC.success).h, // green
       hexToOklch(SEMANTIC.info).h, // blue
-      hexToOklch(SEMANTIC.warning).h, // gold
-      hexToOklch('#6B4C91').h, // purple
-      hexToOklch('#D4793B').h, // orange
+      hexToOklch('#cfa72b').h, // gold — categorical-only, not the semantic warning hex
+      hexToOklch('#77579e').h, // purple — no semantic role, categorical-only
+      hexToOklch('#D4793B').h, // orange — no semantic role, categorical-only
     ];
     normal.slice(0, 6).forEach((color, i) => {
       expect(color.h).toBeCloseTo(expectedHues[i], 1);
@@ -33,23 +33,26 @@ describe('buildCategoricalPalette', () => {
     }
   });
 
-  it('uses the fixed hand-tuned light variants for the first 6 hues in light mode', () => {
+  it('uses the fixed hand-tuned light variants for red, gold, orange and pink in light mode', () => {
     const { normal, light } = buildCategoricalPalette('light');
-    expect(light[0]).toEqual(hexToOklch(SEMANTIC_LIGHT.error));
-    expect(light[1]).toEqual(hexToOklch(SEMANTIC_LIGHT.success));
-    expect(light[2]).toEqual(hexToOklch(SEMANTIC_LIGHT.info));
-    expect(light[3]).toEqual(hexToOklch(SEMANTIC_LIGHT.warning));
-    expect(light[4]).toEqual(hexToOklch('#C4B0DC')); // purple-light
-    expect(light[5]).toEqual(hexToOklch('#E8C0A0')); // orange-light
+    const handTuned: Record<number, string> = {
+      0: '#f39891', // red-light
+      3: '#fcd97b', // gold-light
+      5: '#facfb6', // orange-light
+      7: '#f0b7d8', // pink-light
+    };
+    for (const [index, hex] of Object.entries(handTuned)) {
+      expect(light[Number(index)]).toEqual(hexToOklch(hex));
+    }
     // Sanity: these are genuinely lighter than their base, not just some other fixed color.
-    for (let i = 0; i < 6; i++) {
-      expect(light[i].l).toBeGreaterThan(normal[i].l);
+    for (const index of Object.keys(handTuned)) {
+      expect(light[Number(index)].l).toBeGreaterThan(normal[Number(index)].l);
     }
   });
 
-  it('computes a light-mode muted variant for the 4 hues with no hand-tuned original', () => {
+  it('computes a light-mode muted variant for the 6 hues with no hand-tuned original', () => {
     const { normal, light } = buildCategoricalPalette('light');
-    for (let i = 6; i < 10; i++) {
+    for (const i of [1, 2, 4, 6, 8, 9]) {
       expect(light[i]).toEqual(tone(normal[i], 'muted', 'light'));
     }
   });

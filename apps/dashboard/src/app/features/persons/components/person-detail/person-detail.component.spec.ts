@@ -157,7 +157,10 @@ describe('PersonDetailComponent', () => {
       const linkButton = Array.from(fixture.nativeElement.querySelectorAll('button')).find(
         (btn) => (btn as HTMLElement).textContent?.trim() === 'Defineix adult responsable',
       ) as HTMLElement;
-      expect(linkButton.parentElement?.className).toContain('flex-wrap');
+      // lib-button's host is `display: contents`, so the real <button> nests one level deeper
+      // in the DOM than it visually renders — .closest() walks past that wrapper to find the
+      // actual flex-wrap container, matching the real (CSS) layout rather than the DOM shape.
+      expect(linkButton.closest('.flex-wrap')?.className).toContain('flex-wrap');
     });
   });
 
