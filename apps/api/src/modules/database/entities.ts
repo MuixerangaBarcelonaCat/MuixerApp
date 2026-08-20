@@ -18,6 +18,7 @@ import { Rengla } from '../figure/entities/rengla.entity';
 import { LegalDocument } from '../legal/legal-document.entity';
 import { AuditLog } from '../audit/audit-log.entity';
 import { News } from '../news/news.entity';
+import { PushSubscription } from '../push-notification/entities/push-subscription.entity';
 
 /** Single source of truth for the entity list, shared by the Nest TypeOrmModule and the integration-test DataSource. */
 export const ENTITIES = [
@@ -41,4 +42,5 @@ export const ENTITIES = [
   LegalDocument,
   AuditLog,
   News,
+  PushSubscription,
 ];

@@ -30,7 +30,7 @@ tags: [qa]
 | Participació | Matriu persona × segment per event (`?tab=participacio`), cercable per persona i pel que fa | ✅ |
 | Flexibilitat de segments | Permetre una persona dues vegades al mateix segment, amb avís en lloc de bloqueig. Fases 0–6 implementades (motor de conflictes, taller, canvi de règim, equilibri de participació event-wide). Queda la Fase 7 (seguiments) → [[SEGMENTS_FLEXIBILITY]] | 🟢 Gairebé |
 | Compliment LOPDGDD/RGPD | Consentiment click-wrap (Dashboard+PWA), clàusula de transparència, textos legals editables a BBDD, audit log. Verificat E2E. Dret a l'oblit ajornat ([[DEBT]] SEC5); pendent RAT (L1) i revisió legal dels textos (L2) → [[GDPR_COMPLIANCE]] | ✅ |
-| P6.2 | Push notifications a la PWA (FCM) | ⚪ Pendent |
+| P6.2 | Push notifications (Web Push/VAPID): API module, custom SW, PWA subscription + permission banner + profile settings, Dashboard send UI + device list, news push toggle | ✅ |
 | P7 | Informes d'assistència i estadístiques | ⚪ Pendent |
 | P8+ | Export PDF de pinyes, multi-tenant, auditoria/versionat | ⚪ Pendent |
 

@@ -1,0 +1,219 @@
+<div class="max-w-2xl mx-auto">
+
+<app-page-header title="Enviar notificació push">
+  <a routerLink="../" class="btn btn-ghost btn-sm">
+    <lucide-icon name="ArrowLeft" [size]="16" />
+    Enrere
+  </a>
+</app-page-header>
+<p class="text-sm text-base-content/50 mb-6">Envia una notificació als membres</p>
+
+<div class="space-y-6">
+
+  @if (state() === 'success') {
+    <div role="alert" class="alert alert-success">
+      <lucide-icon name="CheckCircle" [size]="20" />
+      <div>
+        <p class="font-semibold">Notificació acceptada</p>
+        <p class="text-sm">L'enviament s'ha processat correctament.</p>
+      </div>
+      <button class="btn btn-sm btn-ghost" (click)="reset()">Nova notificació</button>
+    </div>
+  } @else {
+
+    <form (ngSubmit)="send()" class="space-y-5">
+
+      <!-- Títol i cos -->
+      <fieldset class="fieldset bg-base-100 border border-base-200 rounded-box p-4 space-y-3">
+        <legend class="fieldset-legend text-sm font-semibold">Contingut</legend>
+
+        <label class="fieldset-label" for="notif-title">Títol <span class="text-error">*</span></label>
+        <input
+          id="notif-title"
+          type="text"
+          class="input input-bordered w-full"
+          placeholder="Títol de la notificació"
+          maxlength="100"
+          [ngModel]="title()"
+          (ngModelChange)="title.set($event)"
+          name="title"
+          required
+        />
+        <p class="text-xs text-base-content/50 text-right">{{ title().length }}/100</p>
+
+        <label class="fieldset-label" for="notif-body">Missatge <span class="text-error">*</span></label>
+        <textarea
+          id="notif-body"
+          class="textarea textarea-bordered w-full"
+          rows="3"
+          placeholder="Cos de la notificació"
+          maxlength="500"
+          [ngModel]="body()"
+          (ngModelChange)="body.set($event)"
+          name="body"
+          required
+        ></textarea>
+        <p class="text-xs text-base-content/50 text-right">{{ body().length }}/500</p>
+
+        <label class="fieldset-label" for="notif-url">Enllaç (opcional)</label>
+        <input
+          id="notif-url"
+          type="text"
+          class="input input-bordered w-full"
+          placeholder="/noticies/123 o https://..."
+          [ngModel]="url()"
+          (ngModelChange)="url.set($event)"
+          name="url"
+        />
+        <p class="text-xs text-base-content/50">
+          Si s'especifica, la notificació obrirà aquesta adreça en fer clic. Pot ser una ruta interna
+          (comença per <code>/</code>) o una adreça completa.
+        </p>
+      </fieldset>
+
+      <!-- Destinataris -->
+      <fieldset class="fieldset bg-base-100 border border-base-200 rounded-box p-4 space-y-3">
+        <legend class="fieldset-legend text-sm font-semibold">Destinataris</legend>
+
+        <div class="flex flex-wrap gap-2" role="radiogroup" aria-label="Tipus de destinataris">
+          <button
+            type="button"
+            class="btn btn-sm"
+            [class.btn-primary]="targetType() === TargetType.ALL"
+            [class.btn-outline]="targetType() !== TargetType.ALL"
+            (click)="targetType.set(TargetType.ALL)"
+          >
+            <lucide-icon name="Users" [size]="14" />
+            Tots
+          </button>
+          <button
+            type="button"
+            class="btn btn-sm"
+            [class.btn-primary]="targetType() === TargetType.EVENT_ATTENDANCE"
+            [class.btn-outline]="targetType() !== TargetType.EVENT_ATTENDANCE"
+            (click)="targetType.set(TargetType.EVENT_ATTENDANCE)"
+          >
+            <lucide-icon name="Calendar" [size]="14" />
+            Per event
+          </button>
+          <button
+            type="button"
+            class="btn btn-sm"
+            [class.btn-primary]="targetType() === TargetType.PERSON"
+            [class.btn-outline]="targetType() !== TargetType.PERSON"
+            (click)="targetType.set(TargetType.PERSON)"
+          >
+            <lucide-icon name="User" [size]="14" />
+            Persones concretes
+          </button>
+        </div>
+
+        @if (targetType() === TargetType.ALL) {
+          <p class="text-sm text-base-content/60">
+            <lucide-icon name="Info" [size]="14" class="inline mr-1" />
+            S'enviarà a tots els membres amb subscripció activa.
+          </p>
+        }
+
+        @if (targetType() === TargetType.EVENT_ATTENDANCE) {
+          <div class="space-y-3">
+            <div>
+              <label class="label" for="event-select">
+                <span class="label-text">Event <span class="text-error">*</span></span>
+              </label>
+              <select
+                id="event-select"
+                class="select select-bordered w-full"
+                [ngModel]="selectedEventId()"
+                (ngModelChange)="selectedEventId.set($event)"
+                name="eventId"
+              >
+                <option value="">Selecciona un event...</option>
+                @for (event of events(); track event.id) {
+                  <option [value]="event.id">{{ event.title }} — {{ event.date | slice:0:10 }}</option>
+                }
+              </select>
+            </div>
+            <div>
+              <label class="label" for="attendance-filter">
+                <span class="label-text">Filtre d'assistència (opcional)</span>
+              </label>
+              <select
+                id="attendance-filter"
+                class="select select-bordered w-full"
+                [ngModel]="attendanceFilter()"
+                (ngModelChange)="attendanceFilter.set($event)"
+                name="attendanceFilter"
+              >
+                <option value="">Totes les respostes</option>
+                <option [value]="AttendanceStatus.ANIRE">Vinc (ANIRE)</option>
+                <option [value]="AttendanceStatus.NO_VAIG">No vinc (NO_VAIG)</option>
+                <option [value]="AttendanceStatus.PENDENT">Pendent</option>
+                <option [value]="AttendanceStatus.ASSISTIT">Assistit</option>
+              </select>
+            </div>
+          </div>
+        }
+
+        @if (targetType() === TargetType.PERSON) {
+          <div class="space-y-2">
+            <app-person-search-input
+              placeholder="Cerca persones..."
+              [excludeIds]="personIds()"
+              (selected)="addPerson($event)"
+            />
+            @if (selectedPersons().length > 0) {
+              <div class="flex flex-wrap gap-2 mt-2">
+                @for (person of selectedPersons(); track person.id) {
+                  <span class="badge badge-outline gap-1">
+                    {{ person.name }} {{ person.firstSurname }}
+                    <button
+                      type="button"
+                      class="btn btn-xs btn-circle btn-ghost"
+                      (click)="removePerson(person.id)"
+                      [attr.aria-label]="'Eliminar ' + person.name"
+                    >
+                      <lucide-icon name="X" [size]="10" />
+                    </button>
+                  </span>
+                }
+              </div>
+            } @else {
+              <p class="text-xs text-base-content/50">Cap persona seleccionada.</p>
+            }
+          </div>
+        }
+      </fieldset>
+
+      @if (state() === 'error') {
+        <div role="alert" class="alert alert-error">
+          <lucide-icon name="AlertCircle" [size]="18" />
+          <span>{{ errorMessage() }}</span>
+        </div>
+      }
+
+      <div class="flex gap-3">
+        <button
+          type="submit"
+          class="btn btn-primary"
+          [disabled]="!isFormValid() || isSending()"
+        >
+          @if (isSending()) {
+            <span class="loading loading-spinner loading-sm"></span>
+            Enviant...
+          } @else {
+            <lucide-icon name="Send" [size]="16" />
+            Enviar notificació
+          }
+        </button>
+        <button type="button" class="btn btn-ghost" (click)="reset()" [disabled]="isSending()">
+          Reinicia
+        </button>
+      </div>
+
+    </form>
+  }
+
+</div>
+
+</div>

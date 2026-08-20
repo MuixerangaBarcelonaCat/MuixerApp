@@ -1,4 +1,5 @@
 import { Component, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { News } from '@muixer/shared';
 import { NewsService } from '../../services/news.service';
@@ -12,7 +13,7 @@ import { getNewsStatus, getNewsStatusLabel, formatDateTime } from '../../../../s
   selector: 'app-news-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, PageHeaderComponent, EmptyStateComponent],
+  imports: [RouterLink, DatePipe, PageHeaderComponent, EmptyStateComponent],
   templateUrl: './news-list.component.html',
 })
 export class NewsListComponent {

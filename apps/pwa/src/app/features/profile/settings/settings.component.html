@@ -187,15 +187,7 @@
 
   <div class="card bg-base-100 shadow-sm">
     <div class="card-body p-0 divide-y divide-base-200">
-      <div
-        class="flex items-center gap-3 p-4 opacity-60"
-        data-testid="notifications-row"
-        aria-disabled="true"
-      >
-        <lucide-icon [img]="Bell" [size]="18" class="text-base-content/50 shrink-0" />
-        <span class="font-medium flex-1">Notificacions</span>
-        <span class="badge badge-ghost badge-sm">Properament</span>
-      </div>
+      <app-push-settings data-testid="notifications-row" />
       <div class="p-4">
         <button
           type="button"

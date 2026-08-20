@@ -80,8 +80,8 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 
 <!-- BEGIN:AUTO — generat per scripts/generate-data-model.mjs, no editar a mà -->
 
-> Generat el 2026-08-15 des de les entitats TypeORM amb `pnpm run docs:model`.
-> **19 entitats.** No editar a mà: canvia l'entitat i torna a executar l'script.
+> Generat el 2026-08-18 des de les entitats TypeORM amb `pnpm run docs:model`.
+> **21 entitats.** No editar a mà: canvia l'entitat i torna a executar l'script.
 
 ### Resum
 
@@ -98,10 +98,12 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 | `figure_templates` | `FigureTemplate` | 11 |
 | `instance_nodes` | `InstanceNode` | 25 |
 | `legal_documents` | `LegalDocument` | 9 |
+| `news` | `News` | 9 |
 | `node_assignments` | `NodeAssignment` | 7 |
 | `person_delegates` | `PersonDelegate` | 8 |
 | `persons` | `Person` | 26 |
 | `positions` | `Tag` | 9 |
+| `push_subscriptions` | `PushSubscription` | 10 |
 | `refresh_tokens` | `RefreshToken` | 10 |
 | `rengles` | `Rengla` | 5 |
 | `seasons` | `Season` | 9 |
@@ -122,7 +124,9 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 | `FigureZone` | `BASE` · `PINYA` · `TRONC` · `FIGURE_DIRECTION` · `XICALLA_DIRECTION` · `DECORATION` |
 | `Gender` | `MALE` · `FEMALE` · `OTHER` |
 | `LegalDocumentType` | `PRIVACY_POLICY` · `TRANSPARENCY_CLAUSE` |
+| `NewsStatus` | `DRAFT` · `SCHEDULED` · `PUBLISHED` |
 | `NodeShape` | `ELLIPSE` · `RECTANGLE` · `ARROW` · `CIRCLE` |
+| `NotificationTargetType` | `ALL` · `EVENT_ATTENDANCE` · `PERSON` |
 | `OnboardingStatus` | `COMPLETED` · `IN_PROGRESS` · `LOST` · `NOT_APPLICABLE` |
 | `SegmentConflictKind` | `TRONC_TRONC` · `TRONC_PINYA` · `PINYA_PINYA` |
 | `SegmentMoveConflictResolution` | `KEEP_TARGET` · `KEEP_MOVED` · `KEEP_BOTH` |
@@ -363,6 +367,22 @@ Definició: [`apps/api/src/modules/legal/legal-document.entity.ts`](../apps/api/
 | `createdAt` | `timestamptz` | `Date` | no | creació |
 | `updatedAt` | `timestamptz` | `Date` | no | actualització |
 
+### `news` — `News`
+
+Definició: [`apps/api/src/modules/news/news.entity.ts`](../apps/api/src/modules/news/news.entity.ts)
+
+| Camp | Tipus DB | Tipus TS | Nullable | Notes |
+|------|----------|----------|----------|-------|
+| `id` | `—` | `string` | no | PK |
+| `title` | `varchar` | `string` | no | — |
+| `body` | `text` | `string` | no | — |
+| `publishedAt` | `timestamptz` | `Date` | sí | — |
+| `createdBy` | `uuid` | `string` | sí | — |
+| `sendPush` | `boolean` | `boolean` | no | default `false` |
+| `pushSentAt` | `timestamptz` | `Date` | sí | — |
+| `createdAt` | `timestamptz` | `Date` | no | creació |
+| `updatedAt` | `timestamptz` | `Date` | no | actualització |
+
 ### `node_assignments` — `NodeAssignment`
 
 Definició: [`apps/api/src/modules/node-assignment/entities/node-assignment.entity.ts`](../apps/api/src/modules/node-assignment/entities/node-assignment.entity.ts)
@@ -442,6 +462,23 @@ Definició: [`apps/api/src/modules/tag/tag.entity.ts`](../apps/api/src/modules/t
 | `longDescription` | `text` | `string` | sí | — |
 | `color` | `varchar` | `string` | sí | — |
 | `positionTypes` | `text` | `string[]` | no | — |
+| `createdAt` | `timestamptz` | `Date` | no | creació |
+| `updatedAt` | `timestamptz` | `Date` | no | actualització |
+
+### `push_subscriptions` — `PushSubscription`
+
+Definició: [`apps/api/src/modules/push-notification/entities/push-subscription.entity.ts`](../apps/api/src/modules/push-notification/entities/push-subscription.entity.ts)
+
+| Camp | Tipus DB | Tipus TS | Nullable | Notes |
+|------|----------|----------|----------|-------|
+| `id` | `—` | `string` | no | PK |
+| `user` | `relation` | `Relation<User>` | no | ManyToOne → `undefined`, onDelete CASCADE |
+| `userId` | `uuid` | `string` | no | — |
+| `endpoint` | `varchar` | `string` | no | unique |
+| `keys` | `jsonb` | `{ p256dh: string; auth: string }` | no | — |
+| `userAgent` | `varchar` | `string` | sí | — |
+| `isActive` | `boolean` | `boolean` | no | default `true` |
+| `lastUsedAt` | `timestamptz` | `Date` | sí | — |
 | `createdAt` | `timestamptz` | `Date` | no | creació |
 | `updatedAt` | `timestamptz` | `Date` | no | actualització |
 

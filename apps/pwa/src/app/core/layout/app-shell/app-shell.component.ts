@@ -4,6 +4,7 @@ import { BottomTabBarComponent } from '../../../shared/components/bottom-tab-bar
 import { NoPersonBannerComponent } from '../../../shared/components/no-person-banner/no-person-banner.component';
 import { ConsentModalComponent } from '../../../shared/components/consent-modal/consent-modal.component';
 import { InstallPromptBannerComponent } from '../../../shared/components/install-prompt-banner/install-prompt-banner.component';
+import { PushPermissionBannerComponent } from '../../../shared/components/push-permission-banner/push-permission-banner.component';
 import { InstallPromptService } from '../../../shared/services/install-prompt.service';
 import { AuthService } from '../../auth/services/auth.service';
 import { LayoutService } from '../../services/layout.service';
@@ -18,6 +19,7 @@ import { LayoutService } from '../../services/layout.service';
     NoPersonBannerComponent,
     ConsentModalComponent,
     InstallPromptBannerComponent,
+    PushPermissionBannerComponent,
   ],
   template: `
     <main
@@ -39,6 +41,9 @@ import { LayoutService } from '../../services/layout.service';
     </main>
     @if (!layout.isFullscreen()) {
       <app-bottom-tab-bar />
+    }
+    @if (!layout.isFullscreen()) {
+      <app-push-permission-banner />
     }
 
     @if (auth.requiresPrivacyConsent()) {

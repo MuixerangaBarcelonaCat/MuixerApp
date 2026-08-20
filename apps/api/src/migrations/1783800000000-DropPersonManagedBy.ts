@@ -10,21 +10,41 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  */
 export class DropPersonManagedBy1783800000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // Backfill the guardian case: managedById pointing at a user whose own
-    // linked person (users.person_id) is NOT this person.
-    await queryRunner.query(`
-      INSERT INTO "person_delegates" ("user_id", "person_id", "delegateType", "isPrimary", "isActive")
-      SELECT p."managedById", p."id", 'PARENT', true, true
-      FROM "persons" p
-      JOIN "users" u ON u."id" = p."managedById"
-      WHERE p."managedById" IS NOT NULL
-        AND (u."person_id" IS NULL OR u."person_id" != p."id")
-      ON CONFLICT ("user_id", "person_id")
-      DO UPDATE SET "isPrimary" = true, "delegateType" = 'PARENT'
+    const columnExists = await queryRunner.query(`
+      SELECT 1 FROM information_schema.columns
+      WHERE table_name = 'persons' AND column_name = 'managedById'
     `);
 
-    await queryRunner.query(`ALTER TABLE "persons" DROP CONSTRAINT "FK_persons_managedBy"`);
-    await queryRunner.query(`ALTER TABLE "persons" DROP COLUMN "managedById"`);
+    if (columnExists.length > 0) {
+      // Backfill the guardian case: managedById pointing at a user whose own
+      // linked person (users.person_id) is NOT this person.
+      await queryRunner.query(`
+        INSERT INTO "person_delegates" ("user_id", "person_id", "delegateType", "isPrimary", "isActive")
+        SELECT p."managedById", p."id", 'PARENT', true, true
+        FROM "persons" p
+        JOIN "users" u ON u."id" = p."managedById"
+        WHERE p."managedById" IS NOT NULL
+          AND (u."person_id" IS NULL OR u."person_id" != p."id")
+        ON CONFLICT ("user_id", "person_id")
+        DO UPDATE SET "isPrimary" = true, "delegateType" = 'PARENT'
+      `);
+
+      // Drop the FK — use dynamic lookup since TypeORM may have generated a different name
+      const fkResult = await queryRunner.query(`
+        SELECT con.conname
+        FROM pg_constraint con
+        JOIN pg_attribute att ON att.attnum = ANY(con.conkey) AND att.attrelid = con.conrelid
+        WHERE con.conrelid = 'persons'::regclass
+          AND con.contype = 'f'
+          AND att.attname = 'managedById'
+      `);
+
+      for (const row of fkResult) {
+        await queryRunner.query(`ALTER TABLE "persons" DROP CONSTRAINT "${row.conname}"`);
+      }
+
+      await queryRunner.query(`ALTER TABLE "persons" DROP COLUMN "managedById"`);
+    }
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

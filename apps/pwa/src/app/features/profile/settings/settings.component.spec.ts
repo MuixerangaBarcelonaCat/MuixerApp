@@ -92,11 +92,12 @@ describe('SettingsComponent', () => {
       expect(text).toContain('Tancar sessió');
     });
 
-    it('renders the notifications row as disabled with a "Properament" badge', () => {
+    it('renders the notifications row showing push is unsupported in JSDOM', () => {
       const row = fixture.nativeElement.querySelector('[data-testid="notifications-row"]');
       expect(row).toBeTruthy();
-      expect(row.textContent).toContain('Properament');
-      expect(row.getAttribute('aria-disabled')).toBe('true');
+      expect(row.textContent).toContain('Notificacions');
+      expect(row.textContent).toContain('No disponibles en aquest dispositiu');
+      expect(row.querySelector('[aria-disabled="true"]')).toBeTruthy();
     });
   });
 

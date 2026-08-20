@@ -11,6 +11,7 @@ import { Router } from '@angular/router';
 import { LegalDocumentType } from '@muixer/shared';
 import { LucideAngularModule, Lock, Mail, Bell, FileText, LogOut, ChevronDown } from 'lucide-angular';
 import { MobileHeaderComponent } from '../../../shared/components/mobile-header/mobile-header.component';
+import { PushSettingsComponent } from '../components/push-settings/push-settings.component';
 import { AuthService } from '../../../core/auth/services/auth.service';
 import { ProfileService } from '../services/profile.service';
 import { ToastService } from '../../../shared/services/toast.service';
@@ -34,7 +35,7 @@ function emailsMatchValidator(group: AbstractControl): ValidationErrors | null {
   selector: 'app-settings',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule, ReactiveFormsModule, MobileHeaderComponent],
+  imports: [LucideAngularModule, ReactiveFormsModule, MobileHeaderComponent, PushSettingsComponent],
   templateUrl: './settings.component.html',
   styleUrls: ['./settings.component.scss'],
 })

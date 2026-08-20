@@ -7,4 +7,6 @@ export interface News {
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
+  sendPush: boolean;
+  pushSentAt: string | null;
 }

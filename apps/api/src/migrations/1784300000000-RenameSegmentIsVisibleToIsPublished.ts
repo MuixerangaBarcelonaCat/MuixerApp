@@ -8,7 +8,13 @@ export class RenameSegmentIsVisibleToIsPublished1784300000000 implements Migrati
   name = 'RenameSegmentIsVisibleToIsPublished1784300000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`ALTER TABLE "event_segments" RENAME COLUMN "isVisible" TO "isPublished"`);
+    const col = await queryRunner.query(`
+      SELECT 1 FROM information_schema.columns
+      WHERE table_name = 'event_segments' AND column_name = 'isVisible'
+    `);
+    if (col.length > 0) {
+      await queryRunner.query(`ALTER TABLE "event_segments" RENAME COLUMN "isVisible" TO "isPublished"`);
+    }
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

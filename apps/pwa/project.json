@@ -18,6 +18,11 @@
           {
             "glob": "**/*",
             "input": "apps/pwa/public"
+          },
+          {
+            "glob": "custom-sw.js",
+            "input": "apps/pwa/src",
+            "output": "/"
           }
         ],
         "styles": ["apps/pwa/src/styles.scss"]

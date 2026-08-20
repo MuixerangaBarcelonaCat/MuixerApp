@@ -7,6 +7,7 @@ export interface NewsPayload {
   title: string;
   body: string;
   publishedAt?: string | null;
+  sendPush?: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
