@@ -4,13 +4,14 @@ import {
   IsNotEmpty,
   IsOptional,
   MaxLength,
-  IsUrl,
   ValidateNested,
   IsEnum,
   IsUUID,
   IsArray,
   IsIn,
   ValidateIf,
+  IsDefined,
+  Matches,
 } from 'class-validator';
 import { AttendanceStatus, NotificationTargetType } from '@muixer/shared';
 
@@ -49,10 +50,14 @@ export class SendNotificationDto {
   @Transform(({ value }) => value?.trim())
   body: string;
 
-  @IsUrl({ protocols: ['https', 'http'], require_tld: false })
+  /** Absolute https/http URL or an in-app path such as `/noticies/123`. */
+  @Matches(/^(https?:\/\/\S+|\/[^\s?#]*(\?\S*)?(#\S*)?)$/, {
+    message: 'url ha de ser una URL absoluta o un cami intern que comenci per /',
+  })
   @IsOptional()
   url?: string;
 
+  @IsDefined()
   @ValidateNested()
   @Type(() => NotificationTargetDto)
   target: NotificationTargetDto;

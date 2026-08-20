@@ -19,13 +19,13 @@ const makeNews = (overrides = {}): News =>
 describe('PushNotificationCronService', () => {
   let service: PushNotificationCronService;
   let newsRepo: { find: jest.Mock; update: jest.Mock };
-  let subscriptionService: jest.Mocked<Pick<PushSubscriptionService, 'findAllActiveSubscriptions' | 'cleanupStale'>>;
+  let subscriptionService: jest.Mocked<Pick<PushSubscriptionService, 'findUserIdsWithActiveSubscriptions' | 'cleanupStale'>>;
   let eventEmitter: jest.Mocked<EventEmitter2>;
 
   beforeEach(async () => {
     newsRepo = { find: jest.fn(), update: jest.fn() };
     subscriptionService = {
-      findAllActiveSubscriptions: jest.fn(),
+      findUserIdsWithActiveSubscriptions: jest.fn(),
       cleanupStale: jest.fn(),
     };
     eventEmitter = { emit: jest.fn() } as unknown as jest.Mocked<EventEmitter2>;
@@ -53,9 +53,7 @@ describe('PushNotificationCronService', () => {
       const news = makeNews();
       newsRepo.find.mockResolvedValue([news]);
       newsRepo.update.mockResolvedValue({ affected: 1 });
-      subscriptionService.findAllActiveSubscriptions.mockResolvedValue([
-        { id: 'sub-1', endpoint: 'https://fcm.googleapis.com/push/1', keys: { p256dh: 'a', auth: 'b' }, userId: 'u1' } as never,
-      ]);
+      subscriptionService.findUserIdsWithActiveSubscriptions.mockResolvedValue(['u1']);
 
       await service.processScheduledNews();
 
@@ -66,7 +64,7 @@ describe('PushNotificationCronService', () => {
     it('skips emit when no active subscriptions', async () => {
       newsRepo.find.mockResolvedValue([makeNews()]);
       newsRepo.update.mockResolvedValue({ affected: 1 });
-      subscriptionService.findAllActiveSubscriptions.mockResolvedValue([]);
+      subscriptionService.findUserIdsWithActiveSubscriptions.mockResolvedValue([]);
 
       await service.processScheduledNews();
       expect(eventEmitter.emit).not.toHaveBeenCalled();

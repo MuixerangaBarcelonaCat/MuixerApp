@@ -58,14 +58,17 @@
         <label class="fieldset-label" for="notif-url">Enllaç (opcional)</label>
         <input
           id="notif-url"
-          type="url"
+          type="text"
           class="input input-bordered w-full"
-          placeholder="https://..."
+          placeholder="/noticies/123 o https://..."
           [ngModel]="url()"
           (ngModelChange)="url.set($event)"
           name="url"
         />
-        <p class="text-xs text-base-content/50">Si s'especifica, la notificació obrirà aquest URL en fer clic.</p>
+        <p class="text-xs text-base-content/50">
+          Si s'especifica, la notificació obrirà aquesta adreça en fer clic. Pot ser una ruta interna
+          (comença per <code>/</code>) o una adreça completa.
+        </p>
       </fieldset>
 
       <!-- Destinataris -->

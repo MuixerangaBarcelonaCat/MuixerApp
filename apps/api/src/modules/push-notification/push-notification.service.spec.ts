@@ -45,7 +45,7 @@ describe('PushNotificationService', () => {
             findActiveByUserIds: jest.fn(),
             markUsed: jest.fn(),
             deactivate: jest.fn(),
-            findAllActiveSubscriptions: jest.fn(),
+            findUserIdsWithActiveSubscriptions: jest.fn(),
           },
         },
         {

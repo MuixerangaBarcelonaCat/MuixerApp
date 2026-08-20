@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
-import { In, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { AttendanceStatus, NotificationTargetType } from '@muixer/shared';
 import { Attendance } from '../event/attendance.entity';
 import { User } from '../user/user.entity';
@@ -67,15 +67,12 @@ export class PushNotificationService {
   }
 
   async dispatchToAllUsers(payload: { title: string; body: string; url?: string }): Promise<void> {
-    const subscriptions = await this.subscriptionService.findAllActiveSubscriptions();
-    if (subscriptions.length === 0) return;
+    const userIds = await this.subscriptionService.findUserIdsWithActiveSubscriptions();
+    if (userIds.length === 0) return;
 
     this.eventEmitter.emit(
       'push.requested',
-      new PushRequestedEvent(
-        [...new Set(subscriptions.map((s) => s.userId))],
-        { ...payload, icon: '/icons/icon-192.png' },
-      ),
+      new PushRequestedEvent(userIds, { ...payload, icon: '/icons/icon-192.png' }),
     );
   }
 
@@ -93,8 +90,10 @@ export class PushNotificationService {
         .createQueryBuilder('a')
         .innerJoin('a.person', 'p')
         .innerJoin('p.user', 'u')
+        .innerJoin('a.event', 'e')
         .select('u.id', 'userId')
-        .where('a.event = :eventId', { eventId });
+        .where('e.id = :eventId', { eventId })
+        .andWhere('u.isActive = true');
 
       if (attendanceFilter) {
         qb.andWhere('a.status = :status', { status: attendanceFilter as AttendanceStatus });

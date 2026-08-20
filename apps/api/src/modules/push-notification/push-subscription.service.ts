@@ -38,6 +38,10 @@ export class PushSubscriptionService {
         // Different user owns this endpoint — shouldn't happen in practice, but protect it.
         throw new BadRequestException('Endpoint ja registrat per un altre usuari');
       }
+      // Re-enabling a previously deactivated endpoint still counts against the device cap.
+      if (!existing.isActive) {
+        await this.assertUnderDeviceCap(userId);
+      }
       await this.repo.update(existing.id, {
         keys: dto.keys,
         userAgent: dto.userAgent ?? null,
@@ -46,11 +50,7 @@ export class PushSubscriptionService {
       return this.repo.findOneOrFail({ where: { id: existing.id } });
     }
 
-    // Enforce max 10 active subscriptions per user.
-    const activeCount = await this.repo.count({ where: { userId, isActive: true } });
-    if (activeCount >= MAX_ACTIVE_SUBSCRIPTIONS_PER_USER) {
-      throw new BadRequestException(`Màxim ${MAX_ACTIVE_SUBSCRIPTIONS_PER_USER} dispositius per usuari`);
-    }
+    await this.assertUnderDeviceCap(userId);
 
     const subscription = this.repo.create({
       userId,
@@ -60,6 +60,14 @@ export class PushSubscriptionService {
       isActive: true,
     });
     return this.repo.save(subscription);
+  }
+
+  /** Enforce max active subscriptions per user. */
+  private async assertUnderDeviceCap(userId: string): Promise<void> {
+    const activeCount = await this.repo.count({ where: { userId, isActive: true } });
+    if (activeCount >= MAX_ACTIVE_SUBSCRIPTIONS_PER_USER) {
+      throw new BadRequestException(`Màxim ${MAX_ACTIVE_SUBSCRIPTIONS_PER_USER} dispositius per usuari`);
+    }
   }
 
   async unsubscribe(userId: string, endpoint: string): Promise<void> {
@@ -83,11 +91,14 @@ export class PushSubscriptionService {
     }) as unknown as PushSubscriptionData[];
   }
 
-  async findAllActiveSubscriptions(): Promise<PushSubscriptionData[]> {
-    return this.repo.find({
-      select: { id: true, userId: true, endpoint: true, keys: true },
-      where: { isActive: true },
-    }) as unknown as PushSubscriptionData[];
+  /** Distinct user ids that currently have at least one active subscription. */
+  async findUserIdsWithActiveSubscriptions(): Promise<string[]> {
+    const rows = await this.repo
+      .createQueryBuilder('sub')
+      .select('DISTINCT sub.user_id', 'userId')
+      .where('sub.isActive = true')
+      .getRawMany<{ userId: string }>();
+    return rows.map((r) => r.userId);
   }
 
   async deactivate(subscriptionId: string): Promise<void> {

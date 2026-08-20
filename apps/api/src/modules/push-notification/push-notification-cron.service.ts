@@ -37,12 +37,8 @@ export class PushNotificationCronService {
       // Mark sent before emitting to prevent double-dispatch on slow runs.
       await this.newsRepo.update(item.id, { pushSentAt: new Date() });
 
-      const subscriptions = await this.subscriptionService.findAllActiveSubscriptions();
-      if (subscriptions.length === 0) continue;
-
-      const userIds = [
-        ...new Set(subscriptions.map((s) => s.userId)),
-      ];
+      const userIds = await this.subscriptionService.findUserIdsWithActiveSubscriptions();
+      if (userIds.length === 0) continue;
 
       this.eventEmitter.emit(
         'push.requested',

@@ -11,7 +11,6 @@ self.addEventListener('push', (event) => {
     self.registration.showNotification(title || 'MuixerApp', {
       body: body || '',
       icon: icon || '/icons/icon-192.png',
-      badge: '/icons/badge-72.png',
       data: { url },
       vibrate: [200, 100, 200],
     }),

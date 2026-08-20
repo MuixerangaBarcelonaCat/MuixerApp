@@ -83,6 +83,28 @@ describe('PushSubscriptionService', () => {
       expect(result).toEqual(existingSub);
     });
 
+    it('enforces the device cap when re-enabling an inactive endpoint', async () => {
+      userRepo.findOne.mockResolvedValue(makeUser('person-1'));
+      const existingSub = { id: 'sub-1', userId: 'user-1', endpoint: 'https://fcm.googleapis.com/push/1', keys: {}, isActive: false } as PushSubscription;
+      repo.findOne.mockResolvedValueOnce(existingSub);
+      repo.count.mockResolvedValue(10);
+
+      const dto = makeDto({ endpoint: 'https://fcm.googleapis.com/push/1' });
+      await expect(service.register('user-1', dto)).rejects.toThrow(BadRequestException);
+      expect(repo.update).not.toHaveBeenCalled();
+    });
+
+    it('skips the cap check when the endpoint is already active', async () => {
+      userRepo.findOne.mockResolvedValue(makeUser('person-1'));
+      const existingSub = { id: 'sub-1', userId: 'user-1', endpoint: 'https://fcm.googleapis.com/push/1', keys: {}, isActive: true } as PushSubscription;
+      repo.findOne.mockResolvedValueOnce(existingSub);
+      repo.update.mockResolvedValue({ affected: 1 } as never);
+      repo.findOneOrFail.mockResolvedValue(existingSub);
+
+      await service.register('user-1', makeDto({ endpoint: 'https://fcm.googleapis.com/push/1' }));
+      expect(repo.count).not.toHaveBeenCalled();
+    });
+
     it('throws BadRequestException when another user owns the same endpoint', async () => {
       userRepo.findOne.mockResolvedValue(makeUser('person-1'));
       const existingSub = { id: 'sub-1', userId: 'other-user', endpoint: 'https://fcm.googleapis.com/push/1' } as PushSubscription;

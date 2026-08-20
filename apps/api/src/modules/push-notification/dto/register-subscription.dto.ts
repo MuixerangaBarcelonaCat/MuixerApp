@@ -6,7 +6,7 @@ import {
   MaxLength,
   IsUrl,
   ValidateNested,
-  IsIn,
+  IsDefined,
 } from 'class-validator';
 
 const ALLOWED_PUSH_DOMAINS = [
@@ -30,6 +30,7 @@ export class RegisterSubscriptionDto {
   @IsNotEmpty()
   endpoint: string;
 
+  @IsDefined()
   @ValidateNested()
   @Type(() => PushKeysDto)
   keys: PushKeysDto;
