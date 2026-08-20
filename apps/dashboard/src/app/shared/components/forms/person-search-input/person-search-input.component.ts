@@ -9,6 +9,8 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { LucideAngularModule, Search } from 'lucide-angular';
+import { BadgeComponent } from '@muixer/ui';
 import { PersonService } from '../../../../features/persons/services/person.service';
 import { Person } from '../../../../features/persons/models/person.model';
 
@@ -16,11 +18,13 @@ import { Person } from '../../../../features/persons/models/person.model';
   selector: 'app-person-search-input',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, LucideAngularModule, BadgeComponent],
   templateUrl: './person-search-input.component.html',
 })
 export class PersonSearchInputComponent implements OnDestroy {
   private readonly personService = inject(PersonService);
+
+  protected readonly SearchIcon = Search;
 
   placeholder = input('Cerca persona...');
   excludeIds = input<string[]>([]);

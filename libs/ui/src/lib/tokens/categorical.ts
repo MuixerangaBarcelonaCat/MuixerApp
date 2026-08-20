@@ -1,4 +1,4 @@
-import { hexToOklch, tone, OklchColor, ThemeMode } from './color';
+import { formatHex, hexToOklch, tone, OklchColor, ThemeMode } from './color';
 import { SEMANTIC, SEMANTIC_LIGHT } from './fixed-colors';
 
 export interface CategoricalPalette {
@@ -14,12 +14,12 @@ const CATEGORICAL_BASE_HEX: readonly string[] = [
   SEMANTIC.error, // red
   SEMANTIC.success, // green
   SEMANTIC.info, // blue
-  SEMANTIC.warning, // gold (yellow)
-  '#6B4C91', // purple — no semantic role, categorical-only
+  '#cfa72b', // gold (yellow)
+  '#77579e', // purple — no semantic role, categorical-only
   '#D4793B', // orange — no semantic role, categorical-only
-  '#14808C', // teal   — new, gap between green and blue
+  '#248995', // teal   — new, gap between green and blue
   '#BF609B', // pink   — new, gap between purple and red
-  '#703E2E', // brown  — new, deliberately darker/more desaturated than red/orange rather than
+  '#915c4b', // brown  — new, deliberately darker/more desaturated than red/orange rather than
   //           hue-separated from them, since brown reads as an earth tone, not a distinct hue
   '#768A42', // olive  — new, gap between gold and green
 ];
@@ -29,14 +29,14 @@ const CATEGORICAL_BASE_HEX: readonly string[] = [
 // below); reusing these pale values unmodified in dark mode would read as a glow, not a
 // receding shadow tone.
 const FIXED_LIGHT_HEX: readonly (string | undefined)[] = [
-  SEMANTIC_LIGHT.error,
-  SEMANTIC_LIGHT.success,
-  SEMANTIC_LIGHT.info,
-  SEMANTIC_LIGHT.warning,
-  '#C4B0DC', // purple-light
-  '#E8C0A0', // orange-light
+  '#f39891',
   undefined,
   undefined,
+  '#fcd97b',
+  undefined,
+  '#facfb6',
+  undefined,
+  '#f0b7d8',
   undefined,
   undefined,
 ];
@@ -48,4 +48,12 @@ export function buildCategoricalPalette(mode: ThemeMode): CategoricalPalette {
     return literalLight ? hexToOklch(literalLight) : tone(base, 'muted', mode);
   });
   return { normal, light };
+}
+
+// Flat hex list for plain swatch pickers (e.g. a domain color-picker's preset grid) that store a
+// hex string, not an OklchColor — the 10 normal hues followed by their 10 light companions,
+// light-mode values only (a preset list has no runtime mode to react to, unlike a rendered token).
+export function buildCategoricalHexPresets(): string[] {
+  const { normal, light } = buildCategoricalPalette('light');
+  return [...normal, ...light].map(formatHex);
 }

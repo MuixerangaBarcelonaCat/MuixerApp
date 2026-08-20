@@ -6,15 +6,14 @@ import {
 } from '@angular/core';
 import { TagService } from '../../services/tag.service';
 import { TagWithCount } from '../../models/tag.model';
-import { ToastService } from '@muixer/ui';
+import { ButtonComponent, BadgeComponent, EmptyStateComponent, ModalComponent, ToastService } from '@muixer/ui';
 import { PageHeaderComponent } from '../../../../shared/components/data/page-header/page-header.component';
-import { EmptyStateComponent } from '../../../../shared/components/data/empty-state/empty-state.component';
+import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { TagFormModalComponent } from '../tag-form-modal/tag-form-modal.component';
 import {
   TRONC_NODE_PRESETS,
   PINYA_NODE_PRESETS,
   DIRECTION_NODE_PRESETS,
-  getContrastColor,
 } from '@muixer/shared';
 
 @Component({
@@ -23,8 +22,11 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     PageHeaderComponent,
-    EmptyStateComponent,
     TagFormModalComponent,
+    ButtonComponent,
+    BadgeComponent,
+    EmptyStateComponent,
+    ModalComponent,
   ],
   templateUrl: './tags-list.component.html',
 })
@@ -32,14 +34,14 @@ export class TagsListComponent {
   private readonly tagService = inject(TagService);
   private readonly toast = inject(ToastService);
 
+  readonly ICON_TAG = DOMAIN_ICONS.TAG;
+
   readonly tags = signal<TagWithCount[]>([]);
   readonly loading = signal(false);
   readonly modalOpen = signal(false);
   readonly selectedTag = signal<TagWithCount | null>(null);
   readonly confirmDeleteTarget = signal<TagWithCount | null>(null);
   readonly deleting = signal(false);
-
-  readonly getContrastColor = getContrastColor;
 
   readonly positionTypeMeta: Record<string, { label: string; color: string }> = [
     ...TRONC_NODE_PRESETS.map((p) => ({ positionType: p.positionType, label: p.label, color: p.color })),

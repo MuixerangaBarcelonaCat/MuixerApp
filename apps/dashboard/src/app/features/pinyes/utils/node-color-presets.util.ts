@@ -5,11 +5,13 @@ import {
   DIRECTION_NODE_PRESETS,
 } from '@muixer/shared';
 import { FIGURE_PALETTE, SINGLE_FIGURE_SHADOW_COLOR } from '@muixer/pinyes-render';
+import { buildCategoricalHexPresets } from '@muixer/ui';
 
 const DECORATION_PALETTE = [...FIGURE_PALETTE, '#000000', SINGLE_FIGURE_SHADOW_COLOR, '#eeeeee'];
 
 /** Returns the recommended swatch palette for a node's zone (deduplicated). Empty for BASE — no predefined colors. */
 export function getPresetColorsForZone(zone: FigureZone): string[] {
+  return buildCategoricalHexPresets();
   let colors: string[];
   switch (zone) {
     case FigureZone.PINYA:

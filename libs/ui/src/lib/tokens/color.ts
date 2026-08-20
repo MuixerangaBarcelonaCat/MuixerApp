@@ -1,4 +1,4 @@
-import { clampChroma, converter } from 'culori';
+import { clampChroma, converter, formatHex as culoriFormatHex } from 'culori';
 import { APCAcontrast, sRGBtoY } from 'apca-w3';
 
 const toOklch = converter('oklch');
@@ -30,6 +30,14 @@ export function formatOklch(color: OklchColor, alpha = 1): string {
   return alpha < 1
     ? `oklch(${lPercent}% ${c} ${h} / ${round(alpha, 2)})`
     : `oklch(${lPercent}% ${c} ${h})`;
+}
+
+// For consumers that need a plain hex swatch (e.g. a preset-color picker's stored value) rather
+// than a CSS oklch() string — gamut-mapped the same way contrastContent's own RGB conversion is,
+// since an out-of-gamut oklch value would otherwise format to a clipped/wrong hex.
+export function formatHex(color: OklchColor): string {
+  const clamped = clampChroma({ mode: 'oklch', l: color.l, c: color.c, h: color.h }, 'oklch');
+  return culoriFormatHex(clamped);
 }
 
 export type ThemeMode = 'light' | 'dark';
@@ -64,7 +72,7 @@ const TONE_SHIFTS: Record<ToneVariant, ToneShift> = {
   disabled: { dl: 0.2, cFactor: 0.35, recedes: true, recedeExtremeGap: 0.12 },
   // dl/cFactor grounded empirically: the fixed palette's own base→light accent pairs average
   // deltaL ≈ 0.22 with chroma roughly halved (see fixed-colors.ts's SEMANTIC/SEMANTIC_LIGHT pairs).
-  muted: { dl: 0.22, cFactor: 0.5, recedes: true },
+  muted: { dl: 0.22, cFactor: 0.7, recedes: true },
   weave: { dl: 0.05, cFactor: 1, recedes: false },
 };
 

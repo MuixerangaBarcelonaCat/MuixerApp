@@ -2,6 +2,7 @@ import {
   Baby,
   Bell,
   Calendar,
+  CalendarRange,
   ChessRook,
   CircleAlert,
   CirclePile,
@@ -10,9 +11,12 @@ import {
   GitCommitHorizontal,
   LayoutGrid,
   Newspaper,
+  ShieldCheck,
   Sparkles,
   Star,
+  Tag,
   Users,
+  UserCog,
   UserX,
 } from 'lucide-angular';
 
@@ -53,4 +57,9 @@ export const DOMAIN_ICONS = {
   NOTICIA: Newspaper,
   BELL: Bell,
   USER_X: UserX,
+  USER_COG: UserCog,
+  TAG: Tag,
+  CALENDAR_RANGE: CalendarRange,
+  SHIELD_CHECK: ShieldCheck,
+  DESIGN_SYSTEM: Sparkles,
 } as const;

@@ -8,11 +8,10 @@ import {
 import { RouterLink } from '@angular/router';
 import { SeasonService } from '../../../events/services/season.service';
 import { Season } from '../../../events/models/event.model';
-import { ToastService } from '@muixer/ui';
+import { ButtonComponent, BadgeComponent, EmptyStateComponent, ModalComponent, ToastService } from '@muixer/ui';
 import { PageHeaderComponent } from '../../../../shared/components/data/page-header/page-header.component';
-import { EmptyStateComponent } from '../../../../shared/components/data/empty-state/empty-state.component';
 import { SeasonFormModalComponent } from '../season-form-modal/season-form-modal.component';
-import { ICON_ASSAIG } from '../../../../shared/constants/domain-icons';
+import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 
 @Component({
   selector: 'app-season-list',
@@ -21,13 +20,16 @@ import { ICON_ASSAIG } from '../../../../shared/constants/domain-icons';
   imports: [
     RouterLink,
     PageHeaderComponent,
-    EmptyStateComponent,
     SeasonFormModalComponent,
+    ButtonComponent,
+    BadgeComponent,
+    EmptyStateComponent,
+    ModalComponent,
   ],
   templateUrl: './season-list.component.html',
 })
 export class SeasonListComponent {
-  readonly ICON_ASSAIG = ICON_ASSAIG;
+  readonly ICON_ASSAIG = DOMAIN_ICONS.ASSAIG;
 
   private readonly seasonService = inject(SeasonService);
   private readonly toast = inject(ToastService);

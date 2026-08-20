@@ -8,6 +8,7 @@ import {
   viewChild,
   HostListener,
   computed,
+  effect,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule } from 'lucide-angular';
@@ -49,6 +50,31 @@ export class ColorPickerComponent {
 
   private static readonly POPOVER_WIDTH = 190;
   private static readonly VIEWPORT_MARGIN = 8;
+
+  constructor() {
+    // Promotes the popover into the browser's top layer (Popover API) the moment `@if` adds it
+    // to the DOM. Two real bugs otherwise show up whenever this component is nested inside
+    // `lib-modal`: DaisyUI's `.modal-box` always carries a `transform` (its own open/close scale
+    // animation, present even at rest as an identity transform) — any `transform`, including an
+    // identity one, redefines the containing block for `position: fixed` descendants away from
+    // the viewport, so the popover's viewport-relative `top`/`left` (from `computePopoverPosition`
+    // below) land far from the trigger; and `lib-modal`'s scrollable body (`overflow-y-auto`)
+    // still clips a `fixed` descendant during paint even though its layout position ignores
+    // scrolling. Top-layer elements use the viewport as their containing block and are exempt
+    // from ancestor overflow clipping, fixing both. `manual` (not `auto`) mode is deliberate: this
+    // component already drives open/close itself (`dropdownOpen`, the document click/Escape
+    // listeners below) — `auto` mode's own native light-dismiss would race with that. No need to
+    // call `hidePopover()` on close: removing a shown popover element from the DOM (which `@if`
+    // already does) auto-cleans up its top-layer entry. Feature-detected so browsers without the
+    // Popover API fall back to the pre-existing (viewport-relative, non-top-layer) behavior.
+    effect(() => {
+      if (!this.dropdownOpen()) return;
+      const el = this.dropdownRef()?.nativeElement as (HTMLElement & { showPopover?: () => void }) | undefined;
+      if (el && typeof el.showPopover === 'function' && !el.matches(':popover-open')) {
+        el.showPopover();
+      }
+    });
+  }
 
   toggleDropdown(): void {
     if (this.dropdownOpen()) {

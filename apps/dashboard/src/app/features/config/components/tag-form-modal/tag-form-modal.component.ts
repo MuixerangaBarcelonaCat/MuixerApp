@@ -14,11 +14,11 @@ import {
   DIRECTION_NODE_PRESETS,
   TroncNodePreset,
   NodePreset,
-  getContrastColor,
 } from '@muixer/shared';
 import { TagService } from '../../services/tag.service';
 import { TagWithCount, CreateTagDto, UpdateTagDto } from '../../models/tag.model';
-import { ToastService } from '@muixer/ui';
+import { BadgeComponent, ButtonComponent, InputComponent, ModalComponent, ToastService, buildCategoricalHexPresets } from '@muixer/ui';
+import { ColorPickerComponent } from '../../../../shared/components/forms/color-picker/color-picker.component';
 
 export interface PresetOption {
   positionType: string;
@@ -37,7 +37,7 @@ const DEFAULT_COLOR = '#6366f1';
   selector: 'app-tag-form-modal',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, BadgeComponent, ButtonComponent, ColorPickerComponent, InputComponent, ModalComponent],
   templateUrl: './tag-form-modal.component.html',
 })
 export class TagFormModalComponent {
@@ -51,7 +51,11 @@ export class TagFormModalComponent {
 
   readonly saving = signal(false);
   readonly selectedPositionTypes = signal<string[]>([]);
-  readonly getContrastColor = getContrastColor;
+
+  // The categorical palette (§2.1i) — 10 hues, normal + light — rather than an arbitrary swatch
+  // set: a tag's color is exactly the same "curated set of distinguishable colors" concern as the
+  // canvas's own categorical palette (see Phase 1 audit, §1.3's "domain-color seams" finding).
+  readonly colorPresets = buildCategoricalHexPresets();
 
   readonly positionTypeGroups: PositionTypeGroup[] = [
     {
@@ -127,6 +131,10 @@ export class TagFormModalComponent {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '');
     this.form.get('slug')!.setValue(slug, { emitEvent: false });
+  }
+
+  onColorChange(hex: string): void {
+    this.form.get('color')!.setValue(hex);
   }
 
   isPositionTypeSelected(positionType: string): boolean {
