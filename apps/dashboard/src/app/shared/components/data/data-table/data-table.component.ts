@@ -96,6 +96,12 @@ export class DataTableComponent<T extends object> {
     return !!col.sortField && this.sortBy() === col.sortField;
   }
 
+  onCellClick(event: MouseEvent, col: ColumnDef<T>, item: T): void {
+    if (!col.onCellClick) return;
+    event.stopPropagation();
+    col.onCellClick(item);
+  }
+
   onSort(col: ColumnDef<T>): void {
     if (!col.sortField) return;
     const field = col.sortField;
@@ -113,6 +119,13 @@ export class DataTableComponent<T extends object> {
   getCellValue(item: T, col: ColumnDef<T>): string | number | null | undefined {
     if (col.value) return col.value(item);
     return (item as Record<string, unknown>)[col.key] as string | number | null | undefined;
+  }
+
+  /** The full, untruncated text for a cell's `title` tooltip — pills have no plain `value` of
+   *  their own, so their fragments are joined instead. */
+  getCellTitle(item: T, col: ColumnDef<T>): string {
+    if (col.type === 'pills' && col.pills) return col.pills(item).map((p) => p.text).join(' ');
+    return String(this.getCellValue(item, col) ?? '');
   }
 
   isSecondaryGroup(item: T): boolean {

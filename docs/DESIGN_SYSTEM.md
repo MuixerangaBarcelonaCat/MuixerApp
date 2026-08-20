@@ -62,9 +62,10 @@ Every `InteractiveRole` (`primary`/`secondary`/`accent`/`neutral`/`info`/`succes
 FONT_FAMILY.sans    // Quicksand — global body default (both apps' current `html { font-family }`)
 FONT_FAMILY.serif   // Fraunces — display headings (principle #1's "hand-made" character)
 FONT_FAMILY.legible // Atkinson Hyperlegible Next — canvas figure/node name labels specifically
+FONT_FAMILY.mono    // Atkinson Hyperlegible Mono — aliases, typed/search fields, other short fixed-width IDs
 ```
 
-All three are self-hosted via `@fontsource/*` imports in both apps' `styles.scss` and exposed as Tailwind utilities (`font-sans`/`font-serif`/`font-legible`). **`serif` first applied in Phase 7** — the dashboard `/home` greeting (`<h1>`) is the first real usage, setting the precedent for other page-level `<h1>` headings as their turn comes in the rollout, not yet applied retroactively to already-shipped pages. **`legible` is not yet applied anywhere** — its intended use (canvas labels) waits on the Tier 5 canvas token bridge.
+All four are self-hosted via `@fontsource/*` imports in both apps' `styles.scss` and exposed as Tailwind utilities (`font-sans`/`font-serif`/`font-legible`/`font-mono`). **`serif` first applied in Phase 7** — the dashboard `/home` greeting (`<h1>`) is the first real usage, setting the precedent for other page-level `<h1>` headings as their turn comes in the rollout, not yet applied retroactively to already-shipped pages. **`legible` is not yet applied anywhere** — its intended use (canvas labels) waits on the Tier 5 canvas token bridge. **`mono` overrides Tailwind's own generic system-monospace default** — every existing (and future) `font-mono` usage across both apps picks up the real font automatically, no per-call-site change needed; same Atkinson Hyperlegible family as `legible`, in its monospace cut, chosen for the same legibility-first reasoning.
 
 ### Radius
 
@@ -217,6 +218,35 @@ Output: `clicked` (only with `clickable`). The sash is a woven two-tone diagonal
 <lib-card sash="thin"><p>Plain content, thin divider only.</p></lib-card>
 <lib-card tone="warning"><p>Alert/notice-style content, no sash.</p></lib-card>
 ```
+
+### `lib-tabs`
+
+`role="tablist"` nav (DaisyUI `.tabs`) driven by a data array of `TabDef`s (`{ id, label, icon? }`) and one `activeId`/`(activeIdChange)` pair, replacing three previously-independent, near-duplicate implementations: the event-detail Resum/Pinyes/Assistència/Participació strip, the segment-workspace Pinyes/Troncs/Distribució/Nodes extra/Previsualitza strip, and the template editor's Pinya/Rengles/Tronc mode switcher (a real mutually-exclusive mode despite its previous `aria-pressed` toggle-button markup — see the component's own doc comment). Owns the `tablist` nav only, not content switching: the caller still decides how to mount/hide/lazy-render whatever `activeId` points at, same "caller drives it" philosophy as `lib-button-group`. Internalizes the WAI-ARIA roving-tabindex keyboard pattern (Left/Right/Home/End) so every consumer gets it uniformly, including the two that didn't have it before.
+
+| Input | Type | Default | Notes |
+|-------|------|---------|-------|
+| `tabs` | `TabDef[]` | required | `{ id: string; label: string; icon?: LucideIconData }` |
+| `activeId` | `string` | required | |
+| `style` | `'boxed'\|'bordered'` | `'boxed'` | Maps 1:1 to DaisyUI's own `tabs-boxed`/`tabs-bordered` modifiers |
+| `ariaLabel` | `string` | `''` | |
+| `testIdPrefix` | `string` | `''` | Opt-in `data-testid="{prefix}-{tab.id}"` per button, for call sites whose specs already query by test id (e.g. event-detail) |
+| `panelIdPrefix` | `string` | `'tabpanel-'` | `aria-controls` target per tab — override when the caller's own panel ids don't match the generic default |
+
+Output: `activeIdChange` — only emitted when a *different* tab is selected (clicking the already-active tab, or pressing arrow keys that land back on it, is a no-op). One real behavior change this caused during rollout: the template editor's Rengles button used to toggle back to Pinya mode when clicked a second time (an `aria-pressed` toggle button); as a tab it no longer self-deselects, which is the semantically correct call for `role="tab"` but is worth knowing if a future consumer expects toggle-off.
+
+**`:host` is `display: contents`** — same as every other `lib-*` here. A margin-based spacing utility (`space-y-*`, `mt-*`) on the parent has nothing to attach to on `<lib-tabs>` itself and silently does nothing; wrap it in a real element (`<div class="mt-4">`) to reach it — this exact bug shipped once in `event-detail` and was caught the same day. `gap-*` on a flex/grid ancestor works with no wrapper, as usual.
+
+```html
+<lib-tabs
+  [tabs]="tabDefs"
+  [activeId]="activeTab()"
+  ariaLabel="Seccions de l'esdeveniment"
+  panelIdPrefix="event-tabpanel-"
+  (activeIdChange)="setTab($event)"
+/>
+```
+
+Live on `/design-system` right after `lib-card`, and rolled out to event-detail, segment-workspace, and the template editor. Deliberately **not** used for the top bar's Inici/Persones/Assajos nav (`tab-nav.component`) — that's route-driven with a mobile hamburger-collapse fallback, a different responsibility (app-level navigation vs. in-page section switching), and stays visually distinct (underline, shirt-colored) on purpose.
 
 ### `lib-form-field`
 

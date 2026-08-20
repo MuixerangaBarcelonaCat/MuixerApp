@@ -208,11 +208,11 @@ describe('EventParticipationComponent — personLabel', () => {
     expect(component.personLabel(row)).toContain('⚠️');
   });
 
-  /** Level 2 of the conflict warning: the only one that survives horizontal scrolling,
-   *  because this column is the sticky one. */
-  it('marks a conflicted person with the conflict glyph', () => {
+  /** The conflict glyph itself is rendered as the `person` column's coloured `prefix`,
+   *  not folded into this plain-text label — see the `prefix` test below. */
+  it('does not fold the conflict glyph into the plain-text label', () => {
     const row = makePerson('p1', 'PERSIANA', {}, { conflictSegmentIds: [SEG_A] });
-    expect(component.personLabel(row)).toContain('‼');
+    expect(component.personLabel(row)).not.toContain('‼');
   });
 
   it('does NOT mark a person who simply has nothing to do', () => {
@@ -516,7 +516,7 @@ describe('EventParticipationComponent', () => {
       const fixture = await setup();
       const pills = pillsOf(fixture, `segment-${SEG_A}`, 'XURRO');
 
-      expect(pills.every((p) => !p.class.includes('conflict'))).toBe(true);
+      expect(pills.every((p) => !p.class.includes('text-error'))).toBe(true);
       expect(fixture.componentInstance.personLabel(
         fixture.componentInstance.persons().find((p) => p.alias === 'XURRO')!,
       )).toBe('XURRO');
@@ -538,7 +538,7 @@ describe('EventParticipationComponent', () => {
       });
       const fixture = await setup(response);
 
-      expect(pillsOf(fixture, `segment-${SEG_A}`, 'XURRO').every((p) => !p.class.includes('conflict'))).toBe(true);
+      expect(pillsOf(fixture, `segment-${SEG_A}`, 'XURRO').every((p) => !p.class.includes('text-error'))).toBe(true);
     });
   });
 
@@ -562,14 +562,14 @@ describe('EventParticipationComponent', () => {
       const pills = pillsOf(fixture, `segment-${SEG_A}`, 'PERSIANA');
 
       expect(pills[0].text).toBe('‼');
-      expect(pills.every((p) => p.class.includes('conflict'))).toBe(true);
+      expect(pills.every((p) => p.class.includes('text-error'))).toBe(true);
       expect(pills.map((p) => p.text).slice(1)).toEqual(['Mans C2 · 4d7', 'Vent C1 · 4d7']);
     });
 
     it('leaves the non-conflicted person in the same segment unstyled', async () => {
       const fixture = await setup(conflictResponse());
 
-      expect(pillsOf(fixture, `segment-${SEG_A}`, 'GRILLAT').every((p) => !p.class.includes('conflict'))).toBe(true);
+      expect(pillsOf(fixture, `segment-${SEG_A}`, 'GRILLAT').every((p) => !p.class.includes('text-error'))).toBe(true);
     });
 
     it('shows the header counter, which does not depend on horizontal scrolling', async () => {
@@ -580,6 +580,26 @@ describe('EventParticipationComponent', () => {
       expect(
         fixture.nativeElement.querySelector('[data-testid="participation-conflict-counter"]'),
       ).toBeTruthy();
+    });
+
+    /** The `person` column's sticky/primary cell renders this glyph in the theme's error
+     *  color, independent of `personLabel`'s own plain-text string (see the pure-unit tests
+     *  above) — the only one of the three per-row marks that also survives horizontal
+     *  scrolling, since this is the sticky column. */
+    it('marks a conflicted person with a coloured prefix on the primary column', async () => {
+      const fixture = await setup(conflictResponse());
+      const persiana = fixture.componentInstance.persons().find((p) => p.alias === 'PERSIANA')!;
+      const personColumn = fixture.componentInstance.columns().find((c) => c.key === 'person')!;
+
+      expect(personColumn.prefix?.(persiana)).toEqual({ text: '‼', class: 'text-error font-bold' });
+    });
+
+    it('does not mark a non-conflicted person with the prefix', async () => {
+      const fixture = await setup(conflictResponse());
+      const grillat = fixture.componentInstance.persons().find((p) => p.alias === 'GRILLAT')!;
+      const personColumn = fixture.componentInstance.columns().find((c) => c.key === 'person')!;
+
+      expect(personColumn.prefix?.(grillat)).toBeNull();
     });
 
     it('pluralises the counter', async () => {
@@ -606,7 +626,7 @@ describe('EventParticipationComponent', () => {
 
       const positions = pillsOf(fixture, 'segPosition', 'PERSIANA');
       expect(positions.map((p) => p.text)).toEqual(['Mans C2', 'Vent C1']);
-      expect(positions.every((p) => p.class.includes('conflict'))).toBe(true);
+      expect(positions.every((p) => p.class.includes('text-error'))).toBe(true);
     });
 
     /** Placements in DIFFERENT segments are legal: the person is in two places at
@@ -620,7 +640,7 @@ describe('EventParticipationComponent', () => {
       expect(persiana.conflictSegmentIds).toEqual([]);
       expect(fixture.componentInstance.hasConflicts()).toBe(false);
       expect(fixture.componentInstance.personLabel(persiana)).not.toContain('‼');
-      expect(pillsOf(fixture, `segment-${SEG_A}`, 'PERSIANA').every((p) => !p.class.includes('conflict'))).toBe(true);
+      expect(pillsOf(fixture, `segment-${SEG_A}`, 'PERSIANA').every((p) => !p.class.includes('text-error'))).toBe(true);
     });
   });
 
@@ -738,15 +758,16 @@ describe('EventParticipationComponent', () => {
       fixture.detectChanges();
 
       const pills = pillsOf(fixture, `segment-${SEG_A}`, 'PERSIANA');
-      expect(pills.every((p) => p.class.includes('conflict'))).toBe(true);
+      expect(pills.every((p) => p.class.includes('text-error'))).toBe(true);
     });
 
-    it('does not touch the row-level conflict glyph, which is event-wide', async () => {
+    it('does not touch the row-level conflict prefix, which is event-wide', async () => {
       const fixture = await setup(areaResponse());
       fixture.componentInstance.onAreaChange('PINYA');
 
       const persiana = fixture.componentInstance.persons().find((p) => p.alias === 'PERSIANA')!;
-      expect(fixture.componentInstance.personLabel(persiana)).toContain('‼');
+      const personColumn = fixture.componentInstance.columns().find((c) => c.key === 'person')!;
+      expect(personColumn.prefix?.(persiana)).toEqual({ text: '‼', class: 'text-error font-bold' });
     });
 
     it('excludes DIRECTION placements from both "Només troncs" and "Només pinyes"', async () => {
@@ -784,7 +805,7 @@ describe('EventParticipationComponent', () => {
 
       const zonePills = pillsOf(fixture, 'segZone', 'PERSIANA');
       expect(zonePills.map((p) => p.text)).toEqual(['Tronc']);
-      expect(zonePills.every((p) => p.class.includes('conflict'))).toBe(true);
+      expect(zonePills.every((p) => p.class.includes('text-error'))).toBe(true);
     });
 
     it('lists the filter as a chip and clears it from there', async () => {
@@ -907,8 +928,8 @@ describe('EventParticipationComponent', () => {
       });
       const fixture = await setup(response);
 
-      expect(pillsOf(fixture, 'troncDetail', 'CONFLICTIVA').every((p) => p.class.includes('conflict'))).toBe(true);
-      expect(pillsOf(fixture, 'troncDetail', 'NORMAL').every((p) => !p.class.includes('conflict'))).toBe(true);
+      expect(pillsOf(fixture, 'troncDetail', 'CONFLICTIVA').every((p) => p.class.includes('text-error'))).toBe(true);
+      expect(pillsOf(fixture, 'troncDetail', 'NORMAL').every((p) => !p.class.includes('text-error'))).toBe(true);
     });
   });
 
@@ -1005,7 +1026,7 @@ describe('EventParticipationComponent', () => {
         }),
       );
 
-      expect(fixture.nativeElement.querySelector('app-empty-state')).toBeTruthy();
+      expect(fixture.nativeElement.querySelector('lib-empty-state')).toBeTruthy();
       expect(fixture.nativeElement.querySelector('app-data-table')).toBeFalsy();
     });
 

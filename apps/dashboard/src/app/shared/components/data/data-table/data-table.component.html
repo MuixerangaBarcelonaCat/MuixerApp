@@ -75,21 +75,33 @@
               }
 
               <tr
-                class="hover cursor-pointer transition-colors"
+                class="group hover cursor-pointer transition-colors"
                 [class.opacity-60]="isSecondaryGroup(item)"
                 (click)="rowClick.emit($any(item))"
               >
                 @for (col of displayColumns(); track col.key; let first = $first) {
                   <td
                     class="whitespace-nowrap"
-                    [ngClass]="{ 'sticky left-0 z-[1] font-medium': first }"
+                    [ngClass]="{
+                      'sticky left-0 z-[1] font-medium group-odd:bg-base-100 group-even:bg-base-200': first,
+                      'truncate max-w-[130px]': !first
+                    }"
+                    [attr.title]="!first ? getCellTitle(item, col) : null"
                   >
+                    @if (first && col.prefix?.(item); as p) {
+                      <span [class]="p.class">{{ p.text }}</span>
+                    }
                     @if (col.type === 'badge' && col.badgeClass) {
                       <span class="badge badge-sm" [ngClass]="col.badgeClass(item)">
                         {{ getCellValue(item, col) }}
                       </span>
                     } @else if (col.type === 'pills' && col.pills) {
-                      <span class="inline-flex items-center gap-2">
+                      <span
+                        class="inline-flex items-center gap-2"
+                        [class.cursor-pointer]="!!col.onCellClick"
+                        [class.hover:underline]="!!col.onCellClick"
+                        (click)="onCellClick($event, col, item)"
+                      >
                         <!-- Tracked by index: pills are a positional list with no identity
                              of their own, and two may legitimately carry the same label. -->
                         @for (pill of col.pills(item); track $index) {
@@ -191,6 +203,9 @@
             <div class="flex items-start justify-between gap-2">
               @if (primaryColumn(); as pcol) {
                 <span class="font-semibold text-base break-words">
+                  @if (pcol.prefix?.(item); as p) {
+                    <span [class]="p.class">{{ p.text }}</span>
+                  }
                   {{ getCellValue(item, pcol) ?? '—' }}
                 </span>
               }
@@ -221,7 +236,12 @@
                           {{ getCellValue(item, col) }}
                         </span>
                       } @else if (col.type === 'pills' && col.pills) {
-                        <span class="inline-flex items-center gap-2 flex-wrap justify-end">
+                        <span
+                          class="inline-flex items-center gap-2 flex-wrap justify-end"
+                          [class.cursor-pointer]="!!col.onCellClick"
+                          [class.hover:underline]="!!col.onCellClick"
+                          (click)="onCellClick($event, col, item)"
+                        >
                           <!-- Tracked by index, not by text — see the table-mode branch. -->
                           @for (pill of col.pills(item); track $index) {
                             <span class="text-xs font-semibold tabular-nums" [ngClass]="pill.class">{{ pill.text }}</span>

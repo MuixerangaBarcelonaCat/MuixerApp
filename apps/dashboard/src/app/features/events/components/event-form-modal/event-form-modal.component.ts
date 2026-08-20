@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl } from '@angular/forms';
+import { ButtonComponent, InputComponent, ModalComponent, SelectComponent } from '@muixer/ui';
 import { EventService } from '../../services/event.service';
 import { SeasonService } from '../../services/season.service';
 import { EventDetail, Season, CreateEventPayload, UpdateEventPayload, EventType } from '../../models/event.model';
@@ -19,7 +20,7 @@ import { EventDetail, Season, CreateEventPayload, UpdateEventPayload, EventType 
   selector: 'app-event-form-modal',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, ButtonComponent, InputComponent, ModalComponent, SelectComponent],
   templateUrl: './event-form-modal.component.html',
 })
 export class EventFormModalComponent implements OnInit, OnChanges {

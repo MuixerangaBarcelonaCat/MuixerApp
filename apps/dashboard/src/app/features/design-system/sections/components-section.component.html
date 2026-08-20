@@ -130,6 +130,22 @@
   </div>
 
   <div>
+    <h3 class="text-sm font-semibold text-base-content/70 mb-2">lib-tabs</h3>
+    <div class="mt-4">
+      <lib-tabs
+        [tabs]="demoTabs"
+        [activeId]="activeDemoTab()"
+        ariaLabel="Exemple de pestanyes"
+        (activeIdChange)="activeDemoTab.set($event)"
+      />
+    </div>
+    <p class="text-xs text-base-content/50 mt-2">
+      `:host` is `display: contents` — wrap it (e.g. `mt-4` above) whenever a margin-based
+      spacing utility on an ancestor needs to reach it, `gap-*` works with no wrapper needed.
+    </p>
+  </div>
+
+  <div>
     <h3 class="text-sm font-semibold text-base-content/70 mb-2">lib-input</h3>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
       <lib-input label="Cerca" [icon]="SearchIcon" placeholder="Cerca..." />

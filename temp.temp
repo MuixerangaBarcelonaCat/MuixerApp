@@ -1,0 +1,10 @@
+1. the confirmation is not migrated: keys should be lib-buttons, lib-names should be cards, everything should use the appropriate fonts
+2. in the assistance list, the confirmats/status/search should be in the same row, not like they are now
+3. Confirmats should be a checkbox, not a button (see sols actius checkbox in person list and do the same)
+4. Also in assistencia, the tag badges have not been switched (they should work the same as in the persons list)
+5. In participacio, the selection filters should not be full width
+6. In that same component, the first column of the table is fixed so you can scroll horizontally and still view the names. That is fine, however it is transparent, which means the the texts behind overlap and the person becomes illegible
+7. when there is a conflict, the entries become too long. limit the max length and show the full entry on hover
+8. show the !! next to the names in the error color too
+9. are the app-stat-card formatted as lib-card? they should be
+

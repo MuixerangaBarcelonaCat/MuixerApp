@@ -34,6 +34,15 @@ export interface ColumnDef<T = any> {
   colorBadges?: (item: T) => ColumnColorBadge[];
   /** Makes colorBadges clickable (e.g. click a tag to filter by it) — needs `badge.id` set. */
   onColorBadgeClick?: (id: string, item: T) => void;
+  /** Makes a `pills` cell clickable as a whole (independent of `rowClick`) — e.g. open the
+   *  workshop for what that one cell represents rather than navigating from the row. */
+  onCellClick?: (item: T) => void;
+  /**
+   * A small coloured glyph/marker rendered before this column's own text — for the primary
+   * column only (table mode; card-mode's title stays plain text via `value`, per its own
+   * "no rich rendering in card mode" convention). `null` renders nothing for that row.
+   */
+  prefix?: (item: T) => { text: string; class: string } | null;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -30,6 +30,7 @@ export default {
         sans: [...FONT_FAMILY.sans],
         serif: [...FONT_FAMILY.serif],
         legible: [...FONT_FAMILY.legible],
+        mono: [...FONT_FAMILY.mono],
       },
       boxShadow: {
         raised: SHADOW.raised,

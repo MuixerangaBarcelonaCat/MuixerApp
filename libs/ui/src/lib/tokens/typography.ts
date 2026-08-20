@@ -20,4 +20,8 @@ export const FONT_FAMILY = {
   // Canvas figure/node name labels specifically (Identity principle #1) — legibility at a
   // distance during a real rehearsal is the practical requirement, not decoration.
   legible: ['"Atkinson Hyperlegible Next"', 'system-ui', 'sans-serif'],
+  // Aliases, typed/search fields, and other short fixed-width identifiers — the same
+  // legibility-first family as `legible`, in its monospace cut, replacing Tailwind's generic
+  // system-monospace default everywhere `font-mono` is already used.
+  mono: ['"Atkinson Hyperlegible Mono"', 'ui-monospace', 'monospace'],
 } as const;

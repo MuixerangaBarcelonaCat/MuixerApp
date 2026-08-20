@@ -10,13 +10,12 @@ import {
   OnInit,
   OnDestroy,
 } from '@angular/core';
-import { NgClass } from '@angular/common';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { LucideAngularModule } from 'lucide-angular';
+import { LucideAngularModule, Search, UserCheck } from 'lucide-angular';
+import { ButtonComponent, BadgeComponent, CardComponent, InputComponent, SelectComponent, ToastService, type BadgeVariant } from '@muixer/ui';
 import { ICON_XICALLA } from '../../../../shared/constants/domain-icons';
 import { AttendanceService } from '../../services/attendance.service';
-import { ToastService } from '@muixer/ui';
 import { AttendanceEditModalComponent } from '../attendance-edit-modal/attendance-edit-modal.component';
 import {
   AttendanceItem,
@@ -25,7 +24,7 @@ import {
   AttendanceDeleteResponse,
   AttendancePosition,
 } from '../../models/attendance.model';
-import { AttendanceStatus, AttendanceSummary, getContrastColor, ICON_OBSERVACIONS } from '@muixer/shared';
+import { AttendanceStatus, AttendanceSummary, ICON_OBSERVACIONS } from '@muixer/shared';
 
 /**
  * Attendance list of a single event: filters, table (desktop) / cards (mobile),
@@ -38,19 +37,29 @@ import { AttendanceStatus, AttendanceSummary, getContrastColor, ICON_OBSERVACION
   selector: 'app-attendance-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgClass, FormsModule, LucideAngularModule, AttendanceEditModalComponent],
+  imports: [
+    FormsModule,
+    LucideAngularModule,
+    ButtonComponent,
+    BadgeComponent,
+    CardComponent,
+    InputComponent,
+    SelectComponent,
+    AttendanceEditModalComponent,
+  ],
   templateUrl: './attendance-list.component.html',
 })
 export class AttendanceListComponent implements OnInit, OnDestroy {
   readonly ICON_XICALLA = ICON_XICALLA;
+  readonly UserCheck = UserCheck;
   readonly ICON_OBSERVACIONS = ICON_OBSERVACIONS;
+  readonly SearchIcon = Search;
 
   private readonly router = inject(Router);
   private readonly attendanceService = inject(AttendanceService);
   private readonly toast = inject(ToastService);
 
   readonly AttendanceStatus = AttendanceStatus;
-  readonly getContrastColor = getContrastColor;
 
   eventId = input.required<string>();
   isPast = input(false);
@@ -222,14 +231,14 @@ export class AttendanceListComponent implements OnInit, OnDestroy {
     return labels[status] ?? status;
   }
 
-  getStatusBadgeClass(status: AttendanceStatus): string {
+  getStatusBadgeVariant(status: AttendanceStatus): BadgeVariant {
     const past = this.isPast();
-    const classes: Record<AttendanceStatus, string> = {
-      [AttendanceStatus.PENDENT]: 'badge-ghost',
-      [AttendanceStatus.ANIRE]: past ? 'badge-warning' : 'badge-success',
-      [AttendanceStatus.NO_VAIG]: 'badge-error',
-      [AttendanceStatus.ASSISTIT]: 'badge-success',
+    const variants: Record<AttendanceStatus, BadgeVariant> = {
+      [AttendanceStatus.PENDENT]: 'ghost',
+      [AttendanceStatus.ANIRE]: past ? 'warning' : 'success',
+      [AttendanceStatus.NO_VAIG]: 'error',
+      [AttendanceStatus.ASSISTIT]: 'success',
     };
-    return classes[status] ?? 'badge-ghost';
+    return variants[status] ?? 'ghost';
   }
 }

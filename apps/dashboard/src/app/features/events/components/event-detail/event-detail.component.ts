@@ -1,11 +1,11 @@
 import { Component, ChangeDetectionStrategy, computed, inject, signal, OnInit, OnDestroy } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
-import { LucideAngularModule } from 'lucide-angular';
-import { ICON_XICALLA, ICON_PERSONA, ICON_FIGURA } from '../../../../shared/constants/domain-icons';
+import { LucideAngularModule, Info, UserCheck, Grid3X3 } from 'lucide-angular';
+import { ICON_XICALLA, ICON_PERSONA, DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { EventService } from '../../services/event.service';
 import { SeasonService } from '../../services/season.service';
 import { AuthService } from '../../../../core/auth/services/auth.service';
-import { ToastService } from '@muixer/ui';
+import { ToastService, TabsComponent, TabDef, ButtonComponent, BadgeComponent, CardComponent } from '@muixer/ui';
 import { EventFormModalComponent } from '../event-form-modal/event-form-modal.component';
 import { AttendanceListComponent } from '../attendance-list/attendance-list.component';
 import { EventParticipationComponent } from '../event-participation/event-participation.component';
@@ -35,6 +35,10 @@ export const EVENT_DETAIL_TABS: readonly EventDetailTab[] = [
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     LucideAngularModule,
+    TabsComponent,
+    ButtonComponent,
+    BadgeComponent,
+    CardComponent,
     EventFormModalComponent,
     StatCardComponent,
     SegmentManagerComponent,
@@ -46,6 +50,8 @@ export const EVENT_DETAIL_TABS: readonly EventDetailTab[] = [
 export class EventDetailComponent implements OnInit, OnDestroy {
   readonly ICON_XICALLA = ICON_XICALLA;
   readonly ICON_PERSONA = ICON_PERSONA;
+  readonly UserCheck = UserCheck;
+  readonly DOMAIN_ICONS = DOMAIN_ICONS;
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
@@ -80,11 +86,11 @@ export class EventDetailComponent implements OnInit, OnDestroy {
 
   readonly activeTab = signal<EventDetailTab>('pinyes');
 
-  readonly tabDefs: { id: EventDetailTab; label: string; icon: string }[] = [
-    { id: 'resum', label: 'Resum', icon: 'Info' },
-    { id: 'pinyes', label: 'Pinyes i Figures', icon: ICON_FIGURA },
-    { id: 'assistencia', label: 'Assistència', icon: 'UserCheck' },
-    { id: 'participacio', label: 'Participació', icon: 'Grid3X3' },
+  readonly tabDefs: TabDef[] = [
+    { id: 'resum', label: 'Resum', icon: Info },
+    { id: 'pinyes', label: 'Pinyes i Figures', icon: DOMAIN_ICONS.FIGURA },
+    { id: 'assistencia', label: 'Assistència', icon: UserCheck },
+    { id: 'participacio', label: 'Participació', icon: Grid3X3 },
   ];
 
   /**
@@ -145,9 +151,9 @@ export class EventDetailComponent implements OnInit, OnDestroy {
     });
   }
 
-  setTab(tab: EventDetailTab): void {
-    this.activeTab.set(tab);
-    this.visitedTabs.update((visited) => new Set(visited).add(tab));
+  setTab(tab: string): void {
+    this.activeTab.set(tab as EventDetailTab);
+    this.visitedTabs.update((visited) => new Set(visited).add(tab as EventDetailTab));
     this.router.navigate([], {
       relativeTo: this.route,
       queryParams: { tab },

@@ -23,49 +23,12 @@
         }
 
         @if (!previewMode()) {
-          <!-- Pinya mode (default) -->
-          <button
-            type="button"
-            class="btn btn-sm gap-1"
-            [class.btn-primary]="!renglaEditMode() && !troncEditMode()"
-            [class.btn-ghost]="renglaEditMode() || troncEditMode()"
-            (click)="activatePinyaMode()"
-            [attr.aria-pressed]="!renglaEditMode() && !troncEditMode()"
-            aria-label="Mode pinya"
-            title="Pinya"
-          >
-            <lucide-icon [name]="ICON_PINYA" [size]="16" aria-hidden="true" />
-            Pinya
-          </button>
-
-          <!-- Rengla edit mode toggle -->
-          <button
-            type="button"
-            class="btn btn-sm gap-1"
-            [class.btn-primary]="renglaEditMode()"
-            [class.btn-ghost]="!renglaEditMode()"
-            (click)="toggleRenglaEditMode()"
-            [attr.aria-pressed]="renglaEditMode()"
-            aria-label="Edita rengles"
-            title="Edita les rengles"
-          >
-            <lucide-icon [name]="ICON_RENGLA" [size]="16" aria-hidden="true" />
-            Rengles
-          </button>
-
-          <!-- Tronc drawer trigger -->
-          <button
-            type="button"
-            class="btn btn-sm gap-1"
-            [class.btn-primary]="troncEditMode()"
-            [class.btn-ghost]="!troncEditMode()"
-            (click)="activateTroncMode()"
-            aria-label="Obrir panell del Tronc"
-            title="Tronc"
-          >
-            <lucide-icon [name]="ICON_TRONC" [size]="16" aria-hidden="true" />
-            Tronc
-          </button>
+          <lib-tabs
+            [tabs]="editorModeTabs"
+            [activeId]="editorMode()"
+            ariaLabel="Mode de l'editor"
+            (activeIdChange)="setEditorMode($event)"
+          />
         }
       </div>
     </div>

@@ -11,7 +11,7 @@ import { SegmentWorkspaceStateService, WorkspaceInstance } from '../../services/
 import { AssignmentStateService } from '../../services/assignment-state.service';
 import { UndoRedoService } from '../../services/undo-redo.service';
 import { LayoutService } from '../../../../core/services/layout.service';
-import { ToastService } from '@muixer/ui';
+import { ToastService, TabsComponent } from '@muixer/ui';
 import { TemplateEditorHelpModalComponent } from '../template-editor-help-modal/template-editor-help-modal.component';
 
 @Component({ selector: 'app-pinyes-tab', standalone: true, template: '' })
@@ -135,6 +135,7 @@ describe('SegmentWorkspaceComponent', () => {
           ],
           imports: [
           LucideAngularModule,
+          TabsComponent,
           StubPinyesTab,
           StubTroncsTab,
           StubDistribucioTab,
@@ -190,8 +191,9 @@ describe('SegmentWorkspaceComponent', () => {
 
   it('keeps the prev/next segment controls from shrinking so the tab bar is what scrolls', async () => {
     const fixture = await setup();
-    const nav = fixture.nativeElement.querySelector('nav[role="tablist"]') as HTMLElement;
-    const prevNextGroup = nav.nextElementSibling as HTMLElement;
+    const header = fixture.nativeElement.querySelector('header') as HTMLElement;
+    const prevNextGroup = header.querySelector('.shrink-0.ml-2') as HTMLElement;
+    expect(prevNextGroup).toBeTruthy();
     expect(prevNextGroup.className).toContain('shrink-0');
   });
 

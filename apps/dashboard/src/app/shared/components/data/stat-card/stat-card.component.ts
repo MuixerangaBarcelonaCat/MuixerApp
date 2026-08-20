@@ -1,29 +1,34 @@
 import { Component, ChangeDetectionStrategy, input } from '@angular/core';
-import { LucideAngularModule } from 'lucide-angular';
+import { LucideAngularModule, type LucideIconData } from 'lucide-angular';
+import { CardComponent } from '@muixer/ui';
 
 @Component({
   selector: 'app-stat-card',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule],
+  imports: [LucideAngularModule, CardComponent],
   host: { class: 'block' },
   template: `
-    <div class="stat bg-base-100 shadow-sm rounded-box p-3 lg:p-4">
-      <div class="stat-figure" [class]="accentClass()">
-        <lucide-icon [name]="icon()" [size]="22" />
+    <lib-card>
+      <div class="flex items-center gap-3">
+        <div class="shrink-0" [class]="accentClass()">
+          <lucide-icon [img]="icon()" [size]="22" />
+        </div>
+        <div class="min-w-0">
+          <div class="text-xs font-medium text-base-content/60">{{ label() }}</div>
+          <div class="text-xl font-bold">{{ value() }}</div>
+          @if (description()) {
+            <div class="text-xs text-base-content/50 mt-0.5">{{ description() }}</div>
+          }
+        </div>
       </div>
-      <div class="stat-title text-xs font-medium">{{ label() }}</div>
-      <div class="stat-value text-xl">{{ value() }}</div>
-      @if (description()) {
-        <div class="stat-desc text-xs mt-0.5">{{ description() }}</div>
-      }
-    </div>
+    </lib-card>
   `,
 })
 export class StatCardComponent {
   label = input.required<string>();
   value = input.required<string | number>();
-  icon = input.required<string>();
+  icon = input.required<LucideIconData>();
   description = input<string>('');
   accentClass = input<string>('text-primary');
 }

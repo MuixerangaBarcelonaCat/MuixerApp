@@ -12,6 +12,7 @@ export * from './lib/components/button/button.component';
 export * from './lib/components/button-group/button-group.component';
 export * from './lib/components/badge/badge.component';
 export * from './lib/components/card/card.component';
+export * from './lib/components/tabs/tabs.component';
 export * from './lib/components/form-field/form-field.component';
 export * from './lib/components/input/input.component';
 export * from './lib/components/select/select.component';

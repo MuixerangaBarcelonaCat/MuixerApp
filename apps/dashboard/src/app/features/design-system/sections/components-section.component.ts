@@ -10,12 +10,14 @@ import {
   InputComponent,
   SelectComponent,
   ModalComponent,
+  TabsComponent,
   ToastContainerComponent,
   ToastService,
   EmptyStateComponent,
   type ButtonVariant,
   type BadgeVariant,
   type CardTone,
+  type TabDef,
 } from '@muixer/ui';
 
 const VARIANTS: ButtonVariant[] = ['primary', 'secondary', 'accent', 'neutral', 'ghost', 'info', 'success', 'warning', 'error'];
@@ -35,6 +37,12 @@ const DEMO_TAGS: DemoTag[] = [
   { id: 'terc', name: 'Terç', color: '#81b29a' },
 ];
 
+const DEMO_TABS: TabDef[] = [
+  { id: 'resum', label: 'Resum', icon: Star },
+  { id: 'pinyes', label: 'Pinyes', icon: Users },
+  { id: 'assistencia', label: 'Assistència' },
+];
+
 @Component({
   selector: 'app-components-section',
   standalone: true,
@@ -49,6 +57,7 @@ const DEMO_TAGS: DemoTag[] = [
     InputComponent,
     SelectComponent,
     ModalComponent,
+    TabsComponent,
     ToastContainerComponent,
     EmptyStateComponent,
   ],
@@ -69,6 +78,9 @@ export class ComponentsSectionComponent {
   protected readonly groupTab = signal<'a' | 'b'>('a');
   protected readonly yesNo = signal<'yes' | 'no'>('yes');
   protected readonly threeWay = signal<'a' | 'b' | 'c'>('a');
+
+  protected readonly demoTabs = DEMO_TABS;
+  protected readonly activeDemoTab = signal('resum');
 
   protected readonly demoTags = DEMO_TAGS;
   protected readonly selectedTagIds = signal<string[]>(['vent']);

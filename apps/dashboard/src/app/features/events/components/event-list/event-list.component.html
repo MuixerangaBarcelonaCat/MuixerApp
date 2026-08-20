@@ -1,73 +1,59 @@
-<div class="space-y-4">
+<div class="flex flex-col gap-4">
 
   <!-- Capçalera -->
   <app-page-header [title]="pageTitle()" [count]="totalEvents()">
-    <button
-      type="button"
-      class="btn btn-primary btn-sm gap-1.5"
-      (click)="showCreateModal.set(true)"
-    >
+    <lib-button variant="primary" size="sm" (clicked)="showCreateModal.set(true)">
       <lucide-icon name="Plus" [size]="14" />
       {{ eventType() === EventType.ASSAIG ? 'Assaig nou' : 'Actuació nova' }}
-    </button>
-    <button
-      type="button"
-      class="btn btn-warning btn-sm btn-outline gap-1.5"
-      (click)="navigateToSync()"
-    >
+    </lib-button>
+    <lib-button variant="warning" outline size="sm" (clicked)="navigateToSync()">
       <lucide-icon name="RefreshCw" [size]="14" />
       Sincronitza
-    </button>
+    </lib-button>
   </app-page-header>
 
   <!-- Filtres -->
   <app-filter-bar [hasActiveFilters]="hasFilterChips()" (clearFilters)="clearFilters()">
 
     <!-- Cerca -->
-    <label class="form-control w-full sm:w-64">
-      <div class="label pb-1"><span class="label-text text-xs">Cerca</span></div>
-      <div class="input input-bordered input-sm flex items-center gap-2">
-        <lucide-icon name="Search" [size]="14" class="text-base-content/40" />
-        <input
-          type="text"
-          class="grow bg-transparent outline-none text-sm h-6"
-          placeholder="Títol, lloc..."
-          [(ngModel)]="searchInput"
-          (ngModelChange)="onSearchChange($event)"
-        />
-      </div>
-    </label>
+    <div class="w-full sm:w-64">
+      <lib-input
+        label="Cerca"
+        placeholder="Títol, lloc..."
+        [icon]="SearchIcon"
+        [(ngModel)]="searchInput"
+        (ngModelChange)="onSearchChange($event)"
+      />
+    </div>
 
     <!-- Temporada -->
     @if (seasons().length > 0) {
-      <label class="form-control w-full sm:w-48">
-        <div class="label pb-1"><span class="label-text text-xs">Temporada</span></div>
-          <select
-          class="select select-bordered select-sm"
-          [value]="selectedSeasonId() ?? ''"
-          (change)="onSeasonChange($any($event.target).value)"
+      <div class="w-full sm:w-48">
+        <lib-select
+          label="Temporada"
+          [ngModel]="selectedSeasonId() ?? ''"
+          (ngModelChange)="onSeasonChange($event)"
         >
           <option value="">Totes</option>
           @for (season of seasons(); track season.id) {
             <option [value]="season.id">{{ season.name }}</option>
           }
-        </select>
-      </label>
+        </lib-select>
+      </div>
     }
 
     <!-- Filtre temporal -->
-    <label class="form-control w-full sm:w-40">
-      <div class="label pb-1"><span class="label-text text-xs">Quan</span></div>
-      <select
-        class="select select-bordered select-sm"
-        [value]="timeFilter()"
-        (change)="onTimeFilterChange($any($event.target).value)"
+    <div class="w-full sm:w-40">
+      <lib-select
+        label="Quan"
+        [ngModel]="timeFilter()"
+        (ngModelChange)="onTimeFilterChange($event)"
       >
         <option value="all">Tots</option>
         <option value="upcoming">Propers</option>
         <option value="past">Passats</option>
-      </select>
-    </label>
+      </lib-select>
+    </div>
 
   </app-filter-bar>
 
@@ -100,11 +86,11 @@
 
   <!-- Estat buit -->
   @if (!loading() && events().length === 0) {
-    <app-empty-state
-      [icon]="eventType() === EventType.ASSAIG ? ICON_ASSAIG : ICON_ACTUACIO"
+    <lib-empty-state
+      [icon]="eventType() === EventType.ASSAIG ? DOMAIN_ICONS.ASSAIG : DOMAIN_ICONS.ACTUACIO"
       [message]="'No s\'han trobat ' + (eventType() === EventType.ASSAIG ? 'assajos' : 'actuacions') + ' amb els filtres actuals'"
       actionLabel="Netejar filtres"
-      (actionClick)="clearFilters()"
+      (clicked)="clearFilters()"
     />
   }
 

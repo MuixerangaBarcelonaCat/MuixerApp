@@ -9,7 +9,7 @@
     ~13px/key at 393px) — same guard pattern as WI-10/WI-13.
   -->
   <div class="w-full flex flex-col items-center justify-center gap-4 text-center text-primary-content">
-    <p class="font-medium">Encara no optimitzat per a mòbil</p>
+    <p class="font-serif font-medium text-lg">Encara no optimitzat per a mòbil</p>
     <p class="text-sm text-primary-content/70 max-w-xs">Esta pantalla està disponible en tablet i escriptori.</p>
     <button type="button" class="btn btn-ghost text-primary-content/80 hover:text-primary-content hover:bg-primary-content/10" (click)="goBack()">
       Tanca ✕
@@ -31,7 +31,7 @@
 
     <!-- Camp de cerca (no editable) -->
     <div
-      class="w-full rounded-2xl bg-white px-5 py-4 text-4xl font-mono tracking-widest text-base-content min-h-[4.5rem] flex items-center select-none shadow-sm"
+      class="w-full rounded-2xl bg-base-100 px-5 py-4 text-4xl font-semibold tracking-widest text-base-content min-h-[4.5rem] flex items-center select-none shadow-raised"
       aria-label="Cerca"
     >
       @if (query()) {
@@ -49,13 +49,18 @@
             @if (key === '') {
               <div class="w-[calc((60vw-6.5rem)/10)] aspect-square invisible"></div>
             } @else {
-              <button
-                type="button"
+              <!-- lib-button's shape="square" is a fixed 3rem (DaisyUI's .btn-square) — overridden
+                   here via descendant selectors to fill this calc()-sized cell instead, since the
+                   host's display:contents means no class on <lib-button> itself can reach the real
+                   rendered <button>. Regular keys' bg/text are likewise overridden to a plain white
+                   surface — lib-button has no "light surface" variant of its own to reach for. -->
+              <div
                 [class]="key === '⌫'
-                  ? 'w-[calc((60vw-6.5rem)/10)] aspect-square rounded-xl bg-error text-error-content font-bold text-2xl shadow active:scale-95 transition-transform'
-                  : 'w-[calc((60vw-6.5rem)/10)] aspect-square rounded-xl bg-white text-base-content font-bold text-2xl shadow active:scale-95 transition-transform hover:bg-base-200'"
-                (click)="onKey(key)"
-              >{{ key }}</button>
+                  ? 'w-[calc((60vw-6.5rem)/10)] aspect-square [&_button]:!w-full [&_button]:!h-full [&_button]:!text-2xl'
+                  : 'w-[calc((60vw-6.5rem)/10)] aspect-square [&_button]:!w-full [&_button]:!h-full [&_button]:!text-2xl [&_button]:!bg-base-100 [&_button]:!text-base-content [&_button]:!border-base-300 [&_button]:hover:!bg-base-200'"
+              >
+                <lib-button shape="square" [variant]="key === '⌫' ? 'error' : 'neutral'" (clicked)="onKey(key)">{{ key }}</lib-button>
+              </div>
             }
           }
         </div>
@@ -75,11 +80,9 @@
           </span>
         }
       </div>
-      <button
-        type="button"
-        class="btn btn-ghost text-primary-content/80 hover:text-primary-content hover:bg-primary-content/10"
-        (click)="goBack()"
-      >Tanca ✕</button>
+      <lib-button variant="ghost" (click)="goBack()">
+        Tanca ✕
+      </lib-button>
     </div>
 
     <!-- Cos de la llista -->
@@ -98,29 +101,37 @@
     } @else {
       <div class="flex-1 overflow-y-auto flex flex-col gap-2 px-4 pb-4">
         @for (att of results(); track att.id) {
+          <!-- lib-card stays in its default (non-clickable, plain <div>) mode — its own
+               `clickable` mode renders a real <button>, which is inline-block and won't stretch
+               full width the way a <div> does; the row's own interactive semantics live on this
+               wrapper instead, same pattern data-table's own card-mode rows already use. -->
           <div
-            class="bg-white rounded-2xl px-5 py-7 flex items-center gap-4 cursor-pointer select-none shadow-sm transition-all hover:shadow-md active:scale-[0.99]"
+            class="ds-lift ds-lift-surface cursor-pointer"
+            role="button"
+            tabindex="0"
             [class.opacity-40]="confirmingId() === att.id"
             [class.pointer-events-none]="confirmingId() !== null"
-            tabindex="0"
-            role="button"
             (click)="confirm(att)"
             (keydown.enter)="confirm(att)"
           >
-            @if (confirmingId() === att.id) {
-              <span class="loading loading-spinner loading-sm text-primary shrink-0"></span>
-            }
-            <div class="flex flex-col min-w-0">
-              <span class="text-2xl font-bold font-mono text-base-content leading-tight truncate">
-                {{ att.person.alias }}
-              </span>
-              <span class="text-sm text-base-content/60 truncate">
-                {{ att.person.name }} {{ att.person.firstSurname }}
-              </span>
-              @if (att.person.isXicalla) {
-                <span class="badge badge-info badge-xs mt-1 w-fit">Xicalla</span>
-              }
-            </div>
+            <lib-card>
+              <div class="flex items-center gap-4 py-3">
+                @if (confirmingId() === att.id) {
+                  <span class="loading loading-spinner loading-sm text-primary shrink-0"></span>
+                }
+                <div class="flex flex-col min-w-0">
+                  <span class="text-2xl font-bold font-serif text-base-content leading-tight truncate">
+                    {{ att.person.alias }}
+                    @if (att.person.isXicalla) {
+                      <span class="inline-flex align-middle w-fit font-sans"><lib-badge variant="info" size="xs">Xicalla</lib-badge></span>
+                    }
+                  </span>
+                  <span class="text-sm text-base-content/60 truncate">
+                    {{ att.person.name }} {{ att.person.firstSurname }}
+                  </span>
+                </div>
+              </div>
+            </lib-card>
           </div>
         }
       </div>
