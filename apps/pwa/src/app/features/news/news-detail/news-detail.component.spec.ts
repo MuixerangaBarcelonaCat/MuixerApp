@@ -70,7 +70,7 @@ describe('NewsDetailComponent', () => {
     const windowOpenSpy = vi.spyOn(window, 'open').mockReturnValue(null);
 
     const body: HTMLElement = fixture.nativeElement.querySelector('[data-testid="news-detail-body"]');
-    const link: HTMLAnchorElement = body.querySelector('a')!;
+    const link = body.querySelector('a') as HTMLAnchorElement;
     link.click();
 
     expect(windowOpenSpy).toHaveBeenCalledWith(
