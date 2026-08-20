@@ -11,6 +11,7 @@
           <th>Títol</th>
           <th>Estat</th>
           <th>Publicació</th>
+          <th>Push</th>
           <th class="w-28">Accions</th>
         </tr>
       </thead>
@@ -21,6 +22,7 @@
               <td><div class="skeleton h-3 w-40"></div></td>
               <td><div class="skeleton h-3 w-20"></div></td>
               <td><div class="skeleton h-3 w-20"></div></td>
+              <td><div class="skeleton h-3 w-12"></div></td>
               <td><div class="skeleton h-3 w-20"></div></td>
             </tr>
           }
@@ -39,6 +41,17 @@
                 </lib-badge>
               </td>
               <td class="tabular-nums">{{ news.publishedAtFormatted }}</td>
+              <td>
+                @if (news.pushSentAt) {
+                  <span class="badge badge-sm badge-success gap-1" [title]="'Enviada: ' + (news.pushSentAt | date: 'dd/MM/yyyy HH:mm')">
+                    🔔 Enviada
+                  </span>
+                } @else if (news.sendPush) {
+                  <span class="badge badge-sm badge-warning gap-1">🔔 Pendent</span>
+                } @else {
+                  <span class="text-base-content/30 text-xs">—</span>
+                }
+              </td>
               <td>
                 <div class="flex gap-1">
                   <lib-button
@@ -63,7 +76,7 @@
             </tr>
           } @empty {
             <tr>
-              <td colspan="4">
+              <td colspan="5">
                 <lib-empty-state
                   [icon]="ICON_NOTICIA"
                   message="No hi ha notícies creades encara"

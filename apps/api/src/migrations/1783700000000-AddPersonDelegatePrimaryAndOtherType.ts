@@ -13,7 +13,7 @@ export class AddPersonDelegatePrimaryAndOtherType1783700000000
     );
 
     await queryRunner.query(
-      `CREATE UNIQUE INDEX "UQ_person_delegates_primary" ON "person_delegates" ("person_id") WHERE "isPrimary" = true`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS "UQ_person_delegates_primary" ON "person_delegates" ("person_id") WHERE "isPrimary" = true`,
     );
   }
 

@@ -1,4 +1,5 @@
 import { Component, ChangeDetectionStrategy, inject, signal, computed, SecurityContext } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { DomSanitizer } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -26,7 +27,7 @@ marked.use({ renderer });
   selector: 'app-news-editor',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule, BadgeComponent, ButtonComponent, CardComponent, InputComponent],
+  imports: [FormsModule, LucideAngularModule, BadgeComponent, ButtonComponent, CardComponent, InputComponent, DatePipe],
   templateUrl: './news-editor.component.html',
 })
 export class NewsEditorComponent {
@@ -42,6 +43,9 @@ export class NewsEditorComponent {
   readonly title = signal('');
   readonly body = signal('');
   readonly publishedAtLocal = signal('');
+  readonly sendPush = signal(true);
+  /** Once a push has been sent for this news, the toggle should be disabled. */
+  readonly pushSentAt = signal<string | null>(null);
   readonly loading = signal(false);
   readonly saving = signal(false);
 
@@ -66,6 +70,8 @@ export class NewsEditorComponent {
           this.title.set(news.title);
           this.body.set(news.body);
           this.publishedAtLocal.set(toDatetimeLocalValue(news.publishedAt));
+          this.sendPush.set(news.sendPush ?? false);
+          this.pushSentAt.set(news.pushSentAt ?? null);
           this.loading.set(false);
         },
         error: () => {
@@ -83,6 +89,7 @@ export class NewsEditorComponent {
       title: this.title().trim(),
       body: this.body(),
       publishedAt: fromDatetimeLocalValue(this.publishedAtLocal()),
+      sendPush: this.sendPush(),
     };
 
     this.saving.set(true);

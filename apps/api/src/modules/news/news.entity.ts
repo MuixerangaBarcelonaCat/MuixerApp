@@ -17,6 +17,12 @@ export class News {
   @Column({ type: 'uuid', nullable: true })
   createdBy: string | null;
 
+  @Column({ type: 'boolean', default: false })
+  sendPush: boolean;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  pushSentAt: Date | null;
+
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 

@@ -1,4 +1,4 @@
-import { IsString, IsOptional, MaxLength, IsISO8601 } from 'class-validator';
+import { IsString, IsOptional, MaxLength, IsISO8601, IsBoolean } from 'class-validator';
 
 export class CreateNewsDto {
   @IsString()
@@ -12,4 +12,9 @@ export class CreateNewsDto {
   @IsOptional()
   @IsISO8601()
   publishedAt?: string;
+
+  /** When true, a push notification is sent to all members once publishedAt is reached. */
+  @IsOptional()
+  @IsBoolean()
+  sendPush?: boolean;
 }

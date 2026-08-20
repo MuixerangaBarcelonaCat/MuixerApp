@@ -1,0 +1,78 @@
+@if (!push.pushSupported()) {
+  <div class="flex items-center gap-3 p-4 opacity-60" aria-disabled="true">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      class="h-5 w-5 shrink-0 text-base-content/50"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+    <div class="flex-1">
+      <span class="font-medium">Notificacions</span>
+      <p class="text-xs text-base-content/60 mt-0.5">No disponibles en aquest dispositiu</p>
+    </div>
+  </div>
+} @else if (push.pushPermission() === 'denied') {
+  <div class="flex items-start gap-3 p-4">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      class="h-5 w-5 shrink-0 text-warning mt-0.5"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+    <div class="flex-1">
+      <span class="font-medium">Notificacions bloquejades</span>
+      <p class="text-xs text-base-content/60 mt-1">
+        Has bloquejat les notificacions. Per activar-les, ves a la configuració del navegador i permet les notificacions per a aquesta pàgina.
+      </p>
+    </div>
+  </div>
+} @else {
+  <div class="flex items-center gap-3 p-4">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      class="h-5 w-5 shrink-0 text-base-content/70"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+    <div class="flex-1">
+      <label for="push-toggle" class="font-medium cursor-pointer">Notificacions push</label>
+      @if (push.isSubscribed()) {
+        <p class="text-xs text-base-content/60 mt-0.5">Actives en {{ push.deviceCount() }} dispositiu{{ push.deviceCount() > 1 ? 's' : '' }}</p>
+      } @else {
+        <p class="text-xs text-base-content/60 mt-0.5">Rebràs avisos d'assaigs i actuacions</p>
+      }
+    </div>
+    <input
+      id="push-toggle"
+      type="checkbox"
+      class="toggle toggle-primary"
+      [checked]="push.isSubscribed()"
+      (change)="toggle()"
+      [attr.aria-label]="push.isSubscribed() ? 'Desactivar notificacions' : 'Activar notificacions'"
+    />
+  </div>
+}

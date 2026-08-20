@@ -47,4 +47,11 @@ export const envValidationSchema = Joi.object({
   // PWA origin (no scheme) — used to build member-activation invite links.
   PWA_SITE_ADDRESS: Joi.string().default('localhost:4300'),
   INVITE_TOKEN_TTL_HOURS: Joi.number().default(72),
+
+  // Push Notifications (Web Push VAPID)
+  PUSH_PROVIDER: Joi.string().valid('console', 'web-push').default('console'),
+  // Required only when PUSH_PROVIDER=web-push — generate once with: npx web-push generate-vapid-keys
+  VAPID_PUBLIC_KEY: Joi.string().when('PUSH_PROVIDER', { is: 'web-push', then: Joi.required(), otherwise: Joi.optional() }),
+  VAPID_PRIVATE_KEY: Joi.string().when('PUSH_PROVIDER', { is: 'web-push', then: Joi.required(), otherwise: Joi.optional() }),
+  VAPID_SUBJECT: Joi.string().when('PUSH_PROVIDER', { is: 'web-push', then: Joi.required(), otherwise: Joi.optional() }),
 });

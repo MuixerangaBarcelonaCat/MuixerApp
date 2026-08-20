@@ -28,20 +28,23 @@ export class NewsService {
     const news = this.newsRepository.create({
       ...dto,
       publishedAt: dto.publishedAt ? new Date(dto.publishedAt) : null,
+      sendPush: dto.sendPush ?? false,
     });
     return this.newsRepository.save(news);
   }
 
   async update(id: string, dto: UpdateNewsDto): Promise<News> {
-    await this.findOne(id);
+    const existing = await this.findOne(id);
 
-    const { publishedAt, ...rest } = dto;
+    const { publishedAt, sendPush, ...rest } = dto;
     const merged = this.newsRepository.create({
       id,
       ...rest,
       ...(publishedAt !== undefined
         ? { publishedAt: publishedAt ? new Date(publishedAt) : null }
         : {}),
+      // Prevent re-enabling push once it has already been sent.
+      ...(sendPush !== undefined && !existing.pushSentAt ? { sendPush } : {}),
     });
     await this.newsRepository.save(merged);
     return this.findOne(id);

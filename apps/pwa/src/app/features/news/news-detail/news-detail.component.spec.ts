@@ -58,11 +58,28 @@ describe('NewsDetailComponent', () => {
     expect(body.innerHTML).toContain('<strong>Benvinguts</strong>');
   });
 
-  it('should open links in the body in a new tab', async () => {
+  it('should render links in the body as anchor elements', async () => {
     fixture = await setup();
     const link = fixture.nativeElement.querySelector('[data-testid="news-detail-body"] a');
-    expect(link.getAttribute('target')).toBe('_blank');
-    expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+    expect(link).toBeTruthy();
+    expect(link.href).toContain('muixeranga.cat');
+  });
+
+  it('should open body links in the external browser on click via window.open', async () => {
+    fixture = await setup();
+    const windowOpenSpy = vi.spyOn(window, 'open').mockReturnValue(null);
+
+    const body: HTMLElement = fixture.nativeElement.querySelector('[data-testid="news-detail-body"]');
+    const link = body.querySelector('a') as HTMLAnchorElement;
+    link.click();
+
+    expect(windowOpenSpy).toHaveBeenCalledWith(
+      expect.stringContaining('muixeranga.cat'),
+      '_blank',
+      'noopener,noreferrer',
+    );
+
+    windowOpenSpy.mockRestore();
   });
 
   it('should show an error state when loading fails', async () => {

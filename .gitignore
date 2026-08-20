@@ -65,6 +65,7 @@ apps/*-e2e/audit-results/
 apps/*-e2e/playwright-report*/
 apps/*-e2e/test-results/
 playwright/.cache/
+.playwright-mcp/
 
 # -- PRE ────────────────────────────────────────────────
 scripts/tunnel-pre.sh

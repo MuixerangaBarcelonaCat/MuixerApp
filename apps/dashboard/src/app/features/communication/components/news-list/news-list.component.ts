@@ -1,4 +1,6 @@
 import { Component, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
+import { DatePipe } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { News } from '@muixer/shared';
 import { NewsService } from '../../services/news.service';
 import { ToastService, BadgeComponent, ButtonComponent, EmptyStateComponent, ModalComponent } from '@muixer/ui';
@@ -10,7 +12,7 @@ import { getNewsStatus, getNewsStatusLabel, formatDateTime } from '../../../../s
   selector: 'app-news-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [PageHeaderComponent, BadgeComponent, ButtonComponent, EmptyStateComponent, ModalComponent],
+  imports: [PageHeaderComponent, BadgeComponent, ButtonComponent, EmptyStateComponent, ModalComponent, RouterLink, DatePipe],
   templateUrl: './news-list.component.html',
 })
 export class NewsListComponent {

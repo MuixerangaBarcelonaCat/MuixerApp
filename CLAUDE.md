@@ -89,6 +89,7 @@ Modules under `src/modules/`:
 | `audit` | `AuditLog` entity + service; records sensitive mutations |
 | `mail` | `MailService` + provider abstraction; used by `auth` for password reset (invites still don't email — see Authentication) |
 | `sync` | SSE strategy pattern for legacy data import |
+| `push-notification` | Web Push (VAPID) notifications: `PushSubscription` entity, provider abstraction (`console` dev / `web-push` prod via `PUSH_PROVIDER` env), `PushSubscriptionService` (register/unsubscribe/status, max 10/user), `PushNotificationService` (send with target resolution: ALL/EVENT_ATTENDANCE/PERSON, async via `push.requested` event), `PushNotificationCronService` (scheduled news push, stale sub cleanup). Controllers: `me/push-subscriptions` (MEMBER+) + `notifications` (TECHNICAL/ADMIN) + `push-subscriptions/summary`. Requires `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` env vars. |
 
 **TypeORM conventions:** UUID primary keys · `createdAt`/`updatedAt` always present · soft delete = `isActive: boolean` (not `@DeleteDateColumn`) · enums imported from `@muixer/shared` · table names plural snake_case.
 

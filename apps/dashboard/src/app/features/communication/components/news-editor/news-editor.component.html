@@ -78,6 +78,30 @@
         </span>
       </div>
 
+      <div class="form-control">
+        <label class="label cursor-pointer justify-start gap-3">
+          <input
+            id="send-push"
+            type="checkbox"
+            class="checkbox checkbox-primary checkbox-sm"
+            [checked]="sendPush()"
+            [disabled]="!!pushSentAt()"
+            (change)="sendPush.set(!sendPush())"
+            aria-describedby="send-push-hint"
+          />
+          <div>
+            <span class="label-text font-medium">Enviar push als membres</span>
+            <p id="send-push-hint" class="text-xs text-base-content/50">
+              @if (pushSentAt()) {
+                Push enviada el {{ pushSentAt() | date: 'dd/MM/yyyy HH:mm' }}
+              } @else {
+                La notificació s'enviarà quan es publiqui la notícia.
+              }
+            </p>
+          </div>
+        </label>
+      </div>
+
       <div class="flex gap-2">
         <lib-button variant="primary" size="sm" [disabled]="!canSave()" [loading]="saving()" (clicked)="save()">
           Desa
