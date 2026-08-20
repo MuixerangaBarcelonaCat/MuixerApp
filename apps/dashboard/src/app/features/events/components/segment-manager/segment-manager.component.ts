@@ -20,7 +20,7 @@ import { EventSegmentService } from '../../../pinyes/services/event-segment.serv
 import { FigureInstanceService } from '../../../pinyes/services/figure-instance.service';
 import { CompositionService } from '../../../pinyes/services/composition.service';
 import { NodeAssignmentService } from '../../../pinyes/services/node-assignment.service';
-import { ToastService } from '@muixer/ui';
+import { ToastService, ButtonComponent, ButtonGroupComponent, BadgeComponent, CardComponent, ModalComponent, InputComponent, SelectComponent } from '@muixer/ui';
 import {
   FigurePickerModalComponent,
   InstanceSelection,
@@ -44,7 +44,19 @@ interface PendingModeChange {
   selector: 'app-segment-manager',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule, FigurePickerModalComponent, DragDropModule],
+  imports: [
+    FormsModule,
+    LucideAngularModule,
+    DragDropModule,
+    ButtonComponent,
+    ButtonGroupComponent,
+    BadgeComponent,
+    CardComponent,
+    ModalComponent,
+    InputComponent,
+    SelectComponent,
+    FigurePickerModalComponent,
+  ],
   templateUrl: './segment-manager.component.html',
 })
 export class SegmentManagerComponent implements OnInit {
@@ -73,6 +85,9 @@ export class SegmentManagerComponent implements OnInit {
 
   editingSegmentId = signal<string | null>(null);
   editingName = signal('');
+
+  editingInstanceId = signal<string | null>(null);
+  editingInstanceName = signal('');
 
   pickerOpen = signal(false);
   pickerSegmentId = signal<string | null>(null);
@@ -204,6 +219,33 @@ export class SegmentManagerComponent implements OnInit {
     });
   }
 
+  startEditInstance(instanceId: string, currentLabel: string | null): void {
+    this.editingInstanceId.set(instanceId);
+    this.editingInstanceName.set(currentLabel ?? '');
+  }
+
+  cancelEditInstance(): void {
+    this.editingInstanceId.set(null);
+    this.editingInstanceName.set('');
+  }
+
+  saveInstanceName(segment: SegmentDetail, instance: InstanceDetail): void {
+    const newLabel = this.editingInstanceName().trim() || null;
+    this.instanceService.update(this.eventId(), segment.id, instance.id, { label: newLabel }).subscribe({
+      next: (updated) => {
+        this.segments.update((list) =>
+          list.map((s) =>
+            s.id === segment.id
+              ? { ...s, instances: s.instances.map((i) => (i.id === updated.id ? updated : i)) }
+              : s,
+          ),
+        );
+        this.cancelEditInstance();
+      },
+      error: () => this.toast.error('Error en canviar el nom de la figura.'),
+    });
+  }
+
   toggleVisibility(segment: SegmentDetail) {
     this.segmentService.update(this.eventId(), segment.id, { isPublished: !segment.isPublished }).subscribe({
       next: (updated) => {
@@ -313,7 +355,7 @@ export class SegmentManagerComponent implements OnInit {
     if (result.conflicts?.length) {
       const n = result.conflicts.length;
       this.toast.warning(
-        `${n} ${n === 1 ? 'persona ha quedat' : 'persones han quedat'} en conflicte en este segment. Resol-ho des del taller.`,
+        `${n} ${n === 1 ? 'persona ha quedat' : 'persones han quedat'} en conflicte en este segment. Resoleu-ho des de l'assignació.`,
       );
     }
 

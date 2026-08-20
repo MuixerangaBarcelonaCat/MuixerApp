@@ -137,6 +137,7 @@ Seven components shipped so far, all in `libs/ui/src/lib/components/`, none roll
 | `outline` | `boolean` | `false` | Combines with `variant`, matching DaisyUI's own `btn-warning btn-outline` pattern |
 | `fullWidth` | `boolean` | `false` | Applies `w-full` to the rendered `<button>`/`<a>` itself — a class on the `<lib-button>` tag is inert (host is `display: contents`, see Component conventions). Real pattern: every existing raw-`<button>` form-submit footer in the app (~11 files) sizes itself this way |
 | `disabled`, `loading`, `type`, `ariaLabel` | — | — | `loading` auto-disables (native `disabled`, so a second click/Enter-triggered resubmit can't slip through) and shows a sized spinner — but reads as *busy*, not *disabled*: fill/border/text stay at their resting-state formula (solid or outline alike), no dashed "sketched" look and no grey-out. A real `disabled` (not loading) still gets that treatment |
+| `ariaExpanded`, `ariaPressed` | `boolean` | — | For a real toggle button (a visibility switch, a collapse/expand disclosure) — unset by default, so the attribute is simply absent rather than `"null"`. Distinct from `active`: that one is `lib-button-group`'s purely visual "which joinItem segment is selected" marker, not a toggle-button ARIA state |
 | `routerLink`, `href` | `string \| unknown[]`, `string` | — | Link mode, mirroring `lib-card`: `routerLink` wins over `href`, renders an `<a>` instead of `<button>`. **Throws** if combined with `disabled`/`loading` — a disabled or loading link isn't a supported shape |
 | `joinItem` | `boolean` | `false` | Adds DaisyUI's `.join-item` to the button's own rendered element — for use inside `lib-button-group`, which can't add the class itself (see below) |
 | `active` | `boolean` | `false` | Marks this joinItem segment as the currently-selected one. No effect without `joinItem`. Deliberately NOT DaisyUI's own `.btn-active` (a darkened fill) — nothing else in the app marks "selected" that way. Meaning depends on `outlineMode` below |
@@ -277,10 +278,12 @@ The label/required-marker/hint/error chrome shared by `lib-input` and `lib-selec
 | Input | Type | Default | Notes |
 |-------|------|---------|-------|
 | `label`, `hint`, `errorText` | `string` | — | `errorText` replaces `hint` in the same slot when both are set; drives `input-error` + `aria-invalid` |
+| `ariaLabel` | `string` | — | For a compact, label-less field (no visible `label`) that still needs an accessible name — `label` always renders visible text via `lib-form-field`, which isn't the right call for e.g. an inline rename field in a toolbar row |
 | `icon` | `LucideIconData` | — | Optional prefix icon inside the box |
 | `size` | `xs\|sm\|md\|lg` | **`sm`** | Deviates from DaisyUI's own `md` default — real usage is 53× `sm`/4× `xs`/0× `md`/`lg`. Watch for this specifically when migrating a page whose raw markup used unmodified `.input input-bordered` (no size class, i.e. DaisyUI's implicit `md`, 48px) — swapping in `lib-input` with no `size` set silently shrinks it to `sm` (32px). Pass `size="md"` explicitly to preserve the original height (hit on the auth pages) |
 | `type`, `placeholder`, `disabled`, `required`, `autocomplete`, `id` | — | — | `id` auto-generates a stable per-instance value if omitted, wiring `label[for]` + `aria-describedby` automatically. `type` includes `'date'` (added for detail-view edit forms — birth date, shirt date, ...) alongside the text-like types |
 | `min`, `max` | `string \| number` | — | Passed straight through to the native `min`/`max` attributes — meaningful for `type="number"`/`"date"`, browsers already validate/constrain against them |
+| `autofocus` | `boolean` | `false` | Imperative (a constructor `effect()` + `viewChild` calling `.focus()`), not the native HTML `autofocus` attribute — this field is almost always toggled into existence by an `@if` (an inline rename row appearing), and the native attribute's own "focus on insertion" behavior is inconsistent across browsers for that case in a way a direct call isn't |
 
 The native `<input>` itself always carries `min-h-6` — a >=24px tap target independent of the wrapper box's own height (WI-03 parity; ported in from the one-off fix on the dashboard/PWA auth pages, now baked into every consumer).
 
@@ -295,7 +298,7 @@ Border weight and the focus-swap-in-place treatment come from the shared `_field
 
 ### `lib-select`
 
-The select-flavored analogue of `lib-input` — same `ControlValueAccessor`/size/hint/error contract via `lib-form-field`, wrapping a native `<select>` instead of `<input>`. Options are content-projected (`<option>`/`<optgroup>`), not modeled as a data input — a caller's own list usually needs `@for`/conditional rendering a plain array input can't express as cleanly. Setting `.value` from a template binding races the projected `<option>`s (the `<select>`'s own bindings apply before its children are inserted, so the browser silently ignores a value with no matching option yet) — fixed internally with an `effect()` that applies it after the view settles, not a template `[value]` binding.
+The select-flavored analogue of `lib-input` — same `ControlValueAccessor`/size/hint/error/`ariaLabel` contract via `lib-form-field`, wrapping a native `<select>` instead of `<input>`. Options are content-projected (`<option>`/`<optgroup>`), not modeled as a data input — a caller's own list usually needs `@for`/conditional rendering a plain array input can't express as cleanly. Setting `.value` from a template binding races the projected `<option>`s (the `<select>`'s own bindings apply before its children are inserted, so the browser silently ignores a value with no matching option yet) — fixed internally with an `effect()` that applies it after the view settles, not a template `[value]` binding.
 
 ```html
 <lib-select formControlName="availability" label="Disponibilitat">

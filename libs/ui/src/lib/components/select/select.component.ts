@@ -89,6 +89,9 @@ export class SelectOptionContentDirective {
 })
 export class SelectComponent implements ControlValueAccessor {
   label = input<string>();
+  // For a compact, label-less select (no visible `label`) that still needs an accessible name —
+  // `label` renders visible text via lib-form-field, which isn't always the right call inline.
+  ariaLabel = input<string>();
   hint = input<string>();
   errorText = input<string>();
   size = input<InputSize>('sm');

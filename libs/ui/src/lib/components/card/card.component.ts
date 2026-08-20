@@ -3,6 +3,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import type { LucideIconData } from 'lucide-angular';
 import { LucideAngularModule } from 'lucide-angular';
+import { LiftHoverDirective } from '../../directives/lift-hover.directive';
 import { contrastContent, formatOklch, hexToOklch } from '../../tokens/color';
 import { INK, PAPER } from '../../tokens/fixed-colors';
 import { generateFringeThreads } from './sash-fringe.util';
@@ -50,7 +51,7 @@ const FRINGE_MAX_LENGTH = 34;
 @Component({
   selector: 'lib-card',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LucideAngularModule, NgTemplateOutlet, RouterLink],
+  imports: [LucideAngularModule, NgTemplateOutlet, RouterLink, LiftHoverDirective],
   templateUrl: './card.component.html',
   styleUrls: ['./card.component.scss'],
 })

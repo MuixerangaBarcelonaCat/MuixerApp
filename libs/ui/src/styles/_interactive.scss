@@ -25,7 +25,20 @@
       box-shadow var(--animation-btn, 120ms) ease-out,
       transform var(--ds-motion-base, 220ms) var(--ds-ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1));
 
+    // The lift transform is keyed off `.ds-lift-hovering` (toggled by `LiftHoverDirective`,
+    // libs/ui/src/lib/directives/lift-hover.directive.ts — add `libDsLift` alongside this class on
+    // any new consumer), NOT native `:hover`. `:hover` and the moving box would otherwise be the
+    // SAME element, and translateY(-3px) shifts that element's own hit-box along with it: hover
+    // near the bottom edge then flickers forever — move up → cursor now below the shifted box →
+    // hover drops → box drops back → cursor inside again → hover fires → repeat. The directive
+    // decides "still hovering" from the element's pre-transform resting rect instead, which can't
+    // self-invalidate that way. Plain `:hover` still gets the shadow immediately (harmless — it
+    // doesn't move anything) as a graceful fallback for a consumer that forgets `libDsLift`.
     &:hover {
+      box-shadow: var(--ds-lift-shadow);
+    }
+
+    &.ds-lift-hovering {
       transform: translateY(-3px);
       box-shadow: var(--ds-lift-shadow);
     }

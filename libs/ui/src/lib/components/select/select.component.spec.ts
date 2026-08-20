@@ -28,6 +28,16 @@ describe('SelectComponent', () => {
     expect(nativeSelect().className).toContain('min-h-6');
   });
 
+  it('has no aria-label by default', () => {
+    expect(nativeSelect().hasAttribute('aria-label')).toBe(false);
+  });
+
+  it('sets aria-label on the real native select, for compact label-less usage', () => {
+    fixture.componentRef.setInput('ariaLabel', 'Mode de la figura');
+    fixture.detectChanges();
+    expect(nativeSelect().getAttribute('aria-label')).toBe('Mode de la figura');
+  });
+
   describe('label and id linkage', () => {
     it('renders the label text when label is set', () => {
       fixture.componentRef.setInput('label', 'Disponibilitat');

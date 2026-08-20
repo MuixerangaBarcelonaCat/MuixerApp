@@ -219,6 +219,23 @@ describe('ButtonComponent', () => {
     expect(buttonEl().nativeElement.className).toContain(expectedClass);
   });
 
+  it('does not set aria-expanded or aria-pressed by default', () => {
+    expect(buttonEl().nativeElement.hasAttribute('aria-expanded')).toBe(false);
+    expect(buttonEl().nativeElement.hasAttribute('aria-pressed')).toBe(false);
+  });
+
+  it('sets aria-expanded when provided, for disclosure/collapse toggles', () => {
+    fixture.componentRef.setInput('ariaExpanded', true);
+    fixture.detectChanges();
+    expect(buttonEl().nativeElement.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('sets aria-pressed when provided, for toggle buttons', () => {
+    fixture.componentRef.setInput('ariaPressed', false);
+    fixture.detectChanges();
+    expect(buttonEl().nativeElement.getAttribute('aria-pressed')).toBe('false');
+  });
+
   it('defaults the native button type to "button", never a form submit', () => {
     expect(buttonEl().nativeElement.type).toBe('button');
   });

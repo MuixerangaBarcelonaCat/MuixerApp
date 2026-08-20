@@ -1325,7 +1325,7 @@ describe('SegmentManagerComponent', () => {
       setLockedWithSegment();
 
       const visibilityBtn: HTMLButtonElement = fixture.nativeElement.querySelector(
-        '.btn-ghost.btn-xs[title*="Visible"], .btn-ghost.btn-xs[title*="Ocult"]',
+        '[aria-label*="Visible"], [aria-label*="Ocult"]',
       );
       expect(visibilityBtn.disabled).toBe(false);
     });

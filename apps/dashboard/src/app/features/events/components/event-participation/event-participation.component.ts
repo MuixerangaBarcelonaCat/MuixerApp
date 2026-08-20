@@ -388,7 +388,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
       : this.segments();
 
     return segments.map((segment) => ({
-      label: () => `Obre ${this.segmentLabel(segment)} al taller`,
+      label: () => `Obri ${this.segmentLabel(segment)} l'assignació`,
       icon: ICON_FIGURA,
       hidden: (r: ParticipationRow) => !this.placementsFor(r, segment.id).length,
       action: (r: ParticipationRow) => {

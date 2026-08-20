@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { NgTemplateOutlet } from '@angular/common';
+import { LiftHoverDirective } from '../../directives/lift-hover.directive';
 
 export type ButtonVariant =
   | 'primary'
@@ -61,7 +62,7 @@ const LOADING_SIZE_CLASSES: Record<ButtonSize, string> = {
 @Component({
   selector: 'lib-button',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, NgTemplateOutlet],
+  imports: [RouterLink, NgTemplateOutlet, LiftHoverDirective],
   templateUrl: './button.component.html',
   styleUrls: ['./button.component.scss'],
 })
@@ -71,6 +72,11 @@ export class ButtonComponent {
   shape = input<ButtonShape>('default');
   type = input<ButtonType>('button');
   ariaLabel = input<string>();
+  // Toggle-state ARIA, for buttons whose whole job is flipping a boolean (a visibility switch,
+  // a collapse/expand disclosure) — distinct from `active`, which is `lib-button-group`'s purely
+  // visual "which joinItem segment is selected" marker, not a real toggle-button semantic.
+  ariaExpanded = input<boolean>();
+  ariaPressed = input<boolean>();
   disabled = input(false, { transform: booleanAttribute });
   loading = input(false, { transform: booleanAttribute });
   outline = input(false, { transform: booleanAttribute });

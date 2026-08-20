@@ -7,6 +7,7 @@
     [class.hidden]="multiple()"
     [disabled]="isDisabled()"
     [required]="required()"
+    [attr.aria-label]="ariaLabel() ?? null"
     [attr.aria-invalid]="hasError() ? 'true' : null"
     [attr.aria-describedby]="hasDescription() ? descriptionId() : null"
     (change)="onChangeEvent($event)"
@@ -22,6 +23,7 @@
         type="button"
         [class]="triggerClasses()"
         [disabled]="isDisabled()"
+        [attr.aria-label]="ariaLabel() ?? null"
         data-testid="lib-select-multi-trigger"
       >
         <span class="truncate">{{ triggerLabel() }}</span>

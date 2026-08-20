@@ -31,6 +31,28 @@ describe('InputComponent', () => {
     expect(nativeInput().type).toBe('text');
   });
 
+  it('has no aria-label by default', () => {
+    expect(nativeInput().hasAttribute('aria-label')).toBe(false);
+  });
+
+  it('does not steal focus by default', () => {
+    expect(document.activeElement).not.toBe(nativeInput());
+  });
+
+  it('focuses the native input when autofocus is set', () => {
+    const other = TestBed.createComponent(InputComponent);
+    other.componentRef.setInput('autofocus', true);
+    other.detectChanges();
+    const otherInput = other.debugElement.query(By.css('[data-testid="lib-input-native"]')).nativeElement;
+    expect(document.activeElement).toBe(otherInput);
+  });
+
+  it('sets aria-label on the real native input, for compact label-less usage', () => {
+    fixture.componentRef.setInput('ariaLabel', 'Nom del segment');
+    fixture.detectChanges();
+    expect(nativeInput().getAttribute('aria-label')).toBe('Nom del segment');
+  });
+
   it('forwards the type input to the native input', () => {
     fixture.componentRef.setInput('type', 'email');
     fixture.detectChanges();

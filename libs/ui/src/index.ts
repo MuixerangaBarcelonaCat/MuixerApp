@@ -20,3 +20,4 @@ export * from './lib/components/modal/modal.component';
 export * from './lib/components/toast/toast-container.component';
 export * from './lib/services/toast.service';
 export * from './lib/components/empty-state/empty-state.component';
+export * from './lib/directives/lift-hover.directive';

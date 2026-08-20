@@ -5,6 +5,7 @@
 @if (clickable()) {
   <button
     type="button"
+    libDsLift
     [class]="badgeClass()"
     [style.background-color]="color() && !isOutlined() ? color() : null"
     [style.border-color]="color() && isOutlined() ? color() : null"

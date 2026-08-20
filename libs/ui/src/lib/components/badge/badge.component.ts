@@ -1,5 +1,6 @@
 import { booleanAttribute, ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
+import { LiftHoverDirective } from '../../directives/lift-hover.directive';
 import { contrastContent, formatOklch, hexToOklch } from '../../tokens/color';
 import { INK, PAPER } from '../../tokens/fixed-colors';
 
@@ -41,7 +42,7 @@ const PAPER_WHITE = hexToOklch(PAPER.white);
 @Component({
   selector: 'lib-badge',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgTemplateOutlet],
+  imports: [NgTemplateOutlet, LiftHoverDirective],
   templateUrl: './badge.component.html',
   styleUrls: ['./badge.component.scss'],
 })

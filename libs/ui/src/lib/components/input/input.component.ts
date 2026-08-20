@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, booleanAttribute, computed, forwardRef, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, booleanAttribute, computed, effect, forwardRef, input, signal, viewChild } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import type { LucideIconData } from 'lucide-angular';
 import { LucideAngularModule } from 'lucide-angular';
@@ -32,6 +32,9 @@ let nextId = 0;
 })
 export class InputComponent implements ControlValueAccessor {
   label = input<string>();
+  // For a compact, label-less input (no visible `label`) that still needs an accessible name —
+  // `label` renders visible text via lib-form-field, which isn't always the right call inline.
+  ariaLabel = input<string>();
   hint = input<string>();
   errorText = input<string>();
   icon = input<LucideIconData>();
@@ -46,6 +49,13 @@ export class InputComponent implements ControlValueAccessor {
   // rather than modeled (browsers already validate/constrain against them).
   min = input<string | number>();
   max = input<string | number>();
+  // Imperative (via an effect + viewChild), not the native `autofocus` attribute: this field is
+  // almost always toggled into existence by an `@if` (an inline rename row appearing), and the
+  // native attribute's own "focus on insertion" behavior is inconsistent across browsers for that
+  // case in a way a direct `.focus()` call isn't.
+  autofocus = input(false, { transform: booleanAttribute });
+
+  private readonly nativeInputRef = viewChild<ElementRef<HTMLInputElement>>('nativeInputRef');
 
   protected readonly value = signal('');
   private readonly formDisabled = signal(false);
@@ -75,6 +85,13 @@ export class InputComponent implements ControlValueAccessor {
 
   private onChange: (value: string) => void = () => undefined;
   private onTouched: () => void = () => undefined;
+
+  constructor() {
+    effect(() => {
+      if (!this.autofocus()) return;
+      this.nativeInputRef()?.nativeElement.focus();
+    });
+  }
 
   writeValue(value: string | null): void {
     this.value.set(value ?? '');

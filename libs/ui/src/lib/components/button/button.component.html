@@ -6,19 +6,38 @@
 </ng-template>
 
 @if (routerLink()) {
-  <a [class]="buttonClass()" [routerLink]="routerLink()" [attr.aria-label]="ariaLabel() ?? null" (click)="clicked.emit()">
+  <a
+    [class]="buttonClass()"
+    libDsLift
+    [routerLink]="routerLink()"
+    [attr.aria-label]="ariaLabel() ?? null"
+    [attr.aria-expanded]="ariaExpanded() ?? null"
+    [attr.aria-pressed]="ariaPressed() ?? null"
+    (click)="clicked.emit()"
+  >
     <ng-container [ngTemplateOutlet]="inner" />
   </a>
 } @else if (href()) {
-  <a [class]="buttonClass()" [href]="href()" [attr.aria-label]="ariaLabel() ?? null" (click)="clicked.emit()">
+  <a
+    [class]="buttonClass()"
+    libDsLift
+    [href]="href()"
+    [attr.aria-label]="ariaLabel() ?? null"
+    [attr.aria-expanded]="ariaExpanded() ?? null"
+    [attr.aria-pressed]="ariaPressed() ?? null"
+    (click)="clicked.emit()"
+  >
     <ng-container [ngTemplateOutlet]="inner" />
   </a>
 } @else {
   <button
     [class]="buttonClass()"
+    libDsLift
     [type]="type()"
     [disabled]="isDisabled()"
     [attr.aria-label]="ariaLabel() ?? null"
+    [attr.aria-expanded]="ariaExpanded() ?? null"
+    [attr.aria-pressed]="ariaPressed() ?? null"
     (click)="clicked.emit()"
   >
     <ng-container [ngTemplateOutlet]="inner" />
