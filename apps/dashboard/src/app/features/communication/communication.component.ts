@@ -2,7 +2,7 @@ import { Component, ChangeDetectionStrategy, inject, signal, computed } from '@a
 import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { News, NewsStatus } from '@muixer/shared';
-import { BadgeComponent, ButtonComponent, CardComponent, ToastService } from '@muixer/ui';
+import { ButtonComponent, CardComponent, ToastService } from '@muixer/ui';
 import { NewsService } from './services/news.service';
 import { DOMAIN_ICONS } from '../../shared/constants/domain-icons';
 import { getNewsStatus, formatDate } from '../../shared/utils';
@@ -13,7 +13,7 @@ const NEWS_PREVIEW_LIMIT = 3;
   selector: 'app-communication',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgTemplateOutlet, RouterLink, BadgeComponent, ButtonComponent, CardComponent],
+  imports: [NgTemplateOutlet, RouterLink, ButtonComponent, CardComponent],
   templateUrl: './communication.component.html',
 })
 export class CommunicationComponent {

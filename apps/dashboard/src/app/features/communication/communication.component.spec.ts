@@ -16,6 +16,8 @@ const mockNews = (overrides: Partial<News> = {}): News => ({
   createdBy: null,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
+  sendPush: false,
+  pushSentAt: null,
   ...overrides,
 });
 

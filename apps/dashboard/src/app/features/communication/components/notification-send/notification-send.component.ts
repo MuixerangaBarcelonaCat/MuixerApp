@@ -8,9 +8,14 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { SlicePipe } from '@angular/common';
-import { RouterLink } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
 import { NotificationTargetType, AttendanceStatus } from '@muixer/shared';
+import {
+  BadgeComponent,
+  ButtonComponent,
+  ButtonGroupComponent,
+  SelectComponent,
+} from '@muixer/ui';
 import { NotificationService, SendNotificationPayload } from '../../services/notification.service';
 import { EventService } from '../../../events/services/event.service';
 import { EventListItem } from '../../../events/models/event.model';
@@ -24,7 +29,17 @@ type SendState = 'idle' | 'sending' | 'success' | 'error';
   selector: 'app-notification-send',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, SlicePipe, RouterLink, LucideAngularModule, PageHeaderComponent, PersonSearchInputComponent],
+  imports: [
+    FormsModule,
+    SlicePipe,
+    LucideAngularModule,
+    PageHeaderComponent,
+    PersonSearchInputComponent,
+    BadgeComponent,
+    ButtonComponent,
+    ButtonGroupComponent,
+    SelectComponent,
+  ],
   templateUrl: './notification-send.component.html',
 })
 export class NotificationSendComponent implements OnInit {
