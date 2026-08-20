@@ -64,7 +64,10 @@ export class NewsDetailComponent {
     return this.sanitizer.sanitize(SecurityContext.HTML, marked.parse(body) as string) ?? '';
   });
 
-  protected onBodyClick(event: MouseEvent): void {
+  protected onBodyClick(event: MouseEvent | KeyboardEvent): void {
+    if (event instanceof KeyboardEvent && event.key !== 'Enter' && event.key !== ' ') {
+      return;
+    }
     const anchor = (event.target as HTMLElement).closest('a');
     if (anchor?.href) {
       event.preventDefault();
