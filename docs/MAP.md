@@ -117,7 +117,7 @@ graph TD
 | Element | Fitxers | Línies | Docs |
 |---------|--------:|-------:|------|
 | [`audit`](../apps/api/src/modules/audit) | 3 | 99 | [[GDPR_COMPLIANCE]] |
-| [`auth`](../apps/api/src/modules/auth) | 27 | 1390 | [[AUTH_FLOW]] · [[SSE_AUTH]] |
+| [`auth`](../apps/api/src/modules/auth) | 25 | 1291 | [[AUTH_FLOW]] · [[SSE_AUTH]] |
 | [`composition`](../apps/api/src/modules/composition) | 8 | 630 | [[PINYES_MODULE]] |
 | [`database`](../apps/api/src/modules/database) | 5 | 215 | [[DATA_MODEL]] |
 | [`event`](../apps/api/src/modules/event) | 13 | 1190 | [[DATA_MODEL]] |
@@ -125,17 +125,16 @@ graph TD
 | [`figure`](../apps/api/src/modules/figure) | 12 | 1308 | [[PINYES_MODULE]] · [[DATA_MODEL]] |
 | [`legal`](../apps/api/src/modules/legal) | 5 | 222 | [[GDPR_COMPLIANCE]] |
 | [`mail`](../apps/api/src/modules/mail) | 6 | 146 | — |
-| [`me`](../apps/api/src/modules/me) | 8 | 768 | — |
-| [`news`](../apps/api/src/modules/news) | 6 | 205 | — |
+| [`me`](../apps/api/src/modules/me) | 6 | 579 | — |
 | [`node-assignment`](../apps/api/src/modules/node-assignment) | 14 | 3044 | [[PINYES_MODULE]] |
 | [`person`](../apps/api/src/modules/person) | 11 | 1015 | [[DATA_MODEL]] |
-| [`person-delegate`](../apps/api/src/modules/person-delegate) | 7 | 522 | [[DATA_MODEL]] |
+| [`person-delegate`](../apps/api/src/modules/person-delegate) | 7 | 480 | [[DATA_MODEL]] |
 | [`season`](../apps/api/src/modules/season) | 6 | 388 | [[DATA_MODEL]] |
 | [`sync`](../apps/api/src/modules/sync) | 10 | 1874 | [[SYNC_ARCHITECTURE]] · [[API_APPSISTENCIA]] |
 | [`tag`](../apps/api/src/modules/tag) | 6 | 225 | [[DATA_MODEL]] |
 | [`user`](../apps/api/src/modules/user) | 12 | 843 | [[DATA_MODEL]] |
 
-Migracions TypeORM: **42** a [`apps/api/src/migrations`](../apps/api/src/migrations).
+Migracions TypeORM: **41** a [`apps/api/src/migrations`](../apps/api/src/migrations).
 
 ### Features del dashboard (`apps/dashboard/src/app/features`)
 
@@ -156,19 +155,18 @@ Migracions TypeORM: **42** a [`apps/api/src/migrations`](../apps/api/src/migrati
 |---------|--------:|-------:|------|
 | [`auth`](../apps/pwa/src/app/features/auth) | 3 | 224 | [[AUTH_FLOW]] · [[SSE_AUTH]] |
 | [`dependents`](../apps/pwa/src/app/features/dependents) | 1 | 105 | — |
-| [`events`](../apps/pwa/src/app/features/events) | 8 | 972 | [[DASHBOARD_UI]] |
-| [`home`](../apps/pwa/src/app/features/home) | 2 | 156 | [[DASHBOARD_UI]] |
-| [`news`](../apps/pwa/src/app/features/news) | 2 | 87 | — |
-| [`profile`](../apps/pwa/src/app/features/profile) | 4 | 429 | — |
+| [`events`](../apps/pwa/src/app/features/events) | 8 | 967 | [[DASHBOARD_UI]] |
+| [`home`](../apps/pwa/src/app/features/home) | 2 | 139 | [[DASHBOARD_UI]] |
+| [`profile`](../apps/pwa/src/app/features/profile) | 1 | 21 | — |
 
 ### Codi compartit (`libs/shared/src`)
 
 | Element | Fitxers | Línies | Docs |
 |---------|--------:|-------:|------|
 | [`constants`](../libs/shared/src/constants) | 4 | 170 | — |
-| [`enums`](../libs/shared/src/enums) | 17 | 153 | — |
-| [`interfaces`](../libs/shared/src/interfaces) | 22 | 771 | — |
-| [`utils`](../libs/shared/src/utils) | 3 | 211 | — |
+| [`enums`](../libs/shared/src/enums) | 16 | 143 | — |
+| [`interfaces`](../libs/shared/src/interfaces) | 19 | 741 | — |
+| [`utils`](../libs/shared/src/utils) | 3 | 202 | — |
 
 ### Fitxers més grans (candidats a dividir)
 
