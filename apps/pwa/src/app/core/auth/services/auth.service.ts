@@ -10,7 +10,8 @@ import {
   RegisterViaInviteRequest,
   UserProfile,
 } from '@muixer/shared';
-import { ToastService } from '@muixer/ui';
+import { ToastService } from '../../../shared/services/toast.service';
+import { InstallPromptService } from '../../../shared/services/install-prompt.service';
 import { environment } from '../../../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
@@ -18,6 +19,7 @@ export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
+  private readonly installPrompt = inject(InstallPromptService);
 
   /**
    * Marks (in localStorage) that this device has had an authenticated session, so the
@@ -121,6 +123,7 @@ export class AuthService {
           this._accessToken.set(res.accessToken);
           this._currentUser.set(res.user);
           this.setSessionHint();
+          this.installPrompt.registerLogin();
         }),
         map(() => void 0),
       );
