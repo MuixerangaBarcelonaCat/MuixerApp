@@ -96,18 +96,25 @@
                         {{ getCellValue(item, col) }}
                       </span>
                     } @else if (col.type === 'pills' && col.pills) {
-                      <span
-                        class="inline-flex items-center gap-2"
-                        [class.cursor-pointer]="!!col.onCellClick"
-                        [class.hover:underline]="!!col.onCellClick"
-                        (click)="onCellClick($event, col, item)"
-                      >
-                        <!-- Tracked by index: pills are a positional list with no identity
-                             of their own, and two may legitimately carry the same label. -->
-                        @for (pill of col.pills(item); track $index) {
-                          <span class="text-xs font-semibold tabular-nums" [ngClass]="pill.class">{{ pill.text }}</span>
-                        }
-                      </span>
+                      <!-- Tracked by index: pills are a positional list with no identity
+                           of their own, and two may legitimately carry the same label. -->
+                      @if (col.onCellClick) {
+                        <button
+                          type="button"
+                          class="inline-flex items-center gap-2 hover:underline"
+                          (click)="onCellClick($event, col, item)"
+                        >
+                          @for (pill of col.pills(item); track $index) {
+                            <span class="text-xs font-semibold tabular-nums" [ngClass]="pill.class">{{ pill.text }}</span>
+                          }
+                        </button>
+                      } @else {
+                        <span class="inline-flex items-center gap-2">
+                          @for (pill of col.pills(item); track $index) {
+                            <span class="text-xs font-semibold tabular-nums" [ngClass]="pill.class">{{ pill.text }}</span>
+                          }
+                        </span>
+                      }
                     } @else if (col.type === 'colorBadges' && col.colorBadges) {
                       <div class="flex flex-wrap gap-1">
                         @for (badge of col.colorBadges(item); track badge.text) {
@@ -236,17 +243,24 @@
                           {{ getCellValue(item, col) }}
                         </span>
                       } @else if (col.type === 'pills' && col.pills) {
-                        <span
-                          class="inline-flex items-center gap-2 flex-wrap justify-end"
-                          [class.cursor-pointer]="!!col.onCellClick"
-                          [class.hover:underline]="!!col.onCellClick"
-                          (click)="onCellClick($event, col, item)"
-                        >
-                          <!-- Tracked by index, not by text — see the table-mode branch. -->
-                          @for (pill of col.pills(item); track $index) {
-                            <span class="text-xs font-semibold tabular-nums" [ngClass]="pill.class">{{ pill.text }}</span>
-                          }
-                        </span>
+                        <!-- Tracked by index, not by text — see the table-mode branch. -->
+                        @if (col.onCellClick) {
+                          <button
+                            type="button"
+                            class="inline-flex items-center gap-2 flex-wrap justify-end hover:underline"
+                            (click)="onCellClick($event, col, item)"
+                          >
+                            @for (pill of col.pills(item); track $index) {
+                              <span class="text-xs font-semibold tabular-nums" [ngClass]="pill.class">{{ pill.text }}</span>
+                            }
+                          </button>
+                        } @else {
+                          <span class="inline-flex items-center gap-2 flex-wrap justify-end">
+                            @for (pill of col.pills(item); track $index) {
+                              <span class="text-xs font-semibold tabular-nums" [ngClass]="pill.class">{{ pill.text }}</span>
+                            }
+                          </span>
+                        }
                       } @else if (col.type === 'colorBadges' && col.colorBadges) {
                         <div class="flex flex-wrap gap-1 justify-end">
                           @for (badge of col.colorBadges(item); track badge.text) {
