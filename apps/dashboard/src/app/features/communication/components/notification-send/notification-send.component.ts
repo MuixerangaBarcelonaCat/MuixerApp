@@ -57,7 +57,7 @@ export class NotificationSendComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    this.eventService.getAll({ limit: 200 }).subscribe({
+    this.eventService.getAll({ limit: 100 }).subscribe({
       next: (resp) => this.events.set(resp.data),
       error: (_err: unknown) => { /* events silently fail — form just shows empty select */ },
     });
