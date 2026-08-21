@@ -6,7 +6,7 @@ import { HomeComponent } from './home.component';
 import { HomeService, HomeData } from './services/home.service';
 import { AuthService } from '../../core/auth/services/auth.service';
 import { EventService } from '../events/services/event.service';
-import { ToastService } from '../../shared/services/toast.service';
+import { ToastService } from '@muixer/ui';
 import { DependentsService } from '../../core/services/dependents.service';
 import { provideRouter } from '@angular/router';
 

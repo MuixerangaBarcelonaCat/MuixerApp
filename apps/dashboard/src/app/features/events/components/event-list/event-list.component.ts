@@ -8,8 +8,9 @@ import {
 } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { LucideAngularModule } from 'lucide-angular';
-import { ICON_FIGURA, ICON_ASSAIG, ICON_ACTUACIO } from '../../../../shared/constants/domain-icons';
+import { LucideAngularModule, Search } from 'lucide-angular';
+import { ButtonComponent, InputComponent, SelectComponent, EmptyStateComponent } from '@muixer/ui';
+import { ICON_FIGURA, DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { EventService } from '../../services/event.service';
 import { SeasonService } from '../../services/season.service';
 import { EventFormModalComponent } from '../event-form-modal/event-form-modal.component';
@@ -27,7 +28,6 @@ import { FilterBarComponent } from '../../../../shared/components/data/filter-ba
 import { ActiveFiltersComponent } from '../../../../shared/components/data/active-filters/active-filters.component';
 import { ColumnToggleComponent } from '../../../../shared/components/data/column-toggle/column-toggle.component';
 import { PaginationComponent } from '../../../../shared/components/data/pagination/pagination.component';
-import { EmptyStateComponent } from '../../../../shared/components/data/empty-state/empty-state.component';
 import { DataTableComponent, RowAction } from '../../../../shared/components/data/data-table/data-table.component';
 import { ActiveFilter } from '../../../../shared/components/data/active-filters/active-filters.component';
 import { ColumnDef, ColumnPill, GroupSeparator } from '../../../../shared/models/column-def.model';
@@ -61,13 +61,16 @@ function storageKey(eventType: EventType): string {
   imports: [
     FormsModule,
     LucideAngularModule,
+    ButtonComponent,
+    InputComponent,
+    SelectComponent,
+    EmptyStateComponent,
     EventFormModalComponent,
     PageHeaderComponent,
     FilterBarComponent,
     ActiveFiltersComponent,
     ColumnToggleComponent,
     PaginationComponent,
-    EmptyStateComponent,
     DataTableComponent,
   ],
   templateUrl: './event-list.component.html',
@@ -80,8 +83,8 @@ export class EventListComponent implements OnInit {
 
   readonly EventType = EventType;
   readonly ALL_EVENT_COLUMNS = ALL_EVENT_COLUMNS;
-  readonly ICON_ASSAIG = ICON_ASSAIG;
-  readonly ICON_ACTUACIO = ICON_ACTUACIO;
+  readonly DOMAIN_ICONS = DOMAIN_ICONS;
+  readonly SearchIcon = Search;
   Math = Math;
 
   searchInput = '';

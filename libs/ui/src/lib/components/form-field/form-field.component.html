@@ -1,0 +1,25 @@
+<div class="form-control w-full">
+  @if (label()) {
+    <div class="label pb-1">
+      <label [attr.for]="id() ?? null" [class]="labelTextClass()"
+        >{{ label() }}@if (required()) {
+          <span aria-hidden="true"> *</span>
+        }</label
+      >
+    </div>
+  }
+
+  <ng-content />
+
+  @if (hasError()) {
+    <div class="label pt-1">
+      <span class="label-text-alt text-error" [id]="descriptionId() ?? null" role="alert" data-testid="lib-form-field-error">{{
+        errorText()
+      }}</span>
+    </div>
+  } @else if (hasHint()) {
+    <div class="label pt-1">
+      <span class="label-text-alt" [id]="descriptionId() ?? null" data-testid="lib-form-field-hint">{{ hint() }}</span>
+    </div>
+  }
+</div>

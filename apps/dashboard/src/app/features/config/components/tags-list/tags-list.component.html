@@ -2,9 +2,9 @@
 
   <!-- Capçalera -->
   <app-page-header title="Etiquetes" [count]="tags().length">
-    <button type="button" class="btn btn-primary btn-sm" (click)="openCreateModal()">
-        Etiqueta nova
-    </button>
+    <lib-button variant="primary" size="sm" (clicked)="openCreateModal()">
+      Etiqueta nova
+    </lib-button>
   </app-page-header>
 
   <!-- Taula -->
@@ -49,11 +49,7 @@
                   <div class="flex flex-wrap gap-1">
                     @for (pt of pos.positionTypes; track pt) {
                       @let meta = positionTypeMeta[pt];
-                      <span
-                        class="badge badge-sm border-0"
-                        [style.background-color]="meta?.color ?? '#64748b'"
-                        [style.color]="getContrastColor(meta?.color ?? '#64748b')"
-                      >{{ meta?.label ?? pt }}</span>
+                      <lib-badge size="sm" [color]="meta?.color ?? '#64748b'">{{ meta?.label ?? pt }}</lib-badge>
                     }
                   </div>
                 } @else {
@@ -63,33 +59,34 @@
               <td class="text-right tabular-nums">{{ pos.personCount }}</td>
               <td>
                 <div class="flex gap-1">
-                  <button
-                    type="button"
-                    class="btn btn-ghost btn-xs"
-                    (click)="openEditModal(pos)"
-                    aria-label="Edita {{ pos.name }}"
+                  <lib-button
+                    variant="ghost"
+                    size="xs"
+                    (clicked)="openEditModal(pos)"
+                    [ariaLabel]="'Edita ' + pos.name"
                   >
                     Edita
-                  </button>
-                  <button
-                    type="button"
-                    class="btn btn-ghost btn-xs text-error"
-                    (click)="confirmDelete(pos)"
-                    aria-label="Elimina {{ pos.name }}"
+                  </lib-button>
+                  <lib-button
+                    variant="error"
+                    outline
+                    size="xs"
+                    (clicked)="confirmDelete(pos)"
+                    [ariaLabel]="'Elimina ' + pos.name"
                   >
                     Elimina
-                  </button>
+                  </lib-button>
                 </div>
               </td>
             </tr>
           } @empty {
             <tr>
               <td colspan="5">
-                <app-empty-state
-                  icon="Tags"
+                <lib-empty-state
+                  [icon]="ICON_TAG"
                   message="No hi ha etiquetes creades encara"
                   actionLabel="Crea etiqueta"
-                  (actionClick)="openCreateModal()"
+                  (clicked)="openCreateModal()"
                 />
               </td>
             </tr>
@@ -111,27 +108,21 @@
 }
 
 <!-- Modal: Confirmar eliminació -->
-@if (confirmDeleteTarget(); as target) {
-  <dialog class="modal modal-open" aria-modal="true" role="alertdialog" aria-labelledby="delete-confirm-title">
-    <div class="modal-box max-w-sm">
-      <h3 id="delete-confirm-title" class="font-bold text-lg">Eliminar etiqueta</h3>
-      <p class="py-4 text-sm">
-        Segur que voleu eliminar <strong>{{ target.name }}</strong>?
-        @if (target.personCount > 0) {
-          <br />
-          <span class="text-warning">Aquesta etiqueta té {{ target.personCount }} persones assignades.</span>
-        }
-      </p>
-      <div class="modal-action">
-        <button type="button" class="btn btn-ghost btn-sm" (click)="cancelDelete()">Cancel·la</button>
-        <button type="button" class="btn btn-error btn-sm" [disabled]="deleting()" (click)="executeDelete()">
-          @if (deleting()) {
-            <span class="loading loading-spinner loading-xs"></span>
-          }
-          Elimina
-        </button>
-      </div>
-    </div>
-    <div class="modal-backdrop" (click)="cancelDelete()" (keydown.enter)="cancelDelete()" tabindex="0" role="button" aria-label="Tancar"></div>
-  </dialog>
-}
+<lib-modal [open]="!!confirmDeleteTarget()" title="Eliminar etiqueta" size="sm" (closed)="cancelDelete()">
+  @if (confirmDeleteTarget(); as target) {
+    <p class="text-sm">
+      Segur que voleu eliminar <strong>{{ target.name }}</strong>?
+      @if (target.personCount > 0) {
+        <br />
+        <span class="text-warning">Aquesta etiqueta té {{ target.personCount }} persones assignades.</span>
+      }
+    </p>
+  }
+
+  <div modalFooter>
+    <lib-button variant="ghost" size="sm" (clicked)="cancelDelete()">Cancel·la</lib-button>
+    <lib-button variant="error" size="sm" [disabled]="deleting()" [loading]="deleting()" (clicked)="executeDelete()">
+      Elimina
+    </lib-button>
+  </div>
+</lib-modal>

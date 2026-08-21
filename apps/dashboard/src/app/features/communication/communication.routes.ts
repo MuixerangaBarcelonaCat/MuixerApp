@@ -10,6 +10,6 @@ export const communicationRoutes: Routes = [
   { path: 'news', component: NewsListComponent, data: { title: 'Notícies' } },
   { path: 'news/new', component: NewsEditorComponent, data: { title: 'Notícia nova' } },
   { path: 'news/:id/edit', component: NewsEditorComponent, data: { title: 'Edita la notícia' } },
-  { path: 'notifications', component: NotificationSendComponent, data: { title: 'Enviar notificació' } },
+  { path: 'notifications', component: NotificationSendComponent, data: { title: 'Envia notificació' } },
   { path: 'notifications/devices', component: DeviceListComponent, data: { title: 'Dispositius subscrits' } },
 ];

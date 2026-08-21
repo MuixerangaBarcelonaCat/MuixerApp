@@ -16,7 +16,7 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { Observable } from 'rxjs';
 import { LucideAngularModule, Undo2, Redo2, Eye, EyeOff } from 'lucide-angular';
-import { ICON_TRONC, ICON_RENGLA, ICON_PINYA } from '../../../../shared/constants/domain-icons';
+import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { HttpErrorResponse } from '@angular/common/http';
 import { generateUUID } from '../../../../shared/utils/uuid.util';
 import { slugify } from '../../utils/slugify.util';
@@ -30,7 +30,7 @@ import { NodeActionsComponent } from '../../../../shared/components/controls/nod
 import { getPresetColorsForZone, isNodeColorEditable } from '../../utils/node-color-presets.util';
 import { RenglaOverlayComponent, RenglaCreatedEvent, RenglaDeletedEvent, RenglaStartChangedEvent } from '../rengla-overlay/rengla-overlay.component';
 import { LayoutService } from '../../../../core/services/layout.service';
-import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
+import { ToastService, TabsComponent, TabDef } from '@muixer/ui';
 import { validateBaseOrdering } from '../../utils/base-ordering.util';
 import { CanComponentDeactivate } from '../../../../core/guards/unsaved-changes.guard';
 
@@ -54,6 +54,7 @@ const DEFAULT_NODE_HEIGHT = 40;
   imports: [
     FormsModule,
     LucideAngularModule,
+    TabsComponent,
     FigureCanvasComponent,
     TroncViewComponent,
     TemplateEditorHelpModalComponent,
@@ -66,9 +67,6 @@ const DEFAULT_NODE_HEIGHT = 40;
   styleUrl: './template-editor.component.scss',
 })
 export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentDeactivate {
-  readonly ICON_TRONC = ICON_TRONC;
-  readonly ICON_RENGLA = ICON_RENGLA;
-  readonly ICON_PINYA = ICON_PINYA;
 
   private readonly figureTemplateService = inject(FigureTemplateService);
   private readonly canvasState = inject(CanvasStateService);
@@ -926,6 +924,25 @@ export class TemplateEditorComponent implements OnInit, OnDestroy, CanComponentD
   }
 
   // ── Rengla mode ──────────────────────────────────────────────────────────
+
+  /** Which of the three mutually-exclusive editor modes is active, for the `lib-tabs` strip. */
+  readonly editorMode = computed<'pinya' | 'rengles' | 'tronc'>(() => {
+    if (this.troncEditMode()) return 'tronc';
+    if (this.renglaEditMode()) return 'rengles';
+    return 'pinya';
+  });
+
+  readonly editorModeTabs: TabDef[] = [
+    { id: 'pinya', label: 'Pinya', icon: DOMAIN_ICONS.PINYA },
+    { id: 'rengles', label: 'Rengles', icon: DOMAIN_ICONS.RENGLA },
+    { id: 'tronc', label: 'Tronc', icon: DOMAIN_ICONS.TRONC },
+  ];
+
+  setEditorMode(mode: string): void {
+    if (mode === 'pinya') this.activatePinyaMode();
+    else if (mode === 'rengles') this.toggleRenglaEditMode();
+    else if (mode === 'tronc') this.activateTroncMode();
+  }
 
   activatePinyaMode(): void {
     if (this.renglaEditMode()) this.toggleRenglaEditMode();

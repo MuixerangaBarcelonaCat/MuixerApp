@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
+import { BadgeComponent, ButtonComponent, CardComponent } from '@muixer/ui';
 import { AttendanceService } from '../../services/attendance.service';
 import { AttendanceItem } from '../../models/attendance.model';
 import { AttendanceStatus } from '@muixer/shared';
@@ -23,6 +24,7 @@ const KEYBOARD_ROWS = [
   selector: 'app-attendance-confirmation',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [BadgeComponent, ButtonComponent, CardComponent],
   templateUrl: './attendance-confirmation.component.html',
 })
 export class AttendanceConfirmationComponent implements OnInit, OnDestroy {

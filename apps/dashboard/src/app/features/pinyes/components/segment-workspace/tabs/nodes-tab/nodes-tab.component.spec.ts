@@ -12,7 +12,7 @@ import { UndoRedoService } from '../../../../services/undo-redo.service';
 import { EventSegmentService } from '../../../../services/event-segment.service';
 import { SegmentDistributionService } from '../../../../services/segment-distribution.service';
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
-import { ToastService } from '../../../../../../shared/components/feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 
 // ── Stub children ────────────────────────────────────────────────────────────
 

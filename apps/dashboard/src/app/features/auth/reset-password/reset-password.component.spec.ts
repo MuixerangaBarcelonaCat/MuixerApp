@@ -7,7 +7,7 @@ import { of, throwError } from 'rxjs';
 import { allLucideIconsProvider } from '../../../../testing/lucide-test-provider';
 import { ResetPasswordComponent } from './reset-password.component';
 import { AuthService } from '../../../core/auth/services/auth.service';
-import { ToastService } from '../../../shared/components/feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 
 const mockAuthService = {
   resetPassword: vi.fn(),

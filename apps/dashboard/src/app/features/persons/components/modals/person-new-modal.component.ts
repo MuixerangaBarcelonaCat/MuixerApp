@@ -1,5 +1,6 @@
 import { Component, ChangeDetectionStrategy, inject, signal, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ButtonComponent, InputComponent, ModalComponent } from '@muixer/ui';
 import { PersonService } from '../../services/person.service';
 import { Person } from '../../models/person.model';
 
@@ -7,7 +8,7 @@ import { Person } from '../../models/person.model';
   selector: 'app-person-new-modal',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule],
+  imports: [FormsModule, ButtonComponent, InputComponent, ModalComponent],
   templateUrl: './person-new-modal.component.html',
 })
 export class PersonNewModalComponent {

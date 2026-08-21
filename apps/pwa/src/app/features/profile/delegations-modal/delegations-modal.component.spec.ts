@@ -5,7 +5,7 @@ import { of, Subject, throwError } from 'rxjs';
 import { DelegateType } from '@muixer/shared';
 import { DelegationsModalComponent } from './delegations-modal.component';
 import { ProfileDelegate, ProfileService } from '../services/profile.service';
-import { ToastService } from '../../../shared/services/toast.service';
+import { ToastService } from '@muixer/ui';
 
 const PRIMARY_DELEGATE: ProfileDelegate = {
   id: 'd-1',

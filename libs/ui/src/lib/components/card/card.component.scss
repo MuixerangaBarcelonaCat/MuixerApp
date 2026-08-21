@@ -1,0 +1,91 @@
+:host {
+  display: contents;
+}
+
+// Card shell (design doc: Identity principles + Phase 3 Card spec). Base shape/flex/radius come
+// from DaisyUI's own .card + bg-base-100/shadow-raised utility classes (applied as static classes
+// in the template) — this file only adds what DaisyUI doesn't already provide: the sash band, its
+// fringe, and the interactive press/lift motion (shared with Button via the --ds-* tokens).
+.card {
+  position: relative; // anchor for the band/fringe, which overhang the card's own edges
+  text-decoration: none; // for the <a> variants
+  color: inherit;
+  text-align: left; // for the <button> variant, which centers text by default
+}
+
+.body {
+  // Top padding is set inline per-instance (card.component.ts's bodyPaddingTop) since it depends
+  // on the band's height, which varies by sash mode — the band is position:absolute and won't
+  // push this down via normal flow.
+  padding: 1.15rem 1.25rem;
+}
+
+.body-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  font-size: 1rem;
+  margin-bottom: 0.3rem;
+
+  lucide-icon {
+    flex-shrink: 0;
+  }
+}
+
+// The sash band. Left overhang (wraps past the card's own edge, as if the cloth continues behind
+// it) + a straight cut on the right where the fringe takes over. Fold shading (top/bottom darken)
+// and a fade on the left end are the approved treatment — no seams, no outline (both tried and
+// rejected), disabled-outline dashing has no place here since the band isn't a disableable state.
+.band {
+  position: absolute;
+  left: -10px;
+  right: 40px;
+  top: 16px;
+  box-sizing: border-box;
+  background-color: var(--ds-sash-fill);
+  background-image:
+    linear-gradient(to right, oklch(0% 0 0 / 0.38) 0, oklch(0% 0 0 / 0.1) 12px, transparent 26px),
+    linear-gradient(to bottom, oklch(0% 0 0 / 0.15) 0, transparent 22%, transparent 78%, oklch(0% 0 0 / 0.15) 100%),
+    repeating-linear-gradient(45deg, oklch(100% 0 0 / 0.06) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(-45deg, oklch(0% 0 0 / 0.06) 0 1px, transparent 1px 3px);
+  box-shadow: 0 2px 5px oklch(22.2% 0.0059 91.62 / 0.26);
+}
+
+.sash-title {
+  position: absolute;
+  inset: 0;
+  left: 0;
+  padding-left: 1.05rem;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--ds-sash-content);
+  font-weight: 700;
+  font-size: 1rem;
+  z-index: 1;
+
+  lucide-icon {
+    flex-shrink: 0;
+  }
+}
+
+// The fringe (flecos) — threads emerging from the band's cut right edge, generated per-instance
+// by sash-fringe.util.ts. Drop shadow only (thread-level shading and an outline were both tried
+// and rejected — the shadow alone was enough to read on a white sash against a light card).
+.fringe {
+  position: absolute;
+  left: calc(100% - 40px);
+  top: 16px;
+  width: 40px;
+  overflow: visible;
+  color: var(--ds-sash-fill);
+  filter: drop-shadow(0 1px 1.2px oklch(0% 0 0 / 0.4));
+  pointer-events: none;
+}
+
+// Interactive press/lift itself is the shared `.ds-lift`/`.ds-lift-surface` classes
+// (libs/ui/src/styles/_interactive.scss, applied via `interactiveClass` in card.component.ts) —
+// Card's own subtler press scale (0.98, approved over Button's 0.93 as more proportionate to a
+// large surface) and resting shadow are `.ds-lift-surface`'s custom-property preset, not a rule
+// reimplemented here.

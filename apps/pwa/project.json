@@ -25,7 +25,10 @@
             "output": "/"
           }
         ],
-        "styles": ["apps/pwa/src/styles.scss"]
+        "styles": ["apps/pwa/src/styles.scss"],
+        "stylePreprocessorOptions": {
+          "includePaths": ["libs/ui/src/styles"]
+        }
       },
       "configurations": {
         "production": {

@@ -11,7 +11,7 @@ import { EventSegmentService } from '../../../pinyes/services/event-segment.serv
 import { FigureInstanceService } from '../../../pinyes/services/figure-instance.service';
 import { CompositionService } from '../../../pinyes/services/composition.service';
 import { NodeAssignmentService } from '../../../pinyes/services/node-assignment.service';
-import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 
 const EVENT_ID = 'event-uuid-1';
 
@@ -1325,7 +1325,7 @@ describe('SegmentManagerComponent', () => {
       setLockedWithSegment();
 
       const visibilityBtn: HTMLButtonElement = fixture.nativeElement.querySelector(
-        '.btn-ghost.btn-xs[title*="Visible"], .btn-ghost.btn-xs[title*="Ocult"]',
+        '[aria-label*="Visible"], [aria-label*="Ocult"]',
       );
       expect(visibilityBtn.disabled).toBe(false);
     });

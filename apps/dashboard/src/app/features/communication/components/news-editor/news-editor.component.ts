@@ -7,7 +7,7 @@ import { LucideAngularModule } from 'lucide-angular';
 import { marked } from 'marked';
 import { NewsStatus } from '@muixer/shared';
 import { NewsService } from '../../services/news.service';
-import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
+import { ToastService, BadgeComponent, ButtonComponent, CardComponent, InputComponent } from '@muixer/ui';
 import { getNewsStatus, getNewsStatusLabel, toDatetimeLocalValue, fromDatetimeLocalValue } from '../../../../shared/utils';
 
 marked.setOptions({ async: false });
@@ -27,7 +27,7 @@ marked.use({ renderer });
   selector: 'app-news-editor',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule, DatePipe],
+  imports: [FormsModule, LucideAngularModule, BadgeComponent, ButtonComponent, CardComponent, InputComponent, DatePipe],
   templateUrl: './news-editor.component.html',
 })
 export class NewsEditorComponent {

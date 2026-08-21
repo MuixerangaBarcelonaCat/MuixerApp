@@ -19,7 +19,7 @@ import { CanvasStateService } from '../../../../services/canvas-state.service';
 import { SegmentDistributionService } from '../../../../services/segment-distribution.service';
 import { FigureInstanceService } from '../../../../services/figure-instance.service';
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
-import { ToastService } from '../../../../../../shared/components/feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 import { mapDistributionItemsToSlots } from '../../../../utils/distribution-slot-mapping.util';
 import { computeMaxCordons } from '../../../../utils/figure-mode-filter.util';
 import { DistributionItem, InstanceDistributionPayload } from '../../../../models/distribution.model';

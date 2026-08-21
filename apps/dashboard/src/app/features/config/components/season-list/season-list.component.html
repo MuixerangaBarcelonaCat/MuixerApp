@@ -1,9 +1,9 @@
 <div class="space-y-4">
 
   <app-page-header title="Temporades" [count]="seasons().length">
-    <button type="button" class="btn btn-primary btn-sm" (click)="openCreateModal()">
+    <lib-button variant="primary" size="sm" (clicked)="openCreateModal()">
       Temporada nova
-    </button>
+    </lib-button>
   </app-page-header>
 
   <div class="overflow-x-auto">
@@ -34,7 +34,7 @@
               <td class="font-medium">
                 {{ season.name }}
                 @if (season.isCurrent) {
-                  <span class="badge badge-success badge-sm ml-2">Actual</span>
+                  <span class="ml-2"><lib-badge variant="success" size="sm">Actual</lib-badge></span>
                 }
               </td>
               <td class="tabular-nums">{{ season.startDateFormatted }}</td>
@@ -54,33 +54,34 @@
               </td>
               <td>
                 <div class="flex gap-1">
-                  <button
-                    type="button"
-                    class="btn btn-ghost btn-xs"
-                    (click)="openEditModal(season)"
-                    [attr.aria-label]="'Edita ' + season.name"
+                  <lib-button
+                    variant="ghost"
+                    size="xs"
+                    (clicked)="openEditModal(season)"
+                    [ariaLabel]="'Edita ' + season.name"
                   >
                     Edita
-                  </button>
-                  <button
-                    type="button"
-                    class="btn btn-ghost btn-xs text-error"
-                    (click)="confirmDelete(season)"
-                    [attr.aria-label]="'Elimina ' + season.name"
+                  </lib-button>
+                  <lib-button
+                    variant="error"
+                    outline
+                    size="xs"
+                    (clicked)="confirmDelete(season)"
+                    [ariaLabel]="'Elimina ' + season.name"
                   >
                     Elimina
-                  </button>
+                  </lib-button>
                 </div>
               </td>
             </tr>
           } @empty {
             <tr>
               <td colspan="5">
-                <app-empty-state
+                <lib-empty-state
                   [icon]="ICON_ASSAIG"
                   message="No hi ha temporades creades encara"
                   actionLabel="Crea temporada"
-                  (actionClick)="openCreateModal()"
+                  (clicked)="openCreateModal()"
                 />
               </td>
             </tr>
@@ -100,27 +101,21 @@
   />
 }
 
-@if (confirmDeleteTarget(); as target) {
-  <dialog class="modal modal-open" aria-modal="true" role="alertdialog" aria-labelledby="delete-confirm-title">
-    <div class="modal-box max-w-sm">
-      <h3 id="delete-confirm-title" class="font-bold text-lg">Eliminar temporada</h3>
-      <p class="py-4 text-sm">
-        Segur que voleu eliminar <strong>{{ target.name }}</strong>?
-        @if (target.eventCount > 0) {
-          <br />
-          <span class="text-warning">Aquesta temporada té {{ target.eventCount }} events associats i no es podrà eliminar.</span>
-        }
-      </p>
-      <div class="modal-action">
-        <button type="button" class="btn btn-ghost btn-sm" (click)="cancelDelete()">Cancel·la</button>
-        <button type="button" class="btn btn-error btn-sm" [disabled]="deleting()" (click)="executeDelete()">
-          @if (deleting()) {
-            <span class="loading loading-spinner loading-xs"></span>
-          }
-          Elimina
-        </button>
-      </div>
-    </div>
-    <div class="modal-backdrop" (click)="cancelDelete()" (keydown.enter)="cancelDelete()" tabindex="0" role="button" aria-label="Tancar"></div>
-  </dialog>
-}
+<lib-modal [open]="!!confirmDeleteTarget()" title="Eliminar temporada" size="sm" (closed)="cancelDelete()">
+  @if (confirmDeleteTarget(); as target) {
+    <p class="text-sm">
+      Segur que voleu eliminar <strong>{{ target.name }}</strong>?
+      @if (target.eventCount > 0) {
+        <br />
+        <span class="text-warning">Aquesta temporada té {{ target.eventCount }} events associats i no es podrà eliminar.</span>
+      }
+    </p>
+  }
+
+  <div modalFooter>
+    <lib-button variant="ghost" size="sm" (clicked)="cancelDelete()">Cancel·la</lib-button>
+    <lib-button variant="error" size="sm" [disabled]="deleting()" [loading]="deleting()" (clicked)="executeDelete()">
+      Elimina
+    </lib-button>
+  </div>
+</lib-modal>

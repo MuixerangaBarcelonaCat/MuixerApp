@@ -1,0 +1,28 @@
+<ng-template #inner>
+  <ng-content />
+</ng-template>
+
+@if (clickable()) {
+  <button
+    type="button"
+    libDsLift
+    [class]="badgeClass()"
+    [style.background-color]="color() && !isOutlined() ? color() : null"
+    [style.border-color]="color() && isOutlined() ? color() : null"
+    [style.color]="color() ? (isOutlined() ? outlineTextColor() : customContentColor()) : null"
+    [attr.aria-pressed]="selected()"
+    [attr.aria-label]="ariaLabel() ?? null"
+    (click)="clicked.emit()"
+  >
+    <ng-container [ngTemplateOutlet]="inner" />
+  </button>
+} @else {
+  <span
+    [class]="badgeClass()"
+    [style.background-color]="color() && !isOutlined() ? color() : null"
+    [style.border-color]="color() && isOutlined() ? color() : null"
+    [style.color]="color() ? (isOutlined() ? outlineTextColor() : customContentColor()) : null"
+  >
+    <ng-container [ngTemplateOutlet]="inner" />
+  </span>
+}

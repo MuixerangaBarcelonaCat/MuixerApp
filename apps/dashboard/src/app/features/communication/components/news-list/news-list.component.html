@@ -1,7 +1,7 @@
 <div class="space-y-4">
 
   <app-page-header title="Notícies" [count]="newsItems().length">
-    <a routerLink="new" class="btn btn-primary btn-sm">Notícia nova</a>
+    <lib-button variant="primary" size="sm" routerLink="new">Notícia nova</lib-button>
   </app-page-header>
 
   <div class="overflow-x-auto">
@@ -31,14 +31,14 @@
             <tr class="hover">
               <td class="font-medium">{{ news.title }}</td>
               <td>
-                <span
-                  class="badge badge-sm"
-                  [class.badge-ghost]="news.statusLabel === 'Esborrany'"
-                  [class.badge-info]="news.statusLabel === 'Programada'"
-                  [class.badge-success]="news.statusLabel === 'Publicada'"
+                <lib-badge
+                  size="sm"
+                  [variant]="
+                    news.statusLabel === 'Publicada' ? 'success' : news.statusLabel === 'Programada' ? 'info' : 'ghost'
+                  "
                 >
                   {{ news.statusLabel }}
-                </span>
+                </lib-badge>
               </td>
               <td class="tabular-nums">{{ news.publishedAtFormatted }}</td>
               <td>
@@ -54,28 +54,30 @@
               </td>
               <td>
                 <div class="flex gap-1">
-                  <a
+                  <lib-button
+                    variant="ghost"
+                    size="xs"
                     [routerLink]="[news.id, 'edit']"
-                    class="btn btn-ghost btn-xs"
-                    [attr.aria-label]="'Edita ' + news.title"
+                    [ariaLabel]="'Edita ' + news.title"
                   >
                     Edita
-                  </a>
-                  <button
-                    type="button"
-                    class="btn btn-ghost btn-xs text-error"
-                    (click)="confirmDelete(news)"
-                    [attr.aria-label]="'Elimina ' + news.title"
+                  </lib-button>
+                  <lib-button
+                    variant="error"
+                    outline
+                    size="xs"
+                    (clicked)="confirmDelete(news)"
+                    [ariaLabel]="'Elimina ' + news.title"
                   >
                     Elimina
-                  </button>
+                  </lib-button>
                 </div>
               </td>
             </tr>
           } @empty {
             <tr>
               <td colspan="5">
-                <app-empty-state
+                <lib-empty-state
                   [icon]="ICON_NOTICIA"
                   message="No hi ha notícies creades encara"
                 />
@@ -89,23 +91,12 @@
 
 </div>
 
-@if (confirmDeleteTarget(); as target) {
-  <dialog class="modal modal-open" aria-modal="true" role="alertdialog" aria-labelledby="delete-confirm-title">
-    <div class="modal-box max-w-sm">
-      <h3 id="delete-confirm-title" class="font-bold text-lg">Eliminar notícia</h3>
-      <p class="py-4 text-sm">
-        Segur que voleu eliminar <strong>{{ target.title }}</strong>?
-      </p>
-      <div class="modal-action">
-        <button type="button" class="btn btn-ghost btn-sm" (click)="cancelDelete()">Cancel·la</button>
-        <button type="button" class="btn btn-error btn-sm" [disabled]="deleting()" (click)="executeDelete()">
-          @if (deleting()) {
-            <span class="loading loading-spinner loading-xs"></span>
-          }
-          Elimina
-        </button>
-      </div>
-    </div>
-    <div class="modal-backdrop" (click)="cancelDelete()" (keydown.enter)="cancelDelete()" tabindex="0" role="button" aria-label="Tancar"></div>
-  </dialog>
-}
+<lib-modal [open]="!!confirmDeleteTarget()" title="Eliminar notícia" (closed)="cancelDelete()">
+  <p class="text-sm">
+    Segur que voleu eliminar <strong>{{ confirmDeleteTarget()?.title }}</strong>?
+  </p>
+  <div modalFooter>
+    <lib-button variant="ghost" size="sm" (clicked)="cancelDelete()">Cancel·la</lib-button>
+    <lib-button variant="error" outline size="sm" [loading]="deleting()" (clicked)="executeDelete()">Elimina</lib-button>
+  </div>
+</lib-modal>

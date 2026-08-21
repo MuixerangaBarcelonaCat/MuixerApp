@@ -1,3 +1,26 @@
+@import '@fontsource/quicksand/400.css';
+@import '@fontsource/quicksand/500.css';
+@import '@fontsource/quicksand/600.css';
+@import '@fontsource/quicksand/700.css';
+@import '@fontsource/fraunces/400.css';
+@import '@fontsource/fraunces/600.css';
+@import '@fontsource/atkinson-hyperlegible-next/400.css';
+@import '@fontsource/atkinson-hyperlegible-next/700.css';
+@import '@fontsource/atkinson-hyperlegible-mono/400.css';
+@import '@fontsource/atkinson-hyperlegible-mono/700.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+// Shared "hover lift, press bounce" interactive motion — one definition, resolved via
+// stylePreprocessorOptions.includePaths (project.json) since Angular's per-component style
+// encapsulation can't reach a shared class defined inside a component's own stylesheet.
+@import 'interactive';
+@import 'fields';
+
+@layer base {
+  html {
+    font-family: 'Quicksand', system-ui, sans-serif;
+  }
+}

@@ -11,16 +11,16 @@ import {
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { LucideAngularModule } from 'lucide-angular';
+import { LucideAngularModule, Search } from 'lucide-angular';
+import { ButtonComponent, EmptyStateComponent, InputComponent, SelectComponent } from '@muixer/ui';
 import { DataTableComponent, RowAction } from '../../../../shared/components/data/data-table/data-table.component';
 import { FilterBarComponent } from '../../../../shared/components/data/filter-bar/filter-bar.component';
 import { ActiveFiltersComponent, ActiveFilter } from '../../../../shared/components/data/active-filters/active-filters.component';
 import { ColumnToggleComponent } from '../../../../shared/components/data/column-toggle/column-toggle.component';
 import { PaginationComponent } from '../../../../shared/components/data/pagination/pagination.component';
-import { EmptyStateComponent } from '../../../../shared/components/data/empty-state/empty-state.component';
 import { ColumnDef, ColumnPill } from '../../../../shared/models/column-def.model';
 import { SortChange, SortOrder } from '../../../../shared/models/sort.model';
-import { ICON_FIGURA, ICON_XICALLA } from '../../../../shared/constants/domain-icons';
+import { ICON_FIGURA, ICON_XICALLA, DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { formatNodeCordonLabel } from '../../../pinyes/utils/node-cordon-label.util';
 import { ParticipationService } from '../../services/participation.service';
 import {
@@ -40,7 +40,7 @@ type SortField = 'alias' | 'status' | 'placements' | 'troncPlacements' | 'segmen
 const PILL_POSITION = 'text-base-content';
 const PILL_FIGURE = 'text-base-content/50 font-normal';
 const PILL_EMPTY = 'text-base-content/20';
-const PILL_CONFLICT = 'text-conflict font-bold';
+const PILL_CONFLICT = 'text-error font-bold';
 
 /** Marks a person placed twice in one segment. Distinct from the observations glyph. */
 const CONFLICT_GLYPH = '‼';
@@ -83,12 +83,15 @@ type AreaFilter = 'TRONC' | 'PINYA' | null;
   imports: [
     FormsModule,
     LucideAngularModule,
+    ButtonComponent,
+    InputComponent,
+    SelectComponent,
+    EmptyStateComponent,
     DataTableComponent,
     FilterBarComponent,
     ActiveFiltersComponent,
     ColumnToggleComponent,
     PaginationComponent,
-    EmptyStateComponent,
   ],
   templateUrl: './event-participation.component.html',
 })
@@ -96,6 +99,8 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
   readonly ICON_FIGURA = ICON_FIGURA;
   readonly ICON_XICALLA = ICON_XICALLA;
   readonly CONFLICT_GLYPH = CONFLICT_GLYPH;
+  readonly DOMAIN_ICONS = DOMAIN_ICONS;
+  readonly SearchIcon = Search;
 
   private readonly participationService = inject(ParticipationService);
   private readonly router = inject(Router);
@@ -261,6 +266,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
         primary: true,
         sortField: 'alias',
         value: (r) => this.personLabel(r),
+        prefix: (r) => (r.conflictSegmentIds.length > 0 ? { text: CONFLICT_GLYPH, class: 'text-error font-bold' } : null),
       },
       {
         key: 'fullName',
@@ -335,6 +341,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
           defaultVisible: true,
           type: 'pills',
           pills: (r) => this.detailPills(r, segmentId, (pl) => pl.figureName),
+          onCellClick: (r) => this.openSegmentCell(r, segmentId),
         },
         {
           key: 'segPosition',
@@ -345,6 +352,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
             this.detailPills(r, segmentId, (pl) =>
               formatNodeCordonLabel(pl.nodeLabel, pl.renglaPosition),
             ),
+          onCellClick: (r) => this.openSegmentCell(r, segmentId),
         },
         {
           key: 'segZone',
@@ -352,6 +360,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
           defaultVisible: true,
           type: 'pills',
           pills: (r) => this.detailPills(r, segmentId, (pl) => ZONE_LABELS[pl.zone] ?? pl.zone),
+          onCellClick: (r) => this.openSegmentCell(r, segmentId),
         },
       );
       return cols;
@@ -365,6 +374,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
         defaultVisible: true,
         type: 'pills',
         pills: (r) => this.matrixPills(r, segment.id),
+        onCellClick: (r) => this.openSegmentCell(r, segment.id),
       });
     }
 
@@ -378,7 +388,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
       : this.segments();
 
     return segments.map((segment) => ({
-      label: () => `Obre ${this.segmentLabel(segment)} al taller`,
+      label: () => `Obri ${this.segmentLabel(segment)} l'assignació`,
       icon: ICON_FIGURA,
       hidden: (r: ParticipationRow) => !this.placementsFor(r, segment.id).length,
       action: (r: ParticipationRow) => {
@@ -508,14 +518,13 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * The `primary` column must be plain text — in card mode the data-table renders the
-   * title through `getCellValue` only — so the row-level conflict mark is a glyph rather
-   * than a coloured badge. It is the weakest of the three warnings but the only one that
-   * survives horizontal scrolling, because this column is the sticky one.
+   * The conflict mark itself is rendered separately (`prefix` on the `person` column, in the
+   * theme's error color) rather than folded into this plain-text label — it's the only one of
+   * the three per-row marks that also survives horizontal scrolling, since this is the sticky
+   * column, so it earns the extra visual weight the other two (👶, notes) don't need.
    */
   personLabel(row: ParticipationRow): string {
     const marks = [
-      row.conflictSegmentIds.length > 0 ? CONFLICT_GLYPH : '',
       row.isXicalla ? '👶' : '',
       row.notes ? (row.notesEmoji ?? '⚠️') : '',
     ].filter(Boolean).join(' ');
@@ -712,12 +721,22 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
     this.router.navigate(['/persons', row.id]);
   }
 
-  private openAssignment(segmentId: string, instanceId: string): void {
-    const queryParams: Record<string, string> = { returnUrl: eventReturnUrl(this.router) };
+  /**
+   * Matrix/detail cell click: jumps straight into the workshop for what that cell shows.
+   * Tab follows the placement's area (PINYA/TRONC); a conflict (>1 placement) follows the
+   * first one, and an empty cell opens the segment — unassigned — in pinya mode.
+   */
+  private openSegmentCell(row: ParticipationRow, segmentId: string): void {
+    const [first] = this.allPlacementsFor(row, segmentId);
+    const tab = first?.area === 'PINYA' ? 'pinyes' : 'troncs';
+    this.openAssignment(segmentId, first?.instanceId, tab);
+  }
+
+  private openAssignment(segmentId: string, instanceId: string | undefined, tab: 'pinyes' | 'troncs' = 'pinyes'): void {
+    const queryParams: Record<string, string> = { returnUrl: eventReturnUrl(this.router), tab };
     if (this.isPast()) queryParams['past'] = '1';
-    this.router.navigate(
-      ['/pinyes/events', this.eventId(), 'segments', segmentId, 'assign', instanceId],
-      { queryParams },
-    );
+    const commands = ['/pinyes/events', this.eventId(), 'segments', segmentId, 'assign'];
+    if (instanceId) commands.push(instanceId);
+    this.router.navigate(commands, { queryParams });
   }
 }

@@ -60,6 +60,11 @@ export const appRoutes: Route[] = [
         loadChildren: () =>
           import('./features/communication/communication.routes').then((m) => m.communicationRoutes),
       },
+      {
+        path: 'design-system',
+        loadChildren: () =>
+          import('./features/design-system/design-system.routes').then((m) => m.designSystemRoutes),
+      },
     ],
   },
   { path: '**', redirectTo: '' },

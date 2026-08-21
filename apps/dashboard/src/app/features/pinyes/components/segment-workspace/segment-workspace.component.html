@@ -24,21 +24,14 @@
     }
 
     <!-- Workspace tabs -->
-    <nav role="tablist" class="tabs tabs-boxed ml-4 flex-nowrap overflow-x-auto min-w-0" aria-label="Vistes del segment">
-      @for (tab of tabDefs; track tab.id) {
-        <button
-          type="button"
-          role="tab"
-          class="tab gap-1.5"
-          [class.tab-active]="activeTab() === tab.id"
-          [attr.aria-selected]="activeTab() === tab.id"
-          (click)="setTab(tab.id)"
-        >
-          <lucide-icon [img]="tab.icon" [size]="14" aria-hidden="true" />
-          {{ tab.label }}
-        </button>
-      }
-    </nav>
+    <div class="ml-4 min-w-0">
+      <lib-tabs
+        [tabs]="tabDefs"
+        [activeId]="activeTab()"
+        ariaLabel="Vistes del segment"
+        (activeIdChange)="setTab($event)"
+      />
+    </div>
 
     <!-- Prev/next segment navigation -->
     <div class="flex items-center gap-1 ml-2 shrink-0">

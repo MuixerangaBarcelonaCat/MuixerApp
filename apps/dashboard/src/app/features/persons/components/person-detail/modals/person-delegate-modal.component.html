@@ -1,113 +1,85 @@
-<dialog
-  class="modal modal-open"
-  (click)="$event.target === $event.currentTarget && close()"
-  (keydown.enter)="$event.target === $event.currentTarget && close()"
-  (keydown.escape)="close()"
-  tabindex="0"
+<lib-modal
+  [open]="true"
+  [title]="isPrimary() ? 'Vincula un delegat' : 'Afegeix un altre delegat'"
+  (closed)="close()"
 >
-  <div class="modal-box max-w-lg w-full" role="dialog" aria-modal="true" [attr.aria-label]="isPrimary() ? 'Vincula un delegat' : 'Afegeix un altre delegat'" (click)="$event.stopPropagation()" (keydown.enter)="$event.stopPropagation()">
-    <div class="flex items-start justify-between mb-4">
-      <h2 class="text-lg font-bold">{{ isPrimary() ? 'Vincula un delegat' : 'Afegeix un altre delegat' }}</h2>
-      <button class="btn btn-sm btn-ghost btn-circle" type="button" (click)="close()" aria-label="Tancar">✕</button>
+  @if (error()) {
+    <div class="alert alert-error text-sm mb-4" role="alert">
+      <span>{{ error() }}</span>
     </div>
+  }
 
-    @if (error()) {
-      <div class="alert alert-error text-sm mb-4" role="alert">
-        <span>{{ error() }}</span>
-      </div>
-    }
-
-    <!-- Type selector -->
-    <div class="form-control mb-4">
-      <label class="label" for="delegate-type">
-        <span class="label-text font-medium">Relació</span>
-      </label>
-      <select
-        id="delegate-type"
-        class="select select-bordered w-full"
-        [ngModel]="selectedType()"
-        (ngModelChange)="selectedType.set($event)"
-        [disabled]="saving()"
-      >
-        @for (t of delegateTypes(); track t.value) {
-          <option [ngValue]="t.value">{{ t.label }}</option>
-        }
-      </select>
-    </div>
-
-    <!-- User search -->
-    <div class="form-control mb-3">
-      <label class="label" for="delegate-user-search">
-        <span class="label-text font-medium">Cerca usuari</span>
-      </label>
-      <input
-        id="delegate-user-search"
-        type="text"
-        class="input input-bordered w-full"
-        [value]="searchTerm()"
-        (input)="onSearch($any($event.target).value)"
-        placeholder="Correu o nom..."
-        [disabled]="saving()"
-      />
-    </div>
-
-    <!-- User list -->
-    <div class="max-h-48 overflow-y-auto border border-base-300 rounded-lg mb-4">
-      @if (loadingUsers()) {
-        <div class="flex justify-center py-4">
-          <span class="loading loading-spinner loading-sm text-primary"></span>
-        </div>
-      } @else if (users().length === 0) {
-        <p class="text-sm text-base-content/50 text-center py-4">Cap usuari disponible</p>
-      } @else {
-        <ul class="menu menu-sm p-1" role="listbox" aria-label="Llista d'usuaris">
-          @for (user of users(); track user.id) {
-            <li role="option" [attr.aria-selected]="selectedUser()?.id === user.id">
-              <button
-                type="button"
-                class="flex items-center justify-between w-full"
-                [class.active]="selectedUser()?.id === user.id"
-                [class.text-primary-content]="selectedUser()?.id === user.id"
-                (click)="selectUser(user)"
-              >
-                <div class="flex flex-col items-start">
-                  @if (user.person) {
-                    <span class="text-sm font-medium">{{ user.person.alias }}</span>
-                    <span class="text-xs opacity-70">{{ user.email }}</span>
-                  } @else {
-                    <span class="text-sm">{{ user.email }}</span>
-                  }
-                </div>
-                <div class="flex items-center gap-1">
-                  @if (!user.isActive) {
-                    <span class="badge badge-warning badge-xs">Pendent d'activar</span>
-                  }
-                  @if (roleLabel(user.role); as label) {
-                    <span class="badge badge-outline badge-xs">{{ label }}</span>
-                  }
-                </div>
-              </button>
-            </li>
-          }
-        </ul>
+  <!-- Type selector -->
+  <div class="mb-4">
+    <lib-select
+      id="delegate-type"
+      label="Relació"
+      [ngModel]="selectedType()"
+      (ngModelChange)="onTypeChange($event)"
+      [disabled]="saving()"
+    >
+      @for (t of delegateTypes(); track t.value) {
+        <option [value]="t.value">{{ t.label }}</option>
       }
-    </div>
-
-    <div class="flex justify-end gap-2">
-      <button type="button" class="btn btn-ghost btn-sm" (click)="close()" [disabled]="saving()">
-        Cancel·la
-      </button>
-      <button
-        type="button"
-        class="btn btn-primary btn-sm"
-        (click)="save()"
-        [disabled]="saving() || !selectedUser()"
-      >
-        @if (saving()) {
-          <span class="loading loading-spinner loading-xs"></span>
-        }
-        Afegeix
-      </button>
-    </div>
+    </lib-select>
   </div>
-</dialog>
+
+  <!-- User search -->
+  <lib-input
+    id="delegate-user-search"
+    label="Cerca usuari"
+    [ngModel]="searchTerm()"
+    (ngModelChange)="onSearch($event)"
+    placeholder="Correu o nom..."
+    [disabled]="saving()"
+  />
+
+  <!-- User list -->
+  <div class="max-h-48 overflow-y-auto border border-base-300 rounded-box mb-4 mt-3">
+    @if (loadingUsers()) {
+      <div class="flex justify-center py-4">
+        <span class="loading loading-spinner loading-sm text-primary"></span>
+      </div>
+    } @else if (users().length === 0) {
+      <p class="text-sm text-base-content/50 text-center py-4">Cap usuari disponible</p>
+    } @else {
+      <ul class="menu menu-sm p-1" role="listbox" aria-label="Llista d'usuaris">
+        @for (user of users(); track user.id) {
+          <li role="option" [attr.aria-selected]="selectedUser()?.id === user.id">
+            <button
+              type="button"
+              class="flex items-center justify-between w-full"
+              [class.active]="selectedUser()?.id === user.id"
+              [class.text-primary-content]="selectedUser()?.id === user.id"
+              (click)="selectUser(user)"
+            >
+              <div class="flex flex-col items-start">
+                @if (user.person) {
+                  <span class="text-sm font-medium">{{ user.person.alias }}</span>
+                  <span class="text-xs opacity-70">{{ user.email }}</span>
+                } @else {
+                  <span class="text-sm">{{ user.email }}</span>
+                }
+              </div>
+              <div class="flex items-center gap-1">
+                @if (!user.isActive) {
+                  <lib-badge variant="warning" size="xs">Pendent d'activar</lib-badge>
+                }
+                @if (roleLabel(user.role); as label) {
+                  <lib-badge size="xs" outline>{{ label }}</lib-badge>
+                }
+              </div>
+            </button>
+          </li>
+        }
+      </ul>
+    }
+  </div>
+
+  <div modalFooter>
+    <lib-button variant="ghost" size="sm" [disabled]="saving()" (clicked)="close()">Cancel·la</lib-button>
+    <lib-button variant="primary" size="sm" [disabled]="!selectedUser()" [loading]="saving()" (clicked)="save()">
+      Afegeix
+    </lib-button>
+  </div>
+</lib-modal>

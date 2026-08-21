@@ -1,49 +1,44 @@
-<div class="card bg-base-100 shadow-sm">
-  <div class="card-body p-4">
-    <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
-      <h2 class="card-title text-base">Llista d'assistència</h2>
-      <div class="flex flex-wrap gap-2">
-        <button
-          type="button"
-          class="btn btn-sm gap-1"
-          [class.btn-primary]="confirmedFilterActive()"
-          [class.btn-ghost]="!confirmedFilterActive()"
-          (click)="toggleConfirmedFilter()"
-        >
-          <lucide-icon name="UserCheck" [size]="14" />
-          {{ isPast() ? 'Assistits' : 'Confirmats' }}
-        </button>
-        <select class="select select-sm select-bordered" (change)="onAttendanceStatusFilter($any($event.target).value)">
+<lib-card>
+    <div class="flex flex-wrap items-center gap-3 mb-3">
+      <h2 class="text-base font-semibold mr-auto inline-flex items-center gap-2">
+        <lucide-icon [name]="UserCheck" [size]="18" class="text-primary" />
+        Llista d'assistència
+      </h2>
+
+      <label class="flex items-center gap-2 cursor-pointer min-h-6 shrink-0">
+        <input
+          type="checkbox"
+          class="checkbox checkbox-sm checkbox-primary"
+          [checked]="confirmedFilterActive()"
+          (change)="toggleConfirmedFilter()"
+        />
+        <span class="text-sm">{{ isPast() ? 'Assistits' : 'Confirmats' }}</span>
+      </label>
+
+      <div class="w-36">
+        <lib-select [ngModel]="attendanceStatusFilter() ?? ''" (ngModelChange)="onAttendanceStatusFilter($event)">
           <option value="">Tots</option>
           <option [value]="AttendanceStatus.ANIRE">Aniré</option>
           <option [value]="AttendanceStatus.ASSISTIT">Assistit</option>
           <option [value]="AttendanceStatus.NO_VAIG">No vaig</option>
           <option [value]="AttendanceStatus.PENDENT">Pendents</option>
-        </select>
-        <label class="input input-sm input-bordered flex items-center gap-2">
-          <lucide-icon name="Search" [size]="14" class="text-base-content/40" />
-          <input
-            type="text"
-            class="grow bg-transparent outline-none text-sm w-32 h-6"
-            placeholder="Cerca..."
-            [(ngModel)]="attendanceSearchInput"
-            (ngModelChange)="onAttendanceSearchChange($event)"
-          />
-        </label>
+        </lib-select>
+      </div>
+
+      <div class="w-40">
+        <lib-input
+          placeholder="Cerca..."
+          [icon]="SearchIcon"
+          [(ngModel)]="attendanceSearchInput"
+          (ngModelChange)="onAttendanceSearchChange($event)"
+        />
       </div>
     </div>
 
     @if (positionFilter(); as pf) {
       <div class="flex items-center gap-2 mb-3 flex-wrap">
         <span class="text-xs text-base-content/50">Filtrant per etiqueta:</span>
-        <button
-          type="button"
-          class="badge badge-sm gap-1 cursor-pointer hover:opacity-80"
-          [style.background-color]="pf.color ?? '#888'"
-          [style.color]="getContrastColor(pf.color ?? '#888')"
-          (click)="clearPositionFilter()"
-          title="Elimina el filtre"
-        >{{ pf.name }} ×</button>
+        <lib-badge clickable selected [color]="pf.color ?? '#888'" (clicked)="clearPositionFilter()" ariaLabel="Elimina el filtre">{{ pf.name }} ×</lib-badge>
       </div>
     }
 
@@ -80,7 +75,7 @@
                     (keydown.enter)="navigateToPerson(att.person.id)"
                     [attr.title]="'Veure ' + att.person.alias"
                   >{{ att.person.alias }}</span>
-                  @if (att.person.isProvisional) { <span class="badge badge-xs badge-warning ml-1">Prov.</span> }
+                  @if (att.person.isProvisional) { <span class="ml-1"><lib-badge size="xs" variant="warning">Prov.</lib-badge></span> }
                   @if (att.person.notes) {
                     <span class="tooltip tooltip-right ml-1" [attr.data-tip]="att.person.notes">
                       @if (att.person.notesEmoji) {
@@ -101,27 +96,26 @@
                   >{{ att.person.name }} {{ att.person.firstSurname }}</span>
                 </td>
                 <td>
-                  <button
-                    type="button"
-                    class="badge badge-sm cursor-pointer hover:opacity-80 transition-opacity min-h-6 inline-flex items-center"
-                    [ngClass]="getStatusBadgeClass(att.status)"
-                    (click)="openAttendanceEdit(att)"
-                    [attr.aria-label]="'Edita assistència de ' + att.person.alias"
-                    [title]="'Edita assistència de ' + att.person.alias"
-                  >{{ getStatusLabel(att.status) }}</button>
+                  <lib-badge
+                    clickable
+                    selected
+                    size="sm"
+                    [variant]="getStatusBadgeVariant(att.status)"
+                    (clicked)="openAttendanceEdit(att)"
+                    [ariaLabel]="'Edita assistència de ' + att.person.alias"
+                  >{{ getStatusLabel(att.status) }}</lib-badge>
                   @if (att.person.isXicalla) {
-                    <span class="badge badge-info badge-sm ml-0.5 gap-0.5" title="Xicalla">
-                      <lucide-icon [name]="ICON_XICALLA" [size]="10" />
+                    <span class="ml-0.5">
+                      <lib-badge variant="info" size="sm" ariaLabel="Xicalla">
+                        <lucide-icon [name]="ICON_XICALLA" [size]="10" />
+                      </lib-badge>
                     </span>
                   }
                   @if (att.notes) {
-                    <span
-                      class="tooltip tooltip-right ml-1"
-                      [attr.data-tip]="att.notes"
-                     >
-                      <span class="badge badge-ghost badge-sm gap-0.5 cursor-default">
+                    <span class="tooltip tooltip-right ml-1" [attr.data-tip]="att.notes">
+                      <lib-badge variant="ghost" size="sm">
                         <lucide-icon name="StickyNote" [size]="10" />
-                      </span>
+                      </lib-badge>
                     </span>
                   }
                 </td>
@@ -129,17 +123,14 @@
                 <td>
                   <div class="flex flex-wrap gap-1">
                     @for (pos of att.person.positions; track pos.id) {
-                      <button
-                        type="button"
-                        class="badge badge-sm cursor-pointer hover:opacity-80 transition-opacity min-h-6 inline-flex items-center"
-                        [class.ring-2]="positionFilter()?.id === pos.id"
-                        [class.ring-offset-1]="positionFilter()?.id === pos.id"
-                        [style.background-color]="pos.color ?? '#888'"
-                        [style.color]="getContrastColor(pos.color ?? '#888')"
-                        style="font-size: 0.65rem;"
-                        (click)="filterByPosition(pos)"
-                        [attr.title]="'Filtra per ' + pos.name"
-                      >{{ pos.name }}</button>
+                      <lib-badge
+                        clickable
+                        selected
+                        size="xs"
+                        [color]="pos.color ?? '#888'"
+                        (clicked)="filterByPosition(pos)"
+                        [ariaLabel]="'Filtra per ' + pos.name"
+                      >{{ pos.name }}</lib-badge>
                     }
                   </div>
                 </td>
@@ -150,7 +141,7 @@
       </table>
     </div>
     } @else {
-    <div class="space-y-2">
+    <div class="flex flex-col gap-2">
       @if (loadingAttendance()) {
         @for (i of [1,2,3]; track i) {
           <div class="skeleton h-20 w-full rounded-lg"></div>
@@ -171,11 +162,11 @@
                     (keydown.enter)="navigateToPerson(att.person.id)"
                     [attr.title]="'Veure ' + att.person.alias"
                   >{{ att.person.alias }}</span>
-                  @if (att.person.isProvisional) { <span class="badge badge-xs badge-warning">Prov.</span> }
+                  @if (att.person.isProvisional) { <lib-badge size="xs" variant="warning">Prov.</lib-badge> }
                   @if (att.person.isXicalla) {
-                    <span class="badge badge-info badge-sm gap-0.5" title="Xicalla">
+                    <lib-badge variant="info" size="sm" ariaLabel="Xicalla">
                       <lucide-icon [name]="ICON_XICALLA" [size]="10" />
-                    </span>
+                    </lib-badge>
                   }
                   @if (att.person.notes) {
                     <span class="tooltip tooltip-right" [attr.data-tip]="att.person.notes">
@@ -188,9 +179,9 @@
                   }
                   @if (att.notes) {
                     <span class="tooltip tooltip-right" [attr.data-tip]="att.notes">
-                      <span class="badge badge-ghost badge-sm gap-0.5 cursor-default">
+                      <lib-badge variant="ghost" size="sm">
                         <lucide-icon name="StickyNote" [size]="10" />
-                      </span>
+                      </lib-badge>
                     </span>
                   }
                 </div>
@@ -204,14 +195,16 @@
                   >{{ att.person.name }} {{ att.person.firstSurname }}</span>
                 </div>
               </div>
-              <button
-                type="button"
-                class="badge badge-sm cursor-pointer hover:opacity-80 transition-opacity shrink-0 min-h-6 inline-flex items-center"
-                [ngClass]="getStatusBadgeClass(att.status)"
-                (click)="openAttendanceEdit(att)"
-                [attr.aria-label]="'Edita assistència de ' + att.person.alias"
-                [title]="'Edita assistència de ' + att.person.alias"
-              >{{ getStatusLabel(att.status) }}</button>
+              <span class="shrink-0">
+                <lib-badge
+                  clickable
+                  selected
+                  size="sm"
+                  [variant]="getStatusBadgeVariant(att.status)"
+                  (clicked)="openAttendanceEdit(att)"
+                  [ariaLabel]="'Edita assistència de ' + att.person.alias"
+                >{{ getStatusLabel(att.status) }}</lib-badge>
+              </span>
             </div>
 
             <div class="flex items-center justify-between gap-2 mt-2 text-xs text-base-content/50">
@@ -221,17 +214,14 @@
             @if (att.person.positions.length > 0) {
               <div class="flex flex-wrap gap-1 mt-2">
                 @for (pos of att.person.positions; track pos.id) {
-                  <button
-                    type="button"
-                    class="badge badge-sm cursor-pointer hover:opacity-80 transition-opacity min-h-6 inline-flex items-center"
-                    [class.ring-2]="positionFilter()?.id === pos.id"
-                    [class.ring-offset-1]="positionFilter()?.id === pos.id"
-                    [style.background-color]="pos.color ?? '#888'"
-                    [style.color]="getContrastColor(pos.color ?? '#888')"
-                    style="font-size: 0.65rem;"
-                    (click)="filterByPosition(pos)"
-                    [attr.title]="'Filtra per ' + pos.name"
-                  >{{ pos.name }}</button>
+                  <lib-badge
+                    clickable
+                    selected
+                    size="xs"
+                    [color]="pos.color ?? '#888'"
+                    (clicked)="filterByPosition(pos)"
+                    [ariaLabel]="'Filtra per ' + pos.name"
+                  >{{ pos.name }}</lib-badge>
                 }
               </div>
             }
@@ -243,13 +233,12 @@
 
     @if (totalAttendances() > attendanceLimit()) {
       <div class="flex items-center justify-center gap-2 mt-4">
-        <button class="btn btn-xs" [disabled]="attendancePage() <= 1" (click)="goToAttendancePage(attendancePage() - 1)" type="button">←</button>
+        <lib-button size="xs" [disabled]="attendancePage() <= 1" (clicked)="goToAttendancePage(attendancePage() - 1)">←</lib-button>
         <span class="text-sm text-base-content/60">Pàgina {{ attendancePage() }} de {{ totalAttendancePages() }}</span>
-        <button class="btn btn-xs" [disabled]="attendancePage() >= totalAttendancePages()" (click)="goToAttendancePage(attendancePage() + 1)" type="button">→</button>
+        <lib-button size="xs" [disabled]="attendancePage() >= totalAttendancePages()" (clicked)="goToAttendancePage(attendancePage() + 1)">→</lib-button>
       </div>
     }
-  </div>
-</div>
+</lib-card>
 
 @if (editingAttendance(); as editing) {
   <app-attendance-edit-modal

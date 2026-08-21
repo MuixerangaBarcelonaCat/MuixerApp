@@ -1,0 +1,27 @@
+<nav
+  role="tablist"
+  class="tabs flex-nowrap overflow-x-auto min-w-0"
+  [class.tabs-boxed]="style() === 'boxed'"
+  [class.tabs-bordered]="style() === 'bordered'"
+  [attr.aria-label]="ariaLabel() || null"
+>
+  @for (tab of tabs(); track tab.id; let i = $index) {
+    <button
+      type="button"
+      role="tab"
+      class="tab gap-1.5 whitespace-nowrap"
+      [class.tab-active]="activeId() === tab.id"
+      [attr.aria-selected]="activeId() === tab.id"
+      [attr.aria-controls]="panelIdPrefix() + tab.id"
+      [attr.data-testid]="testIdPrefix() ? testIdPrefix() + '-' + tab.id : null"
+      [tabindex]="activeId() === tab.id ? 0 : -1"
+      (click)="select(tab.id)"
+      (keydown)="onKeydown($event, i)"
+    >
+      @if (tab.icon) {
+        <lucide-icon [img]="tab.icon" [size]="14" aria-hidden="true" />
+      }
+      {{ tab.label }}
+    </button>
+  }
+</nav>

@@ -1,0 +1,41 @@
+// Mobile-first: a full-width top banner (safe-area aware, for the notch) below the `sm`
+// breakpoint, corner-anchored stacking (DaisyUI's own toast idiom) at `sm` and up — one
+// component, no position input, so it adapts to the actual viewport instead of hardcoding
+// "dashboard = desktop, PWA = mobile".
+:host {
+  display: contents;
+}
+
+.toast-container {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  right: 1rem;
+  padding-top: env(safe-area-inset-top, 0px);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  pointer-events: none;
+
+  @media (min-width: 640px) {
+    left: auto;
+    width: auto;
+    align-items: flex-end;
+  }
+}
+
+.toast-item {
+  pointer-events: auto;
+  animation: lib-toast-in var(--ds-motion-base, 220ms) var(--ds-ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1));
+}
+
+@keyframes lib-toast-in {
+  from {
+    transform: translateY(-0.75rem);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}

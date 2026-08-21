@@ -1,124 +1,97 @@
-<dialog class="modal modal-open" aria-modal="true" role="dialog" aria-labelledby="tag-modal-title">
-  <div class="modal-box max-w-md">
-    <h3 id="tag-modal-title" class="font-bold text-lg mb-4">
-      {{ isEditMode ? 'Edita etiqueta' : 'Etiqueta nova' }}
-    </h3>
+<lib-modal [open]="true" [title]="isEditMode ? 'Edita etiqueta' : 'Etiqueta nova'" (closed)="onCancel()">
+  <form [formGroup]="form" (ngSubmit)="onSave()" class="flex flex-col gap-4">
 
-    <form [formGroup]="form" (ngSubmit)="onSave()" class="space-y-4">
+    <!-- Nom -->
+    <lib-input
+      label="Nom"
+      required
+      formControlName="name"
+      (input)="onNameInput()"
+      placeholder="Ex: Vents"
+    />
 
-      <!-- Nom -->
-      <div class="form-control">
-        <label class="label pb-1" for="tag-name">
-          <span class="label-text text-xs font-medium">Nom *</span>
-        </label>
-        <input
-          id="tag-name"
-          type="text"
-          class="input input-bordered input-sm w-full"
-          formControlName="name"
-          (input)="onNameInput()"
-          placeholder="Ex: Vents"
+    <!-- Color -->
+    <div class="form-control">
+      <span class="label-text text-xs font-medium mb-1 block">Color</span>
+      <div class="flex items-center gap-2">
+        <app-color-picker
+          [color]="form.get('color')!.value"
+          [presetColors]="colorPresets"
+          (colorChange)="onColorChange($event)"
         />
+        <span class="text-xs font-mono text-base-content/60">{{ form.get('color')!.value }}</span>
       </div>
+    </div>
 
-
-
-      <!-- Color -->
-      <div class="form-control">
-        <label class="label pb-1" for="tag-color">
-          <span class="label-text text-xs font-medium">Color</span>
-        </label>
-        <div class="flex items-center gap-2">
-          <input
-            id="tag-color"
-            type="color"
-            class="w-8 h-8 rounded cursor-pointer border border-base-300"
-            formControlName="color"
-          />
-          <span class="text-xs font-mono text-base-content/60">{{ form.get('color')!.value }}</span>
-        </div>
+    <!-- Posicions de figura -->
+    <div class="form-control">
+      <span class="label-text text-xs font-medium mb-2 block">Posicions de figura</span>
+      <div class="space-y-1">
+        @for (group of positionTypeGroups; track group.label) {
+          <details class="group">
+            <summary class="flex items-center gap-1 cursor-pointer list-none select-none py-0.5">
+              <svg
+                xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round"
+                class="transition-transform duration-150 group-open:rotate-90 text-base-content/40"
+              >
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+              <span class="text-xs text-base-content/40">{{ group.label }}</span>
+            </summary>
+            <div class="flex flex-wrap gap-1.5 pt-1.5 pb-0.5">
+              @for (preset of group.presets; track preset.positionType) {
+                <lib-badge
+                  size="sm"
+                  clickable
+                  readableOutlineText
+                  [selected]="isPositionTypeSelected(preset.positionType)"
+                  [color]="preset.color"
+                  (clicked)="togglePositionType(preset)"
+                >{{ preset.label }}</lib-badge>
+              }
+            </div>
+          </details>
+        }
       </div>
+    </div>
 
-      <!-- Posicions de figura -->
-      <div class="form-control">
-        <span class="label-text text-xs font-medium mb-2 block">Posicions de figura</span>
-        <div class="space-y-1">
-          @for (group of positionTypeGroups; track group.label) {
-            <details class="group">
-              <summary class="flex items-center gap-1 cursor-pointer list-none select-none py-0.5">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
-                  fill="none" stroke="currentColor" stroke-width="2.5"
-                  stroke-linecap="round" stroke-linejoin="round"
-                  class="transition-transform duration-150 group-open:rotate-90 text-base-content/40"
-                >
-                  <polyline points="9 18 15 12 9 6"/>
-                </svg>
-                <span class="text-xs text-base-content/40">{{ group.label }}</span>
-              </summary>
-              <div class="flex flex-wrap gap-1 pt-1.5 pb-0.5">
-                @for (preset of group.presets; track preset.positionType) {
-                  <button
-                    type="button"
-                    class="badge badge-sm cursor-pointer border transition-all"
-                    [style.background-color]="isPositionTypeSelected(preset.positionType) ? preset.color : 'transparent'"
-                    [style.border-color]="preset.color"
-                    [style.color]="isPositionTypeSelected(preset.positionType) ? getContrastColor(preset.color) : null"
-                    (click)="togglePositionType(preset)"
-                  >{{ preset.label }}</button>
-                }
-              </div>
-            </details>
-          }
-        </div>
-      </div>
+    <!-- Descripció curta -->
+    <lib-input
+      label="Descripció curta"
+      formControlName="shortDescription"
+      placeholder="Resum breu"
+    />
 
-      <!-- Descripció curta -->
-      <div class="form-control">
-        <label class="label pb-1" for="tag-short-desc">
-          <span class="label-text text-xs font-medium">Descripció curta</span>
-        </label>
-        <input
-          id="tag-short-desc"
-          type="text"
-          class="input input-bordered input-sm w-full"
-          formControlName="shortDescription"
-          placeholder="Resum breu"
-        />
-      </div>
+    <!-- Descripció llarga -->
+    <div class="form-control">
+      <label class="label pb-1" for="tag-long-desc">
+        <span class="label-text text-xs font-medium">Descripció llarga</span>
+      </label>
+      <textarea
+        id="tag-long-desc"
+        class="textarea textarea-bordered w-full"
+        formControlName="longDescription"
+        rows="3"
+        placeholder="Descripció detallada de l'etiqueta"
+      ></textarea>
+    </div>
 
-      <!-- Descripció llarga -->
-      <div class="form-control">
-        <label class="label pb-1" for="tag-long-desc">
-          <span class="label-text text-xs font-medium">Descripció llarga</span>
-        </label>
-        <textarea
-          id="tag-long-desc"
-          class="textarea textarea-bordered textarea-sm w-full"
-          formControlName="longDescription"
-          rows="3"
-          placeholder="Descripció detallada de l'etiqueta"
-        ></textarea>
-      </div>
+  </form>
 
-      <!-- Actions -->
-      <div class="modal-action">
-        <button type="button" class="btn btn-ghost btn-sm" (click)="onCancel()">
-          Cancel·la
-        </button>
-        <button
-          type="submit"
-          class="btn btn-primary btn-sm"
-          [disabled]="form.invalid || saving()"
-        >
-          @if (saving()) {
-            <span class="loading loading-spinner loading-xs"></span>
-          }
-          {{ isEditMode ? 'Alça' : 'Crea' }}
-        </button>
-      </div>
-
-    </form>
+  <div modalFooter>
+    <lib-button variant="ghost" size="sm" (clicked)="onCancel()">
+      Cancel·la
+    </lib-button>
+    <lib-button
+      variant="primary"
+      size="sm"
+      [disabled]="form.invalid || saving()"
+      [loading]="saving()"
+      (clicked)="onSave()"
+    >
+      {{ isEditMode ? 'Alça' : 'Crea' }}
+    </lib-button>
   </div>
-  <div class="modal-backdrop" (click)="onCancel()" (keydown.enter)="onCancel()" tabindex="0" role="button" aria-label="Tancar modal"></div>
-</dialog>
+</lib-modal>

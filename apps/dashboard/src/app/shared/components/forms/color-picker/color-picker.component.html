@@ -25,13 +25,18 @@
     <span class="sr-only">Color actual: {{ color() ?? 'cap' }}</span>
   </button>
 
-  <!-- Popover dropdown -->
+  <!-- Popover dropdown. `inset-auto m-0` cancel the `[popover]` UA stylesheet's own default
+       centering (`inset: 0; margin: auto`) — left in place, that default's `right`/`bottom: 0`
+       (never overridden, since only `top`/`left` are set below) out-specificities our explicit
+       position and the popover renders pinned to the viewport's bottom-right corner instead of
+       next to the swatch. -->
   @if (dropdownOpen()) {
     <div
       #dropdownRef
+      popover="manual"
       role="dialog"
       aria-label="Tria un color"
-      class="color-picker-popover fixed z-50 bg-base-100 border border-base-300 rounded-lg shadow-xl p-3 min-w-[180px]"
+      class="color-picker-popover fixed inset-auto m-0 z-dropdown bg-base-100 border border-base-300 rounded-lg shadow-overlay p-3 min-w-[180px]"
       [style.top.px]="popoverPosition()?.top"
       [style.left.px]="popoverPosition()?.left"
       data-testid="color-picker-popover"

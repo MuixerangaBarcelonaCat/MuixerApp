@@ -19,7 +19,7 @@ import { AlreadyAssignedDialogComponent } from '../../../already-assigned-dialog
 import { SegmentWorkspaceStateService, WorkspaceInstance } from '../../../../services/segment-workspace-state.service';
 import { AssignmentStateService } from '../../../../services/assignment-state.service';
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
-import { ToastService } from '../../../../../../shared/components/feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 import { UndoRedoService, UndoableAction } from '../../../../services/undo-redo.service';
 import { ImportPinyaModalComponent } from '../../../import-pinya-modal/import-pinya-modal.component';
 import { FigureZone } from '@muixer/shared';

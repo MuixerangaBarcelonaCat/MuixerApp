@@ -1,7 +1,7 @@
 import { Component, ChangeDetectionStrategy, inject, computed } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { ToastContainerComponent } from '@muixer/ui';
 import { SplashScreenComponent } from './shared/components/splash-screen/splash-screen.component';
-import { ToastContainerComponent } from './shared/components/toast-container/toast-container.component';
 import { AuthService } from './core/auth/services/auth.service';
 
 @Component({
@@ -14,7 +14,7 @@ import { AuthService } from './core/auth/services/auth.service';
       <app-splash-screen />
     }
     <router-outlet />
-    <app-toast-container />
+    <lib-toast-container />
   `,
 })
 export class AppComponent {

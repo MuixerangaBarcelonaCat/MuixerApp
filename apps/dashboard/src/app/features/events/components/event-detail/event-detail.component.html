@@ -1,63 +1,67 @@
-<div class="space-y-4 max-w-5xl mx-auto">
+<div class="flex flex-col gap-4 max-w-5xl mx-auto">
 
   <!-- Capçalera -->
   @if (event(); as ev) {
     <div class="flex items-start gap-3 flex-wrap">
-      <button class="btn btn-ghost btn-sm btn-circle mt-0.5" (click)="goBack()" type="button" aria-label="Tornar">
-        <lucide-icon name="ArrowLeft" [size]="18" />
-      </button>
+      <span class="mt-0.5">
+        <lib-button variant="ghost" size="sm" shape="circle" ariaLabel="Tornar" (clicked)="goBack()">
+          <lucide-icon name="ArrowLeft" [size]="18" />
+        </lib-button>
+      </span>
       <div class="flex-1">
         <div class="flex items-center gap-2 flex-wrap">
-          <h1 class="text-xl font-bold text-base-content">{{ ev.title }}</h1>
-          <span class="badge badge-sm" [class.badge-primary]="ev.eventType === EventType.ASSAIG" [class.badge-secondary]="ev.eventType === EventType.ACTUACIO">
+          <h1 class="text-xl font-bold font-serif text-base-content">{{ ev.title }}</h1>
+          <lib-badge size="sm" [variant]="ev.eventType === EventType.ASSAIG ? 'primary' : 'secondary'">
             {{ ev.eventType === EventType.ASSAIG ? 'Assaig' : 'Actuació' }}
-          </span>
-          @if (isPast()) { <span class="badge badge-neutral badge-sm">Passat</span> }
-          @if (!ev.countsForStatistics) { <span class="badge badge-ghost badge-sm">Sense estadística</span> }
+          </lib-badge>
+          @if (isPast()) { <lib-badge variant="neutral" size="sm">Passat</lib-badge> }
+          @if (!ev.countsForStatistics) { <lib-badge variant="ghost" size="sm">Sense estadística</lib-badge> }
           @if (isEventLocked()) {
-            <span class="badge badge-warning badge-sm gap-1">
-              <lucide-icon name="Lock" [size]="11" />
-              Assignacions bloquejades
-            </span>
+            <lib-badge variant="warning" size="sm">
+              <span class="inline-flex items-center gap-1">
+                <lucide-icon name="Lock" [size]="11" />
+                Assignacions bloquejades
+              </span>
+            </lib-badge>
           }
         </div>
       </div>
       <div class="flex gap-2 flex-wrap">
         @if (ev.isSynced) {
-          <button
-            class="btn btn-primary btn-outline btn-sm gap-1.5"
+          <lib-button
+            variant="warning"
+            outline
+            size="sm"
             [disabled]="syncState() === 'running' || !isAdmin()"
-            (click)="syncAttendance()"
-            type="button"
+            [loading]="syncState() === 'running'"
+            (clicked)="syncAttendance()"
           >
             @if (syncState() === 'running') {
-              <span class="loading loading-spinner loading-xs"></span> Sincronitzant...
+              Sincronitzant...
             } @else {
               <lucide-icon name="RefreshCw" [size]="14" /> Sincronitza
             }
-          </button>
+          </lib-button>
         }
         @if (ev.eventType === EventType.ASSAIG) {
-          <button class="btn btn-primary btn-outline btn-sm gap-1.5" (click)="goToConfirmation()" type="button">
+          <lib-button variant="primary" outline size="sm" (clicked)="goToConfirmation()">
             <lucide-icon name="ClipboardCheck" [size]="14" /> Confirmació
-          </button>
+          </lib-button>
         }
-        <button class="btn btn-primary btn-outline btn-sm" (click)="showEditModal.set(true)" type="button">Edita</button>
-        <button class="btn btn-error btn-outline btn-sm" [disabled]="deleting()" (click)="deleteEvent()" type="button">
-          @if (deleting()) { <span class="loading loading-spinner loading-xs"></span> } @else { Elimina }
-        </button>
+        <lib-button variant="primary" outline size="sm" (clicked)="showEditModal.set(true)">Edita</lib-button>
+        <lib-button variant="error" outline size="sm" [loading]="deleting()" (clicked)="deleteEvent()">Elimina</lib-button>
       </div>
     </div>
   }
 
   <!-- Loading -->
   @if (loading()) {
-    <div class="card bg-base-100 shadow-sm">
-      <div class="card-body items-center gap-3 py-12">
+    <lib-card>
+      <div class="flex flex-col items-center gap-3 py-12">
         <span class="loading loading-spinner loading-md text-primary"></span>
         <p class="text-sm text-base-content/50">S'està carregant l'event...</p>
       </div>
-    </div>
+    </lib-card>
   }
 
   @if (!loading() && event(); as ev) {
@@ -66,7 +70,7 @@
     @if (deleteError()) {
       <div class="alert alert-error text-sm">
         <span>{{ deleteError() }}</span>
-        <button class="btn btn-ghost btn-xs" (click)="deleteError.set(null)" type="button">✕</button>
+        <lib-button variant="ghost" size="xs" (clicked)="deleteError.set(null)">✕</lib-button>
       </div>
     }
 
@@ -81,7 +85,7 @@
         @if (syncState() === 'running') { <span class="loading loading-spinner loading-sm"></span> }
         <span>{{ syncMessage() }}</span>
         @if (syncState() !== 'running') {
-          <button class="btn btn-ghost btn-xs" (click)="syncState.set('idle')" type="button">✕</button>
+          <lib-button variant="ghost" size="xs" (clicked)="syncState.set('idle')">✕</lib-button>
         }
       </div>
     }
@@ -91,41 +95,34 @@
       <app-stat-card
         [label]="isPast() ? 'Assistits' : 'Confirmats'"
         [value]="isPast() ? ev.attendanceSummary.attended : ev.attendanceSummary.confirmed"
-        icon="UserCheck"
+        [icon]="UserCheck"
         accentClass="text-success"
       />
       <app-stat-card
         label="Adults "
         [value]="adultsCount()"
-        [icon]="ICON_PERSONA"
+        [icon]="DOMAIN_ICONS.PERSONA"
         accentClass="text-primary"
       />
       <app-stat-card
         label="Xicalla"
         [value]="ev.attendanceSummary.children"
-        [icon]="ICON_XICALLA"
+        [icon]="DOMAIN_ICONS.XICALLA"
         accentClass="text-info"
       />
     </div>
 
     <!-- Pestanyes -->
-    <nav role="tablist" class="tabs tabs-boxed flex-nowrap overflow-x-auto min-w-0" aria-label="Seccions de l'esdeveniment">
-      @for (tab of tabDefs; track tab.id) {
-        <button
-          type="button"
-          role="tab"
-          class="tab gap-1.5 whitespace-nowrap"
-          [class.tab-active]="activeTab() === tab.id"
-          [attr.aria-selected]="activeTab() === tab.id"
-          [attr.aria-controls]="'event-tabpanel-' + tab.id"
-          [attr.data-testid]="'event-tab-' + tab.id"
-          (click)="setTab(tab.id)"
-        >
-          <lucide-icon [name]="tab.icon" [size]="14" aria-hidden="true" />
-          {{ tab.label }}
-        </button>
-      }
-    </nav>
+    <div class="mt-4">
+      <lib-tabs
+        [tabs]="tabDefs"
+        [activeId]="activeTab()"
+        ariaLabel="Seccions de l'esdeveniment"
+        panelIdPrefix="event-tabpanel-"
+        testIdPrefix="event-tab"
+        (activeIdChange)="setTab($event)"
+      />
+    </div>
 
     <!-- Resum: informació + resum d'assistència -->
     <div
@@ -136,9 +133,7 @@
     >
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <!-- Informació -->
-        <div class="card bg-base-100 shadow-sm">
-          <div class="card-body p-4">
-            <h2 class="card-title text-base mb-3 pb-2 border-b border-base-300">Informació</h2>
+        <lib-card title="Informació">
             <dl class="space-y-2 text-sm">
               <div class="flex gap-2">
                 <dt class="text-base-content/50 w-28 shrink-0">Data:</dt>
@@ -203,13 +198,10 @@
               <div class="divider my-2"></div>
               <p class="text-sm text-base-content/70 whitespace-pre-line">{{ ev.information }}</p>
             }
-          </div>
-        </div>
+        </lib-card>
 
         <!-- Resum d'assistència -->
-        <div class="card bg-base-100 shadow-sm">
-          <div class="card-body p-4">
-            <h2 class="card-title text-base mb-3 pb-2 border-b border-base-300">Resum assistència</h2>
+        <lib-card title="Resum assistència">
             <dl class="space-y-2 text-sm">
               @for (row of getSummaryForDisplay(ev.attendanceSummary); track row.label) {
                 <div class="flex justify-between items-center">
@@ -230,8 +222,7 @@
                 <progress class="progress progress-success w-full" [value]="attendanceRatio()" max="100"></progress>
               </div>
             }
-          </div>
-        </div>
+        </lib-card>
       </div>
     </div>
 

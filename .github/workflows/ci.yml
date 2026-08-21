@@ -93,3 +93,9 @@ jobs:
       - name: Test (integration, postgres)
         if: github.event_name == 'pull_request'
         run: npx nx run api:test-integration
+
+      # Warn-only (Phase 6.1 of the design-system plan) — Tier 3 restyling hasn't landed yet, so
+      # this reports pre-existing raw-hex/arbitrary-Tailwind drift without blocking unrelated PRs.
+      # Ratchet to a real failing step once that drift is cleared.
+      - name: Design tokens drift report (warn-only)
+        run: pnpm run lint:tokens

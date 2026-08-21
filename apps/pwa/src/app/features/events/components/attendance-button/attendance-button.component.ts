@@ -13,7 +13,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AttendanceStatus } from '@muixer/shared';
 import { EventService } from '../../services/event.service';
-import { ToastService } from '../../../../shared/services/toast.service';
+import { ToastService } from '@muixer/ui';
 
 @Component({
   selector: 'app-attendance-button',

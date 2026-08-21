@@ -7,7 +7,7 @@ import { of } from 'rxjs';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { ProjectionViewComponent } from './projection-view.component';
 import { ProjectionService } from '../../services/projection.service';
-import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 import { LayoutService } from '../../../../core/services/layout.service';
 
 @Component({ selector: 'lib-pinya-projection', standalone: true, template: '' })

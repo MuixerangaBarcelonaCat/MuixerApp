@@ -10,6 +10,8 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { LucideAngularModule, TriangleAlert } from 'lucide-angular';
+import { ButtonComponent, BadgeComponent, ModalComponent } from '@muixer/ui';
 import { AttendanceService } from '../../services/attendance.service';
 import { AttendanceItem, AttendanceCrudResponse, AttendanceDeleteResponse } from '../../models/attendance.model';
 import { AttendanceStatus } from '@muixer/shared';
@@ -18,13 +20,14 @@ import { AttendanceStatus } from '@muixer/shared';
   selector: 'app-attendance-edit-modal',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, LucideAngularModule, ButtonComponent, BadgeComponent, ModalComponent],
   templateUrl: './attendance-edit-modal.component.html',
 })
 export class AttendanceEditModalComponent implements OnChanges {
   private readonly attendanceService = inject(AttendanceService);
 
   readonly AttendanceStatus = AttendanceStatus;
+  readonly TriangleAlert = TriangleAlert;
 
   attendance = input.required<AttendanceItem>();
   eventId = input.required<string>();

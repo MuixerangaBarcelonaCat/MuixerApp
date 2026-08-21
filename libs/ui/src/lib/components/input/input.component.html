@@ -1,0 +1,26 @@
+<lib-form-field [label]="label()" [hint]="hint()" [errorText]="errorText()" [required]="required()" [size]="size()" [id]="inputId()">
+  <div [class]="boxClasses()">
+    @if (icon()) {
+      <lucide-icon [img]="icon()" [size]="16" class="text-base-content/40 shrink-0" data-testid="lib-input-icon" />
+    }
+    <input
+      #nativeInputRef
+      [id]="inputId()"
+      class="grow bg-transparent outline-none min-h-6"
+      [type]="type()"
+      [placeholder]="placeholder() ?? ''"
+      [value]="value()"
+      [disabled]="isDisabled()"
+      [required]="required()"
+      [attr.min]="min() ?? null"
+      [attr.max]="max() ?? null"
+      [attr.autocomplete]="autocomplete() ?? null"
+      [attr.aria-label]="ariaLabel() ?? null"
+      [attr.aria-invalid]="hasError() ? 'true' : null"
+      [attr.aria-describedby]="hasDescription() ? descriptionId() : null"
+      (input)="onInput($event)"
+      (blur)="onBlur()"
+      data-testid="lib-input-native"
+    />
+  </div>
+</lib-form-field>

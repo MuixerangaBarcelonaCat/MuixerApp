@@ -5,7 +5,7 @@ import { NodeAssignmentService } from './node-assignment.service';
 import { SegmentWorkspaceStateService } from './segment-workspace-state.service';
 import { AssignmentStateService } from './assignment-state.service';
 import { UndoRedoService } from './undo-redo.service';
-import { ToastService } from '../../../shared/components/feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 
 interface TrackedPlacement {
   instanceId: string;

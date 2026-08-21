@@ -5,7 +5,7 @@ import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provi
 import { provideRouter } from '@angular/router';
 import { SeasonListComponent } from './season-list.component';
 import { SeasonService } from '../../../events/services/season.service';
-import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 import { Season } from '../../../events/models/event.model';
 
 const mockSeason = (overrides: Partial<Season> = {}): Season => ({

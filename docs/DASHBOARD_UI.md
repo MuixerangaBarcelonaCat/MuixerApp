@@ -14,8 +14,8 @@ Guia d'estils i patrons del dashboard Angular. Tot el desenvolupament futur ha d
 | Components | DaisyUI v4 (semantic classes) |
 | Utilitats | Tailwind CSS v3.4 |
 | Icones | lucide-angular (tree-shakeable) |
-| Font | Inter (400, 500, 600, 700) via Google Fonts |
-| Theming | DaisyUI `data-theme` — 1 color primari genera tot el tema |
+| Font | Quicksand (self-hosted via `@fontsource`) — veure [[DESIGN_SYSTEM]] |
+| Theming | DaisyUI `data-theme`, generat per colla — veure [[DESIGN_SYSTEM]] |
 
 ## Layout
 
@@ -38,33 +38,9 @@ Guia d'estils i patrons del dashboard Angular. Tot el desenvolupament futur ha d
 - **Mobile (<sm)**: hamburger dropdown.
 - **Fullscreen mode**: `LayoutService.isFullscreen()` amaga header i tabs.
 
-## Paleta de Colors
+## Paleta de colors, tipografia i tokens
 
-Tots els colors via tokens DaisyUI (mai `var(--custom)`):
-
-| Token | Ús |
-|-------|-----|
-| `primary` | Accions principals, links actius, accent cards |
-| `secondary` | Accent secundari, actuacions |
-| `base-100` | Fons de cards i modals |
-| `base-200` | Fons general de pàgina |
-| `base-content` | Text principal |
-| `base-content/60` | Text secundari |
-| `base-content/40` | Text molt subtil |
-| `success` | Confirmats, positius |
-| `error` | Rebutjats, destructius |
-| `warning` | Pendents, atenció |
-| `info` | Informació neutral |
-
-## Tipografia
-
-| Element | Classes |
-|---------|---------|
-| Títol de pàgina | `text-2xl font-bold` o `text-xl font-bold` |
-| Subtítol | `text-base font-semibold` |
-| Etiqueta | `text-xs text-base-content/50 font-medium` |
-| Valor | `text-sm text-base-content` |
-| Text secundari | `text-sm text-base-content/60` |
+Tot el sistema de tokens (color, tipografia, radius, shadow, motion, z-index) i la llibreria de components compartits (`libs/ui`, consumida per dashboard i PWA) viuen ara a [[DESIGN_SYSTEM]] — canonical source of truth per a tot el que és visual. Aquesta secció no es duplica ací.
 
 ## Components Compartits
 
@@ -146,19 +122,8 @@ Pàgina standalone sense header/tabs. Card centrada.
 
 ## Theming per Colla
 
-`tailwind.config.js` conté `generateCollaTheme(primaryHex)` que genera tots els tokens DaisyUI a partir d'un sol color primari. Per afegir una nova colla:
-
-```javascript
-daisyui: {
-  themes: [
-    { 'colla-barcelona': generateCollaTheme('#1E3A8A') },
-    { 'colla-nova': generateCollaTheme('#D32F2F') },
-  ],
-}
-```
-
-Canvi en runtime: `document.documentElement.setAttribute('data-theme', 'colla-nova')`.
+Generació de tema i canvi en runtime — veure la secció *Theming / dark mode* de [[DESIGN_SYSTEM]].
 
 ---
 
-*Veïns: [[AUDIT_SUITE]] · [[PINYES_MODULE]] · [[DEBT]] · [[MAP]]*
+*Veïns: [[DESIGN_SYSTEM]] · [[AUDIT_SUITE]] · [[PINYES_MODULE]] · [[DEBT]] · [[MAP]]*

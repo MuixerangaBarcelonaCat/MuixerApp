@@ -6,8 +6,8 @@ import {
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { LucideAngularModule } from 'lucide-angular';
-import { ICON_PERSONA } from '../../../shared/constants/domain-icons';
+import { LucideAngularModule, Search } from 'lucide-angular';
+import { DOMAIN_ICONS } from '../../../shared/constants/domain-icons';
 import { UserService } from '../services/user.service';
 import { UserDto, UserFilterParams, UserSortOrder } from '../models/user.model';
 import { UserRole } from '@muixer/shared';
@@ -19,14 +19,21 @@ import {
 } from '../../../shared/components/data/active-filters/active-filters.component';
 import { ColumnToggleComponent } from '../../../shared/components/data/column-toggle/column-toggle.component';
 import { PaginationComponent } from '../../../shared/components/data/pagination/pagination.component';
-import { EmptyStateComponent } from '../../../shared/components/data/empty-state/empty-state.component';
 import {
   DataTableComponent,
   RowAction,
 } from '../../../shared/components/data/data-table/data-table.component';
 import { ColumnDef } from '../../../shared/models/column-def.model';
 import { UserFormModalComponent } from './user-form-modal/user-form-modal.component';
-import { ToastService } from '../../../shared/components/feedback/toast/toast.service';
+import {
+  ButtonComponent,
+  BadgeComponent,
+  EmptyStateComponent,
+  FormFieldComponent,
+  InputComponent,
+  ModalComponent,
+  ToastService,
+} from '@muixer/ui';
 import { AuthService } from '../../../core/auth/services/auth.service';
 
 const STORAGE_KEY = 'user-list-visible-columns';
@@ -78,14 +85,20 @@ function formatDate(value: string | null): string {
     ActiveFiltersComponent,
     ColumnToggleComponent,
     PaginationComponent,
-    EmptyStateComponent,
     DataTableComponent,
     UserFormModalComponent,
+    ButtonComponent,
+    BadgeComponent,
+    EmptyStateComponent,
+    FormFieldComponent,
+    InputComponent,
+    ModalComponent,
   ],
   templateUrl: './user-list.component.html',
 })
 export class UserListComponent {
-  readonly ICON_PERSONA = ICON_PERSONA;
+  readonly ICON_PERSONA = DOMAIN_ICONS.PERSONA;
+  readonly SearchIcon = Search;
 
   private readonly userService = inject(UserService);
   private readonly toast = inject(ToastService);

@@ -5,7 +5,7 @@ import { AssignmentStateService } from './assignment-state.service';
 import { EventSegmentService } from './event-segment.service';
 import { SegmentDistributionService } from './segment-distribution.service';
 import { NodeAssignmentService, LockStatus } from './node-assignment.service';
-import { ToastService } from '../../../shared/components/feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 import { DistributionItem } from '../models/distribution.model';
 
 export interface WorkspaceInstance {

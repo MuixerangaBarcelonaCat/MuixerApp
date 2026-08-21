@@ -11,7 +11,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, X, Trash2, UserMinus, Copy } from 'lucide-angular';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
-import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 import { ColorPickerComponent } from '../../../../shared/components/forms/color-picker/color-picker.component';
 import { FigureZone, NodeShape, DIRECTION_ZONES, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
 import { getPresetColorsForZone, isNodeColorEditable } from '../../utils/node-color-presets.util';
