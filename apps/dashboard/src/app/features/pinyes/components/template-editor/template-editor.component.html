@@ -194,7 +194,7 @@
 
       <div class="divider my-1"></div>
 
-      <div class="toolbar-section">
+      <!-- <div class="toolbar-section">
         <button
           type="button"
           class="toolbar-btn text-error disabled:opacity-30"
@@ -208,7 +208,7 @@
         </button>
       </div>
 
-      <div class="divider my-1"></div>
+      <div class="divider my-1"></div> -->
 
       <div class="toolbar-section">
         <p class="toolbar-label">Vistes</p>
@@ -552,21 +552,19 @@
               </div>
             }
 
-            @if (isCompactViewport()) {
-              <div class="divider my-2"></div>
+            <div class="divider my-2"></div>
 
-              <!-- ── Moure ──────────────────────────────────────────────────── -->
-              <div class="panel-section">
-                <p class="panel-section-title">Moure</p>
-                <app-node-dpad
-                  [disabled]="!selectedNodeId()"
-                  (holdStarted)="onDpadHoldStarted()"
-                  (nodeMoved)="onDpadMove($event)"
-                  (nodeResized)="onDpadResize($event)"
-                  (nodeRotated)="onDpadRotate($event)"
-                />
-              </div>
-            }
+            <!-- ── Moure ──────────────────────────────────────────────────── -->
+            <div class="panel-section">
+              <p class="panel-section-title">Moure</p>
+              <app-node-dpad
+                [disabled]="!selectedNodeId()"
+                (holdStarted)="onDpadHoldStarted()"
+                (nodeMoved)="onDpadMove($event)"
+                (nodeResized)="onDpadResize($event)"
+                (nodeRotated)="onDpadRotate($event)"
+              />
+            </div>
           } @else {
             <div>
               <h2 class="panel-title">Figura</h2>
