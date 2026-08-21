@@ -3,7 +3,7 @@ import { vi } from 'vitest';
 import { of, throwError } from 'rxjs';
 import { SeasonFormModalComponent } from './season-form-modal.component';
 import { SeasonService } from '../../../events/services/season.service';
-import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 import { Season } from '../../../events/models/event.model';
 
 const mockSeason: Season = {

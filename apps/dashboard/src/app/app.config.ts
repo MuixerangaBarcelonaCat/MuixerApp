@@ -21,6 +21,7 @@ import {
   Calendar,
   CalendarRange,
   Check,
+  CheckCircle,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -76,7 +77,7 @@ import {
 
 const icons = {
   AlertCircle, AlertTriangle, AlignJustify, ArrowDown, ArrowLeft, ArrowUp,
-  Calendar, CalendarRange, Check,
+  Calendar, CalendarRange, Check, CheckCircle,
   ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown, ChevronsDown, ChevronsUp,
   ChessRook, CircleAlert, CirclePile, Clock, Construction, Copy, DraftingCompass, ExternalLink, Eye,
   Flower, GitCommitHorizontal,

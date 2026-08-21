@@ -2,7 +2,7 @@ import { Component, ChangeDetectionStrategy, computed, inject, signal } from '@a
 import { LegalDocumentType } from '@muixer/shared';
 import { AuthService } from '../../../core/auth/services/auth.service';
 import { LegalDocumentService } from '../../../core/services/legal-document.service';
-import { ToastService } from '../feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 
 /**
  * Blocking click-wrap consent gate. Rendered by the app shell whenever the authenticated user

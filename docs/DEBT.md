@@ -43,6 +43,7 @@ tags: [qa]
 | F1 | El workspace de Pinyes no és usable per sota de `sm` (639px): hi ha un guard que mostra "encara no optimitzat per a mòbil" a Pinyes, Troncs i Nodes extra | `pinyes-tab`, `troncs-tab`, `nodes-tab` | Decisió conscient: a 393px el canvas quedava en 73px reals |
 | F4 | `figure-canvas.component.ts` fa **2.707 línies** | `figure-canvas.component.ts` | Una extracció (`KonvaStageService` + renderers per mode) es va fer i **es va revertir el 12/06/2026 perquè no es va connectar mai**. No repetir-la sense connectar-la de debò |
 | F5 | Les interfícies `Create*Payload` / `Update*Payload` del dashboard no viuen a `libs/shared` | `features/*/models/` | Els models del frontend van derivant respecte dels DTOs de l'API |
+| F6 | Cap cas conegut actualment, però si un control amb aspecte de botó no pot ser `<lib-button>` (p. ex. un `<input type="checkbox">` no pot niar dins d'un `<button>`, HTML invàlid) i s'estila amb `class="...btn..."` a mà, farà `darkening` en hover en lloc de l'animació `ds-lift` compartida | — | Aplicar `ds-lift` a mà en trobar-ne un (`libs/ui/src/styles/_interactive.scss` documenta el mecanisme); revisar si continua fent falta l'aspecte de botó o si, com a "Sols actius" a `person-list`, és més senzill treure'l del tot |
 
 ## Tests
 

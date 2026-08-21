@@ -18,7 +18,7 @@ import { LucideAngularModule, ArrowLeft, ChevronLeft, ChevronRight, Shapes, Moni
 import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { FiguresViewModeService, FiguresViewMode } from '../../services/figures-view-mode.service';
-import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
+import { ToastService, TabsComponent, TabDef } from '@muixer/ui';
 import { SegmentWorkspaceStateService } from '../../services/segment-workspace-state.service';
 import { ConflictResolutionService } from '../../services/conflict-resolution.service';
 import { UndoRedoService } from '../../services/undo-redo.service';
@@ -43,6 +43,7 @@ const isFiguresViewMode = (value: unknown): value is FiguresViewMode =>
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     LucideAngularModule,
+    TabsComponent,
     PinyesTabComponent,
     TroncsTabComponent,
     DistribucioTabComponent,
@@ -75,7 +76,7 @@ export class SegmentWorkspaceComponent implements OnInit, OnDestroy {
   readonly activeTab = signal<WorkspaceTab>('pinyes');
   readonly isPast = signal(false);
 
-  readonly tabDefs: { id: WorkspaceTab; label: string; icon: typeof DOMAIN_ICONS.PINYA }[] = [
+  readonly tabDefs: TabDef[] = [
     { id: 'pinyes', label: 'Pinyes', icon: DOMAIN_ICONS.PINYA },
     { id: 'troncs', label: 'Troncs', icon: DOMAIN_ICONS.TRONC },
     { id: 'distribucio', label: 'Distribució', icon: DOMAIN_ICONS.COMPOSITION },
@@ -161,8 +162,8 @@ export class SegmentWorkspaceComponent implements OnInit, OnDestroy {
     this.layout.exitFullscreen();
   }
 
-  setTab(tab: WorkspaceTab): void {
-    this.activeTab.set(tab);
+  setTab(tab: string): void {
+    this.activeTab.set(tab as WorkspaceTab);
     if (isFiguresViewMode(tab)) {
       this.viewModeService.set(tab);
     }

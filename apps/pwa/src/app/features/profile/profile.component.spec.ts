@@ -6,7 +6,7 @@ import { DelegateType, ManagedPerson, PersonProfileSummary, UserRole } from '@mu
 import { ProfileComponent } from './profile.component';
 import { ProfileService } from './services/profile.service';
 import { AuthService } from '../../core/auth/services/auth.service';
-import { ToastService } from '../../shared/services/toast.service';
+import { ToastService } from '@muixer/ui';
 
 const SELF: ManagedPerson = { personId: 'p-1', displayName: 'Joanet', isSelf: true, delegateType: null };
 const CHILD: ManagedPerson = {

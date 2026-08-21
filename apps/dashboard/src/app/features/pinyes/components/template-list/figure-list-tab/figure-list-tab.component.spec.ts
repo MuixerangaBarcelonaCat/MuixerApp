@@ -5,7 +5,7 @@ import { of } from 'rxjs';
 import { allLucideIconsProvider } from '../../../../../../testing/lucide-test-provider';
 import { FigureListTabComponent } from './figure-list-tab.component';
 import { FigureTemplateService } from '../../../services/figure-template.service';
-import { ToastService } from '../../../../../shared/components/feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 
 describe('FigureListTabComponent', () => {
   let fixture: ComponentFixture<FigureListTabComponent>;

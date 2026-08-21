@@ -1,34 +1,73 @@
-<div class="space-y-4 max-w-3xl mx-auto">
-  <div>
-    <h1 class="text-xl font-bold text-base-content">Comunicació</h1>
-    <p class="text-xs text-base-content/50 mt-0.5">Notícies i notificacions</p>
-  </div>
+<div class="space-y-6 max-w-5xl mx-auto">
+  <h1 class="text-xl font-bold font-serif text-base-content">Comunicació</h1>
 
-  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+  <ng-template #newsHeadlines let-items>
+    <ul class="flex flex-col gap-2">
+      @for (item of items; track item.id) {
+        <li class="flex items-baseline justify-between gap-2 text-sm">
+          <a [routerLink]="['news', item.id, 'edit']" class="text-base-content truncate hover:text-primary hover:underline">{{ item.title }}</a>
+          <span class="text-xs text-base-content/50 shrink-0">{{ formatDate(item.publishedAt) }}</span>
+        </li>
+      }
+    </ul>
+  </ng-template>
 
-    <a routerLink="news" class="card bg-base-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer border-l-4 border-primary">
-      <div class="card-body p-4">
-        <lucide-icon name="Newspaper" [size]="24" class="text-primary mb-1" />
-        <h3 class="font-semibold">Notícies</h3>
-        <p class="text-xs text-base-content/50">Notícies per a la pàgina d'inici de l'aplicació</p>
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+
+    <lib-card sash="title" title="Notícies" [icon]="ICON_NOTICIA">
+      <div class="flex flex-col gap-5">
+        <!-- lib-button's host is display:contents, so self-start needs a real element to land on. -->
+        <div class="self-start">
+          <lib-button variant="primary" size="sm" routerLink="news/new">Notícia nova</lib-button>
+        </div>
+
+        @if (newsLoading()) {
+          <div class="flex flex-col gap-2">
+            <div class="skeleton h-4 w-32"></div>
+            <div class="skeleton h-3 w-full"></div>
+            <div class="skeleton h-3 w-5/6"></div>
+          </div>
+        } @else {
+          @if (recentPublished().length === 0 && upcomingScheduled().length === 0) {
+            <p class="text-sm text-base-content/50">Cap notícia publicada ni programada encara.</p>
+          }
+
+          @if (recentPublished().length > 0) {
+            <div class="flex flex-col gap-2">
+              <p class="text-sm font-semibold uppercase tracking-wide text-base-content/40">Recents</p>
+              <ng-container [ngTemplateOutlet]="newsHeadlines" [ngTemplateOutletContext]="{ $implicit: recentPublished() }" />
+            </div>
+          }
+
+          @if (upcomingScheduled().length > 0) {
+            <div class="flex flex-col gap-2">
+              <p class="text-sm font-semibold uppercase tracking-wide text-base-content/40">Programades</p>
+              <ng-container [ngTemplateOutlet]="newsHeadlines" [ngTemplateOutletContext]="{ $implicit: upcomingScheduled() }" />
+            </div>
+          }
+
+          <div class="flex flex-col gap-2">
+            <a routerLink="news" class="link link-primary text-sm font-medium self-start">Totes les notícies</a>
+            <p class="text-xs text-base-content/50">
+              {{ newsCounts().published }} {{ newsCounts().published === 1 ? 'publicada' : 'publicades' }} ·
+              {{ newsCounts().scheduled }} {{ newsCounts().scheduled === 1 ? 'programada' : 'programades' }} ·
+              {{ newsCounts().draft }} {{ newsCounts().draft === 1 ? 'esborrany' : 'esborranys' }}
+            </p>
+          </div>
+
+        }
       </div>
-    </a>
+    </lib-card>
 
-    <a routerLink="notifications" class="card bg-base-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer border-l-4 border-secondary">
-      <div class="card-body p-4">
-        <lucide-icon name="Bell" [size]="24" class="text-secondary mb-1" />
-        <h3 class="font-semibold">Notificacions push</h3>
-        <p class="text-xs text-base-content/50">Envia notificacions push als membres</p>
+    <lib-card sash="title" title="Notificacions" [icon]="ICON_BELL">
+      <div class="flex flex-col gap-5">
+        <!-- lib-button's host is display:contents, so self-start needs a real element to land on. -->
+        <div class="self-start">
+          <lib-button variant="primary" size="sm" routerLink="notifications">Envia notificació</lib-button>
+        </div>
+        <a routerLink="notifications/devices" class="link link-primary text-sm font-medium self-start">Dispositius subscrits</a>
       </div>
-    </a>
-
-    <a routerLink="notifications/devices" class="card bg-base-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer border-l-4 border-accent">
-      <div class="card-body p-4">
-        <lucide-icon name="Smartphone" [size]="24" class="text-accent mb-1" />
-        <h3 class="font-semibold">Dispositius</h3>
-        <p class="text-xs text-base-content/50">Membres subscrits a notificacions push</p>
-      </div>
-    </a>
+    </lib-card>
 
   </div>
 </div>

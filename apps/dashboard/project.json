@@ -20,7 +20,10 @@
             "input": "apps/dashboard/public"
           }
         ],
-        "styles": ["apps/dashboard/src/styles.scss"]
+        "styles": ["apps/dashboard/src/styles.scss"],
+        "stylePreprocessorOptions": {
+          "includePaths": ["libs/ui/src/styles"]
+        }
       },
       "configurations": {
         "production": {
@@ -83,7 +86,9 @@
     },
     "test": {
       "executor": "@angular/build:unit-test",
-      "options": {},
+      "options": {
+        "setupFiles": ["apps/dashboard/src/test-setup.ts"]
+      },
       "configurations": {
         "ci": {
           "coverage": true,

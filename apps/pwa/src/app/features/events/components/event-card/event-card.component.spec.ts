@@ -3,7 +3,7 @@ import { provideRouter, Router } from '@angular/router';
 import { AttendanceStatus, DelegateType, EventType, MeEvent } from '@muixer/shared';
 import { EventCardComponent } from './event-card.component';
 import { EventService } from '../../services/event.service';
-import { ToastService } from '../../../../shared/services/toast.service';
+import { ToastService } from '@muixer/ui';
 
 const MOCK_ASSAIG: MeEvent = {
   id: 'ev-1',

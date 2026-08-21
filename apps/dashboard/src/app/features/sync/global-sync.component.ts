@@ -1,29 +1,30 @@
 import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
-import { ICON_PERSONA, ICON_ASSAIG, ICON_ACTUACIO } from '../../shared/constants/domain-icons';
+import { ButtonComponent, CardComponent } from '@muixer/ui';
+import { DOMAIN_ICONS } from '../../shared/constants/domain-icons';
 
 @Component({
   selector: 'app-global-sync',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterModule, LucideAngularModule],
+  imports: [RouterModule, LucideAngularModule, ButtonComponent, CardComponent],
   template: `
     <div class="space-y-4 max-w-2xl mx-auto">
 
       <!-- Capçalera -->
       <div class="flex items-center gap-3">
-        <a routerLink="/home" class="btn btn-ghost btn-sm btn-circle" aria-label="Tornar a inici">
+        <lib-button variant="ghost" shape="circle" size="sm" ariaLabel="Tornar a inici" routerLink="/home">
           <lucide-icon name="ArrowLeft" [size]="18" />
-        </a>
+        </lib-button>
         <div>
-          <h1 class="text-xl font-bold text-base-content">Sincronització global</h1>
+          <h1 class="text-xl font-bold font-serif text-base-content">Sincronització global</h1>
           <p class="text-xs text-base-content/50 mt-0.5">Importa totes les dades des de l'aplicació legacy</p>
         </div>
       </div>
 
       <!-- Avís -->
-      <div class="alert alert-warning shadow-sm">
+      <div class="alert alert-warning shadow-raised">
         <lucide-icon name="AlertTriangle" [size]="18" />
         <div>
           <p class="font-semibold text-sm">Funcionalitat temporal</p>
@@ -34,47 +35,17 @@ import { ICON_PERSONA, ICON_ASSAIG, ICON_ACTUACIO } from '../../shared/constants
       <!-- Cards de sincronització -->
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-        <div class="card bg-base-100 shadow-sm border-l-4 border-primary">
-          <div class="card-body p-4">
-            <div class="flex items-center gap-2 mb-2">
-              <lucide-icon [name]="ICON_PERSONA" [size]="20" class="text-primary" />
-              <h2 class="font-semibold">Persones</h2>
-            </div>
-            <p class="text-xs text-base-content/60 mb-3">Importa totes les persones i membres del cens legacy.</p>
-            <a routerLink="/persons/sync" class="btn btn-primary btn-sm gap-1.5 w-full">
-              <lucide-icon name="RefreshCw" [size]="14" />
-              Sincronitza persones
-            </a>
-          </div>
-        </div>
+        <lib-card sash="title" title="Sincronitza persones" [icon]="ICON_PERSONA" routerLink="/persons/sync-start">
+          <p class="text-sm text-base-content/60">Importa totes les persones i membres del cens legacy.</p>
+        </lib-card>
 
-        <div class="card bg-base-100 shadow-sm border-l-4 border-info">
-          <div class="card-body p-4">
-            <div class="flex items-center gap-2 mb-2">
-              <lucide-icon [name]="ICON_ASSAIG" [size]="20" class="text-info" />
-              <h2 class="font-semibold">Assajos</h2>
-            </div>
-            <p class="text-xs text-base-content/60 mb-3">Importa tots els assajos i l'historial d'assistència.</p>
-            <a routerLink="/rehearsals/sync" class="btn btn-info btn-sm gap-1.5 w-full">
-              <lucide-icon name="RefreshCw" [size]="14" />
-              Sincronitza assajos
-            </a>
-          </div>
-        </div>
+        <lib-card sash="title" title="Sincronitza assajos" [icon]="ICON_ASSAIG" routerLink="/rehearsals/sync">
+          <p class="text-sm text-base-content/60">Importa tots els assajos i l'historial d'assistència.</p>
+        </lib-card>
 
-        <div class="card bg-base-100 shadow-sm border-l-4 border-success">
-          <div class="card-body p-4">
-            <div class="flex items-center gap-2 mb-2">
-              <lucide-icon [name]="ICON_ACTUACIO" [size]="20" class="text-success" />
-              <h2 class="font-semibold">Actuacions</h2>
-            </div>
-            <p class="text-xs text-base-content/60 mb-3">Importa totes les actuacions i l'historial d'assistència.</p>
-            <a routerLink="/performances/sync" class="btn btn-success btn-sm gap-1.5 w-full">
-              <lucide-icon name="RefreshCw" [size]="14" />
-              Sincronitza actuacions
-            </a>
-          </div>
-        </div>
+        <lib-card sash="title" title="Sincronitza actuacions" [icon]="ICON_ACTUACIO" routerLink="/performances/sync">
+          <p class="text-sm text-base-content/60">Importa totes les actuacions i l'historial d'assistència.</p>
+        </lib-card>
 
         <div class="card bg-base-200 shadow-none border border-base-300">
           <div class="card-body p-4 items-center justify-center text-center">
@@ -88,7 +59,7 @@ import { ICON_PERSONA, ICON_ASSAIG, ICON_ACTUACIO } from '../../shared/constants
   `,
 })
 export class GlobalSyncComponent {
-  readonly ICON_PERSONA = ICON_PERSONA;
-  readonly ICON_ASSAIG = ICON_ASSAIG;
-  readonly ICON_ACTUACIO = ICON_ACTUACIO;
+  readonly ICON_PERSONA = DOMAIN_ICONS.PERSONA;
+  readonly ICON_ASSAIG = DOMAIN_ICONS.ASSAIG;
+  readonly ICON_ACTUACIO = DOMAIN_ICONS.ACTUACIO;
 }

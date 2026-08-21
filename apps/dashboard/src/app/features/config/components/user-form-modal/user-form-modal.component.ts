@@ -12,7 +12,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { UserRole } from '@muixer/shared';
 import { UserService } from '../../services/user.service';
 import { UserDto } from '../../models/user.model';
-import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
+import { ButtonComponent, InputComponent, ModalComponent, ToastService } from '@muixer/ui';
 import { PersonSearchInputComponent } from '../../../../shared/components/forms/person-search-input/person-search-input.component';
 import { Person } from '../../../../features/persons/models/person.model';
 import { AuthService } from '../../../../core/auth/services/auth.service';
@@ -21,7 +21,7 @@ import { AuthService } from '../../../../core/auth/services/auth.service';
   selector: 'app-user-form-modal',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, PersonSearchInputComponent],
+  imports: [ReactiveFormsModule, PersonSearchInputComponent, ButtonComponent, InputComponent, ModalComponent],
   templateUrl: './user-form-modal.component.html',
 })
 export class UserFormModalComponent {

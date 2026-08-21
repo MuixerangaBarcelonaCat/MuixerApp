@@ -1,0 +1,60 @@
+<ng-template #inner>
+  @if (hasBand()) {
+    <div
+      class="band"
+      data-testid="lib-card-band"
+      [style.height.px]="bandHeight()"
+      [style.background-color]="sashColor() ?? null"
+    >
+      @if (titleOnBand()) {
+        <div class="sash-title" data-testid="lib-card-title" [style.color]="sashContentColor() ?? null">
+          @if (icon()) {
+            <lucide-icon [img]="icon()" [size]="28" data-testid="lib-card-icon" [style.color]="iconColor() ?? null" />
+          }
+          <span>{{ title() }}</span>
+        </div>
+      }
+    </div>
+    <svg class="fringe" data-testid="lib-card-fringe" [style.top.px]="bandTop" [style.height.px]="bandHeight()">
+      @for (thread of fringeThreads(); track $index) {
+        <path
+          [attr.d]="thread.d"
+          [attr.stroke-width]="thread.strokeWidth"
+          [attr.opacity]="thread.opacity"
+          stroke="currentColor"
+          fill="none"
+          stroke-linecap="round"
+        />
+      }
+    </svg>
+  }
+  <div class="body" [style.padding-top.px]="bodyPaddingTop()">
+    @if (title() && !titleOnBand()) {
+      <div class="body-title" data-testid="lib-card-body-title">
+        @if (icon()) {
+          <lucide-icon [img]="icon()" [size]="24" data-testid="lib-card-icon" [style.color]="iconColor() ?? null" />
+        }
+        <span>{{ title() }}</span>
+      </div>
+    }
+    <ng-content />
+  </div>
+</ng-template>
+
+@if (routerLink()) {
+  <a libDsLift [class]="interactiveClass()" [routerLink]="routerLink()">
+    <ng-container [ngTemplateOutlet]="inner" />
+  </a>
+} @else if (href()) {
+  <a libDsLift [class]="interactiveClass()" [href]="href()">
+    <ng-container [ngTemplateOutlet]="inner" />
+  </a>
+} @else if (clickable()) {
+  <button type="button" libDsLift [class]="interactiveClass()" (click)="clicked.emit()">
+    <ng-container [ngTemplateOutlet]="inner" />
+  </button>
+} @else {
+  <div [class]="baseClass()">
+    <ng-container [ngTemplateOutlet]="inner" />
+  </div>
+}

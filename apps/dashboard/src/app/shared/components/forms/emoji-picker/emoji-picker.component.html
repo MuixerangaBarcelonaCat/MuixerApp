@@ -1,7 +1,14 @@
 <div class="relative inline-block" #wrapper>
+  <!-- Not a <lib-button>: this opens a dropdown-style panel, same as lib-select's own trigger —
+       it reads as part of a field, not a discrete action, so it deliberately skips ds-lift too
+       (see docs/DESIGN_SYSTEM.md's lib-select section). Reuses the same select/select-bordered
+       field chrome (border weight + focus-swap come from the shared libs/ui/src/styles/_fields.scss).
+       `bg-none` drops DaisyUI's own hand-drawn arrow (a background-image, meant for a real <select>)
+       since this is a <button> with its own explicit ChevronDown icon below — left in place the two
+       stacked into a double arrow. -->
   <button
     type="button"
-    class="btn btn-outline btn-sm gap-2"
+    class="select select-bordered select-sm gap-2 bg-none"
     [disabled]="disabled()"
     (click)="toggle()"
     [attr.aria-expanded]="open()"
@@ -18,25 +25,26 @@
 
   @if (open()) {
     <div
-      class="absolute z-50 mt-1 bg-base-100 border border-base-300 rounded-box shadow-lg p-2 w-[26rem]"
+      class="absolute z-dropdown mt-1 bg-base-100 border border-base-300 rounded-box shadow-overlay p-2 w-[26rem]"
       role="dialog"
       aria-label="Selector d'emoji"
     >
       <div class="flex items-center justify-between mb-1.5">
         <span class="text-xs font-medium text-base-content/60">Freqüents</span>
         @if (value()) {
-          <button type="button" class="btn btn-ghost btn-xs" (click)="select(null)">Cap</button>
+          <lib-button variant="ghost" size="xs" (clicked)="select(null)">Cap</lib-button>
         }
       </div>
       <div class="flex flex-wrap gap-1 mb-2">
         @for (emoji of commonEmojis; track emoji) {
-          <button
-            type="button"
-            class="btn btn-ghost btn-xs text-base px-1.5"
-            [class.btn-active]="value() === emoji"
-            (click)="select(emoji)"
-            [attr.aria-label]="'Emoji ' + emoji"
-          >{{ emoji }}</button>
+          <lib-button
+            variant="ghost"
+            size="xs"
+            clickable
+            [selected]="value() === emoji"
+            [ariaLabel]="'Emoji ' + emoji"
+            (clicked)="select(emoji)"
+          >{{ emoji }}</lib-button>
         }
       </div>
       <emoji-picker (emoji-click)="onEmojiClick($event)" style="width: 100%; height: 520px;"></emoji-picker>

@@ -1,0 +1,8 @@
+// The dialog itself rides on DaisyUI's `.modal`/`.modal-box`/`.modal-action` classes, driven by
+// native `showModal()`/`close()` (see modal.component.ts) rather than the app's existing
+// CSS-only `.modal-open` convention — real `<dialog>` semantics give a native focus trap and
+// Escape handling for free, fixing a documented bug (see already-assigned-dialog.component.ts)
+// where no component had a working focus trap.
+:host {
+  display: contents;
+}

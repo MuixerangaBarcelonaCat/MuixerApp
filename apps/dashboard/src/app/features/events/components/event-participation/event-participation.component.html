@@ -1,4 +1,4 @@
-<section class="space-y-3" aria-labelledby="participation-heading">
+<section class="flex flex-col gap-3" aria-labelledby="participation-heading">
 
   <!-- Capçalera: recompte neutre + avís de conflictes (nivell 1 de l'avís) -->
   <div class="flex items-baseline justify-between gap-3 flex-wrap">
@@ -14,7 +14,7 @@
       @if (hasConflicts()) {
         <button
           type="button"
-          class="text-conflict font-semibold inline-flex items-center gap-1 min-h-6 link link-hover"
+          class="text-error font-semibold inline-flex items-center gap-1 min-h-6 link link-hover"
           (click)="toggleOnlyConflicts()"
           [attr.aria-pressed]="onlyConflicts()"
           data-testid="participation-conflict-counter"
@@ -29,68 +29,70 @@
 
   <!-- Filtres -->
   <app-filter-bar [hasActiveFilters]="hasActiveFilters()" (clearFilters)="clearAllFilters()">
-    <label class="input input-sm input-bordered flex items-center gap-2">
-      <lucide-icon name="Search" [size]="14" class="text-base-content/40" />
-      <input
-        type="text"
-        class="grow bg-transparent outline-none text-sm w-44 h-6"
+    <div class="w-44">
+      <lib-input
         placeholder="Cerca persona, figura o posició..."
+        [icon]="SearchIcon"
+        ariaLabel="Cerca per persona o pel que fa"
         [(ngModel)]="searchInput"
         (ngModelChange)="onSearchChange($event)"
-        aria-label="Cerca per persona o pel que fa"
       />
-    </label>
+    </div>
 
-    <select
-      class="select select-sm select-bordered"
-      [value]="selectedSegmentId() ?? ''"
-      (change)="onSegmentChange($any($event.target).value)"
-      aria-label="Àmbit: tot l'event o un segment concret"
-      data-testid="participation-segment-scope"
-    >
-      <option value="">Tots els segments</option>
-      @for (segment of segments(); track segment.id) {
-        <option [value]="segment.id">{{ segmentLabel(segment) }}</option>
-      }
-    </select>
+    <div class="w-44">
+      <lib-select
+        [ngModel]="selectedSegmentId() ?? ''"
+        (ngModelChange)="onSegmentChange($event)"
+        ariaLabel="Àmbit: tot l'event o un segment concret"
+        data-testid="participation-segment-scope"
+      >
+        <option value="">Tots els segments</option>
+        @for (segment of segments(); track segment.id) {
+          <option [value]="segment.id">{{ segmentLabel(segment) }}</option>
+        }
+      </lib-select>
+    </div>
 
-    <select
-      class="select select-sm select-bordered"
-      [value]="statusFilter() ?? ''"
-      (change)="onStatusChange($any($event.target).value)"
-      aria-label="Filtra per assistència"
-    >
-      <option value="">Tota l'assistència</option>
-      <option value="ANIRE">{{ statusLabel('ANIRE') }}</option>
-      <option value="ASSISTIT">{{ statusLabel('ASSISTIT') }}</option>
-      <option value="NO_VAIG">{{ statusLabel('NO_VAIG') }}</option>
-      <option value="PENDENT">{{ statusLabel('PENDENT') }}</option>
-    </select>
+    <div class="w-40">
+      <lib-select
+        [ngModel]="statusFilter() ?? ''"
+        (ngModelChange)="onStatusChange($event)"
+        ariaLabel="Filtra per assistència"
+      >
+        <option value="">Tota l'assistència</option>
+        <option value="ANIRE">{{ statusLabel('ANIRE') }}</option>
+        <option value="ASSISTIT">{{ statusLabel('ASSISTIT') }}</option>
+        <option value="NO_VAIG">{{ statusLabel('NO_VAIG') }}</option>
+        <option value="PENDENT">{{ statusLabel('PENDENT') }}</option>
+      </lib-select>
+    </div>
 
-    <select
-      class="select select-sm select-bordered"
-      [value]="areaFilter() ?? ''"
-      (change)="onAreaChange($any($event.target).value)"
-      aria-label="Filtra per àrea física"
-      data-testid="participation-area-filter"
-    >
-      <option value="">Tota l'àrea</option>
-      <option value="TRONC">Només troncs</option>
-      <option value="PINYA">Només pinyes</option>
-    </select>
+    <div class="w-32">
+      <lib-select
+        [ngModel]="areaFilter() ?? ''"
+        (ngModelChange)="onAreaChange($event)"
+        ariaLabel="Filtra per àrea física"
+        data-testid="participation-area-filter"
+      >
+        <option value="">Tota l'àrea</option>
+        <option value="TRONC">Només troncs</option>
+        <option value="PINYA">Només pinyes</option>
+      </lib-select>
+    </div>
 
     @if (availablePositions().length > 0) {
-      <select
-        class="select select-sm select-bordered"
-        [value]="positionFilter()?.id ?? ''"
-        (change)="onPositionChange($any($event.target).value)"
-        aria-label="Filtra per etiqueta"
-      >
-        <option value="">Totes les etiquetes</option>
-        @for (position of availablePositions(); track position.id) {
-          <option [value]="position.id">{{ position.name }}</option>
-        }
-      </select>
+      <div class="w-40">
+        <lib-select
+          [ngModel]="positionFilter()?.id ?? ''"
+          (ngModelChange)="onPositionChange($event)"
+          ariaLabel="Filtra per etiqueta"
+        >
+          <option value="">Totes les etiquetes</option>
+          @for (position of availablePositions(); track position.id) {
+            <option [value]="position.id">{{ position.name }}</option>
+          }
+        </lib-select>
+      </div>
     }
   </app-filter-bar>
 
@@ -117,11 +119,11 @@
   @if (loadError()) {
     <div class="alert alert-error text-sm">
       <span>No s'ha pogut carregar la participació.</span>
-      <button class="btn btn-ghost btn-xs" type="button" (click)="load()">Torna-ho a provar</button>
+      <lib-button variant="ghost" size="xs" (clicked)="load()">Torna-ho a provar</lib-button>
     </div>
   } @else if (!loading() && totalRows() === 0) {
-    <app-empty-state
-      [icon]="ICON_FIGURA"
+    <lib-empty-state
+      [icon]="DOMAIN_ICONS.FIGURA"
       [message]="hasActiveFilters()
         ? 'Cap persona coincideix amb els filtres.'
         : 'Encara no hi ha ningú confirmat ni assignat en aquest esdeveniment.'"

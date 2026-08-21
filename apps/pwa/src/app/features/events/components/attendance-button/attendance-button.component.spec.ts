@@ -4,7 +4,7 @@ import { of, throwError } from 'rxjs';
 import { AttendanceStatus } from '@muixer/shared';
 import { AttendanceButtonComponent } from './attendance-button.component';
 import { EventService } from '../../services/event.service';
-import { ToastService } from '../../../../shared/services/toast.service';
+import { ToastService } from '@muixer/ui';
 
 describe('AttendanceButtonComponent', () => {
   let eventService: { updateAttendance: ReturnType<typeof vi.fn> };

@@ -18,8 +18,10 @@ export async function loginViaUi(page: Page): Promise<void> {
   }
 
   await page.goto('/login', { waitUntil: 'networkidle' });
-  await page.fill('input[formcontrolname="email"]', email);
-  await page.fill('input[formcontrolname="password"]', password);
+  // Selects by native type, not formcontrolname: that attribute now sits on <lib-input>
+  // (a display:contents wrapper), not on the real <input> element inside it.
+  await page.fill('input[type="email"]', email);
+  await page.fill('input[type="password"]', password);
   await page.click('button[type="submit"]');
 
   await expect(page).not.toHaveURL(/\/login/, { timeout: 15000 });

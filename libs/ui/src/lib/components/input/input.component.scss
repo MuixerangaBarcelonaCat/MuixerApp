@@ -1,0 +1,10 @@
+// The input box rides entirely on DaisyUI's own `input`/`form-control`/`label` classes and theme
+// tokens (radius, colors), same as every hand-written input in the app today — this component's
+// job is consolidating the markup/CVA wiring, not introducing new visual identity. The one
+// exception (border weight, focus-swap-in-place instead of DaisyUI's own doubled outline ring) is
+// global, not here — see libs/ui/src/styles/_fields.scss — since it needs to reach any raw
+// `.input`/`.select`/`.textarea` too (e.g. person-detail's hand-rolled "Observacions tècniques"),
+// not just this component's own template.
+:host {
+  display: contents;
+}

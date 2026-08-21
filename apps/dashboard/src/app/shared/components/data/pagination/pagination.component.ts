@@ -1,9 +1,11 @@
 import { Component, ChangeDetectionStrategy, input, output, computed } from '@angular/core';
+import { ButtonComponent, ButtonGroupComponent } from '@muixer/ui';
 
 @Component({
   selector: 'app-pagination',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [ButtonComponent, ButtonGroupComponent],
   host: { class: 'block' },
   template: `
     <div class="flex flex-wrap items-center justify-between gap-3">
@@ -29,36 +31,37 @@ import { Component, ChangeDetectionStrategy, input, output, computed } from '@an
 
         <!-- Page buttons -->
         @if (totalPages() > 1) {
-          <div class="join">
-            <button
-              class="join-item btn btn-sm"
+          <lib-button-group>
+            <lib-button
+              joinItem
+              outlineMode
+              variant="neutral"
+              size="sm"
               [disabled]="page() <= 1"
-              (click)="pageChange.emit(page() - 1)"
-              type="button"
-              aria-label="Pàgina anterior"
-            >«</button>
+              (clicked)="pageChange.emit(page() - 1)"
+              ariaLabel="Pàgina anterior"
+            >«</lib-button>
 
             @for (p of pageNumbers(); track p) {
               @if (p === -1) {
-                <button class="join-item btn btn-sm btn-disabled" type="button">…</button>
+                <lib-button joinItem outlineMode variant="neutral" size="sm" disabled>…</lib-button>
               } @else {
-                <button
-                  class="join-item btn btn-sm"
-                  [class.btn-active]="p === page()"
-                  (click)="pageChange.emit(p)"
-                  type="button"
-                >{{ p }}</button>
+                <lib-button joinItem outlineMode variant="neutral" size="sm" [active]="p === page()" (clicked)="pageChange.emit(p)">
+                  {{ p }}
+                </lib-button>
               }
             }
 
-            <button
-              class="join-item btn btn-sm"
+            <lib-button
+              joinItem
+              outlineMode
+              variant="neutral"
+              size="sm"
               [disabled]="page() >= totalPages()"
-              (click)="pageChange.emit(page() + 1)"
-              type="button"
-              aria-label="Pàgina següent"
-            >»</button>
-          </div>
+              (clicked)="pageChange.emit(page() + 1)"
+              ariaLabel="Pàgina següent"
+            >»</lib-button>
+          </lib-button-group>
         }
       </div>
     </div>

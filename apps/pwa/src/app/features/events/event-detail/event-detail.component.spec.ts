@@ -6,7 +6,7 @@ import { AttendanceStatus, DelegateType, EventType, MeEventDetail, MeSegment } f
 import { EventDetailComponent } from './event-detail.component';
 import { AttendanceButtonComponent } from '../components/attendance-button/attendance-button.component';
 import { EventService } from '../services/event.service';
-import { ToastService } from '../../../shared/services/toast.service';
+import { ToastService } from '@muixer/ui';
 import { provideRouter } from '@angular/router';
 import { Component } from '@angular/core';
 

@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { describe, beforeEach, afterEach, it, expect, vi } from 'vitest';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { PersonSyncComponent } from './person-sync.component';
@@ -40,6 +40,7 @@ describe('PersonSyncComponent', () => {
       providers: [
         { provide: AuthService, useValue: mockAuthService },
         { provide: Router, useValue: mockRouter },
+        { provide: ActivatedRoute, useValue: { snapshot: { data: {} } } },
         allLucideIconsProvider,
       ],
     }).compileComponents();

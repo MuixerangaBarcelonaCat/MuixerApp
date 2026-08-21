@@ -13,7 +13,7 @@ import { RenglaOverlayComponent } from '../rengla-overlay/rengla-overlay.compone
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { CanvasStateService } from '../../services/canvas-state.service';
 import { LayoutService } from '../../../../core/services/layout.service';
-import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 
 @Component({ selector: 'app-figure-canvas', standalone: true, template: '' })
 class StubFigureCanvas {

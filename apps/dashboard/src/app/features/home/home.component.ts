@@ -1,28 +1,24 @@
 import { Component, ChangeDetectionStrategy, inject, signal, OnInit, computed } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
-import { ICON_TEMPLATE, ICON_ASSAIG, ICON_ACTUACIO, ICON_PERSONA } from '../../shared/constants/domain-icons';
+import { ButtonComponent, CardComponent, EmptyStateComponent } from '@muixer/ui';
+import { DOMAIN_ICONS } from '../../shared/constants/domain-icons';
 import { EventService } from '../events/services/event.service';
-import { PersonService } from '../persons/services/person.service';
 import { AuthService } from '../../core/auth/services/auth.service';
 import { EventListItem, EventType } from '../events/models/event.model';
-import { EmptyStateComponent } from '../../shared/components/data/empty-state/empty-state.component';
 
 @Component({
   selector: 'app-home',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterModule, LucideAngularModule, EmptyStateComponent],
+  imports: [RouterModule, LucideAngularModule, ButtonComponent, CardComponent, EmptyStateComponent],
   templateUrl: './home.component.html',
 })
 export class HomeComponent implements OnInit {
-  readonly ICON_TEMPLATE = ICON_TEMPLATE;
-  readonly ICON_ASSAIG = ICON_ASSAIG;
-  readonly ICON_ACTUACIO = ICON_ACTUACIO;
-  readonly ICON_PERSONA = ICON_PERSONA;
+  readonly ICON_ASSAIG = DOMAIN_ICONS.ASSAIG;
+  readonly ICON_ACTUACIO = DOMAIN_ICONS.ACTUACIO;
 
   private readonly eventService = inject(EventService);
-  private readonly personService = inject(PersonService);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
@@ -34,9 +30,15 @@ export class HomeComponent implements OnInit {
 
   nextRehearsal = signal<EventListItem | null>(null);
   nextPerformance = signal<EventListItem | null>(null);
-  totalPersons = signal<number | null>(null);
-  totalRehearsals = signal<number | null>(null);
-  totalPerformances = signal<number | null>(null);
+
+  readonly rehearsalLink = computed(() => {
+    const event = this.nextRehearsal();
+    return event ? ['/events', event.id] : undefined;
+  });
+  readonly performanceLink = computed(() => {
+    const event = this.nextPerformance();
+    return event ? ['/events', event.id] : undefined;
+  });
 
   loading = signal(true);
 
@@ -51,6 +53,11 @@ export class HomeComponent implements OnInit {
   private loadData(): void {
     this.loading.set(true);
 
+    let pending = 2;
+    const onSettled = () => {
+      if (--pending === 0) this.loading.set(false);
+    };
+
     // Next rehearsal
     this.eventService.getAll({
       eventType: EventType.ASSAIG,
@@ -60,10 +67,9 @@ export class HomeComponent implements OnInit {
       limit: 1,
       page: 1,
     }).subscribe({
-      next: (res) => {
-        this.nextRehearsal.set(res.data[0] ?? null);
-        this.totalRehearsals.set(res.meta.total);
-      },
+      next: (res) => this.nextRehearsal.set(res.data[0] ?? null),
+      complete: onSettled,
+      error: onSettled,
     });
 
     // Next performance
@@ -75,19 +81,9 @@ export class HomeComponent implements OnInit {
       limit: 1,
       page: 1,
     }).subscribe({
-      next: (res) => {
-        this.nextPerformance.set(res.data[0] ?? null);
-        this.totalPerformances.set(res.meta.total);
-      },
-    });
-
-    // Total persons
-    this.personService.getAll({ limit: 1, page: 1, isActive: true }).subscribe({
-      next: (res) => {
-        this.totalPersons.set(res.meta.total);
-        this.loading.set(false);
-      },
-      error: () => this.loading.set(false),
+      next: (res) => this.nextPerformance.set(res.data[0] ?? null),
+      complete: onSettled,
+      error: onSettled,
     });
   }
 

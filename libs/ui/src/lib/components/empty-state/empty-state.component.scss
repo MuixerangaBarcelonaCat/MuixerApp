@@ -1,0 +1,6 @@
+// No wrapper chrome by design — this sits directly in whatever layout the consumer already
+// provides (a list section, a card, a full-page panel); wrapping it in its own card was one of
+// the two apps' drifted conventions, not a deliberate part of the component.
+:host {
+  display: contents;
+}

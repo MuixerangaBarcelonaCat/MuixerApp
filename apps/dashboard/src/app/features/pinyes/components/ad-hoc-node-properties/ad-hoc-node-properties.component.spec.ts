@@ -5,7 +5,7 @@ import { of } from 'rxjs';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 import { AdHocNodePropertiesComponent } from './ad-hoc-node-properties.component';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
-import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 import { FigureZone, NodeShape } from '@muixer/shared';
 
 const makeNode = (overrides: Partial<InstanceNodeItem> = {}): InstanceNodeItem => ({

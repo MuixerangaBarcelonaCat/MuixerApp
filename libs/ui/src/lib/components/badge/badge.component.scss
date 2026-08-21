@@ -1,0 +1,9 @@
+:host {
+  display: contents;
+}
+
+// The hover-lift/press-bounce motion itself lives in the shared `.ds-lift`/`.ds-lift-no-shadow`
+// classes (libs/ui/src/styles/_interactive.scss), applied in badge.component.ts's `badgeClass` —
+// not here, so every clickable control in the app tunes as one. Selected state is filled-vs-
+// outline (badge-outline toggles off the same way Button's own variant classes do), so no separate
+// opacity/ring transition was ever needed here either.

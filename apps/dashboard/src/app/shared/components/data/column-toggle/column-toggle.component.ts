@@ -7,7 +7,7 @@ import { ColumnDef } from '../../../models/column-def.model';
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `
-    <div class="collapse collapse-arrow bg-base-200/50 rounded-lg border border-base-300">
+    <div class="collapse collapse-arrow bg-base-200/50 rounded-box border border-base-300">
       <input type="checkbox" />
       <div class="collapse-title text-sm font-medium py-2 min-h-0">
         Columnes visibles ({{ visibleCount() }} de {{ columns().length }})

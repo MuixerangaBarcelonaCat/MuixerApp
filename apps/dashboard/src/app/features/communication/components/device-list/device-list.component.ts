@@ -7,22 +7,35 @@ import {
   OnInit,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
 import { DatePipe } from '@angular/common';
-import { LucideAngularModule } from 'lucide-angular';
+import { LucideAngularModule, Search } from 'lucide-angular';
 import { DeviceSummary } from '@muixer/shared';
+import { BadgeComponent, ButtonComponent, ButtonGroupComponent, EmptyStateComponent, InputComponent } from '@muixer/ui';
 import { NotificationService } from '../../services/notification.service';
 import { PageHeaderComponent } from '../../../../shared/components/data/page-header/page-header.component';
-import { EmptyStateComponent } from '../../../../shared/components/data/empty-state/empty-state.component';
+import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 
 @Component({
   selector: 'app-device-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink, DatePipe, LucideAngularModule, PageHeaderComponent, EmptyStateComponent],
+  imports: [
+    FormsModule,
+    DatePipe,
+    LucideAngularModule,
+    PageHeaderComponent,
+    BadgeComponent,
+    ButtonComponent,
+    ButtonGroupComponent,
+    EmptyStateComponent,
+    InputComponent,
+  ],
   templateUrl: './device-list.component.html',
 })
 export class DeviceListComponent implements OnInit {
+  readonly ICON_SEARCH = Search;
+  readonly ICON_SMARTPHONE = DOMAIN_ICONS.SMARTPHONE;
+
   private readonly notificationService = inject(NotificationService);
 
   summary = signal<DeviceSummary[]>([]);

@@ -1,117 +1,88 @@
-<!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
-<dialog
-  class="modal modal-open"
-  (click)="$event.target === $event.currentTarget && onClose()"
-  (keydown.escape)="onClose()"
->
-  <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -->
-  <div class="modal-box max-w-md w-full" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+<lib-modal [open]="true" [title]="attendance().person.alias" (closed)="onClose()">
 
-    <!-- Header -->
-    <div class="flex items-start justify-between mb-4">
-      <div>
-        <h2 class="text-lg font-bold font-mono">{{ attendance().person.alias }}</h2>
-        <p class="text-sm text-base-content/60">{{ attendance().person.name }} {{ attendance().person.firstSurname }}</p>
-        <div class="flex gap-1 mt-1 flex-wrap">
-          @for (pos of attendance().person.positions; track pos.id) {
-            <span
-              class="badge badge-xs"
-              [style.background-color]="pos.color ?? '#888'"
-              style="color: white; font-size: 0.65rem;"
-            >{{ pos.name }}</span>
-          }
-          @if (attendance().person.isXicalla) {
-            <span class="badge badge-xs badge-ghost">👶 Xicalla</span>
-          }
-        </div>
-      </div>
-      <button class="btn btn-sm btn-ghost btn-circle" type="button" (click)="onClose()" aria-label="Tancar">✕</button>
-    </div>
-
-    @if (errorMessage()) {
-      <div class="alert alert-error text-sm mb-4">
-        <span>{{ errorMessage() }}</span>
-      </div>
+  <p class="text-sm text-base-content/60 -mt-2 mb-1">{{ attendance().person.name }} {{ attendance().person.firstSurname }}</p>
+  <div class="flex gap-1 mb-4 flex-wrap">
+    @for (pos of attendance().person.positions; track pos.id) {
+      <lib-badge size="xs" [color]="pos.color ?? '#888'">{{ pos.name }}</lib-badge>
     }
-
-    <!-- Status buttons -->
-    <div class="mb-4">
-      <p class="text-sm font-medium mb-2">Estat d'assistència</p>
-      <div class="flex flex-wrap gap-2">
-        @for (status of [AttendanceStatus.ANIRE, AttendanceStatus.ASSISTIT, AttendanceStatus.NO_VAIG, AttendanceStatus.PENDENT]; track status) {
-          <button
-            type="button"
-            [class]="statusButtonClass(status)"
-            (click)="selectedStatus.set(status)"
-          >{{ statusLabel(status) }}</button>
-        }
-      </div>
-    </div>
-
-    <!-- Warning for past event stats change -->
-    @if (showWarning()) {
-      <div class="alert alert-warning text-sm mb-4">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-        </svg>
-        <span>Esteu modificant l'assistència d'un event passat. Afectarà les estadístiques.</span>
-      </div>
+    @if (attendance().person.isXicalla) {
+      <lib-badge size="xs" variant="ghost">👶 Xicalla</lib-badge>
     }
+  </div>
 
-    <!-- Notes -->
-    <div class="form-control mb-6">
-      <label class="label" for="attendance-notes">
-        <span class="label-text font-medium">Notes</span>
-        <span class="label-text-alt text-base-content/50">Opcional</span>
-      </label>
-      <textarea
-        id="attendance-notes"
-        class="textarea textarea-bordered"
-        rows="3"
-        placeholder="Motiu de la no assistència, observacions..."
-        [ngModel]="editedNotes()"
-        (ngModelChange)="editedNotes.set($event || null)"
-      ></textarea>
+  @if (errorMessage()) {
+    <div class="alert alert-error text-sm mb-4">
+      <span>{{ errorMessage() }}</span>
     </div>
+  }
 
-    <!-- Actions -->
-    <div class="flex items-center justify-between">
-      <!-- Delete with confirmation -->
-      <div>
-        @if (showDeleteConfirm()) {
-          <div class="flex items-center gap-2">
-            <span class="text-sm text-error">Segur?</span>
-            <button type="button" class="btn btn-error btn-xs" [disabled]="deleting()" (click)="onDelete()">
-              @if (deleting()) {
-                <span class="loading loading-spinner loading-xs"></span>
-              } @else {
-                Sí, elimina
-              }
-            </button>
-            <button type="button" class="btn btn-ghost btn-xs" (click)="showDeleteConfirm.set(false)">No</button>
-          </div>
-        } @else {
-          <button type="button" class="btn btn-ghost btn-sm text-error" (click)="showDeleteConfirm.set(true)">
-            Elimina el registre
-          </button>
-        }
-      </div>
-
-      <div class="flex gap-2">
-        <button type="button" class="btn btn-ghost btn-sm" (click)="onClose()">Cancel·la</button>
+  <!-- Status buttons: mixed variant families (ghost+active-darken for PENDENT vs fill/outline-color
+       for the other three) don't fit lib-button-group's single fill-mode/outline-mode segmented
+       model, and it disallows variant="ghost" in a joinItem outright — flagged, left raw. -->
+  <div class="mb-4">
+    <p class="text-sm font-medium mb-2">Estat d'assistència</p>
+    <div class="flex flex-wrap gap-2">
+      @for (status of [AttendanceStatus.ANIRE, AttendanceStatus.ASSISTIT, AttendanceStatus.NO_VAIG, AttendanceStatus.PENDENT]; track status) {
         <button
           type="button"
-          class="btn btn-primary btn-sm"
-          [disabled]="!hasChanges() || saving()"
-          (click)="onSave()"
-        >
-          @if (saving()) {
-            <span class="loading loading-spinner loading-xs"></span>
-          }
-          Alça
-        </button>
-      </div>
+          [class]="statusButtonClass(status)"
+          (click)="selectedStatus.set(status)"
+        >{{ statusLabel(status) }}</button>
+      }
+    </div>
+  </div>
+
+  <!-- Warning for past event stats change -->
+  @if (showWarning()) {
+    <div class="alert alert-warning text-sm mb-4">
+      <lucide-icon [img]="TriangleAlert" [size]="16" class="shrink-0" aria-hidden="true" />
+      <span>Esteu modificant l'assistència d'un event passat. Afectarà les estadístiques.</span>
+    </div>
+  }
+
+  <!-- Notes (raw: no lib-textarea exists yet) -->
+  <div class="form-control mb-2">
+    <label class="label" for="attendance-notes">
+      <span class="label-text font-medium">Notes</span>
+      <span class="label-text-alt text-base-content/50">Opcional</span>
+    </label>
+    <textarea
+      id="attendance-notes"
+      class="textarea textarea-bordered"
+      rows="3"
+      placeholder="Motiu de la no assistència, observacions..."
+      [ngModel]="editedNotes()"
+      (ngModelChange)="editedNotes.set($event || null)"
+    ></textarea>
+  </div>
+
+  <div modalFooter class="w-full flex items-center justify-between">
+    <!-- Delete with confirmation -->
+    <div>
+      @if (showDeleteConfirm()) {
+        <div class="flex items-center gap-2">
+          <span class="text-sm text-error">Segur?</span>
+          <lib-button variant="error" size="xs" [loading]="deleting()" (clicked)="onDelete()">Sí, elimina</lib-button>
+          <lib-button variant="ghost" size="xs" (clicked)="showDeleteConfirm.set(false)">No</lib-button>
+        </div>
+      } @else {
+        <lib-button variant="error" outline size="sm" (clicked)="showDeleteConfirm.set(true)">
+          Elimina el registre
+        </lib-button>
+      }
     </div>
 
+    <div class="flex gap-2">
+      <lib-button variant="ghost" size="sm" (clicked)="onClose()">Cancel·la</lib-button>
+      <lib-button
+        variant="primary"
+        size="sm"
+        [disabled]="!hasChanges() || saving()"
+        [loading]="saving()"
+        (clicked)="onSave()"
+      >
+        Alça
+      </lib-button>
+    </div>
   </div>
-</dialog>
+</lib-modal>

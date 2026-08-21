@@ -1,0 +1,39 @@
+<!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus, @angular-eslint/template/click-events-have-key-events -->
+<dialog
+  #dialogEl
+  class="modal"
+  [attr.aria-labelledby]="titleId()"
+  (click)="onDialogClick($event)"
+  (cancel)="onCancel($event)"
+  (close)="onNativeClose()"
+>
+  <!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus, @angular-eslint/template/click-events-have-key-events -->
+  <div [class]="boxClasses()" (click)="$event.stopPropagation()">
+    @if (title() || effectiveShowCloseButton()) {
+      <div class="flex items-center justify-between mb-4">
+        @if (title()) {
+          <h2 [id]="titleId()" class="text-lg font-bold">{{ title() }}</h2>
+        }
+        @if (effectiveShowCloseButton()) {
+          <button
+            type="button"
+            class="btn btn-sm btn-ghost btn-circle"
+            aria-label="Tancar"
+            data-testid="lib-modal-close"
+            (click)="closeFromButton()"
+          >
+            <lucide-icon [img]="XIcon" [size]="16" />
+          </button>
+        }
+      </div>
+    }
+
+    <div class="overflow-y-auto flex-1" data-testid="lib-modal-body">
+      <ng-content />
+    </div>
+
+    <div class="modal-action" data-testid="lib-modal-footer">
+      <ng-content select="[modalFooter]" />
+    </div>
+  </div>
+</dialog>

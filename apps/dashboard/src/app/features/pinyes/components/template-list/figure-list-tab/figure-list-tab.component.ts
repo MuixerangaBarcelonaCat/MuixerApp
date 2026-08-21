@@ -13,7 +13,7 @@ import { LucideAngularModule } from 'lucide-angular';
 import { ICON_TEMPLATE, ICON_RENGLA } from '../../../../../shared/constants/domain-icons';
 import { FigureTemplateListItem } from '@muixer/shared';
 import { FigureTemplateService } from '../../../services/figure-template.service';
-import { ToastService } from '../../../../../shared/components/feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 import { EmptyStateComponent } from '../../../../../shared/components/data/empty-state/empty-state.component';
 
 @Component({

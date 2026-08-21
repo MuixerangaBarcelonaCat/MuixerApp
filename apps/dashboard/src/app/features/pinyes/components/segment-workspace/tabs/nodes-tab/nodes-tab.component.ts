@@ -21,7 +21,7 @@ import { AdHocNodePropertiesComponent } from '../../../ad-hoc-node-properties/ad
 import { SegmentWorkspaceStateService } from '../../../../services/segment-workspace-state.service';
 import { AssignmentStateService } from '../../../../services/assignment-state.service';
 import { NodeAssignmentService } from '../../../../services/node-assignment.service';
-import { ToastService } from '../../../../../../shared/components/feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 
 interface AdHocNodeSnapshot {
   zone: string;

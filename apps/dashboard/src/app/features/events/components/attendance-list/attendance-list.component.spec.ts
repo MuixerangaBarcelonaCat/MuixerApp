@@ -45,8 +45,8 @@ describe('AttendanceListComponent — getStatusLabel', () => {
   });
 });
 
-describe('AttendanceListComponent — getStatusBadgeClass', () => {
-  let component: Pick<AttendanceListComponent, 'getStatusBadgeClass' | 'isPast'>;
+describe('AttendanceListComponent — getStatusBadgeVariant', () => {
+  let component: Pick<AttendanceListComponent, 'getStatusBadgeVariant' | 'isPast'>;
 
   beforeEach(() => {
     component = Object.create(AttendanceListComponent.prototype) as AttendanceListComponent;
@@ -58,12 +58,12 @@ describe('AttendanceListComponent — getStatusBadgeClass', () => {
     });
 
     it.each([
-      [AttendanceStatus.PENDENT, 'badge-ghost'],
-      [AttendanceStatus.ANIRE, 'badge-success'],
-      [AttendanceStatus.NO_VAIG, 'badge-error'],
-      [AttendanceStatus.ASSISTIT, 'badge-success'],
+      [AttendanceStatus.PENDENT, 'ghost'],
+      [AttendanceStatus.ANIRE, 'success'],
+      [AttendanceStatus.NO_VAIG, 'error'],
+      [AttendanceStatus.ASSISTIT, 'success'],
     ] as const)('%s → "%s"', (status, expected) => {
-      expect(component.getStatusBadgeClass(status)).toBe(expected);
+      expect(component.getStatusBadgeVariant(status)).toBe(expected);
     });
   });
 
@@ -72,16 +72,16 @@ describe('AttendanceListComponent — getStatusBadgeClass', () => {
       (component as unknown as { isPast: () => boolean }).isPast = () => true;
     });
 
-    it('ANIRE → badge-warning for past event', () => {
-      expect(component.getStatusBadgeClass(AttendanceStatus.ANIRE)).toBe('badge-warning');
+    it('ANIRE → warning for past event', () => {
+      expect(component.getStatusBadgeVariant(AttendanceStatus.ANIRE)).toBe('warning');
     });
 
-    it('ASSISTIT → badge-success for past event', () => {
-      expect(component.getStatusBadgeClass(AttendanceStatus.ASSISTIT)).toBe('badge-success');
+    it('ASSISTIT → success for past event', () => {
+      expect(component.getStatusBadgeVariant(AttendanceStatus.ASSISTIT)).toBe('success');
     });
 
-    it('NO_VAIG → badge-error for past event', () => {
-      expect(component.getStatusBadgeClass(AttendanceStatus.NO_VAIG)).toBe('badge-error');
+    it('NO_VAIG → error for past event', () => {
+      expect(component.getStatusBadgeVariant(AttendanceStatus.NO_VAIG)).toBe('error');
     });
   });
 });
@@ -146,10 +146,11 @@ describe('AttendanceListComponent — rendering (WI-08, EV-M2)', () => {
   });
 
   describe('tap targets >=24px (WI-03, EV-M3)', () => {
-    it('gives the attendance status badge a >=24px tap target', async () => {
+    it('renders the attendance status badge as a real, clickable button (lib-badge clickable mode)', async () => {
       const fixture = await setup();
       const badge = fixture.nativeElement.querySelector('table.table .badge.cursor-pointer') as HTMLElement;
-      expect(badge.className).toContain('min-h-6');
+      expect(badge).toBeTruthy();
+      expect(badge.tagName).toBe('BUTTON');
     });
 
     it('gives the alias/name links a real >=24px tap target instead of the bare glyph height', async () => {

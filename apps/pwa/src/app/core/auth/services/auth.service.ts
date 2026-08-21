@@ -10,7 +10,7 @@ import {
   RegisterViaInviteRequest,
   UserProfile,
 } from '@muixer/shared';
-import { ToastService } from '../../../shared/services/toast.service';
+import { ToastService } from '@muixer/ui';
 import { InstallPromptService } from '../../../shared/services/install-prompt.service';
 import { environment } from '../../../../environments/environment';
 

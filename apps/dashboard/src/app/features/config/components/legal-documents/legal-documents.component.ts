@@ -4,7 +4,7 @@ import {
   LegalDocumentService,
   PublishLegalDocumentDto,
 } from '../../../../core/services/legal-document.service';
-import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
+import { BadgeComponent, ButtonComponent, CardComponent, ModalComponent, ToastService } from '@muixer/ui';
 
 interface EditableType {
   type: LegalDocumentType;
@@ -27,10 +27,11 @@ type VersionRow = LegalDocument;
   selector: 'app-legal-documents',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [BadgeComponent, ButtonComponent, CardComponent, ModalComponent],
   template: `
-    <div class="space-y-4 max-w-3xl mx-auto">
+    <div class="flex flex-col gap-4 max-w-3xl mx-auto">
       <div>
-        <h1 class="text-xl font-bold text-base-content">Privacitat i legal</h1>
+        <h1 class="text-xl font-bold font-serif text-base-content">Privacitat i legal</h1>
         <p class="text-xs text-base-content/50 mt-0.5">
           Textos legals versionats. Una <strong>correcció</strong> actualitza el text sense demanar
           de nou el consentiment; una <strong>versió nova</strong> obliga tots els usuaris a
@@ -42,18 +43,18 @@ type VersionRow = LegalDocument;
         <div class="flex justify-center py-8"><span class="loading loading-spinner"></span></div>
       } @else {
         @for (t of types; track t.type) {
-          <div class="card bg-base-100 shadow-sm border-l-4 border-warning">
-            <div class="card-body p-4 space-y-3">
+          <lib-card>
+            <div class="space-y-3">
               <div class="flex items-center justify-between flex-wrap gap-2">
                 <h2 class="font-semibold">{{ t.label }}</h2>
                 <div class="flex items-center gap-2">
-                  <span class="badge badge-ghost badge-sm">
+                  <lib-badge variant="ghost" size="sm">
                     {{ activeVersion(t.type) !== null ? 'Versió activa: v' + activeVersion(t.type) : 'Sense versió activa' }}
-                  </span>
+                  </lib-badge>
                   @if (t.gatesConsent) {
-                    <span class="badge badge-warning badge-sm badge-outline">
+                    <lib-badge variant="warning" outline size="sm">
                       {{ consentVersion(t.type) !== null ? 'Consentiment vigent: v' + consentVersion(t.type) : 'Sense consentiment demanat' }}
-                    </span>
+                    </lib-badge>
                   }
                 </div>
               </div>
@@ -67,33 +68,34 @@ type VersionRow = LegalDocument;
 
               <div class="flex justify-end gap-2 flex-wrap">
                 @if (t.gatesConsent) {
-                  <button
-                    type="button"
-                    class="btn btn-ghost btn-sm"
+                  <lib-button
+                    variant="warning"
+                    outline
+                    size="sm"
                     [disabled]="saving() === t.type || draft(t.type).trim().length === 0"
-                    (click)="requestPublish(t, false)"
+                    (clicked)="requestPublish(t, false)"
                   >
                     Desa correcció
-                  </button>
-                  <button
-                    type="button"
-                    class="btn btn-primary btn-sm"
+                  </lib-button>
+                  <lib-button
+                    variant="warning"
+                    size="sm"
                     [disabled]="saving() === t.type || draft(t.type).trim().length === 0"
-                    (click)="requestPublish(t, true)"
+                    [loading]="saving() === t.type"
+                    (clicked)="requestPublish(t, true)"
                   >
-                    @if (saving() === t.type) { <span class="loading loading-spinner loading-xs"></span> }
                     Publica versió nova (cal reacceptar)
-                  </button>
+                  </lib-button>
                 } @else {
-                  <button
-                    type="button"
-                    class="btn btn-primary btn-sm"
+                  <lib-button
+                    variant="warning"
+                    size="sm"
                     [disabled]="saving() === t.type || draft(t.type).trim().length === 0"
-                    (click)="requestPublish(t, false)"
+                    [loading]="saving() === t.type"
+                    (clicked)="requestPublish(t, false)"
                   >
-                    @if (saving() === t.type) { <span class="loading loading-spinner loading-xs"></span> }
                     Publica
-                  </button>
+                  </lib-button>
                 }
               </div>
 
@@ -114,88 +116,77 @@ type VersionRow = LegalDocument;
                         <div class="flex items-center gap-2">
                           <span class="font-mono">v{{ v.version }}</span>
                           @if (v.isActive) {
-                            <span class="badge badge-success badge-xs">Activa</span>
+                            <lib-badge variant="success" size="xs">Activa</lib-badge>
                           }
                           @if (t.gatesConsent) {
                             @if (v.requiresConsent) {
-                              <span class="badge badge-warning badge-xs">Requeria acceptació</span>
+                              <lib-badge variant="warning" size="xs">Requeria acceptació</lib-badge>
                             } @else {
-                              <span class="badge badge-ghost badge-xs">Correcció</span>
+                              <lib-badge variant="ghost" size="xs">Correcció</lib-badge>
                             }
                           }
                           <span class="text-base-content/50">{{ formatDate(v.publishedAt) }}</span>
                         </div>
-                        <button type="button" class="btn btn-ghost btn-xs" (click)="viewVersion(v)">
+                        <lib-button variant="ghost" size="xs" (clicked)="viewVersion(v)">
                           Veure
-                        </button>
+                        </lib-button>
                       </li>
                     }
                   </ul>
                 }
               </div>
             </div>
-          </div>
+          </lib-card>
         }
       }
     </div>
 
     <!-- Modal de confirmació abans de publicar -->
-    @if (pendingPublish(); as pending) {
-      <dialog class="modal modal-open" aria-labelledby="publish-confirm-title" role="dialog">
-        <div class="modal-box max-w-md">
-          <h3 id="publish-confirm-title" class="font-bold text-lg mb-2">
-            {{ pending.requiresConsent ? 'Publicar versió nova?' : 'Desar correcció?' }}
-          </h3>
-
-          @if (pending.requiresConsent) {
-            <div class="alert alert-warning text-sm mb-4">
-              <span>
-                <strong>Tots els usuaris</strong> hauran de tornar a acceptar la
-                {{ pending.label }} la propera vegada que entrin a l'aplicació.
-              </span>
-            </div>
-          } @else {
-            <p class="text-sm text-base-content/70 mb-4">
-              Es publica com a correcció del text de {{ pending.label }}: ningú tornarà a haver
-              d'acceptar-la de nou.
-            </p>
-          }
-
-          <div class="modal-action">
-            <button type="button" class="btn btn-ghost btn-sm" (click)="cancelPublish()">
-              Cancel·la
-            </button>
-            <button
-              type="button"
-              class="btn btn-primary btn-sm"
-              [class.btn-warning]="pending.requiresConsent"
-              (click)="confirmPublish()"
-            >
-              Confirma
-            </button>
+    <lib-modal
+      [open]="!!pendingPublish()"
+      [title]="pendingPublish()?.requiresConsent ? 'Publicar versió nova?' : 'Desar correcció?'"
+      (closed)="cancelPublish()"
+    >
+      @if (pendingPublish(); as pending) {
+        @if (pending.requiresConsent) {
+          <div class="alert alert-warning text-sm">
+            <span>
+              <strong>Tots els usuaris</strong> hauran de tornar a acceptar la
+              {{ pending.label }} la propera vegada que entren a l'aplicació.
+            </span>
           </div>
-        </div>
-        <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
-        <div class="modal-backdrop" (click)="cancelPublish()"></div>
-      </dialog>
-    }
+        } @else {
+          <p class="text-sm text-base-content/70">
+            Es publica com a correcció del text de {{ pending.label }}: ningú tornarà a haver
+            d'acceptar-la de nou. No l'utilitzeu si hi ha canvis relevants.
+          </p>
+        }
+      }
+
+      <div modalFooter>
+        <lib-button variant="ghost" size="sm" (clicked)="cancelPublish()">
+          Cancel·la
+        </lib-button>
+        <lib-button variant="warning" size="sm" (clicked)="confirmPublish()">
+          Confirma
+        </lib-button>
+      </div>
+    </lib-modal>
 
     <!-- Modal de lectura d'una versió de l'historial -->
-    @if (viewingVersion(); as v) {
-      <dialog class="modal modal-open" aria-labelledby="version-view-title" role="dialog">
-        <div class="modal-box max-w-2xl">
-          <h3 id="version-view-title" class="font-bold text-lg mb-2">
-            v{{ v.version }} — {{ formatDate(v.publishedAt) }}
-          </h3>
-          <div class="max-h-[50vh] overflow-y-auto rounded-box bg-base-200 p-4 text-sm whitespace-pre-wrap mb-4">{{ v.content }}</div>
-          <div class="modal-action">
-            <button type="button" class="btn btn-sm" (click)="viewingVersion.set(null)">Tanca</button>
-          </div>
-        </div>
-        <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
-        <div class="modal-backdrop" (click)="viewingVersion.set(null)"></div>
-      </dialog>
-    }
+    <lib-modal
+      [open]="!!viewingVersion()"
+      [title]="viewingVersion() ? 'v' + viewingVersion()!.version + ' — ' + formatDate(viewingVersion()!.publishedAt) : undefined"
+      size="2xl"
+      (closed)="viewingVersion.set(null)"
+    >
+      @if (viewingVersion(); as v) {
+        <div class="max-h-[50vh] overflow-y-auto rounded-box bg-base-200 p-4 text-sm whitespace-pre-wrap">{{ v.content }}</div>
+      }
+      <div modalFooter>
+        <lib-button variant="ghost" size="sm" (clicked)="viewingVersion.set(null)">Tanca</lib-button>
+      </div>
+    </lib-modal>
   `,
 })
 export class LegalDocumentsComponent {

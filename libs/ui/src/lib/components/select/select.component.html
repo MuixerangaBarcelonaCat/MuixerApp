@@ -1,0 +1,55 @@
+<lib-form-field [label]="label()" [hint]="hint()" [errorText]="errorText()" [required]="required()" [size]="size()" [id]="selectId()">
+  <select
+    #selectRef
+    [id]="selectId()"
+    class="min-h-6"
+    [class]="boxClasses()"
+    [class.hidden]="multiple()"
+    [disabled]="isDisabled()"
+    [required]="required()"
+    [attr.aria-label]="ariaLabel() ?? null"
+    [attr.aria-invalid]="hasError() ? 'true' : null"
+    [attr.aria-describedby]="hasDescription() ? descriptionId() : null"
+    (change)="onChangeEvent($event)"
+    (blur)="onBlur()"
+    data-testid="lib-select-native"
+  >
+    <ng-content />
+  </select>
+
+  @if (multiple()) {
+    <div class="dropdown w-full" data-testid="lib-select-multi">
+      <button
+        type="button"
+        [class]="triggerClasses()"
+        [disabled]="isDisabled()"
+        [attr.aria-label]="ariaLabel() ?? null"
+        data-testid="lib-select-multi-trigger"
+      >
+        <span class="truncate">{{ triggerLabel() }}</span>
+        <lucide-icon [img]="ChevronDownIcon" [size]="14" class="shrink-0 opacity-60" aria-hidden="true" />
+      </button>
+      <ul
+        tabindex="0"
+        class="dropdown-content menu bg-base-100 rounded-box z-50 w-full min-w-max p-2 shadow-overlay border border-base-300 max-h-72 overflow-y-auto flex-nowrap"
+        role="listbox"
+        aria-multiselectable="true"
+      >
+        @for (opt of options(); track opt.value) {
+          <li role="option" [attr.aria-selected]="isSelected(opt.value)">
+            <label class="flex items-center gap-2 cursor-pointer min-h-6" [class.opacity-50]="opt.disabled">
+              <input
+                type="checkbox"
+                class="checkbox checkbox-xs"
+                [checked]="isSelected(opt.value)"
+                [disabled]="opt.disabled || isDisabled()"
+                (change)="toggleValue(opt.value)"
+              />
+              <span [libSelectOptionContent]="opt.content"></span>
+            </label>
+          </li>
+        }
+      </ul>
+    </div>
+  }
+</lib-form-field>

@@ -1,6 +1,8 @@
 import {
   Baby,
+  Bell,
   Calendar,
+  CalendarRange,
   ChessRook,
   CircleAlert,
   CirclePile,
@@ -8,9 +10,15 @@ import {
   Flower,
   GitCommitHorizontal,
   LayoutGrid,
+  Newspaper,
+  ShieldCheck,
+  Smartphone,
   Sparkles,
   Star,
+  Tag,
   Users,
+  UserCog,
+  UserX,
 } from 'lucide-angular';
 
 // Pinyes domain
@@ -47,4 +55,13 @@ export const DOMAIN_ICONS = {
   PERSONA: Users,
   XICALLA: Baby,
   OBSERVACIONS: CircleAlert,
+  NOTICIA: Newspaper,
+  BELL: Bell,
+  SMARTPHONE: Smartphone,
+  USER_X: UserX,
+  USER_COG: UserCog,
+  TAG: Tag,
+  CALENDAR_RANGE: CalendarRange,
+  SHIELD_CHECK: ShieldCheck,
+  DESIGN_SYSTEM: Sparkles,
 } as const;

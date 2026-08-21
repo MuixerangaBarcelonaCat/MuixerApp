@@ -1,0 +1,31 @@
+// Shared field chrome for DaisyUI's `.input`/`.select`/`.textarea` — global (unencapsulated) CSS
+// for the same reason `_interactive.scss` is: Angular's per-component style encapsulation means a
+// rule written inside `lib-input`'s own stylesheet can never reach a raw hand-rolled `.textarea`
+// elsewhere in an app (e.g. person-detail's "Observacions tècniques"), so this lives outside any
+// component instead, imported once into each app's global stylesheet (see
+// `stylePreprocessorOptions.includePaths` in project.json) — every `.input`/`.select`/`.textarea`
+// gets the same border weight and focus treatment whether it's wrapped in `lib-input`/`lib-select`
+// or written raw.
+@layer components {
+  // DaisyUI's own default is 1px — bumped to 2px to match `lib-button`'s own `border-width: 2px`
+  // (button.component.scss), so form fields and buttons read as the same weight of "outlined
+  // control" rather than two different border languages side by side.
+  .input,
+  .select,
+  .textarea {
+    border-width: 2px;
+  }
+
+  // DaisyUI's own `:focus`/`:focus-within` rule draws a SEPARATE 2px outline outside the existing
+  // border (in the exact same `oklch(var(--bc)/0.2)` gray the resting `-bordered` variants already
+  // use — itself a real theme token, not a hardcoded value) rather than changing the border itself,
+  // so focus reads as a second same-colored ring stacked around the first. Replace that: drop the
+  // outline and recolor the border in place to the theme's primary accent instead, so focus swaps
+  // the one border rather than adding a shape around it.
+  .input:focus-within,
+  .select:focus,
+  .textarea:focus {
+    outline: none;
+    border-color: oklch(var(--p));
+  }
+}

@@ -1,0 +1,17 @@
+<div class="toast-container z-system" data-testid="lib-toast-container" aria-live="polite">
+  @for (toast of toastService.toasts(); track toast.id) {
+    <div [class]="'alert shadow-lg toast-item ' + alertClass(toast.type)" data-testid="lib-toast-item" role="status">
+      <lucide-icon [img]="icon(toast.type)" [size]="16" />
+      <span>{{ toast.message }}</span>
+      <button
+        type="button"
+        class="btn btn-ghost btn-xs"
+        data-testid="lib-toast-dismiss"
+        (click)="toastService.dismiss(toast.id)"
+        aria-label="Tancar notificació"
+      >
+        ✕
+      </button>
+    </div>
+  }
+</div>

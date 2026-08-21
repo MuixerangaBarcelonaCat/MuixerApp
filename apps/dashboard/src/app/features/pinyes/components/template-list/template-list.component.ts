@@ -14,7 +14,7 @@ import { ICON_TEMPLATE, ICON_COMPOSITION, ICON_FIGURA_NETA, DOMAIN_ICONS } from 
 import { HttpErrorResponse } from '@angular/common/http';
 import { FigureTemplateService } from '../../services/figure-template.service';
 import { EmptyStateComponent } from '../../../../shared/components/data/empty-state/empty-state.component';
-import { ToastService } from '../../../../shared/components/feedback/toast/toast.service';
+import { ToastService } from '@muixer/ui';
 import { TutorialModalComponent } from '../../../../shared/components/tutorial-modal/tutorial-modal.component';
 import { TutorialStep } from '../../../../shared/components/tutorial-modal/tutorial-step.model';
 import { CompositionGridTabComponent } from './composition-grid-tab/composition-grid-tab.component';
