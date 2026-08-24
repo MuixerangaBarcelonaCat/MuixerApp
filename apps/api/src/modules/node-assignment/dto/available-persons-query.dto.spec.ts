@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { AvailablePersonsQueryDto } from './available-persons-query.dto';
+import { TagCategory } from '@muixer/shared';
 
 describe('AvailablePersonsQueryDto', () => {
   it('leaves isXicalla/excludeAssigned undefined when the query param is absent (SM-12)', () => {
@@ -28,5 +29,19 @@ describe('AvailablePersonsQueryDto', () => {
     const dto = plainToInstance(AvailablePersonsQueryDto, {});
     const errors = await validate(dto);
     expect(errors).toHaveLength(0);
+  });
+
+  it('accepts a valid positionCategory value', async () => {
+    const dto = plainToInstance(AvailablePersonsQueryDto, { positionCategory: TagCategory.TRONC });
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(0);
+    expect(dto.positionCategory).toBe(TagCategory.TRONC);
+  });
+
+  it('rejects an invalid positionCategory value', async () => {
+    const dto = plainToInstance(AvailablePersonsQueryDto, { positionCategory: 'NOT_A_CATEGORY' });
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(1);
+    expect(errors[0].property).toBe('positionCategory');
   });
 });

@@ -13,6 +13,7 @@ import {
   AssignmentArea,
   areaForZone,
   ConflictPlacement,
+  TagCategory,
 } from '@muixer/shared';
 
 interface AvailablePersonPositionDto {
@@ -21,6 +22,7 @@ interface AvailablePersonPositionDto {
   slug: string;
   color: string | null;
   positionTypes: string[];
+  category: TagCategory;
 }
 
 export interface AvailablePersonDto {
@@ -47,6 +49,7 @@ export interface AvailablePersonsQuery {
   isXicalla?: boolean;
   excludeAssigned?: boolean;
   positionId?: string;
+  positionCategory?: TagCategory;
 }
 
 @Injectable()
@@ -83,7 +86,7 @@ export class AvailablePersonsService {
       );
     }
 
-    const { search, height, positionId, isXicalla: isXicallaBool } = query;
+    const { search, height, positionId, positionCategory, isXicalla: isXicallaBool } = query;
     const excludeAssignedBool = query.excludeAssigned ?? true;
 
     // Build base person query
@@ -122,6 +125,20 @@ export class AvailablePersonsService {
         return 'person.id IN ' + subQuery;
       });
       qb.setParameter('positionId', positionId);
+    }
+
+    if (positionCategory) {
+      qb.andWhere((qbSub) => {
+        const subQuery = qbSub
+          .subQuery()
+          .select('sub_person2.id')
+          .from(Person, 'sub_person2')
+          .innerJoin('sub_person2.positions', 'sub_position2')
+          .where('sub_position2.category = :positionCategory')
+          .getQuery();
+        return 'person.id IN ' + subQuery;
+      });
+      qb.setParameter('positionCategory', positionCategory);
     }
 
     if (excludeAssignedBool) {
@@ -255,6 +272,7 @@ export class AvailablePersonsService {
           slug: p.slug,
           color: p.color,
           positionTypes: p.positionTypes ?? [],
+          category: p.category,
         })),
       };
     });

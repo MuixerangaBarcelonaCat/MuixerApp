@@ -7,7 +7,7 @@ import { Attendance } from '../event/attendance.entity';
 import { Event } from '../event/event.entity';
 import { EventSegment } from '../event-segment/entities/event-segment.entity';
 import { NodeAssignment } from './entities/node-assignment.entity';
-import { AttendanceStatus, EventType, FigureZone } from '@muixer/shared';
+import { AttendanceStatus, EventType, FigureZone, TagCategory } from '@muixer/shared';
 
 const EVENT_ID = 'event-uuid-1';
 const SEGMENT_ID = 'segment-uuid-1';
@@ -29,6 +29,7 @@ const makePosition = (slug = 'agulla', overrides: any = {}): any => ({
   name: slug.charAt(0).toUpperCase() + slug.slice(1),
   slug,
   color: '#0d9488',
+  category: TagCategory.PINYA,
   ...overrides,
 });
 
@@ -197,6 +198,38 @@ describe('AvailablePersonsService', () => {
 
       expect(mockPersonQb.andWhere).toHaveBeenCalledWith(expect.any(Function));
       expect(mockPersonQb.setParameter).toHaveBeenCalledWith('positionId', 'pos-agulla');
+    });
+
+    it('filters by positionCategory', async () => {
+      mockEventRepo.findOne.mockResolvedValueOnce(makeEvent()).mockResolvedValue(null);
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockPersonQb.getMany.mockResolvedValue([]);
+
+      await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, {
+        positionCategory: TagCategory.TRONC,
+      });
+
+      expect(mockPersonQb.andWhere).toHaveBeenCalledWith(expect.any(Function));
+      expect(mockPersonQb.setParameter).toHaveBeenCalledWith('positionCategory', TagCategory.TRONC);
+    });
+
+    it('combines positionId and positionCategory as independent AND filters', async () => {
+      mockEventRepo.findOne.mockResolvedValueOnce(makeEvent()).mockResolvedValue(null);
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockPersonQb.getMany.mockResolvedValue([]);
+
+      await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, {
+        positionId: 'pos-agulla',
+        positionCategory: TagCategory.TRONC,
+      });
+
+      expect(mockPersonQb.setParameter).toHaveBeenCalledWith('positionId', 'pos-agulla');
+      expect(mockPersonQb.setParameter).toHaveBeenCalledWith('positionCategory', TagCategory.TRONC);
+      // Both filters combined via separate andWhere calls (neither replaces the other).
+      const andWhereFnCalls = mockPersonQb.andWhere.mock.calls.filter(
+        (call: unknown[]) => typeof call[0] === 'function',
+      );
+      expect(andWhereFnCalls.length).toBeGreaterThanOrEqual(2);
     });
 
     it('sorts by height proximity when height param present', async () => {
@@ -466,8 +499,8 @@ describe('AvailablePersonsService', () => {
       const result = await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, {});
 
       expect(result[0].positions).toHaveLength(2);
-      expect(result[0].positions[0]).toEqual({ id: pos1.id, name: pos1.name, slug: 'agulla', color: '#0d9488', positionTypes: [] });
-      expect(result[0].positions[1]).toEqual({ id: pos2.id, name: pos2.name, slug: 'vents', color: '#A5D6A7', positionTypes: [] });
+      expect(result[0].positions[0]).toEqual({ id: pos1.id, name: pos1.name, slug: 'agulla', color: '#0d9488', positionTypes: [], category: TagCategory.PINYA });
+      expect(result[0].positions[1]).toEqual({ id: pos2.id, name: pos2.name, slug: 'vents', color: '#A5D6A7', positionTypes: [], category: TagCategory.PINYA });
     });
 
     it('returns empty positions[] when person has no positions', async () => {
