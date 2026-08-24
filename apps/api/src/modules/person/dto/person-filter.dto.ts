@@ -1,7 +1,7 @@
 import { IsString, IsOptional, IsEnum, IsInt, Min, Max, IsUUID, IsIn } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { AvailabilityStatus } from '@muixer/shared';
+import { AvailabilityStatus, TagCategory } from '@muixer/shared';
 import { PERSON_SORT_BY_FIELDS, PERSON_SORT_ORDER_VALUES } from '../constants/person-sort.constants';
 
 const toBool = ({ value }: { value: unknown }) =>
@@ -19,6 +19,13 @@ export class PersonFilterDto {
   @Transform(({ value }) => (Array.isArray(value) ? value : value ? [value] : []))
   @IsUUID('4', { each: true })
   positionIds?: string[];
+
+  @ApiPropertyOptional({ description: 'Filtrar per categoria de posicions (multi-valor)', enum: TagCategory, isArray: true })
+  @IsOptional()
+  @Type(() => String)
+  @Transform(({ value }) => (Array.isArray(value) ? value : value ? [value] : []))
+  @IsEnum(TagCategory, { each: true })
+  positionCategory?: TagCategory[];
 
   @ApiPropertyOptional({ description: 'Filtrar per disponibilitat del membre', enum: AvailabilityStatus })
   @IsEnum(AvailabilityStatus)

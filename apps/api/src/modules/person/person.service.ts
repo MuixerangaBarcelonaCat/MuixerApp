@@ -35,6 +35,7 @@ export class PersonService {
     const {
       search,
       positionIds,
+      positionCategory,
       availability,
       isActive,
       isXicalla,
@@ -75,6 +76,20 @@ export class PersonService {
         return 'person.id IN ' + subQuery;
       });
       queryBuilder.setParameter('positionIds', positionIds);
+    }
+
+    if (positionCategory && positionCategory.length > 0) {
+      queryBuilder.andWhere((qb) => {
+        const subQuery = qb
+          .subQuery()
+          .select('sub_person_cat.id')
+          .from(Person, 'sub_person_cat')
+          .innerJoin('sub_person_cat.positions', 'sub_position_cat')
+          .where('sub_position_cat.category IN (:...positionCategories)')
+          .getQuery();
+        return 'person.id IN ' + subQuery;
+      });
+      queryBuilder.setParameter('positionCategories', positionCategory);
     }
 
     if (availability !== undefined) {
