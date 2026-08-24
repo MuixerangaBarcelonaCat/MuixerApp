@@ -1,10 +1,11 @@
-import { Controller, Get, Post, Patch, Delete, Param, Body, ParseUUIDPipe, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, Query, ParseUUIDPipe, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { UserRole } from '@muixer/shared';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { TagService } from './tag.service';
 import { CreateTagDto } from './dto/create-tag.dto';
 import { UpdateTagDto } from './dto/update-tag.dto';
+import { TagFilterDto } from './dto/tag-filter.dto';
 
 @ApiTags('tags')
 @ApiBearerAuth()
@@ -17,8 +18,8 @@ export class TagController {
   @ApiOperation({ summary: 'Llistar totes les etiquetes' })
   @ApiResponse({ status: 200, description: 'Llista d\'etiquetes retornada correctament.' })
   @ApiResponse({ status: 401, description: 'Token d\'accés invàlid o expirat.' })
-  findAll() {
-    return this.tagService.findAll();
+  findAll(@Query() filter: TagFilterDto) {
+    return this.tagService.findAll(filter);
   }
 
   @Get(':id')

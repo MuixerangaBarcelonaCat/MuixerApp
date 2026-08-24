@@ -27,6 +27,7 @@ const makeTag = (overrides: Partial<Tag> = {}): Partial<Tag> => ({
 const mockQb = {
   leftJoin: jest.fn().mockReturnThis(),
   addSelect: jest.fn().mockReturnThis(),
+  andWhere: jest.fn().mockReturnThis(),
   groupBy: jest.fn().mockReturnThis(),
   orderBy: jest.fn().mockReturnThis(),
   getRawAndEntities: jest.fn(),
@@ -69,6 +70,7 @@ describe('TagService', () => {
     mockRepo.createQueryBuilder.mockReturnValue(mockQb);
     mockQb.leftJoin.mockReturnThis();
     mockQb.addSelect.mockReturnThis();
+    mockQb.andWhere.mockReturnThis();
     mockQb.groupBy.mockReturnThis();
     mockQb.orderBy.mockReturnThis();
 
@@ -107,6 +109,24 @@ describe('TagService', () => {
 
       const result = await service.findAll();
       expect(result[0].personCount).toBe(0);
+    });
+
+    it('filters by category when provided', async () => {
+      mockQb.getRawAndEntities.mockResolvedValue({ entities: [], raw: [] });
+
+      await service.findAll({ category: [TagCategory.PINYA] });
+
+      expect(mockQb.andWhere).toHaveBeenCalledWith('tag.category IN (:...categories)', {
+        categories: [TagCategory.PINYA],
+      });
+    });
+
+    it('does not filter when no category is provided', async () => {
+      mockQb.getRawAndEntities.mockResolvedValue({ entities: [], raw: [] });
+
+      await service.findAll();
+
+      expect(mockQb.andWhere).not.toHaveBeenCalled();
     });
   });
 

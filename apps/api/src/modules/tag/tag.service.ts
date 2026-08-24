@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Tag } from './tag.entity';
 import { CreateTagDto } from './dto/create-tag.dto';
 import { UpdateTagDto } from './dto/update-tag.dto';
+import { TagFilterDto } from './dto/tag-filter.dto';
 
 export type TagWithCount = Tag & { personCount: number };
 
@@ -14,14 +15,17 @@ export class TagService {
     private readonly tagRepository: Repository<Tag>,
   ) {}
 
-  async findAll(): Promise<TagWithCount[]> {
-    const result = await this.tagRepository
+  async findAll(filter?: TagFilterDto): Promise<TagWithCount[]> {
+    const qb = this.tagRepository
       .createQueryBuilder('tag')
       .leftJoin('person_positions', 'pp', 'pp."positionsId" = tag.id')
-      .addSelect('CAST(COUNT(pp."personsId") AS int)', 'personCount')
-      .groupBy('tag.id')
-      .orderBy('tag.name', 'ASC')
-      .getRawAndEntities();
+      .addSelect('CAST(COUNT(pp."personsId") AS int)', 'personCount');
+
+    if (filter?.category?.length) {
+      qb.andWhere('tag.category IN (:...categories)', { categories: filter.category });
+    }
+
+    const result = await qb.groupBy('tag.id').orderBy('tag.name', 'ASC').getRawAndEntities();
 
     return result.entities.map((entity, index) => ({
       ...entity,
