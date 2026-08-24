@@ -1,4 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { TagCategory } from '@muixer/shared';
 
 @Entity('positions')
 export class Tag {
@@ -22,6 +23,9 @@ export class Tag {
 
   @Column({ type: 'text', array: true, default: '{}' })
   positionTypes: string[];
+
+  @Column({ type: 'varchar', length: 20 })
+  category: TagCategory;
 
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
