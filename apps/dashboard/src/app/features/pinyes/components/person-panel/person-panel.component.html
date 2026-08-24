@@ -130,6 +130,35 @@
       </label>
 
       <div class="flex items-center gap-1">
+        <button
+          type="button"
+          class="btn btn-xs"
+          [class.btn-primary]="selectedCategory() === TagCategory.TRONC"
+          [class.btn-outline]="selectedCategory() !== TagCategory.TRONC"
+          data-testid="category-filter-tronc"
+          (click)="onCategoryFilterChange(selectedCategory() === TagCategory.TRONC ? null : TagCategory.TRONC)"
+        >{{ TAG_CATEGORY_LABELS[TagCategory.TRONC] }}</button>
+        <button
+          type="button"
+          class="btn btn-xs"
+          [class.btn-primary]="selectedCategory() === TagCategory.PINYA"
+          [class.btn-outline]="selectedCategory() !== TagCategory.PINYA"
+          data-testid="category-filter-pinya"
+          (click)="onCategoryFilterChange(selectedCategory() === TagCategory.PINYA ? null : TagCategory.PINYA)"
+        >{{ TAG_CATEGORY_LABELS[TagCategory.PINYA] }}</button>
+        @if (selectedCategory()) {
+          <button
+            type="button"
+            class="btn btn-ghost btn-xs px-1.5"
+            data-testid="category-filter-clear"
+            (click)="onCategoryFilterChange(null)"
+            aria-label="Neteja el filtre de categoria"
+            title="Neteja el filtre de categoria"
+          >✕</button>
+        }
+      </div>
+
+      <div class="flex items-center gap-1">
         <div class="dropdown" [class.dropdown-open]="tagFilterOpen()">
           <button
             type="button"

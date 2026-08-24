@@ -14,7 +14,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, RefreshCw, ChevronDown, ChevronUp, UserX } from 'lucide-angular';
-import { DIRECTION_ZONES, FigureZone, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
+import { DIRECTION_ZONES, FigureZone, SHOULDER_HEIGHT_BASELINE_CM, TAG_CATEGORY_LABELS, TagCategory } from '@muixer/shared';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
 import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
@@ -74,6 +74,10 @@ export class PersonPanelComponent {
   readonly selectedPositionId = signal<string | null>(null);
   readonly tagFilterOpen = signal(false);
   readonly tagSearch = signal('');
+  readonly selectedCategory = signal<TagCategory | null>(null);
+
+  readonly TagCategory = TagCategory;
+  readonly TAG_CATEGORY_LABELS = TAG_CATEGORY_LABELS;
 
   readonly selectedTag = computed(() =>
     this.tags().find((t) => t.id === this.selectedPositionId()) ?? null,
@@ -81,8 +85,12 @@ export class PersonPanelComponent {
 
   readonly filteredTags = computed(() => {
     const term = this.normalizeForMatch(this.tagSearch());
-    if (!term) return this.tags();
-    return this.tags().filter((t) => this.normalizeForMatch(t.name).includes(term));
+    const category = this.selectedCategory();
+    return this.tags().filter(
+      (t) =>
+        (!category || t.category === category) &&
+        (!term || this.normalizeForMatch(t.name).includes(term)),
+    );
   });
   readonly altresExpanded = signal(false);
   readonly pinyaAssignedExpanded = signal(true);
@@ -328,6 +336,10 @@ export class PersonPanelComponent {
         // Left untouched when a node is deselected (nodeId === null).
         // Goes through onXicallaChange (not a direct signal set) so the person
         // list is actually re-fetched with the new filter, same as a manual toggle.
+        // Auto-select the category chip to match the selected node's zone.
+        // Left untouched when a node is deselected (nodeId === null), same as Xicalla below.
+        // Set before onXicallaChange so the reload it triggers already carries the new category.
+        this.selectedCategory.set(this.categoryForZone(this.selectedNodeZone()));
         this.onXicallaChange(this.selectedNodeZone() === FigureZone.TRONC);
       }
     });
@@ -341,6 +353,13 @@ export class PersonPanelComponent {
         }
       });
     });
+  }
+
+  /** TRONC/BASE → TRONC category; PINYA → PINYA category; direction/decoration zones → none. */
+  private categoryForZone(zone: string | null): TagCategory | null {
+    if (zone === FigureZone.TRONC || zone === FigureZone.BASE) return TagCategory.TRONC;
+    if (zone === FigureZone.PINYA) return TagCategory.PINYA;
+    return null;
   }
 
   focusSearch(): void {
@@ -386,6 +405,7 @@ export class PersonPanelComponent {
     }
     if (!this.showXicalla()) query['isXicalla'] = false;
     if (this.selectedPositionId()) query['positionId'] = this.selectedPositionId();
+    if (this.selectedCategory()) query['positionCategory'] = this.selectedCategory();
 
     this.assignmentService
       .getAvailablePersons(this.eventId(), this.segmentId(), query)
@@ -432,6 +452,16 @@ export class PersonPanelComponent {
 
   clearTagFilter(): void {
     this.onPositionFilterChange('');
+  }
+
+  /** Manual category chip toggle — drops a tag selection that falls outside the new category. */
+  onCategoryFilterChange(category: TagCategory | null): void {
+    this.selectedCategory.set(category);
+    const tag = this.selectedTag();
+    if (category && tag && tag.category !== category) {
+      this.selectedPositionId.set(null);
+    }
+    this.loadPersons();
   }
 
   toggleTagFilter(): void {

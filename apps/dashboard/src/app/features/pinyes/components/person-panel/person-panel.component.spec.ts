@@ -482,6 +482,92 @@ describe('PersonPanelComponent', () => {
     });
   });
 
+  // ── category filter chips ───────────────────────────────────────────────────
+
+  describe('category filter chips', () => {
+    it('pre-selects TRONC category when a TRONC-zone node is selected', () => {
+      fixture.componentRef.setInput('selectedNodeZone', 'TRONC');
+      fixture.componentRef.setInput('selectedNodeId', 'node-1');
+      fixture.detectChanges();
+      expect(component.selectedCategory()).toBe(TagCategory.TRONC);
+    });
+
+    it('pre-selects TRONC category when a BASE-zone node is selected', () => {
+      fixture.componentRef.setInput('selectedNodeZone', 'BASE');
+      fixture.componentRef.setInput('selectedNodeId', 'node-1');
+      fixture.detectChanges();
+      expect(component.selectedCategory()).toBe(TagCategory.TRONC);
+    });
+
+    it('pre-selects PINYA category when a PINYA-zone node is selected', () => {
+      fixture.componentRef.setInput('selectedNodeZone', 'PINYA');
+      fixture.componentRef.setInput('selectedNodeId', 'node-1');
+      fixture.detectChanges();
+      expect(component.selectedCategory()).toBe(TagCategory.PINYA);
+    });
+
+    it('selects no category for a direction-zone node', () => {
+      fixture.componentRef.setInput('selectedNodeZone', 'FIGURE_DIRECTION');
+      fixture.componentRef.setInput('selectedNodeId', 'node-1');
+      fixture.detectChanges();
+      expect(component.selectedCategory()).toBeNull();
+    });
+
+    it('selects no category for a decoration-zone node', () => {
+      fixture.componentRef.setInput('selectedNodeZone', 'DECORATION');
+      fixture.componentRef.setInput('selectedNodeId', 'node-1');
+      fixture.detectChanges();
+      expect(component.selectedCategory()).toBeNull();
+    });
+
+    it('includes positionCategory in the query when a category is selected', () => {
+      fixture.componentRef.setInput('selectedNodeZone', 'TRONC');
+      fixture.componentRef.setInput('selectedNodeId', 'node-1');
+      fixture.detectChanges();
+      const lastQuery = assignmentService.getAvailablePersons.mock.calls.at(-1)?.[2];
+      expect(lastQuery).toMatchObject({ positionCategory: TagCategory.TRONC });
+    });
+
+    it('does not overwrite a manual category selection when the node is deselected', () => {
+      component.onCategoryFilterChange(TagCategory.PINYA);
+      fixture.componentRef.setInput('selectedNodeZone', null);
+      fixture.componentRef.setInput('selectedNodeId', null);
+      fixture.detectChanges();
+      expect(component.selectedCategory()).toBe(TagCategory.PINYA);
+    });
+
+    it('clearing the category filter removes positionCategory from the next query', () => {
+      component.onCategoryFilterChange(TagCategory.TRONC);
+      assignmentService.getAvailablePersons.mockClear();
+      component.onCategoryFilterChange(null);
+      const lastQuery = assignmentService.getAvailablePersons.mock.calls.at(-1)?.[2];
+      expect(lastQuery).not.toHaveProperty('positionCategory');
+    });
+
+    it('filters the tag dropdown options by the active category', () => {
+      component.tags.set([
+        { id: 't1', name: 'Vents', slug: 'vents', shortDescription: null, longDescription: null, color: '#ff0000', category: TagCategory.TRONC, positionTypes: [], personCount: 0 },
+        { id: 't2', name: 'Agulla', slug: 'agulla', shortDescription: null, longDescription: null, color: '#00ff00', category: TagCategory.PINYA, positionTypes: [], personCount: 0 },
+      ]);
+      component.onCategoryFilterChange(TagCategory.TRONC);
+      fixture.detectChanges();
+
+      const ids = component.filteredTags().map((t) => t.id);
+      expect(ids).toEqual(['t1']);
+    });
+
+    it('clears a stale tag selection when it falls outside the newly picked category', () => {
+      component.tags.set([
+        { id: 't1', name: 'Vents', slug: 'vents', shortDescription: null, longDescription: null, color: '#ff0000', category: TagCategory.PINYA, positionTypes: [], personCount: 0 },
+      ]);
+      component.onPositionFilterChange('t1');
+      component.onCategoryFilterChange(TagCategory.TRONC);
+      fixture.detectChanges();
+
+      expect(component.selectedPositionId()).toBeNull();
+    });
+  });
+
   // ── blocks ─────────────────────────────────────────────────────────────────
 
   describe('blocks', () => {
