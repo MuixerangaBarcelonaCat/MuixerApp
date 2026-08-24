@@ -2,6 +2,7 @@ import { AttendanceStatus } from '../../enums/attendance-status.enum';
 import { AssignmentArea } from '../../enums/assignment-area.enum';
 import { FigureZone } from '../../enums/figure-zone.enum';
 import { SegmentConflictKind } from '../../enums/segment-conflict.enum';
+import { TagCategory } from '../../enums/tag-category.enum';
 
 /**
  * Person-centric participation overview of a whole event: for each person, what they
@@ -61,6 +62,7 @@ export interface EventParticipationPersonPosition {
   slug: string;
   color: string | null;
   positionTypes: string[];
+  category: TagCategory;
 }
 
 /** One row of the matrix. */

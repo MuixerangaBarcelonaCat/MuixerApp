@@ -4,7 +4,14 @@ import { NotFoundException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { EventParticipationService } from './event-participation.service';
 import { Event } from '../event/event.entity';
-import { AssignmentArea, AttendanceStatus, EventType, FigureZone, SegmentConflictKind } from '@muixer/shared';
+import {
+  AssignmentArea,
+  AttendanceStatus,
+  EventType,
+  FigureZone,
+  SegmentConflictKind,
+  TagCategory,
+} from '@muixer/shared';
 
 const EVENT_ID = 'event-uuid-1';
 const SEG_A = 'segment-uuid-a';
@@ -359,8 +366,24 @@ describe('EventParticipationService', () => {
         [makeSegmentRow(SEG_A), makeSegmentRow(SEG_B)],
         [makeMatrixRow(PERSON_1, SEG_A), makeMatrixRow(PERSON_1, SEG_B)],
         [
-          { personId: PERSON_1, id: 'tag-1', name: 'Baix', slug: 'baix', color: '#111', positionTypes: [] },
-          { personId: PERSON_1, id: 'tag-2', name: 'Crossa', slug: 'crossa', color: '#222', positionTypes: null },
+          {
+            personId: PERSON_1,
+            id: 'tag-1',
+            name: 'Baix',
+            slug: 'baix',
+            color: '#111',
+            positionTypes: [],
+            category: TagCategory.TRONC,
+          },
+          {
+            personId: PERSON_1,
+            id: 'tag-2',
+            name: 'Crossa',
+            slug: 'crossa',
+            color: '#222',
+            positionTypes: null,
+            category: TagCategory.ALTRES,
+          },
         ],
       );
 
@@ -369,6 +392,8 @@ describe('EventParticipationService', () => {
       expect(persons[0].positions).toHaveLength(2);
       expect(persons[0].positions.map((p) => p.name)).toEqual(['Baix', 'Crossa']);
       expect(persons[0].positions[1].positionTypes).toEqual([]);
+      expect(persons[0].positions[0].category).toBe(TagCategory.TRONC);
+      expect(persons[0].positions[1].category).toBe(TagCategory.ALTRES);
     });
 
     it('gives a person with no tags an empty array', async () => {

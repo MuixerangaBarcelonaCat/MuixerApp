@@ -13,6 +13,7 @@ import {
   EventParticipationSegment,
   FigureZone,
   SegmentConflictKind,
+  TagCategory,
   areaForZone,
   classifyPlacementKind,
 } from '@muixer/shared';
@@ -66,6 +67,7 @@ interface PositionRow {
   slug: string;
   color: string | null;
   positionTypes: string[] | null;
+  category: TagCategory;
 }
 
 /**
@@ -212,7 +214,7 @@ export class EventParticipationService {
     personIds: string[],
   ): Promise<Map<string, EventParticipationPersonPosition[]>> {
     const rows: PositionRow[] = await this.dataSource.query(
-      `SELECT pp."personsId" AS "personId", t.id, t.name, t.slug, t.color, t."positionTypes"
+      `SELECT pp."personsId" AS "personId", t.id, t.name, t.slug, t.color, t."positionTypes", t.category
        FROM person_positions pp
        JOIN positions t ON t.id = pp."positionsId"
        WHERE pp."personsId" = ANY($1::uuid[])
@@ -229,6 +231,7 @@ export class EventParticipationService {
         slug: row.slug,
         color: row.color,
         positionTypes: row.positionTypes ?? [],
+        category: row.category,
       });
       byPerson.set(row.personId, list);
     }
