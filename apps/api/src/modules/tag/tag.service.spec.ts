@@ -1,8 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { NotFoundException, ConflictException } from '@nestjs/common';
+import { validate } from 'class-validator';
+import { plainToInstance } from 'class-transformer';
 import { Tag } from './tag.entity';
 import { TagService } from './tag.service';
+import { CreateTagDto } from './dto/create-tag.dto';
+import { TagCategory } from '@muixer/shared';
 
 const TAG_ID = 'tag-uuid-1';
 
@@ -14,6 +18,7 @@ const makeTag = (overrides: Partial<Tag> = {}): Partial<Tag> => ({
   longDescription: null,
   color: '#ff0000',
   positionTypes: [],
+  category: TagCategory.ALTRES,
   createdAt: new Date(),
   updatedAt: new Date(),
   ...overrides,
@@ -37,6 +42,24 @@ const mockRepo = {
   query: jest.fn(),
   createQueryBuilder: jest.fn().mockReturnValue(mockQb),
 };
+
+describe('CreateTagDto validation', () => {
+  it('rejects a payload missing category', async () => {
+    const dto = plainToInstance(CreateTagDto, { name: 'Vents', slug: 'vents' });
+    const errors = await validate(dto);
+    expect(errors.some((e) => e.property === 'category')).toBe(true);
+  });
+
+  it('accepts a payload with a valid category', async () => {
+    const dto = plainToInstance(CreateTagDto, {
+      name: 'Vents',
+      slug: 'vents',
+      category: TagCategory.PINYA,
+    });
+    const errors = await validate(dto);
+    expect(errors.some((e) => e.property === 'category')).toBe(false);
+  });
+});
 
 describe('TagService', () => {
   let service: TagService;
@@ -102,7 +125,7 @@ describe('TagService', () => {
 
   describe('create', () => {
     it('creates tag successfully', async () => {
-      const dto = { name: 'Vents', slug: 'vents' };
+      const dto = { name: 'Vents', slug: 'vents', category: TagCategory.PINYA };
       mockRepo.save.mockResolvedValue(makeTag());
 
       const result = await service.create(dto);
@@ -111,8 +134,17 @@ describe('TagService', () => {
       expect(mockRepo.create).toHaveBeenCalledWith(dto);
     });
 
+    it('propagates category to the persisted entity', async () => {
+      const dto = { name: 'Vents', slug: 'vents', category: TagCategory.PINYA };
+      mockRepo.save.mockImplementation(async (entity: Partial<Tag>) => entity as Tag);
+
+      const result = await service.create(dto);
+
+      expect(result.category).toBe(TagCategory.PINYA);
+    });
+
     it('throws ConflictException on duplicate slug', async () => {
-      const dto = { name: 'Vents', slug: 'vents' };
+      const dto = { name: 'Vents', slug: 'vents', category: TagCategory.ALTRES };
       mockRepo.save.mockRejectedValue({ code: '23505' });
 
       await expect(service.create(dto)).rejects.toThrow(ConflictException);
@@ -128,6 +160,17 @@ describe('TagService', () => {
       const result = await service.update(TAG_ID, { name: 'Mans' });
 
       expect(result.name).toBe('Mans');
+    });
+
+    it('propagates category on update', async () => {
+      mockRepo.findOne.mockResolvedValue(makeTag());
+      mockRepo.save.mockResolvedValue(makeTag({ category: TagCategory.TRONC }));
+
+      await service.update(TAG_ID, { category: TagCategory.TRONC });
+
+      expect(mockRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ id: TAG_ID, category: TagCategory.TRONC }),
+      );
     });
 
     it('throws ConflictException on duplicate slug during update', async () => {

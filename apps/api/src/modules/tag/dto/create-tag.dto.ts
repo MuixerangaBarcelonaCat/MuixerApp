@@ -1,4 +1,5 @@
-import { IsString, IsOptional, MaxLength, IsArray } from 'class-validator';
+import { IsString, IsOptional, MaxLength, IsArray, IsEnum } from 'class-validator';
+import { TagCategory } from '@muixer/shared';
 
 export class CreateTagDto {
   @IsString()
@@ -27,4 +28,7 @@ export class CreateTagDto {
   @IsString({ each: true })
   @IsOptional()
   positionTypes?: string[];
+
+  @IsEnum(TagCategory)
+  category: TagCategory;
 }

@@ -1,5 +1,5 @@
 import { Exclude, Expose, Type } from 'class-transformer';
-import { AvailabilityStatus, Gender, OnboardingStatus } from '@muixer/shared';
+import { AvailabilityStatus, Gender, OnboardingStatus, TagCategory } from '@muixer/shared';
 
 class PositionResponseDto {
   @Expose()
@@ -12,10 +12,13 @@ class PositionResponseDto {
   slug: string;
 
   @Expose()
-  zone: string | null;
+  color: string;
 
   @Expose()
-  color: string;
+  category: TagCategory;
+
+  @Expose()
+  positionTypes: string[];
 }
 
 class PersonSelfUserDto {
