@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
-import { AttendanceStatus, EventType, FigureZone, NodeShape } from '@muixer/shared';
+import { AttendanceStatus, EventType, FigureZone, NodeShape, TagCategory } from '@muixer/shared';
 import { EventParticipationService } from './event-participation.service';
 import { NodeAssignment } from './entities/node-assignment.entity';
 import { FigureInstance } from '../event-segment/entities/figure-instance.entity';
@@ -179,8 +179,8 @@ describe('EventParticipationService (integration)', () => {
     await assign(figB.instance, figB.nodes[0], p1, segB);
 
     const tagRepo = db.dataSource.getRepository(Tag);
-    const tag1 = await tagRepo.save({ name: 'Baix', slug: `baix-${shortId()}` } as unknown as Tag);
-    const tag2 = await tagRepo.save({ name: 'Crossa', slug: `crossa-${shortId()}` } as unknown as Tag);
+    const tag1 = await tagRepo.save({ name: 'Baix', slug: `baix-${shortId()}`, category: TagCategory.ALTRES } as unknown as Tag);
+    const tag2 = await tagRepo.save({ name: 'Crossa', slug: `crossa-${shortId()}`, category: TagCategory.ALTRES } as unknown as Tag);
     p1.positions = [tag1, tag2];
     await db.dataSource.getRepository(Person).save(p1);
 
