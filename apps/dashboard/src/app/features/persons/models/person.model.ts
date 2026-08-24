@@ -1,4 +1,4 @@
-import { AvailabilityStatus, OnboardingStatus, FigureZone } from '@muixer/shared';
+import { AvailabilityStatus, OnboardingStatus, FigureZone, TagCategory } from '@muixer/shared';
 
 export interface Position {
   id: string;
@@ -6,6 +6,7 @@ export interface Position {
   slug: string;
   zone: FigureZone | null;
   color: string;
+  category: TagCategory;
 }
 
 export interface Person {
@@ -46,6 +47,7 @@ export type PersonSortOrder = 'ASC' | 'DESC';
 export interface PersonFilterParams {
   search?: string;
   positionIds?: string[];
+  positionCategory?: string[];
   availability?: AvailabilityStatus;
   isActive?: boolean;
   isXicalla?: boolean;

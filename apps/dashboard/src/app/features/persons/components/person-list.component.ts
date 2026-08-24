@@ -6,6 +6,7 @@ import { ButtonComponent, ButtonGroupComponent, EmptyStateComponent, FormFieldCo
 import { DOMAIN_ICONS } from '../../../shared/constants/domain-icons';
 import { PersonService } from '../services/person.service';
 import { Person, Position, PersonFilterParams, PersonSortOrder } from '../models/person.model';
+import { TagCategory, TAG_CATEGORY_LABELS } from '@muixer/shared';
 import {
   getFullName,
   getAvailabilityLabel,
@@ -114,6 +115,7 @@ export class PersonListComponent {
 
   search = signal('');
   selectedPositions = signal<string[]>([]);
+  selectedCategories = signal<TagCategory[]>([]);
   activeFilters = signal<Partial<PersonFilterParams>>({ isProvisional: false });
   provisionalTab = signal<'cens' | 'provisionals'>('cens');
   page = signal(1);
@@ -137,8 +139,9 @@ export class PersonListComponent {
   hasFilterChips = computed(() => {
     const s = this.search().trim();
     const pos = this.selectedPositions().length > 0;
+    const cat = this.selectedCategories().length > 0;
     const actius = this.activeFilters().isActive === true;
-    return Boolean(s || pos || actius);
+    return Boolean(s || pos || cat || actius);
   });
 
   private searchTimeout: ReturnType<typeof setTimeout> | undefined;
@@ -173,6 +176,16 @@ export class PersonListComponent {
     this.loadPersons();
   }
 
+  onCategoriesChange(categories: string[]) {
+    this.selectedCategories.set(categories as TagCategory[]);
+    this.activeFilters.update((filters) => ({
+      ...filters,
+      positionCategory: categories.length > 0 ? categories : undefined,
+    }));
+    this.page.set(1);
+    this.loadPersons();
+  }
+
   toggleActiusFilter() {
     this.toggleFilter('isActive', true);
   }
@@ -193,6 +206,7 @@ export class PersonListComponent {
   clearFilters() {
     this.searchInput = '';
     this.selectedPositions.set([]);
+    this.selectedCategories.set([]);
     this.search.set('');
     this.provisionalTab.set('cens');
     this.activeFilters.set({ isProvisional: false });
@@ -210,6 +224,13 @@ export class PersonListComponent {
   clearPositionsChip() {
     this.selectedPositions.set([]);
     this.activeFilters.update((f) => ({ ...f, positionIds: undefined }));
+    this.page.set(1);
+    this.loadPersons();
+  }
+
+  clearCategoriesChip() {
+    this.selectedCategories.set([]);
+    this.activeFilters.update((f) => ({ ...f, positionCategory: undefined }));
     this.page.set(1);
     this.loadPersons();
   }
@@ -344,6 +365,10 @@ export class PersonListComponent {
     const chips: ActiveFilter[] = [];
     if (this.search().trim()) chips.push({ key: 'search', label: `Cerca: "${this.search()}"` });
     if (this.selectedPositions().length > 0) chips.push({ key: 'positions', label: `Etiquetes (${this.selectedPositions().length})` });
+    if (this.selectedCategories().length > 0) {
+      const labels = this.selectedCategories().map((c) => TAG_CATEGORY_LABELS[c]).join(', ');
+      chips.push({ key: 'categories', label: `Categoria: ${labels}` });
+    }
     if (this.activeFilters().isActive === true) chips.push({ key: 'isActive', label: 'Actius' });
     return chips;
   });
@@ -356,6 +381,7 @@ export class PersonListComponent {
   onRemoveFilterChip(key: string): void {
     if (key === 'search') this.clearSearchChip();
     else if (key === 'positions') this.clearPositionsChip();
+    else if (key === 'categories') this.clearCategoriesChip();
     else if (key === 'isActive') this.clearActiusChip();
   }
 
@@ -412,4 +438,7 @@ export class PersonListComponent {
     }))
   );
   protected readonly EventType = EventType;
+  protected readonly TagCategory = TagCategory;
+  protected readonly TAG_CATEGORY_LABELS = TAG_CATEGORY_LABELS;
+  readonly tagCategories = Object.values(TagCategory);
 }

@@ -6,7 +6,7 @@ import { allLucideIconsProvider } from '../../../../testing/lucide-test-provider
 import { PersonListComponent } from './person-list.component';
 import { Position } from '../models/person.model';
 import { PersonService } from '../services/person.service';
-import { AvailabilityStatus, OnboardingStatus, SHOULDER_HEIGHT_BASELINE_CM } from '@muixer/shared';
+import { AvailabilityStatus, OnboardingStatus, SHOULDER_HEIGHT_BASELINE_CM, TagCategory } from '@muixer/shared';
 
 describe('PersonListComponent', () => {
   let fixture: ComponentFixture<PersonListComponent>;
@@ -137,9 +137,50 @@ describe('PersonListComponent', () => {
     expect(provisionalsButton?.className).toContain('btn-outline');
   });
 
+  describe('category filter (Categoria)', () => {
+    it('calls getAll with positionCategory when categories are selected and shows the chip', () => {
+      fixture.componentInstance.onCategoriesChange([TagCategory.TRONC]);
+      fixture.detectChanges();
+
+      expect(personService.getAll).toHaveBeenCalledWith(
+        expect.objectContaining({ positionCategory: [TagCategory.TRONC] }),
+      );
+      const chips = fixture.componentInstance.activeFilterChips();
+      expect(chips.some((c) => c.label === 'Categoria: Tronc')).toBe(true);
+    });
+
+    it('clearFilters removes both the category and position filters', () => {
+      fixture.componentInstance.onCategoriesChange([TagCategory.TRONC]);
+      fixture.componentInstance.onPositionsChange(['pos-1']);
+      fixture.detectChanges();
+
+      fixture.componentInstance.clearFilters();
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.selectedCategories()).toEqual([]);
+      expect(fixture.componentInstance.selectedPositions()).toEqual([]);
+      const chips = fixture.componentInstance.activeFilterChips();
+      expect(chips.length).toBe(0);
+    });
+
+    it('groups the etiquetes select options by category via optgroup', () => {
+      fixture.componentInstance.positions.set([
+        { id: 'pos-1', name: 'Vent', slug: 'vent', zone: null, color: '#888', category: TagCategory.PINYA },
+        { id: 'pos-2', name: 'Base', slug: 'base', zone: null, color: '#888', category: TagCategory.TRONC },
+      ]);
+      fixture.detectChanges();
+
+      const optgroups = fixture.nativeElement.querySelectorAll('optgroup') as NodeListOf<HTMLOptGroupElement>;
+      expect(optgroups.length).toBeGreaterThanOrEqual(2);
+      const labels = Array.from(optgroups).map((g) => g.label);
+      expect(labels).toContain('Pinya');
+      expect(labels).toContain('Tronc');
+    });
+  });
+
   describe('tap targets >=24px (WI-03, PE-L1)', () => {
     it('gives the position filter checkbox label a >=24px tap target', () => {
-      const position: Position = { id: 'pos-1', name: 'Novatos', slug: 'novatos', zone: null, color: '#888' };
+      const position: Position = { id: 'pos-1', name: 'Novatos', slug: 'novatos', zone: null, color: '#888', category: TagCategory.ALTRES };
       fixture.componentInstance.positions.set([position]);
       fixture.detectChanges();
 
