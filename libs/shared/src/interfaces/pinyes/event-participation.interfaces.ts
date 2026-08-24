@@ -80,6 +80,13 @@ export interface EventParticipationPerson {
   notesEmoji: string | null;
   /** Plain data, never a warning. PENDENT when the person has no attendance row. */
   attendanceStatus: AttendanceStatus;
+  /**
+   * Attendance status at the next `ACTUACIO` in the same season as this event, only
+   * when this event is an `ASSAIG`. `null` when the feature does not apply (a
+   * performance, a season-less event, or no future actuació in the season) —
+   * `PENDENT`, not `null`, when it applies but the person has no attendance row yet.
+   */
+  nextPerformanceStatus: AttendanceStatus | null;
   positions: EventParticipationPersonPosition[];
   /**
    * Keyed by segment id; a missing key means the person does nothing in that segment.
@@ -132,5 +139,10 @@ export interface EventParticipationOverview {
   event: { id: string; title: string; date: string };
   segments: EventParticipationSegment[];
   persons: EventParticipationPerson[];
+  /**
+   * The first future `ACTUACIO` in the same season as this event, `null` when this
+   * event is not an `ASSAIG`, has no season, or the season has no future `ACTUACIO`.
+   */
+  nextPerformance: { id: string; title: string; date: string } | null;
   meta: EventParticipationMeta;
 }

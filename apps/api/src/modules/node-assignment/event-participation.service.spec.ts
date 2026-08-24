@@ -18,6 +18,8 @@ const SEG_A = 'segment-uuid-a';
 const SEG_B = 'segment-uuid-b';
 const PERSON_1 = 'person-uuid-1';
 const PERSON_2 = 'person-uuid-2';
+const SEASON_ID = 'season-uuid-1';
+const PERFORMANCE_ID = 'event-uuid-performance';
 
 const makeEvent = (overrides: Partial<Event> = {}): Event =>
   ({
@@ -84,6 +86,22 @@ describe('EventParticipationService', () => {
       .mockResolvedValueOnce(segmentRows)
       .mockResolvedValueOnce(matrixRows)
       .mockResolvedValueOnce(positionRows);
+  };
+
+  /** Primes `dataSource.query` in call order: segments → matrix → positions → next-performance → attendance. */
+  const primeQueriesWithPerformance = (
+    segmentRows: unknown[],
+    matrixRows: unknown[],
+    positionRows: unknown[],
+    performanceRows: unknown[],
+    attendanceRows: unknown[] = [],
+  ) => {
+    query
+      .mockResolvedValueOnce(segmentRows)
+      .mockResolvedValueOnce(matrixRows)
+      .mockResolvedValueOnce(positionRows)
+      .mockResolvedValueOnce(performanceRows)
+      .mockResolvedValueOnce(attendanceRows);
   };
 
   beforeEach(async () => {
@@ -523,6 +541,84 @@ describe('EventParticipationService', () => {
       await service.getEventParticipation(EVENT_ID);
 
       expect(query.mock.calls[2][1][0]).toEqual([PERSON_1, PERSON_2]);
+    });
+  });
+
+  describe('next performance (Task 4.2)', () => {
+    it('attaches nextPerformance and per-person status for an assaig with a future actuació in season', async () => {
+      findOne.mockResolvedValue(makeEvent({ season: { id: SEASON_ID } } as never));
+      primeQueriesWithPerformance(
+        [makeSegmentRow(SEG_A)],
+        [makeMatrixRow(PERSON_1, SEG_A)],
+        [],
+        [{ id: PERFORMANCE_ID, title: 'Actuació Firal', date: '2026-06-15' }],
+        [{ personId: PERSON_1, status: AttendanceStatus.ANIRE }],
+      );
+
+      const result = await service.getEventParticipation(EVENT_ID);
+
+      expect(result.nextPerformance).toEqual({
+        id: PERFORMANCE_ID,
+        title: 'Actuació Firal',
+        date: '2026-06-15',
+      });
+      expect(result.persons[0].nextPerformanceStatus).toBe(AttendanceStatus.ANIRE);
+    });
+
+    it('defaults a person with no attendance row at the performance to PENDENT', async () => {
+      findOne.mockResolvedValue(makeEvent({ season: { id: SEASON_ID } } as never));
+      primeQueriesWithPerformance(
+        [makeSegmentRow(SEG_A)],
+        [makeMatrixRow(PERSON_1, SEG_A)],
+        [],
+        [{ id: PERFORMANCE_ID, title: 'Actuació Firal', date: '2026-06-15' }],
+        [],
+      );
+
+      const { persons } = await service.getEventParticipation(EVENT_ID);
+
+      expect(persons[0].nextPerformanceStatus).toBe(AttendanceStatus.PENDENT);
+    });
+
+    it('runs no extra queries and returns null nextPerformance for an ACTUACIO event', async () => {
+      findOne.mockResolvedValue(
+        makeEvent({ eventType: EventType.ACTUACIO, season: { id: SEASON_ID } } as never),
+      );
+      primeQueries([makeSegmentRow(SEG_A)], [makeMatrixRow(PERSON_1, SEG_A)]);
+
+      const result = await service.getEventParticipation(EVENT_ID);
+
+      expect(result.nextPerformance).toBeNull();
+      expect(result.persons[0].nextPerformanceStatus).toBeNull();
+      // segments + matrix + positions only: no Q4 queries.
+      expect(query).toHaveBeenCalledTimes(3);
+    });
+
+    it('returns null when the assaig has no future actuació in its season', async () => {
+      findOne.mockResolvedValue(makeEvent({ season: { id: SEASON_ID } } as never));
+      query
+        .mockResolvedValueOnce([makeSegmentRow(SEG_A)])
+        .mockResolvedValueOnce([makeMatrixRow(PERSON_1, SEG_A)])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
+      const result = await service.getEventParticipation(EVENT_ID);
+
+      expect(result.nextPerformance).toBeNull();
+      expect(result.persons[0].nextPerformanceStatus).toBeNull();
+      // No 5th query: the attendance lookup never runs without a resolved performance.
+      expect(query).toHaveBeenCalledTimes(4);
+    });
+
+    it('returns null and runs no Q4 queries when the assaig has no season', async () => {
+      findOne.mockResolvedValue(makeEvent({ season: null } as never));
+      primeQueries([makeSegmentRow(SEG_A)], [makeMatrixRow(PERSON_1, SEG_A)]);
+
+      const result = await service.getEventParticipation(EVENT_ID);
+
+      expect(result.nextPerformance).toBeNull();
+      expect(result.persons[0].nextPerformanceStatus).toBeNull();
+      expect(query).toHaveBeenCalledTimes(3);
     });
   });
 });

@@ -11,6 +11,7 @@ import {
   EventParticipationPersonPosition,
   EventParticipationPlacement,
   EventParticipationSegment,
+  EventType,
   FigureZone,
   SegmentConflictKind,
   TagCategory,
@@ -89,7 +90,10 @@ export class EventParticipationService {
   ) {}
 
   async getEventParticipation(eventId: string): Promise<EventParticipationOverview> {
-    const event = await this.eventRepository.findOne({ where: { id: eventId } });
+    const event = await this.eventRepository.findOne({
+      where: { id: eventId },
+      relations: ['season'],
+    });
     if (!event) {
       throw new NotFoundException('Event no trobat.');
     }
@@ -104,14 +108,67 @@ export class EventParticipationService {
     const positionsByPerson =
       personIds.length > 0 ? await this.loadPositions(personIds) : new Map();
 
-    const persons = this.assemblePersons(matrixRows, positionsByPerson);
+    // Q4 — only meaningful for a rehearsal with somebody to describe and a season to
+    // scope the search: an actuació or a season-less event never gets one.
+    let nextPerformance: { id: string; title: string; date: string } | null = null;
+    let nextPerformanceAttendance = new Map<string, AttendanceStatus>();
+    if (event.eventType === EventType.ASSAIG && personIds.length > 0 && event.season) {
+      nextPerformance = await this.resolveNextPerformance(
+        event.season.id,
+        this.toDateString(event.date),
+      );
+      if (nextPerformance) {
+        nextPerformanceAttendance = await this.loadNextPerformanceAttendance(
+          nextPerformance.id,
+          personIds,
+        );
+      }
+    }
+
+    const persons = this.assemblePersons(
+      matrixRows,
+      positionsByPerson,
+      nextPerformance,
+      nextPerformanceAttendance,
+    );
 
     return {
       event: { id: event.id, title: event.title, date: this.toDateString(event.date) },
       segments,
       persons,
+      nextPerformance,
       meta: this.buildMeta(persons),
     };
+  }
+
+  /** Q4a — the first future ACTUACIO in the same season as the rehearsal. */
+  private async resolveNextPerformance(
+    seasonId: string,
+    afterDate: string,
+  ): Promise<{ id: string; title: string; date: string } | null> {
+    // `date::text` avoids the pg driver parsing a bare 'date' column into a JS `Date`
+    // at local midnight, which `toISOString()` can then shift a day off in a UTC+ zone.
+    const rows: { id: string; title: string; date: string }[] = await this.dataSource.query(
+      `SELECT id, title, date::text AS date FROM events
+       WHERE "eventType" = 'ACTUACIO' AND "seasonId" = $1 AND date > $2
+       ORDER BY date ASC LIMIT 1`,
+      [seasonId, afterDate],
+    );
+    const row = rows[0];
+    return row ? { id: row.id, title: row.title, date: row.date } : null;
+  }
+
+  /** Q4b — each population member's attendance status at that performance, if any. */
+  private async loadNextPerformanceAttendance(
+    performanceEventId: string,
+    personIds: string[],
+  ): Promise<Map<string, AttendanceStatus>> {
+    const rows: { personId: string; status: AttendanceStatus }[] = await this.dataSource.query(
+      `SELECT "personId", status FROM attendances
+       WHERE "eventId" = $1 AND "personId" = ANY($2::uuid[])`,
+      [performanceEventId, personIds],
+    );
+    return new Map(rows.map((r) => [r.personId, r.status]));
   }
 
   /** Q1 — the matrix columns, with figure counts and names in a single pass. */
@@ -241,6 +298,8 @@ export class EventParticipationService {
   private assemblePersons(
     rows: MatrixRow[],
     positionsByPerson: Map<string, EventParticipationPersonPosition[]>,
+    nextPerformance: { id: string; title: string; date: string } | null,
+    nextPerformanceAttendance: Map<string, AttendanceStatus>,
   ): EventParticipationPerson[] {
     const byId = new Map<string, EventParticipationPerson>();
 
@@ -260,6 +319,12 @@ export class EventParticipationService {
           // No attendance row means the person is here only because they hold a
           // placement: assigned without ever being asked.
           attendanceStatus: row.attendanceStatus ?? AttendanceStatus.PENDENT,
+          // null when the feature doesn't apply (not an ASSAIG, no season, or no
+          // future actuació in it) — PENDENT, not null, when it applies but the
+          // person simply has no attendance row yet for that performance.
+          nextPerformanceStatus: nextPerformance
+            ? nextPerformanceAttendance.get(row.personId) ?? AttendanceStatus.PENDENT
+            : null,
           positions: positionsByPerson.get(row.personId) ?? [],
           placements: {},
           assignedSegmentCount: 0,
