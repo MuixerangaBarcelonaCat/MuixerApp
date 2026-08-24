@@ -14,7 +14,15 @@ import {
   TRONC_NODE_PRESETS,
   PINYA_NODE_PRESETS,
   DIRECTION_NODE_PRESETS,
+  TagCategory,
+  TAG_CATEGORY_LABELS,
 } from '@muixer/shared';
+
+const CATEGORY_ORDER: Record<TagCategory, number> = {
+  [TagCategory.TRONC]: 0,
+  [TagCategory.PINYA]: 1,
+  [TagCategory.ALTRES]: 2,
+};
 
 @Component({
   selector: 'app-tags-list',
@@ -35,6 +43,7 @@ export class TagsListComponent {
   private readonly toast = inject(ToastService);
 
   readonly ICON_TAG = DOMAIN_ICONS.TAG;
+  readonly categoryLabels = TAG_CATEGORY_LABELS;
 
   readonly tags = signal<TagWithCount[]>([]);
   readonly loading = signal(false);
@@ -111,7 +120,11 @@ export class TagsListComponent {
     this.loading.set(true);
     this.tagService.getAll().subscribe({
       next: (tags) => {
-        this.tags.set(tags);
+        const sorted = [...tags].sort((a, b) => {
+          const catDiff = CATEGORY_ORDER[a.category] - CATEGORY_ORDER[b.category];
+          return catDiff !== 0 ? catDiff : a.name.localeCompare(b.name);
+        });
+        this.tags.set(sorted);
         this.loading.set(false);
       },
       error: () => {

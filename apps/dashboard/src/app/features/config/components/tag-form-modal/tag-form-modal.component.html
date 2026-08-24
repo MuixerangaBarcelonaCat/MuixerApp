@@ -10,6 +10,19 @@
       placeholder="Ex: Vents"
     />
 
+    <!-- Categoria -->
+    <lib-select
+      label="Categoria"
+      required
+      formControlName="category"
+      id="tag-category"
+    >
+      <option [value]="null" disabled>Seleccioneu una categoria...</option>
+      @for (cat of categoryOptions; track cat) {
+        <option [value]="cat">{{ categoryLabels[cat] }}</option>
+      }
+    </lib-select>
+
     <!-- Color -->
     <div class="form-control">
       <span class="label-text text-xs font-medium mb-1 block">Color</span>
@@ -27,7 +40,7 @@
     <div class="form-control">
       <span class="label-text text-xs font-medium mb-2 block">Posicions de figura</span>
       <div class="space-y-1">
-        @for (group of positionTypeGroups; track group.label) {
+        @for (group of visiblePositionTypeGroups(); track group.label) {
           <details class="group">
             <summary class="flex items-center gap-1 cursor-pointer list-none select-none py-0.5">
               <svg

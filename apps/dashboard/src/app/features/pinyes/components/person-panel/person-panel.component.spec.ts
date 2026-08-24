@@ -1,4 +1,5 @@
 import { AvailablePerson, ConflictPlacement } from '@muixer/pinyes-render';
+import { TagCategory } from '@muixer/shared';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { vi, type Mock } from 'vitest';
 import { of } from 'rxjs';
@@ -330,7 +331,7 @@ describe('PersonPanelComponent', () => {
 
     it('renders a colored dot for each tag in the filter dropdown', () => {
       component.tags.set([
-        { id: 't1', name: 'Vents', slug: 'vents', shortDescription: null, longDescription: null, color: '#ff0000', positionTypes: [], personCount: 0 },
+        { id: 't1', name: 'Vents', slug: 'vents', shortDescription: null, longDescription: null, color: '#ff0000', category: TagCategory.ALTRES, positionTypes: [], personCount: 0 },
       ]);
       component.tagFilterOpen.set(true);
       fixture.detectChanges();
@@ -342,7 +343,7 @@ describe('PersonPanelComponent', () => {
 
     it('clicking a tag option in the dropdown filters by that tag', () => {
       component.tags.set([
-        { id: 't1', name: 'Vents', slug: 'vents', shortDescription: null, longDescription: null, color: '#ff0000', positionTypes: [], personCount: 0 },
+        { id: 't1', name: 'Vents', slug: 'vents', shortDescription: null, longDescription: null, color: '#ff0000', category: TagCategory.ALTRES, positionTypes: [], personCount: 0 },
       ]);
       component.tagFilterOpen.set(true);
       fixture.detectChanges();
@@ -359,8 +360,8 @@ describe('PersonPanelComponent', () => {
 
     it('typing in the tag search box narrows the visible tag options', () => {
       component.tags.set([
-        { id: 't1', name: 'Vents', slug: 'vents', shortDescription: null, longDescription: null, color: '#ff0000', positionTypes: [], personCount: 0 },
-        { id: 't2', name: 'Agulla', slug: 'agulla', shortDescription: null, longDescription: null, color: '#00ff00', positionTypes: [], personCount: 0 },
+        { id: 't1', name: 'Vents', slug: 'vents', shortDescription: null, longDescription: null, color: '#ff0000', category: TagCategory.ALTRES, positionTypes: [], personCount: 0 },
+        { id: 't2', name: 'Agulla', slug: 'agulla', shortDescription: null, longDescription: null, color: '#00ff00', category: TagCategory.ALTRES, positionTypes: [], personCount: 0 },
       ]);
       component.tagFilterOpen.set(true);
       fixture.detectChanges();
@@ -374,7 +375,7 @@ describe('PersonPanelComponent', () => {
 
     it('shows a clear button next to the trigger when a tag filter is active', () => {
       component.tags.set([
-        { id: 't1', name: 'Vents', slug: 'vents', shortDescription: null, longDescription: null, color: '#ff0000', positionTypes: [], personCount: 0 },
+        { id: 't1', name: 'Vents', slug: 'vents', shortDescription: null, longDescription: null, color: '#ff0000', category: TagCategory.ALTRES, positionTypes: [], personCount: 0 },
       ]);
       component.onPositionFilterChange('t1');
       fixture.detectChanges();
@@ -391,7 +392,7 @@ describe('PersonPanelComponent', () => {
 
     it('clicking the clear button resets the tag filter', () => {
       component.tags.set([
-        { id: 't1', name: 'Vents', slug: 'vents', shortDescription: null, longDescription: null, color: '#ff0000', positionTypes: [], personCount: 0 },
+        { id: 't1', name: 'Vents', slug: 'vents', shortDescription: null, longDescription: null, color: '#ff0000', category: TagCategory.ALTRES, positionTypes: [], personCount: 0 },
       ]);
       component.onPositionFilterChange('t1');
       fixture.detectChanges();
