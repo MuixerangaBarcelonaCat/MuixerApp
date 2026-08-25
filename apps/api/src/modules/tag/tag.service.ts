@@ -1,7 +1,8 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Tag } from './tag.entity';
+import { Person } from '../person/person.entity';
 import { CreateTagDto } from './dto/create-tag.dto';
 import { UpdateTagDto } from './dto/update-tag.dto';
 import { TagFilterDto } from './dto/tag-filter.dto';
@@ -13,6 +14,8 @@ export class TagService {
   constructor(
     @InjectRepository(Tag)
     private readonly tagRepository: Repository<Tag>,
+    @InjectRepository(Person)
+    private readonly personRepository: Repository<Person>,
   ) {}
 
   async findAll(filter?: TagFilterDto): Promise<TagWithCount[]> {
@@ -68,6 +71,35 @@ export class TagService {
     }
 
     await this.tagRepository.delete(id);
+  }
+
+  async assignPersons(tagId: string, personIds: string[]): Promise<void> {
+    await this.findOne(tagId);
+
+    const found = await this.personRepository.findBy({ id: In(personIds) });
+    if (found.length !== personIds.length) {
+      throw new NotFoundException("Alguna de les persones indicades no existeix.");
+    }
+
+    // ponytail: row-per-value INSERT, fine at this batch size (form-driven assignment, not bulk import)
+    await Promise.all(
+      personIds.map((personId) =>
+        this.tagRepository.query(
+          `INSERT INTO person_positions ("personsId", "positionsId") VALUES ($1, $2)
+           ON CONFLICT DO NOTHING`,
+          [personId, tagId],
+        ),
+      ),
+    );
+  }
+
+  async unassignPerson(tagId: string, personId: string): Promise<void> {
+    await this.findOne(tagId);
+
+    await this.tagRepository.query(
+      `DELETE FROM person_positions WHERE "personsId" = $1 AND "positionsId" = $2`,
+      [personId, tagId],
+    );
   }
 
   private async saveWithUniqueGuard(entity: Tag): Promise<Tag> {

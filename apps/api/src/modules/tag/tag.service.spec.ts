@@ -4,6 +4,7 @@ import { NotFoundException, ConflictException } from '@nestjs/common';
 import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 import { Tag } from './tag.entity';
+import { Person } from '../person/person.entity';
 import { TagService } from './tag.service';
 import { CreateTagDto } from './dto/create-tag.dto';
 import { TagCategory } from '@muixer/shared';
@@ -44,6 +45,10 @@ const mockRepo = {
   createQueryBuilder: jest.fn().mockReturnValue(mockQb),
 };
 
+const mockPersonRepo = {
+  findBy: jest.fn(),
+};
+
 describe('CreateTagDto validation', () => {
   it('rejects a payload missing category', async () => {
     const dto = plainToInstance(CreateTagDto, { name: 'Vents', slug: 'vents' });
@@ -67,6 +72,7 @@ describe('TagService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockPersonRepo.findBy.mockReset();
     mockRepo.createQueryBuilder.mockReturnValue(mockQb);
     mockQb.leftJoin.mockReturnThis();
     mockQb.addSelect.mockReturnThis();
@@ -78,6 +84,7 @@ describe('TagService', () => {
       providers: [
         TagService,
         { provide: getRepositoryToken(Tag), useValue: mockRepo },
+        { provide: getRepositoryToken(Person), useValue: mockPersonRepo },
       ],
     }).compile();
 
@@ -223,6 +230,78 @@ describe('TagService', () => {
     it('throws NotFoundException if tag not found', async () => {
       mockRepo.findOne.mockResolvedValue(null);
       await expect(service.remove('bad-id')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('assignPersons', () => {
+    const personIds = ['person-1', 'person-2'];
+
+    it('adds a row per person via ON CONFLICT DO NOTHING inserts', async () => {
+      mockRepo.findOne.mockResolvedValue(makeTag());
+      mockPersonRepo.findBy.mockResolvedValue(personIds.map((id) => ({ id })));
+      mockRepo.query.mockResolvedValue(undefined);
+
+      await service.assignPersons(TAG_ID, personIds);
+
+      expect(mockRepo.query).toHaveBeenCalledTimes(2);
+      expect(mockRepo.query).toHaveBeenCalledWith(expect.stringContaining('ON CONFLICT DO NOTHING'), [
+        'person-1',
+        TAG_ID,
+      ]);
+    });
+
+    it('re-assigning the same persons does not duplicate (idempotent insert)', async () => {
+      mockRepo.findOne.mockResolvedValue(makeTag());
+      mockPersonRepo.findBy.mockResolvedValue(personIds.map((id) => ({ id })));
+      mockRepo.query.mockResolvedValue(undefined);
+
+      await service.assignPersons(TAG_ID, personIds);
+      await service.assignPersons(TAG_ID, personIds);
+
+      expect(mockRepo.query).toHaveBeenCalledTimes(4);
+    });
+
+    it('throws NotFoundException when tag does not exist', async () => {
+      mockRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.assignPersons('bad-id', personIds)).rejects.toThrow(NotFoundException);
+      expect(mockPersonRepo.findBy).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException when a personId does not exist (checked after the tag)', async () => {
+      mockRepo.findOne.mockResolvedValue(makeTag());
+      mockPersonRepo.findBy.mockResolvedValue([{ id: 'person-1' }]);
+
+      await expect(service.assignPersons(TAG_ID, personIds)).rejects.toThrow(NotFoundException);
+      expect(mockRepo.query).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('unassignPerson', () => {
+    it('deletes the relation row', async () => {
+      mockRepo.findOne.mockResolvedValue(makeTag());
+      mockRepo.query.mockResolvedValue(undefined);
+
+      await service.unassignPerson(TAG_ID, 'person-1');
+
+      expect(mockRepo.query).toHaveBeenCalledWith(expect.stringContaining('DELETE FROM person_positions'), [
+        'person-1',
+        TAG_ID,
+      ]);
+    });
+
+    it('is idempotent: removing an unlinked relation succeeds (no 404 on the missing relation)', async () => {
+      mockRepo.findOne.mockResolvedValue(makeTag());
+      mockRepo.query.mockResolvedValue(undefined);
+
+      await expect(service.unassignPerson(TAG_ID, 'never-linked')).resolves.toBeUndefined();
+    });
+
+    it('throws NotFoundException when tag does not exist', async () => {
+      mockRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.unassignPerson('bad-id', 'person-1')).rejects.toThrow(NotFoundException);
+      expect(mockRepo.query).not.toHaveBeenCalled();
     });
   });
 });
