@@ -809,8 +809,8 @@ describe('PersonPanelComponent', () => {
   // ── sortedConfirmedPersons (F2 intelligent filter) ─────────────────────────
 
   describe('sortedConfirmedPersons', () => {
-    const posVents = { id: 'pos-vents', name: 'Vents', slug: 'vents', color: '#A5D6A7', positionTypes: ['vents'] };
-    const posAgulla = { id: 'pos-agulla', name: 'Agulla', slug: 'agulla', color: '#0d9488', positionTypes: ['agulla'] };
+    const posVents = { id: 'pos-vents', name: 'Vents', slug: 'vents', color: '#A5D6A7', category: TagCategory.ALTRES, positionTypes: ['vents'] };
+    const posAgulla = { id: 'pos-agulla', name: 'Agulla', slug: 'agulla', color: '#0d9488', category: TagCategory.ALTRES, positionTypes: ['agulla'] };
 
     it('returns confirmedPersons in original order when activeNodePositionType is null', () => {
       const persons = [
@@ -898,7 +898,7 @@ describe('PersonPanelComponent', () => {
   // ── pinya/tronc assigned-buckets tag filtering ─────────────────────────────
 
   describe('pinyaAssignedPersons/troncAssignedPersons tag filtering', () => {
-    const posVents = { id: 'tag-vents', name: 'Vents', slug: 'vents', color: '#A5D6A7', positionTypes: ['vents'] };
+    const posVents = { id: 'tag-vents', name: 'Vents', slug: 'vents', color: '#A5D6A7', category: TagCategory.ALTRES, positionTypes: ['vents'] };
 
     const makeAssignment = (personId: string) => ({
       id: `assignment-${personId}`,
@@ -952,7 +952,7 @@ describe('PersonPanelComponent', () => {
   // ── pinya/tronc assigned-buckets position-match dot ────────────────────────
 
   describe('pinyaAssignedPersons/troncAssignedPersons position-match dot', () => {
-    const posVents = { id: 'pos-vents', name: 'Vents', slug: 'vents', color: '#A5D6A7', positionTypes: ['vents'] };
+    const posVents = { id: 'pos-vents', name: 'Vents', slug: 'vents', color: '#A5D6A7', category: TagCategory.ALTRES, positionTypes: ['vents'] };
 
     it('renders a colored dot for an assigned person whose position matches the active node type', () => {
       const person = makeAvailablePerson('p1', 'ANIRE', {

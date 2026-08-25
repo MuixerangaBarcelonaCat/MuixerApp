@@ -61,6 +61,8 @@ export interface ParticipationPerson {
   notesEmoji: string | null;
   /** Plain data, never rendered as a warning. */
   attendanceStatus: AttendanceStatus;
+  /** Only set when the viewed event is an ASSAIG with a resolvable next ACTUACIO (Fase 4). */
+  nextPerformanceStatus: AttendanceStatus | null;
   positions: AvailablePersonPosition[];
   /** Keyed by segment id; a missing key means nothing to do in that segment. */
   placements: Record<string, ParticipationPlacement[]>;
@@ -90,4 +92,6 @@ export interface EventParticipation {
   segments: ParticipationSegment[];
   persons: ParticipationPerson[];
   meta: ParticipationMeta;
+  /** Only set when the viewed event is an ASSAIG with a resolvable next ACTUACIO (Fase 4). */
+  nextPerformance: { id: string; title: string; date: string } | null;
 }

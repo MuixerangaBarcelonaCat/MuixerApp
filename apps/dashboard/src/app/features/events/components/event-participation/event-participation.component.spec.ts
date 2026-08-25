@@ -15,6 +15,7 @@ import {
   ParticipationSegment,
 } from '../../models/participation.model';
 import { ColumnDef, ColumnPill } from '../../../../shared/models/column-def.model';
+import { TagCategory } from '@muixer/shared';
 import { allLucideIconsProvider } from '../../../../../testing/lucide-test-provider';
 
 const EVENT_ID = 'event-1';
@@ -85,6 +86,7 @@ const makePerson = (
     notes: null,
     notesEmoji: null,
     attendanceStatus: 'ANIRE',
+    nextPerformanceStatus: null,
     positions: [],
     placements,
     assignedSegmentCount: segmentIds.length,
@@ -236,6 +238,7 @@ describe('EventParticipationComponent', () => {
       makePerson('p3', 'XURRO', {}),
     ],
     meta: makeMeta({ distinctPersons: 3, personsWithPlacement: 2, totalPlacements: 3 }),
+    nextPerformance: null,
     ...overrides,
   });
 
@@ -300,8 +303,99 @@ describe('EventParticipationComponent', () => {
     it('hides the full name and tag columns by default to keep the matrix narrow', async () => {
       const fixture = await setup();
       expect(columnByKey(fixture, 'fullName')?.defaultVisible).toBe(false);
-      expect(columnByKey(fixture, 'tags')?.defaultVisible).toBe(false);
+      expect(columnByKey(fixture, 'tagsTronc')?.defaultVisible).toBe(false);
+      expect(columnByKey(fixture, 'tagsPinya')?.defaultVisible).toBe(false);
       expect(fixture.componentInstance.visibleKeys()).not.toContain('fullName');
+    });
+  });
+
+  describe('tronc/pinya tag columns (Fase 4.3)', () => {
+    const troncTag = { id: 'tag-tronc', name: 'Segona', slug: 'segona', color: '#111', category: TagCategory.TRONC, positionTypes: [] };
+    const pinyaTag = { id: 'tag-pinya', name: 'Vents', slug: 'vents', color: '#222', category: TagCategory.PINYA, positionTypes: [] };
+    const altresTag = { id: 'tag-altres', name: 'Capità', slug: 'capita', color: '#333', category: TagCategory.ALTRES, positionTypes: [] };
+
+    it('splits positions into tagsTronc / tagsPinya by category, excluding ALTRES from both', async () => {
+      const response = buildResponse({
+        persons: [makePerson('p1', 'PERSIANA', {}, { positions: [troncTag, pinyaTag, altresTag] })],
+      });
+      const fixture = await setup(response);
+      const row = fixture.componentInstance.persons()[0];
+
+      const troncCol = columnByKey(fixture, 'tagsTronc')!;
+      const pinyaCol = columnByKey(fixture, 'tagsPinya')!;
+
+      expect(troncCol.colorBadges!(row).map((b) => b.text)).toEqual(['Segona']);
+      expect(pinyaCol.colorBadges!(row).map((b) => b.text)).toEqual(['Vents']);
+      expect(troncCol.colorBadges!(row).map((b) => b.text)).not.toContain('Capità');
+      expect(pinyaCol.colorBadges!(row).map((b) => b.text)).not.toContain('Capità');
+    });
+
+    it('falls back to the #888 color when a tag has none', async () => {
+      const response = buildResponse({
+        persons: [makePerson('p1', 'PERSIANA', {}, { positions: [{ ...troncTag, color: null }] })],
+      });
+      const fixture = await setup(response);
+      const row = fixture.componentInstance.persons()[0];
+
+      expect(columnByKey(fixture, 'tagsTronc')!.colorBadges!(row)).toEqual([{ text: 'Segona', color: '#888' }]);
+    });
+  });
+
+  describe('shoulderHeight column (Fase 4.3)', () => {
+    it.each([
+      [150, '+10'],
+      [130, '-10'],
+      [null, '-'],
+      [0, '-'],
+    ] as const)('formats %s relative to the baseline as %s', async (shoulderHeight, expected) => {
+      const fixture = await setup();
+      expect(fixture.componentInstance.formatHeight(shoulderHeight)).toBe(expected);
+    });
+
+    it('renders the shoulderHeight value through the column', async () => {
+      const response = buildResponse({
+        persons: [makePerson('p1', 'PERSIANA', {}, { shoulderHeight: 150 })],
+      });
+      const fixture = await setup(response);
+      const row = fixture.componentInstance.persons()[0];
+      const col = columnByKey(fixture, 'shoulderHeight')!;
+
+      expect(col.value!(row)).toBe(fixture.componentInstance.formatHeight(150));
+      expect(col.sortField).toBe('shoulderHeight');
+    });
+  });
+
+  describe('nextPerformanceStatus column (Fase 4.3)', () => {
+    it('is absent when the response has no nextPerformance', async () => {
+      const fixture = await setup(buildResponse({ nextPerformance: null }));
+      expect(columnByKey(fixture, 'nextPerformanceStatus')).toBeUndefined();
+    });
+
+    it('appears with the date in the label when the response has a nextPerformance', async () => {
+      const response = buildResponse({
+        nextPerformance: { id: 'perf-1', title: 'Festa Major', date: '2026-09-12' },
+        persons: [makePerson('p1', 'PERSIANA', {}, { nextPerformanceStatus: 'ANIRE' })],
+      });
+      const fixture = await setup(response);
+
+      const col = columnByKey(fixture, 'nextPerformanceStatus');
+      expect(col).toBeDefined();
+      expect(col!.label).toContain('2026-09-12');
+
+      const row = fixture.componentInstance.persons()[0];
+      expect(col!.value!(row)).toBe(fixture.componentInstance.statusLabel('ANIRE'));
+    });
+
+    it('renders a null nextPerformanceStatus the same as PENDENT', async () => {
+      const response = buildResponse({
+        nextPerformance: { id: 'perf-1', title: 'Festa Major', date: '2026-09-12' },
+        persons: [makePerson('p1', 'PERSIANA', {}, { nextPerformanceStatus: null })],
+      });
+      const fixture = await setup(response);
+      const row = fixture.componentInstance.persons()[0];
+      const col = columnByKey(fixture, 'nextPerformanceStatus')!;
+
+      expect(col.value!(row)).toBe(fixture.componentInstance.statusLabel('PENDENT'));
     });
   });
 
@@ -443,7 +537,7 @@ describe('EventParticipationComponent', () => {
     });
 
     it('derives the tag options from the population, with no extra request', async () => {
-      const tag = { id: 't1', name: 'Baix', slug: 'baix', color: '#111', positionTypes: [] };
+      const tag = { id: 't1', name: 'Baix', slug: 'baix', color: '#111', category: TagCategory.TRONC, positionTypes: [] };
       const response = buildResponse({
         persons: [
           makePerson('p1', 'PERSIANA', {}, { positions: [tag] }),
@@ -455,6 +549,22 @@ describe('EventParticipationComponent', () => {
       expect(fixture.componentInstance.availablePositions()).toEqual([tag]);
 
       fixture.componentInstance.onPositionChange('t1');
+      expect(fixture.componentInstance.filteredRows().map((r) => r.alias)).toEqual(['PERSIANA']);
+    });
+
+    it('narrows by tag category (Fase 4.3)', async () => {
+      const troncTag = { id: 't1', name: 'Segona', slug: 'segona', color: '#111', category: TagCategory.TRONC, positionTypes: [] };
+      const pinyaTag = { id: 't2', name: 'Vents', slug: 'vents', color: '#222', category: TagCategory.PINYA, positionTypes: [] };
+      const response = buildResponse({
+        persons: [
+          makePerson('p1', 'PERSIANA', {}, { positions: [troncTag] }),
+          makePerson('p2', 'GRILLAT', {}, { positions: [pinyaTag] }),
+        ],
+      });
+      const fixture = await setup(response);
+
+      fixture.componentInstance.onCategoryChange('TRONC');
+
       expect(fixture.componentInstance.filteredRows().map((r) => r.alias)).toEqual(['PERSIANA']);
     });
 

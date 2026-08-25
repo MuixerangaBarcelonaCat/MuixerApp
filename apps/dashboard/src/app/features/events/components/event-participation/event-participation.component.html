@@ -94,6 +94,20 @@
         </lib-select>
       </div>
     }
+
+    <div class="w-40">
+      <lib-select
+        [ngModel]="categoryFilter() ?? ''"
+        (ngModelChange)="onCategoryChange($event)"
+        ariaLabel="Filtra per categoria d'etiqueta"
+        data-testid="participation-category-filter"
+      >
+        <option value="">Totes les categories</option>
+        @for (category of filterableCategories; track category) {
+          <option [value]="category">{{ TAG_CATEGORY_LABELS[category] }}</option>
+        }
+      </lib-select>
+    </div>
   </app-filter-bar>
 
   <app-active-filters [filters]="activeFilters()" (removeFilter)="removeFilter($event)" />

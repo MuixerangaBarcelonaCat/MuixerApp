@@ -5,6 +5,8 @@ export type {
   FigureAreaCount,
 } from '@muixer/shared';
 
+import { TagCategory } from '@muixer/shared';
+
 export type AttendanceStatus = 'PENDENT' | 'ANIRE' | 'NO_VAIG' | 'ASSISTIT';
 export type HeightMode = 'relative' | 'absolute';
 
@@ -49,6 +51,7 @@ export interface AvailablePersonPosition {
   name: string;
   slug: string;
   color: string | null;
+  category: TagCategory;
   positionTypes: string[];
 }
 

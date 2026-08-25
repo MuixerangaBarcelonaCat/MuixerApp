@@ -1,4 +1,5 @@
 import { AttendanceStatus, AvailablePersonPosition } from '@muixer/pinyes-render';
+import { SHOULDER_HEIGHT_BASELINE_CM, TAG_CATEGORY_LABELS, TagCategory } from '@muixer/shared';
 import {
   Component,
   ChangeDetectionStrategy,
@@ -34,7 +35,7 @@ import { eventReturnUrl } from '../../utils/event-return-url.util';
 /** A row of the matrix. Same shape as the API person — placements are already keyed by segment. */
 export type ParticipationRow = ParticipationPerson;
 
-type SortField = 'alias' | 'status' | 'placements' | 'troncPlacements' | 'segmentPercent';
+type SortField = 'alias' | 'status' | 'placements' | 'troncPlacements' | 'segmentPercent' | 'shoulderHeight';
 
 /** Static class maps — never build Tailwind classes from template literals. */
 const PILL_POSITION = 'text-base-content';
@@ -101,6 +102,10 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
   readonly CONFLICT_GLYPH = CONFLICT_GLYPH;
   readonly DOMAIN_ICONS = DOMAIN_ICONS;
   readonly SearchIcon = Search;
+  readonly TAG_CATEGORY_LABELS = TAG_CATEGORY_LABELS;
+  /** ALTRES tags never get their own column (they don't split tronc/pinya), so the filter
+   *  only offers the two categories that actually change what's shown. */
+  readonly filterableCategories: TagCategory[] = [TagCategory.TRONC, TagCategory.PINYA];
 
   private readonly participationService = inject(ParticipationService);
   private readonly router = inject(Router);
@@ -113,6 +118,8 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
   segments = signal<ParticipationSegment[]>([]);
   persons = signal<ParticipationPerson[]>([]);
   meta = signal<ParticipationMeta>(EMPTY_META);
+  /** Non-null only when this event is an ASSAIG with a resolvable next-season ACTUACIO. */
+  nextPerformance = signal<{ id: string; title: string; date: string } | null>(null);
 
   // Filters — all client-side: the endpoint returns the whole population in one shot
   // and the matrix needs every row to render complete columns.
@@ -122,6 +129,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
   selectedSegmentId = signal<string | null>(null);
   statusFilter = signal<AttendanceStatus | null>(null);
   positionFilter = signal<AvailablePersonPosition | null>(null);
+  categoryFilter = signal<TagCategory | null>(null);
   onlyConflicts = signal(false);
   /** Filters which placements are PAINTED in each cell; conflicts keep reading the whole set (§4.1). */
   areaFilter = signal<AreaFilter>(null);
@@ -148,12 +156,14 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
   readonly filteredRows = computed<ParticipationRow[]>(() => {
     const status = this.statusFilter();
     const position = this.positionFilter();
+    const category = this.categoryFilter();
     const conflictsOnly = this.onlyConflicts();
     const term = this.normalizeForMatch(this.search());
 
     let rows = this.persons();
     if (status) rows = rows.filter((r) => r.attendanceStatus === status);
     if (position) rows = rows.filter((r) => r.positions.some((p) => p.id === position.id));
+    if (category) rows = rows.filter((r) => r.positions.some((p) => p.category === category));
     if (conflictsOnly) rows = rows.filter((r) => r.conflictSegmentIds.length > 0);
     if (term) rows = this.rankByMatch(rows, term);
     return rows;
@@ -186,6 +196,10 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
         return (this.segmentPercent(a) - this.segmentPercent(b)) * direction
           || a.alias.localeCompare(b.alias, 'ca');
       }
+      if (field === 'shoulderHeight') {
+        return ((a.shoulderHeight ?? 0) - (b.shoulderHeight ?? 0)) * direction
+          || a.alias.localeCompare(b.alias, 'ca');
+      }
       return a.alias.localeCompare(b.alias, 'ca') * direction;
     });
   });
@@ -213,6 +227,9 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
 
     const position = this.positionFilter();
     if (position) filters.push({ key: 'position', label: `Etiqueta: ${position.name}` });
+
+    const category = this.categoryFilter();
+    if (category) filters.push({ key: 'category', label: `Categoria: ${TAG_CATEGORY_LABELS[category]}` });
 
     if (this.onlyConflicts()) filters.push({ key: 'conflicts', label: 'Només conflictes' });
 
@@ -284,11 +301,30 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
         badgeClass: (r) => this.statusBadgeClass(r.attendanceStatus),
       },
       {
-        key: 'tags',
-        label: 'Etiquetes',
+        key: 'tagsTronc',
+        label: 'Tronc',
         defaultVisible: false,
         type: 'colorBadges',
-        colorBadges: (r) => r.positions.map((p) => ({ text: p.name, color: p.color ?? '#888' })),
+        colorBadges: (r) => r.positions
+          .filter((p) => p.category === TagCategory.TRONC)
+          .map((p) => ({ text: p.name, color: p.color ?? '#888' })),
+      },
+      {
+        key: 'tagsPinya',
+        label: 'Pinya',
+        defaultVisible: false,
+        type: 'colorBadges',
+        colorBadges: (r) => r.positions
+          .filter((p) => p.category === TagCategory.PINYA)
+          .map((p) => ({ text: p.name, color: p.color ?? '#888' })),
+      },
+      {
+        key: 'shoulderHeight',
+        label: 'Alçada',
+        defaultVisible: false,
+        type: 'number',
+        sortField: 'shoulderHeight',
+        value: (r) => this.formatHeight(r.shoulderHeight),
       },
       {
         key: 'placementCount',
@@ -315,6 +351,20 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
         value: (r) => `${this.segmentPercent(r)}%`,
       },
     ];
+
+    // Only shown when the API resolved a next-season ACTUACIO for this ASSAIG (Fase 4);
+    // absent otherwise, including on ACTUACIO events themselves.
+    const nextPerformance = this.nextPerformance();
+    if (nextPerformance) {
+      cols.push({
+        key: 'nextPerformanceStatus',
+        label: `Pròxima actuació (${nextPerformance.date})`,
+        defaultVisible: false,
+        type: 'badge',
+        value: (r) => this.statusLabel(r.nextPerformanceStatus ?? 'PENDENT'),
+        badgeClass: (r) => this.statusBadgeClass(r.nextPerformanceStatus ?? 'PENDENT'),
+      });
+    }
 
     // Consolidates every TRONC/BASE placement across the whole event in one cell, so
     // "en quin tronc està esta persona" never requires switching the area filter or
@@ -414,6 +464,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
         this.segments.set(data.segments);
         this.persons.set(data.persons);
         this.meta.set(data.meta);
+        this.nextPerformance.set(data.nextPerformance);
         this.seedVisibleColumns();
         this.loading.set(false);
       },
@@ -564,6 +615,14 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
     return classes[status] ?? 'badge-ghost';
   }
 
+  /** Relative to `SHOULDER_HEIGHT_BASELINE_CM`, same format as `person-panel.formatHeight`.
+   *  `null`/`0` means "not set". */
+  formatHeight(shoulderHeight: number | null): string {
+    if (shoulderHeight === null || shoulderHeight === 0) return '-';
+    const diff = shoulderHeight - SHOULDER_HEIGHT_BASELINE_CM;
+    return diff >= 0 ? `+${diff}` : `${diff}`;
+  }
+
   // ── Filters ──────────────────────────────────────────────────────────────────
 
   onSearchChange(value: string): void {
@@ -589,6 +648,11 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
 
   onPositionChange(value: string): void {
     this.positionFilter.set(this.availablePositions().find((p) => p.id === value) ?? null);
+    this.resetPage();
+  }
+
+  onCategoryChange(value: string): void {
+    this.categoryFilter.set(value ? (value as TagCategory) : null);
     this.resetPage();
   }
 
@@ -618,6 +682,9 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
       case 'position':
         this.positionFilter.set(null);
         break;
+      case 'category':
+        this.categoryFilter.set(null);
+        break;
       case 'conflicts':
         this.onlyConflicts.set(false);
         break;
@@ -634,6 +701,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
     this.selectedSegmentId.set(null);
     this.statusFilter.set(null);
     this.positionFilter.set(null);
+    this.categoryFilter.set(null);
     this.onlyConflicts.set(false);
     this.areaFilter.set(null);
     this.seedVisibleColumns();
