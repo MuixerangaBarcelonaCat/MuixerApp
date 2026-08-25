@@ -44,6 +44,8 @@ tags: [qa]
 | F4 | `figure-canvas.component.ts` fa **2.707 línies** | `figure-canvas.component.ts` | Una extracció (`KonvaStageService` + renderers per mode) es va fer i **es va revertir el 12/06/2026 perquè no es va connectar mai**. No repetir-la sense connectar-la de debò |
 | F5 | Les interfícies `Create*Payload` / `Update*Payload` del dashboard no viuen a `libs/shared` | `features/*/models/` | Els models del frontend van derivant respecte dels DTOs de l'API |
 | F6 | Cap cas conegut actualment, però si un control amb aspecte de botó no pot ser `<lib-button>` (p. ex. un `<input type="checkbox">` no pot niar dins d'un `<button>`, HTML invàlid) i s'estila amb `class="...btn..."` a mà, farà `darkening` en hover en lloc de l'animació `ds-lift` compartida | — | Aplicar `ds-lift` a mà en trobar-ne un (`libs/ui/src/styles/_interactive.scss` documenta el mecanisme); revisar si continua fent falta l'aspecte de botó o si, com a "Sols actius" a `person-list`, és més senzill treure'l del tot |
+| F7 | `TagWithCount`/`CreateTagDto`/`UpdateTagDto`/`Position` del dashboard dupliquen els DTOs del backend en lloc d'importar tipus de `@muixer/shared` (cas concret de F5) | `features/config/models/tag.model.ts`, `features/persons/models/person.model.ts` | Preexistent a F5; la feature de categories de tags l'ha eixamplat afegint `category` a totes dues còpies en lloc d'una sola font |
+| F8 | La lògica que deriva etiqueta/color de `positionType` (`positionTypeMeta`) està duplicada verbatim a dos components | `features/config/components/tags-list/tags-list.component.ts`, `features/config/components/tag-detail/tag-detail.component.ts` | Candidata a extreure a un util/pipe compartit si apareix un tercer consumidor |
 
 ## Tests
 

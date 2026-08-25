@@ -80,7 +80,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 
 <!-- BEGIN:AUTO — generat per scripts/generate-data-model.mjs, no editar a mà -->
 
-> Generat el 2026-08-18 des de les entitats TypeORM amb `pnpm run docs:model`.
+> Generat el 2026-08-25 des de les entitats TypeORM amb `pnpm run docs:model`.
 > **21 entitats.** No editar a mà: canvia l'entitat i torna a executar l'script.
 
 ### Resum
@@ -102,7 +102,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 | `node_assignments` | `NodeAssignment` | 7 |
 | `person_delegates` | `PersonDelegate` | 8 |
 | `persons` | `Person` | 26 |
-| `positions` | `Tag` | 9 |
+| `positions` | `Tag` | 10 |
 | `push_subscriptions` | `PushSubscription` | 10 |
 | `refresh_tokens` | `RefreshToken` | 10 |
 | `rengles` | `Rengla` | 5 |
@@ -130,6 +130,7 @@ NodeAssignment >── EventSegment         : FK denormalitzada per validar unic
 | `OnboardingStatus` | `COMPLETED` · `IN_PROGRESS` · `LOST` · `NOT_APPLICABLE` |
 | `SegmentConflictKind` | `TRONC_TRONC` · `TRONC_PINYA` · `PINYA_PINYA` |
 | `SegmentMoveConflictResolution` | `KEEP_TARGET` · `KEEP_MOVED` · `KEEP_BOTH` |
+| `TagCategory` | `TRONC` · `PINYA` · `ALTRES` |
 | `UserRole` | `ADMIN` · `TECHNICAL` · `MEMBER` |
 
 ### `attendances` — `Attendance`
@@ -462,6 +463,7 @@ Definició: [`apps/api/src/modules/tag/tag.entity.ts`](../apps/api/src/modules/t
 | `longDescription` | `text` | `string` | sí | — |
 | `color` | `varchar` | `string` | sí | — |
 | `positionTypes` | `text` | `string[]` | no | — |
+| `category` | `varchar` | `TagCategory` | no | — |
 | `createdAt` | `timestamptz` | `Date` | no | creació |
 | `updatedAt` | `timestamptz` | `Date` | no | actualització |
 

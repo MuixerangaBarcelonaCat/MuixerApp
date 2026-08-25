@@ -83,7 +83,7 @@ Modules under `src/modules/`:
 | `composition` | `Composition` + `CompositionEntry` |
 | `event-segment` | `EventSegment`, `FigureInstance`, `InstanceNode`, distribution, `ProjectionService` |
 | `node-assignment` | assignment logic, lazy snapshot, ad-hoc nodes |
-| `tag` | CRUD of position/role labels; entity maps to the `positions` table (M:N with Person) |
+| `tag` | CRUD of position/role labels; entity maps to the `positions` table (M:N with Person); `category` field (TRONC/PINYA/ALTRES); person assignment via `POST/DELETE /tags/:id/persons` |
 | `me` | member-scoped API consumed by the PWA (own events/attendance, published segments + projection) |
 | `legal` | legal documents (terms/privacy) + versioning, consent read/accept |
 | `audit` | `AuditLog` entity + service; records sensitive mutations |
