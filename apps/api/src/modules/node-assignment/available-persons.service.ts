@@ -15,6 +15,7 @@ import {
   ConflictPlacement,
   TagCategory,
 } from '@muixer/shared';
+import { applyPositionCategoryFilter } from '../person/utils/position-category-filter.util';
 
 interface AvailablePersonPositionDto {
   id: string;
@@ -128,17 +129,7 @@ export class AvailablePersonsService {
     }
 
     if (positionCategory) {
-      qb.andWhere((qbSub) => {
-        const subQuery = qbSub
-          .subQuery()
-          .select('sub_person2.id')
-          .from(Person, 'sub_person2')
-          .innerJoin('sub_person2.positions', 'sub_position2')
-          .where('sub_position2.category = :positionCategory')
-          .getQuery();
-        return 'person.id IN ' + subQuery;
-      });
-      qb.setParameter('positionCategory', positionCategory);
+      applyPositionCategoryFilter(qb, 'person', [positionCategory]);
     }
 
     if (excludeAssignedBool) {

@@ -210,7 +210,7 @@ describe('AvailablePersonsService', () => {
       });
 
       expect(mockPersonQb.andWhere).toHaveBeenCalledWith(expect.any(Function));
-      expect(mockPersonQb.setParameter).toHaveBeenCalledWith('positionCategory', TagCategory.TRONC);
+      expect(mockPersonQb.setParameter).toHaveBeenCalledWith('positionCategories', [TagCategory.TRONC]);
     });
 
     it('combines positionId and positionCategory as independent AND filters', async () => {
@@ -224,7 +224,7 @@ describe('AvailablePersonsService', () => {
       });
 
       expect(mockPersonQb.setParameter).toHaveBeenCalledWith('positionId', 'pos-agulla');
-      expect(mockPersonQb.setParameter).toHaveBeenCalledWith('positionCategory', TagCategory.TRONC);
+      expect(mockPersonQb.setParameter).toHaveBeenCalledWith('positionCategories', [TagCategory.TRONC]);
       // Both filters combined via separate andWhere calls (neither replaces the other).
       const andWhereFnCalls = mockPersonQb.andWhere.mock.calls.filter(
         (call: unknown[]) => typeof call[0] === 'function',

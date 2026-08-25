@@ -32,6 +32,8 @@ export interface PresetOption {
 
 export interface PositionTypeGroup {
   label: string;
+  /** Which tag category this group is relevant for — drives `visiblePositionTypeGroups`. */
+  category: TagCategory;
   presets: PresetOption[];
 }
 
@@ -64,6 +66,7 @@ export class TagFormModalComponent {
   readonly positionTypeGroups: PositionTypeGroup[] = [
     {
       label: 'Tronc',
+      category: TagCategory.TRONC,
       presets: TRONC_NODE_PRESETS.map((p: TroncNodePreset) => ({
         positionType: p.positionType,
         label: p.label,
@@ -72,6 +75,7 @@ export class TagFormModalComponent {
     },
     {
       label: 'Pinya',
+      category: TagCategory.PINYA,
       presets: PINYA_NODE_PRESETS.map((p: NodePreset) => ({
         positionType: p.positionType as string,
         label: p.label,
@@ -80,6 +84,7 @@ export class TagFormModalComponent {
     },
     {
       label: 'Direcció',
+      category: TagCategory.TRONC,
       presets: DIRECTION_NODE_PRESETS.map((p: NodePreset) => ({
         positionType: p.positionType as string,
         label: p.label,
@@ -88,19 +93,13 @@ export class TagFormModalComponent {
     },
     {
       label: 'Base',
+      category: TagCategory.TRONC,
       presets: [{ positionType: 'base', label: 'Base', color: '#64748b' }],
     },
   ];
 
   readonly categoryOptions = Object.values(TagCategory);
   readonly categoryLabels = TAG_CATEGORY_LABELS;
-
-  // Which position-type groups are relevant for a given tag category (task 1.4 brief).
-  private static readonly GROUP_LABELS_BY_CATEGORY: Record<TagCategory, string[]> = {
-    [TagCategory.TRONC]: ['Tronc', 'Direcció', 'Base'],
-    [TagCategory.PINYA]: ['Pinya'],
-    [TagCategory.ALTRES]: [],
-  };
 
   readonly form = this.fb.group({
     name: ['', Validators.required],
@@ -118,8 +117,7 @@ export class TagFormModalComponent {
   readonly visiblePositionTypeGroups = computed(() => {
     const category = this.categorySignal();
     if (!category) return [];
-    const allowedLabels = TagFormModalComponent.GROUP_LABELS_BY_CATEGORY[category];
-    return this.positionTypeGroups.filter((g) => allowedLabels.includes(g.label));
+    return this.positionTypeGroups.filter((g) => g.category === category);
   });
 
   constructor() {

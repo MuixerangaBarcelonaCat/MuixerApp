@@ -14,6 +14,7 @@ import {
   type PersonSortByField,
   type PersonSortOrder,
 } from './constants/person-sort.constants';
+import { applyPositionCategoryFilter } from './utils/position-category-filter.util';
 
 const PROVISIONAL_PREFIX = '~';
 const MAX_ALIAS_LENGTH = 20;
@@ -79,17 +80,7 @@ export class PersonService {
     }
 
     if (positionCategory && positionCategory.length > 0) {
-      queryBuilder.andWhere((qb) => {
-        const subQuery = qb
-          .subQuery()
-          .select('sub_person_cat.id')
-          .from(Person, 'sub_person_cat')
-          .innerJoin('sub_person_cat.positions', 'sub_position_cat')
-          .where('sub_position_cat.category IN (:...positionCategories)')
-          .getQuery();
-        return 'person.id IN ' + subQuery;
-      });
-      queryBuilder.setParameter('positionCategories', positionCategory);
+      applyPositionCategoryFilter(queryBuilder, 'person', positionCategory);
     }
 
     if (availability !== undefined) {
