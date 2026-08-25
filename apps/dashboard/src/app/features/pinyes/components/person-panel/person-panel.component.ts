@@ -339,7 +339,14 @@ export class PersonPanelComponent {
         // Auto-select the category chip to match the selected node's zone.
         // Left untouched when a node is deselected (nodeId === null), same as Xicalla below.
         // Set before onXicallaChange so the reload it triggers already carries the new category.
-        this.selectedCategory.set(this.categoryForZone(this.selectedNodeZone()));
+        const category = this.categoryForZone(this.selectedNodeZone());
+        this.selectedCategory.set(category);
+        // Same compatibility check as the manual toggle (onCategoryFilterChange): drop a
+        // tag filter that no longer matches the auto-selected category.
+        const tag = this.selectedTag();
+        if (category && tag && tag.category !== category) {
+          this.selectedPositionId.set(null);
+        }
         this.onXicallaChange(this.selectedNodeZone() === FigureZone.TRONC);
       }
     });

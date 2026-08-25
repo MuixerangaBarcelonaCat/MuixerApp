@@ -6,7 +6,7 @@ import { Person } from '../../person/person.entity';
 import { Tag } from '../../tag/tag.entity';
 import { User } from '../../user/user.entity';
 import { PersonDelegate } from '../../person-delegate/person-delegate.entity';
-import { UserRole, DelegateType } from '@muixer/shared';
+import { UserRole, DelegateType, inferTagCategory } from '@muixer/shared';
 import { LegacyApiClient, LegacyPerson } from '../legacy-api.client';
 import { SyncEvent } from '../interfaces/sync-event.interface';
 import { SyncStrategy } from '../interfaces/sync-strategy.interface';
@@ -398,12 +398,14 @@ export class PersonSyncStrategy implements SyncStrategy {
         slug: mapping.slug,
         positionTypes: mapping.positionTypes,
         color: mapping.color,
+        category: inferTagCategory(mapping.positionTypes),
       });
       await this.positionRepository.save(position);
       subscriber.next({ type: 'progress', entity: 'position', message: `Posició creada: ${mapping.name}` });
     } else {
       existing.positionTypes = mapping.positionTypes;
       existing.color = mapping.color;
+      existing.category = inferTagCategory(mapping.positionTypes);
       await this.positionRepository.save(existing);
     }
   }

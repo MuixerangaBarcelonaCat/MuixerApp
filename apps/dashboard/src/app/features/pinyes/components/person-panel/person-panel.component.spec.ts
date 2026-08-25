@@ -528,6 +528,24 @@ describe('PersonPanelComponent', () => {
       expect(lastQuery).toMatchObject({ positionCategory: TagCategory.TRONC });
     });
 
+    it('clears a stale tag filter when auto-selecting an incompatible category on node selection', () => {
+      component.tags.set([
+        { id: 'pinya-tag', name: 'Vent', slug: 'vent', shortDescription: null, longDescription: null, color: '#ff0000', category: TagCategory.PINYA, positionTypes: [], personCount: 0 },
+      ]);
+      component.onPositionFilterChange('pinya-tag');
+      expect(component.selectedPositionId()).toBe('pinya-tag');
+
+      assignmentService.getAvailablePersons.mockClear();
+      fixture.componentRef.setInput('selectedNodeZone', 'TRONC');
+      fixture.componentRef.setInput('selectedNodeId', 'node-1');
+      fixture.detectChanges();
+
+      expect(component.selectedPositionId()).toBeNull();
+      const lastQuery = assignmentService.getAvailablePersons.mock.calls.at(-1)?.[2];
+      expect(lastQuery).not.toHaveProperty('positionId');
+      expect(lastQuery).toMatchObject({ positionCategory: TagCategory.TRONC });
+    });
+
     it('does not overwrite a manual category selection when the node is deselected', () => {
       component.onCategoryFilterChange(TagCategory.PINYA);
       fixture.componentRef.setInput('selectedNodeZone', null);
