@@ -133,6 +133,24 @@ describe('TagDetailComponent', () => {
     expect(toast.error).toHaveBeenCalledWith('No es pot afegir');
   });
 
+  it('shows an error state and never requests persons when the tag fails to load', async () => {
+    tagService.getOne.mockReturnValue(
+      throwError(() => ({ error: { message: 'No trobat' } })),
+    );
+    personService.getAll.mockClear();
+
+    const errorFixture = TestBed.createComponent(TagDetailComponent);
+    errorFixture.detectChanges();
+
+    expect(errorFixture.componentInstance.tagLoadError()).toBe(true);
+    expect(errorFixture.componentInstance.tag()).toBeNull();
+    expect(personService.getAll).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalled();
+
+    const html = errorFixture.nativeElement.textContent as string;
+    expect(html).toContain('Etiqueta no trobada');
+  });
+
   it('opens the edit modal and updates the header on saved without navigating away', () => {
     component.openEditModal();
     expect(component.modalOpen()).toBe(true);

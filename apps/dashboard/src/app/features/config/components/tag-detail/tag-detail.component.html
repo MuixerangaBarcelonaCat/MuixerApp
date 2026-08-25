@@ -2,7 +2,12 @@
 
   <lib-button variant="ghost" size="sm" (clicked)="goBack()">← Etiquetes</lib-button>
 
-  @if (tag(); as t) {
+  @if (tagLoadError()) {
+    <lib-empty-state
+      [icon]="ICON_TAG"
+      message="Etiqueta no trobada."
+    />
+  } @else if (tag(); as t) {
     <app-page-header [title]="t.name">
       <span class="inline-flex items-center gap-2">
         @if (t.color) {
@@ -19,41 +24,41 @@
       </span>
       <lib-button variant="ghost" size="sm" (clicked)="openEditModal()">Edita</lib-button>
     </app-page-header>
-  }
 
-  <!-- Afegir persona -->
-  <div class="max-w-sm">
-    <app-person-search-input
-      placeholder="Cerca persona per afegir..."
-      [excludeIds]="excludeIds()"
-      (selected)="onPersonSelected($event)"
+    <!-- Afegir persona -->
+    <div class="max-w-sm">
+      <app-person-search-input
+        placeholder="Cerca persona per afegir..."
+        [excludeIds]="excludeIds()"
+        (selected)="onPersonSelected($event)"
+      />
+    </div>
+
+    <!-- Llista de persones -->
+    <app-data-table
+      [items]="persons()"
+      [columns]="columns"
+      [loading]="loading()"
+      [rowActions]="rowActions"
     />
-  </div>
 
-  <!-- Llista de persones -->
-  <app-data-table
-    [items]="persons()"
-    [columns]="columns"
-    [loading]="loading()"
-    [rowActions]="rowActions"
-  />
+    @if (!loading() && persons().length === 0) {
+      <lib-empty-state
+        [icon]="ICON_TAG"
+        message="Aquesta etiqueta encara no té cap persona assignada"
+      />
+    }
 
-  @if (!loading() && persons().length === 0) {
-    <lib-empty-state
-      [icon]="ICON_TAG"
-      message="Aquesta etiqueta encara no té cap persona assignada"
-    />
-  }
-
-  @if (total() > limit()) {
-    <app-pagination
-      [page]="page()"
-      [totalItems]="total()"
-      [limit]="limit()"
-      [totalPages]="totalPages()"
-      (pageChange)="onPageChange($event)"
-      (limitChange)="onLimitChange($event)"
-    />
+    @if (total() > limit()) {
+      <app-pagination
+        [page]="page()"
+        [totalItems]="total()"
+        [limit]="limit()"
+        [totalPages]="totalPages()"
+        (pageChange)="onPageChange($event)"
+        (limitChange)="onLimitChange($event)"
+      />
+    }
   }
 
 </div>

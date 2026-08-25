@@ -63,6 +63,7 @@ export class TagDetailComponent {
   readonly modalOpen = signal(false);
   readonly confirmRemoveTarget = signal<Person | null>(null);
   readonly removing = signal(false);
+  readonly tagLoadError = signal(false);
 
   readonly totalPages = computed(() => Math.max(1, Math.ceil(this.total() / this.limit())));
   readonly excludeIds = computed(() => this.persons().map((p) => p.id));
@@ -93,7 +94,6 @@ export class TagDetailComponent {
 
   constructor() {
     this.loadTag();
-    this.loadPersons();
   }
 
   openEditModal(): void {
@@ -113,7 +113,6 @@ export class TagDetailComponent {
     this.tagService.assignPersons(this.tagId, [person.id]).subscribe({
       next: () => {
         this.toast.success(`${person.alias} afegit/da a l'etiqueta.`);
-        this.loadPersons();
         this.loadTag();
       },
       error: (err) => {
@@ -141,7 +140,6 @@ export class TagDetailComponent {
         this.removing.set(false);
         this.confirmRemoveTarget.set(null);
         this.toast.success(`${target.alias} tret/a de l'etiqueta.`);
-        this.loadPersons();
         this.loadTag();
       },
       error: (err) => {
@@ -170,8 +168,14 @@ export class TagDetailComponent {
 
   private loadTag(): void {
     this.tagService.getOne(this.tagId).subscribe({
-      next: (tag) => this.tag.set(tag),
-      error: () => this.toast.error("Error en carregar l'etiqueta."),
+      next: (tag) => {
+        this.tag.set(tag);
+        this.loadPersons();
+      },
+      error: () => {
+        this.tagLoadError.set(true);
+        this.toast.error("Error en carregar l'etiqueta.");
+      },
     });
   }
 
