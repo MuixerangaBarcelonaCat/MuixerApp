@@ -4,6 +4,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import { Router } from '@angular/router';
 import { TagService } from '../../services/tag.service';
 import { TagWithCount } from '../../models/tag.model';
 import { ButtonComponent, BadgeComponent, EmptyStateComponent, ModalComponent, ToastService } from '@muixer/ui';
@@ -41,6 +42,7 @@ const CATEGORY_ORDER: Record<TagCategory, number> = {
 export class TagsListComponent {
   private readonly tagService = inject(TagService);
   private readonly toast = inject(ToastService);
+  private readonly router = inject(Router);
 
   readonly ICON_TAG = DOMAIN_ICONS.TAG;
   readonly categoryLabels = TAG_CATEGORY_LABELS;
@@ -64,6 +66,10 @@ export class TagsListComponent {
 
   constructor() {
     this.loadTags();
+  }
+
+  onRowClick(tag: TagWithCount): void {
+    this.router.navigate(['/config/tags', tag.id]);
   }
 
   openCreateModal(): void {

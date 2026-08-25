@@ -1,0 +1,84 @@
+<div class="space-y-4">
+
+  <lib-button variant="ghost" size="sm" (clicked)="goBack()">← Etiquetes</lib-button>
+
+  @if (tag(); as t) {
+    <app-page-header [title]="t.name">
+      <span class="inline-flex items-center gap-2">
+        @if (t.color) {
+          <span class="w-2 h-2 rounded-full" [style.background]="t.color"></span>
+        } @else {
+          <span class="w-2 h-2 rounded-full bg-base-300"></span>
+        }
+        <lib-badge size="sm">{{ categoryLabels[t.category] }}</lib-badge>
+        @for (pt of t.positionTypes; track pt) {
+          @let meta = positionTypeMeta[pt];
+          <lib-badge size="sm" [color]="meta?.color ?? '#64748b'">{{ meta?.label ?? pt }}</lib-badge>
+        }
+        <lib-badge variant="neutral" size="sm">{{ t.personCount }} persones</lib-badge>
+      </span>
+      <lib-button variant="ghost" size="sm" (clicked)="openEditModal()">Edita</lib-button>
+    </app-page-header>
+  }
+
+  <!-- Afegir persona -->
+  <div class="max-w-sm">
+    <app-person-search-input
+      placeholder="Cerca persona per afegir..."
+      [excludeIds]="excludeIds()"
+      (selected)="onPersonSelected($event)"
+    />
+  </div>
+
+  <!-- Llista de persones -->
+  <app-data-table
+    [items]="persons()"
+    [columns]="columns"
+    [loading]="loading()"
+    [rowActions]="rowActions"
+  />
+
+  @if (!loading() && persons().length === 0) {
+    <lib-empty-state
+      [icon]="ICON_TAG"
+      message="Aquesta etiqueta encara no té cap persona assignada"
+    />
+  }
+
+  @if (total() > limit()) {
+    <app-pagination
+      [page]="page()"
+      [totalItems]="total()"
+      [limit]="limit()"
+      [totalPages]="totalPages()"
+      (pageChange)="onPageChange($event)"
+      (limitChange)="onLimitChange($event)"
+    />
+  }
+
+</div>
+
+<!-- Modal: Editar etiqueta -->
+@if (modalOpen()) {
+  <app-tag-form-modal
+    [position]="tag()"
+    (saved)="onModalSaved($event)"
+    (cancelled)="onModalCancelled()"
+  />
+}
+
+<!-- Modal: Confirmar treure persona -->
+<lib-modal [open]="!!confirmRemoveTarget()" title="Treure persona" size="sm" (closed)="cancelRemove()">
+  @if (confirmRemoveTarget(); as target) {
+    <p class="text-sm">
+      Segur que voleu treure <strong>{{ target.alias }}</strong> d'aquesta etiqueta?
+    </p>
+  }
+
+  <div modalFooter>
+    <lib-button variant="ghost" size="sm" (clicked)="cancelRemove()">Cancel·la</lib-button>
+    <lib-button variant="error" size="sm" [disabled]="removing()" [loading]="removing()" (clicked)="executeRemove()">
+      Treu
+    </lib-button>
+  </div>
+</lib-modal>

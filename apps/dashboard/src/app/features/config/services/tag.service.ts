@@ -28,4 +28,12 @@ export class TagService extends ApiService {
   remove(id: string): Observable<void> {
     return this.delete<void>(`/tags/${id}`);
   }
+
+  assignPersons(tagId: string, personIds: string[]): Observable<void> {
+    return this.post<void>(`/tags/${tagId}/persons`, { personIds });
+  }
+
+  unassignPerson(tagId: string, personId: string): Observable<void> {
+    return this.delete<void>(`/tags/${tagId}/persons/${personId}`);
+  }
 }

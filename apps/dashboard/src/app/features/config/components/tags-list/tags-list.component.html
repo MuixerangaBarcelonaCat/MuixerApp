@@ -34,7 +34,7 @@
           }
         } @else {
           @for (pos of tags(); track pos.id) {
-            <tr class="hover">
+            <tr class="hover cursor-pointer" (click)="onRowClick(pos)">
               <td>
                 @if (pos.color) {
                   <span
@@ -62,7 +62,7 @@
                 }
               </td>
               <td class="text-right tabular-nums">{{ pos.personCount }}</td>
-              <td>
+              <td (click)="$event.stopPropagation()">
                 <div class="flex gap-1">
                   <lib-button
                     variant="ghost"
