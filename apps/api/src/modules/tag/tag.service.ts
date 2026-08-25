@@ -76,18 +76,21 @@ export class TagService {
   async assignPersons(tagId: string, personIds: string[]): Promise<void> {
     await this.findOne(tagId);
 
-    const found = await this.personRepository.findBy({ id: In(personIds) });
-    if (found.length !== personIds.length) {
+    const uniqueIds = [...new Set(personIds)];
+    const found = await this.personRepository.findBy({ id: In(uniqueIds) });
+    if (found.length !== uniqueIds.length) {
       throw new NotFoundException("Alguna de les persones indicades no existeix.");
     }
 
     // ponytail: row-per-value INSERT, fine at this batch size (form-driven assignment, not bulk import)
-    await Promise.all(
-      personIds.map((personId) =>
-        this.tagRepository.query(
-          `INSERT INTO person_positions ("personsId", "positionsId") VALUES ($1, $2)
-           ON CONFLICT DO NOTHING`,
-          [personId, tagId],
+    await this.tagRepository.manager.transaction((manager) =>
+      Promise.all(
+        uniqueIds.map((personId) =>
+          manager.query(
+            `INSERT INTO person_positions ("personsId", "positionsId") VALUES ($1, $2)
+             ON CONFLICT DO NOTHING`,
+            [personId, tagId],
+          ),
         ),
       ),
     );

@@ -14,7 +14,8 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, RefreshCw, ChevronDown, ChevronUp, UserX } from 'lucide-angular';
-import { DIRECTION_ZONES, FigureZone, SHOULDER_HEIGHT_BASELINE_CM, TAG_CATEGORY_LABELS, TagCategory } from '@muixer/shared';
+import { ButtonComponent, ButtonGroupComponent } from '@muixer/ui';
+import { areaForZone, DIRECTION_ZONES, FigureZone, SHOULDER_HEIGHT_BASELINE_CM, TAG_CATEGORY_LABELS, TagCategory } from '@muixer/shared';
 import { NodeAssignmentService } from '../../services/node-assignment.service';
 import { AssignmentStateService } from '../../services/assignment-state.service';
 import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
@@ -32,7 +33,7 @@ interface PersonSearchResult {
   selector: 'app-person-panel',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideAngularModule, PersonHoverCardComponent],
+  imports: [FormsModule, LucideAngularModule, PersonHoverCardComponent, ButtonComponent, ButtonGroupComponent],
   templateUrl: './person-panel.component.html',
 })
 export class PersonPanelComponent {
@@ -364,8 +365,9 @@ export class PersonPanelComponent {
 
   /** TRONC/BASE → TRONC category; PINYA → PINYA category; direction/decoration zones → none. */
   private categoryForZone(zone: string | null): TagCategory | null {
-    if (zone === FigureZone.TRONC || zone === FigureZone.BASE) return TagCategory.TRONC;
-    if (zone === FigureZone.PINYA) return TagCategory.PINYA;
+    const area = zone ? areaForZone(zone as FigureZone) : null;
+    if (area === 'TRONC') return TagCategory.TRONC;
+    if (area === 'PINYA') return TagCategory.PINYA;
     return null;
   }
 

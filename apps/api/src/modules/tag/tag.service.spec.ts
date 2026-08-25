@@ -34,6 +34,8 @@ const mockQb = {
   getRawAndEntities: jest.fn(),
 };
 
+const mockQuery = jest.fn();
+
 const mockRepo = {
   find: jest.fn(),
   findOne: jest.fn(),
@@ -41,8 +43,13 @@ const mockRepo = {
   save: jest.fn(),
   update: jest.fn(),
   delete: jest.fn(),
-  query: jest.fn(),
+  query: mockQuery,
   createQueryBuilder: jest.fn().mockReturnValue(mockQb),
+  manager: {
+    transaction: jest.fn((cb: (manager: { query: typeof mockQuery }) => unknown) =>
+      cb({ query: mockQuery }),
+    ),
+  },
 };
 
 const mockPersonRepo = {
@@ -259,6 +266,16 @@ describe('TagService', () => {
       await service.assignPersons(TAG_ID, personIds);
 
       expect(mockRepo.query).toHaveBeenCalledTimes(4);
+    });
+
+    it('dedupes duplicate personIds instead of throwing a false NotFoundException', async () => {
+      mockRepo.findOne.mockResolvedValue(makeTag());
+      mockPersonRepo.findBy.mockResolvedValue([{ id: 'person-1' }]);
+      mockRepo.query.mockResolvedValue(undefined);
+
+      await service.assignPersons(TAG_ID, ['person-1', 'person-1']);
+
+      expect(mockRepo.query).toHaveBeenCalledTimes(1);
     });
 
     it('throws NotFoundException when tag does not exist', async () => {

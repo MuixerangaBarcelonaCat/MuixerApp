@@ -103,9 +103,7 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
   readonly DOMAIN_ICONS = DOMAIN_ICONS;
   readonly SearchIcon = Search;
   readonly TAG_CATEGORY_LABELS = TAG_CATEGORY_LABELS;
-  /** ALTRES tags never get their own column (they don't split tronc/pinya), so the filter
-   *  only offers the two categories that actually change what's shown. */
-  readonly filterableCategories: TagCategory[] = [TagCategory.TRONC, TagCategory.PINYA];
+  readonly filterableCategories: TagCategory[] = [TagCategory.TRONC, TagCategory.PINYA, TagCategory.ALTRES];
 
   private readonly participationService = inject(ParticipationService);
   private readonly router = inject(Router);
@@ -316,6 +314,15 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
         type: 'colorBadges',
         colorBadges: (r) => r.positions
           .filter((p) => p.category === TagCategory.PINYA)
+          .map((p) => ({ text: p.name, color: p.color ?? '#888' })),
+      },
+      {
+        key: 'tagsAltres',
+        label: 'Altres',
+        defaultVisible: false,
+        type: 'colorBadges',
+        colorBadges: (r) => r.positions
+          .filter((p) => p.category === TagCategory.ALTRES)
           .map((p) => ({ text: p.name, color: p.color ?? '#888' })),
       },
       {

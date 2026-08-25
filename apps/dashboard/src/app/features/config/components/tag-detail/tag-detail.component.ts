@@ -113,7 +113,8 @@ export class TagDetailComponent {
     this.tagService.assignPersons(this.tagId, [person.id]).subscribe({
       next: () => {
         this.toast.success(`${person.alias} afegit/da a l'etiqueta.`);
-        this.loadTag();
+        this.bumpPersonCount(1);
+        this.loadPersons();
       },
       error: (err) => {
         const msg = err?.error?.message ?? "Error en afegir la persona a l'etiqueta.";
@@ -140,7 +141,8 @@ export class TagDetailComponent {
         this.removing.set(false);
         this.confirmRemoveTarget.set(null);
         this.toast.success(`${target.alias} tret/a de l'etiqueta.`);
-        this.loadTag();
+        this.bumpPersonCount(-1);
+        this.loadPersons();
       },
       error: (err) => {
         this.removing.set(false);
@@ -164,6 +166,11 @@ export class TagDetailComponent {
 
   goBack(): void {
     this.router.navigate(['/config/tags']);
+  }
+
+  private bumpPersonCount(delta: number): void {
+    const tag = this.tag();
+    if (tag) this.tag.set({ ...tag, personCount: tag.personCount + delta });
   }
 
   private loadTag(): void {

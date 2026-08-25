@@ -130,22 +130,26 @@
       </label>
 
       <div class="flex items-center gap-1">
-        <button
-          type="button"
-          class="btn btn-xs"
-          [class.btn-primary]="selectedCategory() === TagCategory.TRONC"
-          [class.btn-outline]="selectedCategory() !== TagCategory.TRONC"
-          data-testid="category-filter-tronc"
-          (click)="onCategoryFilterChange(selectedCategory() === TagCategory.TRONC ? null : TagCategory.TRONC)"
-        >{{ TAG_CATEGORY_LABELS[TagCategory.TRONC] }}</button>
-        <button
-          type="button"
-          class="btn btn-xs"
-          [class.btn-primary]="selectedCategory() === TagCategory.PINYA"
-          [class.btn-outline]="selectedCategory() !== TagCategory.PINYA"
-          data-testid="category-filter-pinya"
-          (click)="onCategoryFilterChange(selectedCategory() === TagCategory.PINYA ? null : TagCategory.PINYA)"
-        >{{ TAG_CATEGORY_LABELS[TagCategory.PINYA] }}</button>
+        <lib-button-group>
+          <lib-button
+            joinItem
+            outlineMode
+            variant="primary"
+            size="sm"
+            [active]="selectedCategory() === TagCategory.TRONC"
+            data-testid="category-filter-tronc"
+            (clicked)="onCategoryFilterChange(selectedCategory() === TagCategory.TRONC ? null : TagCategory.TRONC)"
+          >{{ TAG_CATEGORY_LABELS[TagCategory.TRONC] }}</lib-button>
+          <lib-button
+            joinItem
+            outlineMode
+            variant="primary"
+            size="sm"
+            [active]="selectedCategory() === TagCategory.PINYA"
+            data-testid="category-filter-pinya"
+            (clicked)="onCategoryFilterChange(selectedCategory() === TagCategory.PINYA ? null : TagCategory.PINYA)"
+          >{{ TAG_CATEGORY_LABELS[TagCategory.PINYA] }}</lib-button>
+        </lib-button-group>
         @if (selectedCategory()) {
           <button
             type="button"
