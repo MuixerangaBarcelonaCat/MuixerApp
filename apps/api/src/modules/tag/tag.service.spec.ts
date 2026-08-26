@@ -135,6 +135,16 @@ describe('TagService', () => {
       });
     });
 
+    it('filters by the XICALLA group', async () => {
+      mockQb.getRawAndEntities.mockResolvedValue({ entities: [], raw: [] });
+
+      await service.findAll({ category: [TagCategory.XICALLA] });
+
+      expect(mockQb.andWhere).toHaveBeenCalledWith('tag.category IN (:...categories)', {
+        categories: [TagCategory.XICALLA],
+      });
+    });
+
     it('does not filter when no category is provided', async () => {
       mockQb.getRawAndEntities.mockResolvedValue({ entities: [], raw: [] });
 

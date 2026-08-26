@@ -206,11 +206,27 @@ describe('AvailablePersonsService', () => {
       mockPersonQb.getMany.mockResolvedValue([]);
 
       await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, {
-        positionCategory: TagCategory.TRONC,
+        positionCategory: [TagCategory.TRONC],
       });
 
       expect(mockPersonQb.andWhere).toHaveBeenCalledWith(expect.any(Function));
       expect(mockPersonQb.setParameter).toHaveBeenCalledWith('positionCategories', [TagCategory.TRONC]);
+    });
+
+    it('filters by multiple positionCategory values at once', async () => {
+      mockEventRepo.findOne.mockResolvedValueOnce(makeEvent()).mockResolvedValue(null);
+      mockSegmentRepo.findOne.mockResolvedValue(makeSegment());
+      mockPersonQb.getMany.mockResolvedValue([]);
+
+      await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, {
+        positionCategory: [TagCategory.PINYA, TagCategory.ALTRES],
+      });
+
+      expect(mockPersonQb.andWhere).toHaveBeenCalledWith(expect.any(Function));
+      expect(mockPersonQb.setParameter).toHaveBeenCalledWith('positionCategories', [
+        TagCategory.PINYA,
+        TagCategory.ALTRES,
+      ]);
     });
 
     it('combines positionId and positionCategory as independent AND filters', async () => {
@@ -220,7 +236,7 @@ describe('AvailablePersonsService', () => {
 
       await service.getAvailablePersons(EVENT_ID, SEGMENT_ID, {
         positionId: 'pos-agulla',
-        positionCategory: TagCategory.TRONC,
+        positionCategory: [TagCategory.TRONC],
       });
 
       expect(mockPersonQb.setParameter).toHaveBeenCalledWith('positionId', 'pos-agulla');

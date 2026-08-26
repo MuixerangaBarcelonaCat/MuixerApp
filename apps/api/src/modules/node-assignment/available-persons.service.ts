@@ -50,7 +50,7 @@ export interface AvailablePersonsQuery {
   isXicalla?: boolean;
   excludeAssigned?: boolean;
   positionId?: string;
-  positionCategory?: TagCategory;
+  positionCategory?: TagCategory[];
 }
 
 @Injectable()
@@ -128,8 +128,8 @@ export class AvailablePersonsService {
       qb.setParameter('positionId', positionId);
     }
 
-    if (positionCategory) {
-      applyPositionCategoryFilter(qb, 'person', [positionCategory]);
+    if (positionCategory && positionCategory.length > 0) {
+      applyPositionCategoryFilter(qb, 'person', positionCategory);
     }
 
     if (excludeAssignedBool) {
