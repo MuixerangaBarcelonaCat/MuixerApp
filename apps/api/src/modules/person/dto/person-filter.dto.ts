@@ -27,6 +27,11 @@ export class PersonFilterDto {
   @IsEnum(TagCategory, { each: true })
   positionCategory?: TagCategory[];
 
+  @ApiPropertyOptional({ description: 'Filtrar per compliment de la regla mínima d\'etiquetatge' })
+  @IsOptional()
+  @Transform(toBool)
+  tagRuleOk?: boolean;
+
   @ApiPropertyOptional({ description: 'Filtrar per disponibilitat del membre', enum: AvailabilityStatus })
   @IsEnum(AvailabilityStatus)
   @IsOptional()

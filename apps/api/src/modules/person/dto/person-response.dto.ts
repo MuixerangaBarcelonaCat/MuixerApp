@@ -1,5 +1,12 @@
-import { Exclude, Expose, Type } from 'class-transformer';
-import { AvailabilityStatus, Gender, OnboardingStatus, TagCategory } from '@muixer/shared';
+import { Exclude, Expose, Transform, Type } from 'class-transformer';
+import {
+  AvailabilityStatus,
+  Gender,
+  OnboardingStatus,
+  TagCategory,
+  TagCompliance,
+  evaluateTagCompliance,
+} from '@muixer/shared';
 
 class PositionResponseDto {
   @Expose()
@@ -93,6 +100,20 @@ export class PersonResponseDto {
   @Expose()
   @Type(() => PositionResponseDto)
   positions: PositionResponseDto[];
+
+  /** Avís, mai una validació: alimenta un badge i el filtre `tagRuleOk`. */
+  @Expose()
+  @Transform(({ obj }) =>
+    evaluateTagCompliance(
+      ((obj.positions ?? []) as { category: TagCategory }[]).map((p) => p.category),
+    ),
+  )
+  tagCompliance: TagCompliance;
+
+  /** Assistències `ASSISTIT` de la temporada en curs; només la llista paginada el resol. */
+  @Expose()
+  @Transform(({ obj }) => obj.attendedCount ?? 0)
+  attendedCount: number;
 
   @Expose()
   @Type(() => PersonSelfUserDto)
