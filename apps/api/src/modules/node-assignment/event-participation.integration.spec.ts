@@ -179,8 +179,11 @@ describe('EventParticipationService (integration)', () => {
     await assign(figB.instance, figB.nodes[0], p1, segB);
 
     const tagRepo = db.dataSource.getRepository(Tag);
-    const tag1 = await tagRepo.save({ name: 'Baix', slug: `baix-${shortId()}`, category: TagCategory.ALTRES } as unknown as Tag);
-    const tag2 = await tagRepo.save({ name: 'Crossa', slug: `crossa-${shortId()}`, category: TagCategory.ALTRES } as unknown as Tag);
+    // "TestBaix"/"TestCrossa": deliberately not catalog names (see the TagCatalog
+    // migration) — `positions.name` is unique, so a real catalog word here would
+    // collide with the seeded production data.
+    const tag1 = await tagRepo.save({ name: 'TestBaix', slug: `baix-${shortId()}`, category: TagCategory.ALTRES } as unknown as Tag);
+    const tag2 = await tagRepo.save({ name: 'TestCrossa', slug: `crossa-${shortId()}`, category: TagCategory.ALTRES } as unknown as Tag);
     p1.positions = [tag1, tag2];
     await db.dataSource.getRepository(Person).save(p1);
 
@@ -230,7 +233,7 @@ describe('EventParticipationService (integration)', () => {
     expect(p1.placementCount).toBe(2);
     // Two placements x two tags would yield 4 rows if `positions` were joined into Q2.
     expect(p1.positions).toHaveLength(2);
-    expect(p1.positions.map((t) => t.name)).toEqual(['Baix', 'Crossa']);
+    expect(p1.positions.map((t) => t.name)).toEqual(['TestBaix', 'TestCrossa']);
   });
 
   it('keeps a declined person, a never-asked person and a soft-deleted one, all flagged as data', async () => {

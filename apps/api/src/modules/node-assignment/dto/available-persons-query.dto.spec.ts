@@ -31,11 +31,25 @@ describe('AvailablePersonsQueryDto', () => {
     expect(errors).toHaveLength(0);
   });
 
-  it('accepts a valid positionCategory value', async () => {
+  it('wraps a single positionCategory query value into a one-element array', async () => {
     const dto = plainToInstance(AvailablePersonsQueryDto, { positionCategory: TagCategory.TRONC });
     const errors = await validate(dto);
     expect(errors).toHaveLength(0);
-    expect(dto.positionCategory).toBe(TagCategory.TRONC);
+    expect(dto.positionCategory).toEqual([TagCategory.TRONC]);
+  });
+
+  it('keeps several positionCategory query values as an array', async () => {
+    const dto = plainToInstance(AvailablePersonsQueryDto, {
+      positionCategory: [TagCategory.TRONC, TagCategory.PINYA],
+    });
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(0);
+    expect(dto.positionCategory).toEqual([TagCategory.TRONC, TagCategory.PINYA]);
+  });
+
+  it('leaves positionCategory undefined when the query param is absent', () => {
+    const dto = plainToInstance(AvailablePersonsQueryDto, {});
+    expect(dto.positionCategory).toBeUndefined();
   });
 
   it('rejects an invalid positionCategory value', async () => {
