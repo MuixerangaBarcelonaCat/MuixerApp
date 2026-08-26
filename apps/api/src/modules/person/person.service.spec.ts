@@ -4,8 +4,10 @@ import { Repository, In } from 'typeorm';
 import { PersonService } from './person.service';
 import { Person } from './person.entity';
 import { Tag } from '../tag/tag.entity';
+import { CreatePersonDto } from './dto/create-person.dto';
 import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PersonDelegateService } from '../person-delegate/person-delegate.service';
+import { TagCategory } from '@muixer/shared';
 
 describe('PersonService', () => {
   let service: PersonService;
@@ -35,6 +37,7 @@ describe('PersonService', () => {
 
   const mockPositionRepository = {
     findBy: jest.fn(),
+    findOne: jest.fn(),
   };
 
   const mockPersonDelegateService = {
@@ -188,6 +191,36 @@ describe('PersonService', () => {
 
       await expect(service.create(createDto)).rejects.toThrow(NotFoundException);
       expect(mockPersonRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('assigna «Persona Nova» quan no ve cap etiqueta de xicalla ni d\'altres', async () => {
+      const personaNova = { id: 'tag-nova', slug: 'persona-nova', category: TagCategory.PINYA } as Tag;
+      mockPositionRepository.findOne.mockResolvedValue(personaNova);
+      mockPersonRepository.create.mockImplementation((data) => data as Person);
+      mockPersonRepository.save.mockImplementation(async (person) => person as Person);
+
+      await service.create({ name: 'Nova', firstSurname: 'Persona', alias: 'nova' } as CreatePersonDto);
+
+      const saved = mockPersonRepository.save.mock.calls[0][0] as Person;
+      expect(saved.positions).toEqual([personaNova]);
+    });
+
+    it('no assigna cap etiqueta per defecte si ja en ve una de xicalla', async () => {
+      const xicalla = { id: 'tag-xicalla', slug: 'xicalla', category: TagCategory.XICALLA } as Tag;
+      mockPositionRepository.findBy.mockResolvedValue([xicalla]);
+      mockPersonRepository.create.mockImplementation((data) => data as Person);
+      mockPersonRepository.save.mockImplementation(async (person) => person as Person);
+
+      await service.create({
+        name: 'Menuda',
+        firstSurname: 'Colla',
+        alias: 'menuda',
+        positionIds: ['tag-xicalla'],
+      } as CreatePersonDto);
+
+      const saved = mockPersonRepository.save.mock.calls[0][0] as Person;
+      expect(saved.positions).toEqual([xicalla]);
+      expect(mockPositionRepository.findOne).not.toHaveBeenCalled();
     });
   });
 

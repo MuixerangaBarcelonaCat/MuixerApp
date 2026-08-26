@@ -15,9 +15,11 @@ import {
   type PersonSortOrder,
 } from './constants/person-sort.constants';
 import { applyPositionCategoryFilter } from './utils/position-category-filter.util';
+import { TagCategory } from '@muixer/shared';
 
 const PROVISIONAL_PREFIX = '~';
 const MAX_ALIAS_LENGTH = 20;
+const DEFAULT_TAG_SLUG = 'persona-nova';
 
 @Injectable()
 export class PersonService {
@@ -169,6 +171,21 @@ export class PersonService {
 
     if (positionIds && positionIds.length > 0) {
       person.positions = await this.findPositionsOrThrow(positionIds);
+    }
+
+    // Regla mínima d'etiquetatge: qui no és de xicalla ni d'«altres» entra com a persona nova,
+    // perquè la tècnica puga fer-ne el seguiment fins que se li puga assignar una posició.
+    const categories = (person.positions ?? []).map((tag) => tag.category);
+    const needsDefault =
+      !categories.includes(TagCategory.XICALLA) && !categories.includes(TagCategory.ALTRES);
+
+    if (needsDefault) {
+      const defaultTag = await this.positionRepository.findOne({
+        where: { slug: DEFAULT_TAG_SLUG },
+      });
+      if (defaultTag) {
+        person.positions = [...(person.positions ?? []), defaultTag];
+      }
     }
 
     if (mentorId) {
