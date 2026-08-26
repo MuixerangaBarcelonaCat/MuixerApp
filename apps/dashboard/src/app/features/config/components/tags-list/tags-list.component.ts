@@ -20,10 +20,10 @@ import {
 } from '@muixer/shared';
 
 const CATEGORY_ORDER: Record<TagCategory, number> = {
-  [TagCategory.TRONC]: 0,
-  [TagCategory.PINYA]: 1,
+  [TagCategory.PINYA]: 0,
+  [TagCategory.TRONC]: 1,
   [TagCategory.XICALLA]: 2,
-  [TagCategory.ALTRES]: 2,
+  [TagCategory.ALTRES]: 3,
 };
 
 @Component({
@@ -123,15 +123,18 @@ export class TagsListComponent {
     });
   }
 
+  sortedTags(tags: TagWithCount[]): TagWithCount[] {
+    return [...tags].sort((a, b) => {
+      const catDiff = CATEGORY_ORDER[a.category] - CATEGORY_ORDER[b.category];
+      return catDiff !== 0 ? catDiff : a.name.localeCompare(b.name);
+    });
+  }
+
   private loadTags(): void {
     this.loading.set(true);
     this.tagService.getAll().subscribe({
       next: (tags) => {
-        const sorted = [...tags].sort((a, b) => {
-          const catDiff = CATEGORY_ORDER[a.category] - CATEGORY_ORDER[b.category];
-          return catDiff !== 0 ? catDiff : a.name.localeCompare(b.name);
-        });
-        this.tags.set(sorted);
+        this.tags.set(this.sortedTags(tags));
         this.loading.set(false);
       },
       error: () => {

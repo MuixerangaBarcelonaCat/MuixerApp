@@ -62,4 +62,20 @@ describe('TagsListComponent', () => {
     component.onRowClick(mockTag());
     expect(router.navigate).toHaveBeenCalledWith(['/config/tags', 't1']);
   });
+
+  it('ordena els grups pinya, tronc, xicalla i altres', () => {
+    const ordered = component.sortedTags([
+      mockTag({ category: TagCategory.ALTRES, name: 'Acompanyant' }),
+      mockTag({ category: TagCategory.XICALLA, name: 'Xicalla' }),
+      mockTag({ category: TagCategory.TRONC, name: 'Segona' }),
+      mockTag({ category: TagCategory.PINYA, name: 'Mans' }),
+    ]);
+
+    expect(ordered.map((tag) => tag.category)).toEqual([
+      TagCategory.PINYA,
+      TagCategory.TRONC,
+      TagCategory.XICALLA,
+      TagCategory.ALTRES,
+    ]);
+  });
 });

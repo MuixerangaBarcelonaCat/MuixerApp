@@ -65,6 +65,11 @@ describe('TagFormModalComponent', () => {
       expect(component.visiblePositionTypeGroups()).toEqual([]);
     });
 
+    it('no ofereix cap grup de positionTypes per a xicalla', () => {
+      component.form.get('category')!.setValue(TagCategory.XICALLA);
+      expect(component.visiblePositionTypeGroups()).toEqual([]);
+    });
+
     it('drops selected position types that belong to now-hidden groups when category changes', () => {
       component.form.get('category')!.setValue(TagCategory.TRONC);
       component.selectedPositionTypes.set(['base']);
