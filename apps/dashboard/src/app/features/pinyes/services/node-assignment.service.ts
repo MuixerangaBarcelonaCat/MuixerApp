@@ -2,6 +2,7 @@ import { AssignmentDetail, AvailablePerson, AvailablePersonsQuery, BulkImportPay
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
+import { buildHttpParams } from '../../../core/utils/http-params.util';
 
 @Injectable({
   providedIn: 'root',
@@ -72,9 +73,7 @@ export class NodeAssignmentService extends ApiService {
     segmentId: string,
     query: AvailablePersonsQuery = {},
   ): Observable<{ data: AvailablePerson[] }> {
-    const params = Object.entries(query)
-      .filter(([, v]) => v !== undefined)
-      .reduce<Record<string, string>>((acc, [k, v]) => ({ ...acc, [k]: String(v) }), {});
+    const params = buildHttpParams(query);
     return this.get<{ data: AvailablePerson[] }>(
       `/events/${eventId}/segments/${segmentId}/available-persons`,
       { params },

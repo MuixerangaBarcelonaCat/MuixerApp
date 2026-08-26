@@ -1,4 +1,4 @@
-import { AssignmentArea, AvailablePerson, AssignmentDetail, ConflictPlacement, HeightMode, PersonHoverInfo, isConfirmedAttendance, PersonHoverCardComponent } from '@muixer/pinyes-render';
+import { AssignmentArea, AvailablePerson, AvailablePersonsQuery, AssignmentDetail, ConflictPlacement, HeightMode, PersonHoverInfo, isConfirmedAttendance, PersonHoverCardComponent } from '@muixer/pinyes-render';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -398,22 +398,23 @@ export class PersonPanelComponent {
 
   loadPersons(): void {
     this.loading.set(true);
-    const query: Record<string, any> = {
+    const query: AvailablePersonsQuery = {
       excludeAssigned: false,
     };
     const sortMode = this.heightSortMode();
     if (sortMode !== null) {
       const heightValue = sortMode === 'max' ? 1000 : -1000;
-      query['height'] = this.heightMode() === 'relative' ? SHOULDER_HEIGHT_BASELINE_CM + heightValue : heightValue;
+      query.height = this.heightMode() === 'relative' ? SHOULDER_HEIGHT_BASELINE_CM + heightValue : heightValue;
     } else if (this.height() !== null) {
       const heightValue = this.height()!;
       const absoluteHeight = this.heightMode() === 'relative' ? SHOULDER_HEIGHT_BASELINE_CM + heightValue : heightValue;
-      query['height'] = absoluteHeight;
+      query.height = absoluteHeight;
     }
-    if (!this.showXicalla()) query['isXicalla'] = false;
-    if (this.selectedPositionId()) query['positionId'] = this.selectedPositionId();
+    if (!this.showXicalla()) query.isXicalla = false;
+    const positionId = this.selectedPositionId();
+    if (positionId) query.positionId = positionId;
     const categories = this.selectedCategories();
-    if (categories.length > 0) query['positionCategory'] = categories;
+    if (categories.length > 0) query.positionCategory = categories;
 
     this.assignmentService
       .getAvailablePersons(this.eventId(), this.segmentId(), query)

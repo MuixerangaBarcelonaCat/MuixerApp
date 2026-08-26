@@ -49,10 +49,15 @@ export class TagCatalog1784700000000 implements MigrationInterface {
     for (const tag of CATALOG) {
       // `name` is unique too: free the name if a hand-made tag under another slug holds it,
       // otherwise the upsert below aborts the whole migration with a 23505.
-      await queryRunner.query(
-        `UPDATE "positions" SET name = name || ' (antiga)' WHERE name = $1 AND slug <> $2`,
+      // The postgres driver returns `[rows, affectedRowCount]` for a non-SELECT query with
+      // RETURNING, not the rows array directly.
+      const [renamedRows] = await queryRunner.query(
+        `UPDATE "positions" SET name = name || ' (antiga)' WHERE name = $1 AND slug <> $2 RETURNING slug, name`,
         [tag.name, tag.slug],
       );
+      for (const row of renamedRows as { slug: string; name: string }[]) {
+        console.log(`[TagCatalog] renamed colliding tag slug=${row.slug} to name="${row.name}"`);
+      }
 
       await queryRunner.query(
         `INSERT INTO "positions" (name, slug, "positionTypes", color, category)

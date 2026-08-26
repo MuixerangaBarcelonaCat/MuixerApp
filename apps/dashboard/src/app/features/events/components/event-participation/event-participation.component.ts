@@ -104,7 +104,6 @@ export class EventParticipationComponent implements OnInit, OnDestroy {
   readonly CONFLICT_GLYPH = CONFLICT_GLYPH;
   readonly DOMAIN_ICONS = DOMAIN_ICONS;
   readonly SearchIcon = Search;
-  readonly TAG_CATEGORY_LABELS = TAG_CATEGORY_LABELS;
 
   private readonly participationService = inject(ParticipationService);
   private readonly router = inject(Router);

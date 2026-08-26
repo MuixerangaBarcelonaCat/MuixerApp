@@ -29,7 +29,7 @@ const GROUP_ORDER: readonly TagCategory[] = [TagCategory.PINYA, TagCategory.TRON
         }
       </lib-button-group>
 
-      <span class="divider divider-horizontal mx-0"></span>
+      <span class="divider divider-horizontal mx-0" aria-hidden="true"></span>
 
       <lib-button-group>
         @for (group of groups; track group) {

@@ -36,6 +36,12 @@ tags: [qa]
 | SEC6 | `audit_logs` no té cron de retenció/neteja (creix indefinidament) | Definir període (p. ex. 1-2 anys) i afegir un cron com el que ja neteja `refresh_tokens` |
 | SEC7 | `AuditAction.SENSITIVE_DATA_EXPORT` definit a l'enum però sense cap punt de crida | No hi ha encara cap endpoint d'exportació de PII de `persons`; registrar-lo quan n'hi haja un |
 
+## Backend
+
+| # | Ítem | On | Notes |
+|---|------|-----|-------|
+| B1 | Q4 (`resolveNextPerformance`/`loadNextPerformanceAttendance`) usa SQL cru amb `dataSource.query` en lloc de `EventService`/`AttendanceService` | `event-participation.service.ts` | Decisió conscient: `EventService.findAll` filtra data amb `>=` (Q4a necessita `>` estricte) i sempre fa `leftJoinAndSelect('season')` + una consulta extra de resum de segments; `AttendanceService.findByEvent` no filtra per llista de `personId` (només per `positionIds`, etiquetes) i sempre fa join amb `person`+`positions`. Adaptar-los tocaria DTOs/lògica compartida per altres endpoints a canvi de cap guany real |
+
 ## Frontend
 
 | # | Ítem | On | Notes |
