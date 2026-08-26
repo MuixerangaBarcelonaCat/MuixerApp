@@ -65,7 +65,7 @@ const DOC_HINTS = {
   event: ['DATA_MODEL'],
   season: ['DATA_MODEL'],
   user: ['DATA_MODEL'],
-  tag: ['DATA_MODEL'],
+  tag: ['TAGS', 'DATA_MODEL'],
   database: ['DATA_MODEL'],
   legal: ['GDPR_COMPLIANCE'],
   audit: ['GDPR_COMPLIANCE'],

@@ -83,12 +83,12 @@ Modules under `src/modules/`:
 | `composition` | `Composition` + `CompositionEntry` |
 | `event-segment` | `EventSegment`, `FigureInstance`, `InstanceNode`, distribution, `ProjectionService` |
 | `node-assignment` | assignment logic, lazy snapshot, ad-hoc nodes |
-| `tag` | CRUD of position/role labels; entity maps to the `positions` table (M:N with Person); `category` field (TRONC/PINYA/ALTRES); person assignment via `POST/DELETE /tags/:id/persons` |
+| `tag` | CRUD of person labels; entity maps to the legacy-named `positions` table (M:N with Person via `person_positions`); `category` **is the group** (PINYA/TRONC/XICALLA/ALTRES); person assignment via `POST/DELETE /tags/:id/persons`. `positionTypes` points at figure-node `positionType`s with no FK, no validation and no server-side filtering — see [docs/TAGS.md](docs/TAGS.md) |
 | `me` | member-scoped API consumed by the PWA (own events/attendance, published segments + projection) |
 | `legal` | legal documents (terms/privacy) + versioning, consent read/accept |
 | `audit` | `AuditLog` entity + service; records sensitive mutations |
 | `mail` | `MailService` + provider abstraction; used by `auth` for password reset (invites still don't email — see Authentication) |
-| `sync` | SSE strategy pattern for legacy data import |
+| `sync` | SSE strategy pattern for legacy data import; imports no tags at all — only `Person.isXicalla` is still derived from the legacy `posicio` field |
 | `push-notification` | Web Push (VAPID) notifications: `PushSubscription` entity, provider abstraction (`console` dev / `web-push` prod via `PUSH_PROVIDER` env), `PushSubscriptionService` (register/unsubscribe/status, max 10/user), `PushNotificationService` (send with target resolution: ALL/EVENT_ATTENDANCE/PERSON, async via `push.requested` event), `PushNotificationCronService` (scheduled news push, stale sub cleanup). Controllers: `me/push-subscriptions` (MEMBER+) + `notifications` (TECHNICAL/ADMIN) + `push-subscriptions/summary`. Requires `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` env vars. |
 
 **TypeORM conventions:** UUID primary keys · `createdAt`/`updatedAt` always present · soft delete = `isActive: boolean` (not `@DeleteDateColumn`) · enums imported from `@muixer/shared` · table names plural snake_case.
@@ -173,7 +173,7 @@ Source of truth: `apps/api/src/modules/database/entities.ts`. Full entity/field 
 
 Core entities: User, Person, PersonDelegate, Tag, Season, Event, Attendance, RefreshToken, FigureTemplate, FigureNode, Rengla, Composition, CompositionEntry, EventSegment, FigureInstance, InstanceNode, NodeAssignment, LegalDocument, AuditLog.
 
-**Enums (`@muixer/shared`):** `UserRole` · `AttendanceStatus` (PENDENT/ANIRE/NO_VAIG/ASSISTIT) · `AvailabilityStatus` · `OnboardingStatus` · `EventType` (ASSAIG/ACTUACIO) · `FigureMode` (COMPLETA/PEU/REMAT/NETA) · `FigureZone` · `NodeShape` · `Gender` · `ClientType` (dashboard/pwa) · `SegmentMoveConflictResolution`.
+**Enums (`@muixer/shared`):** `UserRole` · `AttendanceStatus` (PENDENT/ANIRE/NO_VAIG/ASSISTIT) · `AvailabilityStatus` · `OnboardingStatus` · `EventType` (ASSAIG/ACTUACIO) · `FigureMode` (COMPLETA/PEU/REMAT/NETA) · `FigureZone` · `NodeShape` · `TagCategory` (PINYA/TRONC/XICALLA/ALTRES) · `Gender` · `ClientType` (dashboard/pwa) · `SegmentMoveConflictResolution`.
 
 ## Authentication
 
