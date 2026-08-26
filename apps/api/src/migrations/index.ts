@@ -42,6 +42,7 @@ import { CreateNews1784300000000 } from './1784300000000-CreateNews';
 import { CreatePushSubscriptions1784400000000 } from './1784400000000-CreatePushSubscriptions';
 import { AddPushFieldsToNews1784500000000 } from './1784500000000-AddPushFieldsToNews';
 import { TagCategory1784600000000 } from './1784600000000-TagCategory';
+import { TagCatalog1784700000000 } from './1784700000000-TagCatalog';
 
 export const migrations: (new () => MigrationInterface)[] = [
   InitialSchema1748600000000,
@@ -87,4 +88,5 @@ export const migrations: (new () => MigrationInterface)[] = [
   CreatePushSubscriptions1784400000000,
   AddPushFieldsToNews1784500000000,
   TagCategory1784600000000,
+  TagCatalog1784700000000,
 ];

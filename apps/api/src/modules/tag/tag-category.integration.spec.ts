@@ -15,6 +15,8 @@ describe('Tag category migration (integration)', () => {
     // Revert the TagCategory migration to simulate the pre-migration schema, insert rows the
     // way legacy data would look (no category column yet), then re-run the migration so its
     // backfill logic runs against real pre-existing rows.
+    // Dues migracions enrere: primer TagCatalog, després TagCategory (la que estem provant).
+    await db.dataSource.undoLastMigration();
     await db.dataSource.undoLastMigration();
 
     await db.dataSource.query(
