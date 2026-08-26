@@ -1,6 +1,7 @@
 import {
   Component,
   ChangeDetectionStrategy,
+  computed,
   inject,
   signal,
 } from '@angular/core';
@@ -11,6 +12,7 @@ import { ButtonComponent, BadgeComponent, EmptyStateComponent, ModalComponent, T
 import { PageHeaderComponent } from '../../../../shared/components/data/page-header/page-header.component';
 import { DOMAIN_ICONS } from '../../../../shared/constants/domain-icons';
 import { TagFormModalComponent } from '../tag-form-modal/tag-form-modal.component';
+import { TagViewFilterComponent } from '../../../../shared/components/data/tag-view-filter/tag-view-filter.component';
 import {
   TRONC_NODE_PRESETS,
   PINYA_NODE_PRESETS,
@@ -33,6 +35,7 @@ const CATEGORY_ORDER: Record<TagCategory, number> = {
   imports: [
     PageHeaderComponent,
     TagFormModalComponent,
+    TagViewFilterComponent,
     ButtonComponent,
     BadgeComponent,
     EmptyStateComponent,
@@ -54,6 +57,13 @@ export class TagsListComponent {
   readonly selectedTag = signal<TagWithCount | null>(null);
   readonly confirmDeleteTarget = signal<TagWithCount | null>(null);
   readonly deleting = signal(false);
+  readonly selectedGroups = signal<TagCategory[]>([]);
+
+  readonly visibleTags = computed(() => {
+    const groups = this.selectedGroups();
+    const tags = this.tags();
+    return groups.length ? tags.filter((tag) => groups.includes(tag.category)) : tags;
+  });
 
   readonly positionTypeMeta: Record<string, { label: string; color: string }> = [
     ...TRONC_NODE_PRESETS.map((p) => ({ positionType: p.positionType, label: p.label, color: p.color })),

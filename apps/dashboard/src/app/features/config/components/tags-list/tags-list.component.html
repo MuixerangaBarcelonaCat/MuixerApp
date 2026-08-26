@@ -1,11 +1,14 @@
 <div class="space-y-4">
 
   <!-- Capçalera -->
-  <app-page-header title="Etiquetes" [count]="tags().length">
+  <app-page-header title="Etiquetes" [count]="visibleTags().length">
     <lib-button variant="primary" size="sm" (clicked)="openCreateModal()">
       Etiqueta nova
     </lib-button>
   </app-page-header>
+
+  <!-- Filtre per grups -->
+  <app-tag-view-filter [selected]="selectedGroups()" (selectedChange)="selectedGroups.set($event)" />
 
   <!-- Taula -->
   <div class="overflow-x-auto">
@@ -33,7 +36,7 @@
             </tr>
           }
         } @else {
-          @for (pos of tags(); track pos.id) {
+          @for (pos of visibleTags(); track pos.id) {
             <tr class="hover cursor-pointer" (click)="onRowClick(pos)">
               <td>
                 @if (pos.color) {
