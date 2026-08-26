@@ -5,7 +5,7 @@ import { PersonSyncStrategy } from './person-sync.strategy';
 import { LegacyApiClient, LegacyPerson } from '../legacy-api.client';
 import { Person } from '../../person/person.entity';
 import { Tag } from '../../tag/tag.entity';
-import { AvailabilityStatus, OnboardingStatus, DelegateType, TagCategory } from '@muixer/shared';
+import { AvailabilityStatus, OnboardingStatus, DelegateType } from '@muixer/shared';
 import { User } from '../../user/user.entity';
 import { PersonDelegate } from '../../person-delegate/person-delegate.entity';
 
@@ -151,9 +151,6 @@ describe('PersonSyncStrategy', () => {
     it('emits start → progress* → complete on successful sync', (done) => {
       legacyApiClient.login.mockResolvedValue();
       legacyApiClient.getCastellers.mockResolvedValue([mockLegacyPerson]);
-      positionRepository.findOne.mockResolvedValue(null);
-      positionRepository.create.mockReturnValue({} as Tag);
-      positionRepository.save.mockResolvedValue({} as Tag);
       personRepository.findOne.mockResolvedValue(null);
       personRepository.create.mockReturnValue({} as Person);
       personRepository.save.mockResolvedValue({} as Person);
@@ -203,52 +200,44 @@ describe('PersonSyncStrategy', () => {
     });
   });
 
-  // ─── Position/Tag category derivation ───────────────────────────────────────
+  // ─── Tag import disconnection ────────────────────────────────────────────────
 
-  describe('upsertPosition() category derivation', () => {
-    it('sets category on a newly created Tag from positionTypes (PRIMERES → mans → PINYA)', (done) => {
-      legacyApiClient.login.mockResolvedValue();
-      legacyApiClient.getCastellers.mockResolvedValue([mockLegacyPerson]);
-      positionRepository.findOne.mockResolvedValue(null);
-      positionRepository.create.mockReturnValue({} as Tag);
-      positionRepository.save.mockResolvedValue({} as Tag);
-      personRepository.findOne.mockResolvedValue(null);
-      personRepository.create.mockReturnValue({} as Person);
-      personRepository.save.mockResolvedValue({} as Person);
+  function legacyPersonFixture(overrides: Partial<LegacyPerson> = {}): LegacyPerson {
+    return { ...mockLegacyPerson, ...overrides };
+  }
 
-      strategy.execute().subscribe({
-        complete: () => {
-          expect(positionRepository.create).toHaveBeenCalledWith(
-            expect.objectContaining({ positionTypes: ['mans'], category: TagCategory.PINYA }),
-          );
-          done();
-        },
-      });
+  async function runSync(persons: LegacyPerson[]): Promise<void> {
+    legacyApiClient.login.mockResolvedValue();
+    legacyApiClient.getCastellers.mockResolvedValue(persons);
+    personRepository.findOne.mockResolvedValue(null);
+    personRepository.create.mockImplementation((d) => d as Person);
+    personRepository.save.mockResolvedValue({} as Person);
+
+    await new Promise<void>((resolve) => {
+      strategy.execute().subscribe({ complete: () => resolve() });
+    });
+  }
+
+  describe('tag import disconnection', () => {
+    it('no crea ni actualitza cap etiqueta durant el sync', async () => {
+      await runSync([legacyPersonFixture({ posicio: 'PRIMERES+CANALLA' })]);
+
+      expect(positionRepository.save).not.toHaveBeenCalled();
+      expect(positionRepository.create).not.toHaveBeenCalled();
     });
 
-    it('recomputes category on an existing Tag when re-synced', (done) => {
-      legacyApiClient.login.mockResolvedValue();
-      legacyApiClient.getCastellers.mockResolvedValue([mockLegacyPerson]);
-      const existingTag: Tag = {
-        id: 'tag-1',
-        slug: 'mans',
-        positionTypes: ['mans'],
-        category: TagCategory.ALTRES, // stale category, should be recomputed on re-sync
-      } as Tag;
-      positionRepository.findOne.mockResolvedValue(existingTag);
-      positionRepository.save.mockImplementation((t) => Promise.resolve(t as Tag));
-      personRepository.findOne.mockResolvedValue(null);
-      personRepository.create.mockReturnValue({} as Person);
-      personRepository.save.mockResolvedValue({} as Person);
+    it('crea la persona sense assignar-li etiquetes', async () => {
+      await runSync([legacyPersonFixture({ posicio: 'PRIMERES' })]);
 
-      strategy.execute().subscribe({
-        complete: () => {
-          expect(positionRepository.save).toHaveBeenCalledWith(
-            expect.objectContaining({ positionTypes: ['mans'], category: TagCategory.PINYA }),
-          );
-          done();
-        },
-      });
+      const created = personRepository.create.mock.calls[0][0];
+      expect(created.positions).toBeUndefined();
+    });
+
+    it('segueix derivant isXicalla de la posició legacy', async () => {
+      await runSync([legacyPersonFixture({ posicio: 'CANALLA' })]);
+
+      const created = personRepository.create.mock.calls[0][0];
+      expect(created.isXicalla).toBe(true);
     });
   });
 
@@ -258,9 +247,6 @@ describe('PersonSyncStrategy', () => {
     it('maps all legacy fields correctly', (done) => {
       legacyApiClient.login.mockResolvedValue();
       legacyApiClient.getCastellers.mockResolvedValue([mockLegacyPerson]);
-      positionRepository.findOne.mockResolvedValue(null);
-      positionRepository.create.mockReturnValue({} as Tag);
-      positionRepository.save.mockResolvedValue({} as Tag);
       personRepository.findOne.mockResolvedValue(null);
       personRepository.create.mockImplementation((d) => d as Person);
       personRepository.save.mockResolvedValue({} as Person);

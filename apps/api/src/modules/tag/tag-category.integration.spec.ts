@@ -3,8 +3,8 @@ import { IntegrationDb, setupIntegrationDb, teardownIntegrationDb } from '../../
 
 /**
  * Regression for the `category` backfill migration: existing rows (inserted before the column
- * existed) must all end up with a non-null category, classified the same way as
- * `inferTagCategory` — pinya-only → PINYA, tronc-only → TRONC, empty/mixed → ALTRES.
+ * existed) must all end up with a non-null category, classified the same way the migration's
+ * own backfill logic does — pinya-only → PINYA, tronc-only → TRONC, empty/mixed → ALTRES.
  */
 describe('Tag category migration (integration)', () => {
   let db: IntegrationDb;

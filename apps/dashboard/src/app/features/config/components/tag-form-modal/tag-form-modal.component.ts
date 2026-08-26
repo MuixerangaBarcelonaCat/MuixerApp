@@ -18,6 +18,7 @@ import {
   NodePreset,
   TagCategory,
   TAG_CATEGORY_LABELS,
+  BASE_POSITION_TYPE,
 } from '@muixer/shared';
 import { TagService } from '../../services/tag.service';
 import { TagWithCount, CreateTagDto, UpdateTagDto } from '../../models/tag.model';
@@ -94,7 +95,7 @@ export class TagFormModalComponent {
     {
       label: 'Base',
       category: TagCategory.TRONC,
-      presets: [{ positionType: 'base', label: 'Base', color: '#64748b' }],
+      presets: [{ positionType: BASE_POSITION_TYPE, label: 'Base', color: '#64748b' }],
     },
   ];
 
