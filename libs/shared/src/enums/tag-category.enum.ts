@@ -1,11 +1,13 @@
 /**
- * Categoria d'una etiqueta (Tag), derivada dels positionTypes que agrupa.
- * - TRONC: posicions de tronc, direccions i base
+ * Grup d'una etiqueta (Tag). Els quatre grups amb què treballa l'equip tècnic.
  * - PINYA: posicions de pinya
- * - ALTRES: sense positionTypes, barreja de categories, o positionType desconegut
+ * - TRONC: posicions de tronc, direccions i base
+ * - XICALLA: xicalla i xiquets/es de la colla
+ * - ALTRES: la resta (acompanyants, fem pinya, imatge i paradeta)
  */
 export enum TagCategory {
   TRONC = 'TRONC',
   PINYA = 'PINYA',
+  XICALLA = 'XICALLA',
   ALTRES = 'ALTRES',
 }

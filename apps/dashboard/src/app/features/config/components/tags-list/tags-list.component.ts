@@ -22,6 +22,7 @@ import {
 const CATEGORY_ORDER: Record<TagCategory, number> = {
   [TagCategory.TRONC]: 0,
   [TagCategory.PINYA]: 1,
+  [TagCategory.XICALLA]: 2,
   [TagCategory.ALTRES]: 2,
 };
 
