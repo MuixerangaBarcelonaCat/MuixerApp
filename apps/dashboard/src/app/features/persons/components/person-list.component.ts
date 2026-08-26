@@ -2,7 +2,7 @@ import { Component, ChangeDetectionStrategy, computed, inject, signal, viewChild
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { LucideAngularModule, UserPlus, Link, Search } from 'lucide-angular';
-import { ButtonComponent, ButtonGroupComponent, EmptyStateComponent, FormFieldComponent, InputComponent, SelectComponent } from '@muixer/ui';
+import { ButtonComponent, ButtonGroupComponent, EmptyStateComponent, FormFieldComponent, InputComponent, SelectComponent, badgeClasses } from '@muixer/ui';
 import { DOMAIN_ICONS } from '../../../shared/constants/domain-icons';
 import { PersonService } from '../services/person.service';
 import { Person, Position, PersonFilterParams, PersonSortOrder } from '../models/person.model';
@@ -456,11 +456,13 @@ export class PersonListComponent {
         onColorBadgeClick: (id: string) => this.togglePosition(id),
       }),
       ...(col.key === 'alias' && {
-        // Matches lib-badge's own `variant="warning" size="sm"` output classes — a real
-        // lib-badge can't be projected into the shared, per-cell generic table rendering.
+        // A real lib-badge can't be projected into the shared, per-cell generic table rendering,
+        // so this builds the same classes via badgeClasses() (single source of truth with
+        // BadgeComponent) instead of a hardcoded lib-badge-shaped string. Rides on the `alias`
+        // column: hiding that column via the column toggle also hides this warning.
         prefix: (person: Person) =>
           person.tagCompliance && !person.tagCompliance.ok
-            ? { text: 'Sense etiquetar', class: 'badge badge-warning badge-sm mr-1 align-middle', title: this.missingTagsLabel(person.tagCompliance) }
+            ? { text: 'Sense etiquetar', class: `${badgeClasses('warning', 'sm')} mr-1 align-middle`, title: this.missingTagsLabel(person.tagCompliance) }
             : null,
       }),
     }))
